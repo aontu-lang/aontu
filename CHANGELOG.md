@@ -1250,7 +1250,7 @@ each(d, _)      the element is the child             members as a list
 `_` was already the language's word for "the value here"; mentioning
 it keeps the source child, leaving it out replaces it. The idiom is
 documented under "The `_ & …` idiom" in
-[`docs/reference-language.md`](docs/reference-language.md).
+[`docs/reference-generation.md`](docs/reference-generation.md).
 
 Both ports refuse `form` with `unknown_function`.
 
@@ -2219,8 +2219,8 @@ not, and the two read a substitution template differently. 99 shared
 rows in `test/spec/str.tsv`, five codes — `esc_variant`,
 `usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep` — the four
 published grammars, the LSP, and a
-[Text](docs/reference-language.md#text-esc-usc-rep-split) section in the
-language reference. Both implementations.
+[Text](docs/reference-functions.md#text-esc-usc-rep-split) section in the
+functions reference. Both implementations.
 
 
 ### `emit`: apply-templates as an engine builtin
@@ -2247,7 +2247,7 @@ selection, which is finite and already in the model.
 
 Six codes: `emit_data`, `emit_table`, `emit_template`, `emit_body`,
 `emit_none`, `emit_ref`. `test/spec/gen-emit.tsv`, the reference's
-[Transforming](docs/reference-language.md#transforming-emit) section, and
+[Transforming](docs/reference-generation.md#transforming-emit) section, and
 the four published grammars. Both implementations.
 
 ### A generator whose data is a hole is filled by its peer

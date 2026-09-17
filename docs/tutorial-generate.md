@@ -402,12 +402,12 @@ that follow are what else the model should hold:
   output](how-to/keep-schema-out-of-output.md) for the helper fields a
   generator needs and a file does not.
 - The rules in full:
-  [transforming with `emit`](reference-language.md#transforming-emit)
+  [transforming with `emit`](reference-generation.md#transforming-emit)
   for dispatch order, splicing and recursion,
-  [`each`](reference-language.md#each-the-order-preserving-map) and its
+  [`each`](reference-generation.md#each-the-order-preserving-map) and its
   `_ & …` idiom, and
-  [generation](reference-language.md#generation) for the ten component
-  functions and what each node means for the output.
+  [the component tree](reference-generation.md#the-component-tree) for
+  the ten component functions and what each node means for the output.
   [`aontu trace`](reference-api.md#aontu-trace) is specified with the
   other verbs.
 - The live version: three targets in one document, committed goldens,

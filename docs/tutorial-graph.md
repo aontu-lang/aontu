@@ -231,7 +231,7 @@ The `feeds?:` line is now the entire relation: checked addresses,
 endpoint type, naming rule, acyclicity, inverse. During unification
 the atoms only *register* the declaration: one more edge can flip
 either property, so the verdict waits for generation, where every
-edge is known ([the rule](reference-language.md#declared-relations)).
+edge is known ([the rule](reference-functions.md#declared-relations)).
 And `inverse(fedBy)` checks the mirror rather than writing it for
 you, so the data states both directions, in `pipeline.aon`:
 
@@ -559,8 +559,8 @@ of questions to have asked about payments and ledger before 04:11.
   [define a recursive schema](how-to/define-a-recursive-schema.md).
 - The rules in full:
   [linking](reference-language.md#linking-the-tree-is-the-namespace),
-  [checked links](reference-language.md#checked-links-refert),
-  [declared relations](reference-language.md#declared-relations),
+  [checked links](reference-functions.md#checked-links-refert),
+  [declared relations](reference-functions.md#declared-relations),
   [recursive references](reference-language.md#recursive-references-fixpoints).
 - Why a checked link refuses where `owl:sameAs` silently merged, and why
   the graph checks are verbs: the [explanation](explanation.md).

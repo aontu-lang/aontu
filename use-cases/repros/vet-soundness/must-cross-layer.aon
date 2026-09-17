@@ -10,7 +10,7 @@
 # arriving from the vet data document (or an @ include) is never
 # checked. The schema LOOKS guarded and is not.
 # expected: verdict: invalid, exit 1 with the author message "session
-#           too long" (reference-language.md "Band B: must": "residuates
+#           too long" (reference-functions.md "Band B: must": "residuates
 #           until its peer is concrete, then requires the peer to unify
 #           with c"; the same two lines in one document refuse t: 120
 #           with [aontu/must], exit 1)

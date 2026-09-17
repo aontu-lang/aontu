@@ -91,7 +91,7 @@ What exists is a solid substrate, and most of it is reusable:
   (ts/src/lang.ts) mapped `upper`, `lower`, `copy`, `key`,
   `type`, `hide`, `move`, `path`, `pref`, `close`, `open`, `super` to
   Val classes. There are no user-defined functions
-  (docs/reference-language.md). Adding a combinator is adding a class
+  (docs/reference-functions.md). Adding a combinator is adding a class
   and one `funcMap` entry — no grammar change.
 - **Functions already defer.** `FuncBaseVal.unify`
   (ts/src/val/FuncBaseVal.ts) unifies its arguments each fixpoint

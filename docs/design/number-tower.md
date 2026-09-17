@@ -751,7 +751,7 @@ were written in; the amendments record where the plan met the code.
   only under a narrowed leaf, since `neq` excludes by scalar
   identity), the endpoint-leaf canon rule, and the lazy-endpoint /
   eager-emptiness ruling are in
-  [`docs/reference-language.md`](../reference-language.md#the-constraint-algebra),
+  [`docs/reference-functions.md`](../reference-functions.md#the-constraint-algebra),
   "The constraint algebra"; the once-drafted rows are promoted —
   `test/spec/constraint-*.tsv` (the draft directory now holds only
   its README).
