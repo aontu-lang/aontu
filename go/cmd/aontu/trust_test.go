@@ -50,6 +50,80 @@ func trustRun(args ...string) (string, string, int) {
 	return out.String(), errw.String(), code
 }
 
+var trustSubcommandFirst = map[string][]string{"model": {"get"}}
+
+// Measured, not listed, and remembered inside a run.
+var trustRefusers []string
+
+func trustRefusingVerbs() []string {
+	if nil != trustRefusers {
+		return trustRefusers
+	}
+	out := []string{}
+	for _, verb := range knownVerbs {
+		args := append([]string{verb}, trustSubcommandFirst[verb]...)
+		args = append(args, "--trust", "bogus")
+		_, errText, _ := trustRun(args...)
+		if !strings.Contains(errText, "--trust needs") {
+			out = append(out, verb)
+		}
+	}
+	trustRefusers = out
+	return out
+}
+
+// The verbs that TAKE the flags and whose answer neither flag can
+// change from the command line. `why` and `remove` read the manifest
+// and evaluate no document; `add`, `get` and `publish` refuse before
+// any module is evaluated, so confining one needs a served registry.
+// Each was measured. The twin list is in ts/test/trust.test.ts.
+var trustNothingToConfine = []string{"add", "get", "publish", "remove", "why"}
+
+// A verb in none of these fails here.
+func trustPartition(t *testing.T, exercised map[string]bool) {
+	t.Helper()
+	got := append([]string{}, trustRefusingVerbs()...)
+	got = append(got, trustNothingToConfine...)
+	for verb := range exercised {
+		got = append(got, verb)
+	}
+	want := append([]string{}, knownVerbs...)
+	sort.Strings(got)
+	sort.Strings(want)
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("every verb is a refuser, has nothing to confine, or is "+
+			"exercised: %v against %v", got, want)
+	}
+}
+
+// A project whose VENDORED dependency carries the include under test.
+// The package verbs evaluate a module's document, and an include in
+// `pkg.aon` is not resolved at all, so the manifest gives the
+// capability nothing to confine.
+func trustPkgProject(t *testing.T, include string) string {
+	t.Helper()
+	dir := t.TempDir()
+	store := filepath.Join(
+		dir, "aontu_meta", "vendor", "corp.example", "schemas", "service")
+	if err := os.MkdirAll(store, 0o700); nil != err {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		filepath.Join(dir, "pkg.aon"): "pkg: {path: \"corp.example/app\"}\n" +
+			"dep: {\"corp.example/schemas/service\": {v: \"1.0.0\"}}\n",
+		filepath.Join(store, "pkg.aon"): "pkg: {path: " +
+			"\"corp.example/schemas/service\", main: \"service.aon\"}\n",
+		filepath.Join(store, "doc.md"):      "# hi\n",
+		filepath.Join(store, "service.aon"): include + "\nname: string\n",
+	}
+	for at, src := range files {
+		if err := os.WriteFile(at, []byte(src), 0o600); nil != err {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
 func TestTrustCliNoneDenies(t *testing.T) {
 	_, _, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
@@ -150,8 +224,10 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	overlay := filepath.Join(root, "overlay.aon")
 	write(overlay, "")
 
+	seen := map[string]bool{}
 	denied := func(args ...string) {
 		t.Helper()
+		seen[args[0]] = true
 		openOut, openErr, openCode := trustRun(args...)
 		at := verbEnd(args)
 		shutArgs := append(append(append([]string{}, args[:at]...), "--trust", "none"), args[at:]...)
@@ -183,6 +259,40 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	denied("hash", entry)
 	denied("agentsmd", entry)
 	denied("model", "set", "$.z=1", "--entry", entry, "--overlay", overlay)
+
+	gen := filepath.Join(root, "gen.aon")
+	write(gen, `@"`+srcPath(dir)+`/secret.aon"`+
+		"\nout: file({ name: \"o.txt\" }, [\"x\"])\n")
+	// A profile is the document `fmt` and `template` evaluate; neither
+	// resolves an include in the file it rewrites.
+	profile := filepath.Join(root, "prof.aon")
+	write(profile, `@"`+srcPath(dir)+`/secret.aon"`+"\naontu: { Lang: {} }\n")
+	generator := filepath.Join(root, "gen.ts")
+	write(generator, "//- x: 1\nhello\n")
+
+	denied("trace", entry)
+	denied("render", gen, filepath.Join(dir, "out"))
+	denied("fmt", entry, "--profile", profile)
+	denied("template", generator, "--profile", profile)
+
+	// The package verbs take a fresh project each run, because they
+	// write a lockfile the next run would read.
+	escape := `@"` + srcPath(dir) + `/secret.aon"`
+	for _, args := range [][]string{{"sync"}, {"pkg", "tidy"}} {
+		seen[args[0]] = true
+		openOut, _, _ := trustRun(
+			append(append([]string{}, args...), trustPkgProject(t, escape))...)
+		shutOut, _, _ := trustRun(append(append(append([]string{}, args...),
+			trustPkgProject(t, escape)), "--trust", "none")...)
+		if !strings.Contains(openOut, "verdict: ok") {
+			t.Fatalf("%s: %q", strings.Join(args, " "), openOut)
+		}
+		if !strings.Contains(shutOut, "does not evaluate on its own") {
+			t.Fatalf("%s under --trust none: %q", strings.Join(args, " "), shutOut)
+		}
+	}
+
+	trustPartition(t, seen)
 }
 
 func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
@@ -205,8 +315,10 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 			strings.Contains(s, "include not readable")
 	}
 
+	seen := map[string]bool{}
 	both := func(args ...string) {
 		t.Helper()
+		seen[args[0]] = true
 		bareOut, bareErr, _ := trustRun(args...)
 		if !refused(bareOut + bareErr) {
 			t.Fatalf("read the include with no flag: %s",
@@ -237,6 +349,7 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 		{"subsume", schema, entry},
 		{"breaking", "--against", entry, entry},
 	} {
+		seen[args[0]] = true
 		bareOut, _, _ := trustRun(args...)
 		if !strings.Contains(bareOut, "verdict: error") {
 			t.Fatalf("read the include with no flag: %s",
@@ -264,6 +377,36 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 	if b, err := os.ReadFile(overlay); nil != err || "\"z\": 1\n" != string(b) {
 		t.Fatalf("set overlay: %q %v", string(b), err)
 	}
+
+	gen := filepath.Join(dir, "gen.aon")
+	write(gen, "doc: @\"./doc.md\"\nout: file({ name: \"o.txt\" }, [\"x\"])\n")
+	profile := filepath.Join(dir, "prof.aon")
+	write(profile, "doc: @\"./doc.md\"\naontu: { Lang: {} }\n")
+	generator := filepath.Join(dir, "gen.ts")
+	write(generator, "//- x: 1\nhello\n")
+
+	both("trace", entry)
+	both("render", gen, filepath.Join(dir, "out"))
+	both("fmt", entry, "--profile", profile)
+	both("template", generator, "--profile", profile)
+
+	// The package verbs read a MODULE's document, so the extension
+	// that has to be readable is one inside the closure.
+	for _, args := range [][]string{{"sync"}, {"pkg", "tidy"}} {
+		seen[args[0]] = true
+		bareOut, _, _ := trustRun(append(append([]string{}, args...),
+			trustPkgProject(t, "doc: @\"./doc.md\""))...)
+		wideOut, _, _ := trustRun(append(append(append([]string{}, args...),
+			trustPkgProject(t, "doc: @\"./doc.md\"")), "--text-ext", "md")...)
+		if !strings.Contains(bareOut, "does not evaluate on its own") {
+			t.Fatalf("%s with no flag: %q", strings.Join(args, " "), bareOut)
+		}
+		if !strings.Contains(wideOut, "verdict: ok") {
+			t.Fatalf("%s dropped --text-ext: %q", strings.Join(args, " "), wideOut)
+		}
+	}
+
+	trustPartition(t, seen)
 }
 
 // --include-root confines a verb to a directory, the CLI's own root:
@@ -397,6 +540,29 @@ func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 			t.Fatalf("%s: stderr %q", tail[0], errText)
 		}
 	}
+
+	// EVERY verb, from this port's own list rather than named here: a
+	// flag-taker answers the usage error and exits 2, and a refuser
+	// does not, which is the partition the help is held to. No
+	// arguments are needed, because the flags are stripped before a
+	// verb parses its tail.
+	refuses := map[string]bool{}
+	for _, verb := range trustRefusingVerbs() {
+		refuses[verb] = true
+	}
+	for _, verb := range knownVerbs {
+		args := append([]string{verb}, trustSubcommandFirst[verb]...)
+		_, errText, code := trustRun(append(args, "--trust")...)
+		if refuses[verb] {
+			if strings.Contains(errText, "--trust needs") {
+				t.Fatalf("%s: a refuser answered about the value: %q", verb, errText)
+			}
+			continue
+		}
+		if 2 != code || !strings.Contains(errText, "--trust needs") {
+			t.Fatalf("%s: code %d, stderr %q", verb, code, errText)
+		}
+	}
 }
 
 // verbEnd is where a flag goes: after the subverb of a two-word verb.
@@ -424,20 +590,13 @@ func TestTrustHelpNamesEveryVerbThatRefusesTheCapability(t *testing.T) {
 		t.Fatal("the --trust entry moved: this test reads it by that clause")
 	}
 
-	subcommandFirst := map[string][]string{"model": {"get"}}
-	refuses, named := []string{}, []string{}
+	named := []string{}
 	for _, verb := range knownVerbs {
-		args := append([]string{verb}, subcommandFirst[verb]...)
-		args = append(args, "--trust", "bogus")
-		var out, errw bytes.Buffer
-		run(args, strings.NewReader(""), &out, &errw, false)
-		if !strings.Contains(errw.String(), "--trust needs") {
-			refuses = append(refuses, verb)
-		}
 		if regexp.MustCompile(`\b` + verb + `\b`).MatchString(entry) {
 			named = append(named, verb)
 		}
 	}
+	refuses := append([]string{}, trustRefusingVerbs()...)
 	sort.Strings(refuses)
 	sort.Strings(named)
 	if strings.Join(named, ",") != strings.Join(refuses, ",") {

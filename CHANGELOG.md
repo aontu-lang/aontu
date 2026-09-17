@@ -10,6 +10,47 @@ which implementation each change affects.
 Landed since the last release, and in the repository rather than in a
 published package.
 
+### The trust cases cover every verb, and derive which those are
+
+**"Every verb honours the capability" was a hand-written list of
+thirteen, against a CLI of twenty-eight.** Three cases in
+`ts/test/trust.test.ts` and their Go twins named their verbs inline, so
+the claim in each name was an aspiration and nothing could tell when a
+verb was added without one. The verbs they missed were not obscure:
+`trace`, `render`, `fmt`, `template` and `allow` all change their
+answer under `--trust none`, and so do `sync` and `pkg`.
+
+All three now read the CLI's own `KNOWN_VERBS` and assert a
+**partition** of it: a verb refuses the flags (`help`, `explain`,
+`init`, `lsp` and `mcp`, the set the help's own clause is held to), or
+has nothing for them to confine, or is exercised — and the exercised
+set is collected from the invocations as they run, so it cannot drift
+from what was actually asserted. A verb added without a case fails.
+
+Two findings came out of building it, both measured against the built
+binaries rather than read off the plumbing. **`fmt` and `template`
+confine the `--profile` document**, not the file they rewrite, which is
+the only document either evaluates. And **an include in `pkg.aon` is
+not resolved at all** — a nonexistent one raises nothing — so what the
+package verbs confine is a *module's* own document: the case now
+vendors a dependency whose main document carries the escape, and `sync`
+and `pkg tidy` answer `verdict: ok` with a pin under the default and
+`does not evaluate on its own` under `--trust none`.
+
+Five verbs stay out, with the reason in the test rather than left to
+inference: `why` and `remove` answer from the manifest and evaluate no
+document, and `add`, `get` and `publish` refuse before any module is
+read, so confining one needs the served registry `pkgnet.test.ts`
+builds.
+
+`every-verb-refuses-a-bad-spelling` needs no list at all: the flags are
+stripped before a verb parses its tail, so every verb answers the usage
+error with no arguments, and the case now sweeps the whole set.
+
+The names stay as they are, because they are now true of what the tests
+prove. Both partitions were confirmed to fail with a single verb's
+assertion removed, naming that verb.
+
 ### An empty include root denies, and the MCP server refuses one
 
 **`aontu mcp --root ""` served the working directory.** The server's
@@ -2674,7 +2715,9 @@ engine. It is now one case per verb in both ports
 (`every-verb-honours-the-text-extensions`), each asserted twice — the
 verb refuses the include with no flag, and does not refuse it with the
 flag — because an assertion that the flag works, on a verb that never
-reads the include at all, passes for the wrong reason. The capability's
+reads the include at all, passes for the wrong reason. (One case per
+verb THEN LISTED: the scope was hand-written until 2026-09-17, when it
+became a derived partition of the CLI's own verb list.) The capability's
 own per-verb test gained the four verbs it had never named: `reaches`,
 `jsonschema`, `view tree` and `view doc`.
 
