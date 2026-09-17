@@ -24,7 +24,7 @@ may regress" baselines quoting four different spec-suite sizes between
 them, none of them current.
 
 This repository has already diagnosed that failure mode in writing, in
-[`AGENTS.md`](../../AGENTS.md#known-tsgo-divergences):
+[`DIVERGENCE.md`](../../DIVERGENCE.md):
 
 > Kept in one place deliberately: the same divergence had been
 > described in an AGENTS.md section, a ledger comment and an upstream
@@ -56,7 +56,7 @@ ADR-001 sets the bar, and it is higher than "the code exists":
 > **NOT STARTED** — no deliverable of the phase exists. Drafted spec
 > rows under [`test/spec/draft/`](../../test/spec/draft/) do not change
 > this: a draft is a design artifact, not an implementation, and by the
-> [parity-probe rule](../../AGENTS.md#the-parity-probe) it cannot
+> [parity-probe rule](../contributing/testing.md#the-parity-probe) it cannot
 > become an executable row until the behaviour it describes runs in
 > both engines.
 

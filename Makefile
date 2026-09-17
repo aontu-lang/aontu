@@ -148,7 +148,7 @@ test-ts:
 	cd ts && npm test
 
 clean-ts:
-	rm -rf ts/dist ts/dist-test
+	rm -rf ts/dist ts/dist-test ts/.tsbuild
 
 # Go
 build-go:

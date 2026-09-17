@@ -18,6 +18,7 @@
     "types": [
       "node"
     ],
-    "composite": true
+    "composite": true,
+    "tsBuildInfoFile": "../.tsbuild/src.tsbuildinfo"
   }
 }
