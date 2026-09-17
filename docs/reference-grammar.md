@@ -39,9 +39,12 @@ the codes are the [errors reference](reference-errors.md#class-parse).
 | [`grammar/aontu.lark`](../grammar/aontu.lark) | Lark | a parser generator | rule names checked against the other two; the name set checked against the engine |
 | [`grammar/aontu.tmLanguage.json`](../grammar/aontu.tmLanguage.json) | TextMate | editor highlighting | the name set checked against the engine, and the copy the editor extensions ship checked against this one |
 
-The first three name the same rules, rule for rule and name for name.
-The fourth is a highlighter rather than a parser, and shares only the
-built-in name set.
+The first three are one grammar in three notations. Twenty-nine rules
+are named in all three, rule for rule and name for name. The ABNF
+carries four more, which the other two spell inline rather than name:
+`unescaped`, and RFC 5234's core rules `ALPHA`, `DIGIT` and `DQUOTE`,
+written out so that file stands alone. The fourth file is a highlighter
+rather than a parser, and shares only the built-in name set.
 
 ## The rules
 
@@ -189,7 +192,7 @@ implementations' test suites:
 | the reader parses the file | the notation is well formed, and no literal is case-insensitive |
 | every canonical output of the shared spec suite is accepted | the grammar has not fallen behind the engine |
 | every excluded form is refused | the exclusions are real, rather than an omission |
-| the three parser grammars name the same rules | one grammar, three notations |
+| the three parser grammars name the same rules, less the four the ABNF writes out | one grammar, three notations |
 | every rule is reachable from `root` | no rule outlives the construct it spelled |
 | all four files name exactly the engine's built-ins | a function added or retired cannot leave a grammar behind |
 | the editor extensions' copy is the published file | an editor highlights what the engine reads |

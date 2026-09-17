@@ -1540,26 +1540,112 @@ test('the-teaching-topics-are-the-binarys', () => {
 })
 
 
-test('the-machine-answer-is-the-clis', () => {
-  const run = (src: string): any => {
+// Every verb that answers JSON, with a run that reaches its report.
+// The shape is read off the answer, never assumed: that is the whole
+// point of holding the page to it.
+const JSON_RUNS: [string, (d: Record<string, string>) => string[]][] = [
+  ['the bare entry point', (d) => [d.doc]],
+  ['model get', (d) => ['model', 'get', '$', d.doc]],
+  ['model why', (d) => ['model', 'why', '$.a', d.doc]],
+  ['vet', (d) => ['vet', d.schema, d.doc]],
+  ['subsume', (d) => ['subsume', d.schema, d.doc]],
+  ['breaking', (d) => ['breaking', '--against', d.doc, d.doc]],
+  ['relations', (d) => ['relations', d.rel]],
+  ['reaches', (d) => ['reaches', '$.a', '$.a', d.rel]],
+  ['trim', (d) => ['trim', '--check', d.doc]],
+  ['jsonschema', (d) => ['jsonschema', d.schema]],
+  ['view', (d) => ['view', 'tree', d.doc]],
+  ['render --check', (d) => ['render', '--check', d.gen, d.out]],
+  ['allow', (d) => ['allow', '--role', 'dev', d.roles, '$.a']],
+  ['hash', (d) => ['hash', d.doc]],
+  ['help', () => ['help']],
+  ['explain', () => ['explain', '--list']],
+]
+
+
+function jsonVerbFixtures(): Record<string, string> {
+  const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-json-'))
+  const at = (name: string, body: string): string => {
+    const file = Path.join(dir, name)
+    Fs.writeFileSync(file, body)
+    return file
+  }
+  return {
+    doc: at('d.aon', 'a: 1\n'),
+    schema: at('s.aon', 'a: integer\n'),
+    rel: at('rel.aon', 'entity: {&:{id:string}}\nentity: {a:{id:"x"}}\n'),
+    gen: at('gen.aon', 'out: file("a.txt",[content("x")])\n'),
+    roles: at('roles.aon', 'roles: {dev:{allow:["$.a"]}}\n'),
+    out: Path.join(dir, 'out'),
+  }
+}
+
+
+function jsonAnswer(argv: string[]): any {
+  const run = (): string => {
     try {
-      return JSON.parse(execFileSync(
-        process.execPath, [CLI, '--format', 'json'],
-        { input: src, encoding: 'utf8' }))
+      return execFileSync(process.execPath, [CLI, ...argv, '--format', 'json'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
     }
     catch (e: any) {
-      return JSON.parse(e.stdout)
+      return e.stdout ?? ''
     }
   }
-  const held = Object.keys(run('a:1')).sort()
-  const refused = Object.keys(run('a:1 a:2')).sort()
-  Assert.deepStrictEqual(refused, held,
-    'a refusal must carry the keys an answer carries')
-  const rows = Array.from(
-    section(docsText('reference-agents.md'), '## The machine answer')
-      .matchAll(/^\| `([a-z]+)` \|/gm), (m) => m[1]).sort()
-  Assert.deepStrictEqual(rows, held,
-    'the envelope table must be the keys the CLI answers with')
+  return JSON.parse(run())
+}
+
+
+// Which row of a table in the page a verb must be named in.
+function rowNaming(table: string, marker: string, verb: string): void {
+  const row = table.split('\n')
+    .filter((l) => l.startsWith('| '))
+    .find((l) => l.includes(marker))
+  Assert.ok(null != row, 'no row for ' + marker)
+  const named = 'the bare entry point' === verb
+    ? (row as string).includes(verb)
+    : (row as string).includes('`' + verb + '`')
+  Assert.ok(named, verb + ' belongs in the row for ' + marker + ': ' + row)
+}
+
+
+test('the-machine-answer-shapes-are-the-clis', () => {
+  const shapes = section(docsText('reference-agents.md'), '## The machine answer')
+  const fixtures = jsonVerbFixtures()
+  const SHAPE: Record<string, string> = {
+    ok: '`ok` and the answer beside it',
+    verdict: 'a verdict word',
+    payload: 'the payload alone',
+  }
+  const FINDINGS: Record<string, string> = {
+    findings: '| `findings` |',
+    errors: '| `errors` |',
+    none: 'the verb reports none',
+  }
+  for (const [verb, argv] of JSON_RUNS) {
+    const answer = jsonAnswer(argv(fixtures))
+    const keys = Object.keys(answer)
+    Assert.ok(keys.includes('aontu'), verb + ' answers no aontu block')
+    rowNaming(shapes, SHAPE[keys.includes('ok') ? 'ok'
+      : keys.includes('verdict') ? 'verdict' : 'payload'], verb)
+    rowNaming(shapes, FINDINGS[keys.includes('findings') ? 'findings'
+      : keys.includes('errors') ? 'errors' : 'none'], verb)
+  }
+
+  // The stated exception, and the stated refusals.
+  Assert.deepStrictEqual(Object.keys(jsonAnswer(['trace', fixtures.gen])), ['trace'],
+    'trace answers its record alone')
+  for (const verb of ['fmt', 'template', 'agentsmd']) {
+    Assert.throws(() => execFileSync(
+      process.execPath, [CLI, verb, fixtures.doc, '--format', 'json'],
+      { encoding: 'utf8', stdio: 'ignore' }),
+      'the page says ' + verb + ' takes no --format')
+  }
+  for (const argv of [['help'], ['explain', '--list']]) {
+    Assert.throws(() => execFileSync(
+      process.execPath, [CLI, ...argv, '--trust', 'none'],
+      { encoding: 'utf8', stdio: 'ignore' }),
+      'the page says ' + argv[0] + ' refuses --trust')
+  }
 })
 
 
@@ -1571,6 +1657,31 @@ test('the-grammar-rule-index-is-the-published-file', () => {
       .matchAll(/^\| `([A-Za-z][A-Za-z0-9-]*)` \|/gm), (m) => m[1])
   Assert.deepStrictEqual(rows, defined,
     'the rule index must be the grammar file, in the order it defines them')
+})
+
+
+test('the-shared-grammar-rules-are-shared', () => {
+  const names = (file: string, re: RegExp): Set<string> =>
+    new Set(Array.from(
+      Fs.readFileSync(Path.join(REPO, 'grammar', file), 'utf8')
+        .matchAll(re), (m) => m[1]))
+  const abnf = new Set(abnfRules().keys())
+  const gbnf = names('aontu.gbnf', /^([A-Za-z][A-Za-z0-9-]*)[ \t]*::=/gm)
+  const lark = names('aontu.lark', /^([A-Za-z_][A-Za-z0-9_]*)[ \t]*:/gm)
+  Assert.ok(20 < gbnf.size, 'no rules read from the gbnf grammar')
+  Assert.deepStrictEqual([...lark].sort(), [...gbnf].sort(),
+    'the gbnf and lark grammars must name the same rules')
+  const extra = [...abnf].filter((n) => !gbnf.has(n)).sort()
+  Assert.deepStrictEqual([...gbnf].filter((n) => !abnf.has(n)), [],
+    'a rule the ABNF does not name')
+
+  // The page names the ABNF's extras rather than claiming parity for
+  // them: the drift this check exists to catch.
+  const files = section(docsText('reference-grammar.md'), '## The published files')
+  const claimed = Array.from(files.matchAll(/`([A-Za-z][A-Za-z0-9-]*)`(?=,| and)/g),
+    (m) => m[1]).filter((n) => abnf.has(n)).sort()
+  Assert.deepStrictEqual(claimed, extra,
+    'the page must name exactly the rules the ABNF writes out')
 })
 
 

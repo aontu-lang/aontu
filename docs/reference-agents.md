@@ -33,7 +33,7 @@ the codes a report carries.
 | the verbs | `aontu <verb>`, with `--format json` where a report is wanted | one report a verb | [command-line interface](reference-api.md#command-line-interface) |
 | the embedded API | a library call, in either implementation | the same reports, as values rather than text | [TypeScript API](reference-api.md#typescript-api), [Go API](reference-api.md#go-api) |
 | the language server | `aontu lsp`, or the `aontu-lsp` binary, over stdio | diagnostics, hover and completion as an editor asks for them | [the language server](lsp.md) |
-| the tool server | `aontu mcp`, or the `aontu-mcp` binary, over stdio | one tool for each report a verb prints, under the same JSON contract | [the MCP server](reference-api.md#the-mcp-server) |
+| the tool server | `aontu mcp`, or the `aontu-mcp` binary, over stdio | a tool for each report it serves, which is a subset of the verbs, under the same JSON contract | [the MCP server](reference-api.md#the-mcp-server) |
 | the teaching pack | `aontu help <topic>` | the language, from inside the binary, with no network and no checkout | [`aontu help`](reference-api.md#aontu-help) |
 | the code index | `aontu explain <code>`, or `--list` | what one refusal means, or every registered code with its class | [errors reference](reference-errors.md#the-codes) |
 | the starting documents | `aontu init [dir]` | a model, an instance of it, and the checks to run | [`aontu init`](reference-api.md#aontu-init) |
@@ -50,21 +50,46 @@ agent the same evidence.
 
 ## The machine answer
 
-Every verb that takes `--format json` answers one object, whether the
-document holds or not:
+`--format json` is a per-verb option rather than a global one: `fmt`,
+`template` and `agentsmd` do not take it, and refuse it by name.
+
+Where a verb does answer JSON it answers one object, and every one of
+them opens with the same block:
 
 | key | carries |
 |---|---|
-| `aontu` | which verb answered and the version that answered it, as `verb` and `version` |
-| `findings` | the findings, in the shape every report uses; empty when there are none |
-| `ok` | whether the verb's question was answered |
-| `out` | the answer as text, and empty on a refusal |
+| `aontu` | `verb` and `version`: which verb answered, and the version that answered it |
 
-**A refusal is an answer.** The four keys arrive either way, the
-findings say what was refused, and the exit code carries the verdict,
-so a caller reads one shape and branches on `ok` rather than parsing
-prose. The exit codes are the [errors
-reference](reference-errors.md#exit-codes).
+`aontu trace --format json` is the one exception: it answers its record
+alone, under `trace`.
+
+**How an answer says whether it holds** is one of three shapes. The
+shape belongs to the verb rather than to the run, so a document that
+does not hold changes the values and never the keys:
+
+| shape | the answer carries | the verbs |
+|---|---|---|
+| `ok` and the answer beside it | `ok`, with `out` or `record` | the bare entry point, `model get`, `model why` |
+| a verdict word | `verdict`, with the verb's own fields | `vet`, `subsume`, `breaking`, `relations`, `reaches`, `trim`, `jsonschema`, `view`, `render --check`, `allow` |
+| the payload alone | neither: the object is the answer | `hash`, `help`, `explain` |
+
+**A refusal is an answer**, and the findings say what was refused. The
+key they arrive under is the verb's too:
+
+| findings under | the verbs |
+|---|---|
+| `findings` | the bare entry point, `model get`, `model why`, `vet`, `subsume`, `breaking`, `relations`, `allow` |
+| `errors` | `reaches` |
+| nothing: the verb reports none | `trim`, `jsonschema`, `view`, `render --check`, `hash`, `help`, `explain` |
+
+A verb that reports no findings says what it could not do in a field of
+its own instead: `view`'s `loss`, `jsonschema`'s `lossy` and
+`render --check`'s `drift`.
+
+A caller branches on `ok` or on `verdict` rather than parsing prose, and
+the exit code carries the same answer: the [errors
+reference](reference-errors.md#exit-codes) is normative for it. Each
+verb's own section names the fields beside these.
 
 The tool server keeps the same rule at the protocol level: a tool whose
 document does not hold answers with its own report and `isError:
@@ -102,7 +127,7 @@ takes which by default.
 
 | door | default | how it is set |
 |---|---|---|
-| the verbs | `system`: an include reads what the process can read | `--trust none`, `--trust root[:dir]`, or `--include-root <dir>`, on every verb |
+| the verbs | `system`: an include reads what the process can read | `--trust none`, `--trust root[:dir]`, or `--include-root <dir>`, on every verb that reads a document; `help` and `explain` read none and refuse the flag |
 | the embedded API | whatever the caller passes, and `system` where it passes nothing | the `trust` option of the call |
 | the language server | confined below the workspace folder the client named, and `system` where the client named none | `initializationOptions.aontu.trust.include`: `system`, `none`, a root, or an in-memory map |
 | the tool server | `none`: every include is denied | `--root <dir>`, which confines includes below the resolved root and serves the path arguments of every tool |

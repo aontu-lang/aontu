@@ -39,9 +39,12 @@ with a real package.
 
 ## The files
 
-Everything the package system keeps is a file in the project, and every
-one of them is ordinary text. Nothing is hidden in a database, and
-nothing outside this table is consulted.
+Everything the package system keeps in a project is a file in it, and
+every one of those is ordinary text: nothing is hidden in a database,
+and nothing outside this table is consulted. The two stores outside a
+project are not text alone. The user cache and a repository directory
+hold the archives themselves, which are zips, beside the manifest and
+proof that travel with them.
 
 | path | written by | read by | commit it |
 |---|---|---|---|
