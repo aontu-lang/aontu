@@ -17,7 +17,9 @@
 //
 // The retry cannot mask a genuine gap: code no test exercises is
 // missing from every run, so the union is still short and the gate
-// still fails. It only removes the flake.
+// still fails. It only removes the flake. What the union may key on to
+// hold that, since a run's own numbering of arms and functions does
+// not, is in test/covcheck.js.
 //
 // Single-process mode (--experimental-test-isolation=none) would avoid
 // the merge entirely, but the suite is not written for a shared
