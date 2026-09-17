@@ -5,10 +5,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
-
-Landed since the last release, and in the repository rather than in a
-published package.
+## Go 0.1.25 — 2026-09-17 · TypeScript 0.67.0
 
 ### The trust cases cover every verb, and derive which those are
 
@@ -244,6 +241,28 @@ which is the regenerate loop and was asserted nowhere. An edit the
 generator runtime protects survives the next run, which is the promise
 the code-generation how-to makes and no test made it keep. Both are
 matrix cases, so both ports answer them identically.
+
+### The tutorials are a set, and the language reference defines its own nodes
+
+**`docs/tutorial.md` was one 758-line walkthrough.** It is now the index
+of four, and the walkthrough moved to `docs/tutorial-config.md`
+unchanged. The index kept the old filename because the site serves it at
+`/docs/tutorial`, which is where a reader arrives. Two of the four are
+new, and each teaches something the set could not reach before:
+`docs/tutorial-package.md` publishes a schema into a directory, acquires
+it from a second project and shows the pin refusing a change to what the
+package means, all offline; `docs/tutorial-generate.md` computes a file
+tree from a model of a client's routes and stops at the tree, which is
+where the engine's job ends. Every transcript in both is executed by the
+documentation gate, so the output beside a command is what the engine
+printed.
+
+**Ten built-ins were defined as "A Jostraca `<X>` component",** which
+asks a reader who has aontu and not that runtime to decode a definition
+through a third party's class names. Each now says what the node is in
+the component tree and what it means for the output, and links the tree
+once; the one sentence that names a runtime sits in the generation
+section, in the pattern the code-generation how-to already used.
 
 ### Six supplemental reference sections
 
