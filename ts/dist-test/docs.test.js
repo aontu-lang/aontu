@@ -61,6 +61,9 @@ function execPages() {
         'tutorial-generate.md',
         'unification.md',
         'reference-language.md',
+        'reference-generation.md',
+        'reference-functions.md',
+        'reference-errors.md',
         'reference-api.md',
         'use-cases.md',
     ].filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
@@ -478,29 +481,37 @@ function runStep(file, dir, cache, step) {
         }
     });
     (0, node_test_1.test)('function-signatures-match-the-registry', () => {
-        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): the reference's
-        // function headings and constraint table use the same signatures
-        // the engine parses. Table signatures escape their pipe characters.
+        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): a signature printed
+        // on any gated page is the one the engine parses, pipes escaped in
+        // a table cell. Aimed at the set rather than one filename, which
+        // stops checking the rest the day a page moves.
         const { funcSig, renderSig } = require('../dist/sig');
-        const text = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-language.md'), 'utf8');
+        const seen = new Set();
         let rows = 0;
-        for (const line of text.split('\n')) {
-            const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/);
-            if (null == m || undefined === funcSig[m[1]]) {
-                continue;
+        for (const { file, abs } of stylePaths()) {
+            for (const line of Fs.readFileSync(abs, 'utf8').split('\n')) {
+                const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/);
+                if (null == m || undefined === funcSig[m[1]]) {
+                    continue;
+                }
+                // Schematic rows (the subsumption table's `neq(S)` and kin) use
+                // meta-variables, not signatures; a signature always carries a
+                // colon.
+                if (!m[2].includes(':') && !m[3].includes(':')) {
+                    continue;
+                }
+                const cell = (m[1] + '(' + m[2] + ')' + m[3]).replace(/\\[|]/g, '|');
+                Assert.equal(cell, renderSig(funcSig[m[1]]), file + ': reference signature for ' + m[1]);
+                seen.add(m[1]);
+                rows++;
             }
-            // Schematic rows (the subsumption table's `neq(S)` and kin) use
-            // meta-variables, not signatures; a signature always carries a
-            // colon.
-            if (!m[2].includes(':') && !m[3].includes(':')) {
-                continue;
-            }
-            const cell = (m[1] + '(' + m[2] + ')' + m[3]).replace(/\\[|]/g, '|');
-            Assert.equal(cell, renderSig(funcSig[m[1]]), 'reference signature for ' + m[1]);
-            rows++;
         }
-        // The separate index check also requires every declared function.
-        Assert.ok(Object.keys(funcSig).length <= rows, 'reference signatures found: ' + rows);
+        if (undefined === narrowed()) {
+            // The index check requires every function on its own page; this
+            // one requires its signature to be printed somewhere at all.
+            Assert.deepEqual(Object.keys(funcSig).filter((name) => !seen.has(name)), [], 'declared built-ins whose signature no gated page prints');
+            Assert.ok(Object.keys(funcSig).length <= rows, 'reference signatures found: ' + rows);
+        }
     });
     (0, node_test_1.test)('scenario-files-are-named-in-prose', () => {
         for (const page of pages()) {
