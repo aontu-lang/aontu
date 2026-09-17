@@ -5,7 +5,10 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
+## Unreleased
+
+Landed since the last release, and in the repository rather than in a
+published package.
 
 ### Three supplemental reference sections
 
@@ -33,6 +36,8 @@ the engine, a hundred parent-child pairs of them. The signature gate no
 longer reads one page by name: every gated page that prints a signature
 is held to the engine's registry, and every declared built-in must have
 its signature printed somewhere a reader can reach.
+
+## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
 ### `aontu render` writes the files a generator answers
 
