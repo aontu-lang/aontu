@@ -15,7 +15,7 @@ import {
   runView,
   runHash, runGet, runWhy,
   renderWhyText, runSet, runAllow, runAgentsMd, runFmt, runTemplate,
-  runTrace, runRender,
+  runTrace, runRender, renderSkipped,
   replCommand,
   watchChange, watchSignature, vetWaiter, deprecatedAt,
   main as cliMainVet, runPkg, runModel,
@@ -3432,6 +3432,28 @@ describe('render', () => {
     const p = await render([plain, Path.join(d, 'p.txt')])
     Assert.equal(p.code, 2)
     Assert.ok(p.err.includes('carries no //- marker line'), p.err)
+  })
+
+
+  // The record is the runtime's, so a run that never wrote one, or wrote
+  // one this cannot read, answers with no skips rather than refusing.
+  test('a-record-it-cannot-read-names-no-skips', () => {
+    const d = dir()
+    Assert.deepEqual(renderSkipped(d, 0), [])
+
+    const at = Path.join(d, '.jostraca')
+    Fs.mkdirSync(at)
+    file(at, 'jostraca.meta.log', 'not json')
+    Assert.deepEqual(renderSkipped(d, 0), [])
+
+    file(at, 'jostraca.meta.log', JSON.stringify({
+      files: {
+        'old.txt': { action: 'skip', when: 10 },
+        'zed.txt': { action: 'skip', when: 30 },
+        'kept.txt': { action: 'write', when: 30 },
+      },
+    }))
+    Assert.deepEqual(renderSkipped(d, 20), ['zed.txt'])
   })
 
 

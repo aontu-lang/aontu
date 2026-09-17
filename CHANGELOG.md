@@ -29,6 +29,19 @@ one package. `TestPkgOutdatedListsMovesAndRetractions` publishes that in
 Go and asserts the advisory ends with three entries; the TypeScript twin
 stopped short of it, and now carries the same case.
 
+### A file the runtime declines to touch is named as skipped
+
+**A protected file read as if nothing had happened** (both ports). A copy
+on disk carrying the generator runtime's `JOSTRACA_PROTECT` marker is
+left as it is, so a hand edit survives the next run. The runtime's groups
+say what was DONE to a file, and nothing was done to this one, so it
+appeared in none of them and the report was silent about a file it had
+deliberately skipped. The runtime records it either way, under
+`.jostraca/`, so `aontu render` now reads its own run's record and
+reports `skipped: <path>` in text, or a `skipped` group in JSON. Entries
+earlier runs left behind are not counted. `--check` still calls it
+`content` drift: the bytes differ from what the generator answers.
+
 ### `aontu render` is held to one set of expectations in both ports
 
 **The verb had twin test files and no contract between them.** A shared

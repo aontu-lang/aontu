@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	aontu "github.com/aontu-lang/aontu/go"
 	jostraca "github.com/jostraca/jostraca/go"
@@ -20,6 +22,35 @@ const renderHelp = "aontu render [--check] [--at <path>] [--format json] " +
 func isDirectory(path string) bool {
 	st, err := os.Stat(path)
 	return nil == err && st.IsDir()
+}
+
+// A file the runtime declined to touch, its copy on disk carrying the
+// protect marker, is in none of the lists it answers with: they hold
+// what was DONE to a file, and nothing was. The run's own record names
+// it. `since` drops what earlier runs left. Mirrors renderSkipped in
+// ts/src/cli.ts.
+func renderSkipped(folder string, since int64) []string {
+	raw, err := os.ReadFile(filepath.Join(folder, ".jostraca", "jostraca.meta.log"))
+	if nil != err {
+		return []string{}
+	}
+	var meta struct {
+		Files map[string]struct {
+			Action string `json:"action"`
+			When   int64  `json:"when"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(raw, &meta); nil != err {
+		return []string{}
+	}
+	out := []string{}
+	for path, f := range meta.Files {
+		if "skip" == f.Action && since <= f.When {
+			out = append(out, path)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func renderJSON(v map[string]any) string {
@@ -246,11 +277,13 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
+	since := time.Now().UnixMilli()
 	res, err := runtime.Generate(jostraca.Options{Folder: folder}, root)
 	if nil != err {
 		io.WriteString(stderr, "aontu: "+err.Error()+"\n")
 		return 2
 	}
+	skipped := renderSkipped(folder, since)
 	if "json" == format {
 		io.WriteString(stdout, renderJSON(map[string]any{
 			"aontu":   map[string]any{"version": aontu.VERSION, "verb": "render"},
@@ -263,8 +296,13 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 				"merged":     nonNil(res.Files.Merged),
 				"conflicted": nonNil(res.Files.Conflicted),
 				"unchanged":  nonNil(res.Files.Unchanged),
+				"skipped":    skipped,
 			},
 		})+"\n")
+	} else {
+		for _, path := range skipped {
+			io.WriteString(stdout, "skipped: "+path+"\n")
+		}
 	}
 	return 0
 }

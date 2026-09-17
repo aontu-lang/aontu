@@ -25,90 +25,200 @@
   "cases": [
     {
       "name": "one-file-to-the-path",
-      "files": { "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n" },
+      "files": {
+        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+      },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/out/one.txt"], "code": 0, "out": "", "err": "" }
+        {
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/out/one.txt"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
       ],
-      "after": { "out/one.txt": "foo = BAR\n" }
+      "after": {
+        "out/one.txt": "foo = BAR\n"
+      }
     },
-
     {
       "name": "a-tree-below-the-path",
       "files": {
         "gen.aon": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
       },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/build"], "code": 0, "out": "", "err": "" }
+        {
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
       ],
-      "after": { "build/a.txt": "a\n", "build/sub/b.txt": "b1\nb2\n" }
+      "after": {
+        "build/a.txt": "a\n",
+        "build/sub/b.txt": "b1\nb2\n"
+      }
     },
-
     {
       "name": "check-is-clean-then-names-every-drift",
       "files": {
         "gen.aon": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
       },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/build"], "code": 0, "out": "", "err": "" },
-        { "args": ["--check", "{dir}/gen.aon", "{dir}/build"], "code": 0, "out": "", "err": "" },
-        { "edit": { "build/a.txt": "edited\n" }, "remove": ["build/sub/b.txt"] },
         {
-          "args": ["--check", "{dir}/gen.aon", "{dir}/build"],
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aon",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "build/a.txt": "edited\n"
+          },
+          "remove": [
+            "build/sub/b.txt"
+          ]
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aon",
+            "{dir}/build"
+          ],
           "code": 1,
           "out": "content: a.txt\nmissing: sub/b.txt\n",
           "err": ""
         }
       ],
-      "after": { "build/a.txt": "edited\n" }
+      "after": {
+        "build/a.txt": "edited\n"
+      }
     },
-
     {
       "name": "the-json-report-names-what-was-written",
-      "files": { "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n" },
+      "files": {
+        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+      },
       "steps": [
         {
-          "args": ["--format", "json", "{dir}/gen.aon", "{dir}/out/zed.txt"],
+          "args": [
+            "--format",
+            "json",
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
           "code": 0,
-          "out": "{\n  \"aontu\": {\n    \"verb\": \"render\",\n    \"version\": \"{version}\"\n  },\n  \"files\": {\n    \"conflicted\": [],\n    \"diffed\": [],\n    \"merged\": [],\n    \"presented\": [],\n    \"preserved\": [],\n    \"unchanged\": [],\n    \"written\": [\n      \"{dir}/out/zed.txt\"\n    ]\n  },\n  \"verdict\": \"ok\"\n}\n",
+          "out": "{\n  \"aontu\": {\n    \"verb\": \"render\",\n    \"version\": \"{version}\"\n  },\n  \"files\": {\n    \"conflicted\": [],\n    \"diffed\": [],\n    \"merged\": [],\n    \"presented\": [],\n    \"preserved\": [],\n    \"skipped\": [],\n    \"unchanged\": [],\n    \"written\": [\n      \"{dir}/out/zed.txt\"\n    ]\n  },\n  \"verdict\": \"ok\"\n}\n",
           "err": ""
         }
       ],
-      "after": { "out/zed.txt": "foo = BAR\n" }
+      "after": {
+        "out/zed.txt": "foo = BAR\n"
+      }
     },
-
     {
       "name": "a-second-run-over-its-own-output-writes-nothing",
-      "files": { "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n" },
+      "files": {
+        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+      },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/out/zed.txt"], "code": 0, "out": "", "err": "" },
         {
-          "args": ["--format", "json", "{dir}/gen.aon", "{dir}/out/zed.txt"],
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
           "code": 0,
-          "out": "{\n  \"aontu\": {\n    \"verb\": \"render\",\n    \"version\": \"{version}\"\n  },\n  \"files\": {\n    \"conflicted\": [],\n    \"diffed\": [],\n    \"merged\": [],\n    \"presented\": [],\n    \"preserved\": [],\n    \"unchanged\": [\n      \"{dir}/out/zed.txt\"\n    ],\n    \"written\": []\n  },\n  \"verdict\": \"ok\"\n}\n",
+          "out": "",
           "err": ""
         },
-        { "args": ["--check", "{dir}/gen.aon", "{dir}/out/zed.txt"], "code": 0, "out": "", "err": "" }
+        {
+          "args": [
+            "--format",
+            "json",
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
+          "code": 0,
+          "out": "{\n  \"aontu\": {\n    \"verb\": \"render\",\n    \"version\": \"{version}\"\n  },\n  \"files\": {\n    \"conflicted\": [],\n    \"diffed\": [],\n    \"merged\": [],\n    \"presented\": [],\n    \"preserved\": [],\n    \"skipped\": [],\n    \"unchanged\": [\n      \"{dir}/out/zed.txt\"\n    ],\n    \"written\": []\n  },\n  \"verdict\": \"ok\"\n}\n",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
       ],
-      "after": { "out/zed.txt": "foo = BAR\n" }
+      "after": {
+        "out/zed.txt": "foo = BAR\n"
+      }
     },
-
     {
       "name": "an-edit-the-runtime-protects-survives-the-next-run",
-      "files": { "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n" },
+      "files": {
+        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+      },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/out/zed.txt"], "code": 0, "out": "", "err": "" },
-        { "edit": { "out/zed.txt": "foo = MINE\n// JOSTRACA_PROTECT\n" } },
-        { "args": ["{dir}/gen.aon", "{dir}/out/zed.txt"], "code": 0, "out": "", "err": "" },
         {
-          "args": ["--check", "{dir}/gen.aon", "{dir}/out/zed.txt"],
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "out/zed.txt": "foo = MINE\n// JOSTRACA_PROTECT\n"
+          }
+        },
+        {
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
+          "code": 0,
+          "out": "skipped: zed.txt\n",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aon",
+            "{dir}/out/zed.txt"
+          ],
           "code": 1,
           "out": "content: zed.txt\n",
           "err": ""
         }
       ],
-      "after": { "out/zed.txt": "foo = MINE\n// JOSTRACA_PROTECT\n" }
+      "after": {
+        "out/zed.txt": "foo = MINE\n// JOSTRACA_PROTECT\n"
+      }
     },
-
     {
       "name": "a-folder-of-generators-is-one-run",
       "files": {
@@ -117,12 +227,31 @@
         "gen/.keep": ""
       },
       "steps": [
-        { "args": ["{dir}/gen", "{dir}/app"], "code": 0, "out": "", "err": "" },
-        { "args": ["--check", "{dir}/gen", "{dir}/app"], "code": 0, "out": "", "err": "" }
+        {
+          "args": [
+            "{dir}/gen",
+            "{dir}/app"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen",
+            "{dir}/app"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
       ],
-      "after": { "app/a.txt": "a\n", "app/b.txt": "b\n" }
+      "after": {
+        "app/a.txt": "a\n",
+        "app/b.txt": "b\n"
+      }
     },
-
     {
       "name": "a-template-entry-is-read-by-its-marker",
       "files": {
@@ -130,25 +259,41 @@
       },
       "steps": [
         {
-          "args": ["--marker", "#-", "{dir}/zed.txt", "{dir}/out.txt"],
-          "code": 0, "out": "", "err": ""
+          "args": [
+            "--marker",
+            "#-",
+            "{dir}/zed.txt",
+            "{dir}/out.txt"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
         }
       ],
-      "after": { "out.txt": "foo = BAR\n" }
+      "after": {
+        "out.txt": "foo = BAR\n"
+      }
     },
-
     {
       "name": "two-arguments-or-the-usage",
-      "files": { "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n" },
+      "files": {
+        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+      },
       "steps": [
         {
-          "args": ["{dir}/gen.aon"],
+          "args": [
+            "{dir}/gen.aon"
+          ],
           "code": 2,
           "out": "",
           "err": "aontu: render needs a file and a path\naontu render [--check] [--at <path>] [--format json] [--marker <token>] [--profile <file>] <file|folder> <path> (try --help)\n"
         },
         {
-          "args": ["--nope", "{dir}/gen.aon", "{dir}/out"],
+          "args": [
+            "--nope",
+            "{dir}/gen.aon",
+            "{dir}/out"
+          ],
           "code": 2,
           "out": "",
           "err": "aontu: unknown render option --nope (try --help)\n"
@@ -156,7 +301,6 @@
       ],
       "after": {}
     },
-
     {
       "name": "a-file-keeps-the-mode-the-generator-asked-for",
       "posix": true,
@@ -165,25 +309,49 @@
         "app/.keep": ""
       },
       "steps": [
-        { "args": ["{dir}/gen.aon", "{dir}/app"], "code": 0, "out": "", "err": "" },
-        { "chmod": { "app/x.sh": "600" } },
         {
-          "args": ["--check", "{dir}/gen.aon", "{dir}/app"],
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/app"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "chmod": {
+            "app/x.sh": "600"
+          }
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aon",
+            "{dir}/app"
+          ],
           "code": 1,
           "out": "mode: x.sh\n",
           "err": ""
         }
       ],
-      "after": { "app/x.sh": "#!/bin/sh\n" },
-      "afterMode": { "app/x.sh": "600" }
+      "after": {
+        "app/x.sh": "#!/bin/sh\n"
+      },
+      "afterMode": {
+        "app/x.sh": "600"
+      }
     },
-
     {
       "name": "a-nameless-file-is-a-document-error",
-      "files": { "gen.aon": "out: {cmp: \"File\", props: {}, children: []}\n" },
+      "files": {
+        "gen.aon": "out: {cmp: \"File\", props: {}, children: []}\n"
+      },
       "steps": [
         {
-          "args": ["{dir}/gen.aon", "{dir}/out"],
+          "args": [
+            "{dir}/gen.aon",
+            "{dir}/out"
+          ],
           "code": 4,
           "out": "",
           "err": "aontu: {dir}/gen.aon: the file at $.out has no name\n"
