@@ -535,6 +535,20 @@ describe('docs', () => {
   })
 
 
+  // A signature quoted mid-sentence, told from a CALL by its arguments:
+  // a declaration writes `name: type` in every one of them.
+  const DECL = /^(?:(?:capture|template|trial|projector|text) )?[a-z]+\??: [a-z|]+$/
+  function prose(line: string): RegExpMatchArray | null {
+    for (const m of line.matchAll(/`([a-z]+)\(([^`]*)\)([^`]*)`/g)) {
+      const args = m[2].split(',').map((a) => a.trim())
+      if ('' !== m[2] && args.every((a) => DECL.test(a) || /^\.\.\.[a-z]+: /.test(a))) {
+        return m
+      }
+    }
+    return null
+  }
+
+
   test('function-signatures-match-the-registry', () => {
     // THE DRIFT GATE (docs/design/SIGNATURES.0.md): a signature printed
     // on any gated page is the one the engine parses, pipes escaped in
@@ -546,6 +560,7 @@ describe('docs', () => {
     for (const { file, abs } of stylePaths()) {
       for (const line of Fs.readFileSync(abs, 'utf8').split('\n')) {
         const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/)
+          ?? prose(line)
         if (null == m || undefined === funcSig[m[1]]) {
           continue
         }

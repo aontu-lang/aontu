@@ -480,6 +480,18 @@ function runStep(file, dir, cache, step) {
             Assert.ok(kept <= 20, `too many fences keep their spelling: ${kept}`);
         }
     });
+    // A signature quoted mid-sentence, told from a CALL by its arguments:
+    // a declaration writes `name: type` in every one of them.
+    const DECL = /^(?:(?:capture|template|trial|projector|text) )?[a-z]+\??: [a-z|]+$/;
+    function prose(line) {
+        for (const m of line.matchAll(/`([a-z]+)\(([^`]*)\)([^`]*)`/g)) {
+            const args = m[2].split(',').map((a) => a.trim());
+            if ('' !== m[2] && args.every((a) => DECL.test(a) || /^\.\.\.[a-z]+: /.test(a))) {
+                return m;
+            }
+        }
+        return null;
+    }
     (0, node_test_1.test)('function-signatures-match-the-registry', () => {
         // THE DRIFT GATE (docs/design/SIGNATURES.0.md): a signature printed
         // on any gated page is the one the engine parses, pipes escaped in
@@ -490,7 +502,8 @@ function runStep(file, dir, cache, step) {
         let rows = 0;
         for (const { file, abs } of stylePaths()) {
             for (const line of Fs.readFileSync(abs, 'utf8').split('\n')) {
-                const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/);
+                const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/)
+                    ?? prose(line);
                 if (null == m || undefined === funcSig[m[1]]) {
                     continue;
                 }

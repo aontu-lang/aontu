@@ -249,11 +249,12 @@ string.
 
 ### `capture`
 
-One slot, `path(capture p?: path)`. The argument's spelling is read and
-its value is never asked for: a reference becomes the address it spells,
-a literal string is converted by that same address grammar, and anything
-else is passed through to the function. `test/spec/path.tsv` states the
-rule as the one non-strict argument position in the language.
+One slot, `path(capture p?: path) : path`. The argument's spelling is
+read and its value is never asked for: a reference becomes the address
+it spells, a literal string is converted by that same address grammar,
+and anything else is passed through to the function.
+`test/spec/path.tsv` states the rule as the one non-strict argument
+position in the language.
 
 ```aon
 k: "a"
