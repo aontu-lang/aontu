@@ -990,9 +990,11 @@ both ports — confining the comparison but not the question. Pinned by
 `every-verb-honours-the-capability`, `verbs-take-include-root`,
 `repl-honours-the-capability` and `workspace-root-confines-hover` in
 `ts/test/trust.test.ts`, with Go twins in `go/cmd/aontu/trust_test.go`
-and `go/lsp/lsp_test.go`. Each verb is asserted twice — the escape
-resolves under the default and is denied under `--trust none` — so a
-verb that quietly dropped the flag again would fail; the hover tests
+and `go/lsp/lsp_test.go`. Each verb then listed is asserted twice — the
+escape resolves under the default and is denied under `--trust none` —
+so a verb that quietly dropped the flag again would fail; the scope was
+hand-written until 2026-09-17, when it became a derived partition of
+the CLI's own verb list; the hover tests
 probe every column of the line and carry an unconfined control, so they
 assert the capability rather than hover failing everywhere.
 

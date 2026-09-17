@@ -388,11 +388,23 @@ describe('trust-cli', () => {
 
   const cli = (args: string[]) => capture(() => cliMain(['node', 'cli', ...args]))
 
-  // The help's exception clause, held to the parser: a verb that takes
-  // the flag reports the bad VALUE, and `lsp` refuses without naming
-  // the option, which is how a name-keyed probe scored it as taking.
-  // Each verb runs in its own process: a server verb would exit this.
-  test('the-help-names-every-verb-that-refuses-the-capability', () => {
+  const CLI_BIN = Path.join(__dirname, '..', 'bin', 'aontu.js')
+
+  // Out of process: a server verb would exit the suite.
+  function shell(args: string[], cwd?: string):
+    { out: string, err: string, code: number } {
+    try {
+      const out = execFileSync(process.execPath, [CLI_BIN, ...args],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], cwd })
+      return { out, err: '', code: 0 }
+    }
+    catch (e: any) {
+      return { out: e.stdout ?? '', err: e.stderr ?? '', code: e.status ?? 1 }
+    }
+  }
+
+  // Read from the source, so an unclassified new verb fails below.
+  function knownVerbs(): string[] {
     const src = Fs.readFileSync(
       Path.join(__dirname, '..', 'src', 'cli.ts'), 'utf8')
     const list = src.match(/const KNOWN_VERBS = \[([^\]]*)\]/)
@@ -400,31 +412,47 @@ describe('trust-cli', () => {
     const verbs = Array.from(
       (list as RegExpMatchArray)[1].matchAll(/'([a-z]+)'/g), (m) => m[1])
     Assert.ok(20 < verbs.length, 'no verbs read from the CLI')
+    return verbs
+  }
 
+  const SUBCOMMAND_FIRST: Record<string, string[]> = { model: ['get'] }
+
+  let refusers: string[] | undefined
+  function refusingVerbs(verbs: string[]): string[] {
+    refusers ??= verbs.filter((verb) => !shell(
+      [verb, ...(SUBCOMMAND_FIRST[verb] ?? []), '--trust', 'bogus'])
+      .err.includes('--trust needs'))
+    return refusers
+  }
+
+  // Verbs that take the flags and whose answer neither can change:
+  // `why` and `remove` evaluate no document, and `add`, `get` and
+  // `publish` refuse before a module is read. Measured, not assumed.
+  const NOTHING_TO_CONFINE = ['add', 'get', 'publish', 'remove', 'why']
+
+  function partition(verbs: string[], exercised: Set<string>): void {
+    Assert.deepStrictEqual(
+      [...refusingVerbs(verbs), ...NOTHING_TO_CONFINE, ...exercised].sort(),
+      [...verbs].sort(),
+      'every verb is a refuser, has nothing to confine, or is exercised')
+  }
+
+  // The help's exception clause, held to the parser: a verb that takes
+  // the flag reports the bad VALUE, and `lsp` refuses without naming
+  // the option, which is how a name-keyed probe scored it as taking.
+  // Each verb runs in its own process: a server verb would exit this.
+  test('the-help-names-every-verb-that-refuses-the-capability', () => {
+    const verbs = knownVerbs()
+    const src = Fs.readFileSync(
+      Path.join(__dirname, '..', 'src', 'cli.ts'), 'utf8')
     const entry = (src.split('  --trust <t>     ')[1] ?? '')
       .split('\n  --include-root')[0]
     Assert.ok(entry.includes('Every verb takes it'),
       'the --trust entry moved: the gate reads it by that clause')
 
-    const bin = Path.join(__dirname, '..', 'bin', 'aontu.js')
-    const stderrOf = (args: string[]): string => {
-      try {
-        execFileSync(process.execPath, [bin, ...args],
-          { encoding: 'utf8', stdio: ['ignore', 'ignore', 'pipe'] })
-        return ''
-      }
-      catch (e: any) {
-        return e.stderr ?? ''
-      }
-    }
-
-    const subcommandFirst: Record<string, string[]> = { model: ['get'] }
-    const refuses = verbs.filter((verb) => !stderrOf(
-      [verb, ...(subcommandFirst[verb] ?? []), '--trust', 'bogus'])
-      .includes('--trust needs'))
     const named = verbs.filter(
       (verb) => new RegExp('\\b' + verb + '\\b').test(entry))
-    Assert.deepStrictEqual(named.sort(), refuses.sort(),
+    Assert.deepStrictEqual(named.sort(), refusingVerbs(verbs).sort(),
       'the --trust entry must name exactly the verbs that refuse it')
   })
 
@@ -539,7 +567,9 @@ describe('trust-cli', () => {
     const overlay = Path.join(w.root, 'overlay.aon')
     Fs.writeFileSync(overlay, '')
 
+    const seen = new Set<string>()
     const denied = (args: string[]) => {
+      seen.add(args[0])
       const open = cli(args)
       const verb = 'model' === args[0] ? 2 : 1
       const shut = cli([...args.slice(0, verb), '--trust', 'none', ...args.slice(verb)])
@@ -566,6 +596,65 @@ describe('trust-cli', () => {
     denied(['hash', entry])
     denied(['agentsmd', entry])
     denied(['model', 'set', '$.z=1', '--entry', entry, '--overlay', overlay])
+
+    // Out of process: `render` answers on a promise, and a capture
+    // reading `process.exitCode` early would pass wrongly.
+    const deniedOut = (args: string[]) => {
+      seen.add(args[0])
+      const open = shell(args)
+      const shut = shell([...args, '--trust', 'none'])
+      Assert.notEqual(
+        JSON.stringify([open.code, open.out, open.err]),
+        JSON.stringify([shut.code, shut.out, shut.err]),
+        'the verb ignored --trust: ' + args.join(' '))
+      if (!/verdict: error/.test(shut.out + shut.err)) {
+        Assert.match(shut.out + shut.err, /include denied|include_denied/)
+      }
+    }
+
+    const gen = Path.join(w.root, 'gen.aon')
+    Fs.writeFileSync(gen, `@"${srcPath(w.dir)}/secret.aon"\n` +
+      'out: file({ name: "o.txt" }, ["x"])\n')
+    // `fmt` and `template` evaluate the profile, not what they rewrite.
+    const profile = Path.join(w.root, 'prof.aon')
+    Fs.writeFileSync(profile,
+      `@"${srcPath(w.dir)}/secret.aon"\naontu: { Lang: {} }\n`)
+    const generator = Path.join(w.root, 'gen.ts')
+    Fs.writeFileSync(generator, '//- x: 1\nhello\n')
+
+    deniedOut(['trace', entry])
+    deniedOut(['render', gen, Path.join(w.dir, 'out')])
+    deniedOut(['allow', '--role', 'dev', entry, '$.a'])
+    deniedOut(['fmt', entry, '--profile', profile])
+    deniedOut(['template', generator, '--profile', profile])
+
+    // A MODULE's document, not the manifest: an include in `pkg.aon`
+    // is not resolved. A fresh project each run: these write a lockfile.
+    const pkgProject = (): string => {
+      const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-pkg-'))
+      const store = Path.join(
+        dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service')
+      Fs.mkdirSync(store, { recursive: true })
+      Fs.writeFileSync(Path.join(dir, 'pkg.aon'),
+        'pkg: {path: "corp.example/app"}\n' +
+        'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n')
+      Fs.writeFileSync(Path.join(store, 'pkg.aon'),
+        'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n')
+      Fs.writeFileSync(Path.join(store, 'service.aon'),
+        `@"${srcPath(w.dir)}/secret.aon"\nname: string\n`)
+      return dir
+    }
+
+    for (const args of [['sync'], ['pkg', 'tidy']]) {
+      seen.add(args[0])
+      const open = shell([...args, pkgProject()])
+      const shut = shell([...args, pkgProject(), '--trust', 'none'])
+      Assert.match(open.out, /verdict: ok/, args.join(' '))
+      Assert.match(shut.out, /verdict: error/, args.join(' '))
+      Assert.match(shut.out, /does not evaluate on its own/, args.join(' '))
+    }
+
+    partition(knownVerbs(), seen)
   })
 
 
@@ -580,7 +669,9 @@ describe('trust-cli', () => {
 
     const REFUSED = /include_extension|include not readable/
 
+    const seen = new Set<string>()
     const both = (args: string[]) => {
+      seen.add(args[0])
       const bare = cli(args)
       const wide = cli([...args, '--text-ext', 'md'])
       Assert.match(bare.out + bare.err, REFUSED,
@@ -608,6 +699,7 @@ describe('trust-cli', () => {
       ['subsume', schema, entry],
       ['breaking', '--against', entry, entry],
     ]) {
+      seen.add(args[0])
       Assert.match(cli(args).out, /verdict: error/,
         'read the include with no flag: ' + args.join(' '))
       Assert.doesNotMatch(cli([...args, '--text-ext', 'md']).out,
@@ -626,6 +718,65 @@ describe('trust-cli', () => {
     // wrong file -- or, as it was, no file where the other port wrote
     // one.
     Assert.equal(Fs.readFileSync(overlay, 'utf8'), '"z": 1\n')
+
+    const wide = (args: string[]) => {
+      seen.add(args[0])
+      const bare = shell(args)
+      const flagged = shell([...args, '--text-ext', 'md'])
+      Assert.match(bare.out + bare.err, REFUSED,
+        'the verb read the include with no flag: ' + args.join(' '))
+      Assert.doesNotMatch(flagged.out + flagged.err, REFUSED,
+        'the verb dropped --text-ext: ' + args.join(' '))
+    }
+
+    const gen = Path.join(dir, 'gen.aon')
+    Fs.writeFileSync(gen,
+      'doc: @"./doc.md"\nout: file({ name: "o.txt" }, ["x"])\n')
+    const profile = Path.join(dir, 'prof.aon')
+    Fs.writeFileSync(profile, 'doc: @"./doc.md"\naontu: { Lang: {} }\n')
+    const generator = Path.join(dir, 'gen.ts')
+    Fs.writeFileSync(generator, '//- x: 1\nhello\n')
+
+    wide(['trace', entry])
+    wide(['render', gen, Path.join(dir, 'out')])
+    wide(['fmt', entry, '--profile', profile])
+    wide(['template', generator, '--profile', profile])
+
+    // `allow` answers a verdict rather than the refusal text.
+    seen.add('allow')
+    Assert.match(shell(['allow', '--role', 'dev', entry, '$.doc']).out,
+      /verdict: error/)
+    Assert.match(
+      shell(['allow', '--role', 'dev', entry, '$.doc', '--text-ext', 'md']).out,
+      /verdict: refused/)
+
+    // The readable extension has to be one inside the closure.
+    const pkgProject = (): string => {
+      const at = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-pkg-'))
+      const store = Path.join(
+        at, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service')
+      Fs.mkdirSync(store, { recursive: true })
+      Fs.writeFileSync(Path.join(at, 'pkg.aon'),
+        'pkg: {path: "corp.example/app"}\n' +
+        'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n')
+      Fs.writeFileSync(Path.join(store, 'pkg.aon'),
+        'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n')
+      Fs.writeFileSync(Path.join(store, 'doc.md'), '# hi\n')
+      Fs.writeFileSync(Path.join(store, 'service.aon'),
+        'doc: @"./doc.md"\nname: string\n')
+      return at
+    }
+
+    for (const args of [['sync'], ['pkg', 'tidy']]) {
+      seen.add(args[0])
+      Assert.match(shell([...args, pkgProject()]).out,
+        /does not evaluate on its own/, args.join(' '))
+      Assert.match(
+        shell([...args, pkgProject(), '--text-ext', 'md']).out,
+        /verdict: ok/, args.join(' '))
+    }
+
+    partition(knownVerbs(), seen)
 
     Fs.rmSync(dir, { recursive: true, force: true })
   })
@@ -716,6 +867,21 @@ describe('trust-cli', () => {
     for (const [name, run] of runs) {
       const r = capture(() => Assert.equal(run(), 2, name))
       Assert.match(r.err, /--trust needs/, name)
+    }
+
+    // EVERY verb, from the CLI's own list: a flag-taker exits 2 and a
+    // refuser does not. No arguments, since the flags are stripped
+    // before a verb parses its tail.
+    const verbs = knownVerbs()
+    const refuses = refusingVerbs(verbs)
+    for (const verb of verbs) {
+      const r = shell([verb, ...(SUBCOMMAND_FIRST[verb] ?? []), bad])
+      if (refuses.includes(verb)) {
+        Assert.doesNotMatch(r.err, /--trust needs/, verb)
+        continue
+      }
+      Assert.equal(r.code, 2, verb)
+      Assert.match(r.err, /--trust needs/, verb)
     }
   })
 
