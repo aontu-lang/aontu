@@ -434,22 +434,44 @@ func itoa(n int) string {
 
 const modelHelp = "aontu model get|why|set ... (try --help)"
 
+// modelSubAt is where the subcommand is, past any global flag that
+// precedes it. takeTrust strips those anywhere in a tail, so the
+// subcommand has to be found past a flag AND past its value: in
+// `--text-ext get` the get is the extension list. Mirrors modelSubAt
+// in ts/src/cli.ts.
+func modelSubAt(argv []string) int {
+	for i := 0; i < len(argv); i++ {
+		switch argv[i] {
+		case "--trust", "--include-root", "--text-ext":
+			i++
+			continue
+		case "get", "why", "set":
+			return i
+		}
+		return -1
+	}
+	return -1
+}
+
 // One document, interrogated or edited (ADR-039 part 5).
 func runModel(argv []string, stdout, stderr io.Writer) int {
 	sub := ""
 	if 0 < len(argv) {
 		sub = argv[0]
 	}
-	switch sub {
-	case "-h", "--help":
+	if "-h" == sub || "--help" == sub {
 		io.WriteString(stdout, helpText)
 		return 0
-	case "get":
-		return runGet(argv[1:], stdout, stderr)
-	case "why":
-		return runWhy(argv[1:], stdout, stderr)
-	case "set":
-		return runSet(argv[1:], stdout, stderr)
+	}
+	if at := modelSubAt(argv); 0 <= at {
+		tail := append(append([]string{}, argv[:at]...), argv[at+1:]...)
+		switch argv[at] {
+		case "get":
+			return runGet(tail, stdout, stderr)
+		case "why":
+			return runWhy(tail, stdout, stderr)
+		}
+		return runSet(tail, stdout, stderr)
 	}
 	io.WriteString(stderr, "aontu: model needs get, why or set\n"+modelHelp+"\n")
 	return 2

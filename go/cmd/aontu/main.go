@@ -694,7 +694,7 @@ func takeTrust(argv []string, stderr io.Writer) ([]string, trustArg, bool) {
 			trust = parsed
 		case "--include-root" == argv[i]:
 			i++
-			if len(argv) <= i {
+			if len(argv) <= i || "" == argv[i] {
 				io.WriteString(stderr, "aontu: --include-root needs a directory\n")
 				return nil, trustArg{}, false
 			}
@@ -963,7 +963,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			trust = parsed
 		case "--include-root":
 			i++
-			if len(args) <= i {
+			if len(args) <= i || "" == args[i] {
 				fmt.Fprintln(stderr, "aontu: --include-root needs a directory")
 				return 2
 			}

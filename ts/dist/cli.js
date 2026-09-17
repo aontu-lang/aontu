@@ -661,7 +661,7 @@ function takeTrust(argv, io = PROCESS_IO) {
         }
         else if ('--include-root' === arg) {
             const dir = argv[++i];
-            if (null == dir) {
+            if (null == dir || '' === dir) {
                 io.err('aontu: --include-root needs a directory\n');
                 return undefined;
             }
@@ -2300,20 +2300,38 @@ function pkgNetText(verb, report) {
 }
 const MODEL_HELP = 'aontu model get|why|set ... (try --help)';
 // One document, interrogated or edited (ADR-039 part 5).
+// Where the subcommand is, past any global flag that precedes it.
+// `takeTrust` strips those anywhere in a tail, so the subcommand has
+// to be found past a flag AND past its value: in `--text-ext get` the
+// `get` is the extension list, not the subcommand.
+const MODEL_SUBS = ['get', 'why', 'set'];
+const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext'];
+function modelSubAt(argv) {
+    for (let i = 0; i < argv.length; i++) {
+        if (GLOBAL_VALUED.includes(argv[i])) {
+            i++;
+            continue;
+        }
+        return MODEL_SUBS.includes(argv[i]) ? i : -1;
+    }
+    return -1;
+}
 function runModel(argv) {
     const sub = argv[0];
     if ('-h' === sub || '--help' === sub) {
         process.stdout.write(HELP);
         return 0;
     }
-    if ('get' === sub) {
-        return runGet(argv.slice(1));
-    }
-    if ('why' === sub) {
-        return runWhy(argv.slice(1));
-    }
-    if ('set' === sub) {
-        return runSet(argv.slice(1));
+    const at = modelSubAt(argv);
+    if (0 <= at) {
+        const tail = argv.slice(0, at).concat(argv.slice(at + 1));
+        if ('get' === argv[at]) {
+            return runGet(tail);
+        }
+        if ('why' === argv[at]) {
+            return runWhy(tail);
+        }
+        return runSet(tail);
     }
     process.stderr.write(`aontu: model needs get, why or set\n${MODEL_HELP}\n`);
     return 2;
@@ -4643,7 +4661,7 @@ function main(argv, servers = SERVERS) {
         }
         else if ('--include-root' === arg) {
             const dir = args[++i];
-            if (null == dir) {
+            if (null == dir || '' === dir) {
                 process.stderr.write('aontu: --include-root needs a directory\n');
                 return finish(2);
             }

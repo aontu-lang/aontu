@@ -349,6 +349,33 @@ function firstCode(fn) {
         const named = verbs.filter((verb) => new RegExp('\\b' + verb + '\\b').test(entry));
         Assert.deepStrictEqual(named.sort(), refuses.sort(), 'the --trust entry must name exactly the verbs that refuse it');
     });
+    // An empty argument names no directory, as `--trust root:` does not.
+    (0, node_test_1.test)('include-root-refuses-an-empty-directory', () => {
+        const bare = cli(['--include-root', '', 'x.aon']);
+        Assert.equal(bare.code, 2);
+        Assert.match(bare.err, /--include-root needs a directory/);
+        let code = 0;
+        const verb = capture(() => {
+            code = (0, cli_1.runVet)(['--include-root', '', 'a.aon', 'b.aon']);
+        });
+        Assert.equal(code, 2);
+        Assert.match(verb.err, /--include-root needs a directory/);
+    });
+    // The flags ride anywhere in a tail, model's subcommand included.
+    (0, node_test_1.test)('model-takes-the-capability-before-its-subcommand', () => {
+        const w = world();
+        const entry = Path.join(w.root, 'main.aon');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const before = cli(['model', '--trust', 'none', 'get', '$.a', entry]);
+        const after = cli(['model', 'get', '--trust', 'none', '$.a', entry]);
+        Assert.equal(before.code, after.code);
+        Assert.equal(before.err, after.err);
+        Assert.match(before.err, /include_denied/);
+        // A flag's VALUE is not the subcommand: `get` is the extension list.
+        const list = cli(['model', '--text-ext', 'get', '$.a', entry]);
+        Assert.equal(list.code, 2);
+        Assert.match(list.err, /model needs get, why or set/);
+    });
     (0, node_test_1.test)('trust-none-denies', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');

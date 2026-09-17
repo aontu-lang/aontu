@@ -10,6 +10,33 @@ which implementation each change affects.
 Landed since the last release, and in the repository rather than in a
 published package.
 
+### Two defects the help-text sweep turned up, in both ports
+
+**`--include-root ""` was accepted, and the two ports confined
+differently.** The long form refuses an empty directory (`--trust
+root:` is a usage error, exit 2) while the shorthand took one and
+confined silently: to the WORKING directory in TypeScript, and to the
+DOCUMENT's own directory in Go. So a script interpolating an unset
+variable was rooted somewhere it never named, at a different place in
+each port. An empty argument is now the same usage error as the long
+form, on the bare road and on every verb road, in both ports.
+
+**`aontu model --trust none get $.a doc.aon` exited 2.** Every other
+verb takes the global flags anywhere in its argument tail, which is
+what the trust contract says; `model` dispatched on its first argument
+before anything stripped them, so a flag ahead of the subcommand was
+answered with "model needs get, why or set". `runModel` now finds the
+subcommand past any global flag and past that flag's VALUE (in
+`--text-ext get` the `get` is the extension list), and hands the rest
+to the subcommand's own runner, which parses the flags as it always
+did. `model get --trust none` and `model --trust none get` now answer
+identically, and so do the two ports, checked byte for byte on six
+edge cases including two flags before the subcommand.
+
+Pinned by `include-root-refuses-an-empty-directory` and
+`model-takes-the-capability-before-its-subcommand`, with Go twins; all
+four were confirmed to fail with the fix reverted.
+
 ### `aontu --help` says which verbs take the global options
 
 `--trust`, `--include-root` and `--text-ext` were advertised as taken by
