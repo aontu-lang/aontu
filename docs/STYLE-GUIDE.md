@@ -64,13 +64,13 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4121 alerts across 82 files. Two of them turn on a reason
+a clean run: 4514 alerts across 85 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
   after stripping code and quoted output.
-- `Google.OxfordComma` is right about half the time here. Of its 38
+- `Google.OxfordComma` is right about half the time here. Of its 39
   hits, some are two-item lists sitting after a comma clause, which the
   rule cannot tell from a list, and the rest are real. A rule that
   wrong cannot fail a build, and an author reading its output can tell
@@ -94,7 +94,7 @@ do:
 |---|---|---|---|
 | Tutorial | `tutorial-config.md`, `tutorial-graph.md`, `tutorial-package.md`, `tutorial-generate.md`, listed by `tutorial.md` | teach step by step, show output for every step, defer detail with a link | argue design, list every flag, assume the reader's goal |
 | How-to | `docs/how-to/*.md` apart from `README.md` | solve one named task, assume competence, link the reference | teach basics, explain design, drift into a second task |
-| Reference | `reference-language.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
+| Reference | `reference-language.md`, `reference-generation.md`, `reference-functions.md`, `reference-errors.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
 | Explanation | `explanation.md` | argue, compare, admit trade-offs, tell the design's story | be the only place a fact lives |
 
 One fact appears in all four kinds at different altitudes (met in the

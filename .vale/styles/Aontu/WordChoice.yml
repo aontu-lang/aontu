@@ -3,8 +3,8 @@
 #
 # Google.WordListCase itself is a WARNING here (see .vale.ini): it maps
 # `touch` to `tap`, a mobile-UI rule, and it maps `above` and `below` to
-# `preceding` and `following`, which the language reference uses 135
-# times as ordinary cross-references inside one long page.
+# `preceding` and `following`, which the reference pages use 103 times
+# as ordinary cross-references, and `below` not once.
 #
 # What is left is the one substitution with no such collision. The
 # corpus was already 14 to 6 in favour of `filename` before this rule

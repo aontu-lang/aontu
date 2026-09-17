@@ -61,6 +61,9 @@ function execPages() {
         'tutorial-generate.md',
         'unification.md',
         'reference-language.md',
+        'reference-generation.md',
+        'reference-functions.md',
+        'reference-errors.md',
         'reference-api.md',
         'use-cases.md',
     ].filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
@@ -477,30 +480,51 @@ function runStep(file, dir, cache, step) {
             Assert.ok(kept <= 20, `too many fences keep their spelling: ${kept}`);
         }
     });
-    (0, node_test_1.test)('function-signatures-match-the-registry', () => {
-        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): the reference's
-        // function headings and constraint table use the same signatures
-        // the engine parses. Table signatures escape their pipe characters.
-        const { funcSig, renderSig } = require('../dist/sig');
-        const text = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-language.md'), 'utf8');
-        let rows = 0;
-        for (const line of text.split('\n')) {
-            const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/);
-            if (null == m || undefined === funcSig[m[1]]) {
-                continue;
+    // A signature quoted mid-sentence, told from a CALL by its arguments:
+    // a declaration writes `name: type` in every one of them.
+    const DECL = /^(?:(?:capture|template|trial|projector|text) )?[a-z]+\??: [a-z|]+$/;
+    function prose(line) {
+        for (const m of line.matchAll(/`([a-z]+)\(([^`]*)\)([^`]*)`/g)) {
+            const args = m[2].split(',').map((a) => a.trim());
+            if ('' !== m[2] && args.every((a) => DECL.test(a) || /^\.\.\.[a-z]+: /.test(a))) {
+                return m;
             }
-            // Schematic rows (the subsumption table's `neq(S)` and kin) use
-            // meta-variables, not signatures; a signature always carries a
-            // colon.
-            if (!m[2].includes(':') && !m[3].includes(':')) {
-                continue;
-            }
-            const cell = (m[1] + '(' + m[2] + ')' + m[3]).replace(/\\[|]/g, '|');
-            Assert.equal(cell, renderSig(funcSig[m[1]]), 'reference signature for ' + m[1]);
-            rows++;
         }
-        // The separate index check also requires every declared function.
-        Assert.ok(Object.keys(funcSig).length <= rows, 'reference signatures found: ' + rows);
+        return null;
+    }
+    (0, node_test_1.test)('function-signatures-match-the-registry', () => {
+        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): a signature printed
+        // on any gated page is the one the engine parses, pipes escaped in
+        // a table cell. Aimed at the set rather than one filename, which
+        // stops checking the rest the day a page moves.
+        const { funcSig, renderSig } = require('../dist/sig');
+        const seen = new Set();
+        let rows = 0;
+        for (const { file, abs } of stylePaths()) {
+            for (const line of Fs.readFileSync(abs, 'utf8').split('\n')) {
+                const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/)
+                    ?? prose(line);
+                if (null == m || undefined === funcSig[m[1]]) {
+                    continue;
+                }
+                // Schematic rows (the subsumption table's `neq(S)` and kin) use
+                // meta-variables, not signatures; a signature always carries a
+                // colon.
+                if (!m[2].includes(':') && !m[3].includes(':')) {
+                    continue;
+                }
+                const cell = (m[1] + '(' + m[2] + ')' + m[3]).replace(/\\[|]/g, '|');
+                Assert.equal(cell, renderSig(funcSig[m[1]]), file + ': reference signature for ' + m[1]);
+                seen.add(m[1]);
+                rows++;
+            }
+        }
+        if (undefined === narrowed()) {
+            // The index check requires every function on its own page; this
+            // one requires its signature to be printed somewhere at all.
+            Assert.deepEqual(Object.keys(funcSig).filter((name) => !seen.has(name)), [], 'declared built-ins whose signature no gated page prints');
+            Assert.ok(Object.keys(funcSig).length <= rows, 'reference signatures found: ' + rows);
+        }
     });
     (0, node_test_1.test)('scenario-files-are-named-in-prose', () => {
         for (const page of pages()) {
@@ -1090,6 +1114,99 @@ function stylePaths() {
     const names = Array.from(declared.matchAll(/^([a-z]+)\(/gm), (m) => m[1]).sort();
     const listed = Array.from(section.matchAll(/^### `([a-z]+)\(/gm), (m) => m[1]);
     Assert.deepStrictEqual(listed, names, 'the alphabetical Functions index must list each declared built-in exactly once');
+});
+// THE REGISTRY GATES. A supplemental section that tabulates a registry
+// is checked against the file, or the engine, that IS that registry.
+function docsText(file) {
+    return Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8');
+}
+// Asserts rather than returns empty: a heading that moves would make
+// every check reading it vacuous.
+function section(text, heading) {
+    const parts = text.split('\n' + heading + '\n');
+    Assert.equal(parts.length, 2, 'exactly one ' + heading + ' heading');
+    return parts[1].split('\n## ')[0];
+}
+(0, node_test_1.test)('the-call-surface-lists-every-declared-builtin-once', () => {
+    const rows = Array.from(section(docsText('reference-functions.md'), '## The call surface')
+        .matchAll(/^\| `([a-z]+)\(/gm), (m) => m[1]);
+    const names = Array.from(Fs.readFileSync(Path.join(REPO, 'test', 'spec', 'signature.tsv'), 'utf8')
+        .matchAll(/^([a-z]+)\(/gm), (m) => m[1]).sort();
+    Assert.deepStrictEqual(rows, names, 'the call surface must list each declared built-in once, in order');
+});
+(0, node_test_1.test)('the-error-catalogue-is-the-registry', () => {
+    const registered = new Map();
+    for (const line of Fs.readFileSync(Path.join(REPO, 'test', 'spec', 'errcodes.tsv'), 'utf8').split('\n')) {
+        const cell = line.split('\t');
+        if (line.startsWith('#') || 'errcode' !== cell[1]) {
+            continue;
+        }
+        registered.set(cell[0], cell[2] + ' ' + cell[3]);
+    }
+    Assert.ok(100 < registered.size, 'no codes read from the registry');
+    const listed = new Map();
+    let cls = '';
+    for (const line of section(docsText('reference-errors.md'), '## The codes').split('\n')) {
+        const head = line.match(/^### Class `([a-z]+)`$/);
+        if (head) {
+            cls = head[1];
+            continue;
+        }
+        const row = line.match(/^\| `([^`]+)` \| ([^|]*?) \|/);
+        if (null == row) {
+            continue;
+        }
+        Assert.ok(!listed.has(row[1]), 'the catalogue lists ' + row[1] + ' twice');
+        listed.set(row[1], cls + ' ' + row[2].trim());
+    }
+    Assert.deepStrictEqual([...listed.keys()].sort(), [...registered.keys()].sort(), 'the catalogue must list every registered code, and only those');
+    const wrong = [...listed].filter(([code, row]) => registered.get(code) !== row)
+        .map(([code, row]) => code + ': ' + row + ', registry ' + registered.get(code));
+    Assert.deepEqual(wrong, [], 'catalogue rows disagreeing with the registry');
+});
+// One minimal call per component: `project`'s spec is the only optional
+// one, and `listitems` is the only component with no text prop.
+const CMP_CALL = {
+    project: 'project()', folder: 'folder("d")', file: 'file("f")',
+    content: 'content("c")', line: 'line("l")', fragment: 'fragment("g.txt")',
+    slot: 'slot("s")', inject: 'inject("i")', copyfiles: 'copyfiles("a")',
+    listitems: 'listitems({item:[1]})',
+};
+(0, node_test_1.test)('the-component-table-is-the-engines', () => {
+    const gen = (src) => {
+        try {
+            return new aontu_1.Aontu().generate('x: ' + src);
+        }
+        catch (e) {
+            return null;
+        }
+    };
+    const rows = Array.from(section(docsText('reference-generation.md'), '## The components')
+        .matchAll(/^\| `([a-z]+)\(.*?\| `([A-Za-z]+)` \| .*? \| (.*?) \| .*? \|$/gm));
+    Assert.equal(rows.length, Object.keys(CMP_CALL).length, 'component rows read from the table');
+    const wrong = [];
+    for (const [, name, node, children] of rows) {
+        const got = gen(CMP_CALL[name]);
+        if (null == got) {
+            wrong.push(name + ': its minimal call is refused');
+            continue;
+        }
+        if (node !== got.x.cmp) {
+            wrong.push(name + ': table says ' + node + ', engine answers ' + got.x.cmp);
+        }
+        const admits = 'none' === children.trim() ? []
+            : Array.from(children.matchAll(/`([a-z]+)`/g), (m) => m[1]);
+        for (const child of Object.keys(CMP_CALL)) {
+            const base = CMP_CALL[name].replace(/\(\)$/, '("p")');
+            const took = null != gen(base.replace(/\)$/, ', [' + CMP_CALL[child] + '])'));
+            if (took !== admits.includes(child)) {
+                wrong.push(name + ' + ' + child + ': table says '
+                    + (admits.includes(child) ? 'admitted' : 'refused')
+                    + ', engine ' + (took ? 'takes it' : 'refuses it'));
+            }
+        }
+    }
+    Assert.deepEqual(wrong, [], 'the component table and the engine disagree');
 });
 // GitHub's heading slug: lower-cased, punctuation dropped except `-`
 // and `_`, spaces to hyphens, a repeat suffixed by its occurrence

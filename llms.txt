@@ -43,6 +43,14 @@
   nodes)
 - [Language reference](docs/reference-language.md): every construct and
   rule — the exhaustive, dry source of truth for the language
+- [Generation reference](docs/reference-generation.md): the component
+  tree, every node and its props, the children each admits, and what
+  `aontu render` and `aontu trace` do with a tree
+- [Functions reference](docs/reference-functions.md): the call surface
+  of all 64 built-ins, as one table and as slices through it: arity,
+  argument modes, accepted kinds, result words
+- [Error reference](docs/reference-errors.md): every registered error
+  code, by class, with what raises it and what a report carries
 - [API reference](docs/reference-api.md): the CLI verbs with flags and
   exit codes, the TypeScript and Go APIs, and the MCP server
 - [Trust contract](docs/trust.md): the guarantees a host may rely on
