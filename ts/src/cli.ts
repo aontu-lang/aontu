@@ -166,22 +166,30 @@ query between a document and its own earlier versions.
 
 Options:
   -c, --canon     Print the canonical form instead of generated JSON
-  --format <f>    text (default) or json. The json form wraps the
-                  answer as {aontu, findings, ok, out}, so a failure
-                  here reads like every other verb's
+                  (the bare command's, as --jsonl is; model get has
+                  its own)
+  --format <f>    text (default) or json, on every verb that answers a
+                  report. The json form is one object opening with an
+                  aontu block; the bare command's carries findings, ok
+                  and out
   -h, --help      Show this help and exit (the verbs and their flags);
                   aontu help is the LANGUAGE, and lists its own topics
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
-  --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory.
-                  Every verb takes it too, and a bare root means the
-                  document's own directory
+  --trust <t>     Include capability: system, none, or root[:dir] to
+                  confine @"..." below a directory. A bare root means
+                  the entry root: the document's own directory, or the
+                  project's for the package verbs. Every verb takes it
+                  but help, explain, init and lsp, which read no
+                  document, and mcp, which is the npm build's server
+                  and confines with --root. Unset, a run behaves as
+                  system, and the bare command warns once for an
+                  include that leaves the entry root
   --include-root <dir>  Shorthand for --trust root:<dir>
-  --text-ext <e>  Read these extensions as text too, comma-separated
-                  and without dots (md,sql). .txt needs no flag; a
+  --text-ext <e>  Read these extensions as text too, comma-separated,
+                  with or without dots (md,sql). .txt needs no flag; a
                   named format keeps its meaning, and .js stays
-                  refused. Every verb takes it
+                  refused. The verbs that take --trust take it too
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
@@ -708,7 +716,7 @@ function takeTrust(argv: string[], io: Io = PROCESS_IO):
     }
     else if ('--include-root' === arg) {
       const dir = argv[++i]
-      if (null == dir) {
+      if (null == dir || '' === dir) {
         io.err('aontu: --include-root needs a directory\n')
         return undefined
       }
@@ -2704,20 +2712,42 @@ function pkgNetText(verb: string, report: any): string {
 const MODEL_HELP = 'aontu model get|why|set ... (try --help)'
 
 // One document, interrogated or edited (ADR-039 part 5).
+// Where the subcommand is, past any global flag that precedes it.
+// `takeTrust` strips those anywhere in a tail, so the subcommand has
+// to be found past a flag AND past its value: in `--text-ext get` the
+// `get` is the extension list, not the subcommand.
+const MODEL_SUBS = ['get', 'why', 'set']
+const GLOBAL_VALUED = ['--trust', '--include-root', '--text-ext']
+
+
+function modelSubAt(argv: string[]): number {
+  for (let i = 0; i < argv.length; i++) {
+    if (GLOBAL_VALUED.includes(argv[i])) {
+      i++
+      continue
+    }
+    return MODEL_SUBS.includes(argv[i]) ? i : -1
+  }
+  return -1
+}
+
+
 function runModel(argv: string[]): number {
   const sub = argv[0]
   if ('-h' === sub || '--help' === sub) {
     process.stdout.write(HELP)
     return 0
   }
-  if ('get' === sub) {
-    return runGet(argv.slice(1))
-  }
-  if ('why' === sub) {
-    return runWhy(argv.slice(1))
-  }
-  if ('set' === sub) {
-    return runSet(argv.slice(1))
+  const at = modelSubAt(argv)
+  if (0 <= at) {
+    const tail = argv.slice(0, at).concat(argv.slice(at + 1))
+    if ('get' === argv[at]) {
+      return runGet(tail)
+    }
+    if ('why' === argv[at]) {
+      return runWhy(tail)
+    }
+    return runSet(tail)
   }
   process.stderr.write(`aontu: model needs get, why or set\n${MODEL_HELP}\n`)
   return 2
@@ -2931,6 +2961,50 @@ function isDirectory(path: string): boolean {
 }
 
 
+// A `File` the write path skips, RENAMED rather than removed: dropping
+// the node would take its children's claims with it and hide drift the
+// write path does make. The skip is the File's own save alone, so what
+// separates the runs is its output path, composed by the runtime rather
+// than here.
+const EXCLUDED_NAME = '.aontu-check-excluded-'
+
+
+// `exclude` as the runtime reads it: `true`, or a string or list member
+// equal to the node's COMPONENT path, the chain of `name` props above
+// it, which a Project's `folder` is not part of. The Go runtime honours
+// the boolean alone, so the ports' `--check` answers differ for the
+// path forms (test/spec/divergent.tsv).
+function excludedFile(exclude: any, at: string[]): boolean {
+  if (true === exclude) {
+    return true
+  }
+  const path = at.join('/')
+  if ('string' === typeof exclude) {
+    return exclude === path
+  }
+  return Array.isArray(exclude) && exclude.includes(path)
+}
+
+
+function renameExcluded(node: any, at: string[], cut: number[]): any {
+  if (Array.isArray(node)) {
+    return node.map((child) => renameExcluded(child, at, cut))
+  }
+  // A hand-written tree carries nodes with no `props` and nodes with
+  // no `children`, and neither needs an arm of its own.
+  const props: any = node.props ?? {}
+  const below = 'string' === typeof props.name ? at.concat(props.name) : at
+  if ('File' === node.cmp && excludedFile(props.exclude, below)) {
+    cut.push(1)
+    return { ...node, props: { ...props, name: EXCLUDED_NAME + cut.length } }
+  }
+  if (!Array.isArray(node.children)) {
+    return node
+  }
+  return { ...node, children: renameExcluded(node.children, below, cut) }
+}
+
+
 // A file the runtime declined to touch, its copy on disk carrying the
 // protect marker, is in none of the lists it answers with: they hold
 // what was DONE to a file, and nothing was. The run's own record names
@@ -3101,7 +3175,22 @@ async function runRender(argv: string[]): Promise<number> {
   try {
     if (check) {
       const res = await runtime.check({ folder }, root)
-      const drift = res.drift.map((d: any) => ({ kind: d.kind, path: d.path }))
+      let drift = res.drift.map((d: any) => ({ kind: d.kind, path: d.path }))
+      // `--check` answers "would `render` change anything", so a file
+      // the write path leaves alone is not held to the generator's
+      // bytes. The skip is gated on the target BEING there -- `render`
+      // writes an absent one -- so drift at a path with nothing at it
+      // survives, which is the `missing` a deleted file reports.
+      const cut: number[] = []
+      const renamed = renameExcluded(tree, [], cut)
+      if (0 < cut.length) {
+        const kept = new Set<string>((await Jostraca().check(
+          { folder }, cmpTree(renamed, { raw: true }))).checked)
+        const skipped = new Set<string>(
+          res.checked.filter((p: string) => !kept.has(p)))
+        drift = drift.filter((d: any) => !skipped.has(d.path) ||
+          !existsSync(join(folder, d.path)))
+      }
       if ('json' === format) {
         process.stdout.write(exactJSON({
           aontu: { version: version(), verb: 'render' },
@@ -3959,7 +4048,7 @@ function runHash(argv: string[]): number {
   if (0 < ctx.err.length || true === v?.isNil) {
     process.stderr.write(
       `aontu: ${files[0]} does not evaluate on its own; nothing to hash\n` +
-      renderFinding(evalFailure(ctx)) + '\n')
+      renderFinding(evalFailure(ctx, v)) + '\n')
     return 4
   }
 
@@ -5349,7 +5438,7 @@ function main(argv: string[], servers: Servers = SERVERS): void {
     }
     else if ('--include-root' === arg) {
       const dir = args[++i]
-      if (null == dir) {
+      if (null == dir || '' === dir) {
         process.stderr.write('aontu: --include-root needs a directory\n')
         return finish(2)
       }

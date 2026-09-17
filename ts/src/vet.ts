@@ -10,6 +10,7 @@ import {
 } from 'node:path'
 
 import { descErr, getHint } from './err'
+import { codeClass } from './hints'
 import { ConjunctVal } from './val/ConjunctVal'
 import { walkVals, collectNils } from './walk'
 import { sizingResidue } from './val/BagVal'
@@ -204,6 +205,9 @@ function materialise(nil: any, ctx: any): void {
 }
 
 
+const UNSHAPED = 'unify_failed'
+
+
 // The terminal colour escapes the parser puts in its message text. A
 // RegExp built from a string, not a literal: the escape is a control
 // character, and spelling it `\u001b` keeps the source readable.
@@ -214,16 +218,10 @@ function stripAnsi(s: string): string {
 }
 
 
-function findingOf(nil: any, prov: Prov): VetFinding {
+// The registry's hint and a code's own `details` fields: the same set
+// on every finding reporting an ENGINE code.
+function fromRegistry(finding: VetFinding, nil: any): VetFinding {
   const details = nil.details ?? {}
-  const finding: VetFinding = {
-    code: nil.why,
-    class: nil.class,
-    severity: 'error',
-    path: pathText(nil.path),
-    message: stripAnsi(nil.msg.split('\n')[0]),
-    sites: sitesOf(nil, prov),
-  }
 
   const hint = getHint(nil.why, nil.details)
   if (null != hint && '' !== hint) {
@@ -241,6 +239,18 @@ function findingOf(nil: any, prov: Prov): VetFinding {
   }
 
   return finding
+}
+
+
+function findingOf(nil: any, prov: Prov): VetFinding {
+  return fromRegistry({
+    code: nil.why,
+    class: nil.class,
+    severity: 'error',
+    path: pathText(nil.path),
+    message: stripAnsi(nil.msg.split('\n')[0]),
+    sites: sitesOf(nil, prov),
+  }, nil)
 }
 
 
@@ -262,6 +272,34 @@ function orderKey(f: VetFinding, index: number): string {
     f.path,
     pad(index),
   ].join('\u0000')
+}
+
+
+// An ENGINE code at a path the caller names: class from the registry
+// through NilVal.class, message materialised first (a `gen` nil has none).
+export function engineFinding(
+  nil: any, ctx: any, path: string): VetFinding {
+  if (null == nil) {
+    return {
+      code: UNSHAPED,
+      class: codeClass(UNSHAPED),
+      severity: 'error',
+      path,
+      message: 'The document does not evaluate.',
+      sites: [],
+    }
+  }
+
+  materialise(nil, ctx)
+
+  return fromRegistry({
+    code: nil.why,
+    class: nil.class,
+    severity: 'error',
+    path,
+    message: stripAnsi(nil.msg.split('\n')[0]),
+    sites: [],
+  }, nil)
 }
 
 

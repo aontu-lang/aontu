@@ -551,7 +551,7 @@ function hashOf(src, form, trust, path) {
     const ctx = aontu.ctx({ collect: true });
     const v = aontu.unify(src, null == path ? undefined : { path }, ctx);
     if (0 < ctx.err.length || null == v || true === v.isNil) {
-        return { ok: false, hash: '', findings: [(0, query_1.evalFailure)(ctx)] };
+        return { ok: false, hash: '', findings: [(0, query_1.evalFailure)(ctx, v)] };
     }
     return {
         ok: true,

@@ -64,13 +64,13 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4522 alerts across 85 files. Two of them turn on a reason
+a clean run: 4678 alerts across 88 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
   under the house ban. The local documentation gate checks prose
   after stripping code and quoted output.
-- `Google.OxfordComma` is right about half the time here. Of its 39
+- `Google.OxfordComma` is right about half the time here. Of its 43
   hits, some are two-item lists sitting after a comma clause, which the
   rule cannot tell from a list, and the rest are real. A rule that
   wrong cannot fail a build, and an author reading its output can tell

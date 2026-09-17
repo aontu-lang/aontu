@@ -44,7 +44,7 @@ function readEntries(list, by, ctx) {
         const text = true === el.isString ? el.peg : el.gen(ctx);
         if (before < ctx.err.length) {
             const err = ctx.err[before];
-            return { entries, finding: finding(err.why, `${by}.${i}`, err.msg) };
+            return { entries, finding: (0, vet_1.engineFinding)(err, ctx, `${by}.${i}`) };
         }
         entries.push({ parts: (0, query_1.pathParts)(text), text, by: `${by}.${i}` });
     }
@@ -99,7 +99,7 @@ function allow(src, role, paths, opts) {
     }
     const root = aontu.unify(new ConjunctVal_1.ConjunctVal({ peg: [model, shape] }, ctx), undefined, ctx);
     if (0 < ctx.err.length || true === root.isNil) {
-        return errorReport(role, (0, query_1.evalFailure)(ctx));
+        return errorReport(role, (0, query_1.evalFailure)(ctx, root));
     }
     const roles = (0, vet_1.anchorAt)(root, at);
     const atRole = `${at}.${role}`;

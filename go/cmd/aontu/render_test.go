@@ -135,6 +135,198 @@ func TestRenderCheckHoldsThePath(t *testing.T) {
 	}
 }
 
+// The excluded-File cases below are the Go twins of the
+// check-skips-an-excluded-* cases in ts/test/cli.test.ts, case for
+// case: `--check` answers "would `render` change anything", so a node
+// the write path skips is not held to the generator's bytes.
+
+func TestRenderCheckSkipsAnExcludedFile(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderFile(t, dir, "gen.aon",
+		"out: project(\".\", [\n"+
+			"  file({name: \"keep.txt\", exclude: true}, [\"generated\"])\n"+
+			"  file({name: \"held.txt\"}, [\"generated\"])\n"+
+			"])\n")
+	build := filepath.Join(dir, "build")
+	if _, errw, code := renderRunCLI(gen, build); 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+
+	// `render` leaves the excluded file alone, so `--check` says
+	// nothing about it -- and still holds the one beside it.
+	renderFile(t, build, "keep.txt", "hand written\n")
+	if out, errw, code := renderRunCLI("--check", gen, build); 0 != code ||
+		"" != out || "" != errw {
+		t.Fatalf("one: code %d out %q err %q", code, out, errw)
+	}
+
+	renderFile(t, build, "held.txt", "hand written\n")
+	if out, _, code := renderRunCLI("--check", gen, build); 1 != code ||
+		"content: held.txt\n" != out {
+		t.Fatalf("both: code %d out %q", code, out)
+	}
+
+	// `checked` still names every path the generator claims.
+	out, _, code := renderRunCLI("--check", "--format", "json", gen, build)
+	if 1 != code {
+		t.Fatalf("json: code %d out %q", code, out)
+	}
+	var got struct {
+		Checked []string            `json:"checked"`
+		Drift   []map[string]string `json:"drift"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("not JSON: %v: %s", err, out)
+	}
+	if 2 != len(got.Checked) || "held.txt" != got.Checked[0] ||
+		"keep.txt" != got.Checked[1] {
+		t.Fatalf("checked: %v", got.Checked)
+	}
+	if 1 != len(got.Drift) || "content" != got.Drift[0]["kind"] ||
+		"held.txt" != got.Drift[0]["path"] {
+		t.Fatalf("drift: %v", got.Drift)
+	}
+}
+
+func TestRenderCheckReportsAnAbsentExcludedFile(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderFile(t, dir, "gen.aon",
+		`out: project(".", [file({name: "keep.txt", exclude: true}, ["gen"])])`+"\n")
+	build := filepath.Join(dir, "build")
+	if err := os.Mkdir(build, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	// `exclude` is gated on the target existing, so the write path
+	// WOULD write this one: `missing` survives the skip.
+	if out, _, code := renderRunCLI("--check", gen, build); 1 != code ||
+		"missing: keep.txt\n" != out {
+		t.Fatalf("code %d out %q", code, out)
+	}
+}
+
+func TestRenderCheckSkipsAnExcludedMode(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderFile(t, dir, "gen.aon",
+		`out: project(".", [`+
+			`file({name: "run.sh", exclude: true, mode: 493}, ["#!/bin/sh"])])`+"\n")
+	build := filepath.Join(dir, "build")
+	if _, errw, code := renderRunCLI(gen, build); 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+
+	// The write path returns before it saves, so it does not chmod
+	// either: the mode difference is not a difference `render` makes.
+	if err := os.Chmod(filepath.Join(build, "run.sh"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, errw, code := renderRunCLI(gen, build); 0 != code {
+		t.Fatalf("write: code %d: %s", code, errw)
+	}
+	if out, errw, code := renderRunCLI("--check", gen, build); 0 != code ||
+		"" != out || "" != errw {
+		t.Fatalf("check: code %d out %q err %q", code, out, errw)
+	}
+}
+
+func TestRenderCheckHoldsEveryOtherExcludeForm(t *testing.T) {
+	dir := t.TempDir()
+	build := filepath.Join(dir, "build")
+
+	// Only the boolean form is honoured by both runtime ports; the
+	// string and list forms are held to the generator's bytes, as is a
+	// `File` that does not ask to be excluded at all.
+	for _, form := range [][2]string{
+		{"none.aon", ""},
+		{"false.aon", ", exclude: false"},
+		{"string.aon", `, exclude: "k.txt"`},
+		{"list.aon", `, exclude: ["k.txt"]`},
+	} {
+		gen := renderFile(t, dir, form[0],
+			`out: project(".", [file({name: "k.txt"`+form[1]+
+				`}, ["generated"])])`+"\n")
+		if _, errw, code := renderRunCLI(gen, build); 0 != code {
+			t.Fatalf("%s write: code %d: %s", form[0], code, errw)
+		}
+		renderFile(t, build, "k.txt", "hand written\n")
+		if out, _, code := renderRunCLI("--check", gen, build); 1 != code ||
+			"content: k.txt\n" != out {
+			t.Fatalf("%s check: code %d out %q", form[0], code, out)
+		}
+		if err := os.Remove(filepath.Join(build, "k.txt")); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRenderCheckSkipsAnExcludedFileInASet(t *testing.T) {
+	dir := t.TempDir()
+	gens := filepath.Join(dir, "gens")
+	if err := os.Mkdir(gens, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	renderFile(t, gens, "a.aon",
+		`out: file({name: "solo.txt", exclude: true}, ["gen"])`+"\n")
+	renderFile(t, gens, "b.aon",
+		`out: project(".", [file({name: "two.txt", exclude: true}, ["gen"])])`+"\n")
+	build := filepath.Join(dir, "build")
+	if _, errw, code := renderRunCLI(gens, build); 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+
+	// A set is an ARRAY of trees, and a tree may itself BE the excluded
+	// File: pruning empties the array.
+	renderFile(t, build, "solo.txt", "hand\n")
+	renderFile(t, build, "two.txt", "hand\n")
+	if out, errw, code := renderRunCLI("--check", gens, build); 0 != code ||
+		"" != out || "" != errw {
+		t.Fatalf("check: code %d out %q err %q", code, out, errw)
+	}
+}
+
+func TestRenderCheckSkipsAnExcludedRootFile(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderFile(t, dir, "gen.aon",
+		`out: file({name: "ignored.txt", exclude: true}, ["generated"])`+"\n")
+	dest := filepath.Join(dir, "target.txt")
+
+	// The path names the file, so the root File is renamed first and
+	// pruning leaves no tree at all.
+	if _, errw, code := renderRunCLI(gen, dest); 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+	renderFile(t, dir, "target.txt", "hand written\n")
+	if out, errw, code := renderRunCLI("--check", gen, dest); 0 != code ||
+		"" != out || "" != errw {
+		t.Fatalf("check: code %d out %q err %q", code, out, errw)
+	}
+	if got := renderRead(t, dest); "hand written\n" != got {
+		t.Fatalf("check wrote: %q", got)
+	}
+}
+
+func TestRenderCheckSkipsAnExcludedFileBesideABareNode(t *testing.T) {
+	dir := t.TempDir()
+	gen := renderFile(t, dir, "gen.aon",
+		"out: { cmp: \"Project\", props: {folder: \".\"}, children: [\n"+
+			"  { cmp: \"File\", props: {name: \"keep.txt\", exclude: true},\n"+
+			"    children: [{cmp: \"Line\", props: {src: \"gen\"}}] }\n"+
+			"  { cmp: \"Folder\", props: {name: \"empty\"} }\n"+
+			"] }\n")
+	build := filepath.Join(dir, "build")
+	if _, errw, code := renderRunCLI(gen, build); 0 != code {
+		t.Fatalf("code %d: %s", code, errw)
+	}
+
+	// A hand-written tree carries a node with no `children` at all:
+	// the walk reads it without composing a path.
+	renderFile(t, build, "keep.txt", "hand written\n")
+	if out, errw, code := renderRunCLI("--check", gen, build); 0 != code ||
+		"" != out || "" != errw {
+		t.Fatalf("check: code %d out %q err %q", code, out, errw)
+	}
+}
+
 func TestRenderCheckOneFileInTheCurrentDirectory(t *testing.T) {
 	dir := t.TempDir()
 	renderFile(t, dir, "gen.aon", renderOne)

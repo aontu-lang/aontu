@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -403,4 +405,95 @@ func verbEnd(args []string) int {
 		return 2
 	}
 	return 1
+}
+
+// The help's exception clause, held to this port's parser: a verb that
+// takes the flag reports the bad VALUE, and lsp refuses without naming
+// the option, which is how a name-keyed probe scored it as taking. The
+// twin reads the same clause in ts/test/trust.test.ts.
+func TestTrustHelpNamesEveryVerbThatRefusesTheCapability(t *testing.T) {
+	at := strings.Index(helpText, "  --trust <t>     ")
+	if 0 > at {
+		t.Fatal("no --trust entry in helpText")
+	}
+	entry := helpText[at:]
+	if end := strings.Index(entry, "\n  --include-root"); 0 <= end {
+		entry = entry[:end]
+	}
+	if !strings.Contains(entry, "Every verb takes it") {
+		t.Fatal("the --trust entry moved: this test reads it by that clause")
+	}
+
+	subcommandFirst := map[string][]string{"model": {"get"}}
+	refuses, named := []string{}, []string{}
+	for _, verb := range knownVerbs {
+		args := append([]string{verb}, subcommandFirst[verb]...)
+		args = append(args, "--trust", "bogus")
+		var out, errw bytes.Buffer
+		run(args, strings.NewReader(""), &out, &errw, false)
+		if !strings.Contains(errw.String(), "--trust needs") {
+			refuses = append(refuses, verb)
+		}
+		if regexp.MustCompile(`\b` + verb + `\b`).MatchString(entry) {
+			named = append(named, verb)
+		}
+	}
+	sort.Strings(refuses)
+	sort.Strings(named)
+	if strings.Join(named, ",") != strings.Join(refuses, ",") {
+		t.Fatalf("the --trust entry names %v, the parser refuses %v",
+			named, refuses)
+	}
+}
+
+// `--trust root:` is a usage error, and its shorthand is one too: an
+// empty argument names no directory to confine below.
+func TestTrustIncludeRootRefusesAnEmptyDirectory(t *testing.T) {
+	for _, args := range [][]string{
+		{"--include-root", "", "x.aon"},
+		{"vet", "--include-root", "", "a.aon", "b.aon"},
+	} {
+		var out, errw bytes.Buffer
+		if code := run(args, strings.NewReader(""), &out, &errw, false); 2 != code {
+			t.Fatalf("%v: code %d, want 2", args, code)
+		}
+		if !strings.Contains(errw.String(), "--include-root needs a directory") {
+			t.Fatalf("%v: %q", args, errw.String())
+		}
+	}
+}
+
+// The flags ride anywhere in a verb's tail, model's subcommand
+// included: the answer is the same on either side of it.
+func TestTrustModelTakesTheCapabilityBeforeItsSubcommand(t *testing.T) {
+	dir, root, entry := trustCliWorld(t)
+	src := `a:@"` + srcPath(dir) + `/secret.aon"`
+	if err := os.WriteFile(entry, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_ = root
+
+	answer := func(args ...string) (int, string) {
+		var out, errw bytes.Buffer
+		code := run(args, strings.NewReader(""), &out, &errw, false)
+		return code, errw.String()
+	}
+	beforeCode, beforeErr := answer(
+		"model", "--trust", "none", "get", "$.a", entry)
+	afterCode, afterErr := answer(
+		"model", "get", "--trust", "none", "$.a", entry)
+	if beforeCode != afterCode || beforeErr != afterErr {
+		t.Fatalf("flag before the subcommand: (%d,%q), after: (%d,%q)",
+			beforeCode, beforeErr, afterCode, afterErr)
+	}
+	if !strings.Contains(beforeErr, "include_denied") {
+		t.Fatalf("no denial: %q", beforeErr)
+	}
+
+	// A flag's VALUE is not the subcommand: get is the extension list.
+	if code, errs := answer(
+		"model", "--text-ext", "get", "$.a", entry); 2 != code ||
+		!strings.Contains(errs, "model needs get, why or set") {
+		t.Fatalf("--text-ext get: code %d, %q", code, errs)
+	}
 }

@@ -39,6 +39,7 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
+const node_child_process_1 = require("node:child_process");
 const aontu_1 = require("../dist/aontu");
 const lsp_1 = require("../dist/lsp");
 const cli_1 = require("../dist/cli");
@@ -130,6 +131,15 @@ function firstCode(fn) {
         Assert.equal(firstCode(() => new aontu_1.Aontu({
             trust: { include: { root: Path.join(w.dir, 'no-such-root') } },
         }).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)), 'include_denied');
+    });
+    // An EMPTY root is not a root: resolving it would confine the caller
+    // below the process directory, which nothing named.
+    (0, node_test_1.test)('an-empty-root-denies-every-include', () => {
+        const w = world();
+        const src = `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`;
+        Assert.deepEqual(new aontu_1.Aontu({ trust: { include: { root: w.root } } }).generate(src), { a: { f: 11 } });
+        Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src)), 'include_denied');
+        Assert.throws(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src), /capability: none/);
     });
     (0, node_test_1.test)('pkg-resolution-is-recorded-and-warned', () => {
         const warned = [];
@@ -319,6 +329,62 @@ function firstCode(fn) {
         return { out, err, code };
     }
     const cli = (args) => capture(() => (0, cli_1.main)(['node', 'cli', ...args]));
+    // The help's exception clause, held to the parser: a verb that takes
+    // the flag reports the bad VALUE, and `lsp` refuses without naming
+    // the option, which is how a name-keyed probe scored it as taking.
+    // Each verb runs in its own process: a server verb would exit this.
+    (0, node_test_1.test)('the-help-names-every-verb-that-refuses-the-capability', () => {
+        const src = Fs.readFileSync(Path.join(__dirname, '..', 'src', 'cli.ts'), 'utf8');
+        const list = src.match(/const KNOWN_VERBS = \[([^\]]*)\]/);
+        Assert.ok(null != list, 'no KNOWN_VERBS in cli.ts');
+        const verbs = Array.from(list[1].matchAll(/'([a-z]+)'/g), (m) => m[1]);
+        Assert.ok(20 < verbs.length, 'no verbs read from the CLI');
+        const entry = (src.split('  --trust <t>     ')[1] ?? '')
+            .split('\n  --include-root')[0];
+        Assert.ok(entry.includes('Every verb takes it'), 'the --trust entry moved: the gate reads it by that clause');
+        const bin = Path.join(__dirname, '..', 'bin', 'aontu.js');
+        const stderrOf = (args) => {
+            try {
+                (0, node_child_process_1.execFileSync)(process.execPath, [bin, ...args], { encoding: 'utf8', stdio: ['ignore', 'ignore', 'pipe'] });
+                return '';
+            }
+            catch (e) {
+                return e.stderr ?? '';
+            }
+        };
+        const subcommandFirst = { model: ['get'] };
+        const refuses = verbs.filter((verb) => !stderrOf([verb, ...(subcommandFirst[verb] ?? []), '--trust', 'bogus'])
+            .includes('--trust needs'));
+        const named = verbs.filter((verb) => new RegExp('\\b' + verb + '\\b').test(entry));
+        Assert.deepStrictEqual(named.sort(), refuses.sort(), 'the --trust entry must name exactly the verbs that refuse it');
+    });
+    // An empty argument names no directory, as `--trust root:` does not.
+    (0, node_test_1.test)('include-root-refuses-an-empty-directory', () => {
+        const bare = cli(['--include-root', '', 'x.aon']);
+        Assert.equal(bare.code, 2);
+        Assert.match(bare.err, /--include-root needs a directory/);
+        let code = 0;
+        const verb = capture(() => {
+            code = (0, cli_1.runVet)(['--include-root', '', 'a.aon', 'b.aon']);
+        });
+        Assert.equal(code, 2);
+        Assert.match(verb.err, /--include-root needs a directory/);
+    });
+    // The flags ride anywhere in a tail, model's subcommand included.
+    (0, node_test_1.test)('model-takes-the-capability-before-its-subcommand', () => {
+        const w = world();
+        const entry = Path.join(w.root, 'main.aon');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const before = cli(['model', '--trust', 'none', 'get', '$.a', entry]);
+        const after = cli(['model', 'get', '--trust', 'none', '$.a', entry]);
+        Assert.equal(before.code, after.code);
+        Assert.equal(before.err, after.err);
+        Assert.match(before.err, /include_denied/);
+        // A flag's VALUE is not the subcommand: `get` is the extension list.
+        const list = cli(['model', '--text-ext', 'get', '$.a', entry]);
+        Assert.equal(list.code, 2);
+        Assert.match(list.err, /model needs get, why or set/);
+    });
     (0, node_test_1.test)('trust-none-denies', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');

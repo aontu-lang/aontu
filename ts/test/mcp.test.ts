@@ -769,6 +769,7 @@ describe('mcp', () => {
     Assert.deepEqual(parseArgs([]), { root: undefined })
     Assert.deepEqual(parseArgs(['--root', '/tmp']), { root: '/tmp' })
     Assert.match(parseArgs(['--root']).err as string, /needs a directory/)
+    Assert.match(parseArgs(['--root', '']).err as string, /needs a directory/)
     Assert.match(parseArgs(['--zig']).err as string, /unknown option/)
     Assert.deepEqual(parseArgs(['--help']), { help: true })
     Assert.deepEqual(parseArgs(['-h']), { help: true })

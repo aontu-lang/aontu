@@ -1211,8 +1211,11 @@ function makeModelResolver(options) {
     const useRequire = options.require || require;
     const capability = options.trust?.include ?? 'system';
     const memCapability = 'object' === typeof capability && null != capability.mem;
+    // An EMPTY root denies: resolving it yields the process directory.
+    const emptyRoot = 'object' === typeof capability && '' === capability.root;
     const rootDir = 'object' === typeof capability &&
-        'string' === typeof capability.root
+        'string' === typeof capability.root &&
+        '' !== capability.root
         ? (0, node_path_1.resolve)(capability.root) : undefined;
     let memResolver = (0, mem_1.makeMemResolver)(memCapability
         ? { ...capability.mem }
@@ -1244,7 +1247,7 @@ function makeModelResolver(options) {
     const deny = (path) => {
         // Only 'none' and 'root' can deny: the mem capability's misses are
         // not-found (its set is the whole world), so there is no third arm.
-        const capname = 'none' === capability ? 'none' : 'root:' + rootDir;
+        const capname = null == rootDir ? 'none' : 'root:' + rootDir;
         const err = new Error('include denied: ' + path + ' (capability: ' + capname + ')');
         err.code = 'include_denied';
         throw err;
@@ -1319,7 +1322,7 @@ function makeModelResolver(options) {
         if (null == path || '' === path) {
             return { found: false, path: '' + (path ?? ''), search: [] };
         }
-        if ('none' === capability) {
+        if ('none' === capability || emptyRoot) {
             deny(path);
         }
         if ('string' === typeof path && path.startsWith(aontumodel_1.AONTU_SCHEME)) {

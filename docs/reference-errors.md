@@ -44,7 +44,7 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **167** codes across
+There are seven classes, and the registry holds **168** codes across
 them.
 
 | class | codes | what went wrong |
@@ -55,7 +55,7 @@ them.
 | `reference` | 26 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 6 | evaluation hit a deterministic limit |
-| `internal` | 5 | the engine reached a state it should not reach |
+| `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
 failure arose. [`aontu explain`](reference-api.md#aontu-explain) answers
@@ -99,17 +99,32 @@ code would take the class and carry no `hint` key.
 Three of a finding's fields are read from the registry, and each
 carries a qualification the registry alone does not show.
 
-**Class.** A finding's `class` is the registered class under `vet`,
-`subsume`, `breaking`, and `model set`.
-[`aontu model get`](reference-api.md#aontu-model-get) and
-[`aontu model why`](reference-api.md#aontu-model-why) are the
-exception: a finding from either reports `class: reference` whatever
-the code's registered class, and carries the engine's whole message
-rather than its first line.
+**Class.** A finding's `class` is the registered class, on every
+surface that reports one. A finding that mints its own code takes the
+class that code is registered with; a finding that repeats a code the
+engine raised takes the class from the same row, never one of its own.
+`message` is the code's one-line headline throughout; the wording of
+that line is each implementation's own, since the shared suite holds
+codes and classes rather than prose.
 
-**Hint text.** 139 of the 167 codes have hint text, and 28 do not.
-`aontu explain --list` prints all 167, one per line, with each code's
-class beside it and `(no text)` against each of the 28.
+**Hint text.** 139 of the 168 codes have hint text, and 29 do not.
+`aontu explain --list` prints all 168, one per line, with each code's
+class beside it and `(no text)` against each of the 29. A finding
+carries that text under `hint` when it repeats a code the engine
+raised and the run asked for `--format json`:
+[`vet`](reference-api.md#aontu-vet),
+[`allow`](reference-api.md#aontu-allow),
+[`model get`](reference-api.md#aontu-model-get),
+[`model why`](reference-api.md#aontu-model-why),
+[`view`](reference-api.md#aontu-view),
+the library's `diff`
+([TypeScript](reference-api.md#typescript-api), and no CLI verb of its
+own), and the [MCP tools](reference-api.md#the-mcp-server). A finding
+the report mints for itself carries its own message and no `hint`, and
+so does the bare command that evaluates a document. No text format
+prints hint text at all:
+[`aontu explain`](reference-api.md#aontu-explain) is the verb that
+answers one code's.
 
 **Severity.** The field's domain is `error`, `warning`, and `info`, and
 nothing in either implementation reports `info`. Five codes are always
@@ -164,7 +179,7 @@ so every code older than the registry carries it. Codes are
 append-only: a registered code is never renamed or reused, so a row
 stays registered after the condition it named stops arising. The
 parenthetical link on a row is the section that specifies the refusal;
-nineteen rows have no such section and carry no link.
+twenty rows have no such section and carry no link.
 
 ### Class `parse`
 
@@ -364,6 +379,7 @@ nineteen rows have no such section and carry no link.
 |---|---|---|
 | `format_check` | 0.56.0 | The formatted text is not the same document, so nothing was written. ([`aontu fmt`](reference-api.md#aontu-fmt)) |
 | `internal` | 0.51.0 | An unexpected state during unification. |
+| `unify_failed` | 0.67.0 | A document does not evaluate, and the failure carries no code of its own. |
 | `patch_span_mismatch` | 0.53.0 | The overlay text does not hold the recorded source at the recorded span, so the span cannot be verified before writing. ([`aontu model set`](reference-api.md#aontu-model-set)) |
 | `unify_no_res` | 0.51.0 | Unification produced no result. |
 | `unknown_op` | 0.51.0 | An operator expression the evaluator has no rule for. |

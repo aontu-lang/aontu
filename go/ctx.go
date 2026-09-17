@@ -56,7 +56,8 @@ func genErr(ctx *Ctx, gerr error) error {
 		return gerr
 	}
 	if nil != ctx && 0 < len(ctx.err) {
-		return &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why}
+		return &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why,
+			Details: ctx.err[0].details}
 	}
 	return nil
 }
@@ -70,8 +71,9 @@ func genCollect(ctx *Ctx, v Val) (any, error) {
 	if nil != ctx && before < len(ctx.err) {
 		n := ctx.err[before]
 		return nil, &AontuError{
-			Msg:  n.FullMessage(ctx.src, ctx.file, ctx.texts),
-			Code: n.why,
+			Msg:     n.FullMessage(ctx.src, ctx.file, ctx.texts),
+			Code:    n.why,
+			Details: n.details,
 		}
 	}
 	if nil != gerr {

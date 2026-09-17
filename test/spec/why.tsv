@@ -2,9 +2,11 @@
 # (docs/capability-review/g7-machine-access.md). Columns:
 # name<TAB>why<TAB>src<TAB>path<TAB>expect, where expect is the
 # record as a JSON object: `value` and the ordered `conjuncts`
-# (each {canon, role, site}), or `code` and `note` when the answer
-# is a refusal. A finding's `message` is excluded, as every other
-# verb's goldens exclude it: prose is per-port, codes are not.
+# (each {canon, role, site}), or `class`, `code` and `note` when the
+# answer is a refusal. A finding's `message` is excluded, as every
+# other verb's goldens exclude it: prose is per-port, codes are not.
+# `class` is the code's class from the registry
+# (test/spec/errcodes.tsv), never one the report mints itself.
 #
 # A CONTRIBUTION is a value the author WROTE that met something at
 # this path. Values the engine mints on the way (a kind lifted while
@@ -39,11 +41,12 @@ why-three-contributions	why	a:integer\na:min(2)\na:3	$.a	{"conjuncts":[{"canon":
 why-list-spread-element	why	l:[&:integer,1,2]	$.l.0	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":6,"file":"","len":7,"row":1},"src":"integer"},{"canon":"1","role":"literal","site":{"col":14,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-list-spread	why	l:[&:integer,1,2]	$.l	{"conjuncts":[{"canon":"[&:integer,1,2]","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"["}],"value":"[&:integer,1,2]"}
 why-nested-leaf	why	a:{b:{c:1}}	$.a.b.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
-why-no-path	why	a:1	$.zz	{"code":"no_path"}
-why-conflict	why	a:1 a:2	$.a	{"code":"scalar_value"}
-why-unparseable	why	a:]	$	{"code":"syntax"}
+why-no-path	why	a:1	$.zz	{"class":"reference","code":"no_path"}
+why-conflict	why	a:1 a:2	$.a	{"class":"conflict","code":"scalar_value"}
+why-root-literal-nil	why	nil	$	{"class":"conflict","code":"literal_nil"}
+why-unparseable	why	a:]	$	{"class":"parse","code":"syntax"}
 why-plus-op	why	x: 1 y: $.x + 1	$.y	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"1"},{"canon":"$.x+1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"$"}],"value":"2"}
-why-type-and-literal	why	t: type({k:integer})\nu: t & {k:1}	$.u.k	{"code":"scalar_kind"}
+why-type-and-literal	why	t: type({k:integer})\nu: t & {k:1}	$.u.k	{"class":"conflict","code":"scalar_kind"}
 why-func-call	why	a: upper("x")	$.a	{"conjuncts":[{"canon":"upper(\\"x\\")","role":"literal","site":{"col":4,"file":"","len":5,"row":1},"src":"upper"}],"value":"\\"X\\""}
 why-optional-key	why	a: {b?: 1}	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":9,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-closed-map	why	a: close({b:1})	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":13,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
@@ -56,9 +59,9 @@ why-exact-leaf	why	n: 0d9007199254740993	$.n	{"conjuncts":[{"canon":"0d900719925
 why-constraint-re	why	a: string & re("^x")	$.a	{"conjuncts":[{"canon":"string","role":"literal","site":{"col":4,"file":"","len":6,"row":1},"src":"string"},{"canon":"re(\\"^x\\")","role":"literal","site":{"col":13,"file":"","len":2,"row":1},"src":"re"}],"value":"re(\\"^x\\")"}
 why-spread-sibling	why	m:{&:{n:integer},x:{n:1},y:{n:2}}	$.m.y.n	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":9,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":31,"file":"","len":1,"row":1},"src":"2"}],"value":"2"}
 why-ref-into-copied-map	why	a:1\nb:{c:$.a}\nd:$.b	$.d.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
-why-unbound-var	why	v: $x	$.v	{"code":"unknown_var"}
+why-unbound-var	why	v: $x	$.v	{"class":"reference","code":"unknown_var"}
 why-two-maps-one-key	why	a: {b: 1} & {b: integer}	$.a.b	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":8,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":17,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
-why-pref-chain	why	a: *1 | *2 | 3	$.a	{"code":"pref_rank_clash"}
+why-pref-chain	why	a: *1 | *2 | 3	$.a	{"class":"conflict","code":"pref_rank_clash"}
 why-same-row-contributions	why	a:1 a:integer	$.a	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"},{"canon":"integer","role":"literal","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"}],"value":"1"}
 why-spread-list-element	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k.0	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":7,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":7,"file":"","len":1,"row":2},"src":"2"}],"value":"2"}
 why-spread-list	why	&:{k:[integer]}\nx:{k:[2]}	$.x.k	{"conjuncts":[{"canon":"[integer]","role":"spread","site":{"col":6,"file":"","len":1,"row":1},"src":"["},{"canon":"[2]","role":"literal","site":{"col":6,"file":"","len":1,"row":2},"src":"["}],"value":"[2]"}

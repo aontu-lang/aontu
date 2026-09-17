@@ -229,16 +229,29 @@ implementations, at every surface:
   (`\\server\share`).
 - **CLI**: `--trust <system|none|root[:dir]>` and
   `--include-root <dir>`, accepted by the bare command **and by every
-  verb**, and by the REPL, whose `--jsonl` session honours the
-  capability for `:load`, `:get`, `:why` and bare snippets alike. A
-  verb takes the flags anywhere in its argument tail; a bare `root`
-  means the primary document's own directory, matching the bare
-  command's entry root. The default is `'system'` **with a warning**:
+  verb that reads a document**, and by the REPL, whose `--jsonl`
+  session honours the capability for `:load`, `:get`, `:why` and bare
+  snippets alike. `help`, `explain` and `init` read no document and
+  refuse the flags, as does `lsp`, which takes no arguments at all; the
+  MCP server confines with `--root <dir>` instead. `sync`, `add`, `get`
+  and `remove` take the flags and then refuse a `root` capability,
+  which puts the package cache they write out of reach. A verb takes the flags anywhere in its argument tail; a
+  bare `root` means the primary document's own directory, matching the
+  bare command's entry root. The default is `'system'` **with a warning**:
   every resolution that escapes the entry file's directory, or goes
   through package resolution, prints a one-line stderr warning naming
   the flags. The warning is a deprecation notice: a later major
   version denies those resolutions by default, and `--trust system`
   keeps the unconfined chain.
+
+**An empty root is not a root.** Both CLIs refuse `--include-root ""`
+and `--trust root:`, and the MCP server refuses `--root ""`. The
+TypeScript library denies every include under `{root: ''}`, which is
+how both language servers already read an empty explicit root. None of
+those roads resolves the empty string, because resolving it yields the
+process directory, a root nothing named. Go's
+`TrustOptions.IncludeRoot` has no spelling for the case at all: its
+zero value is an absent root, and an absent root is `'system'`.
 
 Denied resolution is a located, deterministic parse-stage error
 (`include_denied`) like any other (never a silent skip) and is

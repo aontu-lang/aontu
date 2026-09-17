@@ -51,9 +51,6 @@ function pathParts(path) {
     const trimmed = path.startsWith('$') ? path.slice(1) : path;
     return trimmed.split('.').filter((p) => '' !== p);
 }
-// The queried path, normalised the way anchorAt reads it — so a
-// finding names `$.a.b` whether the caller wrote that, `a.b` or
-// `$.a.b.` — and `$` for the root.
 function pathText(path) {
     const parts = pathParts(path);
     return '$' + (0 < parts.length ? '.' + parts.join('.') : '');
@@ -119,9 +116,10 @@ function finding(code, path, message, note) {
         ...(null == note ? {} : { note }),
     };
 }
-function evalFailure(ctx) {
-    const err = ctx.err[0];
-    return finding(err.why, '$', err.msg);
+// A document that does not stand up, reported at the root: a literal
+// nil adds nothing to `ctx.err`, so `failed` carries the only code.
+function evalFailure(ctx, failed) {
+    return (0, vet_1.engineFinding)(ctx.err[0] ?? failed, ctx, '$');
 }
 // The refusal for a path that names nothing, shared by `get` and
 // `why`: WHICH segment failed, and what was there instead — the "did
@@ -154,7 +152,7 @@ function get(src, path, opts) {
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);
     if (0 < ctx.err.length || null == root || true === root.isNil) {
-        return { ok: false, out: '', findings: [evalFailure(ctx)] };
+        return { ok: false, out: '', findings: [evalFailure(ctx, root)] };
     }
     const node = (0, vet_1.anchorAt)(root, path);
     if (null == node) {
@@ -168,7 +166,7 @@ function get(src, path, opts) {
             return {
                 ok: false,
                 out: '',
-                findings: [finding(err?.why ?? 'no_gen', pathText(path), err?.msg ?? 'The value at this path is not concrete.')],
+                findings: [(0, vet_1.engineFinding)(err, ctx, pathText(path))],
             };
         }
         return { ok: true, out: (0, exactjson_1.exactJSON)(gen, 2), findings: [] };
@@ -195,7 +193,7 @@ function why(src, path, opts) {
     prov.writtenFrom(parsed);
     const root = aontu.unify(parsed, parseOpts, ctx);
     if (0 < ctx.err.length || null == root || true === root.isNil) {
-        return { ok: false, findings: [evalFailure(ctx)] };
+        return { ok: false, findings: [evalFailure(ctx, root)] };
     }
     const node = (0, vet_1.anchorAt)(root, path);
     if (null == node) {

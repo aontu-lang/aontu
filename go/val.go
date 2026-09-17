@@ -300,7 +300,8 @@ func (n *NilVal) Gen(ctx *Ctx) (any, error) {
 	if ctx != nil {
 		src, file, texts = ctx.src, ctx.file, ctx.texts
 	}
-	return nil, &AontuError{Msg: n.FullMessage(src, file, texts), Code: n.why}
+	return nil, &AontuError{Msg: n.FullMessage(src, file, texts), Code: n.why,
+		Details: n.details}
 }
 
 // attempt names the operation in messages, defaulting from the operand
@@ -596,6 +597,8 @@ type AontuError struct {
 	Msg string
 
 	Code string
+
+	Details map[string]string
 
 	Row int
 	Col int

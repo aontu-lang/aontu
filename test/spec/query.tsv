@@ -2,11 +2,13 @@
 # document, selected by path and rendered
 # (docs/capability-review/g7-machine-access.md). Columns:
 # name<TAB>query<TAB>src<TAB>path<TAB>expect, where expect is the
-# report as a JSON object: `out` the rendered slice, `code` and
-# `note` the finding when the answer is a refusal, and the run's
+# report as a JSON object: `out` the rendered slice, `class`, `code`
+# and `note` the finding when the answer is a refusal, and the run's
 # options riding `opts` (`view`: canon | types | keys, default json;
 # `depth`). A finding's `message` is excluded, as every other verb's
-# goldens exclude it: prose is per-port, codes are not.
+# goldens exclude it: prose is per-port, codes are not. `class` is
+# the code's class from the registry (test/spec/errcodes.tsv) -- a
+# finding reporting an engine code never mints a class of its own.
 #
 # The path is what a REFERENCE means by $.a.b -- map keys and
 # canonical-decimal list indices, and nothing else -- so a key that
@@ -24,7 +26,7 @@
 # both engines were run over this corpus and diffed byte-for-byte
 # before any row was written.
 
-query-root-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"code": "mapval_no_gen"}
+query-root-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"class": "incomplete", "code": "mapval_no_gen"}
 query-root-canon	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"opts": {"view": "canon"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":1},\\"k\\":integer,\\"l\\":{\\"z\\":1},\\"opt\\":{\\"q\\"?:1},\\"port\\":*8080|integer,\\"sp\\":{&:{\\"n\\":integer},\\"x\\":{\\"n\\":1}},\\"svc\\":{\\"auth\\":{\\"image\\":\\"a:v2\\",\\"ports\\":[80,443],\\"replicas\\":3},\\"db\\":{\\"host\\":\\"h\\"}},\\"u\\":{\\"A\\":2,\\"é\\":1}}"}
 query-root-types	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"opts": {"view": "types"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":integer},\\"k\\":integer,\\"l\\":{\\"z\\":integer},\\"opt\\":{\\"q\\"?:integer},\\"port\\":*integer|integer,\\"sp\\":{&:{\\"n\\":integer},\\"x\\":{\\"n\\":integer}},\\"svc\\":{\\"auth\\":{\\"image\\":string,\\"ports\\":[integer,integer],\\"replicas\\":integer},\\"db\\":{\\"host\\":string}},\\"u\\":{\\"A\\":integer,\\"é\\":integer}}"}
 query-root-keys	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"opts": {"view": "keys"}, "out": "c\\nesc\\nk\\nl\\nopt\\nport\\nsp\\nsvc\\nu"}
@@ -52,11 +54,11 @@ query-port-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{hos
 query-port-canon	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.port	{"opts": {"view": "canon"}, "out": "*8080|integer"}
 query-port-types	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.port	{"opts": {"view": "types"}, "out": "*integer|integer"}
 query-port-keys	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.port	{"opts": {"view": "keys"}}
-query-k-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k	{"code": "no_gen"}
+query-k-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k	{"class": "incomplete", "code": "no_gen"}
 query-k-canon	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k	{"opts": {"view": "canon"}, "out": "integer"}
 query-k-types	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k	{"opts": {"view": "types"}, "out": "integer"}
 query-k-keys	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k	{"opts": {"view": "keys"}}
-query-c-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.c	{"code": "no_gen"}
+query-c-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.c	{"class": "incomplete", "code": "no_gen"}
 query-c-canon	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.c	{"opts": {"view": "canon"}, "out": "integer&min(3)"}
 query-c-types	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.c	{"opts": {"view": "types"}, "out": "integer&min(3)"}
 query-c-keys	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.c	{"opts": {"view": "keys"}}
@@ -87,14 +89,15 @@ query-root-types-d2	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:
 query-root-canon-d3	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"opts": {"depth": 3, "view": "canon"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":1},\\"k\\":integer,\\"l\\":{\\"z\\":1},\\"opt\\":{\\"q\\"?:1},\\"port\\":*8080|integer,\\"sp\\":{&:{\\"n\\":top},\\"x\\":{\\"n\\":top}},\\"svc\\":{\\"auth\\":{\\"image\\":top,\\"ports\\":top,\\"replicas\\":top},\\"db\\":{\\"host\\":top}},\\"u\\":{\\"A\\":2,\\"é\\":1}}"}
 query-root-types-d3	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$	{"opts": {"depth": 3, "view": "types"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":integer},\\"k\\":integer,\\"l\\":{\\"z\\":integer},\\"opt\\":{\\"q\\"?:integer},\\"port\\":*integer|integer,\\"sp\\":{&:{\\"n\\":top},\\"x\\":{\\"n\\":top}},\\"svc\\":{\\"auth\\":{\\"image\\":top,\\"ports\\":top,\\"replicas\\":top},\\"db\\":{\\"host\\":top}},\\"u\\":{\\"A\\":integer,\\"é\\":integer}}"}
 query-svc_canon-d1	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc	{"opts": {"depth": 1, "view": "canon"}, "out": "{\\"auth\\":top,\\"db\\":top}"}
-query-nope-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.nope	{"code": "no_path", "note": "did you mean opt?"}
-query-svc_auht-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auht	{"code": "no_path", "note": "did you mean auth?"}
-query-svc_auth-ports-9-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auth.ports.9	{"code": "no_path", "note": "did you mean 0?"}
-query-svc_auth-ports-01-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auth.ports.01	{"code": "no_path", "note": "did you mean 0?"}
-query-k-deeper-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k.deeper	{"code": "no_path"}
-query-esc-a-b-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.esc.a.b	{"code": "no_path"}
-query-root-json-2	query	a:1 a:2	$	{"code": "scalar_value"}
-query-root-canon-2	query	a:1 a:2	$	{"code": "scalar_value", "opts": {"view": "canon"}}
+query-nope-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.nope	{"class": "reference", "code": "no_path", "note": "did you mean opt?"}
+query-svc_auht-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auht	{"class": "reference", "code": "no_path", "note": "did you mean auth?"}
+query-svc_auth-ports-9-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auth.ports.9	{"class": "reference", "code": "no_path", "note": "did you mean 0?"}
+query-svc_auth-ports-01-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.svc.auth.ports.01	{"class": "reference", "code": "no_path", "note": "did you mean 0?"}
+query-k-deeper-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.k.deeper	{"class": "reference", "code": "no_path"}
+query-esc-a-b-json	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.esc.a.b	{"class": "reference", "code": "no_path"}
+query-root-json-2	query	a:1 a:2	$	{"class": "conflict", "code": "scalar_value"}
+query-root-canon-2	query	a:1 a:2	$	{"class": "conflict", "code": "scalar_value", "opts": {"view": "canon"}}
+query-root-literal-nil	query	nil	$	{"class": "conflict", "code": "literal_nil"}
 query-a-b-json	query	a:{b:[1,{c:2}]}	$.a.b	{"out": "[\\n  1,\\n  {\\n    \\"c\\": 2\\n  }\\n]"}
 query-a-b-1-json	query	a:{b:[1,{c:2}]}	$.a.b.1	{"out": "{\\n  \\"c\\": 2\\n}"}
 query-a-b-canon	query	a:{b:[1,{c:2}]}	$.a.b	{"opts": {"view": "canon"}, "out": "[1,{\\"c\\":2}]"}

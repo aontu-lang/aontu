@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VET_MAX_ERRORS = void 0;
 exports.displayFile = displayFile;
+exports.engineFinding = engineFinding;
 exports.failureFinding = failureFinding;
 exports.anchorAt = anchorAt;
 exports.throughResidue = throughResidue;
@@ -11,6 +12,7 @@ exports.vet = vet;
 const aontu_1 = require("./aontu");
 const node_path_1 = require("node:path");
 const err_1 = require("./err");
+const hints_1 = require("./hints");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const walk_1 = require("./walk");
 const BagVal_1 = require("./val/BagVal");
@@ -90,6 +92,7 @@ function materialise(nil, ctx) {
         (0, err_1.descErr)(nil, ctx);
     }
 }
+const UNSHAPED = 'unify_failed';
 // The terminal colour escapes the parser puts in its message text. A
 // RegExp built from a string, not a literal: the escape is a control
 // character, and spelling it `\u001b` keeps the source readable.
@@ -97,16 +100,10 @@ const ANSI_RE = new RegExp('\u001b\\[[0-9;]*m', 'g');
 function stripAnsi(s) {
     return s.replace(ANSI_RE, '');
 }
-function findingOf(nil, prov) {
+// The registry's hint and a code's own `details` fields: the same set
+// on every finding reporting an ENGINE code.
+function fromRegistry(finding, nil) {
     const details = nil.details ?? {};
-    const finding = {
-        code: nil.why,
-        class: nil.class,
-        severity: 'error',
-        path: pathText(nil.path),
-        message: stripAnsi(nil.msg.split('\n')[0]),
-        sites: sitesOf(nil, prov),
-    };
     const hint = (0, err_1.getHint)(nil.why, nil.details);
     if (null != hint && '' !== hint) {
         finding.hint = stripAnsi(hint).replace(/\s+$/, '');
@@ -122,6 +119,16 @@ function findingOf(nil, prov) {
     }
     return finding;
 }
+function findingOf(nil, prov) {
+    return fromRegistry({
+        code: nil.why,
+        class: nil.class,
+        severity: 'error',
+        path: pathText(nil.path),
+        message: stripAnsi(nil.msg.split('\n')[0]),
+        sites: sitesOf(nil, prov),
+    }, nil);
+}
 const ORDER_PAD = 9;
 function pad(n) {
     return String(n).padStart(ORDER_PAD, '0');
@@ -136,6 +143,29 @@ function orderKey(f, index) {
         f.path,
         pad(index),
     ].join('\u0000');
+}
+// An ENGINE code at a path the caller names: class from the registry
+// through NilVal.class, message materialised first (a `gen` nil has none).
+function engineFinding(nil, ctx, path) {
+    if (null == nil) {
+        return {
+            code: UNSHAPED,
+            class: (0, hints_1.codeClass)(UNSHAPED),
+            severity: 'error',
+            path,
+            message: 'The document does not evaluate.',
+            sites: [],
+        };
+    }
+    materialise(nil, ctx);
+    return fromRegistry({
+        code: nil.why,
+        class: nil.class,
+        severity: 'error',
+        path,
+        message: stripAnsi(nil.msg.split('\n')[0]),
+        sites: [],
+    }, nil);
 }
 function failureFinding(ctx, url, failed) {
     const nil = ctx.err[0] ?? failed;

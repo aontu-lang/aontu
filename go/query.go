@@ -248,7 +248,7 @@ func (a *Aontu) Get(src, path string, opts *QueryOptions) QueryReport {
 	}
 	root, ctx, uerr := a.unifyCtx(parsed, nil, src)
 	if nil != uerr || nil == root || root.Nil() {
-		return queryFailed(uerr, "$")
+		return queryFailed(evalError(uerr, root, ctx), "$")
 	}
 
 	node := anchorAt(root, path)
@@ -333,22 +333,28 @@ func queryPathText(path string) string {
 	return subPathText(queryPathParts(path))
 }
 
+// evalError is the engine's own diagnosis of a document that does not
+// stand up. A literal nil STANDS as the whole document without adding
+// to ctx.err, so the root carries the only code there is.
+func evalError(uerr error, root Val, ctx *Ctx) error {
+	if nil != uerr {
+		return uerr
+	}
+	if nv, ok := root.(*NilVal); ok {
+		_, gerr := nv.Gen(ctx)
+		return gerr
+	}
+	return nil //coverage:ignore the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is `nil != uerr || nil == root || root.Nil()`, and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)
+}
+
 // queryFailed folds an evaluation failure into the report. A document
 // that does not stand up has no node to select, and the engine's own
 // diagnosis IS the report: Get adds nothing to it.
 func queryFailed(err error, path string) QueryReport {
-	code := "unify_failed"
-	msg := "The document does not evaluate."
-	if ae, ok := err.(*AontuError); ok && nil != ae {
-		if "" != ae.Code {
-			code = ae.Code
-		}
-		msg = ae.Msg
-	}
 	return QueryReport{
 		OK:       false,
 		Out:      "",
-		Findings: []VetFinding{queryFinding(code, path, msg, "")},
+		Findings: []VetFinding{engineFinding(err, path)},
 	}
 }
 
@@ -403,9 +409,10 @@ func (a *Aontu) Why(src, path string) WhyReport {
 	if nil == root || root.Nil() || 0 < len(ctx.err) {
 		var uerr error
 		if 0 < len(ctx.err) {
-			uerr = &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why}
+			uerr = &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why,
+				Details: ctx.err[0].details}
 		}
-		return whyFailed(uerr)
+		return whyFailed(evalError(uerr, root, ctx))
 	}
 
 	node := anchorAt(root, path)

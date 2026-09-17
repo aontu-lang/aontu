@@ -146,7 +146,8 @@ func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	if len(ctx.err) > 0 {
 		// Code carries the first collected failure's why-code, mirroring
 		// errs()[0].why on the TS AontuError thrown by handleErrors.
-		return res, ctx, &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why}
+		return res, ctx, &AontuError{Msg: ctx.errmsg(), Code: ctx.err[0].why,
+			Details: ctx.err[0].details}
 	}
 	return res, ctx, nil
 }

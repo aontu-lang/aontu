@@ -5,7 +5,7 @@ import { includeOpts } from './utility'
 import { Aontu } from './aontu'
 import type { TrustOptions } from './type'
 import { exactJSON } from './exactjson'
-import { anchorAt } from './vet'
+import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
 import { cmpCodePoint } from './keyorder'
 import { Provenance } from './provenance'
@@ -87,9 +87,6 @@ export function pathParts(path: string): string[] {
 }
 
 
-// The queried path, normalised the way anchorAt reads it — so a
-// finding names `$.a.b` whether the caller wrote that, `a.b` or
-// `$.a.b.` — and `$` for the root.
 function pathText(path: string): string {
   const parts = pathParts(path)
   return '$' + (0 < parts.length ? '.' + parts.join('.') : '')
@@ -170,9 +167,10 @@ function finding(
 }
 
 
-export function evalFailure(ctx: any): VetFinding {
-  const err: any = ctx.err[0]
-  return finding(err.why, '$', err.msg)
+// A document that does not stand up, reported at the root: a literal
+// nil adds nothing to `ctx.err`, so `failed` carries the only code.
+export function evalFailure(ctx: any, failed?: any): VetFinding {
+  return engineFinding(ctx.err[0] ?? failed, ctx, '$')
 }
 
 
@@ -216,7 +214,7 @@ export function get(
   const root: any = aontu.unify(src, parseOpts, ctx)
 
   if (0 < ctx.err.length || null == root || true === root.isNil) {
-    return { ok: false, out: '', findings: [evalFailure(ctx)] }
+    return { ok: false, out: '', findings: [evalFailure(ctx, root)] }
   }
 
   const node: any = anchorAt(root, path)
@@ -232,10 +230,7 @@ export function get(
       return {
         ok: false,
         out: '',
-        findings: [finding(
-          err?.why ?? 'no_gen',
-          pathText(path),
-          err?.msg ?? 'The value at this path is not concrete.')],
+        findings: [engineFinding(err, ctx, pathText(path))],
       }
     }
     return { ok: true, out: exactJSON(gen, 2), findings: [] }
@@ -274,7 +269,7 @@ export function why(
 
   const root: any = aontu.unify(parsed, parseOpts, ctx)
   if (0 < ctx.err.length || null == root || true === root.isNil) {
-    return { ok: false, findings: [evalFailure(ctx)] }
+    return { ok: false, findings: [evalFailure(ctx, root)] }
   }
 
   const node: any = anchorAt(root, path)

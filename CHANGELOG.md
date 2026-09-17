@@ -7,6 +7,146 @@ which implementation each change affects.
 
 ## Unreleased
 
+Landed since the last release, and in the repository rather than in a
+published package.
+
+### An empty include root denies, and the MCP server refuses one
+
+**`aontu mcp --root ""` served the working directory.** The server's
+`--root` took an empty argument where the two trust flags now refuse
+one, so a wrapper interpolating an unset variable started a server that
+read `<name>Path` arguments and resolved `@"..."` includes below the
+process directory, where a server started with no `--root` refuses path
+arguments outright. An empty argument is now the same usage error.
+
+**The TypeScript library's `{ include: { root: '' } }` confined to the
+process directory.** `path.resolve('')` answers the working directory,
+so a host that passed an empty root got a confinement nothing named
+instead of a refusal. An empty root now denies every include, which is
+how both language servers already read one, and the denial names the
+capability `none` rather than a directory. Go needs no change here: its
+`TrustOptions.IncludeRoot` is a flat string whose zero value is an
+absent root, so there is no way to spell "a root, and it is empty";
+`docs/trust.md` and the API reference now say that.
+
+Pinned by `an-empty-root-denies-every-include` and a row in
+`server-startup-arguments`, both confirmed to fail with the fixes
+reverted.
+
+### Two defects the help-text sweep turned up, in both ports
+
+**`--include-root ""` was accepted, and the two ports confined
+differently.** The long form refuses an empty directory (`--trust
+root:` is a usage error, exit 2) while the shorthand took one and
+confined silently: to the WORKING directory in TypeScript, and to the
+DOCUMENT's own directory in Go. So a script interpolating an unset
+variable was rooted somewhere it never named, at a different place in
+each port. An empty argument is now the same usage error as the long
+form, on the bare road and on every verb road, in both ports.
+
+**`aontu model --trust none get $.a doc.aon` exited 2.** Every other
+verb takes the global flags anywhere in its argument tail, which is
+what the trust contract says; `model` dispatched on its first argument
+before anything stripped them, so a flag ahead of the subcommand was
+answered with "model needs get, why or set". `runModel` now finds the
+subcommand past any global flag and past that flag's VALUE (in
+`--text-ext get` the `get` is the extension list), and hands the rest
+to the subcommand's own runner, which parses the flags as it always
+did. `model get --trust none` and `model --trust none get` now answer
+identically, and so do the two ports, checked byte for byte on six
+edge cases including two flags before the subcommand.
+
+Pinned by `include-root-refuses-an-empty-directory` and
+`model-takes-the-capability-before-its-subcommand`, with Go twins; all
+four were confirmed to fail with the fix reverted.
+
+### `aontu --help` says which verbs take the global options
+
+`--trust`, `--include-root` and `--text-ext` were advertised as taken by
+"every verb", and five verbs do not take them. Measured by running
+every verb of both built binaries with a bad value, so that a verb
+which TAKES the flag answers about the value rather than the flag:
+
+- Every other verb takes all three, and so does the bare entry
+  point: 23 of the 28 verbs the npm build knows, and 22 of the 27
+  the Go build knows, which has no `allow`.
+- `help`, `explain` and `init` read no document and refuse them by
+  name, exit 2.
+- `lsp` takes no arguments at all and refuses everything, including
+  these, exit 2. It is the one a name-keyed probe misses, because its
+  refusal names no option.
+- `mcp` refuses them in the npm build and confines with `--root`
+  instead; the Go build ships no server.
+- `fmt` takes all three, and they govern the document it EVALUATES,
+  which is the one `--profile` names rather than the one it formats:
+  `--trust none` beside a profile that includes a file refuses with
+  `include_denied`. The API reference said the verb takes no `--trust`.
+- `sync`, `add`, `get` and `remove` take them and then refuse a `root`
+  capability, because a confined run cannot reach the package cache
+  they write.
+
+Three neighbours in the same Options block were wrong for the same
+reason and are measured now too. `system` is not the default: unset,
+both ports behave as `system` AND the bare command warns for an
+include that leaves the entry root, which passing `system` silences.
+`--format` is taken by every verb that answers a report, and
+`template`, `agentsmd`, `fmt`, `init` and `lsp` answer none. `-c` is
+the bare command's and `model get`'s, and every other verb refuses it.
+`--text-ext` accepts a leading dot, which the text said to omit.
+
+The same overstatement stood in four published pages and a decision
+record: the trust contract, the API reference, the language reference,
+the agent reference and ADR-012's text amendment. Each names the
+exceptions now, and the API reference links each one to its section.
+
+**The claim is gated in both ports, as a partition rather than a
+list.** `the-help-names-every-verb-that-refuses-the-capability` walks
+each CLI's own verb list, runs every verb, reads which bucket its
+refusal puts it in, and requires the help's exception clause to name
+exactly the refusers. A verb added without classifying it fails, and
+so does an exception list that goes stale, in either direction. The Go
+twin is `TestTrustHelpNamesEveryVerbThatRefusesTheCapability`. Both
+were confirmed to fail with `lsp` removed from the clause.
+
+### `aontu render --check` answers what `render` answers
+
+`--check` reported drift for a file the write path skips, so a project
+that marks a file `exclude` so a person can own it got a red build the
+first time that person edited it. It now reports no difference for a
+file `render` leaves alone, for its bytes and for its permission bits
+alike. A file that is not there yet is still `missing`, because
+`exclude` is consulted only when the target exists and `render` writes
+an absent one.
+
+Both implementations. Each honours what its own runtime honours, which
+is `exclude: true` in both and a path or a list of paths in the
+TypeScript runtime only: `test/spec/divergent.tsv` carries that pair,
+and the tree's own surface is checked twice and differenced rather than
+walked to disk by aontu. Fixes #238.
+
+### A finding's class is its code's class
+
+`invalid-arg` is registered `conflict` and `aontu explain` says so, but
+a report minted for a document that does not stand up said
+`"class": "reference"`, because the builder that carried the engine's
+code hardcoded the class of the query's own failures. Five surfaces
+carried that defect: `model get`, `model why`, `allow`, `view --views`
+and `view` sets, plus `hash` and `agentsmd` in text form and the
+library's `diff`. Each now takes the class from the registry row, as
+`aontu explain` and the bare entry point already did.
+
+Three defects in the same builders went with it. The message was the
+whole rendered error, with source frames, where every other path and
+`docs/reference-errors.md` say it is the one-line headline. It was
+EMPTY on three of those surfaces, because a nil minted while
+generating carries no message until it is materialised. And it carried
+terminal colour escapes inside a JSON string, which no consumer of a
+machine-readable report asked for.
+
+Both implementations, pinned by rows in `test/spec/query.tsv`,
+`test/spec/why.tsv`, `test/spec/view.tsv` and `test/spec/views.tsv`
+that both suites run. Fixes #239.
+
 ### The coverage gate keyed functions by a name that moves
 
 **An uncovered function could pass the ADR-002 gate** (TypeScript).
@@ -64,12 +204,10 @@ generator runtime protects survives the next run, which is the promise
 the code-generation how-to makes and no test made it keep. Both are
 matrix cases, so both ports answer them identically.
 
-## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
-
-### Three supplemental reference sections
+### Six supplemental reference sections
 
 The language reference stays one file and keeps every section it has.
-Three pages sit beside it, each a surface that cuts across it rather
+Six pages sit beside it, each a surface that cuts across it rather
 than a chapter taken out of it, and none of them reproduces its prose.
 
 `docs/reference-generation.md` is the component tree: the ten
@@ -80,18 +218,45 @@ columns; and the ordering rules. `docs/reference-functions.md` is the
 call surface of all 64 built-ins: arity, argument modes, accepted kinds
 and result words, as one alphabetical table and as slices by result
 word, by rest slot and by mode. `docs/reference-errors.md` is the error
-registry: all 167 codes by class, each with the version it was
+registry: every registered code by class, each with the version it was
 registered at and a line saying what raises it, plus the report shape
 and the exit codes.
+
+`docs/reference-packages.md` is the package system's artefacts: every
+file it keeps with who writes it and whether it is committed, every
+field `pkg.aon` declares with its default, the path and version rules
+with the reserved names spelled out, the caps as numbers, the archive
+allowlist enumerated, and all thirty refusal codes with the step each
+is raised at. `docs/reference-grammar.md` is the published grammar as a
+set of rules: the four files and what each is for, all thirty-three
+rules in file order, the two notation choices, every ordering the
+grammar depends on, the spellings the parser accepts beyond it with
+what each means, the lexical sets, and the seven checks that hold the
+files to the engine. `docs/reference-agents.md` is the surface a
+machine reads a model through: the eleven doors with what each answers,
+the block every JSON answer opens with and the three shapes that follow
+it, the six things none of them does, the include posture each takes by
+default, the teaching topics, and which implementation carries which
+door.
 
 Each is gated against the registry it tabulates. The call surface must
 list every declared built-in once and in order; the catalogue must hold
 every registered code with the registry's own class and version; the
 component table's node names and admitted children are checked against
-the engine, a hundred parent-child pairs of them. The signature gate no
+the engine, a hundred parent-child pairs of them. The refusal table
+must be every code the package source raises, the caps and the
+allowlist must be the engine's own constants, the rule index must be
+the grammar file in its own order, every ordering claim is checked
+against that file, each tolerated spelling is canonicalised and
+compared, the gbnf and lark grammars must name the same rules as each
+other with the page naming the ABNF's extras, the topic table must be
+what the binary carries, and every verb that answers JSON is run so
+that the page names it under the shape its live keys put it in. The signature gate no
 longer reads one page by name: every gated page that prints a signature
 is held to the engine's registry, and every declared built-in must have
 its signature printed somewhere a reader can reach.
+
+## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
 ### `aontu render` writes the files a generator answers
 

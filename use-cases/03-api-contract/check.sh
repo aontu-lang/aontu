@@ -304,11 +304,8 @@ has badm err '"FETCH"'
 has badm err '"GET"|"POST"|"PATCH"|"DELETE"'
 ok "registry spread: endpoint with method FETCH refused by the contract"
 
-# NOTE: breaking rejects the global --trust/--include-root options
-# (gap 11), so the include-outside-entry-root warning on stderr cannot
-# be addressed here the way it is for --canon above.
 run brk 1 -- breaking --against "$DIR/contract.aon" \
-  "$DIR/evolution/tighten-page-size.aon"
+  --include-root "$DIR" "$DIR/evolution/tighten-page-size.aon"
 has brk out 'verdict: breaking'
 has brk out 'compat_narrowed'
 has brk out 'PageSize'

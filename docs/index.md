@@ -72,7 +72,7 @@ Three capabilities have doorways of their own:
   rules for the tree itself are the
   [Generation reference](reference-generation.md).
 
-Three reference sections sit beside the two above. Each is a surface
+Six reference sections sit beside the two above. Each is a surface
 that cuts across the language reference rather than a part of it, which
 is what the language reference, organised by topic, cannot show at
 once:
@@ -85,6 +85,15 @@ once:
   words, as one table and as slices through it.
 - [Error reference](reference-errors.md). Every registered error code,
   by class, with what raises it and what a report carries.
+- [Packages reference](reference-packages.md). The files the package
+  system keeps, every field `pkg.aon` declares, the name rules, the
+  caps, what an archive may hold, and every refusal code.
+- [Grammar reference](reference-grammar.md). The published grammar rule
+  by rule, the spellings the parser accepts beyond it, and what holds
+  the four grammar files to the engine.
+- [Agent and editor reference](reference-agents.md). Every door a
+  machine comes in by, the one answer shape they share, what none of
+  them does, and the posture each takes towards includes.
 
 Tooling:
 

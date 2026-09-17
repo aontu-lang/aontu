@@ -33,7 +33,7 @@ export function parseArgs(argv: string[]): ServerArgs {
     }
     if ('--root' === arg) {
       const dir = argv[++i]
-      if (null == dir) {
+      if (null == dir || '' === dir) {
         return { err: 'aontu-mcp: --root needs a directory' }
       }
       root = dir

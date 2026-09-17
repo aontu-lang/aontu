@@ -239,7 +239,7 @@ func TestPkgArguments(t *testing.T) {
 		"--upstream", "u", "tree", t.TempDir()); 0 != code {
 		t.Fatalf("the option table = %d", code)
 	}
-	// Every verb takes the trust options (docs/trust.md).
+	// A verb that reads a document takes the trust options.
 	for _, flag := range [][]string{{"--trust", "none"}, {"--include-root", "."},
 		{"--text-ext", "md"}} {
 		args := append(append([]string{}, flag...), "tidy")

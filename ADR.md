@@ -1207,7 +1207,8 @@ scalar.** No parser is chosen, which is the whole reason it is safe to
 add — there is nothing for two implementations to disagree about, so
 the ADR-001 objection that keeps `.csv` out does not apply here. `.txt`
 is in the table; `AontuOptions.textExt` (the CLI's `--text-ext md,sql`,
-honoured by every verb) widens the set, because which name a project
+honoured by every verb that takes `--trust`) widens the set, because
+which name a project
 keeps its templates under is the project's business and not this
 table's.
 

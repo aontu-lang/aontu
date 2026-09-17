@@ -41,6 +41,7 @@ const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const query_1 = require("../dist/query");
+const err_1 = require("../dist/err");
 (0, node_test_1.describe)('query', () => {
     (0, node_test_1.test)('defaults-to-the-json-view', () => {
         // No options at all: the whole document, generated.
@@ -64,6 +65,49 @@ const query_1 = require("../dist/query");
         Assert.deepEqual(f.sites, []);
         Assert.match(f.message, /names nothing/);
     });
+    (0, node_test_1.test)('an-engine-code-takes-its-class-from-the-registry', () => {
+        // The registry wins: the report layer mints no class of its own.
+        const r = (0, aontu_1.get)('out: folder("src", [line("x")])', '$.out');
+        Assert.equal(r.ok, false);
+        const f = r.findings[0];
+        Assert.equal(f.code, 'invalid-arg');
+        Assert.equal(f.class, 'conflict');
+        Assert.equal(f.path, '$');
+        Assert.deepEqual(f.sites, []);
+        // One line, with the repair beside it rather than inside it.
+        Assert.equal(f.message, '[aontu/invalid-arg]: Cannot children values at path $.out');
+        Assert.match(f.hint, /^Invalid argument provided\./);
+    });
+    (0, node_test_1.test)('an-engine-message-is-materialised-before-its-first-line', () => {
+        // A nil minted in `gen` has no message until the engine renders it.
+        const r = (0, aontu_1.get)('out: {a: string}', '$.out');
+        Assert.equal(r.ok, false);
+        const f = r.findings[0];
+        Assert.equal(f.code, 'mapval_no_gen');
+        Assert.equal(f.class, 'incomplete');
+        Assert.equal(f.message, '[aontu/mapval_no_gen]: Cannot resolve value at path $.out.a');
+        Assert.equal(f.path, '$.out');
+    });
+    (0, node_test_1.test)('a-code-with-no-hint-text-carries-no-hint', () => {
+        const r = (0, aontu_1.why)('a:]', '$');
+        Assert.equal(r.ok, false);
+        const f = r.findings[0];
+        Assert.equal(f.code, 'syntax');
+        Assert.equal(f.class, 'parse');
+        Assert.equal(f.hint, undefined);
+    });
+    (0, node_test_1.test)('an-engine-message-carries-no-terminal-escapes', () => {
+        // Nothing sets colour off for a library or MCP consumer.
+        (0, err_1.setColor)(true);
+        try {
+            const f = (0, aontu_1.get)('out: folder("src", [line("x")])', '$.out').findings[0];
+            Assert.ok(!f.message.includes('\u001b'), f.message);
+            Assert.ok(!f.hint.includes('\u001b'), f.hint);
+        }
+        finally {
+            (0, err_1.setColor)(undefined);
+        }
+    });
     (0, node_test_1.test)('relative-loads-resolve-from-the-documents-own-directory', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-query-'));
         Fs.writeFileSync(Path.join(dir, 'part.aon'), 'k: 7');
@@ -85,6 +129,16 @@ const query_1 = require("../dist/query");
         Assert.deepEqual((0, query_1.pathParts)('$.a.b'), ['a', 'b']);
         // Written without the root marker, as a reference may be.
         Assert.deepEqual((0, query_1.pathParts)('a.b'), ['a', 'b']);
+    });
+    (0, node_test_1.test)('a-failure-with-no-code-is-the-generic-finding', () => {
+        // Neither a collected error nor a failed value, which is what the
+        // Go port's nil error is (EvalFailure, go/query_test.go).
+        const f = (0, query_1.evalFailure)({ err: [] });
+        Assert.equal(f.code, 'unify_failed');
+        Assert.equal(f.class, 'internal');
+        Assert.equal(f.path, '$');
+        Assert.equal(f.message, 'The document does not evaluate.');
+        Assert.deepEqual(f.sites, []);
     });
 });
 //# sourceMappingURL=query.test.js.map
