@@ -4099,9 +4099,12 @@ directory; any other tree is written below `<path>`. `--check` writes
 nothing, compares, and exits 1 on drift, **and skips what `render`
 skips**: the `File` nodes the write path leaves alone are renamed, and
 the paths a second `check` of the renamed tree no longer claims are
-taken out of the drift, so the skipped paths are the runtime's own
-composition rather than this engine's. Each port therefore answers for
-the `exclude` forms its own runtime honours, and those sets differ
+taken out of the drift **where the target is already there**, so the
+skipped paths are the runtime's own composition rather than this
+engine's. A skipped path with nothing at it keeps its `missing` drift,
+because `render` writes an absent file whatever `exclude` says. Each
+port therefore answers for the `exclude` forms its own runtime honours,
+and those sets differ
 ([`test/spec/divergent.tsv`](test/spec/divergent.tsv)). A folder as the
 generator is a set: every regular file directly in it, in name order,
 and their trees are written below `<path>` as one run, so one `--check`
