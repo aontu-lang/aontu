@@ -1,8 +1,10 @@
 # The aontu guide
 
 Tips for writing models, collected from models that exist. This is not
-the language reference — [`docs/reference-language.md`](docs/reference-language.md)
-says what every form means — and it is not a style guide for prose,
+the reference — [`docs/reference-language.md`](docs/reference-language.md),
+[`docs/reference-generation.md`](docs/reference-generation.md) and
+[`docs/reference-functions.md`](docs/reference-functions.md) say what
+every form means — and it is not a style guide for prose,
 which is [`docs/STYLE-GUIDE.md`](docs/STYLE-GUIDE.md). It is the
 smaller, more useful thing: what experience says to reach for, and what
 it says to avoid.

@@ -64,7 +64,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4120 alerts across 82 files. Two of them turn on a reason
+a clean run: 4183 alerts across 84 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
@@ -94,7 +94,7 @@ do:
 |---|---|---|---|
 | Tutorial | `tutorial-config.md`, `tutorial-graph.md`, `tutorial-package.md`, `tutorial-generate.md`, listed by `tutorial.md` | teach step by step, show output for every step, defer detail with a link | argue design, list every flag, assume the reader's goal |
 | How-to | `docs/how-to/*.md` apart from `README.md` | solve one named task, assume competence, link the reference | teach basics, explain design, drift into a second task |
-| Reference | `reference-language.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
+| Reference | `reference-language.md`, `reference-generation.md`, `reference-functions.md`, `reference-api.md`, `trust.md`, `lsp.md`, `shared-spec.md`, `test-coverage.md` | state facts exhaustively and dryly, pin claims to tests | narrate, persuade, teach |
 | Explanation | `explanation.md` | argue, compare, admit trade-offs, tell the design's story | be the only place a fact lives |
 
 One fact appears in all four kinds at different altitudes (met in the
@@ -512,8 +512,9 @@ generated**: declared in `ts/scripts/figures.cjs`, written to
 - **residual**: a value still waiting for information. Define it on
   first use in any page that needs it; the definition of record is in
   the explanation.
-- **entity, identity, relation, edge, predicate**: per the language
-  reference's Identity and Declared relations sections.
+- **entity, identity, relation, edge, predicate**: per "Linking: the
+  tree is the namespace" in the language reference and "Declared
+  relations" in the functions reference.
 - Spell error codes as they render: `[aontu/relation_cycle]`.
 
 ## Per-kind templates

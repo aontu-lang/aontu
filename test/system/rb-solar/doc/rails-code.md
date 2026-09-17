@@ -57,7 +57,7 @@ imported file supplies `service` and `entity`; the generator adds
 `out`, computed from those values. You evaluate the generator, not
 `model.aon` on its own.
 
-See [`file`](../../../../docs/reference-language.md#filespec-stringmap-children-list--map)
+See [`file`](../../../../docs/reference-functions.md#filespec-stringmap-children-list--map)
 in the function index for the full list and what each one takes.
 
 ## Follow one value into a route
@@ -75,7 +75,7 @@ The root-route rule selects the service's root value:
 #-   })
 ```
 
-[`emit`](../../../../docs/reference-language.md#transforming-emit) visits
+[`emit`](../../../../docs/reference-generation.md#transforming-emit) visits
 the selected values and uses the first matching rule.
 Here the selection is a one-item list containing `"planets#index"`.
 `match: string` admits that value, `_` refers to it, and `replace`

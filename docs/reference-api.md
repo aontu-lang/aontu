@@ -2,7 +2,9 @@
 
 The programming interfaces of both implementations, plus the
 command-line tool. For the language itself see the
-[Language reference](reference-language.md).
+[Language reference](reference-language.md), with the
+[Generation reference](reference-generation.md) for the generators and
+the [Functions reference](reference-functions.md) for the built-ins.
 
 ## Contents
 
@@ -664,7 +666,7 @@ aontu trim --check [--format text|json] <file.aon>
 
 ### `aontu relations`
 
-Run the [declared-relation](reference-language.md#declared-relations)
+Run the [declared-relation](reference-functions.md#declared-relations)
 checks (acyclicity and inverse consistency) over one finished model.
 
 ```
@@ -735,7 +737,7 @@ $ echo $?
 ```
 
 - Relations are declared **at the field**, by
-  [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
+  [`rel(t)` and the graph atoms](reference-functions.md#declared-relations):
   `acyclic()` and `inverse(name)` register the declaration during
   unification, and the verb reports the verdict over the finished
   model's edge set. There is no reserved `relations:` key: a document
@@ -746,7 +748,7 @@ $ echo $?
   something unification may hold. Generation enforces the same verdict
   (a located `relation_cycle` / `relation_inverse_missing` at the
   offending edge); the verb reports it without generating. The
-  [language reference](reference-language.md#declared-relations) states
+  [functions reference](reference-functions.md#declared-relations) states
   the rule; the [explanation](explanation.md#why-there-is-a-verb-surface)
   argues it.
 - A finding carries `at` (the position of the offending edge), `code`
@@ -3148,7 +3150,7 @@ Go) hermeticity's "file set" as data (capability is `mem`, `file` or
 hash`](#aontu-hash) and the package tooling, [`aontu pkg`](#aontu-pkg).
 
 **The bundled vocabularies.** `@"aontu:system"` ([the system
-vocabulary](reference-language.md#the-aontusystem-vocabulary)) and
+vocabulary](reference-functions.md#the-aontusystem-vocabulary)) and
 `@"aontu:view"` (the schema for a [view document's](#aontu-view)
 declarations) are served from the engine rather than from disk, so they
 need neither the filesystem nor package resolution and resolve under
@@ -3158,7 +3160,7 @@ under its own name; the bundled one is engine-owned.
 
 **Relation checks.** `relationCheck(src)` in TypeScript and
 `Aontu.RelationCheck(src)` in Go run the
-[declared-relation](reference-language.md#declared-relations) checks
+[declared-relation](reference-functions.md#declared-relations) checks
 over the derived edge set, returning the `{verdict, findings}` record
 that [`aontu relations`](#aontu-relations) prints: that section has
 the verdicts, the finding fields, and the exit codes.
@@ -3179,7 +3181,7 @@ edge set:
 
 There is no entity index, because there is no second namespace to index:
 a node's address is its path. One entry per checked
-[link](reference-language.md#checked-links-refert):
+[link](reference-functions.md#checked-links-refert):
 
 - **`from`** is the node the link starts at: the link's own position
   with the relation key and any list indices stripped, so a link inside

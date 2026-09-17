@@ -26,7 +26,9 @@ the output beside a command is what the engine printed.
 
 A tutorial is the wrong shape once you can name what you want. Go to
 the [how-to guides](how-to/) for a task, the
-[language reference](reference-language.md) or the
+[language reference](reference-language.md), the
+[generation reference](reference-generation.md), the
+[functions reference](reference-functions.md) or the
 [API reference](reference-api.md) for a fact,
 [unification](unification.md) for the operation itself, and the
 [explanation](explanation.md) for why the engine works as it does.

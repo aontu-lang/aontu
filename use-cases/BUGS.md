@@ -1494,7 +1494,7 @@ stayed fine.
 What survives is a *documentation* point, not a defect: a reader arriving
 from CUE may expect those characters to mean something, and the
 reference should make the named atoms easy to find from where they would
-look. `docs/reference-language.md` "Named constraint aliases" and
+look. `docs/reference-functions.md` "Named constraint aliases" and
 `docs/how-to.md` "Name a reusable constraint" are that surface.
 
 `>10`, `>=10`, `<5`, `!=0` and `=~"^ab"` are all legal aontu — as
@@ -3725,7 +3725,7 @@ resolver's business.
 
 Found 2026-09-06 while migrating use case 15 onto `emit` and
 `aontu render`. `%w = emit(_, {...})` is the documented way to name a
-rule table, and it resolves where the language reference shows it: as
+rule table, and it resolves where the generation reference shows it: as
 a top-level dispatch (`a: emit($.s, %w)`) and as a body element of
 another table (`emit(.kids, %walk)`). It does not resolve when the
 `emit` that names it is itself an argument of another call:
@@ -4155,7 +4155,7 @@ member has decided, which changes when a template is folded.
 Status: OPEN, tracked as
 [issue #200](https://github.com/aontu-lang/aontu/issues/200), and
 deliberately not half-fixed: a rule that holds for `[&: string]` and
-not for `[&: string|number]` is worse than one that refuses uniformly. `docs/reference-language.md` states the
+not for `[&: string|number]` is worse than one that refuses uniformly. `docs/reference-functions.md` states the
 containing-map half ("It cannot make a containing map vanish") and the
 constrained-list half.
 
