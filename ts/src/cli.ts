@@ -174,14 +174,15 @@ Options:
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
   --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory.
-                  Every verb takes it too, and a bare root means the
-                  document's own directory
+                  root[:dir] to confine @"..." below a directory. A
+                  bare root means the document's own directory. Every
+                  verb takes it but help, explain and init, which read
+                  no document, and mcp, which confines with --root
   --include-root <dir>  Shorthand for --trust root:<dir>
   --text-ext <e>  Read these extensions as text too, comma-separated
                   and without dots (md,sql). .txt needs no flag; a
                   named format keeps its meaning, and .js stays
-                  refused. Every verb takes it
+                  refused. The verbs that take --trust take it too
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version

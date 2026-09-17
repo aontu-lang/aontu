@@ -229,11 +229,13 @@ implementations, at every surface:
   (`\\server\share`).
 - **CLI**: `--trust <system|none|root[:dir]>` and
   `--include-root <dir>`, accepted by the bare command **and by every
-  verb**, and by the REPL, whose `--jsonl` session honours the
-  capability for `:load`, `:get`, `:why` and bare snippets alike. A
-  verb takes the flags anywhere in its argument tail; a bare `root`
-  means the primary document's own directory, matching the bare
-  command's entry root. The default is `'system'` **with a warning**:
+  verb that reads a document**, and by the REPL, whose `--jsonl`
+  session honours the capability for `:load`, `:get`, `:why` and bare
+  snippets alike. `help`, `explain` and `init` read no document and
+  refuse the flags; the MCP server confines with `--root <dir>`
+  instead. A verb takes the flags anywhere in its argument tail; a
+  bare `root` means the primary document's own directory, matching the
+  bare command's entry root. The default is `'system'` **with a warning**:
   every resolution that escapes the entry file's directory, or goes
   through package resolution, prints a one-line stderr warning naming
   the flags. The warning is a deprecation notice: a later major

@@ -1363,7 +1363,7 @@ function rowNaming(table, marker, verb) {
     for (const verb of ['fmt', 'template', 'agentsmd']) {
         Assert.throws(() => (0, node_child_process_1.execFileSync)(process.execPath, [CLI, verb, fixtures.doc, '--format', 'json'], { encoding: 'utf8', stdio: 'ignore' }), 'the page says ' + verb + ' takes no --format');
     }
-    for (const argv of [['help'], ['explain', '--list']]) {
+    for (const argv of [['help'], ['explain', '--list'], ['init']]) {
         Assert.throws(() => (0, node_child_process_1.execFileSync)(process.execPath, [CLI, ...argv, '--trust', 'none'], { encoding: 'utf8', stdio: 'ignore' }), 'the page says ' + argv[0] + ' refuses --trust');
     }
 });

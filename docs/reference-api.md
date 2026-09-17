@@ -82,13 +82,18 @@ With no file and piped input, read the source from stdin.
 ```
 
 The elided remainder lists every option; the per-verb sections below
-carry the same lists. Three options apply everywhere: `--trust <t>`
-(the include capability: `system`, `none`, or `root[:dir]`; see
-[`AontuOptions`](#aontuoptions) for what each admits), its
-shorthand `--include-root <dir>`, and `--text-ext <ext>[,<ext>]`
-(extensions an include additionally reads as text; repeatable, and a
-leading dot is optional). The last rides WITH the capability rather
-than beside it: both answer what an include may read.
+carry the same lists. Three options apply to every verb that reads a
+document: `--trust <t>` (the include capability: `system`, `none`, or
+`root[:dir]`; see [`AontuOptions`](#aontuoptions) for what each
+admits), its shorthand `--include-root <dir>`, and
+`--text-ext <ext>[,<ext>]` (extensions an include additionally reads
+as text; repeatable, and a leading dot is optional). The last rides
+WITH the capability rather than beside it: both answer what an include
+may read. The verbs that read no document refuse all three:
+[`help`](#aontu-help), [`explain`](#aontu-explain) and
+[`init`](#aontu-init). [The MCP server](#the-mcp-server) confines with
+`--root <dir>` instead, and [`fmt`](#aontu-fmt) takes the flags but
+evaluates nothing, so they have nothing to confine.
 
 **Behaviour**
 

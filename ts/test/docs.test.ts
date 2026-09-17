@@ -1640,7 +1640,7 @@ test('the-machine-answer-shapes-are-the-clis', () => {
       { encoding: 'utf8', stdio: 'ignore' }),
       'the page says ' + verb + ' takes no --format')
   }
-  for (const argv of [['help'], ['explain', '--list']]) {
+  for (const argv of [['help'], ['explain', '--list'], ['init']]) {
     Assert.throws(() => execFileSync(
       process.execPath, [CLI, ...argv, '--trust', 'none'],
       { encoding: 'utf8', stdio: 'ignore' }),
