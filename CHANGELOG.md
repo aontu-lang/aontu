@@ -71,10 +71,10 @@ one package. `TestPkgOutdatedListsMovesAndRetractions` publishes that in
 Go and asserts the advisory ends with three entries; the TypeScript twin
 stopped short of it, and now carries the same case.
 
-### Three supplemental reference sections
+### Six supplemental reference sections
 
 The language reference stays one file and keeps every section it has.
-Three pages sit beside it, each a surface that cuts across it rather
+Six pages sit beside it, each a surface that cuts across it rather
 than a chapter taken out of it, and none of them reproduces its prose.
 
 `docs/reference-generation.md` is the component tree: the ten
@@ -85,15 +85,38 @@ columns; and the ordering rules. `docs/reference-functions.md` is the
 call surface of all 64 built-ins: arity, argument modes, accepted kinds
 and result words, as one alphabetical table and as slices by result
 word, by rest slot and by mode. `docs/reference-errors.md` is the error
-registry: all 167 codes by class, each with the version it was
+registry: every registered code by class, each with the version it was
 registered at and a line saying what raises it, plus the report shape
 and the exit codes.
+
+`docs/reference-packages.md` is the package system's artefacts: every
+file it keeps with who writes it and whether it is committed, every
+field `pkg.aon` declares with its default, the path and version rules
+with the reserved names spelled out, the caps as numbers, the archive
+allowlist enumerated, and all thirty refusal codes with the step each
+is raised at. `docs/reference-grammar.md` is the published grammar as a
+set of rules: the four files and what each is for, all thirty-three
+rules in file order, the two notation choices, every ordering the
+grammar depends on, the spellings the parser accepts beyond it with
+what each means, the lexical sets, and the seven checks that hold the
+files to the engine. `docs/reference-agents.md` is the surface a
+machine reads a model through: the eleven doors with what each answers,
+the one answer shape they share, the six things none of them does, the
+include posture each takes by default, the teaching topics, and which
+implementation carries which door.
 
 Each is gated against the registry it tabulates. The call surface must
 list every declared built-in once and in order; the catalogue must hold
 every registered code with the registry's own class and version; the
 component table's node names and admitted children are checked against
-the engine, a hundred parent-child pairs of them. The signature gate no
+the engine, a hundred parent-child pairs of them. The refusal table
+must be every code the package source raises, the caps and the
+allowlist must be the engine's own constants, the rule index must be
+the grammar file in its own order, every ordering claim is checked
+against that file, each tolerated spelling is canonicalised and
+compared, the topic table must be what the binary carries, and the
+answer envelope must be the keys the tool prints for a document that
+holds and for one that does not. The signature gate no
 longer reads one page by name: every gated page that prints a signature
 is held to the engine's registry, and every declared built-in must have
 its signature printed somewhere a reader can reach.
