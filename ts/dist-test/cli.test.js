@@ -2624,6 +2624,29 @@ function fmtFiles(...srcs) {
         Assert.equal(p.code, 2);
         Assert.ok(p.err.includes('carries no //- marker line'), p.err);
     });
+    // The record is the runtime's, so a run that never wrote one, or wrote
+    // one this cannot read, answers with no skips rather than refusing.
+    (0, node_test_1.test)('a-record-it-cannot-read-names-no-skips', () => {
+        const d = dir();
+        Assert.deepEqual((0, cli_1.renderSkipped)(d, 0), []);
+        const at = Path.join(d, '.jostraca');
+        Fs.mkdirSync(at);
+        file(at, 'jostraca.meta.log', 'not json');
+        Assert.deepEqual((0, cli_1.renderSkipped)(d, 0), []);
+        // Readable JSON that is not a record, or holds no entry.
+        file(at, 'jostraca.meta.log', 'null');
+        Assert.deepEqual((0, cli_1.renderSkipped)(d, 0), []);
+        file(at, 'jostraca.meta.log', '{"files":{"odd.txt":null}}');
+        Assert.deepEqual((0, cli_1.renderSkipped)(d, 0), []);
+        file(at, 'jostraca.meta.log', JSON.stringify({
+            files: {
+                'old.txt': { action: 'skip', when: 10 },
+                'zed.txt': { action: 'skip', when: 30 },
+                'kept.txt': { action: 'write', when: 30 },
+            },
+        }));
+        Assert.deepEqual((0, cli_1.renderSkipped)(d, 20), ['zed.txt']);
+    });
     (0, node_test_1.test)('the-bin-writes-the-file', () => {
         const d = dir();
         const gen = file(d, 'gen.aon', ONE);

@@ -2172,8 +2172,10 @@ name, unless `<path>` is a directory that already exists:
 $ aontu render gen.aon zed.txt
 ```
 
-Nothing is printed when the write succeeds. `--format json` reports
-the files written, in the seven groups the runtime sorts them into:
+Nothing is printed when the write succeeds, unless a file was skipped
+(below). `--format json` reports the files written, in the seven groups
+the runtime sorts them into, and an eighth aontu reads from the run's
+own record:
 
 <!-- test: run -->
 ```sh
@@ -2191,6 +2193,15 @@ $ aontu render --format json gen.aon zed.txt
   "verdict": "ok"
 }
 ```
+
+**A file the runtime declines to touch is named as skipped.** A copy on
+disk carrying the `JOSTRACA_PROTECT` marker is left as it is, so a hand
+edit survives the next run. Those seven groups say what was done to a
+file, and nothing was done to this one, so aontu reads the run's own
+record under `.jostraca/` and reports `skipped: <path>` in text,
+or the `skipped` group in JSON. `--check` still counts it as `content`
+drift: the bytes differ from what the generator answers, whoever chose
+that.
 
 **Any other tree is written below `<path>`**: a `project`, a `folder`,
 or a list of files, with the paths the tree spells. A one-file tree
