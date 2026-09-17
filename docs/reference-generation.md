@@ -14,12 +14,15 @@ reference and not here: [Generating children: `pack` and
 [Transforming: `emit`](reference-language.md#transforming-emit), and
 [Generation](reference-language.md#generation) for what `generate`
 requires of a model. Each component function's one-entry summary is in
-that page's [Functions](reference-language.md#functions) index.
+that page's [Functions](reference-language.md#functions) index, and the
+arity and argument modes of every name are in [The call
+surface](reference-functions.md#the-call-surface).
 
 The option lists and synopses for the verbs belong to the API
 reference, under [`aontu render`](reference-api.md#aontu-render) and
-[`aontu trace`](reference-api.md#aontu-trace). Behaviour stated below is
-pinned by [`test/spec/cmp.tsv`](../test/spec/cmp.tsv) and
+[`aontu trace`](reference-api.md#aontu-trace), and the error codes
+named below to [The codes](reference-errors.md#the-codes). Behaviour
+stated here is pinned by [`test/spec/cmp.tsv`](../test/spec/cmp.tsv) and
 [`test/spec/trace.tsv`](../test/spec/trace.tsv), which both
 implementations run.
 
@@ -27,16 +30,6 @@ implementations run.
 
 - [The component tree](#the-component-tree)
 - [The components](#the-components)
-  - [`project`](#project)
-  - [`folder`](#folder)
-  - [`file`](#file)
-  - [`content`](#content)
-  - [`line`](#line)
-  - [`fragment`](#fragment)
-  - [`slot`](#slot)
-  - [`inject`](#inject)
-  - [`copyfiles`](#copyfiles)
-  - [`listitems`](#listitems)
 - [What `aontu render` writes](#what-aontu-render-writes)
 - [What `aontu trace` reports](#what-aontu-trace-reports)
 - [Order and determinism](#order-and-determinism)
@@ -71,21 +64,19 @@ out: file("a.txt", ["x" ["y" "z"]])
 }
 ```
 
-Two rules are visible in those three children. **A bare string child is
-a `line`**, terminator included, which is what a template body line
-desugars to; an explicit `content()` is still a span with no terminator.
-And **a nested list splices rather than nests**: the children argument
-is flattened in place, recursively, so `emit`'s list of pieces arrives
-as siblings of the strings written beside it. Both are pinned by
-`test/spec/cmp.tsv` (`cmp-bare-string-child`, `cmp-bare-string-spliced`,
-and `cmp-children-splice`).
+**A bare string child is a `line`**, terminator included, which is what
+a template body line desugars to; an explicit `content()` is still a
+span with no terminator (`cmp-bare-string-child`,
+`cmp-bare-string-spliced`). The conversion happens only where `line` is
+an admitted child, so `file`, `fragment`, `slot`, `inject`, and
+`listitems` take a bare string and `folder` and `project` refuse one
+(`cmp-bare-string-needs-line`, `cmp-bare-string-not-in-project`). The
+children argument is flattened in place, recursively
+(`cmp-children-splice`), under the rule [Transforming:
+`emit`](reference-language.md#transforming-emit) states for a body.
 
-The conversion happens only where `line` is an admitted child, so
-`file`, `fragment`, `slot`, `inject`, and `listitems` take a bare string
-and `folder` and `project` refuse one (`cmp-bare-string-needs-line`,
-`cmp-bare-string-not-in-project`).
-
-**A node is an ordinary map, so every query verb reads it.** Write a
+A node is an ordinary map addressed by path, printing its keys in the
+[order every value prints in](#order-and-determinism). Write a
 `tree.aon`:
 
 <!-- test: scenario generation-tree -->
@@ -110,22 +101,22 @@ $ aontu model get '$.out.children.0.children.0.children.0' tree.aon
 }
 ```
 
-The `Line` node under a `File` was written as the string `"const x = 1"`.
+[Generate code from a model](how-to/generate-code.md) reads a whole
+tree with the same verb.
 
 **The prop schema is enforced by the component function, not by the
 tree.** A hand-written map carrying a `cmp` key that names a component
 is admitted as a child, and its props are never checked against the
 schema below: an undeclared prop reaches the runtime, where eight of
-the ten components drop it in silence. Build a node with `file()`,
-`line()`, and their eight siblings, and a misspelled prop is a refusal
-at the call instead.
+the ten components drop it in silence. A prop a component does not
+declare is refused at the call.
 
 ## The components
 
-Ten functions build nodes. The signature column is the arity the parser
-enforces, so a leaf handed a children list is a `func_arity` error
-rather than a bad argument (`cmp-leaf-takes-no-children`). The shorthand
-column names the prop a bare string spec sets.
+Ten functions build nodes. A leaf handed a children list is a
+`func_arity` error ([Class `parse`](reference-errors.md#class-parse))
+rather than a bad argument (`cmp-leaf-takes-no-children`). The
+shorthand column names the prop a bare string spec sets.
 
 | signature | node | shorthand | children | props |
 |---|---|---|---|---|
@@ -140,11 +131,22 @@ column names the prop a bare string spec sets.
 | `copyfiles(spec: string\|map) : map` | `CopyFiles` | `from` | none | `from`, `to`, `replace`, `exclude` |
 | `listitems(spec: map, children?: list) : map` | `ListItems` | none | `content`, `line`, `fragment` | `item`, `line`, `indent` |
 
-Every bad call answers the same error code, `invalid-arg`, registered
-under the `conflict` class. The message's attempt word is the offending
-name rather than a fixed verb: the prop that is not declared, the
-required prop that is missing, `children` for a child the component does
-not admit, or `spec` where the argument is neither a string nor a map.
+Every bad call answers the same error code, `invalid-arg` ([Class
+`conflict`](reference-errors.md#class-conflict)). The message's attempt
+word is the offending name rather than a fixed verb, and it is one of
+five:
+
+- the prop that is not declared;
+- the text prop's own name, where that prop is required and missing, or
+  is present and is not a non-empty string, so `project({folder: 1})`
+  and `project({folder: ""})` both answer `Cannot folder`;
+- `item`, where a `listitems` bag is absent or is not a list, so
+  `listitems({})` and `listitems({item: "a"})` both answer
+  `Cannot item`;
+- `children`, for a child the component does not admit;
+- `spec`, where the argument is not a form the component's spec takes,
+  which covers the string `listitems("a")`.
+
 Where more than one prop is wrong, the one named is the **first
 written**, not the first in sorted order, and both ports walk the
 written key list to keep that promise (`cmp-props-names-first-written`).
@@ -161,167 +163,103 @@ $ echo $?
 1
 ```
 
-`Cannot children` is the whole diagnosis: the argument is a well-formed
-`line` node, and `folder` takes folders, files, and copies.
+What each component adds to the table:
 
-### `project`
-
-Props `name` and `folder`. The one component whose text prop is
-optional: `project()` answers a node with empty props, and a runtime
-defaults the folder to `.`. Admits `project`, `folder`, `file`, and
-`copyfiles` children, so a bare string is refused. A `folder` written as
-anything but a non-empty string is refused by that name
-(`cmp-project-folder-kind`, `cmp-project-folder-not-empty`). A runtime
-joins `folder` under the run's output folder as a further path segment;
-`name` names the project and adds no segment.
-
-### `folder`
-
-Prop `name`, required and non-empty (`cmp-folder-needs-a-name`,
-`cmp-folder-name-not-empty`). Admits `folder`, `file`, and `copyfiles`;
-a `content`, `line`, `fragment`, `slot`, `inject`, or `listitems` child
-is refused as `children`, and so is a bare string. A runtime writes one
-or more path segments below the enclosing folder, so `folder("a/b")` is
-two of them.
-
-### `file`
-
-Props `name`, `exclude`, and `mode`. Admits `content`, `line`,
-`fragment`, `inject`, `listitems`, and `copyfiles`, plus a bare string,
-which becomes a `line`. Refuses a `folder` or `project` child, and
-refuses an empty `name`. A runtime writes one output file at `name`
-below the enclosing folder; the name may hold `/`, and the folders on
-the way are made. `exclude` leaves an existing file alone, as `true`, a
-path, or a list of paths and regexes. `mode` sets the file's permission
-bits, written in decimal because aontu has no octal literal: `mode: 493`
-is `0o755`, and `test/spec/cmp.tsv` uses `mode: 420` for `0o644`.
-
-### `content`
-
-Props `arg`, `src`, `name`, `indent`, `extra`, `replace`, and `raw`, the
-span set. A leaf: a children list is a `func_arity` error, because
-`content` takes exactly one argument. A span's text prop may be the
-empty string, so `content("")` is a node where `folder("")` is a
-refusal. A runtime writes the text with no terminator, taking it from
-`arg`, then `src`, then a string child, and writing nothing where it has
-none of the three. `indent` is a count of spaces or a literal prefix.
-
-### `line`
-
-`line` is `content` with a newline appended, and takes the same seven
-props from the same alias, so the two cannot drift apart. The name is
-also a `listitems` prop, which is a different thing spelled the same
-way. Everything else in [`content`](#content) applies unchanged.
-
-### `fragment`
-
-Props `from`, `indent`, `replace`, and `eject`. Admits `slot`,
-`content`, `line`, and `listitems`, plus a bare string. A runtime reads
-the file at `from`, resolved against the *output* folder, and writes it
-with its `<[SLOT]>` and `<[SLOT:name]>` markers filled by the slots
-beneath. `eject` names a start and end marker pair, and only the region
-between them is read. The source file must exist, and a missing one is a
-write-time refusal. `fragment` is one of the two components whose props
-the runtime itself validates against a closed set, so a prop the schema
-above admits and the runtime does not is refused by name at render time.
-
-### `slot`
-
-Prop `name`, required and non-empty. Admits `content`, `line`,
-`fragment`, and `listitems`, plus a bare string. A runtime fills the
-`<[SLOT:name]>` marker of the enclosing `fragment`; the unnamed
-`<[SLOT]>` marker is a nameless slot, which `slot()` cannot build.
-
-### `inject`
-
-Props `name`, `markers`, and `exclude`. Admits `content`, `line`, and
-`listitems`, plus a bare string. A runtime rewrites the region between a
-marker pair in a file that already exists and never creates one; the
-default pair is `#--START--#` followed by a newline, and a newline
-followed by `#--END--#`. A `markers` pair with exactly one empty member
-is refused; both empty reads as unset. A missing target file is a
-write-time refusal.
-
-### `copyfiles`
-
-Props `from`, `to`, `replace`, and `exclude`. A leaf. A runtime copies
-the file or directory at `from` to `to` below the enclosing folder, and
-`from` resolves against the process working directory rather than
-against the output folder. `replace` substitutes in copied text, and a
-binary file is copied through unchanged. Like `fragment`, its props are
-validated by the runtime against a closed set.
-
-### `listitems`
-
-The one component with no text prop, so it takes no bare string spec
-(`cmp-listitems-takes-no-string`), and the one with a bag: `item` must
-be present and must be a list, whatever else it holds
-(`cmp-listitems-needs-item`, `cmp-listitems-item-is-a-list`). Props
-`item`, `line`, and `indent`, where `line` is a prop and not the
-component of that name. Admits `content`, `line`, and `fragment`, plus a
-bare string. A runtime walks its children once per element of `item` and
-writes a blank line after the last one unless `line: false`.
+- **`project`**: the one component whose text prop is optional, so
+  `project()` answers a node with empty props. A `folder` written as
+  anything but a non-empty string is refused by that name
+  (`cmp-project-folder-kind`, `cmp-project-folder-not-empty`).
+- **`folder`**: `name` is required and non-empty
+  (`cmp-folder-needs-a-name`, `cmp-folder-name-not-empty`).
+- **`file`**: `name` is required and may hold `/`, and the folders on
+  the way are made. `exclude` leaves an existing file alone, as `true`,
+  a path, or a list of paths and regexes. `mode` is the permission bits
+  as a number: `mode: 493` and `mode: 0o755` are the same value, both
+  spellings being [numeric
+  literals](reference-language.md#lexical-structure), and
+  `test/spec/cmp.tsv` writes `mode: 420` for `0o644`.
+- **`content`**: the text prop may be the empty string, so `content("")`
+  is a node where `folder("")` is a refusal. The text is taken from
+  `arg`, then `src`, then a string child, and a node holding none of the
+  three writes nothing. `indent` is a count of spaces or a literal
+  prefix.
+- **`line`**: the same seven props as `content`, from the same alias.
+  The name is also a `listitems` prop, which is a different thing
+  spelled the same way.
+- **`fragment`**: `from` resolves against the output folder. `eject`
+  names a start and end marker pair, and only the region between them is
+  read. The source file must exist. `fragment` and `copyfiles` are the
+  two components whose props the runtime validates against a closed set,
+  so an undeclared prop on a hand-written `Fragment` or `CopyFiles` node
+  is refused by name at render time rather than dropped, and `eject` is
+  refused unless it is a list of two markers: `eject: true` builds a
+  node (`cmp-props-fragment-all`) and does not render.
+- **`slot`**: `name` is required and non-empty, and fills the
+  `<[SLOT:name]>` marker of the enclosing `fragment`. The unnamed
+  `<[SLOT]>` marker takes that fragment's non-`slot` children instead,
+  so a bare string, `content`, `line`, or `listitems` written directly
+  under a `fragment` lands there; a `fragment` carrying such children
+  whose source has no unnamed marker is a refusal at exit 2.
+- **`inject`**: the default marker pair is `#--START--#` followed by a
+  newline, and a newline followed by `#--END--#`. A `markers` pair with
+  exactly one empty member is refused at render, and both empty reads as
+  unset. `inject` rewrites a file that already exists and never creates
+  one, so a missing target is a refusal at exit 2.
+- **`copyfiles`**: `from` resolves against the process working directory.
+  `replace` substitutes in copied text, and a binary file is copied
+  through unchanged. This `replace`, here and in the span set, is a
+  substitution the runtime applies, and not [`emit`'s `replace`
+  key](reference-language.md#replacing-text-in-a-body-replace-and-esc).
+- **`listitems`**: the one component with no text prop, so it takes no
+  bare string spec (`cmp-listitems-takes-no-string`), and the one with a
+  bag: `item` must be present and must be a list, whatever else it holds
+  (`cmp-listitems-needs-item`, `cmp-listitems-item-is-a-list`). `line`
+  here is a prop and not the component of that name.
 
 ## What `aontu render` writes
 
-`render` hands the tree to
-[jostraca](https://github.com/jostraca/jostraca), which writes the
-bytes. Per node, on disk:
+Per node, on disk:
 
 | node | effect |
 |---|---|
 | `Project` | Joins `folder` under the run's output folder. `name` writes nothing. |
-| `Folder` | One or more path segments below the enclosing folder. |
+| `Folder` | One or more path segments below the enclosing folder, so `folder("a/b")` is two of them. |
 | `File` | One output file at `name` below the enclosing folder, with `mode` and `exclude` applied. |
 | `Content` | A span of text, with no terminator. |
 | `Line` | The same span, with a newline after it. |
-| `Fragment` | The file at `from`, read from the output folder, with its slot markers filled. |
+| `Fragment` | The file at `from`, resolved against the output folder, with its markers filled by the slots beneath. |
 | `Slot` | One marker of the enclosing `Fragment`. |
 | `Inject` | The region between a marker pair, in a file that already exists. |
-| `CopyFiles` | A copy of `from`, at `to` below the enclosing folder. |
-| `ListItems` | Its children once per element of `item`. |
+| `CopyFiles` | A copy of `from`, resolved against the process working directory, at `to` below the enclosing folder. |
+| `ListItems` | Its children once per element of `item`, then a blank line unless `line: false`. |
 
-Where the files land is decided by the tree root and by whether
-`<path>` already exists:
-
-1. A single generator whose root is a `File`, with `<path>` not an
-   existing directory: the file is written at `<path>` itself, and the
-   tree's `name` prop is replaced by the base name of `<path>`.
-2. The same tree with `<path>` an existing directory: the file keeps its
-   own `name`, below that directory.
-3. Any other root, a `Project`, a `Folder`, or a list, is written below
-   `<path>` with the paths the tree spells.
-4. A `Project`'s own `folder` is joined under `<path>` as a further
-   segment, so `project("pkg", …)` against `build2` writes
-   `build2/pkg/…`. Its `name` adds nothing to the path.
-5. A folder argument is a set of generators, and in a set rule 1 does
-   not apply: every tree goes below `<path>`.
+Where a root lands is stated under [`aontu
+render`](reference-api.md#aontu-render). One segment of the path is the
+tree's own: a `Project`'s `folder` is joined under `<path>` as a further
+segment, so `project("pkg", [file("a.txt")])` against `build2` writes
+`build2/pkg/a.txt`, and the project's `name` adds nothing to the path.
 
 **Text reaches the file verbatim.** `render` sets `raw` on every
 `Content` and `Line` node, so the substitution the runtime would
-otherwise apply to a span does not run, and a `$$…$$` sequence in a
-shell script, a doc comment, or a regex is written as it stands. Two
-props in the span set follow from that: `extra` and `replace` are inert
-unless the node writes `raw: false` itself. `indent` is placement
-rather than substitution and applies either way.
+otherwise apply to a span does not run, and a `$$…$$` sequence in a shell
+script, a doc comment, or a regex is written as it stands. Two props in
+the span set follow from that: `extra` and `replace` are inert unless
+the node writes `raw: false` itself. `indent` is placement rather than
+substitution and applies either way.
 
 **The write is not atomic.** The runtime writes as it walks, so a
 refusal part way through leaves the files written before it on disk. Two
 generators in one set claiming a single output path are refused that
 way, at exit 2, with the first file already written.
 
-`--check` writes nothing. It runs the generator against an in-memory
-filesystem and compares, reporting one `kind: path` line per difference
-and exiting 1. There are three kinds: `missing`, where the generated
-path is not there; `content`, where the bytes differ; and `mode`, where
-the bytes match and the permission bits do not, and only where the tree
-declared a `mode`. Paths are relative to `<path>`. The comparison covers
-the files the generator emits and not the directory, so a file that
-stops being generated is not reported, and a file carrying
+`--check` writes nothing, and its flag entry is under [`aontu
+render`](reference-api.md#aontu-render). What it holds is the tree's own
+surface: the files the generator emits and not the directory, so a file
+that stops being generated is not reported, and a file carrying
 `exclude: true` is held to the bytes the generator would have written
-even though `render` leaves it alone.
-
-Write a `gen.aon` that answers a project of one file:
+even though `render` leaves it alone. A reported path is the one the
+generator names, relative to `<path>`, rather than the path the command
+was given. Write a `gen.aon` answering a project of one file:
 
 <!-- test: scenario generation-render -->
 <!-- test: file gen.aon -->
@@ -329,23 +267,12 @@ Write a `gen.aon` that answers a project of one file:
 out: project(".", [folder("src", [file("main.js", ["const x = 1" ""])])])
 ```
 
-Render it, then check it:
-
-<!-- test: run -->
-```sh
-$ aontu render gen.aon build
-$ aontu render --check gen.aon build
-```
-
-Nothing is printed either time. Now edit the generated
-`build/src/main.js` by hand:
+and a `build/src/main.js` holding different bytes:
 
 <!-- test: file build/src/main.js -->
 ```text
 const x = 2
 ```
-
-and check again:
 
 <!-- test: run -->
 ```sh
@@ -355,30 +282,21 @@ $ echo $?
 1
 ```
 
-The reported path is `src/main.js`, relative to `build`, which is the
-path the generator names rather than the one the command was given.
-
-Exit codes, with the flag list in
-[`aontu render`](reference-api.md#aontu-render):
+Exit codes for the verb are listed under [`aontu
+render`](reference-api.md#aontu-render), and the five values the engine
+uses under [Exit codes](reference-errors.md#exit-codes). Two of them are
+decided by the tree rather than by the command:
 
 | refusal | exit |
 |---|---|
-| an unknown option, a bad `--format`, or the wrong number of positional arguments | 2 |
-| a generator file that cannot be read, or a folder holding no regular file | 2 |
-| a file that is neither `.aon` nor `.aontu` and carries no marker line | 2 |
-| a write-time refusal: two files claiming one path, a `..` segment in a `File` name, a missing `inject` or `fragment` source | 2 |
-| `--check` drift | 1 |
-| the document does not stand up, or `--at` names nothing | 4 |
 | the tree root is a `File` with no `name` | 4 |
 | the tree is refused before any write: an absolute or climbing `Project` folder, or a `props` that is not a map | 4 |
 
-The split between the last two exit codes is where the guard sits. A
-climbing `Project` folder is refused while the tree is still data, at
-exit 4; a climbing `File` name is refused by the write, at exit 2. The
-nameless-`File` guard reads the tree root alone, so a hand-written
-nameless `File` nested inside a `Project` renders and writes a file
-called `undefined`; `file()` requires a name, so no generator written in
-aontu can reach it.
+A climbing `Project` folder is refused while the tree is still data, at
+exit 4; a climbing `File` or `Folder` name is refused by the write, at
+exit 2. The nameless-`File` guard reads the tree root alone, so a
+hand-written nameless `File` nested inside a `Project` renders and
+writes a file called `undefined`.
 
 ## What `aontu trace` reports
 
@@ -389,8 +307,11 @@ columns, in this order:
 
 1. `file`, the `name` prop of the innermost enclosing `File` node.
 2. `at`, the address of the stamped piece in the document.
-3. `node`, the address of the model node the dispatch matched.
-4. `rule`, the rule table's address, `#`, and the template's index.
+3. `node`, the address of the model node the dispatch matched, and the
+   empty string where the selection was written inline at the call and
+   so has no address (`test/spec/trace.tsv`).
+4. `rule`, the rule table's address, `#`, and the template's index,
+   addressed as [`aontu trace`](reference-api.md#aontu-trace) states.
 
 `--format json` answers one object under a `trace` key, whose entries
 carry the same four fields keyed `at`, `file`, `node`, and `rule`. Both
@@ -419,8 +340,7 @@ $ aontu trace --format json gen.aon
 {"trace":[{"at":"$.children.1","file":"t.ts","node":"$.fields.0","rule":"$.%field#0"},{"at":"$.children.2","file":"t.ts","node":"$.fields.1","rule":"$.%field#0"}]}
 ```
 
-`$.children.0` and `$.children.3` are the two hand-written braces, and
-they have no row. Four rules decide what else has none:
+Four rules decide what has no row:
 
 - A piece no rule stamped, which covers every hand-written child
   (`trace-no-rule-no-entry`).
@@ -433,41 +353,33 @@ they have no row. Four rules decide what else has none:
 - Anything outside the anchor, which is `$.out` unless `--at` names
   another path.
 
-Two addresses need reading care. The `file` column is the innermost
-enclosing `File`, by longest matching address prefix rather than by
-first match, and a `File` node that a rule stamped itself gets a row
-naming itself. The `rule` column addresses a table read through a
-`%name` by that name, as `$.%field#0`; a table written inline at the
-call has no address of its own and is `#0`, `#1`, and so on, so an
-address before the hash is what tells the two apart
-(`test/spec/trace.tsv`).
+The `file` column is the innermost enclosing `File`, by longest matching
+address prefix rather than by first match, and a `File` node that a rule
+stamped itself gets a row naming itself.
 
 `trace` reads a `<file>` whose name does not end in `.aon` as a
 generator in the target's own syntax, desugared by its marker. That
 includes a `.aontu` file, which [`aontu render`](reference-api.md#aontu-render)
 and [`aontu fmt`](reference-api.md#aontu-fmt) both read as plain aontu;
-traced, it has no `$.out` and answers `no_path` at exit 4. Exit codes
+traced, it has no `$.out` and answers `no_path` ([Class
+`reference`](reference-errors.md#class-reference)) at exit 4. Exit codes
 are `0` for a report, empty or not, `2` for usage or I/O, and `4` where
 the document does not stand up or `--at` names nothing.
 
 ## Order and determinism
 
-`children` is a list and keeps document order. A nested list is spliced
-flat, in place, recursively, and each spliced child is checked against
-the same parent's admitted children, so a nested list cannot smuggle an
-inadmissible child through (`cmp-splice-refuses-inside`).
+`children` is a list and keeps document order. Each spliced child is
+checked against the same parent's admitted children
+(`cmp-splice-refuses-inside`).
 
 A node's own three keys print in code-point order, `children`, `cmp`,
 then `props`, and a props map prints its keys sorted the same way,
-whatever order they were written in. Every transcript above shows it.
-List elements print in index order.
+whatever order they were written in: `cmp-map-spec` writes
+`file({name: "a.ts", mode: 420})` and pins the printed props as `mode`
+then `name`. List elements print in index order.
 
-What a rule visits, and in what order, is the member order of its
-selection: index order for a list, sorted-key order for a map, which
-[Generating children: `pack` and
-`each`](reference-language.md#generating-children-pack-and-each) states
-for `pack` and `each` and which `emit` shares. The sort is by code
-point, so `Mango` precedes `apple`.
+`emit` visits its selection in the [order every bag
+reader uses](reference-language.md#generating-children-pack-and-each).
 
 `pack` answers a map, and no component accepts a map as `children`, so a
 `pack` result reaches a `file` as `Cannot children`. `each` and `emit`
@@ -483,14 +395,11 @@ in: they are built only for a run that asks for them, which `trace`
 does and ordinary evaluation does not, so no stamp appears in the tree
 `generate` or `model get` answers.
 
-Both implementations promise the same tree and the same report. Every
-tree row and every refusal row of
-[`test/spec/cmp.tsv`](../test/spec/cmp.tsv) runs in `ts/test/spec.test.ts`
-and `go/spec_test.go`, as does every row of
-[`test/spec/trace.tsv`](../test/spec/trace.tsv), and the Go component
-table mirrors the TypeScript one entry for entry. What `render` writes
-is one step further out: the two ports call two separate builds of the
-generator runtime, and it is the goldens in
+Both implementations promise the same tree and the same report, under
+[Behavioural parity](reference-api.md#behavioural-parity), and the Go
+component table mirrors the TypeScript one entry for entry. What
+`render` writes is one step further out: the two ports call two separate
+builds of the generator runtime, and it is the goldens in
 [`use-cases/15-code-generation/`](../use-cases/15-code-generation/), held
 by `render --check`, that hold the bytes to each other.
 
@@ -499,16 +408,17 @@ by `render --check`, that hold the bytes to each other.
 - [Language reference, Generation](reference-language.md#generation).
   What `generate` requires of a model, and the per-function index entry
   for each of the ten components.
+- [The call surface](reference-functions.md#the-call-surface). The
+  arity, argument modes, and result word of every declared name.
+- [The codes](reference-errors.md#the-codes). `invalid-arg`,
+  `func_arity`, and `no_path` by class, with the exit code each run ends
+  on.
 - [`aontu render`](reference-api.md#aontu-render). The flags, the
-  synopsis, and the seven groups `--format json` sorts written files
-  into.
-- [`aontu trace`](reference-api.md#aontu-trace). The verb's own
-  reference entry.
+  synopsis, where a root lands, and the seven groups `--format json`
+  sorts written files into.
 - [Generate code from a model](how-to/generate-code.md). The worked
   recipe: a rule set over the records, a tree of files and lines, and
   the bytes held against goldens.
-- [`use-cases/15-code-generation/`](../use-cases/15-code-generation/).
-  Three targets from one model, with the checks that keep both ports
-  agreeing.
-- [Trust and determinism](trust.md#clause-4-sandboxing). What the
-  runtime is allowed to touch while it writes.
+- [Trust and determinism](trust.md#clause-4-sandboxing). Why nothing in
+  the engine writes a file, and which tree-shape refusals stand before
+  `render` hands the tree on.
