@@ -38,6 +38,7 @@ function parseLcov(text) {
         file: line.slice(3),
         lines: new Map(),
         branches: new Map(),
+        functions: new Map(),
         fns: new Map(),
         fnhits: new Map(),
       }
@@ -65,12 +66,27 @@ function parseLcov(text) {
       arms.push({ line: ln, taken: p[3] })
     }
     else if (line.startsWith('FN:')) {
+      // line, name. The name is NOT an identity either: `anonymous_N`
+      // numbers the anonymous functions of the run's own list for the
+      // file, so a function the run never reported renames every later
+      // one. Pair FN with FNDA inside the report, where the name does
+      // identify, then key by line, as the arms are.
       const ix = line.indexOf(',')
       cur.fns.set(line.slice(ix + 1), +line.slice(3, ix))
     }
     else if (line.startsWith('FNDA:')) {
       const ix = line.indexOf(',')
       cur.fnhits.set(line.slice(ix + 1), +line.slice(5, ix))
+    }
+  }
+
+  for (const f of files) {
+    for (const [name, ln] of f.fns) {
+      let fns = f.functions.get(ln)
+      if (null == fns) {
+        f.functions.set(ln, fns = [])
+      }
+      fns.push({ line: ln, name, hits: f.fnhits.get(name) ?? 0 })
     }
   }
 
@@ -99,10 +115,12 @@ function check(files) {
       }
     }
 
-    for (const [name, ln] of f.fns) {
-      total.fns[1]++
-      if (0 < (f.fnhits.get(name) ?? 0)) total.fns[0]++
-      else gaps.push(`${f.file}:${ln} function ${name} never called`)
+    for (const fns of f.functions.values()) {
+      for (const fn of fns) {
+        total.fns[1]++
+        if (called(fn)) total.fns[0]++
+        else gaps.push(`${f.file}:${fn.line} function ${fn.name} never called`)
+      }
     }
   }
 
@@ -115,8 +133,33 @@ function taken(b) {
 }
 
 
+function called(fn) {
+  return 0 < fn.hits
+}
+
+
 function pct(hit, all) {
   return 0 === all ? '100.00' : (100 * hit / all).toFixed(2)
+}
+
+
+// A line's arms, and its functions, come from one run. A run vouches
+// for a line when everything it reports there was covered and it
+// reports at least as many entries there as any other run: a genuine
+// gap is uncovered in every run that reports it, so no run reporting it
+// vouches for its line, and a run in which an enclosing block or
+// function went unobserved folds the gap into that block, or drops the
+// entry, and so reports fewer entries at the line, which is not allowed
+// to vouch either.
+function vouched(cur, incoming, covered) {
+  for (const [ln, entries] of incoming) {
+    const have = cur.get(ln)
+    if (null == have || entries.length > have.length ||
+      (entries.length === have.length &&
+        !have.every(covered) && entries.every(covered))) {
+      cur.set(ln, entries)
+    }
+  }
 }
 
 
@@ -133,26 +176,8 @@ function union(reports) {
       for (const [ln, count] of f.lines) {
         cur.lines.set(ln, Math.max(cur.lines.get(ln) ?? 0, count))
       }
-      for (const [name, count] of f.fnhits) {
-        cur.fnhits.set(name, Math.max(cur.fnhits.get(name) ?? 0, count))
-      }
-      // A line's arms come from one run. A run vouches for a line when
-      // every arm it reports there was taken and it reports at least as
-      // many arms there as any other run: a genuine gap has count 0 in
-      // every run in which its function ran, so no run reporting it
-      // vouches for its line, and a run in which an enclosing block went
-      // unobserved folds the gap into that block and reports fewer arms
-      // at the line, so it is not allowed to vouch either.
-      for (const [ln, arms] of f.branches) {
-        const ca = cur.branches.get(ln)
-        if (null == ca) {
-          cur.branches.set(ln, arms)
-        }
-        else if (arms.length > ca.length ||
-          (arms.length === ca.length && !ca.every(taken) && arms.every(taken))) {
-          cur.branches.set(ln, arms)
-        }
-      }
+      vouched(cur.branches, f.branches, taken)
+      vouched(cur.functions, f.functions, called)
     }
   }
   return [...byFile.values()]

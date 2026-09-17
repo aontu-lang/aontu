@@ -5,6 +5,30 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### The coverage gate keyed functions by a name that moves
+
+**An uncovered function could pass the ADR-002 gate** (TypeScript).
+`ts/test/covcheck.js` unions the runs `covrun.js` makes, and it unioned
+their function records by name. `anonymous_N` is not a name: it numbers
+the anonymous functions of the run's own list for a file, so a function
+that run never reported renumbers every later one, and the same file came
+back with 118 function records in one run and 71 in another. A function
+nothing covered was cleared whenever a covered function carried its
+number in one of the three runs, and failed the gate when none did, which
+is the intermittent failure `src/pkg-net.ts` produced twice. Functions now
+pair with their counts inside one report, where the name does identify
+them, and union per line under the rule the branch arms already use: a
+run vouches for a line only when it reports at least as many entries
+there as any other run and every one of them is covered.
+
+**The gap it hid was a parity gap** (TypeScript). The comparator that
+orders a package's retractions runs only when two of them accumulate for
+one package. `TestPkgOutdatedListsMovesAndRetractions` publishes that in
+Go and asserts the advisory ends with three entries; the TypeScript twin
+stopped short of it, and now carries the same case.
+
 ## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
 ### Three supplemental reference sections

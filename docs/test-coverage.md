@@ -91,14 +91,26 @@ counts:
   around. The gate therefore goes through `ts/test/covrun.js`, which
   reruns and **unions** reports: a line seen executing in any run did
   execute, the same argument that lets `covmerge` union the Go
-  profiles. It cannot mask a real gap: code no test exercises is
-  missing from every run, so the union is still short and the gate
-  still fails. (Single-process mode was tried first and rejected:
+  profiles. (Single-process mode was tried first and rejected:
   several cases depend on a fresh module registry, and coverage drops
   to ~99.6 % because they stop exercising what they were written for.)
   The spawned-binary cases in `cli.test.ts` also no longer pass
   `NODE_V8_COVERAGE` to their children: those assert the packaged
   binary's behaviour, while the same paths are measured in-process.
+- **What the union keys on decides whether it can hide a gap.** A line
+  number identifies a line, so line counts union safely, and a gap in
+  code no test exercises is short in every run. A branch arm's block
+  number and a function's `anonymous_N` name identify nothing across
+  runs: each numbers what that run reported for the file, so a record
+  the run omitted renumbers every later one, and the same file came
+  back with 118 function records in one run and 71 in another. A union
+  keyed on either can credit one arm, or one function, with the hits of
+  a different one. Arms and functions are kept per line instead, and a
+  run vouches for a line only when it reports at least as many entries
+  there as any other run and every one of them is covered. Keyed by
+  name, the comparator that orders a package's retractions passed the
+  gate whenever a covered function shared its number, and failed it
+  when none did.
 
 ### One thing the TypeScript measurement does not catch
 
