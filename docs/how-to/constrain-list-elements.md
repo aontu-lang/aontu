@@ -57,7 +57,7 @@ collection. `close` on the enclosing map seals that map's
 keys and leaves the list tail open: the spread is what constrains
 the elements. Constraints on the list itself (`length`, `unique`)
 sit beside the spread with `&`; see [`length`
-semantics](../reference-functions.md#length-semantics).
+semantics](../reference-language.md#length-semantics).
 
 The constructs are specified in the language reference under
 [Lists](../reference-language.md#lists) and

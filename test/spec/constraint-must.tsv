@@ -5,7 +5,7 @@
 # -- must reports, it never contributes. On failure the author's own
 # message rides the nil (code `must`, errcodes.tsv). must never
 # participates in emptiness or subsumption
-# (docs/reference-functions.md, "Band B: `must`"). Every expectation
+# (docs/reference-language.md, "Band B: `must`"). Every expectation
 # obtained by running BOTH engines over the same source and requiring
 # byte-identical output.
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; modes: canon|gen|err|errc

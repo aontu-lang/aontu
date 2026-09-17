@@ -322,7 +322,7 @@ of a broken identifier at emit time.
   writes the tree, and its `--check`.
 - [`aontu trace`](../reference-api.md#aontu-trace). What wrote a line:
   the file, the model node and the rule.
-- [Transforming: `emit`](../reference-generation.md#transforming-emit).
+- [Transforming: `emit`](../reference-language.md#transforming-emit).
   Dispatch order, splicing, named tables and recursion.
 - [`aontu template`](../reference-api.md#aontu-template). The two
   transforms, the markers by extension, and the round trip.

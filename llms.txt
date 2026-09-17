@@ -41,16 +41,8 @@
   ([docs/tutorial-generate.md](docs/tutorial-generate.md): `emit`,
   `each`, and the component tree of project, folder, file and line
   nodes)
-- [Language reference](docs/reference-language.md): every value form,
-  operator and evaluation rule — the exhaustive, dry source of truth
-  for the core language
-- [Generation reference](docs/reference-generation.md): computing a
-  value from a model — the generators `pack` and `each`, the selectors
-  `filter` and `match`, the hole `_` they bind, the rule tables `emit`
-  dispatches, and the component tree a generator answers
-- [Functions reference](docs/reference-functions.md): the function
-  library — every built-in indexed alphabetically with its signature,
-  then a section per family, from arithmetic to the constraint algebra
+- [Language reference](docs/reference-language.md): every construct and
+  rule — the exhaustive, dry source of truth for the language
 - [API reference](docs/reference-api.md): the CLI verbs with flags and
   exit codes, the TypeScript and Go APIs, and the MCP server
 - [Trust contract](docs/trust.md): the guarantees a host may rely on

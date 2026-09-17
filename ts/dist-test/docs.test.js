@@ -61,8 +61,6 @@ function execPages() {
         'tutorial-generate.md',
         'unification.md',
         'reference-language.md',
-        'reference-generation.md',
-        'reference-functions.md',
         'reference-api.md',
         'use-cases.md',
     ].filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
@@ -480,11 +478,11 @@ function runStep(file, dir, cache, step) {
         }
     });
     (0, node_test_1.test)('function-signatures-match-the-registry', () => {
-        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): the functions
-        // reference's index headings and constraint table use the same
-        // signatures the engine parses, escaping their pipe characters.
+        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): the reference's
+        // function headings and constraint table use the same signatures
+        // the engine parses. Table signatures escape their pipe characters.
         const { funcSig, renderSig } = require('../dist/sig');
-        const text = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-functions.md'), 'utf8');
+        const text = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-language.md'), 'utf8');
         let rows = 0;
         for (const line of text.split('\n')) {
             const m = line.match(/^(?:\| |### )`([a-z]+)\(([^`]*)\)([^`]*)`(?: \||$)/);
@@ -1086,12 +1084,8 @@ function stylePaths() {
 });
 // A function added to the language must remain discoverable in its reference.
 (0, node_test_1.test)('the-functions-index-lists-every-declared-builtin-once', () => {
-    // A `## Functions` heading moved off this page fails the assertion below, not the split.
-    const page = 'reference-functions.md';
-    const source = Fs.readFileSync(Path.join(DOCS_DIR, page), 'utf8');
-    const parts = source.split('## Functions\n');
-    Assert.ok(1 < parts.length, `${page} has no '## Functions' heading to index`);
-    const section = parts[1].split('\n## ')[0];
+    const source = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-language.md'), 'utf8');
+    const section = source.split('## Functions\n')[1].split('\n## ')[0];
     const declared = Fs.readFileSync(Path.join(DOCS_DIR, '..', 'test', 'spec', 'signature.tsv'), 'utf8');
     const names = Array.from(declared.matchAll(/^([a-z]+)\(/gm), (m) => m[1]).sort();
     const listed = Array.from(section.matchAll(/^### `([a-z]+)\(/gm), (m) => m[1]);

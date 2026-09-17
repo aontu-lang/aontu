@@ -6,11 +6,10 @@ to a child, a schema checked against data) is that one operation
 under a different spelling. It is called **unification**, and this page
 is what it means.
 
-The [language reference](reference-language.md) states the rules, and
-the [functions reference](reference-functions.md) states them for the
-constraint atoms. This page explains the idea they come from, and
-defines the vocabulary the rest of the documentation uses: *meet*,
-*top*, *bottom*, *lattice*, *residual*, *subsumption*.
+The [language reference](reference-language.md) states the rules.
+This page explains the idea they come from, and defines the vocabulary
+the rest of the documentation uses: *meet*, *top*, *bottom*, *lattice*,
+*residual*, *subsumption*.
 
 ## Values are ordered by how much they say
 

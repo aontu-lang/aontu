@@ -2,10 +2,8 @@
 
 aontu uses one operation to combine schemas, defaults, and data. This
 page explains that choice and the implementation costs it introduces.
-For exact rules, use the [language](reference-language.md),
-[generation](reference-generation.md) and
-[functions](reference-functions.md) references; for a task, choose a
-[how-to guide](how-to/).
+For exact rules, use the [language reference](reference-language.md);
+for a task, choose a [how-to guide](how-to/).
 
 ## The core idea: one operation, three jobs
 
@@ -356,7 +354,7 @@ outside the hash's reach, in the verb.
 
 The precise rules are the reference's
 [Linking](reference-language.md#linking-the-tree-is-the-namespace) and
-[Declared relations](reference-functions.md#declared-relations)
+[Declared relations](reference-language.md#declared-relations)
 sections; the live versions are
 [use-cases/12-relations](../use-cases/12-relations/) (an ETL pipeline
 DAG, one relation with its inverse) and

@@ -96,8 +96,8 @@ bounds (`Slug` is 3 to 40 characters by its regex alone);
 `length(min(1) & max(80))`. `Timestamp` spells optional fractional
 seconds as an unquantified alternation, `(Z|\.\d{3}Z)`, because `re()`
 refuses a quantifier on a group that itself contains a quantifier (the
-rule and its reason are in [the functions
-reference](../../docs/reference-functions.md#re-and-the-portable-pattern-subset)).
+rule and its reason are in [the language
+reference](../../docs/reference-language.md#re-and-the-portable-pattern-subset)).
 
 Every wire message is `close()`d, so a surplus or misspelled key is a
 conflict and never a silently ignored extra (the

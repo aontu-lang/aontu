@@ -8,7 +8,7 @@
 # .containerPort, rebased where no root traversal reaches, and the
 # generator never fired ([aontu/mapval_no_gen]). The data argument now
 # snapshots its source only once the source has finished resolving in
-# the tree, exactly as reference-generation.md promises ("a generator's
+# the tree, exactly as reference-language.md promises ("a generator's
 # data can still be merged into by ... a spread after it first looks
 # complete" -- generators wait for it). each() over the same source
 # works too. Pinned in the shared spec: gen-pack.tsv

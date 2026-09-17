@@ -66,7 +66,7 @@ This refusal is the feature: a schema that admitted `0.1` here would
 be certifying a value the wire already corrupted. The convention that
 works is string decimals at the boundary: the JSON field carries the
 exact digits as text, and the schema pins its shape with
-[`re`](../reference-functions.md#re-and-the-portable-pattern-subset).
+[`re`](../reference-language.md#re-and-the-portable-pattern-subset).
 Replace `invoice.aon` with the string form:
 
 <!-- test: file invoice.aon -->
