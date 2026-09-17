@@ -154,12 +154,26 @@ func TestFuncResidueFrame(t *testing.T) {
 	}
 }
 
+// A DYNAMIC CODE HAS NO EXACT ROW in the hint table: `hints` registers
+// the prefix, so a finding reporting `func:upper` carries no hint. This
+// is the one arm that still answers nothing now that every registered
+// code has text, and `explain` differs here: it resolves through the
+// prefix and answers with its wording.
+func TestHintOfADynamicCodeIsAbsent(t *testing.T) {
+	if got := hintOf("func:upper", nil); nil != got {
+		t.Errorf("want no hint, got %q", *got)
+	}
+	if nil == hintOf("constraint", nil) {
+		t.Error("want the registry hint for constraint")
+	}
+}
+
 func TestOperandlessNilFrame(t *testing.T) {
 	_, err := New().Generate("a:-0x_1")
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	want := "[aontu/negative]: Cannot resolve value at path $.a\n\n\n Cannot resolve value: nil\n  \u001b[34m--> <no-file>:1:3\n\u001b[34m  1 | \u001b[0ma:-0x_1\n        \u001b[34m^ value was: nil\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n"
+	want := "[aontu/negative]: Cannot resolve value at path $.a\n\nOnly a number can be negated. A `-` in front of a\nnon-numeric value is an error rather than a missing value, and the\ncommonest cause is a bare word splitting on the minus: `k-x` reads\nas `k` and `-x`. Quote the word, or space the operator.\n\n Cannot resolve value: nil\n  \u001b[34m--> <no-file>:1:3\n\u001b[34m  1 | \u001b[0ma:-0x_1\n        \u001b[34m^ value was: nil\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n"
 	if got := err.Error(); got != want {
 		t.Fatalf("operandless-nil-frame mismatch\n want: %q\n got:  %q", want, got)
 	}

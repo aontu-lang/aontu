@@ -42,6 +42,7 @@ const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const query_1 = require("../dist/query");
 const err_1 = require("../dist/err");
+const hints_1 = require("../dist/hints");
 (0, node_test_1.describe)('query', () => {
     (0, node_test_1.test)('defaults-to-the-json-view', () => {
         // No options at all: the whole document, generated.
@@ -88,13 +89,14 @@ const err_1 = require("../dist/err");
         Assert.equal(f.message, '[aontu/mapval_no_gen]: Cannot resolve value at path $.out.a');
         Assert.equal(f.path, '$.out');
     });
-    (0, node_test_1.test)('a-code-with-no-hint-text-carries-no-hint', () => {
+    // A PARSE-CLASS FINDING CARRIES THE REGISTRY HINT like any other.
+    (0, node_test_1.test)('a-parse-code-carries-the-registry-hint', () => {
         const r = (0, aontu_1.why)('a:]', '$');
         Assert.equal(r.ok, false);
         const f = r.findings[0];
         Assert.equal(f.code, 'syntax');
         Assert.equal(f.class, 'parse');
-        Assert.equal(f.hint, undefined);
+        Assert.equal(f.hint, hints_1.hints['syntax']);
     });
     (0, node_test_1.test)('an-engine-message-carries-no-terminal-escapes', () => {
         // Nothing sets colour off for a library or MCP consumer.

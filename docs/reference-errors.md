@@ -107,9 +107,9 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** 139 of the 168 codes have hint text, and 29 do not.
-`aontu explain --list` prints all 168, one per line, with each code's
-class beside it and `(no text)` against each of the 29. A finding
+**Hint text.** All 168 codes have hint text. `aontu explain --list`
+prints them one per line, with each code's class beside it; a code
+carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
 raised and the run asked for `--format json`:
 [`vet`](reference-api.md#aontu-vet),

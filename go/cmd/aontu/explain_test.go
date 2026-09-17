@@ -91,31 +91,78 @@ func TestExplainListIsTheRegistry(t *testing.T) {
 	}
 }
 
-// A registered code carrying no explanation text in this port SAYS SO
-// rather than printing an empty block. Before this verb the gap was
-// invisible, because a hint is only ever met beside the error that
-// raises it.
-func TestExplainMarksTheCodesWithNoText(t *testing.T) {
+// EVERY REGISTERED CODE HAS EXPLANATION TEXT. The registry is
+// append-only, so without this gate a code lands with none and the
+// repair loop answers a reader with nothing.
+func TestExplainTextIsCompleteForEveryRegisteredCode(t *testing.T) {
 	out, _, code := explainRun("--list")
 	if 0 != code {
 		t.Fatalf("want 0, got %d", code)
 	}
-	if !strings.Contains(out, "(no text)") {
-		t.Error("no code is marked as carrying no text; has the table" +
-			" become complete? then this test should assert that instead")
-	}
-	// And the single-code form matches the mark.
+	var bare []string
 	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
-		if !strings.Contains(line, "(no text)") {
-			continue
+		if strings.Contains(line, "(no text)") {
+			bare = append(bare, strings.Fields(line)[0])
 		}
-		name := strings.Fields(line)[0]
+	}
+	if 0 != len(bare) {
+		t.Errorf("%d registered code(s) carry no explanation text: %s",
+			len(bare), strings.Join(bare, ", "))
+	}
+	// And the single-code form agrees: none answers with the placeholder.
+	for _, name := range registryCodes(t) {
 		body, _, exit := explainRun(name)
-		if 0 != exit ||
-			!strings.Contains(body, "no explanation text is registered") {
-			t.Errorf("%s is marked (no text) but explains as: %s", name, body)
+		if 0 != exit {
+			t.Fatalf("%s: want 0, got %d", name, exit)
 		}
-		break
+		if strings.Contains(body, "no explanation text is registered") {
+			t.Errorf("%s explains as the placeholder", name)
+		}
+	}
+}
+
+// The arms answering a code with no text: unreachable while the gate
+// above holds, and kept because the registry is append-only.
+func TestExplainAnswersACodeWithNoText(t *testing.T) {
+	if "(no explanation text is registered for this code)" !=
+		explainBody("") {
+		t.Errorf("body: %q", explainBody(""))
+	}
+	if "some text" != explainBody("some text") {
+		t.Errorf("body: %q", explainBody("some text"))
+	}
+	if "  (no text)" != noTextMark("") {
+		t.Errorf("mark: %q", noTextMark(""))
+	}
+	if "" != noTextMark("some text") {
+		t.Errorf("mark: %q", noTextMark("some text"))
+	}
+}
+
+// THE BRACKETED FORM IS A CODE TOO: a report prints `[aontu/constraint]`
+// and the repair loop says to look up what is in the brackets.
+func TestExplainTakesTheNamespacedSpelling(t *testing.T) {
+	for _, code := range registryCodes(t) {
+		bare, _, exit := explainRun(code)
+		if 0 != exit {
+			t.Fatalf("%s: want 0, got %d", code, exit)
+		}
+		spaced, _, nsExit := explainRun("aontu/" + code)
+		if 0 != nsExit {
+			t.Fatalf("aontu/%s: want 0, got %d", code, nsExit)
+		}
+		if bare != spaced {
+			t.Errorf("aontu/%s answers differently from %s", code, code)
+		}
+	}
+	// An unknown code is still a usage error under either spelling, and
+	// names the registered form rather than echoing the prefix.
+	_, errw, exit := explainRun("aontu/nosuchcode")
+	if 2 != exit {
+		t.Fatalf("want 2, got %d", exit)
+	}
+	if !strings.Contains(errw, "no such error code `nosuchcode`") {
+		t.Errorf("stderr: %q", errw)
 	}
 }
 
@@ -156,17 +203,10 @@ func TestExplainListJSONFlagsWhatIsExplained(t *testing.T) {
 	if len(registryCodes(t)) != len(report.Codes) {
 		t.Errorf("want the registry, got %d rows", len(report.Codes))
 	}
-	explained, bare := 0, 0
 	for _, row := range report.Codes {
-		if row.Explained {
-			explained++
-		} else {
-			bare++
+		if !row.Explained {
+			t.Errorf("%s is flagged unexplained", row.Code)
 		}
-	}
-	if 0 == explained || 0 == bare {
-		t.Errorf("want both kinds, got %d explained and %d bare",
-			explained, bare)
 	}
 }
 

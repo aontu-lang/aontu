@@ -484,10 +484,10 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(hint, hint.replace(/\s+$/, ''));
         Assert.ok(hint.includes('\n \n'), 'hint lost its internal spacing');
     });
-    // Not every code has one, and an absent hint is ABSENT rather than
-    // empty: a consumer testing `null != finding.hint` must not have to
-    // also test for ''.
-    (0, node_test_1.test)('a-code-with-no-hint-text-carries-no-hint', () => {
+    // A finding that MINTS its own code carries no hint, and an absent
+    // hint is ABSENT rather than empty: a consumer testing
+    // `null != finding.hint` must not have to also test for ''.
+    (0, node_test_1.test)('a-minted-code-carries-no-hint', () => {
         const r = (0, vet_1.vet)('a: *5 | string\nb: string', 'b: "x"');
         const lint = r.findings.find((f) => 'pref_not_instance' === f.code);
         Assert.ok(null != lint, JSON.stringify(r.findings));

@@ -43,6 +43,7 @@ const Path = __importStar(require("node:path"));
 const helpdoc_1 = require("../dist/helpdoc");
 const hints_1 = require("../dist/hints");
 const cli_1 = require("../dist/cli");
+const cli_2 = require("../dist/cli");
 const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
 const REPO = Path.join(__dirname, '..', '..');
 const WINDOWS = 'win32' === process.platform;
@@ -169,7 +170,7 @@ function readRepo(rel) {
             .map((line) => line.split('\t')[0]);
         Assert.ok(100 < codes.length, `the registry looks unread: ${codes.length}`);
         for (const code of codes) {
-            Assert.equal((0, cli_1.runExplain)([code]), 0, `explain ${code} refused`);
+            Assert.equal((0, cli_2.runExplain)([code]), 0, `explain ${code} refused`);
             Assert.ok(null != hints_1.codeClasses[code], `${code} has no class`);
         }
     });
@@ -182,23 +183,47 @@ function readRepo(rel) {
             Assert.ok(listed.includes(code), `--list omits ${code}`);
         }
     });
-    // A registered code carrying no explanation text SAYS SO rather than
-    // printing an empty block. Before this verb the gap was invisible,
-    // because a hint is only ever met beside the error that raises it.
-    (0, node_test_1.test)('explain-marks-the-codes-with-no-text', () => {
+    // EVERY REGISTERED CODE HAS EXPLANATION TEXT: the registry is
+    // append-only, so without this gate a code lands with none.
+    (0, node_test_1.test)('explain-text-is-complete-for-every-registered-code', () => {
         const r = run(['explain', '--list']);
         Assert.equal(r.code, 0);
         const bare = r.out.trim().split('\n')
             .filter((line) => line.includes('(no text)'))
             .map((line) => line.split(/\s+/)[0]);
-        Assert.ok(0 < bare.length, 'no code is marked as carrying no text; has the table become' +
-            ' complete? then this test should assert that instead');
-        for (const code of bare) {
-            Assert.ok(null == hints_1.hints[code], `${code} is marked bare but has a hint`);
-        }
-        const one = run(['explain', bare[0]]);
+        Assert.deepEqual(bare, [], `registered code(s) carry no explanation text: ${bare.join(', ')}`);
+        const missing = Object.keys(hints_1.codeClasses)
+            .filter((code) => null == hints_1.hints[code] || '' === hints_1.hints[code]);
+        Assert.deepEqual(missing, [], `registered code(s) with no hint: ${missing.join(', ')}`);
+        const one = run(['explain', 'compat_required_added']);
         Assert.equal(one.code, 0);
-        Assert.ok(one.out.includes('no explanation text is registered'));
+        Assert.ok(!one.out.includes('no explanation text is registered'), one.out);
+    });
+    // The arms answering a code with no text: unreachable while the gate
+    // above holds, kept because the registry is append-only.
+    (0, node_test_1.test)('explain-answers-a-code-with-no-text', () => {
+        Assert.equal((0, cli_1.explainBody)(''), '(no explanation text is registered for this code)');
+        Assert.equal((0, cli_1.explainBody)('some text'), 'some text');
+        Assert.equal((0, cli_1.noTextMark)(''), '  (no text)');
+        Assert.equal((0, cli_1.noTextMark)('some text'), '');
+    });
+    // THE BRACKETED FORM IS A CODE TOO: a report prints
+    // `[aontu/constraint]` and the loop says to look up the brackets.
+    (0, node_test_1.test)('explain-takes-the-namespaced-spelling', () => {
+        for (const code of ['constraint', 'compat_required_added', 'syntax']) {
+            const bare = run(['explain', code]);
+            const spaced = run(['explain', 'aontu/' + code]);
+            Assert.equal(spaced.code, 0, code);
+            Assert.equal(spaced.out, bare.out, code);
+        }
+        for (const code of Object.keys(hints_1.codeClasses)) {
+            Assert.equal((0, cli_1.canonExplainCode)('aontu/' + code), code);
+            Assert.equal((0, cli_1.canonExplainCode)(code), code);
+        }
+        // An unknown code names the registered form, not the typed one.
+        const miss = run(['explain', 'aontu/nosuchcode']);
+        Assert.equal(miss.code, 2);
+        Assert.ok(miss.err.includes('no such error code `nosuchcode`'), miss.err);
     });
     (0, node_test_1.test)('explain-json', () => {
         const r = run(['explain', '--format', 'json', 'no_scalar_unify']);
@@ -213,8 +238,9 @@ function readRepo(rel) {
         Assert.equal(r.code, 0);
         const rows = JSON.parse(r.out).codes;
         Assert.equal(rows.length, Object.keys(hints_1.codeClasses).length);
-        Assert.ok(rows.some((row) => true === row.explained));
-        Assert.ok(rows.some((row) => false === row.explained));
+        for (const row of rows) {
+            Assert.equal(row.explained, true, row.code);
+        }
     });
     // A DYNAMIC CODE IS REGISTERED THROUGH ITS PREFIX and carries the
     // prefix's hint: the suffix names the operator, the explanation is
@@ -266,11 +292,11 @@ function readRepo(rel) {
     // The in-process entries, so the exported surface is exercised as a
     // library call and not only through the packaged binary.
     (0, node_test_1.test)('help-and-explain-are-callable-in-process', () => {
-        Assert.equal((0, cli_1.runHelp)([]), 0);
-        Assert.equal((0, cli_1.runHelp)(['language']), 0);
-        Assert.equal((0, cli_1.runHelp)(['nope']), 2);
-        Assert.equal((0, cli_1.runExplain)(['--list']), 0);
-        Assert.equal((0, cli_1.runExplain)(['nope']), 2);
+        Assert.equal((0, cli_2.runHelp)([]), 0);
+        Assert.equal((0, cli_2.runHelp)(['language']), 0);
+        Assert.equal((0, cli_2.runHelp)(['nope']), 2);
+        Assert.equal((0, cli_2.runExplain)(['--list']), 0);
+        Assert.equal((0, cli_2.runExplain)(['nope']), 2);
     });
     // --- G11 phase 2: the one-argument mistyped-verb hint ---
     (0, node_test_1.test)('bare-word-is-diagnosed-as-a-mistyped-verb', () => {
@@ -302,24 +328,24 @@ function readRepo(rel) {
     });
     (0, node_test_1.test)('looks-like-verb', () => {
         for (const arg of ['help', 'vet', 'a']) {
-            Assert.equal((0, cli_1.looksLikeVerb)(arg), true, arg);
+            Assert.equal((0, cli_2.looksLikeVerb)(arg), true, arg);
         }
         for (const arg of [
             '', './help', 'help.aon', '/tmp/help', 'sub/help', 'a\\b', '-x',
         ]) {
-            Assert.equal((0, cli_1.looksLikeVerb)(arg), false, arg);
+            Assert.equal((0, cli_2.looksLikeVerb)(arg), false, arg);
         }
     });
     (0, node_test_1.test)('nearest-verb-respects-the-cap', () => {
-        Assert.equal((0, cli_1.nearestVerb)('vett', ['vet', 'view', 'why']), 'vet');
-        Assert.equal((0, cli_1.nearestVerb)('qqqqqqqqqq', ['vet', 'view', 'why']), '');
+        Assert.equal((0, cli_2.nearestVerb)('vett', ['vet', 'view', 'why']), 'vet');
+        Assert.equal((0, cli_2.nearestVerb)('qqqqqqqqqq', ['vet', 'view', 'why']), '');
         // A TIE RESOLVES BY CODE-POINT ORDER in both ports, not by the
         // order the verb table happens to be written in: `xet` is one edit
         // from both `get` and `vet`, and `get` sorts first.
-        Assert.equal((0, cli_1.nearestVerb)('xet', ['vet', 'get']), 'get');
+        Assert.equal((0, cli_2.nearestVerb)('xet', ['vet', 'get']), 'get');
     });
     (0, node_test_1.test)('known-verbs-all-dispatch', () => {
-        for (const verb of cli_1.KNOWN_VERBS) {
+        for (const verb of cli_2.KNOWN_VERBS) {
             const r = run([verb, '--help']);
             Assert.ok(!r.err.includes('not a verb this port knows'), `${verb} is in KNOWN_VERBS but main() does not dispatch it`);
             Assert.equal(r.code, 0, `${verb} --help: ${r.err}`);
@@ -333,7 +359,7 @@ function readRepo(rel) {
         }
         Assert.ok(15 < dispatched.size, `only ${dispatched.size} dispatch arms found; has main() changed shape?`);
         for (const verb of dispatched) {
-            Assert.ok(cli_1.KNOWN_VERBS.includes(verb), `main() dispatches \`${verb}\` and KNOWN_VERBS omits it, so a ` +
+            Assert.ok(cli_2.KNOWN_VERBS.includes(verb), `main() dispatches \`${verb}\` and KNOWN_VERBS omits it, so a ` +
                 'caller who mistypes it gets no suggestion');
         }
     });
@@ -518,18 +544,18 @@ function readRepo(rel) {
             process.stdout.write = () => true;
             process.stderr.write = (s) => ((err += s), true);
             process.chdir(dir);
-            Assert.equal((0, cli_1.runInit)([]), 0);
-            Assert.equal((0, cli_1.runInit)([]), 2);
-            Assert.equal((0, cli_1.runInit)(['-h']), 0);
-            Assert.equal((0, cli_1.runInit)(['--nope']), 2);
-            Assert.equal((0, cli_1.runInit)(['one', 'two']), 2);
+            Assert.equal((0, cli_2.runInit)([]), 0);
+            Assert.equal((0, cli_2.runInit)([]), 2);
+            Assert.equal((0, cli_2.runInit)(['-h']), 0);
+            Assert.equal((0, cli_2.runInit)(['--nope']), 2);
+            Assert.equal((0, cli_2.runInit)(['one', 'two']), 2);
             // The write that cannot happen: a member of the trio standing as
             // a symlink to itself is not a standing file (the existence
             // check follows it and gets nowhere) and is not writable either.
             const loop = Path.join(dir, 'loop');
             Fs.mkdirSync(loop);
             Fs.symlinkSync('model.aon', Path.join(loop, 'model.aon'));
-            Assert.equal((0, cli_1.runInit)([loop]), 2);
+            Assert.equal((0, cli_2.runInit)([loop]), 2);
         }
         finally {
             process.chdir(was);

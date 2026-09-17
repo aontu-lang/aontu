@@ -10,6 +10,7 @@ import * as Path from 'node:path'
 
 import { HELPDOC, INITDOC } from '../dist/helpdoc'
 import { hints, codeClasses } from '../dist/hints'
+import { explainBody, noTextMark, canonExplainCode } from '../dist/cli'
 import {
   runHelp, runExplain, runInit, nearestVerb, looksLikeVerb, KNOWN_VERBS,
 } from '../dist/cli'
@@ -181,24 +182,54 @@ describe('helpdoc', () => {
     }
   })
 
-  // A registered code carrying no explanation text SAYS SO rather than
-  // printing an empty block. Before this verb the gap was invisible,
-  // because a hint is only ever met beside the error that raises it.
-  test('explain-marks-the-codes-with-no-text', () => {
+  // EVERY REGISTERED CODE HAS EXPLANATION TEXT: the registry is
+  // append-only, so without this gate a code lands with none.
+  test('explain-text-is-complete-for-every-registered-code', () => {
     const r = run(['explain', '--list'])
     Assert.equal(r.code, 0)
     const bare = r.out.trim().split('\n')
       .filter((line) => line.includes('(no text)'))
       .map((line) => line.split(/\s+/)[0])
-    Assert.ok(0 < bare.length,
-      'no code is marked as carrying no text; has the table become' +
-      ' complete? then this test should assert that instead')
-    for (const code of bare) {
-      Assert.ok(null == hints[code], `${code} is marked bare but has a hint`)
-    }
-    const one = run(['explain', bare[0]])
+    Assert.deepEqual(bare, [],
+      `registered code(s) carry no explanation text: ${bare.join(', ')}`)
+    const missing = Object.keys(codeClasses)
+      .filter((code) => null == hints[code] || '' === hints[code])
+    Assert.deepEqual(missing, [],
+      `registered code(s) with no hint: ${missing.join(', ')}`)
+    const one = run(['explain', 'compat_required_added'])
     Assert.equal(one.code, 0)
-    Assert.ok(one.out.includes('no explanation text is registered'))
+    Assert.ok(!one.out.includes('no explanation text is registered'), one.out)
+  })
+
+
+  // The arms answering a code with no text: unreachable while the gate
+  // above holds, kept because the registry is append-only.
+  test('explain-answers-a-code-with-no-text', () => {
+    Assert.equal(explainBody(''),
+      '(no explanation text is registered for this code)')
+    Assert.equal(explainBody('some text'), 'some text')
+    Assert.equal(noTextMark(''), '  (no text)')
+    Assert.equal(noTextMark('some text'), '')
+  })
+
+
+  // THE BRACKETED FORM IS A CODE TOO: a report prints
+  // `[aontu/constraint]` and the loop says to look up the brackets.
+  test('explain-takes-the-namespaced-spelling', () => {
+    for (const code of ['constraint', 'compat_required_added', 'syntax']) {
+      const bare = run(['explain', code])
+      const spaced = run(['explain', 'aontu/' + code])
+      Assert.equal(spaced.code, 0, code)
+      Assert.equal(spaced.out, bare.out, code)
+    }
+    for (const code of Object.keys(codeClasses)) {
+      Assert.equal(canonExplainCode('aontu/' + code), code)
+      Assert.equal(canonExplainCode(code), code)
+    }
+    // An unknown code names the registered form, not the typed one.
+    const miss = run(['explain', 'aontu/nosuchcode'])
+    Assert.equal(miss.code, 2)
+    Assert.ok(miss.err.includes('no such error code `nosuchcode`'), miss.err)
   })
 
   test('explain-json', () => {
@@ -215,8 +246,9 @@ describe('helpdoc', () => {
     Assert.equal(r.code, 0)
     const rows = JSON.parse(r.out).codes
     Assert.equal(rows.length, Object.keys(codeClasses).length)
-    Assert.ok(rows.some((row: any) => true === row.explained))
-    Assert.ok(rows.some((row: any) => false === row.explained))
+    for (const row of rows) {
+      Assert.equal(row.explained, true, row.code)
+    }
   })
 
   // A DYNAMIC CODE IS REGISTERED THROUGH ITS PREFIX and carries the

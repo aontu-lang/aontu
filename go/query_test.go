@@ -185,14 +185,22 @@ func TestQueryAnEngineMessageIsTheHeadlineAlone(t *testing.T) {
 	}
 }
 
-func TestQueryACodeWithNoHintTextCarriesNoHint(t *testing.T) {
+// A PARSE-CLASS FINDING CARRIES THE REGISTRY HINT like any other.
+func TestQueryAParseCodeCarriesTheRegistryHint(t *testing.T) {
 	r := New().Why("a:]", "$")
 	if r.OK || 1 != len(r.Findings) {
 		t.Fatalf("bad refusal: %+v", r)
 	}
 	f := r.Findings[0]
-	if "syntax" != f.Code || "parse" != f.Class || nil != f.Hint {
+	if "syntax" != f.Code || "parse" != f.Class {
 		t.Fatalf("finding: %+v", f)
+	}
+	if nil == f.Hint {
+		t.Fatalf("no hint: %+v", f)
+	}
+	_, want, _ := ExplainCode("syntax")
+	if want != *f.Hint {
+		t.Errorf("hint is not the registry's: %q", *f.Hint)
 	}
 }
 

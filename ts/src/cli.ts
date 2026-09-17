@@ -5039,6 +5039,17 @@ function runHelp(argv: string[]): number {
 // and carries that prefix's hint.
 const EXPLAIN_PREFIXES = ['func:', 'op:', 'op[', 'var[', 'ref[']
 
+// A report prints the namespaced spelling in its brackets, which is the
+// span a reader copies. The answer names the registered one.
+const EXPLAIN_NAMESPACE = 'aontu/'
+
+
+function canonExplainCode(code: string): string {
+  return code.startsWith(EXPLAIN_NAMESPACE)
+    ? code.slice(EXPLAIN_NAMESPACE.length)
+    : code
+}
+
 
 function explainCode(
   code: string): { cls: string, hint: string, registered: boolean } {
@@ -5078,9 +5089,10 @@ function explainListText(format: SubsumeFormat): string {
       codes: codes.map((code) => ({
         code,
         class: codeClass(code),
-        // Whether this port carries explanation text for the code. The
-        // registry is in parity; the hint tables are not, so a consumer
-        // that wants only explained codes can filter rather than guess.
+        // Whether this port carries explanation text for the code. A
+        // gate holds every registered code explained, so this reads
+        // true throughout; it stays because the registry is
+        // append-only and a consumer should filter rather than guess.
         explained: '' !== explainCode(code).hint,
       })),
     }, 2)
@@ -5088,7 +5100,21 @@ function explainListText(format: SubsumeFormat): string {
   const width = codes.reduce((w, c) => Math.max(w, c.length), 0)
   return codes.map((c) =>
     c.padEnd(width) + '  ' + codeClass(c) +
-    ('' === explainCode(c).hint ? '  (no text)' : '')).join('\n')
+    noTextMark(explainCode(c).hint)).join('\n')
+}
+
+
+// The registry is append-only, so a code can be registered before its
+// text is written; saying so beats printing an empty block.
+function explainBody(hint: string): string {
+  return '' === hint
+    ? '(no explanation text is registered for this code)'
+    : hint
+}
+
+
+function noTextMark(hint: string): string {
+  return '' === hint ? '  (no text)' : ''
 }
 
 
@@ -5138,7 +5164,7 @@ function runExplain(argv: string[]): number {
     return 2
   }
 
-  const code = codes[0]
+  const code = canonExplainCode(codes[0])
   const { cls, hint, registered } = explainCode(code)
   if (!registered) {
     // AN UNKNOWN CODE IS A USAGE ERROR AND NAMES NEAR MATCHES. A
@@ -5164,13 +5190,8 @@ function runExplain(argv: string[]): number {
     }, 2) + '\n')
     return 0
   }
-  // A REGISTERED CODE WITH NO HINT SAYS SO rather than printing an
-  // empty block, which would read as an explanation that happened to
-  // be blank.
-  const body = '' === hint
-    ? '(no explanation text is registered for this code)'
-    : hint
-  process.stdout.write(`code:  ${code}\nclass: ${cls}\n\n${body}\n`)
+  process.stdout.write(
+    `code:  ${code}\nclass: ${cls}\n\n${explainBody(hint)}\n`)
   return 0
 }
 
@@ -5504,6 +5525,7 @@ export {
   runRender, renderSkipped,
   runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted,
   runHash, runGet, runHelp, runExplain, runInit, nearestVerb,
+  explainBody, noTextMark, canonExplainCode,
   looksLikeVerb,
   KNOWN_VERBS,
   runWhy, renderWhyText, runSet, runAllow, runAgentsMd, runFmt,

@@ -585,10 +585,10 @@ describe('vet-hint', () => {
   })
 
 
-  // Not every code has one, and an absent hint is ABSENT rather than
-  // empty: a consumer testing `null != finding.hint` must not have to
-  // also test for ''.
-  test('a-code-with-no-hint-text-carries-no-hint', () => {
+  // A finding that MINTS its own code carries no hint, and an absent
+  // hint is ABSENT rather than empty: a consumer testing
+  // `null != finding.hint` must not have to also test for ''.
+  test('a-minted-code-carries-no-hint', () => {
     const r = vet(
       'a: *5 | string\nb: string',
       'b: "x"')
