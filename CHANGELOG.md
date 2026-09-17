@@ -29,6 +29,30 @@ one package. `TestPkgOutdatedListsMovesAndRetractions` publishes that in
 Go and asserts the advisory ends with three entries; the TypeScript twin
 stopped short of it, and now carries the same case.
 
+## Unreleased
+
+### `aontu render` is held to one set of expectations in both ports
+
+**The verb had twin test files and no contract between them.** A shared
+spec row carries what an engine answers, so a verb that writes files had
+nowhere to record what both ports must print; the two suites agreed only
+because they were written side by side.
+[`test/render/cases.json`](test/render/cases.json) is that contract now,
+read by `ts/test/render-matrix.test.ts` and
+`go/cmd/aontu/render_matrix_test.go`. Each case writes its files into a
+fresh directory, walks its steps, and holds the exit code, both streams
+and the resulting bytes. Changing one port's message or exit code fails
+the other port's suite. Two behaviours stay with the twins: an I/O
+refusal, whose prose each generator runtime writes for itself, and the
+drift of a file mode, which no runner sets portably.
+
+**Two behaviours nothing exercised** (both ports). A second run over a
+generator's own output reports every file unchanged and writes nothing,
+which is the regenerate loop and was asserted nowhere. An edit the
+generator runtime protects survives the next run, which is the promise
+the code-generation how-to makes and no test made it keep. Both are
+matrix cases, so both ports answer them identically.
+
 ## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
 ### Three supplemental reference sections
