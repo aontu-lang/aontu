@@ -143,7 +143,7 @@ spelling; a human reading a document may meet either.
 A newline separates entries as a comma does, and a backtick-quoted
 string reads as a double-quoted one. Two entries naming the same key
 meet rather than replace, which is the language's own rule and not a
-spelling: see [Unification](reference-language.md#unification).
+spelling: see [the unification rules](reference-language.md#unification-rules).
 
 ## What the grammar excludes
 
