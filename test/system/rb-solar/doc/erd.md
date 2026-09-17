@@ -91,7 +91,7 @@ emit(each(.field, _ & { mark:"" }), [
 ```
 
 This is the opening expression from the template; the rule list follows
-it. `.field` is the current entity's field map. [`each`](../../../../docs/reference-language.md#each-the-order-preserving-map)
+it. `.field` is the current entity's field map. [`each`](../../../../docs/reference-generation.md#each-the-order-preserving-map)
 creates a list with one item per field. Inside its template, `_` is the current field,
 and `& { mark:"" }` combines that field with an empty `mark` property
 through [unification](../../../../docs/unification.md).

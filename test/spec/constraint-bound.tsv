@@ -1,6 +1,6 @@
 # G1 phase 1: the constraint algebra's bound atoms (min, max, above,
 # below) and exclusions (neq), over the four-leaf number tower and
-# strings. Normative design: docs/reference-language.md ("The
+# strings. Normative design: docs/reference-functions.md ("The
 # constraint algebra"); working notes:
 # docs/capability-review/g1-constraint-algebra.md.
 # Promoted from test/spec/draft/ per the draft README protocol: every

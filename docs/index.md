@@ -28,7 +28,7 @@ open it. Reach for the part that matches your need:
 |---------------------------------------------------------------|------|
 | **Learn** aontu from zero by building something, step by step | [Tutorials](tutorial.md) |
 | **Accomplish a specific task** you already have in mind       | [How-to guides](how-to/) |
-| **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [API reference](reference-api.md) |
+| **Look up** exact syntax, semantics, options, or API surface  | [Language reference](reference-language.md) · [Generation reference](reference-generation.md) · [Functions reference](reference-functions.md) · [API reference](reference-api.md) |
 | **Understand unification itself**: meet, top, bottom, the lattice | [Unification](unification.md) |
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
@@ -51,7 +51,7 @@ Three capabilities have doorways of their own:
   The recipe is [check relations](how-to/check-relations.md); the live
   version is [`use-cases/12-relations`](../use-cases/12-relations/);
   the normative rules are under
-  [Declared relations](reference-language.md#declared-relations).
+  [Declared relations](reference-functions.md#declared-relations).
 - **Write a recursive schema.** A schema can name itself, so trees and
   nested structures validate to any depth. The recipe is
   [define a recursive schema](how-to/define-a-recursive-schema.md);
@@ -68,7 +68,9 @@ Three capabilities have doorways of their own:
   [generate code from a model](how-to/generate-code.md); the live
   version, with three targets in one document and a check that both
   ports build identical trees, is
-  [`use-cases/15-code-generation`](../use-cases/15-code-generation/).
+  [`use-cases/15-code-generation`](../use-cases/15-code-generation/). The
+  normative rules are the
+  [Generation reference](reference-generation.md).
 
 Tooling:
 

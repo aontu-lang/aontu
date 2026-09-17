@@ -361,7 +361,7 @@ Concretely, for `re()`:
   inherits this decision: define it here, rewrite the input, and give
   the host only what it cannot misread.
 
-See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-portable-pattern-subset)
+See [`docs/reference-functions.md`](docs/reference-functions.md#re-and-the-portable-pattern-subset)
 for the author-facing subset, and
 [`docs/trust.md`](docs/trust.md#clause-2-termination) for the
 termination consequence.
@@ -534,8 +534,9 @@ destination, fully.** Concretely, three rules:
   through a merge (§36) have different roots and remain open.
 - Enforced by the shared spec (ADR-001 discipline) and by both ports
   changing together; the mark/hole rules are author-facing in
-  [`docs/reference-language.md`](docs/reference-language.md)
-  ("Generating children", "The placeholder `_`", "Marks").
+  [`docs/reference-generation.md`](docs/reference-generation.md)
+  ("Generating children", "The placeholder `_`") and
+  [`docs/reference-language.md`](docs/reference-language.md) ("Marks").
 
 ---
 
@@ -627,7 +628,9 @@ same family — a generator over spread-augmented data dying as
   `gen-each.tsv` each-over-spread-augmented, `plus.tsv`
   peer-key-expr*. Author-facing rules in
   [`docs/reference-language.md`](docs/reference-language.md)
-  ("Spreads `&:`", "Generating children").
+  ("Spreads `&:`") and
+  [`docs/reference-generation.md`](docs/reference-generation.md)
+  ("Generating children").
 
 ---
 

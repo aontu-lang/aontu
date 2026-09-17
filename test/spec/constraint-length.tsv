@@ -2,7 +2,7 @@
 # Promoted from test/spec/draft/constraint-len.tsv; every expectation
 # below was obtained by running BOTH engines and requiring byte-identical
 # output, per the parity-probe rule in AGENTS.md. Normative design:
-# docs/reference-language.md, "`length` semantics" and "`unique` semantics".
+# docs/reference-functions.md, "`length` semantics" and "`unique` semantics".
 #
 # length(c) constrains the SIZE: a string's length in code points, a list's
 # element count, a map's entry count. Its argument is any integer-domain

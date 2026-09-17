@@ -1,7 +1,7 @@
 # 2026-08-26: FIXED by the template-clone isolation change (ADR-005) —
 # a relative reference to a field the SAME pack template defines now
 # answers for the child, in the expression form too, exactly as
-# reference-language.md promises ("answer for the child").
+# reference-generation.md promises ("answer for the child").
 # Historically it resolved at the template's own location (path showed
 # a NaN key) and failed with [aontu/no_path].  Golden:
 # expected/ref-in-pack-template.json (cpu "250m" per child).  Shared

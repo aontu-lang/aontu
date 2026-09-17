@@ -66,18 +66,31 @@ function words(md) {
             + 'contents, which is still one file and passes here.');
     });
     (0, node_test_1.test)('every-link-resolves', () => {
-        const md = Fs.readFileSync(Path.join(REPO, 'AGENTS.md'), 'utf8');
+        const dir = Path.join(REPO, 'docs', 'contributing');
+        const pages = [['AGENTS.md', REPO]].concat(Fs.readdirSync(dir).filter((f) => f.endsWith('.md'))
+            .map((f) => [Path.join('docs', 'contributing', f), dir]));
         let checked = 0;
-        for (const m of md.matchAll(/\]\(([^)]+)\)/g)) {
-            const target = m[1];
-            if (target.startsWith('http') || target.startsWith('#')) {
-                continue;
+        for (const [file, from] of pages) {
+            const md = Fs.readFileSync(Path.join(REPO, file), 'utf8');
+            for (const m of md.matchAll(/\]\(([^)]+)\)/g)) {
+                const target = m[1];
+                if (target.startsWith('http') || target.startsWith('#')) {
+                    continue;
+                }
+                const [rel, anchor] = target.split('#');
+                const path = Path.join(from, rel);
+                Assert.ok(Fs.existsSync(path), `${file} links to ${target}`);
+                if (null != anchor && '' !== anchor) {
+                    const slugs = [...Fs.readFileSync(path, 'utf8')
+                            .matchAll(/^#+\s+(.*)$/gm)]
+                        .map((h) => h[1].toLowerCase().replace(/[^a-z0-9 -]/g, '')
+                        .trim().replace(/ /g, '-'));
+                    Assert.ok(slugs.includes(anchor), `${file} links to ${target}, and that heading is not there`);
+                }
+                checked++;
             }
-            const path = Path.join(REPO, target.split('#')[0]);
-            Assert.ok(Fs.existsSync(path), `AGENTS.md links to ${target}`);
-            checked++;
         }
-        Assert.ok(0 < checked, 'no links checked');
+        Assert.ok(20 < checked, `only ${checked} links checked`);
     });
 });
 //# sourceMappingURL=agents-guide.test.js.map

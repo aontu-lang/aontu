@@ -13,6 +13,8 @@ const DOC_PAGES = [
   'tutorial-generate.md',
   'unification.md',
   'reference-language.md',
+  'reference-generation.md',
+  'reference-functions.md',
   'reference-api.md',
   'use-cases.md',
   'explanation.md',
