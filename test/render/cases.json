@@ -6,16 +6,21 @@
     "them to agree (docs/contributing/testing.md, 'The parity probe').",
     "",
     "A case writes `files` into a fresh directory and walks its `steps`. A",
-    "step either runs `aontu render` with `args`, or `edit`s files in place.",
-    "`after` is what the directory holds at the end. Before comparing, a",
-    "runner rewrites the directory as {dir}, turns \\ into / so Windows",
-    "agrees, and rewrites the package version as {version}: the two ports",
-    "carry their own version series, which is the one field they never",
-    "match on.",
+    "step either runs `aontu render` with `args`, or `edit`s, `remove`s or",
+    "`chmod`s files in place. Before comparing, a runner rewrites the",
+    "directory as {dir}, turns \\ into / so Windows agrees, and rewrites",
+    "the package version as {version}: the two ports carry their own",
+    "version series, which is the one field they never match on.",
     "",
-    "Two behaviours stay out, and stay in the per-port tests: an I/O",
-    "refusal, whose prose each runtime writes for itself, and the drift of",
-    "a file mode, which no runner here can set portably."
+    "`after` is EXHAUSTIVE. It is every file the directory holds at the",
+    "end, the case's own `files` aside, so a port that writes one more",
+    "than the other fails even when both wrote the listed ones correctly.",
+    "The runtime's own `.jostraca/` record is the one exclusion: its log",
+    "carries the time of the run. `afterMode` asks for a file's permission",
+    "bits, and a case marked `posix` is skipped where they mean nothing.",
+    "",
+    "One behaviour stays out, and stays in the per-port tests: an I/O",
+    "refusal, whose prose each generator runtime writes for itself."
   ],
   "cases": [
     {
@@ -148,7 +153,29 @@
           "out": "",
           "err": "aontu: unknown render option --nope (try --help)\n"
         }
-      ]
+      ],
+      "after": {}
+    },
+
+    {
+      "name": "a-file-keeps-the-mode-the-generator-asked-for",
+      "posix": true,
+      "files": {
+        "gen.aon": "out: file({name: \"x.sh\", mode: 493}, [\"#!/bin/sh\"])\n",
+        "app/.keep": ""
+      },
+      "steps": [
+        { "args": ["{dir}/gen.aon", "{dir}/app"], "code": 0, "out": "", "err": "" },
+        { "chmod": { "app/x.sh": "600" } },
+        {
+          "args": ["--check", "{dir}/gen.aon", "{dir}/app"],
+          "code": 1,
+          "out": "mode: x.sh\n",
+          "err": ""
+        }
+      ],
+      "after": { "app/x.sh": "#!/bin/sh\n" },
+      "afterMode": { "app/x.sh": "600" }
     },
 
     {
@@ -161,7 +188,8 @@
           "out": "",
           "err": "aontu: {dir}/gen.aon: the file at $.out has no name\n"
         }
-      ]
+      ],
+      "after": {}
     }
   ]
 }

@@ -29,8 +29,6 @@ one package. `TestPkgOutdatedListsMovesAndRetractions` publishes that in
 Go and asserts the advisory ends with three entries; the TypeScript twin
 stopped short of it, and now carries the same case.
 
-## Unreleased
-
 ### `aontu render` is held to one set of expectations in both ports
 
 **The verb had twin test files and no contract between them.** A shared
