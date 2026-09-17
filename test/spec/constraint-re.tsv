@@ -2,7 +2,7 @@
 # Promoted from test/spec/draft/constraint-re.tsv; every expectation
 # below was re-probed through BOTH engines at promotion time, per the
 # parity-probe rule in AGENTS.md. Normative design:
-# docs/reference-functions.md, "The constraint algebra".
+# docs/reference-language.md, "The constraint algebra".
 #
 # re(p) admits a string matching p. Matching is UNANCHORED in both
 # engines (JS RegExp.test, Go MatchString) -- anchor with ^ and $ to

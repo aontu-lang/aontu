@@ -42,9 +42,9 @@ realpath-confined below the root (a symlink inside the root pointing
 outside it is an escape and is denied; package resolution never runs).
 A few names are served under every capability but `none`, because they
 are BUNDLED with the engine: `@"aontu:system"` and `@"aontu:view"`, the
-[system and view vocabularies](reference-functions.md#the-bundled-vocabularies),
+[system and view vocabularies](reference-language.md#the-bundled-vocabularies),
 and every `@"aontu:…"` name: the
-[language-supplied models](reference-functions.md#the-aontu-models),
+[language-supplied models](reference-language.md#the-aontu-models),
 `aontu:profile`, `aontu:lang/text` and `aontu:lang/markdown`. An
 `aontu:` name resolves from the
 engine's own table and nowhere else: the memory, module, file and
@@ -143,7 +143,7 @@ seconds in TypeScript and 0.065s in Go. The *semantic* half of that
 mismatch is handled by normalising the pattern before either engine sees
 it; complexity is the half normalisation cannot reach. Rather than add a
 budget the host engine cannot be asked to respect, the [portable
-subset](reference-functions.md#re-and-the-portable-pattern-subset)
+subset](reference-language.md#re-and-the-portable-pattern-subset)
 **refuses the shapes that cause it**: a quantifier may not be applied to
 a group containing a quantifier or an alternation. That keeps this
 clause true in the port that has the problem, at the cost of refusing

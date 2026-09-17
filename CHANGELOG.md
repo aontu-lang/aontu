@@ -7,6 +7,33 @@ which implementation each change affects.
 
 ## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
+### Three supplemental reference sections
+
+The language reference stays one file and keeps every section it has.
+Three pages sit beside it, each a surface that cuts across it rather
+than a chapter taken out of it, and none of them reproduces its prose.
+
+`docs/reference-generation.md` is the component tree: the ten
+components as one table of node name, shorthand prop, admitted children
+and props; a section each for what they refuse and what a runtime
+writes; the rules that decide where files land; the trace report's
+columns; and the ordering rules. `docs/reference-functions.md` is the
+call surface of all 64 built-ins: arity, argument modes, accepted kinds
+and result words, as one alphabetical table and as slices by result
+word, by rest slot and by mode. `docs/reference-errors.md` is the error
+registry: all 167 codes by class, each with the version it was
+registered at and a line saying what raises it, plus the report shape
+and the exit codes.
+
+Each is gated against the registry it tabulates. The call surface must
+list every declared built-in once and in order; the catalogue must hold
+every registered code with the registry's own class and version; the
+component table's node names and admitted children are checked against
+the engine, a hundred parent-child pairs of them. The signature gate no
+longer reads one page by name: every gated page that prints a signature
+is held to the engine's registry, and every declared built-in must have
+its signature printed somewhere a reader can reach.
+
 ### `aontu render` writes the files a generator answers
 
 `aontu render <file> <path>` hands the component tree at `$.out` to
@@ -1250,7 +1277,7 @@ each(d, _)      the element is the child             members as a list
 `_` was already the language's word for "the value here"; mentioning
 it keeps the source child, leaving it out replaces it. The idiom is
 documented under "The `_ & …` idiom" in
-[`docs/reference-generation.md`](docs/reference-generation.md).
+[`docs/reference-language.md`](docs/reference-language.md).
 
 Both ports refuse `form` with `unknown_function`.
 
@@ -2219,8 +2246,8 @@ not, and the two read a substitution template differently. 99 shared
 rows in `test/spec/str.tsv`, five codes — `esc_variant`,
 `usc_malformed`, `rep_pattern`, `rep_sub`, `split_sep` — the four
 published grammars, the LSP, and a
-[Text](docs/reference-functions.md#text-esc-usc-rep-split) section in the
-functions reference. Both implementations.
+[Text](docs/reference-language.md#text-esc-usc-rep-split) section in the
+language reference. Both implementations.
 
 
 ### `emit`: apply-templates as an engine builtin
@@ -2247,7 +2274,7 @@ selection, which is finite and already in the model.
 
 Six codes: `emit_data`, `emit_table`, `emit_template`, `emit_body`,
 `emit_none`, `emit_ref`. `test/spec/gen-emit.tsv`, the reference's
-[Transforming](docs/reference-generation.md#transforming-emit) section, and
+[Transforming](docs/reference-language.md#transforming-emit) section, and
 the four published grammars. Both implementations.
 
 ### A generator whose data is a hole is filled by its peer

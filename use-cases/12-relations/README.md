@@ -122,8 +122,8 @@ key is ordinary user data.
 position. Lists unify positionally, so the proposal restates
 `transform.feeds` in full with the new address appended.
 
-The constructs are specified in the functions reference under
-[Declared relations](../../docs/reference-functions.md#declared-relations).
+The constructs are specified in the language reference under
+[Declared relations](../../docs/reference-language.md#declared-relations).
 
 ## What check.sh proves
 

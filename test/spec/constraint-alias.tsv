@@ -8,7 +8,7 @@
 # why that was declined -- the idiom is already expressible, and unlike
 # a keyword it composes and is not a closed list.
 #
-# Normative: docs/reference-functions.md "Named constraint aliases";
+# Normative: docs/reference-language.md "Named constraint aliases";
 # task form in docs/how-to.md "Name a reusable constraint". Both are
 # executed by ts/test/docs.test.ts, so these rows and those pages
 # cannot drift apart silently.

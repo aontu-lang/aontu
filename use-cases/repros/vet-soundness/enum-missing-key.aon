@@ -1,6 +1,6 @@
 # C1 (use-cases 03, 04): a required field whose schema value is a plain
 # disjunction is silently satisfied by ABSENCE under vet.
-# expected: verdict: incomplete, exit 3 (reference-generation.md "Generation":
+# expected: verdict: incomplete, exit 3 (reference-language.md "Generation":
 #           an unresolved disjunction cannot generate; G2: residual
 #           non-generable value => incomplete finding)
 # actual: verdict: valid, exit 0, findings: [] -- for ANY disjunction that

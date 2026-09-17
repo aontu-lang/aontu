@@ -437,7 +437,7 @@ copy: copy($.web) # deep copy of another node
 as ceiling and floor on numbers, and they keep exact numbers exact
 (`upper(0d1.1)` prints `2.0`, a `bigdecimal` ceiling). The rest are
 tabulated with tested examples in the
-[functions reference](reference-functions.md#functions): bounds,
+[language reference](reference-language.md#functions): bounds,
 pattern, and length constraints; generators that build children; and
 `join`, which folds a bag into a line of text. You need none of them
 today.
@@ -763,8 +763,6 @@ For a task you already have, go straight to its guide:
   files](how-to/split-a-model-across-files.md)
 
 Every rule and edge case is in the
-[language reference](reference-language.md), the
-[generation reference](reference-generation.md) and the
-[functions reference](reference-functions.md); the command and both
-APIs are in the [API reference](reference-api.md); the reasons are in
-the [explanation](explanation.md).
+[language reference](reference-language.md); the command and both APIs
+are in the [API reference](reference-api.md); the reasons are in the
+[explanation](explanation.md).

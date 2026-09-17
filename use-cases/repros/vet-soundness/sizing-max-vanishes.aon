@@ -10,7 +10,7 @@
 # A schema-satisfiable bound silently vanishes: --canon of this file
 # alone already shows {"x":{&:{"r":integer}}} -- length(max(2)) gone.
 # expected: verdict: invalid, exit 1 (three entries against max(2);
-#           reference-functions.md "Sizing atoms fold last": "after every
+#           reference-language.md "Sizing atoms fold last": "after every
 #           value that could contribute a member")
 # actual: verdict: valid, exit 0. NOTE: a BARE atom in the schema
 #         (x: length(max(2)) with no template beside it) IS re-checked

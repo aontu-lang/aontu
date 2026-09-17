@@ -77,7 +77,7 @@ Three parts, as given:
    `export` and the destructure name what they name.
 
 The worked case is the one from
-[`docs/reference-functions.md`](../reference-functions.md#named-constraint-aliases):
+[`docs/reference-language.md`](../reference-language.md#named-constraint-aliases):
 
 ```
 # today
