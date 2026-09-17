@@ -436,6 +436,14 @@ func TestRenderSkippedReadsWhatItCan(t *testing.T) {
 		t.Fatalf("unreadable record: %v", got)
 	}
 
+	// Readable JSON that is not a record.
+	if err := os.WriteFile(log, []byte("null"), 0o600); nil != err {
+		t.Fatal(err)
+	}
+	if got := renderSkipped(dir, 0); 0 != len(got) {
+		t.Fatalf("not a record: %v", got)
+	}
+
 	if err := os.WriteFile(log, []byte(`{"files":{
 		"old.txt":{"action":"skip","when":10},
 		"zed.txt":{"action":"skip","when":30},

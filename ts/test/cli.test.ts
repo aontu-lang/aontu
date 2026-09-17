@@ -3446,6 +3446,12 @@ describe('render', () => {
     file(at, 'jostraca.meta.log', 'not json')
     Assert.deepEqual(renderSkipped(d, 0), [])
 
+    // Readable JSON that is not a record, or holds no entry.
+    file(at, 'jostraca.meta.log', 'null')
+    Assert.deepEqual(renderSkipped(d, 0), [])
+    file(at, 'jostraca.meta.log', '{"files":{"odd.txt":null}}')
+    Assert.deepEqual(renderSkipped(d, 0), [])
+
     file(at, 'jostraca.meta.log', JSON.stringify({
       files: {
         'old.txt': { action: 'skip', when: 10 },
