@@ -7,6 +7,33 @@ which implementation each change affects.
 
 ## Go 0.1.24 — 2026-09-16 · TypeScript 0.66.0
 
+### Three supplemental reference sections
+
+The language reference stays one file and keeps every section it has.
+Three pages sit beside it, each a surface that cuts across it rather
+than a chapter taken out of it, and none of them reproduces its prose.
+
+`docs/reference-generation.md` is the component tree: the ten
+components as one table of node name, shorthand prop, admitted children
+and props; a section each for what they refuse and what a runtime
+writes; the rules that decide where files land; the trace report's
+columns; and the ordering rules. `docs/reference-functions.md` is the
+call surface of all 64 built-ins: arity, argument modes, accepted kinds
+and result words, as one alphabetical table and as slices by result
+word, by rest slot and by mode. `docs/reference-errors.md` is the error
+registry: all 167 codes by class, each with the version it was
+registered at and a line saying what raises it, plus the report shape
+and the exit codes.
+
+Each is gated against the registry it tabulates. The call surface must
+list every declared built-in once and in order; the catalogue must hold
+every registered code with the registry's own class and version; the
+component table's node names and admitted children are checked against
+the engine, a hundred parent-child pairs of them. The signature gate no
+longer reads one page by name: every gated page that prints a signature
+is held to the engine's registry, and every declared built-in must have
+its signature printed somewhere a reader can reach.
+
 ### `aontu render` writes the files a generator answers
 
 `aontu render <file> <path>` hands the component tree at `$.out` to

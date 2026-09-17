@@ -1319,6 +1319,121 @@ test('the-functions-index-lists-every-declared-builtin-once', () => {
 })
 
 
+// THE REGISTRY GATES. A supplemental section that tabulates a registry
+// is checked against the file, or the engine, that IS that registry.
+function docsText(file: string): string {
+  return Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8')
+}
+
+
+// Asserts rather than returns empty: a heading that moves would make
+// every check reading it vacuous.
+function section(text: string, heading: string): string {
+  const parts = text.split('\n' + heading + '\n')
+  Assert.equal(parts.length, 2, 'exactly one ' + heading + ' heading')
+  return parts[1].split('\n## ')[0]
+}
+
+
+test('the-call-surface-lists-every-declared-builtin-once', () => {
+  const rows = Array.from(
+    section(docsText('reference-functions.md'), '## The call surface')
+      .matchAll(/^\| `([a-z]+)\(/gm), (m) => m[1])
+  const names = Array.from(
+    Fs.readFileSync(Path.join(REPO, 'test', 'spec', 'signature.tsv'), 'utf8')
+      .matchAll(/^([a-z]+)\(/gm), (m) => m[1]).sort()
+  Assert.deepStrictEqual(rows, names,
+    'the call surface must list each declared built-in once, in order')
+})
+
+
+test('the-error-catalogue-is-the-registry', () => {
+  const registered = new Map<string, string>()
+  for (const line of Fs.readFileSync(
+    Path.join(REPO, 'test', 'spec', 'errcodes.tsv'), 'utf8').split('\n')) {
+    const cell = line.split('\t')
+    if (line.startsWith('#') || 'errcode' !== cell[1]) {
+      continue
+    }
+    registered.set(cell[0], cell[2] + ' ' + cell[3])
+  }
+  Assert.ok(100 < registered.size, 'no codes read from the registry')
+
+  const listed = new Map<string, string>()
+  let cls = ''
+  for (const line of
+    section(docsText('reference-errors.md'), '## The codes').split('\n')) {
+    const head = line.match(/^### Class `([a-z]+)`$/)
+    if (head) {
+      cls = head[1]
+      continue
+    }
+    const row = line.match(/^\| `([^`]+)` \| ([^|]*?) \|/)
+    if (null == row) {
+      continue
+    }
+    Assert.ok(!listed.has(row[1]), 'the catalogue lists ' + row[1] + ' twice')
+    listed.set(row[1], cls + ' ' + row[2].trim())
+  }
+  Assert.deepStrictEqual([...listed.keys()].sort(), [...registered.keys()].sort(),
+    'the catalogue must list every registered code, and only those')
+  const wrong = [...listed].filter(([code, row]) => registered.get(code) !== row)
+    .map(([code, row]) => code + ': ' + row + ', registry ' + registered.get(code))
+  Assert.deepEqual(wrong, [], 'catalogue rows disagreeing with the registry')
+})
+
+
+// One minimal call per component: `project`'s spec is the only optional
+// one, and `listitems` is the only component with no text prop.
+const CMP_CALL: Record<string, string> = {
+  project: 'project()', folder: 'folder("d")', file: 'file("f")',
+  content: 'content("c")', line: 'line("l")', fragment: 'fragment("g.txt")',
+  slot: 'slot("s")', inject: 'inject("i")', copyfiles: 'copyfiles("a")',
+  listitems: 'listitems({item:[1]})',
+}
+
+
+test('the-component-table-is-the-engines', () => {
+  const gen = (src: string): any => {
+    try {
+      return new Aontu().generate('x: ' + src)
+    }
+    catch (e) {
+      return null
+    }
+  }
+  const rows = Array.from(
+    section(docsText('reference-generation.md'), '## The components')
+      .matchAll(/^\| `([a-z]+)\(.*?\| `([A-Za-z]+)` \| .*? \| (.*?) \| .*? \|$/gm))
+  Assert.equal(rows.length, Object.keys(CMP_CALL).length,
+    'component rows read from the table')
+
+  const wrong: string[] = []
+  for (const [, name, node, children] of rows) {
+    const got = gen(CMP_CALL[name])
+    if (null == got) {
+      wrong.push(name + ': its minimal call is refused')
+      continue
+    }
+    if (node !== got.x.cmp) {
+      wrong.push(name + ': table says ' + node + ', engine answers ' + got.x.cmp)
+    }
+    const admits = 'none' === children.trim() ? []
+      : Array.from(children.matchAll(/`([a-z]+)`/g), (m) => m[1])
+    for (const child of Object.keys(CMP_CALL)) {
+      const base = CMP_CALL[name].replace(/\(\)$/, '("p")')
+      const took = null != gen(base.replace(/\)$/, ', [' + CMP_CALL[child] + '])'))
+      if (took !== admits.includes(child)) {
+        wrong.push(name + ' + ' + child + ': table says '
+          + (admits.includes(child) ? 'admitted' : 'refused')
+          + ', engine ' + (took ? 'takes it' : 'refuses it'))
+      }
+    }
+  }
+  Assert.deepEqual(wrong, [], 'the component table and the engine disagree')
+})
+
+
 // GitHub's heading slug: lower-cased, punctuation dropped except `-`
 // and `_`, spaces to hyphens, a repeat suffixed by its occurrence
 // count. Runs of spaces make runs of hyphens.
