@@ -130,5 +130,15 @@ const err_1 = require("../dist/err");
         // Written without the root marker, as a reference may be.
         Assert.deepEqual((0, query_1.pathParts)('a.b'), ['a', 'b']);
     });
+    (0, node_test_1.test)('a-failure-with-no-code-is-the-generic-finding', () => {
+        // Neither a collected error nor a failed value, which is what the
+        // Go port's nil error is (EvalFailure, go/query_test.go).
+        const f = (0, query_1.evalFailure)({ err: [] });
+        Assert.equal(f.code, 'unify_failed');
+        Assert.equal(f.class, 'internal');
+        Assert.equal(f.path, '$');
+        Assert.equal(f.message, 'The document does not evaluate.');
+        Assert.deepEqual(f.sites, []);
+    });
 });
 //# sourceMappingURL=query.test.js.map

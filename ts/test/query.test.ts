@@ -8,7 +8,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 
 import { get, why } from '../dist/aontu'
-import { nearestKey, pathParts } from '../dist/query'
+import { evalFailure, nearestKey, pathParts } from '../dist/query'
 import { setColor } from '../dist/err'
 
 
@@ -116,6 +116,17 @@ describe('query', () => {
     Assert.deepEqual(pathParts('$.a.b'), ['a', 'b'])
     // Written without the root marker, as a reference may be.
     Assert.deepEqual(pathParts('a.b'), ['a', 'b'])
+  })
+
+  test('a-failure-with-no-code-is-the-generic-finding', () => {
+    // Neither a collected error nor a failed value, which is what the
+    // Go port's nil error is (EvalFailure, go/query_test.go).
+    const f: any = evalFailure({ err: [] })
+    Assert.equal(f.code, 'unify_failed')
+    Assert.equal(f.class, 'internal')
+    Assert.equal(f.path, '$')
+    Assert.equal(f.message, 'The document does not evaluate.')
+    Assert.deepEqual(f.sites, [])
   })
 
 })
