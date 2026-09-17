@@ -39,6 +39,7 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
+const node_child_process_1 = require("node:child_process");
 const aontu_1 = require("../dist/aontu");
 const lsp_1 = require("../dist/lsp");
 const cli_1 = require("../dist/cli");
@@ -319,6 +320,35 @@ function firstCode(fn) {
         return { out, err, code };
     }
     const cli = (args) => capture(() => (0, cli_1.main)(['node', 'cli', ...args]));
+    // The help's exception clause, held to the parser: a verb that takes
+    // the flag reports the bad VALUE, and `lsp` refuses without naming
+    // the option, which is how a name-keyed probe scored it as taking.
+    // Each verb runs in its own process: a server verb would exit this.
+    (0, node_test_1.test)('the-help-names-every-verb-that-refuses-the-capability', () => {
+        const src = Fs.readFileSync(Path.join(__dirname, '..', 'src', 'cli.ts'), 'utf8');
+        const list = src.match(/const KNOWN_VERBS = \[([^\]]*)\]/);
+        Assert.ok(null != list, 'no KNOWN_VERBS in cli.ts');
+        const verbs = Array.from(list[1].matchAll(/'([a-z]+)'/g), (m) => m[1]);
+        Assert.ok(20 < verbs.length, 'no verbs read from the CLI');
+        const entry = (src.split('  --trust <t>     ')[1] ?? '')
+            .split('\n  --include-root')[0];
+        Assert.ok(entry.includes('Every verb takes it'), 'the --trust entry moved: the gate reads it by that clause');
+        const bin = Path.join(__dirname, '..', 'bin', 'aontu.js');
+        const stderrOf = (args) => {
+            try {
+                (0, node_child_process_1.execFileSync)(process.execPath, [bin, ...args], { encoding: 'utf8', stdio: ['ignore', 'ignore', 'pipe'] });
+                return '';
+            }
+            catch (e) {
+                return e.stderr ?? '';
+            }
+        };
+        const subcommandFirst = { model: ['get'] };
+        const refuses = verbs.filter((verb) => !stderrOf([verb, ...(subcommandFirst[verb] ?? []), '--trust', 'bogus'])
+            .includes('--trust needs'));
+        const named = verbs.filter((verb) => new RegExp('\\b' + verb + '\\b').test(entry));
+        Assert.deepStrictEqual(named.sort(), refuses.sort(), 'the --trust entry must name exactly the verbs that refuse it');
+    });
     (0, node_test_1.test)('trust-none-denies', () => {
         const w = world();
         const entry = Path.join(w.root, 'main.aon');

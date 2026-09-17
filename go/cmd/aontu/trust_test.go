@@ -10,6 +10,8 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -403,4 +405,43 @@ func verbEnd(args []string) int {
 		return 2
 	}
 	return 1
+}
+
+// The help's exception clause, held to this port's parser: a verb that
+// takes the flag reports the bad VALUE, and lsp refuses without naming
+// the option, which is how a name-keyed probe scored it as taking. The
+// twin reads the same clause in ts/test/trust.test.ts.
+func TestTrustHelpNamesEveryVerbThatRefusesTheCapability(t *testing.T) {
+	at := strings.Index(helpText, "  --trust <t>     ")
+	if 0 > at {
+		t.Fatal("no --trust entry in helpText")
+	}
+	entry := helpText[at:]
+	if end := strings.Index(entry, "\n  --include-root"); 0 <= end {
+		entry = entry[:end]
+	}
+	if !strings.Contains(entry, "Every verb takes it") {
+		t.Fatal("the --trust entry moved: this test reads it by that clause")
+	}
+
+	subcommandFirst := map[string][]string{"model": {"get"}}
+	refuses, named := []string{}, []string{}
+	for _, verb := range knownVerbs {
+		args := append([]string{verb}, subcommandFirst[verb]...)
+		args = append(args, "--trust", "bogus")
+		var out, errw bytes.Buffer
+		run(args, strings.NewReader(""), &out, &errw, false)
+		if !strings.Contains(errw.String(), "--trust needs") {
+			refuses = append(refuses, verb)
+		}
+		if regexp.MustCompile(`\b` + verb + `\b`).MatchString(entry) {
+			named = append(named, verb)
+		}
+	}
+	sort.Strings(refuses)
+	sort.Strings(named)
+	if strings.Join(named, ",") != strings.Join(refuses, ",") {
+		t.Fatalf("the --trust entry names %v, the parser refuses %v",
+			named, refuses)
+	}
 }

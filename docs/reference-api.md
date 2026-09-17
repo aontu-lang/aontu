@@ -89,11 +89,16 @@ admits), its shorthand `--include-root <dir>`, and
 `--text-ext <ext>[,<ext>]` (extensions an include additionally reads
 as text; repeatable, and a leading dot is optional). The last rides
 WITH the capability rather than beside it: both answer what an include
-may read. The verbs that read no document refuse all three:
+may read. Five verbs take none of the three:
 [`help`](#aontu-help), [`explain`](#aontu-explain) and
-[`init`](#aontu-init). [The MCP server](#the-mcp-server) confines with
-`--root <dir>` instead, and [`fmt`](#aontu-fmt) takes the flags but
-evaluates nothing, so they have nothing to confine.
+[`init`](#aontu-init), which read no document;
+[`lsp`](#aontu-lsp), which takes no arguments at all; and
+[the MCP server](#the-mcp-server), which confines with `--root <dir>`
+instead. [`fmt`](#aontu-fmt) takes all three, and they govern the
+document it evaluates, which is the one `--profile` names rather than
+the one it formats. `sync`, `add`, `get` and `remove` take them and
+then refuse a `root` capability, because a confined run cannot reach
+the package cache they write.
 
 **Behaviour**
 
@@ -1901,7 +1906,10 @@ aontu fmt < in.aon > out.aon
   a list element keeps its braces, because splitting it would change
   the document.
 - **It reads the file it is given and no other.** An `@"..."` include
-  is a token like any other, so the verb takes no `--trust`.
+  is a token like any other, so `--trust` has nothing to confine in
+  it. The verb does take the flag, and it governs the `--profile`
+  document, which is evaluated: `--trust none` beside a profile that
+  includes a file refuses with `include_denied`.
 - **A new tree at the top level stands apart.** One blank line above a
   top-level statement that takes more than one line to write, and one
   below it, above its own comments so that a note travels with what it

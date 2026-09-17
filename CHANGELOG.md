@@ -10,6 +10,54 @@ which implementation each change affects.
 Landed since the last release, and in the repository rather than in a
 published package.
 
+### `aontu --help` says which verbs take the global options
+
+`--trust`, `--include-root` and `--text-ext` were advertised as taken by
+"every verb", and five verbs do not take them. Measured by running
+every verb of both built binaries with a bad value, so that a verb
+which TAKES the flag answers about the value rather than the flag:
+
+- Every other verb takes all three, and so does the bare entry
+  point: 23 of the 28 verbs the npm build knows, and 22 of the 27
+  the Go build knows, which has no `allow`.
+- `help`, `explain` and `init` read no document and refuse them by
+  name, exit 2.
+- `lsp` takes no arguments at all and refuses everything, including
+  these, exit 2. It is the one a name-keyed probe misses, because its
+  refusal names no option.
+- `mcp` refuses them in the npm build and confines with `--root`
+  instead; the Go build ships no server.
+- `fmt` takes all three, and they govern the document it EVALUATES,
+  which is the one `--profile` names rather than the one it formats:
+  `--trust none` beside a profile that includes a file refuses with
+  `include_denied`. The API reference said the verb takes no `--trust`.
+- `sync`, `add`, `get` and `remove` take them and then refuse a `root`
+  capability, because a confined run cannot reach the package cache
+  they write.
+
+Three neighbours in the same Options block were wrong for the same
+reason and are measured now too. `system` is not the default: unset,
+both ports behave as `system` AND the bare command warns for an
+include that leaves the entry root, which passing `system` silences.
+`--format` is taken by every verb that answers a report, and
+`template`, `agentsmd`, `fmt`, `init` and `lsp` answer none. `-c` is
+the bare command's and `model get`'s, and every other verb refuses it.
+`--text-ext` accepts a leading dot, which the text said to omit.
+
+The same overstatement stood in four published pages and a decision
+record: the trust contract, the API reference, the language reference,
+the agent reference and ADR-012's text amendment. Each names the
+exceptions now, and the API reference links each one to its section.
+
+**The claim is gated in both ports, as a partition rather than a
+list.** `the-help-names-every-verb-that-refuses-the-capability` walks
+each CLI's own verb list, runs every verb, reads which bucket its
+refusal puts it in, and requires the help's exception clause to name
+exactly the refusers. A verb added without classifying it fails, and
+so does an exception list that goes stale, in either direction. The Go
+twin is `TestTrustHelpNamesEveryVerbThatRefusesTheCapability`. Both
+were confirmed to fail with `lsp` removed from the clause.
+
 ### `aontu render --check` answers what `render` answers
 
 `--check` reported drift for a file the write path skips, so a project

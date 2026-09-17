@@ -96,21 +96,28 @@ query between a document and its own earlier versions.
 
 Options:
   -c, --canon     Print the canonical form instead of generated JSON
-  --format <f>    text (default) or json. The json form wraps the
-                  answer as {aontu, findings, ok, out}, so a failure
-                  here reads like every other verb's
+                  (the bare command's, as --jsonl is; model get has
+                  its own)
+  --format <f>    text (default) or json, on every verb that answers a
+                  report. The json form is one object opening with an
+                  aontu block; the bare command's carries findings, ok
+                  and out
   -h, --help      Show this help and exit (the verbs and their flags);
                   aontu help is the LANGUAGE, and lists its own topics
   --jsonl         REPL: answer every command as one JSON line
   -v, --version   Print the version and exit
-  --trust <t>     Include capability: system (default), none, or
-                  root[:dir] to confine @"..." below a directory. A
-                  bare root means the document's own directory. Every
-                  verb takes it but help, explain and init, which read
-                  no document, and mcp, which confines with --root
+  --trust <t>     Include capability: system, none, or root[:dir] to
+                  confine @"..." below a directory. A bare root means
+                  the entry root: the document's own directory, or the
+                  project's for the package verbs. Every verb takes it
+                  but help, explain, init and lsp, which read no
+                  document, and mcp, which is the npm build's server
+                  and confines with --root. Unset, a run behaves as
+                  system, and the bare command warns once for an
+                  include that leaves the entry root
   --include-root <dir>  Shorthand for --trust root:<dir>
-  --text-ext <e>  Read these extensions as text too, comma-separated
-                  and without dots (md,sql). .txt needs no flag; a
+  --text-ext <e>  Read these extensions as text too, comma-separated,
+                  with or without dots (md,sql). .txt needs no flag; a
                   named format keeps its meaning, and .js stays
                   refused. The verbs that take --trust take it too
 

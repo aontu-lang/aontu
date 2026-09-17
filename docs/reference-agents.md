@@ -127,7 +127,7 @@ takes which by default.
 
 | door | default | how it is set |
 |---|---|---|
-| the verbs | `system`: an include reads what the process can read | `--trust none`, `--trust root[:dir]`, or `--include-root <dir>`, on every verb that reads a document; `help`, `explain` and `init` read none and refuse them |
+| the verbs | `system`: an include reads what the process can read | `--trust none`, `--trust root[:dir]`, or `--include-root <dir>`, on every verb that reads a document; `help`, `explain` and `init` read none and refuse them, and `lsp` takes no arguments at all |
 | the embedded API | whatever the caller passes, and `system` where it passes nothing | the `trust` option of the call |
 | the language server | confined below the workspace folder the client named, and `system` where the client named none | `initializationOptions.aontu.trust.include`: `system`, `none`, a root, or an in-memory map |
 | the tool server | `none`: every include is denied | `--root <dir>`, which confines includes below the resolved root and serves the path arguments of every tool |

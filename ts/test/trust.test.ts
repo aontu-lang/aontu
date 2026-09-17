@@ -6,6 +6,7 @@ import * as Assert from 'node:assert'
 import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 import { Aontu } from '../dist/aontu'
 import { computeDiagnostics, LspHandler } from '../dist/lsp'
@@ -369,6 +370,47 @@ describe('trust-cli', () => {
   }
 
   const cli = (args: string[]) => capture(() => cliMain(['node', 'cli', ...args]))
+
+  // The help's exception clause, held to the parser: a verb that takes
+  // the flag reports the bad VALUE, and `lsp` refuses without naming
+  // the option, which is how a name-keyed probe scored it as taking.
+  // Each verb runs in its own process: a server verb would exit this.
+  test('the-help-names-every-verb-that-refuses-the-capability', () => {
+    const src = Fs.readFileSync(
+      Path.join(__dirname, '..', 'src', 'cli.ts'), 'utf8')
+    const list = src.match(/const KNOWN_VERBS = \[([^\]]*)\]/)
+    Assert.ok(null != list, 'no KNOWN_VERBS in cli.ts')
+    const verbs = Array.from(
+      (list as RegExpMatchArray)[1].matchAll(/'([a-z]+)'/g), (m) => m[1])
+    Assert.ok(20 < verbs.length, 'no verbs read from the CLI')
+
+    const entry = (src.split('  --trust <t>     ')[1] ?? '')
+      .split('\n  --include-root')[0]
+    Assert.ok(entry.includes('Every verb takes it'),
+      'the --trust entry moved: the gate reads it by that clause')
+
+    const bin = Path.join(__dirname, '..', 'bin', 'aontu.js')
+    const stderrOf = (args: string[]): string => {
+      try {
+        execFileSync(process.execPath, [bin, ...args],
+          { encoding: 'utf8', stdio: ['ignore', 'ignore', 'pipe'] })
+        return ''
+      }
+      catch (e: any) {
+        return e.stderr ?? ''
+      }
+    }
+
+    const subcommandFirst: Record<string, string[]> = { model: ['get'] }
+    const refuses = verbs.filter((verb) => !stderrOf(
+      [verb, ...(subcommandFirst[verb] ?? []), '--trust', 'bogus'])
+      .includes('--trust needs'))
+    const named = verbs.filter(
+      (verb) => new RegExp('\\b' + verb + '\\b').test(entry))
+    Assert.deepStrictEqual(named.sort(), refuses.sort(),
+      'the --trust entry must name exactly the verbs that refuse it')
+  })
+
 
   test('trust-none-denies', () => {
     const w = world()

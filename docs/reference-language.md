@@ -3646,8 +3646,8 @@ holds, and `upper(@"./notes.txt")` uppercases the file.
 
 **Other extensions need an allowance.** `--text-ext md,sql` reads those
 as text too, for a project that keeps its prose in `.md` or its queries
-in `.sql`. Every verb but `help`, `explain`, `init` and `mcp` takes it,
-and the dots are optional
+in `.sql`. Every verb but `help`, `explain`, `init`, `lsp` and `mcp`
+takes it, and the dots are optional
 (`--text-ext .md`). Two limits: an extension the table already names
 keeps its meaning, so `--text-ext toml` does not re-read TOML as a
 string; and `.js` stays refused however the flag is spelled.

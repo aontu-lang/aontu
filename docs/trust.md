@@ -232,8 +232,10 @@ implementations, at every surface:
   verb that reads a document**, and by the REPL, whose `--jsonl`
   session honours the capability for `:load`, `:get`, `:why` and bare
   snippets alike. `help`, `explain` and `init` read no document and
-  refuse the flags; the MCP server confines with `--root <dir>`
-  instead. A verb takes the flags anywhere in its argument tail; a
+  refuse the flags, as does `lsp`, which takes no arguments at all; the
+  MCP server confines with `--root <dir>` instead. `sync`, `add`, `get`
+  and `remove` take the flags and then refuse a `root` capability,
+  which puts the package cache they write out of reach. A verb takes the flags anywhere in its argument tail; a
   bare `root` means the primary document's own directory, matching the
   bare command's entry root. The default is `'system'` **with a warning**:
   every resolution that escapes the entry file's directory, or goes
