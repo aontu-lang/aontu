@@ -4065,7 +4065,8 @@ record what landed under this entry in the commit that lands it.
 ## ADR-040 — `aontu render` writes the component tree through jostraca, in both ports
 
 **Date:** 2026-09-16
-**Status:** Accepted
+**Status:** Accepted *(Amended 2026-09-17: `--check` skips what `render`
+skips.)*
 
 ### Context
 
@@ -4095,11 +4096,17 @@ jostraca: the npm package in TypeScript, `github.com/jostraca/jostraca/go`
 in Go, pinned at one version, both ordinary dependencies. A tree that
 is one file is written to `<path>` itself unless `<path>` is a
 directory; any other tree is written below `<path>`. `--check` writes
-nothing, compares, and exits 1 on drift. A folder as the generator is a
-set: every regular file directly in it, in name order, and their trees
-are written below `<path>` as one run, so one `--check` holds a project
-written in several languages, and a path two generators claim is
-refused by the runtime.
+nothing, compares, and exits 1 on drift, **and skips what `render`
+skips**: the `File` nodes the write path leaves alone are renamed, and
+the paths a second `check` of the renamed tree no longer claims are
+taken out of the drift, so the skipped paths are the runtime's own
+composition rather than this engine's. Each port therefore answers for
+the `exclude` forms its own runtime honours, and those sets differ
+([`test/spec/divergent.tsv`](test/spec/divergent.tsv)). A folder as the
+generator is a set: every regular file directly in it, in name order,
+and their trees are written below `<path>` as one run, so one `--check`
+holds a project written in several languages, and a path two generators
+claim is refused by the runtime.
 
 **aontu does not reimplement jostraca.** Nothing in either port walks
 the tree to disk. `cmpTree` reads the tree, `generate` writes it and
