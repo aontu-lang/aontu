@@ -7,6 +7,7 @@ exports.engineFinding = engineFinding;
 exports.failureFinding = failureFinding;
 exports.anchorAt = anchorAt;
 exports.throughResidue = throughResidue;
+exports.coverThrough = coverThrough;
 exports.vetCoverage = vetCoverage;
 exports.vet = vet;
 const aontu_1 = require("./aontu");
@@ -262,13 +263,57 @@ function coverDataPaths(v, path, out) {
         coverDataPaths(val, [...path, key], out);
     }
 }
+// A spread or a key can carry a shape-preserving call or a reference,
+// and coverage wants the bag under it; the seen set settles a cycle.
+function coverThrough(v, root) {
+    let at = v;
+    const seen = new Set();
+    while (null != at && !seen.has(at)) {
+        if (true === at.isMap || true === at.isList) {
+            return at;
+        }
+        seen.add(at);
+        if ((true === at.isCloseFunc || true === at.isTypeFunc) &&
+            Array.isArray(at.peg)) {
+            at = at.peg[0];
+            continue;
+        }
+        // A relative reference reads from where it was WRITTEN, not where
+        // the template lands, so the engine's own resolution is the rule.
+        if (true === at.isRef) {
+            at = coverRefTarget(root, at.plainRefPath());
+            continue;
+        }
+        if (true === at.isRecurse) {
+            at = coverRefTarget(root, at.target);
+            continue;
+        }
+        return undefined;
+    }
+    return undefined;
+}
+// A reference descends a list by the segment AS WRITTEN: `$.Defs.0`.
+function coverRefTarget(root, segs) {
+    if (null == segs) {
+        return undefined;
+    }
+    let at = root;
+    for (const seg of segs) {
+        at = true === at?.isMap || true === at?.isList ? at.peg?.[seg] : undefined;
+    }
+    return at;
+}
 // Walk one data path down the schema, naming the declaration that
 // constrains it -- the exact key where the schema has one, else the
 // covering template. Undefined when the schema declares nothing there.
-function coverMatch(anchor, segs) {
+function coverMatch(anchor, segs, root) {
     let at = anchor;
     let decl = '';
     for (const seg of segs) {
+        at = coverThrough(at, root);
+        if (null == at) {
+            return undefined;
+        }
         const named = true === at.isMap && null != at.peg ? at.peg[seg]
             : true === at.isList && Array.isArray(at.peg) ? at.peg[Number(seg)]
                 : undefined;
@@ -303,7 +348,7 @@ function coverShallowest(paths) {
 }
 // The accounting itself: what the schema declared, what the data holds,
 // and which of each the other met.
-function vetCoverage(anchor, dataVal, coverageAt) {
+function vetCoverage(anchor, dataVal, coverageAt, root) {
     const declarations = new Map();
     coverDeclare(anchor, [], declarations);
     const dataPaths = [];
@@ -329,7 +374,7 @@ function vetCoverage(anchor, dataVal, coverageAt) {
             continue;
         }
         const segs = path.replace(/^\$\.?/, '').split('.').filter((x) => '' !== x);
-        const decl = coverMatch(anchor, segs);
+        const decl = coverMatch(anchor, segs, root);
         if (leaf) {
             leaves++;
         }
@@ -436,7 +481,7 @@ function vet(schemaSrc, dataSrc, opts) {
         // the same paths minus whatever an include would have added.
         const measured = 0 === coverCtx.err.length && true !== settledData?.isNil
             ? settledData : dataVal;
-        coverage = vetCoverage(anchor, measured, options.coverageAt);
+        coverage = vetCoverage(anchor, measured, options.coverageAt, schemaVal);
     }
     const lintFindings = [];
     (0, utility_1.walkBagVals)(anchor, (v, path) => {

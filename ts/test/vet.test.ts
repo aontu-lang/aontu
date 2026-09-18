@@ -6,11 +6,12 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { vet, displayFile } from '../dist/vet'
+import { vet, displayFile, coverThrough } from '../dist/vet'
 import { trimCheck } from '../dist/trim'
 import { relationCheck } from '../dist/relation'
 import { subsume } from '../dist/subsume'
 import { vet as vetFromPackage } from '../dist/aontu'
+import { RefVal } from '../dist/val/RefVal'
 
 
 const SCHEMA = 'service: { name: string, port: integer }'
@@ -709,5 +710,66 @@ describe('verb-errors', () => {
     // whole test.
     Assert.equal('errors' in trimCheck('a:1'), false)
     Assert.equal('errors' in relationCheck('a:1'), false)
+  })
+})
+
+
+describe('vet-cover-through', () => {
+
+  // THE ARMS THAT DECLINE TO RESOLVE: anything not ending at a bag
+  // answers nothing, rather than crediting a leaf nothing reached.
+  test('declines-what-is-not-a-shape', () => {
+    const root: any = {
+      isMap: true,
+      peg: {
+        Shape: { isMap: true, peg: { v: { isVal: true } } },
+        Scalar: { isVal: true },
+        Defs: { isList: true, peg: [{ isMap: true, peg: {} }] },
+      },
+    }
+
+    Assert.equal(coverThrough(root, root), root)
+    Assert.equal(coverThrough({ isVal: true }, root), undefined)
+    Assert.equal(
+      coverThrough({ isCloseFunc: true, peg: 'not-a-list' }, root), undefined)
+    const shape = root.peg.Shape
+    Assert.equal(
+      coverThrough({ isCloseFunc: true, peg: [shape] }, root), shape)
+
+    const ref = (peg: any[], absolute: boolean, path?: string[]): any => {
+      const r: any = new RefVal({ peg, absolute })
+      if (null != path) {
+        r.path = path
+      }
+      return r
+    }
+    Assert.equal(coverThrough(ref(['Shape'], true), root), shape)
+    // `..Shape` written at `$.x.&` names the root's `Shape`.
+    Assert.equal(coverThrough(ref(['.', 'Shape'], false, ['x', '&']), root),
+      shape)
+    // A parent step off the top of the path resolves to nothing.
+    Assert.equal(coverThrough(ref(['.', 'Shape'], false, []), root), undefined)
+    for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42],
+    ['Defs', '9'], ['Defs', '-1'], ['Defs', 'middle']]) {
+      Assert.equal(coverThrough(ref(miss, true), root), undefined,
+        JSON.stringify(miss))
+    }
+
+    Assert.equal(
+      coverThrough({ isRecurse: true, target: ['Shape'] }, root), shape)
+
+    const cyc: any = { isMap: true, peg: {} }
+    cyc.peg.A = ref(['A'], true)
+    Assert.equal(coverThrough(ref(['A'], true), cyc), undefined)
+  })
+
+
+  // Data deeper than the schema declares: the walk descends into a
+  // declaration and then past it, so the leaf is credited to nothing.
+  test('stops-where-nothing-is-declared', () => {
+    const r = vet('a:string', 'a:{b:1}', { coverage: true })
+    Assert.equal(r.coverage?.checked, 0)
+    Assert.deepEqual(r.coverage?.unchecked, ['$.a.b'])
+    Assert.equal(r.coverage?.vacuous, true)
   })
 })
