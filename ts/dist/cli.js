@@ -4747,5 +4747,5 @@ function main(argv, servers = SERVERS) {
     else {
         runStdin(mode, format, trust).then((code) => finish(code));
     }
-} /* node:coverage ignore next 21 */
+} /* node:coverage ignore next 22 */
 //# sourceMappingURL=cli.js.map
