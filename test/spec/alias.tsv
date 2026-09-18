@@ -276,13 +276,40 @@ alias-include-at-root-declares	gens	@"__FIXTURES__/alias_sigil.aon"\nx: 1	{"q":7
 alias-include-under-key-refused	errc	a: @"__FIXTURES__/alias_sigil.aon"	alias_not_toplevel
 alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aon"	at path $.a.%b
 #
-# WHAT AN INCLUDE CARRIES IS VALUES. A file's values arrive at the
-# includer exactly as written, which is the whole of what `@"..."` does.
+# A NAME DOES NOT CROSS A FILE BOUNDARY EITHER (ALIASES.0.md sections 5
+# to 7). `@"..."` carries a file's VALUES across and never its names. An
+# alias is in scope in the file that declares it, and in a file that
+# imports it by name; nowhere else. Without that rule an alias is a
+# dynamic scope and a file's meaning depends on who included it.
+#
+# The includer's names are not visible inside the file it includes.
+alias-include-does-not-see-includer-name	errc	%t = 42\ninner: @"__FIXTURES__/alias_uses_t.aon"	no_path
+# ... and an unexported name is not visible to the includer. The file's
+# VALUES still arrive, which is the whole of what an include does.
+alias-includer-does-not-see-unexported	errc	@"__FIXTURES__/alias_declares_u.aon"\nz: %u	no_path
 alias-include-still-carries-values	gens	@"__FIXTURES__/alias_declares_u.aon"	{"y":1}
+# TWO FILES MAY USE ONE NAME FOR DIFFERENT THINGS. Sharing a table makes
+# that a silent merge wherever the two bodies happen to unify, so a file
+# is constrained by a declaration it never saw: `a` here would acquire
+# `extra` from a file it does not name.
+alias-same-name-in-two-files-stays-separate	gens	@"__FIXTURES__/alias_row_a.aon"\n@"__FIXTURES__/alias_row_b.aon"	{"a":{"kind":"x"},"b":{"extra":9,"kind":"y"}}
 # A REFERENCE RESOLVES WHERE IT WAS WRITTEN, not where it lands. The
 # rule here is written in one file and instantiated against data
-# declared in another.
+# declared in another, which is what file scope has to keep working.
 alias-template-resolves-where-written	gens	@"__FIXTURES__/alias_travel.aon"\nmain: entity: thing: args: params: [ { kind: 'param' } ]	{"main":{"entity":{"thing":{"args":{"params":[{"active":true,"kind":"param"}]}}}}}
+#
+# `export` PUBLISHES A NAME. It is self-erasing -- a declaration, not a
+# value -- so adding one never changes what a file generates.
+alias-export-is-self-erasing	gens	%u = 1\nexport({ %u })\na: %u	{"a":1}
+# It takes aliases, and a set of them. A key already crosses as a value.
+alias-export-takes-only-aliases	errc	%u = 1\nexport({ u })	export_arg
+alias-export-takes-a-set	errc	%u = 1\nexport(%u)	export_arg
+# THE DESTRUCTURE IS ADDITIVE: it places the file's values exactly as a
+# plain include does, and ALSO binds the names it asks for.
+alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+# An unexported name cannot be bound, and the refusal names the name.
+alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	import_not_exported
 #
 # A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
 # PARSED roots meet, and each resolves its OWN names: the schema's alias

@@ -1,0 +1,6 @@
+# One of a pair. Both declare `%row`, with bodies that UNIFY, so a
+# shared alias table merges them silently and each file is constrained
+# by a declaration it never saw. Loaded with alias_row_b.aon.
+%row = { kind: string }
+a: %row
+a: kind: 'x'
