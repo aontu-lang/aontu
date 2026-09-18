@@ -238,12 +238,24 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 // node's own key and append the written segments.
                 refpath = this.path.slice(0, -1).concat(parts);
             }
-            let sep = '.';
-            refpath = refpath
-                .reduce(((a, p) => (p === sep ? a.length = a.length - 1 : a.push(p), a)), []);
+            // A PARENT STEP OFF THE TOP names nothing, and underflows.
+            let offtop = false;
+            const reduced = [];
+            for (const part of refpath) {
+                if ('.' === part) {
+                    if (0 === reduced.length) {
+                        offtop = true;
+                        break;
+                    }
+                    reduced.length = reduced.length - 1;
+                    continue;
+                }
+                reduced.push(part);
+            }
+            refpath = reduced;
             let node = ctx.root;
-            let nopath = false;
-            if (null != node) {
+            let nopath = offtop;
+            if (!offtop && null != node) {
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
                     if (node.isMap) {
@@ -290,7 +302,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
             const fixroot = ctx._fixroot;
-            if (this.absolute && null != fixroot
+            if (this.absolute && !offtop && null != fixroot
                 && (nopath || pI !== refpath.length)) {
                 nopath = false;
                 pI = 0;
