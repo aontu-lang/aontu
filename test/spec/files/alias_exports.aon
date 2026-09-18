@@ -1,0 +1,7 @@
+# Publishes one alias and withholds another (ALIASES.0.md section 5).
+%uint8 = 255
+%secret = 'shh'
+
+export({ %uint8 })
+
+defaults: { retries: 3 }
