@@ -143,8 +143,11 @@ Concretely:
   incomplete by construction.
 - Porting effort is a permanent cost of every feature, and features are
   designed knowing this. It is bought back in confidence: two
-  independent implementations agreeing byte-for-byte on ~1,500 cases is
-  a much stronger statement than either passing its own suite.
+  independent implementations agreeing byte-for-byte on every row of the
+  shared suite is a much stronger statement than either passing its own
+  suite. (Row counts are not repeated here, because they move with every
+  behaviour added; the register's protocol rule 5 carries them with the
+  commands that re-derive them.)
 - Some Go code exists only to mirror a TypeScript shape (a defensive arm
   the Go control flow cannot reach). We keep it, marked and justified,
   rather than let the two structures drift apart — see ADR-002 for how
@@ -441,7 +444,9 @@ the same boundary the kind gate always had.
   `pref-admit-*` rows in `test/spec/pref.tsv`, the flipped
   `pref-nested-concrete-wins` and `pref-rank2-*` rows there, the
   flipped `port-direction-refuses-nonmember` row in
-  `test/spec/std-system.tsv`, the `vet-enum-default-*` rows in
+  `test/spec/aontu-system.tsv` (`std-system.tsv` when this was written;
+  renamed by [ADR-028](#adr-028--every-language-supplied-schema-is-named-under-aontu)),
+  the `vet-enum-default-*` rows in
   `test/spec/vet.tsv`, and the `match-defaulted-scrutinee-*` rows in
   `test/spec/gen-match.tsv` — every expectation parity-probed in both
   engines.
@@ -3547,7 +3552,9 @@ two, plus an explicit closer, says what is known and asks for the rest.
 ## ADR-036 — A bundled model is a file in `aontu/`, not a string in each port
 
 **Date:** 2026-09-11
-**Status:** Accepted
+**Status:** Accepted *(Amended 2026-09-11, same day, and the Decision
+text corrected 2026-09-18: every `.aon` under `aontu/` is a module, not
+one per subfolder.)*
 
 ### Context
 
@@ -3572,13 +3579,21 @@ and the identifiers.
 
 ### Decision
 
-**The source of a bundled model is a file.** `aontu/` at the repository
-root holds one SUBFOLDER PER MODULE, and a module is a directory
-holding a file named after it: `aontu/lang/go/go.aon` is
-`aontu:lang/go`. The path after the scheme IS the path in the tree, so
-a name and its file are the same spelling, and a module is free to grow
-a sibling — a README, a fixture — without a second module appearing
-beside it.
+**The source of a bundled model is a file.** EVERY `.aon` under
+`aontu/` at the repository root is a module, named by its path with the
+extension dropped: `aontu/lang/text.aon` is `aontu:lang/text`. A file
+named after the directory holding it collapses, so `aontu/view/view.aon`
+is `aontu:view` and not `aontu:view/view` — a module that wants a
+folder of its own can have one without spelling its name twice. The
+path after the scheme IS the path in the tree, so a name and its file
+are the same spelling, and a module is free to grow a sibling — a
+README, a fixture — without a second module appearing beside it.
+*(This clause read "one SUBFOLDER PER MODULE, and a module is a
+directory holding a file named after it" until 2026-09-18. The
+per-file rule is the one `ts/scripts/aontu.cjs` has stated and
+implemented since `aa9cf98e`, the same day: `aontu/lang/` holds
+`markdown.aon` and `text.aon`, two modules in no subfolder of their
+own.)*
 
 **Both ports inline it at build time.** `make aontu` runs
 `ts/scripts/aontu.cjs`, which writes `ts/src/aontumodel.ts` and, for
@@ -3739,7 +3754,7 @@ still have nowhere to live.
 ## ADR-038 — The component tree is the only output road, and aontu knows no languages
 
 **Date:** 2026-09-13
-**Status:** Accepted
+**Status:** Amended by [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports)
 
 ### Context
 
@@ -3788,6 +3803,13 @@ primitives are on it — `project`, `folder`, `file`, `content`, `line`,
 `fragment`, `slot`, `inject`, `copyfiles`, `listitems` — and the
 file-touching four are the capability the tree has and the unit road
 never did.
+
+*(Amended 2026-09-16 by
+[ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports):
+the NAME came back, for the component tree. `aontu render` is a verb of
+both CLIs again, and what it writes is a component tree, through
+jostraca. What went here and stayed gone is the unit road the verb used
+to walk.)*
 
 **aontu holds no language knowledge.** The declaration vocabulary —
 `%record`, `%enum`, `%alias`, `%const`, `%func`, `%field`, `%type`,

@@ -190,6 +190,7 @@ Kept because how each was closed is worth remembering.
 > **A colon-chain key whose value was a bare import** —
 > `struct: minor: @"file"` — used to resolve to `{}` in Go
 > (it loaded correctly in TS). Fixed upstream in `@tabnas/multisource/go`
-> v0.3.1 (pinned in `go/go.mod`); covered by the shared-spec regression
+> v0.3.1, and carried by every pin `go/go.mod` has taken since; covered
+> by the shared-spec regression
 > `file.tsv:load-colon-chain`. Background:
 > [`docs/design/nested-import-colon-chain.md`](docs/design/nested-import-colon-chain.md).

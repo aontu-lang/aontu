@@ -246,11 +246,13 @@ break that no existing row observed, because no row at that magnitude
 had ever been asked of both engines. The review that found it produced
 `test/spec/number-model.tsv` and the ledger's entries — of which the
 last, integer-kind values above 2^53 that need more than 17 significant
-digits to write exactly (#21), is now closed. The ledger is not empty:
-it carries one `# OPEN` entry, lone surrogates in quoted strings folded
-to U+FFFD by Go (#24, reopened 2026-08-11). Read
-`test/spec/divergent.tsv` for the live list rather than trusting a count
-written here.
+digits to write exactly (#21), is now closed. The ledger is not empty.
+The oldest of its `# OPEN` entries is lone surrogates in quoted strings
+folded to U+FFFD by Go (#24, reopened 2026-08-11), and it is not the
+only one: there were six on 2026-09-18, where this paragraph had said
+one since it was written. Read `test/spec/divergent.tsv` for the live
+list rather than trusting a count written here — the sentence before
+this one is why that instruction is here.
 
 That entry is worth reading anyway (`test/spec/divergent.tsv` keeps the
 note). It was closed twice against a rule that never touched it — the

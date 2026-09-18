@@ -1,18 +1,25 @@
 # G10: A transparency log — the first resolution, made public and auditable
 
-*Status: design proposal. Part of the [capability review](index.md),
-opened 2026-08-30. This document expands a gap G1–G9 did not name:
-[G6](g6-distribution.md) made a module's meaning **pinnable**, and this
-one makes the **first** pinning of it public, append-only and
-independently auditable. It exists because a design review of a
-proposed "Forge Tag Transparency Registry" found the log sound and its
-substrate wrong for aontu; that review's decisions are recorded in
+*Status: partly built; the design is superseded in places. Part of the
+[capability review](index.md), opened 2026-08-30. This document expands
+a gap G1–G9 did not name: [G6](g6-distribution.md) made a module's
+meaning **pinnable**, and this one makes the **first** pinning of it
+public, append-only and independently auditable. It exists because a
+design review of a proposed "Forge Tag Transparency Registry" found the
+log sound and its substrate wrong for aontu; that review's decisions are
+recorded in
 [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 and in [Design space](#design-space) rather than relitigated here.
-Per-phase status will be in the [progress register](progress.md), which
-is authoritative for status; this document is authoritative for design.
-Every claim marked VERIFIED was run against the built CLIs during
-drafting.*
+Phases 1, 3 and 4 have landed, phase 2 is partial, phase 5 was retired
+as designed and phase 6 is rewritten for the federated design: the
+[progress register](progress.md) carries those rows and is authoritative
+for status, and this document is authoritative for design. The design
+below is as designed, and [Design space](#design-space) carries the four
+dated amendments that revised it. Every claim marked VERIFIED was run
+against the built CLIs during drafting, and
+[Current state](#current-state) is re-stated as of 2026-09-18: of the
+four blockers it named, two have closed, one is half-closed and one
+stands.*
 
 ## Problem
 
@@ -60,43 +67,70 @@ G6 landed the whole local half, and it is good bones.
 - **The canon-hash.** `canonHash(v)` is `"aon1-" +
   base64url(SHA-256(UTF-8(hcanon(unify(module)))))` — a hash of
   post-unification *meaning*, `ts/src/hcanon.ts`, `go/hcanon.go`, in
-  cross-port parity by 17 `hash` spec rows. It survives comments,
-  formatting and refactoring; it breaks on any semantic change in the
-  transitive closure.
-- **Two pins, two roles.** `mod-lock.aon` carries `oci` (the bytes the
-  registry served) and `canon` (the meaning that was reviewed). Only
-  the second is checkable without the registry, and it is the one
-  `resolveModule` checks (`ts/src/mod.ts`, `go/mod.go`).
-- **The publish boundary.** `aontu mod manifest` computes the OCI
-  artifact a publish would push — config media type
-  `application/vnd.aontu.module.v1+json`, one layer, four annotations
-  including the canon-hash — and gates it on
-  [G3](g3-subsumption-evolution.md)'s breaking check.
-- **The verbs.** `tidy`, `verify`, `vendor`, `manifest` in both ports,
-  with MVS resolution and a lockfile written in canonical form.
+  cross-port parity by the shared suite's `hash` rows. It survives
+  comments, formatting and refactoring; it breaks on any semantic
+  change in the transitive closure.
+- **Three pins, every one of them locally checkable.**
+  `aontu_meta/pkg-lock.aon` carries `v`, `canon` (the meaning that was
+  reviewed) and `archive` (the digest of the tree's canonical zip),
+  plus `manifest` where the package came from a repository; `canon` is
+  the one `resolveModule` checks (`ts/src/mod.ts`, `go/mod.go`). This
+  document was written when there were two pins and one of them, `oci`,
+  was the registry's word about bytes nothing local could recompute.
+  ADR-039 part 6 retired it, because nothing ever computed it.
+- **The publish boundary.** `aontu pkg manifest` computes what a
+  publish would send — the specification's signed manifest, not an OCI
+  artifact — and gates it on [G3](g3-subsumption-evolution.md)'s
+  breaking check.
+- **The verbs.** `pkg tidy`, `pkg verify`, `pkg vendor` and
+  `pkg manifest` in both ports, with MVS resolution and a lockfile
+  written in canonical form.
 - **The path gate.** Module paths are validated before becoming
   directories, and uppercase is escaped on disk (landed 2026-08-30;
   see the register's G6.2 note).
 
-Four things structurally block the capability:
+Four things structurally blocked the capability when this was written.
+**Two still do** — one whole, one half. The items keep their own
+numbers, because the rest of this document refers to them by number,
+and because what closed the other two is worth keeping: both were
+closed by the work this document went on to argue for.
 
-1. **`mod get` and `mod publish` do not exist.** Both exit 2 naming the
-   missing half (`ts/src/cli.ts`, `go/cmd/aontu/mod.go`) — VERIFIED.
-   Without a fetch there is nothing to log about, and G6.3's departure
-   1 records why they did not land: untestable network code would
-   breach [ADR-002](../../ADR.md).
-2. **There is no public record of anything.** The `oci` pin is
-   described in `ts/src/mod-tool.ts` as the registry's word, which
-   "nothing local can hear" — an honest admission that one of the two
-   pins is currently unverifiable by the client that carries it.
-3. **No transparency primitives exist in either port.** No Merkle
-   hashing, no inclusion or consistency proofs, no signed checkpoint,
-   in TypeScript or Go.
-4. **The cache cannot distinguish identities.** The user cache is keyed
-   by canon-hash alone (`ts/src/mod.ts`), which contains no module path
-   and no version, so two modules that mean the same thing share a
-   directory. Latent while nothing writes the cache; a substitution
-   hole the moment `get` fills it.
+1. **The fetch and the publish exist.** They did not at drafting: both
+   exited 2 naming the missing half, and G6.3's departure 1 recorded
+   why they had not landed — untestable network code would breach
+   [ADR-002](../../ADR.md). They are `aontu get` and `aontu publish` in
+   both ports, landed 2026-09-16 as G10 **phase 3** under ADR-039;
+   phase 4, the same day, is the trusted-publishing identity over them.
+   What answered ADR-002 is the seam phase 3 below argues for, and it
+   landed as one injectable transport per port — `PkgHttp` in
+   `ts/src/pkg-net.ts`, `PkgHTTP` in `go/pkgnet.go`, with a directory
+   transport below for tests and for `publish --to <dir>`.
+   `ModuleFetch` was this document's name for it and is a symbol in
+   neither port.
+2. **There is no public record of anything.** This is the one that
+   stands whole: nothing has been published to a repository the
+   project operates, so there is nothing for a second resolver to
+   compare against. What it no longer rests on is the `oci` pin, which was the
+   registry's word about bytes nothing local could recompute. That pin
+   is retired, so every pin a lock entry carries is now checkable by
+   the client carrying it.
+3. **Half of the transparency client exists.** Go has record, node and
+   tree hashing, inclusion and consistency proof checking, tile
+   addressing and note verification, in `go/tlog.go`, importing
+   `golang.org/x/mod/sumdb/tlog` and `sumdb/note` behind about fifty
+   lines of glue. TypeScript has none of it in `ts/`: the port lives in
+   [aontu-lang/mod](https://github.com/aontu-lang/mod), unpublished, so
+   nothing here can import it and no shared spec row executes either
+   half. Register row G10.2 is PARTIAL for that reason, and returns to
+   LANDED with the shared rows rather than with the publish. **So this
+   one still blocks, half-closed**: by ADR-001 a behaviour in one port
+   is partial, and a client only the Go binary can run is not a client
+   this project ships.
+4. **The cache distinguishes identities.** `cacheStoreDir` takes the
+   package path as well as the canon-hash (`ts/src/mod.ts`), so two
+   modules that mean the same thing no longer share a directory. The
+   hole was closed before anything wrote the cache, which was the point
+   of naming it here while it was still latent.
 
 ## Prior art
 
@@ -359,6 +393,23 @@ is Sigstore's, so witnesses and gossip are theirs; what remains here is
 repository mutation alerting, the git mirror, and the hardening a first
 third-party publisher forces. The register's rows are the record.
 
+**What the vocabulary below is now.** ADR-039 renamed the whole package
+surface, so the design sections keep spellings the engine no longer
+answers to. Where this document says `mod-lock.aon`, read
+`aontu_meta/pkg-lock.aon`; where it says `mod get` or `mod publish`,
+read `aontu get` and `aontu publish`; where it says `aontu mod <op>`,
+read `aontu pkg <op>`; where it names `ts/src/mod-tool.ts` or
+`go/modtool.go`, read `ts/src/pkg.ts` with `ts/src/pkg-net.ts` and
+`ts/src/pkg-zip.ts`, and `go/pkg.go` with `go/pkgnet.go`. The `oci` pin
+is retired and `archive` and `manifest` took its place, so wherever the
+design gives `oci` a role, read the archive digest. And **a package
+path no longer carries `@<major>`**
+([ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+part 1, built), which is the one supersession that changes a shape
+rather than a name: `corp.example/schemas/service@1` is now
+`corp.example/schemas/service`, and the major survives in the leaf
+alone.
+
 ## Proposed design
 
 ### The leaf
@@ -391,7 +442,14 @@ and old leaves stay true about what they said.
 
 **The major is in the leaf as well as in the path**, because the
 version scheme and the import path must not be able to disagree — the
-same rule `aontu mod manifest` already enforces at publish.
+same rule `aontu mod manifest` already enforces at publish. *(The
+reason is spent. ADR-022 part 1 took the major out of the path, so
+there is nothing for the leaf's major to agree with, and nothing at
+publish checks one: `pkgManifest` validates `pkg.version` as
+MAJOR.MINOR.PATCH and `pkg.path` as a package path, and the gate that
+used to skip a comparison across majors is the computed compat check
+now. Whether the leaf should still carry a `major` field, given the
+version already spells it, is for the phase that builds the leaf.)*
 
 ### The log
 
@@ -513,8 +571,9 @@ code is a database with extra steps.
 
 ## Implementation plan
 
-Spec-first throughout. Nothing may regress a shared row or either
-coverage floor.
+Spec-first throughout. Nothing may regress a shared row (counts in
+[the register's protocol rule 5](progress.md#the-update-protocol)) or
+either coverage floor.
 
 **Phase 1 — decide and document (S).** ADR-013, this document, the G6
 boundary amendment, the register rows — one commit, per the register's
