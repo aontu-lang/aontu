@@ -53,3 +53,6 @@ filter-place-data	gens	o:[{k:1},{k:2}] & filter(_,{k:1})\n	{"o":[{"k":1}]}
 # gen-join.tsv's, shared.
 filter-skips-a-hidden-member	gens	m: {a: "keep", b: hide("SECRET")}\nf: filter($.m, string)	{"f":{"a":"keep"},"m":{"a":"keep"}}
 filter-list-skips-a-hidden-element	gens	l: ["a", hide("b"), "c"]\nf: filter($.l, string)	{"f":["a","c"],"l":["a","c"]}
+filter-list-spread-already-satisfies	gens	d:filter([[1,2]],[&:integer])	{"d":[[1,2]]}
+filter-preferred-disjunct-reads-the-preference	gens	d:filter([*{a:1}|{c:3}],{c:3})	{"d":[]}
+filter-alias-decl-is-not-a-member	gens	d:filter([{}],{%a=integer})	{"d":[{}]}

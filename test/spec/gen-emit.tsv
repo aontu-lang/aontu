@@ -189,3 +189,5 @@ emit-replace-value-preference	gens	o:emit([{}],{match:{},replace:{P:*x},body:["<
 emit-replace-number-piece-untouched	gens	o:emit([{p:z}],{match:{},replace:{P:.p},body:[1,"P"]})\n	{"o":[1,"z"]}
 emit-replace-blank-piece-untouched	gens	o:emit([{p:z}],{match:{},replace:{P:.p},body:[{k:blank},"P"]})\n	{"o":[{"k":"blank"},"z"]}
 emit-replace-esc-not-a-name	errc	o:emit([{p:x}],{match:{},esc:1,replace:{P:.p},body:["P"]})\n	esc_variant
+emit-match-absent-key-is-a-miss	gens	f:[{n:"a",pk:true},{n:"b"}]\nr:emit($.f,[{match:{pk:true},body:["PK"]},{match:{n:string},body:["COL"]}])	{"f":[{"n":"a","pk":true},{"n":"b"}],"r":["PK","COL"]}
+emit-alias-decl-is-not-a-member	gens	o:emit([{}],{match:{%a=integer},body:[hit]})	{"o":["hit"]}

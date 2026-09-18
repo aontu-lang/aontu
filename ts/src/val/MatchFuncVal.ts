@@ -13,7 +13,7 @@ import {
 import { makeNilErr } from '../err'
 import { top } from './top'
 import { prefInnerPeg } from './PrefVal'
-import { FuncBaseVal, trialUnify } from './FuncBaseVal'
+import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 
 
 export function effectiveScrutinee(v: Val): Val {
@@ -94,7 +94,8 @@ class MatchFuncVal extends FuncBaseVal {
       // The trial is against CLONES: `unite` refines a bag in place
       // against a TOP peer, and a pattern that failed must be
       // untouched for the next document that reads its canon.
-      if (undefined !== trialUnify(ctx, scrutinee.clone(ctx), pattern.clone(ctx))) {
+      const met = trialUnify(ctx, scrutinee.clone(ctx), pattern.clone(ctx))
+      if (undefined !== met && sameMembers(scrutinee, met, ctx)) {
         return args[i + 1].clone(ctx)
       }
     }

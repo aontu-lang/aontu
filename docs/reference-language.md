@@ -1068,8 +1068,8 @@ keep everything. The condition is an ordinary value, so the constraint
 atoms compose with it: `filter($.deploy, {replicas:min(3)})`.
 
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
-pattern in argument order that `v` unifies with selects its result,
-which is the answer; a trailing argument (the one that makes the
+pattern in argument order that `v` **already satisfies** selects its
+result, which is the answer; a trailing argument (the one that makes the
 argument count even) is the default:
 
 ```aon
@@ -1081,9 +1081,11 @@ size: match($.tier, small, { cpu:1 }, large, { cpu:8 }, { cpu:2 })
 {"tier":"large","size":{"cpu":8}}
 ```
 
-Patterns are matched by unifiability, so kinds and atoms work as
-patterns (`match(x, integer, …, string, …)`, `match(n, min(0), …)`).
-There are no guards, no comparisons beyond the atoms, and no
+A pattern is held to the same "already satisfies" rule as `filter`'s
+condition above, so kinds and atoms work as patterns (`match(x,
+integer, …, string, …)`, `match(n, min(0), …)`) while a pattern naming
+a key the value lacks does not match by gaining it. There are no
+guards, no comparisons beyond the atoms, and no
 fallthrough. **No match and no default is an error** naming the
 patterns that were tried, not an empty answer: a default is how a
 document says the rest was meant to be allowed. An unselected result
@@ -1185,7 +1187,7 @@ text, and `_` as a **key** is a key.
 
 `emit(select, table)` applies a **rule table** to a selection of nodes.
 For every node, in order, the first template whose `match` the node
-unifies with is taken, and its `body` is instantiated against that
+already satisfies is taken, and its `body` is instantiated against that
 node. The answer is one flat list of pieces:
 
 ```aon
@@ -1871,7 +1873,7 @@ Example: `each([a, b], upper(_))` → `["A", "B"]`
 
 ### `emit(s: map|list, template t: map|list) : list`
 
-One flat list of pieces from a selection and a rule table: for each node, the first template whose `match` it unifies with, its `body` instantiated at that node. See [Transforming](#transforming-emit).
+One flat list of pieces from a selection and a rule table: for each node, the first template whose `match` it already satisfies, its `body` instantiated at that node. See [Transforming](#transforming-emit).
 
 Example: `lines: emit($.services, {match:{pin:string}, body:[.pin]})`
 
@@ -1997,7 +1999,7 @@ Example: `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error
 
 ### `match(s: any, ...pr: (trial any, any), dflt?: any) : any`
 
-The result of the first pattern `v` unifies with; a trailing argument is the default. No match and no default is an error naming the patterns tried.
+The result of the first pattern `v` already satisfies; a trailing argument is the default. No match and no default is an error naming the patterns tried.
 
 Example: `size: match($.tier, small, {cpu:1}, {cpu:2})`
 

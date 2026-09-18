@@ -13,7 +13,7 @@ import {
 import { makeNilErr } from '../err'
 import { MapVal } from './MapVal'
 import { ListVal } from './ListVal'
-import { FuncBaseVal, trialUnify } from './FuncBaseVal'
+import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
 import { bagMembers } from './members'
@@ -65,7 +65,7 @@ class FilterFuncVal extends FuncBaseVal {
       repathInstance(inst, inst.path)
       const test = fillPlace(inst, child, kctx)
       const met = trialUnify(kctx, child.clone(kctx), test)
-      return undefined !== met && met.canon === child.canon
+      return undefined !== met && sameMembers(child, met, kctx)
     }
 
     // The candidates are the bag's MEMBERS -- what generation would

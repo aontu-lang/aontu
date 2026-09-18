@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FuncBaseVal = void 0;
 exports.trialUnify = trialUnify;
+exports.sameMembers = sameMembers;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
@@ -12,6 +13,29 @@ const top_1 = require("./top");
 const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
 const PlaceVal_1 = require("../val/PlaceVal");
+const members_1 = require("./members");
+// Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
+// not raw keys, so an unfilled optional is not something to add.
+function sameKids(a, b, ctx) {
+    if (true === a?.isMap || true === a?.isList) {
+        const am = (0, members_1.bagMembers)(a, ctx);
+        const bm = (0, members_1.bagMembers)(b, ctx);
+        if (null == am || null == bm || am.length !== bm.length) {
+            return false;
+        }
+        const peers = new Map(bm.map((m) => [m.key, m.val]));
+        return am.every((m) => peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx));
+    }
+    return a?.canon === b?.canon;
+}
+// A pref-free disjunction is several values at once: any match counts.
+function sameMembers(a, b, ctx) {
+    if (true === a?.isDisjunct && Array.isArray(a.peg) &&
+        !a.peg.some((m) => true === m?.isPref)) {
+        return true;
+    }
+    return sameKids(a, b, ctx);
+}
 function trialUnify(ctx, a, b) {
     const savedErr = ctx.err;
     const savedTrial = ctx._trialMode;
@@ -233,6 +257,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     deferResolve(_ctx, _args) {
         return false;
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 exports.FuncBaseVal = FuncBaseVal;
 //# sourceMappingURL=FuncBaseVal.js.map

@@ -3835,7 +3835,7 @@ One entry, found by the first system in `test/system/` (RENDER.0.md
 §10): the two ways of asking "does this node have this shape" answer
 differently when the key is absent.
 
-### 88. An `emit` rule's `match` admits a node the key is ABSENT from, where `filter` refuses it [major]
+### 88. An `emit` rule's `match` admits a node the key is ABSENT from, where `filter` refuses it [FIXED 2026-09-18]
 
 Found 2026-09-06 while writing `test/system/rb-solar`'s migration
 generator. Both ports agree with each other, so this is not an
@@ -3880,11 +3880,23 @@ nothing about it looks broken. The model now answers `fk` on every
 field as well as `pk`. Two generators written a day apart, the same
 defect, and neither reported anything: that is the measure of it.
 
-Repro: `repros/emit-match/missing-key-matches.aon`. Fix: `match`
-should ask the question `filter` asks. `filter` is the correct one:
-`trialUnify` there refuses a node the predicate's key is missing from,
-and `emit`'s rule selection should reach the same answer through the
-same helper rather than through a plain meet.
+Repro: `repros/emit-match/missing-key-matches.aon`.
+
+**Fixed.** The stated fix was half right. Both already went through
+`trialUnify`; what differed was what they asked of the RESULT. `filter`
+required the meet to equal the node, `emit` and `match()` only that it
+succeeded. But neither question is the right one on its own: the
+canon test also refuses `match([1,2],[&:integer],…)`, because a spread
+rides into the canon without changing what is there, and a spec row
+pins that as a hit.
+
+So all three now ask whether the meet ADDED anything — a key or a
+narrower leaf — rather than comparing canons, which a spread does not
+change and a key does (`sameMembers`, beside `trialUnify`). A
+disjunction taken WHOLE keeps the looser answer, because several
+values at once is a question the meet has already answered; a
+disjunction under one is a member like any other, which is what keeps
+`filter`'s lifecycle queries exact.
 
 ## bound-arguments — a relative reference inside a call in a body
 
