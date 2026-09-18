@@ -103,6 +103,50 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- absence under a DISJUNCTION spread: the two ports answer from
+#   different points in the fold, and `aontu vet` puts that in the EXIT
+#   CODE -- 1 from TypeScript, 3 from Go, for the same schema and the
+#   same data.
+#   issue: #200. That issue asks a language-design question -- whether
+#   absence absorbs a container template or the template stands -- and
+#   was filed recording that BOTH ports agreed. They no longer do.
+#
+#   Divergent input:  x: [&: string|number]   x: ["a", maybe($.gone)]
+#   TypeScript: [aontu/empty], class conflict, at $.x.1, over the value
+#               (maybe($.gone)&string)|(maybe($.gone)&number) -- the
+#               template distributed into each alternative, every one
+#               of them failed, so the disjunction is EMPTY
+#   Go:         [aontu/disjunct_no_gen], class incomplete, at $.x.1,
+#               over the value string|number -- the template did not
+#               distribute, so MORE THAN ONE alternative is still
+#               admitted
+#
+#   The hints say opposite things about one document: "no valid
+#   alternatives" against "more than one alternative is still
+#   admitted". The classes carry that to a caller as opposite next
+#   moves -- conflict says fix the data, incomplete says supply more --
+#   and `aontu vet` spells it as exit 1 against exit 3, so a gate
+#   branching on the exit code takes a different branch per port.
+#
+#   The other four shapes in #200's table AGREE, so the divergence is
+#   the disjunction alone: a plain list drops the member, [&: string]
+#   gives listval_no_gen at $.x.1, [&: close({k:string})] gives
+#   mapval_required at $.x.1.k, and {&: string} gives mapval_no_gen at
+#   $.x.b.
+#
+#   Not simply fixed because which port is right falls out of the
+#   decision #200 asks for, and cannot be settled ahead of it. If
+#   absence absorbs the template the member is gone and neither code is
+#   raised at all; if the template stands, the answer turns on whether
+#   it distributes into the alternatives first -- which IS the fold
+#   order #200 says wants an ADR of its own. Picking a code now would
+#   baseline one engine's fold order as the contract before the
+#   language question is answered.
+#
+#   No spec row asserts any of it.
+#
+# ---------------------------------------------------------------------
+#
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
 #   issue: #66 (recorded 2026-08-24, from the 2026-08-21 status

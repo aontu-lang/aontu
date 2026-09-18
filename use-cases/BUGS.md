@@ -4111,7 +4111,7 @@ x: ["a", maybe($.gone)]                    # {"x":["a"]}
 x: [&: string]
 x: ["a", maybe($.gone)]                    # listval_no_gen at $.x.1
 x: [&: string|number]
-x: ["a", maybe($.gone)]                    # empty at $.x.1
+x: ["a", maybe($.gone)]                    # THE PORTS DISAGREE, below
 x: [&: close({k:string})]
 x: [{k:"a"}, maybe($.gone)]                # mapval_required at $.x.1.k
 x: {&: string}
@@ -4121,9 +4121,23 @@ x: {a:"p", b: maybe($.gone)}               # mapval_no_gen at $.x.b
 A key a SCHEMA declares is a different case and is not this defect:
 `x:{a:string, b:string}` against `x:{a:"p", b:maybe($.gone)}` is
 `mapval_no_gen`, exactly as supplying no `b` at all would be — the
-document declines to supply a key the schema requires. **Both ports
-agree throughout**, so this is a design gap rather than a parity break.
+document declines to supply a key the schema requires.
 Repro: `repros/absence-schema/absent-under-a-spread.aon`.
+
+**The disjunction case is also a parity break**, which this entry
+previously recorded as agreeing. The two ports answer from different
+points in the fold: TypeScript distributes the template into each
+alternative, every one fails, and the disjunction is EMPTY
+(`aontu/empty`, class `conflict`); Go does not distribute it, so more
+than one alternative is still admitted (`aontu/disjunct_no_gen`, class
+`incomplete`). The hints say opposite things about the same document,
+and `aontu vet` spells the class difference as **exit 1 from
+TypeScript against exit 3 from Go** — invalid against incomplete —
+so a gate branching on the exit code takes a different branch per
+port. The other four shapes above do agree. Recorded in
+[`test/spec/divergent.tsv`](../test/spec/divergent.tsv); which port is
+right falls out of the decision below and cannot be settled ahead of
+it.
 
 **Why it matters.**
 [ADR-037](../ADR.md#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent)
