@@ -12,6 +12,10 @@ import (
 
 const explainHelp = "aontu explain <code> (try `aontu explain --list`)"
 
+// A report prints the namespaced spelling in its brackets, which is the
+// span a reader copies. The answer names the registered one.
+const explainNamespace = "aontu/"
+
 func runExplain(argv []string, stdout, stderr io.Writer) int {
 	format := "text"
 	list := false
@@ -57,7 +61,7 @@ func runExplain(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	code := codes[0]
+	code := strings.TrimPrefix(codes[0], explainNamespace)
 	class, hint, registered := aontu.ExplainCode(code)
 	if !registered {
 		// AN UNKNOWN CODE IS A USAGE ERROR AND NAMES NEAR MATCHES.
@@ -77,16 +81,25 @@ func runExplain(argv []string, stdout, stderr io.Writer) int {
 		io.WriteString(stdout, renderExplainJSON(code, class, hint)+"\n")
 		return 0
 	}
-	// A REGISTERED CODE WITH NO HINT SAYS SO rather than printing an
-	// empty block, which would read as an explanation that happened to
-	// be blank.
-	body := hint
-	if "" == body {
-		body = "(no explanation text is registered for this code)"
-	}
 	io.WriteString(stdout,
-		"code:  "+code+"\nclass: "+class+"\n\n"+body+"\n")
+		"code:  "+code+"\nclass: "+class+"\n\n"+explainBody(hint)+"\n")
 	return 0
+}
+
+// The registry is append-only, so a code can be registered before its
+// text is written; saying so beats printing an empty block.
+func explainBody(hint string) string {
+	if "" == hint {
+		return "(no explanation text is registered for this code)"
+	}
+	return hint
+}
+
+func noTextMark(hint string) string {
+	if "" == hint {
+		return "  (no text)"
+	}
+	return ""
 }
 
 // The class of every code, so a caller can read the report vocabulary
@@ -114,12 +127,8 @@ func renderExplainList(format string) string {
 	var b strings.Builder
 	for _, c := range codes {
 		class, hint, _ := aontu.ExplainCode(c)
-		mark := ""
-		if "" == hint {
-			mark = "  (no text)"
-		}
-		b.WriteString(
-			c + strings.Repeat(" ", width-len(c)) + "  " + class + mark + "\n")
+		b.WriteString(c + strings.Repeat(" ", width-len(c)) + "  " + class +
+			noTextMark(hint) + "\n")
 	}
 	return strings.TrimSuffix(b.String(), "\n")
 }
@@ -136,9 +145,8 @@ type explainJSON struct {
 type explainRowJSON struct {
 	Class string `json:"class"`
 	Code  string `json:"code"`
-	// Whether this port carries explanation text for the code. The
-	// registry is in parity; the hint tables are not, so a consumer
-	// that wants only explained codes can filter rather than guess.
+	// A gate holds every registered code explained, so this reads true
+	// throughout; it stays because the registry is append-only.
 	Explained bool `json:"explained"`
 }
 

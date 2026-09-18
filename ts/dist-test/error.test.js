@@ -218,7 +218,7 @@ const err_1 = require("../dist/err");
         if (undefined === err) {
             throw new Error('expected error');
         }
-        (0, expect_1.expect)(err.message).equal("[aontu/negative]: Cannot resolve value at path $.a\n\n\n Cannot resolve value: nil\n  \u001b[34m--> <no-file>:1:3\n\u001b[34m  1 | \u001b[0ma:-0x_1\n        \u001b[34m^ value was: nil\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n");
+        (0, expect_1.expect)(err.message).equal("[aontu/negative]: Cannot resolve value at path $.a\n\nOnly a number can be negated. A `-` in front of a\nnon-numeric value is an error rather than a missing value.\n \nA `-` is a PREFIX here and never an operator between two values,\nso subtraction is sub(a, b).\n \nExamples:\n  a: -1       -> -1     # A number negates;\n  a: -x       -> nil    # ... a bare word does not;\n  a: k-x      -> \"k-x\"  # ... and this is one word, not a minus;\n  a: sub(5,3) -> 2      # Subtraction is a function.\n\n Cannot resolve value: nil\n  \u001b[34m--> <no-file>:1:3\n\u001b[34m  1 | \u001b[0ma:-0x_1\n        \u001b[34m^ value was: nil\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n");
     });
     (0, node_test_1.it)('hint-trailing-newline-frame', () => {
         let err = undefined;

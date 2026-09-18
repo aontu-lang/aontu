@@ -76,10 +76,13 @@ type Servers = {
 };
 declare function serveUntilInterrupted(): Promise<void>;
 declare function runHelp(argv: string[]): number;
+declare function canonExplainCode(code: string): string;
+declare function explainBody(hint: string): string;
+declare function noTextMark(hint: string): string;
 declare function runExplain(argv: string[]): number;
 declare function runInit(argv: string[]): number;
 declare const KNOWN_VERBS: string[];
 declare function looksLikeVerb(arg: string): boolean;
 declare function nearestVerb(word: string, verbs: string[]): string;
 declare function main(argv: string[], servers?: Servers): void;
-export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runView, runJsonSchema, runTemplate, runTrace, runRender, renderSkipped, runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted, runHash, runGet, runHelp, runExplain, runInit, nearestVerb, looksLikeVerb, KNOWN_VERBS, runWhy, renderWhyText, runSet, runAllow, runAgentsMd, runFmt, watchChange, watchSignature, vetWaiter, deprecatedAt, };
+export { evalSource, main, runVet, runSubsume, runBreaking, runTrim, runRelations, runReaches, runView, runJsonSchema, runTemplate, runTrace, runRender, renderSkipped, runPkg, runModel, runPackageVerb, pkgToolOptions, serveUntilInterrupted, runHash, runGet, runHelp, runExplain, runInit, nearestVerb, explainBody, noTextMark, canonExplainCode, looksLikeVerb, KNOWN_VERBS, runWhy, renderWhyText, runSet, runAllow, runAgentsMd, runFmt, watchChange, watchSignature, vetWaiter, deprecatedAt, };

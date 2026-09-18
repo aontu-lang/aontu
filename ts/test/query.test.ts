@@ -10,6 +10,7 @@ import * as Path from 'node:path'
 import { get, why } from '../dist/aontu'
 import { evalFailure, nearestKey, pathParts } from '../dist/query'
 import { setColor } from '../dist/err'
+import { hints } from '../dist/hints'
 
 
 describe('query', () => {
@@ -68,13 +69,14 @@ describe('query', () => {
   })
 
 
-  test('a-code-with-no-hint-text-carries-no-hint', () => {
+  // A PARSE-CLASS FINDING CARRIES THE REGISTRY HINT like any other.
+  test('a-parse-code-carries-the-registry-hint', () => {
     const r = why('a:]', '$')
     Assert.equal(r.ok, false)
     const f = r.findings[0]
     Assert.equal(f.code, 'syntax')
     Assert.equal(f.class, 'parse')
-    Assert.equal(f.hint, undefined)
+    Assert.equal(f.hint, hints['syntax'])
   })
 
 

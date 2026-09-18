@@ -5,6 +5,37 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Unreleased
+
+### Every registered error code explains itself, and `explain` takes the code as it is printed
+
+**The repair loop `aontu help tasks` prescribes — "read the code in the
+brackets, then look it up" — did not work as written.** An error report
+carries two bracketed spans, `[conflict]` and `[aontu/constraint]`, and
+the one that is actually a code was the one `aontu explain` refused. It
+now takes either spelling and answers under the registered one, so the
+span a reader copies out of a report resolves. An unknown code still
+exits 2, naming the registered form rather than echoing the prefix.
+
+**Every code in the registry now carries explanation text.** Twenty-nine
+of the 168 had none, and they were not spread evenly: the whole `compat`
+class was empty, which is the class a blocked release surfaces, so
+`aontu explain compat_required_added` answered nothing at the moment a
+reader most needed it. The `parse`, `reference` and `internal` gaps went
+with it. The text is byte-identical in both ports, and a gate in each
+suite fails when a code is registered without any, so the registry
+cannot regrow a bare code silently.
+
+Two consequences beyond the verb. A finding reporting one of these codes
+now carries the text inline as its `hint`, so the machine-readable path
+gained it too. And `aontu help codes` — the topic named for error codes
+— now points at `aontu explain` and says which bracketed span is the
+code, which it never did.
+
+The listing still marks a code carrying no text `(no text)` and flags it
+`explained: false` in JSON: the registry is append-only, so the arms are
+kept even though the gate holds them off every real listing.
+
 ## Go 0.1.25 — 2026-09-17 · TypeScript 0.67.0
 
 ### The trust cases cover every verb, and derive which those are

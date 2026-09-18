@@ -2843,12 +2843,16 @@ because it is not a literal value.
 
 The list is the **registry**, not the hint table. The registry is in
 cross-port parity (`test/spec/errcodes.tsv`, asserted set-equal with
-the engine's class map in both ports), while the hint tables are
-smaller and are not themselves in parity, so listing from them would
-make the two ports differ over something that is not about what either
-can report. A registered code carrying no explanation text is marked
-`(no text)` in the listing and says so when asked, rather than printing
-an empty block.
+the engine's class map in both ports), and listing from the hint table
+would make the verb answer about something other than what either port
+can report. Every registered code carries explanation text, and a gate
+in both suites holds it so. A registered code carrying none would be
+marked `(no text)` in the listing and say so when asked, rather than
+printing an empty block.
+
+The code may be written bare or with the `aontu/` prefix a report
+prints in its brackets: `aontu explain constraint` and `aontu explain
+aontu/constraint` answer identically, under the registered spelling.
 
 A dynamic code is registered through the prefix it extends, and carries
 that prefix's text: `func:upper` answers with the `func:` explanation,

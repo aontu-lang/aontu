@@ -28,6 +28,9 @@ exports.runHelp = runHelp;
 exports.runExplain = runExplain;
 exports.runInit = runInit;
 exports.nearestVerb = nearestVerb;
+exports.explainBody = explainBody;
+exports.noTextMark = noTextMark;
+exports.canonExplainCode = canonExplainCode;
 exports.looksLikeVerb = looksLikeVerb;
 exports.runWhy = runWhy;
 exports.renderWhyText = renderWhyText;
@@ -4346,6 +4349,14 @@ function runHelp(argv) {
 // exported; a code that extends one is registered through its prefix
 // and carries that prefix's hint.
 const EXPLAIN_PREFIXES = ['func:', 'op:', 'op[', 'var[', 'ref['];
+// A report prints the namespaced spelling in its brackets, which is the
+// span a reader copies. The answer names the registered one.
+const EXPLAIN_NAMESPACE = 'aontu/';
+function canonExplainCode(code) {
+    return code.startsWith(EXPLAIN_NAMESPACE)
+        ? code.slice(EXPLAIN_NAMESPACE.length)
+        : code;
+}
 function explainCode(code) {
     const cls = (0, hints_1.codeClass)(code);
     let hint = hints_1.hints[code] ?? '';
@@ -4379,16 +4390,27 @@ function explainListText(format) {
             codes: codes.map((code) => ({
                 code,
                 class: (0, hints_1.codeClass)(code),
-                // Whether this port carries explanation text for the code. The
-                // registry is in parity; the hint tables are not, so a consumer
-                // that wants only explained codes can filter rather than guess.
+                // Whether this port carries explanation text for the code. A
+                // gate holds every registered code explained, so this reads
+                // true throughout; it stays because the registry is
+                // append-only and a consumer should filter rather than guess.
                 explained: '' !== explainCode(code).hint,
             })),
         }, 2);
     }
     const width = codes.reduce((w, c) => Math.max(w, c.length), 0);
     return codes.map((c) => c.padEnd(width) + '  ' + (0, hints_1.codeClass)(c) +
-        ('' === explainCode(c).hint ? '  (no text)' : '')).join('\n');
+        noTextMark(explainCode(c).hint)).join('\n');
+}
+// The registry is append-only, so a code can be registered before its
+// text is written; saying so beats printing an empty block.
+function explainBody(hint) {
+    return '' === hint
+        ? '(no explanation text is registered for this code)'
+        : hint;
+}
+function noTextMark(hint) {
+    return '' === hint ? '  (no text)' : '';
 }
 function runExplain(argv) {
     let format = 'text';
@@ -4431,7 +4453,7 @@ function runExplain(argv) {
         process.stderr.write(`aontu: explain needs one code\n${EXPLAIN_HELP}\n`);
         return 2;
     }
-    const code = codes[0];
+    const code = canonExplainCode(codes[0]);
     const { cls, hint, registered } = explainCode(code);
     if (!registered) {
         // AN UNKNOWN CODE IS A USAGE ERROR AND NAMES NEAR MATCHES. A
@@ -4455,13 +4477,7 @@ function runExplain(argv) {
         }, 2) + '\n');
         return 0;
     }
-    // A REGISTERED CODE WITH NO HINT SAYS SO rather than printing an
-    // empty block, which would read as an explanation that happened to
-    // be blank.
-    const body = '' === hint
-        ? '(no explanation text is registered for this code)'
-        : hint;
-    process.stdout.write(`code:  ${code}\nclass: ${cls}\n\n${body}\n`);
+    process.stdout.write(`code:  ${code}\nclass: ${cls}\n\n${explainBody(hint)}\n`);
     return 0;
 }
 const INIT_HELP = 'aontu init [dir] (try --help)';
@@ -4731,5 +4747,5 @@ function main(argv, servers = SERVERS) {
     else {
         runStdin(mode, format, trust).then((code) => finish(code));
     }
-} /* node:coverage ignore next 21 */
+} /* node:coverage ignore next 22 */
 //# sourceMappingURL=cli.js.map

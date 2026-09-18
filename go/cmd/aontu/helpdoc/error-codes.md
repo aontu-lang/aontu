@@ -17,6 +17,26 @@ test suite holds to the engine in both implementations.
 | `budget` | evaluation hit a deterministic limit | usually a cycle; simplify, or raise the budget deliberately |
 | `internal` | the engine surprised itself | a bug worth reporting |
 
+## Looking a code up
+
+```
+aontu explain constraint    # what one code means, and its class
+aontu explain --list        # every registered code, with its class
+```
+
+A report prints two bracketed spans, and only one of them is a code:
+
+```
+$.note.n1.id: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.note.n1.id
+```
+
+`[conflict]` is the **class**. `[aontu/constraint]` is the **code**,
+carrying the `aontu/` prefix. `explain` takes either spelling —
+`constraint` or `aontu/constraint` — and answers under the registered
+one. The headline carries the bare code as well, and so does the `code`
+field of a `--format json` report.
+
 ## The repair loop
 
 ```
@@ -35,7 +55,11 @@ Read `hint` before guessing. `message` is the one-line headline;
 `hint` is the engine's own explanation of the failure class with the
 offending values filled in, and for several codes it names the fix
 outright — `lossy_integer_literal` tells you to write the literal as
-`0d…`. It is absent for codes that have no hint text.
+`0d…`. Every code in the registry has hint text, which is what
+`aontu explain` prints. A finding carries it inline for an exact
+registry code; a **dynamic** code (`func:upper`, `op[+]`) is registered
+through its prefix, and only `explain` falls back to the prefix's text,
+so such a finding carries no `hint`.
 
 For a conflict, `aontu model why <path> mine.aon` lists every contribution
 to that path with its role and source line, which turns "these

@@ -542,6 +542,201 @@ const hints: Record<string, string> = {
   // Close operation
   'close': 'Failed to close structure. The structure could not be closed.',
 
+  // Parse: the source text is malformed or unusable
+  'parse': 'The document could not be turned into a value. This wraps the\n' +
+    'failure that stopped it -- a syntax error, or a source the include\n' +
+    'machinery refused -- and that inner code and its frame say which,\n' +
+    'so a report names the inner code rather than this one.\n' +
+    ' \nNote that `parse` is also the name of a CLASS, and the class is\n' +
+    'what a refusal shows in the second bracket: `syntax [parse]` is\n' +
+    'the code `syntax` in the class `parse`.',
+
+  'syntax': 'The text is not valid Aontu syntax. The frame points at the\n' +
+    'character the parser stopped on; the fault is usually just before\n' +
+    'it, and commenting out the suspect lines with # isolates which.',
+
+  'parse_unknown':
+    'A parsed value arrived in a kind the language has no value for.\n' +
+    'Aontu builds from maps, lists, strings, numbers, booleans and nil,\n' +
+    'so a value outside that set is a defect in whatever produced it\n' +
+    'rather than something a document can write.',
+
+  'negative': 'Only a number can be negated. A `-` in front of a\n' +
+    'non-numeric value is an error rather than a missing value.\n' +
+    ' \nA `-` is a PREFIX here and never an operator between two values,\n' +
+    'so subtraction is sub(a, b).' +
+    '\n \nExamples:\n' +
+    '  a: -1       -> -1     # A number negates;\n' +
+    '  a: -x       -> nil    # ... a bare word does not;\n' +
+    '  a: k-x      -> "k-x"  # ... and this is one word, not a minus;\n' +
+    '  a: sub(5,3) -> 2      # Subtraction is a function.',
+
+  'not_number': 'This numeric literal is not a finite number. A literal\n' +
+    'past the range a double can hold (1e999) overflows to infinity\n' +
+    'while lexing, which is an error value and not a number. Write it\n' +
+    'within range, or as a decimal literal with the 0d escape.',
+
+  'incomplete_expression':
+    'The expression has no terms. An operator or a pair of parentheses\n' +
+    'was written with nothing for it to work on -- `a:()` is the bare\n' +
+    'case. Supply the operand, or delete the construct.',
+
+  'alias_in_path':
+    'An alias is not a path segment. The alias namespace and the path\n' +
+    'namespace are disjoint, so `$.%foo` is refused at any depth: an\n' +
+    'alias is reached by writing `%foo` and only that.' +
+    '\n \nExamples:\n' +
+    '  %port = min(1)   -> declared;\n' +
+    '  listen: %port    -> the alias, reached by its own name;\n' +
+    '  listen: $.%port  -> nil  # Not a path segment.',
+
+  'alias_not_toplevel':
+    'An alias declaration sits at the root of the document. A nested\n' +
+    '`x: { %a = 1 }` is refused because `%a` resolves from the root: the\n' +
+    'declaration would be erased from the output, being a declaration,\n' +
+    'and still unreachable by any reference, not being at the root.\n' +
+    'Where the declaration LANDS decides this, not where it was written,\n' +
+    'so an include spliced at the root may declare one and an include\n' +
+    'taken as a value may not.',
+
+  'patch_assignment':
+    'This is not a <path>=<value> assignment. The path is what stands\n' +
+    'before the first `=` and the value is what follows it, so an\n' +
+    'argument carrying only one of them cannot be applied.',
+
+  // Reference: a name or path resolves to nothing editable
+  'multisource_not_found':
+    'The source named here was not found. For a file include, check the\n' +
+    'path as written, which is resolved against the document that writes\n' +
+    'it; for an `aontu:` name the message lists the models the language\n' +
+    'supplies, and a name outside that set is never looked for on disk.',
+
+  'patch_ambiguous':
+    'More than one statement pins this path, so there is no single\n' +
+    'literal to rewrite in place. The sites on the finding are all of\n' +
+    'them: edit the one that should change, or narrow the overlay so\n' +
+    'that only one pins the path.',
+
+  'patch_not_editable':
+    'There is no literal at this path to rewrite in place. The value is\n' +
+    'reached through a reference, arrives only once the overlay loads\n' +
+    'another document, or is produced rather than written -- the finding\n' +
+    'names which, and the sites say where it does come from. Edit there,\n' +
+    'or let set append instead of asking for --in-place.',
+
+  'var': 'This variable has no value, and an unresolved variable cannot\n' +
+    'be generated. A `$name` variable is supplied by the CALLER, never\n' +
+    'by the document: bind it through `ctx.vars` in TypeScript or pass\n' +
+    'it to `UnifyVars` in Go. If the value was meant to come from the\n' +
+    'document, a path reference ($.a.b) or an alias (%name) is what\n' +
+    'reads one.',
+
+  // Internal: the engine surprised itself
+  'patch_span_mismatch':
+    'The overlay does not hold the text the site says is there, so the\n' +
+    'span cannot be verified and the edit is refused rather than\n' +
+    'written: splicing without verifying the span corrupts the file.\n' +
+    'The span is checked against the very text it was derived from, so\n' +
+    'a document changing underneath cannot produce this. It is an\n' +
+    'engine provenance defect -- the one refusal classed internal for\n' +
+    'that reason -- and worth reporting.',
+
+  'unify_failed':
+    'The document does not evaluate, and the failure carried no more\n' +
+    'specific code. This stands in where a nil reaches the report\n' +
+    'without one, so the other findings in the same run are what say\n' +
+    'what actually went wrong.',
+
+  'unknown_op':
+    'The parser produced an operator form the value builder does not\n' +
+    'recognise. Reaching this is an engine defect rather than a fault\n' +
+    'in the document.',
+
+  // Compat: the subsumption and outcome vocabulary
+  'compat_narrowed':
+    'The general value does not admit the specific one: the specific\n' +
+    'side allows something the general side refuses -- a wider kind, a\n' +
+    'wider residual, or a value the general residual excludes. A\n' +
+    'document the specific side accepts can therefore fail against the\n' +
+    'general one. Which document is on which side is the comparison\'s:\n' +
+    'subsume takes them in the order given, and breaking decides by its\n' +
+    'mode.',
+
+  'compat_required_added':
+    'The general value requires this key and the specific value does\n' +
+    'not, either because the key is absent there or because it is\n' +
+    'optional there. Instances without the key are admitted where the\n' +
+    'general side refuses them.',
+
+  'compat_default_changed':
+    'The general and specific values have different effective defaults,\n' +
+    'so a document resolving to one of them against one side resolves\n' +
+    'to the other -- or stops resolving -- against the other, with\n' +
+    'nothing in the document itself changing. Which document is on\n' +
+    'which side is the comparison\'s own.',
+
+  'compat_marks_changed':
+    'The marks on this value differ between the general and specific\n' +
+    'sides: one carries type() or hide() where the other does not. A\n' +
+    'mark changes what the value contributes to a generated document,\n' +
+    'so the two are not the same declaration even where what they admit\n' +
+    'agrees. Reported under the gen profile, which is the one that\n' +
+    'compares them.',
+
+  'compat_outcome_changed':
+    'This path resolved to one value before and resolves to a different\n' +
+    'one now. Nothing refuses, so the change is silent: a consumer\n' +
+    'reading this path gets a new answer with no error to say so.',
+
+  'compat_undetermined':
+    'This path resolved to a value before and nothing resolves it now.\n' +
+    'The declaration became incomplete rather than wrong, so a consumer\n' +
+    'that read a value here reads nothing.',
+
+  'deprecated':
+    'This value is marked deprecated. The record carries the author\'s\n' +
+    'message, and where they supplied them, what to use instead and the\n' +
+    'version it was deprecated in. Nothing refuses: a deprecation is a\n' +
+    'warning and never changes a verdict.',
+
+  'pref_not_instance':
+    'The preferred value is not repeated among the remaining\n' +
+    'alternatives of its disjunction. Nothing is refused and the\n' +
+    'preference still holds -- the default stays admitted, and\n' +
+    'generation selects it -- so this is ADVISORY. It catches the typo\n' +
+    'where a default was meant to name one of the alternatives beside\n' +
+    'it and names something else instead.',
+
+  'sub_unresolved':
+    'An unresolved value has no admitted set to compare. Either a\n' +
+    'residue is still standing here, or the two sides are value formers\n' +
+    'no comparison rule covers, so the answer is undecided rather than\n' +
+    'yes or no.',
+
+  'sub_evaluate_only':
+    'An evaluate-only check makes the admitted set opaque. must() is\n' +
+    'checked by running it and never by reasoning about what it admits,\n' +
+    'so a value carrying one cannot be compared and the answer is\n' +
+    'undecided rather than yes or no.',
+
+  'sub_disjunct_distribution':
+    'An alternative is not admitted member by member, and no concrete\n' +
+    'value settles it either way. Comparing a disjunction member-wise\n' +
+    'is sound when it answers yes; a no needs a counterexample, and\n' +
+    'there is none here, so the answer is undecided.',
+
+  'sub_default_indeterminate':
+    'The effective default is not a single value, because preferences\n' +
+    'of equal rank disagree. Nothing can be decided about the default\n' +
+    'until one of them is ranked (`**x`) or they are made to agree, so\n' +
+    'the answer is undecided rather than yes or no.',
+
+  'sub_path_dependent_spread':
+    'A spread template that depends on where it lands cannot be\n' +
+    'compared structurally. What it produces is known only once it is\n' +
+    'applied to a path, so the general and specific sides cannot be\n' +
+    'held against each other and the answer is undecided.',
+
   // Dynamic patterns (these serve as prefixes)
   'func:': 'Function error: ',
   'op:': 'Operator error: ',
