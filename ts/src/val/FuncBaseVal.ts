@@ -33,6 +33,30 @@ import { FeatureVal } from '../val/FeatureVal'
 import { hasPlace, fillPlace } from '../val/PlaceVal'
 
 
+// Did the meet ADD a key or narrow a leaf, or only constrain?
+function sameKids(a: any, b: any): boolean {
+  if (true === a?.isMap && true === b?.isMap) {
+    const ak = Object.keys(a.peg ?? {})
+    if (ak.length !== Object.keys(b.peg ?? {}).length) {
+      return false
+    }
+    return ak.every((k) => sameKids(a.peg[k], b.peg?.[k]))
+  }
+  if (true === a?.isList && true === b?.isList) {
+    return a.peg.length === b.peg.length &&
+      a.peg.every((el: any, i: number) => sameKids(el, b.peg[i]))
+  }
+  return a?.canon === b?.canon
+}
+
+
+// A disjunction WHOLE is several values at once, so whether any
+// matches is what the meet answered; one under it is a member.
+function sameMembers(a: any, b: any): boolean {
+  return true === a?.isDisjunct || sameKids(a, b)
+}
+
+
 function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
   const savedErr = ctx.err
   const savedTrial = ctx._trialMode
@@ -326,10 +350,11 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 
 
 export {
   trialUnify,
+  sameMembers,
   FuncBaseVal,
 }

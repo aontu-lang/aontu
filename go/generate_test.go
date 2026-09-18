@@ -395,3 +395,38 @@ func TestIntegerGeneratesAsInt64AtEveryMagnitude(t *testing.T) {
 		})
 	}
 }
+
+// THE ARMS NO DOCUMENT REACHES: a meet that differs in these ways
+// fails in trialUnify first, so sameKids never sees it through a
+// document, and the walk is held to its own answer here.
+func TestSameKidsDeclinesWhatDiffers(t *testing.T) {
+	one := newString("x")
+	two := newString("y")
+
+	if !sameKids(nil, nil) {
+		t.Error("two absent members differ")
+	}
+	if sameKids(nil, one) || sameKids(one, nil) {
+		t.Error("an absent member matched a present one")
+	}
+
+	am := newMap()
+	am.set("k", one)
+	bm := newMap()
+	bm.set("k", two)
+	if sameKids(am, bm) {
+		t.Error("a differing child matched")
+	}
+	cm := newMap()
+	cm.set("other", one)
+	if sameKids(am, cm) {
+		t.Error("a different key of the same count matched")
+	}
+
+	if sameKids(newList([]Val{one}), newList([]Val{one, two})) {
+		t.Error("lists of different lengths matched")
+	}
+	if sameKids(newList([]Val{one}), newList([]Val{two})) {
+		t.Error("a differing element matched")
+	}
+}

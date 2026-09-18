@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FuncBaseVal = void 0;
 exports.trialUnify = trialUnify;
+exports.sameMembers = sameMembers;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
@@ -12,6 +13,26 @@ const top_1 = require("./top");
 const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
 const PlaceVal_1 = require("../val/PlaceVal");
+// Did the meet ADD a key or narrow a leaf, or only constrain?
+function sameKids(a, b) {
+    if (true === a?.isMap && true === b?.isMap) {
+        const ak = Object.keys(a.peg ?? {});
+        if (ak.length !== Object.keys(b.peg ?? {}).length) {
+            return false;
+        }
+        return ak.every((k) => sameKids(a.peg[k], b.peg?.[k]));
+    }
+    if (true === a?.isList && true === b?.isList) {
+        return a.peg.length === b.peg.length &&
+            a.peg.every((el, i) => sameKids(el, b.peg[i]));
+    }
+    return a?.canon === b?.canon;
+}
+// A disjunction WHOLE is several values at once, so whether any
+// matches is what the meet answered; one under it is a member.
+function sameMembers(a, b) {
+    return true === a?.isDisjunct || sameKids(a, b);
+}
 function trialUnify(ctx, a, b) {
     const savedErr = ctx.err;
     const savedTrial = ctx._trialMode;
@@ -233,6 +254,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     deferResolve(_ctx, _args) {
         return false;
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 exports.FuncBaseVal = FuncBaseVal;
 //# sourceMappingURL=FuncBaseVal.js.map

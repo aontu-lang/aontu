@@ -103,6 +103,50 @@ func trialUnify(ctx *Ctx, a, b Val) Val {
 	return out
 }
 
+// Did the meet ADD a key or narrow a leaf, or only constrain?
+func sameKids(a, b Val) bool {
+	if nil == a || nil == b {
+		return nil == a && nil == b
+	}
+	switch av := a.(type) {
+	case *MapVal:
+		if bv, ok := b.(*MapVal); ok {
+			if len(av.peg) != len(bv.peg) {
+				return false
+			}
+			for k, kid := range av.peg {
+				peer, has := bv.peg[k]
+				if !has || !sameKids(kid, peer) {
+					return false
+				}
+			}
+			return true
+		}
+	case *ListVal:
+		if bv, ok := b.(*ListVal); ok {
+			if len(av.peg) != len(bv.peg) {
+				return false
+			}
+			for i, kid := range av.peg {
+				if !sameKids(kid, bv.peg[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	return a.Canon() == b.Canon()
+}
+
+// A disjunction WHOLE is several values at once, so whether any
+// matches is what the meet answered; one under it is a member.
+func sameMembers(a, b Val) bool {
+	if _, isDis := a.(*DisjunctVal); isDis {
+		return true
+	}
+	return sameKids(a, b)
+}
+
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	var data Val = top()
 	if 0 < len(args) {
@@ -117,7 +161,7 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		ctx.slot = slot
 		test := fillPlace(instanceClone(cond, slot), child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
-		return nil != met && met.Canon() == child.Canon()
+		return nil != met && sameMembers(child, met)
 	}
 
 	// The candidates are the bag's MEMBERS -- what generation would
@@ -189,8 +233,9 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	for i := 1; i < last; i += 2 {
 		tried = append(tried, args[i].Canon())
 		ctx.slot = base
-		if nil != trialUnify(ctx,
-			clonePath(scrutinee, base), clonePath(args[i], base)) {
+		met := trialUnify(ctx,
+			clonePath(scrutinee, base), clonePath(args[i], base))
+		if nil != met && sameMembers(scrutinee, met) {
 			// The RESULT is the answer: a match MAPS a value to another
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
@@ -722,8 +767,9 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		// The trial is against CLONES: unite refines a bag in place
 		// against a TOP peer, and a pattern that failed must be
 		// untouched for the next node.
-		if nil != trialUnify(ctx, clonePath(node, base),
-			clonePath(templates[i].match, base)) {
+		met := trialUnify(ctx, clonePath(node, base),
+			clonePath(templates[i].match, base))
+		if nil != met && sameMembers(node, met) {
 			return &templates[i], nil
 		}
 	}
