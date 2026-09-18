@@ -56,8 +56,10 @@ Read `hint` before guessing. `message` is the one-line headline;
 offending values filled in, and for several codes it names the fix
 outright — `lossy_integer_literal` tells you to write the literal as
 `0d…`. Every code in the registry has hint text, which is what
-`aontu explain` prints and what a finding reporting an engine code
-carries inline.
+`aontu explain` prints. A finding carries it inline for an exact
+registry code; a **dynamic** code (`func:upper`, `op[+]`) is registered
+through its prefix, and only `explain` falls back to the prefix's text,
+so such a finding carries no `hint`.
 
 For a conflict, `aontu model why <path> mine.aon` lists every contribution
 to that path with its role and source line, which turns "these

@@ -280,14 +280,14 @@ function orderKey(f: VetFinding, index: number): string {
 export function engineFinding(
   nil: any, ctx: any, path: string): VetFinding {
   if (null == nil) {
-    return {
+    return fromRegistry({
       code: UNSHAPED,
       class: codeClass(UNSHAPED),
       severity: 'error',
       path,
       message: 'The document does not evaluate.',
       sites: [],
-    }
+    }, { why: UNSHAPED })
   }
 
   materialise(nil, ctx)

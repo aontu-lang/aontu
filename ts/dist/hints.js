@@ -419,9 +419,14 @@ const hints = {
         'so a value outside that set is a defect in whatever produced it\n' +
         'rather than something a document can write.',
     'negative': 'Only a number can be negated. A `-` in front of a\n' +
-        'non-numeric value is an error rather than a missing value, and the\n' +
-        'commonest cause is a bare word splitting on the minus: `k-x` reads\n' +
-        'as `k` and `-x`. Quote the word, or space the operator.',
+        'non-numeric value is an error rather than a missing value.\n' +
+        ' \nA `-` is a PREFIX here and never an operator between two values,\n' +
+        'so subtraction is sub(a, b).' +
+        '\n \nExamples:\n' +
+        '  a: -1       -> -1     # A number negates;\n' +
+        '  a: -x       -> nil    # ... a bare word does not;\n' +
+        '  a: k-x      -> "k-x"  # ... and this is one word, not a minus;\n' +
+        '  a: sub(5,3) -> 2      # Subtraction is a function.',
     'not_number': 'This numeric literal is not a finite number. A literal\n' +
         'past the range a double can hold (1e999) overflows to infinity\n' +
         'while lexing, which is an error value and not a number. Write it\n' +
@@ -460,15 +465,20 @@ const hints = {
         'another document, or is produced rather than written -- the finding\n' +
         'names which, and the sites say where it does come from. Edit there,\n' +
         'or let set append instead of asking for --in-place.',
-    'var': 'This variable has no value. A variable is resolved from the\n' +
-        'document around it, and nothing here supplies one, so there is\n' +
-        'nothing to generate.',
+    'var': 'This variable has no value, and an unresolved variable cannot\n' +
+        'be generated. A `$name` variable is supplied by the CALLER, never\n' +
+        'by the document: bind it through `ctx.vars` in TypeScript or pass\n' +
+        'it to `UnifyVars` in Go. If the value was meant to come from the\n' +
+        'document, a path reference ($.a.b) or an alias (%name) is what\n' +
+        'reads one.',
     // Internal: the engine surprised itself
     'patch_span_mismatch': 'The overlay does not hold the text the site says is there, so the\n' +
         'span cannot be verified and the edit is refused rather than\n' +
-        'written. Splicing without verifying the span corrupts the file.\n' +
-        'The usual cause is the document changing between the read and the\n' +
-        'write; re-run against the current text.',
+        'written: splicing without verifying the span corrupts the file.\n' +
+        'The span is checked against the very text it was derived from, so\n' +
+        'a document changing underneath cannot produce this. It is an\n' +
+        'engine provenance defect -- the one refusal classed internal for\n' +
+        'that reason -- and worth reporting.',
     'unify_failed': 'The document does not evaluate, and the failure carried no more\n' +
         'specific code. This stands in where a nil reaches the report\n' +
         'without one, so the other findings in the same run are what say\n' +
@@ -477,17 +487,22 @@ const hints = {
         'recognise. Reaching this is an engine defect rather than a fault\n' +
         'in the document.',
     // Compat: the subsumption and outcome vocabulary
-    'compat_narrowed': 'The specific value is not admitted by the general one. Something\n' +
-        'the general version accepted here is refused now -- a narrower\n' +
-        'kind, a narrower residual, or a concrete value where a range stood\n' +
-        '-- so a document that held against the general side can fail.',
+    'compat_narrowed': 'The general value does not admit the specific one: the specific\n' +
+        'side allows something the general side refuses -- a wider kind, a\n' +
+        'wider residual, or a value the general residual excludes. A\n' +
+        'document the specific side accepts can therefore fail against the\n' +
+        'general one. Which document is on which side is the comparison\'s:\n' +
+        'subsume takes them in the order given, and breaking decides by its\n' +
+        'mode.',
     'compat_required_added': 'The general value requires this key and the specific value does\n' +
         'not, either because the key is absent there or because it is\n' +
         'optional there. Instances without the key are admitted where the\n' +
         'general side refuses them.',
-    'compat_default_changed': 'The effective default changed. A document that generated a value\n' +
-        'here under the general version materialises a different one now,\n' +
-        'or stops resolving, without anything in the document changing.',
+    'compat_default_changed': 'The general and specific values have different effective defaults,\n' +
+        'so a document resolving to one of them against one side resolves\n' +
+        'to the other -- or stops resolving -- against the other, with\n' +
+        'nothing in the document itself changing. Which document is on\n' +
+        'which side is the comparison\'s own.',
     'compat_marks_changed': 'The marks on this value differ between the versions. A value\n' +
         'gaining or losing type() or hide() changes what it contributes to\n' +
         'a generated document, so the two are not the same declaration even\n' +
@@ -502,11 +517,12 @@ const hints = {
         'message, and where they supplied them, what to use instead and the\n' +
         'version it was deprecated in. Nothing refuses: a deprecation is a\n' +
         'warning and never changes a verdict.',
-    'pref_not_instance': 'The default is not an instance of any alternative it stands with.\n' +
-        'A preference says which alternative holds when nothing else\n' +
-        'decides, so a default no remaining alternative admits can never be\n' +
-        'selected. The usual cause is the default or the alternatives\n' +
-        'around it being narrowed without the other moving.',
+    'pref_not_instance': 'The preferred value is not repeated among the remaining\n' +
+        'alternatives of its disjunction. Nothing is refused and the\n' +
+        'preference still holds -- the default stays admitted, and\n' +
+        'generation selects it -- so this is ADVISORY. It catches the typo\n' +
+        'where a default was meant to name one of the alternatives beside\n' +
+        'it and names something else instead.',
     'sub_unresolved': 'An unresolved value has no admitted set to compare. Either a\n' +
         'residue is still standing here, or the two sides are value formers\n' +
         'no comparison rule covers, so the answer is undecided rather than\n' +

@@ -148,14 +148,14 @@ function orderKey(f, index) {
 // through NilVal.class, message materialised first (a `gen` nil has none).
 function engineFinding(nil, ctx, path) {
     if (null == nil) {
-        return {
+        return fromRegistry({
             code: UNSHAPED,
             class: (0, hints_1.codeClass)(UNSHAPED),
             severity: 'error',
             path,
             message: 'The document does not evaluate.',
             sites: [],
-        };
+        }, { why: UNSHAPED });
     }
     materialise(nil, ctx);
     return fromRegistry({
