@@ -410,7 +410,11 @@ const hints = {
     // Parse: the source text is malformed or unusable
     'parse': 'The document could not be turned into a value. This wraps the\n' +
         'failure that stopped it -- a syntax error, or a source the include\n' +
-        'machinery refused -- and that inner code and its frame say which.',
+        'machinery refused -- and that inner code and its frame say which,\n' +
+        'so a report names the inner code rather than this one.\n' +
+        ' \nNote that `parse` is also the name of a CLASS, and the class is\n' +
+        'what a refusal shows in the second bracket: `syntax [parse]` is\n' +
+        'the code `syntax` in the class `parse`.',
     'syntax': 'The text is not valid Aontu syntax. The frame points at the\n' +
         'character the parser stopped on; the fault is usually just before\n' +
         'it, and commenting out the suspect lines with # isolates which.',
@@ -503,10 +507,12 @@ const hints = {
         'to the other -- or stops resolving -- against the other, with\n' +
         'nothing in the document itself changing. Which document is on\n' +
         'which side is the comparison\'s own.',
-    'compat_marks_changed': 'The marks on this value differ between the versions. A value\n' +
-        'gaining or losing type() or hide() changes what it contributes to\n' +
-        'a generated document, so the two are not the same declaration even\n' +
-        'where what they admit agrees.',
+    'compat_marks_changed': 'The marks on this value differ between the general and specific\n' +
+        'sides: one carries type() or hide() where the other does not. A\n' +
+        'mark changes what the value contributes to a generated document,\n' +
+        'so the two are not the same declaration even where what they admit\n' +
+        'agrees. Reported under the gen profile, which is the one that\n' +
+        'compares them.',
     'compat_outcome_changed': 'This path resolved to one value before and resolves to a different\n' +
         'one now. Nothing refuses, so the change is silent: a consumer\n' +
         'reading this path gets a new answer with no error to say so.',
@@ -541,8 +547,8 @@ const hints = {
         'the answer is undecided rather than yes or no.',
     'sub_path_dependent_spread': 'A spread template that depends on where it lands cannot be\n' +
         'compared structurally. What it produces is known only once it is\n' +
-        'applied to a path, so the two versions cannot be held against each\n' +
-        'other and the answer is undecided.',
+        'applied to a path, so the general and specific sides cannot be\n' +
+        'held against each other and the answer is undecided.',
     // Dynamic patterns (these serve as prefixes)
     'func:': 'Function error: ',
     'op:': 'Operator error: ',
