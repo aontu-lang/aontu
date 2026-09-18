@@ -316,16 +316,27 @@ class RefVal extends FeatureVal {
         refpath = this.path.slice(0, -1).concat(parts)
       }
 
-      let sep = '.'
-      refpath = refpath
-        .reduce(((a: string[], p: string) =>
-          (p === sep ? a.length = a.length - 1 : a.push(p), a)), [])
+      // A PARENT STEP OFF THE TOP names nothing, and underflows.
+      let offtop = false
+      const reduced: string[] = []
+      for (const part of refpath) {
+        if ('.' === part) {
+          if (0 === reduced.length) {
+            offtop = true
+            break
+          }
+          reduced.length = reduced.length - 1
+          continue
+        }
+        reduced.push(part)
+      }
+      refpath = reduced
 
       let node = ctx.root as Val
 
-      let nopath = false
+      let nopath = offtop
 
-      if (null != node) {
+      if (!offtop && null != node) {
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
@@ -378,7 +389,7 @@ class RefVal extends FeatureVal {
       }
 
       const fixroot: any = (ctx as any)._fixroot
-      if (this.absolute && null != fixroot
+      if (this.absolute && !offtop && null != fixroot
         && (nopath || pI !== refpath.length)) {
         nopath = false
         pI = 0

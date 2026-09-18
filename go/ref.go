@@ -359,7 +359,10 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		base := append([]string{}, rv.path[:end]...)
 		refpath = append(base, parts...)
 	}
-	refpath = reduceDots(refpath)
+	refpath, ontree := reduceDots(refpath)
+	if !ontree {
+		return makeNilErr(ctx, "no_path", rv, nil)
+	}
 
 	node, outcome := rv.walkFrom(ctx.root, refpath)
 
@@ -583,19 +586,22 @@ func varName(vv *VarVal) string {
 	return ""
 }
 
-// reduceDots collapses parent-navigation markers (".").
-func reduceDots(path []string) []string {
+// reduceDots collapses parent-navigation markers ("."). It answers
+// false for a step off the top, which names nothing: no later pass can
+// grow a tree upwards.
+func reduceDots(path []string) ([]string, bool) {
 	out := make([]string, 0, len(path))
 	for _, p := range path {
 		if p == "." {
-			if len(out) > 0 {
-				out = out[:len(out)-1]
+			if 0 == len(out) {
+				return nil, false
 			}
+			out = out[:len(out)-1]
 		} else {
 			out = append(out, p)
 		}
 	}
-	return out
+	return out, true
 }
 
 // refSpelling is the same-path identity of a peer: a reference's own

@@ -155,6 +155,9 @@ edge-ref-nil-peer	errc	a:$.zz&nil	no_path
 edge-ref-same-canon	errc	a:$.zz&$.zz	no_path
 edge-rel-nested	gens	a:{b:{c:1},d:.b.c}	{"a":{"b":{"c":1},"d":1}}
 edge-parent-dots	errc	a:{b:..c,c:1}	no_path
+edge-parent-dots-off-the-top	errc	Z:1\nA:..Z	no_path
+edge-parent-dots-off-the-top-deep	errc	Z:1\nw:{A:...Z}	no_path
+edge-parent-dots-off-the-top-self	errc	A:..A	no_path
 edge-ref-float-part	gens	b:$.a.1.5 a:{"1":{"5":9}}	{"a":{"1":{"5":9}},"b":9}
 edge-var-conflict	errc	x:$flag&false	scalar_value
 edge-ref-sibling	gens	x:{y:$.x.z,z:4}	{"x":{"y":4,"z":4}}
