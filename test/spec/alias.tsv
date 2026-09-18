@@ -182,6 +182,13 @@ alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
 # becoming the bare string it used to be.
 alias-undeclared-refused	errc	a: %nosuch	no_path
 alias-undeclared-in-spread-refused	errc	t: {&: %nosuch}	no_path
+# AND WHERE NOTHING REACHES IT. A reference inside a template that is
+# never instantiated is never resolved, so a lazy check says nothing and
+# the file compiles clean with a name that is declared nowhere. Whether
+# a NAME is declared is not like whether a PATH resolves: no data unified
+# in later can declare it, so it is answerable without resolving
+# anything, and it is answered.
+alias-undeclared-in-uninstantiated-template	errc	x: { &: [ &: %nosuch ] }	no_path
 #
 # FILE-LOCAL MEANS DECLARED AT FILE LEVEL. A nested declaration -- a
 # KEY inside a map, which is not the value-prefix form above -- is
@@ -217,6 +224,14 @@ alias-interior-sigil-is-refused	errc	a: b%c	bare_punct
 alias-name-hyphen	gens	%a-b = 1\nx: %a-b	{"x":1}
 alias-name-hyphen-many	gens	%a-b-c = 1\nx: %a-b-c	{"x":1}
 alias-name-underscore	gens	%a_b = 1\nx: %a_b	{"x":1}
+# A HYPHENATED NAME IS STILL AN ALIAS EVERYWHERE, not only where the
+# lexer reads it. Every place that asks "is this reference an alias?"
+# must use one pattern: a second copy that had not learned the hyphen
+# left the reference as a plain path, so canon spelled it `$.%a-b` --
+# which is not erasure, and is refused on the way back in as
+# `alias_in_path`.
+alias-name-hyphen-canons-as-its-declaration	canon	%a-b = {kind: string}\nt: {&: %a-b}\nt: {x: {kind: 'k'}}	{"t":{&:{"kind":string},"x":{"kind":"k"}}}
+alias-name-underscore-canons-as-its-declaration	canon	%a_b = {kind: string}\nt: {&: %a_b}\nt: {x: {kind: 'k'}}	{"t":{&:{"kind":string},"x":{"kind":"k"}}}
 # A trailing hyphen is not part of the name, so `%a-` reads as `%a`
 # minus nothing -- a use of an undeclared name, not a declaration.
 alias-name-hyphen-trailing-refused	errc	%a- = 1	no_path
@@ -261,11 +276,21 @@ alias-include-at-root-declares	gens	@"__FIXTURES__/alias_sigil.aon"\nx: 1	{"q":7
 alias-include-under-key-refused	errc	a: @"__FIXTURES__/alias_sigil.aon"	alias_not_toplevel
 alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aon"	at path $.a.%b
 #
-# TWO DOCUMENTS UNIFIED ARE ONE DOCUMENT, and a name declared in either
-# is declared in the result -- which is the same additive rule optional
-# keys and spreads already follow. `vet` is where two SEPARATELY PARSED
-# roots actually meet, so it is where the rule is observable: the
-# schema's alias carries the constraint, the data's alias carries the
-# value, and the check is against the meet of the two.
+# WHAT AN INCLUDE CARRIES IS VALUES. A file's values arrive at the
+# includer exactly as written, which is the whole of what `@"..."` does.
+alias-include-still-carries-values	gens	@"__FIXTURES__/alias_declares_u.aon"	{"y":1}
+# A REFERENCE RESOLVES WHERE IT WAS WRITTEN, not where it lands. The
+# rule here is written in one file and instantiated against data
+# declared in another.
+alias-template-resolves-where-written	gens	@"__FIXTURES__/alias_travel.aon"\nmain: entity: thing: args: params: [ { kind: 'param' } ]	{"main":{"entity":{"thing":{"args":{"params":[{"active":true,"kind":"param"}]}}}}}
+#
+# A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
+# PARSED roots meet, and each resolves its OWN names: the schema's alias
+# carries the constraint, the data's alias carries the value, and the
+# check is against the meet of the two VALUES. Neither document can read
+# the other's name -- were it otherwise, a schema's meaning would depend
+# on which data it was checked against, which is the dynamic scope the
+# file rule below exists to prevent.
+alias-vet-name-does-not-cross	vet	listen: %q	%q = 8080\nlisten: %q	{"findings":[{"class":"reference","code":"no_path","path":"$.listen","severity":"error","sites":[{"col":9,"file":"schema","len":2,"role":"schema","row":1,"src":"%q","value":"%q"}]}],"truncated":false,"verdict":"error"}
 alias-vet-across-documents	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 8080\nlisten: %q	{"findings":[],"truncated":false,"verdict":"valid"}
 alias-vet-across-documents-refuses	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 70000\nlisten: %q	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(1)&max(65535)","path":"$.listen","severity":"error","sites":[{"col":6,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":16,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(1)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}

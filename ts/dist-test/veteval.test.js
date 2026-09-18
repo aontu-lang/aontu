@@ -102,7 +102,30 @@ function evalAccepts(src) {
     }
     return 0 === ctx.err.length && undefined !== out;
 }
+// A document that USES a name it does not DECLARE has no single-document
+// spelling: concatenation would hand it the other document's declaration,
+// and a name does not cross between documents. Checking the union would
+// then be checking a different question from the one the row asks.
+const ALIAS_USE_RE = /%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/g;
+function borrowsAName(src) {
+    const declared = new Set();
+    for (const line of src.split('\n')) {
+        const m = /^\s*(%[A-Za-z_][A-Za-z0-9_-]*)\s*=/.exec(line);
+        if (null != m) {
+            declared.add(m[1]);
+        }
+    }
+    for (const use of src.match(ALIAS_USE_RE) ?? []) {
+        if (!declared.has(use)) {
+            return true;
+        }
+    }
+    return false;
+}
 function union(schema, data) {
+    if (borrowsAName(schema) || borrowsAName(data)) {
+        return undefined;
+    }
     if (statementForm(schema) && statementForm(data)) {
         return schema + '\n' + data + '\n';
     }

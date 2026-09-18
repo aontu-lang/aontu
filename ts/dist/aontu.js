@@ -45,6 +45,7 @@ const graph_1 = require("./graph");
 Object.defineProperty(exports, "graphOf", { enumerable: true, get: function () { return graph_1.graphOf; } });
 const relation_1 = require("./relation");
 Object.defineProperty(exports, "relationCheck", { enumerable: true, get: function () { return relation_1.relationCheck; } });
+const alias_1 = require("./alias");
 const view_1 = require("./view");
 Object.defineProperty(exports, "view", { enumerable: true, get: function () { return view_1.view; } });
 Object.defineProperty(exports, "viewSet", { enumerable: true, get: function () { return view_1.viewSet; } });
@@ -177,6 +178,7 @@ class Aontu {
                         : 0 < ac.err.length ? undefined
                             : uval.gen(ac);
                     if (!uval.isNil && 0 === ac.err.length) {
+                        (0, alias_1.aliasErrors)(ac, uval);
                         (0, relation_1.relationErrors)(ac, uval);
                         if (0 < ac.err.length) {
                             out = undefined;

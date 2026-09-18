@@ -1,0 +1,5 @@
+# A `&:` rule that carries an alias reference and is instantiated
+# against data declared in ANOTHER file. The reference must resolve
+# where it was WRITTEN, not where the template lands.
+%shape = { active: *true, kind: string }
+main: entity: &: { args: { &: [ &: %shape ] } }

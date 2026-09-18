@@ -190,8 +190,7 @@ const CC_d = 100
 const CC_D = 68
 
 const CC_PCT = 37
-// Hyphen separates segments; not leading or trailing, as `-` prefixes negation.
-const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/
+import { ALIAS_RE } from './aliasname'
 
 const CC_EQ = 61
 const CC_SP = 32

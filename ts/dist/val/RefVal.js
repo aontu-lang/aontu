@@ -51,9 +51,7 @@ function markedChild(v, part) {
     }
     return undefined;
 }
-// An alias name, whole: the sigil and an identifier (the lexer's
-// ALIAS_RE, anchored at both ends, for the canon spelling above).
-const ALIAS_NAME_RE = /^%[A-Za-z_][A-Za-z0-9_]*$/;
+const aliasname_1 = require("../aliasname");
 class RefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -397,7 +395,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             if (null == rp) {
                 return false;
             }
-            const key = rp.join(' ');
+            const key = rp.join('\u0000');
             if (ancestors.has(key)) {
                 return true;
             }
@@ -480,7 +478,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
     // one segment that is an alias name.
     get aliasName() {
         return this.absolute && 1 === this.peg.length &&
-            'string' === typeof this.peg[0] && ALIAS_NAME_RE.test(this.peg[0]) ?
+            'string' === typeof this.peg[0] && aliasname_1.ALIAS_NAME_RE.test(this.peg[0]) ?
             this.peg[0] : undefined;
     }
     // THE REFERENCE'S OWN SPELLING: the alias name, or the path. This is

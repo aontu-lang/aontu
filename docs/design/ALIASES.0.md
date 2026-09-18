@@ -296,6 +296,15 @@ legible at a glance.
 
 ## 5. `export`
 
+> **Not implemented.** Sections 5, 6 and the file-scope half of section 7
+> describe a design the engine does not yet have: `export(...)` does not
+> parse, the destructure import does not parse, and an alias declared in
+> one file is currently visible to every other file of the same parse,
+> in both directions. `test/spec/alias.tsv` holds the rows that pin what
+> is real today. The rows for what follows are written and failing on
+> the branch that will implement it — the bar for closing this is those
+> rows going green in both ports, not this prose.
+
 `export({ %uint8, %port })` declares which of a file's aliases are
 published. Three rules, all settled:
 
@@ -520,6 +529,8 @@ meeting.
 
 ### Aliases work only where defined or imported
 
+> **Not implemented** — see the note at section 5.
+
 An alias is in scope in the file that declares it, and in a file that
 imports it by name. Nowhere else:
 
@@ -587,14 +598,21 @@ x: 1
 
 There is one root map, so there is no second scope for a name to leak
 out of: the declaration is a declaration *of this document*, which is
-exactly what it says it is. Two documents unified are one document, and
-a name declared in either is declared in the result — the same additive
-rule optional keys and spreads already follow. `vet` is where two
-separately parsed roots actually meet, so it is where the rule is
-observable, and `alias-vet-across-documents` is the row.
+exactly what it says it is.
+
+**A name does not cross between documents.** An earlier draft of this
+note said the opposite — that two documents unified are one document, so
+a name declared in either is declared in the result — and cited
+`alias-vet-across-documents` for it. The engine refuses it, the row
+never tested it (each document there uses only the name it declares
+itself, so it passes either way), and the claim contradicts *Aliases
+work only where defined or imported* below: a schema's meaning would
+depend on which data it was checked against. `vet` resolves each root's
+names within that root, and `alias-vet-name-does-not-cross` is the row
+that pins the refusal.
 
 Rows: `alias-nested-declaration-refused`, `alias-include-at-root-declares`,
-`alias-include-under-key-refused`, `alias-vet-across-documents`.
+`alias-include-under-key-refused`, `alias-vet-name-does-not-cross`.
 
 ### A declaration may also prefix a value
 
