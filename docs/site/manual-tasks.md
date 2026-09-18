@@ -380,6 +380,15 @@ an org name someone else already holds is refused rather than queued:
 npm org ls aontu           # expect your account, role owner
 ```
 
+**The org is the first of five steps, not the whole of it.** npm will
+not register a trusted publisher for a name that has never been
+published — `npm trust`'s manual makes the package's existence a
+precondition — so the first publish of `@aontu/mod` cannot come from
+CI over OIDC, and the order is bootstrap, then trust, then dispatch.
+The sequence, the decision it turns on and the verification are §2 of
+[`docs/manual-tasks.md`](https://github.com/aontu-lang/system/blob/main/docs/manual-tasks.md)
+in `aontu-lang/system`.
+
 **Hand back:** confirmation the org exists, or the name it had to
 become instead.
 
@@ -405,7 +414,11 @@ the site is serving from the apex.
 What is left, in the order it will hurt if ignored:
 
 1. **D3** — the free `aontu` npm org. `@aontu/mod` cannot publish until
-   it exists, and it is the module system's first scoped package.
+   it exists, and it is the module system's first scoped package. The
+   org is the first of five steps: npm will not trust a publisher for a
+   name that has never been published, so the first release is
+   bootstrapped by hand and every one after it comes from CI. §2 of
+   `aontu-lang/system`'s `docs/manual-tasks.md` has the sequence.
 2. **C4** — two account identities, and nothing else: a Marketplace
    publisher and an action's author. The SARIF `informationUri` moved
    on 2026-09-16 and the OCI annotation keys went with the OCI
