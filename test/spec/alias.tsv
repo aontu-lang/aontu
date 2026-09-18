@@ -145,12 +145,24 @@ alias-colon-declaration-path	err	%foo: 1\na: %foo	at path $.%foo
 alias-colon-declaration-alone	errc	%foo: 1	alias_colon
 alias-colon-declaration-frame	err	%foo: 1	--> <no-file>:1:1
 # A pair in list position is held to the same rules: the colon form is
-# refused in an element too, and a declaration there is a declaration
-# IN the element, which is not the top level.
+# refused in an element too.
 alias-colon-in-list-refused	errc	[%foo: 1]	alias_colon
 alias-colon-in-list-path	err	x: [%foo: 1, b: 2]	at path $.x.0.%foo
-alias-declaration-in-list-refused	errc	[%foo = 1]	alias_not_toplevel
-alias-declaration-in-list-path	err	x: [%foo = 1]	at path $.x.0.%foo
+#
+# A DECLARATION IS ALSO A VALUE PREFIX. In a value position -- to the
+# right of a colon, or as a list element -- `%name = ` in front of a
+# value leaves the value alone and declares the name at file level, as
+# if the declaration had been written there. This is what lets a shape
+# be named where it is written rather than lifted away from its use.
+alias-value-position	gens	a: %foo = 1\nb: %foo	{"a":1,"b":1}
+alias-value-position-map	gens	a: %m = {x:1}\nb: %m	{"a":{"x":1},"b":{"x":1}}
+alias-value-position-dive	gens	a: %t = x: 1\nb: %t	{"a":{"x":1},"b":{"x":1}}
+alias-value-position-deep	gens	a: b: c: %m = {x:1}\nz: %m	{"a":{"b":{"c":{"x":1}}},"z":{"x":1}}
+alias-value-position-use-before-declare	gens	b: %foo\na: %foo = 1	{"a":1,"b":1}
+alias-value-position-in-list	gens	x: [%foo = 1, 2]\nb: %foo	{"b":1,"x":[1,2]}
+# Two declarations of one name unify, wherever each was written.
+alias-value-position-redeclare	gens	%m = {a:1}\nz: %m = {b:2}\ny: %m	{"y":{"a":1,"b":2},"z":{"b":2}}
+alias-value-position-redeclare-refused	errc	%m = 1\nz: %m = 2\ny: %m	scalar_value
 # The quoted key is unaffected: `"%a": 1` is a key, and stays one.
 #
 # CYCLES. Three shapes, and the third is the one the sigil creates: it
@@ -171,7 +183,8 @@ alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
 alias-undeclared-refused	errc	a: %nosuch	no_path
 alias-undeclared-in-spread-refused	errc	t: {&: %nosuch}	no_path
 #
-# FILE-LOCAL MEANS DECLARED AT FILE LEVEL. A nested declaration is
+# FILE-LOCAL MEANS DECLARED AT FILE LEVEL. A nested declaration -- a
+# KEY inside a map, which is not the value-prefix form above -- is
 # refused rather than accepted, because accepting it is the worse
 # outcome: `%a` resolves from the ROOT, so a nested one would be erased
 # from the output (it is a declaration) and still unreachable by any
@@ -197,6 +210,16 @@ alias-bare-sigil-is-refused	errc	a: %	bare_punct
 alias-sigil-digit-is-refused	errc	a: %1	bare_punct
 alias-trailing-sigil-is-refused	errc	a: 50%	bare_punct
 alias-interior-sigil-is-refused	errc	a: b%c	bare_punct
+#
+# A NAME TAKES A HYPHEN BETWEEN SEGMENTS, as every other name aontu has
+# does -- map keys bare and quoted, string values, path references. It
+# is not taken at either end, where `-` is the negation prefix.
+alias-name-hyphen	gens	%a-b = 1\nx: %a-b	{"x":1}
+alias-name-hyphen-many	gens	%a-b-c = 1\nx: %a-b-c	{"x":1}
+alias-name-underscore	gens	%a_b = 1\nx: %a_b	{"x":1}
+# A trailing hyphen is not part of the name, so `%a-` reads as `%a`
+# minus nothing -- a use of an undeclared name, not a declaration.
+alias-name-hyphen-trailing-refused	errc	%a- = 1	no_path
 #
 # AN ALIAS IS NOT A PATH SEGMENT. The alias namespace and the path
 # namespace are disjoint: an alias is reached by writing `%foo`, and

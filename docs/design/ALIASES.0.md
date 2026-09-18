@@ -596,6 +596,41 @@ observable, and `alias-vet-across-documents` is the row.
 Rows: `alias-nested-declaration-refused`, `alias-include-at-root-declares`,
 `alias-include-under-key-refused`, `alias-vet-across-documents`.
 
+### A declaration may also prefix a value
+
+The rule above is about a declaration written as a **key**. A
+declaration may also be written as a **value prefix** — `%name = ` in
+front of any value, to the right of a colon or as a list element — and
+there it is accepted wherever it sits:
+
+```
+main: kit: type: field: args: %field-args = { kind: string }
+other: &: %field-args
+```
+
+The prefix does not change the value: `args` is the map it was written
+with, exactly as if the prefix were not there. What it adds is the
+declaration, hoisted to the document root, so the name resolves from
+anywhere — including, as always, from above its own text.
+
+This is the form the key rule could not have. A key declaration nested
+under `x` names nothing reachable; a value prefix names the thing it is
+written on, and the name it binds is the document's. So the shape can
+be named where it is used instead of being lifted away from its use to
+satisfy the position rule — which is what made the rule irritating in
+practice.
+
+Two declarations of one name unify, whichever form each was written in
+and wherever each sat; that is the `Redeclaration unifies` rule above,
+with nothing added.
+
+The hoisted entry is a **copy**, pathed at the name, because the value
+is also still in the tree at its own path and a reference instantiates
+its target by reading that path.
+
+Rows: `alias-value-position`, `alias-value-position-deep`,
+`alias-value-position-in-list`, `alias-value-position-redeclare`.
+
 ### Aliases are not passed to children
 
 Scope is lexical and **does not descend into generated children**. A

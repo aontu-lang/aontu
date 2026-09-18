@@ -37,6 +37,8 @@ const DisjunctVal_1 = require("./val/DisjunctVal");
 const IntegerVal_1 = require("./val/IntegerVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
+const Val_1 = require("./val/Val");
+const ctx_1 = require("./ctx");
 const NilVal_1 = require("./val/NilVal");
 const NullVal_1 = require("./val/NullVal");
 const NumberVal_1 = require("./val/NumberVal");
@@ -93,7 +95,8 @@ const CC_0 = 48;
 const CC_d = 100;
 const CC_D = 68;
 const CC_PCT = 37;
-const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*/;
+// Hyphen separates segments; not leading or trailing, as `-` prefixes negation.
+const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/;
 const CC_EQ = 61;
 const CC_SP = 32;
 const CC_TAB = 9;
@@ -702,6 +705,16 @@ help isolate the syntax error.`,
     });
     jsonic.rule('val', (rs) => {
         rs
+            // Before the core implicit-map alts: a value prefix, not a key.
+            .open([
+            {
+                s: [VL, CL],
+                c: (r) => 0 !== r.d && isAliasDecl(r.o0, r.o1),
+                p: 'val',
+                a: (r) => { r.u.aontu_alias_val = '' + r.o0.src; },
+                g: 'aontu-alias-val',
+            },
+        ], { append: false })
             .open([
             {
                 s: [CJ, CL], p: 'map', b: 2, n: { pk: 1 },
@@ -770,6 +783,11 @@ help isolate the syntax error.`,
             }
             // else { ERROR? }
             r.node = valnode;
+            const aname = r.u.aontu_alias_val;
+            if (null != aname && null != valnode) {
+                const hoist = (ctx.aontu_alias_hoist ||= []);
+                hoist.push({ name: '' + aname, val: valnode });
+            }
             return undefined;
         })
             .close([{ s: [CJ, CL], b: 2, g: 'spread,json,more' }]);
@@ -834,6 +852,20 @@ help isolate the syntax error.`,
                 }
                 delete mo.___optional;
                 delete mo.___alias;
+            }
+            // A value-prefix declaration lands here, at the document root
+            // (ALIASES.0.md), as a copy pathed at its name.
+            if (1 === r.d) {
+                for (const { name, val } of (ctx.aontu_alias_hoist ?? [])) {
+                    const acx = new ctx_1.AontuContext({ path: [name] });
+                    const copy = val.clone(acx, { path: [name] });
+                    (0, Val_1.repathInstance)(copy, [name]);
+                    mo[name] = null == mo[name] ? copy :
+                        addsite(new ConjunctVal_1.ConjunctVal({ peg: [mo[name], copy] }), r, ctx);
+                    if (!aliasKeys.includes(name)) {
+                        aliasKeys.push(name);
+                    }
+                }
             }
             //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
             if (mo.___merge) {
@@ -1054,6 +1086,13 @@ help isolate the syntax error.`,
                     v.path = [...(rule.k?.path ?? []),
                         '' + rule.node.length, key];
                 }
+                // An element is a value position, so the prefix form applies.
+                if (null == kr && isAliasDecl(ktkn, rule.o1)) {
+                    ;
+                    (ctx.aontu_alias_hoist ||= []).push({ name: key, val: v });
+                    rule.node.push(v);
+                    return undefined;
+                }
                 const mv = addsite(new MapVal_1.MapVal({ peg: { [key]: v } }), rule, ctx);
                 // The element's path is the list's plus its index, as any
                 // element's is (and as the Go port paths it): the map rule's
@@ -1062,12 +1101,6 @@ help isolate the syntax error.`,
                 mv.path = [...(rule.k?.path ?? []), '' + rule.node.length];
                 if (true === rule.u.aontu_optional_elem) {
                     mv.optionalKeys = [key];
-                }
-                // ... and a declaration is a declaration IN the element, which
-                // is where MapVal.unify refuses it: a list element is not the
-                // top level.
-                if (isAliasDecl(ktkn, rule.o1)) {
-                    mv.aliasKeys = [key];
                 }
                 rule.node.push(mv);
             }
