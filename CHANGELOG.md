@@ -49,6 +49,40 @@ without it. The destructure is additive: `f.aon`'s values land exactly
 as `@"./f.aon"` places them, and the names asked for bind beside them.
 `{%}` takes every name the other file exports, and only those.
 
+**Rename what you take with `%local: %remote`.** Both sides carry the
+sigil, because both are names. Two files publishing one name is the case
+it answers, and nothing else does:
+
+```
+{ %port: %uint8 } = @"./types.aon"
+
+listen: %port
+listen: 200
+```
+
+`export` does not rename: the publishing file names what it has, the
+taking file renames what it takes.
+
+**A destructure may sit under a key.** The values land where the head
+stands and the name still binds in the file, so a document can mount a
+file at a path and take from it in the same line:
+
+```
+svc: { %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+```json
+{"level":200,"svc":{"defaults":{"retries":3}}}
+```
+
+The other file's own declarations come up to the document root with its
+values, so a file that uses the name it publishes can be mounted too. A
+plain value include of a file that declares aliases stays refused: the
+destructure is where a file says it is taking names.
+
 Two codes are new. `export_arg` (class `parse`) refuses an argument
 that is not a set of alias names — a key, a bare alias, or the `{%}`
 wildcard, which belongs on the taking side. `import_not_exported`

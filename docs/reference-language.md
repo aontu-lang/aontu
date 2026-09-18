@@ -1684,16 +1684,74 @@ $ aontu -c main.aon
 ```
 
 The file's values arrive whether or not a name is asked for, which is
-what makes the pattern additive rather than a filter. A destructure
-sits at the root of the document, as a declaration does: under a key
-the values land there while the name it binds is still the document's,
-so the name reaches nothing.
+what makes the pattern additive rather than a filter.
 
 `{%}` takes every name the other file exports, and only those: the
 publishing file chose the set. Asking for a name that file does not
 export is refused with `import_not_exported`, which names the name. A
 name that arrives this way meets a local declaration of the same name
 rather than replacing it, exactly as two declarations in one file meet.
+
+**Rename what you take with `%local: %remote`.** Both sides carry the
+sigil, because both are names; the left is what this file calls it and
+the right is what the other file publishes. Two files publishing one
+name is the case it answers, and nothing else does.
+
+**A destructure may also sit under a key.** The values land where the
+head stands and the names it binds are the document's, so a file can be
+mounted at a path and still be taken from. Both forms read the same
+`types.aon`:
+
+<!-- test: scenario alias-destructure-more -->
+<!-- test: file types.aon -->
+```aon
+%uint8 = integer & min(0) & max(255)
+
+export({ %uint8 })
+
+defaults: retries: 3
+```
+
+`rename.aon` takes `%uint8` under a name of its own:
+
+<!-- test: file rename.aon -->
+```aon
+{ %port: %uint8 } = @"./types.aon"
+
+listen: %port
+listen: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c rename.aon
+{"defaults":{"retries":3},"listen":200}
+```
+
+and `mount.aon` puts the same file's values under `svc`:
+
+<!-- test: file mount.aon -->
+```aon
+svc: { %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c mount.aon
+{"level":200,"svc":{"defaults":{"retries":3}}}
+```
+
+The other file's own declarations come up to the document root with its
+values. Without that a file that uses the name it publishes could not be
+mounted at all, since an alias resolves from the root and its
+declaration would have landed under the key.
+
+`export` does not rename: a file publishes what it has, and the taking
+file renames what it takes, so `export({ %a: %b })` is refused with
+`export_arg`.
 
 ## The `+` operator and grouping
 

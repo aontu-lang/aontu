@@ -312,6 +312,9 @@ alias-export-takes-a-set	errc	%u = 1\nexport(%u)	export_arg
 # takes is the set the other file chose. On this side it would publish
 # a file's private names by default, so it is refused where it stands.
 alias-export-wildcard-refused	errc	%u = 1\nexport({%})	export_arg
+# `export` publishes a name and does not rename one: the publishing
+# file names what it has, and the taking file renames what it takes.
+alias-export-rename-refused	errc	%u = 1\nexport({ %p: %u })	export_arg
 # An `export` publishes out of the DOCUMENT's scope, so it answers to
 # the rule a declaration does: it sits at the document root or nowhere.
 alias-export-nested-refused	errc	x: { export({ %u }) }	alias_not_toplevel
@@ -322,11 +325,25 @@ alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint
 alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # An unexported name cannot be bound, and the refusal names the name.
 alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	import_not_exported
-# A DESTRUCTURE SITS AT THE DOCUMENT ROOT, for the reason a declaration
-# does: the names it binds are the document's, and the values it stands
-# in front of land where it stands. Under a key the two part company,
-# and the name it asked for reaches nothing.
-alias-import-under-key-refused	errc	svc: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	no_path
+# A DESTRUCTURE PLACES ITS SUBTREE WHERE IT STANDS and binds its names
+# in the file, so it may sit under a key: the values go there and the
+# names do not. A DECLARATION IS THE DOCUMENT'S wherever the file's
+# values land, so the other file's own names are lifted to the root
+# with them -- without that, a file that uses the name it publishes
+# could not be placed under a key at all.
+alias-import-under-key	gens	svc: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"svc":{"defaults":{"retries":3}}}
+alias-import-under-key-resolves-its-own	gens	svc: { %port } = @"__FIXTURES__/alias_exports_used.aon"\na: %port\na: 443	{"a":443,"svc":{"listen":8080}}
+alias-import-under-a-deep-key	gens	a: b: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\nz: %uint8	{"a":{"b":{"defaults":{"retries":3}}},"z":255}
+# RENAMING IS BOTH SIDES SPELLED: `%local: %remote` binds the name the
+# other file publishes under the name this file wants, which is the
+# only answer to two files publishing one name.
+alias-import-renames	gens	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %u8	{"a":255,"defaults":{"retries":3}}
+alias-import-renames-under-key	gens	svc: { %p: %port } = @"__FIXTURES__/alias_exports_used.aon"\na: %p\na: 443	{"a":443,"svc":{"listen":8080}}
+# The EXPORTED name is what must be published; the local one is this
+# file's business and nothing checks it against the other file.
+alias-import-rename-unexported-refused	errc	{ %s: %secret } = @"__FIXTURES__/alias_exports.aon"\na: %s	import_not_exported
+# The remote name is also the one the refusal reports.
+alias-import-rename-names-the-remote	err	{ %s: %secret } = @"__FIXTURES__/alias_exports.aon"\na: %s	does not publish `%secret`
 # A name that arrives MEETS a local declaration of the same name rather
 # than replacing it, exactly as two declarations in one file meet.
 alias-import-meets-a-local-declaration	gens	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}

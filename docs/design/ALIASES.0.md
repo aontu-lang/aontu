@@ -297,18 +297,13 @@ legible at a glance.
 ## 5. `export`
 
 > **Implemented 2026-09-18**, in both ports, by the route
-> [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out. Three
-> things the sections below describe are NOT built. Two are unpinned:
-> renaming in a destructure (`{ %u8: %uint8 }`), and the set shorthand
-> as a value anywhere but in those two declaration heads — `a: { %foo }`
-> is still the parse error §3 row 16 measured. The third is §6's
-> `svc: { %uint8 } = @"types.aon"`: **a destructure sits at the document
-> root**, for the reason a declaration does. Under a key the values land
-> there and the names it binds are still the document's, so the two part
-> company and the name reaches nothing — and a file that declares
-> aliases, which is the only kind worth importing from, is already
-> refused as a value include (§7). `alias-import-under-key-refused`
-> pins it.
+> [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out — including
+> renaming and §6's `svc: { %uint8 } = @"types.aon"`. One thing below is
+> NOT built and no row pins it: the set shorthand as a value anywhere
+> but in those two declaration heads, so `a: { %foo }` is still the
+> parse error §3 row 16 measured. One thing below is NARROWER than it
+> reads: `export` does not rename, since the publishing file names what
+> it has and the taking file renames what it takes.
 
 `export({ %uint8, %port })` declares which of a file's aliases are
 published. Three rules, all settled:
@@ -393,6 +388,17 @@ listen: 8080
 { "defaults": { "retries": 3 }, "listen": 8080 }
 ```
 
+**And it need not be at the root.** `svc: { %uint8 } = @"types.aon"`
+places the subtree under `svc` and binds `%uint8` in the taking file,
+because the two halves go to different places: the values where the head
+stands, the name at the document root where every alias key lives. For
+that to hold, `types.aon`'s OWN declarations are lifted to the root with
+its values — otherwise a file that uses the name it publishes could not
+be mounted at all, since its `%uint8` would resolve from the root and
+its declaration would sit under `svc`. A plain value include of such a
+file stays refused (§7): the destructure is where a file says it is
+taking names, and so where the engine knows to lift them.
+
 That is worth stating twice because the JavaScript intuition points the
 other way: there, destructuring is how you *narrow* what you take. Here
 it only *adds* a binding, and taking the values is what `@"…"` was
@@ -405,6 +411,13 @@ Both sides carry the sigil, because both are aliases:
 ```
 { %u8: %uint8 } = @"types.aon"     # bind the exported %uint8 as local %u8
 ```
+
+**Renaming is what makes two publishers survivable**, and it is the
+reason the form is not sugar: with file scope in place, two files that
+both publish `%row` collide in the taking file's one scope, and the
+left-hand name is the only place that can be settled. `export` does not
+take the form: publishing renames nothing, so `export({ %a: %b })` is
+`export_arg`.
 
 ### `{%}` — take all the exports
 

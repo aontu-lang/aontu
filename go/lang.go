@@ -40,15 +40,22 @@ const exportKeysKey = reservedKeyPrefix + "exportkeys"
 const importDeclsKey = reservedKeyPrefix + "importdecls"
 const importMergeKey = reservedKeyPrefix + "importmerge"
 
+// The name bound here, and the one the other file publishes.
+type aliasBind struct {
+	local  string
+	remote string
+}
+
 // The name the source spells and the key it is held under.
 type aliasDecl struct {
 	name string
 	key  string
 }
 
-// One `export(...)`: its names, empty where the argument named none.
+// One `export(...)`, and whether its argument named a set at all.
 type exportDecl struct {
 	names []string
+	ok    bool
 	sp    int
 	src   string
 }
@@ -57,29 +64,30 @@ type exportDecl struct {
 // asks for (empty for the wildcard), the file and the refusal site.
 type importDecl struct {
 	key   string
-	names []string
+	binds []aliasBind
 	url   string
 	sp    int
 	src   string
 }
 
-func exportNamesOf(t *jsonic.Token) ([]string, bool) {
+func exportNamesOf(t *jsonic.Token) ([]string, bool, bool) {
 	if nil == t || nil == t.Use {
-		return nil, false
+		return nil, false, false
 	}
 	if true != t.Use["aontu_export"] {
-		return nil, false
+		return nil, false, false
 	}
 	names, _ := t.Use["aontu_export_names"].([]string)
-	return names, true
+	nok, _ := t.Use["aontu_export_ok"].(bool)
+	return names, nok, true
 }
 
-func importNamesOf(t *jsonic.Token) ([]string, bool) {
+func importBindsOf(t *jsonic.Token) ([]aliasBind, bool) {
 	if nil == t || nil == t.Use {
 		return nil, false
 	}
-	names, ok := t.Use["aontu_import"].([]string)
-	return names, ok
+	binds, ok := t.Use["aontu_import"].([]aliasBind)
+	return binds, ok
 }
 
 // dataValKey carries a data include whose value is NOT a map, which
@@ -578,7 +586,7 @@ func recordExports(m map[string]any) {
 	ek, _ := m[exportKeysKey].([]string)
 	krs, _ := m[keyRefusalsKey].([]keyRefusal)
 	for _, e := range exs {
-		if 0 == len(e.names) {
+		if !e.ok {
 			renameNodeKey(m, exportHoldKey, exportDeclName)
 			krs = append(krs, keyRefusal{
 				key: exportDeclName, why: "export_arg", sp: e.sp, src: e.src})
@@ -600,29 +608,44 @@ func bindImports(m map[string]any, ctx *jsonic.Context) {
 	merge, _ := m[importMergeKey].([]Val)
 	for _, im := range ims {
 		iv := asVal(m[im.key])
-		delete(m, im.key)
-		ord, _ := m[orderKey].([]string)
-		m[orderKey] = slices.DeleteFunc(ord, func(k string) bool { return k == im.key })
+		deleteNodeKey(m, im.key)
+		published, declared := liftImported(ctx, iv)
 		merge = append(merge, iv)
-		bindImportNames(ctx, im, iv)
+		bindImportNames(ctx, im, published, declared)
 	}
 	if 0 < len(ims) {
 		m[importMergeKey] = merge
 	}
 }
 
-func bindImportNames(ctx *jsonic.Context, im importDecl, iv Val) {
-	var published, declared []string
-	if mv, ok := iv.(*MapVal); ok {
-		published, declared = mv.exportKeys, mv.aliasKeys
+// A DECLARATION IS THE DOCUMENT'S wherever the values land, so the
+// names go to the root and the subtree may sit under a key.
+func liftImported(ctx *jsonic.Context, iv Val) (published, declared []string) {
+	mv, ok := iv.(*MapVal)
+	if !ok {
+		return nil, nil
 	}
-	want := im.names
-	if 0 == len(want) {
-		want = published
+	published, declared = mv.exportKeys, mv.aliasKeys
+	for _, k := range declared {
+		addAliasHoist(ctx, k, mv.peg[k])
+		mv.remove(k)
 	}
-	for _, n := range want {
+	mv.aliasKeys, mv.exportKeys = nil, nil
+	return published, declared
+}
+
+func bindImportNames(
+	ctx *jsonic.Context, im importDecl, published, declared []string) {
+	binds := im.binds
+	if 0 == len(binds) {
+		for _, n := range published {
+			binds = append(binds, aliasBind{local: n, remote: n})
+		}
+	}
+	for _, b := range binds {
 		var bind Val
-		if from, ok := declaredAs(declared, n); ok && slices.Contains(published, n) {
+		from, ok := declaredAs(declared, b.remote)
+		if ok && slices.Contains(published, b.remote) {
 			rv := newRef([]any{from}, false)
 			rv.absolute = true
 			bind = rv
@@ -630,10 +653,10 @@ func bindImportNames(ctx *jsonic.Context, im importDecl, iv Val) {
 			nv := newNil("import_not_exported")
 			nv.sp = im.sp
 			nv.setSrctext(im.src)
-			nv.details = map[string]string{"name": n}
+			nv.details = map[string]string{"name": b.remote}
 			bind = nv
 		}
-		addAliasHoist(ctx, aliasScopedKey(n, im.url), bind)
+		addAliasHoist(ctx, aliasScopedKey(b.local, im.url), bind)
 	}
 }
 
@@ -902,13 +925,15 @@ const aliasNamePat = `%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*`
 
 var aliasRe = regexp.MustCompile(`^` + aliasNamePat)
 
-// What `export` takes and a destructure heads with; `{%}` is wildcard.
-const aliasSetPat = `\{[ \t]*(?:%|` + aliasNamePat +
-	`(?:[ \t]*,[ \t]*` + aliasNamePat + `)*)[ \t]*\}`
+// What `export` takes and a destructure heads with: a name, or
+// `%local: %remote`; `{%}` is the wildcard and binds no item.
+const aliasItemPat = `(` + aliasNamePat + `)(?:[ \t]*:[ \t]*(` + aliasNamePat + `))?`
+const aliasSetPat = `\{[ \t]*(?:%|` + aliasItemPat +
+	`(?:[ \t]*,[ \t]*` + aliasItemPat + `)*)[ \t]*\}`
 
 var aliasNameRe = regexp.MustCompile(`^` + aliasNamePat + `$`)
 var aliasSetRe = regexp.MustCompile(`^` + aliasSetPat + `$`)
-var aliasNamesRe = regexp.MustCompile(aliasNamePat)
+var aliasItemsRe = regexp.MustCompile(aliasItemPat)
 
 // `{ %a } = @"f.aon"` is read as the pair `<head>: <include>`, so the
 // head is one token. RE2 has no lookahead, so `==` is ruled out where
@@ -947,11 +972,34 @@ func aliasBareName(key string) string {
 }
 
 // Empty where the text is not a set; the wildcard answers EMPTY, true.
-func aliasSetNames(text string) ([]string, bool) {
+func aliasSetItems(text string) ([]aliasBind, bool) {
 	if !aliasSetRe.MatchString(text) {
 		return nil, false
 	}
-	return aliasNamesRe.FindAllString(text, -1), true
+	items := []aliasBind{}
+	for _, m := range aliasItemsRe.FindAllStringSubmatch(text, -1) {
+		remote := m[2]
+		if "" == remote {
+			remote = m[1]
+		}
+		items = append(items, aliasBind{local: m[1], remote: remote})
+	}
+	return items, true
+}
+
+// `export` publishes a name; it renames none, and `{%}` is theirs.
+func publishedNames(items []aliasBind, ok bool) ([]string, bool) {
+	if !ok || 0 == len(items) {
+		return nil, false
+	}
+	names := make([]string, 0, len(items))
+	for _, i := range items {
+		if i.local != i.remote {
+			return nil, false
+		}
+		names = append(names, i.local)
+	}
+	return names, true
 }
 
 // The file a value was written in, and so any alias name's scope.
@@ -1132,14 +1180,14 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		decls, _ := m[aliasDeclsKey].([]aliasDecl)
 		m[aliasDeclsKey] = append(decls,
 			aliasDecl{name: key, key: aliasScopedKey(key, srcURL(ctx))})
-	} else if names, ok := exportNamesOf(r.O0); ok {
+	} else if names, nok, ok := exportNamesOf(r.O0); ok {
 		exs, _ := m[exportDeclsKey].([]exportDecl)
 		m[exportDeclsKey] = append(exs,
-			exportDecl{names: names, sp: r.O0.SI, src: r.O0.Src})
-	} else if names, ok := importNamesOf(r.O0); ok {
+			exportDecl{names: names, ok: nok, sp: r.O0.SI, src: r.O0.Src})
+	} else if binds, ok := importBindsOf(r.O0); ok {
 		ims, _ := m[importDeclsKey].([]importDecl)
 		m[importDeclsKey] = append(ims, importDecl{
-			key: key, names: names, url: srcURL(ctx),
+			key: key, binds: binds, url: srcURL(ctx),
 			sp: r.O0.SI, src: r.O0.Src})
 	}
 
@@ -1291,10 +1339,10 @@ func tsFixedCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 		if m := importHeadRe.FindStringSubmatchIndex(rest); nil != m &&
 			(start+m[1] >= len(src) || '=' != src[start+m[1]]) {
 			head := rest[m[2]:m[3]]
-			names, _ := aliasSetNames(head)
+			binds, _ := aliasSetItems(head)
 			aliasEqAt.Store(l, start+m[1]-1)
 			tkn := l.Token("#TX", jsonic.TinTX, head, head)
-			tkn.Use = map[string]any{"aontu_import": names}
+			tkn.Use = map[string]any{"aontu_import": binds}
 			pnt.SI += len(head)
 			pnt.CI += utf8.RuneCountInString(head)
 			return &jsonic.LexCheckResult{Done: true, Token: tkn}
@@ -1328,7 +1376,8 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	// `export(...)`: the word is the key, spelled unwritably.
 	if 'e' == src[start] {
 		if m := exportRe.FindStringSubmatchIndex(src[start:]); nil != m {
-			names, _ := aliasSetNames(src[start+m[2] : start+m[3]])
+			names, nok := publishedNames(
+				aliasSetItems(src[start+m[2] : start+m[3]]))
 			exportAt.Store(l, exportSpan{
 				cl:  start + strings.Index(src[start:start+m[1]], "("),
 				arg: start + m[2],
@@ -1337,7 +1386,8 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 			})
 			tkn := l.Token("#TX", jsonic.TinTX, exportHoldKey, exportDeclName)
 			tkn.Use = map[string]any{
-				"aontu_export": true, "aontu_export_names": names}
+				"aontu_export": true, "aontu_export_names": names,
+				"aontu_export_ok": nok}
 			pnt.SI += len(exportDeclName)
 			pnt.CI += len(exportDeclName)
 			return &jsonic.LexCheckResult{Done: true, Token: tkn}

@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -72,6 +73,12 @@ func (m *MapVal) set(k string, v Val) {
 		m.keys = append(m.keys, k)
 	}
 	m.peg[k] = v
+}
+
+// remove drops a key and its place in the order, the twin of set.
+func (m *MapVal) remove(k string) {
+	delete(m.peg, k)
+	m.keys = slices.DeleteFunc(m.keys, func(o string) bool { return o == k })
 }
 
 func mergeVals(a, b Val) Val {

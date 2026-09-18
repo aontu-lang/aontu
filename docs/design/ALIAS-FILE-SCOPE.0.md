@@ -56,6 +56,28 @@ be bound, and the refusal names the name.
 Both are new syntax in both ports, with `export_arg` and
 `import_not_exported` as their refusals.
 
+## Two features the nine rows did not reach
+
+Neither is in the nine, and both are `ALIASES.0.md` §6's. They landed
+in the same change because the first is a hard block and the second is
+what the note's own example shows.
+
+**Renaming, `{ %local: %remote }`,** is the only answer to two files
+publishing one name: with file scope in place the collision moves into
+the taking file's one scope, and the left-hand name is the only place it
+can be settled. The set grammar grew an item with an optional second
+name; `export` did not take the form, since publishing renames nothing.
+
+**A destructure under a key** places the subtree where the head stands
+and still binds the name at the document root, which is where every
+alias key lives. For that the other file's OWN declarations are lifted
+to the root with its values — without it a file that uses the name it
+publishes could not be mounted at all, since its reference resolves from
+the root and its declaration would have landed under the key. A plain
+value include of such a file stays refused: the destructure is where a
+file says it is taking names, and so where the engine knows to lift
+them.
+
 ## Two things the route did not foresee
 
 **Key order is resolution order.** Renaming a declaration in place moved
@@ -78,12 +100,13 @@ The nine rows named `alias-include-does-not-see-includer-name`,
 `alias-import-*` pass in both ports, and
 `alias-template-resolves-where-written` and
 `alias-include-still-carries-values` still pass. **They do**, together
-with twelve more rows the work added. Nine in `alias.tsv`: five refuse
-what the two new forms made writable (`alias-export-wildcard-refused`,
-`alias-export-nested-refused` with its path row,
-`alias-import-undeclared-refused`, `alias-import-from-a-scalar-refused`
-and `alias-import-under-key-refused`); two pin what the refusals say
-(`alias-import-unexported-names-it`, `alias-redeclare-conflicts-path`);
-and two pin what a name that arrives does
-(`alias-import-meets-a-local-declaration`). Three in `fmt.tsv` pin both
-spellings through the formatter.
+with twenty-one more rows the work added. Sixteen in `alias.tsv`: six
+refuse what the new forms made writable (the wildcard and a rename in
+`export`, a nested `export` with its path row, a name the other file
+never declared, and a right-hand side that is not a document); three pin
+what the refusals say; and seven pin what the two later features answer
+for — a destructure under a key, under a deep key, one whose file uses
+the name it publishes, renaming at the root and under a key, the remote
+name in a rename refusal, and a name that arrives meeting a local
+declaration of it. Five in `fmt.tsv` pin every spelling through the
+formatter.

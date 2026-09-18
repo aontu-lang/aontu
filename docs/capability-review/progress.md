@@ -641,7 +641,7 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (109 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (116 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
@@ -699,8 +699,22 @@ and `%comment`, since a document that wants the vocabulary's shapes now
 asks for them by name. `profile-shape-hash` is unchanged, which is the
 evidence that the destructure places what the include placed.
 
+**Two of `ALIASES.0.md` §6's features went in with it**, neither in the
+nine rows. RENAMING, `{ %local: %remote }`, is the only answer to two
+files publishing one name — with file scope the collision moves into the
+taking file's one scope, and the left-hand name is the only place it can
+be settled — so the set grammar grew an item with an optional second
+name. `export` did not take the form: publishing renames nothing. And a
+destructure MAY SIT UNDER A KEY, placing the subtree where the head
+stands while the name still binds at the document root; for that the
+other file's own declarations are lifted to the root with its values,
+without which a file that uses the name it publishes could not be
+mounted at all. A plain value include of such a file stays refused, and
+that is the line: the destructure is where a file says it is taking
+names, and so where the engine knows to lift them.
+
 Pinned by the nine `test/spec/alias.tsv` rows written failing ahead of
-it and the nine the work added, plus three in `fmt.tsv`; documented in
+it and the sixteen the work added, plus five in `fmt.tsv`; documented in
 `docs/reference-language.md` under "Publishing a name" and "Taking a
 name", executed by `docs.test.ts`.
 

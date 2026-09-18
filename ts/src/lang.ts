@@ -190,6 +190,7 @@ const CC_d = 100
 const CC_D = 68
 
 const CC_PCT = 37
+import type { AliasBind } from './aliasname'
 import {
   ALIAS_RE,
   ALIAS_SET,
@@ -197,7 +198,7 @@ import {
   EXPORT_HOLD_KEY,
   aliasBareName,
   aliasScopedKey,
-  aliasSetNames,
+  aliasSetItems,
 } from './aliasname'
 
 const CC_EQ = 61
@@ -372,7 +373,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
             const hsrc = hres[1]
             lex.aontu_eq_at = pnt.sI + hres[0].length - 1
             const htkn = lex.token('#TX', hsrc, hsrc, pnt, {
-              aontu_import: aliasSetNames(hsrc) as string[],
+              aontu_import: aliasSetItems(hsrc) as AliasBind[],
             })
             pnt.sI += hsrc.length
             pnt.cI += hsrc.length
@@ -432,7 +433,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
             }
             const etkn = lex.token(
               '#TX', EXPORT_HOLD_KEY, EXPORT_DECL_NAME, pnt,
-              { aontu_export: true, aontu_export_names: aliasSetNames(eres[1]) })
+              { aontu_export: true, aontu_export_items: aliasSetItems(eres[1]) })
             pnt.sI += EXPORT_DECL_NAME.length
             pnt.cI += EXPORT_DECL_NAME.length
             return { done: true, token: etkn }
@@ -515,6 +516,12 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
     v.site.len = ts.len
     return v
   }
+
+  // `export` publishes a name; it renames none, and `{%}` is theirs.
+  const publishedNames = (items?: AliasBind[]): string[] | undefined =>
+    undefined === items || 0 === items.length ? undefined :
+      items.every((i) => i.local === i.remote) ?
+        items.map((i) => i.local) : undefined
 
   // The file a value was written in, and so any alias name's scope.
   const srcUrl = (ctx: JsonicContext): string => {
@@ -1227,9 +1234,10 @@ help isolate the syntax error.`,
 
         // `export` PUBLISHES NAMES AND NOTHING ELSE; the argument is
         // erased, and a bare name, key or wildcard is refused.
-        for (const { names, tkn } of (r.u.aontu_export_decls ?? []) as any[]) {
+        for (const { items, tkn } of (r.u.aontu_export_decls ?? []) as any[]) {
           delete mo[EXPORT_HOLD_KEY]
-          if (null == names || 0 === names.length) {
+          const names = publishedNames(items)
+          if (undefined === names) {
             const en: any =
               siteAt(addsite(new NilVal({ why: 'export_arg' }), r, ctx), tokenSite(tkn))
             en.path = [...(r.k?.path ?? []), EXPORT_DECL_NAME]
@@ -1240,30 +1248,41 @@ help isolate the syntax error.`,
           }
         }
 
-        // THE DESTRUCTURE IS ADDITIVE: the values land as a plain
-        // include places them, and each name binds in THIS file's scope
-        // (an unexported one to a refusal).
+        // THE DESTRUCTURE IS ADDITIVE: the values land where the head
+        // stands and each name binds in THIS file's scope. A DECLARATION
+        // IS THE DOCUMENT'S wherever the values land, so the names go to
+        // the root and the subtree may sit under a key.
         for (const im of (r.u.aontu_import_decls ?? []) as any[]) {
+          const hoist = ((ctx as any).aontu_alias_hoist ||= [])
           const iv: any = mo[im.key]
           delete mo[im.key]
+          const ex: string[] = iv.exportKeys ?? []
+          const ak: string[] = iv.aliasKeys ?? []
+          for (const k of ak) {
+            hoist.push({ name: k, val: iv.peg[k] })
+            delete iv.peg[k]
+          }
+          if (0 < ak.length + ex.length) {
+            iv.aliasKeys = []
+            iv.exportKeys = []
+          }
           // The head is not a key, so the values carry this map's path.
           repathInstance(iv, [...(r.k?.path ?? [])])
           ; (mo.___merge = mo.___merge || []).push(iv)
-          const ex: string[] = iv.exportKeys ?? []
-          const ak: string[] = iv.aliasKeys ?? []
-          for (const n of (0 === im.names.length ? ex : im.names)) {
-            const from = ak.find((k: string) => aliasBareName(k) === n)
+          const binds: AliasBind[] = 0 === im.names.length ?
+            ex.map((n: string) => ({ local: n, remote: n })) : im.names
+          for (const { local, remote } of binds) {
+            const from = ak.find((k: string) => aliasBareName(k) === remote)
             let bind: Val
-            if (undefined === from || !ex.includes(n)) {
+            if (undefined === from || !ex.includes(remote)) {
               bind = siteAt(addsite(
                 new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
-              ; (bind as any).details = { name: n }
+              ; (bind as any).details = { name: remote }
             }
             else {
               bind = addsite(new RefVal({ peg: [from], absolute: true }), r, ctx)
             }
-            ; ((ctx as any).aontu_alias_hoist ||= [])
-              .push({ name: aliasScopedKey(n, im.url), val: bind })
+            hoist.push({ name: aliasScopedKey(local, im.url), val: bind })
           }
         }
 
@@ -1454,7 +1473,7 @@ help isolate the syntax error.`,
         else if (true === ktkn?.use?.aontu_export) {
           holder.u.aontu_export_decls = (holder.u.aontu_export_decls || [])
           holder.u.aontu_export_decls.push(
-            { names: ktkn.use.aontu_export_names, tkn: ktkn })
+            { items: ktkn.use.aontu_export_items, tkn: ktkn })
         }
         else if (null != ktkn?.use?.aontu_import) {
           holder.u.aontu_import_decls = (holder.u.aontu_import_decls || [])
