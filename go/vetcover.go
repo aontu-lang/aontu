@@ -112,13 +112,15 @@ func coverWalkData(v Val, path []string, out *[]coverDataPath) {
 }
 
 // A shape is not always a bag where it stands: a spread or a key can
-// carry `close({...})` or `$.Name`, and coverage wants the bag under
-// them. Bounded, because a cycle of definitions would never settle.
-const coverHops = 16
-
+// carry a shape-preserving call (close, type) or a reference, and
+// coverage wants the bag under them. Termination is by the values
+// already passed through, so a cycle of definitions settles while a
+// long but finite chain of wrappers still reaches its bag.
 func coverThrough(v Val, root Val) Val {
 	at := v
-	for hop := 0; nil != at && hop < coverHops; hop++ {
+	seen := map[Val]bool{}
+	for nil != at && !seen[at] {
+		seen[at] = true
 		switch b := at.(type) {
 		case *MapVal:
 			return b
@@ -127,7 +129,7 @@ func coverThrough(v Val, root Val) Val {
 		case *FuncVal:
 			// ABSOLUTE refs only, below: this walk carries no position
 			// for a relative one to resolve against.
-			if "close" != b.name || 1 > len(b.peg) {
+			if ("close" != b.name && "type" != b.name) || 1 > len(b.peg) {
 				return nil
 			}
 			at = b.peg[0]
@@ -149,15 +151,26 @@ func coverThrough(v Val, root Val) Val {
 	return nil
 }
 
+// A reference descends lists as well as maps: `$.Defs.0` is a path.
 func coverRefTarget(root Val, segs []any) Val {
 	at := root
 	for _, seg := range segs {
 		name, isName := seg.(string)
-		m, isMap := at.(*MapVal)
-		if !isName || !isMap {
+		if !isName {
 			return nil
 		}
-		at = m.peg[name]
+		switch b := at.(type) {
+		case *MapVal:
+			at = b.peg[name]
+		case *ListVal:
+			i, err := strconv.Atoi(name)
+			if nil != err || 0 > i || i >= len(b.peg) {
+				return nil
+			}
+			at = b.peg[i]
+		default:
+			return nil
+		}
 	}
 	return at
 }

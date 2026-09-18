@@ -38,10 +38,15 @@ func TestCoverThroughDeclinesWhatIsNotAShape(t *testing.T) {
 	if nil == coverThrough(abs, root) {
 		t.Error("an absolute reference did not resolve")
 	}
+	list := newList([]Val{newMap()})
+	root.set("Defs", list)
 	for _, miss := range [][]any{
 		{"NoSuchName"},       // no such key
 		{"Scalar", "deeper"}, // a step that is not a map
 		{42},                 // a part that is not a name
+		{"Defs", "9"},        // a list index past the end
+		{"Defs", "-1"},       // ... or before the start
+		{"Defs", "middle"},   // ... or not an index at all
 	} {
 		r := &RefVal{peg: miss, absolute: true}
 		if nil != coverThrough(r, root) {

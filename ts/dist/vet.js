@@ -263,17 +263,19 @@ function coverDataPaths(v, path, out) {
         coverDataPaths(val, [...path, key], out);
     }
 }
-// A shape is not always a bag where it stands: a spread or a key can
-// carry `close({...})` or `$.Name`, and coverage wants the bag under
-// them. Bounded, because a cycle of definitions would never settle.
-const COVER_HOPS = 16;
+// A spread or a key can carry a shape-preserving call (close, type) or
+// a reference, and coverage wants the bag under it. The seen set, not a
+// hop count, settles a cycle without rejecting a long finite chain.
 function coverThrough(v, root) {
     let at = v;
-    for (let hop = 0; null != at && hop < COVER_HOPS; hop++) {
+    const seen = new Set();
+    while (null != at && !seen.has(at)) {
         if (true === at.isMap || true === at.isList) {
             return at;
         }
-        if (true === at.isCloseFunc && Array.isArray(at.peg)) {
+        seen.add(at);
+        if ((true === at.isCloseFunc || true === at.isTypeFunc) &&
+            Array.isArray(at.peg)) {
             at = at.peg[0];
             continue;
         }
@@ -290,13 +292,16 @@ function coverThrough(v, root) {
     }
     return undefined;
 }
+// A reference descends lists too: `$.Defs.0` is a path.
 function coverRefTarget(root, segs) {
     let at = root;
     for (const seg of segs) {
-        if ('string' !== typeof seg || true !== at?.isMap || null == at.peg) {
+        if ('string' !== typeof seg) {
             return undefined;
         }
-        at = at.peg[seg];
+        at = true === at?.isMap && null != at.peg ? at.peg[seg]
+            : true === at?.isList && Array.isArray(at.peg) ? at.peg[Number(seg)]
+                : undefined;
     }
     return at;
 }
