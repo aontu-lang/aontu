@@ -33,13 +33,17 @@
   :type '(repeat string)
   :group 'aontu)
 
-(defvar aontu-mode-syntax-table
+(defconst aontu-mode-syntax-table
   (let ((table (make-syntax-table)))
     ;; `#' starts a line comment, newline ends it.
-    (modify-syntax-entry ?# "<" table)
-    (modify-syntax-entry ?\n ">" table)
+    (modify-syntax-entry ?# "< b" table)
+    (modify-syntax-entry ?\n "> b" table)
+    (modify-syntax-entry ?/ ". 124b" table)
+    (modify-syntax-entry ?* ". 23" table)
     ;; Strings.
     (modify-syntax-entry ?\" "\"" table)
+    (modify-syntax-entry ?' "\"" table)
+    (modify-syntax-entry ?` "\"" table)
     ;; Treat these as symbol constituents so refs like $.a.b read well.
     (modify-syntax-entry ?$ "_" table)
     (modify-syntax-entry ?. "_" table)
@@ -66,6 +70,27 @@
       ("\\*" . font-lock-negation-char-face)))
   "Font-lock highlighting for `aontu-mode'.")
 
+(defun aontu-indent-line ()
+  "Indent the current line two spaces inside its enclosing block."
+  (interactive)
+  (let ((content-offset (- (current-column) (current-indentation)))
+        (indent
+         (save-excursion
+           (back-to-indentation)
+           (let* ((state (syntax-ppss))
+                  (opener (nth 1 state))
+                  (closing (eq (char-syntax (or (char-after) ?\s)) ?\))))
+             (unless (or (nth 3 state) (nth 4 state))
+               (if opener
+                   (progn
+                     (goto-char opener)
+                     (+ (current-indentation) (if closing 0 2)))
+                 0))))))
+    (when indent
+      (indent-line-to indent)
+      (when (> content-offset 0)
+        (move-to-column (+ indent content-offset))))))
+
 ;;;###autoload
 (define-derived-mode aontu-mode prog-mode "Aontu"
   "Major mode for editing Aontu source files."
@@ -74,6 +99,9 @@
   (setq-local comment-start-skip "#+\\s-*")
   (setq-local comment-end "")
   (setq-local font-lock-defaults '(aontu-font-lock-keywords))
+  (setq-local indent-line-function #'aontu-indent-line)
+  (setq-local tab-width 2)
+  (setq-local standard-indent 2)
   (setq-local indent-tabs-mode nil))
 
 ;;;###autoload
