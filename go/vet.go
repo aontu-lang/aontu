@@ -583,7 +583,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 				measured = settled
 			}
 		}
-		got := vetCoverageOf(anchor, measured, options.CoverageAt)
+		got := vetCoverageOf(anchor, measured, options.CoverageAt, schemaVal)
 		coverage = &got
 	}
 

@@ -111,10 +111,65 @@ func coverWalkData(v Val, path []string, out *[]coverDataPath) {
 	}
 }
 
-func coverMatch(anchor Val, segs []string) string {
+// A shape is not always a bag where it stands: a spread or a key can
+// carry `close({...})` or `$.Name`, and coverage wants the bag under
+// them. Bounded, because a cycle of definitions would never settle.
+const coverHops = 16
+
+func coverThrough(v Val, root Val) Val {
+	at := v
+	for hop := 0; nil != at && hop < coverHops; hop++ {
+		switch b := at.(type) {
+		case *MapVal:
+			return b
+		case *ListVal:
+			return b
+		case *FuncVal:
+			// ABSOLUTE refs only, below: this walk carries no position
+			// for a relative one to resolve against.
+			if "close" != b.name || 1 > len(b.peg) {
+				return nil
+			}
+			at = b.peg[0]
+		case *RefVal:
+			if !b.absolute {
+				return nil
+			}
+			at = coverRefTarget(root, b.peg)
+		case *RecurseVal:
+			parts := make([]any, 0, len(b.target))
+			for _, p := range b.target {
+				parts = append(parts, p)
+			}
+			at = coverRefTarget(root, parts)
+		default:
+			return nil
+		}
+	}
+	return nil
+}
+
+func coverRefTarget(root Val, segs []any) Val {
+	at := root
+	for _, seg := range segs {
+		name, isName := seg.(string)
+		m, isMap := at.(*MapVal)
+		if !isName || !isMap {
+			return nil
+		}
+		at = m.peg[name]
+	}
+	return at
+}
+
+func coverMatch(anchor Val, segs []string, root Val) string {
 	at := anchor
 	decl := ""
 	for _, seg := range segs {
+		at = coverThrough(at, root)
+		if nil == at {
+			return ""
+		}
 		var named Val
 		switch b := at.(type) {
 		case *MapVal:
@@ -173,7 +228,7 @@ func coverShallowest(paths []string) []string {
 
 // vetCoverageOf is the accounting itself: what the schema declared,
 // what the data holds, and which of each the other met.
-func vetCoverageOf(anchor, dataVal Val, coverageAt string) VetCoverage {
+func vetCoverageOf(anchor, dataVal Val, coverageAt string, root Val) VetCoverage {
 	declarations := map[string]bool{}
 	coverDeclare(anchor, nil, declarations)
 
@@ -203,7 +258,7 @@ func vetCoverageOf(anchor, dataVal Val, coverageAt string) VetCoverage {
 				segs = append(segs, s)
 			}
 		}
-		decl := coverMatch(anchor, segs)
+		decl := coverMatch(anchor, segs, root)
 		if dp.leaf {
 			leaves++
 		}

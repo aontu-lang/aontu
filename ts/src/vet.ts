@@ -423,14 +423,61 @@ function coverDataPaths(
 }
 
 
+// A shape is not always a bag where it stands: a spread or a key can
+// carry `close({...})` or `$.Name`, and coverage wants the bag under
+// them. Bounded, because a cycle of definitions would never settle.
+const COVER_HOPS = 16
+
+
+export function coverThrough(v: any, root: any): any {
+  let at = v
+  for (let hop = 0; null != at && hop < COVER_HOPS; hop++) {
+    if (true === at.isMap || true === at.isList) {
+      return at
+    }
+    if (true === at.isCloseFunc && Array.isArray(at.peg)) {
+      at = at.peg[0]
+      continue
+    }
+    // ABSOLUTE only: this walk carries no position to resolve against.
+    if (true === at.isRef && true === at.absolute && Array.isArray(at.peg)) {
+      at = coverRefTarget(root, at.peg)
+      continue
+    }
+    if (true === at.isRecurse && Array.isArray(at.target)) {
+      at = coverRefTarget(root, at.target)
+      continue
+    }
+    return undefined
+  }
+  return undefined
+}
+
+
+function coverRefTarget(root: any, segs: any[]): any {
+  let at = root
+  for (const seg of segs) {
+    if ('string' !== typeof seg || true !== at?.isMap || null == at.peg) {
+      return undefined
+    }
+    at = at.peg[seg]
+  }
+  return at
+}
+
+
 // Walk one data path down the schema, naming the declaration that
 // constrains it -- the exact key where the schema has one, else the
 // covering template. Undefined when the schema declares nothing there.
 function coverMatch(
-  anchor: any, segs: string[]): string | undefined {
+  anchor: any, segs: string[], root: any): string | undefined {
   let at: any = anchor
   let decl = ''
   for (const seg of segs) {
+    at = coverThrough(at, root)
+    if (null == at) {
+      return undefined
+    }
     const named = true === at.isMap && null != at.peg ? at.peg[seg]
       : true === at.isList && Array.isArray(at.peg) ? at.peg[Number(seg)]
         : undefined
@@ -470,7 +517,8 @@ function coverShallowest(paths: string[]): string[] {
 // The accounting itself: what the schema declared, what the data holds,
 // and which of each the other met.
 export function vetCoverage(
-  anchor: any, dataVal: any, coverageAt?: string): VetCoverage {
+  anchor: any, dataVal: any, coverageAt?: string,
+  root?: any): VetCoverage {
   const declarations = new Map<string, any>()
   coverDeclare(anchor, [], declarations)
 
@@ -499,7 +547,7 @@ export function vetCoverage(
       continue
     }
     const segs = path.replace(/^\$\.?/, '').split('.').filter((x) => '' !== x)
-    const decl = coverMatch(anchor, segs)
+    const decl = coverMatch(anchor, segs, root ?? anchor)
     if (leaf) {
       leaves++
     }
@@ -617,7 +665,7 @@ export function vet(
     // the same paths minus whatever an include would have added.
     const measured = 0 === coverCtx.err.length && true !== settledData?.isNil
       ? settledData : dataVal
-    coverage = vetCoverage(anchor, measured, options.coverageAt)
+    coverage = vetCoverage(anchor, measured, options.coverageAt, schemaVal)
   }
 
   const lintFindings: VetFinding[] = []

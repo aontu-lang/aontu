@@ -582,4 +582,31 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal('errors' in (0, relation_1.relationCheck)('a:1'), false);
     });
 });
+(0, node_test_1.describe)('vet-cover-through', () => {
+    // THE ARMS THAT DECLINE TO RESOLVE: anything not ending at a bag
+    // answers nothing, rather than crediting a leaf nothing reached.
+    (0, node_test_1.test)('declines-what-is-not-a-shape', () => {
+        const root = {
+            isMap: true,
+            peg: {
+                Shape: { isMap: true, peg: { v: { isVal: true } } },
+                Scalar: { isVal: true },
+            },
+        };
+        Assert.equal((0, vet_1.coverThrough)(root, root), root);
+        Assert.equal((0, vet_1.coverThrough)({ isVal: true }, root), undefined);
+        Assert.equal((0, vet_1.coverThrough)({ isCloseFunc: true, peg: 'not-a-list' }, root), undefined);
+        const shape = root.peg.Shape;
+        Assert.equal((0, vet_1.coverThrough)({ isCloseFunc: true, peg: [shape] }, root), shape);
+        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: false, peg: ['Shape'] }, root), undefined);
+        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: ['Shape'] }, root), shape);
+        for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42]]) {
+            Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: miss }, root), undefined, JSON.stringify(miss));
+        }
+        Assert.equal((0, vet_1.coverThrough)({ isRecurse: true, target: ['Shape'] }, root), shape);
+        const cyc = { isMap: true, peg: {} };
+        cyc.peg.A = { isRef: true, absolute: true, peg: ['A'] };
+        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: ['A'] }, cyc), undefined);
+    });
+});
 //# sourceMappingURL=vet.test.js.map

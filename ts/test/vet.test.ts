@@ -6,7 +6,7 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { vet, displayFile } from '../dist/vet'
+import { vet, displayFile, coverThrough } from '../dist/vet'
 import { trimCheck } from '../dist/trim'
 import { relationCheck } from '../dist/relation'
 import { subsume } from '../dist/subsume'
@@ -709,5 +709,50 @@ describe('verb-errors', () => {
     // whole test.
     Assert.equal('errors' in trimCheck('a:1'), false)
     Assert.equal('errors' in relationCheck('a:1'), false)
+  })
+})
+
+
+describe('vet-cover-through', () => {
+
+  // THE ARMS THAT DECLINE TO RESOLVE: anything not ending at a bag
+  // answers nothing, rather than crediting a leaf nothing reached.
+  test('declines-what-is-not-a-shape', () => {
+    const root: any = {
+      isMap: true,
+      peg: {
+        Shape: { isMap: true, peg: { v: { isVal: true } } },
+        Scalar: { isVal: true },
+      },
+    }
+
+    Assert.equal(coverThrough(root, root), root)
+    Assert.equal(coverThrough({ isVal: true }, root), undefined)
+    Assert.equal(
+      coverThrough({ isCloseFunc: true, peg: 'not-a-list' }, root), undefined)
+    const shape = root.peg.Shape
+    Assert.equal(
+      coverThrough({ isCloseFunc: true, peg: [shape] }, root), shape)
+
+    Assert.equal(
+      coverThrough({ isRef: true, absolute: false, peg: ['Shape'] }, root),
+      undefined)
+    Assert.equal(
+      coverThrough({ isRef: true, absolute: true, peg: ['Shape'] }, root),
+      shape)
+    for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42]]) {
+      Assert.equal(
+        coverThrough({ isRef: true, absolute: true, peg: miss }, root),
+        undefined, JSON.stringify(miss))
+    }
+
+    Assert.equal(
+      coverThrough({ isRecurse: true, target: ['Shape'] }, root), shape)
+
+    const cyc: any = { isMap: true, peg: {} }
+    cyc.peg.A = { isRef: true, absolute: true, peg: ['A'] }
+    Assert.equal(
+      coverThrough({ isRef: true, absolute: true, peg: ['A'] }, cyc),
+      undefined)
   })
 })
