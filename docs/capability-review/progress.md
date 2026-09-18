@@ -2140,9 +2140,16 @@ is read as a G9 phase row by `ts/test/capability-review.test.ts`, which
 tags every such line with the last `## G<n>` heading above it, and this
 heading is not one.
 
-- **`g6-distribution.md` still puts the major version in the module
+- **`g6-distribution.md` put the major version in the module
   path**, which [ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
-  takes out of the name. Eleven sites carry it: two under "Problem",
+  takes out of the name. **Answered 2026-09-18 in that document's
+  status block**, where a reader starts: it now says the shapes below
+  carry `@<major>` and a built path does not, and enumerates the
+  eleven so none is met unannounced. The shapes themselves are left as
+  designed — the document is the record of what was designed, and the
+  register is authoritative for what was built. The same edit
+  corrected that block's claim that the two network verbs were the one
+  thing absent; they landed on 2026-09-16. Eleven sites carry it: two under "Problem",
   four under "Module identity and import syntax", two under "Module
   file and lockfile", two under "Resolution, offline, and vendoring",
   and the vendor directory in the 2026-09-03 amendment. One of the
@@ -2151,8 +2158,14 @@ heading is not one.
   in the G10 narrative below. The `@v0` in the CUE entry under "Prior
   art" describes CUE and is not one of the eleven. This is the largest
   outstanding correction in the directory.
-- **`g10-transparency.md` phase 6, and G10 row 6 below, plan witnesses
-  for a log the project will not run.** Cosignatures, gossip, mutation
+- **`g10-transparency.md` phase 6 planned witnesses for a log the
+  project will not run. Answered 2026-09-18**: that phase now says the
+  cosignatures, gossip and witnesses are Sigstore's to operate and
+  phase 2's client to verify, that the git mirror is of the read-path
+  layout rather than of a log this project does not keep, and that
+  this register's row is the current list. G10 row 6 below was already
+  rewritten for the federated design on 2026-09-16; it was the gap
+  document that had not been re-read.** Cosignatures, gossip, mutation
   alerting and a git mirror are the operator's side of a sequencer
   that [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
   federated to Sigstore; G10 phase 5 is RETIRED on exactly that

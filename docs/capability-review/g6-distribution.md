@@ -3,9 +3,30 @@
 *Status: implemented — all five phases landed in both ports: the
 hash form, the canon-hash with `aontu hash` on both command lines,
 module identity with local resolution, the `tidy`/`vendor` tooling,
-and the publish boundary. Only the two network verbs (`mod get`,
-`mod publish`) are absent — the parts that carry no semantics.
-Per-phase status and the corrections this document needs are in the
+and the publish boundary. **The network verbs have landed too**, on
+2026-09-16 under
+[ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins),
+spelled `aontu get` and `aontu publish` rather than `mod get` and
+`mod publish`; this line said they were the one thing absent until
+2026-09-18.*
+
+***A module path in this document carries `@<major>`, and a built one
+does not.***
+[ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+takes the major out of the name, and the amendment at the foot of this
+document says so — but a reader who lands in the middle meets the old
+shape first, which is why it is said here as well. Eleven sites carry
+it: two under [Problem](#problem), four under [Module identity and
+import syntax](#module-identity-and-import-syntax) (one of them an
+ADR-020 annotation saying the shape "needs no amendment", which is
+itself the claim ADR-022 corrected), two under the module file and
+lockfile, two under resolution and vendoring, and the vendor
+directory in the 2026-09-03 amendment. The `@v0` under
+[Prior art](#prior-art) describes CUE and is not one of them. The
+shapes are left as designed rather than rewritten, because this
+document is the record of what was designed.
+
+*Per-phase status and the corrections this document needs are in the
 [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap

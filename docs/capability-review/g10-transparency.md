@@ -550,8 +550,19 @@ endpoint, a note checkpoint, a sequencer for the append path. Public
 schema and auditor in `aontu-lang/mod`; operations in
 `aontu-lang/system`.
 
-**Phase 6 — witnesses and hardening (M).** Cosignatures, gossip,
-mutation alerting, the git mirror.
+**Phase 6 — witnesses and hardening (M).** *Rewritten 2026-09-18 for
+the federated design; it read "Cosignatures, gossip, mutation
+alerting, the git mirror" and the first two are no longer this
+project's to run.*
+[ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
+federated the log to Sigstore, so its cosignatures, checkpoint gossip
+and witnesses are theirs to operate and phase 2's client to verify —
+nothing here builds a witness, and phase 5 was retired on that same
+ground. What survives as this project's: mutation alerting on the
+repository, the git mirror **of the read-path layout** (not of a log
+this project does not keep), and the hardening a first third-party
+publisher forces. The register's row for this phase is the current
+list.
 
 ## Open questions
 
