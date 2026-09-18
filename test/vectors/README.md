@@ -9,8 +9,13 @@ bytes.
 
 **Do not edit it.** Regenerate in `aontu-lang/mod` (`npm run vectors`)
 and copy the result across; `mod`'s CI fails if the committed file
-disagrees with the pin, and `TestTlogVectorsAreUpstreams` here fails if
-this copy disagrees with the port.
+disagrees with the pin. Here, `TestTlogVectorsAreUpstreams` fails if
+the file does not name the upstream it was generated from, and the nine
+tests beside it in [`go/tlog_test.go`](../../go/tlog_test.go) fail if
+the port disagrees with the file. Nothing yet checks this copy against
+`mod`'s, so a regeneration there strands this file silently. The first
+`@aontu/mod` release is what makes that checkable: the tarball carries
+`vectors/tlog.json`, so a test can compare the two byte for byte.
 
 The pin, and the reason it is v0.32.0 rather than the latest, is in
 [`UPSTREAM_GO_MOD.md`](https://github.com/aontu-lang/mod/blob/main/UPSTREAM_GO_MOD.md).

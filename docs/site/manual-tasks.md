@@ -43,6 +43,8 @@ test that made it say so deleted the caveat when the pin caught up.
 | C4 | Org-rename leftovers | **done** except two account identities — a Marketplace publisher and an action's author |
 | C5 | Sponsorship treatment | open — needs a decision |
 | D1 | npm trusted-publisher record after the rename | **done** — proven by the 0.53.0 release |
+| D2 | npm anything in the site repo | **done** — there is none, and that is the decision |
+| D3 | The `aontu` npm org | open — the scope already resolves, so the first move is `npm org ls aontu` |
 
 D1 was the one that bit if left. It is closed the only way that really
 settles it: the 0.53.0 release published over OIDC on 2026-08-28, so
@@ -355,7 +357,7 @@ about five minutes.
 trusted publisher, no `NPM_TOKEN`. It only *consumes* `aontu` from the
 public registry. Listed so its absence reads as a decision.
 
-### D3. Create the `aontu` npm org
+### D3. Settle the `aontu` npm org
 
 The package `aontu` is unscoped and yours, and the plan keeps it that
 way. The org is a separate need, and it is no longer optional: the
@@ -365,20 +367,44 @@ the transparency client, which has never been published --
 `registry.npmjs.org/@aontu%2Fmod` answers `{"error":"Not found"}`. No
 version is named here on purpose: this line said 0.1.0 until
 2026-09-18, by which time the package was at 0.2.0, and the claim that
-matters is that nothing is published rather than which version is not. Stopping someone else
-publishing `@aontu/anything` with your name on it is now the second
-reason rather than the only one.
+matters is that nothing is published rather than which version is not.
+Stopping someone else publishing `@aontu/anything` with your name on it
+is now the second reason rather than the only one.
 
 This gates the module system's first publish, not the site — nothing
 on aontu.dev resolves a scoped name.
 
-Create it at <https://www.npmjs.com/org/create> (the Free plan; scoped
-public packages cost nothing), then check rather than assume, because
-an org name someone else already holds is refused rather than queued:
+**Start by asking, not by creating.** The scope already resolves:
+`registry.npmjs.org/-/org/aontu/package` answers `200` with `{}`, while
+the same endpoint answers `404 {"error":"Scope not found"}` for
+`aontu-lang` and for a string nobody owns. `-/org/aontu/user` answers
+`{}`, which is what an organisation answers unauthenticated -- a
+personal scope answers with its owner. Probed 2026-09-18. So something
+holds `aontu` and publishes nothing public under it, and
+<https://www.npmjs.com/org/create> would refuse the name rather than
+queue it.
+
+One command settles whose it is:
 
 ```sh
-npm org ls aontu           # expect your account, role owner
+npm org ls aontu           # owner: it already exists and this is done
+                           # refused: the name is someone else's
 ```
+
+If it is already yours, nothing further is needed here and §2's
+bootstrap can run today (the Free plan covers scoped public packages).
+If it is refused, the package is renamed before anything is published,
+and §2 carries the list of files that has to move -- longer than it
+looks, and one of them re-pins the specification.
+
+**The org is the first of five steps, not the whole of it.** npm will
+not register a trusted publisher for a name that has never been
+published — `npm trust`'s manual makes the package's existence a
+precondition — so the first publish of `@aontu/mod` cannot come from
+CI over OIDC, and the order is bootstrap, then trust, then dispatch.
+The sequence, the decision it turns on and the verification are §2 of
+[`docs/manual-tasks.md`](https://github.com/aontu-lang/system/blob/main/docs/manual-tasks.md)
+in `aontu-lang/system`.
 
 **Hand back:** confirmation the org exists, or the name it had to
 become instead.
@@ -404,8 +430,16 @@ the site is serving from the apex.
 
 What is left, in the order it will hurt if ignored:
 
-1. **D3** — the free `aontu` npm org. `@aontu/mod` cannot publish until
-   it exists, and it is the module system's first scoped package.
+1. **D3** — the `aontu` npm org. `@aontu/mod` cannot publish until it
+   exists, and it is the module system's first scoped package. The
+   scope already resolves on the registry, so the first move is `npm
+   org ls aontu` rather than the create page: it is either already
+   yours, or it has to be renamed around. Either way the org is the
+   first of five steps, because npm will not trust a publisher for a
+   name that has never been published — so the first release is
+   bootstrapped by hand and every one after it comes from CI. §2 of
+   `aontu-lang/system`'s `docs/manual-tasks.md` has the sequence, and
+   the rename list if it comes to that.
 2. **C4** — two account identities, and nothing else: a Marketplace
    publisher and an action's author. The SARIF `informationUri` moved
    on 2026-09-16 and the OCI annotation keys went with the OCI
