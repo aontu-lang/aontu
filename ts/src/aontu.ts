@@ -35,7 +35,7 @@ import { format, unifiedDiff } from './format'
 export type { LintFinding, FormatReport, FormatOptions } from './format'
 
 
-const VERSION = '0.67.0'
+const VERSION = '0.68.0'
 
 
 function genQuiet(val: any, aontu: Aontu): any {
