@@ -291,7 +291,7 @@ from commit `2cec558`, over the OIDC trusted-publisher path in
 the MCP server, and all of G3, G4, G6, G7 and G8 are installable for
 the first time. `npm view aontu version` answered `0.53.0` that day, the proxy
 resolves `github.com/aontu-lang/aontu/go@v0.1.11`, and both tags point
-at that one commit. **Ten releases have followed**: 0.54.0 / go 0.1.12
+at that one commit. **Fourteen releases have followed**: 0.54.0 / go 0.1.12
 on 2026-09-02 (tags at `3dbb5ef`), 0.55.0 / go 0.1.13 on 2026-09-03
 (`69b80b7`), 0.56.0 / go 0.1.14 on 2026-09-03 (`22a5d31`), 0.57.0 /
 go 0.1.15 on 2026-09-05 (`05a8760`, the merge of #148), 0.58.0 /
@@ -2129,12 +2129,15 @@ a recursive rule set has no finite expansion at all. Phases 6–8 are
 committed to on that basis: the dispatch is a builtin, and the surface
 that desugars to it comes after.
 
-## Corrections outstanding in the gap documents
+## Corrections to the gap documents
 
 Recorded here rather than fixed silently, because each is a change to a
 design document and belongs in a commit with its reasoning.
 
-**Two entries are outstanding, both entered 2026-09-13.** Neither is a
+**Both entries are now answered.** They were entered 2026-09-13 and
+discharged 2026-09-18; they stay here, with what was done, because the
+reasoning is the point and a correction that vanishes when it lands
+teaches nothing. **Nothing in this section is outstanding.** Neither is a
 table row, deliberately: a line beginning with a pipe and a bold cell
 is read as a G9 phase row by `ts/test/capability-review.test.ts`, which
 tags every such line with the last `## G<n>` heading above it, and this
@@ -2149,15 +2152,15 @@ heading is not one.
   designed — the document is the record of what was designed, and the
   register is authoritative for what was built. The same edit
   corrected that block's claim that the two network verbs were the one
-  thing absent; they landed on 2026-09-16. Eleven sites carry it: two under "Problem",
+  thing absent; they landed on 2026-09-16. It was the largest of the
+  two while it stood. Eleven sites carry it: two under "Problem",
   four under "Module identity and import syntax", two under "Module
   file and lockfile", two under "Resolution, offline, and vendoring",
   and the vendor directory in the 2026-09-03 amendment. One of the
   four is the correction's own subject — the ADR-020 annotation
   saying the shape "needs no amendment", which is the claim corrected
   in the G10 narrative below. The `@v0` in the CUE entry under "Prior
-  art" describes CUE and is not one of the eleven. This is the largest
-  outstanding correction in the directory.
+  art" describes CUE and is not one of the eleven.
 - **`g10-transparency.md` phase 6 planned witnesses for a log the
   project will not run. Answered 2026-09-18**: that phase now says the
   cosignatures, gossip and witnesses are Sigstore's to operate and
