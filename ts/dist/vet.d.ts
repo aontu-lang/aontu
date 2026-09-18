@@ -57,5 +57,5 @@ export declare function failureFinding(ctx: any, url?: string, failed?: any): Ve
 export declare function anchorAt(root: any, at: string): Val | undefined;
 export declare function throughResidue(v: any): any;
 export declare function coverThrough(v: any, root: any): any;
-export declare function vetCoverage(anchor: any, dataVal: any, coverageAt?: string, root?: any): VetCoverage;
+export declare function vetCoverage(anchor: any, dataVal: any, coverageAt: string | undefined, root: any): VetCoverage;
 export declare function vet(schemaSrc: string, dataSrc: string, opts?: VetOptions): VetReport;

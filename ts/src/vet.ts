@@ -517,8 +517,8 @@ function coverShallowest(paths: string[]): string[] {
 // The accounting itself: what the schema declared, what the data holds,
 // and which of each the other met.
 export function vetCoverage(
-  anchor: any, dataVal: any, coverageAt?: string,
-  root?: any): VetCoverage {
+  anchor: any, dataVal: any, coverageAt: string | undefined,
+  root: any): VetCoverage {
   const declarations = new Map<string, any>()
   coverDeclare(anchor, [], declarations)
 
@@ -547,7 +547,7 @@ export function vetCoverage(
       continue
     }
     const segs = path.replace(/^\$\.?/, '').split('.').filter((x) => '' !== x)
-    const decl = coverMatch(anchor, segs, root ?? anchor)
+    const decl = coverMatch(anchor, segs, root)
     if (leaf) {
       leaves++
     }

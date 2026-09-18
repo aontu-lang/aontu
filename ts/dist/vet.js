@@ -371,7 +371,7 @@ function vetCoverage(anchor, dataVal, coverageAt, root) {
             continue;
         }
         const segs = path.replace(/^\$\.?/, '').split('.').filter((x) => '' !== x);
-        const decl = coverMatch(anchor, segs, root ?? anchor);
+        const decl = coverMatch(anchor, segs, root);
         if (leaf) {
             leaves++;
         }

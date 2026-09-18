@@ -608,5 +608,13 @@ const SCHEMA = 'service: { name: string, port: integer }';
         cyc.peg.A = { isRef: true, absolute: true, peg: ['A'] };
         Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: ['A'] }, cyc), undefined);
     });
+    // Data deeper than the schema declares: the walk descends into a
+    // declaration and then past it, so the leaf is credited to nothing.
+    (0, node_test_1.test)('stops-where-nothing-is-declared', () => {
+        const r = (0, vet_1.vet)('a:string', 'a:{b:1}', { coverage: true });
+        Assert.equal(r.coverage?.checked, 0);
+        Assert.deepEqual(r.coverage?.unchecked, ['$.a.b']);
+        Assert.equal(r.coverage?.vacuous, true);
+    });
 });
 //# sourceMappingURL=vet.test.js.map

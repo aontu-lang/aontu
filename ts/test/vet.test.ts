@@ -755,4 +755,14 @@ describe('vet-cover-through', () => {
       coverThrough({ isRef: true, absolute: true, peg: ['A'] }, cyc),
       undefined)
   })
+
+
+  // Data deeper than the schema declares: the walk descends into a
+  // declaration and then past it, so the leaf is credited to nothing.
+  test('stops-where-nothing-is-declared', () => {
+    const r = vet('a:string', 'a:{b:1}', { coverage: true })
+    Assert.equal(r.coverage?.checked, 0)
+    Assert.deepEqual(r.coverage?.unchecked, ['$.a.b'])
+    Assert.equal(r.coverage?.vacuous, true)
+  })
 })
