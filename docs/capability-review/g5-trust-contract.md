@@ -128,8 +128,8 @@ What exists and is reusable:
 - **Injectable capability points.** `AontuOptions` (ts/src/type.ts)
   accepts `resolver`, `fs`, and `base`; docs/reference-api.md
   documents an in-memory resolver and `memfs` volumes for tests. The
-  resolver chain itself (`makeModelResolver`, ts/src/lang.ts, ~line
-  757) tries memory → filesystem → package in order, so a confined
+  resolver chain itself (`makeModelResolver`, ts/src/lang.ts) tries
+  memory → filesystem → package in order, so a confined
   memory-only evaluation is constructible today — it is a posture, not
   a default, and nothing tests it.
 - **Bounded evaluation, mechanically.** The fixpoint is already

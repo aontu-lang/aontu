@@ -590,7 +590,8 @@ follows, and `make test` runs both. Nothing may regress: every row
 of the shared suite — its size lives with the suite counts in the
 register's [protocol rule 5](progress.md#the-update-protocol);
 `test/spec/divergent.tsv` is the parity-debt ledger, empty at this
-writing and carrying one OPEN entry (#24, lone surrogates) today —
+writing and carrying open entries today, #24 (lone surrogates) among
+them — read the file for the live list rather than a count here —
 except the single row Phase 6 deliberately amends, and the canon
 round-trip property throughout.
 

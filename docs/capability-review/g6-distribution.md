@@ -133,8 +133,8 @@ bones, and both fall short in specific, enumerable ways.
   paths resolve against the including file's own directory
   (`test/spec/file.tsv:load-rel-chain`); the entry base is
   configurable (TS `path` option, Go `NewWithBase`).
-- **The resolver chain.** `makeModelResolver` (`ts/src/lang.ts`,
-  ~757–816) tries memory → filesystem → package, composing
+- **The resolver chain.** `makeModelResolver` (`ts/src/lang.ts`)
+  tries memory → filesystem → package, composing
   `makeMemResolver`, `makeFileResolver`, and `makePkgResolver` from
   `@tabnas/multisource`. The memory resolver
   (`options.resolver.mem`) is the sandbox-friendly entry point the
@@ -311,6 +311,15 @@ A string routes to the module resolver only when it matches
 `host.tld/path…/name@N` (first segment contains a dot; trailing
 `@<integer>` major). Anything else falls through to the existing
 chain unchanged, so no current spec row can be affected.
+
+*(Inverted by [ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
+part 1, built 2026-09-16 in `cc240ec0`, and said here because this is a
+rule rather than a spelling: the built predicate routes a domain-shaped
+path that carries **no** major, and `MODULE_RE` in `ts/src/mod.ts`
+excludes `@` from a path element, so
+`corp.example/schemas/service@1` now falls through to the include
+chain — the opposite of what the paragraph above asks for. The dot in
+the first segment is the whole of the test that survives.)*
 
 ### Module file and lockfile — written in aontu
 
@@ -599,10 +608,13 @@ tidy/vendor`; MVS resolution; lockfile writing in canonical form.
 Landed as designed, in `ts/src/mod-tool.ts`, new `go/modtool.go`,
 `ts/src/cli.ts`, new `go/cmd/aontu/mod.go` and
 `docs/reference-api.md`. `get`/`publish` over OCI did NOT land: the
-network code the design puts outside evaluation also sits outside
-what this build can test — there is no registry to integrate
-against — and the CLIs name the two subcommands and say which half
-is missing rather than answering "unknown subcommand". Because
+network code the design puts outside evaluation also sat outside what
+that build could test — there was no registry to integrate against —
+and the CLIs named the two subcommands and said which half was missing
+rather than answering "unknown subcommand". Both verbs landed later,
+on 2026-09-16 as `aontu get` and `aontu publish` against a repository
+of static objects rather than over OCI, behind an injectable transport
+that answers the testability objection: G10 phases 3 and 4. Because
 nothing the phase does is language behaviour, its parity discipline
 is the CLI one (twin per-port tests plus a byte-for-byte diff of the
 two commands over a fixture corpus, streams AND the files they
@@ -618,7 +630,10 @@ wiring at the publish boundary — and that is exactly what landed,
 as `aontu mod manifest`, which computes and gates everything a
 publish would send and stops before sending it. The annotation set
 and the gate ARE the phase; the push is the one part that carries
-no semantics, and it is the part with no registry to send to. The
+no semantics, and at this phase it was the part with no registry to
+send to. `publish` sends to one now (G10 phase 4, 2026-09-16), and
+what it sends is the specification's signed manifest rather than the
+OCI artifact this phase built. The
 hash-keyed cache integration needed no new code: the cache G6.2
 built is already keyed by the hash the annotation carries. See the
 [register](progress.md) for the three departures.
@@ -637,10 +652,11 @@ built is already keyed by the hash the annotation carries. See the
   landed hash is computed over UTF-8 hash-canon text, with the
   `aon1-` scheme id in the string and cross-implementation identity
   pinned by the `hash` spec mode. The one escaping edge the fuzz
-  concern predicted is real and tracked: lone surrogates are
-  DIVERGENCE.md's open entry #24. (The question as posed: Dhall
-  hashes CBOR to dodge text-escaping ambiguity; the parity suite's
-  byte-identical canon argued text is safe.)
+  concern predicted is real and tracked: lone surrogates are an OPEN
+  entry in the parity ledger, `test/spec/divergent.tsv`, under issue
+  #24. (The question as posed: Dhall hashes CBOR to dodge
+  text-escaping ambiguity; the parity suite's byte-identical canon
+  argued text is safe.)
 - ~~**New spec modes versus native-only tests.**~~ **Settled: new
   modes.** `hcanon` and `hash` are shared spec modes run by both
   runners (their counts live in the register's rule 5), so

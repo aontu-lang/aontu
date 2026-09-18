@@ -40,7 +40,7 @@ test that made it say so deleted the caveat when the pin caught up.
 | C1 | `aontu-lang/web` created | **done** |
 | C2 | Claude GitHub App on the org | **done** |
 | C3 | Repository settings, branch protection, CodeQL | open |
-| C4 | Org-rename leftovers | module path, badges, `prepack.js` **done**; SARIF URI open |
+| C4 | Org-rename leftovers | **done** except two account identities — a Marketplace publisher and an action's author |
 | C5 | Sponsorship treatment | open — needs a decision |
 | D1 | npm trusted-publisher record after the rename | **done** — proven by the 0.53.0 release |
 
@@ -241,8 +241,15 @@ Match the template's posture:
 - CodeQL **default setup** (*Settings → Code security*) — one click.
 - Disable Issues if the engine repo is the intended front door for bug
   reports, or leave them on and say in the README which repo takes what.
-- Actions: nothing to enable. The site has **no** workflows by design;
-  the build is Cloudflare's.
+- Actions: the site has one workflow, `.github/workflows/docs.yml`
+  ("Prose gate"), added 2026-09-08 in `23d458b`; the BUILD is still
+  Cloudflare's.
+  The workflow runs on `push` to `main`, on `pull_request` and on
+  `workflow_dispatch`, and does `npm ci`, `npm run build`,
+  `node --test test/prose.test.mjs` and a pinned Vale. Nothing to
+  enable, then, but not for the reason this file gave until
+  2026-09-18: there is a workflow, and it is a second pull-request
+  check beside Workers Builds.
 
 ### C4. Settle the org-rename leftovers in `aontu-lang/aontu`
 
@@ -258,22 +265,37 @@ this task was once gated on do not exist, so no service needs
 re-pointing. `ts/scripts/prepack.js` sets `REPO` to
 `https://github.com/aontu-lang/aontu/blob/main/`.
 
-Five references to the old owner are left, and not one of them is a
-badge:
+**Two references to the old owner are left, and neither is a URL.**
+This section listed five until 2026-09-18; the three that were URLs or
+wire format are gone, and what closed each is below the table, because
+the reasons given for holding them are worth keeping.
 
 | Where | What it says | Why it still stands |
 |---|---|---|
-| `ts/src/report-sarif.ts`, `go/report_sarif.go` | `informationUri: "https://github.com/aontu-lang/aontu"` | A published wire identifier, in every SARIF the vet verb has ever emitted, held byte-identical across the two ports by the golden `test/spec/files/vet-sarif/expect.sarif`. Changing it means all three files plus a rebuild of the committed `ts/dist` — a deliberate edit, not a sweep. |
-| `ts/src/mod-tool.ts`, `go/modtool.go` | the OCI annotation keys `com.github.rjrodger.aontu.canon` and `.major` | Also published wire format, and reasoned about: OCI asks a custom key to be the reverse DNS of a domain its author controls, and the register records the choice as a deliberate departure ("Departures recorded by G6.4", item 2). aontu.dev being live now weakens the reason given there, which is what makes moving them an ADR rather than a sweep. |
 | `editors/vscode/package.json` | `"publisher": "rjrodger"` | A Marketplace account identity, not a URL. It changes when the account does, and not before. |
 | `vet-action/action.yml` | `author: 'rjrodger'` | A person. Correct as it stands. |
-| `web/playground.template.html` | the GitHub and Docs links in the playground footer | A plain repository URL, and the one of the five that wants nothing but a rebuild. It is held because the rebuild is `node web/build/build.mjs`, not `make build-ts`, and the committed `aontu-bundle.js` and `playground.html` were bundled by an esbuild this checkout does not resolve to: regenerating them today rewrites about 2,300 lines that have nothing to do with the links. Pin the bundler first. |
 
-**Hand back:** say the word and the SARIF `informationUri` moves — the
-two sources, the golden, the `ts/dist` rebuild, and the `aontu-bundle.js`
-and `playground.html` that inline it, in one commit. The annotation keys
-want an ADR, not a word; the playground links want the bundler pinned;
-the other two want nothing.
+The three that closed:
+
+- **The SARIF `informationUri` moved**, in `e3021661` (2026-09-16), as
+  the one deliberate commit this section asked for: `ts/src/report-sarif.ts`,
+  `go/report_sarif.go`, the golden `test/spec/files/vet-sarif/expect.sarif`,
+  the committed `ts/dist` rebuild, and the `web/aontu-bundle.js` and
+  `web/playground.html` that inline it. The two sources and the golden
+  all read `https://github.com/aontu-lang/aontu`.
+- **The OCI annotation keys went with the artifact.** `ts/src/mod-tool.ts`
+  and `go/modtool.go` were deleted by `cc240ec0`, and
+  [ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+  replaced the OCI artifact with the specification's signed manifest, so
+  `com.github.rjrodger.aontu.canon` and `.major` are not written
+  anywhere. The ADR this section said the move needed was the ADR that
+  removed the question.
+- **The playground links moved with the same commit.**
+  `web/playground.template.html` and the built `web/playground.html`
+  both link `aontu-lang`, and neither the built page nor
+  `web/aontu-bundle.js` contains the old owner's name. The bundler-pin
+  worry did not arise: `e3021661` changed the template, the built page
+  and the bundle together.
 
 ### C5. Decide the sponsorship treatment
 
@@ -384,15 +406,19 @@ What is left, in the order it will hurt if ignored:
 
 1. **D3** — the free `aontu` npm org. `@aontu/mod` cannot publish until
    it exists, and it is the module system's first scoped package.
-2. **C4** — the SARIF `informationUri` still names the old owner, and
-   so do the OCI annotation keys `mod manifest` writes. The first is a
-   word from you; the second is an ADR. The badges and `prepack.js` are
-   done.
+2. **C4** — two account identities, and nothing else: a Marketplace
+   publisher and an action's author. The SARIF `informationUri` moved
+   on 2026-09-16 and the OCI annotation keys went with the OCI
+   artifact, so both of the items this line used to name are closed.
+   Of the two left, one changes when the Marketplace account does and
+   the other is a person's name and is correct as it stands.
 3. **B5 / C5** — the analytics token (or a "no"), and where the
    sponsorship goes.
-4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has no
-   workflows by design; connecting Workers Builds gave it the one check
-   it does have, a real `npm ci && npm run build` on every pull request.
+4. **C3** — branch protection and CodeQL on `aontu-lang/web`. It has
+   two pull-request checks: Workers Builds, a real
+   `npm ci && npm run build`, and the `docs.yml` prose gate, added on
+   2026-09-08. This line read "no workflows by design" for the ten days
+   after that workflow landed.
 
 **D1 is closed** — the 0.53.0 release published over OIDC on 2026-08-28,
 which proves the trusted-publisher record survived the rename.
