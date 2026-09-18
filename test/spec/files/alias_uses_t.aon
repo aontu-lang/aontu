@@ -1,0 +1,4 @@
+# Uses `%t` and declares nothing. The includer declares `%t`, and this
+# file must NOT see it (ALIASES.0.md section 7 -- an include carries
+# values down, never the includer's names).
+x: %t
