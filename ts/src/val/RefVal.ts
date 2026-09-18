@@ -80,9 +80,7 @@ function markedChild(v: any, part: any): Val | undefined {
 }
 
 
-// An alias name, whole: the sigil and an identifier (the lexer's
-// ALIAS_RE, anchored at both ends, for the canon spelling above).
-const ALIAS_NAME_RE = /^%[A-Za-z_][A-Za-z0-9_]*$/
+import { ALIAS_NAME_RE } from '../aliasname'
 
 
 class RefVal extends FeatureVal {
@@ -500,7 +498,7 @@ class RefVal extends FeatureVal {
       if (null == rp) {
         return false
       }
-      const key = rp.join(' ')
+      const key = rp.join('\u0000')
       if (ancestors.has(key)) {
         return true
       }

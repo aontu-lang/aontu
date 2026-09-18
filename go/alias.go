@@ -4,6 +4,85 @@ package aontu
 
 import "sort"
 
+// EVERY ALIAS REFERENCE NAMES A DECLARED NAME, whether or not anything
+// reaches it. Resolution is lazy, so a reference inside a template that
+// nothing instantiates is never tried and a misspelling compiles clean.
+// Whether a NAME is declared does not depend on what the tree holds, so
+// it is answered here instead. See docs/design/ALIASES.0.md
+func aliasErrors(ctx *Ctx, root Val) error {
+	rm, ok := root.(*MapVal)
+	if !ok {
+		return nil
+	}
+	declared := map[string]bool{}
+	for _, k := range rm.aliasKeys {
+		declared[k] = true
+	}
+
+	seen := map[Val]bool{}
+	bad := 0
+
+	var visit func(v Val)
+	visit = func(v Val) {
+		if nil == v || seen[v] {
+			return
+		}
+		seen[v] = true
+
+		switch n := v.(type) {
+		case *RefVal:
+			name, isAlias := n.aliasName()
+			if isAlias && !declared[name] {
+				makeNilErrFull(ctx, "no_path", n, nil, "resolve", nil)
+				bad++
+			}
+
+		case *MapVal:
+			for _, k := range n.keys {
+				visit(n.peg[k])
+			}
+			if nil != n.spread {
+				visit(n.spread)
+			}
+
+		case *ListVal:
+			for _, e := range n.peg {
+				visit(e)
+			}
+			if nil != n.spread {
+				visit(n.spread)
+			}
+
+		case *ConjunctVal:
+			for _, e := range n.peg {
+				visit(e)
+			}
+
+		case *DisjunctVal:
+			for _, e := range n.peg {
+				visit(e)
+			}
+
+		case *FuncVal:
+			for _, e := range n.peg {
+				visit(e)
+			}
+
+		case *PlusOpVal:
+			for _, e := range n.peg {
+				visit(e)
+			}
+		}
+	}
+
+	visit(root)
+
+	if 0 == bad {
+		return nil
+	}
+	return &AontuError{Msg: ctx.errmsg(), Code: "no_path"}
+}
+
 func expandAliases(root Val, snapmap map[string]Val) {
 	rm, ok := root.(*MapVal)
 	if !ok {

@@ -95,8 +95,7 @@ const CC_0 = 48;
 const CC_d = 100;
 const CC_D = 68;
 const CC_PCT = 37;
-// Hyphen separates segments; not leading or trailing, as `-` prefixes negation.
-const ALIAS_RE = /^%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/;
+const aliasname_1 = require("./aliasname");
 const CC_EQ = 61;
 const CC_SP = 32;
 const CC_TAB = 9;
@@ -178,7 +177,7 @@ let AontuJsonic = function AontuLang(jsonic) {
             const segs = Array.isArray(t.peg) ? t.peg :
                 ('string' === typeof t.peg ? [t.peg] : []);
             for (const seg of segs) {
-                if ('string' === typeof seg && ALIAS_RE.test(seg)) {
+                if ('string' === typeof seg && aliasname_1.ALIAS_RE.test(seg)) {
                     return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
                 }
             }
@@ -218,7 +217,7 @@ let AontuJsonic = function AontuLang(jsonic) {
                 const pnt = lex.pnt;
                 const src = lex.src;
                 const ares = CC_PCT === src.charCodeAt(pnt.sI) ?
-                    ALIAS_RE.exec(lex.refwd()) : null;
+                    aliasname_1.ALIAS_RE.exec(lex.refwd()) : null;
                 if (null != ares) {
                     const asrc = ares[0];
                     let j = pnt.sI + asrc.length;
@@ -304,14 +303,14 @@ let AontuJsonic = function AontuLang(jsonic) {
         v.path = r.k ? [...r.k.path] : [];
         return v;
     };
-    const isAliasDecl = (ktkn, sep) => null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) &&
+    const isAliasDecl = (ktkn, sep) => null != ktkn && VL === ktkn.tin && aliasname_1.ALIAS_RE.test('' + ktkn.src) &&
         true === sep?.use?.aontu_eq;
     const keyRefusalOf = (ktkn, sep) => {
         if (null == ktkn || VL !== ktkn.tin) {
             return undefined;
         }
         const kname = '' + ktkn.src;
-        if (ALIAS_RE.test(kname)) {
+        if (aliasname_1.ALIAS_RE.test(kname)) {
             return isAliasDecl(ktkn, sep) ? undefined : { why: 'alias_colon' };
         }
         const bad = ktkn.use?.aontu_bad;
@@ -557,7 +556,7 @@ help isolate the syntax error.`,
             // as the alias reference rather than through the dot rule, and
             // is refused for the same reason.
             if (terms[0] instanceof RefVal_1.RefVal &&
-                terms[0].peg.some((seg) => 'string' === typeof seg && ALIAS_RE.test(seg))) {
+                terms[0].peg.some((seg) => 'string' === typeof seg && aliasname_1.ALIAS_RE.test(seg))) {
                 return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
             }
             if (terms[0] instanceof RefVal_1.RefVal) {

@@ -1,0 +1,5 @@
+# Declares `%u` and does NOT export it. Loaded by alias.tsv's scope
+# rules: the includer must not be able to read `%u` (ALIASES.0.md
+# section 5 -- an unexported alias is invisible).
+%u = 7
+y: 1

@@ -170,6 +170,9 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	if gerr = genErr(ctx, gerr); gerr != nil {
 		return nil, gerr
 	}
+	if aerr := aliasErrors(ctx, res); nil != aerr {
+		return nil, aerr
+	}
 	if rerr := relationErrors(ctx, res); nil != rerr {
 		return nil, rerr
 	}

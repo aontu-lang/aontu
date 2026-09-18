@@ -445,13 +445,16 @@ const hints = {
         '  %port = min(1)   -> declared;\n' +
         '  listen: %port    -> the alias, reached by its own name;\n' +
         '  listen: $.%port  -> nil  # Not a path segment.',
-    'alias_not_toplevel': 'An alias declaration sits at the root of the document. A nested\n' +
-        '`x: { %a = 1 }` is refused because `%a` resolves from the root: the\n' +
-        'declaration would be erased from the output, being a declaration,\n' +
-        'and still unreachable by any reference, not being at the root.\n' +
-        'Where the declaration LANDS decides this, not where it was written,\n' +
-        'so an include spliced at the root may declare one and an include\n' +
-        'taken as a value may not.',
+    'alias_not_toplevel': 'An alias declaration written as a KEY sits at the root of the\n' +
+        'document. A nested `x: { %a = 1 }` is refused because `%a` resolves\n' +
+        'from the root: the declaration would be erased from the output,\n' +
+        'being a declaration, and still unreachable by any reference, not\n' +
+        'being at the root. Where the declaration LANDS decides this, not\n' +
+        'where it was written, so an include spliced at the root may declare\n' +
+        'one and an include taken as a value may not.\n' +
+        'To name a shape where it is used, write the declaration as a VALUE\n' +
+        'prefix instead: `x: %a = 1` is accepted at any depth, leaves the\n' +
+        'value alone, and declares `%a` for the document.',
     'patch_assignment': 'This is not a <path>=<value> assignment. The path is what stands\n' +
         'before the first `=` and the value is what follows it, so an\n' +
         'argument carrying only one of them cannot be applied.',

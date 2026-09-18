@@ -28,6 +28,7 @@ export type {
 } from './allow'
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
+import { aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
@@ -193,6 +194,7 @@ class Aontu {
               : uval.gen(ac as any)
 
           if (!uval.isNil && 0 === ac.err.length) {
+            aliasErrors(ac as any, uval)
             relationErrors(ac as any, uval)
             if (0 < ac.err.length) {
               out = undefined
