@@ -339,7 +339,11 @@ The package `aontu` is unscoped and yours, and the plan keeps it that
 way. The org is a separate need, and it is no longer optional: the
 module system publishes under `@aontu`, so the free org has to exist
 before the first scoped publish. That first package is `@aontu/mod`,
-the transparency client, unpublished at 0.1.0. Stopping someone else
+the transparency client, which has never been published --
+`registry.npmjs.org/@aontu%2Fmod` answers `{"error":"Not found"}`. No
+version is named here on purpose: this line said 0.1.0 until
+2026-09-18, by which time the package was at 0.2.0, and the claim that
+matters is that nothing is published rather than which version is not. Stopping someone else
 publishing `@aontu/anything` with your name on it is now the second
 reason rather than the only one.
 
