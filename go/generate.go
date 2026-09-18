@@ -103,48 +103,47 @@ func trialUnify(ctx *Ctx, a, b Val) Val {
 	return out
 }
 
-// Did the meet ADD a key or narrow a leaf, or only constrain?
-func sameKids(a, b Val) bool {
+// Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
+// not raw keys, so an unfilled optional is not something to add.
+func sameKids(a, b Val, ctx *Ctx) bool {
 	if nil == a || nil == b {
 		return nil == a && nil == b
 	}
-	switch av := a.(type) {
-	case *MapVal:
-		if bv, ok := b.(*MapVal); ok {
-			if len(av.peg) != len(bv.peg) {
+	if isBag(a) {
+		if !isBag(b) {
+			return false
+		}
+		am := bagMembers(a, ctx)
+		bm := bagMembers(b, ctx)
+		if len(am) != len(bm) {
+			return false
+		}
+		peers := make(map[string]Val, len(bm))
+		for _, m := range bm {
+			peers[m.key] = m.val
+		}
+		for _, m := range am {
+			peer, has := peers[m.key]
+			if !has || !sameKids(m.val, peer, ctx) {
 				return false
 			}
-			for k, kid := range av.peg {
-				peer, has := bv.peg[k]
-				if !has || !sameKids(kid, peer) {
-					return false
-				}
-			}
-			return true
 		}
-	case *ListVal:
-		if bv, ok := b.(*ListVal); ok {
-			if len(av.peg) != len(bv.peg) {
-				return false
-			}
-			for i, kid := range av.peg {
-				if !sameKids(kid, bv.peg[i]) {
-					return false
-				}
-			}
-			return true
-		}
+		return true
 	}
 	return a.Canon() == b.Canon()
 }
 
-// A disjunction WHOLE is several values at once, so whether any
-// matches is what the meet answered; one under it is a member.
-func sameMembers(a, b Val) bool {
-	if _, isDis := a.(*DisjunctVal); isDis {
+// A pref-free disjunction is several values at once: any match counts.
+func sameMembers(a, b Val, ctx *Ctx) bool {
+	if d, isDis := a.(*DisjunctVal); isDis {
+		for _, m := range d.peg {
+			if _, isPref := m.(*PrefVal); isPref {
+				return sameKids(a, b, ctx)
+			}
+		}
 		return true
 	}
-	return sameKids(a, b)
+	return sameKids(a, b, ctx)
 }
 
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
@@ -161,7 +160,7 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		ctx.slot = slot
 		test := fillPlace(instanceClone(cond, slot), child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
-		return nil != met && sameMembers(child, met)
+		return nil != met && sameMembers(child, met, ctx)
 	}
 
 	// The candidates are the bag's MEMBERS -- what generation would
@@ -235,7 +234,7 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		ctx.slot = base
 		met := trialUnify(ctx,
 			clonePath(scrutinee, base), clonePath(args[i], base))
-		if nil != met && sameMembers(scrutinee, met) {
+		if nil != met && sameMembers(scrutinee, met, ctx) {
 			// The RESULT is the answer: a match MAPS a value to another
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
@@ -769,7 +768,7 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		// untouched for the next node.
 		met := trialUnify(ctx, clonePath(node, base),
 			clonePath(templates[i].match, base))
-		if nil != met && sameMembers(node, met) {
+		if nil != met && sameMembers(node, met, ctx) {
 			return &templates[i], nil
 		}
 	}

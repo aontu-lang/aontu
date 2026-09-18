@@ -13,25 +13,28 @@ const top_1 = require("./top");
 const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
 const PlaceVal_1 = require("../val/PlaceVal");
-// Did the meet ADD a key or narrow a leaf, or only constrain?
-function sameKids(a, b) {
-    if (true === a?.isMap && true === b?.isMap) {
-        const ak = Object.keys(a.peg ?? {});
-        if (ak.length !== Object.keys(b.peg ?? {}).length) {
+const members_1 = require("./members");
+// Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
+// not raw keys, so an unfilled optional is not something to add.
+function sameKids(a, b, ctx) {
+    if (true === a?.isMap || true === a?.isList) {
+        const am = (0, members_1.bagMembers)(a, ctx);
+        const bm = (0, members_1.bagMembers)(b, ctx);
+        if (null == am || null == bm || am.length !== bm.length) {
             return false;
         }
-        return ak.every((k) => sameKids(a.peg[k], b.peg?.[k]));
-    }
-    if (true === a?.isList && true === b?.isList) {
-        return a.peg.length === b.peg.length &&
-            a.peg.every((el, i) => sameKids(el, b.peg[i]));
+        const peers = new Map(bm.map((m) => [m.key, m.val]));
+        return am.every((m) => peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx));
     }
     return a?.canon === b?.canon;
 }
-// A disjunction WHOLE is several values at once, so whether any
-// matches is what the meet answered; one under it is a member.
-function sameMembers(a, b) {
-    return true === a?.isDisjunct || sameKids(a, b);
+// A pref-free disjunction is several values at once: any match counts.
+function sameMembers(a, b, ctx) {
+    if (true === a?.isDisjunct && Array.isArray(a.peg) &&
+        !a.peg.some((m) => true === m?.isPref)) {
+        return true;
+    }
+    return sameKids(a, b, ctx);
 }
 function trialUnify(ctx, a, b) {
     const savedErr = ctx.err;

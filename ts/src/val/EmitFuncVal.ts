@@ -465,7 +465,7 @@ class EmitFuncVal extends FuncBaseVal {
       // against a TOP peer, and a pattern that failed must be untouched
       // for the next node.
       const met = trialUnify(ctx, node.clone(ctx), tmpl.match.clone(ctx))
-      if (undefined !== met && sameMembers(node, met)) {
+      if (undefined !== met && sameMembers(node, met, ctx)) {
         return tmpl
       }
     }

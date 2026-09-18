@@ -1,7 +1,7 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FeatureVal } from '../val/FeatureVal';
-declare function sameMembers(a: any, b: any): boolean;
+declare function sameMembers(a: any, b: any, ctx: AontuContext): boolean;
 declare function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined;
 declare class FuncBaseVal extends FeatureVal {
     isFunc: boolean;

@@ -64,7 +64,7 @@ class MatchFuncVal extends FuncBaseVal_1.FuncBaseVal {
             // against a TOP peer, and a pattern that failed must be
             // untouched for the next document that reads its canon.
             const met = (0, FuncBaseVal_1.trialUnify)(ctx, scrutinee.clone(ctx), pattern.clone(ctx));
-            if (undefined !== met && (0, FuncBaseVal_1.sameMembers)(scrutinee, met)) {
+            if (undefined !== met && (0, FuncBaseVal_1.sameMembers)(scrutinee, met, ctx)) {
                 return args[i + 1].clone(ctx);
             }
         }

@@ -60,3 +60,4 @@ match-list-same-length-hits	gens	x:match([],[],"hit","miss")	{"x":"hit"}
 match-list-spread-pattern-hits	gens	x:match([1,2],[&:integer],"hit","miss")	{"x":"hit"}
 match-absent-key-is-a-miss	gens	m:match({n:"b"},{pk:true},"hit","miss")	{"m":"miss"}
 match-disjunct-whole-still-hits	gens	m:match(free|pro|enterprise,free,1,pro,2,enterprise,3)	{"m":1}
+match-unfilled-optional-is-not-a-member	gens	m:match({},{a?:integer},"hit","miss")	{"m":"hit"}
