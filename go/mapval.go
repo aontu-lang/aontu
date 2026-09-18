@@ -18,16 +18,27 @@ type MapVal struct {
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
 
 	aliasKeys []string
+
+	// THE NAMES THIS FILE PUBLISHES, read at parse time by a destructure,
+	// so they do not travel through unify the way aliasKeys does.
+	exportKeys []string
 }
 
+// An `export` answers to the root rule a declaration does.
 func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
-	if 0 == len(m.aliasKeys) || 0 == len(m.path) {
+	named := ""
+	if 0 < len(m.aliasKeys) {
+		named = aliasBareName(m.aliasKeys[0])
+	} else if 0 < len(m.exportKeys) {
+		named = exportDeclName
+	}
+	if "" == named || 0 == len(m.path) {
 		return nil
 	}
 	nv := newNil("alias_not_toplevel")
 	nv.sp = m.sp
 	nv.path = append([]string{}, m.path...)
-	nv.path = append(nv.path, m.aliasKeys[0])
+	nv.path = append(nv.path, named)
 	return nv
 }
 

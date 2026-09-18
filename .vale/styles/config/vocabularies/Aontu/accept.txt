@@ -254,3 +254,7 @@ initialiser
 [Cc]ooldown
 loopback
 Sigstore
+
+# The alias surface: a pattern on the left of an include, which binds
+# the names the other file publishes.
+destructure

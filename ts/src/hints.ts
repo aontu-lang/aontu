@@ -602,6 +602,30 @@ const hints: Record<string, string> = {
     'prefix instead: `x: %a = 1` is accepted at any depth, leaves the\n' +
     'value alone, and declares `%a` for the document.',
 
+  'export_arg':
+    '`export` takes a SET OF ALIAS NAMES and nothing else: write\n' +
+    '`export({ %a, %b })`. A key already crosses a file boundary as a\n' +
+    'value, so a bare word names nothing `export` could publish, and a\n' +
+    'single name still stands in a set. The `{%}` wildcard is the\n' +
+    'importing side\'s: the publishing file chooses what it publishes.\n' +
+    ' \nExamples:\n' +
+    '  %u8 = integer\n' +
+    '  export({ %u8 })  -> published;\n' +
+    '  export({ u8 })   -> nil  # A key, not an alias;\n' +
+    '  export(%u8)      -> nil  # A set, even of one;\n' +
+    '  export({%})      -> nil  # The wildcard is the importer\'s.',
+
+  'import_not_exported':
+    'The file this name was asked of does not publish `{name}`. A name\n' +
+    'belongs to the file that declares it and crosses only where that\n' +
+    'file says so, which is what `export` is for: add the name to the\n' +
+    'other file\'s `export({ ... })`, or write the value in this one.\n' +
+    'The include still placed the file\'s values -- it is the NAME that\n' +
+    'did not cross.\n' +
+    ' \nExamples:\n' +
+    '  { %u8 } = @"types.aon"      -> bound, if types.aon exports %u8;\n' +
+    '  { %secret } = @"types.aon"  -> nil  # ... and refused if not.',
+
   'patch_assignment':
     'This is not a <path>=<value> assignment. The path is what stands\n' +
     'before the first `=` and the value is what follows it, so an\n' +
@@ -886,6 +910,8 @@ const codeClasses: Record<string, string> = {
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',
   alias_colon: 'parse',
+  export_arg: 'parse',
+  import_not_exported: 'reference',
   bare_punct: 'parse',
   not_number: 'parse',
   negative: 'parse',

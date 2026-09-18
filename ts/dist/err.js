@@ -7,6 +7,7 @@ exports.makeNilErr = makeNilErr;
 exports.descErr = descErr;
 exports.setColor = setColor;
 exports.colorActive = colorActive;
+const aliasname_1 = require("./aliasname");
 const node_path_1 = require("node:path");
 const jsonic_1 = require("@tabnas/jsonic");
 const NilVal_1 = require("./val/NilVal");
@@ -46,7 +47,9 @@ function descErr(err, errctx) {
             let v2 = err.secondary;
             let v1src = resolveSrc(v1, errctx);
             let v2src = resolveSrc(v2, errctx);
-            let path = ['$', ...err.path].filter((p) => null != p && '' !== p);
+            // A list index is a number here, and only a key can be an alias.
+            let path = ['$', ...err.path.map((p) => 'string' === typeof p ? (0, aliasname_1.aliasPathSegment)(p) : p)]
+                .filter((p) => null != p && '' !== p);
             // '$' is neither null nor '', so the filter always leaves it.
             let valpath = path.join('.');
             let attempt = null != err.attempt ? err.attempt : (null == v2 ? 'resolve' : 'unify');

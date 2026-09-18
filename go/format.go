@@ -332,6 +332,11 @@ func (r *fmtReader) entry() *fmtNode {
 		r.i += 2
 		return &fmtNode{t: "spread", value: r.value(), at: at}
 	}
+	if exportHoldKey == r.T[r.i].val && r.atKey() {
+		text := exportDeclName + "(" + r.T[r.i+2].src + ")"
+		r.i += 3
+		return &fmtNode{t: "atom", text: text, at: at}
+	}
 	if r.atKey() {
 		tok := r.T[r.i]
 		opt := "#QM" == r.name(1)

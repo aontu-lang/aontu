@@ -1,3 +1,10 @@
 declare const ALIAS_RE: RegExp;
 declare const ALIAS_NAME_RE: RegExp;
-export { ALIAS_RE, ALIAS_NAME_RE, };
+declare const ALIAS_SET: string;
+declare const EXPORT_DECL_NAME = "export";
+declare const EXPORT_HOLD_KEY = "___export";
+declare function aliasScopedKey(name: string, url: string): string;
+declare function aliasBareName(key: string): string;
+declare function aliasPathSegment(seg: string): string;
+declare function aliasSetNames(text: string): string[] | undefined;
+export { ALIAS_RE, ALIAS_NAME_RE, ALIAS_SET, EXPORT_DECL_NAME, EXPORT_HOLD_KEY, aliasScopedKey, aliasBareName, aliasPathSegment, aliasSetNames, };

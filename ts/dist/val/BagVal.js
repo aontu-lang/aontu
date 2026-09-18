@@ -19,6 +19,9 @@ class BagVal extends FeatureVal_1.FeatureVal {
         this.closed = false;
         this.optionalKeys = [];
         this.aliasKeys = [];
+        // THE NAMES THIS FILE PUBLISHES, read at parse time by a destructure,
+        // so they do not travel through unify the way aliasKeys does.
+        this.exportKeys = [];
         this.spread = {
             cj: undefined,
         };

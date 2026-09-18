@@ -32,6 +32,10 @@ abstract class BagVal extends FeatureVal {
 
   aliasKeys: string[] = []
 
+  // THE NAMES THIS FILE PUBLISHES, read at parse time by a destructure,
+  // so they do not travel through unify the way aliasKeys does.
+  exportKeys: string[] = []
+
   spread = {
     cj: (undefined as Val | undefined),
   }

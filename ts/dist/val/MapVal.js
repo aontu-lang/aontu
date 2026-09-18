@@ -14,9 +14,10 @@ const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
+const aliasname_1 = require("../aliasname");
 const provenance_1 = require("../provenance");
 function spreadSnapKey(cj) {
-    return cj.spelling + '~' + cj.site.row + ':' + cj.site.col;
+    return cj.spelling + '~' + cj.site.url + '~' + cj.site.row + ':' + cj.site.col;
 }
 function snapshotRefSpread(cj, ctx) {
     let snapmap = ctx.snapmap;
@@ -78,13 +79,17 @@ class MapVal extends BagVal_1.BagVal {
             }
         }
     }
+    // An `export` answers to the root rule a declaration does.
     aliasDeclarationsAreRooted(ctx) {
-        if (0 === this.aliasKeys.length || 0 === this.path.length) {
+        const named = 0 < this.aliasKeys.length ?
+            (0, aliasname_1.aliasBareName)(this.aliasKeys[0]) :
+            0 < this.exportKeys.length ? aliasname_1.EXPORT_DECL_NAME : undefined;
+        if (undefined === named || 0 === this.path.length) {
             return undefined;
         }
         const nv = new NilVal_1.NilVal({ why: 'alias_not_toplevel' }, ctx);
         nv.site = this.site;
-        nv.path = [...this.path, this.aliasKeys[0]];
+        nv.path = [...this.path, named];
         return nv;
     }
     unify(peer, ctx) {

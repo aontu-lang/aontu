@@ -5,6 +5,63 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
+## Go 0.1.27 — 2026-09-18 · TypeScript 0.69.0
+
+### An alias belongs to the file that declares it
+
+**An include carries a file's values across the boundary and never its
+names.** Until now an alias was document-global: `%t` declared in the
+including file was visible inside the file it included, an alias
+declared in an included file was visible to the includer, and two files
+that happened to use one name for two things merged silently wherever
+their bodies unified. All three are closed. A reference resolves where
+it was **written** rather than where it lands, so a spread template
+written in one file still names its own file's declaration when it is
+instantiated against another file's data.
+
+**A name crosses where both files say so.** The declaring file
+publishes with `export`, and the using file asks by name with a
+destructure on the left of an include:
+
+```
+# types.aon
+%uint8 = integer & min(0) & max(255)
+
+export({ %uint8 })
+
+defaults: retries: 3
+```
+
+```
+# main.aon
+{ %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+```json
+{"defaults":{"retries":3},"level":200}
+```
+
+`export` is self-erasing: a file generates the same document with it as
+without it. The destructure is additive: `f.aon`'s values land exactly
+as `@"./f.aon"` places them, and the names asked for bind beside them.
+`{%}` takes every name the other file exports, and only those.
+
+Two codes are new. `export_arg` (class `parse`) refuses an argument
+that is not a set of alias names — a key, a bare alias, or the `{%}`
+wildcard, which belongs on the taking side. `import_not_exported`
+(class `reference`) refuses a name the other file does not publish, and
+names it.
+
+**This is a breaking change for a document that read a name across an
+include.** The built-in `aontu:profile` vocabulary is the case in the
+repository: it now publishes `%profile` and `%comment`, and a document
+that wants them writes `{ %profile } = @"aontu:profile"`. The hash of
+such a document is unchanged, because the destructure places what the
+include placed.
+
 ## Go 0.1.26 — 2026-09-18 · TypeScript 0.68.0
 
 ### An alias may be declared as a value prefix, and its name may take a hyphen

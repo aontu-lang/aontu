@@ -641,15 +641,13 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (38 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (109 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
-**P2 — `export` and the `{…} = @"…"` destructure — is not built**, and
-the two open questions gate it rather than P1: X-1 was taken the third
-way (`%foo:`, the ordinary key syntax, so no `=` and no lexing break
-beyond the sigil), and T-1's expansion budget does not bite while
-expansion is bounded by one file. **X-1 reversed 2026-09-05:** the
+**P2 — file scope, `export` and the `{…} = @"…"` destructure — LANDED
+2026-09-18**, in both ports, and it is recorded below the P1 entry it
+completes. **X-1 reversed 2026-09-05:** the
 declaration operator is `=`, the proposal's own spelling — `%foo = 1`
 declares, `=` is lexed as the separator only immediately after an
 alias name (so `foo = 1` and `a: x=y` were unchanged at the time), and
@@ -663,6 +661,48 @@ letters, digits, `-` and `_` and nothing else, so `foo = 1` and
 alias lexing claim still holds — `=` is the separator only after an
 alias name — but the parenthetical that made it concrete no longer
 describes either port.
+
+**ALIASES (P2) LANDED 2026-09-18** (docs/design/ALIAS-FILE-SCOPE.0.md),
+in both ports. A name now belongs to the FILE that declares it, and
+crosses only where both files say so.
+
+The route was the one the note proposed and it wanted no resolver of
+its own: `site.url` already identifies the writing file for every
+value, across include boundaries, so the alias KEY carries the url of
+the file that declared the name and a reference carries the url of the
+file it was written in. Lexical scope is then the reference machinery
+again, as P1's order independence was — a reference in an included file
+cannot see its includer's key, an includer cannot see the included
+file's, two files declaring one name hold two keys, and a `&:` rule
+that travels to another file still resolves, because it was bound to
+its own file's key when it was written rather than when it landed. That
+last case is what makes the scope lexical rather than positional, and
+it is what apidef's model depends on. The scoped key shows nowhere a
+reader looks: `aliasName` answers the bare name, so canon, a refusal's
+path and a rule's trace address all spell what the source spells.
+
+`export` and the destructure are new SYNTAX in both ports and needed no
+new grammar. `export({ %a, %b })` is lexed as a pair — the word is the
+key, the `(` the separator and the argument the value, under a key no
+source can write — and `{ %a } = @"f.aon"` is lexed as one head token
+with the `=` the alias declaration already carries, so both reach the
+map rule as pairs it already knows how to hold. The set is read off the
+source rather than parsed as a map, which is why a set may stand in
+those two places and nowhere else. `export` is self-erasing, the
+destructure is additive (the values land exactly as a plain include
+places them, and the names bind beside them), and the two refusals are
+`export_arg` (class parse) and `import_not_exported` (class reference),
+both with `errcodes.tsv` rows.
+
+One consequence outside the engine: `aontu:profile` publishes `%profile`
+and `%comment`, since a document that wants the vocabulary's shapes now
+asks for them by name. `profile-shape-hash` is unchanged, which is the
+evidence that the destructure places what the include placed.
+
+Pinned by the nine `test/spec/alias.tsv` rows written failing ahead of
+it and the nine the work added, plus three in `fmt.tsv`; documented in
+`docs/reference-language.md` under "Publishing a name" and "Taking a
+name", executed by `docs.test.ts`.
 
 **One defect the note named turned out not to be one, and this register
 should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,

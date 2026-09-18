@@ -1,21 +1,22 @@
 # Alias file scope — implementation note
 
-`ALIASES.0.md` sections 5 to 7 specify that an alias belongs to the file
-that declares it, and crosses only by `export` and a named import. The
-engine has none of it. This note is what the work is, and
-`test/spec/alias.tsv` carries the rows that decide when it is done.
+**Status: DONE 2026-09-18, in both ports.** `ALIASES.0.md` sections 5 to
+7 specify that an alias belongs to the file that declares it, and
+crosses only by `export` and a named import. The engine had none of it.
+This note is the route that was taken; `test/spec/alias.tsv` carries the
+rows that decided when it was done, and they are green.
 
-## What is true today
+## What was true before it
 
-Aliases are **document-global**. `%t` is `$.%t`, root-absolute by
+Aliases were **document-global**. `%t` is `$.%t`, root-absolute by
 construction, and `@"…"` merges every file of one parse into one root,
-so all declarations land in one table. Both directions leak, and a name
-collision between unrelated files merges silently wherever the two
-bodies happen to unify.
+so all declarations landed in one table. Both directions leaked, and a
+name collision between unrelated files merged silently wherever the two
+bodies happened to unify.
 
 Two separately *parsed* roots — schema and data under `vet` — already
-behave correctly, because each resolves its own names before the two
-meet. So the target behaviour exists and is observable at one boundary
+behaved correctly, because each resolves its own names before the two
+meet. So the target behaviour existed and was observable at one boundary
 and not the other.
 
 ## The route
@@ -55,6 +56,20 @@ be bound, and the refusal names the name.
 Both are new syntax in both ports, with `export_arg` and
 `import_not_exported` as their refusals.
 
+## Two things the route did not foresee
+
+**Key order is resolution order.** Renaming a declaration in place moved
+it to the end of its map, which made `%a = %a` a path cycle rather than
+the unexpanded recursion it had always been: the use settled before the
+declaration did. The map is rebuilt in its written order instead.
+
+**A refused colon declaration still names something.** `%foo: 1` is
+refused, and `a: %foo` had reported that refusal because the reference
+reached it. Scoping the key took the refusal out of reach and left
+`no_path` — a worse message for the same mistake — so the refusal is
+held under the key the name would have had, and is still generated,
+since it is not recorded as an alias.
+
 ## Done means
 
 The nine rows named `alias-include-does-not-see-includer-name`,
@@ -62,4 +77,13 @@ The nine rows named `alias-include-does-not-see-includer-name`,
 `alias-same-name-in-two-files-stays-separate`, `alias-export-*` and
 `alias-import-*` pass in both ports, and
 `alias-template-resolves-where-written` and
-`alias-include-still-carries-values` still pass.
+`alias-include-still-carries-values` still pass. **They do**, together
+with twelve more rows the work added. Nine in `alias.tsv`: five refuse
+what the two new forms made writable (`alias-export-wildcard-refused`,
+`alias-export-nested-refused` with its path row,
+`alias-import-undeclared-refused`, `alias-import-from-a-scalar-refused`
+and `alias-import-under-key-refused`); two pin what the refusals say
+(`alias-import-unexported-names-it`, `alias-redeclare-conflicts-path`);
+and two pin what a name that arrives does
+(`alias-import-meets-a-local-declaration`). Three in `fmt.tsv` pin both
+spellings through the formatter.

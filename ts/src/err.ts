@@ -1,6 +1,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 
 
+import { aliasPathSegment } from './aliasname'
 import { sep } from 'node:path'
 
 import { util } from '@tabnas/jsonic'
@@ -71,7 +72,10 @@ function descErr<NILS extends NilVal | NilVal[]>(
       let v1src = resolveSrc(v1, errctx)
       let v2src = resolveSrc(v2, errctx)
 
-      let path = ['$', ...err.path].filter((p: any) => null != p && '' !== p)
+      // A list index is a number here, and only a key can be an alias.
+      let path = ['$', ...err.path.map((p: any) =>
+        'string' === typeof p ? aliasPathSegment(p) : p)]
+        .filter((p: any) => null != p && '' !== p)
 
       // '$' is neither null nor '', so the filter always leaves it.
       let valpath = path.join('.')

@@ -1,8 +1,8 @@
 # Aliases and export — design note
 
-**Status:** **P1 is implemented in both ports** — file-local aliases,
-with canon and hash erasure and the cycle refusals. `export` and the
-destructure (P2) are not. `%` is the alias sigil, carried through the
+**Status:** **P1 and P2 are implemented in both ports** — file-scoped
+aliases, with canon and hash erasure and the cycle refusals, and
+`export` with the destructure. `%` is the alias sigil, carried through the
 declaration, the use site, `export`, the destructuring form and the
 shorthand; there is no `import` verb.
 
@@ -41,8 +41,8 @@ the parse cannot see it: an included file's declarations are at the
 root of their own text, and only once the loaded map is placed does it
 become apparent that root is not the document's. So **a file using
 aliases stands alone.** Carrying a name across files is exactly what
-`export` is for, and P2 has to answer it rather than inheriting an
-answer by accident.
+`export` is for, and P2 answered it rather than letting it be inherited
+by accident.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
@@ -296,14 +296,19 @@ legible at a glance.
 
 ## 5. `export`
 
-> **Not implemented.** Sections 5, 6 and the file-scope half of section 7
-> describe a design the engine does not yet have: `export(...)` does not
-> parse, the destructure import does not parse, and an alias declared in
-> one file is currently visible to every other file of the same parse,
-> in both directions. `test/spec/alias.tsv` holds the rows that pin what
-> is real today. The rows for what follows are written and failing on
-> the branch that will implement it — the bar for closing this is those
-> rows going green in both ports, not this prose.
+> **Implemented 2026-09-18**, in both ports, by the route
+> [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out. Three
+> things the sections below describe are NOT built. Two are unpinned:
+> renaming in a destructure (`{ %u8: %uint8 }`), and the set shorthand
+> as a value anywhere but in those two declaration heads — `a: { %foo }`
+> is still the parse error §3 row 16 measured. The third is §6's
+> `svc: { %uint8 } = @"types.aon"`: **a destructure sits at the document
+> root**, for the reason a declaration does. Under a key the values land
+> there and the names it binds are still the document's, so the two part
+> company and the name reaches nothing — and a file that declares
+> aliases, which is the only kind worth importing from, is already
+> refused as a value include (§7). `alias-import-under-key-refused`
+> pins it.
 
 `export({ %uint8, %port })` declares which of a file's aliases are
 published. Three rules, all settled:
@@ -528,8 +533,6 @@ wildcard cannot quietly replace a local one, because arriving means
 meeting.
 
 ### Aliases work only where defined or imported
-
-> **Not implemented** — see the note at section 5.
 
 An alias is in scope in the file that declares it, and in a file that
 imports it by name. Nowhere else:

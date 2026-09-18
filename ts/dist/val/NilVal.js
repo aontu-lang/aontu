@@ -33,6 +33,9 @@ class NilVal extends Val_1.Val {
         out.primary = this.primary;
         out.secondary = this.secondary;
         out.msg = this.msg;
+        // The hint reads the details, so a clone that dropped them left
+        // `{name}` in the message. A struct copy carries them in Go.
+        out.details = this.details;
         return out;
     }
     get canon() {

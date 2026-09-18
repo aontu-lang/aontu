@@ -40,6 +40,10 @@ alias-of-alias	gens	%a = %b\n%b = 2\nx: %a	{"x":2}
 # name already do -- no separate rule.
 alias-redeclare-unifies	gens	%n = 1\n%n = integer\na: %n	{"a":1}
 alias-redeclare-conflicts	errc	%n = 1\n%n = 2\na: %n	scalar_value
+# The declaration is reported by the NAME the source spells. A name is
+# held under a key carrying the file it was declared in, and that key
+# is the engine's business.
+alias-redeclare-conflicts-path	err	%n = 1\n%n = 2\na: %n	at path $.%n
 alias-redeclare-composes	gens	%p = integer\n%p = min(1) & max(65535)\na: %p\na: 8080	{"a":8080}
 #
 # ERASURE. A declaration is not a field of the document: it does not
@@ -304,12 +308,37 @@ alias-export-is-self-erasing	gens	%u = 1\nexport({ %u })\na: %u	{"a":1}
 # It takes aliases, and a set of them. A key already crosses as a value.
 alias-export-takes-only-aliases	errc	%u = 1\nexport({ u })	export_arg
 alias-export-takes-a-set	errc	%u = 1\nexport(%u)	export_arg
+# The wildcard is the IMPORTING side's, and only safe there: what it
+# takes is the set the other file chose. On this side it would publish
+# a file's private names by default, so it is refused where it stands.
+alias-export-wildcard-refused	errc	%u = 1\nexport({%})	export_arg
+# An `export` publishes out of the DOCUMENT's scope, so it answers to
+# the rule a declaration does: it sits at the document root or nowhere.
+alias-export-nested-refused	errc	x: { export({ %u }) }	alias_not_toplevel
+alias-export-nested-path	err	x: { export({ %u }) }	at path $.x.export
 # THE DESTRUCTURE IS ADDITIVE: it places the file's values exactly as a
 # plain include does, and ALSO binds the names it asks for.
 alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # An unexported name cannot be bound, and the refusal names the name.
 alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	import_not_exported
+# A DESTRUCTURE SITS AT THE DOCUMENT ROOT, for the reason a declaration
+# does: the names it binds are the document's, and the values it stands
+# in front of land where it stands. Under a key the two part company,
+# and the name it asked for reaches nothing.
+alias-import-under-key-refused	errc	svc: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	no_path
+# A name that arrives MEETS a local declaration of the same name rather
+# than replacing it, exactly as two declarations in one file meet.
+alias-import-meets-a-local-declaration	gens	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+# The refusal NAMES THE NAME, so a reader is not left comparing two
+# files to find which one it was.
+alias-import-unexported-names-it	err	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	does not publish `%secret`
+# ... and so is a name the other file never declared at all.
+alias-import-undeclared-refused	errc	{ %nosuch } = @"__FIXTURES__/alias_exports.aon"\na: %nosuch	import_not_exported
+# A right-hand side that is not a document publishes no name and places
+# no values: the head binds nothing, and what it stands in front of is
+# refused where it lands, exactly as a bare `1` at the root would be.
+alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	map
 #
 # A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
 # PARSED roots meet, and each resolves its OWN names: the schema's alias

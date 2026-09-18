@@ -1568,8 +1568,20 @@ written, which is what makes the two include shapes differ:
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
-There is no construct for carrying a name across a file boundary
-deliberately.
+**A name belongs to the file that declares it.** An include carries a
+file's *values* across the boundary and never its names, in either
+direction: an included file cannot see a name the including file
+declared, the including file cannot see a name the included file
+declared, and two files that declare one name hold two names that never
+meet. A reference resolves where it
+was written rather than where it lands, so a spread template written in
+one file still names its own file's declaration when it is instantiated
+against another file's data.
+
+A name crosses where both files say so, and nowhere else: the declaring
+file publishes it with [`export`](#publishing-a-name-export), and the
+using file asks for it by name with [the
+destructure](#taking-a-name-the-destructure).
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
 string, and a `%` anywhere but on an alias name is refused like any
@@ -1611,6 +1623,77 @@ table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
 { "table": { "a": { "kind": "user", "id": 1 },
              "b": { "kind": "user", "id": 2 } } }
 ```
+
+### Publishing a name: `export`
+
+`export({ %a, %b })` declares which of a file's names another file may
+take. It is a declaration and not a value, so a file generates the same
+document with it as without it:
+
+```aon
+%port = integer & min(1) & max(65535)
+
+export({ %port })
+
+listen: %port
+listen: 8080
+```
+
+```json
+{ "listen": 8080 }
+```
+
+It takes a set of alias names and nothing else. Every other argument is
+refused with `export_arg`: `export({ port })` names a key, which already
+crosses the boundary as a value; `export(%port)` names an alias but not
+a set; and `export({%})` is the wildcard, which belongs on the taking
+side. A name a file declares and does not export stays that file's own.
+
+### Taking a name: the destructure
+
+`{ %a } = @"./f.aon"` places `f.aon`'s values exactly as `@"./f.aon"`
+places them, and also binds `%a` in the taking file's scope. There is no
+`import` verb: the include already crosses the boundary for values, and
+the pattern on its left crosses it for names. Write the publishing file
+as `types.aon`:
+
+<!-- test: scenario alias-destructure -->
+<!-- test: file types.aon -->
+```aon
+%uint8 = integer & min(0) & max(255)
+
+export({ %uint8 })
+
+defaults: retries: 3
+```
+
+and take its name from `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+{ %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c main.aon
+{"defaults":{"retries":3},"level":200}
+```
+
+The file's values arrive whether or not a name is asked for, which is
+what makes the pattern additive rather than a filter. A destructure
+sits at the root of the document, as a declaration does: under a key
+the values land there while the name it binds is still the document's,
+so the name reaches nothing.
+
+`{%}` takes every name the other file exports, and only those: the
+publishing file chose the set. Asking for a name that file does not
+export is refused with `import_not_exported`, which names the name. A
+name that arrives this way meets a local declaration of the same name
+rather than replacing it, exactly as two declarations in one file meet.
 
 ## The `+` operator and grouping
 

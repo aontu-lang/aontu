@@ -64,7 +64,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4681 alerts across 88 files. Two of them turn on a reason
+a clean run: 4695 alerts across 88 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
@@ -387,7 +387,7 @@ State the input, the check, the result, and any limit on that result.
   English; this is one of the places the house voice wins, and
   `Google.Spelling` is switched off in `.vale.ini` for it. Actual
   misspellings are still caught: `Vale.Spelling` runs at error against
-  `accept.txt`, which names 216 domain terms.
+  `accept.txt`, which names 217 domain terms.
 
 ## Code snippets: every one is tested
 
