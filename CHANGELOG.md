@@ -5,7 +5,44 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 `github.com/aontu-lang/aontu/go`) are versioned independently; entries note
 which implementation each change affects.
 
-## Unreleased
+## Go 0.1.26 — 2026-09-18 · TypeScript 0.68.0
+
+### An alias may be declared as a value prefix, and its name may take a hyphen
+
+**`%name = ` in front of any value is now a declaration.** To the right
+of a colon, or as a list element, the prefix leaves the value alone and
+declares the name at the document root, as if it had been written there:
+
+```
+main: kit: type: field: args: %field-args = { kind: string }
+other: &: %field-args
+```
+
+The rule for a declaration written as a **key** is unchanged. `x: {%a =
+1}` is still `alias_not_toplevel`, and for the reason it always was: a
+key declaration nested under `x` names nothing a reference can reach,
+because `%a` resolves from the root. A value prefix names the thing it
+is written on and binds at the root, so neither half of that argument
+applies to it. What it buys is that a shape can be named where it is
+used, instead of being lifted away from its use to satisfy the position
+rule.
+
+Two declarations of one name unify, whichever form each was written in
+and wherever each sat — the redeclaration rule, with nothing added. The
+root entry is a copy pathed at its name, because the value is also still
+in the tree at its own path and a reference instantiates its target by
+reading that path.
+
+**A name may take a hyphen between segments**, as every other name aontu
+has does: map keys bare and quoted, string values, path references, keys
+inside a `&` rule and inside `type()`. Not at either end, where `-` is
+the negation prefix, so `%a-` reads as `%a` minus nothing.
+
+Both ports. Rows: `alias-value-position`, `alias-value-position-deep`,
+`alias-value-position-in-list`, `alias-value-position-redeclare`,
+`alias-name-hyphen`. The design note is
+`docs/design/ALIASES.0.md`, section *A declaration may also prefix a
+value*.
 
 ### Every registered error code explains itself, and `explain` takes the code as it is printed
 
