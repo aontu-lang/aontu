@@ -94,15 +94,19 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    gap documents froze a row count into a "nothing may regress" clause;
    all eight are now wrong, by roughly 1,400 to 1,500 rows. A gap
    document should link this line instead: as of this
-   register's last update the suite is **115 `.tsv` files, 113
-   row-bearing, 5,252 rows**, in twenty-nine modes — `errc` 990,
-   `gens` 973, `canon` 935, `gen` 628, `err` 314, `fmt` 176, `view`
-   174, `errcode` 163, `vet` 120, `subsume` 114, `render` 106, `query`
-   92, `jsonschema` 57, `why` 52, `hcanon` 42, `patch` 41, `graph` 38,
-   `views` 37, `hash` 37, `template` 34, `fmt-lint` 28, `diff` 28,
-   `relation` 25, `reaches` 19, `trim` 11, `fmt-template` 7, `agentsmd`
-   7, `fmt-template-lint` 3, `fmt-refuse` 1.
-   (Re-derived 2026-09-13; before that 2026-09-06, when RENDER P8
+   register's last update the suite is **113 `.tsv` files, 111
+   row-bearing, 5,153 rows**, in twenty-nine modes — `errc` 983,
+   `gens` 960, `canon` 935, `gen` 628, `err` 320, `fmt` 176, `view`
+   174, `errcode` 168, `vet` 128, `subsume` 114, `query` 93,
+   `jsonschema` 57, `why` 53, `hcanon` 42, `patch` 41, `graph` 38,
+   `views` 37, `hash` 34, `template` 34, `diff` 28, `fmt-lint` 28,
+   `relation` 25, `reaches` 19, `trim` 11, `trace` 9, `agentsmd` 7,
+   `fmt-template` 7, `fmt-template-lint` 3, `fmt-refuse` 1.
+   (Re-derived 2026-09-18. **A MODE LEFT THE LIST, which a count alone
+   would have hidden**: the `render` mode and its 106 rows are gone,
+   `test/spec/render.tsv` having been deleted in `43c145c0`, and
+   `trace` is what stands in the tally where a reader would look for
+   it. Before that 2026-09-13; before that 2026-09-06, when RENDER P8
    added `template.tsv` and the `template` mode; earlier the same day
    RENDER P3 added `render.tsv` and the
    `render` mode, P4 added two rows to it and P5 fifty, with four
@@ -117,7 +121,7 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    `views.tsv`, and the line had gone stale in exactly the way it
    predicts below.
    `divergent.tsv` and `signature.tsv` are the two files that carry no
-   rows. This line has now been wrong five times, each time within a
+   rows. This line has now been wrong six times, each time within a
    day or two of being corrected, and each time it was falsifiable in
    the two commands below — which is the point of carrying them. The
    lesson is not that the number is hard to get right: it is that
@@ -130,10 +134,17 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Seventy-two of the seventy-five phases in the table below have moved;
-sixty-three of those are complete, three are partial, three were landed
-and then superseded, retired or removed by an ADR, and three were
-retired by an ADR before they started. G5 phase 6 is
+Seventy-four of the seventy-five phases in the table below have moved;
+sixty-four of those are complete, three are partial, and seven were
+retired, superseded or removed by an ADR. **These four numbers are the
+total row of the table below**, which
+[`ts/test/capability-review.test.ts`](../../ts/test/capability-review.test.ts)
+derives from the phase rows and holds the table to — so quoting them
+here rather than counting again is what keeps this paragraph from
+drifting away from the rows, which is how it went wrong before: it
+read seventy-two and sixty-three, and split the retired seven into two
+groups of three. The seven are named in their own sections; the one
+phase that has not moved is G10 phase 6. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -280,7 +291,7 @@ from commit `2cec558`, over the OIDC trusted-publisher path in
 the MCP server, and all of G3, G4, G6, G7 and G8 are installable for
 the first time. `npm view aontu version` answered `0.53.0` that day, the proxy
 resolves `github.com/aontu-lang/aontu/go@v0.1.11`, and both tags point
-at that one commit. **Ten releases have followed**: 0.54.0 / go 0.1.12
+at that one commit. **Fourteen releases have followed**: 0.54.0 / go 0.1.12
 on 2026-09-02 (tags at `3dbb5ef`), 0.55.0 / go 0.1.13 on 2026-09-03
 (`69b80b7`), 0.56.0 / go 0.1.14 on 2026-09-03 (`22a5d31`), 0.57.0 /
 go 0.1.15 on 2026-09-05 (`05a8760`, the merge of #148), 0.58.0 /
@@ -289,17 +300,22 @@ go 0.1.17 on 2026-09-07 (`64b8f84`, #173 squashed onto `main`), 0.60.0
 / go 0.1.18 on 2026-09-07 (`0db9752`, the merge of #175), 0.61.0 /
 go 0.1.19 on 2026-09-07 (`d98665a`, the merge of #180), 0.62.0 /
 go 0.1.20 on 2026-09-10 (`0296379`, carried to `main` by the merge of
-#192), and **0.63.0 / go 0.1.21 on 2026-09-12** (`215b5b1`, the merge
-of #206). `npm view aontu version` answers `0.63.0`, the proxy resolves
-`github.com/aontu-lang/aontu/go@v0.1.21` to that commit, and the Go
+#192), 0.63.0 / go 0.1.21 on 2026-09-12 (`215b5b1`, the merge of
+#206), and — through 0.64.0, 0.65.0 and 0.66.0 — **0.67.0 / go
+0.1.25 on 2026-09-17** (`0436c12b`, the merge of #244). `npm view
+aontu version` answers `0.67.0`, the proxy resolves
+`github.com/aontu-lang/aontu/go@v0.1.25` to that commit, and the Go
 release carries its binaries.
 
-**The canon-hash parity fix `dc652ba` is in `main` and in no release.**
-The cross-port agreement G6 phases 0 and 1 record is therefore a claim
-about HEAD. It does not hold for `aontu@0.63.0` or
-`go/v0.1.21`: those two render a refer residual's element type
-differently (`use-cases/BUGS.md` §95), so one document hashes to two
-`aon1-` pins, and a pin recorded from either moves on the next release.
+**The canon-hash parity fix `dc652ba` is now in a release**, and this
+paragraph said the opposite until 2026-09-18. `git merge-base
+--is-ancestor dc652ba v0.67.0` succeeds, so the cross-port agreement
+G6 phases 0 and 1 record is no longer a claim about HEAD alone: it
+holds for `aontu@0.67.0` and `go/v0.1.25`. It did NOT hold for
+`aontu@0.63.0` or `go/v0.1.21`, which render a refer residual's
+element type differently (`use-cases/BUGS.md` §95), so one document
+hashed to two `aon1-` pins under that pair — which is why a pin
+recorded against a release names the release it was taken from.
 
 **0.58.0 is the release G9 was held for.** RENDER.0.md §6 recorded the
 owner's decision of 2026-09-05 — cut nothing until the validation
@@ -758,7 +774,7 @@ exposed are NOT fixed here and carry issues instead: the `file` of a
 site whose value came from an included schema file (#66), and the
 `-0` path segment (#67). #66 has since been closed — 2026-08-27, by the
 site-attribution invariant that G2.2's own note records,
-`test/spec/divergent.tsv` line 106 — and #67 remains open. The round's
+`test/spec/divergent.tsv` line 106 — and #67 was closed on 2026-09-06. The round's
 own fixes then left three arms
 nothing executed — the aggregate cap of (3), and, in Go, the
 per-document base of (1) and the fallback for a value belonging to
@@ -1376,7 +1392,7 @@ the corrected footing the doc now states — no shared spec mode
 | **2** — `get`, Go port | M | **LANDED** | `go/query.go` (`(*Aontu).Get`, `QueryOptions`, `QueryReport`) and `go/cmd/aontu/get.go`, mirroring the walk, the views, the exit classes and the JSON report; both runners execute every `query.tsv` row with no skip list, expectations parity-probed (87 cases diffed byte-for-byte, then 5 more for the list-spread arm) before any row was written. `go/query_test.go` (9 cases at 2026-09-05; 7 at landing) holds the API and the arms no source reaches. The two CLIs diffed byte-identical over a 17-case corpus — the version series and the host's unreadable-file wording excepted, G2 phase 3's same carve-outs. **What the probe cost the engine** (the G2 phase-4 pattern): the canonical side was WRONG about a non-concrete value — `get $.k` on `k: integer` returned the string `null` under `collect`, where the Go port correctly refused; generation failures now read back off the context in TypeScript, and `query-k-json` pins the refusal. Two smaller fixes: the finding's path is now the normalised QUERIED path in both ports (it was the engine error's, which is empty for a parse failure), and the Go CLI's `get`, `hash` and `trim` verbs now build their engine through `aontuForFile`, so an error frame names the file rather than `<no-file>`. **Observed, not fixed:** for an unparseable document the TS error FRAME prints one more trailing source line than Go's. It is pre-existing (identical under the plain `aontu <file>` verb), it is frame prose rather than behaviour, and no row pins it. |
 | **3** — provenance recorder and `why`, TypeScript | L | **LANDED** | `ts/src/provenance.ts` (the `Provenance` recorder and the record shape) and `why` in `ts/src/query.ts`, exported from `ts/src/aontu.ts`: what CONTRIBUTED to the value at a path, in order, each with the site it was written at. CLI verb `aontu why <path> [--format text\|json] <file>`, exit classes mirroring `get`'s. `test/spec/why.tsv` — 52 rows at 2026-09-05 (39 at landing) in a new five-column mode. **Departures, all of them about what a contribution IS** — the design named five instrumentation points (the `update()` site-drop, the conjunct fold, spread application, pref resolution, ref resolution); one is enough and the rest fall out: (1) the recorder hooks `unite` ALONE, the one place every meet passes through — G3's deprecation rider proved that point exists — plus a mark at the spread clone, which is the only role no operand can tell you about itself. A ref is still a `RefVal` when it meets its peer and a pref is still a `PrefVal`, so those two roles need no hook. (2) A contribution must be a value the author WROTE: the parsed tree is stamped before the fixpoint runs, and anything minted during unification (a kind lifted while a disjunct trials its members, a fold's intermediate) is the engine's own work and is dropped — without that rule the record for the design's own example carried a `number` nobody wrote. (3) Values structurally INSIDE a recorded contribution are dropped for the same reason, but a CONJUNCT expands into its terms: `a & b`, or two duplicate keys merged at parse, is several separately-written values, and the conjunct's own site is nowhere. (4) Contributions are ordered by SITE, not by meet order: the fold order is the fixpoint's business and would not survive the port. (5) Deduplication is by (path, val id) as designed, keyed on the path STRING rather than `ctx._pathidx` — the same rule, and the string is what the report prints. (6) Two evaluations are not needed: the recorder rides the one run the call already makes. **The cost is where the design put it:** off by default, one property load per meet on the uninstrumented path; an instrumented run additionally takes the no-op meets a bag normally skips, so a value written once and never met is still reported.  **2026-08-27, provenance through clones (use-cases/REVIEW.md finding E).** The recorder decided "did the author write this" by looking the operand's id up in a SET stamped over the parsed tree -- true of the parsed tree and of nothing derived from it -- so every value that reached a path through a clone was dark: a default flowing into a pack()-generated child, a shape carried by a $ref, one side of an id()-merge. `why` answered "(no contributions: nothing met at this path)" over a value it had just printed, with exit 0, which is the one statement an audit surface may not make (BUGS.md §22-24). The mark now lives ON the value (WRITTEN / base.fwrt) and Val.clone, Val.place and the disjunct fold carry it exactly as they carry the site -- the review's own recommendation, that provenance be part of the clone contract rather than a recorder bolted beside it. Values the engine MINTS are constructed rather than cloned and stay unmarked, which is what keeps the record to what the author can edit. Three pieces landed with it. (a) A MEMBER IS NOT A VALUE BESIDE ITS CONTAINER: which of the two the recorder saw was decided by evaluation order, so identical siblings under one spread template answered differently (one contribution at the first key, two at the second); containment is now a fact about the document, recorded at stamping time (INNER_OF / base.finner), and an operand is reported as the outermost written value it is part of. (b) markSpread's guard was a "done" flag where a CYCLE guard was meant, so the second key's application walked into an already-marked container and stopped, leaving every child the fixpoint had advanced in place unmarked. (c) THE VALUE THAT STANDS at a path is a contribution when nothing met there, because a generator places a value without meeting anything. One safety rule came with the extra reach: `set --in-place` REFUSES a path reached through a reference, because the literal it correctly reports belongs to the referent's line and splicing there would rewrite it for every reader while leaving the named path unmoved. Seven new rows -- why-spread-first-sibling and why-spread-later-sibling (the pair the review asked for), why-spread-untouched-later-sibling, why-pack-generated-default/-overridden, why-id-merge-first-position/-later-position -- and five existing goldens that recorded the defect now record the file and line the value came from. |
 | **4** — `why`, Go port | L | **LANDED** | `go/provenance.go` and `(*Aontu).Why` in `go/query.go`, plus `go/cmd/aontu/why.go`; the recorder hangs off `Ctx.prov` and hooks the `unite` wrapper that already carries G3's deprecation rider. Both runners execute every `why.tsv` row with no skip list, expectations parity-probed (39 cases diffed field by field, records and refusals) before any row was written. `go/provenance_test.go` holds the ordering's last tiebreaks and the entry-file/trust wiring; the two CLIs diffed byte-identical over an 11-case corpus — the version series and the host's file-error wording excepted. **What the probe cost the engine:** three shapes where a value was never met at all (a lone leaf, a nested leaf, a ref target) recorded nothing in TypeScript and one contribution in Go, because the TS bags SKIP the identity meet as an optimisation; the skip now yields while recording, so both ports see the same meets. Go additionally stamps the entry document's file name (`stampURL`, vet's precedent) — the TypeScript side gets it from the parse `path` option — so a site names its file in both. **Carve-out (2026-08-24):** "its file" is the ENTRY document's, and under an `@"…"` include that is the wrong one — Go names the entry where TypeScript names the included file the value was written in, with the row and column right in both. Recorded as #66 in [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv) and **CLOSED there on 2026-08-27** by the site-attribution invariant (G2.2): both ports now name the included file (re-probed 2026-09-05); verdicts, codes and positions were never affected. **Observed, not fixed:** Go has no per-Val id, so the recorder keys on pointer identity, which says the same thing. |
-| **5** — overlay `set` | M | **LANDED** | `ts/src/patch.ts` (`patch`, exported from `ts/src/aontu.ts`) and `go/patch.go` (`aontu.Patch`), with `aontu set <path>=<value>... --entry <file> --overlay <file> [--dry-run] [--format text\|json]` in both CLIs: an assignment becomes a path-flattened conjunct (`$.a.b=1` → `"a": "b": 1`, keys quoted so a segment may be a keyword, a number, or hold a space) appended to the overlay, and the verdict is G2's, unchanged — `vet(entry, overlay)` already asks exactly the right question, so the verb adds a writer, not a report. Exit codes are vet's verdict classes. `test/spec/patch.tsv` — 23 rows, parity-probed; `patch_assignment` registered in errcodes.tsv (class `parse`: what is malformed is source text). **The order-independence the whole verb rests on is ASSERTED, not claimed**: every row that stands up additionally runs the vet the other way round in both runners and requires the same verdict. **Departures:** (1) the engine returns the overlay TEXT and the CLI writes it — an engine that touched the filesystem could not be used by a server, and the CLI is the one place that knows about files. (2) The overlay is written ONLY when the change holds: an `invalid` or `error` verdict leaves the file exactly as it was, because a change the author still has to think about should not sit in their configuration while they do (the design said "appends, then re-evaluates"; on a refusal that would leave a broken overlay behind and the exit code is the only thing saying so). `--dry-run` writes nothing either way. (3) A missing overlay file is the empty overlay and is created, so "append to the overlay" does not require having made one first. (4) The entry and overlay file names ride as vet URLs as well as base paths, so a finding names the two files rather than the generic `schema`/`data` labels. **Stage 2 — the format-preserving in-place edit — LANDED 2026-08-25 as `--in-place`**, and one of its two stated prerequisites was wrong. The first was met as described (`why` IS the evaluated-path → contributing-span map, and sites carry `len`/`src` since G7's site-extent work). The comment-preserving CST was not needed AT ALL: a CST is what you need to RE-SERIALISE a document, and a targeted span splice serialises nothing — it replaces `len` code units at one offset and every other byte, comments and layout included, survives by never being read. **What the estimate missed in the other direction** is that `role === 'literal'` does NOT identify an editable span: a site names the TOKEN it points at, so a compound reports its OPENING token (`min(1)` reports `min`, `1+2` reports `1`, `{b:1}` reports `{`) while its canon is the whole thing, and splicing there edits the expression rather than the value — the same corruption class as the canon-length arithmetic, by another route. The shipped check parses the `src` ALONE and requires it to mean the contribution's own canon, which is the unifier deciding rather than a list of shapes to be incomplete about, and gets `0x1F` (canon `31`, not its own spelling) right without naming it. **The authority is the overlay text ALONE, with includes denied**, and that is not tidiness: a literal reached through `@"..."` cannot be told apart from the overlay's own by position -- an include holding `a: 42` at 1:4 and an overlay holding `x: 42` at 1:4 give the same site and the same text, so the span verification PASSES and a splice that trusted it rewrites `x` while reporting a replacement of `$.a`. The site's file cannot save it (a library caller need not pass a path, and this port names the entry document for an included value anyway, issue #76), so the ambiguity is removed at its source instead of detected. An overlay that loads anything is therefore refused outright, which subsumed a separate foreign-file check and left the span verification unreachable-but-kept in both ports, marked with its reason. Three codes registered (`patch_not_editable`, `patch_ambiguous`, `patch_span_mismatch`), all **warnings**: where the splice is refused the assignment is APPENDED exactly as it would have been without the flag, so the mode cannot turn a run that would have held into one that does not — asserted per row by both runners, which re-run every in-place row without the flag and require a verdict at least as good. 19 rows at landing, 18 at 2026-09-05 (one removed with the pipe, ADR-018); `ts/test/patch.test.ts` (new) and `go/patch_test.go` cover what a row cannot reach, the file paths. **What the parity probe cost the ENGINE, the G2 phase-4 pattern again:** two pre-existing Go site divergences fixed rather than recorded — a value MINTED by unification claimed row 1 column 1, because Go's `sp` zero value is a real position (every constructor now starts at an `unsited` sentinel, which conjuncts, disjuncts, tops and nils each already did for their own reason); and a PIPED call was sited at its left operand, because `buildCall` took the position from the pipe's rule. Pinned by `vet-minted-*` and `why-piped-call-is-unsited` (the latter removed with the pipe, ADR-018). A third, recorded not fixed in `test/spec/divergent.tsv` — and it is TWO entries rather than one: a literal in an included file is **#66**, recorded a week earlier and REDISCOVERED by this parity probe (the ledger's own failure mode, left visible), and a value minted during unification is **#76**, which fixing #66 does not settle. #66 was closed on 2026-08-27; #76 remains open. Neither was a one-line fix (Go's loader stamped no per-document url, and Go does not track parsed-versus-minted), and `set --in-place` safety is unaffected — the span verification catches what the file check cannot. |
+| **5** — overlay `set` | M | **LANDED** | `ts/src/patch.ts` (`patch`, exported from `ts/src/aontu.ts`) and `go/patch.go` (`aontu.Patch`), with `aontu set <path>=<value>... --entry <file> --overlay <file> [--dry-run] [--format text\|json]` in both CLIs: an assignment becomes a path-flattened conjunct (`$.a.b=1` → `"a": "b": 1`, keys quoted so a segment may be a keyword, a number, or hold a space) appended to the overlay, and the verdict is G2's, unchanged — `vet(entry, overlay)` already asks exactly the right question, so the verb adds a writer, not a report. Exit codes are vet's verdict classes. `test/spec/patch.tsv` — 23 rows, parity-probed; `patch_assignment` registered in errcodes.tsv (class `parse`: what is malformed is source text). **The order-independence the whole verb rests on is ASSERTED, not claimed**: every row that stands up additionally runs the vet the other way round in both runners and requires the same verdict. **Departures:** (1) the engine returns the overlay TEXT and the CLI writes it — an engine that touched the filesystem could not be used by a server, and the CLI is the one place that knows about files. (2) The overlay is written ONLY when the change holds: an `invalid` or `error` verdict leaves the file exactly as it was, because a change the author still has to think about should not sit in their configuration while they do (the design said "appends, then re-evaluates"; on a refusal that would leave a broken overlay behind and the exit code is the only thing saying so). `--dry-run` writes nothing either way. (3) A missing overlay file is the empty overlay and is created, so "append to the overlay" does not require having made one first. (4) The entry and overlay file names ride as vet URLs as well as base paths, so a finding names the two files rather than the generic `schema`/`data` labels. **Stage 2 — the format-preserving in-place edit — LANDED 2026-08-25 as `--in-place`**, and one of its two stated prerequisites was wrong. The first was met as described (`why` IS the evaluated-path → contributing-span map, and sites carry `len`/`src` since G7's site-extent work). The comment-preserving CST was not needed AT ALL: a CST is what you need to RE-SERIALISE a document, and a targeted span splice serialises nothing — it replaces `len` code units at one offset and every other byte, comments and layout included, survives by never being read. **What the estimate missed in the other direction** is that `role === 'literal'` does NOT identify an editable span: a site names the TOKEN it points at, so a compound reports its OPENING token (`min(1)` reports `min`, `1+2` reports `1`, `{b:1}` reports `{`) while its canon is the whole thing, and splicing there edits the expression rather than the value — the same corruption class as the canon-length arithmetic, by another route. The shipped check parses the `src` ALONE and requires it to mean the contribution's own canon, which is the unifier deciding rather than a list of shapes to be incomplete about, and gets `0x1F` (canon `31`, not its own spelling) right without naming it. **The authority is the overlay text ALONE, with includes denied**, and that is not tidiness: a literal reached through `@"..."` cannot be told apart from the overlay's own by position -- an include holding `a: 42` at 1:4 and an overlay holding `x: 42` at 1:4 give the same site and the same text, so the span verification PASSES and a splice that trusted it rewrites `x` while reporting a replacement of `$.a`. The site's file cannot save it (a library caller need not pass a path, and this port names the entry document for an included value anyway, issue #76), so the ambiguity is removed at its source instead of detected. An overlay that loads anything is therefore refused outright, which subsumed a separate foreign-file check and left the span verification unreachable-but-kept in both ports, marked with its reason. Three codes registered (`patch_not_editable`, `patch_ambiguous`, `patch_span_mismatch`), all **warnings**: where the splice is refused the assignment is APPENDED exactly as it would have been without the flag, so the mode cannot turn a run that would have held into one that does not — asserted per row by both runners, which re-run every in-place row without the flag and require a verdict at least as good. 19 rows at landing, 18 at 2026-09-05 (one removed with the pipe, ADR-018); `ts/test/patch.test.ts` (new) and `go/patch_test.go` cover what a row cannot reach, the file paths. **What the parity probe cost the ENGINE, the G2 phase-4 pattern again:** two pre-existing Go site divergences fixed rather than recorded — a value MINTED by unification claimed row 1 column 1, because Go's `sp` zero value is a real position (every constructor now starts at an `unsited` sentinel, which conjuncts, disjuncts, tops and nils each already did for their own reason); and a PIPED call was sited at its left operand, because `buildCall` took the position from the pipe's rule. Pinned by `vet-minted-*` and `why-piped-call-is-unsited` (the latter removed with the pipe, ADR-018). A third, recorded not fixed in `test/spec/divergent.tsv` — and it is TWO entries rather than one: a literal in an included file is **#66**, recorded a week earlier and REDISCOVERED by this parity probe (the ledger's own failure mode, left visible), and a value minted during unification is **#76**, which fixing #66 does not settle. #66 was closed on 2026-08-27; #76 followed on 2026-09-06. Neither was a one-line fix (Go's loader stamped no per-document url, and Go does not track parsed-versus-minted), and `set --in-place` safety is unaffected — the span verification catches what the file check cannot. |
 | **6** — delivery: MCP server, grammar, skill, `agentsmd` | M | **LANDED** | Four deliverables. **The MCP server**: `ts/src/mcp.ts` (tools and protocol, transport-free) and `ts/src/mcp-server.ts` (NDJSON stdio), published as the `aontu-mcp` bin — the LSP's three-layer split. Six tools at landing — `vet`, `get`, `why`, `diff`, `canon`, `summary` — and fifteen at 2026-09-05 (`subsume`, `breaking`, `set`, `relations`, `reaches`, `view`, `hash`, `trim` and `jsonschema` since; `docs/reference-api.md` carries the live table), each returning the SAME JSON contract the CLI prints; a tool that REFUSES answers with its own report and `isError: false`, which is reserved for a call that could not be made. Served evaluation is confined to no includes at all (G5) by default; since 2026-09-04 (#141) the server is also the `aontu mcp` verb, and `--root <dir>` opens confined includes below a root and file arguments by path. **`diff`**: `ts/src/diff.ts` and `go/diff.go`, path-addressed, with `test/spec/diff.tsv` (28 rows) asserting SYMMETRY in both runners. **The published grammar**: `grammar/aontu.gbnf` and `grammar/aontu.lark`, and `ts/test/grammar.test.ts`, which READS the gbnf file, interprets it as an ordered-choice PEG, and requires it to accept every canonical-form output in the shared suite (673 canon rows at landing; the corpus is the suite's live canon rows, so it grows with rule 5) while refusing the include directive and the over-approximations. **2026-09-03: a third notation, `grammar/aontu.abnf`** (a fourth file, `grammar/aontu.tmLanguage.json` — the TextMate grammar the editors ship — landed on 2026-09-02 in #123, with two guards in the same test) — the same rules in RFC 5234 notation with RFC 7405's case-sensitive literals, for a READER rather than a decoder, and the source the language reference's railroad diagrams are drawn from (`ts/scripts/figures.cjs`, `@tabnas/railroad`). `ts/scripts/abnf.cjs` reads it into the same expression tree the gbnf parser produces, so the corpus test, the reachability walk and the builtin-name check apply to it unchanged rather than through a second interpreter — the reason the reader sits in `scripts/` and not in the test. The one notation decision worth recording: a bare `"..."` literal is CASE-INSENSITIVE in RFC 5234 and aontu is not, so the reader refuses one rather than guess, and every literal in the file is spelled `%s"..."`. **`aontu agentsmd`** in both CLIs, over `agentsMd`/`(*Aontu).AgentsMd`, with `test/spec/agentsmd.tsv` pinning the stanza BYTE FOR BYTE across ports; `--write` splices between markers and leaves the rest of the file alone. **The skill**: `docs/skill/` — trigger stub, grammar card, JSON-first example ladder, error-code index — with `ts/test/skill.test.ts` evaluating every example document, so a skill that teaches what the engine no longer does fails the build. **Departures:** (1) `diff` compares the HASH FORM, not the plain canon: canon drops closedness and the marks, so a canon diff would call `close({a:1})` and `{a:1}` identical, and a bag's own attributes diff at the `&`, `&closed`, `&type` and `&hide` pseudo-keys. G6 landing first is what made that available. (2) MCP RESOURCES are not implemented; the progressive disclosure the design wanted from them is the `summary` TOOL plus `get`, which is the same disclosure without a second protocol surface to keep in parity. (3) `diff` and `agentsMd` are in BOTH ports with shared rows, though only TypeScript serves MCP — behaviour belongs to the spec suite (ADR-001), and the Go API is what a gateway embeds. (4) The grammar's parity test interprets the gbnf file rather than shelling out to lark or llama.cpp: the discipline the design asked for, without a toolchain the CI does not have. |
 | **7** — REPL inspection mode and hover-provenance | S | **LANDED** | The REPL gains `:load`, `:get`, `:keys` and `:why` in BOTH ports, over the query and provenance surfaces, plus a `--jsonl` session mode with no banner, no prompt and one JSON line per answer. **Closed 2026-08-24.** Both halves were fixed and are now driven by tests that go through the REAL entry points — `run()` in Go (`TestReplJSONLIsReachableOverAPipe`) and the SPAWNED binary in TypeScript (`repl-jsonl-is-reachable-over-a-pipe`), with `tty` false in both, since the whole reason the defect survived a green suite is that the old tests built the REPL state by hand. The Go switch gained its `--jsonl` case; and in BOTH ports the flag now overrides the TTY gate, which had read piped stdin as aontu SOURCE — so the mode a harness drives was reachable only through a pty. The two CLIs were diffed byte-identical over a four-command scripted session. **What was missing:** the `--jsonl` FLAG does not exist in the Go CLI — `jsonl := false` at `go/cmd/aontu/main.go:399` is never reassigned because the argument switch has no case for it, so `aontu --jsonl` answers `unknown option --jsonl` and exits 2 while `helpText` at `:52` advertises it and `go/cmd/aontu/repl.go` carries the whole machinery behind it. `repl_test.go`'s `TestReplJSONLAnswersInOneLine` passes because it constructs `replState{JSONL: true}` directly, bypassing the parser, so the suite is green over unreachable code. By ADR-001 that makes the phase partial, not landed. In TypeScript the flag exists but the REPL is gated on `process.stdin.isTTY` (`ts/src/cli.ts:2285`), so piped commands are parsed as aontu source and the mode is reachable only through a pty. The phase's other deliverables hold in both ports: `:load`, `:keys`, `:get` and `:why` all answer correctly in the Go REPL. Recorded 2026-08-21; see [`status-2026-08-21.md`](status-2026-08-21.md#9-the-register-is-accurate-its-siblings-are-not). The command handler is a PURE FUNCTION of (state, line) in both ports (`replCommand`, `ts/src/cli.ts` and `go/cmd/aontu/repl.go`) with file reading injected: a read loop is untestable, and every answer this REPL gives has to be as checkable as the CLI's. The two handlers were diffed line by line over a 24-line scripted session, in both output modes, before either was tested. **Hover provenance** in both language servers (`ts/src/lsp.ts`, `go/lsp/lsp.go`), config-gated by `initializationOptions.aontu.provenance` and off by default; `ValueSpan` gained the path the record is keyed by, and the markdown was diffed byte for byte. Diagnostics are unchanged. **Departures:** (1) the session flag is `--jsonl`, not the design's `--json`, which would read as the `:json` output mode the REPL already has. (2) `:load` holds the SOURCE, not the rendered document: every later question re-evaluates, which is what single-use trees require, and holding both texts would have made `:get`'s view flags answer from the wrong one. (3) Hover provenance costs a SECOND evaluation rather than instrumenting the hover's own: the recorder needs the parsed tree stamped before the fixpoint, which hover's evaluation has already passed by the time a candidate is chosen. It is gated for exactly that reason. |
 
@@ -1591,11 +1607,13 @@ Opened 2026-08-30, after G1–G8 landed. Design is
 [g9-transformation.md](g9-transformation.md); forms (a) and (b) — the
 host program and the Jostraca path — are
 [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
-**Phases 0, 4 and 6 are partial and phases 1 and 2 have landed;
-phases 3 and 9 have not started; phases 5 and 8 are RETIRED
-([ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired),
-2026-09-05, an entry itself retired on 2026-09-11 — phase 7 was
-retired with them and has since landed)**, and the rest of the
+**Phase 0 is partial; phases 1, 2, 3, 6, 7 and 9 have landed; phases
+4, 5 and 8 are retired.** Phases 5 and 8 went under
+[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+on 2026-09-05, an entry itself retired on 2026-09-11 — phase 7 was
+retired with them and has since landed — and phase 4 went under
+[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+on 2026-09-14. The rest of the
 document is a design proposal, not a commitment. The corpus the design asks
 for before its later phases are committed to now exists —
 [use-cases/15-code-generation](../../use-cases/15-code-generation/)
@@ -2111,30 +2129,46 @@ a recursive rule set has no finite expansion at all. Phases 6–8 are
 committed to on that basis: the dispatch is a builtin, and the surface
 that desugars to it comes after.
 
-## Corrections outstanding in the gap documents
+## Corrections to the gap documents
 
 Recorded here rather than fixed silently, because each is a change to a
 design document and belongs in a commit with its reasoning.
 
-**Two entries are outstanding, both entered 2026-09-13.** Neither is a
+**Both entries are now answered.** They were entered 2026-09-13 and
+discharged 2026-09-18; they stay here, with what was done, because the
+reasoning is the point and a correction that vanishes when it lands
+teaches nothing. **Nothing in this section is outstanding.** Neither is a
 table row, deliberately: a line beginning with a pipe and a bold cell
 is read as a G9 phase row by `ts/test/capability-review.test.ts`, which
 tags every such line with the last `## G<n>` heading above it, and this
 heading is not one.
 
-- **`g6-distribution.md` still puts the major version in the module
+- **`g6-distribution.md` put the major version in the module
   path**, which [ADR-022](../../ADR.md#adr-022--compatibility-is-computed-so-the-major-leaves-the-name)
-  takes out of the name. Eleven sites carry it: two under "Problem",
+  takes out of the name. **Answered 2026-09-18 in that document's
+  status block**, where a reader starts: it now says the shapes below
+  carry `@<major>` and a built path does not, and enumerates the
+  eleven so none is met unannounced. The shapes themselves are left as
+  designed — the document is the record of what was designed, and the
+  register is authoritative for what was built. The same edit
+  corrected that block's claim that the two network verbs were the one
+  thing absent; they landed on 2026-09-16. It was the largest of the
+  two while it stood. Eleven sites carry it: two under "Problem",
   four under "Module identity and import syntax", two under "Module
   file and lockfile", two under "Resolution, offline, and vendoring",
   and the vendor directory in the 2026-09-03 amendment. One of the
   four is the correction's own subject — the ADR-020 annotation
   saying the shape "needs no amendment", which is the claim corrected
   in the G10 narrative below. The `@v0` in the CUE entry under "Prior
-  art" describes CUE and is not one of the eleven. This is the largest
-  outstanding correction in the directory.
-- **`g10-transparency.md` phase 6, and G10 row 6 below, plan witnesses
-  for a log the project will not run.** Cosignatures, gossip, mutation
+  art" describes CUE and is not one of the eleven.
+- **`g10-transparency.md` phase 6 planned witnesses for a log the
+  project will not run. Answered 2026-09-18**: that phase now says the
+  cosignatures, gossip and witnesses are Sigstore's to operate and
+  phase 2's client to verify, that the git mirror is of the read-path
+  layout rather than of a log this project does not keep, and that
+  this register's row is the current list. G10 row 6 below was already
+  rewritten for the federated design on 2026-09-16; it was the gap
+  document that had not been re-read.** Cosignatures, gossip, mutation
   alerting and a git mirror are the operator's side of a sequencer
   that [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
   federated to Sigstore; G10 phase 5 is RETIRED on exactly that
@@ -2326,8 +2360,9 @@ goes through ADR-019's "each would need its own entry" clause rather
 than around it, and the boundary bullets that forbade it — G6's
 "no private-registry auth design in v1" and this gap's "no private-module
 or auth design in v1" — are amended and reversed respectively in the
-same commit. No row moves: nothing is built, and phase 3's verbs are
-still NOT STARTED.
+same commit. No row moves: nothing was built then, and phase 3's
+verbs were still NOT STARTED. (They landed on 2026-09-16; this
+paragraph records the state at the ADR's own commit.)
 
 The shape is what keeps it admissible. **The public read path is
 unchanged** — static objects, no code, still mirrorable — and the
@@ -2349,8 +2384,8 @@ stated in the project's own terms — a signed manifest, a signer the
 trust configuration accepts for the package's name, and inclusion in a
 `tlog-tiles` log where the configuration requires it — with a Sigstore
 bundle as one encoding and the default for public tier-A packages. The
-phase-2 client is the log half of that contract unchanged. No row moves:
-phase 3 is still NOT STARTED, and it now lands behind a provider seam
+phase-2 client is the log half of that contract unchanged. No row moved:
+phase 3 was still NOT STARTED then, and it lands behind a provider seam
 that a second, minimal provider — a named key, no log — must prove
 before the first third-party publish; the contract's specification lands
 in `aontu-lang/mod` under the split rule, ahead of phase 3. The G10
