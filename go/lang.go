@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -286,6 +287,22 @@ help isolate the syntax error.`,
 
 	j.Rule("val", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
 		rs.PrependOpen(
+			// Before the core implicit-map alts: a value prefix, not a key.
+			&jsonic.AltSpec{
+				S: [][]jsonic.Tin{{jsonic.TinVL}, {cl}},
+				C: func(r *jsonic.Rule, _ *jsonic.Context) bool {
+					return 0 != r.D && 1 < r.ON &&
+						isAliasDecl(r.O0, r.O1, keyOf(r.O0))
+				},
+				P: "val",
+				A: func(r *jsonic.Rule, _ *jsonic.Context) {
+					if nil == r.U {
+						r.U = map[string]any{}
+					}
+					r.U["aontu_alias_val"] = keyOf(r.O0)
+				},
+				G: "alias-val",
+			},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, P: "map", B: 2, G: "spread"},
 			&jsonic.AltSpec{
 				S: [][]jsonic.Tin{optkey, {qm}},
@@ -309,6 +326,7 @@ help isolate the syntax error.`,
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, B: 2, G: "spread"},
 		)
 		rs.AddAC(wrapLeaf)
+		rs.AddAC(recordAliasHoist)
 	})
 
 	j.Rule("map", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
@@ -386,12 +404,10 @@ type listSpread struct{ val Val }
 func elemKeyRules(m map[string]any, ktkn, sep *jsonic.Token, key string) {
 	if kr, ok := keyRefusalOf(ktkn, sep, key); ok {
 		m[keyRefusalsKey] = []keyRefusal{kr}
-	} else if isAliasDecl(ktkn, sep, key) {
-		m[aliasKeysKey] = []string{key}
 	}
 }
 
-func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
+func elemSpread(r *jsonic.Rule, ctx *jsonic.Context) {
 	if r.U["aontu_optional_elem"] == true {
 		if list, ok := r.Node.([]any); ok && 0 < len(list) && r.Prev != nil {
 			key := keyOf(r.Prev.O0)
@@ -414,6 +430,13 @@ func elemSpread(r *jsonic.Rule, _ *jsonic.Context) {
 		if list, ok := r.Node.([]any); ok && 0 < len(list) {
 			if m, ok := list[len(list)-1].(map[string]any); ok {
 				key, _ := r.U["key"].(string)
+				// An element is a value position, so the prefix form applies.
+				if _, refused := keyRefusalOf(r.O0, r.O1, key); !refused &&
+					isAliasDecl(r.O0, r.O1, key) {
+					list[len(list)-1] = m[key]
+					addAliasHoist(ctx, key, m[key])
+					return
+				}
 				m[orderKey] = []string{key}
 				if r.ON > 0 {
 					m[posKey] = r.O0.SI
@@ -685,7 +708,8 @@ func allDigits(s string) bool {
 	return true
 }
 
-var aliasRe = regexp.MustCompile(`^%[A-Za-z_][A-Za-z0-9_]*`)
+// Hyphen separates segments; not leading or trailing, as `-` prefixes negation.
+var aliasRe = regexp.MustCompile(`^%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*`)
 
 var exactLiteralRe = regexp.MustCompile(
 	`^0[dD]([0-9](?:_?[0-9])*)(?:\.([0-9](?:_?[0-9])*))?(?:[eE]([-+]?[0-9](?:_?[0-9])*))?`)
@@ -1781,6 +1805,54 @@ func toValidSource(src string) string {
 	return strings.ToValidUTF8(src, "�")
 }
 
+// aliasHoistMetaKey holds the sink for value-prefix alias declarations
+// (`a: %x = 1`), which declare at the document root. See ALIASES.0.md.
+const aliasHoistMetaKey = reservedKeyPrefix + "aliashoist"
+
+type aliasHoist struct {
+	name string
+	node any
+}
+
+type aliasHoistSink struct{ entries []aliasHoist }
+
+func addAliasHoist(ctx *jsonic.Context, name string, node any) {
+	if sink, ok := ctx.Meta[aliasHoistMetaKey].(*aliasHoistSink); ok {
+		sink.entries = append(sink.entries, aliasHoist{name: name, node: node})
+	}
+}
+
+func recordAliasHoist(r *jsonic.Rule, ctx *jsonic.Context) {
+	if name, ok := r.U["aontu_alias_val"].(string); ok {
+		addAliasHoist(ctx, name, r.Node)
+	}
+}
+
+// placeAliasHoists puts each value-prefix declaration on the root map as
+// a copy pathed at its name, exactly as a file-level declaration sits.
+func placeAliasHoists(out any, sink *aliasHoistSink) {
+	m, ok := out.(map[string]any)
+	if !ok || 0 == len(sink.entries) {
+		return
+	}
+	ord, _ := m[orderKey].([]string)
+	ak, _ := m[aliasKeysKey].([]string)
+	for _, e := range sink.entries {
+		v := instanceClone(asVal(e.node), []string{e.name})
+		if prev, seen := m[e.name]; seen {
+			m[e.name] = mergeVals(asVal(prev), v)
+		} else {
+			m[e.name] = v
+			ord = append(ord, e.name)
+		}
+		if !slices.Contains(ak, e.name) {
+			ak = append(ak, e.name)
+		}
+	}
+	m[orderKey] = ord
+	m[aliasKeysKey] = ak
+}
+
 func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	src = toValidSource(src)
 
@@ -1793,7 +1865,8 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 		return newMap(), &AontuError{Msg: err.Error(), Code: "parse"}
 	}
 	sink := &notFoundSink{}
-	meta := map[string]any{notFoundMetaKey: sink}
+	hoists := &aliasHoistSink{}
+	meta := map[string]any{notFoundMetaKey: sink, aliasHoistMetaKey: hoists}
 	if nil != trust {
 		meta[trustMetaKey] = trust
 	}
@@ -1821,6 +1894,7 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	if out == nil {
 		return newMap(), nil
 	}
+	placeAliasHoists(out, hoists)
 	root := asVal(out)
 	if valTreeDepth(root) > maxNodeDepth {
 		n := newNil("max_depth")
