@@ -44,6 +44,7 @@ const trim_1 = require("../dist/trim");
 const relation_1 = require("../dist/relation");
 const subsume_1 = require("../dist/subsume");
 const aontu_1 = require("../dist/aontu");
+const RefVal_1 = require("../dist/val/RefVal");
 const SCHEMA = 'service: { name: string, port: integer }';
 (0, node_test_1.describe)('vet-site-span', () => {
     const DATA = 'port: 0x1F\n';
@@ -591,6 +592,7 @@ const SCHEMA = 'service: { name: string, port: integer }';
             peg: {
                 Shape: { isMap: true, peg: { v: { isVal: true } } },
                 Scalar: { isVal: true },
+                Defs: { isList: true, peg: [{ isMap: true, peg: {} }] },
             },
         };
         Assert.equal((0, vet_1.coverThrough)(root, root), root);
@@ -598,15 +600,26 @@ const SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal((0, vet_1.coverThrough)({ isCloseFunc: true, peg: 'not-a-list' }, root), undefined);
         const shape = root.peg.Shape;
         Assert.equal((0, vet_1.coverThrough)({ isCloseFunc: true, peg: [shape] }, root), shape);
-        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: false, peg: ['Shape'] }, root), undefined);
-        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: ['Shape'] }, root), shape);
-        for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42]]) {
-            Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: miss }, root), undefined, JSON.stringify(miss));
+        const ref = (peg, absolute, path) => {
+            const r = new RefVal_1.RefVal({ peg, absolute });
+            if (null != path) {
+                r.path = path;
+            }
+            return r;
+        };
+        Assert.equal((0, vet_1.coverThrough)(ref(['Shape'], true), root), shape);
+        // `..Shape` written at `$.x.&` names the root's `Shape`.
+        Assert.equal((0, vet_1.coverThrough)(ref(['.', 'Shape'], false, ['x', '&']), root), shape);
+        // A parent step off the top of the path resolves to nothing.
+        Assert.equal((0, vet_1.coverThrough)(ref(['.', 'Shape'], false, []), root), undefined);
+        for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42],
+            ['Defs', '9'], ['Defs', '-1'], ['Defs', 'middle']]) {
+            Assert.equal((0, vet_1.coverThrough)(ref(miss, true), root), undefined, JSON.stringify(miss));
         }
         Assert.equal((0, vet_1.coverThrough)({ isRecurse: true, target: ['Shape'] }, root), shape);
         const cyc = { isMap: true, peg: {} };
-        cyc.peg.A = { isRef: true, absolute: true, peg: ['A'] };
-        Assert.equal((0, vet_1.coverThrough)({ isRef: true, absolute: true, peg: ['A'] }, cyc), undefined);
+        cyc.peg.A = ref(['A'], true);
+        Assert.equal((0, vet_1.coverThrough)(ref(['A'], true), cyc), undefined);
     });
     // Data deeper than the schema declares: the walk descends into a
     // declaration and then past it, so the leaf is credited to nothing.

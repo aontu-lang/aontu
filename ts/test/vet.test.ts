@@ -11,6 +11,7 @@ import { trimCheck } from '../dist/trim'
 import { relationCheck } from '../dist/relation'
 import { subsume } from '../dist/subsume'
 import { vet as vetFromPackage } from '../dist/aontu'
+import { RefVal } from '../dist/val/RefVal'
 
 
 const SCHEMA = 'service: { name: string, port: integer }'
@@ -723,6 +724,7 @@ describe('vet-cover-through', () => {
       peg: {
         Shape: { isMap: true, peg: { v: { isVal: true } } },
         Scalar: { isVal: true },
+        Defs: { isList: true, peg: [{ isMap: true, peg: {} }] },
       },
     }
 
@@ -734,26 +736,31 @@ describe('vet-cover-through', () => {
     Assert.equal(
       coverThrough({ isCloseFunc: true, peg: [shape] }, root), shape)
 
-    Assert.equal(
-      coverThrough({ isRef: true, absolute: false, peg: ['Shape'] }, root),
-      undefined)
-    Assert.equal(
-      coverThrough({ isRef: true, absolute: true, peg: ['Shape'] }, root),
+    const ref = (peg: any[], absolute: boolean, path?: string[]): any => {
+      const r: any = new RefVal({ peg, absolute })
+      if (null != path) {
+        r.path = path
+      }
+      return r
+    }
+    Assert.equal(coverThrough(ref(['Shape'], true), root), shape)
+    // `..Shape` written at `$.x.&` names the root's `Shape`.
+    Assert.equal(coverThrough(ref(['.', 'Shape'], false, ['x', '&']), root),
       shape)
-    for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42]]) {
-      Assert.equal(
-        coverThrough({ isRef: true, absolute: true, peg: miss }, root),
-        undefined, JSON.stringify(miss))
+    // A parent step off the top of the path resolves to nothing.
+    Assert.equal(coverThrough(ref(['.', 'Shape'], false, []), root), undefined)
+    for (const miss of [['NoSuchName'], ['Scalar', 'deeper'], [42],
+    ['Defs', '9'], ['Defs', '-1'], ['Defs', 'middle']]) {
+      Assert.equal(coverThrough(ref(miss, true), root), undefined,
+        JSON.stringify(miss))
     }
 
     Assert.equal(
       coverThrough({ isRecurse: true, target: ['Shape'] }, root), shape)
 
     const cyc: any = { isMap: true, peg: {} }
-    cyc.peg.A = { isRef: true, absolute: true, peg: ['A'] }
-    Assert.equal(
-      coverThrough({ isRef: true, absolute: true, peg: ['A'] }, cyc),
-      undefined)
+    cyc.peg.A = ref(['A'], true)
+    Assert.equal(coverThrough(ref(['A'], true), cyc), undefined)
   })
 
 

@@ -423,9 +423,8 @@ function coverDataPaths(
 }
 
 
-// A spread or a key can carry a shape-preserving call (close, type) or
-// a reference, and coverage wants the bag under it. The seen set, not a
-// hop count, settles a cycle without rejecting a long finite chain.
+// A spread or a key can carry a shape-preserving call or a reference,
+// and coverage wants the bag under it; the seen set settles a cycle.
 export function coverThrough(v: any, root: any): any {
   let at = v
   const seen = new Set<any>()
@@ -439,12 +438,13 @@ export function coverThrough(v: any, root: any): any {
       at = at.peg[0]
       continue
     }
-    // ABSOLUTE only: this walk carries no position to resolve against.
-    if (true === at.isRef && true === at.absolute && Array.isArray(at.peg)) {
-      at = coverRefTarget(root, at.peg)
+    // A relative reference reads from where it was WRITTEN, not where
+    // the template lands, so the engine's own resolution is the rule.
+    if (true === at.isRef) {
+      at = coverRefTarget(root, at.plainRefPath())
       continue
     }
-    if (true === at.isRecurse && Array.isArray(at.target)) {
+    if (true === at.isRecurse) {
       at = coverRefTarget(root, at.target)
       continue
     }
@@ -454,16 +454,14 @@ export function coverThrough(v: any, root: any): any {
 }
 
 
-// A reference descends lists too: `$.Defs.0` is a path.
-function coverRefTarget(root: any, segs: any[]): any {
+// A reference descends a list by the segment AS WRITTEN: `$.Defs.0`.
+function coverRefTarget(root: any, segs: string[] | undefined): any {
+  if (null == segs) {
+    return undefined
+  }
   let at = root
   for (const seg of segs) {
-    if ('string' !== typeof seg) {
-      return undefined
-    }
-    at = true === at?.isMap && null != at.peg ? at.peg[seg]
-      : true === at?.isList && Array.isArray(at.peg) ? at.peg[Number(seg)]
-        : undefined
+    at = true === at?.isMap || true === at?.isList ? at.peg?.[seg] : undefined
   }
   return at
 }

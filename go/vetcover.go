@@ -111,11 +111,8 @@ func coverWalkData(v Val, path []string, out *[]coverDataPath) {
 	}
 }
 
-// A shape is not always a bag where it stands: a spread or a key can
-// carry a shape-preserving call (close, type) or a reference, and
-// coverage wants the bag under them. Termination is by the values
-// already passed through, so a cycle of definitions settles while a
-// long but finite chain of wrappers still reaches its bag.
+// A spread or a key can carry a shape-preserving call or a reference,
+// and coverage wants the bag under it; the seen set settles a cycle.
 func coverThrough(v Val, root Val) Val {
 	at := v
 	seen := map[Val]bool{}
@@ -127,23 +124,16 @@ func coverThrough(v Val, root Val) Val {
 		case *ListVal:
 			return b
 		case *FuncVal:
-			// ABSOLUTE refs only, below: this walk carries no position
-			// for a relative one to resolve against.
 			if ("close" != b.name && "type" != b.name) || 1 > len(b.peg) {
 				return nil
 			}
 			at = b.peg[0]
 		case *RefVal:
-			if !b.absolute {
-				return nil
-			}
-			at = coverRefTarget(root, b.peg)
+			// A relative reference reads from where it was WRITTEN, not
+			// where the template lands, so the engine's rule is the one.
+			at = coverRefTarget(root, b.plainRefPath())
 		case *RecurseVal:
-			parts := make([]any, 0, len(b.target))
-			for _, p := range b.target {
-				parts = append(parts, p)
-			}
-			at = coverRefTarget(root, parts)
+			at = coverRefTarget(root, b.target)
 		default:
 			return nil
 		}
@@ -151,20 +141,19 @@ func coverThrough(v Val, root Val) Val {
 	return nil
 }
 
-// A reference descends lists as well as maps: `$.Defs.0` is a path.
-func coverRefTarget(root Val, segs []any) Val {
+// A reference descends a list by the segment AS WRITTEN: `$.Defs.0`.
+func coverRefTarget(root Val, segs []string) Val {
+	if nil == segs {
+		return nil
+	}
 	at := root
-	for _, seg := range segs {
-		name, isName := seg.(string)
-		if !isName {
-			return nil
-		}
+	for _, name := range segs {
 		switch b := at.(type) {
 		case *MapVal:
 			at = b.peg[name]
 		case *ListVal:
-			i, err := strconv.Atoi(name)
-			if nil != err || 0 > i || i >= len(b.peg) {
+			i, ok := listIndex(name)
+			if !ok || i >= len(b.peg) {
 				return nil
 			}
 			at = b.peg[i]

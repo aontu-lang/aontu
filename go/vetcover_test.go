@@ -30,23 +30,32 @@ func TestCoverThroughDeclinesWhatIsNotAShape(t *testing.T) {
 	if got := coverThrough(newFunc("close", []Val{shape}), root); got != Val(shape) {
 		t.Errorf("close did not reach its argument: %v", got)
 	}
-	rel := &RefVal{peg: []any{"Shape"}, absolute: false}
-	if nil != coverThrough(rel, root) {
-		t.Error("a relative reference resolved")
-	}
 	abs := &RefVal{peg: []any{"Shape"}, absolute: true}
 	if nil == coverThrough(abs, root) {
 		t.Error("an absolute reference did not resolve")
 	}
+	// `..Shape` at `$.x.&` names the root's `Shape`; a step off the
+	// top of the path names nothing.
+	up := &RefVal{base: base{path: []string{"x", "&"}},
+		peg: []any{".", "Shape"}}
+	if nil == coverThrough(up, root) {
+		t.Error("a relative reference did not resolve")
+	}
+	off := &RefVal{peg: []any{".", "Shape"}}
+	if nil != coverThrough(off, root) {
+		t.Error("a step off the top resolved")
+	}
 	list := newList([]Val{newMap()})
 	root.set("Defs", list)
+	// No such key, a step that is not a bag, a part that is not a
+	// name, and spellings that are not a canonical list index.
 	for _, miss := range [][]any{
-		{"NoSuchName"},       // no such key
-		{"Scalar", "deeper"}, // a step that is not a map
-		{42},                 // a part that is not a name
-		{"Defs", "9"},        // a list index past the end
-		{"Defs", "-1"},       // ... or before the start
-		{"Defs", "middle"},   // ... or not an index at all
+		{"NoSuchName"},
+		{"Scalar", "deeper"},
+		{42},
+		{"Defs", "9"},
+		{"Defs", "-1"},
+		{"Defs", "middle"},
 	} {
 		r := &RefVal{peg: miss, absolute: true}
 		if nil != coverThrough(r, root) {
