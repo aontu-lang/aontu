@@ -614,7 +614,8 @@ and the CLIs named the two subcommands and said which half was missing
 rather than answering "unknown subcommand". Both verbs landed later,
 on 2026-09-16 as `aontu get` and `aontu publish` against a repository
 of static objects rather than over OCI, behind an injectable transport
-that answers the testability objection: G10 phases 3 and 4. Because
+that answers the testability objection — `PkgHttp` in TypeScript,
+`PkgHTTP` in Go — as G10 phase 3. Because
 nothing the phase does is language behaviour, its parity discipline
 is the CLI one (twin per-port tests plus a byte-for-byte diff of the
 two commands over a fixture corpus, streams AND the files they
@@ -631,9 +632,10 @@ as `aontu mod manifest`, which computes and gates everything a
 publish would send and stops before sending it. The annotation set
 and the gate ARE the phase; the push is the one part that carries
 no semantics, and at this phase it was the part with no registry to
-send to. `publish` sends to one now (G10 phase 4, 2026-09-16), and
-what it sends is the specification's signed manifest rather than the
-OCI artifact this phase built. The
+send to. `publish` sends to one now (G10 phase 3, 2026-09-16; phase 4
+the same day is the trusted-publishing identity over it), and what it
+sends is the specification's signed manifest rather than the OCI
+artifact this phase built. The
 hash-keyed cache integration needed no new code: the cache G6.2
 built is already keyed by the hash the annotation carries. See the
 [register](progress.md) for the three departures.

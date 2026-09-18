@@ -17,9 +17,9 @@ for status, and this document is authoritative for design. The design
 below is as designed, and [Design space](#design-space) carries the four
 dated amendments that revised it. Every claim marked VERIFIED was run
 against the built CLIs during drafting, and
-[Current state](#current-state) is
-re-stated as of 2026-09-18, because three of the four blockers it named
-have since closed.*
+[Current state](#current-state) is re-stated as of 2026-09-18: of the
+four blockers it named, two have closed, one is half-closed and one
+stands.*
 
 ## Problem
 
@@ -90,22 +90,27 @@ G6 landed the whole local half, and it is good bones.
   see the register's G6.2 note).
 
 Four things structurally blocked the capability when this was written.
-One still does. The other three are kept at their own numbers, because
-the rest of this document refers to them by number, and because what
-closed each one is worth keeping: two of the three were closed by the
-work this document went on to argue for.
+**Two still do** — one whole, one half. The items keep their own
+numbers, because the rest of this document refers to them by number,
+and because what closed the other two is worth keeping: both were
+closed by the work this document went on to argue for.
 
 1. **The fetch and the publish exist.** They did not at drafting: both
    exited 2 naming the missing half, and G6.3's departure 1 recorded
    why they had not landed — untestable network code would breach
    [ADR-002](../../ADR.md). They are `aontu get` and `aontu publish` in
-   both ports, landed 2026-09-16 under ADR-039 as phases 3 and 4
-   (`ts/src/pkg-net.ts`, `go/pkgnet.go`). A total `ModuleFetch` seam is
-   what answered ADR-002, which is the argument phase 3 below makes.
+   both ports, landed 2026-09-16 as G10 **phase 3** under ADR-039;
+   phase 4, the same day, is the trusted-publishing identity over them.
+   What answered ADR-002 is the seam phase 3 below argues for, and it
+   landed as one injectable transport per port — `PkgHttp` in
+   `ts/src/pkg-net.ts`, `PkgHTTP` in `go/pkgnet.go`, with a directory
+   transport below for tests and for `publish --to <dir>`.
+   `ModuleFetch` was this document's name for it and is a symbol in
+   neither port.
 2. **There is no public record of anything.** This is the one that
-   stands: nothing has been published to a repository the project
-   operates, so there is nothing for a second resolver to compare
-   against. What it no longer rests on is the `oci` pin, which was the
+   stands whole: nothing has been published to a repository the
+   project operates, so there is nothing for a second resolver to
+   compare against. What it no longer rests on is the `oci` pin, which was the
    registry's word about bytes nothing local could recompute. That pin
    is retired, so every pin a lock entry carries is now checkable by
    the client carrying it.
@@ -117,7 +122,10 @@ work this document went on to argue for.
    [aontu-lang/mod](https://github.com/aontu-lang/mod), unpublished, so
    nothing here can import it and no shared spec row executes either
    half. Register row G10.2 is PARTIAL for that reason, and returns to
-   LANDED with the shared rows rather than with the publish.
+   LANDED with the shared rows rather than with the publish. **So this
+   one still blocks, half-closed**: by ADR-001 a behaviour in one port
+   is partial, and a client only the Go binary can run is not a client
+   this project ships.
 4. **The cache distinguishes identities.** `cacheStoreDir` takes the
    package path as well as the canon-hash (`ts/src/mod.ts`), so two
    modules that mean the same thing no longer share a directory. The

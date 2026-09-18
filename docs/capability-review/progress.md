@@ -281,7 +281,8 @@ Against the review's own [sequencing](index.md#sequencing):
   (G6.3), and the publish boundary (G6.4) — so a module has a name, a
   local closure, a lockfile written in canonical form, and an artifact
   description gated on the breaking check. The network verbs landed on
-  2026-09-16 as G10 phases 3 and 4, under ADR-039.
+  2026-09-16 as G10 phase 3, with trusted publishing as phase 4 the
+  same day, under ADR-039.
 
 **Every phase of G1–G8 has now landed but one**; G9 and G10, opened
 after this paragraph was written, carry their own partials and
