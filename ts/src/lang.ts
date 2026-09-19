@@ -195,6 +195,7 @@ import {
   ALIAS_RE,
   ALIAS_SET,
   EXPORT_DECL_NAME,
+  RESERVED_KEY_PREFIX,
   exportHoldKey,
   aliasBareName,
   aliasScopedKey,
@@ -207,6 +208,12 @@ const CC_TAB = 9
 const CC_OB = 123
 
 let SCOPE_SEQ = 0
+let QUARANTINE_SEQ = 0
+
+const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
+const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
+const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
+const QUARANTINE_KEY = RESERVED_KEY_PREFIX + 'quarantine'
 
 // `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -683,14 +690,14 @@ help isolate the syntax error.`,
                 ((prev as any)[SPREAD] || { o: '&', v: [] })
               ;(prev as any)[SPREAD].v.push(lm.spread.cj)
             }
-            prev.___optional = (prev.___optional || [])
-            for (const k of lm.optionalKeys) { prev.___optional.push(k) }
-            prev.___alias = (prev.___alias || [])
-            for (const k of lm.aliasKeys) { prev.___alias.push(k) }
+            prev[OPTIONAL_MARK_KEY] = (prev[OPTIONAL_MARK_KEY] || [])
+            for (const k of lm.optionalKeys) { prev[OPTIONAL_MARK_KEY].push(k) }
+            prev[ALIAS_MARK_KEY] = (prev[ALIAS_MARK_KEY] || [])
+            for (const k of lm.aliasKeys) { prev[ALIAS_MARK_KEY].push(k) }
             return prev
           }
-          prev.___merge = (prev.___merge || [])
-          prev.___merge.push(curr)
+          prev[MERGE_KEY] = (prev[MERGE_KEY] || [])
+          prev[MERGE_KEY].push(curr)
           return prev
         }
       }
@@ -1167,8 +1174,8 @@ help isolate the syntax error.`,
         let mo = r.node
 
         for (const k in mo) {
-          if (null == mo[k] && '___merge' !== k &&
-            '___optional' !== k && '___alias' !== k) {
+          if (null == mo[k] && MERGE_KEY !== k &&
+            OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
             // Pathed at the KEY, not at the enclosing map. addsite takes
             // the rule's path, which here is the map's, so the error
             // would otherwise name the container and leave the reader to
@@ -1196,6 +1203,7 @@ help isolate the syntax error.`,
           return undefined
         }
 
+        const reservedRefusals: [string, Val][] = []
         for (const { key, tkn, why, details, url } of
           (r.u.aontu_key_refusals ?? []) as any[]) {
           const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
@@ -1210,6 +1218,10 @@ help isolate the syntax error.`,
           if ('alias_colon' === why) {
             delete mo[key]
             mo[aliasScopedKey(key, url)] = en
+          }
+          // A RESERVED KEY WAITS: its name is where the marks are kept.
+          else if ('reserved_key' === why) {
+            reservedRefusals.push([key, en])
           }
           else {
             mo[key] = en
@@ -1280,7 +1292,7 @@ help isolate the syntax error.`,
             dv.exportKeys = []
           }
           repathInstance(iv, [...(r.k?.path ?? [])])
-          ; (mo.___merge = mo.___merge || []).push(iv)
+          ; (mo[MERGE_KEY] = mo[MERGE_KEY] || []).push(iv)
           const binds: AliasBind[] = 0 === im.names.length ?
             ex.map((k: string) =>
               ({ local: aliasBareName(k), remote: aliasBareName(k) })) : im.names
@@ -1294,7 +1306,7 @@ help isolate the syntax error.`,
                   const en: any = siteAt(addsite(
                 new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
               en.details = { name: remote }
-              mo.___merge.push(en)
+              mo[MERGE_KEY].push(en)
             }
             else {
               bind = addsite(new RefVal({ peg: [from], absolute: true }), r, ctx)
@@ -1305,15 +1317,15 @@ help isolate the syntax error.`,
 
         // Marks carried over from a map include folded in the merge
         // hook above, applied here where the MapVal is built.
-        if (mo.___optional || mo.___alias) {
-          for (const k of (mo.___optional || [])) {
+        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY]) {
+          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
             if (!optionalKeys.includes(k)) { optionalKeys.push(k) }
           }
-          for (const k of (mo.___alias || [])) {
+          for (const k of (mo[ALIAS_MARK_KEY] || [])) {
             if (!aliasKeys.includes(k)) { aliasKeys.push(k) }
           }
-          delete mo.___optional
-          delete mo.___alias
+          delete mo[OPTIONAL_MARK_KEY]
+          delete mo[ALIAS_MARK_KEY]
         }
 
         // A value-prefix declaration lands here, at the document root
@@ -1330,9 +1342,21 @@ help isolate the syntax error.`,
         }
 
         //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
-        if (mo.___merge) {
+        const deferred = mo[MERGE_KEY]
+        delete mo[MERGE_KEY]
+
+        // The marks are off, so a reserved key can take its refusal.
+        for (const k in mo) {
+          if (k.startsWith(QUARANTINE_KEY)) {
+            delete mo[k]
+          }
+        }
+        for (const [key, en] of reservedRefusals) {
+          mo[key] = en
+        }
+
+        if (deferred) {
           let mop = { ...mo }
-          delete mop.___merge
 
           let mopv = new MapVal({ peg: mop })
           mopv.optionalKeys = optionalKeys
@@ -1340,7 +1364,7 @@ help isolate the syntax error.`,
           mopv.exportKeys = exportKeys
 
           r.node =
-            addsite(new ConjunctVal({ peg: [mopv, ...mo.___merge] }), r, ctx)
+            addsite(new ConjunctVal({ peg: [mopv, ...deferred] }), r, ctx)
         }
         else {
           r.node = addsite(new MapVal({ peg: mo }), r, ctx)
@@ -1375,7 +1399,7 @@ help isolate the syntax error.`,
           }
         }
 
-        // No ___merge arm here: the deferred map.merge that writes it
+        // No merge-key arm here: the deferred map.merge that writes it
         // only ever fires for a `pair` rule, whose parent is always a
         // `map` rule with a plain-object node — never a list.
         {
@@ -1462,10 +1486,23 @@ help isolate the syntax error.`,
       ])
 
       // NOTE: manually adjust path - @tabnas/path ignores as not pair:true
-      .ao((r) => {
+      .ao((r: Rule, ctx: JsonicContext) => {
         if (0 < r.d && r.u.spread) {
           r.child.k.path = [...r.k.path, '&']
           r.child.k.key = '&'
+        }
+
+        // THE SENTINEL NAMESPACE IS THE ENGINE'S, and the pair's OPEN is
+        // where the key is known and its value not yet stored.
+        const rkey = '' + r.u.key
+        if (null != r.u.key && rkey.startsWith(RESERVED_KEY_PREFIX) &&
+          true !== r.o0?.use?.aontu_export) {
+          const holder: any = r.parent
+          holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
+          holder.u.aontu_key_refusals.push({
+            key: rkey, why: 'reserved_key', tkn: r.o0, url: srcUrl(ctx),
+          })
+          r.u.key = QUARANTINE_KEY + (++QUARANTINE_SEQ)
         }
       })
 

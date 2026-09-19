@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EXPORT_DECL_NAME = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = void 0;
+exports.RESERVED_KEY_PREFIX = exports.EXPORT_DECL_NAME = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = void 0;
 exports.exportHoldKey = exportHoldKey;
 exports.isExportHoldKey = isExportHoldKey;
 exports.aliasScopedKey = aliasScopedKey;
@@ -15,8 +15,7 @@ const ALIAS_RE = new RegExp('^' + ALIAS_NAME);
 exports.ALIAS_RE = ALIAS_RE;
 const ALIAS_NAME_RE = new RegExp('^' + ALIAS_NAME + '$');
 exports.ALIAS_NAME_RE = ALIAS_NAME_RE;
-// What `export` takes and a destructure heads with. An item is a name
-// or `%local: %remote`; `{%}` is the wildcard, and binds no item.
+// What `export` takes and a destructure heads with: `{%}` binds none.
 const ALIAS_ITEM = '(' + ALIAS_NAME + ')(?:[ \\t]*:[ \\t]*(' + ALIAS_NAME + '))?';
 const ALIAS_SET = '\\{[ \\t]*(?:%|' + ALIAS_ITEM +
     '(?:[ \\t]*,[ \\t]*' + ALIAS_ITEM + ')*)[ \\t]*\\}';
@@ -25,11 +24,14 @@ const ALIAS_SET_RE = new RegExp('^' + ALIAS_SET + '$');
 const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g');
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@';
+// THE ENGINE'S KEY NAMESPACE, refused to a source key.
+const RESERVED_KEY_PREFIX = '\u0000aontu_';
+exports.RESERVED_KEY_PREFIX = RESERVED_KEY_PREFIX;
 // `export(...)` is read as a pair, its value under a key that changes
 // with each declaration, so a field of that name is the document's.
 const EXPORT_DECL_NAME = 'export';
 exports.EXPORT_DECL_NAME = EXPORT_DECL_NAME;
-const EXPORT_HOLD_KEY = '___export@';
+const EXPORT_HOLD_KEY = RESERVED_KEY_PREFIX + 'export@';
 let EXPORT_SEQ = 0;
 function exportHoldKey() {
     return EXPORT_HOLD_KEY + (++EXPORT_SEQ);

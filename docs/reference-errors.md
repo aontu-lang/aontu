@@ -231,6 +231,7 @@ twenty rows have no such section and carry no link.
 | `rep_sub` | 0.57.0 | The substitution given to `rep()` names a group the pattern does not have. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `replace_overlap` | 0.58.0 | Two keys of a template's `replace` map overlap, one inside the other. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `replace_unused` | 0.58.0 | A key of a template's `replace` map appears in none of the body's literal lines. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
+| `reserved_key` | 0.69.0 | A source key beginning with the engine's reserved `\u0000aontu_` prefix, where the parser keeps a document's marks. ([Errors](reference-language.md#errors)) |
 | `sort_dir` | 0.63.0 | A sort direction other than `asc` or `desc`. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `split_sep` | 0.57.0 | The separator given to `split()` is neither a string nor a pattern. ([Text: `esc` `usc` `rep` `split`](reference-language.md#text-esc-usc-rep-split)) |
 | `syntax` | 0.51.0 | The parser refused the source text; the message is the parser's own, with the operator-character hint appended. ([Lexical structure](reference-language.md#lexical-structure)) |

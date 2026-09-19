@@ -419,6 +419,7 @@ help isolate the syntax error.`,
 			},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, B: 2, G: "spread"},
 		)
+		rs.AddAO(reserveKeyNamespace)
 		rs.AddAC(trackOrder)
 	})
 
@@ -975,7 +976,7 @@ var scopeSeq atomic.Int64
 // `export(...)` is read as a pair, its value under a key that changes
 // with each declaration, so a field of that name is the document's.
 const exportDeclName = "export"
-const exportHoldKey = "___export@"
+const exportHoldKey = reservedKeyPrefix + "export@"
 
 var exportSeq atomic.Int64
 
@@ -1176,6 +1177,47 @@ func numberVal(n float64, src string, sp int) Val {
 	return v
 }
 
+const reservedRefusedKey = reservedKeyPrefix + "refusedkey"
+const quarantineKeyPrefix = reservedKeyPrefix + "quarantine"
+
+var quarantineSeq atomic.Int64
+
+// THE SENTINEL NAMESPACE IS THE ENGINE'S, and the pair's OPEN is where
+// the key is known and its value not yet stored.
+func reserveKeyNamespace(r *jsonic.Rule, ctx *jsonic.Context) {
+	key, _ := r.U["key"].(string)
+	if !strings.HasPrefix(key, reservedKeyPrefix) {
+		return
+	}
+	// The engine writes one key here itself: the pair that carries an
+	// `export` declaration to the parser.
+	if r.ON > 0 && r.O0.Use["aontu_export"] == true {
+		return
+	}
+	m := pairNode(r)
+	if m == nil { //coverage:ignore a pair always closes into a map node
+		return
+	}
+	kr := keyRefusal{key: key, why: "reserved_key", url: srcURL(ctx)}
+	if r.ON > 0 {
+		kr.sp, kr.src = r.O0.SI, r.O0.Src
+	}
+	krs, _ := m[keyRefusalsKey].([]keyRefusal)
+	m[keyRefusalsKey] = append(krs, kr)
+	r.U[reservedRefusedKey] = key
+	r.U["key"] = quarantineKeyPrefix + itoa(int(quarantineSeq.Add(1)))
+}
+
+func pairNode(r *jsonic.Rule) map[string]any {
+	if r.Parent != nil {
+		if m, ok := r.Parent.Node.(map[string]any); ok {
+			return m
+		}
+	}
+	m, _ := r.Node.(map[string]any)
+	return m
+}
+
 // trackOrder appends this pair's key to the enclosing map's insertion
 // order (first occurrence wins; duplicates are merged by value).
 func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
@@ -1211,13 +1253,12 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		key = keyOf(r.O0)
 	}
 
-	// Reject a source key in the reserved sentinel namespace: it would
-	// collide with the order/spread/optional entries above and silently
-	// corrupt the map. The parser's recover turns this panic into a
-	// normal parse error (it never crashes the process).
-	if strings.HasPrefix(key, reservedKeyPrefix) {
-		panic("aontu: map key may not begin with the reserved prefix " +
-			`"\x00aontu_"`)
+	// The open hook sent a refused key's value to a quarantine key, so
+	// the order carries the key the SOURCE wrote and the value it would
+	// have overwritten is dropped.
+	if orig, ok := r.U[reservedRefusedKey].(string); ok {
+		delete(m, key)
+		key = orig
 	}
 
 	if kr, ok := keyRefusalOf(r.O0, r.O1, key); ok {
@@ -2159,6 +2200,13 @@ func asValDepth(node any, depth int) Val {
 			// is recorded in order but injects its content under real keys.
 			v, ok := n[k]
 			if !ok {
+				// A refused key has no value; the refusal still stands.
+				if kr, bad := refused[k]; bad {
+					en := newNil(kr.why)
+					en.sp = kr.sp
+					en.setSrctext(kr.src)
+					mv.set(k, en)
+				}
 				continue
 			}
 			if kr, bad := refused[k]; bad {

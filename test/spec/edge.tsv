@@ -452,3 +452,12 @@ edge-group-raw-array-func	errc	a:close(([]%))	bare_punct
 # element by element and a raw element reached `arg.unify(...)`.
 edge-group-nested-paren	gens	a:((1))	{"a":1}
 edge-group-paren-op	gens	a:((1+2))	{"a":3}
+# THE \u0000aontu_ NAMESPACE IS THE ENGINE'S: a source key written in it
+# would land on the marks the parser holds there, so it is refused at
+# the pair's open, before its value is stored. The prefix begins with a
+# NUL, so only an escape spells it -- and the keys that merely look
+# like a sentinel are ordinary keys.
+edge-reserved-key-refused	errc	"\\u0000aontu_x": 1\nb: 2	reserved_key
+edge-reserved-key-on-a-mark-refused	errc	"\\u0000aontu_order": 1	reserved_key
+edge-reserved-key-prefix-only-is-a-key	gens	"aontu_order": 1	{"aontu_order":1}
+edge-underscore-sentinel-is-a-key	gens	"___merge": 42\nb: 2	{"___merge":42,"b":2}

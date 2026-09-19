@@ -8,8 +8,7 @@ const ALIAS_RE = new RegExp('^' + ALIAS_NAME)
 
 const ALIAS_NAME_RE = new RegExp('^' + ALIAS_NAME + '$')
 
-// What `export` takes and a destructure heads with. An item is a name
-// or `%local: %remote`; `{%}` is the wildcard, and binds no item.
+// What `export` takes and a destructure heads with: `{%}` binds none.
 const ALIAS_ITEM =
   '(' + ALIAS_NAME + ')(?:[ \\t]*:[ \\t]*(' + ALIAS_NAME + '))?'
 const ALIAS_SET =
@@ -21,10 +20,13 @@ const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g')
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@'
 
+// THE ENGINE'S KEY NAMESPACE, refused to a source key.
+const RESERVED_KEY_PREFIX = '\u0000aontu_'
+
 // `export(...)` is read as a pair, its value under a key that changes
 // with each declaration, so a field of that name is the document's.
 const EXPORT_DECL_NAME = 'export'
-const EXPORT_HOLD_KEY = '___export@'
+const EXPORT_HOLD_KEY = RESERVED_KEY_PREFIX + 'export@'
 let EXPORT_SEQ = 0
 
 function exportHoldKey(): string {
@@ -71,6 +73,7 @@ export {
   ALIAS_NAME_RE,
   ALIAS_SET,
   EXPORT_DECL_NAME,
+  RESERVED_KEY_PREFIX,
   exportHoldKey,
   isExportHoldKey,
   aliasScopedKey,
