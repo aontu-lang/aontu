@@ -154,16 +154,28 @@ class Aontu {
     }
 
     if (null != pval && 0 === errs.length) {
-      let uni = new Unify(pval, this.lang, ac, src)
-      errs = uni.err
+      // T-1: EXPANDED SIZE IS CHARGED BEFORE EVALUATION, here rather
+      // than in generate, because an editor unifies on each keystroke
+      // and a document too big to evaluate must be turned away there
+      // too.
+      const over = aliasBudget(ac as any, pval)
 
-      // Never nullish: Unify.res starts as the root Val, unite() returns a
-      // Val on every arm, and its catch-all turns a throwing node into an
-      // 'internal' NilVal.
-      out = uni.res
+      if (undefined !== over) {
+        out = over
+        errs = [over]
+      }
+      else {
+        let uni = new Unify(pval, this.lang, ac, src)
+        errs = uni.err
+
+        // Never nullish: Unify.res starts as the root Val, unite() returns a
+        // Val on every arm, and its catch-all turns a throwing node into an
+        // 'internal' NilVal.
+        out = uni.res
+        out.graph = graphOf(out)
+      }
 
       out.deps = pval.deps
-      out.graph = graphOf(out)
       out.err = errs
       ac.root = out
     }
@@ -185,17 +197,7 @@ class Aontu {
 
       if (undefined !== pval && 0 === pval.err.length) {
 
-        // T-1: expanded size is charged BEFORE evaluation.
-        const over = aliasBudget(ac as any, pval)
-        if (undefined !== over) {
-          ac.adderr(over as any)
-          if (!ac.collect) {
-            throw new AontuError(ac.errmsg(), ac.err)
-          }
-        }
-
-        let uval = undefined === over ?
-          this.unify(pval, undefined, ac) : undefined
+        let uval = this.unify(pval, undefined, ac)
 
         if (undefined !== uval && 0 === uval.err.length) {
 

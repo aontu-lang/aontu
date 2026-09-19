@@ -98,9 +98,6 @@ function aliasBudget(ctx, root) {
         return n;
     };
     const valSize = (v) => {
-        if (null == v || true !== v.isVal) {
-            return 0;
-        }
         if (true === v.isRef) {
             const key = v.aliasKey;
             return undefined === key ? 1 : 1 + nameSize(key);
@@ -192,5 +189,5 @@ function expandAliases(root, snapmap) {
         }
     };
     visit(root, []);
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 //# sourceMappingURL=alias.js.map

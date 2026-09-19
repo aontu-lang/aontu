@@ -44,6 +44,25 @@ describe('lsp-diagnostics', () => {
     Assert.match(d[0].message, /Cannot unify value/)
   })
 
+  // Twin: go/lsp/lsp_test.go TestDiagnosticsAliasBudget. The editor
+  // unifies on each keystroke, so a ladder too big to expand is turned
+  // away here too; evaluating it instead takes tens of seconds.
+  test('alias-budget-is-a-diagnostic', () => {
+    const ladder = ['%a0 = 1']
+    for (let i = 1; i <= 20; i++) {
+      ladder.push('%a' + i + ' = [%a' + (i - 1) + ', %a' + (i - 1) + ']')
+    }
+    ladder.push('out: %a20')
+
+    const started = Date.now()
+    const d = computeDiagnostics(ladder.join('\n'))
+
+    Assert.equal(d.length, 1)
+    Assert.equal(d[0].code, 'alias_budget')
+    Assert.equal(d[0].severity, SEVERITY_ERROR)
+    Assert.ok(Date.now() - started < 5000)
+  })
+
   test('unknown-function-position', () => {
     const d = computeDiagnostics('x:foo(1)')
     Assert.equal(d.length, 1)

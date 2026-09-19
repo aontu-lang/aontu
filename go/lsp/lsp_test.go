@@ -4,10 +4,12 @@ package lsp
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDiagnosticsValidIsEmpty(t *testing.T) {
@@ -41,6 +43,33 @@ func TestDiagnosticsConflictPosition(t *testing.T) {
 	}
 	if got := d[0].Range.Start; got.Line != 1 || got.Character != 2 {
 		t.Errorf("start = %+v, want {1 2}", got)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts alias-budget-is-a-diagnostic. The editor
+// checks on each keystroke, so a ladder too big to expand is turned
+// away here too; evaluating it instead takes tens of seconds.
+func TestDiagnosticsAliasBudget(t *testing.T) {
+	ladder := []string{"%a0 = 1"}
+	for i := 1; i <= 20; i++ {
+		ladder = append(ladder, fmt.Sprintf("%%a%d = [%%a%d, %%a%d]", i, i-1, i-1))
+	}
+	ladder = append(ladder, "out: %a20")
+
+	started := time.Now()
+	d := Diagnostics(strings.Join(ladder, "\n"))
+
+	if len(d) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(d), d)
+	}
+	if d[0].Code != "alias_budget" {
+		t.Errorf("code = %q, want alias_budget", d[0].Code)
+	}
+	if d[0].Severity != SeverityError {
+		t.Errorf("severity = %d, want %d", d[0].Severity, SeverityError)
+	}
+	if el := time.Since(started); 5*time.Second < el {
+		t.Errorf("took %v: the ladder was evaluated, not refused", el)
 	}
 }
 

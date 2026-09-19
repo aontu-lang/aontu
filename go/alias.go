@@ -10,8 +10,9 @@ const maxAliasNodes = 1000000
 // T-1 (ALIASES.0.md sections 7 and 9). Expansion TERMINATES -- no
 // parameters, no recursion, a finite name set -- but a name that names
 // names expands to the product of what they hold. The budget is on
-// EXPANDED SIZE and charged here, ahead of evaluation.
-func aliasBudget(ctx *Ctx, root Val) error {
+// EXPANDED SIZE, charged from unifyRoot, the one seam every entry
+// reaches: an editor checks on each keystroke, and so does a vet pass.
+func aliasBudget(ctx *Ctx, root Val) *NilVal {
 	// A DOCUMENT THAT INCLUDES parses to a conjunct, not a map: the
 	// deferred terms are where an included file's names arrive.
 	maps := []*MapVal{}
@@ -67,9 +68,6 @@ func aliasBudget(ctx *Ctx, root Val) error {
 	}
 
 	valSize = func(v Val) int {
-		if nil == v {
-			return 0
-		}
 		if rv, ok := v.(*RefVal); ok {
 			if key, named := rv.aliasKey(); named {
 				return 1 + nameSize(key)
@@ -125,8 +123,7 @@ func aliasBudget(ctx *Ctx, root Val) error {
 		en.details = map[string]string{"budget": itoa(limit)}
 		en.sp = root.pos()
 		ctx.adderr(en)
-		return &AontuError{Msg: ctx.errmsg(), Code: "alias_budget",
-			Details: en.details}
+		return en
 	}
 	return nil
 }

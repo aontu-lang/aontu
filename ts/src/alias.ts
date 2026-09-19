@@ -109,9 +109,6 @@ function aliasBudget(ctx: any, root: Val): Val | undefined {
   }
 
   const valSize = (v: any): number => {
-    if (null == v || true !== v.isVal) {
-      return 0
-    }
     if (true === v.isRef) {
       const key: string | undefined = v.aliasKey
       return undefined === key ? 1 : 1 + nameSize(key)
@@ -214,7 +211,7 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
   }
 
   visit(root, [])
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 
 
 export {

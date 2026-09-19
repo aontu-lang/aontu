@@ -142,10 +142,6 @@ func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 		ctx.budgetDepth = a.Trust.Budget.Depth
 		ctx.budgetAlias = a.Trust.Budget.Alias
 	}
-	// T-1: expanded size is charged BEFORE evaluation.
-	if berr := aliasBudget(ctx, v); nil != berr {
-		return v, ctx, berr
-	}
 	res := unifyRoot(v, ctx)
 	ctx.root = res
 	a.Graph = GraphOf(res)

@@ -59,6 +59,22 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.deepEqual(d[0].range.start, { line: 1, character: 2 });
         Assert.match(d[0].message, /Cannot unify value/);
     });
+    // Twin: go/lsp/lsp_test.go TestDiagnosticsAliasBudget. The editor
+    // unifies on each keystroke, so a ladder too big to expand is turned
+    // away here too; evaluating it instead takes tens of seconds.
+    (0, node_test_1.test)('alias-budget-is-a-diagnostic', () => {
+        const ladder = ['%a0 = 1'];
+        for (let i = 1; i <= 20; i++) {
+            ladder.push('%a' + i + ' = [%a' + (i - 1) + ', %a' + (i - 1) + ']');
+        }
+        ladder.push('out: %a20');
+        const started = Date.now();
+        const d = (0, lsp_1.computeDiagnostics)(ladder.join('\n'));
+        Assert.equal(d.length, 1);
+        Assert.equal(d[0].code, 'alias_budget');
+        Assert.equal(d[0].severity, lsp_1.SEVERITY_ERROR);
+        Assert.ok(Date.now() - started < 5000);
+    });
     (0, node_test_1.test)('unknown-function-position', () => {
         const d = (0, lsp_1.computeDiagnostics)('x:foo(1)');
         Assert.equal(d.length, 1);
