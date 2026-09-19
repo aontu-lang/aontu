@@ -63,14 +63,14 @@ shims in `build/shims/`:
 
 The page constructs the engine with
 `trust: { include: { mem: {} } }` (the memory include capability, see
-`docs/trust.md`), so `@"std/system"` — bundled inside the engine —
+`docs/trust.md`), so `@"aontu:system"` — bundled inside the engine —
 still resolves.
 
 ## Limitations
 
 - **No file includes.** `@"other.aon"` needs a filesystem; in the
   playground it reports a parse-stage `source not found` error.
-  `@"std/system"` works (it ships inside the engine). Use the `aontu`
+  `@"aontu:system"` works (it ships inside the engine). Use the `aontu`
   CLI for multi-file documents.
 - **No modules.** The `mod` machinery (vendored dependency closures,
   lockfiles, caches) is filesystem-based and unavailable for the same
