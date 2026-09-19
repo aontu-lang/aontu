@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
@@ -19,7 +20,6 @@ import (
 	multisource "github.com/tabnas/multisource/go"
 	path "github.com/tabnas/path/go"
 )
-
 
 const reservedKeyPrefix = "\x00aontu_"
 const orderKey = reservedKeyPrefix + "order"
@@ -52,10 +52,11 @@ type aliasDecl struct {
 	key  string
 }
 
-// One `export(...)`, and whether its argument named a set at all.
+// One `export(...)`, and whether its argument named a set.
 type exportDecl struct {
 	names []string
 	ok    bool
+	url   string
 	sp    int
 	src   string
 }
@@ -208,14 +209,14 @@ help isolate the syntax error.`,
 		Text:  &jsonic.TextOptions{Check: tsTextCheck},
 		Fixed: &jsonic.FixedOptions{Check: tsFixedCheck},
 		Number: &jsonic.NumberOptions{
-			Sep: "_",
+			Sep:     "_",
 			Exclude: numberExcluded,
 			Check:   tsNumCheck,
 		},
 		Value: &jsonic.ValueOptions{
 			Lex: boolPtr(true),
 			Def: map[string]*jsonic.ValueDef{
-				"string": kindDef(KindString),
+				"string":     kindDef(KindString),
 				"number":     kindDef(KindNumber),
 				"integer":    kindDef(KindInteger),
 				"float":      kindDef(KindFloat),
@@ -252,7 +253,7 @@ help isolate the syntax error.`,
 						})
 					},
 				},
-				"top": valDef(func(sp int) Val { t := top(); t.sp = sp; return t }),
+				"top":   valDef(func(sp int) Val { t := top(); t.sp = sp; return t }),
 				"_":     valDef(func(sp int) Val { p := newPlace(); p.sp = sp; return p }),
 				"nil":   valDef(func(sp int) Val { n := newNil("literal_nil"); n.sp = sp; return n }),
 				"true":  valDef(func(sp int) Val { v := newBoolean(true); v.sp = sp; return v }),
@@ -292,10 +293,10 @@ help isolate the syntax error.`,
 			"dot-prefix":    map[string]interface{}{"prefix": true, "src": ".", "right": 24000000},
 			// Override the default `+` (addition) precedence to match the
 			// aontu plus operator (binds tighter than & and |).
-			"addition": map[string]interface{}{"infix": true, "src": "+", "left": 20000000, "right": 21000000},
-			"negative": map[string]interface{}{"prefix": true, "src": "-", "right": 22000000},
-			"positive": map[string]interface{}{"prefix": true, "src": "+", "right": 22000000},
-			"plain": nil,
+			"addition":       map[string]interface{}{"infix": true, "src": "+", "left": 20000000, "right": 21000000},
+			"negative":       map[string]interface{}{"prefix": true, "src": "-", "right": 22000000},
+			"positive":       map[string]interface{}{"prefix": true, "src": "+", "right": 22000000},
+			"plain":          nil,
 			"subtraction":    nil,
 			"multiplication": nil,
 			"division":       nil,
@@ -592,7 +593,9 @@ func recordExports(m map[string]any) {
 				key: exportDeclName, why: "export_arg", sp: e.sp, src: e.src})
 		} else {
 			deleteNodeKey(m, exportHoldKey)
-			ek = append(ek, e.names...)
+			for _, n := range e.names {
+				ek = append(ek, aliasScopedKey(n, e.url))
+			}
 		}
 	}
 	if 0 < len(exs) {
@@ -602,7 +605,10 @@ func recordExports(m map[string]any) {
 }
 
 // THE DESTRUCTURE IS ADDITIVE: the values land as a plain include
-// places them, and each name binds in THIS file's scope.
+// places them, each name binds in THIS file's scope, and a file
+// publishes only what IT declares. An alias key is erased, so a
+// refusal stands in the document too: an unused name is still a
+// mistake.
 func bindImports(m map[string]any, ctx *jsonic.Context) {
 	ims, _ := m[importDeclsKey].([]importDecl)
 	merge, _ := m[importMergeKey].([]Val)
@@ -611,17 +617,28 @@ func bindImports(m map[string]any, ctx *jsonic.Context) {
 		deleteNodeKey(m, im.key)
 		published, declared := liftImported(ctx, iv)
 		merge = append(merge, iv)
-		bindImportNames(ctx, im, published, declared)
+		merge = append(merge, bindImportNames(ctx, im, published, declared)...)
 	}
 	if 0 < len(ims) {
 		m[importMergeKey] = merge
 	}
 }
 
+// A ROOT MAY BE WRAPPED: a file's names are its MAP'S, not open()'s.
+func declaringMap(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || 1 != len(fv.peg) {
+			return v
+		}
+		v = fv.peg[0]
+	}
+}
+
 // A DECLARATION IS THE DOCUMENT'S wherever the values land, so the
 // names go to the root and the subtree may sit under a key.
 func liftImported(ctx *jsonic.Context, iv Val) (published, declared []string) {
-	mv, ok := iv.(*MapVal)
+	mv, ok := declaringMap(iv).(*MapVal)
 	if !ok {
 		return nil, nil
 	}
@@ -635,29 +652,37 @@ func liftImported(ctx *jsonic.Context, iv Val) (published, declared []string) {
 }
 
 func bindImportNames(
-	ctx *jsonic.Context, im importDecl, published, declared []string) {
+	ctx *jsonic.Context, im importDecl, published, declared []string) []Val {
 	binds := im.binds
 	if 0 == len(binds) {
-		for _, n := range published {
+		for _, k := range published {
+			n := aliasBareName(k)
 			binds = append(binds, aliasBind{local: n, remote: n})
 		}
 	}
+	refused := []Val{}
 	for _, b := range binds {
 		var bind Val
-		from, ok := declaredAs(declared, b.remote)
-		if ok && slices.Contains(published, b.remote) {
+		from, ok := declaredAs(published, b.remote)
+		if ok && slices.Contains(declared, from) {
 			rv := newRef([]any{from}, false)
 			rv.absolute = true
 			bind = rv
 		} else {
-			nv := newNil("import_not_exported")
-			nv.sp = im.sp
-			nv.setSrctext(im.src)
-			nv.details = map[string]string{"name": b.remote}
-			bind = nv
+			bind = notExported(im, b.remote)
+			refused = append(refused, notExported(im, b.remote))
 		}
 		addAliasHoist(ctx, aliasScopedKey(b.local, im.url), bind)
 	}
+	return refused
+}
+
+func notExported(im importDecl, name string) *NilVal {
+	nv := newNil("import_not_exported")
+	nv.sp = im.sp
+	nv.setSrctext(im.src)
+	nv.details = map[string]string{"name": name}
+	return nv
 }
 
 func declaredAs(declared []string, name string) (string, bool) {
@@ -935,14 +960,16 @@ var aliasNameRe = regexp.MustCompile(`^` + aliasNamePat + `$`)
 var aliasSetRe = regexp.MustCompile(`^` + aliasSetPat + `$`)
 var aliasItemsRe = regexp.MustCompile(aliasItemPat)
 
-// `{ %a } = @"f.aon"` is read as the pair `<head>: <include>`, so the
-// head is one token. RE2 has no lookahead, so `==` is ruled out where
-// the match is read.
+// `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
+// one token. RE2 has no lookahead, so `==` is ruled out at the match.
 var importHeadRe = regexp.MustCompile(`^(` + aliasSetPat + `)[ \t]*=`)
 var exportRe = regexp.MustCompile(`^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)`)
 
 // A key carries the url of the file that declared the name.
 const aliasScopeSep = "@"
+const scopeMetaKey = reservedKeyPrefix + "scope"
+
+var scopeSeq atomic.Int64
 
 // `export(...)` is read as a pair, its value under an unwritable key.
 const exportDeclName = "export"
@@ -960,7 +987,6 @@ func aliasPathSegment(seg string) string {
 	}
 	return seg
 }
-
 
 // An unscoped key is its own name: how a path segment answers no above.
 func aliasBareName(key string) string {
@@ -1002,11 +1028,20 @@ func publishedNames(items []aliasBind, ok bool) ([]string, bool) {
 	return names, true
 }
 
-// The file a value was written in, and so any alias name's scope.
+// The file a value was written in, and so any alias name's scope. A
+// DOCUMENT IS ITS OWN SCOPE too, so a fileless parse is tagged.
 func srcURL(ctx *jsonic.Context) string {
 	ms, _ := ctx.Meta["multisource"].(map[string]any)
 	url, _ := ms["path"].(string)
-	return url
+	if "" != url {
+		return url
+	}
+	tag, _ := ctx.Meta[scopeMetaKey].(string)
+	if "" == tag {
+		tag = "#" + itoa(int(scopeSeq.Add(1)))
+		ctx.Meta[scopeMetaKey] = tag
+	}
+	return tag
 }
 
 var exactLiteralRe = regexp.MustCompile(
@@ -1183,7 +1218,8 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 	} else if names, nok, ok := exportNamesOf(r.O0); ok {
 		exs, _ := m[exportDeclsKey].([]exportDecl)
 		m[exportDeclsKey] = append(exs,
-			exportDecl{names: names, ok: nok, sp: r.O0.SI, src: r.O0.Src})
+			exportDecl{names: names, ok: nok, url: srcURL(ctx),
+				sp: r.O0.SI, src: r.O0.Src})
 	} else if binds, ok := importBindsOf(r.O0); ok {
 		ims, _ := m[importDeclsKey].([]importDecl)
 		m[importDeclsKey] = append(ims, importDecl{

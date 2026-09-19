@@ -1520,7 +1520,7 @@ admin: 443
 ```
 
 **The declaration is not part of the document.** It does not generate,
-and it does not appear in canon, so the file above and the file with
+it is not a key `close()` counts, and it does not appear in canon, so the file above and the file with
 `integer & min(1) & max(65535)` written out at both keys are the same
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
@@ -1688,9 +1688,16 @@ what makes the pattern additive rather than a filter.
 
 `{%}` takes every name the other file exports, and only those: the
 publishing file chose the set. Asking for a name that file does not
-export is refused with `import_not_exported`, which names the name. A
-name that arrives this way meets a local declaration of the same name
-rather than replacing it, exactly as two declarations in one file meet.
+export is refused with `import_not_exported`, which names the name; the
+destructure asked, so the refusal stands whether or not anything goes on
+to use the name. A name that arrives this way meets a local declaration
+of the same name rather than replacing it, exactly as two declarations
+in one file meet.
+
+**A file publishes what it declares.** A name that merely arrived in a
+file through an include belongs to the file that wrote it, so
+re-exporting it is refused: publishing someone else's private name is
+not a file's to do.
 
 **Rename what you take with `%local: %remote`.** Both sides carry the
 sigil, because both are names; the left is what this file calls it and
@@ -1748,6 +1755,12 @@ The other file's own declarations come up to the document root with its
 values. Without that a file that uses the name it publishes could not be
 mounted at all, since an alias resolves from the root and its
 declaration would have landed under the key.
+
+**A wrapped root still publishes.** `open(...)` and `copy(...)` hold the
+document as their one argument, so such a file publishes what its map
+declares. One limit: the wrapper's argument may not use the name the file
+publishes, because the declaration rises to the taking document's root,
+out of the argument's reach. That include fails with `conjunct`.
 
 `export` does not rename: a file publishes what it has, and the taking
 file renames what it takes, so `export({ %a: %b })` is refused with

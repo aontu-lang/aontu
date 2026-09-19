@@ -272,7 +272,8 @@ class MapVal extends BagVal {
         for (let peerkey in upeer.peg) {
           let peerchild = upeer.peg[peerkey]
 
-          if (this.closed && !allowedKeys.includes(peerkey)) {
+          if (this.closed && !allowedKeys.includes(peerkey) &&
+            !upeer.aliasKeys.includes(peerkey)) {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 

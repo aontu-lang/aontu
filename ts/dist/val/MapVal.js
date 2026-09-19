@@ -195,7 +195,8 @@ class MapVal extends BagVal_1.BagVal {
                 let upeer = peer.done ? peer : (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PER') }) : ctx, peer, TOP, 'map-peer-map');
                 for (let peerkey in upeer.peg) {
                     let peerchild = upeer.peg[peerkey];
-                    if (this.closed && !allowedKeys.includes(peerkey)) {
+                    if (this.closed && !allowedKeys.includes(peerkey) &&
+                        !upeer.aliasKeys.includes(peerkey)) {
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
                     // key optionality is additive

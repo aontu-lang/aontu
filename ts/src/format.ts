@@ -305,7 +305,8 @@ class Reader {
       return { t: 'spread', value: this.value(), at }
     }
     // `export({ %a })` is ONE declaration lexed as a pair.
-    if (EXPORT_HOLD_KEY === this.T[this.i].val && this.atKey()) {
+    if (EXPORT_HOLD_KEY === this.T[this.i].val &&
+      EXPORT_DECL_NAME === this.T[this.i].src && this.atKey()) {
       const text = EXPORT_DECL_NAME + '(' + this.T[this.i + 2].src + ')'
       this.i += 3
       return { t: 'atom', text, at }

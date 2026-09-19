@@ -1,6 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
-
 package aontu
 
 // Subsume verdicts.
@@ -407,12 +406,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				"the general value is a map and the specific value is not")
 			return subNo
 		}
+		// A DECLARATION IS NOT A FIELD: an alias key is erased before the
+		// document exists, so neither side compares one.
 		return subsumeBag(st, path, bagView{
-			val: gm, keys: gm.keys, closed: gm.closed,
+			val: gm, keys: fieldKeys(gm), closed: gm.closed,
 			optional: gm.optional, spread: gm.spread,
 			child: func(k string) Val { return gm.peg[k] },
 		}, bagView{
-			val: sm, keys: sm.keys, closed: sm.closed,
+			val: sm, keys: fieldKeys(sm), closed: sm.closed,
 			optional: sm.optional, spread: sm.spread,
 			child: func(k string) Val { return sm.peg[k] },
 		})
@@ -478,6 +479,16 @@ func contains(list []string, k string) bool {
 // specific side and subsume; optional keys compare when present;
 // closedness bounds the specific key set; spread templates govern the
 // specific side's surplus. Maps and lists share the shape.
+func fieldKeys(m *MapVal) []string {
+	keys := make([]string, 0, len(m.keys))
+	for _, k := range m.keys {
+		if !m.isAliasKey(k) {
+			keys = append(keys, k)
+		}
+	}
+	return keys
+}
+
 func subsumeBag(st *subState, path []string, g, s bagView) string {
 	out := subYes
 

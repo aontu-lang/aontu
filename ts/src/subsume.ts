@@ -347,8 +347,10 @@ export function subsumeNode(
         'the general value is a map and the specific value is not')
       return 'no'
     }
-    return subsumeBag(state, path, g, s, Object.keys(g.peg),
-      Object.keys(s.peg), (v: any, k: string) => v.peg[k])
+    // A DECLARATION IS NOT A FIELD: an alias key is erased before the
+    // document exists, so neither side compares one.
+    return subsumeBag(state, path, g, s, fieldKeys(g), fieldKeys(s),
+      (v: any, k: string) => v.peg[k])
   }
 
   // Lists: element-wise by position; the same required/optional shape
@@ -378,6 +380,11 @@ export function subsumeNode(
 // must be required in the specific side and subsume; optional keys
 // compare when present; closedness bounds the specific key set; spread
 // templates govern the specific side's surplus.
+function fieldKeys(v: any): string[] {
+  return Object.keys(v.peg).filter((k: string) => !v.aliasKeys.includes(k))
+}
+
+
 function subsumeBag(
   state: SubState, path: string[], g: any, s: any,
   gKeys: string[], sKeys: string[],

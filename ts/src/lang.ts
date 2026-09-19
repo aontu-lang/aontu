@@ -206,8 +206,10 @@ const CC_SP = 32
 const CC_TAB = 9
 const CC_OB = 123
 
-// `{ %a } = @"f.aon"` is read as the pair `<head>: <include>`, so the
-// head is one token and the grammar needs nothing new.
+let SCOPE_SEQ = 0
+
+// `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
+// one token and the grammar needs nothing new.
 const IMPORT_HEAD_RE = new RegExp('^(' + ALIAS_SET + ')[ \\t]*=(?!=)')
 const EXPORT_RE = /^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)/
 
@@ -343,8 +345,8 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
     },
   })
 
-  // THE FIXED MATCHER'S CHECK RUNS AT EVERY POSITION, which the heads
-  // below need: `{` opens a fixed token the text check never sees.
+  // THE FIXED MATCHER'S CHECK RUNS AT EVERY POSITION: `{` opens a fixed
+  // token the text check never sees.
   jsonic.options({
     fixed: {
       check: (lex: any) => {
@@ -523,10 +525,20 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
       items.every((i) => i.local === i.remote) ?
         items.map((i) => i.local) : undefined
 
-  // The file a value was written in, and so any alias name's scope.
+  // A ROOT MAY BE WRAPPED: a file's names are its MAP'S, not open()'s.
+  const declaringMap = (val: any): any => {
+    let cur = val
+    while (true === cur?.isFunc && 1 === cur.peg?.length) {
+      cur = cur.peg[0]
+    }
+    return cur
+  }
+
+  // The file a value was written in, and so any alias name's scope. A
+  // DOCUMENT IS ITS OWN SCOPE too, so a fileless parse is tagged.
   const srcUrl = (ctx: JsonicContext): string => {
     const url = ctx.meta.multisource && ctx.meta.multisource.path
-    return null == url ? '' : url
+    return url ? url : ((ctx.meta as any).aontu_scope ??= '#' + (++SCOPE_SEQ))
   }
 
   let addsite = (v: Val, r: Rule, ctx: JsonicContext) => {
@@ -1194,7 +1206,7 @@ help isolate the syntax error.`,
           // A COLON DECLARATION IS REFUSED AND STILL NAMES SOMETHING, so
           // the refusal is held under the key that name would have had
           // and a use of it reports why; not an alias key, so it
-          // generates where the name is unused.
+          // generates unused.
           if ('alias_colon' === why) {
             delete mo[key]
             mo[aliasScopedKey(key, url)] = en
@@ -1206,8 +1218,7 @@ help isolate the syntax error.`,
 
         // A NAME BELONGS TO THE FILE THAT DECLARED IT. Renamed here and
         // not at the key, so an elided value is still reported by the
-        // name the source spells; rebuilt, as key order is resolution
-        // order.
+        // name the source spells; rebuilt, as key order is resolution.
         const renamed = new Map<string, string>()
         for (const { name, key } of aliasDecls as any[]) {
           renamed.set(name, key)
@@ -1232,8 +1243,8 @@ help isolate the syntax error.`,
           }
         }
 
-        // `export` PUBLISHES NAMES AND NOTHING ELSE; the argument is
-        // erased, and a bare name, key or wildcard is refused.
+        // `export` PUBLISHES NAMES AND NOTHING ELSE; a bare name, a key
+        // and the wildcard are refused, and the argument is erased.
         for (const { items, tkn } of (r.u.aontu_export_decls ?? []) as any[]) {
           delete mo[EXPORT_HOLD_KEY]
           const names = publishedNames(items)
@@ -1244,40 +1255,46 @@ help isolate the syntax error.`,
             mo[EXPORT_DECL_NAME] = en
           }
           else {
-            exportKeys.push(...names)
+            exportKeys.push(...names.map((n) => aliasScopedKey(n, srcUrl(ctx))))
           }
         }
 
         // THE DESTRUCTURE IS ADDITIVE: the values land where the head
-        // stands and each name binds in THIS file's scope. A DECLARATION
-        // IS THE DOCUMENT'S wherever the values land, so the names go to
-        // the root and the subtree may sit under a key.
+        // stands, each name binds in THIS file's scope, and a file
+        // publishes only what IT declares. A DECLARATION IS THE
+        // DOCUMENT'S, so the names go to the root and the values may
+        // sit under a key.
         for (const im of (r.u.aontu_import_decls ?? []) as any[]) {
           const hoist = ((ctx as any).aontu_alias_hoist ||= [])
           const iv: any = mo[im.key]
           delete mo[im.key]
-          const ex: string[] = iv.exportKeys ?? []
-          const ak: string[] = iv.aliasKeys ?? []
+          const dv: any = declaringMap(iv)
+          const ex: string[] = dv.exportKeys ?? []
+          const ak: string[] = dv.aliasKeys ?? []
           for (const k of ak) {
-            hoist.push({ name: k, val: iv.peg[k] })
-            delete iv.peg[k]
+            hoist.push({ name: k, val: dv.peg[k] })
+            delete dv.peg[k]
           }
           if (0 < ak.length + ex.length) {
-            iv.aliasKeys = []
-            iv.exportKeys = []
+            dv.aliasKeys = []
+            dv.exportKeys = []
           }
-          // The head is not a key, so the values carry this map's path.
           repathInstance(iv, [...(r.k?.path ?? [])])
           ; (mo.___merge = mo.___merge || []).push(iv)
           const binds: AliasBind[] = 0 === im.names.length ?
-            ex.map((n: string) => ({ local: n, remote: n })) : im.names
+            ex.map((k: string) =>
+              ({ local: aliasBareName(k), remote: aliasBareName(k) })) : im.names
           for (const { local, remote } of binds) {
-            const from = ak.find((k: string) => aliasBareName(k) === remote)
+            const from = ex.find((k: string) => aliasBareName(k) === remote)
             let bind: Val
-            if (undefined === from || !ex.includes(remote)) {
+            if (undefined === from || !ak.includes(from)) {
               bind = siteAt(addsite(
                 new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
               ; (bind as any).details = { name: remote }
+                  const en: any = siteAt(addsite(
+                new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
+              en.details = { name: remote }
+              mo.___merge.push(en)
             }
             else {
               bind = addsite(new RefVal({ peg: [from], absolute: true }), r, ctx)

@@ -325,6 +325,10 @@ alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint
 alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # An unexported name cannot be bound, and the refusal names the name.
 alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	import_not_exported
+# A DECLARATION IS NOT A FIELD, so `close` never counts one: an alias
+# key is erased before the document exists, and a closed document
+# spliced beside one does not refuse it.
+alias-declaration-is-not-a-closed-key	gens	%u = 1\n@"__FIXTURES__/alias_sealed.aon"\na: %u	{"a":1}
 # A DESTRUCTURE PLACES ITS SUBTREE WHERE IT STANDS and binds its names
 # in the file, so it may sit under a key: the values go there and the
 # names do not. A DECLARATION IS THE DOCUMENT'S wherever the file's
@@ -348,14 +352,23 @@ alias-import-rename-names-the-remote	err	{ %s: %secret } = @"__FIXTURES__/alias_
 # than replacing it, exactly as two declarations in one file meet.
 alias-import-meets-a-local-declaration	gens	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # The refusal NAMES THE NAME, so a reader is not left comparing two
-# files to find which one it was.
+# files to find which one it was, and the DESTRUCTURE ASKED, so it
+# stands in the document: a name nothing reaches is still a mistake.
 alias-import-unexported-names-it	err	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	does not publish `%secret`
+alias-import-unexported-refused-unused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"	import_not_exported
+# A FILE PUBLISHES WHAT IT DECLARES. A name that merely arrived through
+# an include belongs to the file that wrote it, and re-exporting it
+# would publish what its own file withheld.
+alias-export-of-an-included-name-refused	errc	{ %u } = @"__FIXTURES__/alias_reexport.aon"\na: %u	import_not_exported
 # ... and so is a name the other file never declared at all.
 alias-import-undeclared-refused	errc	{ %nosuch } = @"__FIXTURES__/alias_exports.aon"\na: %nosuch	import_not_exported
-# A right-hand side that is not a document publishes no name and places
-# no values: the head binds nothing, and what it stands in front of is
-# refused where it lands, exactly as a bare `1` at the root would be.
-alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	map
+# A right-hand side that is not a document publishes no name, so the
+# name the head asked for is refused exactly as an unexported one is.
+alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	import_not_exported
+# A WRAPPED ROOT still publishes: open(), close() and copy() each hold
+# the document as their one argument, and a file is what it wrote, not
+# what wraps it.
+alias-import-through-a-wrapper	gens	{ %port } = @"__FIXTURES__/alias_open_exports.aon"\na: %port	{"a":8080,"listen":8080}
 #
 # A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
 # PARSED roots meet, and each resolves its OWN names: the schema's alias
@@ -365,5 +378,8 @@ alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	map
 # on which data it was checked against, which is the dynamic scope the
 # file rule below exists to prevent.
 alias-vet-name-does-not-cross	vet	listen: %q	%q = 8080\nlisten: %q	{"findings":[{"class":"reference","code":"no_path","path":"$.listen","severity":"error","sites":[{"col":9,"file":"schema","len":2,"role":"schema","row":1,"src":"%q","value":"%q"}]}],"truncated":false,"verdict":"error"}
+# A DOCUMENT IS ITS OWN SCOPE, so two documents may use one name for
+# two things and neither is troubled by the other's.
+alias-vet-same-name-does-not-collide	vet	%p = 1\na: 1	%p = 2\na: 1	{"findings":[],"truncated":false,"verdict":"valid"}
 alias-vet-across-documents	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 8080\nlisten: %q	{"findings":[],"truncated":false,"verdict":"valid"}
 alias-vet-across-documents-refuses	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 70000\nlisten: %q	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(1)&max(65535)","path":"$.listen","severity":"error","sites":[{"col":6,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":16,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(1)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}

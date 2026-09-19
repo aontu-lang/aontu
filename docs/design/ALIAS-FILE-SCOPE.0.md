@@ -78,6 +78,27 @@ value include of such a file stays refused: the destructure is where a
 file says it is taking names, and so where the engine knows to lift
 them.
 
+## What the scope turned out to reach
+
+A key that carries a file has to be a key nothing else is, and three
+places were already comparing keys without asking whether one was a
+declaration. All three predate this work and only showed once two
+documents could hold the same name for two things.
+
+**A document is its own scope, not just a file.** Two roots parsed from
+TEXT both scoped to the empty string, so a schema's `%p` and its data's
+`%p` collided under `vet` — the opposite of the rule `ALIASES.0.md`
+states. A parse with no file behind it is tagged instead. Go had the
+same hole one level out: its root never carries a multisource path, so
+even two file-backed roots shared a scope, which TypeScript's did not.
+
+**`close` counted a declaration as a key.** An alias key is erased
+before the document exists, so a closed map spliced beside a
+declaration refused it as a surplus field.
+
+**`subsume` compared declarations as fields.** It walked raw map keys,
+which matched only while both documents scoped a name identically.
+
 ## Two things the route did not foresee
 
 **Key order is resolution order.** Renaming a declaration in place moved

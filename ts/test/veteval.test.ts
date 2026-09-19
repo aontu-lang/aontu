@@ -92,7 +92,7 @@ function evalAccepts(src: string): boolean {
 // then be checking a different question from the one the row asks.
 const ALIAS_USE_RE = /%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/g
 
-function borrowsAName(src: string): boolean {
+function declaredNames(src: string): Set<string> {
   const declared = new Set<string>()
   for (const line of src.split('\n')) {
     const m = /^\s*(%[A-Za-z_][A-Za-z0-9_-]*)\s*=/.exec(line)
@@ -100,6 +100,12 @@ function borrowsAName(src: string): boolean {
       declared.add(m[1])
     }
   }
+  return declared
+}
+
+
+function borrowsAName(src: string): boolean {
+  const declared = declaredNames(src)
   for (const use of src.match(ALIAS_USE_RE) ?? []) {
     if (!declared.has(use)) {
       return true
@@ -109,8 +115,22 @@ function borrowsAName(src: string): boolean {
 }
 
 
+// A NAME DECLARED IN BOTH has no single-document spelling either:
+// concatenation REdeclares it, which asks a different question.
+function sharesADeclaration(schema: string, data: string): boolean {
+  const both = declaredNames(schema)
+  for (const name of declaredNames(data)) {
+    if (both.has(name)) {
+      return true
+    }
+  }
+  return false
+}
+
+
 function union(schema: string, data: string): string | undefined {
-  if (borrowsAName(schema) || borrowsAName(data)) {
+  if (borrowsAName(schema) || borrowsAName(data) ||
+    sharesADeclaration(schema, data)) {
     return undefined
   }
   if (statementForm(schema) && statementForm(data)) {

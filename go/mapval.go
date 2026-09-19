@@ -75,7 +75,6 @@ func (m *MapVal) set(k string, v Val) {
 	m.peg[k] = v
 }
 
-// remove drops a key and its place in the order, the twin of set.
 func (m *MapVal) remove(k string) {
 	delete(m.peg, k)
 	m.keys = slices.DeleteFunc(m.keys, func(o string) bool { return o == k })
@@ -590,7 +589,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for _, pk := range pm.keys {
 			pc := pm.peg[pk]
-			if _, allowed := m.peg[pk]; m.closed && !allowed {
+			// A DECLARATION IS NOT A FIELD: `close` never counts one.
+			if _, allowed := m.peg[pk]; m.closed && !allowed &&
+				!pm.isAliasKey(pk) {
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)
