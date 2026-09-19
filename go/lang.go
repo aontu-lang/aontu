@@ -473,9 +473,12 @@ func elemSpread(r *jsonic.Rule, ctx *jsonic.Context) {
 		if list, ok := r.Node.([]any); ok && 0 < len(list) && r.Prev != nil {
 			key := keyOf(r.Prev.O0)
 			m := map[string]any{
-				key:         list[len(list)-1],
-				orderKey:    []string{key},
-				optionalKey: []string{key},
+				key:      list[len(list)-1],
+				orderKey: []string{key},
+			}
+			// A REFUSED KEY IS NOT OPTIONAL: the refusal would be dropped.
+			if _, refused := keyRefusalOf(r.Prev.O0, r.O1, key); !refused {
+				m[optionalKey] = []string{key}
 			}
 			if r.Prev.ON > 0 {
 				m[posKey] = r.Prev.O0.SI
@@ -1241,7 +1244,8 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		key = orig
 	}
 
-	if kr, ok := keyRefusalOf(r.O0, r.O1, key); ok {
+	kr, refused := keyRefusalOf(r.O0, r.O1, key)
+	if refused {
 		kr.url = srcURL(ctx)
 		krs, _ := m[keyRefusalsKey].([]keyRefusal)
 		m[keyRefusalsKey] = append(krs, kr)
@@ -1261,11 +1265,10 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 			sp: r.O0.SI, src: r.O0.Src})
 	}
 
-	// An optional pair (key?:value): the custom alt bypasses jsonic's
-	// value storage, so store the value ourselves and record the key.
-	// A duplicate key merges into a conjunct exactly like the Map.Merge
-	// option does for normal pairs (`a:1 a?:2` -> `a:1&2`).
-	if r.U["optional"] == true {
+	// An optional pair (key?:value) bypasses jsonic's value storage,
+	// and a duplicate merges (`a:1 a?:2` -> `a:1&2`). A REFUSED KEY
+	// TAKES NEITHER: its name is a mark's, and its refusal is dropped.
+	if r.U["optional"] == true && !refused {
 		opt, _ := m[optionalKey].([]string)
 		m[optionalKey] = append(opt, key)
 		var cn any
@@ -1419,8 +1422,7 @@ func tsFixedCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 		}
 	}
 
-	// THE SHORTHAND IS READ OFF THE SOURCE: a name in it lexes as the
-	// pair it stands for, so the grammar needs nothing new.
+	// THE SHORTHAND IS READ OFF THE SOURCE: a name lexes as its pair.
 	if sh, ok := shorthandRef.Load(l); ok {
 		span := sh.(shorthandSpan)
 		if start == span.at {
@@ -1491,7 +1493,7 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 				pnt.CI += utf8.RuneCountInString(src[start:k])
 				pnt.SI = k
 				shorthandRef.Store(l, shorthandSpan{at: k, name: m, stage: 1})
-				if end.(int) <= k {
+				if end.(int)-1 <= k {
 					shorthandEnd.Delete(l)
 				}
 				return &jsonic.LexCheckResult{Done: true, Token: tkn}
@@ -2244,7 +2246,8 @@ func asValDepth(node any, depth int) Val {
 			// is recorded in order but injects its content under real keys.
 			v, ok := n[k]
 			if !ok {
-				// A refused key has no value; the refusal still stands.
+				// A refused key has no value; the refusal still stands,
+				// at the key the source wrote.
 				if kr, bad := refused[k]; bad {
 					en := newNil(kr.why)
 					en.sp = kr.sp

@@ -375,8 +375,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           return { done: true, token: atkn }
         }
 
-        // THE SHORTHAND IS READ OFF THE SOURCE: a name in it lexes as
-        // the pair it stands for, so the grammar needs nothing new.
+        // THE SHORTHAND IS READ OFF THE SOURCE: a name lexes as its pair.
         const sh = lex.aontu_shorthand
         if (null != sh && pnt.sI === sh.at) {
           if (1 === sh.stage) {
@@ -438,8 +437,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
             lex.aontu_eq_at = j
           }
 
-          // In a shorthand set the name is the KEY it stands for; the
-          // separator and the reference are pushed back after it.
+          // The name is the KEY; separator and reference follow it.
           const shend = lex.aontu_shorthand_end
           if (null != shend && pnt.sI < shend) {
             let k = pnt.sI + asrc.length
@@ -450,7 +448,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
             pnt.cI += k - pnt.sI
             pnt.sI = k
             lex.aontu_shorthand = { at: k, name: asrc, stage: 1 }
-            if (shend <= k) {
+            if (shend - 1 <= k) {
               delete lex.aontu_shorthand_end
             }
             return { done: true, token: ktkn }
@@ -1222,10 +1220,15 @@ help isolate the syntax error.`,
 
         let mo = r.node
 
-        // A REFUSED KEY TAKES NO KEY: its name is a mark's.
+        // A REFUSED KEY TAKES NO KEY and is not OPTIONAL: its name is a
+        // mark's, and the elision below would put it back.
         for (const kr of (r.u.aontu_key_refusals ?? []) as any[]) {
           if ('reserved_key' === kr.why) {
             delete mo[kr.key]
+            const oi = optionalKeys.indexOf(kr.key)
+            if (-1 !== oi) {
+              optionalKeys.splice(oi, 1)
+            }
           }
         }
 
@@ -1545,7 +1548,9 @@ help isolate the syntax error.`,
       .bc((rule: Rule, ctx: JsonicContext) => {
         // TRAVERSE PARENTS TO GET PATH
 
-        const ktkn: any = rule.o0
+        // AN OPTIONAL PAIR OPENS ON ITS `?`: the rule before read the key.
+        const ktkn: any = true === rule.prev?.u?.aontu_optional ?
+          rule.prev.o0 : rule.o0
         const holder: any = rule.parent
         const kr = keyRefusalOf(ktkn, rule.o1)
         if (null != kr) {
@@ -1704,7 +1709,8 @@ help isolate the syntax error.`,
           // "is this the top level" test reads the path, so an element
           // of a top-level list must not read as the root.
           mv.path = [...(rule.k?.path ?? []), '' + rule.node.length]
-          if (true === rule.u.aontu_optional_elem) {
+          // A REFUSED KEY IS NOT OPTIONAL: the refusal would be dropped.
+          if (true === rule.u.aontu_optional_elem && null == kr) {
             mv.optionalKeys = [key]
           }
           rule.node.push(mv)
