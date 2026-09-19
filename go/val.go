@@ -61,6 +61,8 @@ type Val interface {
 	posu() bool
 	setPosu(u bool)
 	srcurl() string
+	via() (int, string, string)
+	setVia(sp int, url, name string)
 	setSrcurl(u string)
 	cjo() int
 	superior() Val
@@ -96,24 +98,30 @@ type Val interface {
 const unsited = -1
 
 type base struct {
-	dc   int
-	sp   int
-	path []string // path from root (for reference resolution)
+	dc    int
+	sp    int
+	path  []string // path from root (for reference resolution)
 	stext string
-	spu bool
-	surl  string
-	mtype bool
-	mhide bool // hide mark
-	fspr bool
-	fwrt bool
-	finner Val
-	deprec map[string]string
-	origin string
+	// WHERE A NAME WAS USED, when the value arrived through one. A
+	// finding names where a value is written; this names where it
+	// entered the path the finding is about (ALIASES.0.md A-1).
+	viasp   int
+	viaurl  string
+	vianame string
+	spu     bool
+	surl    string
+	mtype   bool
+	mhide   bool // hide mark
+	fspr    bool
+	fwrt    bool
+	finner  Val
+	deprec  map[string]string
+	origin  string
 	emitted *emitOrigin
-	link string
-	relkey string
-	spr Val
-	pdep int8
+	link    string
+	relkey  string
+	spr     Val
+	pdep    int8
 }
 
 func (b *base) setVpath(p []string) { b.path = p }
@@ -172,8 +180,13 @@ func (b *base) srclen() int {
 	}
 	return utf16Len(b.stext)
 }
-func (b *base) posu() bool          { return b.spu }
-func (b *base) setPosu(u bool)      { b.spu = u }
+func (b *base) posu() bool                 { return b.spu }
+func (b *base) setPosu(u bool)             { b.spu = u }
+func (b *base) via() (int, string, string) { return b.viasp, b.viaurl, b.vianame }
+func (b *base) setVia(sp int, url, name string) {
+	b.viasp, b.viaurl, b.vianame = sp, url, name
+}
+
 func (b *base) srcurl() string      { return b.surl }
 func (b *base) setSrcurl(u string)  { b.surl = u }
 func (b *base) cjo() int            { return 99999 }
@@ -384,6 +397,15 @@ func (n *NilVal) FullMessage(src, file string, texts map[string]string) string {
 		b.WriteString("\n")
 		b.WriteString(n.frame(src, file, attempt, n.secondary, residue, texts))
 	}
+	for _, v := range []Val{residue, n.secondary} {
+		if v == nil {
+			continue
+		}
+		if sp, url, name := v.via(); "" != name {
+			b.WriteString("\n")
+			b.WriteString(n.viaFrame(src, file, sp, url, name, texts))
+		}
+	}
 	n.fullmsg = b.String()
 	return n.fullmsg
 }
@@ -398,6 +420,53 @@ func frameFile(url string) string {
 		return "<no-file>"
 	}
 	return out
+}
+
+// A NAME IS WHERE THE VALUE ENTERED THIS PATH, which is not where it
+// is written (ALIASES.0.md A-1).
+func (n *NilVal) viaFrame(src, file string, sp int, url, name string,
+	texts map[string]string) string {
+	if "" != url {
+		if t, ok := texts[url]; ok {
+			src, file = t, frameFile(url)
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, " Value arrived through %s\n", name)
+	row, col := rowCol(src, sp)
+	lines := strings.Split(src, "\n")
+	line := func(r int) string {
+		if 1 <= r && r <= len(lines) {
+			return lines[r-1]
+		}
+		return ""
+	}
+	arrowRow, arrowCol, arrowFile := row, col, file
+	if sp < 0 { //coverage:ignore a stamped use always carries its offset
+		arrowRow, arrowCol, arrowFile = -1, -1, "<no-file>"
+	}
+	fmt.Fprintf(&b, "  %s--> %s:%d:%d\n", ansi("\x1b[34m"), arrowFile, arrowRow, arrowCol)
+	gutter := len(strconv.Itoa(row + 2))
+	excerpt := func(r int) {
+		fmt.Fprintf(&b, "%s  %*d | %s%s\n",
+			ansi("\x1b[34m"), gutter, r, ansi("\x1b[0m"), line(r))
+	}
+	for r := row - 2; r < row; r++ {
+		if 1 <= r {
+			excerpt(r)
+		}
+	}
+	excerpt(row)
+	caretCol := col
+	if caretCol < 1 { //coverage:ignore rowCol never returns a column below 1
+		caretCol = 1
+	}
+	b.WriteString(strings.Repeat(" ", 2+gutter+3+caretCol-1))
+	b.WriteString(ansi("\x1b[34m") + "^ used " + name + " here")
+	b.WriteString(ansi("\x1b[0m") + "\n")
+	excerpt(row + 1)
+	excerpt(row + 2)
+	return b.String()
 }
 
 func (n *NilVal) frame(src, file, attempt string, v, other Val,

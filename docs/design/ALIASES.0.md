@@ -766,11 +766,12 @@ year — independent of the capture hazard that first motivated it.
 
 ## 9. Open questions
 
-Three, and nothing should be built before they are answered.
+Three, and nothing should be built before they are answered. A-1 now has
+an answer; T-1 and X-1 carry their own outcomes.
 
 | # | Question | Where |
 |---|----------|-------|
-| **A-1** | What site does a finding name when the value came via an alias — the declaration or the use? Probably both, as a `why` contribution in its own right. A report-shape question, and not free. | §4 |
+| **A-1** | ~~What site does a finding name when the value came via an alias — the declaration or the use?~~ **ANSWERED 2026-09-19: both.** A value that reaches a path through a name carries where the document asked for it alongside where the source wrote it, and a finding renders that as a frame of its own (`Value arrived through %p`). | §4 |
 | **T-1** | How is alias expansion budgeted? Expansion terminates, but can be exponential — twenty shallow declarations reach a million nodes. The budget must be on expanded *size*, charged before evaluation rather than discovered during it. | §7 |
 | **X-1** | Is `=` the right spelling at all? `%uint8:` is already a legal key (row 15), so the operator — the proposal's only compatibility break — may be unnecessary. This one gates P1. | §10 |
 

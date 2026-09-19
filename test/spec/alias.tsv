@@ -403,3 +403,11 @@ alias-shorthand-is-not-a-destructure	gens	%foo = 1\na: { %foo }\nb: %foo	{"a":{"
 alias-shorthand-hash	hash	%foo = 1\n%bar = 2\na: { %foo %bar }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
 alias-shorthand-hash-longhand-twin	hash	%foo = 1\n%bar = 2\na: { foo: %foo, bar: %bar }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
 alias-shorthand-hash-plain-twin	hash	a: { foo: 1, bar: 2 }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
+# A-1 (ALIASES.0.md section 9), answered: a finding names where a value
+# is WRITTEN and where it ENTERED the path the finding is about. The
+# declaration alone left a reader to find the use by hand.
+alias-finding-names-the-use	err	%p = 1\na: %p\na: 2	Value arrived through %p
+alias-finding-marks-the-use	err	%p = 1\na: %p\na: 2	used %p here
+# A value that came by an ordinary path reference has no name to blame,
+# so nothing is added.
+alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value

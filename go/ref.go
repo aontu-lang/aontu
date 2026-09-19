@@ -22,7 +22,7 @@ type RefVal struct {
 	// expandAliases (go/alias.go) after unification (see Canon). Never
 	// read by unification: it is a rendering of the settled tree.
 	expansion Val
-	rxc int
+	rxc       int
 }
 
 // walkOutcome says how a reference walk ended: it landed on a value,
@@ -210,6 +210,9 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 			slot = rv.path
 		}
 		ctx.slot = slot
+		if name, ok := rv.aliasName(); ok {
+			found.setVia(rv.sp, rv.surl, name)
+		}
 		out = unite(ctx, found, peer)
 	}
 

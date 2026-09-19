@@ -1624,6 +1624,31 @@ table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
              "b": { "kind": "user", "id": 2 } } }
 ```
 
+### What a finding says about a name
+
+A value that arrives through a name has two places: where the source
+writes it, and where the document asks for it. A finding names both. The
+frames give the value, what it met, and the reference that carried it:
+
+<!-- test: skip an abridged finding; its two frames are pinned by alias.tsv's alias-finding-names-the-use and alias-finding-marks-the-use -->
+```sh
+$ aontu conflict.aon
+[aontu/scalar_value]: Cannot unify values at path $.a
+...
+ Cannot unify value: 1 with value: 2
+  --> conflict.aon:1:6
+  1 | %p = 1
+           ^ value was: 1
+
+ Value arrived through %p
+  --> conflict.aon:2:4
+  2 | a: %p
+         ^ used %p here
+```
+
+A value that arrives by an ordinary path reference has no name to blame,
+so a finding adds no such frame.
+
 ### The shorthand: `{ %a %b }`
 
 In value position a set of names stands for the map that binds each one
