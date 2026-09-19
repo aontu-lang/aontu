@@ -282,8 +282,8 @@ catch (e) {
   check('file include reports not-found', msg,
     (m) => m.includes('source not found: other.aon'))
 }
-const stdOut = evaluate('@"std/system"\nx: 1')
-check('bundled @"std/system" include works', JSON.parse(stdOut).x, 1)
+const stdOut = evaluate('@"aontu:system"\nx: 1')
+check('bundled @"aontu:system" include works', JSON.parse(stdOut).x, 1)
 console.log('')
 
 if (0 < failures) {

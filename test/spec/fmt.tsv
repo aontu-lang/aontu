@@ -122,6 +122,8 @@ fmt-wide-key-inline-map	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 fmt-refs-verbatim	fmt	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n
 fmt-alias-declaration	fmt	%N = string & min(1)\na: %N\n	%N = string & min(1)\na: %N\n
 fmt-alias-export	fmt	export({ %N })\n%N = string\n	export({ %N })\n%N = string\n
+fmt-alias-shorthand	fmt	a: { %foo }\n	a: { %foo }\n
+fmt-alias-shorthand-drops-the-comma	fmt	%a = 1\n%c = 2\nb: { %a, %c }\n	%a = 1\n%c = 2\nb: { %a %c }\n
 fmt-alias-export-beside-a-like-named-field	fmt	%u = 7\n"___export": 42\nexport({ %u })\n	%u = 7\n___export: 42\nexport({ %u })\n
 fmt-alias-import	fmt	{ %N } = @"types.aon"\na: %N\n	{ %N } = @"types.aon"\na: %N\n
 fmt-alias-import-all	fmt	{%} = @"types.aon"\na: %N\n	{%} = @"types.aon"\na: %N\n

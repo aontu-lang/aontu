@@ -52,6 +52,11 @@ type Hover = {
     range?: Range;
 };
 export declare function contributionsMarkdown(conjuncts: WhyConjunct[]): string;
+type Location = {
+    uri: string;
+    range: Range;
+};
+declare function computeDefinition(src: string, position: Position, uri: string): Location | null;
 declare function computeHover(src: string, position: Position, provenance?: boolean, trust?: any): Hover | null;
 type CompletionItem = {
     label: string;
@@ -59,9 +64,10 @@ type CompletionItem = {
     detail?: string;
 };
 declare const COMPLETION_FUNCTION = 3;
+declare const COMPLETION_VARIABLE = 6;
 declare const COMPLETION_KEYWORD = 14;
 declare const BUILTIN_FUNCS: string[];
-declare function computeCompletions(): CompletionItem[];
+declare function computeCompletions(src: string): CompletionItem[];
 export declare function uriToPath(uri: unknown): string | undefined;
 declare class LspHandler {
     private docs;
@@ -75,5 +81,5 @@ declare class LspHandler {
     handle(msg: Message): OutMessage[];
     private publish;
 }
-export { computeDiagnostics, computeHover, computeCompletions, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_KEYWORD, };
-export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, };
+export { computeDiagnostics, computeHover, computeDefinition, computeCompletions, LspHandler, LSP_VERSION, BUILTIN_FUNCS, SEVERITY_ERROR, SEVERITY_WARNING, SEVERITY_INFORMATION, SEVERITY_HINT, COMPLETION_FUNCTION, COMPLETION_VARIABLE, COMPLETION_KEYWORD, };
+export type { Position, Range, Diagnostic, Message, OutMessage, Hover, MarkupContent, CompletionItem, Location, };

@@ -1,0 +1,7 @@
+# Uses the name it publishes, so a document that conflicts with the
+# value gets a finding whose USE is in this file and not in theirs.
+%n = 1
+
+export({ %n })
+
+a: %n

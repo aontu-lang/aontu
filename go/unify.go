@@ -153,6 +153,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if root.Nil() {
 		return root
 	}
+	if over := aliasBudget(ctx, root); nil != over {
+		return over
+	}
 	res := root
 	// The pass budget: the spec constant unless the trust profile set
 	// one (ctx.budgetPasses, zero = default).

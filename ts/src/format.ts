@@ -6,7 +6,7 @@ import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { Resolver } from './type'
 import { desugarTemplate, resugarTemplate, templateOutputs } from './template'
-import { EXPORT_DECL_NAME, isExportHoldKey } from './aliasname'
+import { ALIAS_RE, EXPORT_DECL_NAME, isExportHoldKey } from './aliasname'
 
 
 const BUDGET = 80
@@ -308,6 +308,12 @@ class Reader {
     if (isExportHoldKey(this.T[this.i].val) &&
       EXPORT_DECL_NAME === this.T[this.i].src && this.atKey()) {
       const text = EXPORT_DECL_NAME + '(' + this.T[this.i + 2].src + ')'
+      this.i += 3
+      return { t: 'atom', text, at }
+    }
+    if (this.atKey() && ALIAS_RE.test('' + this.T[this.i].src) &&
+      this.T[this.i].src === this.T[this.i + 2]?.src) {
+      const text = '' + this.T[this.i].src
       this.i += 3
       return { t: 'atom', text, at }
     }

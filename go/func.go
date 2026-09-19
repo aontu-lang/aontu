@@ -183,7 +183,7 @@ type FuncVal struct {
 
 func newFunc(name string, args []Val) *FuncVal {
 	f := &FuncVal{name: name, peg: args}
-	f.sp = unsited
+	f.site.sp = unsited
 	return f
 }
 
@@ -301,8 +301,8 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				continue
 			}
 			pv := newPath(spelling)
-			pv.sp, pv.spu, pv.surl = f.sp, f.spu, f.surl
-			pv.stext = f.stext
+			pv.site.sp, pv.site.spu, pv.site.url = f.site.sp, f.site.spu, f.site.url
+			pv.site.src = f.site.src
 			f.peg[i] = pv
 		}
 	}
@@ -408,9 +408,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		if out != Val(f) {
 			propagateMarks(f, out)
 			out.setvpath(cp(f.path))
-			out.setPos(f.sp)
-			out.setPosu(f.spu)
-			out.setSrcurl(f.surl)
+			out.setPos(f.site.sp)
+			out.setPosu(f.site.spu)
+			out.setSrcurl(f.site.url)
 			out.setSrctext(f.srctext())
 		}
 	} else if isTop(peer) {
@@ -418,7 +418,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		nf := newFunc(f.name, newpeg)
 		nf.path = cp(f.path)
 		nf.dc = f.dc
-		nf.sp = f.sp
+		nf.site.sp = f.site.sp
 		nf.spr = f.spr
 		nf.mtype = newtype
 		nf.mhide = newhide
@@ -430,7 +430,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		f.notdone()
 		cj := newConjunct([]Val{f, peer})
 		cj.path = cp(f.path) // TS defer branch: out.path = this.path
-		cj.sp, cj.spu, cj.surl = f.sp, f.spu, f.surl
+		cj.site.sp, cj.site.spu, cj.site.url = f.site.sp, f.site.spu, f.site.url
 		out = cj
 	}
 
@@ -456,7 +456,7 @@ func residuate(f *FuncVal, base []string, peer Val) Val {
 		}
 		cj := newConjunct([]Val{f, peer})
 		cj.path = cp(f.path)
-		cj.sp, cj.spu, cj.surl = f.sp, f.spu, f.surl
+		cj.site.sp, cj.site.spu, cj.site.url = f.site.sp, f.site.spu, f.site.url
 		return cj
 	}
 }
@@ -607,8 +607,8 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 	case "path":
 		if len(args) == 0 {
 			k := newScalarKind(KindPath)
-			k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
-			k.stext = f.stext
+			k.site.sp, k.site.spu, k.site.url = f.site.sp, f.site.spu, f.site.url
+			k.site.src = f.site.src
 			k.path = f.path
 			return k
 		}
@@ -623,8 +623,8 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 					return makeNilErr(ctx, "path_address", f, args[0])
 				}
 				pv := newPath(str)
-				pv.sp, pv.spu, pv.surl = f.sp, f.spu, f.surl
-				pv.stext = f.stext
+				pv.site.sp, pv.site.spu, pv.site.url = f.site.sp, f.site.spu, f.site.url
+				pv.site.src = f.site.src
 				return pv
 			}
 		}
@@ -637,14 +637,14 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		// call admits its values and defaults to nothing, where the
 		// container literal defaults to empty.
 		k := newMapKind()
-		k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
-		k.stext = f.stext
+		k.site.sp, k.site.spu, k.site.url = f.site.sp, f.site.spu, f.site.url
+		k.site.src = f.site.src
 		k.path = f.path
 		return k
 	case "list":
 		k := newListKind()
-		k.sp, k.spu, k.surl = f.sp, f.spu, f.surl
-		k.stext = f.stext
+		k.site.sp, k.site.spu, k.site.url = f.site.sp, f.site.spu, f.site.url
+		k.site.src = f.site.src
 		k.path = f.path
 		return k
 	case "deprecate":
@@ -687,7 +687,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			}
 		}
 		out := newGraphAtom(f.name, invname, nil)
-		out.sp, out.spu, out.surl = f.sp, f.spu, f.surl
+		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out
 	case "rel":
@@ -699,7 +699,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			rt = args[0]
 		}
 		out := newRel(rt)
-		out.sp, out.spu, out.surl = f.sp, f.spu, f.surl
+		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out
 	case "refer":
@@ -710,7 +710,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		if 0 < len(args) {
 			out.tval = args[0]
 		}
-		out.sp, out.spu, out.surl = f.sp, f.spu, f.surl
+		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out
 	case "super":
@@ -729,7 +729,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		walkMark(args[0], false, false, true, true)
 		nf := newFunc("pref", []Val{src})
 		nf.path = cp(base)
-		nf.sp = f.sp
+		nf.site.sp = f.site.sp
 		return nf
 	}
 	return makeNilErr(ctx, "func:"+f.name, f, nil)
@@ -746,13 +746,13 @@ func superOf(path []string, v Val) Val {
 	case *RecurseVal:
 		nf := newFunc("super", []Val{clonePath(tv, cp(path))})
 		nf.path = cp(path)
-		nf.sp, nf.spu, nf.surl = tv.sp, tv.spu, tv.surl
+		nf.site.sp, nf.site.spu, nf.site.url = tv.site.sp, tv.site.spu, tv.site.url
 		return nf
 
 	case *MapVal:
 		out := newMap()
 		out.path = cp(path)
-		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		out.site.sp, out.site.spu, out.site.url = tv.site.sp, tv.site.spu, tv.site.url
 		out.closed = tv.closed
 		out.optional = append([]string{}, tv.optional...)
 		if tv.spread != nil {
@@ -770,7 +770,7 @@ func superOf(path []string, v Val) Val {
 		}
 		out := newList(elems)
 		out.path = cp(path)
-		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		out.site.sp, out.site.spu, out.site.url = tv.site.sp, tv.site.spu, tv.site.url
 		out.closed = tv.closed
 		if tv.spread != nil {
 			out.spread = superOf(append(cp(path), "&"), tv.spread)
@@ -799,7 +799,7 @@ func superOf(path []string, v Val) Val {
 		}
 		out := newDisjunct(arms)
 		out.path = cp(path)
-		out.sp, out.spu, out.surl = tv.sp, tv.spu, tv.surl
+		out.site.sp, out.site.spu, out.site.url = tv.site.sp, tv.site.spu, tv.site.url
 		return out
 
 	case *ConstraintVal:

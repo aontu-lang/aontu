@@ -9,7 +9,7 @@ type MapKindVal struct {
 
 func newMapKind() *MapKindVal {
 	v := &MapKindVal{}
-	v.sp = unsited
+	v.site.sp = unsited
 	v.dc = DONE
 	return v
 }
@@ -42,7 +42,7 @@ type ListKindVal struct {
 
 func newListKind() *ListKindVal {
 	v := &ListKindVal{}
-	v.sp = unsited
+	v.site.sp = unsited
 	v.dc = DONE
 	return v
 }

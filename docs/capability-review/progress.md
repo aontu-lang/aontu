@@ -734,6 +734,70 @@ inside the wrapper, identically in both ports. And `subsume` compared
 alias declarations as though they were fields, so a schema that declared
 a name could not subsume data that did not.
 
+**THE SHORTHAND (`ALIASES.0.md` section 6) LANDED 2026-09-19**, in both
+ports. `{ %a %b }` in value position stands for `{ a: %a, b: %b }`, key
+without the sigil and value with it, and the sigil is what keeps the
+sugar unambiguous: `{ a, b }` stays the parse error it has always been.
+It is READ OFF THE SOURCE, as a set already is in the two other places
+one may stand, and each name lexes as the pair it stands for, so the
+grammar needed nothing new. Canon expands it because there is nothing
+left to expand: `{ %a %b }`, `{ a: %a, b: %b }` and `{ a: 1, b: 2 }` are
+one `aon1-` digest, which is the rule that makes this sugar rather than
+a second thing to say. The set separates its names with a comma OR with
+space, because the formatter drops commas inside a map and comma-only
+output did not parse back. A rename is left out: in value position
+`a: %b` already spells one. Pinned by nine `alias.tsv` rows, three of
+them the hash trio, and two in `fmt.tsv`; documented in
+`docs/reference-language.md` under "The shorthand".
+
+**THE ENGINE'S KEY NAMESPACE IS RESERVED, 2026-09-19**, in both ports.
+Go held its marks behind `\u0000aontu_` and TypeScript did not, so the
+same document answered differently: `"\u0000aontu_x": 1` generated in
+TypeScript and raised `internal` in Go — an engine-bug code, with a hint
+telling the reader the fault was not in their input, for a key they had
+written. The sibling sentinels were worse than unreserved: `"___merge":
+42` crashed the TypeScript engine. Both ports now hold every mark behind
+the prefix and refuse a SOURCE key written there as `reserved_key`
+(class parse); `___merge` is an ordinary key again in both. A REFUSED
+KEY TAKES NO KEY and is not OPTIONAL, since its own name is where a mark
+lives and an optional field generates where what it holds is dropped.
+Review found four key positions the refusal had not reached — an
+optional key, its mark, an optional list element, and a colon chain —
+and the first three are closed. The fourth stands: a colon chain whose
+key is reserved and whose outer key repeats reports `reserved_key` in
+TypeScript and `map` in Go, the cause in one port and a consequence of
+it in the other. Both refuse the document. Pinned by eight `edge.tsv`
+rows and twinned unit tests for the spellings a TSV cannot carry, since
+its unescaper reads `\n` and `\t` and nothing else.
+
+**A FINDING NAMES WHERE A VALUE ENTERED, 2026-09-19** — A-1, the first
+of the note's three open questions, answered rather than carried. A
+value reached through a name has two places, and a finding named only
+the one the source writes, leaving the reader to find the reference by
+hand when the reference is as often the line to change. `find()` already
+answers a CLONE, so the use travels with the value it resolved and
+nothing is shared: the site carries the use in both ports, and each
+renderer adds one frame, naming the file the reference was written in
+even where that is not the declaration's. A path reference adds no
+frame, having no name to blame. Pinned by `alias-finding-names-the-use`
+and `alias-finding-marks-the-use`, and by the abridged finding in
+`docs/reference-language.md`.
+
+**EXPANSION IS CHARGED BEFORE IT RUNS, 2026-09-19** — T-1, the second.
+Expansion terminates, so the question was never termination: a name
+that names names expands to the PRODUCT of what they hold, and twenty
+shallow declarations reach a million nodes. The expanded size is
+counted ahead of evaluation and refused over `trust.budget.alias` as
+`alias_budget` (class `budget`, taking that class from six codes to
+seven). A first draft charged it at `generate` alone, which the
+coverage gate exposed as a defect rather than a gap: neither language
+server calls `generate`, so an over-budget document took THIRTY SECONDS
+per keystroke in the Go server. Both ports now charge it at their one
+evaluation seam — TypeScript at `unify`, Go at `unifyRoot`, which its
+twelve entries reach — and Go's diagnostics path proved the point, a
+second walk for deprecations being an entry too. Two `budget.tsv` rows
+and twinned LSP tests bounding the elapsed time.
+
 **The pair that carries `export` to the parser waits under a key that
 changes with each declaration.** It waited under one fixed key, and a
 document that also wrote a field of that name lost it silently: the

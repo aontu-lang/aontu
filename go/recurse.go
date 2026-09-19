@@ -17,7 +17,7 @@ type RecurseVal struct {
 
 func newRecurse(target []string, xc int) *RecurseVal {
 	r := &RecurseVal{target: target, xc: xc}
-	r.sp = unsited
+	r.site.sp = unsited
 	// A settled residual: a type() body carrying one must settle, and
 	// an unmet recursion is its own value until data arrives.
 	r.dc = DONE

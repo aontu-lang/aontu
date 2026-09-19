@@ -35,7 +35,7 @@ func (p *PrefVal) restand(met Val) Val {
 	out := met
 	for rI := 0; rI <= p.rank; rI++ {
 		np := newPref(out)
-		np.sp, np.spu, np.surl = p.sp, p.spu, p.surl
+		np.site.sp, np.site.spu, np.site.url = p.site.sp, p.site.spu, p.site.url
 		np.path = cp(p.path)
 		out = np
 	}

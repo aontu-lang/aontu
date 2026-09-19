@@ -9,10 +9,10 @@ import (
 
 func siteVal(canon, file string, row, col int) Val {
 	v := newString(canon)
-	v.surl = file
+	v.site.url = file
 	// pos is a byte offset; the recorder turns it into row/col through
 	// rowCol, so the source text below is what makes these land.
-	v.sp = -1
+	v.site.sp = -1
 	return v
 }
 
@@ -79,15 +79,15 @@ func TestProvenanceDeduplicatesBySite(t *testing.T) {
 	prov := newProvenance("", map[string]string{"one.aon": "a: \"x\"\n"})
 
 	lit := newString("x")
-	lit.surl = "one.aon"
-	lit.sp = 3
-	lit.stext = "x"
+	lit.site.url = "one.aon"
+	lit.site.sp = 3
+	lit.site.src = "x"
 	lit.setWritten()
 
 	narrowed := newString("x")
-	narrowed.surl = "one.aon"
-	narrowed.sp = 3
-	narrowed.stext = "x"
+	narrowed.site.url = "one.aon"
+	narrowed.site.sp = 3
+	narrowed.site.src = "x"
 	narrowed.setWritten()
 	narrowed.setFromSpread()
 

@@ -13,7 +13,8 @@ class Site {
         this.url = site?.url ?? '';
         this.len = site?.len ?? -1;
         this.src = site?.src ?? '';
+        this.via = site?.via;
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 10 */
 exports.Site = Site;
 //# sourceMappingURL=site.js.map

@@ -152,6 +152,15 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
             else {
+                // A NAME IS WHERE THE VALUE ENTERED THIS PATH; find() answers
+                // a clone, so the use travels with it.
+                const aname = this.aliasName;
+                if (undefined !== aname) {
+                    resolved.site.via = {
+                        row: this.site.row, col: this.site.col,
+                        url: this.site.url, src: this.site.src, name: aname,
+                    };
+                }
                 out = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'RES') }) : ctx, resolved, peer, 'ref');
             }
             out.dc = type_1.DONE === out.dc ? type_1.DONE : this.dc + 1;

@@ -521,7 +521,7 @@ func cmpConstraintVal(domain string, a, b *ScalarVal) int {
 // arguments are phase 4 (residuation).
 func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 	c := &ConstraintVal{kind: KindTop}
-	c.sp = sp
+	c.site.sp = sp
 
 	bad := func(why string) *ConstraintVal {
 		c.invalid = why
@@ -705,10 +705,10 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 		args = append(args, next)
 	}
 
-	built := newConstraint(c.pending.atom, args, c.sp)
+	built := newConstraint(c.pending.atom, args, c.site.sp)
 	built.path = cp(c.path)
-	built.spu = c.spu
-	built.surl = c.surl
+	built.site.spu = c.site.spu
+	built.site.url = c.site.url
 	built.mtype = c.mtype
 	built.mhide = c.mhide
 
@@ -992,8 +992,8 @@ func (c *ConstraintVal) finish(state *ConstraintVal, ctx *Ctx, peer Val) Val {
 
 	state.dc = DONE
 	state.path = cp(c.path)
-	state.sp = c.sp
-	state.surl = c.surl
+	state.site.sp = c.site.sp
+	state.site.url = c.site.url
 	return state
 }
 

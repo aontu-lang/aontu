@@ -74,7 +74,7 @@ func TestExpectValContracts(t *testing.T) {
 
 func TestListSpreadRequiredBranch(t *testing.T) {
 	parent := newMap()
-	parent.sp = 3
+	parent.site.sp = 3
 	ev := &ExpectVal{peg: newScalarKind(KindString), parent: parent, key: "0"}
 	l := &ListVal{peg: []Val{ev}}
 	ctx := &Ctx{src: "a:b", file: ""}
@@ -175,7 +175,7 @@ func TestTopAndNilContracts(t *testing.T) {
 		t.Fatalf("top must yield the peer")
 	}
 	n := &NilVal{}
-	n.sp = -1
+	n.site.sp = -1
 	_, err := n.Gen(nil)
 	ae, ok := err.(*AontuError)
 	if !ok || ae.Code != "nil_gen" {

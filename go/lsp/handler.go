@@ -176,7 +176,39 @@ func (h *Handler) Handle(m Message) []Out {
 			text, p.Position.Line, p.Position.Character, h.provenance, h.trust))}
 
 	case "textDocument/completion":
-		return []Out{newResponse(m.ID, Completions())}
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, Completions(""))}
+		}
+		return []Out{newResponse(m.ID, Completions(h.docs[p.TextDocument.URI]))}
+
+	case "textDocument/definition":
+		var p struct {
+			TextDocument struct {
+				URI string `json:"uri"`
+			} `json:"textDocument"`
+			Position struct {
+				Line      int `json:"line"`
+				Character int `json:"character"`
+			} `json:"position"`
+		}
+		if err := json.Unmarshal(m.Params, &p); err != nil {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		text, ok := h.docs[p.TextDocument.URI]
+		if !ok {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		at := Definition(text, p.Position.Line, p.Position.Character,
+			p.TextDocument.URI)
+		if nil == at {
+			return []Out{newResponse(m.ID, nil)}
+		}
+		return []Out{newResponse(m.ID, at)}
 
 	case "textDocument/signatureHelp":
 		var p struct {
@@ -344,6 +376,7 @@ func initializeResult() map[string]any {
 		"capabilities": map[string]any{
 			"textDocumentSync":   1,
 			"hoverProvider":      true,
+			"definitionProvider": true,
 			"completionProvider": map[string]any{},
 			"signatureHelpProvider": map[string]any{
 				"triggerCharacters": []string{"(", ","},

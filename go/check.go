@@ -63,7 +63,7 @@ func (a *Aontu) CheckVars(src string, vars map[string]Val) []Problem {
 
 	out := make([]Problem, 0, len(nils))
 	for _, n := range nils {
-		p := Problem{Pos: n.sp, Len: 1, Why: n.why, Class: n.Class(), Message: n.Message()}
+		p := Problem{Pos: n.site.sp, Len: 1, Why: n.why, Class: n.Class(), Message: n.Message()}
 		if p.Pos < 0 {
 			p.Pos = -1
 		}

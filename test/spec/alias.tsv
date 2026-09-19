@@ -387,3 +387,31 @@ alias-vet-name-does-not-cross	vet	listen: %q	%q = 8080\nlisten: %q	{"findings":[
 alias-vet-same-name-does-not-collide	vet	%p = 1\na: 1	%p = 2\na: 1	{"findings":[],"truncated":false,"verdict":"valid"}
 alias-vet-across-documents	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 8080\nlisten: %q	{"findings":[],"truncated":false,"verdict":"valid"}
 alias-vet-across-documents-refuses	vet	%p = integer & min(1) & max(65535)\nlisten: %p	%q = 70000\nlisten: %q	{"findings":[{"actual":"70000","class":"conflict","code":"constraint","expected":"integer&min(1)&max(65535)","path":"$.listen","severity":"error","sites":[{"col":6,"file":"data","len":5,"role":"data","row":1,"src":"70000","value":"70000"},{"col":16,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"integer&min(1)&max(65535)"}]}],"truncated":false,"verdict":"invalid"}
+# THE SHORTHAND (ALIASES.0.md section 6). `{ %a %b }` in value position
+# stands for `{ a: %a, b: %b }`: key without the sigil, value with it.
+# Gated on the sigil, so `{ a, b }` stays the parse error it is and the
+# sugar can never be read as bare strings.
+alias-shorthand	gens	%foo = 1\na: { %foo }	{"a":{"foo":1}}
+alias-shorthand-many	gens	%foo = 1\n%bar = 2\na: { %foo %bar }	{"a":{"bar":2,"foo":1}}
+alias-shorthand-comma	gens	%foo = 1\n%bar = 2\na: { %foo, %bar }	{"a":{"bar":2,"foo":1}}
+alias-shorthand-in-a-list	gens	%foo = 1\na: [ { %foo } ]	{"a":[{"foo":1}]}
+alias-shorthand-needs-the-sigil	errc	a: { foo }	syntax
+# ... and the destructure head still wins, since its `=` follows.
+alias-shorthand-is-not-a-destructure	gens	%foo = 1\na: { %foo }\nb: %foo	{"a":{"foo":1},"b":1}
+# CANON EXPANDS IT, so a document written short and the same document
+# written long are ONE digest -- the rule that makes the sugar sugar.
+alias-shorthand-hash	hash	%foo = 1\n%bar = 2\na: { %foo %bar }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
+alias-shorthand-hash-longhand-twin	hash	%foo = 1\n%bar = 2\na: { foo: %foo, bar: %bar }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
+alias-shorthand-hash-plain-twin	hash	a: { foo: 1, bar: 2 }	aon1-lffHWIZ9rehPm6U51I-5eDy8djqF_pwZw_3dQiW8Sqk
+# A-1 (ALIASES.0.md section 9), answered: a finding names where a value
+# is WRITTEN and where it ENTERED the path the finding is about. The
+# declaration alone left a reader to find the use by hand.
+alias-finding-names-the-use	err	%p = 1\na: %p\na: 2	Value arrived through %p
+alias-finding-marks-the-use	err	%p = 1\na: %p\na: 2	used %p here
+# A value that came by an ordinary path reference has no name to blame,
+# so nothing is added.
+alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value
+# THE USE MAY BE IN ANOTHER FILE, and the frame goes there: the value
+# arrived through a name the OTHER file wrote, so that is the line to
+# change, not anything in this one.
+alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aon"\na: 2	alias_used_in_file.aon

@@ -96,6 +96,20 @@ function descErr(err, errctx) {
                     row: v2.site.row,
                     col: v2.site.col,
                 })),
+                // A NAME IS WHERE THE VALUE ENTERED THIS PATH, which is not
+                // where it is written (ALIASES.0.md A-1).
+                ...[v1, v2].map((v) => null != v?.site?.via && errmsg({
+                    color: { active: colorActive(), line: '\x1b[34m' },
+                    txts: {
+                        msg: 'Value arrived through ' + v.site.via.name,
+                        site: ''
+                    },
+                    smsg: 'used ' + v.site.via.name + ' here',
+                    file: resolveFile(v.site.via.url),
+                    src: resolveSrc({ site: v.site.via }, errctx),
+                    row: v.site.via.row,
+                    col: v.site.via.col,
+                })),
             ]
                 .filter((n) => null != n && false !== n)
                 .join('\n')

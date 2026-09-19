@@ -452,3 +452,25 @@ edge-group-raw-array-func	errc	a:close(([]%))	bare_punct
 # element by element and a raw element reached `arg.unify(...)`.
 edge-group-nested-paren	gens	a:((1))	{"a":1}
 edge-group-paren-op	gens	a:((1+2))	{"a":3}
+# THE \u0000aontu_ NAMESPACE IS THE ENGINE'S: a source key written in it
+# would land on the marks the parser holds there, so it is refused at
+# the pair's open, before its value is stored. The prefix begins with a
+# NUL, so only an escape spells it -- and the keys that merely look
+# like a sentinel are ordinary keys.
+edge-reserved-key-refused	errc	"\\u0000aontu_x": 1\nb: 2	reserved_key
+edge-reserved-key-on-a-mark-refused	errc	"\\u0000aontu_order": 1	reserved_key
+edge-reserved-key-prefix-only-is-a-key	gens	"aontu_order": 1	{"aontu_order":1}
+edge-underscore-sentinel-is-a-key	gens	"___merge": 42\nb: 2	{"___merge":42,"b":2}
+# A pair in LIST position names the namespace too: its parent is not a
+# map, so the marks are not there to collide with, and the key is still
+# refused rather than kept as a kind the language has no value for.
+edge-reserved-key-in-a-list	errc	a: [ "\\u0000aontu_order": 1 ]	reserved_key
+# EVERY KEY POSITION NAMES THE NAMESPACE. An OPTIONAL key is refused
+# too: it takes no value and no optional mark, since an optional field
+# generates where what it holds is dropped, and the elision that fills
+# an absent optional key would put the name back.
+edge-reserved-key-optional	errc	"\\u0000aontu_keyrefusals"?: 1	reserved_key
+edge-reserved-key-optional-mark	errc	"\\u0000aontu_merge"?: 1	reserved_key
+edge-reserved-key-optional-in-a-list	errc	a:[ "\\u0000aontu_order"?:1 ]	reserved_key
+# ... and an ordinary optional key is untouched by any of it.
+edge-optional-key-still-optional	gens	x?: 1\ny: 2	{"x":1,"y":2}

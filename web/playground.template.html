@@ -415,7 +415,7 @@
   Everything runs in your browser — no server, no network calls.
   File includes (<code>@"other.aon"</code>) need a filesystem, so here
   they report <em>source not found</em>
-  (<code>@"std/system"</code>, bundled into the engine, still works);
+  (<code>@"aontu:system"</code>, bundled into the engine, still works);
   use the <code>aontu</code> CLI for multi-file documents. Engine: the
   aontu TypeScript implementation, bundled from <code>ts/dist</code>.
 </footer>
@@ -658,7 +658,7 @@
   }
 
   // The browser has no filesystem, so confine includes to the memory
-  // capability: `@"std/system"` (bundled in the engine) still works,
+  // capability: `@"aontu:system"` (bundled in the engine) still works,
   // and a file include fails with a clean parse-stage not-found error
   // instead of a crash inside the file/package resolvers.
   var TRUST = { include: { mem: {} } }

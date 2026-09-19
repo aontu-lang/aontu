@@ -37,6 +37,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const lsp_1 = require("../dist/lsp");
+const alias_1 = require("../dist/alias");
 const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-diagnostics', () => {
     (0, node_test_1.test)('valid-documents-have-no-diagnostics', () => {
@@ -58,6 +59,22 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.equal(d[0].source, 'aontu');
         Assert.deepEqual(d[0].range.start, { line: 1, character: 2 });
         Assert.match(d[0].message, /Cannot unify value/);
+    });
+    // Twin: go/lsp/lsp_test.go TestDiagnosticsAliasBudget. The editor
+    // unifies on each keystroke, so a ladder too big to expand is turned
+    // away here too; evaluating it instead takes tens of seconds.
+    (0, node_test_1.test)('alias-budget-is-a-diagnostic', () => {
+        const ladder = ['%a0 = 1'];
+        for (let i = 1; i <= 20; i++) {
+            ladder.push('%a' + i + ' = [%a' + (i - 1) + ', %a' + (i - 1) + ']');
+        }
+        ladder.push('out: %a20');
+        const started = Date.now();
+        const d = (0, lsp_1.computeDiagnostics)(ladder.join('\n'));
+        Assert.equal(d.length, 1);
+        Assert.equal(d[0].code, 'alias_budget');
+        Assert.equal(d[0].severity, lsp_1.SEVERITY_ERROR);
+        Assert.ok(Date.now() - started < 5000);
     });
     (0, node_test_1.test)('unknown-function-position', () => {
         const d = (0, lsp_1.computeDiagnostics)('x:foo(1)');
@@ -131,9 +148,95 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.equal((0, lsp_1.computeHover)('port: 8080', { line: 5, character: 0 }), null);
     });
 });
+// Twin: go/lsp/lsp_test.go TestAliasHoverAndDefinition.
+(0, node_test_1.describe)('lsp-alias', () => {
+    const SRC = '%port = integer\n{ %uint8 } = @"./t.aon"\n\nl: %port\nv: %uint8';
+    // A hover marks the USE the cursor is on, not the declaration.
+    (0, node_test_1.test)('hover-names-the-declaration', () => {
+        const h = (0, lsp_1.computeHover)(SRC, { line: 3, character: 4 });
+        Assert.equal(h.contents.value, '```aontu\n%port = integer\n```\n\n*alias*');
+        Assert.deepEqual(h.range, { start: { line: 3, character: 3 }, end: { line: 3, character: 8 } });
+    });
+    (0, node_test_1.test)('hover-names-the-file-a-name-was-taken-from', () => {
+        const h = (0, lsp_1.computeHover)(SRC, { line: 4, character: 4 });
+        Assert.equal(h.contents.value, '```aontu\n{ %uint8 } = @"./t.aon"\n```\n\n*alias, taken from ./t.aon*');
+    });
+    (0, node_test_1.test)('definition-goes-to-where-the-name-is-bound', () => {
+        // A local name goes to its own line, a taken one to the pattern.
+        Assert.deepEqual((0, lsp_1.computeDefinition)(SRC, { line: 3, character: 4 }, 'file:///m'), {
+            uri: 'file:///m',
+            range: {
+                start: { line: 0, character: 0 }, end: { line: 0, character: 5 }
+            },
+        });
+        Assert.deepEqual((0, lsp_1.computeDefinition)(SRC, { line: 4, character: 4 }, 'file:///m'), {
+            uri: 'file:///m',
+            range: {
+                start: { line: 1, character: 2 }, end: { line: 1, character: 8 }
+            },
+        });
+    });
+    (0, node_test_1.test)('a-name-is-not-a-string-and-need-not-be-bound', () => {
+        // `%` inside a string is text, so neither answers there.
+        const inStr = 'a: "%port"\n%port = integer';
+        Assert.equal((0, lsp_1.computeHover)(inStr, { line: 0, character: 5 })?.contents.value
+            .includes('*alias*'), false);
+        Assert.equal((0, lsp_1.computeDefinition)(inStr, { line: 0, character: 5 }, 'file:///m'), null);
+        Assert.equal((0, lsp_1.computeDefinition)('a: %nope', { line: 0, character: 4 }, 'file:///m'), null);
+        Assert.equal((0, lsp_1.computeDefinition)(SRC, { line: 99, character: 0 }, 'file:///m'), null);
+        Assert.equal((0, lsp_1.computeDefinition)(SRC, { line: 0, character: 8 }, 'file:///m'), null);
+    });
+});
+// Twin: go/lsp/lsp_test.go TestAliasScopeIsLexical.
+(0, node_test_1.describe)('lsp-alias-lexical', () => {
+    (0, node_test_1.test)('what-the-text-binds-and-what-it-does-not', () => {
+        // A head that is not a set, the wildcard (whose names are the other
+        // file's to say), and an `=` that does not declare.
+        Assert.deepEqual((0, alias_1.aliasScope)('{ a } = @"./f.aon"'), []);
+        Assert.deepEqual((0, alias_1.aliasScope)('{%} = @"./f.aon"'), []);
+        Assert.deepEqual((0, alias_1.aliasScope)('%a == 1'), []);
+        Assert.deepEqual((0, alias_1.aliasScope)('  %a = 1'), [{ name: '%a', row: 1, col: 3, decl: '%a = 1', from: '' }]);
+    });
+    (0, node_test_1.test)('a-percent-is-not-always-a-name', () => {
+        // `50%` is text and a quoted run is stepped over whichever quote
+        // opened it: the sigil starts a name or nothing.
+        Assert.equal((0, lsp_1.computeDefinition)('%a = 1\nb: 50%', { line: 1, character: 5 }, 'u'), null);
+        Assert.equal((0, lsp_1.computeDefinition)("%a = 1\nb: '%a'", { line: 1, character: 4 }, 'u'), null);
+        const two = '%a = 1\n%bb = 2\nc: { %a %bb }';
+        const d = (0, lsp_1.computeDefinition)(two, { line: 2, character: 9 }, 'u');
+        Assert.equal(d.range.start.line, 1);
+    });
+    (0, node_test_1.test)('definition-through-the-handler', () => {
+        const h = new lsp_1.LspHandler();
+        h.handle({
+            method: 'textDocument/didOpen',
+            params: {
+                textDocument: { uri: 'file:///a.aontu', text: '%a = 1\nb: %a' }
+            },
+        });
+        const d = h.handle({
+            id: 7, method: 'textDocument/definition',
+            params: {
+                textDocument: { uri: 'file:///a.aontu' },
+                position: { line: 1, character: 4 },
+            },
+        });
+        Assert.equal(d[0].result.uri, 'file:///a.aontu');
+        Assert.equal(d[0].result.range.start.line, 0);
+        const c = h.handle({
+            id: 8, method: 'textDocument/completion',
+            params: { textDocument: { uri: 'file:///a.aontu' } },
+        });
+        Assert.ok(c[0].result.some((i) => '%a' === i.label));
+        // No such document: null rather than a guess.
+        Assert.equal(h.handle({
+            id: 9, method: 'textDocument/definition', params: {},
+        })[0].result, null);
+    });
+});
 (0, node_test_1.describe)('lsp-completion', () => {
     (0, node_test_1.test)('completion-list', () => {
-        const c = (0, lsp_1.computeCompletions)();
+        const c = (0, lsp_1.computeCompletions)('');
         Assert.equal(c.length, 76);
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.kind, lsp_1.COMPLETION_FUNCTION);
@@ -147,11 +250,34 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('completion-detail-is-the-signature', () => {
         // The detail column renders from the registry
         // (docs/design/SIGNATURES.0.md): the declaration, not a label.
-        const c = (0, lsp_1.computeCompletions)();
+        const c = (0, lsp_1.computeCompletions)('');
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string');
         Assert.equal(byLabel.get('pack')?.detail, 'pack(d: map|list, template t: any) : map');
         Assert.equal(byLabel.get('path')?.detail, 'path(capture p?: path) : path');
+    });
+    // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
+    (0, node_test_1.test)('completion-offers-the-names-in-scope', () => {
+        const src = '%port = integer\n{ %uint8, %b: %remote } = @"./types.aon"\n';
+        const named = (0, lsp_1.computeCompletions)(src).filter(i => i.label.startsWith('%'));
+        // A rename binds the LOCAL name: `%b`, not the `%remote` it takes.
+        Assert.deepEqual(named, [
+            { label: '%port', kind: lsp_1.COMPLETION_VARIABLE, detail: 'alias' },
+            {
+                label: '%uint8', kind: lsp_1.COMPLETION_VARIABLE,
+                detail: 'alias from ./types.aon'
+            },
+            {
+                label: '%b', kind: lsp_1.COMPLETION_VARIABLE,
+                detail: 'alias from ./types.aon'
+            },
+        ]);
+        // A name that binds more than once is offered once.
+        Assert.equal((0, lsp_1.computeCompletions)('%n = 1\n%n = integer\n')
+            .filter(i => i.label.startsWith('%')).length, 1);
+        // The set is what the file binds, so a use alone offers nothing.
+        Assert.equal((0, lsp_1.computeCompletions)('a: %undeclared\n')
+            .filter(i => i.label.startsWith('%')).length, 0);
     });
     (0, node_test_1.test)('signature-help', () => {
         const h = new lsp_1.LspHandler();
@@ -346,7 +472,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     });
     (0, node_test_1.test)('unknown-request-is-method-not-found', () => {
         const h = new lsp_1.LspHandler();
-        const outs = h.handle({ id: 3, method: 'textDocument/definition' });
+        const outs = h.handle({ id: 3, method: 'textDocument/references' });
         Assert.equal(outs.length, 1);
         Assert.equal(outs[0].error?.code, -32601);
         // Unknown notification (no id) is ignored.

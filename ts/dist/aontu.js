@@ -151,14 +151,25 @@ class Aontu {
             errs.push(out);
         }
         if (null != pval && 0 === errs.length) {
-            let uni = new unify_1.Unify(pval, this.lang, ac, src);
-            errs = uni.err;
-            // Never nullish: Unify.res starts as the root Val, unite() returns a
-            // Val on every arm, and its catch-all turns a throwing node into an
-            // 'internal' NilVal.
-            out = uni.res;
+            // T-1: EXPANDED SIZE IS CHARGED BEFORE EVALUATION, here rather
+            // than in generate, because an editor unifies on each keystroke
+            // and a document too big to evaluate must be turned away there
+            // too.
+            const over = (0, alias_1.aliasBudget)(ac, pval);
+            if (undefined !== over) {
+                out = over;
+                errs = [over];
+            }
+            else {
+                let uni = new unify_1.Unify(pval, this.lang, ac, src);
+                errs = uni.err;
+                // Never nullish: Unify.res starts as the root Val, unite() returns a
+                // Val on every arm, and its catch-all turns a throwing node into an
+                // 'internal' NilVal.
+                out = uni.res;
+                out.graph = (0, graph_1.graphOf)(out);
+            }
             out.deps = pval.deps;
-            out.graph = (0, graph_1.graphOf)(out);
             out.err = errs;
             ac.root = out;
         }

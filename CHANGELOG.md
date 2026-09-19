@@ -88,6 +88,41 @@ document as their one argument, so such a file publishes what its map
 declares. The one limit is that the wrapper's argument may not itself
 use the name the file publishes.
 
+### A set of names is the map that binds them
+
+`{ %a %b }` in value position stands for `{ a: %a, b: %b }`: key
+without the sigil, value with it. The sigil keeps the sugar
+unambiguous, so `{ a, b }` stays the parse error it has always been,
+and the set may separate its names with a comma or with space.
+
+```
+%kind = "user"
+%limit = 10
+
+defaults: { %kind %limit }
+```
+
+```json
+{"defaults":{"kind":"user","limit":10}}
+```
+
+Canon expands it, so a document written short and the same document
+written long are one `aon1-` digest. A rename needs no shorthand:
+`a: %b` already spells one.
+
+### The engine's key namespace is reserved
+
+A document's key order, its spreads, its optional keys and its alias
+declarations are held under keys beginning `\u0000aontu_`. A source key
+written there is refused as `reserved_key` (class `parse`), in both
+implementations. The prefix begins with a NUL, so only an escape can
+spell it and no ordinary key needs it.
+
+This closes a difference between the two: `"\u0000aontu_x": 1`
+generated in TypeScript and raised `internal` in Go, an engine-bug code
+shown for a key the reader had written. It also makes `"___merge"` an
+ordinary key again — it had crashed the TypeScript engine.
+
 Two codes are new. `export_arg` (class `parse`) refuses an argument
 that is not a set of alias names — a key, a bare alias, or the `{%}`
 wildcard, which belongs on the taking side. `import_not_exported`
@@ -100,6 +135,50 @@ repository: it now publishes `%profile` and `%comment`, and a document
 that wants them writes `{ %profile } = @"aontu:profile"`. The hash of
 such a document is unchanged, because the destructure places what the
 include placed.
+
+### A finding names where a value entered, not only where it is written
+
+A value that arrives through an alias has two places: where the source
+writes it, and where the document asks for it. A finding named only the
+first, leaving the reader to find the reference by hand, and the
+reference is the line they have to change as often as not. A third
+frame now names it:
+
+```
+ Cannot unify value: 1 with value: 2
+  --> conflict.aon:1:6
+  1 | %p = 1
+           ^ value was: 1
+
+ Value arrived through %p
+  --> conflict.aon:2:4
+  2 | a: %p
+         ^ used %p here
+```
+
+The frame appears only where a name carried the value. A value that
+arrives by an ordinary path reference has no name to blame, so a
+finding adds none. The use travels on the resolved clone, so the frame
+points at the file the reference was written in even when that is not
+the file the declaration is in.
+
+### Alias expansion is charged before it runs
+
+Expansion terminates — an alias takes no parameters, a cycle is
+refused, and a file declares finitely many names — but a name that
+names names expands to the product of what they hold. Twenty shallow
+declarations reach a million nodes, so `%a20 = [%a19, %a19]` is a
+document that fits on a screen and does not fit in memory.
+
+The expanded size is now counted before evaluation and refused over
+`trust.budget.alias`, default a million nodes, with the new code
+`alias_budget` (class `budget`). The budget is about SIZE: raising it
+is the repair where the document is trusted and the machine can hold
+the result.
+
+It is charged at the one seam every entry reaches, so a language server
+refuses such a document as the CLI does rather than re-expanding it on
+each keystroke.
 
 ## Go 0.1.26 — 2026-09-18 · TypeScript 0.68.0
 

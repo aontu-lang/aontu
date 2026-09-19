@@ -22,7 +22,7 @@ type RefVal struct {
 	// expandAliases (go/alias.go) after unification (see Canon). Never
 	// read by unification: it is a rendering of the settled tree.
 	expansion Val
-	rxc int
+	rxc       int
 }
 
 // walkOutcome says how a reference walk ended: it landed on a value,
@@ -93,7 +93,7 @@ func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 
 func newRef(terms []any, prefix bool) *RefVal {
 	rv := &RefVal{prefix: prefix}
-	rv.sp = unsited
+	rv.site.sp = unsited
 	for _, t := range terms {
 		rv.append(t)
 	}
@@ -210,6 +210,9 @@ func (rv *RefVal) Unify(peer Val, ctx *Ctx) Val {
 			slot = rv.path
 		}
 		ctx.slot = slot
+		if name, ok := rv.aliasName(); ok {
+			found.setVia(rv.site.sp, rv.site.url, name)
+		}
 		out = unite(ctx, found, peer)
 	}
 
@@ -292,10 +295,10 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			return makeNilErr(ctx, "path_cycle", rv, nil)
 		}
 		rec := newRecurse(target, rv.rxc)
-		rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+		rec.site.sp, rec.site.spu, rec.site.url = rv.site.sp, rv.site.spu, rv.site.url
 		// The source excerpt travels too, so reports frame the `$`
 		// exactly as TS's residual site does.
-		rec.stext = rv.stext
+		rec.site.src = rv.site.src
 		rec.path = cp(rv.path)
 		return rec
 	}
@@ -426,10 +429,10 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		}
 		if alls && containsRecurseOf(node, target, 0) {
 			rec := newRecurse(target, rv.rxc)
-			rec.sp, rec.spu, rec.surl = rv.sp, rv.spu, rv.surl
+			rec.site.sp, rec.site.spu, rec.site.url = rv.site.sp, rv.site.spu, rv.site.url
 			// The source excerpt travels too, so reports frame the `$`
 			// exactly as TS's residual site does.
-			rec.stext = rv.stext
+			rec.site.src = rv.site.src
 			rec.path = cp(rv.path)
 			return rec
 		}
@@ -641,7 +644,7 @@ func (rv *RefVal) aliasName() (string, bool) {
 // source position, so clones of the reference find the snapshot their
 // parse-origin captured. Twin of spreadSnapKey in ts/src/val/MapVal.ts.
 func refSnapKey(rv *RefVal) string {
-	return rv.spelling() + "~" + rv.srcurl() + "~" + itoa(rv.sp)
+	return rv.spelling() + "~" + rv.srcurl() + "~" + itoa(rv.site.sp)
 }
 
 func (rv *RefVal) Canon() string {
@@ -693,7 +696,7 @@ type VarVal struct {
 
 func newVar(name any) *VarVal {
 	v := &VarVal{peg: name}
-	v.sp = unsited
+	v.site.sp = unsited
 	return v
 }
 

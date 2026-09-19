@@ -194,7 +194,9 @@ import type { AliasBind } from './aliasname'
 import {
   ALIAS_RE,
   ALIAS_SET,
+  ALIAS_SHORTHAND_RE,
   EXPORT_DECL_NAME,
+  RESERVED_KEY_PREFIX,
   exportHoldKey,
   aliasBareName,
   aliasScopedKey,
@@ -205,8 +207,12 @@ const CC_EQ = 61
 const CC_SP = 32
 const CC_TAB = 9
 const CC_OB = 123
+const WS_RE = /\s/
 
 let SCOPE_SEQ = 0
+const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
+const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
+const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
 
 // `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -369,7 +375,30 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           return { done: true, token: atkn }
         }
 
+        // THE SHORTHAND IS READ OFF THE SOURCE: a name lexes as its pair.
+        const sh = lex.aontu_shorthand
+        if (null != sh && pnt.sI === sh.at) {
+          if (1 === sh.stage) {
+            sh.stage = 2
+            return { done: true, token: lex.token('#CL', undefined, ':', pnt) }
+          }
+          delete lex.aontu_shorthand
+          return {
+            done: true, token: lex.token(
+              '#VL',
+              (r: Rule, ctx: JsonicContext) =>
+                addsite(new RefVal(
+                  { peg: [aliasScopedKey(sh.name, srcUrl(ctx))], absolute: true }),
+                  r, ctx),
+              sh.name, pnt)
+          }
+        }
+
         if (CC_OB === lex.src.charCodeAt(pnt.sI)) {
+          const sres = ALIAS_SHORTHAND_RE.exec(lex.refwd())
+          if (null != sres) {
+            lex.aontu_shorthand_end = pnt.sI + sres[0].length
+          }
           const hres = IMPORT_HEAD_RE.exec(lex.refwd())
           if (null != hres) {
             const hsrc = hres[1]
@@ -406,6 +435,23 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           }
           if (CC_EQ === src.charCodeAt(j) && CC_EQ !== src.charCodeAt(j + 1)) {
             lex.aontu_eq_at = j
+          }
+
+          // The name is the KEY; separator and reference follow it.
+          const shend = lex.aontu_shorthand_end
+          if (null != shend && pnt.sI < shend) {
+            let k = pnt.sI + asrc.length
+            while (k < src.length && WS_RE.test(src[k])) {
+              k++
+            }
+            const ktkn = lex.token('#TX', asrc.substring(1), asrc, pnt)
+            pnt.cI += k - pnt.sI
+            pnt.sI = k
+            lex.aontu_shorthand = { at: k, name: asrc, stage: 1 }
+            if (shend - 1 <= k) {
+              delete lex.aontu_shorthand_end
+            }
+            return { done: true, token: ktkn }
           }
 
           const atkn = lex.token(
@@ -556,8 +602,16 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
   const isAliasDecl = (ktkn: any, sep: any): boolean =>
     null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) &&
     true === sep?.use?.aontu_eq
+  const keyName = (ktkn: any): string =>
+    'string' === typeof ktkn?.val ? ktkn.val : '' + ktkn?.src
+
   const keyRefusalOf = (ktkn: any, sep: any):
     { why: string, details?: Record<string, any> } | undefined => {
+    // THE SENTINEL NAMESPACE IS THE ENGINE'S; it writes `export` here.
+    if (keyName(ktkn).startsWith(RESERVED_KEY_PREFIX) &&
+      true !== ktkn.use?.aontu_export) {
+      return { why: 'reserved_key' }
+    }
     if (null == ktkn || VL !== ktkn.tin) {
       return undefined
     }
@@ -683,14 +737,14 @@ help isolate the syntax error.`,
                 ((prev as any)[SPREAD] || { o: '&', v: [] })
               ;(prev as any)[SPREAD].v.push(lm.spread.cj)
             }
-            prev.___optional = (prev.___optional || [])
-            for (const k of lm.optionalKeys) { prev.___optional.push(k) }
-            prev.___alias = (prev.___alias || [])
-            for (const k of lm.aliasKeys) { prev.___alias.push(k) }
+            prev[OPTIONAL_MARK_KEY] = (prev[OPTIONAL_MARK_KEY] || [])
+            for (const k of lm.optionalKeys) { prev[OPTIONAL_MARK_KEY].push(k) }
+            prev[ALIAS_MARK_KEY] = (prev[ALIAS_MARK_KEY] || [])
+            for (const k of lm.aliasKeys) { prev[ALIAS_MARK_KEY].push(k) }
             return prev
           }
-          prev.___merge = (prev.___merge || [])
-          prev.___merge.push(curr)
+          prev[MERGE_KEY] = (prev[MERGE_KEY] || [])
+          prev[MERGE_KEY].push(curr)
           return prev
         }
       }
@@ -1166,9 +1220,21 @@ help isolate the syntax error.`,
 
         let mo = r.node
 
+        // A REFUSED KEY TAKES NO KEY and is not OPTIONAL: its name is a
+        // mark's, and the elision below would put it back.
+        for (const kr of (r.u.aontu_key_refusals ?? []) as any[]) {
+          if ('reserved_key' === kr.why) {
+            delete mo[kr.key]
+            const oi = optionalKeys.indexOf(kr.key)
+            if (-1 !== oi) {
+              optionalKeys.splice(oi, 1)
+            }
+          }
+        }
+
         for (const k in mo) {
-          if (null == mo[k] && '___merge' !== k &&
-            '___optional' !== k && '___alias' !== k) {
+          if (null == mo[k] && MERGE_KEY !== k &&
+            OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
             // Pathed at the KEY, not at the enclosing map. addsite takes
             // the rule's path, which here is the map's, so the error
             // would otherwise name the container and leave the reader to
@@ -1196,6 +1262,7 @@ help isolate the syntax error.`,
           return undefined
         }
 
+        const reservedRefusals: Val[] = []
         for (const { key, tkn, why, details, url } of
           (r.u.aontu_key_refusals ?? []) as any[]) {
           const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
@@ -1210,6 +1277,10 @@ help isolate the syntax error.`,
           if ('alias_colon' === why) {
             delete mo[key]
             mo[aliasScopedKey(key, url)] = en
+          }
+          // A RESERVED KEY WAITS: its name is where the marks are kept.
+          else if ('reserved_key' === why) {
+            reservedRefusals.push(en)
           }
           else {
             mo[key] = en
@@ -1280,7 +1351,7 @@ help isolate the syntax error.`,
             dv.exportKeys = []
           }
           repathInstance(iv, [...(r.k?.path ?? [])])
-          ; (mo.___merge = mo.___merge || []).push(iv)
+          ; (mo[MERGE_KEY] = mo[MERGE_KEY] || []).push(iv)
           const binds: AliasBind[] = 0 === im.names.length ?
             ex.map((k: string) =>
               ({ local: aliasBareName(k), remote: aliasBareName(k) })) : im.names
@@ -1294,7 +1365,7 @@ help isolate the syntax error.`,
                   const en: any = siteAt(addsite(
                 new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
               en.details = { name: remote }
-              mo.___merge.push(en)
+              mo[MERGE_KEY].push(en)
             }
             else {
               bind = addsite(new RefVal({ peg: [from], absolute: true }), r, ctx)
@@ -1305,15 +1376,15 @@ help isolate the syntax error.`,
 
         // Marks carried over from a map include folded in the merge
         // hook above, applied here where the MapVal is built.
-        if (mo.___optional || mo.___alias) {
-          for (const k of (mo.___optional || [])) {
+        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY]) {
+          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
             if (!optionalKeys.includes(k)) { optionalKeys.push(k) }
           }
-          for (const k of (mo.___alias || [])) {
+          for (const k of (mo[ALIAS_MARK_KEY] || [])) {
             if (!aliasKeys.includes(k)) { aliasKeys.push(k) }
           }
-          delete mo.___optional
-          delete mo.___alias
+          delete mo[OPTIONAL_MARK_KEY]
+          delete mo[ALIAS_MARK_KEY]
         }
 
         // A value-prefix declaration lands here, at the document root
@@ -1330,9 +1401,14 @@ help isolate the syntax error.`,
         }
 
         //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
-        if (mo.___merge) {
+        const deferred = mo[MERGE_KEY]
+        delete mo[MERGE_KEY]
+
+        const merge = 0 < reservedRefusals.length ?
+          [...(deferred ?? []), ...reservedRefusals] : deferred
+
+        if (merge) {
           let mop = { ...mo }
-          delete mop.___merge
 
           let mopv = new MapVal({ peg: mop })
           mopv.optionalKeys = optionalKeys
@@ -1340,7 +1416,7 @@ help isolate the syntax error.`,
           mopv.exportKeys = exportKeys
 
           r.node =
-            addsite(new ConjunctVal({ peg: [mopv, ...mo.___merge] }), r, ctx)
+            addsite(new ConjunctVal({ peg: [mopv, ...merge] }), r, ctx)
         }
         else {
           r.node = addsite(new MapVal({ peg: mo }), r, ctx)
@@ -1375,7 +1451,7 @@ help isolate the syntax error.`,
           }
         }
 
-        // No ___merge arm here: the deferred map.merge that writes it
+        // No merge-key arm here: the deferred map.merge that writes it
         // only ever fires for a `pair` rule, whose parent is always a
         // `map` rule with a plain-object node — never a list.
         {
@@ -1472,13 +1548,15 @@ help isolate the syntax error.`,
       .bc((rule: Rule, ctx: JsonicContext) => {
         // TRAVERSE PARENTS TO GET PATH
 
-        const ktkn: any = rule.o0
+        // AN OPTIONAL PAIR OPENS ON ITS `?`: the rule before read the key.
+        const ktkn: any = true === rule.prev?.u?.aontu_optional ?
+          rule.prev.o0 : rule.o0
         const holder: any = rule.parent
         const kr = keyRefusalOf(ktkn, rule.o1)
         if (null != kr) {
           holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
           holder.u.aontu_key_refusals.push(
-            { key: '' + ktkn.src, tkn: ktkn, url: srcUrl(ctx), ...kr })
+            { key: keyName(ktkn), tkn: ktkn, url: srcUrl(ctx), ...kr })
         }
         else if (isAliasDecl(ktkn, rule.o1)) {
           holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
@@ -1631,7 +1709,8 @@ help isolate the syntax error.`,
           // "is this the top level" test reads the path, so an element
           // of a top-level list must not read as the root.
           mv.path = [...(rule.k?.path ?? []), '' + rule.node.length]
-          if (true === rule.u.aontu_optional_elem) {
+          // A REFUSED KEY IS NOT OPTIONAL: the refusal would be dropped.
+          if (true === rule.u.aontu_optional_elem && null == kr) {
             mv.optionalKeys = [key]
           }
           rule.node.push(mv)

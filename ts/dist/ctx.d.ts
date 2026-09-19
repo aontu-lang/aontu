@@ -63,6 +63,7 @@ declare class AontuContext {
         passes: number;
         revisits: number;
         depth: number;
+        alias: number;
     };
     manifest: {
         path: string;

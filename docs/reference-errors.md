@@ -54,7 +54,7 @@ them.
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
 | `reference` | 26 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
-| `budget` | 6 | evaluation hit a deterministic limit |
+| `budget` | 7 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
@@ -231,6 +231,7 @@ twenty rows have no such section and carry no link.
 | `rep_sub` | 0.57.0 | The substitution given to `rep()` names a group the pattern does not have. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `replace_overlap` | 0.58.0 | Two keys of a template's `replace` map overlap, one inside the other. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `replace_unused` | 0.58.0 | A key of a template's `replace` map appears in none of the body's literal lines. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
+| `reserved_key` | 0.69.0 | A source key beginning with the engine's reserved `\u0000aontu_` prefix, where the parser keeps a document's marks. ([Errors](reference-language.md#errors)) |
 | `sort_dir` | 0.63.0 | A sort direction other than `asc` or `desc`. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `split_sep` | 0.57.0 | The separator given to `split()` is neither a string nor a pattern. ([Text: `esc` `usc` `rep` `split`](reference-language.md#text-esc-usc-rep-split)) |
 | `syntax` | 0.51.0 | The parser refused the source text; the message is the parser's own, with the operator-character hint appended. ([Lexical structure](reference-language.md#lexical-structure)) |
@@ -368,6 +369,7 @@ twenty rows have no such section and carry no link.
 
 | code | since | raised when |
 |---|---|---|
+| `alias_budget` | 0.69.0 | Alias expansion counted past the size budget before evaluation; expansion terminates whatever the budget, so this is about size. ([Aliases `%`](reference-language.md#aliases-)) |
 | `budget_passes` | 0.52.0 | The fixpoint pass budget was spent before the model converged; the hint names what was still refining. ([Cross-field bounds and residuation](reference-language.md#cross-field-bounds-and-residuation)) |
 | `max_depth` | 0.51.0 | Input nested deeper than the engine processes. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `module_depth` | 0.53.0 | Module verification nested past its depth, usually a vendor tree leading back to itself. ([Modules](reference-language.md#modules)) |

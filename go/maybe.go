@@ -11,7 +11,7 @@ type AbsentVal struct{ base }
 func newAbsent() *AbsentVal {
 	a := &AbsentVal{}
 	a.dc = DONE
-	a.sp = -1
+	a.site.sp = -1
 	return a
 }
 
@@ -49,7 +49,7 @@ func forgive(ctx *Ctx, f *FuncVal, base []string, arg Val) Val {
 	if n, ok := out.(*NilVal); ok && "reference" == codeClass(n.why) {
 		a := newAbsent()
 		a.path = cp(base)
-		a.sp, a.spu, a.surl = f.sp, f.spu, f.surl
+		a.site.sp, a.site.spu, a.site.url = f.site.sp, f.site.spu, f.site.url
 		return a
 	}
 

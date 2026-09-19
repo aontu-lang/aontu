@@ -113,3 +113,12 @@ budget-depth-func-exhausts	errc	x:@"__FIXTURES__/deep-func.aon"	unify_cycle
 # just the region either side of it (issue #46).
 budget-depth-boundary-in	gens	x:@"__FIXTURES__/deep-boundary-in.aon"	{"x":{"z":1}}
 budget-depth-boundary-out	errc	x:@"__FIXTURES__/deep-boundary-out.aon"	unify_cycle
+# T-1 (ALIASES.0.md sections 7 and 9). Alias expansion TERMINATES --
+# no parameters, no recursion, a finite name set -- so this is not the
+# cycle answer and not the incomplete answer: it is THE EVALUATOR GAVE
+# UP, and a larger budget is a valid response. The size is counted
+# before evaluation, so the refusal costs no memory.
+alias-budget-doubling-ladder	errc	%a0 = 1\n%a1 = [%a0, %a0]\n%a2 = [%a1, %a1]\n%a3 = [%a2, %a2]\n%a4 = [%a3, %a3]\n%a5 = [%a4, %a4]\n%a6 = [%a5, %a5]\n%a7 = [%a6, %a6]\n%a8 = [%a7, %a7]\n%a9 = [%a8, %a8]\n%a10 = [%a9, %a9]\n%a11 = [%a10, %a10]\n%a12 = [%a11, %a11]\n%a13 = [%a12, %a12]\n%a14 = [%a13, %a13]\n%a15 = [%a14, %a14]\n%a16 = [%a15, %a15]\n%a17 = [%a16, %a16]\n%a18 = [%a17, %a17]\n%a19 = [%a18, %a18]\n%a20 = [%a19, %a19]\nout: %a20	alias_budget
+# ... and a ladder that fits is not refused, which is what keeps the
+# budget a bound rather than a ban on naming a name.
+alias-budget-under-the-cap	gens	%b0 = 1\n%b1 = [%b0, %b0]\n%b2 = [%b1, %b1]\n%b3 = [%b2, %b2]\n%b4 = [%b3, %b3]\n%b5 = [%b4, %b4]\nout: %b5	{"out":[[[[[1,1],[1,1]],[[1,1],[1,1]]],[[[1,1],[1,1]],[[1,1],[1,1]]]],[[[[1,1],[1,1]],[[1,1],[1,1]]],[[[1,1],[1,1]],[[1,1],[1,1]]]]]}

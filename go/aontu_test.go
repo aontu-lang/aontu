@@ -59,19 +59,26 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
-// A source key in the reserved sentinel namespace must be rejected with a
-// clean error (not a crash, and not silent corruption of the map). The TS
-// implementation stores this state under a Symbol and is immune, so this
-// is a Go-only guard and lives here rather than in the shared spec.
+// A BARE key carrying the prefix has no shared-spec spelling: the TSV
+// unescaper reads \n and \t and nothing else, so a source holding a
+// literal NUL cannot be written as a row. The quoted spelling is pinned
+// by edge.tsv; this is its bare twin, matched in ts/test/lang.test.ts.
 func TestReservedKeyPrefixRejected(t *testing.T) {
-	for _, src := range []string{
-		"\x00aontu_order:1",
-		"\x00aontu_spread:1",
-		"\x00aontu_optional:1",
-		"a:1 \x00aontu_order:2",
+	for _, row := range []struct{ src, code string }{
+		{"\x00aontu_order:1", "reserved_key"},
+		{"\x00aontu_spread:1", "reserved_key"},
+		{"\x00aontu_optional:1", "reserved_key"},
+		{"a:1 \x00aontu_order:2", "reserved_key"},
+		// A NUL that is not the prefix is the bare-string rule's.
+		{"a: \x00bc", "bare_punct"},
+		{"a\x00b: 1", "bare_punct"},
 	} {
-		if _, err := New().Generate(src); err == nil {
-			t.Fatalf("expected error for reserved key in %q, got none", src)
+		_, err := New().Generate(row.src)
+		if err == nil {
+			t.Fatalf("expected error for %q, got none", row.src)
+		}
+		if ae, ok := err.(*AontuError); !ok || ae.Code != row.code {
+			t.Fatalf("%q: expected %s, got %v", row.src, row.code, err)
 		}
 	}
 	// A normal key is unaffected.
@@ -104,6 +111,40 @@ func TestParseCanonNestedJunctions(t *testing.T) {
 		}
 		if got := v.Canon(); got != r.canon {
 			t.Fatalf("parse canon mismatch\n src:  %q\n want: %s\n got:  %s", r.src, r.canon, got)
+		}
+	}
+}
+
+// AliasScope and AliasNameAt are the language server's, so nothing in
+// this package reaches them and a cross-package test leaves them
+// unattributed. Behaviour is pinned in go/lsp/lsp_test.go, twinned with
+// ts/test/lsp.test.ts; this holds them to the same answers from here.
+func TestAliasScopeFromThePackage(t *testing.T) {
+	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aon\"\n" +
+		"  %lead = 1\n{ a } = @\"./f.aon\"\n{%} = @\"./f.aon\"\n%no == 1\n"
+	want := []AliasBinding{
+		{Name: "%port", Row: 1, Col: 1, Decl: "%port = integer"},
+		{Name: "%uint8", Row: 2, Col: 3,
+			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+		{Name: "%b", Row: 2, Col: 11,
+			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+		{Name: "%lead", Row: 3, Col: 3, Decl: "%lead = 1"},
+	}
+	got := AliasScope(src)
+	if len(got) != len(want) {
+		t.Fatalf("AliasScope\n got: %+v\nwant: %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("binding %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	for _, c := range []struct{ text, want string }{
+		{"%a = 1", "%a"}, {"%a-b rest", "%a-b"}, {"50%", ""}, {"a: 1", ""},
+	} {
+		if got := AliasNameAt(c.text); got != c.want {
+			t.Errorf("AliasNameAt(%q) = %q, want %q", c.text, got, c.want)
 		}
 	}
 }

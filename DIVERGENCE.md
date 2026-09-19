@@ -19,8 +19,17 @@ to keep the divergence. It leaves the ledger in the other direction — by
 being fixed — far more often, and should.
 
 The shared spec (`test/spec/*.tsv`) contains only rows that pass
-identically in both implementations. Nothing described here may be added
-to it.
+identically in both implementations, so nothing under [the permanent
+divergences](#the-permanent-divergences) may be added to it: those are
+differences in what a port ANSWERS.
+
+[Structural divergences](#structural-divergences) are the other kind,
+and they are the ones most easily lost. ADR-001 asks the port to mirror
+TypeScript's STRUCTURE, not only its results, and a shape difference
+answers the same bytes: every shared row passes while the two files
+drift apart. Such a divergence therefore belongs here AND keeps its
+rows, and "nothing a user sees differs" is not a reason to leave it
+out. It is a reason it would otherwise never be found.
 
 > **Reclassified (2026-08-11).** This file previously carried six
 > entries. By maintainer decision, five of them — error message text,
@@ -92,6 +101,29 @@ having been agreed.
   shared spec pins the reports the tools return, which is where parity
   is owed. Nothing on the MCP surface writes a file: `aontu render`
   is a verb of both CLIs and has no tool.
+
+## Structural divergences
+
+The two ports answer identically here. What differs is the shape, which
+no row can see, so each entry is held to
+[`ts/test/parity.test.ts`](ts/test/parity.test.ts): the member lists are
+declared there, and a field added to one port and not the other fails
+the build rather than passing unremarked.
+
+- **A value's source position.** TypeScript stores a row and a column
+  (`ts/src/site.ts`); Go stores a byte offset and derives the row and
+  column at render time with `rowCol` (`go/val.go`). Both report the
+  same row, column and file. Three things decide it, and the first is
+  the one that makes it permanent: the `@tabnas` parser's lexer counts
+  columns in RUNES, and aontu reports UTF-16 columns, which is what
+  TypeScript's string indices give and what the LSP position encoding
+  asks for — the two agree for BMP text and differ by one per astral
+  character, so taking the token's column at face value would move Go
+  off TypeScript. A position also travels the Go parser as a bare
+  offset (of the 92 places that set one, 19 hold a token), and Go's LSP
+  wants the offset besides: `Problem.Pos` is one and `lineIndex`
+  converts it. Grouping is done — both ports reach a position through
+  one member, `site` — so what is left is the spelling.
 
 ## Previously divergent, now fixed
 

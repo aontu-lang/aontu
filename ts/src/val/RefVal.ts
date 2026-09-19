@@ -221,6 +221,15 @@ class RefVal extends FeatureVal {
         }
       }
       else {
+        // A NAME IS WHERE THE VALUE ENTERED THIS PATH; find() answers
+        // a clone, so the use travels with it.
+        const aname = this.aliasName
+        if (undefined !== aname) {
+          resolved.site.via = {
+            row: this.site.row, col: this.site.col,
+            url: this.site.url, src: this.site.src, name: aname,
+          }
+        }
         out = unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx, resolved, peer, 'ref')
       }
 

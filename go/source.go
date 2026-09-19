@@ -262,7 +262,7 @@ func dataNode(val Val) any {
 	}
 	node := map[string]any{
 		orderKey: append([]string{}, mv.keys...),
-		posKey:   mv.sp,
+		posKey:   mv.site.sp,
 		srcKey:   mv.srctext(),
 	}
 	for _, k := range mv.keys {

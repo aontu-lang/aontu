@@ -1,15 +1,13 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the source
-// and RefVal asks of a segment. See docs/design/ALIAS-FILE-SCOPE.0.md
+// ONE PATTERN FOR THE ALIAS NAME. See docs/design/ALIASES.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*'
 
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME)
 
 const ALIAS_NAME_RE = new RegExp('^' + ALIAS_NAME + '$')
 
-// What `export` takes and a destructure heads with. An item is a name
-// or `%local: %remote`; `{%}` is the wildcard, and binds no item.
+// What `export` takes and a destructure heads with: `{%}` binds none.
 const ALIAS_ITEM =
   '(' + ALIAS_NAME + ')(?:[ \\t]*:[ \\t]*(' + ALIAS_NAME + '))?'
 const ALIAS_SET =
@@ -18,13 +16,22 @@ const ALIAS_SET =
 const ALIAS_SET_RE = new RegExp('^' + ALIAS_SET + '$')
 const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g')
 
+// THE SHORTHAND: `{ %a %b }` is `{ a: %a, b: %b }`. Names only.
+const ALIAS_SHORTHAND =
+  '\\{\\s*' + ALIAS_NAME +
+  '(?:(?:\\s*,\\s*|\\s+)' + ALIAS_NAME + ')*\\s*\\}'
+const ALIAS_SHORTHAND_RE = new RegExp('^' + ALIAS_SHORTHAND)
+
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@'
+
+// THE ENGINE'S KEY NAMESPACE, refused to a source key.
+const RESERVED_KEY_PREFIX = '\u0000aontu_'
 
 // `export(...)` is read as a pair, its value under a key that changes
 // with each declaration, so a field of that name is the document's.
 const EXPORT_DECL_NAME = 'export'
-const EXPORT_HOLD_KEY = '___export@'
+const EXPORT_HOLD_KEY = RESERVED_KEY_PREFIX + 'export@'
 let EXPORT_SEQ = 0
 
 function exportHoldKey(): string {
@@ -63,14 +70,17 @@ function aliasSetItems(text: string): AliasBind[] | undefined {
   }
   return Array.from(text.matchAll(ALIAS_ITEMS_RE),
     (m) => ({ local: m[1], remote: m[2] ?? m[1] }))
-} /* node:coverage ignore next 19 */
+} /* node:coverage ignore next 22 */
 
 
 export {
+  ALIAS_NAME,
   ALIAS_RE,
   ALIAS_NAME_RE,
   ALIAS_SET,
+  ALIAS_SHORTHAND_RE,
   EXPORT_DECL_NAME,
+  RESERVED_KEY_PREFIX,
   exportHoldKey,
   isExportHoldKey,
   aliasScopedKey,

@@ -121,6 +121,11 @@ the `gh` CLI; without `gh`, see
   [the parity probe](docs/contributing/testing.md#the-parity-probe).
 - **A behaviour is shared only once it passes in both ports** (ADR-001).
   TypeScript alone is *partial*.
+- **A structural divergence registers like any other** (ADR-001): two
+  shapes that answer the same bytes pass every shared row, so nothing
+  but [`ts/test/parity.test.ts`](ts/test/parity.test.ts) and
+  [`DIVERGENCE.md`](DIVERGENCE.md) can catch them. Recording one in a
+  contributor page is absorbing it.
 - **Error codes are append-only and never renamed**; a class change is
   breaking, and a new engine code lands with its
   [`test/spec/errcodes.tsv`](test/spec/errcodes.tsv) row in the same

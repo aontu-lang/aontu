@@ -89,7 +89,7 @@ type ScalarVal struct {
 func newScalar(kind Kind, peg any) *ScalarVal {
 	v := &ScalarVal{kind: kind, peg: peg}
 	v.dc = DONE
-	v.sp = -1
+	v.site.sp = -1
 	return v
 }
 
@@ -125,8 +125,8 @@ func scalarPegSame(kind Kind, a, b any) bool {
 
 func (s *ScalarVal) superior() Val {
 	k := newScalarKind(s.kind)
-	k.sp, k.spu, k.surl = s.sp, s.spu, s.surl
-	k.stext = s.stext
+	k.site.sp, k.site.spu, k.site.url = s.site.sp, s.site.spu, s.site.url
+	k.site.src = s.site.src
 	return k
 }
 
@@ -231,7 +231,7 @@ type ScalarKindVal struct {
 
 func newScalarKind(k Kind) *ScalarKindVal {
 	v := &ScalarKindVal{kind: k}
-	v.sp = unsited
+	v.site.sp = unsited
 	v.dc = DONE
 	return v
 }

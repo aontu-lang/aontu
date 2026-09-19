@@ -27,12 +27,15 @@ to run the server. Wiring it into an editor is a task, and lives in the
 
 ## What it does
 
-The server provides three features:
+The server provides these features:
 
 - **Diagnostics**: unification problems published as you edit.
-- **Hover**: the resolved value and kind under the cursor.
+- **Hover**: the resolved value and kind under the cursor, or the
+  declaration of the alias name it is on.
 - **Completion**: the built-in functions, scalar-kind keywords and
-  literals.
+  literals, and the alias names the document binds.
+- **Go to definition**: from an alias name to where the file binds it.
+- **Signature help**: the parameters of the function being called.
 
 **Diagnostics**: open or edit an aontu document and it
 publishes a list of problems, each with a precise source range, severity,
@@ -136,7 +139,8 @@ all the analysis and protocol logic:
   library). Drive `new LspHandler()` with message objects.
 
 In both, `computeDiagnostics`/`Diagnostics`, `computeHover`/`Hover`, and
-`computeCompletions`/`Completions` are also usable standalone, with no
+`computeCompletions`/`Completions` take the document's text and are
+usable standalone, with no
 JSON-RPC at all.
 
 
@@ -236,11 +240,19 @@ computeHover('port: 8080', { line: 0, character: 7 })
 //   range: { start: { line: 0, character: 6 }, end: { line: 0, character: 10 } } }
 ```
 
-#### `computeCompletions() => CompletionItem[]`
+#### `computeCompletions(src) => CompletionItem[]`
 
-Return the context-free completion list (built-in functions, scalar-kind
-keywords, literals). `CompletionItem` is `{ label, kind?, detail? }`. The
-exported `BUILTIN_FUNCS` is the function-name list.
+Return the completion list: the built-in functions, scalar-kind
+keywords and literals, which do not depend on `src`, and the alias
+names `src` binds, which do. `CompletionItem` is
+`{ label, kind?, detail? }`. The exported `BUILTIN_FUNCS` is the
+function-name list.
+
+#### `computeDefinition(src, position, uri) => Location | null`
+
+Where the document binds the alias name at a 0-based position, or
+`null` where the position is not on one, or names nothing the file
+binds. `Location` is `{ uri, range }`.
 
 #### `class LspHandler`
 
@@ -309,11 +321,20 @@ Resolve the value at a 0-based position, or `nil`. `HoverResult` is
 `(*aontu.Aontu).Spans(src) []aontu.ValueSpan`, which lists positioned
 non-container values.
 
-#### `func Completions() []CompletionItem`
+#### `func Completions(src string) []CompletionItem`
 
-The context-free completion list. `CompletionItem` is
+The completion list: the built-in functions, scalar-kind keywords and
+literals, which do not depend on `src`, and the alias names `src`
+binds, which do. `CompletionItem` is
 `{ Label string; Kind int; Detail string }`. The function names come from
-the engine via `aontu.BuiltinFuncNames()`.
+the engine via `aontu.BuiltinFuncNames()`, and the alias names via
+`aontu.AliasScope()`.
+
+#### `func Definition(src string, line, character int, uri string) *Location`
+
+Where the document binds the alias name at a 0-based position, or `nil`
+where the position is not on one, or names nothing the file binds.
+`Location` is `{ URI string; Range Range }`.
 
 #### `type Handler`
 
@@ -344,17 +365,21 @@ positions.
 
 `textDocumentSync` is **Full** (the client sends the whole document on
 each change). Advertised capabilities: `textDocumentSync: 1`,
-`hoverProvider: true`, `completionProvider: {}`.
+`hoverProvider: true`, `definitionProvider: true`,
+`completionProvider: {}`, `signatureHelpProvider` with the trigger
+characters `(` and `,`.
 
 | Method | Kind | Behaviour |
 |--------|------|-----------|
-| `initialize` | request | Replies with `{ capabilities: { textDocumentSync: 1, hoverProvider: true, completionProvider: {} }, serverInfo: { name: "aontu-lsp", version } }`. |
+| `initialize` | request | Replies with the advertised capabilities and `serverInfo: { name: "aontu-lsp", version }`. |
 | `initialized` | notification | Ignored. |
 | `textDocument/didOpen` | notification | Stores the document, publishes diagnostics. |
 | `textDocument/didChange` | notification | Replaces the document with the last content change (Full sync), publishes diagnostics. |
 | `textDocument/didClose` | notification | Drops the document, publishes an empty diagnostic list (clears markers). |
-| `textDocument/hover` | request | Replies with a hover for the value at the position, or `null`. |
-| `textDocument/completion` | request | Replies with the completion item list. |
+| `textDocument/hover` | request | Replies with a hover for the alias name at the position, else for the value there, else `null`. |
+| `textDocument/completion` | request | Replies with the completion item list for the open document. |
+| `textDocument/definition` | request | Replies with the `Location` where the document binds the alias name at the position, or `null`. |
+| `textDocument/signatureHelp` | request | Replies with the signature of the call the position is inside, or `null`. |
 | `textDocument/publishDiagnostics` | notification (server→client) | Carries `{ uri, diagnostics }`. |
 | `shutdown` | request | Replies `result: null`, arms a clean exit. |
 | `exit` | notification | Stops the server. Exit code `0` if `shutdown` came first, else `1`. |
@@ -425,7 +450,8 @@ Both libraries are unit-tested (`ts/test/lsp.test.ts`,
 
 ## Limitations and extension points
 
-Current scope is diagnostics, hover, and completion. The layered design
+Current scope is diagnostics, hover, completion, go-to-definition on an
+alias name, and signature help. The layered design
 makes additions localised: most new features are implemented once in the
 analysis layer (layer 1) and advertised in `initialize` (layer 2):
 
@@ -434,10 +460,19 @@ analysis layer (layer 1) and advertised in `initialize` (layer 2):
   line; a value resolved from a reference is shown at its definition
   site. Hovering a multi-line container or the cursor exactly on a `{`
   brace may not resolve.
-- **Completion** is context-free (no cursor-to-path awareness): it does
-  not suggest sibling keys. Adding key completion needs a position→path
-  mapping in the analysis layer.
-- **Go-time-out / cancellation, go-to-definition, rename**: not
+- **Completion** has no cursor-to-path awareness: it offers the
+  built-ins and the names the document binds, but not sibling keys.
+  Adding key completion needs a position→path mapping in the analysis
+  layer.
+- **The alias features read the document's text**, not its tree, so
+  they answer while a document is half-written and would not parse. The
+  cost is that they know only what the text says: a name arriving
+  through a destructure resolves to the pattern that takes it, which is
+  where the file binds the name, rather than to the declaration in the
+  other file. Following it across the boundary would mean the server
+  reading that file itself, outside the include capability that governs
+  every other read.
+- **Go-to-definition on a key or path**, cancellation, rename: not
   implemented; unknown requests get a `-32601` reply.
 - **Incremental sync**: the server uses Full document sync for
   simplicity; range-based incremental edits could be added in the handler

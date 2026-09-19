@@ -15,7 +15,7 @@ type PlusOpVal struct {
 
 func newPlusOp(a, b Val) *PlusOpVal {
 	o := &PlusOpVal{peg: []Val{a, b}}
-	o.sp = unsited
+	o.site.sp = unsited
 	return o
 }
 
@@ -84,7 +84,7 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 	} else if isTop(peer) {
 		np := newPlusOp(newpeg[0], newpeg[1])
 		np.path = cp(o.path)
-		np.sp, np.spu, np.surl = o.sp, o.spu, o.surl
+		np.site.sp, np.site.spu, np.site.url = o.site.sp, o.site.spu, o.site.url
 		out = np
 	} else if peer.Nil() {
 		out = peer

@@ -57,6 +57,22 @@ upgrade deliberately and run `make test` before loosening any pin.
 > spreads are siblings on the enclosing map at any depth; covered by the
 > `spread.tsv:sibling-*` shared-spec rows.
 
+### Where the ports do not mirror each other structurally
+
+Nowhere, without a register entry. ADR-001 asks the port to mirror
+TypeScript's *structure*, not only its results, and a shape difference
+answers the same bytes — so every row in the shared suite passes while
+the two files drift apart, and no gate in the spec can say otherwise.
+
+That makes this the one kind of divergence a contributor page must not
+hold. **This section used to carry one.** Recording it here read as a
+documented design fact rather than a registered defect, and the next
+reader was offered keeping it as an option. The record lives in
+[`DIVERGENCE.md`](../../DIVERGENCE.md) under the structural
+divergences, and the member lists are held to
+[`ts/test/parity.test.ts`](../../ts/test/parity.test.ts), which fails
+the build when a field reaches one port and not the other.
+
 ## The number model
 
 The numeric lattice is a **tower**. `number` is a pure supertype that

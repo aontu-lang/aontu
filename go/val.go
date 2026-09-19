@@ -61,6 +61,8 @@ type Val interface {
 	posu() bool
 	setPosu(u bool)
 	srcurl() string
+	via() (int, string, string)
+	setVia(sp int, url, name string)
 	setSrcurl(u string)
 	cjo() int
 	superior() Val
@@ -95,25 +97,42 @@ type Val interface {
 
 const unsited = -1
 
-type base struct {
-	dc   int
+// WHERE A NAME WAS USED, when a value arrived through one, which a
+// finding names beside where it was written (ALIASES.0.md A-1).
+type viaSite struct {
 	sp   int
-	path []string // path from root (for reference resolution)
-	stext string
+	url  string
+	name string
+}
+
+// WHERE A VALUE WAS WRITTEN, grouped as ts/src/site.ts groups it.
+// `sp` is the byte offset a position travels as here, where TypeScript
+// carries a row and a column; docs/contributing/parity.md says why.
+// `spu` marks a position a clone carried rather than the source gave.
+type site struct {
+	url string
+	src string
+	sp  int
 	spu bool
-	surl  string
-	mtype bool
-	mhide bool // hide mark
-	fspr bool
-	fwrt bool
-	finner Val
-	deprec map[string]string
-	origin string
+	via viaSite
+}
+
+type base struct {
+	dc      int
+	site    site
+	path    []string // path from root (for reference resolution)
+	mtype   bool
+	mhide   bool // hide mark
+	fspr    bool
+	fwrt    bool
+	finner  Val
+	deprec  map[string]string
+	origin  string
 	emitted *emitOrigin
-	link string
-	relkey string
-	spr Val
-	pdep int8
+	link    string
+	relkey  string
+	spr     Val
+	pdep    int8
 }
 
 func (b *base) setVpath(p []string) { b.path = p }
@@ -161,21 +180,28 @@ func setSprOn(v Val, s Val) {
 func (b *base) Dc() int                { return b.dc }
 func (b *base) Nil() bool              { return false }
 func (b *base) setDc(dc int)           { b.dc = dc }
-func (b *base) pos() int               { return b.sp }
-func (b *base) setPos(p int)           { b.sp = p }
-func (b *base) srctext() string        { return b.stext }
-func (b *base) setSrctext(text string) { b.stext = text }
+func (b *base) pos() int               { return b.site.sp }
+func (b *base) setPos(p int)           { b.site.sp = p }
+func (b *base) srctext() string        { return b.site.src }
+func (b *base) setSrctext(text string) { b.site.src = text }
 
 func (b *base) srclen() int {
-	if "" == b.stext {
+	if "" == b.site.src {
 		return -1
 	}
-	return utf16Len(b.stext)
+	return utf16Len(b.site.src)
 }
-func (b *base) posu() bool          { return b.spu }
-func (b *base) setPosu(u bool)      { b.spu = u }
-func (b *base) srcurl() string      { return b.surl }
-func (b *base) setSrcurl(u string)  { b.surl = u }
+func (b *base) posu() bool     { return b.site.spu }
+func (b *base) setPosu(u bool) { b.site.spu = u }
+func (b *base) via() (int, string, string) {
+	return b.site.via.sp, b.site.via.url, b.site.via.name
+}
+func (b *base) setVia(sp int, url, name string) {
+	b.site.via = viaSite{sp: sp, url: url, name: name}
+}
+
+func (b *base) srcurl() string      { return b.site.url }
+func (b *base) setSrcurl(u string)  { b.site.url = u }
 func (b *base) cjo() int            { return 99999 }
 func (b *base) vpath() []string     { return b.path }
 func (b *base) setvpath(p []string) { b.path = p }
@@ -227,7 +253,7 @@ type TopVal struct{ base }
 func newTop() *TopVal {
 	t := &TopVal{}
 	t.dc = DONE
-	t.sp = -1
+	t.site.sp = -1
 	return t
 }
 
@@ -274,7 +300,7 @@ func newNil(why string) *NilVal {
 	n.dc = DONE
 	// No source position until a caller assigns one — mirrors the TS
 	// site default (row/col -1), which a frame's arrow renders RAW.
-	n.sp = -1
+	n.site.sp = -1
 	return n
 }
 
@@ -384,6 +410,15 @@ func (n *NilVal) FullMessage(src, file string, texts map[string]string) string {
 		b.WriteString("\n")
 		b.WriteString(n.frame(src, file, attempt, n.secondary, residue, texts))
 	}
+	for _, v := range []Val{residue, n.secondary} {
+		if v == nil {
+			continue
+		}
+		if sp, url, name := v.via(); "" != name {
+			b.WriteString("\n")
+			b.WriteString(n.viaFrame(src, file, sp, url, name, texts))
+		}
+	}
 	n.fullmsg = b.String()
 	return n.fullmsg
 }
@@ -398,6 +433,53 @@ func frameFile(url string) string {
 		return "<no-file>"
 	}
 	return out
+}
+
+// A NAME IS WHERE THE VALUE ENTERED THIS PATH, which is not where it
+// is written (ALIASES.0.md A-1).
+func (n *NilVal) viaFrame(src, file string, sp int, url, name string,
+	texts map[string]string) string {
+	if "" != url {
+		if t, ok := texts[url]; ok {
+			src, file = t, frameFile(url)
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, " Value arrived through %s\n", name)
+	row, col := rowCol(src, sp)
+	lines := strings.Split(src, "\n")
+	line := func(r int) string {
+		if 1 <= r && r <= len(lines) {
+			return lines[r-1]
+		}
+		return ""
+	}
+	arrowRow, arrowCol, arrowFile := row, col, file
+	if sp < 0 { //coverage:ignore a stamped use always carries its offset
+		arrowRow, arrowCol, arrowFile = -1, -1, "<no-file>"
+	}
+	fmt.Fprintf(&b, "  %s--> %s:%d:%d\n", ansi("\x1b[34m"), arrowFile, arrowRow, arrowCol)
+	gutter := len(strconv.Itoa(row + 2))
+	excerpt := func(r int) {
+		fmt.Fprintf(&b, "%s  %*d | %s%s\n",
+			ansi("\x1b[34m"), gutter, r, ansi("\x1b[0m"), line(r))
+	}
+	for r := row - 2; r < row; r++ {
+		if 1 <= r {
+			excerpt(r)
+		}
+	}
+	excerpt(row)
+	caretCol := col
+	if caretCol < 1 { //coverage:ignore rowCol never returns a column below 1
+		caretCol = 1
+	}
+	b.WriteString(strings.Repeat(" ", 2+gutter+3+caretCol-1))
+	b.WriteString(ansi("\x1b[34m") + "^ used " + name + " here")
+	b.WriteString(ansi("\x1b[0m") + "\n")
+	excerpt(row + 1)
+	excerpt(row + 2)
+	return b.String()
 }
 
 func (n *NilVal) frame(src, file, attempt string, v, other Val,
@@ -571,13 +653,13 @@ func makeNilErr(ctx *Ctx, why string, a, b Val) *NilVal {
 	n := newNil(why)
 	if a != nil {
 		n.primary = a
-		n.sp = a.pos()
+		n.site.sp = a.pos()
 		if b != nil {
 			n.secondary = b
 			if srcid(a) == srcid(b) && b.pos() > a.pos() {
 				n.primary = b
 				n.secondary = a
-				n.sp = b.pos()
+				n.site.sp = b.pos()
 			}
 		}
 	}
