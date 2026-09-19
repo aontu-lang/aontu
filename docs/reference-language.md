@@ -1624,6 +1624,32 @@ table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
              "b": { "kind": "user", "id": 2 } } }
 ```
 
+### The shorthand: `{ %a %b }`
+
+In value position a set of names stands for the map that binds each one
+under its own name: `{ %a %b }` is `{ a: %a, b: %b }`, key without the
+sigil and value with it.
+
+<!-- test: scenario alias-shorthand -->
+```aon
+%kind = "user"
+%limit = 10
+
+defaults: { %kind %limit }
+```
+
+```json
+{"defaults":{"kind":"user","limit":10}}
+```
+
+The sigil is what makes the sugar unambiguous, so `{ a, b }` stays the
+parse error it has always been, and a set may still separate its names
+with commas. Canon expands the shorthand, so a document written short and the
+same document written long are one `aon1-` digest, which is what makes
+this sugar rather than a second way to say something else.
+
+A rename needs no shorthand, because `a: %b` already spells it.
+
 ### Publishing a name: `export`
 
 `export({ %a, %b })` declares which of a file's names another file may

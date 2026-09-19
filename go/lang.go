@@ -957,6 +957,12 @@ const aliasItemPat = `(` + aliasNamePat + `)(?:[ \t]*:[ \t]*(` + aliasNamePat + 
 const aliasSetPat = `\{[ \t]*(?:%|` + aliasItemPat +
 	`(?:[ \t]*,[ \t]*` + aliasItemPat + `)*)[ \t]*\}`
 
+// THE SHORTHAND: `{ %a %b }` is `{ a: %a, b: %b }`. Names only.
+const aliasShorthandPat = `\{\s*` + aliasNamePat +
+	`(?:(?:\s*,\s*|\s+)` + aliasNamePat + `)*\s*\}`
+
+var aliasShorthandRe = regexp.MustCompile(`^` + aliasShorthandPat)
+
 var aliasNameRe = regexp.MustCompile(`^` + aliasNamePat + `$`)
 var aliasSetRe = regexp.MustCompile(`^` + aliasSetPat + `$`)
 var aliasItemsRe = regexp.MustCompile(aliasItemPat)
@@ -1378,6 +1384,14 @@ type exportSpan struct {
 }
 
 var exportAt sync.Map
+var shorthandEnd sync.Map
+var shorthandRef sync.Map
+
+type shorthandSpan struct {
+	at    int
+	name  string
+	stage int
+}
 
 // THE FIXED MATCHER'S CHECK RUNS AT EVERY POSITION, which the heads
 // need: `{` opens a fixed token the text check never sees.
@@ -1405,7 +1419,37 @@ func tsFixedCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 		}
 	}
 
+	// THE SHORTHAND IS READ OFF THE SOURCE: a name in it lexes as the
+	// pair it stands for, so the grammar needs nothing new.
+	if sh, ok := shorthandRef.Load(l); ok {
+		span := sh.(shorthandSpan)
+		if start == span.at {
+			if 1 == span.stage {
+				span.stage = 2
+				shorthandRef.Store(l, span)
+				return &jsonic.LexCheckResult{
+					Done: true, Token: l.Token("#CL", jsonic.TinCL, ":", ":")}
+			}
+			shorthandRef.Delete(l)
+			name := span.name
+			tkn := l.Token("#VL", jsonic.TinVL,
+				jsonic.TokenValFunc(func(r *jsonic.Rule, ctx *jsonic.Context) any {
+					rv := newRef([]any{aliasScopedKey(name, srcURL(ctx))}, false)
+					rv.absolute = true
+					if r.ON > 0 {
+						rv.sp = r.O0.SI
+					}
+					stampSrc(rv, r)
+					return rv
+				}), name)
+			return &jsonic.LexCheckResult{Done: true, Token: tkn}
+		}
+	}
+
 	if strings.HasPrefix(rest, "{") {
+		if m := aliasShorthandRe.FindString(rest); "" != m {
+			shorthandEnd.Store(l, start+len(m))
+		}
 		if m := importHeadRe.FindStringSubmatchIndex(rest); nil != m &&
 			(start+m[1] >= len(src) || '=' != src[start+m[1]]) {
 			head := rest[m[2]:m[3]]
@@ -1422,6 +1466,10 @@ func tsFixedCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	return nil
 }
 
+func isSpaceByte(c byte) bool {
+	return ' ' == c || '\t' == c || '\n' == c || '\r' == c
+}
+
 func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 	pnt := l.Cursor()
 	start := pnt.SI
@@ -1432,6 +1480,22 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 
 	if '%' == src[start] {
 		if m := aliasRe.FindString(src[start:]); "" != m {
+			// In a shorthand set the name is the KEY it stands for; the
+			// separator and the reference are pushed back after it.
+			if end, ok := shorthandEnd.Load(l); ok && start < end.(int) {
+				k := start + len(m)
+				for k < len(src) && isSpaceByte(src[k]) {
+					k++
+				}
+				tkn := l.Token("#TX", jsonic.TinTX, m[1:], m)
+				pnt.CI += utf8.RuneCountInString(src[start:k])
+				pnt.SI = k
+				shorthandRef.Store(l, shorthandSpan{at: k, name: m, stage: 1})
+				if end.(int) <= k {
+					shorthandEnd.Delete(l)
+				}
+				return &jsonic.LexCheckResult{Done: true, Token: tkn}
+			}
 			j := start + len(m)
 			for j < len(src) && (' ' == src[j] || '\t' == src[j]) {
 				j++

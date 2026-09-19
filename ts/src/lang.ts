@@ -194,6 +194,7 @@ import type { AliasBind } from './aliasname'
 import {
   ALIAS_RE,
   ALIAS_SET,
+  ALIAS_SHORTHAND_RE,
   EXPORT_DECL_NAME,
   RESERVED_KEY_PREFIX,
   exportHoldKey,
@@ -206,6 +207,7 @@ const CC_EQ = 61
 const CC_SP = 32
 const CC_TAB = 9
 const CC_OB = 123
+const WS_RE = /\s/
 
 let SCOPE_SEQ = 0
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
@@ -373,7 +375,31 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           return { done: true, token: atkn }
         }
 
+        // THE SHORTHAND IS READ OFF THE SOURCE: a name in it lexes as
+        // the pair it stands for, so the grammar needs nothing new.
+        const sh = lex.aontu_shorthand
+        if (null != sh && pnt.sI === sh.at) {
+          if (1 === sh.stage) {
+            sh.stage = 2
+            return { done: true, token: lex.token('#CL', undefined, ':', pnt) }
+          }
+          delete lex.aontu_shorthand
+          return {
+            done: true, token: lex.token(
+              '#VL',
+              (r: Rule, ctx: JsonicContext) =>
+                addsite(new RefVal(
+                  { peg: [aliasScopedKey(sh.name, srcUrl(ctx))], absolute: true }),
+                  r, ctx),
+              sh.name, pnt)
+          }
+        }
+
         if (CC_OB === lex.src.charCodeAt(pnt.sI)) {
+          const sres = ALIAS_SHORTHAND_RE.exec(lex.refwd())
+          if (null != sres) {
+            lex.aontu_shorthand_end = pnt.sI + sres[0].length
+          }
           const hres = IMPORT_HEAD_RE.exec(lex.refwd())
           if (null != hres) {
             const hsrc = hres[1]
@@ -410,6 +436,24 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           }
           if (CC_EQ === src.charCodeAt(j) && CC_EQ !== src.charCodeAt(j + 1)) {
             lex.aontu_eq_at = j
+          }
+
+          // In a shorthand set the name is the KEY it stands for; the
+          // separator and the reference are pushed back after it.
+          const shend = lex.aontu_shorthand_end
+          if (null != shend && pnt.sI < shend) {
+            let k = pnt.sI + asrc.length
+            while (k < src.length && WS_RE.test(src[k])) {
+              k++
+            }
+            const ktkn = lex.token('#TX', asrc.substring(1), asrc, pnt)
+            pnt.cI += k - pnt.sI
+            pnt.sI = k
+            lex.aontu_shorthand = { at: k, name: asrc, stage: 1 }
+            if (shend <= k) {
+              delete lex.aontu_shorthand_end
+            }
+            return { done: true, token: ktkn }
           }
 
           const atkn = lex.token(

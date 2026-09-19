@@ -336,6 +336,13 @@ func (r *fmtReader) entry() *fmtNode {
 		r.i += 3
 		return &fmtNode{t: "atom", text: text, at: at}
 	}
+	// THE SHORTHAND is read back as the name the source wrote.
+	if r.atKey() && aliasRe.MatchString(r.T[r.i].src) &&
+		r.i+2 < len(r.T) && r.T[r.i].src == r.T[r.i+2].src {
+		text := r.T[r.i].src
+		r.i += 3
+		return &fmtNode{t: "atom", text: text, at: at}
+	}
 	if r.atKey() {
 		tok := r.T[r.i]
 		opt := "#QM" == r.name(1)

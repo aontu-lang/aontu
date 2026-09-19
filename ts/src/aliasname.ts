@@ -1,7 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the source
-// and RefVal asks of a segment. See docs/design/ALIAS-FILE-SCOPE.0.md
+// ONE PATTERN FOR THE ALIAS NAME. See docs/design/ALIASES.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*'
 
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME)
@@ -16,6 +15,12 @@ const ALIAS_SET =
   '(?:[ \\t]*,[ \\t]*' + ALIAS_ITEM + ')*)[ \\t]*\\}'
 const ALIAS_SET_RE = new RegExp('^' + ALIAS_SET + '$')
 const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g')
+
+// THE SHORTHAND: `{ %a %b }` is `{ a: %a, b: %b }`. Names only.
+const ALIAS_SHORTHAND =
+  '\\{\\s*' + ALIAS_NAME +
+  '(?:(?:\\s*,\\s*|\\s+)' + ALIAS_NAME + ')*\\s*\\}'
+const ALIAS_SHORTHAND_RE = new RegExp('^' + ALIAS_SHORTHAND)
 
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@'
@@ -72,6 +77,7 @@ export {
   ALIAS_RE,
   ALIAS_NAME_RE,
   ALIAS_SET,
+  ALIAS_SHORTHAND_RE,
   EXPORT_DECL_NAME,
   RESERVED_KEY_PREFIX,
   exportHoldKey,
