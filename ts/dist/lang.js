@@ -101,11 +101,9 @@ const CC_SP = 32;
 const CC_TAB = 9;
 const CC_OB = 123;
 let SCOPE_SEQ = 0;
-let QUARANTINE_SEQ = 0;
 const MERGE_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'merge';
 const ALIAS_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'alias';
 const OPTIONAL_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'optional';
-const QUARANTINE_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'quarantine';
 // `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
 const IMPORT_HEAD_RE = new RegExp('^(' + aliasname_1.ALIAS_SET + ')[ \\t]*=(?!=)');
@@ -390,8 +388,17 @@ let AontuJsonic = function AontuLang(jsonic) {
     };
     const isAliasDecl = (ktkn, sep) => null != ktkn && VL === ktkn.tin && aliasname_1.ALIAS_RE.test('' + ktkn.src) &&
         true === sep?.use?.aontu_eq;
+    const keyName = (ktkn) => 'string' === typeof ktkn?.val ? ktkn.val : '' + ktkn?.src;
     const keyRefusalOf = (ktkn, sep) => {
-        if (null == ktkn || VL !== ktkn.tin) {
+        if (null == ktkn) {
+            return undefined;
+        }
+        // THE SENTINEL NAMESPACE IS THE ENGINE'S; it writes `export` here.
+        if (keyName(ktkn).startsWith(aliasname_1.RESERVED_KEY_PREFIX) &&
+            true !== ktkn.use?.aontu_export) {
+            return { why: 'reserved_key' };
+        }
+        if (VL !== ktkn.tin) {
             return undefined;
         }
         const kname = '' + ktkn.src;
@@ -889,6 +896,12 @@ help isolate the syntax error.`,
             const aliasKeys = [];
             const exportKeys = [];
             let mo = r.node;
+            // A REFUSED KEY TAKES NO KEY: its name is a mark's.
+            for (const kr of (r.u.aontu_key_refusals ?? [])) {
+                if ('reserved_key' === kr.why) {
+                    delete mo[kr.key];
+                }
+            }
             for (const k in mo) {
                 if (null == mo[k] && MERGE_KEY !== k &&
                     OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
@@ -932,7 +945,7 @@ help isolate the syntax error.`,
                 }
                 // A RESERVED KEY WAITS: its name is where the marks are kept.
                 else if ('reserved_key' === why) {
-                    reservedRefusals.push([key, en]);
+                    reservedRefusals.push(en);
                 }
                 else {
                     mo[key] = en;
@@ -1051,23 +1064,16 @@ help isolate the syntax error.`,
             //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
             const deferred = mo[MERGE_KEY];
             delete mo[MERGE_KEY];
-            // The marks are off, so a reserved key can take its refusal.
-            for (const k in mo) {
-                if (k.startsWith(QUARANTINE_KEY)) {
-                    delete mo[k];
-                }
-            }
-            for (const [key, en] of reservedRefusals) {
-                mo[key] = en;
-            }
-            if (deferred) {
+            const merge = 0 < reservedRefusals.length ?
+                [...(deferred ?? []), ...reservedRefusals] : deferred;
+            if (merge) {
                 let mop = { ...mo };
                 let mopv = new MapVal_1.MapVal({ peg: mop });
                 mopv.optionalKeys = optionalKeys;
                 mopv.aliasKeys = aliasKeys;
                 mopv.exportKeys = exportKeys;
                 r.node =
-                    addsite(new ConjunctVal_1.ConjunctVal({ peg: [mopv, ...deferred] }), r, ctx);
+                    addsite(new ConjunctVal_1.ConjunctVal({ peg: [mopv, ...merge] }), r, ctx);
             }
             else {
                 r.node = addsite(new MapVal_1.MapVal({ peg: mo }), r, ctx);
@@ -1163,22 +1169,10 @@ help isolate the syntax error.`,
             }
         ])
             // NOTE: manually adjust path - @tabnas/path ignores as not pair:true
-            .ao((r, ctx) => {
+            .ao((r) => {
             if (0 < r.d && r.u.spread) {
                 r.child.k.path = [...r.k.path, '&'];
                 r.child.k.key = '&';
-            }
-            // THE SENTINEL NAMESPACE IS THE ENGINE'S, and the pair's OPEN is
-            // where the key is known and its value not yet stored.
-            const rkey = '' + r.u.key;
-            if (null != r.u.key && rkey.startsWith(aliasname_1.RESERVED_KEY_PREFIX) &&
-                true !== r.o0?.use?.aontu_export) {
-                const holder = r.parent;
-                holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || []);
-                holder.u.aontu_key_refusals.push({
-                    key: rkey, why: 'reserved_key', tkn: r.o0, url: srcUrl(ctx),
-                });
-                r.u.key = QUARANTINE_KEY + (++QUARANTINE_SEQ);
             }
         })
             .bc((rule, ctx) => {
@@ -1188,7 +1182,7 @@ help isolate the syntax error.`,
             const kr = keyRefusalOf(ktkn, rule.o1);
             if (null != kr) {
                 holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || []);
-                holder.u.aontu_key_refusals.push({ key: '' + ktkn.src, tkn: ktkn, url: srcUrl(ctx), ...kr });
+                holder.u.aontu_key_refusals.push({ key: keyName(ktkn), tkn: ktkn, url: srcUrl(ctx), ...kr });
             }
             else if (isAliasDecl(ktkn, rule.o1)) {
                 holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || []);

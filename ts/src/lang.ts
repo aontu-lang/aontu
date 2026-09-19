@@ -208,12 +208,9 @@ const CC_TAB = 9
 const CC_OB = 123
 
 let SCOPE_SEQ = 0
-let QUARANTINE_SEQ = 0
-
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
-const QUARANTINE_KEY = RESERVED_KEY_PREFIX + 'quarantine'
 
 // `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -563,9 +560,20 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
   const isAliasDecl = (ktkn: any, sep: any): boolean =>
     null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) &&
     true === sep?.use?.aontu_eq
+  const keyName = (ktkn: any): string =>
+    'string' === typeof ktkn?.val ? ktkn.val : '' + ktkn?.src
+
   const keyRefusalOf = (ktkn: any, sep: any):
     { why: string, details?: Record<string, any> } | undefined => {
-    if (null == ktkn || VL !== ktkn.tin) {
+    if (null == ktkn) {
+      return undefined
+    }
+    // THE SENTINEL NAMESPACE IS THE ENGINE'S; it writes `export` here.
+    if (keyName(ktkn).startsWith(RESERVED_KEY_PREFIX) &&
+      true !== ktkn.use?.aontu_export) {
+      return { why: 'reserved_key' }
+    }
+    if (VL !== ktkn.tin) {
       return undefined
     }
     const kname = '' + ktkn.src
@@ -1173,6 +1181,13 @@ help isolate the syntax error.`,
 
         let mo = r.node
 
+        // A REFUSED KEY TAKES NO KEY: its name is a mark's.
+        for (const kr of (r.u.aontu_key_refusals ?? []) as any[]) {
+          if ('reserved_key' === kr.why) {
+            delete mo[kr.key]
+          }
+        }
+
         for (const k in mo) {
           if (null == mo[k] && MERGE_KEY !== k &&
             OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
@@ -1203,7 +1218,7 @@ help isolate the syntax error.`,
           return undefined
         }
 
-        const reservedRefusals: [string, Val][] = []
+        const reservedRefusals: Val[] = []
         for (const { key, tkn, why, details, url } of
           (r.u.aontu_key_refusals ?? []) as any[]) {
           const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
@@ -1221,7 +1236,7 @@ help isolate the syntax error.`,
           }
           // A RESERVED KEY WAITS: its name is where the marks are kept.
           else if ('reserved_key' === why) {
-            reservedRefusals.push([key, en])
+            reservedRefusals.push(en)
           }
           else {
             mo[key] = en
@@ -1345,17 +1360,10 @@ help isolate the syntax error.`,
         const deferred = mo[MERGE_KEY]
         delete mo[MERGE_KEY]
 
-        // The marks are off, so a reserved key can take its refusal.
-        for (const k in mo) {
-          if (k.startsWith(QUARANTINE_KEY)) {
-            delete mo[k]
-          }
-        }
-        for (const [key, en] of reservedRefusals) {
-          mo[key] = en
-        }
+        const merge = 0 < reservedRefusals.length ?
+          [...(deferred ?? []), ...reservedRefusals] : deferred
 
-        if (deferred) {
+        if (merge) {
           let mop = { ...mo }
 
           let mopv = new MapVal({ peg: mop })
@@ -1364,7 +1372,7 @@ help isolate the syntax error.`,
           mopv.exportKeys = exportKeys
 
           r.node =
-            addsite(new ConjunctVal({ peg: [mopv, ...deferred] }), r, ctx)
+            addsite(new ConjunctVal({ peg: [mopv, ...merge] }), r, ctx)
         }
         else {
           r.node = addsite(new MapVal({ peg: mo }), r, ctx)
@@ -1486,23 +1494,10 @@ help isolate the syntax error.`,
       ])
 
       // NOTE: manually adjust path - @tabnas/path ignores as not pair:true
-      .ao((r: Rule, ctx: JsonicContext) => {
+      .ao((r) => {
         if (0 < r.d && r.u.spread) {
           r.child.k.path = [...r.k.path, '&']
           r.child.k.key = '&'
-        }
-
-        // THE SENTINEL NAMESPACE IS THE ENGINE'S, and the pair's OPEN is
-        // where the key is known and its value not yet stored.
-        const rkey = '' + r.u.key
-        if (null != r.u.key && rkey.startsWith(RESERVED_KEY_PREFIX) &&
-          true !== r.o0?.use?.aontu_export) {
-          const holder: any = r.parent
-          holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
-          holder.u.aontu_key_refusals.push({
-            key: rkey, why: 'reserved_key', tkn: r.o0, url: srcUrl(ctx),
-          })
-          r.u.key = QUARANTINE_KEY + (++QUARANTINE_SEQ)
         }
       })
 
@@ -1515,7 +1510,7 @@ help isolate the syntax error.`,
         if (null != kr) {
           holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
           holder.u.aontu_key_refusals.push(
-            { key: '' + ktkn.src, tkn: ktkn, url: srcUrl(ctx), ...kr })
+            { key: keyName(ktkn), tkn: ktkn, url: srcUrl(ctx), ...kr })
         }
         else if (isAliasDecl(ktkn, rule.o1)) {
           holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])

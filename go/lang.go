@@ -273,11 +273,10 @@ help isolate the syntax error.`,
 				if prev == nil {
 					return val
 				}
+				// Both sides are the engine's own list; no source key reaches one.
 				if pl, ok := prev.([]string); ok {
-					if vl, ok := val.([]string); ok {
-						return appendNew(pl, vl...)
-					}
-					return prev
+					vl, _ := val.([]string)
+					return appendNew(pl, vl...)
 				}
 				return mergeVals(asVal(prev), asVal(val))
 			},
@@ -1187,14 +1186,20 @@ var quarantineSeq atomic.Int64
 func reserveKeyNamespace(r *jsonic.Rule, ctx *jsonic.Context) {
 	key, _ := r.U["key"].(string)
 	if !strings.HasPrefix(key, reservedKeyPrefix) {
-		return
+		// A bad bare key never reaches U["key"]; the source names it.
+		if r.ON == 0 || !strings.HasPrefix(r.O0.Src, reservedKeyPrefix) {
+			return
+		}
+		key = r.O0.Src
 	}
-	// The engine writes one key here itself: the pair that carries an
-	// `export` declaration to the parser.
+	// The engine writes one key here itself: an `export` declaration.
 	if r.ON > 0 && r.O0.Use["aontu_export"] == true {
 		return
 	}
-	m := pairNode(r)
+	var m map[string]any
+	if r.Parent != nil {
+		m, _ = r.Parent.Node.(map[string]any)
+	}
 	if m == nil { //coverage:ignore a pair always closes into a map node
 		return
 	}
@@ -1208,18 +1213,7 @@ func reserveKeyNamespace(r *jsonic.Rule, ctx *jsonic.Context) {
 	r.U["key"] = quarantineKeyPrefix + itoa(int(quarantineSeq.Add(1)))
 }
 
-func pairNode(r *jsonic.Rule) map[string]any {
-	if r.Parent != nil {
-		if m, ok := r.Parent.Node.(map[string]any); ok {
-			return m
-		}
-	}
-	m, _ := r.Node.(map[string]any)
-	return m
-}
-
-// trackOrder appends this pair's key to the enclosing map's insertion
-// order (first occurrence wins; duplicates are merged by value).
+// trackOrder appends this pair's key to the map's insertion order.
 func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 	var m map[string]any
 	if r.Parent != nil {
@@ -1253,9 +1247,7 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		key = keyOf(r.O0)
 	}
 
-	// The open hook sent a refused key's value to a quarantine key, so
-	// the order carries the key the SOURCE wrote and the value it would
-	// have overwritten is dropped.
+	// The order carries the key the SOURCE wrote; its value is dropped.
 	if orig, ok := r.U[reservedRefusedKey].(string); ok {
 		delete(m, key)
 		key = orig
@@ -1340,6 +1332,10 @@ func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
 
 func keyRefusalOf(ktkn, sep *jsonic.Token, key string) (keyRefusal, bool) {
 	if ktkn == nil || ktkn.Tin == jsonic.TinST {
+		return keyRefusal{}, false
+	}
+	// The open already refused it by namespace, which says more.
+	if strings.HasPrefix(key, reservedKeyPrefix) {
 		return keyRefusal{}, false
 	}
 	if aliasRe.MatchString(key) {

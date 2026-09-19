@@ -7,6 +7,7 @@ const unify_1 = require("../dist/unify");
 const ctx_1 = require("../dist/ctx");
 const top_1 = require("../dist/val/top");
 const TOP = (0, top_1.top)();
+const aontu_1 = require("../dist/aontu");
 const expect_1 = require("./expect");
 const MapVal_1 = require("../dist/val/MapVal");
 const srcpath_1 = require("./srcpath");
@@ -294,6 +295,34 @@ let P = lang.parse.bind(lang);
         let v10 = P('&:b &:string a:b');
         (0, expect_1.expect)(v10.canon).equal('{&:"b"&string,"a":"b"}');
         (0, expect_1.expect)(v10.unify(TOP, makeCtx()).gen(ctx)).equal({ a: 'b' });
+    });
+    // A BARE key carrying the reserved prefix has no shared-spec
+    // spelling: the TSV unescaper reads \n and \t and nothing else, so a
+    // source holding a literal NUL cannot be written as a row. The quoted
+    // spelling is pinned by edge.tsv; this is its bare twin, matched in
+    // go/aontu_test.go.
+    (0, node_test_1.it)('reserved-key-prefix-rejected', () => {
+        const rows = [
+            ['\u0000aontu_order:1', 'reserved_key'],
+            ['\u0000aontu_spread:1', 'reserved_key'],
+            ['\u0000aontu_optional:1', 'reserved_key'],
+            ['a:1 \u0000aontu_order:2', 'reserved_key'],
+            // A NUL that is not the prefix is the bare-string rule's.
+            ['a: \u0000bc', 'bare_punct'],
+            ['a\u0000b: 1', 'bare_punct'],
+        ];
+        for (const [src, why] of rows) {
+            let code;
+            try {
+                new aontu_1.Aontu().generate(src);
+            }
+            catch (err) {
+                const errs = 'function' === typeof err?.errs ? err.errs() : [];
+                code = errs[0]?.why;
+            }
+            (0, expect_1.expect)(code).equal(why);
+        }
+        (0, expect_1.expect)(new aontu_1.Aontu().generate('normal:1')).equal({ normal: 1 });
     });
     (0, node_test_1.it)('parse-canon-nested-junctions', () => {
         const rows = [

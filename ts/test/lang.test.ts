@@ -26,6 +26,8 @@ import {
 
 const TOP = top()
 
+import { Aontu } from '../dist/aontu'
+
 import { expect } from './expect'
 import { MapVal } from '../dist/val/MapVal'
 import { srcPath } from './srcpath'
@@ -436,6 +438,36 @@ describe('lang', function() {
     let v10 = P('&:b &:string a:b')
     expect(v10.canon).equal('{&:"b"&string,"a":"b"}')
     expect(v10.unify(TOP, makeCtx()).gen(ctx)).equal({ a: 'b' })
+  })
+
+
+  // A BARE key carrying the reserved prefix has no shared-spec
+  // spelling: the TSV unescaper reads \n and \t and nothing else, so a
+  // source holding a literal NUL cannot be written as a row. The quoted
+  // spelling is pinned by edge.tsv; this is its bare twin, matched in
+  // go/aontu_test.go.
+  it('reserved-key-prefix-rejected', () => {
+    const rows: [string, string][] = [
+      ['\u0000aontu_order:1', 'reserved_key'],
+      ['\u0000aontu_spread:1', 'reserved_key'],
+      ['\u0000aontu_optional:1', 'reserved_key'],
+      ['a:1 \u0000aontu_order:2', 'reserved_key'],
+      // A NUL that is not the prefix is the bare-string rule's.
+      ['a: \u0000bc', 'bare_punct'],
+      ['a\u0000b: 1', 'bare_punct'],
+    ]
+    for (const [src, why] of rows) {
+      let code: string | undefined
+      try {
+        new Aontu().generate(src)
+      }
+      catch (err: any) {
+        const errs = 'function' === typeof err?.errs ? err.errs() : []
+        code = errs[0]?.why
+      }
+      expect(code).equal(why)
+    }
+    expect(new Aontu().generate('normal:1')).equal({ normal: 1 })
   })
 
 

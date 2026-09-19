@@ -59,19 +59,26 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
-// A source key in the reserved sentinel namespace must be rejected with a
-// clean error (not a crash, and not silent corruption of the map). The TS
-// implementation stores this state under a Symbol and is immune, so this
-// is a Go-only guard and lives here rather than in the shared spec.
+// A BARE key carrying the prefix has no shared-spec spelling: the TSV
+// unescaper reads \n and \t and nothing else, so a source holding a
+// literal NUL cannot be written as a row. The quoted spelling is pinned
+// by edge.tsv; this is its bare twin, matched in ts/test/lang.test.ts.
 func TestReservedKeyPrefixRejected(t *testing.T) {
-	for _, src := range []string{
-		"\x00aontu_order:1",
-		"\x00aontu_spread:1",
-		"\x00aontu_optional:1",
-		"a:1 \x00aontu_order:2",
+	for _, row := range []struct{ src, code string }{
+		{"\x00aontu_order:1", "reserved_key"},
+		{"\x00aontu_spread:1", "reserved_key"},
+		{"\x00aontu_optional:1", "reserved_key"},
+		{"a:1 \x00aontu_order:2", "reserved_key"},
+		// A NUL that is not the prefix is the bare-string rule's.
+		{"a: \x00bc", "bare_punct"},
+		{"a\x00b: 1", "bare_punct"},
 	} {
-		if _, err := New().Generate(src); err == nil {
-			t.Fatalf("expected error for reserved key in %q, got none", src)
+		_, err := New().Generate(row.src)
+		if err == nil {
+			t.Fatalf("expected error for %q, got none", row.src)
+		}
+		if ae, ok := err.(*AontuError); !ok || ae.Code != row.code {
+			t.Fatalf("%q: expected %s, got %v", row.src, row.code, err)
 		}
 	}
 	// A normal key is unaffected.
