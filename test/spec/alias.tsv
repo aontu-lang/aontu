@@ -411,3 +411,7 @@ alias-finding-marks-the-use	err	%p = 1\na: %p\na: 2	used %p here
 # A value that came by an ordinary path reference has no name to blame,
 # so nothing is added.
 alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value
+# THE USE MAY BE IN ANOTHER FILE, and the frame goes there: the value
+# arrived through a name the OTHER file wrote, so that is the line to
+# change, not anything in this one.
+alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aon"\na: 2	alias_used_in_file.aon
