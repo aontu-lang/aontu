@@ -114,3 +114,37 @@ func TestParseCanonNestedJunctions(t *testing.T) {
 		}
 	}
 }
+
+// AliasScope and AliasNameAt are the language server's, so nothing in
+// this package reaches them and a cross-package test leaves them
+// unattributed. Behaviour is pinned in go/lsp/lsp_test.go, twinned with
+// ts/test/lsp.test.ts; this holds them to the same answers from here.
+func TestAliasScopeFromThePackage(t *testing.T) {
+	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aon\"\n" +
+		"  %lead = 1\n{ a } = @\"./f.aon\"\n{%} = @\"./f.aon\"\n%no == 1\n"
+	want := []AliasBinding{
+		{Name: "%port", Row: 1, Col: 1, Decl: "%port = integer"},
+		{Name: "%uint8", Row: 2, Col: 3,
+			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+		{Name: "%b", Row: 2, Col: 11,
+			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+		{Name: "%lead", Row: 3, Col: 3, Decl: "%lead = 1"},
+	}
+	got := AliasScope(src)
+	if len(got) != len(want) {
+		t.Fatalf("AliasScope\n got: %+v\nwant: %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("binding %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	for _, c := range []struct{ text, want string }{
+		{"%a = 1", "%a"}, {"%a-b rest", "%a-b"}, {"50%", ""}, {"a: 1", ""},
+	} {
+		if got := AliasNameAt(c.text); got != c.want {
+			t.Errorf("AliasNameAt(%q) = %q, want %q", c.text, got, c.want)
+		}
+	}
+}

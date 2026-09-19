@@ -207,6 +207,7 @@ function initializeResult() {
     capabilities: {
       textDocumentSync: 1,
       hoverProvider: true,
+      definitionProvider: true,
       completionProvider: {},
       signatureHelpProvider: { triggerCharacters: ['(', ','] },
     },
@@ -301,9 +302,104 @@ export function contributionsMarkdown(conjuncts: WhyConjunct[]): string {
 }
 
 
+// The alias name the cursor sits on, with its span. A `%` inside a
+// string is text (`a: "%foo"`), so quoted runs are stepped over.
+function aliasAt(
+  src: string, position: Position,
+): { name: string, start: number, end: number } | undefined {
+  const line = src.split('\n')[position.line]
+  if (null == line) {
+    return undefined
+  }
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if ('"' === c || "'" === c) {
+      for (i++; i < line.length && line[i] !== c; i++) { }
+      continue
+    }
+    if ('%' !== c) {
+      continue
+    }
+    const m = ALIAS_RE.exec(line.substring(i))
+    if (null == m) {
+      continue
+    }
+    if (i <= position.character && position.character < i + m[0].length) {
+      return { name: m[0], start: i, end: i + m[0].length }
+    }
+    i += m[0].length - 1
+  }
+  return undefined
+}
+
+
+// The binding for a name the cursor is on, or nothing where the name is
+// used but never bound -- which the diagnostics already report.
+function aliasBindingAt(
+  src: string, position: Position,
+): { at: { name: string, start: number, end: number }, bind: AliasBinding }
+  | undefined {
+  const at = aliasAt(src, position)
+  if (undefined === at) {
+    return undefined
+  }
+  for (const bind of aliasScope(src)) {
+    if (bind.name === at.name) {
+      return { at, bind }
+    }
+  }
+  return undefined
+}
+
+
+function aliasMarkdown(bind: AliasBinding): string {
+  return '```aontu\n' + bind.decl + '\n```\n\n*alias' +
+    ('' === bind.from ? '' : ', taken from ' + bind.from) + '*'
+}
+
+
+type Location = { uri: string, range: Range }
+
+
+// Go to where the name is BOUND: its declaration, or the destructure
+// that brought it in, which is where this file gets the name.
+function computeDefinition(
+  src: string, position: Position, uri: string): Location | null {
+  const found = aliasBindingAt(src, position)
+  if (undefined === found) {
+    return null
+  }
+  const line = found.bind.row - 1
+  const col = found.bind.col - 1
+  return {
+    uri,
+    range: {
+      start: { line, character: col },
+      end: { line, character: col + found.bind.name.length },
+    },
+  }
+}
+
+
 function computeHover(
   src: string, position: Position, provenance?: boolean,
   trust?: any): Hover | null {
+  // A NAME IS NOT A VALUE: the tree holds what it resolves to, at the
+  // declaration's site, so a use has no span for the walk below to
+  // find. The unify below takes a parsed Val as well as text, and text
+  // is the only thing with a name in it to read.
+  const named = 'string' === typeof src ?
+    aliasBindingAt(src, position) : undefined
+  if (undefined !== named) {
+    return {
+      contents: { kind: 'markdown', value: aliasMarkdown(named.bind) },
+      range: {
+        start: { line: position.line, character: named.at.start },
+        end: { line: position.line, character: named.at.end },
+      },
+    }
+  }
+
   let root: any
   try {
     root = new Aontu(null == trust ? {} : { trust }).unify(src, { collect: true })
@@ -409,9 +505,13 @@ type CompletionItem = {
 }
 
 import { funcSig, renderSig, renderSigArg } from './sig'
+import { ALIAS_RE } from './aliasname'
+import { aliasScope } from './alias'
+import type { AliasBinding } from './alias'
 
 // LSP CompletionItemKind subset.
 const COMPLETION_FUNCTION = 3
+const COMPLETION_VARIABLE = 6
 const COMPLETION_KEYWORD = 14
 
 const BUILTIN_FUNCS = [
@@ -441,9 +541,9 @@ const KIND_KEYWORDS = [
 const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'top']
 
 
-// Context-free completion: the built-in functions, scalar-kind keywords
-// and literals. Clients filter by the typed prefix.
-function computeCompletions(): CompletionItem[] {
+// The built-in functions, scalar-kind keywords and literals, and the
+// names this document binds. Clients filter by the typed prefix.
+function computeCompletions(src: string): CompletionItem[] {
   const out: CompletionItem[] = []
   for (const f of BUILTIN_FUNCS) {
     // The detail is the rendered SIGNATURE (docs/design/SIGNATURES.0.md)
@@ -456,6 +556,18 @@ function computeCompletions(): CompletionItem[] {
   }
   for (const k of LITERAL_KEYWORDS) {
     out.push({ label: k, kind: COMPLETION_KEYWORD, detail: 'keyword' })
+  }
+  // A name that binds more than once is still one name to offer.
+  const named = new Set<string>()
+  for (const bind of aliasScope(src)) {
+    if (named.has(bind.name)) {
+      continue
+    }
+    named.add(bind.name)
+    out.push({
+      label: bind.name, kind: COMPLETION_VARIABLE,
+      detail: '' === bind.from ? 'alias' : 'alias from ' + bind.from,
+    })
   }
   return out
 }
@@ -586,8 +698,23 @@ class LspHandler {
         return [{ jsonrpc: '2.0', id: msg.id, result: hover }]
       }
 
-      case 'textDocument/completion':
-        return [{ jsonrpc: '2.0', id: msg.id, result: computeCompletions() }]
+      case 'textDocument/completion': {
+        const uri = msg.params?.textDocument?.uri
+        const text = null != uri ? this.docs.get(uri) : undefined
+        return [{
+          jsonrpc: '2.0', id: msg.id,
+          result: computeCompletions(text ?? ''),
+        }]
+      }
+
+      case 'textDocument/definition': {
+        const uri = msg.params?.textDocument?.uri
+        const pos = msg.params?.position
+        const text = null != uri ? this.docs.get(uri) : undefined
+        const at = (null != text && null != pos)
+          ? computeDefinition(text, pos, uri) : null
+        return [{ jsonrpc: '2.0', id: msg.id, result: at }]
+      }
 
       case 'textDocument/signatureHelp': {
         const uri = msg.params?.textDocument?.uri
@@ -616,12 +743,13 @@ class LspHandler {
     return publishDiagnosticsMsg(uri,
       computeDiagnostics(this.docs.get(uri) ?? '', { trust: this.trust }))
   }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 31 */
 
 
 export {
   computeDiagnostics,
   computeHover,
+  computeDefinition,
   computeCompletions,
   LspHandler,
   LSP_VERSION,
@@ -631,6 +759,7 @@ export {
   SEVERITY_INFORMATION,
   SEVERITY_HINT,
   COMPLETION_FUNCTION,
+  COMPLETION_VARIABLE,
   COMPLETION_KEYWORD,
 }
 
@@ -643,4 +772,5 @@ export type {
   Hover,
   MarkupContent,
   CompletionItem,
+  Location,
 }

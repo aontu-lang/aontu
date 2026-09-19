@@ -2,7 +2,10 @@
 
 package aontu
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // The default expansion budget, raised by trust.budget.alias.
 const maxAliasNodes = 1000000
@@ -299,4 +302,56 @@ func expandAliases(root Val, snapmap map[string]Val) {
 	}
 
 	visit(root, nil)
+}
+
+
+// AliasBinding is where a file binds a name, and what to show for it.
+type AliasBinding struct {
+	Name string
+	Row  int // 1-based, as a site is
+	Col  int
+	Decl string
+	From string // the include a destructure took it from, "" if local
+}
+
+// AliasScope reads THE NAMES A FILE BINDS from its TEXT rather than its
+// tree: an editor asks while a document would not parse.
+func AliasScope(src string) []AliasBinding {
+	out := []AliasBinding{}
+	for li, line := range strings.Split(src, "\n") {
+		lead := len(line) - len(strings.TrimLeft(line, " \t"))
+		rest := line[lead:]
+		decl := strings.TrimSpace(line)
+		if m := aliasDeclLineRe.FindStringSubmatchIndex(rest); nil != m &&
+			(m[1] >= len(rest) || '=' != rest[m[1]]) {
+			out = append(out, AliasBinding{
+				Name: rest[m[2]:m[3]], Row: li + 1, Col: lead + 1, Decl: decl})
+			continue
+		}
+		tm := aliasTakeLineRe.FindStringSubmatchIndex(rest)
+		if nil == tm {
+			continue
+		}
+		// Whether the head IS a set is aliasSetItems's answer.
+		binds, ok := aliasSetItems(rest[tm[2]:tm[3]])
+		if !ok {
+			continue
+		}
+		// The column is each item's own, so a set jumps to the name
+		// asked for rather than to the pattern.
+		at := lead
+		for _, b := range binds {
+			at += strings.Index(line[at:], b.local)
+			out = append(out, AliasBinding{
+				Name: b.local, Row: li + 1, Col: at + 1,
+				Decl: decl, From: rest[tm[4]:tm[5]]})
+			at += len(b.local)
+		}
+	}
+	return out
+}
+
+// AliasNameAt is the alias name the text begins with, or "".
+func AliasNameAt(text string) string {
+	return aliasRe.FindString(text)
 }

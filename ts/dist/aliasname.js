@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RESERVED_KEY_PREFIX = exports.EXPORT_DECL_NAME = exports.ALIAS_SHORTHAND_RE = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = void 0;
+exports.RESERVED_KEY_PREFIX = exports.EXPORT_DECL_NAME = exports.ALIAS_SHORTHAND_RE = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = exports.ALIAS_NAME = void 0;
 exports.exportHoldKey = exportHoldKey;
 exports.isExportHoldKey = isExportHoldKey;
 exports.aliasScopedKey = aliasScopedKey;
@@ -10,6 +10,7 @@ exports.aliasPathSegment = aliasPathSegment;
 exports.aliasSetItems = aliasSetItems;
 // ONE PATTERN FOR THE ALIAS NAME. See docs/design/ALIASES.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*';
+exports.ALIAS_NAME = ALIAS_NAME;
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME);
 exports.ALIAS_RE = ALIAS_RE;
 const ALIAS_NAME_RE = new RegExp('^' + ALIAS_NAME + '$');
@@ -60,5 +61,5 @@ function aliasSetItems(text) {
         return undefined;
     }
     return Array.from(text.matchAll(ALIAS_ITEMS_RE), (m) => ({ local: m[1], remote: m[2] ?? m[1] }));
-} /* node:coverage ignore next 21 */
+} /* node:coverage ignore next 22 */
 //# sourceMappingURL=aliasname.js.map

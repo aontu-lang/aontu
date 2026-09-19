@@ -59,7 +59,7 @@ func TestHoverMiss(t *testing.T) {
 }
 
 func TestCompletionsList(t *testing.T) {
-	c := Completions()
+	c := Completions("")
 	if len(c) != 76 {
 		t.Fatalf("expected 76 completions, got %d", len(c))
 	}

@@ -127,6 +127,18 @@ func HoverTrust(
 	src string, line, character int, provenance bool,
 	trust *aontu.TrustOptions,
 ) *HoverResult {
+	// A NAME IS NOT A VALUE: the tree holds what it resolves to, at the
+	// declaration's site, so a use has no span for the search below.
+	if at, bind, ok := aliasBindingAt(src, line, character); ok {
+		return &HoverResult{
+			Contents: MarkupContent{Kind: "markdown", Value: aliasMarkdown(bind)},
+			Range: &Range{
+				Start: Position{Line: line, Character: at.start},
+				End:   Position{Line: line, Character: at.end},
+			},
+		}
+	}
+
 	a := aontu.New()
 	a.Trust = trust
 	spans := a.Spans(src)
@@ -213,9 +225,93 @@ func contributionsMarkdown(conjuncts []aontu.WhyConjunct) string {
 }
 
 
+// --- Aliases ----------------------------------------------------------
+
+// Location is the LSP textDocument/definition response.
+type Location struct {
+	URI   string `json:"uri"`
+	Range Range  `json:"range"`
+}
+
+// aliasSpan is the alias name the cursor sits on. A `%` inside a string
+// is text (`a: "%foo"`), so quoted runs are stepped over.
+type aliasSpan struct {
+	name       string
+	start, end int
+}
+
+func aliasAt(src string, line, character int) (aliasSpan, bool) {
+	lines := strings.Split(src, "\n")
+	if line < 0 || line >= len(lines) {
+		return aliasSpan{}, false
+	}
+	text := lines[line]
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if '"' == c || '\'' == c {
+			for i++; i < len(text) && text[i] != c; i++ {
+			}
+			continue
+		}
+		if '%' != c {
+			continue
+		}
+		m := aontu.AliasNameAt(text[i:])
+		if "" == m {
+			continue
+		}
+		if i <= character && character < i+len(m) {
+			return aliasSpan{name: m, start: i, end: i + len(m)}, true
+		}
+		i += len(m) - 1
+	}
+	return aliasSpan{}, false
+}
+
+// Nothing where the name is used but never bound: diagnostics report it.
+func aliasBindingAt(
+	src string, line, character int,
+) (aliasSpan, aontu.AliasBinding, bool) {
+	at, ok := aliasAt(src, line, character)
+	if !ok {
+		return at, aontu.AliasBinding{}, false
+	}
+	for _, bind := range aontu.AliasScope(src) {
+		if bind.Name == at.name {
+			return at, bind, true
+		}
+	}
+	return at, aontu.AliasBinding{}, false
+}
+
+func aliasMarkdown(bind aontu.AliasBinding) string {
+	from := ""
+	if "" != bind.From {
+		from = ", taken from " + bind.From
+	}
+	return "```aontu\n" + bind.Decl + "\n```\n\n*alias" + from + "*"
+}
+
+// Definition goes to where the name is BOUND: its declaration, or the
+// destructure, which is where this file gets it.
+func Definition(src string, line, character int, uri string) *Location {
+	_, bind, ok := aliasBindingAt(src, line, character)
+	if !ok {
+		return nil
+	}
+	row := bind.Row - 1
+	col := bind.Col - 1
+	return &Location{URI: uri, Range: Range{
+		Start: Position{Line: row, Character: col},
+		End:   Position{Line: row, Character: col + len(bind.Name)},
+	}}
+}
+
+
 // LSP CompletionItemKind subset.
 const (
 	CompletionFunction = 3
+	CompletionVariable = 6
 	CompletionKeyword  = 14
 )
 
@@ -226,9 +322,10 @@ type CompletionItem struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// Completions returns context-free suggestions: the built-in functions,
-// scalar-kind keywords and literals. Clients filter by the typed prefix.
-func Completions() []CompletionItem {
+// Completions returns the built-in functions, scalar-kind keywords and
+// literals, and the names this document binds. Clients filter by the
+// typed prefix.
+func Completions(src string) []CompletionItem {
 	out := []CompletionItem{}
 	for _, f := range aontu.BuiltinFuncNames() {
 		// The detail is the rendered SIGNATURE
@@ -245,6 +342,20 @@ func Completions() []CompletionItem {
 	// now, not text.
 	for _, k := range []string{"_", "true", "false", "null", "top"} {
 		out = append(out, CompletionItem{Label: k, Kind: CompletionKeyword, Detail: "keyword"})
+	}
+	// A name that binds more than once is still one name to offer.
+	named := map[string]bool{}
+	for _, bind := range aontu.AliasScope(src) {
+		if named[bind.Name] {
+			continue
+		}
+		named[bind.Name] = true
+		detail := "alias"
+		if "" != bind.From {
+			detail = "alias from " + bind.From
+		}
+		out = append(out, CompletionItem{
+			Label: bind.Name, Kind: CompletionVariable, Detail: detail})
 	}
 	return out
 }

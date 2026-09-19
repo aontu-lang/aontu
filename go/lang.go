@@ -975,6 +975,11 @@ var aliasItemsRe = regexp.MustCompile(aliasItemPat)
 var importHeadRe = regexp.MustCompile(`^(` + aliasSetPat + `)[ \t]*=`)
 var exportRe = regexp.MustCompile(`^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)`)
 
+// A declaration heads its line. RE2 has no lookahead, so `==` is ruled
+// out at the match, as importHeadRe does.
+var aliasDeclLineRe = regexp.MustCompile(`^(` + aliasNamePat + `)[ \t]*=`)
+var aliasTakeLineRe = regexp.MustCompile(`^(\{[^}]*\})[ \t]*=[ \t]*@[ \t]*"([^"]*)"`)
+
 // A key carries the url of the file that declared the name.
 const aliasScopeSep = "@"
 const scopeMetaKey = reservedKeyPrefix + "scope"

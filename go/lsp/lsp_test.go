@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	aontu "github.com/aontu-lang/aontu/go"
 )
 
 func TestDiagnosticsValidIsEmpty(t *testing.T) {
@@ -70,6 +73,196 @@ func TestDiagnosticsAliasBudget(t *testing.T) {
 	}
 	if el := time.Since(started); 5*time.Second < el {
 		t.Errorf("took %v: the ladder was evaluated, not refused", el)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts completion-offers-the-names-in-scope.
+func TestCompletionOffersTheNamesInScope(t *testing.T) {
+	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aon\"\n"
+	// A rename binds the LOCAL name: `%b`, not the `%remote` it takes.
+	want := []CompletionItem{
+		{Label: "%port", Kind: CompletionVariable, Detail: "alias"},
+		{Label: "%uint8", Kind: CompletionVariable, Detail: "alias from ./types.aon"},
+		{Label: "%b", Kind: CompletionVariable, Detail: "alias from ./types.aon"},
+	}
+	got := namedCompletions(src)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("named completions\n got: %+v\nwant: %+v", got, want)
+	}
+	// A name that binds more than once is offered once.
+	if n := len(namedCompletions("%n = 1\n%n = integer\n")); 1 != n {
+		t.Errorf("a redeclared name is offered %d times, want 1", n)
+	}
+	// The set is what the file binds, so a use alone offers nothing.
+	if n := len(namedCompletions("a: %undeclared\n")); 0 != n {
+		t.Errorf("an unbound use is offered %d times, want 0", n)
+	}
+}
+
+func namedCompletions(src string) []CompletionItem {
+	out := []CompletionItem{}
+	for _, c := range Completions(src) {
+		if strings.HasPrefix(c.Label, "%") {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Twin: ts/test/lsp.test.ts describe('lsp-alias').
+func TestAliasHoverAndDefinition(t *testing.T) {
+	const src = "%port = integer\n{ %uint8 } = @\"./t.aon\"\n\nl: %port\nv: %uint8"
+
+	h := Hover(src, 3, 4, false)
+	if nil == h ||
+		h.Contents.Value != "```aontu\n%port = integer\n```\n\n*alias*" {
+		t.Fatalf("hover on a use: %+v", h)
+	}
+	// The span is the USE the cursor is on, not the declaration.
+	if h.Range.Start != (Position{3, 3}) || h.Range.End != (Position{3, 8}) {
+		t.Errorf("hover range = %+v", h.Range)
+	}
+
+	taken := Hover(src, 4, 4, false)
+	if nil == taken || taken.Contents.Value !=
+		"```aontu\n{ %uint8 } = @\"./t.aon\"\n```\n\n*alias, taken from ./t.aon*" {
+		t.Fatalf("hover on a taken name: %+v", taken)
+	}
+
+	// A local declaration: the name in its own line.
+	want := &Location{URI: "file:///m", Range: Range{Position{0, 0}, Position{0, 5}}}
+	if got := Definition(src, 3, 4, "file:///m"); !reflect.DeepEqual(got, want) {
+		t.Errorf("definition of a local name = %+v, want %+v", got, want)
+	}
+	// A taken name: the pattern, which is where this file gets it.
+	want = &Location{URI: "file:///m", Range: Range{Position{1, 2}, Position{1, 8}}}
+	if got := Definition(src, 4, 4, "file:///m"); !reflect.DeepEqual(got, want) {
+		t.Errorf("definition of a taken name = %+v, want %+v", got, want)
+	}
+
+	// `%` inside a string is text, so neither answers there.
+	const inStr = "a: \"%port\"\n%port = integer"
+	if h := Hover(inStr, 0, 5, false); nil != h &&
+		strings.Contains(h.Contents.Value, "*alias*") {
+		t.Errorf("a name inside a string hovered as an alias: %+v", h)
+	}
+	for _, c := range []struct {
+		name            string
+		src             string
+		line, character int
+	}{
+		{"inside a string", inStr, 0, 5},
+		{"a use with no binding", "a: %nope", 0, 4},
+		{"off the end of the document", src, 99, 0},
+		{"on no name at all", src, 0, 8},
+	} {
+		if got := Definition(c.src, c.line, c.character, "file:///m"); nil != got {
+			t.Errorf("definition %s = %+v, want nil", c.name, got)
+		}
+	}
+}
+
+// Twin: ts/test/lsp.test.ts describe('lsp-alias-lexical').
+func TestAliasScopeIsLexical(t *testing.T) {
+	// A head that is not a set of names binds nothing, the wildcard
+	// takes its names from the other file rather than from this text,
+	// and an `=` that is not the declaration operator does not declare.
+	for _, src := range []string{
+		`{ a } = @"./f.aon"`, `{%} = @"./f.aon"`, "%a == 1",
+	} {
+		if got := aontu.AliasScope(src); 0 != len(got) {
+			t.Errorf("AliasScope(%q) = %+v, want none", src, got)
+		}
+	}
+	// Indentation hides no declaration, and the column is its own.
+	want := []aontu.AliasBinding{{Name: "%a", Row: 1, Col: 3, Decl: "%a = 1"}}
+	if got := aontu.AliasScope("  %a = 1"); !reflect.DeepEqual(got, want) {
+		t.Errorf("an indented declaration = %+v, want %+v", got, want)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts a-percent-is-not-always-a-name.
+func TestAPercentIsNotAlwaysAName(t *testing.T) {
+	// `50%` is ordinary text: the sigil starts a name or nothing, and a
+	// quoted run is stepped over whichever quote opened it.
+	for _, c := range []struct {
+		name            string
+		src             string
+		line, character int
+	}{
+		{"a bare percent", "%a = 1\nb: 50%", 1, 5},
+		{"a single-quoted name", "%a = 1\nb: '%a'", 1, 4},
+	} {
+		if got := Definition(c.src, c.line, c.character, "u"); nil != got {
+			t.Errorf("definition on %s = %+v, want nil", c.name, got)
+		}
+	}
+	// The cursor on the SECOND name steps over the first.
+	two := "%a = 1\n%bb = 2\nc: { %a %bb }"
+	d := Definition(two, 2, 9, "u")
+	if nil == d || 1 != d.Range.Start.Line {
+		t.Fatalf("definition on the second name = %+v, want line 1", d)
+	}
+}
+
+// Twin: ts/test/lsp.test.ts definition-through-the-handler.
+func TestDefinitionThroughTheHandler(t *testing.T) {
+	h := NewHandler()
+	h.Handle(Message{Method: "textDocument/didOpen", Params: json.RawMessage(
+		`{"textDocument":{"uri":"file:///a.aontu","text":"%a = 1\nb: %a"}}`)})
+
+	outs := h.Handle(Message{ID: json.RawMessage("7"),
+		Method: "textDocument/definition", Params: json.RawMessage(
+			`{"textDocument":{"uri":"file:///a.aontu"},"position":{"line":1,"character":4}}`)})
+	var loc Location
+	if err := json.Unmarshal(outs[0].Result, &loc); err != nil {
+		t.Fatalf("definition result: %v (%s)", err, outs[0].Result)
+	}
+	if "file:///a.aontu" != loc.URI || 0 != loc.Range.Start.Line {
+		t.Fatalf("definition through the handler = %+v", loc)
+	}
+
+	// The open document is what completion offers names from.
+	comp := h.Handle(Message{ID: json.RawMessage("8"),
+		Method: "textDocument/completion", Params: json.RawMessage(
+			`{"textDocument":{"uri":"file:///a.aontu"}}`)})
+	var items []CompletionItem
+	if err := json.Unmarshal(comp[0].Result, &items); err != nil {
+		t.Fatalf("completion result: %v", err)
+	}
+	found := false
+	for _, c := range items {
+		if "%a" == c.Label {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("completion did not offer the open document's name")
+	}
+
+	// A position naming nothing, no such document, and unreadable
+	// params: null rather than a guess.
+	out := h.Handle(Message{ID: json.RawMessage("10"),
+		Method: "textDocument/definition", Params: json.RawMessage(
+			`{"textDocument":{"uri":"file:///a.aontu"},"position":{"line":0,"character":3}}`)})
+	if "null" != string(out[0].Result) {
+		t.Errorf("definition on no name = %s", out[0].Result)
+	}
+	for _, params := range []json.RawMessage{
+		json.RawMessage(`{}`), json.RawMessage(`[]`),
+	} {
+		out = h.Handle(Message{ID: json.RawMessage("9"),
+			Method: "textDocument/definition", Params: params})
+		if "null" != string(out[0].Result) {
+			t.Errorf("definition with params %s = %s", params, out[0].Result)
+		}
+		out = h.Handle(Message{ID: json.RawMessage("9"),
+			Method: "textDocument/completion", Params: params})
+		items = nil
+		if err := json.Unmarshal(out[0].Result, &items); err != nil ||
+			0 == len(items) {
+			t.Errorf("completion with params %s offered nothing", params)
+		}
 	}
 }
 
@@ -223,7 +416,7 @@ func TestHandlerExitWithoutShutdown(t *testing.T) {
 
 func TestHandlerUnknownRequest(t *testing.T) {
 	h := NewHandler()
-	outs := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/definition"})
+	outs := h.Handle(Message{ID: json.RawMessage("3"), Method: "textDocument/references"})
 	if len(outs) != 1 || outs[0].Error == nil || outs[0].Error.Code != -32601 {
 		t.Fatalf("expected method-not-found error, got %+v", outs)
 	}
