@@ -798,6 +798,32 @@ twelve entries reach — and Go's diagnostics path proved the point, a
 second walk for deprecations being an entry too. Two `budget.tsv` rows
 and twinned LSP tests bounding the elapsed time.
 
+**THE REFUSALS WERE AUDITED FOR PARITY, 2026-09-19**, and four
+divergences closed. Every `alias.tsv` row was run through both CLIs
+and the WHOLE message diffed, rather than the substring the row
+asserts: an `errc` row sees a code and an `err` row sees one line, so
+the text either side of it had never been compared. Go's
+`alias_not_toplevel` hint was the text from before the value-prefix
+form landed, so the port that refused a nested declaration did not name
+the form that works there; `alias_budget` named `nil` as the value it
+charged instead of the document; and the alias-use frame A-1 added
+omitted the `<no-file>` fallback every other frame carries, so a
+fileless document rendered `--> :2:4`. The fourth was in BOTH ports and
+is the one worth recording: the register's claim that the scoped alias
+key SHOWS NOWHERE A READER LOOKS was false at one surface. A
+recursion residual spelled its target raw, so `%a = %a` reported
+`$.%a@#1` in Go and `$.%a@/abs/path/to/the/file.aon` in TypeScript --
+an absolute filesystem path in a refusal. Both now spell the segment
+through `aliasPathSegment`, as a finding's path already did. Pinned by
+four new rows written from both engines agreeing. **Six remain and are
+recorded in [`test/spec/divergent.tsv`](../../test/spec/divergent.tsv)**,
+in three entries: the site a refusal points at for a hoisted or placed
+value, the path of an alias reference inside a nested uninstantiated
+template, and a `bare_punct` path that is not an alias divergence at
+all. None is alias machinery -- each is a parser or path question that
+wants answering for every value rather than for aliases -- and both
+ports agree on every verdict, code and document.
+
 **The pair that carries `export` to the parser waits under a key that
 changes with each declaration.** It waited under one fixed key, and a
 document that also wrote a field of that name lost it silently: the

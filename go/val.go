@@ -444,6 +444,9 @@ func (n *NilVal) viaFrame(src, file string, sp int, url, name string,
 			src, file = t, frameFile(url)
 		}
 	}
+	if file == "" {
+		file = "<no-file>"
+	}
 	var b strings.Builder
 	fmt.Fprintf(&b, " Value arrived through %s\n", name)
 	row, col := rowCol(src, sp)

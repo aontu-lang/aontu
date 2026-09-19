@@ -298,12 +298,12 @@ legible at a glance.
 
 > **Implemented 2026-09-18**, in both ports, by the route
 > [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out — including
-> renaming and §6's `svc: { %uint8 } = @"types.aon"`. One thing below is
-> NOT built and no row pins it: the set shorthand as a value anywhere
-> but in those two declaration heads, so `a: { %foo }` is still the
-> parse error §3 row 16 measured. One thing below is NARROWER than it
-> reads: `export` does not rename, since the publishing file names what
-> it has and the taking file renames what it takes.
+> renaming and §6's `svc: { %uint8 } = @"types.aon"`. The set shorthand
+> in value position followed on **2026-09-19**, so `a: { %foo }` is
+> `{"a":{"foo":1}}` rather than the parse error §3 row 16 measured. One
+> thing below is NARROWER than it reads: `export` does not rename, since
+> the publishing file names what it has and the taking file renames what
+> it takes.
 
 `export({ %uint8, %port })` declares which of a file's aliases are
 published. Three rules, all settled:
@@ -766,13 +766,14 @@ year — independent of the capture hazard that first motivated it.
 
 ## 9. Open questions
 
-Three, and nothing should be built before they are answered. A-1 now has
-an answer; T-1 and X-1 carry their own outcomes.
+Three, and nothing should be built before they are answered. All three
+are now answered; each row carries its outcome, and X-1's argument is
+§10.
 
 | # | Question | Where |
 |---|----------|-------|
 | **A-1** | ~~What site does a finding name when the value came via an alias — the declaration or the use?~~ **ANSWERED 2026-09-19: both.** A value that reaches a path through a name carries where the document asked for it alongside where the source wrote it, and a finding renders that as a frame of its own (`Value arrived through %p`). | §4 |
-| **T-1** | How is alias expansion budgeted? Expansion terminates, but can be exponential — twenty shallow declarations reach a million nodes. The budget must be on expanded *size*, charged before evaluation rather than discovered during it. | §7 |
+| **T-1** | ~~How is alias expansion budgeted?~~ **ANSWERED 2026-09-19: on expanded size, charged before evaluation.** The expanded node count is taken at each port's one evaluation seam and refused over `trust.budget.alias` as `alias_budget`, so an exponential ladder costs the count rather than the nodes. | §7 |
 | **X-1** | Is `=` the right spelling at all? `%uint8:` is already a legal key (row 15), so the operator — the proposal's only compatibility break — may be unnecessary. This one gates P1. | §10 |
 
 Everything else the note raised is settled in place: the sigil (§4), the
