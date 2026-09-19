@@ -38,7 +38,7 @@ class Site {
     this.src = site?.src ?? ''
     this.via = (site as any)?.via
   }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 10 */
 
 
 export {

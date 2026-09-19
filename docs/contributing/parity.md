@@ -57,6 +57,35 @@ upgrade deliberately and run `make test` before loosening any pin.
 > spreads are siblings on the enclosing map at any depth; covered by the
 > `spread.tsv:sibling-*` shared-spec rows.
 
+### Where the ports do not mirror each other structurally
+
+ADR-001 asks the port to mirror TypeScript's *structure*, not only its
+results, so a reviewer can hold the two files open and match them arm
+for arm. One place fails that test, and it is worth naming so the next
+reader does not take it for an accident.
+
+**A value's source position.** TypeScript groups it in a `Site`
+(`ts/src/site.ts`) holding `row`, `col`, `url`, `len` and `src`, reached
+as `val.site.row`. Go keeps the same information in flat fields on
+`base` (`go/val.go`) — `sp`, `surl`, `stext`, `spu` — and derives row
+and column at render time with `rowCol(src, sp)`.
+
+The *representation* difference is forced from upstream: a TypeScript
+jsonic token carries `rI` and `cI`, and the Go port's carries `SI`, a
+byte offset. Go cannot store a row and a column it was never handed
+without computing them at parse time against source it does not always
+hold. The *grouping* difference is not forced, and is simply how the
+port grew.
+
+Nothing a user sees differs, so this is not a `DIVERGENCE.md` entry:
+both ports report the same row, column and file. What it costs is
+reading. Anything added to a value's position lands in two shapes — the
+A-1 use site went into TypeScript's `Site` as `via` and into Go's `base`
+as `viasp`, `viaurl` and `vianame` — and each addition widens the gap.
+Grouping Go's fields into a `site` struct, keeping the byte offset,
+would close it; at 345 field references across 22 files that is its own
+change, not a rider on another.
+
 ## The number model
 
 The numeric lattice is a **tower**. `number` is a pure supertype that

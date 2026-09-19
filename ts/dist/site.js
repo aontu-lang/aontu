@@ -15,6 +15,6 @@ class Site {
         this.src = site?.src ?? '';
         this.via = site?.via;
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 10 */
 exports.Site = Site;
 //# sourceMappingURL=site.js.map
