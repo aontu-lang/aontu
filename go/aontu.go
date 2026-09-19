@@ -14,6 +14,7 @@ const VERSION = "0.1.27"
 type TrustBudget struct {
 	Passes int // fixpoint passes (default 9)
 	Depth  int // structural recursion depth (default 1000)
+	Alias  int // expanded alias nodes (default 1000000)
 }
 
 type TrustOptions struct {
@@ -139,6 +140,11 @@ func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	if nil != a.Trust {
 		ctx.budgetPasses = a.Trust.Budget.Passes
 		ctx.budgetDepth = a.Trust.Budget.Depth
+		ctx.budgetAlias = a.Trust.Budget.Alias
+	}
+	// T-1: expanded size is charged BEFORE evaluation.
+	if berr := aliasBudget(ctx, v); nil != berr {
+		return v, ctx, berr
 	}
 	res := unifyRoot(v, ctx)
 	ctx.root = res

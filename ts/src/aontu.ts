@@ -28,7 +28,7 @@ export type {
 } from './allow'
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
-import { aliasErrors } from './alias'
+import { aliasBudget, aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
@@ -185,7 +185,17 @@ class Aontu {
 
       if (undefined !== pval && 0 === pval.err.length) {
 
-        let uval = this.unify(pval, undefined, ac)
+        // T-1: expanded size is charged BEFORE evaluation.
+        const over = aliasBudget(ac as any, pval)
+        if (undefined !== over) {
+          ac.adderr(over as any)
+          if (!ac.collect) {
+            throw new AontuError(ac.errmsg(), ac.err)
+          }
+        }
+
+        let uval = undefined === over ?
+          this.unify(pval, undefined, ac) : undefined
 
         if (undefined !== uval && 0 === uval.err.length) {
 

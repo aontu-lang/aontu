@@ -111,6 +111,10 @@ import_not_exported	errcode	reference	0.69.0
 # a source key written in it is refused where it stands rather than
 # landing on one of them. Class `parse`: it is a fault in the text.
 reserved_key	errcode	parse	0.69.0
+# T-1 (ALIASES.0.md sections 7 and 9). Class `budget`: an evaluation
+# bound was spent, and raising it is the repair -- expansion terminates
+# whatever the budget, so this is about SIZE and not termination.
+alias_budget	errcode	budget	0.69.0
 bare_punct	errcode	parse	0.58.0
 not_number	errcode	parse	0.51.0
 negative	errcode	parse	0.51.0

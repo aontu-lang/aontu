@@ -172,7 +172,16 @@ class Aontu {
             ac.addopts({ ...(opts ?? {}), src });
             let pval = this.parse(src, undefined, ac);
             if (undefined !== pval && 0 === pval.err.length) {
-                let uval = this.unify(pval, undefined, ac);
+                // T-1: expanded size is charged BEFORE evaluation.
+                const over = (0, alias_1.aliasBudget)(ac, pval);
+                if (undefined !== over) {
+                    ac.adderr(over);
+                    if (!ac.collect) {
+                        throw new err_1.AontuError(ac.errmsg(), ac.err);
+                    }
+                }
+                let uval = undefined === over ?
+                    this.unify(pval, undefined, ac) : undefined;
                 if (undefined !== uval && 0 === uval.err.length) {
                     out = uval.isNil ? (ac.adderr(uval), undefined)
                         : 0 < ac.err.length ? undefined

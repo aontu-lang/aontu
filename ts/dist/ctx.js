@@ -47,6 +47,7 @@ class AontuContext {
             passes: budget.passes ?? 9,
             revisits: 999,
             depth: budget.depth ?? 1000,
+            alias: budget.alias ?? 1000000,
         };
     }
     clone(cfg) {

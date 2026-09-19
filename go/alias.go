@@ -4,6 +4,133 @@ package aontu
 
 import "sort"
 
+// The default expansion budget, raised by trust.budget.alias.
+const maxAliasNodes = 1000000
+
+// T-1 (ALIASES.0.md sections 7 and 9). Expansion TERMINATES -- no
+// parameters, no recursion, a finite name set -- but a name that names
+// names expands to the product of what they hold. The budget is on
+// EXPANDED SIZE and charged here, ahead of evaluation.
+func aliasBudget(ctx *Ctx, root Val) error {
+	// A DOCUMENT THAT INCLUDES parses to a conjunct, not a map: the
+	// deferred terms are where an included file's names arrive.
+	maps := []*MapVal{}
+	var gather func(v Val)
+	gather = func(v Val) {
+		switch n := v.(type) {
+		case *MapVal:
+			maps = append(maps, n)
+		case *ConjunctVal:
+			for _, t := range n.peg {
+				gather(t)
+			}
+		}
+	}
+	gather(root)
+	if 0 == len(maps) {
+		return nil
+	}
+
+	decl := map[string]Val{}
+	for _, m := range maps {
+		for _, k := range m.aliasKeys {
+			decl[k] = m.peg[k]
+		}
+	}
+
+	limit := ctx.budgetAlias
+	if 0 == limit {
+		limit = maxAliasNodes
+	}
+	size := map[string]int{}
+	open := map[string]bool{}
+
+	var valSize func(v Val) int
+	// A cycle is refused at resolution, which has not run yet, so a name
+	// already open costs nothing here rather than looping.
+	nameSize := func(key string) int {
+		if n, ok := size[key]; ok {
+			return n
+		}
+		if open[key] {
+			return 0
+		}
+		d, ok := decl[key]
+		if !ok {
+			return 0
+		}
+		open[key] = true
+		n := valSize(d)
+		delete(open, key)
+		size[key] = n
+		return n
+	}
+
+	valSize = func(v Val) int {
+		if nil == v {
+			return 0
+		}
+		if rv, ok := v.(*RefVal); ok {
+			if key, named := rv.aliasKey(); named {
+				return 1 + nameSize(key)
+			}
+			return 1
+		}
+		n := 1
+		switch t := v.(type) {
+		case *MapVal:
+			for _, k := range t.keys {
+				n += valSize(t.peg[k])
+			}
+			if nil != t.spread {
+				n += valSize(t.spread)
+			}
+		case *ListVal:
+			for _, e := range t.peg {
+				n += valSize(e)
+			}
+			if nil != t.spread {
+				n += valSize(t.spread)
+			}
+		case *ConjunctVal:
+			for _, e := range t.peg {
+				n += valSize(e)
+			}
+		case *DisjunctVal:
+			for _, e := range t.peg {
+				n += valSize(e)
+			}
+		}
+		if limit < n {
+			return limit + 1
+		}
+		return n
+	}
+
+	total := 0
+	for _, m := range maps {
+		for _, k := range m.keys {
+			if _, isDecl := decl[k]; isDecl {
+				continue
+			}
+			total += valSize(m.peg[k])
+			if limit < total {
+				break
+			}
+		}
+	}
+
+	if limit < total {
+		en := newNil("alias_budget")
+		en.details = map[string]string{"budget": itoa(limit)}
+		en.sp = root.pos()
+		ctx.adderr(en)
+		return &AontuError{Msg: ctx.errmsg(), Code: "alias_budget",
+			Details: en.details}
+	}
+	return nil
+}
+
 // EVERY ALIAS REFERENCE NAMES A DECLARED NAME, whether or not anything
 // reaches it. Resolution is lazy, so a reference inside a template that
 // nothing instantiates is never tried and a misspelling compiles clean.

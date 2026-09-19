@@ -33,6 +33,7 @@ type Ctx struct {
 
 	budgetPasses int
 	budgetDepth  int
+	budgetAlias  int
 
 	prov *Provenance
 

@@ -54,7 +54,7 @@ them.
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
 | `reference` | 26 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
-| `budget` | 6 | evaluation hit a deterministic limit |
+| `budget` | 7 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
@@ -369,6 +369,7 @@ twenty rows have no such section and carry no link.
 
 | code | since | raised when |
 |---|---|---|
+| `alias_budget` | 0.69.0 | Alias expansion counted past the size budget before evaluation; expansion terminates whatever the budget, so this is about size. ([Aliases `%`](reference-language.md#aliases-)) |
 | `budget_passes` | 0.52.0 | The fixpoint pass budget was spent before the model converged; the hint names what was still refining. ([Cross-field bounds and residuation](reference-language.md#cross-field-bounds-and-residuation)) |
 | `max_depth` | 0.51.0 | Input nested deeper than the engine processes. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `module_depth` | 0.53.0 | Module verification nested past its depth, usually a vendor tree leading back to itself. ([Modules](reference-language.md#modules)) |

@@ -93,7 +93,9 @@ class AontuContext {
 
   _fixroot: any
 
-  budget: { passes: number, revisits: number, depth: number }
+  budget: {
+    passes: number, revisits: number, depth: number, alias: number
+  }
 
   // The include manifest sink (G5, docs/trust.md): every include the
   // resolver reads is recorded here as { path, capability }, and
@@ -153,6 +155,7 @@ class AontuContext {
       passes: budget.passes ?? 9,
       revisits: 999,
       depth: budget.depth ?? 1000,
+      alias: budget.alias ?? 1000000,
     }
   }
 

@@ -58,6 +58,104 @@ function aliasErrors(ctx: any, root: Val): void {
 } /* node:coverage ignore next 3 */
 
 
+// T-1 (ALIASES.0.md sections 7 and 9). Expansion TERMINATES -- no
+// parameters, no recursion, a finite name set -- but a name that names
+// names expands to the product of what they hold. The budget is on
+// EXPANDED SIZE and charged here, ahead of evaluation.
+function aliasBudget(ctx: any, root: Val): Val | undefined {
+  // A DOCUMENT THAT INCLUDES parses to a conjunct, not a map: the
+  // deferred terms are where an included file's names arrive, so the
+  // budget must see all of them, not only the first.
+  const maps: any[] = []
+  const gather = (v: any): void => {
+    if (true === v?.isMap) {
+      maps.push(v)
+    }
+    else if (true === v?.isConjunct && Array.isArray(v.peg)) {
+      for (const t of v.peg) {
+        gather(t)
+      }
+    }
+  }
+  gather(root)
+  if (0 === maps.length) {
+    return undefined
+  }
+  const decl: Record<string, Val> = {}
+  for (const m of maps) {
+    for (const k of m.aliasKeys) {
+      decl[k] = m.peg[k]
+    }
+  }
+  const limit: number = ctx.budget.alias
+  const size = new Map<string, number>()
+  const open = new Set<string>()
+  let over: Val | undefined = undefined
+
+  // A cycle is refused at resolution, which has not run yet, so a name
+  // already open costs nothing here rather than looping.
+  const nameSize = (key: string): number => {
+    if (size.has(key)) {
+      return size.get(key) as number
+    }
+    if (open.has(key) || !(key in decl)) {
+      return 0
+    }
+    open.add(key)
+    const n = valSize(decl[key])
+    open.delete(key)
+    size.set(key, n)
+    return n
+  }
+
+  const valSize = (v: any): number => {
+    if (null == v || true !== v.isVal) {
+      return 0
+    }
+    if (true === v.isRef) {
+      const key: string | undefined = v.aliasKey
+      return undefined === key ? 1 : 1 + nameSize(key)
+    }
+    let n = 1
+    if (true === v.isMap) {
+      for (const k of Object.keys(v.peg)) {
+        n += valSize(v.peg[k])
+      }
+    }
+    else if (Array.isArray(v.peg)) {
+      for (const e of v.peg) {
+        n += valSize(e)
+      }
+    }
+    else if (null != v.peg && true === v.peg.isVal) {
+      n += valSize(v.peg)
+    }
+    if ((true === v.isMap || true === v.isList) && null != v.spread?.cj) {
+      n += valSize(v.spread.cj)
+    }
+    return limit < n ? limit + 1 : n
+  }
+
+  let total = 0
+  for (const m of maps) {
+    for (const k of Object.keys(m.peg)) {
+      if (!(k in decl)) {
+        total += valSize(m.peg[k])
+        if (limit < total) {
+          break
+        }
+      }
+    }
+  }
+
+  if (limit < total) {
+    over = makeNilErr(ctx, 'alias_budget', root, undefined, 'resolve')
+    ; (over as any).details = { budget: '' + limit }
+  }
+  return over
+}
+
+
 function expandAliases(root: Val, snapmap: Map<string, Val>): void {
   if (true !== (root as any).isMap) {
     return
@@ -120,6 +218,7 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
 
 
 export {
+  aliasBudget,
   aliasErrors,
   expandAliases,
 }
