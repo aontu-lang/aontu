@@ -97,7 +97,7 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		if maxDepth <= r.xc {
 			return makeNilErrFull(ctx, "recursion_budget", r, peer, "recurse",
-				map[string]string{"target": "$." + strings.Join(r.target, ".")})
+				map[string]string{"target": r.targetSpelling()})
 		}
 		bodyv := r.body(ctx)
 		if nil == bodyv {
@@ -123,8 +123,16 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 	return out
 }
 
+func (r *RecurseVal) targetSpelling() string {
+	segs := make([]string, len(r.target))
+	for i, seg := range r.target {
+		segs[i] = aliasPathSegment(seg)
+	}
+	return "$." + strings.Join(segs, ".")
+}
+
 func (r *RecurseVal) Canon() string {
-	return "$." + strings.Join(r.target, ".")
+	return r.targetSpelling()
 }
 
 func (r *RecurseVal) Gen(ctx *Ctx) (any, error) {
@@ -132,7 +140,7 @@ func (r *RecurseVal) Gen(ctx *Ctx) (any, error) {
 	// guardedness is emergent -- under an optional key the bag's
 	// isolated context swallows this and drops the key.
 	n := makeNilErrFull(ctx, "recursion_unexpanded", r, nil, "recurse",
-		map[string]string{"target": "$." + strings.Join(r.target, ".")})
+		map[string]string{"target": r.targetSpelling()})
 	if nil != ctx && ctx.collect {
 		return nil, nil
 	}

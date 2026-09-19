@@ -11,6 +11,7 @@ declare class RecurseVal extends FeatureVal {
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     private body;
     unify(peer: Val, ctx: AontuContext): Val;
+    get targetSpelling(): string;
     get canon(): string;
     gen(ctx: AontuContext): undefined;
 }

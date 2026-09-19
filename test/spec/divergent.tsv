@@ -565,3 +565,65 @@
 #   is recorded rather than pinned.
 #
 # ---------------------------------------------------------------------
+#
+# OPEN -- the SITE an alias refusal points at, for a value the parse
+#   HOISTED or a map an include placed: TypeScript names the position
+#   the name was written at, Go the position the value was written at.
+#   issue: none filed yet; found 2026-09-19 while auditing alias parity,
+#   by running every alias.tsv row through both CLIs and diffing the
+#   whole message rather than the substring the row asserts.
+#
+#   Divergent input:  `%m = 1\nz: %m = 2\ny: %m`
+#   TypeScript: --> :2:4   the `%m` prefix that declares
+#   Go:         --> :2:9   the `2` the prefix stands in front of
+#
+#   Divergent input:  `a: @"<a file that declares an alias>"`
+#   TypeScript: --> :1:4   the `@` that includes
+#   Go:         --> :1:1   the `a` the include lands under
+#
+#   Both refuse, with the same code (`scalar_value`, `alias_not_toplevel`)
+#   and the same path, so alias.tsv's rows pass either way. Not simply
+#   fixed: neither position comes from the alias code. The hoisted entry
+#   takes the site the port's own parser stamped on the value node, and
+#   the placed map takes the site of the loaded root -- the same
+#   row-and-column-versus-offset split DIVERGENCE.md records under "A
+#   value's source position". Deciding it means deciding which token a
+#   hoisted copy and a placed root belong to, for every value, not for
+#   aliases.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the PATH an alias reference inside an UNINSTANTIATED NESTED
+#   template is refused at: TypeScript names both spread levels, Go one.
+#   issue: none filed yet; found 2026-09-19 in the same audit.
+#
+#   Divergent input:  `x: { &: [ &: %nosuch ] }`
+#   TypeScript: no_path at $.x.&.&
+#   Go:         no_path at $.x.&
+#
+#   Same code, same verdict, and one spread level deep
+#   (`a: [1, %nope]` -> `$.a.1`) the two agree. Not simply fixed: the
+#   path comes from how each port pegs a spread constraint root, which
+#   is not alias machinery -- an ordinary path reference in the same
+#   position refuses at neither, being resolved lazily and never
+#   reached, so the shape has no non-alias control to settle it against.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the PATH a bare-punctuation refusal names in a top-level list:
+#   TypeScript the first element, Go the punctuation itself.
+#   issue: none filed yet; found 2026-09-19 in the same audit. NOT an
+#   alias divergence -- it is recorded here because alias.tsv is where
+#   it was found, `=` being the alias declaration operator.
+#
+#   Divergent input:  `foo = 1`, and `"%a" = 1`
+#   TypeScript: bare_punct at $.0
+#   Go:         bare_punct at $.1
+#
+#   `foo ~ 1` diverges identically, which is what says it is the
+#   refusal's path and not the operator. Not simply fixed: which
+#   element of a top-level list a parse refusal belongs to is a
+#   question about every bare_punct row, and op-chars.tsv asserts the
+#   code rather than the path throughout.
+#
+# ---------------------------------------------------------------------

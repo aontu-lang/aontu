@@ -6,6 +6,7 @@ exports.bumpRecurse = bumpRecurse;
 exports.containsRecurseOf = containsRecurseOf;
 const type_1 = require("../type");
 const err_1 = require("../err");
+const aliasname_1 = require("../aliasname");
 const FeatureVal_1 = require("./FeatureVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const unify_1 = require("../unify");
@@ -53,7 +54,7 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
         // CONCRETE STRUCTURE: expand one level against it.
         if (true === p.isMap || true === p.isList || true === p.isScalar) {
             if (ctx.budget.depth <= this.xc) {
-                return (0, err_1.makeNilErr)(ctx, 'recursion_budget', this, peer, 'recurse', { target: '$.' + this.target.join('.') });
+                return (0, err_1.makeNilErr)(ctx, 'recursion_budget', this, peer, 'recurse', { target: this.targetSpelling });
             }
             const body = this.body(ctx);
             if (undefined === body) {
@@ -82,11 +83,14 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
         out.path = this.path;
         return out;
     }
+    get targetSpelling() {
+        return '$.' + this.target.map(aliasname_1.aliasPathSegment).join('.');
+    }
     get canon() {
-        return '$.' + this.target.join('.');
+        return this.targetSpelling;
     }
     gen(ctx) {
-        (0, err_1.makeNilErr)(ctx, 'recursion_unexpanded', this, undefined, 'recurse', { target: '$.' + this.target.join('.') });
+        (0, err_1.makeNilErr)(ctx, 'recursion_unexpanded', this, undefined, 'recurse', { target: this.targetSpelling });
         return undefined;
     }
 }

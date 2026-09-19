@@ -179,6 +179,11 @@ alias-value-position-redeclare-refused	errc	%m = 1\nz: %m = 2\ny: %m	scalar_valu
 # recursion_unexpanded. The pair and through-the-tree cycles are
 # chase-detected VALUE cycles and keep path_cycle.
 alias-cycle-direct	errc	%a = %a\nx: %a	recursion_unexpanded
+# And the refusal spells the name the SOURCE spells. A declaration
+# key carries the scope of the file that declared it, which is the
+# engine's bookkeeping: a reader who sees it learns nothing, and in
+# a file-backed document it was an absolute path.
+alias-cycle-direct-names-the-alias	err	%a = %a\nx: %a	Cannot recurse value: $.%a
 alias-cycle-pair	errc	%a = %b\n%b = %a\nx: %a	path_cycle
 alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
 #
@@ -203,6 +208,11 @@ alias-undeclared-in-uninstantiated-template	errc	x: { &: [ &: %nosuch ] }	no_pat
 # nowhere. Pathed at the declaration, not at the enclosing map.
 alias-nested-declaration-refused	errc	x: {%a = 1}	alias_not_toplevel
 alias-nested-declaration-path	err	x: {%a = 1}	at path $.x.%a
+# And the hint names the VALUE PREFIX, which is the form that does
+# work where the reader was trying to write one. The two ports held
+# different text for it and no `errc` row could see that, since a
+# code is the same code either way.
+alias-nested-declaration-hint-offers-the-value-prefix	err	x: {%a = 1}	write the declaration as a VALUE
 #
 # ALIASES ARE NOT PASSED TO CHILDREN: a spread template sees the
 # EXPANSION, so children are constrained by the value and acquire no
@@ -408,6 +418,9 @@ alias-shorthand-hash-plain-twin	hash	a: { foo: 1, bar: 2 }	aon1-lffHWIZ9rehPm6U5
 # declaration alone left a reader to find the use by hand.
 alias-finding-names-the-use	err	%p = 1\na: %p\na: 2	Value arrived through %p
 alias-finding-marks-the-use	err	%p = 1\na: %p\na: 2	used %p here
+# The use frame is a frame like any other, so it names the file the
+# same way -- `<no-file>` for a document that has none.
+alias-finding-use-frame-names-the-file	err	%p = 1\na: %p\na: 2	--> <no-file>:2:4
 # A value that came by an ordinary path reference has no name to blame,
 # so nothing is added.
 alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value

@@ -15,6 +15,7 @@ import {
 } from '../ctx'
 
 import { makeNilErr } from '../err'
+import { aliasPathSegment } from '../aliasname'
 
 import { FeatureVal } from './FeatureVal'
 import { ConjunctVal } from './ConjunctVal'
@@ -80,7 +81,7 @@ class RecurseVal extends FeatureVal {
     if (true === p.isMap || true === p.isList || true === p.isScalar) {
       if (ctx.budget.depth <= this.xc) {
         return makeNilErr(ctx, 'recursion_budget', this, peer, 'recurse',
-          { target: '$.' + this.target.join('.') })
+          { target: this.targetSpelling })
       }
       const body = this.body(ctx)
       if (undefined === body) {
@@ -111,13 +112,17 @@ class RecurseVal extends FeatureVal {
     return out
   }
 
+  get targetSpelling(): string {
+    return '$.' + this.target.map(aliasPathSegment).join('.')
+  }
+
   get canon(): string {
-    return '$.' + this.target.join('.')
+    return this.targetSpelling
   }
 
   gen(ctx: AontuContext) {
     makeNilErr(ctx, 'recursion_unexpanded', this, undefined, 'recurse',
-      { target: '$.' + this.target.join('.') })
+      { target: this.targetSpelling })
     return undefined
   }
 }

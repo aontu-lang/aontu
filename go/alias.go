@@ -122,11 +122,8 @@ func aliasBudget(ctx *Ctx, root Val) *NilVal {
 	}
 
 	if limit < total {
-		en := newNil("alias_budget")
-		en.details = map[string]string{"budget": itoa(limit)}
-		en.site.sp = root.pos()
-		ctx.adderr(en)
-		return en
+		return makeNilErrFull(ctx, "alias_budget", root, nil, "resolve",
+			map[string]string{"budget": itoa(limit)})
 	}
 	return nil
 }
