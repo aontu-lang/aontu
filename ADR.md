@@ -131,6 +131,20 @@ Concretely:
    moment shared rows cover the fixed behaviour. An unregistered
    divergence is a defect.
 
+   **A STRUCTURAL divergence registers like any other, and producing
+   identical output is not an exemption.** It is the kind most easily
+   absorbed, because it is the kind nothing else can see: rule 1 asks
+   the two files to match arm for arm, and two shapes that answer the
+   same bytes pass every row in the shared suite while drifting apart.
+   Such a difference is declared in
+   [`ts/test/parity.test.ts`](ts/test/parity.test.ts), which fails the
+   build when a member reaches one port and not the other, and its
+   reason is written into [`DIVERGENCE.md`](DIVERGENCE.md) under the
+   structural divergences. Recording one anywhere else — a contributor
+   page, a design note, a commit message — is absorbing it: it then
+   reads as a documented design fact rather than a registered defect,
+   and the next reader treats keeping it as an option.
+
 5. **Errors are behaviour.** Codes, classes, hint text, frame layout and
    operand order are part of what the language promises, and are pinned
    like any other result (`test/spec/errcodes.tsv`, `error.tsv`, the

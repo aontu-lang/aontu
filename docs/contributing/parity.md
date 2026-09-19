@@ -59,37 +59,19 @@ upgrade deliberately and run `make test` before loosening any pin.
 
 ### Where the ports do not mirror each other structurally
 
-ADR-001 asks the port to mirror TypeScript's *structure*, not only its
-results, so a reviewer can hold the two files open and match them arm
-for arm. One place fails that test, and it is worth naming so the next
-reader does not take it for an accident.
+Nowhere, without a register entry. ADR-001 asks the port to mirror
+TypeScript's *structure*, not only its results, and a shape difference
+answers the same bytes — so every row in the shared suite passes while
+the two files drift apart, and no gate in the spec can say otherwise.
 
-**A value's source position.** Both ports now group it: TypeScript in a
-`Site` (`ts/src/site.ts`) holding `row`, `col`, `url`, `len`, `src` and
-the A-1 `via`, Go in a `site` (`go/val.go`) holding `url`, `src`, `sp`,
-`spu` and `via`. A value's position is `v.site.url` in either, and the
-A-1 use site is `site.via` in either.
-
-What remains is how the position itself is spelled: TypeScript stores a
-row and a column, Go a byte offset it turns into a row and column at
-render time with `rowCol(src, sp)`. **This is a choice, and an earlier
-draft of this page gave the wrong reason for it.** A `@tabnas` parser
-token has carried `RI` and `CI` beside `SI` since well before the
-version pinned here, so Go was never short of a row and a column.
-
-Two things decide it instead. The token's column is a RUNE count
-(`utf8.RuneCountInString`, in the parser's lexer) and aontu reports
-UTF-16 columns, which is what TypeScript's string indices give and what
-the LSP position encoding asks for; the two agree for BMP text and
-differ by one per astral character, so `a:"😀" b:1 b:2` is column 14 in
-both ports today and would be 13 in Go if the token's column were taken
-at face value. And a position travels through the parser as a bare
-offset — of the 92 places that set one, 19 hold a token — so storing a
-row and a column would mean threading two more numbers through the
-other 73, or deriving them from the offset after all.
-
-Go's LSP also wants the offset: `Problem.Pos` is one, and `lineIndex`
-converts it. So the offset stays, and `rowCol` stays with it.
+That makes this the one kind of divergence a contributor page must not
+hold. **This section used to carry one.** Recording it here read as a
+documented design fact rather than a registered defect, and the next
+reader was offered keeping it as an option. The record lives in
+[`DIVERGENCE.md`](../../DIVERGENCE.md) under the structural
+divergences, and the member lists are held to
+[`ts/test/parity.test.ts`](../../ts/test/parity.test.ts), which fails
+the build when a field reaches one port and not the other.
 
 ## The number model
 
