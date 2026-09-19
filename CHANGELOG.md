@@ -88,6 +88,41 @@ document as their one argument, so such a file publishes what its map
 declares. The one limit is that the wrapper's argument may not itself
 use the name the file publishes.
 
+### A set of names is the map that binds them
+
+`{ %a %b }` in value position stands for `{ a: %a, b: %b }`: key
+without the sigil, value with it. The sigil keeps the sugar
+unambiguous, so `{ a, b }` stays the parse error it has always been,
+and the set may separate its names with a comma or with space.
+
+```
+%kind = "user"
+%limit = 10
+
+defaults: { %kind %limit }
+```
+
+```json
+{"defaults":{"kind":"user","limit":10}}
+```
+
+Canon expands it, so a document written short and the same document
+written long are one `aon1-` digest. A rename needs no shorthand:
+`a: %b` already spells one.
+
+### The engine's key namespace is reserved
+
+A document's key order, its spreads, its optional keys and its alias
+declarations are held under keys beginning `\u0000aontu_`. A source key
+written there is refused as `reserved_key` (class `parse`), in both
+implementations. The prefix begins with a NUL, so only an escape can
+spell it and no ordinary key needs it.
+
+This closes a difference between the two: `"\u0000aontu_x": 1`
+generated in TypeScript and raised `internal` in Go, an engine-bug code
+shown for a key the reader had written. It also makes `"___merge"` an
+ordinary key again — it had crashed the TypeScript engine.
+
 Two codes are new. `export_arg` (class `parse`) refuses an argument
 that is not a set of alias names — a key, a bare alias, or the `{%}`
 wildcard, which belongs on the taking side. `import_not_exported`
