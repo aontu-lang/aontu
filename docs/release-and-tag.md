@@ -28,9 +28,9 @@ enough that the rationale stays beside the commands.
 ## The normal path
 
 ```
-make publish V=0.54.0 GOV=0.1.12   # release both
-make publish V=0.54.0              # npm only
-make publish GOV=0.1.12            # Go module only
+make publish V=0.71.0 GOV=0.71.0   # release both, the normal case
+make publish V=0.71.0              # npm only
+make publish GOV=0.71.0            # Go module only
 ```
 
 Bumps whichever versions you give (`V` for `ts/package.json`, `GOV` for
@@ -38,7 +38,9 @@ Bumps whichever versions you give (`V` for `ts/package.json`, `GOV` for
 `main`, and dispatches the publish workflow with matching inputs, which
 publishes to npm and writes `v<V>` and `go/v<GOV>`.
 
-**Two numbers, not one, deliberately**: see [One version series each](#one-version-series-each).
+**Two inputs, one number**: the series are shared, so `V` and `GOV` take
+the same value and the target refuses a pair that differs. See
+[One version series, shared](#one-version-series-shared).
 
 Every guard runs **before** anything is written, because half of this is
 irreversible: npm never allows republishing a version, and
@@ -139,11 +141,11 @@ Workflow filename:     publish.yml
 Environment:           (blank — this workflow declares none)
 ```
 
-## One version series each
+## One version series, shared
 
-npm and the Go module are versioned independently (npm is on 0.5x, the Go
-module on 0.x) and sharing a number is not as simple as it sounds, because
-**from v2 on, Go requires the major version in the module path.**
+**Since 0.70.0 the npm package and the Go module carry the same number.**
+They were separate until then — npm on 0.6x, the module on 0.1.x — and the
+argument for separating them was Go's semantic import versioning:
 
 ```
 module github.com/aontu-lang/aontu/go      # ok for v0.x and v1.x
@@ -163,10 +165,22 @@ publish: go.mod says 'github.com/aontu-lang/aontu/go' but v2.0.0 is major 2.
          Every consumer's import path changes with it.
 ```
 
-Moving the Go module to match npm's series would therefore mean editing
-`go/go.mod` **and every consumer's import path**. That is a one-time,
-deliberate migration, not something a release command should do on the fly,
-so the two series stay separate and `make publish` takes a version for each.
+That constraint has not gone away. It **moved**, and the move is the
+whole cost of sharing a number: the merge happened at major 0, where the
+unsuffixed path is still correct, so nothing changed for a consumer
+today — but npm's number is now the module's number, so **the release
+that takes npm to 2.0.0 is the release that forces
+`module github.com/aontu-lang/aontu/go/v2` and rewrites every consumer's
+import path.** Before, npm could cross that line alone and the module
+would not notice. The one-time, deliberate migration the separate series
+deferred is now scheduled by whatever bumps the major, and `make
+check-go-major` is what stops it happening by accident.
+
+What is bought for that: one number to say, one number to read in a bug
+report, and `aontu.version` the same string from both ports. `make
+publish` refuses `V` and `GOV` that differ, so the two cannot drift back
+apart unnoticed, and a release of one half alone is still possible — it
+just leaves the numbers unequal until the next one squares them.
 
 ## The Go binaries
 

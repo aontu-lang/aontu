@@ -3790,10 +3790,10 @@ as `5`) is pinned by per-port API tests instead.
 **Validation reports** are in parity as well: `aontu vet` produces the
 same report from both commands, text and JSON, with the same exit
 code: pinned by the shared suite's [`vet.tsv`](../test/spec/vet.tsv) rows
-for everything but each finding's `message`, which is prose. Two things
-still differ by construction: the `aontu.version` field, because the npm
-and Go module version series are independent, and the wording of a
-"cannot read <file>" failure, which is the host's.
+for everything but each finding's `message`, which is prose. One thing
+still differs by construction: the wording of a "cannot read <file>"
+failure, which is the host's. The `aontu.version` field agreed from
+0.70.0, when the two version series merged into one.
 
 The shared parser stack is identical: TypeScript uses `@tabnas/jsonic` +
 `@tabnas/{expr,path,multisource,directive,debug}`; Go uses the ports
