@@ -180,6 +180,39 @@ It is charged at the one seam every entry reaches, so a language server
 refuses such a document as the CLI does rather than re-expanding it on
 each keystroke.
 
+### Four alias refusals said different things in the two ports
+
+A spec row asserts an error code, or one line of a message. The text
+either side of that line had never been compared between the ports, and
+four refusals differed there.
+
+Three were the Go port trailing the canonical one. `alias_not_toplevel`
+carried the hint from before the value prefix landed, so the port that
+refused a nested declaration did not name the form that works in that
+position. `alias_budget` named `nil` as the value it had charged, rather
+than the document. And the frame that names where a value entered
+omitted the `<no-file>` fallback every other frame carries, so a
+document read from standard input pointed at `--> :2:4`.
+
+The fourth was in both ports. An alias key carries the scope of the file
+that declared it, so that two files may use one name for two things;
+that scope is bookkeeping, and a reader is never shown it. A recursion
+residual spelled its target raw, and so showed it:
+
+```
+%a = %a
+x: %a
+```
+
+The refusal read `Cannot recurse value: $.%a@#1` in Go, and in
+TypeScript named the absolute path of the file on the machine that ran
+it. Both now read `Cannot recurse value: $.%a`, which is what the
+source says.
+
+Every verdict, every code and every generated document already agreed,
+and still do; what changed is what the two ports print.
+
+
 ## Go 0.1.26 — 2026-09-18 · TypeScript 0.68.0
 
 ### An alias may be declared as a value prefix, and its name may take a hyphen
