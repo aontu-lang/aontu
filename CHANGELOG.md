@@ -136,6 +136,50 @@ that wants them writes `{ %profile } = @"aontu:profile"`. The hash of
 such a document is unchanged, because the destructure places what the
 include placed.
 
+### A finding names where a value entered, not only where it is written
+
+A value that arrives through an alias has two places: where the source
+writes it, and where the document asks for it. A finding named only the
+first, leaving the reader to find the reference by hand, and the
+reference is the line they have to change as often as not. A third
+frame now names it:
+
+```
+ Cannot unify value: 1 with value: 2
+  --> conflict.aon:1:6
+  1 | %p = 1
+           ^ value was: 1
+
+ Value arrived through %p
+  --> conflict.aon:2:4
+  2 | a: %p
+         ^ used %p here
+```
+
+The frame appears only where a name carried the value. A value that
+arrives by an ordinary path reference has no name to blame, so a
+finding adds none. The use travels on the resolved clone, so the frame
+points at the file the reference was written in even when that is not
+the file the declaration is in.
+
+### Alias expansion is charged before it runs
+
+Expansion terminates — an alias takes no parameters, a cycle is
+refused, and a file declares finitely many names — but a name that
+names names expands to the product of what they hold. Twenty shallow
+declarations reach a million nodes, so `%a20 = [%a19, %a19]` is a
+document that fits on a screen and does not fit in memory.
+
+The expanded size is now counted before evaluation and refused over
+`trust.budget.alias`, default a million nodes, with the new code
+`alias_budget` (class `budget`). The budget is about SIZE: raising it
+is the repair where the document is trusted and the machine can hold
+the result.
+
+It is charged at the one seam every entry reaches, so a language server
+refuses such a document as the CLI does rather than re-expanding it on
+each keystroke.
+
 ## Go 0.1.26 — 2026-09-18 · TypeScript 0.68.0
 
 ### An alias may be declared as a value prefix, and its name may take a hyphen

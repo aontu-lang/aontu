@@ -770,6 +770,34 @@ it in the other. Both refuse the document. Pinned by eight `edge.tsv`
 rows and twinned unit tests for the spellings a TSV cannot carry, since
 its unescaper reads `\n` and `\t` and nothing else.
 
+**A FINDING NAMES WHERE A VALUE ENTERED, 2026-09-19** — A-1, the first
+of the note's three open questions, answered rather than carried. A
+value reached through a name has two places, and a finding named only
+the one the source writes, leaving the reader to find the reference by
+hand when the reference is as often the line to change. `find()` already
+answers a CLONE, so the use travels with the value it resolved and
+nothing is shared: the site carries the use in both ports, and each
+renderer adds one frame, naming the file the reference was written in
+even where that is not the declaration's. A path reference adds no
+frame, having no name to blame. Pinned by `alias-finding-names-the-use`
+and `alias-finding-marks-the-use`, and by the abridged finding in
+`docs/reference-language.md`.
+
+**EXPANSION IS CHARGED BEFORE IT RUNS, 2026-09-19** — T-1, the second.
+Expansion terminates, so the question was never termination: a name
+that names names expands to the PRODUCT of what they hold, and twenty
+shallow declarations reach a million nodes. The expanded size is
+counted ahead of evaluation and refused over `trust.budget.alias` as
+`alias_budget` (class `budget`, taking that class from six codes to
+seven). A first draft charged it at `generate` alone, which the
+coverage gate exposed as a defect rather than a gap: neither language
+server calls `generate`, so an over-budget document took THIRTY SECONDS
+per keystroke in the Go server. Both ports now charge it at their one
+evaluation seam — TypeScript at `unify`, Go at `unifyRoot`, which its
+twelve entries reach — and Go's diagnostics path proved the point, a
+second walk for deprecations being an entry too. Two `budget.tsv` rows
+and twinned LSP tests bounding the elapsed time.
+
 **The pair that carries `export` to the parser waits under a key that
 changes with each declaration.** It waited under one fixed key, and a
 document that also wrote a field of that name lost it silently: the
