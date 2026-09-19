@@ -330,7 +330,7 @@ func (r *fmtReader) entry() *fmtNode {
 		r.i += 2
 		return &fmtNode{t: "spread", value: r.value(), at: at}
 	}
-	if exportHoldKey == r.T[r.i].val && exportDeclName == r.T[r.i].src &&
+	if isExportHoldKey(r.T[r.i].val) && exportDeclName == r.T[r.i].src &&
 		r.atKey() {
 		text := exportDeclName + "(" + r.T[r.i+2].src + ")"
 		r.i += 3

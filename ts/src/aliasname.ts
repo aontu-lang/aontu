@@ -1,8 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the front of
-// the source and RefVal asks whether a segment is one. See
-// docs/design/ALIASES.0.md, docs/design/ALIAS-FILE-SCOPE.0.md
+// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the source
+// and RefVal asks of a segment. See docs/design/ALIAS-FILE-SCOPE.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*'
 
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME)
@@ -22,9 +21,19 @@ const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g')
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@'
 
-// `export(...)` is read as a pair, its value under an unwritable key.
+// `export(...)` is read as a pair, its value under a key that changes
+// with each declaration, so a field of that name is the document's.
 const EXPORT_DECL_NAME = 'export'
-const EXPORT_HOLD_KEY = '___export'
+const EXPORT_HOLD_KEY = '___export@'
+let EXPORT_SEQ = 0
+
+function exportHoldKey(): string {
+  return EXPORT_HOLD_KEY + (++EXPORT_SEQ)
+}
+
+function isExportHoldKey(val: unknown): boolean {
+  return 'string' === typeof val && val.startsWith(EXPORT_HOLD_KEY)
+}
 
 
 type AliasBind = { local: string, remote: string }
@@ -54,7 +63,7 @@ function aliasSetItems(text: string): AliasBind[] | undefined {
   }
   return Array.from(text.matchAll(ALIAS_ITEMS_RE),
     (m) => ({ local: m[1], remote: m[2] ?? m[1] }))
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 19 */
 
 
 export {
@@ -62,7 +71,8 @@ export {
   ALIAS_NAME_RE,
   ALIAS_SET,
   EXPORT_DECL_NAME,
-  EXPORT_HOLD_KEY,
+  exportHoldKey,
+  isExportHoldKey,
   aliasScopedKey,
   aliasBareName,
   aliasPathSegment,

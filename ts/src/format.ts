@@ -6,7 +6,7 @@ import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { Resolver } from './type'
 import { desugarTemplate, resugarTemplate, templateOutputs } from './template'
-import { EXPORT_DECL_NAME, EXPORT_HOLD_KEY } from './aliasname'
+import { EXPORT_DECL_NAME, isExportHoldKey } from './aliasname'
 
 
 const BUDGET = 80
@@ -305,7 +305,7 @@ class Reader {
       return { t: 'spread', value: this.value(), at }
     }
     // `export({ %a })` is ONE declaration lexed as a pair.
-    if (EXPORT_HOLD_KEY === this.T[this.i].val &&
+    if (isExportHoldKey(this.T[this.i].val) &&
       EXPORT_DECL_NAME === this.T[this.i].src && this.atKey()) {
       const text = EXPORT_DECL_NAME + '(' + this.T[this.i + 2].src + ')'
       this.i += 3

@@ -1,14 +1,15 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EXPORT_HOLD_KEY = exports.EXPORT_DECL_NAME = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = void 0;
+exports.EXPORT_DECL_NAME = exports.ALIAS_SET = exports.ALIAS_NAME_RE = exports.ALIAS_RE = void 0;
+exports.exportHoldKey = exportHoldKey;
+exports.isExportHoldKey = isExportHoldKey;
 exports.aliasScopedKey = aliasScopedKey;
 exports.aliasBareName = aliasBareName;
 exports.aliasPathSegment = aliasPathSegment;
 exports.aliasSetItems = aliasSetItems;
-// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the front of
-// the source and RefVal asks whether a segment is one. See
-// docs/design/ALIASES.0.md, docs/design/ALIAS-FILE-SCOPE.0.md
+// ONE PATTERN FOR THE ALIAS NAME: the lexer reads one off the source
+// and RefVal asks of a segment. See docs/design/ALIAS-FILE-SCOPE.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*';
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME);
 exports.ALIAS_RE = ALIAS_RE;
@@ -24,11 +25,18 @@ const ALIAS_SET_RE = new RegExp('^' + ALIAS_SET + '$');
 const ALIAS_ITEMS_RE = new RegExp(ALIAS_ITEM, 'g');
 // A key carries the url of the file that declared the name.
 const ALIAS_SCOPE = '@';
-// `export(...)` is read as a pair, its value under an unwritable key.
+// `export(...)` is read as a pair, its value under a key that changes
+// with each declaration, so a field of that name is the document's.
 const EXPORT_DECL_NAME = 'export';
 exports.EXPORT_DECL_NAME = EXPORT_DECL_NAME;
-const EXPORT_HOLD_KEY = '___export';
-exports.EXPORT_HOLD_KEY = EXPORT_HOLD_KEY;
+const EXPORT_HOLD_KEY = '___export@';
+let EXPORT_SEQ = 0;
+function exportHoldKey() {
+    return EXPORT_HOLD_KEY + (++EXPORT_SEQ);
+}
+function isExportHoldKey(val) {
+    return 'string' === typeof val && val.startsWith(EXPORT_HOLD_KEY);
+}
 function aliasScopedKey(name, url) {
     return name + ALIAS_SCOPE + url;
 }
@@ -46,5 +54,5 @@ function aliasSetItems(text) {
         return undefined;
     }
     return Array.from(text.matchAll(ALIAS_ITEMS_RE), (m) => ({ local: m[1], remote: m[2] ?? m[1] }));
-} /* node:coverage ignore next 18 */
+} /* node:coverage ignore next 19 */
 //# sourceMappingURL=aliasname.js.map

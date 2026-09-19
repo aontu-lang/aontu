@@ -369,6 +369,10 @@ alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	import_not_exported
 # the document as their one argument, and a file is what it wrote, not
 # what wraps it.
 alias-import-through-a-wrapper	gens	{ %port } = @"__FIXTURES__/alias_open_exports.aon"\na: %port	{"a":8080,"listen":8080}
+# THE DECLARATION IS NOT A FIELD, and the pair that carries it to the
+# parser waits under a key that changes with each one, so a field the
+# document happens to name the same way is still the document's.
+alias-export-beside-a-like-named-field	gens	%u = 7\n"___export": 42\nexport({ %u })\na: %u	{"___export":42,"a":7}
 #
 # A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
 # PARSED roots meet, and each resolves its OWN names: the schema's alias

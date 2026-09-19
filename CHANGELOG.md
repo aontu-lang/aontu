@@ -83,6 +83,11 @@ values, so a file that uses the name it publishes can be mounted too. A
 plain value include of a file that declares aliases stays refused: the
 destructure is where a file says it is taking names.
 
+A wrapped root publishes too: `open(...)` and `copy(...)` hold the
+document as their one argument, so such a file publishes what its map
+declares. The one limit is that the wrapper's argument may not itself
+use the name the file publishes.
+
 Two codes are new. `export_arg` (class `parse`) refuses an argument
 that is not a set of alias names — a key, a bare alias, or the `{%}`
 wildcard, which belongs on the taking side. `import_not_exported`

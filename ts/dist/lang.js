@@ -289,7 +289,7 @@ let AontuJsonic = function AontuLang(jsonic) {
                             end: pnt.sI + eres[0].length,
                             src: eres[1],
                         };
-                        const etkn = lex.token('#TX', aliasname_1.EXPORT_HOLD_KEY, aliasname_1.EXPORT_DECL_NAME, pnt, { aontu_export: true, aontu_export_items: (0, aliasname_1.aliasSetItems)(eres[1]) });
+                        const etkn = lex.token('#TX', (0, aliasname_1.exportHoldKey)(), aliasname_1.EXPORT_DECL_NAME, pnt, { aontu_export: true, aontu_export_items: (0, aliasname_1.aliasSetItems)(eres[1]) });
                         pnt.sI += aliasname_1.EXPORT_DECL_NAME.length;
                         pnt.cI += aliasname_1.EXPORT_DECL_NAME.length;
                         return { done: true, token: etkn };
@@ -957,7 +957,7 @@ help isolate the syntax error.`,
             // `export` PUBLISHES NAMES AND NOTHING ELSE; a bare name, a key
             // and the wildcard are refused, and the argument is erased.
             for (const { items, tkn } of (r.u.aontu_export_decls ?? [])) {
-                delete mo[aliasname_1.EXPORT_HOLD_KEY];
+                delete mo[tkn.val];
                 const names = publishedNames(items);
                 if (undefined === names) {
                     const en = siteAt(addsite(new NilVal_1.NilVal({ why: 'export_arg' }), r, ctx), tokenSite(tkn));

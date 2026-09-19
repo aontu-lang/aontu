@@ -57,6 +57,7 @@ type exportDecl struct {
 	names []string
 	ok    bool
 	url   string
+	hold  string
 	sp    int
 	src   string
 }
@@ -588,11 +589,11 @@ func recordExports(m map[string]any) {
 	krs, _ := m[keyRefusalsKey].([]keyRefusal)
 	for _, e := range exs {
 		if !e.ok {
-			renameNodeKey(m, exportHoldKey, exportDeclName)
+			renameNodeKey(m, e.hold, exportDeclName)
 			krs = append(krs, keyRefusal{
 				key: exportDeclName, why: "export_arg", sp: e.sp, src: e.src})
 		} else {
-			deleteNodeKey(m, exportHoldKey)
+			deleteNodeKey(m, e.hold)
 			for _, n := range e.names {
 				ek = append(ek, aliasScopedKey(n, e.url))
 			}
@@ -971,9 +972,21 @@ const scopeMetaKey = reservedKeyPrefix + "scope"
 
 var scopeSeq atomic.Int64
 
-// `export(...)` is read as a pair, its value under an unwritable key.
+// `export(...)` is read as a pair, its value under a key that changes
+// with each declaration, so a field of that name is the document's.
 const exportDeclName = "export"
-const exportHoldKey = "___export"
+const exportHoldKey = "___export@"
+
+var exportSeq atomic.Int64
+
+func nextExportHoldKey() string {
+	return exportHoldKey + itoa(int(exportSeq.Add(1)))
+}
+
+func isExportHoldKey(val any) bool {
+	s, ok := val.(string)
+	return ok && strings.HasPrefix(s, exportHoldKey)
+}
 
 func aliasScopedKey(name, url string) string {
 	return name + aliasScopeSep + url
@@ -1219,7 +1232,7 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		exs, _ := m[exportDeclsKey].([]exportDecl)
 		m[exportDeclsKey] = append(exs,
 			exportDecl{names: names, ok: nok, url: srcURL(ctx),
-				sp: r.O0.SI, src: r.O0.Src})
+				hold: r.O0.Val.(string), sp: r.O0.SI, src: r.O0.Src})
 	} else if binds, ok := importBindsOf(r.O0); ok {
 		ims, _ := m[importDeclsKey].([]importDecl)
 		m[importDeclsKey] = append(ims, importDecl{
@@ -1420,7 +1433,7 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 				end: start + m[1],
 				src: src[start+m[2] : start+m[3]],
 			})
-			tkn := l.Token("#TX", jsonic.TinTX, exportHoldKey, exportDeclName)
+			tkn := l.Token("#TX", jsonic.TinTX, nextExportHoldKey(), exportDeclName)
 			tkn.Use = map[string]any{
 				"aontu_export": true, "aontu_export_names": names,
 				"aontu_export_ok": nok}

@@ -195,7 +195,7 @@ import {
   ALIAS_RE,
   ALIAS_SET,
   EXPORT_DECL_NAME,
-  EXPORT_HOLD_KEY,
+  exportHoldKey,
   aliasBareName,
   aliasScopedKey,
   aliasSetItems,
@@ -434,7 +434,7 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
               src: eres[1],
             }
             const etkn = lex.token(
-              '#TX', EXPORT_HOLD_KEY, EXPORT_DECL_NAME, pnt,
+              '#TX', exportHoldKey(), EXPORT_DECL_NAME, pnt,
               { aontu_export: true, aontu_export_items: aliasSetItems(eres[1]) })
             pnt.sI += EXPORT_DECL_NAME.length
             pnt.cI += EXPORT_DECL_NAME.length
@@ -1246,7 +1246,7 @@ help isolate the syntax error.`,
         // `export` PUBLISHES NAMES AND NOTHING ELSE; a bare name, a key
         // and the wildcard are refused, and the argument is erased.
         for (const { items, tkn } of (r.u.aontu_export_decls ?? []) as any[]) {
-          delete mo[EXPORT_HOLD_KEY]
+          delete mo[tkn.val]
           const names = publishedNames(items)
           if (undefined === names) {
             const en: any =
