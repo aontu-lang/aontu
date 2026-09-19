@@ -121,13 +121,17 @@ The nine rows named `alias-include-does-not-see-includer-name`,
 `alias-import-*` pass in both ports, and
 `alias-template-resolves-where-written` and
 `alias-include-still-carries-values` still pass. **They do**, together
-with twenty-one more rows the work added. Sixteen in `alias.tsv`: six
-refuse what the new forms made writable (the wildcard and a rename in
-`export`, a nested `export` with its path row, a name the other file
+with twenty-eight more rows the work added. Twenty-two in `alias.tsv`:
+six refuse what the new forms made writable (the wildcard and a rename
+in `export`, a nested `export` with its path row, a name the other file
 never declared, and a right-hand side that is not a document); three pin
-what the refusals say; and seven pin what the two later features answer
-for — a destructure under a key, under a deep key, one whose file uses
-the name it publishes, renaming at the root and under a key, the remote
-name in a rename refusal, and a name that arrives meeting a local
-declaration of it. Five in `fmt.tsv` pin every spelling through the
-formatter.
+what the refusals say; seven pin what the two later features answer for
+— a destructure under a key, under a deep key, one whose file uses the
+name it publishes, renaming at the root and under a key, the remote name
+in a rename refusal, and a name that arrives meeting a local declaration
+of it; and six pin what the review of the landed work closed — a closed
+document taking a name, a re-export refused, an unexported name refused
+where nothing uses it, a wrapped root publishing, a field named like the
+sentinel the parser erases, and two documents each declaring one name
+under `vet`. Six in `fmt.tsv` pin every spelling through the formatter,
+the last of them that same sentinel-named field.

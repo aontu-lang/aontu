@@ -641,7 +641,7 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (116 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (122 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
@@ -714,9 +714,33 @@ that is the line: the destructure is where a file says it is taking
 names, and so where the engine knows to lift them.
 
 Pinned by the nine `test/spec/alias.tsv` rows written failing ahead of
-it and the sixteen the work added, plus five in `fmt.tsv`; documented in
-`docs/reference-language.md` under "Publishing a name" and "Taking a
+it and the twenty-two the work added, plus six in `fmt.tsv`; documented
+in `docs/reference-language.md` under "Publishing a name" and "Taking a
 name", executed by `docs.test.ts`.
+
+**Review of the landed destructure found six more ways a name crossed a
+boundary it should not have, or failed to cross one it should, and all
+six are closed.** A scope tag is the DOCUMENT'S, not the file's, so two
+roots parsed from text no longer collide under `vet`. `export` publishes
+only names scoped to the exporting file, so a name that merely arrived
+through an include cannot be re-exported. The closed check passes over a
+peer's alias keys, so a closed document no longer refuses every
+destructure of it. The refusal for an unexported name stands in the
+document whether or not a later reference reaches it, since the
+destructure is what asked. A ROOT MAY BE WRAPPED, so both ports look
+through a single-argument `open(...)` or `copy(...)` before reading what
+a file publishes — the name such a file publishes still may not be used
+inside the wrapper, identically in both ports. And `subsume` compared
+alias declarations as though they were fields, so a schema that declared
+a name could not subsume data that did not.
+
+**The pair that carries `export` to the parser waits under a key that
+changes with each declaration.** It waited under one fixed key, and a
+document that also wrote a field of that name lost it silently: the
+parser erased a field it had not put there. The remaining namespace
+question is wider than this phase and is recorded as an open one — a
+sentinel in the ordinary key namespace is a repo-level matter, not the
+destructure's.
 
 **One defect the note named turned out not to be one, and this register
 should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,
