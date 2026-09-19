@@ -18,7 +18,7 @@ type ListVal struct {
 
 func newList(elems []Val) *ListVal {
 	l := &ListVal{peg: elems}
-	l.sp = unsited
+	l.site.sp = unsited
 	return l
 }
 
@@ -69,9 +69,9 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 				code = "listval_spread_required"
 				if ev.parent != nil {
 					nb := newNil("")
-					nb.sp = ev.parent.pos()
-					nb.spu = ev.parent.posu()
-					nb.surl = ev.parent.srcurl()
+					nb.site.sp = ev.parent.pos()
+					nb.site.spu = ev.parent.posu()
+					nb.site.url = ev.parent.srcurl()
 					vb = nb
 				}
 				va = ev.peg
@@ -129,9 +129,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		out = &ListVal{}
 		out.closed = l.closed
 		out.path = cp(l.path)
-		out.sp = l.sp
-		out.spu = l.spu
-		out.surl = l.surl
+		out.site.sp = l.site.sp
+		out.site.spu = l.site.spu
+		out.site.url = l.site.url
 		out.spread = l.spread
 	}
 	done := true

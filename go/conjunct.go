@@ -15,7 +15,7 @@ type ConjunctVal struct {
 
 func newConjunct(terms []Val) *ConjunctVal {
 	c := &ConjunctVal{peg: terms}
-	c.sp = -1
+	c.site.sp = -1
 	return c
 }
 

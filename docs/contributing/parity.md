@@ -64,27 +64,32 @@ results, so a reviewer can hold the two files open and match them arm
 for arm. One place fails that test, and it is worth naming so the next
 reader does not take it for an accident.
 
-**A value's source position.** TypeScript groups it in a `Site`
-(`ts/src/site.ts`) holding `row`, `col`, `url`, `len` and `src`, reached
-as `val.site.row`. Go keeps the same information in flat fields on
-`base` (`go/val.go`) — `sp`, `surl`, `stext`, `spu` — and derives row
-and column at render time with `rowCol(src, sp)`.
+**A value's source position.** Both ports now group it: TypeScript in a
+`Site` (`ts/src/site.ts`) holding `row`, `col`, `url`, `len`, `src` and
+the A-1 `via`, Go in a `site` (`go/val.go`) holding `url`, `src`, `sp`,
+`spu` and `via`. A value's position is `v.site.url` in either, and the
+A-1 use site is `site.via` in either.
 
-The *representation* difference is forced from upstream: a TypeScript
-jsonic token carries `rI` and `cI`, and the Go port's carries `SI`, a
-byte offset. Go cannot store a row and a column it was never handed
-without computing them at parse time against source it does not always
-hold. The *grouping* difference is not forced, and is simply how the
-port grew.
+What remains is how the position itself is spelled: TypeScript stores a
+row and a column, Go a byte offset it turns into a row and column at
+render time with `rowCol(src, sp)`. **This is a choice, and an earlier
+draft of this page gave the wrong reason for it.** A `@tabnas` parser
+token has carried `RI` and `CI` beside `SI` since well before the
+version pinned here, so Go was never short of a row and a column.
 
-Nothing a user sees differs, so this is not a `DIVERGENCE.md` entry:
-both ports report the same row, column and file. What it costs is
-reading. Anything added to a value's position lands in two shapes — the
-A-1 use site went into TypeScript's `Site` as `via` and into Go's `base`
-as `viasp`, `viaurl` and `vianame` — and each addition widens the gap.
-Grouping Go's fields into a `site` struct, keeping the byte offset,
-would close it; at 345 field references across 22 files that is its own
-change, not a rider on another.
+Two things decide it instead. The token's column is a RUNE count
+(`utf8.RuneCountInString`, in the parser's lexer) and aontu reports
+UTF-16 columns, which is what TypeScript's string indices give and what
+the LSP position encoding asks for; the two agree for BMP text and
+differ by one per astral character, so `a:"😀" b:1 b:2` is column 14 in
+both ports today and would be 13 in Go if the token's column were taken
+at face value. And a position travels through the parser as a bare
+offset — of the 92 places that set one, 19 hold a token — so storing a
+row and a column would mean threading two more numbers through the
+other 73, or deriving them from the offset after all.
+
+Go's LSP also wants the offset: `Problem.Pos` is one, and `lineIndex`
+converts it. So the offset stays, and `rowCol` stays with it.
 
 ## The number model
 

@@ -61,7 +61,7 @@ func predicateName(v Val) (string, bool) {
 
 func newGraphAtom(akind, invname string, held Val) *GraphAtomVal {
 	g := &GraphAtomVal{akind: akind, invname: invname, held: held}
-	g.sp = unsited
+	g.site.sp = unsited
 	// A settled residual, like an unmet rel(): the bare atom is its
 	// own value, and a type() body carrying one must settle. Holding
 	// an unsettled value, it is exactly as done as the value.
@@ -101,7 +101,7 @@ func (g *GraphAtomVal) register(ctx *Ctx) {
 func (g *GraphAtomVal) carry(held Val) *GraphAtomVal {
 	out := newGraphAtom(g.akind, g.invname, held)
 	copyMarks(out, g)
-	out.sp, out.spu, out.surl = g.sp, g.spu, g.surl
+	out.site.sp, out.site.spu, out.site.url = g.site.sp, g.site.spu, g.site.url
 	out.path = cp(g.path)
 	return out
 }

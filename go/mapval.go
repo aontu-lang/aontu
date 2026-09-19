@@ -37,7 +37,7 @@ func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
 		return nil
 	}
 	nv := newNil("alias_not_toplevel")
-	nv.sp = m.sp
+	nv.site.sp = m.site.sp
 	nv.path = append([]string{}, m.path...)
 	nv.path = append(nv.path, named)
 	return nv
@@ -63,7 +63,7 @@ func (m *MapVal) isOptional(k string) bool {
 
 func newMap() *MapVal {
 	m := &MapVal{peg: map[string]Val{}}
-	m.sp = unsited
+	m.site.sp = unsited
 	return m
 }
 
@@ -323,9 +323,9 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 					// AND url (the clone mark), which gates the operand
 					// order exactly as in TS.
 					nb := newNil("")
-					nb.sp = ev.parent.pos()
-					nb.spu = ev.parent.posu()
-					nb.surl = ev.parent.srcurl()
+					nb.site.sp = ev.parent.pos()
+					nb.site.spu = ev.parent.posu()
+					nb.site.url = ev.parent.srcurl()
 					vb = nb
 				}
 				va = ev.peg
@@ -493,9 +493,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		// The site survives unification (TS: `out.site = this.site` in
 		// MapVal.unify copies row, col AND url), so a unified bag still
 		// frames at its brace and keeps its clone mark.
-		out.sp = m.sp
-		out.spu = m.spu
-		out.surl = m.surl
+		out.site.sp = m.site.sp
+		out.site.spu = m.site.spu
+		out.site.url = m.site.url
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)

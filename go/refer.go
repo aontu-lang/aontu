@@ -176,7 +176,7 @@ type ReferVal struct {
 func newRefer(tval Val) *ReferVal {
 	r := &ReferVal{tval: tval,
 		addrCode: "refer_address", unresolvedCode: "refer_unresolved"}
-	r.sp = unsited
+	r.site.sp = unsited
 	return r
 }
 
@@ -243,7 +243,7 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 		addr, _ := parseAddress(str)
 		out := r.reshape()
 		out.addr, out.addrsrc = &addr, str
-		out.sp, out.spu, out.surl = sv.sp, sv.spu, sv.surl
+		out.site.sp, out.site.spu, out.site.url = sv.site.sp, sv.site.spu, sv.site.url
 		return out.settle(ctx, peer)
 	}
 
@@ -373,7 +373,7 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	copyMarks(out, r)
 	out.setLinkAddr("$." + strings.Join(target, "."))
 	out.relkey = r.relpred
-	out.sp, out.spu, out.surl = site.pos(), site.posu(), site.srcurl()
+	out.site.sp, out.site.spu, out.site.url = site.pos(), site.posu(), site.srcurl()
 	out.path = cp(r.path)
 	if nil == r.held {
 		return out
@@ -389,7 +389,7 @@ type RelVal struct {
 
 func newRel(tval Val) *RelVal {
 	r := &RelVal{tval: tval}
-	r.sp = unsited
+	r.site.sp = unsited
 	r.dc = DONE
 	return r
 }
@@ -432,7 +432,7 @@ func (r *RelVal) leafRefer(at []string) *ReferVal {
 	rv.addrCode = "rel_address"
 	rv.unresolvedCode = "rel_unresolved"
 	rv.relpred = r.fieldkey()
-	rv.sp, rv.spu, rv.surl = r.sp, r.spu, r.surl
+	rv.site.sp, rv.site.spu, rv.site.url = r.site.sp, r.site.spu, r.site.url
 	rv.path = cp(at)
 	return rv
 }
@@ -535,7 +535,7 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 			out.held = unite(ctx, r.held, pr.held)
 		}
 		copyMarks(out, r)
-		out.sp, out.spu, out.surl = r.sp, r.spu, r.surl
+		out.site.sp, out.site.spu, out.site.url = r.site.sp, r.site.spu, r.site.url
 		out.path = cp(r.path)
 		return out
 	}
@@ -574,7 +574,7 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 		out.held = unite(ctx, r.held, peer)
 	}
 	copyMarks(out, r)
-	out.sp, out.spu, out.surl = r.sp, r.spu, r.surl
+	out.site.sp, out.site.spu, out.site.url = r.site.sp, r.site.spu, r.site.url
 	out.path = cp(r.path)
 	return out
 }

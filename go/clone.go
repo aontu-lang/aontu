@@ -189,7 +189,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *ExpectVal:
 		out := &ExpectVal{peg: n.peg}
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		return out
@@ -199,7 +199,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.path = overlayPath(path, n.path)
 		// The source site travels with the clone (TS Val.clone copies
 		// site.row/col), so a ref-carried bag still frames at its brace.
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.closed = n.closed
 		out.optional = append([]string{}, n.optional...)
 		out.aliasKeys = append([]string{}, n.aliasKeys...)
@@ -215,7 +215,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out := &ListVal{}
 		out.dc = n.dc
 		out.path = overlayPath(path, n.path)
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.closed = n.closed
 		if n.spread != nil {
 			out.spread = cloneAt(n.spread, path, deep)
@@ -255,7 +255,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out := &PrefVal{peg: peg, superpeg: n.superpeg,
 			narrowed: n.narrowed, rank: n.rank}
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		return out
@@ -266,7 +266,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out := &RefVal{absolute: n.absolute, prefix: n.prefix, hideFound: n.hideFound, copyFound: n.copyFound,
 			expansion: n.expansion, rxc: n.rxc}
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		out.peg = append([]any{}, n.peg...)
@@ -274,7 +274,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *VarVal:
 		out := &VarVal{peg: n.peg}
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		return out
@@ -295,14 +295,14 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// exist.
 		out := newPlace()
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		return out
 	case *FuncVal:
 		out := &FuncVal{name: n.name, prepared: n.prepared}
 		out.dc = n.dc
-		out.sp = n.sp
+		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		out.spr = n.spr
 		copyMarks(out, n)

@@ -233,7 +233,7 @@ help isolate the syntax error.`,
 							rv := newRef([]any{aliasScopedKey(name, srcURL(ctx))}, false)
 							rv.absolute = true
 							if r.ON > 0 {
-								rv.sp = r.O0.SI
+								rv.site.sp = r.O0.SI
 							}
 							stampSrc(rv, r)
 							return rv
@@ -254,12 +254,12 @@ help isolate the syntax error.`,
 						})
 					},
 				},
-				"top":   valDef(func(sp int) Val { t := top(); t.sp = sp; return t }),
-				"_":     valDef(func(sp int) Val { p := newPlace(); p.sp = sp; return p }),
-				"nil":   valDef(func(sp int) Val { n := newNil("literal_nil"); n.sp = sp; return n }),
-				"true":  valDef(func(sp int) Val { v := newBoolean(true); v.sp = sp; return v }),
-				"false": valDef(func(sp int) Val { v := newBoolean(false); v.sp = sp; return v }),
-				"null":  valDef(func(sp int) Val { v := newNull(); v.sp = sp; return v }),
+				"top":   valDef(func(sp int) Val { t := top(); t.site.sp = sp; return t }),
+				"_":     valDef(func(sp int) Val { p := newPlace(); p.site.sp = sp; return p }),
+				"nil":   valDef(func(sp int) Val { n := newNil("literal_nil"); n.site.sp = sp; return n }),
+				"true":  valDef(func(sp int) Val { v := newBoolean(true); v.site.sp = sp; return v }),
+				"false": valDef(func(sp int) Val { v := newBoolean(false); v.site.sp = sp; return v }),
+				"null":  valDef(func(sp int) Val { v := newNull(); v.site.sp = sp; return v }),
 			},
 		},
 		Map: &jsonic.MapOptions{
@@ -683,7 +683,7 @@ func bindImportNames(
 
 func notExported(im importDecl, name string) *NilVal {
 	nv := newNil("import_not_exported")
-	nv.sp = im.sp
+	nv.site.sp = im.sp
 	nv.setSrctext(im.src)
 	nv.details = map[string]string{"name": name}
 	return nv
@@ -727,14 +727,14 @@ func wrapList(r *jsonic.Rule, _ *jsonic.Context) {
 	}
 	// The list's own position is worked out FIRST and handed down: an
 	// elided element has no token of its own, so its error is located at
-	// the list's `[`, and listOfRaw would otherwise read lv.sp before it
+	// the list's `[`, and listOfRaw would otherwise read lv.site.sp before it
 	// was assigned.
 	sp := -1
 	if 0 < r.ON {
 		sp = r.O0.SI
 	}
 	lv := listOfRawAt(n, 0, sp)
-	lv.sp = sp
+	lv.site.sp = sp
 	stampSrc(lv, r)
 	r.Node = lv
 }
@@ -743,7 +743,7 @@ func kindDef(k Kind) *jsonic.ValueDef {
 	return &jsonic.ValueDef{Val: jsonic.TokenValFunc(func(r *jsonic.Rule, _ *jsonic.Context) any {
 		v := newScalarKind(k)
 		if r.ON > 0 {
-			v.sp = r.O0.SI
+			v.site.sp = r.O0.SI
 		}
 		stampSrc(v, r)
 		return v
@@ -798,7 +798,7 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 	case float64:
 		if math.IsInf(n, 0) || math.IsNaN(n) {
 			e := newNil("not_number")
-			e.sp = sp
+			e.site.sp = sp
 			// This exit precedes the stamp below it, so it needs its
 			// own: an overflowing literal is precisely located and was
 			// reported with no span at all, where TypeScript gave the
@@ -817,18 +817,18 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		// unquoted text (a quoted "1e999" stays a string).
 		if r.ON > 0 && r.O0.Tin == jsonic.TinTX && n == src && overflowsFloat(src) {
 			e := newNil("not_number")
-			e.sp = sp
+			e.site.sp = sp
 			stampSrc(e, r)
 			r.Node = e
 			return
 		}
 		v := newString(n)
-		v.sp = sp
+		v.site.sp = sp
 		stampSrc(v, r)
 		r.Node = v
 	case bool:
 		v := newBoolean(n)
-		v.sp = sp
+		v.site.sp = sp
 		stampSrc(v, r)
 		r.Node = v
 	}
@@ -1103,12 +1103,12 @@ func exactLiteral(m []string) func(int) Val {
 		// big.Int has no negative zero, so D5 needs nothing here.
 		return func(sp int) Val {
 			v := newBigInteger(new(big.Int).Set(n))
-			v.sp = sp
+			v.site.sp = sp
 			v.src = src
 			// The SPAN too. No rule is in scope here to call stampSrc
 			// with, but src IS the whole matched literal, which is
 			// exactly the token text the site's extent describes.
-			v.stext = src
+			v.site.src = src
 			return v
 		}
 	}
@@ -1119,9 +1119,9 @@ func exactLiteral(m []string) func(int) Val {
 	}
 	return func(sp int) Val {
 		v := newBigDecimal(d)
-		v.sp = sp
+		v.site.sp = sp
 		v.src = src
-		v.stext = src
+		v.site.src = src
 		return v
 	}
 }
@@ -1159,7 +1159,7 @@ func exactDecimal(neg bool, intPart, frac, exp string) (*Decimal, string) {
 func exactNil(why string) func(int) Val {
 	return func(sp int) Val {
 		n := newNil(why)
-		n.sp = sp
+		n.site.sp = sp
 		return n
 	}
 }
@@ -1169,7 +1169,7 @@ func stripSeps(s string) string { return strings.ReplaceAll(s, "_", "") }
 func numberVal(n float64, src string, sp int) Val {
 	if pow53Float <= math.Abs(n) && isLossyIntegerLiteral(src) {
 		e := newNil("lossy_integer_literal")
-		e.sp = sp
+		e.site.sp = sp
 		// The hint names the refused literal ({src}), as in TS.
 		e.details = map[string]string{"src": src}
 		// A parse-constructed nil is its own frame operand (TS ends up
@@ -1180,12 +1180,12 @@ func numberVal(n float64, src string, sp int) Val {
 	}
 	if isIntegerKind(n, src) {
 		v := newInteger(int64(n))
-		v.sp = sp
+		v.site.sp = sp
 		v.src = src
 		return v
 	}
 	v := newFloat(n)
-	v.sp = sp
+	v.site.sp = sp
 	v.src = src
 	return v
 }
@@ -1377,7 +1377,7 @@ func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
 	}
 	nv := newNil("alias_in_path")
 	if r.ON > 0 {
-		nv.sp = r.O0.SI
+		nv.site.sp = r.O0.SI
 	}
 	stampSrc(nv, r)
 	return nv
@@ -1444,7 +1444,7 @@ func tsFixedCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 					rv := newRef([]any{aliasScopedKey(name, srcURL(ctx))}, false)
 					rv.absolute = true
 					if r.ON > 0 {
-						rv.sp = r.O0.SI
+						rv.site.sp = r.O0.SI
 					}
 					stampSrc(rv, r)
 					return rv
@@ -1566,7 +1566,7 @@ func tsTextCheck(l *jsonic.Lex) *jsonic.LexCheckResult {
 			jsonic.TokenValFunc(func(r *jsonic.Rule, _ *jsonic.Context) any {
 				nv := newNil("bare_punct")
 				if r.ON > 0 {
-					nv.sp = r.O0.SI + off
+					nv.site.sp = r.O0.SI + off
 				}
 				nv.setSrctext(ch)
 				nv.details = map[string]string{"char": ch, "text": msrc}
@@ -1869,7 +1869,7 @@ func snipWalk(node any, seen map[any]bool) (any, bool) {
 func incompleteNil(r *jsonic.Rule) Val {
 	n := newNil("incomplete_expression")
 	if r != nil && r.ON > 0 {
-		n.sp = r.O0.SI
+		n.site.sp = r.O0.SI
 	}
 	return n
 }
@@ -1901,7 +1901,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			// canonical port states: a conjunct takes its site from its
 			// first term. Taking the position without the extent left a
 			// site that named a place and denied it had any width.
-			c.sp = vals[0].pos()
+			c.site.sp = vals[0].pos()
 			c.setSrctext(vals[0].srctext())
 		}
 		return c
@@ -1909,7 +1909,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		vals := toVals(terms)
 		d := newDisjunct(vals)
 		if len(vals) > 0 {
-			d.sp = vals[0].pos()
+			d.site.sp = vals[0].pos()
 			d.setSrctext(vals[0].srctext())
 		}
 		return d
@@ -1922,7 +1922,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if bagIsBraceless(inner) {
 			nv := newNil("pref_implicit_bag")
 			if r.ON > 0 {
-				nv.sp = r.O0.SI
+				nv.site.sp = r.O0.SI
 			}
 			stampSrc(nv, r)
 			return nv
@@ -1931,9 +1931,9 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		pv := newPref(inner)
 		// Sited at the `*` itself, as TS's addsite frames it; the inner
 		// value's position is the fallback for a synthetic rule.
-		pv.sp = inner.pos()
+		pv.site.sp = inner.pos()
 		if r.ON > 0 {
-			pv.sp = r.O0.SI
+			pv.site.sp = r.O0.SI
 		}
 		stampSrc(pv, r)
 		return pv
@@ -1961,7 +1961,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		}
 		rv := newRef(terms, true)
 		if r.ON > 0 {
-			rv.sp = r.O0.SI
+			rv.site.sp = r.O0.SI
 		}
 		stampSrc(rv, r)
 		return rv
@@ -1974,7 +1974,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		}
 		rv := newRef(terms, false)
 		if r.ON > 0 {
-			rv.sp = r.O0.SI
+			rv.site.sp = r.O0.SI
 		}
 		stampSrc(rv, r)
 		return rv
@@ -1999,14 +1999,14 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		if r0, ok := terms[0].(*RefVal); ok {
 			r0.absolute = true
 			if r.ON > 0 {
-				r0.sp = r.O0.SI
+				r0.site.sp = r.O0.SI
 			}
 			stampSrc(r0, r)
 			return r0
 		}
 		vv := newVar(asVal(terms[0]))
 		if r.ON > 0 {
-			vv.sp = r.O0.SI
+			vv.site.sp = r.O0.SI
 		}
 		stampSrc(vv, r)
 		return vv
@@ -2016,7 +2016,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		}
 		ov := newPlusOp(asVal(terms[0]), asVal(terms[1]))
 		if r.ON > 0 {
-			ov.sp = r.O0.SI
+			ov.site.sp = r.O0.SI
 		}
 		stampSrc(ov, r)
 		return ov
@@ -2032,7 +2032,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				// TypeScript names the call's row and column.
 				n := newNil("unknown_function")
 				if r.ON > 0 {
-					n.sp = r.O0.SI
+					n.site.sp = r.O0.SI
 				}
 				stampSrc(n, r)
 				return n
@@ -2181,7 +2181,7 @@ func listOfRawAt(n []any, depth int, sp int) *ListVal {
 		}
 		if e == nil {
 			en := newNil("elided_value")
-			en.sp = sp
+			en.site.sp = sp
 			lv.peg = append(lv.peg, en)
 			continue
 		}
@@ -2229,14 +2229,14 @@ func asValDepth(node any, depth int) Val {
 			mv.exportKeys = ek
 		}
 		if p, ok := n[posKey].(int); ok {
-			mv.sp = p
+			mv.site.sp = p
 		}
 		if t, ok := n[srcKey].(string); ok {
 			mv.setSrctext(t)
 		}
 		if n[elidedSpreadKey] == true {
 			en := newNil("elided_value")
-			en.sp = mv.sp
+			en.site.sp = mv.site.sp
 			return en
 		}
 		refused := map[string]keyRefusal{}
@@ -2255,7 +2255,7 @@ func asValDepth(node any, depth int) Val {
 				// at the key the source wrote.
 				if kr, bad := refused[k]; bad {
 					en := newNil(kr.why)
-					en.sp = kr.sp
+					en.site.sp = kr.sp
 					en.setSrctext(kr.src)
 					mv.set(k, en)
 				}
@@ -2263,7 +2263,7 @@ func asValDepth(node any, depth int) Val {
 			}
 			if kr, bad := refused[k]; bad {
 				en := newNil(kr.why)
-				en.sp = kr.sp
+				en.site.sp = kr.sp
 				en.setSrctext(kr.src)
 				if nil != kr.details {
 					en.details = kr.details
@@ -2273,7 +2273,7 @@ func asValDepth(node any, depth int) Val {
 			}
 			if isElidedNode(v) {
 				en := newNil("elided_value")
-				en.sp = mv.sp
+				en.site.sp = mv.site.sp
 				mv.set(k, en)
 				for i, ok := range mv.optional {
 					if ok == k {
@@ -2452,7 +2452,7 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 // verb reports them (vet.go).
 func conflictError(src, file string, off int) *AontuError {
 	n := newNil("merge_conflict")
-	n.sp = off
+	n.site.sp = off
 	row, col := rowCol(src, off)
 	return &AontuError{
 		Msg:  n.FullMessage(src, file, nil),
@@ -2499,7 +2499,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if !funcSet[name] {
 		n := newNil("unknown_function")
 		if r.ON > 0 {
-			n.sp = r.O0.SI
+			n.site.sp = r.O0.SI
 		}
 		stampSrc(n, r)
 		return n
@@ -2515,7 +2515,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 				"got":  itoa(got),
 			}
 			if r.ON > 0 {
-				n.sp = r.O0.SI
+				n.site.sp = r.O0.SI
 			}
 			stampSrc(n, r)
 			return n
@@ -2546,7 +2546,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 
 	fv := newFunc(name, args)
 	if r.ON > 0 {
-		fv.sp = r.O0.SI
+		fv.site.sp = r.O0.SI
 		stampSrc(fv, r)
 	}
 	return fv

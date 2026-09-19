@@ -8,7 +8,7 @@ type PlaceVal struct{ base }
 
 func newPlace() *PlaceVal {
 	p := &PlaceVal{}
-	p.sp = unsited
+	p.site.sp = unsited
 	return p
 }
 

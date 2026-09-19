@@ -106,7 +106,7 @@ func holdParse(f *FuncVal, base []string, peer Val) Val {
 		}
 		cj := newConjunct([]Val{f, peer})
 		cj.path = cp(f.path)
-		cj.sp, cj.spu, cj.surl = f.sp, f.spu, f.surl
+		cj.site.sp, cj.site.spu, cj.site.url = f.site.sp, f.site.spu, f.site.url
 		return cj
 	}
 }

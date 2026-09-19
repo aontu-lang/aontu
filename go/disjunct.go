@@ -18,7 +18,7 @@ type DisjunctVal struct {
 
 func newDisjunct(members []Val) *DisjunctVal {
 	d := &DisjunctVal{peg: members}
-	d.sp = -1
+	d.site.sp = -1
 	return d
 }
 
@@ -141,10 +141,10 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			//coverage:ignore-block the meet returns the preference itself; see above
 			wrapped := newPref(got)
 			wrapped.rank = pp.rank
-			wrapped.sp = pp.sp
-			wrapped.spu = pp.spu
-			wrapped.surl = pp.surl
-			wrapped.stext = pp.stext
+			wrapped.site.sp = pp.site.sp
+			wrapped.site.spu = pp.site.spu
+			wrapped.site.url = pp.site.url
+			wrapped.site.src = pp.site.src
 			wrapped.path = cp(got.vpath())
 			oval[vI] = wrapped
 		}
@@ -191,10 +191,10 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	out := newDisjunct(res)
 	out.path = cp(d.path)
-	out.sp = d.sp
-	out.spu = d.spu
-	out.surl = d.surl
-	out.stext = d.stext
+	out.site.sp = d.site.sp
+	out.site.spu = d.site.spu
+	out.site.url = d.site.url
+	out.site.src = d.site.src
 	if d.written() {
 		out.setWritten()
 	}

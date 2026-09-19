@@ -97,19 +97,30 @@ type Val interface {
 
 const unsited = -1
 
+// WHERE A NAME WAS USED, when a value arrived through one, which a
+// finding names beside where it was written (ALIASES.0.md A-1).
+type viaSite struct {
+	sp   int
+	url  string
+	name string
+}
+
+// WHERE A VALUE WAS WRITTEN, grouped as ts/src/site.ts groups it.
+// `sp` is the byte offset a position travels as here, where TypeScript
+// carries a row and a column; docs/contributing/parity.md says why.
+// `spu` marks a position a clone carried rather than the source gave.
+type site struct {
+	url string
+	src string
+	sp  int
+	spu bool
+	via viaSite
+}
+
 type base struct {
-	dc    int
-	sp    int
-	path  []string // path from root (for reference resolution)
-	stext string
-	// WHERE A NAME WAS USED, when the value arrived through one. A
-	// finding names where a value is written; this names where it
-	// entered the path the finding is about (ALIASES.0.md A-1).
-	viasp   int
-	viaurl  string
-	vianame string
-	spu     bool
-	surl    string
+	dc      int
+	site    site
+	path    []string // path from root (for reference resolution)
 	mtype   bool
 	mhide   bool // hide mark
 	fspr    bool
@@ -169,26 +180,28 @@ func setSprOn(v Val, s Val) {
 func (b *base) Dc() int                { return b.dc }
 func (b *base) Nil() bool              { return false }
 func (b *base) setDc(dc int)           { b.dc = dc }
-func (b *base) pos() int               { return b.sp }
-func (b *base) setPos(p int)           { b.sp = p }
-func (b *base) srctext() string        { return b.stext }
-func (b *base) setSrctext(text string) { b.stext = text }
+func (b *base) pos() int               { return b.site.sp }
+func (b *base) setPos(p int)           { b.site.sp = p }
+func (b *base) srctext() string        { return b.site.src }
+func (b *base) setSrctext(text string) { b.site.src = text }
 
 func (b *base) srclen() int {
-	if "" == b.stext {
+	if "" == b.site.src {
 		return -1
 	}
-	return utf16Len(b.stext)
+	return utf16Len(b.site.src)
 }
-func (b *base) posu() bool                 { return b.spu }
-func (b *base) setPosu(u bool)             { b.spu = u }
-func (b *base) via() (int, string, string) { return b.viasp, b.viaurl, b.vianame }
+func (b *base) posu() bool     { return b.site.spu }
+func (b *base) setPosu(u bool) { b.site.spu = u }
+func (b *base) via() (int, string, string) {
+	return b.site.via.sp, b.site.via.url, b.site.via.name
+}
 func (b *base) setVia(sp int, url, name string) {
-	b.viasp, b.viaurl, b.vianame = sp, url, name
+	b.site.via = viaSite{sp: sp, url: url, name: name}
 }
 
-func (b *base) srcurl() string      { return b.surl }
-func (b *base) setSrcurl(u string)  { b.surl = u }
+func (b *base) srcurl() string      { return b.site.url }
+func (b *base) setSrcurl(u string)  { b.site.url = u }
 func (b *base) cjo() int            { return 99999 }
 func (b *base) vpath() []string     { return b.path }
 func (b *base) setvpath(p []string) { b.path = p }
@@ -240,7 +253,7 @@ type TopVal struct{ base }
 func newTop() *TopVal {
 	t := &TopVal{}
 	t.dc = DONE
-	t.sp = -1
+	t.site.sp = -1
 	return t
 }
 
@@ -287,7 +300,7 @@ func newNil(why string) *NilVal {
 	n.dc = DONE
 	// No source position until a caller assigns one — mirrors the TS
 	// site default (row/col -1), which a frame's arrow renders RAW.
-	n.sp = -1
+	n.site.sp = -1
 	return n
 }
 
@@ -640,13 +653,13 @@ func makeNilErr(ctx *Ctx, why string, a, b Val) *NilVal {
 	n := newNil(why)
 	if a != nil {
 		n.primary = a
-		n.sp = a.pos()
+		n.site.sp = a.pos()
 		if b != nil {
 			n.secondary = b
 			if srcid(a) == srcid(b) && b.pos() > a.pos() {
 				n.primary = b
 				n.secondary = a
-				n.sp = b.pos()
+				n.site.sp = b.pos()
 			}
 		}
 	}
