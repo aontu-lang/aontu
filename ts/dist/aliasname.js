@@ -56,5 +56,5 @@ function aliasSetItems(text) {
         return undefined;
     }
     return Array.from(text.matchAll(ALIAS_ITEMS_RE), (m) => ({ local: m[1], remote: m[2] ?? m[1] }));
-} /* node:coverage ignore next 19 */
+} /* node:coverage ignore next 20 */
 //# sourceMappingURL=aliasname.js.map

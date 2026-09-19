@@ -461,3 +461,7 @@ edge-reserved-key-refused	errc	"\\u0000aontu_x": 1\nb: 2	reserved_key
 edge-reserved-key-on-a-mark-refused	errc	"\\u0000aontu_order": 1	reserved_key
 edge-reserved-key-prefix-only-is-a-key	gens	"aontu_order": 1	{"aontu_order":1}
 edge-underscore-sentinel-is-a-key	gens	"___merge": 42\nb: 2	{"___merge":42,"b":2}
+# A pair in LIST position names the namespace too: its parent is not a
+# map, so the marks are not there to collide with, and the key is still
+# refused rather than kept as a kind the language has no value for.
+edge-reserved-key-in-a-list	errc	a: [ "\\u0000aontu_order": 1 ]	reserved_key

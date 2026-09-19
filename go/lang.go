@@ -1181,34 +1181,16 @@ const quarantineKeyPrefix = reservedKeyPrefix + "quarantine"
 
 var quarantineSeq atomic.Int64
 
-// THE SENTINEL NAMESPACE IS THE ENGINE'S, and the pair's OPEN is where
-// the key is known and its value not yet stored.
-func reserveKeyNamespace(r *jsonic.Rule, ctx *jsonic.Context) {
+// A MARK IS A KEY IN THE SAME NODE, so a source key that names one
+// would land on it. The pair's OPEN is where the key is known and its
+// value not yet stored, so the value goes elsewhere; keyRefusalOf says
+// why. The engine writes one key here itself: an `export` declaration.
+func reserveKeyNamespace(r *jsonic.Rule, _ *jsonic.Context) {
 	key, _ := r.U["key"].(string)
-	if !strings.HasPrefix(key, reservedKeyPrefix) {
-		// A bad bare key never reaches U["key"]; the source names it.
-		if r.ON == 0 || !strings.HasPrefix(r.O0.Src, reservedKeyPrefix) {
-			return
-		}
-		key = r.O0.Src
-	}
-	// The engine writes one key here itself: an `export` declaration.
-	if r.ON > 0 && r.O0.Use["aontu_export"] == true {
+	if !strings.HasPrefix(key, reservedKeyPrefix) ||
+		(r.ON > 0 && r.O0.Use["aontu_export"] == true) {
 		return
 	}
-	var m map[string]any
-	if r.Parent != nil {
-		m, _ = r.Parent.Node.(map[string]any)
-	}
-	if m == nil { //coverage:ignore a pair always closes into a map node
-		return
-	}
-	kr := keyRefusal{key: key, why: "reserved_key", url: srcURL(ctx)}
-	if r.ON > 0 {
-		kr.sp, kr.src = r.O0.SI, r.O0.Src
-	}
-	krs, _ := m[keyRefusalsKey].([]keyRefusal)
-	m[keyRefusalsKey] = append(krs, kr)
 	r.U[reservedRefusedKey] = key
 	r.U["key"] = quarantineKeyPrefix + itoa(int(quarantineSeq.Add(1)))
 }
@@ -1331,11 +1313,13 @@ func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
 }
 
 func keyRefusalOf(ktkn, sep *jsonic.Token, key string) (keyRefusal, bool) {
-	if ktkn == nil || ktkn.Tin == jsonic.TinST {
-		return keyRefusal{}, false
+	// The namespace says more about a key than the bare-string rule.
+	if ktkn != nil && strings.HasPrefix(key, reservedKeyPrefix) &&
+		ktkn.Use["aontu_export"] != true {
+		return keyRefusal{key: key, why: "reserved_key",
+			sp: ktkn.SI, src: ktkn.Src}, true
 	}
-	// The open already refused it by namespace, which says more.
-	if strings.HasPrefix(key, reservedKeyPrefix) {
+	if ktkn == nil || ktkn.Tin == jsonic.TinST {
 		return keyRefusal{}, false
 	}
 	if aliasRe.MatchString(key) {

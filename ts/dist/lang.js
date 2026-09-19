@@ -390,15 +390,12 @@ let AontuJsonic = function AontuLang(jsonic) {
         true === sep?.use?.aontu_eq;
     const keyName = (ktkn) => 'string' === typeof ktkn?.val ? ktkn.val : '' + ktkn?.src;
     const keyRefusalOf = (ktkn, sep) => {
-        if (null == ktkn) {
-            return undefined;
-        }
         // THE SENTINEL NAMESPACE IS THE ENGINE'S; it writes `export` here.
         if (keyName(ktkn).startsWith(aliasname_1.RESERVED_KEY_PREFIX) &&
             true !== ktkn.use?.aontu_export) {
             return { why: 'reserved_key' };
         }
-        if (VL !== ktkn.tin) {
+        if (null == ktkn || VL !== ktkn.tin) {
             return undefined;
         }
         const kname = '' + ktkn.src;
