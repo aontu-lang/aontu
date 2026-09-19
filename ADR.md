@@ -69,6 +69,7 @@ capability decision is the phase rows it governed in
 | [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Amended by [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) |
 | [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
 | [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
+| [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 
 ---
 
@@ -4196,3 +4197,105 @@ someone installs it; the skipped checks were the cost.
 **A dependency in TypeScript only, and a Go verb that refuses.** The
 Go port of jostraca exists at the same version, so the divergence would
 have been chosen rather than forced.
+
+
+## ADR-041 — The npm package and the Go module share one version series
+
+**Date:** 2026-09-19
+**Status:** Accepted
+
+### Context
+
+The two artifacts were versioned independently, and by 2026-09-19 they
+had drifted a long way apart: npm `aontu` was on 0.69.0, the Go module
+`github.com/aontu-lang/aontu/go` on 0.1.27. The same commit shipped as
+two different numbers.
+
+The separation was deliberate, and
+[`docs/release-and-tag.md`](docs/release-and-tag.md) argued for it on
+one ground: **Go requires the major version in the module path from v2
+on.** Tagging `go/v2.0.0` against a `go.mod` that still declares the
+unsuffixed path produces a version the toolchain will not resolve, and
+a tag cannot be taken back. Keeping the module on its own 0.x series
+meant npm could cross into 1.x or 2.x without dragging every consumer's
+import path with it.
+
+What that bought was paid for daily. A bug report had to say which of
+the two numbers it meant, and usually did not. An install instruction
+had to carry both. And `aontu.version` — a field in every `vet` report,
+from both ports — differed by construction, which
+[ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+otherwise does not tolerate: the shared spec had to look past it, so
+the one field naming the engine was the one field the parity suite
+could not hold.
+
+The deferral also had no end. Nothing scheduled the migration the
+separate series was protecting; it simply stayed deferred, and the
+distance between the two numbers grew.
+
+### Decision
+
+**One number names a release of this project.** Both artifacts carry
+it: `ts/package.json` with `ts/src/aontu.ts`, and `go/aontu.go`'s
+`const VERSION`. Every release bumps both to the same value, and both
+tags — `v<version>` and `go/v<version>` — name one commit. The series
+merged at **0.70.0**, the first value above npm's last published
+number, because npm never allows republishing a version.
+
+**The merge is at major 0 on purpose.** `module
+github.com/aontu-lang/aontu/go` is correct for v0 and v1, so no
+consumer's import path changed when this landed. The constraint that
+justified the old separation is not denied here; it is **accepted and
+brought forward**, which is the price of the decision and the reason
+this entry exists rather than a line in a release note.
+
+**`make publish` refuses a `V` and `GOV` that disagree.** The number
+lives in two files because each toolchain needs its own literal, so
+nothing else stands between a mistyped pair and two immutable tags.
+
+### Consequences
+
+**The release that takes this project to 2.0.0 rewrites every
+consumer's Go import path**, to `github.com/aontu-lang/aontu/go/v2`.
+Before this entry npm could reach 2.0.0 alone and the module would not
+notice. That migration is now scheduled by whatever bumps the major,
+and it must be planned as its own change rather than discovered during
+a release. `make check-go-major` refuses the combination rather than
+letting it reach a tag, and that guard is this entry's enforcement.
+
+**The module's 0.1.x series is closed.** `proxy.golang.org` caches a
+version immutably and orders them by semver, so 0.70.0 supersedes
+0.1.27 and there is no way back: a later `go/v0.1.28` would resolve as
+older than what is already published.
+
+**`aontu.version` is in parity.** The last by-construction difference
+in a `vet` report between the two ports, aside from the host's own
+"cannot read" wording, is gone.
+
+**A one-sided release leaves the numbers unequal** until the next one
+squares them. Releasing only the half that changed stays possible, and
+the guard only refuses a *stated* pair that disagrees; it cannot refuse
+an omission.
+
+### Alternatives rejected
+
+**Keep the two series.** The status quo, and its argument was real
+while the v2 migration was the only thing weighed. It ignored the daily
+cost — two numbers for one commit — and had no end condition, so the
+deferral was permanent by default rather than by decision.
+
+**Synchronise by moving npm to the module's number.** Not possible.
+npm versions are immutable and ordered; 0.1.28 is below 0.69.0 and the
+registry would serve the old release as `latest`.
+
+**Synchronise at 1.0.0.** A round number, and a claim about stability
+this project is not making yet. The version merge and a 1.0 commitment
+are separate decisions, and bundling them would have smuggled the
+second past the first.
+
+**Derive one version from the other at build time.** `ts/package.json`
+must be static JSON and `go/aontu.go` must hold a compile-time
+constant, so a single source would add a generation step to both ports
+for one string — and a generated `VERSION` is exactly the kind of thing
+that goes stale in a checkout. Two literals and a guard that compares
+them is smaller and fails closed.

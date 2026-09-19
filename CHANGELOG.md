@@ -10,7 +10,8 @@ each change affects.
 
 ### The npm package and the Go module share one version number
 
-They were versioned independently until now — npm had reached 0.69.0 while
+Policy, recorded as [ADR-041](ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series). They were versioned
+independently until now — npm had reached 0.69.0 while
 the module was on 0.1.27 — and the two numbers were a standing tax on every
 bug report, which had to say which of them it meant. From this release
 there is one number: `aontu@0.70.0` on npm, `go/v0.70.0` on the module, and

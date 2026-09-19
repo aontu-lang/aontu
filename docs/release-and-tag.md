@@ -143,9 +143,10 @@ Environment:           (blank — this workflow declares none)
 
 ## One version series, shared
 
-**Since 0.70.0 the npm package and the Go module carry the same number.**
-They were separate until then — npm on 0.6x, the module on 0.1.x — and the
-argument for separating them was Go's semantic import versioning:
+**Since 0.70.0 the npm package and the Go module carry the same number**,
+by [ADR-041](../ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series).
+They were separate until then (npm on 0.6x, the module on 0.1.x), and
+the argument for separating them was Go's semantic import versioning:
 
 ```
 module github.com/aontu-lang/aontu/go      # ok for v0.x and v1.x
@@ -168,7 +169,7 @@ publish: go.mod says 'github.com/aontu-lang/aontu/go' but v2.0.0 is major 2.
 That constraint has not gone away. It **moved**, and the move is the
 whole cost of sharing a number: the merge happened at major 0, where the
 unsuffixed path is still correct, so nothing changed for a consumer
-today — but npm's number is now the module's number, so **the release
+today. But npm's number is now the module's number, so **the release
 that takes npm to 2.0.0 is the release that forces
 `module github.com/aontu-lang/aontu/go/v2` and rewrites every consumer's
 import path.** Before, npm could cross that line alone and the module
@@ -177,10 +178,13 @@ deferred is now scheduled by whatever bumps the major, and `make
 check-go-major` is what stops it happening by accident.
 
 What is bought for that: one number to say, one number to read in a bug
-report, and `aontu.version` the same string from both ports. `make
-publish` refuses `V` and `GOV` that differ, so the two cannot drift back
-apart unnoticed, and a release of one half alone is still possible — it
-just leaves the numbers unequal until the next one squares them.
+report, and `aontu.version` the same string from both ports: the last
+by-construction difference between the two ports' reports, which
+[ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+otherwise does not tolerate. `make publish` refuses `V` and `GOV` that
+differ, so the two cannot drift back apart unnoticed, and a release of
+one half alone is still possible. It just leaves the numbers unequal
+until the next one squares them.
 
 ## The Go binaries
 
