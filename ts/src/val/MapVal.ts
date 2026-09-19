@@ -36,11 +36,12 @@ import { NilVal } from './NilVal'
 import { BagVal } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
+import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { markSpread } from '../provenance'
 
 
 function spreadSnapKey(cj: any): string {
-  return cj.spelling + '~' + cj.site.row + ':' + cj.site.col
+  return cj.spelling + '~' + cj.site.url + '~' + cj.site.row + ':' + cj.site.col
 }
 
 function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
@@ -115,13 +116,17 @@ class MapVal extends BagVal {
   }
 
 
+  // An `export` answers to the root rule a declaration does.
   aliasDeclarationsAreRooted(ctx: AontuContext): Val | undefined {
-    if (0 === this.aliasKeys.length || 0 === this.path.length) {
+    const named = 0 < this.aliasKeys.length ?
+      aliasBareName(this.aliasKeys[0]) :
+      0 < this.exportKeys.length ? EXPORT_DECL_NAME : undefined
+    if (undefined === named || 0 === this.path.length) {
       return undefined
     }
     const nv: any = new NilVal({ why: 'alias_not_toplevel' }, ctx)
     nv.site = this.site
-    nv.path = [...this.path, this.aliasKeys[0]]
+    nv.path = [...this.path, named]
     return nv
   }
 
@@ -267,7 +272,8 @@ class MapVal extends BagVal {
         for (let peerkey in upeer.peg) {
           let peerchild = upeer.peg[peerkey]
 
-          if (this.closed && !allowedKeys.includes(peerkey)) {
+          if (this.closed && !allowedKeys.includes(peerkey) &&
+            !upeer.aliasKeys.includes(peerkey)) {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 

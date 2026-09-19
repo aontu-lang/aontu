@@ -683,9 +683,9 @@ func TestGrammarActionsDirect(t *testing.T) {
 		t.Fatalf("consecutive spreads must merge into a conjunct")
 	}
 
-	// recordMapPos: no open token, no stamp.
+	// closeMap: no open token, no stamp.
 	m := map[string]any{}
-	recordMapPos(&jsonic.Rule{Node: m}, nil)
+	closeMap(&jsonic.Rule{Node: m}, nil)
 	if _, ok := m[posKey]; ok {
 		t.Fatalf("no token, no stamp")
 	}

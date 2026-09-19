@@ -1,0 +1,9 @@
+# A WRAPPED ROOT: the document is open()'s argument, so the names this
+# file declares and publishes are the MAP'S, not the wrapper's.
+open({
+  %port = 8080
+
+  export({ %port })
+
+  listen: 8080
+})

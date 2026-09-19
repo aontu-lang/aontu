@@ -249,7 +249,9 @@ function subsumeNode(state, path, g0, s0) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is a map and the specific value is not');
             return 'no';
         }
-        return subsumeBag(state, path, g, s, Object.keys(g.peg), Object.keys(s.peg), (v, k) => v.peg[k]);
+        // A DECLARATION IS NOT A FIELD: an alias key is erased before the
+        // document exists, so neither side compares one.
+        return subsumeBag(state, path, g, s, fieldKeys(g), fieldKeys(s), (v, k) => v.peg[k]);
     }
     // Lists: element-wise by position; the same required/optional shape
     // as maps, with positions as keys.
@@ -272,6 +274,9 @@ function subsumeNode(state, path, g0, s0) {
 // must be required in the specific side and subsume; optional keys
 // compare when present; closedness bounds the specific key set; spread
 // templates govern the specific side's surplus.
+function fieldKeys(v) {
+    return Object.keys(v.peg).filter((k) => !v.aliasKeys.includes(k));
+}
 function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
     let out = 'yes';
     const worse = (r) => {

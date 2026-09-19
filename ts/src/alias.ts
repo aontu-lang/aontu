@@ -28,8 +28,8 @@ function aliasErrors(ctx: any, root: Val): void {
     seen.add(v)
 
     if (true === v.isRef) {
-      const name: string | undefined = v.aliasName
-      if (undefined !== name && !declared.has(name)) {
+      const key: string | undefined = v.aliasKey
+      if (undefined !== key && !declared.has(key)) {
         ctx.adderr(makeNilErr(ctx, 'no_path', v, undefined, 'resolve'))
       }
       return
@@ -72,21 +72,21 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
     seen.add(v)
 
     if (true === v.isRef) {
-      const name: string | undefined = v.aliasName
-      if (undefined === name) {
+      const key: string | undefined = v.aliasKey
+      if (undefined === key) {
         return
       }
       v.expansion = undefined
-      if (stack.includes(name)) {
+      if (stack.includes(key)) {
         return
       }
       const target: Val | undefined =
-        snapmap.get(spreadSnapKey(v)) ?? (root as any).peg[name]
+        snapmap.get(spreadSnapKey(v)) ?? (root as any).peg[key]
       if (null == target) {
         return
       }
       v.expansion = target
-      visit(target, [...stack, name])
+      visit(target, [...stack, key])
       return
     }
 

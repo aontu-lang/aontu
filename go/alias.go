@@ -31,8 +31,8 @@ func aliasErrors(ctx *Ctx, root Val) error {
 
 		switch n := v.(type) {
 		case *RefVal:
-			name, isAlias := n.aliasName()
-			if isAlias && !declared[name] {
+			key, isAlias := n.aliasKey()
+			if isAlias && !declared[key] {
 				makeNilErrFull(ctx, "no_path", n, nil, "resolve", nil)
 				bad++
 			}
@@ -100,25 +100,25 @@ func expandAliases(root Val, snapmap map[string]Val) {
 
 		switch n := v.(type) {
 		case *RefVal:
-			name, isAlias := n.aliasName()
+			key, isAlias := n.aliasKey()
 			if !isAlias {
 				return
 			}
 			n.expansion = nil
 			for _, s := range stack {
-				if s == name {
+				if s == key {
 					return
 				}
 			}
 			target, snapped := snapmap[refSnapKey(n)]
 			if !snapped {
-				target = rm.peg[name]
+				target = rm.peg[key]
 			}
 			if nil == target {
 				return
 			}
 			n.expansion = target
-			visit(target, append(append([]string{}, stack...), name))
+			visit(target, append(append([]string{}, stack...), key))
 
 		case *MapVal:
 			// A declaration is reached through its references, each

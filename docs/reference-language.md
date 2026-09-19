@@ -1520,7 +1520,7 @@ admin: 443
 ```
 
 **The declaration is not part of the document.** It does not generate,
-and it does not appear in canon, so the file above and the file with
+it is not a key `close()` counts, and it does not appear in canon, so the file above and the file with
 `integer & min(1) & max(65535)` written out at both keys are the same
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
@@ -1568,8 +1568,20 @@ written, which is what makes the two include shapes differ:
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
-There is no construct for carrying a name across a file boundary
-deliberately.
+**A name belongs to the file that declares it.** An include carries a
+file's *values* across the boundary and never its names, in either
+direction: an included file cannot see a name the including file
+declared, the including file cannot see a name the included file
+declared, and two files that declare one name hold two names that never
+meet. A reference resolves where it
+was written rather than where it lands, so a spread template written in
+one file still names its own file's declaration when it is instantiated
+against another file's data.
+
+A name crosses where both files say so, and nowhere else: the declaring
+file publishes it with [`export`](#publishing-a-name-export), and the
+using file asks for it by name with [the
+destructure](#taking-a-name-the-destructure).
 
 **The `%` is part of the name.** A quoted `"%a"` is an ordinary key or
 string, and a `%` anywhere but on an alias name is refused like any
@@ -1611,6 +1623,148 @@ table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
 { "table": { "a": { "kind": "user", "id": 1 },
              "b": { "kind": "user", "id": 2 } } }
 ```
+
+### Publishing a name: `export`
+
+`export({ %a, %b })` declares which of a file's names another file may
+take. It is a declaration and not a value, so a file generates the same
+document with it as without it:
+
+```aon
+%port = integer & min(1) & max(65535)
+
+export({ %port })
+
+listen: %port
+listen: 8080
+```
+
+```json
+{ "listen": 8080 }
+```
+
+It takes a set of alias names and nothing else. Every other argument is
+refused with `export_arg`: `export({ port })` names a key, which already
+crosses the boundary as a value; `export(%port)` names an alias but not
+a set; and `export({%})` is the wildcard, which belongs on the taking
+side. A name a file declares and does not export stays that file's own.
+
+### Taking a name: the destructure
+
+`{ %a } = @"./f.aon"` places `f.aon`'s values exactly as `@"./f.aon"`
+places them, and also binds `%a` in the taking file's scope. There is no
+`import` verb: the include already crosses the boundary for values, and
+the pattern on its left crosses it for names. Write the publishing file
+as `types.aon`:
+
+<!-- test: scenario alias-destructure -->
+<!-- test: file types.aon -->
+```aon
+%uint8 = integer & min(0) & max(255)
+
+export({ %uint8 })
+
+defaults: retries: 3
+```
+
+and take its name from `main.aon`:
+
+<!-- test: file main.aon -->
+```aon
+{ %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c main.aon
+{"defaults":{"retries":3},"level":200}
+```
+
+The file's values arrive whether or not a name is asked for, which is
+what makes the pattern additive rather than a filter.
+
+`{%}` takes every name the other file exports, and only those: the
+publishing file chose the set. Asking for a name that file does not
+export is refused with `import_not_exported`, which names the name; the
+destructure asked, so the refusal stands whether or not anything goes on
+to use the name. A name that arrives this way meets a local declaration
+of the same name rather than replacing it, exactly as two declarations
+in one file meet.
+
+**A file publishes what it declares.** A name that merely arrived in a
+file through an include belongs to the file that wrote it, so
+re-exporting it is refused: publishing someone else's private name is
+not a file's to do.
+
+**Rename what you take with `%local: %remote`.** Both sides carry the
+sigil, because both are names; the left is what this file calls it and
+the right is what the other file publishes. Two files publishing one
+name is the case it answers, and nothing else does.
+
+**A destructure may also sit under a key.** The values land where the
+head stands and the names it binds are the document's, so a file can be
+mounted at a path and still be taken from. Both forms read the same
+`types.aon`:
+
+<!-- test: scenario alias-destructure-more -->
+<!-- test: file types.aon -->
+```aon
+%uint8 = integer & min(0) & max(255)
+
+export({ %uint8 })
+
+defaults: retries: 3
+```
+
+`rename.aon` takes `%uint8` under a name of its own:
+
+<!-- test: file rename.aon -->
+```aon
+{ %port: %uint8 } = @"./types.aon"
+
+listen: %port
+listen: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c rename.aon
+{"defaults":{"retries":3},"listen":200}
+```
+
+and `mount.aon` puts the same file's values under `svc`:
+
+<!-- test: file mount.aon -->
+```aon
+svc: { %uint8 } = @"./types.aon"
+
+level: %uint8
+level: 200
+```
+
+<!-- test: run -->
+```sh
+$ aontu -c mount.aon
+{"level":200,"svc":{"defaults":{"retries":3}}}
+```
+
+The other file's own declarations come up to the document root with its
+values. Without that a file that uses the name it publishes could not be
+mounted at all, since an alias resolves from the root and its
+declaration would have landed under the key.
+
+**A wrapped root still publishes.** `open(...)` and `copy(...)` hold the
+document as their one argument, so such a file publishes what its map
+declares. One limit: the wrapper's argument may not use the name the file
+publishes, because the declaration rises to the taking document's root,
+out of the argument's reach. That include fails with `conjunct`.
+
+`export` does not rename: a file publishes what it has, and the taking
+file renames what it takes, so `export({ %a: %b })` is refused with
+`export_arg`.
 
 ## The `+` operator and grouping
 

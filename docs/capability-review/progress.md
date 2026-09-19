@@ -641,15 +641,13 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (38 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (122 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
-**P2 — `export` and the `{…} = @"…"` destructure — is not built**, and
-the two open questions gate it rather than P1: X-1 was taken the third
-way (`%foo:`, the ordinary key syntax, so no `=` and no lexing break
-beyond the sigil), and T-1's expansion budget does not bite while
-expansion is bounded by one file. **X-1 reversed 2026-09-05:** the
+**P2 — file scope, `export` and the `{…} = @"…"` destructure — LANDED
+2026-09-18**, in both ports, and it is recorded below the P1 entry it
+completes. **X-1 reversed 2026-09-05:** the
 declaration operator is `=`, the proposal's own spelling — `%foo = 1`
 declares, `=` is lexed as the separator only immediately after an
 alias name (so `foo = 1` and `a: x=y` were unchanged at the time), and
@@ -663,6 +661,86 @@ letters, digits, `-` and `_` and nothing else, so `foo = 1` and
 alias lexing claim still holds — `=` is the separator only after an
 alias name — but the parenthetical that made it concrete no longer
 describes either port.
+
+**ALIASES (P2) LANDED 2026-09-18** (docs/design/ALIAS-FILE-SCOPE.0.md),
+in both ports. A name now belongs to the FILE that declares it, and
+crosses only where both files say so.
+
+The route was the one the note proposed and it wanted no resolver of
+its own: `site.url` already identifies the writing file for every
+value, across include boundaries, so the alias KEY carries the url of
+the file that declared the name and a reference carries the url of the
+file it was written in. Lexical scope is then the reference machinery
+again, as P1's order independence was — a reference in an included file
+cannot see its includer's key, an includer cannot see the included
+file's, two files declaring one name hold two keys, and a `&:` rule
+that travels to another file still resolves, because it was bound to
+its own file's key when it was written rather than when it landed. That
+last case is what makes the scope lexical rather than positional, and
+it is what apidef's model depends on. The scoped key shows nowhere a
+reader looks: `aliasName` answers the bare name, so canon, a refusal's
+path and a rule's trace address all spell what the source spells.
+
+`export` and the destructure are new SYNTAX in both ports and needed no
+new grammar. `export({ %a, %b })` is lexed as a pair — the word is the
+key, the `(` the separator and the argument the value, under a key no
+source can write — and `{ %a } = @"f.aon"` is lexed as one head token
+with the `=` the alias declaration already carries, so both reach the
+map rule as pairs it already knows how to hold. The set is read off the
+source rather than parsed as a map, which is why a set may stand in
+those two places and nowhere else. `export` is self-erasing, the
+destructure is additive (the values land exactly as a plain include
+places them, and the names bind beside them), and the two refusals are
+`export_arg` (class parse) and `import_not_exported` (class reference),
+both with `errcodes.tsv` rows.
+
+One consequence outside the engine: `aontu:profile` publishes `%profile`
+and `%comment`, since a document that wants the vocabulary's shapes now
+asks for them by name. `profile-shape-hash` is unchanged, which is the
+evidence that the destructure places what the include placed.
+
+**Two of `ALIASES.0.md` §6's features went in with it**, neither in the
+nine rows. RENAMING, `{ %local: %remote }`, is the only answer to two
+files publishing one name — with file scope the collision moves into the
+taking file's one scope, and the left-hand name is the only place it can
+be settled — so the set grammar grew an item with an optional second
+name. `export` did not take the form: publishing renames nothing. And a
+destructure MAY SIT UNDER A KEY, placing the subtree where the head
+stands while the name still binds at the document root; for that the
+other file's own declarations are lifted to the root with its values,
+without which a file that uses the name it publishes could not be
+mounted at all. A plain value include of such a file stays refused, and
+that is the line: the destructure is where a file says it is taking
+names, and so where the engine knows to lift them.
+
+Pinned by the nine `test/spec/alias.tsv` rows written failing ahead of
+it and the twenty-two the work added, plus six in `fmt.tsv`; documented
+in `docs/reference-language.md` under "Publishing a name" and "Taking a
+name", executed by `docs.test.ts`.
+
+**Review of the landed destructure found six more ways a name crossed a
+boundary it should not have, or failed to cross one it should, and all
+six are closed.** A scope tag is the DOCUMENT'S, not the file's, so two
+roots parsed from text no longer collide under `vet`. `export` publishes
+only names scoped to the exporting file, so a name that merely arrived
+through an include cannot be re-exported. The closed check passes over a
+peer's alias keys, so a closed document no longer refuses every
+destructure of it. The refusal for an unexported name stands in the
+document whether or not a later reference reaches it, since the
+destructure is what asked. A ROOT MAY BE WRAPPED, so both ports look
+through a single-argument `open(...)` or `copy(...)` before reading what
+a file publishes — the name such a file publishes still may not be used
+inside the wrapper, identically in both ports. And `subsume` compared
+alias declarations as though they were fields, so a schema that declared
+a name could not subsume data that did not.
+
+**The pair that carries `export` to the parser waits under a key that
+changes with each declaration.** It waited under one fixed key, and a
+document that also wrote a field of that name lost it silently: the
+parser erased a field it had not put there. The remaining namespace
+question is wider than this phase and is recorded as an open one — a
+sentinel in the ordinary key namespace is a repo-level matter, not the
+destructure's.
 
 **One defect the note named turned out not to be one, and this register
 should not imply otherwise.** Its row 7 — `a: >10` lexing as the string `">10"`,

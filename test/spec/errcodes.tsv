@@ -99,6 +99,13 @@ pref_implicit_bag	errcode	parse	0.53.0
 alias_not_toplevel	errcode	parse	0.53.0
 alias_in_path	errcode	parse	0.53.0
 alias_colon	errcode	parse	0.58.0
+# `export` and the destructure are the only way a name crosses a file
+# boundary (ALIASES.0.md sections 5 to 7). `export_arg` is class `parse`
+# for `sort_dir`'s reason -- an argument naming nothing publishable is a
+# fault in the call as written -- and `import_not_exported` is class
+# `reference`, because it is a name that resolves to nothing.
+export_arg	errcode	parse	0.69.0
+import_not_exported	errcode	reference	0.69.0
 bare_punct	errcode	parse	0.58.0
 not_number	errcode	parse	0.51.0
 negative	errcode	parse	0.51.0

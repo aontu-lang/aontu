@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -72,7 +73,29 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 	return rows
 }
 
+var vetEvalDeclRe = regexp.MustCompile(
+	`(?m)^[ \t]*(%[A-Za-z_][A-Za-z0-9_-]*)[ \t]*=`)
+
+// A NAME DECLARED IN BOTH has no single-document spelling either:
+// concatenation makes the second a REdeclaration, which asks a
+// different question from a name scoped to each document.
+func vetEvalSharesDecl(schema, data string) bool {
+	both := map[string]bool{}
+	for _, m := range vetEvalDeclRe.FindAllStringSubmatch(schema, -1) {
+		both[m[1]] = true
+	}
+	for _, m := range vetEvalDeclRe.FindAllStringSubmatch(data, -1) {
+		if both[m[1]] {
+			return true
+		}
+	}
+	return false
+}
+
 func vetEvalUnion(schema, data string) string {
+	if vetEvalSharesDecl(schema, data) {
+		return ""
+	}
 	if vetEvalStatements(schema) && vetEvalStatements(data) {
 		return schema + "\n" + data + "\n"
 	}

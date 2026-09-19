@@ -1,6 +1,5 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-
 package aontu
 
 import (
@@ -31,7 +30,7 @@ type FormatReport struct {
 // key case, repeated shapes -- beside the text. The formatter never
 // acts on them. Mirrors FormatOptions in ts/src/format.ts.
 type FormatOptions struct {
-	Lint bool
+	Lint     bool
 	Template string
 }
 
@@ -110,7 +109,6 @@ func formatParse(src, file string, sink *[]fmtTok) (Val, *AontuError) {
 	setPaths(root, []string{})
 	return root, nil
 }
-
 
 // One node shape for the whole tree, as the TypeScript has one: the
 // kind says which fields are meaningful. Where the TypeScript leaves a
@@ -331,6 +329,12 @@ func (r *fmtReader) entry() *fmtNode {
 	if "#E&" == n && "#CL" == r.name(1) {
 		r.i += 2
 		return &fmtNode{t: "spread", value: r.value(), at: at}
+	}
+	if isExportHoldKey(r.T[r.i].val) && exportDeclName == r.T[r.i].src &&
+		r.atKey() {
+		text := exportDeclName + "(" + r.T[r.i+2].src + ")"
+		r.i += 3
+		return &fmtNode{t: "atom", text: text, at: at}
 	}
 	if r.atKey() {
 		tok := r.T[r.i]
@@ -1061,7 +1065,6 @@ func fmtEmitExpr(w *fmtWriter, items []*fmtNode, indent int) {
 	}
 }
 
-
 type fmtMeet func(before, after string) bool
 
 // Statement position: the check, and whether the statement being laid
@@ -1392,7 +1395,6 @@ func fmtEmit(root []*fmtNode, meet fmtMeet) string {
 	}
 	return w.finish()
 }
-
 
 // The shape width at which a repeat is worth an alias (§4.2): below
 // it, `{ a:1 }` twice is the shorter spelling. Measured over the use
@@ -1785,7 +1787,6 @@ func fmtShiftFindings(findings []LintFinding, mark string) []LintFinding {
 	}
 	return out
 }
-
 
 // A patience diff: lines unique to both sides, in order, are the
 // anchors, and the gaps between them recurse. Not always the shortest

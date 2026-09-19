@@ -349,7 +349,7 @@ func (n *NilVal) messagePath() string {
 	segs := make([]string, 0, len(p))
 	for _, seg := range p {
 		if "" != seg {
-			segs = append(segs, seg)
+			segs = append(segs, aliasPathSegment(seg))
 		}
 	}
 	if 0 == len(segs) {

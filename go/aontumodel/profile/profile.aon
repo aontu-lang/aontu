@@ -19,6 +19,9 @@
   })
 })
 
+# Published: a name crosses only to a document that asks for it.
+export({ %profile, %comment })
+
 # Profile names the schema; Lang is where one lands. type() so naming
 # the schema neither generates it nor asks a document to fill it.
 aontu: { Profile:type(%profile) Lang:%profile }

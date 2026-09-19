@@ -190,11 +190,28 @@ const CC_d = 100
 const CC_D = 68
 
 const CC_PCT = 37
-import { ALIAS_RE } from './aliasname'
+import type { AliasBind } from './aliasname'
+import {
+  ALIAS_RE,
+  ALIAS_SET,
+  EXPORT_DECL_NAME,
+  exportHoldKey,
+  aliasBareName,
+  aliasScopedKey,
+  aliasSetItems,
+} from './aliasname'
 
 const CC_EQ = 61
 const CC_SP = 32
 const CC_TAB = 9
+const CC_OB = 123
+
+let SCOPE_SEQ = 0
+
+// `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
+// one token and the grammar needs nothing new.
+const IMPORT_HEAD_RE = new RegExp('^(' + ALIAS_SET + ')[ \\t]*=(?!=)')
+const EXPORT_RE = /^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)/
 
 const CC_9 = 57
 const CC_A = 65
@@ -328,6 +345,49 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
     },
   })
 
+  // THE FIXED MATCHER'S CHECK RUNS AT EVERY POSITION: `{` opens a fixed
+  // token the text check never sees.
+  jsonic.options({
+    fixed: {
+      check: (lex: any) => {
+        const pnt = lex.pnt
+        const ex = lex.aontu_export
+
+        // The `(` is the pair's separator, the argument its value.
+        if (null != ex && pnt.sI === ex.cl) {
+          const cltkn = lex.token('#CL', undefined, '(', pnt)
+          pnt.cI += ex.arg - pnt.sI
+          pnt.sI = ex.arg
+          return { done: true, token: cltkn }
+        }
+
+        if (null != ex && pnt.sI === ex.arg) {
+          delete lex.aontu_export
+          const atkn = lex.token('#TX', ex.src, ex.src, pnt)
+          pnt.cI += ex.end - pnt.sI
+          pnt.sI = ex.end
+          return { done: true, token: atkn }
+        }
+
+        if (CC_OB === lex.src.charCodeAt(pnt.sI)) {
+          const hres = IMPORT_HEAD_RE.exec(lex.refwd())
+          if (null != hres) {
+            const hsrc = hres[1]
+            lex.aontu_eq_at = pnt.sI + hres[0].length - 1
+            const htkn = lex.token('#TX', hsrc, hsrc, pnt, {
+              aontu_import: aliasSetItems(hsrc) as AliasBind[],
+            })
+            pnt.sI += hsrc.length
+            pnt.cI += hsrc.length
+            return { done: true, token: htkn }
+          }
+        }
+
+        return undefined
+      },
+    },
+  })
+
   jsonic.options({
     text: {
       check: (lex: any) => {
@@ -351,12 +411,35 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
           const atkn = lex.token(
             '#VL',
             (r: Rule, ctx: JsonicContext) =>
-              addsite(new RefVal({ peg: [asrc], absolute: true }), r, ctx),
+              addsite(new RefVal(
+                { peg: [aliasScopedKey(asrc, srcUrl(ctx))], absolute: true }),
+                r, ctx),
             asrc,
             pnt)
           pnt.sI += asrc.length
           pnt.cI += asrc.length
           return { done: true, token: atkn }
+        }
+
+        // `export(...)`: the word is the key, spelled unwritably.
+        if (CC_e === src.charCodeAt(pnt.sI)) {
+          const eres = EXPORT_RE.exec(lex.refwd())
+          if (null != eres) {
+            const open = eres[0].indexOf('(')
+            const arg = eres[0].indexOf(eres[1], open)
+            lex.aontu_export = {
+              cl: pnt.sI + open,
+              arg: pnt.sI + arg,
+              end: pnt.sI + eres[0].length,
+              src: eres[1],
+            }
+            const etkn = lex.token(
+              '#TX', exportHoldKey(), EXPORT_DECL_NAME, pnt,
+              { aontu_export: true, aontu_export_items: aliasSetItems(eres[1]) })
+            pnt.sI += EXPORT_DECL_NAME.length
+            pnt.cI += EXPORT_DECL_NAME.length
+            return { done: true, token: etkn }
+          }
         }
 
         if (CC_EQ === src.charCodeAt(pnt.sI) && lex.aontu_eq_at === pnt.sI) {
@@ -434,6 +517,28 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
     v.site.src = ts.src
     v.site.len = ts.len
     return v
+  }
+
+  // `export` publishes a name; it renames none, and `{%}` is theirs.
+  const publishedNames = (items?: AliasBind[]): string[] | undefined =>
+    undefined === items || 0 === items.length ? undefined :
+      items.every((i) => i.local === i.remote) ?
+        items.map((i) => i.local) : undefined
+
+  // A ROOT MAY BE WRAPPED: a file's names are its MAP'S, not open()'s.
+  const declaringMap = (val: any): any => {
+    let cur = val
+    while (true === cur?.isFunc && 1 === cur.peg?.length) {
+      cur = cur.peg[0]
+    }
+    return cur
+  }
+
+  // The file a value was written in, and so any alias name's scope. A
+  // DOCUMENT IS ITS OWN SCOPE too, so a fileless parse is tagged.
+  const srcUrl = (ctx: JsonicContext): string => {
+    const url = ctx.meta.multisource && ctx.meta.multisource.path
+    return url ? url : ((ctx.meta as any).aontu_scope ??= '#' + (++SCOPE_SEQ))
   }
 
   let addsite = (v: Val, r: Rule, ctx: JsonicContext) => {
@@ -1032,7 +1137,8 @@ help isolate the syntax error.`,
         const aname = r.u.aontu_alias_val
         if (null != aname && null != valnode) {
           const hoist = ((ctx as any).aontu_alias_hoist ||= [])
-          hoist.push({ name: '' + aname, val: valnode })
+          hoist.push(
+            { name: aliasScopedKey('' + aname, srcUrl(ctx)), val: valnode })
         }
 
         return undefined
@@ -1054,7 +1160,9 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
-        const aliasKeys = r.u.aontu_alias_keys ?? []
+        const aliasDecls = r.u.aontu_alias_keys ?? []
+        const aliasKeys: string[] = []
+        const exportKeys: string[] = []
 
         let mo = r.node
 
@@ -1088,14 +1196,111 @@ help isolate the syntax error.`,
           return undefined
         }
 
-        for (const { key, tkn, why, details } of
+        for (const { key, tkn, why, details, url } of
           (r.u.aontu_key_refusals ?? []) as any[]) {
           const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
           if (null != details) {
             en.details = details
           }
           en.path = [...(r.k?.path ?? []), key]
-          mo[key] = en
+          // A COLON DECLARATION IS REFUSED AND STILL NAMES SOMETHING, so
+          // the refusal is held under the key that name would have had
+          // and a use of it reports why; not an alias key, so it
+          // generates unused.
+          if ('alias_colon' === why) {
+            delete mo[key]
+            mo[aliasScopedKey(key, url)] = en
+          }
+          else {
+            mo[key] = en
+          }
+        }
+
+        // A NAME BELONGS TO THE FILE THAT DECLARED IT. Renamed here and
+        // not at the key, so an elided value is still reported by the
+        // name the source spells; rebuilt, as key order is resolution.
+        const renamed = new Map<string, string>()
+        for (const { name, key } of aliasDecls as any[]) {
+          renamed.set(name, key)
+          if (!aliasKeys.includes(key)) {
+            aliasKeys.push(key)
+          }
+        }
+        if (0 < renamed.size) {
+          const entries = Object.entries(mo)
+          for (const [k] of entries) {
+            delete mo[k]
+          }
+          for (const [k, v] of entries) {
+            const key = renamed.get(k)
+            if (undefined === key) {
+              mo[k] = v
+            }
+            else {
+              mo[key] = v
+              repathInstance(v, [...(r.k?.path ?? []), key])
+            }
+          }
+        }
+
+        // `export` PUBLISHES NAMES AND NOTHING ELSE; a bare name, a key
+        // and the wildcard are refused, and the argument is erased.
+        for (const { items, tkn } of (r.u.aontu_export_decls ?? []) as any[]) {
+          delete mo[tkn.val]
+          const names = publishedNames(items)
+          if (undefined === names) {
+            const en: any =
+              siteAt(addsite(new NilVal({ why: 'export_arg' }), r, ctx), tokenSite(tkn))
+            en.path = [...(r.k?.path ?? []), EXPORT_DECL_NAME]
+            mo[EXPORT_DECL_NAME] = en
+          }
+          else {
+            exportKeys.push(...names.map((n) => aliasScopedKey(n, srcUrl(ctx))))
+          }
+        }
+
+        // THE DESTRUCTURE IS ADDITIVE: the values land where the head
+        // stands, each name binds in THIS file's scope, and a file
+        // publishes only what IT declares. A DECLARATION IS THE
+        // DOCUMENT'S, so the names go to the root and the values may
+        // sit under a key.
+        for (const im of (r.u.aontu_import_decls ?? []) as any[]) {
+          const hoist = ((ctx as any).aontu_alias_hoist ||= [])
+          const iv: any = mo[im.key]
+          delete mo[im.key]
+          const dv: any = declaringMap(iv)
+          const ex: string[] = dv.exportKeys ?? []
+          const ak: string[] = dv.aliasKeys ?? []
+          for (const k of ak) {
+            hoist.push({ name: k, val: dv.peg[k] })
+            delete dv.peg[k]
+          }
+          if (0 < ak.length + ex.length) {
+            dv.aliasKeys = []
+            dv.exportKeys = []
+          }
+          repathInstance(iv, [...(r.k?.path ?? [])])
+          ; (mo.___merge = mo.___merge || []).push(iv)
+          const binds: AliasBind[] = 0 === im.names.length ?
+            ex.map((k: string) =>
+              ({ local: aliasBareName(k), remote: aliasBareName(k) })) : im.names
+          for (const { local, remote } of binds) {
+            const from = ex.find((k: string) => aliasBareName(k) === remote)
+            let bind: Val
+            if (undefined === from || !ak.includes(from)) {
+              bind = siteAt(addsite(
+                new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
+              ; (bind as any).details = { name: remote }
+                  const en: any = siteAt(addsite(
+                new NilVal({ why: 'import_not_exported' }), r, ctx), tokenSite(im.tkn))
+              en.details = { name: remote }
+              mo.___merge.push(en)
+            }
+            else {
+              bind = addsite(new RefVal({ peg: [from], absolute: true }), r, ctx)
+            }
+            hoist.push({ name: aliasScopedKey(local, im.url), val: bind })
+          }
         }
 
         // Marks carried over from a map include folded in the merge
@@ -1132,6 +1337,7 @@ help isolate the syntax error.`,
           let mopv = new MapVal({ peg: mop })
           mopv.optionalKeys = optionalKeys
           mopv.aliasKeys = aliasKeys
+          mopv.exportKeys = exportKeys
 
           r.node =
             addsite(new ConjunctVal({ peg: [mopv, ...mo.___merge] }), r, ctx)
@@ -1140,6 +1346,7 @@ help isolate the syntax error.`,
           r.node = addsite(new MapVal({ peg: mo }), r, ctx)
           r.node.optionalKeys = optionalKeys
           r.node.aliasKeys = aliasKeys
+          r.node.exportKeys = exportKeys
         }
 
         return undefined
@@ -1262,7 +1469,7 @@ help isolate the syntax error.`,
         }
       })
 
-      .bc((rule: Rule) => {
+      .bc((rule: Rule, ctx: JsonicContext) => {
         // TRAVERSE PARENTS TO GET PATH
 
         const ktkn: any = rule.o0
@@ -1270,11 +1477,29 @@ help isolate the syntax error.`,
         const kr = keyRefusalOf(ktkn, rule.o1)
         if (null != kr) {
           holder.u.aontu_key_refusals = (holder.u.aontu_key_refusals || [])
-          holder.u.aontu_key_refusals.push({ key: '' + ktkn.src, tkn: ktkn, ...kr })
+          holder.u.aontu_key_refusals.push(
+            { key: '' + ktkn.src, tkn: ktkn, url: srcUrl(ctx), ...kr })
         }
         else if (isAliasDecl(ktkn, rule.o1)) {
           holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
-          holder.u.aontu_alias_keys.push('' + ktkn.src)
+          holder.u.aontu_alias_keys.push({
+            name: '' + ktkn.src,
+            key: aliasScopedKey('' + ktkn.src, srcUrl(ctx)),
+          })
+        }
+        else if (true === ktkn?.use?.aontu_export) {
+          holder.u.aontu_export_decls = (holder.u.aontu_export_decls || [])
+          holder.u.aontu_export_decls.push(
+            { items: ktkn.use.aontu_export_items, tkn: ktkn })
+        }
+        else if (null != ktkn?.use?.aontu_import) {
+          holder.u.aontu_import_decls = (holder.u.aontu_import_decls || [])
+          holder.u.aontu_import_decls.push({
+            key: '' + ktkn.src,
+            names: ktkn.use.aontu_import,
+            url: srcUrl(ctx),
+            tkn: ktkn,
+          })
         }
 
         if (rule.u.spread) {
@@ -1393,7 +1618,8 @@ help isolate the syntax error.`,
           }
           // An element is a value position, so the prefix form applies.
           if (null == kr && isAliasDecl(ktkn, rule.o1)) {
-            ; ((ctx as any).aontu_alias_hoist ||= []).push({ name: key, val: v })
+            ; ((ctx as any).aontu_alias_hoist ||= [])
+              .push({ name: aliasScopedKey(key, srcUrl(ctx)), val: v })
             rule.node.push(v)
             return undefined
           }

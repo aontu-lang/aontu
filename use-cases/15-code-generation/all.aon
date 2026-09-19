@@ -5,11 +5,12 @@
 # as the component tree the engine on the far side writes. One run
 # builds the whole set.
 #
-# The generators are included at the root rather than as values, and
-# their aliases carry the target's name (`%go_record`, `%ts_record`),
-# because an alias declaration is a key of the document that includes
-# it: two files declaring `%record` would meet, and a document included
-# as a value cannot resolve its own aliases (use-cases/BUGS.md 85).
+# The generators are included at the root rather than as values,
+# because a document included as a value cannot resolve its own aliases
+# (use-cases/BUGS.md 85). Their aliases carry the target's name
+# (`%go_record`, `%ts_record`) for the reader's sake rather than the
+# engine's: a name belongs to the file that declares it, so two files
+# declaring `%record` would now hold two names.
 @"./gen-go.aon"
 @"./gen-ts.aon"
 @"./gen-sql.aon"

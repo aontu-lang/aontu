@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -18,16 +19,27 @@ type MapVal struct {
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
 
 	aliasKeys []string
+
+	// THE NAMES THIS FILE PUBLISHES, read at parse time by a destructure,
+	// so they do not travel through unify the way aliasKeys does.
+	exportKeys []string
 }
 
+// An `export` answers to the root rule a declaration does.
 func (m *MapVal) aliasDeclarationsAreRooted(ctx *Ctx) Val {
-	if 0 == len(m.aliasKeys) || 0 == len(m.path) {
+	named := ""
+	if 0 < len(m.aliasKeys) {
+		named = aliasBareName(m.aliasKeys[0])
+	} else if 0 < len(m.exportKeys) {
+		named = exportDeclName
+	}
+	if "" == named || 0 == len(m.path) {
 		return nil
 	}
 	nv := newNil("alias_not_toplevel")
 	nv.sp = m.sp
 	nv.path = append([]string{}, m.path...)
-	nv.path = append(nv.path, m.aliasKeys[0])
+	nv.path = append(nv.path, named)
 	return nv
 }
 
@@ -61,6 +73,11 @@ func (m *MapVal) set(k string, v Val) {
 		m.keys = append(m.keys, k)
 	}
 	m.peg[k] = v
+}
+
+func (m *MapVal) remove(k string) {
+	delete(m.peg, k)
+	m.keys = slices.DeleteFunc(m.keys, func(o string) bool { return o == k })
 }
 
 func mergeVals(a, b Val) Val {
@@ -572,7 +589,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for _, pk := range pm.keys {
 			pc := pm.peg[pk]
-			if _, allowed := m.peg[pk]; m.closed && !allowed {
+			// A DECLARATION IS NOT A FIELD: `close` never counts one.
+			if _, allowed := m.peg[pk]; m.closed && !allowed &&
+				!pm.isAliasKey(pk) {
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)

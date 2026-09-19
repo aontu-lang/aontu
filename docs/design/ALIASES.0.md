@@ -1,8 +1,8 @@
 # Aliases and export — design note
 
-**Status:** **P1 is implemented in both ports** — file-local aliases,
-with canon and hash erasure and the cycle refusals. `export` and the
-destructure (P2) are not. `%` is the alias sigil, carried through the
+**Status:** **P1 and P2 are implemented in both ports** — file-scoped
+aliases, with canon and hash erasure and the cycle refusals, and
+`export` with the destructure. `%` is the alias sigil, carried through the
 declaration, the use site, `export`, the destructuring form and the
 shorthand; there is no `import` verb.
 
@@ -41,8 +41,8 @@ the parse cannot see it: an included file's declarations are at the
 root of their own text, and only once the loaded map is placed does it
 become apparent that root is not the document's. So **a file using
 aliases stands alone.** Carrying a name across files is exactly what
-`export` is for, and P2 has to answer it rather than inheriting an
-answer by accident.
+`export` is for, and P2 answered it rather than letting it be inherited
+by accident.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
 sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
@@ -296,14 +296,14 @@ legible at a glance.
 
 ## 5. `export`
 
-> **Not implemented.** Sections 5, 6 and the file-scope half of section 7
-> describe a design the engine does not yet have: `export(...)` does not
-> parse, the destructure import does not parse, and an alias declared in
-> one file is currently visible to every other file of the same parse,
-> in both directions. `test/spec/alias.tsv` holds the rows that pin what
-> is real today. The rows for what follows are written and failing on
-> the branch that will implement it — the bar for closing this is those
-> rows going green in both ports, not this prose.
+> **Implemented 2026-09-18**, in both ports, by the route
+> [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out — including
+> renaming and §6's `svc: { %uint8 } = @"types.aon"`. One thing below is
+> NOT built and no row pins it: the set shorthand as a value anywhere
+> but in those two declaration heads, so `a: { %foo }` is still the
+> parse error §3 row 16 measured. One thing below is NARROWER than it
+> reads: `export` does not rename, since the publishing file names what
+> it has and the taking file renames what it takes.
 
 `export({ %uint8, %port })` declares which of a file's aliases are
 published. Three rules, all settled:
@@ -388,6 +388,17 @@ listen: 8080
 { "defaults": { "retries": 3 }, "listen": 8080 }
 ```
 
+**And it need not be at the root.** `svc: { %uint8 } = @"types.aon"`
+places the subtree under `svc` and binds `%uint8` in the taking file,
+because the two halves go to different places: the values where the head
+stands, the name at the document root where every alias key lives. For
+that to hold, `types.aon`'s OWN declarations are lifted to the root with
+its values — otherwise a file that uses the name it publishes could not
+be mounted at all, since its `%uint8` would resolve from the root and
+its declaration would sit under `svc`. A plain value include of such a
+file stays refused (§7): the destructure is where a file says it is
+taking names, and so where the engine knows to lift them.
+
 That is worth stating twice because the JavaScript intuition points the
 other way: there, destructuring is how you *narrow* what you take. Here
 it only *adds* a binding, and taking the values is what `@"…"` was
@@ -400,6 +411,13 @@ Both sides carry the sigil, because both are aliases:
 ```
 { %u8: %uint8 } = @"types.aon"     # bind the exported %uint8 as local %u8
 ```
+
+**Renaming is what makes two publishers survivable**, and it is the
+reason the form is not sugar: with file scope in place, two files that
+both publish `%row` collide in the taking file's one scope, and the
+left-hand name is the only place that can be settled. `export` does not
+take the form: publishing renames nothing, so `export({ %a: %b })` is
+`export_arg`.
 
 ### `{%}` — take all the exports
 
@@ -528,8 +546,6 @@ wildcard cannot quietly replace a local one, because arriving means
 meeting.
 
 ### Aliases work only where defined or imported
-
-> **Not implemented** — see the note at section 5.
 
 An alias is in scope in the file that declares it, and in a file that
 imports it by name. Nowhere else:

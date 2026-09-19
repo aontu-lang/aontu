@@ -332,7 +332,11 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 if (undefined !== ctx.reads && null != node) {
                     // The root's own address is `$`, as the coverage walk spells
                     // it: a dot with nothing after it would match no path there.
-                    const addr = '$' + refpath.map((seg) => '.' + seg).join('');
+                    // An alias is addressed by the NAME its source spells.
+                    const aname = this.aliasName;
+                    const addr = undefined === aname ?
+                        '$' + refpath.map((seg) => '.' + seg).join('') :
+                        '$.' + aname;
                     // AN ALIAS IS NOT A PATH. `%wire` names a value the document
                     // holds unevaluated and the tree never carries, so it is an
                     // address a rule can be reported AT and never a path coverage
@@ -471,15 +475,21 @@ class RefVal extends FeatureVal_1.FeatureVal {
         out.rxc = this.rxc;
         return out;
     }
-    // THE NAME OF THE ALIAS THIS REFERENCE NAMES, or undefined for a
-    // path reference. `%u` is spelled internally as the root reference
-    // `$.%u` (docs/design/ALIASES.0.md: the name is a path into the
-    // declaration), so an alias reference is an absolute reference of
-    // one segment that is an alias name.
-    get aliasName() {
+    // THE KEY THIS REFERENCE RESOLVES AGAINST, or undefined for a path
+    // reference. `%u` is spelled internally as the root reference `$.%u`
+    // (ALIASES.0.md), so an alias reference is an absolute reference of
+    // one segment that is a name -- carrying the url of the file the
+    // reference was WRITTEN in (ALIAS-FILE-SCOPE.0.md).
+    get aliasKey() {
         return this.absolute && 1 === this.peg.length &&
-            'string' === typeof this.peg[0] && aliasname_1.ALIAS_NAME_RE.test(this.peg[0]) ?
+            'string' === typeof this.peg[0] &&
+            aliasname_1.ALIAS_NAME_RE.test((0, aliasname_1.aliasBareName)(this.peg[0])) ?
             this.peg[0] : undefined;
+    }
+    // What the source spells: the key without its scope.
+    get aliasName() {
+        const key = this.aliasKey;
+        return undefined === key ? undefined : (0, aliasname_1.aliasBareName)(key);
     }
     // THE REFERENCE'S OWN SPELLING: the alias name, or the path. This is
     // the reference's identity (the snapshot key of a ref spread, the

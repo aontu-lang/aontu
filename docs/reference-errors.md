@@ -198,6 +198,7 @@ twenty rows have no such section and carry no link.
 | `emit_table` | 0.57.0 | The second argument to `emit()` is not a rule table. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `emit_template` | 0.57.0 | A template in an `emit()` table is not a rule naming both `match` and `body`. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `esc_variant` | 0.57.0 | `esc()`, `usc()`, or a template's `esc:` key was given a variant naming no convention. ([`esc(s, variant?)` and `usc(s, variant?)`](reference-language.md#escs-variant-and-uscs-variant)) |
+| `export_arg` | 0.69.0 | `export()` was given something other than a set of alias names. ([Publishing a name: `export`](reference-language.md#publishing-a-name-export)) |
 | `filter_data` | 0.53.0 | The first argument to `filter()` is not a bag. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |
 | `form_data` | 0.58.0 | The first argument to the list generator `form` is not a bag; `form` was renamed `each`, which answers `each_data`. |
 | `func_arity` | 0.53.0 | A call whose argument count is not the built-in's arity. ([Errors](reference-language.md#errors)) |
@@ -317,6 +318,7 @@ twenty rows have no such section and carry no link.
 
 | code | since | raised when |
 |---|---|---|
+| `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |

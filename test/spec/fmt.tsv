@@ -121,6 +121,12 @@ fmt-wide-empty-container	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 fmt-wide-key-inline-map	fmt	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: { a:1 }\n	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx: a: 1\n
 fmt-refs-verbatim	fmt	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n	x: $.pricing.book."sku-seal-ring".eur\ny: .n\nz: $name\nw: %N\nv: $.a.0\n
 fmt-alias-declaration	fmt	%N = string & min(1)\na: %N\n	%N = string & min(1)\na: %N\n
+fmt-alias-export	fmt	export({ %N })\n%N = string\n	export({ %N })\n%N = string\n
+fmt-alias-export-beside-a-like-named-field	fmt	%u = 7\n"___export": 42\nexport({ %u })\n	%u = 7\n___export: 42\nexport({ %u })\n
+fmt-alias-import	fmt	{ %N } = @"types.aon"\na: %N\n	{ %N } = @"types.aon"\na: %N\n
+fmt-alias-import-all	fmt	{%} = @"types.aon"\na: %N\n	{%} = @"types.aon"\na: %N\n
+fmt-alias-import-rename	fmt	{ %L: %N } = @"types.aon"\na: %L\n	{ %L: %N } = @"types.aon"\na: %L\n
+fmt-alias-import-under-key	fmt	svc: { %N } = @"types.aon"\na: %N\n	svc: { %N } = @"types.aon"\na: %N\n
 fmt-include-root	fmt	@"x.aon"\na: 1\n	@"x.aon"\na: 1\n
 fmt-include-value	fmt	a: @"y.aon" & {b:1}\nb: @'z.aon'\n	a: @"y.aon" & { b:1 }\nb: @"z.aon"\n
 fmt-include-in-braces	fmt	a: { @"x.aon" b: 1 }\n	a: { @"x.aon" b:1 }\n

@@ -1,0 +1,9 @@
+# Publishes a name its OWN body uses, so a document that places this
+# file under a key exercises the lift: the declaration goes to the
+# document root and the values stay where the head stands.
+%port = integer & min(1) & max(65535)
+
+export({ %port })
+
+listen: %port
+listen: 8080

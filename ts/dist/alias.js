@@ -23,8 +23,8 @@ function aliasErrors(ctx, root) {
         }
         seen.add(v);
         if (true === v.isRef) {
-            const name = v.aliasName;
-            if (undefined !== name && !declared.has(name)) {
+            const key = v.aliasKey;
+            if (undefined !== key && !declared.has(key)) {
                 ctx.adderr((0, err_1.makeNilErr)(ctx, 'no_path', v, undefined, 'resolve'));
             }
             return;
@@ -59,20 +59,20 @@ function expandAliases(root, snapmap) {
         }
         seen.add(v);
         if (true === v.isRef) {
-            const name = v.aliasName;
-            if (undefined === name) {
+            const key = v.aliasKey;
+            if (undefined === key) {
                 return;
             }
             v.expansion = undefined;
-            if (stack.includes(name)) {
+            if (stack.includes(key)) {
                 return;
             }
-            const target = snapmap.get((0, MapVal_1.spreadSnapKey)(v)) ?? root.peg[name];
+            const target = snapmap.get((0, MapVal_1.spreadSnapKey)(v)) ?? root.peg[key];
             if (null == target) {
                 return;
             }
             v.expansion = target;
-            visit(target, [...stack, name]);
+            visit(target, [...stack, key]);
             return;
         }
         if (true === v.isMap) {

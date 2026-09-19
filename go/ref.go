@@ -381,11 +381,14 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 
 	if nil != ctx.reads && nil != node {
-		// The root's own address is `$`, as the coverage walk spells it:
-		// a dot with nothing after it would match no path there.
+		// The root is `$`, and an alias its own NAME.
 		addr := "$"
-		for _, seg := range refpath {
-			addr += "." + seg
+		if aname, isAlias := rv.aliasName(); isAlias {
+			addr += "." + aname
+		} else {
+			for _, seg := range refpath {
+				addr += "." + seg
+			}
 		}
 		if 0 == len(refpath) || !strings.HasPrefix(refpath[0], "%") {
 			ctx.reads[addr] = true
@@ -613,11 +616,22 @@ func refSpelling(v Val) string {
 	return v.Canon()
 }
 
-func (rv *RefVal) aliasName() (string, bool) {
+// THE KEY THIS REFERENCE RESOLVES AGAINST: one segment that is a name,
+// carrying the url of the file it was written in.
+func (rv *RefVal) aliasKey() (string, bool) {
 	if rv.absolute && 1 == len(rv.peg) {
-		if s, ok := rv.peg[0].(string); ok && aliasRe.FindString(s) == s {
-			return s, true
+		if s, ok := rv.peg[0].(string); ok {
+			if n := aliasBareName(s); aliasRe.FindString(n) == n {
+				return s, true
+			}
 		}
+	}
+	return "", false
+}
+
+func (rv *RefVal) aliasName() (string, bool) {
+	if key, ok := rv.aliasKey(); ok {
+		return aliasBareName(key), true
 	}
 	return "", false
 }
@@ -627,7 +641,7 @@ func (rv *RefVal) aliasName() (string, bool) {
 // source position, so clones of the reference find the snapshot their
 // parse-origin captured. Twin of spreadSnapKey in ts/src/val/MapVal.ts.
 func refSnapKey(rv *RefVal) string {
-	return rv.spelling() + "~" + itoa(rv.sp)
+	return rv.spelling() + "~" + rv.srcurl() + "~" + itoa(rv.sp)
 }
 
 func (rv *RefVal) Canon() string {

@@ -8,6 +8,7 @@ declare abstract class BagVal extends FeatureVal {
     closed: boolean;
     optionalKeys: string[];
     aliasKeys: string[];
+    exportKeys: string[];
     spread: {
         cj: Val | undefined;
     };

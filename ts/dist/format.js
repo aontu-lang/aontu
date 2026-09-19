@@ -6,6 +6,7 @@ exports.unifiedDiff = unifiedDiff;
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const template_1 = require("./template");
+const aliasname_1 = require("./aliasname");
 const BUDGET = 80;
 const MAX_DEPTH = 1000;
 const stubResolver = ((spec) => ({
@@ -189,6 +190,13 @@ class Reader {
         if ('#E&' === n && '#CL' === this.name(1)) {
             this.i += 2;
             return { t: 'spread', value: this.value(), at };
+        }
+        // `export({ %a })` is ONE declaration lexed as a pair.
+        if ((0, aliasname_1.isExportHoldKey)(this.T[this.i].val) &&
+            aliasname_1.EXPORT_DECL_NAME === this.T[this.i].src && this.atKey()) {
+            const text = aliasname_1.EXPORT_DECL_NAME + '(' + this.T[this.i + 2].src + ')';
+            this.i += 3;
+            return { t: 'atom', text, at };
         }
         if (this.atKey()) {
             const tok = this.T[this.i];

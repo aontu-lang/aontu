@@ -1,0 +1,3 @@
+# A closed document, loaded at the root of one that declares an alias:
+# a declaration is not a field, so `close` does not count it.
+close({ a: integer })

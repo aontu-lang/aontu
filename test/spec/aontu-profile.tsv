@@ -15,7 +15,7 @@
 # canon-hash.
 #
 # Every expectation was obtained by running BOTH engines and diffing.
-profile-shape-hash	hash	@"aontu:profile"\nshape: %profile	aon1-26pxlNes1GOCepo2rnfmbD44wdKbSK4UTWE0Onu_lVs
+profile-shape-hash	hash	{ %profile } = @"aontu:profile"\nshape: %profile	aon1-26pxlNes1GOCepo2rnfmbD44wdKbSK4UTWE0Onu_lVs
 profile-vocabulary-alone-does-not-generate	errc	@"aontu:profile"\nx: 1	mapval_required
 profile-minimal	gens	@"aontu:profile"\naontu: Lang: { lang: "python", indent: {} }	{"aontu":{"Lang":{"indent":{"unit":" ","width":2},"lang":"python"}}}
 profile-full	gens	@"aontu:profile"\naontu: Lang: { lang: "ocaml", indent: { unit: " ", width: 2 }, comment: { block: { open: "(*", close: "*)" } }, template: { marker: "(*-", close: "*)", ext: ["ml", "mli"] } }	{"aontu":{"Lang":{"comment":{"block":{"close":"*)","open":"(*"}},"indent":{"unit":" ","width":2},"lang":"ocaml","template":{"close":"*)","ext":["ml","mli"],"marker":"(*-"}}}}
