@@ -144,7 +144,7 @@ alias-key-only	gens	%a: 1	{"a":1}
 alias-key-nested	gens	x: { %a: {n: 1} } y: %a	{"x":{"a":{"n":1}},"y":{"n":1}}
 alias-key-dive	gens	outer: %a: b: 1 y: %a	{"outer":{"a":{"b":1}},"y":{"b":1}}
 alias-key-list	gens	x: [%a: 1, b: 2] y: %a	{"x":[{"a":1},{"b":2}],"y":1}
-alias-key-root-list	gens	[%a: 1]	[{"a":1}]
+alias-key-root-list	errc	[%a: 1]	alias_not_toplevel
 alias-key-before	gens	b: %a %a: 1	{"a":1,"b":1}
 alias-key-hyphen	gens	%field-args: {n: 1} b: %field-args	{"b":{"n":1},"field-args":{"n":1}}
 alias-key-type	gens	main: kit: type: type({ %field-args: { n: string } }) x: %field-args & {n: foo}	{"main":{"kit":{}},"x":{"n":"foo"}}
@@ -444,3 +444,6 @@ alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value
 # change, not anything in this one.
 alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aon"\na: 2	alias_used_in_file.aon
 alias-key-before-include	gens	%parent: {n:2}\n@"__FIXTURES__/alias_key_private.aon"\nx:%parent	{"item":{"n":1},"parent":{"n":2},"x":{"n":2}}
+alias-key-root-list-use	errc	[%a: 1, %a]	alias_not_toplevel
+alias-key-root-list-longhand	errc	[a: %a = 1, %a]	alias_not_toplevel
+alias-key-elided-use	errc	x:[%a:] y:%a	no_path

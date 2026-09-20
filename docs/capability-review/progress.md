@@ -641,7 +641,7 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (161 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (164 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.

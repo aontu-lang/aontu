@@ -188,7 +188,7 @@ twenty rows have no such section and carry no link.
 | `abnf_grammar` | 0.63.0 | The grammar could not be compiled; `abnf()` takes RFC 5234 ABNF, with `=` and `/` rather than `::=`. ([Grammars: `abnf()` and `parse()`](reference-language.md#grammars-abnf-and-parse)) |
 | `alias_colon` | 0.58.0 | Reserved for the former rejection of alias keys; `%name: value` now creates a field and declares its alias. ([Aliases `%`](reference-language.md#aliases-)) |
 | `alias_in_path` | 0.53.0 | An alias name used as a segment of a path. ([Aliases `%`](reference-language.md#aliases-)) |
-| `alias_not_toplevel` | 0.53.0 | An alias declared somewhere other than the document root. ([Aliases `%`](reference-language.md#aliases-)) |
+| `alias_not_toplevel` | 0.53.0 | An alias declaration has no map root, or a key declaration sits below it. ([Aliases `%`](reference-language.md#aliases-)) |
 | `bare_punct` | 0.58.0 | A bare string holding a character outside letters, digits, `-`, and `_`. ([Errors](reference-language.md#errors)) |
 | `decimal_syntax` | 0.51.0 | A `0d` literal that is not a valid exact number. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `each_data` | 0.53.0 | The first argument to `each()` is not a bag, so it has no children to make elements from. ([Generating children: `pack` and `each`](reference-language.md#generating-children-pack-and-each)) |

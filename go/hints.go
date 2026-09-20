@@ -204,7 +204,7 @@ var hints = map[string]string{
 		"one and an include taken as a value may not.\n" +
 		"To name a shape where it is used, write the declaration as a VALUE\n" +
 		"prefix instead: `x: %a = 1` is accepted at any depth, leaves the\n" +
-		"value alone, and declares `%a` for the document.",
+		"value alone, and declares `%a` for the document. Aliases need a map-root document; wrap a root list in a field.",
 	"patch_assignment": "This is not a <path>=<value> assignment. The path is what stands\n" +
 		"before the first `=` and the value is what follows it, so an\n" +
 		"argument carrying only one of them cannot be applied.",

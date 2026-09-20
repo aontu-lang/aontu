@@ -10,7 +10,8 @@ import { spreadSnapKey } from './val/MapVal'
 import { ALIAS_NAME, aliasSetItems } from './aliasname'
 
 
-const ALIAS_DECL_RE = new RegExp('^(' + ALIAS_NAME + ')[ \\t]*=(?!=)')
+const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g')
+const NON_CODE_RE = /"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|`(?:\\[\s\S]|[^`\\])*(?:`|$)|\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g
 
 // Whether the head IS a set is aliasSetItems's answer, not the shape's.
 const ALIAS_TAKE_RE = /^(\{[^}]*\})[ \t]*=[ \t]*@[ \t]*"([^"]*)"/
@@ -30,6 +31,7 @@ type AliasBinding = {
 function aliasScope(src: string): AliasBinding[] {
   const out: AliasBinding[] = []
   const lines = src.split('\n')
+  const code = src.replace(NON_CODE_RE, text => text.replace(/[^\n]/g, ' ')).split('\n')
 
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li]
@@ -37,15 +39,13 @@ function aliasScope(src: string): AliasBinding[] {
     const rest = line.substring(lead)
     const decl = line.trim()
 
-    const dm = ALIAS_DECL_RE.exec(rest)
-    if (null != dm) {
-      out.push({ name: dm[1], row: li + 1, col: lead + 1, decl, from: '' })
-      continue
-    }
-
     const tm = ALIAS_TAKE_RE.exec(rest)
     const binds = null == tm ? undefined : aliasSetItems(tm[1])
     if (null == tm || undefined === binds) {
+      for (const dm of code[li].matchAll(ALIAS_DECL_RE)) {
+        const col = dm.index + dm[0].indexOf(dm[1]) + 1
+        out.push({ name: dm[1], row: li + 1, col, decl, from: '' })
+      }
       continue
     }
 

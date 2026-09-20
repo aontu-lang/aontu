@@ -456,7 +456,7 @@ const hints = {
         'one and an include taken as a value may not.\n' +
         'To name a shape where it is used, write the declaration as a VALUE\n' +
         'prefix instead: `x: %a = 1` is accepted at any depth, leaves the\n' +
-        'value alone, and declares `%a` for the document.',
+        'value alone, and declares `%a` for the document. Aliases need a map-root document; wrap a root list in a field.',
     'export_arg': '`export` takes a SET OF ALIAS NAMES and nothing else: write\n' +
         '`export({ %a, %b })`. A key already crosses a file boundary as a\n' +
         'value, so a bare word names nothing `export` could publish, and a\n' +

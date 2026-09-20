@@ -1130,6 +1130,9 @@ help isolate the syntax error.`,
             {
                 r.node = addsite(new ListVal_1.ListVal({ peg: ao }), r, ctx);
                 r.node.optionalKeys = optionalKeys;
+                if (1 === r.d && 0 < (ctx.aontu_alias_hoist ?? []).length) {
+                    r.node = addsite(new NilVal_1.NilVal({ why: 'alias_not_toplevel' }), r, ctx);
+                }
             }
             return undefined;
         });
@@ -1359,7 +1362,7 @@ help isolate the syntax error.`,
                     rule.node.push(v);
                     return undefined;
                 }
-                if (isAliasKey(ktkn, rule.o1)) {
+                if (isAliasKey(ktkn, rule.o1) && null != rule.child.node) {
                     ;
                     (ctx.aontu_alias_hoist ||= []).push({
                         name: (0, aliasname_1.aliasScopedKey)('' + ktkn.src, srcUrl(ctx)), val: v,

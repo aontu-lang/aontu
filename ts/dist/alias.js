@@ -9,7 +9,8 @@ const err_1 = require("./err");
 const keyorder_1 = require("./keyorder");
 const MapVal_1 = require("./val/MapVal");
 const aliasname_1 = require("./aliasname");
-const ALIAS_DECL_RE = new RegExp('^(' + aliasname_1.ALIAS_NAME + ')[ \\t]*=(?!=)');
+const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + aliasname_1.ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g');
+const NON_CODE_RE = /"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|`(?:\\[\s\S]|[^`\\])*(?:`|$)|\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
 // Whether the head IS a set is aliasSetItems's answer, not the shape's.
 const ALIAS_TAKE_RE = /^(\{[^}]*\})[ \t]*=[ \t]*@[ \t]*"([^"]*)"/;
 // THE NAMES A FILE BINDS, from its TEXT rather than its tree: an editor
@@ -17,19 +18,19 @@ const ALIAS_TAKE_RE = /^(\{[^}]*\})[ \t]*=[ \t]*@[ \t]*"([^"]*)"/;
 function aliasScope(src) {
     const out = [];
     const lines = src.split('\n');
+    const code = src.replace(NON_CODE_RE, text => text.replace(/[^\n]/g, ' ')).split('\n');
     for (let li = 0; li < lines.length; li++) {
         const line = lines[li];
         const lead = line.length - line.replace(/^[ \t]+/, '').length;
         const rest = line.substring(lead);
         const decl = line.trim();
-        const dm = ALIAS_DECL_RE.exec(rest);
-        if (null != dm) {
-            out.push({ name: dm[1], row: li + 1, col: lead + 1, decl, from: '' });
-            continue;
-        }
         const tm = ALIAS_TAKE_RE.exec(rest);
         const binds = null == tm ? undefined : (0, aliasname_1.aliasSetItems)(tm[1]);
         if (null == tm || undefined === binds) {
+            for (const dm of code[li].matchAll(ALIAS_DECL_RE)) {
+                const col = dm.index + dm[0].indexOf(dm[1]) + 1;
+                out.push({ name: dm[1], row: li + 1, col, decl, from: '' });
+            }
             continue;
         }
         // The column is each item's own, so a set jumps to the name asked

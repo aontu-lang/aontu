@@ -1528,7 +1528,9 @@ the whole of what an alias is: a name for a value, and nothing else.
 **An alias key declares a value and creates a field.** `%name: value` is
 shorthand for `name: %name = value`. The field keeps the value at its
 written position, and the alias belongs to the file. This form works
-at the root, inside nested maps, and in list elements. Quoting the key,
+at the root, inside nested maps, and in list elements. Alias declarations
+require a map-root document; a root list with declarations is refused
+with `alias_not_toplevel`. Wrap that list in a field. Quoting the key,
 `"%name": value`, creates an ordinary key with the sigil in its name.
 
 ```aon

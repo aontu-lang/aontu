@@ -515,7 +515,7 @@ func elemSpread(r *jsonic.Rule, ctx *jsonic.Context) {
 					addAliasHoist(ctx, aliasScopedKey(key, srcURL(ctx)), m[key])
 					return
 				}
-				if isAliasKey(r.O0, r.O1) {
+				if isAliasKey(r.O0, r.O1) && !isElidedNode(m[key]) {
 					addAliasHoist(ctx, aliasScopedKey(r.O0.Src, srcURL(ctx)), m[key])
 				}
 				m[orderKey] = []string{key}
@@ -729,7 +729,7 @@ func closeMap(r *jsonic.Rule, ctx *jsonic.Context) {
 // open token's position — the direct mirror of the TS list rule bc
 // (new ListVal + addsite). Rule-nesting order means inner lists are
 // already Vals here; only this list's own markers need handling.
-func wrapList(r *jsonic.Rule, _ *jsonic.Context) {
+func wrapList(r *jsonic.Rule, ctx *jsonic.Context) {
 	n, ok := r.Node.([]any)
 	if !ok {
 		return
@@ -746,6 +746,13 @@ func wrapList(r *jsonic.Rule, _ *jsonic.Context) {
 	lv.site.sp = sp
 	stampSrc(lv, r)
 	r.Node = lv
+	if r.D == 1 {
+		if sink, ok := ctx.Meta[aliasHoistMetaKey].(*aliasHoistSink); ok && slices.ContainsFunc(sink.entries, func(e aliasHoist) bool { return e.owner == srcURL(ctx) }) {
+			en := newNil("alias_not_toplevel")
+			en.site = lv.site
+			r.Node = en
+		}
+	}
 }
 
 func kindDef(k Kind) *jsonic.ValueDef {

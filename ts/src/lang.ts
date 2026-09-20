@@ -1448,6 +1448,9 @@ help isolate the syntax error.`,
         {
           r.node = addsite(new ListVal({ peg: ao }), r, ctx)
           r.node.optionalKeys = optionalKeys
+          if (1 === r.d && 0 < ((ctx as any).aontu_alias_hoist ?? []).length) {
+            r.node = addsite(new NilVal({ why: 'alias_not_toplevel' }), r, ctx)
+          }
         }
 
         return undefined
@@ -1717,7 +1720,7 @@ help isolate the syntax error.`,
             return undefined
           }
 
-          if (isAliasKey(ktkn, rule.o1)) {
+          if (isAliasKey(ktkn, rule.o1) && null != rule.child.node) {
             ; ((ctx as any).aontu_alias_hoist ||= []).push({
               name: aliasScopedKey('' + ktkn.src, srcUrl(ctx)), val: v,
             })

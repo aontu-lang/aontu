@@ -8,6 +8,11 @@ const MapVal_1 = require("../dist/val/MapVal");
 const aontu_1 = require("../dist/aontu");
 const srcpath_1 = require("./srcpath");
 (0, node_test_1.describe)('aontu', function () {
+    (0, node_test_1.test)('elided-alias-key-has-no-hidden-declaration', () => {
+        const root = new aontu_1.Aontu().parse('x: [%a:]');
+        (0, expect_1.expect)(root.aliasKeys).equal([]);
+        (0, expect_1.expect)(root.peg.x.peg[0].peg.a.why).equal('elided_value');
+    });
     (0, node_test_1.test)('basic-api', async () => {
         let a0 = new aontu_1.Aontu();
         let p0 = a0.parse('a:number');
