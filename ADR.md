@@ -4272,10 +4272,23 @@ older than what is already published.
 in a `vet` report between the two ports, aside from the host's own
 "cannot read" wording, is gone.
 
-**A one-sided release leaves the numbers unequal** until the next one
-squares them. Releasing only the half that changed stays possible, and
-the guard only refuses a *stated* pair that disagrees; it cannot refuse
-an omission.
+**A release bumps both files or none.** Releasing only the half that
+changed is no longer a shape: a TypeScript-only change still moves both
+to the same number, and the Go tag it writes carries no Go change, which
+costs nothing and keeps the series together.
+
+**The invariant is a test, not only a `make` guard.** Comparing the two
+arguments catches a stated pair that disagrees and nothing else, so
+`make publish V=0.71.0` would have bumped one file and left the other:
+the same split, by omission. `make publish` now requires both and equal,
+but the enforcement that matters is
+`TestVersionMatchesTheNpmPackage` in `go/aontu_test.go` and
+`version > matches the Go module` in `ts/test/version.test.ts`, each
+reading the *other* port's literal. The publish workflow builds and
+tests both ports before it publishes anything, so a commit whose two
+files disagree cannot reach a tag however the release is driven, which a
+`make` guard alone could not promise: the workflow may be dispatched
+directly, and is.
 
 ### Alternatives rejected
 

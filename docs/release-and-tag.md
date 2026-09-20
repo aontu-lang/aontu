@@ -28,9 +28,7 @@ enough that the rationale stays beside the commands.
 ## The normal path
 
 ```
-make publish V=0.71.0 GOV=0.71.0   # release both, the normal case
-make publish V=0.71.0              # npm only
-make publish GOV=0.71.0            # Go module only
+make publish V=0.71.0 GOV=0.71.0   # the only shape there is
 ```
 
 Bumps whichever versions you give (`V` for `ts/package.json`, `GOV` for
@@ -38,8 +36,10 @@ Bumps whichever versions you give (`V` for `ts/package.json`, `GOV` for
 `main`, and dispatches the publish workflow with matching inputs, which
 publishes to npm and writes `v<V>` and `go/v<GOV>`.
 
-**Two inputs, one number**: the series are shared, so `V` and `GOV` take
-the same value and the target refuses a pair that differs. See
+**Two inputs, one number**: the series are shared, so `V` and `GOV` are
+both required and must be equal. Comparing only a stated pair would leave
+`make publish V=0.71.0` bumping one file and not the other, which is the
+same split by omission. See
 [One version series, shared](#one-version-series-shared).
 
 Every guard runs **before** anything is written, because half of this is
@@ -76,9 +76,11 @@ tag `v0.54.0` on a package that says `0.53.0`. Reading from the files makes
 that impossible by construction, and keeps the bump a diff someone approved
 while the release stays a button.
 
-Release only the half that changed. A TypeScript-only change wants
-`go=false`; leaving it ticked with an unchanged `VERSION` is harmless: the
-workflow refuses rather than moving an existing tag.
+Dispatch both halves. A TypeScript-only change still bumps both files to
+the same number, and the Go tag it writes is a version with no Go change
+in it, which costs nothing and keeps the series together. Leaving `go`
+ticked with an unchanged `VERSION` is harmless either way: the workflow
+refuses rather than moving an existing tag.
 
 ### Releasing without `gh`
 

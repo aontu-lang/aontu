@@ -193,11 +193,14 @@ publish:
 	  case "$(GOV)" in *+*) echo "publish: GOV=$(GOV) carries +build metadata"; exit 1 ;; esac; \
 	  $(MAKE) --no-print-directory check-go-major V=$(GOV); \
 	fi
-	@# ONE SERIES SINCE 0.70.0 (docs/release-and-tag.md, "One version series,
-	@# shared"). The number still lives in TWO files, so nothing else stops a
-	@# pair that disagrees reaching two tags -- and a tag cannot be taken back.
-	@if [ -n "$(V)" ] && [ -n "$(GOV)" ] && [ "$(V)" != "$(GOV)" ]; then \
-	  echo "publish: V=$(V) and GOV=$(GOV) differ, and the npm and Go series are shared since 0.70.0"; \
+	@# ONE NUMBER NAMES A RELEASE (ADR-041). Both must be given and equal:
+	@# comparing only a STATED pair leaves `make publish V=x` bumping one file
+	@# and not the other, which is the same split by omission. The invariant
+	@# is also a test in both ports, which is what holds the publish workflow
+	@# to it -- this guard is here to refuse BEFORE anything is written.
+	@if [ "$(V)" != "$(GOV)" ]; then \
+	  echo "publish: V='$(V)' and GOV='$(GOV)' must be given and equal:"; \
+	  echo "         one number names a release (ADR-041, since 0.70.0)."; \
 	  exit 1; fi
 	@command -v gh >/dev/null 2>&1 || \
 	  (echo "publish: needs the gh CLI to dispatch the workflow" && exit 1)

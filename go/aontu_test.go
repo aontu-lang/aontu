@@ -3,6 +3,9 @@
 package aontu
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 )
@@ -90,6 +93,25 @@ func TestReservedKeyPrefixRejected(t *testing.T) {
 func TestVersionFormat(t *testing.T) {
 	if !regexp.MustCompile(`^\d+\.\d+\.\d+$`).MatchString(VERSION) {
 		t.Fatalf("VERSION is not a plain semver triple: %q", VERSION)
+	}
+}
+
+// ADR-041: one number names a release, so this reads the other port's
+// literal.
+func TestVersionMatchesTheNpmPackage(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "ts", "package.json"))
+	if err != nil {
+		t.Fatalf("cannot read ts/package.json: %v", err)
+	}
+	var pkg struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		t.Fatalf("cannot parse ts/package.json: %v", err)
+	}
+	if pkg.Version != VERSION {
+		t.Fatalf("version series split: go/aontu.go says %q, ts/package.json says %q",
+			VERSION, pkg.Version)
 	}
 }
 
