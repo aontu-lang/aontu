@@ -1633,9 +1633,10 @@ its properties come from rather than from rules of its own:
   `%n = 2` is a conflict.
 - **A use of an undeclared name is refused**, naming the name.
 
-**Expansion is bounded by size.** A name that names names expands to the
-product of what they hold, so a file that fits on a screen can describe
-a document that does not fit in memory: twenty declarations of the shape
+**Expansion is bounded by size.** A name built from other aliases
+expands to the product of what they hold, so a file that fits on a
+screen can describe a document that does not fit in memory: twenty
+declarations of the shape
 `%a20 = [%a19, %a19]` reach a million nodes. The expanded size is
 counted before evaluation and refused over `trust.budget.alias` with the
 code `alias_budget`. Expansion always terminates, whatever the budget,
