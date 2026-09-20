@@ -74,6 +74,23 @@ const EX = {
     '}',
     '',
   ].join('\n'),
+  alias: [
+    '# An alias names a value. It is not part of the document:',
+    '# it does not generate, and it has no path to reach it by.',
+    '%port = integer & min(1024) & max(65535)',
+    '%host = string & re("^[a-z][a-z0-9.-]*$")',
+    '',
+    'api: { host: %host, port: %port }',
+    'api: { host: "api.example.com", port: 8443 }',
+    '',
+    '# `{ %host %port }` is shorthand for `{ host: %host, port: %port }`.',
+    'admin: { %host %port }',
+    'admin: { host: "admin.example.com", port: 9443 }',
+    '',
+    '# Canon erases the names, so this document and the one with',
+    '# both constraints written out share an aon1- hash.',
+    '',
+  ].join('\n'),
   constraints: [
     '# Constraints are values too: unify them in.',
     '# Try breaking one (port: 80) and Evaluate again.',
@@ -211,6 +228,29 @@ console.log('== constraints: Evaluate ==')
 const conJson = evaluate(EX.constraints)
 console.log(conJson)
 check('constraints evaluate', JSON.parse(conJson).server.timeout, 30)
+console.log('')
+
+// -- alias
+console.log('== alias: Evaluate ==')
+const aliasJson = evaluate(EX.alias)
+console.log(aliasJson)
+const aliasOut = JSON.parse(aliasJson)
+check('alias constrains both services', aliasOut.api.port, 8443)
+check('shorthand binds each name', aliasOut.admin.host, 'admin.example.com')
+// The example claims the names are erased, so prove it rather than say it:
+// no alias key survives, and the longhand twin is the same digest.
+check('no alias key in the output',
+  Object.keys(aliasOut).filter((k) => k.startsWith('%')).length, 0)
+const aliasLonghand = [
+  'api: { host: string & re("^[a-z][a-z0-9.-]*$"),',
+  '       port: integer & min(1024) & max(65535) }',
+  'api: { host: "api.example.com", port: 8443 }',
+  'admin: { host: string & re("^[a-z][a-z0-9.-]*$"),',
+  '         port: integer & min(1024) & max(65535) }',
+  'admin: { host: "admin.example.com", port: 9443 }',
+].join('\n')
+check('alias and longhand share a hash',
+  canon(EX.alias).hash, canon(aliasLonghand).hash)
 console.log('')
 
 // -- pack
