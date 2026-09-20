@@ -198,7 +198,7 @@ class Reader {
             this.i += 3;
             return { t: 'atom', text, at };
         }
-        if (this.atKey() && aliasname_1.ALIAS_RE.test('' + this.T[this.i].src) &&
+        if (this.atKey() && '#TX' === this.name(0) && aliasname_1.ALIAS_RE.test('' + this.T[this.i].src) &&
             this.T[this.i].src === this.T[this.i + 2]?.src) {
             const text = '' + this.T[this.i].src;
             this.i += 3;

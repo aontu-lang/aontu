@@ -404,6 +404,13 @@ help isolate the syntax error.`,
 	// otherwise record key order.
 	j.Rule("pair", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
 		rs.PrependOpen(
+			&jsonic.AltSpec{
+				S: [][]jsonic.Tin{{jsonic.TinVL}, {cl}}, P: "val",
+				C: func(r *jsonic.Rule, _ *jsonic.Context) bool { return isAliasKey(r.O0, r.O1) },
+				U: map[string]any{"pair": true},
+				A: func(r *jsonic.Rule, _ *jsonic.Context) { r.U["key"] = r.O0.Src[1:] },
+				G: "alias-key",
+			},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, P: "val", U: map[string]any{"spread": true}, G: "spread"},
 			// `key ? : value` — optional key.
 			&jsonic.AltSpec{S: [][]jsonic.Tin{optkey, {qm}, {cl}}, P: "val", U: map[string]any{"optional": true}, G: "optional"},
@@ -426,6 +433,13 @@ help isolate the syntax error.`,
 	// normal element, so replace it with a marker that asVal extracts.
 	j.Rule("elem", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
 		rs.PrependOpen(
+			&jsonic.AltSpec{
+				S: [][]jsonic.Tin{{jsonic.TinVL}, {cl}}, P: "val",
+				C: func(r *jsonic.Rule, _ *jsonic.Context) bool { return isAliasKey(r.O0, r.O1) },
+				U: map[string]any{"pair": true, "done": true, "list": true},
+				A: func(r *jsonic.Rule, _ *jsonic.Context) { r.U["key"] = r.O0.Src[1:] },
+				G: "alias-key-elem",
+			},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, P: "val", U: map[string]any{"spread": true}, G: "spread"},
 
 			&jsonic.AltSpec{
@@ -501,6 +515,9 @@ func elemSpread(r *jsonic.Rule, ctx *jsonic.Context) {
 					addAliasHoist(ctx, aliasScopedKey(key, srcURL(ctx)), m[key])
 					return
 				}
+				if isAliasKey(r.O0, r.O1) {
+					addAliasHoist(ctx, aliasScopedKey(r.O0.Src, srcURL(ctx)), m[key])
+				}
 				m[orderKey] = []string{key}
 				if r.ON > 0 {
 					m[posKey] = r.O0.SI
@@ -551,17 +568,6 @@ func scopeAliasKeys(m map[string]any) {
 		m[aliasKeysKey] = ak
 	}
 
-	// A COLON DECLARATION IS REFUSED AND STILL NAMES SOMETHING, so the
-	// refusal is held under the key that name would have had and a use
-	// of it reports why; not an alias key, so it generates.
-	krs, _ := m[keyRefusalsKey].([]keyRefusal)
-	for i, kr := range krs {
-		if "alias_colon" == kr.why {
-			scoped := aliasScopedKey(kr.key, kr.url)
-			renameNodeKey(m, kr.key, scoped)
-			krs[i].key = scoped
-		}
-	}
 }
 
 func deleteNodeKey(m map[string]any, key string) {
@@ -705,6 +711,9 @@ func closeMap(r *jsonic.Rule, ctx *jsonic.Context) {
 		scopeAliasKeys(m)
 		recordExports(m)
 		bindImports(m, ctx)
+		if r.D == 1 {
+			placeFileAliasHoists(m, ctx)
+		}
 	}
 	if !ok || 0 == r.ON {
 		return
@@ -1254,6 +1263,8 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		kr.url = srcURL(ctx)
 		krs, _ := m[keyRefusalsKey].([]keyRefusal)
 		m[keyRefusalsKey] = append(krs, kr)
+	} else if isAliasKey(r.O0, r.O1) && !isElidedNode(r.Child.Node) {
+		addAliasHoist(ctx, aliasScopedKey(r.O0.Src, srcURL(ctx)), r.Child.Node)
 	} else if isAliasDecl(r.O0, r.O1, key) {
 		decls, _ := m[aliasDeclsKey].([]aliasDecl)
 		m[aliasDeclsKey] = append(decls,
@@ -1326,7 +1337,11 @@ func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
 		sep != nil && sep.Use != nil && true == sep.Use["aontu_eq"]
 }
 
-func keyRefusalOf(ktkn, sep *jsonic.Token, key string) (keyRefusal, bool) {
+func isAliasKey(ktkn, sep *jsonic.Token) bool {
+	return ktkn != nil && ktkn.Tin == jsonic.TinVL && aliasRe.MatchString(ktkn.Src) && sep != nil && sep.Src == ":"
+}
+
+func keyRefusalOf(ktkn, _ *jsonic.Token, key string) (keyRefusal, bool) {
 	// The namespace says more about a key than the bare-string rule.
 	if ktkn != nil && strings.HasPrefix(key, reservedKeyPrefix) &&
 		ktkn.Use["aontu_export"] != true {
@@ -1335,12 +1350,6 @@ func keyRefusalOf(ktkn, sep *jsonic.Token, key string) (keyRefusal, bool) {
 	}
 	if ktkn == nil || ktkn.Tin == jsonic.TinST {
 		return keyRefusal{}, false
-	}
-	if aliasRe.MatchString(key) {
-		if isAliasDecl(ktkn, sep, key) {
-			return keyRefusal{}, false
-		}
-		return keyRefusal{key: key, why: "alias_colon", sp: ktkn.SI, src: ktkn.Src}, true
 	}
 	if ch, bad := ktkn.Use["aontu_bad"].(string); bad {
 		return keyRefusal{
@@ -2352,16 +2361,37 @@ func toValidSource(src string) string {
 const aliasHoistMetaKey = reservedKeyPrefix + "aliashoist"
 
 type aliasHoist struct {
-	name string
-	node any
+	name  string
+	node  any
+	owner string
 }
 
 type aliasHoistSink struct{ entries []aliasHoist }
 
 func addAliasHoist(ctx *jsonic.Context, name string, node any) {
 	if sink, ok := ctx.Meta[aliasHoistMetaKey].(*aliasHoistSink); ok {
-		sink.entries = append(sink.entries, aliasHoist{name: name, node: node})
+		sink.entries = append(sink.entries, aliasHoist{name: name, node: node, owner: srcURL(ctx)})
 	}
+}
+
+// Included files expose their hoisted declarations before an importer binds them.
+func placeFileAliasHoists(m map[string]any, ctx *jsonic.Context) {
+	sink, ok := ctx.Meta[aliasHoistMetaKey].(*aliasHoistSink)
+	if !ok {
+		return
+	}
+	owner := srcURL(ctx)
+	local := &aliasHoistSink{}
+	remaining := []aliasHoist{}
+	for _, e := range sink.entries {
+		if e.owner == owner {
+			local.entries = append(local.entries, e)
+		} else {
+			remaining = append(remaining, e)
+		}
+	}
+	sink.entries = remaining
+	placeAliasHoists(m, local)
 }
 
 func recordAliasHoist(r *jsonic.Rule, ctx *jsonic.Context) {

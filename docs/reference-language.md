@@ -1525,12 +1525,20 @@ it is not a key `close()` counts, and it does not appear in canon, so the file a
 document and produce the same [`aon1-` hash](#canonical-form). That is
 the whole of what an alias is: a name for a value, and nothing else.
 
-**A colon does not declare.** `%name: value` was the declaration form
-until 0.57.0. It is now refused, with the code `alias_colon`, rather
-than read as an ordinary key named `%name`, which is what the text would
-otherwise become, and which would generate a `"%name"` field and leave
-every `%name` use resolving to nothing, neither of them saying why. The
-refusal points at the name; write `=`.
+**An alias key declares a value and creates a field.** `%name: value` is
+shorthand for `name: %name = value`. The field keeps the value at its
+written position, and the alias belongs to the file. This form works
+at the root, inside nested maps, and in list elements. Quoting the key,
+`"%name": value`, creates an ordinary key with the sigil in its name.
+
+```aon
+schema: type({ %row:name:string })
+item: %row & { name:example }
+```
+
+```json
+{ "item": { "name": "example" } }
+```
 
 **Inside a spread template.** `{&: {a: %D}}` does not resolve the
 reference when it is written (a template applies to children that have

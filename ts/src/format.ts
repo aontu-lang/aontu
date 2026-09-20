@@ -103,9 +103,7 @@ type Node = {
 
   key?: string
   opt?: boolean
-  // pair: written with `=`, the alias declaration operator, rather than
-  // a colon. The spelling is the parse's -- a colon after an alias name
-  // is a refused document, and the formatter keeps it one.
+  // Preserve the separator: '=' declares; ':' also creates a field.
   alias?: boolean
   value?: Node
 
@@ -311,7 +309,7 @@ class Reader {
       this.i += 3
       return { t: 'atom', text, at }
     }
-    if (this.atKey() && ALIAS_RE.test('' + this.T[this.i].src) &&
+    if (this.atKey() && '#TX' === this.name(0) && ALIAS_RE.test('' + this.T[this.i].src) &&
       this.T[this.i].src === this.T[this.i + 2]?.src) {
       const text = '' + this.T[this.i].src
       this.i += 3

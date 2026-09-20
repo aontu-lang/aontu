@@ -1,0 +1,2 @@
+schema: type({%row: {n: string}})
+export({%row})

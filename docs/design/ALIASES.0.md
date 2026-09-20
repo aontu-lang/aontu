@@ -17,7 +17,8 @@ operator only there (§10's break is exactly as narrow as it measured,
 and narrower still since the bare-text rule settled the same day:
 `foo = 1` and `a: x=y` are refused as punctuation outside its syntax,
 `bare_punct`, rather than read as a list and a string), and the colon
-form is **refused** with `alias_colon` rather than read as a key. The
+form now creates a field and declares its alias: `%name: value` is
+`name: %name = value`. The former `alias_colon` code stays reserved. The
 examples below are written in the settled form; §3, §10 and the X-1
 row keep the colon where they record what was measured and argued.
 
@@ -63,7 +64,8 @@ Three parts, as given:
    whether the `=` was needed at all once `%` was reserved —
    `%foo: 1` already parsed as an ordinary key — and P1 landed that
    colon form; on 2026-09-05 the question was settled the other way,
-   for `=`, and the colon form is refused. Nothing else in the design
+   for `=`. The colon form now names a value while keeping it under the
+   same key without its sigil. Nothing else in the design
    depends on which way X-1 went.*
 2. **`export({ %uint8, %port })`** declares which aliases a file
    publishes.

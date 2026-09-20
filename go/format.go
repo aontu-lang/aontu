@@ -121,9 +121,7 @@ type fmtNode struct {
 
 	key string
 	opt bool
-	// pair: written with `=`, the alias declaration operator, rather
-	// than a colon. The spelling is the parse's -- a colon after an
-	// alias name is a refused document, and the formatter keeps it one.
+	// Preserve the separator: '=' declares; ':' also creates a field.
 	alias bool
 	value *fmtNode
 
@@ -337,7 +335,7 @@ func (r *fmtReader) entry() *fmtNode {
 		return &fmtNode{t: "atom", text: text, at: at}
 	}
 	// THE SHORTHAND is read back as the name the source wrote.
-	if r.atKey() && aliasRe.MatchString(r.T[r.i].src) &&
+	if r.atKey() && "#TX" == r.name(0) && aliasRe.MatchString(r.T[r.i].src) &&
 		r.i+2 < len(r.T) && r.T[r.i].src == r.T[r.i+2].src {
 		text := r.T[r.i].src
 		r.i += 3
