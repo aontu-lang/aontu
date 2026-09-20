@@ -1568,6 +1568,30 @@ written, which is what makes the two include shapes differ:
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
+**A declaration may also prefix a value**, and written that way it is
+accepted wherever it sits. `%name = ` in front of any value, to the
+right of a colon or as a list element, declares the name for the
+document and leaves the value alone:
+
+```aon
+x: %a = 1
+y: %a
+```
+
+```json
+{ "x": 1, "y": 1 }
+```
+
+This is the form the key rule cannot have, and the reason both exist. A
+key declaration nested under `x` names nothing reachable, so it is
+refused; a value prefix names the thing it is written on, and the name
+it binds is the document's, so it resolves from anywhere. A shape can
+therefore be named where it is used instead of being lifted to the root
+to satisfy the position rule. The value stays where it was written and
+at its own path, so `x` above is still `1`. Two declarations of one name
+unify whichever form each was written in and wherever each sat.
+
+
 **A name belongs to the file that declares it.** An include carries a
 file's *values* across the boundary and never its names, in either
 direction: an included file cannot see a name the including file
@@ -1608,6 +1632,18 @@ its properties come from rather than from rules of its own:
   one key do: `%n = 1` with `%n = integer` is `1`, and `%n = 1` with
   `%n = 2` is a conflict.
 - **A use of an undeclared name is refused**, naming the name.
+
+**Expansion is bounded by size.** A name built from other aliases
+expands to the product of what they hold, so a file that fits on a
+screen can describe a document that does not fit in memory: twenty
+declarations of the shape
+`%a20 = [%a19, %a19]` reach a million nodes. The expanded size is
+counted before evaluation and refused over `trust.budget.alias` with the
+code `alias_budget`. Expansion always terminates, whatever the budget,
+because an alias takes no parameters, a cycle is refused, and a file
+declares finitely many names: the bound is about size alone, so raising
+it is the repair where the document is meant and the machine can hold
+the result.
 
 Aliases are not passed to generated children: a spread template sees the
 *expansion*, so children are constrained by the value and acquire no
