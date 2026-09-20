@@ -641,7 +641,7 @@ syntactic twin of this check at the parse as well; it decided the
 nested case one column off from TS and left the value-level rule
 unexercised, and removing it made the two ports agree byte for byte.
 
-Pinned by `test/spec/alias.tsv` (122 rows, every expectation probed
+Pinned by `test/spec/alias.tsv` (164 rows, every expectation probed
 through both engines), including the hash pair that states the erasure
 as an equality rather than an absence. Documented in
 `docs/reference-language.md` "Aliases", executed by `docs.test.ts`.
@@ -651,7 +651,12 @@ completes. **X-1 reversed 2026-09-05:** the
 declaration operator is `=`, the proposal's own spelling — `%foo = 1`
 declares, `=` is lexed as the separator only immediately after an
 alias name (so `foo = 1` and `a: x=y` were unchanged at the time), and
-the colon form is refused as `alias_colon` rather than read as a key.
+the colon form was refused as `alias_colon` rather than read as a key.
+**Alias keys now create fields:** `%name: value` expands to
+`name: %name = value` in both ports, including nested maps, list
+pairs, and exported definitions. The parser and formatter coverage is
+in `test/spec/alias.tsv` and `test/spec/fmt.tsv`. The error code stays
+reserved.
 Both ports, the formatter, the spec, the docs and the three use cases
 moved with it; the register's examples above are in the settled form.
 **Both of those examples are refused now**, not by the alias rule but

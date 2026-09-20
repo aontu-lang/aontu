@@ -159,6 +159,16 @@ describe('lsp-hover', () => {
 
 // Twin: go/lsp/lsp_test.go TestAliasHoverAndDefinition.
 describe('lsp-alias', () => {
+  test('alias-key-declarations-at-every-depth', () => {
+    const src = '%port: integer\ntypes: type({%row: {n:string}})\na: %row\nb: %port'
+    Assert.deepEqual(computeCompletions(src).filter(c => c.label.startsWith('%')).map(c => c.label),
+      ['%port', '%row'])
+    Assert.deepEqual(computeDefinition(src, { line: 2, character: 4 }, 'file:///m'), {
+      uri: 'file:///m', range: { start: { line: 1, character: 13 }, end: { line: 1, character: 17 } },
+    })
+    Assert.equal(computeHover(src, { line: 2, character: 4 })?.contents.value,
+      '```aontu\ntypes: type({%row: {n:string}})\n```\n\n*alias*')
+  })
 
   const SRC = '%port = integer\n{ %uint8 } = @"./t.aon"\n\nl: %port\nv: %uint8'
 
@@ -214,6 +224,10 @@ describe('lsp-alias', () => {
 
 // Twin: go/lsp/lsp_test.go TestAliasScopeIsLexical.
 describe('lsp-alias-lexical', () => {
+  test('declarations-ignore-strings-and-comments', () => {
+    const src = '# %comment: 1\na: "%quoted: 1"\nb: \'%single: 1\'\n/*\n%block: 1\n*/\nc: `%tick: 1`\n// %slash: 1\nx: {%real: 1 %other: 2}\nv: %prefix = 3'
+    Assert.deepEqual(aliasScope(src).map(b => b.name), ['%real', '%other', '%prefix'])
+  })
 
   test('what-the-text-binds-and-what-it-does-not', () => {
     // A head that is not a set, the wildcard (whose names are the other

@@ -283,3 +283,8 @@ fmt-template-holds-inside-a-call	fmt-template	#- a: emit($.x & $.y, {\n#- body: 
 fmt-template-lint-column-is-the-templates	fmt-template-lint	#- a_b: [\nline\n#- ]\n	#-	1:4: style/key-case: key a_b holds an underscore; aB would follow the form
 fmt-template-lint-block-marker-column	fmt-template-lint	/*- a_b: [ */\n.x { }\n/*- ] */\n	/*-	1:5: style/key-case: key a_b holds an underscore; aB would follow the form
 fmt-template-lint-nothing-to-say	fmt-template-lint	#- a: [\nline\n#- ]\n	#-	
+fmt-alias-key-root	fmt	%a:1 b:%a	%a: 1\nb: %a\n
+fmt-alias-key-nested	fmt	x:{%a:{n:1}} y:%a	x: %a: n: 1\ny: %a\n
+fmt-alias-key-list	fmt	x:[%a:1] y:%a	x: [%a:1]\ny: %a\n
+fmt-alias-key-self	fmt	%a: %a	%a: %a\n
+fmt-alias-key-value-prefix	fmt	%a: %a = 1	%a: %a = 1\n

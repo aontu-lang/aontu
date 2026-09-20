@@ -138,20 +138,35 @@ alias-eq-after-quoted-key-is-refused	errc	"%a" = 1	bare_punct
 # op-chars.tsv `double-equals-refused`).
 alias-double-equals-is-not-a-declaration	errc	%foo == 1	no_path
 #
-# THE COLON FORM IS REFUSED. `%foo: value` declared until 0.57.0. It is
-# not read as an ordinary key named `%foo` -- which is what the key text
-# would otherwise become, and which would generate a "%foo" field and
-# leave every `%foo` use resolving to nothing, neither of them saying
-# why. Refused at the declaration, sited at the name, and nothing is
-# recorded as an alias, so a use of the name is refused too.
-alias-colon-declaration-refused	errc	%foo: 1\na: %foo	alias_colon
-alias-colon-declaration-path	err	%foo: 1\na: %foo	at path $.%foo
-alias-colon-declaration-alone	errc	%foo: 1	alias_colon
-alias-colon-declaration-frame	err	%foo: 1	--> <no-file>:1:1
-# A pair in list position is held to the same rules: the colon form is
-# refused in an element too.
-alias-colon-in-list-refused	errc	[%foo: 1]	alias_colon
-alias-colon-in-list-path	err	x: [%foo: 1, b: 2]	at path $.x.0.%foo
+# An alias key declares its value and emits the key without the sigil.
+alias-key-root	gens	%a: 1 b: %a	{"a":1,"b":1}
+alias-key-only	gens	%a: 1	{"a":1}
+alias-key-nested	gens	x: { %a: {n: 1} } y: %a	{"x":{"a":{"n":1}},"y":{"n":1}}
+alias-key-dive	gens	outer: %a: b: 1 y: %a	{"outer":{"a":{"b":1}},"y":{"b":1}}
+alias-key-list	gens	x: [%a: 1, b: 2] y: %a	{"x":[{"a":1},{"b":2}],"y":1}
+alias-key-root-list	errc	[%a: 1]	alias_not_toplevel
+alias-key-before	gens	b: %a %a: 1	{"a":1,"b":1}
+alias-key-hyphen	gens	%field-args: {n: 1} b: %field-args	{"b":{"n":1},"field-args":{"n":1}}
+alias-key-type	gens	main: kit: type: type({ %field-args: { n: string } }) x: %field-args & {n: foo}	{"main":{"kit":{}},"x":{"n":"foo"}}
+alias-key-spread	gens	types:type({%row: {n: string}}) rows: [&: %row, {n:one}, {n:two}]	{"rows":[{"n":"one"},{"n":"two"}]}
+alias-key-merge	gens	%a: {x: 1} a: {y: 2} b: %a	{"a":{"x":1,"y":2},"b":{"x":1}}
+alias-key-merge-before	gens	a: {y: 2} %a: {x: 1} b: %a	{"a":{"x":1,"y":2},"b":{"x":1}}
+alias-key-redeclare	gens	%a: {x: 1} %a: {y: 2} b: %a	{"a":{"x":1,"y":2},"b":{"x":1,"y":2}}
+alias-key-different-location	gens	x: {%a: {x:1}} y: {%a: {y:2}} z: %a	{"x":{"a":{"x":1}},"y":{"a":{"y":2}},"z":{"x":1,"y":2}}
+alias-key-null	gens	%a: null b: %a	{"a":null,"b":null}
+alias-key-false	gens	%a: false b: %a	{"a":false,"b":false}
+alias-key-quoted	gens	"%a": 1	{"%a":1}
+alias-key-comments	gens	%a # key\n: # value\n 1 b:%a	{"a":1,"b":1}
+alias-key-key	gens	%a: key() x: %a	{"a":"","x":""}
+alias-key-conflict	errc	%a: 1 %a: 2	scalar_value
+alias-key-elided	errc	%a:	elided_value
+alias-key-list-elided	errc	x:[%a:]	elided_value
+alias-key-self	errc	%a: %a	path_cycle
+alias-key-undefined	errc	%a: %missing	no_path
+alias-key-private-include	errc	@"__FIXTURES__/alias_key_private.aon" x: %item	no_path
+alias-key-private-values	gens	@"__FIXTURES__/alias_key_private.aon"	{"item":{"n":1}}
+alias-key-export-import	gens	{%row} = @"__FIXTURES__/alias_key_export.aon" x:%row & {n:hello}	{"x":{"n":"hello"}}
+alias-key-canon	canon	%a: {n:string} a:{n:one} b:%a & {n:two}	{"a":{"n":"one"},"b":{"n":"two"}}
 #
 # A DECLARATION IS ALSO A VALUE PREFIX. In a value position -- to the
 # right of a colon, or as a list element -- `%name = ` in front of a
@@ -428,3 +443,7 @@ alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value
 # arrived through a name the OTHER file wrote, so that is the line to
 # change, not anything in this one.
 alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aon"\na: 2	alias_used_in_file.aon
+alias-key-before-include	gens	%parent: {n:2}\n@"__FIXTURES__/alias_key_private.aon"\nx:%parent	{"item":{"n":1},"parent":{"n":2},"x":{"n":2}}
+alias-key-root-list-use	errc	[%a: 1, %a]	alias_not_toplevel
+alias-key-root-list-longhand	errc	[a: %a = 1, %a]	alias_not_toplevel
+alias-key-elided-use	errc	x:[%a:] y:%a	no_path

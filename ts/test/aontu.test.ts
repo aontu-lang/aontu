@@ -14,6 +14,11 @@ type FST = typeof Fs
 
 
 describe('aontu', function() {
+  test('elided-alias-key-has-no-hidden-declaration', () => {
+    const root: any = new Aontu().parse('x: [%a:]')
+    expect(root.aliasKeys).equal([])
+    expect(root.peg.x.peg[0].peg.a.why).equal('elided_value')
+  })
 
   test('basic-api', async () => {
     let a0 = new Aontu()

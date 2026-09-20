@@ -162,6 +162,22 @@ func TestAliasHoverAndDefinition(t *testing.T) {
 	}
 }
 
+func TestAliasKeyHoverAndDefinition(t *testing.T) {
+	const src = "%port: integer\ntypes: type({%row: {n:string}})\na: %row\nb: %port"
+	got := namedCompletions(src)
+	if len(got) != 2 || got[0].Label != "%port" || got[1].Label != "%row" {
+		t.Fatalf("alias key completions: %+v", got)
+	}
+	want := &Location{URI: "file:///m", Range: Range{Position{1, 13}, Position{1, 17}}}
+	if got := Definition(src, 2, 4, "file:///m"); !reflect.DeepEqual(got, want) {
+		t.Errorf("alias key definition: %+v, want %+v", got, want)
+	}
+	h := Hover(src, 2, 4, false)
+	if h == nil || h.Contents.Value != "```aontu\ntypes: type({%row: {n:string}})\n```\n\n*alias*" {
+		t.Fatalf("alias key hover: %+v", h)
+	}
+}
+
 // Twin: ts/test/lsp.test.ts describe('lsp-alias-lexical').
 func TestAliasScopeIsLexical(t *testing.T) {
 	// A head that is not a set of names binds nothing, the wildcard

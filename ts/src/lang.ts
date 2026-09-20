@@ -602,10 +602,12 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
   const isAliasDecl = (ktkn: any, sep: any): boolean =>
     null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) &&
     true === sep?.use?.aontu_eq
+  const isAliasKey = (ktkn: any, sep: any): boolean =>
+    null != ktkn && VL === ktkn.tin && ALIAS_RE.test('' + ktkn.src) && ':' === sep?.src
   const keyName = (ktkn: any): string =>
     'string' === typeof ktkn?.val ? ktkn.val : '' + ktkn?.src
 
-  const keyRefusalOf = (ktkn: any, sep: any):
+  const keyRefusalOf = (ktkn: any, _sep: any):
     { why: string, details?: Record<string, any> } | undefined => {
     // THE SENTINEL NAMESPACE IS THE ENGINE'S; it writes `export` here.
     if (keyName(ktkn).startsWith(RESERVED_KEY_PREFIX) &&
@@ -616,9 +618,6 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
       return undefined
     }
     const kname = '' + ktkn.src
-    if (ALIAS_RE.test(kname)) {
-      return isAliasDecl(ktkn, sep) ? undefined : { why: 'alias_colon' }
-    }
     const bad = ktkn.use?.aontu_bad
     return null == bad ? undefined :
       { why: 'bare_punct', details: { char: '' + bad, text: kname } }
@@ -1263,23 +1262,15 @@ help isolate the syntax error.`,
         }
 
         const reservedRefusals: Val[] = []
-        for (const { key, tkn, why, details, url } of
+        for (const { key, tkn, why, details } of
           (r.u.aontu_key_refusals ?? []) as any[]) {
           const en: any = siteAt(addsite(new NilVal({ why }), r, ctx), tokenSite(tkn))
           if (null != details) {
             en.details = details
           }
           en.path = [...(r.k?.path ?? []), key]
-          // A COLON DECLARATION IS REFUSED AND STILL NAMES SOMETHING, so
-          // the refusal is held under the key that name would have had
-          // and a use of it reports why; not an alias key, so it
-          // generates unused.
-          if ('alias_colon' === why) {
-            delete mo[key]
-            mo[aliasScopedKey(key, url)] = en
-          }
           // A RESERVED KEY WAITS: its name is where the marks are kept.
-          else if ('reserved_key' === why) {
+          if ('reserved_key' === why) {
             reservedRefusals.push(en)
           }
           else {
@@ -1457,6 +1448,9 @@ help isolate the syntax error.`,
         {
           r.node = addsite(new ListVal({ peg: ao }), r, ctx)
           r.node.optionalKeys = optionalKeys
+          if (1 === r.d && 0 < ((ctx as any).aontu_alias_hoist ?? []).length) {
+            r.node = addsite(new NilVal({ why: 'alias_not_toplevel' }), r, ctx)
+          }
         }
 
         return undefined
@@ -1511,6 +1505,14 @@ help isolate the syntax error.`,
     rs
       .open([
         {
+          s: [VL, CL], p: 'val',
+          c: (r) => isAliasKey(r.o0, r.o1),
+          u: { pair: true },
+          a: (r) => { r.u.key = ('' + r.o0.src).substring(1) },
+          g: 'aontu-alias-key',
+        },
+
+        {
           s: [CJ, CL], p: 'val',
           u: { spread: true },
           g: 'spread'
@@ -1558,6 +1560,11 @@ help isolate the syntax error.`,
           holder.u.aontu_key_refusals.push(
             { key: keyName(ktkn), tkn: ktkn, url: srcUrl(ctx), ...kr })
         }
+        else if (isAliasKey(ktkn, rule.o1) && null != rule.child.node) {
+          ; ((ctx as any).aontu_alias_hoist ||= []).push({
+            name: aliasScopedKey('' + ktkn.src, srcUrl(ctx)), val: rule.child.node,
+          })
+        }
         else if (isAliasDecl(ktkn, rule.o1)) {
           holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
           holder.u.aontu_alias_keys.push({
@@ -1603,6 +1610,17 @@ help isolate the syntax error.`,
   jsonic.rule('elem', (rs: RuleSpec) => {
     rs
       .open([
+        {
+          s: [VL, CL], p: 'val',
+          c: (r) => isAliasKey(r.o0, r.o1),
+          u: { spread: true, done: true, list: true, pair: true },
+          a: (r) => {
+            r.u.key = ('' + r.o0.src).substring(1)
+            snapshotPairSlot(r, '' + r.u.key)
+          },
+          g: 'aontu-alias-key-elem',
+        },
+
         {
           s: [CJ, CL],
           p: 'val',
@@ -1683,7 +1701,7 @@ help isolate the syntax error.`,
               '' + rule.node.length, key]
           }
           // THE KEY IS HELD TO THE MAP'S RULES: a key the map rule would
-          // refuse (a colon declaration, a bare-text refusal) is refused
+          // refuse (a bare-text refusal) is refused
           // here too, in the value's place and sited at the key, rather
           // than generated as the element `[{"x=y": 1}]`.
           else if (null != kr) {
@@ -1700,6 +1718,12 @@ help isolate the syntax error.`,
               .push({ name: aliasScopedKey(key, srcUrl(ctx)), val: v })
             rule.node.push(v)
             return undefined
+          }
+
+          if (isAliasKey(ktkn, rule.o1) && null != rule.child.node) {
+            ; ((ctx as any).aontu_alias_hoist ||= []).push({
+              name: aliasScopedKey('' + ktkn.src, srcUrl(ctx)), val: v,
+            })
           }
 
           const mv: any = addsite(

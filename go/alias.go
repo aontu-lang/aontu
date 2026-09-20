@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -301,7 +302,6 @@ func expandAliases(root Val, snapmap map[string]Val) {
 	visit(root, nil)
 }
 
-
 // AliasBinding is where a file binds a name, and what to show for it.
 type AliasBinding struct {
 	Name string
@@ -315,18 +315,22 @@ type AliasBinding struct {
 // tree: an editor asks while a document would not parse.
 func AliasScope(src string) []AliasBinding {
 	out := []AliasBinding{}
+	code := strings.Split(aliasNonCodeRe.ReplaceAllStringFunc(src, func(s string) string {
+		return aliasNonNewlineRe.ReplaceAllString(s, " ")
+	}), "\n")
 	for li, line := range strings.Split(src, "\n") {
 		lead := len(line) - len(strings.TrimLeft(line, " \t"))
 		rest := line[lead:]
 		decl := strings.TrimSpace(line)
-		if m := aliasDeclLineRe.FindStringSubmatchIndex(rest); nil != m &&
-			(m[1] >= len(rest) || '=' != rest[m[1]]) {
-			out = append(out, AliasBinding{
-				Name: rest[m[2]:m[3]], Row: li + 1, Col: lead + 1, Decl: decl})
-			continue
-		}
 		tm := aliasTakeLineRe.FindStringSubmatchIndex(rest)
 		if nil == tm {
+			for _, m := range aliasBindingRe.FindAllStringSubmatchIndex(code[li], -1) {
+				if code[li][m[1]-1] == '=' && m[1] < len(code[li]) && code[li][m[1]] == '=' {
+					continue
+				}
+				out = append(out, AliasBinding{
+					Name: line[m[2]:m[3]], Row: li + 1, Col: m[2] + 1, Decl: decl})
+			}
 			continue
 		}
 		// Whether the head IS a set is aliasSetItems's answer.
@@ -347,6 +351,10 @@ func AliasScope(src string) []AliasBinding {
 	}
 	return out
 }
+
+var aliasBindingRe = regexp.MustCompile(`(?:^|[\s{[:,(])(` + aliasNamePat + `)[ \t]*[:=]`)
+var aliasNonNewlineRe = regexp.MustCompile(`[^\n]`)
+var aliasNonCodeRe = regexp.MustCompile(`"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|` + "`(?:\\\\[\\s\\S]|[^`\\\\])*(?:`|$)" + `|//[^\n]*|#[^\n]*|/\*[\s\S]*?(?:\*/|$)`)
 
 // AliasNameAt is the alias name the text begins with, or "".
 func AliasNameAt(text string) string {
