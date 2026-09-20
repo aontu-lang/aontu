@@ -25,4 +25,16 @@ describe('version', () => {
     expect(/^\d+\.\d+\.\d+$/.test(VERSION)).equal(true)
   })
 
+
+  // ADR-041: one number names a release, so this reads the other port's
+  // literal.
+  test('matches the Go module', () => {
+    const src = readFileSync(
+      join(__dirname, '..', '..', 'go', 'aontu.go'), 'utf8')
+    const found = /^const VERSION = "([^"]*)"/m.exec(src)
+
+    expect(null != found).equal(true)
+    expect(VERSION).equal(found?.[1])
+  })
+
 })

@@ -2,8 +2,35 @@
 
 All notable changes to this project are documented here. The TypeScript
 package (`ts/`, npm `aontu`) and the Go module (`go/`,
-`github.com/aontu-lang/aontu/go`) are versioned independently; entries note
-which implementation each change affects.
+`github.com/aontu-lang/aontu/go`) share one version series from 0.70.0;
+entries before it carry two numbers, and entries note which implementation
+each change affects.
+
+## 0.70.0 — 2026-09-19
+
+### The npm package and the Go module share one version number
+
+Policy, recorded as [ADR-041](ADR.md#adr-041--the-npm-package-and-the-go-module-share-one-version-series). They were versioned
+independently until now — npm had reached 0.69.0 while
+the module was on 0.1.27 — and the two numbers were a standing tax on every
+bug report, which had to say which of them it meant. From this release
+there is one number: `aontu@0.70.0` on npm, `go/v0.70.0` on the module, and
+`aontu.version` the same string whichever port answers.
+
+The merge is at major 0 on purpose, because that is where it is free. Go
+requires the major version in the module path from v2 on, so
+`module github.com/aontu-lang/aontu/go` is still the correct path and no
+import changes. What the shared series does is bring that constraint
+forward: npm's number is now the module's number, so **the release that
+takes this project to 2.0.0 is the release that rewrites every consumer's
+Go import path.** `make check-go-major` refuses the combination rather than
+letting it reach a tag, and `make publish` now refuses a `V` and `GOV` that
+disagree, so the series cannot drift apart again unnoticed.
+
+Nothing about the engine changed in this release. The Go module skips from
+0.1.27 to 0.70.0, which is a forward jump `proxy.golang.org` treats as any
+other; the 0.1.x series is closed.
+
 
 ## Go 0.1.27 — 2026-09-18 · TypeScript 0.69.0
 

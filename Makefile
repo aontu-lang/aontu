@@ -193,6 +193,15 @@ publish:
 	  case "$(GOV)" in *+*) echo "publish: GOV=$(GOV) carries +build metadata"; exit 1 ;; esac; \
 	  $(MAKE) --no-print-directory check-go-major V=$(GOV); \
 	fi
+	@# ONE NUMBER NAMES A RELEASE (ADR-041). Both must be given and equal:
+	@# comparing only a STATED pair leaves `make publish V=x` bumping one file
+	@# and not the other, which is the same split by omission. The invariant
+	@# is also a test in both ports, which is what holds the publish workflow
+	@# to it -- this guard is here to refuse BEFORE anything is written.
+	@if [ "$(V)" != "$(GOV)" ]; then \
+	  echo "publish: V='$(V)' and GOV='$(GOV)' must be given and equal:"; \
+	  echo "         one number names a release (ADR-041, since 0.70.0)."; \
+	  exit 1; fi
 	@command -v gh >/dev/null 2>&1 || \
 	  (echo "publish: needs the gh CLI to dispatch the workflow" && exit 1)
 	@test "$$(git rev-parse --abbrev-ref HEAD)" = "main" || \
