@@ -190,12 +190,15 @@ how many there are:
 | `prd` | `aontu.dev` and `www.aontu.dev` |
 
 A change is promoted `main` → `dev` → `stg` → `prd`, each hop a pull
-request onto a protected branch. **The absence of a workflow file
-survives**, which is why this is an amendment rather than a reversal:
-the Git integration binds a branch to a deployment, so three bindings
-give three environments with no workflow. Remove the `main` binding
-when the others are made — a `main` that still deploys to production
-leaves the change undone.
+request onto a protected branch. **The absence of a *deployment*
+workflow survives**, which is why this is an amendment rather than a
+reversal: the Git integration binds a branch to a deployment, so three
+bindings give three environments without one. The repository does have
+a workflow — `.github/workflows/docs.yml`, the prose gate, which C3 in
+`manual-tasks.md` records — and D4 never meant otherwise; saying "no
+workflow" unqualified is how that file came to state the opposite until
+2026-09-18. Remove the `main` binding when the others are made: a
+`main` that still deploys to production leaves the change undone.
 
 `npm run deploy` is still the Builds pipeline's own command and must
 still not be run from a working tree; that is how a stale `dist/`
