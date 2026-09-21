@@ -172,16 +172,53 @@ Two things the sync must do that a copy would get wrong, both of which
 
 ### D4 — Deployment is copied verbatim from the template
 
-Cloudflare Workers, `output: "static"`, Cloudflare's own Git
-integration. **Merging to `main` is the deploy step**; there is no
-workflow file, and its absence is not an oversight. `npm run deploy` is
-the Builds pipeline's own command and must not be run from a working
-tree — that is how a stale `dist/` reaches production.
+**Amended 2026-09-21: three environments, and `main` deploys nowhere.**
+The original decision is below the line; what supersedes it is
+[`ENVIRONMENTS.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/ENVIRONMENTS.0.md)
+in `aontu-lang/system`, which covers both deployables rather than the
+site alone.
 
-Copy as-is: `wrangler.json` (rename the Worker to `aontu-web`, routes
-`aontu.dev` and `www.aontu.dev` as custom domains, both recorded in the
-file rather than left in the dashboard), `.assetsignore`,
-`upload_source_maps`, observability.
+Cloudflare Workers, `output: "static"` and Cloudflare's own Git
+integration all stand. What changes is which branch is production, and
+how many there are:
+
+| Branch | Deploys to |
+|---|---|
+| `main` | nothing |
+| `dev` | `dev.aontu.dev` |
+| `stg` | `stg.aontu.dev` |
+| `prd` | `aontu.dev` and `www.aontu.dev` |
+
+A change is promoted `main` → `dev` → `stg` → `prd`, each hop a pull
+request onto a protected branch. **The absence of a workflow file
+survives**, which is why this is an amendment rather than a reversal:
+the Git integration binds a branch to a deployment, so three bindings
+give three environments with no workflow. Remove the `main` binding
+when the others are made — a `main` that still deploys to production
+leaves the change undone.
+
+`npm run deploy` is still the Builds pipeline's own command and must
+still not be run from a working tree; that is how a stale `dist/`
+reaches production. Production now sits two promotions away from where
+development happens, which puts two gates in front of that accident
+rather than none.
+
+`wrangler.json` carries `dev`, `stg` and `prd` as named environments,
+and **its top level carries no routes**: Wrangler deploys the top level
+when `--env` is omitted, so a top level that was production would make a
+bare `wrangler deploy` silently deploy it.
+
+Copy as-is otherwise: `.assetsignore`, `upload_source_maps`,
+observability. The Worker keeps its name `aontu-web` in `prd`, with
+`-dev` and `-stg` suffixes elsewhere, and the routes stay recorded in
+the file rather than left in the dashboard.
+
+---
+
+*The decision as originally taken:* Cloudflare Workers, `output:
+"static"`, Cloudflare's own Git integration. **Merging to `main` is the
+deploy step**; there is no workflow file, and its absence is not an
+oversight. `wrangler.json` named one Worker and the production routes.
 
 The hand-written `src/worker.ts` carries over whole, because all four
 behaviours it exists for are wanted here:

@@ -142,9 +142,16 @@ whatever `dist/` happens to be sitting there. And `NODE_VERSION=24`
 rather than the Astro minimum, because the `aontu` package declares
 `engines: {"node": ">=24"}` and the build imports it.
 
-**Verify:** merging to `main` produces a successful build in *Workers &
-Pages → aontu-web → Deployments*. **That is the whole check available at
-this point** — do not reach for a `workers.dev` URL.
+**Verify:** merging to the branch this binding watches produces a
+successful build in *Workers & Pages → aontu-web → Deployments*.
+**That is the whole check available at this point** — do not reach for a
+`workers.dev` URL.
+
+Since D4's amendment there are three bindings rather than one, and
+`main` is not among them: `dev` → `dev.aontu.dev`, `stg` →
+`stg.aontu.dev`, `prd` → `aontu.dev` and `www.aontu.dev`. Verify against
+whichever you are setting up, and set `dev` up first so the check runs
+somewhere that is not production.
 
 That route is off for Workers on this account, and its 404 is
 indistinguishable from a broken Worker. Established by comparison rather
