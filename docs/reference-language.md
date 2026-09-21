@@ -1592,14 +1592,15 @@ y: %a
 { "x": 1, "y": 1 }
 ```
 
-This is the form the key rule cannot have, and the reason both exist. A
-key declaration nested under `x` names nothing reachable, so it is
-refused; a value prefix names the thing it is written on, and the name
-it binds is the document's, so it resolves from anywhere. A shape can
-therefore be named where it is used instead of being lifted to the root
-to satisfy the position rule. The value stays where it was written and
-at its own path, so `x` above is still `1`. Two declarations of one name
-unify whichever form each was written in and wherever each sat.
+This is what a key declaration cannot do, and the reason both forms
+exist. A key leaves a field behind: `%a: 1` names the value and emits
+`a` beside it. A prefix leaves the document as it was, so a shape can
+be named exactly where it is used without a key appearing to say so.
+The value stays where it was written and at its own path, so `x` above
+is still `1`, and nothing else is added. Either form binds the name for
+the file rather than for the place it sits, so either resolves from
+anywhere, and two declarations of one name unify whichever form each
+was written in and wherever each sat.
 
 
 **A name belongs to the file that declares it.** An include carries a

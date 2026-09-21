@@ -6,6 +6,90 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## 0.71.0 — 2026-09-21
+
+### An alias key names a value and keeps the field
+
+**`%name: value` declares the alias and emits the key without its
+sigil.** It is shorthand for `name: %name = value`. The colon form was
+refused outright until now, with the code `alias_colon`, on the
+argument that `=` declares and a colon was a mistake worth pointing at.
+It now serves the case the `=` form cannot: a value that is both data
+in the document and a name to reuse, which until now had to be declared
+at the root and then written again under the key that wanted it.
+
+```aon
+%limits: { cpu: 1 }
+
+web: %limits
+api: %limits
+```
+
+```json
+{"api":{"cpu":1},"limits":{"cpu":1},"web":{"cpu":1}}
+```
+
+**It works wherever a map key sits** — at the root, inside a nested
+map, and in a list element — because the name binds to the file rather
+than to the place it was written, which 0.69.0 settled. Two
+declarations of one name in two different maps unify, as two at the
+root always did.
+
+**The name holds what was written, not what the field becomes.** The
+declaration captures its own value, and later unification against the
+key grows the field and leaves the name alone:
+
+```aon
+%a: { x: 1 }
+a: { y: 2 }
+b: %a
+```
+
+```json
+{"a":{"x":1,"y":2},"b":{"x":1}}
+```
+
+**A quoted key is untouched.** `"%a": 1` generates `{"%a":1}`, an
+ordinary key that has a sigil in its name.
+
+**Declarations still need a map at the root.** A root list holding one
+is refused with `alias_not_toplevel`, in either spelling; wrap the list
+in a field. That code's wording widened to cover the new case, and
+`alias_colon` stays reserved rather than reused or renamed, because
+error codes are append-only. Its hint now points at both spellings.
+
+The rule is pinned by `test/spec/alias.tsv`, at 164 rows, and by five
+formatter rows in `test/spec/fmt.tsv`, every expectation taken from
+both engines agreeing.
+
+### The alias reference documents the value prefix and the budget
+
+**`x: %a = 1` was undocumented while the engine pointed at it.** The
+`alias_not_toplevel` hint told a refused reader to write the
+declaration as a value prefix, a form the reference never described, so
+the reader was turned away and sent nowhere. It is documented now, with
+the reason both forms exist: a key leaves a field behind, a prefix
+leaves the document as it was.
+
+**`alias_budget` had no conceptual home.** `reference-errors.md` linked
+the code back to a section that described no bound at all. That section
+now carries it: expansion is counted before evaluation and refused over
+`trust.budget.alias`, and it terminates whatever the budget, because an
+alias takes no parameters, a cycle is refused, and a file declares
+finitely many names. The bound is about size alone.
+
+### The playground carries an alias example
+
+Six examples shipped with no alias among them, for the feature 0.68.0,
+0.69.0 and this release have all been about. The seventh is one: two names
+declared, reused across two services, the `{ %host %port }` shorthand,
+and the erasure. `web/build/smoke.mjs` holds every example verbatim and
+drives it, so the one that drifts is the one missing from that list;
+the new example's checks prove what it claims rather than restating it
+— no alias key survives the output, and the document hashes identically
+to its longhand twin.
+
+
 ## 0.70.0 — 2026-09-19
 
 ### The npm package and the Go module share one version number
