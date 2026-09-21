@@ -200,9 +200,11 @@ workflow" unqualified is how that file came to state the opposite until
 2026-09-18. Remove the `main` binding when the others are made: a
 `main` that still deploys to production leaves the change undone.
 
-`npm run deploy` is still the Builds pipeline's own command and must
-still not be run from a working tree; that is how a stale `dist/`
-reaches production. Production now sits two promotions away from where
+`npm run deploy:dev`, `:stg` and `:prd` are the Builds pipeline's own
+commands, one per connection, and must still not be run from a working
+tree; that is how a stale `dist/` reaches production. **There is no bare
+`npm run deploy` any more**, because with an unrouted top level it would
+publish a Worker nobody reaches while every merge appeared to succeed. Production now sits two promotions away from where
 development happens, which puts two gates in front of that accident
 rather than none.
 

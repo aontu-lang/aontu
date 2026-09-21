@@ -129,32 +129,39 @@ repository*. If the GitHub App is installed for `tabnas` but not
 watches `main`. Same flow each time: pick `aontu-lang/web`, then the
 production branch and Worker name from this table.
 
-| Branch | Worker name | Serves |
-|---|---|---|
-| `dev` | `aontu-web-dev` | `dev.aontu.dev` |
-| `stg` | `aontu-web-stg` | `stg.aontu.dev` |
-| `prd` | `aontu-web` | `aontu.dev`, `www.aontu.dev` |
+| Branch | Worker name | Deploy command | Serves |
+|---|---|---|---|
+| `dev` | `aontu-web-dev` | `npm run deploy:dev` | `dev.aontu.dev` |
+| `stg` | `aontu-web-stg` | `npm run deploy:stg` | `stg.aontu.dev` |
+| `prd` | `aontu-web` | `npm run deploy:prd` | `aontu.dev`, `www.aontu.dev` |
 
 Build `dev` first, so the first build that runs anywhere runs somewhere
 that is not production. **If a connection on `main` already exists,
 delete it** — a `main` that still deploys leaves the amendment undone,
 and it is the one step here with a consequence rather than a gap.
 
+**The deploy command is per connection, and there is no bare
+`npm run deploy` any more.** Wrangler deploys the top-level
+configuration when `--env` is omitted, and that configuration carries no
+routes, so a bare deploy would publish an unrouted Worker and leave the
+real hostname on its previous deployment — every merge appearing to
+succeed while nothing changed. Each script names its own environment;
+the bare one was removed rather than left as a trap.
+
 The remaining settings are the same for all three:
 
 | Setting | Value |
 |---|---|
 | Build command | `npm run build` |
-| Deploy command | `npm run deploy` |
 | Root directory | `/` |
 | `NODE_VERSION` (build env var) | `24` |
 
-Two notes on that table. The deploy command is `npm run deploy` **on
-purpose**: it is the pipeline's own deploy step, which is why the same
-script must never be run from a working tree — doing so publishes
-whatever `dist/` happens to be sitting there. And `NODE_VERSION=24`
-rather than the Astro minimum, because the `aontu` package declares
-`engines: {"node": ">=24"}` and the build imports it.
+One note on that table: `NODE_VERSION=24` rather than the Astro
+minimum, because the `aontu` package declares
+`engines: {"node": ">=24"}` and the build imports it. The deploy
+commands above are the pipeline's own deploy step, which is why they
+must never be run from a working tree — doing so publishes whatever
+`dist/` happens to be sitting there.
 
 **Verify:** merging to the branch this binding watches produces a
 successful build in *Workers & Pages → aontu-web → Deployments*.
