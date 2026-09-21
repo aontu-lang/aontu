@@ -44,15 +44,15 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **168** codes across
+There are seven classes, and the registry holds **172** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 51 | the text is not a document |
+| `parse` | 53 | the text is not a document |
 | `conflict` | 55 | two values cannot both hold |
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
-| `reference` | 26 | a name or path resolves to nothing |
+| `reference` | 27 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 7 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** All 168 codes have hint text. `aontu explain --list`
+**Hint text.** All 172 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
