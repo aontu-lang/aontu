@@ -6,6 +6,42 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## 0.72.0 — 2026-09-21
+
+### The error reference counts the registry, and a test keeps it counting
+
+**The published reference disagreed with itself.**
+`docs/reference-errors.md` said the registry holds 168 codes.
+`test/spec/errcodes.tsv` holds 172, and the class table beside the
+sentence summed to 169 — agreeing with neither. Four codes landed for
+0.69.0, `alias_budget`, `export_arg`, `reserved_key` and
+`import_not_exported`, and only the `budget` row moved with them:
+`parse` stayed at 51 where it is 53, `reference` at 26 where it is 27,
+and both totals written out in prose at 168.
+
+**The hint-text sentence was re-checked rather than renumbered.**
+`aontu explain --list` prints 172 codes and marks none `(no text)`, so
+"All 172 codes have hint text" is true at the corrected figure rather
+than merely consistent with it.
+
+**Nothing was re-measuring the summary numbers, and now something is.**
+The catalogue check proves the page lists every registered code and only
+those, which is why the rows themselves were right; it says nothing
+about the class table or the totals, so those were written by hand with
+no gate under them. A new check counts `errcodes.tsv` by class, compares
+the table row by row, and compares both prose totals to the registry
+size. It covers the class count too — that one is spelled as a word, so
+it compares the written word to the word for what the registry holds,
+rather than reusing the digit parser beside it.
+
+Both halves were proved to fail before they were kept: the pre-fix
+numbers fail on `the class table must count the registry`, and `eight`
+in place of `seven` on `the stated class count must count the registry`.
+
+Nothing about the engine changed in this release. The correction reaches
+[aontu.dev](https://aontu.dev) through the site's documentation sync.
+
+
 ## 0.71.0 — 2026-09-21
 
 ### An alias key names a value and keeps the field
