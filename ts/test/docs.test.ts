@@ -1437,6 +1437,19 @@ test('the-class-table-and-the-totals-count-the-registry', () => {
     total, 'the stated registry total must count the registry')
   Assert.equal(stated(/All (\d+) codes have hint text/, 'hint-text total'),
     total, 'the stated hint-text total must count the registry')
+
+  // The page spells how many classes there are as a word, not a numeral,
+  // so this one compares against the word for what the registry holds.
+  const WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
+    'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+  const named = /There are ([a-z]+) classes/.exec(text)
+  if (null == named) {
+    Assert.fail('reference-errors.md states no class count')
+  }
+  Assert.ok(byClass.size < WORD.length,
+    'no word for a registry of ' + byClass.size + ' classes')
+  Assert.equal(named[1], WORD[byClass.size],
+    'the stated class count must count the registry')
 })
 
 
