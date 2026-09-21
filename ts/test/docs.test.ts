@@ -1401,6 +1401,58 @@ test('the-error-catalogue-is-the-registry', () => {
 })
 
 
+// Separate from the catalogue check above, which proves the set of codes
+// matches and says nothing about the summary numbers: the class table and
+// the totals stated in prose are hand-written, so nothing re-measures them.
+test('the-class-table-and-the-totals-count-the-registry', () => {
+  const byClass = new Map<string, number>()
+  for (const line of Fs.readFileSync(
+    Path.join(REPO, 'test', 'spec', 'errcodes.tsv'), 'utf8').split('\n')) {
+    const cell = line.split('\t')
+    if (line.startsWith('#') || 'errcode' !== cell[1]) {
+      continue
+    }
+    byClass.set(cell[2], 1 + (byClass.get(cell[2]) ?? 0))
+  }
+  const total = [...byClass.values()].reduce((sum, n) => sum + n, 0)
+  Assert.ok(100 < total, 'no codes read from the registry')
+
+  const text = docsText('reference-errors.md')
+  const counted = new Map(Array.from(
+    section(text, '## Classes').matchAll(/^\| `([a-z]+)` \| (\d+) \|/gm),
+    (row) => [row[1], Number(row[2])] as [string, number]))
+  Assert.deepStrictEqual(
+    Object.fromEntries([...counted].sort()),
+    Object.fromEntries([...byClass].sort()),
+    'the class table must count the registry')
+
+  const stated = (re: RegExp, what: string): number => {
+    const found = re.exec(text)
+    if (null == found) {
+      Assert.fail('reference-errors.md states no ' + what)
+    }
+    return Number(found[1])
+  }
+  Assert.equal(stated(/registry holds \*\*(\d+)\*\* codes/, 'registry total'),
+    total, 'the stated registry total must count the registry')
+  Assert.equal(stated(/All (\d+) codes have hint text/, 'hint-text total'),
+    total, 'the stated hint-text total must count the registry')
+
+  // The page spells how many classes there are as a word, not a numeral,
+  // so this one compares against the word for what the registry holds.
+  const WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
+    'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+  const named = /There are ([a-z]+) classes/.exec(text)
+  if (null == named) {
+    Assert.fail('reference-errors.md states no class count')
+  }
+  Assert.ok(byClass.size < WORD.length,
+    'no word for a registry of ' + byClass.size + ' classes')
+  Assert.equal(named[1], WORD[byClass.size],
+    'the stated class count must count the registry')
+})
+
+
 // One minimal call per component: `project`'s spec is the only optional
 // one, and `listitems` is the only component with no text prop.
 const CMP_CALL: Record<string, string> = {
