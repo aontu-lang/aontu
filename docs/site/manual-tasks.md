@@ -123,28 +123,56 @@ repository*. If the GitHub App is installed for `tabnas` but not
 
 *Depends on C1 — the repo must exist to be selected.*
 
-### B2. Create the Worker and connect the build
+### B2. Create the Workers and connect the builds
 
-Same flow: pick `aontu-lang/web`, production branch `main`.
+**Three connections, not one, since D4's amendment**, and none of them
+watches `main`. Same flow each time: pick `aontu-lang/web`, then the
+production branch and Worker name from this table.
+
+| Branch | Worker name | Deploy command | Serves |
+|---|---|---|---|
+| `dev` | `aontu-web-dev` | `npm run deploy:dev` | `dev.aontu.dev` |
+| `stg` | `aontu-web-stg` | `npm run deploy:stg` | `stg.aontu.dev` |
+| `prd` | `aontu-web` | `npm run deploy:prd` | `aontu.dev`, `www.aontu.dev` |
+
+Build `dev` first, so the first build that runs anywhere runs somewhere
+that is not production. **If a connection on `main` already exists,
+delete it** — a `main` that still deploys leaves the amendment undone,
+and it is the one step here with a consequence rather than a gap.
+
+**The deploy command is per connection, and there is no bare
+`npm run deploy` any more.** Wrangler deploys the top-level
+configuration when `--env` is omitted, and that configuration carries no
+routes, so a bare deploy would publish an unrouted Worker and leave the
+real hostname on its previous deployment — every merge appearing to
+succeed while nothing changed. Each script names its own environment;
+the bare one was removed rather than left as a trap.
+
+The remaining settings are the same for all three:
 
 | Setting | Value |
 |---|---|
-| Worker name | `aontu-web` |
 | Build command | `npm run build` |
-| Deploy command | `npm run deploy` |
 | Root directory | `/` |
 | `NODE_VERSION` (build env var) | `24` |
 
-Two notes on that table. The deploy command is `npm run deploy` **on
-purpose**: it is the pipeline's own deploy step, which is why the same
-script must never be run from a working tree — doing so publishes
-whatever `dist/` happens to be sitting there. And `NODE_VERSION=24`
-rather than the Astro minimum, because the `aontu` package declares
-`engines: {"node": ">=24"}` and the build imports it.
+One note on that table: `NODE_VERSION=24` rather than the Astro
+minimum, because the `aontu` package declares
+`engines: {"node": ">=24"}` and the build imports it. The deploy
+commands above are the pipeline's own deploy step, which is why they
+must never be run from a working tree — doing so publishes whatever
+`dist/` happens to be sitting there.
 
-**Verify:** merging to `main` produces a successful build in *Workers &
-Pages → aontu-web → Deployments*. **That is the whole check available at
-this point** — do not reach for a `workers.dev` URL.
+**Verify:** merging to the branch this binding watches produces a
+successful build in *Workers & Pages → aontu-web → Deployments*.
+**That is the whole check available at this point** — do not reach for a
+`workers.dev` URL.
+
+Since D4's amendment there are three bindings rather than one, and
+`main` is not among them: `dev` → `dev.aontu.dev`, `stg` →
+`stg.aontu.dev`, `prd` → `aontu.dev` and `www.aontu.dev`. Verify against
+whichever you are setting up, and set `dev` up first so the check runs
+somewhere that is not production.
 
 That route is off for Workers on this account, and its 404 is
 indistinguishable from a broken Worker. Established by comparison rather
@@ -169,16 +197,26 @@ since-removed Basic-Auth gate. Don't inherit a habit of leaving them.
 
 ### B4. Attach the custom domains — *phase 3, after A2 is Active*
 
-`wrangler.json` declares them:
+`wrangler.json` declares them, **under `env.prd` since D4's amendment
+rather than at the top level**:
 
 ```json
-"routes": [
-  { "pattern": "aontu.dev", "custom_domain": true },
-  { "pattern": "www.aontu.dev", "custom_domain": true }
-]
+"env": {
+  "prd": {
+    "routes": [
+      { "pattern": "aontu.dev", "custom_domain": true },
+      { "pattern": "www.aontu.dev", "custom_domain": true }
+    ]
+  }
+}
 ```
 
-so they are attached by the deploy, not by clicking — provided the zone
+The top level carries no routes on purpose: Wrangler deploys it when
+`--env` is omitted, so production routes sitting there would make a bare
+`wrangler deploy` reach production. `dev` and `stg` carry
+`dev.aontu.dev` and `stg.aontu.dev` in their own blocks.
+
+They are attached by the deploy, not by clicking — provided the zone
 is active in the same account (A1). Nothing to do in the dashboard
 except watch it work. Keeping the routes in the file is deliberate:
 tabnas's lived in the dashboard until August 2026, "which meant nothing
@@ -238,8 +276,15 @@ Until then, no session can write to it.
 
 Match the template's posture:
 
-- Branch protection / ruleset on `main`: require a pull request, no
-  force-push, no deletion.
+- Branch protection / ruleset on `main` **and on each of `dev`, `stg`
+  and `prd`**: require a pull request, no force-push, no deletion;
+  `prd` additionally requires a review. Protecting only `main` would
+  leave all three deployment branches directly pushable, which is the
+  gate the promotion chain rests on — and the chain is a convention
+  until a required check also constrains where each pull request comes
+  *from*, since branch protection reads the base and not the head.
+  `aontu-lang/system`'s `docs/manual-tasks.md` §10 carries that check
+  as a row.
 - CodeQL **default setup** (*Settings → Code security*) — one click.
 - Disable Issues if the engine repo is the intended front door for bug
   reports, or leave them on and say in the README which repo takes what.
