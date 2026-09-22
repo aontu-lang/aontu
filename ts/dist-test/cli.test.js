@@ -2100,6 +2100,24 @@ function fmtFiles(...srcs) {
         Fs.writeFileSync(Path.join(dir3, 'pkg.aontu'), 'pkg: { path: "corp.example/app" }\n');
         Assert.doesNotMatch(vetCapture(() => (0, cli_1.runPkg)(['verify', dir3], NO_SERVERS)).err, /older layout/);
     });
+    // The generation ADR-042 withdrew: a project whose package file and
+    // lockfile are spelled .aon declares nothing to any verb, so `verify`
+    // would answer over an empty project rather than the real one.
+    (0, node_test_1.test)('pkg-names-the-withdrawn-extension', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n');
+        Fs.mkdirSync(Path.join(dir, 'aontu_meta'), { recursive: true });
+        Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon'), '{"lock":{}}\n');
+        const r = vetCapture(() => (0, cli_1.runPkg)(['verify', dir], NO_SERVERS));
+        Assert.match(r.err, /pkg\.aon, aontu_meta.pkg-lock\.aon carry the withdrawn \.aon extension/);
+        Assert.match(r.err, /rename them to pkg\.aontu/);
+        // Each generation is its own finding, not one message.
+        Assert.doesNotMatch(r.err, /older layout/);
+        // The current spelling says nothing.
+        const ok = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'));
+        Fs.writeFileSync(Path.join(ok, 'pkg.aontu'), 'pkg: { path: "corp.example/app" }\n');
+        Assert.doesNotMatch(vetCapture(() => (0, cli_1.runPkg)(['verify', ok], NO_SERVERS)).err, /withdrawn/);
+    });
     (0, node_test_1.test)('model-dispatches-the-document-verbs', () => {
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runModel)(['--help']), 0)).out
             .includes('Usage: aontu'), true);

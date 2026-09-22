@@ -617,6 +617,35 @@ func TestPkgNamesTheOldLayout(t *testing.T) {
 	}
 }
 
+// The generation ADR-042 withdrew: a project whose package file and
+// lockfile are spelled .aon declares nothing to any verb, so `verify`
+// would answer over an empty project rather than the real one.
+func TestPkgNamesTheWithdrawnExtension(t *testing.T) {
+	dir := t.TempDir()
+	pkgWrite(t, filepath.Join(dir, "pkg.aon"), "pkg: { path: \"corp.example/app\" }\n")
+	if err := os.MkdirAll(filepath.Join(dir, "aontu_meta"), 0o755); nil != err {
+		t.Fatal(err)
+	}
+	pkgWrite(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"), "{\"lock\":{}}\n")
+	var out, errw bytes.Buffer
+	run([]string{"pkg", "verify", dir}, strings.NewReader(""), &out, &errw, false)
+	if !strings.Contains(errw.String(), "carry the withdrawn .aon extension") ||
+		!strings.Contains(errw.String(), "rename them to pkg.aontu") {
+		t.Fatalf("no hint: %q", errw.String())
+	}
+	// Each generation is its own finding, not one message.
+	if strings.Contains(errw.String(), "older layout") {
+		t.Fatalf("the two generations ran together: %q", errw.String())
+	}
+	ok := t.TempDir()
+	pkgWrite(t, filepath.Join(ok, "pkg.aontu"), "pkg: { path: \"corp.example/app\" }\n")
+	errw.Reset()
+	run([]string{"pkg", "verify", ok}, strings.NewReader(""), &out, &errw, false)
+	if strings.Contains(errw.String(), "withdrawn") {
+		t.Fatalf("hint on the current spelling: %q", errw.String())
+	}
+}
+
 func TestModelDispatchesTheDocumentVerbs(t *testing.T) {
 	var out, errw bytes.Buffer
 	if code := run([]string{"model", "--help"}, strings.NewReader(""), &out, &errw, false); 0 != code ||

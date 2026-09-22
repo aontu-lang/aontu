@@ -437,19 +437,33 @@ async function fetchAdvisory(ctx, bases, pkg) {
     return out;
 }
 // The versions this client has seen for a package, from its own
-// records: a version absent from the list now is a rollback.
+// records: a version absent from the list now is a rollback. Both
+// suffixes are read -- a record is evidence rather than a document,
+// and dropping either would forget versions and weaken the check.
+const SEEN_EXT = ['.aontu', '.aon'];
+function seenFile(dir, version) {
+    return SEEN_EXT.map((ext) => (0, node_path_1.join)(dir, version + ext)).find(node_fs_1.existsSync);
+}
 function seenVersions(ctx, pkg) {
     const dir = (0, mod_1.cacheSeenDir)(ctx.cache, pkg);
     if (!(0, node_fs_1.existsSync)(dir)) {
         return [];
     }
-    return (0, node_fs_1.readdirSync)(dir).filter((f) => f.endsWith('.aontu'))
-        .map((f) => f.slice(0, -'.aontu'.length)).sort(pkg_zip_1.cmpBytes);
+    const seen = new Set();
+    for (const name of (0, node_fs_1.readdirSync)(dir)) {
+        const ext = SEEN_EXT.find((e) => name.endsWith(e));
+        if (undefined !== ext) {
+            seen.add(name.slice(0, -ext.length));
+        }
+    }
+    return [...seen].sort(pkg_zip_1.cmpBytes);
 }
 function recordSeen(ctx, pkg, version, subject) {
     const dir = (0, mod_1.cacheSeenDir)(ctx.cache, pkg);
     const file = (0, node_path_1.join)(dir, version + '.aontu');
-    if ((0, node_fs_1.existsSync)(file)) {
+    // A record under either spelling is the first sighting, so neither is
+    // overwritten -- a second write would date the version to today.
+    if (undefined !== seenFile(dir, version)) {
         return;
     }
     (0, node_fs_1.mkdirSync)(dir, { recursive: true });

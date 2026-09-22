@@ -4383,6 +4383,26 @@ reason and no other, which is the pair of pins in
 [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
 behaving as designed.
 
+**A stranded project is named, not guessed at.** A project whose
+package file is still `pkg.aon` declares nothing to any verb — it is
+not an error, it is an *empty* package — so `pkg verify` would answer
+`ok` over it and `sync` would write a lockfile with every pin dropped.
+`nameOldLayout` in both CLIs therefore reports this generation
+alongside the `mod` one ADR-039 replaced, as a separate finding with
+its own repair: that one renames a block inside the file, this one
+renames the file.
+
+**Persisted state written by an earlier release is still read.** The
+first-seen records under `seen/<package>/<version>` are the evidence
+`list_rollback` is computed from, not documents to evaluate. Reading
+only the new suffix would discard every version the previous release
+observed, and a repository could then shorten a version list without
+detection until the history rebuilt itself. Both spellings are read and
+neither is overwritten — a second write would date an old version to
+today — while new records are written under the one extension. This is
+the single place the decision above admits the old spelling, and it
+admits it as a *fact recorded*, never as a document.
+
 **Three characters more per name costs some lines their budget.** The
 `fmt` budget is 80 columns, so a handful of documented fences that fit
 at `.aon` expand at `.aontu`. They were reformatted rather than

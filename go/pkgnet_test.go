@@ -693,6 +693,14 @@ func TestPkgSelectionRefusals(t *testing.T) {
 	refusedWith(t, rollback.Refusal, "list_rollback", `1.0.0 was seen before and is absent from the list`)
 	_ = os.RemoveAll(filepath.Join(w.cache, "seen"))
 
+	// A record under either suffix is evidence: forgetting one lets a
+	// repository shorten a version list unnoticed.
+	write(t, filepath.Join(w.cache, "seen", "corp.example", "service", "1.0.0.aon"),
+		"{\"package\":\"corp.example/service\",\"version\":\"1.0.0\"}\n")
+	legacySeen, _ := w.get(app, "corp.example/service@1.4.3", "get")
+	refusedWith(t, legacySeen.Refusal, "list_rollback", `1.0.0 was seen before and is absent from the list`)
+	_ = os.RemoveAll(filepath.Join(w.cache, "seen"))
+
 	_ = os.Remove(filepath.Join(w.at("service"), "1.4.3.manifest"))
 	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aontu"),
 		"{\"package\":\"corp.example/service\",\"version\":\"1.4.3\",\"reason\":\"malware\"}\n")

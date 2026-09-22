@@ -560,20 +560,36 @@ async function fetchAdvisory(ctx: AcquireCtx, bases: string[], pkg: string):
 
 
 // The versions this client has seen for a package, from its own
-// records: a version absent from the list now is a rollback.
+// records: a version absent from the list now is a rollback. Both
+// suffixes are read -- a record is evidence rather than a document,
+// and dropping either would forget versions and weaken the check.
+const SEEN_EXT = ['.aontu', '.aon']
+
+function seenFile(dir: string, version: string): string | undefined {
+  return SEEN_EXT.map((ext) => pathJoin(dir, version + ext)).find(existsSync)
+}
+
 function seenVersions(ctx: AcquireCtx, pkg: string): string[] {
   const dir = cacheSeenDir(ctx.cache, pkg)
   if (!existsSync(dir)) {
     return []
   }
-  return readdirSync(dir).filter((f) => f.endsWith('.aontu'))
-    .map((f) => f.slice(0, -'.aontu'.length)).sort(cmpBytes)
+  const seen = new Set<string>()
+  for (const name of readdirSync(dir)) {
+    const ext = SEEN_EXT.find((e) => name.endsWith(e))
+    if (undefined !== ext) {
+      seen.add(name.slice(0, -ext.length))
+    }
+  }
+  return [...seen].sort(cmpBytes)
 }
 
 function recordSeen(ctx: AcquireCtx, pkg: string, version: string, subject: string): void {
   const dir = cacheSeenDir(ctx.cache, pkg)
   const file = pathJoin(dir, version + '.aontu')
-  if (existsSync(file)) {
+  // A record under either spelling is the first sighting, so neither is
+  // overwritten -- a second write would date the version to today.
+  if (undefined !== seenFile(dir, version)) {
     return
   }
   mkdirSync(dir, { recursive: true })

@@ -670,17 +670,38 @@ func fetchAdvisory(ctx *acquireCtx, bases []string, pkg string) map[string]strin
 }
 
 // seenVersions is what this client has seen for a package, from its
-// own records: a version absent from the list now is a rollback.
+// own records: a version absent from the list now is a rollback. Both
+// suffixes are read -- a record is evidence rather than a document,
+// and dropping either would forget versions and weaken the check.
+var seenExt = []string{".aontu", ".aon"}
+
+func seenFile(dir, version string) (string, bool) {
+	for _, ext := range seenExt {
+		at := filepath.Join(dir, version+ext)
+		if _, err := os.Stat(at); nil == err {
+			return at, true
+		}
+	}
+	return "", false
+}
+
 func seenVersions(ctx *acquireCtx, pkg string) []string {
 	entries, err := os.ReadDir(cacheSeenDir(ctx.cache, pkg))
 	if nil != err {
 		return []string{}
 	}
-	out := []string{}
+	seen := map[string]bool{}
 	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".aontu") {
-			out = append(out, strings.TrimSuffix(e.Name(), ".aontu"))
+		for _, ext := range seenExt {
+			if strings.HasSuffix(e.Name(), ext) {
+				seen[strings.TrimSuffix(e.Name(), ext)] = true
+				break
+			}
 		}
+	}
+	out := []string{}
+	for v := range seen {
+		out = append(out, v)
 	}
 	sort.Strings(out)
 	return out
@@ -689,7 +710,9 @@ func seenVersions(ctx *acquireCtx, pkg string) []string {
 func recordSeen(ctx *acquireCtx, pkg, version, subject string) {
 	dir := cacheSeenDir(ctx.cache, pkg)
 	file := filepath.Join(dir, version+".aontu")
-	if _, err := os.Stat(file); nil == err {
+	// A record under either spelling is the first sighting, so neither
+	// is overwritten -- a second write would date the version to today.
+	if _, ok := seenFile(dir, version); ok {
 		return
 	}
 	_ = os.MkdirAll(dir, 0o755)

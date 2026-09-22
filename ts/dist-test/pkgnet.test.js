@@ -512,6 +512,12 @@ function lockOf(app) {
         const rollback = await run(w, http, 'get', ['corp.example/service@1.4.3', app]);
         Assert.match(rollback.out, /refused: list_rollback: corp.example\/service 1.0.0 was seen before and is absent from the list/);
         Fs.rmSync(Path.join(w.cache, 'aontu', 'pkg', 'seen'), { recursive: true });
+        // A record under either suffix is evidence: forgetting one lets a
+        // repository shorten a version list unnoticed.
+        write(Path.join(w.cache, 'aontu', 'pkg', 'seen', 'corp.example', 'service'), { '1.0.0.aon': '{"package":"corp.example/service","version":"1.0.0"}\n' });
+        const legacySeen = await run(w, http, 'get', ['corp.example/service@1.4.3', app]);
+        Assert.match(legacySeen.out, /refused: list_rollback: corp.example\/service 1.0.0 was seen before and is absent from the list/);
+        Fs.rmSync(Path.join(w.cache, 'aontu', 'pkg', 'seen'), { recursive: true });
         // A tombstone stands where the manifest was, and names its reason.
         Fs.rmSync(Path.join(at(w, 'service'), '1.4.3.manifest'));
         write(Path.join(w.repo, 'tombstone', 'corp.example', 'service', '@v'), { '1.4.3.aontu': '{"package":"corp.example/service","version":"1.4.3","reason":"malware"}\n' });

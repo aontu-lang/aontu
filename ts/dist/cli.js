@@ -1891,16 +1891,25 @@ function parsePkgArgs(argv, verb, io) {
     }
     return out;
 }
-// A verb that finds the older layout names the current one, once, and
-// reads nothing from it.
+// A verb that finds an older layout names the current one, once, and
+// reads nothing from it. `pkg.aon` is the sharper case: a project
+// carrying it declares nothing to any verb, so `verify` answers over an
+// empty package and `sync` writes a lock with every pin dropped.
 function nameOldLayout(dir, io) {
-    const old = ['aon_vendor', 'mod-lock.aon', 'mod.aon',
-        (0, node_path_1.join)(mod_1.META_DIR, 'mod-lock.aon')].filter((f) => (0, node_fs_1.existsSync)((0, node_path_1.join)(dir, f)));
-    if (0 < old.length) {
-        io.err('aontu: ' + old.join(', ') + ' belong to an older layout: the package ' +
+    const here = (f) => (0, node_fs_1.existsSync)((0, node_path_1.join)(dir, f));
+    const mod = ['aon_vendor', 'mod-lock.aon', 'mod.aon',
+        (0, node_path_1.join)(mod_1.META_DIR, 'mod-lock.aon')].filter(here);
+    const aon = ['pkg.aon', (0, node_path_1.join)(mod_1.META_DIR, 'pkg-lock.aon')].filter(here);
+    if (0 < mod.length) {
+        io.err('aontu: ' + mod.join(', ') + ' belong to an older layout: the package ' +
             'file is ' + mod_1.PKG_FILE + ', the lockfile ' + (0, node_path_1.join)(mod_1.META_DIR, mod_1.LOCK_FILE) +
             ' and the vendor tree ' + (0, node_path_1.join)(mod_1.META_DIR, 'vendor') + '; rename ' +
             mod_1.PKG_FILE + '\'s `mod` block to `pkg`, then run aontu sync\n');
+    }
+    if (0 < aon.length) {
+        io.err('aontu: ' + aon.join(', ') + ' carry the withdrawn .aon extension, so ' +
+            'nothing here declares a package: rename them to ' + mod_1.PKG_FILE + ' and ' +
+            (0, node_path_1.join)(mod_1.META_DIR, mod_1.LOCK_FILE) + ', then run aontu sync\n');
     }
 }
 function runPkg(argv, servers) {
