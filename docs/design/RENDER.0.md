@@ -1052,7 +1052,7 @@ touches M0.
     language the table has not met.
 36. **`fmt` has no reach into a template at all** (P8 planned "`fmt`'s
     reach into marker lines decided and pinned"). The decision is that
-    there is none: `fmt` formats aontu source, `.aontu` and `.aontu`, and
+    there is none: `fmt` formats aontu source, `.aontu`, and
     refuses any other file by name. The reason is sharper than the
     question expected — a `#-` template PARSES as aontu, because `#`
     opens a comment, so `fmt` previously read one, threw the body lines

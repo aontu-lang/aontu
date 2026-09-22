@@ -562,7 +562,7 @@ because the answer is only legible beside the question.*
   reference says so in one line, which is what this note asked for.
 - **`fmt` over a template file.** CLOSED, and the answer is that
   `fmt`'s reach is NIL rather than partial: it formats aontu source,
-  `.aontu` and `.aontu`, and refuses any other file by name. The reason
+  `.aontu`, and refuses any other file by name. The reason
   is sharper than the question expected. A `#-` template PARSES as
   aontu, because `#` opens a comment — so `fmt` read one, discarded
   every body line as a comment, and rewrote the file with exit 0. A

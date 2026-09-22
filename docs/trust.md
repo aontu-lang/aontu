@@ -73,12 +73,12 @@ posture is the operative warning:
 > **Treat opening an untrusted source as reading your disk.**
 
 Reading, never running. An include's extension decides what the file is:
-thirteen extensions are read at all (`.aontu` and `.aontu` as aontu
-source; `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
-`.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read by
-its own parser; and `.txt` as text, which chooses no parser at all) and
-everything else is refused by name, so no include is ever executed in
-the evaluating process. `--text-ext` widens only the text set, and
+twelve extensions are read at all (`.aontu` as aontu source; `.json`,
+`.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`,
+`.yml` and `.ini` as configuration data, each read by its own parser;
+and `.txt` as text, which chooses no parser at all) and everything
+else is refused by name, so no include is ever executed in the
+evaluating process. `--text-ext` widens only the text set, and
 cannot reach `.js`. The TypeScript package leg follows
 the same rule: a package whose entry point is JavaScript does not
 resolve.

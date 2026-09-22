@@ -91,8 +91,8 @@ path and no site, the §43 shape again.
 
 **Ruled and fixed 2026-08-30**, as
 [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
-the extension says which of two things a file is. `.aontu` and `.aontu`
-are aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
+the extension says which of two things a file is. `.aontu` is aontu
+source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
 `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
 configuration **data**, read by that format's own parser into the JSON
 value it denotes. Every other extension, and a name with no extension,

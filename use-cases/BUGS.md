@@ -1562,8 +1562,8 @@ names, both ports:
 | `vnoext` | string | the map | refused |
 
 **THE RULING (ADR-012).** The extension decides, from a fixed table,
-and it says which of two things the file is. `.aontu` and `.aontu` are
-aontu source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
+and it says which of two things the file is. `.aontu` is aontu
+source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
 `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are configuration DATA,
 read by that format's own parser — every one of them maps onto JSON.
 Every other extension — and a name with no extension — is refused by

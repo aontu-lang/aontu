@@ -3821,9 +3821,8 @@ close([1,2]) & [3,4,5]    → error: closed
 `@"path"` loads and parses another source file, then unifies the result
 in place, so external files merge like any other value.
 
-Source files use the `.aontu` extension (preferred) or `.aontu`. When the
-path has no extension, those two are tried in turn, so `@"foo"` resolves
-`foo.aontu` then `foo.aontu`.
+Source files use the `.aontu` extension. When the path has no
+extension, that one is supplied, so `@"foo"` resolves `foo.aontu`.
 
 **The extension decides what the file is**, and it says which of three
 things:

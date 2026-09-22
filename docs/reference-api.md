@@ -3528,7 +3528,7 @@ diff) and without a profile they resolve `@"…"` through the default
 chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
 whenever the source is not yours. Reading, never running: an include's
-extension decides what the file is (`.aontu` and `.aontu` as aontu source,
+extension decides what the file is (`.aontu` as aontu source,
 `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
 `.yaml`, `.yml` and `.ini` as configuration data, and `.txt` as text
 (the bytes, as one string)) and every other extension is refused.
