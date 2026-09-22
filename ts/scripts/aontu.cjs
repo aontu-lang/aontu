@@ -12,10 +12,10 @@ const path = require('path')
 const root = path.join(__dirname, '..', '..')
 const tree = path.join(root, 'aontu')
 
-// EVERY .aon UNDER aontu/ IS A MODULE, named by its path without the
-// extension -- aontu/render/lang/go.aon is `aontu:render/lang/go`.
+// EVERY .aontu UNDER aontu/ IS A MODULE, named by its path without the
+// extension -- aontu/render/lang/go.aontu is `aontu:render/lang/go`.
 // A file named after the directory holding it collapses, so
-// aontu/code/code.aon is `aontu:code` and not `aontu:code/code`: a
+// aontu/code/code.aontu is `aontu:code` and not `aontu:code/code`: a
 // module that wants a folder of its own can have one without spelling
 // its name twice.
 function modules(dir, rel) {
@@ -28,8 +28,8 @@ function modules(dir, rel) {
       found.push(...modules(at, subrel))
       continue
     }
-    if (!entry.name.endsWith('.aon')) { continue }
-    const part = subrel.slice(0, -'.aon'.length).split('/')
+    if (!entry.name.endsWith('.aontu')) { continue }
+    const part = subrel.slice(0, -'.aontu'.length).split('/')
     if (1 < part.length && part[part.length - 1] === part[part.length - 2]) {
       part.pop()
     }

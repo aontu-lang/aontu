@@ -83,8 +83,8 @@ function moduleDir(store, path) {
         ['alias', path.slice(exports.ALIAS_PREFIX.length)] : path.split('/');
     return (0, node_path_1.join)(store, ...elems.map(escapeElem));
 }
-exports.PKG_FILE = 'pkg.aon';
-exports.LOCK_FILE = 'pkg-lock.aon';
+exports.PKG_FILE = 'pkg.aontu';
+exports.LOCK_FILE = 'pkg-lock.aontu';
 exports.META_DIR = 'aontu_meta';
 exports.VENDOR_DIR = 'vendor';
 function projectRoots(from, fs) {
@@ -250,5 +250,5 @@ function aliasTarget(root, key, fs, options) {
     const pkg = gen?.dep?.[key]?.pkg;
     return 'string' === typeof pkg && '' !== pkg ? pkg : undefined;
 }
-const DEFAULT_MAIN = 'main.aon';
+const DEFAULT_MAIN = 'main.aontu';
 //# sourceMappingURL=mod.js.map

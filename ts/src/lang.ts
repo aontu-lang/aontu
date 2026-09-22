@@ -214,7 +214,7 @@ const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
 
-// `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
+// `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
 const IMPORT_HEAD_RE = new RegExp('^(' + ALIAS_SET + ')[ \\t]*=(?!=)')
 const EXPORT_RE = /^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)/
@@ -1752,7 +1752,6 @@ help isolate the syntax error.`,
 
 
 const INCLUDE_KINDS: { [kind: string]: string } = {
-  aon: 'source',
   aontu: 'source',
 
   json: 'json',
@@ -1975,7 +1974,7 @@ function makeModelResolver(options: any) {
   }
 
   // The gate every leg that RESOLVES A NAME passes through. The aontu:
-  // and module legs do not: both state `kind: 'aon'` because what they
+  // and module legs do not: both state `kind: 'aontu'` because what they
   // serve is Aontu source by construction, not by its spelling.
   const gateExtension = (path: string, full: string): void => {
     if (undefined === includeFormat(extKindOf(full), options.textExt)) {
@@ -2054,7 +2053,7 @@ function makeModelResolver(options: any) {
         modelNotFound(path)
       }
       record(ctx, path, 'aontu')
-      return { found: true, path, full: path, kind: 'aon', src: model, search: [] }
+      return { found: true, path, full: path, kind: 'aontu', src: model, search: [] }
     }
 
     let search: any = []
@@ -2096,7 +2095,7 @@ function makeModelResolver(options: any) {
       record(ctx, found.full, 'mod')
       return {
         found: true, path, full: found.full,
-        kind: 'aon', src: found.src, search: [],
+        kind: 'aontu', src: found.src, search: [],
       }
     }
 
@@ -2318,7 +2317,7 @@ class Lang {
     this.jsonic
       .use(asPlugin(MultiSource), {
         resolver: options?.resolver || modelResolver,
-        implictExt: ['aon', 'aontu'],
+        implictExt: ['aontu'],
         processor: includeProcessors(this.opts.textExt)
       })
       .use(AontuJsonic)

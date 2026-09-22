@@ -163,7 +163,7 @@ function resolveFile(url: string | undefined) {
   // The PLATFORM'S separator, not '/': a hardcoded slash never matched
   // a Windows cwd, so every Windows report named the absolute path
   // where the POSIX report (and the Go CLI, which prints the entry as
-  // typed) named `clash.aon` -- caught by the docs transcript for
+  // typed) named `clash.aontu` -- caught by the docs transcript for
   // reading a conflict error, which pins the relative spelling.
   let out = url?.replace(cwd + sep, '') ?? '<no-file>'
   out = out === cwd || '' === out ? '<no-file>' : out

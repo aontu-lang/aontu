@@ -16,10 +16,10 @@ Cannot unify value: 2 with value: 1
 
 means two facts reached the same path (`1` earlier, `2` later) and
 they cannot both hold. To see everything the engine prints around
-that line, write `clash.aon`:
+that line, write `clash.aontu`:
 
 <!-- test: scenario conflict -->
-<!-- test: file clash.aon -->
+<!-- test: file clash.aontu -->
 <!-- fmt: keep two writers, one statement each -->
 ```aontu
 a: b: 1
@@ -28,14 +28,14 @@ a: b: 2
 
 <!-- test: run -->
 ```sh
-$ aontu clash.aon
+$ aontu clash.aontu
 [aontu/scalar_value]: Cannot unify values at path $.a.b
 ...
  Cannot unify value: 2 with value: 1
-  --> clash.aon:2:7
+  --> clash.aontu:2:7
 ...
  Cannot unify value: 1 with value: 2
-  --> clash.aon:1:7
+  --> clash.aontu:1:7
 ...
 $ echo $?
 1

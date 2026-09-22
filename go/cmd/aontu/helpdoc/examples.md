@@ -28,7 +28,7 @@ service: {
 ```
 
 Nothing generates yet — this is a truth, not a value. `aontu vet
-service.aon deploy.aon` says whether a deployment satisfies it.
+service.aontu deploy.aontu` says whether a deployment satisfies it.
 
 ## 3. Say what it SHOULD be
 
@@ -79,11 +79,11 @@ A port of `0` is now an error with a path, not a runtime surprise.
 ## 6. Layer it
 
 ```
-# base.aon
+# base.aontu
 service: { image: string, replicas: *1 | integer }
 
-# prod.aon
-@"./base.aon"
+# prod.aontu
+@"./base.aontu"
 service: { image: "auth:v2.3", replicas: 5 }
 ```
 
@@ -91,7 +91,7 @@ Unification is order-independent: `base & prod` is `prod & base`. To
 change a value without editing the file, append to an overlay:
 
 ```
-aontu model set '$.service.replicas=7' --entry prod.aon --overlay local.aon
+aontu model set '$.service.replicas=7' --entry prod.aontu --overlay local.aontu
 ```
 
 If the value is PINNED rather than open, that command refuses and

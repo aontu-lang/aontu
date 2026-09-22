@@ -9,21 +9,21 @@ order: 40
 Appending cannot change a pinned value: the append makes two concrete
 facts at one path, and the lattice refuses both. `--in-place` closes
 the loop by rewriting the literal where the author wrote it. To see
-both behaviours, write a `schema.aon` that constrains the fields:
+both behaviours, write a `schema.aontu` that constrains the fields:
 
 <!-- test: scenario change-pinned -->
-<!-- test: file schema.aon -->
+<!-- test: file schema.aontu -->
 ```aontu
 replicas: integer & min(1) & max(24)
 port: integer
 ```
 
-and a `deploy.aon` overlay that pins them, comments included:
+and a `deploy.aontu` overlay that pins them, comments included:
 
-<!-- test: file deploy.aon -->
+<!-- test: file deploy.aontu -->
 ```aontu
 # the deployment
-replicas: 42 # too many
+replicas: 42  # too many
 port: 0x1F
 ```
 
@@ -32,13 +32,13 @@ because the overlay would then disagree with itself:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.replicas=5' --entry schema.aon --overlay deploy.aon
+$ aontu model set '$.replicas=5' --entry schema.aontu --overlay deploy.aontu
 verdict: invalid
 
 $.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.replicas
-  data: deploy.aon:4:13 (5)
-  data: deploy.aon:2:11 (42)
+  data: deploy.aontu:4:13 (5)
+  data: deploy.aontu:2:11 (42)
 $ echo $?
 1
 ```
@@ -49,19 +49,19 @@ in the same file, which is exactly why appending cannot help. Add
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.replicas=5' --entry schema.aon --overlay deploy.aon --in-place
+$ aontu model set '$.replicas=5' --entry schema.aontu --overlay deploy.aontu --in-place
 verdict: valid
-replaced: deploy.aon:2:11 42 -> 5
-wrote: deploy.aon
+replaced: deploy.aontu:2:11 42 -> 5
+wrote: deploy.aontu
 $ echo $?
 0
 ```
 
 The file now reads:
 
-```aon
+```aontu
 # the deployment
-replicas: 5 # too many
+replicas: 5  # too many
 port: 0x1F
 ```
 
@@ -75,10 +75,10 @@ what makes a hex literal safe to rewrite even though its *value* is
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.port=80' --entry schema.aon --overlay deploy.aon --in-place
+$ aontu model set '$.port=80' --entry schema.aontu --overlay deploy.aontu --in-place
 verdict: valid
-replaced: deploy.aon:3:7 0x1F -> 80
-wrote: deploy.aon
+replaced: deploy.aontu:3:7 0x1F -> 80
+wrote: deploy.aontu
 ```
 
 The report speaks in source text (`0x1F -> 80`), because replacing a
@@ -102,26 +102,26 @@ it correctly, so `--in-place` leaves it alone and says nothing.
 The last row cuts both ways, and the reverse direction is easy to get
 wrong. To change a value that lives in an *included* file, name that
 file as the overlay, but give `--entry` something that constrains the
-value without also pulling the file in. Write a `stack.aon` entry that
-loads `deploy.aon`, the natural arrangement and the wrong one here:
+value without also pulling the file in. Write a `stack.aontu` entry that
+loads `deploy.aontu`, the natural arrangement and the wrong one here:
 
-<!-- test: file stack.aon -->
+<!-- test: file stack.aontu -->
 ```aontu
-@"./deploy.aon"
+@"./deploy.aontu"
 replicas: integer & min(1) & max(24)
 port: integer
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.replicas=9' --entry stack.aon --overlay deploy.aon --in-place
+$ aontu model set '$.replicas=9' --entry stack.aontu --overlay deploy.aontu --in-place
 verdict: invalid
-would replace: deploy.aon:2:11 5 -> 9
+would replace: deploy.aontu:2:11 5 -> 9
 
 $.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.replicas
-  data: deploy.aon:2:11 (9)
-  schema: deploy.aon:2:11 (5)
+  data: deploy.aontu:2:11 (9)
+  schema: deploy.aontu:2:11 (5)
 $ echo $?
 1
 ```
@@ -130,7 +130,7 @@ The overlay's value [meets](../unification.md) *itself* through the
 entry's include, so the run is refused and nothing is written. `would
 replace:` (rather than `replaced:`) tells you the edit itself was
 possible and the conflict lay elsewhere: here, in the shape of the
-invocation. Pass `schema.aon` as the entry, as the earlier runs do, and
+invocation. Pass `schema.aontu` as the entry, as the earlier runs do, and
 the same command holds. ([Why the tool refuses the shape instead of
 detecting the
 collision](../explanation.md#the-emit--validate--repair-loop).)

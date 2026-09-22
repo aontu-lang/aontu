@@ -22,7 +22,7 @@ func fmtFiles(t *testing.T, srcs ...string) (string, []string) {
 	dir := t.TempDir()
 	files := make([]string, 0, len(srcs))
 	for i, src := range srcs {
-		file := filepath.Join(dir, "d"+strconv.Itoa(i)+".aon")
+		file := filepath.Join(dir, "d"+strconv.Itoa(i)+".aontu")
 		if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -125,7 +125,7 @@ func TestFmtUsageErrorsExit2(t *testing.T) {
 	if _, errw, code = fmtRun("", "-w"); 2 != code || !strings.Contains(errw, "--write needs a file") {
 		t.Fatalf("write stdin: %d %q", code, errw)
 	}
-	if _, _, code = fmtRun("", filepath.Join(dir, "missing.aon")); 2 != code {
+	if _, _, code = fmtRun("", filepath.Join(dir, "missing.aontu")); 2 != code {
 		t.Fatalf("missing: %d", code)
 	}
 	if out, _, code = fmtRun("", "--help"); 0 != code || !strings.Contains(out, "aontu fmt") {
@@ -220,7 +220,7 @@ func TestFmtTakesItsMarkerFromAProfile(t *testing.T) {
 		}
 		return path
 	}
-	profile := write("ocaml.aon", templateOcamlProfile)
+	profile := write("ocaml.aontu", templateOcamlProfile)
 	unit := write("gen.ml", "(*- x:[ *)\nlet a = 1\n(*- ] *)\n")
 
 	// A GENERATOR IN A LANGUAGE THE TABLE DOES NOT KNOW formats when a
@@ -245,7 +245,7 @@ func TestFmtTakesItsMarkerFromAProfile(t *testing.T) {
 	if 2 != code || !strings.Contains(errw, "--profile needs a file") {
 		t.Fatalf("bare --profile: %d %q", code, errw)
 	}
-	_, _, code = fmtRun("", "--profile", filepath.Join(dir, "no.aon"), unit)
+	_, _, code = fmtRun("", "--profile", filepath.Join(dir, "no.aontu"), unit)
 	if 2 != code {
 		t.Fatalf("missing profile: %d", code)
 	}

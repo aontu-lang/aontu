@@ -1,0 +1,18 @@
+# §89 --- a relative reference resolves in a BODY ELEMENT but not in a
+# CALL'S ARGUMENT inside that body, and the failure is silent.
+#
+#   aontu -c relative-in-call-argument.aontu
+#
+# `bare` is ["moons"]: the reference resolves against the node.
+# `lit`  is the one index row: `filter` works.
+# `rel`  is [] --- the same reference, in the same body, as the
+#        predicate's value. No refusal, no code, no site: an empty
+#        selection, which is exactly what a generator gets when there
+#        is genuinely nothing to emit.
+
+index: [{ table:"moons" column:"planet_id" }]
+entity: [{ table:"moons" }]
+
+bare: emit($.entity, { match: { table:string } body: [.table] })
+lit: emit($.entity, { match: { table:string } body: [filter($.index, { table:"moons" })] })
+rel: emit($.entity, { match: { table:string } body: [filter($.index, { table:.table })] })

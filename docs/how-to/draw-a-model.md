@@ -11,10 +11,10 @@ in which layer, already holds the picture. `aontu view` draws it from
 the evaluated document, so the figure is a fact about the model rather
 than a diagram someone kept in step with it.
 
-Here is a `system.aon` with three services and a dependency relation:
+Here is a `system.aontu` with three services and a dependency relation:
 
 <!-- test: scenario draw -->
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
 spec: hide({
   Service: {
@@ -34,7 +34,7 @@ file:
 
 <!-- test: run -->
 ```sh
-$ aontu view tree --relation dependsOn system.aon
+$ aontu view tree --relation dependsOn system.aontu
 web
 └── api
     └── store
@@ -47,7 +47,7 @@ the footer counts the cells above the diagonal:
 
 <!-- test: run -->
 ```sh
-$ aontu view matrix --relation dependsOn --order partition system.aon
+$ aontu view matrix --relation dependsOn --order partition system.aontu
         1 2 3
 store 1 \ . .
 api   2 X \ .
@@ -63,7 +63,7 @@ declared, so it follows the model:
 
 <!-- test: run -->
 ```sh
-$ aontu view layer --relation dependsOn --group-by tier system.aon
+$ aontu view layer --relation dependsOn --group-by tier system.aontu
 +------------------+
 | edge  web        |
 +------------------+
@@ -88,7 +88,7 @@ variables, so a page can theme it:
 
 <!-- test: run -->
 ```sh
-$ aontu view tree --relation dependsOn --as svg --out tree.svg system.aon
+$ aontu view tree --relation dependsOn --as svg --out tree.svg system.aontu
 $ echo $?
 0
 ```
@@ -99,12 +99,12 @@ DOT, which have renderers of their own.
 ## Gate the figures in CI
 
 A committed figure that nobody re-draws is a stale picture. Write the
-figures down as data, in a `views.aon` that includes the model:
+figures down as data, in a `views.aontu` that includes the model:
 
-<!-- test: file views.aon -->
+<!-- test: file views.aontu -->
 ```aontu
 @"aontu:view"
-@"./system.aon"
+@"./system.aontu"
 
 views: { &: $.aontu.View.Figure } & {
   tree: { kind:tree relation:dependsOn out:"tree.txt" }
@@ -123,8 +123,8 @@ Draw them all from one evaluation, then gate them:
 
 <!-- test: run -->
 ```sh
-$ aontu view --views '$.views' views.aon
-$ aontu view --views '$.views' --check views.aon
+$ aontu view --views '$.views' views.aontu
+$ aontu view --views '$.views' --check views.aontu
 $ echo $?
 0
 ```

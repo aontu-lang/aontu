@@ -315,10 +315,10 @@ describe('allow', () => {
 
   test('relative-loads-resolve-from-the-models-own-directory', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-'))
-    Fs.writeFileSync(Path.join(dir, 'dev.aon'),
+    Fs.writeFileSync(Path.join(dir, 'dev.aontu'),
       'roles: dev: { allow: ["$.services"] }')
-    const model = Path.join(dir, 'roles.aon')
-    const src = '@"./dev.aon"\nroles: qa: { allow: ["$.tests"] }'
+    const model = Path.join(dir, 'roles.aontu')
+    const src = '@"./dev.aontu"\nroles: qa: { allow: ["$.tests"] }'
     Fs.writeFileSync(model, src)
 
     const r = allow(src, 'dev', ['$.services.auth'], { path: model })

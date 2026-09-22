@@ -1,0 +1,16 @@
+# A `+` whose operand is a STAGED call is refused where it meets a
+# kind at a key INSIDE a map; the same sum at the top level stands up,
+# and so does one whose operands are both literals. Run:
+#   aontu staged-op-under-a-key.aontu
+# The string spelling below fails the same way and long predates list
+# concatenation (ADR-037), which only made the shape worth writing:
+#   x: { k: "a", n: string }
+#   x: { k: "a", n: "p" + join(["q"], "") }   # not-scalar-type
+# It is why `{k:"frag", n:["head"] + emit(...)}` cannot be written
+# under aontu:code's schema.
+# expected: {"x":{"k":"a","n":["p","q"]}}
+# actual:   [aontu/list] at $.x.of
+# FIXED 2026-09-11: an op drives the meet while an operand has not
+# decided. Pinned by edge.tsv edge-plus-op-under-map-*.
+x: { k: "a", n: [&: string] }
+x: { k: "a", n: ["p"] + each(["q"], _) }

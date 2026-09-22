@@ -13,8 +13,8 @@ aontu init model/     # or into a named one
 sh check.sh           # the four questions, on what was just written
 ```
 
-`init` writes `model.aon` (an entity map constrained with `&:`),
-`data.aon` (an instance of it that holds) and `check.sh` (the four
+`init` writes `model.aontu` (an entity map constrained with `&:`),
+`data.aontu` (an instance of it that holds) and `check.sh` (the four
 checks to run after every edit). It never overwrites: if any
 of the three already stands there, it refuses and writes none of them.
 
@@ -49,7 +49,7 @@ of every following element renumbered.
 ## Check data against a model
 
 ```
-aontu vet model.aon data.aon
+aontu vet model.aontu data.aontu
 ```
 
 Exit `0` valid, `1` a contradiction, `3` incomplete (nothing
@@ -62,8 +62,8 @@ report, `--closed` to refuse keys the model does not declare,
 nothing answers exactly like one that passed:
 
 ```
-aontu vet --coverage model.aon data.aon         # what did it examine?
-aontu vet --strict-coverage model.aon data.aon  # exit 1 if nothing
+aontu vet --coverage model.aontu data.aontu         # what did it examine?
+aontu vet --strict-coverage model.aontu data.aontu  # exit 1 if nothing
 ```
 
 `--coverage` reports how many data leaves a declaration constrained,
@@ -74,19 +74,19 @@ cause is the `"*"` mistake above: reach for `&:`.
 ## Check the model is coherent with itself
 
 ```
-aontu relations model.aon        # declared entity edges: targets resolve, no cycles
-aontu reaches planet moon model.aon   # does one entity reach another, at any remove?
-aontu trim --check model.aon     # entries whose removal changes nothing
+aontu relations model.aontu        # declared entity edges: targets resolve, no cycles
+aontu reaches planet moon model.aontu   # does one entity reach another, at any remove?
+aontu trim --check model.aontu     # entries whose removal changes nothing
 ```
 
 ## Generate code from a model, and hold it
 
 ```
-aontu render gen.aon build          # write the files below build/
-aontu render --check gen.aon build  # write nothing; exit 1 when build/ has drifted
+aontu render gen.aontu build          # write the files below build/
+aontu render --check gen.aontu build  # write nothing; exit 1 when build/ has drifted
 aontu render gen/ build             # every generator directly in gen/, as one run
-aontu model get out gen.aon         # the component tree: files, and the lines in them
-aontu trace gen.aon                 # what rule wrote each line
+aontu model get out gen.aontu         # the component tree: files, and the lines in them
+aontu trace gen.aontu                 # what rule wrote each line
 ```
 
 A generator answers a **component tree** -- `file(name, [lines])` and
@@ -101,10 +101,10 @@ and the rule behind it.
 ## Ask what a model says, and why
 
 ```
-aontu model get  $.entity.planet.table model.aon
-aontu model why  $.entity.planet.table model.aon
-aontu model get  $.entity --keys       model.aon
-aontu model get  $.entity --types      model.aon
+aontu model get  $.entity.planet.table model.aontu
+aontu model why  $.entity.planet.table model.aontu
+aontu model get  $.entity --keys       model.aontu
+aontu model get  $.entity --types      model.aontu
 ```
 
 `why` names **every** contribution to a value, with the file and line
@@ -114,7 +114,7 @@ what you expected, and the second thing to run when `vet` refuses.
 ## Change a value without editing the file
 
 ```
-aontu model set '$.entity.planet.table=planet_v2' --entry model.aon --overlay local.aon
+aontu model set '$.entity.planet.table=planet_v2' --entry model.aontu --overlay local.aontu
 ```
 
 The change is checked before it is written; a change that contradicts
@@ -123,15 +123,15 @@ a pinned value is refused, and the file is left alone.
 ## Gate a change to the model itself
 
 ```
-aontu subsume old.aon new.aon              # does the general admit every specific?
-aontu breaking --against git#HEAD~1 model.aon
-aontu hash model.aon                       # a pin that survives reformatting
+aontu subsume old.aontu new.aontu              # does the general admit every specific?
+aontu breaking --against git#HEAD~1 model.aontu
+aontu hash model.aontu                       # a pin that survives reformatting
 ```
 
 ## Hand a model to another agent
 
 ```
-aontu agentsmd --write AGENTS.md model.aon
+aontu agentsmd --write AGENTS.md model.aontu
 ```
 
 Splices a derived stanza — the pin, the root keys, the shape, and the

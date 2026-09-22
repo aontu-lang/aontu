@@ -14,7 +14,7 @@ target, and review the resulting files together. Complete the
 ## Add an optional field
 
 Use a disposable checkout for this exercise. Add this declaration at
-the end of `model.aon`:
+the end of `model.aontu`:
 
 ```aontu
 entity: planet: field: nickname: {
@@ -65,7 +65,7 @@ one fails; the two commands are not a transaction across each other.
 Review the generated changes:
 
 ```sh
-git diff -- model.aon app doc/erd.mmd
+git diff -- model.aontu app doc/erd.mmd
 ```
 
 The new field produces a migration column, an API response property,
@@ -88,9 +88,9 @@ them after model changes:
 for format in text svg; do
   extension=txt
   if [ "$format" = svg ]; then extension=svg; fi
-  aontu view doc --depth 2 --as "$format" --out "doc/model-tree.$extension" model.aon
-  aontu view doc --depth 2 --at '$.entity.planet' --as "$format" --out "doc/planet-tree.$extension" model.aon
-  aontu view lattice --as "$format" --out "doc/value-lattice.$extension" model.aon
+  aontu view doc --depth 2 --as "$format" --out "doc/model-tree.$extension" model.aontu
+  aontu view doc --depth 2 --at '$.entity.planet' --as "$format" --out "doc/planet-tree.$extension" model.aontu
+  aontu view lattice --as "$format" --out "doc/value-lattice.$extension" model.aontu
 done
 ```
 
@@ -102,7 +102,7 @@ limit. Review their diffs alongside the [generated ERD](erd.md).
 Format the changed model, then run the example's checks:
 
 ```sh
-aontu fmt --write model.aon
+aontu fmt --write model.aontu
 ./check.sh
 ```
 
@@ -132,7 +132,7 @@ keep this extension; the reference tests do not cover your new field.
 
 ## Choose who owns a custom change
 
-Change `model.aon` for facts shared by generated targets. Change a
+Change `model.aontu` for facts shared by generated targets. Change a
 [generator](rails-code.md) for the Ruby or ERB it should emit. Put custom
 runtime behaviour in the handwritten part of the Rails application,
 such as a service object called by generated code.

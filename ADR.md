@@ -70,6 +70,7 @@ capability decision is the phase rows it governed in
 | [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
 | [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
+| [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 
 ---
 
@@ -621,9 +622,9 @@ same family — a generator over spread-augmented data dying as
 ### Consequences
 
 - The review's remaining minimal repros are the acceptance suite and
-  all evaluate green: `two-spreads*.aon` (direct and vet forms),
-  `idmerge-ref-templates.aon`, `oneview-ref-templates.aon`,
-  `spread-then-pack.aon`, `merge-expr-onto-pack-child.aon` (§36 lands
+  all evaluate green: `two-spreads*.aontu` (direct and vet forms),
+  `idmerge-ref-templates.aontu`, `oneview-ref-templates.aontu`,
+  `spread-then-pack.aontu`, `merge-expr-onto-pack-child.aontu` (§36 lands
   as outcome (a): it *works* — `surge: 3`).
 - One deliberate canon flip rides rule 2: an unfired generator over a
   permanently stuck source canons with its data reference still
@@ -1152,13 +1153,13 @@ ports (`use-cases/BUGS.md` §49):
 
 | file | TypeScript | Go |
 |---|---|---|
-| `v.aon` | the map | the map |
+| `v.aontu` | the map | the map |
 | `v.json` | `Cannot convert object to primitive value` | the map |
 | `v.jsonld` | the content, as a **string** | the map |
 | `v.txt`, `v.dat`, `vnoext` | the content, as a **string** | the map |
 
 One line on each side: `ts/src/lang.ts` registered
-`processor: {aontu, aon}` and let every other extension fall through to
+`processor: {aontu}` and let every other extension fall through to
 multisource's default, which hands the file back as raw text;
 `go/source.go` registered the empty kind, the fallback for an
 unrecognised extension, and so parsed everything as Aontu source.
@@ -1183,7 +1184,7 @@ things the file is.**
 
 | extension | what it is |
 |---|---|
-| `.aon`, `.aontu` | **Aontu source** — the language, with types, defaults, references, constraints, its own includes |
+| `.aontu` | **Aontu source** — the language, with types, defaults, references, constraints, its own includes |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data** — parsed by that format's own parser into the JSON value it denotes |
 | `.txt`, plus whatever `--text-ext` names | **text** — the file's bytes, as one string scalar |
 | anything else, and a name with no extension | refused, by name, with `include_extension` |
@@ -1194,11 +1195,11 @@ include not readable: rows.csv (extension: .csv)
 
 **Every one of those formats maps onto JSON**, which is why one word
 covers them: a `.toml` file is a map of scalars, lists and maps, and so
-is the `.aon` file that unifies with it. What a data format does NOT
+is the `.aontu` file that unifies with it. What a data format does NOT
 get is the language — a `&` in a YAML file is a YAML anchor, not a
 spread key, because the YAML parser reads it, not this one. A model is
 usually asked to meet configuration somebody else already wrote, and
-"rewrite it into `.aon` first" is not an answer.
+"rewrite it into `.aontu` first" is not an answer.
 
 **The parsers are @tabnas's, one per format, and BOTH PORTS RUN THE
 SAME ONES.** That is what makes the shared spec rows possible: the two
@@ -1209,8 +1210,8 @@ can grow without a second round of parity work.
 Three alternatives were weighed and refused. Parsing everything as
 Aontu (Go's rule) makes `@"notes.txt"` a parse error at a line the
 author never wrote — and cannot read TOML or YAML at all. Reading
-everything but `.aon` as text (TypeScript's rule) keeps the critical
-shape, the silently stringified vocabulary. Refusing every non-`.aon`
+everything but `.aontu` as text (TypeScript's rule) keeps the critical
+shape, the silently stringified vocabulary. Refusing every non-`.aontu`
 include is safe and leaves ONTOLOGY P1 with nothing to import.
 
 ### Amendment, 2026-09-03: text is the third thing an extension can mean
@@ -1281,7 +1282,7 @@ The TypeScript package leg narrows with it: `@"some-pkg"` resolving to
 a `.js` entry point now refuses. The Go port has no package leg at all
 (`docs/test-coverage.md`), so this closes a divergence rather than
 opening one, and the module system (G6, `aontu_meta/vendor/`) is unaffected —
-a module states `kind: 'aon'` by construction, as the bundled
+a module states `kind: 'aontu'` by construction, as the bundled
 vocabulary does.
 
 `include_extension` joins the registry (class `parse`, 0.54.0).
@@ -1466,12 +1467,12 @@ sharper, and it hits a single author with no third party involved:
 **A model carrying an `id()` cannot be instantiated twice.**
 
 ```
-# model.aon
+# model.aontu
 user: id(User) & { region: "eu" }
 
-# main.aon
-tenantA: { m: @"model.aon" }
-tenantB: { m: @"model.aon", m: { user: { region: "us" } } }
+# main.aontu
+tenantA: { m: @"model.aontu" }
+tenantB: { m: @"model.aontu", m: { user: { region: "us" } } }
   → [aontu/scalar_value] at $.tenantB.m.user.region: "eu" with "us"
 ```
 
@@ -1708,7 +1709,7 @@ plain-string-only.
 Data documents that carry addresses are Aontu documents now: a JSON
 file cannot spell a path, and the corpus's agent-emitted records
 (01-service-catalog's scaffolder candidate, 05-rbac-policy's audits,
-10-data-model's order batches) moved from `.json` to `.aon` with
+10-data-model's order batches) moved from `.json` to `.aontu` with
 `path(...)` spellings. Canon renders every address as the call
 (`refer(t)&path($.a)`, links as `path($.a)`), because a bare string
 address no longer reparses. `use:` fields in `deprecate()` records
@@ -2382,12 +2383,12 @@ bytes" is no longer a reason it cannot check anything.
    | Form | Means |
    |---|---|
    | `corp.example/schemas/service` | a package |
-   | `./f.aon`, `../g.json`, `/abs/h.aon` | a local file |
+   | `./f.aontu`, `../g.json`, `/abs/h.aontu` | a local file |
    | `alias:legacy` | a package alias |
 
    A local file reference **must** carry `./`, `../` or `/`. This is
    what removes the ambiguity the major used to resolve by accident: a
-   bare `foo.aon` is domain-shaped enough to look like a package, and
+   bare `foo.aontu` is domain-shaped enough to look like a package, and
    the leading `./` is what tells the two apart.
 
 5. **Coexistence is by alias, declared by the consumer.** A project that
@@ -2420,7 +2421,7 @@ this entry does not choose between them. What it fixes is that the
 change cannot happen *silently*.
 
 **We accept a migration diagnostic.** With `./` mandatory, a bare
-`@"foo.aon"` classifies as a package and would fail with "package not
+`@"foo.aontu"` classifies as a package and would fail with "package not
 found", which is the wrong message for what will be the commonest
 mistake. A reference whose final segment carries a known file extension
 and no `./` refuses with *"local files need a `./` prefix"*. Routing
@@ -2831,7 +2832,7 @@ schemes. Five carried the `aontu:` prefix
 ([MODELS.0.md](design/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
 `aontu:profile` and the three language profiles. Two did not:
 `std/system` (G4 phase 4) and `std/view`, spelled as bare paths, each
-also answering to a `.aon` suffix.
+also answering to a `.aontu` suffix.
 
 The prefix is not decoration. It is Node's `node:fs` device: a spelling
 no relative path, package name or module path can produce. That is what
@@ -2848,7 +2849,7 @@ shadowing-avoidance argument that had to be made twice, differently.
 
 Three further asymmetries came with it:
 
-- `std/system.aon` resolved, while `aontu:code.aon` is refused — the
+- `std/system.aontu` resolved, while `aontu:code.aontu` is refused — the
   scheme is not a directory, but the bare names behaved like one.
 - The `aontu:` models are held to the formatter (MODELS.0.md D4) and
   the `std/` vocabularies were not, because that test iterates the
@@ -2862,15 +2863,15 @@ Three further asymmetries came with it:
 **Every language-supplied schema is named under `aontu:`, and `std` is
 retired.**
 
-    std/system, std/system.aon  ->  aontu:system
-    std/view,   std/view.aon    ->  aontu:view
+    std/system, std/system.aontu  ->  aontu:system
+    std/view,   std/view.aontu    ->  aontu:view
 
 `std` goes as a *name* and as a *root key*: `aontu:system` defines
 `system:`, so `$.std.Port` is now `$.system.Port`. Retiring the prefix
 while leaving the key would keep the word in every document that used
 the vocabulary, which is not retiring it.
 
-The `.aon` spellings go with it. The scheme is not a directory, and
+The `.aontu` spellings go with it. The scheme is not a directory, and
 that was already true of the other five.
 
 ### Consequences
@@ -2889,9 +2890,9 @@ that was already true of the other five.
   Their canon and canon-hash pins move with the root key; both were
   re-probed against both engines.
 - `test/spec/std-system.tsv` and `std-view.tsv` become
-  `aontu-system.tsv` and `aontu-view.tsv`. The `.aon` rows become
+  `aontu-system.tsv` and `aontu-view.tsv`. The `.aontu` rows become
   refusal rows, which is what `aontu-scheme.tsv` already pins for
-  `aontu:code.aon`.
+  `aontu:code.aontu`.
 - The dependency-kind label `std`, recorded for a bundled source, is
   left alone: it names a source's PROVENANCE (engine-bundled), not a
   name, and it is not user-visible.
@@ -3531,7 +3532,7 @@ it is given, being the per-call override.
 ### Consequences
 
 - **Three verbs, one file.** A project that generates OCaml writes
-  `ocaml.aon` once and passes `--profile ocaml.aon` to whichever verb
+  `ocaml.aontu` once and passes `--profile ocaml.aontu` to whichever verb
   it is running, instead of repeating a marker flag whose spelling has
   to match across a Makefile, a CI job and an editor command.
 - **The profile-file loader is shared.** `render` had it; `template`
@@ -3568,7 +3569,7 @@ two, plus an explicit closer, says what is known and asks for the rest.
 
 **Date:** 2026-09-11
 **Status:** Accepted *(Amended 2026-09-11, same day, and the Decision
-text corrected 2026-09-18: every `.aon` under `aontu/` is a module, not
+text corrected 2026-09-18: every `.aontu` under `aontu/` is a module, not
 one per subfolder.)*
 
 ### Context
@@ -3594,10 +3595,10 @@ and the identifiers.
 
 ### Decision
 
-**The source of a bundled model is a file.** EVERY `.aon` under
+**The source of a bundled model is a file.** EVERY `.aontu` under
 `aontu/` at the repository root is a module, named by its path with the
-extension dropped: `aontu/lang/text.aon` is `aontu:lang/text`. A file
-named after the directory holding it collapses, so `aontu/view/view.aon`
+extension dropped: `aontu/lang/text.aontu` is `aontu:lang/text`. A file
+named after the directory holding it collapses, so `aontu/view/view.aontu`
 is `aontu:view` and not `aontu:view/view` — a module that wants a
 folder of its own can have one without spelling its name twice. The
 path after the scheme IS the path in the tree, so a name and its file
@@ -3607,7 +3608,7 @@ README, a fixture — without a second module appearing beside it.
 directory holding a file named after it" until 2026-09-18. The
 per-file rule is the one `ts/scripts/aontu.cjs` has stated and
 implemented since `aa9cf98e`, the same day: `aontu/lang/` holds
-`markdown.aon` and `text.aon`, two modules in no subfolder of their
+`markdown.aontu` and `text.aontu`, two modules in no subfolder of their
 own.)*
 
 **Both ports inline it at build time.** `make aontu` runs
@@ -3661,8 +3662,8 @@ them.
 reads only from its own package directory downward. The committed
 mirror is the price, and a test is what keeps it honest.
 
-**One file per model at the tree root** (`aontu/system.aon`), no
-subfolders. `aontu:lang/go` would then be `aontu/lang-go.aon`, spelling
+**One file per model at the tree root** (`aontu/system.aontu`), no
+subfolders. `aontu:lang/go` would then be `aontu/lang-go.aontu`, spelling
 a path with a hyphen, and a model would have nowhere to keep anything
 beside its source.
 
@@ -3702,7 +3703,7 @@ before.
 the whole `+` absence, which is what is meant to carry a heading away
 with the rows it heads:
 
-```aon
+```aontu
 of: ["tags:"] + emit(sort(maybe($.tags)), %tag)
 ```
 
@@ -3854,7 +3855,7 @@ going with the renderer that implements it.
 ### Consequences
 
 - **One model rendering to two languages is given up, knowingly.**
-  `use-cases/10-data-model/xf-domain.aon` derives `idUrl: string` and
+  `use-cases/10-data-model/xf-domain.aontu` derives `idUrl: string` and
   ``IDURL string `json:"id_url"` `` from one `%decls` list, each with
   its own language's casing, acronym and optionality rules. There is no
   successor: a generator wanting both writes the text twice. This is
@@ -3940,7 +3941,7 @@ Three naming schemes coexisted across the engine, the executable
 specification in `aontu-lang/system` and the design notes. The engine
 read `mod.aon`, wrote `aontu_meta/mod-lock.aon`, required `@<major>`
 in every import and spelt its verbs `aontu mod <op>`; the specification
-read `pkg.aon`, wrote `aontu_meta/pkg-lock.aon`, carried no major
+read `pkg.aontu`, wrote `aontu_meta/pkg-lock.aontu`, carried no major
 ([ADR-022](#adr-022--compatibility-is-computed-so-the-major-leaves-the-name))
 and named `sync`, `get` and `publish`; and `CLI.0.md` in that repository
 proposed the verb tiers and the file names as four settled decisions
@@ -3970,19 +3971,19 @@ tiers, and a lock entry with three pins.** Ten parts.
    where the thing is published, versioned, signed or quota'd, and
    `module` where it is imported, resolved or hashed.
 
-2. **Files.** The package file is `pkg.aon` at the project root. The
-   lockfile is `aontu_meta/pkg-lock.aon`. The vendored closure is
+2. **Files.** The package file is `pkg.aontu` at the project root. The
+   lockfile is `aontu_meta/pkg-lock.aontu`. The vendored closure is
    `aontu_meta/vendor/<package-path>/`, one directory per `/`-element,
    with no `@<major>` suffix and uppercase escaped `!x` as before. A
    package acquired from a repository keeps its manifest and its proof
-   beside its tree, at `<tree>/aontu_meta/manifest.aon` and
-   `<tree>/aontu_meta/proof.aon` (a key proof) or
+   beside its tree, at `<tree>/aontu_meta/manifest.aontu` and
+   `<tree>/aontu_meta/proof.aontu` (a key proof) or
    `<tree>/aontu_meta/proof.sigstore.json` (a Sigstore bundle), verbatim
    as served, so a later `verify` needs no network. The user cache
    moves to `aontu/pkg` under the platform rule and gains three trees:
    `download/<package>/@v/<version>.*` keyed by package and version,
    `store/<canon-hash>/<package>/` keyed by canon-hash **and** package
-   path, and `seen/<package>/<version>.aon`, the client's first-seen
+   path, and `seen/<package>/<version>.aontu`, the client's first-seen
    records. The store key is what closes the cache-identity hole G10
    named: two packages meaning the same thing never share a directory.
 
@@ -3997,11 +3998,11 @@ tiers, and a lock entry with three pins.** Ten parts.
 4. **An import self-describes**, per ADR-022 part 4. `@"corp.example/x"`
    is a package path; `@"corp.example/x#aon1-…"` pins it inline;
    `@"alias:legacy"` names an alias the package file declares, resolved
-   by lookup and never by shape; `@"./f.aon"`, `@"../g.json"` and
-   `@"/abs/h.aon"` are local files. A bare reference whose final
+   by lookup and never by shape; `@"./f.aontu"`, `@"../g.json"` and
+   `@"/abs/h.aontu"` are local files. A bare reference whose final
    segment carries an extension the include table knows refuses with
    the new code `module_local` and the message
-   *local files need a `./` prefix*. A package whose `pkg.aon` declares
+   *local files need a `./` prefix*. A package whose `pkg.aontu` declares
    `moved` refuses with the new code `module_moved`, naming the
    destination; nothing follows it. Both codes are class `parse`, join
    `MODULE_REFUSAL_CODES`, and land with registry rows.
@@ -4077,7 +4078,7 @@ optional `manifest` and `pkg`; `T.PackageFile` gains `repo`;
 so a local registry can hold a manifest with no forge behind it, while
 the public write path keeps requiring it; the base-URL rule admits
 loopback http; and `acquire` step 6 is reworded. Each is provisional in
-`params.aon`'s sense and is recorded there. Where this entry and the
+`params.aontu`'s sense and is recorded there. Where this entry and the
 specification still disagree, the specification is amended.
 
 **We accept the spec fixtures re-pinning once.** Every stored `aon1-`
@@ -4111,7 +4112,7 @@ skips.)*
 left the component tree as the only output road and moved the seam
 "below both": aontu knows no languages and no files, and a generator
 runtime writes the bytes. What that left a user holding was a pipe,
-`aontu model get out gen.aon | node tools/cmptree-check.js --out .`: a
+`aontu model get out gen.aontu | node tools/cmptree-check.js --out .`: a
 script in this repository that requires jostraca at run time, which
 jostraca ships no command of its own to replace. Every consumer wrote
 that script. CI installed the runtime outside the checkout so the byte
@@ -4127,7 +4128,7 @@ both languages, at the same version.
 ### Decision
 
 **`aontu render <file> <path>` is a verb of both CLIs.** It evaluates
-the generator, a `.aon` document or a template entry read as `trace`
+the generator, a `.aontu` document or a template entry read as `trace`
 reads one, takes the tree at `$.out` or `--at`, and hands it to
 jostraca: the npm package in TypeScript, `github.com/jostraca/jostraca/go`
 in Go, pinned at one version, both ordinary dependencies. A tree that
@@ -4312,3 +4313,118 @@ constant, so a single source would add a generation step to both ports
 for one string — and a generated `VERSION` is exactly the kind of thing
 that goes stale in a checkout. Two literals and a guard that compares
 them is smaller and fails closed.
+
+## ADR-042 — `.aontu` is the only extension an aontu source file carries
+
+**Date:** 2026-09-22
+**Status:** Accepted
+
+### Context
+
+An aontu source file could be spelled two ways. `.aon` and `.aontu`
+both resolved to the `source` kind in
+[`ts/src/lang.ts`](ts/src/lang.ts)'s `INCLUDE_KINDS` and
+[`go/source.go`](go/source.go)'s `includeKinds`; both were tried when a
+bare `@"foo"` was completed; both were admitted into a published
+archive; both were registered by the editor plugins, and `aon` was an
+alias of the `aontu` grammar. The documentation used one as the fence
+tag in the reference pages and the other in the teaching pages, and
+`docs/reference-packages.md` listed the pair as the source group.
+
+Nothing chose between them. `.aon` was the shorter spelling and the one
+the tree mostly used; `.aontu` was the one that says what the file is.
+Two spellings for one thing is a decision that was never taken, and it
+cost in the ordinary places: a reader had to learn that the two are the
+same, every list of extensions carried two entries where one would do,
+and each new surface — the archive allowlist, the LSP selectors, the
+`fmt` and `subsume` verbs — had to remember to name both.
+
+### Decision
+
+**An aontu source file is named `*.aontu`, and nothing else.** One
+spelling, in the language, in the tools, and in the documents.
+
+The extension tables hold a single `aontu` entry; the implicit-extension
+completion for a bare reference tries `.aontu` alone; `ARCHIVE_SOURCE_EXT`
+and its Go twin admit `aontu` alone. The internal kind tag a resolved
+source carries is `'aontu'`, matching the extension it comes from rather
+than abbreviating it. The 492 `.aon` files in the tree were renamed, and
+the fence tag in every document is `aontu`.
+
+**The `aon` grammar alias is withdrawn with it.** `grammar/aontu.tmLanguage.json`
+and the VS Code copy declare `aontu` as their only file type, and the
+Emacs, Vim and VS Code plugins bind that extension alone.
+
+**Two names keep their old spelling, because they are not current
+source.** `mod.aon` and `mod-lock.aon` name the layout that
+[ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+replaced, and the migration notice in `nameOldLayout` reads them off a
+user's disk to say what to do instead. Renaming them would make that
+notice name a file that never existed. `aon_vendor/` is the same case.
+
+**`aon1-` is untouched.** It is the canon-hash format tag, not a file
+extension, and it versions the hash rather than naming a file.
+
+### Consequences
+
+**This is a breaking change for any document on disk.** A project whose
+files end `.aon` stops resolving: a bare `@"foo"` no longer completes to
+`foo.aon`, an explicit `@"./foo.aon"` refuses as `include_extension`,
+and `aontu fmt` declines the file as not being aontu source. The fix is
+a rename, which is mechanical and total — there is no mixed state to
+support, and none is offered, because a deprecation window is exactly
+the two-spellings state this entry ends.
+
+**A published package pinned by its archive digest re-pins.** The
+archive hash covers the file names, so renaming a package's entry moves
+`archive` while leaving `canon` — the meaning — unchanged. The
+lockfiles and manifests in `use-cases/11-shared-modules/` moved for this
+reason and no other, which is the pair of pins in
+[ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)
+behaving as designed.
+
+**A stranded project is named, not guessed at.** A project whose
+package file is still `pkg.aon` declares nothing to any verb — it is
+not an error, it is an *empty* package — so `pkg verify` would answer
+`ok` over it and `sync` would write a lockfile with every pin dropped.
+`nameOldLayout` in both CLIs therefore reports this generation
+alongside the `mod` one ADR-039 replaced, as a separate finding with
+its own repair: that one renames a block inside the file, this one
+renames the file.
+
+**Persisted state written by an earlier release is still read.** The
+first-seen records under `seen/<package>/<version>` are the evidence
+`list_rollback` is computed from, not documents to evaluate. Reading
+only the new suffix would discard every version the previous release
+observed, and a repository could then shorten a version list without
+detection until the history rebuilt itself. Both spellings are read and
+neither is overwritten — a second write would date an old version to
+today — while new records are written under the one extension. This is
+the single place the decision above admits the old spelling, and it
+admits it as a *fact recorded*, never as a document.
+
+**Three characters more per name costs some lines their budget.** The
+`fmt` budget is 80 columns, so a handful of documented fences that fit
+at `.aon` expand at `.aontu`. They were reformatted rather than
+re-worded.
+
+### Alternatives considered
+
+**Keep both, and name `.aontu` the preferred one.** What the tree
+already had in all but the word: `editors/README.md` called `.aon`
+preferred and nothing enforced it. A preference no mechanism applies is
+a comment, and both spellings stay live.
+
+**Standardise on `.aon` instead.** Shorter, and the majority spelling
+in the tree, so the rename would have been smaller. Rejected because it
+is the spelling that does not say what the file is: `.aon` collides
+readably with nothing, but it teaches nothing either, and a reader
+meeting it first has to be told. The extension is read far more often
+than it is typed.
+
+**Accept `.aon` on read, write `.aontu`.** A deprecation window, and
+the usual shape of one. It keeps every extension table at two entries,
+keeps both spellings resolving, and defers the decision rather than
+making it — with no condition that would ever end it, which is the
+failure mode [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series)
+names in its own context.

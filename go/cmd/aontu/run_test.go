@@ -36,7 +36,7 @@ func TestRunHelpVersionAndBadOption(t *testing.T) {
 
 func TestRunMistypedVerbIsAUsageError(t *testing.T) {
 	var out, errw bytes.Buffer
-	code := run([]string{"vet2", "schema.aon", "data.json"},
+	code := run([]string{"vet2", "schema.aontu", "data.json"},
 		nil, &out, &errw, true)
 	if code != 2 {
 		t.Fatalf("code: %d", code)
@@ -55,7 +55,7 @@ func TestRunMistypedVerbIsAUsageError(t *testing.T) {
 // error rather than a silent discard.
 func TestRunTwoFilesIsAUsageError(t *testing.T) {
 	var out, errw bytes.Buffer
-	code := run([]string{"a.aon", "b.aon"}, nil, &out, &errw, true)
+	code := run([]string{"a.aontu", "b.aontu"}, nil, &out, &errw, true)
 	if code != 2 ||
 		!strings.Contains(errw.String(), "evaluates one document, and 2 were given") {
 		t.Fatalf("%d %q", code, errw.String())
@@ -185,7 +185,7 @@ func TestAontuForFileAbsFailure(t *testing.T) {
 
 func TestReplJSONLIsReachableOverAPipe(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "m.aon")
+	file := filepath.Join(dir, "m.aontu")
 	if err := os.WriteFile(file, []byte("a: 1\n"), 0o600); nil != err {
 		t.Fatal(err)
 	}
@@ -230,7 +230,7 @@ func TestRunTextExtFlag(t *testing.T) {
 		[]byte("# hi\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	entry := filepath.Join(dir, "main.aon")
+	entry := filepath.Join(dir, "main.aontu")
 	if err := os.WriteFile(entry,
 		[]byte("doc: @\"./doc.md\"\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -280,7 +280,7 @@ func TestRunTextExtOnVerbs(t *testing.T) {
 		[]byte("# hi\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	entry := filepath.Join(dir, "main.aon")
+	entry := filepath.Join(dir, "main.aontu")
 	if err := os.WriteFile(entry,
 		[]byte("doc: @\"./doc.md\"\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -337,7 +337,7 @@ func evalReportOf(t *testing.T, args ...string) (evalReportJSON, int, string) {
 // object, and this is the one an agent reaches for first.
 func TestRunBareFormatJSON(t *testing.T) {
 	dir := t.TempDir()
-	good := filepath.Join(dir, "good.aon")
+	good := filepath.Join(dir, "good.aontu")
 	if err := os.WriteFile(good, []byte("a:1 b:$.a"), 0o644); nil != err {
 		t.Fatal(err)
 	}
@@ -375,7 +375,7 @@ func TestRunBareFormatJSON(t *testing.T) {
 // ports hold set-equal.
 func TestRunBareFormatJSONFailure(t *testing.T) {
 	dir := t.TempDir()
-	bad := filepath.Join(dir, "bad.aon")
+	bad := filepath.Join(dir, "bad.aontu")
 	if err := os.WriteFile(bad, []byte("a: 1 & 2\n"), 0o644); nil != err {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestEmitJSONWithoutAFinding(t *testing.T) {
 
 func TestVacuitySignals(t *testing.T) {
 	dir := t.TempDir()
-	plain := filepath.Join(dir, "plain.aon")
+	plain := filepath.Join(dir, "plain.aontu")
 	if err := os.WriteFile(plain, []byte("a: { b: 1 }\n"), 0o644); nil != err {
 		t.Fatal(err)
 	}
@@ -476,7 +476,7 @@ func TestVacuitySignals(t *testing.T) {
 	}
 
 	// AND THE NEGATIVE: a document that DOES declare says nothing.
-	graph := filepath.Join(dir, "graph.aon")
+	graph := filepath.Join(dir, "graph.aontu")
 	if err := os.WriteFile(graph,
 		[]byte("a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {}\n"),
 		0o644); nil != err {

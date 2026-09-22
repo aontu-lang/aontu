@@ -96,22 +96,35 @@ func parsePkgArgs(argv []string, verb string, stdout, stderr io.Writer) (pkgArgs
 	return out, true
 }
 
-// A verb that finds the older layout names the current one, once, and
-// reads nothing from it.
+// A verb that finds an older layout names the current one, once, and
+// reads nothing from it. `pkg.aon` is the sharper case: a project
+// carrying it declares nothing to any verb, so `verify` answers over an
+// empty package and `sync` writes a lock with every pin dropped.
 func nameOldLayout(dir string, stderr io.Writer) {
-	old := []string{}
-	for _, f := range []string{"aon_vendor", "mod-lock.aon", "mod.aon",
-		filepath.Join("aontu_meta", "mod-lock.aon")} {
-		if _, err := os.Stat(filepath.Join(dir, f)); nil == err {
-			old = append(old, f)
+	here := func(names []string) []string {
+		found := []string{}
+		for _, f := range names {
+			if _, err := os.Stat(filepath.Join(dir, f)); nil == err {
+				found = append(found, f)
+			}
 		}
+		return found
 	}
-	if 0 < len(old) {
+	mod := here([]string{"aon_vendor", "mod-lock.aon", "mod.aon",
+		filepath.Join("aontu_meta", "mod-lock.aon")})
+	aon := here([]string{"pkg.aon", filepath.Join("aontu_meta", "pkg-lock.aon")})
+	if 0 < len(mod) {
 		io.WriteString(stderr,
-			"aontu: "+strings.Join(old, ", ")+" belong to an older layout: the package "+
-				"file is pkg.aon, the lockfile "+filepath.Join("aontu_meta", "pkg-lock.aon")+
+			"aontu: "+strings.Join(mod, ", ")+" belong to an older layout: the package "+
+				"file is pkg.aontu, the lockfile "+filepath.Join("aontu_meta", "pkg-lock.aontu")+
 				" and the vendor tree "+filepath.Join("aontu_meta", "vendor")+"; rename "+
-				"pkg.aon's `mod` block to `pkg`, then run aontu sync\n")
+				"pkg.aontu's `mod` block to `pkg`, then run aontu sync\n")
+	}
+	if 0 < len(aon) {
+		io.WriteString(stderr,
+			"aontu: "+strings.Join(aon, ", ")+" carry the withdrawn .aon extension, so "+
+				"nothing here declares a package: rename them to pkg.aontu and "+
+				filepath.Join("aontu_meta", "pkg-lock.aontu")+", then run aontu sync\n")
 	}
 }
 

@@ -78,7 +78,7 @@ out: folder("src", [
 ])
 ```
 
-That is [`ts/test/cmp-spike.aon`](../../ts/test/cmp-spike.aon) verbatim —
+That is [`ts/test/cmp-spike.aontu`](../../ts/test/cmp-spike.aontu) verbatim —
 the fixture `ts/test/cmp.test.ts` asserts and the pipeline command in §9
 runs, so this block, the engine and the pipeline cannot drift apart. It
 is in the canonical form: `aontu fmt --check` passes on it, which is
@@ -90,7 +90,7 @@ plan as data. Against generated nodes the argument has no purchase.
 
 **But it has no purchase on `aontu:code` either, and that is the part
 worth being straight about.** The same combinators write the landed
-vocabulary: `use-cases/10-data-model/xf-domain.aon` walks a whole
+vocabulary: `use-cases/10-data-model/xf-domain.aontu` walks a whole
 record schema into TypeScript in thirty lines, and it DERIVES each
 field's type from the schema rather than spelling it, so one instance
 renders to TypeScript and to Go with each language's own casing and
@@ -540,7 +540,7 @@ unnecessary. It cost 150 lines.
 shape, and the integration is a pipe:
 
 ```sh
-aontu ts/test/cmp-spike.aon | node tools/cmptree-gen.js --at out --folder ./build
+aontu ts/test/cmp-spike.aontu | node tools/cmptree-gen.js --at out --folder ./build
 ```
 
 VERIFIED end to end against the fixture in §1: the command writes

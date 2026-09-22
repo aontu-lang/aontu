@@ -158,7 +158,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
         Assert.equal((0, lsp_1.computeHover)(src, { line: 2, character: 4 })?.contents.value, '```aontu\ntypes: type({%row: {n:string}})\n```\n\n*alias*');
     });
-    const SRC = '%port = integer\n{ %uint8 } = @"./t.aon"\n\nl: %port\nv: %uint8';
+    const SRC = '%port = integer\n{ %uint8 } = @"./t.aontu"\n\nl: %port\nv: %uint8';
     // A hover marks the USE the cursor is on, not the declaration.
     (0, node_test_1.test)('hover-names-the-declaration', () => {
         const h = (0, lsp_1.computeHover)(SRC, { line: 3, character: 4 });
@@ -167,7 +167,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     });
     (0, node_test_1.test)('hover-names-the-file-a-name-was-taken-from', () => {
         const h = (0, lsp_1.computeHover)(SRC, { line: 4, character: 4 });
-        Assert.equal(h.contents.value, '```aontu\n{ %uint8 } = @"./t.aon"\n```\n\n*alias, taken from ./t.aon*');
+        Assert.equal(h.contents.value, '```aontu\n{ %uint8 } = @"./t.aontu"\n```\n\n*alias, taken from ./t.aontu*');
     });
     (0, node_test_1.test)('definition-goes-to-where-the-name-is-bound', () => {
         // A local name goes to its own line, a taken one to the pattern.
@@ -204,8 +204,8 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('what-the-text-binds-and-what-it-does-not', () => {
         // A head that is not a set, the wildcard (whose names are the other
         // file's to say), and an `=` that does not declare.
-        Assert.deepEqual((0, alias_1.aliasScope)('{ a } = @"./f.aon"'), []);
-        Assert.deepEqual((0, alias_1.aliasScope)('{%} = @"./f.aon"'), []);
+        Assert.deepEqual((0, alias_1.aliasScope)('{ a } = @"./f.aontu"'), []);
+        Assert.deepEqual((0, alias_1.aliasScope)('{%} = @"./f.aontu"'), []);
         Assert.deepEqual((0, alias_1.aliasScope)('%a == 1'), []);
         Assert.deepEqual((0, alias_1.aliasScope)('  %a = 1'), [{ name: '%a', row: 1, col: 3, decl: '%a = 1', from: '' }]);
     });
@@ -270,18 +270,18 @@ const lsp_server_1 = require("../dist/lsp-server");
     });
     // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
     (0, node_test_1.test)('completion-offers-the-names-in-scope', () => {
-        const src = '%port = integer\n{ %uint8, %b: %remote } = @"./types.aon"\n';
+        const src = '%port = integer\n{ %uint8, %b: %remote } = @"./types.aontu"\n';
         const named = (0, lsp_1.computeCompletions)(src).filter(i => i.label.startsWith('%'));
         // A rename binds the LOCAL name: `%b`, not the `%remote` it takes.
         Assert.deepEqual(named, [
             { label: '%port', kind: lsp_1.COMPLETION_VARIABLE, detail: 'alias' },
             {
                 label: '%uint8', kind: lsp_1.COMPLETION_VARIABLE,
-                detail: 'alias from ./types.aon'
+                detail: 'alias from ./types.aontu'
             },
             {
                 label: '%b', kind: lsp_1.COMPLETION_VARIABLE,
-                detail: 'alias from ./types.aon'
+                detail: 'alias from ./types.aontu'
             },
         ]);
         // A name that binds more than once is offered once.
@@ -619,9 +619,9 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.equal((0, lsp_1.contributionsMarkdown)([]), '');
         Assert.equal((0, lsp_1.contributionsMarkdown)([
             { canon: '1', role: 'literal', site: { col: -1, file: '', row: -1 } },
-            { canon: 'integer', role: 'spread', site: { col: 3, file: 'x.aon', row: 2 } },
+            { canon: 'integer', role: 'spread', site: { col: 3, file: 'x.aontu', row: 2 } },
         ]), '\n\n---\n\nContributions:\n' +
-            '- `1` — literal\n- `integer` — spread (x.aon:2:3)');
+            '- `1` — literal\n- `integer` — spread (x.aontu:2:3)');
     });
     (0, node_test_1.test)('the-handler-reads-the-opt-in', () => {
         const on = new lsp_1.LspHandler();
@@ -633,14 +633,14 @@ const lsp_server_1 = require("../dist/lsp-server");
             jsonrpc: '2.0', method: 'textDocument/didOpen',
             params: {
                 textDocument: {
-                    uri: 'file:///p.aon', text: 'a: 1\na: integer', version: 1,
+                    uri: 'file:///p.aontu', text: 'a: 1\na: integer', version: 1,
                 },
             },
         });
         const hover = on.handle({
             jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
             params: {
-                textDocument: { uri: 'file:///p.aon' },
+                textDocument: { uri: 'file:///p.aontu' },
                 position: { line: 0, character: 3 },
             },
         })[0];
@@ -651,14 +651,14 @@ const lsp_server_1 = require("../dist/lsp-server");
             jsonrpc: '2.0', method: 'textDocument/didOpen',
             params: {
                 textDocument: {
-                    uri: 'file:///p.aon', text: 'a: 1\na: integer', version: 1,
+                    uri: 'file:///p.aontu', text: 'a: 1\na: integer', version: 1,
                 },
             },
         });
         const plain = off.handle({
             jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
             params: {
-                textDocument: { uri: 'file:///p.aon' },
+                textDocument: { uri: 'file:///p.aontu' },
                 position: { line: 0, character: 3 },
             },
         })[0];

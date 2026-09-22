@@ -1,0 +1,8 @@
+# bad/tier-conflict.aontu --- change request CR-4720: an ops overlay
+# claims payments can be tier 2. The catalog says tier 1, and the
+# deployment view references the catalog's tier, so the overlay's
+# claim meets the catalog's at the deploy position and evaluation
+# itself fails.
+@"../system.aontu"
+
+deploy: regions: eu1: clusters: core: workloads: payments: tier: 2

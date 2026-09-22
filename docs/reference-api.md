@@ -109,7 +109,7 @@ the package cache they write.
   singular, and a second filename is a usage error (exit 2) rather
   than a silent discard. This is what makes a MISTYPED VERB fail
   loudly: `vet2` matches no subcommand, so it falls through as a file
-  name, and `aontu vet2 schema.aon good.json` is a usage error rather
+  name, and `aontu vet2 schema.aontu good.json` is a usage error rather
   than a plausible pass: in the one place a tool loop reads the exit
   code to decide whether the data is good. A file genuinely named like
   a verb is still reachable as `./vet`.
@@ -118,7 +118,7 @@ the package cache they write.
   is reported as a verb rather than as a missing file, with the nearest
   verb named: `aontu vett` answers ``aontu: `vett` is not a file, and
   not a verb this port knows`` and suggests `aontu vet`, at exit 2. A
-  path-shaped argument (`./help`, `help.aon`, `/tmp/help`) keeps the
+  path-shaped argument (`./help`, `help.aontu`, `/tmp/help`) keeps the
   file diagnosis and its exit 1, which is the same escape hatch the
   subcommand dispatch uses.
 - **Stdin:** `echo 'a:1 b:$.a' | aontu` reads source from the pipe.
@@ -277,24 +277,24 @@ token: `min(1)` reports `src: "min"`, a map reports `src: "{"`. Seeing
 `min` where it expected `min(1)`, a consumer refuses rather than
 replacing the name and orphaning the arguments.
 
-To see the site shape, pin `port` in a one-line `schema.aon`:
+To see the site shape, pin `port` in a one-line `schema.aontu`:
 
 <!-- test: scenario vet-site -->
-<!-- test: file schema.aon -->
+<!-- test: file schema.aontu -->
 ```aontu
 port: 8080
 ```
 
-and vet a `data.aon` that spells a different port in hex:
+and vet a `data.aontu` that spells a different port in hex:
 
-<!-- test: file data.aon -->
+<!-- test: file data.aontu -->
 ```aontu
 port: 0x1F
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu vet --format json schema.aon data.aon
+$ aontu vet --format json schema.aontu data.aontu
 {
   "aontu": {
     "verb": "vet",
@@ -302,7 +302,7 @@ $ aontu vet --format json schema.aon data.aon
       "sites": [
         {
           "col": 7,
-          "file": "data.aon",
+          "file": "data.aontu",
           "len": 4,
           "role": "data",
           "row": 1,
@@ -322,14 +322,14 @@ code units: the three facts an editing consumer needs, together.
 
 **A site names the file whose text it excerpts**, which for a modular
 document is not the entry file. A constraint written in
-`lib/types.aon` and reached through `@"./lib/types.aon"` is reported at
-`lib/types.aon` with that file's row and column: never at the entry
+`lib/types.aontu` and reached through `@"./lib/types.aontu"` is reported at
+`lib/types.aontu` with that file's row and column: never at the entry
 with the included file's coordinates, which is a real filename
 against a line it may not have.
 
 The name is the one the CALLER'S OWN spelling reaches: `vet
-contract.aon` names `types.aon`, `vet a/b/contract.aon` names
-`a/b/types.aon`, and an absolute entry keeps absolute includes. So a
+contract.aontu` names `types.aontu`, `vet a/b/contract.aontu` names
+`a/b/types.aontu`, and an absolute entry keeps absolute includes. So a
 site can be opened from wherever the command was run, and a report
 stays repo-relative, which is what a SARIF upload needs. Identity is
 still the resolved path underneath: two documents loading one library
@@ -356,10 +356,10 @@ document's own directory, exactly as they do for `aontu <file>`.
 **A finding names both sides.** Sites are labelled by provenance (`data`
 first, because that is the one to edit) rather than by the source-order
 heuristic a single-document error uses. Write a closed schema as
-`service.aon`:
+`service.aontu`:
 
 <!-- test: scenario vet -->
-<!-- test: file service.aon -->
+<!-- test: file service.aontu -->
 ```aontu
 service: close({ name:string port: *8080|integer replicas:integer })
 ```
@@ -375,7 +375,7 @@ integer belongs:
 
 <!-- test: run -->
 ```sh
-$ aontu vet service.aon deploy.json
+$ aontu vet service.aontu deploy.json
 verdict: invalid
 
 $.service.prot: closed [conflict]
@@ -384,7 +384,7 @@ $.service.prot: closed [conflict]
 $.service.replicas: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.replicas
   data: deploy.json:2:15 ("3")
-  schema: service.aon:1:59 (integer)
+  schema: service.aontu:1:59 (integer)
 $ echo $?
 1
 ```
@@ -453,10 +453,10 @@ nothing extra from `vet`: the definition expands one level per
 as far as the data does, and a finding at depth is located there. The
 vocabulary below is a trimmed version of
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
-Write it as `chain.aon`:
+Write it as `chain.aontu`:
 
 <!-- test: scenario vet-recursive -->
-<!-- test: file chain.aon -->
+<!-- test: file chain.aontu -->
 ```aontu
 spec: hide({
   Step: {
@@ -480,7 +480,7 @@ candidate `Step`, not a candidate whole file. A two-level chain in
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at $.spec.Step chain.aon request.json
+$ aontu vet --at $.spec.Step chain.aontu request.json
 verdict: valid
 ```
 
@@ -496,7 +496,7 @@ A chain whose third level breaks the `approver` pattern, as
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at $.spec.Step chain.aon request-deep.json
+$ aontu vet --at $.spec.Step chain.aontu request-deep.json
 verdict: invalid
 
 $.spec.Step.then.then.approver: constraint [conflict]
@@ -504,7 +504,7 @@ $.spec.Step.then.then.approver: constraint [conflict]
   expected: re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: request-deep.json:3:32 ("EXTERNAL@other.example")
-  schema: chain.aon:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: chain.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
 $ echo $?
 1
 ```
@@ -523,7 +523,7 @@ does the general document admit every instance the specific one admits?
 
 ```
 aontu subsume [--profile values|defaults|gen] [--at <path>]
-              [--format text|json] <general.aon> <specific.aon>
+              [--format text|json] <general.aontu> <specific.aontu>
 ```
 
 The exit code is the verdict class: `0` subsumes, `1` does not subsume
@@ -537,18 +537,18 @@ A [recursive reference](reference-language.md#recursive-references-fixpoints)
 expands only against concrete data, and subsumption compares two
 documents with no data on either side, so at the recursive position
 there is no rule to apply, and the query says so rather than
-answering from hope. Write a `general.aon`:
+answering from hope. Write a `general.aontu`:
 
 <!-- test: scenario subsume-recursive -->
-<!-- test: file general.aon -->
+<!-- test: file general.aontu -->
 ```aontu
 spec: hide({ Step: { label:string then?:$.spec.Step } })
 doc: $.spec.Step
 ```
 
-and a `specific.aon` whose step recurses into a DIFFERENT definition:
+and a `specific.aontu` whose step recurses into a DIFFERENT definition:
 
-<!-- test: file specific.aon -->
+<!-- test: file specific.aontu -->
 ```aontu
 spec: hide({ Step: { label:"start" then?:$.spec.Other } Other:label:string })
 doc: $.spec.Step
@@ -556,21 +556,21 @@ doc: $.spec.Step
 
 <!-- test: run -->
 ```sh
-$ aontu subsume general.aon specific.aon
+$ aontu subsume general.aontu specific.aontu
 verdict: undecided
 
 $.spec.Step.then: sub_unresolved [compat]
   no subsumption rule covers this pair of value formers
   expected: $.spec.Step
   actual:   {"label":string}
-  general: general.aon:1:41 ($.spec.Step)
-  specific: specific.aon:1:63 ({"label":string})
+  general: general.aontu:1:41 ($.spec.Step)
+  specific: specific.aontu:1:63 ({"label":string})
 $.doc: sub_unresolved [compat]
   no subsumption rule covers this pair of value formers
   expected: $.spec.Step
   actual:   {"label":"start","then"?:{"label":string}}
-  general: general.aon:2:6 ($.spec.Step)
-  specific: specific.aon:1:20 ({"label":"start","then"?:{"label":string}})
+  general: general.aontu:2:6 ($.spec.Step)
+  specific: specific.aontu:1:20 ({"label":"start","then"?:{"label":string}})
 $ echo $?
 3
 ```
@@ -596,12 +596,12 @@ its own earlier versions.
 ```
 aontu breaking --against <file|git#rev> [--at <path>]
                [--mode backward|forward|full]
-               [--allow-undecided] [--format text|json] <file.aon>
+               [--allow-undecided] [--format text|json] <file.aontu>
 ```
 
 -  `--against` takes a file path or `git#<rev>`, and is repeatable. A
   `git#<rev>` spelling is the old version of the **whole tree**, not of
-  the entry file alone: the revision's includable sources (`.aon`,
+  the entry file alone: the revision's includable sources (`.aontu`,
   `.aontu`, `.jsonic`, `.json`) are materialised into a temporary
   directory by shelling out to git (no embedded git) and the old document
   is evaluated from there, so a change inside an `@"…"`-included file is
@@ -641,7 +641,7 @@ evaluated result unchanged, the spread-implied case included) as
 paths.
 
 ```
-aontu trim --check [--format text|json] <file.aon>
+aontu trim --check [--format text|json] <file.aontu>
 ```
 
 - The test is **evaluate-and-compare**: for each candidate entry the
@@ -654,7 +654,7 @@ aontu trim --check [--format text|json] <file.aon>
   candidates** (removing one shifts every later index: a different
   document, not the same one minus a redundancy). A child of a
   redundant parent is skipped: removing the parent already covers it.
-- `--check` is **required**: trim only reports, and `aontu trim f.aon`
+- `--check` is **required**: trim only reports, and `aontu trim f.aontu`
   doing something other than trimming silently would be worse than
   saying so. It is not blocked on the machinery
   [`set --in-place`](#aontu-model-set) now has (a splice needs no
@@ -678,16 +678,16 @@ Run the [declared-relation](reference-language.md#declared-relations)
 checks (acyclicity and inverse consistency) over one finished model.
 
 ```
-aontu relations [--format text|json] <file.aon>
+aontu relations [--format text|json] <file.aontu>
 ```
 
 The vocabulary is declared once, at the field; the model lists plain
 names. The files below are a trimmed version of
 [use-cases/12-relations](../use-cases/12-relations/).
-Write the vocabulary as `spec.aon`:
+Write the vocabulary as `spec.aontu`:
 
 <!-- test: scenario relations -->
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Service: {
@@ -699,11 +699,11 @@ spec: hide({
 })
 ```
 
-A model whose edges hold, `system.aon`, passes:
+A model whose edges hold, `system.aontu`, passes:
 
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
-@"./spec.aon"
+@"./spec.aontu"
 
 services: { &: $.spec.Service }
 services: web: dependsOn: [path($.services.billing)]
@@ -716,16 +716,16 @@ services: ledger: usedBy: [path($.services.billing)]
 
 <!-- test: run -->
 ```sh
-$ aontu relations system.aon
+$ aontu relations system.aontu
 verdict: pass
 ```
 
-A `bad-system.aon` whose two services depend on each other, with
+A `bad-system.aontu` whose two services depend on each other, with
 neither inverse written out, fails on every count at once:
 
-<!-- test: file bad-system.aon -->
+<!-- test: file bad-system.aontu -->
 ```aontu
-@"./spec.aon"
+@"./spec.aontu"
 
 services: { &: $.spec.Service }
 services: auth: dependsOn: [path($.services.billing)]
@@ -734,7 +734,7 @@ services: billing: dependsOn: [path($.services.auth)]
 
 <!-- test: run -->
 ```sh
-$ aontu relations bad-system.aon
+$ aontu relations bad-system.aontu
 verdict: fail
 
 $.services.auth.dependsOn.0  dependsOn: cycle $.services.auth -> $.services.billing -> $.services.auth
@@ -805,11 +805,11 @@ links to, at any remove, end up at `to`? That is the shape of every
 blast-radius question an operator asks ("if the billing database goes,
 what falls over?") and every containment question a policy asks
 ("nothing in the public tier may reach the ledger"), and neither can be
-put one edge at a time. Ask it of the `system.aon` model above:
+put one edge at a time. Ask it of the `system.aontu` model above:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.services.web $.services.ledger system.aon
+$ aontu reaches $.services.web $.services.ledger system.aontu
 verdict: reaches
 
 $.services.web -> $.services.billing -> $.services.ledger
@@ -850,16 +850,16 @@ $ echo $?
   the identical `{verdict, path?}` record (plus `errors` on a failed
   run).
 
-In `system.aon` the `usedBy` inverses run the other way, so the ledger
+In `system.aontu` the `usedBy` inverses run the other way, so the ledger
 reaches the web service in general but not along `dependsOn`:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.services.ledger $.services.web system.aon
+$ aontu reaches $.services.ledger $.services.web system.aontu
 verdict: reaches
 
 $.services.ledger -> $.services.billing -> $.services.web
-$ aontu reaches $.services.ledger $.services.web --relation dependsOn system.aon
+$ aontu reaches $.services.ledger $.services.web --relation dependsOn system.aontu
 verdict: unreachable
 
 $.services.ledger does not reach $.services.web
@@ -871,7 +871,7 @@ And an endpoint that names no node refuses rather than answering:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.services.web $.services.ledgr system.aon
+$ aontu reaches $.services.web $.services.ledgr system.aontu
 verdict: error
 
 $: refer_unresolved [reference]
@@ -928,12 +928,12 @@ unmirrored edge, and rules the diagonal; the layers draw each upward
 edge as a dashed arrow; the panel draws its bars and dots. The
 node-link kinds stay Mermaid and DOT, whose renderers lay them out.
 
-Draw the `system.aon` model above over its `dependsOn` relation, first
+Draw the `system.aontu` model above over its `dependsOn` relation, first
 as the tree, then as the matrix in partition order:
 
 <!-- test: run -->
 ```sh
-$ aontu view tree --relation dependsOn system.aon
+$ aontu view tree --relation dependsOn system.aontu
 web
 └── billing
     └── ledger
@@ -941,7 +941,7 @@ web
 
 <!-- test: run -->
 ```sh
-$ aontu view matrix --relation dependsOn --order partition --closure system.aon
+$ aontu view matrix --relation dependsOn --order partition --closure system.aontu
           1 2 3
 ledger  1 \ . .
 billing 2 X \ .
@@ -961,7 +961,7 @@ The same edges as a node-link drawing, in Mermaid:
 
 <!-- test: run -->
 ```sh
-$ aontu view graph --relation dependsOn system.aon
+$ aontu view graph --relation dependsOn system.aontu
 flowchart LR
   n_billing["billing"]
   n_ledger["ledger"]
@@ -974,9 +974,9 @@ The `lattice` kind draws the LANGUAGE rather than the model. The shape
 is always the same ([the value
 lattice](reference-language.md#the-value-lattice), whatever the
 document holds) and what the document adds is a count at each node
-its own values landed on. Write `ports.aon`:
+its own values landed on. Write `ports.aontu`:
 
-<!-- test: file ports.aon -->
+<!-- test: file ports.aontu -->
 ```aontu
 host: "0.0.0.0"
 port: 8080
@@ -988,7 +988,7 @@ backoff: integer & min(1)
 
 <!-- test: run -->
 ```sh
-$ aontu view lattice ports.aon
+$ aontu view lattice ports.aontu
                                            top
                                             │
       ┌────────────────────────────────┬────┴───────────────────────────┬─────────┐
@@ -1139,7 +1139,7 @@ claiming something the document does not say.
   edge is a cover of the transitive closure, upward toward the more
   general document; an undecided pair with no proven order is a dashed
   edge labelled with the `sub_*` reason. Labels are the filenames
-  without `.aon`.
+  without `.aontu`.
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
   under `--strict`, `2` usage (an unknown kind or profile, a missing
   required option, `--max-rows` exceeded), `4` error (a document that
@@ -1160,12 +1160,12 @@ model, whose values declare figures: one evaluation, N figures, one exit
 code. The keys of a declaration are the view options (the flags without
 the dashes) and every declaration names its `kind` and the `out` file
 it draws into. `views` is the author's key; nothing in the engine knows
-the name, which is why the path is given. Write a `views.aon` beside the
-`system.aon` above:
+the name, which is why the path is given. Write a `views.aontu` beside the
+`system.aontu` above:
 
-<!-- test: file views.aon -->
-```aon
-@"./system.aon"
+<!-- test: file views.aontu -->
+```aontu
+@"./system.aontu"
 
 views: arch: {
   kind: matrix
@@ -1185,8 +1185,8 @@ views: map: {
 
 <!-- test: run -->
 ```sh
-$ aontu view --views '$.views' views.aon
-$ aontu view --views '$.views' --check views.aon
+$ aontu view --views '$.views' views.aontu
+$ aontu view --views '$.views' --check views.aontu
 $ echo $?
 0
 ```
@@ -1210,12 +1210,12 @@ the files.
 
 `@"aontu:view"` is the bundled schema for a declaration, so the same
 mistakes are refused when the document is EVALUATED rather than when
-the verb reads it. Write a `views-typed.aon`:
+the verb reads it. Write a `views-typed.aontu`:
 
-<!-- test: file views-typed.aon -->
-```aon
+<!-- test: file views-typed.aontu -->
+```aontu
 @"aontu:view"
-@"./system.aon"
+@"./system.aontu"
 
 views: { &: $.aontu.View.Figure } & {
   arch: {
@@ -1230,7 +1230,7 @@ views: { &: $.aontu.View.Figure } & {
 
 <!-- test: run -->
 ```sh
-$ aontu view --views '$.views' --check views-typed.aon
+$ aontu view --views '$.views' --check views-typed.aontu
 $ echo $?
 0
 ```
@@ -1251,7 +1251,7 @@ the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
 tree, the matrix and the layers; 16 also declares all seven of its
-figures in a `views.aon` that its `check.sh` gates in one run.
+figures in a `views.aontu` that its `check.sh` gates in one run.
 
 ### `aontu jsonschema`
 
@@ -1272,11 +1272,11 @@ tool's `inputSchema`, which the protocol requires to be JSON Schema, is
 the same export.
 
 **The schema goes to stdout and the losses to stderr**, so
-`aontu jsonschema x.aon > schema.json` writes a usable schema and still
-tells the reader what it left behind. Write a `contract.aon`:
+`aontu jsonschema x.aontu > schema.json` writes a usable schema and still
+tells the reader what it left behind. Write a `contract.aontu`:
 
 <!-- test: scenario jsonschema -->
-<!-- test: file contract.aon -->
+<!-- test: file contract.aontu -->
 ```aontu
 spec: name: string & re("^[a-z][a-z0-9-]{2,39}$")
 spec: tier: *internal|standard|critical
@@ -1284,7 +1284,7 @@ spec: tier: *internal|standard|critical
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at spec contract.aon
+$ aontu jsonschema --at spec contract.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -1380,16 +1380,16 @@ a `hide()` mark propagates and a hidden entry is omitted from the
 export entirely; and treat the exported schema as wider than the
 model at the recursive position: [`vet`](#aontu-vet) the produced
 value against the model, which does check every depth. `--strict`
-turns the loss into exit 1. Write a recursive `steps.aon`:
+turns the loss into exit 1. Write a recursive `steps.aontu`:
 
-<!-- test: file steps.aon -->
+<!-- test: file steps.aontu -->
 ```aontu
 Step: { approver:string & re("^[a-z]+@acme[.]example$") then?:$.Step }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --strict --at Step steps.aon
+$ aontu jsonschema --strict --at Step steps.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -1423,7 +1423,7 @@ task-sized slice, instead of the whole file as one JSON blob.
 
 ```
 aontu model get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
-          [--format text|json] <file.aon>
+          [--format text|json] <file.aontu>
 ```
 
 - **Evaluation is global.** Unification has no partial mode: the whole
@@ -1441,10 +1441,10 @@ aontu model get <path> [-c|--canon] [--keys] [--types] [--depth <n>]
   not stand up on its own, including a node that is not concrete, for
   which there is no JSON to print.
 
-Write an `app.aon` whose spread template supplies defaults:
+Write an `app.aontu` whose spread template supplies defaults:
 
 <!-- test: scenario query -->
-<!-- test: file app.aon -->
+<!-- test: file app.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer port: *8080|integer } }
 services: auth: replicas: 3
@@ -1453,15 +1453,15 @@ services: billing: {}
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.services.auth app.aon
+$ aontu model get $.services.auth app.aontu
 {
   "port": 8080,
   "replicas": 3
 }
-$ aontu model get --keys $.services app.aon
+$ aontu model get --keys $.services app.aontu
 auth
 billing
-$ aontu model get $.services.auht app.aon
+$ aontu model get $.services.auht app.aontu
 $.services.auht: no_path [reference]
   The path $.services.auht names nothing in this document.
   note: did you mean auth?
@@ -1482,11 +1482,11 @@ distortion:
 | `--depth n` | structure to depth n; every elided subtree renders as `top`: "no further information at this tier" |
 | `--keys` | the node's own key names (or list indices), one per line |
 
-On `app.aon` the shape view erases the concrete leaves:
+On `app.aontu` the shape view erases the concrete leaves:
 
 <!-- test: run -->
 ```sh
-$ aontu model get --types $.services.auth app.aon
+$ aontu model get --types $.services.auth app.aontu
 {"port":*integer|integer,"replicas":integer}
 ```
 
@@ -1515,17 +1515,17 @@ the site each contribution was written at. The positive twin of
 `why` explains what did.
 
 ```
-aontu model why <path> [--format text|json] <file.aon>
+aontu model why <path> [--format text|json] <file.aontu>
 ```
 
-Ask it about the `app.aon` above:
+Ask it about the `app.aontu` above:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.services.auth.replicas app.aon
+$ aontu model why $.services.auth.replicas app.aontu
 $.services.auth.replicas = 3
-  1. *1|integer  app.aon:1:28  (spread)
-  2. 3  app.aon:2:27
+  1. *1|integer  app.aontu:1:28  (spread)
+  2. 3  app.aontu:2:27
 ```
 
 - A **contribution** is a value the author *wrote* that met something
@@ -1578,32 +1578,32 @@ aontu model set <path>=<value>... --entry <file> --overlay <file>
          [--in-place] [--dry-run] [--format text|json]
 ```
 
-Write an `entry.aon` that constrains `owner` and pins `replicas`:
+Write an `entry.aontu` that constrains `owner` and pins `replicas`:
 
 <!-- test: scenario set -->
-<!-- test: file entry.aon -->
+<!-- test: file entry.aontu -->
 ```aontu
 services: auth: { owner:string replicas:3 }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.auth.owner="identity-2"' --entry entry.aon --overlay changes.aon
+$ aontu model set '$.services.auth.owner="identity-2"' --entry entry.aontu --overlay changes.aontu
 verdict: valid
-wrote: changes.aon
+wrote: changes.aontu
 ```
 
 A pinned value refuses the append and the overlay is left unchanged:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.auth.replicas=5' --entry entry.aon --overlay changes.aon
+$ aontu model set '$.services.auth.replicas=5' --entry entry.aontu --overlay changes.aontu
 verdict: invalid
 
 $.services.auth.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.services.auth.replicas
-  data: changes.aon:2:33 (5)
-  schema: entry.aon:1:41 (3)
+  data: changes.aontu:2:33 (5)
+  schema: entry.aontu:1:41 (3)
 $ echo $?
 1
 ```
@@ -1614,10 +1614,10 @@ text:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.auth.owner="identity-3"' --entry entry.aon --overlay changes.aon --in-place
+$ aontu model set '$.services.auth.owner="identity-3"' --entry entry.aontu --overlay changes.aontu --in-place
 verdict: valid
-replaced: changes.aon:1:30 "identity-2" -> "identity-3"
-wrote: changes.aon
+replaced: changes.aontu:1:30 "identity-2" -> "identity-3"
+wrote: changes.aontu
 ```
 
 - The assignment becomes a **path-flattened conjunct**: `$.a.b=1`
@@ -1767,10 +1767,10 @@ Three limits follow from what the gate compares:
   refused there.
 - The verb is TypeScript-only for now: the Go CLI does not have it.
 
-Write a `roles.aon` that declares three roles:
+Write a `roles.aontu` that declares three roles:
 
 <!-- test: scenario allow -->
-<!-- test: file roles.aon -->
+<!-- test: file roles.aontu -->
 ```aontu
 roles: admin: allow: ["$"]
 roles: dev: {
@@ -1784,7 +1784,7 @@ roles: qa: allow: ["$.tests"]
 
 <!-- test: run -->
 ```sh
-$ aontu allow --role dev roles.aon $.services.auth.replicas $.deploy.eu1.replicas
+$ aontu allow --role dev roles.aontu $.services.auth.replicas $.deploy.eu1.replicas
 verdict: allowed
 role: dev
 $.services.auth.replicas: allowed by $.roles.dev.allow.0 ($.services)
@@ -1796,7 +1796,7 @@ change there could rewrite the tier:
 
 <!-- test: run -->
 ```sh
-$ aontu allow --role dev roles.aon $.services.auth
+$ aontu allow --role dev roles.aontu $.services.auth
 verdict: refused
 role: dev
 $.services.auth: refused by $.roles.dev.deny.0 ($.services.*.tier)
@@ -1809,7 +1809,7 @@ says which path was looked for:
 
 <!-- test: run -->
 ```sh
-$ aontu allow --role ops roles.aon $.services.auth
+$ aontu allow --role ops roles.aontu $.services.auth
 verdict: refused
 role: ops
 $.services.auth: refused (role ops is not declared)
@@ -1825,9 +1825,9 @@ line that wrote it:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.roles.dev.deny.0 roles.aon
+$ aontu model why $.roles.dev.deny.0 roles.aontu
 $.roles.dev.deny.0 = "$.services.*.tier"
-  1. "$.services.*.tier"  roles.aon:4:10
+  1. "$.services.*.tier"  roles.aontu:4:10
 ```
 
 ### `aontu agentsmd`
@@ -1836,7 +1836,7 @@ Generate the AGENTS.md stanza for a definition: the prose entrypoint,
 derived from the formal source so it cannot drift from it.
 
 ```
-aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file.aon>
+aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file.aontu>
 ```
 
 The stanza names the document, its [canon-hash](#aontu-hash) pin, its
@@ -1867,7 +1867,7 @@ only what changed.
 ```
 aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>]
           [--profile <file>] <file>...
-aontu fmt < in.aon > out.aon
+aontu fmt < in.aontu > out.aontu
 ```
 
 | option | does |
@@ -1890,7 +1890,10 @@ aontu fmt < in.aon > out.aon
   inside braces and with the colons tight, `{ a:1 b:2 }`, and as a
   block when it does not. Keys bare where they can be; a single-quoted
   string double-quoted unless it holds a double quote; numbers as
-  written. Every comment and every blank line between groups stays.
+  written. Every comment and every blank line between groups stays, and
+  a comment that ends a line of code sits two spaces behind it,
+  `port: 8080  # the admin port`, normalised from whatever the author
+  left.
   The formatter never breaks a line, and keeps the author's line breaks
   inside an expression, at their operators.
 - **The prefix is repeated.** A map that does not fit on one line is
@@ -1918,7 +1921,7 @@ aontu fmt < in.aon > out.aon
   it is, and the rule is the root's alone; below it a blank line is the
   author's.
 - **A generator is formatted as the document it carries.** A file whose
-  extension is not `.aon` is a generator written in the target's own
+  extension is not `.aontu` is a generator written in the target's own
   syntax ([`aontu template`](#aontu-template)), as it is for `trace`:
   it is desugared, formatted and resugared, so what comes back is a
   generator. The marker stands at the left margin with the aontu
@@ -1956,10 +1959,10 @@ aontu fmt < in.aon > out.aon
   change or a `--strict` finding, `2` usage, `4` a document does not
   parse.
 
-A configuration written as it came from JSON, `config.aon`:
+A configuration written as it came from JSON, `config.aontu`:
 
 <!-- test: scenario fmt -->
-<!-- test: file config.aon -->
+<!-- test: file config.aontu -->
 <!-- fmt: keep the input the transcript formats -->
 ```aontu
 {
@@ -1971,7 +1974,7 @@ A configuration written as it came from JSON, `config.aon`:
 
 <!-- test: run -->
 ```sh
-$ aontu fmt config.aon
+$ aontu fmt config.aontu
 server: host: "0.0.0.0"
 server: port: 8080
 server: tls: { enabled:true cert:"/etc/tls/cert.pem" }
@@ -2008,7 +2011,7 @@ profile is a language declared as data and `aontu template` and
 space when the opener does not imply one:
 
 <!-- test: skip the file it reads is the reader's own language -->
-```aon
+```aontu
 @"aontu:profile"
 
 aontu: Lang: lang: "ocaml"
@@ -2018,7 +2021,7 @@ aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 
 <!-- test: skip the synopsis is not a transcript -->
 ```sh
-aontu template --profile ocaml.aon unit.ml
+aontu template --profile ocaml.aontu unit.ml
 ```
 Write a `greet.ts`:
 
@@ -2134,7 +2137,7 @@ that way back. The anchor is `$.out` unless `--at` names another.
 
 <!-- test: skip the document it reads is the reader's own generator -->
 ```sh
-$ aontu trace gen.aon
+$ aontu trace gen.aontu
 handlers/chat.ts	$.0.children.0	$.services.chat	$.%handler#0
 ```
 
@@ -2167,10 +2170,10 @@ the rest) as an ordinary value at `$.out`. `render` hands that tree to
 [jostraca](https://github.com/jostraca/jostraca), the generator runtime
 both implementations depend on, and jostraca writes the files. aontu
 decides which files exist and what each line of them is; the runtime
-decides how the bytes reach a disk. Write a `gen.aon`:
+decides how the bytes reach a disk. Write a `gen.aontu`:
 
 <!-- test: scenario render -->
-<!-- test: file gen.aon -->
+<!-- test: file gen.aontu -->
 ```aontu
 foo: "BAR"
 
@@ -2182,7 +2185,7 @@ name, unless `<path>` is a directory that already exists:
 
 <!-- test: run -->
 ```sh
-$ aontu render gen.aon zed.txt
+$ aontu render gen.aontu zed.txt
 ```
 
 Nothing is printed when the write succeeds, unless a file was skipped
@@ -2192,7 +2195,7 @@ own record:
 
 <!-- test: run -->
 ```sh
-$ aontu render --format json gen.aon zed.txt
+$ aontu render --format json gen.aontu zed.txt
 {
   "aontu": {
 ...
@@ -2218,18 +2221,18 @@ that.
 
 **Any other tree is written below `<path>`**: a `project`, a `folder`,
 or a list of files, with the paths the tree spells. A one-file tree
-that should land in a directory names the file: `aontu render gen.aon
+that should land in a directory names the file: `aontu render gen.aontu
 build/zed.txt`.
 
 **A folder is a set of generators.** Every regular file directly in it
 is one (a name beginning with a dot is not), taken in name order: a
-`.aon` as it is, any other file by its marker, as below. Their trees are written below
+`.aontu` as it is, any other file by its marker, as below. Their trees are written below
 `<path>` as one run, so one `--check` holds the whole set, and two
 generators claiming one path are refused by the runtime. A file with no
 marker line in it is refused by name rather than skipped. Write a
-`gen/a.aon`:
+`gen/a.aontu`:
 
-<!-- test: file gen/a.aon -->
+<!-- test: file gen/a.aontu -->
 ```aontu
 out: file("a.txt", ["a"])
 ```
@@ -2259,7 +2262,7 @@ exit code is 1 on drift:
 
 <!-- test: run -->
 ```sh
-$ aontu render --check gen.aon zed.txt
+$ aontu render --check gen.aontu zed.txt
 ```
 
 Edit the file by hand, as `zed.txt`:
@@ -2271,14 +2274,14 @@ foo = edited
 
 <!-- test: run -->
 ```sh
-$ aontu render --check gen.aon zed.txt
+$ aontu render --check gen.aontu zed.txt
 content: zed.txt
 $ echo $?
 1
 ```
 
 **A template entry is read directly.** As [`aontu trace`](#aontu-trace)
-does, `render` reads a `<file>` whose extension is not `.aon` as a
+does, `render` reads a `<file>` whose extension is not `.aontu` as a
 generator in the target's own syntax (see
 [`aontu template`](#aontu-template)), desugared by the marker its
 extension names, `--marker`, or a profile's. `--at` names another
@@ -2303,7 +2306,7 @@ lockfile, a registry or an agent can say "this module, this meaning"
 and have the claim survive reformatting.
 
 ```
-aontu hash [--form] [--format text|json] <file.aon>
+aontu hash [--form] [--format text|json] <file.aontu>
 ```
 
 - The hash is
@@ -2327,17 +2330,17 @@ aontu hash [--form] [--format text|json] <file.aon>
   evaluate on its own: a broken document has no meaning to pin, and a
   hash of the wreck would agree with every other wreck.
 
-To see the pin hold still, write `svc.aon`:
+To see the pin hold still, write `svc.aontu`:
 
 <!-- test: scenario hash -->
-<!-- test: file svc.aon -->
+<!-- test: file svc.aontu -->
 ```aontu
 service: { name:"checkout" port: *8080|integer }
 ```
 
-and `svc-reformat.aon`, the same meaning re-ordered under a comment:
+and `svc-reformat.aontu`, the same meaning re-ordered under a comment:
 
-<!-- test: file svc-reformat.aon -->
+<!-- test: file svc-reformat.aontu -->
 <!-- fmt: keep the reordered spelling the hash survives -->
 ```aontu
 # the same meaning, reordered and commented
@@ -2347,11 +2350,11 @@ service: name: "checkout"
 
 <!-- test: run -->
 ```sh
-$ aontu hash svc.aon
+$ aontu hash svc.aontu
 aon1-nSY9noXFhWc_dtcRrErhCS9bZVtNfTJb0vVoCE9W1CM
-$ aontu hash svc-reformat.aon
+$ aontu hash svc-reformat.aontu
 aon1-nSY9noXFhWc_dtcRrErhCS9bZVtNfTJb0vVoCE9W1CM
-$ aontu hash --form svc.aon
+$ aontu hash --form svc.aontu
 {"service":{"name":"checkout","port":*8080|integer}}
 ```
 
@@ -2395,15 +2398,15 @@ it is the one package verb a reader needs to know.
 aontu sync [--frozen] [--base <url>]... [--format text|json] [dir]
 ```
 
-`dir` is the project root, the directory holding `pkg.aon`, and defaults
+`dir` is the project root, the directory holding `pkg.aontu`, and defaults
 to the working directory.
 
-**What a project declares.** `pkg.aon` names the package and what it
+**What a project declares.** `pkg.aontu` names the package and what it
 depends on. A dependency is a minimum version; an `alias:<name>` entry
 holds a second version of one package under a name the imports use:
 
-```aon
-pkg: { path:"corp.example/checkout" main:"main.aon" }
+```aontu
+pkg: { path:"corp.example/checkout" main:"main.aontu" }
 
 dep: "corp.example/schemas/service": v: "1.4.2"
 dep: "alias:legacy": { pkg:"corp.example/schemas/service" v:"1.2.0" }
@@ -2413,7 +2416,7 @@ dep: "alias:legacy": { pkg:"corp.example/schemas/service" v:"1.2.0" }
 the highest of the minima anyone in the closure asked for, and never
 higher, so a resolve is reproducible and adding one dependency cannot
 move another. The closure is walked from the project's own file through
-each dependency's `pkg.aon`, fetching a package the stores lack as it is
+each dependency's `pkg.aontu`, fetching a package the stores lack as it is
 reached.
 
 **What a fetch checks, in order.** The repository is trusted for
@@ -2442,14 +2445,14 @@ fetched: corp.example/schemas/common 1.0.0
 refused: archive_digest_mismatch: the archive for corp.example/schemas/service 1.4.2 is sha256:45e3…, not sha256:9127…
 ```
 
-**The lockfile pins three things.** `aontu_meta/pkg-lock.aon` is one
+**The lockfile pins three things.** `aontu_meta/pkg-lock.aontu` is one
 canonical line, and each entry carries the version, the canon-hash of
 the module's meaning, the digest of its canonical archive and, for a
 package acquired from a repository, the digest of its signed manifest:
 
 <!-- fmt: keep a lock file, shown as the tool writes it -->
-```aon
-# pkg-lock.aon (generated by `aontu sync`; do not edit)
+```aontu
+# pkg-lock.aontu (generated by `aontu sync`; do not edit)
 {"lock":{"corp.example/schemas/service":{"archive":"sha256:9127…","canon":"aon1-zFHn…","manifest":"sha256:f72c…","v":"1.4.2"}}}
 ```
 
@@ -2465,10 +2468,10 @@ version needs, and refuses to change the lockfile: a dependency the
 lock does not name, a version that would move, a pin that would be
 recomputed, all exit 1 and name themselves as `lockfile would change`.
 
-**Where packages come from.** `repo` in `pkg.aon` is the project's trust
+**Where packages come from.** `repo` in `pkg.aontu` is the project's trust
 configuration, and it travels with the project:
 
-```aon
+```aontu
 repo: base: ["https://pkg.aontu.dev"]
 repo: private: ["corp.example/*"]
 repo: private_base: ["https://pkg.corp.example"]
@@ -2489,7 +2492,7 @@ entry names the forge is refused rather than accepted unverified.
 **Cooldown.** A version is selectable by `get` and `outdated` only once
 the repository has held it for 72 hours, timed from the repository's
 own first-seen time, and a version that a later version retracted is
-never selected. A version named explicitly, in `pkg.aon` or on the
+never selected. A version named explicitly, in `pkg.aontu` or on the
 command line, is taken as it is; a private name skips the cooldown.
 
 **Exit codes.** `0` the project is correct; `1` a refusal, a frozen
@@ -2518,7 +2521,7 @@ aontu remove <pkg> [dir]
   `add`. Without a version it takes the newest selectable version.
 - **`remove`** drops a dependency and the vendor tree it held.
 
-Each edits `pkg.aon` by the smallest text change that keeps the file the
+Each edits `pkg.aontu` by the smallest text change that keeps the file the
 author's: a line appended, a version literal rewritten where it stands,
 a one-line entry removed. An entry the verb cannot edit that way is left
 to the author, and the verb says so. Each then runs a full `sync`, and a
@@ -2563,11 +2566,14 @@ aontu publish [--yes] [--key <file>] [--token <file>] [--to <dir>]
               [--write <url>] [--against <dir>] [--format text|json] [dir]
 ```
 
-A package declares its path, its version and its entry in `pkg.aon`,
+A package declares its path, its version and its entry in `pkg.aontu`,
 and whether it may leave the machine:
 
-```aon
-pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+```aontu
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.4.2"
+pkg: main: "service.aontu"
+
 publish: public
 ```
 
@@ -2584,7 +2590,7 @@ one tree has one digest in both implementations. It is held to the caps
 every consumer applies at acquisition (16 MiB compressed, 64 MiB of
 files, 4096 files, 8 MiB a file) before it is minted, so nothing
 leaves the machine that every consumer would refuse; the package path
-and version in `pkg.aon` must be a package path and a version, and the
+and version in `pkg.aontu` must be a package path and a version, and the
 entry must be a path inside the tree.
 
 **The gate runs first.** The highest version the repository already
@@ -2609,9 +2615,9 @@ $ aontu publish --key key.pem
 verdict: dry-run
 corp.example/schemas/service 1.4.3 public
 archive: sha256:b4b8… (2 files, 1006 bytes)
-module: corp.example/schemas/service service.aon aon1-JstX…
-file: pkg.aon sha256:bc26… 133
-file: service.aon sha256:0188… 663
+module: corp.example/schemas/service service.aontu aon1-JstX…
+file: pkg.aontu sha256:bc26… 133
+file: service.aontu sha256:0188… 663
 digest: sha256:acb6…
 signer: ed25519:q520…
 against: corp.example/schemas/service 1.4.2
@@ -2738,7 +2744,7 @@ write the cache refuse to run.
 
 **`aontu_meta/` is where a project's generated state lives**: the
 lockfile, the vendored closure, and whatever later tooling writes.
-`pkg.aon` and the documents stay at the root, since they are authored;
+`pkg.aontu` and the documents stay at the root, since they are authored;
 nothing under `aontu_meta/` is. The verbs name an older layout, a
 `mod.aon` or a root `mod-lock.aon`, once when they find it, and read
 nothing from it.
@@ -2881,14 +2887,14 @@ makes the next step an edit rather than an invention.
 
 | file | is |
 |---|---|
-| `model.aon` | the truth: an entity map, constrained with `&:` |
-| `data.aon` | an instance of it that holds |
+| `model.aontu` | the truth: an entity map, constrained with `&:` |
+| `data.aontu` | an instance of it that holds |
 | `check.sh` | the four checks to run after every edit, `vet --strict-coverage` first |
 
 ```
 $ aontu init
-model.aon
-data.aon
+model.aontu
+data.aontu
 check.sh
 
 A model, an instance of it, and the four questions to ask.
@@ -3490,10 +3496,11 @@ agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
 format         // the source formatter (see `aontu fmt` above):
-               // format(src, {path?, lint?}) -> {verdict, text,
-               // changed, findings} or {verdict, errors}; Go:
-               // aontu.New().Format(src), and FormatWith(src,
-               // FormatOptions{Lint: true}) for the findings
+               // format(src, {path?, lint?, template?}) -> {verdict,
+               // text, changed, findings} or {verdict, errors};
+               // `template` is the marker of a generator, formatted as
+               // the document it carries; Go: aontu.New().Format(src),
+               // and FormatWith(src, FormatOptions{Lint, Template})
 unifiedDiff    // unifiedDiff(name, before, after): the diff `aontu fmt
                // --diff` prints; Go: aontu.UnifiedDiff
 loadProfile    // a profile document -> {profile} or {errors}:
@@ -3525,7 +3532,7 @@ diff) and without a profile they resolve `@"…"` through the default
 chain, which reaches anything on the filesystem the process can read.
 **Opening an untrusted source is reading your disk**, so pass a profile
 whenever the source is not yours. Reading, never running: an include's
-extension decides what the file is (`.aon` and `.aontu` as aontu source,
+extension decides what the file is (`.aontu` as aontu source,
 `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`,
 `.yaml`, `.yml` and `.ini` as configuration data, and `.txt` as text
 (the bytes, as one string)) and every other extension is refused.
@@ -3587,7 +3594,7 @@ does exactly this for a file argument.)
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
 | `Trace`        | `Trace(src string, opts *TraceOptions) TraceReport` | What wrote each line of a component tree (see [`aontu trace`](#aontu-trace)): `Trace` is one `TraceEntry` per stamped piece (`At`, `File`, `Node` and `Rule`), or `Errors`. `aontu.TraceTree(root Val) []TraceEntry` is the walk alone, over a value already unified. |
 | `LoadProfile`  | `LoadProfile(src string) (map[string]any, []VetFinding)` | A profile document, evaluated under this instance's include options, vetted against `aontu:profile` as a settled value and met with it so the defaults are filled: the profile `--profile <file>` hands to `template`, `fmt` and `trace`, or the findings that refused it. |
-| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
+| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`, and `Template` is the marker of a generator, formatted as the document it carries. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
 
 <!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go

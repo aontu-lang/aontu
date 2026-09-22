@@ -17,11 +17,11 @@
 #
 # Every expectation was obtained by the parity probe (AGENTS.md).
 vocabulary-is-served	gens	@"aontu:system"\np: $.aontu.System.Port & {}	{"aontu":{"System":{}},"p":{"direction":"in"}}
-# THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aon` spelling the
+# THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aontu` spelling the
 # bare `std/` names once accepted is not a model name, and is
 # refused like any other typo, as aontu-scheme.tsv pins for
-# `aontu:profile.aon`.
-vocabulary-dot-aon-is-not-a-name	errc	a: @"aontu:system.aon"	multisource_not_found
+# `aontu:profile.aontu`.
+vocabulary-dot-aontu-is-not-a-name	errc	a: @"aontu:system.aontu"	multisource_not_found
 vocabulary-generates-nothing-of-its-own	gens	@"aontu:system"	{"aontu":{"System":{}}}
 
 # --- Port -------------------------------------------------------------

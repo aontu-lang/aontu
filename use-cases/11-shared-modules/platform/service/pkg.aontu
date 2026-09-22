@@ -1,0 +1,4 @@
+# The platform team's service contract, as a package: its path, its
+# version and its entry. `publish: public` lets it leave the machine.
+pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aontu" }
+publish: public

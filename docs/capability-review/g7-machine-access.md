@@ -30,8 +30,8 @@ is a terminal artifact rather than a knowledge substrate.
 
 First failure: query. A modest system definition —
 
-```aon
-# system.aon
+```aontu
+# system.aontu
 services: &: {
   image:    string
   replicas: integer
@@ -44,7 +44,7 @@ services: gateway: { image: "gw:v4.0", replicas: 4, owner: "platform" }
 
 An agent repairing the auth deployment needs `$.services.auth` and
 nothing else. It wants to write `aontu get $.services.auth --canon`
-— and cannot. The only option is `aontu system.aon`, whose output
+— and cannot. The only option is `aontu system.aontu`, whose output
 grows linearly with the whole system: every billing and gateway
 token is context-window noise for the auth task. The survey's
 context-engineering doctrine is unambiguous — the smallest set of
@@ -56,12 +56,12 @@ keys-only listing ("what services exist?"), no types-only view
 Second failure: provenance. Layered definitions are aontu's home
 ground:
 
-```aon
-# org.aon
+```aontu
+# org.aontu
 services: &: { replicas: *1 | integer }
 
-# service.aon
-@"org.aon"
+# service.aontu
+@"org.aontu"
 services: auth: { replicas: 3 }
 ```
 
@@ -84,8 +84,8 @@ Third failure: patch. The agent decides auth needs five replicas.
 The lattice-honest move — append a new conjunct — fails correctly
 but unhelpfully:
 
-```aon
-@"service.aon"
+```aontu
+@"service.aontu"
 services: auth: { replicas: 5 }   # conflict: 5 vs 3 — correct, but
                                   # now what?
 ```
@@ -352,10 +352,10 @@ identifies.
 ### Provenance: `aontu why`
 
 ```
-$ aontu why $.services.auth.replicas service.aon
+$ aontu why $.services.auth.replicas service.aontu
 $.services.auth.replicas = 3
-  1. *1 | integer   org.aon:2:26    (spread &: at org.aon:2:11)
-  2. 3              service.aon:3:29
+  1. *1 | integer   org.aontu:2:26    (spread &: at org.aontu:2:11)
+  2. 3              service.aontu:3:29
 resolved: 3 — literal overrides preference *1
 ```
 
@@ -382,9 +382,9 @@ mode):
 { "path": "$.services.auth.replicas", "value": "3",
   "conjuncts": [
     { "canon": "*1|integer", "role": "spread",
-      "site": { "file": "org.aon", "row": 2, "col": 26 } },
+      "site": { "file": "org.aontu", "row": 2, "col": 26 } },
     { "canon": "3", "role": "literal",
-      "site": { "file": "service.aon", "row": 3, "col": 29 } } ] }
+      "site": { "file": "service.aontu", "row": 3, "col": 29 } } ] }
 ```
 
 `--format json` emits it; sites reuse the G2 site object shape.
@@ -405,7 +405,7 @@ errors explain what failed to unify; `why` explains what did.
 
 ```
 aontu set $.services.auth.owner=\"identity-2\" \
-  --entry system.aon --overlay changes.aon
+  --entry system.aontu --overlay changes.aontu
 ```
 
 Appends a path-flattened conjunct
@@ -692,7 +692,7 @@ markdown). LSP diagnostic text is unchanged.
   shrink stays open.)*
 - **Overlay conventions.** One well-known overlay per entry
   document versus per-agent overlays; declared in the entry file
-  (`@"changes.aon"`) or composed by the tool at evaluation time.
+  (`@"changes.aontu"`) or composed by the tool at evaluation time.
   Composition-by-tool keeps the source honest but hides a conjunct
-  from plain `aontu system.aon`; interacts with
+  from plain `aontu system.aontu`; interacts with
   [G6](g6-distribution.md) module boundaries.

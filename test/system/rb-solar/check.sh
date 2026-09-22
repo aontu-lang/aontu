@@ -115,12 +115,12 @@ fi
 # The diagram is checked with the rest, in check 1 above.
 
 pinned=1
-$AONTU view doc --depth 2 --out "$DIR/doc/model-tree.txt" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
-$AONTU view doc --depth 2 --as svg --out "$DIR/doc/model-tree.svg" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
-$AONTU view doc --depth 2 --at '$.entity.planet' --out "$DIR/doc/planet-tree.txt" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
-$AONTU view doc --depth 2 --at '$.entity.planet' --as svg --out "$DIR/doc/planet-tree.svg" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
-$AONTU view lattice --out "$DIR/doc/value-lattice.txt" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
-$AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/model.aon" >/dev/null 2>&1 || pinned=0
+$AONTU view doc --depth 2 --out "$DIR/doc/model-tree.txt" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
+$AONTU view doc --depth 2 --as svg --out "$DIR/doc/model-tree.svg" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
+$AONTU view doc --depth 2 --at '$.entity.planet' --out "$DIR/doc/planet-tree.txt" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
+$AONTU view doc --depth 2 --at '$.entity.planet' --as svg --out "$DIR/doc/planet-tree.svg" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
+$AONTU view lattice --out "$DIR/doc/value-lattice.txt" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
+$AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/model.aontu" >/dev/null 2>&1 || pinned=0
 [ "$pinned" = 1 ] \
   && ok "the model's trees and its value lattice draw and are pinned, text and SVG" \
   || fail "a view diagram is stale"
@@ -153,8 +153,8 @@ $AONTU view lattice --as svg --out "$DIR/doc/value-lattice.svg" --check "$DIR/mo
 # about the generator being readable as the tree it is.
 
 bad=""
-$AONTU fmt --check "$DIR/model.aon" >/dev/null 2>&1 || bad="$bad model.aon"
-$AONTU fmt --check "$DIR/gen/views.aon" >/dev/null 2>&1 || bad="$bad views.aon"
+$AONTU fmt --check "$DIR/model.aontu" >/dev/null 2>&1 || bad="$bad model.aontu"
+$AONTU fmt --check "$DIR/gen/views.aontu" >/dev/null 2>&1 || bad="$bad views.aontu"
 for g in $RUBY_GENS; do
   $AONTU fmt --check "$DIR/gen/$g.rb" >/dev/null 2>&1 || bad="$bad $g.rb"
 done

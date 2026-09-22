@@ -1,0 +1,5 @@
+
+sys: @"./sys01.aontu"
+sys: type({})
+
+ent: @"./ent01.aontu"

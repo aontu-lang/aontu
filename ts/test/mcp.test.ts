@@ -473,7 +473,7 @@ describe('mcp', () => {
 
     // A document the served profile cannot read is refused before the
     // engine sees it, in the same shape.
-    const denied = payload(callTool('view', { source: '@"./x.aon"\n' }))
+    const denied = payload(callTool('view', { source: '@"./x.aontu"\n' }))
     Assert.equal(denied.verdict, 'error')
     Assert.equal(denied.kind, 'tree')
     Assert.equal(denied.errors[0].code, 'include_denied')
@@ -599,7 +599,7 @@ describe('mcp', () => {
     Assert.equal(tbroken.verdict, 'error')
     Assert.deepEqual(tbroken.redundant, [])
     Assert.equal(tbroken.errors[0].code, 'scalar_value')
-    const tdenied = payload(callTool('trim', { source: 'a: @"/x.aon"' }))
+    const tdenied = payload(callTool('trim', { source: 'a: @"/x.aontu"' }))
     Assert.equal(tdenied.verdict, 'error')
     Assert.deepEqual(tdenied.redundant, [])
     Assert.equal(tdenied.errors[0].code, 'include_denied')
@@ -626,45 +626,45 @@ describe('mcp', () => {
 
   test('path-arguments-need-a-root', () => {
     // Without a root, a path argument is refused with the remedy.
-    const r = callTool('vet', { schemaPath: 'schema.aon', data: 'a: 1' })
+    const r = callTool('vet', { schemaPath: 'schema.aontu', data: 'a: 1' })
     Assert.equal(r.isError, true)
     Assert.match(r.content[0].text, /--root <dir>/)
     Assert.match(r.content[0].text, /schemaPath/)
   })
 
   test('root-serves-paths-and-confines-them', () => {
-    const outside = scratchDir('aontu-mcp-outside-', { 'evil.aon': 'a: 1\n' })
+    const outside = scratchDir('aontu-mcp-outside-', { 'evil.aontu': 'a: 1\n' })
     const root = scratchDir('aontu-mcp-root-', {
-      'schema.aon': 'a: integer\n',
-      'data.aon': 'a: 1\n',
-      'inc.aon': 'b: 2\n',
-      'main.aon': 'x: @"./inc.aon"\n',
-      'gen.aon': 'a: integer\nx: @"./inc.aon"\n',
-      'spec.aon': 'a: 1\nx: @"./inc.aon"\n',
-      'entry.aon': 'a: integer\n',
-      'over.aon': 'a: 2\n',
+      'schema.aontu': 'a: integer\n',
+      'data.aontu': 'a: 1\n',
+      'inc.aontu': 'b: 2\n',
+      'main.aontu': 'x: @"./inc.aontu"\n',
+      'gen.aontu': 'a: integer\nx: @"./inc.aontu"\n',
+      'spec.aontu': 'a: 1\nx: @"./inc.aontu"\n',
+      'entry.aontu': 'a: integer\n',
+      'over.aontu': 'a: 2\n',
     })
-    Fs.symlinkSync(Path.join(outside, 'evil.aon'),
-      Path.join(root, 'link.aon'))
+    Fs.symlinkSync(Path.join(outside, 'evil.aontu'),
+      Path.join(root, 'link.aontu'))
 
     // Reads below the root are served.
     Assert.equal(payload(callTool('vet',
-      { schemaPath: 'schema.aon', dataPath: 'data.aon' }, { root })).verdict,
+      { schemaPath: 'schema.aontu', dataPath: 'data.aontu' }, { root })).verdict,
       'valid')
 
     const dots = callTool('vet', {
-      schemaPath: `../${Path.basename(outside)}/evil.aon`, data: 'a: 1',
+      schemaPath: `../${Path.basename(outside)}/evil.aontu`, data: 'a: 1',
     }, { root })
     Assert.equal(dots.isError, true)
     Assert.match(dots.content[0].text, /escapes the server root/)
     const link = callTool('vet',
-      { schemaPath: 'link.aon', data: 'a: 1' }, { root })
+      { schemaPath: 'link.aontu', data: 'a: 1' }, { root })
     Assert.equal(link.isError, true)
     Assert.match(link.content[0].text, /escapes the server root/)
 
     // A file that is not there could not be read, which is isError.
     const gone = callTool('vet',
-      { schemaPath: 'nope.aon', data: 'a: 1' }, { root })
+      { schemaPath: 'nope.aontu', data: 'a: 1' }, { root })
     Assert.equal(gone.isError, true)
     Assert.match(gone.content[0].text, /cannot read schemaPath/)
 
@@ -674,46 +674,46 @@ describe('mcp', () => {
     Assert.match(neither.content[0].text, /schema \(or schemaPath\)/)
 
     Assert.deepEqual(payload(callTool('canon',
-      { srcPath: 'main.aon' }, { root })),
+      { srcPath: 'main.aontu' }, { root })),
       { ok: true, canon: '{"x":{"b":2}}', findings: [] })
     Assert.equal(payload(callTool('canon',
-      { src: `x: @"${srcPath(Path.join(root, 'inc.aon'))}"` }, { root })).canon,
+      { src: `x: @"${srcPath(Path.join(root, 'inc.aontu'))}"` }, { root })).canon,
       '{"x":{"b":2}}')
     const esc = payload(callTool('canon',
-      { src: `x: @"${srcPath(Path.join(outside, 'evil.aon'))}"` }, { root }))
+      { src: `x: @"${srcPath(Path.join(outside, 'evil.aontu'))}"` }, { root }))
     Assert.equal(esc.ok, false)
     Assert.equal(esc.findings[0].code, 'include_denied')
 
     Assert.equal(payload(callTool('subsume',
-      { generalPath: 'gen.aon', specificPath: 'spec.aon' }, { root })).verdict,
+      { generalPath: 'gen.aontu', specificPath: 'spec.aontu' }, { root })).verdict,
       'subsumes')
     Assert.equal(payload(callTool('trim',
-      { sourcePath: 'main.aon' }, { root })).verdict, 'clean')
+      { sourcePath: 'main.aontu' }, { root })).verdict, 'clean')
     Assert.deepEqual(payload(callTool('breaking',
-      { oldPath: 'spec.aon', newPath: 'spec.aon' }, { root })),
+      { oldPath: 'spec.aontu', newPath: 'spec.aontu' }, { root })),
       { verdict: 'compatible', mode: 'backward', findings: [] })
 
     // The served-evaluation verbs resolve a file's own includes from
     // its directory (the CLI's rule for a named file).
-    const sum = payload(callTool('summary', { srcPath: 'main.aon' }, { root }))
+    const sum = payload(callTool('summary', { srcPath: 'main.aontu' }, { root }))
     Assert.equal(sum.ok, true)
     Assert.deepEqual(sum.keys, ['x'])
     Assert.equal(payload(callTool('hash',
-      { sourcePath: 'main.aon' }, { root })).hash, sum.hash)
+      { sourcePath: 'main.aontu' }, { root })).hash, sum.hash)
 
     const rip = payload(callTool('set', {
-      entryPath: 'entry.aon', overlayPath: 'over.aon',
+      entryPath: 'entry.aontu', overlayPath: 'over.aontu',
       assignments: [{ path: '$.a', value: '3' }], inPlace: true,
     }, { root }))
     Assert.equal(rip.verdict, 'valid')
     Assert.equal(rip.overlay, 'a: 3\n')
-    Assert.equal(rip.replaced[0].file, Path.join(root, 'over.aon'))
-    Assert.equal(Fs.readFileSync(Path.join(root, 'over.aon'), 'utf8'),
+    Assert.equal(rip.replaced[0].file, Path.join(root, 'over.aontu'))
+    Assert.equal(Fs.readFileSync(Path.join(root, 'over.aontu'), 'utf8'),
       'a: 2\n')
 
     // Inline text wins when a caller sends both spellings.
     Assert.equal(payload(callTool('canon',
-      { src: 'a: 9', srcPath: 'data.aon' }, { root })).canon, '{"a":9}')
+      { src: 'a: 9', srcPath: 'data.aontu' }, { root })).canon, '{"a":9}')
 
     // The rooted handshake names the root.
     const init: any = handle(
@@ -876,7 +876,7 @@ describe('mcp', () => {
   // handshake, the widened tool list, a served file read, and a
   // denied escape — over stdio JSON-RPC, exactly as a client runs it.
   test('spawned-server-serves-root-paths', () => {
-    const root = scratchDir('aontu-mcp-spawn-root-', { 'd.aon': 'a: 1\n' })
+    const root = scratchDir('aontu-mcp-spawn-root-', { 'd.aontu': 'a: 1\n' })
 
     const bin = Path.join(__dirname, '..', 'bin', 'aontu-mcp.js')
     const lines = [
@@ -884,7 +884,7 @@ describe('mcp', () => {
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },
       {
         jsonrpc: '2.0', id: 3, method: 'tools/call',
-        params: { name: 'canon', arguments: { srcPath: 'd.aon' } },
+        params: { name: 'canon', arguments: { srcPath: 'd.aontu' } },
       },
       {
         jsonrpc: '2.0', id: 4, method: 'tools/call',

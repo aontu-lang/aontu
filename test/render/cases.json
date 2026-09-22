@@ -26,12 +26,12 @@
     {
       "name": "one-file-to-the-path",
       "files": {
-        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+        "gen.aontu": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/one.txt"
           ],
           "code": 0,
@@ -46,12 +46,12 @@
     {
       "name": "a-tree-below-the-path",
       "files": {
-        "gen.aon": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
+        "gen.aontu": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/build"
           ],
           "code": 0,
@@ -67,12 +67,12 @@
     {
       "name": "check-is-clean-then-names-every-drift",
       "files": {
-        "gen.aon": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
+        "gen.aontu": "out: [file(\"a.txt\", [\"a\"]) folder(\"sub\", [file(\"b.txt\", [\"b1\" \"b2\"])])]\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/build"
           ],
           "code": 0,
@@ -82,7 +82,7 @@
         {
           "args": [
             "--check",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/build"
           ],
           "code": 0,
@@ -100,7 +100,7 @@
         {
           "args": [
             "--check",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/build"
           ],
           "code": 1,
@@ -115,14 +115,14 @@
     {
       "name": "the-json-report-names-what-was-written",
       "files": {
-        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+        "gen.aontu": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
       },
       "steps": [
         {
           "args": [
             "--format",
             "json",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -137,12 +137,12 @@
     {
       "name": "a-second-run-over-its-own-output-writes-nothing",
       "files": {
-        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+        "gen.aontu": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -153,7 +153,7 @@
           "args": [
             "--format",
             "json",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -163,7 +163,7 @@
         {
           "args": [
             "--check",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -178,12 +178,12 @@
     {
       "name": "an-edit-the-runtime-protects-survives-the-next-run",
       "files": {
-        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+        "gen.aontu": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -197,7 +197,7 @@
         },
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 0,
@@ -207,7 +207,7 @@
         {
           "args": [
             "--check",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out/zed.txt"
           ],
           "code": 1,
@@ -222,8 +222,8 @@
     {
       "name": "a-folder-of-generators-is-one-run",
       "files": {
-        "gen/a.aon": "out: file(\"a.txt\", [\"a\"])\n",
-        "gen/b.aon": "out: file(\"b.txt\", [\"b\"])\n",
+        "gen/a.aontu": "out: file(\"a.txt\", [\"a\"])\n",
+        "gen/b.aontu": "out: file(\"b.txt\", [\"b\"])\n",
         "gen/.keep": ""
       },
       "steps": [
@@ -277,12 +277,12 @@
     {
       "name": "two-arguments-or-the-usage",
       "files": {
-        "gen.aon": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
+        "gen.aontu": "out: file(\"zed.txt\", [\"foo = BAR\"])\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon"
+            "{dir}/gen.aontu"
           ],
           "code": 2,
           "out": "",
@@ -291,7 +291,7 @@
         {
           "args": [
             "--nope",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out"
           ],
           "code": 2,
@@ -305,13 +305,13 @@
       "name": "a-file-keeps-the-mode-the-generator-asked-for",
       "posix": true,
       "files": {
-        "gen.aon": "out: file({name: \"x.sh\", mode: 493}, [\"#!/bin/sh\"])\n",
+        "gen.aontu": "out: file({name: \"x.sh\", mode: 493}, [\"#!/bin/sh\"])\n",
         "app/.keep": ""
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/app"
           ],
           "code": 0,
@@ -326,7 +326,7 @@
         {
           "args": [
             "--check",
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/app"
           ],
           "code": 1,
@@ -344,17 +344,17 @@
     {
       "name": "a-nameless-file-is-a-document-error",
       "files": {
-        "gen.aon": "out: {cmp: \"File\", props: {}, children: []}\n"
+        "gen.aontu": "out: {cmp: \"File\", props: {}, children: []}\n"
       },
       "steps": [
         {
           "args": [
-            "{dir}/gen.aon",
+            "{dir}/gen.aontu",
             "{dir}/out"
           ],
           "code": 4,
           "out": "",
-          "err": "aontu: {dir}/gen.aon: the file at $.out has no name\n"
+          "err": "aontu: {dir}/gen.aontu: the file at $.out has no name\n"
         }
       ],
       "after": {}

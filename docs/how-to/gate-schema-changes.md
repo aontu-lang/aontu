@@ -12,10 +12,10 @@ Edit it, and every one of those documents is re-judged. `vet` answers
 raises: do documents that were valid against the old version still
 hold under the new one?
 
-Point it at the earlier version. Here is a released `profile-v1.aon`:
+Point it at the earlier version. Here is a released `profile-v1.aontu`:
 
 <!-- test: scenario gate -->
-<!-- test: file profile-v1.aon -->
+<!-- test: file profile-v1.aontu -->
 ```aontu
 profile: close({
   id: string & re("^C[0-9]{7}$")
@@ -24,9 +24,9 @@ profile: close({
 })
 ```
 
-and a proposed `profile-v2.aon` that adds one optional key:
+and a proposed `profile-v2.aontu` that adds one optional key:
 
-<!-- test: file profile-v2.aon -->
+<!-- test: file profile-v2.aontu -->
 ```aontu
 profile: close({
   id: string & re("^C[0-9]{7}$")
@@ -40,15 +40,15 @@ Now ask whether the proposal breaks anybody:
 
 <!-- test: run -->
 ```sh
-$ aontu breaking --against profile-v1.aon profile-v2.aon
+$ aontu breaking --against profile-v1.aontu profile-v2.aontu
 verdict: compatible
 ```
 
 Additive and optional, so every v1-valid document is still admitted.
 A proposal that *requires* a new key is a different story: write it
-as `require-owner.aon`:
+as `require-owner.aontu`:
 
-<!-- test: file require-owner.aon -->
+<!-- test: file require-owner.aontu -->
 ```aontu
 profile: close({
   id: string & re("^C[0-9]{7}$")
@@ -61,15 +61,15 @@ profile: close({
 
 <!-- test: run -->
 ```sh
-$ aontu breaking --against profile-v2.aon require-owner.aon
+$ aontu breaking --against profile-v2.aontu require-owner.aontu
 verdict: breaking
 
 $.profile.owner: compat_required_added [compat]
   the general value requires this key; the specific value admits instances without it
   expected: string
   actual:   {"email":string,"id":re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"}
-  general: require-owner.aon:6:10 (string)
-  specific: profile-v2.aon:1:10 ({"email":string,"id":re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"})
+  general: require-owner.aontu:6:10 (string)
+  specific: profile-v2.aontu:1:10 ({"email":string,"id":re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"})
 $ echo $?
 1
 ```
@@ -88,7 +88,7 @@ you want to compare two arbitrary documents rather than versions:
 
 <!-- test: run -->
 ```sh
-$ aontu subsume profile-v2.aon profile-v1.aon
+$ aontu subsume profile-v2.aontu profile-v1.aontu
 verdict: subsumes
 ```
 
@@ -104,7 +104,7 @@ evaluates the old document from there, includes and all:
 
 <!-- test: skip requires a git checkout; the live version is use-cases/04-schema-evolution/check.sh -->
 ```sh
-$ aontu breaking --against git#HEAD profile.aon
+$ aontu breaking --against git#HEAD profile.aontu
 ```
 
 One line then gates every pull request against the branch it merges
@@ -112,7 +112,7 @@ into:
 
 <!-- test: skip CI configuration; not executable here -->
 ```yaml
-- run: aontu breaking --against git#origin/main profile.aon
+- run: aontu breaking --against git#origin/main profile.aontu
 ```
 
 ## What to watch for

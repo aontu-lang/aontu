@@ -1,0 +1,2 @@
+# default-b.aontu --- see default-a.aontu: differs ONLY in the default.
+v: ("1.0" | "1.1") & *"1.1"

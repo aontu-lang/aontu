@@ -50,7 +50,7 @@ RENDER="$AONTU render --check --trust root"
 # handlers and the index, byte for byte, the DO-NOT-EDIT discipline of
 # a generated tree.
 [ "$(ls "$DIR/expected/handlers" | wc -l)" -eq 12 ] || fail "expected twelve handlers"
-$RENDER "$DIR/gen.aon" "$DIR/expected" >/dev/null 2>&1 \
+$RENDER "$DIR/gen.aontu" "$DIR/expected" >/dev/null 2>&1 \
   || fail "a file drifted from expected/"
 ok "twelve handlers and the index match their goldens byte for byte"
 
@@ -108,16 +108,16 @@ ok "form keeps the order and join(each(split(...))) spells the constants"
 
 # 7. THE TWO STATIC CHECKS refuse a drifted template before any node is
 # visited: a key inside another, and a key the body does not hold.
-run overlap 1 -- "$DIR/bad/overlap.aon"
+run overlap 1 -- "$DIR/bad/overlap.aontu"
 has overlap '[aontu/replace_overlap]'
-run unused 1 -- "$DIR/bad/unused.aon"
+run unused 1 -- "$DIR/bad/unused.aontu"
 has unused '[aontu/replace_unused]'
 ok "replace_overlap and replace_unused refuse the seeded templates"
 
 # 8. THE CHECK IS RED WHEN A GOLDEN MOVES, and names the file.
 cp -r "$DIR/expected" "$WORK/moved"
 printf '// edited by hand\n' >> "$WORK/moved/handlers/chat.ts"
-if $RENDER "$DIR/gen.aon" "$WORK/moved" >"$WORK/drift.out" 2>&1; then
+if $RENDER "$DIR/gen.aontu" "$WORK/moved" >"$WORK/drift.out" 2>&1; then
   fail "the check passed an edited golden"
 fi
 grep -qF 'handlers/chat.ts' "$WORK/drift.out" \
@@ -132,7 +132,7 @@ ok "the check is red when a handler is edited by hand, and names it"
 #
 # The COVERAGE half of this check is gone, with `render --coverage`
 # that answered it: the dead-model report has no successor (§6).
-$AONTU trace --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace.json" \
+$AONTU trace --format json "$DIR/gen.aontu" 2>/dev/null > "$WORK/trace.json" \
   || fail "the trace did not run"
 python3 - "$WORK/trace.json" <<'PY_TRACE'
 import json, sys
@@ -154,21 +154,21 @@ ok "the trace names the rule and the model node behind every piece"
 # 10. THE TEMPLATE SURFACE (RENDER P8). handler.ts is the SAME
 # generator written in the target's own syntax: the file IS a Lambda
 # handler, and its marked lines are the aontu that turns one into
-# twelve. `render` reads it as an entry, so `@"./model.aon"` resolves
+# twelve. `render` reads it as an entry, so `@"./model.aontu"` resolves
 # from where the file sits; it writes the same thirteen files against
 # the same goldens, it parses as TypeScript with no syntax diagnostic,
 # and the round trip between the two forms is a fixpoint.
 $RENDER "$DIR/handler.ts" "$DIR/expected" >/dev/null 2>&1 \
   || fail "the template form does not write the same thirteen files"
 run tmplcheck 0 -- template --check "$DIR/handler.ts"
-$AONTU template "$DIR/handler.ts" > "$WORK/handler.aon" 2>/dev/null \
+$AONTU template "$DIR/handler.ts" > "$WORK/handler.aontu" 2>/dev/null \
   || fail "the template did not desugar"
-grep -q 'seneca.listen({type:.sqs.,pin:.PIN.})' "$WORK/handler.aon" \
+grep -q 'seneca.listen({type:.sqs.,pin:.PIN.})' "$WORK/handler.aontu" \
   || fail "the canonical form lost a body line"
 # The two lines that are two spaces and nothing else are output, and
 # the canonical form quotes them so an editor that trims on save is
 # caught (TEMPLATE.0.md D8).
-[ "$(grep -c '^`  `$' "$WORK/handler.aon")" = "2" ] \
+[ "$(grep -c '^`  `$' "$WORK/handler.aontu")" = "2" ] \
   || fail "the canonical form lost the two-space lines"
 "$REPO/ts/node_modules/.bin/tsc" --noEmit --skipLibCheck --target es2020 \
   --module esnext --moduleResolution bundler "$DIR/handler.ts" 2>&1 \
@@ -184,24 +184,24 @@ if command -v go >/dev/null 2>&1; then
   GOBIN="$WORK/aontu-go"
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
-  "$GOBIN" model get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/go.json" \
+  "$GOBIN" model get out --trust root "$DIR/gen.aontu" 2>/dev/null > "$WORK/go.json" \
     || fail "the Go port did not build the tree"
-  $AONTU model get out --trust root "$DIR/gen.aon" 2>/dev/null > "$WORK/ts.json"
+  $AONTU model get out --trust root "$DIR/gen.aontu" 2>/dev/null > "$WORK/ts.json"
   diff -u "$WORK/ts.json" "$WORK/go.json" \
     || fail "the two ports build different trees (ADR-001)"
-  "$GOBIN" "$DIR/bad/overlap.aon" >"$WORK/go-overlap.out" 2>&1 \
+  "$GOBIN" "$DIR/bad/overlap.aontu" >"$WORK/go-overlap.out" 2>&1 \
     && fail "the Go port accepted the overlapping keys" || true
   grep -qF '[aontu/replace_overlap]' "$WORK/go-overlap.out" \
     || fail "the Go port did not refuse replace_overlap"
   ok "the Go port builds the same thirteen files and refuses the same template"
-  "$GOBIN" trace --format json "$DIR/gen.aon" 2>/dev/null > "$WORK/trace-go.json" \
+  "$GOBIN" trace --format json "$DIR/gen.aontu" 2>/dev/null > "$WORK/trace-go.json" \
     || fail "the Go port's trace did not run"
   diff -u "$WORK/trace.json" "$WORK/trace-go.json" \
     || fail "the two ports disagree about the trace (ADR-001)"
   ok "the Go port records the same trace, entry for entry"
   "$GOBIN" template --check "$DIR/handler.ts" \
     || fail "the Go port does not agree the round trip is a fixpoint"
-  diff <("$GOBIN" template "$DIR/handler.ts") "$WORK/handler.aon" \
+  diff <("$GOBIN" template "$DIR/handler.ts") "$WORK/handler.aontu" \
     || fail "the two ports desugar the template differently (ADR-001)"
   ok "the Go port desugars and renders the template form identically"
 else
@@ -217,14 +217,14 @@ echo
 # `get --keys --types` does, and stops at a depth that says how many
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
-$AONTU view doc --depth 2 "$DIR/model.aon" > "$WORK/doc.out" 2>/dev/null \
+$AONTU view doc --depth 2 "$DIR/model.aontu" > "$WORK/doc.out" 2>/dev/null \
   || fail "the model tree did not draw"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 $AONTU view doc --depth 2 --out "$DIR/expected/diagram-doc.txt" --check \
-  "$DIR/model.aon" >/dev/null 2>&1 || fail "the model tree golden is stale"
+  "$DIR/model.aontu" >/dev/null 2>&1 || fail "the model tree golden is stale"
 $AONTU view doc --depth 2 --as svg --out "$DIR/expected/diagram-doc.svg" \
-  --check "$DIR/model.aon" >/dev/null 2>&1 || fail "the model tree SVG is stale"
+  --check "$DIR/model.aontu" >/dev/null 2>&1 || fail "the model tree SVG is stale"
 ok "the model tree draws and is pinned, text and SVG"
 
 echo "all $pass checks passed"

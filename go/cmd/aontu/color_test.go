@@ -63,7 +63,7 @@ func TestRunGatesColor(t *testing.T) {
 	aontu.SetColor(&on)
 
 	dir := t.TempDir()
-	file := filepath.Join(dir, "conflict.aon")
+	file := filepath.Join(dir, "conflict.aontu")
 	if err := os.WriteFile(file, []byte("a:1\na:2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

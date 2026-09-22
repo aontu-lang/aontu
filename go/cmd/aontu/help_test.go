@@ -239,7 +239,7 @@ func TestBareWordWithNoNearVerbSuggestsNothing(t *testing.T) {
 // path-shaped argument was meant as a path and keeps the file
 // diagnosis and its exit 1.
 func TestPathShapedArgumentKeepsTheFileDiagnosis(t *testing.T) {
-	for _, arg := range []string{"./help", "help.aon", "/tmp/help", "sub/help"} {
+	for _, arg := range []string{"./help", "help.aontu", "/tmp/help", "sub/help"} {
 		_, errw, code := cliRun(arg)
 		if 1 != code {
 			t.Errorf("%s: want 1, got %d", arg, code)
@@ -315,7 +315,7 @@ func TestLooksLikeVerb(t *testing.T) {
 		}
 	}
 	for _, arg := range []string{
-		"", "./help", "help.aon", "/tmp/help", "sub/help", "a\\b", "-x",
+		"", "./help", "help.aontu", "/tmp/help", "sub/help", "a\\b", "-x",
 	} {
 		if looksLikeVerb(arg) {
 			t.Errorf("%q should not look like a verb", arg)

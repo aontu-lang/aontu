@@ -1,0 +1,11 @@
+# Derive port/targetPort from containerPort with a nested spread, then
+# pack over the column.  Historically the pack's data snapshot carried
+# the spread-injected relative refs unresolved and the whole model died
+# [aontu/mapval_no_gen] -- hence the authored duplication in
+# services.aontu.  2026-08-26: fixed by the spread application rework
+# (the snapshot waits for the settled source); check.sh pins the
+# working output as a golden.  Shared-spec pins: gen-pack.tsv
+# pack-over-spread-augmented, gen-each.tsv each-over-spread-augmented.
+ports: web: http: { name:http containerPort:8080 }
+ports: { &: { &: { port:.containerPort targetPort:.containerPort } } }
+out: pack($.ports, { plist:each(_, _ & { protocol:*TCP | string }) })

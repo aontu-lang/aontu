@@ -1,7 +1,7 @@
 # Minimal reproductions
 
 One directory per defect family; every entry is indexed and explained
-in [../BUGS.md](../BUGS.md). Each `.aon` file carries an
+in [../BUGS.md](../BUGS.md). Each `.aontu` file carries an
 `# expected:` / `# actual:` header (and, where needed, the exact
 command in an `# run:` line). Run any of them with:
 
@@ -11,36 +11,36 @@ node ../../ts/bin/aontu.js <file>       # or the command in # run:
 
 Two cautions:
 
-- `refer-cycles/refer-in-type-hang.aon` (with its `-schema` companion)
-  and `recursion/recursive-spread-conjunct-hangs.aon` do not terminate
+- `refer-cycles/refer-in-type-hang.aontu` (with its `-schema` companion)
+  and `recursion/recursive-spread-conjunct-hangs.aontu` do not terminate
   in any practical time — run them under `timeout` as their headers
-  say. `identity/id-names-own-descendant-crashes.aon` used to belong
+  say. `identity/id-names-own-descendant-crashes.aontu` used to belong
   beside them, terminating only by overflowing the host stack (in Go a
   `fatal error` the embedding program cannot recover from); §58 is
   fixed and it now refuses as `id_ancestor`. `run-all.sh` never
   executes anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and
-  `enum-default/match-helper-workaround.aon` is deliberately the
+  `enum-default/match-helper-workaround.aontu` is deliberately the
   *working* spelling, kept beside the failing ones.
 - The whole `enum-default/` family is **FIXED** as of 2026-08-26 by
   the preference admission gate (ADR-004): each header records the
   new behaviour and the shared spec rows that pin it, and BUGS.md
   §1–5 carry Status lines.
 - The whole `generator-seal/` family, `sibling-crosswire/`'s
-  close/rank-pref halves (`close-key-pack.aon`,
-  `rankpref-key-pack.aon`), and `pack-refs/`'s re-anchoring entries
-  (`rel-ref-in-expr.aon`, `nested-pack-hole.aon`,
-  `spread-expr-sibling.aon`, `hide-computed-drop.aon`) are **FIXED**
+  close/rank-pref halves (`close-key-pack.aontu`,
+  `rankpref-key-pack.aontu`), and `pack-refs/`'s re-anchoring entries
+  (`rel-ref-in-expr.aontu`, `nested-pack-hole.aontu`,
+  `spread-expr-sibling.aontu`, `hide-computed-drop.aontu`) are **FIXED**
   as of 2026-08-26 by the template-clone isolation change (ADR-005):
   headers record the new behaviour and the pinning rows, and BUGS.md
   §8–12, §33–35 carry Status lines.
 - The rest of both families is **FIXED** as of 2026-08-26 by the
   spread application rework (ADR-006): the unequal-spread crosswire
-  (§6, §7 — `idmerge-ref-templates.aon`, `oneview-ref-templates.aon`,
-  `two-spreads*.aon`), the self-referential merge expression (§36,
-  `merge-expr-onto-pack-child.aon`), and the generator over
-  spread-augmented data (`spread-then-pack.aon`). Headers record the
+  (§6, §7 — `idmerge-ref-templates.aontu`, `oneview-ref-templates.aontu`,
+  `two-spreads*.aontu`), the self-referential merge expression (§36,
+  `merge-expr-onto-pack-child.aontu`), and the generator over
+  spread-augmented data (`spread-then-pack.aontu`). Headers record the
   new behaviour; the durable pins are the `spread-interleave.tsv`
   spread-unequal-* composition matrix, `gen-pack.tsv`/`gen-each.tsv`
   *-over-spread-augmented and pack-merge-expr-onto-child, `plus.tsv`
@@ -48,18 +48,18 @@ Two cautions:
 
 - The three defects that fixing §44 surfaced are **FIXED** as of
   2026-08-28, and each has a header recording what changed:
-  `diagnostics/pair-before-spread-dropped.aon` (§46, the `elem` rule's
-  spread guard), `diagnostics/container-conflict-member-path.aon` with
+  `diagnostics/pair-before-spread-dropped.aontu` (§46, the `elem` rule's
+  spread guard), `diagnostics/container-conflict-member-path.aontu` with
   its `-map` companion (§47 and an unreported map twin, the container's
   own slot restored before the refusal), and
-  `constraint-compose/composed-alias-atom-dropped.aon` (§48, regraded
+  `constraint-compose/composed-alias-atom-dropped.aontu` (§48, regraded
   from minor to critical — the canon of a composed constraint dropped
   the atom added at the point of use, in BOTH ports). Their pins are
   `spread-list.tsv`, the new `container-path.tsv`, and
   `constraint-alias.tsv`.
 
 - `includes/` (§49, filed 2026-08-28) is **FIXED** as of 2026-08-30,
-  by the ruling in ADR-012: `.aon` and `.aontu` are read as aontu
+  by the ruling in ADR-012: `.aontu` is read as aontu
   source, ten config formats (`.json`, `.jsonld`, `.jsonc`, `.json5`,
   `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini`) are read as
   data by their own parsers, and every other one — and a name with no

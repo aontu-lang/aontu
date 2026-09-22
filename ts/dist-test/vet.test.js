@@ -225,14 +225,14 @@ const SCHEMA = 'service: { name: string, port: integer }';
 });
 (0, node_test_1.describe)('vet-findings', () => {
     (0, node_test_1.test)('sites-are-role-tagged-data-first', () => {
-        const r = (0, vet_1.vet)(SCHEMA, 'service: { name: "auth", port: "8080" }', { schemaUrl: 'service.aon', dataUrl: 'deploy.json' });
+        const r = (0, vet_1.vet)(SCHEMA, 'service: { name: "auth", port: "8080" }', { schemaUrl: 'service.aontu', dataUrl: 'deploy.json' });
         const sites = r.findings[0].sites;
         Assert.equal(sites.length, 2);
         Assert.equal(sites[0].role, 'data');
         Assert.equal(sites[0].file, 'deploy.json');
         Assert.equal(sites[0].value, '"8080"');
         Assert.equal(sites[1].role, 'schema');
-        Assert.equal(sites[1].file, 'service.aon');
+        Assert.equal(sites[1].file, 'service.aontu');
         Assert.equal(sites[1].value, 'integer');
         Assert.ok(0 < sites[0].row);
         Assert.ok(0 < sites[0].col);
@@ -404,10 +404,10 @@ const SCHEMA = 'service: { name: string, port: integer }';
     });
     (0, node_test_1.test)('each-document-resolves-its-own-includes', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-base-'));
-        Fs.writeFileSync(Path.join(dir, 'part.aon'), 'port: integer');
-        const src = '@"./part.aon"\nname: string';
+        Fs.writeFileSync(Path.join(dir, 'part.aontu'), 'port: integer');
+        const src = '@"./part.aontu"\nname: string';
         const data = 'name: "auth"\nport: 8080';
-        const schemaPath = Path.join(dir, 'schema.aon');
+        const schemaPath = Path.join(dir, 'schema.aontu');
         Fs.writeFileSync(schemaPath, src);
         Assert.equal((0, vet_1.vet)(src, data, { schemaPath }).verdict, 'valid');
         Assert.equal((0, vet_1.vet)(src, data).verdict, 'error');
@@ -415,10 +415,10 @@ const SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('a-site-names-the-file-its-text-lives-in', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-site-'));
         Fs.mkdirSync(Path.join(dir, 'lib'));
-        const lib = Path.join(dir, 'lib', 'types.aon');
+        const lib = Path.join(dir, 'lib', 'types.aontu');
         Fs.writeFileSync(lib, 'Port: integer & min(1024)\n');
-        const schemaPath = Path.join(dir, 'schema.aon');
-        const src = '@"lib/types.aon"\nsvc: { port: $.Port }\n';
+        const schemaPath = Path.join(dir, 'schema.aontu');
+        const src = '@"lib/types.aontu"\nsvc: { port: $.Port }\n';
         Fs.writeFileSync(schemaPath, src);
         const dataPath = Path.join(dir, 'data.json');
         const data = '{"svc":{"port":80}}\n';
@@ -441,10 +441,10 @@ const SCHEMA = 'service: { name: string, port: integer }';
     });
     (0, node_test_1.test)('an-included-data-file-is-still-data', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-drole-'));
-        const part = Path.join(dir, 'part.aon');
+        const part = Path.join(dir, 'part.aontu');
         Fs.writeFileSync(part, 'port: "80"\n');
-        const dataPath = Path.join(dir, 'data.aon');
-        const data = '@"./part.aon"\n';
+        const dataPath = Path.join(dir, 'data.aontu');
+        const data = '@"./part.aontu"\n';
         Fs.writeFileSync(dataPath, data);
         const r = (0, vet_1.vet)('port: integer', data, {
             dataPath, dataUrl: dataPath, schemaUrl: 'schema',
@@ -499,31 +499,31 @@ const SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('an-included-file-is-named-as-the-entry-reaches-it', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-name-'));
         Fs.mkdirSync(Path.join(dir, 'lib'));
-        Fs.writeFileSync(Path.join(dir, 'lib', 'types.aon'), 'Port: integer\n');
-        const schema = '@"lib/types.aon"\nsvc: { port: $.Port }\n';
-        const schemaPath = Path.join(dir, 'schema.aon');
+        Fs.writeFileSync(Path.join(dir, 'lib', 'types.aontu'), 'Port: integer\n');
+        const schema = '@"lib/types.aontu"\nsvc: { port: $.Port }\n';
+        const schemaPath = Path.join(dir, 'schema.aontu');
         Fs.writeFileSync(schemaPath, schema);
         // The caller reached the entry by a BARE name, so the include is
         // named beside it -- not by an absolute path naming a directory the
         // caller never typed.
         const bare = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
-            schemaPath, schemaUrl: 'schema.aon', dataUrl: 'data.json',
+            schemaPath, schemaUrl: 'schema.aontu', dataUrl: 'data.json',
         });
         const site = bare.findings[0].sites.find((s) => 'schema' === s.role);
-        Assert.equal(site?.file, Path.join('lib', 'types.aon'));
+        Assert.equal(site?.file, Path.join('lib', 'types.aontu'));
         // Reached through a directory, the include is named through the
         // same one, so both are openable from the caller's cwd.
         const nested = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
-            schemaPath, schemaUrl: Path.join('a', 'b', 'schema.aon'),
+            schemaPath, schemaUrl: Path.join('a', 'b', 'schema.aontu'),
             dataUrl: 'data.json',
         });
-        Assert.equal(nested.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join('a', 'b', 'lib', 'types.aon'));
+        Assert.equal(nested.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join('a', 'b', 'lib', 'types.aontu'));
         // An ABSOLUTE entry keeps absolute includes: the caller asked for
         // absolute names by giving one.
         const abs = (0, vet_1.vet)(schema, 'svc: { port: "80" }', {
             schemaPath, schemaUrl: schemaPath, dataUrl: 'data.json',
         });
-        Assert.equal(abs.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join(dir, 'lib', 'types.aon'));
+        Assert.equal(abs.findings[0].sites.find((s) => 'schema' === s.role)?.file, Path.join(dir, 'lib', 'types.aontu'));
         Fs.rmSync(dir, { recursive: true, force: true });
     });
     // The naming rule itself, at the arms a two-document run cannot
@@ -531,22 +531,22 @@ const SCHEMA = 'service: { name: string, port: integer }';
     // a document's own name.
     (0, node_test_1.test)('a-name-with-no-base-to-relativise-against-is-left-alone', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-name2-'));
-        const abs = Path.join(dir, 'lib.aon');
-        const entry = Path.join(dir, 'entry.aon');
+        const abs = Path.join(dir, 'lib.aontu');
+        const entry = Path.join(dir, 'entry.aontu');
         // The document's OWN url is never rewritten -- it is already the
         // name the caller used.
-        Assert.equal((0, vet_1.displayFile)('entry.aon', 'entry.aon', 'x/entry.aon'), 'entry.aon');
+        Assert.equal((0, vet_1.displayFile)('entry.aontu', 'entry.aontu', 'x/entry.aontu'), 'entry.aontu');
         // Neither is the default label of a caller who named no file...
         Assert.equal((0, vet_1.displayFile)('data', 'data', undefined), 'data');
         // ... nor an absolute include with no base to measure from ...
-        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aon', undefined), abs);
+        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aontu', undefined), abs);
         // ... nor an empty url, nor one that is already relative.
-        Assert.equal((0, vet_1.displayFile)('', 'entry.aon', 'x/entry.aon'), '');
-        Assert.equal((0, vet_1.displayFile)('rel.aon', 'entry.aon', 'x/entry.aon'), 'rel.aon');
+        Assert.equal((0, vet_1.displayFile)('', 'entry.aontu', 'x/entry.aontu'), '');
+        Assert.equal((0, vet_1.displayFile)('rel.aontu', 'entry.aontu', 'x/entry.aontu'), 'rel.aontu');
         // And the two that DO rewrite, stated here as well because the
         // Go twin states them: bare beside bare, nested through nested.
-        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aon', entry), 'lib.aon');
-        Assert.equal((0, vet_1.displayFile)(abs, Path.join('a', 'b', 'entry.aon'), entry), Path.join('a', 'b', 'lib.aon'));
+        Assert.equal((0, vet_1.displayFile)(abs, 'entry.aontu', entry), 'lib.aontu');
+        Assert.equal((0, vet_1.displayFile)(abs, Path.join('a', 'b', 'entry.aontu'), entry), Path.join('a', 'b', 'lib.aontu'));
         Fs.rmSync(dir, { recursive: true, force: true });
     });
 });

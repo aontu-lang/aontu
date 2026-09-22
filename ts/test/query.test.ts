@@ -96,11 +96,11 @@ describe('query', () => {
 
   test('relative-loads-resolve-from-the-documents-own-directory', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-query-'))
-    Fs.writeFileSync(Path.join(dir, 'part.aon'), 'k: 7')
-    const doc = Path.join(dir, 'doc.aon')
-    Fs.writeFileSync(doc, 'a: @"./part.aon"')
+    Fs.writeFileSync(Path.join(dir, 'part.aontu'), 'k: 7')
+    const doc = Path.join(dir, 'doc.aontu')
+    Fs.writeFileSync(doc, 'a: @"./part.aontu"')
     Assert.equal(
-      get('a: @"./part.aon"', '$.a.k', { path: doc, view: 'canon' }).out, '7')
+      get('a: @"./part.aontu"', '$.a.k', { path: doc, view: 'canon' }).out, '7')
   })
 
   test('nearest-key-suggests-only-when-close', () => {

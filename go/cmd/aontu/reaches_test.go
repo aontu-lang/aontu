@@ -21,7 +21,7 @@ func reachesRun(args ...string) (string, string, int) {
 
 func reachesFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestReachesArgumentErrors(t *testing.T) {
 		{[]string{"a", "b", "--format", "yaml", file}, "--format needs"},
 		{[]string{"a", "b", "--relation"}, "--relation needs a name"},
 		{[]string{"--trust", "nonsense", "a", "b", file}, "--trust"},
-		{[]string{"a", "b", "/no/such/file.aon"}, "cannot read"},
+		{[]string{"a", "b", "/no/such/file.aontu"}, "cannot read"},
 	} {
 		_, errw, code := reachesRun(c.args...)
 		if 2 != code || !strings.Contains(errw, c.want) {

@@ -38,7 +38,7 @@ has() {
 # stderr stays EMPTY -- the registry is written in the crossing subset,
 # so nothing is lost, and the goldens are complete contracts.
 for tool in search_docs read_file create_ticket; do
-  run "t_$tool" 0 -- jsonschema --at "\$.argschemas.$tool" "$DIR/registry.aon"
+  run "t_$tool" 0 -- jsonschema --at "\$.argschemas.$tool" "$DIR/registry.aontu"
   diff -u "$DIR/expected/tool-${tool//_/-}.json" "$WORK/t_$tool.out" \
     || fail "$tool export drifted from expected/tool-${tool//_/-}.json"
   [ -s "$WORK/t_$tool.err" ] \
@@ -69,7 +69,7 @@ ok "exports parse and hold: closed, required right, two re() as allOf"
 # close() expression, so additionalProperties:false lands at the
 # root, the disjunctions land as enum (preference as default), and
 # the optional keys stay out of required.
-run msg 0 -- jsonschema "$DIR/message.aon"
+run msg 0 -- jsonschema "$DIR/message.aontu"
 diff -u "$DIR/expected/message.json" "$WORK/msg.out" \
   || fail "message export drifted from expected/message.json"
 python3 - "$WORK/msg.out" <<'EOF'
@@ -80,13 +80,13 @@ assert s["properties"]["priority"] == {
     "default": "normal", "enum": ["normal", "low", "high"]}
 assert "note" not in s["required"] and "retries" not in s["required"]
 EOF
-ok "message.aon whole-document export: root close(), enum+default"
+ok "message.aontu whole-document export: root close(), enum+default"
 
 # 4. The money wire convention (use-case 10, finding I) crosses
 # intact: the fixed-scale decimal's re() as pattern, the conversion
 # mark as a const outside required. A consumer reading only the JSON
 # Schema still learns the leaf and the scale.
-run money 0 -- jsonschema --at quote "$DIR/money.aon"
+run money 0 -- jsonschema --at quote "$DIR/money.aontu"
 diff -u "$DIR/expected/money.json" "$WORK/money.out" \
   || fail "money export drifted from expected/money.json"
 has money out '"pattern": "^-?(0|[1-9][0-9]*)[.][0-9]{2}$"'
@@ -95,13 +95,13 @@ python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); \
   assert s["required"]==["amount","currency"], s["required"]' "$WORK/money.out"
 ok "money: Dec2 pattern and the bigdecimal:2 const mark both cross"
 
-# 5. The loss report: residue.aon collects one instance of each class
+# 5. The loss report: residue.aontu collects one instance of each class
 # that cannot cross, the schema still exports (exit 0), and EVERY loss
 # is named on stderr with its path and construct. Note must() reports
 # as `nil` -- the engine holds the whole value residual, so the number
 # bound beside it is lost too (reference-api.md documents this loss
 # under `must`; the README records the difference).
-run res 0 -- jsonschema --at report "$DIR/residue.aon"
+run res 0 -- jsonschema --at report "$DIR/residue.aontu"
 diff -u "$DIR/expected/residue.json" "$WORK/res.out" \
   || fail "residue export drifted from expected/residue.json"
 has res err 'lossy: $.report.total nil:'
@@ -114,14 +114,14 @@ ok "residue: lossy export still exports, five losses each named"
 # 6. --strict makes lossiness an error: same document, same report,
 # exit 1 -- the mode for a pipeline that must not ship a schema
 # admitting more than the model does.
-run strict 1 -- jsonschema --strict --at report "$DIR/residue.aon"
+run strict 1 -- jsonschema --strict --at report "$DIR/residue.aontu"
 has strict err 'lossy: $.report.total nil:'
 ok "--strict: a lossy export exits 1 instead of 0"
 
 # 7. --format json is the machine face of the same report: verdict
 # `lossy`, the schema embedded, and each loss as {path, construct,
 # reason} under the usual aontu envelope.
-run resj 0 -- jsonschema --format json --at report "$DIR/residue.aon"
+run resj 0 -- jsonschema --format json --at report "$DIR/residue.aontu"
 python3 - "$WORK/resj.out" <<'EOF'
 import json, sys
 r = json.load(open(sys.argv[1]))
@@ -138,7 +138,7 @@ ok "--format json: verdict lossy, losses as {path, construct, reason}"
 # has no unified value to export, so the verb refuses with exit 4 and
 # a located [aontu/no_path] -- and stdout stays empty, never a partial
 # schema.
-run dangle 4 -- jsonschema "$DIR/bad/dangling.aon"
+run dangle 4 -- jsonschema "$DIR/bad/dangling.aontu"
 has dangle err '[aontu/no_path]'
 has dangle err '$.people.alice.email'
 [ -s "$WORK/dangle.out" ] \
@@ -151,12 +151,12 @@ ok "bad: a dangling reference refuses (exit 4), nothing exported"
 # `get --keys --types` does, and stops at a depth that says how many
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
-run doc 0 -- view doc --depth 3 "$DIR/residue.aon"
+run doc 0 -- view doc --depth 3 "$DIR/residue.aontu"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 run docgate 0 -- view doc --depth 3 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/residue.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/residue.aontu"
 run docsvg 0 -- view doc --depth 3 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/residue.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/residue.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

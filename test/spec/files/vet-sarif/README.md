@@ -1,6 +1,6 @@
 # The SARIF golden (G2 phase 5)
 
-`schema.aon` and `data.aon` are one vet run; `expect.sarif` is the
+`schema.aontu` and `data.aontu` are one vet run; `expect.sarif` is the
 SARIF 2.1.0 report both ports must render for it, **byte for byte**,
 after two redactions the comparing tests apply to their own output
 before diffing:

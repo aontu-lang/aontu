@@ -41,6 +41,7 @@ const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const node_child_process_1 = require("node:child_process");
 const aontu_1 = require("../dist/aontu");
+const lang_1 = require("../dist/lang");
 const DOCS_DIR = Path.join(__dirname, '..', '..', 'docs');
 const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
 function narrowed() {
@@ -104,10 +105,7 @@ function publishedPages() {
         .filter((f, i, a) => a.indexOf(f) === i)
         .filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)));
 }
-// `aon` and `aontu` are both used as the fence tag for an Aontu
-// document; the reference-language file uses the first and the
-// teaching documents the second.
-const SOURCE_TAGS = new Set(['aon', 'aontu']);
+const SOURCE_TAGS = new Set(['aontu']);
 function lf(text) {
     return text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
@@ -1167,6 +1165,26 @@ function section(text, heading) {
         .map(([code, row]) => code + ': ' + row + ', registry ' + registered.get(code));
     Assert.deepEqual(wrong, [], 'catalogue rows disagreeing with the registry');
 });
+// trust.md spells its extension count in prose beside the list it
+// counts, so the two drift apart under ADR-042 exactly as the error
+// totals above do. The page's own list is the subject: every extension
+// it names must be read by an include, and the stated count must be how
+// many it names.
+(0, node_test_1.test)('the-stated-extension-count-counts-the-page', () => {
+    const text = docsText('trust.md');
+    const sentence = /([a-z]+) extensions are read at all \(([^)]*)\)/s.exec(text);
+    if (null == sentence) {
+        Assert.fail('trust.md states no extension count');
+    }
+    const named = [...sentence[2].matchAll(/`\.([a-z0-9]+)`/g)].map((m) => m[1]);
+    Assert.ok(5 < named.length, 'no extensions read from the page');
+    const unread = named.filter((ext) => undefined === (0, lang_1.includeFormat)(ext));
+    Assert.deepEqual(unread, [], 'trust.md names extensions no include reads');
+    const WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
+        'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen'];
+    Assert.ok(named.length < WORD.length, 'no word for ' + named.length + ' extensions');
+    Assert.equal(sentence[1], WORD[named.length], 'the stated extension count must count the extensions named');
+});
 // Separate from the catalogue check above, which proves the set of codes
 // matches and says nothing about the summary numbers: the class table and
 // the totals stated in prose are hand-written, so nothing re-measures them.
@@ -1343,11 +1361,11 @@ function jsonVerbFixtures() {
         return file;
     };
     return {
-        doc: at('d.aon', 'a: 1\n'),
-        schema: at('s.aon', 'a: integer\n'),
-        rel: at('rel.aon', 'entity: {&:{id:string}}\nentity: {a:{id:"x"}}\n'),
-        gen: at('gen.aon', 'out: file("a.txt",[content("x")])\n'),
-        roles: at('roles.aon', 'roles: {dev:{allow:["$.a"]}}\n'),
+        doc: at('d.aontu', 'a: 1\n'),
+        schema: at('s.aontu', 'a: integer\n'),
+        rel: at('rel.aontu', 'entity: {&:{id:string}}\nentity: {a:{id:"x"}}\n'),
+        gen: at('gen.aontu', 'out: file("a.txt",[content("x")])\n'),
+        roles: at('roles.aontu', 'roles: {dev:{allow:["$.a"]}}\n'),
         out: Path.join(dir, 'out'),
     };
 }

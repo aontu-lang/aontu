@@ -53,10 +53,10 @@ function world(store) {
         ? Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service')
         : (0, mod_1.cacheStoreDir)(cache, hash, 'corp.example/schemas/service');
     Fs.mkdirSync(moddir, { recursive: true });
-    Fs.writeFileSync(Path.join(moddir, 'pkg.aon'), 'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n');
-    Fs.writeFileSync(Path.join(moddir, 'service.aon'), MODULE);
-    Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\n');
-    const main = Path.join(dir, 'main.aon');
+    Fs.writeFileSync(Path.join(moddir, 'pkg.aontu'), 'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n');
+    Fs.writeFileSync(Path.join(moddir, 'service.aontu'), MODULE);
+    Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\n');
+    const main = Path.join(dir, 'main.aontu');
     Fs.writeFileSync(main, 'svc: @"corp.example/schemas/service#' + hash + '"\nsvc: name: "auth"\n');
     return { dir, main, hash, cache };
 }
@@ -76,7 +76,7 @@ function world(store) {
         Assert.deepEqual((0, mod_1.parseModuleRef)('corp.example/schemas/service#aon1-abc'), { path: 'corp.example/schemas/service', hash: 'aon1-abc' });
         Assert.deepEqual((0, mod_1.parseModuleRef)('alias:legacy'), { path: 'alias:legacy' });
         Assert.deepEqual((0, mod_1.parseModuleRef)('alias:legacy#aon1-abc'), { path: 'alias:legacy', hash: 'aon1-abc' });
-        for (const local of ['./f.aon', '../g.json', '/abs/h.aon', 'local',
+        for (const local of ['./f.aontu', '../g.json', '/abs/h.aontu', 'local',
             'corp.example/x@1', 'Corp.Example/x', 'alias:', 'alias:a b']) {
             Assert.equal((0, mod_1.parseModuleRef)(local), undefined, local);
         }
@@ -201,7 +201,7 @@ function world(store) {
         const w = world('vendor');
         const sub = Path.join(w.dir, 'sub');
         Fs.mkdirSync(sub);
-        const main = Path.join(sub, 'main.aon');
+        const main = Path.join(sub, 'main.aontu');
         Fs.copyFileSync(w.main, main);
         const a0 = new aontu_1.Aontu({ trust: { include: { root: sub } } });
         Assert.throws(() => a0.generate('x: @"' + (0, srcpath_1.srcPath)(main) + '"'), (err) => String(err.message).includes('include denied:'));
@@ -216,14 +216,14 @@ function world(store) {
         // has both halves of its key; without the lock, the package file's
         // own declaration supplies it.
         const w = world('cache');
-        Fs.writeFileSync(Path.join(w.dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\n' +
+        Fs.writeFileSync(Path.join(w.dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\n' +
             'dep: {"alias:legacy": {pkg: "corp.example/schemas/service", v: "1.0.0"}}\n');
         Fs.writeFileSync(w.main, 'svc: @"alias:legacy#' + w.hash + '"\nsvc: name: "auth"\n');
         const a0 = new aontu_1.Aontu({ mod: { cache: w.cache } });
         Assert.deepEqual(a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });
         // An alias the lockfile names resolves without a pin in the import.
         Fs.mkdirSync(Path.join(w.dir, 'aontu_meta'), { recursive: true });
-        Fs.writeFileSync(Path.join(w.dir, 'aontu_meta', 'pkg-lock.aon'), '{"lock":{"alias:legacy":{"archive":"","canon":"' + w.hash +
+        Fs.writeFileSync(Path.join(w.dir, 'aontu_meta', 'pkg-lock.aontu'), '{"lock":{"alias:legacy":{"archive":"","canon":"' + w.hash +
             '","pkg":"corp.example/schemas/service","v":"1.0.0"}}}\n');
         Fs.writeFileSync(w.main, 'svc: @"alias:legacy"\nsvc: name: "auth"\n');
         Assert.deepEqual(a0.generate('x: @"' + (0, srcpath_1.srcPath)(w.main) + '"'), { x: { svc: { name: 'auth', port: 8080 } } });

@@ -83,7 +83,7 @@ misspelt `--role qas` reads as the typo it is.
 
 Every decision names the entry that made it as a path *into the role
 model*, `$.roles.dev.deny.0`, with the entry's text as the author wrote
-it. That is what makes `aontu why '$.roles.dev.deny.0' roles.aon` the
+it. That is what makes `aontu why '$.roles.dev.deny.0' roles.aontu` the
 next command: the rule has a file and a line, and the gate says which.
 
 The CLI accepts a path in `set`'s spelling, `<path>=<value>`, so a
@@ -277,7 +277,7 @@ JSON report with `isError: false` on a refusal, as the other gates do:
 the report is the answer. Pinned by `ts/test/mcp.test.ts` beside `set`.
 
 **Phase 4 — the stanza (S).** `aontu agentsmd` gains one line in its
-"How to work with it" block, `aontu allow --role <role> roles.aon
+"How to work with it" block, `aontu allow --role <role> roles.aontu
 <example>`, so an agent that reads the stanza reads the gate; the
 skill already carries the verb. Held by the `agentsmd` rows of
 `test/spec/agentsmd.tsv` in both ports, whose expected stanza gains

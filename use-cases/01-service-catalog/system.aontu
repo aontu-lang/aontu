@@ -1,0 +1,18 @@
+# system.aontu --- THE ROOT: one evaluation joining the bundled
+# vocabulary, Acme's own spec, and the two views of the same eight
+# entities. Identity (id) does the joining; nothing here repeats a path
+# from either view.
+@"aontu:system"
+@"./spec.aontu"
+@"./catalog.aontu"
+@"./deploy.aontu"
+
+# The bundled vocabulary is schema-only (every member is type-marked);
+# hide the otherwise-empty bag it leaves in the output.
+aontu: hide({})
+
+# The relation declarations live ON THE FIELDS now (spec.aontu,
+# CatalogEntry.dependsOn: rel($.aontu.System.Service) & acyclic() &
+# inverse(dependedOnBy)) -- the old root-level `relations:` block is
+# gone with the magic key (RELATIONS.0.md P2, ADR-010's grandfather
+# clause discharged), and `target` is rel(t)'s flow.

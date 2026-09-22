@@ -40,7 +40,7 @@ field of a `--format json` report.
 ## The repair loop
 
 ```
-aontu vet schema.aon mine.aon --format json
+aontu vet schema.aontu mine.aontu --format json
 ```
 
 The exit code branches for you: `0` valid, `1` invalid (fix the
@@ -61,14 +61,14 @@ registry code; a **dynamic** code (`func:upper`, `op[+]`) is registered
 through its prefix, and only `explain` falls back to the prefix's text,
 so such a finding carries no `hint`.
 
-For a conflict, `aontu model why <path> mine.aon` lists every contribution
+For a conflict, `aontu model why <path> mine.aontu` lists every contribution
 to that path with its role and source line, which turns "these
 disagree" into "these two lines disagree".
 
 Then fix it:
 
 ```
-aontu model set '$.replicas=5' --entry schema.aon --overlay mine.aon --in-place
+aontu model set '$.replicas=5' --entry schema.aontu --overlay mine.aontu --in-place
 ```
 
 `--in-place` rewrites the pinned literal **where it was written**, so

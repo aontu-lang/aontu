@@ -16,18 +16,21 @@ a directory, which is a repository a laptop can serve, and gates the
 next version on the one before it.
 
 The package declares its path, its version, its entry, and that it may
-leave the machine. Its `service/pkg.aon`:
+leave the machine. Its `service/pkg.aontu`:
 
 <!-- test: scenario publish -->
-<!-- test: file service/pkg.aon -->
+<!-- test: file service/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.4.2"
+pkg: main: "service.aontu"
+
 publish: public
 ```
 
-and its entry, `service/service.aon`:
+and its entry, `service/service.aontu`:
 
-<!-- test: file service/service.aon -->
+<!-- test: file service/service.aontu -->
 ```aontu
 name: string
 port: *8080|integer
@@ -57,10 +60,10 @@ names a directory to publish into instead of the write path:
 $ aontu publish --key key.pem --to repo service
 verdict: dry-run
 corp.example/schemas/service 1.4.2 public
-archive: sha256:8a26b9f1b78620c8d452e69e9681a31027df431c833896bc98545627e6df3016 (2 files, 339 bytes)
-module: corp.example/schemas/service service.aon aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
-file: pkg.aon sha256:7cc6671240e0c5f327dad20a10361edb98c687430eeadc9fc3d9604e287a11f4 96
-file: service.aon sha256:36851584bea3d7109995deae363852734aca001c9e494b8868d736c5c49e7275 33
+archive: sha256:5d49e7fc029c69773a2e08695a2e92ea3b3a0cbeea51dd97fa645aea8aefdd27 (2 files, 359 bytes)
+module: corp.example/schemas/service service.aontu aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+file: pkg.aontu sha256:a52b2c388005efca0601cd6a115a80a8b1b067874c1f138edfe1c3c7c7ba8b41 108
+file: service.aontu sha256:36851584bea3d7109995deae363852734aca001c9e494b8868d736c5c49e7275 33
 ...
 dry run: nothing sent (add --yes)
 ```
@@ -89,17 +92,20 @@ The version after this one must admit every document this one
 admitted, and resolve every position this one resolved, to the same
 value: a consumer whose build worked keeps the same build. `publish`
 fetches the highest version the repository holds and compares. A
-candidate `service-1.4.3/pkg.aon`:
+candidate `service-1.4.3/pkg.aontu`:
 
-<!-- test: file service-1.4.3/pkg.aon -->
+<!-- test: file service-1.4.3/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/service" version:"1.4.3" main:"service.aon" }
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.4.3"
+pkg: main: "service.aontu"
+
 publish: public
 ```
 
-whose `service-1.4.3/service.aon` adds an optional key:
+whose `service-1.4.3/service.aontu` adds an optional key:
 
-<!-- test: file service-1.4.3/service.aon -->
+<!-- test: file service-1.4.3/service.aontu -->
 ```aontu
 name: string
 port: *8080|integer
@@ -117,17 +123,20 @@ against: corp.example/schemas/service 1.4.2
 ...
 ```
 
-A candidate `service-1.5.0/pkg.aon`:
+A candidate `service-1.5.0/pkg.aontu`:
 
-<!-- test: file service-1.5.0/pkg.aon -->
+<!-- test: file service-1.5.0/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/service" version:"1.5.0" main:"service.aon" }
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.5.0"
+pkg: main: "service.aontu"
+
 publish: public
 ```
 
-whose `service-1.5.0/service.aon` makes that key required:
+whose `service-1.5.0/service.aontu` makes that key required:
 
-<!-- test: file service-1.5.0/service.aon -->
+<!-- test: file service-1.5.0/service.aontu -->
 ```aontu
 name: string
 port: *8080|integer
@@ -166,12 +175,12 @@ serving /home/me/repo at http://127.0.0.1:8017
 ```
 
 A consumer names the base and the signer it accepts in its own
-`pkg.aon`, and syncs. A base is `https`, or `http` on a loopback host,
+`pkg.aontu`, and syncs. A base is `https`, or `http` on a loopback host,
 which is what makes the laptop's registry reachable:
 
 <!-- test: skip the consumer reads from the served registry above -->
 ```aontu
-pkg: { path:"corp.example/checkout" main:"main.aon" }
+pkg: { path:"corp.example/checkout" main:"main.aontu" }
 dep: "corp.example/schemas/service": v: "1.4.2"
 
 repo: base: ["http://127.0.0.1:8017"]

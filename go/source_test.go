@@ -91,7 +91,7 @@ func TestAbsoluteSourceLoadIgnoresBase(t *testing.T) {
 }
 
 func TestInvalidUTF8ReplacementTwin(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "test", "spec", "files", "invalid-utf8.aon"))
+	data, err := os.ReadFile(filepath.Join("..", "test", "spec", "files", "invalid-utf8.aontu"))
 	if err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
@@ -113,14 +113,14 @@ func TestInvalidUTF8ReplacementTwin(t *testing.T) {
 
 func TestParseErrorNamesFile(t *testing.T) {
 	a := New()
-	a.File = "model.aon"
+	a.File = "model.aontu"
 
 	// A syntax error, rendered by the parser itself.
 	_, err := a.Generate("1'00]")
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "model.aon:1:5") {
+	if !strings.Contains(err.Error(), "model.aontu:1:5") {
 		t.Fatalf("syntax frame: %q", err.Error())
 	}
 
@@ -130,7 +130,7 @@ func TestParseErrorNamesFile(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "model.aon:1:1") {
+	if !strings.Contains(err.Error(), "model.aontu:1:1") {
 		t.Fatalf("merge_conflict frame: %q", err.Error())
 	}
 

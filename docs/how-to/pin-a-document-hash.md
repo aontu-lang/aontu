@@ -9,10 +9,10 @@ order: 50
 A file hash moves when a comment moves. `aontu hash` prints one
 string that identifies a document's *meaning*, so a lockfile, a
 registry entry or an agent can say "this definition, this version"
-and check the claim later. Write a small model as `system.aon`:
+and check the claim later. Write a small model as `system.aontu`:
 
 <!-- test: scenario hash -->
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer tier: *standard|string } }
 services: auth: replicas: 3
@@ -21,15 +21,15 @@ services: billing: tier: premium
 
 <!-- test: run -->
 ```sh
-$ aontu hash system.aon
+$ aontu hash system.aontu
 aon1-kmZi3pPU2hnWQfwLnaFoC5iUtlrt6vbUzU7og-KxWJE
 ```
 
 The `aon1-` prefix is a scheme id; the rest is a digest of the
 document's canonical meaning after evaluation. Reorder the keys, add
-comments and split entries apart, as `system-reordered.aon` does:
+comments and split entries apart, as `system-reordered.aontu` does:
 
-<!-- test: file system-reordered.aon -->
+<!-- test: file system-reordered.aontu -->
 ```aontu
 # same meaning: keys reordered, comments added, one entry split
 services: billing: tier: premium
@@ -39,32 +39,32 @@ services: { &: { replicas: *1|integer tier: *standard|string } }
 
 <!-- test: run -->
 ```sh
-$ aontu hash system-reordered.aon
+$ aontu hash system-reordered.aontu
 aon1-kmZi3pPU2hnWQfwLnaFoC5iUtlrt6vbUzU7og-KxWJE
 ```
 
 Same pin. The document is evaluated standalone before hashing, so
 even splitting it across files leaves the pin alone. Move the
-template into its own `defaults.aon`:
+template into its own `defaults.aontu`:
 
-<!-- test: file defaults.aon -->
+<!-- test: file defaults.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer tier: *standard|string } }
 ```
 
-and load it from a two-line `system-split.aon`:
+and load it from a two-line `system-split.aontu`:
 
-<!-- test: file system-split.aon -->
+<!-- test: file system-split.aontu -->
 <!-- fmt: keep the split spelling the hash survives -->
 ```aontu
-@"./defaults.aon"
+@"./defaults.aontu"
 services: auth: replicas: 3
 services: billing: tier: premium
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu hash system-split.aon
+$ aontu hash system-split.aontu
 aon1-kmZi3pPU2hnWQfwLnaFoC5iUtlrt6vbUzU7og-KxWJE
 ```
 
@@ -74,9 +74,9 @@ transitive: an edit two includes deep moves it.
 ## When the pin moves
 
 Change what the document *means* and the string changes. Flip the
-`replicas` default from 1 to 2, as `system-changed.aon` does:
+`replicas` default from 1 to 2, as `system-changed.aontu` does:
 
-<!-- test: file system-changed.aon -->
+<!-- test: file system-changed.aontu -->
 ```aontu
 services: { &: { replicas: *2|integer tier: *standard|string } }
 services: auth: replicas: 3
@@ -85,7 +85,7 @@ services: billing: tier: premium
 
 <!-- test: run -->
 ```sh
-$ aontu hash system-changed.aon
+$ aontu hash system-changed.aontu
 aon1-2kHqTOm6-XLy1j322NI3Wje3AEAgdN5K6OEZdLpor84
 ```
 
@@ -96,7 +96,7 @@ the exact text the digest is taken over, which is the thing to diff:
 
 <!-- test: run -->
 ```sh
-$ aontu hash --form system.aon
+$ aontu hash --form system.aontu
 {"services":{&:{"replicas":*1|integer,"tier":*"standard"|string},"auth":{"replicas":3,"tier":*"standard"|string},"billing":{"replicas":*1|integer,"tier":"premium"}}}
 ```
 
@@ -108,9 +108,9 @@ differently. That is the point.
 
 A document that does not evaluate has no meaning to identify, and a
 hash of the wreck would agree with every other wreck. Give
-`broken.aon` an outright contradiction:
+`broken.aontu` an outright contradiction:
 
-<!-- test: file broken.aon -->
+<!-- test: file broken.aontu -->
 ```aontu
 port: 8080
 port: 9090
@@ -118,8 +118,8 @@ port: 9090
 
 <!-- test: run -->
 ```sh
-$ aontu hash broken.aon
-aontu: broken.aon does not evaluate on its own; nothing to hash
+$ aontu hash broken.aontu
+aontu: broken.aontu does not evaluate on its own; nothing to hash
 ...
 $ echo $?
 4

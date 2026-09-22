@@ -92,7 +92,7 @@ func runTrace(argv []string, stdout, stderr io.Writer) int {
 	// A GENERATOR IS AN ENTRY, not a preprocessing step: the file whose
 	// provenance is asked for is the one the author edits.
 	text := string(src)
-	if !strings.HasSuffix(rest[0], ".aon") {
+	if !strings.HasSuffix(rest[0], ".aontu") {
 		mark := marker
 		if "" == mark {
 			mark = templateMarker(profiles, rest[0])

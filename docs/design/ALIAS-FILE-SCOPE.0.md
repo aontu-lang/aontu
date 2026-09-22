@@ -37,7 +37,7 @@ once:
 
 The last is the one that makes this lexical rather than positional, and
 it is the case apidef's model depends on: the `&:` rule that carries
-`%field-args` is written in `apidef.aon` and instantiated against
+`%field-args` is written in `apidef.aontu` and instantiated against
 entities declared elsewhere.
 
 What the scoped key must not disturb: `aliasName` answers the bare name,
@@ -48,7 +48,7 @@ root's `aliasKeys` still hides declarations from the output.
 ## `export` and the destructure
 
 `export({ %a, %b })` is a self-erasing declaration listing which of a
-file's names are published. `{ %a } = @"f.aon"` places `f.aon`'s values
+file's names are published. `{ %a } = @"f.aontu"` places `f.aontu`'s values
 exactly as a plain include does and also binds `%a` in the importing
 file's scope. `{%}` takes every exported name. An unexported name cannot
 be bound, and the refusal names the name.

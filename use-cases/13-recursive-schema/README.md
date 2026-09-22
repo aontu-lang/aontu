@@ -11,7 +11,7 @@ unrolled copies.
 
 ## The model
 
-An approval-chain vocabulary (schema.aon): a `Step` is an approver, a
+An approval-chain vocabulary (schema.aontu): a `Step` is an approver, a
 decision, and optionally the step that follows it; a `Policy` is a
 named root step.
 
@@ -21,7 +21,7 @@ named root step.
       then?: $.spec.Step
     }
 
-The data (policy.aon) is a plain three-level chain. The schema applies
+The data (policy.aontu) is a plain three-level chain. The schema applies
 at every depth: the residual the self-reference leaves behind expands
 one level per meet with concrete data, so the checks descend exactly
 as far as the data does, and no further. Depth never has to be guessed
@@ -41,13 +41,13 @@ The three moments of the residual:
   refuses with `[aontu/recursion_unexpanded]`. Guardedness is
   therefore emergent: under `then?:` the refusal is isolated and the
   optional key drops; a required recursive tail refuses at the exact
-  position no finite document can fill (bad/required-tail.aon). The
+  position no finite document can fill (bad/required-tail.aontu). The
   engine never analyses the schema for well-foundedness: the data
   decides.
 
 ## The model tree
 
-`model.aon` is the schema and one instance of it. The recursion is in
+`model.aontu` is the schema and one instance of it. The recursion is in
 `spec`, whose step shape names itself through an optional key;
 `payments_policy` is the approval chain that expands it, one level per
 step, ending where the optional key drops.
@@ -70,7 +70,7 @@ $
         └── then $.spec.Step
 ```
 
-`aontu view doc --depth 3 model.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 3 model.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -85,7 +85,7 @@ than its value.
    never unrolled.
 3. The canon reparses to itself: an engine's own output converges to
    the same canon, whatever order the reparse resolves in.
-4. `hash schema.aon` answers a single `aon1-` string: the mu-form as
+4. `hash schema.aontu` answers a single `aon1-` string: the mu-form as
    a schema version pin.
 5. `vet --at '$.spec.Step'` accepts a plain-JSON chain
    (data/chain-good.json): no aontu syntax in the data at all.

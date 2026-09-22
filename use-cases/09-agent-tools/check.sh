@@ -38,40 +38,40 @@ has() {
 # 1. The registry is ground truth that GENERATES: schemas constrain
 # but stay out of the output; tools, derived approval flags and the
 # derived docs table come out concrete.
-run eval 0 -- "$DIR/registry.aon"
+run eval 0 -- "$DIR/registry.aontu"
 diff -u "$DIR/expected/registry.json" "$WORK/eval.out" \
-  || fail "registry.aon output drifted from expected/registry.json"
-ok "registry.aon evaluates to the expected concrete registry"
+  || fail "registry.aontu output drifted from expected/registry.json"
+ok "registry.aontu evaluates to the expected concrete registry"
 
 # Canon keeps constraints, enums and deprecations; note it does NOT
 # keep the fired match() rules (they render as their results), and it
 # has already dropped the list sizing atoms (README, gap 8).
-run canon 0 -- --canon "$DIR/registry.aon"
+run canon 0 -- --canon "$DIR/registry.aontu"
 has canon out 're("^https://")'
 has canon out '"GET"|"HEAD"'
 has canon out 'deprecate(integer&min(0)&max(10)'
 ok "canonical form keeps constraints, enums and deprecations"
 
-run slice 0 -- model get '$.tools.delete_records' "$DIR/registry.aon"
+run slice 0 -- model get '$.tools.delete_records' "$DIR/registry.aontu"
 diff -u "$DIR/expected/tool-delete-records.json" "$WORK/slice.out" \
   || fail "delete_records slice drifted"
 ok "get: one tool's merged truth, as a dispatcher would pull it"
 
 run why 0 -- model why '$.tools.delete_records.requires_approval' \
-  "$DIR/registry.aon"
+  "$DIR/registry.aontu"
 has why out 'match(.side_effect,"destructive",true,false)'
 ok "why: the approval flag is traced to its match() rule"
 
 # ----------------------------------------------------------------
 # 2. The runtime guardrail: vet agent-emitted calls at the per-tool
-# anchor of guard.aon. The dispatcher move: read .tool, vet at
+# anchor of guard.aontu. The dispatcher move: read .tool, vet at
 # $.guard.<tool>, dispatch only on exit 0.
 vet_call() { # <name> <want-exit> <call-file>
   local name="$1" want="$2" file="$DIR/data/$3"
   local tool
   tool=$(node -p "JSON.parse(require('fs').readFileSync('$file','utf8')).tool")
   local got=0
-  $AONTU vet --at "\$.guard.$tool" "$DIR/guard.aon" "$file" \
+  $AONTU vet --at "\$.guard.$tool" "$DIR/guard.aontu" "$file" \
     >"$WORK/$name.out" 2>"$WORK/$name.err" || got=$?
   [ "$got" -eq "$want" ] \
     || { cat "$WORK/$name.out" "$WORK/$name.err" >&2; \
@@ -132,21 +132,21 @@ ok "vet: duplicate labels REFUSED -- gap 8's unique() hole is closed"
 
 # The documented hole this layout works around: vetting the same
 # missing-required call against the type()-marked call schemas inside
-# registry.aon-style documents reports VALID (README, gap 7). Pin the
-# guard behaviour instead: registry.aon itself has no $.guard.
-run noguard 4 -- vet --at '$.guard.search_docs' "$DIR/registry.aon" \
+# registry.aontu-style documents reports VALID (README, gap 7). Pin the
+# guard behaviour instead: registry.aontu itself has no $.guard.
+run noguard 4 -- vet --at '$.guard.search_docs' "$DIR/registry.aontu" \
   "$DIR/data/call-search-missing.json"
 has noguard out 'no_path'
-ok "vet: registry.aon alone is not the guardrail entrypoint (by design)"
+ok "vet: registry.aontu alone is not the guardrail entrypoint (by design)"
 
 # ----------------------------------------------------------------
 # 3. The registry defends itself against drift.
-run rogue 1 -- --include-root "$DIR" "$DIR/bad/rogue-tool.aon"
+run rogue 1 -- --include-root "$DIR" "$DIR/bad/rogue-tool.aontu"
 has rogue err '[aontu/closed]'
 has rogue err 'audit_log'
 ok "bad: a tool with no argument schema cannot register ([aontu/closed])"
 
-run conflict 1 -- --include-root "$DIR" "$DIR/bad/conflicting-rate.aon"
+run conflict 1 -- --include-root "$DIR" "$DIR/bad/conflicting-rate.aontu"
 has conflict err '[aontu/scalar_value]'
 has conflict err '240'
 ok "bad: contradicting a published rate limit is refused"
@@ -154,10 +154,10 @@ ok "bad: contradicting a published rate limit is refused"
 # ----------------------------------------------------------------
 # 4. The agent entrypoints: the AGENTS.md stanza and the canon-hash
 # pin agree with the source.
-run agentsmd 0 -- agentsmd "$DIR/registry.aon"
+run agentsmd 0 -- agentsmd "$DIR/registry.aontu"
 has agentsmd out '<!-- aontu:begin -->'
 has agentsmd out 'Top-level keys:'
-run hash 0 -- hash "$DIR/registry.aon"
+run hash 0 -- hash "$DIR/registry.aontu"
 PIN="$(cat "$WORK/hash.out")"
 has agentsmd out "$PIN"
 ok "agentsmd: stanza derived, pin matches 'aontu hash'"
@@ -165,10 +165,10 @@ ok "agentsmd: stanza derived, pin matches 'aontu hash'"
 # ----------------------------------------------------------------
 # 5. The real agent integration: the aontu MCP server over stdio
 # JSON-RPC. The schema string must be self-contained (the server
-# denies includes), so it is registry.aon plus guard.aon minus the
+# denies includes), so it is registry.aontu plus guard.aontu minus the
 # include line.
-{ cat "$DIR/registry.aon"; grep -v '^@' "$DIR/guard.aon"; } \
-  > "$WORK/mcp-schema.aon"
+{ cat "$DIR/registry.aontu"; grep -v '^@' "$DIR/guard.aontu"; } \
+  > "$WORK/mcp-schema.aontu"
 
 cat > "$WORK/mcp-drive.js" <<'EOF'
 // Drive the aontu MCP server: initialize, tools/list, two vet
@@ -261,7 +261,7 @@ main().then(() => process.exit(0),
   (e) => { console.error(e); process.exit(1) })
 EOF
 
-node "$WORK/mcp-drive.js" "$MCP" "$WORK/mcp-schema.aon" \
+node "$WORK/mcp-drive.js" "$MCP" "$WORK/mcp-schema.aontu" \
   "$DIR/data/call-search-ok.json" "$DIR/data/call-http-bad.json" \
   > "$WORK/mcp.out" 2> "$WORK/mcp.err" \
   || { cat "$WORK/mcp.out" "$WORK/mcp.err" >&2; fail "mcp drive failed"; }
@@ -291,7 +291,7 @@ ok "mcp: 100 vet calls answered in one server process (timing above)"
 N=20
 t0=$(node -p 'Date.now()')
 for i in $(seq 1 $N); do
-  $AONTU vet --at '$.guard.search_docs' "$DIR/guard.aon" \
+  $AONTU vet --at '$.guard.search_docs' "$DIR/guard.aontu" \
     "$DIR/data/call-search-ok.json" > /dev/null
 done
 t1=$(node -p 'Date.now()')
@@ -305,12 +305,12 @@ echo
 # `get --keys --types` does, and stops at a depth that says how many
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
-run doc 0 -- view doc --depth 2 "$DIR/guard.aon"
+run doc 0 -- view doc --depth 2 "$DIR/guard.aontu"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 run docgate 0 -- view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/guard.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/guard.aontu"
 run docsvg 0 -- view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/guard.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/guard.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

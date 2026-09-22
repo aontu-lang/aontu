@@ -117,7 +117,7 @@ describe('cli', () => {
 
 
   test('cli-mistyped-verb-is-a-usage-error', () => {
-    const r = run(['vet2', 'schema.aon', 'data.json'])
+    const r = run(['vet2', 'schema.aontu', 'data.json'])
     Assert.equal(r.code, 2)
     Assert.match(r.out, /evaluates one document, and 3 were given/)
     Assert.match(r.out, /mistyped verb reads as a file name/)
@@ -125,7 +125,7 @@ describe('cli', () => {
 
 
   test('cli-two-files-is-a-usage-error', () => {
-    const r = run(['a.aon', 'b.aon'])
+    const r = run(['a.aontu', 'b.aontu'])
     Assert.equal(r.code, 2)
     Assert.match(r.out, /evaluates one document, and 2 were given/)
   })
@@ -155,7 +155,7 @@ function vetCapture(fn: () => void): { out: string; err: string } {
 
 function vetFiles(schema: string, data: string): { dir: string, schema: string, data: string } {
   const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-'))
-  const s = Path.join(dir, 'schema.aon')
+  const s = Path.join(dir, 'schema.aontu')
   const d = Path.join(dir, 'data.json')
   Fs.writeFileSync(s, schema)
   Fs.writeFileSync(d, data)
@@ -174,7 +174,7 @@ describe('cli-vet', () => {
     Assert.match(r.out, /verdict: invalid/)
     Assert.match(r.out, /\$\.service\.port: no_scalar_unify \[conflict\]/)
     Assert.match(r.out, /data: .*data\.json:1:\d+ \("8080"\)/)
-    Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(integer\)/)
+    Assert.match(r.out, /schema: .*schema\.aontu:1:\d+ \(integer\)/)
   })
 
 
@@ -239,12 +239,12 @@ describe('cli-vet', () => {
 
 
   test('vet-resolves-includes-from-each-document', () => {
-    const f = vetFiles('@"./part.aon"\nname: string', 'name: "auth"\nport: 8080')
-    Fs.writeFileSync(Path.join(f.dir, 'part.aon'), 'port: integer')
+    const f = vetFiles('@"./part.aontu"\nname: string', 'name: "auth"\nport: 8080')
+    Fs.writeFileSync(Path.join(f.dir, 'part.aontu'), 'port: integer')
 
     const cwd = process.cwd()
     const decoy = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vet-cwd-'))
-    Fs.writeFileSync(Path.join(decoy, 'part.aon'), 'port: string')
+    Fs.writeFileSync(Path.join(decoy, 'part.aontu'), 'port: string')
     try {
       process.chdir(decoy)
       vetCapture(() => Assert.equal(runVet([f.schema, f.data]), 0))
@@ -304,7 +304,7 @@ describe('cli-vet', () => {
 
   test('vet-schema-error-reports-once', () => {
     const f = vetFiles(VET_SCHEMA, 'service: { name: "auth" }')
-    const broken = Path.join(f.dir, 'broken.aon')
+    const broken = Path.join(f.dir, 'broken.aontu')
     Fs.writeFileSync(broken, 'a: 1\na: 2\n')
     const second = Path.join(f.dir, 'second.json')
     Fs.writeFileSync(second, '{"a":1}')
@@ -330,7 +330,7 @@ describe('cli-vet', () => {
   // The usage errors all end with "(try --help)", so the verb answers
   // to it: same text as `aontu --help`, exit 0.
   test('vet-help-is-help-not-an-unknown-option', () => {
-    for (const args of [['--help'], ['-h'], ['--help', 'a.aon', 'b.json']]) {
+    for (const args of [['--help'], ['-h'], ['--help', 'a.aontu', 'b.json']]) {
       const r = vetCapture(() => Assert.equal(runVet(args), 0))
       Assert.match(r.out, /aontu vet \[options\]/)
       Assert.equal(r.err, '')
@@ -379,7 +379,7 @@ describe('cli-vet', () => {
   test('vet-site-off-peg-still-names-its-document', () => {
     const f = vetFiles('a: *1', 'a: {}')
     const r = vetCapture(() => runVet([f.schema, f.data]))
-    Assert.match(r.out, /schema: .*schema\.aon:1:\d+ \(\*1\)/)
+    Assert.match(r.out, /schema: .*schema\.aontu:1:\d+ \(\*1\)/)
   })
 
 
@@ -487,8 +487,8 @@ describe('cli-subsume', () => {
 
   function subFiles(general: string, specific: string) {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-sub-'))
-    const g = Path.join(dir, 'general.aon')
-    const s = Path.join(dir, 'specific.aon')
+    const g = Path.join(dir, 'general.aontu')
+    const s = Path.join(dir, 'specific.aontu')
     Fs.writeFileSync(g, general)
     Fs.writeFileSync(s, specific)
     return { dir, general: g, specific: s }
@@ -505,8 +505,8 @@ describe('cli-subsume', () => {
       Assert.equal(runSubsume([no.general, no.specific]), 1))
     Assert.match(r.out, /verdict: does_not_subsume/)
     Assert.match(r.out, /\$\.a: compat_narrowed \[compat\]/)
-    Assert.match(r.out, /general: .*general\.aon:1:3 \(integer\)/)
-    Assert.match(r.out, /specific: .*specific\.aon:1:3 \("hello"\)/)
+    Assert.match(r.out, /general: .*general\.aontu:1:3 \(integer\)/)
+    Assert.match(r.out, /specific: .*specific\.aontu:1:3 \("hello"\)/)
 
     const und = subFiles('a:{x:1}|{x:2}', 'a:{x:1|2}')
     vetCapture(() =>
@@ -550,15 +550,15 @@ describe('cli-subsume', () => {
     Assert.equal(vetCapture(() =>
       Assert.equal(runSubsume(['--bogus']), 2)
     ).err.includes('unknown subsume option'), true)
-    vetCapture(() => Assert.equal(runSubsume(['one.aon']), 2))
+    vetCapture(() => Assert.equal(runSubsume(['one.aontu']), 2))
     vetCapture(() => Assert.equal(
-      runSubsume(['--profile', 'bogus', 'a.aon', 'b.aon']), 2))
+      runSubsume(['--profile', 'bogus', 'a.aontu', 'b.aontu']), 2))
     vetCapture(() => Assert.equal(runSubsume(['--at']), 2))
     vetCapture(() => Assert.equal(
-      runSubsume(['--format', 'sarif', 'a.aon', 'b.aon']), 2))
+      runSubsume(['--format', 'sarif', 'a.aontu', 'b.aontu']), 2))
     const f = subFiles('a:1', 'a:1')
     vetCapture(() => Assert.equal(
-      runSubsume([Path.join(f.dir, 'missing.aon'), f.specific]), 2))
+      runSubsume([Path.join(f.dir, 'missing.aontu'), f.specific]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runSubsume(['--help']), 0)
     ).out.includes('aontu subsume'), true)
@@ -609,13 +609,13 @@ describe('cli-subsume', () => {
   test('breaking-resolves-git-revisions', () => {
     const { execFileSync } = require('node:child_process')
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-'))
-    const file = Path.join(dir, 'svc.aon')
+    const file = Path.join(dir, 'svc.aontu')
     const git = (...args: string[]) => execFileSync('git', [
       '-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args,
     ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] })
     git('init', '-q', '.')
     Fs.writeFileSync(file, 'service: close({name:string,port:*8080|integer})')
-    git('add', 'svc.aon')
+    git('add', 'svc.aontu')
     git('commit', '-q', '-m', 'v1')
     Fs.writeFileSync(file,
       'service: close({name:string,port:*9090|integer,owner:string})')
@@ -637,11 +637,11 @@ describe('cli-subsume', () => {
 
     // A file the revision does not carry is refused by name rather
     // than compared against nothing.
-    const absent = Path.join(dir, 'absent.aon')
+    const absent = Path.join(dir, 'absent.aontu')
     Fs.writeFileSync(absent, 'a: 1')
     const miss = vetCapture(() => Assert.equal(
       runBreaking(['--against', 'git#HEAD', absent]), 2))
-    Assert.match(miss.err, /absent\.aon is not in that revision/)
+    Assert.match(miss.err, /absent\.aontu is not in that revision/)
   })
 
   test('breaking-git-compares-the-old-tree', () => {
@@ -649,13 +649,13 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-brk-tree-'))
     const model = Path.join(dir, 'model')
     Fs.mkdirSync(model)
-    const entry = Path.join(model, 'entry.aon')
-    const inc = Path.join(model, 'schema.aon')
+    const entry = Path.join(model, 'entry.aontu')
+    const inc = Path.join(model, 'schema.aontu')
     const git = (...args: string[]) => execFileSync('git', [
       '-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args,
     ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] })
     git('init', '-q', '.')
-    Fs.writeFileSync(entry, 'svc: @"./schema.aon"')
+    Fs.writeFileSync(entry, 'svc: @"./schema.aontu"')
     Fs.writeFileSync(inc, 'port: *8080|integer')
     // A file no include can name: the materialiser must skip it.
     Fs.writeFileSync(Path.join(dir, 'README.md'), '# not a source')
@@ -684,7 +684,7 @@ describe('cli-subsume', () => {
     }
     if (symlinked) {
       const via = vetCapture(() => Assert.equal(
-        runBreaking(['--against', 'git#HEAD', Path.join(linked, 'entry.aon')]),
+        runBreaking(['--against', 'git#HEAD', Path.join(linked, 'entry.aontu')]),
         1))
       Assert.match(via.out, /verdict: breaking/)
     }
@@ -767,24 +767,24 @@ describe('cli-subsume', () => {
   })
 
   test('breaking-usage-errors-exit-2', () => {
-    vetCapture(() => Assert.equal(runBreaking(['file.aon']), 2))
+    vetCapture(() => Assert.equal(runBreaking(['file.aontu']), 2))
     vetCapture(() => Assert.equal(runBreaking(['--against']), 2))
     const gf = subFiles('a:1', 'a:1')
     Assert.equal(vetCapture(() => Assert.equal(runBreaking(
       ['--against', 'git#', gf.general]), 2)
     ).err.includes('git# needs a revision'), true)
     vetCapture(() => Assert.equal(runBreaking(
-      ['--mode', 'sideways', '--against', 'a.aon', 'b.aon']), 2))
+      ['--mode', 'sideways', '--against', 'a.aontu', 'b.aontu']), 2))
     vetCapture(() => Assert.equal(runBreaking(
-      ['--against', 'a.aon', 'b.aon', '--at']), 2))
+      ['--against', 'a.aontu', 'b.aontu', '--at']), 2))
     vetCapture(() => Assert.equal(runBreaking(
-      ['--format', 'yaml', '--against', 'a.aon', 'b.aon']), 2))
+      ['--format', 'yaml', '--against', 'a.aontu', 'b.aontu']), 2))
     vetCapture(() => Assert.equal(runBreaking(['--bogus']), 2))
     const f = subFiles('a:1', 'a:1')
     vetCapture(() => Assert.equal(runBreaking(
-      ['--against', Path.join(f.dir, 'missing.aon'), f.general]), 2))
+      ['--against', Path.join(f.dir, 'missing.aontu'), f.general]), 2))
     vetCapture(() => Assert.equal(runBreaking(
-      [Path.join(f.dir, 'missing.aon'), '--against', f.specific]), 2))
+      [Path.join(f.dir, 'missing.aontu'), '--against', f.specific]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runBreaking(['--help']), 0)
     ).out.includes('aontu breaking'), true)
@@ -811,22 +811,22 @@ describe('cli-subsume', () => {
 
   test('breaking-deprecated-at-reader', () => {
     const src = 'a:[deprecate(1,{msg:"m"})] b:{c:deprecate(2,{msg:"n"})} d:3'
-    Assert.equal(deprecatedAt(src, '$.a.0', 'x.aon'), true)
-    Assert.equal(deprecatedAt(src, '$.b.c', 'x.aon'), true)
-    Assert.equal(deprecatedAt(src, '$.a.5', 'x.aon'), false)
-    Assert.equal(deprecatedAt(src, '$.zz', 'x.aon'), false)
-    Assert.equal(deprecatedAt(src, '$.d.deeper', 'x.aon'), false)
-    Assert.equal(deprecatedAt(src, '$.d', 'x.aon'), false)
+    Assert.equal(deprecatedAt(src, '$.a.0', 'x.aontu'), true)
+    Assert.equal(deprecatedAt(src, '$.b.c', 'x.aontu'), true)
+    Assert.equal(deprecatedAt(src, '$.a.5', 'x.aontu'), false)
+    Assert.equal(deprecatedAt(src, '$.zz', 'x.aontu'), false)
+    Assert.equal(deprecatedAt(src, '$.d.deeper', 'x.aontu'), false)
+    Assert.equal(deprecatedAt(src, '$.d', 'x.aontu'), false)
     // A document that does not stand alone answers false: the check
     // that produced the finding already reported why.
-    Assert.equal(deprecatedAt('a:1 a:2', '$.a', 'x.aon'), false)
+    Assert.equal(deprecatedAt('a:1 a:2', '$.a', 'x.aontu'), false)
   })
 
   // The trim reporter (G3 phase 6). Go twin: TestTrimVerb in
   // go/cmd/aontu/trim_test.go.
   test('trim-check-reports-redundant-paths', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trim-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file, 'a:{&:{deep:1}, b:{deep:1}, c:{other:2}}')
     const r = vetCapture(() => Assert.equal(runTrim(['--check', file]), 1))
     Assert.match(r.out, /verdict: redundant/)
@@ -874,7 +874,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(
       runTrim(['--check', '--format', 'yaml', f.general]), 2))
     vetCapture(() => Assert.equal(
-      runTrim(['--check', Path.join(f.dir, 'missing.aon')]), 2))
+      runTrim(['--check', Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runTrim(['--help']), 0)
     ).out.includes('aontu trim'), true)
@@ -882,7 +882,7 @@ describe('cli-subsume', () => {
 
   test('relations-reports-cycles-and-missing-inverses', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
       'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
@@ -927,7 +927,7 @@ describe('cli-subsume', () => {
 
   test('jsonschema-exports-the-model-and-names-what-it-cannot-carry', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
 
     Fs.writeFileSync(file,
       'spec: {\n' +
@@ -936,7 +936,7 @@ describe('cli-subsume', () => {
       '  port?: integer & min(1024)\n' +
       '}\n')
 
-    // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aon > s.json`
+    // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
     // writes a usable file, and --at names the subtree as vet's does.
     const r = vetCapture(() =>
       Assert.equal(runJsonSchema(['--at', 'spec', file]), 0))
@@ -1001,7 +1001,7 @@ describe('cli-subsume', () => {
       runJsonSchema(['--format', 'yaml', f.general]), 2))
     vetCapture(() => Assert.equal(runJsonSchema(['--at']), 2))
     vetCapture(() => Assert.equal(
-      runJsonSchema([Path.join(f.dir, 'missing.aon')]), 2))
+      runJsonSchema([Path.join(f.dir, 'missing.aontu')]), 2))
     vetCapture(() => Assert.equal(
       runJsonSchema(['--trust', 'nonsense', f.general]), 2))
     // ... and one the parser ACCEPTS reaches the export.
@@ -1015,7 +1015,7 @@ describe('cli-subsume', () => {
 
   test('reaches-answers-with-the-path-and-its-exit-code', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'a: {dependsOn: [&: refer(), path($.b)]}\n' +
       'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
@@ -1080,7 +1080,7 @@ describe('cli-subsume', () => {
 
   test('view-draws-the-tree-and-its-exit-code', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vw-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
       'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
@@ -1154,7 +1154,7 @@ describe('cli-subsume', () => {
 
   test('view-kinds-and-the-flags-around-the-figure', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vk-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'cli: {layer: "app", dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
       'web: {layer: "svc", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
@@ -1181,7 +1181,7 @@ describe('cli-subsume', () => {
         Path.join(dir, 'none.txt'), '--check', file]), 1))
 
     // The loss report on stderr, and --strict refusing it.
-    const hid = Path.join(dir, 'hid.aon')
+    const hid = Path.join(dir, 'hid.aontu')
     Fs.writeFileSync(hid,
       'a: hide({dependsOn: [&: refer(), path($.b)]})\n' +
       'b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n')
@@ -1212,29 +1212,29 @@ describe('cli-subsume', () => {
     Assert.match(sets.out, /^# upset  sets=\$\(4\)/)
     const layers = vetCapture(() => Assert.equal(
       runView(['layers', '--min-size', '1', file]), 0))
-    Assert.match(layers.out, /^# layers  file=doc\.aon  documents=1/)
+    Assert.match(layers.out, /^# layers  file=doc\.aontu  documents=1/)
     const ladder = vetCapture(() => Assert.equal(
       runView(['ladder', '--at', '$.db.layer', '--as', 'dot', file]), 0))
     Assert.match(ladder.out, /^digraph G \{/)
-    const other = Path.join(dir, 'other.aon')
+    const other = Path.join(dir, 'other.aontu')
     Fs.writeFileSync(other, 'cli: {layer: string}\n')
     const poset = vetCapture(() => Assert.equal(
       runView(['poset', '--at', '$.cli.layer', '--profile', 'values',
         file, other]), 0))
     Assert.match(poset.out, /n0\["doc"\]\n  n1\["other"\]\n  n0 --> n1\n$/)
     const unreadable = vetCapture(() => Assert.equal(
-      runView(['poset', file, Path.join(dir, 'nope.aon')]), 2))
+      runView(['poset', file, Path.join(dir, 'nope.aontu')]), 2))
     Assert.match(unreadable.err, /cannot read/)
   })
 
 
   test('view-document-draws-every-figure-it-declares', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vd-'))
-    Fs.writeFileSync(Path.join(dir, 'model.aon'),
+    Fs.writeFileSync(Path.join(dir, 'model.aontu'),
       'app: {layer: "app", dependsOn: [&: refer(), path($.core)]}\n' +
       'core: {layer: "core"}\n')
-    const file = Path.join(dir, 'views.aon')
-    Fs.writeFileSync(file, '@"./model.aon"\nviews: {\n' +
+    const file = Path.join(dir, 'views.aontu')
+    Fs.writeFileSync(file, '@"./model.aontu"\nviews: {\n' +
       '  tree: {kind: tree, out: "out/tree.txt"}\n' +
       '  bands: {kind: layer, groupBy: layer, out: "out/bands.txt"}\n}\n')
     Fs.mkdirSync(Path.join(dir, 'out'))
@@ -1273,8 +1273,8 @@ describe('cli-subsume', () => {
 
     // ALL OR NOTHING: a set whose second figure refuses writes neither,
     // and the refusal names the figure it came from.
-    const bad = Path.join(dir, 'bad.aon')
-    Fs.writeFileSync(bad, '@"./model.aon"\nviews: {\n' +
+    const bad = Path.join(dir, 'bad.aontu')
+    Fs.writeFileSync(bad, '@"./model.aontu"\nviews: {\n' +
       '  tree: {kind: tree, out: "out/nope.txt"}\n' +
       '  small: {kind: tree, maxRows: 1, out: "out/small.txt"}\n}\n')
     const refused = vetCapture(() => Assert.equal(
@@ -1285,7 +1285,7 @@ describe('cli-subsume', () => {
 
     // A LOSSY set still writes -- the loss report says what it could
     // not draw, and --strict is the gate on that.
-    const lossy = Path.join(dir, 'lossy.aon')
+    const lossy = Path.join(dir, 'lossy.aontu')
     Fs.writeFileSync(lossy,
       'a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n' +
       'views: {t: {kind: tree, out: "out/lossy.txt"}}\n')
@@ -1307,7 +1307,7 @@ describe('cli-subsume', () => {
 
     // A declaration the document cannot answer for is the SET's
     // refusal, and usage: nothing is drawn at all.
-    const shape = Path.join(dir, 'shape.aon')
+    const shape = Path.join(dir, 'shape.aontu')
     Fs.writeFileSync(shape, 'views: {a: {kind: tree}}\n')
     Assert.match(vetCapture(() => Assert.equal(
       runView(['--views', '$.views', shape]), 2)).err,
@@ -1319,8 +1319,8 @@ describe('cli-subsume', () => {
 
     // A figure that refuses for the DOCUMENT's sake rather than the
     // caller's exits 4, as a single figure does.
-    const unknown = Path.join(dir, 'unknown.aon')
-    Fs.writeFileSync(unknown, '@"./model.aon"\n' +
+    const unknown = Path.join(dir, 'unknown.aontu')
+    Fs.writeFileSync(unknown, '@"./model.aontu"\n' +
       'views: {a: {kind: tree, relation: nope, out: "out/a.txt"}}\n')
     Assert.match(vetCapture(() => Assert.equal(runView(
       ['--views', '$.views', '--trust', 'root', unknown]), 4)).err,
@@ -1330,14 +1330,14 @@ describe('cli-subsume', () => {
 
   test('view-document-usage-errors', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vdu-'))
-    const file = Path.join(dir, 'views.aon')
+    const file = Path.join(dir, 'views.aontu')
     Fs.writeFileSync(file, 'views: {a: {kind: tree, out: "a.txt"}}\n')
     for (const [args, want] of [
       [['--views', '$.views'], /view --views takes one file/],
       [['--views', '$.views', file, file], /view --views takes one file/],
       [['--views', '$.views', '--out', 'x.txt', file],
         /--out is per figure in a view document/],
-      [['--views', '$.views', Path.join(dir, 'nope.aon')], /cannot read/],
+      [['--views', '$.views', Path.join(dir, 'nope.aontu')], /cannot read/],
     ] as [string[], RegExp][]) {
       const got = vetCapture(() => Assert.equal(runView(args), 2))
       Assert.match(got.err, want, args.join(' '))
@@ -1345,7 +1345,7 @@ describe('cli-subsume', () => {
 
     // A DIRECTORY IS NOT A FILE: the write fails and says so, rather
     // than leaving the set half-written.
-    const blocked = Path.join(dir, 'blocked.aon')
+    const blocked = Path.join(dir, 'blocked.aontu')
     Fs.writeFileSync(blocked, 'views: {a: {kind: tree, out: "sub"}}\n')
     Fs.mkdirSync(Path.join(dir, 'sub'))
     Assert.match(vetCapture(() => Assert.equal(
@@ -1355,7 +1355,7 @@ describe('cli-subsume', () => {
 
   test('view-usage-errors', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
     for (const [args, want] of [
       [[], /view needs a kind and a file/],
@@ -1383,7 +1383,7 @@ describe('cli-subsume', () => {
       [['tree', file, '--relation'], /--relation needs a name/],
       [['tree', '--relation', '', file], /--relation needs a name/],
       [['tree', file, '--root'], /--root needs a node path/],
-      [['tree', Path.join(dir, 'nope.aon')], /cannot read/],
+      [['tree', Path.join(dir, 'nope.aontu')], /cannot read/],
       [['--trust', 'bogus', 'tree', file], /--trust needs/],
     ] as [string[], RegExp][]) {
       const r = vetCapture(() => Assert.equal(runView(args), 2, args.join(' ')))
@@ -1428,7 +1428,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(
       runReaches(['--trust', 'nonsense', 'a', 'b', f.general]), 2))
     vetCapture(() => Assert.equal(
-      runReaches(['a', 'b', Path.join(f.dir, 'missing.aon')]), 2))
+      runReaches(['a', 'b', Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runReaches(['--help']), 0)
     ).out.includes('aontu reaches'), true)
@@ -1443,7 +1443,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(
       runRelations(['--format', 'yaml', f.general]), 2))
     vetCapture(() => Assert.equal(
-      runRelations([Path.join(f.dir, 'missing.aon')]), 2))
+      runRelations([Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runRelations(['--help']), 0)
     ).out.includes('aontu relations'), true)
@@ -1456,7 +1456,7 @@ describe('cli-subsume', () => {
     const doc = 'services: {\n  &: { replicas: *1 | integer }\n' +
       '  auth: { replicas: 3 }\n}'
     const read = (f: string) => {
-      if ('missing.aon' === f) {
+      if ('missing.aontu' === f) {
         throw Object.assign(new Error('no such file'), { code: 'ENOENT' })
       }
       return doc
@@ -1473,7 +1473,7 @@ describe('cli-subsume', () => {
     Assert.match(run(':get $.a').out, /nothing loaded/)
     Assert.match(run(':why $.a').out, /nothing loaded/)
 
-    Assert.match(run(':load sys.aon').out, /^loaded: sys\.aon/)
+    Assert.match(run(':load sys.aontu').out, /^loaded: sys\.aontu/)
     Assert.equal(run(':keys $.services').out, 'auth')
     Assert.equal(run(':get $.services.auth').out, '{\n  "replicas": 3\n}')
     Assert.match(run(':why $.services.auth.replicas').out,
@@ -1492,11 +1492,11 @@ describe('cli-subsume', () => {
     Assert.match(run(':help').out, /Usage: aontu/)
     Assert.match(run(':bogus').out, /unknown command/)
     Assert.match(run(':load').out, /needs a file/)
-    Assert.match(run(':load missing.aon').out, /cannot read/)
+    Assert.match(run(':load missing.aontu').out, /cannot read/)
     // A document that does not stand up is refused at :load, and
     // nothing is held: the session keeps whatever it had.
     const broken = replCommand(
-      { mode: 'json', jsonl: false } as any, ':load broken.aon',
+      { mode: 'json', jsonl: false } as any, ':load broken.aontu',
       () => 'a:1 a:2')
     Assert.equal(broken.state.src, undefined)
     Assert.match(broken.out, /Cannot unify/)
@@ -1507,7 +1507,7 @@ describe('cli-subsume', () => {
 
   test('repl-jsonl-is-reachable-over-a-pipe', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsonl-'))
-    const file = Path.join(dir, 'm.aon')
+    const file = Path.join(dir, 'm.aontu')
     Fs.writeFileSync(file, 'a: 1\n')
 
     const r = run(["--jsonl"], `:load ${file}\n:get $.a\n`)
@@ -1532,8 +1532,8 @@ describe('cli-subsume', () => {
       st = r.state
       return JSON.parse(r.out)
     }
-    Assert.deepEqual(run(':load doc.aon'),
-      { ok: true, out: 'loaded: doc.aon\n{\n  "a": 1\n}' })
+    Assert.deepEqual(run(':load doc.aontu'),
+      { ok: true, out: 'loaded: doc.aontu\n{\n  "a": 1\n}' })
     Assert.deepEqual(run(':keys'), { ok: true, out: 'a' })
     Assert.equal(run(':get $.zz').ok, false)
     Assert.equal(run('a:1 a:2').ok, false)
@@ -1544,7 +1544,7 @@ describe('cli-subsume', () => {
   // these cases hold the command line and the SPLICE.
   test('agentsmd-writes-between-its-markers', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-md-'))
-    const entry = Path.join(dir, 'sys.aon')
+    const entry = Path.join(dir, 'sys.aontu')
     const target = Path.join(dir, 'AGENTS.md')
     Fs.writeFileSync(entry, 'services: { auth: { owner: string } }')
 
@@ -1604,7 +1604,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(runAgentsMd(['--bogus', f.general]), 2))
     vetCapture(() => Assert.equal(runAgentsMd(['--write']), 2))
     vetCapture(() => Assert.equal(
-      runAgentsMd([Path.join(f.dir, 'missing.aon')]), 2))
+      runAgentsMd([Path.join(f.dir, 'missing.aontu')]), 2))
     // A target that cannot be read (a directory) is usage, not empty.
     vetCapture(() => Assert.equal(
       runAgentsMd(['--write', f.dir, f.general]), 2))
@@ -1614,7 +1614,7 @@ describe('cli-subsume', () => {
 
     // A document that does not stand up has no stanza: exit 4.
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-md-err-'))
-    const broken = Path.join(dir, 'doc.aon')
+    const broken = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(broken, 'a:1 a:2')
     vetCapture(() => Assert.equal(runAgentsMd([broken]), 4))
 
@@ -1626,7 +1626,7 @@ describe('cli-subsume', () => {
 
   test('vacuity-signals-on-view-and-relations', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vacuous-'))
-    const plain = Path.join(dir, 'plain.aon')
+    const plain = Path.join(dir, 'plain.aontu')
     Fs.writeFileSync(plain, 'a: { b: 1 }\n')
 
     // `pass` over NO declarations: the graph is not sound, it is
@@ -1641,7 +1641,7 @@ describe('cli-subsume', () => {
     Assert.match(view.err, /nothing to draw/)
 
     // AND THE NEGATIVE: a document that DOES declare says nothing.
-    const graph = Path.join(dir, 'graph.aon')
+    const graph = Path.join(dir, 'graph.aontu')
     Fs.writeFileSync(graph,
       'a: {dependsOn: rel() & acyclic() & [path($.b)]}\n' +
       'b: {}\n')
@@ -1657,7 +1657,7 @@ describe('cli-subsume', () => {
 
   test('agentsmd-depth-projects-the-shape', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-md-depth-'))
-    const entry = Path.join(dir, 'model.aon')
+    const entry = Path.join(dir, 'model.aontu')
     Fs.writeFileSync(entry,
       'entity: { &: { table: string, fields: { &: { type: string } } } }')
 
@@ -1693,7 +1693,7 @@ describe('cli-subsume', () => {
   // object, and this is the one an agent reaches for first.
   test('bare-command-format-json', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmtjson-'))
-    const good = Path.join(dir, 'good.aon')
+    const good = Path.join(dir, 'good.aontu')
     Fs.writeFileSync(good, 'a:1 b:$.a')
 
     const ok = run(['--format', 'json', good])
@@ -1710,7 +1710,7 @@ describe('cli-subsume', () => {
     Assert.equal(JSON.parse(run(['-c', '--format', 'json', good]).out).out,
       '{"a":1,"b":1}')
 
-    const bad = Path.join(dir, 'bad.aon')
+    const bad = Path.join(dir, 'bad.aontu')
     Fs.writeFileSync(bad, 'a: 1 & 2\n')
     const failed = run(['--format', 'json', bad])
     Assert.equal(failed.code, 1)
@@ -1742,8 +1742,8 @@ describe('cli-subsume', () => {
 
   test('set-in-place-rewrites-the-pinned-literal', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
-    const entry = Path.join(dir, 'schema.aon')
-    const overlay = Path.join(dir, 'deploy.aon')
+    const entry = Path.join(dir, 'schema.aontu')
+    const overlay = Path.join(dir, 'deploy.aontu')
     Fs.writeFileSync(entry, 'replicas: integer & above(0) & below(10)\n')
     Fs.writeFileSync(overlay, '# the deployment\nreplicas: 42   # too many\n')
 
@@ -1759,7 +1759,7 @@ describe('cli-subsume', () => {
       ['$.replicas=5', '--entry', entry, '--overlay', overlay,
         '--in-place']), 0))
     Assert.match(r.out, /verdict: valid/)
-    Assert.match(r.out, /replaced: .*deploy\.aon:2:11 42 -> 5/)
+    Assert.match(r.out, /replaced: .*deploy\.aontu:2:11 42 -> 5/)
     Assert.match(r.out, /wrote:/)
     // BOTH COMMENTS SURVIVE, the one on the edited line included.
     Assert.equal(Fs.readFileSync(overlay, 'utf8'),
@@ -1771,8 +1771,8 @@ describe('cli-subsume', () => {
   // says why. --dry-run still writes nothing.
   test('set-in-place-appends-and-explains-when-it-cannot-rewrite', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
-    const entry = Path.join(dir, 'schema.aon')
-    const overlay = Path.join(dir, 'ov.aon')
+    const entry = Path.join(dir, 'schema.aontu')
+    const overlay = Path.join(dir, 'ov.aontu')
     Fs.writeFileSync(entry, 'a: integer\n')
     Fs.writeFileSync(overlay, 'a: 1+2\n')
 
@@ -1790,8 +1790,8 @@ describe('cli-subsume', () => {
   // --in-place landed and both are load-bearing for an operator.
   test('set-in-place-reports-unapplied-edits-and-uses-the-right-stream', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
-    const entry = Path.join(dir, 'e.aon')
-    const overlay = Path.join(dir, 'ov.aon')
+    const entry = Path.join(dir, 'e.aontu')
+    const overlay = Path.join(dir, 'ov.aontu')
 
     // ONE ASSIGNMENT REPLACEABLE, ANOTHER REFUSED. The write is refused
     // as a whole, so the file is untouched -- and the renderer must not
@@ -1818,8 +1818,8 @@ describe('cli-subsume', () => {
 
   test('set-appends-to-the-overlay-when-the-change-holds', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-'))
-    const entry = Path.join(dir, 'sys.aon')
-    const overlay = Path.join(dir, 'ov.aon')
+    const entry = Path.join(dir, 'sys.aontu')
+    const overlay = Path.join(dir, 'ov.aontu')
     Fs.writeFileSync(entry,
       'services: { auth: { owner: string, replicas: *1 | integer } }')
 
@@ -1854,8 +1854,8 @@ describe('cli-subsume', () => {
   // leaving it in the overlay would leave the configuration broken.
   test('set-refuses-to-write-a-change-that-does-not-hold', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-set-no-'))
-    const entry = Path.join(dir, 'sys.aon')
-    const overlay = Path.join(dir, 'ov.aon')
+    const entry = Path.join(dir, 'sys.aontu')
+    const overlay = Path.join(dir, 'ov.aontu')
     Fs.writeFileSync(entry, 'port: 3')
     Fs.writeFileSync(overlay, 'x: 1\n')
 
@@ -1880,7 +1880,7 @@ describe('cli-subsume', () => {
 
   test('set-usage-errors-exit-2', () => {
     const f = subFiles('a:{b:integer}', 'a:1')
-    const ov = Path.join(f.dir, 'ov.aon')
+    const ov = Path.join(f.dir, 'ov.aontu')
     vetCapture(() => Assert.equal(runSet([]), 2))
     vetCapture(() => Assert.equal(runSet(['$.a.b=1']), 2))
     vetCapture(() => Assert.equal(runSet(
@@ -1892,7 +1892,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(runSet(
       ['$.a.b=1', '--format', 'yaml', '--entry', f.general, '--overlay', ov]), 2))
     vetCapture(() => Assert.equal(runSet(
-      ['$.a.b=1', '--entry', Path.join(f.dir, 'missing.aon'),
+      ['$.a.b=1', '--entry', Path.join(f.dir, 'missing.aontu'),
         '--overlay', ov]), 2))
     // An overlay that cannot be READ (a directory, not a missing file)
     // is a usage error, not an empty overlay.
@@ -1902,7 +1902,7 @@ describe('cli-subsume', () => {
     // empty overlay) and then fails to write, which is also usage.
     Assert.equal(vetCapture(() => Assert.equal(runSet(
       ['$.a.b=1', '--entry', f.general,
-        '--overlay', Path.join(f.dir, 'no-such-dir', 'ov.aon')]), 2)
+        '--overlay', Path.join(f.dir, 'no-such-dir', 'ov.aontu')]), 2)
     ).err.includes('cannot write'), true)
     Assert.equal(vetCapture(() =>
       Assert.equal(runSet(['--help']), 0)
@@ -1914,7 +1914,7 @@ describe('cli-subsume', () => {
   // line and the text rendering.
   test('why-names-every-contribution', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-why-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'services: {\n  &: { replicas: *1 | integer }\n' +
       '  auth: { replicas: 3 }\n  db: {}\n}\n')
@@ -1922,14 +1922,14 @@ describe('cli-subsume', () => {
     const r = vetCapture(() =>
       Assert.equal(runWhy(['$.services.auth.replicas', file]), 0))
     Assert.match(r.out, /^\$\.services\.auth\.replicas = 3/)
-    Assert.match(r.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/)
-    Assert.match(r.out, /2\. 3.*doc\.aon:3:21/)
+    Assert.match(r.out, /1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)/)
+    Assert.match(r.out, /2\. 3.*doc\.aontu:3:21/)
 
     const q = vetCapture(() =>
       Assert.equal(runWhy(['$.services.db.replicas', file]), 0))
-    Assert.match(q.out, /1\. \*1\|integer.*doc\.aon:2:18  \(spread\)/)
+    Assert.match(q.out, /1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)/)
 
-    const topFile = Path.join(dir, 'top.aon')
+    const topFile = Path.join(dir, 'top.aontu')
     Fs.writeFileSync(topFile, 'a: top\n')
     const t = vetCapture(() => Assert.equal(runWhy(['$.a', topFile]), 0))
     Assert.match(t.out, /no contributions/)
@@ -1949,7 +1949,7 @@ describe('cli-subsume', () => {
     Assert.match(miss.err, /no_path/)
 
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-why-err-'))
-    const broken = Path.join(dir, 'doc.aon')
+    const broken = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(broken, 'a:1 a:2')
     vetCapture(() => Assert.equal(runWhy(['$.a', broken]), 4))
 
@@ -1961,7 +1961,7 @@ describe('cli-subsume', () => {
       runWhy(['$.a', '--format', 'yaml', f.general]), 2))
     vetCapture(() => Assert.equal(runWhy(['$.a', '--format']), 2))
     vetCapture(() => Assert.equal(
-      runWhy(['$.a', Path.join(f.dir, 'missing.aon')]), 2))
+      runWhy(['$.a', Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runWhy(['--help']), 0)
     ).out.includes('aontu model why'), true)
@@ -1995,7 +1995,7 @@ describe('cli-subsume', () => {
 
   test('get-renders-one-node-per-view', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-get-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
       'svc:{auth:{image:"a:v2",replicas:3}}\nport: *8080|integer\n')
 
@@ -2029,7 +2029,7 @@ describe('cli-subsume', () => {
   // "no" class -- while a document that does not stand up is exit 4.
   test('get-exit-codes-separate-no-from-broken', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-get-err-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
 
     Fs.writeFileSync(file, 'svc:{auth:{image:"a"}}')
     const miss = vetCapture(() =>
@@ -2066,7 +2066,7 @@ describe('cli-subsume', () => {
       Assert.equal(runGet(['$.a', '--depth', '1', f.general]), 2)
     ).err.includes('JSON cannot say top'), true)
     vetCapture(() => Assert.equal(
-      runGet(['$.a', Path.join(f.dir, 'missing.aon')]), 2))
+      runGet(['$.a', Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runGet(['--help']), 0)
     ).out.includes('aontu model get'), true)
@@ -2074,7 +2074,7 @@ describe('cli-subsume', () => {
 
   test('hash-pins-meaning-not-text', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-hash-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
 
     Fs.writeFileSync(file, 'b: 2\na: 1\n')
     const first = vetCapture(() => Assert.equal(runHash([file]), 0)).out.trim()
@@ -2117,7 +2117,7 @@ describe('cli-subsume', () => {
     vetCapture(() => Assert.equal(runHash(['--format', 'yaml', f.general]), 2))
     vetCapture(() => Assert.equal(runHash(['--format']), 2))
     vetCapture(() => Assert.equal(
-      runHash([Path.join(f.dir, 'missing.aon')]), 2))
+      runHash([Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runHash(['--help']), 0)
     ).out.includes('aontu hash'), true)
@@ -2128,7 +2128,7 @@ describe('cli-subsume', () => {
   // (which would agree with every other wreck).
   test('hash-broken-document-exits-4', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-hash-err-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file, 'a:1 a:2')
     const r = vetCapture(() => Assert.equal(runHash([file]), 4))
     Assert.equal(r.out, '')
@@ -2161,7 +2161,7 @@ describe('cli-subsume', () => {
     Assert.match(w.out, /\$\.a = integer/)
     const st = vetCapture(() => cliMainVet(
       ['node', 'aontu', 'model', 'set', '$.a=1', '--dry-run',
-        '--entry', f.general, '--overlay', Path.join(f.dir, 'ov.aon')]))
+        '--entry', f.general, '--overlay', Path.join(f.dir, 'ov.aontu')]))
     Assert.match(st.out, /verdict: valid/)
     const md = vetCapture(() => cliMainVet(
       ['node', 'aontu', 'agentsmd', f.general]))
@@ -2181,8 +2181,8 @@ describe('cli-repair-loop', () => {
 
   function loopFiles(): { dir: string; schema: string; deploy: string } {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-loop-'))
-    const schema = Path.join(dir, 'schema.aon')
-    const deploy = Path.join(dir, 'deploy.aon')
+    const schema = Path.join(dir, 'schema.aontu')
+    const deploy = Path.join(dir, 'deploy.aontu')
     Fs.writeFileSync(schema,
       'service: {\n' +
       '  name: string\n' +
@@ -2197,7 +2197,7 @@ describe('cli-repair-loop', () => {
 
   test('emit-vet-why-set-revet-closes', () => {
     const f = loopFiles()
-    const overlay = Path.join(f.dir, 'overlay.aon')
+    const overlay = Path.join(f.dir, 'overlay.aontu')
 
     const vet1 = run(['vet', f.schema, f.deploy])
     Assert.equal(vet1.code, 3)
@@ -2224,8 +2224,8 @@ describe('cli-repair-loop', () => {
     Assert.equal(Fs.readFileSync(f.deploy, 'utf8'),
       'service: { name: "auth" }\n')
 
-    const all = Path.join(f.dir, 'all.aon')
-    Fs.writeFileSync(all, '@"./deploy.aon"\n@"./overlay.aon"\n')
+    const all = Path.join(f.dir, 'all.aontu')
+    Fs.writeFileSync(all, '@"./deploy.aontu"\n@"./overlay.aontu"\n')
     const vet2 = run(['vet', f.schema, all])
     Assert.equal(vet2.code, 0)
     Assert.match(vet2.out, /verdict: valid/)
@@ -2234,7 +2234,7 @@ describe('cli-repair-loop', () => {
 
   test('a-pinned-value-refuses-the-repair-and-writes-nothing', () => {
     const f = loopFiles()
-    const overlay = Path.join(f.dir, 'overlay.aon')
+    const overlay = Path.join(f.dir, 'overlay.aontu')
 
     const set = run(['model', 'set', '$.service.name="other"',
       '--entry', f.deploy, '--overlay', overlay])
@@ -2249,7 +2249,7 @@ describe('cli-repair-loop', () => {
 
   test('a-broken-schema-stops-the-loop-and-says-why', () => {
     const f = loopFiles()
-    const broken = Path.join(f.dir, 'broken.aon')
+    const broken = Path.join(f.dir, 'broken.aontu')
     Fs.writeFileSync(broken, 'a: 1\na: 2\n')
     const r = run(['vet', '--format', 'json', broken, f.deploy])
     Assert.equal(r.code, 4)
@@ -2272,7 +2272,7 @@ describe('cli-repair-loop', () => {
 function fmtFiles(...srcs: string[]): { dir: string, files: string[] } {
   const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmt-'))
   const files = srcs.map((src, i) => {
-    const file = Path.join(dir, `d${i}.aon`)
+    const file = Path.join(dir, `d${i}.aontu`)
     Fs.writeFileSync(file, src)
     return file
   })
@@ -2294,7 +2294,7 @@ describe('cli-fmt', () => {
 
   test('fmt-takes-its-marker-from-a-profile', async () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmt-profile-'))
-    const profile = Path.join(dir, 'ocaml.aon')
+    const profile = Path.join(dir, 'ocaml.aontu')
     Fs.writeFileSync(profile, '@"aontu:profile"\n\n' +
       'aontu: Lang: lang: "ocaml"\n' +
       'aontu: Lang: indent: { unit:" " width:2 }\n' +
@@ -2324,7 +2324,7 @@ describe('cli-fmt', () => {
       /--profile needs a file/)
     Assert.match(
       vetCapture(() => Assert.equal(
-        runFmt(['--profile', Path.join(dir, 'no.aon'), unit]), 2)).err,
+        runFmt(['--profile', Path.join(dir, 'no.aontu'), unit]), 2)).err,
       /cannot read/)
     vetCapture(() => Assert.equal(runFmt(['--trust', 'nonsense', unit]), 2))
   })
@@ -2388,7 +2388,7 @@ describe('cli-fmt', () => {
     Assert.equal(two.out, '')
     vetCapture(() => Assert.equal(runFmt(['--bogus', f.files[0]]), 2))
     vetCapture(() => Assert.equal(runFmt(['-w']), 2))
-    vetCapture(() => Assert.equal(runFmt([Path.join(f.dir, 'missing.aon')]), 2))
+    vetCapture(() => Assert.equal(runFmt([Path.join(f.dir, 'missing.aontu')]), 2))
     Assert.equal(vetCapture(() =>
       Assert.equal(runFmt(['--help']), 0)).out.includes('aontu fmt'), true)
   })
@@ -2524,7 +2524,7 @@ describe('cli-trace', () => {
 
   function traceDir(text: string): string {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trace-'))
-    Fs.writeFileSync(Path.join(dir, 'doc.aon'), text)
+    Fs.writeFileSync(Path.join(dir, 'doc.aontu'), text)
     return dir
   }
 
@@ -2533,7 +2533,7 @@ describe('cli-trace', () => {
   }
 
   test('trace-names-the-file-the-node-and-the-rule', () => {
-    const file = Path.join(traceDir(DOC), 'doc.aon')
+    const file = Path.join(traceDir(DOC), 'doc.aontu')
     const text = traceCode(0, [file]).out
     Assert.equal(text, 'x.ts\t$.children.0\t$.svc.a\t$.%r#0\n')
     const json = JSON.parse(traceCode(0, ['--format', 'json', file]).out)
@@ -2543,7 +2543,7 @@ describe('cli-trace', () => {
 
   test('trace-reads-an-anchor', () => {
     const file = Path.join(
-      traceDir(DOC.replace('out:', 'elsewhere:')), 'doc.aon')
+      traceDir(DOC.replace('out:', 'elsewhere:')), 'doc.aontu')
     // The default anchor is `$.out`, which this document does not have.
     traceCode(4, [file])
     Assert.match(traceCode(0, ['--at', '$.elsewhere', file]).out, /x\.ts/)
@@ -2552,7 +2552,7 @@ describe('cli-trace', () => {
 
   test('trace-usage-errors-exit-2', () => {
     const dir = traceDir(DOC)
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Assert.match(traceCode(2, []).err, /trace needs one file/)
     Assert.match(traceCode(2, [file, file]).err, /trace needs one file/)
     Assert.match(traceCode(2, ['--format', 'yaml', file]).err,
@@ -2561,7 +2561,7 @@ describe('cli-trace', () => {
     Assert.match(traceCode(2, ['--at']).err, /--at needs a path/)
     Assert.match(traceCode(2, ['--bogus', file]).err,
       /unknown trace option --bogus/)
-    Assert.match(traceCode(2, [Path.join(dir, 'missing.aon')]).err,
+    Assert.match(traceCode(2, [Path.join(dir, 'missing.aontu')]).err,
       /cannot read/)
     traceCode(2, ['--trust', 'nosuchlevel', file])
     Assert.equal(traceCode(0, ['--help']).out.includes('aontu trace'), true)
@@ -2582,7 +2582,7 @@ describe('cli-trace', () => {
       'L\n//- ]}))\n')
     const zz = write('gen.zz', ';;- ' + body.replaceAll('\n', '\n;;- ') +
       'L\n;;- ]}))\n')
-    const profile = write('zz.aon', '@"aontu:profile"\n\naontu: Lang: ' +
+    const profile = write('zz.aontu', '@"aontu:profile"\n\naontu: Lang: ' +
       '{ lang:"zz" template: { marker:";;-" ext: [zz] } }\n')
 
     const want = 'x.ts\t$.children.0\t$.svc.a\t#0\n'
@@ -2593,14 +2593,14 @@ describe('cli-trace', () => {
     Assert.match(traceCode(2, ['--marker']).err, /--marker needs a token/)
     Assert.match(traceCode(2, ['--profile']).err, /--profile needs a file/)
     Assert.match(
-      traceCode(2, ['--profile', Path.join(dir, 'gone.aon'), gen]).err,
+      traceCode(2, ['--profile', Path.join(dir, 'gone.aontu'), gen]).err,
       /cannot read/)
 
     // A --profile document that does not stand up is exit 4; a second
     // profile claiming the same language is exit 2.
-    const bad = write('bad.aon', 'aontu: Lang: { lang: 1 }\n')
+    const bad = write('bad.aontu', 'aontu: Lang: { lang: 1 }\n')
     Assert.match(traceCode(4, ['--profile', bad, gen]).err, /aontu\//)
-    const dup = write('zz2.aon', '@"aontu:profile"\n\naontu: Lang: ' +
+    const dup = write('zz2.aontu', '@"aontu:profile"\n\naontu: Lang: ' +
       '{ lang:"zz" template: { marker:";;-" ext: [zz] } }\n')
     Assert.match(
       traceCode(2, ['--profile', profile, '--profile', dup, gen]).err,
@@ -2635,12 +2635,12 @@ describe('cli-template', () => {
   }
 
   test('template-prints-the-canonical-form-and-resugars-it', () => {
-    const dir = templateDir({ 'gen.ts': GEN, 'canon.aon': CANON })
+    const dir = templateDir({ 'gen.ts': GEN, 'canon.aontu': CANON })
     // THE DEFAULT DIRECTION is desugar: the aontu the marked lines
     // mean, with every other line quoted as one string.
     Assert.equal(templateCode(0, [Path.join(dir, 'gen.ts')]).out, CANON)
     Assert.equal(
-      templateCode(0, ['--resugar', Path.join(dir, 'canon.aon')]).out, GEN)
+      templateCode(0, ['--resugar', Path.join(dir, 'canon.aontu')]).out, GEN)
     // The marker comes from the extension, and --marker names one the
     // table does not know.
     const hash = templateDir({ 'gen.rb': '#- n: [\nputs 1\n#- ]\n' })
@@ -2665,11 +2665,11 @@ describe('cli-template', () => {
       'aontu: Lang: template: ' +
       '{ marker:"(*-" close:"*)" ext:["ml" "mli"] }\n'
     const dir = templateDir({
-      'ocaml.aon': OCAML,
+      'ocaml.aontu': OCAML,
       'gen.ml': '(*- n: [ *)\nlet a = 1\n(*- ] *)\n',
-      'plain.aon': '@"aontu:profile"\n\naontu: Lang: lang: "plain"\n',
+      'plain.aontu': '@"aontu:profile"\n\naontu: Lang: lang: "plain"\n',
     })
-    const profile = Path.join(dir, 'ocaml.aon')
+    const profile = Path.join(dir, 'ocaml.aontu')
     const unit = Path.join(dir, 'gen.ml')
 
     // A CLOSER AFTER A SPACE reaches a block comment the table has
@@ -2685,7 +2685,7 @@ describe('cli-template', () => {
       templateCode(0, ['--marker', '(*- *)', unit]).out,
       'n: [\n`let a = 1`\n]\n')
     Assert.equal(
-      templateCode(0, ['--profile', Path.join(dir, 'plain.aon'), unit]).out,
+      templateCode(0, ['--profile', Path.join(dir, 'plain.aontu'), unit]).out,
       '`(*- n: [ *)`\n`let a = 1`\n`(*- ] *)`\n')
 
     // Markdown needs none of it: the extension names the marker.
@@ -2695,7 +2695,7 @@ describe('cli-template', () => {
 
     Assert.match(templateCode(2, ['--profile']).err, /--profile needs a file/)
     Assert.match(
-      templateCode(2, ['--profile', Path.join(dir, 'nope.aon'), unit]).err,
+      templateCode(2, ['--profile', Path.join(dir, 'nope.aontu'), unit]).err,
       /cannot read/)
     templateCode(2, ['--trust', 'nonsense', unit])
   })
@@ -2756,7 +2756,7 @@ describe('cli-template', () => {
     const dj = Path.join(data, 'd.json')
     const r = vetCapture(() => Assert.equal(runFmt([dj]), 2))
     Assert.equal(r.out, '')
-    Assert.match(r.err, /is not aontu source \(\.aon, \.aontu\)/)
+    Assert.match(r.err, /is not aontu source \(\.aontu\)/)
     Assert.match(r.err, /carries no \/\/- marker line/)
     Assert.equal(Fs.readFileSync(dj, 'utf8'), '{"a":1}\n')
     // `.aontu` is aontu source, and is formatted as one.
@@ -2778,15 +2778,36 @@ describe('cli-pkg-layout', () => {
     Fs.mkdirSync(Path.join(dir, 'aon_vendor'))
     const r = vetCapture(() => runPkg(['verify', dir], NO_SERVERS))
     Assert.match(r.err, /aon_vendor, mod.aon belong to an older layout/)
-    Assert.match(r.err, /rename pkg.aon's `mod` block to `pkg`/)
+    Assert.match(r.err, /rename pkg.aontu's `mod` block to `pkg`/)
     // The lockfile alone at the root is the same hint.
     const dir2 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
-    Fs.writeFileSync(Path.join(dir2, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n')
+    Fs.writeFileSync(Path.join(dir2, 'pkg.aontu'), 'pkg: { path: "corp.example/app" }\n')
     Fs.writeFileSync(Path.join(dir2, 'mod-lock.aon'), '# mod-lock.aon\n{"lock":{}}\n')
     Assert.match(vetCapture(() => runPkg(['verify', dir2], NO_SERVERS)).err, /older layout/)
     const dir3 = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
-    Fs.writeFileSync(Path.join(dir3, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n')
+    Fs.writeFileSync(Path.join(dir3, 'pkg.aontu'), 'pkg: { path: "corp.example/app" }\n')
     Assert.doesNotMatch(vetCapture(() => runPkg(['verify', dir3], NO_SERVERS)).err, /older layout/)
+  })
+
+  // The generation ADR-042 withdrew: a project whose package file and
+  // lockfile are spelled .aon declares nothing to any verb, so `verify`
+  // would answer over an empty project rather than the real one.
+  test('pkg-names-the-withdrawn-extension', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
+    Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: { path: "corp.example/app" }\n')
+    Fs.mkdirSync(Path.join(dir, 'aontu_meta'), { recursive: true })
+    Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon'), '{"lock":{}}\n')
+    const r = vetCapture(() => runPkg(['verify', dir], NO_SERVERS))
+    Assert.match(r.err,
+      /pkg\.aon, aontu_meta.pkg-lock\.aon carry the withdrawn \.aon extension/)
+    Assert.match(r.err, /rename them to pkg\.aontu/)
+    // Each generation is its own finding, not one message.
+    Assert.doesNotMatch(r.err, /older layout/)
+    // The current spelling says nothing.
+    const ok = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-layout-'))
+    Fs.writeFileSync(Path.join(ok, 'pkg.aontu'), 'pkg: { path: "corp.example/app" }\n')
+    Assert.doesNotMatch(
+      vetCapture(() => runPkg(['verify', ok], NO_SERVERS)).err, /withdrawn/)
   })
 
   test('model-dispatches-the-document-verbs', () => {
@@ -2797,12 +2818,12 @@ describe('cli-pkg-layout', () => {
     Assert.match(vetCapture(() => Assert.equal(runModel(['nope']), 2)).err,
       /model needs get, why or set/)
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-model-'))
-    const file = Path.join(dir, 'doc.aon')
+    const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file, 'a: 1\n')
     Assert.equal(vetCapture(() => Assert.equal(runModel(['get', '$.a', file]), 0)).out.trim(), '1')
     Assert.match(vetCapture(() => Assert.equal(runModel(['why', '$.a', file]), 0)).out, /\$\.a = 1/)
     Assert.equal(runModel(['set', '$.b=2', '--dry-run', '--entry', file,
-      '--overlay', Path.join(dir, 'ov.aon')]), 0)
+      '--overlay', Path.join(dir, 'ov.aontu')]), 0)
   })
 })
 
@@ -2820,7 +2841,7 @@ describe('cli-allow', () => {
 
   function rolesFile(src: string = ROLES): string {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-cli-'))
-    const file = Path.join(dir, 'roles.aon')
+    const file = Path.join(dir, 'roles.aontu')
     Fs.writeFileSync(file, src)
     return file
   }
@@ -2869,7 +2890,7 @@ describe('cli-allow', () => {
       '$.tests.smoke=3 secrets: key: "x"',
       '$.tests.smoke=3\nsecrets: 1',
       '$.tests.smoke="unterminated',
-      '$.tests.smoke=@"./other.aon"',
+      '$.tests.smoke=@"./other.aontu"',
     ]) {
       const r = vetCapture(() => Assert.equal(runAllow(['--role', 'qa', file, bad]), 2))
       Assert.match(r.err, /the value of \$\.tests\.smoke is not one value/)
@@ -2939,9 +2960,9 @@ describe('cli-allow', () => {
 
   test('allow-trust-reaches-the-engine', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-trust-'))
-    Fs.writeFileSync(Path.join(dir, 'dev.aon'), 'roles: dev: { allow: ["$"] }')
-    const file = Path.join(dir, 'roles.aon')
-    Fs.writeFileSync(file, '@"./dev.aon"\n')
+    Fs.writeFileSync(Path.join(dir, 'dev.aontu'), 'roles: dev: { allow: ["$"] }')
+    const file = Path.join(dir, 'roles.aontu')
+    Fs.writeFileSync(file, '@"./dev.aontu"\n')
     vetCapture(() => Assert.equal(runAllow(['--role', 'dev', file, '$.a']), 0))
     const denied = vetCapture(() => Assert.equal(
       runAllow(['--trust', 'none', '--role', 'dev', file, '$.a']), 4))
@@ -2975,7 +2996,7 @@ describe('cli-allow', () => {
     vetCapture(() => Assert.equal(
       runAllow(['--trust', 'bogus', '--role', 'dev', file, '$.a']), 2))
     const missing = vetCapture(() => Assert.equal(
-      runAllow(['--role', 'dev', Path.join(Path.dirname(file), 'no.aon'), '$.a']), 2))
+      runAllow(['--role', 'dev', Path.join(Path.dirname(file), 'no.aontu'), '$.a']), 2))
     Assert.match(missing.err, /cannot read/)
     Assert.equal(vetCapture(() =>
       Assert.equal(runAllow(['--help']), 0)
@@ -3000,8 +3021,8 @@ describe('cli-allow', () => {
 
   function covFiles(schema: string, data: string): [string, string] {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-cov-'))
-    const s = Path.join(dir, 'schema.aon')
-    const d = Path.join(dir, 'data.aon')
+    const s = Path.join(dir, 'schema.aontu')
+    const d = Path.join(dir, 'data.aontu')
     Fs.writeFileSync(s, schema)
     Fs.writeFileSync(d, data)
     return [s, d]
@@ -3087,9 +3108,9 @@ describe('cli-allow', () => {
       Fs.writeFileSync(p, src)
       return p
     }
-    const s = write('s.aon', 'a: string\nb: integer')
-    const d1 = write('d1.aon', 'a: "x"')
-    const d2 = write('d2.aon', 'b: 1')
+    const s = write('s.aontu', 'a: string\nb: integer')
+    const d1 = write('d1.aontu', 'a: "x"')
+    const d2 = write('d2.aontu', 'b: 1')
     const r = run(['vet', '--partial', '--coverage', s, d1, d2])
     Assert.equal(r.code, 0, r.out)
     Assert.ok(r.out.includes('2/2 data leaves checked'), r.out)
@@ -3161,7 +3182,7 @@ describe('render', () => {
 
   test('writes-one-file-to-the-path', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', ONE)
+    const gen = file(d, 'gen.aontu', ONE)
 
     // The path names the file: the tree's own name is not used.
     const dest = Path.join(d, 'deep', 'one.txt')
@@ -3179,7 +3200,7 @@ describe('render', () => {
 
   test('writes-a-tree-below-the-path', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', MANY)
+    const gen = file(d, 'gen.aontu', MANY)
     const build = Path.join(d, 'build')
     const r = await render(['--format', 'json', gen, build])
     Assert.equal(r.code, 0, r.err)
@@ -3193,7 +3214,7 @@ describe('render', () => {
 
   test('check-holds-the-path', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', MANY)
+    const gen = file(d, 'gen.aontu', MANY)
     const build = Path.join(d, 'build')
     Assert.equal((await render([gen, build])).code, 0)
     const clean = await render(['--check', gen, build])
@@ -3220,7 +3241,7 @@ describe('render', () => {
 
   test('check-skips-an-excluded-file', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon',
+    const gen = file(d, 'gen.aontu',
       'out: project(".", [\n' +
       '  file({name: "keep.txt", exclude: true}, ["generated"])\n' +
       '  file({name: "held.txt"}, ["generated"])\n' +
@@ -3250,7 +3271,7 @@ describe('render', () => {
 
   test('check-reports-an-absent-excluded-file', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon',
+    const gen = file(d, 'gen.aontu',
       'out: project(".", [file({name: "keep.txt", exclude: true}, ["gen"])])\n')
     const build = Path.join(d, 'build')
     Fs.mkdirSync(build)
@@ -3265,7 +3286,7 @@ describe('render', () => {
 
   test('check-skips-an-excluded-mode', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon',
+    const gen = file(d, 'gen.aontu',
       'out: project(".", [' +
       'file({name: "run.sh", exclude: true, mode: 493}, ["#!/bin/sh"])])\n')
     const build = Path.join(d, 'build')
@@ -3288,11 +3309,11 @@ describe('render', () => {
     // matched against the COMPONENT path, so `k.txt` skips the file and
     // `other.txt` does not, which is the rule rather than the spelling.
     for (const [name, prop, drift] of [
-      ['none.aon', '', true],
-      ['false.aon', ', exclude: false', true],
-      ['string.aon', ', exclude: "k.txt"', false],
-      ['list.aon', ', exclude: ["k.txt"]', false],
-      ['other.aon', ', exclude: "other.txt"', true],
+      ['none.aontu', '', true],
+      ['false.aontu', ', exclude: false', true],
+      ['string.aontu', ', exclude: "k.txt"', false],
+      ['list.aontu', ', exclude: ["k.txt"]', false],
+      ['other.aontu', ', exclude: "other.txt"', true],
     ] as [string, string, boolean][]) {
       const gen = file(d, name,
         `out: project(".", [file({name: "k.txt"${prop}}, ["generated"])])\n`)
@@ -3316,8 +3337,8 @@ describe('render', () => {
     const d = dir()
     const gens = Path.join(d, 'gens')
     Fs.mkdirSync(gens)
-    file(gens, 'a.aon', 'out: file({name: "solo.txt", exclude: true}, ["gen"])\n')
-    file(gens, 'b.aon',
+    file(gens, 'a.aontu', 'out: file({name: "solo.txt", exclude: true}, ["gen"])\n')
+    file(gens, 'b.aontu',
       'out: project(".", [file({name: "two.txt", exclude: true}, ["gen"])])\n')
     const build = Path.join(d, 'build')
     Assert.equal((await render([gens, build])).code, 0)
@@ -3333,7 +3354,7 @@ describe('render', () => {
 
   test('check-skips-an-excluded-root-file', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon',
+    const gen = file(d, 'gen.aontu',
       'out: file({name: "ignored.txt", exclude: true}, ["generated"])\n')
     const dest = Path.join(d, 'target.txt')
 
@@ -3349,7 +3370,7 @@ describe('render', () => {
 
   test('check-skips-an-excluded-file-beside-a-bare-node', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon',
+    const gen = file(d, 'gen.aontu',
       'out: { cmp: "Project", props: {folder: "."}, children: [\n' +
       '  { cmp: "File", props: {name: "keep.txt", exclude: true},\n' +
       '    children: [{cmp: "Line", props: {src: "gen"}}] }\n' +
@@ -3369,16 +3390,16 @@ describe('render', () => {
 
   test('check-one-file-in-the-current-directory', async () => {
     const d = dir()
-    file(d, 'gen.aon', ONE)
+    file(d, 'gen.aontu', ONE)
     const cwd = process.cwd()
     process.chdir(d)
     try {
-      Assert.equal((await render(['gen.aon', 'one.txt'])).code, 0)
-      const clean = await render(['--check', '--format', 'json', 'gen.aon', 'one.txt'])
+      Assert.equal((await render(['gen.aontu', 'one.txt'])).code, 0)
+      const clean = await render(['--check', '--format', 'json', 'gen.aontu', 'one.txt'])
       Assert.equal(clean.code, 0)
       Assert.deepStrictEqual(JSON.parse(clean.out).checked, ['one.txt'])
       file(d, 'one.txt', 'edited\n')
-      const drift = await render(['--check', 'gen.aon', 'one.txt'])
+      const drift = await render(['--check', 'gen.aontu', 'one.txt'])
       Assert.equal(drift.code, 1)
       Assert.equal(drift.out, 'content: one.txt\n')
     }
@@ -3400,7 +3421,7 @@ describe('render', () => {
     Assert.equal(Fs.readFileSync(dest, 'utf8'), 'foo = BAR\n')
 
     // The profile names the marker for the extension.
-    const profile = file(d, 'text.aon', '@"aontu:profile"\n\n' +
+    const profile = file(d, 'text.aontu', '@"aontu:profile"\n\n' +
       'aontu: Lang: lang: "text"\n' +
       'aontu: Lang: template: { marker:"#-" ext: ["txt"] }\n')
     Assert.equal((await render(['--profile', profile, gen, dest])).code, 0)
@@ -3413,7 +3434,7 @@ describe('render', () => {
 
   test('reads-another-anchor', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', ONE.replace('out:', 'elsewhere:'))
+    const gen = file(d, 'gen.aontu', ONE.replace('out:', 'elsewhere:'))
     const dest = Path.join(d, 'x.txt')
     const r = await render([gen, dest])
     Assert.equal(r.code, 4)
@@ -3427,19 +3448,19 @@ describe('render', () => {
     const dest = Path.join(d, 'build')
 
     // A map that is not a component the runtime knows.
-    const bad = file(d, 'bad.aon', 'out: { cmp: "Nope", props: {}, children: [] }\n')
+    const bad = file(d, 'bad.aontu', 'out: { cmp: "Nope", props: {}, children: [] }\n')
     const r = await render([bad, dest])
     Assert.equal(r.code, 4)
     Assert.ok(r.err.includes('unknown component: Nope'), r.err)
 
     // A File written by hand with no name is refused before the runtime.
-    const nameless = file(d, 'nameless.aon', 'out: { cmp: "File", children: [] }\n')
+    const nameless = file(d, 'nameless.aontu', 'out: { cmp: "File", children: [] }\n')
     const n = await render([nameless, Path.join(d, 'n.txt')])
     Assert.equal(n.code, 4)
     Assert.ok(n.err.includes('the file at $.out has no name'), n.err)
 
     // A fragment whose source is not there fails the write and the check.
-    const frag = file(d, 'frag.aon', 'out: file("x.txt", [fragment("nope.txt")])\n')
+    const frag = file(d, 'frag.aontu', 'out: file("x.txt", [fragment("nope.txt")])\n')
     const w = await render([frag, dest])
     Assert.equal(w.code, 2)
     Assert.ok(w.err.includes('nope.txt'), w.err)
@@ -3448,7 +3469,7 @@ describe('render', () => {
     Assert.ok(c.err.includes('nope.txt'), c.err)
 
     // A path below a file cannot be made.
-    const gen = file(d, 'gen.aon', ONE)
+    const gen = file(d, 'gen.aontu', ONE)
     const afile = file(d, 'afile', 'x\n')
     Assert.equal((await render([gen, Path.join(afile, 'x.txt')])).code, 2)
   })
@@ -3457,15 +3478,15 @@ describe('render', () => {
   test('document-errors', async () => {
     const d = dir()
     const dest = Path.join(d, 'x.txt')
-    const broken = file(d, 'broken.aon', 'out: file(\n')
+    const broken = file(d, 'broken.aontu', 'out: file(\n')
     const r = await render([broken, dest])
     Assert.equal(r.code, 4)
     Assert.notEqual(r.err, '')
 
     // An include the trust does not admit.
-    file(d, 'model.aon', 'foo: "BAR"\n')
-    const gen = file(d, 'gen.aon',
-      '@"./model.aon"\nout: file("zed.txt", ["foo = " + $.foo])\n')
+    file(d, 'model.aontu', 'foo: "BAR"\n')
+    const gen = file(d, 'gen.aontu',
+      '@"./model.aontu"\nout: file("zed.txt", ["foo = " + $.foo])\n')
     const denied = await render(['--trust', 'none', gen, dest])
     Assert.equal(denied.code, 4)
     Assert.ok(denied.err.includes('include_denied'), denied.err)
@@ -3475,7 +3496,7 @@ describe('render', () => {
 
   test('usage', async () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', ONE)
+    const gen = file(d, 'gen.aontu', ONE)
     const help = await render(['--help'])
     Assert.equal(help.code, 0)
     Assert.ok(help.out.includes('aontu render [--check]'))
@@ -3493,8 +3514,8 @@ describe('render', () => {
       [['--format'], '--format needs text or json'],
       [['--format', 'xml', gen, 'x'], '--format needs text or json'],
       [['--trust', 'nonsense', gen, 'x'], '--trust'],
-      [[Path.join(d, 'missing.aon'), 'x'], 'cannot read'],
-      [['--profile', Path.join(d, 'missing.aon'), gen, 'x'], 'cannot read'],
+      [[Path.join(d, 'missing.aontu'), 'x'], 'cannot read'],
+      [['--profile', Path.join(d, 'missing.aontu'), gen, 'x'], 'cannot read'],
     ] as [string[], string][]) {
       const r = await render(args)
       Assert.equal(r.code, 2, args.join(' '))
@@ -3507,11 +3528,11 @@ describe('render', () => {
     const d = dir()
     const gen = Path.join(d, 'gen')
     Fs.mkdirSync(Path.join(gen, 'sub'), { recursive: true })
-    file(gen, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(gen, 'a.aontu', 'out: file("a.txt", ["a"])\n')
     file(gen, 'b.rb', '#- out: folder("lib", [file("b.rb", [\nputs "b"\n#- ])])\n')
-    file(gen, 'c.aon', 'out: [file("c.txt", ["c"])]\n')
+    file(gen, 'c.aontu', 'out: [file("c.txt", ["c"])]\n')
     file(gen, '.keep', '')
-    file(Path.join(gen, 'sub'), 'ignored.aon', 'out: file("ignored.txt", ["no"])\n')
+    file(Path.join(gen, 'sub'), 'ignored.aontu', 'out: file("ignored.txt", ["no"])\n')
     const out = Path.join(d, 'out')
 
     // A set is written below the path, a one-file tree under its own name.
@@ -3546,7 +3567,7 @@ describe('render', () => {
     // A file with no marker line is refused by name, and nothing is written.
     const notes = Path.join(d, 'notes')
     Fs.mkdirSync(notes)
-    file(notes, 'a.aon', 'out: file("a.txt", ["a"])\n')
+    file(notes, 'a.aontu', 'out: file("a.txt", ["a"])\n')
     file(notes, 'notes.md', '# notes\n')
     const n = await render([notes, out])
     Assert.equal(n.code, 2)
@@ -3556,16 +3577,16 @@ describe('render', () => {
     // A generator that does not stand up refuses the set before it writes.
     const broken = Path.join(d, 'broken')
     Fs.mkdirSync(broken)
-    file(broken, 'a.aon', 'out: file("a.txt", ["a"])\n')
-    file(broken, 'b.aon', 'out: file(\n')
+    file(broken, 'a.aontu', 'out: file("a.txt", ["a"])\n')
+    file(broken, 'b.aontu', 'out: file(\n')
     Assert.equal((await render([broken, out])).code, 4)
     Assert.ok(!Fs.existsSync(out), 'wrote before refusing')
 
     // A nameless File anywhere in the set is refused.
     const nameless = Path.join(d, 'nameless')
     Fs.mkdirSync(nameless)
-    file(nameless, 'a.aon', 'out: file("a.txt", ["a"])\n')
-    file(nameless, 'b.aon', 'out: { cmp: "File", children: [] }\n')
+    file(nameless, 'a.aontu', 'out: file("a.txt", ["a"])\n')
+    file(nameless, 'b.aontu', 'out: { cmp: "File", children: [] }\n')
     const nl = await render([nameless, out])
     Assert.equal(nl.code, 4)
     Assert.ok(nl.err.includes('has no name'), nl.err)
@@ -3573,8 +3594,8 @@ describe('render', () => {
     // The same path claimed twice is refused by the runtime.
     const twice = Path.join(d, 'twice')
     Fs.mkdirSync(twice)
-    file(twice, 'a.aon', 'out: file("same.txt", ["a"])\n')
-    file(twice, 'b.aon', 'out: file("same.txt", ["b"])\n')
+    file(twice, 'a.aontu', 'out: file("same.txt", ["a"])\n')
+    file(twice, 'b.aontu', 'out: file("same.txt", ["b"])\n')
     for (const args of [[twice, out], ['--check', twice, out]]) {
       const tw = await render(args)
       Assert.equal(tw.code, 2, args.join(' '))
@@ -3619,7 +3640,7 @@ describe('render', () => {
 
   test('the-bin-writes-the-file', () => {
     const d = dir()
-    const gen = file(d, 'gen.aon', ONE)
+    const gen = file(d, 'gen.aontu', ONE)
     const dest = Path.join(d, 'zed.txt')
     Assert.deepStrictEqual(run(['render', gen, dest]), { out: '', code: 0 })
     Assert.equal(Fs.readFileSync(dest, 'utf8'), 'foo = BAR\n')

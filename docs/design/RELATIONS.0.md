@@ -243,7 +243,7 @@ What each does, precisely:
   pair without its mirror under `inverse(n)` refuses with
   `relation_inverse_missing`, naming both ends and the predicate that
   should have mirrored it. **This is the behavioural change from the
-  landed design**: today `aontu doc.aon` happily generates a cyclic
+  landed design**: today `aontu doc.aontu` happily generates a cyclic
   model and only the `relations` verb notices, which made the
   declaration advisory. A constraint the author wrote into the
   document now binds the document.

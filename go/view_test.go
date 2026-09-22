@@ -63,18 +63,18 @@ func viewTempDoc(t *testing.T, dir, name, src string) string {
 func TestViewDocName(t *testing.T) {
 	for _, c := range []struct{ file, entry, want string }{
 		{"", "", "-"},
-		{"", "dir/entry.aon", "entry.aon"},
-		{"dir/entry.aon", "dir/entry.aon", "entry.aon"},
-		{"lib/x.aon", "dir/entry.aon", "lib/x.aon"},
-		{"/abs/x.aon", "", "/abs/x.aon"},
+		{"", "dir/entry.aontu", "entry.aontu"},
+		{"dir/entry.aontu", "dir/entry.aontu", "entry.aontu"},
+		{"lib/x.aontu", "dir/entry.aontu", "lib/x.aontu"},
+		{"/abs/x.aontu", "", "/abs/x.aontu"},
 	} {
 		if got := viewDocName(c.file, c.entry); got != c.want {
 			t.Fatalf("viewDocName(%q, %q) = %q, want %q", c.file, c.entry, got, c.want)
 		}
 	}
-	abs := filepath.Join(t.TempDir(), "sub", "inc.aon")
-	entry := filepath.Join(filepath.Dir(filepath.Dir(abs)), "entry.aon")
-	if got := viewDocName(abs, entry); filepath.Join("sub", "inc.aon") != got {
+	abs := filepath.Join(t.TempDir(), "sub", "inc.aontu")
+	entry := filepath.Join(filepath.Dir(filepath.Dir(abs)), "entry.aontu")
+	if got := viewDocName(abs, entry); filepath.Join("sub", "inc.aontu") != got {
 		t.Fatalf("relative = %q", got)
 	}
 }
@@ -84,8 +84,8 @@ func TestViewDocName(t *testing.T) {
 // file and then by column.
 func TestViewOverIncludedFiles(t *testing.T) {
 	dir := t.TempDir()
-	viewTempDoc(t, dir, "lib/base.aon", "a: {x: **1 & integer, y: 2}\n")
-	entry := viewTempDoc(t, dir, "entry.aon", "@\"./lib/base.aon\"\na: {x: *2 & integer, z: 3}\n")
+	viewTempDoc(t, dir, "lib/base.aontu", "a: {x: **1 & integer, y: 2}\n")
+	entry := viewTempDoc(t, dir, "entry.aontu", "@\"./lib/base.aontu\"\na: {x: *2 & integer, z: 3}\n")
 	src, _ := os.ReadFile(entry)
 	a := NewWithBase(dir)
 	a.File = entry
@@ -97,8 +97,8 @@ func TestViewOverIncludedFiles(t *testing.T) {
 	}
 	// The included file is named relative to the entry, in the host's
 	// own separator.
-	if !strings.Contains(*layers.Text, "# layers  file=entry.aon  documents=2") ||
-		!strings.Contains(*layers.Text, filepath.Join("lib", "base.aon")) {
+	if !strings.Contains(*layers.Text, "# layers  file=entry.aontu  documents=2") ||
+		!strings.Contains(*layers.Text, filepath.Join("lib", "base.aontu")) {
 		t.Fatalf("layers text:\n%s", *layers.Text)
 	}
 	if r := a.View(string(src), &ViewOptions{Kind: "layers", MaxRows: 1}); "error" != r.Verdict ||
@@ -110,15 +110,15 @@ func TestViewOverIncludedFiles(t *testing.T) {
 	if "rendered" != ladder.Verdict {
 		t.Fatalf("ladder = %+v", ladder)
 	}
-	want := "c0[\"**1<br/>pref | base.aon:1:8\"]\n  c1[\"*2<br/>pref | entry.aon:2:8\"]\n" +
-		"  c2[\"integer<br/>literal | entry.aon:2:13\"]\n  c3[\"integer<br/>literal | base.aon:1:14\"]"
+	want := "c0[\"**1<br/>pref | base.aontu:1:8\"]\n  c1[\"*2<br/>pref | entry.aontu:2:8\"]\n" +
+		"  c2[\"integer<br/>literal | entry.aontu:2:13\"]\n  c3[\"integer<br/>literal | base.aontu:1:14\"]"
 	if !strings.Contains(*ladder.Text, want) {
 		t.Fatalf("ladder text:\n%s", *ladder.Text)
 	}
 
 	// The poset labels a document by its file, and a further document
 	// by its own path.
-	other := viewTempDoc(t, dir, "wide.aon", "a: {x: integer, y: integer, z: integer}\n")
+	other := viewTempDoc(t, dir, "wide.aontu", "a: {x: integer, y: integer, z: integer}\n")
 	osrc, _ := os.ReadFile(other)
 	poset := a.View(string(src), &ViewOptions{Kind: "poset", Profile: "values",
 		Docs: []ViewDoc{{Src: string(osrc), Path: other}}})

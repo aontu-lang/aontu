@@ -12,7 +12,7 @@ dependency-structure matrix.
 
 ## The codebase, drawn
 
-The tree below is `aontu view tree --relation dependsOn model.aon`,
+The tree below is `aontu view tree --relation dependsOn model.aontu`,
 pinned as a golden by `check.sh`. Each figure here is pinned twice: as
 the text the verb draws by default, and as the SVG `--as svg` draws
 from the same character grid, which is what the site shows.
@@ -63,7 +63,7 @@ subtree that is already drawn. A repeat with nothing under it, like
 `bytes`, hides nothing and is drawn plain.
 
 The same edges as a dependency-structure matrix, `aontu view matrix
---relation dependsOn --order partition --closure model.aon`, pinned as
+--relation dependsOn --order partition --closure model.aontu`, pinned as
 `expected/diagram-matrix.txt`. A mark at (row, column) means the row
 module depends on the column module: `X` directly, `+` through others.
 In partition order an acyclic relation is a perfect lower triangle, and
@@ -99,7 +99,7 @@ readable, which is why the case draws both.
 
 **The architecture layers**, the drawing every layered codebase has a
 hand-made copy of, is `aontu view layer --relation dependsOn --group-by
-layer model.aon`, pinned as `expected/diagram-layer.txt`:
+layer model.aontu`, pinned as `expected/diagram-layer.txt`:
 
 ![The architecture layers, drawn: four bands, app on top, each module a box in its band](expected/diagram-layer.svg)
 
@@ -126,7 +126,7 @@ of them go and only a violation needs pointing at.
 The band order is not declared to the verb: it is the partition order
 of the layer-level graph (a layer depends on the layers its modules
 depend on), reversed so the layer nothing depends on is on top, which
-is why it agrees with `spec.aon` without reading it. The footer is the
+is why it agrees with `spec.aontu` without reading it. The footer is the
 layering rule, counted (`auth -> http` and `store -> log` are the two
 sideways edges the rule allows) and an upward edge, were the model
 to admit one, would be named under it. A model with an upward edge has
@@ -135,7 +135,7 @@ app,feature,core,util` names it then.
 
 ## The model tree
 
-`model.aon` joins the vocabulary and the codebase. `spec` is the shape
+`model.aontu` joins the vocabulary and the codebase. `spec` is the shape
 and the rule, and generates empty because it is `hide()`-marked; `mods`
 is the twelve modules, each with its kind, layer, directory, and the two
 sides of its dependency edges.
@@ -170,7 +170,7 @@ $
     └── UtilDep (2)
 ```
 
-`aontu view doc --depth 2 model.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 model.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -184,9 +184,9 @@ above it. `app` may use anything, `feature` may use feature and below,
 edge is legal (`auth` calling `http` is ordinary engineering), and
 what stops a sideways edge from closing a loop is `acyclic()`.
 
-The whole rule is four disjunctions, from `spec.aon`:
+The whole rule is four disjunctions, from `spec.aontu`:
 
-```aon
+```aontu
 AppDep: { kind:mod layer:"app"|"feature"|"core"|"util" }
 FeatureDep: { kind:mod layer:"feature"|"core"|"util" }
 CoreDep: { kind:mod layer:"core"|"util" }
@@ -196,7 +196,7 @@ UtilDep: { kind:mod layer:"util" }
 and one line per layer joining a module to the shape its dependencies
 must have:
 
-```aon
+```aontu
 Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
 ```
 
@@ -211,16 +211,16 @@ at generation with both sides named.
  Cannot unify value: "core"|"util" with value: "feature"
 ```
 
-The rule holds in either spelling: `bad/upward.aon` writes the
-offending module first, `bad/upward-swapped.aon` writes its target
+The rule holds in either spelling: `bad/upward.aontu` writes the
+offending module first, `bad/upward-swapped.aontu` writes its target
 first, and both refuse.
 
 ## The figures are declared, not scripted
 
-Every figure this case commits is declared in `views.aon`, an ordinary
+Every figure this case commits is declared in `views.aontu`, an ordinary
 document that includes the model:
 
-```aon
+```aontu
 views: {
   matrix: kind: matrix
   matrix: relation: dependsOn
@@ -231,7 +231,7 @@ views: {
 }
 ```
 
-`aontu view --views '$.views' --check views.aon` draws all eight from
+`aontu view --views '$.views' --check views.aontu` draws all eight from
 one evaluation and gates them together, which is what `check.sh` runs.
 A declaration's keys are the view options (the command-line flags
 without the dashes) so the file says exactly what the verb would have
@@ -241,8 +241,8 @@ about the name.
 
 ## The model
 
-`spec.aon` is the vocabulary and the rule; `modules.aon` is the
-codebase; `model.aon` joins them. The relation is declared once, at
+`spec.aontu` is the vocabulary and the rule; `modules.aontu` is the
+codebase; `model.aontu` joins them. The relation is declared once, at
 its field:
 
     dependsOn?: rel($.spec.ModShape) & acyclic() & inverse(usedBy)
@@ -260,7 +260,7 @@ for the author would be generation rather than validation, and
 `inverse(n)` only checks, so `store` lists the four modules that use
 it and each of them lists `store`.
 
-Each `bad/` overlay includes `model.aon` and adds one edge. Lists
+Each `bad/` overlay includes `model.aontu` and adds one edge. Lists
 unify positionally, so an overlay restates the list it extends, with
 the new entry last.
 
@@ -273,26 +273,26 @@ constructs are specified in the language reference under
 
 ## What check.sh proves
 
-1. `model.aon` generates and the output matches `expected/model.json`:
+1. `model.aontu` generates and the output matches `expected/model.json`:
    twelve modules, twenty-one legal edges, every inverse written.
-2. `aontu relations model.aon` answers `verdict: pass` without
+2. `aontu relations model.aontu` answers `verdict: pass` without
    generating.
-3. `bad/upward.aon` (`auth`, a core module, comes to depend on
+3. `bad/upward.aontu` (`auth`, a core module, comes to depend on
    `catalog`, a feature module) refuses at generation with
    `[aontu/empty]`, and the message names both layers:
    `Cannot unify value: "core"|"util" with value: "feature"`.
-4. `bad/upward-swapped.aon`, the same edge with its two blocks written
+4. `bad/upward-swapped.aontu`, the same edge with its two blocks written
    in the other order, refuses with `[aontu/empty]` as well.
-5. `bad/cycle.aon` (`bytes` comes to depend on `log`, which already
+5. `bad/cycle.aontu` (`bytes` comes to depend on `log`, which already
    depends on `bytes`; both are util, so the layer allows it) refuses
    at generation with `[aontu/relation_cycle]`, and `aontu relations`
    answers `verdict: fail`, naming the loop:
    `cycle $.mods.bytes -> $.mods.log -> $.mods.bytes`.
-6. `bad/missing-inverse.aon` (`clock` depends on `bytes`, and `bytes`
+6. `bad/missing-inverse.aontu` (`clock` depends on `bytes`, and `bytes`
    does not say so) refuses with `[aontu/relation_inverse_missing]`,
    and the verb names the exact absent entry:
    `$.mods.bytes does not list $.mods.clock under usedBy`.
-7. `bad/dangling.aon` (a dependency on a module nobody wrote) refuses
+7. `bad/dangling.aontu` (a dependency on a module nobody wrote) refuses
    inside the evaluation with `[aontu/rel_unresolved]`: existence is
    decided, never deferred.
 8. `aontu reaches --relation dependsOn` answers the closure question
@@ -311,7 +311,7 @@ constructs are specified in the language reference under
     and its footer counts zero cells above the diagonal; the same
     matrix as SVG matches `expected/diagram-matrix.svg`, and `--check`
     against the committed SVG passes.
-12a. `views.aon` declares all eight committed figures as data, and
+12a. `views.aontu` declares all eight committed figures as data, and
     `aontu view --views '$.views' --check` gates them in one run: one
     evaluation, all or nothing. The same declarations drawn into a
     scratch directory land the same bytes.
@@ -320,7 +320,7 @@ constructs are specified in the language reference under
     derives, nineteen edges downward, two sideways, none upward; as
     SVG to `expected/diagram-layer.svg`; and with `--layers
     app,feature,core,util --as mermaid` as Mermaid subgraphs.
-13. The tree of the cyclic model (`bad/cycle.aon`) terminates, marking
+13. The tree of the cyclic model (`bad/cycle.aontu`) terminates, marking
     the closing edge `(cycle)` instead of recursing into it.
 14. `aontu model get` reads a module's layer and directory off the model:
     `$.mods.http.layer` is `"core"` and `$.mods.store.dir` is

@@ -1,0 +1,35 @@
+# 44 (found by the 2026-08-28 constraint-design reconciliation).
+#
+# FIXED 2026-08-28. A `&:` element spread -- and a plain `k:v` pair in
+# list position, which had the same shift -- no longer consumes a path
+# index. Both ports now report the offending value below at `$.l.2`,
+# which is the index its own output uses and the index `aontu get`
+# answers to.
+#
+# The cause was in neither evaluator: @tabnas/path's `@elem-ao`
+# increments its element index for EVERY elem rule, and three of the
+# four elem alternatives contribute no element. The array slot they
+# occupy was already given back by restorePairSlot; the path index was
+# not. The `elem` rule now rewinds it and re-paths the child -- the twin
+# of the correction the `pair` rule already carried for map spreads.
+#
+# What made it worth chasing: TypeScript contradicted ITSELF. It emitted
+# `"path": "$.l.3"` from `vet --format json` and then answered
+# `aontu get $.l.3` with `no_path`, so an agent doing the read-path,
+# get, patch loop was handed a path the same port rejected. On a
+# one-element list (`l: [&: integer, "bad"]`) it pointed off the end.
+#
+# Pinned by test/spec/spread-list.tsv: spread-list-elem-path,
+# -single, -mid, -before, spread-list-pair-path, and the three
+# spread-list-gen-* rows that hold generation still. Every expectation
+# was probed through both engines. Reverting the fix fails exactly four
+# of them -- and NOT spread-list-elem-path-code, because both ports
+# emitted `no_scalar_unify` all along. That is why nothing caught this:
+# of the suite's 252 `err` rows only 20 asserted a `$.` path (measured
+# at the commit before the 46/47/48 fixes; an earlier note here said
+# "7,679 and 15", and neither figure reproduces).
+#
+# expected: both ports report path $.l.2
+# actual:   both ports report path $.l.2 (was $.l.3 in TypeScript)
+# run: node ../../ts/bin/aontu.js list-spread-index-offset.aontu
+l: [&: integer, 10, 20, "bad"]

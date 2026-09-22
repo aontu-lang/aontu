@@ -25,7 +25,7 @@ const vetSchemaSrc = "service: { name: string, port: integer }"
 func vetFiles(t *testing.T, schema, data string) (string, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	s := filepath.Join(dir, "schema.aon")
+	s := filepath.Join(dir, "schema.aontu")
 	d := filepath.Join(dir, "data.json")
 	if err := os.WriteFile(s, []byte(schema), 0o600); err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestVetReportsConflictsWithBothSites(t *testing.T) {
 	vetMatch(t, out, `verdict: invalid`)
 	vetMatch(t, out, `\$\.service\.port: no_scalar_unify \[conflict\]`)
 	vetMatch(t, out, `data: .*data\.json:1:\d+ \("8080"\)`)
-	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(integer\)`)
+	vetMatch(t, out, `schema: .*schema\.aontu:1:\d+ \(integer\)`)
 }
 
 // A parent that collapses to a nil takes its subtree with it, so the
@@ -180,14 +180,14 @@ func TestVetJSONFormatNamesItsProducer(t *testing.T) {
 // vetted from another directory came back `error`, and a same-named
 // file in the working directory was read instead.
 func TestVetResolvesIncludesFromEachDocument(t *testing.T) {
-	dir, s, d := vetFiles(t, "@\"./part.aon\"\nname: string", "name: \"auth\"\nport: 8080")
-	if err := os.WriteFile(filepath.Join(dir, "part.aon"),
+	dir, s, d := vetFiles(t, "@\"./part.aontu\"\nname: string", "name: \"auth\"\nport: 8080")
+	if err := os.WriteFile(filepath.Join(dir, "part.aontu"),
 		[]byte("port: integer"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	decoy := t.TempDir()
-	if err := os.WriteFile(filepath.Join(decoy, "part.aon"),
+	if err := os.WriteFile(filepath.Join(decoy, "part.aontu"),
 		[]byte("port: string"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestVetTakesMoreThanOneDataFile(t *testing.T) {
 
 func TestVetSchemaErrorReportsOnce(t *testing.T) {
 	dir, _, d := vetFiles(t, vetSchemaSrc, `service: { name: "auth" }`)
-	broken := filepath.Join(dir, "broken.aon")
+	broken := filepath.Join(dir, "broken.aontu")
 	if err := os.WriteFile(broken, []byte("a: 1\na: 2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestVetSchemaErrorReportsOnce(t *testing.T) {
 // the case above.
 func vetFilesSchema(t *testing.T, dir string) string {
 	t.Helper()
-	path := filepath.Join(dir, "ok-schema.aon")
+	path := filepath.Join(dir, "ok-schema.aontu")
 	if err := os.WriteFile(path, []byte(vetSchemaSrc), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func vetFilesSchema(t *testing.T, dir string) string {
 // The usage errors all end with "(try --help)", so the verb answers to
 // it: same text as `aontu --help`, exit 0.
 func TestVetHelpIsHelpNotAnUnknownOption(t *testing.T) {
-	for _, args := range [][]string{{"--help"}, {"-h"}, {"--help", "a.aon", "b.json"}} {
+	for _, args := range [][]string{{"--help"}, {"-h"}, {"--help", "a.aontu", "b.json"}} {
 		out, errText, code := vetRun(args...)
 		if 0 != code || "" != errText {
 			t.Fatalf("%v: code %d, stderr %q", args, code, errText)
@@ -386,7 +386,7 @@ func TestVetNoteAndAlternativesReachTheTextReport(t *testing.T) {
 func TestVetSiteOffPegStillNamesItsDocument(t *testing.T) {
 	_, s, d := vetFiles(t, "a: *1", "a: {}")
 	out, _, _ := vetRun(s, d)
-	vetMatch(t, out, `schema: .*schema\.aon:1:\d+ \(\*1\)`)
+	vetMatch(t, out, `schema: .*schema\.aontu:1:\d+ \(\*1\)`)
 }
 
 // The verb dispatches only as the FIRST argument, so a file argument is
@@ -546,8 +546,8 @@ func TestVetWatchWaitSeesAChange(t *testing.T) {
 func vetCovFiles(t *testing.T, schema, data string) (string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	s := filepath.Join(dir, "schema.aon")
-	d := filepath.Join(dir, "data.aon")
+	s := filepath.Join(dir, "schema.aontu")
+	d := filepath.Join(dir, "data.aontu")
 	if err := os.WriteFile(s, []byte(schema), 0o600); nil != err {
 		t.Fatal(err)
 	}
@@ -684,9 +684,9 @@ func TestVetCoverageAcrossSeveralDataFiles(t *testing.T) {
 		}
 		return p
 	}
-	s := write("s.aon", "a: string\nb: integer")
-	d1 := write("d1.aon", `a: "x"`)
-	d2 := write("d2.aon", "b: 1")
+	s := write("s.aontu", "a: string\nb: integer")
+	d1 := write("d1.aontu", `a: "x"`)
+	d2 := write("d2.aontu", "b: 1")
 	out, _, code := vetRun("--partial", "--coverage", s, d1, d2)
 	if 0 != code {
 		t.Fatalf("want 0, got %d: %s", code, out)

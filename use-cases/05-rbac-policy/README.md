@@ -16,7 +16,7 @@ string, invents a role, or grants the wildcard to a collaborator role
 has to be stopped by a machine-checkable artifact before a human reads
 the diff. The model here is the registry a policy decision point (OPA,
 Cedar) is compiled from: the catalog, roles, plans, and tenants come out
-of `aontu example.aon` as validated, referentially sound JSON, and
+of `aontu example.aontu` as validated, referentially sound JSON, and
 `hash`, `subsume` and `breaking` give the registry the change control
 a PDP does not carry. Authorization decisions
 (`allow(principal, action, resource)`) and rule precedence stay with
@@ -26,7 +26,7 @@ decide values, and first-match `match()` decides derivations.
 
 ## The model tree
 
-`example.aon` joins the four documents the policy is made of.
+`example.aontu` joins the four documents the policy is made of.
 `permissions` is the catalog, `roles` the registry that grants from it,
 `tenant` the candidate being vetted against both, and
 `registry_invariant` the audit that runs over the registry. `Role` and
@@ -67,7 +67,7 @@ $
     └── supportTier "community"
 ```
 
-`aontu view doc --depth 2 example.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 example.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -77,11 +77,11 @@ than its value.
 
 | file | carries |
 |---|---|
-| `permissions.aon` | the catalog: a `close()`d record shape per permission with a `risk` enum. Each key is the last segment of the permission's address |
-| `roles.aon` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`length()` registry invariant |
-| `plans.aon` | `Entitlement`, a disjunction of closed maps, one per plan |
-| `tenant.aon` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `refer()` role foreign key, the MFA implication as a disjunction of closed maps |
-| `example.aon` | a concrete tenant composed with the schema; evaluates to `expected/example.json` |
+| `permissions.aontu` | the catalog: a `close()`d record shape per permission with a `risk` enum. Each key is the last segment of the permission's address |
+| `roles.aontu` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`length()` registry invariant |
+| `plans.aontu` | `Entitlement`, a disjunction of closed maps, one per plan |
+| `tenant.aontu` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `refer()` role foreign key, the MFA implication as a disjunction of closed maps |
+| `example.aontu` | a concrete tenant composed with the schema; evaluates to `expected/example.json` |
 | `audits/` | the tenant and its counting and domain invariants (`filter()`+`length()`, `length(max($.ref))`, `must()`) in one document |
 | `exhibits/` | the enum-with-default idiom in four spellings; ranked defaults; the registry invariant firing |
 | `proposals/` | agent-emitted registry patches: a new role, a hallucinated permission, a wildcard grant |
@@ -98,11 +98,11 @@ prefixes.
   path such as `$.permissions.audit_read`, resolved against the
   catalog that declares it. An unknown role in a tenant candidate vets
   `invalid` with a located `[aontu/refer_unresolved]`, and
-  `proposals/extend-member-grants.aon`, which adds a permission the
+  `proposals/extend-member-grants.aontu`, which adds a permission the
   catalog does not declare, is refused with exit 1 at the element the
   agent invented, `$.roles.member.grants.3`.
 - **The role set is exhaustive.** `roles` is `close()`d, so no layer
-  can add a role by accident: `proposals/add-superuser-role.aon` dies
+  can add a role by accident: `proposals/add-superuser-role.aontu` dies
   with `[aontu/closed]: Cannot resolve value at path $.roles.superuser`.
 - **Conditional shapes carry the rules.** `Entitlement` is a
   disjunction of closed maps, one per plan, so "if plan is free then
@@ -130,23 +130,23 @@ prefixes.
 - **The enum-with-default idiom.** `exhibits/` writes it in four
   spellings, each vetted against an invite whose role is `superadmin`
   and evaluated on its own:
-  - `*member | admin | owner` (`enum-default-naive.aon`) refuses
+  - `*member | admin | owner` (`enum-default-naive.aontu`) refuses
     `superadmin` with `[aontu/empty]` and generates `member` when the
     field is unset. Vet adds a `pref_not_instance` advisory: the
     default is a member of the admitted set only by being the default.
-  - `*member | member | admin | owner` (`enum-default-repeated.aon`)
+  - `*member | member | admin | owner` (`enum-default-repeated.aontu`)
     admits the same set, generates the same default, and carries no
-    advisory. This is the form `tenant.aon` uses.
-  - `path($.roles.member) | admin | owner` (`enum-default-plain.aon`)
+    advisory. This is the form `tenant.aontu` uses.
+  - `path($.roles.member) | admin | owner` (`enum-default-plain.aontu`)
     enforces the set with no default, so the file does not generate on
     its own: `[aontu/disjunct_no_gen]`.
   - `(*member | member | admin | owner) & must(member | admin | owner, "…")`
-    (`enum-default-guarded.aon`) enforces under vet and generates
+    (`enum-default-guarded.aontu`) enforces under vet and generates
     `member`.
 
-  `exhibits/rank-default.aon` layers a `**viewer` org baseline under a
+  `exhibits/rank-default.aontu` layers a `**viewer` org baseline under a
   `*member` team override and generates `member`.
-- **Audits are a stricter layer over the schema.** `audits/*.aon`
+- **Audits are a stricter layer over the schema.** `audits/*.aontu`
   compose the tenant with its invariants in one document, under
   `hide()` so they stay out of the output without being suppressed:
   `exactly_one_owner` is
@@ -155,21 +155,21 @@ prefixes.
   bounds the member count by the plan-derived `maxSeats`;
   `mfa_mandatory` is a `must()` carrying the policy's own words. The
   tenant schema allows `mfaRequired: false` with a short session;
-  corporate policy in the audit layer does not, and `audits/no-mfa.aon`
+  corporate policy in the audit layer does not, and `audits/no-mfa.aontu`
   reports the rule as its author wrote it:
   `The author's message is: corporate policy CP-114: MFA is mandatory for every tenant`.
-  `audits/two-owners.aon` fails with the two-owner witness map in the
-  message. `roles.aon` carries the same pattern as a registry
+  `audits/two-owners.aontu` fails with the two-owner witness map in the
+  message. `roles.aontu` carries the same pattern as a registry
   invariant, `one_owner_role: length(1) & filter($.roles, {tenantOwner: true})`,
-  and `exhibits/registry-two-owners.aon` shows it firing.
+  and `exhibits/registry-two-owners.aontu` shows it firing.
 - **Set questions run over set-as-map projections.** `subsume`
-  compares lists positionally, so `queries/*.aon` state grant sets as
+  compares lists positionally, so `queries/*.aontu` state grant sets as
   maps (`grants: {project_read: true, member_read: true}`), kept in
-  step with `roles.aon`. `subsume queries/core-read.aon queries/auditor-grants.aon`
+  step with `roles.aontu`. `subsume queries/core-read.aontu queries/auditor-grants.aontu`
   answers `subsumes`; the reverse is refused with a witness naming each
   missing grant (`compat_required_added` at `$.grants.billing_read` and
   `$.grants.audit_read`). Lists also unify positionally, which is why
-  `proposals/extend-member-grants.aon` restates the three existing
+  `proposals/extend-member-grants.aontu` restates the three existing
   grants before adding one.
 - **Canon keeps the policy's meaning.** The grant addresses
   (`path($.permissions.admin_all)`), `refer()`, and the
@@ -188,7 +188,7 @@ fails at the exact element, against the `neq()` the list spread
 carries:
 
 ```
-$ aontu --include-root . proposals/member-wildcard.aon
+$ aontu --include-root . proposals/member-wildcard.aontu
 [aontu/constraint]: Cannot unify values at path $.roles.member.grants.3
 ...
  Cannot unify value: path($.permissions.admin_all) with value: neq(path($.permissions.admin_all))
@@ -198,10 +198,10 @@ $ aontu --include-root . proposals/member-wildcard.aon
 produced it and the position it was written at:
 
 ```
-$ aontu model why '$.tenant.supportTier' example.aon
+$ aontu model why '$.tenant.supportTier' example.aontu
 $.tenant.supportTier = "community"
-  1. ("free"|"pro")|"enterprise"  tenant.aon:15:9
-  2. match(.plan,"free","community","pro","standard","enterprise","dedicated")  tenant.aon:35:16
+  1. ("free"|"pro")|"enterprise"  tenant.aontu:15:9
+  2. match(.plan,"free","community","pro","standard","enterprise","dedicated")  tenant.aontu:35:16
 ```
 
 ## What check.sh proves
@@ -210,69 +210,69 @@ $.tenant.supportTier = "community"
 codes, error and reason codes grepped from the reports, and generated
 documents diffed against the `expected/` goldens.
 
-1. `example.aon` evaluates, exit 0, to `expected/example.json`: the
+1. `example.aontu` evaluates, exit 0, to `expected/example.json`: the
    catalog, the closed role registry and the concrete tenant, with
    `limits` and `supportTier` derived by `match()`.
-2. `--canon example.aon` keeps `path($.permissions.admin_all)`, the
+2. `--canon example.aontu` keeps `path($.permissions.admin_all)`, the
    `*"member"|"member"|"admin"|"owner"` default, and `refer()`.
-3. `vet tenant.aon data/tenant-good.aon` is `verdict: valid`, exit 0,
+3. `vet tenant.aontu data/tenant-good.aontu` is `verdict: valid`, exit 0,
    with no `pref_not_instance` warning.
-4. A free-plan tenant enabling SSO (`data/tenant-free-sso.aon`) is
+4. A free-plan tenant enabling SSO (`data/tenant-free-sso.aontu`) is
    `verdict: invalid`, exit 1, `[aontu/empty]` at `$.tenant.entitlement`.
-5. A member holding an undeclared role (`data/tenant-unknown-role.aon`)
+5. A member holding an undeclared role (`data/tenant-unknown-role.aontu`)
    is refused with `[aontu/refer_unresolved]`, exit 1.
-6. A reserved slug (`data/tenant-bad-slug.aon`) is refused with
+6. A reserved slug (`data/tenant-bad-slug.aontu`) is refused with
    `[aontu/constraint]` and the `neq("admin", …)` exclusion in the
    expected form, exit 1.
-7. No MFA with a 480-minute session (`data/tenant-no-mfa.aon`) is
+7. No MFA with a 480-minute session (`data/tenant-no-mfa.aontu`) is
    `verdict: invalid` at `$.tenant.security`, exit 1.
-8. A candidate without a `name` (`data/tenant-no-name.aon`) is
+8. A candidate without a `name` (`data/tenant-no-name.aontu`) is
    `verdict: incomplete`, exit 3, `[aontu/mapval_no_gen]`.
-9. A candidate without a `plan` (`data/tenant-no-plan.aon`) is
+9. A candidate without a `plan` (`data/tenant-no-plan.aontu`) is
    refused, exit 1, with `disjunct_no_gen [incomplete]` reported at
    `$.tenant.plan`.
 10. `vet --format json` on the unknown-role candidate carries
     `"code": "refer_unresolved"` and `"verdict": "invalid"`, exit 1.
-11. `proposals/add-superuser-role.aon` is refused by the closed
+11. `proposals/add-superuser-role.aontu` is refused by the closed
     registry: `[aontu/closed]` at `$.roles.superuser`, exit 1.
-12. `proposals/extend-member-grants.aon` (a permission the catalog
+12. `proposals/extend-member-grants.aontu` (a permission the catalog
     does not declare) is refused with `[aontu/refer_unresolved]` at
     `$.roles.member.grants.3`, exit 1.
-13. `proposals/member-wildcard.aon` (the wildcard granted to an
+13. `proposals/member-wildcard.aontu` (the wildcard granted to an
     unprivileged role) is refused with `[aontu/constraint]` at
     `$.roles.member.grants.3`, exit 1.
-14. `audits/good.aon` evaluates, exit 0: the `filter()`+`length()` and
+14. `audits/good.aontu` evaluates, exit 0: the `filter()`+`length()` and
     `must()` invariants pass on clean data.
-15. `audits/two-owners.aon` is refused with `[aontu/constraint]` at
+15. `audits/two-owners.aontu` is refused with `[aontu/constraint]` at
     `$.audit.exactly_one_owner`, exit 1.
-16. `audits/no-mfa.aon` is refused with `[aontu/must]` and the
+16. `audits/no-mfa.aontu` is refused with `[aontu/must]` and the
     author's message, `corporate policy CP-114: MFA is mandatory for
     every tenant`, exit 1.
-17. `exhibits/registry-two-owners.aon` is refused with
+17. `exhibits/registry-two-owners.aontu` is refused with
     `[aontu/constraint]` at `$.registry_invariant.one_owner_role`,
     exit 1: `hide()` does not suppress the check.
-18. `*member | admin | owner` (`exhibits/enum-default-naive.aon`)
+18. `*member | admin | owner` (`exhibits/enum-default-naive.aontu`)
     vetted against `data/invite-superadmin.json` is `verdict: invalid`,
     `[aontu/empty]`, exit 1, with the `pref_not_instance` advisory.
-19. The repeated branch (`exhibits/enum-default-repeated.aon`) is
+19. The repeated branch (`exhibits/enum-default-repeated.aontu`) is
     `verdict: invalid`, `[aontu/empty]`, exit 1, with no
     `pref_not_instance` advisory.
 20. The repeated form evaluated alone generates `"role": "member"`,
     exit 0.
-21. The plain enum (`exhibits/enum-default-plain.aon`) refuses
+21. The plain enum (`exhibits/enum-default-plain.aontu`) refuses
     `superadmin` with `[aontu/empty]`, exit 1, admits
-    `data/invite-member.aon`, exit 0, and evaluated alone is
+    `data/invite-member.aontu`, exit 0, and evaluated alone is
     `[aontu/disjunct_no_gen]`, exit 1: there is no default to generate.
-22. The `must()`-guarded form (`exhibits/enum-default-guarded.aon`) is
+22. The `must()`-guarded form (`exhibits/enum-default-guarded.aontu`) is
     `verdict: invalid` for `superadmin`, exit 1, and evaluated alone
     generates `"role": "member"`, exit 0.
-23. Ranked preferences (`exhibits/rank-default.aon`): `*member`
+23. Ranked preferences (`exhibits/rank-default.aontu`): `*member`
     outweighs `**viewer`, and `"defaultRole": "member"` is generated.
-24. `get '$.tenant.limits' example.aon` matches `expected/limits.json`.
-25. `why '$.tenant.supportTier' example.aon` prints
+24. `get '$.tenant.limits' example.aontu` matches `expected/limits.json`.
+25. `why '$.tenant.supportTier' example.aontu` prints
     `$.tenant.supportTier = "community"` and names the `match(.plan, …)`
-    in `tenant.aon`.
-26. `subsume queries/core-read.aon queries/auditor-grants.aon` is
+    in `tenant.aontu`.
+26. `subsume queries/core-read.aontu queries/auditor-grants.aontu` is
     `verdict: subsumes`, exit 0; the reverse is exit 1 with
     `compat_required_added`.
 27. The same two grants as lists in different orders
@@ -301,8 +301,8 @@ directory up, so run them from the case directory with
 `--include-root .`, as `check.sh` does:
 
 ```sh
-aontu --include-root . proposals/member-wildcard.aon
-aontu vet tenant.aon data/tenant-unknown-role.aon
+aontu --include-root . proposals/member-wildcard.aontu
+aontu vet tenant.aontu data/tenant-unknown-role.aontu
 ```
 
 The how-to guides [Forbid unexpected keys](../../docs/how-to/forbid-unexpected-keys.md),

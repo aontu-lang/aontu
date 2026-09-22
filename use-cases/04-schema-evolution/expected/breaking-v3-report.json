@@ -15,7 +15,7 @@
       "sites": [
         {
           "col": 20,
-          "file": "profile-v3.aon",
+          "file": "profile-v3.aontu",
           "len": 2,
           "role": "general",
           "row": 32,
@@ -24,7 +24,7 @@
         },
         {
           "col": 10,
-          "file": "profile-v2.aon",
+          "file": "profile-v2.aontu",
           "len": 5,
           "role": "specific",
           "row": 11,
@@ -44,7 +44,7 @@
       "sites": [
         {
           "col": 10,
-          "file": "profile-v3.aon",
+          "file": "profile-v3.aontu",
           "len": 5,
           "role": "general",
           "row": 16,
@@ -53,7 +53,7 @@
         },
         {
           "col": 11,
-          "file": "profile-v2.aon",
+          "file": "profile-v2.aontu",
           "len": 9,
           "role": "specific",
           "row": 20,

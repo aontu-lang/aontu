@@ -29,8 +29,8 @@ tree paths. Every relation except containment must be smuggled in as
 data, and the language can check nothing about it. Consider what an
 author writes today:
 
-```aon
-# system.aon — nothing checks the dependsOn entries
+```aontu
+# system.aontu — nothing checks the dependsOn entries
 services: {
   auth: { kind: service, port: 8080 }
   billing: {
@@ -57,11 +57,11 @@ embed everything.
 Second, two files that describe the same real-world entity at
 different paths never meet:
 
-```aon
-# catalog.aon
+```aontu
+# catalog.aontu
 catalog: payments: { owner: "team-pay", tier: 1 }
 
-# deploy.aon
+# deploy.aontu
 deploy: eu1: payments: { replicas: 3, tier: 2 }
 ```
 
@@ -77,7 +77,7 @@ enforce the consequences.
 Third, relation-level properties are inexpressible. A dependency
 cycle in data passes silently:
 
-```aon
+```aontu
 a: { dependsOn: [b] }
 b: { dependsOn: [c] }
 c: { dependsOn: [a] }
@@ -246,7 +246,7 @@ vet-time pass.
 `id(name)` declares that the enclosing value is an independent
 entity named `name`. It composes by conjunction like any value:
 
-```aon
+```aontu
 services: auth: id(svc_auth) & {
   kind: service
   port: 8080
@@ -265,7 +265,7 @@ Semantics:
   same id are unified with each other. Declaring two nodes the same
   entity *means* unifying them; any contradiction is a hard error
   naming both declaration sites — the anti-`owl:sameAs`. The
-  `catalog.aon`/`deploy.aon` example becomes, once both add
+  `catalog.aontu`/`deploy.aontu` example becomes, once both add
   `id(svc_payments) &`, a located `Cannot unify value: 2 with
   value: 1` at the two `tier` sites instead of a silent fork.
 - **Positions.** The tree stays a tree. After merging, *every*
@@ -338,7 +338,7 @@ evaluation, and — if the optional `t` is given — `t` is unified
 **into** the target entity. The field's own value remains the
 address string: a link, not an embedding.
 
-```aon
+```aontu
 @"std/system"
 
 services: {
@@ -411,7 +411,7 @@ and non-monotone — an acyclic graph can become cyclic when one
 more edge unifies in, and no lattice citizen may be falsified by
 more information.
 
-```aon
+```aontu
 @"std/system"
 
 relations: dependsOn: $.std.Relation & {
@@ -452,8 +452,8 @@ itself rather than referencing `Component`, and `target` is optional.
 Each is explained in
 [the register](progress.md#g4--identity-and-typed-relations).)
 
-```aon
-# std/system.aon (sketch)
+```aontu
+# std/system.aontu (sketch)
 std: hide({
   Component: type({
     ports?: {&: $.std.Port}

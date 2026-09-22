@@ -13,7 +13,7 @@
 # Expected JSON is diffed against expected/*.json goldens.
 #
 # All mutation happens in a temp copy of the model, so the committed
-# files (overlay.aon in particular) are never touched.
+# files (overlay.aontu in particular) are never touched.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -26,8 +26,8 @@ trap 'rm -rf "$TMP"' EXIT
 # Work on a copy so `aontu set` never dirties the committed overlay.
 WORK="$TMP/model"
 cp -r "$DIR" "$WORK"
-: > "$WORK/overlay.aon"
-printf '# Ops overlay: written by `aontu set`, never by hand.\n' > "$WORK/overlay.aon"
+: > "$WORK/overlay.aontu"
+printf '# Ops overlay: written by `aontu set`, never by hand.\n' > "$WORK/overlay.aontu"
 
 strip_ansi() { sed $'s/\x1b\\[[0-9;]*m//g'; }
 
@@ -69,12 +69,12 @@ get_is() { # get_is PATH FILE EXPECTED LABEL
 
 echo "# ---------------------------------------------------------- build"
 
-run build 0 "$WORK/base.aon"
+run build 0 "$WORK/base.aontu"
 diff -u "$DIR/expected/base.json" "$TMP/build.out" \
   || die "built model differs from expected/base.json"
 ok "base model builds and matches golden (6 flags, 3 envs, 2 tenants)"
 
-run canon 0 --canon "$WORK/flags.aon"
+run canon 0 --canon "$WORK/flags.aontu"
 diff -u "$DIR/expected/flags.canon.txt" "$TMP/canon.out" \
   || die "canon differs from expected/flags.canon.txt"
 ok "flags canon matches golden (defaults keep rank; kill-switch is a pin)"
@@ -82,54 +82,54 @@ ok "flags canon matches golden (defaults keep rank; kill-switch is a pin)"
 echo "# --------------------------------------- layered default resolution"
 
 # Rank ladder: ***org  <  **env  <  *tenant  <  concrete pin.
-get_is '$.flags.checkout_v2.rollout' "$WORK/base.aon" '0' \
+get_is '$.flags.checkout_v2.rollout' "$WORK/base.aontu" '0' \
   "catalog: org *** default = 0 (flag born dark)"
-get_is '$.effective.staging.base.checkout_v2.rollout' "$WORK/base.aon" '100' \
+get_is '$.effective.staging.base.checkout_v2.rollout' "$WORK/base.aontu" '100' \
   "staging: env ** default (100) beats org ***"
-get_is '$.effective.prod.base.checkout_v2.rollout' "$WORK/base.aon" '5' \
+get_is '$.effective.prod.base.checkout_v2.rollout' "$WORK/base.aontu" '5' \
   "prod: env ** default (5) beats org ***"
-get_is '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/base.aon" '25' \
+get_is '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/base.aontu" '25' \
   "prod+megacorp: tenant * (25) beats env **"
-get_is '$.effective.prod.starterco.checkout_v2.rollout' "$WORK/base.aon" '0' \
+get_is '$.effective.prod.starterco.checkout_v2.rollout' "$WORK/base.aontu" '0' \
   "prod+starterco: tenant * pins 0 over env ** (opt-out)"
-get_is '$.effective.prod.base.checkout_v2.enabled' "$WORK/base.aon" 'true' \
+get_is '$.effective.prod.base.checkout_v2.enabled' "$WORK/base.aontu" 'true' \
   "prod: env ** enables a flag the org defaults dark"
-get_is '$.effective.prod.megacorp.ui_dark_mode.variant' "$WORK/base.aon" '"midnight"' \
+get_is '$.effective.prod.megacorp.ui_dark_mode.variant' "$WORK/base.aontu" '"midnight"' \
   "variant flag: tenant * variant beats env ** beats org ***"
-get_is '$.effective.staging.base.ui_dark_mode.variant' "$WORK/base.aon" '"dusk"' \
+get_is '$.effective.staging.base.ui_dark_mode.variant' "$WORK/base.aontu" '"dusk"' \
   "variant flag: env ** variant where no tenant override"
-get_is '$.effective.prod.base.payments_legacy_gateway.enabled' "$WORK/base.aon" 'false' \
+get_is '$.effective.prod.base.payments_legacy_gateway.enabled' "$WORK/base.aontu" 'false' \
   "kill switch: concrete pin holds across every env view"
 
 # Effective views (whole maps) match goldens.
-run effmega 0 model get '$.effective.prod.megacorp' "$WORK/base.aon"
+run effmega 0 model get '$.effective.prod.megacorp' "$WORK/base.aontu"
 diff -u "$DIR/expected/prod-megacorp.json" "$TMP/effmega.out" \
   || die "prod/megacorp view differs from golden"
 ok "prod/megacorp effective view matches golden"
 
-run effstag 0 model get '$.effective.staging.base' "$WORK/base.aon"
+run effstag 0 model get '$.effective.staging.base' "$WORK/base.aontu"
 diff -u "$DIR/expected/staging-base.json" "$TMP/effstag.out" \
   || die "staging view differs from golden"
 ok "staging effective view matches golden"
 
-run effprod 0 model get '$.effective.prod.base' "$WORK/base.aon"
+run effprod 0 model get '$.effective.prod.base' "$WORK/base.aontu"
 diff -u "$DIR/expected/prod-base.json" "$TMP/effprod.out" \
   || die "prod/base view differs from golden"
 ok "prod/base effective view matches golden"
 
-run effstarter 0 model get '$.effective.prod.starterco' "$WORK/base.aon"
+run effstarter 0 model get '$.effective.prod.starterco' "$WORK/base.aontu"
 diff -u "$DIR/expected/prod-starterco.json" "$TMP/effstarter.out" \
   || die "prod/starterco view differs from golden"
 ok "prod/starterco effective view matches golden"
 
 echo "# ------------------------------------------- vet: agent candidates"
 
-run vgood 0 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
+run vgood 0 vet --at '$.Flag' --closed "$WORK/flag-schema.aontu" \
   "$WORK/data/candidate-reranker-v4.json"
 has vgood "valid" "good candidate verdict"
 ok "clean candidate passes the strict schema (closed)"
 
-run vbad 1 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
+run vbad 1 vet --at '$.Flag' --closed "$WORK/flag-schema.aontu" \
   "$WORK/data/candidate-bad.json"
 has vbad "[aontu/constraint]" "bad candidate constraint code"
 has vbad "[aontu/closed]"     "bad candidate closed code"
@@ -146,17 +146,17 @@ ok "bad candidate rejected: constraint (key/owner/desc/date/rollout) + closed (j
 # `mapval_spread_required`, "defined in spread", naming a spread that
 # exists nowhere. Written as one braced map the same schema says
 # `mapval_required`. When §77 is fixed this pin flips back.
-run vinc 3 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
+run vinc 3 vet --at '$.Flag' --closed "$WORK/flag-schema.aontu" \
   "$WORK/data/candidate-incomplete.json"
 has vinc "[aontu/mapval_spread_required]" "incomplete candidate code (§77 pin)"
-grep -q '^Flag: {' "$WORK/flag-schema.aon" \
+grep -q '^Flag: {' "$WORK/flag-schema.aontu" \
   && fail "Flag is a braced map again; the §77 pin above is stale" \
   || true
 ok "incomplete candidate: missing enabled/rollout -> incomplete (exit 3)"
 
 # sarif is machine-readable for CI ingestion.
 run vsarif 1 vet --at '$.Flag' --closed --format sarif \
-  "$WORK/flag-schema.aon" "$WORK/data/candidate-bad.json"
+  "$WORK/flag-schema.aontu" "$WORK/data/candidate-bad.json"
 has vsarif "sarif-2.1.0" "sarif schema marker"
 ok "vet emits SARIF for the bad candidate"
 
@@ -164,28 +164,28 @@ echo "# ---------------------------- vet: effective view read back out"
 
 # The resolved org->env->tenant output is itself validated against the
 # ground-truth schema, flag by flag (spread anchor limit; see README).
-$AONTU model get '$.effective.prod.megacorp.checkout_v2' "$WORK/base.aon" \
+$AONTU model get '$.effective.prod.megacorp.checkout_v2' "$WORK/base.aontu" \
   > "$TMP/resolved-flag.json" 2>/dev/null
-run vresolved 0 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
+run vresolved 0 vet --at '$.Flag' --closed "$WORK/flag-schema.aontu" \
   "$TMP/resolved-flag.json"
 has vresolved "valid" "resolved flag verdict"
 ok "fully-resolved flag (rollout 25) re-validates against the strict schema"
 
 echo "# --------------------------------------- write loop: aontu model set"
 
-OV="$WORK/overlay.aon"
+OV="$WORK/overlay.aontu"
 
 # 1. First set: appends one conjunct, verdict valid.
 run set1 0 model set '$.tenants.megacorp.flags.checkout_v2.rollout=50' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has set1 "verdict: valid" "set1 verdict"
-get_is '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/system.aon" '50' \
+get_is '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/system.aontu" '50' \
   "overlay flows into the effective view (25 -> 50)"
 
 # 2. Idempotency: setting the SAME value again is 'valid' but appends a
 #    duplicate line -- garbage accumulates (documented in README).
 run set2 0 model set '$.tenants.megacorp.flags.checkout_v2.rollout=50' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 lines_dup="$(grep -c 'checkout_v2.*rollout.*50' "$OV" || true)"
 [ "$lines_dup" = "2" ] || die "expected 2 duplicate rollout lines, got $lines_dup"
 ok "re-set to same value is 'valid' but appends a DUPLICATE (not idempotent)"
@@ -193,7 +193,7 @@ ok "re-set to same value is 'valid' but appends a DUPLICATE (not idempotent)"
 # 3. Append conflict: with two 50-lines present, a different value is
 #    refused -- the overlay now self-conflicts.
 run set3 1 model set '$.tenants.megacorp.flags.checkout_v2.rollout=60' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has set3 "[aontu/scalar_value]" "append-mode conflict code"
 ok "plain append of a differing value conflicts against the prior line"
 
@@ -207,25 +207,25 @@ echo "# ------------------------------- write loop: --in-place idempotency"
 # ONE line.  This is the fleet-safe write path.
 for pct in 10 20 30 40 50 60 70 80 90 55; do
   $AONTU model set "\$.tenants.megacorp.flags.checkout_v2.rollout=$pct" \
-    --entry "$WORK/base.aon" --overlay "$OV" --in-place \
+    --entry "$WORK/base.aontu" --overlay "$OV" --in-place \
     > "$TMP/sweep.out" 2>&1 \
     || { sed 's/^/    /' "$TMP/sweep.out" >&2; die "in-place sweep failed at $pct"; }
 done
 rollout_lines="$(grep -c 'checkout_v2.*rollout' "$OV" || true)"
 [ "$rollout_lines" = "1" ] || die "expected 1 rollout line after in-place sweep, got $rollout_lines"
-get_is '$.tenants.megacorp.flags.checkout_v2.rollout' "$WORK/system.aon" '55' \
+get_is '$.tenants.megacorp.flags.checkout_v2.rollout' "$WORK/system.aontu" '55' \
   "after 10 in-place sets, one line, last value wins (55)"
 ok "--in-place: 10 sets collapse to a SINGLE overlay line (idempotent write path)"
 
 echo "# ------------------------------ write loop: refusals (safety rails)"
 
-# Kill switch: the flag is a concrete pin in flags.aon; no overlay can
+# Kill switch: the flag is a concrete pin in flags.aontu; no overlay can
 # flip it.  set refuses and names the pinning site.
 run setkill 1 model set '$.flags.payments_legacy_gateway.enabled=true' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has setkill "[aontu/empty]" "kill-switch conflict code"
 has setkill "verdict: invalid"     "kill-switch verdict"
-ok "kill switch: set to true refused; the pin in flags.aon wins"
+ok "kill switch: set to true refused; the pin in flags.aontu wins"
 
 # The refusal wrote nothing: the overlay still has no payments line.
 grep -q "payments_legacy_gateway" "$OV" \
@@ -237,7 +237,7 @@ ok "a refused set leaves the overlay untouched"
 # constraint refuses the write and nothing lands in the overlay.
 run setmsglong 1 model set \
   '$.flags.ops_incident_banner.message="this incident message is deliberately way over the eighty character maximum length"' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has setmsglong "[aontu/constraint]" "over-length message code"
 has setmsglong "verdict: invalid"   "over-length verdict"
 grep -q "ops_incident_banner" "$OV" \
@@ -248,7 +248,7 @@ ok "over-length message refused by length(max(80)); overlay untouched"
 # first concrete IN-RANGE value (this NARROWS, it does not contradict).
 run setmsg 0 model set \
   '$.flags.ops_incident_banner.message="Elevated 5xx on EU checkout; incident IN-2214"' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has setmsg "verdict: valid" "narrowing set verdict"
 ok "narrowing set: optional message accepts its first concrete value"
 
@@ -259,19 +259,19 @@ ok "narrowing set: optional message accepts its first concrete value"
 # field flows into the served effective view.
 run settypo 0 model set \
   '$.flags.search_reranker_v3.message="this incident message is deliberately way over the eighty character maximum length"' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has settypo "verdict: valid" "undeclared-field set verdict"
 ok "set ACCEPTS an undeclared field on an open map (typo hazard, README)"
 
-get_is '$.effective.prod.base.search_reranker_v3.message' "$WORK/system.aon" \
+get_is '$.effective.prod.base.search_reranker_v3.message' "$WORK/system.aontu" \
   '"this incident message is deliberately way over the eighty character maximum length"' \
   "the rogue undeclared field is served in the effective view"
 
 # The read-side contract catches what the write path missed: vet the
 # resolved flag against the strict closed Flag def.
-$AONTU model get '$.effective.prod.base.search_reranker_v3' "$WORK/system.aon" \
+$AONTU model get '$.effective.prod.base.search_reranker_v3' "$WORK/system.aontu" \
   > "$TMP/rogue-flag.json" 2>/dev/null
-run vetrogue 1 vet --at '$.Flag' --closed "$WORK/flag-schema.aon" \
+run vetrogue 1 vet --at '$.Flag' --closed "$WORK/flag-schema.aontu" \
   "$TMP/rogue-flag.json"
 has vetrogue "[aontu/constraint]" "rogue flag constraint code"
 ok "read-side vet DOES refuse the rogue message (write/read guard asymmetry)"
@@ -290,7 +290,7 @@ echo "# -------------------------- write loop: the DEFERRED policy trap"
 # is now built from a fresh parse, so the audit meets the overlay's
 # value and `set` refuses the write at the point of writing.
 run setzombie 1 model set '$.flags.search_reranker_v3.enabled=true' \
-  --entry "$WORK/base.aon" --overlay "$OV"
+  --entry "$WORK/base.aontu" --overlay "$OV"
 has setzombie "[aontu/must]" "zombie set refused by the lifecycle audit"
 has setzombie "expired flags must be disabled" "the author's message"
 ok "set REFUSES enabling an expired flag (must() audits fire on the write path)"
@@ -301,7 +301,7 @@ ok "set REFUSES enabling an expired flag (must() audits fire on the write path)"
 # the read path now agree.
 grep -q 'search_reranker_v3.*enabled.*true' "$OV" \
   && die "set wrote the refused zombie line into the overlay"
-run zombieval 0 "$WORK/system.aon"
+run zombieval 0 "$WORK/system.aontu"
 ok "the refused write never reached the overlay; runtime view stays valid"
 
 # The range audit is the same story, and closed the same way
@@ -313,50 +313,50 @@ ok "the refused write never reached the overlay; runtime view stays valid"
 # freshly parsed entry, so the audit meets the value being written and
 # `set` refuses it.
 run setbigroll 1 model set '$.tenants.megacorp.flags.checkout_v2.rollout=200' \
-  --entry "$WORK/base.aon" --overlay "$OV" --in-place
+  --entry "$WORK/base.aontu" --overlay "$OV" --in-place
 has setbigroll "[aontu/must]" "range audit code"
 has setbigroll "rollout must be an integer in 0..100" "range audit message"
 ok "set --in-place REFUSES rollout=200 (the rollout_range audit fires)"
 
 # Nothing was written, so the runtime view never went red.
-run rangeval 0 "$WORK/system.aon"
+run rangeval 0 "$WORK/system.aontu"
 ok "the refused range write never reached the overlay; runtime view stays valid"
 
 # A rollout the audit admits IS written, in place.
 run setrepair 0 model set '$.tenants.megacorp.flags.checkout_v2.rollout=55' \
-  --entry "$WORK/base.aon" --overlay "$OV" --in-place
-run afterrange 0 "$WORK/system.aon"
+  --entry "$WORK/base.aontu" --overlay "$OV" --in-place
+run afterrange 0 "$WORK/system.aontu"
 ok "an in-range rollout is accepted and the runtime view stays valid"
 
 echo "# -------------------------------------------- why: value provenance"
 
 # why attributes overlay-contributed values to the OVERLAY FILE.
-run whytenant 0 model why '$.tenants.megacorp.flags.checkout_v2.rollout' "$WORK/system.aon"
-has whytenant "overlay.aon" "why names the overlay file"
-has whytenant "layers.aon"  "why names the base layer file"
-ok "why attributes the tenant rollout to overlay.aon AND layers.aon (per-file provenance)"
+run whytenant 0 model why '$.tenants.megacorp.flags.checkout_v2.rollout' "$WORK/system.aontu"
+has whytenant "overlay.aontu" "why names the overlay file"
+has whytenant "layers.aontu"  "why names the base layer file"
+ok "why attributes the tenant rollout to overlay.aontu AND layers.aontu (per-file provenance)"
 
 # But why through a REFERENCE-composed effective view sees only the
 # spread; the overlay contribution is invisible there (README gap).
-run whyeff 0 model why '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/system.aon"
-has whyeff "flags.aon" "why effective names the spread source"
+run whyeff 0 model why '$.effective.prod.megacorp.checkout_v2.rollout' "$WORK/system.aontu"
+has whyeff "flags.aontu" "why effective names the spread source"
 ok "why at an effective path reports only the spread (references hide overlay provenance)"
 
 echo "# ----------------------------------------------- trust: escape denied"
 
 # Legit model under root confinement: all includes stay in-tree.
-run trustok 0 --trust "root:$WORK" "$WORK/system.aon"
+run trustok 0 --trust "root:$WORK" "$WORK/system.aontu"
 ok "runtime view evaluates under --trust root:<model-dir>"
 
 # Hostile overlay pulls @\"/etc/hostname\" into a flag value.  Under
 # root confinement the include is DENIED at parse time.
-run trustdeny 1 --trust "root:$WORK" "$WORK/attack/evil-system.aon"
+run trustdeny 1 --trust "root:$WORK" "$WORK/attack/evil-system.aontu"
 has trustdeny "include denied" "denied include message"
 has trustdeny "/etc/hostname"  "denied path named"
 ok "trust root: the filesystem escape @\"/etc/hostname\" is denied"
 
 # --trust none denies every include, including the in-tree ones.
-run trustnone 1 --trust none "$WORK/system.aon"
+run trustnone 1 --trust none "$WORK/system.aontu"
 has trustnone "include denied" "trust none denies includes"
 ok "trust none: no includes at all (hermetic)"
 
@@ -370,7 +370,7 @@ ok "trust none: no includes at all (hermetic)"
 # (docs/design/VIEWS-ORDER.0.md).
 $AONTU view ladder \
   --at '$.effective.prod.megacorp.checkout_v2.rollout' \
-  "$DIR/system.aon" > "$TMP/diagram-ladder.mmd" \
+  "$DIR/system.aontu" > "$TMP/diagram-ladder.mmd" \
   || die "ladder diagram did not render"
 diff -u "$DIR/expected/diagram-ladder.mmd" "$TMP/diagram-ladder.mmd" \
   || die "the meet ladder drifted"
@@ -384,14 +384,14 @@ ok "the arbitration draws: three ranked layers, weakest rung first"
 # and `--check` is the gate that keeps it true.
 # The figure is what goes to STDOUT; the loss report goes to stderr,
 # and merging the two would compare the golden against both.
-$AONTU view doc --depth 2 "$DIR/system.aon" > "$TMP/doc.out" 2>/dev/null \
+$AONTU view doc --depth 2 "$DIR/system.aontu" > "$TMP/doc.out" 2>/dev/null \
   || die "the model tree did not draw"
 diff -u "$DIR/expected/diagram-doc.txt" "$TMP/doc.out" \
   || die "the model tree drifted"
 run docgate 0 view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/system.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/system.aontu"
 run docsvg 0 view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/system.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/system.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo
 echo "All $PASS checks passed."

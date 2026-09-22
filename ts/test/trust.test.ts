@@ -28,12 +28,12 @@ function world(): { dir: string, root: string } {
   const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-'))
   const root = Path.join(dir, 'root')
   Fs.mkdirSync(Path.join(root, 'sub'), { recursive: true })
-  Fs.writeFileSync(Path.join(root, 'in.aon'), 'f: 11')
-  Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"./in.aon"\ng: 22')
-  Fs.writeFileSync(Path.join(root, 'sub', 'deep.aon'), 'h: 33')
-  Fs.writeFileSync(Path.join(dir, 'secret.aon'), 'secret: "outside"')
+  Fs.writeFileSync(Path.join(root, 'in.aontu'), 'f: 11')
+  Fs.writeFileSync(Path.join(root, 'nest.aontu'), '@"./in.aontu"\ng: 22')
+  Fs.writeFileSync(Path.join(root, 'sub', 'deep.aontu'), 'h: 33')
+  Fs.writeFileSync(Path.join(dir, 'secret.aontu'), 'secret: "outside"')
   try {
-    Fs.symlinkSync(Path.join(dir, 'secret.aon'), Path.join(root, 'link.aon'))
+    Fs.symlinkSync(Path.join(dir, 'secret.aontu'), Path.join(root, 'link.aontu'))
   }
   catch {
     // Reported by symlinkEscape, as a skip on the one test that needs it.
@@ -45,7 +45,7 @@ function world(): { dir: string, root: string } {
 // that turns on one can skip rather than fail where the platform
 // refuses to make it. The Go twin is trustSymlink.
 const symlinkEscape = (root: string): boolean =>
-  Fs.existsSync(Path.join(root, 'link.aon'))
+  Fs.existsSync(Path.join(root, 'link.aontu'))
 
 
 function firstCode(fn: () => void): string | undefined {
@@ -65,22 +65,22 @@ describe('trust-include', () => {
     const w = world()
     const a = new Aontu({ trust: { include: 'none' } })
     Assert.equal(
-      firstCode(() => a.generate(`a:@"${srcPath(w.root)}/in.aon"`)),
+      firstCode(() => a.generate(`a:@"${srcPath(w.root)}/in.aontu"`)),
       'include_denied')
   })
 
   test('mem-is-the-whole-world', () => {
     const a = new Aontu({
-      trust: { include: { mem: { '/virtual/x.aon': 'm: 33' } } },
+      trust: { include: { mem: { '/virtual/x.aontu': 'm: 33' } } },
     })
-    Assert.deepEqual(a.generate('a:@"/virtual/x.aon"'), { a: { m: 33 } })
+    Assert.deepEqual(a.generate('a:@"/virtual/x.aontu"'), { a: { m: 33 } })
 
     // A miss in the declared set is NOT-FOUND, not denial: the allowed
     // mechanism ran and missed.
     const b = new Aontu({
-      trust: { include: { mem: { '/virtual/x.aon': 'm: 33' } } },
+      trust: { include: { mem: { '/virtual/x.aontu': 'm: 33' } } },
     })
-    Assert.throws(() => b.generate('a:@"/nope.aon"'), /not found/)
+    Assert.throws(() => b.generate('a:@"/nope.aontu"'), /not found/)
   })
 
   test('a-bundled-model-is-not-shadowed-by-mem', () => {
@@ -96,12 +96,12 @@ describe('trust-include', () => {
     const opts = { trust: { include: { root: w.root } } }
 
     Assert.deepEqual(
-      new Aontu(opts).generate(`a:@"${srcPath(w.root)}/sub/deep.aon"`),
+      new Aontu(opts).generate(`a:@"${srcPath(w.root)}/sub/deep.aontu"`),
       { a: { h: 33 } })
 
     Assert.equal(
       firstCode(() =>
-        new Aontu(opts).generate(`a:@"${srcPath(w.root)}/../secret.aon"`)),
+        new Aontu(opts).generate(`a:@"${srcPath(w.root)}/../secret.aontu"`)),
       'include_denied')
   })
 
@@ -114,7 +114,7 @@ describe('trust-include', () => {
     }
     Assert.equal(
       firstCode(() => new Aontu({ trust: { include: { root: w.root } } })
-        .generate(`a:@"${srcPath(w.root)}/link.aon"`)),
+        .generate(`a:@"${srcPath(w.root)}/link.aontu"`)),
       'include_denied')
   })
 
@@ -122,7 +122,7 @@ describe('trust-include', () => {
     const w = world()
     Assert.throws(
       () => new Aontu({ trust: { include: { root: w.root } } })
-        .generate(`a:@"${srcPath(w.root)}/nope.aon"`),
+        .generate(`a:@"${srcPath(w.root)}/nope.aontu"`),
       /not found/)
   })
 
@@ -134,7 +134,7 @@ describe('trust-include', () => {
     Assert.equal(
       firstCode(() => new Aontu({
         trust: { include: { root: Path.join(w.dir, 'no-such-root') } },
-      }).generate(`a:@"${srcPath(w.root)}/in.aon"`)),
+      }).generate(`a:@"${srcPath(w.root)}/in.aontu"`)),
       'include_denied')
   })
 
@@ -142,7 +142,7 @@ describe('trust-include', () => {
   // below the process directory, which nothing named.
   test('an-empty-root-denies-every-include', () => {
     const w = world()
-    const src = `a:@"${srcPath(w.root)}/in.aon"`
+    const src = `a:@"${srcPath(w.root)}/in.aontu"`
     Assert.deepEqual(
       new Aontu({ trust: { include: { root: w.root } } }).generate(src),
       { a: { f: 11 } })
@@ -182,11 +182,11 @@ describe('trust-manifest', () => {
     const a = new Aontu({ trust: { include: { root: w.root } } })
     const ac = a.ctx({})
     const v: any = a.parse(
-      `a:@"${srcPath(w.root)}/nest.aon" b:@"${srcPath(w.root)}/in.aon" c:@"${srcPath(w.root)}/in.aon"`,
+      `a:@"${srcPath(w.root)}/nest.aontu" b:@"${srcPath(w.root)}/in.aontu" c:@"${srcPath(w.root)}/in.aontu"`,
       undefined, ac)
     Assert.deepEqual(v.deps, [
-      { path: Path.join(w.root, 'in.aon'), capability: 'file' },
-      { path: Path.join(w.root, 'nest.aon'), capability: 'file' },
+      { path: Path.join(w.root, 'in.aontu'), capability: 'file' },
+      { path: Path.join(w.root, 'nest.aontu'), capability: 'file' },
     ])
   })
 
@@ -198,10 +198,10 @@ describe('trust-manifest', () => {
 
   test('deps-names-the-mem-capability', () => {
     const a = new Aontu({
-      trust: { include: { mem: { '/v/x.aon': 'm: 1' } } },
+      trust: { include: { mem: { '/v/x.aontu': 'm: 1' } } },
     })
-    const v: any = a.parse('a:@"/v/x.aon"', undefined, a.ctx({}))
-    Assert.deepEqual(v.deps, [{ path: '/v/x.aon', capability: 'mem' }])
+    const v: any = a.parse('a:@"/v/x.aontu"', undefined, a.ctx({}))
+    Assert.deepEqual(v.deps, [{ path: '/v/x.aontu', capability: 'mem' }])
   })
 })
 
@@ -239,7 +239,7 @@ describe('trust-lsp', () => {
     const outs = h.handle({
       jsonrpc: '2.0',
       method: 'textDocument/didOpen',
-      params: { textDocument: { uri: 'file:///d.aon', text } },
+      params: { textDocument: { uri: 'file:///d.aontu', text } },
     } as any)
     return (outs[0].params as any).diagnostics
   }
@@ -247,12 +247,12 @@ describe('trust-lsp', () => {
   test('workspace-root-confines-diagnostics', () => {
     const w = world()
     const h = init({ rootUri: fileURI(w.root) })
-    const diags = diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aon"`)
+    const diags = diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aontu"`)
     Assert.ok(diags.some((d: any) => 'include_denied' === d.code),
       JSON.stringify(diags))
 
     // In-root includes still resolve under the same session.
-    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aontu"`), [])
   })
 
   test('workspace-folders-outrank-root-uri', () => {
@@ -261,13 +261,13 @@ describe('trust-lsp', () => {
       rootUri: 'file:///nowhere',
       workspaceFolders: [{ uri: fileURI(w.root) }],
     })
-    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aontu"`), [])
   })
 
   test('root-path-fallback-confines', () => {
     const w = world()
     const h = init({ rootPath: w.root })
-    Assert.ok(diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aon"`)
+    Assert.ok(diagsFor(h, `a:@"${srcPath(w.root)}/../secret.aontu"`)
       .some((d: any) => 'include_denied' === d.code))
   })
 
@@ -279,13 +279,13 @@ describe('trust-lsp', () => {
       rootUri: fileURI(w.root),
       initializationOptions: { aontu: { trust: { include: 'system' } } },
     })
-    Assert.deepEqual(diagsFor(wide, `a:@"${srcPath(w.dir)}/secret.aon"`), [])
+    Assert.deepEqual(diagsFor(wide, `a:@"${srcPath(w.dir)}/secret.aontu"`), [])
 
     // 'none' narrows to nothing.
     const none = init({
       initializationOptions: { aontu: { trust: { include: 'none' } } },
     })
-    Assert.ok(diagsFor(none, `a:@"${srcPath(w.root)}/in.aon"`)
+    Assert.ok(diagsFor(none, `a:@"${srcPath(w.root)}/in.aontu"`)
       .some((d: any) => 'include_denied' === d.code))
 
     // { root } names its own directory.
@@ -294,29 +294,29 @@ describe('trust-lsp', () => {
         aontu: { trust: { include: { root: w.root } } },
       },
     })
-    Assert.deepEqual(diagsFor(rooted, `a:@"${srcPath(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(rooted, `a:@"${srcPath(w.root)}/in.aontu"`), [])
 
     // { mem } is honoured too.
     const mem = init({
       initializationOptions: {
-        aontu: { trust: { include: { mem: { '/v/x.aon': 'm: 1' } } } },
+        aontu: { trust: { include: { mem: { '/v/x.aontu': 'm: 1' } } } },
       },
     })
-    Assert.deepEqual(diagsFor(mem, 'a:@"/v/x.aon"'), [])
+    Assert.deepEqual(diagsFor(mem, 'a:@"/v/x.aontu"'), [])
 
     // An unrecognised explicit value confines to NOTHING rather than
     // silently widening.
     const unknown = init({
       initializationOptions: { aontu: { trust: { include: { bogus: 1 } } } },
     })
-    Assert.ok(diagsFor(unknown, `a:@"${srcPath(w.root)}/in.aon"`)
+    Assert.ok(diagsFor(unknown, `a:@"${srcPath(w.root)}/in.aontu"`)
       .some((d: any) => 'include_denied' === d.code))
   })
 
   test('no-root-no-option-stays-unconfined', () => {
     const w = world()
     const h = init({})
-    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aon"`), [])
+    Assert.deepEqual(diagsFor(h, `a:@"${srcPath(w.root)}/in.aontu"`), [])
   })
 
   test('workspace-root-confines-hover', () => {
@@ -325,14 +325,14 @@ describe('trust-lsp', () => {
       h.handle({
         jsonrpc: '2.0',
         method: 'textDocument/didOpen',
-        params: { textDocument: { uri: 'file:///d.aon', text } },
+        params: { textDocument: { uri: 'file:///d.aontu', text } },
       } as any)
       let all = ''
       for (let c = 0; c < text.length; c++) {
         const outs = h.handle({
           jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
           params: {
-            textDocument: { uri: 'file:///d.aon' },
+            textDocument: { uri: 'file:///d.aontu' },
             position: { line: 0, character: c },
           },
         } as any)
@@ -343,22 +343,22 @@ describe('trust-lsp', () => {
 
     const confined = init({ rootUri: fileURI(w.root) })
     // In-root: the include resolves, so the value is hoverable.
-    Assert.match(hovers(confined, `a:@"${srcPath(w.root)}/in.aon"`), /11/)
+    Assert.match(hovers(confined, `a:@"${srcPath(w.root)}/in.aontu"`), /11/)
     // Out-of-root: nowhere on the line does the outside value appear.
     Assert.doesNotMatch(
-      hovers(confined, `a:@"${srcPath(w.dir)}/secret.aon"`), /outside/)
+      hovers(confined, `a:@"${srcPath(w.dir)}/secret.aontu"`), /outside/)
 
     // The unconfined session is the control: it DOES resolve the same
     // escape, which is what makes the assertion above about the
     // capability rather than about hover failing everywhere.
     Assert.match(
-      hovers(init({}), `a:@"${srcPath(w.dir)}/secret.aon"`), /outside/)
+      hovers(init({}), `a:@"${srcPath(w.dir)}/secret.aontu"`), /outside/)
   })
 
   test('compute-diagnostics-takes-a-trust-argument', () => {
     const w = world()
     Assert.ok(
-      computeDiagnostics(`a:@"${srcPath(w.root)}/in.aon"`,
+      computeDiagnostics(`a:@"${srcPath(w.root)}/in.aontu"`,
         { trust: { include: 'none' } })
         .some((d: any) => 'include_denied' === d.code))
   })
@@ -459,13 +459,13 @@ describe('trust-cli', () => {
 
   // An empty argument names no directory, as `--trust root:` does not.
   test('include-root-refuses-an-empty-directory', () => {
-    const bare = cli(['--include-root', '', 'x.aon'])
+    const bare = cli(['--include-root', '', 'x.aontu'])
     Assert.equal(bare.code, 2)
     Assert.match(bare.err, /--include-root needs a directory/)
 
     let code = 0
     const verb = capture(() => {
-      code = runVet(['--include-root', '', 'a.aon', 'b.aon']) as number
+      code = runVet(['--include-root', '', 'a.aontu', 'b.aontu']) as number
     })
     Assert.equal(code, 2)
     Assert.match(verb.err, /--include-root needs a directory/)
@@ -474,8 +474,8 @@ describe('trust-cli', () => {
   // The flags ride anywhere in a tail, model's subcommand included.
   test('model-takes-the-capability-before-its-subcommand', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const entry = Path.join(w.root, 'main.aontu')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
     const before = cli(['model', '--trust', 'none', 'get', '$.a', entry])
     const after = cli(['model', 'get', '--trust', 'none', '$.a', entry])
     Assert.equal(before.code, after.code)
@@ -490,8 +490,8 @@ describe('trust-cli', () => {
 
   test('trust-none-denies', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"./in.aon"')
+    const entry = Path.join(w.root, 'main.aontu')
+    Fs.writeFileSync(entry, 'a:@"./in.aontu"')
     const r = cli(['--trust', 'none', entry])
     Assert.equal(r.code, 1)
     Assert.match(r.err, /include denied/)
@@ -499,8 +499,8 @@ describe('trust-cli', () => {
 
   test('include-root-confines', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const entry = Path.join(w.root, 'main.aontu')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
     const r = cli(['--include-root', w.root, entry])
     Assert.equal(r.code, 1)
     Assert.match(r.err, /include denied/)
@@ -513,12 +513,12 @@ describe('trust-cli', () => {
 
   test('trust-root-defaults-to-the-entry-directory', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"./in.aon"')
+    const entry = Path.join(w.root, 'main.aontu')
+    Fs.writeFileSync(entry, 'a:@"./in.aontu"')
     const r = cli(['--trust', 'root', entry])
     Assert.equal(r.code, 0)
 
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
     Assert.equal(cli(['--trust', 'root', entry]).code, 1)
     Assert.equal(cli(['--trust', `root:${w.dir}`, entry]).code, 0)
   })
@@ -528,9 +528,9 @@ describe('trust-cli', () => {
   // will require — once per resolution, however many times it repeats.
   test('default-warns-on-escape', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
+    const entry = Path.join(w.root, 'main.aontu')
     Fs.writeFileSync(entry,
-      `a:@"${srcPath(w.dir)}/secret.aon" b:@"${srcPath(w.dir)}/secret.aon" c:@"./in.aon"`)
+      `a:@"${srcPath(w.dir)}/secret.aontu" b:@"${srcPath(w.dir)}/secret.aontu" c:@"./in.aontu"`)
     const r = cli([entry])
     Assert.equal(r.code, 0)
     Assert.equal(
@@ -544,7 +544,7 @@ describe('trust-cli', () => {
   // resolution' — the other arm of the warning text.
   test('default-warns-on-pkg-resolution', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
+    const entry = Path.join(w.root, 'main.aontu')
     Fs.writeFileSync(entry, 'a:@"@tabnas/jsonic/package.json"')
     const cwd = process.cwd()
     try {
@@ -560,11 +560,11 @@ describe('trust-cli', () => {
 
   test('every-verb-honours-the-capability', () => {
     const w = world()
-    const entry = Path.join(w.root, 'leak.aon')
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const entry = Path.join(w.root, 'leak.aontu')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
     const data = Path.join(w.root, 'data.json')
     Fs.writeFileSync(data, '{}')
-    const overlay = Path.join(w.root, 'overlay.aon')
+    const overlay = Path.join(w.root, 'overlay.aontu')
     Fs.writeFileSync(overlay, '')
 
     const seen = new Set<string>()
@@ -612,13 +612,13 @@ describe('trust-cli', () => {
       }
     }
 
-    const gen = Path.join(w.root, 'gen.aon')
-    Fs.writeFileSync(gen, `@"${srcPath(w.dir)}/secret.aon"\n` +
+    const gen = Path.join(w.root, 'gen.aontu')
+    Fs.writeFileSync(gen, `@"${srcPath(w.dir)}/secret.aontu"\n` +
       'out: file({ name: "o.txt" }, ["x"])\n')
     // `fmt` and `template` evaluate the profile, not what they rewrite.
-    const profile = Path.join(w.root, 'prof.aon')
+    const profile = Path.join(w.root, 'prof.aontu')
     Fs.writeFileSync(profile,
-      `@"${srcPath(w.dir)}/secret.aon"\naontu: { Lang: {} }\n`)
+      `@"${srcPath(w.dir)}/secret.aontu"\naontu: { Lang: {} }\n`)
     const generator = Path.join(w.root, 'gen.ts')
     Fs.writeFileSync(generator, '//- x: 1\nhello\n')
 
@@ -628,20 +628,20 @@ describe('trust-cli', () => {
     deniedOut(['fmt', entry, '--profile', profile])
     deniedOut(['template', generator, '--profile', profile])
 
-    // A MODULE's document, not the manifest: an include in `pkg.aon`
+    // A MODULE's document, not the manifest: an include in `pkg.aontu`
     // is not resolved. A fresh project each run: these write a lockfile.
     const pkgProject = (): string => {
       const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-pkg-'))
       const store = Path.join(
         dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service')
       Fs.mkdirSync(store, { recursive: true })
-      Fs.writeFileSync(Path.join(dir, 'pkg.aon'),
+      Fs.writeFileSync(Path.join(dir, 'pkg.aontu'),
         'pkg: {path: "corp.example/app"}\n' +
         'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n')
-      Fs.writeFileSync(Path.join(store, 'pkg.aon'),
-        'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n')
-      Fs.writeFileSync(Path.join(store, 'service.aon'),
-        `@"${srcPath(w.dir)}/secret.aon"\nname: string\n`)
+      Fs.writeFileSync(Path.join(store, 'pkg.aontu'),
+        'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n')
+      Fs.writeFileSync(Path.join(store, 'service.aontu'),
+        `@"${srcPath(w.dir)}/secret.aontu"\nname: string\n`)
       return dir
     }
 
@@ -661,11 +661,11 @@ describe('trust-cli', () => {
   test('every-verb-honours-the-text-extensions', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-'))
     Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n')
-    const entry = Path.join(dir, 'main.aon')
+    const entry = Path.join(dir, 'main.aontu')
     Fs.writeFileSync(entry, 'doc: @"./doc.md"\n')
-    const schema = Path.join(dir, 'schema.aon')
+    const schema = Path.join(dir, 'schema.aontu')
     Fs.writeFileSync(schema, 'doc: string\n')
-    const overlay = Path.join(dir, 'overlay.aon')
+    const overlay = Path.join(dir, 'overlay.aontu')
 
     const REFUSED = /include_extension|include not readable/
 
@@ -729,10 +729,10 @@ describe('trust-cli', () => {
         'the verb dropped --text-ext: ' + args.join(' '))
     }
 
-    const gen = Path.join(dir, 'gen.aon')
+    const gen = Path.join(dir, 'gen.aontu')
     Fs.writeFileSync(gen,
       'doc: @"./doc.md"\nout: file({ name: "o.txt" }, ["x"])\n')
-    const profile = Path.join(dir, 'prof.aon')
+    const profile = Path.join(dir, 'prof.aontu')
     Fs.writeFileSync(profile, 'doc: @"./doc.md"\naontu: { Lang: {} }\n')
     const generator = Path.join(dir, 'gen.ts')
     Fs.writeFileSync(generator, '//- x: 1\nhello\n')
@@ -756,13 +756,13 @@ describe('trust-cli', () => {
       const store = Path.join(
         at, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service')
       Fs.mkdirSync(store, { recursive: true })
-      Fs.writeFileSync(Path.join(at, 'pkg.aon'),
+      Fs.writeFileSync(Path.join(at, 'pkg.aontu'),
         'pkg: {path: "corp.example/app"}\n' +
         'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n')
-      Fs.writeFileSync(Path.join(store, 'pkg.aon'),
-        'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n')
+      Fs.writeFileSync(Path.join(store, 'pkg.aontu'),
+        'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n')
       Fs.writeFileSync(Path.join(store, 'doc.md'), '# hi\n')
-      Fs.writeFileSync(Path.join(store, 'service.aon'),
+      Fs.writeFileSync(Path.join(store, 'service.aontu'),
         'doc: @"./doc.md"\nname: string\n')
       return at
     }
@@ -785,10 +785,10 @@ describe('trust-cli', () => {
   // root: spelling, and a bare `root` means the document's directory.
   test('verbs-take-include-root', () => {
     const w = world()
-    const entry = Path.join(w.root, 'leak.aon')
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
-    const inside = Path.join(w.root, 'fine.aon')
-    Fs.writeFileSync(inside, 'a:@"./in.aon"')
+    const entry = Path.join(w.root, 'leak.aontu')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
+    const inside = Path.join(w.root, 'fine.aontu')
+    Fs.writeFileSync(inside, 'a:@"./in.aontu"')
 
     const confined = cli(['model', 'get', '$.a.secret', '--include-root', w.root, entry])
     Assert.match(confined.out + confined.err, /include denied/)
@@ -808,8 +808,8 @@ describe('trust-cli', () => {
   // was invoked.
   test('repl-honours-the-capability', () => {
     const w = world()
-    const entry = Path.join(w.root, 'leak.aon')
-    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aon"`)
+    const entry = Path.join(w.root, 'leak.aontu')
+    Fs.writeFileSync(entry, `a:@"${srcPath(w.dir)}/secret.aontu"`)
     const read = (f: string) => Fs.readFileSync(f, 'utf8')
 
     const open = replCommand(
@@ -836,11 +836,11 @@ describe('trust-cli', () => {
 
   test('every-verb-refuses-a-bad-spelling', () => {
     const w = world()
-    const entry = Path.join(w.root, 'main.aon')
-    Fs.writeFileSync(entry, 'a:@"./in.aon"')
+    const entry = Path.join(w.root, 'main.aontu')
+    Fs.writeFileSync(entry, 'a:@"./in.aontu"')
     const data = Path.join(w.root, 'data.json')
     Fs.writeFileSync(data, '{}')
-    const overlay = Path.join(w.root, 'overlay.aon')
+    const overlay = Path.join(w.root, 'overlay.aontu')
     Fs.writeFileSync(overlay, '')
 
     // The runners are called DIRECTLY rather than through main: `vet`

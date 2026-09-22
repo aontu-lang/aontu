@@ -313,14 +313,14 @@ catch (e) {
   check('conflict error is ANSI-free after strip', /\x1b/.test(msg), false)
 }
 try {
-  evaluate('x: @"other.aon"')
+  evaluate('x: @"other.aontu"')
   check('file include raises', false, true)
 }
 catch (e) {
   const msg = stripAnsi(e.message)
   console.log('include error head: ' + msg.split('\n')[0])
   check('file include reports not-found', msg,
-    (m) => m.includes('source not found: other.aon'))
+    (m) => m.includes('source not found: other.aontu'))
 }
 const stdOut = evaluate('@"aontu:system"\nx: 1')
 check('bundled @"aontu:system" include works', JSON.parse(stdOut).x, 1)

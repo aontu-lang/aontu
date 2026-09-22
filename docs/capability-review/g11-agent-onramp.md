@@ -60,7 +60,7 @@ the single most probable opening command an agent will issue — answers
 `aontu: cannot read help: open help: no such file or directory` and
 exits 1. The good hint that exists for this class of mistake,
 *"a mistyped verb reads as a file name (try --help)"*, is gated behind
-`1 < len(files)`, so it fires for `aontu check a.aon b.aon` and never
+`1 < len(files)`, so it fires for `aontu check a.aontu b.aontu` and never
 for the bare one-word guesses (`help`, `init`, `ontology`, `docs`)
 that an agent actually makes first. Both ports, same gate
 (`go/cmd/aontu/main.go` around the `1 < len(files)` refusal;
@@ -95,7 +95,7 @@ Asked to constrain every entity in a model, an agent reaches for the
 wildcard its neighbours use — JSON Schema's `additionalProperties`,
 CUE's `[string]:`, a glob. It writes:
 
-```aon
+```aontu
 entity: { "*": { name: string, table: string } }
 ```
 
@@ -104,7 +104,7 @@ document returns exactly one key, `*`. The schema constrains nothing.
 Vetting data in which `table: 42` plainly violates `table: string`:
 
 ```
-$ aontu vet --partial schema.aon data.aon
+$ aontu vet --partial schema.aontu data.aontu
 verdict: valid
 $ echo $?
 0
@@ -123,9 +123,9 @@ wrong shape:
 
 | command | stdout | exit | stderr |
 |---|---|---|---|
-| `aontu view tree data.aon` | 1 byte | 0 | empty |
-| `aontu render s3.aon` (no `--profile`) | 0 bytes | 0 | empty |
-| `aontu relations data.aon` (none declared) | `verdict: pass` | 0 | empty |
+| `aontu view tree data.aontu` | 1 byte | 0 | empty |
+| `aontu render s3.aontu` (no `--profile`) | 0 bytes | 0 | empty |
+| `aontu relations data.aontu` (none declared) | `verdict: pass` | 0 | empty |
 
 Three verbs that did nothing, reporting the exit code of a verb that
 did something. For a human at a terminal this is a shrug and a re-read
@@ -138,7 +138,7 @@ a passing gate means something — is spent.
 The repository has already ruled on the principle, in
 [G8 phase 6](progress.md), about `trim`:
 
-> `--check` is REQUIRED — `aontu trim f.aon` reads as "trim this file",
+> `--check` is REQUIRED — `aontu trim f.aontu` reads as "trim this file",
 > and doing something else silently is worse than refusing.
 
 That is the reasoning of this gap, applied once, to one verb, at a
@@ -272,11 +272,11 @@ failing its suite.
 
 ```
 describe a domain            an entity map, with `&:` for what every entry must satisfy
-check data against a model   aontu vet model.aon data.aon
-check a model is coherent    aontu relations model.aon ; aontu reaches <a> <b> model.aon
-check code against a model   aontu render --check <dir> model.aon
-ask what a model says        aontu get $.path model.aon
-ask why it says it           aontu why $.path model.aon
+check data against a model   aontu vet model.aontu data.aontu
+check a model is coherent    aontu relations model.aontu ; aontu reaches <a> <b> model.aontu
+check code against a model   aontu render --check <dir> model.aontu
+ask what a model says        aontu get $.path model.aontu
+ask why it says it           aontu why $.path model.aontu
 ```
 
 The words a caller arrives with — *ontology*, *schema*, *validate*,
@@ -375,7 +375,7 @@ reporting, so the two coverage reports read alike.
 ### 6. `aontu init`
 
 Writes a minimal, correct, *working* trio into an empty directory:
-`model.aon` (an entity map using `&:`), `data.aon` (an instance that
+`model.aontu` (an entity map using `&:`), `data.aontu` (an instance that
 satisfies it), and `check.sh` (the four commands that check it). Refuses
 to overwrite. The point is not scaffolding convenience; it is that the
 agent's most expensive failure is writing a first document at all, and

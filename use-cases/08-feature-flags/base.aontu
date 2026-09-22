@@ -1,0 +1,6 @@
+# The model WITHOUT the overlay: this is the --entry for `aontu set`.
+# It must never include overlay.aontu -- an entry that includes the
+# overlay makes every set conflict with itself (see docs/how-to.md).
+@"./flags.aontu"
+@"./layers.aontu"
+@"./policy.aontu"

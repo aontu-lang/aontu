@@ -21,8 +21,8 @@ the verb, and the machine-readable contract around it.
 
 Consider a schema an agent is meant to satisfy:
 
-```aon
-# service.aon
+```aontu
+# service.aontu
 service: close({
   name:     string
   port:     integer
@@ -38,9 +38,9 @@ An agent emits `deploy.json`:
                "replicas": "3", "owner": "team-identity" } }
 ```
 
-The user wants to write `aontu vet service.aon deploy.json` — and
+The user wants to write `aontu vet service.aontu deploy.json` — and
 cannot. The workaround is textual concatenation
-(`cat service.aon deploy.json | aontu`), which unifies — but every
+(`cat service.aontu deploy.json | aontu`), which unifies — but every
 site now points into an anonymous synthetic document, the typo `prot`
 is reported without the closed struct's allowed keys or a nearest-key
 suggestion, the `"3"`-versus-`integer` conflict may never surface
@@ -52,8 +52,8 @@ agent must regex-parse. Exit code 1 means only "something failed".
 Second example: drift detection. The same verb pointed at a live
 system dump is spec-versus-reality checking:
 
-```aon
-# system.aon
+```aontu
+# system.aontu
 services: &: {
   image:    string
   replicas: integer
@@ -67,9 +67,9 @@ The platform reports reality as `live.json`:
 { "auth": { "image": "auth:v2.4", "replicas": 3 } }
 ```
 
-The user wants `aontu vet system.aon live.json --at $.services` and
+The user wants `aontu vet system.aontu live.json --at $.services` and
 to learn that `$.services.auth.image` conflicts — `"auth:v2.4"`
-observed at live.json:1, `"auth:v2.3"` declared at system.aon:6 — a
+observed at live.json:1, `"auth:v2.3"` declared at system.aontu:6 — a
 located drift report. Today the dump must be hand-edited into an
 aontu file that happens to nest under `services`, and the result is
 still prose.
@@ -191,7 +191,7 @@ system.
 ## Design space
 
 **A. Bless the concatenation idiom.** Document
-`cat schema.aon data.json | aontu` as the validation story. Zero
+`cat schema.aontu data.json | aontu` as the validation story. Zero
 cost; but sites collapse into one synthetic document, there is no
 report contract, no verdict classes, no anchor, and the identity
 claim ("aontu is a gate") stays false. Rejected.
@@ -240,7 +240,7 @@ the report shape does not change when D lands.
 ### The verb
 
 ```
-aontu vet [options] <schema.aon> <data.json|data.aon> [more-data...]
+aontu vet [options] <schema.aontu> <data.json|data.aontu> [more-data...]
 
   --at <path>        validate data against this path of the
                      evaluated schema (e.g. --at $.services)
@@ -259,7 +259,7 @@ grows the support.)*
 
 Semantics, in order:
 
-1. Evaluate `schema.aon` alone. If it errors, the *schema* is broken:
+1. Evaluate `schema.aontu` alone. If it errors, the *schema* is broken:
    verdict `error`, exit 4 — never blamed on the data.
 2. Select the anchor: the evaluated root, or the value at `--at`;
    `--closed` wraps it in `close()`. `--at` is a STRUCTURAL path — map
@@ -343,7 +343,7 @@ absent where the engine has nothing to say:
       "sites": [
         { "col": 28, "file": "deploy.json", "role": "data",
           "row": 2, "value": "\"3\"" },
-        { "col": 13, "file": "service.aon", "role": "schema",
+        { "col": 13, "file": "service.aontu", "role": "schema",
           "row": 5, "value": "integer" } ] } ],
   "truncated": false, "verdict": "invalid" }
 ```

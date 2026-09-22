@@ -16,7 +16,7 @@
       {
         "id": "aontu",
         "aliases": ["Aontu", "aontu"],
-        "extensions": [".aon", ".aontu"],
+        "extensions": [".aontu"],
         "configuration": "./language-configuration.json"
       }
     ],

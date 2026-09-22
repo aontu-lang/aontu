@@ -28,10 +28,10 @@ The `7` passed because position 1 was never constrained: the two
 lists unified element by element, and the schema list simply ran out.
 
 The collection form is a `&:` spread: a template unified into every
-element. Write this as `tags.aon`:
+element. Write this as `tags.aontu`:
 
 <!-- test: scenario list-elements -->
-<!-- test: file tags.aon -->
+<!-- test: file tags.aontu -->
 ```aontu
 tags: [&: string]
 tags: [core 7]
@@ -41,7 +41,7 @@ Now run it:
 
 <!-- test: run -->
 ```sh
-$ aontu tags.aon
+$ aontu tags.aontu
 [aontu/no_scalar_unify]: Cannot unify values at path $.tags.1
 ...
 $ echo $?

@@ -38,7 +38,7 @@ test('the published generation and field-change recipes produce the stated outpu
   mkdirSync(work, { recursive: true });
   mkdirSync(join(root, 'ts/bin'), { recursive: true });
   symlinkSync(join(engine, 'ts/bin/aontu.js'), join(root, 'ts/bin/aontu.js'));
-  for (const name of ['gen', 'doc', 'ref', 'model.aon']) {
+  for (const name of ['gen', 'doc', 'ref', 'model.aontu']) {
     cpSync(join(example, name), join(work, name), { recursive: true });
   }
   const setup = block('model', 'sh', 'aontu()');
@@ -53,7 +53,7 @@ test('the published generation and field-change recipes produce the stated outpu
   recipe('model', "aontu view doc");
   // `get out` answers the TREE, so the route is a Line's `src` with its
   // quotes escaped; match the part that survives JSON.
-  assert.match(recipe('rails-code', 'get out work/routes.aon'), /planets#index/);
+  assert.match(recipe('rails-code', 'get out work/routes.aontu'), /planets#index/);
   recipe('rails-code', 'render gen/model.rb app');
   // The bytes are the runtime's, so the recipe that WRITES is what proves
   // them: print the tree, write it, compare the file with the golden.
@@ -70,14 +70,14 @@ test('the published generation and field-change recipes produce the stated outpu
   assert.equal(recipe('erd', 'template --marker'), erdTree);
   writeFileSync(template, source);
 
-  appendFileSync(join(work, 'model.aon'), '\n' + block('change-and-check', 'aontu', 'nickname') + '\n');
+  appendFileSync(join(work, 'model.aontu'), '\n' + block('change-and-check', 'aontu', 'nickname') + '\n');
   recipe('change-and-check', 'render --check', 1);
   recipe('change-and-check', 'render gen app');
   recipe('change-and-check', 'for format');
   // The full check also boots Rails and resets its development database;
   // this recipe test only runs the formatter line from that fence.
   shell(block('change-and-check', 'sh', 'fmt --write').split('\n')[0]);
-  shell('aontu fmt --check model.aon');
+  shell('aontu fmt --check model.aontu');
   shell('aontu render --check gen app');
   recipe('change-and-check', 'render --check');
   for (const name of [

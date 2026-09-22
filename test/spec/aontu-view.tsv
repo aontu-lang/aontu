@@ -21,11 +21,11 @@
 # EXPERIMENTAL until the distribution layer can version it by
 # canon-hash.
 vocabulary-is-served	gens	@"aontu:view"\nf: $.aontu.View.Figure & {kind: tree, out: "a.txt"}	{"aontu":{"View":{}},"f":{"kind":"tree","out":"a.txt"}}
-# THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aon` spelling the
+# THE SCHEME IS NOT A DIRECTORY (ADR-028): the `.aontu` spelling the
 # bare `std/` names once accepted is not a model name, and is
 # refused like any other typo, as aontu-scheme.tsv pins for
-# `aontu:profile.aon`.
-vocabulary-dot-aon-is-not-a-name	errc	a: @"aontu:view.aon"	multisource_not_found
+# `aontu:profile.aontu`.
+vocabulary-dot-aontu-is-not-a-name	errc	a: @"aontu:view.aontu"	multisource_not_found
 vocabulary-generates-nothing-of-its-own	gens	@"aontu:view"	{"aontu":{"View":{}}}
 a-declaration-over-the-spread	gens	@"aontu:view"\nviews: {&: $.aontu.View.Figure} & {a: {kind: matrix, order: partition, closure: true, out: "a.txt"}}	{"aontu":{"View":{}},"views":{"a":{"closure":true,"kind":"matrix","order":"partition","out":"a.txt"}}}
 every-option-of-every-kind	gens	@"aontu:view"\nviews: {&: $.aontu.View.Figure} & {\n  a: {kind: tree, relation: dependsOn, roots: ["$.x"], at: "$.y", maxRows: 9, as: svg, out: "a.svg"}\n  b: {kind: graph, relations: ["dependsOn"], groupBy: owner, label: name, as: dot, out: "b.dot"}\n  c: {kind: layer, groupBy: layer, layers: ["app"], edges: all, out: "c.txt"}\n  d: {kind: sets, sets: "$.roles", member: grants, universe: "$.perms", minDegree: 1, maxCols: 2, out: "d.txt"}\n  e: {kind: layers, minSize: 1, out: "e.txt"}\n  g: {kind: ladder, at: "$.z", out: "g.mmd"}\n}	{"aontu":{"View":{}},"views":{"a":{"as":"svg","at":"$.y","kind":"tree","maxRows":9,"out":"a.svg","relation":"dependsOn","roots":["$.x"]},"b":{"as":"dot","groupBy":"owner","kind":"graph","label":"name","out":"b.dot","relations":["dependsOn"]},"c":{"edges":"all","groupBy":"layer","kind":"layer","layers":["app"],"out":"c.txt"},"d":{"kind":"sets","maxCols":2,"member":"grants","minDegree":1,"out":"d.txt","sets":"$.roles","universe":"$.perms"},"e":{"kind":"layers","minSize":1,"out":"e.txt"},"g":{"at":"$.z","kind":"ladder","out":"g.mmd"}}}

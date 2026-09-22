@@ -86,11 +86,11 @@ export function agentsMd(
     'aontu model why ' + example + ' ' + name,
     '',
     '# does my document satisfy it?',
-    'aontu vet ' + name + ' mine.aon',
+    'aontu vet ' + name + ' mine.aontu',
     '',
     '# change it without editing it',
     'aontu model set ' + example + '=<value> --entry ' + name +
-    ' --overlay overlay.aon',
+    ' --overlay overlay.aontu',
     '',
     '# the language itself, offline: the whole grammar on one page',
     'aontu help language',

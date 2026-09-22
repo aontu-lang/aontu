@@ -1,0 +1,4 @@
+# The breaking change, shipped honestly: a new package path. Nothing
+# that imports corp.example/schemas/service sees it until it asks.
+pkg: { path:"corp.example/schemas/service2" version:"1.0.0" main:"service.aontu" }
+publish: public

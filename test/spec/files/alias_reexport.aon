@@ -1,5 +1,0 @@
-# Publishes a name it did not declare: `%u` arrived from the file this
-# one includes, and is that file's to publish or withhold.
-@"./alias_declares_u.aon"
-
-export({ %u })

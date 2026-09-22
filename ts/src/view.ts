@@ -72,7 +72,7 @@ export type ViewLoss = {
 export type ViewDoc = {
   src: string
   // Where it came from, so a relative include inside it resolves and
-  // so its label (the file name without `.aon`) is known.
+  // so its label (the file name without `.aontu`) is known.
   path?: string
   // The label to draw, overriding the one derived from `path`.
   name?: string
@@ -2493,7 +2493,7 @@ export function view(
       .map((d: ViewDoc, i) => ({
         src: d.src, path: d.path,
         label: d.name ?? (undefined === d.path
-          ? `doc${i + 1}` : basename(d.path).replace(/\.aon$/, '')),
+          ? `doc${i + 1}` : basename(d.path).replace(/\.aontu$/, '')),
       }))
     return done(drawPoset(docs, options, as, max, loss, compare))
   }
@@ -2540,7 +2540,7 @@ function drawLoaded(
     if (undefined === gen) {
       // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
       // generated values, so a document that is not concrete is an
-      // error here, exactly as `aontu file.aon` on it is.
+      // error here, exactly as `aontu file.aontu` on it is.
       const before = ctx.err.length
       value = root.gen(ctx)
       if (before < ctx.err.length) {
@@ -2743,7 +2743,7 @@ export function viewSet(
   const ctx = loaded.ctx
   // The declarations are part of the document, so reading them
   // generates it -- and a view document that does not generate has no
-  // figures, exactly as `aontu file.aon` on it has no output.
+  // figures, exactly as `aontu file.aontu` on it has no output.
   const before = ctx.err.length
   const value = root.gen(ctx)
   if (before < ctx.err.length) {

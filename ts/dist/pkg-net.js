@@ -192,8 +192,8 @@ function objectPath(kind, pkg, version) {
         case 'manifest': return p + '/@v/' + version + '.manifest';
         case 'signature': return p + '/@v/' + version + '.sig';
         case 'sigstore': return p + '/@v/' + version + '.sigstore.json';
-        case 'advisory': return '/advisory/' + pkgUrlPath(pkg) + '.aon';
-        default: return '/tombstone/' + pkgUrlPath(pkg) + '/@v/' + version + '.aon';
+        case 'advisory': return '/advisory/' + pkgUrlPath(pkg) + '.aontu';
+        default: return '/tombstone/' + pkgUrlPath(pkg) + '/@v/' + version + '.aontu';
     }
 }
 function timestamp(d) {
@@ -437,23 +437,37 @@ async function fetchAdvisory(ctx, bases, pkg) {
     return out;
 }
 // The versions this client has seen for a package, from its own
-// records: a version absent from the list now is a rollback.
+// records: a version absent from the list now is a rollback. Both
+// suffixes are read -- a record is evidence rather than a document,
+// and dropping either would forget versions and weaken the check.
+const SEEN_EXT = ['.aontu', '.aon'];
+function seenFile(dir, version) {
+    return SEEN_EXT.map((ext) => (0, node_path_1.join)(dir, version + ext)).find(node_fs_1.existsSync);
+}
 function seenVersions(ctx, pkg) {
     const dir = (0, mod_1.cacheSeenDir)(ctx.cache, pkg);
     if (!(0, node_fs_1.existsSync)(dir)) {
         return [];
     }
-    return (0, node_fs_1.readdirSync)(dir).filter((f) => f.endsWith('.aon'))
-        .map((f) => f.slice(0, -'.aon'.length)).sort(pkg_zip_1.cmpBytes);
+    const seen = new Set();
+    for (const name of (0, node_fs_1.readdirSync)(dir)) {
+        const ext = SEEN_EXT.find((e) => name.endsWith(e));
+        if (undefined !== ext) {
+            seen.add(name.slice(0, -ext.length));
+        }
+    }
+    return [...seen].sort(pkg_zip_1.cmpBytes);
 }
 function recordSeen(ctx, pkg, version, subject) {
     const dir = (0, mod_1.cacheSeenDir)(ctx.cache, pkg);
-    const file = (0, node_path_1.join)(dir, version + '.aon');
-    if ((0, node_fs_1.existsSync)(file)) {
+    const file = (0, node_path_1.join)(dir, version + '.aontu');
+    // A record under either spelling is the first sighting, so neither is
+    // overwritten -- a second write would date the version to today.
+    if (undefined !== seenFile(dir, version)) {
         return;
     }
     (0, node_fs_1.mkdirSync)(dir, { recursive: true });
-    (0, node_fs_1.writeFileSync)(file, canonLine({ package: pkg, version, seen: timestamp(ctx.now()), subject }, ctx.options, 'seen.aon'));
+    (0, node_fs_1.writeFileSync)(file, canonLine({ package: pkg, version, seen: timestamp(ctx.now()), subject }, ctx.options, 'seen.aontu'));
 }
 // Selection (spec acquire step 6): the newest version outside the
 // cooldown, timed from the repository's first-seen time (ADR-039 part
@@ -714,8 +728,8 @@ async function acquire(ctx, pkg, asked, depth) {
     const tmp = (0, node_path_1.join)(ctx.cache, 'tmp', (0, node_crypto_1.randomBytes)(8).toString('hex'));
     (0, node_fs_1.mkdirSync)((0, node_path_1.join)(tmp, mod_1.META_DIR), { recursive: true });
     writeTree(tmp, entries);
-    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(tmp, mod_1.META_DIR, 'manifest.aon'), manifestBytes);
-    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(tmp, mod_1.META_DIR, 'proof.aon'), proofBytes);
+    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(tmp, mod_1.META_DIR, 'manifest.aontu'), manifestBytes);
+    (0, node_fs_1.writeFileSync)((0, node_path_1.join)(tmp, mod_1.META_DIR, 'proof.aontu'), proofBytes);
     const self = (0, pkg_1.packageSelf)(tmp, ctx.options);
     const mod = manifest.modules[0];
     if (self.path !== pkg || self.version !== version || self.main !== mod.main) {
@@ -1175,8 +1189,8 @@ function writeLayout(dir, w, options, now) {
     }
     retracted.sort((a, b) => (0, pkg_1.versionCompare)(a.version, b.version));
     const advisory = (0, node_path_1.join)(dir, 'advisory', ...pkgUrlPath(pkg).split('/'));
-    (0, node_fs_1.mkdirSync)((0, node_path_1.dirname)(advisory + '.aon'), { recursive: true });
-    (0, node_fs_1.writeFileSync)(advisory + '.aon', canonLine({ package: pkg, retracted }, options, 'advisory'));
+    (0, node_fs_1.mkdirSync)((0, node_path_1.dirname)(advisory + '.aontu'), { recursive: true });
+    (0, node_fs_1.writeFileSync)(advisory + '.aontu', canonLine({ package: pkg, retracted }, options, 'advisory'));
 }
 // A directory as a repository: the layout above, read by path.
 function dirHttp(dir) {
@@ -1329,7 +1343,7 @@ async function pkgPublish(root, options, http, args) {
         return report;
     }
     const proof = signDigest((0, node_fs_1.readFileSync)(args.key, 'utf8'), report.digest);
-    const proofBytes = canonLine(proof, options, 'proof.aon');
+    const proofBytes = canonLine(proof, options, 'proof.aontu');
     const archive = (0, pkg_1.archiveOf)(root);
     try {
         if (null != args.to) {
@@ -1458,7 +1472,7 @@ function refusedOutdated(report, e) {
 }
 // THE LOCAL REGISTRY AND PROXY (`aontu pkg serve`): the directory
 // layout served verbatim; with upstreams, fetched on a miss and kept.
-const OBJECT_RE = /^\/(pkg\/[A-Za-z0-9!._/-]+\/@v\/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg\/[A-Za-z0-9!._/-]+\/@latest|advisory\/[A-Za-z0-9!._/-]+\.aon|tombstone\/(feed\.aon|[A-Za-z0-9!._/-]+\/@v\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aon))$/;
+const OBJECT_RE = /^\/(pkg\/[A-Za-z0-9!._/-]+\/@v\/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg\/[A-Za-z0-9!._/-]+\/@latest|advisory\/[A-Za-z0-9!._/-]+\.aontu|tombstone\/(feed\.aontu|[A-Za-z0-9!._/-]+\/@v\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aontu))$/;
 function objectShape(p) {
     return OBJECT_RE.test(p) && !p.split('/').some((e) => '' === e && p.indexOf('//') >= 0) &&
         !p.split('/').some((e) => '.' === e || '..' === e);
@@ -1579,8 +1593,8 @@ function defaultHttp() {
         },
         post: async (url, parts, token) => {
             const form = new FormData();
-            form.set('manifest', new Blob([Buffer.from(parts.manifest)], { type: 'text/plain' }), 'manifest.aon');
-            form.set('proof', new Blob([Buffer.from(parts.proof)], { type: 'text/plain' }), 'proof.aon');
+            form.set('manifest', new Blob([Buffer.from(parts.manifest)], { type: 'text/plain' }), 'manifest.aontu');
+            form.set('proof', new Blob([Buffer.from(parts.proof)], { type: 'text/plain' }), 'proof.aontu');
             form.set('archive', new Blob([Buffer.from(parts.archive)], { type: 'application/zip' }), 'archive.zip');
             try {
                 const r = await fetch(url, {

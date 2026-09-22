@@ -11,10 +11,10 @@ to do from what you hand it: a file argument evaluates, piped input
 evaluates, and an empty interactive terminal becomes a REPL. Three
 inputs, one command.
 
-Write this as `config.aon`:
+Write this as `config.aontu`:
 
 <!-- test: scenario cli -->
-<!-- test: file config.aon -->
+<!-- test: file config.aontu -->
 ```aontu
 a: 1
 b: $.a
@@ -24,7 +24,7 @@ Now run it, three ways:
 
 <!-- test: run -->
 ```sh
-$ aontu config.aon
+$ aontu config.aontu
 {
   "a": 1,
   "b": 1
@@ -34,7 +34,7 @@ $ echo 'a:1 b:$.a' | aontu
   "a": 1,
   "b": 1
 }
-$ aontu --canon config.aon
+$ aontu --canon config.aontu
 {"a":1,"b":1}
 ```
 

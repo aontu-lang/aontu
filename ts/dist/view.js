@@ -1866,7 +1866,7 @@ function view(src, opts, hooks) {
             .map((d, i) => ({
             src: d.src, path: d.path,
             label: d.name ?? (undefined === d.path
-                ? `doc${i + 1}` : (0, node_path_1.basename)(d.path).replace(/\.aon$/, '')),
+                ? `doc${i + 1}` : (0, node_path_1.basename)(d.path).replace(/\.aontu$/, '')),
         }));
         return done(drawPoset(docs, options, as, max, loss, compare));
     }
@@ -1902,7 +1902,7 @@ function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
         if (undefined === gen) {
             // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
             // generated values, so a document that is not concrete is an
-            // error here, exactly as `aontu file.aon` on it is.
+            // error here, exactly as `aontu file.aontu` on it is.
             const before = ctx.err.length;
             value = root.gen(ctx);
             if (before < ctx.err.length) {
@@ -2064,7 +2064,7 @@ function viewSet(src, opts, hooks) {
     const ctx = loaded.ctx;
     // The declarations are part of the document, so reading them
     // generates it -- and a view document that does not generate has no
-    // figures, exactly as `aontu file.aon` on it has no output.
+    // figures, exactly as `aontu file.aontu` on it has no output.
     const before = ctx.err.length;
     const value = root.gen(ctx);
     if (before < ctx.err.length) {

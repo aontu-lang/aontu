@@ -163,7 +163,7 @@ Company: hide({title: string, staff: {&: $.Person}})
 recursion, the data document stays plain JSON:
 
 ```
-$ aontu vet menu-schema.aon menu.json
+$ aontu vet menu-schema.aontu menu.json
 ```
 
 ## 4. Interactions
@@ -326,7 +326,7 @@ admits only a peer list of its own length — which is what makes
 - **X-C2 resolved:** the expansion budget is `budget.depth` (the T-1
   backstop), charged per chain via the residual's expansion count;
   exhaustion is `recursion_budget`. X-C1 stays declined — guardedness
-  is emergent, `bad/required-tail.aon` in use-case 13 is the shape of
+  is emergent, `bad/required-tail.aontu` in use-case 13 is the shape of
   the refusal.
 
 ## 11. Open questions

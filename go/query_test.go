@@ -36,11 +36,11 @@ func TestQueryRefusalIsAFinding(t *testing.T) {
 func TestQueryRelativeLoadResolvesFromDocumentDir(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(
-		filepath.Join(dir, "part.aon"), []byte("k: 7"), 0o600); nil != err {
+		filepath.Join(dir, "part.aontu"), []byte("k: 7"), 0o600); nil != err {
 		t.Fatal(err)
 	}
 	a := NewWithBase(dir)
-	r := a.Get(`a: @"./part.aon"`, "$.a.k", &QueryOptions{View: QueryCanon})
+	r := a.Get(`a: @"./part.aontu"`, "$.a.k", &QueryOptions{View: QueryCanon})
 	if !r.OK || "7" != r.Out {
 		t.Fatalf("relative load not resolved: %+v", r)
 	}

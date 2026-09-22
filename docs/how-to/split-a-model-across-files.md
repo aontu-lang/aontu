@@ -10,32 +10,32 @@ One file holds a model well until two teams edit it, or until the
 environment-specific lines outnumber the shared ones. `@"path"` loads
 another source file and unifies it in place, so a split costs nothing:
 the parts mean exactly what the whole meant. Write the shared shape
-as `base.aon`:
+as `base.aontu`:
 
 <!-- test: scenario split-model -->
-<!-- test: file base.aon -->
+<!-- test: file base.aontu -->
 ```aontu
 server: { host:string port: *8080|integer debug: *false|boolean }
 ```
 
-the production pins as `override.aon`:
+the production pins as `override.aontu`:
 
-<!-- test: file override.aon -->
+<!-- test: file override.aontu -->
 ```aontu
 server: { host:"app.corp.example" port:8443 }
 ```
 
-and an entry file `main.aon` that loads both:
+and an entry file `main.aontu` that loads both:
 
-<!-- test: file main.aon -->
+<!-- test: file main.aontu -->
 ```aontu
-@"./base.aon"
-@"./override.aon"
+@"./base.aontu"
+@"./override.aontu"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 {
   "server": {
     "debug": false,
@@ -52,25 +52,25 @@ changes nothing: there is no cascade to reason about, only one merged
 document.
 
 An include is an ordinary value, so it can land under a key. Write
-`car.aon`:
+`car.aontu`:
 
-<!-- test: file car.aon -->
+<!-- test: file car.aontu -->
 ```aontu
 color: silver
 doors: 4
 ```
 
-and mount it in `lot.aon`, constraints attached:
+and mount it in `lot.aontu`, constraints attached:
 
-<!-- test: file lot.aon -->
+<!-- test: file lot.aontu -->
 ```aontu
-car: @"./car.aon"
+car: @"./car.aontu"
 car: { doors:number wheels:4 }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu lot.aon
+$ aontu lot.aontu
 {
   "car": {
     "color": "silver",

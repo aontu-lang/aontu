@@ -1,0 +1,5 @@
+# model.aontu --- THE ROOT: one evaluation joining the vocabulary and
+# the codebase. The layering rule is enforced by the join itself --
+# there is nothing else to run.
+@"./spec.aontu"
+@"./modules.aontu"

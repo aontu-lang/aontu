@@ -16,6 +16,10 @@ import (
 
 const formatBudget = 80
 
+// The gap a comment that ends a line of code sits behind: wide
+// enough that the `#` does not read as part of the value.
+const trailGap = "  "
+
 const formatMaxDepth = 1000
 
 type FormatReport struct {
@@ -56,8 +60,8 @@ type fmtTok struct {
 
 func formatResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOptions, ctx *jsonic.Context) multisource.Resolution {
 	res := multisource.Resolution{PathSpec: spec}
-	res.Kind = "aon"
-	res.Full = "__fmt__.aon"
+	res.Kind = "aontu"
+	res.Full = "__fmt__.aontu"
 	res.Found = true
 	return res
 }
@@ -772,6 +776,17 @@ func (w *fmtWriter) text(s string) {
 	w.line += s
 }
 
+// A comment that ends a line of code, behind the one gap the style
+// gives it, whatever spacing the value before it left. A comment
+// alone on its line keeps its indentation instead.
+func (w *fmtWriter) trail(s string) {
+	if w.fresh() {
+		w.line += s
+		return
+	}
+	w.line = fmtRtrim(w.line) + trailGap + s
+}
+
 // Nothing on the line yet but its indentation.
 func (w *fmtWriter) fresh() bool {
 	return "" == strings.TrimSpace(w.line)
@@ -854,7 +869,7 @@ func fmtEmitBody(w *fmtWriter, body []*fmtNode, indent int, stmt *fmtStmt, root 
 			e := fmtChain(node)
 			fmtEmitValue(w, e, indent)
 			if "" != e.trail {
-				w.text(" " + e.trail)
+				w.trail(e.trail)
 			}
 		}
 		if root && from < w.mark() {
@@ -878,7 +893,7 @@ func fmtEmitValue(w *fmtWriter, node *fmtNode, indent int) {
 		v := fmtChain(node.value)
 		fmtEmitValue(w, v, indent)
 		if "" != v.trail {
-			w.text(" " + v.trail)
+			w.trail(v.trail)
 		}
 	case "spread":
 		w.text("&: ")
@@ -932,7 +947,7 @@ func fmtEmitCall(w *fmtWriter, node *fmtNode, indent int) {
 				w.open(indent+2, false)
 				w.text(it.text)
 			} else {
-				w.text(" " + it.text)
+				w.trail(it.text)
 			}
 			noted = true
 			continue
@@ -1014,7 +1029,7 @@ func fmtEmitBlock(w *fmtWriter, open, close string, node *fmtNode, indent int, s
 	}
 	w.text(open)
 	if "" != node.open {
-		w.text(" " + node.open)
+		w.trail(node.open)
 	}
 	fmtEmitBody(w, node.body, indent+2, stmt, false)
 	w.open(indent, false)
@@ -1026,11 +1041,6 @@ func fmtEmitExpr(w *fmtWriter, items []*fmtNode, indent int) {
 	if w.fresh() {
 		cont = indent
 	}
-	// Whether the last item was an operand: a comment after one is a
-	// space away, and after an operator or the colon it is not. An
-	// operand is never directly after an operand (the reader ends a
-	// value there), so operands need no such check.
-	operand := false
 	cur := indent
 	for _, it := range items {
 		if "op" == it.t {
@@ -1047,26 +1057,19 @@ func fmtEmitExpr(w *fmtWriter, items []*fmtNode, indent int) {
 					w.text(" " + it.text + " ")
 				}
 			}
-			operand = false
 			continue
 		}
 		if "prefix" == it.t {
 			w.text(it.text)
-			operand = false
 			continue
 		}
 		if "note" == it.t {
-			if operand {
-				w.text(" ")
-			}
-			w.text(it.text)
+			w.trail(it.text)
 			cur = cont
 			w.open(cur, false)
-			operand = false
 			continue
 		}
 		fmtEmitValue(w, it, cur)
-		operand = true
 	}
 }
 
@@ -1266,7 +1269,7 @@ func fmtRepeatLines(entries []*fmtNode, prefix string, indent int) ([]fmtLine, b
 		}
 		trail := ""
 		if "" != e.trail {
-			trail = " " + e.trail
+			trail = trailGap + e.trail
 		}
 		if "spread" == e.t {
 			// The repeated spread entry is a one-entry map holding only a
@@ -1366,7 +1369,7 @@ func fmtEmitStatement(w *fmtWriter, p *fmtNode, indent int, stmt *fmtStmt, prefi
 		rewritten = true
 	}
 	if "" != p.trail {
-		w.text(" " + p.trail)
+		w.trail(p.trail)
 	}
 	if rewritten && !stmt.covered {
 		orig := p.orig

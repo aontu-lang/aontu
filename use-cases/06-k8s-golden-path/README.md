@@ -4,16 +4,16 @@
 
 ## The scenario
 
-A payments platform team owns `platform.aon`, the golden path: hidden
+A payments platform team owns `platform.aontu`, the golden path: hidden
 machinery that fans one compact service model out into
 Kubernetes-shaped Deployment and Service manifests. Product teams edit
-only `services.aon` (the compact model: names, versions, tiers, ports,
-env extras) and `overrides.aon` (reviewed exceptions, written at
-concrete generated paths). `main.aon` unifies the three; evaluating it
+only `services.aontu` (the compact model: names, versions, tiers, ports,
+env extras) and `overrides.aontu` (reviewed exceptions, written at
+concrete generated paths). `main.aontu` unifies the three; evaluating it
 renders three Deployments and three Services with images, labels,
 selectors, port lists, env lists, and tiered resource blocks, and no
-manifest is written by hand. `guardrails.aon` vets the rendered JSON
-against org policy, and `request-schema.aon` gates agent-emitted
+manifest is written by hand. `guardrails.aontu` vets the rendered JSON
+against org policy, and `request-schema.aontu` gates agent-emitted
 onboarding candidates (`data/onboard-*.json`).
 
 This is the job Helm templates and Kustomize overlays do with text.
@@ -25,7 +25,7 @@ Everything quoted below is real CLI output (ANSI stripped).
 
 ## The model tree
 
-`main.aon` unifies the golden path with what the product team writes.
+`main.aontu` unifies the golden path with what the product team writes.
 The compact model is `svc`; `deploy` and `service` are the Kubernetes
 manifests the machinery in `platform` renders from it, one per service,
 and `internal` is the working shape it renders through.
@@ -54,7 +54,7 @@ $
     └── version (3)
 ```
 
-`aontu view doc --depth 2 main.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 main.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -102,20 +102,20 @@ than its value.
 - `hide()` keeps `svc`, `platform`, and `internal` out of the rendered
   document, which contains only `deploy` and `service`; hidden inputs
   still feed the generators.
-- Org bounds live in `guardrails.aon` and are enforced by `vet` over
+- Org bounds live in `guardrails.aontu` and are enforced by `vet` over
   the rendered manifests, where every value is concrete. `re()` accepts
   a portable subset of regular-expression syntax and refuses a
   quantifier applied to a group that contains another quantifier
   (`[aontu/constraint_pattern]`), so the DNS-1123 name pattern is
   written as the alternation `^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$` in
-  both `guardrails.aon` and `request-schema.aon`.
+  both `guardrails.aontu` and `request-schema.aontu`.
 - Kebab-case names and dotted hostnames are quoted: bare `web-api`
   parses as a negation (`[aontu/negative]`) and bare
   `otel.acme.internal` as a path reference.
 
 ## What check.sh proves
 
-1. `aontu main.aon` matches `expected/manifests.json` byte for byte:
+1. `aontu main.aontu` matches `expected/manifests.json` byte for byte:
    three services fan out to three Deployments and three Services, and
    the hidden inputs do not render.
 2. Values land where the model says (`aontu model get`): billing replicas 6
@@ -131,14 +131,14 @@ than its value.
 3. The billing env list carries `LOG_LEVEL` `debug` (the team's
    map-level override beats the `*info` default) and
    `OTEL_SERVICE_NAME` `billing` (injected per service).
-4. `vet guardrails.aon expected/manifests.json` is `verdict: valid`.
-5. `vet guardrails.aon data/manifests-tampered.json` is refused with
+4. `vet guardrails.aontu expected/manifests.json` is `verdict: valid`.
+5. `vet guardrails.aontu data/manifests-tampered.json` is refused with
    three located `[aontu/constraint]` findings: replicas 50 against
    `max(20)`, the lowercase env name `log_level` against the env-name
    pattern (at `...containers.0.env.0.name`), and the unit-less memory
    quantity `"512"` against `re("^[0-9]+(Mi|Gi)$")`. Each finding
    names the data line and the schema line.
-6. `vet --closed guardrails.aon data/manifests-unknown-key.json`
+6. `vet --closed guardrails.aontu data/manifests-unknown-key.json`
    refuses the unknown container key `restartPolicyy` with
    `[aontu/closed]` at `...containers.0`.
 7. Onboarding candidates: `data/onboard-good.json` is `verdict: valid`;
@@ -148,65 +148,65 @@ than its value.
    (`length(min(12))`), and the extra key `$.forceDeploy`
    (`[aontu/closed]`); `--format json` emits `"code": "constraint"`.
 8. Drift guard: a version-column entry with no service
-   (`svc: version: "ghost-svc": "9.9.9"` unified with `main.aon`) is
+   (`svc: version: "ghost-svc": "9.9.9"` unified with `main.aontu`) is
    refused by the sealed set, `[aontu/closed]` at `$.deploy.ghost-svc`.
 9. `$.base * 2` is a parse error, `[aontu/unexpected]`: `*` is the
    preference marker, and doubling is written `mul($.base, 2)`
-   (`probes/multiply.aon`).
+   (`probes/multiply.aontu`).
 10. Arithmetic needs concrete operands: `$.base.replicas +
     $.base.replicas` against `*2 | integer` is `[aontu/mapval_no_gen]`
-    (`probes/double-from-default.aon`).
+    (`probes/double-from-default.aontu`).
 11. A ranked default and bounds share a field: `replicas: (*2 |
     integer) & min(1) & max(20)` generates 2
-    (`probes/default-with-bounds.aon`), and `replicas: *2 | (integer &
+    (`probes/default-with-bounds.aontu`), and `replicas: *2 | (integer &
     min(1) & max(20))` refuses an override of 40 with `[aontu/empty]`
-    (`probes/bound-bypass.aon`).
+    (`probes/bound-bypass.aontu`).
 12. `pick([_], ports)` inside a pack template projects a field out of
     the source row: the generated child carries `"containerPort": 8080`
-    (`probes/hole-member-access.aon`).
+    (`probes/hole-member-access.aontu`).
 13. `each(d, _ & t)` meets each child with its template, so a scalar
     child cannot become a map element: `each($.ports, _ & {
     containerPort: _, name: key() })` over `{ http: 8080 }` is
-    `[aontu/scalar_kind]` (`probes/each-reshape-scalar.aon`).
+    `[aontu/scalar_kind]` (`probes/each-reshape-scalar.aontu`).
 14. `+` does not take a list operand: `$.names + ","` is
-    `[aontu/mapval_no_gen]` (`probes/join-list.aon`).
+    `[aontu/mapval_no_gen]` (`probes/join-list.aontu`).
 15. Lists unify by position: an entry written onto a generated env list
     collides with element 0, `[aontu/scalar_value]` at `$.env.0.name`
-    (`probes/env-append.aon`).
+    (`probes/env-append.aontu`).
 16. A bare kebab-case name parses as a negation, `[aontu/negative]`
-    (`probes/kebab-bare.aon`).
+    (`probes/kebab-bare.aontu`).
 17. `length(min(1))` on a schema list beside a spread is decided at
     generation, after a later pack has filled the list; the model
-    renders its one port (`probes/length-on-schema-list.aon`, golden).
+    renders its one port (`probes/length-on-schema-list.aontu`, golden).
 18. `close(pack(...))` seals the set of children, not their keys: an
     override key `replcias` on a generated child is accepted and
     rendered beside `replicas: 2`, exit 0
-    (`probes/close-shallow-typo.aon`, golden).
+    (`probes/close-shallow-typo.aontu`, golden).
 19. A relative reference inside a pack template answers for the child:
     `cpu: .cpu_m + "m"` is `"250m"` in every child
-    (`probes/ref-in-pack-template.aon`, golden).
+    (`probes/ref-in-pack-template.aontu`, golden).
 20. A template wrapped in `close()` composes with a second pack onto the
     same children, and each child keeps its own `key()`
-    (`probes/inner-close-crosswire.aon`, golden).
+    (`probes/inner-close-crosswire.aontu`, golden).
 21. A `**key(3) | string` default inside an `each` under a pack answers
     per child: every service gets its own name
-    (`probes/pref-key-crosswire.aon`, golden).
+    (`probes/pref-key-crosswire.aontu`, golden).
 22. `hide(pack(...))` hides the field, and a downstream pack over the
-    hidden children reads their values (`probes/hide-pack-loss.aon`,
+    hidden children reads their values (`probes/hide-pack-loss.aontu`,
     golden).
 23. Quantity strings concatenate: `"256Mi" + "256Mi"` is
     `"256Mi256Mi"`, exit 0, while `512 + "Mi"` is `"512Mi"` and
-    `(512 + 512) + "Mi"` is `"1024Mi"` (`probes/quantity-concat.aon`,
+    `(512 + 512) + "Mi"` is `"1024Mi"` (`probes/quantity-concat.aontu`,
     golden). The arithmetic functions are numeric, so
     `add("256Mi", "256Mi")` is refused where it is written,
     `[aontu/func_arg]` with the signature
     `add(a: number, b: number) : number` in the report
-    (`probes/quantity-add-refused.aon`).
+    (`probes/quantity-add-refused.aontu`).
 24. A pack over spread-augmented data fires with the derived columns:
     `ports: &: &: { port: .containerPort, targetPort: .containerPort }`
     followed by a pack over `$.ports` emits entries carrying `port`,
     `targetPort`, and the `protocol` default
-    (`probes/spread-column-deadlock.aon`, golden).
+    (`probes/spread-column-deadlock.aontu`, golden).
 
 ## Running it
 
@@ -214,7 +214,7 @@ From this directory, `./check.sh` runs all 35 assertions and exits 0.
 The pipeline the checks drive, by hand:
 
 ```sh
-aontu main.aon > manifests.json                        # render the manifests
-aontu vet guardrails.aon manifests.json                # org policy over the rendered output
-aontu vet request-schema.aon data/onboard-good.json    # gate an agent's onboarding candidate
+aontu main.aontu > manifests.json                        # render the manifests
+aontu vet guardrails.aontu manifests.json                # org policy over the rendered output
+aontu vet request-schema.aontu data/onboard-good.json    # gate an agent's onboarding candidate
 ```

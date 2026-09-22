@@ -170,7 +170,7 @@ describe('lsp-alias', () => {
       '```aontu\ntypes: type({%row: {n:string}})\n```\n\n*alias*')
   })
 
-  const SRC = '%port = integer\n{ %uint8 } = @"./t.aon"\n\nl: %port\nv: %uint8'
+  const SRC = '%port = integer\n{ %uint8 } = @"./t.aontu"\n\nl: %port\nv: %uint8'
 
   // A hover marks the USE the cursor is on, not the declaration.
   test('hover-names-the-declaration', () => {
@@ -184,7 +184,7 @@ describe('lsp-alias', () => {
   test('hover-names-the-file-a-name-was-taken-from', () => {
     const h: any = computeHover(SRC, { line: 4, character: 4 })
     Assert.equal(h.contents.value,
-      '```aontu\n{ %uint8 } = @"./t.aon"\n```\n\n*alias, taken from ./t.aon*')
+      '```aontu\n{ %uint8 } = @"./t.aontu"\n```\n\n*alias, taken from ./t.aontu*')
   })
 
   test('definition-goes-to-where-the-name-is-bound', () => {
@@ -232,8 +232,8 @@ describe('lsp-alias-lexical', () => {
   test('what-the-text-binds-and-what-it-does-not', () => {
     // A head that is not a set, the wildcard (whose names are the other
     // file's to say), and an `=` that does not declare.
-    Assert.deepEqual(aliasScope('{ a } = @"./f.aon"'), [])
-    Assert.deepEqual(aliasScope('{%} = @"./f.aon"'), [])
+    Assert.deepEqual(aliasScope('{ a } = @"./f.aontu"'), [])
+    Assert.deepEqual(aliasScope('{%} = @"./f.aontu"'), [])
     Assert.deepEqual(aliasScope('%a == 1'), [])
     Assert.deepEqual(aliasScope('  %a = 1'),
       [{ name: '%a', row: 1, col: 3, decl: '%a = 1', from: '' }])
@@ -312,7 +312,7 @@ describe('lsp-completion', () => {
 
   // Twin: go/lsp/lsp_test.go TestCompletionOffersTheNamesInScope.
   test('completion-offers-the-names-in-scope', () => {
-    const src = '%port = integer\n{ %uint8, %b: %remote } = @"./types.aon"\n'
+    const src = '%port = integer\n{ %uint8, %b: %remote } = @"./types.aontu"\n'
     const named = computeCompletions(src).filter(i => i.label.startsWith('%'))
 
     // A rename binds the LOCAL name: `%b`, not the `%remote` it takes.
@@ -320,11 +320,11 @@ describe('lsp-completion', () => {
       { label: '%port', kind: COMPLETION_VARIABLE, detail: 'alias' },
       {
         label: '%uint8', kind: COMPLETION_VARIABLE,
-        detail: 'alias from ./types.aon'
+        detail: 'alias from ./types.aontu'
       },
       {
         label: '%b', kind: COMPLETION_VARIABLE,
-        detail: 'alias from ./types.aon'
+        detail: 'alias from ./types.aontu'
       },
     ])
 
@@ -727,10 +727,10 @@ describe('lsp-hover-provenance', () => {
     Assert.equal(
       contributionsMarkdown([
         { canon: '1', role: 'literal', site: { col: -1, file: '', row: -1 } },
-        { canon: 'integer', role: 'spread', site: { col: 3, file: 'x.aon', row: 2 } },
+        { canon: 'integer', role: 'spread', site: { col: 3, file: 'x.aontu', row: 2 } },
       ] as any),
       '\n\n---\n\nContributions:\n' +
-      '- `1` — literal\n- `integer` — spread (x.aon:2:3)')
+      '- `1` — literal\n- `integer` — spread (x.aontu:2:3)')
   })
 
   test('the-handler-reads-the-opt-in', () => {
@@ -743,14 +743,14 @@ describe('lsp-hover-provenance', () => {
       jsonrpc: '2.0', method: 'textDocument/didOpen',
       params: {
         textDocument: {
-          uri: 'file:///p.aon', text: 'a: 1\na: integer', version: 1,
+          uri: 'file:///p.aontu', text: 'a: 1\na: integer', version: 1,
         },
       },
     } as any)
     const hover: any = on.handle({
       jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
       params: {
-        textDocument: { uri: 'file:///p.aon' },
+        textDocument: { uri: 'file:///p.aontu' },
         position: { line: 0, character: 3 },
       },
     } as any)[0]
@@ -762,14 +762,14 @@ describe('lsp-hover-provenance', () => {
       jsonrpc: '2.0', method: 'textDocument/didOpen',
       params: {
         textDocument: {
-          uri: 'file:///p.aon', text: 'a: 1\na: integer', version: 1,
+          uri: 'file:///p.aontu', text: 'a: 1\na: integer', version: 1,
         },
       },
     } as any)
     const plain: any = off.handle({
       jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
       params: {
-        textDocument: { uri: 'file:///p.aon' },
+        textDocument: { uri: 'file:///p.aontu' },
         position: { line: 0, character: 3 },
       },
     } as any)[0]

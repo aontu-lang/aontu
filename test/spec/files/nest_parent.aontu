@@ -1,0 +1,2 @@
+a: 1
+child: @"./nest_child.aontu"

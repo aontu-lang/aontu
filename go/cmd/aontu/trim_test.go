@@ -20,7 +20,7 @@ func trimRun(args ...string) (string, string, int) {
 
 func trimFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestTrimUsageErrorsExit2(t *testing.T) {
 	if _, _, code = trimRun("--check", "--format", "yaml", file); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
-	if _, _, code = trimRun("--check", filepath.Join(t.TempDir(), "missing.aon")); 2 != code {
+	if _, _, code = trimRun("--check", filepath.Join(t.TempDir(), "missing.aontu")); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	out, _, code := trimRun("--help")

@@ -25,16 +25,16 @@ describe('diff', () => {
   test('each-side-resolves-includes-from-its-own-directory', () => {
     const left = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-diff-l-'))
     const right = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-diff-r-'))
-    Fs.writeFileSync(Path.join(left, 'part.aon'), 'k: 1')
-    Fs.writeFileSync(Path.join(right, 'part.aon'), 'k: 2')
+    Fs.writeFileSync(Path.join(left, 'part.aontu'), 'k: 1')
+    Fs.writeFileSync(Path.join(right, 'part.aontu'), 'k: 2')
     // The entry file has to EXIST: the resolver stats it to root the
     // relative load, exactly as it does for `aontu <file>`.
-    Fs.writeFileSync(Path.join(left, 'doc.aon'), 'a: @"./part.aon"')
-    Fs.writeFileSync(Path.join(right, 'doc.aon'), 'a: @"./part.aon"')
+    Fs.writeFileSync(Path.join(left, 'doc.aontu'), 'a: @"./part.aontu"')
+    Fs.writeFileSync(Path.join(right, 'doc.aontu'), 'a: @"./part.aontu"')
 
-    const r = diff('a: @"./part.aon"', 'a: @"./part.aon"', {
-      leftPath: Path.join(left, 'doc.aon'),
-      rightPath: Path.join(right, 'doc.aon'),
+    const r = diff('a: @"./part.aontu"', 'a: @"./part.aontu"', {
+      leftPath: Path.join(left, 'doc.aontu'),
+      rightPath: Path.join(right, 'doc.aontu'),
     })
     Assert.equal(r.ok, true)
     Assert.deepEqual(r.changes,

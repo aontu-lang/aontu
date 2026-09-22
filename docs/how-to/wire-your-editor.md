@@ -16,8 +16,8 @@ wiring a client yourself.
 
 The facts every client needs: the command is `aontu` with the one
 argument `lsp`, the transport is stdio, and the document selector is
-the `aontu` language (`.aon` is the preferred extension, `.aontu` also
-works, `.jsonic` is retired). The server has no configuration options.
+the `aontu` language (`.aontu` is the extension, and the only one;
+`.jsonic` is retired). The server has no configuration options.
 The standalone `aontu-lsp` binary that earlier configurations name
 still ships and runs the same server.
 
@@ -58,7 +58,7 @@ the same `args` for a Go build.
 
 <!-- test: skip Neovim configuration; the server contract is pinned by ts/test/lsp.test.ts and go/lsp/serve_test.go -->
 ```lua
-vim.filetype.add({ extension = { aon = 'aontu', aontu = 'aontu' } })
+vim.filetype.add({ extension = { aontu = 'aontu' } })
 
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'aontu',
@@ -72,15 +72,14 @@ vim.api.nvim_create_autocmd('FileType', {
 })
 ```
 
-The filetype registration covers both extensions; the shipped
-[vim plugin](../../editors/vim/) does the same and adds syntax
-highlighting.
+The shipped [vim plugin](../../editors/vim/) registers the same
+filetype and adds syntax highlighting.
 
 ## Any LSP client
 
 Configure a server whose command is `aontu` with the argument `lsp`
 (or `node …/aontu-lsp.js`), transport stdio, document selector the
-`aontu` language / `*.aon` glob. No initialization options are
+`aontu` language / `*.aontu` glob. No initialization options are
 required. One is available: hover provenance, which appends to each
 hover the contributions record `aontu model why` prints: ask for it and
 pay a second evaluation per hover, or leave it off and pay nothing

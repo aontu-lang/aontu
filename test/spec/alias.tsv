@@ -163,9 +163,9 @@ alias-key-elided	errc	%a:	elided_value
 alias-key-list-elided	errc	x:[%a:]	elided_value
 alias-key-self	errc	%a: %a	path_cycle
 alias-key-undefined	errc	%a: %missing	no_path
-alias-key-private-include	errc	@"__FIXTURES__/alias_key_private.aon" x: %item	no_path
-alias-key-private-values	gens	@"__FIXTURES__/alias_key_private.aon"	{"item":{"n":1}}
-alias-key-export-import	gens	{%row} = @"__FIXTURES__/alias_key_export.aon" x:%row & {n:hello}	{"x":{"n":"hello"}}
+alias-key-private-include	errc	@"__FIXTURES__/alias_key_private.aontu" x: %item	no_path
+alias-key-private-values	gens	@"__FIXTURES__/alias_key_private.aontu"	{"item":{"n":1}}
+alias-key-export-import	gens	{%row} = @"__FIXTURES__/alias_key_export.aontu" x:%row & {n:hello}	{"x":{"n":"hello"}}
 alias-key-canon	canon	%a: {n:string} a:{n:one} b:%a & {n:two}	{"a":{"n":"one"},"b":{"n":"two"}}
 #
 # A DECLARATION IS ALSO A VALUE PREFIX. In a value position -- to the
@@ -296,14 +296,14 @@ alias-numeric-path-segment	gens	%foo = 1\nb: [7,8]\na: $.b.1\nz: %foo	{"a":8,"b"
 # Spliced at the root, an include IS the one document -- there is a
 # single root map, so there is no second scope for a name to leak out
 # of, and the declaration is a declaration of that document.
-alias-include-at-root-declares	gens	@"__FIXTURES__/alias_sigil.aon"\nx: 1	{"q":7,"x":1}
+alias-include-at-root-declares	gens	@"__FIXTURES__/alias_sigil.aontu"\nx: 1	{"q":7,"x":1}
 # Placed under a key it is the same file and the same text, and it is
 # refused: `%b` resolves from the ROOT, so the declaration would be
 # erased from the output and still unreachable -- and, worse, a `%b`
 # written in the INCLUDER would be what the included file's own `%b`
 # reached. Pathed where it landed.
-alias-include-under-key-refused	errc	a: @"__FIXTURES__/alias_sigil.aon"	alias_not_toplevel
-alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aon"	at path $.a.%b
+alias-include-under-key-refused	errc	a: @"__FIXTURES__/alias_sigil.aontu"	alias_not_toplevel
+alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aontu"	at path $.a.%b
 #
 # A NAME DOES NOT CROSS A FILE BOUNDARY EITHER (ALIASES.0.md sections 5
 # to 7). `@"..."` carries a file's VALUES across and never its names. An
@@ -312,20 +312,20 @@ alias-include-under-key-path	err	a: @"__FIXTURES__/alias_sigil.aon"	at path $.a.
 # dynamic scope and a file's meaning depends on who included it.
 #
 # The includer's names are not visible inside the file it includes.
-alias-include-does-not-see-includer-name	errc	%t = 42\ninner: @"__FIXTURES__/alias_uses_t.aon"	no_path
+alias-include-does-not-see-includer-name	errc	%t = 42\ninner: @"__FIXTURES__/alias_uses_t.aontu"	no_path
 # ... and an unexported name is not visible to the includer. The file's
 # VALUES still arrive, which is the whole of what an include does.
-alias-includer-does-not-see-unexported	errc	@"__FIXTURES__/alias_declares_u.aon"\nz: %u	no_path
-alias-include-still-carries-values	gens	@"__FIXTURES__/alias_declares_u.aon"	{"y":1}
+alias-includer-does-not-see-unexported	errc	@"__FIXTURES__/alias_declares_u.aontu"\nz: %u	no_path
+alias-include-still-carries-values	gens	@"__FIXTURES__/alias_declares_u.aontu"	{"y":1}
 # TWO FILES MAY USE ONE NAME FOR DIFFERENT THINGS. Sharing a table makes
 # that a silent merge wherever the two bodies happen to unify, so a file
 # is constrained by a declaration it never saw: `a` here would acquire
 # `extra` from a file it does not name.
-alias-same-name-in-two-files-stays-separate	gens	@"__FIXTURES__/alias_row_a.aon"\n@"__FIXTURES__/alias_row_b.aon"	{"a":{"kind":"x"},"b":{"extra":9,"kind":"y"}}
+alias-same-name-in-two-files-stays-separate	gens	@"__FIXTURES__/alias_row_a.aontu"\n@"__FIXTURES__/alias_row_b.aontu"	{"a":{"kind":"x"},"b":{"extra":9,"kind":"y"}}
 # A REFERENCE RESOLVES WHERE IT WAS WRITTEN, not where it lands. The
 # rule here is written in one file and instantiated against data
 # declared in another, which is what file scope has to keep working.
-alias-template-resolves-where-written	gens	@"__FIXTURES__/alias_travel.aon"\nmain: entity: thing: args: params: [ { kind: 'param' } ]	{"main":{"entity":{"thing":{"args":{"params":[{"active":true,"kind":"param"}]}}}}}
+alias-template-resolves-where-written	gens	@"__FIXTURES__/alias_travel.aontu"\nmain: entity: thing: args: params: [ { kind: 'param' } ]	{"main":{"entity":{"thing":{"args":{"params":[{"active":true,"kind":"param"}]}}}}}
 #
 # `export` PUBLISHES A NAME. It is self-erasing -- a declaration, not a
 # value -- so adding one never changes what a file generates.
@@ -346,54 +346,54 @@ alias-export-nested-refused	errc	x: { export({ %u }) }	alias_not_toplevel
 alias-export-nested-path	err	x: { export({ %u }) }	at path $.x.export
 # THE DESTRUCTURE IS ADDITIVE: it places the file's values exactly as a
 # plain include does, and ALSO binds the names it asks for.
-alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
-alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+alias-import-named	gens	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+alias-import-take-all	gens	{%} = @"__FIXTURES__/alias_exports.aontu"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # An unexported name cannot be bound, and the refusal names the name.
-alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	import_not_exported
+alias-import-unexported-refused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aontu"\na: %secret	import_not_exported
 # A DECLARATION IS NOT A FIELD, so `close` never counts one: an alias
 # key is erased before the document exists, and a closed document
 # spliced beside one does not refuse it.
-alias-declaration-is-not-a-closed-key	gens	%u = 1\n@"__FIXTURES__/alias_sealed.aon"\na: %u	{"a":1}
+alias-declaration-is-not-a-closed-key	gens	%u = 1\n@"__FIXTURES__/alias_sealed.aontu"\na: %u	{"a":1}
 # A DESTRUCTURE PLACES ITS SUBTREE WHERE IT STANDS and binds its names
 # in the file, so it may sit under a key: the values go there and the
 # names do not. A DECLARATION IS THE DOCUMENT'S wherever the file's
 # values land, so the other file's own names are lifted to the root
 # with them -- without that, a file that uses the name it publishes
 # could not be placed under a key at all.
-alias-import-under-key	gens	svc: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"svc":{"defaults":{"retries":3}}}
-alias-import-under-key-resolves-its-own	gens	svc: { %port } = @"__FIXTURES__/alias_exports_used.aon"\na: %port\na: 443	{"a":443,"svc":{"listen":8080}}
-alias-import-under-a-deep-key	gens	a: b: { %uint8 } = @"__FIXTURES__/alias_exports.aon"\nz: %uint8	{"a":{"b":{"defaults":{"retries":3}}},"z":255}
+alias-import-under-key	gens	svc: { %uint8 } = @"__FIXTURES__/alias_exports.aontu"\na: %uint8	{"a":255,"svc":{"defaults":{"retries":3}}}
+alias-import-under-key-resolves-its-own	gens	svc: { %port } = @"__FIXTURES__/alias_exports_used.aontu"\na: %port\na: 443	{"a":443,"svc":{"listen":8080}}
+alias-import-under-a-deep-key	gens	a: b: { %uint8 } = @"__FIXTURES__/alias_exports.aontu"\nz: %uint8	{"a":{"b":{"defaults":{"retries":3}}},"z":255}
 # RENAMING IS BOTH SIDES SPELLED: `%local: %remote` binds the name the
 # other file publishes under the name this file wants, which is the
 # only answer to two files publishing one name.
-alias-import-renames	gens	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %u8	{"a":255,"defaults":{"retries":3}}
-alias-import-renames-under-key	gens	svc: { %p: %port } = @"__FIXTURES__/alias_exports_used.aon"\na: %p\na: 443	{"a":443,"svc":{"listen":8080}}
+alias-import-renames	gens	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aontu"\na: %u8	{"a":255,"defaults":{"retries":3}}
+alias-import-renames-under-key	gens	svc: { %p: %port } = @"__FIXTURES__/alias_exports_used.aontu"\na: %p\na: 443	{"a":443,"svc":{"listen":8080}}
 # The EXPORTED name is what must be published; the local one is this
 # file's business and nothing checks it against the other file.
-alias-import-rename-unexported-refused	errc	{ %s: %secret } = @"__FIXTURES__/alias_exports.aon"\na: %s	import_not_exported
+alias-import-rename-unexported-refused	errc	{ %s: %secret } = @"__FIXTURES__/alias_exports.aontu"\na: %s	import_not_exported
 # The remote name is also the one the refusal reports.
-alias-import-rename-names-the-remote	err	{ %s: %secret } = @"__FIXTURES__/alias_exports.aon"\na: %s	does not publish `%secret`
+alias-import-rename-names-the-remote	err	{ %s: %secret } = @"__FIXTURES__/alias_exports.aontu"\na: %s	does not publish `%secret`
 # A name that arrives MEETS a local declaration of the same name rather
 # than replacing it, exactly as two declarations in one file meet.
-alias-import-meets-a-local-declaration	gens	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aon"\na: %uint8	{"a":255,"defaults":{"retries":3}}
+alias-import-meets-a-local-declaration	gens	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\na: %uint8	{"a":255,"defaults":{"retries":3}}
 # The refusal NAMES THE NAME, so a reader is not left comparing two
 # files to find which one it was, and the DESTRUCTURE ASKED, so it
 # stands in the document: a name nothing reaches is still a mistake.
-alias-import-unexported-names-it	err	{ %secret } = @"__FIXTURES__/alias_exports.aon"\na: %secret	does not publish `%secret`
-alias-import-unexported-refused-unused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aon"	import_not_exported
+alias-import-unexported-names-it	err	{ %secret } = @"__FIXTURES__/alias_exports.aontu"\na: %secret	does not publish `%secret`
+alias-import-unexported-refused-unused	errc	{ %secret } = @"__FIXTURES__/alias_exports.aontu"	import_not_exported
 # A FILE PUBLISHES WHAT IT DECLARES. A name that merely arrived through
 # an include belongs to the file that wrote it, and re-exporting it
 # would publish what its own file withheld.
-alias-export-of-an-included-name-refused	errc	{ %u } = @"__FIXTURES__/alias_reexport.aon"\na: %u	import_not_exported
+alias-export-of-an-included-name-refused	errc	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\na: %u	import_not_exported
 # ... and so is a name the other file never declared at all.
-alias-import-undeclared-refused	errc	{ %nosuch } = @"__FIXTURES__/alias_exports.aon"\na: %nosuch	import_not_exported
+alias-import-undeclared-refused	errc	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\na: %nosuch	import_not_exported
 # A right-hand side that is not a document publishes no name, so the
 # name the head asked for is refused exactly as an unexported one is.
 alias-import-from-a-scalar-refused	errc	{ %a } = 1\nb: %a	import_not_exported
 # A WRAPPED ROOT still publishes: open(), close() and copy() each hold
 # the document as their one argument, and a file is what it wrote, not
 # what wraps it.
-alias-import-through-a-wrapper	gens	{ %port } = @"__FIXTURES__/alias_open_exports.aon"\na: %port	{"a":8080,"listen":8080}
+alias-import-through-a-wrapper	gens	{ %port } = @"__FIXTURES__/alias_open_exports.aontu"\na: %port	{"a":8080,"listen":8080}
 # THE DECLARATION IS NOT A FIELD, and the pair that carries it to the
 # parser waits under a key that changes with each one, so a field the
 # document happens to name the same way is still the document's.
@@ -442,8 +442,8 @@ alias-finding-path-ref-has-no-use	errc	b: 1\na: $.b\na: 2	scalar_value
 # THE USE MAY BE IN ANOTHER FILE, and the frame goes there: the value
 # arrived through a name the OTHER file wrote, so that is the line to
 # change, not anything in this one.
-alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aon"\na: 2	alias_used_in_file.aon
-alias-key-before-include	gens	%parent: {n:2}\n@"__FIXTURES__/alias_key_private.aon"\nx:%parent	{"item":{"n":1},"parent":{"n":2},"x":{"n":2}}
+alias-finding-names-a-use-in-another-file	err	{ %n } = @"__FIXTURES__/alias_used_in_file.aontu"\na: 2	alias_used_in_file.aontu
+alias-key-before-include	gens	%parent: {n:2}\n@"__FIXTURES__/alias_key_private.aontu"\nx:%parent	{"item":{"n":1},"parent":{"n":2},"x":{"n":2}}
 alias-key-root-list-use	errc	[%a: 1, %a]	alias_not_toplevel
 alias-key-root-list-longhand	errc	[a: %a = 1, %a]	alias_not_toplevel
 alias-key-elided-use	errc	x:[%a:] y:%a	no_path

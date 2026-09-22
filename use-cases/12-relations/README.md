@@ -49,7 +49,7 @@ invention.
 
 ## The model tree
 
-`model.aon` is the vocabulary plus the topology. `spec` generates
+`model.aontu` is the vocabulary plus the topology. `spec` generates
 empty (it is `hide()`-marked, being schema rather than data) and
 `pipeline` holds the four jobs, each with its `feeds` and `fedBy`
 address lists.
@@ -75,7 +75,7 @@ $
         └── kind "job"
 ```
 
-`aontu view doc --depth 3 model.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 3 model.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -83,12 +83,12 @@ than its value.
 
 ## The model
 
-`model.aon` is the root: one evaluation that includes the vocabulary
-(`spec.aon`) and the topology (`pipeline.aon`). The whole relation is
-one line of schema in `spec.aon`, with the inverse field declared
+`model.aontu` is the root: one evaluation that includes the vocabulary
+(`spec.aontu`) and the topology (`pipeline.aontu`). The whole relation is
+one line of schema in `spec.aontu`, with the inverse field declared
 `rel` beside it:
 
-```aon
+```aontu
 %JobEdge = rel($.spec.JobShape)
 
 feeds?: %JobEdge & acyclic() & inverse(fedBy)
@@ -97,7 +97,7 @@ fedBy?: %JobEdge
 
 `%JobEdge` is an **alias**: `%name = value` at the top level declares one and
 `%name` in value position uses it. It does not generate and does not
-appear in canon, so `spec.aon` with the name and `spec.aon` with
+appear in canon, so `spec.aontu` with the name and `spec.aontu` with
 `rel($.spec.JobShape)` written out at both ends are the same document
 with the same `aon1-` hash. What it buys is that a relation and its
 inverse can no longer be declared over different endpoint types, which
@@ -112,13 +112,13 @@ point at.
   declarations, registered during unification and decided at
   generation, where every edge is known.
 
-The data (`pipeline.aon`) is plain lists of addresses under
+The data (`pipeline.aontu`) is plain lists of addresses under
 `&: $.spec.Job`. Each job lists what it feeds and what feeds it, both
 directions written out, because `inverse()` checks the mirror and does
 not write it for you. There is no `relations:` block anywhere; that
 key is ordinary user data.
 
-`proposals/append.aon` adds a fifth job, `archive`, from a separate
+`proposals/append.aontu` adds a fifth job, `archive`, from a separate
 position. Lists unify positionally, so the proposal restates
 `transform.feeds` in full with the new address appended.
 
@@ -127,30 +127,30 @@ The constructs are specified in the language reference under
 
 ## What check.sh proves
 
-1. `model.aon` generates and the output matches `expected/model.json`:
+1. `model.aontu` generates and the output matches `expected/model.json`:
    the atoms hold, and every link is the plain address string the
    author wrote.
-2. `aontu relations model.aon` answers `verdict: pass` without
+2. `aontu relations model.aontu` answers `verdict: pass` without
    generating.
 3. `--canon` renders the declarations at the field, `acyclic()` and
    `inverse("fedBy")`, so a reparse re-registers them.
-4. `bad/cycle.aon` (load feeds extract) refuses at generation with a
+4. `bad/cycle.aontu` (load feeds extract) refuses at generation with a
    located `[aontu/relation_cycle]`, and `aontu relations` answers
    `verdict: fail`, naming the loop:
    `cycle $.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load -> $.pipeline.jobs.extract`.
-5. `bad/missing-inverse.aon` (a new `metrics` job fed by `transform`
+5. `bad/missing-inverse.aontu` (a new `metrics` job fed by `transform`
    whose `fedBy` is empty) refuses with
    `[aontu/relation_inverse_missing]`, and the verb names the exact
    entry:
    `$.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy`.
-6. `bad/wrong-kind.aon` (an edge landing on a dataset) is `rel(t)`'s
+6. `bad/wrong-kind.aontu` (an edge landing on a dataset) is `rel(t)`'s
    flow refusing at evaluation: an ordinary located
    `[aontu/scalar_value]` conflict at the target's `kind`, and
    `aontu relations` answers `verdict: error` with exit code 4.
-7. `bad/dangling.aon` (an address naming no node) refuses inside the
+7. `bad/dangling.aontu` (an address naming no node) refuses inside the
    evaluation with `[aontu/rel_unresolved]`: existence is decided,
    never deferred.
-8. `proposals/append.aon` generates, matching `expected/append.json`,
+8. `proposals/append.aontu` generates, matching `expected/append.json`,
    and `aontu relations` still answers `verdict: pass`: the appended
    element converts like the originals, and its inverse is checked.
 9. `aontu reaches --relation feeds` answers directionally over the same

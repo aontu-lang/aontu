@@ -142,14 +142,14 @@ func TestParseCanonNestedJunctions(t *testing.T) {
 // unattributed. Behaviour is pinned in go/lsp/lsp_test.go, twinned with
 // ts/test/lsp.test.ts; this holds them to the same answers from here.
 func TestAliasScopeFromThePackage(t *testing.T) {
-	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aon\"\n" +
-		"  %lead = 1\n{ a } = @\"./f.aon\"\n{%} = @\"./f.aon\"\n%no == 1\n"
+	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aontu\"\n" +
+		"  %lead = 1\n{ a } = @\"./f.aontu\"\n{%} = @\"./f.aontu\"\n%no == 1\n"
 	want := []AliasBinding{
 		{Name: "%port", Row: 1, Col: 1, Decl: "%port = integer"},
 		{Name: "%uint8", Row: 2, Col: 3,
-			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+			Decl: `{ %uint8, %b: %remote } = @"./types.aontu"`, From: "./types.aontu"},
 		{Name: "%b", Row: 2, Col: 11,
-			Decl: `{ %uint8, %b: %remote } = @"./types.aon"`, From: "./types.aon"},
+			Decl: `{ %uint8, %b: %remote } = @"./types.aontu"`, From: "./types.aontu"},
 		{Name: "%lead", Row: 3, Col: 3, Decl: "%lead = 1"},
 	}
 	got := AliasScope(src)

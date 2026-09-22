@@ -24,10 +24,10 @@ users: { &: $._schema ada: { id:1 name:ada } bob: { id:2 name:bob } }
 ```
 
 `_schema` never appears, and it still constrains. Give `bob` a
-string id in `users.aon`:
+string id in `users.aontu`:
 
 <!-- test: scenario schema-mark -->
-<!-- test: file users.aon -->
+<!-- test: file users.aontu -->
 ```aontu
 _schema: type({ id:integer name:string })
 
@@ -36,7 +36,7 @@ users: { &: $._schema ada: { id:1 name:ada } bob: { id:"two" name:bob } }
 
 <!-- test: run -->
 ```sh
-$ aontu users.aon
+$ aontu users.aontu
 [aontu/no_scalar_unify]: Cannot unify values at path $.users.bob.id
 ...
 $ echo $?
@@ -100,10 +100,10 @@ registry_invariant: hide({
 ```
 
 The filtered set must have length 1, and the check costs the output
-nothing. Promote `admin` to `tenantOwner: true` in `rbac.aon` and
+nothing. Promote `admin` to `tenantOwner: true` in `rbac.aontu` and
 the hidden block fails loudly:
 
-<!-- test: file rbac.aon -->
+<!-- test: file rbac.aontu -->
 ```aontu
 roles: owner: { tenantOwner:true rank:100 }
 roles: admin: { tenantOwner:true rank:80 }
@@ -116,7 +116,7 @@ registry_invariant: hide({
 
 <!-- test: run -->
 ```sh
-$ aontu rbac.aon
+$ aontu rbac.aontu
 [aontu/constraint]: Cannot unify values at path $.registry_invariant.one_owner
 ...
 $ echo $?

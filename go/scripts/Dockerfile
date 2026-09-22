@@ -6,7 +6,7 @@
 # VERSION names them. No shell and no package manager: the CLI is the
 # entrypoint, and /work is where a bind mount goes.
 #
-#   docker run --rm -v "$PWD:/work" ghcr.io/aontu-lang/aontu vet schema.aon data.aon
+#   docker run --rm -v "$PWD:/work" ghcr.io/aontu-lang/aontu vet schema.aontu data.aontu
 FROM scratch
 ARG VERSION
 ARG TARGETARCH

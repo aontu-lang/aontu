@@ -28,7 +28,7 @@ func TestInitTrioIsIdenticalWithItsSources(t *testing.T) {
 		t.Fatalf("staged %d init files, want 3: is `make helpdoc` run?",
 			len(files))
 	}
-	want := []string{"model.aon", "data.aon", "check.sh"}
+	want := []string{"model.aontu", "data.aontu", "check.sh"}
 	for i, f := range files {
 		if want[i] != f.name {
 			t.Errorf("init file %d is %s, want %s", i, f.name, want[i])
@@ -56,12 +56,12 @@ func TestInitTrioIsIdenticalWithItsSources(t *testing.T) {
 func TestInitModelUsesTheTemplateAndNotTheStar(t *testing.T) {
 	var model string
 	for _, f := range initFiles() {
-		if "model.aon" == f.name {
+		if "model.aontu" == f.name {
 			model = f.text
 		}
 	}
 	if !strings.Contains(model, "&:") {
-		t.Error("model.aon does not use the template")
+		t.Error("model.aontu does not use the template")
 	}
 	code := []string{}
 	for _, line := range strings.Split(model, "\n") {
@@ -70,7 +70,7 @@ func TestInitModelUsesTheTemplateAndNotTheStar(t *testing.T) {
 		}
 	}
 	if strings.Contains(strings.Join(code, "\n"), `"*"`) {
-		t.Error("model.aon reaches for the quoted star")
+		t.Error("model.aontu reaches for the quoted star")
 	}
 }
 
@@ -148,7 +148,7 @@ func TestInitRefusesToOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	mine := "mine: true\n"
 	if err := os.WriteFile(
-		filepath.Join(dir, "model.aon"), []byte(mine), 0o644); nil != err {
+		filepath.Join(dir, "model.aontu"), []byte(mine), 0o644); nil != err {
 		t.Fatalf("cannot seed: %v", err)
 	}
 
@@ -156,12 +156,12 @@ func TestInitRefusesToOverwrite(t *testing.T) {
 	if 2 != code {
 		t.Fatalf("init over a standing file exited %d, want 2", code)
 	}
-	for _, want := range []string{"already holds model.aon", "never overwrites"} {
+	for _, want := range []string{"already holds model.aontu", "never overwrites"} {
 		if !strings.Contains(errs, want) {
 			t.Errorf("refusal omits %q: %s", want, errs)
 		}
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "model.aon"))
+	raw, err := os.ReadFile(filepath.Join(dir, "model.aontu"))
 	if nil != err || mine != string(raw) {
 		t.Errorf("the standing file was touched: %v %q", err, string(raw))
 	}
@@ -233,8 +233,8 @@ func TestInitCannotWrite(t *testing.T) {
 	}
 	// A SELF-REFERENTIAL SYMLINK is not a standing file (the existence
 	// check follows it and gets nowhere), and is not writable either.
-	if err := os.Symlink("model.aon",
-		filepath.Join(loop, "model.aon")); nil != err {
+	if err := os.Symlink("model.aontu",
+		filepath.Join(loop, "model.aontu")); nil != err {
 		t.Fatalf("cannot seed: %v", err)
 	}
 	if _, errs, code := initRun(loop); 2 != code ||

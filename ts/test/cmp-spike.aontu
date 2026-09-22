@@ -1,0 +1,25 @@
+# The jostraca component primitives -- SPIKE
+# (docs/design/JOSTRACA.0.md, ts/src/val/CmpFuncVal.ts).
+#
+# Run it, and pipe it into jostraca:
+#
+#   node ts/bin/aontu.js ts/test/cmp-spike.aontu \
+#     | node ../jostraca/tools/cmptree-gen.js --at out --folder ./build
+#
+# Asserted by ts/test/cmp.test.ts, so the note and this file cannot
+# drift from what the engine does.
+#
+# EVERY NAME IS DERIVED. The interface name, the file name and each
+# field are one model name in three spellings, which is what `nom`
+# is for (ts/src/val/NomFuncVal.ts): before it, this file wrote
+# `Planet` out by hand, because `upper("planet")` is `PLANET`.
+
+model: { name:planet_body fields:[id surface_gravity mean_radius] }
+
+out: folder("src", [
+  file(nom($.model.name, kebab) + ".ts", [
+    content("export interface " + nom($.model.name, pascal) + " {\n")
+    each($.model.fields, content("  " + nom(_, camel) + ": number\n"))
+    content("}\n")
+  ])
+])

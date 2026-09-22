@@ -39,8 +39,8 @@ const TOPICS = [
 
 
 const INIT = [
-  { file: 'docs/skill/init/model.aon', name: 'model.aon', mode: 0o644 },
-  { file: 'docs/skill/init/data.aon', name: 'data.aon', mode: 0o644 },
+  { file: 'docs/skill/init/model.aontu', name: 'model.aontu', mode: 0o644 },
+  { file: 'docs/skill/init/data.aontu', name: 'data.aontu', mode: 0o644 },
   { file: 'docs/skill/init/check.sh', name: 'check.sh', mode: 0o755 },
 ]
 

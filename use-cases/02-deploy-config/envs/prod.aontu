@@ -1,0 +1,41 @@
+# Layer 3: production overlay.
+#
+# The &: spread carries *-ranked defaults: every prod workload gets
+# them, and a single service may still override with a concrete value
+# (billing below).  A CONCRETE value in the spread would be a mandate
+# no service could override -- unifying it with a different
+# per-service value is a conflict, which check.sh demonstrates in
+# probes/conflict.aontu.
+#
+# WHY logLevel IS NOT IN THE SPREAD, though replicas is.
+#
+# A per-service concrete value overrides a *-ranked spread default
+# only when the key carries no OTHER ranked default. `replicas` is
+# that case: org states `***2`, prod's spread states `*4`, and
+# billing's concrete 12 wins. `logLevel` is not: org states `***info`
+# and the team layer states `**debug`, so meeting the spread's `*warn`
+# with a service's own `info` leaves `info|*"warn"|***"info"` -- three
+# live arms, one of them ranked, and generation takes the ranked one.
+# That is the rank rules working as written (`***info & *warn` is
+# `*warn`, lowest rank wins), not a defect, but it makes the ANSWER
+# depend on the order the layers meet in, which a model should never
+# rest on. So prod states the level it wants per service. Each of
+# those IS a plain concrete value meeting two ranked defaults, and
+# that resolves to the concrete value whatever the order.
+
+deploy: prod: workloads: {
+  &: {
+    replicas: *4 | integer
+    tracing: false # concrete: tracing is never on in prod
+  }
+
+  # Payments peak capacity: billing runs wider than the env default.
+  billing: replicas: 12
+
+  # Production runs quiet, service by service. Auth is the exception:
+  # info, for audit trail correlation.
+  web: logLevel: warn
+  billing: logLevel: warn
+  reports: logLevel: warn
+  auth: logLevel: info
+}

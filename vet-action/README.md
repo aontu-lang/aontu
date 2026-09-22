@@ -25,10 +25,10 @@ jobs:
         with:
           node-version: 24
 
-      # Fail the job if deploy.json does not satisfy service.aon.
+      # Fail the job if deploy.json does not satisfy service.aontu.
       - uses: aontu-lang/aontu/vet-action@main
         with:
-          schema: service.aon
+          schema: service.aontu
           data: deploy.json
 
       # Or: produce SARIF and upload it to code scanning. aontu vet
@@ -38,7 +38,7 @@ jobs:
         id: vet
         continue-on-error: true
         with:
-          schema: service.aon
+          schema: service.aontu
           data: deploy.json staging.json
           format: sarif
           output-file: vet.sarif

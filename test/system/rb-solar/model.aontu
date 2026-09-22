@@ -1,0 +1,385 @@
+# The Solar System API, as a model.
+#
+# This file is the ONE source every generated file reads: the routes,
+# the migrations, the models, both sets of controllers, the views and
+# the seeds are all facts stated here. Nothing reports a field added
+# here and read by no generator: the dead-model report went with
+# `render --coverage` and nothing replaces it, so a field added and
+# forgotten rots silently until a reader notices.
+#
+# The API is the reference's, not ours: `ref/README.md` says what it is
+# held to, and `ref/validate.ts` is what runs.
+
+service: name: "solar"
+service: title: "Solar System"
+
+# The API prefix, and the port `check.sh` and the reference agree on.
+service: api: "/api"
+service: port: 8901
+
+# The page a bare `/` shows.
+service: root: "planets#index"
+
+# The seed data is the reference's own, included as DATA rather than
+# copied: an include whose extension is `.json` is config data, so the
+# generator walks the same eight planets and twenty-one moons the
+# reference app serves.
+seed: @"./ref/solar.data.json"
+
+# --- what a field is -------------------------------------------------
+#
+# A field's KIND is `string`, `float` or `boolean`. What each becomes
+# in a target -- a migration's column type, a form's input -- is the
+# generator's business and is spelled there with `match()`; the model
+# says what the field IS.
+#
+# EVERY FIELD ANSWERS `pk`, including with `false`. Absence is not an
+# answer a rule table can read: an `emit` rule's `match` admits a node
+# the key is missing from, where `filter` refuses it
+# ([BUGS.md §88](../../use-cases/BUGS.md)), so a generator that asked
+# `{ pk:true }` of a field with no `pk` would take that rule for every
+# field. Stating it is better modelling anyway.
+
+# EVERY FIELD STATES ITS JSON NAME. The wire says `terraformState`
+# where the column says `terraform_state`, and `planet_id` either way;
+# what a field is called in a target is a fact about the model rather
+# than a rule in a template, so it is written down. A generator that
+# derived one from the other would be guessing, and would be wrong
+# three times out of seven here.
+
+# THE FIELDS ARE A MAP, KEYED BY THE COLUMN NAME, for the reason the
+# entities are one -- the note below states it once. So are an entity's
+# actions and the error envelope at the foot of this file: none of the
+# four has an order anything reads. A field is addressed by name,
+# `$.entity.planet.field.diameter`; an action is an endpoint; an error
+# is a method.
+#
+# A MAP IS WALKED IN SORTED-KEY ORDER, so the migration's columns, the
+# serialiser's keys and a page's rows come out alphabetically. Nothing
+# depends on that -- the wire names its keys, and the reference's
+# twenty tests pass either way. Where an order IS load-bearing this
+# file states it: `sequence` below for the entities, `rule` inside an
+# action. The one place the order was doing work nobody had written
+# down was an index table, whose header row and body row are two walks
+# over these fields that have to agree; `views.aontu` now asks for the
+# key column first in both.
+#
+# `name` REPEATS THE KEY, for the same reason an entity's `id` does.
+
+# --- the entities ----------------------------------------------------
+#
+# A MAP, KEYED BY THE ENTITY'S OWN NAME. These are named things, not a
+# sequence: `$.entity.planet` addresses one, `parent: "planet"` below
+# names a key that exists, and a third entity is an insertion rather
+# than a position. A list would have given every one of them a number
+# nobody chose and nothing reads.
+#
+# `id` REPEATS THE KEY INSIDE THE NODE, because a child cannot read its
+# own key: `emit` and `filter` dispatch on what the node holds, and
+# `each` over a map hands its template the POSITION rather than the
+# name. `model.rb` needs it for a filename and `seeds.rb` for a class,
+# so it is written down, which is what this file does with every other
+# fact a generator reads.
+entity: {
+  planet: {
+    id: "planet"
+    class: "Planet"
+    table: "planets"
+    controller: "planets"
+    controller_class: "PlanetsController"
+
+    # ROOT means nothing owns it. Stated on both entities, because a
+    # rule cannot read the absence of a key.
+    root: true
+    param: "planet_id"
+    title: "Planet"
+    plural: "Planets"
+    label: "name"
+
+    # THE URL SHAPES ARE FACTS ABOUT THE API, so they are stated rather
+    # than assembled from the parent chain by a rule. An action's path
+    # is `api_item` and its name; nothing else is derived.
+    api_collection: "/api/planet"
+    api_item: "/api/planet/:planet_id"
+    ui_collection: "/planets"
+    ui_item: "/planets/:planet_id"
+    ui_collection_helper: "planets"
+    ui_item_helper: "planet"
+
+    field: id: {
+      name: "id"
+      json: "id"
+      kind: "string"
+      required: true
+      pk: true
+      write: true
+      fk: false
+    }
+    field: name: {
+      name: "name"
+      json: "name"
+      fk: false
+      kind: "string"
+      required: true
+      pk: false
+      write: true
+    }
+    field: kind: {
+      name: "kind"
+      json: "kind"
+      fk: false
+      kind: "string"
+      required: true
+      pk: false
+      write: true
+    }
+    field: diameter: {
+      name: "diameter"
+      json: "diameter"
+      fk: false
+      kind: "float"
+      required: true
+      pk: false
+      write: true
+    }
+    field: terraform_state: {
+      name: "terraform_state"
+      json: "terraformState"
+      fk: false
+      kind: "string"
+      pk: false
+      write: false
+    }
+    field: forbid_state: {
+      name: "forbid_state"
+      json: "forbidState"
+      fk: false
+      kind: "string"
+      pk: false
+      write: false
+    }
+    field: forbid_reason: {
+      name: "forbid_reason"
+      json: "forbidReason"
+      fk: false
+      kind: "string"
+      pk: false
+      write: false
+    }
+
+    # THE SEED ROWS FOR THIS ENTITY, each carrying its class. The join
+    # happens here, where `$.seed.planet` is an absolute path and the
+    # class is a literal: a generator could not do it, because a nested
+    # dispatch cannot see the entity the outer one matched.
+    rows: each($.seed.planet, _ & { class:"Planet" })
+
+    # WHAT HANGS OFF THIS ENTITY. Each row carries the association's
+    # name, the class on the other end and the key it joins on, because
+    # that is what the `has_many` line needs and a nested dispatch can
+    # read nothing else.
+    children: [{ name:"moons" class:"Moon" fk:"planet_id" cascade:true }]
+
+    # No index of its own: the primary key already has one.
+    index: []
+
+    # An action is a POST beside the record that sets one state field
+    # from the flags its body carries. A MAP, keyed by the action's own
+    # name: `terraform` and `forbid` are two named endpoints, not a
+    # first and a second.
+    #
+    # Its `rule` IS a list, and that one is an order the generated code
+    # depends on -- see the note on it below.
+    action: {
+      terraform: {
+        name: "terraform"
+        entity_title: "Planet"
+        entity_param: "planet_id"
+        path: "/api/planet/:planet_id/terraform"
+        controller: "planets"
+        state: "terraform_state"
+        initial: "idle"
+
+        # KEEP: the record's current value is the starting point, so an
+        # action with no flag set leaves it as it was. A list rather
+        # than a flag, because the conditional IS the selection: forbid
+        # keeps nothing and writes no line.
+        keep: [field:"terraform_state"]
+        reasons: []
+        accept: [{ name:"start" kind:"boolean" } { name:"stop" kind:"boolean" }]
+
+        # LOWEST PRIORITY FIRST. The generated form is a sequence of
+        # assignments and the last one wins, so a rule listed later
+        # beats one listed earlier: `{start: true, stop: true}` is
+        # terraforming, as the reference's if/elsif makes it.
+        rule: [{ when:"stop" then:"idle" } { when:"start" then:"terraforming" }]
+      }
+      forbid: {
+        name: "forbid"
+        entity_title: "Planet"
+        entity_param: "planet_id"
+        path: "/api/planet/:planet_id/forbid"
+        controller: "planets"
+        state: "forbid_state"
+        initial: "allowed"
+
+        # Keeps nothing: an unforbidden planet is allowed, whatever it
+        # was before.
+        keep: []
+
+        # The reason a flag carries with it, and the field it lands in.
+        reasons: [{ field:"forbid_reason" flag:"forbid" from:"why" }]
+        accept: [{ name:"forbid" kind:"boolean" } { name:"why" kind:"string" }]
+        rule: [{ when:"forbid" then:"forbidden" }]
+      }
+    }
+  }
+
+  moon: id: "moon"
+  moon: class: "Moon"
+  moon: table: "moons"
+  moon: controller: "moons"
+  moon: controller_class: "MoonsController"
+  moon: root: false
+  moon: param: "moon_id"
+  moon: title: "Moon"
+  moon: plural: "Moons"
+  moon: label: "name"
+
+  moon: api_collection: "/api/planet/:planet_id/moon"
+  moon: api_item: "/api/planet/:planet_id/moon/:moon_id"
+  moon: ui_collection: "/planets/:planet_id/moons"
+  moon: ui_item: "/planets/:planet_id/moons/:moon_id"
+  moon: ui_collection_helper: "planet_moons"
+  moon: ui_item_helper: "planet_moon"
+
+  # NESTED UNDER ITS PARENT, and the parent's delete takes it with
+  # it: one word here is the route shape, the foreign key, the scope
+  # every lookup runs in, and the `dependent: :destroy` that makes
+  # test 18 pass.
+  moon: parent: "planet"
+  moon: parent_class: "Planet"
+  moon: parent_param: "planet_id"
+  moon: parent_controller: "planets"
+  moon: parent_title: "Planet"
+
+  # The association on the parent that reaches this entity: a moon is
+  # found in `planet.moons` and nowhere else, which is the cascade
+  # seen from the outside.
+  moon: parent_has: "moons"
+
+  # AN INDEX ROW CARRIES ITS OWN TABLE. Everything a generated line
+  # needs must be on the node the line's rule matched: a nested
+  # dispatch cannot see the entity the enclosing one matched, and a
+  # relative reference inside a call's argument does not resolve
+  # there at all -- silently, as an empty selection
+  # ([BUGS.md §89](../../use-cases/BUGS.md)).
+  moon: index: [{ table:"moons" column:"planet_id" }]
+
+  moon: rows: each($.seed.moon, _ & { class:"Moon" })
+
+  moon: children: []
+
+  moon: field: id: {
+    name: "id"
+    json: "id"
+    kind: "string"
+    required: true
+    pk: true
+    write: true
+    fk: false
+  }
+  moon: field: name: {
+    name: "name"
+    json: "name"
+    fk: false
+    kind: "string"
+    required: true
+    pk: false
+    write: true
+  }
+  moon: field: planet_id: {
+    name: "planet_id"
+    json: "planet_id"
+    kind: "string"
+    required: true
+    fk: true
+    pk: false
+    write: true
+  }
+  moon: field: kind: {
+    name: "kind"
+    json: "kind"
+    fk: false
+    kind: "string"
+    required: true
+    pk: false
+    write: true
+  }
+  moon: field: diameter: {
+    name: "diameter"
+    json: "diameter"
+    fk: false
+    kind: "float"
+    required: true
+    pk: false
+    write: true
+  }
+
+  moon: action: {}
+}
+
+# --- the order, where the order is visible ---------------------------
+#
+# A map is walked in sorted-key order, so `$.entity` gives moon before
+# planet. Five of the nine generators write one file per entity, and
+# for those the order is invisible: a controller is a controller
+# whichever was rendered first, and they read `$.entity`.
+#
+# FOUR GENERATORS PUT THE ENTITIES IN ONE FILE, and there the order is
+# on the page. Two of them need this one: a moon keys into a planet, so
+# the migrations must create `planets` first and the seeds must insert
+# a planet before the moon that belongs to it. The other two only read
+# better for it -- routes and a diagram that name the parent before the
+# child.
+#
+# So the order is stated, once, rather than smuggled in as the order
+# somebody happened to type the entities in. Adding a third entity is
+# an insertion in the map and a decision here.
+sequence: [$.entity.planet $.entity.moon]
+
+# --- the error envelope ----------------------------------------------
+#
+# `{error, message}` with the reference's own wording: test 13 reads
+# the name and looks for "not found" in the message, so the shape and
+# the sentence are both part of the API.
+#
+# A MAP, keyed by the method each one becomes. `api_base.rb` walks it
+# with `emit` and writes one method per entry, so the only thing the
+# key orders is where the method lands on the page.
+#
+# THE MESSAGE IS A FORMAT AND ITS ARGUMENTS, not a sentence with the
+# target's interpolation already in it: `%s` is what every language
+# this could generate spells the same way, and `args` names what each
+# hole is FOR. The sentences are the reference's, because its test 13
+# looks for "not found" in the message.
+error: not_found: {
+  name: "NotFoundError"
+  method: "not_found"
+  status: 404
+  format: "%s with id '%s' not found"
+  args: ["entity" "id"]
+}
+error: invalid: {
+  name: "ValidationError"
+  method: "invalid"
+  status: 400
+  format: "%s"
+  args: ["detail"]
+}
+error: conflict: {
+  name: "ConflictError"
+  method: "conflict"
+  status: 409
+  format: "%s with id '%s' already exists"
+  args: ["entity" "id"]
+}

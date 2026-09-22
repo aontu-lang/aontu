@@ -71,7 +71,7 @@ G6 landed the whole local half, and it is good bones.
   comments, formatting and refactoring; it breaks on any semantic
   change in the transitive closure.
 - **Three pins, every one of them locally checkable.**
-  `aontu_meta/pkg-lock.aon` carries `v`, `canon` (the meaning that was
+  `aontu_meta/pkg-lock.aontu` carries `v`, `canon` (the meaning that was
   reviewed) and `archive` (the digest of the tree's canonical zip),
   plus `manifest` where the package came from a repository; `canon` is
   the one `resolveModule` checks (`ts/src/mod.ts`, `go/mod.go`). This
@@ -396,7 +396,7 @@ third-party publisher forces. The register's rows are the record.
 **What the vocabulary below is now.** ADR-039 renamed the whole package
 surface, so the design sections keep spellings the engine no longer
 answers to. Where this document says `mod-lock.aon`, read
-`aontu_meta/pkg-lock.aon`; where it says `mod get` or `mod publish`,
+`aontu_meta/pkg-lock.aontu`; where it says `mod get` or `mod publish`,
 read `aontu get` and `aontu publish`; where it says `aontu mod <op>`,
 read `aontu pkg <op>`; where it names `ts/src/mod-tool.ts` or
 `go/modtool.go`, read `ts/src/pkg.ts` with `ts/src/pkg-net.ts` and

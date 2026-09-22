@@ -68,7 +68,7 @@ still resolves.
 
 ## Limitations
 
-- **No file includes.** `@"other.aon"` needs a filesystem; in the
+- **No file includes.** `@"other.aontu"` needs a filesystem; in the
   playground it reports a parse-stage `source not found` error.
   `@"aontu:system"` works (it ships inside the engine). Use the `aontu`
   CLI for multi-file documents.

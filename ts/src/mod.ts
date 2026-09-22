@@ -107,8 +107,8 @@ export function moduleDir(store: string, path: string): string {
 }
 
 
-export const PKG_FILE = 'pkg.aon'
-export const LOCK_FILE = 'pkg-lock.aon'
+export const PKG_FILE = 'pkg.aontu'
+export const LOCK_FILE = 'pkg-lock.aontu'
 export const META_DIR = 'aontu_meta'
 export const VENDOR_DIR = 'vendor'
 
@@ -363,4 +363,4 @@ function aliasTarget(
 }
 
 
-const DEFAULT_MAIN = 'main.aon'
+const DEFAULT_MAIN = 'main.aontu'

@@ -12,7 +12,7 @@ disjunction holds the ground between: write the default beside the
 type an override must satisfy:
 
 ```aontu
-timeout: *30|integer # 30 unless overridden
+timeout: *30|integer  # 30 unless overridden
 ```
 
 ```json
@@ -34,10 +34,10 @@ timeout: 60
 
 An override is admitted only if an alternative of the disjunction
 accepts it or it equals the preferred value, so `timeout: 1.5` is
-refused. Write both lines as `timeout.aon`:
+refused. Write both lines as `timeout.aontu`:
 
 <!-- test: scenario provide-defaults -->
-<!-- test: file timeout.aon -->
+<!-- test: file timeout.aontu -->
 ```aontu
 timeout: *30|integer
 timeout: 1.5
@@ -45,7 +45,7 @@ timeout: 1.5
 
 <!-- test: run -->
 ```sh
-$ aontu timeout.aon
+$ aontu timeout.aontu
 [aontu/empty]: Cannot unify values at path $.timeout
 ...
  Cannot unify value: 1.5 with value: *30|integer
@@ -80,9 +80,9 @@ replicas: 12
 
 Unset, this field generates `2`; `12` is admitted; `40` must be
 refused, because a fleet that silently accepts `replicas: 40` has no
-policy at all. Check it with `replicas.aon`:
+policy at all. Check it with `replicas.aontu`:
 
-<!-- test: file replicas.aon -->
+<!-- test: file replicas.aontu -->
 ```aontu
 replicas: *2|(integer & min(1) & max(24))
 replicas: 40
@@ -90,7 +90,7 @@ replicas: 40
 
 <!-- test: run -->
 ```sh
-$ aontu replicas.aon
+$ aontu replicas.aontu
 [aontu/empty]: Cannot unify values at path $.replicas
 ...
  Cannot unify value: 40 with value: *2|integer&min(1)&max(24)
@@ -111,9 +111,9 @@ beats `**` beats `***`) and a concrete value beats them all, so an
 organisation writes `***`, a team `**`, an environment `*`:
 
 ```aontu
-logLevel: ***info # org
-logLevel: **debug # team
-logLevel: *warn # environment
+logLevel: ***info  # org
+logLevel: **debug  # team
+logLevel: *warn  # environment
 ```
 
 ```json

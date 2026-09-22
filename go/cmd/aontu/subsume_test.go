@@ -18,8 +18,8 @@ import (
 func subFiles(t *testing.T, general, specific string) (string, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	g := filepath.Join(dir, "general.aon")
-	s := filepath.Join(dir, "specific.aon")
+	g := filepath.Join(dir, "general.aontu")
+	s := filepath.Join(dir, "specific.aontu")
 	if err := os.WriteFile(g, []byte(general), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -55,8 +55,8 @@ func TestSubsumeExitCodesAreVerdictClasses(t *testing.T) {
 	}
 	vetMatch(t, out, `verdict: does_not_subsume`)
 	vetMatch(t, out, `\$\.a: compat_narrowed \[compat\]`)
-	vetMatch(t, out, `general: .*general\.aon:1:3 \(integer\)`)
-	vetMatch(t, out, `specific: .*specific\.aon:1:3 \("hello"\)`)
+	vetMatch(t, out, `general: .*general\.aontu:1:3 \(integer\)`)
+	vetMatch(t, out, `specific: .*specific\.aontu:1:3 \("hello"\)`)
 
 	_, g, s = subFiles(t, "a:{x:1}|{x:2}", "a:{x:1|2}")
 	if _, _, code = subRun(g, s); 3 != code {
@@ -123,24 +123,24 @@ func TestSubsumeUsageErrorsExit2(t *testing.T) {
 	if 2 != code || !strings.Contains(errw, "unknown subsume option") {
 		t.Fatalf("want 2/unknown, got %d: %s", code, errw)
 	}
-	if _, _, code = subRun("one.aon"); 2 != code {
+	if _, _, code = subRun("one.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
-	if _, _, code = subRun("--profile", "bogus", "a.aon", "b.aon"); 2 != code {
+	if _, _, code = subRun("--profile", "bogus", "a.aontu", "b.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	if _, _, code = subRun("--at"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
-	if _, _, code = subRun("--format", "sarif", "a.aon", "b.aon"); 2 != code {
+	if _, _, code = subRun("--format", "sarif", "a.aontu", "b.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	dir, _, s := subFiles(t, "a:1", "a:1")
-	if _, _, code = subRun(filepath.Join(dir, "missing.aon"), s); 2 != code {
+	if _, _, code = subRun(filepath.Join(dir, "missing.aontu"), s); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	_, g, _ := subFiles(t, "a:1", "a:1")
-	if _, _, code = subRun(g, filepath.Join(dir, "missing.aon")); 2 != code {
+	if _, _, code = subRun(g, filepath.Join(dir, "missing.aontu")); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	out, _, code := subRun("--help")
@@ -210,7 +210,7 @@ func TestBreakingAtGatesASubtree(t *testing.T) {
 
 func TestBreakingResolvesGitRevisions(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "svc.aon")
+	file := filepath.Join(dir, "svc.aontu")
 	git := func(args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", append([]string{
@@ -227,7 +227,7 @@ func TestBreakingResolvesGitRevisions(t *testing.T) {
 		[]byte("service: close({name:string,port:*8080|integer})"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	git("add", "svc.aon")
+	git("add", "svc.aontu")
 	git("commit", "-q", "-m", "v1")
 	if err := os.WriteFile(file,
 		[]byte("service: close({name:string,port:*9090|integer,owner:string})"), 0o600); err != nil {
@@ -256,12 +256,12 @@ func TestBreakingResolvesGitRevisions(t *testing.T) {
 
 	// A file the revision does not carry is refused by name rather
 	// than compared against nothing.
-	absent := filepath.Join(dir, "absent.aon")
+	absent := filepath.Join(dir, "absent.aontu")
 	if err := os.WriteFile(absent, []byte("a: 1"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, errw, code = brkRun("--against", "git#HEAD", absent)
-	if 2 != code || !strings.Contains(errw, "absent.aon is not in that revision") {
+	if 2 != code || !strings.Contains(errw, "absent.aontu is not in that revision") {
 		t.Fatalf("want 2/not in revision, got %d: %s", code, errw)
 	}
 
@@ -280,8 +280,8 @@ func TestBreakingGitComparesTheOldTree(t *testing.T) {
 	if err := os.MkdirAll(model, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	entry := filepath.Join(model, "entry.aon")
-	inc := filepath.Join(model, "schema.aon")
+	entry := filepath.Join(model, "entry.aontu")
+	inc := filepath.Join(model, "schema.aontu")
 	git := func(args ...string) {
 		full := append([]string{
 			"-c", "user.email=t@example.com", "-c", "user.name=t"}, args...)
@@ -291,7 +291,7 @@ func TestBreakingGitComparesTheOldTree(t *testing.T) {
 			t.Skipf("git unavailable: %v", err)
 		}
 	}
-	if err := os.WriteFile(entry, []byte("svc: @\"./schema.aon\""), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte("svc: @\"./schema.aontu\""), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(inc, []byte("port: *8080|integer"), 0o600); err != nil {
@@ -327,7 +327,7 @@ func TestBreakingGitComparesTheOldTree(t *testing.T) {
 	linked := filepath.Join(dir, "linked")
 	if err := os.Symlink(model, linked); nil == err {
 		out, _, code = brkRun(
-			"--against", "git#HEAD", filepath.Join(linked, "entry.aon"))
+			"--against", "git#HEAD", filepath.Join(linked, "entry.aontu"))
 		if 1 != code {
 			t.Fatalf("through a symlink: want 1, got %d:\n%s", code, out)
 		}
@@ -399,7 +399,7 @@ func TestBreakingAllowUndecidedDowngradesTheExit(t *testing.T) {
 }
 
 func TestBreakingUsageErrorsExit2(t *testing.T) {
-	if _, _, code := brkRun("file.aon"); 2 != code {
+	if _, _, code := brkRun("file.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	if _, _, code := brkRun("--against"); 2 != code {
@@ -410,26 +410,26 @@ func TestBreakingUsageErrorsExit2(t *testing.T) {
 		!strings.Contains(errw2, "git# needs a revision") {
 		t.Fatalf("want 2/needs a revision, got %d: %s", code, errw2)
 	}
-	if _, _, code := brkRun("--mode", "sideways", "--against", "a.aon", "b.aon"); 2 != code {
+	if _, _, code := brkRun("--mode", "sideways", "--against", "a.aontu", "b.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	// LAST, so the flag really has no argument: `--at --against x`
 	// would take "--against" as the path, which is a different (and
 	// already-covered) failure.
-	if _, _, code := brkRun("--against", "a.aon", "b.aon", "--at"); 2 != code {
+	if _, _, code := brkRun("--against", "a.aontu", "b.aontu", "--at"); 2 != code {
 		t.Fatalf("--at with no path: want 2, got %d", code)
 	}
-	if _, _, code := brkRun("--format", "yaml", "--against", "a.aon", "b.aon"); 2 != code {
+	if _, _, code := brkRun("--format", "yaml", "--against", "a.aontu", "b.aontu"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	if _, _, code := brkRun("--bogus"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	dir, g, _ := subFiles(t, "a:1", "a:1")
-	if _, _, code := brkRun("--against", filepath.Join(dir, "missing.aon"), g); 2 != code {
+	if _, _, code := brkRun("--against", filepath.Join(dir, "missing.aontu"), g); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
-	if _, _, code := brkRun(filepath.Join(dir, "missing.aon"), "--against", g); 2 != code {
+	if _, _, code := brkRun(filepath.Join(dir, "missing.aontu"), "--against", g); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	out, _, code := brkRun("--help")

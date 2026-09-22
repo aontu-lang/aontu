@@ -52,12 +52,12 @@ function world() {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-'));
     const root = Path.join(dir, 'root');
     Fs.mkdirSync(Path.join(root, 'sub'), { recursive: true });
-    Fs.writeFileSync(Path.join(root, 'in.aon'), 'f: 11');
-    Fs.writeFileSync(Path.join(root, 'nest.aon'), '@"./in.aon"\ng: 22');
-    Fs.writeFileSync(Path.join(root, 'sub', 'deep.aon'), 'h: 33');
-    Fs.writeFileSync(Path.join(dir, 'secret.aon'), 'secret: "outside"');
+    Fs.writeFileSync(Path.join(root, 'in.aontu'), 'f: 11');
+    Fs.writeFileSync(Path.join(root, 'nest.aontu'), '@"./in.aontu"\ng: 22');
+    Fs.writeFileSync(Path.join(root, 'sub', 'deep.aontu'), 'h: 33');
+    Fs.writeFileSync(Path.join(dir, 'secret.aontu'), 'secret: "outside"');
     try {
-        Fs.symlinkSync(Path.join(dir, 'secret.aon'), Path.join(root, 'link.aon'));
+        Fs.symlinkSync(Path.join(dir, 'secret.aontu'), Path.join(root, 'link.aontu'));
     }
     catch {
         // Reported by symlinkEscape, as a skip on the one test that needs it.
@@ -67,7 +67,7 @@ function world() {
 // symlinkEscape reports whether world() got its symlink, so the test
 // that turns on one can skip rather than fail where the platform
 // refuses to make it. The Go twin is trustSymlink.
-const symlinkEscape = (root) => Fs.existsSync(Path.join(root, 'link.aon'));
+const symlinkEscape = (root) => Fs.existsSync(Path.join(root, 'link.aontu'));
 function firstCode(fn) {
     try {
         fn();
@@ -81,19 +81,19 @@ function firstCode(fn) {
     (0, node_test_1.test)('none-denies-every-include', () => {
         const w = world();
         const a = new aontu_1.Aontu({ trust: { include: 'none' } });
-        Assert.equal(firstCode(() => a.generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)), 'include_denied');
+        Assert.equal(firstCode(() => a.generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`)), 'include_denied');
     });
     (0, node_test_1.test)('mem-is-the-whole-world', () => {
         const a = new aontu_1.Aontu({
-            trust: { include: { mem: { '/virtual/x.aon': 'm: 33' } } },
+            trust: { include: { mem: { '/virtual/x.aontu': 'm: 33' } } },
         });
-        Assert.deepEqual(a.generate('a:@"/virtual/x.aon"'), { a: { m: 33 } });
+        Assert.deepEqual(a.generate('a:@"/virtual/x.aontu"'), { a: { m: 33 } });
         // A miss in the declared set is NOT-FOUND, not denial: the allowed
         // mechanism ran and missed.
         const b = new aontu_1.Aontu({
-            trust: { include: { mem: { '/virtual/x.aon': 'm: 33' } } },
+            trust: { include: { mem: { '/virtual/x.aontu': 'm: 33' } } },
         });
-        Assert.throws(() => b.generate('a:@"/nope.aon"'), /not found/);
+        Assert.throws(() => b.generate('a:@"/nope.aontu"'), /not found/);
     });
     (0, node_test_1.test)('a-bundled-model-is-not-shadowed-by-mem', () => {
         const a = new aontu_1.Aontu({
@@ -105,8 +105,8 @@ function firstCode(fn) {
     (0, node_test_1.test)('root-confines-below-the-root', () => {
         const w = world();
         const opts = { trust: { include: { root: w.root } } };
-        Assert.deepEqual(new aontu_1.Aontu(opts).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/sub/deep.aon"`), { a: { h: 33 } });
-        Assert.equal(firstCode(() => new aontu_1.Aontu(opts).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aon"`)), 'include_denied');
+        Assert.deepEqual(new aontu_1.Aontu(opts).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/sub/deep.aontu"`), { a: { h: 33 } });
+        Assert.equal(firstCode(() => new aontu_1.Aontu(opts).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aontu"`)), 'include_denied');
     });
     // Confinement is realpath-then-prefix-check: a symlink INSIDE the
     // root pointing outside it is an escape, not a loophole.
@@ -116,12 +116,12 @@ function firstCode(fn) {
             return t.skip('symlink not available on this platform');
         }
         Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { include: { root: w.root } } })
-            .generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/link.aon"`)), 'include_denied');
+            .generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/link.aontu"`)), 'include_denied');
     });
     (0, node_test_1.test)('root-miss-is-not-found-not-denied', () => {
         const w = world();
         Assert.throws(() => new aontu_1.Aontu({ trust: { include: { root: w.root } } })
-            .generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/nope.aon"`), /not found/);
+            .generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/nope.aontu"`), /not found/);
     });
     // A root that does not exist still confines: realpath falls back to
     // the lexical form, and everything real is outside a nonexistent
@@ -130,13 +130,13 @@ function firstCode(fn) {
         const w = world();
         Assert.equal(firstCode(() => new aontu_1.Aontu({
             trust: { include: { root: Path.join(w.dir, 'no-such-root') } },
-        }).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)), 'include_denied');
+        }).generate(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`)), 'include_denied');
     });
     // An EMPTY root is not a root: resolving it would confine the caller
     // below the process directory, which nothing named.
     (0, node_test_1.test)('an-empty-root-denies-every-include', () => {
         const w = world();
-        const src = `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`;
+        const src = `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`;
         Assert.deepEqual(new aontu_1.Aontu({ trust: { include: { root: w.root } } }).generate(src), { a: { f: 11 } });
         Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src)), 'include_denied');
         Assert.throws(() => new aontu_1.Aontu({ trust: { include: { root: '' } } }).generate(src), /capability: none/);
@@ -163,10 +163,10 @@ function firstCode(fn) {
         const w = world();
         const a = new aontu_1.Aontu({ trust: { include: { root: w.root } } });
         const ac = a.ctx({});
-        const v = a.parse(`a:@"${(0, srcpath_1.srcPath)(w.root)}/nest.aon" b:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon" c:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`, undefined, ac);
+        const v = a.parse(`a:@"${(0, srcpath_1.srcPath)(w.root)}/nest.aontu" b:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu" c:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`, undefined, ac);
         Assert.deepEqual(v.deps, [
-            { path: Path.join(w.root, 'in.aon'), capability: 'file' },
-            { path: Path.join(w.root, 'nest.aon'), capability: 'file' },
+            { path: Path.join(w.root, 'in.aontu'), capability: 'file' },
+            { path: Path.join(w.root, 'nest.aontu'), capability: 'file' },
         ]);
     });
     (0, node_test_1.test)('deps-is-empty-without-includes', () => {
@@ -176,10 +176,10 @@ function firstCode(fn) {
     });
     (0, node_test_1.test)('deps-names-the-mem-capability', () => {
         const a = new aontu_1.Aontu({
-            trust: { include: { mem: { '/v/x.aon': 'm: 1' } } },
+            trust: { include: { mem: { '/v/x.aontu': 'm: 1' } } },
         });
-        const v = a.parse('a:@"/v/x.aon"', undefined, a.ctx({}));
-        Assert.deepEqual(v.deps, [{ path: '/v/x.aon', capability: 'mem' }]);
+        const v = a.parse('a:@"/v/x.aontu"', undefined, a.ctx({}));
+        Assert.deepEqual(v.deps, [{ path: '/v/x.aontu', capability: 'mem' }]);
     });
 });
 (0, node_test_1.describe)('trust-budget', () => {
@@ -205,17 +205,17 @@ function firstCode(fn) {
         const outs = h.handle({
             jsonrpc: '2.0',
             method: 'textDocument/didOpen',
-            params: { textDocument: { uri: 'file:///d.aon', text } },
+            params: { textDocument: { uri: 'file:///d.aontu', text } },
         });
         return outs[0].params.diagnostics;
     };
     (0, node_test_1.test)('workspace-root-confines-diagnostics', () => {
         const w = world();
         const h = init({ rootUri: fileURI(w.root) });
-        const diags = diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aon"`);
+        const diags = diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aontu"`);
         Assert.ok(diags.some((d) => 'include_denied' === d.code), JSON.stringify(diags));
         // In-root includes still resolve under the same session.
-        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`), []);
+        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`), []);
     });
     (0, node_test_1.test)('workspace-folders-outrank-root-uri', () => {
         const w = world();
@@ -223,12 +223,12 @@ function firstCode(fn) {
             rootUri: 'file:///nowhere',
             workspaceFolders: [{ uri: fileURI(w.root) }],
         });
-        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`), []);
+        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`), []);
     });
     (0, node_test_1.test)('root-path-fallback-confines', () => {
         const w = world();
         const h = init({ rootPath: w.root });
-        Assert.ok(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aon"`)
+        Assert.ok(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/../secret.aontu"`)
             .some((d) => 'include_denied' === d.code));
     });
     (0, node_test_1.test)('explicit-initialization-option-wins', () => {
@@ -238,12 +238,12 @@ function firstCode(fn) {
             rootUri: fileURI(w.root),
             initializationOptions: { aontu: { trust: { include: 'system' } } },
         });
-        Assert.deepEqual(diagsFor(wide, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`), []);
+        Assert.deepEqual(diagsFor(wide, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`), []);
         // 'none' narrows to nothing.
         const none = init({
             initializationOptions: { aontu: { trust: { include: 'none' } } },
         });
-        Assert.ok(diagsFor(none, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)
+        Assert.ok(diagsFor(none, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`)
             .some((d) => 'include_denied' === d.code));
         // { root } names its own directory.
         const rooted = init({
@@ -251,26 +251,26 @@ function firstCode(fn) {
                 aontu: { trust: { include: { root: w.root } } },
             },
         });
-        Assert.deepEqual(diagsFor(rooted, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`), []);
+        Assert.deepEqual(diagsFor(rooted, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`), []);
         // { mem } is honoured too.
         const mem = init({
             initializationOptions: {
-                aontu: { trust: { include: { mem: { '/v/x.aon': 'm: 1' } } } },
+                aontu: { trust: { include: { mem: { '/v/x.aontu': 'm: 1' } } } },
             },
         });
-        Assert.deepEqual(diagsFor(mem, 'a:@"/v/x.aon"'), []);
+        Assert.deepEqual(diagsFor(mem, 'a:@"/v/x.aontu"'), []);
         // An unrecognised explicit value confines to NOTHING rather than
         // silently widening.
         const unknown = init({
             initializationOptions: { aontu: { trust: { include: { bogus: 1 } } } },
         });
-        Assert.ok(diagsFor(unknown, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`)
+        Assert.ok(diagsFor(unknown, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`)
             .some((d) => 'include_denied' === d.code));
     });
     (0, node_test_1.test)('no-root-no-option-stays-unconfined', () => {
         const w = world();
         const h = init({});
-        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`), []);
+        Assert.deepEqual(diagsFor(h, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`), []);
     });
     (0, node_test_1.test)('workspace-root-confines-hover', () => {
         const w = world();
@@ -278,14 +278,14 @@ function firstCode(fn) {
             h.handle({
                 jsonrpc: '2.0',
                 method: 'textDocument/didOpen',
-                params: { textDocument: { uri: 'file:///d.aon', text } },
+                params: { textDocument: { uri: 'file:///d.aontu', text } },
             });
             let all = '';
             for (let c = 0; c < text.length; c++) {
                 const outs = h.handle({
                     jsonrpc: '2.0', id: 2, method: 'textDocument/hover',
                     params: {
-                        textDocument: { uri: 'file:///d.aon' },
+                        textDocument: { uri: 'file:///d.aontu' },
                         position: { line: 0, character: c },
                     },
                 });
@@ -295,17 +295,17 @@ function firstCode(fn) {
         };
         const confined = init({ rootUri: fileURI(w.root) });
         // In-root: the include resolves, so the value is hoverable.
-        Assert.match(hovers(confined, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`), /11/);
+        Assert.match(hovers(confined, `a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`), /11/);
         // Out-of-root: nowhere on the line does the outside value appear.
-        Assert.doesNotMatch(hovers(confined, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`), /outside/);
+        Assert.doesNotMatch(hovers(confined, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`), /outside/);
         // The unconfined session is the control: it DOES resolve the same
         // escape, which is what makes the assertion above about the
         // capability rather than about hover failing everywhere.
-        Assert.match(hovers(init({}), `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`), /outside/);
+        Assert.match(hovers(init({}), `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`), /outside/);
     });
     (0, node_test_1.test)('compute-diagnostics-takes-a-trust-argument', () => {
         const w = world();
-        Assert.ok((0, lsp_1.computeDiagnostics)(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aon"`, { trust: { include: 'none' } })
+        Assert.ok((0, lsp_1.computeDiagnostics)(`a:@"${(0, srcpath_1.srcPath)(w.root)}/in.aontu"`, { trust: { include: 'none' } })
             .some((d) => 'include_denied' === d.code));
     });
 });
@@ -378,12 +378,12 @@ function firstCode(fn) {
     });
     // An empty argument names no directory, as `--trust root:` does not.
     (0, node_test_1.test)('include-root-refuses-an-empty-directory', () => {
-        const bare = cli(['--include-root', '', 'x.aon']);
+        const bare = cli(['--include-root', '', 'x.aontu']);
         Assert.equal(bare.code, 2);
         Assert.match(bare.err, /--include-root needs a directory/);
         let code = 0;
         const verb = capture(() => {
-            code = (0, cli_1.runVet)(['--include-root', '', 'a.aon', 'b.aon']);
+            code = (0, cli_1.runVet)(['--include-root', '', 'a.aontu', 'b.aontu']);
         });
         Assert.equal(code, 2);
         Assert.match(verb.err, /--include-root needs a directory/);
@@ -391,8 +391,8 @@ function firstCode(fn) {
     // The flags ride anywhere in a tail, model's subcommand included.
     (0, node_test_1.test)('model-takes-the-capability-before-its-subcommand', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         const before = cli(['model', '--trust', 'none', 'get', '$.a', entry]);
         const after = cli(['model', 'get', '--trust', 'none', '$.a', entry]);
         Assert.equal(before.code, after.code);
@@ -405,16 +405,16 @@ function firstCode(fn) {
     });
     (0, node_test_1.test)('trust-none-denies', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"./in.aon"');
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, 'a:@"./in.aontu"');
         const r = cli(['--trust', 'none', entry]);
         Assert.equal(r.code, 1);
         Assert.match(r.err, /include denied/);
     });
     (0, node_test_1.test)('include-root-confines', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         const r = cli(['--include-root', w.root, entry]);
         Assert.equal(r.code, 1);
         Assert.match(r.err, /include denied/);
@@ -425,11 +425,11 @@ function firstCode(fn) {
     });
     (0, node_test_1.test)('trust-root-defaults-to-the-entry-directory', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"./in.aon"');
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, 'a:@"./in.aontu"');
         const r = cli(['--trust', 'root', entry]);
         Assert.equal(r.code, 0);
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         Assert.equal(cli(['--trust', 'root', entry]).code, 1);
         Assert.equal(cli(['--trust', `root:${w.dir}`, entry]).code, 0);
     });
@@ -438,8 +438,8 @@ function firstCode(fn) {
     // will require — once per resolution, however many times it repeats.
     (0, node_test_1.test)('default-warns-on-escape', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" b:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon" c:@"./in.aon"`);
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu" b:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu" c:@"./in.aontu"`);
         const r = cli([entry]);
         Assert.equal(r.code, 0);
         Assert.equal((r.err.match(/warning: include resolved outside the entry root/g) ?? [])
@@ -450,7 +450,7 @@ function firstCode(fn) {
     // resolution' — the other arm of the warning text.
     (0, node_test_1.test)('default-warns-on-pkg-resolution', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
+        const entry = Path.join(w.root, 'main.aontu');
         Fs.writeFileSync(entry, 'a:@"@tabnas/jsonic/package.json"');
         const cwd = process.cwd();
         try {
@@ -465,11 +465,11 @@ function firstCode(fn) {
     });
     (0, node_test_1.test)('every-verb-honours-the-capability', () => {
         const w = world();
-        const entry = Path.join(w.root, 'leak.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const entry = Path.join(w.root, 'leak.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         const data = Path.join(w.root, 'data.json');
         Fs.writeFileSync(data, '{}');
-        const overlay = Path.join(w.root, 'overlay.aon');
+        const overlay = Path.join(w.root, 'overlay.aontu');
         Fs.writeFileSync(overlay, '');
         const seen = new Set();
         const denied = (args) => {
@@ -507,12 +507,12 @@ function firstCode(fn) {
                 Assert.match(shut.out + shut.err, /include denied|include_denied/);
             }
         };
-        const gen = Path.join(w.root, 'gen.aon');
-        Fs.writeFileSync(gen, `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"\n` +
+        const gen = Path.join(w.root, 'gen.aontu');
+        Fs.writeFileSync(gen, `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"\n` +
             'out: file({ name: "o.txt" }, ["x"])\n');
         // `fmt` and `template` evaluate the profile, not what they rewrite.
-        const profile = Path.join(w.root, 'prof.aon');
-        Fs.writeFileSync(profile, `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"\naontu: { Lang: {} }\n`);
+        const profile = Path.join(w.root, 'prof.aontu');
+        Fs.writeFileSync(profile, `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"\naontu: { Lang: {} }\n`);
         const generator = Path.join(w.root, 'gen.ts');
         Fs.writeFileSync(generator, '//- x: 1\nhello\n');
         deniedOut(['trace', entry]);
@@ -520,16 +520,16 @@ function firstCode(fn) {
         deniedOut(['allow', '--role', 'dev', entry, '$.a']);
         deniedOut(['fmt', entry, '--profile', profile]);
         deniedOut(['template', generator, '--profile', profile]);
-        // A MODULE's document, not the manifest: an include in `pkg.aon`
+        // A MODULE's document, not the manifest: an include in `pkg.aontu`
         // is not resolved. A fresh project each run: these write a lockfile.
         const pkgProject = () => {
             const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-trust-pkg-'));
             const store = Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service');
             Fs.mkdirSync(store, { recursive: true });
-            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\n' +
+            Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\n' +
                 'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n');
-            Fs.writeFileSync(Path.join(store, 'pkg.aon'), 'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n');
-            Fs.writeFileSync(Path.join(store, 'service.aon'), `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"\nname: string\n`);
+            Fs.writeFileSync(Path.join(store, 'pkg.aontu'), 'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n');
+            Fs.writeFileSync(Path.join(store, 'service.aontu'), `@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"\nname: string\n`);
             return dir;
         };
         for (const args of [['sync'], ['pkg', 'tidy']]) {
@@ -545,11 +545,11 @@ function firstCode(fn) {
     (0, node_test_1.test)('every-verb-honours-the-text-extensions', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-'));
         Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n');
-        const entry = Path.join(dir, 'main.aon');
+        const entry = Path.join(dir, 'main.aontu');
         Fs.writeFileSync(entry, 'doc: @"./doc.md"\n');
-        const schema = Path.join(dir, 'schema.aon');
+        const schema = Path.join(dir, 'schema.aontu');
         Fs.writeFileSync(schema, 'doc: string\n');
-        const overlay = Path.join(dir, 'overlay.aon');
+        const overlay = Path.join(dir, 'overlay.aontu');
         const REFUSED = /include_extension|include not readable/;
         const seen = new Set();
         const both = (args) => {
@@ -597,9 +597,9 @@ function firstCode(fn) {
             Assert.match(bare.out + bare.err, REFUSED, 'the verb read the include with no flag: ' + args.join(' '));
             Assert.doesNotMatch(flagged.out + flagged.err, REFUSED, 'the verb dropped --text-ext: ' + args.join(' '));
         };
-        const gen = Path.join(dir, 'gen.aon');
+        const gen = Path.join(dir, 'gen.aontu');
         Fs.writeFileSync(gen, 'doc: @"./doc.md"\nout: file({ name: "o.txt" }, ["x"])\n');
-        const profile = Path.join(dir, 'prof.aon');
+        const profile = Path.join(dir, 'prof.aontu');
         Fs.writeFileSync(profile, 'doc: @"./doc.md"\naontu: { Lang: {} }\n');
         const generator = Path.join(dir, 'gen.ts');
         Fs.writeFileSync(generator, '//- x: 1\nhello\n');
@@ -616,11 +616,11 @@ function firstCode(fn) {
             const at = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-textext-pkg-'));
             const store = Path.join(at, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service');
             Fs.mkdirSync(store, { recursive: true });
-            Fs.writeFileSync(Path.join(at, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\n' +
+            Fs.writeFileSync(Path.join(at, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\n' +
                 'dep: {"corp.example/schemas/service": {v: "1.0.0"}}\n');
-            Fs.writeFileSync(Path.join(store, 'pkg.aon'), 'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n');
+            Fs.writeFileSync(Path.join(store, 'pkg.aontu'), 'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n');
             Fs.writeFileSync(Path.join(store, 'doc.md'), '# hi\n');
-            Fs.writeFileSync(Path.join(store, 'service.aon'), 'doc: @"./doc.md"\nname: string\n');
+            Fs.writeFileSync(Path.join(store, 'service.aontu'), 'doc: @"./doc.md"\nname: string\n');
             return at;
         };
         for (const args of [['sync'], ['pkg', 'tidy']]) {
@@ -635,10 +635,10 @@ function firstCode(fn) {
     // root: spelling, and a bare `root` means the document's directory.
     (0, node_test_1.test)('verbs-take-include-root', () => {
         const w = world();
-        const entry = Path.join(w.root, 'leak.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
-        const inside = Path.join(w.root, 'fine.aon');
-        Fs.writeFileSync(inside, 'a:@"./in.aon"');
+        const entry = Path.join(w.root, 'leak.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
+        const inside = Path.join(w.root, 'fine.aontu');
+        Fs.writeFileSync(inside, 'a:@"./in.aontu"');
         const confined = cli(['model', 'get', '$.a.secret', '--include-root', w.root, entry]);
         Assert.match(confined.out + confined.err, /include denied/);
         Assert.equal(cli(['model', 'get', '$.a.f', '--include-root', w.root, inside]).code, 0);
@@ -656,8 +656,8 @@ function firstCode(fn) {
     // was invoked.
     (0, node_test_1.test)('repl-honours-the-capability', () => {
         const w = world();
-        const entry = Path.join(w.root, 'leak.aon');
-        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aon"`);
+        const entry = Path.join(w.root, 'leak.aontu');
+        Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         const read = (f) => Fs.readFileSync(f, 'utf8');
         const open = (0, cli_1.replCommand)({ mode: 'json', jsonl: true }, ':load ' + entry, read);
         Assert.match(open.out, /outside/);
@@ -677,11 +677,11 @@ function firstCode(fn) {
     });
     (0, node_test_1.test)('every-verb-refuses-a-bad-spelling', () => {
         const w = world();
-        const entry = Path.join(w.root, 'main.aon');
-        Fs.writeFileSync(entry, 'a:@"./in.aon"');
+        const entry = Path.join(w.root, 'main.aontu');
+        Fs.writeFileSync(entry, 'a:@"./in.aontu"');
         const data = Path.join(w.root, 'data.json');
         Fs.writeFileSync(data, '{}');
-        const overlay = Path.join(w.root, 'overlay.aon');
+        const overlay = Path.join(w.root, 'overlay.aontu');
         Fs.writeFileSync(overlay, '');
         // The runners are called DIRECTLY rather than through main: `vet`
         // finishes on a microtask (its --watch mode makes the runner

@@ -1,0 +1,14 @@
+# 86: a transform over a type-marked schema does not see its optional
+# keys. `email?` is a key of the record, and a pack over the record's
+# fields never sees it: an optional key with nothing to generate is
+# not a member (the membership rule), which is right for data and
+# wrong for a schema walk.
+#
+# run: node ../../../ts/bin/aontu.js optional-schema-key-is-not-a-member.aontu
+# run: aontu-go optional-schema-key-is-not-a-member.aontu
+#
+# expected: names: ["email", "id"]  (or a way to ask for the optional keys)
+# actual:   names: ["id"], in both ports.
+schema: Customer: type(close({ id: string, email?: string }))
+
+names: pick(pack(type($.schema.Customer), { n: key(1) }), n)

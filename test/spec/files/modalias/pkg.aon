@@ -1,7 +1,0 @@
-# Two versions of one package in one closure, the second under a name
-# the consumer chose (CLI.0.md §3b).
-pkg: { path: "corp.example/app" main: "main.aon" }
-dep: {
-  "corp.example/schemas/service": { v: "1.4.2" }
-  "alias:legacy": { pkg: "corp.example/schemas/service", v: "1.2.0" }
-}

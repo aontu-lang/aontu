@@ -66,7 +66,7 @@ starting line; several rows are worse than expected.
 | # | Probe | Result | Note |
 |---|---|---|---|
 | 1 | `aontu jsonschema` on a constrained map | emits `2020-12` schema with `minimum`, `type`, `required` | **the code-generation path already exists** |
-| 2 | `@"v.aon"` where the file holds JSON | parsed as source, both ports | JSON is a subset of the grammar, so a vocabulary dump is includable *as source* — and this is the **only** extension the two ports agree on |
+| 2 | `@"v.aontu"` where the file holds JSON | parsed as source, both ports | JSON is a subset of the grammar, so a vocabulary dump is includable *as source* — and this is the **only** extension the two ports agree on |
 | 3 | `@"v.jsonld"` | read as JSON data, both ports | was a parity break: TS handed back the raw TEXT. Settled by ADR-012 |
 | 4 | `@"v.txt"`, `@"v.dat"`, a name with no extension | refused, `include_extension`, both ports | was the same split. Settled by ADR-012 |
 | 5 | **`@"v.json"`** | read as JSON data, both ports | **was a TypeScript crash** with no code, path or site. Settled by ADR-012 |
@@ -77,11 +77,11 @@ starting line; several rows are worse than expected.
 Rows 3–5 were not incidental. **Every vocabulary in §5 ships as `.json`
 or `.jsonld`**: schema.org's releases are
 `schemaorg-current-https.jsonld`, microformats2 parsers emit JSON, DCMI
-publishes RDF serialisations. Not one of them is a `.aon` file, and
-`.aon` was the only extension the two ports read the same way.
+publishes RDF serialisations. Not one of them is a `.aontu` file, and
+`.aontu` was the only extension the two ports read the same way.
 
 The cause was one line on each side — `ts/src/lang.ts` registered
-`processor: {aontu, aon}` and let everything else fall through to raw
+`processor: {aontu}` and let everything else fall through to raw
 TEXT; `go/source.go` also registered the empty kind `""`, the fallback
 for an unrecognised extension, and so parsed everything as source. So
 TypeScript handed back a 40 KB *string* where Go handed back a map,
@@ -91,8 +91,8 @@ path and no site, the §43 shape again.
 
 **Ruled and fixed 2026-08-30**, as
 [ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
-the extension says which of two things a file is. `.aon` and `.aontu`
-are aontu source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
+the extension says which of two things a file is. `.aontu` is aontu
+source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
 `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
 configuration **data**, read by that format's own parser into the JSON
 value it denotes. Every other extension, and a name with no extension,
@@ -327,7 +327,7 @@ answer is that **most of it is not new syntax at all**:
 
 ```
 # aontu_meta/mod-lock.aon pins it; aontu_meta/vendor/ holds it; this is just an include.
-%schema = @"aontu_meta/vendor/schemaorg/30.0/schema.aon"
+%schema = @"aontu_meta/vendor/schemaorg/30.0/schema.aontu"
 
 Person: %schema.Person & {
   name:  string
@@ -339,7 +339,7 @@ Two things that *are* new, and both are tool-side rather than
 language-side:
 
 1. **A converter**, `aontu vocab import <url|file> --as <name>` —
-   fetches (at tool time), projects per §6, writes an `.aon` module,
+   fetches (at tool time), projects per §6, writes an `.aontu` module,
    records the source URL, the release version and the projection's own
    version in the file, and pins it in `aontu_meta/mod-lock.aon`.
 2. **A namespace convention** so the projection is legible: one module
@@ -564,7 +564,7 @@ never heard of aontu. It reads JSON and executes it against an
 implementation in any of 24 languages. So the chain is:
 
 ```
-spec.aon  ──(generate)──►  types + validator   ──►  the agent's code
+spec.aontu  ──(generate)──►  types + validator   ──►  the agent's code
    │
    └──────(generate)──────►  omni spec (JSON)  ──►  omni runner ──► verdict
 ```

@@ -1,0 +1,4 @@
+# Candidate minor release that is actually breaking: the gate refuses
+# it, and no version number lifts the gate.
+pkg: { path:"corp.example/schemas/service" version:"1.5.0" main:"service.aontu" }
+publish: public

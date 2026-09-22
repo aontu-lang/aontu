@@ -12,8 +12,8 @@ import (
 
 func TestPatchLabelsFindingsWithTheirFiles(t *testing.T) {
 	r := Patch("port: 3", "", []string{"$.port=5"}, &PatchOptions{
-		EntryPath:   "sys.aon",
-		OverlayPath: "ov.aon",
+		EntryPath:   "sys.aontu",
+		OverlayPath: "ov.aontu",
 	})
 	if VetInvalid != r.Verdict || 0 == len(r.Findings) {
 		t.Fatalf("want invalid with findings: %+v", r)
@@ -23,7 +23,7 @@ func TestPatchLabelsFindingsWithTheirFiles(t *testing.T) {
 		files = append(files, s.File)
 	}
 	joined := strings.Join(files, ",")
-	if !strings.Contains(joined, "sys.aon") || !strings.Contains(joined, "ov.aon") {
+	if !strings.Contains(joined, "sys.aontu") || !strings.Contains(joined, "ov.aontu") {
 		t.Fatalf("finding does not name its files: %s", joined)
 	}
 }
@@ -83,11 +83,11 @@ func TestPatchRefusesAnOverlayThatLoadsAnotherDocument(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0o755); nil != err {
 		t.Fatal(err)
 	}
-	incFile := filepath.Join(dir, "sub", "inc.aon")
+	incFile := filepath.Join(dir, "sub", "inc.aontu")
 	if err := os.WriteFile(incFile, []byte("a: 42\n"), 0o600); nil != err {
 		t.Fatal(err)
 	}
-	ovFile := filepath.Join(dir, "ov.aon")
+	ovFile := filepath.Join(dir, "ov.aontu")
 	// The coincidence: same row, same column, same text. The include is
 	// written ABSOLUTE so it resolves with or without a base directory.
 	overlay := "x: 42\n@\"" + filepath.ToSlash(incFile) + "\"\n"
@@ -238,7 +238,7 @@ func TestVerifiedSiteRefusesTheSpanThatDoesNotHold(t *testing.T) {
 	// The written conjunct: proceeds to a replacement site.
 	good, gf := verifiedSite(src, "$.a", WhyConjunct{
 		Canon: "42", Role: "literal",
-		Site: WhySite{File: "over.aon", Row: 1, Col: 4, Len: 2}, Src: "42",
+		Site: WhySite{File: "over.aontu", Row: 1, Col: 4, Len: 2}, Src: "42",
 	})
 	if nil != gf {
 		t.Fatalf("the written conjunct must not refuse: %+v", gf)
@@ -252,7 +252,7 @@ func TestVerifiedSiteRefusesTheSpanThatDoesNotHold(t *testing.T) {
 	// to check out is the engine's fault, never the document's.
 	bad, bf := verifiedSite(src, "$.a", WhyConjunct{
 		Canon: "42", Role: "literal",
-		Site: WhySite{File: "over.aon", Row: 3, Col: 1, Len: 2}, Src: "42",
+		Site: WhySite{File: "over.aontu", Row: 3, Col: 1, Len: 2}, Src: "42",
 	})
 	if nil != bad {
 		t.Fatalf("a span that does not hold must not name a site: %+v", bad)

@@ -1,5 +1,0 @@
-
-sys: @"./sys01.aon"
-sys: type({})
-
-ent: @"./ent01.aon"

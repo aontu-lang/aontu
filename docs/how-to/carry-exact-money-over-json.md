@@ -9,10 +9,10 @@ order: 60
 Inside an aontu document, money is a
 [`bigdecimal`](../reference-language.md#the-four-numeric-leaves):
 `0d` literals are exact base-10 values and `+` on them is exact
-arithmetic: no binary rounding, ever. Write this as `money.aon`:
+arithmetic: no binary rounding, ever. Write this as `money.aontu`:
 
 <!-- test: scenario money-wire -->
-<!-- test: file money.aon -->
+<!-- test: file money.aontu -->
 ```aontu
 subtotal: 0d19.99
 shipping: 0d4.01
@@ -21,7 +21,7 @@ total: $.subtotal + $.shipping
 
 <!-- test: run -->
 ```sh
-$ aontu money.aon
+$ aontu money.aontu
 {
   "shipping": 4.01,
   "subtotal": 19.99,
@@ -35,9 +35,9 @@ into a binary64 `float` before aontu ever sees it, and [the numeric
 leaves are
 disjoint](../reference-language.md#the-four-numeric-leaves), so the
 exactness the field demands is gone at the door. Put the schema in
-`invoice.aon`:
+`invoice.aontu`:
 
-<!-- test: file invoice.aon -->
+<!-- test: file invoice.aontu -->
 ```aontu
 invoice: total: bigdecimal
 ```
@@ -51,13 +51,13 @@ and a parsed-and-reserialised number in `invoice.json`:
 
 <!-- test: run -->
 ```sh
-$ aontu vet invoice.aon invoice.json
+$ aontu vet invoice.aontu invoice.json
 verdict: invalid
 
 $.invoice.total: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.invoice.total
   data: invoice.json:1:23 (0.1)
-  schema: invoice.aon:1:17 (bigdecimal)
+  schema: invoice.aontu:1:17 (bigdecimal)
 $ echo $?
 1
 ```
@@ -67,9 +67,9 @@ be certifying a value the wire already corrupted. The convention that
 works is string decimals at the boundary: the JSON field carries the
 exact digits as text, and the schema pins its shape with
 [`re`](../reference-language.md#re-and-the-portable-pattern-subset).
-Replace `invoice.aon` with the string form:
+Replace `invoice.aontu` with the string form:
 
-<!-- test: file invoice.aon -->
+<!-- test: file invoice.aontu -->
 ```aontu
 invoice: total: string & re("^-?[0-9]+\\.[0-9][0-9]$")
 ```
@@ -90,9 +90,9 @@ and a wrong-scale one in `bad.json`:
 
 <!-- test: run -->
 ```sh
-$ aontu vet invoice.aon wire.json
+$ aontu vet invoice.aontu wire.json
 verdict: valid
-$ aontu vet invoice.aon bad.json
+$ aontu vet invoice.aontu bad.json
 verdict: invalid
 
 $.invoice.total: constraint [conflict]
@@ -100,7 +100,7 @@ $.invoice.total: constraint [conflict]
   expected: re("^-?[0-9]+\\.[0-9][0-9]$")
   actual:   "19.9"
   data: bad.json:1:23 ("19.9")
-  schema: invoice.aon:1:26 (re("^-?[0-9]+\\.[0-9][0-9]$"))
+  schema: invoice.aontu:1:26 (re("^-?[0-9]+\\.[0-9][0-9]$"))
 $ echo $?
 1
 ```
@@ -110,9 +110,9 @@ $ echo $?
 A pattern alone leaves the reader guessing that the string is a
 number at all. The convention has two parts, a canonical wire form
 and a conversion mark that says what the text means. Write it as
-`money-wire.aon`:
+`money-wire.aontu`:
 
-<!-- test: file money-wire.aon -->
+<!-- test: file money-wire.aontu -->
 ```aontu
 # A decimal carried as text, at a fixed scale. Canonical only: no
 # leading zeros, no separators, no exponent, no bare -0.
@@ -142,9 +142,9 @@ rule that matters belongs to the currency.
 
 The conversion is textual: the wire string is the `0d` literal's
 digits, so nothing is parsed as a float on the way in and nothing is
-rounded. Put the corner cases in `convert.aon`:
+rounded. Put the corner cases in `convert.aontu`:
 
-<!-- test: file convert.aon -->
+<!-- test: file convert.aontu -->
 ```aontu
 amount: 0d3998.19
 refund: -0d12.05
@@ -154,7 +154,7 @@ scaleZeroRight: 0d10.0
 
 <!-- test: run -->
 ```sh
-$ aontu --canon convert.aon
+$ aontu --canon convert.aontu
 {"amount":0d3998.19,"refund":-0d12.05,"sameNumber":0d10.5,"scaleZeroRight":0d10.0}
 ```
 
@@ -195,7 +195,7 @@ exactness has no receiver. The wire form is the way around it:
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at '$.Money' money-wire.aon
+$ aontu jsonschema --at '$.Money' money-wire.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -229,5 +229,5 @@ A worked end-to-end version (the schema, strictly JSON records that
 pass, the three that must not, the exported schema checked against the
 same records, and the conversion written as theorems) is
 [use-cases/10-data-model](../../use-cases/10-data-model/)
-(`money-wire.aon` and `money-convert.aon`), with `check.sh` asserting
+(`money-wire.aontu` and `money-convert.aontu`), with `check.sh` asserting
 every claim on this page.

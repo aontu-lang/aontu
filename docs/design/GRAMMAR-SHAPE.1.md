@@ -224,7 +224,7 @@ the signature gate reads that declaration.
 prose rather than incidental:
 
 - ADR-033's consequence — *"until a builtin can be named as DATA the
-  output shape is not something a `.aon` file can choose"* — is now
+  output shape is not something a `.aontu` file can choose"* — is now
   false. It needs an amendment, not a rewrite: the decision it records
   (a grammar is a string, parsing is a function) is unaffected.
 - [`docs/reference-language.md`](../reference-language.md#shaping-an-unannotated-tree)'s
@@ -307,8 +307,8 @@ node.kids.map(() => 0)     // TypeError: Cannot read properties of undefined
 # §6, the Go half: the same document, exit 0 and an empty tree.
 # The module lives in go/, so the whole thing runs from there; bump
 # go.mod to abnf 0.4.12 first, or 0.4.7 answers the tree as it should.
-printf 'G: abnf("ver = maj \\".\\" min \\".\\" pat   ; @object maj min pat\\nmaj = 1*DIGIT\\nmin = 1*DIGIT\\npat = 1*DIGIT\\n")\nv: parse($.G, "1.2.30")\n' > /tmp/ann.aon
-(cd go && go run ./cmd/aontu /tmp/ann.aon)
+printf 'G: abnf("ver = maj \\".\\" min \\".\\" pat   ; @object maj min pat\\nmaj = 1*DIGIT\\nmin = 1*DIGIT\\npat = 1*DIGIT\\n")\nv: parse($.G, "1.2.30")\n' > /tmp/ann.aontu
+(cd go && go run ./cmd/aontu /tmp/ann.aontu)
 # "v": { "kids": [], "rule": "", "src": "" }
 ```
 

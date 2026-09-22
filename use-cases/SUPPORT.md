@@ -18,7 +18,7 @@ agent-facing surface.** npm's `latest` is 0.52.1 and Go's is v0.1.10
 `vet`, `subsume`, `breaking`, `get`, `why`, `set`, `hash`,
 `relations`, `mod`, the MCP server, the skill, the grammars — is
 post-0.52.1 and unpublished. Verified worst case: the *installed*
-0.52.1 CLI, invoked as `aontu vet schema.aon data.json`, **silently
+0.52.1 CLI, invoked as `aontu vet schema.aontu data.json`, **silently
 evaluates the first file and exits 0** — a validation gate that passes
 everything, wired exactly as the README's loop suggests. Compounding
 it: `vet-action/` defaults to `npx aontu@0.53.0`, a version that does

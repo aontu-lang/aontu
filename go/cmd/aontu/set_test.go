@@ -36,8 +36,8 @@ func readAt(t *testing.T, path string) string {
 
 func TestSetAppendsWhenTheChangeHolds(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "sys.aon")
-	overlay := filepath.Join(dir, "ov.aon")
+	entry := filepath.Join(dir, "sys.aontu")
+	overlay := filepath.Join(dir, "ov.aontu")
 	writeAt(t, entry,
 		"services: { auth: { owner: string, replicas: *1 | integer } }")
 
@@ -90,8 +90,8 @@ func TestSetAppendsWhenTheChangeHolds(t *testing.T) {
 // author at the pinning site: reported, exit 1, and NOT written.
 func TestSetRefusesToWriteAChangeThatDoesNotHold(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "sys.aon")
-	overlay := filepath.Join(dir, "ov.aon")
+	entry := filepath.Join(dir, "sys.aontu")
+	overlay := filepath.Join(dir, "ov.aontu")
 	writeAt(t, entry, "port: 3")
 	writeAt(t, overlay, "x: 1\n")
 
@@ -127,8 +127,8 @@ func TestSetRefusesToWriteAChangeThatDoesNotHold(t *testing.T) {
 
 func TestSetUsageErrorsExit2(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "sys.aon")
-	overlay := filepath.Join(dir, "ov.aon")
+	entry := filepath.Join(dir, "sys.aontu")
+	overlay := filepath.Join(dir, "ov.aontu")
 	writeAt(t, entry, "a:{b:integer}")
 
 	for _, args := range [][]string{
@@ -139,7 +139,7 @@ func TestSetUsageErrorsExit2(t *testing.T) {
 		{"$.a.b=1", "--bogus", "--entry", entry, "--overlay", overlay},
 		{"$.a.b=1", "--format", "yaml", "--entry", entry, "--overlay", overlay},
 		{"$.a.b=1", "--format"},
-		{"$.a.b=1", "--entry", filepath.Join(dir, "missing.aon"),
+		{"$.a.b=1", "--entry", filepath.Join(dir, "missing.aontu"),
 			"--overlay", overlay},
 		// An overlay that cannot be READ (a directory, not a missing
 		// file) is a usage error, not an empty overlay.
@@ -150,7 +150,7 @@ func TestSetUsageErrorsExit2(t *testing.T) {
 		// (the empty overlay) and then fails to write, which is also
 		// usage.
 		{"$.a.b=1", "--entry", entry,
-			"--overlay", filepath.Join(dir, "no-such-dir", "ov.aon")},
+			"--overlay", filepath.Join(dir, "no-such-dir", "ov.aontu")},
 	} {
 		if _, _, code := setRun(args...); 2 != code {
 			t.Fatalf("%v: want 2, got %d", args, code)
@@ -165,8 +165,8 @@ func TestSetUsageErrorsExit2(t *testing.T) {
 
 func TestSetInPlaceRewritesThePinnedLiteral(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "schema.aon")
-	overlay := filepath.Join(dir, "deploy.aon")
+	entry := filepath.Join(dir, "schema.aontu")
+	overlay := filepath.Join(dir, "deploy.aontu")
 	writeAt(t, entry, "replicas: integer & above(0) & below(10)\n")
 	writeAt(t, overlay, "# the deployment\nreplicas: 42   # too many\n")
 
@@ -187,7 +187,7 @@ func TestSetInPlaceRewritesThePinnedLiteral(t *testing.T) {
 		t.Fatalf("want 0, got %d: %s", code, out)
 	}
 	vetMatch(t, out, `verdict: valid`)
-	vetMatch(t, out, `replaced: .*deploy\.aon:2:11 42 -> 5`)
+	vetMatch(t, out, `replaced: .*deploy\.aontu:2:11 42 -> 5`)
 	vetMatch(t, out, `wrote:`)
 	// BOTH COMMENTS SURVIVE, the one on the edited line included.
 	if want := "# the deployment\nreplicas: 5   # too many\n"; want != readAt(t, overlay) {
@@ -199,8 +199,8 @@ func TestSetInPlaceRewritesThePinnedLiteral(t *testing.T) {
 // says why. --dry-run still writes nothing.
 func TestSetInPlaceAppendsAndExplainsWhenItCannotRewrite(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "schema.aon")
-	overlay := filepath.Join(dir, "ov.aon")
+	entry := filepath.Join(dir, "schema.aontu")
+	overlay := filepath.Join(dir, "ov.aontu")
 	writeAt(t, entry, "a: integer\n")
 	writeAt(t, overlay, "a: 1+2\n")
 
@@ -218,8 +218,8 @@ func TestSetInPlaceAppendsAndExplainsWhenItCannotRewrite(t *testing.T) {
 
 func TestSetInPlaceReportsUnappliedEditsAndUsesTheRightStream(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "e.aon")
-	overlay := filepath.Join(dir, "ov.aon")
+	entry := filepath.Join(dir, "e.aontu")
+	overlay := filepath.Join(dir, "ov.aontu")
 
 	// ONE ASSIGNMENT REPLACEABLE, ANOTHER REFUSED. The write is refused
 	// as a whole, so the file is untouched -- and the renderer must not

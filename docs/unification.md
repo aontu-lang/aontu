@@ -41,7 +41,7 @@ state is a **residual**: it holds real information and is not yet one
 concrete answer.
 
 <!-- test: scenario unification-meet -->
-```aon
+```aontu
 port: integer
 port: min(1024)
 port: 8080
@@ -95,7 +95,7 @@ claims about being safe to split, merge and re-order rests on them.
 
 **Idempotent.** `a & a` is `a`. Saying a thing twice says it once.
 
-```aon
+```aontu
 region: string
 region: string
 region: "eu-west-1"
@@ -115,44 +115,44 @@ matter either.
 Take the three together and a document has no evaluation order to
 reason about. There is no "later key wins", no cascade, no
 precedence table, no question of which file was loaded first. Write
-the shape as `shape.aon`:
+the shape as `shape.aontu`:
 
-<!-- test: file shape.aon -->
-```aon
+<!-- test: file shape.aontu -->
+```aontu
 port: integer
 port: min(1024)
 ```
 
-the pin in another, `pin.aon`:
+the pin in another, `pin.aontu`:
 
-<!-- test: file pin.aon -->
-```aon
+<!-- test: file pin.aontu -->
+```aontu
 port: 8080
 ```
 
-and load them in one order as `a.aon`:
+and load them in one order as `a.aontu`:
 
-<!-- test: file a.aon -->
-```aon
-@"./shape.aon"
-@"./pin.aon"
+<!-- test: file a.aontu -->
+```aontu
+@"./shape.aontu"
+@"./pin.aontu"
 ```
 
-and the other order as `b.aon`:
+and the other order as `b.aontu`:
 
-<!-- test: file b.aon -->
-```aon
-@"./pin.aon"
-@"./shape.aon"
+<!-- test: file b.aontu -->
+```aontu
+@"./pin.aontu"
+@"./shape.aontu"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu a.aon
+$ aontu a.aontu
 {
   "port": 8080
 }
-$ aontu b.aon
+$ aontu b.aontu
 {
   "port": 8080
 }

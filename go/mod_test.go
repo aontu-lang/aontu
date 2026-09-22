@@ -29,12 +29,12 @@ func modWorld(t *testing.T, store string) (dir, main, hash, cache string) {
 	if err := os.MkdirAll(moddir, 0o755); nil != err {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(moddir, "pkg.aon"),
-		"pkg: {path: \"corp.example/schemas/service\", main: \"service.aon\"}\n")
-	write(t, filepath.Join(moddir, "service.aon"), modSource)
+	write(t, filepath.Join(moddir, "pkg.aontu"),
+		"pkg: {path: \"corp.example/schemas/service\", main: \"service.aontu\"}\n")
+	write(t, filepath.Join(moddir, "service.aontu"), modSource)
 
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"corp.example/app\"}\n")
-	main = filepath.Join(dir, "main.aon")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"corp.example/app\"}\n")
+	main = filepath.Join(dir, "main.aontu")
 	write(t, main,
 		"svc: @\"corp.example/schemas/service#"+hash+"\"\nsvc: name: \"auth\"\n")
 
@@ -181,7 +181,7 @@ func TestModVendorOutsideRootIsDenied(t *testing.T) {
 	if nil != err {
 		t.Fatal(err)
 	}
-	inner := filepath.Join(sub, "main.aon")
+	inner := filepath.Join(sub, "main.aontu")
 	write(t, inner, string(data))
 
 	a := New()
@@ -213,20 +213,20 @@ func TestPackageSelfShapes(t *testing.T) {
 		"pkg: {main: \"\"}\n",   // ... and an empty name is no name
 		"moved: 1\n",
 	} {
-		file := filepath.Join(dir, "pkg.aon")
+		file := filepath.Join(dir, "pkg.aontu")
 		write(t, file, src)
-		if got := packageSelfOf(file, 0, ""); "main.aon" != got.main || "" != got.moved {
+		if got := packageSelfOf(file, 0, ""); "main.aontu" != got.main || "" != got.moved {
 			t.Fatalf("want the default entry for %q, got %+v", src, got)
 		}
 	}
 
-	write(t, filepath.Join(dir, "pkg.aon"),
-		"pkg: {main: \"other.aon\"}\nmoved: \"corp.example/new\"\n")
-	got := packageSelfOf(filepath.Join(dir, "pkg.aon"), 0, "")
-	if "other.aon" != got.main || "corp.example/new" != got.moved {
+	write(t, filepath.Join(dir, "pkg.aontu"),
+		"pkg: {main: \"other.aontu\"}\nmoved: \"corp.example/new\"\n")
+	got := packageSelfOf(filepath.Join(dir, "pkg.aontu"), 0, "")
+	if "other.aontu" != got.main || "corp.example/new" != got.moved {
 		t.Fatalf("want the declared entry and destination, got %+v", got)
 	}
-	if got := packageSelfOf(filepath.Join(dir, "gone.aon"), 0, ""); "main.aon" != got.main {
+	if got := packageSelfOf(filepath.Join(dir, "gone.aontu"), 0, ""); "main.aontu" != got.main {
 		t.Fatalf("missing file: %+v", got)
 	}
 }
@@ -243,7 +243,7 @@ func TestParseModuleRefSelfDescribes(t *testing.T) {
 			t.Fatalf("%s: %v %+v", spec, ok, got)
 		}
 	}
-	for _, local := range []string{"./f.aon", "../g.json", "/abs/h.aon", "local",
+	for _, local := range []string{"./f.aontu", "../g.json", "/abs/h.aontu", "local",
 		"corp.example/x@1", "Corp.Example/x", "alias:", "alias:a b"} {
 		if _, ok := parseModuleRef(local); ok {
 			t.Fatalf("%s routed", local)
@@ -278,7 +278,7 @@ func TestModAliasResolvesFromTheCacheByThePackageItNames(t *testing.T) {
 	// has both halves of its key; without the lock, the package file's
 	// own declaration supplies it.
 	dir, main, hash, cache := modWorld(t, "cache")
-	write(t, filepath.Join(dir, "pkg.aon"),
+	write(t, filepath.Join(dir, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\n"+
 			"dep: {\"alias:legacy\": {pkg: \"corp.example/schemas/service\", v: \"1.0.0\"}}\n")
 	write(t, main, "svc: @\"alias:legacy#"+hash+"\"\nsvc: name: \"auth\"\n")
@@ -288,7 +288,7 @@ func TestModAliasResolvesFromTheCacheByThePackageItNames(t *testing.T) {
 		t.Fatalf("alias from the declaration: %v", err)
 	}
 
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"alias:legacy\":{\"archive\":\"\",\"canon\":\""+hash+
 			"\",\"pkg\":\"corp.example/schemas/service\",\"v\":\"1.0.0\"}}}\n")
 	write(t, main, "svc: @\"alias:legacy\"\nsvc: name: \"auth\"\n")
@@ -297,7 +297,7 @@ func TestModAliasResolvesFromTheCacheByThePackageItNames(t *testing.T) {
 	}
 
 	// A lock entry that is not an object pins nothing.
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"alias:legacy\":1}}\n")
 	if _, err := modGen(t, a, main); nil == err ||
 		!strings.Contains(err.Error(), "module not fetched") {
@@ -305,12 +305,12 @@ func TestModAliasResolvesFromTheCacheByThePackageItNames(t *testing.T) {
 	}
 	// And a declaration whose entry is not a map, or whose package is
 	// not a string, declares nothing.
-	write(t, filepath.Join(dir, "pkg.aon"), "dep: {\"alias:legacy\": 1}\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "dep: {\"alias:legacy\": 1}\n")
 	if _, err := modGen(t, a, main); nil == err ||
 		!strings.Contains(err.Error(), "alias not declared") {
 		t.Fatalf("hollow declaration: %v", err)
 	}
-	write(t, filepath.Join(dir, "pkg.aon"), "dep: 1\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "dep: 1\n")
 	if _, err := modGen(t, a, main); nil == err ||
 		!strings.Contains(err.Error(), "alias not declared") {
 		t.Fatalf("no dep block: %v", err)

@@ -33,8 +33,8 @@ describes.
 First failing example. A team's ground truth names its services once,
 and wants one deployment block per service:
 
-```aon
-# services.aon — the list is the truth
+```aontu
+# services.aontu — the list is the truth
 names: [web, auth, billing]
 
 # ...but the map must be written by hand, one copy per service
@@ -57,8 +57,8 @@ Second failing example, and this one is *wrong behaviour*, not a
 missing feature. An agent that needs a conditional today reaches for
 the only branching construct the language has, disjunction:
 
-```aon
-# storage.aon — "either local or s3, then pick local"
+```aontu
+# storage.aontu — "either local or s3, then pick local"
 store: ({kind: local, path: "/var/data"} | {kind: s3, bucket: b1})
        & {enabled: true}
 ```
@@ -282,8 +282,8 @@ the colliding children unify, exactly as duplicate source keys merge
 today (test/spec/map.tsv), so conflicts surface as located two-site
 errors. The first failing example becomes:
 
-```aon
-# services.aon — single source
+```aontu
+# services.aontu — single source
 names: [web, auth, billing]
 
 deploy: close(pack($.names, {
@@ -318,7 +318,7 @@ filter that keeps everything that could be made to match keeps
 everything. "Already satisfies" is the meet changing nothing — the
 same question `subsume` asks, answered locally.*
 
-```aon
+```aontu
 # sidecars for exactly the debug services — no hand-kept list
 debugged: filter($.services, {debug: true})
 sidecars: pack($.debugged, { image: "acme/debug:1.0" })

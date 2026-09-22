@@ -83,7 +83,7 @@ desugar into. Phases 5, 7 and 8 are not on that path, and
 ## 2. The pipeline
 
 ```
-  model.aon                       the model, and the transform that reads it
+  model.aontu                       the model, and the transform that reads it
      │
      ▼  unify()                   exists, both ports
   the Val tree
@@ -126,14 +126,14 @@ reference has been bound (EMIT.0.md, "What phase 6 established").
 [ADR-010](../../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)),
 vets it against the bundled vocabulary, and folds `code.units`. The
 document need not include `@"aontu:code"` itself — the vet is the
-verb's, exactly as `aontu vet code.aon result.aon` would run it — but a
+verb's, exactly as `aontu vet code.aontu result.aontu` would run it — but a
 document that does include it gets the same check at edit time from
 the LSP, which is the point of the vocabulary being an ordinary schema.
 
 A bare piece list is not an instance. The shortest renderable document
 is one unit:
 
-```aon
+```aontu
 code: { units: [ { path: "out.py", lang: "python",
                    decls: [ { k: "frag", n: emit($.model, %rules) } ] } ] }
 ```
@@ -147,7 +147,7 @@ nothing else, which is the quick path.
 
 G9's second amendment defines the fragment algebra's pieces as records:
 
-```aon
+```aontu
 %inline = string & re("^[^\n\r]*$") | %ref
 %line =   close({ k: "line",  at: *0 | integer & min(0) & max(64), n: [&: %inline] })
 %blank =  close({ k: "blank", n: *1 | integer & min(1) & max(16) })
@@ -159,7 +159,7 @@ G9's second amendment defines the fragment algebra's pieces as records:
 
 This note adds one alternative to `%piece`:
 
-```aon
+```aontu
 %piece = %line | %blank | %raw | string & re("^[^\n\r  ]*$")
 ```
 
@@ -430,8 +430,8 @@ the first usable `aontu render`.
 ### P0 — the `aontu:` resolver leg (S) — LANDED 2026-09-06
 
 *Landed with P1, in one change: a leg with nothing to serve had no row
-to pin it by. As designed, with one refinement: the `.aon` spelling the
-`std/` names accept is not a model name (`aontu:code.aon` is refused
+to pin it by. As designed, with one refinement: the `.aontu` spelling the
+`std/` names accept is not a model name (`aontu:code.aontu` is refused
 like any other typo), because the scheme is not a directory.*
 
 **Deliverable.** An include whose path begins `aontu:` is served from
@@ -600,7 +600,7 @@ and a supplied profile without an `indent` renders at two spaces.
 `render.tsv` is 87 rows; `aontu-profile.tsv` pins both profiles by
 hash and generated form. Acceptance met: G9's worked examples 1 and 2
 render byte-for-byte from both ports —
-`use-cases/10-data-model/xf-domain.aon` and `xf-order.aon`, held by
+`use-cases/10-data-model/xf-domain.aontu` and `xf-order.aontu`, held by
 `render --check` in the case's `check.sh` — and every `range` in
 `go/render.go` and `go/lower.go` is over a slice, a sorted key list,
 or a map being copied. Found beside it and filed: BUGS §87, a refusal
@@ -690,7 +690,7 @@ three of that note's open questions are closed by what shipped.
 `template.tsv` +30, and the planned `fmt.tsv` +4 became CLI rows,
 because the rule is about the file rather than about a value.
 Acceptance met: `use-cases/17-lambda-handlers/handler.ts` renders the
-same thirteen units as `gen.aon` under `render --check expected`, in
+same thirteen units as `gen.aontu` under `render --check expected`, in
 both ports, round-trips as a fixpoint under `template --check`, and
 parses as TypeScript.*
 
@@ -718,7 +718,7 @@ register says so in the same commits:
 |---|---|
 | a target the declaration vocabulary does not fit renders from `emit` (acceptance case 1) | P4's Python/YAML rows and use case 15 |
 | a recursive rule set renders nested output (acceptance case 2) | `emit-recursive` (landed) plus one `render.tsv` row over it |
-| worked examples 1 and 2 byte-for-byte | P5 (landed): `use-cases/10-data-model/xf-domain.aon` and `xf-order.aon` under `render --check`, both ports |
+| worked examples 1 and 2 byte-for-byte | P5 (landed): `use-cases/10-data-model/xf-domain.aontu` and `xf-order.aontu` under `render --check`, both ports |
 | one model, three units, one run, nothing written on a partial failure | P4 |
 | the twelve handlers byte-identical through `emit` + `render` (P6, landed: `use-cases/17-lambda-handlers/`), and then through the surface (P8, landed: `handler.ts` in the same directory) | P6, P8 |
 | coverage names dead model and silent holes | P7 (landed): `render --coverage`, pinned by `render.tsv` and by use case 10's report, diffed between the ports |
@@ -877,8 +877,8 @@ touches M0.
     site, which buries the one code a row is about.
 
 14. **The vet and the meet read the settled value, not the source
-    text** (P3). D1 says the verb vets "exactly as `aontu vet code.aon
-    result.aon` would", and the first cut did: it handed vet the
+    text** (P3). D1 says the verb vets "exactly as `aontu vet code.aontu
+    result.aontu` would", and the first cut did: it handed vet the
     document's text. A fragment whose lines are computed — `n:
     emit(...)`, `"select " + join($.cols, ", ")` — then failed the
     vet in Go as `empty`: the vocabulary's alternatives were tried
@@ -922,7 +922,7 @@ touches M0.
     instances composed by value includes, which is how P4's text read.
     A document included as a value cannot resolve its own aliases
     (BUGS §85) and a named table does not resolve as the table of an
-    `emit` under another call (BUGS §84), so `all.aon` includes the
+    `emit` under another call (BUGS §84), so `all.aontu` includes the
     three generators at the root, their aliases carry the target's
     name, each contributes a unit under `units`, and the instance
     lists the three. The SQL column table is spelled inline for §84.
@@ -935,7 +935,7 @@ touches M0.
     `pack(type($.schema), …)`, which lifts the marked children. And
     an optional key whose value generates nothing is not a member
     either, so the walk never sees `email?`
-    ([BUGS §86](../../use-cases/BUGS.md)); `xf-order.aon` states
+    ([BUGS §86](../../use-cases/BUGS.md)); `xf-order.aontu` states
     `optional` as data, which is what ADR-023 asks of a transform in
     any case, and the worked examples render byte-for-byte with that
     one statement added. Deriving optionality from the schema is what
@@ -1048,11 +1048,11 @@ touches M0.
     tells the two apart is the extension, exactly as an include's
     extension decides what the include is (ADR-012): a generator is a
     file in the target's own language, so it carries the target's
-    extension and never `.aon`. `--marker` names the marker for a
+    extension and never `.aontu`. `--marker` names the marker for a
     language the table has not met.
 36. **`fmt` has no reach into a template at all** (P8 planned "`fmt`'s
     reach into marker lines decided and pinned"). The decision is that
-    there is none: `fmt` formats aontu source, `.aon` and `.aontu`, and
+    there is none: `fmt` formats aontu source, `.aontu`, and
     refuses any other file by name. The reason is sharper than the
     question expected — a `#-` template PARSES as aontu, because `#`
     opens a comment, so `fmt` previously read one, threw the body lines
@@ -1102,7 +1102,7 @@ The shape, as decided:
 |---|---|
 | stack | Rails 8, SQLite, server-rendered ERB with Hotwire (Turbo and Stimulus), Propshaft; no Node toolchain |
 | what is generated | **everything the model decides**: routes, migrations, models with validations and the cascade, API controllers with the envelope and the two actions, UI controllers and views, seeds from the solar data, request specs; only framework boilerplate (`Gemfile`, `config/`, `bin/`) is hand-written, once |
-| the model | a hand-written aontu API model in `test/system/rb-solar/model.aon`, written the way a user of aontu would write it; the OpenAPI spec is vendored beside it as the reference it must agree with |
+| the model | a hand-written aontu API model in `test/system/rb-solar/model.aontu`, written the way a user of aontu would write it; the OpenAPI spec is vendored beside it as the reference it must agree with |
 | the output | the rendered application is **committed** under `test/system/rb-solar/app/`, each generated file carrying a banner; `aontu render --check` holds it, so a change to the model or the generator is a reviewable diff |
 | validation | `check.sh` renders, boots the app, runs the reference repository's `app/validate.ts` against it, runs the Ruby SDK's tests in live mode against it, and fetches the UI pages; a GitHub Actions job with a Ruby toolchain runs it |
 | release | 0.58.0 / go 0.1.16 is cut when this passes ([§6](#6-the-first-release)) — **CUT 2026-09-06** |
@@ -1146,7 +1146,7 @@ the system's own README:
 - **The ERB generator could not be written in the template surface.**
   The block marker is fixed to the C family (`/*-` … `*/`), and ERB's
   only comment is `<%# … %>`; no marker an ERB file can carry is one
-  ERB ignores. `views.aon` is canonical aontu. A block marker whose
+  ERB ignores. `views.aontu` is canonical aontu. A block marker whose
   closer is derived from its opener would close this.
 - **Two engine defects, [BUGS.md](../../use-cases/BUGS.md) §88 and
   §89**, both found by writing generators against a real API and both

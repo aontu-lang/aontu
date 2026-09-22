@@ -15,28 +15,28 @@ its three moods: exact, lossy, refused.
 
 Four documents, one per mood plus the money convention:
 
-- **registry.aon**: a three-tool MCP-flavoured registry (use-case
+- **registry.aontu**: a three-tool MCP-flavoured registry (use-case
   09's shape, self-contained), written in the subset that crosses
   without loss, so each per-tool export is complete.
   `jsonschema --at '$.argschemas.<tool>'` answers the tool's
   `inputSchema` directly, with nothing on stderr.
-- **message.aon**: a wire message whose root is one `close()`
+- **message.aontu**: a wire message whose root is one `close()`
   expression, so the whole-document export carries
   `additionalProperties: false` at its root: pasteable into an
   OpenAPI components entry with nothing to strip.
-- **money.aon**: use-case 10's money wire convention (the recipe is
+- **money.aontu**: use-case 10's money wire convention (the recipe is
   [Carry exact money over JSON](../../docs/how-to/carry-exact-money-over-json.md)).
   The fixed-scale decimal's `re()` crosses as `pattern` and the
   constant `dec` mark as `{"const": "bigdecimal:2"}` outside
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
-- **residue.aon**: one instance of each loss class: `must()`,
+- **residue.aontu**: one instance of each loss class: `must()`,
   `bigdecimal`, `hide()`, a constrained spread template, `length()`
   on a list. The export still happens; every loss is named.
-- **bad/dangling.aon**: a reference that resolves nowhere. Not a
+- **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
 
-The line between registry.aon and residue.aon runs through two
+The line between registry.aontu and residue.aontu runs through two
 constructs. A bare-kind template (`[&: string]`, `{ &: string }`)
 crosses as `items` or `additionalProperties`; a template carrying a
 constraint call (`{ &: string & length(max(63)) }`) is held residual,
@@ -51,7 +51,7 @@ Every golden in `expected/` is captured engine output.
 
 ## The model tree
 
-`residue.aon` is deliberately small and deliberately awkward: every
+`residue.aontu` is deliberately small and deliberately awkward: every
 field of `report` is a construct the JSON Schema export must either
 carry or drop, and the loss report says which. A `bigdecimal`, a
 spread template, a list template, a concrete string and a `nil`.
@@ -66,7 +66,7 @@ $
     └── total nil
 ```
 
-`aontu view doc --depth 3 residue.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 3 residue.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -84,12 +84,12 @@ than its value.
    preference as `default`, optional keys out of `required`.
 4. The money convention crosses intact: `pattern` for `Dec2`, `const`
    for the mark, and `required` stays `["amount", "currency"]`.
-5. residue.aon exports at exit 0 while stderr names all five losses,
+5. residue.aontu exports at exit 0 while stderr names all five losses,
    each with its path and construct.
 6. `--strict` flips the same run to exit 1.
 7. `--format json` carries the same report as data: `verdict: lossy`,
    each loss as `{path, construct, reason}`, the schema embedded.
-8. bad/dangling.aon refuses with exit 4 and a located
+8. bad/dangling.aontu refuses with exit 4 and a located
    `[aontu/no_path]`, and stdout stays empty: never a partial schema.
 
 ## Run

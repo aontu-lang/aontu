@@ -13,7 +13,7 @@ const SOURCE_EXTS = ['.ts', '.go', '.rs']
 
 // The bundled models are source too (ADR-036): aontu/ is where the
 // language's own vocabularies are written, and they are held to the
-// same rule. Every other .aon in the tree is a fixture or a document.
+// same rule. Every other .aontu in the tree is a fixture or a document.
 const AON_TREE = 'aontu/'
 
 // Written by a generator, checked byte-for-byte by its own suite.
@@ -73,7 +73,7 @@ const UNVERIFIABLE_RE = [
   },
 ]
 
-const PATH_RE = /\b((?:[\w.-]+\/)+[\w.-]+\.(?:ts|go|md|tsv|cjs|mjs|js|json|aon|abnf|yml|sh))\b/g
+const PATH_RE = /\b((?:[\w.-]+\/)+[\w.-]+\.(?:ts|go|md|tsv|cjs|mjs|js|json|aontu|abnf|yml|sh))\b/g
 const ADR_RE = /\bADR-(\d{3})\b/g
 const SYMBOL_RE = /`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\(\))?`/g
 
@@ -85,7 +85,7 @@ const WORD_RE = /[A-Za-z_$][\w$]*/g
 
 function gated(rel, name) {
   return SOURCE_EXTS.some((e) => name.endsWith(e)) ||
-    (rel.startsWith(AON_TREE) && name.endsWith('.aon'))
+    (rel.startsWith(AON_TREE) && name.endsWith('.aontu'))
 }
 
 
@@ -129,21 +129,21 @@ function lex(text, lang) {
 
     if (c === '\n') { line++; i++; continue }
 
-    if (c === '#' && lang === 'aon') {
+    if (c === '#' && lang === 'aontu') {
       const start = i
       while (i < n && text[i] !== '\n') i++
       comments.push({ kind: 'line', start: line, end: line, from: start, to: i, text: text.slice(start, i) })
       continue
     }
 
-    if (c === '/' && c2 === '/' && lang !== 'aon') {
+    if (c === '/' && c2 === '/' && lang !== 'aontu') {
       const start = i
       while (i < n && text[i] !== '\n') i++
       comments.push({ kind: 'line', start: line, end: line, from: start, to: i, text: text.slice(start, i) })
       continue
     }
 
-    if (c === '/' && c2 === '*' && lang !== 'aon') {
+    if (c === '/' && c2 === '*' && lang !== 'aontu') {
       const start = i
       const startLine = line
       i += 2
@@ -158,7 +158,7 @@ function lex(text, lang) {
 
     if (c === '"' || c === "'" || c === '`') {
       const quote = c
-      const raw = ('go' === lang || 'aon' === lang) && c === '`'
+      const raw = ('go' === lang || 'aontu' === lang) && c === '`'
       codeLine.add(line)
       i++
       while (i < n) {
@@ -304,7 +304,7 @@ function checkFile(file, opts = {}) {
 function checkText(file, text, opts = {}) {
   const lines = text.split('\n')
   const scan = lex(text,
-    file.endsWith('.go') ? 'go' : file.endsWith('.aon') ? 'aon' : 'ts')
+    file.endsWith('.go') ? 'go' : file.endsWith('.aontu') ? 'aontu' : 'ts')
   const all = blocks(scan, lines)
   const kept = all.filter((b) => !exempt(b))
 

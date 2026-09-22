@@ -27,13 +27,13 @@ remains the recommended form.
 
 | Form                                       | TypeScript | Go (≤ v0.3.0) | Go (≥ v0.3.1) |
 |--------------------------------------------|------------|---------------|---------------|
-| `x: @"minor.aon"`                          | ✅ loads    | ✅ loads       | ✅ loads       |
-| `struct: { minor: @"minor.aon" }` (braced) | ✅ loads    | ✅ loads       | ✅ loads       |
-| `struct: minor: @"minor.aon"` (colon-chain)| ✅ loads    | ❌ `{}`        | ✅ loads       |
+| `x: @"minor.aontu"`                          | ✅ loads    | ✅ loads       | ✅ loads       |
+| `struct: { minor: @"minor.aontu" }` (braced) | ✅ loads    | ✅ loads       | ✅ loads       |
+| `struct: minor: @"minor.aontu"` (colon-chain)| ✅ loads    | ❌ `{}`        | ✅ loads       |
 
 ## Reproduction
 
-`minor.aon`:
+`minor.aontu`:
 
 ```aontu
 a:1
@@ -42,17 +42,17 @@ b:2
 
 ```sh
 # Direct — both correct
-echo 'x: @"minor.aon"' | go run ./go/cmd/aontu
+echo 'x: @"minor.aontu"' | go run ./go/cmd/aontu
 # => { "x": { "a": 1, "b": 2 } }
 
 # Braced — both correct
-echo 'struct: { minor: @"minor.aon" }' | go run ./go/cmd/aontu
+echo 'struct: { minor: @"minor.aontu" }' | go run ./go/cmd/aontu
 # => { "struct": { "minor": { "a": 1, "b": 2 } } }
 
 # Colon-chain — TypeScript correct, Go wrong
-echo 'struct: minor: @"minor.aon"' | node ts/dist/cli.js
+echo 'struct: minor: @"minor.aontu"' | node ts/dist/cli.js
 # => { "struct": { "minor": { "a": 1, "b": 2 } } }
-echo 'struct: minor: @"minor.aon"' | go run ./go/cmd/aontu
+echo 'struct: minor: @"minor.aontu"' | go run ./go/cmd/aontu
 # => {}
 ```
 
@@ -133,7 +133,7 @@ makes the bare-`@` injection / colon-chain value handling work at
 arbitrary depth. aontu's `go/go.mod` pinned that version (it pins
 v0.5.2 today, which carries the fix), and the change was
 validated against the full shared spec plus the new regression row
-`test/spec/file.tsv:load-colon-chain` (`a:b:@"…/foo.aon"` →
+`test/spec/file.tsv:load-colon-chain` (`a:b:@"…/foo.aontu"` →
 `{"a":{"b":{"f":11}}}`), which passes in both implementations.
 
 aontu pins these parser versions exactly (`go/go.mod`), and the
@@ -148,8 +148,8 @@ of a colon-chain for an imported value. It is equivalent, works in both
 implementations at any depth, and remains a fine style:
 
 ```aontu
-# Equivalent to:   struct: minor: @"minor.aon"
-struct: { minor: @"minor.aon" }
+# Equivalent to:   struct: minor: @"minor.aontu"
+struct: { minor: @"minor.aontu" }
 ```
 
 ## Secondary consideration (resolved)

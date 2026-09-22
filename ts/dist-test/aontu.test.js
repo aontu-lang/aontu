@@ -71,7 +71,7 @@ w1: b: {y:2,z:3} & $.q.a
     (0, node_test_1.test)('file', async () => {
         let ctx = makeCtx();
         let a0 = new aontu_1.Aontu();
-        let v0 = a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t02sys.aon"');
+        let v0 = a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t02sys.aontu"');
         (0, expect_1.expect)(v0.canon).equal('{"ent":{"bar":{"fields":{"f0":{"kind":"Number"}},"name":"bar"},"foo":{"fields":{"f0":{"kind":"String"}},"name":"foo"}},"sys":{"ent":{"name":string}}}');
         (0, expect_1.expect)(v0.gen(ctx)).equal({
             // sys: { ent: { name: undefined } },
@@ -98,7 +98,7 @@ w1: b: {y:2,z:3} & $.q.a
     (0, node_test_1.test)('pref', async () => {
         let a0 = new aontu_1.Aontu();
         try {
-            a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t03uxc.aon"', {
+            a0.unify('@"' + (0, srcpath_1.srcPath)(__dirname) + '/../test/t03uxc.aontu"', {
                 base: __dirname,
             });
         }
@@ -190,11 +190,11 @@ def: garage: {
     (0, node_test_1.test)('virtual-fs', () => {
         let a0 = new aontu_1.Aontu();
         const mfs = (0, memfs_1.memfs)({
-            'foo.aon': '{f:11}'
+            'foo.aontu': '{f:11}'
         });
         const fs = mfs.fs;
         fs.aaa = 1;
-        let v1 = a0.unify(`a:@"./foo.aon"`, { fs, path: '/' });
+        let v1 = a0.unify(`a:@"./foo.aontu"`, { fs, path: '/' });
         (0, expect_1.expect)(v1.canon).equal('{"a":{"f":11}}');
     });
     (0, node_test_1.test)('deep-hierarchy', () => {

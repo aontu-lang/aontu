@@ -50,7 +50,7 @@ describe('error', function() {
 
   it('file-e01', async () => {
     let a0 = new Aontu()
-    let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aon"', { collect: true })
+    let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aontu"', { collect: true })
     expect(v0.err[0].why).equal('scalar_value')
     expect(typeof v0.err[0].msg).equal('string')
   })
@@ -62,7 +62,7 @@ describe('error', function() {
     expect(() => aontu.generate('a:$.b')).throw(/no_path/)
 
     expect(() =>
-      aontu.generate('@"' + __dirname + '/../test/error/e02.aon"'))
+      aontu.generate('@"' + __dirname + '/../test/error/e02.aontu"'))
       .throw(/no_path/)
   })
 
@@ -126,24 +126,24 @@ describe('error', function() {
   it('error-source-file', () => {
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"' + __dirname + '/../test/error/e01.aon"',
+      '@"' + __dirname + '/../test/error/e01.aontu"',
       { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')
     expect(v0.err[0].msg).to.not.contain('SOURCE-NOT-FOUND')
-    // e01.aon contains "a: 1\na: 2\n" — error should show the file content
+    // e01.aontu contains "a: 1\na: 2\n" — error should show the file content
     expect(v0.err[0].msg).to.contain('a: 1')
     expect(v0.err[0].msg).to.contain('a: 2')
   })
 
 
   it('error-source-file-cross', () => {
-    // Cross-file error: e03.aon imports e04.aon, conflicting on key a.
+    // Cross-file error: e03.aontu imports e04.aontu, conflicting on key a.
     // Error message should show file content, not SOURCE-NOT-FOUND.
     // The raw `__dirname` is deliberate — see the case above.
     let a0 = new Aontu({ fs: Fs })
     let v0 = a0.unify(
-      '@"' + __dirname + '/../test/error/e03.aon"',
+      '@"' + __dirname + '/../test/error/e03.aontu"',
       { collect: true }
     )
     expect(v0.err[0].why).equal('scalar_value')
@@ -305,7 +305,7 @@ describe('error', function() {
 
   it('invalid-utf8-replacement', () => {
     const src = Fs.readFileSync(
-      Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'invalid-utf8.aon'),
+      Path.join(__dirname, '..', '..', 'test', 'spec', 'files', 'invalid-utf8.aontu'),
       'utf8')
     const out: any = new Aontu().generate(src)
     expect(out.b).equal('x\uFFFDy')

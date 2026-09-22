@@ -109,9 +109,9 @@ import/publish line the thing is on rather than trusting the ear.
   package-manager manifests on a GitHub Release at that tag, and the
   image on GHCR (`go/scripts/binaries.sh`; docs/release-and-tag.md).
 - Inside an aontu project, everything the tools generate lives under
-  `aontu_meta/`: the lockfile `aontu_meta/pkg-lock.aon`, the vendored
+  `aontu_meta/`: the lockfile `aontu_meta/pkg-lock.aontu`, the vendored
   closure `aontu_meta/vendor/`, and by design the engine pin
-  `aontu_meta/version`. `pkg.aon` and the documents stay at the root.
+  `aontu_meta/version`. `pkg.aontu` and the documents stay at the root.
   New tooling that writes into a project writes there
   (docs/capability-review/g6-distribution.md, the layout amendment).
   A vendored package keeps the manifest and proof it was acquired with
@@ -129,7 +129,7 @@ import/publish line the thing is on rather than trusting the ear.
 
 **Every site names the file whose text it excerpts.** A value carries
 the url of the file it was PARSED FROM, and nothing may overwrite that
-with the entry document's name: a report citing `entry.aon:3:7` for
+with the entry document's name: a report citing `entry.aontu:3:7` for
 text three files away — at a line the entry may not have — sends a
 repair agent to edit the wrong file (use-cases/BUGS.md §25). Two
 corollaries a change in this area has to keep:

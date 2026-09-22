@@ -79,7 +79,7 @@ function render(findings) {
             Assert.ok(Fs.existsSync(Path.join(REPO, excluded)), `gone: ${excluded}`);
             Assert.ok(!files.includes(excluded), `gated: ${excluded}`);
         }
-        Assert.ok(files.every((f) => /\.(ts|go|rs|aon)$/.test(f)), 'a non-source file is gated');
+        Assert.ok(files.every((f) => /\.(ts|go|rs|aontu)$/.test(f)), 'a non-source file is gated');
         Assert.ok(!files.some((f) => f.startsWith('ts/dist')), 'build output gated');
     });
     (0, node_test_1.test)('lexer', () => {

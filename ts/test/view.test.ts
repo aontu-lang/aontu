@@ -40,19 +40,19 @@ describe('view', () => {
 
   test('view-over-included-files', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-'))
-    write(dir, 'lib/base.aon', 'a: {x: **1 & integer, y: 2}\n')
-    const entry = write(dir, 'entry.aon',
-      '@"./lib/base.aon"\na: {x: *2 & integer, z: 3}\n')
+    write(dir, 'lib/base.aontu', 'a: {x: **1 & integer, y: 2}\n')
+    const entry = write(dir, 'entry.aontu',
+      '@"./lib/base.aontu"\na: {x: *2 & integer, z: 3}\n')
     const src = Fs.readFileSync(entry, 'utf8')
     const trust = { include: 'root', root: dir } as any
 
     const layers = view(src, { kind: 'layers', path: entry, trust })
     Assert.equal(layers.verdict, 'rendered')
     Assert.match(layers.text as string,
-      /^# layers {2}file=entry\.aon {2}documents=2/)
+      /^# layers {2}file=entry\.aontu {2}documents=2/)
     // The included file is named relative to the entry, in the host's
     // own separator.
-    Assert.ok((layers.text as string).includes(Path.join('lib', 'base.aon')),
+    Assert.ok((layers.text as string).includes(Path.join('lib', 'base.aontu')),
       layers.text as string)
     Assert.equal(
       view(src, { kind: 'layers', path: entry, trust, maxRows: 1 })
@@ -62,14 +62,14 @@ describe('view', () => {
     const ladder = view(src, { kind: 'ladder', at: '$.a.x', path: entry, trust })
     Assert.equal(ladder.verdict, 'rendered')
     Assert.ok((ladder.text as string).includes(
-      'c0["**1<br/>pref | base.aon:1:8"]\n' +
-      '  c1["*2<br/>pref | entry.aon:2:8"]\n' +
-      '  c2["integer<br/>literal | entry.aon:2:13"]\n' +
-      '  c3["integer<br/>literal | base.aon:1:14"]'), ladder.text as string)
+      'c0["**1<br/>pref | base.aontu:1:8"]\n' +
+      '  c1["*2<br/>pref | entry.aontu:2:8"]\n' +
+      '  c2["integer<br/>literal | entry.aontu:2:13"]\n' +
+      '  c3["integer<br/>literal | base.aontu:1:14"]'), ladder.text as string)
 
     // The poset labels a document by its file, and a further document
     // by its own path.
-    const other = write(dir, 'wide.aon',
+    const other = write(dir, 'wide.aontu',
       'a: {x: integer, y: integer, z: integer}\n')
     const poset = view(src, {
       kind: 'poset', path: entry, trust, profile: 'values',
@@ -87,7 +87,7 @@ describe('view', () => {
     Assert.deepEqual(view('a: 1'),
       { verdict: 'rendered', kind: 'tree', text: '', loss: [] })
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-abs-'))
-    const lib = write(dir, 'lib.aon', 'b: 2\n')
+    const lib = write(dir, 'lib.aontu', 'b: 2\n')
     // Spelled with forward slashes: a backslash in a string literal is
     // an escape, and a Windows path is full of them.
     const spelled = lib.split(Path.sep).join('/')
@@ -96,7 +96,7 @@ describe('view', () => {
     })
     Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors))
     Assert.match(r.text as string, /^# layers {2}file=- {2}documents=2/)
-    Assert.ok((r.text as string).includes('lib.aon'), r.text as string)
+    Assert.ok((r.text as string).includes('lib.aontu'), r.text as string)
   })
 
 
@@ -143,14 +143,14 @@ describe('view', () => {
         : { verdict: 'does_not_subsume', code: 'compat_narrowed' }
     }
     const docs = [{ src: 'b', name: 'b' }, { src: 'c', name: 'c' }]
-    const r = view('a', { kind: 'poset', docs, path: 'a.aon' }, { compare })
+    const r = view('a', { kind: 'poset', docs, path: 'a.aontu' }, { compare })
     Assert.equal(r.verdict, 'lossy')
     Assert.match(r.text as string, /n1 --> n0\n {2}n2 --> n1$/)
     Assert.deepEqual(r.loss,
       [{ code: 'order_intransitive', count: 1, detail: ['c < a'] }])
 
     const bad = view('a', {
-      kind: 'poset', docs: [{ src: 'b', name: 'b\nc' }], path: 'a.aon',
+      kind: 'poset', docs: [{ src: 'b', name: 'b\nc' }], path: 'a.aontu',
     }, { compare })
     Assert.equal(bad.verdict, 'error')
     Assert.equal(bad.errors?.[0].code, 'view_line_break')

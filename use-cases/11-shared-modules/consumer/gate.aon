@@ -1,3 +1,0 @@
-# Vet gate: agent-emitted service candidates are checked against the
-# vendored platform truth (vet --at spec gate.aon <candidate.json>).
-@"corp.example/schemas/service"

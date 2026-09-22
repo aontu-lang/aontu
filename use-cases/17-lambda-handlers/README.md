@@ -11,7 +11,7 @@ it calls out to, and whether it picks up files from S3. The handlers
 are generated, and the generator is **the handler file itself**: one
 rule set whose body is the file, line for line, with three nested
 dispatches where the file varies. It is here twice, in the two forms
-of one generator: `gen.aon`, the canonical aontu, and `handler.ts`, the
+of one generator: `gen.aontu`, the canonical aontu, and `handler.ts`, the
 same thing written as a Lambda handler with its aontu on marked lines. Both answer the same thirteen files.
 
 Nothing in the mechanism is about handlers. `emit`, `match`, `replace`,
@@ -20,7 +20,7 @@ produce Lambda handlers is the target text in the body.
 
 ## The model tree
 
-`model.aon` is one map of services; each has its `listen` and `client`
+`model.aontu` is one map of services; each has its `listen` and `client`
 pins and its `on.file.events`, empty where it has nothing to say,
 because the generator reads all three and a dispatch over an empty
 selection emits nothing.
@@ -42,16 +42,16 @@ $
     └── summary (3)
 ```
 
-`aontu view doc --depth 2 model.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 model.aontu` draws it, and `check.sh` pins it
 with `--out --check`.
 
 ## The generator
 
-`gen.aon` includes the model, gives each service its name
+`gen.aontu` includes the model, gives each service its name
 (`svc: $.services & pack($.services, { name:key() })`), and declares
 the rule set:
 
-```aon
+```aontu
 %handler = emit(_, {
   match: name: string
   esc: sq
@@ -111,7 +111,7 @@ files against `expected/`.
 
 ## The same generator, in the target's own syntax
 
-`handler.ts` is `gen.aon` again, as a template: **a marked line is
+`handler.ts` is `gen.aontu` again, as a template: **a marked line is
 aontu source, and every other line is a line of output**. The marker
 is TypeScript's comment token plus a dash, so the file is a Lambda
 handler: `tsc` parses it, an editor highlights it, and the body lines are
@@ -134,7 +134,7 @@ function complete(seneca: any) {
 The same thirteen files come out of it: the entry's extension decides
 that it is a template, and it is desugared before it is evaluated, by
 whichever verb reads it. `aontu template handler.ts` prints the
-canonical form, which is `gen.aon`'s body with each output line quoted,
+canonical form, which is `gen.aontu`'s body with each output line quoted,
 and `aontu template --check handler.ts` holds the file to the spelling
 the round trip answers. Its **whitespace is output**, so the byte gate
 against `expected/` is what holds the bytes.
@@ -154,8 +154,8 @@ against `expected/` is what holds the bytes.
    not its SQS event.
 6. `expected/index.ts` is twelve lines in the model's order, starting
    with `admin`, and carries `export const INDEX_BUILD = 'index-build'`.
-7. `bad/overlap.aon` (the key `P` inside `PIN`) is refused with
-   `[aontu/replace_overlap]`, and `bad/unused.aon` (a key the body
+7. `bad/overlap.aontu` (the key `P` inside `PIN`) is refused with
+   `[aontu/replace_overlap]`, and `bad/unused.aontu` (a key the body
    does not hold) with `[aontu/replace_unused]`, both before any node
    is visited.
 8. The byte gate against a copy of the goldens with one handler edited
@@ -182,8 +182,8 @@ It drives the TypeScript CLI (`ts/bin/aontu.js`, or the command in
 The verb by hand:
 
 ```sh
-aontu model get out gen.aon                    # the tree, thirteen files in it
-aontu trace gen.aon                      # what rule wrote each line
+aontu model get out gen.aontu                    # the tree, thirteen files in it
+aontu trace gen.aontu                      # what rule wrote each line
 aontu template handler.ts                # the template's meaning
 aontu trace handler.ts                   # and it answers the same
 ```

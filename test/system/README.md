@@ -15,7 +15,7 @@ the engine, never a test to relax.
 ```
 test/system/<name>/
   README.md        what the system is, what it is held to, how to run it
-  model.aon        the model: the ONE source every generated file reads
+  model.aontu        the model: the ONE source every generated file reads
   gen/             the generators: aontu (or the template surface),
                    each answering a component tree of one or more files
   ref/             the reference the system is held to, vendored

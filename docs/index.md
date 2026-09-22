@@ -86,7 +86,7 @@ once:
 - [Error reference](reference-errors.md). Every registered error code,
   by class, with what raises it and what a report carries.
 - [Packages reference](reference-packages.md). The files the package
-  system keeps, every field `pkg.aon` declares, the name rules, the
+  system keeps, every field `pkg.aontu` declares, the name rules, the
   caps, what an archive may hold, and every refusal code.
 - [Grammar reference](reference-grammar.md). The published grammar rule
   by rule, the spellings the parser accepts beyond it, and what holds

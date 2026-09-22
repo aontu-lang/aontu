@@ -1,6 +1,6 @@
 # Aontu for Emacs
 
-`aontu-mode`: a major mode for Aontu source files (`.aon`, `.aontu`) with
+`aontu-mode`: a major mode for Aontu source files (`.aontu`) with
 syntax highlighting and language-server integration (diagnostics, hover,
 completion) for both **Eglot** and **lsp-mode**.
 
@@ -18,7 +18,7 @@ Or with `use-package` and a local path:
 ```elisp
 (use-package aontu-mode
   :load-path "/abs/path/to/aontu/editors/emacs"
-  :mode (("\\.aon\\'" . aontu-mode) ("\\.aontu\\'" . aontu-mode)))
+  :mode (("\\.aontu\\'" . aontu-mode)))
 ```
 
 ## Language server
@@ -37,7 +37,7 @@ npm install -g aontu      # or any install channel
 (setq aontu-lsp-command '("/abs/path/to/aontu" "lsp"))
 ```
 
-Then, in a `.aon` buffer:
+Then, in a `.aontu` buffer:
 
 - **Eglot** (Emacs 29+): `M-x eglot`
 - **lsp-mode**: `M-x lsp`

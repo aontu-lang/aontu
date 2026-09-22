@@ -31,8 +31,8 @@ func loopRun(args ...string) (string, int) {
 func loopFiles(t *testing.T) (string, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	schema := filepath.Join(dir, "schema.aon")
-	deploy := filepath.Join(dir, "deploy.aon")
+	schema := filepath.Join(dir, "schema.aontu")
+	deploy := filepath.Join(dir, "deploy.aontu")
 	if err := os.WriteFile(schema, []byte(loopSchemaSrc), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func loopFiles(t *testing.T) (string, string, string) {
 
 func TestRepairLoopEmitVetWhySetRevetCloses(t *testing.T) {
 	dir, schema, deploy := loopFiles(t)
-	overlay := filepath.Join(dir, "overlay.aon")
+	overlay := filepath.Join(dir, "overlay.aontu")
 
 	// 1. VET the emitted document. Not a contradiction -- nothing
 	//    conflicts -- so exit 3, the verdict that means "not satisfied
@@ -90,9 +90,9 @@ func TestRepairLoopEmitVetWhySetRevetCloses(t *testing.T) {
 		t.Fatalf("entry rewritten: %q", string(entry))
 	}
 
-	all := filepath.Join(dir, "all.aon")
+	all := filepath.Join(dir, "all.aontu")
 	if err := os.WriteFile(all,
-		[]byte("@\"./deploy.aon\"\n@\"./overlay.aon\"\n"), 0o600); err != nil {
+		[]byte("@\"./deploy.aontu\"\n@\"./overlay.aontu\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out, code = loopRun("vet", schema, all)
@@ -104,7 +104,7 @@ func TestRepairLoopEmitVetWhySetRevetCloses(t *testing.T) {
 
 func TestRepairLoopPinnedValueRefusesAndWritesNothing(t *testing.T) {
 	dir, _, deploy := loopFiles(t)
-	overlay := filepath.Join(dir, "overlay.aon")
+	overlay := filepath.Join(dir, "overlay.aontu")
 
 	out, code := loopRun("model", "set", `$.service.name="other"`,
 		"--entry", deploy, "--overlay", overlay)
@@ -127,7 +127,7 @@ func TestRepairLoopPinnedValueRefusesAndWritesNothing(t *testing.T) {
 
 func TestRepairLoopBrokenSchemaStopsTheLoopAndSaysWhy(t *testing.T) {
 	dir, _, deploy := loopFiles(t)
-	broken := filepath.Join(dir, "broken.aon")
+	broken := filepath.Join(dir, "broken.aontu")
 	if err := os.WriteFile(broken, []byte("a: 1\na: 2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}

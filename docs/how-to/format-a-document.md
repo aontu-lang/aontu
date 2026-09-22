@@ -14,10 +14,10 @@ back is the same document, with the same canon-hash, and formatting it
 again changes nothing. The form itself is in the language reference,
 [The formatted form](../reference-language.md#the-formatted-form).
 
-Write this as `catalog.aon`, in whatever shape it arrived:
+Write this as `catalog.aontu`, in whatever shape it arrived:
 
 <!-- test: scenario fmt -->
-<!-- test: file catalog.aon -->
+<!-- test: file catalog.aontu -->
 <!-- fmt: keep the input the transcript formats -->
 ```aontu
 services: {
@@ -36,7 +36,7 @@ touches nothing:
 
 <!-- test: run -->
 ```sh
-$ aontu fmt catalog.aon
+$ aontu fmt catalog.aontu
 services: web: { image:"registry.acme.internal/web:4.7.3" port:8080 }
 services: auth: { image:"registry.acme.internal/auth:5.2.0" port:8443 }
 ```
@@ -55,19 +55,19 @@ change; `--check` says whether it would, and is the gate:
 
 <!-- test: run -->
 ```sh
-$ aontu fmt --check catalog.aon
-catalog.aon
+$ aontu fmt --check catalog.aontu
+catalog.aontu
 $ echo $?
 1
-$ aontu fmt --write catalog.aon
-$ aontu fmt --check catalog.aon
+$ aontu fmt --write catalog.aontu
+$ aontu fmt --check catalog.aontu
 $ echo $?
 0
 ```
 
 `--check` prints the name of every file whose form would change and
 exits 1 when there is one, so a pipeline step of `aontu fmt --check
-*.aon` fails the build on a file that is not in the form, and names
+*.aontu` fails the build on a file that is not in the form, and names
 it. `--list` prints the same names without the exit code. Several
 files need one of `--write`, `--list`, `--check` or `--diff`: the verb
 does not print two documents as one stream.
@@ -77,9 +77,9 @@ does not print two documents as one stream.
 Two things the origin of the form suggests are not the formatter's to
 do, because doing them changes the document: keys as lower-case words
 or CamelCase rather than `snake_case`, and an alias for a value that
-recurs. `--lint` reports them and touches nothing. Write `deploy.aon`:
+recurs. `--lint` reports them and touches nothing. Write `deploy.aontu`:
 
-<!-- test: file deploy.aon -->
+<!-- test: file deploy.aontu -->
 ```aontu
 services: web: limits: { cpu:"500m" memory:"256Mi" restart:"always" }
 services: auth: limits: { cpu:"500m" memory:"256Mi" restart:"always" }
@@ -89,9 +89,9 @@ max_replicas: 4
 
 <!-- test: run -->
 ```sh
-$ aontu fmt --strict deploy.aon
-deploy.aon:1:16: style/repeat: this map is written 2 times (again at 2:17); an alias would name it once
-deploy.aon:4:1: style/key-case: key max_replicas holds an underscore; maxReplicas would follow the form
+$ aontu fmt --strict deploy.aontu
+deploy.aontu:1:16: style/repeat: this map is written 2 times (again at 2:17); an alias would name it once
+deploy.aontu:4:1: style/key-case: key max_replicas holds an underscore; maxReplicas would follow the form
 $ echo $?
 1
 ```
@@ -105,9 +105,9 @@ alias names it once, and the document is the same document.
 more: `max_replicas` may be the name a generator or a column reads,
 so whether to rename it is the author's call. With an alias, the two
 `services:` statements are short enough to be one map in the form.
-Write `services.aon` with both taken up:
+Write `services.aontu` with both taken up:
 
-<!-- test: file services.aon -->
+<!-- test: file services.aontu -->
 ```aontu
 %Limits = { cpu:"500m" memory:"256Mi" restart:"always" }
 services: { web:limits:%Limits auth:limits:%Limits }
@@ -116,14 +116,54 @@ maxReplicas: 4
 
 <!-- test: run -->
 ```sh
-$ aontu fmt --strict services.aon
+$ aontu fmt --strict services.aontu
 $ echo $?
 0
 ```
 
 `--lint` alone prints the same lines and leaves the exit code alone;
-`--strict` is the gate, and `aontu fmt --check --strict *.aon` is both
+`--strict` is the gate, and `aontu fmt --check --strict *.aontu` is both
 gates in one step.
+
+## What it does to comments and blank lines
+
+Every comment is kept and its text is never touched. What the formatter
+settles is the **gap**: a comment that ends a line of code sits two
+spaces behind it, whatever the author left there. Write `notes.aontu`:
+
+<!-- test: file notes.aontu -->
+<!-- fmt: keep the input the transcript formats -->
+```aontu
+# The edge listener.
+port: 8080# tight against the value
+host: "0.0.0.0"          # pushed far out
+
+
+timeout: 30 # after two blank lines
+```
+
+<!-- test: run -->
+```sh
+$ aontu fmt notes.aontu
+# The edge listener.
+port: 8080  # tight against the value
+host: "0.0.0.0"  # pushed far out
+
+timeout: 30  # after two blank lines
+```
+
+Two spaces rather than one, because a single space lets the `#` read as
+part of the value. The gap is measured from the token and not from the
+widest line, so trailing comments are never aligned into a column: one
+changed line does not redraw every line around it. The same gap goes
+behind a comment that opens a block, `server: {  # what the edge sees`,
+and behind one that follows a colon or an operator whose value
+continues on the next line.
+
+A comment on its own line attaches to the statement below it and takes
+that statement's indentation. A run of blank lines becomes one, and a
+comment inside a container is what puts the container on several lines,
+which is the only way the comment can keep its place.
 
 ## What the formatter refuses, and what it never does
 

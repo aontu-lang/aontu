@@ -17,10 +17,10 @@ stands in. Every result on this page is the engine's own.
 ## 1. The model two projects need
 
 Money has two fields and one rule that should exist in exactly one
-place. Save this as `rates/rates.aon`:
+place. Save this as `rates/rates.aontu`:
 
 <!-- test: scenario share-a-package -->
-<!-- test: file rates/rates.aon -->
+<!-- test: file rates/rates.aontu -->
 ```aontu
 currency: string & re("^[A-Z]{3}$")
 amount: bigdecimal
@@ -30,9 +30,9 @@ amount: bigdecimal
 decimal leaf from
 [§5 of the first tutorial](tutorial-config.md#5-exact-numbers-with-0d):
 a price is not a `float`. A document of your own can be checked against
-it. Save one as `price.aon`:
+it. Save one as `price.aontu`:
 
-<!-- test: file price.aon -->
+<!-- test: file price.aontu -->
 ```aontu
 currency: "eur"
 amount: 0d19.99
@@ -42,24 +42,24 @@ and [vet](reference-api.md#aontu-vet) it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet rates/rates.aon price.aon
+$ aontu vet rates/rates.aontu price.aontu
 verdict: invalid
 
 $.currency: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.currency
   expected: re("^[A-Z]{3}$")
   actual:   "eur"
-  data: price.aon:1:11 ("eur")
-  schema: rates/rates.aon:1:20 (re("^[A-Z]{3}$"))
+  data: price.aontu:1:11 ("eur")
+  schema: rates/rates.aontu:1:20 (re("^[A-Z]{3}$"))
 $ echo $?
 1
 ```
 
 That is the value of the rule and the reason to share it: a lowercase
 currency code is caught in one line, in whichever project asks. Fix the
-data, in `price.aon`:
+data, in `price.aontu`:
 
-<!-- test: file price.aon -->
+<!-- test: file price.aontu -->
 ```aontu
 currency: "EUR"
 amount: 0d19.99
@@ -67,7 +67,7 @@ amount: 0d19.99
 
 <!-- test: run -->
 ```sh
-$ aontu vet rates/rates.aon price.aon
+$ aontu vet rates/rates.aontu price.aontu
 verdict: valid
 ```
 
@@ -77,12 +77,12 @@ A **module** is what an import names. A **package** is what you
 publish: a versioned archive of one or more modules. Both words are
 about to appear, and they are not synonyms.
 
-A package declares itself in a `pkg.aon` beside its sources. Write
-`rates/pkg.aon`:
+A package declares itself in a `pkg.aontu` beside its sources. Write
+`rates/pkg.aontu`:
 
-<!-- test: file rates/pkg.aon -->
+<!-- test: file rates/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/rates" version:"1.0.0" main:"rates.aon" }
+pkg: { path:"corp.example/schemas/rates" version:"1.0.0" main:"rates.aontu" }
 publish: public
 ```
 
@@ -112,10 +112,10 @@ runs and nothing is sent:
 $ aontu publish --key key.pem --to repo rates
 verdict: dry-run
 corp.example/schemas/rates 1.0.0 public
-archive: sha256:171e30a516146c364a20ddb7291cf9c9856fecb6b6223f5f29e8cdfb63096dcf (2 files, 353 bytes)
-module: corp.example/schemas/rates rates.aon aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA
-file: pkg.aon sha256:0f2e3cb9456aede3ec8e9fa99e5a1dd2c4bb5376b7ca23871e2f6aa9516773c0 92
-file: rates.aon sha256:fed42fa726c3df4155c84dd35e690383b8a1a07d7f05a0544168a7f487c524d2 55
+archive: sha256:a9a0e58992180c5088a57f972864f221e98e4a9f5de59bc4b1e1ef470593e21d (2 files, 363 bytes)
+module: corp.example/schemas/rates rates.aontu aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA
+file: pkg.aontu sha256:c1f80fd400d103ffdef9dd336bd49ed11d81f6aa03c2b7de78b31edbb570ed5e 94
+file: rates.aontu sha256:fed42fa726c3df4155c84dd35e690383b8a1a07d7f05a0544168a7f487c524d2 55
 ...
 dry run: nothing sent (add --yes)
 ```
@@ -144,7 +144,7 @@ repo/
       1.0.0.zip        the archive
       1.0.0.manifest   what it holds, file by file, and what it means
       1.0.0.sig        the proof, over the manifest
-  advisory/corp.example/schemas/rates.aon
+  advisory/corp.example/schemas/rates.aontu
 ```
 
 Nothing in that directory was evaluated by the repository, and a
@@ -153,20 +153,20 @@ recomputed on the way in.
 
 ## 4. Take it on, in another project
 
-The consumer is a second project, beside the first. Its `checkout/pkg.aon`
+The consumer is a second project, beside the first. Its `checkout/pkg.aontu`
 names itself and what it depends on:
 
-<!-- test: file checkout/pkg.aon -->
+<!-- test: file checkout/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/checkout" main:"main.aon" }
+pkg: { path:"corp.example/checkout" main:"main.aontu" }
 dep: "corp.example/schemas/rates": v: "1.0.0"
 ```
 
 The `v` is a **minimum**, not a pin: the lockfile pins, and §5 writes
 it. The entry document imports the module and adds its own facts.
-Write `checkout/main.aon`:
+Write `checkout/main.aontu`:
 
-<!-- test: file checkout/main.aon -->
+<!-- test: file checkout/main.aontu -->
 ```aontu
 price: @"corp.example/schemas/rates"
 price: { currency:"EUR" amount:0d19.99 }
@@ -196,18 +196,18 @@ never resolved. The hint names the arrangement in
 The consumer's copy of a package lives in its own project, under
 `aontu_meta/vendor/<package path>/`, one directory per path segment.
 Put the package's source tree there. Its
-`checkout/aontu_meta/vendor/corp.example/schemas/rates/pkg.aon`:
+`checkout/aontu_meta/vendor/corp.example/schemas/rates/pkg.aontu`:
 
-<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/pkg.aon -->
+<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/rates" version:"1.0.0" main:"rates.aon" }
+pkg: { path:"corp.example/schemas/rates" version:"1.0.0" main:"rates.aontu" }
 publish: public
 ```
 
 and its
-`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon`:
+`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu`:
 
-<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon -->
+<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu -->
 ```aontu
 currency: string & re("^[A-Z]{3}$")
 amount: bigdecimal
@@ -226,10 +226,10 @@ corp.example/schemas/rates 1.0.0 aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QH
 
 That hash is the one the publish printed. `sync` resolved the closure,
 evaluated the module on its own, and wrote one canonical line to
-`checkout/aontu_meta/pkg-lock.aon`:
+`checkout/aontu_meta/pkg-lock.aontu`:
 
 ```
-# pkg-lock.aon (generated by `aontu sync`; do not edit)
+# pkg-lock.aontu (generated by `aontu sync`; do not edit)
 {"lock":{"corp.example/schemas/rates":{"archive":"sha256:171e30a516146c364a20ddb7291cf9c9856fecb6b6223f5f29e8cdfb63096dcf","canon":"aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA","v":"1.0.0"}}}
 ```
 
@@ -241,7 +241,7 @@ network.
 
 <!-- test: run -->
 ```sh
-$ aontu checkout/main.aon
+$ aontu checkout/main.aontu
 {
   "price": {
     "amount": 19.99,
@@ -268,9 +268,9 @@ by a dependency of a dependency prints the chain that reaches it.
 
 Here is the part a copied file cannot do. Someone relaxes the vendored
 schema, perhaps to get a build through. Rewrite
-`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon`:
+`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu`:
 
-<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon -->
+<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu -->
 ```aontu
 currency: string
 amount: bigdecimal
@@ -281,7 +281,7 @@ Evaluate anyway:
 
 <!-- test: run -->
 ```sh
-$ aontu checkout/main.aon
+$ aontu checkout/main.aontu
 module integrity: corp.example/schemas/rates expected aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA got aon1-wixJdyL2g90c1HaWaoBKBpHA6da7Hn-MEikz6LW-BVI
 $ echo $?
 1
@@ -296,17 +296,17 @@ digest already disagrees:
 ```sh
 $ aontu pkg verify checkout
 verdict: mismatch
-corp.example/schemas/rates: pinned archive sha256:171e30a516146c364a20ddb7291cf9c9856fecb6b6223f5f29e8cdfb63096dcf but the store holds sha256:62be1cd19a5db54c374a3b0539ec0973ae66bbb0b5d2411f28fbba3eb7a1e716
+corp.example/schemas/rates: pinned archive sha256:a9a0e58992180c5088a57f972864f221e98e4a9f5de59bc4b1e1ef470593e21d but the store holds sha256:9f17a6a5f25f35c7ccfc84d31902699b0da27724bebda23df80cb15293e14b67
 $ echo $?
 1
 ```
 
 That is the command for a build job: it recomputes every pin, writes
 nothing, and exits `1` on any disagreement. Put
-`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon`
+`checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu`
 back:
 
-<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aon -->
+<!-- test: file checkout/aontu_meta/vendor/corp.example/schemas/rates/rates.aontu -->
 ```aontu
 currency: string & re("^[A-Z]{3}$")
 amount: bigdecimal
@@ -330,9 +330,9 @@ than edited.
 ## 8. The next version is gated on this one
 
 Back in the package. Currencies differ in how many decimal places they
-carry, so `rates.aon` gains a field. Rewrite `rates/rates.aon`:
+carry, so `rates.aontu` gains a field. Rewrite `rates/rates.aontu`:
 
-<!-- test: file rates/rates.aon -->
+<!-- test: file rates/rates.aontu -->
 ```aontu
 currency: string & re("^[A-Z]{3}$")
 amount: bigdecimal
@@ -340,11 +340,11 @@ precision?: integer
 ```
 
 The `?` makes the key optional, so a document that never mentions it
-still holds. Bump the version in `rates/pkg.aon`:
+still holds. Bump the version in `rates/pkg.aontu`:
 
-<!-- test: file rates/pkg.aon -->
+<!-- test: file rates/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/rates" version:"1.0.1" main:"rates.aon" }
+pkg: { path:"corp.example/schemas/rates" version:"1.0.1" main:"rates.aontu" }
 publish: public
 ```
 
@@ -364,20 +364,20 @@ sent
 
 `against` names what it was gated on. Now make the same field
 required, which is the edit that feels like a tidy-up and is not.
-Rewrite `rates/rates.aon`:
+Rewrite `rates/rates.aontu`:
 
-<!-- test: file rates/rates.aon -->
+<!-- test: file rates/rates.aontu -->
 ```aontu
 currency: string & re("^[A-Z]{3}$")
 amount: bigdecimal
 precision: integer
 ```
 
-with `rates/pkg.aon` at a new minor version:
+with `rates/pkg.aontu` at a new minor version:
 
-<!-- test: file rates/pkg.aon -->
+<!-- test: file rates/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/rates" version:"1.1.0" main:"rates.aon" }
+pkg: { path:"corp.example/schemas/rates" version:"1.1.0" main:"rates.aontu" }
 publish: public
 ```
 
@@ -416,11 +416,11 @@ arrangement between two machines serves it instead: `aontu pkg serve
 repo` serves the same bytes over HTTP on a loopback address and runs
 until interrupted, which is the one thing a transcript cannot show. A
 consumer then names the base and the signer it accepts, in its own
-`pkg.aon`:
+`pkg.aontu`:
 
 <!-- test: skip the consumer of a served repository; §5 runs the vendored form -->
 ```aontu
-pkg: { path:"corp.example/checkout" main:"main.aon" }
+pkg: { path:"corp.example/checkout" main:"main.aontu" }
 dep: "corp.example/schemas/rates": v: "1.0.0"
 
 repo: base: ["http://127.0.0.1:8017"]

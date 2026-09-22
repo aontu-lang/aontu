@@ -1,3 +1,0 @@
-# Candidate patch release: compatible widening only.
-pkg: { path:"corp.example/schemas/service" version:"1.4.3" main:"service.aon" }
-publish: public

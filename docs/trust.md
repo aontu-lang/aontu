@@ -73,12 +73,12 @@ posture is the operative warning:
 > **Treat opening an untrusted source as reading your disk.**
 
 Reading, never running. An include's extension decides what the file is:
-thirteen extensions are read at all (`.aon` and `.aontu` as aontu
-source; `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`,
-`.toml`, `.yaml`, `.yml` and `.ini` as configuration data, each read by
-its own parser; and `.txt` as text, which chooses no parser at all) and
-everything else is refused by name, so no include is ever executed in
-the evaluating process. `--text-ext` widens only the text set, and
+twelve extensions are read at all (`.aontu` as aontu source; `.json`,
+`.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`,
+`.yml` and `.ini` as configuration data, each read by its own parser;
+and `.txt` as text, which chooses no parser at all) and everything
+else is refused by name, so no include is ever executed in the
+evaluating process. `--text-ext` widens only the text set, and
 cannot reach `.js`. The TypeScript package leg follows
 the same rule: a package whose entry point is JavaScript does not
 resolve.
@@ -200,7 +200,7 @@ TypeScript and Go implementations. This is pinned, not promised:
 ## Clause 4: sandboxing
 
 What an evaluation may read is declared by the **host**, not by the
-document: a `.aon` file cannot request more capability, includes take a
+document: a `.aontu` file cannot request more capability, includes take a
 literal string (never a computed expression), and canonical form is
 unaffected by any trust setting.
 
@@ -256,7 +256,7 @@ zero value is an absent root, and an absent root is `'system'`.
 Denied resolution is a located, deterministic parse-stage error
 (`include_denied`) like any other (never a silent skip) and is
 raised, not injected as a value, so a bare-member include
-(`@"./denied.aon"` at the top of a file) cannot vanish in the merge.
+(`@"./denied.aontu"` at the top of a file) cannot vanish in the merge.
 
 Budgets are part of the same profile: `trust.budget.passes` and
 `trust.budget.depth` (TypeScript) / `TrustOptions.Budget` (Go), integer

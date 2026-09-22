@@ -69,7 +69,7 @@ Three parts, as given:
    depends on which way X-1 went.*
 2. **`export({ %uint8, %port })`** declares which aliases a file
    publishes.
-3. **The destructure.** `{ %uint8, %port } = @"types.aon"` binds a
+3. **The destructure.** `{ %uint8, %port } = @"types.aontu"` binds a
    file's exported aliases. No import verb: `@"…"` already crosses the
    boundary for values, and a pattern on its left crosses it for names.
 4. **Shorthand.** `{ %foo, %bar }` stands for `{ foo: %foo, bar: %bar }`
@@ -132,11 +132,11 @@ All probed 2026-08-28, both ports byte-identical unless noted.
 | 4 | `a: b = 1` | **parse error**, `unexpected character(s): =` | spaced `=` in value position is FREE |
 | 5 | `foo = 1` (top level) | the list `["foo","=",1]` | spaced `=` at top level is TAKEN, but by nonsense |
 | 6 | `a: {foo, bar}` | **parse error**, `unexpected character(s): foo` | the `{foo,bar}` shorthand is FREE |
-| 7 | `copy(@"foo.aon")` | works | `@"…"` composes as a sub-expression — so it can sit on the right of `=` |
+| 7 | `copy(@"foo.aontu")` | works | `@"…"` composes as a sub-expression — so it can sit on the right of `=` |
 | 8 | `a:1 b:$.a` canon | `{"a":1,"b":1}` | canon resolves references away |
 | 9 | `foo := 1` | parse error; `foo:=1` → `{"foo":"=1"}` | `:=` is WORSE than `=` — it silently collides |
 | 10 | `foo ~ 1` | the list `["foo","~",1]` | other sigils are no freer |
-| 11 | `{ u8: uint8 } = @"f.aon"` | the list `[{"u8":"uint8"},"=",{…}]` | a destructuring LHS sits in the SAME slot as row 5 |
+| 11 | `{ u8: uint8 } = @"f.aontu"` | the list `[{"u8":"uint8"},"=",{…}]` | a destructuring LHS sits in the SAME slot as row 5 |
 | 12 | `a: %x` / `~x` / `^x` / `!x` | all bare strings | free in the weak sense: text, no meaning |
 | 13 | `a: ?x` / `:x` / `&x` | parse errors | free outright, but structurally confusing |
 | 14 | `a: #x` / `.x` / `@x` | comment / path / include | genuinely taken |
@@ -300,7 +300,7 @@ legible at a glance.
 
 > **Implemented 2026-09-18**, in both ports, by the route
 > [`ALIAS-FILE-SCOPE.0.md`](ALIAS-FILE-SCOPE.0.md) sets out — including
-> renaming and §6's `svc: { %uint8 } = @"types.aon"`. The set shorthand
+> renaming and §6's `svc: { %uint8 } = @"types.aontu"`. The set shorthand
 > in value position followed on **2026-09-19**, so `a: { %foo }` is
 > `{"a":{"foo":1}}` rather than the parse error §3 row 16 measured. One
 > thing below is NARROWER than it reads: `export` does not rename, since
@@ -317,7 +317,7 @@ fields being omitted, and it means adding an export can never change
 what a file produces.
 
 ```
-# types.aon
+# types.aontu
 %uint8 = integer & min(0) & max(255)
 %port =  integer & min(1) & max(65535)
 %secret = string                        # declared, deliberately not exported
@@ -328,7 +328,7 @@ defaults: { retries: 3 }
 ```
 
 ```
-# what types.aon generates, with or without the export line
+# what types.aontu generates, with or without the export line
 { "defaults": { "retries": 3 } }
 ```
 
@@ -348,7 +348,7 @@ export(%uint8)           # refused: takes a set, even of one
 any importer; asking for it names the name rather than failing silently:
 
 ```
-{ %secret } = @"types.aon"    # refused: types.aon does not export %secret
+{ %secret } = @"types.aontu"    # refused: types.aontu does not export %secret
 ```
 
 ## 6. Crossing the file boundary
@@ -360,11 +360,11 @@ destructuring left-hand side carries those, and nothing else changes.
 ### The destructure is additive
 
 **Exported aliases are not injected automatically.** Writing
-`@"types.aon"` gives you its values and none of its aliases; you have to
+`@"types.aontu"` gives you its values and none of its aliases; you have to
 ask, by name:
 
 ```
-{ %uint8, %port } = @"types.aon"
+{ %uint8, %port } = @"types.aontu"
 ```
 
 **And the include still does its ordinary job.** The destructure is
@@ -374,13 +374,13 @@ written at all.
 
 ```
 # these two lines place identical values; the second ALSO binds two aliases
-svc: @"types.aon"
-svc: { %uint8, %port } = @"types.aon"
+svc: @"types.aontu"
+svc: { %uint8, %port } = @"types.aontu"
 ```
 
 ```
 # so a destructure at top level merges the file's values as usual
-{ %uint8 } = @"types.aon"
+{ %uint8 } = @"types.aontu"
 
 listen: %uint8
 listen: 8080
@@ -390,11 +390,11 @@ listen: 8080
 { "defaults": { "retries": 3 }, "listen": 8080 }
 ```
 
-**And it need not be at the root.** `svc: { %uint8 } = @"types.aon"`
+**And it need not be at the root.** `svc: { %uint8 } = @"types.aontu"`
 places the subtree under `svc` and binds `%uint8` in the taking file,
 because the two halves go to different places: the values where the head
 stands, the name at the document root where every alias key lives. For
-that to hold, `types.aon`'s OWN declarations are lifted to the root with
+that to hold, `types.aontu`'s OWN declarations are lifted to the root with
 its values — otherwise a file that uses the name it publishes could not
 be mounted at all, since its `%uint8` would resolve from the root and
 its declaration would sit under `svc`. A plain value include of such a
@@ -411,7 +411,7 @@ already doing.
 Both sides carry the sigil, because both are aliases:
 
 ```
-{ %u8: %uint8 } = @"types.aon"     # bind the exported %uint8 as local %u8
+{ %u8: %uint8 } = @"types.aontu"     # bind the exported %uint8 as local %u8
 ```
 
 **Renaming is what makes two publishers survivable**, and it is the
@@ -424,7 +424,7 @@ take the form: publishing renames nothing, so `export({ %a: %b })` is
 ### `{%}` — take all the exports
 
 ```
-{%} = @"types.aon"                 # bind every alias types.aon exports
+{%} = @"types.aontu"                 # bind every alias types.aontu exports
 ```
 
 Sugar for naming them all, and the one place a wildcard is safe: the
@@ -444,9 +444,9 @@ blast radius is the files that opted in.
 The two are independent, and both happen:
 
 ```
-{ %uint8 } = @"types.aon"
-# binds  : %uint8, because types.aon exported it
-# places : types.aon's values, because that is what @"…" does
+{ %uint8 } = @"types.aontu"
+# binds  : %uint8, because types.aontu exported it
+# places : types.aontu's values, because that is what @"…" does
 ```
 
 The right-hand side is a plain `@"…"`, so the resolver chain,
@@ -539,7 +539,7 @@ meet in the same way:
 
 ```
 %port = integer
-{ %port } = @"types.aon"       # types.aon exports %port = integer & min(1) & max(65535)
+{ %port } = @"types.aontu"       # types.aontu exports %port = integer & min(1) & max(65535)
                                # → %port denotes the meet of both
 ```
 
@@ -553,13 +553,13 @@ An alias is in scope in the file that declares it, and in a file that
 imports it by name. Nowhere else:
 
 ```
-# a.aon
+# a.aontu
 %t = integer & min(0)
-inner: @"b.aon"                # b.aon does NOT see %t
+inner: @"b.aontu"                # b.aontu does NOT see %t
 ```
 
 ```
-# b.aon
+# b.aontu
 x: %t                          # refused: %t is not defined here
 ```
 
@@ -588,14 +588,14 @@ text and only once the loaded map is *placed* does it become apparent
 that root is not the document's:
 
 ```
-# f.aon
+# f.aontu
 %b = integer & min(1)
 q: %b
 q: 7
 ```
 
 ```
-a: @"f.aon"                    # refused: alias_not_toplevel at $.a.%b
+a: @"f.aontu"                    # refused: alias_not_toplevel at $.a.%b
 ```
 
 That refusal is not pedantry about position. Left writable, `%b` in the
@@ -606,7 +606,7 @@ Spliced at the root, the same file is accepted, and for a reason that
 is not a special case:
 
 ```
-@"f.aon"
+@"f.aontu"
 x: 1
 ```
 
@@ -787,7 +787,7 @@ it still sees the sigil (§4–5), and the additive destructure (§6).
 The `=` break is **small but real**, and it is worth being exact
 because ADR-008 declined a lexing break one day ago.
 
-Measured over this repository's own corpus — 345 `.aon` files, comments
+Measured over this repository's own corpus — 345 `.aontu` files, comments
 stripped first — the number of bare strings containing `=` is **zero**.
 Zero again across the shared spec sources. (A first pass reported five;
 all five turned out to be comment prose — `page_size=80`, `plan=free`
@@ -843,9 +843,9 @@ being believed: it means a declaration and a key are spelled alike and
 told apart only by the sigil, which is either the point (one syntax,
 one namespace marker) or a confusion (two things that look the same).
 It also needs an answer for the destructuring form, which is the one
-place `=` is doing work a key cannot: `{ %a, %b } = @"f.aon"` binds
+place `=` is doing work a key cannot: `{ %a, %b } = @"f.aontu"` binds
 several names at once, and `%…:` has no obvious multi-binding spelling
-(`%{ a, b }: @"f.aon"` is a parse error today, so it is available but
+(`%{ a, b }: @"f.aontu"` is a parse error today, so it is available but
 would be a new construct).
 
 **Recommendation: settle X-1 before P1, and start from the third
@@ -897,7 +897,7 @@ Sketch only, since §9 is open:
 - **Destructuring:** exported name bindable; rename; `{%}` binding every
   export and nothing more; a module-shaped `@"…"` on the right resolving
   as it already does. And the additive rule as its own row:
-  `svc: @"f.aon"` and `svc: { %a } = @"f.aon"` must **generate
+  `svc: @"f.aontu"` and `svc: { %a } = @"f.aontu"` must **generate
   identically**, differing only in what is bound.
 - **Failure modes (§7):** redeclaration meeting rather than erroring
   (`%n = 1` with `%n = integer` → 1) and conflicting when it cannot

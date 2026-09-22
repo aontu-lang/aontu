@@ -20,7 +20,7 @@ func traceRunCLI(args ...string) (string, string, int) {
 
 func traceFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestTraceRefusesBadArguments(t *testing.T) {
 		{"--format"},
 		{"--at"},
 		{"--nosuch", file},
-		{filepath.Join(t.TempDir(), "missing.aon")},
+		{filepath.Join(t.TempDir(), "missing.aontu")},
 		{"--trust", "nosuchlevel", file},
 	} {
 		if _, _, code := traceRunCLI(c...); 2 != code {
@@ -131,7 +131,7 @@ func TestTraceReadsATemplateEntry(t *testing.T) {
 	zz := write("gen.zz", ";;- svc: { a: { n:\"a\" } }\n"+
 		";;- out: file(\"x.ts\", emit($.svc, { match: n: string body: [\n"+
 		"L\n;;- ]}))\n")
-	profile := write("zz.aon", "@\"aontu:profile\"\n\naontu: Lang: "+
+	profile := write("zz.aontu", "@\"aontu:profile\"\n\naontu: Lang: "+
 		"{ lang:\"zz\" template: { marker:\";;-\" ext: [zz] } }\n")
 
 	want := "x.ts\t$.children.0\t$.svc.a\t#0\n"
@@ -153,7 +153,7 @@ func TestTraceReadsATemplateEntry(t *testing.T) {
 	}{
 		{[]string{"--marker"}, "--marker needs a token"},
 		{[]string{"--profile"}, "--profile needs a file"},
-		{[]string{"--profile", filepath.Join(dir, "gone.aon"), gen}, "cannot read"},
+		{[]string{"--profile", filepath.Join(dir, "gone.aontu"), gen}, "cannot read"},
 	} {
 		_, errw, code := traceRunCLI(tc.args...)
 		if 2 != code || !strings.Contains(errw, tc.want) {
@@ -163,12 +163,12 @@ func TestTraceReadsATemplateEntry(t *testing.T) {
 
 	// A --profile document that does not stand up is exit 4; a second
 	// profile claiming the same language is exit 2.
-	bad := write("bad.aon", "aontu: Lang: { lang: 1 }\n")
+	bad := write("bad.aontu", "aontu: Lang: { lang: 1 }\n")
 	if _, errw, code := traceRunCLI("--profile", bad, gen); 4 != code ||
 		!strings.Contains(errw, "aontu/") {
 		t.Fatalf("bad profile: %d %q", code, errw)
 	}
-	dup := write("zz2.aon", "@\"aontu:profile\"\n\naontu: Lang: "+
+	dup := write("zz2.aontu", "@\"aontu:profile\"\n\naontu: Lang: "+
 		"{ lang:\"zz\" template: { marker:\";;-\" ext: [zz] } }\n")
 	if _, errw, code := traceRunCLI(
 		"--profile", profile, "--profile", dup, gen); 2 != code ||

@@ -11,7 +11,7 @@
 ;;; Commentary:
 
 ;; Major mode for editing Aontu (https://github.com/aontu-lang/aontu)
-;; source files (`.aon', also `.aontu'), with optional integration with
+;; source files (`.aontu'), with optional integration with
 ;; the Aontu language server (`aontu lsp') for diagnostics, hover and
 ;; completion.
 ;;
@@ -104,8 +104,6 @@
   (setq-local standard-indent 2)
   (setq-local indent-tabs-mode nil))
 
-;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.aon\\'" . aontu-mode))
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.aontu\\'" . aontu-mode))
 

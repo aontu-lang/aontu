@@ -64,7 +64,7 @@ against the target file's own headings, under GitHub's slug rules.
 
 **A Google rule sitting below error level was tried at error first and
 found wrong for these pages.** `.vale.ini` records what each produced on
-a clean run: 4729 alerts across 88 files. Two of them turn on a reason
+a clean run: 4738 alerts across 88 files. Two of them turn on a reason
 rather than on taste:
 
 - `Google.EmDash` is disabled because its spacing rule is redundant
@@ -173,7 +173,7 @@ its stock phrases. Ten habits, with the register they apply in:
    short dry beat.** Tutorials and how-tos. Reference pages open by
    stating what the thing is.
 2.  **Introduce code with a short colon-terminated sentence**: "Write
-   this as `schema.aon`:", "Now vet it:". Never "The following code
+   this as `schema.aontu`:", "Now vet it:". Never "The following code
    snippet demonstrates". Everywhere.
 3. **After a code block, point at the one interesting thing.** Do not
    recap the code. Everywhere.
@@ -401,8 +401,8 @@ before the fence:
 Opens a named scenario: one temp directory, lasting until the next
 scenario directive or the end of the page.
 
-<!-- test: file schema.aon -->
-The next fence is written to <scenario-dir>/schema.aon. Re-declaring
+<!-- test: file schema.aontu -->
+The next fence is written to <scenario-dir>/schema.aontu. Re-declaring
 a name overwrites it (how "now change the file" recipes are modelled).
 Name the file in the prose above the fence too; the harness checks
 that the name appears in a code span within three lines.

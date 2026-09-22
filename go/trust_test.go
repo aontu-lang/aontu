@@ -22,18 +22,18 @@ func trustWorld(t *testing.T) (dir, root string) {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		filepath.Join(root, "in.aon"):          "f: 11",
-		filepath.Join(root, "nest.aon"):        "@\"./in.aon\"\ng: 22",
-		filepath.Join(root, "sub", "deep.aon"): "h: 33",
-		filepath.Join(dir, "secret.aon"):       `secret: "outside"`,
+		filepath.Join(root, "in.aontu"):          "f: 11",
+		filepath.Join(root, "nest.aontu"):        "@\"./in.aontu\"\ng: 22",
+		filepath.Join(root, "sub", "deep.aontu"): "h: 33",
+		filepath.Join(dir, "secret.aontu"):       `secret: "outside"`,
 	}
 	for path, src := range files {
 		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.Symlink(filepath.Join(dir, "secret.aon"),
-		filepath.Join(root, "link.aon")); err != nil {
+	if err := os.Symlink(filepath.Join(dir, "secret.aontu"),
+		filepath.Join(root, "link.aontu")); err != nil {
 		// Not fatal: trustSymlink skips the calling test.
 		t.Logf("symlink unavailable on this platform: %v", err)
 	}
@@ -45,7 +45,7 @@ func trustWorld(t *testing.T) (dir, root string) {
 // a defect in anything this suite is testing.
 func trustSymlink(t *testing.T, root string) {
 	t.Helper()
-	if _, err := os.Lstat(filepath.Join(root, "link.aon")); err != nil {
+	if _, err := os.Lstat(filepath.Join(root, "link.aontu")); err != nil {
 		t.Skip("symlink not available on this platform")
 	}
 }
@@ -68,17 +68,17 @@ func trustCode(t *testing.T, trust *TrustOptions, src string) string {
 func TestTrustNoneDeniesEveryInclude(t *testing.T) {
 	_, root := trustWorld(t)
 	code := trustCode(t, &TrustOptions{IncludeNone: true},
-		`a:@"`+srcPath(root)+`/in.aon"`)
+		`a:@"`+srcPath(root)+`/in.aontu"`)
 	if "include_denied" != code {
 		t.Fatalf("code: %q", code)
 	}
 }
 
 func TestTrustMemIsTheWholeWorld(t *testing.T) {
-	mem := map[string]string{"/virtual/x.aon": "m: 33"}
+	mem := map[string]string{"/virtual/x.aontu": "m: 33"}
 	a := New()
 	a.Trust = &TrustOptions{IncludeMem: mem}
-	out, err := a.Generate(`a:@"/virtual/x.aon"`)
+	out, err := a.Generate(`a:@"/virtual/x.aontu"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestTrustMemIsTheWholeWorld(t *testing.T) {
 	// mechanism ran and missed.
 	b := New()
 	b.Trust = &TrustOptions{IncludeMem: mem}
-	if _, err := b.Generate(`a:@"/nope.aon"`); err == nil ||
+	if _, err := b.Generate(`a:@"/nope.aontu"`); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("mem miss: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestTrustRootConfinesBelowTheRoot(t *testing.T) {
 
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
-	out, err := a.Generate(`a:@"` + srcPath(root) + `/sub/deep.aon"`)
+	out, err := a.Generate(`a:@"` + srcPath(root) + `/sub/deep.aontu"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestTrustRootConfinesBelowTheRoot(t *testing.T) {
 	}
 
 	code := trustCode(t, &TrustOptions{IncludeRoot: root},
-		`a:@"`+srcPath(root)+`/../secret.aon"`)
+		`a:@"`+srcPath(root)+`/../secret.aontu"`)
 	if "include_denied" != code {
 		t.Fatalf("escape code: %q", code)
 	}
@@ -141,7 +141,7 @@ func TestTrustRootDeniesASymlinkEscape(t *testing.T) {
 	_, root := trustWorld(t)
 	trustSymlink(t, root)
 	code := trustCode(t, &TrustOptions{IncludeRoot: root},
-		`a:@"`+srcPath(root)+`/link.aon"`)
+		`a:@"`+srcPath(root)+`/link.aontu"`)
 	if "include_denied" != code {
 		t.Fatalf("symlink code: %q", code)
 	}
@@ -151,7 +151,7 @@ func TestTrustRootMissIsNotFoundNotDenied(t *testing.T) {
 	_, root := trustWorld(t)
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
-	if _, err := a.Generate(`a:@"` + srcPath(root) + `/nope.aon"`); err == nil ||
+	if _, err := a.Generate(`a:@"` + srcPath(root) + `/nope.aontu"`); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("root miss: %v", err)
 	}
@@ -159,8 +159,8 @@ func TestTrustRootMissIsNotFoundNotDenied(t *testing.T) {
 
 func TestTrustVerbOptionsConfineTheEngine(t *testing.T) {
 	dir, root := trustWorld(t)
-	entry := filepath.Join(root, "leak.aon")
-	src := `a:@"` + srcPath(dir) + `/secret.aon"`
+	entry := filepath.Join(root, "leak.aontu")
+	src := `a:@"` + srcPath(dir) + `/secret.aontu"`
 	if err := os.WriteFile(entry, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -228,13 +228,13 @@ func TestTrustDepsListsTheSortedDedupedClosure(t *testing.T) {
 	a := New()
 	a.Trust = &TrustOptions{IncludeRoot: root}
 	if _, err := a.Parse(
-		`a:@"` + srcPath(root) + `/nest.aon" b:@"` + srcPath(root) + `/in.aon" c:@"` + srcPath(root) + `/in.aon"`,
+		`a:@"` + srcPath(root) + `/nest.aontu" b:@"` + srcPath(root) + `/in.aontu" c:@"` + srcPath(root) + `/in.aontu"`,
 	); err != nil {
 		t.Fatal(err)
 	}
 	want := []IncludeDep{
-		{Path: filepath.Join(root, "in.aon"), Capability: "file"},
-		{Path: filepath.Join(root, "nest.aon"), Capability: "file"},
+		{Path: filepath.Join(root, "in.aontu"), Capability: "file"},
+		{Path: filepath.Join(root, "nest.aontu"), Capability: "file"},
 	}
 	if len(want) != len(a.IncludeDeps) {
 		t.Fatalf("deps: %v", a.IncludeDeps)
@@ -275,19 +275,19 @@ func TestMemCapabilityGatesTheExtension(t *testing.T) {
 	// ... and a key the table DOES name is read, so the gate is the
 	// extension and not the capability.
 	b := New()
-	b.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aon": "m: 1"}}
-	if _, err := b.Parse(`a:@"/v/x.aon"`); err != nil {
+	b.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aontu": "m: 1"}}
+	if _, err := b.Parse(`a:@"/v/x.aontu"`); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestTrustDepsNamesTheMemCapability(t *testing.T) {
 	a := New()
-	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aon": "m: 1"}}
-	if _, err := a.Parse(`a:@"/v/x.aon"`); err != nil {
+	a.Trust = &TrustOptions{IncludeMem: map[string]string{"/v/x.aontu": "m: 1"}}
+	if _, err := a.Parse(`a:@"/v/x.aontu"`); err != nil {
 		t.Fatal(err)
 	}
-	want := IncludeDep{Path: "/v/x.aon", Capability: "mem"}
+	want := IncludeDep{Path: "/v/x.aontu", Capability: "mem"}
 	if 1 != len(a.IncludeDeps) || want != a.IncludeDeps[0] {
 		t.Fatalf("deps: %v", a.IncludeDeps)
 	}
@@ -323,7 +323,7 @@ func TestTrustWarnOnEscape(t *testing.T) {
 	a.TrustWarn = func(kind, path string) { warned = append(warned, kind+" "+path) }
 	a.TrustWarnRoot = root
 	if _, err := a.Generate(
-		`a:@"` + srcPath(dir) + `/secret.aon" b:@"./in.aon"`); err != nil {
+		`a:@"` + srcPath(dir) + `/secret.aontu" b:@"./in.aontu"`); err != nil {
 		t.Fatal(err)
 	}
 	if 1 != len(warned) || !strings.HasPrefix(warned[0], "escape ") {
@@ -338,7 +338,7 @@ func TestTrustNonexistentRootStillConfines(t *testing.T) {
 	_, root := trustWorld(t)
 	code := trustCode(t,
 		&TrustOptions{IncludeRoot: filepath.Join(root, "no-such-root")},
-		`a:@"`+srcPath(root)+`/in.aon"`)
+		`a:@"`+srcPath(root)+`/in.aontu"`)
 	if "include_denied" != code {
 		t.Fatalf("code: %q", code)
 	}

@@ -10,19 +10,19 @@ import _ "embed"
 
 const aontuScheme = "aontu:"
 
-//go:embed aontumodel/lang/markdown.aon
+//go:embed aontumodel/lang/markdown.aontu
 var aontuLangMarkdown string
 
-//go:embed aontumodel/lang/text.aon
+//go:embed aontumodel/lang/text.aontu
 var aontuLangText string
 
-//go:embed aontumodel/profile/profile.aon
+//go:embed aontumodel/profile/profile.aontu
 var aontuProfile string
 
-//go:embed aontumodel/system/system.aon
+//go:embed aontumodel/system/system.aontu
 var aontuSystem string
 
-//go:embed aontumodel/view/view.aon
+//go:embed aontumodel/view/view.aontu
 var aontuView string
 
 var aontuSources = map[string]string{

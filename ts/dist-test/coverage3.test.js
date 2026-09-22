@@ -498,13 +498,13 @@ function capture(fn) {
     });
     (0, node_test_1.test)('missing-source-file-frames', () => {
         const v = new IntegerVal_1.IntegerVal({ peg: 1 });
-        v.site.url = '/no/such/aontu/file.aon';
+        v.site.url = '/no/such/aontu/file.aontu';
         const n0 = (0, err_1.makeNilErr)(undefined, 'nosrc', v);
         (0, err_1.descErr)(n0, {});
-        Assert.match(n0.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aon \(NO-FS\)/);
+        Assert.match(n0.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aontu \(NO-FS\)/);
         const n1 = (0, err_1.makeNilErr)(undefined, 'nosrcfs', v);
         (0, err_1.descErr)(n1, { fs: Fs });
-        Assert.match(n1.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aon/);
+        Assert.match(n1.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aontu/);
         Assert.doesNotMatch(n1.msg, /NO-FS/);
     });
     (0, node_test_1.test)('aontu-error-errs', () => {
@@ -585,10 +585,10 @@ function capture(fn) {
         let n = 0;
         const lang = new lang_1.Lang({
             get resolver() {
-                return 0 === n++ ? { mem: { 'm0.aon': 'a:1' }, pkg: {} } : undefined;
+                return 0 === n++ ? { mem: { 'm0.aontu': 'a:1' }, pkg: {} } : undefined;
             },
         });
-        Assert.equal(lang.parse('x:@"m0.aon"').canon, '{"x":{"a":1}}');
+        Assert.equal(lang.parse('x:@"m0.aontu"').canon, '{"x":{"a":1}}');
         const pkg = new lang_1.Lang().parse('p:@"@tabnas/jsonic/package.json"');
         Assert.equal(pkg.peg.p.peg.name.peg, '@tabnas/jsonic');
         const none = new lang_1.Lang().parse('a:@');
@@ -786,7 +786,7 @@ function capture(fn) {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-cov3-txt-'));
         Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n');
         Fs.writeFileSync(Path.join(dir, 'rows.csv'), 'a,b\n1,2\n');
-        const file = Path.join(dir, 'main.aon');
+        const file = Path.join(dir, 'main.aontu');
         Fs.writeFileSync(file, 'doc: @"./doc.md"\n');
         // The widening reads it ...
         Assert.match(capture(() => (0, cli_1.main)(['node', 'cli', '--text-ext', 'md', '-c', file])).out, /\{"doc":"# hi\\n"\}/);
@@ -982,7 +982,7 @@ function capture(fn) {
         const zed = new StringVal_1.StringVal({ peg: 'z' }, ctx);
         const alf = new StringVal_1.StringVal({ peg: 'a' }, ctx);
         for (const v of [zed, alf]) {
-            v.site.url = 'one.aon';
+            v.site.url = 'one.aontu';
         }
         const prov = new provenance_1.Provenance();
         prov.writtenFrom(new MapVal_1.MapVal({ peg: { z: zed, a: alf } }, ctx));
@@ -1011,7 +1011,7 @@ function capture(fn) {
         const at = (v) => {
             v.site.row = 1;
             v.site.col = 4;
-            v.site.url = 'one.aon';
+            v.site.url = 'one.aontu';
             v.site.src = 'x';
             return v;
         };

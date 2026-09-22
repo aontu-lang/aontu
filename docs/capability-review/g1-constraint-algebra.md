@@ -28,8 +28,8 @@ reject the most common class of wrong output an agent produces:
 values that are *type-safe but wrong*. Consider the best a
 definition can do today:
 
-```aon
-# service.aon — the best that five kinds can do
+```aontu
+# service.aontu — the best that five kinds can do
 service: {
   name: string       # "My Service!!" passes
   replicas: integer  # -3 passes
@@ -42,8 +42,8 @@ cannot state, let alone enforce, that names are DNS labels, replica
 counts are bounded, and ports fit in sixteen bits. What the author
 wants to write — and cannot — is:
 
-```aon
-# service.aon — not expressible today
+```aontu
+# service.aontu — not expressible today
 service: {
   name: string & re("^[a-z][a-z0-9-]{0,62}$")
   replicas: integer & min(0) & max(50)
@@ -61,8 +61,8 @@ CUE spelling fares no better: `a: number > 0` is a parse error
 A second thing an author cannot write is a cross-field invariant,
 even though the reference machinery for it already exists:
 
-```aon
-# scaling.aon — refs exist, but no atom can consume one as a bound
+```aontu
+# scaling.aontu — refs exist, but no atom can consume one as a bound
 scaling: {
   floor: 2
   ceiling: 10
@@ -339,7 +339,7 @@ constraint for `length`, and a uniqueness flag. Rules:
   the existing function-canon path: the reparse produces a conjunct
   of atoms that normalises back to the identical `ConstraintVal`.
 
-```aon
+```aontu
 # canon round-trip
 a: integer & max(10) & min(0) & min(2)
 # canon: {"a":integer&min(2)&max(10)}
@@ -383,7 +383,7 @@ remains in place, and is re-evaluated on subsequent fixpoint passes
 — the LIFE semantics, formalising the defer branches that
 `OpBaseVal` and `FuncBaseVal` already contain. Because atoms only
 ever suspend or intersect (never force evaluation), evaluation
-order cannot change results. In the `scaling.aon` example from the
+order cannot change results. In the `scaling.aontu` example from the
 [Problem](#problem) section, `target` residuates until `floor` and
 `ceiling` are concrete, then normalises to `integer&min(2)&max(10)`.
 The pass bound is now [G5](g5-trust-contract.md)'s budget
@@ -406,7 +406,7 @@ combinators will widen what `c` can say. Its architectural point is
 the honest channel: a place for domain rules beyond the algebra that
 does not pretend to be algebra.
 
-```aon
+```aontu
 tier: string & must("gold" | "silver" | "bronze",
   "tier must be a support tier name")
 ```

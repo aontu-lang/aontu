@@ -291,9 +291,9 @@ func ObjectPath(kind, pkg, version string) string {
 	case "sigstore":
 		return p + "/@v/" + version + ".sigstore.json"
 	case "advisory":
-		return "/advisory/" + PkgURLPath(pkg) + ".aon"
+		return "/advisory/" + PkgURLPath(pkg) + ".aontu"
 	}
-	return "/tombstone/" + PkgURLPath(pkg) + "/@v/" + version + ".aon"
+	return "/tombstone/" + PkgURLPath(pkg) + "/@v/" + version + ".aontu"
 }
 
 func Timestamp(t time.Time) string {
@@ -670,17 +670,38 @@ func fetchAdvisory(ctx *acquireCtx, bases []string, pkg string) map[string]strin
 }
 
 // seenVersions is what this client has seen for a package, from its
-// own records: a version absent from the list now is a rollback.
+// own records: a version absent from the list now is a rollback. Both
+// suffixes are read -- a record is evidence rather than a document,
+// and dropping either would forget versions and weaken the check.
+var seenExt = []string{".aontu", ".aon"}
+
+func seenFile(dir, version string) (string, bool) {
+	for _, ext := range seenExt {
+		at := filepath.Join(dir, version+ext)
+		if _, err := os.Stat(at); nil == err {
+			return at, true
+		}
+	}
+	return "", false
+}
+
 func seenVersions(ctx *acquireCtx, pkg string) []string {
 	entries, err := os.ReadDir(cacheSeenDir(ctx.cache, pkg))
 	if nil != err {
 		return []string{}
 	}
-	out := []string{}
+	seen := map[string]bool{}
 	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".aon") {
-			out = append(out, strings.TrimSuffix(e.Name(), ".aon"))
+		for _, ext := range seenExt {
+			if strings.HasSuffix(e.Name(), ext) {
+				seen[strings.TrimSuffix(e.Name(), ext)] = true
+				break
+			}
 		}
+	}
+	out := []string{}
+	for v := range seen {
+		out = append(out, v)
 	}
 	sort.Strings(out)
 	return out
@@ -688,14 +709,16 @@ func seenVersions(ctx *acquireCtx, pkg string) []string {
 
 func recordSeen(ctx *acquireCtx, pkg, version, subject string) {
 	dir := cacheSeenDir(ctx.cache, pkg)
-	file := filepath.Join(dir, version+".aon")
-	if _, err := os.Stat(file); nil == err {
+	file := filepath.Join(dir, version+".aontu")
+	// A record under either spelling is the first sighting, so neither
+	// is overwritten -- a second write would date the version to today.
+	if _, ok := seenFile(dir, version); ok {
 		return
 	}
 	_ = os.MkdirAll(dir, 0o755)
 	_ = os.WriteFile(file, canonLine(map[string]any{
 		"package": pkg, "version": version, "seen": Timestamp(ctx.now()), "subject": subject,
-	}, ctx.opts, "seen.aon"), 0o600)
+	}, ctx.opts, "seen.aontu"), 0o600)
 }
 
 func cooldownEnd(seen string) (time.Time, bool) {
@@ -1006,8 +1029,8 @@ func acquire(ctx *acquireCtx, pkg, asked string, depth int) *acquired {
 	tmp := filepath.Join(ctx.cache, "tmp", randomHex())
 	_ = os.MkdirAll(filepath.Join(tmp, metaDir), 0o755)
 	writeTree(tmp, entries)
-	_ = os.WriteFile(filepath.Join(tmp, metaDir, "manifest.aon"), manifestBytes, 0o600)
-	_ = os.WriteFile(filepath.Join(tmp, metaDir, "proof.aon"), proofBytes, 0o600)
+	_ = os.WriteFile(filepath.Join(tmp, metaDir, "manifest.aontu"), manifestBytes, 0o600)
+	_ = os.WriteFile(filepath.Join(tmp, metaDir, "proof.aontu"), proofBytes, 0o600)
 	self := packageSelf(tmp, ctx.opts)
 	mods, _ := manifest["modules"].([]any)
 	mod, _ := mods[0].(map[string]any)
@@ -1674,7 +1697,7 @@ func WriteLayout(dir string, w LayoutWrite, opts *PkgOptions, now time.Time) {
 		b, _ := retracted[j]["version"].(string)
 		return 0 > VersionCompare(a, b)
 	})
-	advisory := filepath.Join(append([]string{dir, "advisory"}, strings.Split(PkgURLPath(pkg), "/")...)...) + ".aon"
+	advisory := filepath.Join(append([]string{dir, "advisory"}, strings.Split(PkgURLPath(pkg), "/")...)...) + ".aontu"
 	_ = os.MkdirAll(filepath.Dir(advisory), 0o755)
 	_ = os.WriteFile(advisory, canonLine(map[string]any{"package": pkg, "retracted": retracted}, opts, "advisory"), 0o600)
 }
@@ -1913,7 +1936,7 @@ func PkgPublish(root string, opts *PkgOptions, http PkgHTTP, args PublishArgs) P
 	}
 
 	proof, _ := SignDigest(keyPEM, report.Digest)
-	proofBytes := canonLine(proof, opts, "proof.aon")
+	proofBytes := canonLine(proof, opts, "proof.aontu")
 	archive := ArchiveOf(root)
 	full, _ := parseDoc(manifestBytes)
 	if ref := catchRefusal(func() {
@@ -2075,7 +2098,7 @@ func movesWith(ctx *acquireCtx, locked map[string]LockEntry, key, pkg, newest st
 // THE LOCAL REGISTRY AND PROXY (`aontu pkg serve`): the directory
 // layout served verbatim; with upstreams, fetched on a miss and kept.
 var objectRe = regexp.MustCompile(
-	`^/(pkg/[A-Za-z0-9!._/-]+/@v/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg/[A-Za-z0-9!._/-]+/@latest|advisory/[A-Za-z0-9!._/-]+\.aon|tombstone/(feed\.aon|[A-Za-z0-9!._/-]+/@v/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aon))$`)
+	`^/(pkg/[A-Za-z0-9!._/-]+/@v/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg/[A-Za-z0-9!._/-]+/@latest|advisory/[A-Za-z0-9!._/-]+\.aontu|tombstone/(feed\.aontu|[A-Za-z0-9!._/-]+/@v/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aontu))$`)
 
 func ObjectShape(p string) bool {
 	if !objectRe.MatchString(p) || strings.Contains(p, "//") {
@@ -2244,8 +2267,8 @@ func (d defaultHTTP) Post(raw string, parts PublishParts, token string) HTTPResp
 		field, name, ctype string
 		data               []byte
 	}{
-		{"manifest", "manifest.aon", "text/plain", parts.Manifest},
-		{"proof", "proof.aon", "text/plain", parts.Proof},
+		{"manifest", "manifest.aontu", "text/plain", parts.Manifest},
+		{"proof", "proof.aontu", "text/plain", parts.Proof},
 		{"archive", "archive.zip", "application/zip", parts.Archive},
 	} {
 		h := map[string][]string{

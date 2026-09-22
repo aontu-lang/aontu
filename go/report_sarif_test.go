@@ -46,11 +46,11 @@ func sarifRedact(t *testing.T, sarif string) string {
 
 func TestSarifGolden(t *testing.T) {
 	dir := filepath.Join("..", "test", "spec", "files", "vet-sarif")
-	schema, err := os.ReadFile(filepath.Join(dir, "schema.aon"))
+	schema, err := os.ReadFile(filepath.Join(dir, "schema.aontu"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "data.aon"))
+	data, err := os.ReadFile(filepath.Join(dir, "data.aontu"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestSarifGolden(t *testing.T) {
 	}
 
 	report := Vet(string(schema), string(data),
-		&VetOptions{SchemaURL: "schema.aon", DataURL: "data.aon"})
+		&VetOptions{SchemaURL: "schema.aontu", DataURL: "data.aontu"})
 	got := sarifRedact(t, SarifReport(report, "x"))
 	want := strings.ReplaceAll(
 		strings.ReplaceAll(string(expect), "\r\n", "\n"), "\r", "\n")
@@ -115,7 +115,7 @@ func TestSarifNoPositionNoRegion(t *testing.T) {
 		Severity: "error",
 		Path:     "$",
 		Message:  "m",
-		Sites:    []VetSite{{File: "data.aon", Row: -1, Col: -1, Len: -1, Role: "data"}},
+		Sites:    []VetSite{{File: "data.aontu", Row: -1, Col: -1, Len: -1, Role: "data"}},
 	}}}
 	sarif := SarifReport(report, "x")
 
@@ -138,7 +138,7 @@ func TestSarifNoPositionNoRegion(t *testing.T) {
 		t.Fatal(err)
 	}
 	physical := log.Runs[0].Results[0].Locations[0].PhysicalLocation
-	if "data.aon" != physical.ArtifactLocation.URI {
+	if "data.aontu" != physical.ArtifactLocation.URI {
 		t.Fatalf("uri: %q", physical.ArtifactLocation.URI)
 	}
 	if nil != physical.Region {
@@ -216,10 +216,10 @@ func TestSarifInvocationCarriesTheVerdict(t *testing.T) {
 // canonical port) — otherwise text after `#` reads as a fragment and
 // the consumer loses the file association.
 func TestSarifURIEncoding(t *testing.T) {
-	if got := sarifURI("a b#c%.aon"); "a%20b%23c%25.aon" != got {
+	if got := sarifURI("a b#c%.aontu"); "a%20b%23c%25.aontu" != got {
 		t.Fatalf("uri: %q", got)
 	}
-	if got := sarifURI("dir/ok-1._~!$&'()*+,;=:@.aon"); "dir/ok-1._~!$&'()*+,;=:@.aon" != got {
+	if got := sarifURI("dir/ok-1._~!$&'()*+,;=:@.aontu"); "dir/ok-1._~!$&'()*+,;=:@.aontu" != got {
 		t.Fatalf("safe set: %q", got)
 	}
 }

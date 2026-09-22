@@ -112,7 +112,7 @@ w1: b: {y:2,z:3} & $.q.a
     let ctx = makeCtx()
     let a0 = new Aontu()
 
-    let v0 = a0.unify('@"' + srcPath(__dirname) + '/../test/t02sys.aon"') as any
+    let v0 = a0.unify('@"' + srcPath(__dirname) + '/../test/t02sys.aontu"') as any
 
     expect(v0.canon).equal(
       '{"ent":{"bar":{"fields":{"f0":{"kind":"Number"}},"name":"bar"},"foo":{"fields":{"f0":{"kind":"String"}},"name":"foo"}},"sys":{"ent":{"name":string}}}'
@@ -146,7 +146,7 @@ w1: b: {y:2,z:3} & $.q.a
     let a0 = new Aontu()
 
     try {
-      a0.unify('@"' + srcPath(__dirname) + '/../test/t03uxc.aon"', {
+      a0.unify('@"' + srcPath(__dirname) + '/../test/t03uxc.aontu"', {
         base: __dirname,
       })
     }
@@ -275,13 +275,13 @@ def: garage: {
     let a0 = new Aontu()
 
     const mfs = Memfs({
-      'foo.aon': '{f:11}'
+      'foo.aontu': '{f:11}'
     })
     const fs = mfs.fs as unknown as FST
       ; (fs as any).aaa = 1
 
 
-    let v1 = a0.unify(`a:@"./foo.aon"`, { fs, path: '/' })
+    let v1 = a0.unify(`a:@"./foo.aontu"`, { fs, path: '/' })
     expect(v1.canon).equal(
       '{"a":{"f":11}}'
     )

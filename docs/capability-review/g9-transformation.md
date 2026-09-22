@@ -33,7 +33,7 @@ bound now being spelled `each(d, _ & t)`. The
 A model that is ground truth for a system, and cannot produce the
 system's code, is ground truth for nothing that ships. Every one of
 the fourteen use cases under [`use-cases/`](../../use-cases/) exists
-to be *derived from*: `10-data-model/domain.aon` describes four record
+to be *derived from*: `10-data-model/domain.aontu` describes four record
 types a Go server, a TypeScript client and a SQL schema all have to
 agree about; `03-api-contract/` describes an API whose clients,
 servers and tests all derive from it; `01-service-catalog/` describes
@@ -42,10 +42,10 @@ those derivations exists, and the reason is one missing capability,
 not fourteen.
 
 **First failing example, from a real document.**
-[`use-cases/10-data-model/domain.aon`](../../use-cases/10-data-model/domain.aon)
+[`use-cases/10-data-model/domain.aontu`](../../use-cases/10-data-model/domain.aontu)
 already carries every fact a TypeScript emitter needs:
 
-```aon
+```aontu
 schema: {
   Customer: type(close({
     id: string & re("^cust-[0-9]{4}$")
@@ -150,13 +150,13 @@ What exists is more than it looks like, and most of it is reusable.
   numeric leaves are mutually disjoint. One thing it cannot do:
   bare `number` unifies with every leaf, so a field declared `number`
   classifies as whichever leaf is tried first and no re-ordering
-  fixes it. `domain.aon` lines 36–41 already argue, on its own
+  fixes it. `domain.aontu` lines 36–41 already argue, on its own
   terms, that bare `number` is the wrong spelling for a
   codegen-facing field.
 - **`pick(pack(d, {f: t}), f)` is an element-wise map, and it
   composes.** VERIFIED byte-identically in BOTH ports, nested inside
-  another `pack` template, over the real `domain.aon` across an
-  `@"./domain.aon"` include. A complete transform is therefore
+  another `pack` template, over the real `domain.aontu` across an
+  `@"./domain.aontu"` include. A complete transform is therefore
   expressible today, with no new grammar and no new builtin. The
   worked example is [below](#worked-example-1).
 - **A source record's own fields are reachable through the
@@ -164,7 +164,7 @@ What exists is more than it looks like, and most of it is reusable.
   VERIFIED `pack($.m, {got: _.n})` is `[aontu/no_path]` — but a
   hidden capture works, VERIFIED byte-identically in both ports:
 
-  ```aon
+  ```aontu
   m: {a: {n: "one", t: "T"}, b: {n: "two", t: "U"}}
   v: pack($.m, {src: hide(_), d: `x` + .src.n + .src.t})
   # -> {"a":{"d":"xoneT"},"b":{"d":"xtwoU"}}
@@ -386,8 +386,8 @@ This works today. VERIFIED, both ports, on the transform document
 of [worked example 1](#worked-example-1):
 
 ```
-$ aontu vet std-code.aon xf-domain.aon        -> verdict: valid
-$ go run ./cmd/aontu vet std-code.aon xf-domain.aon  -> verdict: valid
+$ aontu vet std-code.aontu xf-domain.aontu        -> verdict: valid
+$ go run ./cmd/aontu vet std-code.aontu xf-domain.aontu  -> verdict: valid
 ```
 
 and with one `prim: "int"` corrupted to `prim: "nope"`:
@@ -395,8 +395,8 @@ and with one `prim: "int"` corrupted to `prim: "nope"`:
 ```
 verdict: invalid
 $.code.units.0.decls.0: empty [conflict]
-  data:   xf-domain.aon:3:32 ({"fields":[...{"prim":"nope"}...],"k":"record","name":"Customer"})
-  schema: std-code.aon:9:8  ({"doc"?:string,"fields":[&:$.%Field],...}|{"k":"text",...})
+  data:   xf-domain.aontu:3:32 ({"fields":[...{"prim":"nope"}...],"k":"record","name":"Customer"})
+  schema: std-code.aontu:9:8  ({"doc"?:string,"fields":[&:$.%Field],...}|{"k":"text",...})
 ```
 
 **D2 — text output lives in the tooling, not the engine.** The unifier
@@ -498,7 +498,7 @@ Five parts. Each is separable, and the ordering below is the
 dependency order.
 
 ```
-  model.aon
+  model.aontu
     -- a transform, written in ORDINARY AONTU (pack/match/pick/join) -->
   a %Code instance         <-- VETTED against @"aontu:code" (D1)
     -- render(), a pure fold with a language PROFILE -->
@@ -523,7 +523,7 @@ earlier draft.
 
 **It is anchored under a key, and `type()`-marked.** A root-anchored
 vocabulary is *vacuous* and *polluting*, both VERIFIED. Vacuous:
-with `units: [&: %Unit]` at the root, `aontu vet vocab.aon
+with `units: [&: %Unit]` at the root, `aontu vet vocab.aontu
 <anything>` answers `valid` — a document containing only `other: 1`
 passes, and so does one that typo'd the top-level key to `unit:`,
 because a spread generates `[]` and a root cannot be closed.
@@ -536,18 +536,18 @@ and vetting needs no `--at`.
 Avoiding `--at` matters for a second reason. VERIFIED, a two-line
 reproducer of an **unrecorded ADR-001 break**:
 
-```aon
-# p7.aon
+```aontu
+# p7.aontu
 %F = close({ n: string })
 code: { fs: [&: %F] }
-# p7d.aon
+# p7d.aontu
 fs: [ {n:"x"} ]
 ```
 ```
-$ aontu vet --at code p7.aon p7d.aon          -> verdict: valid    (exit 0)
-$ go run ./cmd/aontu vet --at code p7.aon p7d.aon
+$ aontu vet --at code p7.aontu p7d.aontu          -> verdict: valid    (exit 0)
+$ go run ./cmd/aontu vet --at code p7.aontu p7d.aontu
 verdict: invalid                                                   (exit 1)
-$.code.fs.0: no_path [reference]   schema: p7.aon:2:17 ($.%F)
+$.code.fs.0: no_path [reference]   schema: p7.aontu:2:17 ($.%F)
 ```
 
 The cause is not what an earlier draft diagnosed (root-level aliases
@@ -601,7 +601,7 @@ The vocabulary, complete. It contains no backtick and no backslash,
 because ts/src/std.ts holds it in a template literal and go/std.go in
 a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 
-```aon
+```aontu
 # aontu:code --- THE OUTPUT VOCABULARY (G9).
 #
 # An aontu transform evaluates to an instance of this schema; the
@@ -611,10 +611,10 @@ a raw string that has no escape (ts/src/std.ts:13-14 states the rule).
 # is reached through a one-line wrapper (VERIFIED against std/system,
 # which is bundled the same way):
 #
-#   $ echo '@"aontu:code"' > code.aon
-#   $ aontu vet code.aon result.aon
+#   $ echo '@"aontu:code"' > code.aontu
+#   $ aontu vet code.aontu result.aontu
 #
-# `aontu vet @"aontu:code" result.aon` is NOT a command -- it fails with
+# `aontu vet @"aontu:code" result.aontu` is NOT a command -- it fails with
 # ENOENT on a file literally named `@"aontu:code"`.
 #
 # TWO ESCAPES. {k:"text", lang, text} carries verbatim target syntax;
@@ -812,7 +812,7 @@ What is missing is the DESCENT. `walk(data, tmpl)` produces a list of
 `tmpl` instantiated once per node of `data` in pre-order, `data`
 itself included, with `_` bound to the node. Then
 
-```aon
+```aontu
 join(walk($.model, match(_, <pattern>, <emit>, ..., <default>)), "\n")
 ```
 
@@ -1044,8 +1044,8 @@ breaking is the model's job, expressed as `line` and `nest`. The
 hand-off is a pipeline step the user runs deliberately:
 
 ```
-aontu render --profile go --stdout model.aon | gofmt
-aontu render --profile go --out ./gen model.aon && gofmt -w ./gen
+aontu render --profile go --stdout model.aontu | gofmt
+aontu render --profile go --out ./gen model.aontu && gofmt -w ./gen
 ```
 
 and the CI story is `aontu render --check`, which compares rendered
@@ -1109,7 +1109,7 @@ the source child's identity (its clone keeps the entity), where
 `pick(pack(d, {f: t}), f)` already maps, VERIFIED in both ports — but
 it goes through a map, so it re-sorts to code-point order, and it
 refuses a list of records outright (`pack_key`). VERIFIED on a real
-document, [`use-cases/01-service-catalog/catalog.aon`](../../use-cases/01-service-catalog/catalog.aon)
+document, [`use-cases/01-service-catalog/catalog.aontu`](../../use-cases/01-service-catalog/catalog.aontu)
 declares `payments, ledger, risk` and the generated units come out
 `ledger, payments, risk`. For a struct's fields, a SQL DDL's columns
 or a file's imports, silently alphabetising is wrong output.
@@ -1257,9 +1257,9 @@ bespoke dry-run reporter would not.
 One document names the N outputs, and it is an aontu document, so it
 is vettable like anything else:
 
-```aon
+```aontu
 @"aontu:code"
-@"./model.aon"
+@"./model.aontu"
 
 outputs: [
   { target: "typescript", at: "$.schema",  transform: $.xf.ts,   out: "ts/domain.ts" }
@@ -1327,13 +1327,13 @@ implementing the algorithm in [§3](#3-the-renderer-and-the-language-profiles).
 ### Worked example 1
 
 **One transform, over the real
-[`use-cases/10-data-model/domain.aon`](../../use-cases/10-data-model/domain.aon),
+[`use-cases/10-data-model/domain.aontu`](../../use-cases/10-data-model/domain.aontu),
 read across an `@include`, to TypeScript.** This is nine lines of
 actual transform, and every construct in it exists today.
 
-```aon
-# xf-domain.aon
-@"./domain.aon"
+```aontu
+# xf-domain.aontu
+@"./domain.aontu"
 
 step: hide(pack($.schema, { d: {
   k: "record"
@@ -1356,8 +1356,8 @@ code: { units: [ { path: "domain.ts", lang: "typescript", decls: pick($.step, d)
 VERIFIED, the IR is byte-identical from both engines:
 
 ```
-$ diff <(node ts/bin/aontu.js get '$.code' xf-domain.aon -c) \
-       <(go run ./cmd/aontu   get '$.code' xf-domain.aon -c)
+$ diff <(node ts/bin/aontu.js get '$.code' xf-domain.aontu -c) \
+       <(go run ./cmd/aontu   get '$.code' xf-domain.aontu -c)
    (no output)
 ```
 
@@ -1365,7 +1365,7 @@ and VERIFIED, the transform document itself vets against the
 vocabulary — D1's payoff, in place, in both ports:
 
 ```
-$ aontu vet std-code.aon xf-domain.aon        -> verdict: valid
+$ aontu vet std-code.aontu xf-domain.aontu        -> verdict: valid
 ```
 
 The rendered bytes, exactly (535 bytes, LF, final newline):
@@ -1424,9 +1424,9 @@ gains the two facts the record schema cannot state — stated once, as
 data, which is what an author does before the reflection sidecar
 lands — and names three units.
 
-```aon
-# xf-order.aon --- ONE model, THREE outputs, each over part of the model.
-@"./domain.aon"
+```aontu
+# xf-order.aontu --- ONE model, THREE outputs, each over part of the model.
+@"./domain.aontu"
 
 rec: hide(pack($.schema, { d: {
   k: "record"
@@ -1541,9 +1541,9 @@ report says so rather than the renderer inventing a join table.
 ENTITY, from
 [`use-cases/01-service-catalog/`](../../use-cases/01-service-catalog/).**
 
-```aon
-# xf-k8s.aon
-@"./system.aon"
+```aontu
+# xf-k8s.aontu
+@"./system.aontu"
 
 svc: hide(pack($.catalog.domains.payments.services, { u: {
   path:  `k8s/` + key(2) + `.yaml`
@@ -1567,7 +1567,7 @@ k8s/risk.yaml      risk
 ```
 
 **Two findings, both from this one small transform.** First, the
-order: `catalog.aon` declares `payments` (line 11), `ledger` (17),
+order: `catalog.aontu` declares `payments` (line 11), `ledger` (17),
 `risk` (22), and the generated units come out `ledger, payments,
 risk`. That is the code-point sort, on a real document, changing the
 order of generated files. Second, and worse, the FIRST version of
@@ -1586,15 +1586,15 @@ in place, on the transform of worked example 1 with a single character
 changed (`prim: "int"` to `prim: "nope"`):
 
 ```
-$ aontu vet std-code.aon xf-domain-bad.aon
+$ aontu vet std-code.aontu xf-domain-bad.aontu
 verdict: invalid
 
 $.code.units.0.decls.0: empty [conflict]
   [aontu/empty]: Cannot unify values at path $.code.units.0.decls.0
-  data:   xf-domain-bad.aon:3:32 ({"fields":[{"name":"country","type":{"k":"prim",
+  data:   xf-domain-bad.aontu:3:32 ({"fields":[{"name":"country","type":{"k":"prim",
           "prim":"string"}},{"name":"creditLimitCents","type":{"k":"prim","prim":
           "nope"}},...],"k":"record","name":"Customer"})
-  schema: std-code.aon:9:8 ({"doc"?:string,"fields":[&:$.%Field],"k":"record",
+  schema: std-code.aontu:9:8 ({"doc"?:string,"fields":[&:$.%Field],"k":"record",
           "name":re("^[A-Za-z_][A-Za-z0-9_]*$"),"open":*false|boolean}|
           {"k":"text","lang":string,"text":string})
 $.code.units.0.decls.1: empty [conflict]
@@ -1688,7 +1688,7 @@ adds:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| The four invisible facts (optionality, source order, closedness, disjunction arms) make every sidecar-free transform quietly lossy — VERIFIED on `domain.aon`: `email` lost its `?`, `ledgerId` lost an arm, fields came out alphabetical | High | High | Named as losses in the docs and in every worked example, not hidden; the reflection sidecar (Phase 5) closes all four with zero language change, via the `$name` host-variable mechanism both ports already have; until then the model states them as data, as worked example 2 does |
+| The four invisible facts (optionality, source order, closedness, disjunction arms) make every sidecar-free transform quietly lossy — VERIFIED on `domain.aontu`: `email` lost its `?`, `ledgerId` lost an arm, fields came out alphabetical | High | High | Named as losses in the docs and in every worked example, not hidden; the reflection sidecar (Phase 5) closes all four with zero language change, via the `$name` host-variable mechanism both ports already have; until then the model states them as data, as worked example 2 does |
 | Go has NO public Val reflection (`go/val.go` exports five methods; `MapVal` fields are unexported), so form (a) is TypeScript-only today | High | High | Sized as its own phase, not "mostly not my area": exported Go accessors mirroring what `ts/src/val/MapVal` already exposes, with shared rows, land BEFORE the `$model` injection so the injection is a thin re-expression of one API rather than two new surfaces |
 | The recursive-alias vocabulary does not terminate — VERIFIED, nine arms double-included is killed at 60 s in BOTH ports; five arms hangs TypeScript while Go answers, so the same construct is a G5 failure at one size and an ADR-001 divergence at another | High | High | The vocabulary is depth-capped by construction (containers take leaves only): VERIFIED 0.17 s / 0.01 s on the same document, byte-identical hash, and diagnostics stop degrading with depth. A `divergent.tsv` row and a BUGS.md entry regardless, because the engine defect outlives this vocabulary |
 | `id()` naming a node and its own descendant stack-overflows both ports — VERIFIED, uncatchable `fatal error` in Go | Medium | High | Phase 0 refuses it at the merge as `id_ancestor`; the walk's totality argument depends on it and says so |
@@ -2168,7 +2168,7 @@ children exactly as `each` and `pick` do today" — true, and now the
 defect rather than the justification. VERIFIED, both ports,
 identically:
 
-```aon
+```aontu
 m: {a: "keep", b: hide("SECRET-not-for-output")}
 leak: join($.m, "\n")
 ```
@@ -2258,7 +2258,7 @@ describes is unchanged.)*
 teaches.** The corpus computes its files with a list spread and a
 projection —
 
-```aon
+```aontu
 rows: [&: { out: `\t` + .go + ` ` + match(.t, "string", `string`, ...) }] & .fields
 body: join(pick(.rows, out), `\n`)
 ```
@@ -2410,7 +2410,7 @@ at selection — the half the language already had in `match`.
 Make the algebra reachable. A fragment is an ordered list of pieces,
 each carrying its own depth:
 
-```aon
+```aontu
 %inline = string & re("^[^\n\r]*$") | %ref
 %line =   close({ k: "line",  at: *0 | integer & min(0) & max(64), n: [&: %inline] })
 %blank =  close({ k: "blank", n: *1 | integer & min(1) & max(16) })

@@ -1,0 +1,7 @@
+# A seeded template: the key NOPE appears in none of the body's literal
+# lines, so the template drifted from its map -- refused on the
+# template, before any node is visited.
+#
+# run: node ../../../ts/bin/aontu.js unused.aontu
+# expected: [aontu/replace_unused]
+o: emit([pin:"a"], { match:{} replace:NOPE:.pin body:["listen('PIN')"] })
