@@ -23,7 +23,7 @@ and a `deploy.aontu` overlay that pins them, comments included:
 <!-- test: file deploy.aontu -->
 ```aontu
 # the deployment
-replicas: 42 # too many
+replicas: 42  # too many
 port: 0x1F
 ```
 
@@ -61,7 +61,7 @@ The file now reads:
 
 ```aontu
 # the deployment
-replicas: 5 # too many
+replicas: 5  # too many
 port: 0x1F
 ```
 

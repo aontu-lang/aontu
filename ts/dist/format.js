@@ -8,6 +8,8 @@ const vet_1 = require("./vet");
 const template_1 = require("./template");
 const aliasname_1 = require("./aliasname");
 const BUDGET = 80;
+// The gap behind a comment that ends a line of code.
+const TRAIL_GAP = '  ';
 const MAX_DEPTH = 1000;
 const stubResolver = ((spec) => ({
     ...spec, kind: 'aontu', full: '__fmt__.aontu', src: '', found: true, search: [],
@@ -557,6 +559,10 @@ class Writer {
     text(s) {
         this.line += s;
     }
+    // One gap behind the code; alone on its line it keeps its indent.
+    trail(s) {
+        this.line = this.fresh() ? this.line + s : rtrim(this.line) + TRAIL_GAP + s;
+    }
     // Nothing on the line yet but its indentation.
     fresh() {
         return '' === this.line.trim();
@@ -630,7 +636,7 @@ function emitBody(w, body, indent, stmt, root) {
             const e = chain(node);
             emitValue(w, e, indent);
             if (undefined !== e.trail) {
-                w.text(' ' + e.trail);
+                w.trail(e.trail);
             }
         }
         if (root && from < w.mark()) {
@@ -654,7 +660,7 @@ function emitValue(w, node, indent) {
             const v = chain(node.value);
             emitValue(w, v, indent);
             if (undefined !== v.trail) {
-                w.text(' ' + v.trail);
+                w.trail(v.trail);
             }
             return;
         }
@@ -711,7 +717,7 @@ function emitCall(w, node, indent) {
                 w.text(it.text);
             }
             else {
-                w.text(' ' + it.text);
+                w.trail(it.text);
             }
             noted = true;
             continue;
@@ -768,7 +774,7 @@ function emitBlock(w, open, close, node, indent, stmt) {
     }
     w.text(open);
     if (undefined !== node.open) {
-        w.text(' ' + node.open);
+        w.trail(node.open);
     }
     emitBody(w, node.body, indent + 2, stmt);
     w.open(indent, false);
@@ -776,7 +782,6 @@ function emitBlock(w, open, close, node, indent, stmt) {
 }
 function emitExpr(w, items, indent) {
     const cont = w.fresh() ? indent : indent + 2;
-    let operand = false;
     let cur = indent;
     for (const it of items) {
         if ('op' === it.t) {
@@ -790,26 +795,19 @@ function emitExpr(w, items, indent) {
             else {
                 w.text(TIGHT_OP === it.text ? it.text : ' ' + it.text + ' ');
             }
-            operand = false;
             continue;
         }
         if ('prefix' === it.t) {
             w.text(it.text);
-            operand = false;
             continue;
         }
         if ('note' === it.t) {
-            if (operand) {
-                w.text(' ');
-            }
-            w.text(it.text);
+            w.trail(it.text);
             cur = cont;
             w.open(cur, false);
-            operand = false;
             continue;
         }
         emitValue(w, it, cur);
-        operand = true;
     }
 }
 function plainEntries(v) {
@@ -932,7 +930,7 @@ function repeatLines(entries, prefix, indent) {
             out.push({ t: 'comment', text: e.text });
             continue;
         }
-        const trail = undefined === e.trail ? '' : ' ' + e.trail;
+        const trail = undefined === e.trail ? '' : TRAIL_GAP + e.trail;
         if ('spread' === e.t) {
             // The repeated spread entry is a one-entry map holding only a
             // spread, so by D1's exception it keeps its braces.
@@ -1031,7 +1029,7 @@ function emitStatement(w, p, indent, stmt, prefix) {
         }
     }
     if (undefined !== p.trail) {
-        w.text(' ' + p.trail);
+        w.trail(p.trail);
     }
     if (rewritten && !stmt.covered) {
         const before = emitAt(p.orig ?? [p], indent);

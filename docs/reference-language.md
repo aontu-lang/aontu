@@ -868,7 +868,7 @@ deploy: close(pack($.names, {
   port: *8080|integer
 }))
 
-deploy: billing: replicas: 4 # an override composes as usual
+deploy: billing: replicas: 4  # an override composes as usual
 ```
 
 ```json
@@ -3221,8 +3221,8 @@ is the address itself, as data.
 
 ```aontu
 a: b: 1
-emb: $.a.b # a reference: the value at the path
-cap: path($.a.b) # a capture: the path itself
+emb: $.a.b  # a reference: the value at the path
+cap: path($.a.b)  # a capture: the path itself
 ```
 
 ```json
@@ -4346,11 +4346,16 @@ exactly as it reads `match(.t, "string", "x")`.
 **Comments.** Every `#` comment is kept, its text untouched. A comment
 on its own line attaches to the statement that follows it and is
 indented to that statement's level; a blank line between the two
-stays. A trailing comment stays on its line, one space after the last
-token, and trailing comments are not aligned into a column. A comment
+stays. A comment that ends a line of code stays on that line, **two
+spaces after the last token**, whatever the author left there, because
+a single space reads as part of the value. Trailing comments are not
+aligned into a column beyond that: the gap is measured from the token
+and never from the widest line. A comment
 inside a container puts the container on several lines, which is the
 only way the comment keeps its place; a comment on the line that opens
-a block stays there, `server: { # what the edge sees`.
+a block stays there under the same rule, `server: {  # what the edge
+sees`, as does one after a colon or an operator whose value follows on
+the next line.
 
 **Blank lines.** A blank line is a paragraph break the author chose,
 and the formatter keeps it: any run of blank lines becomes one. None at
@@ -4730,8 +4735,8 @@ meaning "no". That is what lets a grammar act as a check:
 
 ```aontu
 G: abnf("v = 1*d\nd = %x30-39\n")
-ok: parse($.G, "12") # the tree
-no: parse($.G, "x") # [aontu/parse_failed]
+ok: parse($.G, "12")  # the tree
+no: parse($.G, "x")  # [aontu/parse_failed]
 ```
 
 **`parse(g)` with no value is the grammar as a constraint**, which is

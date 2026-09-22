@@ -1890,7 +1890,10 @@ aontu fmt < in.aontu > out.aontu
   inside braces and with the colons tight, `{ a:1 b:2 }`, and as a
   block when it does not. Keys bare where they can be; a single-quoted
   string double-quoted unless it holds a double quote; numbers as
-  written. Every comment and every blank line between groups stays.
+  written. Every comment and every blank line between groups stays, and
+  a comment that ends a line of code sits two spaces behind it,
+  `port: 8080  # the admin port`, normalised from whatever the author
+  left.
   The formatter never breaks a line, and keeps the author's line breaks
   inside an expression, at their operators.
 - **The prefix is repeated.** A map that does not fit on one line is
@@ -3493,10 +3496,11 @@ agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
 format         // the source formatter (see `aontu fmt` above):
-               // format(src, {path?, lint?}) -> {verdict, text,
-               // changed, findings} or {verdict, errors}; Go:
-               // aontu.New().Format(src), and FormatWith(src,
-               // FormatOptions{Lint: true}) for the findings
+               // format(src, {path?, lint?, template?}) -> {verdict,
+               // text, changed, findings} or {verdict, errors};
+               // `template` is the marker of a generator, formatted as
+               // the document it carries; Go: aontu.New().Format(src),
+               // and FormatWith(src, FormatOptions{Lint, Template})
 unifiedDiff    // unifiedDiff(name, before, after): the diff `aontu fmt
                // --diff` prints; Go: aontu.UnifiedDiff
 loadProfile    // a profile document -> {profile} or {errors}:
@@ -3590,7 +3594,7 @@ does exactly this for a file argument.)
 | `GenerateVars` | `GenerateVars(src string, vars map[string]Val) (any, error)` | `Generate` with variables. |
 | `Trace`        | `Trace(src string, opts *TraceOptions) TraceReport` | What wrote each line of a component tree (see [`aontu trace`](#aontu-trace)): `Trace` is one `TraceEntry` per stamped piece (`At`, `File`, `Node` and `Rule`), or `Errors`. `aontu.TraceTree(root Val) []TraceEntry` is the walk alone, over a value already unified. |
 | `LoadProfile`  | `LoadProfile(src string) (map[string]any, []VetFinding)` | A profile document, evaluated under this instance's include options, vetted against `aontu:profile` as a settled value and met with it so the defaults are filled: the profile `--profile <file>` hands to `template`, `fmt` and `trace`, or the findings that refused it. |
-| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
+| `Format`       | `Format(src string) FormatReport` | The source formatter (see [`aontu fmt`](#aontu-fmt)): the agreed form, or the findings that say why there is none. `FormatWith(src string, opts FormatOptions) FormatReport` is the same with the options: `Lint` fills the report's `Findings`, the style findings of `--lint`, and `Template` is the marker of a generator, formatted as the document it carries. `aontu.UnifiedDiff(name, before, after string) string` is the diff `--diff` prints. |
 
 <!-- test: skip Go API sample; the API surface is pinned by the go/ test suite -->
 ```go

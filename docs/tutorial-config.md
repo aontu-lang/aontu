@@ -415,10 +415,10 @@ A few of the everyday ones:
 
 ```aontu
 web: region: "eu-west"
-name: upper(mercury) # -> "MERCURY"
-slug: lower(Mercury) # -> "mercury"
-label: a + b + c # -> "abc"
-copy: copy($.web) # deep copy of another node
+name: upper(mercury)  # -> "MERCURY"
+slug: lower(Mercury)  # -> "mercury"
+label: a + b + c  # -> "abc"
+copy: copy($.web)  # deep copy of another node
 ```
 
 →

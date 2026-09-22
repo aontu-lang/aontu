@@ -191,7 +191,7 @@ one authored column into every generated child:
 deploy: close(pack($.svc.names, {
   apiVersion: "apps/v1"
   kind: Deployment
-  metadata: name: key(2) # depth-counted by hand
+  metadata: name: key(2)  # depth-counted by hand
   # ... the rest of the Deployment skeleton ...
 }))
 
@@ -296,8 +296,8 @@ it as `reconcile.aontu`:
 
 <!-- test: file reconcile.aontu -->
 ```aontu
-reconcile: centsPath: (10 + 20) & 30 # integer cents: exact
-reconcile: exactPath: (0d0.1 + 0d0.2) & 0d0.3 # exact decimals: also exact
+reconcile: centsPath: (10 + 20) & 30  # integer cents: exact
+reconcile: exactPath: (0d0.1 + 0d0.2) & 0d0.3  # exact decimals: also exact
 ```
 
 Evaluate it:

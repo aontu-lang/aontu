@@ -433,14 +433,19 @@ Only `#` comments exist, and every one is kept, its text untouched.
   followed by a blank line and then a statement still attaches to the
   statement, blank line kept; a comment at the end of a block, with
   nothing after it but the closer, stays at the end of the block.
-- **A trailing comment** stays on its line, one space after the last
-  token: `port: 8080 # the admin port`. Trailing comments are **not
-  aligned into a column** across lines — Black's argument: alignment
-  turns one changed line into a diff of every line around it.
+- **A trailing comment** stays on its line, **two spaces** after the
+  last token: `port: 8080  # the admin port`. Two rather than one, and
+  normalised from whatever the author left, because a single space
+  reads as part of the value — the `#` wants a visible gap to sit
+  behind. Trailing comments are **not aligned into a column** across
+  lines — Black's argument: alignment turns one changed line into a
+  diff of every line around it. The gap is measured from the token,
+  never from the widest line in the group.
 - A comment inside a container forces the container onto several
   lines (§3.5), which is the only way the comment can keep its place.
-- A comment on the line that opens a block stays there:
-  `server: { # what the edge sees`.
+- A comment on the line that opens a block stays there, under the same
+  rule: `server: {  # what the edge sees`. So does one that follows a
+  colon or an operator whose value continues on the next line.
 
 ### 3.8 Blank lines
 

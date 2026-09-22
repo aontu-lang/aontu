@@ -89,6 +89,97 @@ the checkout as the global npm package and `make install-go` runs
 `go install` for the two commands. Without installing:
 `node ts/bin/aontu.js …` or, inside `go/`, `go run ./cmd/aontu …`.
 
+## Formatting
+
+`aontu fmt` writes a document in one agreed form, in the tradition of
+`gofmt`: layout stops being an argument, and a diff shows only what
+changed. The form is a spelling and never a change of meaning. What
+comes back evaluates to the same value, carries the same canon-hash,
+and formatting it again changes nothing.
+
+```sh
+aontu fmt config.aontu          # print the formatted text
+aontu fmt -w config.aontu       # rewrite in place
+aontu fmt --check *.aontu       # exit 1 if any file would change: the CI gate
+aontu fmt -d config.aontu       # a unified diff of what would change
+aontu fmt --lint config.aontu   # style findings only; the form is untouched
+```
+
+The rules, in short:
+
+- **Two-space indentation**, never a tab; `LF` endings, no trailing
+  whitespace, one final newline.
+- **`key: value`**, the colon tight to the key. No commas between
+  entries; a call keeps its argument commas.
+- **Braces only where the language needs them.** A one-pair map is a
+  chain, `a: b: c: 1`; a one-key map in a list is a pair element,
+  `[a:1 b:2]`. A map that is an operand or an argument keeps its
+  braces, because splitting it would change the document.
+- **80 columns** decides between one line and several, and nothing
+  else. The formatter never breaks a line, so a wide string stays wide.
+- **The prefix repeats.** A map too wide for one line becomes one
+  statement per entry, each carrying its key again: `server: host: …`
+  over `server: port: …`. A key written twice is a meet, so the two
+  spellings are one document.
+- **Comments are kept, their text untouched.** A comment that ends a
+  line of code sits **two spaces** behind it, normalised from whatever
+  the author left, because a single space reads as part of the value.
+  Trailing comments are never aligned into a column.
+- **Bare keys where they can be**, single quotes become double unless
+  the string holds one, numbers exactly as written, every blank-line
+  paragraph break kept.
+- **It checks its own work.** The output is parsed again and compared
+  with the input tree to tree; a disagreement is refused as a formatter
+  defect and nothing is written.
+
+A file as it arrived from JSON:
+
+```aontu
+{
+  "server": { "host": '0.0.0.0', "port": 8080 },# where the edge listens
+  "limits": { "rps": 100, "burst": 200 },
+  "features": ["auth", "metrics"]
+}
+```
+
+`aontu fmt` writes:
+
+```aontu
+server: { host:"0.0.0.0" port:8080 }  # where the edge listens
+limits: { rps:100 burst:200 }
+features: ["auth" "metrics"]
+```
+
+**Both ports expose the formatter as a library**, with the same report:
+
+```js
+import { format, unifiedDiff } from 'aontu'
+
+const r = format('a: 1# c\n', { lint: true })
+r.verdict   // 'formatted'
+r.changed   // true
+r.text      // 'a: 1  # c\n'
+r.findings  // the --lint style findings, [] here
+unifiedDiff('a.aontu', 'a: 1# c\n', r.text)
+```
+
+```go
+r := aontu.New().Format("a: 1# c\n")
+r.Verdict // "formatted"
+r.Changed // true
+r.Text    // "a: 1  # c\n"
+
+aontu.New().FormatWith(src, aontu.FormatOptions{Lint: true})
+aontu.UnifiedDiff("a.aontu", src, r.Text)
+```
+
+The full rule set is [the formatted
+form](docs/reference-language.md#the-formatted-form); the verb, its
+options and its exit codes are in [the API
+reference](docs/reference-api.md#aontu-fmt); running it on a repository
+and gating CI on it is a
+[how-to](docs/how-to/format-a-document.md).
+
 ## Documentation
 
 Full documentation is in [`docs/`](docs/):

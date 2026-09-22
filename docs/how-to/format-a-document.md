@@ -125,6 +125,46 @@ $ echo $?
 `--strict` is the gate, and `aontu fmt --check --strict *.aontu` is both
 gates in one step.
 
+## What it does to comments and blank lines
+
+Every comment is kept and its text is never touched. What the formatter
+settles is the **gap**: a comment that ends a line of code sits two
+spaces behind it, whatever the author left there. Write `notes.aontu`:
+
+<!-- test: file notes.aontu -->
+<!-- fmt: keep the input the transcript formats -->
+```aontu
+# The edge listener.
+port: 8080# tight against the value
+host: "0.0.0.0"          # pushed far out
+
+
+timeout: 30 # after two blank lines
+```
+
+<!-- test: run -->
+```sh
+$ aontu fmt notes.aontu
+# The edge listener.
+port: 8080  # tight against the value
+host: "0.0.0.0"  # pushed far out
+
+timeout: 30  # after two blank lines
+```
+
+Two spaces rather than one, because a single space lets the `#` read as
+part of the value. The gap is measured from the token and not from the
+widest line, so trailing comments are never aligned into a column: one
+changed line does not redraw every line around it. The same gap goes
+behind a comment that opens a block, `server: {  # what the edge sees`,
+and behind one that follows a colon or an operator whose value
+continues on the next line.
+
+A comment on its own line attaches to the statement below it and takes
+that statement's indentation. A run of blank lines becomes one, and a
+comment inside a container is what puts the container on several lines,
+which is the only way the comment can keep its place.
+
 ## What the formatter refuses, and what it never does
 
 A document that does not parse is not formatted: the verb prints the
