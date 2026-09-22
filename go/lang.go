@@ -986,7 +986,7 @@ var aliasNameRe = regexp.MustCompile(`^` + aliasNamePat + `$`)
 var aliasSetRe = regexp.MustCompile(`^` + aliasSetPat + `$`)
 var aliasItemsRe = regexp.MustCompile(aliasItemPat)
 
-// `{ %a } = @"f.aon"` is the pair `<head>: <include>`, so the head is
+// `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token. RE2 has no lookahead, so `==` is ruled out at the match.
 var importHeadRe = regexp.MustCompile(`^(` + aliasSetPat + `)[ \t]*=`)
 var exportRe = regexp.MustCompile(`^export[ \t]*\([ \t]*([^()\s][^()]*?)[ \t]*\)`)

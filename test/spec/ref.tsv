@@ -173,7 +173,7 @@ ref-unspellable-root-list	errc	**.[1]	no_path
 # source resolved $.a.true to 7. (The source needs a real NUL, which a
 # .tsv cell cannot carry -- the runners' unescape maps \u to u -- so it
 # lives in a fixture file, as file.tsv does.)
-ref-unspellable-no-collision	errc	@"__FIXTURES__/unspellable-key.aon" b:$.a.true	no_path
+ref-unspellable-no-collision	errc	@"__FIXTURES__/unspellable-key.aontu" b:$.a.true	no_path
 #
 # A REFERENCE'S COPY SHARES WHAT THE SOURCE IS STILL SETTLING
 # (ADR-025). The copy is a per-destination instance and owns the

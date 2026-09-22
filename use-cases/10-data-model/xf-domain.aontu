@@ -1,0 +1,45 @@
+# xf-domain.aontu --- the record schema as TypeScript, one transform.
+#
+# THE WALK, and what it costs (G9 worked example 1, ADR-038): the
+# schema below is walked into TypeScript text, which the transform
+# spells itself. There is no declaration vocabulary and no lowering
+# behind it any more, so the TypeScript here is the generator's.
+#
+# TWO THINGS TO READ OFF IT. The schema is lifted with `type()`: the
+# records are type()-marked, and a pack over an unmarked bag skips its
+# marked children (the membership rule), so the bag itself is marked
+# to say the children are wanted. And the optional keys -- `email?`,
+# `creditLimitCents?` -- are ABSENT: an optional key with nothing to
+# generate is not a member either, so a transform over a schema does
+# not see them (use-cases/BUGS.md 86); xf-order.aontu states optionality
+# as data instead.
+@"./domain.aontu"
+
+step: hide(pack(type($.schema), {
+  d: "export interface " + key(1) + " {\n"
+    + join(
+      pick(
+        pack(_, {
+          f: "  " + key(1) + ": "
+            + match(
+              _,
+              integer, "number",
+              biginteger, "bigint",
+              string, "string",
+              boolean, "boolean",
+              [], "unknown[]",
+              "unknown"
+            )
+            + ";"
+        }),
+        f
+      ),
+      "\n"
+    )
+    + "\n}"
+}))
+
+# ONE `line` HOLDING THE WHOLE FILE. A blank line SEPARATES the
+# records, so the file is a join rather than a node per record: a
+# `line` per record would need to know which one is last.
+out: file("domain.ts", [line(join(pick($.step, d), "\n\n"))])

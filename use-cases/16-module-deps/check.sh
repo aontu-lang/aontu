@@ -50,13 +50,13 @@ view() {
 
 # 1. The codebase generates: twelve modules, four layers, every edge
 # legal and every inverse written.
-run eval 0 -- "$DIR/model.aon"
+run eval 0 -- "$DIR/model.aontu"
 diff -u "$DIR/expected/model.json" "$WORK/eval.out" \
-  || fail "model.aon output drifted from expected/model.json"
-ok "model.aon generates: twelve modules, twenty-one legal edges"
+  || fail "model.aontu output drifted from expected/model.json"
+ok "model.aontu generates: twelve modules, twenty-one legal edges"
 
 # 2. The verb reports the same verdict without generating.
-run rel 0 -- relations "$DIR/model.aon"
+run rel 0 -- relations "$DIR/model.aontu"
 has rel out 'verdict: pass'
 ok "relations: acyclic + inverse both hold across the codebase"
 
@@ -66,7 +66,7 @@ ok "relations: acyclic + inverse both hold across the codebase"
 # feature. Two disjunctions with nothing in common do not meet: the
 # architecture rule refuses as an ordinary conflict, at generation,
 # with both sides of it named.
-run upward 1 -- "$DIR/bad/upward.aon"
+run upward 1 -- "$DIR/bad/upward.aontu"
 has upward err '[aontu/empty]'
 has upward err 'Cannot unify value: "core"|"util" with value: "feature"'
 ok "upward dependency: core on feature refuses, naming both layers"
@@ -77,40 +77,40 @@ ok "upward dependency: core on feature refuses, naming both layers"
 # stood here as a known miss until that was fixed (BUGS.md 69). The
 # rule is a rule when it holds in every spelling, so both spellings
 # are asserted.
-run swapped 1 -- "$DIR/bad/upward-swapped.aon"
+run swapped 1 -- "$DIR/bad/upward-swapped.aontu"
 has swapped err '[aontu/empty]'
 ok "upward dependency: refused with the blocks in either order"
 
 # 4. A cycle between two util modules -- legal by layer, refused by
 # acyclic() -- reports at generation and from the verb, naming the
 # loop it runs through.
-run cyceval 1 -- "$DIR/bad/cycle.aon"
+run cyceval 1 -- "$DIR/bad/cycle.aontu"
 has cyceval err '[aontu/relation_cycle]'
-run cycle 1 -- relations "$DIR/bad/cycle.aon"
+run cycle 1 -- relations "$DIR/bad/cycle.aontu"
 has cycle out 'verdict: fail'
 has cycle out 'cycle $.mods.bytes -> $.mods.log -> $.mods.bytes'
 ok "cycle: a sideways loop refused at generation, named by the verb"
 
 # 5. An edge whose mirror was never written refuses the same way, and
 # the verb names the exact absent entry.
-run noinveval 1 -- "$DIR/bad/missing-inverse.aon"
+run noinveval 1 -- "$DIR/bad/missing-inverse.aontu"
 has noinveval err '[aontu/relation_inverse_missing]'
-run noinv 1 -- relations "$DIR/bad/missing-inverse.aon"
+run noinv 1 -- relations "$DIR/bad/missing-inverse.aontu"
 has noinv out '$.mods.bytes does not list $.mods.clock under usedBy'
 ok "missing inverse: refused at generation, the exact entry named"
 
 # 6. A dependency on a module nobody wrote is decided inside the
 # evaluation: it resolves or the document refuses.
-run dangle 1 -- "$DIR/bad/dangling.aon"
+run dangle 1 -- "$DIR/bad/dangling.aontu"
 has dangle err '[aontu/rel_unresolved]'
 ok "dangling: a dependency on an absent module refuses"
 
 # 7. The closure question over the same edges, both ways. A deployable
 # reaches the leaf it never names directly; the leaf reaches nothing.
-run reach 0 -- reaches '$.mods.cli' '$.mods.bytes' --relation dependsOn "$DIR/model.aon"
+run reach 0 -- reaches '$.mods.cli' '$.mods.bytes' --relation dependsOn "$DIR/model.aontu"
 has reach out 'verdict: reaches'
 has reach out '$.mods.cli -> $.mods.billing -> $.mods.auth -> $.mods.bytes'
-run noreach 1 -- reaches '$.mods.bytes' '$.mods.cli' --relation dependsOn "$DIR/model.aon"
+run noreach 1 -- reaches '$.mods.bytes' '$.mods.cli' --relation dependsOn "$DIR/model.aontu"
 has noreach out 'verdict: unreachable'
 ok "reaches --relation dependsOn: downstream yes, upstream no"
 
@@ -119,10 +119,10 @@ ok "reaches --relation dependsOn: downstream yes, upstream no"
 # everywhere after. The three deployables are the roots because
 # nothing depends on them -- which the renderer DERIVES from the edge
 # set rather than being told.
-view diagram-tree.txt tree --relation dependsOn "$DIR/model.aon"
+view diagram-tree.txt tree --relation dependsOn "$DIR/model.aontu"
 # The same rows as SVG: the same integer grid, drawn -- so the figure
 # the site shows is the figure the gate pins.
-view diagram-tree.svg tree --relation dependsOn --as svg "$DIR/model.aon"
+view diagram-tree.svg tree --relation dependsOn --as svg "$DIR/model.aontu"
 [ "$(grep -c '(\*)' "$WORK/diagram-tree.txt")" -eq 9 ] \
   || fail "expected nine elided repeats in the tree"
 [ "$(grep -cE '^[a-z]' "$WORK/diagram-tree.txt")" -eq 3 ] \
@@ -132,13 +132,13 @@ ok "the dependency tree draws: three roots, every repeat elided once"
 # 9. One subtree, from a named root: what a feature module actually
 # pulls in, which is the question a reviewer of that module has.
 view diagram-tree-billing.txt tree --relation dependsOn \
-  --root '$.mods.billing' "$DIR/model.aon"
+  --root '$.mods.billing' "$DIR/model.aontu"
 ok "tree --root: one module's own closure, drawn alone"
 
 # 10. A misspelled root is refused rather than drawn: an empty tree
 # and a typo look identical in a golden file.
 run typo 4 -- view tree --relation dependsOn \
-  --root '$.mods.nosuch' "$DIR/model.aon"
+  --root '$.mods.nosuch' "$DIR/model.aontu"
 [ ! -s "$WORK/typo.out" ] || fail "a refused tree should draw nothing"
 has typo err 'refer_unresolved'
 has typo err '$.mods.nosuch is not a node of the dependsOn graph'
@@ -150,13 +150,13 @@ ok "tree --root: a node that does not exist refuses"
 # lower triangle, and the footer counts the cells above the diagonal:
 # zero IS the acyclicity proof, in the picture's own shape.
 view diagram-matrix.txt matrix --relation dependsOn --order partition \
-  --closure "$DIR/model.aon"
+  --closure "$DIR/model.aontu"
 view diagram-matrix.svg matrix --relation dependsOn --order partition \
-  --closure --as svg "$DIR/model.aon"
+  --closure --as svg "$DIR/model.aontu"
 # --check is the CI gate for a committed figure, SVG included.
 run svg-gate 0 -- view matrix --relation dependsOn --order partition \
   --closure --as svg --out "$DIR/expected/diagram-matrix.svg" --check \
-  "$DIR/model.aon"
+  "$DIR/model.aontu"
 ok "the dependency-structure matrix draws: twelve modules square"
 
 # 11b. THE ARCHITECTURE LAYERS, the drawing every layered codebase has
@@ -168,42 +168,42 @@ ok "the dependency-structure matrix draws: twelve modules square"
 # model with an upward edge cannot settle it. `# dependsOn: 19
 # downward, 2 sideways, 0 upward` is the layering rule, counted.
 view diagram-layer.txt layer --relation dependsOn --group-by layer \
-  "$DIR/model.aon"
+  "$DIR/model.aontu"
 view diagram-layer.svg layer --relation dependsOn --group-by layer \
-  --as svg "$DIR/model.aon"
+  --as svg "$DIR/model.aontu"
 # --edges all draws the relation OVER the bands: the same figure a
 # reader tracing one module's dependencies wants. The default draws
 # the upward edges alone, because those are the violations the bands
 # cannot show on their own.
 view diagram-layer-edges.svg layer --relation dependsOn --group-by layer \
-  --edges all --as svg "$DIR/model.aon"
+  --edges all --as svg "$DIR/model.aontu"
 run edged 0 -- view layer --relation dependsOn --group-by layer \
-  --edges all "$DIR/model.aon"
+  --edges all "$DIR/model.aontu"
 has edged out '# sideways: auth -> http'
 has edged out '# downward: cli -> billing'
 run bare 0 -- view layer --relation dependsOn --group-by layer \
-  --edges none --as mermaid "$DIR/model.aon"
+  --edges none --as mermaid "$DIR/model.aontu"
 hasnt bare out ' --> '
 has_golden() { grep -qF -- "$2" "$DIR/expected/$1" || fail "$1 lacks: $2"; }
 has_golden diagram-layer.txt '# dependsOn: 19 downward, 2 sideways, 0 upward'
 run layered 0 -- view layer --relation dependsOn --group-by layer \
-  --layers app,feature,core,util --as mermaid "$DIR/model.aon"
+  --layers app,feature,core,util --as mermaid "$DIR/model.aontu"
 has layered out 'subgraph g0["app"]'
 ok "the architecture layers draw: four bands, every edge downward or sideways"
 
 # 11c. THE VIEW DOCUMENT: every figure this case commits, declared as
-# data in `views.aon` beside the model rather than as seven shell
+# data in `views.aontu` beside the model rather than as seven shell
 # lines kept in step with it. One evaluation draws all seven, and
 # `--check` is the gate -- all or nothing, so a set whose fourth
 # figure refuses writes none of them. `views` is the document's own
 # key and `--views` says where to look (ADR-010).
-run views 0 -- view --views '$.views' --check "$DIR/views.aon"
+run views 0 -- view --views '$.views' --check "$DIR/views.aontu"
 # The same declarations, DRAWN rather than gated: a copy of the
 # document in a scratch directory writes the same seven figures there,
 # because every `out` is resolved against the document's own directory.
 mkdir -p "$WORK/expected"
-sed 's|@"./model.aon"|@"'"$DIR"'/model.aon"|' "$DIR/views.aon" > "$WORK/draw.aon"
-$AONTU view --views '$.views' "$WORK/draw.aon" 2>/dev/null \
+sed 's|@"./model.aontu"|@"'"$DIR"'/model.aontu"|' "$DIR/views.aontu" > "$WORK/draw.aontu"
+$AONTU view --views '$.views' "$WORK/draw.aontu" 2>/dev/null \
   || fail "the view document did not draw"
 for figure in diagram-tree.txt diagram-tree.svg diagram-tree-billing.txt \
   diagram-matrix.txt diagram-matrix.svg diagram-layer.txt diagram-layer.svg \
@@ -217,16 +217,16 @@ ok "the view document draws and gates all eight figures in one run"
 # cyclic document still evaluates -- the graph atoms' verdict lands at
 # generation -- so a drawing tool is handed cyclic edge sets in
 # practice, and marks the closing edge instead of recursing into it.
-view diagram-tree-cycle.txt tree --relation dependsOn "$DIR/bad/cycle.aon"
+view diagram-tree-cycle.txt tree --relation dependsOn "$DIR/bad/cycle.aontu"
 has_cycle="$(grep -c '(cycle)' "$WORK/diagram-tree-cycle.txt")"
 [ "$has_cycle" -ge 1 ] \
   || fail "the cyclic model should draw a (cycle) mark"
 ok "the tree of a cyclic model terminates, marking the closing edge"
 
 # 13. The model answers ordinary queries about itself.
-run get 0 -- model get '$.mods.http.layer' "$DIR/model.aon"
+run get 0 -- model get '$.mods.http.layer' "$DIR/model.aontu"
 has get out '"core"'
-run getdir 0 -- model get '$.mods.store.dir' "$DIR/model.aon"
+run getdir 0 -- model get '$.mods.store.dir' "$DIR/model.aontu"
 has getdir out '"core/store"'
 ok "get: layer and directory read straight off the model"
 
@@ -236,12 +236,12 @@ ok "get: layer and directory read straight off the model"
 # `get --keys --types` does, and stops at a depth that says how many
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
-run doc 0 -- view doc --depth 2 "$DIR/model.aon"
+run doc 0 -- view doc --depth 2 "$DIR/model.aontu"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 run docgate 0 -- view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/model.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/model.aontu"
 run docsvg 0 -- view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/model.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/model.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

@@ -1,8 +1,7 @@
 # Aontu editor integrations
 
 Editor plugins that connect to the Aontu language server (`aontu lsp`) for
-diagnostics, hover and completion on `.aon` (preferred) and `.aontu`
-files. All language intelligence lives in the server: see
+diagnostics, hover and completion on `.aontu` files. All language intelligence lives in the server: see
 [`docs/lsp.md`](../docs/lsp.md); these plugins are thin clients.
 
 | Editor | Directory | LSP | Syntax |

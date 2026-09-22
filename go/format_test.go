@@ -28,13 +28,13 @@ func TestFormatReportsWhatChanged(t *testing.T) {
 // why in the finding shape every verb uses, the file named.
 func TestFormatRefusesASyntaxError(t *testing.T) {
 	a := New()
-	a.File = "broken.aon"
+	a.File = "broken.aontu"
 	r := a.Format("a: {b\n")
 	if "error" != r.Verdict || 1 != len(r.Errors) {
 		t.Fatalf("want one error: %+v", r)
 	}
 	f := r.Errors[0]
-	if "syntax" != f.Code || "parse" != f.Class || "broken.aon" != f.Sites[0].File {
+	if "syntax" != f.Code || "parse" != f.Class || "broken.aontu" != f.Sites[0].File {
 		t.Fatalf("finding: %+v", f)
 	}
 
@@ -77,9 +77,9 @@ func TestFormatRefusesItsOwnDefect(t *testing.T) {
 	}
 
 	a := New()
-	a.File = "doc.aon"
+	a.File = "doc.aontu"
 	named := a.Format("a: 1\n")
-	if "a formatter defect: please report it with the source (doc.aon)" != *named.Errors[0].Note {
+	if "a formatter defect: please report it with the source (doc.aontu)" != *named.Errors[0].Note {
 		t.Fatalf("note: %q", *named.Errors[0].Note)
 	}
 
@@ -175,7 +175,7 @@ func TestFormatKeepsTheSpellingTheEngineRefuses(t *testing.T) {
 		t.Fatalf("relation verdict: %q", formatMeetOf(rel))
 	}
 
-	raw, err := os.ReadFile(filepath.Join("..", "use-cases", "repros", "key-func", "spread-key-through-deep-ref.aon"))
+	raw, err := os.ReadFile(filepath.Join("..", "use-cases", "repros", "key-func", "spread-key-through-deep-ref.aontu"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,10 +255,10 @@ func TestUnifiedDiff(t *testing.T) {
 	edited := append([]string{}, lines...)
 	edited[2] = "changed 2"
 	edited = append(edited[:17], append([]string{"inserted"}, edited[17:]...)...)
-	want := "--- a/f.aon\n+++ b/f.aon\n" +
+	want := "--- a/f.aontu\n+++ b/f.aontu\n" +
 		"@@ -1,6 +1,6 @@\n line 0\n line 1\n-line 2\n+changed 2\n line 3\n line 4\n line 5\n" +
 		"@@ -15,6 +15,7 @@\n line 14\n line 15\n line 16\n+inserted\n line 17\n line 18\n line 19\n"
-	if got := UnifiedDiff("f.aon", before, strings.Join(edited, "\n")+"\n"); got != want {
+	if got := UnifiedDiff("f.aontu", before, strings.Join(edited, "\n")+"\n"); got != want {
 		t.Fatalf("two hunks:\n want %q\n got  %q", want, got)
 	}
 }
@@ -273,7 +273,7 @@ func TestEveryCorpusDocumentFormatsToAFixedPoint(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() && strings.HasSuffix(path, ".aon") {
+			if !info.IsDir() && strings.HasSuffix(path, ".aontu") {
 				files = append(files, path)
 			}
 			return nil

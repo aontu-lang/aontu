@@ -16,10 +16,10 @@ hand you a schema that admits more than the model does.
 ## Export a whole document
 
 A document whose root is one `close()` expression exports as one
-schema object, sealed at the root. Write this as `event.aon`:
+schema object, sealed at the root. Write this as `event.aontu`:
 
 <!-- test: scenario jsonschema-export -->
-<!-- test: file event.aon -->
+<!-- test: file event.aontu -->
 ```aontu
 close({
   id: string & re("^evt_[0-9a-f]{12}$")
@@ -31,7 +31,7 @@ close({
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema event.aon
+$ aontu jsonschema event.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -84,9 +84,9 @@ entry with nothing to strip.
 [`vet --at`](../reference-api.md#aontu-vet) takes. This is the MCP
 move: keep a registry of tools in one document and answer each tool's
 `inputSchema` from its own anchor. Write a one-tool registry as
-`tools.aon`:
+`tools.aontu`:
 
-<!-- test: file tools.aon -->
+<!-- test: file tools.aontu -->
 ```aontu
 argschemas: type(close({
   search_docs: close({
@@ -99,7 +99,7 @@ argschemas: type(close({
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at '$.argschemas.search_docs' tools.aon
+$ aontu jsonschema --at '$.argschemas.search_docs' tools.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -143,9 +143,9 @@ reference under
 
 Constructs JSON Schema cannot say still export, as the nearest
 admissible schema, and each one is named on stderr with its path and
-construct. Collect the classes in `report.aon`:
+construct. Collect the classes in `report.aontu`:
 
-<!-- test: file report.aon -->
+<!-- test: file report.aontu -->
 ```aontu
 report: {
   total: number & must((v) => 0 <= v, "total must not be negative")
@@ -157,7 +157,7 @@ report: {
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at report report.aon
+$ aontu jsonschema --at report report.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -190,7 +190,7 @@ a schema admitting more than the model does:
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --strict --at report report.aon
+$ aontu jsonschema --strict --at report report.aontu
 ...
 lossy: $.report.amountEur bigdecimal: JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says "number" and a consumer may round
 lossy: $.report.attempts length: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
@@ -220,9 +220,9 @@ keywords are the sizing atom's best rendering, not its meaning.
 Third, a spread template crosses as `additionalProperties` (or
 `items`) only when it is a bare kind. A template carrying a
 constraint call stays residual and exports `{}`, reported as
-`unresolved`. Put both in `spreads.aon`:
+`unresolved`. Put both in `spreads.aontu`:
 
-<!-- test: file spreads.aon -->
+<!-- test: file spreads.aontu -->
 ```aontu
 labels: { &: string }
 annotations: { &: string & length(max(63)) }
@@ -230,7 +230,7 @@ annotations: { &: string & length(max(63)) }
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --strict spreads.aon
+$ aontu jsonschema --strict spreads.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -265,9 +265,9 @@ crosses as `items`, a constrained element template does not.
 Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
 `deprecated: true`, and what the deprecation SAYS does not, because
 the draft has no field for it. That half is reported. Write
-`legacy.aon`:
+`legacy.aontu`:
 
-<!-- test: file legacy.aon -->
+<!-- test: file legacy.aontu -->
 ```aontu
 region: deprecate(string & re("^[a-z]{2}-[a-z]+-[0-9]$"), {
   msg: "renamed"
@@ -278,7 +278,7 @@ region: deprecate(string & re("^[a-z]{2}-[a-z]+-[0-9]$"), {
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --strict legacy.aon
+$ aontu jsonschema --strict legacy.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
@@ -313,7 +313,7 @@ at all exits 4, and stdout stays empty: never a partial schema. An
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at '$.reprot' report.aon
+$ aontu jsonschema --at '$.reprot' report.aontu
 $: no_path [reference]
   [aontu/no_path]: Cannot at value at path $
 ...
@@ -322,9 +322,9 @@ $ echo $?
 ```
 
 So is a document that does not stand up on its own, such as a
-dangling reference in `dangling.aon`:
+dangling reference in `dangling.aontu`:
 
-<!-- test: file dangling.aon -->
+<!-- test: file dangling.aontu -->
 ```aontu
 spec: owner: $.people.alice.email
 people: {}
@@ -332,10 +332,10 @@ people: {}
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema dangling.aon
+$ aontu jsonschema dangling.aontu
 $.spec.owner: no_path [reference]
   [aontu/no_path]: Cannot resolve value at path $.spec.owner
-  data: dangling.aon:1:14 ($.people.alice.email)
+  data: dangling.aontu:1:14 ($.people.alice.email)
 $ echo $?
 4
 ```

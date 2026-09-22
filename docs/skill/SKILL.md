@@ -3,7 +3,7 @@ name: aontu
 description: >-
   Write, check and query aontu definitions — a JSON superset where
   documents UNIFY instead of overwriting. Use when a repository holds
-  `.aon` files, when configuration must satisfy a schema rather than
+  `.aontu` files, when configuration must satisfy a schema rather than
   merely parse, or when you need to ask what a configuration says at a
   path and why it says it.
 ---
@@ -31,12 +31,12 @@ Start here:
 The verbs, all of which answer as JSON with `--format json`:
 
 ```
-aontu vet schema.aon data.aon   # does this data satisfy that truth?
-aontu model get $.a.b file.aon        # what does it say at a path?
-aontu model why $.a.b file.aon        # why does that value hold?
-aontu model set $.a.b=1 --entry file.aon --overlay over.aon
-aontu allow --role dev roles.aon $.a.b   # may this role change that subtree?
-aontu hash file.aon             # a pin that survives reformatting
+aontu vet schema.aontu data.aontu   # does this data satisfy that truth?
+aontu model get $.a.b file.aontu        # what does it say at a path?
+aontu model why $.a.b file.aontu        # why does that value hold?
+aontu model set $.a.b=1 --entry file.aontu --overlay over.aontu
+aontu allow --role dev roles.aontu $.a.b   # may this role change that subtree?
+aontu hash file.aontu             # a pin that survives reformatting
 ```
 
 These four files also ship INSIDE the command, so they answer with no

@@ -233,10 +233,10 @@ func TestContributionsMarkdown(t *testing.T) {
 		{Canon: "1", Role: "literal",
 			Site: aontu.WhySite{Col: -1, File: "", Row: -1}},
 		{Canon: "integer", Role: "spread",
-			Site: aontu.WhySite{Col: 3, File: "x.aon", Row: 2}},
+			Site: aontu.WhySite{Col: 3, File: "x.aontu", Row: 2}},
 	})
 	want := "\n\n---\n\nContributions:\n" +
-		"- `1` — literal\n- `integer` — spread (x.aon:2:3)"
+		"- `1` — literal\n- `integer` — spread (x.aontu:2:3)"
 	if want != got {
 		t.Fatalf("want %q, got %q", want, got)
 	}

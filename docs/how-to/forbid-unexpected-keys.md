@@ -25,10 +25,10 @@ config: { host:h port:1 }
 ```
 
 Declared keys compose as before. Now add a key the schema does not
-declare. Write this as `config.aon`:
+declare. Write this as `config.aontu`:
 
 <!-- test: scenario closed-map -->
-<!-- test: file config.aon -->
+<!-- test: file config.aontu -->
 ```aontu
 config: close({ host:string port:integer })
 config: { host:h port:1 debug:true }
@@ -36,7 +36,7 @@ config: { host:h port:1 debug:true }
 
 <!-- test: run -->
 ```sh
-$ aontu config.aon
+$ aontu config.aontu
 [aontu/closed]: Cannot resolve value at path $.config.debug
 ...
 $ echo $?

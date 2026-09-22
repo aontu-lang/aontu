@@ -111,7 +111,7 @@ order, and the first that answers wins:
    is in (X-2).
 4. **The project pin**, `aontu_meta/version` (§4.1), found by walking up
    from the working directory to the root. The nearest wins.
-5. **The default**, from `~/.aontu/env.aon` (§5), set by
+5. **The default**, from `~/.aontu/env.aontu` (§5), set by
    `aontu env default`.
 6. **The front binary itself.** No pin, no default: the version on
    `PATH` runs, as it does today.
@@ -138,7 +138,7 @@ engine.
 When the resolved version is not installed, the front binary installs
 it first (X-4): it says so on standard error, fetches and verifies the
 release (§6), and then switches. `AONTU_ENV_OFFLINE=1`, or
-`offline: true` in `env.aon`, turns that into a refusal that names the
+`offline: true` in `env.aontu`, turns that into a refusal that names the
 command to run, for a CI job that wants every install explicit.
 
 ### 3.3 The cost
@@ -246,7 +246,7 @@ pin latest` resolves `latest` and writes the number it resolved to.
 
 ```
 ~/.aontu/
-  env.aon                       # the settings, an aontu document
+  env.aontu                       # the settings, an aontu document
   versions/
     go/0.1.15/                  # a release archive, unpacked and verified
       aontu  aontu-lsp  LICENSE  .verified
@@ -255,7 +255,7 @@ pin latest` resolves `latest` and writes the number it resolved to.
   cache/                        # downloads in flight; safe to delete
 ```
 
-`env.aon` is the manager's own configuration, written in its own
+`env.aontu` is the manager's own configuration, written in its own
 language and read with its own engine:
 
 ```
@@ -310,7 +310,7 @@ aontu env list [--available]       # installed versions of this series; with --a
 aontu env install <version>|latest [--from <archive>]
 aontu env remove <version>
 aontu env pin <version>|latest     # write this series' line in the nearest aontu_meta/version
-aontu env default <version>        # write this series' default in ~/.aontu/env.aon
+aontu env default <version>        # write this series' default in ~/.aontu/env.aontu
 aontu env which [<args>...]        # the binary that would run for these arguments, and the reason
 aontu env run <version> -- <args>  # one invocation under a version; `aontu +<version> <args>` is the same
 aontu env self update|version      # the front binary
@@ -363,7 +363,7 @@ no pin in scope; no default set; running itself
 $ aontu env pin 0.1.15
 wrote go 0.1.15 to ./aontu_meta/version
 
-$ aontu vet schema.aon data.aon
+$ aontu vet schema.aontu data.aontu
 env: installing go 0.1.15 from https://github.com/aontu-lang/aontu/releases/download/go%2Fv0.1.15
 env: verified aontu_0.1.15_linux_amd64.tar.gz against SHA256SUMS
 ok
@@ -372,21 +372,21 @@ $ aontu env
 aontu 0.1.14 (go), the binary on PATH
 running 0.1.15: pinned by ./aontu_meta/version
 
-$ aontu +0.1.14 vet schema.aon data.aon
+$ aontu +0.1.14 vet schema.aontu data.aontu
 ok
 
-$ AONTU_ENV_OFFLINE=1 aontu +0.1.16 vet schema.aon
+$ AONTU_ENV_OFFLINE=1 aontu +0.1.16 vet schema.aontu
 env: go 0.1.16 is not installed and this run is offline; run: aontu env install 0.1.16
 ```
 
 The same repository, with `aontu_policy: hide({ engine: { go:
-"0.1.15" } })` in `schema.aon`, evaluated by a versioned binary run by
+"0.1.15" } })` in `schema.aontu`, evaluated by a versioned binary run by
 hand:
 
 ```
-$ ~/.aontu/versions/go/0.1.14/aontu vet schema.aon data.aon
-engine_version [policy]: schema.aon pins engine go 0.1.15; this is go 0.1.14
-  --> schema.aon:3:12
+$ ~/.aontu/versions/go/0.1.14/aontu vet schema.aontu data.aontu
+engine_version [policy]: schema.aontu pins engine go 0.1.15; this is go 0.1.14
+  --> schema.aontu:3:12
 ```
 
 ## 10. Implementation
@@ -434,7 +434,7 @@ touching the network or the real home directory in a test.
 
 | phase | scope | size |
 | --- | --- | --- |
-| **P1** — the store and the proxy | `~/.aontu`, `env.aon`, resolution order without the document pin, exec and spawn, `+version`, `AONTU_VERSION`; `env`, `list`, `install`, `remove`, `pin`, `default`, `which`, `run`; the Go series from releases and the npm series from the registry; auto-install and offline; both ports; `--format json` | L |
+| **P1** — the store and the proxy | `~/.aontu`, `env.aontu`, resolution order without the document pin, exec and spawn, `+version`, `AONTU_VERSION`; `env`, `list`, `install`, `remove`, `pin`, `default`, `which`, `run`; the Go series from releases and the npm series from the registry; auto-install and offline; both ports; `--format json` | L |
 | **P2** — the promise | `$.aontu_policy.engine`, the pre-evaluation read in the proxy, `engine_version` in both evaluators with spec rows, the error-code registry entry; the standalone `aontu-lsp` binary resolving as the verb does | M |
 | **P3** — the front binary | `aontu env self update` and `self version`; the step-aside rule for package-manager installs; Windows spawn semantics verified on the Windows runners; `install --from`; `list --available` | M |
 | **P4** — the documentation | the how-to "Manage engine versions"; the CLI reference; the install channels' pages saying that every channel installs the manager; `docs/release-and-tag.md` on what a release must carry for `env` to find it | S |

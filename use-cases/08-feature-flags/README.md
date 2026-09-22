@@ -10,13 +10,13 @@ per-environment and per-tenant overrides, and an operational loop in
 which an agent or on-call operator changes a flag now, without editing
 the code-reviewed base files. The same document that serves the config is
 the ground truth that constrains the change. So this case exercises
-the write path: `aontu model set <path>=<value> --entry base.aon --overlay
-overlay.aon`, run repeatedly, plus `why` for provenance and `--trust`
+the write path: `aontu model set <path>=<value> --entry base.aontu --overlay
+overlay.aontu`, run repeatedly, plus `why` for provenance and `--trust`
 for containing a hostile overlay.
 
 ## The model tree
 
-`system.aon` is the base plus the overlay an operator writes.
+`system.aontu` is the base plus the overlay an operator writes.
 `flags` is the catalog; `envs` and `tenants` are the override layers,
 `effective` the resolved views built from all three, and `policy` the
 audits that run over them. `clock` is the one input a flag's expiry is
@@ -48,7 +48,7 @@ $
     └── starterco (1)
 ```
 
-`aontu view doc --depth 2 system.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 system.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -58,13 +58,13 @@ than its value.
 
 | File | Role |
 |---|---|
-| `flags.aon` | org-wide catalog: 6 flags, owner/expiry regexes, ranked `***` lifecycle defaults, one kill-switch pin, one narrow-only `message?` field |
-| `layers.aon` | `**` environment and `*` tenant layers (hidden), plus the `effective.<env>.<tenant>` views a flag SDK would read |
-| `policy.aon` | `clock.today` (stamped data: the language has no clock), the expired-flag lifecycle audit, the 0..100 rollout audit, both as `filter()` + `must(close({}))` |
-| `base.aon` | flags + layers + policy: the `--entry` for `set` (it never includes the overlay) |
-| `overlay.aon` | the ops overlay, written only by `aontu model set` |
-| `system.aon` | base + overlay: the runtime view served to SDKs; `get`, `why` and evaluation run here |
-| `flag-schema.aon` | the strict, closed `Flag` definition: a vet-only document that `base.aon` never includes |
+| `flags.aontu` | org-wide catalog: 6 flags, owner/expiry regexes, ranked `***` lifecycle defaults, one kill-switch pin, one narrow-only `message?` field |
+| `layers.aontu` | `**` environment and `*` tenant layers (hidden), plus the `effective.<env>.<tenant>` views a flag SDK would read |
+| `policy.aontu` | `clock.today` (stamped data: the language has no clock), the expired-flag lifecycle audit, the 0..100 rollout audit, both as `filter()` + `must(close({}))` |
+| `base.aontu` | flags + layers + policy: the `--entry` for `set` (it never includes the overlay) |
+| `overlay.aontu` | the ops overlay, written only by `aontu model set` |
+| `system.aontu` | base + overlay: the runtime view served to SDKs; `get`, `why` and evaluation run here |
+| `flag-schema.aontu` | the strict, closed `Flag` definition: a vet-only document that `base.aontu` never includes |
 | `data/` | agent-proposed flag candidates: one clean, one five-way-bad, one incomplete |
 | `attack/` | a hostile overlay pulling `@"/etc/hostname"` into a flag value |
 | `expected/` | JSON goldens for the build and all four effective views, the catalog canon, and the meet-ladder diagram |
@@ -91,7 +91,7 @@ than its value.
   flags must be disabled" is `filter($.flags, { expiry:
   below($.clock.today), enabled: true })` feeding
   `must(close({}), ...)`: the violation set must be empty. It lives
-  in `policy.aon` rather than in a shared `Flag` definition, because
+  in `policy.aontu` rather than in a shared `Flag` definition, because
   a relative reference inside a referenced definition does not rebind
   to the instance. The audit judges concrete enablement, and every
   value `aontu model set` writes is a concrete literal.
@@ -99,16 +99,16 @@ than its value.
   document.** The catalog's defaulted fields carry bare preferences
   (`enabled: ***false`, `rollout: ***0`) rather than a type conjunct.
   Type and range checking is `vet`'s job, against the strict `Flag`
-  definition in `flag-schema.aon`, which stays unhidden and outside
-  the generated model; the rollout-range audit in `policy.aon` checks
+  definition in `flag-schema.aontu`, which stays unhidden and outside
+  the generated model; the rollout-range audit in `policy.aontu` checks
   the catalog, the staging view and the megacorp view.
 - **The field shapes are named, in one of the two files.**
-  `flag-schema.aon` declares `%Key`, `%Owner`, `%Description` and
+  `flag-schema.aontu` declares `%Key`, `%Owner`, `%Description` and
   `%Date` as **aliases** (`%name = value` at the top level, `%name` in value
   position) so `created` and `expiry` cannot drift apart. An alias
   does not generate and does not appear in canon, so the named file
   and the written-out one are the same document with the same `aon1-`
-  hash. `flags.aon` repeats all four and does not name them, for two
+  hash. `flags.aontu` repeats all four and does not name them, for two
   reasons to weigh before reaching for an alias: an alias reaches
   nothing outside the document it is declared in (there is no
   construct for carrying a name across a file boundary), and inside a
@@ -128,9 +128,9 @@ than its value.
 ```mermaid
 graph TD
   top(("top"))
-  c0["***0<br/>spread | flags.aon:32:14"]
-  c1["**5<br/>pref | layers.aon:20:43"]
-  c2["*25<br/>pref | layers.aon:26:42"]
+  c0["***0<br/>spread | flags.aontu:32:14"]
+  c1["**5<br/>pref | layers.aontu:20:43"]
+  c2["*25<br/>pref | layers.aontu:26:42"]
   val{{"*25"}}
   top --> c0
   c0 --> c1
@@ -156,8 +156,8 @@ contribution) before drawing.
 
 ## What check.sh proves
 
-1. `base.aon` builds and matches `expected/base.json` (6 flags, 3
-   envs, 2 tenants), and `--canon flags.aon` matches
+1. `base.aontu` builds and matches `expected/base.json` (6 flags, 3
+   envs, 2 tenants), and `--canon flags.aontu` matches
    `expected/flags.canon.txt`: the defaults keep their rank and the
    kill switch is a pin.
 2. The rank ladder resolves without a priority table. For
@@ -171,7 +171,7 @@ contribution) before drawing.
 3. All four effective views (`staging.base`, `prod.base`,
    `prod.megacorp`, `prod.starterco`) match their JSON goldens byte
    for byte.
-4. `vet --at '$.Flag' --closed flag-schema.aon` classifies the agent
+4. `vet --at '$.Flag' --closed flag-schema.aontu` classifies the agent
    candidates. The clean one is `valid` (exit 0). The bad one is
    `invalid` (exit 1) with five `[aontu/constraint]` findings (key
    case, foreign owner domain, short description, slashed date,
@@ -197,8 +197,8 @@ contribution) before drawing.
 
    ```
    verdict: valid
-   replaced: overlay.aon:2:59 90 -> 55
-   wrote: overlay.aon
+   replaced: overlay.aontu:2:59 90 -> 55
+   wrote: overlay.aontu
    ```
 
 7. Setting the kill switch on is refused (exit 1) and writes nothing;
@@ -219,8 +219,8 @@ contribution) before drawing.
    ```
    $.effective.prod.base.ops_incident_banner.message: constraint [conflict]
      [aontu/constraint]: Cannot unify values at path $.effective.prod.base.ops_incident_banner.message
-     data: overlay.aon:3:44 ("this incident message is deliberately way over the eighty character maximum length")
-     schema: flags.aon:81:24 (string&length(integer&min(0)&max(80)))
+     data: overlay.aontu:3:44 ("this incident message is deliberately way over the eighty character maximum length")
+     schema: flags.aontu:81:24 (string&length(integer&min(0)&max(80)))
    ```
 
    The in-range message `"Elevated 5xx on EU checkout; incident
@@ -234,7 +234,7 @@ contribution) before drawing.
    is the read-side contract for paths the catalog does not declare.
 10. The `must()` audits fire on the write path. Enabling the expired
     `search_reranker_v3` is refused (exit 1) with the author's
-    message, the overlay is untouched, and `system.aon` still
+    message, the overlay is untouched, and `system.aontu` still
     evaluates (exit 0):
 
     ```
@@ -248,20 +248,20 @@ contribution) before drawing.
 11. The range audit fires the same way. `set ... rollout=200
     --in-place` is refused with `[aontu/must]` and `rollout must be
     an integer in 0..100`, reporting the edit it declined (`would
-    replace: overlay.aon:2:59 55 -> 200`) and writing nothing, so the
+    replace: overlay.aontu:2:59 55 -> 200`) and writing nothing, so the
     runtime view stays valid; an in-range value (55) is accepted.
 12. `why` at the tenant path attributes the value to both files, the
-    `*25` preference in `layers.aon` and the winning 55 in
-    `overlay.aon`:
+    `*25` preference in `layers.aontu` and the winning 55 in
+    `overlay.aontu`:
 
     ```
     $.tenants.megacorp.flags.checkout_v2.rollout = 55
-      1. *25  layers.aon:26:42  (pref)
-      2. 55  overlay.aon:2:59
+      1. *25  layers.aontu:26:42  (pref)
+      2. 55  overlay.aontu:2:59
     ```
 
     At the effective path, `why` names the catalog's `***0` spread in
-    `flags.aon` as the first rung.
+    `flags.aontu` as the first rung.
 13. Under `--trust root:<model-dir>` the runtime view evaluates
     normally and the attack overlay's absolute include is refused at
     parse time (exit 1):
@@ -270,7 +270,7 @@ contribution) before drawing.
     include denied: /etc/hostname (capability: root:<model-dir>)
     ```
 
-    `--trust none` refuses every include, `./base.aon` included, so
+    `--trust none` refuses every include, `./base.aontu` included, so
     the evaluation is fully hermetic.
 14. The meet ladder above, rendered by `aontu view ladder` at
     `$.effective.prod.megacorp.checkout_v2.rollout`, matches
@@ -280,4 +280,4 @@ contribution) before drawing.
 
 From this directory, `./check.sh` runs all 43 assertions and exits 0.
 It works on a temporary copy of the model, so the committed
-`overlay.aon` is never touched.
+`overlay.aontu` is never touched.

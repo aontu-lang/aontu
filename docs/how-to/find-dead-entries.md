@@ -10,10 +10,10 @@ Layered files silt up: an entry written before the template existed
 now repeats what the template already says, and deleting it by eye is
 a bet. `aontu trim --check` settles the bet by evaluation: each map
 entry is deleted in turn, the document re-evaluated, and the entries
-that made no difference are reported as paths. Write `services.aon`:
+that made no difference are reported as paths. Write `services.aontu`:
 
 <!-- test: scenario find-dead-entries -->
-<!-- test: file services.aon -->
+<!-- test: file services.aontu -->
 <!-- fmt: keep the template and the entry in one map, which is what trim reads -->
 ```aontu
 services: {
@@ -27,7 +27,7 @@ Now check it:
 
 <!-- test: run -->
 ```sh
-$ aontu trim --check services.aon
+$ aontu trim --check services.aontu
 verdict: redundant
 
 $.services.auth.tier
@@ -43,16 +43,16 @@ the document *error* is not redundant: the document does not stand
 up without that entry.)
 
 Delete the dead line yourself (trim only reports) and re-declare
-`services.aon`:
+`services.aontu`:
 
-<!-- test: file services.aon -->
+<!-- test: file services.aontu -->
 ```aontu
 services: { &: { tier:standard } auth:replicas:3 billing:replicas:1 }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu trim --check services.aon
+$ aontu trim --check services.aontu
 verdict: clean
 $ echo $?
 0

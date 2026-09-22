@@ -109,9 +109,9 @@ func nameOldLayout(dir string, stderr io.Writer) {
 	if 0 < len(old) {
 		io.WriteString(stderr,
 			"aontu: "+strings.Join(old, ", ")+" belong to an older layout: the package "+
-				"file is pkg.aon, the lockfile "+filepath.Join("aontu_meta", "pkg-lock.aon")+
+				"file is pkg.aontu, the lockfile "+filepath.Join("aontu_meta", "pkg-lock.aontu")+
 				" and the vendor tree "+filepath.Join("aontu_meta", "vendor")+"; rename "+
-				"pkg.aon's `mod` block to `pkg`, then run aontu sync\n")
+				"pkg.aontu's `mod` block to `pkg`, then run aontu sync\n")
 	}
 }
 

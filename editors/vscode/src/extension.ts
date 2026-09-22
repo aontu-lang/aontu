@@ -1,7 +1,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 // VS Code extension: thin client that launches the Aontu language server
-// (aontu lsp) and connects it to .aon / .aontu files. All language
+// (aontu lsp) and connects it to .aontu files. All language
 // intelligence lives in the server; this file only wires it up.
 
 import * as vscode from 'vscode'

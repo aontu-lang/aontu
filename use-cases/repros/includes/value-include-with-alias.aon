@@ -1,6 +1,0 @@
-# 85: the included file. Its alias is what breaks the value include in
-# value-include-declares-alias.aon; value-include-plain.aon is the same
-# document without it, and that one resolves.
-%x = 1
-y: %x
-code: units: [{ path: "a" }]

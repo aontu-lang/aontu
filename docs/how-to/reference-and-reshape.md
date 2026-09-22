@@ -22,10 +22,10 @@ prod: $.base & { replicas:3 }
 `prod` extends the base and the base is untouched. (Note the quotes
 on `"us-east"`: a bare word stops at the `-`.) Now try to *change* a
 field instead of adding one: the same base with `prod: $.base &
-{ tier: paid }`, as `tier.aon`:
+{ tier: paid }`, as `tier.aontu`:
 
 <!-- test: scenario reference-conflict -->
-<!-- test: file tier.aon -->
+<!-- test: file tier.aontu -->
 ```aontu
 base: { region:"us-east" tier:free }
 prod: $.base & { tier:paid }
@@ -33,7 +33,7 @@ prod: $.base & { tier:paid }
 
 <!-- test: run -->
 ```sh
-$ aontu tier.aon
+$ aontu tier.aontu
 [aontu/scalar_value]: Cannot unify values at path $.prod.tier
 ...
  Cannot unify value: "paid" with value: "free"

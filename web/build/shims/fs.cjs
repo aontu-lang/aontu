@@ -6,7 +6,7 @@
 function noFs(what) {
   const err = new Error(
     'no filesystem in the playground: ' + what +
-    ' is unavailable in the browser (file includes like @"other.aon" ' +
+    ' is unavailable in the browser (file includes like @"other.aontu" ' +
     'need the Node or Go CLI)')
   err.code = 'ENOENT'
   return err

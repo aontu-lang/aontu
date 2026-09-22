@@ -1,0 +1,11 @@
+# bad/missing-inverse.aontu --- change request CR-4718: email adds a
+# directory lookup but nobody records the inverse on directory. The
+# dependsOn relation declares inverse(dependedOnBy) (spec.aontu), so
+# GENERATION refuses the unmirrored edge with a located
+# relation_inverse_missing, and `aontu relations` reports the exact
+# missing entry.
+@"../system.aontu"
+
+catalog: domains: platform: services: email: dependsOn: [
+  path($.catalog.domains.identity.services.directory)
+]

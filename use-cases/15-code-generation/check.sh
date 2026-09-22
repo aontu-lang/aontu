@@ -4,7 +4,7 @@
 # One model, three targets, each over a different slice of it, and one
 # COMPONENT TREE that an engine turns into files. Nothing here
 # assembles text: each generator is a rule set (`emit`) whose `line`
-# nodes carry the target's own text, `all.aon` answers the three files
+# nodes carry the target's own text, `all.aontu` answers the three files
 # as one tree, and `aontu render` writes it through jostraca and holds
 # the goldens under expected/ to it. This script proves the output is
 # REAL -- the Go compiles, the SQL parses -- and that both ports build
@@ -29,9 +29,9 @@ skip() { pass=$((pass + 1)); echo "ok $pass - $1 # SKIP"; }
 # THE BYTES ARE JOSTRACA'S: `aontu render` hands the tree to the
 # generator runtime, which writes it, and `--check` holds the goldens
 # to what it writes.
-tree() { $AONTU model get out --trust root "$DIR/all.aon" 2>/dev/null; }
+tree() { $AONTU model get out --trust root "$DIR/all.aontu" 2>/dev/null; }
 RENDER="$AONTU render --trust root"
-$RENDER "$DIR/all.aon" "$WORK/out" >/dev/null 2>&1 \
+$RENDER "$DIR/all.aontu" "$WORK/out" >/dev/null 2>&1 \
   || fail "render did not write the tree"
 
 # ----------------------------------------------------------------
@@ -45,7 +45,7 @@ ok "one run, three files: types.go, types.ts and schema.sql"
 # 2. THE GOLDENS ARE HELD BY `render --check`: every file's bytes
 # against expected/<path>, the DO NOT EDIT banner included, since the
 # banner is a line of the file and not one a script prepends.
-$RENDER --check "$DIR/all.aon" "$DIR/expected" >/dev/null 2>&1 \
+$RENDER --check "$DIR/all.aontu" "$DIR/expected" >/dev/null 2>&1 \
   || fail "a file drifted from expected/"
 ok "the three generated files match their goldens byte for byte"
 
@@ -98,8 +98,8 @@ ok "the generated SQL PARSES, and creates the tables the model describes"
 # the Go unit must move while the TypeScript unit must not -- each
 # target reads part of the model, checked rather than asserted.
 mkdir -p "$WORK/slice"
-cp "$DIR"/gen-*.aon "$DIR/all.aon" "$WORK/slice/"
-sed 's/"Email"/"EmailAddr"/' "$DIR/model.aon" > "$WORK/slice/model.aon"
+cp "$DIR"/gen-*.aontu "$DIR/all.aontu" "$WORK/slice/"
+sed 's/"Email"/"EmailAddr"/' "$DIR/model.aontu" > "$WORK/slice/model.aontu"
 text() {
   $AONTU model get "$1" --trust root "$2" 2>/dev/null | python3 -c '
 import json, sys
@@ -108,8 +108,8 @@ sys.stdout.write("".join(
   k["props"].get("src", "") + ("\n" if "Line" == k["cmp"] else "")
   for k in n["children"]))'
 }
-text go "$WORK/slice/all.aon" > "$WORK/go2.txt"
-text ts "$WORK/slice/all.aon" > "$WORK/ts2.txt"
+text go "$WORK/slice/all.aontu" > "$WORK/go2.txt"
+text ts "$WORK/slice/all.aontu" > "$WORK/ts2.txt"
 grep -q 'EmailAddr' "$WORK/go2.txt" \
   || fail "the go slice did not reach the Go output"
 cmp -s "$DIR/expected/types.ts" "$WORK/ts2.txt" \
@@ -118,8 +118,8 @@ ok "slices hold: the go rename moves Go and leaves TypeScript alone"
 
 # 7. Generation is deterministic: the same instance twice, the same
 # bytes, unit by unit.
-text go "$DIR/all.aon" > "$WORK/again.txt"
-text go "$DIR/all.aon" > "$WORK/again2.txt"
+text go "$DIR/all.aontu" > "$WORK/again.txt"
+text go "$DIR/all.aontu" > "$WORK/again2.txt"
 cmp -s "$WORK/again.txt" "$WORK/again2.txt" \
   || fail "two runs of the same document differ"
 ok "two runs of the same document are byte-identical"
@@ -133,10 +133,10 @@ ok "two runs of the same document are byte-identical"
 # from writing outside its folder. The lost atomicity is recorded in
 # UNITS-AND-TREES.1.md §6 as a cost of the migration, not hidden here.
 mkdir -p "$WORK/broken"
-cp "$DIR"/gen-*.aon "$DIR/model.aon" "$DIR/all.aon" "$WORK/broken/"
-sed -i.bak 's#"schema.sql"#"../schema.sql"#' "$WORK/broken/gen-sql.aon"
+cp "$DIR"/gen-*.aontu "$DIR/model.aontu" "$DIR/all.aontu" "$WORK/broken/"
+sed -i.bak 's#"schema.sql"#"../schema.sql"#' "$WORK/broken/gen-sql.aontu"
 mkdir -p "$WORK/none"
-if $RENDER "$WORK/broken/all.aon" "$WORK/none" >"$WORK/broken.err" 2>&1; then
+if $RENDER "$WORK/broken/all.aontu" "$WORK/none" >"$WORK/broken.err" 2>&1; then
   fail "a climbing file path was accepted"
 fi
 grep -q '\.\.' "$WORK/broken.err" \
@@ -147,7 +147,7 @@ ok "a climbing file path is refused, and the refusal names it"
 # form catches a hand edit to a generated file.
 cp -r "$DIR/expected" "$WORK/drift"
 printf '// edited by hand\n' >> "$WORK/drift/types.ts"
-if $RENDER --check "$DIR/all.aon" "$WORK/drift" >"$WORK/drift.err" 2>&1; then
+if $RENDER --check "$DIR/all.aontu" "$WORK/drift" >"$WORK/drift.err" 2>&1; then
   fail "the check passed an edited golden"
 fi
 grep -q 'types.ts' "$WORK/drift.err" \
@@ -171,8 +171,8 @@ if command -v go >/dev/null 2>&1; then
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
   for u in go ts sql; do
-    "$GOBIN" model get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.go.json"
-    $AONTU model get "$u" --trust root "$DIR/all.aon" 2>/dev/null > "$WORK/$u.ts.json"
+    "$GOBIN" model get "$u" --trust root "$DIR/all.aontu" 2>/dev/null > "$WORK/$u.go.json"
+    $AONTU model get "$u" --trust root "$DIR/all.aontu" 2>/dev/null > "$WORK/$u.ts.json"
     diff -u "$WORK/$u.ts.json" "$WORK/$u.go.json" \
       || fail "$u: the two ports build different trees (ADR-001)"
   done
@@ -188,14 +188,14 @@ fi
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
 # The figure is what goes to STDOUT; the loss report goes to stderr.
-$AONTU view doc --depth 3 "$DIR/model.aon" > "$WORK/doc.out" 2>/dev/null \
+$AONTU view doc --depth 3 "$DIR/model.aontu" > "$WORK/doc.out" 2>/dev/null \
   || fail "the model tree did not draw"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 $AONTU view doc --depth 3 --out "$DIR/expected/diagram-doc.txt" --check \
-  "$DIR/model.aon" >/dev/null 2>&1 || fail "the model tree golden is stale"
+  "$DIR/model.aontu" >/dev/null 2>&1 || fail "the model tree golden is stale"
 $AONTU view doc --depth 3 --as svg --out "$DIR/expected/diagram-doc.svg" \
-  --check "$DIR/model.aon" >/dev/null 2>&1 || fail "the model tree SVG is stale"
+  --check "$DIR/model.aontu" >/dev/null 2>&1 || fail "the model tree SVG is stale"
 ok "the model tree draws and is pinned, text and SVG"
 
 echo "all $pass checks passed"

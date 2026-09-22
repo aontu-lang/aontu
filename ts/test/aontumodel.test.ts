@@ -13,9 +13,9 @@ const REPO = Path.join(__dirname, '..', '..')
 const TREE = Path.join(REPO, 'aontu')
 
 
-// Every .aon is a module, named by its path; a file named after the
-// directory holding it collapses, so aontu/profile/profile.aon is
-// `aontu:profile` and aontu/lang/text.aon is `aontu:lang/text`.
+// Every .aontu is a module, named by its path; a file named after the
+// directory holding it collapses, so aontu/profile/profile.aontu is
+// `aontu:profile` and aontu/lang/text.aontu is `aontu:lang/text`.
 function walk(dir: string, rel: string, found: string[]): string[] {
   for (const entry of Fs.readdirSync(dir, { withFileTypes: true })) {
     const subrel = rel ? rel + '/' + entry.name : entry.name
@@ -23,8 +23,8 @@ function walk(dir: string, rel: string, found: string[]): string[] {
       walk(Path.join(dir, entry.name), subrel, found)
       continue
     }
-    if (!entry.name.endsWith('.aon')) { continue }
-    const part = subrel.slice(0, -'.aon'.length).split('/')
+    if (!entry.name.endsWith('.aontu')) { continue }
+    const part = subrel.slice(0, -'.aontu'.length).split('/')
     if (1 < part.length && part[part.length - 1] === part[part.length - 2]) {
       part.pop()
     }
@@ -36,8 +36,8 @@ function walk(dir: string, rel: string, found: string[]): string[] {
 
 function leafOf(name: string): string {
   const rel = name.slice(AONTU_SCHEME.length).split('/')
-  const deep = Path.join(TREE, ...rel, rel[rel.length - 1] + '.aon')
-  return Fs.existsSync(deep) ? deep : Path.join(TREE, ...rel) + '.aon'
+  const deep = Path.join(TREE, ...rel, rel[rel.length - 1] + '.aontu')
+  return Fs.existsSync(deep) ? deep : Path.join(TREE, ...rel) + '.aontu'
 }
 
 

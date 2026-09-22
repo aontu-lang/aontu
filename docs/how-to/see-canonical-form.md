@@ -8,10 +8,10 @@ order: 40
 
 Generation answers "what does this resolve to?", and in answering it
 erases the thing a schema author cares about: what the document still
-admits. The canonical form keeps that. Write `timeout.aon`:
+admits. The canonical form keeps that. Write `timeout.aontu`:
 
 <!-- test: scenario canon -->
-<!-- test: file timeout.aon -->
+<!-- test: file timeout.aontu -->
 ```aontu
 timeout: *30|integer
 ```
@@ -20,11 +20,11 @@ Now evaluate it both ways:
 
 <!-- test: run -->
 ```sh
-$ aontu timeout.aon
+$ aontu timeout.aontu
 {
   "timeout": 30
 }
-$ aontu --canon timeout.aon
+$ aontu --canon timeout.aontu
 {"timeout":*30|integer}
 ```
 
@@ -32,9 +32,9 @@ Generation resolves the default; `--canon` keeps the whole
 default-and-type so you can see what a caller may still override. Where
 information has fully arrived, the two agree: a constraint
 [met](../unification.md) by a concrete value canons to just the value.
-Write `pinned.aon`:
+Write `pinned.aontu`:
 
-<!-- test: file pinned.aon -->
+<!-- test: file pinned.aontu -->
 ```aontu
 a: 1
 a: number
@@ -42,7 +42,7 @@ a: number
 
 <!-- test: run -->
 ```sh
-$ aontu --canon pinned.aon
+$ aontu --canon pinned.aontu
 {"a":1}
 ```
 

@@ -17,7 +17,7 @@ import (
 func pkgProject(t *testing.T, dep string, extra func(dir string)) string {
 	t.Helper()
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "pkg.aon"),
+	write(t, filepath.Join(dir, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {"+dep+"}\n")
 	if nil != extra {
 		extra(dir)
@@ -38,13 +38,13 @@ func pkgVendor(t *testing.T, dir, path string, files map[string]string) {
 }
 
 var pkgService = map[string]string{
-	"pkg.aon":     "pkg: {path: \"corp.example/schemas/service\", main: \"service.aon\"}\n",
-	"service.aon": modSource,
+	"pkg.aontu":     "pkg: {path: \"corp.example/schemas/service\", main: \"service.aontu\"}\n",
+	"service.aontu": modSource,
 }
 
 func lockLine(t *testing.T, root string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, "aontu_meta", "pkg-lock.aon"))
+	data, err := os.ReadFile(filepath.Join(root, "aontu_meta", "pkg-lock.aontu"))
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -57,14 +57,14 @@ func lockLine(t *testing.T, root string) string {
 
 func TestZipCanonicalIsOneDigestPerTree(t *testing.T) {
 	a := ZipCanonical([]ZipEntry{
-		{Path: "b.aon", Data: []byte("b: 2\n")}, {Path: "a.aon", Data: []byte("a: 1\n")}})
+		{Path: "b.aontu", Data: []byte("b: 2\n")}, {Path: "a.aontu", Data: []byte("a: 1\n")}})
 	b := ZipCanonical([]ZipEntry{
-		{Path: "a.aon", Data: []byte("a: 1\n")}, {Path: "b.aon", Data: []byte("b: 2\n")}})
+		{Path: "a.aontu", Data: []byte("a: 1\n")}, {Path: "b.aontu", Data: []byte("b: 2\n")}})
 	if Sha256Hex(a) != Sha256Hex(b) || !strings.HasPrefix(Sha256Hex(a), "sha256:") {
 		t.Fatalf("digests %s %s", Sha256Hex(a), Sha256Hex(b))
 	}
 	back, err := UnzipCanonical(a)
-	if nil != err || 2 != len(back) || "a.aon" != back[0].Path || "b: 2\n" != string(back[1].Data) {
+	if nil != err || 2 != len(back) || "a.aontu" != back[0].Path || "b: 2\n" != string(back[1].Data) {
 		t.Fatalf("round trip: %v %+v", err, back)
 	}
 	if empty, err := UnzipCanonical(ZipCanonical(nil)); nil != err || 0 != len(empty) {
@@ -72,9 +72,17 @@ func TestZipCanonicalIsOneDigestPerTree(t *testing.T) {
 	}
 }
 
+// Every entry in this test's archives is named `?.aontu`. The zip
+// offsets below count from the name, so they are written from its
+// length rather than from the number it happens to be.
+const name = len("a.aontu")
+
+// A local header, its name and its data: where the directory starts.
+const local = 30 + name + 5
+
 func TestUnzipCanonicalRefusesWhatTheWriterWouldNotWrite(t *testing.T) {
 	good := ZipCanonical([]ZipEntry{
-		{Path: "a.aon", Data: []byte("a: 1\n")}, {Path: "b.aon", Data: []byte("b: 2\n")}})
+		{Path: "a.aontu", Data: []byte("a: 1\n")}, {Path: "b.aontu", Data: []byte("b: 2\n")}})
 	refuses := func(zip []byte, why string) {
 		t.Helper()
 		if _, err := UnzipCanonical(zip); nil == err || !strings.Contains(err.Error(), why) {
@@ -91,26 +99,26 @@ func TestUnzipCanonicalRefusesWhatTheWriterWouldNotWrite(t *testing.T) {
 	refuses(flip(len(good)-2, 1), "end record")
 	refuses(flip(len(good)-22+4, 1), "end record")
 	refuses(flip(len(good)-22+8, 9), "end record")
-	cd := len(good) - 22 - 2*(46+5)
+	cd := len(good) - 22 - 2*(46+name)
 	refuses(flip(cd+10, 8), "entry 0")
 	refuses(flip(cd+12, 1), "entry 0")
 	refuses(flip(cd, 1), "central directory")
 	// A name length past the end of the directory.
-	refuses(flip(cd+46+5+28, 200), "central directory")
+	refuses(flip(cd+46+name+28, 200), "central directory")
 	swapped := append([]byte{}, good...)
 	swapped[cd+46] = 'b'
-	swapped[cd+46+46+5] = 'a'
+	swapped[cd+46+name+46] = 'a'
 	if _, err := UnzipCanonical(swapped); nil == err {
 		t.Fatal("swapped names accepted")
 	}
 	// Renamed in the local headers too, the entries are consistent and
 	// out of order.
 	swapped[30] = 'b'
-	swapped[70] = 'a'
-	refuses(swapped, "entries out of order at a.aon")
+	swapped[30+name+5+30] = 'a'
+	refuses(swapped, "entries out of order at a.aontu")
 	refuses(flip(4, 20), "local header")
 	refuses(flip(0, 1), "local header")
-	refuses(flip(30+5, 0x7a), "checksum")
+	refuses(flip(30+name, 0x7a), "checksum")
 	refuses(flip(30, 'z'), "local header")
 	// A data run that overruns the directory, and one that stops short.
 	big := append([]byte{}, good...)
@@ -119,17 +127,17 @@ func TestUnzipCanonicalRefusesWhatTheWriterWouldNotWrite(t *testing.T) {
 	if _, err := UnzipCanonical(big); nil == err {
 		t.Fatal("oversized data accepted")
 	}
-	one := ZipCanonical([]ZipEntry{{Path: "a.aon", Data: []byte("a: 1\n")}})
+	one := ZipCanonical([]ZipEntry{{Path: "a.aontu", Data: []byte("a: 1\n")}})
 	// Sizes that agree everywhere and overrun the directory.
 	overrun := append([]byte{}, one...)
-	for _, at := range []int{18, 22, 40 + 20, 40 + 24} {
+	for _, at := range []int{18, 22, local + 20, local + 24} {
 		overrun[at] = 100
 	}
-	refuses(overrun, "data of a.aon")
+	refuses(overrun, "data of a.aontu")
 	// Bytes between the last entry and the directory, with the end
 	// record pointing past them.
-	padded := append(append(append([]byte{}, one[:40]...), 0, 0, 0), one[40:]...)
-	padded[len(padded)-22+16] = 43
+	padded := append(append(append([]byte{}, one[:local]...), 0, 0, 0), one[local:]...)
+	padded[len(padded)-22+16] = byte(local + 3)
 	refuses(padded, "trailing bytes")
 	trailing := append(append([]byte{}, one[:len(one)-22-46-5]...), 0)
 	trailing = append(trailing, one[len(one)-22-46-5:]...)
@@ -139,20 +147,20 @@ func TestUnzipCanonicalRefusesWhatTheWriterWouldNotWrite(t *testing.T) {
 		t.Fatal("trailing byte accepted")
 	}
 	if !bytes.Equal(good, ZipCanonical([]ZipEntry{
-		{Path: "b.aon", Data: []byte("b: 2\n")}, {Path: "a.aon", Data: []byte("a: 1\n")}})) {
+		{Path: "b.aontu", Data: []byte("b: 2\n")}, {Path: "a.aontu", Data: []byte("a: 1\n")}})) {
 		t.Fatal("order-independent")
 	}
 }
 
 func TestArchiveAllowlistIsEnumerated(t *testing.T) {
-	for _, ok := range []string{"a.aon", "x/y/b.aontu", "c.json", "d.yaml", "e.yml",
+	for _, ok := range []string{"a.aontu", "x/y/b.aontu", "c.json", "d.yaml", "e.yml",
 		"f.toml", "g.ini", "h.md", "i.txt", "LICENSE", "sub/NOTICE", "J.JSON"} {
 		if !ArchiveAdmits(ok) {
 			t.Fatalf("%s refused", ok)
 		}
 	}
 	for _, bad := range []string{"a.sh", "b.js", "Makefile", ".gitignore", "c",
-		"d.aon.bak", ".claude/settings.json", "e.png"} {
+		"d.aontu.bak", ".claude/settings.json", "e.png"} {
 		if ArchiveAdmits(bad) {
 			t.Fatalf("%s admitted", bad)
 		}
@@ -161,24 +169,24 @@ func TestArchiveAllowlistIsEnumerated(t *testing.T) {
 
 func TestArchiveOfSkipsMetaAndNamesTheForbidden(t *testing.T) {
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"corp.example/x\"}\n")
-	write(t, filepath.Join(dir, "main.aon"), "a: 1\n")
-	write(t, filepath.Join(dir, "aontu_meta", "manifest.aon"), "{}")
-	write(t, filepath.Join(dir, "sub", ".hidden", "x.aon"), "x: 1\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"corp.example/x\"}\n")
+	write(t, filepath.Join(dir, "main.aontu"), "a: 1\n")
+	write(t, filepath.Join(dir, "aontu_meta", "manifest.aontu"), "{}")
+	write(t, filepath.Join(dir, "sub", ".hidden", "x.aontu"), "x: 1\n")
 	write(t, filepath.Join(dir, "sub", "run.sh"), "echo\n")
-	write(t, filepath.Join(dir, "sub", "ok.aon"), "ok: 1\n")
-	write(t, filepath.Join(dir, "exec.aon"), "e: 1\n")
-	if err := os.Chmod(filepath.Join(dir, "exec.aon"), 0o755); nil != err {
+	write(t, filepath.Join(dir, "sub", "ok.aontu"), "ok: 1\n")
+	write(t, filepath.Join(dir, "exec.aontu"), "e: 1\n")
+	if err := os.Chmod(filepath.Join(dir, "exec.aontu"), 0o755); nil != err {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(filepath.Join(dir, "main.aon"), filepath.Join(dir, "link.aon")); nil != err {
+	if err := os.Symlink(filepath.Join(dir, "main.aontu"), filepath.Join(dir, "link.aontu")); nil != err {
 		t.Fatal(err)
 	}
 
 	// Windows has no execute bit, so the executable is an ordinary file there.
-	wantFiles, wantForbidden := "[main.aon pkg.aon sub/ok.aon]", "[exec.aon link.aon sub/.hidden/ sub/run.sh]"
+	wantFiles, wantForbidden := "[main.aontu pkg.aontu sub/ok.aontu]", "[exec.aontu link.aontu sub/.hidden/ sub/run.sh]"
 	if "windows" == runtime.GOOS {
-		wantFiles, wantForbidden = "[exec.aon main.aon pkg.aon sub/ok.aon]", "[link.aon sub/.hidden/ sub/run.sh]"
+		wantFiles, wantForbidden = "[exec.aontu main.aontu pkg.aontu sub/ok.aontu]", "[link.aontu sub/.hidden/ sub/run.sh]"
 	}
 	a := ArchiveOf(dir)
 	paths := []string{}
@@ -193,7 +201,7 @@ func TestArchiveOfSkipsMetaAndNamesTheForbidden(t *testing.T) {
 	}
 	var main ArchiveFile
 	for _, f := range a.Files {
-		if "main.aon" == f.Path {
+		if "main.aontu" == f.Path {
 			main = f
 		}
 	}
@@ -284,7 +292,7 @@ func TestPkgTidyMissingPackage(t *testing.T) {
 		if "missing" != r.Verdict || 1 != len(r.Missing) || dep != r.Missing[0] {
 			t.Fatalf("%s: verdict %q missing %v", dep, r.Verdict, r.Missing)
 		}
-		if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aon")); nil == err {
+		if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aontu")); nil == err {
 			t.Fatalf("%s: lockfile written", dep)
 		}
 	}
@@ -296,18 +304,18 @@ func TestPkgTidySelectsMaxOfMinima(t *testing.T) {
 			"\"corp.example/geo\": {v: \"2.0.0\"}",
 		func(d string) {
 			pkgVendor(t, d, "corp.example/s", map[string]string{
-				"pkg.aon": "pkg: {path: \"corp.example/s\"}\n" +
+				"pkg.aontu": "pkg: {path: \"corp.example/s\"}\n" +
 					"dep: {\"corp.example/geo\": {v: \"1.5.0\"}}\n",
-				"main.aon": modSource,
+				"main.aontu": modSource,
 			})
 			pkgVendor(t, d, "corp.example/t", map[string]string{
-				"pkg.aon": "pkg: {path: \"corp.example/t\"}\n" +
+				"pkg.aontu": "pkg: {path: \"corp.example/t\"}\n" +
 					"dep: {\"corp.example/geo\": {v: \"1.1.0\"}}\n",
-				"main.aon": modSource,
+				"main.aontu": modSource,
 			})
 			pkgVendor(t, d, "corp.example/geo", map[string]string{
-				"pkg.aon":  "pkg: {path: \"corp.example/geo\"}\n",
-				"main.aon": "region: string\n",
+				"pkg.aontu":  "pkg: {path: \"corp.example/geo\"}\n",
+				"main.aontu": "region: string\n",
 			})
 		})
 
@@ -333,7 +341,7 @@ func TestPkgTidyRecomputesEveryPin(t *testing.T) {
 	dir := pkgProject(t, "\"corp.example/schemas/service\": {v: \"1.4.2\"}",
 		func(d string) {
 			pkgVendor(t, d, "corp.example/schemas/service", pkgService)
-			write(t, filepath.Join(d, "aontu_meta", "pkg-lock.aon"), lockHeader+
+			write(t, filepath.Join(d, "aontu_meta", "pkg-lock.aontu"), lockHeader+
 				"{\"lock\":{\"corp.example/schemas/service\":{\"archive\":\"sha256:stale\","+
 				"\"canon\":\"aon1-stale\",\"manifest\":\"sha256:gone\",\"v\":\"1.0.0\"}}}\n")
 		})
@@ -354,8 +362,8 @@ func TestPkgTidyLocksAnAliasWithThePackageItNames(t *testing.T) {
 		func(d string) {
 			pkgVendor(t, d, "corp.example/schemas/service", pkgService)
 			pkgVendor(t, d, "alias/legacy", map[string]string{
-				"pkg.aon":     pkgService["pkg.aon"],
-				"service.aon": "name: string\nport: *9090 | integer\n",
+				"pkg.aontu":     pkgService["pkg.aontu"],
+				"service.aontu": "name: string\nport: *9090 | integer\n",
 			})
 		})
 	r := PkgTidy(dir, nil)
@@ -379,12 +387,12 @@ func TestPkgTidyLocksAnAliasWithThePackageItNames(t *testing.T) {
 	}
 	// A dependency's own alias declaration rides along when the
 	// consumer's does not name a package.
-	write(t, filepath.Join(dir, "pkg.aon"),
+	write(t, filepath.Join(dir, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {\"corp.example/s\": {v: \"1.0.0\"}}\n")
 	pkgVendor(t, dir, "corp.example/s", map[string]string{
-		"pkg.aon": "pkg: {path: \"corp.example/s\"}\n" +
+		"pkg.aontu": "pkg: {path: \"corp.example/s\"}\n" +
 			"dep: {\"alias:legacy\": {pkg: \"corp.example/schemas/service\", v: \"1.2.0\"}}\n",
-		"main.aon": modSource,
+		"main.aontu": modSource,
 	})
 	if r := PkgTidy(dir, nil); "ok" != r.Verdict || 2 != len(r.Lock) || "corp.example/schemas/service" != r.Lock[0].Pkg {
 		t.Fatalf("transitive alias: %+v", r)
@@ -403,7 +411,7 @@ func TestPkgTidyRefusesATreeTheAllowlistDoesNotAdmit(t *testing.T) {
 		"corp.example/schemas/service: hook.sh" != r.Forbidden[0] {
 		t.Fatalf("tidy: %+v", r)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aon")); nil == err {
+	if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aontu")); nil == err {
 		t.Fatal("a refused tidy wrote a lockfile")
 	}
 }
@@ -414,7 +422,7 @@ func TestPkgTidyPinsNothingWithoutAnEntryFile(t *testing.T) {
 	// and nothing about its meaning was verifiable.
 	dir := pkgProject(t, "\"corp.example/s\": {v: \"1.0.0\"}", func(d string) {
 		pkgVendor(t, d, "corp.example/s", map[string]string{
-			"pkg.aon": "pkg: {path: \"corp.example/s\", main: \"gone.aon\"}\n",
+			"pkg.aontu": "pkg: {path: \"corp.example/s\", main: \"gone.aontu\"}\n",
 		})
 	})
 	r := PkgTidy(dir, nil)
@@ -436,14 +444,14 @@ func TestPkgDeclaredDepsIgnoresWhatIsNotADepBlock(t *testing.T) {
 		"dep: {\"a.b/c\": {v: \"\"}}\n", // an empty version
 	} {
 		dir := t.TempDir()
-		file := filepath.Join(dir, "pkg.aon")
+		file := filepath.Join(dir, "pkg.aontu")
 		write(t, file, src)
 		if deps := declaredDeps(file, nil); 0 != len(deps) {
 			t.Fatalf("%q gave %v", src, deps)
 		}
 	}
 	// And a file that is not there at all.
-	if deps := declaredDeps(filepath.Join(t.TempDir(), "gone.aon"), nil); 0 != len(deps) {
+	if deps := declaredDeps(filepath.Join(t.TempDir(), "gone.aontu"), nil); 0 != len(deps) {
 		t.Fatalf("missing file gave %v", deps)
 	}
 }
@@ -457,7 +465,7 @@ func TestPkgReadLockAnswersNothingForWhatItCannotRead(t *testing.T) {
 		"{\"other\":{}}\n",
 	} {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"), text)
+		write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"), text)
 		if lock := readLock(dir); 0 != len(lock) {
 			t.Fatalf("%q gave %v", text, lock)
 		}
@@ -467,7 +475,7 @@ func TestPkgReadLockAnswersNothingForWhatItCannotRead(t *testing.T) {
 	}
 	// An entry with fields of the wrong kind pins empty strings.
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/s\":{\"canon\":1,\"archive\":2,\"v\":3}}}\n")
 	if lock := readLock(dir); 1 != len(lock) || "" != lock["corp.example/s"].Canon {
 		t.Fatalf("hollow entry: %v", lock)
@@ -481,11 +489,11 @@ func TestPkgVendorMaterialisesTheWholeTree(t *testing.T) {
 	hash := CanonHash(v)
 
 	store := cacheStoreDir(cache, hash, "corp.example/schemas/service")
-	write(t, filepath.Join(store, "pkg.aon"), pkgService["pkg.aon"])
-	write(t, filepath.Join(store, "service.aon"), modSource)
-	write(t, filepath.Join(store, "part", "extra.aon"), "extra: true\n")
+	write(t, filepath.Join(store, "pkg.aontu"), pkgService["pkg.aontu"])
+	write(t, filepath.Join(store, "service.aontu"), modSource)
+	write(t, filepath.Join(store, "part", "extra.aontu"), "extra: true\n")
 
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"), lockHeader+
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"), lockHeader+
 		"{\"lock\":{\"corp.example/schemas/service\":{\"archive\":\"\",\"canon\":\""+hash+
 		"\",\"v\":\"1.4.2\"}}}\n")
 
@@ -496,8 +504,8 @@ func TestPkgVendorMaterialisesTheWholeTree(t *testing.T) {
 
 	to := filepath.Join(dir, "aontu_meta", "vendor", "corp.example", "schemas", "service")
 	for name, want := range map[string]string{
-		"service.aon": modSource,
-		"part" + string(os.PathSeparator) + "extra.aon": "extra: true\n",
+		"service.aontu": modSource,
+		"part" + string(os.PathSeparator) + "extra.aontu": "extra: true\n",
 	} {
 		data, err := os.ReadFile(filepath.Join(to, name))
 		if nil != err || want != string(data) {
@@ -515,7 +523,7 @@ func TestPkgVendorMaterialisesTheWholeTree(t *testing.T) {
 
 func TestPkgVendorReportsWhatNoStoreHas(t *testing.T) {
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/absent\":{\"canon\":\"aon1-x\",\"archive\":\"\",\"v\":\"1\"},"+
 			"\"not-a-module\":{\"canon\":\"y\",\"archive\":\"\",\"v\":\"1\"}}}\n")
 	r := PkgVendor(dir, nil)
@@ -537,18 +545,18 @@ func pkgPublishable(t *testing.T, version, src string) string {
 	if "" != version {
 		decl += ", version: \"" + version + "\""
 	}
-	decl += ", main: \"service.aon\"}\npublish: public\n"
-	write(t, filepath.Join(dir, "pkg.aon"), decl)
+	decl += ", main: \"service.aontu\"}\npublish: public\n"
+	write(t, filepath.Join(dir, "pkg.aontu"), decl)
 	if "" != src {
-		write(t, filepath.Join(dir, "service.aon"), src)
+		write(t, filepath.Join(dir, "service.aontu"), src)
 	}
 	return dir
 }
 
 func TestPkgManifestIsWhatAPublishWouldSend(t *testing.T) {
 	dir := pkgPublishable(t, "1.1.0", modSource)
-	write(t, filepath.Join(dir, "pkg.aon"),
-		"pkg: {path: \"corp.example/schemas/service\", version: \"1.1.0\", main: \"service.aon\"}\n"+
+	write(t, filepath.Join(dir, "pkg.aontu"),
+		"pkg: {path: \"corp.example/schemas/service\", version: \"1.1.0\", main: \"service.aontu\"}\n"+
 			"publish: public\ndep: {\"corp.example/core\": {v: \"1.0.0\"}}\nretract: [\"1.0.9\"]\n")
 	r := PkgManifestOf(dir, "", nil)
 	if "ok" != r.Verdict || nil == r.Manifest {
@@ -564,11 +572,11 @@ func TestPkgManifestIsWhatAPublishWouldSend(t *testing.T) {
 	// read and a string compare.
 	v, _ := New().Unify(modSource)
 	if 1 != len(m.Modules) || CanonHash(v) != m.Modules[0].Canon ||
-		"service.aon" != m.Modules[0].Main || m.Package != m.Modules[0].Path {
+		"service.aontu" != m.Modules[0].Main || m.Package != m.Modules[0].Path {
 		t.Fatalf("modules %+v", m.Modules)
 	}
 	if ArchiveOf(dir).Digest != m.Archive.Digest || 2 != len(m.Archive.Files) ||
-		"pkg.aon" != m.Archive.Files[0].Path || "service.aon" != m.Archive.Files[1].Path {
+		"pkg.aontu" != m.Archive.Files[0].Path || "service.aontu" != m.Archive.Files[1].Path {
 		t.Fatalf("archive %+v", m.Archive)
 	}
 	if "1.0.0" != m.Deps["corp.example/core"].V || 1 != len(m.Retract) || "" != m.Moved {
@@ -582,12 +590,12 @@ func TestPkgManifestIsWhatAPublishWouldSend(t *testing.T) {
 
 func TestPkgManifestArchiveExcludesTheVendorCopy(t *testing.T) {
 	dir := pkgPublishable(t, "1.1.0", modSource)
-	write(t, filepath.Join(dir, "part", "extra.aon"), "extra: true\n")
-	pkgVendor(t, dir, "corp.example/other", map[string]string{"pkg.aon": "pkg: {path: \"x\"}\n"})
+	write(t, filepath.Join(dir, "part", "extra.aontu"), "extra: true\n")
+	pkgVendor(t, dir, "corp.example/other", map[string]string{"pkg.aontu": "pkg: {path: \"x\"}\n"})
 
 	files := PkgManifestOf(dir, "", nil).Manifest.Archive.Files
-	if 3 != len(files) || "part/extra.aon" != files[0].Path ||
-		"pkg.aon" != files[1].Path || "service.aon" != files[2].Path {
+	if 3 != len(files) || "part/extra.aontu" != files[0].Path ||
+		"pkg.aontu" != files[1].Path || "service.aontu" != files[2].Path {
 		t.Fatalf("files %v", files)
 	}
 
@@ -608,7 +616,7 @@ func TestPkgManifestNeedsAVersionAndAnEntry(t *testing.T) {
 
 	noEntry := PkgManifestOf(pkgPublishable(t, "1.0.0", ""), "", nil)
 	if "error" != noEntry.Verdict ||
-		1 != len(noEntry.Missing) || "service.aon" != noEntry.Missing[0] {
+		1 != len(noEntry.Missing) || "service.aontu" != noEntry.Missing[0] {
 		t.Fatalf("verdict %q missing %v", noEntry.Verdict, noEntry.Missing)
 	}
 
@@ -745,7 +753,7 @@ func TestPkgManifestPriorWithNoEntryCannotBeGatedAgainst(t *testing.T) {
 	r := PkgManifestOf(pkgPublishable(t, "1.1.0", modSource),
 		pkgPublishable(t, "1.0.0", ""), nil)
 	if "error" != r.Verdict ||
-		1 != len(r.Missing) || "service.aon" != r.Missing[0] {
+		1 != len(r.Missing) || "service.aontu" != r.Missing[0] {
 		t.Fatalf("verdict %q missing %v", r.Verdict, r.Missing)
 	}
 }
@@ -775,16 +783,16 @@ func TestPkgSelfIgnoresWhatIsNotAPackageDeclaration(t *testing.T) {
 		"pkg: {moved: 1}\nretract: [1]\n",
 	} {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, "pkg.aon"), src)
+		write(t, filepath.Join(dir, "pkg.aontu"), src)
 		r := PkgManifestOf(dir, "", nil)
 		if "error" != r.Verdict || 3 != len(r.Missing) {
 			t.Fatalf("%q gave verdict %q missing %v", src, r.Verdict, r.Missing)
 		}
 	}
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "pkg.aon"),
+	write(t, filepath.Join(dir, "pkg.aontu"),
 		"pkg: {path: \"a.b/c\", version: \"1.0.0\"}\nmoved: \"a.b/d\"\nretract: [\"0.9.0\", 1]\n")
-	write(t, filepath.Join(dir, "main.aon"), "a: 1\n")
+	write(t, filepath.Join(dir, "main.aontu"), "a: 1\n")
 	r := PkgManifestOf(dir, "", nil)
 	if "ok" != r.Verdict || "a.b/d" != r.Manifest.Moved || 1 != len(r.Manifest.Retract) {
 		t.Fatalf("declarations: %+v", r.Manifest)
@@ -804,20 +812,20 @@ func TestPkgTransitiveVendorResolves(t *testing.T) {
 		func(d string) {
 			pkgVendor(t, d, "corp.example/schemas/service",
 				map[string]string{
-					"pkg.aon": "pkg: {path: \"corp.example/schemas/service\"," +
-						" version: \"1.4.2\", main: \"service.aon\"}\n" +
+					"pkg.aontu": "pkg: {path: \"corp.example/schemas/service\"," +
+						" version: \"1.4.2\", main: \"service.aontu\"}\n" +
 						"dep: {\"corp.example/schemas/common\": {v: \"1.0.0\"}}\n",
-					"service.aon": "@\"corp.example/schemas/common\"\n" +
+					"service.aontu": "@\"corp.example/schemas/common\"\n" +
 						"spec: {name: string, port: *8080 | integer}\n",
 				})
 			pkgVendor(t, d, "corp.example/schemas/common",
 				map[string]string{
-					"pkg.aon": "pkg: {path: \"corp.example/schemas/common\"," +
-						" version: \"1.0.0\", main: \"common.aon\"}\n",
-					"common.aon": "naming: {id: string}\n",
+					"pkg.aontu": "pkg: {path: \"corp.example/schemas/common\"," +
+						" version: \"1.0.0\", main: \"common.aontu\"}\n",
+					"common.aontu": "naming: {id: string}\n",
 				})
 		})
-	write(t, filepath.Join(dir, "main.aon"),
+	write(t, filepath.Join(dir, "main.aontu"),
 		"lib: hide(@\"corp.example/schemas/service\")\n"+
 			"svc: $.lib.spec & {name: \"checkout\"}\n")
 
@@ -833,12 +841,12 @@ func TestPkgTransitiveVendorResolves(t *testing.T) {
 		}
 	}
 
-	src, err := os.ReadFile(filepath.Join(dir, "main.aon"))
+	src, err := os.ReadFile(filepath.Join(dir, "main.aontu"))
 	if nil != err {
 		t.Fatal(err)
 	}
 	a := NewWithBase(dir)
-	a.File = filepath.Join(dir, "main.aon")
+	a.File = filepath.Join(dir, "main.aontu")
 	out, uerr := a.Generate(string(src))
 	if nil != uerr {
 		t.Fatalf("evaluate: %v", uerr)
@@ -860,8 +868,8 @@ func TestPkgManifestRefusesAnUnevaluableModule(t *testing.T) {
 
 // Twin of the-pkg-verbs-take-the-trust-options in ts/test/pkg.test.ts.
 func TestPkgManifestUnderAConfinement(t *testing.T) {
-	dir := pkgPublishable(t, "1.0.0", "x: @\"../pkgtool-outside.aon\"\n")
-	write(t, filepath.Join(filepath.Dir(dir), "pkgtool-outside.aon"),
+	dir := pkgPublishable(t, "1.0.0", "x: @\"../pkgtool-outside.aontu\"\n")
+	write(t, filepath.Join(filepath.Dir(dir), "pkgtool-outside.aontu"),
 		"secret: \"leaked\"\n")
 
 	open := PkgManifestOf(dir, "", nil)
@@ -885,9 +893,9 @@ func TestPkgTidyRefusesAnUnevaluableModule(t *testing.T) {
 		"\"corp.example/schemas/service\": {v: \"1.4.2\"}", func(d string) {
 			pkgVendor(t, d, "corp.example/schemas/service",
 				map[string]string{
-					"pkg.aon": pkgService["pkg.aon"],
+					"pkg.aontu": pkgService["pkg.aontu"],
 					// Contradicts itself: no meaning, so nothing to pin.
-					"service.aon": "a: 1\na: 2\n",
+					"service.aontu": "a: 1\na: 2\n",
 				})
 		})
 
@@ -897,7 +905,7 @@ func TestPkgTidyRefusesAnUnevaluableModule(t *testing.T) {
 	}
 	// AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
 	// would be the defect with a louder message.
-	if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aon")); nil == err {
+	if _, err := os.Stat(filepath.Join(dir, "aontu_meta", "pkg-lock.aontu")); nil == err {
 		t.Fatal("a refused tidy wrote a lockfile")
 	}
 }
@@ -908,13 +916,13 @@ func TestPkgVerifyBytesBeforeMeaning(t *testing.T) {
 		"\"corp.example/schemas/service\": {v: \"1.4.2\"}", func(d string) {
 			pkgVendor(t, d, "corp.example/schemas/service", pkgService)
 			svc = filepath.Join(d, "aontu_meta", "vendor", "corp.example", "schemas",
-				"service", "service.aon")
+				"service", "service.aontu")
 		})
 
 	if "ok" != PkgTidy(dir, nil).Verdict {
 		t.Fatal("tidy did not hold")
 	}
-	lock, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "pkg-lock.aon"))
+	lock, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"))
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -935,7 +943,7 @@ func TestPkgVerifyBytesBeforeMeaning(t *testing.T) {
 	// THE LOCKFILE IS UNTOUCHED, which is the whole difference from
 	// tidy: a gate that rewrote what it was checking would pass every
 	// time.
-	now, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "pkg-lock.aon"))
+	now, err := os.ReadFile(filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"))
 	if nil != err || string(lock) != string(now) {
 		t.Fatal("verify rewrote the lockfile")
 	}
@@ -946,7 +954,7 @@ func TestPkgVerifyBytesBeforeMeaning(t *testing.T) {
 		arch := ArchiveOf(filepath.Dir(svc)).Digest
 		i := strings.Index(string(lock), "\"archive\":\"")
 		j := strings.Index(string(lock)[i+11:], "\"")
-		write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"),
+		write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"),
 			string(lock)[:i+11]+arch+string(lock)[i+11+j:])
 	}
 	repin("a: 1\na: 2\n")
@@ -974,10 +982,10 @@ func TestPkgVerifyChecksAKeptManifest(t *testing.T) {
 	tree := filepath.Join(dir, "aontu_meta", "vendor", "corp.example", "schemas", "service")
 	a := ArchiveOf(tree)
 	manifest := "{\"schema\":\"aontu-package/v1\",\"archive\":{\"digest\":\"" + a.Digest +
-		"\",\"files\":[{\"path\":\"pkg.aon\",\"digest\":\"" + a.Files[0].Digest +
-		"\",\"size\":" + fmt.Sprint(a.Files[0].Size) + "},{\"path\":\"service.aon\",\"digest\":\"" +
+		"\",\"files\":[{\"path\":\"pkg.aontu\",\"digest\":\"" + a.Files[0].Digest +
+		"\",\"size\":" + fmt.Sprint(a.Files[0].Size) + "},{\"path\":\"service.aontu\",\"digest\":\"" +
 		a.Files[1].Digest + "\",\"size\":" + fmt.Sprint(a.Files[1].Size) + "}]}}"
-	write(t, filepath.Join(tree, "aontu_meta", "manifest.aon"), manifest)
+	write(t, filepath.Join(tree, "aontu_meta", "manifest.aontu"), manifest)
 
 	if r := PkgTidy(dir, nil); "ok" != r.Verdict || Sha256Hex([]byte(manifest)) != r.Lock[0].Manifest {
 		t.Fatalf("tidy: %+v", r)
@@ -987,21 +995,21 @@ func TestPkgVerifyChecksAKeptManifest(t *testing.T) {
 	}
 	// A manifest swapped for one with other bytes is caught by its own
 	// pin; one listing another digest for a file, by the file walk.
-	write(t, filepath.Join(tree, "aontu_meta", "manifest.aon"), manifest+" ")
+	write(t, filepath.Join(tree, "aontu_meta", "manifest.aontu"), manifest+" ")
 	if r := PkgVerify(dir, nil); "manifest" != r.Mismatched[0].Pin {
 		t.Fatalf("swapped manifest: %+v", r)
 	}
 	other := strings.Replace(manifest, a.Files[0].Digest, "sha256:"+strings.Repeat("0", 64), 1)
-	write(t, filepath.Join(tree, "aontu_meta", "manifest.aon"), other)
+	write(t, filepath.Join(tree, "aontu_meta", "manifest.aontu"), other)
 	if r := PkgTidy(dir, nil); "ok" != r.Verdict {
 		t.Fatalf("retidy: %+v", r)
 	}
 	r := PkgVerify(dir, nil)
-	if "manifest" != r.Mismatched[0].Pin || !strings.HasPrefix(r.Mismatched[0].Got, "pkg.aon sha256:") {
+	if "manifest" != r.Mismatched[0].Pin || !strings.HasPrefix(r.Mismatched[0].Got, "pkg.aontu sha256:") {
 		t.Fatalf("listed digest: %+v", r)
 	}
 	// A manifest that is not even a document still has a digest to pin.
-	write(t, filepath.Join(tree, "aontu_meta", "manifest.aon"), "not json")
+	write(t, filepath.Join(tree, "aontu_meta", "manifest.aontu"), "not json")
 	if r := PkgTidy(dir, nil); "ok" != r.Verdict || !strings.HasPrefix(r.Lock[0].Manifest, "sha256:") {
 		t.Fatalf("hollow manifest: %+v", r)
 	}
@@ -1027,7 +1035,7 @@ func TestPkgVerifyRefusesAnUncoveredProject(t *testing.T) {
 		t.Fatalf("after tidy: %+v", r)
 	}
 
-	write(t, filepath.Join(dir, "pkg.aon"),
+	write(t, filepath.Join(dir, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {"+
 			"\"corp.example/schemas/service\": {v: \"1.4.2\"}, "+
 			"\"corp.example/schemas/later\": {v: \"1.0.0\"}}\n")
@@ -1043,15 +1051,15 @@ func TestPkgVerifyRefusesAnUncoveredProject(t *testing.T) {
 
 func TestPkgVerifyReportsWhatNoStoreHolds(t *testing.T) {
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aon"), lockHeader+
+	write(t, filepath.Join(dir, "aontu_meta", "pkg-lock.aontu"), lockHeader+
 		"{\"lock\":{\"corp.example/absent\":{\"archive\":\"\",\"canon\":\"aon1-x\",\"v\":\"1\"},"+
 		"\"corp.example/hollow\":{\"archive\":\"\",\"canon\":\"aon1-y\",\"v\":\"1\"},"+
 		"\"not-a-module\":{\"archive\":\"\",\"canon\":\"aon1-z\",\"v\":\"1\"}}}\n")
 
-	// hollow is vendored as a directory with a pkg.aon naming an entry
+	// hollow is vendored as a directory with a pkg.aontu naming an entry
 	// file that was never written.
 	pkgVendor(t, dir, "corp.example/hollow", map[string]string{
-		"pkg.aon": "pkg: {path: \"corp.example/hollow\", main: \"hollow.aon\"}\n",
+		"pkg.aontu": "pkg: {path: \"corp.example/hollow\", main: \"hollow.aontu\"}\n",
 	})
 
 	r := PkgVerify(dir, nil)
@@ -1073,7 +1081,7 @@ func TestPkgRefreezeRecomputesCanonPinsAndNothingElse(t *testing.T) {
 	if "ok" != PkgTidy(dir, nil).Verdict {
 		t.Fatal("tidy")
 	}
-	lockPath := filepath.Join(dir, "aontu_meta", "pkg-lock.aon")
+	lockPath := filepath.Join(dir, "aontu_meta", "pkg-lock.aontu")
 	lock, _ := os.ReadFile(lockPath)
 
 	same := PkgRefreeze(dir, nil)
@@ -1106,7 +1114,7 @@ func TestPkgRefreezeRecomputesCanonPinsAndNothingElse(t *testing.T) {
 	}
 	write(t, lockPath, string(lock))
 	write(t, filepath.Join(dir, "aontu_meta", "vendor", "corp.example", "schemas",
-		"service", "service.aon"), "a: 1\na: 2\n")
+		"service", "service.aontu"), "a: 1\na: 2\n")
 	if bad := PkgRefreeze(dir, nil); "error" != bad.Verdict || 1 != len(bad.Unevaluable) {
 		t.Fatalf("unevaluable: %+v", bad)
 	}
@@ -1117,13 +1125,13 @@ func TestPkgTreeDrawsTheClosureFromTheStore(t *testing.T) {
 		"\"corp.example/s\": {v: \"1.0.0\"}, \"corp.example/geo\": {v: \"1.0.0\"}",
 		func(d string) {
 			pkgVendor(t, d, "corp.example/s", map[string]string{
-				"pkg.aon": "pkg: {path: \"corp.example/s\"}\n" +
+				"pkg.aontu": "pkg: {path: \"corp.example/s\"}\n" +
 					"dep: {\"corp.example/geo\": {v: \"1.0.0\"}}\n",
-				"main.aon": modSource,
+				"main.aontu": modSource,
 			})
 			pkgVendor(t, d, "corp.example/geo", map[string]string{
-				"pkg.aon":  "pkg: {path: \"corp.example/geo\"}\n",
-				"main.aon": "region: string\n",
+				"pkg.aontu":  "pkg: {path: \"corp.example/geo\"}\n",
+				"main.aontu": "region: string\n",
 			})
 		})
 	if "ok" != PkgTidy(dir, nil).Verdict {
@@ -1134,11 +1142,11 @@ func TestPkgTreeDrawsTheClosureFromTheStore(t *testing.T) {
 		2 != len(r.Nodes[0].Deps) || "corp.example/geo" != r.Nodes[2].Deps[0] {
 		t.Fatalf("tree: %+v", r)
 	}
-	lockPath := filepath.Join(dir, "aontu_meta", "pkg-lock.aon")
+	lockPath := filepath.Join(dir, "aontu_meta", "pkg-lock.aontu")
 	lock, _ := os.ReadFile(lockPath)
 	write(t, lockPath, strings.Replace(string(lock), "}}}",
 		"},\"corp.example/gone\":{\"archive\":\"\",\"canon\":\"aon1-g\",\"v\":\"1\"}}}", 1))
-	write(t, filepath.Join(dir, "pkg.aon"), "dep: {\"corp.example/s\": {v: \"1.0.0\"}}\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "dep: {\"corp.example/s\": {v: \"1.0.0\"}}\n")
 	miss := PkgTree(dir, nil)
 	if "missing" != miss.Verdict || "." != miss.Root || 1 != len(miss.Missing) {
 		t.Fatalf("missing: %+v", miss)
@@ -1164,7 +1172,7 @@ func TestVersionsCompareByExactDigits(t *testing.T) {
 
 func TestAKeyWithAKnownExtensionNamesAFile(t *testing.T) {
 	for key, want := range map[string]bool{
-		"corp.example/models/config.json": false, "corp.example/models/types.aon": false,
+		"corp.example/models/config.json": false, "corp.example/models/types.aontu": false,
 		"corp.example/models/v1.2": true, "alias:legacy": true, "corp.example/models/config.json@1": false,
 	} {
 		if got := usableKey(key); want != got {
@@ -1175,12 +1183,12 @@ func TestAKeyWithAKnownExtensionNamesAFile(t *testing.T) {
 
 func TestEntryPathsRefuseReservedNamesAndDeepNesting(t *testing.T) {
 	for p, want := range map[string]string{
-		"con.aon":                          "an entry path element is a name a platform reserves",
+		"con.aontu":                          "an entry path element is a name a platform reserves",
 		"a/NUL.json":                       "an entry path element is a name a platform reserves",
 		"a/lpt1":                           "an entry path element is a name a platform reserves",
-		"a/con2.aon":                       "",
-		strings.Repeat("a/", 32) + "x.aon": "an entry path has more than 32 elements",
-		strings.Repeat("a/", 31) + "x.aon": "",
+		"a/con2.aontu":                       "",
+		strings.Repeat("a/", 32) + "x.aontu": "an entry path has more than 32 elements",
+		strings.Repeat("a/", 31) + "x.aontu": "",
 	} {
 		if got := RelPathError(p); want != got {
 			t.Fatalf("RelPathError(%q) = %q", p, got)
@@ -1193,18 +1201,18 @@ func TestAPublisherRefusesWhatEveryConsumerWould(t *testing.T) {
 	defer func() {
 		ArchiveLimitBytes, ArchiveLimitUnpacked, ArchiveLimitFiles, ArchiveLimitFileBytes = saved[0], saved[1], saved[2], saved[3]
 	}()
-	archive := Archive{Size: 10, Files: []ArchiveFile{{Path: "a.aon", Size: 6}, {Path: "b.aon", Size: 4}}}
+	archive := Archive{Size: 10, Files: []ArchiveFile{{Path: "a.aontu", Size: 6}, {Path: "b.aontu", Size: 4}}}
 	if over := archiveOverCaps(archive); 0 != len(over) {
 		t.Fatalf("over %v", over)
 	}
 	ArchiveLimitBytes, ArchiveLimitFiles, ArchiveLimitFileBytes, ArchiveLimitUnpacked = 5, 1, 5, 8
-	want := "archive: 10 bytes, over the cap of 5|archive: 2 files, over the cap of 1|a.aon: 6 bytes, over the cap of 5|archive: unpacks to 10 bytes, over the cap of 8"
+	want := "archive: 10 bytes, over the cap of 5|archive: 2 files, over the cap of 1|a.aontu: 6 bytes, over the cap of 5|archive: unpacks to 10 bytes, over the cap of 8"
 	if got := strings.Join(archiveOverCaps(archive), "|"); want != got {
 		t.Fatalf("over %q", got)
 	}
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"corp.example/x\", version: \"1.0.0\", main: \"main.aon\"}\n")
-	write(t, filepath.Join(dir, "main.aon"), "name: string\nport: *8080 | integer\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"corp.example/x\", version: \"1.0.0\", main: \"main.aontu\"}\n")
+	write(t, filepath.Join(dir, "main.aontu"), "name: string\nport: *8080 | integer\n")
 	if r := PkgManifestOf(dir, "", nil); "error" != r.Verdict || 1 > len(r.Forbidden) || !strings.HasPrefix(r.Forbidden[0], "archive: ") {
 		t.Fatalf("caps: %+v", r)
 	}
@@ -1215,12 +1223,12 @@ func TestAPublisherRefusesWhatEveryConsumerWould(t *testing.T) {
 
 	// Coordinates that are not a package path and a version, and an
 	// entry that leaves the tree, mint nothing.
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"../../escape\", version: \"v1\", main: \"../main.aon\"}\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"../../escape\", version: \"v1\", main: \"../main.aontu\"}\n")
 	odd := PkgManifestOf(dir, "", nil)
-	if "error" != odd.Verdict || "../main.aon|pkg.path (../../escape is not a package path)|pkg.version (v1 is not MAJOR.MINOR.PATCH)" != strings.Join(odd.Missing, "|") {
+	if "error" != odd.Verdict || "../main.aontu|pkg.path (../../escape is not a package path)|pkg.version (v1 is not MAJOR.MINOR.PATCH)" != strings.Join(odd.Missing, "|") {
 		t.Fatalf("odd: %+v", odd)
 	}
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"alias:x\", version: \"1.0.0\", main: \"main.aon\"}\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"alias:x\", version: \"1.0.0\", main: \"main.aontu\"}\n")
 	if r := PkgManifestOf(dir, "", nil); "pkg.path (alias:x is not a package path)" != strings.Join(r.Missing, "|") {
 		t.Fatalf("alias: %+v", r)
 	}
@@ -1248,7 +1256,7 @@ func TestTheStoreIsFoundUnderTheServedCanonToo(t *testing.T) {
 		t.Fatal("served")
 	}
 	at := cacheStoreDir(cache, served, pkg)
-	write(t, filepath.Join(at, "pkg.aon"), "pkg: {path: \"corp.example/x\"}\n")
+	write(t, filepath.Join(at, "pkg.aontu"), "pkg: {path: \"corp.example/x\"}\n")
 	other := "aon1-" + strings.Repeat("C", 43)
 	if at != pkgStoreDir(dir, pkg, other, pkg, cache, "1.0.0") || "" != pkgStoreDir(dir, pkg, other, pkg, cache, "") ||
 		at != pkgStoreDir(dir, pkg, served, pkg, cache, "1.0.0") || at != pkgStoreDir(dir, pkg, "", pkg, cache, "1.0.0") ||
@@ -1258,24 +1266,24 @@ func TestTheStoreIsFoundUnderTheServedCanonToo(t *testing.T) {
 
 	// A vendor copy replaces the destination rather than overlaying it.
 	to := filepath.Join(dir, "vendor", "x")
-	write(t, filepath.Join(to, "stale.aon"), "stale: 1\n")
+	write(t, filepath.Join(to, "stale.aontu"), "stale: 1\n")
 	if err := vendorCopy(at, to); nil != err {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(to, "pkg.aon")); nil != err {
+	if _, err := os.Stat(filepath.Join(to, "pkg.aontu")); nil != err {
 		t.Fatal("copied")
 	}
-	if _, err := os.Stat(filepath.Join(to, "stale.aon")); nil == err {
+	if _, err := os.Stat(filepath.Join(to, "stale.aontu")); nil == err {
 		t.Fatal("stale kept")
 	}
 }
 
 func TestALockThatCannotBeWrittenIsAnError(t *testing.T) {
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "pkg.aon"), "pkg: {path: \"corp.example/x\"}\n")
+	write(t, filepath.Join(dir, "pkg.aontu"), "pkg: {path: \"corp.example/x\"}\n")
 	write(t, filepath.Join(dir, "aontu_meta"), "a file where the directory goes\n")
 	r := PkgTidy(dir, nil)
-	if "error" != r.Verdict || 1 != len(r.Unevaluable) || !strings.HasPrefix(r.Unevaluable[0], "pkg-lock.aon: ") {
+	if "error" != r.Verdict || 1 != len(r.Unevaluable) || !strings.HasPrefix(r.Unevaluable[0], "pkg-lock.aontu: ") {
 		t.Fatalf("tidy: %+v", r)
 	}
 }

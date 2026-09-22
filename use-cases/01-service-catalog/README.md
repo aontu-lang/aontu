@@ -10,13 +10,13 @@ tier, lifecycle, ports, protocols and `dependsOn` relations. Two
 organisational units describe the **same services from different
 angles**:
 
-- `catalog.aon`: the catalog view: what each service *is* (owner,
+- `catalog.aontu`: the catalog view: what each service *is* (owner,
   tier, description, dependencies), organised by domain.
-- `deploy.aon`: the deployment view: what each cluster *runs*
+- `deploy.aontu`: the deployment view: what each cluster *runs*
   (image, replicas, ports), organised by region and cluster.
 
 The deployment view REFERENCES its catalog entry's org facts, so one
-evaluation of `system.aon` brings the two into contact and a drift
+evaluation of `system.aontu` brings the two into contact and a drift
 between them fails at the deploy position. This is the core enterprise
 problem: the org chart and the runtime both hold facts about one
 logical thing, and any drift between them should be an *error*, not a
@@ -27,7 +27,7 @@ and have its own emitted candidates checked (`aontu vet`, `rel()`).
 
 ## The model tree
 
-`system.aon` is one evaluation joining four things: the bundled
+`system.aontu` is one evaluation joining four things: the bundled
 vocabulary (`std`), Acme's own (`spec`), the catalog view, and the
 deployment view. `catalog` and `deploy` hold the same services seen from
 different angles (what each one IS, and where each one RUNS) and
@@ -54,7 +54,7 @@ $
     └── Service (2)
 ```
 
-`aontu view doc --depth 2 system.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 system.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -64,17 +64,17 @@ than its value.
 
 | File | Role | Features exercised |
 |---|---|---|
-| `system.aon` | root: one evaluation joining the vocabulary and both views | `@"aontu:system"`, `@"./..."` includes, `hide()` |
-| `spec.aon` | Acme vocabulary over the bundled one | `$.aontu.System.Service`, `$.aontu.System.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `rel(t)` with `re()` address constraints, `acyclic()`, `inverse()` |
-| `catalog.aon` | catalog view | per-domain `&:` spreads stamping owner + schema, `path()` address lists |
-| `deploy.aon` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
-| `queries/queries.aon` | instance-of queries | `filter`, map union as index |
-| `bad/*.aon` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `rel()` target |
-| `proposals/*.aon` + `data/*` | agent-emitted candidates | JSON-as-aontu, `vet --at --closed`, `rel()` existence checks |
+| `system.aontu` | root: one evaluation joining the vocabulary and both views | `@"aontu:system"`, `@"./..."` includes, `hide()` |
+| `spec.aontu` | Acme vocabulary over the bundled one | `$.aontu.System.Service`, `$.aontu.System.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `rel(t)` with `re()` address constraints, `acyclic()`, `inverse()` |
+| `catalog.aontu` | catalog view | per-domain `&:` spreads stamping owner + schema, `path()` address lists |
+| `deploy.aontu` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
+| `queries/queries.aontu` | instance-of queries | `filter`, map union as index |
+| `bad/*.aontu` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `rel()` target |
+| `proposals/*.aontu` + `data/*` | agent-emitted candidates | JSON-as-aontu, `vet --at --closed`, `rel()` existence checks |
 
-Relations are declared on the field that holds them. In `spec.aon`:
+Relations are declared on the field that holds them. In `spec.aontu`:
 
-```aon
+```aontu
 %CatalogAddr = re("^\\$[.]catalog[.]")
 
 dependsOn?: rel($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
@@ -84,7 +84,7 @@ dependedOnBy?: rel($.aontu.System.Service) & %CatalogAddr
 `%CatalogAddr` is an **alias**: `%name = value` at the top level of the
 document declares one, `%name` in value position uses it, and that is
 all it is. An alias does not generate and does not appear in canon, so
-`spec.aon` with the names and `spec.aon` with the pattern written out at
+`spec.aontu` with the names and `spec.aontu` with the pattern written out at
 both use sites are the same document and produce the same `aon1-`
 hash: the change is readability, and the engine cannot tell. What it buys
 is that a relation and its inverse can no longer be given different
@@ -105,7 +105,7 @@ inverse is written on every target, and `aontu relations` checks that
 every edge is mirrored.
 
 The two views meet at the deploy positions. Each workload in
-`deploy.aon` references the `owner` and `tier` of its catalog entry,
+`deploy.aontu` references the `owner` and `tier` of its catalog entry,
 so a contradiction between the views is a located error. The reference
 is directional (the catalog is not changed by what a cluster runs),
 which is what lets this file be one of several deployment views over
@@ -119,21 +119,21 @@ whole vocabulary and stamps ownership, and the `*` defaults fill in
 `replicas: 2`, `direction: "in"` and `lifecycle: "production"`
 wherever a file does not override them.
 
-Change requests are overlays. Every `bad/*.aon` and `proposals/*.aon`
-is `@"../system.aon"` plus the proposed delta, so verifying a change
+Change requests are overlays. Every `bad/*.aontu` and `proposals/*.aontu`
+is `@"../system.aontu"` plus the proposed delta, so verifying a change
 before editing the base model costs one file and one CLI call. Lists
 unify positionally, so a proposal that adds an inverse entry restates
 the target's `dependedOnBy` list in full and in order
-(`proposals/onboard-webhooks.aon`).
+(`proposals/onboard-webhooks.aontu`).
 
 Agent-emitted JSON is already aontu. `data/candidate-webhooks.json` is
 used twice unmodified: vetted against `$.spec.CandidateShape`, the
 candidate's shape written out self-contained, and loaded at a hidden
-key in `proposals/onboard-webhooks.aon` and pulled into the catalog by
+key in `proposals/onboard-webhooks.aontu` and pulled into the catalog by
 reference (`$.spec.CatalogEntry & $.candidate`), where the full
 `CatalogEntry` schema and the `rel()` checks apply.
 
-Instance-of queries run over a flat index. `queries/queries.aon`
+Instance-of queries run over a flat index. `queries/queries.aontu`
 unifies `filter(services, {})` for each domain: an empty condition
 keeps every entry, already stamped by its domain's spread, and leaves
 the spread's template behind, so the three maps unify into one index
@@ -219,13 +219,13 @@ merged model, `get` slices and query results; grep-by-error-code
 (never byte-compared error text) for the refusals; `relations`,
 `reaches` and `vet` verdicts on good, bad and post-proposal models.
 
-1. `system.aon` evaluates to `expected/system.json`: two views of
+1. `system.aontu` evaluates to `expected/system.json`: two views of
    eight entities, joined through the deployment view's references,
    against the bundled `aontu:system` vocabulary.
 2. `--canon` renders `acyclic()` and `inverse("dependedOnBy")` back at
    their fields, so the canonical form distinguishes documents that
    disagree about their relations.
-3. `aontu relations system.aon` answers `verdict: pass`: `dependsOn`
+3. `aontu relations system.aontu` answers `verdict: pass`: `dependsOn`
    is acyclic and every edge has its `dependedOnBy` mirror.
 4. `aontu model get '$.deploy.regions.eu1.clusters.core.workloads.payments'`
    matches `expected/payments-slice.json`. The workload carries the
@@ -233,14 +233,14 @@ merged model, `get` slices and query results; grep-by-error-code
    `image`, `replicas` and `ports`; the catalog entry keeps only what
    the catalog states.
 5. `get --keys` on the `eu1/core` cluster lists its five workloads.
-6. `aontu model why` on a workload's own field names the `deploy.aon` line
+6. `aontu model why` on a workload's own field names the `deploy.aontu` line
    that wrote it:
 
    ```
-   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' system.aon
+   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas' system.aontu
    $.deploy.regions.eu1.clusters.core.workloads.payments.replicas = 6
-     1. 6  .../deploy.aon:20:27
-     2. *2|(min(1)&max(48)&integer)  .../spec.aon:83:15
+     1. 6  .../deploy.aontu:20:27
+     2. *2|(min(1)&max(48)&integer)  .../spec.aontu:83:15
    ```
 
 7. `aontu model why` on a field the workload takes from the catalog names
@@ -248,20 +248,20 @@ merged model, `get` slices and query results; grep-by-error-code
    referenced field carries its provenance into the deploy view:
 
    ```
-   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' system.aon
+   $ aontu model why '$.deploy.regions.eu1.clusters.core.workloads.payments.tier' system.aontu
    $.deploy.regions.eu1.clusters.core.workloads.payments.tier = 1
-     1. $.catalog.domains.payments.services.payments.tier  .../deploy.aon:17:23  (ref)
-     2. (1|2)|3  .../spec.aon:58:11
+     1. $.catalog.domains.payments.services.payments.tier  .../deploy.aontu:17:23  (ref)
+     2. (1|2)|3  .../spec.aontu:58:11
    ```
 
 8. The instance-of queries are right: `$.query.tier1` is `auth`,
    `gateway`, `ledger` and `payments`; `$.query.experimental` is
    `notify`.
-9. `bad/cycle.aon` (ledger gains a callback into payments) refuses at
+9. `bad/cycle.aontu` (ledger gains a callback into payments) refuses at
    evaluation with `[aontu/relation_cycle]`, and `aontu relations`
    answers `verdict: fail` naming the loop:
    `cycle $.catalog.domains.payments.services.ledger -> $.catalog.domains.payments.services.payments -> $.catalog.domains.payments.services.ledger`.
-10. `bad/wrong-target.aon` writes a `hostedOn` edge typed
+10. `bad/wrong-target.aontu` writes a `hostedOn` edge typed
     `rel($.aontu.System.Service)` that lands on a `kind: host` entity. The type
     flows into the target, so evaluation refuses with
     `[aontu/scalar_value]` and `aontu relations` answers
@@ -280,16 +280,16 @@ merged model, `get` slices and query results; grep-by-error-code
     no: `reaches` on `$.catalog.domains.platform.services.nope` answers
     `verdict: error` (exit 4) with a `refer_unresolved` finding, since
     answering no would report a typo as a fact about the model.
-14. `bad/missing-inverse.aon` (email adds a directory lookup, nobody
+14. `bad/missing-inverse.aontu` (email adds a directory lookup, nobody
     records the inverse) refuses at evaluation with
     `[aontu/relation_inverse_missing]`, and `aontu relations` names the
     missing entry:
     `$.catalog.domains.identity.services.directory does not list $.catalog.domains.platform.services.email under dependedOnBy`.
-15. `bad/tier-conflict.aon` (an ops overlay claiming `tier: 2` for a
+15. `bad/tier-conflict.aontu` (an ops overlay claiming `tier: 2` for a
     service the catalog pins at `tier: 1`) refuses to evaluate with
     `[aontu/scalar_value]` at the deploy position, which is what the
     deployment view's reference is for.
-16. `bad/wrong-kind.aon`, a self-contained model with a
+16. `bad/wrong-kind.aontu`, a self-contained model with a
     `refer($.aontu.System.Service)` endpoint, refuses a `kind: database` target
     with `[aontu/scalar_value]` naming `"database"`.
 17. `vet --at '$.spec.CandidateShape'` accepts the well-formed
@@ -307,17 +307,17 @@ merged model, `get` slices and query results; grep-by-error-code
       expected: re("^team-[a-z]+$")
       actual:   "platform crew"
       data: data/candidate-malformed.json:3:12 ("platform crew")
-      schema: spec.aon:36:18 (re("^team-[a-z]+$"))
+      schema: spec.aontu:36:18 (re("^team-[a-z]+$"))
     $.teir: closed [conflict]
       [aontu/closed]: Cannot resolve value at path $.teir
       data: data/candidate-malformed.json:4:11 (2)
     ```
 
-19. `proposals/onboard-webhooks.aon` evaluates, `aontu relations`
+19. `proposals/onboard-webhooks.aontu` evaluates, `aontu relations`
     still answers `verdict: pass` over catalog and proposal together,
     and `get` on the new `webhooks` entry matches
     `expected/webhooks-proposal.json`.
-20. `proposals/onboard-badref.aon`, whose candidate depends on a path
+20. `proposals/onboard-badref.aontu`, whose candidate depends on a path
     no file writes, cannot evaluate: `[aontu/rel_unresolved]`.
 21. The catalog draws: `aontu view graph` grouped by owner and
     `aontu view matrix` in partition order both match their goldens,

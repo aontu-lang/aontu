@@ -240,7 +240,7 @@ type oldVersion struct {
 
 func includable(p string) bool {
 	switch strings.ToLower(filepath.Ext(p)) {
-	case ".aon", ".aontu", ".jsonic", ".json":
+	case ".aontu", ".jsonic", ".json":
 		return true
 	}
 	return false

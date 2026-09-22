@@ -183,7 +183,7 @@ behaviour.
 
 The canonical agent loop — *emit, validate, repair* — currently has no
 entry point: the CLI evaluates one file to JSON, full stop. Because
-aontu is a JSON superset, `aontu vet schema.aon candidate.json` is
+aontu is a JSON superset, `aontu vet schema.aontu candidate.json` is
 nearly free to implement (unify + closedness + report), and it changes
 the language's identity from evaluator to gate. The same verb, pointed
 at a live system dump, is drift detection. The output contract matters
@@ -200,7 +200,7 @@ and the truth evolves. aontu's lattice makes the principled version of
 compatibility checking nearly free: new schema subsumes old ⇒ backward
 compatible; the reverse ⇒ forward compatible; both ⇒ full. Exposing
 subsumption — as a builtin, a CLI verb
-(`aontu breaking --against git#main system.aon`), and a library call —
+(`aontu breaking --against git#main system.aontu`), and a library call —
 powers versioned evolution, default-validity checking, CUE-style trim,
 and the entailment queries agents actually need. Paired with a
 deprecation mark surfaced at point of use, it gives shared schemas a

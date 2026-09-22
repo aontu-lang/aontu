@@ -13,13 +13,13 @@ versions and a queue of proposals, and drives the evolution verbs
 (`subsume`, `breaking`, `hash`, the MCP `diff` tool) as the governance
 machinery a schema registry needs:
 
-- `profile-v1.aon`: v1.0.0: closed customer record (id, email, name,
+- `profile-v1.aontu`: v1.0.0: closed customer record (id, email, name,
   free-form `phone?`, strict `tier` enum, consent flags with safe
   defaults), plus the `aontu_policy.compat` declaration.
-- `profile-v2.aon`: v2.0.0: additive minor (optional `locale`,
+- `profile-v2.aontu`: v2.0.0: additive minor (optional `locale`,
   optional validated `contact` block) and `phone` marked
   `deprecate(string, {msg, use, since})`.
-- `profile-v3.aon`: v3.0.0, a major: `phone` removed, required
+- `profile-v3.aontu`: v3.0.0, a major: `phone` removed, required
   `region` added.
 - `proposals/`: the PR queue: a narrowed constraint, an added
   required key, a default flip, the staged deprecated-removal, and an
@@ -32,7 +32,7 @@ machinery a schema registry needs:
 ## The model tree
 
 Each released version is one document of the same shape, which is what
-makes them comparable at all. `profile-v2.aon` is drawn here: the
+makes them comparable at all. `profile-v2.aontu` is drawn here: the
 `profile` record the gate reasons about, beside `aontu_policy`, the
 waiver block that says which of its findings a reviewer has accepted.
 
@@ -55,7 +55,7 @@ $
     └── tier "standard"|"premium"|"enterpr...
 ```
 
-`aontu view doc --depth 3 profile-v2.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 3 profile-v2.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -94,23 +94,23 @@ than its value.
 - The **version number lives in the filename and the git tag, not in
   the document**: a concrete version string is compared like any other
   value, so a whole-document gate reads a bump as a narrowing. The
-  `probes/meta-*.aon` pair shows this below, and `--at` anchors the
+  `probes/meta-*.aontu` pair shows this below, and `--at` anchors the
   gate beneath it.
 
 A gate finding names the path, both sides' canon, and file:row:col
-sites in both documents. Refusing `proposals/narrow-email.aon` against
+sites in both documents. Refusing `proposals/narrow-email.aontu` against
 v2:
 
 ```
-$ aontu breaking --against profile-v2.aon proposals/narrow-email.aon
+$ aontu breaking --against profile-v2.aontu proposals/narrow-email.aontu
 verdict: breaking
 
 $.profile.email: compat_narrowed [compat]
   the general residual does not contain the specific residual
   expected: re("^[^@ ]+@example[.]com$")
   actual:   re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
-  general: proposals/narrow-email.aon:6:19 (re("^[^@ ]+@example[.]com$"))
-  specific: profile-v2.aon:14:19 (re("^[^@ ]+@[^@ ]+[.][^@ ]+$"))
+  general: proposals/narrow-email.aontu:6:19 (re("^[^@ ]+@example[.]com$"))
+  specific: profile-v2.aontu:14:19 (re("^[^@ ]+@[^@ ]+[.][^@ ]+$"))
 ```
 
 Containment is decided between the two `re()` patterns themselves, so
@@ -119,11 +119,11 @@ witness.
 
 Because the policy declaration is read from the new document, a
 proposal that pins its own policy to `none` passes the gate.
-`proposals/waive-gate.aon` makes the same change as
-`require-loyalty.aon` and adds `aontu_policy: hide({compat: "none"})`:
+`proposals/waive-gate.aontu` makes the same change as
+`require-loyalty.aontu` and adds `aontu_policy: hide({compat: "none"})`:
 
 ```
-$ aontu breaking --against profile-v2.aon proposals/waive-gate.aon
+$ aontu breaking --against profile-v2.aontu proposals/waive-gate.aontu
 verdict: compatible
 $ echo $?
 0
@@ -133,11 +133,11 @@ A CI pipeline passes `--mode backward` on the command line, and the
 same proposal is refused with `compat_required_added`, exit 1.
 
 `hide()` keeps a value out of generated output but not out of the
-comparison. `probes/meta-v1.aon` and `probes/meta-v2.aon` share one
+comparison. `probes/meta-v1.aontu` and `probes/meta-v2.aontu` share one
 schema body and differ only in `meta.version`:
 
 ```
-$ aontu breaking --against probes/meta-v1.aon probes/meta-v2.aon
+$ aontu breaking --against probes/meta-v1.aontu probes/meta-v2.aontu
 verdict: breaking
 
 $.meta.version: compat_narrowed [compat]
@@ -150,7 +150,7 @@ $.meta.version: compat_narrowed [compat]
 declaration and the `--allow-*` flags:
 
 ```
-$ aontu breaking --against probes/meta-v1.aon --at '$.profile' probes/meta-v2.aon
+$ aontu breaking --against probes/meta-v1.aontu --at '$.profile' probes/meta-v2.aontu
 verdict: compatible
 $ echo $?
 0
@@ -161,12 +161,12 @@ the instance uses it. When the instance omits `phone`, the site is the
 schema's:
 
 ```
-$ aontu vet --at '$.profile' profile-v2.aon data/customer-ok.json
+$ aontu vet --at '$.profile' profile-v2.aontu data/customer-ok.json
 verdict: valid
 
 $.phone: deprecated [compat]
   deprecated: free-form phone is unvalidated; write E.164 to contact.phone (use $.profile.contact.phone) (since 2.0.0)
-  schema: profile-v2.aon:20:11 (string)
+  schema: profile-v2.aontu:20:11 (string)
 ```
 
 When the instance uses the field, the site is the data's:
@@ -224,7 +224,7 @@ reports diffed against the `expected/` goldens.
    canonical form matches `expected/profile-v2.canon`.
 2. A conforming v2 instance (`data/customer-ok.json`) is
    `verdict: valid`, exit 0, with the `deprecated` warning for `phone`
-   anchored at its schema site (`schema: profile-v2.aon`).
+   anchored at its schema site (`schema: profile-v2.aontu`).
 3. A legacy instance still using `phone` is valid, and the
    `--format json` report matches `expected/vet-legacy-phone.json`:
    one `deprecated` finding at severity `warning`, sited at the data
@@ -239,16 +239,16 @@ reports diffed against the `expected/` goldens.
    `verdict: incomplete`, exit 3, `disjunct_no_gen`.
 8. An instance without v3's required `region` is `verdict: incomplete`,
    exit 3, `mapval_required` at `$.profile.region`.
-9. `subsume profile-v2.aon profile-v1.aon` answers `verdict: subsumes`,
+9. `subsume profile-v2.aontu profile-v1.aontu` answers `verdict: subsumes`,
    exit 0: v2 admits every v1 instance.
-10. `subsume profile-v1.aon profile-v2.aon` is refused with
+10. `subsume profile-v1.aontu profile-v2.aontu` is refused with
     `compat_narrowed` at `$.profile.contact` and `$.profile.locale`:
     under closed maps, an addition is not forward-compatible.
-11. `breaking --against profile-v1.aon profile-v2.aon` is
+11. `breaking --against profile-v1.aontu profile-v2.aontu` is
     `verdict: compatible`, exit 0 (additive plus deprecate).
-12. Narrowing the email pattern (`proposals/narrow-email.aon`) is
+12. Narrowing the email pattern (`proposals/narrow-email.aontu`) is
     refused: exit 1, `compat_narrowed` at `$.profile.email`.
-13. Adding a required key (`proposals/require-loyalty.aon`) is refused:
+13. Adding a required key (`proposals/require-loyalty.aontu`) is refused:
     exit 1, `compat_required_added` at `$.profile.loyalty`.
 14. v3 against v2 is `breaking`, exit 1, and the `--format json` report
     matches `expected/breaking-v3-report.json`: `compat_required_added`
@@ -257,19 +257,19 @@ reports diffed against the `expected/` goldens.
 15. `--allow-deprecated-removal` does not excuse the required `region`
     key: v3 against v2 still exits 1 with `compat_required_added`.
 16. Removing the deprecated `phone` alone
-    (`proposals/v3-remove-phone.aon`) fails plain: exit 1,
+    (`proposals/v3-remove-phone.aontu`) fails plain: exit 1,
     `compat_narrowed` at `$.profile.phone`.
 17. The same removal passes with `--allow-deprecated-removal`:
     `"verdict": "compatible"`, exit 0, and the `compat_narrowed`
     finding is kept at `"severity": "warning"`.
 18. Flipping the marketing-consent default
-    (`proposals/default-change.aon`): `--profile values` answers
+    (`proposals/default-change.aontu`): `--profile values` answers
     `subsumes`, exit 0, because the admitted set is unchanged;
     `--profile defaults` (the gate's default) exits 1 with
     `compat_default_changed` ("the effective default changed:
     previously generable documents materialise differently or become
     incomplete"), matching `expected/subsume-default-change.json`.
-19. Hiding a generated field (`probes/hide-score-*.aon`) is invisible
+19. Hiding a generated field (`probes/hide-score-*.aontu`) is invisible
     to `values` and `defaults` (both exit 0) and caught only by
     `--profile gen`: exit 1, `compat_marks_changed`, with the mark diff
     `general {"type":false,"hide":true}, specific
@@ -277,34 +277,34 @@ reports diffed against the `expected/` goldens.
 20. Under `--profile gen`, v2 subsumes itself: `verdict: subsumes`,
     exit 0.
 21. A `must()` check added on the new side
-    (`probes/must-email-domain.aon`) stops the gate:
+    (`probes/must-email-domain.aontu`) stops the gate:
     `verdict: undecided`, exit 3, `sub_evaluate_only` ("an
     evaluate-only check (must) makes the admitted set opaque").
 22. `--allow-undecided` turns that into an explicit override: exit 0,
     `sub_evaluate_only` still reported.
 23. A spread template that reads its own key with `key()`
-    (`probes/routing-v2.aon` against `routing-v1.aon`) is `undecided`,
+    (`probes/routing-v2.aontu` against `routing-v1.aontu`) is `undecided`,
     exit 3, `sub_path_dependent_spread` ("a path-dependent spread
     template cannot be compared structurally").
-24. `proposals/waive-gate.aon`, which pins its own policy to `none`,
+24. `proposals/waive-gate.aontu`, which pins its own policy to `none`,
     passes the gate: `verdict: compatible`, exit 0.
 25. With `--mode backward` on the command line the same proposal is
     refused: exit 1, `compat_required_added`.
-26. A version string carried inside the document (`probes/meta-v1.aon`
-    against `meta-v2.aon`) is reported as `compat_narrowed` at
+26. A version string carried inside the document (`probes/meta-v1.aontu`
+    against `meta-v2.aontu`) is reported as `compat_narrowed` at
     `$.meta.version`, exit 1.
 27. `breaking --at '$.profile'` on the same pair is
     `verdict: compatible`, exit 0, and `subsume --at '$.profile'`
     answers `subsumes`.
-28. `aontu hash profile-v2.aon` and `aontu hash
-    probes/v2-reformatted.aon` (keys reordered, comments rewritten,
+28. `aontu hash profile-v2.aontu` and `aontu hash
+    probes/v2-reformatted.aontu` (keys reordered, comments rewritten,
     whitespace collapsed) print the same pin,
     `aon1-oUzLyquaExn0c2SEql1U-otsj-B0YP22HStsxHvucyU`.
 29. v3 hashes differently: a semantic change moves the pin.
 30. `hash --form` prints the hashed text with its
     `close`/`hide`/`deprecate` marks; `--canon` prints the value
     without them.
-31. `aontu diff profile-v2.aon profile-v3.aon` is a usage refusal, exit
+31. `aontu diff profile-v2.aontu profile-v3.aontu` is a usage refusal, exit
     2 ("a mistyped verb reads as a filename"). The change list comes
     from the MCP server's `diff` tool, called over stdio with JSON-RPC,
     and matches `expected/diff-v2-v3.json`: `removed $.profile.phone`
@@ -313,7 +313,7 @@ reports diffed against the `expected/` goldens.
     breaking verb's question, not this one."
 32. The CI form gates a working file against its committed ancestor:
     with v1 committed and v2 in the working tree,
-    `aontu breaking --against 'git#HEAD' profile.aon` is `compatible`,
+    `aontu breaking --against 'git#HEAD' profile.aontu` is `compatible`,
     exit 0; with the narrowed proposal in the working tree it exits 1
     with `compat_narrowed`.
 33. The subsumption poset above renders from the seven documents with
@@ -331,7 +331,7 @@ The gate as CI runs it, one line against the committed version of the
 same file:
 
 ```sh
-aontu breaking --against 'git#HEAD' profile.aon
+aontu breaking --against 'git#HEAD' profile.aontu
 ```
 
 The how-to guides [Gate schema changes](../../docs/how-to/gate-schema-changes.md)

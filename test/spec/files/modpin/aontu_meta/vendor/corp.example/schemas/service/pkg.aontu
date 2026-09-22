@@ -1,0 +1,4 @@
+pkg: {
+  path: "corp.example/schemas/service"
+  main: "service.aontu"
+}

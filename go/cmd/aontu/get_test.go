@@ -24,7 +24,7 @@ func getRun(args ...string) (string, string, int) {
 
 func getFile(t *testing.T, dir, src string) string {
 	t.Helper()
-	file := filepath.Join(dir, "doc.aon")
+	file := filepath.Join(dir, "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestGetUsageErrorsExit2(t *testing.T) {
 		{"$.a", "--depth", "x", file},
 		{"$.a", "--depth", "0", file},
 		{"$.a", "--depth"},
-		{"$.a", filepath.Join(t.TempDir(), "missing.aon")},
+		{"$.a", filepath.Join(t.TempDir(), "missing.aontu")},
 	} {
 		if _, _, code := getRun(args...); 2 != code {
 			t.Fatalf("%v: want 2, got %d", args, code)

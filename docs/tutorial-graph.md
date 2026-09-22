@@ -80,10 +80,10 @@ original lives under test.
 
 <!-- test: scenario pipeline -->
 
-The vocabulary sits in `spec.aon` (`hide()` marks it schema:
+The vocabulary sits in `spec.aontu` (`hide()` marks it schema:
 present for unification, absent from output):
 
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Job: { kind:job feeds?:rel($.spec.JobShape) }
@@ -100,10 +100,10 @@ refuses at the edge. The `?` makes the key
 nothing downstream writes nothing. (`JobShape` is a thin stand-in:
 a self-typed `rel($.spec.Job)` inside `Job` is still in design.)
 
-The topology sits in `pipeline.aon`: plain lists of addresses, one
+The topology sits in `pipeline.aontu`: plain lists of addresses, one
 of which carries a typo:
 
-<!-- test: file pipeline.aon -->
+<!-- test: file pipeline.aontu -->
 ```aontu
 pipeline: jobs: { &: $.spec.Job }
 
@@ -112,17 +112,17 @@ pipeline: jobs: transform: feeds: [path($.pipeline.jobs.load)]
 pipeline: jobs: load: {}
 ```
 
-A two-line root, `model.aon`, joins them:
+A two-line root, `model.aontu`, joins them:
 
-<!-- test: file model.aon -->
+<!-- test: file model.aontu -->
 ```aontu
-@"./spec.aon"
-@"./pipeline.aon"
+@"./spec.aontu"
+@"./pipeline.aontu"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu model.aon
+$ aontu model.aontu
 [aontu/rel_unresolved]: Cannot refer value at path $.pipeline.jobs.extract.feeds.0
 ...
 $ echo $?
@@ -133,9 +133,9 @@ Without `rel()`, that address is a perfectly good string and this
 pipeline silently loses everything downstream of extract. With it,
 the typo is a located refusal, and existence is decided inside the
 evaluation: an address resolves, or the document refuses. Correct
-the line in `pipeline.aon`:
+the line in `pipeline.aontu`:
 
-<!-- test: file pipeline.aon -->
+<!-- test: file pipeline.aontu -->
 ```aontu
 pipeline: jobs: { &: $.spec.Job }
 
@@ -146,7 +146,7 @@ pipeline: jobs: load: {}
 
 <!-- test: run -->
 ```sh
-$ aontu model.aon
+$ aontu model.aontu
 ...
         "feeds": [
           "$.pipeline.jobs.transform"
@@ -159,9 +159,9 @@ $ aontu model.aon
 Acme's convention says a job may only feed another **job**: not a
 raw dump, which lives elsewhere in the tree. The addresses say where
 each target is, so the convention is a rule about the address. Write
-it into the declaration, in `spec.aon`:
+it into the declaration, in `spec.aontu`:
 
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Job: {
@@ -176,11 +176,11 @@ spec: hide({
 A constraint beside `rel()` constrains the **address string**, and
 it is held onto every element of the list. To watch it work, write
 a change request: a file that includes the model and layers a
-delta on at the path it applies to. Propose a new edge, `raw.aon`:
+delta on at the path it applies to. Propose a new edge, `raw.aontu`:
 
-<!-- test: file raw.aon -->
+<!-- test: file raw.aontu -->
 ```aontu
-@"./model.aon"
+@"./model.aontu"
 
 pipeline: {
   dumps: raw: kind: job
@@ -193,7 +193,7 @@ pipeline: {
 
 <!-- test: run -->
 ```sh
-$ aontu raw.aon
+$ aontu raw.aontu
 [aontu/constraint]: Cannot unify values at path $.pipeline.jobs.extract.feeds.1
 ...
  Cannot unify value: re("^\\$\\.pipeline\\.jobs\\.") with value: path($.pipeline.dumps.raw)
@@ -212,9 +212,9 @@ schema.
 Two facts about the pipeline concern the whole edge set: no job may
 feed itself at any remove, and every fed job should name its
 feeders back. Declare both at the field, and give `fedBy` the same
-checked treatment, in `spec.aon`:
+checked treatment, in `spec.aontu`:
 
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Job: {
@@ -233,9 +233,9 @@ the atoms only *register* the declaration: one more edge can flip
 either property, so the verdict waits for generation, where every
 edge is known ([the rule](reference-language.md#declared-relations)).
 And `inverse(fedBy)` checks the mirror rather than writing it for
-you, so the data states both directions, in `pipeline.aon`:
+you, so the data states both directions, in `pipeline.aontu`:
 
-<!-- test: file pipeline.aon -->
+<!-- test: file pipeline.aontu -->
 ```aontu
 pipeline: jobs: { &: $.spec.Job }
 
@@ -249,7 +249,7 @@ pipeline: jobs: load: fedBy: [path($.pipeline.jobs.transform)]
 
 <!-- test: run -->
 ```sh
-$ aontu model.aon
+$ aontu model.aontu
 {
   "pipeline": {
     "jobs": {
@@ -272,7 +272,7 @@ $ aontu model.aon
     }
   }
 }
-$ aontu relations model.aon
+$ aontu relations model.aontu
 verdict: pass
 ```
 
@@ -284,11 +284,11 @@ same verdict without generating anything.
 ### Refusing a cycle
 
 A change request makes load feed extract, and its author is careful: the
-inverse entry is dutifully written too. Save it as `cycle.aon`:
+inverse entry is dutifully written too. Save it as `cycle.aontu`:
 
-<!-- test: file cycle.aon -->
+<!-- test: file cycle.aontu -->
 ```aontu
-@"./model.aon"
+@"./model.aontu"
 
 pipeline: jobs: load: feeds: [path($.pipeline.jobs.extract)]
 pipeline: jobs: extract: fedBy: [path($.pipeline.jobs.load)]
@@ -296,12 +296,12 @@ pipeline: jobs: extract: fedBy: [path($.pipeline.jobs.load)]
 
 <!-- test: run -->
 ```sh
-$ aontu cycle.aon
+$ aontu cycle.aontu
 [aontu/relation_cycle]: Cannot relate value at path $.pipeline.jobs.extract.feeds
 ...
 $ echo $?
 1
-$ aontu relations cycle.aon
+$ aontu relations cycle.aontu
 verdict: fail
 
 $.pipeline.jobs.extract.feeds.0  feeds: cycle $.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load -> $.pipeline.jobs.extract
@@ -319,11 +319,11 @@ closing back on the first node.
 A new job taps the transform output, and nobody records the feeder
 on its `fedBy`. The `change` list restates `job_load` because lists
 unify positionally (the first tutorial's §11 rule). Save it as
-`metrics.aon`:
+`metrics.aontu`:
 
-<!-- test: file metrics.aon -->
+<!-- test: file metrics.aontu -->
 ```aontu
-@"./model.aon"
+@"./model.aontu"
 
 pipeline: jobs: {
   metrics: fedBy: []
@@ -333,7 +333,7 @@ pipeline: jobs: {
 
 <!-- test: run -->
 ```sh
-$ aontu relations metrics.aon
+$ aontu relations metrics.aontu
 verdict: fail
 
 $.pipeline.jobs.transform.feeds.1  feeds: $.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy
@@ -353,11 +353,11 @@ the edge set, and it has its own verb:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.pipeline.jobs.extract $.pipeline.jobs.load --relation feeds model.aon
+$ aontu reaches $.pipeline.jobs.extract $.pipeline.jobs.load --relation feeds model.aontu
 verdict: reaches
 
 $.pipeline.jobs.extract -> $.pipeline.jobs.transform -> $.pipeline.jobs.load
-$ aontu reaches $.pipeline.jobs.load $.pipeline.jobs.extract --relation feeds model.aon
+$ aontu reaches $.pipeline.jobs.load $.pipeline.jobs.extract --relation feeds model.aontu
 verdict: unreachable
 
 $.pipeline.jobs.load does not reach $.pipeline.jobs.extract
@@ -383,10 +383,10 @@ An approval chain is a step that may be followed by another step,
 and the depth belongs to each policy: a schema that hard-codes
 three levels is wrong the day someone needs four. Here is the whole
 vocabulary, trimmed from
-[use-case 13](../use-cases/13-recursive-schema/), as `schema.aon`:
+[use-case 13](../use-cases/13-recursive-schema/), as `schema.aontu`:
 
 <!-- test: scenario approvals -->
-<!-- test: file schema.aon -->
+<!-- test: file schema.aontu -->
 ```aontu
 spec: hide({
   Step: {
@@ -401,11 +401,11 @@ Look at the last field. `$.spec.Step`, written *inside* `Step`, is
 a reference to the value being defined, and it simply means the
 fixpoint: a `Step` whose tail is a `Step`, by this very definition,
 all the way down. No marker, no depth parameter, no unrolled
-copies. Write a three-level chain against it, as `chain.aon`:
+copies. Write a three-level chain against it, as `chain.aontu`:
 
-<!-- test: file chain.aon -->
+<!-- test: file chain.aontu -->
 ```aontu
-@"./schema.aon"
+@"./schema.aontu"
 
 payments: $.spec.Step & {
   approver: "lead@acme.example"
@@ -420,7 +420,7 @@ payments: $.spec.Step & {
 
 <!-- test: run -->
 ```sh
-$ aontu chain.aon
+$ aontu chain.aontu
 {
   "payments": {
     "approver": "lead@acme.example",
@@ -450,9 +450,9 @@ terminates.
 The engine never analyses a schema for well-foundedness; the data
 decides, and what ends the expansion is the `?` on `then?:`, where
 the data stops, the optional key drops. Spell the tail required and
-no finite chain can satisfy it. Try it, as `strict.aon`:
+no finite chain can satisfy it. Try it, as `strict.aontu`:
 
-<!-- test: file strict.aon -->
+<!-- test: file strict.aontu -->
 ```aontu
 strict: hide({ Step: { approver:string then:$.strict.Step } })
 
@@ -464,7 +464,7 @@ doc: $.strict.Step & {
 
 <!-- test: run -->
 ```sh
-$ aontu strict.aon
+$ aontu strict.aontu
 [aontu/recursion_unexpanded]: Cannot recurse value at path $.doc.then.then
 ...
 $ echo $?
@@ -498,7 +498,7 @@ all, `review.json`:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at '$.spec.Step' schema.aon review.json
+$ aontu vet --at '$.spec.Step' schema.aontu review.json
 verdict: valid
 ```
 
@@ -519,7 +519,7 @@ Now a chain that smuggles in an outside approver one level down, as
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at '$.spec.Step' schema.aon outside.json
+$ aontu vet --at '$.spec.Step' schema.aontu outside.json
 verdict: invalid
 
 $.spec.Step.then.approver: constraint [conflict]
@@ -527,14 +527,14 @@ $.spec.Step.then.approver: constraint [conflict]
   expected: re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: outside.json:5:17 ("EXTERNAL@other.example")
-  schema: schema.aon:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: schema.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
 ...
 $ echo $?
 1
 ```
 
 The finding is one level down, sited on both sides (the data's line
-in `outside.json`, the schema's line in `schema.aon`), and the
+in `outside.json`, the schema's line in `schema.aontu`), and the
 invented `decision` is refused right beside it. The depth cost
 nothing to write, and there is no blind spot at level fifty either!
 

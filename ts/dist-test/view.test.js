@@ -64,27 +64,27 @@ class Ghostly extends provenance_1.Provenance {
 (0, node_test_1.describe)('view', () => {
     (0, node_test_1.test)('view-over-included-files', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-'));
-        write(dir, 'lib/base.aon', 'a: {x: **1 & integer, y: 2}\n');
-        const entry = write(dir, 'entry.aon', '@"./lib/base.aon"\na: {x: *2 & integer, z: 3}\n');
+        write(dir, 'lib/base.aontu', 'a: {x: **1 & integer, y: 2}\n');
+        const entry = write(dir, 'entry.aontu', '@"./lib/base.aontu"\na: {x: *2 & integer, z: 3}\n');
         const src = Fs.readFileSync(entry, 'utf8');
         const trust = { include: 'root', root: dir };
         const layers = (0, view_1.view)(src, { kind: 'layers', path: entry, trust });
         Assert.equal(layers.verdict, 'rendered');
-        Assert.match(layers.text, /^# layers {2}file=entry\.aon {2}documents=2/);
+        Assert.match(layers.text, /^# layers {2}file=entry\.aontu {2}documents=2/);
         // The included file is named relative to the entry, in the host's
         // own separator.
-        Assert.ok(layers.text.includes(Path.join('lib', 'base.aon')), layers.text);
+        Assert.ok(layers.text.includes(Path.join('lib', 'base.aontu')), layers.text);
         Assert.equal((0, view_1.view)(src, { kind: 'layers', path: entry, trust, maxRows: 1 })
             .errors?.[0].code, 'view_rows_exceeded');
         const ladder = (0, view_1.view)(src, { kind: 'ladder', at: '$.a.x', path: entry, trust });
         Assert.equal(ladder.verdict, 'rendered');
-        Assert.ok(ladder.text.includes('c0["**1<br/>pref | base.aon:1:8"]\n' +
-            '  c1["*2<br/>pref | entry.aon:2:8"]\n' +
-            '  c2["integer<br/>literal | entry.aon:2:13"]\n' +
-            '  c3["integer<br/>literal | base.aon:1:14"]'), ladder.text);
+        Assert.ok(ladder.text.includes('c0["**1<br/>pref | base.aontu:1:8"]\n' +
+            '  c1["*2<br/>pref | entry.aontu:2:8"]\n' +
+            '  c2["integer<br/>literal | entry.aontu:2:13"]\n' +
+            '  c3["integer<br/>literal | base.aontu:1:14"]'), ladder.text);
         // The poset labels a document by its file, and a further document
         // by its own path.
-        const other = write(dir, 'wide.aon', 'a: {x: integer, y: integer, z: integer}\n');
+        const other = write(dir, 'wide.aontu', 'a: {x: integer, y: integer, z: integer}\n');
         const poset = (0, view_1.view)(src, {
             kind: 'poset', path: entry, trust, profile: 'values',
             docs: [{ src: Fs.readFileSync(other, 'utf8'), path: other }],
@@ -97,7 +97,7 @@ class Ghostly extends provenance_1.Provenance {
     (0, node_test_1.test)('view-with-no-options-and-an-absolute-include', () => {
         Assert.deepEqual((0, view_1.view)('a: 1'), { verdict: 'rendered', kind: 'tree', text: '', loss: [] });
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-abs-'));
-        const lib = write(dir, 'lib.aon', 'b: 2\n');
+        const lib = write(dir, 'lib.aontu', 'b: 2\n');
         // Spelled with forward slashes: a backslash in a string literal is
         // an escape, and a Windows path is full of them.
         const spelled = lib.split(Path.sep).join('/');
@@ -106,7 +106,7 @@ class Ghostly extends provenance_1.Provenance {
         });
         Assert.equal(r.verdict, 'rendered', JSON.stringify(r.errors));
         Assert.match(r.text, /^# layers {2}file=- {2}documents=2/);
-        Assert.ok(r.text.includes('lib.aon'), r.text);
+        Assert.ok(r.text.includes('lib.aontu'), r.text);
     });
     (0, node_test_1.test)('view-layers-skips-paths-the-document-lacks', () => {
         const r = (0, view_1.view)('a: {b: 1}', { kind: 'layers' }, { provenance: () => new Ghostly() });
@@ -143,12 +143,12 @@ class Ghostly extends provenance_1.Provenance {
                 : { verdict: 'does_not_subsume', code: 'compat_narrowed' };
         };
         const docs = [{ src: 'b', name: 'b' }, { src: 'c', name: 'c' }];
-        const r = (0, view_1.view)('a', { kind: 'poset', docs, path: 'a.aon' }, { compare });
+        const r = (0, view_1.view)('a', { kind: 'poset', docs, path: 'a.aontu' }, { compare });
         Assert.equal(r.verdict, 'lossy');
         Assert.match(r.text, /n1 --> n0\n {2}n2 --> n1$/);
         Assert.deepEqual(r.loss, [{ code: 'order_intransitive', count: 1, detail: ['c < a'] }]);
         const bad = (0, view_1.view)('a', {
-            kind: 'poset', docs: [{ src: 'b', name: 'b\nc' }], path: 'a.aon',
+            kind: 'poset', docs: [{ src: 'b', name: 'b\nc' }], path: 'a.aontu',
         }, { compare });
         Assert.equal(bad.verdict, 'error');
         Assert.equal(bad.errors?.[0].code, 'view_line_break');

@@ -7,7 +7,7 @@ names. The language reference states how an import routes to one; this
 page states what the package system keeps on disk while it does so.
 
 This page is normative for the artefacts: the files the package system
-reads and writes, every field `pkg.aon` declares, the name and version
+reads and writes, every field `pkg.aontu` declares, the name and version
 rules, the caps every consumer applies, what an archive may hold, and
 every code a package operation refuses with. It states no verb's
 options and no verb's exit codes.
@@ -27,7 +27,7 @@ with a real package.
 ## Contents
 
 - [The files](#the-files)
-- [What pkg.aon declares](#what-pkgaon-declares)
+- [What pkg.aontu declares](#what-pkgaontu-declares)
 - [Names and versions](#names-and-versions)
 - [Where a module resolves from](#where-a-module-resolves-from)
 - [The caps](#the-caps)
@@ -48,8 +48,8 @@ proof that travel with them.
 
 | path | written by | read by | commit it |
 |---|---|---|---|
-| `pkg.aon` | the author, and `add`, `get`, `remove` by the smallest text change | every package verb, and module resolution | yes |
-| `aontu_meta/pkg-lock.aon` | `sync`, `pkg tidy`, `pkg refreeze` | `sync --frozen`, `pkg verify`, `pkg tree`, `why`, and resolution for a pinned import | yes |
+| `pkg.aontu` | the author, and `add`, `get`, `remove` by the smallest text change | every package verb, and module resolution | yes |
+| `aontu_meta/pkg-lock.aontu` | `sync`, `pkg tidy`, `pkg refreeze` | `sync --frozen`, `pkg verify`, `pkg tree`, `why`, and resolution for a pinned import | yes |
 | `aontu_meta/vendor/<package-path>/` | `sync`, `pkg vendor` | resolution, first of the stores | yes |
 | `aontu_meta/vendor/<package-path>/aontu_meta/` | `sync`, holding the manifest and proof as served | `pkg verify` | yes |
 | the user cache | `sync`, `add`, `get` | resolution, when the expected canon-hash is known | it is outside the project |
@@ -62,9 +62,9 @@ than a link. The lockfile and the vendor tree are written together and
 belong in one commit: a lockfile without the tree it pins names bytes
 the project does not have.
 
-## What pkg.aon declares
+## What pkg.aontu declares
 
-`pkg.aon` is an ordinary aontu document, evaluated as any other. The
+`pkg.aontu` is an ordinary aontu document, evaluated as any other. The
 tools read the fields below and nothing else, so a field of the
 author's own is carried rather than refused.
 
@@ -72,7 +72,7 @@ author's own is carried rather than refused.
 |---|---|---|---|
 | `pkg.path` | this package's path | none | resolution, `publish`, `why` |
 | `pkg.version` | this package's own version | none | `publish`, `pkg manifest` |
-| `pkg.main` | the entry document, a path inside the tree | `main.aon` | resolution, `publish` |
+| `pkg.main` | the entry document, a path inside the tree | `main.aontu` | resolution, `publish` |
 | `dep."<path>".v` | the minimum version of a dependency | none | `sync`, and every verb that resolves |
 | `dep."alias:<name>".pkg` | the package an alias names | none | resolution of an `alias:` import |
 | `dep."alias:<name>".v` | the minimum version taken under that alias | none | `sync` |
@@ -89,8 +89,8 @@ author's own is carried rather than refused.
 A consuming project declares what it depends on, and where those
 packages are read from:
 
-```aon
-pkg: { path:"corp.example/checkout" main:"main.aon" }
+```aontu
+pkg: { path:"corp.example/checkout" main:"main.aontu" }
 
 dep: "corp.example/schemas/service": v: "1.4.2"
 dep: "alias:legacy": { pkg:"corp.example/schemas/service" v:"1.2.0" }
@@ -105,8 +105,11 @@ A package that is published declares its own version and says so out
 loud, and the last version of a path that has been superseded points at
 its replacement:
 
-```aon
-pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+```aontu
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.4.2"
+pkg: main: "service.aontu"
+
 publish: public
 retract: ["1.4.1"]
 moved: "corp.example/schemas/service2"
@@ -150,7 +153,7 @@ last segment has an extension the include table knows is refused with
 Resolution reads local stores only, in this order, and stops at the
 first that holds the module:
 
-1. `aontu_meta/vendor/` of the project whose directory holds `pkg.aon`.
+1. `aontu_meta/vendor/` of the project whose directory holds `pkg.aontu`.
 2. `aontu_meta/vendor/` of each project enclosing that one, outward, so
    a vendored module resolves its own dependencies from the tree that
    vendored it.
@@ -196,7 +199,7 @@ is admitted by a change to the engine and never by a package.
 
 | group | admitted |
 |---|---|
-| aontu source | `aon`, `aontu` |
+| aontu source | `aontu` |
 | data the include table reads | `json`, `jsonld`, `jsonc`, `json5`, `jsonic`, `jsc`, `toml`, `yaml`, `yml`, `ini` |
 | text | `md`, `txt` |
 | by name, with no extension | `LICENSE`, `NOTICE` |

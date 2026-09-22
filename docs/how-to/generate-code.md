@@ -21,10 +21,10 @@ and a check that both ports answer byte-identical files) see
 `"…"` and `'…'` refuse a literal newline. `` `…` `` accepts one, so a
 backtick string carries a block of another language as one value, and
 escapes work in it: `\t` is a tab and `` \` `` a literal backtick.
-Write this as `frag.aon`:
+Write this as `frag.aontu`:
 
 <!-- test: scenario generate-code -->
-<!-- test: file frag.aon -->
+<!-- test: file frag.aontu -->
 ```aontu
 tag: `json:"id"`
 row: `\tID string`
@@ -32,7 +32,7 @@ row: `\tID string`
 
 <!-- test: run -->
 ```sh
-$ aontu -c frag.aon
+$ aontu -c frag.aontu
 {"row":"\tID string","tag":"json:\"id\""}
 ```
 
@@ -47,9 +47,9 @@ is the same thing written out, and a nested `emit` splices its children
 into the list, so the result is flat.
 
 `file(name, children)` names a file and holds its lines. Write this as
-`types.aon`:
+`types.aontu`:
 
-<!-- test: file types.aon -->
+<!-- test: file types.aontu -->
 ```aontu
 records: [
   {
@@ -98,7 +98,7 @@ The tree is an ordinary value, so the verb that answers it is `get`:
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.out types.aon
+$ aontu model get $.out types.aontu
 {
   "children": [
     {
@@ -165,7 +165,7 @@ tree is one file, so the path names the file:
 
 <!-- test: run -->
 ```sh
-$ aontu render types.aon gen/types.go
+$ aontu render types.aontu gen/types.go
 ```
 
 `gen/types.go` is on disk. `--check` writes nothing and compares,
@@ -173,7 +173,7 @@ exiting 1 on drift and naming the files that differ:
 
 <!-- test: run -->
 ```sh
-$ aontu render --check types.aon gen/types.go
+$ aontu render --check types.aontu gen/types.go
 ```
 
 That is the CI form. Commit the generated files beside the model and
@@ -196,7 +196,7 @@ model node the dispatch matched, and the rule set that wrote it.
 
 <!-- test: run -->
 ```sh
-$ aontu trace types.aon
+$ aontu trace types.aontu
 types.go	$.children.1	$.records.0	$.%record#0
 types.go	$.children.2	$.records.0	$.%record#0
 types.go	$.children.3	$.records.0.fields.0	$.%field#0
@@ -215,9 +215,9 @@ A body of quoted lines is a generator a compiler cannot read. The same
 generator can be written as a file **in the language it generates**:
 one rule, a marked line is aontu source and every other line is a line
 of output. The marker is the target's comment token plus a dash, so the
-file stays valid in its own language. Write the model as `model.aon`:
+file stays valid in its own language. Write the model as `model.aontu`:
 
-<!-- test: file model.aon -->
+<!-- test: file model.aontu -->
 ```aontu
 records: [
   { name:"Customer" note:"one account holder" }
@@ -229,7 +229,7 @@ and the generator as `struct.go`:
 
 <!-- test: file struct.go -->
 ```go
-//- @"./model.aon"
+//- @"./model.aontu"
 //- out: emit($.records, {
 //- match: { name: string }
 //- body: [file(.name + ".go", emit([_], {

@@ -49,20 +49,20 @@ shape, is ground truth nobody looks at.
 **First failing example, from a real document.**
 [`use-cases/01-service-catalog/`](../../use-cases/01-service-catalog/)
 holds eight services declared across two files —
-[`catalog.aon`](../../use-cases/01-service-catalog/catalog.aon) (what
+[`catalog.aontu`](../../use-cases/01-service-catalog/catalog.aontu) (what
 each service IS) and
-[`deploy.aon`](../../use-cases/01-service-catalog/deploy.aon) (what
+[`deploy.aontu`](../../use-cases/01-service-catalog/deploy.aontu) (what
 each cluster RUNS) — joined by nothing but `id(svc_*)`. The dependency
 relation is declared once, at its field:
 
-```aon
+```aontu
 dependsOn?: rel($.std.Service) & re("^svc_") & acyclic() & inverse(dependedOnBy)
 ```
 
 Ask the tree what that graph looks like and this is the whole answer:
 
 ```
-$ aontu relations use-cases/01-service-catalog/system.aon
+$ aontu relations use-cases/01-service-catalog/system.aontu
 verdict: pass
 ```
 
@@ -106,21 +106,21 @@ drawing the graph the engine already computes.
 first diagram would be a lie.** `graphOf`'s `visit()` descends `isMap`,
 `isList` and the `isGraphAtom.held` transparency arm, and nothing else.
 A relation field wrapped in a residual CONJUNCTION mints no edges.
-[`use-cases/05-rbac-policy/roles.aon`](../../use-cases/05-rbac-policy/roles.aon)
+[`use-cases/05-rbac-policy/roles.aontu`](../../use-cases/05-rbac-policy/roles.aontu)
 writes exactly that shape:
 
-```aon
+```aontu
 grants: unique() & [&: refer() & string]
 ```
 
 VERIFIED against the built 0.53.0 on
-[`example.aon`](../../use-cases/05-rbac-policy/example.aon): the graph
+[`example.aontu`](../../use-cases/05-rbac-policy/example.aontu): the graph
 has **13 entities and 3 edges**, and all three are `role` links written
 outside every entity. Every one of the nine grants the document states
 literally is invisible, and the consequence reaches a shipped verb:
 
 ```
-$ aontu reaches owner admin_all use-cases/05-rbac-policy/example.aon
+$ aontu reaches owner admin_all use-cases/05-rbac-policy/example.aontu
 verdict: unreachable
 
 owner does not reach admin_all
@@ -128,7 +128,7 @@ $ echo $?
 1
 ```
 
-`roles.aon` says `owner: { ... grants: [admin_all] }` on the line above.
+`roles.aontu` says `owner: { ... grants: [admin_all] }` on the line above.
 A wrong JSON field is a bug; a wrong picture is a bug that everyone
 believes, so this is [Phase 0](#phase-0--the-graphof-conjunct-blind-spot-s)
 and it ships whether or not a diagram is ever drawn.
@@ -162,10 +162,10 @@ More than it looks like, and none of it needs new engine work.
   written position. It is computed once per unify and hung on the root
   (`out.graph = graphOf(out)` in ts/src/aontu.ts), and it is one of the
   26 symbols the package index exports. VERIFIED on the three
-  relation-bearing use cases: `01-service-catalog/system.aon` gives 8
+  relation-bearing use cases: `01-service-catalog/system.aontu` gives 8
   entities and 36 edges over 18 distinct `(from, key, to)` triples;
-  `12-relations/model.aon` gives 4 entities and 6 edges over 6 distinct
-  triples; `05-rbac-policy/example.aon` gives 13 entities and 3 edges,
+  `12-relations/model.aontu` gives 4 entities and 6 edges over 6 distinct
+  triples; `05-rbac-policy/example.aontu` gives 13 entities and 3 edges,
   which is the defect above.
 
 - **`Edge.at`, the source position of every link**, as a `$.dotted`
@@ -176,7 +176,7 @@ More than it looks like, and none of it needs new engine work.
 - **The relation metamodel.** `ctx._reldecls` (ts/src/ctx.ts) is a
   `Map<string, {acyclic?, inverses}>` populated by
   `GraphAtomVal.register` during unification. VERIFIED on
-  `01-service-catalog/system.aon`:
+  `01-service-catalog/system.aontu`:
   `[["dependsOn",{"acyclic":true,"inv":["dependedOnBy"]}]]`. This is
   what lets a figure suppress the hand-written mirror half of a
   relation instead of drawing every dependency twice, and what lets a
@@ -188,7 +188,7 @@ More than it looks like, and none of it needs new engine work.
   canon, its role (`literal` / `spread` / `ref` / `pref`) and its
   `file:row:col`. `why` narrows that to one path and prints it; the
   rest of the map is already computed and thrown away. VERIFIED on
-  `02-deploy-config/stack.aon`: one instrumented run records **338
+  `02-deploy-config/stack.aontu`: one instrumented run records **338
   paths** across **7 documents**.
 
 - **The generated values**, for labels, grouping and set membership.
@@ -565,14 +565,14 @@ measurement.** The obvious spelling — a `type()`-marked anchor, copying
 has to read it. VERIFIED, both spellings, on a two-file reproducer:
 
 ```
-# voc.aon:  %Node = close({id: string, label: string})
+# voc.aontu:  %Node = close({id: string, label: string})
 #           plot: type(close({nodes: [&: %Node]}))
-# fig.aon:  @"./voc.aon"
+# fig.aontu:  @"./voc.aontu"
 #           plot: {nodes: [{id: "a", label: "A"}]}
 
-$ aontu fig.aon                 -> {}
-$ aontu get '$.plot' fig.aon    -> null
-$ aontu get '$.plot' -c fig.aon -> {"nodes":[&:$.%Node,{"id":"a","label":"A"}]}
+$ aontu fig.aontu                 -> {}
+$ aontu get '$.plot' fig.aontu    -> null
+$ aontu get '$.plot' -c fig.aontu -> {"nodes":[&:$.%Node,{"id":"a","label":"A"}]}
 ```
 
 The `type()` mark affects `gen` and not canon, so a marked figure
@@ -584,13 +584,13 @@ where every shape is a `%Name` and the anchor is the author's own key.
 VERIFIED:
 
 ```
-# voc3.aon: %Node = close({id: string, label: string})
+# voc3.aontu: %Node = close({id: string, label: string})
 #           %Plot = close({nodes: [&: %Node]})
-# user.aon: @"./voc3.aon"
+# user.aontu: @"./voc3.aontu"
 #           my: 1
 #           plot: %Plot & {nodes: [{id: "a", label: "A"}]}
 
-$ aontu user.aon -> {"my":1,"plot":{"nodes":[{"id":"a","label":"A"}]}}
+$ aontu user.aontu -> {"my":1,"plot":{"nodes":[{"id":"a","label":"A"}]}}
 ```
 
 No pollution, full generation, and the check still runs by unification.
@@ -632,7 +632,7 @@ designs make for the figure and then deny to the projection.
 Four parts, in dependency order.
 
 ```
-  model.aon
+  model.aontu
     -- an EXTRACTOR (graphOf / generate / Provenance) -->
   a FIGURE            (seq + nest + incidence + loss)
     -- a RENDERER driven by a data PROFILE -->
@@ -742,7 +742,7 @@ form, the identifier prefixes and the escape table.
 **Identifiers are encoded, never mangled and never refused.** Entity
 names are `/[_a-zA-Z][-_a-zA-Z0-9]*/` (ts/src/val/IdFuncVal.ts's
 `ID_NAME`), so a legal aontu name may contain hyphens and
-[`use-cases/10-data-model/seed.aon`](../../use-cases/10-data-model/seed.aon)
+[`use-cases/10-data-model/seed.aontu`](../../use-cases/10-data-model/seed.aontu)
 declares `id("cust-1001")`. A design that refuses what it cannot spell
 would refuse a whole use case. The encoder is injective by
 construction, with two disjoint prefixes and one predicate:
@@ -813,7 +813,7 @@ and `bigdecimal` and is already pinned byte for byte in both ports by
 the `canon` and `hash` rows. It is deliberately not routed through
 `+`'s string coercion: VERIFIED, `"" + 9007199254740993` is
 `[aontu/mapval_no_gen]` and `"" + 1.0d` is `[aontu/no_path]`, and
-`use-cases/10-data-model/domain.aon` declares
+`use-cases/10-data-model/domain.aontu` declares
 `ledgerId: integer & min(1) | biginteger & min(1)`, so the failing
 shape is already in the corpus.
 
@@ -821,7 +821,7 @@ shape is already in the corpus.
 
 Every run produces one, in `SchemaLoss`'s shape and printed to stderr
 while the figure goes to stdout — the arrangement `jsonschema` already
-uses, so `aontu view matrix x.aon > docs/arch.txt` writes a figure and
+uses, so `aontu view matrix x.aontu > docs/arch.txt` writes a figure and
 still tells the reader what it could not draw. Entries are aggregated
 by code with a count, so a missing field on forty nodes is one row and
 not forty.
@@ -844,8 +844,8 @@ Verdict is `ok`, `lossy` or `error`; `--strict` exits 1 on `lossy`.
 distinction matters enough to state here rather than leave to the
 worked example. On shipped 0.53.0 it cannot happen in
 `use-cases/05-rbac-policy` at all: re-checked 2026-08-30, `graphOf`
-over every entry document of that case (`example.aon`, `roles.aon`,
-`tenant.aon`, `plans.aon`, `permissions.aon`) yields no entity and no
+over every entry document of that case (`example.aontu`, `roles.aontu`,
+`tenant.aontu`, `plans.aontu`, `permissions.aontu`) yields no entity and no
 edge touching `$.registry_invariant...`, and the key is correctly
 absent from the generated JSON. That is the same blind spot
 [Phase 0](#phase-0--the-graphof-conjunct-blind-spot-s) exists to
@@ -926,9 +926,9 @@ a separate document that includes the model, matching G9's manifest
 shape, and `views` is the AUTHOR's key — nothing in the engine knows
 the name (ADR-010).
 
-```aon
-# views.aon
-@"./system.aon"
+```aontu
+# views.aontu
+@"./system.aontu"
 
 views: {
   arch:  { kind: matrix, relation: dependsOn, order: partition,
@@ -940,8 +940,8 @@ views: {
 ```
 
 ```
-$ aontu view --views '$.views' views.aon           # render all three
-$ aontu view --views '$.views' --check views.aon   # the CI gate
+$ aontu view --views '$.views' views.aontu           # render all three
+$ aontu view --views '$.views' --check views.aontu   # the CI gate
 ```
 
 One evaluation, N figures, one exit code. A run either agrees with the
@@ -1042,9 +1042,9 @@ and to `none` otherwise. That keeps every shared-spec row deterministic
 
 **STDOUT'S terminal, not `setColor`'s answer.** `setColor` settles the
 ERROR FRAMES, which go to stderr, and reusing its answer for the figure
-gets both common cases wrong: no escapes for `aontu view tree m.aon
+gets both common cases wrong: no escapes for `aontu view tree m.aontu
 2>/dev/null` at a terminal, and escapes into the pipe for `aontu view
-tree m.aon | less`. So `auto` reads `process.stdout.isTTY` (the
+tree m.aontu | less`. So `auto` reads `process.stdout.isTTY` (the
 `*os.File` character-device test in Go) and `NO_COLOR` directly, by the
 rule no-color.org states and `err.ts` implements. Two destinations, two
 questions; the same policy answers each about its own.
@@ -1219,12 +1219,12 @@ hidden, because on shipped 0.53.0 they are empty.
 
 ### Worked example 1 — the matrix, in two orders (Ghoniem et al. 2004; Sangal et al. 2005)
 
-`use-cases/01-service-catalog/system.aon`: eight `id(svc_*)` entities
-declared across `catalog.aon` and `deploy.aon` and joined by identity;
+`use-cases/01-service-catalog/system.aontu`: eight `id(svc_*)` entities
+declared across `catalog.aontu` and `deploy.aontu` and joined by identity;
 `dependsOn` declared with `acyclic()` and `inverse(dependedOnBy)`.
 
 ```
-$ aontu view matrix --relation dependsOn --closure --order canon system.aon
+$ aontu view matrix --relation dependsOn --closure --order canon system.aontu
 ```
 
 ```
@@ -1241,7 +1241,7 @@ svc_risk      8 . X . . . . . \
 ```
 
 ```
-$ aontu view matrix --relation dependsOn --closure --order partition system.aon
+$ aontu view matrix --relation dependsOn --closure --order partition system.aontu
 ```
 
 ```
@@ -1292,7 +1292,7 @@ documents that `check.sh` already uses to pin `relation_inverse_missing`
 and `relation_cycle`.
 
 ```
-$ aontu view matrix --relation feeds --order partition --closure model.aon
+$ aontu view matrix --relation feeds --order partition --closure model.aontu
                 1 2 3 4
 job_audit     1 \ . . .
 job_load      2 . \ . .
@@ -1300,7 +1300,7 @@ job_transform 3 X X \ .
 job_extract   4 + + X \
 # above-diagonal direct cells: 0
 
-$ aontu view matrix --relation feeds --order partition --closure bad/missing-inverse.aon
+$ aontu view matrix --relation feeds --order partition --closure bad/missing-inverse.aontu
                 1 2 3 4 5
 job_audit     1 \ . . . .
 job_load      2 . \ . . .
@@ -1309,7 +1309,7 @@ job_transform 4 X X ! \ .
 job_extract   5 + + + X \
 # above-diagonal direct cells: 0
 
-$ aontu view matrix --relation feeds --order partition --closure bad/cycle.aon
+$ aontu view matrix --relation feeds --order partition --closure bad/cycle.aontu
                 1 2 3 4
 job_audit     1 \ . . .
 job_extract   2 + \ + X
@@ -1328,17 +1328,17 @@ acyclicity violation. That is the design-rule semantics Lattix had to
 invent a rule language for, with the rule language already in the same
 document as the model.
 
-VERIFIED: `aontu relations bad/missing-inverse.aon` reports the same
-two findings and `aontu relations bad/cycle.aon` the same cycle, so
+VERIFIED: `aontu relations bad/missing-inverse.aontu` reports the same
+two findings and `aontu relations bad/cycle.aontu` the same cycle, so
 the figure and the verb agree by construction — both read one edge set.
 
 ### Worked example 3 — sets over the RBAC grants (Lex et al. 2014)
 
-`use-cases/05-rbac-policy/example.aon`: four roles, nine permissions,
+`use-cases/05-rbac-policy/example.aontu`: four roles, nine permissions,
 grants written `unique() & [&: refer() & string]`.
 
 ```
-$ aontu view sets --sets '$.roles' --member grants --universe '$.permissions' example.aon
+$ aontu view sets --sets '$.roles' --member grants --universe '$.permissions' example.aontu
 ```
 
 ```
@@ -1368,8 +1368,8 @@ owner   | . * . . .
 
 This one found things. **Column 5 is the covered-by-nothing
 intersection**: `billing_manage`, `member_invite` and `project_delete`
-are declared in `permissions.aon` and granted by no role at all —
-VERIFIED by reading `roles.aon`, whose four grant lists are
+are declared in `permissions.aontu` and granted by no role at all —
+VERIFIED by reading `roles.aontu`, whose four grant lists are
 `[admin_all]`, `[admin_all]`, `[project_read, project_write,
 member_read]` and `[project_read, member_read, billing_read,
 audit_read]`. **Column 2 shows `admin` and `owner` are exactly
@@ -1388,7 +1388,7 @@ The same context as a matrix shows the absence a second way, as three
 empty columns:
 
 ```
-$ aontu view matrix --relation grants --order partition example.aon
+$ aontu view matrix --relation grants --order partition example.aontu
                                     1 1 1 1
                   1 2 3 4 5 6 7 8 9 0 1 2 3
 admin_all       1 \ . . . . . . . . . . . .
@@ -1415,7 +1415,7 @@ permissions have out-degree zero.
 ### Worked example 4 — the node-link graph, both profiles
 
 ```
-$ aontu view graph --relation dependsOn --group-by owner --as mermaid system.aon
+$ aontu view graph --relation dependsOn --group-by owner --as mermaid system.aontu
 ```
 
 ```
@@ -1449,7 +1449,7 @@ edges_deduped  36 written positions -> 18 distinct triples
 ```
 
 ```
-$ aontu view graph --relation dependsOn --group-by owner --as dot system.aon
+$ aontu view graph --relation dependsOn --group-by owner --as dot system.aontu
 ```
 
 ```
@@ -1498,7 +1498,7 @@ The same figure on the RBAC model, and this one only exists after
 Phase 0:
 
 ```
-$ aontu view graph --as mermaid example.aon
+$ aontu view graph --as mermaid example.aontu
 flowchart LR
   n_admin["admin"]
   n_admin_all["admin_all"]
@@ -1541,29 +1541,29 @@ disclose silently.
 
 ### Worked example 5 — layers, which nothing else in the repository can draw
 
-`use-cases/02-deploy-config/stack.aon` composes four layers of
+`use-cases/02-deploy-config/stack.aontu` composes four layers of
 authority across seven documents. `Provenance` already records, for
 every path, which documents contributed to it; the `layers` extractor
 reads that map and renders it as a set panel.
 
 ```
-$ aontu view layers --at '$.deploy.prod' --max-cols 12 stack.aon
+$ aontu view layers --at '$.deploy.prod' --max-cols 12 stack.aontu
 ```
 
 ```
-# layers  file=stack.aon  documents=5  paths=44
+# layers  file=stack.aontu  documents=5  paths=44
 
-envs/prod.aon      18
-fleet.aon          17
-org-policy.aon     36
-stack.aon          16
-team-defaults.aon  12
+envs/prod.aontu      18
+fleet.aontu          17
+org-policy.aontu     36
+stack.aontu          16
+team-defaults.aontu  12
 
-envs/prod.aon     | * * . . * . * . .
-fleet.aon         | . * . * . . . . .
-org-policy.aon    | * . * * * * . * .
-stack.aon         | . * * . . * * . *
-team-defaults.aon | * . * . . . . . .
+envs/prod.aontu     | * * . . * . * . .
+fleet.aontu         | . * . * . . . . .
+org-policy.aontu    | * . * * * * . * .
+stack.aontu         | . * * . . * * . *
+team-defaults.aontu | * . * . . . . . .
                   +------------------
                     8 5 4 12 4 4 1 4 2
 
@@ -1585,17 +1585,17 @@ team-defaults.aon | * . * . . . . . .
 ```
 
 Five documents write into `deploy.prod`. Twelve paths are decided by
-`org-policy.aon` alone (column 4) — the org shape nobody overrides.
+`org-policy.aontu` alone (column 4) — the org shape nobody overrides.
 Eight are decided by three writers at once (column 1: the environment
 overlay, the org policy and the team defaults all state `logLevel` and
 `tracing`), which is exactly the contention the use case exists to
 demonstrate and which its README describes only in prose. Column 5 is
 `replicas`, contributed by the environment overlay and the org policy —
 VERIFIED consistent with the single-path answer, since
-`aontu why '$.deploy.prod.workloads.billing.replicas' stack.aon`
+`aontu why '$.deploy.prod.workloads.billing.replicas' stack.aontu`
 reports three conjuncts from those two files.
 
-VERIFIED at the whole document: one instrumented run of `stack.aon`
+VERIFIED at the whole document: one instrumented run of `stack.aontu`
 records 338 paths across seven documents. The `--at` restriction and
 `--max-cols` are not conveniences — the unrestricted panel is 22
 columns and unreadable, and the loss report says `cols_elided` when it
@@ -1646,7 +1646,7 @@ construction.
 It carries a proof obligation that is itself the payoff: **every direct
 cell lands below the diagonal if and only if the relation is acyclic**,
 which is why the matrix in worked example 2 fails to triangularise on
-`bad/cycle.aon` and why the count is printed under every matrix. The
+`bad/cycle.aontu` and why the count is printed under every matrix. The
 heuristic reordering families (Behrisch et al., 2016) are refused —
 float objectives with arbitrary ties, in two ports, under a 100 %
 coverage floor.
@@ -1736,7 +1736,7 @@ Each refusal names the measurement or the rule that decided it.
 
 - **No `why` diagram.** VERIFIED: `aontu why
   '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas'
-  system.aon` returns TWO conjuncts, and the existing text output is
+  system.aontu` returns TWO conjuncts, and the existing text output is
   already three lines with clickable `file:row:col`. A four-node chain
   is a picture of a two-element list, and worse than the text it would
   replace.
@@ -1744,8 +1744,8 @@ Each refusal names the measurement or the rule that decided it.
 - **No subsumption Hasse diagram (`order`).** VERIFIED by running all
   56 ordered pairs of `subsume --at '$.profile'` over the eight
   documents in `use-cases/04-schema-evolution/`: exactly FOUR return
-  `subsumes`, two of them mutual (`require-loyalty.aon` and
-  `waive-gate.aon` subsume each other). The Hasse diagram of the
+  `subsumes`, two of them mutual (`require-loyalty.aontu` and
+  `waive-gate.aontu` subsume each other). The Hasse diagram of the
   repository's richest evolution fixture is 7 nodes and 2 edges — a
   four-row table rendered as a graph. It also needs a layered layout,
   which the integer rule forbids. The finding it surfaces (two
@@ -1755,7 +1755,7 @@ Each refusal names the measurement or the rule that decided it.
 - **No interval or domain panel, and no conflict witness.** This was
   the most novel view in the survey and it is cut on two measurements.
   First, `why` REFUSES on a document that does not stand up — VERIFIED,
-  `aontu why '$.replicas' probes/bypassed-bound.aon` prints the
+  `aontu why '$.replicas' probes/bypassed-bound.aontu` prints the
   `[aontu/empty]` frame and exits 4 with no conjunct list — so the
   conflict witness, which is the interesting half, cannot be built on
   the machinery it would need. Second, where `why` DOES answer, a
@@ -1824,7 +1824,7 @@ Each refusal names the measurement or the rule that decided it.
 | The picture is not pinned and never will be: GitHub's Mermaid version lags upstream, dagre and ELK change, graphviz gives no coordinate contract | High | Medium | Stated in the design, in `--help`, and in the emitted comment header. `--check` asserts bytes and says so; nothing claims pixels |
 | ADR-002's 100 % floor over four extractors, three renderers and two ports | High | High | Calibration from this tree: `ts/src/jsonschema.ts` is 511 lines and `go/jsonschema.go` 534 for a single-target emitter with one verb and two flags; `graph.ts` is 148, `reach.ts` 184, `relation.ts` 292, `diff.ts` 196, `agentsmd.ts` 135. The repository's ratio is 19,335 test lines to 30,670 source lines in TypeScript and 15,054 to 23,343 in Go, so every phase estimate below is quoted with the test lines it drags. The first landing is deliberately ONE kind and ONE profile |
 | Phase 0's conjunct descent lets `graphOf` reach `hide()`-marked subtrees, so a committed figure discloses what the document hides. NOT reachable on shipped 0.53.0 — re-checked 2026-08-30, no entity or edge in `use-cases/05-rbac-policy` touches `$.registry_invariant...` — so this is a hazard Phase 0 CREATES | High, once Phase 0 lands | High | Reported as `hidden_contribution` with the path, and `--strict` refuses. Whether the extractor should SKIP hidden subtrees by default is an open question; G9 Phase 0 makes the same change for `each`/`pick` and the two should agree |
-| The relation metamodel contains entries that are not predicates. VERIFIED on `use-cases/12-relations/bad/missing-inverse.aon`, where `ctx._reldecls` holds `feeds` plus five entries keyed `metrics`, `extract`, `transform`, `load`, `audit`, each carrying `inv:["fedBy"]`; not reproduced in a minimal document, and no verdict changes because the verb looks up by the edge's key | Medium | Medium | `--relation` is required for `matrix` rather than defaulting to one panel per declared relation, so a phantom entry cannot become a phantom figure. The observation goes in `use-cases/BUGS.md` with the document that shows it |
+| The relation metamodel contains entries that are not predicates. VERIFIED on `use-cases/12-relations/bad/missing-inverse.aontu`, where `ctx._reldecls` holds `feeds` plus five entries keyed `metrics`, `extract`, `transform`, `load`, `audit`, each carrying `inv:["fedBy"]`; not reproduced in a minimal document, and no verdict changes because the verb looks up by the edge's key | Medium | Medium | `--relation` is required for `matrix` rather than defaulting to one panel per declared relation, so a phantom entry cannot become a phantom figure. The observation goes in `use-cases/BUGS.md` with the document that shows it |
 | `graphOf`'s edge sort key stops being total once the conjunct arm visits terms at one path. I could NOT construct a witness (probes with stacked `refer()` conjuncts either collapsed or refused), so this is an unproven invariant rather than a demonstrated bug — but the in-code comment that licenses the one-key sort becomes false | Low | Medium | One line per port in the same commit: sort by `(at, from, key, to)`, and update the comment |
 | A matrix or a set panel is unreadable at real scale — a 200-service catalogue, a 60-attribute record set | High | Medium | `--max-rows` REFUSES rather than truncates, and the message names `--at`, `--relation` and `--group-by`; `--max-cols` and `--min-degree` elide with a counted loss row. The defaults (60 rows) have not been chosen against real large data, because the repository contains none |
 | Node-link output is a hairball above roughly forty nodes, which is the size the literature says the matrix exists for | High | Medium | Both ship, over one edge set, and the docs say which question each answers, with `reaches` as the third. Crossings are counted |
@@ -1885,7 +1885,7 @@ walked; a PrefVal NOT walked; two edges under one conjunct sorting
 totally. `reaches.tsv` +2, one of them the `owner`/`admin_all` question.
 `errcodes.tsv` +0.
 **Acceptance:** VERIFIED with the arm applied at head —
-`05-rbac-policy/example.aon` goes from 3 to 13 edges,
+`05-rbac-policy/example.aontu` goes from 3 to 13 edges,
 `reaches owner admin_all` from `unreachable` (exit 1) to `reaches`
 (exit 0), `01-service-catalog` stays at 36 edges over 18 distinct
 triples, `12-relations` stays at 6, and the full TypeScript suite
@@ -1977,7 +1977,7 @@ rows); `view-text.tsv` +15 for the set panel's bars and matrix.
 **Acceptance:** worked examples 3 and 5 emit byte for byte from both
 ports; the covered-by-nothing column is present by default when
 `--universe` is given and absent otherwise; the layer panel over
-`stack.aon` names the same documents `why` names for
+`stack.aontu` names the same documents `why` names for
 `$.deploy.prod.workloads.billing.replicas`.
 
 ### Phase 4 — the view document, the MCP tool, and the documentation (M)
@@ -1987,7 +1987,7 @@ ports; the covered-by-nothing column is present by default when
 `test/spec/views.tsv` (mode `views`). The MCP tool `view` landed with
 the kinds. Departures from the plan below: the declarations live in a
 new `test/spec/views.tsv` rather than in `view-matrix.tsv`; the
-figures are gated in `use-cases/16-module-deps/views.aon` rather than a
+figures are gated in `use-cases/16-module-deps/views.aontu` rather than a
 new `16-views/` case, since the figures to gate are that case's own;
 `docs/how-to/draw-a-model.md` is not written. Every declaration must
 name its `kind` and `out`, which the sketch below leaves implicit, and

@@ -1,10 +1,10 @@
 # File/source resolution (@"file"). __FIXTURES__ is replaced by the abs test/spec/files dir.
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: canon|gen|err
-load-top	gen	@"__FIXTURES__/foo.aon"	{"f":11}
-load-nested	gen	a:@"__FIXTURES__/foo.aon"	{"a":{"f":11}}
+load-top	gen	@"__FIXTURES__/foo.aontu"	{"f":11}
+load-nested	gen	a:@"__FIXTURES__/foo.aontu"	{"a":{"f":11}}
 # Colon-chain (nested-path) key whose value is a bare @"file" import.
-load-colon-chain	gen	a:b:@"__FIXTURES__/foo.aon"	{"a":{"b":{"f":11}}}
-load-merge	gen	b:1 a:@"__FIXTURES__/foo.aon"	{"b":1,"a":{"f":11}}
+load-colon-chain	gen	a:b:@"__FIXTURES__/foo.aontu"	{"a":{"b":{"f":11}}}
+load-merge	gen	b:1 a:@"__FIXTURES__/foo.aontu"	{"b":1,"a":{"f":11}}
 # A BARE MEMBER include with pairs around it (issue #3). load-merge above
 # puts the include in a VALUE position, where it becomes one key's value and
 # cannot disturb its siblings; a bare member merges INTO the enclosing map,
@@ -15,28 +15,28 @@ load-merge	gen	b:1 a:@"__FIXTURES__/foo.aon"	{"b":1,"a":{"f":11}}
 # reserved order-list entry with the loaded file's instead of combining them,
 # leaving an entry asValDepth could no longer read. Three positions, because
 # the include being FIRST is the one case that worked (nothing to lose yet).
-load-member-after	gen	a:1 @"__FIXTURES__/foo.aon"	{"a":1,"f":11}
-load-member-between	gen	a:1 @"__FIXTURES__/foo.aon" c:3	{"a":1,"c":3,"f":11}
-load-member-before	gen	@"__FIXTURES__/foo.aon" c:3	{"c":3,"f":11}
+load-member-after	gen	a:1 @"__FIXTURES__/foo.aontu"	{"a":1,"f":11}
+load-member-between	gen	a:1 @"__FIXTURES__/foo.aontu" c:3	{"a":1,"c":3,"f":11}
+load-member-before	gen	@"__FIXTURES__/foo.aontu" c:3	{"c":3,"f":11}
 # The same merge inside a braced map, and with the two other reserved
 # bookkeeping entries live: a duplicate key (which must still fold to a
 # conjunct) and an optional key (whose marker must survive into canon).
-load-member-nested	gen	a:{ x:1 @"__FIXTURES__/foo.aon" y:2 }	{"a":{"f":11,"x":1,"y":2}}
-load-member-dup-key	gen	f:number a:1 @"__FIXTURES__/foo.aon"	{"a":1,"f":11}
-load-member-optional-canon	canon	a?:1 @"__FIXTURES__/foo.aon"	{"a"?:1,"f":11}
-load-car	gen	car:@"__FIXTURES__/car.aon"	{"car":{"color":"silver","doors":4}}
-load-unify	gen	car:@"__FIXTURES__/car.aon" car:{doors:number,wheels:4}	{"car":{"color":"silver","doors":4,"wheels":4}}
-load-refs	gen	@"__FIXTURES__/refs.aon"	{"a":{"x":1},"b":1}
-load-spread	gen	@"__FIXTURES__/spread.aon"	{"one":{"active":true},"two":{"active":true}}
-load-conflict	err	car:@"__FIXTURES__/car.aon" car:{doors:5}	Cannot unify
+load-member-nested	gen	a:{ x:1 @"__FIXTURES__/foo.aontu" y:2 }	{"a":{"f":11,"x":1,"y":2}}
+load-member-dup-key	gen	f:number a:1 @"__FIXTURES__/foo.aontu"	{"a":1,"f":11}
+load-member-optional-canon	canon	a?:1 @"__FIXTURES__/foo.aontu"	{"a"?:1,"f":11}
+load-car	gen	car:@"__FIXTURES__/car.aontu"	{"car":{"color":"silver","doors":4}}
+load-unify	gen	car:@"__FIXTURES__/car.aontu" car:{doors:number,wheels:4}	{"car":{"color":"silver","doors":4,"wheels":4}}
+load-refs	gen	@"__FIXTURES__/refs.aontu"	{"a":{"x":1},"b":1}
+load-spread	gen	@"__FIXTURES__/spread.aontu"	{"one":{"active":true},"two":{"active":true}}
+load-conflict	err	car:@"__FIXTURES__/car.aontu" car:{doors:5}	Cannot unify
 # Relative @"./x" inside a loaded file resolves against that file directory (parent->child->grand).
-load-rel-chain	gen	@"__FIXTURES__/nest_parent.aon"	{"a":1,"child":{"b":2,"grand":{"c":3}}}
+load-rel-chain	gen	@"__FIXTURES__/nest_parent.aontu"	{"a":1,"child":{"b":2,"grand":{"c":3}}}
 load-not-found	err	a:@"nope-no-such-file"	source not found: nope-no-such-file
 # A missing @"file" must be an error in EVERY position it can appear, not
 # just as a value. load-not-found above uses the value position -- the one
 # both ports already agreed on -- so it pinned the narrowest case and left
 # the rest open. A bare member include is the position a real config uses
-# most (`@"./base.aon"` at the top of a file), and it is the one where a
+# most (`@"./base.aontu"` at the top of a file), and it is the one where a
 # missing source silently produced a clean, plausible, INCOMPLETE document.
 load-not-found-bare	err	@"nope-no-such-file"	source not found: nope-no-such-file
 load-not-found-member	err	a:1 @"nope-no-such-file"	source not found: nope-no-such-file
@@ -50,8 +50,8 @@ load-not-found-list	err	a:[ @"nope-no-such-file" ]	source not found: nope-no-suc
 # the outer key as well -- while TypeScript reports the failure with the
 # including file in the frame. Both positions of the inner include are
 # pinned, because value and member fail by different routes.
-load-not-found-in-loaded-member	err	@"__FIXTURES__/nest_missing.aon"	source not found: ./no-such-child
-load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aon"	source not found: ./no-such-child-val
+load-not-found-in-loaded-member	err	@"__FIXTURES__/nest_missing.aontu"	source not found: ./no-such-child
+load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aontu"	source not found: ./no-such-child-val
 
 # TYPE-MARKED ALIASES ACROSS AN INCLUDE (ADR-005, 2026-08-26;
 # use-cases/BUGS.md §12, the include-alias-* repros). A type()d schema
@@ -64,15 +64,15 @@ load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aon"	source n
 # wrappers, spread applications are full per-destination instances,
 # and a marked peer-only child is carried rather than wrapped as an
 # expectation. Parity-probed in both engines.
-load-alias-spread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
-load-alias-keyspread	gen	@"__FIXTURES__/alias_schema.aon" customers:{&:{name:key()}&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5,"name":"c1"}},"schema":{}}
-load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a":5}}
+load-alias-spread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
+load-alias-keyspread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:{name:key()}&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5,"name":"c1"}},"schema":{}}
+load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aontu" c1:$.C&{a:5}	{"c1":{"a":5}}
 
 # WHAT AN INCLUDE'S EXTENSION MEANS (ADR-012; use-cases/BUGS.md §49).
 # One rule, in both ports. The extension says which of TWO things the
 # file is:
 #
-#   .aon .aontu                            AONTU SOURCE -- the language,
+#   .aontu                                  AONTU SOURCE -- the language,
 #                                          with types, defaults, refs
 #   .json .jsonld .jsonc .json5 .jsonic
 #   .jsc .toml .yaml .yml .ini             CONFIG DATA -- parsed by that
@@ -83,7 +83,7 @@ load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a
 #
 # The rows exist because the two ports decided this DIFFERENTLY, and
 # both answers were wrong in a way that exits 0. TypeScript handed back
-# every non-`.aon` file as its raw TEXT, so `schema: @"./vocab.jsonld"`
+# every non-`.aontu` file as its raw TEXT, so `schema: @"./vocab.jsonld"`
 # validated data against a 40 KB string; Go parsed everything as aontu
 # source, so `@"./notes.txt"` parsed prose. `.json` was worse than either:
 # an unhandled internal error with no code, path or site.
@@ -94,7 +94,7 @@ load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aon" c1:$.C&{a:5}	{"c1":{"a
 load-ext-json	gen	x:@"__FIXTURES__/vocab.json"	{"x":{"a":1,"b":{"c":2}}}
 load-ext-jsonld	gen	x:@"__FIXTURES__/vocab.jsonld"	{"x":{"@context":{"name":"http://schema.org/name"},"name":"aontu"}}
 # A ROOT-LEVEL data include merges into the map that holds it, the way
-# a root `.aon` include always has: its keys become that map's keys,
+# a root `.aontu` include always has: its keys become that map's keys,
 # wherever the directive sits among them, and a key both sides declare
 # is met rather than replaced. Unpinned, the Go port dropped the whole
 # include here (a keyed one worked, which is why only keyed rows
@@ -120,7 +120,7 @@ load-root-json-list-msg	err	@"__FIXTURES__/list.json"\nx:1	Cannot unify value: {
 # THE CONFIG FORMATS, over one payload so the table reads as one thing.
 # ONTOLOGY.0.md P1 needs the two JSON rows above; the rest are here
 # because a model is usually asked to meet configuration somebody else
-# already wrote, and rewriting it into `.aon` first is not an answer.
+# already wrote, and rewriting it into `.aontu` first is not an answer.
 load-ext-toml	gen	x:@"__FIXTURES__/conf.toml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yaml	gen	x:@"__FIXTURES__/conf.yaml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yml	gen	x:@"__FIXTURES__/conf.yml"	{"x":{"host":"local","port":8080}}
@@ -207,13 +207,13 @@ load-ext-toml-dates	gen	x:@"__FIXTURES__/dates.toml"	{"x":{"day":"1979-05-27","p
 # the source order, and an include stop being its own inlining. The -inline
 # row is the control: it is the same three statements with no `@` at all,
 # and it must answer what -before answers.
-include-in-place-before	canon	@"__FIXTURES__/pref_base.aon" w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":*"warn"|"info"|***"info"}}}
-include-in-place-before-gen	gen	@"__FIXTURES__/pref_base.aon" w: {a: { L: ***info | string }}	{"w":{"a":{"L":"warn"}}}
-include-in-place-after	canon	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aon"	{"w":{&:{"L":*"warn"|string},"a":{"L":"info"|***"info"}}}
-include-in-place-after-gen	gen	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aon"	{"w":{"a":{"L":"info"}}}
+include-in-place-before	canon	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":*"warn"|"info"|***"info"}}}
+include-in-place-before-gen	gen	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{"a":{"L":"warn"}}}
+include-in-place-after	canon	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{&:{"L":*"warn"|string},"a":{"L":"info"|***"info"}}}
+include-in-place-after-gen	gen	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{"a":{"L":"info"}}}
 include-in-place-inline	gen	w: { &: { L: *warn | string } a: L: info } w: {a: { L: ***info | string }}	{"w":{"a":{"L":"warn"}}}
 # Two includes and three local pairs fold into ONE map in statement order.
-include-in-place-interleaved	gen	x:11 @"__FIXTURES__/foo.aon" y:22 @"__FIXTURES__/car.aon" z:33	{"color":"silver","doors":4,"f":11,"x":11,"y":22,"z":33}
+include-in-place-interleaved	gen	x:11 @"__FIXTURES__/foo.aontu" y:22 @"__FIXTURES__/car.aontu" z:33	{"color":"silver","doors":4,"f":11,"x":11,"y":22,"z":33}
 # A FRAME NAMES THE FILE IT EXCERPTS. A value's position is an offset
 # into the file it was PARSED from, so a frame about a value that came
 # through an include must be rendered against that file's text -- both
@@ -223,4 +223,4 @@ include-in-place-interleaved	gen	x:11 @"__FIXTURES__/foo.aon" y:22 @"__FIXTURES_
 # was handed only the entry pair. The arrow then named one file over
 # another file's coordinates, which docs/reference-api.md forbids in
 # the same words it uses to require the name.
-include-frame-names-its-own-file	err	@"__FIXTURES__/conflict_twelve.aon"\n@"__FIXTURES__/conflict_six.aon"	conflict_six.aon:1:4
+include-frame-names-its-own-file	err	@"__FIXTURES__/conflict_twelve.aontu"\n@"__FIXTURES__/conflict_six.aontu"	conflict_six.aontu:1:4

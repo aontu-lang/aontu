@@ -1,5 +1,0 @@
-# The served view: the model plus every change an agent has landed.
-# Evaluate, get and why run against this file; set runs against
-# model.aon so the overlay is never included twice.
-@"./model.aon"
-@"./changes.aon"

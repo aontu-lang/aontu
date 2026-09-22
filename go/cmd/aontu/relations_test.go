@@ -21,7 +21,7 @@ func relationsRun(args ...string) (string, string, int) {
 
 func relationsFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -108,15 +108,15 @@ func TestRelationsVerbArguments(t *testing.T) {
 		!strings.Contains(errw, "needs one file") {
 		t.Fatalf("no file = %d: %s", code, errw)
 	}
-	if _, errw, code := relationsRun("a.aon", "b.aon"); 2 != code ||
+	if _, errw, code := relationsRun("a.aontu", "b.aontu"); 2 != code ||
 		!strings.Contains(errw, "needs one file") {
 		t.Fatalf("two files = %d: %s", code, errw)
 	}
-	if _, errw, code := relationsRun("--nope", "a.aon"); 2 != code ||
+	if _, errw, code := relationsRun("--nope", "a.aontu"); 2 != code ||
 		!strings.Contains(errw, "unknown relations option") {
 		t.Fatalf("bad option = %d: %s", code, errw)
 	}
-	if _, errw, code := relationsRun("--format", "yaml", "a.aon"); 2 != code ||
+	if _, errw, code := relationsRun("--format", "yaml", "a.aontu"); 2 != code ||
 		!strings.Contains(errw, "text or json") {
 		t.Fatalf("bad format = %d: %s", code, errw)
 	}
@@ -124,7 +124,7 @@ func TestRelationsVerbArguments(t *testing.T) {
 		!strings.Contains(errw, "text or json") {
 		t.Fatalf("missing format value = %d: %s", code, errw)
 	}
-	if _, errw, code := relationsRun("no-such-file.aon"); 2 != code ||
+	if _, errw, code := relationsRun("no-such-file.aontu"); 2 != code ||
 		!strings.Contains(errw, "cannot read") {
 		t.Fatalf("missing file = %d: %s", code, errw)
 	}

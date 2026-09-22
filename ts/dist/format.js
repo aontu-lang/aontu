@@ -10,7 +10,7 @@ const aliasname_1 = require("./aliasname");
 const BUDGET = 80;
 const MAX_DEPTH = 1000;
 const stubResolver = ((spec) => ({
-    ...spec, kind: 'aon', full: '__fmt__.aon', src: '', found: true, search: [],
+    ...spec, kind: 'aontu', full: '__fmt__.aontu', src: '', found: true, search: [],
 }));
 let ENGINE;
 let SINK;

@@ -40,14 +40,14 @@ const err_1 = require("../dist/err");
     });
     (0, node_test_1.it)('file-e01', async () => {
         let a0 = new aontu_1.Aontu();
-        let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aon"', { collect: true });
+        let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aontu"', { collect: true });
         (0, expect_1.expect)(v0.err[0].why).equal('scalar_value');
         (0, expect_1.expect)(typeof v0.err[0].msg).equal('string');
     });
     (0, node_test_1.it)('generate', () => {
         let aontu = new aontu_1.Aontu();
         (0, expect_1.expect)(() => aontu.generate('a:$.b')).throw(/no_path/);
-        (0, expect_1.expect)(() => aontu.generate('@"' + __dirname + '/../test/error/e02.aon"'))
+        (0, expect_1.expect)(() => aontu.generate('@"' + __dirname + '/../test/error/e02.aontu"'))
             .throw(/no_path/);
     });
     (0, node_test_1.it)('required', () => {
@@ -95,19 +95,19 @@ const err_1 = require("../dist/err");
     });
     (0, node_test_1.it)('error-source-file', () => {
         let a0 = new aontu_1.Aontu({ fs: node_fs_1.default });
-        let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aon"', { collect: true });
+        let v0 = a0.unify('@"' + __dirname + '/../test/error/e01.aontu"', { collect: true });
         (0, expect_1.expect)(v0.err[0].why).equal('scalar_value');
         (0, expect_1.expect)(v0.err[0].msg).to.not.contain('SOURCE-NOT-FOUND');
-        // e01.aon contains "a: 1\na: 2\n" — error should show the file content
+        // e01.aontu contains "a: 1\na: 2\n" — error should show the file content
         (0, expect_1.expect)(v0.err[0].msg).to.contain('a: 1');
         (0, expect_1.expect)(v0.err[0].msg).to.contain('a: 2');
     });
     (0, node_test_1.it)('error-source-file-cross', () => {
-        // Cross-file error: e03.aon imports e04.aon, conflicting on key a.
+        // Cross-file error: e03.aontu imports e04.aontu, conflicting on key a.
         // Error message should show file content, not SOURCE-NOT-FOUND.
         // The raw `__dirname` is deliberate — see the case above.
         let a0 = new aontu_1.Aontu({ fs: node_fs_1.default });
-        let v0 = a0.unify('@"' + __dirname + '/../test/error/e03.aon"', { collect: true });
+        let v0 = a0.unify('@"' + __dirname + '/../test/error/e03.aontu"', { collect: true });
         (0, expect_1.expect)(v0.err[0].why).equal('scalar_value');
         (0, expect_1.expect)(v0.err[0].msg).to.not.contain('SOURCE-NOT-FOUND');
     });
@@ -247,7 +247,7 @@ const err_1 = require("../dist/err");
         (0, expect_1.expect)(err.message).equal("[aontu/scalar_value]: Cannot unify values at path $.a.0\n\nLiteral scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: 2 with value: 1\n  \u001b[34m--> <no-file>:1:8\n\u001b[34m  1 | \u001b[0ma:[1]&[2]\n             \u001b[34m^ value was: 2\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n\n Cannot unify value: 1 with value: 2\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma:[1]&[2]\n         \u001b[34m^ value was: 1\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n");
     });
     (0, node_test_1.it)('invalid-utf8-replacement', () => {
-        const src = node_fs_1.default.readFileSync(node_path_1.default.join(__dirname, '..', '..', 'test', 'spec', 'files', 'invalid-utf8.aon'), 'utf8');
+        const src = node_fs_1.default.readFileSync(node_path_1.default.join(__dirname, '..', '..', 'test', 'spec', 'files', 'invalid-utf8.aontu'), 'utf8');
         const out = new aontu_1.Aontu().generate(src);
         (0, expect_1.expect)(out.b).equal('x\uFFFDy');
         (0, expect_1.expect)(out.c).equal('p\uFFFDq');

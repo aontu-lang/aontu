@@ -76,12 +76,12 @@
 #   no modules involved, and is recorded here because the modself
 #   fixture now reaches the guard that exposes it.
 #
-#   Divergent input:  a.aon `x: @"b.aon"`, b.aon `y: @"b.aon"` `z: @"a.aon"`
-#   TypeScript: [aontu/multisource_cycle] at b.aon:1:4, naming the
-#               RESOLVED path (/tmp/cyc/b.aon), hint chain rendered
-#               `/tmp/cyc/b.aon -> /tmp/cyc/b.aon`
-#   Go:         [aontu/multisource_cycle] at a.aon:1:4, naming the
-#               SPELLING (b.aon), hint chain rendered as the literal
+#   Divergent input:  a.aontu `x: @"b.aontu"`, b.aontu `y: @"b.aontu"` `z: @"a.aontu"`
+#   TypeScript: [aontu/multisource_cycle] at b.aontu:1:4, naming the
+#               RESOLVED path (/tmp/cyc/b.aontu), hint chain rendered
+#               `/tmp/cyc/b.aontu -> /tmp/cyc/b.aontu`
+#   Go:         [aontu/multisource_cycle] at a.aontu:1:4, naming the
+#               SPELLING (b.aontu), hint chain rendered as the literal
 #               `{loop}` -- the placeholder is never filled
 #   Both refuse, with the same code and the same exit class, so the
 #   disagreement is in the diagnostic and not in the verdict.
@@ -161,7 +161,7 @@
 #   down the include path" sweep this entry said was owed. TypeScript
 #   stopped OVERWRITING the loaded url with the entry's in the same
 #   change, so the two ports met rather than one moving to the other.
-#   The fixture below now reports `part.aon:1:7` from BOTH ports,
+#   The fixture below now reports `part.aontu:1:7` from BOTH ports,
 #   byte-identical through `--format json`. Kept as a note because the
 #   opposite-direction reading it warns against is worth keeping even
 #   now that its twin (#76) has closed too.
@@ -171,12 +171,12 @@
 #   from sites[].file + row + col edits that position in a file the
 #   constraint was never written in.
 #
-#   Divergent input:  part.aon `port: integer`, main.aon
-#   `@"./part.aon"` + `name: string`, data `{"port":"eighty"}`;
-#   `aontu vet main.aon data.json --format json`.
-#   TypeScript: schema site file = .../part.aon, row 1, col 7
-#   Go:         schema site file = main.aon,     row 1, col 7
-#   (col 7 of main.aon is inside the include directive itself.)
+#   Divergent input:  part.aontu `port: integer`, main.aontu
+#   `@"./part.aontu"` + `name: string`, data `{"port":"eighty"}`;
+#   `aontu vet main.aontu data.json --format json`.
+#   TypeScript: schema site file = .../part.aontu, row 1, col 7
+#   Go:         schema site file = main.aontu,     row 1, col 7
+#   (col 7 of main.aontu is inside the include directive itself.)
 #
 #   Why it stood as long as it did: the two ports carried a loaded
 #   file's identity differently. TS threaded the resolved URL onto
@@ -206,7 +206,7 @@
 #   loaded document's url CARRIED FURTHER, onto every Val parsed from
 #   it, while #76 needed attribution WITHHELD. A reader who took the
 #   flattened form would have fixed this one by clearing the file,
-#   which is precisely wrong -- TypeScript names part.aon here, and is
+#   which is precisely wrong -- TypeScript names part.aontu here, and is
 #   right to.
 #
 #   Both are now pinned as rows rather than described here:
@@ -235,7 +235,7 @@
 #   both, and fixed them for every stage in between: lexer, parser, canon
 #   and error frames now see the text the canonical engine sees. Pinned
 #   by per-port twins over a byte fixture (test/spec/files/
-#   invalid-utf8.aon), exactly as this entry predicted it would have to
+#   invalid-utf8.aontu), exactly as this entry predicted it would have to
 #   be, since the src column cannot carry raw invalid bytes.
 #
 #   The acceptance edges -- `pref(1-3)`, `close(([]%))`, `1'00]`,
@@ -364,7 +364,7 @@
 #   EQUAL depth the two ports agree, which is what the two rows
 #   vet-ref-clone-names-the-key-not-the-record and
 #   vet-type-alias-names-the-key-not-the-record in vet.tsv pin, and why
-#   use-cases/10-data-model/money-wire.aon declares its types at the top
+#   use-cases/10-data-model/money-wire.aontu declares its types at the top
 #   level rather than under a `schema:` namespace.
 #
 #   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
@@ -392,7 +392,7 @@
 #   operation) is NOT the same operation and was tried and reverted: it
 #   moves RELATIVE references with it, so
 #   `match(.side_effect, destructive, true, false)` in
-#   use-cases/09-agent-tools/registry.aon resolves against the
+#   use-cases/09-agent-tools/registry.aontu resolves against the
 #   destination and dies no_path. The real fix is a TypeScript twin of
 #   Go's cloneAt/overlayPath -- a clone that takes a destination path --
 #   which is wider than any one finding and is the arm-for-arm
@@ -410,15 +410,15 @@
 #   use-cases/run-all.sh drives the TypeScript one. NOT introduced by
 #   that work: the pre-change Go binary loses the same edges.
 #
-#   Divergent input:  use-cases/01-service-catalog/system.aon (and
-#     bad/cycle.aon, which includes it) -- eight entities described by
-#     TWO views (catalog.aon, deploy.aon) joined by id(), with the link
+#   Divergent input:  use-cases/01-service-catalog/system.aontu (and
+#     bad/cycle.aontu, which includes it) -- eight entities described by
+#     TWO views (catalog.aontu, deploy.aontu) joined by id(), with the link
 #     lists typed by a spread from a shared vocabulary.
 #   TypeScript: graphOf gives 40 edges (19 distinct from/key/to
-#               triples); `relations bad/cycle.aon` reports
+#               triples); `relations bad/cycle.aontu` reports
 #               `cycle svc_payments -> svc_ledger -> svc_payments`.
 #   Go:         GraphOf gives 6 edges (2 distinct triples); `relations
-#               bad/cycle.aon` reports NO cycle, and reports extra
+#               bad/cycle.aontu` reports NO cycle, and reports extra
 #               inverse_missing findings for the inverses it cannot
 #               see. Both ports find the same 8 ENTITIES.
 #

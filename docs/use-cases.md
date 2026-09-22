@@ -24,16 +24,16 @@ it.
 
 A Backstage-style catalog for eight services across three teams, where
 the org chart and the runtime each hold facts about the same things.
-`catalog.aon` says what each service *is* (owner, tier, dependencies);
-`deploy.aon` says what each cluster *runs* (image, replicas, ports);
+`catalog.aontu` says what each service *is* (owner, tier, dependencies);
+`deploy.aontu` says what each cluster *runs* (image, replicas, ports);
 and the deployment view references the catalog, so one evaluation
 merges them field by field and any contradiction between the views is a
 located error instead of a silent fork. The case also drives `refer()`
 existence checks, declared relations, and change requests written as
 four-line overlay files. The same service, seen from both views:
 
-```aon
-# catalog.aon — the catalog view
+```aontu
+# catalog.aontu — the catalog view
 services: payments: {
   tier: 1
   description: "Card payment orchestration and capture API."
@@ -46,7 +46,7 @@ services: payments: {
   dependedOnBy: ["$.services.gateway"]
 }
 
-# deploy.aon — the deployment view
+# deploy.aontu — the deployment view
 deploy: eu1: payments: $.services.payments & {
   image: "registry.acme.internal/payments:2.14.1"
   replicas: 6
@@ -67,7 +67,7 @@ mechanism is the preference-rank ladder: the fewer stars, the stronger
 the default. The org writes `***`, teams
 `**`, environments `*`, a concrete pin beats them all, and two
 disagreeing defaults at the same rank are a conflict. The whole
-ladder, trimmed from the case's `probes/rank-ladder.aon`:
+ladder, trimmed from the case's `probes/rank-ladder.aontu`:
 
 ```aontu
 org_team_env: ***info|string
@@ -101,7 +101,7 @@ incomplete, 4 schema-side error), so a caller can branch before
 reading a byte. A wire message is a `close()`d shape, so a surplus or
 typo'd key is a conflict, not a silently ignored extra:
 
-```aon
+```aontu
 CreateUserRequest: close({
   email: $.types.Email
   name: $.types.DisplayName
@@ -124,9 +124,9 @@ narrowed constraint or an added required key exits 1 with a witness
 naming both files, and a `must()` on the new side answers *undecided*
 (exit 3) rather than guessing. The centrepiece is the two-release
 rename: deprecate in v2, remove in v3. The v2 mark, from
-`profile-v2.aon`:
+`profile-v2.aontu`:
 
-```aon
+```aontu
 phone?: deprecate(string, {
   msg: "free-form phone is unvalidated; write E.164 to contact.phone"
   use: "$.profile.contact.phone"
@@ -150,7 +150,7 @@ hallucinated permission is a located refusal, and the registry is
 role holds the wildcard unless flagged privileged" is structural: a
 role is a disjunction of two closed shapes:
 
-```aon
+```aontu
 Role: type(
   close({
     desc: string
@@ -179,7 +179,7 @@ comparison. The registry and its attack proposals:
 ## 06. Kubernetes golden path
 
 A platform team's golden path: product teams edit a 40-line service
-model, and evaluating `main.aon` renders three Deployments and three
+model, and evaluating `main.aontu` renders three Deployments and three
 Services, around 340 lines of manifests, none written by hand. An
 override composes like plain data (pin `replicas: 6` at the generated
 path and the sibling defaults survive), `close()` seals the service
@@ -187,7 +187,7 @@ set against drift, and `vet` runs the org guardrails over the rendered
 JSON. `pack()` makes a manifest per service, and a second pack merges
 one authored column into every generated child:
 
-```aon
+```aontu
 deploy: close(pack($.svc.names, {
   apiVersion: "apps/v1"
   kind: Deployment
@@ -217,7 +217,7 @@ publishing, consumers vet a whole stream sample with one command, and
 CI refuses a revision that breaks subscribers. Each event type is the
 envelope, narrowed by conjunction and sealed:
 
-```aon
+```aontu
 OrderPaid: close($.Envelope & {
   type: "order.paid"
   payload: close({
@@ -246,13 +246,13 @@ overlay of any rank can flip it: `set` vets before writing and refuses
 with the pinning site named:
 
 ```
-$ aontu model set '$.flags.payments_legacy_gateway.enabled=true' --entry base.aon --overlay overlay.aon
+$ aontu model set '$.flags.payments_legacy_gateway.enabled=true' --entry base.aontu --overlay overlay.aontu
 verdict: invalid
 
 $.flags.payments_legacy_gateway.enabled: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.flags.payments_legacy_gateway.enabled
-  data: overlay.aon:2:48 (true)
-  schema: base.aon:53:14 (false)
+  data: overlay.aontu:2:48 (true)
+  schema: base.aontu:53:14 (false)
 ```
 
 Exit 1, and the overlay is untouched (the case asserts both). The full
@@ -269,9 +269,9 @@ the missing argument; error: unknown tool), and the case drives the
 real `aontu mcp` server over JSON-RPC too. The wire
 schema is generated from the registry, so the two can never drift:
 
-<!-- test: skip a fragment of 09-agent-tools, whose `registry.aon` this page does not ship; the case's own check.sh runs it -->
-```aon
-@"./registry.aon"
+<!-- test: skip a fragment of 09-agent-tools, whose `registry.aontu` this page does not ship; the case's own check.sh runs it -->
+```aontu
+@"./registry.aontu"
 
 guard: pack($.argschemas, close({ tool:key() arguments:_ }))
 ```
@@ -291,10 +291,10 @@ could not produce output at all.
 
 <!-- test: scenario exact-money -->
 
-The smallest such theorem, lifted from the case's `seed.aon`: write
-it as `reconcile.aon`:
+The smallest such theorem, lifted from the case's `seed.aontu`: write
+it as `reconcile.aontu`:
 
-<!-- test: file reconcile.aon -->
+<!-- test: file reconcile.aontu -->
 ```aontu
 reconcile: centsPath: (10 + 20) & 30 # integer cents: exact
 reconcile: exactPath: (0d0.1 + 0d0.2) & 0d0.3 # exact decimals: also exact
@@ -304,7 +304,7 @@ Evaluate it:
 
 <!-- test: run -->
 ```sh
-$ aontu reconcile.aon
+$ aontu reconcile.aontu
 {
   "reconcile": {
     "centsPath": 30,
@@ -315,10 +315,10 @@ $ aontu reconcile.aon
 
 Binary64 arithmetic answers `0.30000000000000004` here; the pinned
 `& 0d0.3` holds because `0d` values are exact, and the case's
-`money-wire.aon` shows how that exactness crosses JSON. The same
-schema is a code source: the case's `xf-domain.aon` walks its record
+`money-wire.aontu` shows how that exactness crosses JSON. The same
+schema is a code source: the case's `xf-domain.aontu` walks its record
 types into a component tree, one exported interface per record, with
-the TypeScript spelled by the transform itself; `xf-order.aon` writes
+the TypeScript spelled by the transform itself; `xf-order.aontu` writes
 the same walk as TypeScript and as Go, where `nom` and an acronym list
 the document carries spell `ledgerId` as `LedgerID`, and an optional
 field is a pointer with `omitempty`. Both are held against their
@@ -335,11 +335,11 @@ three pins cover the bytes, the signed manifest and the meaning. The
 canon pin survives a byte-different, meaning-identical module refactor
 (a byte-hash lockfile breaks on exactly this), and a flipped default in
 the vendored tree fails evaluation with both hashes named. A single
-file can freeze the hash in the import string, with no `pkg.aon` and no
+file can freeze the hash in the import string, with no `pkg.aontu` and no
 lockfile: the agent-sandbox mode:
 
 <!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
-```aon
+```aontu
 svc: @"corp.example/schemas/service#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
 svc: spec: { name:"audit-log" owner:"sec-ops@corp.example" }
 ```
@@ -363,9 +363,9 @@ per-link boilerplate. A cycle or a missing
 inverse refuses at generation with a located finding naming the loop
 or the exact absent entry, and `aontu reaches --relation feeds`
 answers the closure question directionally over the same edges. The
-declaration, from the case's `spec.aon`:
+declaration, from the case's `spec.aontu`:
 
-```aon
+```aontu
 feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
 fedBy?: rel($.spec.JobShape)
 ```
@@ -385,9 +385,9 @@ applies at every depth, expanding one level per [meet](unification.md)
 with concrete data, so `vet` descends exactly as far as the data does.
 Canon and the `aon1-` hash stay symbolic: one finite string pins an
 infinitely deep type. The vocabulary, one reference deep, from
-`schema.aon`:
+`schema.aontu`:
 
-```aon
+```aontu
 Step: approver: string & re("^[a-z]+@acme[.]example$")
 Step: decision: *pending|pending|approved|rejected
 Step: then?: $.spec.Step
@@ -409,10 +409,10 @@ rather than a partial schema.
 
 <!-- test: scenario jsonschema-export -->
 
-Write a tool's argument schema as `registry.aon` (trimmed from the
+Write a tool's argument schema as `registry.aontu` (trimmed from the
 case's registry):
 
-<!-- test: file registry.aon -->
+<!-- test: file registry.aontu -->
 ```aontu
 argschemas: read_file: close({
   path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
@@ -424,7 +424,7 @@ Export it as the tool's `inputSchema`:
 
 <!-- test: run -->
 ```sh
-$ aontu jsonschema --at '$.argschemas.read_file' registry.aon
+$ aontu jsonschema --at '$.argschemas.read_file' registry.aontu
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -477,9 +477,9 @@ model, not a rule in a template.
 
 <!-- test: scenario code-generation -->
 
-Write the model and one generator as `types.aon`:
+Write the model and one generator as `types.aontu`:
 
-<!-- test: file types.aon -->
+<!-- test: file types.aontu -->
 ```aontu
 records: [
   {
@@ -511,7 +511,7 @@ nodes the model produced, which `aontu render` writes to disk.
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.out types.aon
+$ aontu model get $.out types.aontu
 {
   "children": [
     {
@@ -565,9 +565,9 @@ above it. The rule is a shape rather than a checking pass. `rel(t)`
 flows its target shape into every module an edge names, so a core
 module's `dependsOn` carries `layer: "core" | "util"` to the far end,
 and a module that says `layer: "feature"` cannot meet it. Each layer
-is one line of schema and one disjunction, from `spec.aon`:
+is one line of schema and one disjunction, from `spec.aontu`:
 
-```aon
+```aontu
 Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
 CoreDep: { kind:mod layer:"core"|"util" }
 ```
@@ -591,7 +591,7 @@ the canonical form a template file expands into: the body is the
 file, line for line, and a value reaches a line through `replace`
 rather than a hole:
 
-```aon
+```aontu
 %handler = emit(_, {
   match: name: string
   esc: sq
@@ -620,21 +620,21 @@ index names the services in the model's order through `each`, with a
 constant spelled by `join(each(split(_, "-"), upper(_)), "_")`. All
 thirteen files are held against their goldens by the byte gate in both
 ports: [`use-cases/17-lambda-handlers/`](../use-cases/17-lambda-handlers/).
-The same generator is there twice: `gen.aon` is the canonical aontu
+The same generator is there twice: `gen.aontu` is the canonical aontu
 above, and `handler.ts` is that generator written as a Lambda handler,
 with its aontu on marked lines. Both answer the same thirteen files.
 
 ## 18. Role permissions
 
 Which role may change which subtree, asked before the change.
-`roles.aon` is a `close()`d role vocabulary (`desc`, `allow`, `deny?`)
+`roles.aontu` is a `close()`d role vocabulary (`desc`, `allow`, `deny?`)
 and a closed registry of four roles, `admin`, `dev`, `product` and
-`qa`, over the service model in `model.aon`: services with an owner, a
+`qa`, over the service model in `model.aontu`: services with an owner, a
 tier, replicas and a description, a deploy layer with per-region
 replicas, feature flags and a tests block. The vocabulary and the
-`dev` role, from `roles.aon`:
+`dev` role, from `roles.aontu`:
 
-```aon
+```aontu
 Role: type(close({ desc:string allow: [&: string] deny?: [&: string] }))
 
 roles: close({
@@ -654,13 +654,13 @@ about to hand `set`, and writes on exit 0 alone. A proposal at
 `$.services.auth`, because a change there could rewrite the tier:
 
 ```
-$ aontu allow --role dev roles.aon '$.services.auth.tier="standard"'
+$ aontu allow --role dev roles.aontu '$.services.auth.tier="standard"'
 verdict: refused
 role: dev
 $.services.auth.tier: refused by $.roles.dev.deny.0 ($.services.*.tier)
 ```
 
-Exit 1, and `aontu model why '$.roles.dev.deny.0' roles.aon` names the line
+Exit 1, and `aontu model why '$.roles.dev.deny.0' roles.aontu` names the line
 that wrote the rule. A role-model edit that puts a string where the
 `allow` list goes, or adds a key the closed vocabulary does not
 declare, is exit 4 with the engine's own finding, so the rules are

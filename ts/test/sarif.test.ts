@@ -34,13 +34,13 @@ function redact(sarif: string): string {
 describe('sarif', () => {
 
   test('sarif-golden', () => {
-    const schema = Fs.readFileSync(Path.join(GOLDEN_DIR, 'schema.aon'), 'utf8')
-    const data = Fs.readFileSync(Path.join(GOLDEN_DIR, 'data.aon'), 'utf8')
+    const schema = Fs.readFileSync(Path.join(GOLDEN_DIR, 'schema.aontu'), 'utf8')
+    const data = Fs.readFileSync(Path.join(GOLDEN_DIR, 'data.aontu'), 'utf8')
     const expect = Fs.readFileSync(Path.join(GOLDEN_DIR, 'expect.sarif'), 'utf8')
       .replaceAll('\r\n', '\n').replaceAll('\r', '\n')
 
     const report = vet(schema, data, {
-      schemaUrl: 'schema.aon', dataUrl: 'data.aon',
+      schemaUrl: 'schema.aontu', dataUrl: 'data.aontu',
     })
     Assert.equal(redact(sarifReport(report, 'x')) + '\n', expect)
   })
@@ -82,12 +82,12 @@ describe('sarif', () => {
         severity: 'error',
         path: '$',
         message: 'm',
-        sites: [{ file: 'data.aon', row: -1, col: -1, len: -1, role: 'data' }],
+        sites: [{ file: 'data.aontu', row: -1, col: -1, len: -1, role: 'data' }],
       }],
     }
     const log = JSON.parse(sarifReport(report, 'x'))
     const physical = log.runs[0].results[0].locations[0].physicalLocation
-    Assert.equal(physical.artifactLocation.uri, 'data.aon')
+    Assert.equal(physical.artifactLocation.uri, 'data.aontu')
     Assert.equal(physical.region, undefined)
     Assert.equal(log.runs[0].results[0].relatedLocations, undefined)
   })
@@ -119,13 +119,13 @@ describe('sarif', () => {
         severity: 'error',
         path: '$',
         message: 'm',
-        sites: [{ file: 'a b#c%.aon', row: 1, col: 1, len: -1, role: 'data' }],
+        sites: [{ file: 'a b#c%.aontu', row: 1, col: 1, len: -1, role: 'data' }],
       }],
     }
     const log = JSON.parse(sarifReport(report, 'x'))
     Assert.equal(
       log.runs[0].results[0].locations[0].physicalLocation
         .artifactLocation.uri,
-      'a%20b%23c%25.aon')
+      'a%20b%23c%25.aontu')
   })
 })

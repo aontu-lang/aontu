@@ -21,7 +21,7 @@ func viewRun(args ...string) (string, string, int) {
 
 func viewFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -148,13 +148,13 @@ func TestViewUsageErrors(t *testing.T) {
 		{[]string{"layer", "--relation", "dependsOn", file}, "view_group_required"},
 		{[]string{"ladder", file}, "view_at_required"},
 		{[]string{"sets", file}, "view_sets_required"},
-		{[]string{"poset", file, filepath.Join(t.TempDir(), "nope.aon")}, "cannot read"},
+		{[]string{"poset", file, filepath.Join(t.TempDir(), "nope.aontu")}, "cannot read"},
 		{[]string{"tree", "--format", "yaml", file}, "--format needs text or json"},
 		{[]string{"tree", file, "--format"}, "--format needs text or json"},
 		{[]string{"tree", file, "--relation"}, "--relation needs a name"},
 		{[]string{"tree", "--relation", "", file}, "--relation needs a name"},
 		{[]string{"tree", file, "--root"}, "--root needs a node path"},
-		{[]string{"tree", filepath.Join(t.TempDir(), "nope.aon")}, "cannot read"},
+		{[]string{"tree", filepath.Join(t.TempDir(), "nope.aontu")}, "cannot read"},
 		{[]string{"--trust", "bogus", "tree", file}, "--trust needs"},
 	} {
 		out, errw, code := viewRun(c.args...)
@@ -171,7 +171,7 @@ func TestViewUsageErrors(t *testing.T) {
 
 func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "doc.aon")
+	file := filepath.Join(dir, "doc.aontu")
 	if err := os.WriteFile(file, []byte(
 		"cli: {layer: \"app\", dependsOn: [&: refer(), path($.web), path($.db)]}\n"+
 			"web: {layer: \"svc\", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n"+
@@ -209,7 +209,7 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 		t.Fatalf("unwritable = %d: %q", code, errw)
 	}
 
-	hid := filepath.Join(dir, "hid.aon")
+	hid := filepath.Join(dir, "hid.aontu")
 	if err := os.WriteFile(hid, []byte(
 		"a: hide({dependsOn: [&: refer(), path($.b)]})\n"+
 			"b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n"), 0o600); err != nil {
@@ -242,7 +242,7 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 			"--layers", "app,svc,data", file}, "| app   cli"},
 		{[]string{"sets", "--sets", "$", "--member", "dependsOn",
 			"--min-degree", "1", "--max-cols", "2", file}, "# upset  sets=$(4)"},
-		{[]string{"layers", "--min-size", "1", file}, "# layers  file=doc.aon  documents=1"},
+		{[]string{"layers", "--min-size", "1", file}, "# layers  file=doc.aontu  documents=1"},
 		{[]string{"ladder", "--at", "$.db.layer", "--as", "dot", file}, "digraph G {"},
 	} {
 		stdout, errw, code = viewRun(c.args...)
@@ -251,7 +251,7 @@ func TestViewKindsAndTheFlagsAroundTheFigure(t *testing.T) {
 		}
 	}
 
-	other := filepath.Join(dir, "other.aon")
+	other := filepath.Join(dir, "other.aontu")
 	if err := os.WriteFile(other, []byte("cli: {layer: string}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -270,8 +270,8 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 		}
 		return file
 	}
-	write("model.aon", "app: {layer: \"app\", dependsOn: [&: refer(), path($.core)]}\ncore: {layer: \"core\"}\n")
-	file := write("views.aon", "@\"./model.aon\"\nviews: {\n"+
+	write("model.aontu", "app: {layer: \"app\", dependsOn: [&: refer(), path($.core)]}\ncore: {layer: \"core\"}\n")
+	file := write("views.aontu", "@\"./model.aontu\"\nviews: {\n"+
 		"  tree: {kind: tree, out: \"out/tree.txt\"}\n"+
 		"  bands: {kind: layer, groupBy: layer, out: \"out/bands.txt\"}\n}\n")
 	if err := os.Mkdir(filepath.Join(dir, "out"), 0o755); err != nil {
@@ -321,7 +321,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 	// ALL OR NOTHING: a set whose second figure refuses writes neither,
 	// and the refusal names the figure it came from.
-	bad := write("bad.aon", "@\"./model.aon\"\nviews: {\n"+
+	bad := write("bad.aontu", "@\"./model.aontu\"\nviews: {\n"+
 		"  tree: {kind: tree, out: \"out/nope.txt\"}\n"+
 		"  small: {kind: tree, maxRows: 1, out: \"out/small.txt\"}\n}\n")
 	_, errs, code = viewRun("--views", "$.views", "--trust", "root", bad)
@@ -335,7 +335,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 	// A LOSSY set still writes -- the loss report says what it could not
 	// draw, and --strict is the gate on that.
-	lossy := write("lossy.aon", "a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n"+
+	lossy := write("lossy.aontu", "a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n"+
 		"views: {t: {kind: tree, out: \"out/lossy.txt\"}}\n")
 	if _, errs, code = viewRun("--views", "$.views", lossy); 0 != code ||
 		!strings.Contains(errs, "t  hidden_contribution  1") {
@@ -347,7 +347,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 	// A declaration the document cannot answer for is the SET's refusal,
 	// and usage: nothing is drawn at all.
-	shape := write("shape.aon", "views: {a: {kind: tree}}\n")
+	shape := write("shape.aontu", "views: {a: {kind: tree}}\n")
 	if _, errs, code = viewRun("--views", "$.views", shape); 2 != code ||
 		!strings.Contains(errs, "view_document_shape") {
 		t.Fatalf("shape = %d %q", code, errs)
@@ -355,7 +355,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 	// A figure that refuses for the DOCUMENT's sake rather than the
 	// caller's exits 4, as a single figure does.
-	unknown := write("unknown.aon", "@\"./model.aon\"\n"+
+	unknown := write("unknown.aontu", "@\"./model.aontu\"\n"+
 		"views: {a: {kind: tree, relation: nope, out: \"out/a.txt\"}}\n")
 	if _, errs, code = viewRun("--views", "$.views", "--trust", "root", unknown); 4 != code ||
 		!strings.Contains(errs, "view_relation_unknown") {
@@ -365,7 +365,7 @@ func TestViewDocumentDrawsEveryFigureItDeclares(t *testing.T) {
 
 func TestViewDocumentUsageErrors(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "views.aon")
+	file := filepath.Join(dir, "views.aontu")
 	if err := os.WriteFile(file,
 		[]byte("views: {a: {kind: tree, out: \"a.txt\"}}\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -378,7 +378,7 @@ func TestViewDocumentUsageErrors(t *testing.T) {
 		{[]string{"--views", "$.views", file, file}, "view --views takes one file"},
 		{[]string{"--views", "$.views", "--out", "x.txt", file},
 			"--out is per figure in a view document"},
-		{[]string{"--views", "$.views", filepath.Join(dir, "nope.aon")}, "cannot read"},
+		{[]string{"--views", "$.views", filepath.Join(dir, "nope.aontu")}, "cannot read"},
 	} {
 		if _, errs, code := viewRun(c.args...); 2 != code || !strings.Contains(errs, c.want) {
 			t.Fatalf("%v = %d %q, want %q", c.args, code, errs, c.want)
@@ -387,7 +387,7 @@ func TestViewDocumentUsageErrors(t *testing.T) {
 
 	// A DIRECTORY IS NOT A FILE: the write fails and says so, rather
 	// than leaving the set half-written.
-	blocked := filepath.Join(dir, "blocked.aon")
+	blocked := filepath.Join(dir, "blocked.aontu")
 	if err := os.WriteFile(blocked,
 		[]byte("views: {a: {kind: tree, out: \"sub\"}}\n"), 0o600); err != nil {
 		t.Fatal(err)

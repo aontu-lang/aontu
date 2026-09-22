@@ -42,37 +42,37 @@ norm() { node -e 'const o=JSON.parse(require("fs").readFileSync(0,"utf8"));if(o.
 
 # ---------------------------------------------------------------- sanity
 say "all three released versions render canonically"
-run 0 "$TMP/c1" $AONTU --canon profile-v1.aon
-run 0 "$TMP/c2" $AONTU --canon profile-v2.aon
-run 0 "$TMP/c3" $AONTU --canon profile-v3.aon
+run 0 "$TMP/c1" $AONTU --canon profile-v1.aontu
+run 0 "$TMP/c2" $AONTU --canon profile-v2.aontu
+run 0 "$TMP/c3" $AONTU --canon profile-v3.aontu
 golden "$TMP/c2" expected/profile-v2.canon
 
 # ------------------------------------------------------------------ vet
 say "vet: a conforming v2 instance is valid (exit 0)"
-run 0 "$TMP/vet-ok" $AONTU vet --at '$.profile' profile-v2.aon data/customer-ok.json
+run 0 "$TMP/vet-ok" $AONTU vet --at '$.profile' profile-v2.aontu data/customer-ok.json
 has "verdict: valid" "$TMP/vet-ok"
 # Documented friction: the deprecated warning fires although this
 # instance never uses phone (the site role is schema:, not data:).
 has "deprecated" "$TMP/vet-ok"
-has "schema: profile-v2.aon" "$TMP/vet-ok"
+has "schema: profile-v2.aontu" "$TMP/vet-ok"
 
 say "vet: a legacy instance still using phone is valid, with the deprecation surfaced at its data site"
-run 0 "$TMP/vet-legacy" $AONTU vet --format json --at '$.profile' profile-v2.aon data/customer-legacy-phone.json
+run 0 "$TMP/vet-legacy" $AONTU vet --format json --at '$.profile' profile-v2.aontu data/customer-legacy-phone.json
 norm < "$TMP/vet-legacy" > "$TMP/vet-legacy.norm"
 golden "$TMP/vet-legacy.norm" expected/vet-legacy-phone.json
 
 say "vet: the same legacy instance against v1 carries no deprecation warning"
-run 0 "$TMP/vet-legacy-v1" $AONTU vet --at '$.profile' profile-v1.aon data/customer-legacy-phone.json
+run 0 "$TMP/vet-legacy-v1" $AONTU vet --at '$.profile' profile-v1.aontu data/customer-legacy-phone.json
 has "verdict: valid" "$TMP/vet-legacy-v1"
 lacks "deprecated" "$TMP/vet-legacy-v1"
 
 say "vet: a malformed email is invalid (exit 1, [aontu/constraint])"
-run 1 "$TMP/vet-bad" $AONTU vet --at '$.profile' profile-v2.aon data/customer-bad-email.json
+run 1 "$TMP/vet-bad" $AONTU vet --at '$.profile' profile-v2.aontu data/customer-bad-email.json
 has "[aontu/constraint]" "$TMP/vet-bad"
 has "verdict: invalid" "$TMP/vet-bad"
 
 say "vet: an undeclared key is refused by the closed map (exit 1, [aontu/closed])"
-run 1 "$TMP/vet-closed" $AONTU vet --at '$.profile' profile-v2.aon data/customer-unknown-field.json
+run 1 "$TMP/vet-closed" $AONTU vet --at '$.profile' profile-v2.aontu data/customer-unknown-field.json
 has "[aontu/closed]" "$TMP/vet-closed"
 
 say "vet: a missing required literal-enum key (tier) is incomplete (exit 3)"
@@ -84,74 +84,74 @@ say "vet: a missing required literal-enum key (tier) is incomplete (exit 3)"
 # `disjunct_no_gen`, class incomplete -- the same answer the regex-enum
 # workaround below has always given, so the workaround is no longer
 # needed to make presence enforceable.  README, gap 2.
-run 3 "$TMP/vet-notier" $AONTU vet --at '$.profile' profile-v2.aon data/customer-missing-tier.json
+run 3 "$TMP/vet-notier" $AONTU vet --at '$.profile' profile-v2.aontu data/customer-missing-tier.json
 has "verdict: incomplete" "$TMP/vet-notier"
 has "disjunct_no_gen" "$TMP/vet-notier"
 
 say "vet: the regex-enum workaround (v3 region) does report the omission (exit 3, incomplete)"
-run 3 "$TMP/vet-noregion" $AONTU vet --at '$.profile' profile-v3.aon data/customer-ok.json
+run 3 "$TMP/vet-noregion" $AONTU vet --at '$.profile' profile-v3.aontu data/customer-ok.json
 has "verdict: incomplete" "$TMP/vet-noregion"
 has "mapval_required" "$TMP/vet-noregion"
 has '$.profile.region' "$TMP/vet-noregion"
 
 # -------------------------------------------------------------- subsume
 say "subsume: v2 admits every v1 instance (backward direction, exit 0)"
-run 0 "$TMP/sub-b" $AONTU subsume profile-v2.aon profile-v1.aon
+run 0 "$TMP/sub-b" $AONTU subsume profile-v2.aontu profile-v1.aontu
 has "verdict: subsumes" "$TMP/sub-b"
 
 say "subsume: v1 does not admit v2 (closed maps make additions forward-incompatible)"
-run 1 "$TMP/sub-f" $AONTU subsume profile-v1.aon profile-v2.aon
+run 1 "$TMP/sub-f" $AONTU subsume profile-v1.aontu profile-v2.aontu
 has "compat_narrowed" "$TMP/sub-f"
 has '$.profile.contact' "$TMP/sub-f"
 has '$.profile.locale' "$TMP/sub-f"
 
 # ---------------------------------------------------- the breaking gate
 say "breaking: v2 against v1 is compatible (additive + deprecate, exit 0)"
-run 0 "$TMP/brk-v2" $AONTU breaking --against profile-v1.aon profile-v2.aon
+run 0 "$TMP/brk-v2" $AONTU breaking --against profile-v1.aontu profile-v2.aontu
 has "verdict: compatible" "$TMP/brk-v2"
 
 say "breaking: narrowing the email pattern is refused (exit 1, compat_narrowed)"
-run 1 "$TMP/brk-narrow" $AONTU breaking --against profile-v2.aon proposals/narrow-email.aon
+run 1 "$TMP/brk-narrow" $AONTU breaking --against profile-v2.aontu proposals/narrow-email.aontu
 has "compat_narrowed" "$TMP/brk-narrow"
 has '$.profile.email' "$TMP/brk-narrow"
 
 say "breaking: adding a required key is refused (exit 1, compat_required_added)"
-run 1 "$TMP/brk-req" $AONTU breaking --against profile-v2.aon proposals/require-loyalty.aon
+run 1 "$TMP/brk-req" $AONTU breaking --against profile-v2.aontu proposals/require-loyalty.aontu
 has "compat_required_added" "$TMP/brk-req"
 has '$.profile.loyalty' "$TMP/brk-req"
 
 say "breaking: v3 against v2 is breaking; the JSON report matches the golden"
-run 1 "$TMP/brk-v3" $AONTU breaking --format json --against profile-v2.aon profile-v3.aon
+run 1 "$TMP/brk-v3" $AONTU breaking --format json --against profile-v2.aontu profile-v3.aontu
 norm < "$TMP/brk-v3" > "$TMP/brk-v3.norm"
 golden "$TMP/brk-v3.norm" expected/breaking-v3-report.json
 
 say "breaking: --allow-deprecated-removal does NOT excuse the required region key (still exit 1)"
-run 1 "$TMP/brk-v3-adr" $AONTU breaking --against profile-v2.aon --allow-deprecated-removal profile-v3.aon
+run 1 "$TMP/brk-v3-adr" $AONTU breaking --against profile-v2.aontu --allow-deprecated-removal profile-v3.aontu
 has "compat_required_added" "$TMP/brk-v3-adr"
 
 say "breaking: removing the deprecated phone alone fails plain (exit 1) ..."
-run 1 "$TMP/brk-rm" $AONTU breaking --against profile-v2.aon proposals/v3-remove-phone.aon
+run 1 "$TMP/brk-rm" $AONTU breaking --against profile-v2.aontu proposals/v3-remove-phone.aontu
 has "compat_narrowed" "$TMP/brk-rm"
 has '$.profile.phone' "$TMP/brk-rm"
 
 say "breaking: ... and passes with --allow-deprecated-removal (exit 0, finding kept as a warning)"
-run 0 "$TMP/brk-rm-ok" $AONTU breaking --format json --against profile-v2.aon --allow-deprecated-removal proposals/v3-remove-phone.aon
+run 0 "$TMP/brk-rm-ok" $AONTU breaking --format json --against profile-v2.aontu --allow-deprecated-removal proposals/v3-remove-phone.aontu
 has '"verdict": "compatible"' "$TMP/brk-rm-ok"
 has '"severity": "warning"' "$TMP/brk-rm-ok"
 has '"code": "compat_narrowed"' "$TMP/brk-rm-ok"
 
 # ------------------------------------------------------------- profiles
 say "profiles: flipping the marketing default -- values says compatible, defaults says compat_default_changed"
-run 0 "$TMP/prof-v" $AONTU subsume --profile values proposals/default-change.aon profile-v2.aon
+run 0 "$TMP/prof-v" $AONTU subsume --profile values proposals/default-change.aontu profile-v2.aontu
 has "verdict: subsumes" "$TMP/prof-v"
-run 1 "$TMP/prof-d" $AONTU subsume --format json --profile defaults proposals/default-change.aon profile-v2.aon
+run 1 "$TMP/prof-d" $AONTU subsume --format json --profile defaults proposals/default-change.aontu profile-v2.aontu
 norm < "$TMP/prof-d" > "$TMP/prof-d.norm"
 golden "$TMP/prof-d.norm" expected/subsume-default-change.json
 
 say "profiles: hiding a generated field is caught only by --profile gen (compat_marks_changed)"
-run 0 "$TMP/marks-v" $AONTU subsume --profile values probes/hide-score-v2.aon probes/hide-score-v1.aon
-run 0 "$TMP/marks-d" $AONTU subsume --profile defaults probes/hide-score-v2.aon probes/hide-score-v1.aon
-run 1 "$TMP/marks-g" $AONTU subsume --profile gen probes/hide-score-v2.aon probes/hide-score-v1.aon
+run 0 "$TMP/marks-v" $AONTU subsume --profile values probes/hide-score-v2.aontu probes/hide-score-v1.aontu
+run 0 "$TMP/marks-d" $AONTU subsume --profile defaults probes/hide-score-v2.aontu probes/hide-score-v1.aontu
+run 1 "$TMP/marks-g" $AONTU subsume --profile gen probes/hide-score-v2.aontu probes/hide-score-v1.aontu
 has "compat_marks_changed" "$TMP/marks-g"
 
 say "profiles: under gen, v2 subsumes ITSELF (gap closed 2026-08-27)"
@@ -162,35 +162,35 @@ say "profiles: under gen, v2 subsumes ITSELF (gap closed 2026-08-27)"
 # using it), and the gen profile's mark rule fired inside a
 # DISTRIBUTION TRIAL, comparing a whole marked disjunction against a
 # member extracted out of one.
-run 0 "$TMP/gen-self" $AONTU subsume --profile gen profile-v2.aon profile-v2.aon
+run 0 "$TMP/gen-self" $AONTU subsume --profile gen profile-v2.aontu profile-v2.aontu
 has "verdict: subsumes" "$TMP/gen-self"
 
 # ------------------------------------------------------ undecided cases
 say "undecided: a Band-B must() on the new side stops the gate (exit 3, sub_evaluate_only)"
-run 3 "$TMP/und-must" $AONTU breaking --against profile-v2.aon probes/must-email-domain.aon
+run 3 "$TMP/und-must" $AONTU breaking --against profile-v2.aontu probes/must-email-domain.aontu
 has "verdict: undecided" "$TMP/und-must"
 has "sub_evaluate_only" "$TMP/und-must"
 
 say "undecided: --allow-undecided turns that into an explicit human override (exit 0, still reported)"
-run 0 "$TMP/und-allow" $AONTU breaking --against profile-v2.aon --allow-undecided probes/must-email-domain.aon
+run 0 "$TMP/und-allow" $AONTU breaking --against profile-v2.aontu --allow-undecided probes/must-email-domain.aontu
 has "sub_evaluate_only" "$TMP/und-allow"
 
 say "undecided: a key()-dependent spread template cannot be compared (exit 3, sub_path_dependent_spread)"
-run 3 "$TMP/und-key" $AONTU subsume probes/routing-v2.aon probes/routing-v1.aon
+run 3 "$TMP/und-key" $AONTU subsume probes/routing-v2.aontu probes/routing-v1.aontu
 has "sub_path_dependent_spread" "$TMP/und-key"
 
 # ------------------------------------------------- the policy loophole
 say "policy: DOCUMENTED GAP -- a PR that pins compat:none waives its own gate (exit 0 on a breaking change)"
-run 0 "$TMP/waive" $AONTU breaking --against profile-v2.aon proposals/waive-gate.aon
+run 0 "$TMP/waive" $AONTU breaking --against profile-v2.aontu proposals/waive-gate.aontu
 has "verdict: compatible" "$TMP/waive"
 
 say "policy: CI pinning --mode backward closes the loophole (exit 1)"
-run 1 "$TMP/waive-mode" $AONTU breaking --against profile-v2.aon --mode backward proposals/waive-gate.aon
+run 1 "$TMP/waive-mode" $AONTU breaking --against profile-v2.aontu --mode backward proposals/waive-gate.aontu
 has "compat_required_added" "$TMP/waive-mode"
 
 # ------------------------------------------- version metadata friction
 say "metadata: DOCUMENTED GAP -- an in-document version string self-breaks on every bump"
-run 1 "$TMP/meta" $AONTU breaking --against probes/meta-v1.aon probes/meta-v2.aon
+run 1 "$TMP/meta" $AONTU breaking --against probes/meta-v1.aontu probes/meta-v2.aontu
 has '$.meta.version' "$TMP/meta"
 has "compat_narrowed" "$TMP/meta"
 
@@ -198,35 +198,35 @@ say "metadata: breaking --at skips it (gap closed 2026-08-27)"
 # `breaking` now takes subsume's own anchor, so the version bump above
 # stops deciding the verdict and the contract is compared on its own.
 # The manual subsume --at workaround still answers the same way.
-run 0 "$TMP/meta-at" $AONTU breaking --against probes/meta-v1.aon --at '$.profile' probes/meta-v2.aon
+run 0 "$TMP/meta-at" $AONTU breaking --against probes/meta-v1.aontu --at '$.profile' probes/meta-v2.aontu
 has "verdict: compatible" "$TMP/meta-at"
-run 0 "$TMP/meta-sub" $AONTU subsume --at '$.profile' probes/meta-v2.aon probes/meta-v1.aon
+run 0 "$TMP/meta-sub" $AONTU subsume --at '$.profile' probes/meta-v2.aontu probes/meta-v1.aontu
 has "verdict: subsumes" "$TMP/meta-sub"
 
 # ----------------------------------------------------------------- hash
 say "hash: reformatting (key order, comments, whitespace) keeps the pin"
-run 0 "$TMP/h2" $AONTU hash profile-v2.aon
-run 0 "$TMP/h2r" $AONTU hash probes/v2-reformatted.aon
+run 0 "$TMP/h2" $AONTU hash profile-v2.aontu
+run 0 "$TMP/h2r" $AONTU hash probes/v2-reformatted.aontu
 diff "$TMP/h2" "$TMP/h2r" || { echo "FAIL: reformatting moved the hash"; exit 1; }
 
 say "hash: a semantic change moves the pin"
-run 0 "$TMP/h3" $AONTU hash profile-v3.aon
+run 0 "$TMP/h3" $AONTU hash profile-v3.aontu
 if diff -q "$TMP/h2" "$TMP/h3" >/dev/null; then echo "FAIL: v2 and v3 hash alike"; exit 1; fi
 
 say "hash: --form carries the marks (close/hide/deprecate) that --canon omits"
-run 0 "$TMP/hf" $AONTU hash --form profile-v2.aon
+run 0 "$TMP/hf" $AONTU hash --form profile-v2.aontu
 has 'deprecate(string' "$TMP/hf"
 has 'close({' "$TMP/hf"
 lacks 'close({' "$TMP/c2"   # the --canon output from step 1
 
 # -------------------------------------------------- diff (MCP-only today)
 say "diff: not a CLI verb (usage, exit 2); the MCP server's diff tool answers instead"
-run 2 "$TMP/diff-cli" $AONTU diff profile-v2.aon profile-v3.aon
+run 2 "$TMP/diff-cli" $AONTU diff profile-v2.aontu profile-v3.aontu
 has "mistyped verb" "$TMP/diff-cli"
 node -e '
 const fs = require("fs");
-const l = fs.readFileSync("profile-v2.aon", "utf8");
-const r = fs.readFileSync("profile-v3.aon", "utf8");
+const l = fs.readFileSync("profile-v2.aontu", "utf8");
+const r = fs.readFileSync("profile-v3.aontu", "utf8");
 const init = {jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2024-11-05",capabilities:{},clientInfo:{name:"check",version:"0"}}};
 const call = {jsonrpc:"2.0",id:2,method:"tools/call",params:{name:"diff",arguments:{left:l,right:r}}};
 process.stdout.write(JSON.stringify(init)+"\n"+JSON.stringify(call)+"\n");
@@ -241,14 +241,14 @@ say "git: the CI form gates a working file against its committed ancestor (git#H
 if command -v git >/dev/null 2>&1; then
   gitdir="$TMP/repo"
   git init -q "$gitdir"
-  cp profile-v1.aon "$gitdir/profile.aon"
-  git -C "$gitdir" -c user.email=ci@example.com -c user.name=CI add profile.aon
+  cp profile-v1.aontu "$gitdir/profile.aontu"
+  git -C "$gitdir" -c user.email=ci@example.com -c user.name=CI add profile.aontu
   git -C "$gitdir" -c user.email=ci@example.com -c user.name=CI commit -qm "profile v1"
-  cp profile-v2.aon "$gitdir/profile.aon"
-  ( cd "$gitdir" && run 0 "$TMP/git-ok" $AONTU breaking --against 'git#HEAD' profile.aon )
+  cp profile-v2.aontu "$gitdir/profile.aontu"
+  ( cd "$gitdir" && run 0 "$TMP/git-ok" $AONTU breaking --against 'git#HEAD' profile.aontu )
   has "verdict: compatible" "$TMP/git-ok"
-  cp proposals/narrow-email.aon "$gitdir/profile.aon"
-  ( cd "$gitdir" && run 1 "$TMP/git-bad" $AONTU breaking --against 'git#HEAD' profile.aon )
+  cp proposals/narrow-email.aontu "$gitdir/profile.aontu"
+  ( cd "$gitdir" && run 1 "$TMP/git-bad" $AONTU breaking --against 'git#HEAD' profile.aontu )
   has "compat_narrowed" "$TMP/git-bad"
 else
   # The git#HEAD gate is part of this case's contract; a run that
@@ -266,26 +266,26 @@ say "the release history, drawn as a subsumption poset"
 # independently written proposals turn out to make the identical schema
 # change (docs/design/VIEWS-ORDER.0.md).
 $AONTU view poset --at '$.profile' \
-  "$DIR/profile-v1.aon" "$DIR/profile-v2.aon" "$DIR/profile-v3.aon" \
-  "$DIR/proposals/narrow-email.aon" "$DIR/proposals/require-loyalty.aon" \
-  "$DIR/proposals/v3-remove-phone.aon" "$DIR/proposals/waive-gate.aon" \
+  "$DIR/profile-v1.aontu" "$DIR/profile-v2.aontu" "$DIR/profile-v3.aontu" \
+  "$DIR/proposals/narrow-email.aontu" "$DIR/proposals/require-loyalty.aontu" \
+  "$DIR/proposals/v3-remove-phone.aontu" "$DIR/proposals/waive-gate.aontu" \
   > "$TMP/diagram-poset.mmd" \
   || { echo "FAIL: poset diagram did not render"; exit 1; }
 golden "$TMP/diagram-poset.mmd" "$DIR/expected/diagram-poset.mmd"
 
-say "the model tree: the shape of profile-v2.aon, drawn and pinned"
+say "the model tree: the shape of profile-v2.aontu, drawn and pinned"
 # The one kind that reads no report: `view doc` walks the anchor,
 # exactly as `get --keys --types` does, and stops at a depth that says
 # how many keys it did not draw. The figure at the head of the README
 # is this, and `--check` is the gate that keeps it true.
 # The figure is what goes to STDOUT; the loss report goes to stderr,
 # and merging the two would compare the golden against both.
-$AONTU view doc --depth 3 "$DIR/profile-v2.aon" > "$TMP/doc.out" 2>/dev/null \
+$AONTU view doc --depth 3 "$DIR/profile-v2.aontu" > "$TMP/doc.out" 2>/dev/null \
   || { echo "FAIL: the model tree did not draw"; exit 1; }
 golden "$TMP/doc.out" "$DIR/expected/diagram-doc.txt"
 run 0 "$TMP/docgate.out" $AONTU view doc --depth 3 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/profile-v2.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/profile-v2.aontu"
 run 0 "$TMP/docsvg.out" $AONTU view doc --depth 3 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/profile-v2.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/profile-v2.aontu"
 
 printf '\nAll %d steps passed.\n' "$step"

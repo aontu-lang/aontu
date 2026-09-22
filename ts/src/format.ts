@@ -50,7 +50,7 @@ export type FormatReport =
 type Tok = { name: string, src: string, val: any, sI: number }
 
 const stubResolver: Resolver = ((spec: any) => ({
-  ...spec, kind: 'aon', full: '__fmt__.aon', src: '', found: true, search: [],
+  ...spec, kind: 'aontu', full: '__fmt__.aontu', src: '', found: true, search: [],
 })) as any
 
 let ENGINE: Aontu | undefined

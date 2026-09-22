@@ -27,13 +27,13 @@ is currently false.
 First failing example, verified live. A model an agent has been asked
 to evaluate:
 
-```aon
-# inner/model.aon
-a: @"../secret.aon"
+```aontu
+# inner/model.aontu
+a: @"../secret.aontu"
 ```
 
 ```
-$ aontu inner/model.aon
+$ aontu inner/model.aontu
 {
   "a": {
     "secret": "hunter2"
@@ -56,7 +56,7 @@ so "same files + same `$` bindings ⇒ same output" does not hold under
 the default resolver. And the LSP builds a fresh default-configured
 evaluator per change and per hover (`new Aontu()` in
 `computeDiagnostics`, ts/src/lsp.ts), so merely *opening* a hostile
-`.aon` file in an editor performs the reads. There is no CLI flag, no
+`.aontu` file in an editor performs the reads. There is no CLI flag, no
 API default, and no documented profile that confines any of this; the
 confinement hooks (`options.resolver`, `options.fs`) exist but are
 opt-in and unspecified.
@@ -65,24 +65,24 @@ Second failing example, also verified live. Three different answers —
 "your model is cyclic", "your model is incomplete", and "my budget
 ran out" — collapse into one message today:
 
-```aon
-# cycle.aon — a genuine reference cycle
+```aontu
+# cycle.aontu — a genuine reference cycle
 a: $.b
 b: $.a
 ```
 
 ```
-$ aontu cycle.aon
+$ aontu cycle.aontu
 [aontu/ref]: Cannot resolve value at path $.a
 ```
 
-```aon
-# missing.aon — merely incomplete
+```aontu
+# missing.aontu — merely incomplete
 a: $.b
 ```
 
 ```
-$ aontu missing.aon
+$ aontu missing.aontu
 [aontu/no_path]: Cannot resolve value at path $.a
 ```
 
@@ -314,7 +314,7 @@ contract from a claim.
 ## Proposed design
 
 The design adds **zero language syntax**. Trust is a property of the
-evaluation, not the document: a `.aon` file cannot request more
+evaluation, not the document: a `.aontu` file cannot request more
 capability, and canonical form is untouched — canon convergence
 is not at risk from anything below.
 
@@ -506,10 +506,10 @@ its rows under a declared trust profile rooted at the fixtures
 directory. Representative rows:
 
 ```
-deny-parent	err	a:@"__FIXTURES__/../secret.aon"	include denied
+deny-parent	err	a:@"__FIXTURES__/../secret.aontu"	include denied
 deny-abs	err	a:@"/etc/hostname"	include denied
 deny-pkg	err	a:@"some-package"	include denied
-allow-in-root	gen	a:@"__FIXTURES__/foo.aon"	{"a":{"f":11}}
+allow-in-root	gen	a:@"__FIXTURES__/foo.aontu"	{"a":{"f":11}}
 ```
 
 Denial is a parse-stage nil, `include_denied`, carrying the denied

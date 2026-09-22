@@ -125,13 +125,13 @@ fmt-alias-export	fmt	export({ %N })\n%N = string\n	export({ %N })\n%N = string\n
 fmt-alias-shorthand	fmt	a: { %foo }\n	a: { %foo }\n
 fmt-alias-shorthand-drops-the-comma	fmt	%a = 1\n%c = 2\nb: { %a, %c }\n	%a = 1\n%c = 2\nb: { %a %c }\n
 fmt-alias-export-beside-a-like-named-field	fmt	%u = 7\n"___export": 42\nexport({ %u })\n	%u = 7\n___export: 42\nexport({ %u })\n
-fmt-alias-import	fmt	{ %N } = @"types.aon"\na: %N\n	{ %N } = @"types.aon"\na: %N\n
-fmt-alias-import-all	fmt	{%} = @"types.aon"\na: %N\n	{%} = @"types.aon"\na: %N\n
-fmt-alias-import-rename	fmt	{ %L: %N } = @"types.aon"\na: %L\n	{ %L: %N } = @"types.aon"\na: %L\n
-fmt-alias-import-under-key	fmt	svc: { %N } = @"types.aon"\na: %N\n	svc: { %N } = @"types.aon"\na: %N\n
-fmt-include-root	fmt	@"x.aon"\na: 1\n	@"x.aon"\na: 1\n
-fmt-include-value	fmt	a: @"y.aon" & {b:1}\nb: @'z.aon'\n	a: @"y.aon" & { b:1 }\nb: @"z.aon"\n
-fmt-include-in-braces	fmt	a: { @"x.aon" b: 1 }\n	a: { @"x.aon" b:1 }\n
+fmt-alias-import	fmt	{ %N } = @"types.aontu"\na: %N\n	{ %N } = @"types.aontu"\na: %N\n
+fmt-alias-import-all	fmt	{%} = @"types.aontu"\na: %N\n	{%} = @"types.aontu"\na: %N\n
+fmt-alias-import-rename	fmt	{ %L: %N } = @"types.aontu"\na: %L\n	{ %L: %N } = @"types.aontu"\na: %L\n
+fmt-alias-import-under-key	fmt	svc: { %N } = @"types.aontu"\na: %N\n	svc: { %N } = @"types.aontu"\na: %N\n
+fmt-include-root	fmt	@"x.aontu"\na: 1\n	@"x.aontu"\na: 1\n
+fmt-include-value	fmt	a: @"y.aontu" & {b:1}\nb: @'z.aontu'\n	a: @"y.aontu" & { b:1 }\nb: @"z.aontu"\n
+fmt-include-in-braces	fmt	a: { @"x.aontu" b: 1 }\n	a: { @"x.aontu" b:1 }\n
 fmt-lenient-unclosed-map	fmt	a: {\n	a: {}\n
 fmt-lenient-unclosed-list	fmt	a: [\n	a: []\n
 fmt-lenient-stray-closer	fmt	a: 1 }\n	a: 1\n
@@ -159,7 +159,7 @@ fmt-merge-not-scalars	fmt	s: 1\ns: 2\nt: 1\nt: a: 1\n	s: 1\ns: 2\nt: 1\nt: a: 1\
 fmt-merge-not-optional-mismatch	fmt	s: a: 1\ns?: b: 2\n	s: a: 1\ns?: b: 2\n
 fmt-merge-optional	fmt	s?: a: 1\ns?: b: 2\n	s?: { a:1 b:2 }\n
 fmt-merge-not-operands	fmt	s: { a: 1 } & { b: 2 }\ns: { c: 3 }\n	s: { a:1 } & { b:2 }\ns: c: 3\n
-fmt-merge-not-include	fmt	s: { @"x.aon" a: 1 }\ns: b: 2\n	s: { @"x.aon" a:1 }\ns: b: 2\n
+fmt-merge-not-include	fmt	s: { @"x.aontu" a: 1 }\ns: b: 2\n	s: { @"x.aontu" a:1 }\ns: b: 2\n
 fmt-merge-not-opener-comment	fmt	s: { # open\n  a: 1\n}\ns: b: 2\n	s: { # open\n  a: 1\n}\n\ns: b: 2\n
 fmt-merge-empty-maps	fmt	s: {}\ns: {}\n	s: {}\n
 fmt-merge-spread-and-pair	fmt	s: { &: integer }\ns: a: 1\n	s: { &: integer a:1 }\n

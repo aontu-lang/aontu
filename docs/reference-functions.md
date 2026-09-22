@@ -98,7 +98,7 @@ $ echo $?
 The declared words are read as kinds, so a numeric leaf fits `number`
 and a path fits `string`:
 
-```aon
+```aontu
 n: add(1.5, 2)
 s: upper(path($.n))
 ```
@@ -162,7 +162,7 @@ A name in a value position is an ordinary string, because only `name(`
 builds a call
 ([Lexical structure](reference-language.md#lexical-structure)):
 
-```aon
+```aontu
 a: upper
 ```
 
@@ -179,7 +179,7 @@ aliases](reference-language.md#named-constraint-aliases)), and it still
 cannot be a function name: `%Up = upper` followed by `%Up("x")` is
 `unknown_function`.
 
-```aon
+```aontu
 %U = upper("x")
 n: %U
 ```
@@ -196,7 +196,7 @@ trade-offs](explanation.md#limitations-and-trade-offs)). A parse-time
 nil is reported where the value is reached rather than where it was
 built, so a miss inside a losing disjunct branch is silent:
 
-```aon
+```aontu
 a: *1|add(1)
 ```
 

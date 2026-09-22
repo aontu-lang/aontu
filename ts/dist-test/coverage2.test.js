@@ -138,7 +138,7 @@ function pendingCtx() {
     // the escapes-off arm. Same swap as the stderr test above.
     (0, node_test_1.test)('an-interactive-stdout-gives-the-text-figure-its-escapes', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style-'));
-        const file = Path.join(dir, 'm.aon');
+        const file = Path.join(dir, 'm.aontu');
         Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
         const desc = Object.getOwnPropertyDescriptor(process, 'stdout');
         let out = '';
@@ -169,7 +169,7 @@ function pendingCtx() {
     });
     (0, node_test_1.test)('style-auto-honours-an-empty-no-color-and-an-explicit-style-wins', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style3-'));
-        const file = Path.join(dir, 'm.aon');
+        const file = Path.join(dir, 'm.aontu');
         Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
         const desc = Object.getOwnPropertyDescriptor(process, 'stdout');
         let out = '';
@@ -207,7 +207,7 @@ function pendingCtx() {
     // holding control codes is not a golden anybody can read.
     (0, node_test_1.test)('the-style-flag-refuses-an-unknown-name-and-escapes-into-a-file', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style2-'));
-        const file = Path.join(dir, 'm.aon');
+        const file = Path.join(dir, 'm.aontu');
         Fs.writeFileSync(file, 'a: 1\n');
         const errs = [];
         const se = process.stderr.write;
@@ -245,7 +245,7 @@ function pendingCtx() {
             // handler's reader is injected, and this is where the real one
             // is wired.
             const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-repl-'));
-            const doc = Path.join(dir, 'doc.aon');
+            const doc = Path.join(dir, 'doc.aontu');
             Fs.writeFileSync(doc, 'a: 1');
             for (const line of [
                 ':help\n', ':canon\n', ':json\n', ':bogus\n', '\n',

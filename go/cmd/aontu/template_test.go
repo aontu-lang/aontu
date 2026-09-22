@@ -35,7 +35,7 @@ func templateDir(t *testing.T, files map[string]string) string {
 
 func TestTemplatePrintsTheCanonicalFormAndResugarsIt(t *testing.T) {
 	dir := templateDir(t, map[string]string{
-		"gen.ts": templateGen, "canon.aon": templateCanon})
+		"gen.ts": templateGen, "canon.aontu": templateCanon})
 
 	// THE DEFAULT DIRECTION is desugar: the aontu the marked lines
 	// mean, with every other line quoted as one string.
@@ -45,7 +45,7 @@ func TestTemplatePrintsTheCanonicalFormAndResugarsIt(t *testing.T) {
 	}
 
 	// --resugar is the other one, and the file it reads is aontu.
-	out, _, code = templateRun("--resugar", filepath.Join(dir, "canon.aon"))
+	out, _, code = templateRun("--resugar", filepath.Join(dir, "canon.aontu"))
 	if 0 != code || templateGen != out {
 		t.Fatalf("resugar: code %d out %q", code, out)
 	}
@@ -118,7 +118,7 @@ func TestTemplateUsageErrorsExit2(t *testing.T) {
 }
 
 func TestFmtFormatsAGeneratorThroughTheTemplateSurface(t *testing.T) {
-	// A FILE THAT IS NOT `.aon` IS A GENERATOR, as it is for template:
+	// A FILE THAT IS NOT `.aontu` IS A GENERATOR, as it is for template:
 	// the aontu its marker lines carry is formatted, the marker stands at the
 	// left margin with the aontu indented after it, and every line of
 	// output is held on a line of its own -- `puts 1` here, which the
@@ -159,7 +159,7 @@ func TestFmtFormatsAGeneratorThroughTheTemplateSurface(t *testing.T) {
 	dj := filepath.Join(data, "d.json")
 	out, errw, code = fmtRun("", dj)
 	if 2 != code || "" != out ||
-		!strings.Contains(errw, "is not aontu source (.aon, .aontu)") ||
+		!strings.Contains(errw, "is not aontu source (.aontu)") ||
 		!strings.Contains(errw, "carries no //- marker line") {
 		t.Fatalf("refusal: code %d out %q err %q", code, out, errw)
 	}
@@ -184,12 +184,12 @@ aontu: Lang: template: { marker:"(*-" close:"*)" ext:["ml" "mli"] }
 
 func TestTemplateTakesItsMarkerFromAProfile(t *testing.T) {
 	dir := templateDir(t, map[string]string{
-		"ocaml.aon": templateOcamlProfile,
+		"ocaml.aontu": templateOcamlProfile,
 		"gen.ml":    "(*- n: [ *)\nlet a = 1\n(*- ] *)\n",
-		"plain.aon": "@\"aontu:profile\"\n\naontu: Lang: lang: \"plain\"\n",
+		"plain.aontu": "@\"aontu:profile\"\n\naontu: Lang: lang: \"plain\"\n",
 		"note.md":   "<!--- n: [ -->\n# T\n<!--- ] -->\n",
 	})
-	profile := filepath.Join(dir, "ocaml.aon")
+	profile := filepath.Join(dir, "ocaml.aontu")
 	unit := filepath.Join(dir, "gen.ml")
 
 	// A CLOSER AFTER A SPACE reaches a block comment the table has
@@ -204,7 +204,7 @@ func TestTemplateTakesItsMarkerFromAProfile(t *testing.T) {
 
 	// A profile claiming no extension of this file leaves the table's
 	// answer in place, and the extension alone answers for markdown.
-	out, _, _ = templateRun("--profile", filepath.Join(dir, "plain.aon"), unit)
+	out, _, _ = templateRun("--profile", filepath.Join(dir, "plain.aontu"), unit)
 	if "`(*- n: [ *)`\n`let a = 1`\n`(*- ] *)`\n" != out {
 		t.Fatalf("unclaimed extension: %q", out)
 	}
@@ -217,7 +217,7 @@ func TestTemplateTakesItsMarkerFromAProfile(t *testing.T) {
 	if 2 != code || !strings.Contains(errw, "--profile needs a file") {
 		t.Fatalf("bare --profile: %d %q", code, errw)
 	}
-	_, errw, code = templateRun("--profile", filepath.Join(dir, "no.aon"), unit)
+	_, errw, code = templateRun("--profile", filepath.Join(dir, "no.aontu"), unit)
 	if 2 != code || !strings.Contains(errw, "cannot read") {
 		t.Fatalf("missing profile: %d %q", code, errw)
 	}

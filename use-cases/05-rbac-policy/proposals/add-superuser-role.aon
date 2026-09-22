@@ -1,9 +1,0 @@
-# Agent-emitted proposal: add a fifth role. The registry is close()d,
-# so this is a located [aontu/closed] error at $.roles.superuser --
-# the role set is exhaustive by construction.
-@"../roles.aon"
-roles: superuser: desc: "Emergency break-glass access"
-roles: superuser: rank: 90
-roles: superuser: tenantOwner: false
-roles: superuser: privileged: true
-roles: superuser: grants: [path($.permissions.admin_all)]

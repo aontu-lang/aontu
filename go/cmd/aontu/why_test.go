@@ -23,7 +23,7 @@ func whyRun(args ...string) (string, string, int) {
 
 func whyFile(t *testing.T, dir, src string) string {
 	t.Helper()
-	file := filepath.Join(dir, "doc.aon")
+	file := filepath.Join(dir, "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -41,14 +41,14 @@ func TestWhyNamesEveryContribution(t *testing.T) {
 		t.Fatalf("want 0, got %d: %s", code, out)
 	}
 	vetMatch(t, out, `^\$\.services\.auth\.replicas = 3`)
-	vetMatch(t, out, `1\. \*1\|integer.*doc\.aon:2:18  \(spread\)`)
-	vetMatch(t, out, `2\. 3.*doc\.aon:3:21`)
+	vetMatch(t, out, `1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)`)
+	vetMatch(t, out, `2\. 3.*doc\.aontu:3:21`)
 
 	out, _, code = whyRun("$.services.db.replicas", file)
 	if 0 != code {
 		t.Fatalf("want 0, got %d: %s", code, out)
 	}
-	vetMatch(t, out, `1\. \*1\|integer.*doc\.aon:2:18  \(spread\)`)
+	vetMatch(t, out, `1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)`)
 
 	top := whyFile(t, t.TempDir(), "a: top\n")
 	out, _, code = whyRun("$.a", top)
@@ -103,7 +103,7 @@ func TestWhyExitCodesAndUsage(t *testing.T) {
 		{"--bogus", "$.a", file},
 		{"$.a", "--format", "yaml", file},
 		{"$.a", "--format"},
-		{"$.a", filepath.Join(t.TempDir(), "missing.aon")},
+		{"$.a", filepath.Join(t.TempDir(), "missing.aontu")},
 	} {
 		if _, _, code := whyRun(args...); 2 != code {
 			t.Fatalf("%v: want 2, got %d", args, code)

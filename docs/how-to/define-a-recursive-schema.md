@@ -115,10 +115,10 @@ expanded the schema one more level to meet it.
 Guardedness is emergent: the engine never analyses the schema for
 well-foundedness, the data decides. Drop the `?` and the schema still
 evaluates, but no finite document can satisfy it. Write this as
-`chain.aon`:
+`chain.aontu`:
 
 <!-- test: scenario recursion-unguarded -->
-<!-- test: file chain.aon -->
+<!-- test: file chain.aontu -->
 ```aontu
 spec: hide({ Step: { approver:string then:$.spec.Step } })
 
@@ -130,7 +130,7 @@ doc: $.spec.Step & {
 
 <!-- test: run -->
 ```sh
-$ aontu chain.aon
+$ aontu chain.aontu
 [aontu/recursion_unexpanded]: Cannot recurse value at path $.doc.then.then
 ...
 $ echo $?
@@ -150,10 +150,10 @@ or supply the data.
 
 An infinitely deep type still has a one-line canonical form, because
 recursion renders symbolically. Put the vocabulary alone in
-`spec.aon`:
+`spec.aontu`:
 
 <!-- test: scenario recursion-canon -->
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Step: {
@@ -166,9 +166,9 @@ spec: hide({
 
 <!-- test: run -->
 ```sh
-$ aontu --canon spec.aon
+$ aontu --canon spec.aontu
 {"spec":{"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}
-$ aontu hash spec.aon
+$ aontu hash spec.aontu
 aon1-sgTj1hvqaL8vHdKZrlH7eaPbKeE9UW28b9WGBlVW9hw
 ```
 
@@ -181,7 +181,7 @@ it.
 ## Vet plain JSON at any depth
 
 The same anchored vet that checks flat records checks recursive ones,
-against data that carries no aontu syntax at all. With `spec.aon`
+against data that carries no aontu syntax at all. With `spec.aontu`
 still in place, put a chain in `chain-good.json`:
 
 <!-- test: file chain-good.json -->
@@ -214,9 +214,9 @@ Now vet both against the definition:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at '$.spec.Step' spec.aon chain-good.json
+$ aontu vet --at '$.spec.Step' spec.aontu chain-good.json
 verdict: valid
-$ aontu vet --at '$.spec.Step' spec.aon chain-bad.json
+$ aontu vet --at '$.spec.Step' spec.aontu chain-bad.json
 verdict: invalid
 
 $.spec.Step.then.approver: constraint [conflict]
@@ -224,11 +224,11 @@ $.spec.Step.then.approver: constraint [conflict]
   expected: re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: chain-bad.json:5:17 ("EXTERNAL@other.example")
-  schema: spec.aon:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: spec.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
 $.spec.Step.then.decision: empty [conflict]
   [aontu/empty]: Cannot unify values at path $.spec.Step.then.decision
   data: chain-bad.json:6:17 ("maybe")
-  schema: spec.aon:4:15 (*"pending"|"pending"|"approved"|"rejected")
+  schema: spec.aontu:4:15 (*"pending"|"pending"|"approved"|"rejected")
 $ echo $?
 1
 ```

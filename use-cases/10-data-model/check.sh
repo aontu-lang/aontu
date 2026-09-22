@@ -33,27 +33,27 @@ has() {
 
 # ---------------------------------------------------------------------
 # 1. The seed generator: evaluating the model IS generating fixtures.
-run seed 0 -- "$DIR/seed.aon"
+run seed 0 -- "$DIR/seed.aontu"
 diff -u "$DIR/expected/seed.json" "$WORK/seed.out" \
-  || fail "seed.aon output drifted from expected/seed.json"
-ok "seed.aon evaluates to the golden fixture set (defaults filled, ids checked)"
+  || fail "seed.aontu output drifted from expected/seed.json"
+ok "seed.aontu evaluates to the golden fixture set (defaults filled, ids checked)"
 
 # 2. Exact money survives canon; generation renders plain digits.
-run canon 0 -- model get '$.pricing.bundles' --canon "$DIR/seed.aon"
+run canon 0 -- model get '$.pricing.bundles' --canon "$DIR/seed.aontu"
 diff -u "$DIR/expected/bundles-canon.txt" "$WORK/canon.out" \
   || fail "canonical bundle prices drifted"
 ok "canon keeps 0d exact-decimal money (0d0.3, 0d69.89)"
 
-run exact 0 -- model get '$.reconcile.exactPath' --canon "$DIR/seed.aon"
+run exact 0 -- model get '$.reconcile.exactPath' --canon "$DIR/seed.aontu"
 has exact '0d0.3'
-run exactgen 0 -- model get '$.reconcile.exactPath' "$DIR/seed.aon"
+run exactgen 0 -- model get '$.reconcile.exactPath' "$DIR/seed.aontu"
 has exactgen '0.3'
-ok "0d0.1 + 0d0.2 is exactly 0d0.3 (the pin in seed.aon holds)"
+ok "0d0.1 + 0d0.2 is exactly 0d0.3 (the pin in seed.aontu holds)"
 
 # 3. A batch of agent-emitted records, one vet command, three files.
-run batch 0 -- vet "$DIR/seed.aon" \
-  "$DIR/data/order-batch-1.aon" "$DIR/data/order-batch-2.aon" \
-  "$DIR/data/customer-bigid.aon"
+run batch 0 -- vet "$DIR/seed.aontu" \
+  "$DIR/data/order-batch-1.aontu" "$DIR/data/order-batch-2.aontu" \
+  "$DIR/data/customer-bigid.aontu"
 has batch 'verdict: valid'
 ok "batch vet: two agent-emitted order files + one 0d ledger sync, all valid"
 
@@ -64,32 +64,32 @@ has batch 'pref_not_instance'
 ok "known diagnostics bug reproduced: spurious pref_not_instance on *\"open\" default"
 
 # 4. Referential integrity: an order naming an undeclared customer.
-run dangle 1 -- vet "$DIR/seed.aon" "$DIR/bad/order-dangling.aon"
+run dangle 1 -- vet "$DIR/seed.aontu" "$DIR/bad/order-dangling.aontu"
 has dangle '[aontu/refer_unresolved]'
 has dangle 'cust-9999'
 ok "dangling customerId refused (refer_unresolved)"
 
 # 5. close(): a key the Customer schema does not declare.
-run extra 1 -- vet "$DIR/seed.aon" "$DIR/bad/customer-extra-key.json"
+run extra 1 -- vet "$DIR/seed.aontu" "$DIR/bad/customer-extra-key.json"
 has extra '[aontu/closed]'
 has extra 'segment'
 ok "undeclared key refused by close() (closed)"
 
 # 6. re(): a country that is not an ISO 3166-1 alpha-2 code.
-run country 1 -- vet "$DIR/seed.aon" "$DIR/bad/customer-country.json"
+run country 1 -- vet "$DIR/seed.aontu" "$DIR/bad/customer-country.json"
 has country '[aontu/constraint]'
 has country 're("^[A-Z]{2}$")'
 ok "non-ISO country code refused by re() (constraint)"
 
 # 7. 64-bit ids, part 1: plain JSON carrying 2^53+1 is refused at
 # parse -- vet never sees a silently rounded id.
-run lossy 1 -- vet "$DIR/seed.aon" "$DIR/bad/customer-id-lossy.json"
+run lossy 1 -- vet "$DIR/seed.aontu" "$DIR/bad/customer-id-lossy.json"
 has lossy '[aontu/lossy_integer_literal]'
 ok "lossy 64-bit id in plain JSON refused (lossy_integer_literal)"
 
 # 8. 64-bit ids, part 2: the schema author's trap. The 0d-rescued id
 # has biginteger kind; a schema saying `integer` refuses it.
-run trap 1 -- vet "$DIR/bad/id-trap-schema.aon" "$DIR/data/customer-bigid.aon"
+run trap 1 -- vet "$DIR/bad/id-trap-schema.aontu" "$DIR/data/customer-bigid.aontu"
 has trap '[aontu/constraint]'
 has trap 'integer&min(1)'
 has trap '0d9007199254740993'
@@ -97,22 +97,22 @@ ok "ledgerId: integer refuses the 0d id -- the kind trap is real"
 
 # ...and the domain's two-leaf disjunction admits it (part of the
 # batch vet above), while canon keeps it exact:
-run bigid 0 -- model get '$.customers.cust-1003.ledgerId' --canon "$DIR/data/customer-bigid.aon"
+run bigid 0 -- model get '$.customers.cust-1003.ledgerId' --canon "$DIR/data/customer-bigid.aontu"
 has bigid '0d9007199254740993'
 ok "integer|biginteger admits the id; canon keeps it exact"
 
 # 9. Exact money vs the JSON wire. bigdecimal is unreachable from a
-# strict-JSON number; an .aon record satisfies it.
-run qexact 0 -- vet "$DIR/exact-money.aon" "$DIR/data/quote-exact.aon"
+# strict-JSON number; an .aontu record satisfies it.
+run qexact 0 -- vet "$DIR/exact-money.aontu" "$DIR/data/quote-exact.aontu"
 has qexact 'verdict: valid'
-run qfloat 1 -- vet "$DIR/exact-money.aon" "$DIR/data/quote-float.json"
+run qfloat 1 -- vet "$DIR/exact-money.aontu" "$DIR/data/quote-float.json"
 has qfloat '[aontu/constraint]'
 has qfloat 'bigdecimal'
 ok "bigdecimal schema refuses the float 10.5 a JSON quote must carry"
 
 # ...vet parses .json data as Aontu, so 0d-annotated pseudo-JSON is
 # accepted -- but it is no longer JSON (README, gap 1).
-run q0d 0 -- vet "$DIR/exact-money.aon" "$DIR/data/quote-0d.json"
+run q0d 0 -- vet "$DIR/exact-money.aontu" "$DIR/data/quote-0d.json"
 has q0d 'verdict: valid'
 node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' \
   "$DIR/data/quote-0d.json" 2>/dev/null \
@@ -120,19 +120,19 @@ node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' \
 ok "0d pseudo-JSON vets as valid yet is rejected by a strict JSON parser"
 
 # 10. Anchored vet: one record against one named type.
-run anchored 0 -- vet --at '$.schema.Customer' "$DIR/domain.aon" \
+run anchored 0 -- vet --at '$.schema.Customer' "$DIR/domain.aontu" \
   "$DIR/data/customer-record.json"
 has anchored 'verdict: valid'
 ok "vet --at \$.schema.Customer validates a bare record"
 
 # 11. The reporting view is a sound projection of the domain.
-run view 0 -- subsume "$DIR/reporting.aon" "$DIR/domain.aon"
+run view 0 -- subsume "$DIR/reporting.aontu" "$DIR/domain.aontu"
 has view 'verdict: subsumes'
 ok "reporting view subsumes the domain (projection is sound)"
 
 # ...and a view that assumes int64 ledger ids is caught -- though as
 # 'undecided' (exit 3), not 'does_not_subsume' (README, what worked).
-run viewbad 3 -- subsume "$DIR/bad/reporting-int64.aon" "$DIR/domain.aon"
+run viewbad 3 -- subsume "$DIR/bad/reporting-int64.aontu" "$DIR/domain.aontu"
 has viewbad 'sub_disjunct_distribution'
 has viewbad 'biginteger'
 ok "int64-assuming view fails subsumption (undecided, biginteger cited)"
@@ -142,35 +142,35 @@ ok "int64-assuming view fails subsumption (undecided, biginteger cited)"
 # 12a. FIXED (the review's finding I): aggregation, projection and
 # arithmetic-as-functions. An invoice total is now DERIVED rather than
 # self-declared and spot-checked.
-run gsum 0 -- "$DIR/gaps/agg-sum.aon"
+run gsum 0 -- "$DIR/gaps/agg-sum.aontu"
 has gsum '"total": 4008'
 has gsum '"largest": 3998'
 ok "sum(pick(lines, amountCents)) derives the total; greatest picks the max"
 
-run gmul 0 -- "$DIR/gaps/multiply.aon"
+run gmul 0 -- "$DIR/gaps/multiply.aontu"
 has gmul '"amount": 3998'
 has gmul '"vatCents": 759'
 ok "mul/div compute quantity and integer-cent VAT in-model"
 
 # ... and the `*` TOKEN still refuses, by design: maths arrives as
 # functions, and the operator characters stay reserved.
-run gstar 1 -- "$DIR/gaps/star-token.aon"
+run gstar 1 -- "$DIR/gaps/star-token.aontu"
 has gstar '[aontu/unexpected]'
 ok "by design: '*' is still not an operator (parse refuses)"
 
-run gmix 1 -- "$DIR/gaps/float-mix.aon"
+run gmix 1 -- "$DIR/gaps/float-mix.aontu"
 has gmix '[aontu/exact_float_mix]'
 ok "float + exact refused in either order (exact_float_mix)"
 
-run gspread 1 -- "$DIR/gaps/spread-cross-field.aon"
+run gspread 1 -- "$DIR/gaps/spread-cross-field.aontu"
 has gspread '[aontu/no_path]'
 ok "gap: cross-field must() in a spread template does not re-anchor (no_path)"
 
-run glen 1 -- "$DIR/gaps/list-length-template.aon"
+run glen 1 -- "$DIR/gaps/list-length-template.aontu"
 has glen '[aontu/constraint]'
 ok "gap: length() on a list template folds against the template itself"
 
-run guniq 1 -- "$DIR/gaps/unique-by-field.aon"
+run guniq 1 -- "$DIR/gaps/unique-by-field.aontu"
 has guniq '[aontu/constraint]'
 has guniq '$.customers'
 ok "unique(ledgerId) catches the duplicate ledgerId across customers"
@@ -184,7 +184,7 @@ ok "unique(ledgerId) catches the duplicate ledgerId across customers"
 # `customers {}` -- which is the failure mode worth a fixture, because
 # a silent drop looks like success. Shared-spec pin: test/spec/file.tsv
 # load-alias-spread.
-run gid 0 -- "$DIR/gaps/include-alias-spread/main.aon"
+run gid 0 -- "$DIR/gaps/include-alias-spread/main.aontu"
 has gid '"ledgerId": 5'
 has gid '"id": "cust-1001"'
 ok "fixed: include + nested alias emits the record, not an empty bag"
@@ -198,25 +198,25 @@ ok "fixed: include + nested alias emits the record, not an empty bag"
 node -e 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))' \
   "$DIR/data/quote-wire.json" \
   || fail "quote-wire.json is not strict JSON"
-run mwire 0 -- vet "$DIR/money-wire.aon" "$DIR/data/quote-wire.json"
+run mwire 0 -- vet "$DIR/money-wire.aontu" "$DIR/data/quote-wire.json"
 has mwire 'verdict: valid'
 ok "money as a decimal string vets from a strictly-JSON record"
 
 # The mark is OPTIONAL for a producer and CONSTANT when supplied: a
 # record may echo it (and a negative amount is ordinary), a record may
 # not contradict it. A preference could not make that second check.
-run mmark 0 -- vet "$DIR/money-wire.aon" "$DIR/data/quote-wire-marked.json"
+run mmark 0 -- vet "$DIR/money-wire.aontu" "$DIR/data/quote-wire-marked.json"
 has mmark 'verdict: valid'
-run mbadmark 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-mark.json"
+run mbadmark 1 -- vet "$DIR/money-wire.aontu" "$DIR/bad/quote-wire-mark.json"
 has mbadmark '$.quote.dec'
 has mbadmark 'bigdecimal:2'
 ok "the conversion mark is optional to send and impossible to contradict"
 
 # The pattern is the guard: the wrong scale and a JSON NUMBER are both
 # refused, at the field rather than at the record.
-run mscale 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-scale.json"
+run mscale 1 -- vet "$DIR/money-wire.aontu" "$DIR/bad/quote-wire-scale.json"
 has mscale '$.quote.amount'
-run mnum 1 -- vet "$DIR/money-wire.aon" "$DIR/bad/quote-wire-number.json"
+run mnum 1 -- vet "$DIR/money-wire.aontu" "$DIR/bad/quote-wire-number.json"
 has mnum '$.quote.amount'
 ok "wrong scale and a bare JSON number are refused at \$.quote.amount"
 
@@ -224,7 +224,7 @@ ok "wrong scale and a bare JSON number are refused at \$.quote.amount"
 # Schema gets the same pattern, and learns the leaf and scale from the
 # mark's const. Asserted by running the exported pattern over the same
 # records vet just judged -- the two must agree.
-run mjs 0 -- jsonschema --at '$.Money' "$DIR/money-wire.aon"
+run mjs 0 -- jsonschema --at '$.Money' "$DIR/money-wire.aontu"
 has mjs '"pattern": "^-?(0|[1-9][0-9]*)[.][0-9]{2}$"'
 has mjs '"const": "bigdecimal:2"'
 node -e '
@@ -258,8 +258,8 @@ node -e '
 ok "the exported JSON Schema carries the pattern and the mark, and agrees"
 
 # The crossing point itself: every conversion claim in
-# money-convert.aon is a theorem, so evaluating the file IS the test.
-run mconv 0 -- --canon "$DIR/money-convert.aon"
+# money-convert.aontu is a theorem, so evaluating the file IS the test.
+run mconv 0 -- --canon "$DIR/money-convert.aontu"
 has mconv '"amount":0d3998.19'
 has mconv '"refund":-0d12.05'
 has mconv '"sameNumber":0d10.5'
@@ -267,8 +267,8 @@ has mconv '"scaleZeroRight":0d10.0'
 has mconv '"vatExact":0d759.6561'
 ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 
-# 14. THE SCHEMA AS CODE. xf-domain.aon walks the record types and
-# WRITES TypeScript; xf-order.aon writes the same walk twice, as
+# 14. THE SCHEMA AS CODE. xf-domain.aontu walks the record types and
+# WRITES TypeScript; xf-order.aontu writes the same walk twice, as
 # TypeScript and as Go, with the two facts a schema walk cannot see
 # (which keys are optional -- README, BUGS.md 86) stated as data.
 #
@@ -278,10 +278,10 @@ ok "the wire<->exact conversion, its sign, its scale and its VAT all pin"
 # where it used to be the bundled profile's acronym set. That is the
 # cost of the decision, and this is where the corpus pays it.
 RENDER="$AONTU render --check"
-$RENDER "$DIR/xf-domain.aon" "$DIR/expected/render" >/dev/null 2>&1 \
-  || fail "xf-domain.aon drifted from expected/render"
-$RENDER "$DIR/xf-order.aon" "$DIR/expected/render" >/dev/null 2>&1 \
-  || fail "xf-order.aon drifted from expected/render"
+$RENDER "$DIR/xf-domain.aontu" "$DIR/expected/render" >/dev/null 2>&1 \
+  || fail "xf-domain.aontu drifted from expected/render"
+$RENDER "$DIR/xf-order.aontu" "$DIR/expected/render" >/dev/null 2>&1 \
+  || fail "xf-order.aontu drifted from expected/render"
 grep -q 'ledgerId: number;' "$DIR/expected/render/ts/domain.ts" \
   || fail "the TypeScript golden lost ledgerId"
 grep -q 'LedgerID int64 `json:"ledgerId"`' "$DIR/expected/render/go/domain.go" \
@@ -303,11 +303,11 @@ if command -v go >/dev/null 2>&1; then
   (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
     || fail "could not build the Go CLI"
   for x in xf-domain xf-order; do
-    "$GOBIN" model get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.go.json" \
-      || fail "the Go port did not build $x.aon's tree"
-    $AONTU model get out "$DIR/$x.aon" 2>/dev/null > "$WORK/$x.ts.json"
+    "$GOBIN" model get out "$DIR/$x.aontu" 2>/dev/null > "$WORK/$x.go.json" \
+      || fail "the Go port did not build $x.aontu's tree"
+    $AONTU model get out "$DIR/$x.aontu" 2>/dev/null > "$WORK/$x.ts.json"
     diff -u "$WORK/$x.ts.json" "$WORK/$x.go.json" \
-      || fail "$x.aon: the two ports build different trees (ADR-001)"
+      || fail "$x.aontu: the two ports build different trees (ADR-001)"
   done
   ok "both ports build the same trees for both transforms"
 else
@@ -323,13 +323,13 @@ echo
 # and `--check` is the gate that keeps it true.
 # The figure is what goes to STDOUT; the loss report goes to stderr,
 # and this run() merges the two, so the redirect is written here.
-$AONTU view doc --depth 2 "$DIR/seed.aon" > "$WORK/doc.out" 2>/dev/null \
+$AONTU view doc --depth 2 "$DIR/seed.aontu" > "$WORK/doc.out" 2>/dev/null \
   || fail "the model tree did not draw"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 run docgate 0 -- view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/seed.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/seed.aontu"
 run docsvg 0 -- view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/seed.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/seed.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

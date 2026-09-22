@@ -50,7 +50,7 @@ It is also read by the TypeScript lowering as the module's address, and
 that makes it part of the program's meaning rather than part of its
 filing. VERIFIED, on a unit that references a record in another unit:
 
-```aon
+```aontu
 @"aontu:code"
 
 aontu: Code: units: [
@@ -67,7 +67,7 @@ aontu: Code: units: [
 ```
 
 ```
-$ aontu render --stdout u1.aon
+$ aontu render --stdout u1.aontu
 import { Point } from "../lib/geo";
 
 export interface Shape {
@@ -90,7 +90,7 @@ the profile knows which.** VERIFIED, the same document with
 retargeted to `unit: "lib/geo.go"`:
 
 ```
-$ aontu render --stdout goref.aon
+$ aontu render --stdout goref.aontu
 package app
 
 type Shape struct {
@@ -135,7 +135,7 @@ A `%decl` is a declaration — `%record`, `%enum`, `%alias`, `%const`,
 `%func` — and says nothing about how any language spells it. The profile
 spells it. VERIFIED, one declaration list bound to two units:
 
-```aon
+```aontu
 @"aontu:code"
 
 %decls = [
@@ -152,7 +152,7 @@ aontu: Code: units: [
 ```
 
 ```
-$ aontu render two.aon --out two
+$ aontu render two.aontu --out two
 wrote acct.ts
 wrote acct.go
 $ cat two/acct.ts
@@ -210,8 +210,8 @@ counting the two spellings of the same job in
 
 | file | lines | what it produces |
 |---|---|---|
-| `gen-ts.aon` | 31 | an `aontu:code` unit |
-| `gen-ts-cmp.aon` | 23 | a component tree |
+| `gen-ts.aontu` | 31 | an `aontu:code` unit |
+| `gen-ts-cmp.aontu` | 23 | a component tree |
 
 Both carry the bytes in `expected/types.ts`, and `check.sh` diffs both
 against it. **Half of the eight lines is not a saving.** Four of them
@@ -225,7 +225,7 @@ name reads better than a map with a tag.
 
 So the result is about **spelling**, in the one corner where the two
 vocabularies overlap exactly — this generator emits `%frag` and nothing
-else. Rewrite `use-cases/10-data-model/xf-domain.aon`, which derives
+else. Rewrite `use-cases/10-data-model/xf-domain.aontu`, which derives
 each field's type from the schema by `match`, and there is nothing on
 the component side to rewrite it into.
 
@@ -260,14 +260,14 @@ nor a process. A component that reads a file cannot be served by
 So the tree's unique capability is real, is the point of the tree, and
 is on the far side of a line this engine holds on purpose. That is why
 the component road ends at `generate()` and a pipe, and why
-`gen-ts-cmp.aon`'s header says the tree *is* the deliverable.
+`gen-ts-cmp.aontu`'s header says the tree *is* the deliverable.
 
 ## 6. The seam, and that nothing crosses it today
 
 Putting §2 to §5 together:
 
 ```
-  model.aon
+  model.aontu
      │
      ▼ unify()
   the Val tree
@@ -292,16 +292,16 @@ $ echo 'out: file("a.ts", [{ k:"frag" n: ["x"] }])' | aontu -c
 ```
 
 and a component tree handed to `render` finds no units at all. VERIFIED
-in both ports, on `c1.aon` holding one line —
+in both ports, on `c1.aontu` holding one line —
 `out: folder("src", [file("geo.ts", [line("x")])])` — same two messages,
 exit 2 from each:
 
 ```
-$ aontu render --stdout c1.aon
+$ aontu render --stdout c1.aontu
 aontu: nothing was rendered: no profile was given, and the document declares none (see aontu help tasks)
 aontu: --stdout needs exactly one unit, and the instance has 0; --unit names one
 
-$ go run ./cmd/aontu render --stdout c1.aon
+$ go run ./cmd/aontu render --stdout c1.aontu
 aontu: nothing was rendered: no profile was given, and the document declares none (see aontu help tasks)
 aontu: --stdout needs exactly one unit, and the instance has 0; --unit names one
 ```

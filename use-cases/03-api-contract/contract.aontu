@@ -1,0 +1,15 @@
+# contract.aontu --- entry point: the whole Nimbus Tasks API contract.
+#
+# `aontu contract.aontu` does NOT generate: the vet anchors (msg,
+# entities, errors) must stay unmarked so `vet --at` enforces required
+# fields (README, gap 2), and unmarked abstract values block whole-file
+# generation. The working views are --canon, hash, get '$.api', and
+# vet --at '$.msg.<Message>' contract.aontu <candidate.json>.
+
+@"./types.aontu"
+@"./entities.aontu"
+@"./errors.aontu"
+@"./messages.aontu"
+@"./api.aontu"
+
+meta: { name:"nimbus-tasks-api" version:"1.3.0" stability:ga }

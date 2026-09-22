@@ -193,7 +193,7 @@ Options:
 
 Package verbs (a module is imported; a package is published):
   sync      Make the project correct: resolve by minimum version
-            selection, fetch what is missing, write aontu_meta/pkg-lock.aon,
+            selection, fetch what is missing, write aontu_meta/pkg-lock.aontu,
             vendor, verify. --frozen refuses to change the lockfile
   add       Take on a dependency the project does not have, then sync;
             refuses one it has and names get
@@ -214,15 +214,15 @@ Package options:
                   signs the manifest, for the key provider
   --token <file>  publish: the forge's OIDC token, read from a file
   --base <url>    the repository to read from (repeatable; overrides
-                  pkg.aon repo.base)
-  --write <url>   publish: the write path (overrides pkg.aon repo.write)
+                  pkg.aontu repo.base)
+  --write <url>   publish: the write path (overrides pkg.aontu repo.write)
   --against <dir> manifest: a prior version's tree, to gate on
   --upstream <u>  serve: fetch on miss from this repository (repeatable)
   --listen <a>    serve: the address to listen on (default 127.0.0.1:8017)
 
 pkg subcommands (the rest of the package operations):
   tidy      Resolve the closure by minimum version selection and
-            rewrite aontu_meta/pkg-lock.aon in canonical form
+            rewrite aontu_meta/pkg-lock.aontu in canonical form
   verify    Check every locked package still is and still means what
             the lockfile pins, bytes before meaning, and change nothing
             (the CI gate; tidy rewrites)
@@ -402,7 +402,7 @@ View exit codes: 0 rendered, 1 --check mismatch or lossy under
 --strict, 2 usage or --max-rows exceeded, 4 the document does not stand
 up on its own, or a relation, root or path that names nothing.
 
-A template entry file whose extension is not .aon is a GENERATOR: a
+A template entry file whose extension is not .aontu is a GENERATOR: a
 document in the target's own syntax, whose marker lines carry aontu and
 whose other lines are output. It is desugared before it is evaluated,
 and a language the table does not know names its marker with --marker,
@@ -541,7 +541,7 @@ Fmt options:
 The fmt verb prints one document in the agreed form; with no file it
 reads standard input. Several files need one of the options above.
 
-A file whose extension is not .aon is a GENERATOR, as it is for
+A file whose extension is not .aontu is a GENERATOR, as it is for
 template: the aontu its marker lines carry is formatted, the marker
 stands at the left margin with the aontu indented after it, and every
 line of output is held on a line of its own. A file with no marker line
@@ -1695,7 +1695,7 @@ function parseBreakingArgs(
 
 type OldVersion = { src: string, path: string, temp?: string }
 
-const INCLUDABLE = /\.(aon|aontu|jsonic|json)$/
+const INCLUDABLE = /\.(aontu|jsonic|json)$/
 
 function oldVersion(spec: string, file: string): OldVersion | undefined {
   if (!spec.startsWith('git#')) {
@@ -2913,7 +2913,7 @@ function runTrace(argv: string[]): number {
 
   // A GENERATOR IS AN ENTRY, not a preprocessing step: the file whose
   // provenance is asked for is the one the author edits.
-  if (!rest[0].endsWith('.aon')) {
+  if (!rest[0].endsWith('.aontu')) {
     src = desugarTemplate(src, marker ??
       markerFromProfiles(declared, rest[0]) ?? markerFor(rest[0]))
   }
@@ -3126,7 +3126,7 @@ async function runRender(argv: string[]): Promise<number> {
       process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
       return 2
     }
-    if (!/[.](aon|aontu)$/.test(f)) {
+    if (!/[.]aontu$/.test(f)) {
       const mark = marker ?? markerFromProfiles(declared, f) ?? markerFor(f)
       if (!templateOutputs(src, mark).some((out) => !out)) {
         process.stderr.write(`aontu: ${f} carries no ${mark} marker line, ` +
@@ -4802,7 +4802,7 @@ function runFmt(argv: string[]): number | Promise<number> {
       marker ?? markerFromProfiles(declared, file))
     if (false === mark) {
       process.stderr.write(
-        `aontu: ${file} is not aontu source (.aon, .aontu) and carries no ` +
+        `aontu: ${file} is not aontu source (.aontu) and carries no ` +
         `${markerFor(file)} marker line, so there is no aontu in it to ` +
         'format; --marker names the marker for a language the table ' +
         'does not know, and --profile reads one that declares it\n')
@@ -4818,7 +4818,7 @@ function fmtMarker(
   if (undefined !== marker) {
     return marker
   }
-  if (/[.](aon|aontu)$/.test(file)) {
+  if (/[.]aontu$/.test(file)) {
     return undefined
   }
   const mark = markerFor(file)
@@ -5259,7 +5259,7 @@ const KNOWN_VERBS = [
 
 // looksLikeVerb reports whether an unreadable argument was meant as a
 // verb rather than as a path. A bare word has no separator and no
-// extension; `./help`, `help.aon`, `/tmp/help` and `sub/dir` are paths
+// extension; `./help`, `help.aontu`, `/tmp/help` and `sub/dir` are paths
 // and keep the file diagnosis. Mirrors go/cmd/aontu/main.go.
 function looksLikeVerb(arg: string): boolean {
   return '' !== arg &&

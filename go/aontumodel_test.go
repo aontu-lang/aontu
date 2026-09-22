@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// Every .aon is a module, named by its path; a file named after the
-// directory holding it collapses, so aontu/profile/profile.aon is
-// `aontu:profile` and aontu/lang/text.aon is `aontu:lang/text`.
+// Every .aontu is a module, named by its path; a file named after the
+// directory holding it collapses, so aontu/profile/profile.aontu is
+// `aontu:profile` and aontu/lang/text.aontu is `aontu:lang/text`.
 func walkModels(t *testing.T, dir, rel string, found []string) []string {
 	entries, err := os.ReadDir(dir)
 	if nil != err {
@@ -27,10 +27,10 @@ func walkModels(t *testing.T, dir, rel string, found []string) []string {
 			found = walkModels(t, filepath.Join(dir, entry.Name()), subrel, found)
 			continue
 		}
-		if !strings.HasSuffix(entry.Name(), ".aon") {
+		if !strings.HasSuffix(entry.Name(), ".aontu") {
 			continue
 		}
-		part := strings.Split(strings.TrimSuffix(subrel, ".aon"), "/")
+		part := strings.Split(strings.TrimSuffix(subrel, ".aontu"), "/")
 		if 1 < len(part) && part[len(part)-1] == part[len(part)-2] {
 			part = part[:len(part)-1]
 		}
@@ -50,10 +50,10 @@ func TestAontuModelsAreTheCanonicalTree(t *testing.T) {
 	for _, name := range aontuModels {
 		rel := strings.Split(strings.TrimPrefix(name, aontuScheme), "/")
 		deep := append([]string{"..", "aontu"}, rel...)
-		deep = append(deep, rel[len(rel)-1]+".aon")
+		deep = append(deep, rel[len(rel)-1]+".aontu")
 		at := filepath.Join(deep...)
 		if _, err := os.Stat(at); nil != err {
-			at = filepath.Join(append([]string{"..", "aontu"}, rel...)...) + ".aon"
+			at = filepath.Join(append([]string{"..", "aontu"}, rel...)...) + ".aontu"
 		}
 		shared, err := os.ReadFile(at)
 		if nil != err {

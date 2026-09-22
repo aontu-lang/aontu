@@ -9,10 +9,10 @@ order: 35
 An agent that edits a model under a role (`dev`, `product`, an
 on-call rotation) has to be told no before it writes, and the rules
 that say no should live in a document the same tools read. Write
-`roles.aon`:
+`roles.aontu`:
 
 <!-- test: scenario gate-by-role -->
-<!-- test: file roles.aon -->
+<!-- test: file roles.aontu -->
 ```aontu
 roles: dev: {
   allow: ["$.services" "$.deploy.*.replicas"]
@@ -27,7 +27,7 @@ assignment the agent is about to hand `set`:
 
 <!-- test: run -->
 ```sh
-$ aontu allow --role dev roles.aon '$.services.auth.tier="standard"'
+$ aontu allow --role dev roles.aontu '$.services.auth.tier="standard"'
 verdict: refused
 role: dev
 $.services.auth.tier: refused by $.roles.dev.deny.0 ($.services.*.tier)
@@ -39,21 +39,21 @@ The path is what is judged, and the value only has to be one value: a
 second pair inside it would write a subtree the gate was not asked
 about, so such a call is refused as usage. The answer names the rule
 as a path into the role model, so `aontu model why '$.roles.dev.deny.0'
-roles.aon` lists who wrote it and where. Ask again for a path the
+roles.aontu` lists who wrote it and where. Ask again for a path the
 role does cover:
 
 <!-- test: run -->
 ```sh
-$ aontu allow --role dev roles.aon '$.services.auth.replicas=4'
+$ aontu allow --role dev roles.aontu '$.services.auth.replicas=4'
 verdict: allowed
 role: dev
 $.services.auth.replicas: allowed by $.roles.dev.allow.0 ($.services)
 ```
 
-Exit 0 is the cue to write. Given a `model.aon` whose replicas are a
+Exit 0 is the cue to write. Given a `model.aontu` whose replicas are a
 default:
 
-<!-- test: file model.aon -->
+<!-- test: file model.aontu -->
 ```aontu
 services: {
   &: { tier: *standard|string replicas: *1|integer description?:string }
@@ -69,9 +69,9 @@ set`](change-a-value-with-an-overlay.md) unchanged:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.auth.replicas=4' --entry model.aon --overlay overlay.aon
+$ aontu model set '$.services.auth.replicas=4' --entry model.aontu --overlay overlay.aontu
 verdict: valid
-wrote: overlay.aon
+wrote: overlay.aontu
 ```
 
 The gate and the write take one spelling, so a skill runs the first

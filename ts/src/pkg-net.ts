@@ -237,8 +237,8 @@ export function objectPath(kind: string, pkg: string, version?: string): string 
     case 'manifest': return p + '/@v/' + version + '.manifest'
     case 'signature': return p + '/@v/' + version + '.sig'
     case 'sigstore': return p + '/@v/' + version + '.sigstore.json'
-    case 'advisory': return '/advisory/' + pkgUrlPath(pkg) + '.aon'
-    default: return '/tombstone/' + pkgUrlPath(pkg) + '/@v/' + version + '.aon'
+    case 'advisory': return '/advisory/' + pkgUrlPath(pkg) + '.aontu'
+    default: return '/tombstone/' + pkgUrlPath(pkg) + '/@v/' + version + '.aontu'
   }
 }
 
@@ -566,19 +566,19 @@ function seenVersions(ctx: AcquireCtx, pkg: string): string[] {
   if (!existsSync(dir)) {
     return []
   }
-  return readdirSync(dir).filter((f) => f.endsWith('.aon'))
-    .map((f) => f.slice(0, -'.aon'.length)).sort(cmpBytes)
+  return readdirSync(dir).filter((f) => f.endsWith('.aontu'))
+    .map((f) => f.slice(0, -'.aontu'.length)).sort(cmpBytes)
 }
 
 function recordSeen(ctx: AcquireCtx, pkg: string, version: string, subject: string): void {
   const dir = cacheSeenDir(ctx.cache, pkg)
-  const file = pathJoin(dir, version + '.aon')
+  const file = pathJoin(dir, version + '.aontu')
   if (existsSync(file)) {
     return
   }
   mkdirSync(dir, { recursive: true })
   writeFileSync(file, canonLine(
-    { package: pkg, version, seen: timestamp(ctx.now()), subject }, ctx.options, 'seen.aon'))
+    { package: pkg, version, seen: timestamp(ctx.now()), subject }, ctx.options, 'seen.aontu'))
 }
 
 
@@ -867,8 +867,8 @@ export async function acquire(ctx: AcquireCtx, pkg: string, asked: string | unde
   const tmp = pathJoin(ctx.cache, 'tmp', randomBytes(8).toString('hex'))
   mkdirSync(pathJoin(tmp, META_DIR), { recursive: true })
   writeTree(tmp, entries)
-  writeFileSync(pathJoin(tmp, META_DIR, 'manifest.aon'), manifestBytes)
-  writeFileSync(pathJoin(tmp, META_DIR, 'proof.aon'), proofBytes)
+  writeFileSync(pathJoin(tmp, META_DIR, 'manifest.aontu'), manifestBytes)
+  writeFileSync(pathJoin(tmp, META_DIR, 'proof.aontu'), proofBytes)
   const self = packageSelf(tmp, ctx.options)
   const mod = manifest.modules[0]
   if (self.path !== pkg || self.version !== version || self.main !== mod.main) {
@@ -1435,8 +1435,8 @@ export function writeLayout(dir: string, w: LayoutWrite, options: PkgToolOptions
   }
   retracted.sort((a, b) => versionCompare(a.version, b.version))
   const advisory = pathJoin(dir, 'advisory', ...pkgUrlPath(pkg).split('/'))
-  mkdirSync(pathDirname(advisory + '.aon'), { recursive: true })
-  writeFileSync(advisory + '.aon',
+  mkdirSync(pathDirname(advisory + '.aontu'), { recursive: true })
+  writeFileSync(advisory + '.aontu',
     canonLine({ package: pkg, retracted }, options, 'advisory'))
 }
 
@@ -1627,7 +1627,7 @@ export async function pkgPublish(root: string, options: PkgToolOptions, http: Pk
   }
 
   const proof = signDigest(readFileSync(args.key as string, 'utf8'), report.digest)
-  const proofBytes = canonLine(proof, options, 'proof.aon')
+  const proofBytes = canonLine(proof, options, 'proof.aontu')
   const archive = archiveOf(root)
   try {
     if (null != args.to) {
@@ -1786,7 +1786,7 @@ function refusedOutdated(report: PkgOutdatedReport, e: unknown): PkgOutdatedRepo
 // THE LOCAL REGISTRY AND PROXY (`aontu pkg serve`): the directory
 // layout served verbatim; with upstreams, fetched on a miss and kept.
 const OBJECT_RE =
-  /^\/(pkg\/[A-Za-z0-9!._/-]+\/@v\/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg\/[A-Za-z0-9!._/-]+\/@latest|advisory\/[A-Za-z0-9!._/-]+\.aon|tombstone\/(feed\.aon|[A-Za-z0-9!._/-]+\/@v\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aon))$/
+  /^\/(pkg\/[A-Za-z0-9!._/-]+\/@v\/(list|(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(zip|manifest|sig|sigstore\.json))|pkg\/[A-Za-z0-9!._/-]+\/@latest|advisory\/[A-Za-z0-9!._/-]+\.aontu|tombstone\/(feed\.aontu|[A-Za-z0-9!._/-]+\/@v\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.aontu))$/
 
 export function objectShape(p: string): boolean {
   return OBJECT_RE.test(p) && !p.split('/').some((e) => '' === e && p.indexOf('//') >= 0) &&
@@ -1927,8 +1927,8 @@ export function defaultHttp(): PkgHttp {
     },
     post: async (url: string, parts: PublishParts, token: string) => {
       const form = new FormData()
-      form.set('manifest', new Blob([Buffer.from(parts.manifest)], { type: 'text/plain' }), 'manifest.aon')
-      form.set('proof', new Blob([Buffer.from(parts.proof)], { type: 'text/plain' }), 'proof.aon')
+      form.set('manifest', new Blob([Buffer.from(parts.manifest)], { type: 'text/plain' }), 'manifest.aontu')
+      form.set('proof', new Blob([Buffer.from(parts.proof)], { type: 'text/plain' }), 'proof.aontu')
       form.set('archive', new Blob([Buffer.from(parts.archive)], { type: 'application/zip' }), 'archive.zip')
       try {
         const r = await fetch(url, {

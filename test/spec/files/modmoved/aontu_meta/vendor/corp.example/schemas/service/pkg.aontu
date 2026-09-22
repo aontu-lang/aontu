@@ -1,0 +1,4 @@
+# The last version published under this path: it names where the
+# package went, and nothing follows it (ADR-020 part 6).
+pkg: { path: "corp.example/schemas/service" version: "2.0.0" main: "service.aontu" }
+moved: "corp.example/schemas/svc"

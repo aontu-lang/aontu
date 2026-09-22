@@ -1,5 +1,0 @@
-# A role-model edit that writes qa's allow list as one string. The
-# shape says `allow: [&: string]`, so this is a located [aontu/list]
-# error at $.roles.qa.allow, and `aontu allow` answers exit 4.
-@"../roles.aon"
-roles: qa: allow: "$.tests"

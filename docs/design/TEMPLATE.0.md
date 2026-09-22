@@ -223,7 +223,7 @@ change, so the twelve files are byte-identical either way.
 **`esc:` is therefore an OPTIONAL key that names the variant**, not a
 switch that turns escaping on:
 
-```aon
+```aontu
 {match: …, replace: {PIN: .pin}, body: [ … ]}            # escaped, C / JSON
 {match: …, esc: sq, replace: {PIN: .pin}, body: [ … ]}   # escaped, single-quoted
 {match: …, esc: none, replace: {…}, body: [ … ]}         # the explicit opt-out
@@ -325,7 +325,7 @@ inverse.
 With `split`, the motivating case closes **using a phase already in the
 plan and no case operator at all**:
 
-```aon
+```aontu
 title: join(form(split(w, ""), match(key(), "0", upper(_), _)), "")
 name:  `Queue` + join(form(split(.pin, re(`[:,]`)), <title>), "")
 ```
@@ -429,8 +429,8 @@ them. The output lines are where they were, which is what this decision
 is about.)
 
 ```ts
-//- @"./model.aon"
-//- @"./wire.aon"
+//- @"./model.aontu"
+//- @"./wire.aontu"
 //- svc: $.main.srv & $.wire & pack($.main.srv, {name: key()})
 //- files: emit($.svc, {match: {name: string}, esc: sq, replace: {SERVICE: .name}, body: [
 import { getSeneca } from '../../env/lambda/lambda'
@@ -522,7 +522,7 @@ two transforms are `ts/src/template.ts` and `go/template.go`, held in
 parity by `test/spec/template.tsv` (30 rows: the one rule, each
 marker, the per-line quote, the residual escape, and the whitespace a
 line is). `use-cases/17-lambda-handlers/handler.ts` is the acceptance:
-the same generator as `gen.aon`, written as a Lambda handler, and it
+the same generator as `gen.aontu`, written as a Lambda handler, and it
 renders the same thirteen units in both ports.
 
 Three things shipped differently from this note:
@@ -562,7 +562,7 @@ because the answer is only legible beside the question.*
   reference says so in one line, which is what this note asked for.
 - **`fmt` over a template file.** CLOSED, and the answer is that
   `fmt`'s reach is NIL rather than partial: it formats aontu source,
-  `.aon` and `.aontu`, and refuses any other file by name. The reason
+  `.aontu` and `.aontu`, and refuses any other file by name. The reason
   is sharper than the question expected. A `#-` template PARSES as
   aontu, because `#` opens a comment — so `fmt` read one, discarded
   every body line as a comment, and rewrote the file with exit 0. A

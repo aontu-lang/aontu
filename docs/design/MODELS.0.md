@@ -32,11 +32,11 @@ that runs **before** the file leg
 (`makeModelResolver` in `ts/src/lang.ts`; `msOptions` in `go/lang.go`).
 
 **The name is a path, and it is not the path it looks like.** Probed:
-a project holding its own `./std/system.aon` — `std: { Service:
+a project holding its own `./std/system.aontu` — `std: { Service:
 "LOCAL" }` — and writing `@"std/system"` gets the *bundled* model, not
 its file. The memory leg wins, silently. So today's spelling has both
 confusions the prefix exists to prevent: a reader takes `std/system`
-for a relative path (it looks like one, and `@"./spec.aon"` beside it
+for a relative path (it looks like one, and `@"./spec.aontu"` beside it
 is one), and an author who creates that relative path finds it cannot
 be reached by its own name.
 
@@ -57,7 +57,7 @@ with no path, erased before canon
 constant in `ts/src/std.ts` and `go/std.go`, byte-identical across the
 ports (pinned by `test/spec/std-system.tsv` and `std-view.tsv` through
 its canon and hash). `aontu fmt` landed in 0.56.0 and its corpus gate
-covers every `.aon` under `use-cases/` and `test/spec/files/`; the
+covers every `.aontu` under `use-cases/` and `test/spec/files/`; the
 standard library is not in that set, so no gate yet says it is
 formatted or lint-clean.
 
@@ -162,10 +162,10 @@ path, nothing to misspell, and the erasure rule means the two
 documents hash identically.
 
 **How the aliases reach the document.** Probed: an include spliced at
-the root — `@"./lib.aon"` on its own line — carries `lib`'s alias
+the root — `@"./lib.aontu"` on its own line — carries `lib`'s alias
 declarations into the includer, and `%port` written after it resolves
 (`{"listen":80,"std":{"port":integer&min(1)}}`); the same include
-bound under a key, `x: @"./lib.aon"`, does not (`Cannot resolve value
+bound under a key, `x: @"./lib.aontu"`, does not (`Cannot resolve value
 at path $.listen`), which is the rule
 [ALIASES.0.md](ALIASES.0.md) states — a declaration must sit at the
 document's root, and a spliced file *is* the document's root. So the
@@ -202,9 +202,9 @@ This is the second question at the origin, and it is
 sides sigilled, key the local name and value the exported one:
 
 ```
-{ %u8: %uint8 } = @"types.aon"       # rename
-{ %uint8, %port } = @"types.aon"     # by name
-{%} = @"types.aon"                   # every export
+{ %u8: %uint8 } = @"types.aontu"       # rename
+{ %uint8, %port } = @"types.aontu"     # by name
+{%} = @"types.aontu"                   # every export
 ```
 
 **Why it should not be spelled that way.** The same note's §10 argued
@@ -258,7 +258,7 @@ they publish.
 - After FMT P1: `fmt(model) == model`, both models, both ports.
 - After FMT P4: `--lint` clean on both.
 - The use cases that include a model pass unchanged in behaviour after
-  the rename — `01-service-catalog` above all, whose `spec.aon`
+  the rename — `01-service-catalog` above all, whose `spec.aontu`
   references `$.std.Port` and `$.std.Service` and whose check pins its
   outputs.
 - The site: synced pages carry the new spelling; the sync's link

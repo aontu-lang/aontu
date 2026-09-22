@@ -236,7 +236,7 @@ const E = (src) => {
         Assert.equal(E('x: file("a", [[folder("b")]])'), 'invalid-arg');
     });
     (0, node_test_1.test)('worked-example', () => {
-        const src = Fs.readFileSync(Path.join(__dirname, '..', 'test', 'cmp-spike.aon'), 'utf8');
+        const src = Fs.readFileSync(Path.join(__dirname, '..', 'test', 'cmp-spike.aontu'), 'utf8');
         const out = G(src).out;
         (0, expect_1.expect)(out.props).equal({ name: 'src' });
         (0, expect_1.expect)(out.children.length).equal(1);

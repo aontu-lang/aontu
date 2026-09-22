@@ -207,7 +207,7 @@ func TestVetUnparseableSchemaIsAnErrorVerdict(t *testing.T) {
 
 func TestVetSitesAreRoleTaggedDataFirst(t *testing.T) {
 	r := vetRun(vetSchema, `service: { name: "auth", port: "8080" }`,
-		&VetOptions{SchemaURL: "service.aon", DataURL: "deploy.json"})
+		&VetOptions{SchemaURL: "service.aontu", DataURL: "deploy.json"})
 	sites := r.Findings[0].Sites
 	if 2 != len(sites) {
 		t.Fatalf("sites: %+v", sites)
@@ -216,7 +216,7 @@ func TestVetSitesAreRoleTaggedDataFirst(t *testing.T) {
 		`"8080"` != sites[0].Value {
 		t.Fatalf("data site: %+v", sites[0])
 	}
-	if VetRoleSchema != sites[1].Role || "service.aon" != sites[1].File ||
+	if VetRoleSchema != sites[1].Role || "service.aontu" != sites[1].File ||
 		"integer" != sites[1].Value {
 		t.Fatalf("schema site: %+v", sites[1])
 	}
@@ -508,7 +508,7 @@ func TestVetColumnsCountUTF16Units(t *testing.T) {
 
 func TestVetEachDocumentResolvesItsOwnIncludes(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "part.aon"),
+	if err := os.WriteFile(filepath.Join(dir, "part.aontu"),
 		[]byte("port: integer"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -517,9 +517,9 @@ func TestVetEachDocumentResolvesItsOwnIncludes(t *testing.T) {
 	// came from -- but the loader resolves the base against a real
 	// directory, so the file has to be there, which for every caller
 	// that read the text out of it already is.
-	src := "@\"./part.aon\"\nname: string"
+	src := "@\"./part.aontu\"\nname: string"
 	data := "name: \"auth\"\nport: 8080"
-	schemaPath := filepath.Join(dir, "schema.aon")
+	schemaPath := filepath.Join(dir, "schema.aontu")
 	if err := os.WriteFile(schemaPath, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +530,7 @@ func TestVetEachDocumentResolvesItsOwnIncludes(t *testing.T) {
 	}
 
 	// Without the base the include is looked for beside the test
-	// process instead, where there is no part.aon: a schema that will
+	// process instead, where there is no part.aontu: a schema that will
 	// not stand up is an `error` verdict, never the data's fault.
 	if r := vetRun(src, data, nil); VetError != r.Verdict {
 		t.Fatalf("unbased: %s", r.Verdict)
@@ -542,13 +542,13 @@ func TestVetSiteNamesTheIncludedFile(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	lib := filepath.Join(dir, "lib", "types.aon")
+	lib := filepath.Join(dir, "lib", "types.aontu")
 	if err := os.WriteFile(lib,
 		[]byte("Port: integer & min(1024)\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	schemaPath := filepath.Join(dir, "schema.aon")
-	src := "@\"lib/types.aon\"\nsvc: { port: $.Port }\n"
+	schemaPath := filepath.Join(dir, "schema.aontu")
+	src := "@\"lib/types.aontu\"\nsvc: { port: $.Port }\n"
 	if err := os.WriteFile(schemaPath, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -590,12 +590,12 @@ func TestVetSiteNamesTheIncludedFile(t *testing.T) {
 
 func TestVetIncludedDataIsStillData(t *testing.T) {
 	dir := t.TempDir()
-	part := filepath.Join(dir, "part.aon")
+	part := filepath.Join(dir, "part.aontu")
 	if err := os.WriteFile(part, []byte("port: \"80\"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	dataPath := filepath.Join(dir, "data.aon")
-	data := "@\"./part.aon\"\n"
+	dataPath := filepath.Join(dir, "data.aontu")
+	data := "@\"./part.aontu\"\n"
 	if err := os.WriteFile(dataPath, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -674,19 +674,19 @@ func TestVetFindingWithoutHintText(t *testing.T) {
 
 func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
 	dir := t.TempDir()
-	abs := filepath.Join(dir, "lib.aon")
-	absEntry := filepath.Join(dir, "entry.aon")
+	abs := filepath.Join(dir, "lib.aontu")
+	absEntry := filepath.Join(dir, "entry.aontu")
 
 	// A BARE entry name: the include is named beside it, with no
 	// directory the caller never typed.
-	if got := displayFile(abs, "entry.aon", absEntry); "lib.aon" != got {
+	if got := displayFile(abs, "entry.aontu", absEntry); "lib.aontu" != got {
 		t.Fatalf("bare entry: %q", got)
 	}
 
 	// An entry reached through a directory: the include is named through
 	// the same one, so both are openable from the caller's cwd.
-	deep := filepath.Join("a", "b", "entry.aon")
-	want := filepath.Join("a", "b", "lib.aon")
+	deep := filepath.Join("a", "b", "entry.aontu")
+	want := filepath.Join("a", "b", "lib.aontu")
 	if got := displayFile(abs, deep, absEntry); want != got {
 		t.Fatalf("nested entry: %q, want %q", got, want)
 	}
@@ -699,7 +699,7 @@ func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
 
 	// The document's OWN url is never rewritten -- it is already the
 	// name the caller used.
-	if got := displayFile("entry.aon", "entry.aon", "x/entry.aon"); "entry.aon" != got {
+	if got := displayFile("entry.aontu", "entry.aontu", "x/entry.aontu"); "entry.aontu" != got {
 		t.Fatalf("self: %q", got)
 	}
 	// Neither is a url that is not a path, or one with no base to
@@ -708,13 +708,13 @@ func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
 	if got := displayFile("data", "data", ""); "data" != got {
 		t.Fatalf("label: %q", got)
 	}
-	if got := displayFile(abs, "entry.aon", ""); abs != got {
+	if got := displayFile(abs, "entry.aontu", ""); abs != got {
 		t.Fatalf("no base: %q", got)
 	}
-	if got := displayFile("", "entry.aon", "x/entry.aon"); "" != got {
+	if got := displayFile("", "entry.aontu", "x/entry.aontu"); "" != got {
 		t.Fatalf("empty url: %q", got)
 	}
-	if got := displayFile("rel.aon", "entry.aon", "x/entry.aon"); "rel.aon" != got {
+	if got := displayFile("rel.aontu", "entry.aontu", "x/entry.aontu"); "rel.aontu" != got {
 		t.Fatalf("relative url: %q", got)
 	}
 }

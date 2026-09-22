@@ -127,11 +127,11 @@ plugins, so the surface syntax is "relaxed JSON".
 - **Booleans** are `true` / `false`; **null** is `null`.
 
 A backtick string is how a document holds a block of another
-language. Here `greet.aon` carries a shell script as one value:
+language. Here `greet.aontu` carries a shell script as one value:
 
 <!-- test: scenario backtick-multiline -->
-<!-- test: file greet.aon -->
-```aon
+<!-- test: file greet.aontu -->
+```aontu
 greet: `#!/bin/sh
 echo "hi"
 `
@@ -140,7 +140,7 @@ tab: `x\ty`
 
 <!-- test: run -->
 ```sh
-$ aontu -c greet.aon
+$ aontu -c greet.aontu
 {"greet":"#!/bin/sh\necho \"hi\"\n","tab":"x\ty"}
 $ echo $?
 0
@@ -148,7 +148,7 @@ $ echo $?
 
 The relaxed forms combine in one document:
 
-```aon
+```aontu
 a: 1
 b: 2
 c: Mercury
@@ -464,7 +464,7 @@ top level.
 The merge recurses through nesting:
 
 <!-- fmt: keep the statements the merge law reads as one map -->
-```aon
+```aontu
 a: b: c: 1
 a: b: d: 2
 a: e: 3
@@ -497,7 +497,7 @@ A list is an ordered sequence.
 
 The pair form reads naturally for ordered records:
 
-```aon
+```aontu
 routes: [get:"/health" post:"/orders"]
 ```
 
@@ -514,7 +514,7 @@ values and defaults to nothing, as `string` does. The kind is the
 spelling of "a map must be supplied here": an unmet unit silently
 manufactures its empty value, an unmet kind refuses to generate.
 
-```aon
+```aontu
 required: map() & { a:1 }
 ```
 
@@ -550,7 +550,7 @@ containers (`map()` subsumes `{a:1}`). Pinned by
 `a & b` is the explicit unification of `a` and `b`: the same operation
 that merges duplicate map keys.
 
-```aon
+```aontu
 a: 1 & integer
 b: { x:1 } & { y:2 }
 c: { x:p:1 } & { x:q:2 }
@@ -580,7 +580,7 @@ a:1|2|3              → canon {"a":1|2|3}
 Unifying a concrete value selects the matching branch (others become nil
 and drop out):
 
-```aon
+```aontu
 a: 2
 a: 1|2
 b: 2
@@ -618,7 +618,7 @@ rather than reported, as every other unresolved optional is.
 `*x` marks `x` as **preferred** (a default). In a disjunction the
 preferred branch is chosen unless unification forces another.
 
-```aon
+```aontu
 a: *1|number
 b: *5
 c: *green|string
@@ -670,7 +670,7 @@ Compatible defaults fold: `a:*1` beside `a:*integer` is `*1`.
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
 the two ways of writing an enum-with-default agree.
 
-```aon
+```aontu
 a: ("1.0"|"1.1") & *"1.0"
 ```
 
@@ -697,7 +697,7 @@ min(1024) & max(65535))` refuses `80` and accepts `2048`; `*8080 |
 its openness: `*x | top` admits every override. The gate covers scalar
 preferred values: the same boundary as the kind gate above.
 
-```aon
+```aontu
 a: *8080|integer
 a: 9090
 b: *8080|number
@@ -738,7 +738,7 @@ other: the peer must pass `super(x)`, and `super({x:1})` is
 key (the preferred value itself admits it) and refuses a value of
 another kind outright:
 
-```aon
+```aontu
 a: *{ x:1 }
 a: y: 2
 b: *{ x:1 }
@@ -767,7 +767,7 @@ A key suffixed with `?` is optional. If it never receives a concrete
 value, it is **dropped from the generated output** instead of erroring.
 
 <!-- fmt: keep a schema and its data as separate statements -->
-```aon
+```aontu
 x?: number
 y: Y
 a: {y?:number, z:2}
@@ -793,7 +793,7 @@ optional keys too.
 A `&:` entry is a **template** unified into every other entry of its map
 or list. The template itself is not emitted:
 
-```aon
+```aontu
 c: { &: { x:2 } y:k:3 z:k:4 }
 ```
 
@@ -806,7 +806,7 @@ A template may be a kind (`&: string`), a constraint map
 per-child overridable default (`&: x: *1|number`). A template that
 names each child uses `key()`:
 
-```aon
+```aontu
 a: b: { &: { name:key() } c: {} d: {} }
 ```
 
@@ -823,7 +823,7 @@ Other forms:
 - **Lists:** the spread applies to every element, and canon keeps the
   spread entry (`[&:{"x":1},{"y":1,"x":1},…]`):
 
-```aon
+```aontu
 l: [&: { x:1 } y:1 y:2]
 ```
 
@@ -842,7 +842,7 @@ template requires is required at every child; a default one template
 carries defaults (and stays overridable) per child.
 
 <!-- fmt: keep two spreads written as separate statements -->
-```aon
+```aontu
 w: &: {p: integer}
 w: &: {r: integer}
 w: x: {p:1, r:5}
@@ -859,7 +859,7 @@ A spread constrains children that already exist. `pack` and `each`
 **make** them, from data that is already in the model, so the list of
 names and the children built from it cannot drift apart:
 
-```aon
+```aontu
 names: [web auth billing]
 
 deploy: close(pack($.names, {
@@ -905,7 +905,7 @@ lets it be kept, so `each(d, _ & t)` is every member of `d` met with
 `t`, and `each(d, _)` is a map's children as a list. The order is
 fixed: source order for a list, sorted-key order for a map.
 
-```aon
+```aontu
 ports: { http:80 https:443 }
 open: each($.ports, _ & integer)
 names: each({ b:2 a:1 }, _)
@@ -946,7 +946,7 @@ element is the template and nothing else, which is what makes it a
 construction. Mentioning the hole keeps the child; that is the
 [`_ & …` idiom](#the-_---idiom-construction-and-bound) below.
 
-```aon
+```aontu
 names: [web auth billing]
 files: each($.names, { path:_ + ".ts" })
 consts: each($.names, upper(_))
@@ -978,7 +978,7 @@ generator's.
 that child survives into the element is decided by one thing: whether
 the template mentions the hole.
 
-```aon
+```aontu
 ports: [containerPort:80 containerPort:443]
 plain: each($.ports, { protocol:TCP })
 bound: each($.ports, _ & { protocol:TCP })
@@ -1008,7 +1008,7 @@ Three shapes cover most uses:
 kind checks the members, a constraint atom bounds them, and a
 preference supplies a default the member may override.
 
-```aon
+```aontu
 ports: [8080 443]
 checked: each($.ports, _ & integer)
 
@@ -1048,7 +1048,7 @@ something that is both the whole record and one of its fields. Use
 satisfy** `cond` (keys preserved for a map, order for a list) and
 drops the rest silently:
 
-```aon
+```aontu
 services: { web: { debug:true port:80 } auth:port:81 }
 debugged: filter($.services, { debug:true })
 sidecars: pack($.debugged, { image:"acme/debug:1.0" })
@@ -1072,7 +1072,7 @@ pattern in argument order that `v` **already satisfies** selects its
 result, which is the answer; a trailing argument (the one that makes the
 argument count even) is the default:
 
-```aon
+```aontu
 tier: large
 size: match($.tier, small, { cpu:1 }, large, { cpu:8 }, { cpu:2 })
 ```
@@ -1124,7 +1124,7 @@ A bare `_` is a **hole**: a call holding one waits, and whatever the
 call is unified with fills it.
 
 <!-- fmt: keep a template and a key written as separate statements -->
-```aon
+```aontu
 greeting: upper(_) & hello
 x: {&: {m: _ + 2}}
 x: a: m: 1
@@ -1144,7 +1144,7 @@ select is not then checked against that peer: see
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
 
-```aon
+```aontu
 ports: { http:80 https:443 }
 open: pack($.ports, { port:_ name:key() })
 ```
@@ -1190,7 +1190,7 @@ For every node, in order, the first template whose `match` the node
 already satisfies is taken, and its `body` is instantiated against that
 node. The answer is one flat list of pieces:
 
-```aon
+```aontu
 services: [{ kind:sqs pin:"srv:a" } { kind:http path:"/a" }]
 
 lines: emit($.services, [
@@ -1227,7 +1227,7 @@ mechanism: there is no `when` directive because there is nothing for one
 to do. A dispatch over a `filter` that selects nothing contributes
 nothing:
 
-```aon
+```aontu
 services: [{ name:web logs: [] }]
 
 lines: emit($.services, {
@@ -1259,7 +1259,7 @@ that holds a table unevaluated is the one position the language never
 drives: a call's template argument. Write the table as an `emit` whose
 **selection is a hole**, and it is a rule set waiting for its nodes:
 
-```aon
+```aontu
 %wire = emit(_, { match:pin:string body: ["client(" + .pin + ")"] })
 
 listen: [pin:"srv:a"]
@@ -1283,7 +1283,7 @@ something the language already does, so no keyword is needed for it.
 A named table may name **itself**, which is how a rule set walks a
 nested structure into nested output:
 
-```aon
+```aontu
 tree: [{ name:a kids: [{ name:b kids: [] }] }]
 
 %walk = emit(_, {
@@ -1319,7 +1319,7 @@ against the matched node. Every value is **escaped** by the template's
 single-quoted literal; `sql`, `shell`, `xml`, `uri` or `regex` by
 name; and `none` for a value that is not going into a literal at all:
 
-```aon
+```aontu
 services: [{ name:"o'brien" pin:"srv:a" }]
 
 lines: emit($.services, {
@@ -1377,7 +1377,7 @@ key spelled `1.0`.
 References compose with unification and each other: cross-references,
 chains, and a referenced map met with extra keys:
 
-```aon
+```aontu
 a: { x:1 y:$.b.x }
 b: { x:2 y:$.a.x }
 c: v: $.d.v
@@ -1404,7 +1404,7 @@ A reference to a value **inside that value** is the fixpoint, not an
 error. `$.schema.Step` written inside `Step` means "a `Step`, by this
 very definition", and the schema applies at every depth of the data:
 
-```aon
+```aontu
 schema: hide({ Step: { label:string then?:$.schema.Step } })
 doc: $.schema.Step & { label:"start" then:label:"finish" }
 ```
@@ -1422,7 +1422,7 @@ is the backstop (`recursion_budget`).
 analysis.** Under an optional key (`then?:`) the chain ends where
 the data ends. A ranked default works the same way:
 
-```aon
+```aontu
 schema: hide({ Node: { v:integer next: *null|$.schema.Node } })
 doc: $.schema.Node & { v:1 next:v:2 }
 ```
@@ -1455,7 +1455,7 @@ Mutual recursion (`A` referencing `B` referencing `A`) works the same
 way, and so does a recursive [alias](#aliases-), which is enough to
 write the JSON value space in one line:
 
-```aon
+```aontu
 %json = null|boolean|number|string|[&: %json]|{ &: %json }
 x: %json & { a: [1 "two" b:true] }
 ```
@@ -1506,7 +1506,7 @@ Unlike a
 [reference](#references-and-paths), which spells a path into the tree,
 an alias names the value directly and belongs to no path:
 
-```aon
+```aontu
 %port = integer & min(1) & max(65535)
 
 listen: %port
@@ -1533,7 +1533,7 @@ require a map-root document; a root list with declarations is refused
 with `alias_not_toplevel`. Wrap that list in a field. Quoting the key,
 `"%name": value`, creates an ordinary key with the sigil in its name.
 
-```aon
+```aontu
 schema: type({ %row:name:string })
 item: %row & { name:example }
 ```
@@ -1570,11 +1570,11 @@ that exists nowhere.
 Where the declaration *lands* is what decides this, not where it was
 written, which is what makes the two include shapes differ:
 
-- `a: @"./f.aon"` is **refused** if `f.aon` declares an alias. The
+- `a: @"./f.aontu"` is **refused** if `f.aontu` declares an alias. The
   declaration is at the root of its own file but not of the document,
-  and left writable a `%b` in the *including* file is what `f.aon`'s own
+  and left writable a `%b` in the *including* file is what `f.aontu`'s own
   `%b` would reach.
-- `@"./f.aon"` spliced at the root is **accepted**. There is one root map,
+- `@"./f.aontu"` spliced at the root is **accepted**. There is one root map,
   so there is no second scope for a name to leak out of, and the
   declaration is a declaration of that one document.
 
@@ -1583,7 +1583,7 @@ accepted wherever it sits. `%name = ` in front of any value, to the
 right of a colon or as a list element, declares the name for the
 document and leaves the value alone:
 
-```aon
+```aontu
 x: %a = 1
 y: %a
 ```
@@ -1623,7 +1623,7 @@ string, and a `%` anywhere but on an alias name is refused like any
 other stray punctuation (`b: 50%` is `[aontu/bare_punct]`; write
 `"50%"`):
 
-```aon
+```aontu
 a: "%foo"
 b: "50%"
 ```
@@ -1660,7 +1660,7 @@ Aliases are not passed to generated children: a spread template sees the
 *expansion*, so children are constrained by the value and acquire no
 name.
 
-```aon
+```aontu
 %row = { kind:string id:integer }
 
 table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
@@ -1679,16 +1679,16 @@ frames give the value, what it met, and the reference that carried it:
 
 <!-- test: skip an abridged finding; its two frames are pinned by alias.tsv's alias-finding-names-the-use and alias-finding-marks-the-use -->
 ```sh
-$ aontu conflict.aon
+$ aontu conflict.aontu
 [aontu/scalar_value]: Cannot unify values at path $.a
 ...
  Cannot unify value: 1 with value: 2
-  --> conflict.aon:1:6
+  --> conflict.aontu:1:6
   1 | %p = 1
            ^ value was: 1
 
  Value arrived through %p
-  --> conflict.aon:2:4
+  --> conflict.aontu:2:4
   2 | a: %p
          ^ used %p here
 ```
@@ -1703,7 +1703,7 @@ under its own name: `{ %a %b }` is `{ a: %a, b: %b }`, key without the
 sigil and value with it.
 
 <!-- test: scenario alias-shorthand -->
-```aon
+```aontu
 %kind = "user"
 %limit = 10
 
@@ -1728,7 +1728,7 @@ A rename needs no shorthand, because `a: %b` already spells it.
 take. It is a declaration and not a value, so a file generates the same
 document with it as without it:
 
-```aon
+```aontu
 %port = integer & min(1) & max(65535)
 
 export({ %port })
@@ -1749,15 +1749,15 @@ side. A name a file declares and does not export stays that file's own.
 
 ### Taking a name: the destructure
 
-`{ %a } = @"./f.aon"` places `f.aon`'s values exactly as `@"./f.aon"`
+`{ %a } = @"./f.aontu"` places `f.aontu`'s values exactly as `@"./f.aontu"`
 places them, and also binds `%a` in the taking file's scope. There is no
 `import` verb: the include already crosses the boundary for values, and
 the pattern on its left crosses it for names. Write the publishing file
-as `types.aon`:
+as `types.aontu`:
 
 <!-- test: scenario alias-destructure -->
-<!-- test: file types.aon -->
-```aon
+<!-- test: file types.aontu -->
+```aontu
 %uint8 = integer & min(0) & max(255)
 
 export({ %uint8 })
@@ -1765,11 +1765,11 @@ export({ %uint8 })
 defaults: retries: 3
 ```
 
-and take its name from `main.aon`:
+and take its name from `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
-{ %uint8 } = @"./types.aon"
+<!-- test: file main.aontu -->
+```aontu
+{ %uint8 } = @"./types.aontu"
 
 level: %uint8
 level: 200
@@ -1777,7 +1777,7 @@ level: 200
 
 <!-- test: run -->
 ```sh
-$ aontu -c main.aon
+$ aontu -c main.aontu
 {"defaults":{"retries":3},"level":200}
 ```
 
@@ -1805,11 +1805,11 @@ name is the case it answers, and nothing else does.
 **A destructure may also sit under a key.** The values land where the
 head stands and the names it binds are the document's, so a file can be
 mounted at a path and still be taken from. Both forms read the same
-`types.aon`:
+`types.aontu`:
 
 <!-- test: scenario alias-destructure-more -->
-<!-- test: file types.aon -->
-```aon
+<!-- test: file types.aontu -->
+```aontu
 %uint8 = integer & min(0) & max(255)
 
 export({ %uint8 })
@@ -1817,11 +1817,11 @@ export({ %uint8 })
 defaults: retries: 3
 ```
 
-`rename.aon` takes `%uint8` under a name of its own:
+`rename.aontu` takes `%uint8` under a name of its own:
 
-<!-- test: file rename.aon -->
-```aon
-{ %port: %uint8 } = @"./types.aon"
+<!-- test: file rename.aontu -->
+```aontu
+{ %port: %uint8 } = @"./types.aontu"
 
 listen: %port
 listen: 200
@@ -1829,15 +1829,15 @@ listen: 200
 
 <!-- test: run -->
 ```sh
-$ aontu -c rename.aon
+$ aontu -c rename.aontu
 {"defaults":{"retries":3},"listen":200}
 ```
 
-and `mount.aon` puts the same file's values under `svc`:
+and `mount.aontu` puts the same file's values under `svc`:
 
-<!-- test: file mount.aon -->
-```aon
-svc: { %uint8 } = @"./types.aon"
+<!-- test: file mount.aontu -->
+```aontu
+svc: { %uint8 } = @"./types.aontu"
 
 level: %uint8
 level: 200
@@ -1845,7 +1845,7 @@ level: 200
 
 <!-- test: run -->
 ```sh
-$ aontu -c mount.aon
+$ aontu -c mount.aontu
 {"level":200,"svc":{"defaults":{"retries":3}}}
 ```
 
@@ -1869,7 +1869,7 @@ file renames what it takes, so `export({ %a: %b })` is refused with
 `+` adds numbers and concatenates strings; it chains left-to-right.
 Parentheses group sub-expressions and a leading unary `+` is allowed.
 
-```aon
+```aontu
 a: 1 + 2
 b: 1 + 2 + 3
 c: 1.5 + 2
@@ -1975,7 +1975,7 @@ string operand concatenates, and the numeric side contributes its
 plain digits with **no `0d` marker**: the marker is canon decoration,
 and it never leaks into a string.
 
-```aon
+```aontu
 a: q + 0d5
 b: q + 0d0.1
 c: 0d5 + q
@@ -1998,7 +1998,7 @@ one list: the left's elements, then the right's, each cloned into its
 new index. An empty operand contributes nothing. This is how a
 document assembles a list from a written head and a computed tail:
 
-```aon
+```aontu
 a: [1] + [2]
 b: [] + [2]
 c: ["x"] + each(["y"], _)
@@ -2535,7 +2535,7 @@ place its leaf always renders, even when the value is whole.
 Functions compose with operators, references, list elements, and the
 preference mark:
 
-```aon
+```aontu
 a: upper(abc) + def
 b: lower(1.1) + 2
 c: foo
@@ -2554,7 +2554,7 @@ Maths beyond `+` is spelled with **functions**. The tokens `-` `*` `/`
 `%` stay reserved for the language's own use, so there is no infix
 arithmetic to learn beyond `+` and unary `-`:
 
-```aon
+```aontu
 replicas: mul($.base.replicas, 2)
 spare: sub($.quota.cpu, $.used.cpu)
 shards: div($.total, $.per_shard)
@@ -2567,7 +2567,7 @@ is the string `"500m500m"` and nothing complains. `add("500m","500m")`
 is an error, because a function named for a numeric operation has no
 business inventing a string.
 
-```aon
+```aontu
 a: add(1, 2)
 b: sub(10, 3)
 c: mul(6, 7)
@@ -2597,7 +2597,7 @@ x:add(1.0,0d2)     → error, exact_float_mix — as with `+`
 only in whose sign the answer follows: `rem`'s the dividend's, `mod`'s
 the divisor's. That is the whole reason both exist:
 
-```aon
+```aontu
 a: div(7, 2)
 b: div(-7, 2)
 c: rem(-7, 2)
@@ -2639,7 +2639,7 @@ exactly.
 member of a map or list. Use it to turn records into the values that
 an aggregate or a string join needs:
 
-```aon
+```aontu
 lines: [amountCents:1200 amountCents:450]
 amounts: pick($.lines, amountCents)
 total: sum($.amounts)
@@ -2660,7 +2660,7 @@ A list is visited in source order. A map is visited in sorted-key order,
 and its keys do not appear in the resulting list. For members that are
 lists, supply a zero-based integer index:
 
-```aon
+```aontu
 records: { z:name:last a:name:first }
 names: pick($.records, name)
 first: pick([[9 8] [7 6]], 0)
@@ -2698,7 +2698,7 @@ name or an `integer` index; a float such as `0.0`, a kind, or a list is
 A projector names one key, not a dotted path expression. Project twice
 to select through two levels:
 
-```aon
+```aontu
 records: [address:city:Dublin address:city:Cork]
 cities: pick(pick($.records, address), city)
 ```
@@ -2895,7 +2895,7 @@ $ echo 'cols: [{n:"id"}, {n:"age"}]  sql: join(pick(sort($.cols, n), n), ", ")' 
 bag** (a list or a map) and walks the children the model already
 holds:
 
-```aon
+```aontu
 lines: [1200 450 3000]
 total: sum($.lines)
 lowest: least($.lines)
@@ -3087,7 +3087,7 @@ way and an identifier another.
 | `uri` | percent-encoding, RFC 3986 |
 | `regex` | the metacharacters the pattern subset admits |
 
-```aon
+```aontu
 plain: esc("plain text")
 inner: esc("it\'s", sq)
 table: esc("o\'brien", sql)
@@ -3123,7 +3123,7 @@ takes**, so a document has one regexp language rather than two. The
 substitution is `$1` to `$9` for the numbered groups, `$&` for the whole
 match and `$$` for a literal `$`.
 
-```aon
+```aontu
 day: rep("2026-09-04", "([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1")
 words: rep("aim:ingest,process:episode", "[,:]", " ")
 ```
@@ -3146,7 +3146,7 @@ The fields of `s`. **A plain string separator is a literal and an
 since splitting is usually on a literal, and it removes the trap where
 `split(v, ".")` silently cuts between every character.
 
-```aon
+```aontu
 fields: split("a,,b", ",")
 chars: split("abc", "")
 runs: split("a1b22c", re("[0-9]+"))
@@ -3174,21 +3174,21 @@ Two consequences follow, and both are what the design is for.
 
 **A model can be instantiated more than once.** Mount the same file at
 two paths and you get two independent nodes, each with its own values.
-Write the model as `model.aon`:
+Write the model as `model.aontu`:
 
 <!-- test: scenario reuse -->
-<!-- test: file model.aon -->
-```aon
+<!-- test: file model.aontu -->
+```aontu
 auth: { port:80 region: *"eu"|string }
 billing: dep: refer() & path(..auth)
 ```
 
-and mount it twice from `main.aon`:
+and mount it twice from `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
-tenantA: m: @"./model.aon"
-tenantB: { m:@"./model.aon" m:auth:region:"us" }
+<!-- test: file main.aontu -->
+```aontu
+tenantA: m: @"./model.aontu"
+tenantB: { m:@"./model.aontu" m:auth:region:"us" }
 ```
 
 Each instance resolves its own internal link inside itself, and the
@@ -3202,7 +3202,7 @@ Unification is path-aligned, so a catalog file and a deploy file that
 describe the same real-world thing at different paths do not meet on
 their own. Point one at the other and they do:
 
-```aon
+```aontu
 catalog: payments: { owner:"team-pay" tier:1 }
 deploy: eu1: payments: $.catalog.payments & { replicas:3 tier:2 }
 ```
@@ -3219,7 +3219,7 @@ word.
 spelling, never the resolution. A plain reference resolves; a capture
 is the address itself, as data.
 
-```aon
+```aontu
 a: b: 1
 emb: $.a.b # a reference: the value at the path
 cap: path($.a.b) # a capture: the path itself
@@ -3244,7 +3244,7 @@ spelling captures. A *computed* argument (an expression, a reference to
 a string) evaluates first, and the result converts by the same grammar,
 which is what makes an address buildable:
 
-```aon
+```aontu
 names: { web: {} db: {} }
 accounts: pack($.names, { for:refer() & path("$.names." + key()) })
 ```
@@ -3292,7 +3292,7 @@ The kind settles inside `type()` bodies, which a `refer` cannot
 (see [Checked links](#checked-links-refert)), so a vocabulary can
 declare a path-valued field for the data to meet:
 
-```aon
+```aontu
 Service: type({ host:path() })
 db: $.Service & { host:path($.hosts.h1) }
 hosts: h1: {}
@@ -3312,7 +3312,7 @@ where the author meant a name. A bare string generates the name and
 checks nothing. `refer` is the third option: the field keeps the
 address string, and the language checks it.
 
-```aon
+```aontu
 services: auth: { kind:service port:8080 }
 services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
 ```
@@ -3373,7 +3373,7 @@ still names nothing at the last pass is a located error
 `refer(t)` does not merely *test* the target against `t`; it unifies
 `t` into it, at the position the address names:
 
-```aon
+```aontu
 a: p: 1
 b: refer({ r:3 }) & path($.a)
 ```
@@ -3420,7 +3420,7 @@ the key is already in hand. Inside a `pack` template `key()` is the
 child's own key, so it can build the address and stand as a value at
 the same time:
 
-```aon
+```aontu
 services: { auth:port:8080 billing:port:9090 }
 names: [auth billing]
 links: pack($.names, { to:refer() & path("$.services." + key()) name:key() })
@@ -3484,11 +3484,11 @@ bundled models follow it so there is one worked example to copy.
 
 The SCHEME name is unaffected and stays lowercase: `@"aontu:system"`
 loads the model, `$.aontu.System` is where its content lands, and a
-source name is not a path. Write this as `models.aon`:
+source name is not a path. Write this as `models.aontu`:
 
 <!-- test: scenario aontu-models -->
-<!-- test: file models.aon -->
-```aon
+<!-- test: file models.aontu -->
+```aontu
 @"aontu:profile"
 
 aontu: Lang: { lang:"ocaml" template: { marker:"(*-" close:"*)" ext: [ml] } }
@@ -3496,7 +3496,7 @@ aontu: Lang: { lang:"ocaml" template: { marker:"(*-" close:"*)" ext: [ml] } }
 
 <!-- test: run -->
 ```sh
-$ aontu models.aon
+$ aontu models.aontu
 {
   "aontu": {
     "Lang": {
@@ -3518,16 +3518,16 @@ $ aontu models.aon
 ```
 
 A name the engine does not serve is refused, and the refusal names
-the set. Write this as `nope.aon`:
+the set. Write this as `nope.aontu`:
 
-<!-- test: file nope.aon -->
-```aon
+<!-- test: file nope.aontu -->
+```aontu
 @"aontu:nope"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu nope.aon
+$ aontu nope.aontu
 source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
 $ echo $?
 1
@@ -3550,7 +3550,7 @@ its own closer after a space where the opener does not imply one, which
 is what reaches a block comment the engine has never seen:
 
 <!-- test: skip the file it configures is the reader's own language -->
-```aon
+```aontu
 aontu: Lang: template: { marker:"(*-" close:"*)" ext: ["ml" "mli"] }
 ```
 
@@ -3567,11 +3567,11 @@ versioned by canon-hash.
 ### The `aontu:system` vocabulary
 
 Ports, components and relations need no syntax: they are schemas, and
-one set of them ships with the engine. Write this as `system.aon`:
+one set of them ships with the engine. Write this as `system.aontu`:
 
 <!-- test: scenario std-system -->
-<!-- test: file system.aon -->
-```aon
+<!-- test: file system.aontu -->
+```aontu
 @"aontu:system"
 
 services: {
@@ -3589,7 +3589,7 @@ services: {
 
 <!-- test: run -->
 ```sh
-$ aontu system.aon
+$ aontu system.aontu
 {
   "aontu": {
     "System": {}
@@ -3619,11 +3619,11 @@ compare along.
 **The tail is defaulted**, so a version may be written as short as it
 is meant: `[1]` is `[1 0 0 "" ""]`, and `[1 2]` is `[1 2 0 "" ""]`. The
 arity is five, so a sixth element is refused (`[aontu/constraint]`).
-Write this as `version.aon`:
+Write this as `version.aontu`:
 
 <!-- test: scenario aontu-system-semver -->
-<!-- test: file version.aon -->
-```aon
+<!-- test: file version.aontu -->
+```aontu
 @"aontu:system"
 v: $.aontu.System.Semver & [1]
 pre: $.aontu.System.Semver & [1 2 3 "alpha.1"]
@@ -3631,7 +3631,7 @@ pre: $.aontu.System.Semver & [1 2 3 "alpha.1"]
 
 <!-- test: run -->
 ```sh
-$ aontu version.aon
+$ aontu version.aontu
 {
   "aontu": {
     "System": {}
@@ -3714,7 +3714,7 @@ A relation is declared AT ITS FIELD: `rel(t)` says the field's strings
 are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
-```aon
+```aontu
 a: dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]
 b: usedBy: rel() & [path($.a)]
 ```
@@ -3771,7 +3771,7 @@ in unification. A bare marked value at the top level still generates
 (`type(1) & number`→`1`). `copy()` clears both marks, making the result
 emittable again:
 
-```aon
+```aontu
 x: type({})
 x: y: 1
 a: copy($.x)
@@ -3798,7 +3798,7 @@ suppressing its emission.
 A **closed** map or list refuses any key/element not already present.
 Narrowing an existing key is fine, and `open` lifts the seal:
 
-```aon
+```aontu
 a: close({ x:1 }) & { x:number }
 b: open(close({ x:1 })) & { y:2 }
 c: close(42)
@@ -3821,23 +3821,23 @@ close([1,2]) & [3,4,5]    → error: closed
 `@"path"` loads and parses another source file, then unifies the result
 in place, so external files merge like any other value.
 
-Source files use the `.aon` extension (preferred) or `.aontu`. When the
+Source files use the `.aontu` extension (preferred) or `.aontu`. When the
 path has no extension, those two are tried in turn, so `@"foo"` resolves
-`foo.aon` then `foo.aontu`.
+`foo.aontu` then `foo.aontu`.
 
 **The extension decides what the file is**, and it says which of three
 things:
 
 | extension | what it is |
 |---|---|
-| `.aon`, `.aontu` | **aontu source**: the language, with everything in it |
+| `.aontu` | **aontu source**: the language, with everything in it |
 | `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml`, `.ini` | **configuration data**, read by that format's own parser |
 | `.txt`, and whatever `--text-ext` names | **text**: the file's bytes, as one string |
 | anything else | refused, by name |
 
 Every one of those formats maps onto JSON, which is why one word covers
 them: a `.toml` file is a map of scalars, lists and maps, and so is the
-`.aon` file that unifies with it. What a data format does not get is
+`.aontu` file that unifies with it. What a data format does not get is
 the language: a `&` in a YAML file is a YAML anchor, not a spread key,
 because the YAML parser reads it, not this one.
 
@@ -3849,16 +3849,16 @@ Write `vocab.jsonld`:
 {"name": "aontu", "tags": ["config", "types"]}
 ```
 
-and load it from `main.aon`:
+and load it from `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
+<!-- test: file main.aontu -->
+```aontu
 schema: @"./vocab.jsonld"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 {
   "schema": {
     "name": "aontu",
@@ -3881,16 +3881,16 @@ category. Write `notes.txt`:
 Deploy freezes over the holiday period.
 ```
 
-and load it as a value in `main.aon`:
+and load it as a value in `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
+<!-- test: file main.aontu -->
+```aontu
 notes: @"./notes.txt"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu -c main.aon
+$ aontu -c main.aontu
 {"notes":"Deploy freezes over the holiday period.\n"}
 ```
 
@@ -3915,10 +3915,10 @@ port = 8080
 hosts = ["a", "b"]
 ```
 
-and hold it to a schema in `main.aon`:
+and hold it to a schema in `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
+<!-- test: file main.aontu -->
+```aontu
 port: integer
 hosts: [string]
 
@@ -3927,7 +3927,7 @@ hosts: [string]
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 {
   "hosts": [
     "a",
@@ -3952,16 +3952,16 @@ port,host
 8080,local
 ```
 
-and ask for it in `main.aon`:
+and ask for it in `main.aontu`:
 
-<!-- test: file main.aon -->
-```aon
+<!-- test: file main.aontu -->
+```aontu
 rows: @"./rows.csv"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 include not readable: ./rows.csv (extension: .csv)
 $ echo $?
 1
@@ -3976,39 +3976,39 @@ stated rather than a fallback for whatever the table failed to
 recognise.
 
 ```
-@"./foo.aon"                       → {"f":11}            (top level)
-a:@"./foo.aon"                     → {"a":{"f":11}}      (nested)
-car:@"./car.aon" car:{wheels:4}    → merges loaded + local
-@"foo"                           → {"f":11}            (implicit .aon/.aontu)
+@"./foo.aontu"                       → {"f":11}            (top level)
+a:@"./foo.aontu"                     → {"a":{"f":11}}      (nested)
+car:@"./car.aontu" car:{wheels:4}    → merges loaded + local
+@"foo"                           → {"f":11}            (implicit .aontu)
 ```
 
-To see the merge, write `foo.aon`:
+To see the merge, write `foo.aontu`:
 
 <!-- test: scenario include -->
-<!-- test: file foo.aon -->
-```aon
+<!-- test: file foo.aontu -->
+```aontu
 f: 11
 ```
 
-a second file, `car.aon`:
+a second file, `car.aontu`:
 
-<!-- test: file car.aon -->
-```aon
+<!-- test: file car.aontu -->
+```aontu
 doors: 2
 ```
 
-and an entry file, `main.aon`, loading both:
+and an entry file, `main.aontu`, loading both:
 
-<!-- test: file main.aon -->
-```aon
-@"./foo.aon"
-car: @"./car.aon"
+<!-- test: file main.aontu -->
+```aontu
+@"./foo.aontu"
+car: @"./car.aontu"
 car: wheels: 4
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 {
   "car": {
     "doors": 2,
@@ -4039,7 +4039,7 @@ a file path. A local file says so with a `./`, `../` or `/` prefix:
 service: @"corp.example/schemas/service"
 frozen:  @"corp.example/schemas/service#aon1-4vJemVYtWFR2mQeN…"
 legacy:  @"alias:legacy"
-local:   @"./fragment.aon"
+local:   @"./fragment.aontu"
 ```
 
 **Every reference says what it is.** The first segment of a package
@@ -4068,7 +4068,7 @@ filesystem, one directory, so an uppercase letter is written
 
 **Evaluation never touches the network.** A module resolves from local
 stores only: `aontu_meta/vendor/` in the project that declares
-`pkg.aon`, and in every project enclosing it, then the user cache under
+`pkg.aontu`, and in every project enclosing it, then the user cache under
 `aontu/pkg`, which is consulted only when the expected canon-hash is
 known, because that hash is its key. A module in neither store names
 the step that fixes it:
@@ -4083,24 +4083,27 @@ module not fetched: corp.example/schemas/service (run: aontu sync)
 that came to mean something else without saying so would be the failure
 the naming convention exists to prevent.
 
-**The package file and the lockfile are ordinary aontu.** `pkg.aon`
+**The package file and the lockfile are ordinary aontu.** `pkg.aontu`
 declares the package's own path, entry and version, what it depends on,
 and whether it may be published:
 
-```aon
-pkg: { path:"corp.example/schemas/service" version:"1.4.2" main:"service.aon" }
+```aontu
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.4.2"
+pkg: main: "service.aontu"
+
 dep: "corp.example/schemas/common": v: "1.0.0"
 publish: public
 ```
 
-`aontu_meta/pkg-lock.aon` is machine-written in **canonical form**: one
+`aontu_meta/pkg-lock.aontu` is machine-written in **canonical form**: one
 line, sorted keys, diffable, and (its leaves being scalars) valid JSON.
 Each entry carries three pins with distinct roles: `archive` certifies
 *these are the bytes*, `manifest` certifies *this is what the publisher
 signed*, and `canon` certifies *this is the meaning that was reviewed*:
 
 <!-- fmt: keep a lock file, shown as the tool writes it -->
-```aon
+```aontu
 {"lock":{"corp.example/schemas/service":{"archive":"sha256:9127…","canon":"aon1-4vJe…","manifest":"sha256:f72c…","v":"1.4.2"}}}
 ```
 
@@ -4124,7 +4127,7 @@ not consulted at all: a confined evaluation sees the project's own
 `aontu_meta/vendor/` and nothing else, which is what confinement means.
 
 **A vendored package is a project inside a project.** It carries its
-own `pkg.aon`, and its imports resolve from its own directory and then
+own `pkg.aontu`, and its imports resolve from its own directory and then
 from every project enclosing it, which is where `sync` put its
 dependencies. The vendor tree is flat: a dependency of a dependency sits
 beside its dependant, never inside it.
@@ -4244,7 +4247,7 @@ when that fits the budget and the map holds no comment and no value
 that spans lines; else as one statement per entry, each carrying the
 key again, when every entry is a one-liner that way:
 
-```aon
+```aontu
 server: host: "0.0.0.0"
 server: port: 8080
 server: tls: { enabled:true cert:"/etc/tls/edge/cert.pem" }
@@ -4269,7 +4272,7 @@ braced block under the prefix rather than dissolved into it, because
 its keys are what the thing IS and repeating the prefix in front of
 each of them says nothing:
 
-```aon
+```aontu
 entity: planet: table: "planets"
 entity: planet: field: id: {
   name: "id"
@@ -4322,7 +4325,7 @@ in statement position repeats or blocks as above; a map in expression
 position is a braced block, `{` at the end of the line that opens it
 and `}` alone, which is the ordinary spelling of a constrained map:
 
-```aon
+```aontu
 CatalogEntry: $.aontu.System.Service & {
   owner: %Owner
   tier: 1|2|3
@@ -4377,7 +4380,7 @@ adds nor removes a grouping parenthesis. A line break the author put
 inside an expression is kept, at its operator, which then leads its
 continuation line one level in:
 
-```aon
+```aontu
 out: `a` + .b
   + match(.t, "string", `TEXT`)
 ```
@@ -4678,18 +4681,18 @@ takes the grammar as written.
 parser is an ordinary string that canons, hashes and unifies like any
 other. The compile is what the call is for: a grammar that does not
 compile is refused where it is DECLARED, once, rather than at every site
-that parses with it. Write this as `grammar.aon`:
+that parses with it. Write this as `grammar.aontu`:
 
 <!-- test: scenario abnf-parse -->
-<!-- test: file grammar.aon -->
-```aon
+<!-- test: file grammar.aontu -->
+```aontu
 G: abnf("v = n \".\" n\nn = 1*d\nd = %x30-39\n")
 a: parse($.G, "1.2")
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu grammar.aon
+$ aontu grammar.aontu
 {
   "G": "v = n \".\" n\nn = 1*d\nd = %x30-39\n",
   "a": {
@@ -4726,7 +4729,7 @@ schema written against the tree need not ask whether a leaf has the key.
 (`parse_failed`), so a field is refused rather than set to a value
 meaning "no". That is what lets a grammar act as a check:
 
-```aon
+```aontu
 G: abnf("v = 1*d\nd = %x30-39\n")
 ok: parse($.G, "12") # the tree
 no: parse($.G, "x") # [aontu/parse_failed]
@@ -4738,11 +4741,11 @@ call. It is value-preserving, like every other atom in
 [the constraint algebra](#the-constraint-algebra): it admits a string
 the grammar accepts and answers that string, so it stays idempotent and
 order-independent under a meet, and a default can sit beside it. Write
-this as `check.aon`:
+this as `check.aontu`:
 
 <!-- test: scenario abnf-constraint -->
-<!-- test: file check.aon -->
-```aon
+<!-- test: file check.aontu -->
+```aontu
 G: abnf("v = 1*d\nd = %x30-39\n")
 tag: *""|parse($.G)
 ver: (*""|parse($.G)) & "12"
@@ -4750,7 +4753,7 @@ ver: (*""|parse($.G)) & "12"
 
 <!-- test: run -->
 ```sh
-$ aontu check.aon
+$ aontu check.aontu
 {
   "G": "v = 1*d\nd = %x30-39\n",
   "tag": "",
@@ -4804,11 +4807,11 @@ class and `numeric-identifier`'s `"0"` branch is never reached, so
 ### A grammar reads better in backticks
 
 A backtick string spans lines, so a grammar can be written as a grammar
-rather than as a run of escapes. Write this as `media.aon`:
+rather than as a run of escapes. Write this as `media.aontu`:
 
 <!-- test: scenario abnf-backtick -->
-<!-- test: file media.aon -->
-```aon
+<!-- test: file media.aontu -->
+```aontu
 G: abnf(
   `
 media = "@" type "/" sub
@@ -4823,7 +4826,7 @@ ok: "@text/plain" & parse($.G)
 
 <!-- test: run -->
 ```sh
-$ aontu media.aon
+$ aontu media.aontu
 {
   "G": "\nmedia = \"@\" type \"/\" sub\ntype = 1*ALPHA\nsub = 1*ALPHA\nALPHA = %x61-7A\n",
   "ok": "@text/plain"
@@ -4840,11 +4843,11 @@ literal in each port and a raw string cannot contain a backtick.
 
 The tree is the default, not the only answer. A **value annotation**, a
 trailing comment on a production, says what that rule should build
-instead. Write this as `build.aon`:
+instead. Write this as `build.aontu`:
 
 <!-- test: scenario abnf-build -->
-<!-- test: file build.aon -->
-```aon
+<!-- test: file build.aontu -->
+```aontu
 G: hide(
   abnf(
     `
@@ -4862,7 +4865,7 @@ v: parse($.G, "1.2.30")
 
 <!-- test: run -->
 ```sh
-$ aontu build.aon
+$ aontu build.aontu
 {
   "v": {
     "maj": "1",
@@ -4880,11 +4883,11 @@ references take three names.
 
 **`; @array` names nothing** and takes every part that produces a value
 as an element, in order. Shapes compose, because a part whose own rule
-is annotated is assigned whole. Write this as `list.aon`:
+is annotated is assigned whole. Write this as `list.aontu`:
 
 <!-- test: scenario abnf-list -->
-<!-- test: file list.aon -->
-```aon
+<!-- test: file list.aontu -->
+```aontu
 G: hide(
   abnf(
     `
@@ -4903,7 +4906,7 @@ entries: parse($.G, "[width=10,height=20]")
 
 <!-- test: run -->
 ```sh
-$ aontu list.aon
+$ aontu list.aontu
 {
   "entries": [
     {
@@ -4952,11 +4955,11 @@ builds it with the language's own verbs. Three do the work:
 [`filter`](#selecting-filter-and-match) selects children by rule, and
 [`join`](#folding-to-a-string-join) folds a one-element selection back
 to a scalar. `hide()` keeps the grammar and the tree out of the
-generated document. Write this as `shape.aon`:
+generated document. Write this as `shape.aontu`:
 
 <!-- test: scenario abnf-shape -->
-<!-- test: file shape.aon -->
-```aon
+<!-- test: file shape.aontu -->
+```aontu
 G: hide(
   abnf(
     `
@@ -4979,7 +4982,7 @@ whole: $.t.src
 
 <!-- test: run -->
 ```sh
-$ aontu shape.aon
+$ aontu shape.aontu
 {
   "minor": "2",
   "names": [
@@ -5198,7 +5201,7 @@ in a fixed order (**kind, lower bound (`min`/`above`), upper bound
 `length`, `unique`, `must`**) no spaces, reparseable, endpoint leaves
 preserved:
 
-```aon
+```aontu
 a: integer & max(10) & min(0) & min(2)
 # canon: {"a":integer&min(2)&max(10)}
 ```
@@ -5347,7 +5350,7 @@ same reason.
 is dropped at generation, so it does not count. The constraint is a
 claim about the data, and the data is what comes out:
 
-```aon
+```aontu
 a: string & length(3)
 a: abc
 b: length(1) & { x:1 y?:number }
@@ -5399,7 +5402,7 @@ further scalars can only narrow: `min(2) & 1 & 2` is a conflict however
 it is grouped. A sizing atom cannot, because meeting further containers
 *grows* the member set:
 
-```aon
+```aontu
 a: length(2)
 a: { x:1 y:2 }
 ```
@@ -5489,7 +5492,7 @@ port" compares one field of each member rather than the whole member,
 and the atom's single argument is that projector: the arity was
 reserved for it, and is now spent:
 
-```aon
+```aontu
 services: unique(port) & {
   api: { port:8080 name:"api" }
   auth: { port:8443 name:"auth" }
@@ -5526,7 +5529,7 @@ re-evaluated on later fixpoint passes. Atoms only ever suspend or
 intersect (never force evaluation) so evaluation order cannot
 change results.
 
-```aon
+```aontu
 scaling: floor: 2
 scaling: ceiling: 10
 scaling: target: integer & min($.scaling.floor) & max($.scaling.ceiling)
@@ -5570,7 +5573,7 @@ the name-only spelling, `%port`, see [Aliases `%`](#aliases-); the two
 are the same idea reached two ways, and a `%` alias may hold a
 constraint just as a `type()` field can:
 
-```aon
+```aontu
 type: type({})
 
 type: {
@@ -5605,11 +5608,11 @@ that happens to be `type()`-marked. `defs`, `schema` or anything else
 reads the same to the engine.
 
 An out-of-range value is refused at the field that holds it. Write
-this as `uint8.aon`:
+this as `uint8.aontu`:
 
 <!-- test: scenario alias-range -->
-<!-- test: file uint8.aon -->
-```aon
+<!-- test: file uint8.aontu -->
+```aontu
 type: type({})
 type: uint8: integer & min(0) & max(255)
 a: $.type.uint8
@@ -5618,7 +5621,7 @@ a: 300
 
 <!-- test: run -->
 ```sh
-$ aontu uint8.aon
+$ aontu uint8.aontu
 [aontu/constraint]: Cannot unify values at path $.a
 ...
 $ echo $?
@@ -5632,7 +5635,7 @@ bound on *numbers*, so `1.5` satisfies it; a sized integer is
 `integer & min(0) & max(255)`. This is the one mistake the idiom
 invites, and the reason the aliases above all lead with `integer`:
 
-```aon
+```aontu
 loose: type({})
 loose: byteish: min(0) & max(255)
 a: $.loose.byteish
@@ -5647,7 +5650,7 @@ Because an alias is a value, the aliases compose: one can be
 written in terms of another, and a reference to an alias may be met
 with further constraints at the point of use.
 
-```aon
+```aontu
 type: type({})
 type: { n:integer & min(0) u8:$.type.n & max(255) }
 

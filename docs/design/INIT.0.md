@@ -51,13 +51,13 @@ definition of every file involved.
 The minimum that makes a directory an aontu project is two files:
 
 ```
-mod.aon      mod: { path: "corp.example/hello", main: "main.aon" }
-main.aon     greeting: "hello"
+mod.aon      mod: { path: "corp.example/hello", main: "main.aontu" }
+main.aontu     greeting: "hello"
 ```
 
 VERIFIED with exactly that pair: `aontu mod tidy .` answers
 `verdict: ok` and writes `aontu_meta/mod-lock.aon`; `aontu mod verify .`
-then answers `verdict: ok`; and `aontu main.aon` evaluates. VERIFIED
+then answers `verdict: ok`; and `aontu main.aontu` evaluates. VERIFIED
 also that a bare `path: "hello"` is accepted — the domain-shaped path
 in the use cases is a convention, not a rule, which matters because a
 scaffolder must not invent a domain the user does not own.
@@ -80,7 +80,7 @@ Two things follow, and the second is the useful one:
 
 `dir` defaults to `.`, and is created if it does not exist. `--path`
 defaults to the target directory's own name; `--main` defaults to
-`main.aon`; `--template` defaults to `minimal` (§5).
+`main.aontu`; `--template` defaults to `minimal` (§5).
 
 It writes, for the default template:
 

@@ -134,8 +134,8 @@ func moduleDir(store string, path string) string {
 }
 
 const (
-	pkgFile   = "pkg.aon"
-	lockFile  = "pkg-lock.aon"
+	pkgFile   = "pkg.aontu"
+	lockFile  = "pkg-lock.aontu"
 	metaDir   = "aontu_meta"
 	vendorDir = "vendor"
 )
@@ -335,7 +335,7 @@ type packageSelfPins struct {
 // packageSelfOf reads the entry and the moved declaration of a package
 // file. The file is ORDINARY AONTU, read by the language itself.
 func packageSelfOf(file string, depth int, cache string) packageSelfPins {
-	self := packageSelfPins{main: "main.aon"}
+	self := packageSelfPins{main: "main.aontu"}
 	m := evalPackageFile(file, depth, cache)
 	if nil == m {
 		return self

@@ -15,7 +15,7 @@ butter of event-driven enterprise systems.
 
 ## The model tree
 
-`orders-v1.aon` is one revision of the contract. `Envelope` is the
+`orders-v1.aontu` is one revision of the contract. `Envelope` is the
 shared head every event carries; `OrderPlaced`, `OrderPaid` and
 `OrderCancelled` are the payload schemas; `Event` is the union a
 consumer vets against, and `registry` the instances the checks drive.
@@ -60,7 +60,7 @@ $
     └── order_placed (7)
 ```
 
-`aontu view doc --depth 2 orders-v1.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 orders-v1.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -70,11 +70,11 @@ than its value.
 
 | File | Role |
 |---|---|
-| `envelope.aon` | shared envelope: id, type, time, source, specversion, correlation_id |
-| `orders-v1.aon` | the v1 contract: three closed event shapes, the `Event` union, the dispatch `registry` |
-| `orders-v1-1.aon` | additive minor revision (optional field + new event type) |
-| `orders-v2.aon` | deliberately breaking revision (required field added, enum narrowed) |
-| `probes/*.aon` | small documents, one question each: the two spellings of an enum with a default, a regex outside the portable subset, a `match()` dispatcher; `data/probe-*.json` are their instances |
+| `envelope.aontu` | shared envelope: id, type, time, source, specversion, correlation_id |
+| `orders-v1.aontu` | the v1 contract: three closed event shapes, the `Event` union, the dispatch `registry` |
+| `orders-v1-1.aontu` | additive minor revision (optional field + new event type) |
+| `orders-v2.aontu` | deliberately breaking revision (required field added, enum narrowed) |
+| `probes/*.aontu` | small documents, one question each: the two spellings of an enum with a default, a regex outside the portable subset, a `match()` dispatcher; `data/probe-*.json` are their instances |
 | `data/stream/` | a valid three-event stream sample |
 | `data/bad/`, `data/ids/` | invalid events and id edge cases |
 | `expected/` | canon and inventory goldens |
@@ -83,7 +83,7 @@ than its value.
 
 - **Shared envelope by conjunction.** Each event shape is
   `close($.Envelope & { type: "order.paid", payload: close({...}) })`.
-  The envelope include (`@"./envelope.aon"`) plus a reference
+  The envelope include (`@"./envelope.aontu"`) plus a reference
   conjunction gives real reuse; `close()` seals each shape so surplus
   keys are refused, and the envelope's optional `correlation_id?`
   stays optional through the conjunction.
@@ -113,7 +113,7 @@ than its value.
   `--at '$.Event'`, is what keeps the copies in step.
 
 Vetting is anchored. One command vets a whole stream sample at the
-union, `vet --at '$.Event' orders-v1.aon data/stream/*.json`, with
+union, `vet --at '$.Event' orders-v1.aontu data/stream/*.json`, with
 one worst-verdict exit code, and the 0/1/3 distinction (valid,
 invalid, incomplete) maps onto "accept", "drop the message" and "the
 producer sent a partial event". At the union anchor a conflict inside
@@ -131,7 +131,7 @@ $.registry.order_paid.payload.amount_cents: constraint [conflict]
   expected: integer&min(1)
   actual:   0
   data: data/bad/paid-zero-amount.json:9:21 (0)
-  schema: orders-v1.aon:35:29 (integer&min(1))
+  schema: orders-v1.aontu:35:29 (integer&min(1))
 ```
 
 Incomplete data does localise at the union. A paid event that omits
@@ -141,13 +141,13 @@ away on `type` and the residue is named:
 ```
 $.Event.source: mapval_required [incomplete]
   [aontu/mapval_required]: Cannot resolve value at path $.Event.source
-  schema: envelope.aon:29:11 (re("^/[a-z][a-z0-9/-]*$"))
+  schema: envelope.aontu:29:11 (re("^/[a-z][a-z0-9/-]*$"))
 ```
 
 A dotted key is out of reach of every path spelling:
 
 ```
-$ aontu model get '$.registry."order.placed"' orders-v1.aon
+$ aontu model get '$.registry."order.placed"' orders-v1.aontu
 $.registry."order.placed": no_path [reference]
   The path $.registry."order.placed" names nothing in this document.
 ```
@@ -155,7 +155,7 @@ $.registry."order.placed": no_path [reference]
 `re()` takes a portable pattern subset, and a quantifier applied to
 a group containing another quantifier is outside it, so the natural
 optional-fraction spelling `(\.\d+)?(Z|[+-]\d{2}:\d{2})`
-(`probes/frac-group.aon`) is refused:
+(`probes/frac-group.aontu`) is refused:
 
 ```
 [aontu/constraint_pattern]: Cannot constrain value at path $.BadTime.time
@@ -194,14 +194,14 @@ $.OrderPlaced.payload.currency: compat_narrowed [compat]
   a specific alternative is not admitted by the general value
   expected: "EUR"|"USD"
   actual:   "GBP"
-  general: orders-v2.aon:17:15 ("EUR"|"USD")
-  specific: orders-v1.aon:16:31 ("GBP")
+  general: orders-v2.aontu:17:15 ("EUR"|"USD")
+  specific: orders-v1.aontu:16:31 ("GBP")
 $.OrderCancelled.payload.reason: compat_required_added [compat]
   the general value requires this key; the specific value admits instances without it
   expected: re("^[a-z_]{3,40}$")
   actual:   {"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")}
-  general: orders-v2.aon:43:13 (re("^[a-z_]{3,40}$"))
-  specific: orders-v1.aon:42:12 ({"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")})
+  general: orders-v2.aontu:43:13 (re("^[a-z_]{3,40}$"))
+  specific: orders-v1.aontu:42:12 ({"cancelled_by":"customer"|"merchant"|"system","note"?:string,"order_id":re("^ord-[0-9a-f]{8}$")})
 ```
 
 The report continues under `$.Event` and `$.registry`, which
@@ -221,7 +221,7 @@ to the file that wrote it:
 
 ```
 $.OrderPaid.time = re("^\\d{4}-\\d{2}-\\d{2}T...")
-  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aon:26:9
+  1. re("^\\d{4}-\\d{2}-\\d{2}T...")  .../envelope.aontu:26:9
 ```
 
 `--canon` renders the value without its marks, so the canonical text
@@ -231,7 +231,7 @@ differently from the contract, because `hash` is taken over the
 marked form (`hash --form` prints it, `close()` and all). A registry
 stores and serves the source file and pins it with `aontu hash`. Two
 envelopes that differ only in which `specversion` is preferred
-(`probes/default-a.aon`, `probes/default-b.aon`) hash differently,
+(`probes/default-a.aontu`, `probes/default-b.aontu`) hash differently,
 as two contracts that generate different values should.
 
 ## What check.sh proves
@@ -240,21 +240,21 @@ as two contracts that generate different values should.
 codes, codes grepped from the reports, goldens diffed under
 `expected/`, and one `--format json` report checked field by field.
 
-1. `--canon orders-v1.aon` matches `expected/orders-v1.canon`;
+1. `--canon orders-v1.aontu` matches `expected/orders-v1.canon`;
    `get '$.OrderPaid' --canon` matches `expected/order-paid.canon`;
    `get '$.registry' --keys` matches `expected/registry-keys.txt`;
-   `hash orders-v1.aon` prints an `aon1-` pin.
+   `hash orders-v1.aontu` prints an `aon1-` pin.
 2. `vet --at '$.registry.order_paid'` refuses
    `data/bad/paid-surplus-topic.json` with `[aontu/closed]`, exit 1.
    The canonical text from `expected/orders-v1.canon`, re-parsed as
    the contract, admits the same event (`verdict: valid`, exit 0) and
-   hashes differently from `orders-v1.aon`.
-3. `probes/default-a.aon` and `probes/default-b.aon`, which differ
+   hashes differently from `orders-v1.aontu`.
+3. `probes/default-a.aontu` and `probes/default-b.aontu`, which differ
    only in the preferred `specversion`, print different `aon1-` pins.
-4. `why '$.OrderPaid.time' orders-v1.aon` names `envelope.aon` as the
+4. `why '$.OrderPaid.time' orders-v1.aontu` names `envelope.aontu` as the
    file that wrote the pattern.
-5. Plain evaluation of `orders-v1.aon` exits 1 with
-   `[aontu/disjunct_no_gen]` at `envelope.aon:13:7`: the envelope's
+5. Plain evaluation of `orders-v1.aontu` exits 1 with
+   `[aontu/disjunct_no_gen]` at `envelope.aontu:13:7`: the envelope's
    `id` is a disjunction with no preferred alternative, so the
    contract is a schema to vet against rather than a document to
    generate.
@@ -262,7 +262,7 @@ codes, codes grepped from the reports, goldens diffed under
    `verdict: valid`, exit 0, in one command.
 7. `data/stream/cancelled-1003.json`, which omits `specversion`,
    vets valid at `$.Event`, and `get '$.Envelope.specversion'
-   envelope.aon` reads the filled default, `"1.0"`.
+   envelope.aontu` reads the filled default, `"1.0"`.
 8. A stream with one bad event (`placed-1001.json` plus
    `data/bad/paid-zero-amount.json`) is `verdict: invalid`, exit 1:
    the worst verdict wins.
@@ -285,17 +285,17 @@ codes, codes grepped from the reports, goldens diffed under
     finding header as the bad-payload event.
 13. `data/bad/paid-missing-source.json` at `$.Event`:
     `verdict: incomplete`, exit 3, `$.Event.source: mapval_required`.
-14. `get '$.registry."order.placed"' orders-v1.aon` exits 1 with
+14. `get '$.registry."order.placed"' orders-v1.aontu` exits 1 with
     `no_path`.
 15. `data/bad/placed-bad-time.json` (`26/08/2026 10:07`) at
     `$.registry.order_placed`: `.time: constraint [conflict]`,
-    `[aontu/constraint]`; the schema site names `envelope.aon`, and
+    `[aontu/constraint]`; the schema site names `envelope.aontu`, and
     the row it cites holds the `time:` pattern in that file and not in
-    `orders-v1.aon`.
+    `orders-v1.aontu`.
 16. `data/bad/placed-month-13.json` (`2026-13-41T25:61:61Z`) at
     `$.Event` is `verdict: valid`, exit 0: the pattern checks shape,
     not the calendar.
-17. `probes/frac-group.aon` is refused with
+17. `probes/frac-group.aontu` is refused with
     `[aontu/constraint_pattern]`, naming the quantifier applied to a
     group containing another quantifier.
 18. `data/ids/paid-id-19digit-plain.json` at `$.registry.order_paid`:
@@ -307,26 +307,26 @@ codes, codes grepped from the reports, goldens diffed under
     `$.registry.order_paid` is `verdict: valid`, exit 0.
 21. `data/ids/paid-id-19digit-0d.json` is refused by Python's strict
     `json.load`: the `0d` spelling is aontu syntax, not JSON.
-22. `probes/pref-enum.aon` (`v: *"1.0" | "1.1"`) against
+22. `probes/pref-enum.aontu` (`v: *"1.0" | "1.1"`) against
     `data/probe-v99.json` (`"9.9"`): `verdict: invalid`, exit 1,
     `[aontu/empty]`, plus a `pref_not_instance` advisory that the
     default `"1.0"` is not an instance of any remaining alternative.
-23. `probes/default-a.aon` (`("1.0" | "1.1") & *"1.0"`) evaluates to
+23. `probes/default-a.aontu` (`("1.0" | "1.1") & *"1.0"`) evaluates to
     `"v": "1.0"`, exit 0.
-24. `probes/match-dispatch.aon`, a `match()` over the instance's own
+24. `probes/match-dispatch.aontu`, a `match()` over the instance's own
     `type`, at `$.Event` with valid data (`data/probe-placed-ok.json`):
     `verdict: incomplete`, exit 3, `[aontu/conjunct]`. The union is
     the spelling for a discriminated set of shapes; branch selection
     is the consumer's dispatch step.
-25. `breaking --against orders-v1.aon orders-v1.aon` is
+25. `breaking --against orders-v1.aontu orders-v1.aontu` is
     `verdict: compatible`, exit 0, with no `sub_unresolved`: a
     contract admits itself, the order-lines list template included.
-26. `breaking --against orders-v1.aon orders-v1-1.aon`, whole
+26. `breaking --against orders-v1.aontu orders-v1-1.aontu`, whole
     document, is `verdict: breaking`, exit 1,
     `$.OrderRefunded: compat_required_added`.
 27. The same pair with `--at '$.Event'` is `verdict: compatible`,
     exit 0.
-28. `breaking --against orders-v1.aon orders-v2.aon` is
+28. `breaking --against orders-v1.aontu orders-v2.aontu` is
     `verdict: breaking`, exit 1, with
     `$.OrderCancelled.payload.reason: compat_required_added` and a
     `compat_narrowed` naming `"GBP"`.
@@ -345,8 +345,8 @@ stops at the first failure.
 The two commands the case is built around, by hand:
 
 ```sh
-aontu vet --at '$.Event' orders-v1.aon data/stream/*.json              # the consumer's stream check
-aontu breaking --against orders-v1.aon --at '$.Event' orders-v1-1.aon  # the registry's gate
+aontu vet --at '$.Event' orders-v1.aontu data/stream/*.json              # the consumer's stream check
+aontu breaking --against orders-v1.aontu --at '$.Event' orders-v1-1.aontu  # the registry's gate
 ```
 
 [Validate data in CI](../../docs/how-to/validate-in-ci.md) and

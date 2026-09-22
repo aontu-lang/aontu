@@ -24,7 +24,7 @@ host: "localhost"
 ```
 
 ```sh
-$ aontu service.aon
+$ aontu service.aontu
 { "host": "localhost", "port": 8080 }
 ```
 
@@ -34,11 +34,11 @@ conflict, reported with both sites.
 ## Validate, query, explain
 
 ```sh
-aontu vet service.aon deploy.json   # does this data satisfy this schema?
-aontu model get '$.services.auth' sys.aon # one evaluated slice
-aontu model why '$.services.auth.port' sys.aon  # what contributed, and where
-aontu breaking --against git#main sys.aon # is the new version compatible?
-aontu hash sys.aon                  # a pin over MEANING, not bytes
+aontu vet service.aontu deploy.json   # does this data satisfy this schema?
+aontu model get '$.services.auth' sys.aontu # one evaluated slice
+aontu model why '$.services.auth.port' sys.aontu  # what contributed, and where
+aontu breaking --against git#main sys.aontu # is the new version compatible?
+aontu hash sys.aontu                  # a pin over MEANING, not bytes
 ```
 
 `vet` exits by verdict class (0 valid, 1 invalid, 3 incomplete, 4 the

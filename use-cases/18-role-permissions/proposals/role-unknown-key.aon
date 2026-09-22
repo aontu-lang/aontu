@@ -1,6 +1,0 @@
-# A role-model edit that gives dev a key the vocabulary does not
-# declare. `Role` is close()d, so this is a located [aontu/closed]
-# error at $.roles.dev.scope, and `aontu allow` answers exit 4: the
-# model that was to decide does not stand up.
-@"../roles.aon"
-roles: dev: scope: "global"

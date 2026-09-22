@@ -11,10 +11,10 @@ is severe; everything else contradicts the project's own documentation
 or spec rows.
 
 Minimal reproductions live under [`repros/`](repros/), one directory
-per family; each `.aon` carries an `# expected:` / `# actual:` header.
+per family; each `.aontu` carries an `# expected:` / `# actual:` header.
 The nontermination repros (§57 and
-`refer-cycles/refer-in-type-hang.aon`) are marked in-file to be run
-under `timeout`. (`identity/id-names-own-descendant-crashes.aon` used
+`refer-cycles/refer-in-type-hang.aontu`) are marked in-file to be run
+under `timeout`. (`identity/id-names-own-descendant-crashes.aontu` used
 to belong beside them, overflowing the host stack; §58 is fixed and it
 now refuses.) Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
@@ -101,9 +101,9 @@ disjunction") and spec-pinned — but the consequence is that **no
 on-field spelling gives both a default and enum enforcement**, the most
 common schema pattern in existence. A hidden helper key does work:
 `chk: hide(match($.k, 'auto','ok', 'literal','ok', 'data','ok'))`
-(repro `match-helper-workaround.aon`) — refusing `'autoo'` with
+(repro `match-helper-workaround.aontu`) — refusing `'autoo'` with
 `match_none`, at the cost of the error naming `$.chk`.
-Repros: `enum-fails-open.aon`, `enum-vet-schema.aon` + `out-of-enum.json`.
+Repros: `enum-fails-open.aontu`, `enum-vet-schema.aontu` + `out-of-enum.json`.
 Status: FIXED 2026-08-26 (the preference admission gate, ADR-004) —
 `k:'autoo'` is the `|:empty` refusal in eval and vet alike; `*A|B|C`
 is a true enum-with-default (unset generates A, members override,
@@ -116,7 +116,7 @@ is a true enum-with-default (unset generates A, members override,
 is bypassed. The docs' recommended disjunct spelling for
 default-with-bound (`*8080 | min(1024)`) is exactly the form that stops
 checking the bound on override; the conjunct form enforces but cannot
-default (documented phase-1 limit). Repro: `pref-disables-constraint.aon`.
+default (documented phase-1 limit). Repro: `pref-disables-constraint.aontu`.
 Status: FIXED 2026-08-26 (ADR-004) — the constraint alternative is
 consulted on override: `port: 80` is refused (`|:empty`), `2048` is
 admitted, unset still generates 8080; the disjunct spelling now both
@@ -133,7 +133,7 @@ lattice value (`--canon` shows the bare kind). Constraint conjuncts
 kill defaults of every rank (that half was the documented phase-1
 limit, closed 2026-08-29 by ADR-011); the rank≥2-vs-bare-kind loss is
 undocumented and contradicts
-the pref section's own rule. Repro: `ranked-default-swallowed.aon`.
+the pref section's own rule. Repro: `ranked-default-swallowed.aontu`.
 Status: FIXED 2026-08-26 (the rank-uniform meet, ADR-004) — a rank≥2
 preference defends the innermost value's kind exactly as rank 1 does:
 `a:**1.5 & float` → 1.5, and `**2|integer` met by `integer` keeps the
@@ -151,7 +151,7 @@ ranked default (`**member | member | admin | owner`) is a genuine false
 positive: generation produces `member`, an instance of the plain
 branch, yet the lint still fires — `effectiveDefault` unwraps exactly
 one pref layer (`ts/src/subsume.ts:136-138`). Repro:
-`lint-ranked-false-positive.aon` + `role-admin.json`.
+`lint-ranked-false-positive.aontu` + `role-admin.json`.
 Status: FIXED 2026-08-26 (ADR-004) — the ranked false positive is gone
 (the effective default unwraps every pref layer), the message says
 "…not an instance of any remaining alternative of…", and with the
@@ -170,7 +170,7 @@ site-attribution family).
 value contradicts the generated value beside it, exit 0. The pattern
 unifies with the still-open disjunction via the same-kind override
 gate, so the first arm wins while generation picks the default.
-Repro: `match-default-crosswire.aon`.
+Repro: `match-default-crosswire.aontu`.
 Status: FIXED 2026-08-26 (the defaulted-scrutinee rule, ADR-004) —
 match() on a settled scrutinee carrying an effective default tests
 patterns against the generation-effective value:
@@ -198,8 +198,8 @@ entity, each under a `&:` spread whose template arrived by reference,
 templates unequal → the entity's own sibling ports were unified with
 each other (`Cannot unify value: 9901 with value: 443`), and in the
 full model a *different entity's* port leaked in too; `id()` was
-sufficient but not necessary. Repros: `idmerge-ref-templates.aon`,
-`oneview-ref-templates.aon`.
+sufficient but not necessary. Repros: `idmerge-ref-templates.aontu`,
+`oneview-ref-templates.aontu`.
 
 ### 7. Two unequal cross-statement spreads on one map cross-wire siblings [critical]
 **Status: FIXED 2026-08-26 (the spread application rework, ADR-006).**
@@ -216,8 +216,8 @@ correct data as valid. Pinned in both engines: the
 `spread-interleave.tsv` spread-unequal-* composition matrix (literal /
 ref-arriving / key()-bearing × 2,3 children × map,list, requiredness
 and defaults through the combine) and `vet.tsv`
-vet-unequal-spread-depths. Repros: `two-spreads.aon`,
-`two-spreads-vet-schema.aon` + data.
+vet-unequal-spread-depths. Repros: `two-spreads.aontu`,
+`two-spreads-vet-schema.aontu` + data.
 
 ### 8. `close()` around a `key()`-bearing pack template evaluates `key()` once [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -230,7 +230,7 @@ close-template-key-pref-override, close-template-key-refuses-extra.
 Historically: `deploy: pack($.names, close({ name: key() }))` alone →
 `{"auth":{"name":"web"},"web":{"name":"web"}}`, exit 0 — every child
 got the first key (without `close()` it was correct).
-Repro: `close-key-pack.aon`.
+Repro: `close-key-pack.aontu`.
 
 ### 9. A rank-2 `key()` default evaluates once and is shared by all children [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -240,7 +240,7 @@ stays overridable through the admission gate. Pinned in both engines:
 `gen-pack.tsv` pack-rankpref-key-per-child, pack-rankpref-key-override.
 Historically every child got the first child's key, exit 0 (the
 single-star spellings escaped only because the rank-1 meet builds a
-fresh pref per destination). Repro: `rankpref-key-pack.aon`.
+fresh pref per destination). Repro: `rankpref-key-pack.aontu`.
 
 ---
 
@@ -259,7 +259,7 @@ the overlay merges with the generated child exactly as it does without
 close-pack-hole-overlay-merges. Historically the overlay was absorbed
 *into the hole* — every generated child grew a bogus `prod:` child and
 the real override was silently lost, exit 0.
-Repro: `close-pack-hole-absorb.aon`.
+Repro: `close-pack-hole-absorb.aontu`.
 
 ### 11. `hide(pack(...))`: the hide mark leaks onto generated children [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -271,7 +271,7 @@ hide-pack-field-hidden, hide-pack-downstream-pack. Historically the
 downstream pack's data reference cloned the still-pending hide call
 and the clone stamped marks at the destination after the reference's
 mark-clearing walk had run — children emitted EMPTY, exit 0.
-Repro: `hide-pack-mark-leak.aon`.
+Repro: `hide-pack-mark-leak.aontu`.
 
 ### 12. Type-alias references inside `type()` bodies silently drop records [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), all
@@ -287,7 +287,7 @@ rather than wrapped as an expectation. Pinned in both engines:
 `marks.tsv` type-alias-conjunct-ref, type-conjunct-arg-ref,
 type-conjunct-target-ref, type-alias-ref-first; `file.tsv`
 load-alias-spread, load-alias-idspread, load-alias-top-conjunct.
-Repros: `include-alias-*.aon`, `alias-*.aon`.
+Repros: `include-alias-*.aontu`, `alias-*.aontu`.
 (Related but **by design**: `close()` is uniformly shallow — the
 deep-seal spelling `close(pack(d, close(tmpl)))` exists and works; the
 reference's "seals the generated shape" phrasing is the papercut.)
@@ -303,8 +303,8 @@ fold to a conflict or over-unify is swallowed (`'a'|'b'`, `1|2`,
 `number|string`, `{x:1}|{y:2}`, `string & ('a'|'b')`); bare kinds and
 constraints correctly answer `incomplete`. Bare eval of the same
 residue errors. The only spelling giving the correct triple is
-`role: string & must('a'|'b', "msg")`. Repros: `enum-missing-key.aon`,
-`plain-disjunct-satisfied.aon`.
+`role: string & must('a'|'b', "msg")`. Repros: `enum-missing-key.aontu`,
+`plain-disjunct-satisfied.aontu`.
 
 
 Status: FIXED 2026-08-27 (ADR-007) — an unresolved disjunction no longer
@@ -326,7 +326,7 @@ string}})` → `valid` for data missing `b`; the unmarked anchor answers
 required-presence findings vanish (gen's mark-skipping leaking into
 vet). **Correction to the use-case READMEs: `copy()` does restore
 enforcement** in every arrangement tried. Repro:
-`mark-drops-required.aon`.
+`mark-drops-required.aontu`.
 
 
 Status: FIXED 2026-08-27 (ADR-007) — vet finds residue by GENERATING the
@@ -344,8 +344,8 @@ Schema `a: integer` / `b: $.a`, data `{"a": 3, "b": 4}` →
 `scalar_value`. The conditional-branch form (a branch keyed on a
 data-supplied field via a reference) passes vet and fails eval the same
 way. References are consumed during the schema-only evaluation and
-never re-fired when data arrives. Repros: `stale-reference.aon`,
-`stale-reference-branch.aon`.
+never re-fired when data arrives. Repros: `stale-reference.aontu`,
+`stale-reference-branch.aontu`.
 
 
 Status: FIXED 2026-08-27 (ADR-007) — vet evaluated the schema ALONE to
@@ -420,8 +420,8 @@ Bare sizing atoms (no container beside them) residuate and re-check
 correctly — the failure is specific to the idiomatic
 template-plus-bound spelling, contradicting the reference's "sizing
 atoms fold last… written order does not matter". Repros:
-`sizing-max-vanishes.aon`, `sizing-min-kills-schema.aon`,
-`list-sizing-dropped.aon`.
+`sizing-max-vanishes.aontu`, `sizing-min-kills-schema.aontu`,
+`list-sizing-dropped.aontu`.
 
 ### 17. Map-argument `must()` is consumed by the schema layer [critical]
 
@@ -440,7 +440,7 @@ was discarded, contradicting "residuates until its peer is concrete").
 **Field-level `must()` works correctly across the vet meet and
 includes** and is spec-pinned — the failure is the cross-field
 map-argument form, which is the form cross-field rules need. Repro:
-`must-cross-layer.aon`.
+`must-cross-layer.aontu`.
 
 (Also verified, **by design** with a doc papercut: `vet --closed` seals
 the anchor node only — deep closing needs explicit `close()` per level,
@@ -457,15 +457,15 @@ residue. Crossing an include: `unify_cycle` naming a value meeting
 *itself*. With sizing/must atoms alongside: a 25-line two-file document
 ran **>570s without terminating** (killed; the equivalent with
 `refer()` attached at the bag spread instead: 0.17s, correct and
-checked). Repros: `refer-in-type-def.aon`, `refer-in-type-include.aon`,
-`refer-in-type-hang.aon` (+schema; run under `timeout`).
+checked). Repros: `refer-in-type-def.aontu`, `refer-in-type-include.aontu`,
+`refer-in-type-hang.aontu` (+schema; run under `timeout`).
 
 ### 19. `refer($.X)` — a *reference* as the type argument — trips spurious unify_cycle [major]
 
 **Status: FIXED 2026-08-27** (the review's finding J). Two halves, and
-they were two defects. The `typed-refer-two-views.aon` half fell to the
+they were two defects. The `typed-refer-two-views.aontu` half fell to the
 template-clone isolation work (ADR-005) earlier in this effort. The
-`inverse-pair.aon` half — typing BOTH directions of an inverse pair,
+`inverse-pair.aontu` half — typing BOTH directions of an inverse pair,
 which every real relation has — was the type FLOW re-entering itself:
 `refer(t)` unifies `t` into the target, uniting the target drives the
 target's own subtree, and a pair that links back at each other flows
@@ -476,7 +476,7 @@ that would re-enter an entity is now SKIPPED, because the flow it is
 nested in is already uniting that entity, so the same information
 arrives by the same channel one frame up; the differs-each-way and
 cycle-of-three rows in `test/spec/refer.tsv` pin that nothing is lost.
-`use-cases/01-service-catalog/spec.aon` now carries the documented
+`use-cases/01-service-catalog/spec.aontu` now carries the documented
 idiom `refer($.aontu.System.Service)` on both directions of the real model, in
 both ports, and its gap 8 workaround is gone.
 
@@ -486,19 +486,19 @@ a referenced ports template — the error names
 `integer&min(1)&max(65535)` failing to unify with *itself*. The same
 constraint written literally (`refer({kind: service})`) passes.
 Typing both directions of an inverse pair fails even in 2 lines.
-Repros: `typed-refer-two-views.aon`, `inverse-pair.aon`.
+Repros: `typed-refer-two-views.aontu`, `inverse-pair.aontu`.
 
 ### 20. `refer()` inside a `close()`d spread template never settles [major]
 `&: close({ role: refer() & string })` → `mapval_no_gen`; deleting only
 `close()` makes the identical document generate and the refer still
-enforce. Repro: `close-spread-refer.aon`.
+enforce. Repro: `close-spread-refer.aontu`.
 
 ### 21. A reference into a `type()`-marked map from inside that map deadlocks [minor]
 `spec: type({ SE: 'a'|'b', TS: close({ side_effect: $.spec.SE }) })` →
 `mapval_no_gen` at `$.spec`, far from the cause; the same reference
 from outside the map resolves. Loud, trivial workaround (separate
 top-level `type()` fields), but the diagnostic misdirects. Repro:
-`type-map-self-ref.aon`.
+`type-map-self-ref.aontu`.
 
 ---
 
@@ -510,7 +510,7 @@ contribution (matching the documented contract and the spec golden);
 every later sibling: the same disjunction split into two contributions
 at different columns — and a spread-only field present on the first
 sibling answers "(no contributions)" on later ones. Repro:
-`sibling-split.aon`.
+`sibling-split.aontu`.
 
 Status (§22–24): FIXED 2026-08-27 — PROVENANCE IS PART OF THE CLONE
 CONTRACT, which is the review's own recommendation and the one change
@@ -578,15 +578,15 @@ A default flowing through `pack()` produces the output value while
 "(no contributions: nothing met at this path)" — a false statement
 delivered with exit 0. A `&:` spread applied to pack-generated children
 prints a contribution with **no site at all**
-(`{file:"", row:-1, col:-1}`). Repros: `pack-blind.aon`,
-`spread-site-empty.aon`.
+(`{file:"", row:-1, col:-1}`). Repros: `pack-blind.aontu`,
+`spread-site-empty.aontu`.
 
 ### 24. `why` is one-sided across an id()-merge [critical]
 One position of every id-merged entity gets the correct value with a
 false "(no contributions)", and **which** position is blind is
 model-dependent (the minimal repro and the full model point opposite
 ways). Cross-merge sites *are* tracked for errors, so the data exists.
-Repro: `idmerge-onesided.aon`.
+Repro: `idmerge-onesided.aontu`.
 
 (Also verified: the tutorial §12 `why` walkthrough documents output the
 engine does not produce — a docs defect; and `why` printing unresolved
@@ -599,14 +599,14 @@ goldened behaviour worth revisiting, not a bug.)
 
 ### 25. Vet/eval findings mix entry-file names with included-file coordinates [major]
 Data-role: a fragment's `name: 7` at line 3 is reported as
-`data: <entry>.aon:3:7` — the entry has no line 3. Schema-role: a
+`data: <entry>.aontu:3:7` — the entry has no line 3. Schema-role: a
 constraint from an included library is reported at the entry file with
 the library's row/col — "a repair agent that follows the site edits the
 wrong file". Inverse mode: the human error frame names the *included*
 file while quoting the *entry* file's text under it. Junction/derived
 values get the entry file's name with `-1:-1`. (`why` on the same
 values attributes correctly, so the engine has the data.) Repros:
-`vetsite-*.aon`, `refclone-*.aon`, `excerpt-*.aon`, `junction-*` files.
+`vetsite-*.aontu`, `refclone-*.aontu`, `excerpt-*.aontu`, `junction-*` files.
 
 Status: FIXED 2026-08-27 — ONE INVARIANT, *every site names the file
 whose text it excerpts*. The provenance walk used to OVERWRITE every
@@ -614,7 +614,7 @@ url with the entry document's name while leaving the coordinates as
 they were, which is what produced a real file name against a line it
 does not have. It now stamps only the values that carry no name of
 their own — the ones the engine minted rather than read — and collects
-the urls it actually saw, so a value loaded through `@"lib/types.aon"`
+the urls it actually saw, so a value loaded through `@"lib/types.aontu"`
 keeps that path with that file's row and column, and the report still
 knows which DOCUMENT a site belongs to (roles come from url-set
 membership, not from a name comparison). The error frame follows the
@@ -629,8 +629,8 @@ pinned by `a-site-names-the-file-its-text-lives-in` and
 The NAME is the one the caller's own spelling reaches: the resolved
 absolute path is the right identity (two documents loading one library
 by different relative spellings are one file) and the wrong name, so
-`vet contract.aon` reports `types.aon` and `vet a/b/contract.aon`
-reports `a/b/types.aon`. Without that the fix would have traded a
+`vet contract.aontu` reports `types.aontu` and `vet a/b/contract.aontu`
+reports `a/b/types.aontu`. Without that the fix would have traded a
 wrong file name for an unusable one — a SARIF upload naming the build
 machine's home directory annotates nothing. Pinned by
 `an-included-file-is-named-as-the-entry-reaches-it` and
@@ -676,10 +676,10 @@ Three companion repairs from the same review finding landed with it:
 
 ### 26. `breaking --against git#rev` resolves the old side's includes from the working tree [critical]
 Entry committed at v1; the *included* schema narrowed in the working
-tree; `breaking --against git#HEAD entry.aon` → `verdict: compatible`,
+tree; `breaking --against git#HEAD entry.aontu` → `verdict: compatible`,
 exit 0. A discriminating probe proves old = old-entry-text +
 new-includes (a conflict that exists in no committed version). The
-file-path `--against old/entry.aon` spelling is sound — the git
+file-path `--against old/entry.aontu` spelling is sound — the git
 spelling alone silently un-gates every non-entry file, on the
 multi-file layout every real model uses, in the exact form
 `docs/how-to.md` recommends for CI. Repro:
@@ -729,7 +729,7 @@ reflexive; path-dependent templates (`key()`, references) answering
 `undecided` is documented design. Consequence: `breaking` on contracts
 written in the documented close-per-entry idiom hard-fails reflexivity
 and must run `--allow-undecided`, which then masks genuine undecideds.
-Repro: `spread-residue-self-undecided.aon`.
+Repro: `spread-residue-self-undecided.aontu`.
 
 
 Status: FIXED 2026-08-27 — REFLEXIVITY IS A LAW of the subsumption
@@ -750,7 +750,7 @@ verbatim idiom from `reference-api.md` — fails self-subsumption under
 `--profile gen` (`sub_disjunct_distribution`; the specific side's
 hidden pref-disjunction collapses to its effective default). Trigger:
 `hide()` around a preference-bearing disjunction. Repro:
-`gen-hide-pref-self-undecided.aon`.
+`gen-hide-pref-self-undecided.aontu`.
 
 
 Status: FIXED 2026-08-27 — two causes, both ADR-004 leftovers. (a) The
@@ -778,7 +778,7 @@ default-rank-mixed, both re-probed.
 that pins `compat: "none"` waives the gate judging it — documented, and
 the text report gives no hint nothing was checked (only `--format
 json`'s `"mode":"none"` shows it). CI must pin `--mode`. Repro pair:
-`policy-waiver-*.aon` (header cites the design).
+`policy-waiver-*.aontu` (header cites the design).
 
 (Also verified: concrete version strings self-break the gate and
 `breaking` has no `--at` — by design per subsumption's own rules; the
@@ -875,7 +875,7 @@ generator-over-spread-augmented-data failure below are closed by the
 spread application rework (ADR-006), which finishes the family.
 
 **Pack over spread-augmented data** (claim C4, use-case 06 gap 6;
-repro `spread-then-pack.aon`): **FIXED 2026-08-26 (ADR-006).** A
+repro `spread-then-pack.aontu`): **FIXED 2026-08-26 (ADR-006).** A
 generator's data argument snapshots its source only once the source
 has SETTLED in the tree (the `argsnap` flag in
 driveStagedArgs/stagedDrive, honoured by RefVal.find), so a
@@ -894,7 +894,7 @@ each-unfired-*/pack-unfired-canon).
 `b: .a + 1` and `b: upper(.a)` inside a pack template now answer for
 the child exactly as the bare `b: .a` always did. Pinned in both
 engines: `gen-pack.tsv` pack-rel-ref-in-expr, pack-key-in-expr-and-call.
-Repro: `rel-ref-in-expr.aon`.
+Repro: `rel-ref-in-expr.aontu`.
 
 ### 34. Nested pack: the inner template's `_` binds to the outer source child [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005).**
@@ -904,19 +904,19 @@ so the inner `_` binds the inner generator's source child
 (`deploy.dev.services.web.v = {"replicas":1}`). Pinned in both
 engines: `place.tsv` place-nested-pack-inner-binding,
 place-nested-pack-inner-meet, place-hole-as-inner-data.
-Repro: `nested-pack-hole.aon`.
+Repro: `nested-pack-hole.aontu`.
 
 ### 35. Sibling refs in expressions; hide() swallowing a failure into silent loss [critical]
 **Status: FIXED 2026-08-26 (template-clone isolation, ADR-005), both
 halves.** (a) The in-expression sibling reference in a spread template
 (`&: {md: "|" + .side_effect}`) now answers per child — pinned by
-`spread.tsv` spread-expr-sibling-ref. Repro: `spread-expr-sibling.aon`.
+`spread.tsv` spread-expr-sibling-ref. Repro: `spread-expr-sibling.aontu`.
 (b) The copy()'d reference to a computed hide()-marked field of a
 pack-generated child now defers until the wrapper has resolved and
 yields the computed value (`docs = ["|readonly"]`, the pack-free
 spelling's outcome — better than the minimum surface-the-failure bar)
 — pinned by `marks.tsv` hide-computed-pack-copy.
-Repro: `hide-computed-drop.aon`.
+Repro: `hide-computed-drop.aontu`.
 
 ### 36. An expression reading the generated child's own fields cannot be merged onto it [major]
 **Status: FIXED 2026-08-26 (the spread application rework, ADR-006) —
@@ -932,7 +932,7 @@ identically and is fixed by the same rule; an op that can NEVER
 resolve is an honest error naming the real path. Pinned in both
 engines: `gen-pack.tsv` pack-merge-expr-onto-child, `plus.tsv`
 peer-key-expr, peer-key-expr-unresolvable.
-Repro: `merge-expr-onto-pack-child.aon`.
+Repro: `merge-expr-onto-pack-child.aontu`.
 (By design, not a bug: `each()`'s template is a *meet*, so scalars
 cannot be reshaped into maps, and `key()` at a list element is the
 index — the doc's `pack` spelling covers the transform case.)
@@ -948,13 +948,13 @@ Distribution takes the preference to each member, and the kind gate
 then replaces a scalar preference *by* the concrete member it met, so
 nothing preferred survived: canon read `"1.0"|"1.1"`, the two spellings
 of the same idiom disagreed, and two contracts differing only in their
-default hashed identically (use case 07's `probes/default-a.aon` vs
-`default-b.aon`). Generation's old member fold hid all of it by folding
+default hashed identically (use case 07's `probes/default-a.aontu` vs
+`default-b.aontu`). Generation's old member fold hid all of it by folding
 the alternatives together.
 
 Status: FIXED 2026-08-27 (ADR-007) — `(A|B) & *A` is now `*A|B`: after
 distribution, a surviving member equal to the preferred value is
-wrapped back as a preference of the peer's rank. `default-a.aon`
+wrapped back as a preference of the peer's rank. `default-a.aontu`
 generates `"1.0"`, canon keeps the `*`, and the two probes hash
 differently. A preference naming no alternative is still dropped — it
 has nothing to prefer, and the default-validity lint is what reports
@@ -1048,13 +1048,13 @@ having beyond the behaviour it pins.
 
 ### 41. Every conflict inside a referenced record reported the record's path [major]
 A schema that names its record types once and applies them by
-reference — the shape use case 10's `domain.aon` is built on, and the
+reference — the shape use case 10's `domain.aontu` is built on, and the
 first thing anyone writing a reusable model does — reported every
 conflict inside such a record at the RECORD's path rather than the
 key's:
 
 ```
-$ aontu vet two.aon two.json          # M: close({a:"x", b:"p"})  q: $.M
+$ aontu vet two.aontu two.json          # M: close({a:"x", b:"p"})  q: $.M
 $.q: scalar_value [conflict]   ... data "y", schema "x"
 $.q: scalar_value [conflict]   ... data "r", schema "p"
 ```
@@ -1102,11 +1102,11 @@ is the clone-path difference `ts/src/val/RefVal.ts` already documents
 in `detectRefCycle`: Go re-paths a resolved clone to the referring
 site, TypeScript overlays. Rebasing with the existing `repathInstance`
 walk is NOT the same operation — it moves relative references with it,
-so `match(.side_effect, …)` in `use-cases/09-agent-tools/registry.aon`
+so `match(.side_effect, …)` in `use-cases/09-agent-tools/registry.aontu`
 dies `no_path` — so the real fix is a TypeScript twin of Go's
 `cloneAt`/`overlayPath`, a clone that takes a destination path. Recorded
 in `test/spec/divergent.tsv`; at equal depth both ports agree, which is
-why `use-cases/10-data-model/money-wire.aon` declares its types at the
+why `use-cases/10-data-model/money-wire.aontu` declares its types at the
 top level.
 
 ### 44. A list's `&:` element spread shifts every later index in the TypeScript port's error paths [major]
@@ -1133,10 +1133,10 @@ index slot in TypeScript's error paths and not in Go's, so every
 element written after the spread is reported one index too high:
 
 ```
-$ cat l.aon                                   # l: [&: integer, 10, 20, "bad"]
-$ node ts/bin/aontu.js l.aon
+$ cat l.aontu                                   # l: [&: integer, 10, 20, "bad"]
+$ node ts/bin/aontu.js l.aontu
 [aontu/no_scalar_unify]: Cannot unify values at path $.l.3
-$ go/aontu l.aon
+$ go/aontu l.aontu
 [aontu/no_scalar_unify]: Cannot unify values at path $.l.2
 ```
 
@@ -1148,11 +1148,11 @@ error paths. So TypeScript **contradicts itself**, and the contradiction
 is on the machine surface:
 
 ```
-$ node ts/bin/aontu.js vet l.aon l.aon --format json | jq -r '.findings[0].path'
+$ node ts/bin/aontu.js vet l.aontu l.aontu --format json | jq -r '.findings[0].path'
 $.l.3
-$ node ts/bin/aontu.js get '$.l.3' l.aon
+$ node ts/bin/aontu.js get '$.l.3' l.aontu
 $.l.3: no_path [reference]          # the port rejects the path it just emitted
-$ node ts/bin/aontu.js get '$.l.2' l.aon
+$ node ts/bin/aontu.js get '$.l.2' l.aontu
 30
 ```
 
@@ -1222,7 +1222,7 @@ Pinned by `test/spec/spread-list.tsv`
 the reversed order, so the two orders cannot drift apart again.
 Reverting the fix fails exactly the four pair-before rows and leaves the
 pair-after control passing. Repro:
-[`repros/diagnostics/pair-before-spread-dropped.aon`](repros/diagnostics/pair-before-spread-dropped.aon).
+[`repros/diagnostics/pair-before-spread-dropped.aontu`](repros/diagnostics/pair-before-spread-dropped.aontu).
 
 ### 47. A conjunct of unequal-length lists paths its finding differently in each port [minor]
 **Status: FIXED 2026-08-28 (the container slot restored before the
@@ -1269,7 +1269,7 @@ Reverting the fix fails exactly the three `vet` rows while all four
 `errc` rows keep passing — the §44 lesson (a code-only row is blind to
 a path defect) with a second edge on it: an `err` row can be blind too,
 whenever the wrong path extends the right one. Repros:
-[`repros/diagnostics/container-conflict-member-path.aon`](repros/diagnostics/container-conflict-member-path.aon)
+[`repros/diagnostics/container-conflict-member-path.aontu`](repros/diagnostics/container-conflict-member-path.aontu)
 and its `-map` companion.
 
 ### 48. A composed constraint lost the atom added at the point of use [critical]
@@ -1279,7 +1279,7 @@ soundness defect in BOTH ports, and the message was the symptom that
 led to it. Critical by this file's own ladder: `aontu -c` and
 `aontu hash` emitted **silent wrong output** — a document admitting
 values the source rejects. Repro:
-[`repros/constraint-compose/composed-alias-atom-dropped.aon`](repros/constraint-compose/composed-alias-atom-dropped.aon).
+[`repros/constraint-compose/composed-alias-atom-dropped.aontu`](repros/constraint-compose/composed-alias-atom-dropped.aontu).
 
 Found while verifying the named-constraint-alias idiom for
 `docs/reference-language.md`, then re-probed after the first assessment
@@ -1388,7 +1388,7 @@ do not see the same graph:
 | Go | 8 | 6 | 2 |
 
 The consequence is the one that matters: `aontu relations
-bad/cycle.aon` reports `cycle svc_payments -> svc_ledger ->
+bad/cycle.aontu` reports `cycle svc_payments -> svc_ledger ->
 svc_payments` in TypeScript and **reports no cycle at all** in Go. It
 also reports inverse-missing findings for inverses it simply cannot
 see. A verdict of `pass` from the port that cannot see the edges is
@@ -1422,11 +1422,11 @@ document does not stand up" then read the context's first error, which
 was not there:
 
 ```
-$ aontu relations doc.aon
+$ aontu relations doc.aontu
 /…/ts/dist/vet.js:182
     if (null == nil.msg || '' === nil.msg) {
                     ^
-$ aontu-go relations doc.aon
+$ aontu-go relations doc.aontu
 panic: runtime error: index out of range [0] with length 0
 ```
 
@@ -1554,7 +1554,7 @@ names, both ports:
 
 | file | TypeScript (was) | Go (was) | both (now) |
 |---|---|---|---|
-| `v.aon` | the map | the map | the map |
+| `v.aontu` | the map | the map | the map |
 | `v.json` | `Cannot convert object to primitive value` | the map | the map |
 | `v.jsonld` | string | the map | the map |
 | `v.txt` | string | the map | refused |
@@ -1562,7 +1562,7 @@ names, both ports:
 | `vnoext` | string | the map | refused |
 
 **THE RULING (ADR-012).** The extension decides, from a fixed table,
-and it says which of two things the file is. `.aon` and `.aontu` are
+and it says which of two things the file is. `.aontu` and `.aontu` are
 aontu source. `.json`, `.jsonld`, `.jsonc`, `.json5`, `.jsonic`,
 `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` are configuration DATA,
 read by that format's own parser — every one of them maps onto JSON.
@@ -1587,7 +1587,7 @@ publishes RDF serialisations.
 **What each defect was.**
 
 *(a) The parity break.* One line on each side. `ts/src/lang.ts`
-registered `processor: {aontu, aon}` and let every other extension fall
+registered `processor: {aontu}` and let every other extension fall
 through to multisource's default, which hands the file back as raw
 TEXT; `go/source.go`'s `msOptions` also registered the empty kind `""`,
 the fallback for an unrecognised extension, so Go parsed everything as
@@ -1622,9 +1622,9 @@ NAMED, four bare-member positions where a refusal must not vanish, and
 the precedence of not-found over extension. `include_extension` joins
 `test/spec/errcodes.tsv` (class `parse`, 0.54.0).
 
-Repros: [`repros/includes/extension-decides-the-value.aon`](repros/includes/extension-decides-the-value.aon)
+Repros: [`repros/includes/extension-decides-the-value.aontu`](repros/includes/extension-decides-the-value.aontu)
 for (a) and
-[`repros/includes/json-extension-crashes-ts.aon`](repros/includes/json-extension-crashes-ts.aon)
+[`repros/includes/json-extension-crashes-ts.aontu`](repros/includes/json-extension-crashes-ts.aontu)
 for (b), with the byte-identical `vocab.json` / `vocab.jsonld` pair
 beside them.
 
@@ -1648,10 +1648,10 @@ a: b: f: {x: {}}
 ```
 
 ```
-$ aontu-go repro.aon
+$ aontu-go repro.aontu
 {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
 
-$ aontu repro.aon
+$ aontu repro.aontu
 [aontu/scalar_value]: Cannot unify values at path $.a.b.f.x.n.n
  Cannot unify value: "n" with value: "x"
 ```
@@ -1712,7 +1712,7 @@ defect. `ts/test/val-ref.test.ts` is back at the four levels it was
 written with, having been shallowed to three while this stood.
 
 Repro:
-[`repros/key-func/spread-key-through-deep-ref.aon`](repros/key-func/spread-key-through-deep-ref.aon).
+[`repros/key-func/spread-key-through-deep-ref.aontu`](repros/key-func/spread-key-through-deep-ref.aontu).
 
 ### 51. `key()` is late-bound and `.$KEY` was early-bound — a translation is not always value-preserving [by design, recorded]
 Not a defect. Recorded because ADR-009 asks every `.$KEY` in an existing
@@ -1805,9 +1805,9 @@ use-cases/13-recursive-schema exercises the whole surface end to end,
 Repros (kept as history — the first now generates at depth, the
 second now refuses `v: oops`, as `|:empty` at the list: the refusal
 the disjunct can state):
-[`repros/recursion/guarded-next-breaks-at-depth-one.aon`](repros/recursion/guarded-next-breaks-at-depth-one.aon)
+[`repros/recursion/guarded-next-breaks-at-depth-one.aontu`](repros/recursion/guarded-next-breaks-at-depth-one.aontu)
 and
-[`repros/recursion/spread-template-never-applies.aon`](repros/recursion/spread-template-never-applies.aon).
+[`repros/recursion/spread-template-never-applies.aontu`](repros/recursion/spread-template-never-applies.aontu).
 
 ## relations — rel(t) at its boundaries
 
@@ -1822,7 +1822,7 @@ Every spread destination then holds the unresolved `$.spec.Job & {…}`
 conjunct forever and generation refuses with `mapval_no_gen`. Both
 ports agree.
 
-```aon
+```aontu
 spec: hide({
   Job: {kind: job, feeds?: rel($.spec.JobShape)}
   JobShape: {kind: job}
@@ -1862,10 +1862,10 @@ present, and `aontu relations` emits four inverse-missing findings whose
 relation column shows entity keys (`load:`, `extract:`) instead of the
 relation name, with no `relation_cycle` at all.
 
-Repro shape: `spec.aon` declaring
-`feeds?: rel(...) & acyclic() & inverse(fedBy)`; `pipeline.aon` starting
-with `@"./spec.aon"` plus three jobs with both directions written; an
-overlay file with `@"./pipeline.aon"` plus
+Repro shape: `spec.aontu` declaring
+`feeds?: rel(...) & acyclic() & inverse(fedBy)`; `pipeline.aontu` starting
+with `@"./spec.aontu"` plus three jobs with both directions written; an
+overlay file with `@"./pipeline.aontu"` plus
 `change: id(job_load) & {feeds: [job_extract]}` and the mirror
 `mirror: id(job_extract) & {fedBy: [job_load]}`. The three-file layout
 (a root including spec and pipeline as siblings) reports the correct
@@ -1891,7 +1891,7 @@ Every clause inverts: generation refuses with `relation_cycle` and not
 `relation_inverse_missing`, the `relation_cycle` finding IS present,
 and the relation column shows the relation NAME (`feeds:`) rather than
 entity keys. Three readings of the prose were tried -- the cycle in
-the overlay, the cycle in `pipeline.aon` with both directions written,
+the overlay, the cycle in `pipeline.aontu` with both directions written,
 and forward-only edges with the mirror supplied by the overlay. The
 last is the only one that raises inverse-missing findings at all, and
 it reports them correctly.
@@ -1990,7 +1990,7 @@ layer could be built on. Recursion through a **list spread** works,
 and so does conjoining anything at a recursive position -- until the
 two meet at depth two, where both engines run unbounded:
 
-```aon
+```aontu
 %T = {name: string, kids?: [&: %T & {}]}
 d: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}
 ```
@@ -2198,7 +2198,7 @@ sets one (`ts/src/query.ts`). Gating expansion on it as written would
 make evaluation depend on whether provenance is being recorded.
 
 Repro:
-[`repros/recursion/recursive-spread-conjunct-hangs.aon`](repros/recursion/recursive-spread-conjunct-hangs.aon)
+[`repros/recursion/recursive-spread-conjunct-hangs.aontu`](repros/recursion/recursive-spread-conjunct-hangs.aontu)
 -- run it under `timeout`, as its header says.
 
 ## identity — id() at its own boundary
@@ -2209,7 +2209,7 @@ Found 2026-08-30, same survey as §57, while asking whether the
 evaluated value graph is a tree (a transform layer that walks children
 needs to know). It is not, and one construct makes it cyclic:
 
-```aon
+```aontu
 a: id(x) & { b: id(x) }
 ```
 
@@ -2277,7 +2277,7 @@ Pins: `test/spec/id.tsv` -- `id-ancestor-names-own-child` and
 itself. `test/spec/errcodes.tsv` carries `id_ancestor`.
 
 Repro:
-[`repros/identity/id-names-own-descendant-crashes.aon`](repros/identity/id-names-own-descendant-crashes.aon).
+[`repros/identity/id-names-own-descendant-crashes.aontu`](repros/identity/id-names-own-descendant-crashes.aontu).
 
 ## anchoring — what `--at` can still see
 
@@ -2288,7 +2288,7 @@ aontu schema — the vocabulary is alias-heavy, and `--at` is how you
 point a validation at one part of a document. The two engines return
 **opposite verdicts and opposite exit codes** for the same inputs:
 
-```aon
+```aontu
 # schema
 %F = close({ n: string })
 %U = close({ p: string, fs: [&: %F] })
@@ -2300,10 +2300,10 @@ units: [ { p: "a", fs: [ {n:"x"} ] } ]
 ```
 
 ```
-$ aontu      vet --at code schema.aon data.aon    verdict: valid     exit 0
-$ aontu-go   vet --at code schema.aon data.aon    verdict: invalid   exit 1
+$ aontu      vet --at code schema.aontu data.aontu    verdict: valid     exit 0
+$ aontu-go   vet --at code schema.aontu data.aontu    verdict: invalid   exit 1
                                                   $.code.units.0: no_path [reference]
-                                                  schema: schema.aon:3:24 ($.%U)
+                                                  schema: schema.aontu:3:24 ($.%U)
 ```
 
 Isolated to `--at` alone: removing `type()` still breaks in Go, one
@@ -2364,7 +2364,7 @@ matters: a fallback resolving to `top` would answer "valid" too, so
 they pin that the alias is still ENFORCED through the anchor.
 
 Repro:
-[`repros/anchor/vet-at-loses-aliases-in-go.aon`](repros/anchor/vet-at-loses-aliases-in-go.aon)
+[`repros/anchor/vet-at-loses-aliases-in-go.aontu`](repros/anchor/vet-at-loses-aliases-in-go.aontu)
 with its `-data` companion.
 
 ## hashing — what `aon1-` can still see
@@ -2376,7 +2376,7 @@ code-generation vocabulary\'s anti-drift story and finding that the pin
 proving it did not discriminate. Both ports, identically — a shared
 defect, not a divergence.
 
-```aon
+```aontu
 # A          %A = close({ n: string })          box: [&: %A]
 # B          %A = close({ n: integer, EXTRA: string })   box: [&: %A]
 # A-longhand box: [&: close({ n: string })]
@@ -2478,7 +2478,7 @@ unchanged — the close() is in the hash form only, which is what makes
 hcanon a separate rendering rather than a second canon.
 
 Repro:
-[`repros/hash/alias-spread-hash-blind.aon`](repros/hash/alias-spread-hash-blind.aon)
+[`repros/hash/alias-spread-hash-blind.aontu`](repros/hash/alias-spread-hash-blind.aontu)
 with its `-2` and `-longhand` companions.
 
 ### 95. A refer residual drops the conjunct it was declared with [FIXED 2026-09-13]
@@ -2552,7 +2552,7 @@ its `canon` and `hash` twins for both defects together. The
 specification's own pin moves with the fix: both ports now answer
 `aon1-utCnJAwb…` where they answered `aon1-yVCc…` and `aon1-wyMpq…`.
 Repro:
-[`repros/hash/conjunct-behind-a-spread.aon`](repros/hash/conjunct-behind-a-spread.aon).
+[`repros/hash/conjunct-behind-a-spread.aontu`](repros/hash/conjunct-behind-a-spread.aontu).
 
 ## trials — the flag one port sets and the other does not
 
@@ -2631,7 +2631,7 @@ stops being the question). `test/spec/gen-match.tsv` --
 `-one-element-pattern`, `-top-keeps-both`.
 
 Repro:
-[`repros/trial/go-trial-flag-unset.aon`](repros/trial/go-trial-flag-unset.aon)
+[`repros/trial/go-trial-flag-unset.aontu`](repros/trial/go-trial-flag-unset.aontu)
 and its `-pref` companion.
 
 ## ordering — the one call site that does not use cmpCodePoint
@@ -2641,7 +2641,7 @@ and its `-pref` companion.
 Found 2026-08-30 while checking that a transform's generated line order
 is stable across ports. It is not.
 
-```aon
+```aontu
 m: {"\u{1F600}": {v:"astral"}, "\uFFF0": {v:"bmp"}}
 p: pick($.m, v)
 ```
@@ -2694,7 +2694,7 @@ in one map so the position a bare `.sort()` gets wrong is in the
 middle of the row rather than at its end.
 
 Repro:
-[`repros/order/pick-astral-key-order.aon`](repros/order/pick-astral-key-order.aon).
+[`repros/order/pick-astral-key-order.aontu`](repros/order/pick-astral-key-order.aontu).
 
 ## marks — what `hide()` stops resolving
 
@@ -2704,7 +2704,7 @@ Found 2026-08-30 by building
 [use case 15](15-code-generation/README.md), whose first draft used the
 obvious spelling and passed in TypeScript.
 
-```aon
+```aontu
 src: [{n: "a"}]
 u: {rows: hide([&: {o: .n}] & $.src)}
 ```
@@ -2746,7 +2746,7 @@ That deliverable was written from the other side — `pick` over a
 staged `each` rather than `hide` over a staged spread — and names the
 same failure. Re-probed after #99:
 
-```aon
+```aontu
 d: {x: {n: "a"}}
 s: each($.d, {o: .n})
 r: pick($.s, o)
@@ -2768,7 +2768,7 @@ on its own with the RENDER P2 member enumeration and now agrees. What
 remained is one arm, and the minimal repro is two lines with no spread
 and no staging in it at all:
 
-```aon
+```aontu
 rows: hide([{n: "a", o: .n}])
 ```
 
@@ -2803,9 +2803,9 @@ in canon and generated, and `hide-staged-then-picked`, which is the
 pipeline the defect was found by.
 
 Repros: the `hide` spelling,
-[`repros/hide/hide-blocks-spread-compute-in-go.aon`](repros/hide/hide-blocks-spread-compute-in-go.aon),
+[`repros/hide/hide-blocks-spread-compute-in-go.aontu`](repros/hide/hide-blocks-spread-compute-in-go.aontu),
 and the staged-`each` spelling,
-[`repros/hide/staged-each-pick-unresolved-in-go.aon`](repros/hide/staged-each-pick-unresolved-in-go.aon).
+[`repros/hide/staged-each-pick-unresolved-in-go.aontu`](repros/hide/staged-each-pick-unresolved-in-go.aontu).
 
 ### 79. `join` folds a hidden child into the text it returns, in both ports [FIXED 2026-09-06]
 
@@ -2813,7 +2813,7 @@ Found 2026-09-04 while re-basing the
 [G9 plan](../docs/capability-review/g9-transformation.md) on what had
 landed. Not a divergence: one behaviour, wrong in both ports.
 
-```aon
+```aontu
 m: {a: "keep", b: hide("SECRET-not-for-output")}
 leak: join($.m, "\n")
 opt: join({x: "one", y?: "two"}, "-")
@@ -2860,7 +2860,7 @@ _)` under a hidden schema is untouched. Pinned by `gen-join.tsv`'s
 generates `"keep"` in both ports.
 
 Repro:
-[`repros/hide/join-carries-a-hidden-value.aon`](repros/hide/join-carries-a-hidden-value.aon).
+[`repros/hide/join-carries-a-hidden-value.aontu`](repros/hide/join-carries-a-hidden-value.aontu).
 
 ## subsumption — the law that holds only for one spelling
 
@@ -2872,13 +2872,13 @@ the seven use-case entry documents do not subsume **themselves**:
 
 | document | self-subsumption |
 |---|---|
-| `01-service-catalog/system.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
-| `12-relations/model.aon` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
-| `13-recursive-schema/model.aon` | **undecided** (`sub_unresolved`) |
-| `02-deploy-config/stack.aon` | subsumes |
-| `06-k8s-golden-path/main.aon` | subsumes |
-| `08-feature-flags/system.aon` | subsumes |
-| `15-code-generation/model.aon` | subsumes |
+| `01-service-catalog/system.aontu` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `12-relations/model.aontu` | **undecided** (`sub_path_dependent_spread`, `sub_unresolved`) |
+| `13-recursive-schema/model.aontu` | **undecided** (`sub_unresolved`) |
+| `02-deploy-config/stack.aontu` | subsumes |
+| `06-k8s-golden-path/main.aontu` | subsumes |
+| `08-feature-flags/system.aontu` | subsumes |
+| `15-code-generation/model.aontu` | subsumes |
 
 [`test/spec/subsume.tsv`](../test/spec/subsume.tsv) states the rule in
 capitals — "REFLEXIVITY IS A LAW (2026-08-27). Every value admits
@@ -2941,9 +2941,9 @@ are `reflexive-*` in `test/spec/subsume.tsv` and
 `undecided` rather than swept up by the law.
 
 Repros:
-[`repros/subsume/reflexivity-reference-spread.aon`](repros/subsume/reflexivity-reference-spread.aon),
-[`reflexivity-alias-spread.aon`](repros/subsume/reflexivity-alias-spread.aon),
-[`reflexivity-recursive-ref.aon`](repros/subsume/reflexivity-recursive-ref.aon).
+[`repros/subsume/reflexivity-reference-spread.aontu`](repros/subsume/reflexivity-reference-spread.aontu),
+[`reflexivity-alias-spread.aontu`](repros/subsume/reflexivity-alias-spread.aontu),
+[`reflexivity-recursive-ref.aontu`](repros/subsume/reflexivity-recursive-ref.aontu).
 
 ## the entity graph — what a conjunct hides
 
@@ -2954,14 +2954,14 @@ Found 2026-08-30 while drawing the use cases: the dependency matrix for
 entities, zero edges — on a model whose whole subject is which role
 grants which permission.
 
-```aon
+```aontu
 p: id(pp) & {n: 1}
 a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}
 ```
 
 ```
-$ aontu reaches x pp guarded.aon     verdict: unreachable   exit 1
-$ aontu reaches x pp control.aon     verdict: reaches       exit 0
+$ aontu reaches x pp guarded.aontu     verdict: unreachable   exit 1
+$ aontu reaches x pp control.aontu     verdict: reaches       exit 0
 ```
 
 The two documents differ by the two tokens `unique() &`. Both ports
@@ -2983,10 +2983,10 @@ guarded by a sizing atom, a constraint, or any other `&` term drops out
 of the graph entirely.
 
 **It is the natural spelling, not a contrived one.**
-[`use-cases/05-rbac-policy/roles.aon`](05-rbac-policy/roles.aon)
+[`use-cases/05-rbac-policy/roles.aontu`](05-rbac-policy/roles.aontu)
 writes
 
-```aon
+```aontu
 grants: unique() & [&: refer() & string]
 ```
 
@@ -2994,7 +2994,7 @@ which is how one says "a set of grants, no duplicates". On that model
 `graphOf` reports 13 entities and 0 edges, and
 
 ```
-$ aontu reaches admin admin_all --trust root:. example.aon
+$ aontu reaches admin admin_all --trust root:. example.aontu
 verdict: unreachable
 ```
 
@@ -3015,8 +3015,8 @@ close; recorded here because it is a defect in shipped check verbs on
 its own, independent of whether any diagram is ever drawn.
 
 Repros:
-[`repros/graph/refer-behind-conjunct-invisible.aon`](repros/graph/refer-behind-conjunct-invisible.aon)
-and its `refer-in-list-visible.aon` control.
+[`repros/graph/refer-behind-conjunct-invisible.aontu`](repros/graph/refer-behind-conjunct-invisible.aontu)
+and its `refer-in-list-visible.aontu` control.
 
 ## disjunction trials — what a discarded alternative still asserts
 
@@ -3027,7 +3027,7 @@ other end: a module graph whose mirrors were all written reported
 `relation_inverse_missing`. The relation machinery turned out to be
 innocent. Two lines, no relations in sight:
 
-```aon
+```aontu
 x: ({ k:1, d?: refer({z:1}) } | { k:2, d?: refer({w:2}) }) & { k:1, d: path($.y) }
 y: { }
 ```
@@ -3048,7 +3048,7 @@ Make the two types clash at one key and the same leak surfaces as an
 error whose code is the engine's own internal sentinel:
 
 ```
-$ aontu discarded-alternative-conflicts.aon
+$ aontu discarded-alternative-conflicts.aontu
 [aontu/|:trial-nil]: Cannot resolve value at path $
 ```
 
@@ -3057,8 +3057,8 @@ alternatives carry the trial nil), the graph walk cannot enter one, and
 the mirror edges inside it are missing from the edge set — which is how
 a written `inverse(n)` mirror came to be reported missing.
 
-Repros: `repros/disjunct-flow/discarded-alternative-flows.aon`,
-`repros/disjunct-flow/discarded-alternative-conflicts.aon`.
+Repros: `repros/disjunct-flow/discarded-alternative-flows.aontu`,
+`repros/disjunct-flow/discarded-alternative-conflicts.aontu`.
 
 Status: FIXED 2026-08-31, both ports. A member's flow is part of that
 member: the flow record is STAGED per trial, exactly as the error list
@@ -3138,8 +3138,8 @@ module's `dependsOn` flows `layer: "core" | "util"` into every module
 it names, so an upward edge cannot meet the far end.
 
 It holds for the spelling the case tests and not for its mirror image.
-`bad/upward.aon` writes the offending module first and refuses with
-`[aontu/empty]`; `bad/upward-swapped.aon` is the same file with its two
+`bad/upward.aontu` writes the offending module first and refuses with
+`[aontu/empty]`; `bad/upward-swapped.aontu` is the same file with its two
 blocks in the other order — same edges, same layers, same mirrors — and
 GENERATES. A sweep of the six declaration orders of a four-module
 version accepted three of them. Dumping the flow record after
@@ -3158,8 +3158,8 @@ Instrumenting `RelVal.unify` over the two orders shows which target
 shape each `dependsOn` field is driven with:
 
 ```
-bad/upward.aon          mods.auth.dependsOn                <- {"kind":"mod","layer":"core"|"util"}
-bad/upward-swapped.aon  mods.catalog.usedBy.0.dependsOn    <- {"kind":"mod","layer":"app"|"feature"|"core"|"util"}
+bad/upward.aontu          mods.auth.dependsOn                <- {"kind":"mod","layer":"core"|"util"}
+bad/upward-swapped.aontu  mods.catalog.usedBy.0.dependsOn    <- {"kind":"mod","layer":"app"|"feature"|"core"|"util"}
 ```
 
 Both name the SAME field — `$.mods.auth.dependsOn`, the second reached
@@ -3190,7 +3190,7 @@ and that is the declaration order.
 Three lines reproduce it with no schema and no relations vocabulary,
 differing only in the order of the first two statements:
 
-```aon
+```aontu
 c: { r: rel({t:1}) & [path($.b)] }
 a: { r: rel({v:1}) & [path($.b)] }
 b: { v: 2, u: rel({t:1}) & [path($.a)] }
@@ -3239,11 +3239,11 @@ coverage gate itself flaking red on an untouched tree
 Found 2026-09-02 while bringing `aontu view layers` to parity. The
 panel is the whole provenance record drawn at once, and the record
 disagrees between the ports at CONTAINER paths of included documents.
-Over `use-cases/02-deploy-config/stack.aon` the TypeScript port
-attributes `$.org` to `org-policy.aon` and `$.team` to
-`team-defaults.aon`; the Go port attributes both to `stack.aon`, and
+Over `use-cases/02-deploy-config/stack.aontu` the TypeScript port
+attributes `$.org` to `org-policy.aontu` and `$.team` to
+`team-defaults.aontu`; the Go port attributes both to `stack.aontu`, and
 likewise `$.deploy.dev` and `$.deploy.dev.workloads` to the entry
-rather than to `envs/dev.aon`. Leaves agree: the divergence is only
+rather than to `envs/dev.aontu`. Leaves agree: the divergence is only
 the maps and lists an included file wrote.
 
 The cause is in `go/source.go`: `aonProcessor` stamps the resolved
@@ -3256,7 +3256,7 @@ which `stampURL(parsed, a.File)` then fills with the entry's name.
 did not catch it because every row queries a leaf.
 
 Effect on the views: `aontu view layers` over a multi-file document
-differs between the ports at container paths (over `stack.aon`
+differs between the ports at container paths (over `stack.aontu`
 unrestricted, 626 path-file pairs in TypeScript against 610 in Go);
 restricted to `--at '$.deploy.prod'` the two agree, which is what
 use-case 02 pins. Fix: stamp before the merge, or carry the resolved
@@ -3265,7 +3265,7 @@ path onto the containers the parser builds from the raw include.
 ### 71. `refer()` beside `neq()` loses the link mark, and which spelling loses it differs by port [major]
 
 Found 2026-09-02 by `aontu view graph` over
-`use-cases/05-rbac-policy/example.aon`, whose grants are written
+`use-cases/05-rbac-policy/example.aontu`, whose grants are written
 `unique() & [&: refer() & string & neq(path($.permissions.admin_all))]`
 for every role but the owner. `graphOf` reports 13 edges in
 TypeScript and 6 in Go: the four `grants` edges of `auditor` and the
@@ -3287,7 +3287,7 @@ ports reach them differently over the use case. A `reaches` verdict
 over such a document is therefore port-dependent.
 
 Effect on the views: the RBAC `graph`, `matrix --relation grants` and
-`sets` figures are not at parity over `example.aon` (the `sets` panel
+`sets` figures are not at parity over `example.aontu` (the `sets` panel
 reads generated values and is unaffected; the two edge-derived
 figures draw 9 and 3 `grants` edges respectively). Use-case 05 does
 not pin a figure for that reason. Fix: `refer()`'s link mark must
@@ -3296,7 +3296,7 @@ survive every meet the checked scalar takes part in, in both ports.
 ### 72. An alias reached through a root-spliced include strands a `must()` at the use site, in TypeScript only [major]
 
 Found 2026-09-02 while putting `%` aliases to work in the use cases.
-`use-cases/10-data-model/domain.aon` writes its vocabulary out at every
+`use-cases/10-data-model/domain.aontu` writes its vocabulary out at every
 use site and says so in a comment: the intended shape was named types
 (`$.schema.Cents`), which the include drops (gap 6). An **alias** is
 the other spelling, and the right one — `%Cents` does not generate and
@@ -3306,9 +3306,9 @@ document and hash the same `aon1-`. Rewriting the vocabulary that way
 should therefore be a pure readability change.
 
 It is not, and the smallest form is
-[`repros/alias/spliced-alias-strands-a-must.aon`](repros/alias/spliced-alias-strands-a-must.aon):
+[`repros/alias/spliced-alias-strands-a-must.aontu`](repros/alias/spliced-alias-strands-a-must.aontu):
 
-```aon
+```aontu
 # the spliced file
 %Cents = integer & min(0)
 schema: { Line: type(close({ unitCents: %Cents, amountCents: %Cents })) }
@@ -3357,9 +3357,9 @@ refused, at any depth".
 
 Inside a spread template the alias reference is not resolved, and canon
 emits exactly the refused spelling.
-[`repros/alias/alias-in-spread-template-leaks-into-canon.aon`](repros/alias/alias-in-spread-template-leaks-into-canon.aon):
+[`repros/alias/alias-in-spread-template-leaks-into-canon.aontu`](repros/alias/alias-in-spread-template-leaks-into-canon.aontu):
 
-```aon
+```aontu
 %D = string & re("^x")
 
 m: {
@@ -3382,9 +3382,9 @@ shape evaluates right and pins wrong, which is the worse of the two
 failure modes: `aontu hash` is what a module lock and an integrity
 check read.
 
-Effect: `use-cases/08-feature-flags/flags.aon` writes four field shapes
+Effect: `use-cases/08-feature-flags/flags.aontu` writes four field shapes
 inside its `&:` template and keeps them written out; only
-`flag-schema.aon`, which has no spread, names them. Fix: resolve the
+`flag-schema.aontu`, which has no spread, names them. Fix: resolve the
 alias when the template is built, as a path reference in the same
 position already is — or refuse the declaration outright, which the
 `$.%foo` rule suggests was the intent and which would at least not
@@ -3399,17 +3399,17 @@ key tree. Both ports agree.
 of the document. It does not generate, and it does not appear in
 canon". Both of those hold. It IS a key of the root map in the value
 tree, and the anchor walk reports it, so over
-`use-cases/12-relations/model.aon`:
+`use-cases/12-relations/model.aontu`:
 
 ```
-$ aontu get '$' --keys model.aon
+$ aontu get '$' --keys model.aontu
 %JobEdge
 pipeline
 spec
 ```
 
 `%JobEdge` is a declaration, and listing it beside the document's own
-two root keys says otherwise. `aontu model.aon` generates only
+two root keys says otherwise. `aontu model.aontu` generates only
 `pipeline`, correctly.
 
 Effect: `view doc` filters `%`-prefixed keys, and says why in a comment
@@ -3429,10 +3429,10 @@ The value an `@"file"` expression produces directly — `$.doc` for
 `doc: @"./doc.md"` — is stamped differently:
 
 ```
-$ aontu why '$.doc' inc.aon        # TypeScript
+$ aontu why '$.doc' inc.aontu        # TypeScript
 $.doc = {"k":1}
-  1. {"k":1}  inc.aon:1:6
-$ aontu why '$.doc' inc.aon        # Go
+  1. {"k":1}  inc.aontu:1:6
+$ aontu why '$.doc' inc.aontu        # Go
 $.doc = {"k":1}
   1. {"k":1}
 ```
@@ -3441,7 +3441,7 @@ TypeScript names the `@` expression where it was written, in the
 including file, with `src: "@"` and real coordinates. Go names the
 included file by its FULL path, with `row`, `col` and `len` all `-1`
 and an empty `src`. Every value BELOW the root agrees exactly — a
-nested key reports `lib.aon:2:6` in both — so the divergence is one
+nested key reports `lib.aontu:2:6` in both — so the divergence is one
 value deep, and it is the whole value for a text or data include,
 where the included document has no interior of its own.
 
@@ -3489,10 +3489,10 @@ a: b: { c:d:e:$.a.b.f f:{ &: { n:key() } x:{} } }
 ```
 
 ```
-$ aontu-go merged.aon
+$ aontu-go merged.aontu
 {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
 
-$ aontu merged.aon
+$ aontu merged.aontu
 {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"n"}}}}}
 ```
 
@@ -3506,7 +3506,7 @@ that reaches it reaches the bag by another path, and the mark does not
 hold there.
 
 Effect on the formatter: `aontu fmt` keeps the split spelling of
-`repros/key-func/spread-key-through-deep-ref.aon` in TypeScript and
+`repros/key-func/spread-key-through-deep-ref.aontu` in TypeScript and
 writes the merged one in Go -- the one file in the repository the two
 ports format differently, and by design of the check: the formatter
 never writes a spelling its engine evaluates differently. Pinned in
@@ -3515,7 +3515,7 @@ never writes a spelling its engine evaluates differently. Pinned in
 entry when it is fixed.
 
 Repro:
-[`repros/key-func/spread-key-through-deep-ref-merged.aon`](repros/key-func/spread-key-through-deep-ref-merged.aon).
+[`repros/key-func/spread-key-through-deep-ref-merged.aontu`](repros/key-func/spread-key-through-deep-ref-merged.aontu).
 
 ### 77. A key written in a second statement is an expectation, so its residue names a spread that exists nowhere [major]
 
@@ -3531,7 +3531,7 @@ S: b: integer
 
 ```
 $ printf '{"a": "x"}' > cand.json
-$ aontu vet --at '$.S' --closed schema.aon cand.json
+$ aontu vet --at '$.S' --closed schema.aontu cand.json
 $.S.b: mapval_spread_required [incomplete]
   [aontu/mapval_spread_required]: Cannot unify values at path $.S.b
   The value for key b is required (defined in spread).
@@ -3560,14 +3560,14 @@ The same wrap has a generation face. `r: { t: must(1, "m") }` /
 `r: { t: must(1, "m"), a: bigdecimal }` refuses at `$.r.t` with
 `mapval_no_gen`; and `jsonschema --at r` exports `a` as `{}` with an
 "unresolved" loss in the first spelling and as `{"type": "number"}` in
-the second (`use-cases/14-jsonschema-export/residue.aon` is the case
+the second (`use-cases/14-jsonschema-export/residue.aontu` is the case
 that found it).
 
 Effect on the formatter: its check of a rewrite compares the outcome of
 generation as well as the meet since this was found, so
-`residue.aon`'s `report` keeps its braces. A schema that only fails
+`residue.aontu`'s `report` keeps its braces. A schema that only fails
 under `vet` with a candidate is invisible to the check, so
-`08-feature-flags/flag-schema.aon`'s `Flag` is written as statements
+`08-feature-flags/flag-schema.aontu`'s `Flag` is written as statements
 and its check pins `mapval_spread_required` with this entry's number;
 the pin flips back when the wrap learns where the peer came from.
 
@@ -3577,8 +3577,8 @@ spread knows it is one -- and keep the spread-required code for the
 template's keys.
 
 Repros:
-[`repros/statement-meet/required-key-through-statement.aon`](repros/statement-meet/required-key-through-statement.aon),
-[`repros/statement-meet/kind-through-statement.aon`](repros/statement-meet/kind-through-statement.aon).
+[`repros/statement-meet/required-key-through-statement.aontu`](repros/statement-meet/required-key-through-statement.aontu),
+[`repros/statement-meet/kind-through-statement.aontu`](repros/statement-meet/kind-through-statement.aontu).
 
 ### 78. A spread template written as a statement of its own is invisible to `trim` [major]
 
@@ -3593,7 +3593,7 @@ services: billing: replicas: 1
 ```
 
 ```
-$ aontu trim --check services.aon
+$ aontu trim --check services.aontu
 verdict: clean
 ```
 
@@ -3620,14 +3620,14 @@ the fence goes back into the form when the wrap learns where the
 peer came from.
 
 Repro:
-[`repros/statement-meet/trim-through-statement.aon`](repros/statement-meet/trim-through-statement.aon).
+[`repros/statement-meet/trim-through-statement.aontu`](repros/statement-meet/trim-through-statement.aontu).
 
 ### 80. A refusal deep in an alias-of-disjunction vocabulary reports `|:trial-nil` in TypeScript and `empty` in Go [major]
 
 Found 2026-09-05 while pinning `@"aontu:code"` (RENDER.0.md P1). An
 ADR-001 divergence in the CODE of a refusal both ports agree on.
 
-```aon
+```aontu
 @"aontu:code"
 aontu: Code: units: [{ path: "a", lang: "text", decls: [{ k: "alias", name: "T",
   type: { k: "list", n: { k: "list", n: { k: "prim", prim: "int" } } } }] }]
@@ -3682,7 +3682,7 @@ can never carry one.
 
 Found 2026-09-06.
 
-```aon
+```aontu
 %json = null | boolean | number | string | [&: %json] | {&: %json}
 payload: %json
 payload: { user: { id: 1, tags: [admin, [nested, true]] } }
@@ -3740,30 +3740,30 @@ alias reaches a nested call's argument in every other case probed
 `{x: emit($.s, %w)}`), so the miss is specific to a placeheld `emit`
 alias under a call. Consequence: a column list that is `join`ed from an
 `emit` inside a `raw` piece has to spell its table inline
-(`use-cases/15-code-generation/gen-sql.aon`). Repro:
-`repros/emit/named-table-inside-a-call.aon`. Fix: drive the alias's
+(`use-cases/15-code-generation/gen-sql.aontu`). Repro:
+`repros/emit/named-table-inside-a-call.aontu`. Fix: drive the alias's
 placeheld call where the nested `emit` is met, as the direct and
 body-element cases already are.
 
 ### 85. A document included as a value cannot be referenced into when it declares an alias [major]
 
 Found 2026-09-06 while assembling three generators into one
-`aontu:code` instance. `g: @"./file.aon"` includes a document as the
+`aontu:code` instance. `g: @"./file.aontu"` includes a document as the
 value of `g`; a path into it (`z: $.g.code.units.0`) resolves when the
 file declares no alias and is `no_path` when it does, in both ports.
 An alias declaration is a key of the document that holds it, so under
 a value include `%x = 1` becomes `$.g.%x`, while the file's own `%x`
 references still look for `$.%x` at the including root, which is not
 there; the subtree does not stand up and every path into it misses.
-The same file included at the root (`@"./file.aon"`) works, because
+The same file included at the root (`@"./file.aontu"`) works, because
 the declaration and the references then agree on the root -- which is
 also why two files that declare the same alias name cannot both be
 included: their declarations meet at `$.%x` (`scalar_value` for two
 literals). Consequence: an instance assembled from several generator
 files includes them at the root and gives their aliases distinct
-names (`use-cases/15-code-generation/all.aon`). Repro:
-`repros/includes/value-include-declares-alias.aon`, with
-`value-include-plain.aon` as the working twin. Fix: resolve an alias
+names (`use-cases/15-code-generation/all.aontu`). Repro:
+`repros/includes/value-include-declares-alias.aontu`, with
+`value-include-plain.aontu` as the working twin. Fix: resolve an alias
 reference against the document that declared it, not the including
 root -- an alias is lexically scoped to its file in every other sense.
 
@@ -3771,7 +3771,7 @@ root -- an alias is lexically scoped to its file in every other sense.
 
 Found 2026-09-06 while landing the renderer's declaration lowering
 (RENDER.0.md P5), whose acceptance walks
-`use-cases/10-data-model/domain.aon` into `aontu:code` records. Two
+`use-cases/10-data-model/domain.aontu` into `aontu:code` records. Two
 consequences of the membership rule (RENDER P2, `bagMembers` in
 `ts/src/val/members.ts` and `go/members.go`) meet a schema walk. First,
 `pack($.schema, …)` over the schema's `type()`-marked records yields
@@ -3783,13 +3783,13 @@ transform: an optional key whose value generates nothing -- `email?:
 string & re(…)` in a schema, every optional field of every record --
 is not a member either, so `pick(pack(_, …), f)` over a record's
 fields never sees `email` or `creditLimitCents`, and the rendered
-interface lacks them. Both ports agree (`xf-domain.aon` renders the
+interface lacks them. Both ports agree (`xf-domain.aontu` renders the
 same 492 bytes from each). The rule is right for data, where an
 unfilled optional is absent by definition, and wrong for a schema
 walk, where the key IS the fact. ADR-023's answer -- a transform
 states its schema facts as data -- covers optionality only for keys
 the walk can reach, and these it cannot. Repro:
-`repros/hide/optional-schema-key-is-not-a-member.aon`. Fix, if one is
+`repros/hide/optional-schema-key-is-not-a-member.aontu`. Fix, if one is
 wanted: a marked bag lifts its optional keys as it lifts its marked
 children, so `pack(type($.schema), …)` sees `email?` as a member whose
 value is the schema's own -- the walk would then need a way to ask
@@ -3824,7 +3824,7 @@ declaration -- the `render` mode's expectation keeps every site's
 `value` -- so P5's rows reach the lowering through instances the
 vocabulary admits, and the refusals stay pinned in `aontu-code.tsv` as
 `errc` rows, which carry no site text. Repro:
-`repros/site-attribution/nested-alias-site-value.aon`. Fix: one rule
+`repros/site-attribution/nested-alias-site-value.aontu`. Fix: one rule
 for the text of a schema site that holds alias references; Go's, the
 name, is the shorter and the one a reader can follow into the
 vocabulary.
@@ -3880,7 +3880,7 @@ nothing about it looks broken. The model now answers `fk` on every
 field as well as `pk`. Two generators written a day apart, the same
 defect, and neither reported anything: that is the measure of it.
 
-Repro: `repros/emit-match/missing-key-matches.aon`.
+Repro: `repros/emit-match/missing-key-matches.aontu`.
 
 **Fixed.** The stated fix was half right. Both already went through
 `trialUnify`; what differed was what they asked of the RESULT. `filter`
@@ -3938,7 +3938,7 @@ clean.
 Consequence: an enclosing node's values reach a nested selection only
 by being ON the nodes selected, so `rb-solar` states an entity's
 indexes under the entity rather than filtering a shared list. Repro:
-`repros/emit-arg/relative-in-call-argument.aon`. Fix: bind relative
+`repros/emit-arg/relative-in-call-argument.aontu`. Fix: bind relative
 references in a call's arguments as they are bound in the body that
 holds the call — the binding walk stops at a nested generator's
 binding argument (EMIT.0.md D5) and should not stop at an ordinary
@@ -3979,7 +3979,7 @@ ARGUMENTS. So all three elements held the one `close()` argument map,
 each rebased its path as it resolved, and the constraint inside
 carried whichever element had touched it first (TypeScript, whose
 resolution set the path once) or last (Go). Repro:
-`repros/site-attribution/refarg-list-index.aon`.
+`repros/site-attribution/refarg-list-index.aontu`.
 
 Status: FIXED 2026-09-07 (ADR-025) — a reference's copy owns its
 arguments, unless the target holds a STAGED call, which has not
@@ -4005,7 +4005,7 @@ to a match, the document is consumed selecting the arm and then never
 checked against it. TypeScript never reached the rule here, because
 `MatchFuncVal.unify` gates on its driven arguments alone; the two
 ports therefore disagreed, one of them unsoundly. Repro:
-`repros/vet-soundness/match-hole-scrutinee.aon`.
+`repros/vet-soundness/match-hole-scrutinee.aontu`.
 
 Status: FIXED 2026-09-07 — a match does not fire on an unfilled hole
 in either port: the call residuates and the run says
@@ -4052,7 +4052,7 @@ entirely. What ADR-037 changed is how visible the shape is: a written
 head concatenated onto a generated tail is now the way to write a
 generated section, and `{k:"frag", n:["head"] + emit(…)}` under
 `aontu:code`'s schema is exactly this refusal. Repro:
-`repros/op-template/staged-op-under-a-key.aon`.
+`repros/op-template/staged-op-under-a-key.aontu`.
 
 Status: FIXED 2026-09-11 — an op now DRIVES the meet while an operand
 has not decided, at a key inside a map as well as in a conjunct, which
@@ -4077,7 +4077,7 @@ x: 1
 TypeScript answered `{"j":1,"x":1}`; Go answered `{"x":1}`, with no
 error and no finding. A KEYED include of the same file
 (`y: @"./d.json"`) was correct in both, and so was a root include of an
-`.aon` file — which is why the shared suite, whose data-include rows
+`.aontu` file — which is why the shared suite, whose data-include rows
 are all keyed, did not catch it. Silent wrong output from a document
 that reads clean in the canonical port.
 
@@ -4088,7 +4088,7 @@ grandparent map only when the loaded value is MAP-SHAPED (an
 the merge no-oped and the whole include went. A keyed include never
 reaches that merge — the value is the pair's value — which is exactly
 why that half worked. Repro:
-`repros/includes-root/root-data-include-dropped.aon`.
+`repros/includes-root/root-data-include-dropped.aontu`.
 
 Status: FIXED 2026-09-11 — `dataProcessor` hands the map back as a
 parse NODE the merge can read, carrying the same stamped child `Val`s,
@@ -4134,7 +4134,7 @@ A key a SCHEMA declares is a different case and is not this defect:
 `x:{a:string, b:string}` against `x:{a:"p", b:maybe($.gone)}` is
 `mapval_no_gen`, exactly as supplying no `b` at all would be — the
 document declines to supply a key the schema requires.
-Repro: `repros/absence-schema/absent-under-a-spread.aon`.
+Repro: `repros/absence-schema/absent-under-a-spread.aontu`.
 
 **The disjunction case is also a parity break**, which this entry
 previously recorded as agreeing. The two ports answer from different
@@ -4202,11 +4202,11 @@ annotation on the artifact:
 
 ```
 mod.aon    mod: {path: "corp.example/broken", version: "1.0.0"}
-main.aon   a: 1
+main.aontu   a: 1
            a: 2
 ```
 
-`aontu main.aon` refuses this with `scalar_value`, and `mod tidy`
+`aontu main.aontu` refuses this with `scalar_value`, and `mod tidy`
 already refuses to pin a dependency that does not evaluate — the verb
 that MINTS the pin was the one that did not check. The hash was not a
 constant: it varied with the broken content, so it looked like a

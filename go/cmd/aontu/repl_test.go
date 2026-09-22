@@ -16,7 +16,7 @@ const replDoc = "services: {\n  &: { replicas: *1 | integer }\n" +
 	"  auth: { replicas: 3 }\n}"
 
 func replRead(f string) (string, error) {
-	if "missing.aon" == f {
+	if "missing.aontu" == f {
 		return "", errors.New("no such file")
 	}
 	return replDoc, nil
@@ -39,7 +39,7 @@ func TestReplLoadsADocumentAndAnswersAboutIt(t *testing.T) {
 		t.Fatal("expected nothing-loaded refusal")
 	}
 
-	if out := run(":load sys.aon").Out; !strings.HasPrefix(out, "loaded: sys.aon") {
+	if out := run(":load sys.aontu").Out; !strings.HasPrefix(out, "loaded: sys.aontu") {
 		t.Fatalf("load: %q", out)
 	}
 	if out := run(":keys $.services").Out; "auth" != out {
@@ -79,7 +79,7 @@ func TestReplLoadsADocumentAndAnswersAboutIt(t *testing.T) {
 	if out := run(":load").Out; !strings.Contains(out, "needs a file") {
 		t.Fatalf("bare load: %q", out)
 	}
-	if out := run(":load missing.aon").Out; !strings.Contains(out, "cannot read") {
+	if out := run(":load missing.aontu").Out; !strings.Contains(out, "cannot read") {
 		t.Fatalf("missing file: %q", out)
 	}
 	if out := run("a:1").Out; `{"a":1}` != out {
@@ -98,7 +98,7 @@ func TestReplLoadsADocumentAndAnswersAboutIt(t *testing.T) {
 // is held: the session keeps whatever it had.
 func TestReplLoadRefusesABrokenDocument(t *testing.T) {
 	state := replState{Mode: "json"}
-	res := replCommand(state, ":load broken.aon",
+	res := replCommand(state, ":load broken.aontu",
 		func(string) (string, error) { return "a:1 a:2", nil })
 	if res.State.Loaded || !strings.Contains(res.Out, "Cannot unify") {
 		t.Fatalf("bad refusal: %+v", res)
@@ -118,7 +118,7 @@ func TestReplLoopDrivesTheHandler(t *testing.T) {
 	// A :load through the LOOP, which reads a real file: the handler's
 	// reader is injected, and this is where the real one is wired.
 	dir := t.TempDir()
-	doc := filepath.Join(dir, "doc.aon")
+	doc := filepath.Join(dir, "doc.aontu")
 	writeAt(t, doc, "a: 1")
 	out.Reset()
 	repl("json", false, trustArg{}, strings.NewReader(":load "+doc+"\n:get $.a\n"), &out)
@@ -152,8 +152,8 @@ func TestReplJSONLAnswersInOneLine(t *testing.T) {
 		}
 		return out
 	}
-	first := run(":load doc.aon")
-	if true != first["ok"] || "loaded: doc.aon\n{\n  \"a\": 1\n}" != first["out"] {
+	first := run(":load doc.aontu")
+	if true != first["ok"] || "loaded: doc.aontu\n{\n  \"a\": 1\n}" != first["out"] {
 		t.Fatalf("load: %v", first)
 	}
 	if keys := run(":keys"); "a" != keys["out"] {

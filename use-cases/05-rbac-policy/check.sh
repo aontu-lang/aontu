@@ -37,10 +37,10 @@ hasnt() {
 # ---------------------------------------------------------------- model
 # 1. The whole model evaluates: catalog + closed role registry +
 # concrete tenant, with limits_supportTier derived by match().
-run eval 0 -- "$DIR/example.aon"
+run eval 0 -- "$DIR/example.aontu"
 diff -u "$DIR/expected/example.json" "$WORK/eval.out" \
-  || fail "example.aon output drifted from expected/example.json"
-ok "example.aon evaluates to the expected policy document"
+  || fail "example.aontu output drifted from expected/example.json"
+ok "example.aontu evaluates to the expected policy document"
 
 # 2. Canonical form keeps the policy's meaning: the ADDRESSES, the
 # preserved default, and the refer() foreign-key constraints.
@@ -50,7 +50,7 @@ ok "example.aon evaluates to the expected policy document"
 # written with. The assertion moved with the mechanism rather than
 # being dropped -- if `path($.permissions.admin_all)` stopped surviving canon,
 # a round-tripped policy would grant nothing.
-run canon 0 -- --canon "$DIR/example.aon"
+run canon 0 -- --canon "$DIR/example.aontu"
 has canon out 'path($.permissions.admin_all)'
 has canon out '*"member"|"member"|"admin"|"owner"'
 has canon out 'refer()'
@@ -58,39 +58,39 @@ ok "canon keeps the grant addresses, the * default and refer()"
 
 # ------------------------------------------------- vetting candidates
 # 3. A well-formed candidate is valid, with no warnings.
-run good 0 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-good.aon"
+run good 0 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-good.aontu"
 has good out 'verdict: valid'
 hasnt good out 'pref_not_instance'
 ok "vet: good tenant is valid and warning-free"
 
 # 4. Conditional shape: a free-plan tenant enabling SSO fails the
 # entitlement disjunction of closed maps.
-run sso 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-free-sso.aon"
+run sso 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-free-sso.aontu"
 has sso out 'verdict: invalid'
 has sso out '[aontu/empty]'
 has sso out '$.tenant.entitlement'
 ok "vet: free plan + sso refused by the closed-map disjunction"
 
 # 5. Foreign key: a member holding an undeclared role.
-run role 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.aon"
+run role 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-unknown-role.aontu"
 has role out '[aontu/refer_unresolved]'
 ok "vet: unknown role name is a refer_unresolved error"
 
 # 6. Constraint atoms: a reserved slug dies on neq()/re().
-run slug 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-bad-slug.aon"
+run slug 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-bad-slug.aontu"
 has slug out '[aontu/constraint]'
 has slug out 'neq("admin"'
 ok "vet: reserved slug refused by neq()+re()"
 
 # 7. Structural implication: no MFA + long sessions fails the
 # security disjunction (the must() form is a silent no-op here).
-run mfa 1 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-mfa.aon"
+run mfa 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-no-mfa.aontu"
 has mfa out 'verdict: invalid'
 has mfa out '$.tenant.security'
 ok "vet: no-MFA long-session tenant refused structurally"
 
 # 8. Missing required kind-typed field -> incomplete (exit 3).
-run noname 3 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-name.aon"
+run noname 3 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-no-name.aontu"
 has noname out 'verdict: incomplete'
 has noname out '[aontu/mapval_no_gen]'
 ok "vet: missing name reported incomplete (exit 3)"
@@ -111,20 +111,20 @@ ok "vet: missing name reported incomplete (exit 3)"
 # restore left own properties shadowing the ancestor and a later trial
 # became invisible to the values running inside it. Go always answered
 # `incomplete` here and was right to.
-run noplan 3 -- vet "$DIR/tenant.aon" "$DIR/data/tenant-no-plan.aon"
+run noplan 3 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-no-plan.aontu"
 has noplan out 'verdict: incomplete'
 has noplan out '$.tenant.plan: disjunct_no_gen [incomplete]'
 ok "vet: tenant without a plan is incomplete (disjunct_no_gen, exit 3)"
 
 # 10. Machine-readable findings carry the same codes.
-run json 1 -- vet --format json "$DIR/tenant.aon" "$DIR/data/tenant-unknown-role.aon"
+run json 1 -- vet --format json "$DIR/tenant.aontu" "$DIR/data/tenant-unknown-role.aontu"
 has json out '"code": "refer_unresolved"'
 has json out '"verdict": "invalid"'
 ok "vet --format json carries the registered error codes"
 
 # ------------------------------------------------ registry proposals
 # 11. The role set is exhaustive: adding a role is a closed error.
-run superuser 1 -- --include-root "$DIR" "$DIR/proposals/add-superuser-role.aon"
+run superuser 1 -- --include-root "$DIR" "$DIR/proposals/add-superuser-role.aontu"
 has superuser err '[aontu/closed]'
 has superuser err '$.roles.superuser'
 ok "proposal: new role refused by close() (exhaustive role set)"
@@ -137,38 +137,38 @@ ok "proposal: new role refused by close() (exhaustive role set)"
 # for. Addresses being paths took the identity merge out of the picture
 # and the real finding now arrives at its own position --
 # `$.roles.member.grants.3`, the element the agent invented.
-run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aon"
+run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aontu"
 has halluc err '[aontu/refer_unresolved]'
 has halluc err '$.roles.member.grants.3'
 ok "proposal: unknown permission still refused (diagnostic: see note)"
 
 # 13. The wildcard rule: an unprivileged role granted admin_all dies
 # on the neq() carried by the unprivileged branch's list spread.
-run wildcard 1 -- --include-root "$DIR" "$DIR/proposals/member-wildcard.aon"
+run wildcard 1 -- --include-root "$DIR" "$DIR/proposals/member-wildcard.aontu"
 has wildcard err '[aontu/constraint]'
 has wildcard err '$.roles.member.grants.3'
 ok "proposal: member+admin_all refused by the conditional role shape"
 
 # --------------------------------------------- same-layer invariants
 # 14. The audit composition holds when the data is clean.
-run audit 0 -- --include-root "$DIR" "$DIR/audits/good.aon"
+run audit 0 -- --include-root "$DIR" "$DIR/audits/good.aontu"
 ok "audit: filter+length and must() invariants pass on good data"
 
 # 15. Exactly-one-owner: two owner members refused by filter+length.
-run owners 1 -- --include-root "$DIR" "$DIR/audits/two-owners.aon"
+run owners 1 -- --include-root "$DIR" "$DIR/audits/two-owners.aontu"
 has owners err '[aontu/constraint]'
 has owners err '$.audit.exactly_one_owner'
 ok "audit: two owners refused by length(1)&filter(...)"
 
 # 16. must() fires same-layer, reporting the author's message.
-run must 1 -- --include-root "$DIR" "$DIR/audits/no-mfa.aon"
+run must 1 -- --include-root "$DIR" "$DIR/audits/no-mfa.aontu"
 has must err '[aontu/must]'
 has must err "The author's message is: corporate policy CP-114: MFA is mandatory for every tenant"
 ok "audit: must() failure carries the author message"
 
 # 17. The registry invariant genuinely fires (and hide() does not
 # suppress it): a two-owner registry is refused.
-run reg2 1 -- "$DIR/exhibits/registry-two-owners.aon"
+run reg2 1 -- "$DIR/exhibits/registry-two-owners.aontu"
 has reg2 err '[aontu/constraint]'
 has reg2 err '$.registry_invariant.one_owner_role'
 ok "registry: hidden filter+length invariant fires same-layer"
@@ -181,7 +181,7 @@ ok "registry: hidden filter+length invariant fires same-layer"
 # 18. *member|admin|owner refuses "superadmin" (no alternative admits
 # it) and still warns pref_not_instance (the advisory: the default is
 # a member only by being the default).
-run naive 1 -- vet "$DIR/exhibits/enum-default-naive.aon" "$DIR/data/invite-superadmin.json"
+run naive 1 -- vet "$DIR/exhibits/enum-default-naive.aontu" "$DIR/data/invite-superadmin.json"
 has naive out 'verdict: invalid'
 has naive out '[aontu/empty]'
 has naive out 'pref_not_instance'
@@ -189,69 +189,69 @@ ok "fixed: *member|admin|owner refuses superadmin, warns pref_not_instance"
 
 # 19. The repeated branch silences the warning AND (post-gate) keeps
 # exactly the same enforcement.
-run repeated 1 -- vet "$DIR/exhibits/enum-default-repeated.aon" "$DIR/data/invite-superadmin.json"
+run repeated 1 -- vet "$DIR/exhibits/enum-default-repeated.aontu" "$DIR/data/invite-superadmin.json"
 has repeated out 'verdict: invalid'
 has repeated out '[aontu/empty]'
 hasnt repeated out 'pref_not_instance'
 ok "fixed: repeated branch silences the warning and still enforces"
 
 # 20. The repeated form still generates its default.
-run repgen 0 -- "$DIR/exhibits/enum-default-repeated.aon"
+run repgen 0 -- "$DIR/exhibits/enum-default-repeated.aontu"
 has repgen out '"role": "member"'
 ok "repeated form generates the default (member)"
 
 # 21. The plain enum enforces (empty on superadmin)...
-run plain 1 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-superadmin.json"
+run plain 1 -- vet "$DIR/exhibits/enum-default-plain.aontu" "$DIR/data/invite-superadmin.json"
 has plain out 'verdict: invalid'
 has plain out '[aontu/empty]'
-run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aon" "$DIR/data/invite-member.aon"
+run plainok 0 -- vet "$DIR/exhibits/enum-default-plain.aontu" "$DIR/data/invite-member.aontu"
 # ...but no longer evaluates on its own: enforcement costs the default.
 # 2026-08-27 (ADR-007): the refusal is now `disjunct_no_gen`, class
 # incomplete -- "more than one alternative still admitted" -- rather
 # than a scalar_value CONFLICT between the enum's own branches, which
 # is what folding them together used to report.
-run plaingen 1 -- "$DIR/exhibits/enum-default-plain.aon"
+run plaingen 1 -- "$DIR/exhibits/enum-default-plain.aontu"
 has plaingen err '[aontu/disjunct_no_gen]'
 ok "plain enum enforces, but cannot generate a default"
 
 # 22. The must()-guarded form enforces under vet but the conjunct
 # kills the default: standalone evaluation fails (G1 phase-1 limit).
-run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aon" "$DIR/data/invite-superadmin.json"
+run guarded 1 -- vet "$DIR/exhibits/enum-default-guarded.aontu" "$DIR/data/invite-superadmin.json"
 has guarded out 'verdict: invalid'
-run guardgen 0 -- "$DIR/exhibits/enum-default-guarded.aon"
+run guardgen 0 -- "$DIR/exhibits/enum-default-guarded.aontu"
 has guardgen out '"role": "member"'
 ok "FIXED (ADR-011): pref & must() enforces AND keeps the default"
 
 # 23. Ranked preferences: * (team) outweighs ** (org baseline).
-run rank 0 -- "$DIR/exhibits/rank-default.aon"
+run rank 0 -- "$DIR/exhibits/rank-default.aontu"
 has rank out '"defaultRole": "member"'
 ok "ranked defaults: *member beats **viewer"
 
 # ------------------------------------------------------------ queries
 # 24. get: the derived per-plan limits.
-run limits 0 -- model get '$.tenant.limits' "$DIR/example.aon"
+run limits 0 -- model get '$.tenant.limits' "$DIR/example.aontu"
 diff -u "$DIR/expected/limits.json" "$WORK/limits.out" \
   || fail "get \$.tenant.limits drifted from expected/limits.json"
 ok "get: match()-derived limits for the free plan"
 
 # 25. why: provenance of the derived support tier names the match().
-run why 0 -- model why '$.tenant.supportTier' "$DIR/example.aon"
+run why 0 -- model why '$.tenant.supportTier' "$DIR/example.aontu"
 has why out '$.tenant.supportTier = "community"'
 has why out 'match(.plan'
-ok "why: supportTier provenance points at the match() in tenant.aon"
+ok "why: supportTier provenance points at the match() in tenant.aontu"
 
 # 26. Permission-subset via subsume over set-as-map projections.
-run subset 0 -- subsume "$DIR/queries/core-read.aon" "$DIR/queries/auditor-grants.aon"
+run subset 0 -- subsume "$DIR/queries/core-read.aontu" "$DIR/queries/auditor-grants.aontu"
 has subset out 'verdict: subsumes'
-run superset 1 -- subsume "$DIR/queries/auditor-grants.aon" "$DIR/queries/core-read.aon"
+run superset 1 -- subsume "$DIR/queries/auditor-grants.aontu" "$DIR/queries/core-read.aontu"
 has superset out 'compat_required_added'
 ok "subsume answers grant-subset over set-as-map projections"
 
 # 27. OBSERVED GAP: the same grants as LISTS are order-sensitive --
 # the identical set reordered does not subsume.
-printf 'g: ["project_read", "member_read"]\n' > "$WORK/la.aon"
-printf 'g: ["member_read", "project_read"]\n' > "$WORK/lb.aon"
-run listorder 1 -- subsume "$WORK/la.aon" "$WORK/lb.aon"
+printf 'g: ["project_read", "member_read"]\n' > "$WORK/la.aontu"
+printf 'g: ["member_read", "project_read"]\n' > "$WORK/lb.aontu"
+run listorder 1 -- subsume "$WORK/la.aontu" "$WORK/lb.aontu"
 has listorder out 'does_not_subsume'
 ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"
 
@@ -261,17 +261,17 @@ ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"
 # template's empty container. A lower bound violated is provisional --
 # more members may still arrive -- so the atom now residuates and the
 # schema is usable (the review's finding C, BUGS.md sec 16).
-printf 'x: length(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aon"
+printf 'x: length(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aontu"
 printf '{"x":{"a":{"r":1}}}\n' > "$WORK/g1.json"
-run lenmin 0 -- vet "$WORK/g1.aon" "$WORK/g1.json"
+run lenmin 0 -- vet "$WORK/g1.aontu" "$WORK/g1.json"
 has lenmin out 'verdict: valid'
 ok "CLOSED: length(min)+spread schema is usable, and the data satisfies it"
 
 # 29. ...and a satisfied-at-schema-time max no longer VANISHES: it
 # stays on the value until generation, so it counts the data.
-printf 'x: length(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aon"
+printf 'x: length(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aontu"
 printf '{"x":{"a":{"r":1},"b":{"r":2},"c":{"r":3}}}\n' > "$WORK/g2.json"
-run lenmax 1 -- vet "$WORK/g2.aon" "$WORK/g2.json"
+run lenmax 1 -- vet "$WORK/g2.aontu" "$WORK/g2.json"
 has lenmax out 'verdict: invalid'
 has lenmax out '$.x'
 ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
@@ -290,27 +290,27 @@ ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
 # alternative admits this data -- while an evaluation answers with the
 # conflict that emptied it, `scalar_value` at the plan the two arms
 # disagree about. The check read `empty` for both only because the old
-# TypeScript include path made `@"./g3.aon"` mean something the same
+# TypeScript include path made `@"./g3.aontu"` mean something the same
 # bytes inlined did not; with an include unifying in place, the
 # composed document and its inlining refuse identically, in both
 # ports, and that equivalence is what the third assertion below now
 # pins.
-printf 'Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )\nt: { p: string, e: $.Ent & { plan: $.t.p } }\n' > "$WORK/g3.aon"
+printf 'Ent: type( close({ plan: "free", sso: false }) | close({ plan: "pro", sso: boolean }) )\nt: { p: string, e: $.Ent & { plan: $.t.p } }\n' > "$WORK/g3.aontu"
 printf '{"t":{"p":"free","e":{"sso":true}}}\n' > "$WORK/g3.json"
-run stale 1 -- vet "$WORK/g3.aon" "$WORK/g3.json"
+run stale 1 -- vet "$WORK/g3.aontu" "$WORK/g3.json"
 has stale out 'verdict: invalid'
 has stale out '[aontu/empty]'
 # The identical composition as one evaluation refuses too, naming the
 # conflict rather than the exhausted disjunction:
-printf '@"./g3.aon"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aon"
-run staleeval 1 -- "$WORK/g3e.aon"
+printf '@"./g3.aontu"\nt: { p: "free", e: { sso: true } }\n' > "$WORK/g3e.aontu"
+run staleeval 1 -- "$WORK/g3e.aontu"
 has staleeval err '[aontu/scalar_value]'
 has staleeval err '$.t.e.plan'
 # AND THE INCLUDE IS ITS OWN INLINING: the same three statements with
 # no `@` at all refuse the same way.
-cat "$WORK/g3.aon" > "$WORK/g3i.aon"
-printf 't: { p: "free", e: { sso: true } }\n' >> "$WORK/g3i.aon"
-run staleinline 1 -- "$WORK/g3i.aon"
+cat "$WORK/g3.aontu" > "$WORK/g3i.aontu"
+printf 't: { p: "free", e: { sso: true } }\n' >> "$WORK/g3i.aontu"
+run staleinline 1 -- "$WORK/g3i.aontu"
 has staleinline err '[aontu/scalar_value]'
 has staleinline err '$.t.e.plan'
 ok "vet catches what eval catches when a branch hangs on a reference"
@@ -322,13 +322,13 @@ ok "vet catches what eval catches when a branch hangs on a reference"
 # data arrived. A must over a container residuates with the sizing
 # atoms now, and is decided at generation. Both spellings refuse, with
 # the same code, which is the vet-equals-eval invariant.
-printf 's: {t: integer} & must({t: max(60)}, "session too long")\n' > "$WORK/g4.aon"
+printf 's: {t: integer} & must({t: max(60)}, "session too long")\n' > "$WORK/g4.aontu"
 printf '{"s":{"t":120}}\n' > "$WORK/g4.json"
-run mustvet 1 -- vet "$WORK/g4.aon" "$WORK/g4.json"
+run mustvet 1 -- vet "$WORK/g4.aontu" "$WORK/g4.json"
 has mustvet out 'verdict: invalid'
 has mustvet out 'session too long'
-printf 's: {t: integer} & must({t: max(60)}, "session too long")\ns: {t: 120}\n' > "$WORK/g5.aon"
-run mustsame 1 -- "$WORK/g5.aon"
+printf 's: {t: integer} & must({t: max(60)}, "session too long")\ns: {t: 120}\n' > "$WORK/g5.aontu"
+run mustsame 1 -- "$WORK/g5.aontu"
 has mustsame err '[aontu/must]'
 ok "CLOSED: must() vetoes both same-file and across vet, alike"
 
@@ -339,12 +339,12 @@ echo
 # `get --keys --types` does, and stops at a depth that says how many
 # keys it did not draw. The figure at the head of the README is this,
 # and `--check` is the gate that keeps it true.
-run doc 0 -- view doc --depth 2 "$DIR/example.aon"
+run doc 0 -- view doc --depth 2 "$DIR/example.aontu"
 diff -u "$DIR/expected/diagram-doc.txt" "$WORK/doc.out" \
   || fail "the model tree drifted"
 run docgate 0 -- view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/example.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/example.aontu"
 run docsvg 0 -- view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/example.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/example.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $pass checks passed"

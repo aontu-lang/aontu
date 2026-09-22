@@ -125,7 +125,7 @@ func runFmt(argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		mark, ok := fmtMarker(file, string(src), declared, said)
 		if !ok {
 			io.WriteString(stderr, "aontu: "+file+
-				" is not aontu source (.aon, .aontu) and carries no "+
+				" is not aontu source (.aontu) and carries no "+
 				aontu.MarkerFor(file)+" marker line, so there is no aontu in"+
 				" it to format; --marker names the marker for a language"+
 				" the table does not know, and --profile reads one that"+
@@ -143,7 +143,7 @@ func fmtMarker(file, src, marker string, marked bool) (string, bool) {
 	if marked {
 		return marker, true
 	}
-	if strings.HasSuffix(file, ".aon") || strings.HasSuffix(file, ".aontu") {
+	if strings.HasSuffix(file, ".aontu") || strings.HasSuffix(file, ".aontu") {
 		return "", true
 	}
 	mark := aontu.MarkerFor(file)

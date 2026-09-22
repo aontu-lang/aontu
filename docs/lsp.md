@@ -170,7 +170,7 @@ Ready-made plugins for **VS Code**, **Emacs** and **Vim/Neovim** live in
 Neovim and any other LSP client have moved to the
 [wire your editor](how-to/wire-your-editor.md) guide. The facts a client
 needs: command `aontu` with the argument `lsp`, transport stdio,
-document selector the `aontu` language (`.aon` is the preferred extension, `.aontu` also
+document selector the `aontu` language (`.aontu` is the preferred extension, `.aontu` also
 works, `.jsonic` is retired), and no configuration options.
 
 

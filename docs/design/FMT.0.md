@@ -46,7 +46,7 @@ probed against the tree at `a5efddc` (TypeScript 0.55.0 plus the two
 pull requests merged that morning). Every "the same document" claim
 carries the `aon1-` hash of both spellings, from `aontu hash`; two
 spellings with one hash are one document, and that is the whole
-argument. Corpus figures are over the 400 `.aon` files under
+argument. Corpus figures are over the 400 `.aontu` files under
 `use-cases/` and `test/spec/files/` plus the 266 `aon` fences in the
 published documentation — 8,508 lines. Claims about what the formatter
 *should* do are argument, and are marked as such.
@@ -545,7 +545,7 @@ content, or a parenthesis; breaks a line.
 
 ### 3.14 A generator is formatted as the document it carries
 
-A file whose extension is not `.aon` is a GENERATOR written in the
+A file whose extension is not `.aontu` is a GENERATOR written in the
 target's own syntax (docs/design/TEMPLATE.0.md), as it is for `render`:
 the marker lines carry aontu and every other line is output. `fmt`
 desugars it, formats the document, and resugars, so what comes back is a
@@ -623,7 +623,7 @@ lint rule is retired.
 
 ```
 aontu fmt [options] <file>...
-aontu fmt < in.aon > out.aon
+aontu fmt < in.aontu > out.aontu
 ```
 
 | option | does |
@@ -682,7 +682,7 @@ features: ["auth" "metrics"]
 limits: { rps:100 burst:200 }
 ```
 
-**The code-generation model.** `use-cases/15-code-generation/model.aon`
+**The code-generation model.** `use-cases/15-code-generation/model.aontu`
 today, one record of it:
 
 ```
@@ -718,7 +718,7 @@ records: [
 ```
 
 **A constrained map with comments.** From
-`use-cases/01-service-catalog/spec.aon`, the shape is already the form:
+`use-cases/01-service-catalog/spec.aontu`, the shape is already the form:
 an operand map is a braced block (§3.5), the comments inside it hold it
 open (§3.7), and the 83-column line stays (§3.1). The formatter would
 change nothing but the `# ...` comment indentation where it drifted.
@@ -810,7 +810,7 @@ non-adjacent repeat not merged, a number not rewritten.
 
 ### 7.5 The gates
 
-- **Idempotence over the corpus:** every `.aon` under `use-cases/` and
+- **Idempotence over the corpus:** every `.aontu` under `use-cases/` and
   `test/spec/files/`, and every `aon` fence in the documentation, is
   formatted twice and the second run changes nothing. In `docs.test.ts`
   for the fences, in a new `fmt.test.ts` for the files.
@@ -898,7 +898,7 @@ departs from the note. Each is pinned by a row of `fmt.tsv`.
   agree on the two fixtures that nest to 1200 maps and 1500 calls.
 - **The gates as landed:** 103 `fmt.tsv` rows under the three assertions
   of §7.4, and one `fmt-refuse` row (§9's last boundary item); every
-  `.aon` under `use-cases/` and `test/spec/files/` (400 files, 396
+  `.aontu` under `use-cases/` and `test/spec/files/` (400 files, 396
   formatted, the 4 that do not parse refused for their syntax) formats
   to a fixed point in BOTH ports, and every aontu fence in the
   documentation (263) does so in the canonical port, which is where
@@ -1098,7 +1098,7 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
 - **No formatting of what is not aontu.** A `.json`, `.yaml` or
   `.toml` include is another language's file. **ENFORCED 2026-09-06**,
   with RENDER.0.md P8: a file argument whose extension was neither
-  `.aon` nor `.aontu` was refused by name, exit 2. Until then the
+  `.aontu` nor `.aontu` was refused by name, exit 2. Until then the
   boundary was a sentence here and nothing in the code, and the surface
   that found it is the template one — a `#-` template PARSES as aontu,
   because `#` opens a comment, so `fmt` read a generator, discarded
@@ -1110,7 +1110,7 @@ for function, and `test/spec/fmt.tsv` is what they must agree on.
   would not go. §3.14 formats it through the template surface, which
   cannot discard an output line because the resugaring writes every one
   of them back. The boundary itself is unmoved, and now rests on
-  evidence rather than on a name: a file that is not `.aon` and carries
+  evidence rather than on a name: a file that is not `.aontu` and carries
   **no marker line** has no aontu in it to format, and is refused by
   name, exit 2. `.json`, `.yaml` and `.toml` data are refused exactly as
   before; a `.yaml` GENERATOR, which has `#-` lines, is not.

@@ -2,7 +2,7 @@
 
 Language support for [Aontu](../../README.md) (diagnostics, hover and
 completion) by launching the language server, `aontu lsp`, and connecting
-it to `.aon` and `.aontu` files.
+it to `.aontu` files.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ npm run compile
 ```
 
 Then press <kbd>F5</kbd> in VS Code (with this folder open) to launch an
-Extension Development Host, and open a `.aon` file.
+Extension Development Host, and open a `.aontu` file.
 
 ## Configuration
 

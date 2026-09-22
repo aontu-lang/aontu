@@ -671,8 +671,8 @@ func TestFrameFileDegenerate(t *testing.T) {
 
 	// And the ordinary case, for contrast: a file below the working
 	// directory keeps its relative spelling.
-	want := "a.aon"
+	want := "a.aontu"
 	if got := frameFile(cwd + string(os.PathSeparator) + want); want != got {
-		t.Fatalf("frameFile(cwd/a.aon) = %q, want %q", got, want)
+		t.Fatalf("frameFile(cwd/a.aontu) = %q, want %q", got, want)
 	}
 }

@@ -25,7 +25,7 @@ incident.
 
 ## The model tree
 
-`contract.aon` is the whole contract in one evaluation. `types` is the
+`contract.aontu` is the whole contract in one evaluation. `types` is the
 wire vocabulary every other branch draws on, `entities` the two records,
 `msg` the request and response bodies, `errors` the one envelope, and
 `api` the four endpoints. The four `api` children are the endpoints an
@@ -66,7 +66,7 @@ $
     └── Visibility "private"|"team"|"public"
 ```
 
-`aontu view doc --depth 2 contract.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 contract.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -76,19 +76,19 @@ than its value.
 
 | file | role | constructs |
 |---|---|---|
-| `types.aon` | shared wire vocabulary (`$.types.*`) | `hide()`, `re()`, `min`/`max`, `length()`, enum disjunctions |
-| `entities.aon` | `User`, `Project` | `close()`, optional `k?:`, refs |
-| `errors.aon` | the error envelope | nested `close()`, inline list-spread template |
-| `messages.aon` | request, query and page shapes: the vet anchors | `close()`, refs, `[ &: $.entities.User ]` |
-| `api.aon` | endpoint registry | `&:` spread as self-policing shape, `type()` marks, numeric status-code keys |
-| `contract.aon` | entry point | `@"file"` includes |
-| `user-page.aon` | the page body as a root-anchored, single-message schema | vetted without `--at` |
-| `evolution/tighten-page-size.aon` | a proposed v1.4 change: `page_size` capped at 50 | constraint meet (`max(100) & max(50)`) |
-| `bad/new-endpoint-method.aon` | a `method: FETCH` endpoint | the registry spread refusing it |
+| `types.aontu` | shared wire vocabulary (`$.types.*`) | `hide()`, `re()`, `min`/`max`, `length()`, enum disjunctions |
+| `entities.aontu` | `User`, `Project` | `close()`, optional `k?:`, refs |
+| `errors.aontu` | the error envelope | nested `close()`, inline list-spread template |
+| `messages.aontu` | request, query and page shapes: the vet anchors | `close()`, refs, `[ &: $.entities.User ]` |
+| `api.aontu` | endpoint registry | `&:` spread as self-policing shape, `type()` marks, numeric status-code keys |
+| `contract.aontu` | entry point | `@"file"` includes |
+| `user-page.aontu` | the page body as a root-anchored, single-message schema | vetted without `--at` |
+| `evolution/tighten-page-size.aontu` | a proposed v1.4 change: `page_size` capped at 50 | constraint meet (`max(100) & max(50)`) |
+| `bad/new-endpoint-method.aontu` | a `method: FETCH` endpoint | the registry spread refusing it |
 | `repair.py` | the mechanical half of the agent loop | consumes `vet --format json` |
 | `data/*.json` | agent-emitted candidates: request bodies, a query, and entity, page and envelope response bodies; one good, several wrong | |
 
-The vocabulary in `types.aon` is `hide()`-marked: it never appears in
+The vocabulary in `types.aontu` is `hide()`-marked: it never appears in
 generated output, and every other file references it. `re()` implies
 `string`, and where a pattern exists its quantifiers double as length
 bounds (`Slug` is 3 to 40 characters by its regex alone);
@@ -104,21 +104,21 @@ conflict and never a silently ignored extra (the
 `additionalProperties: false` of OpenAPI, in one call). The messages,
 entities and error envelope stay unmarked, and they hold enums no
 candidate has resolved, so the contract is a schema: `aontu
-contract.aon` refuses to generate, and the ways to read it are
+contract.aontu` refuses to generate, and the ways to read it are
 `--canon`, `hash`, `get '$.api'`, and `vet --at`.
 
-The registry in `api.aon` constrains itself. Its `&:` spread applies
+The registry in `api.aontu` constrains itself. Its `&:` spread applies
 one closed endpoint shape (method, `/v1/` path, summary length, auth)
 to every entry, so a malformed endpoint refuses to evaluate with no
 tooling beyond the contract. The schema-bearing fields are
 `type()`-marked: they unify, they serve as `vet --at` anchors, and
-they are omitted from generation, so `get '$.api' contract.aon` prints
+they are omitted from generation, so `get '$.api' contract.aontu` prints
 a concrete inventory in which each `responses` map is `{}`, and
 `get --keys` lists the status codes.
 
 `UserPage` is the list body, written once as
 `items: [ &: $.entities.User ]`: the spread template validates an
-array of any length, element by element. `user-page.aon` restates the
+array of any length, element by element. `user-page.aontu` restates the
 same four fields at the document root, so the page can also be vetted
 without `--at`.
 
@@ -136,10 +136,10 @@ both spellings.
 
 ## What check.sh proves
 
-1. `aontu contract.aon` does not generate: exit 1 with
+1. `aontu contract.aontu` does not generate: exit 1 with
    `[aontu/disjunct_no_gen]` at the first enum no candidate has
    resolved (the error envelope's `code`).
-2. `--canon contract.aon` matches `expected/contract.canon` byte for
+2. `--canon contract.aontu` matches `expected/contract.canon` byte for
    byte: the ground-truth serialization is stable and keeps every
    constraint.
 3. `get '$.api'` and `get '$.api.create_user'` match their goldens: a
@@ -148,12 +148,12 @@ both spellings.
 4. That inventory prints `"responses": {}`;
    `get '$.api.create_user.responses' --keys` lists the status codes
    `201`, `400`, `409`.
-5. `hash contract.aon` prints an `aon1-` pin, and
-   `agentsmd contract.aon` emits a `Ground truth:` stanza naming the
+5. `hash contract.aontu` prints an `aon1-` pin, and
+   `agentsmd contract.aontu` emits a `Ground truth:` stanza naming the
    file and the pin.
 6. `why '$.msg.CreateUserRequest.email'` traces the requirement to
-   `messages.aon` (the `$.types.Email` reference at
-   `messages.aon:8:12`, then the pattern at `types.aon:14:10`).
+   `messages.aontu` (the `$.types.Email` reference at
+   `messages.aontu:8:12`, then the pattern at `types.aontu:14:10`).
 7. A well-formed `CreateUserRequest` candidate is `verdict: valid`,
    exit 0.
 8. Wrong types (`"name": 42`, `"send_invite": "true"`) are refused,
@@ -169,18 +169,18 @@ both spellings.
     $.msg.CreateUserRequest.role: empty [conflict]
       [aontu/empty]: Cannot unify values at path $.msg.CreateUserRequest.role
       data: data/create-user-subtle.json:4:11 ("owner")
-      schema: types.aon:34:9 ("admin"|"member"|"viewer")
+      schema: types.aontu:34:9 ("admin"|"member"|"viewer")
     ```
 
 10. A missing `name` is `verdict: incomplete`, exit 3, with
-    `[aontu/mapval_required]`; the schema site names `types.aon` at
+    `[aontu/mapval_required]`; the schema site names `types.aontu` at
     the line that declares `DisplayName`, and the check reads that
     line back from the file the site names:
 
     ```
     $.msg.CreateUserRequest.name: mapval_required [incomplete]
       [aontu/mapval_required]: Cannot resolve value at path $.msg.CreateUserRequest.name
-      schema: types.aon:28:25 (string&length(integer&min(1)&max(80)))
+      schema: types.aontu:28:25 (string&length(integer&min(1)&max(80)))
     ```
 
 11. A missing `role`, a required enum, is `incomplete` too, exit 3:
@@ -224,17 +224,17 @@ both spellings.
     `$.errors.Envelope`.
 20. `--at '$.msg.UserPage'` vets a two-item page against the
     `[ &: $.entities.User ]` spread: `valid`.
-21. `user-page.aon`, vetted without `--at`, answers all three verdict
+21. `user-page.aontu`, vetted without `--at`, answers all three verdict
     classes: the good page is `valid`; a page whose second user has
     the email `"grace.hopper@"` is `invalid` with a
     `[aontu/constraint]` finding that quotes the value and its
     position in the candidate; a page with no `total` is
     `incomplete`.
-22. `bad/new-endpoint-method.aon` (`method: FETCH`), evaluated with
+22. `bad/new-endpoint-method.aontu` (`method: FETCH`), evaluated with
     `--canon --include-root .`, is refused by the registry spread:
     `[aontu/empty]`, `"FETCH"` against
     `"GET"|"POST"|"PATCH"|"DELETE"`.
-23. `breaking --against contract.aon evolution/tighten-page-size.aon`
+23. `breaking --against contract.aontu evolution/tighten-page-size.aontu`
     is `verdict: breaking`, exit 1, with `compat_narrowed` on
     `PageSize` (`expected: integer&min(1)&max(50)`,
     `actual: integer&min(1)&max(100)`). The contract compared against
@@ -248,9 +248,9 @@ From this directory, `./check.sh` runs all 23 assertions and exits 0;
 set `AONTU=` to point at another CLI build. The repair loop by hand:
 
 ```sh
-aontu vet --at '$.msg.ListUsersQuery' --format json contract.aon data/list-users-query-bad.json > findings.json
+aontu vet --at '$.msg.ListUsersQuery' --format json contract.aontu data/list-users-query-bad.json > findings.json
 python3 repair.py --candidate data/list-users-query-bad.json --findings findings.json --out repaired.json --anchor '$.msg.ListUsersQuery'
-aontu vet --at '$.msg.ListUsersQuery' contract.aon repaired.json   # verdict: valid
+aontu vet --at '$.msg.ListUsersQuery' contract.aontu repaired.json   # verdict: valid
 ```
 
 The CI shape of the first command is in [Validate data in

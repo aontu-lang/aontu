@@ -63,7 +63,7 @@ describe('comments', () => {
       Assert.ok(!files.includes(excluded), `gated: ${excluded}`)
     }
 
-    Assert.ok(files.every((f) => /\.(ts|go|rs|aon)$/.test(f)),
+    Assert.ok(files.every((f) => /\.(ts|go|rs|aontu)$/.test(f)),
       'a non-source file is gated')
     Assert.ok(!files.some((f) => f.startsWith('ts/dist')), 'build output gated')
   })

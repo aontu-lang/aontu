@@ -1,0 +1,9 @@
+# 85: the working twin of value-include-declares-alias.aontu -- the same
+# document included as a value, minus the alias declaration.
+#
+# run: node ../../../ts/bin/aontu.js --trust root value-include-plain.aontu
+#
+# expected: {"g":{"code":{"units":[{"path":"a"}]},"y":1},"z":{"path":"a"}}
+# actual:   as expected, in both ports.
+g: @"./value-include-plain-inc.aontu"
+z: $.g.code.units.0

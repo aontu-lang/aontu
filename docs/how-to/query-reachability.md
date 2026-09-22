@@ -14,10 +14,10 @@ time answers it. `aontu reaches` asks it directly: does anything
 It runs over the same declared edges as [`aontu
 relations`](check-relations.md). The model below is a trimmed version
 of [use-cases/12-relations](../../use-cases/12-relations/): jobs feed
-jobs, both directions written out. The vocabulary goes in `spec.aon`:
+jobs, both directions written out. The vocabulary goes in `spec.aontu`:
 
 <!-- test: scenario reach -->
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Job: {
@@ -29,12 +29,12 @@ spec: hide({
 })
 ```
 
-and a four-job topology in `pipeline.aon`, where `transform` fans out
+and a four-job topology in `pipeline.aontu`, where `transform` fans out
 to two consumers:
 
-<!-- test: file pipeline.aon -->
+<!-- test: file pipeline.aontu -->
 ```aontu
-@"./spec.aon"
+@"./spec.aontu"
 
 jobs: { &: $.spec.Job }
 jobs: extract: feeds: [path($.jobs.transform)]
@@ -50,7 +50,7 @@ Now ask whether the extract job's output ends up in the warehouse:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.jobs.extract $.jobs.load --relation feeds pipeline.aon
+$ aontu reaches $.jobs.extract $.jobs.load --relation feeds pipeline.aontu
 verdict: reaches
 
 $.jobs.extract -> $.jobs.transform -> $.jobs.load
@@ -70,7 +70,7 @@ upstream no:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.jobs.load $.jobs.extract --relation feeds pipeline.aon
+$ aontu reaches $.jobs.load $.jobs.extract --relation feeds pipeline.aontu
 verdict: unreachable
 
 $.jobs.load does not reach $.jobs.extract
@@ -92,11 +92,11 @@ them, but the unrestricted graph does:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.jobs.load $.jobs.audit pipeline.aon
+$ aontu reaches $.jobs.load $.jobs.audit pipeline.aontu
 verdict: reaches
 
 $.jobs.load -> $.jobs.transform -> $.jobs.audit
-$ aontu reaches $.jobs.load $.jobs.audit --relation feeds pipeline.aon
+$ aontu reaches $.jobs.load $.jobs.audit --relation feeds pipeline.aontu
 verdict: unreachable
 
 $.jobs.load does not reach $.jobs.audit
@@ -119,7 +119,7 @@ the model, so the verb refuses instead, and lists what it does know:
 
 <!-- test: run -->
 ```sh
-$ aontu reaches $.jobs.extract $.jobs.laod pipeline.aon
+$ aontu reaches $.jobs.extract $.jobs.laod pipeline.aontu
 verdict: error
 
 $: refer_unresolved [reference]

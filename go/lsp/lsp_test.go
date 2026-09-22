@@ -78,12 +78,12 @@ func TestDiagnosticsAliasBudget(t *testing.T) {
 
 // Twin: ts/test/lsp.test.ts completion-offers-the-names-in-scope.
 func TestCompletionOffersTheNamesInScope(t *testing.T) {
-	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aon\"\n"
+	src := "%port = integer\n{ %uint8, %b: %remote } = @\"./types.aontu\"\n"
 	// A rename binds the LOCAL name: `%b`, not the `%remote` it takes.
 	want := []CompletionItem{
 		{Label: "%port", Kind: CompletionVariable, Detail: "alias"},
-		{Label: "%uint8", Kind: CompletionVariable, Detail: "alias from ./types.aon"},
-		{Label: "%b", Kind: CompletionVariable, Detail: "alias from ./types.aon"},
+		{Label: "%uint8", Kind: CompletionVariable, Detail: "alias from ./types.aontu"},
+		{Label: "%b", Kind: CompletionVariable, Detail: "alias from ./types.aontu"},
 	}
 	got := namedCompletions(src)
 	if !reflect.DeepEqual(got, want) {
@@ -111,7 +111,7 @@ func namedCompletions(src string) []CompletionItem {
 
 // Twin: ts/test/lsp.test.ts describe('lsp-alias').
 func TestAliasHoverAndDefinition(t *testing.T) {
-	const src = "%port = integer\n{ %uint8 } = @\"./t.aon\"\n\nl: %port\nv: %uint8"
+	const src = "%port = integer\n{ %uint8 } = @\"./t.aontu\"\n\nl: %port\nv: %uint8"
 
 	h := Hover(src, 3, 4, false)
 	if nil == h ||
@@ -125,7 +125,7 @@ func TestAliasHoverAndDefinition(t *testing.T) {
 
 	taken := Hover(src, 4, 4, false)
 	if nil == taken || taken.Contents.Value !=
-		"```aontu\n{ %uint8 } = @\"./t.aon\"\n```\n\n*alias, taken from ./t.aon*" {
+		"```aontu\n{ %uint8 } = @\"./t.aontu\"\n```\n\n*alias, taken from ./t.aontu*" {
 		t.Fatalf("hover on a taken name: %+v", taken)
 	}
 
@@ -184,7 +184,7 @@ func TestAliasScopeIsLexical(t *testing.T) {
 	// takes its names from the other file rather than from this text,
 	// and an `=` that is not the declaration operator does not declare.
 	for _, src := range []string{
-		`{ a } = @"./f.aon"`, `{%} = @"./f.aon"`, "%a == 1",
+		`{ a } = @"./f.aontu"`, `{%} = @"./f.aontu"`, "%a == 1",
 	} {
 		if got := aontu.AliasScope(src); 0 != len(got) {
 			t.Errorf("AliasScope(%q) = %+v, want none", src, got)
@@ -451,11 +451,11 @@ func trustLspWorld(t *testing.T) (dir, root string) {
 	if err := os.MkdirAll(root, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "in.aon"),
+	if err := os.WriteFile(filepath.Join(root, "in.aontu"),
 		[]byte("f: 11"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "secret.aon"),
+	if err := os.WriteFile(filepath.Join(dir, "secret.aontu"),
 		[]byte(`secret: "outside"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -503,7 +503,7 @@ func trustInit(t *testing.T, params string) *Handler {
 func trustDiags(t *testing.T, h *Handler, text string) []Diagnostic {
 	t.Helper()
 	raw, err := json.Marshal(map[string]any{
-		"textDocument": map[string]any{"uri": "file:///d.aon", "text": text},
+		"textDocument": map[string]any{"uri": "file:///d.aontu", "text": text},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -531,10 +531,10 @@ func hasCode(diags []Diagnostic, code string) bool {
 func TestTrustLspWorkspaceRootConfines(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, trustParams(t, map[string]any{"rootUri": fileURI(root)}))
-	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aontu"`), "include_denied") {
 		t.Fatal("escape not denied")
 	}
-	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("in-root include should resolve")
 	}
 }
@@ -545,7 +545,7 @@ func trustHovers(t *testing.T, h *Handler, text string) string {
 	all := ""
 	for c := 0; c < len(text); c++ {
 		raw, err := json.Marshal(map[string]any{
-			"textDocument": map[string]any{"uri": "file:///d.aon"},
+			"textDocument": map[string]any{"uri": "file:///d.aontu"},
 			"position":     map[string]any{"line": 0, "character": c},
 		})
 		if err != nil { //coverage:ignore Marshal of a literal map cannot fail
@@ -569,12 +569,12 @@ func TestTrustLspWorkspaceRootConfinesHover(t *testing.T) {
 
 	// In-root: the include resolves, so the value is hoverable.
 	if !strings.Contains(
-		trustHovers(t, confined, `a:@"`+srcPath(root)+`/in.aon"`), "11") {
+		trustHovers(t, confined, `a:@"`+srcPath(root)+`/in.aontu"`), "11") {
 		t.Fatal("in-root value not hoverable")
 	}
 	// Out-of-root: nowhere on the line does the outside value appear.
 	if strings.Contains(
-		trustHovers(t, confined, `a:@"`+srcPath(dir)+`/secret.aon"`), "outside") {
+		trustHovers(t, confined, `a:@"`+srcPath(dir)+`/secret.aontu"`), "outside") {
 		t.Fatal("hover resolved an escape the diagnostics denied")
 	}
 	// The unconfined session is the control: it DOES resolve the same
@@ -582,7 +582,7 @@ func TestTrustLspWorkspaceRootConfinesHover(t *testing.T) {
 	// capability rather than about hover failing everywhere.
 	wide := trustInit(t, trustParams(t, map[string]any{}))
 	if !strings.Contains(
-		trustHovers(t, wide, `a:@"`+srcPath(dir)+`/secret.aon"`), "outside") {
+		trustHovers(t, wide, `a:@"`+srcPath(dir)+`/secret.aontu"`), "outside") {
 		t.Fatal("unconfined control did not resolve the escape")
 	}
 }
@@ -593,7 +593,7 @@ func TestTrustLspWorkspaceFoldersOutrankRootURI(t *testing.T) {
 		"rootUri":          "file:///nowhere",
 		"workspaceFolders": []any{map[string]any{"uri": fileURI(root)}},
 	}))
-	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("in-root include should resolve under the folder root")
 	}
 }
@@ -601,7 +601,7 @@ func TestTrustLspWorkspaceFoldersOutrankRootURI(t *testing.T) {
 func TestTrustLspRootPathFallback(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, trustParams(t, map[string]any{"rootPath": root}))
-	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aontu"`), "include_denied") {
 		t.Fatal("escape not denied under rootPath")
 	}
 }
@@ -615,14 +615,14 @@ func TestTrustLspExplicitOptionWins(t *testing.T) {
 		"initializationOptions": map[string]any{
 			"aontu": map[string]any{"trust": map[string]any{"include": "system"}}},
 	}))
-	if 0 != len(trustDiags(t, wide, `a:@"`+srcPath(dir)+`/secret.aon"`)) {
+	if 0 != len(trustDiags(t, wide, `a:@"`+srcPath(dir)+`/secret.aontu"`)) {
 		t.Fatal("explicit system should widen")
 	}
 
 	// "none" narrows to nothing.
 	none := trustInit(t,
 		`{"initializationOptions":{"aontu":{"trust":{"include":"none"}}}}`)
-	if !hasCode(trustDiags(t, none, `a:@"`+srcPath(root)+`/in.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, none, `a:@"`+srcPath(root)+`/in.aontu"`), "include_denied") {
 		t.Fatal("explicit none should deny")
 	}
 
@@ -632,7 +632,7 @@ func TestTrustLspExplicitOptionWins(t *testing.T) {
 			"trust": map[string]any{
 				"include": map[string]any{"root": root}}}},
 	}))
-	if 0 != len(trustDiags(t, rooted, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, rooted, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("explicit root should allow in-root")
 	}
 
@@ -640,7 +640,7 @@ func TestTrustLspExplicitOptionWins(t *testing.T) {
 	// silently widening.
 	unknown := trustInit(t, `{"initializationOptions":`+
 		`{"aontu":{"trust":{"include":{"bogus":1}}}}}`)
-	if !hasCode(trustDiags(t, unknown, `a:@"`+srcPath(root)+`/in.aon"`), "include_denied") {
+	if !hasCode(trustDiags(t, unknown, `a:@"`+srcPath(root)+`/in.aontu"`), "include_denied") {
 		t.Fatal("unknown explicit value should deny")
 	}
 }
@@ -680,7 +680,7 @@ func TestUriToPathHandlesDriveLetters(t *testing.T) {
 func TestTrustLspNoRootStaysUnconfined(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, `{}`)
-	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("no root, no option: unconfined")
 	}
 }
@@ -697,7 +697,7 @@ func TestTrustLspOneBadFieldDoesNotDiscardTheRest(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := trustInit(t, `{"rootUri":42,"rootPath":`+string(rootJSON)+`}`)
-	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aon"`),
+	if !hasCode(trustDiags(t, h, `a:@"`+srcPath(root)+`/../secret.aontu"`),
 		"include_denied") {
 		t.Fatal("a bad rootUri must not discard rootPath: escape not denied")
 	}
@@ -706,11 +706,11 @@ func TestTrustLspOneBadFieldDoesNotDiscardTheRest(t *testing.T) {
 	// itself: the workspace root still confines.
 	opt := trustInit(t, `{"rootUri":"`+fileURI(root)+
 		`","initializationOptions":"not an object"}`)
-	if !hasCode(trustDiags(t, opt, `a:@"`+srcPath(root)+`/../secret.aon"`),
+	if !hasCode(trustDiags(t, opt, `a:@"`+srcPath(root)+`/../secret.aontu"`),
 		"include_denied") {
 		t.Fatal("unreadable initializationOptions must not discard the root")
 	}
-	if 0 != len(trustDiags(t, opt, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, opt, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("in-root include should still resolve")
 	}
 }
@@ -718,7 +718,7 @@ func TestTrustLspOneBadFieldDoesNotDiscardTheRest(t *testing.T) {
 func TestTrustLspMalformedInitializeParams(t *testing.T) {
 	_, root := trustLspWorld(t)
 	h := trustInit(t, `not json`)
-	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aon"`)) {
+	if 0 != len(trustDiags(t, h, `a:@"`+srcPath(root)+`/in.aontu"`)) {
 		t.Fatal("malformed params fall back to unconfined")
 	}
 }

@@ -1,0 +1,90 @@
+# xf-order.aontu --- ONE model, TWO targets, one run (G9 worked example
+# 2): the same walk as xf-domain.aontu, plus the two facts a schema walk
+# cannot give a transform -- which fields are optional, and that
+# `lines` holds OrderLine -- stated once, as data. The transform
+# spells the records twice: as TypeScript, and as Go, where `nom`
+# does the casing (`id` to `ID`, `ledgerId` to `LedgerID`) over an
+# acronym set this document names, and an optional field is a pointer
+# with omitempty.
+@"./domain.aontu"
+
+# ONE FIELD, TWICE. Each field carries its own facts -- the wire name,
+# whether it is optional, and which of the six shapes it is -- and each
+# language spells them itself. That is the cost of retiring the
+# declaration lowering (ADR-038): the facts are shared, the spelling is
+# not.
+rec: pack(type($.schema), {
+  d: {
+    name: key(2)
+    f: pick(
+      pack(_, {
+        f: {
+          n: key(2)
+          opt: match(key(2), "placed", true, "status", true, false)
+          t: match(
+            _,
+            integer, "int",
+            biginteger, "bigint",
+            string, "string",
+            boolean, "bool",
+            [], "list",
+            "any"
+          )
+        }
+      }),
+      f
+    )
+  }
+})
+
+# GO SPELLS ITS OWN NAMES. `nom` carries the acronym set the bundled
+# profile used to hold, so `id` is `ID` and `ledgerId` is `LedgerID`.
+acronyms: ["ID"]
+
+decls: hide(pick($.rec, d))
+
+ts: hide(emit($.decls, {
+  match: name: string
+  body: [
+    "export interface " + .name + " {\n"
+    + join(emit(.f, {
+      match: n: string
+      body: [
+        "  " + .n + match(.opt, true, "?", false, "")
+        + ": " + match(.t,
+          "int", "number", "bigint", "bigint", "string", "string",
+          "bool", "boolean", "list", "OrderLine[]", "unknown")
+        + ";"
+      ]
+    }), "\n")
+    + "\n}"
+  ]
+}))
+
+go: hide(emit($.decls, {
+  match: name: string
+  body: [
+    "type " + .name + " struct {\n"
+    + join(emit(.f, {
+      match: n: string
+      body: [
+        "\t" + nom(.n, pascal, $.acronyms) + " "
+        + match(.opt, true, "*", false, "")
+        + match(.t,
+          "int", "int64", "bigint", "string", "string", "string",
+          "bool", "bool", "list", "[]OrderLine", "any")
+        + " `json:\"" + .n + match(.opt, true, ",omitempty", false, "") + "\"`"
+      ]
+    }), "\n")
+    + "\n}"
+  ]
+}))
+
+out: [
+  file("ts/domain.ts", [line(join($.ts, "\n\n"))])
+  file("go/domain.go", [
+    line("package domain")
+    line("")
+    line(join($.go, "\n\n"))
+  ])
+]

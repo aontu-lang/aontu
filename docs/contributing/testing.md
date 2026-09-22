@@ -43,7 +43,7 @@ because `//go:embed` cannot read above its own directory, and a
 generated copy that nothing compares is a second source of truth.
 
 The **starting documents** `aontu init` writes (G11 phase 6) travel
-the same way: `docs/skill/init/model.aon`, `data.aon` and `check.sh`
+the same way: `docs/skill/init/model.aontu`, `data.aontu` and `check.sh`
 are real files, run by the suites where they live, and the same
 generator stages them into `ts/src/helpdoc.ts` and
 `go/cmd/aontu/helpdoc/init/` (with each file's mode in a generated
@@ -54,14 +54,14 @@ suites run.
 **The same arrangement, for the built-in models.** The models the
 `aontu:` scheme serves ([ADR-036](../../ADR.md#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port))
 are real files under [`aontu/`](../../aontu/), each named by its path after
-the scheme — `aontu/lang/text.aon` is `aontu:lang/text`. A
+the scheme — `aontu/lang/text.aontu` is `aontu:lang/text`. A
 file named after the directory holding it collapses, so
-`aontu/view/view.aon` is `aontu:view` and a module that wants a folder
+`aontu/view/view.aontu` is `aontu:view` and a module that wants a folder
 of its own can have one without spelling its name twice.
 `make aontu` inlines them into
 `ts/src/aontumodel.ts` and, for Go, mirrors the tree into
 `go/aontumodel/` and writes the `//go:embed` table `go/aontumodel.go`; `make build-ts`
-runs it for you. Edit the `.aon` file, never a staged copy: both suites
+runs it for you. Edit the `.aontu` file, never a staged copy: both suites
 (`ts/test/aontumodel.test.ts`, `go/aontumodel_test.go`) assert the
 inlined copy is byte-identical with its file AND that the tree serves
 exactly the models the table lists, so a model added and not

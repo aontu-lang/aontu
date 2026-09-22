@@ -42,12 +42,12 @@ has() { # has NAME PATTERN LABEL
 }
 
 # ---------------------------------------------------------------- build
-run build 0 "$DIR/stack.aon"
+run build 0 "$DIR/stack.aontu"
 diff -u "$DIR/expected/stack.json" "$TMP/build.out" \
   || die "built output differs from expected/stack.json"
 ok "build matches golden (4 layers, 3 envs, 4 services)"
 
-run canon 0 --canon "$DIR/stack.aon"
+run canon 0 --canon "$DIR/stack.aontu"
 diff -u "$DIR/expected/stack.canon.txt" "$TMP/canon.out" \
   || die "canonical form differs from expected/stack.canon.txt"
 ok "canonical form matches golden (defaults and spreads preserved)"
@@ -55,7 +55,7 @@ ok "canonical form matches golden (defaults and spreads preserved)"
 # ------------------------------------------------- resolved layer values
 get_is() { # path expected label
   local got
-  got="$(aontu model get "$1" "$DIR/stack.aon")"
+  got="$(aontu model get "$1" "$DIR/stack.aontu")"
   [ "$got" = "$2" ] || die "get $1: expected $2, got $got"
   ok "$3"
 }
@@ -81,17 +81,17 @@ get_is '$.alerts.billing.runbook' '"https://runbooks.acme.internal/billing"' \
   "filter(critical) -> pack: paging route generated from catalog"
 
 # ---------------------------------------------------------- attribution
-run why-defs 0 model why '$.defs.workload.logLevel' "$DIR/stack.aon"
-has why-defs 'org-policy.aon' "org layer attributed"
-has why-defs 'team-defaults.aon' "team layer attributed"
+run why-defs 0 model why '$.defs.workload.logLevel' "$DIR/stack.aontu"
+has why-defs 'org-policy.aontu' "org layer attributed"
+has why-defs 'team-defaults.aontu' "team layer attributed"
 has why-defs '***"info"|string' "org rank shown"
 has why-defs '**"debug"|string' "team rank shown"
 ok "why attributes the schema row to both layers with file:line"
 
-run why-billing 0 model why '$.deploy.prod.workloads.billing.replicas' "$DIR/stack.aon"
-has why-billing 'envs/prod.aon' "prod overlay attributed"
+run why-billing 0 model why '$.deploy.prod.workloads.billing.replicas' "$DIR/stack.aontu"
+has why-billing 'envs/prod.aontu' "prod overlay attributed"
 has why-billing '12' "pin value shown"
-ok "why attributes the prod pin to envs/prod.aon"
+ok "why attributes the prod pin to envs/prod.aontu"
 
 # GAP 3 CLOSED 2026-08-27 (the review's finding E): why can now see
 # contributions that arrive through a pack() clone. The org/team layers
@@ -100,79 +100,79 @@ ok "why attributes the prod pin to envs/prod.aon"
 # provenance was a set of parsed-tree ids rather than a mark the clone
 # carries. The generated path now names the file and line the default
 # was written on.
-run why-blind 0 model why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aon"
-has why-blind 'team-defaults.aon:' "pack clone attributed to its source file"
+run why-blind 0 model why '$.deploy.dev.workloads.web.logLevel' "$DIR/stack.aontu"
+has why-blind 'team-defaults.aontu:' "pack clone attributed to its source file"
 has why-blind '"debug"' "the winning default is shown"
 ok "pinned: why is blind through pack (gap 3)"
 
 # ------------------------------------------------------------ guardrails
-run vet-guard 0 vet "$DIR/guardrails.aon" "$DIR/expected/stack.json"
+run vet-guard 0 vet "$DIR/guardrails.aontu" "$DIR/expected/stack.json"
 has vet-guard 'verdict: valid' "guardrail verdict"
 ok "vet guardrails over built output: valid"
 
 # ------------------------------------------- agent-emitted change gates
-run vet-good 0 vet "$DIR/request-schema.aon" "$DIR/data/rollout-good.json"
+run vet-good 0 vet "$DIR/request-schema.aontu" "$DIR/data/rollout-good.json"
 has vet-good 'verdict: valid' "good candidate verdict"
 ok "agent candidate within policy: valid"
 
-run vet-bad 1 vet "$DIR/request-schema.aon" "$DIR/data/rollout-bad.json"
+run vet-bad 1 vet "$DIR/request-schema.aontu" "$DIR/data/rollout-bad.json"
 has vet-bad '[aontu/constraint]' "constraint code"
 has vet-bad 'max(24)' "replica bound named"
 has vet-bad '$.service' "bad service name flagged"
 has vet-bad '$.reason' "thin rationale flagged (length atom)"
 ok "agent candidate out of bounds: 3 located constraint findings"
 
-run vet-unknown 1 vet "$DIR/request-schema.aon" "$DIR/data/rollout-unknown-key.json"
+run vet-unknown 1 vet "$DIR/request-schema.aontu" "$DIR/data/rollout-unknown-key.json"
 has vet-unknown '[aontu/closed]' "closed code"
 has vet-unknown '$.forceRestart' "hallucinated key flagged"
 ok "agent candidate with hallucinated key: refused by close()"
 
-run vet-json 1 vet --format json "$DIR/request-schema.aon" "$DIR/data/rollout-bad.json"
+run vet-json 1 vet --format json "$DIR/request-schema.aontu" "$DIR/data/rollout-bad.json"
 has vet-json '"code": "constraint"' "machine-readable finding"
 ok "vet --format json emits machine-readable findings"
 
 # ------------------------------------------------------- probe: ranking
-run rank 0 "$DIR/probes/rank-ladder.aon"
+run rank 0 "$DIR/probes/rank-ladder.aontu"
 diff -u "$DIR/expected/rank-ladder.json" "$TMP/rank.out" \
   || die "rank-ladder output differs"
 ok "rank ladder golden: * beats ** beats ***, concrete beats all"
 
-run equal-rank 1 "$DIR/probes/equal-rank.aon"
+run equal-rank 1 "$DIR/probes/equal-rank.aontu"
 has equal-rank '[aontu/pref_rank_clash]' "equal-rank clash code"
 ok "two disagreeing defaults of equal rank are a conflict"
 
 # ------------------------------------------------ probe: layer conflict
-run conflict 1 "$DIR/probes/conflict.aon"
+run conflict 1 "$DIR/probes/conflict.aontu"
 has conflict '[aontu/scalar_value]' "conflict code"
 has conflict '$.deploy.prod.workloads.billing.replicas' "conflict path"
-has conflict 'conflict-capacity.aon' "first layer named"
-has conflict 'conflict-costcut.aon' "second layer named"
+has conflict 'conflict-capacity.aontu' "first layer named"
+has conflict 'conflict-costcut.aontu' "second layer named"
 ok "cross-file conflict names both contributing files"
 
 # ------------------------------------------------- probe: sealed shapes
-run typo 1 "$DIR/probes/typo-overlay.aon"
+run typo 1 "$DIR/probes/typo-overlay.aontu"
 has typo '[aontu/closed]' "closed code"
 has typo '$.deploy.prod.workloads.auth.replcas' "typo path reported"
 ok "misspelt overlay key refused by close()d workload shape"
 
-run env-typo 1 "$DIR/probes/env-typo.aon"
+run env-typo 1 "$DIR/probes/env-typo.aontu"
 has env-typo '[aontu/closed]' "closed code"
 has env-typo '$.envguard' "guard path"
 has env-typo 'prod2' "offending env named"
 ok "unknown environment refused by hidden envguard"
 
 # ---------------------------------------------- probe: no key deletion
-run remove 1 "$DIR/probes/remove-key.aon"
+run remove 1 "$DIR/probes/remove-key.aontu"
 has remove '[aontu/scalar_kind]' "kind-conflict code"
 ok "a layer cannot remove a lower layer's key (null conflicts)"
 
 # -------------------------------------------------- probe: arithmetic
-run multiply 1 "$DIR/probes/multiply.aon"
+run multiply 1 "$DIR/probes/multiply.aontu"
 has multiply '[aontu/unexpected]' "parse-error code"
 has multiply 'unexpected character(s): *' "star rejected"
 ok "replicas * 2 is a parse error ('+' is the only operator)"
 
-run surge-default 1 "$DIR/probes/surge-from-default.aon"
+run surge-default 1 "$DIR/probes/surge-from-default.aontu"
 has surge-default '[aontu/mapval_no_gen]' "no-gen code"
 ok "replicas + 1 fails against a defaulted (*N | integer) operand"
 
@@ -180,12 +180,12 @@ ok "replicas + 1 fails against a defaulted (*N | integer) operand"
 # README gap 8, FIXED 2026-08-27: unique() compared WHOLE children, so
 # two services differing anywhere else shared a port silently, and
 # nothing could produce the port list to check instead.
-run uniqport 1 "$DIR/probes/unique-port.aon"
+run uniqport 1 "$DIR/probes/unique-port.aontu"
 has uniqport '[aontu/constraint]' "constraint code"
 has uniqport '$.fleet' "the fleet is named"
 ok "unique(port) refuses two services sharing a port"
 
-run pickports 0 "$DIR/probes/pick-ports.aon"
+run pickports 0 "$DIR/probes/pick-ports.aontu"
 has pickports '"lowest": 8080' "least over the picked ports"
 ok "pick(fleet, port) produces the port list; least() reads its floor"
 
@@ -196,18 +196,18 @@ ok "pick(fleet, port) produces the port list; least() reads its floor"
 # conflicting with auth's 8081 through the combined template. Pinned in
 # the shared spec: vet.tsv vet-unequal-spread-depths,
 # spread-interleave.tsv spread-unequal-*.
-run crosswire 0 vet "$DIR/probes/spread-crosswire.aon" "$DIR/expected/stack.json"
+run crosswire 0 vet "$DIR/probes/spread-crosswire.aontu" "$DIR/expected/stack.json"
 has crosswire 'verdict: valid' "correct data vets valid under stacked spreads"
 ok "stacked spreads at different depths vet siblings independently (gap 6 fixed)"
 
 # --------------------------------------------- probe: must with message
-run must-floor 1 "$DIR/probes/must-floor.aon"
+run must-floor 1 "$DIR/probes/must-floor.aontu"
 has must-floor '[aontu/must]' "must code"
 has must-floor 'zero-downtime rollouts' "author message surfaced"
 ok "must() fires with the author's own message"
 
 # -------------------------------- probe: defaults vs constraint atoms
-run lost-default 0 "$DIR/probes/lost-default.aon"
+run lost-default 0 "$DIR/probes/lost-default.aontu"
 has lost-default '"replicas": 2' "the default survives the bound"
 ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 
@@ -215,7 +215,7 @@ ok "pinned: constraint conjunct swallows a ranked default (gap 1)"
 # out-of-range override is now refused instead of accepted (gap 2 was
 # the fail-open evidence; the golden expected/bypassed-bound.json with
 # replicas:40 is gone with it).
-run bypassed 1 "$DIR/probes/bypassed-bound.aon"
+run bypassed 1 "$DIR/probes/bypassed-bound.aontu"
 has bypassed '[aontu/empty]' "empty-disjunction refusal"
 ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 
@@ -224,7 +224,7 @@ ok "fixed: override outside the disjoined bound refused, exit 1 (gap 2)"
 # the golden now holds the CORRECT merge (the overlay lands on the
 # generated prod child; no bogus template absorption). Shared-spec pin:
 # test/spec/gen-close.tsv close-pack-hole-overlay-merges.
-run absorb 0 "$DIR/probes/close-pack-absorb.aon"
+run absorb 0 "$DIR/probes/close-pack-absorb.aontu"
 diff -u "$DIR/expected/close-pack-absorb.json" "$TMP/absorb.out" \
   || die "close-pack-absorb output differs"
 ok "fixed: close(pack(.., _ & t)) + overlay merges correctly (gap 5)"
@@ -233,31 +233,31 @@ ok "fixed: close(pack(.., _ & t)) + overlay merges correctly (gap 5)"
 WORK="$TMP/work"
 cp -R "$DIR" "$WORK"
 rm -f "$WORK/check.sh"
-printf '# written by the release agent via aontu set\n' > "$WORK/agent-change.aon"
+printf '# written by the release agent via aontu set\n' > "$WORK/agent-change.aontu"
 
 set +e
 $AONTU model set '$.deploy.prod.workloads.web.replicas=8' \
-  --entry "$WORK/stack.aon" --overlay "$WORK/agent-change.aon" \
+  --entry "$WORK/stack.aontu" --overlay "$WORK/agent-change.aontu" \
   2>&1 | strip_ansi > "$TMP/set-ok.out"
 SET_OK="${PIPESTATUS[0]}"
 set -e
 [ "$SET_OK" = "0" ] || { cat "$TMP/set-ok.out" >&2; die "set (valid) failed"; }
 has set-ok 'verdict: valid' "set vets before writing"
 has set-ok 'wrote:' "overlay written"
-printf '@"./stack.aon"\n@"./agent-change.aon"\n' > "$WORK/with-change.aon"
-GOT="$(aontu model get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aon")"
+printf '@"./stack.aontu"\n@"./agent-change.aontu"\n' > "$WORK/with-change.aontu"
+GOT="$(aontu model get '$.deploy.prod.workloads.web.replicas' "$WORK/with-change.aontu")"
 [ "$GOT" = "8" ] || die "set change not visible on re-evaluation (got $GOT)"
 ok "set: agent override of a default is vetted, written, effective"
 
 set +e
 $AONTU model set '$.deploy.prod.workloads.billing.replicas=14' \
-  --entry "$WORK/stack.aon" --overlay "$WORK/agent-refused.aon" \
+  --entry "$WORK/stack.aontu" --overlay "$WORK/agent-refused.aontu" \
   2>&1 | strip_ansi > "$TMP/set-bad.out"
 SET_BAD="${PIPESTATUS[0]}"
 set -e
 [ "$SET_BAD" = "1" ] || { cat "$TMP/set-bad.out" >&2; die "set (conflicting) did not refuse"; }
 has set-bad '[aontu/scalar_value]' "refusal is a located conflict"
-[ ! -e "$WORK/agent-refused.aon" ] \
+[ ! -e "$WORK/agent-refused.aontu" ] \
   || die "refused set still wrote the overlay file"
 ok "set: agent change conflicting with a pinned value refused, no write"
 
@@ -269,13 +269,13 @@ ok "set: agent change conflicting with a pinned value refused, no write"
 # and `--check` is the gate that keeps it true.
 # The figure is what goes to STDOUT; the loss report goes to stderr,
 # and merging the two would compare the golden against both.
-$AONTU view doc --depth 2 "$DIR/stack.aon" > "$TMP/doc.out" 2>/dev/null \
+$AONTU view doc --depth 2 "$DIR/stack.aontu" > "$TMP/doc.out" 2>/dev/null \
   || die "the model tree did not draw"
 diff -u "$DIR/expected/diagram-doc.txt" "$TMP/doc.out" \
   || die "the model tree drifted"
 run docgate 0 view doc --depth 2 \
-  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/stack.aon"
+  --out "$DIR/expected/diagram-doc.txt" --check "$DIR/stack.aontu"
 run docsvg 0 view doc --depth 2 --as svg \
-  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/stack.aon"
+  --out "$DIR/expected/diagram-doc.svg" --check "$DIR/stack.aontu"
 ok "the model tree draws and is pinned, text and SVG"
 echo "all $PASS checks passed"

@@ -9,7 +9,7 @@ with no Node or Go toolchain. It is the install channel for CI
 - uses: aontu-lang/aontu/setup-action@main
   with:
     version: 0.1.15        # or latest, the default
-- run: aontu fmt --check --strict *.aon
+- run: aontu fmt --check --strict *.aontu
 ```
 
 `version` is a Go release version; `install-dir` is where the binaries

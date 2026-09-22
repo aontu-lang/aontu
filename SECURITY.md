@@ -33,7 +33,7 @@ private vulnerability reporting for this repository:
 
 That goes directly and privately to the maintainer,
 [@rjrodger](https://github.com/rjrodger). A report is most useful as a
-minimal `.aon` (or schema + data pair) plus the exact invocation —
+minimal `.aontu` (or schema + data pair) plus the exact invocation —
 implementation (TypeScript or Go), version, command line or API call,
 trust profile in effect, and what happened versus what the trust
 contract says must happen. The [use-cases/repros/](use-cases/repros/)

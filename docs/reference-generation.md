@@ -46,7 +46,7 @@ further nodes. A node built by a component function is
 [closed](reference-language.md#closed-values-close--open), so a fourth
 key is a `closed` refusal rather than an ignored field:
 
-```aon
+```aontu
 out: file("a.txt", ["x" ["y" "z"]])
 ```
 
@@ -77,11 +77,11 @@ children argument is flattened in place, recursively
 
 A node is an ordinary map addressed by path, printing its keys in the
 [order every value prints in](#order-and-determinism). Write a
-`tree.aon`:
+`tree.aontu`:
 
 <!-- test: scenario generation-tree -->
-<!-- test: file tree.aon -->
-```aon
+<!-- test: file tree.aontu -->
+```aontu
 out: project(".", [folder("src", [file("main.js", ["const x = 1"])])])
 ```
 
@@ -89,9 +89,9 @@ and address a node inside it by path:
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out.children.0.cmp' tree.aon
+$ aontu model get '$.out.children.0.cmp' tree.aontu
 "Folder"
-$ aontu model get '$.out.children.0.children.0.children.0' tree.aon
+$ aontu model get '$.out.children.0.children.0.children.0' tree.aontu
 {
   "children": [],
   "cmp": "Line",
@@ -267,11 +267,11 @@ target is already there, and `render` writes an absent one. A reported
 path is the one the generator names, relative to `<path>`, rather than
 the path the command was given.
 
-Write a `gen.aon` answering a project of one file:
+Write a `gen.aontu` answering a project of one file:
 
 <!-- test: scenario generation-render -->
-<!-- test: file gen.aon -->
-```aon
+<!-- test: file gen.aontu -->
+```aontu
 out: project(".", [folder("src", [file("main.js", ["const x = 1" ""])])])
 ```
 
@@ -284,7 +284,7 @@ const x = 2
 
 <!-- test: run -->
 ```sh
-$ aontu render --check gen.aon build
+$ aontu render --check gen.aontu build
 content: src/main.js
 $ echo $?
 1
@@ -292,11 +292,11 @@ $ echo $?
 
 The same edit under `exclude: true` is not a difference, because
 `render` does not make it. Write a generator that excludes its one
-file, as `gen.aon`:
+file, as `gen.aontu`:
 
 <!-- test: scenario generation-render-exclude -->
-<!-- test: file gen.aon -->
-```aon
+<!-- test: file gen.aontu -->
+```aontu
 out: project(".", [file({ name:"keep.txt" exclude:true }, ["generated"])])
 ```
 
@@ -312,8 +312,8 @@ reports nothing:
 
 <!-- test: run -->
 ```sh
-$ aontu render gen.aon build
-$ aontu render --check gen.aon build
+$ aontu render gen.aontu build
+$ aontu render --check gen.aontu build
 $ echo $?
 0
 ```
@@ -353,11 +353,11 @@ columns, in this order:
 carry the same four fields keyed `at`, `file`, `node`, and `rule`. Both
 ports print the four in those two orders.
 
-Write a `gen.aon` whose fields come from a rule set:
+Write a `gen.aontu` whose fields come from a rule set:
 
 <!-- test: scenario generation-trace -->
-<!-- test: file gen.aon -->
-```aon
+<!-- test: file gen.aontu -->
+```aontu
 fields: [n:"id" n:"name"]
 
 %field = emit(_, { match:n:string body: [line("  " + .n + ": string")] })
@@ -369,10 +369,10 @@ Ask what wrote each line:
 
 <!-- test: run -->
 ```sh
-$ aontu trace gen.aon
+$ aontu trace gen.aontu
 t.ts	$.children.1	$.fields.0	$.%field#0
 t.ts	$.children.2	$.fields.1	$.%field#0
-$ aontu trace --format json gen.aon
+$ aontu trace --format json gen.aontu
 {"trace":[{"at":"$.children.1","file":"t.ts","node":"$.fields.0","rule":"$.%field#0"},{"at":"$.children.2","file":"t.ts","node":"$.fields.1","rule":"$.%field#0"}]}
 ```
 
@@ -393,7 +393,7 @@ The `file` column is the innermost enclosing `File`, by longest matching
 address prefix rather than by first match, and a `File` node that a rule
 stamped itself gets a row naming itself.
 
-`trace` reads a `<file>` whose name does not end in `.aon` as a
+`trace` reads a `<file>` whose name does not end in `.aontu` as a
 generator in the target's own syntax, desugared by its marker. That
 includes a `.aontu` file, which [`aontu render`](reference-api.md#aontu-render)
 and [`aontu fmt`](reference-api.md#aontu-fmt) both read as plain aontu;

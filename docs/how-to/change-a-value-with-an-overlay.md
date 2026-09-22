@@ -8,10 +8,10 @@ order: 30
 
 Use `aontu model set` to append a change to an *overlay*, a second document
 unified with the entry. The command checks the proposed change before
-writing it and preserves the entry file. Write `system.aon`:
+writing it and preserves the entry file. Write `system.aontu`:
 
 <!-- test: scenario change-overlay -->
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer tier: *standard|string } }
 services: auth: replicas: 3
@@ -22,32 +22,32 @@ Now raise billing's replicas without opening the file:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.billing.replicas=2' --entry system.aon --overlay overlay.aon
+$ aontu model set '$.services.billing.replicas=2' --entry system.aontu --overlay overlay.aontu
 verdict: valid
-wrote: overlay.aon
+wrote: overlay.aontu
 ```
 
 The command creates a missing overlay. The file contains one assignment
 written as a chain of keys:
 
-```aon
+```aontu
 services: billing: replicas: 2
 ```
 
 The entry and the overlay together are the changed document.
 Unification is order-independent, so appending to a second file means
 the same thing as writing into the first; to consume both, write an
-`all.aon` that loads them:
+`all.aontu` that loads them:
 
-<!-- test: file all.aon -->
+<!-- test: file all.aontu -->
 ```aontu
-@"./system.aon"
-@"./overlay.aon"
+@"./system.aontu"
+@"./overlay.aontu"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu all.aon
+$ aontu all.aontu
 {
   "services": {
     "auth": {
@@ -68,20 +68,20 @@ a concrete peer. A pinned value does not:
 
 <!-- test: run -->
 ```sh
-$ aontu model set '$.services.auth.replicas=5' --entry system.aon --overlay overlay.aon
+$ aontu model set '$.services.auth.replicas=5' --entry system.aontu --overlay overlay.aontu
 verdict: invalid
 
 $.services.auth.replicas: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.services.auth.replicas
-  data: overlay.aon:2:33 (5)
-  schema: system.aon:2:27 (3)
+  data: overlay.aontu:2:33 (5)
+  schema: system.aontu:2:27 (3)
 $ echo $?
 1
 ```
 
 The overlay is written only when the change holds, so this refusal
 leaves its contents unchanged. The finding names
-the site doing the pinning (`system.aon:3:24`, which [`aontu
+the site doing the pinning (`system.aontu:3:24`, which [`aontu
 why`](explain-a-value.md) will list as a contribution) and to
 rewrite that literal rather than contradict it, [change the pinned
 value](change-a-pinned-value.md).

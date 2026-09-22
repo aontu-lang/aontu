@@ -12,21 +12,21 @@ agent has to ask before every change is which subtrees its role may
 modify, and the answer has to come from a document a person wrote and
 reviewed, not from the agent's reading of a wiki page.
 
-Here that document is `roles.aon`, a role model that is itself aontu:
+Here that document is `roles.aontu`, a role model that is itself aontu:
 one entry per role, each naming the subtrees the role may change
 (`allow`) and the ones it may not (`deny`), as the paths `get` and
-`set` already spell. `aontu allow --role dev roles.aon <path>...`
+`set` already spell. `aontu allow --role dev roles.aontu <path>...`
 answers before the change is made, with an exit code an agent
 branches on and a report that names the entry that decided each
 path. The agent's skill, `skill/SKILL.md`, is the loop: ask, and run
-`aontu model set` only on exit 0. The model being governed, `model.aon`,
+`aontu model set` only on exit 0. The model being governed, `model.aontu`,
 holds its own vocabulary and constraints, so a change the gate allows
 is still refused by `set` when it names a key the model does not
 declare or breaks a bound. The gate says who; the model says what.
 
 ## The model tree
 
-`model.aon` is the document the roles govern. `services` carries
+`model.aontu` is the document the roles govern. `services` carries
 three services, each an instance of the `Service` vocabulary (owner,
 tier, replicas, description); `deploy` carries two regions, each with
 a replica count per service and a canary beside it; `features` holds
@@ -57,7 +57,7 @@ $
     └── smoke (2)
 ```
 
-`aontu view doc --depth 2 model.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 model.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -67,11 +67,11 @@ than its value.
 
 | file | carries |
 |---|---|
-| `roles.aon` | the role model: `Role`, a `type()`-marked `close()`d vocabulary of `desc`, `allow` and `deny?`; the `close()`d registry of `admin`, `dev`, `product` and `qa` |
-| `model.aon` | the governed model: the `Service` vocabulary, three services, two regions with a canary each, the flags and the tests; every value a role may change is a default (`*3`), so the model accepts a change to any of them and the role is what decides who |
-| `changes.aon` | the agents' overlay, written by `aontu model set` and never by hand |
-| `system.aon` | `model.aon` plus `changes.aon`: the served view, where `get` and `why` run |
-| `policy.aon` | a policy document that keeps its roles under `$.policy.roles`, for `--at` |
+| `roles.aontu` | the role model: `Role`, a `type()`-marked `close()`d vocabulary of `desc`, `allow` and `deny?`; the `close()`d registry of `admin`, `dev`, `product` and `qa` |
+| `model.aontu` | the governed model: the `Service` vocabulary, three services, two regions with a canary each, the flags and the tests; every value a role may change is a default (`*3`), so the model accepts a change to any of them and the role is what decides who |
+| `changes.aontu` | the agents' overlay, written by `aontu model set` and never by hand |
+| `system.aontu` | `model.aontu` plus `changes.aontu`: the served view, where `get` and `why` run |
+| `policy.aontu` | a policy document that keeps its roles under `$.policy.roles`, for `--at` |
 | `skill/SKILL.md` | the agent skill: ask the gate with the arguments `set` will get, and branch on the exit code alone |
 | `proposals/` | edits to the role model that do not stand up: a key the vocabulary does not declare, an allow list written as a string, a fifth role |
 | `expected/` | JSON goldens for the model, the role model and the served view after the loop; the allow reports as text and JSON; the model tree, text and SVG |
@@ -114,7 +114,7 @@ prefixes.
   `$.deploy.eu1.canary.replicas.search`, because the star took `eu1`
   and the next segment is `canary`, not `replicas`.
 - **The gate reads the role model alone.** `aontu allow` never opens
-  `model.aon`: it answers a question about paths, from the entries,
+  `model.aontu`: it answers a question about paths, from the entries,
   and a path the model does not have is answered the same way as one
   it does. What the model says about a value is `set`'s business,
   which is why `check.sh` runs the two in sequence rather than folding
@@ -122,11 +122,11 @@ prefixes.
 - **The answer names the deciding entry as a path into the role
   model.** `refused by $.roles.dev.deny.0 ($.services.*.tier)` is a
   path and the entry's text, so `aontu model why '$.roles.dev.deny.0'
-  roles.aon` names the file and the line that wrote the rule, and a
+  roles.aontu` names the file and the line that wrote the rule, and a
   reviewer opens the model at the entry rather than searching for the
   string.
 - **An undeclared role may change nothing.** The registry is
-  `close()`d, so a role can only be added by editing `roles.aon`; a
+  `close()`d, so a role can only be added by editing `roles.aontu`; a
   role the gate is asked about and cannot find is refused with a
   `no_path` finding at its path, carrying the nearest declared name
   when one is close (`did you mean dev?`).
@@ -143,7 +143,7 @@ prefixes.
   `'$.services.auth.description="Sign-in, sessions and MFA"'` as it
   is, so the skill hands it the very arguments the write will get and
   the two cannot drift.
-- **`--at` moves the roles map.** `policy.aon` keeps its roles under
+- **`--at` moves the roles map.** `policy.aontu` keeps its roles under
   `$.policy.roles`, beside an owner and a review rule; asked with
   `--at '$.policy.roles'` the gate answers from there and names the
   deciding entry under that anchor, and asked without it the gate
@@ -153,7 +153,7 @@ A mixed question from `dev`, refused as soon as one path is, with
 every path answered:
 
 ```
-$ aontu allow --role dev roles.aon $.services.auth.replicas $.deploy.eu1.replicas.search $.services.auth.tier $.services.billing $.features.dark_mode
+$ aontu allow --role dev roles.aontu $.services.auth.replicas $.deploy.eu1.replicas.search $.services.auth.tier $.services.billing $.features.dark_mode
 verdict: refused
 role: dev
 $.services.auth.replicas: allowed by $.roles.dev.allow.0 ($.services)
@@ -168,16 +168,16 @@ tier was never named: a change at the service could rewrite it. The
 deciding entry is a path, and `why` locates the rule:
 
 ```
-$ aontu model why $.roles.dev.deny.0 roles.aon
+$ aontu model why $.roles.dev.deny.0 roles.aontu
 $.roles.dev.deny.0 = "$.services.*.tier"
-  1. string  roles.aon:10:60  (spread)
-  2. "$.services.*.tier"  roles.aon:20:12
+  1. string  roles.aontu:10:60  (spread)
+  2. "$.services.*.tier"  roles.aontu:20:12
 ```
 
 A role nobody declared:
 
 ```
-$ aontu allow --role ops roles.aon $.features.dark_mode
+$ aontu allow --role ops roles.aontu $.features.dark_mode
 verdict: refused
 role: ops
 $.features.dark_mode: refused (role ops is not declared)
@@ -190,13 +190,13 @@ An allowed change, landed by the loop in `skill/SKILL.md`, and read
 back from the served view with its provenance:
 
 ```
-$ aontu model set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon
+$ aontu model set '$.services.auth.replicas=5' --entry model.aontu --overlay changes.aontu
 verdict: valid
-wrote: changes.aon
-$ aontu model why $.services.auth.replicas system.aon
+wrote: changes.aontu
+$ aontu model why $.services.auth.replicas system.aontu
 $.services.auth.replicas = 5
-  1. 5  changes.aon:2:33
-  2. *3  model.aon:18:13  (pref)
+  1. 5  changes.aontu:2:33
+  2. *3  model.aontu:18:13  (pref)
 ```
 
 A role-model edit that does not stand up. The gate decides nothing
@@ -204,7 +204,7 @@ and answers with the engine's own finding, at the line of the
 proposal:
 
 ```
-$ aontu allow --include-root . --role dev proposals/role-unknown-key.aon $.services.auth.replicas
+$ aontu allow --include-root . --role dev proposals/role-unknown-key.aontu $.services.auth.replicas
 verdict: error
 role: dev
 
@@ -214,9 +214,9 @@ $: closed [reference]
 Cannot add to closed structure. The map or list is closed and does not accept new keys/elements.
 
  Cannot resolve value: "global"
-  --> proposals/role-unknown-key.aon:6:20
+  --> proposals/role-unknown-key.aontu:6:20
   4 | # model that was to decide does not stand up.
-  5 | @"../roles.aon"
+  5 | @"../roles.aontu"
   6 | roles: dev: scope: "global"
                          ^ value was: "global"
   7 | 
@@ -228,9 +228,9 @@ Cannot add to closed structure. The map or list is closed and does not accept ne
 `check.sh` drives the CLI end to end and asserts every outcome: exit
 codes, error and reason codes grepped from the reports, and generated
 documents diffed against the `expected/` goldens. The loop runs on a
-temporary copy, so the committed `changes.aon` is never written.
+temporary copy, so the committed `changes.aontu` is never written.
 
-1. `model.aon` evaluates to `expected/model.json` and `roles.aon` to
+1. `model.aontu` evaluates to `expected/model.json` and `roles.aontu` to
    `expected/roles.json`; the `type()`-marked `Service` and `Role`
    stay out of both.
 2. An allow entry covers itself and everything below it: `product`
@@ -273,15 +273,15 @@ temporary copy, so the committed `changes.aon` is never written.
     matches `expected/allow-qa.json` (compared without the version
     line of the producer block), with `"verb": "allow"` and
     `"reason": "uncovered"`, exit 1.
-12. `--at '$.policy.roles'` over `policy.aon` allows `dev`
+12. `--at '$.policy.roles'` over `policy.aontu` allows `dev`
     `$.services.auth.replicas` by `$.policy.roles.dev.allow.0` and
     refuses `$.services.auth.tier` by `$.policy.roles.dev.deny.0`;
     `release` is allowed `$.deploy.eu1`; asked without `--at`, `dev`
     is refused as undeclared with `no_path` at `$.roles.dev`.
 13. The loop lands an allowed change: `dev` asks
     `$.services.auth.replicas=5`, the gate is exit 0, `set` is
-    `verdict: valid`, the line is in `changes.aon`, `get` on
-    `system.aon` answers `5`, and `why` names `changes.aon:2:33` over
+    `verdict: valid`, the line is in `changes.aontu`, `get` on
+    `system.aontu` answers `5`, and `why` names `changes.aontu:2:33` over
     the model's `*3`.
 14. The loop stops a refused change: `dev` asks
     `$.services.auth.tier="standard"`, the gate is exit 1 and names
@@ -304,15 +304,15 @@ temporary copy, so the committed `changes.aon` is never written.
 17. The served view after the loop matches `expected/system.json`,
     and the overlay carries exactly the four allowed lines.
 18. A broken role model is `verdict: error`, exit 4, with the engine's
-    own finding and no path decided: `proposals/role-unknown-key.aon`
+    own finding and no path decided: `proposals/role-unknown-key.aontu`
     is `[aontu/closed]` at `$.roles.dev.scope`,
-    `proposals/role-allow-string.aon` is `[aontu/list]` at
-    `$.roles.qa.allow`, `proposals/add-undeclared-role.aon` is
+    `proposals/role-allow-string.aontu` is `[aontu/list]` at
+    `$.roles.qa.allow`, `proposals/add-undeclared-role.aontu` is
     `[aontu/closed]` at `$.roles.ops`, and a scratch vocabulary that
     `close()`s without `deny?` is `[aontu/closed]` at the shape's
     `deny`.
-19. `why '$.roles.dev.deny.0' roles.aon` prints the entry and names
-    `roles.aon:20:12`, the line that wrote the rule.
+19. `why '$.roles.dev.deny.0' roles.aontu` prints the entry and names
+    `roles.aontu:20:12`, the line that wrote the rule.
 20. The model tree above matches `expected/diagram-doc.txt`, and
     `--out --check` holds both the text and the SVG.
 
@@ -320,13 +320,13 @@ temporary copy, so the committed `changes.aon` is never written.
 
 `./check.sh`, from anywhere; set `AONTU=` to point at another build.
 Every step prints a numbered line, and the script stops at the first
-failure. The proposals include `roles.aon` from one directory up, so
+failure. The proposals include `roles.aontu` from one directory up, so
 run them from the case directory with `--include-root .`, as
 `check.sh` does. The gate's two moves, by hand:
 
 ```sh
-aontu allow --role dev roles.aon '$.services.auth.replicas=5'                        # ask
-aontu model set '$.services.auth.replicas=5' --entry model.aon --overlay changes.aon       # then write
+aontu allow --role dev roles.aontu '$.services.auth.replicas=5'                        # ask
+aontu model set '$.services.auth.replicas=5' --entry model.aontu --overlay changes.aontu       # then write
 ```
 
 The how-to guide [Gate changes by role](../../docs/how-to/gate-changes-by-role.md)

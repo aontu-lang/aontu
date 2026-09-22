@@ -1,0 +1,8 @@
+# bad/cycle.aontu --- a change makes load feed extract: the DAG closes
+# into a loop. feeds declares acyclic() (spec.aontu), so GENERATION
+# refuses with a located relation_cycle at an edge on the loop, and
+# `aontu relations` reports the same finding.
+@"../model.aontu"
+
+pipeline: jobs: load: feeds: [path($.pipeline.jobs.extract)]
+pipeline: jobs: extract: fedBy: [path($.pipeline.jobs.load)]

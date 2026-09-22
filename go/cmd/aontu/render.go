@@ -261,7 +261,7 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		text := string(src)
-		if !strings.HasSuffix(f, ".aon") && !strings.HasSuffix(f, ".aontu") {
+		if !strings.HasSuffix(f, ".aontu") && !strings.HasSuffix(f, ".aontu") {
 			mark := marker
 			if "" == mark {
 				mark = templateMarker(profiles, f)

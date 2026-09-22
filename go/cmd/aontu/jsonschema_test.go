@@ -21,7 +21,7 @@ func jsonSchemaRun(args ...string) (string, string, int) {
 
 func jsonSchemaFile(t *testing.T, src string) string {
 	t.Helper()
-	file := filepath.Join(t.TempDir(), "doc.aon")
+	file := filepath.Join(t.TempDir(), "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ const schemaContract = `spec: {
 `
 
 func TestJsonSchemaVerb(t *testing.T) {
-	// THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aon > s.json`
+	// THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
 	// writes a usable file, and --at names the subtree, as vet's does.
 	file := jsonSchemaFile(t, schemaContract)
 	out, errw, code := jsonSchemaRun("--at", "spec", file)
@@ -140,15 +140,15 @@ func TestJsonSchemaArgumentErrors(t *testing.T) {
 		want string
 	}{
 		{[]string{}, "needs one file"},
-		{[]string{"a.aon", "b.aon"}, "needs one file"},
-		{[]string{"--format", "yaml", "a.aon"}, "--format needs"},
+		{[]string{"a.aontu", "b.aontu"}, "needs one file"},
+		{[]string{"--format", "yaml", "a.aontu"}, "--format needs"},
 		{[]string{"--at"}, "--at needs a path"},
-		{[]string{"--nope", "a.aon"}, "unknown jsonschema option"},
-		{[]string{"/no/such/file.aon"}, "cannot read"},
+		{[]string{"--nope", "a.aontu"}, "unknown jsonschema option"},
+		{[]string{"/no/such/file.aontu"}, "cannot read"},
 		// A --trust the profile parser refuses stops the verb before it
 		// reads anything, which is the point: the capability decides
 		// what may be read.
-		{[]string{"--trust", "nonsense", "a.aon"}, "--trust"},
+		{[]string{"--trust", "nonsense", "a.aontu"}, "--trust"},
 	} {
 		_, errw, code := jsonSchemaRun(c.args...)
 		if 2 != code || !strings.Contains(errw, c.want) {

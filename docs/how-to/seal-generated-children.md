@@ -58,10 +58,10 @@ deploy: web: replicas: 3
 The legitimate override composes exactly as before: `web` gets its
 `replicas: 3`, `auth` keeps the defaults. Now misspell it against
 the same sealed shape: the same document with `deploy: web:
-replicaz: 3`, as `deploy.aon`:
+replicaz: 3`, as `deploy.aontu`:
 
 <!-- test: scenario deep-seal -->
-<!-- test: file deploy.aon -->
+<!-- test: file deploy.aontu -->
 ```aontu
 names: hide({ web: {} auth: {} })
 
@@ -75,7 +75,7 @@ deploy: web: replicaz: 3
 
 <!-- test: run -->
 ```sh
-$ aontu deploy.aon
+$ aontu deploy.aontu
 [aontu/closed]: Cannot resolve value at path $.deploy.web.replicaz
 ...
 $ echo $?
@@ -110,10 +110,10 @@ deploy: prod: replicas: 3
 
 `envguard` evaluates on every run and emits nothing. An environment
 that exists nowhere in the table now has nowhere to land: change
-the last line of `guard.aon` to invent one:
+the last line of `guard.aontu` to invent one:
 
 <!-- test: scenario envguard -->
-<!-- test: file guard.aon -->
+<!-- test: file guard.aontu -->
 ```aontu
 environments: hide({ dev: {} prod: {} })
 
@@ -126,7 +126,7 @@ deploy: prod2: replicas: 3
 
 <!-- test: run -->
 ```sh
-$ aontu guard.aon
+$ aontu guard.aontu
 [aontu/closed]: Cannot resolve value at path $.envguard
 ...
 $ echo $?
@@ -145,4 +145,4 @@ recipes run live: the [Kubernetes golden
 path](../../use-cases/06-k8s-golden-path/) seals its service set
 with `close(pack(...))` as its drift guard, and the [deployment
 fleet](../../use-cases/02-deploy-config/) keeps the environment
-guard as a worked example in `stack.aon`.
+guard as a worked example in `stack.aontu`.

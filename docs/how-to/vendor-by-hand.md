@@ -14,18 +14,18 @@ is hand-vendoring: put its source tree into `aontu_meta/vendor/`
 yourself, then let `sync` pin it. `cp -r` is the distribution protocol.
 
 Start on the consumer side. The project declares the dependency in
-its `pkg.aon`:
+its `pkg.aontu`:
 
 <!-- test: scenario vendor-by-hand -->
-<!-- test: file pkg.aon -->
+<!-- test: file pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/app" main:"main.aon" }
+pkg: { path:"corp.example/app" main:"main.aontu" }
 dep: "corp.example/schemas/service": v: "1.0.0"
 ```
 
-and the entry file `main.aon` imports it:
+and the entry file `main.aontu` imports it:
 
-<!-- test: file main.aon -->
+<!-- test: file main.aontu -->
 ```aontu
 svc: @"corp.example/schemas/service"
 svc: name: "auth"
@@ -46,34 +46,36 @@ $ echo $?
 No lockfile is written; a partial lock would claim a closure that was
 never resolved. So do the fetch's job by hand. The layout is
 `aontu_meta/vendor/<package-path>/` under your project, beside its
-`pkg.aon`: each `/`-segment of the package path becomes a directory,
+`pkg.aontu`: each `/`-segment of the package path becomes a directory,
 and an uppercase letter is written `!` followed by its lowercase:
 
 ```
 project/
-  pkg.aon
-  main.aon
+  pkg.aontu
+  main.aontu
   aontu_meta/
     vendor/
       corp.example/
         schemas/
           service/
-            pkg.aon
-            service.aon
+            pkg.aontu
+            service.aontu
 ```
 
 The directory holds the package's own source tree. Its
-`aontu_meta/vendor/corp.example/schemas/service/pkg.aon`:
+`aontu_meta/vendor/corp.example/schemas/service/pkg.aontu`:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/service/pkg.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.0.0"
+pkg: main: "service.aontu"
 ```
 
 and its entry file,
-`aontu_meta/vendor/corp.example/schemas/service/service.aon`:
+`aontu_meta/vendor/corp.example/schemas/service/service.aontu`:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aontu -->
 ```aontu
 name: string
 port: *8080|integer
@@ -90,7 +92,7 @@ $ aontu sync
 verdict: ok
 corp.example/schemas/service 1.0.0 aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
 
-$ aontu main.aon
+$ aontu main.aontu
 {
   "svc": {
     "name": "auth",
@@ -103,9 +105,9 @@ The pin is what the hand-vendoring was for. Every later evaluation
 re-derives the vendored module's canon-hash and compares it to the
 locked one, so a change to the module's evaluated meaning is refused
 rather than silently used. Flip the vendored default in
-`aontu_meta/vendor/corp.example/schemas/service/service.aon`:
+`aontu_meta/vendor/corp.example/schemas/service/service.aontu`:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aontu -->
 ```aontu
 name: string
 port: *9090|integer
@@ -113,7 +115,7 @@ port: *9090|integer
 
 <!-- test: run -->
 ```sh
-$ aontu main.aon
+$ aontu main.aontu
 module integrity: corp.example/schemas/service expected aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E got aon1-Bd4OQlOyzyJcXZvYbVcV7NZbMJGGxQH6GtNctkC26VA
 $ echo $?
 1
@@ -123,7 +125,7 @@ Both hashes are named: the meaning that was reviewed and the meaning
 the store now holds. Be precise about what that pin protects. It is a
 semantic pin, taken over the canonical form of the module's entry
 document and its include closure; comments, whitespace, refactored
-spellings that canon to the same value, `pkg.aon` metadata, and files
+spellings that canon to the same value, `pkg.aontu` metadata, and files
 the entry never includes all keep the hash, deliberately. The bytes are
 the `archive` pin's job, and the tooling checks that one first.
 
@@ -142,7 +144,7 @@ speaks:
 ```sh
 $ aontu pkg verify
 verdict: mismatch
-corp.example/schemas/service: pinned archive sha256:db1c3797fbf11badbc4fb7c87c6a4c34fafe602735fb63dbdccc7de951f3d5e8 but the store holds sha256:d5e16bacd6172fd3f585fb8ec75d720c5653f277f301792bf0470edf19e2e6f2
+corp.example/schemas/service: pinned archive sha256:5329cc3fa261177d3ed41b8245e0b68b8a0efc18b0721f0d9eb27533bdc654af but the store holds sha256:4ee5283f7794083afa842addc12067c28b5063c8e0fa8a5d96be8c638969a851
 $ echo $?
 1
 ```
@@ -154,12 +156,12 @@ run `aontu sync --frozen`, which refuses the same way and fetches what
 a locked version needs; run `sync` without the flag only when you
 intend to move a pin, and review its diff like code. Nothing to check
 is not a pass, either. Take a project that declares the dependency but
-never committed a lockfile: only its `pkg.aon`:
+never committed a lockfile: only its `pkg.aontu`:
 
 <!-- test: scenario verify-unlocked -->
-<!-- test: file pkg.aon -->
+<!-- test: file pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/app" main:"main.aon" }
+pkg: { path:"corp.example/app" main:"main.aontu" }
 dep: "corp.example/schemas/service": v: "1.0.0"
 ```
 
@@ -177,59 +179,62 @@ set, and the line names the repair.
 
 ## A package with its own dependencies vendors flat
 
-A vendored package carries its own `pkg.aon` and may declare its own
+A vendored package carries its own `pkg.aontu` and may declare its own
 `dep`. Its imports resolve from its own directory and from every
 enclosing project root, so its dependency goes in the same
 `aontu_meta/vendor/` tree, beside it: never nested inside it:
 
 ```
 project/
-  pkg.aon
+  pkg.aontu
   aontu_meta/
     vendor/
       corp.example/
         schemas/
           service/         # imports common
-            pkg.aon
-            service.aon
+            pkg.aontu
+            service.aontu
           common/          # flat beside it, not nested inside it
-            pkg.aon
-            common.aon
+            pkg.aontu
+            common.aontu
 ```
 
 Declaring only the top of the closure is enough, because `sync` walks
-the rest. A consumer `pkg.aon`:
+the rest. A consumer `pkg.aontu`:
 
 <!-- test: scenario vendor-transitive -->
-<!-- test: file pkg.aon -->
+<!-- test: file pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/app" main:"main.aon" }
+pkg: { path:"corp.example/app" main:"main.aontu" }
 dep: "corp.example/schemas/service": v: "1.0.0"
 ```
 
-its entry `main.aon`:
+its entry `main.aontu`:
 
-<!-- test: file main.aon -->
+<!-- test: file main.aontu -->
 ```aontu
 svc: @"corp.example/schemas/service"
 svc: name: "auth"
 ```
 
 a hand-vendored
-`aontu_meta/vendor/corp.example/schemas/service/pkg.aon` that declares a
+`aontu_meta/vendor/corp.example/schemas/service/pkg.aontu` that declares a
 dependency of its own:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/service/pkg.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/service" version:"1.0.0" main:"service.aon" }
+pkg: path: "corp.example/schemas/service"
+pkg: version: "1.0.0"
+pkg: main: "service.aontu"
+
 dep: "corp.example/schemas/common": v: "1.0.0"
 ```
 
 and its entry
-`aontu_meta/vendor/corp.example/schemas/service/service.aon`, importing
+`aontu_meta/vendor/corp.example/schemas/service/service.aontu`, importing
 it:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/service/service.aontu -->
 ```aontu
 @"corp.example/schemas/common"
 name: string
@@ -253,17 +258,17 @@ pinned, because every module that fails to evaluate hashes to the
 same string: a lockfile written from one would look like a pin and
 mean nothing. (`aontu hash` refuses the same file with the same
 wording.) Vendor the dependency flat beside its dependant:
-`aontu_meta/vendor/corp.example/schemas/common/pkg.aon`:
+`aontu_meta/vendor/corp.example/schemas/common/pkg.aontu`:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/common/pkg.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/common/pkg.aontu -->
 ```aontu
-pkg: { path:"corp.example/schemas/common" version:"1.0.0" main:"common.aon" }
+pkg: { path:"corp.example/schemas/common" version:"1.0.0" main:"common.aontu" }
 ```
 
 with its entry, a shared naming vocabulary, as
-`aontu_meta/vendor/corp.example/schemas/common/common.aon`:
+`aontu_meta/vendor/corp.example/schemas/common/common.aontu`:
 
-<!-- test: file aontu_meta/vendor/corp.example/schemas/common/common.aon -->
+<!-- test: file aontu_meta/vendor/corp.example/schemas/common/common.aontu -->
 ```aontu
 name: string & re("^[a-z][a-z0-9-]*$")
 ```
@@ -277,7 +282,7 @@ verdict: ok
 corp.example/schemas/common 1.0.0 aon1-btDT9RfDGjP4uvd5osF3R3mRW5aIeDz49_JbJpVLDwU
 corp.example/schemas/service 1.0.0 aon1-GublSGsGCwYBgyQBAZSk9imd7xfbeCYKY6qbud8okdc
 
-$ aontu main.aon
+$ aontu main.aontu
 {
   "svc": {
     "name": "auth",

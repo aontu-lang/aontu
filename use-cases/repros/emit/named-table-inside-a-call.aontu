@@ -1,0 +1,20 @@
+# 84: a NAMED TABLE (an alias holding a placeheld emit) resolves as a
+# body element and as a top-level dispatch, but not as the table of an
+# emit that is itself the argument of another call.
+#
+# run: node ../../../ts/bin/aontu.js named-table-inside-a-call.aontu
+# run: aontu-go named-table-inside-a-call.aontu
+#
+# expected: {"a":["a","b"],"b":"a,b","c":"a,b","s":[...]}
+# actual:   $.b is emit_table -- "Cannot resolve value:
+#           emit([{"n":"a"},{"n":"b"}],%w)" -- then aggregate_data for
+#           the join of that nil. Both ports, the same two codes.
+#           `a` (the alias as a direct table) and `c` (the same table
+#           written inline where `b` names it) both answer.
+%w = emit(_, { match: { n: string } body: [.n] })
+
+s: [{ n: "a" } { n: "b" }]
+
+a: emit($.s, %w)
+b: join(emit($.s, %w), ",")
+c: join(emit($.s, { match: { n: string } body: [.n] }), ",")

@@ -42,7 +42,7 @@ const renderMany = `out: [file("a.txt", ["a"]) folder("sub", [file("b.txt", ["b1
 
 func TestRenderWritesOneFileToThePath(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon", renderOne)
+	gen := renderFile(t, dir, "gen.aontu", renderOne)
 
 	// The path names the file: the tree's own name is not used.
 	dest := filepath.Join(dir, "deep", "one.txt")
@@ -68,7 +68,7 @@ func TestRenderWritesOneFileToThePath(t *testing.T) {
 
 func TestRenderWritesATreeBelowThePath(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon", renderMany)
+	gen := renderFile(t, dir, "gen.aontu", renderMany)
 	build := filepath.Join(dir, "build")
 
 	out, errw, code := renderRunCLI("--format", "json", gen, build)
@@ -93,7 +93,7 @@ func TestRenderWritesATreeBelowThePath(t *testing.T) {
 
 func TestRenderCheckHoldsThePath(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon", renderMany)
+	gen := renderFile(t, dir, "gen.aontu", renderMany)
 	build := filepath.Join(dir, "build")
 	if _, errw, code := renderRunCLI(gen, build); 0 != code {
 		t.Fatalf("code %d: %s", code, errw)
@@ -142,7 +142,7 @@ func TestRenderCheckHoldsThePath(t *testing.T) {
 
 func TestRenderCheckSkipsAnExcludedFile(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		"out: project(\".\", [\n"+
 			"  file({name: \"keep.txt\", exclude: true}, [\"generated\"])\n"+
 			"  file({name: \"held.txt\"}, [\"generated\"])\n"+
@@ -190,7 +190,7 @@ func TestRenderCheckSkipsAnExcludedFile(t *testing.T) {
 
 func TestRenderCheckReportsAnAbsentExcludedFile(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		`out: project(".", [file({name: "keep.txt", exclude: true}, ["gen"])])`+"\n")
 	build := filepath.Join(dir, "build")
 	if err := os.Mkdir(build, 0o700); err != nil {
@@ -207,7 +207,7 @@ func TestRenderCheckReportsAnAbsentExcludedFile(t *testing.T) {
 
 func TestRenderCheckSkipsAnExcludedMode(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		`out: project(".", [`+
 			`file({name: "run.sh", exclude: true, mode: 493}, ["#!/bin/sh"])])`+"\n")
 	build := filepath.Join(dir, "build")
@@ -237,10 +237,10 @@ func TestRenderCheckHoldsEveryOtherExcludeForm(t *testing.T) {
 	// string and list forms are held to the generator's bytes, as is a
 	// `File` that does not ask to be excluded at all.
 	for _, form := range [][2]string{
-		{"none.aon", ""},
-		{"false.aon", ", exclude: false"},
-		{"string.aon", `, exclude: "k.txt"`},
-		{"list.aon", `, exclude: ["k.txt"]`},
+		{"none.aontu", ""},
+		{"false.aontu", ", exclude: false"},
+		{"string.aontu", `, exclude: "k.txt"`},
+		{"list.aontu", `, exclude: ["k.txt"]`},
 	} {
 		gen := renderFile(t, dir, form[0],
 			`out: project(".", [file({name: "k.txt"`+form[1]+
@@ -265,9 +265,9 @@ func TestRenderCheckSkipsAnExcludedFileInASet(t *testing.T) {
 	if err := os.Mkdir(gens, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	renderFile(t, gens, "a.aon",
+	renderFile(t, gens, "a.aontu",
 		`out: file({name: "solo.txt", exclude: true}, ["gen"])`+"\n")
-	renderFile(t, gens, "b.aon",
+	renderFile(t, gens, "b.aontu",
 		`out: project(".", [file({name: "two.txt", exclude: true}, ["gen"])])`+"\n")
 	build := filepath.Join(dir, "build")
 	if _, errw, code := renderRunCLI(gens, build); 0 != code {
@@ -286,7 +286,7 @@ func TestRenderCheckSkipsAnExcludedFileInASet(t *testing.T) {
 
 func TestRenderCheckSkipsAnExcludedRootFile(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		`out: file({name: "ignored.txt", exclude: true}, ["generated"])`+"\n")
 	dest := filepath.Join(dir, "target.txt")
 
@@ -307,7 +307,7 @@ func TestRenderCheckSkipsAnExcludedRootFile(t *testing.T) {
 
 func TestRenderCheckSkipsAnExcludedFileBesideABareNode(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		"out: { cmp: \"Project\", props: {folder: \".\"}, children: [\n"+
 			"  { cmp: \"File\", props: {name: \"keep.txt\", exclude: true},\n"+
 			"    children: [{cmp: \"Line\", props: {src: \"gen\"}}] }\n"+
@@ -329,19 +329,19 @@ func TestRenderCheckSkipsAnExcludedFileBesideABareNode(t *testing.T) {
 
 func TestRenderCheckOneFileInTheCurrentDirectory(t *testing.T) {
 	dir := t.TempDir()
-	renderFile(t, dir, "gen.aon", renderOne)
+	renderFile(t, dir, "gen.aontu", renderOne)
 	t.Chdir(dir)
 
-	if _, errw, code := renderRunCLI("gen.aon", "one.txt"); 0 != code {
+	if _, errw, code := renderRunCLI("gen.aontu", "one.txt"); 0 != code {
 		t.Fatalf("code %d: %s", code, errw)
 	}
-	out, _, code := renderRunCLI("--check", "--format", "json", "gen.aon", "one.txt")
+	out, _, code := renderRunCLI("--check", "--format", "json", "gen.aontu", "one.txt")
 	if 0 != code || !strings.Contains(out, `"one.txt"`) ||
 		!strings.Contains(out, `"verdict": "ok"`) {
 		t.Fatalf("clean: code %d out %q", code, out)
 	}
 	renderFile(t, dir, "one.txt", "edited\n")
-	if out, _, code := renderRunCLI("--check", "gen.aon", "one.txt"); 1 != code ||
+	if out, _, code := renderRunCLI("--check", "gen.aontu", "one.txt"); 1 != code ||
 		"content: one.txt\n" != out {
 		t.Fatalf("drift: code %d out %q", code, out)
 	}
@@ -363,7 +363,7 @@ func TestRenderReadsATemplateEntry(t *testing.T) {
 	}
 
 	// The profile names the marker for the extension.
-	profile := renderFile(t, dir, "text.aon", "@\"aontu:profile\"\n\n"+
+	profile := renderFile(t, dir, "text.aontu", "@\"aontu:profile\"\n\n"+
 		"aontu: Lang: lang: \"text\"\n"+
 		"aontu: Lang: template: { marker:\"#-\" ext: [\"txt\"] }\n")
 	if _, errw, code := renderRunCLI("--profile", profile, gen, dest); 0 != code {
@@ -379,7 +379,7 @@ func TestRenderReadsATemplateEntry(t *testing.T) {
 
 func TestRenderReadsAnotherAnchor(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon",
+	gen := renderFile(t, dir, "gen.aontu",
 		strings.Replace(renderOne, "out:", "elsewhere:", 1))
 	dest := filepath.Join(dir, "x.txt")
 
@@ -397,7 +397,7 @@ func TestRenderRefusesWhatJostracaRefuses(t *testing.T) {
 	dest := filepath.Join(dir, "build")
 
 	// A map that is not a component the runtime knows.
-	bad := renderFile(t, dir, "bad.aon",
+	bad := renderFile(t, dir, "bad.aontu",
 		`out: { cmp: "Nope", props: {}, children: [] }`+"\n")
 	if _, errw, code := renderRunCLI(bad, dest); 4 != code ||
 		!strings.Contains(errw, "unknown component: Nope") {
@@ -405,7 +405,7 @@ func TestRenderRefusesWhatJostracaRefuses(t *testing.T) {
 	}
 
 	// A File written by hand with no name is refused before the runtime.
-	nameless := renderFile(t, dir, "nameless.aon",
+	nameless := renderFile(t, dir, "nameless.aontu",
 		`out: { cmp: "File", children: [] }`+"\n")
 	if _, errw, code := renderRunCLI(nameless, filepath.Join(dir, "n.txt")); 4 != code ||
 		!strings.Contains(errw, "the file at $.out has no name") {
@@ -413,7 +413,7 @@ func TestRenderRefusesWhatJostracaRefuses(t *testing.T) {
 	}
 
 	// A fragment whose source is not there fails the write and the check.
-	frag := renderFile(t, dir, "frag.aon",
+	frag := renderFile(t, dir, "frag.aontu",
 		`out: file("x.txt", [fragment("nope.txt")])`+"\n")
 	if _, errw, code := renderRunCLI(frag, dest); 2 != code ||
 		!strings.Contains(errw, "nope.txt") {
@@ -425,7 +425,7 @@ func TestRenderRefusesWhatJostracaRefuses(t *testing.T) {
 	}
 
 	// A path below a file cannot be made.
-	gen := renderFile(t, dir, "gen.aon", renderOne)
+	gen := renderFile(t, dir, "gen.aontu", renderOne)
 	afile := renderFile(t, dir, "afile", "x\n")
 	if _, errw, code := renderRunCLI(gen, filepath.Join(afile, "x.txt")); 2 != code {
 		t.Fatalf("code %d: %s", code, errw)
@@ -436,15 +436,15 @@ func TestRenderDocumentErrors(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "x.txt")
 
-	broken := renderFile(t, dir, "broken.aon", "out: file(\n")
+	broken := renderFile(t, dir, "broken.aontu", "out: file(\n")
 	if _, errw, code := renderRunCLI(broken, dest); 4 != code || "" == errw {
 		t.Fatalf("code %d: %s", code, errw)
 	}
 
 	// An include the trust does not admit.
-	renderFile(t, dir, "model.aon", "foo: \"BAR\"\n")
-	gen := renderFile(t, dir, "gen.aon",
-		"@\"./model.aon\"\nout: file(\"zed.txt\", [\"foo = \" + $.foo])\n")
+	renderFile(t, dir, "model.aontu", "foo: \"BAR\"\n")
+	gen := renderFile(t, dir, "gen.aontu",
+		"@\"./model.aontu\"\nout: file(\"zed.txt\", [\"foo = \" + $.foo])\n")
 	if _, errw, code := renderRunCLI("--trust", "none", gen, dest); 4 != code ||
 		!strings.Contains(errw, "include_denied") {
 		t.Fatalf("code %d: %s", code, errw)
@@ -456,7 +456,7 @@ func TestRenderDocumentErrors(t *testing.T) {
 
 func TestRenderUsage(t *testing.T) {
 	dir := t.TempDir()
-	gen := renderFile(t, dir, "gen.aon", renderOne)
+	gen := renderFile(t, dir, "gen.aontu", renderOne)
 
 	out, _, code := renderRunCLI("--help")
 	if 0 != code || !strings.Contains(out, "aontu render [--check]") {
@@ -479,8 +479,8 @@ func TestRenderUsage(t *testing.T) {
 		{[]string{"--format"}, "--format needs text or json"},
 		{[]string{"--format", "xml", gen, "x"}, "--format needs text or json"},
 		{[]string{"--trust", "nonsense", gen, "x"}, "--trust"},
-		{[]string{filepath.Join(dir, "missing.aon"), "x"}, "cannot read"},
-		{[]string{"--profile", filepath.Join(dir, "missing.aon"), gen, "x"},
+		{[]string{filepath.Join(dir, "missing.aontu"), "x"}, "cannot read"},
+		{[]string{"--profile", filepath.Join(dir, "missing.aontu"), gen, "x"},
 			"cannot read"},
 	} {
 		_, errw, code := renderRunCLI(tc.args...)
@@ -502,11 +502,11 @@ func renderDir(t *testing.T, parts ...string) string {
 func TestRenderWritesAFolderOfGeneratorsAsOne(t *testing.T) {
 	dir := t.TempDir()
 	gen := renderDir(t, dir, "gen")
-	renderFile(t, gen, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, gen, "a.aontu", `out: file("a.txt", ["a"])`+"\n")
 	renderFile(t, gen, "b.rb", "#- out: folder(\"lib\", [file(\"b.rb\", [\nputs \"b\"\n#- ])])\n")
-	renderFile(t, gen, "c.aon", `out: [file("c.txt", ["c"])]`+"\n")
+	renderFile(t, gen, "c.aontu", `out: [file("c.txt", ["c"])]`+"\n")
 	renderFile(t, gen, ".keep", "")
-	renderFile(t, renderDir(t, gen, "sub"), "ignored.aon",
+	renderFile(t, renderDir(t, gen, "sub"), "ignored.aontu",
 		`out: file("ignored.txt", ["no"])`+"\n")
 	out := filepath.Join(dir, "out")
 
@@ -557,7 +557,7 @@ func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
 
 	// A file with no marker line is refused by name, and nothing is written.
 	notes := renderDir(t, dir, "notes")
-	renderFile(t, notes, "a.aon", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, notes, "a.aontu", `out: file("a.txt", ["a"])`+"\n")
 	renderFile(t, notes, "notes.md", "# notes\n")
 	if _, errw, code := renderRunCLI(notes, out); 2 != code ||
 		!strings.Contains(errw, "notes.md carries no") ||
@@ -570,8 +570,8 @@ func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
 
 	// A generator that does not stand up refuses the set before it writes.
 	broken := renderDir(t, dir, "broken")
-	renderFile(t, broken, "a.aon", `out: file("a.txt", ["a"])`+"\n")
-	renderFile(t, broken, "b.aon", "out: file(\n")
+	renderFile(t, broken, "a.aontu", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, broken, "b.aontu", "out: file(\n")
 	if _, errw, code := renderRunCLI(broken, out); 4 != code {
 		t.Fatalf("broken: code %d: %s", code, errw)
 	}
@@ -581,8 +581,8 @@ func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
 
 	// A nameless File anywhere in the set is refused.
 	nameless := renderDir(t, dir, "nameless")
-	renderFile(t, nameless, "a.aon", `out: file("a.txt", ["a"])`+"\n")
-	renderFile(t, nameless, "b.aon", `out: { cmp: "File", children: [] }`+"\n")
+	renderFile(t, nameless, "a.aontu", `out: file("a.txt", ["a"])`+"\n")
+	renderFile(t, nameless, "b.aontu", `out: { cmp: "File", children: [] }`+"\n")
 	if _, errw, code := renderRunCLI(nameless, out); 4 != code ||
 		!strings.Contains(errw, "has no name") {
 		t.Fatalf("nameless: code %d: %s", code, errw)
@@ -590,8 +590,8 @@ func TestRenderRefusesAFolderItCannotRenderWhole(t *testing.T) {
 
 	// The same path claimed twice is refused by the runtime.
 	twice := renderDir(t, dir, "twice")
-	renderFile(t, twice, "a.aon", `out: file("same.txt", ["a"])`+"\n")
-	renderFile(t, twice, "b.aon", `out: file("same.txt", ["b"])`+"\n")
+	renderFile(t, twice, "a.aontu", `out: file("same.txt", ["a"])`+"\n")
+	renderFile(t, twice, "b.aontu", `out: file("same.txt", ["b"])`+"\n")
 	for _, args := range [][]string{{twice, out}, {"--check", twice, out}} {
 		if _, errw, code := renderRunCLI(args...); 2 != code ||
 			!strings.Contains(errw, "same output path") {

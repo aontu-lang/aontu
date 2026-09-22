@@ -25,7 +25,7 @@ func srcPath(p string) string {
 	return strings.ReplaceAll(p, "\\", "/")
 }
 
-// trustWorld: root/{in.aon, main.aon}, secret.aon OUTSIDE the root.
+// trustWorld: root/{in.aontu, main.aontu}, secret.aontu OUTSIDE the root.
 func trustCliWorld(t *testing.T) (dir, root, entry string) {
 	t.Helper()
 	dir = t.TempDir()
@@ -38,9 +38,9 @@ func trustCliWorld(t *testing.T) (dir, root, entry string) {
 			t.Fatal(err)
 		}
 	}
-	write(filepath.Join(root, "in.aon"), "f: 11")
-	write(filepath.Join(dir, "secret.aon"), `secret: "outside"`)
-	entry = filepath.Join(root, "main.aon")
+	write(filepath.Join(root, "in.aontu"), "f: 11")
+	write(filepath.Join(dir, "secret.aontu"), `secret: "outside"`)
+	entry = filepath.Join(root, "main.aontu")
 	return dir, root, entry
 }
 
@@ -98,7 +98,7 @@ func trustPartition(t *testing.T, exercised map[string]bool) {
 
 // A project whose VENDORED dependency carries the include under test.
 // The package verbs evaluate a module's document, and an include in
-// `pkg.aon` is not resolved at all, so the manifest gives the
+// `pkg.aontu` is not resolved at all, so the manifest gives the
 // capability nothing to confine.
 func trustPkgProject(t *testing.T, include string) string {
 	t.Helper()
@@ -109,12 +109,12 @@ func trustPkgProject(t *testing.T, include string) string {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		filepath.Join(dir, "pkg.aon"): "pkg: {path: \"corp.example/app\"}\n" +
+		filepath.Join(dir, "pkg.aontu"): "pkg: {path: \"corp.example/app\"}\n" +
 			"dep: {\"corp.example/schemas/service\": {v: \"1.0.0\"}}\n",
-		filepath.Join(store, "pkg.aon"): "pkg: {path: " +
-			"\"corp.example/schemas/service\", main: \"service.aon\"}\n",
+		filepath.Join(store, "pkg.aontu"): "pkg: {path: " +
+			"\"corp.example/schemas/service\", main: \"service.aontu\"}\n",
 		filepath.Join(store, "doc.md"):      "# hi\n",
-		filepath.Join(store, "service.aon"): include + "\nname: string\n",
+		filepath.Join(store, "service.aontu"): include + "\nname: string\n",
 	}
 	for at, src := range files {
 		if err := os.WriteFile(at, []byte(src), 0o600); nil != err {
@@ -126,7 +126,7 @@ func trustPkgProject(t *testing.T, include string) string {
 
 func TestTrustCliNoneDenies(t *testing.T) {
 	_, _, entry := trustCliWorld(t)
-	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, errText, code := trustRun("--trust", "none", entry)
@@ -138,7 +138,7 @@ func TestTrustCliNoneDenies(t *testing.T) {
 func TestTrustCliIncludeRootConfines(t *testing.T) {
 	dir, root, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry,
-		[]byte(`a:@"`+srcPath(dir)+`/secret.aon"`), 0o600); err != nil {
+		[]byte(`a:@"`+srcPath(dir)+`/secret.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, errText, code := trustRun("--include-root", root, entry)
@@ -155,7 +155,7 @@ func TestTrustCliIncludeRootConfines(t *testing.T) {
 
 func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 	dir, _, entry := trustCliWorld(t)
-	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, code := trustRun("--trust", "root", entry); 0 != code {
@@ -163,7 +163,7 @@ func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 	}
 
 	if err := os.WriteFile(entry,
-		[]byte(`a:@"`+srcPath(dir)+`/secret.aon"`), 0o600); err != nil {
+		[]byte(`a:@"`+srcPath(dir)+`/secret.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, code := trustRun("--trust", "root", entry); 1 != code {
@@ -180,7 +180,7 @@ func TestTrustCliRootDefaultsToTheEntryDirectory(t *testing.T) {
 func TestTrustCliDefaultWarnsOnEscape(t *testing.T) {
 	dir, _, entry := trustCliWorld(t)
 	if err := os.WriteFile(entry, []byte(
-		`a:@"`+srcPath(dir)+`/secret.aon" b:@"`+srcPath(dir)+`/secret.aon" c:@"./in.aon"`,
+		`a:@"`+srcPath(dir)+`/secret.aontu" b:@"`+srcPath(dir)+`/secret.aontu" c:@"./in.aontu"`,
 	), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestTrustCliStdinNone(t *testing.T) {
 	dir, _, _ := trustCliWorld(t)
 	var out, errw bytes.Buffer
 	code := run([]string{"--trust", "none"},
-		strings.NewReader(`a:@"`+srcPath(dir)+`/secret.aon"`), &out, &errw, false)
+		strings.NewReader(`a:@"`+srcPath(dir)+`/secret.aontu"`), &out, &errw, false)
 	if 1 != code || !strings.Contains(errw.String(), "include denied") {
 		t.Fatalf("code %d: %s", code, errw.String())
 	}
@@ -211,17 +211,17 @@ func TestTrustCliStdinNone(t *testing.T) {
 
 func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	dir, root, _ := trustCliWorld(t)
-	entry := filepath.Join(root, "leak.aon")
+	entry := filepath.Join(root, "leak.aontu")
 	write := func(path, src string) {
 		t.Helper()
 		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	write(entry, `a:@"`+srcPath(dir)+`/secret.aon"`)
+	write(entry, `a:@"`+srcPath(dir)+`/secret.aontu"`)
 	data := filepath.Join(root, "data.json")
 	write(data, "{}")
-	overlay := filepath.Join(root, "overlay.aon")
+	overlay := filepath.Join(root, "overlay.aontu")
 	write(overlay, "")
 
 	seen := map[string]bool{}
@@ -260,13 +260,13 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 	denied("agentsmd", entry)
 	denied("model", "set", "$.z=1", "--entry", entry, "--overlay", overlay)
 
-	gen := filepath.Join(root, "gen.aon")
-	write(gen, `@"`+srcPath(dir)+`/secret.aon"`+
+	gen := filepath.Join(root, "gen.aontu")
+	write(gen, `@"`+srcPath(dir)+`/secret.aontu"`+
 		"\nout: file({ name: \"o.txt\" }, [\"x\"])\n")
 	// A profile is the document `fmt` and `template` evaluate; neither
 	// resolves an include in the file it rewrites.
-	profile := filepath.Join(root, "prof.aon")
-	write(profile, `@"`+srcPath(dir)+`/secret.aon"`+"\naontu: { Lang: {} }\n")
+	profile := filepath.Join(root, "prof.aontu")
+	write(profile, `@"`+srcPath(dir)+`/secret.aontu"`+"\naontu: { Lang: {} }\n")
 	generator := filepath.Join(root, "gen.ts")
 	write(generator, "//- x: 1\nhello\n")
 
@@ -277,7 +277,7 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 
 	// The package verbs take a fresh project each run, because they
 	// write a lockfile the next run would read.
-	escape := `@"` + srcPath(dir) + `/secret.aon"`
+	escape := `@"` + srcPath(dir) + `/secret.aontu"`
 	for _, args := range [][]string{{"sync"}, {"pkg", "tidy"}} {
 		seen[args[0]] = true
 		openOut, _, _ := trustRun(
@@ -304,11 +304,11 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 		}
 	}
 	write(filepath.Join(dir, "doc.md"), "# hi\n")
-	entry := filepath.Join(dir, "main.aon")
+	entry := filepath.Join(dir, "main.aontu")
 	write(entry, "doc: @\"./doc.md\"\n")
-	schema := filepath.Join(dir, "schema.aon")
+	schema := filepath.Join(dir, "schema.aontu")
 	write(schema, "doc: string\n")
-	overlay := filepath.Join(dir, "overlay.aon")
+	overlay := filepath.Join(dir, "overlay.aontu")
 
 	refused := func(s string) bool {
 		return strings.Contains(s, "include_extension") ||
@@ -378,9 +378,9 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 		t.Fatalf("set overlay: %q %v", string(b), err)
 	}
 
-	gen := filepath.Join(dir, "gen.aon")
+	gen := filepath.Join(dir, "gen.aontu")
 	write(gen, "doc: @\"./doc.md\"\nout: file({ name: \"o.txt\" }, [\"x\"])\n")
-	profile := filepath.Join(dir, "prof.aon")
+	profile := filepath.Join(dir, "prof.aontu")
 	write(profile, "doc: @\"./doc.md\"\naontu: { Lang: {} }\n")
 	generator := filepath.Join(dir, "gen.ts")
 	write(generator, "//- x: 1\nhello\n")
@@ -413,16 +413,16 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 // spelling, and a bare `root` means the document's directory.
 func TestTrustCliVerbsTakeIncludeRoot(t *testing.T) {
 	dir, root, _ := trustCliWorld(t)
-	entry := filepath.Join(root, "leak.aon")
-	inside := filepath.Join(root, "fine.aon")
+	entry := filepath.Join(root, "leak.aontu")
+	inside := filepath.Join(root, "fine.aontu")
 	write := func(path, src string) {
 		t.Helper()
 		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	write(entry, `a:@"`+srcPath(dir)+`/secret.aon"`)
-	write(inside, `a:@"./in.aon"`)
+	write(entry, `a:@"`+srcPath(dir)+`/secret.aontu"`)
+	write(inside, `a:@"./in.aontu"`)
 
 	out, errText, _ := trustRun("model", "get", "$.a.secret", "--include-root", root, entry)
 	if !strings.Contains(out+errText, "include denied") {
@@ -455,9 +455,9 @@ func TestTrustCliVerbsTakeIncludeRoot(t *testing.T) {
 // invoked.
 func TestTrustCliReplHonoursTheCapability(t *testing.T) {
 	dir, root, _ := trustCliWorld(t)
-	entry := filepath.Join(root, "leak.aon")
+	entry := filepath.Join(root, "leak.aontu")
 	if err := os.WriteFile(entry,
-		[]byte(`a:@"`+srcPath(dir)+`/secret.aon"`), 0o600); err != nil {
+		[]byte(`a:@"`+srcPath(dir)+`/secret.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	read := func(f string) (string, error) {
@@ -482,7 +482,7 @@ func TestTrustCliReplHonoursTheCapability(t *testing.T) {
 	// A bare snippet -- no file of its own -- is confined too.
 	snippet := replCommand(
 		replState{Mode: "json", JSONL: true, Trust: trustArg{kind: "none"}},
-		`a:@"`+srcPath(dir)+`/secret.aon"`, read)
+		`a:@"`+srcPath(dir)+`/secret.aontu"`, read)
 	if !strings.Contains(snippet.Out, "include denied") {
 		t.Fatalf("snippet: %q", snippet.Out)
 	}
@@ -503,15 +503,15 @@ func TestTrustCliUsageErrorsExit2(t *testing.T) {
 
 func TestTrustCliEveryVerbRefusesABadSpelling(t *testing.T) {
 	_, root, _ := trustCliWorld(t)
-	entry := filepath.Join(root, "main.aon")
-	if err := os.WriteFile(entry, []byte(`a:@"./in.aon"`), 0o600); err != nil {
+	entry := filepath.Join(root, "main.aontu")
+	if err := os.WriteFile(entry, []byte(`a:@"./in.aontu"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	data := filepath.Join(root, "data.json")
 	if err := os.WriteFile(data, []byte("{}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	overlay := filepath.Join(root, "overlay.aon")
+	overlay := filepath.Join(root, "overlay.aontu")
 	if err := os.WriteFile(overlay, []byte(""), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -609,8 +609,8 @@ func TestTrustHelpNamesEveryVerbThatRefusesTheCapability(t *testing.T) {
 // empty argument names no directory to confine below.
 func TestTrustIncludeRootRefusesAnEmptyDirectory(t *testing.T) {
 	for _, args := range [][]string{
-		{"--include-root", "", "x.aon"},
-		{"vet", "--include-root", "", "a.aon", "b.aon"},
+		{"--include-root", "", "x.aontu"},
+		{"vet", "--include-root", "", "a.aontu", "b.aontu"},
 	} {
 		var out, errw bytes.Buffer
 		if code := run(args, strings.NewReader(""), &out, &errw, false); 2 != code {
@@ -626,7 +626,7 @@ func TestTrustIncludeRootRefusesAnEmptyDirectory(t *testing.T) {
 // included: the answer is the same on either side of it.
 func TestTrustModelTakesTheCapabilityBeforeItsSubcommand(t *testing.T) {
 	dir, root, entry := trustCliWorld(t)
-	src := `a:@"` + srcPath(dir) + `/secret.aon"`
+	src := `a:@"` + srcPath(dir) + `/secret.aontu"`
 	if err := os.WriteFile(entry, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}

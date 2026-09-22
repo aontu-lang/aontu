@@ -15,11 +15,11 @@
 #
 # Pinned by ts/test/mod.test.ts and go/modtool_test.go (TestModVerify)
 # and by the CLI tests (TestModVerifyCommand).
-# run: aontu mod tidy . && aontu main.aon    # baseline: ok
-#      sed -i 's/\*8080/*9090/' aontu_meta/vendor/corp.example/schemas/service@1/service.aon
-#      aontu main.aon                        # refused: module integrity (good)
+# run: aontu mod tidy . && aontu main.aontu    # baseline: ok
+#      sed -i 's/\*8080/*9090/' aontu_meta/vendor/corp.example/schemas/service@1/service.aontu
+#      aontu main.aontu                        # refused: module integrity (good)
 #      aontu mod verify .                    # verdict: mismatch, exit 1, lock untouched
 # expected: verify reports the tampered module and exits 1 without rewriting mod-lock.aon
 # actual:   verify reports the tampered module and exits 1 without rewriting mod-lock.aon
-mod: { path: "corp.example/checkout", main: "main.aon" }
+mod: { path: "corp.example/checkout", main: "main.aontu" }
 dep: { "corp.example/schemas/service@1": { v: "1.0.0" } }

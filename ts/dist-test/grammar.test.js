@@ -382,7 +382,7 @@ function abnfRules(text) {
     // which a constrained decoder must never be able to emit.
     (0, node_test_1.test)('the-grammar-refuses-what-it-should', () => {
         for (const bad of [
-            'a: @"./secret.aon"', // an include, the one deliberate exclusion
+            'a: @"./secret.aontu"', // an include, the one deliberate exclusion
             '@"x"',
             '{a:1}', // an unquoted key: canon quotes every key
             '{"a":}',
@@ -414,7 +414,7 @@ function abnfRules(text) {
     // And the same exclusions, above all the include directive.
     (0, node_test_1.test)('the-abnf-grammar-refuses-what-it-should', () => {
         for (const bad of [
-            'a: @"./secret.aon"',
+            'a: @"./secret.aontu"',
             '@"x"',
             '{a:1}',
             '{"a":}',

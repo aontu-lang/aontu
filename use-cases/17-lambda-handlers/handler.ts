@@ -1,8 +1,8 @@
 //- # handler.ts --- the handler generator, in the TEMPLATE form: the
 //- # file below IS a Lambda handler, and the marked lines are the
 //- # aontu that turns one into twelve. It answers the same thirteen
-//- # files as gen.aon, which is the canonical form of this file.
-//- @"./model.aon"
+//- # files as gen.aontu, which is the canonical form of this file.
+//- @"./model.aontu"
 //-
 //- # Each service carries its own name, so a rule can read it.
 //- svc: $.services & pack($.services, { name:key() })

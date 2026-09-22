@@ -1,0 +1,20 @@
+# 49(b): the `.json` extension is the one that neither parses nor
+# stringifies — TypeScript raises an unhandled internal error with no
+# code, no path and no site (the §43 shape: a harness grepping
+# `[aontu/` sees nothing at all). Go parses it.
+#
+# run: node ../../../ts/bin/aontu.js json-extension-crashes-ts.aontu
+# run: aontu-go json-extension-crashes-ts.aontu
+#
+# FIXED 2026-08-30 (ADR-012). Both ports now answer
+#   {"vocab":{"@context":{"name":"http://schema.org/name"},"name":"Ada"}}
+#
+# `.json` alone crashed rather than falling through to text because it
+# is the one extension carrying an upstream default processor, which
+# returns a plain JS object where the aontu grammar produces Vals. It
+# is also the extension every published vocabulary ships as, which is
+# why docs/design/ONTOLOGY.0.md §3.1 made this a prerequisite of that
+# note's phase P1 — now met.
+#
+# The durable pin is test/spec/file.tsv, load-ext-json.
+vocab: @"./vocab.json"

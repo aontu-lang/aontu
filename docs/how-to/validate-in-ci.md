@@ -11,10 +11,10 @@ gate: it validates data files against a schema document, prints
 located findings, and exits with the verdict class, which is
 everything a pipeline needs to go red for a reason.
 
-Write the schema as `schema.aon`:
+Write the schema as `schema.aontu`:
 
 <!-- test: scenario ci-vet -->
-<!-- test: file schema.aon -->
+<!-- test: file schema.aontu -->
 ```aontu
 user: { id:integer name:string admin:boolean }
 ```
@@ -30,13 +30,13 @@ Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet schema.aon user.json
+$ aontu vet schema.aontu user.json
 verdict: invalid
 
 $.user.id: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.user.id
   data: user.json:1:17 ("seven")
-  schema: schema.aon:1:12 (integer)
+  schema: schema.aontu:1:12 (integer)
 $ echo $?
 1
 ```
@@ -58,12 +58,12 @@ it, as `user2.json` does:
 
 <!-- test: run -->
 ```sh
-$ aontu vet schema.aon user2.json
+$ aontu vet schema.aontu user2.json
 verdict: incomplete
 
 $.user.id: mapval_no_gen [incomplete]
   [aontu/mapval_no_gen]: Cannot resolve value at path $.user.id
-  schema: schema.aon:1:12 (integer)
+  schema: schema.aontu:1:12 (integer)
 $ echo $?
 3
 ```
@@ -92,7 +92,7 @@ sarif` emits SARIF 2.1.0, the form GitHub code scanning ingests:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --format sarif schema.aon user.json
+$ aontu vet --format sarif schema.aontu user.json
 {
   "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
   "runs": [
@@ -122,7 +122,7 @@ steps:
   - uses: actions/checkout@v4
   - uses: aontu-lang/aontu/vet-action@main
     with:
-      schema: schema.aon
+      schema: schema.aontu
       data: user.json
 ```
 
@@ -133,7 +133,7 @@ mean a half-finished document blocks the commit too:
 ```sh
 #!/bin/sh
 # .git/hooks/pre-commit
-exec aontu vet schema.aon user.json
+exec aontu vet schema.aontu user.json
 ```
 
 While editing, `--watch` re-runs the whole vet whenever the schema or
@@ -141,7 +141,7 @@ a data file changes, streaming one report per run:
 
 <!-- test: skip --watch runs until interrupted; not executable here -->
 ```sh
-$ aontu vet --watch schema.aon user.json
+$ aontu vet --watch schema.aontu user.json
 ```
 
 Every run is a full re-parse and re-unify, so what you see on each
@@ -153,25 +153,25 @@ A gate that passes because it examined **nothing** is worse than no
 gate: it reports success. The usual cause is one construct, and it is
 silent. A schema written with the wildcard other tools use is a key
 **named** `*` in aontu, so it meets no data key and constrains
-nothing. Here it is as `wild.aon`:
+nothing. Here it is as `wild.aontu`:
 
 <!-- test: scenario vacuous-gate -->
-<!-- test: file wild.aon -->
+<!-- test: file wild.aontu -->
 <!-- fmt: keep the braces are the point: this is the block shape a caller writes, and the agreed form collapses it to a chain -->
 ```aontu
 entity: { "*": { table: string } }
 ```
 
-`rows.aon` is the data it was meant to check:
+`rows.aontu` is the data it was meant to check:
 
-<!-- test: file rows.aon -->
+<!-- test: file rows.aontu -->
 ```aontu
 entity: planet: table: 42
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu vet --partial --strict-coverage wild.aon rows.aon
+$ aontu vet --partial --strict-coverage wild.aontu rows.aontu
 verdict: valid
 ...
 coverage: VACUOUS — no data leaf was constrained by the schema; this run checked nothing

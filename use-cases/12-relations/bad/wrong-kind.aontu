@@ -1,0 +1,10 @@
+# bad/wrong-kind.aontu --- a feeds edge lands on something that is not a
+# job. rel($.spec.JobShape) flows the shape into every target at the
+# site, so the wrong kind is an ordinary located evaluation error
+# (scalar_value at the target's kind), not a report row -- and the
+# relations verb answers `verdict: error` for a document that does not
+# stand up.
+@"../model.aontu"
+
+datasets: raw: kind: dataset
+pipeline: jobs: extract: fedBy: [path($.datasets.raw)]

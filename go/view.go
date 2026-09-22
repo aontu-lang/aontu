@@ -25,7 +25,7 @@ type ViewLoss struct {
 type ViewDoc struct {
 	Src string
 	// Path is where it came from, so a relative include inside it
-	// resolves and so its label (the file name without `.aon`) is
+	// resolves and so its label (the file name without `.aontu`) is
 	// known.
 	Path string
 	// Name is the label to draw, overriding the one derived from Path.
@@ -2198,7 +2198,7 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			if "" == label {
 				label = "doc" + strconv.Itoa(i+1)
 				if "" != d.Path {
-					label = strings.TrimSuffix(filepath.Base(d.Path), ".aon")
+					label = strings.TrimSuffix(filepath.Base(d.Path), ".aontu")
 				}
 			}
 			docs = append(docs, viewPosetDoc{src: d.Src, path: d.Path, label: label})
@@ -2252,7 +2252,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
 		if nil == gen {
 			// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel
 			// reads generated values, so a document that is not concrete
-			// is an error here, exactly as `aontu file.aon` on it is.
+			// is an error here, exactly as `aontu file.aontu` on it is.
 			v, gerr := genCollect(ctx, root)
 			if nil != gerr {
 				return "", queryFailed(gerr, "$").Findings

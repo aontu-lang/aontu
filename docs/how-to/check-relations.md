@@ -15,10 +15,10 @@ once, at the field, and the verdict lands when every edge is known.
 
 The vocabulary below is a trimmed version of
 [use-cases/12-relations](../../use-cases/12-relations/), an ETL
-pipeline where jobs feed jobs. Write it as `spec.aon`:
+pipeline where jobs feed jobs. Write it as `spec.aontu`:
 
 <!-- test: scenario relations -->
-<!-- test: file spec.aon -->
+<!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
   Job: {
@@ -35,11 +35,11 @@ makes the field's strings checked entity addresses and flows the
 endpoint type `t` into every target; `acyclic()` and `inverse(fedBy)`
 are the graph atoms: declarations that unification carries along
 inert, whose verdict lands at generation. Data documents then stay
-plain lists of names. Write the topology as `pipeline.aon`:
+plain lists of names. Write the topology as `pipeline.aontu`:
 
-<!-- test: file pipeline.aon -->
+<!-- test: file pipeline.aontu -->
 ```aontu
-@"./spec.aon"
+@"./spec.aontu"
 
 jobs: { &: $.spec.Job }
 jobs: extract: feeds: [path($.jobs.transform)]
@@ -55,22 +55,22 @@ writes the mirror for you. Run the checks:
 
 <!-- test: run -->
 ```sh
-$ aontu relations pipeline.aon
+$ aontu relations pipeline.aontu
 verdict: pass
 ```
 
-Generating the document (`aontu pipeline.aon`) is unaffected by any
+Generating the document (`aontu pipeline.aontu`) is unaffected by any
 of this, and the lists come out as the same plain strings the author
 wrote: `rel()` checks addresses, it never rewrites them.
 
 ## A cycle is a located refusal
 
 Suppose a change makes `load` feed `extract`, closing the DAG into a
-loop. Write the change as `cycle.aon`, patching both directions in:
+loop. Write the change as `cycle.aontu`, patching both directions in:
 
-<!-- test: file cycle.aon -->
+<!-- test: file cycle.aontu -->
 ```aontu
-@"./pipeline.aon"
+@"./pipeline.aontu"
 jobs: { load:feeds: [path($.jobs.extract)] extract:fedBy: [path($.jobs.load)] }
 ```
 
@@ -80,7 +80,7 @@ located error at an edge on the loop:
 
 <!-- test: run -->
 ```sh
-$ aontu cycle.aon
+$ aontu cycle.aontu
 [aontu/relation_cycle]: Cannot relate value at path $.jobs.extract.feeds
 ...
 $ echo $?
@@ -92,7 +92,7 @@ nodes the cycle runs through, closing back on the first:
 
 <!-- test: run -->
 ```sh
-$ aontu relations cycle.aon
+$ aontu relations cycle.aontu
 verdict: fail
 
 $.jobs.extract.feeds.0  feeds: cycle $.jobs.extract -> $.jobs.transform -> $.jobs.load -> $.jobs.extract
@@ -107,11 +107,11 @@ report diffs cleanly between runs.
 ## A missing inverse names the missing entry
 
 Add a `metrics` job that taps the transform output, and forget to
-record the feeder on its `fedBy`. Write it as `metrics.aon`:
+record the feeder on its `fedBy`. Write it as `metrics.aontu`:
 
-<!-- test: file metrics.aon -->
+<!-- test: file metrics.aontu -->
 ```aontu
-@"./pipeline.aon"
+@"./pipeline.aontu"
 
 jobs: metrics: fedBy: []
 jobs: transform: feeds: [path($.jobs.load) path($.jobs.metrics)]
@@ -119,7 +119,7 @@ jobs: transform: feeds: [path($.jobs.load) path($.jobs.metrics)]
 
 <!-- test: run -->
 ```sh
-$ aontu relations metrics.aon
+$ aontu relations metrics.aontu
 verdict: fail
 
 $.jobs.transform.feeds.1  feeds: $.jobs.metrics does not list $.jobs.transform under fedBy

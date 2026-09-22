@@ -15,7 +15,7 @@ on it. Every snippet here was run.
 **Use a named map.** An array gives every element a number nobody chose,
 and a number is a poor name for a thing that has one.
 
-```aon
+```aontu
 service: {
   auth: { port: 8001 }
   billing: { port: 8002 }
@@ -52,7 +52,7 @@ A map is walked in **sorted-key order**. A list is walked in **source
 order**. That is the whole of the difference, and it is what the choice
 turns on:
 
-```aon
+```aontu
 step: {
   deploy: { run: "bin/deploy" }
   build: { run: "make" }
@@ -91,7 +91,7 @@ one. A rule table is tried in one, and the first match wins.
 Do not smuggle those in as the order somebody happened to type things.
 Keep the map, and state the order beside it as a list of references:
 
-```aon
+```aontu
 entity: {
   planet: { table: "planets" }
   moon: { table: "moons" parent: "planet" }

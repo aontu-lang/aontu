@@ -15,10 +15,10 @@ MCP ecosystem's tool-definition problem.
 
 The model exercises the full loop:
 
-1. `registry.aon`: the registry itself: six tools, closed schemas,
+1. `registry.aontu`: the registry itself: six tools, closed schemas,
    constraint atoms, enums, generated call schemas, derived fields, a
    derived docs table.
-2. `guard.aon`: the dispatcher's vet entrypoint: one wire schema per
+2. `guard.aontu`: the dispatcher's vet entrypoint: one wire schema per
    tool, generated from the registry's argument schemas.
 3. `data/call-*.json`: agent-emitted calls `{tool, arguments}`,
    vetted with `aontu vet --at $.guard.<tool>`: the runtime
@@ -31,7 +31,7 @@ The model exercises the full loop:
 
 ## The model tree
 
-`guard.aon` is the registry plus the runtime guardrail. `tools` is what
+`guard.aontu` is the registry plus the runtime guardrail. `tools` is what
 exists and `argschemas` what each call may carry; `guard` is generated
 from them by a `pack()` over the schema map, so a call is vetted at
 `$.guard.<tool>` and the two can never drift. `ToolSpec`, `Role` and
@@ -79,7 +79,7 @@ $
     └── send_email (7)
 ```
 
-`aontu view doc --depth 2 guard.aon` draws it, and `check.sh` pins it
+`aontu view doc --depth 2 guard.aontu` draws it, and `check.sh` pins it
 with `--out --check`. A key with `(n)` after it is a container the
 depth bound stopped at, and `n` is how many keys are not drawn; a
 leaf carries its canon, which is the kind of thing it is rather
@@ -90,7 +90,7 @@ than its value.
 - **`argschemas` is the spine.** The set of tool names is the key set
   of one closed map. `tools` (metadata) is `close(pack($.argschemas,
   $.ToolSpec))`, so metadata for a tool with no argument schema is a
-  located `[aontu/closed]` error (`bad/rogue-tool.aon`), and an
+  located `[aontu/closed]` error (`bad/rogue-tool.aontu`), and an
   argument schema with no metadata leaves required `ToolSpec` fields
   unresolved and the registry refuses to generate. Both drift
   directions are refused the moment the registry is evaluated, from
@@ -99,9 +99,9 @@ than its value.
   $.argschemas, close({tool: key(), arguments: _}))` makes the
   `{tool, arguments}` envelope per tool; `close()` survives the `_`
   clone, so a hallucinated argument is `[aontu/closed]`. The guard
-  lives in its own file, `guard.aon`, which includes `registry.aon`:
-  `aontu registry.aon` emits only the concrete registry, and
-  `aontu vet --at $.guard.<tool> guard.aon call.json` is the
+  lives in its own file, `guard.aontu`, which includes `registry.aontu`:
+  `aontu registry.aontu` emits only the concrete registry, and
+  `aontu vet --at $.guard.<tool> guard.aontu call.json` is the
   dispatcher's one command.
 - **Constraint atoms are the guardrail vocabulary**: `re()` for URL /
   email / id shapes, `min`/`max` bounds, `length()` on strings,
@@ -110,7 +110,7 @@ than its value.
   written on a templated list (`[&: ...]`) refuses at composition, so
   "at least one" is a dispatcher rule rather than a schema one.
 - **`type()` marks** keep every schema out of the generated JSON while
-  it still constrains: `aontu registry.aon` emits only the concrete
+  it still constrains: `aontu registry.aontu` emits only the concrete
   registry (tools, docs): the golden in `expected/registry.json`.
   `Role`, `SideEffect` and `ToolSpec` are separate top-level marked
   fields, each referenced by absolute path.
@@ -130,14 +130,14 @@ than its value.
   0) dispatches; invalid (1) refuses and feeds the findings back to
   the agent; incomplete (3) asks for the missing argument; error (4)
   is an unknown tool. All four states fall out of one command,
-  `aontu vet --at "$.guard.$tool" guard.aon call.json`, with no
+  `aontu vet --at "$.guard.$tool" guard.aontu call.json`, with no
   per-tool code. The findings carry `expected`, `actual`, and both
   sites (schema file:line:col and data file:line:col), and
   `--format json` / `--format sarif` render the same report for
   machines. The two conflict findings for the cleartext URL call:
 
   ```
-  $ aontu vet --at '$.guard.http_request' guard.aon data/call-http-bad.json
+  $ aontu vet --at '$.guard.http_request' guard.aontu data/call-http-bad.json
   verdict: invalid
 
   $.guard.http_request.url: constraint [conflict]
@@ -145,11 +145,11 @@ than its value.
     expected: re("^https://")&length(integer&min(0)&max(2048))
     actual:   "http://169.254.169.254/latest/meta-data/"
     data: data/call-http-bad.json:4:12 ("http://169.254.169.254/latest/meta-data/")
-    schema: registry.aon:64:19 (re("^https://")&length(integer&min(0)&max(2048)))
+    schema: registry.aontu:64:19 (re("^https://")&length(integer&min(0)&max(2048)))
   $.guard.http_request.method: empty [conflict]
     [aontu/empty]: Cannot unify values at path $.guard.http_request.method
     data: data/call-http-bad.json:5:15 ("DELETE")
-    schema: registry.aon:65:13 ("GET"|"HEAD")
+    schema: registry.aontu:65:13 ("GET"|"HEAD")
   ```
 
   Each finding names the line in the call and the line in the schema,
@@ -163,33 +163,33 @@ than its value.
   vets through one server process and 20 cold CLI spawns and prints
   both, so you can weigh holding a server open against shelling out
   per call on your own machine.
-- **`agentsmd` + `hash`**: `aontu agentsmd registry.aon` emits the
+- **`agentsmd` + `hash`**: `aontu agentsmd registry.aontu` emits the
   AGENTS.md stanza (the pin, the top-level keys, the shape, and the
   verbs that query the document), and the stanza's pin is
-  byte-identical to `aontu hash registry.aon`, so an agent can cheaply
+  byte-identical to `aontu hash registry.aontu`, so an agent can cheaply
   detect that the truth changed.
 
 ## What check.sh proves
 
-1. `aontu registry.aon` matches `expected/registry.json` byte for
+1. `aontu registry.aontu` matches `expected/registry.json` byte for
    byte: the six tool entries, their derived `requires_approval` flags
    and the docs table come out concrete, and the `type()`-marked
    schemas stay out.
-2. `aontu --canon registry.aon` keeps the constraints, enums and
+2. `aontu --canon registry.aontu` keeps the constraints, enums and
    deprecations: `re("^https://")`, `"GET"|"HEAD"` and
    `deprecate(integer&min(0)&max(10)` all appear in the canonical
    form.
-3. `aontu model get '$.tools.delete_records' registry.aon` matches
+3. `aontu model get '$.tools.delete_records' registry.aontu` matches
    `expected/tool-delete-records.json`: one tool's merged truth, as a
    dispatcher pulls it.
-4. `aontu model why '$.tools.delete_records.requires_approval' registry.aon`
+4. `aontu model why '$.tools.delete_records.requires_approval' registry.aontu`
    traces the flag to its `match()` rule:
 
    ```
    $.tools.delete_records.requires_approval = true
-     1. type(("readonly"|"write")|"destructive")  registry.aon:24:13
-     2. boolean  registry.aon:30:22
-     3. match(.side_effect,"destructive",true,false)  registry.aon:168:24
+     1. type(("readonly"|"write")|"destructive")  registry.aontu:24:13
+     2. boolean  registry.aontu:30:22
+     3. match(.side_effect,"destructive",true,false)  registry.aontu:168:24
    ```
 
 5. `data/call-search-ok.json` is `verdict: valid`, exit 0.
@@ -214,20 +214,20 @@ than its value.
     invalid`, exit 1, `[aontu/constraint]` at
     `$.guard.create_ticket.labels` against
     `length(integer&min(0)&max(10))&unique()`.
-12. `registry.aon` alone is not the guardrail entrypoint: `vet --at
-    '$.guard.search_docs' registry.aon data/call-search-missing.json`
+12. `registry.aontu` alone is not the guardrail entrypoint: `vet --at
+    '$.guard.search_docs' registry.aontu data/call-search-missing.json`
     is `verdict: error` with `no_path`, exit 4, because `$.guard`
-    exists only in `guard.aon`.
-13. `bad/rogue-tool.aon` registers `audit_log` metadata with no
+    exists only in `guard.aontu`.
+13. `bad/rogue-tool.aontu` registers `audit_log` metadata with no
     argument schema: `[aontu/closed]: Cannot resolve value at path
     $.tools.audit_log`, exit 1.
-14. `bad/conflicting-rate.aon` restates the `search_docs` rate limit
+14. `bad/conflicting-rate.aontu` restates the `search_docs` rate limit
     as 240 against the published 120: `[aontu/scalar_value]: Cannot
     unify values at path $.tools.search_docs.rate_limit.per_minute`,
     exit 1.
-15. `aontu agentsmd registry.aon` emits the `<!-- aontu:begin -->`
+15. `aontu agentsmd registry.aontu` emits the `<!-- aontu:begin -->`
     stanza with the top-level keys, and its pin equals the output of
-    `aontu hash registry.aon`.
+    `aontu hash registry.aontu`.
 16. The MCP server: `initialize` answers with the server name
     `aontu`, `tools/list` matches `expected/mcp-tools.json` (`vet`,
     `get`, `why`, `diff`, `canon`, `summary`, `subsume`, `breaking`,
@@ -248,6 +248,6 @@ From this directory, `./check.sh` runs all 19 assertions and exits 0.
 The dispatcher's two moves, by hand:
 
 ```sh
-aontu registry.aon                                                        # the concrete registry
-aontu vet --at '$.guard.search_docs' guard.aon data/call-search-ok.json   # vet one call at its tool's anchor
+aontu registry.aontu                                                        # the concrete registry
+aontu vet --at '$.guard.search_docs' guard.aontu data/call-search-ok.json   # vet one call at its tool's anchor
 ```

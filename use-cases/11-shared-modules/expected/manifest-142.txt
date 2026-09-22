@@ -1,6 +1,6 @@
 verdict: ok
 corp.example/schemas/service 1.4.2 public
-archive: sha256:5b299a1256d890fbbe4062926ca8a9b4686c2907c75fb27963dca481809b7c1f (2 files, 1215 bytes)
-module: corp.example/schemas/service service.aon aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs
-file: pkg.aon sha256:ccfecd61a34c4d7728737ad0e36013e6e7e93fffa4ac74c5f6917b62d8e880f5 234
-file: service.aon sha256:485d8f662acff94b8fe9ebf6d798718592a60f4927c478f4e6474417e675fbb4 771
+archive: sha256:5a5d2fb414290dcef45209212e9bf28cd7d1340cd9d8088ed8eed11d1740e2bf (2 files, 1225 bytes)
+module: corp.example/schemas/service service.aontu aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs
+file: pkg.aontu sha256:1f7da37b3ddebd9583e42e0a49ebf76f3fc172b7b6cf1174daf9c6a4b0f3a394 236
+file: service.aontu sha256:485d8f662acff94b8fe9ebf6d798718592a60f4927c478f4e6474417e675fbb4 771

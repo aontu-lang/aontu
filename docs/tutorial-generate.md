@@ -16,10 +16,10 @@ stands in. Every result on this page is the engine's own.
 
 ## 1. The model
 
-Two routes are enough to show the shape. Save this as `api.aon`:
+Two routes are enough to show the shape. Save this as `api.aontu`:
 
 <!-- test: scenario generate-client -->
-<!-- test: file api.aon -->
+<!-- test: file api.aontu -->
 ```aontu
 routes: [
   { name:"list" verb:GET path:"/orders" }
@@ -29,7 +29,7 @@ routes: [
 
 <!-- test: run -->
 ```sh
-$ aontu api.aon
+$ aontu api.aontu
 {
   "routes": [
     {
@@ -53,22 +53,22 @@ what the [first tutorial](tutorial-config.md) built.
 ## 2. A file is a value
 
 `file(name, children)` names a file and holds its lines. Write
-`client.aon`, which loads the model and describes one file:
+`client.aontu`, which loads the model and describes one file:
 
-<!-- test: file client.aon -->
+<!-- test: file client.aontu -->
 ```aontu
-@"./api.aon"
+@"./api.aontu"
 
 out: file("client.ts", ["export const timeout = 5000"])
 ```
 
-`@"./api.aon"` loads a source file and unifies it in place, so
+`@"./api.aontu"` loads a source file and unifies it in place, so
 `$.routes` is in scope here. The file itself is at `$.out`, and the
 verb that reads a value is `get`:
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out' client.aon
+$ aontu model get '$.out' client.aontu
 {
   "children": [
     {
@@ -99,11 +99,11 @@ unifies with, and instantiates that template's `body` against the node,
 where `.name` is that node's `name`. A list is visited in its own
 order, which is why the route table is a list: a map is visited in
 code-point order of its keys, whatever order it was written in. Rewrite
-`client.aon`:
+`client.aontu`:
 
-<!-- test: file client.aon -->
+<!-- test: file client.aontu -->
 ```aontu
-@"./api.aon"
+@"./api.aontu"
 
 %route = emit(_, {
   match: verb: GET
@@ -123,7 +123,7 @@ Run it:
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out' client.aon
+$ aontu model get '$.out' client.aontu
 ...
 [aontu/emit_none]: Cannot resolve value at path $.out.0
 ...
@@ -140,7 +140,7 @@ document prints in full:
 
 <!-- test: run -->
 ```sh
-$ aontu client.aon
+$ aontu client.aontu
 ...
 node unifies with; the node {"name":"create","path":"/orders","verb":"POST"} unified with none of {"verb":"GET"}.
 ...
@@ -151,11 +151,11 @@ $ echo $?
 ## 4. A second template, and the dispatch
 
 Give `POST` a template of its own. A table may be a list of them, tried
-in the order written. Rewrite `client.aon`:
+in the order written. Rewrite `client.aontu`:
 
-<!-- test: file client.aon -->
+<!-- test: file client.aontu -->
 ```aontu
-@"./api.aon"
+@"./api.aontu"
 
 %route = emit(_, [
   {
@@ -173,7 +173,7 @@ out: file("client.ts", emit($.routes, %route))
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out' client.aon
+$ aontu model get '$.out' client.aontu
 {
   "children": [
     {
@@ -204,7 +204,7 @@ and `aontu trace` answers it, one row per piece:
 
 <!-- test: run -->
 ```sh
-$ aontu trace client.aon
+$ aontu trace client.aontu
 client.ts	$.children.0	$.routes.0	$.%route#0
 client.ts	$.children.1	$.routes.1	$.%route#1
 ```
@@ -219,11 +219,11 @@ remembering when a report looks short.
 A client is more than one file, and files live in directories.
 `folder(name, children)` is a directory, `project(dir, children)` is
 the root and names the output directory, and both hold children the
-same way a file holds lines. Rewrite `client.aon` a last time:
+same way a file holds lines. Rewrite `client.aontu` a last time:
 
-<!-- test: file client.aon -->
+<!-- test: file client.aontu -->
 ```aontu
-@"./api.aon"
+@"./api.aontu"
 
 %route = emit(_, [
   {
@@ -257,7 +257,7 @@ data and sort the keys, which is right for a map and wrong for a file.
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out' client.aon
+$ aontu model get '$.out' client.aontu
 {
   "children": [
     {
@@ -338,7 +338,7 @@ one leaf:
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.out.children.0.children.1.props.name' client.aon
+$ aontu model get '$.out.children.0.children.1.props.name' client.aontu
 "index.ts"
 ```
 
@@ -357,7 +357,7 @@ The path argument is the root the tree is written under, and the
 
 <!-- test: run -->
 ```sh
-$ aontu render --at '$.out' client.aon .
+$ aontu render --at '$.out' client.aontu .
 ```
 
 It prints nothing, and `build/src/client.ts` and `build/src/index.ts`
@@ -365,7 +365,7 @@ are on disk. `--check` writes nothing and compares instead:
 
 <!-- test: run -->
 ```sh
-$ aontu render --check --at '$.out' client.aon .
+$ aontu render --check --at '$.out' client.aontu .
 $ echo $?
 0
 ```
@@ -381,7 +381,7 @@ and the check names the file and refuses:
 
 <!-- test: run -->
 ```sh
-$ aontu render --check --at '$.out' client.aon .
+$ aontu render --check --at '$.out' client.aontu .
 content: build/src/client.ts
 $ echo $?
 1

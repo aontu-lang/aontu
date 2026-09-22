@@ -49,9 +49,9 @@ const compat_1 = require("../dist/compat");
 // hand has to create first, as `sync` does.
 function writeLock(dir, text) {
     Fs.mkdirSync(Path.join(dir, 'aontu_meta'), { recursive: true });
-    Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon'), text);
+    Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aontu'), text);
 }
-const LOCK = (dir) => Fs.readFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon'), 'utf8');
+const LOCK = (dir) => Fs.readFileSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aontu'), 'utf8');
 const MODULE = 'name: string\nport: *8080 | integer\n';
 const NIL_PIN = 'aon1-XaOkx_EXlEJ1tMhinEkWQDYl1aSmVzoB7LA_Dp0u2-Y';
 function capture(fn) {
@@ -77,7 +77,7 @@ const cli = (args) => capture(() => (0, cli_1.main)(['node', 'cli', ...args]));
 // caller asked for.
 function project(dep, extra) {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkg-'));
-    Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\ndep: {' + dep + '}\n');
+    Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\ndep: {' + dep + '}\n');
     extra?.(dir);
     return dir;
 }
@@ -90,8 +90,8 @@ function vendor(dir, path, files) {
     }
 }
 const SERVICE = {
-    'pkg.aon': 'pkg: {path: "corp.example/schemas/service", main: "service.aon"}\n',
-    'service.aon': MODULE,
+    'pkg.aontu': 'pkg: {path: "corp.example/schemas/service", main: "service.aontu"}\n',
+    'service.aontu': MODULE,
 };
 // The cache the tooling reads, pointed at a directory the test owns.
 function withCache(dir, fn) {
@@ -113,19 +113,24 @@ function withCache(dir, fn) {
     }
 }
 (0, node_test_1.describe)('pkg-zip', () => {
+    // Every entry in this suite's archives is named `?.aontu`. The zip
+    // offsets below count from the name, so they are written from its
+    // length rather than from the number it happens to be.
+    const NAME = 'a.aontu'.length;
+    const LOCAL = 30 + NAME + 5; // local header, name, data: the directory
     (0, node_test_1.test)('the-canonical-archive-is-one-digest-per-tree', () => {
         const a = (0, pkg_zip_1.zipCanonical)([
-            { path: 'b.aon', data: new TextEncoder().encode('b: 2\n') },
-            { path: 'a.aon', data: new TextEncoder().encode('a: 1\n') },
+            { path: 'b.aontu', data: new TextEncoder().encode('b: 2\n') },
+            { path: 'a.aontu', data: new TextEncoder().encode('a: 1\n') },
         ]);
         const b = (0, pkg_zip_1.zipCanonical)([
-            { path: 'a.aon', data: new TextEncoder().encode('a: 1\n') },
-            { path: 'b.aon', data: new TextEncoder().encode('b: 2\n') },
+            { path: 'a.aontu', data: new TextEncoder().encode('a: 1\n') },
+            { path: 'b.aontu', data: new TextEncoder().encode('b: 2\n') },
         ]);
         Assert.equal((0, pkg_zip_1.sha256Hex)(a), (0, pkg_zip_1.sha256Hex)(b));
         Assert.match((0, pkg_zip_1.sha256Hex)(a), /^sha256:[0-9a-f]{64}$/);
         const back = (0, pkg_zip_1.unzipCanonical)(a);
-        Assert.deepEqual(back.map((e) => e.path), ['a.aon', 'b.aon']);
+        Assert.deepEqual(back.map((e) => e.path), ['a.aontu', 'b.aontu']);
         Assert.equal(new TextDecoder().decode(back[1].data), 'b: 2\n');
         // The empty archive is a real archive.
         Assert.deepEqual((0, pkg_zip_1.unzipCanonical)((0, pkg_zip_1.zipCanonical)([])), []);
@@ -135,30 +140,30 @@ function withCache(dir, fn) {
         // directory.
         const enc = (t) => new TextEncoder().encode(t);
         const good = Buffer.from((0, pkg_zip_1.zipCanonical)([
-            { path: 'a.aon', data: enc('a: 1\n') }, { path: 'b.aon', data: enc('b: 2\n') }
+            { path: 'a.aontu', data: enc('a: 1\n') }, { path: 'b.aontu', data: enc('b: 2\n') }
         ]));
         const refuses = (zip, why) => Assert.throws(() => (0, pkg_zip_1.unzipCanonical)(zip), new RegExp(why));
-        const cd = good.length - 22 - 2 * (46 + 5);
+        const cd = good.length - 22 - 2 * (46 + NAME);
         const swapped = Buffer.from(good);
         swapped[cd + 46] = 0x62;
-        swapped[cd + 46 + 46 + 5] = 0x61;
+        swapped[cd + 46 + NAME + 46] = 0x61;
         swapped[30] = 0x62;
-        swapped[70] = 0x61;
-        refuses(swapped, 'entries out of order at a.aon');
-        const one = Buffer.from((0, pkg_zip_1.zipCanonical)([{ path: 'a.aon', data: enc('a: 1\n') }]));
+        swapped[30 + NAME + 5 + 30] = 0x61;
+        refuses(swapped, 'entries out of order at a.aontu');
+        const one = Buffer.from((0, pkg_zip_1.zipCanonical)([{ path: 'a.aontu', data: enc('a: 1\n') }]));
         const overrun = Buffer.from(one);
-        for (const at of [18, 22, 40 + 20, 40 + 24]) {
+        for (const at of [18, 22, LOCAL + 20, LOCAL + 24]) {
             overrun[at] = 100;
         }
-        refuses(overrun, 'data of a.aon');
-        const padded = Buffer.concat([one.subarray(0, 40), Buffer.from([0, 0, 0]), one.subarray(40)]);
-        padded[padded.length - 22 + 16] = 43;
+        refuses(overrun, 'data of a.aontu');
+        const padded = Buffer.concat([one.subarray(0, LOCAL), Buffer.from([0, 0, 0]), one.subarray(LOCAL)]);
+        padded[padded.length - 22 + 16] = LOCAL + 3;
         refuses(padded, 'trailing bytes');
     });
     (0, node_test_1.test)('the-reader-refuses-what-the-writer-would-not-write', () => {
         const good = (0, pkg_zip_1.zipCanonical)([
-            { path: 'a.aon', data: new TextEncoder().encode('a: 1\n') },
-            { path: 'b.aon', data: new TextEncoder().encode('b: 2\n') },
+            { path: 'a.aontu', data: new TextEncoder().encode('a: 1\n') },
+            { path: 'b.aontu', data: new TextEncoder().encode('b: 2\n') },
         ]);
         const refuses = (bytes, why) => Assert.throws(() => (0, pkg_zip_1.unzipCanonical)(bytes), why);
         refuses(new Uint8Array(3), /no end record/);
@@ -174,54 +179,54 @@ function withCache(dir, fn) {
         refuses(flip(good.length - 22 + 8, 9), /end record/);
         // The central directory: a compression method, a timestamp, a
         // second copy of the name in another order, a checksum.
-        const cd = good.length - 22 - 2 * (46 + 5);
+        const cd = good.length - 22 - 2 * (46 + NAME);
         refuses(flip(cd + 10, 8), /entry 0/);
         refuses(flip(cd + 12, 1), /entry 0/);
         refuses(flip(cd, 1), /central directory/);
         // Swap the names so the order is wrong in both places.
         const swapped = good.slice();
         swapped[cd + 46] = 'b'.charCodeAt(0);
-        swapped[cd + 46 + 46 + 5] = 'a'.charCodeAt(0);
+        swapped[cd + 46 + NAME + 46] = 'a'.charCodeAt(0);
         refuses(swapped, /entries out of order|local header/);
         // A local header that disagrees with the directory.
         refuses(flip(4, 20), /local header/);
         refuses(flip(0, 1), /local header/);
         // The data itself, corrupted under an intact directory.
-        refuses(flip(30 + 5, 0x7a), /checksum/);
+        refuses(flip(30 + NAME, 0x7a), /checksum/);
         // A name the central directory spells differently.
         refuses(flip(30, 'z'.charCodeAt(0)), /local header/);
     });
 });
 (0, node_test_1.describe)('pkg-archive', () => {
     (0, node_test_1.test)('the-allowlist-is-enumerated-and-refuses-by-default', () => {
-        for (const ok of ['a.aon', 'x/y/b.aontu', 'c.json', 'd.yaml', 'e.yml',
+        for (const ok of ['a.aontu', 'x/y/b.aontu', 'c.json', 'd.yaml', 'e.yml',
             'f.toml', 'g.ini', 'h.md', 'i.txt', 'LICENSE', 'sub/NOTICE', 'J.JSON']) {
             Assert.equal((0, pkg_1.archiveAdmits)(ok), true, ok);
         }
         for (const bad of ['a.sh', 'b.js', 'Makefile', '.gitignore', 'c',
-            'd.aon.bak', '.claude/settings.json', 'e.png']) {
+            'd.aontu.bak', '.claude/settings.json', 'e.png']) {
             Assert.equal((0, pkg_1.archiveAdmits)(bad), false, bad);
         }
     });
     (0, node_test_1.test)('archive-of-a-tree-skips-aontu-meta-and-names-the-forbidden', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-arch-'));
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/x"}\n');
-        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'a: 1\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/x"}\n');
+        Fs.writeFileSync(Path.join(dir, 'main.aontu'), 'a: 1\n');
         Fs.mkdirSync(Path.join(dir, 'aontu_meta', 'vendor'), { recursive: true });
-        Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'manifest.aon'), '{}');
+        Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'manifest.aontu'), '{}');
         Fs.mkdirSync(Path.join(dir, 'sub', '.hidden'), { recursive: true });
-        Fs.writeFileSync(Path.join(dir, 'sub', '.hidden', 'x.aon'), 'x: 1\n');
+        Fs.writeFileSync(Path.join(dir, 'sub', '.hidden', 'x.aontu'), 'x: 1\n');
         Fs.writeFileSync(Path.join(dir, 'sub', 'run.sh'), 'echo\n');
-        Fs.writeFileSync(Path.join(dir, 'sub', 'ok.aon'), 'ok: 1\n');
-        Fs.writeFileSync(Path.join(dir, 'exec.aon'), 'e: 1\n', { mode: 0o755 });
-        Fs.symlinkSync(Path.join(dir, 'main.aon'), Path.join(dir, 'link.aon'));
+        Fs.writeFileSync(Path.join(dir, 'sub', 'ok.aontu'), 'ok: 1\n');
+        Fs.writeFileSync(Path.join(dir, 'exec.aontu'), 'e: 1\n', { mode: 0o755 });
+        Fs.symlinkSync(Path.join(dir, 'main.aontu'), Path.join(dir, 'link.aontu'));
         // Windows has no execute bit, so the executable is an ordinary file there.
         const windows = 'win32' === process.platform;
         const a = (0, pkg_1.archiveOf)(dir);
-        Assert.deepEqual(a.files.map((f) => f.path), windows ? ['exec.aon', 'main.aon', 'pkg.aon', 'sub/ok.aon'] : ['main.aon', 'pkg.aon', 'sub/ok.aon']);
-        Assert.deepEqual(a.forbidden, windows ? ['link.aon', 'sub/.hidden/', 'sub/run.sh'] : ['exec.aon', 'link.aon', 'sub/.hidden/', 'sub/run.sh']);
+        Assert.deepEqual(a.files.map((f) => f.path), windows ? ['exec.aontu', 'main.aontu', 'pkg.aontu', 'sub/ok.aontu'] : ['main.aontu', 'pkg.aontu', 'sub/ok.aontu']);
+        Assert.deepEqual(a.forbidden, windows ? ['link.aontu', 'sub/.hidden/', 'sub/run.sh'] : ['exec.aontu', 'link.aontu', 'sub/.hidden/', 'sub/run.sh']);
         Assert.equal(a.size, a.zip.length);
-        const main = a.files.find((f) => 'main.aon' === f.path);
+        const main = a.files.find((f) => 'main.aontu' === f.path);
         Assert.equal(main?.size, 5);
         Assert.equal(main?.digest, (0, pkg_zip_1.sha256Hex)(new TextEncoder().encode('a: 1\n')));
     });
@@ -231,34 +236,34 @@ function withCache(dir, fn) {
         const dir = project('"corp.example/schemas/service": {v: "1.4.2"},' +
             ' "corp.example/schemas/common": {v: "1.0.0"}', (d) => {
             vendor(d, 'corp.example/schemas/service', {
-                'pkg.aon': 'pkg: {path: "corp.example/schemas/service",' +
-                    ' version: "1.4.2", main: "service.aon"}\n' +
+                'pkg.aontu': 'pkg: {path: "corp.example/schemas/service",' +
+                    ' version: "1.4.2", main: "service.aontu"}\n' +
                     'dep: {"corp.example/schemas/common": {v: "1.0.0"}}\n',
-                'service.aon': '@"corp.example/schemas/common"\n' +
+                'service.aontu': '@"corp.example/schemas/common"\n' +
                     'spec: {name: string, port: *8080 | integer}\n',
             });
             vendor(d, 'corp.example/schemas/common', {
-                'pkg.aon': 'pkg: {path: "corp.example/schemas/common",' +
-                    ' version: "1.0.0", main: "common.aon"}\n',
-                'common.aon': 'naming: {id: string}\n',
+                'pkg.aontu': 'pkg: {path: "corp.example/schemas/common",' +
+                    ' version: "1.0.0", main: "common.aontu"}\n',
+                'common.aontu': 'naming: {id: string}\n',
             });
         });
-        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'lib: hide(@"corp.example/schemas/service")\n' +
+        Fs.writeFileSync(Path.join(dir, 'main.aontu'), 'lib: hide(@"corp.example/schemas/service")\n' +
             'svc: $.lib.spec & {name: "checkout"}\n');
         const t = cli(['pkg', 'tidy', dir]);
         Assert.equal(t.code, 0, t.err + t.out);
         // NOT the hash of nil, which is what a module that does not
         // evaluate pins -- and the same string for every one of them.
         Assert.equal(t.out.includes(NIL_PIN), false, t.out);
-        const r = cli([Path.join(dir, 'main.aon')]);
+        const r = cli([Path.join(dir, 'main.aontu')]);
         Assert.equal(r.code, 0, r.err);
         Assert.equal(JSON.parse(r.out).svc.port, 8080);
     });
     (0, node_test_1.test)('tidy-refuses-to-pin-a-module-that-does-not-evaluate', () => {
         const dir = project('"corp.example/schemas/service": {v: "1.4.2"}', (d) => vendor(d, 'corp.example/schemas/service', {
-            'pkg.aon': SERVICE['pkg.aon'],
+            'pkg.aontu': SERVICE['pkg.aontu'],
             // Contradicts itself: no meaning, so nothing to pin.
-            'service.aon': 'a: 1\na: 2\n',
+            'service.aontu': 'a: 1\na: 2\n',
         }));
         const r = cli(['pkg', 'tidy', dir]);
         Assert.equal(r.code, 4, r.out);
@@ -266,7 +271,7 @@ function withCache(dir, fn) {
         Assert.ok(r.out.includes('does not evaluate on its own'), r.out);
         // AND THE LOCKFILE IS LEFT ALONE. A refusal that wrote a lockfile
         // would be the defect with a louder message.
-        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon')), false);
+        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aontu')), false);
     });
     (0, node_test_1.test)('tidy-refuses-a-tree-the-allowlist-does-not-admit', () => {
         const dir = project('"corp.example/schemas/service": {v: "1.4.2"}', (d) => vendor(d, 'corp.example/schemas/service', {
@@ -277,14 +282,14 @@ function withCache(dir, fn) {
         const report = JSON.parse(r.out);
         Assert.equal(report.verdict, 'error');
         Assert.deepEqual(report.forbidden, ['corp.example/schemas/service: hook.sh']);
-        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon')), false);
+        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aontu')), false);
         Assert.ok(cli(['pkg', 'tidy', dir]).out.includes('hook.sh: not admitted in a package'));
     });
     (0, node_test_1.test)('manifest-refuses-to-mint-a-pin-for-a-module-that-does-not-evaluate', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkg-'));
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app", version: "1.0.0"}\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app", version: "1.0.0"}\n');
         // Contradicts itself: no meaning, so nothing to pin.
-        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'a: 1\na: 2\n');
+        Fs.writeFileSync(Path.join(dir, 'main.aontu'), 'a: 1\na: 2\n');
         const r = cli(['pkg', 'manifest', '--format', 'json', dir]);
         Assert.equal(r.code, 4, r.out);
         const report = JSON.parse(r.out);
@@ -293,9 +298,9 @@ function withCache(dir, fn) {
     });
     (0, node_test_1.test)('the-pkg-verbs-take-the-trust-options', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkg-'));
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app", version: "1.0.0"}\n');
-        Fs.writeFileSync(Path.join(Path.dirname(dir), 'pkgtool-outside.aon'), 'secret: "leaked"\n');
-        Fs.writeFileSync(Path.join(dir, 'main.aon'), 'x: @"../pkgtool-outside.aon"\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app", version: "1.0.0"}\n');
+        Fs.writeFileSync(Path.join(Path.dirname(dir), 'pkgtool-outside.aontu'), 'secret: "leaked"\n');
+        Fs.writeFileSync(Path.join(dir, 'main.aontu'), 'x: @"../pkgtool-outside.aontu"\n');
         // Unconfined the include is read, so a pin is minted.
         const open = JSON.parse(cli(['pkg', 'manifest', '--format', 'json', dir]).out);
         Assert.equal(open.verdict, 'ok');
@@ -319,8 +324,8 @@ function withCache(dir, fn) {
             // standing between the lockfile and the copy is the path gate.
             const cachedir = (0, mod_1.cacheStoreDir)(cache, hash, 'corp.example/schemas/service');
             Fs.mkdirSync(cachedir, { recursive: true });
-            Fs.writeFileSync(Path.join(cachedir, 'pkg.aon'), SERVICE['pkg.aon']);
-            Fs.writeFileSync(Path.join(cachedir, 'service.aon'), MODULE);
+            Fs.writeFileSync(Path.join(cachedir, 'pkg.aontu'), SERVICE['pkg.aontu']);
+            Fs.writeFileSync(Path.join(cachedir, 'service.aontu'), MODULE);
             writeLock(dir, '{"lock":{"' + escaping + '":{"archive":"","canon":"' + hash +
                 '","v":"1.0.0"}}}\n');
             r = cli(['pkg', 'vendor', dir]);
@@ -347,7 +352,7 @@ function withCache(dir, fn) {
         Assert.ok(clean.out.includes(': verified'), clean.out);
         // Tamper, and ask again. BYTES BEFORE MEANING: the archive digest
         // moves before anything is evaluated, and that is the pin reported.
-        const svc = Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'service.aon');
+        const svc = Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'service.aontu');
         const original = Fs.readFileSync(svc, 'utf8');
         Fs.writeFileSync(svc, original.replace('8080', '9090'));
         const bad = cli(['pkg', 'verify', '--format', 'json', dir]);
@@ -390,18 +395,18 @@ function withCache(dir, fn) {
         // A lock entry that is not an object pins nothing.
         const dir = project('"corp.example/service": {v: "1.0.0"}', (d) => {
             vendor(d, 'corp.example/service', {
-                'pkg.aon': 'pkg: {path: "corp.example/service", version: "1.0.0", main: "main.aon"}\n',
-                'main.aon': 'x: 1\n',
+                'pkg.aontu': 'pkg: {path: "corp.example/service", version: "1.0.0", main: "main.aontu"}\n',
+                'main.aontu': 'x: 1\n',
             });
-            Fs.writeFileSync(Path.join(d, 'main.aon'), 'a: @"corp.example/service"\n');
+            Fs.writeFileSync(Path.join(d, 'main.aontu'), 'a: @"corp.example/service"\n');
         });
         writeLock(dir, '{"lock":{"corp.example/service":1}}\n');
-        Assert.equal(cli([Path.join(dir, 'main.aon')]).code, 0);
+        Assert.equal(cli([Path.join(dir, 'main.aontu')]).code, 0);
         // An alias whose package is empty names nothing.
         const alias = project('"alias:old": {pkg: "", v: "1.0.0"}', (d) => {
-            Fs.writeFileSync(Path.join(d, 'main.aon'), 'a: @"alias:old"\n');
+            Fs.writeFileSync(Path.join(d, 'main.aontu'), 'a: @"alias:old"\n');
         });
-        Assert.notEqual(cli([Path.join(alias, 'main.aon')]).code, 0);
+        Assert.notEqual(cli([Path.join(alias, 'main.aontu')]).code, 0);
         // A lock key that is not a package path is missing to verify and tree alike.
         const odd = project('"corp.example/service": {v: "1.0.0"}');
         const pins = '{"v":"1.0.0","canon":"aon1-' + 'A'.repeat(43) + '","archive":"sha256:' + 'a'.repeat(64) + '"}';
@@ -421,29 +426,29 @@ function withCache(dir, fn) {
             modules: [], deps: {}, published: '2026-09-15T00:00:00Z',
         });
         Fs.mkdirSync(Path.join(tree, 'aontu_meta'));
-        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aon'), manifest);
+        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aontu'), manifest);
         Assert.equal(cli(['pkg', 'tidy', dir]).code, 0);
         const entry = (0, pkg_1.readLock)(dir)['corp.example/schemas/service'];
         Assert.equal(entry.manifest, (0, pkg_zip_1.sha256Hex)(new TextEncoder().encode(manifest)));
         Assert.equal(cli(['pkg', 'verify', dir]).code, 0);
         // A manifest swapped for one listing other digests is caught by its
         // own pin; a file the manifest does not list, by the file walk.
-        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aon'), manifest + ' ');
+        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aontu'), manifest + ' ');
         let r = JSON.parse(cli(['pkg', 'verify', '--format', 'json', dir]).out);
         Assert.equal(r.mismatched[0].pin, 'manifest');
-        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aon'), manifest.replace(a.files[0].digest, 'sha256:' + '0'.repeat(64)));
+        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aontu'), manifest.replace(a.files[0].digest, 'sha256:' + '0'.repeat(64)));
         const lock = LOCK(dir);
         writeLock(dir, lock.replace(entry.manifest, (0, pkg_zip_1.sha256Hex)(new TextEncoder().encode(manifest.replace(a.files[0].digest, 'sha256:' + '0'.repeat(64))))));
         r = JSON.parse(cli(['pkg', 'verify', '--format', 'json', dir]).out);
         Assert.equal(r.mismatched[0].pin, 'manifest');
-        Assert.match(r.mismatched[0].got, /^pkg.aon sha256:/);
+        Assert.match(r.mismatched[0].got, /^pkg.aontu sha256:/);
         Assert.ok(cli(['pkg', 'verify', dir]).out.includes('pinned manifest'));
         // A manifest that is not even a document still has a digest to pin.
-        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aon'), 'not json');
+        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aontu'), 'not json');
         Assert.equal(cli(['pkg', 'tidy', dir]).code, 0);
         Assert.match(LOCK(dir), /"manifest":"sha256:/);
         // A kept manifest that lists no files pins nothing the tree holds.
-        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aon'), '{"archive":{}}\n');
+        Fs.writeFileSync(Path.join(tree, 'aontu_meta', 'manifest.aontu'), '{"archive":{}}\n');
         Assert.equal(cli(['pkg', 'verify', dir]).code, 1);
     });
     (0, node_test_1.test)('verify-refuses-a-project-the-lockfile-does-not-cover', () => {
@@ -455,7 +460,7 @@ function withCache(dir, fn) {
         // Tidy writes it, and the same question now passes.
         Assert.equal(cli(['pkg', 'tidy', dir]).code, 0);
         Assert.equal(cli(['pkg', 'verify', dir]).code, 0);
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\ndep: {' +
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\ndep: {' +
             '"corp.example/schemas/service": {v: "1.4.2"}, ' +
             '"corp.example/schemas/later": {v: "1.0.0"}}\n');
         const stale = cli(['pkg', 'verify', '--format', 'json', dir]);
@@ -467,14 +472,14 @@ function withCache(dir, fn) {
     });
     (0, node_test_1.test)('verify-reports-what-no-store-holds', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkg-'));
-        writeLock(dir, '# pkg-lock.aon (generated by `aontu sync`; do not edit)\n' +
+        writeLock(dir, '# pkg-lock.aontu (generated by `aontu sync`; do not edit)\n' +
             '{"lock":{"corp.example/absent":{"archive":"","canon":"aon1-x","v":"1"},' +
             '"corp.example/hollow":{"archive":"","canon":"aon1-y","v":"1"},' +
             '"not-a-module":{"archive":"","canon":"aon1-z","v":"1"}}}\n');
-        // hollow is vendored as a directory with a pkg.aon naming an entry
+        // hollow is vendored as a directory with a pkg.aontu naming an entry
         // file that was never written.
         vendor(dir, 'corp.example/hollow', {
-            'pkg.aon': 'pkg: {path: "corp.example/hollow", main: "hollow.aon"}\n',
+            'pkg.aontu': 'pkg: {path: "corp.example/hollow", main: "hollow.aontu"}\n',
         });
         const r = cli(['pkg', 'verify', '--format', 'json', dir]);
         Assert.equal(r.code, 1, r.out);
@@ -502,7 +507,7 @@ function withCache(dir, fn) {
         // sorted keys, no spaces — which is also the JSON the resolver
         // reads a pin back from. The archive and the meaning are pinned, and
         // no manifest, because nothing served this tree.
-        Assert.ok(lock.startsWith('# pkg-lock.aon (generated by'));
+        Assert.ok(lock.startsWith('# pkg-lock.aontu (generated by'));
         const line = lock.split('\n')[1];
         const tree = Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service');
         Assert.equal(line, '{"lock":{"corp.example/schemas/service":{"archive":"' +
@@ -513,13 +518,13 @@ function withCache(dir, fn) {
     (0, node_test_1.test)('tidy-selects-the-maximum-of-the-minima', () => {
         const dir = project('"corp.example/s": {v: "1.2.0"}, "corp.example/geo": {v: "1.2.0"}', (d) => {
             vendor(d, 'corp.example/s', {
-                'pkg.aon': 'pkg: {path: "corp.example/s"}\n' +
+                'pkg.aontu': 'pkg: {path: "corp.example/s"}\n' +
                     'dep: {"corp.example/geo": {v: "1.10.0"}}\n',
-                'main.aon': MODULE,
+                'main.aontu': MODULE,
             });
             vendor(d, 'corp.example/geo', {
-                'pkg.aon': 'pkg: {path: "corp.example/geo"}\n',
-                'main.aon': 'region: string\n',
+                'pkg.aontu': 'pkg: {path: "corp.example/geo"}\n',
+                'main.aontu': 'region: string\n',
             });
         });
         const r = cli(['pkg', 'tidy', dir]);
@@ -572,18 +577,18 @@ function withCache(dir, fn) {
         const dir = project('"corp.example/s": {v: "1.0.0"}, "corp.example/t": {v: "1.0.0"}, ' +
             '"corp.example/geo": {v: "2.0.0"}', (d) => {
             vendor(d, 'corp.example/s', {
-                'pkg.aon': 'pkg: {path: "corp.example/s"}\n' +
+                'pkg.aontu': 'pkg: {path: "corp.example/s"}\n' +
                     'dep: {"corp.example/geo": {v: "1.5.0"}}\n',
-                'main.aon': MODULE,
+                'main.aontu': MODULE,
             });
             vendor(d, 'corp.example/t', {
-                'pkg.aon': 'pkg: {path: "corp.example/t"}\n' +
+                'pkg.aontu': 'pkg: {path: "corp.example/t"}\n' +
                     'dep: {"corp.example/geo": {v: "1.1.0"}}\n',
-                'main.aon': MODULE,
+                'main.aontu': MODULE,
             });
             vendor(d, 'corp.example/geo', {
-                'pkg.aon': 'pkg: {path: "corp.example/geo"}\n',
-                'main.aon': 'region: string\n',
+                'pkg.aontu': 'pkg: {path: "corp.example/geo"}\n',
+                'main.aontu': 'region: string\n',
             });
         });
         const r = cli(['pkg', 'tidy', '--format', 'json', dir]);
@@ -595,7 +600,7 @@ function withCache(dir, fn) {
     (0, node_test_1.test)('tidy-recomputes-every-pin-from-the-store', () => {
         const dir = project('"corp.example/schemas/service": {v: "1.4.2"}', (d) => {
             vendor(d, 'corp.example/schemas/service', SERVICE);
-            writeLock(d, '# pkg-lock.aon (generated by `aontu sync`; do not edit)\n' +
+            writeLock(d, '# pkg-lock.aontu (generated by `aontu sync`; do not edit)\n' +
                 '{"lock":{"corp.example/schemas/service":{"archive":"sha256:stale",' +
                 '"canon":"aon1-stale","manifest":"sha256:gone","v":"1.0.0"}}}\n');
         });
@@ -613,8 +618,8 @@ function withCache(dir, fn) {
             '"alias:legacy": {pkg: "corp.example/schemas/service", v: "1.2.0"}', (d) => {
             vendor(d, 'corp.example/schemas/service', SERVICE);
             vendor(d, 'alias/legacy', {
-                'pkg.aon': SERVICE['pkg.aon'],
-                'service.aon': 'name: string\nport: *9090 | integer\n',
+                'pkg.aontu': SERVICE['pkg.aontu'],
+                'service.aontu': 'name: string\nport: *9090 | integer\n',
             });
         });
         const r = cli(['pkg', 'tidy', '--format', 'json', dir]);
@@ -625,7 +630,7 @@ function withCache(dir, fn) {
         Assert.match(LOCK(dir), /"alias:legacy":\{"archive":"sha256:[0-9a-f]+","canon":"aon1-[^"]+","pkg":"corp.example\/schemas\/service","v":"1.2.0"\}/);
         Assert.equal(cli(['pkg', 'verify', dir]).code, 0);
         // An alias that names no package is a key nothing can be found for.
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/app"}\ndep: {"alias:nowhere": {v: "1.0.0"}}\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/app"}\ndep: {"alias:nowhere": {v: "1.0.0"}}\n');
         const miss = cli(['pkg', 'tidy', dir]);
         Assert.equal(miss.code, 1);
         Assert.ok(miss.out.includes('alias:nowhere: not fetched'), miss.out);
@@ -635,7 +640,7 @@ function withCache(dir, fn) {
         // hash. The empty pin is the honest answer: the package resolved,
         // and nothing about its meaning was verifiable.
         const dir = project('"corp.example/s": {v: "1.0.0"}', (d) => vendor(d, 'corp.example/s', {
-            'pkg.aon': 'pkg: {path: "corp.example/s", main: "gone.aon"}\n',
+            'pkg.aontu': 'pkg: {path: "corp.example/s", main: "gone.aontu"}\n',
         }));
         const r = cli(['pkg', 'tidy', '--format', 'json', dir]);
         Assert.equal(r.code, 0, r.err);
@@ -673,15 +678,15 @@ function withCache(dir, fn) {
         withCache(dir, (cache) => {
             const store = (0, mod_1.cacheStoreDir)(cache, hash, 'corp.example/schemas/service');
             Fs.mkdirSync(Path.join(store, 'part'), { recursive: true });
-            Fs.writeFileSync(Path.join(store, 'pkg.aon'), SERVICE['pkg.aon']);
-            Fs.writeFileSync(Path.join(store, 'service.aon'), MODULE);
-            Fs.writeFileSync(Path.join(store, 'part', 'extra.aon'), 'extra: true\n');
-            writeLock(dir, '# pkg-lock.aon (generated by `aontu sync`; do not edit)\n' +
+            Fs.writeFileSync(Path.join(store, 'pkg.aontu'), SERVICE['pkg.aontu']);
+            Fs.writeFileSync(Path.join(store, 'service.aontu'), MODULE);
+            Fs.writeFileSync(Path.join(store, 'part', 'extra.aontu'), 'extra: true\n');
+            writeLock(dir, '# pkg-lock.aontu (generated by `aontu sync`; do not edit)\n' +
                 '{"lock":{"corp.example/schemas/service":{"archive":"","canon":"' + hash +
                 '","v":"1.4.2"}}}\n');
             const r = cli(['pkg', 'vendor', dir]);
             Assert.equal(r.code, 0, r.err + r.out);
-            Assert.equal(Fs.readFileSync(Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'part', 'extra.aon'), 'utf8'), 'extra: true\n');
+            Assert.equal(Fs.readFileSync(Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'part', 'extra.aontu'), 'utf8'), 'extra: true\n');
             // Already vendored: left alone rather than copied onto itself.
             Assert.equal(cli(['pkg', 'vendor', dir]).code, 0);
         });
@@ -693,7 +698,7 @@ function withCache(dir, fn) {
         const r = cli(['pkg', 'tidy', dir]);
         Assert.equal(r.code, 1);
         Assert.ok(r.out.includes('corp.example/absent: not fetched (run: aontu sync)'), r.out);
-        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aon')), false);
+        Assert.equal(Fs.existsSync(Path.join(dir, 'aontu_meta', 'pkg-lock.aontu')), false);
     });
     (0, node_test_1.test)('vendor-reports-what-no-store-has', () => {
         const dir = project('');
@@ -750,7 +755,7 @@ function withCache(dir, fn) {
         const miss = cli(['pkg', 'refreeze', dir]);
         Assert.equal(miss.code, 1, miss.out);
         Assert.ok(miss.out.includes('corp.example/gone: not fetched'), miss.out);
-        Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'service.aon'), 'a: 1\na: 2\n');
+        Fs.writeFileSync(Path.join(dir, 'aontu_meta', 'vendor', 'corp.example', 'schemas', 'service', 'service.aontu'), 'a: 1\na: 2\n');
         writeLock(dir, lock);
         const bad = cli(['pkg', 'refreeze', dir]);
         Assert.equal(bad.code, 4, bad.out);
@@ -759,13 +764,13 @@ function withCache(dir, fn) {
     (0, node_test_1.test)('tree-draws-the-closure-from-the-store', () => {
         const dir = project('"corp.example/s": {v: "1.0.0"}, "corp.example/geo": {v: "1.0.0"}', (d) => {
             vendor(d, 'corp.example/s', {
-                'pkg.aon': 'pkg: {path: "corp.example/s"}\n' +
+                'pkg.aontu': 'pkg: {path: "corp.example/s"}\n' +
                     'dep: {"corp.example/geo": {v: "1.0.0"}}\n',
-                'main.aon': MODULE,
+                'main.aontu': MODULE,
             });
             vendor(d, 'corp.example/geo', {
-                'pkg.aon': 'pkg: {path: "corp.example/geo"}\n',
-                'main.aon': 'region: string\n',
+                'pkg.aontu': 'pkg: {path: "corp.example/geo"}\n',
+                'main.aontu': 'region: string\n',
             });
         });
         Assert.equal(cli(['pkg', 'tidy', dir]).code, 0);
@@ -784,14 +789,14 @@ function withCache(dir, fn) {
         Assert.equal(j.nodes.length, 3);
         // A locked package no store holds is drawn as a leaf and named.
         writeLock(dir, LOCK(dir).replace('}}}', '},"corp.example/gone":{"archive":"","canon":"aon1-g","v":"1"}}}'));
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'dep: {"corp.example/s": {v: "1.0.0"}, "corp.example/gone": {v: "1"}}\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'dep: {"corp.example/s": {v: "1.0.0"}, "corp.example/gone": {v: "1"}}\n');
         const miss = cli(['pkg', 'tree', dir]);
         Assert.equal(miss.code, 1, miss.out);
         Assert.ok(miss.out.startsWith('verdict: missing\n.\n'), miss.out);
         Assert.ok(miss.out.includes('  corp.example/gone 1\n'), miss.out);
         Assert.ok(miss.out.includes('corp.example/gone: not fetched'), miss.out);
         // A dependency declared and never locked at all is a leaf too.
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'dep: {"corp.example/never": {v: "1"}}\n');
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'dep: {"corp.example/never": {v: "1"}}\n');
         Assert.ok(cli(['pkg', 'tree', dir]).out.includes('corp.example/never (not locked)'));
     });
     (0, node_test_1.test)('the-network-subcommands-take-the-pkg-options', () => {
@@ -804,12 +809,12 @@ function withCache(dir, fn) {
     // its entry, which is what a publish needs and a dependency does not.
     function publishable(version, src, extra) {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkgpub-'));
-        Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/schemas/service"' +
+        Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/schemas/service"' +
             ('' === version ? '' : ', version: "' + version + '"') +
-            ', main: "service.aon"}\n' +
+            ', main: "service.aontu"}\n' +
             'publish: public\n');
         if ('' !== src) {
-            Fs.writeFileSync(Path.join(dir, 'service.aon'), src);
+            Fs.writeFileSync(Path.join(dir, 'service.aontu'), src);
         }
         extra?.(dir);
         return dir;
@@ -824,7 +829,7 @@ function withCache(dir, fn) {
     };
     (0, node_test_1.test)('manifest-is-what-a-publish-would-send', () => {
         const dir = publishable('1.1.0', MODULE, (d) => {
-            Fs.writeFileSync(Path.join(d, 'pkg.aon'), Fs.readFileSync(Path.join(d, 'pkg.aon'), 'utf8') +
+            Fs.writeFileSync(Path.join(d, 'pkg.aontu'), Fs.readFileSync(Path.join(d, 'pkg.aontu'), 'utf8') +
                 'dep: {"corp.example/core": {v: "1.0.0"}}\nretract: ["1.0.9"]\n');
         });
         const { code, report } = manifestOf(dir);
@@ -839,12 +844,12 @@ function withCache(dir, fn) {
         // `aontu hash` prints, so "has the truth changed?" is one field
         // read and a string compare.
         Assert.deepEqual(m.modules, [{
-                path: 'corp.example/schemas/service', main: 'service.aon',
+                path: 'corp.example/schemas/service', main: 'service.aontu',
                 canon: (0, aontu_1.canonHash)(new aontu_1.Aontu().unify(MODULE)),
             }]);
         Assert.equal(m.archive.format, 'zip');
         Assert.equal(m.archive.digest, (0, pkg_1.archiveOf)(dir).digest);
-        Assert.deepEqual(m.archive.files.map((f) => f.path), ['pkg.aon', 'service.aon']);
+        Assert.deepEqual(m.archive.files.map((f) => f.path), ['pkg.aontu', 'service.aontu']);
         Assert.deepEqual(m.deps, { 'corp.example/core': { v: '1.0.0' } });
         Assert.deepEqual(m.retract, ['1.0.9']);
         Assert.equal(m.moved, undefined);
@@ -853,10 +858,10 @@ function withCache(dir, fn) {
     (0, node_test_1.test)('the-archive-is-the-source-tree-without-the-vendor-copy', () => {
         const dir = publishable('1.1.0', MODULE, (d) => {
             Fs.mkdirSync(Path.join(d, 'part'));
-            Fs.writeFileSync(Path.join(d, 'part', 'extra.aon'), 'extra: true\n');
-            vendor(d, 'corp.example/other', { 'pkg.aon': 'pkg: {path: "x"}\n' });
+            Fs.writeFileSync(Path.join(d, 'part', 'extra.aontu'), 'extra: true\n');
+            vendor(d, 'corp.example/other', { 'pkg.aontu': 'pkg: {path: "x"}\n' });
         });
-        Assert.deepEqual(manifestOf(dir).report.manifest.archive.files.map((f) => f.path), ['part/extra.aon', 'pkg.aon', 'service.aon']);
+        Assert.deepEqual(manifestOf(dir).report.manifest.archive.files.map((f) => f.path), ['part/extra.aontu', 'pkg.aontu', 'service.aontu']);
         // A tree carrying what the allowlist refuses mints nothing.
         Fs.writeFileSync(Path.join(dir, 'build.sh'), 'echo\n');
         const bad = manifestOf(dir);
@@ -871,7 +876,7 @@ function withCache(dir, fn) {
         Assert.deepEqual(noVersion.report.missing, ['pkg.version']);
         const noEntry = manifestOf(publishable('1.0.0', ''));
         Assert.equal(noEntry.code, 4);
-        Assert.deepEqual(noEntry.report.missing, ['service.aon']);
+        Assert.deepEqual(noEntry.report.missing, ['service.aontu']);
         Assert.ok(cli(['pkg', 'manifest', publishable('', '')]).out
             .includes('pkg.version: missing'));
     });
@@ -944,7 +949,7 @@ function withCache(dir, fn) {
         const { code, report } = manifestOf(publishable('1.1.0', MODULE), publishable('1.0.0', ''));
         Assert.equal(code, 4);
         Assert.equal(report.verdict, 'error');
-        Assert.deepEqual(report.missing, ['service.aon']);
+        Assert.deepEqual(report.missing, ['service.aontu']);
     });
     (0, node_test_1.test)('the-gate-can-be-undecided', () => {
         const { code, report } = manifestOf(publishable('1.1.0', 'a: must(min(1), "m")\n'), publishable('1.0.0', 'a: min(1)\n'));
@@ -957,30 +962,30 @@ function withCache(dir, fn) {
         // mint, which is the same answer as saying nothing at all.
         for (const src of ['1\n', 'dep: {}\n', 'pkg: 1\n', 'pkg: {moved: 1}\nretract: [1]\n']) {
             const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkgpub-'));
-            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), src);
+            Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), src);
             const { code, report } = manifestOf(dir);
             Assert.equal(code, 4, src);
-            Assert.deepEqual(report.missing, ['main.aon', 'pkg.path', 'pkg.version']);
+            Assert.deepEqual(report.missing, ['main.aontu', 'pkg.path', 'pkg.version']);
         }
         // And a directory with no package file at all, which says the same
         // thing by saying nothing.
         const bare = manifestOf(Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-pkgpub-')));
         Assert.equal(bare.code, 4);
-        Assert.deepEqual(bare.report.missing, ['main.aon', 'pkg.path', 'pkg.version']);
+        Assert.deepEqual(bare.report.missing, ['main.aontu', 'pkg.path', 'pkg.version']);
     });
     (0, node_test_1.test)('manifest-text-and-arguments', () => {
         const dir = publishable('1.1.0', MODULE, (d) => {
-            Fs.writeFileSync(Path.join(d, 'pkg.aon'), Fs.readFileSync(Path.join(d, 'pkg.aon'), 'utf8') +
+            Fs.writeFileSync(Path.join(d, 'pkg.aontu'), Fs.readFileSync(Path.join(d, 'pkg.aontu'), 'utf8') +
                 'dep: {"alias:old": {pkg: "corp.example/core", v: "1.0.0"}}\n' +
                 'moved: "corp.example/schemas/svc"\n');
         });
         const out = cli(['pkg', 'manifest', dir]).out;
         Assert.ok(out.includes('corp.example/schemas/service 1.1.0 public'), out);
         Assert.ok(out.includes('archive: sha256:'), out);
-        Assert.ok(out.includes('module: corp.example/schemas/service service.aon aon1-'), out);
+        Assert.ok(out.includes('module: corp.example/schemas/service service.aontu aon1-'), out);
         Assert.ok(out.includes('dep: alias:old 1.0.0 (corp.example/core)'), out);
         Assert.ok(out.includes('moved: corp.example/schemas/svc'), out);
-        Assert.ok(out.includes('file: service.aon sha256:'), out);
+        Assert.ok(out.includes('file: service.aontu sha256:'), out);
         const refused = cli(['pkg', 'manifest',
             '--against', publishable('1.0.0', MODULE),
             publishable('1.1.0', MODULE + 'region: *"eu" | string\n')]);
@@ -1003,38 +1008,38 @@ function withCache(dir, fn) {
     });
     (0, node_test_1.test)('a-key-with-a-known-extension-names-a-file-not-a-package', () => {
         Assert.equal((0, pkg_1.usableKey)('corp.example/models/config.json'), false);
-        Assert.equal((0, pkg_1.usableKey)('corp.example/models/types.aon'), false);
+        Assert.equal((0, pkg_1.usableKey)('corp.example/models/types.aontu'), false);
         Assert.equal((0, pkg_1.usableKey)('corp.example/models/v1.2'), true);
         Assert.equal((0, pkg_1.usableKey)('alias:legacy'), true);
         Assert.equal((0, pkg_1.usableKey)('corp.example/models/config.json@1'), false);
     });
     (0, node_test_1.test)('entry-paths-refuse-reserved-names-and-deep-nesting', () => {
-        Assert.equal((0, pkg_1.relPathError)('con.aon'), 'an entry path element is a name a platform reserves');
+        Assert.equal((0, pkg_1.relPathError)('con.aontu'), 'an entry path element is a name a platform reserves');
         Assert.equal((0, pkg_1.relPathError)('a/NUL.json'), 'an entry path element is a name a platform reserves');
         Assert.equal((0, pkg_1.relPathError)('a/lpt1'), 'an entry path element is a name a platform reserves');
-        Assert.equal((0, pkg_1.relPathError)('a/con2.aon'), undefined);
-        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(32) + 'x.aon'), 'an entry path has more than 32 elements');
-        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(31) + 'x.aon'), undefined);
+        Assert.equal((0, pkg_1.relPathError)('a/con2.aontu'), undefined);
+        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(32) + 'x.aontu'), 'an entry path has more than 32 elements');
+        Assert.equal((0, pkg_1.relPathError)('a/'.repeat(31) + 'x.aontu'), undefined);
     });
     (0, node_test_1.test)('a-publisher-refuses-what-every-consumer-would', () => {
         const saved = { ...pkg_1.ARCHIVE_LIMITS };
         try {
             const archive = {
                 zip: new Uint8Array(0), digest: 'sha256:' + '0'.repeat(64), size: 10, forbidden: [],
-                files: [{ path: 'a.aon', digest: 'sha256:' + '1'.repeat(64), size: 6 },
-                    { path: 'b.aon', digest: 'sha256:' + '2'.repeat(64), size: 4 }],
+                files: [{ path: 'a.aontu', digest: 'sha256:' + '1'.repeat(64), size: 6 },
+                    { path: 'b.aontu', digest: 'sha256:' + '2'.repeat(64), size: 4 }],
             };
             Assert.deepEqual((0, pkg_1.archiveOverCaps)(archive), []);
             Object.assign(pkg_1.ARCHIVE_LIMITS, { bytes: 5, files: 1, fileBytes: 5, unpacked: 8 });
             Assert.deepEqual((0, pkg_1.archiveOverCaps)(archive), [
                 'archive: 10 bytes, over the cap of 5',
                 'archive: 2 files, over the cap of 1',
-                'a.aon: 6 bytes, over the cap of 5',
+                'a.aontu: 6 bytes, over the cap of 5',
                 'archive: unpacks to 10 bytes, over the cap of 8',
             ]);
             const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-caps-'));
-            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "corp.example/x", version: "1.0.0", main: "main.aon"}\n');
-            Fs.writeFileSync(Path.join(dir, 'main.aon'), MODULE);
+            Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "corp.example/x", version: "1.0.0", main: "main.aontu"}\n');
+            Fs.writeFileSync(Path.join(dir, 'main.aontu'), MODULE);
             const options = { eval: (src, path) => {
                     const a0 = new aontu_1.Aontu();
                     const val = a0.unify(src, { path });
@@ -1047,12 +1052,12 @@ function withCache(dir, fn) {
             Assert.equal((0, pkg_1.pkgManifest)(dir, options).verdict, 'ok');
             // Coordinates that are not a package path and a version, and an
             // entry that leaves the tree, mint nothing.
-            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "../../escape", version: "v1", main: "../main.aon"}\n');
+            Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "../../escape", version: "v1", main: "../main.aontu"}\n');
             const odd = (0, pkg_1.pkgManifest)(dir, options);
             Assert.equal(odd.verdict, 'error');
-            Assert.deepEqual(odd.missing, ['../main.aon', 'pkg.path (../../escape is not a package path)',
+            Assert.deepEqual(odd.missing, ['../main.aontu', 'pkg.path (../../escape is not a package path)',
                 'pkg.version (v1 is not MAJOR.MINOR.PATCH)']);
-            Fs.writeFileSync(Path.join(dir, 'pkg.aon'), 'pkg: {path: "alias:x", version: "1.0.0", main: "main.aon"}\n');
+            Fs.writeFileSync(Path.join(dir, 'pkg.aontu'), 'pkg: {path: "alias:x", version: "1.0.0", main: "main.aontu"}\n');
             Assert.deepEqual((0, pkg_1.pkgManifest)(dir, options).missing, ['pkg.path (alias:x is not a package path)']);
         }
         finally {
@@ -1074,7 +1079,7 @@ function withCache(dir, fn) {
         Assert.equal((0, pkg_1.downloadedCanon)(cache, pkg, '1.0.0'), served);
         const at = (0, mod_1.cacheStoreDir)(cache, served, pkg);
         Fs.mkdirSync(at, { recursive: true });
-        Fs.writeFileSync(Path.join(at, 'pkg.aon'), 'pkg: {path: "corp.example/x"}\n');
+        Fs.writeFileSync(Path.join(at, 'pkg.aontu'), 'pkg: {path: "corp.example/x"}\n');
         const options = { cache };
         // The consumer's own pin differs from the served one, and the
         // tree is still found; without the version, only the pin is tried.
@@ -1086,10 +1091,10 @@ function withCache(dir, fn) {
         // A vendor copy replaces the destination rather than overlaying it.
         const to = Path.join(dir, 'vendor', 'x');
         Fs.mkdirSync(to, { recursive: true });
-        Fs.writeFileSync(Path.join(to, 'stale.aon'), 'stale: 1\n');
+        Fs.writeFileSync(Path.join(to, 'stale.aontu'), 'stale: 1\n');
         (0, pkg_1.vendorCopy)(at, to);
-        Assert.ok(Fs.existsSync(Path.join(to, 'pkg.aon')));
-        Assert.ok(!Fs.existsSync(Path.join(to, 'stale.aon')));
+        Assert.ok(Fs.existsSync(Path.join(to, 'pkg.aontu')));
+        Assert.ok(!Fs.existsSync(Path.join(to, 'stale.aontu')));
     });
 });
 //# sourceMappingURL=pkg.test.js.map

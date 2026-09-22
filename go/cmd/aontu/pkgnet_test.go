@@ -70,9 +70,9 @@ func (c *netCLI) run(args ...string) (string, string, int) {
 
 func (c *netCLI) publisher(name, version, src, extra string) string {
 	dir := filepath.Join(c.dir, name+"-"+version)
-	writeNet(c.t, filepath.Join(dir, "pkg.aon"),
-		"pkg: {path: \"corp.example/"+name+"\", version: \""+version+"\", main: \"main.aon\"}\n"+extra)
-	writeNet(c.t, filepath.Join(dir, "main.aon"), src)
+	writeNet(c.t, filepath.Join(dir, "pkg.aontu"),
+		"pkg: {path: \"corp.example/"+name+"\", version: \""+version+"\", main: \"main.aontu\"}\n"+extra)
+	writeNet(c.t, filepath.Join(dir, "main.aontu"), src)
 	return dir
 }
 
@@ -83,10 +83,10 @@ func (c *netCLI) publish(tree string) (string, string, int) {
 func (c *netCLI) consumer(deps string) string {
 	c.apps++
 	app := filepath.Join(c.dir, "app"+string(rune('0'+c.apps)))
-	writeNet(c.t, filepath.Join(app, "pkg.aon"),
+	writeNet(c.t, filepath.Join(app, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {"+deps+"}\n"+
 			"repo: {base: [\"http://127.0.0.1\"], trust: {\"corp.example/*\": {signer: \""+c.keyID+"\", inclusion: none}}}\n")
-	writeNet(c.t, filepath.Join(app, "main.aon"), "svc: @\"corp.example/service\"\nsvc: name: \"auth\"\n")
+	writeNet(c.t, filepath.Join(app, "main.aontu"), "svc: @\"corp.example/service\"\nsvc: name: \"auth\"\n")
 	return app
 }
 
@@ -201,7 +201,7 @@ func TestPackageVerbsRoundTrip(t *testing.T) {
 	// The frozen report; then the mismatch a kept manifest reports once
 	// the tree it describes has been edited.
 	vendored := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service")
-	writeAt(t, filepath.Join(vendored, "main.aon"), "name: string\n")
+	writeAt(t, filepath.Join(vendored, "main.aontu"), "name: string\n")
 	out, _, code = c.run("sync", "--frozen", app)
 	if 1 != code {
 		t.Fatal(out)
@@ -211,17 +211,17 @@ func TestPackageVerbsRoundTrip(t *testing.T) {
 	if 1 != code {
 		t.Fatal(out)
 	}
-	wantMatch(t, out, `^verdict: mismatch\n.*\ncorp.example/service: pinned manifest sha256:.* but the store holds main.aon sha256:.*\n$`)
+	wantMatch(t, out, `^verdict: mismatch\n.*\ncorp.example/service: pinned manifest sha256:.* but the store holds main.aontu sha256:.*\n$`)
 
 	// A vendored tree that does not evaluate, and one that carries what
 	// the allowlist refuses.
-	writeAt(t, filepath.Join(vendored, "main.aon"), "a: 1\na: 2\n")
+	writeAt(t, filepath.Join(vendored, "main.aontu"), "a: 1\na: 2\n")
 	out, _, code = c.run("sync", app)
 	if 4 != code {
 		t.Fatal(out)
 	}
 	wantMatch(t, out, `^verdict: error\ncorp.example/service: does not evaluate on its own; nothing to pin\n$`)
-	writeAt(t, filepath.Join(vendored, "main.aon"), cliService)
+	writeAt(t, filepath.Join(vendored, "main.aontu"), cliService)
 	writeAt(t, filepath.Join(vendored, "run.sh"), "#!/bin/sh\n")
 	out, _, code = c.run("sync", app)
 	if 4 != code {
@@ -344,7 +344,7 @@ func TestPackageVerbsTakeTheirArguments(t *testing.T) {
 	if _, _, code = c.run("pkg", "outdated", "--trust", "root", app); 2 != code {
 		t.Fatal("confined outdated")
 	}
-	writeNet(t, filepath.Join(app, "aontu_meta", "pkg-lock.aon"),
+	writeNet(t, filepath.Join(app, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/none\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"}}}\n")
 	out, _, code := c.run("pkg", "outdated", app)
 	if 1 != code {

@@ -17,7 +17,7 @@ go/cmd/aontu/helpdoc/** text eol=lf
 # The starting documents `aontu init` writes (G11 phase 6). Real files,
 # run by the suites where they live, and staged into both ports by the
 # same generator -- so they are byte-compared like the pack above. The
-# globs below do not reach them: two are `.aon` and one is a shell
+# globs below do not reach them: two are `.aontu` and one is a shell
 # script, and a scaffold that arrived with CRLF would be written back
 # out that way by a command whose two ports must write the same bytes.
 docs/skill/init/** text eol=lf
@@ -27,7 +27,7 @@ docs/skill/init/** text eol=lf
 # checkout would put CRLF in the binary, and `aontu fmt` -- which
 # normalises line endings -- could never round-trip its own bundled
 # models. The raw string literals these replaced hid that: Go discards
-# \r from a raw string, and //go:embed keeps every byte. The `.aon`
+# \r from a raw string, and //go:embed keeps every byte. The `.aontu`
 # globs at the end of this file set highlighting, not line endings.
 # Regenerate with `make aontu`, never by hand.
 aontu/** text eol=lf
@@ -64,7 +64,7 @@ go/aontumodel/** text eol=lf
 #
 # github.com colours a blob only for a language Linguist knows, and
 # Linguist takes a new one at 2000 files per extension indexed in a
-# year, spread across unrepeated repositories. `.aon` is nowhere near
+# year, spread across unrepeated repositories. `.aontu` is nowhere near
 # that and will not be until the language is used outside this
 # organisation, so the 415 sources here render as plain text.
 #
@@ -82,5 +82,5 @@ go/aontumodel/** text eol=lf
 # This is a stopgap with an end condition. When grammar/aontu.tmLanguage.json
 # is accepted into Linguist, both lines come out in the same commit --
 # they would then OVERRIDE the real grammar with a worse one.
-*.aon   linguist-language=YAML -linguist-detectable
+*.aontu   linguist-language=YAML -linguist-detectable
 *.aontu linguist-language=YAML -linguist-detectable

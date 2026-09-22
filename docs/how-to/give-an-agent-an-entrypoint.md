@@ -11,10 +11,10 @@ before it starts, and a service to question while it works. aontu
 ships both halves, and neither is written by hand.
 
 The stanza first. `aontu agentsmd` derives it from the source, so it
-cannot drift from what the document says. Write `system.aon`:
+cannot drift from what the document says. Write `system.aontu`:
 
 <!-- test: scenario agent-entrypoint -->
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer tier: *standard|string } }
 services: auth: replicas: 3
@@ -23,9 +23,9 @@ services: billing: tier: premium
 
 <!-- test: run -->
 ```sh
-$ aontu agentsmd system.aon
+$ aontu agentsmd system.aontu
 <!-- aontu:begin -->
-## Ground truth: `system.aon`
+## Ground truth: `system.aontu`
 ...
 - Pin: `aon1-kmZi3pPU2hnWQfwLnaFoC5iUtlrt6vbUzU7og-KxWJE`
 ...
@@ -33,7 +33,7 @@ $ aontu agentsmd system.aon
 - Shape: `{"services":{&:top,"auth":top,"billing":top}}`
 ...
 <!-- aontu:end -->
-$ aontu agentsmd --write AGENTS.md system.aon
+$ aontu agentsmd --write AGENTS.md system.aontu
 wrote: AGENTS.md
 ```
 
@@ -63,7 +63,7 @@ document that does not hold) answers with its report and
 
 It also evaluates confined: the source arrives from the caller, so
 `@"..."` is denied rather than followed. Asking it to canonicalise
-`a: @"./system.aon"` comes back as a finding, not a file read:
+`a: @"./system.aontu"` comes back as a finding, not a file read:
 
 <!-- test: skip MCP tool response; the served contract is pinned by ts/test/mcp.test.ts -->
 ```json
@@ -76,7 +76,7 @@ It also evaluates confined: the source arrives from the caller, so
       "class": "reference",
       "severity": "error",
       "path": "$",
-      "message": "include denied: ./system.aon (capability: none)",
+      "message": "include denied: ./system.aontu (capability: none)",
       "sites": []
     }
   ]

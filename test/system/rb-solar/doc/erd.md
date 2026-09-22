@@ -6,7 +6,7 @@ order: 3
 
 # Generate the entity relationship diagram
 
-The Rails example generates `doc/erd.mmd` from `model.aon` using the
+The Rails example generates `doc/erd.mmd` from `model.aontu` using the
 handwritten template `gen/doc/erd.mmd`. The diagram and the Rails models
 therefore read the same entity definitions. Follow the
 [model guide](model.md#run-the-examples-cli) to set up the CLI.
@@ -16,8 +16,8 @@ therefore read the same entity definitions. Follow the
 Run from `test/system/rb-solar`:
 
 ```sh
-aontu template --marker '%%-' gen/doc/erd.mmd > work/erd.aon
-aontu model get out work/erd.aon
+aontu template --marker '%%-' gen/doc/erd.mmd > work/erd.aontu
+aontu model get out work/erd.aontu
 ```
 
 The result is the component tree carrying the Mermaid source. `aontu
@@ -39,7 +39,7 @@ the template, emitted along with the diagram.
 The [diagram template](../gen/doc/erd.mmd) starts by importing the model:
 
 ```mermaid-source
-%%- @"../model.aon"
+%%- @"../model.aontu"
 ```
 
 `--marker '%%-'` tells aontu which lines contain instructions. Mermaid
@@ -137,7 +137,7 @@ The example's `check.sh` runs the same comparison shown above. A model or templa
 that check. The model-tree figures use a separate command:
 
 ```sh
-aontu view doc --depth 2 --as svg model.aon
+aontu view doc --depth 2 --as svg model.aontu
 ```
 
 `view` draws the model directly. The application architecture and layer

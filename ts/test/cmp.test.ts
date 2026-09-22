@@ -270,7 +270,7 @@ describe('cmp', () => {
 
   test('worked-example', () => {
     const src = Fs.readFileSync(
-      Path.join(__dirname, '..', 'test', 'cmp-spike.aon'), 'utf8')
+      Path.join(__dirname, '..', 'test', 'cmp-spike.aontu'), 'utf8')
     const out = G(src).out
 
     expect(out.props).equal({ name: 'src' })

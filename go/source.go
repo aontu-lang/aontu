@@ -35,7 +35,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 	if strings.HasPrefix(spec.Path, aontuScheme) {
 		if src, ok := aontuSources[spec.Path]; ok {
 			res.Full = spec.Path
-			res.Kind = "aon"
+			res.Kind = "aontu"
 			res.Src = toValidSource(src)
 			res.Found = true
 			recordDep(sink, spec.Path, "aontu")
@@ -105,7 +105,7 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 		}
 
 		res.Full = out.Full
-		res.Kind = "aon"
+		res.Kind = "aontu"
 		res.Src = out.Src
 		res.Found = true
 		recordDep(sink, out.Full, "mod")
@@ -184,7 +184,6 @@ func realOrAbs(p string) string {
 }
 
 var includeKinds = map[string]string{
-	"aon":   "source",
 	"aontu": "source",
 
 	"json": "json",
@@ -567,7 +566,7 @@ func msOptions(base string, resolver multisource.Resolver) map[string]any {
 			Resolver:  resolver,
 			Path:      base,
 			Processor: includeProcessors(),
-			ImplicitExt: []string{".aon", ".aontu"},
+			ImplicitExt: []string{".aontu"},
 		},
 	}
 }

@@ -14,12 +14,12 @@ describe('patch', () => {
 
   test('labels-findings-with-their-files', () => {
     const r = patch('port: 3', '', ['$.port=5'],
-      { entryPath: 'sys.aon', overlayPath: 'ov.aon' })
+      { entryPath: 'sys.aontu', overlayPath: 'ov.aontu' })
     Assert.strictEqual(r.verdict, 'invalid')
     Assert.ok(0 < r.findings.length)
     const files = r.findings[0].sites.map((s: any) => s.file).join(',')
-    Assert.ok(files.includes('sys.aon'), files)
-    Assert.ok(files.includes('ov.aon'), files)
+    Assert.ok(files.includes('sys.aontu'), files)
+    Assert.ok(files.includes('ov.aontu'), files)
   })
 
 
@@ -46,9 +46,9 @@ describe('patch', () => {
     const Path = require('node:path')
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-patch-'))
     Fs.mkdirSync(Path.join(dir, 'sub'))
-    const incFile = Path.join(dir, 'sub', 'inc.aon')
+    const incFile = Path.join(dir, 'sub', 'inc.aontu')
     Fs.writeFileSync(incFile, 'a: 42\n')
-    const ovFile = Path.join(dir, 'ov.aon')
+    const ovFile = Path.join(dir, 'ov.aontu')
     const overlay = 'x: 42\n@"' +
       incFile.replace(/\\/g, '/') + '"\n'
     Fs.writeFileSync(ovFile, overlay)
@@ -117,7 +117,7 @@ describe('patch', () => {
     // The written conjunct: proceeds to a replacement site.
     const good = verifiedSite(src, '$.a', {
       canon: '42', role: 'literal',
-      site: { file: 'over.aon', row: 1, col: 4, len: 2 }, src: '42',
+      site: { file: 'over.aontu', row: 1, col: 4, len: 2 }, src: '42',
     })
     Assert.strictEqual(good.finding, undefined)
     Assert.strictEqual(good.site?.from, '42')
@@ -125,7 +125,7 @@ describe('patch', () => {
 
     const bad = verifiedSite(src, '$.a', {
       canon: '42', role: 'literal',
-      site: { file: 'over.aon', row: 3, col: 1, len: 2 }, src: '42',
+      site: { file: 'over.aontu', row: 3, col: 1, len: 2 }, src: '42',
     })
     Assert.strictEqual(bad.site, undefined)
     Assert.strictEqual(bad.finding?.code, 'patch_span_mismatch')

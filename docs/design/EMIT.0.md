@@ -40,7 +40,7 @@ hold several of. The last matters immediately — the assessed backend
 produces three artifacts from one model, and three tables read better
 than one table with a discriminator in every pattern.
 
-```aon
+```aontu
 [ {match: <pattern>, esc?: <variant>, replace?: {<KEY>: <expr>, …}, body: [ … ]}, … ]
 ```
 
@@ -97,7 +97,7 @@ mechanism.** It is what removes the invented `when` directive earlier
 prototypes kept reaching for. A handler emits its gateway block only
 when the service has an S3 event; written as apply-templates that is
 
-```aon
+```aontu
 emit(filter(.on.file.events, {source: 's3'}), <table>)
 ```
 
@@ -119,7 +119,7 @@ argument. **Both are unnecessary.** Because a table is an ordinary
 value, a mode is a table with a name, and naming a value is something
 the language already does:
 
-```aon
+```aontu
 wiretpl: [{match: {pin: string}, replace: {PIN: .pin}, body: [ … ]}]
 …
 emit(.listen, $.wiretpl)
@@ -351,7 +351,7 @@ value unevaluated at a document position; what does hold one is a
 CALL's template argument, which is never driven. `%wire = emit(_, T)` is
 that position with the selection left open:
 
-```aon
+```aontu
 %wire = emit(_, {match: {pin: string}, body: [ … ]})
 …
 a: emit($.listen, %wire)

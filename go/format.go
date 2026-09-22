@@ -56,8 +56,8 @@ type fmtTok struct {
 
 func formatResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOptions, ctx *jsonic.Context) multisource.Resolution {
 	res := multisource.Resolution{PathSpec: spec}
-	res.Kind = "aon"
-	res.Full = "__fmt__.aon"
+	res.Kind = "aontu"
+	res.Full = "__fmt__.aontu"
 	res.Found = true
 	return res
 }

@@ -25,7 +25,7 @@ function aonFiles(dir: string, out: string[] = []): string[] {
     if (Fs.statSync(path).isDirectory()) {
       aonFiles(path, out)
     }
-    else if (name.endsWith('.aon')) {
+    else if (name.endsWith('.aontu')) {
       out.push(path)
     }
   }
@@ -49,12 +49,12 @@ describe('format', () => {
   // A document that does not parse is not formatted, and the report
   // says why in the finding shape every verb uses, the file named.
   test('format-refuses-a-syntax-error', () => {
-    const r: any = format('a: {b\n', { path: 'broken.aon' })
+    const r: any = format('a: {b\n', { path: 'broken.aontu' })
     Assert.equal(r.verdict, 'error')
     Assert.equal(r.errors.length, 1)
     Assert.equal(r.errors[0].code, 'syntax')
     Assert.equal(r.errors[0].class, 'parse')
-    Assert.equal(r.errors[0].sites[0].file, 'broken.aon')
+    Assert.equal(r.errors[0].sites[0].file, 'broken.aontu')
 
     // A merge-conflict marker is refused before the parse, as
     // everywhere else.
@@ -83,9 +83,9 @@ describe('format', () => {
     Assert.equal(r.errors[0].actual, 'a: b: 1\n')
     Assert.equal(r.errors[0].note, 'a formatter defect: please report it with the source')
 
-    const named: any = format('a: 1\n', { path: 'doc.aon' }, { same: () => false })
+    const named: any = format('a: 1\n', { path: 'doc.aontu' }, { same: () => false })
     Assert.equal(named.errors[0].note,
-      'a formatter defect: please report it with the source (doc.aon)')
+      'a formatter defect: please report it with the source (doc.aontu)')
 
     // The hook sees the parsed root and the text about to be written.
     let seen: any
@@ -125,7 +125,7 @@ describe('format', () => {
     ]])
 
     const repro = Fs.readFileSync(Path.join(repoRoot(),
-      'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aon'), 'utf8')
+      'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aontu'), 'utf8')
     const kept: any = format(repro)
     Assert.ok(kept.text.includes(
       'a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text)
@@ -170,8 +170,8 @@ describe('format', () => {
     const edited = lines(20)
     edited[2] = 'changed 2'
     edited.splice(17, 0, 'inserted')
-    Assert.equal(unifiedDiff('f.aon', before, edited.join('\n') + '\n'),
-      '--- a/f.aon\n+++ b/f.aon\n' +
+    Assert.equal(unifiedDiff('f.aontu', before, edited.join('\n') + '\n'),
+      '--- a/f.aontu\n+++ b/f.aontu\n' +
       '@@ -1,6 +1,6 @@\n line 0\n line 1\n-line 2\n+changed 2\n line 3\n line 4\n line 5\n' +
       '@@ -15,6 +15,7 @@\n line 14\n line 15\n line 16\n+inserted\n line 17\n line 18\n line 19\n')
 

@@ -23,10 +23,10 @@
 #
 # Pinned by ts/test/mod.test.ts and go/modtool_test.go
 # (TestModTransitiveVendorResolves, TestModTidyRefusesAnUnevaluableModule).
-# run: aontu mod tidy . && aontu main.aon
+# run: aontu mod tidy . && aontu main.aontu
 # expected: verdict: ok, both modules pinned; {"svc":{"name":"checkout","port":8080}} exit 0
 # actual:   verdict: ok, both modules pinned; {"svc":{"name":"checkout","port":8080}} exit 0
-mod: { path: "corp.example/checkout", main: "main.aon" }
+mod: { path: "corp.example/checkout", main: "main.aontu" }
 dep: {
   "corp.example/schemas/service@1": { v: "1.4.2" }
   "corp.example/schemas/common@1": { v: "1.0.0" }

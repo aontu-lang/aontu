@@ -1,0 +1,4 @@
+# 60, second document: a DIFFERENT meaning that hashes the same as
+# alias-spread-hash-blind.aontu. See that file's header.
+%A = close({ n: integer, EXTRA: string })
+box: [&: %A]

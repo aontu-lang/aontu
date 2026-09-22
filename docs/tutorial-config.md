@@ -483,10 +483,10 @@ trade-off.
 ## 11. Putting it together
 
 Time to spend all of it. Here is a single document that is schema,
-defaults and data at once: save it as `config.aon`:
+defaults and data at once: save it as `config.aontu`:
 
 <!-- test: scenario service-config -->
-<!-- test: file config.aon -->
+<!-- test: file config.aontu -->
 ```aontu
 # --- schema + defaults (could live in its own file) ---
 service: close({
@@ -505,7 +505,7 @@ Run it:
 
 <!-- test: run -->
 ```sh
-$ aontu config.aon
+$ aontu config.aontu
 {
   "service": {
     "host": "localhost",
@@ -540,7 +540,7 @@ reading it and start asking it. `get` prints one slice of the answer:
 
 <!-- test: run -->
 ```sh
-$ aontu model get '$.service.tags' config.aon
+$ aontu model get '$.service.tags' config.aontu
 [
   "public",
   "http"
@@ -555,10 +555,10 @@ every statement that contributed to a path, in source order:
 
 <!-- test: run -->
 ```sh
-$ aontu model why '$.service.port' config.aon
+$ aontu model why '$.service.port' config.aontu
 $.service.port = 9090
-  1. *8080|integer  config.aon:5:9
-  2. 9090  config.aon:11:26
+  1. *8080|integer  config.aontu:5:9
+  2. 9090  config.aontu:11:26
 ```
 
 Two contributions, and you wrote both: the default with its type, and
@@ -570,9 +570,9 @@ overrode:
 
 <!-- test: run -->
 ```sh
-$ aontu model why '$.service.host' config.aon
+$ aontu model why '$.service.host' config.aontu
 $.service.host = *"localhost"|string
-  1. *"localhost"|string  config.aon:4:9
+  1. *"localhost"|string  config.aontu:4:9
 ```
 
 One contribution, still wearing its `*`: the default answered only
@@ -586,10 +586,10 @@ tabulated in the
 ## 13. Validating data with `aontu vet`
 
 Configuration rarely stays in one file: the schema is yours, the data
-arrives from somewhere else. Split `config.aon` at its comment. The
-schema half becomes `service.aon`:
+arrives from somewhere else. Split `config.aontu` at its comment. The
+schema half becomes `service.aontu`:
 
-<!-- test: file service.aon -->
+<!-- test: file service.aontu -->
 ```aontu
 service: close({
   name: string
@@ -600,9 +600,9 @@ service: close({
 })
 ```
 
-and the data half becomes `prod.aon`:
+and the data half becomes `prod.aontu`:
 
-<!-- test: file prod.aon -->
+<!-- test: file prod.aontu -->
 ```aontu
 service: { name:api port:9090 rate:0d0.025 tags: [public http] }
 ```
@@ -611,14 +611,14 @@ service: { name:api port:9090 rate:0d0.025 tags: [public http] }
 
 <!-- test: run -->
 ```sh
-$ aontu vet service.aon prod.aon
+$ aontu vet service.aontu prod.aontu
 verdict: valid
 ```
 
-Now a second environment arrives, `staging.aon`, written by someone
+Now a second environment arrives, `staging.aontu`, written by someone
 else:
 
-<!-- test: file staging.aon -->
+<!-- test: file staging.aontu -->
 ```aontu
 service: { name:search port:8100 tags: [internal 3] }
 ```
@@ -627,13 +627,13 @@ Vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet service.aon staging.aon
+$ aontu vet service.aontu staging.aontu
 verdict: invalid
 
 $.service.tags.1: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.service.tags.1
-  data: staging.aon:1:50 (3)
-  schema: service.aon:6:13 (string)
+  data: staging.aontu:1:50 (3)
+  schema: service.aontu:6:13 (string)
 $ echo $?
 1
 ```
@@ -642,39 +642,39 @@ Read the finding from the top. The path `$.service.tags.1` is exactly
 where the trouble is: element 1 of the list, the `3`. Then **two
 sites**, because a conflict is always between two statements and neither
 one owns the blame: `data` is what arrived (`3`, line 4, column 20 of
-`staging.aon`) and `schema` is what it had to [meet](unification.md)
-(`string`, line 6, column 16 of `service.aon`). Every finding is sited
+`staging.aontu`) and `schema` is what it had to [meet](unification.md)
+(`string`, line 6, column 16 of `service.aontu`). Every finding is sited
 on both sides, so you never guess which file to open. And the exit code,
 `1`, is the verdict class: a CI job needs nothing else.
 
-The `3` was meant to be a tier name. Write `staging.aon` again, saying
+The `3` was meant to be a tier name. Write `staging.aontu` again, saying
 so:
 
-<!-- test: file staging.aon -->
+<!-- test: file staging.aontu -->
 ```aontu
 service: { name:search port:8100 tags: [internal tier3] }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu vet service.aon staging.aon
+$ aontu vet service.aontu staging.aontu
 verdict: valid
 ```
 
-Notice `staging.aon` never mentions `host` or `rate` and passes
+Notice `staging.aontu` never mentions `host` or `rate` and passes
 anyway: the schema's defaults stand in. To see what the service
 actually gets, unify the two files: a document that loads both is all
-it takes. Write `stack.aon`:
+it takes. Write `stack.aontu`:
 
-<!-- test: file stack.aon -->
+<!-- test: file stack.aontu -->
 ```aontu
-@"./service.aon"
-@"./staging.aon"
+@"./service.aontu"
+@"./staging.aontu"
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu stack.aon
+$ aontu stack.aontu
 {
   "service": {
     "host": "localhost",
@@ -695,21 +695,21 @@ $ aontu stack.aon
 grows the idea into versioned, vendored dependencies.
 
 `vet` has a third verdict, and it is the one that stops the loop
-calling an unfinished document valid. Delete the `name` line from `staging.aon`:
+calling an unfinished document valid. Delete the `name` line from `staging.aontu`:
 
-<!-- test: file staging.aon -->
+<!-- test: file staging.aontu -->
 ```aontu
 service: { port:8100 tags: [internal tier3] }
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu vet service.aon staging.aon
+$ aontu vet service.aontu staging.aontu
 verdict: incomplete
 
 $.service.name: mapval_required [incomplete]
   [aontu/mapval_required]: Cannot resolve value at path $.service.name
-  schema: service.aon:2:9 (string)
+  schema: service.aontu:2:9 (string)
 $ echo $?
 3
 ```

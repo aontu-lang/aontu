@@ -30,12 +30,12 @@ holds three released versions of a customer profile. The filenames read
 as a chain. VERIFIED, all six ordered pairs:
 
 ```
-$ aontu subsume profile-v2.aon profile-v1.aon   -> subsumes
-$ aontu subsume profile-v1.aon profile-v2.aon   -> does_not_subsume
-$ aontu subsume profile-v2.aon profile-v3.aon   -> does_not_subsume
-$ aontu subsume profile-v3.aon profile-v2.aon   -> does_not_subsume
-$ aontu subsume profile-v3.aon profile-v1.aon   -> does_not_subsume
-$ aontu subsume profile-v1.aon profile-v3.aon   -> does_not_subsume
+$ aontu subsume profile-v2.aontu profile-v1.aontu   -> subsumes
+$ aontu subsume profile-v1.aontu profile-v2.aontu   -> does_not_subsume
+$ aontu subsume profile-v2.aontu profile-v3.aontu   -> does_not_subsume
+$ aontu subsume profile-v3.aontu profile-v2.aontu   -> does_not_subsume
+$ aontu subsume profile-v3.aontu profile-v1.aontu   -> does_not_subsume
+$ aontu subsume profile-v1.aontu profile-v3.aontu   -> does_not_subsume
 ```
 
 **The version history is not a chain.** v2 is a true generalisation of
@@ -261,7 +261,7 @@ fact about a poset, and is what `--head` exists to gate on.
 | `subsumes` one way, `undecided` the other | the solid edge, plus a finding: the two may be equal and the checker cannot tell |
 
 **The poset is profile-dependent, and that goes in the diagram.**
-VERIFIED on `proposals/default-change.aon`, which flips a `*false`
+VERIFIED on `proposals/default-change.aontu`, which flips a `*false`
 consent default: under `--profile values` it is **one node** with v2;
 under `defaults` and `gen` it is incomparable. Three profiles, three
 posets over the same files. The profile and the anchor are emitted as a
@@ -330,7 +330,7 @@ lifecycle, ordinal on tier and replicas, and dichotomic on the
 dependency predicates: **46 concepts, 102 cover edges** from 32
 attributes. The payoff is real — `tier<=1` and `replicas>=3` are
 logically equivalent in that data and label one concept, a correlation
-`spec.aon` declares as two independent fields and no verb reports.
+`spec.aontu` declares as two independent fields and no verb reports.
 
 And it still does not ship, for four reasons:
 
@@ -407,7 +407,7 @@ emitted text is doubled in the cell because the escape pass runs first
   trajectory, not the space.
 - **No entity/relation graph** — that is VIEWS.0.md's. One caution
   belongs here because it is a lattice fact: `graphOf` on
-  `use-cases/12-relations/model.aon` yields 6 edges for 3 logical ones,
+  `use-cases/12-relations/model.aontu` yields 6 edges for 3 logical ones,
   because `feeds` and `fedBy` are declared inverses and both directions
   are written out. Rendering the edge set directly doubles every
   relation with a declared inverse; collapse one edge per `inverse()`
@@ -424,7 +424,7 @@ emitted text is doubled in the cell because the escape pass runs first
 | BUGS 64 makes the poset edgeless on real models — VERIFIED, 3 of 7 use-case entry documents do not subsume themselves, both ports | High | High | Phase 0 is the hash-form short-circuit on the fold path, which is the law `subsume.tsv` already states. Recorded in BUGS.md with three repros whatever else happens |
 | A builder keys nodes on `canonHash` and draws a 2-cycle — `a: 1\|2` and `a: 2\|1` subsume each other and hash differently | High | High | The mutual-subsumption quotient is step 3 and is not optional; a spec row pins that case |
 | Transitive reduction over an under-approximated relation is unsound | Low | High | Reduce the closure, never the raw measurement, and report disagreement as `order_intransitive` |
-| The poset silently means something different under a different profile — VERIFIED on `default-change.aon` | High | High | Profile and anchor in the diagram, the report and the golden filename. A diagram without them is not produced |
+| The poset silently means something different under a different profile — VERIFIED on `default-change.aontu` | High | High | Profile and anchor in the diagram, the report and the golden filename. A diagram without them is not produced |
 | Θ(n²) evaluations make the verb unusable | High | Medium | Evaluate once per document; the licence is `subsume`'s own no-mutation contract |
 | `subsume`'s `error` verdict carries no findings — VERIFIED, exit 4, empty list | High | Medium | Two codes naming the document and the cause, added to both verbs |
 | The diagram formats depend on G9, which is 0/9 in the register | High | Medium | `order` ships text and JSON first and is useful there; formats land with the renderer |

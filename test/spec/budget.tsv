@@ -76,8 +76,8 @@ budget-chain-10-msg	err	a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:
 # per-pass memo in ts/src/unify.ts (_tcc/_tpi: "once per pass per
 # (Val, path)") fixes that; this fixture -- 1200 sibling terms at one
 # path -- is the regression guard, and must simply unify.
-budget-wide-conjunct-legal	gens	a:@"__FIXTURES__/large-siblings.aon"	{"a":{"wide":{"x":1}}}
-budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aon"	{"a":{"wide":{"x":1}}}
+budget-wide-conjunct-legal	gens	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"wide":{"x":1}}}
+budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"wide":{"x":1}}}
 #
 # THE DEPTH BUDGET -- structural recursion, shared language surface.
 # Both engines bound `unite` nesting at 1000 (ts/src/unify.ts MAXDEPTH,
@@ -97,22 +97,22 @@ budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aon"	{"a":{"wid
 #
 # deep-ok wraps its nesting in hide() so the expectation stays readable
 # -- the unifier still walks all 900 levels, it just generates nothing.
-budget-depth-900-resolves	gens	x:@"__FIXTURES__/deep-ok.aon"	{"x":{"z":1}}
-budget-depth-1200-exhausts	errc	x:@"__FIXTURES__/deep-exhausts.aon"	unify_cycle
-budget-depth-1200-msg	err	x:@"__FIXTURES__/deep-exhausts.aon"	Circular reference detected during unification.
+budget-depth-900-resolves	gens	x:@"__FIXTURES__/deep-ok.aontu"	{"x":{"z":1}}
+budget-depth-1200-exhausts	errc	x:@"__FIXTURES__/deep-exhausts.aontu"	unify_cycle
+budget-depth-1200-msg	err	x:@"__FIXTURES__/deep-exhausts.aontu"	Circular reference detected during unification.
 # Function arguments evaluate through arg.unify rather than the unite
 # dispatcher, so they need their own guard (withDepth, ts/src/unify.ts;
 # Go routes them through its counted dispatcher already). Without it a
 # 1500-deep expression resolved in TypeScript while Go refused it.
-budget-depth-func-exhausts	errc	x:@"__FIXTURES__/deep-func.aon"	unify_cycle
+budget-depth-func-exhausts	errc	x:@"__FIXTURES__/deep-func.aontu"	unify_cycle
 # The EXACT cutoff, both sides. The two ports disagreed by one nesting
 # level until Go's "done value unified with TOP" fast path was hoisted
 # above its depth counter, so that both charge the same entries -- Go
 # was spending one frame per document (the scalar leaf) that TS never
 # spent. These rows make the boundary itself contractual rather than
 # just the region either side of it (issue #46).
-budget-depth-boundary-in	gens	x:@"__FIXTURES__/deep-boundary-in.aon"	{"x":{"z":1}}
-budget-depth-boundary-out	errc	x:@"__FIXTURES__/deep-boundary-out.aon"	unify_cycle
+budget-depth-boundary-in	gens	x:@"__FIXTURES__/deep-boundary-in.aontu"	{"x":{"z":1}}
+budget-depth-boundary-out	errc	x:@"__FIXTURES__/deep-boundary-out.aontu"	unify_cycle
 # T-1 (ALIASES.0.md sections 7 and 9). Alias expansion TERMINATES --
 # no parameters, no recursion, a finite name set -- so this is not the
 # cycle answer and not the incomplete answer: it is THE EVALUATOR GAVE

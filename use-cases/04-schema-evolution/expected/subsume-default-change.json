@@ -14,7 +14,7 @@
       "sites": [
         {
           "col": 30,
-          "file": "proposals/default-change.aon",
+          "file": "proposals/default-change.aontu",
           "len": 1,
           "role": "general",
           "row": 21,
@@ -23,7 +23,7 @@
         },
         {
           "col": 30,
-          "file": "profile-v2.aon",
+          "file": "profile-v2.aontu",
           "len": 1,
           "role": "specific",
           "row": 40,

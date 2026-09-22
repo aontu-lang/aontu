@@ -33,10 +33,10 @@ the key name is not reserved: `type` here is a field that happens to
 be `type()`-marked, so `defs` or `schema` reads the same.
 
 An out-of-range value is refused at the field that holds it. Write
-the same document with `listen: 70000` as `types.aon`:
+the same document with `listen: 70000` as `types.aontu`:
 
 <!-- test: scenario named-constraints -->
-<!-- test: file types.aon -->
+<!-- test: file types.aontu -->
 ```aontu
 type: type({})
 
@@ -52,7 +52,7 @@ listen: 70000
 
 <!-- test: run -->
 ```sh
-$ aontu types.aon
+$ aontu types.aontu
 [aontu/constraint]: Cannot unify values at path $.listen
 ...
  Cannot unify value: 70000 with value: integer&min(1)&max(65535)

@@ -1,0 +1,4 @@
+# The other half of the alias_row_a.aontu pair.
+%row = { extra: *9 }
+b: %row
+b: kind: 'y'

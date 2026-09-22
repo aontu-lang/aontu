@@ -1,0 +1,7 @@
+# The `*` token is reserved and stays that way: maths arrives as
+# FUNCTIONS (`mul`), never as an operator character. See
+# test/spec/op-chars.tsv and gaps/multiply.aontu.
+# run: aontu gaps/star-token.aontu
+# expected: [aontu/unexpected], exit 1
+# actual:   [aontu/unexpected], exit 1
+amount: 2 * 1999

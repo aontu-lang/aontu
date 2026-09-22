@@ -1,0 +1,13 @@
+# Absence drops out of a plain list and is REFUSED under a spread:
+# `x: ["a", maybe($.gone)]` alone is {"x":["a"]}, and the same list
+# under `[&: string]` is listval_no_gen. Both ports agree on THIS
+# shape, so it is a design gap. Swap the template for `string|number`
+# and they stop agreeing -- see test/spec/divergent.tsv. Run:
+#   aontu absent-under-a-spread.aontu
+# The same shape inside aontu:code's decls is func_arity, which is
+# what stops a heading vanishing with the rows it heads (ADR-037).
+# expected: {"x":["a"]}
+# actual:   [aontu/listval_no_gen] at $.x.1
+x: [&: string]
+
+x: ["a" maybe($.gone)]

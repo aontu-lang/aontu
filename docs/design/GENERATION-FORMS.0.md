@@ -18,7 +18,7 @@ The three forms are not three products. They differ only in who walks
 the model:
 
 ```
-  model.aon
+  model.aontu
      │
      ▼  unify()                        exists, both ports
   the Val tree                         the only complete view
@@ -44,7 +44,7 @@ shared TSV mode, and re-usable by all three.
 `generate()` is the JSON projection, and JSON cannot carry a lattice.
 VERIFIED, both ports, on this document:
 
-```aon
+```aontu
 schema: type(close({
   id: string & re("^c-")
   port?: *8080 | integer
@@ -53,10 +53,10 @@ schema: type(close({
 ```
 
 ```
-$ aontu p1.aon
+$ aontu p1.aontu
 {}
 
-$ aontu -c p1.aon
+$ aontu -c p1.aontu
 {"schema":{"id":re("^c-"),"port"?:*8080|integer,"tags":[&:string]}}
 ```
 
@@ -145,10 +145,10 @@ and each item is already on the tree:
 | site | a generated line traced back to the model line |
 
 **Three of these are already extracted, in both ports, by shipped
-code.** VERIFIED over `use-cases/10-data-model/domain.aon`:
+code.** VERIFIED over `use-cases/10-data-model/domain.aontu`:
 
 ```
-$ aontu jsonschema --at schema use-cases/10-data-model/domain.aon
+$ aontu jsonschema --at schema use-cases/10-data-model/domain.aontu
   "additionalProperties": false                      <- closedness
   "required": [country,currency,id,ledgerId,name]    <- optionality
   "ledgerId": { "anyOf": [ … ] }                     <- disjunction arms

@@ -27,7 +27,7 @@ the spec's responses for those actions describe only the `{ok, state}`
 envelope they return, not the fields the state lands in.
 
 `rb-solar`'s model therefore states all seven fields, and
-`model.aon` marks the three the spec omits. The rule for this
+`model.aontu` marks the three the spec omits. The rule for this
 directory is that the **executable** reference decides: a spec is a
 description, and the validation is what runs.
 

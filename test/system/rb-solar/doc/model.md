@@ -7,7 +7,7 @@ order: 1
 # Read the Rails application model
 
 The Rails example keeps entity names, fields, routes, actions, and seed
-rows in `model.aon`. Each generator imports that file and selects the
+rows in `model.aontu`. Each generator imports that file and selects the
 values its output needs. Start with the [application overview](../README.md)
 for the entities and the running Rails architecture.
 
@@ -40,9 +40,9 @@ them. Follow the repository's
 
 ## Read a field as data
 
-The planet's diameter field is declared in the [model source](../model.aon):
+The planet's diameter field is declared in the [model source](../model.aontu):
 
-<!-- source: ../model.aon -->
+<!-- source: ../model.aontu -->
 ```aontu
     field: diameter: {
       name: "diameter"
@@ -69,7 +69,7 @@ existing contract.
 Inspect the entity without evaluating the generated application:
 
 ```sh
-aontu view doc --depth 2 --at '$.entity.planet' model.aon
+aontu view doc --depth 2 --at '$.entity.planet' model.aontu
 ```
 
 The command draws the planet's key tree. `$.entity.planet` starts at the
@@ -80,7 +80,7 @@ out of this view.
 
 Moon declares the names used for its parent:
 
-<!-- source: ../model.aon -->
+<!-- source: ../model.aontu -->
 ```aontu
   moon: parent: "planet"
   moon: parent_class: "Planet"
@@ -106,7 +106,7 @@ Entities and fields are maps, so a field has a stable address such as
 `$.entity.planet.field.diameter`. Walking a map visits sorted keys.
 A migration must create planets before moons, so the model also declares:
 
-<!-- source: ../model.aon -->
+<!-- source: ../model.aontu -->
 ```aontu
 sequence: [$.entity.planet $.entity.moon]
 ```
@@ -124,7 +124,7 @@ The model puts lower-priority rules first.
 The seed data is imported from the reference application's JSON file.
 The model adds a class name to each planet row:
 
-<!-- source: ../model.aon -->
+<!-- source: ../model.aontu -->
 ```aontu
     rows: each($.seed.planet, _ & { class:"Planet" })
 ```

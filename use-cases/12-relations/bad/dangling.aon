@@ -1,6 +1,0 @@
-# bad/dangling.aon --- a feeds edge names a node nobody wrote. rel()
-# decides existence inside one evaluation: the address resolves or the
-# document refuses (rel_unresolved), there is no "maybe later".
-@"../model.aon"
-
-pipeline: jobs: audit: feeds: [path($.pipeline.jobs.archive)]

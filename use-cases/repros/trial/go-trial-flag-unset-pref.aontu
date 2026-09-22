@@ -1,0 +1,21 @@
+# 61, the preference half. See go-trial-flag-unset.aontu.
+#
+# run: node ../../../ts/bin/aontu.js -c go-trial-flag-unset-pref.aontu
+# run: aontu-go -c go-trial-flag-unset-pref.aontu
+#
+# expected: one answer
+# actual TS: [aontu/empty]: Cannot unify values at path $.a   (exit 1)
+# actual GO: {"a":*[1],"b":*[1,2]}                            (exit 0)
+#
+# `x: *[]` -- a default empty list later given data -- is an ordinary
+# idiom, and the two ports disagree about whether it holds at all.
+a: *[]
+a: [1]
+b: *[1]
+b: [1,2]
+
+# FIXED 2026-08-30: Go's trialUnify saves, sets and restores ctx.trial,
+# so the list-length gate it shares with TypeScript fires from the
+# combinators and from the preference distribution. Pinned by
+# test/spec/pref.tsv pref-struct-list-default-*, gen-match.tsv
+# match-list-*, and gen-filter.tsv filter-list-*.

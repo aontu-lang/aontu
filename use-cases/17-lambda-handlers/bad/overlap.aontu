@@ -1,0 +1,11 @@
+# A seeded template: the key P is inside PIN, so a scan of the body is
+# ambiguous whatever the order -- refused on the template, before any
+# node is visited.
+#
+# run: node ../../../ts/bin/aontu.js overlap.aontu
+# expected: [aontu/replace_overlap]
+o: emit([{ p:1 pin:"a" }], {
+  match: {}
+  replace: { P:.p PIN:.pin }
+  body: ["listen('PIN')"]
+})

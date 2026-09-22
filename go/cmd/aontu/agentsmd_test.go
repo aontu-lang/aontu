@@ -22,7 +22,7 @@ func mdRun(args ...string) (string, string, int) {
 
 func TestAgentsMdWritesBetweenItsMarkers(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "sys.aon")
+	entry := filepath.Join(dir, "sys.aontu")
 	target := filepath.Join(dir, "AGENTS.md")
 	writeAt(t, entry, "services: { auth: { owner: string } }")
 
@@ -77,7 +77,7 @@ func TestAgentsMdWritesBetweenItsMarkers(t *testing.T) {
 
 func TestAgentsMdUsageErrorsExit2(t *testing.T) {
 	dir := t.TempDir()
-	entry := filepath.Join(dir, "sys.aon")
+	entry := filepath.Join(dir, "sys.aontu")
 	writeAt(t, entry, "a:1")
 
 	for _, args := range [][]string{
@@ -85,7 +85,7 @@ func TestAgentsMdUsageErrorsExit2(t *testing.T) {
 		{entry, entry},
 		{"--bogus", entry},
 		{"--write"},
-		{filepath.Join(dir, "missing.aon")},
+		{filepath.Join(dir, "missing.aontu")},
 		{"--write", dir, entry},
 		{"--write", filepath.Join(dir, "no-dir", "A.md"), entry},
 	} {
@@ -95,7 +95,7 @@ func TestAgentsMdUsageErrorsExit2(t *testing.T) {
 	}
 
 	// A document that does not stand up has no stanza: exit 4.
-	broken := filepath.Join(dir, "broken.aon")
+	broken := filepath.Join(dir, "broken.aontu")
 	writeAt(t, broken, "a:1 a:2")
 	if _, _, code := mdRun(broken); 4 != code {
 		t.Fatalf("want 4, got %d", code)
@@ -111,7 +111,7 @@ func TestAgentsMdUsageErrorsExit2(t *testing.T) {
 
 func TestAgentsMdDepth(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "model.aon")
+	file := filepath.Join(dir, "model.aontu")
 	src := "entity: { &: { table: string, fields: { &: { type: string } } } }\n"
 	if err := os.WriteFile(file, []byte(src), 0o644); nil != err {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestAgentsMdDepth(t *testing.T) {
 // already has.
 func TestAgentsMdNamesTheLanguageDoor(t *testing.T) {
 	dir := t.TempDir()
-	file := filepath.Join(dir, "m.aon")
+	file := filepath.Join(dir, "m.aontu")
 	if err := os.WriteFile(file, []byte("a: 1\n"), 0o644); nil != err {
 		t.Fatal(err)
 	}

@@ -78,9 +78,9 @@ func (w *netWorld) repoBlock() string {
 
 func (w *netWorld) publisher(name, version, src, extra string) string {
 	dir := filepath.Join(w.dir, name+"-"+version)
-	write(w.t, filepath.Join(dir, "pkg.aon"),
-		"pkg: {path: \"corp.example/"+name+"\", version: \""+version+"\", main: \"main.aon\"}\n"+extra)
-	write(w.t, filepath.Join(dir, "main.aon"), src)
+	write(w.t, filepath.Join(dir, "pkg.aontu"),
+		"pkg: {path: \"corp.example/"+name+"\", version: \""+version+"\", main: \"main.aontu\"}\n"+extra)
+	write(w.t, filepath.Join(dir, "main.aontu"), src)
 	return dir
 }
 
@@ -115,9 +115,9 @@ func (w *netWorld) consumer(deps, repo string) string {
 	}
 	w.apps++
 	app := filepath.Join(w.dir, "app"+itoaT(w.apps))
-	write(w.t, filepath.Join(app, "pkg.aon"),
+	write(w.t, filepath.Join(app, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {"+deps+"}\n"+repo)
-	write(w.t, filepath.Join(app, "main.aon"), "svc: @\"corp.example/service\"\nsvc: name: \"auth\"\n")
+	write(w.t, filepath.Join(app, "main.aontu"), "svc: @\"corp.example/service\"\nsvc: name: \"auth\"\n")
 	return app
 }
 
@@ -242,7 +242,7 @@ func TestPkgNetRoundTrip(t *testing.T) {
 		}
 	}
 	if !exists(filepath.Join(w.repo, "pkg", "corp.example", "service", "@latest")) ||
-		!exists(filepath.Join(w.repo, "advisory", "corp.example", "service.aon")) {
+		!exists(filepath.Join(w.repo, "advisory", "corp.example", "service.aontu")) {
 		t.Fatal("no latest or advisory")
 	}
 
@@ -257,14 +257,14 @@ func TestPkgNetRoundTrip(t *testing.T) {
 		t.Fatalf("lock: %+v", lock)
 	}
 	vendored := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service")
-	if !exists(filepath.Join(vendored, "aontu_meta", "manifest.aon")) ||
-		!exists(filepath.Join(vendored, "aontu_meta", "proof.aon")) ||
-		exists(filepath.Join(vendored, "aontu_meta", "pkg-lock.aon")) {
+	if !exists(filepath.Join(vendored, "aontu_meta", "manifest.aontu")) ||
+		!exists(filepath.Join(vendored, "aontu_meta", "proof.aontu")) ||
+		exists(filepath.Join(vendored, "aontu_meta", "pkg-lock.aontu")) {
 		t.Fatal("vendored tree lacks its manifest and proof, or carries a lock")
 	}
 	if !exists(filepath.Join(w.cache, "download", "corp.example", "service", "@v", "1.4.2.zip")) ||
-		!exists(filepath.Join(w.cache, "seen", "corp.example", "service", "1.4.2.aon")) ||
-		!exists(filepath.Join(w.cache, "store", lock.Canon, "corp.example", "service", "main.aon")) {
+		!exists(filepath.Join(w.cache, "seen", "corp.example", "service", "1.4.2.aontu")) ||
+		!exists(filepath.Join(w.cache, "store", lock.Canon, "corp.example", "service", "main.aontu")) {
 		t.Fatal("cache trees")
 	}
 
@@ -278,18 +278,18 @@ func TestPkgNetRoundTrip(t *testing.T) {
 	if v := PkgVerify(app, w.opts); "ok" != v.Verdict {
 		t.Fatalf("verify: %+v", v)
 	}
-	if !exists(filepath.Join(app, "main.aon")) {
+	if !exists(filepath.Join(app, "main.aontu")) {
 		t.Fatal("no entry")
 	}
-	got := evalPkg(mustRead(t, filepath.Join(app, "main.aon")), filepath.Join(app, "main.aon"), w.opts)
+	got := evalPkg(mustRead(t, filepath.Join(app, "main.aontu")), filepath.Join(app, "main.aontu"), w.opts)
 	if !got.ok {
 		t.Fatal("the consumer does not evaluate through the vendor tree")
 	}
 	// A lockfile that names another key pins nothing for this import,
 	// which then resolves from the vendor tree unpinned.
-	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/other\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"}}}\n")
-	if again := evalPkg(mustRead(t, filepath.Join(app, "main.aon")), filepath.Join(app, "main.aon"), w.opts); !again.ok {
+	if again := evalPkg(mustRead(t, filepath.Join(app, "main.aontu")), filepath.Join(app, "main.aontu"), w.opts); !again.ok {
 		t.Fatal("an unpinned vendored import")
 	}
 }
@@ -303,7 +303,7 @@ func TestPkgSyncFrozenRefusesAChangingLock(t *testing.T) {
 		t.Fatalf("sync: %+v", r)
 	}
 
-	pkgAon := filepath.Join(app, "pkg.aon")
+	pkgAon := filepath.Join(app, "pkg.aontu")
 	write(t, pkgAon, mustRead(t, pkgAon)+"dep: \"corp.example/common\": {v: \"1.0.0\"}\n")
 	added := w.sync(app, true)
 	if "frozen" != added.Verdict || 1 != len(added.Changes) ||
@@ -317,7 +317,7 @@ func TestPkgSyncFrozenRefusesAChangingLock(t *testing.T) {
 		t.Fatalf("sync: %+v", r)
 	}
 
-	main := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "main.aon")
+	main := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "main.aontu")
 	write(t, main, strings.Replace(netService, "8080", "9090", 1))
 	tampered := w.sync(app, true)
 	if "frozen" != tampered.Verdict || !contains(tampered.Changes, "corp.example/service: repinned") {
@@ -343,16 +343,16 @@ func TestPkgSyncReplacesAVendorTreeAtAnotherVersion(t *testing.T) {
 	w.mustPublish(w.publisher("service", "1.4.2", netService, ""))
 	app := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
 	vendored := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service")
-	write(t, filepath.Join(vendored, "pkg.aon"),
-		"pkg: {path: \"corp.example/service\", version: \"1.4.1\", main: \"main.aon\"}\n")
-	write(t, filepath.Join(vendored, "main.aon"), "name: string\n")
+	write(t, filepath.Join(vendored, "pkg.aontu"),
+		"pkg: {path: \"corp.example/service\", version: \"1.4.1\", main: \"main.aontu\"}\n")
+	write(t, filepath.Join(vendored, "main.aontu"), "name: string\n")
 	r := w.sync(app, false)
-	if "ok" != r.Verdict || 1 != len(r.Fetched) || !strings.Contains(mustRead(t, filepath.Join(vendored, "main.aon")), "8080") {
+	if "ok" != r.Verdict || 1 != len(r.Fetched) || !strings.Contains(mustRead(t, filepath.Join(vendored, "main.aontu")), "8080") {
 		t.Fatalf("replace: %+v", r)
 	}
 
 	// A hand-vendored tree that names no version is taken as it is.
-	write(t, filepath.Join(vendored, "pkg.aon"), "pkg: {path: \"corp.example/service\", main: \"main.aon\"}\n")
+	write(t, filepath.Join(vendored, "pkg.aontu"), "pkg: {path: \"corp.example/service\", main: \"main.aontu\"}\n")
 	_ = os.RemoveAll(filepath.Join(vendored, "aontu_meta"))
 	if kept := w.sync(app, false); "ok" != kept.Verdict || 0 != len(kept.Fetched) {
 		t.Fatalf("kept: %+v", kept)
@@ -377,7 +377,7 @@ func TestPkgGetRaisesAddRefusesRemoveDrops(t *testing.T) {
 	if "" != usage || "ok" != raised.Verdict || "raised corp.example/service 1.4.2 -> 1.4.3" != raised.Change {
 		t.Fatalf("raise: %q %+v", usage, raised)
 	}
-	if !strings.Contains(mustRead(t, filepath.Join(app, "pkg.aon")), "v: \"1.4.3\"") ||
+	if !strings.Contains(mustRead(t, filepath.Join(app, "pkg.aontu")), "v: \"1.4.3\"") ||
 		"1.4.3" != readLock(app)["corp.example/service"].V {
 		t.Fatal("the raise did not land")
 	}
@@ -399,7 +399,7 @@ func TestPkgGetRaisesAddRefusesRemoveDrops(t *testing.T) {
 	if "" != usage || "ok" != removed.Verdict || "removed corp.example/service" != removed.Change {
 		t.Fatalf("remove: %q %+v", usage, removed)
 	}
-	if strings.Contains(mustRead(t, filepath.Join(app, "pkg.aon")), "service") ||
+	if strings.Contains(mustRead(t, filepath.Join(app, "pkg.aontu")), "service") ||
 		exists(filepath.Join(app, "aontu_meta", "vendor", "corp.example")) || 0 != len(readLock(app)) {
 		t.Fatal("remove left traces")
 	}
@@ -412,7 +412,7 @@ func TestPkgGetRaisesAddRefusesRemoveDrops(t *testing.T) {
 	if "" != usage || "added corp.example/service 1.4.3" != added.Change {
 		t.Fatalf("add: %q %+v", usage, added)
 	}
-	if !strings.Contains(mustRead(t, filepath.Join(app, "pkg.aon")), "dep: \"corp.example/service\": { v: \"1.4.3\" }") {
+	if !strings.Contains(mustRead(t, filepath.Join(app, "pkg.aontu")), "dep: \"corp.example/service\": { v: \"1.4.3\" }") {
 		t.Fatal("add did not append")
 	}
 	why := PkgWhy(app, w.opts, "corp.example/service")
@@ -432,7 +432,7 @@ func TestPkgCooldownHoldsTheNewestBack(t *testing.T) {
 		t.Fatalf("held: %+v", held)
 	}
 	refusedWith(t, held.Refusal, "cooldown_pending", `corp.example/service 1.4.3 is inside the cooldown until .* and no earlier version is selectable`)
-	if strings.Contains(mustRead(t, filepath.Join(app, "pkg.aon")), "corp.example/service") {
+	if strings.Contains(mustRead(t, filepath.Join(app, "pkg.aontu")), "corp.example/service") {
 		t.Fatal("a refused get edited the package file")
 	}
 
@@ -494,7 +494,7 @@ func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 	if "outdated" != held.Verdict || "1.1.0" != held.Locked[1].Retracted || "1.0.0" != held.Locked[1].Newest {
 		t.Fatalf("held: %+v", held)
 	}
-	_ = os.Remove(filepath.Join(w.repo, "advisory", "corp.example", "common.aon"))
+	_ = os.Remove(filepath.Join(w.repo, "advisory", "corp.example", "common.aontu"))
 	if noAdvisory := PkgOutdated(app, w.opts, w.http, SyncArgs{}); "outdated" != noAdvisory.Verdict {
 		t.Fatalf("no advisory: %+v", noAdvisory)
 	}
@@ -537,7 +537,7 @@ func TestPkgOutdatedListsMovesAndRetractions(t *testing.T) {
 		"corp.example/extra unlocked -> 1.0.0" != again.Locked[1].Moves[1] || "1.2.0" != again.Locked[1].Retracted {
 		t.Fatalf("two retractions: %+v", again.Locked)
 	}
-	advisory := readJSON(t, filepath.Join(w.repo, "advisory", "corp.example", "service.aon"))
+	advisory := readJSON(t, filepath.Join(w.repo, "advisory", "corp.example", "service.aontu"))
 	if 3 != len(advisory["retracted"].([]any)) {
 		t.Fatalf("advisory: %+v", advisory)
 	}
@@ -555,14 +555,14 @@ func TestPkgClosureDepsFirstAndAlias(t *testing.T) {
 	w.mustPublish(w.publisherWith("service", "2.0.0", "@\"corp.example/common\"\nname: string\nport?: integer\n",
 		"\"corp.example/common\": {v: \"1.0.0\"}", ""))
 	app := w.consumer("\"corp.example/service\": {v: \"2.0.0\"}, \"alias:legacy\": {pkg: \"corp.example/service\", v: \"1.0.0\"}", "")
-	write(t, filepath.Join(app, "main.aon"), "a: @\"corp.example/service\"\nb: @\"alias:legacy\"\na: name: \"x\"\nb: name: \"y\"\n")
+	write(t, filepath.Join(app, "main.aontu"), "a: @\"corp.example/service\"\nb: @\"alias:legacy\"\na: name: \"x\"\nb: name: \"y\"\n")
 	if r := w.sync(app, false); "ok" != r.Verdict {
 		t.Fatalf("sync: %+v", r)
 	}
 	lock := readLock(app)
 	if "corp.example/service" != lock["alias:legacy"].Pkg || "1.0.0" != lock["alias:legacy"].V ||
 		"2.0.0" != lock["corp.example/service"].V ||
-		!exists(filepath.Join(app, "aontu_meta", "vendor", "alias", "legacy", "main.aon")) {
+		!exists(filepath.Join(app, "aontu_meta", "vendor", "alias", "legacy", "main.aontu")) {
 		t.Fatalf("lock: %+v", lock)
 	}
 	why := PkgWhy(app, w.opts, "corp.example/service")
@@ -659,7 +659,7 @@ func TestPkgRoutingAndTrustRefusals(t *testing.T) {
 	if c := repoConfig(bare, w.opts, RepoOverrides{Write: "https://w.example"}); DefaultBase != c.Base[0] || "https://w.example" != c.Write {
 		t.Fatalf("bare: %+v", c)
 	}
-	write(t, filepath.Join(bare, "pkg.aon"), "pkg: {path: \"corp.example/x\"}\nrepo: {write: \"https://own.example\"}\n")
+	write(t, filepath.Join(bare, "pkg.aontu"), "pkg: {path: \"corp.example/x\"}\nrepo: {write: \"https://own.example\"}\n")
 	if c := repoConfig(bare, w.opts, RepoOverrides{}); "https://own.example" != c.Write || !contains(c.Private, "corp.example/x") {
 		t.Fatalf("own write: %+v", c)
 	}
@@ -687,14 +687,14 @@ func TestPkgSelectionRefusals(t *testing.T) {
 	if r := w.sync(app, false); "ok" != r.Verdict {
 		t.Fatalf("sync: %+v", r)
 	}
-	write(t, filepath.Join(w.cache, "seen", "corp.example", "service", "1.0.0.aon"),
+	write(t, filepath.Join(w.cache, "seen", "corp.example", "service", "1.0.0.aontu"),
 		"{\"package\":\"corp.example/service\",\"version\":\"1.0.0\"}\n")
 	rollback, _ := w.get(app, "corp.example/service@1.4.3", "get")
 	refusedWith(t, rollback.Refusal, "list_rollback", `1.0.0 was seen before and is absent from the list`)
 	_ = os.RemoveAll(filepath.Join(w.cache, "seen"))
 
 	_ = os.Remove(filepath.Join(w.at("service"), "1.4.3.manifest"))
-	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aon"),
+	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aontu"),
 		"{\"package\":\"corp.example/service\",\"version\":\"1.4.3\",\"reason\":\"malware\"}\n")
 	tomb, _ := w.get(app, "corp.example/service@1.4.3", "get")
 	refusedWith(t, tomb.Refusal, "tombstoned", `withdrawn by the repository \(malware\)$`)
@@ -702,7 +702,7 @@ func TestPkgSelectionRefusals(t *testing.T) {
 		"versions": []any{map[string]any{"version": "1.4.2", "seen": "2020-01-01T00:00:00Z"}}})
 	tombAsked, _ := w.get(app, "corp.example/service@1.4.3", "get")
 	refusedWith(t, tombAsked.Refusal, "tombstoned", `1.4.3 was withdrawn`)
-	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aon"), "{}\n")
+	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aontu"), "{}\n")
 	bareTomb, _ := w.get(app, "corp.example/service@1.4.3", "get")
 	refusedWith(t, bareTomb.Refusal, "tombstoned", `withdrawn by the repository$`)
 	_ = os.RemoveAll(filepath.Join(w.repo, "tombstone"))
@@ -784,10 +784,10 @@ func TestPkgBytesBeforeMeaningRefusals(t *testing.T) {
 	refusedWith(t, w.sync(app, false).Refusal, "fetch_failed", `^no archive for corp.example/service 1.4.2$`)
 	write(t, zipFile, string(original))
 
-	pkgFileData := []byte("pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aon\"}\n")
+	pkgFileData := []byte("pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aontu\"}\n")
 	good := []ZipEntry{
-		{Path: "main.aon", Data: []byte(netService)},
-		{Path: "pkg.aon", Data: pkgFileData},
+		{Path: "main.aontu", Data: []byte(netService)},
+		{Path: "pkg.aontu", Data: pkgFileData},
 	}
 	serve := func(entries []ZipEntry, edit func(m map[string]any)) {
 		zip := ZipCanonical(entries)
@@ -812,29 +812,29 @@ func TestPkgBytesBeforeMeaningRefusals(t *testing.T) {
 
 	serve(append(append([]ZipEntry{}, good...), ZipEntry{Path: "run.sh", Data: []byte("#!/bin/sh\n")}), none)
 	refusedWith(t, w.sync(app, false).Refusal, "archive_entry_forbidden", `carries run.sh, which the allowlist does not admit`)
-	serve(append(append([]ZipEntry{}, good...), ZipEntry{Path: "../x.aon", Data: []byte("a")}), func(m map[string]any) {
+	serve(append(append([]ZipEntry{}, good...), ZipEntry{Path: "../x.aontu", Data: []byte("a")}), func(m map[string]any) {
 		for _, f := range files(m) {
-			if "../x.aon" == f.(map[string]any)["path"] {
-				f.(map[string]any)["path"] = "x.aon"
+			if "../x.aontu" == f.(map[string]any)["path"] {
+				f.(map[string]any)["path"] = "x.aontu"
 			}
 		}
 	})
-	refusedWith(t, w.sync(app, false).Refusal, "archive_path_invalid", `begins or ends with a dot \(\.\./x.aon\)`)
-	serve(append(append([]ZipEntry{}, good...), ZipEntry{Path: "big.aon", Data: make([]byte, ArchiveLimitFileBytes+1)}), none)
+	refusedWith(t, w.sync(app, false).Refusal, "archive_path_invalid", `begins or ends with a dot \(\.\./x.aontu\)`)
+	serve(append(append([]ZipEntry{}, good...), ZipEntry{Path: "big.aontu", Data: make([]byte, ArchiveLimitFileBytes+1)}), none)
 	refusedWith(t, w.sync(app, false).Refusal, "archive_bomb", `unpacks past the size cap`)
 	serve(good, func(m map[string]any) { files(m)[0].(map[string]any)["digest"] = "sha256:" + strings.Repeat("a", 64) })
-	refusedWith(t, w.sync(app, false).Refusal, "file_manifest_mismatch", `holds main.aon, which the manifest does not list as served`)
+	refusedWith(t, w.sync(app, false).Refusal, "file_manifest_mismatch", `holds main.aontu, which the manifest does not list as served`)
 	serve(good, func(m map[string]any) {
-		m["archive"].(map[string]any)["files"] = append(files(m), map[string]any{"path": "zzz.aon", "digest": "sha256:" + strings.Repeat("a", 64), "size": float64(1)})
+		m["archive"].(map[string]any)["files"] = append(files(m), map[string]any{"path": "zzz.aontu", "digest": "sha256:" + strings.Repeat("a", 64), "size": float64(1)})
 	})
-	refusedWith(t, w.sync(app, false).Refusal, "file_manifest_mismatch", `lacks zzz.aon, which the manifest lists`)
+	refusedWith(t, w.sync(app, false).Refusal, "file_manifest_mismatch", `lacks zzz.aontu, which the manifest lists`)
 	serve(good, func(m map[string]any) {
 		m["modules"].([]any)[0].(map[string]any)["canon"] = "aon1-" + strings.Repeat("A", 43)
 	})
 	refusedWith(t, w.sync(app, false).Refusal, "module_integrity", `means aon1-.*, and the manifest pins aon1-A+`)
-	serve([]ZipEntry{good[0], {Path: "pkg.aon", Data: []byte("pkg: {path: \"corp.example/service\", version: \"1.4.1\", main: \"main.aon\"}\n")}}, none)
+	serve([]ZipEntry{good[0], {Path: "pkg.aontu", Data: []byte("pkg: {path: \"corp.example/service\", version: \"1.4.1\", main: \"main.aontu\"}\n")}}, none)
 	refusedWith(t, w.sync(app, false).Refusal, "manifest_invalid", `package file inside corp.example/service 1.4.2 disagrees`)
-	serve([]ZipEntry{{Path: "main.aon", Data: []byte("a: 1\na: 2\n")}, good[1]}, none)
+	serve([]ZipEntry{{Path: "main.aontu", Data: []byte("a: 1\na: 2\n")}, good[1]}, none)
 	refusedWith(t, w.sync(app, false).Refusal, "module_integrity", `means nothing \(it does not evaluate\)`)
 	serve(good, func(m map[string]any) { m["deps"] = map[string]any{"alias:x": map[string]any{"v": "1.0.0"}} })
 	refusedWith(t, w.sync(app, false).Refusal, "manifest_invalid", `declares alias:x without the package it names`)
@@ -857,9 +857,9 @@ func TestPkgBytesBeforeMeaningRefusals(t *testing.T) {
 
 	many := []ZipEntry{}
 	for i := 0; i <= ArchiveLimitFiles; i++ {
-		name := "f" + itoa4(i) + ".aon"
+		name := "f" + itoa4(i) + ".aontu"
 		if 0 == i {
-			name = "main.aon"
+			name = "main.aontu"
 		}
 		many = append(many, ZipEntry{Path: name, Data: []byte("a")})
 	}
@@ -886,8 +886,8 @@ func TestManifestAndProofShapes(t *testing.T) {
 		return map[string]any{
 			"schema": ManifestSchema, "package": "corp.example/x", "version": "1.0.0", "publish": "private",
 			"archive": map[string]any{"format": "zip", "digest": "sha256:" + strings.Repeat("a", 64), "size": float64(1),
-				"files": []any{map[string]any{"path": "main.aon", "digest": "sha256:" + strings.Repeat("b", 64), "size": float64(1)}}},
-			"modules": []any{map[string]any{"path": "corp.example/x", "main": "main.aon", "canon": "aon1-" + strings.Repeat("A", 43)}},
+				"files": []any{map[string]any{"path": "main.aontu", "digest": "sha256:" + strings.Repeat("b", 64), "size": float64(1)}}},
+			"modules": []any{map[string]any{"path": "corp.example/x", "main": "main.aontu", "canon": "aon1-" + strings.Repeat("A", 43)}},
 			"deps":    map[string]any{}, "published": "2026-01-01T00:00:00Z",
 		}
 	}
@@ -926,7 +926,7 @@ func TestManifestAndProofShapes(t *testing.T) {
 			t.Fatalf("want %q, got %q", c.want, got)
 		}
 	}
-	for _, main := range []string{"../main.aon", "other.aon"} {
+	for _, main := range []string{"../main.aontu", "other.aontu"} {
 		m := base()
 		mods, _ := m["modules"].([]any)
 		mods[0].(map[string]any)["main"] = main
@@ -947,8 +947,8 @@ func TestManifestAndProofShapes(t *testing.T) {
 
 	for p, want := range map[string]string{
 		"": "an entry path is empty, absolute or a directory", "a/": "an entry path is empty, absolute or a directory",
-		"a b.aon":         "an entry path element is outside the alphabet",
-		"a/.hidden/b.aon": "an entry path element is empty or begins or ends with a dot", "a/b.aon": "",
+		"a b.aontu":         "an entry path element is outside the alphabet",
+		"a/.hidden/b.aontu": "an entry path element is empty or begins or ends with a dot", "a/b.aontu": "",
 	} {
 		if got := RelPathError(p); want != got {
 			t.Fatalf("%q: %q", p, got)
@@ -1044,8 +1044,8 @@ func TestManifestAndProofShapes(t *testing.T) {
 func TestEditDeps(t *testing.T) {
 	w := newNetWorld(t)
 	app := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
-	pkgAon := filepath.Join(app, "pkg.aon")
-	if bad := EditDeps(app, DepEdit{Op: "raise", Key: "corp.example/none", V: "1.0.0"}, w.opts); !strings.Contains(bad, "is not on one line of pkg.aon") {
+	pkgAon := filepath.Join(app, "pkg.aontu")
+	if bad := EditDeps(app, DepEdit{Op: "raise", Key: "corp.example/none", V: "1.0.0"}, w.opts); !strings.Contains(bad, "is not on one line of pkg.aontu") {
 		t.Fatal(bad)
 	}
 	write(t, pkgAon, "dep: {\n  \"corp.example/service\": {\n    v: \"1.4.2\"\n  }\n}\n")
@@ -1103,22 +1103,22 @@ func TestPkgChangeTakenBack(t *testing.T) {
 	if r := w.sync(app, false); "ok" != r.Verdict {
 		t.Fatalf("sync: %+v", r)
 	}
-	before := mustRead(t, filepath.Join(app, "pkg.aon"))
+	before := mustRead(t, filepath.Join(app, "pkg.aontu"))
 	_ = os.Remove(filepath.Join(w.at("service"), "1.4.3.sig"))
 	r, _ := w.get(app, "corp.example/service@1.4.3", "get")
 	if "refused" != r.Verdict || "none (raised corp.example/service 1.4.2 -> 1.4.3 was taken back)" != r.Change ||
-		before != mustRead(t, filepath.Join(app, "pkg.aon")) {
+		before != mustRead(t, filepath.Join(app, "pkg.aontu")) {
 		t.Fatalf("taken back: %+v", r)
 	}
 
-	write(t, filepath.Join(app, "pkg.aon"), "dep: {\n  \"corp.example/service\": {\n    v: \"1.4.2\"\n  }\n}\n"+w.repoBlock())
+	write(t, filepath.Join(app, "pkg.aontu"), "dep: {\n  \"corp.example/service\": {\n    v: \"1.4.2\"\n  }\n}\n"+w.repoBlock())
 	if _, usage := w.get(app, "corp.example/service@1.4.3", "get"); !strings.Contains(usage, "spans several lines") {
 		t.Fatalf("spans: %q", usage)
 	}
 	if _, usage := PkgRemove(app, w.opts, w.http, "corp.example/service", SyncArgs{}); !strings.Contains(usage, "spans several lines") {
 		t.Fatalf("spans remove: %q", usage)
 	}
-	write(t, filepath.Join(app, "pkg.aon"), "dep: {\n")
+	write(t, filepath.Join(app, "pkg.aontu"), "dep: {\n")
 	if _, usage := w.get(app, "corp.example/service@1.4.2", "add"); !strings.Contains(usage, "did not take") {
 		t.Fatalf("broken: %q", usage)
 	}
@@ -1130,12 +1130,12 @@ func TestPkgChangeTakenBack(t *testing.T) {
 	if r := w.sync(kept, false); "ok" != r.Verdict {
 		t.Fatalf("kept: %+v", r)
 	}
-	write(t, filepath.Join(kept, "pkg.aon"), mustRead(t, filepath.Join(kept, "pkg.aon"))+"dep: {\"bad key!\": {v: \"1.0.0\"}}\n")
-	lockBefore := mustRead(t, filepath.Join(kept, "aontu_meta", "pkg-lock.aon"))
-	vendoredFile := filepath.Join(kept, "aontu_meta", "vendor", "corp.example", "service", "pkg.aon")
+	write(t, filepath.Join(kept, "pkg.aontu"), mustRead(t, filepath.Join(kept, "pkg.aontu"))+"dep: {\"bad key!\": {v: \"1.0.0\"}}\n")
+	lockBefore := mustRead(t, filepath.Join(kept, "aontu_meta", "pkg-lock.aontu"))
+	vendoredFile := filepath.Join(kept, "aontu_meta", "vendor", "corp.example", "service", "pkg.aontu")
 	back, _ := w.get(kept, "corp.example/service@1.4.3", "get")
 	if "missing" != back.Verdict || !strings.Contains(back.Change, "was taken back") ||
-		lockBefore != mustRead(t, filepath.Join(kept, "aontu_meta", "pkg-lock.aon")) ||
+		lockBefore != mustRead(t, filepath.Join(kept, "aontu_meta", "pkg-lock.aontu")) ||
 		!strings.Contains(mustRead(t, vendoredFile), "version: \"1.4.2\"") {
 		t.Fatalf("kept back: %+v", back)
 	}
@@ -1146,7 +1146,7 @@ func TestPkgChangeTakenBack(t *testing.T) {
 	if added, _ := w.get(none, "corp.example/service@1.4.2", "add"); !strings.Contains(added.Change, "was taken back") {
 		t.Fatalf("none: %+v", added)
 	}
-	for _, p := range []string{"pkg-lock.aon", "vendor"} {
+	for _, p := range []string{"pkg-lock.aontu", "vendor"} {
 		if _, err := os.Stat(filepath.Join(none, "aontu_meta", p)); nil == err {
 			t.Fatal(p + " left behind")
 		}
@@ -1159,15 +1159,15 @@ func TestPkgChangeTakenBack(t *testing.T) {
 	}
 	bad := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
 	vendored := filepath.Join(bad, "aontu_meta", "vendor", "corp.example", "service")
-	write(t, filepath.Join(vendored, "pkg.aon"), "pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aon\"}\n")
-	write(t, filepath.Join(vendored, "main.aon"), "a: 1\na: 2\n")
+	write(t, filepath.Join(vendored, "pkg.aontu"), "pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aontu\"}\n")
+	write(t, filepath.Join(vendored, "main.aontu"), "a: 1\na: 2\n")
 	if e := w.sync(bad, false); "error" != e.Verdict || !contains(e.Unevaluable, "corp.example/service") {
 		t.Fatalf("unevaluable: %+v", e)
 	}
 	// A tampered vendor tree after a lock: verify reports the mismatch
 	// as the sync verdict.
-	main := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "main.aon")
-	write(t, filepath.Join(app, "pkg.aon"), before)
+	main := filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "main.aontu")
+	write(t, filepath.Join(app, "pkg.aontu"), before)
 	if r := w.sync(app, false); "ok" != r.Verdict {
 		t.Fatalf("resync: %+v", r)
 	}
@@ -1414,7 +1414,7 @@ func TestPkgServeAndProxy(t *testing.T) {
 	}
 
 	if !ObjectShape("/pkg/corp.example/x/@v/list") || !ObjectShape("/pkg/corp.example/x/@v/1.0.0.sigstore.json") ||
-		!ObjectShape("/tombstone/feed.aon") || ObjectShape("/pkg/corp.example//x/@v/list") ||
+		!ObjectShape("/tombstone/feed.aontu") || ObjectShape("/pkg/corp.example//x/@v/list") ||
 		ObjectShape("/pkg/corp.example/x/@v/1.0.zip") || ObjectShape("/pkg/./x/@v/list") {
 		t.Fatal("shapes")
 	}
@@ -1502,16 +1502,16 @@ func TestWriteLayoutAndDirHTTP(t *testing.T) {
 	// `why` reads the store beside the vendor tree, and a cycle ends
 	// the walk rather than the process.
 	app := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
-	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/service\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.4.2\"},\"bad key\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"}}}\n")
 	if why := PkgWhy(app, w.opts, "corp.example/service"); 1 != len(why.Paths) {
 		t.Fatalf("why: %+v", why)
 	}
-	write(t, filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "pkg.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "vendor", "corp.example", "service", "pkg.aontu"),
 		"pkg: {path: \"corp.example/service\"}\ndep: {\"corp.example/common\": {v: \"1.0.0\"}}\n")
-	write(t, filepath.Join(app, "aontu_meta", "vendor", "corp.example", "common", "pkg.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "vendor", "corp.example", "common", "pkg.aontu"),
 		"pkg: {path: \"corp.example/common\"}\ndep: {\"corp.example/service\": {v: \"1.0.0\"}}\n")
-	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/service\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.4.2\"},\"corp.example/common\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"}}}\n")
 	if why := PkgWhy(app, w.opts, "corp.example/nowhere"); 0 != len(why.Paths) {
 		t.Fatalf("cycle: %+v", why)
@@ -1523,11 +1523,11 @@ func TestWriteLayoutAndDirHTTP(t *testing.T) {
 		t.Fatalf("base: %+v", r)
 	}
 	unnamed := t.TempDir()
-	write(t, filepath.Join(unnamed, "pkg.aon"), "dep: {\"corp.example/x\": {v: \"1.0.0\"}}\n")
+	write(t, filepath.Join(unnamed, "pkg.aontu"), "dep: {\"corp.example/x\": {v: \"1.0.0\"}}\n")
 	if why := PkgWhy(unnamed, w.opts, "corp.example/x"); 1 != len(why.Paths) || "." != why.Paths[0][0] {
 		t.Fatalf("unnamed root: %+v", why)
 	}
-	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(app, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"bad key\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"},\"corp.example/common\":{\"archive\":\"\",\"canon\":\"\",\"v\":\"1.0.0\"}}}\n")
 	if r := PkgOutdated(app, w.opts, w.http, SyncArgs{RepoOverrides: RepoOverrides{Base: []string{"ftp://x"}}}); "refused" != r.Verdict {
 		t.Fatalf("outdated base: %+v", r)
@@ -1556,7 +1556,7 @@ func TestEveryListedVersionIsSeenAndATombstoneIsNotARollback(t *testing.T) {
 	}
 	seen := cacheSeenDir(w.cache, "corp.example/service")
 	for _, v := range []string{"1.4.2", "1.4.3"} {
-		if _, err := os.Stat(filepath.Join(seen, v+".aon")); nil != err {
+		if _, err := os.Stat(filepath.Join(seen, v+".aontu")); nil != err {
 			t.Fatal("unseen " + v)
 		}
 	}
@@ -1578,7 +1578,7 @@ func TestEveryListedVersionIsSeenAndATombstoneIsNotARollback(t *testing.T) {
 	refusedWith(t, w.sync(wants, false).Refusal, "list_rollback", `1.4.3 was seen before and is absent from the list`)
 	// A tombstone standing where it was is the repository's word, and
 	// the version it names is refused as withdrawn, not as a rollback.
-	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aon"), "{\"reason\": \"malware\"}\n")
+	write(t, filepath.Join(w.repo, "tombstone", "corp.example", "service", "@v", "1.4.3.aontu"), "{\"reason\": \"malware\"}\n")
 	refusedWith(t, w.sync(wants, false).Refusal, "tombstoned", `corp.example/service 1.4.3`)
 	for _, sub := range []string{"download", "store"} {
 		_ = os.RemoveAll(filepath.Join(w.cache, sub))
@@ -1596,7 +1596,7 @@ func TestEveryListedVersionIsSeenAndATombstoneIsNotARollback(t *testing.T) {
 	}
 
 	// A lock written without its header line is read the same under frozen.
-	lockFile := filepath.Join(app, "aontu_meta", "pkg-lock.aon")
+	lockFile := filepath.Join(app, "aontu_meta", "pkg-lock.aontu")
 	body := []string{}
 	for _, l := range strings.Split(mustRead(t, lockFile), "\n") {
 		if !strings.HasPrefix(l, "#") {
@@ -1618,7 +1618,7 @@ func TestAFrozenRefusalPrunesNothingAndAVendoredTreeIsThePackageAsked(t *testing
 		t.Fatalf("pair: %+v", r)
 	}
 	otherDir := filepath.Join(pair, "aontu_meta", "vendor", "corp.example", "other")
-	pkgFile := filepath.Join(pair, "pkg.aon")
+	pkgFile := filepath.Join(pair, "pkg.aontu")
 	write(t, pkgFile, strings.Replace(mustRead(t, pkgFile), ", \"corp.example/other\": {v: \"1.4.2\"}", "", 1))
 	if r := w.sync(pair, true); "frozen" != r.Verdict {
 		t.Fatalf("frozen: %+v", r)
@@ -1636,18 +1636,18 @@ func TestAFrozenRefusalPrunesNothingAndAVendoredTreeIsThePackageAsked(t *testing
 	// An alias retargeted at the same version fetches its target
 	// rather than reusing the tree it had.
 	alias := filepath.Join(w.dir, "alias-app")
-	write(t, filepath.Join(alias, "pkg.aon"),
+	write(t, filepath.Join(alias, "pkg.aontu"),
 		"pkg: {path: \"corp.example/app\"}\ndep: {\"alias:svc\": {v: \"1.4.2\", pkg: \"corp.example/service\"}}\n"+w.repoBlock())
-	write(t, filepath.Join(alias, "main.aon"), "svc: @\"alias:svc\"\n")
+	write(t, filepath.Join(alias, "main.aontu"), "svc: @\"alias:svc\"\n")
 	if r := w.sync(alias, false); "ok" != r.Verdict {
 		t.Fatalf("alias: %+v", r)
 	}
-	aliasPkg := filepath.Join(alias, "pkg.aon")
+	aliasPkg := filepath.Join(alias, "pkg.aontu")
 	write(t, aliasPkg, strings.Replace(mustRead(t, aliasPkg), "pkg: \"corp.example/service\"", "pkg: \"corp.example/other\"", 1))
 	if r := w.sync(alias, false); "ok" != r.Verdict || "corp.example/other" != readLock(alias)["alias:svc"].Pkg {
 		t.Fatalf("retarget: %+v", r)
 	}
-	tree := mustRead(t, filepath.Join(moduleDir(filepath.Join(alias, "aontu_meta", "vendor"), "alias:svc"), "pkg.aon"))
+	tree := mustRead(t, filepath.Join(moduleDir(filepath.Join(alias, "aontu_meta", "vendor"), "alias:svc"), "pkg.aontu"))
 	if !strings.Contains(tree, "corp.example/other") {
 		t.Fatalf("tree: %q", tree)
 	}
@@ -1657,7 +1657,7 @@ func TestAFrozenRefusalPrunesNothingAndAVendoredTreeIsThePackageAsked(t *testing
 	if r := w.sync(vend, false); "ok" != r.Verdict {
 		t.Fatalf("vend: %+v", r)
 	}
-	_ = os.Remove(filepath.Join(vend, "aontu_meta", "vendor", "corp.example", "service", "aontu_meta", "manifest.aon"))
+	_ = os.Remove(filepath.Join(vend, "aontu_meta", "vendor", "corp.example", "service", "aontu_meta", "manifest.aontu"))
 	v := PkgVerify(vend, w.opts)
 	if "mismatch" != v.Verdict || 1 != len(v.Mismatched) || "manifest" != v.Mismatched[0].Pin || "" != v.Mismatched[0].Got ||
 		readLock(vend)["corp.example/service"].Manifest != v.Mismatched[0].Want {
@@ -1667,7 +1667,7 @@ func TestAFrozenRefusalPrunesNothingAndAVendoredTreeIsThePackageAsked(t *testing
 	// A lock the sync cannot write is an error, not an ok over no file.
 	stuck := w.consumer("\"corp.example/service\": {v: \"1.4.2\"}", "")
 	write(t, filepath.Join(stuck, "aontu_meta"), "a file where the directory goes\n")
-	if r := w.sync(stuck, false); "error" != r.Verdict || 1 != len(r.Unevaluable) || !strings.HasPrefix(r.Unevaluable[0], "pkg-lock.aon: ") {
+	if r := w.sync(stuck, false); "error" != r.Verdict || 1 != len(r.Unevaluable) || !strings.HasPrefix(r.Unevaluable[0], "pkg-lock.aontu: ") {
 		t.Fatalf("stuck: %+v", r)
 	}
 }
@@ -1748,8 +1748,8 @@ func TestTheMeaningIsCheckedAgainstThePinAndACycleInWhyEnds(t *testing.T) {
 
 	// The module does not evaluate at all.
 	entries := []ZipEntry{
-		{Path: "main.aon", Data: []byte("a: 1\na: 2\n")},
-		{Path: "pkg.aon", Data: []byte("pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aon\"}\n")},
+		{Path: "main.aontu", Data: []byte("a: 1\na: 2\n")},
+		{Path: "pkg.aontu", Data: []byte("pkg: {path: \"corp.example/service\", version: \"1.4.2\", main: \"main.aontu\"}\n")},
 	}
 	zip := ZipCanonical(entries)
 	if err := os.WriteFile(filepath.Join(w.at("service"), "1.4.2.zip"), zip, 0o600); nil != err {
@@ -1774,14 +1774,14 @@ func TestTheMeaningIsCheckedAgainstThePinAndACycleInWhyEnds(t *testing.T) {
 	entry := func(canon string) string {
 		return "{\"archive\":\"sha256:" + strings.Repeat("0", 64) + "\",\"canon\":\"" + canon + "\",\"v\":\"1.0.0\"}"
 	}
-	write(t, filepath.Join(cyc, "pkg.aon"), "pkg: {path: \"corp.example/app\"}\ndep: {\"corp.example/a\": {v: \"1.0.0\"}}\n")
-	write(t, filepath.Join(cyc, "main.aon"), "x: 1\n")
+	write(t, filepath.Join(cyc, "pkg.aontu"), "pkg: {path: \"corp.example/app\"}\ndep: {\"corp.example/a\": {v: \"1.0.0\"}}\n")
+	write(t, filepath.Join(cyc, "main.aontu"), "x: 1\n")
 	vendor := filepath.Join(cyc, "aontu_meta", "vendor", "corp.example")
-	write(t, filepath.Join(vendor, "a", "pkg.aon"), "pkg: {path: \"corp.example/a\", version: \"1.0.0\", main: \"main.aon\"}\ndep: {\"corp.example/b\": {v: \"1.0.0\"}}\n")
-	write(t, filepath.Join(vendor, "a", "main.aon"), "a: 1\n")
-	write(t, filepath.Join(vendor, "b", "pkg.aon"), "pkg: {path: \"corp.example/b\", version: \"1.0.0\", main: \"main.aon\"}\ndep: {\"corp.example/a\": {v: \"1.0.0\"}}\n")
-	write(t, filepath.Join(vendor, "b", "main.aon"), "b: 1\n")
-	write(t, filepath.Join(cyc, "aontu_meta", "pkg-lock.aon"),
+	write(t, filepath.Join(vendor, "a", "pkg.aontu"), "pkg: {path: \"corp.example/a\", version: \"1.0.0\", main: \"main.aontu\"}\ndep: {\"corp.example/b\": {v: \"1.0.0\"}}\n")
+	write(t, filepath.Join(vendor, "a", "main.aontu"), "a: 1\n")
+	write(t, filepath.Join(vendor, "b", "pkg.aontu"), "pkg: {path: \"corp.example/b\", version: \"1.0.0\", main: \"main.aontu\"}\ndep: {\"corp.example/a\": {v: \"1.0.0\"}}\n")
+	write(t, filepath.Join(vendor, "b", "main.aontu"), "b: 1\n")
+	write(t, filepath.Join(cyc, "aontu_meta", "pkg-lock.aontu"),
 		"{\"lock\":{\"corp.example/a\":"+entry("aon1-"+strings.Repeat("A", 43))+",\"corp.example/b\":"+entry("aon1-"+strings.Repeat("B", 43))+"}}\n")
 	why := PkgWhy(cyc, w.opts, "corp.example/b")
 	if "ok" != why.Verdict || 1 != len(why.Paths) || "corp.example/app corp.example/a corp.example/b" != strings.Join(why.Paths[0], " ") {

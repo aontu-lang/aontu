@@ -1,3 +1,0 @@
-# fragment loaded by junction-entry.aon
-# (padding line; the disjunction sits on row 3)
-method: "GET" | "HEAD"

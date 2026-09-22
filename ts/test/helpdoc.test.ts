@@ -341,7 +341,7 @@ describe('helpdoc', () => {
   // path-shaped argument was meant as a path and keeps the file
   // diagnosis and its exit 1.
   test('path-shaped-argument-keeps-the-file-diagnosis', () => {
-    for (const arg of ['./help', 'help.aon', '/tmp/aontu-no-such', 'sub/help']) {
+    for (const arg of ['./help', 'help.aontu', '/tmp/aontu-no-such', 'sub/help']) {
       const r = run([arg])
       Assert.equal(r.code, 1, arg)
       Assert.ok(r.err.includes(`cannot read ${arg}`), `${arg}: ${r.err}`)
@@ -353,7 +353,7 @@ describe('helpdoc', () => {
       Assert.equal(looksLikeVerb(arg), true, arg)
     }
     for (const arg of [
-      '', './help', 'help.aon', '/tmp/help', 'sub/help', 'a\\b', '-x',
+      '', './help', 'help.aontu', '/tmp/help', 'sub/help', 'a\\b', '-x',
     ]) {
       Assert.equal(looksLikeVerb(arg), false, arg)
     }
@@ -462,7 +462,7 @@ describe('helpdoc', () => {
   // where they are ordinary files a contributor can run.
   test('init-trio-is-identical-with-its-sources', () => {
     Assert.deepEqual(INITDOC.map((f) => f.name),
-      ['model.aon', 'data.aon', 'check.sh'])
+      ['model.aontu', 'data.aontu', 'check.sh'])
     for (const f of INITDOC) {
       Assert.equal(f.text, readRepo('docs/skill/init/' + f.name),
         `${f.name} is stale against docs/skill/init/ — run \`make helpdoc\``)
@@ -500,15 +500,15 @@ describe('helpdoc', () => {
   // there to prevent, so the model must use `&:` and must not carry a
   // key named `*`.
   test('the-starting-model-uses-the-template-and-not-the-star', () => {
-    const first = INITDOC.find((f) => 'model.aon' === f.name)
-    Assert.ok(null != first, 'the trio no longer carries model.aon')
+    const first = INITDOC.find((f) => 'model.aontu' === f.name)
+    Assert.ok(null != first, 'the trio no longer carries model.aontu')
     const model = first.text
-    Assert.ok(model.includes('&:'), 'model.aon does not use the template')
+    Assert.ok(model.includes('&:'), 'model.aontu does not use the template')
     // The comment NAMES the mistake, so the document itself is what is
     // asserted on: the lines that are not comments.
     const code = model.split('\n')
       .filter((line) => !line.trimStart().startsWith('#')).join('\n')
-    Assert.ok(!code.includes('"*"'), 'model.aon reaches for the quoted star')
+    Assert.ok(!code.includes('"*"'), 'model.aontu reaches for the quoted star')
   })
 
   test('init-writes-a-trio-that-checks-itself', () => {
@@ -535,7 +535,7 @@ describe('helpdoc', () => {
       })
       Assert.ok(out.includes('verdict: valid'), out)
       Assert.ok(out.includes('data leaves checked'), out)
-      Assert.ok(out.includes('ok --- model.aon and data.aon agree'), out)
+      Assert.ok(out.includes('ok --- model.aontu and data.aontu agree'), out)
     }
 
     Fs.rmSync(dir, { recursive: true, force: true })
@@ -545,15 +545,15 @@ describe('helpdoc', () => {
   // untouched and the two that were not there are still not there.
   test('init-refuses-to-overwrite', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-init-over-'))
-    Fs.writeFileSync(Path.join(dir, 'model.aon'), 'mine: true\n')
+    Fs.writeFileSync(Path.join(dir, 'model.aontu'), 'mine: true\n')
 
     const r = run(['init', dir])
     Assert.equal(r.code, 2)
-    Assert.ok(r.err.includes('already holds model.aon'), r.err)
+    Assert.ok(r.err.includes('already holds model.aontu'), r.err)
     Assert.ok(r.err.includes('never overwrites'), r.err)
-    Assert.equal(Fs.readFileSync(Path.join(dir, 'model.aon'), 'utf8'),
+    Assert.equal(Fs.readFileSync(Path.join(dir, 'model.aontu'), 'utf8'),
       'mine: true\n')
-    Assert.deepEqual(Fs.readdirSync(dir), ['model.aon'])
+    Assert.deepEqual(Fs.readdirSync(dir), ['model.aontu'])
 
     Fs.rmSync(dir, { recursive: true, force: true })
   })
@@ -575,7 +575,7 @@ describe('helpdoc', () => {
     // check follows it and gets nowhere), and is not writable either.
     const loop = Path.join(base, 'loop')
     Fs.mkdirSync(loop)
-    Fs.symlinkSync('model.aon', Path.join(loop, 'model.aon'))
+    Fs.symlinkSync('model.aontu', Path.join(loop, 'model.aontu'))
     const two = run(['init', loop])
     Assert.equal(two.code, 2)
     Assert.ok(two.err.includes(`cannot write in ${loop}`), two.err)
@@ -617,7 +617,7 @@ describe('helpdoc', () => {
       // check follows it and gets nowhere) and is not writable either.
       const loop = Path.join(dir, 'loop')
       Fs.mkdirSync(loop)
-      Fs.symlinkSync('model.aon', Path.join(loop, 'model.aon'))
+      Fs.symlinkSync('model.aontu', Path.join(loop, 'model.aontu'))
       Assert.equal(runInit([loop]), 2)
     }
     finally {

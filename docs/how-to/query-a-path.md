@@ -9,10 +9,10 @@ order: 10
 An evaluated document is one JSON value, and most questions are about
 one node of it. `aontu model get` selects that node by path (the same path
 a reference means by `$.a.b`) and prints it alone. Write
-`system.aon`:
+`system.aontu`:
 
 <!-- test: scenario query-a-path -->
-<!-- test: file system.aon -->
+<!-- test: file system.aontu -->
 ```aontu
 services: { &: { replicas: *1|integer tier: *standard|string } }
 services: auth: replicas: 3
@@ -23,7 +23,7 @@ Now ask for one service:
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.services.auth system.aon
+$ aontu model get $.services.auth system.aontu
 {
   "replicas": 3,
   "tier": "standard"
@@ -41,12 +41,12 @@ the structure cut off at a depth:
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.services --keys system.aon
+$ aontu model get $.services --keys system.aontu
 auth
 billing
-$ aontu model get $.services.auth --types system.aon
+$ aontu model get $.services.auth --types system.aontu
 {"replicas":integer,"tier":*string|string}
-$ aontu model get $ --depth 1 --canon system.aon
+$ aontu model get $ --depth 1 --canon system.aontu
 {"services":top}
 ```
 
@@ -58,7 +58,7 @@ A path that names nothing exits `1` and guesses:
 
 <!-- test: run -->
 ```sh
-$ aontu model get $.services.authz system.aon
+$ aontu model get $.services.authz system.aontu
 $.services.authz: no_path [reference]
   The path $.services.authz names nothing in this document.
   note: did you mean auth?

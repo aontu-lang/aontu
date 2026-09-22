@@ -80,10 +80,7 @@ function publishedPages(): string[] {
 }
 
 
-// `aon` and `aontu` are both used as the fence tag for an Aontu
-// document; the reference-language file uses the first and the
-// teaching documents the second.
-const SOURCE_TAGS = new Set(['aon', 'aontu'])
+const SOURCE_TAGS = new Set(['aontu'])
 
 
 type Block = {
@@ -1623,11 +1620,11 @@ function jsonVerbFixtures(): Record<string, string> {
     return file
   }
   return {
-    doc: at('d.aon', 'a: 1\n'),
-    schema: at('s.aon', 'a: integer\n'),
-    rel: at('rel.aon', 'entity: {&:{id:string}}\nentity: {a:{id:"x"}}\n'),
-    gen: at('gen.aon', 'out: file("a.txt",[content("x")])\n'),
-    roles: at('roles.aon', 'roles: {dev:{allow:["$.a"]}}\n'),
+    doc: at('d.aontu', 'a: 1\n'),
+    schema: at('s.aontu', 'a: integer\n'),
+    rel: at('rel.aontu', 'entity: {&:{id:string}}\nentity: {a:{id:"x"}}\n'),
+    gen: at('gen.aontu', 'out: file("a.txt",[content("x")])\n'),
+    roles: at('roles.aontu', 'roles: {dev:{allow:["$.a"]}}\n'),
     out: Path.join(dir, 'out'),
   }
 }

@@ -12,10 +12,10 @@ the race. `aontu model why` lists every value the author *wrote* that
 was written at. The file below is the [deployment
 fleet](../../use-cases/02-deploy-config/) use case trimmed to two layers
 in one file: in the live version the layers are separate files, and the
-sites carry each file's name. Write `stack.aon`:
+sites carry each file's name. Write `stack.aontu`:
 
 <!-- test: scenario explain-a-value -->
-<!-- test: file stack.aon -->
+<!-- test: file stack.aontu -->
 ```aontu
 # the org layer: a default for every service
 services: { &: { logLevel: ***info|string replicas: ***1|integer } }
@@ -29,10 +29,10 @@ Ask why `auth` runs three replicas:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.services.auth.replicas stack.aon
+$ aontu model why $.services.auth.replicas stack.aontu
 $.services.auth.replicas = 3
-  1. ***1|integer  stack.aon:2:53  (spread)
-  2. 3  stack.aon:5:51
+  1. ***1|integer  stack.aontu:2:53  (spread)
+  2. 3  stack.aontu:5:51
 ```
 
 The role in brackets marks a contribution that arrived indirectly:
@@ -45,10 +45,10 @@ The same question at `logLevel` shows the rank ladder mid-argument:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.services.auth.logLevel stack.aon
+$ aontu model why $.services.auth.logLevel stack.aontu
 $.services.auth.logLevel = *"warn"|***"info"|string
-  1. ***"info"|string  stack.aon:2:28  (spread)
-  2. *"warn"|string  stack.aon:5:29
+  1. ***"info"|string  stack.aontu:2:28  (spread)
+  2. *"warn"|string  stack.aontu:5:29
 ```
 
 The value at the path is the merged disjunction of both defaults;
@@ -63,16 +63,16 @@ author wrote it on:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.services.billing.replicas stack.aon
+$ aontu model why $.services.billing.replicas stack.aontu
 $.services.billing.replicas = ***1|integer
-  1. ***1|integer  stack.aon:2:53  (spread)
+  1. ***1|integer  stack.aontu:2:53  (spread)
 ```
 
 A path that names nothing is a refusal, exactly as it is for `get`:
 
 <!-- test: run -->
 ```sh
-$ aontu model why $.services.auth.memory stack.aon
+$ aontu model why $.services.auth.memory stack.aontu
 $.services.auth.memory: no_path [reference]
   The path $.services.auth.memory names nothing in this document.
 $ echo $?

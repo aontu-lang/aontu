@@ -6,7 +6,7 @@
     "and grammar/aontu.lark: those two constrain a decoder, this one colours",
     "a reader. One file serves every TextMate host — the VS Code extension",
     "(editors/vscode), Shiki on aontu.dev, and GitHub's Linguist if and when",
-    "`.aon` clears its usage bar — so a scope added here reaches all of them.",
+    "`.aontu` clears its usage bar — so a scope added here reaches all of them.",
     "",
     "It is a HIGHLIGHTER, not a parser: it accepts more than the language",
     "does, and is meant to. A file mid-edit must still colour, so nothing",
@@ -26,8 +26,7 @@
   "name": "aontu",
   "displayName": "Aontu",
   "scopeName": "source.aontu",
-  "aliases": ["aon"],
-  "fileTypes": ["aon", "aontu"],
+  "fileTypes": ["aontu"],
   "patterns": [
     { "include": "#comment" },
     { "include": "#include-directive" },

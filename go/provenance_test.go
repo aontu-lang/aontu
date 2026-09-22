@@ -18,9 +18,9 @@ func siteVal(canon, file string, row, col int) Val {
 
 func TestProvenanceOrdersByFileThenCanon(t *testing.T) {
 	prov := newProvenance("", nil)
-	a := siteVal("z", "two.aon", 1, 1)
-	b := siteVal("a", "one.aon", 1, 1)
-	c := siteVal("m", "one.aon", 1, 1)
+	a := siteVal("z", "two.aontu", 1, 1)
+	b := siteVal("a", "one.aontu", 1, 1)
+	c := siteVal("m", "one.aontu", 1, 1)
 	for _, v := range []Val{a, b, c} {
 		v.setWritten()
 	}
@@ -31,7 +31,7 @@ func TestProvenanceOrdersByFileThenCanon(t *testing.T) {
 	if 3 != len(got) {
 		t.Fatalf("want 3 contributions, got %d", len(got))
 	}
-	// one.aon before two.aon; within one.aon, canon breaks the tie.
+	// one.aontu before two.aontu; within one.aontu, canon breaks the tie.
 	if `"a"` != got[0].Canon || `"m"` != got[1].Canon || `"z"` != got[2].Canon {
 		t.Fatalf("bad order: %v", []string{
 			got[0].Canon, got[1].Canon, got[2].Canon})
@@ -62,30 +62,30 @@ func TestProvenanceWrittenFromIsIdempotent(t *testing.T) {
 
 func TestWhyStampsEntryFileAndCarriesTrust(t *testing.T) {
 	a := New()
-	a.File = "doc.aon"
+	a.File = "doc.aontu"
 	a.Trust = &TrustOptions{Budget: TrustBudget{Passes: 9, Depth: 1000}}
 	r := a.Why("x: 1\nx: integer", "$.x")
 	if !r.OK || nil == r.Record || 2 != len(r.Record.Conjuncts) {
 		t.Fatalf("bad report: %+v", r)
 	}
 	for _, c := range r.Record.Conjuncts {
-		if "doc.aon" != c.Site.File {
+		if "doc.aontu" != c.Site.File {
 			t.Fatalf("entry file not stamped: %+v", c)
 		}
 	}
 }
 
 func TestProvenanceDeduplicatesBySite(t *testing.T) {
-	prov := newProvenance("", map[string]string{"one.aon": "a: \"x\"\n"})
+	prov := newProvenance("", map[string]string{"one.aontu": "a: \"x\"\n"})
 
 	lit := newString("x")
-	lit.site.url = "one.aon"
+	lit.site.url = "one.aontu"
 	lit.site.sp = 3
 	lit.site.src = "x"
 	lit.setWritten()
 
 	narrowed := newString("x")
-	narrowed.site.url = "one.aon"
+	narrowed.site.url = "one.aontu"
 	narrowed.site.sp = 3
 	narrowed.site.src = "x"
 	narrowed.setWritten()

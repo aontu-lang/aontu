@@ -21,7 +21,7 @@ func hashRun(args ...string) (string, string, int) {
 
 func hashFile(t *testing.T, dir, src string) string {
 	t.Helper()
-	file := filepath.Join(dir, "doc.aon")
+	file := filepath.Join(dir, "doc.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestHashUsageErrorsExit2(t *testing.T) {
 	if _, _, code := hashRun("--format"); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
-	if _, _, code := hashRun(filepath.Join(t.TempDir(), "missing.aon")); 2 != code {
+	if _, _, code := hashRun(filepath.Join(t.TempDir(), "missing.aontu")); 2 != code {
 		t.Fatalf("want 2, got %d", code)
 	}
 	out, _, code := hashRun("--help")

@@ -35,7 +35,7 @@
   ([docs/tutorial-graph.md](docs/tutorial-graph.md): identity across
   two views, declared relations, reachability, recursive schemas),
   sharing a model as a package
-  ([docs/tutorial-package.md](docs/tutorial-package.md): `pkg.aon`,
+  ([docs/tutorial-package.md](docs/tutorial-package.md): `pkg.aontu`,
   `aontu publish`, the lockfile pins, the vendor tree, the publish
   gate) and generating files from a model
   ([docs/tutorial-generate.md](docs/tutorial-generate.md): `emit`,

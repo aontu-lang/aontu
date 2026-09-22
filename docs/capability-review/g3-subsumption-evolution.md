@@ -25,16 +25,16 @@ the relation.
 Consider a schema that a platform team ships and other teams' agents
 validate against:
 
-```aon
-# service-v1.aon
+```aontu
+# service-v1.aontu
 service: close({
   name: string
   port: *8080 | integer
 })
 ```
 
-```aon
-# service-v2.aon
+```aontu
+# service-v2.aontu
 service: close({
   name:  string
   port:  *9090 | integer
@@ -43,7 +43,7 @@ service: close({
 ```
 
 The team wants a CI gate — the review index names the verb:
-`aontu breaking --against git#main service.aon` — that reports two
+`aontu breaking --against git#main service.aontu` — that reports two
 findings: a required key `owner` was added to a closed struct (a
 v1-valid document without it is now rejected: backward-breaking), and
 the default port changed (every consumer that relied on the default
@@ -80,8 +80,8 @@ once the meet is computed.
 Second failing example: default validity. A default is supposed to be
 one of its disjunct's alternatives, but nothing checks it:
 
-```aon
-# level.aon — the default is a typo; nothing objects
+```aontu
+# level.aontu — the default is a typo; nothing objects
 level: *wran | info | warn | debug
 ```
 
@@ -96,7 +96,7 @@ Third, there is no way to retire anything. An author renaming
 `service.port` can only delete the old field — instantly breaking —
 or keep both forever, silently. What they want to write, and cannot:
 
-```aon
+```aontu
 # not expressible today
 service: {
   port: deprecate(*8080 | integer, {
@@ -365,11 +365,11 @@ reasons).
 
 ```
 aontu subsume [--profile values|defaults|gen] [--at <path>]
-              <general.aon> <specific.aon>
+              <general.aontu> <specific.aontu>
 
 aontu breaking --against <file|git#rev> [--mode backward|forward|full]
                [--allow-undecided] [--allow-deprecated-removal]
-               <file.aon>
+               <file.aontu>
 ```
 
 `breaking` evaluates both versions and runs the mode's checks:
@@ -389,7 +389,7 @@ with `--allow-undecided`.
 
 Per-document policy makes the mode declared rather than flagged:
 
-```aon
+```aontu
 # provisional key until G6 fixes module metadata; hidden, so it
 # participates in unification but never generates
 aontu_policy: hide({
@@ -407,7 +407,7 @@ variants as registry-enforced policy, are G6 decisions.
 A new builtin (the registry's twenty-second, as it landed),
 function-form per the G1 precedent:
 
-```aon
+```aontu
 port: deprecate(*8080 | integer, {
   msg: "renamed", use: "$.service.listen", since: "2.0.0" })
 ```
@@ -464,7 +464,7 @@ verb; G3 guarantees the engine call exists and is three-valued.
 
 ### Trim, as a follow-on
 
-`aontu trim --check <file.aon>` reports redundant entries — implied
+`aontu trim --check <file.aontu>` reports redundant entries — implied
 by a spread template, or leaving the evaluated result unchanged when
 removed — as paths, report-only. The test, as landed, is
 evaluate-and-compare alone (`ts/src/trim.ts`): delete the candidate,

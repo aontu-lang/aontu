@@ -584,15 +584,15 @@ describe('coverage3-context-and-errors', () => {
 
   test('missing-source-file-frames', () => {
     const v = new IntegerVal({ peg: 1 })
-    v.site.url = '/no/such/aontu/file.aon'
+    v.site.url = '/no/such/aontu/file.aontu'
 
     const n0 = makeNilErr(undefined as any, 'nosrc', v)
     descErr(n0, {} as any)
-    Assert.match(n0.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aon \(NO-FS\)/)
+    Assert.match(n0.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aontu \(NO-FS\)/)
 
     const n1 = makeNilErr(undefined as any, 'nosrcfs', v)
     descErr(n1, { fs: Fs } as any)
-    Assert.match(n1.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aon/)
+    Assert.match(n1.msg, /SOURCE-NOT-FOUND: \/no\/such\/aontu\/file\.aontu/)
     Assert.doesNotMatch(n1.msg, /NO-FS/)
   })
 
@@ -690,10 +690,10 @@ describe('coverage3-lang', () => {
     let n = 0
     const lang = new Lang({
       get resolver() {
-        return 0 === n++ ? { mem: { 'm0.aon': 'a:1' }, pkg: {} } : undefined
+        return 0 === n++ ? { mem: { 'm0.aontu': 'a:1' }, pkg: {} } : undefined
       },
     } as any)
-    Assert.equal(lang.parse('x:@"m0.aon"').canon, '{"x":{"a":1}}')
+    Assert.equal(lang.parse('x:@"m0.aontu"').canon, '{"x":{"a":1}}')
 
     const pkg: any = new Lang().parse('p:@"@tabnas/jsonic/package.json"')
     Assert.equal(pkg.peg.p.peg.name.peg, '@tabnas/jsonic')
@@ -936,7 +936,7 @@ describe('coverage3-process', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-cov3-txt-'))
     Fs.writeFileSync(Path.join(dir, 'doc.md'), '# hi\n')
     Fs.writeFileSync(Path.join(dir, 'rows.csv'), 'a,b\n1,2\n')
-    const file = Path.join(dir, 'main.aon')
+    const file = Path.join(dir, 'main.aontu')
     Fs.writeFileSync(file, 'doc: @"./doc.md"\n')
 
     // The widening reads it ...
@@ -1202,7 +1202,7 @@ describe('coverage3-provenance', () => {
     const zed = new StringVal({ peg: 'z' }, ctx)
     const alf = new StringVal({ peg: 'a' }, ctx)
     for (const v of [zed, alf]) {
-      v.site.url = 'one.aon'
+      v.site.url = 'one.aontu'
     }
 
     const prov = new Provenance()
@@ -1238,7 +1238,7 @@ describe('coverage3-provenance', () => {
     const at = (v: any) => {
       v.site.row = 1
       v.site.col = 4
-      v.site.url = 'one.aon'
+      v.site.url = 'one.aontu'
       v.site.src = 'x'
       return v
     }

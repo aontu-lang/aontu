@@ -1,0 +1,51 @@
+# The strict flag definition -- the vet-side contract.
+#
+# This file is a SCHEMA DOCUMENT for `aontu vet` only; base.aontu never
+# includes it.  Three language limits force the split (README, "Gaps"):
+#   - a constraint meeting a ranked default in a conjunct does not
+#     resolve, so the catalog cannot carry these types inline on the
+#     defaulted fields;
+#   - the disjunct form (***false | boolean) silently loses rank
+#     arbitration through the effective-view references;
+#   - a hide()-marked vet anchor silently disables the incompleteness
+#     verdict, so these defs stay unhidden -- which is also why this
+#     file cannot be part of the generated model.
+#
+# Used as:
+#   aontu vet --at '$.Flag' --closed flag-schema.aontu <candidate.json>
+#   aontu vet --at '$.Flag'          flag-schema.aontu <one-resolved-flag.json>
+#
+# A whole effective view is validated flag-by-flag: a spread anchor
+# whose template REFERENCES $.Flag does not resolve under --at, which
+# re-roots the document at the anchor (README, "Gaps").  So the check
+# extracts each resolved flag with `get` and vets it against $.Flag.
+
+# THE FIELD SHAPES, NAMED. `%name = value` at the top level declares an
+# alias; `%name` in value position uses it. An alias does not generate
+# and does not appear in canon, so this file and the one with every
+# constraint written out are the same document with the same `aon1-`
+# hash -- a name for a value, and nothing else.
+#
+# `flags.aontu` repeats these four shapes and does NOT name them, for two
+# reasons. An alias reaches nothing outside the document it is declared
+# in -- there is no construct for carrying a name across a file
+# boundary deliberately -- so it would have to be a second declaration
+# rather than a shared one. And `flags.aontu` writes them inside a SPREAD
+# TEMPLATE, where an alias reference is not resolved and leaks into
+# canon as `$.%Date`, changing the document's `aon1-` hash: BUGS.md 73.
+# Here there is no spread, so the names cost nothing.
+%Key = string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+%Owner = string & re("^[a-z0-9._\\-]+@acme\\.example$")
+%Description = string & length(min(12)) & length(max(160))
+%Date = string & re("^\\d{4}-\\d{2}-\\d{2}$")
+
+Flag: key: %Key
+Flag: flag_type: "boolean" | "percentage" | "variant"
+Flag: owner: %Owner
+Flag: description: %Description
+Flag: created: %Date
+Flag: expiry: %Date
+Flag: enabled: boolean
+Flag: rollout: integer & min(0) & max(100)
+Flag: variant?: string & re("^[a-z][a-z0-9\\-]*$")
+Flag: message?: string & length(max(80))

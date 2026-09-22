@@ -11,20 +11,20 @@
 # it needs a filesystem.
 #
 # EVALUATION NEVER TOUCHES THE NETWORK: resolution reads
-# `aontu_meta/vendor/` beside the project's `pkg.aon` and a content-addressed user cache, and
+# `aontu_meta/vendor/` beside the project's `pkg.aontu` and a content-addressed user cache, and
 # nothing else. A module in neither store is an error that names the
 # fetch step; a module whose MEANING disagrees with its pin is an
 # integrity error naming both hashes.
-mod-vendor	gens	x: @"__FIXTURES__/modproj/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-vendor-canon	canon	x: @"__FIXTURES__/modproj/main.aon"	{"x":{"svc":{"name":"auth","port":*8080|integer}}}
-mod-lock-pin	gens	x: @"__FIXTURES__/modlock/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-inline-pin	gens	x: @"__FIXTURES__/modfree/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-file-is-a-document	gens	x: @"__FIXTURES__/modproj/pkg.aon"	{"x":{"dep":{"corp.example/schemas/service":{"v":"1.4.2"}},"pkg":{"main":"main.aon","path":"corp.example/app"}}}
-mod-missing	errc	x: @"__FIXTURES__/modmiss/main.aon"	module_missing
-mod-missing-message	err	x: @"__FIXTURES__/modmiss/main.aon"	module not fetched: corp.example/schemas/absent (run: aontu sync)
-mod-inline-pin-mismatch	errc	x: @"__FIXTURES__/modpin/main.aon"	module_integrity
-mod-inline-pin-mismatch-message	err	x: @"__FIXTURES__/modpin/main.aon"	module integrity: corp.example/schemas/service expected aon1-wrongwrongwrongwrongwrongwrongwrongwrong got aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
-mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aon"	module_integrity
+mod-vendor	gens	x: @"__FIXTURES__/modproj/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-vendor-canon	canon	x: @"__FIXTURES__/modproj/main.aontu"	{"x":{"svc":{"name":"auth","port":*8080|integer}}}
+mod-lock-pin	gens	x: @"__FIXTURES__/modlock/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-inline-pin	gens	x: @"__FIXTURES__/modfree/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-file-is-a-document	gens	x: @"__FIXTURES__/modproj/pkg.aontu"	{"x":{"dep":{"corp.example/schemas/service":{"v":"1.4.2"}},"pkg":{"main":"main.aontu","path":"corp.example/app"}}}
+mod-missing	errc	x: @"__FIXTURES__/modmiss/main.aontu"	module_missing
+mod-missing-message	err	x: @"__FIXTURES__/modmiss/main.aontu"	module not fetched: corp.example/schemas/absent (run: aontu sync)
+mod-inline-pin-mismatch	errc	x: @"__FIXTURES__/modpin/main.aontu"	module_integrity
+mod-inline-pin-mismatch-message	err	x: @"__FIXTURES__/modpin/main.aontu"	module integrity: corp.example/schemas/service expected aon1-wrongwrongwrongwrongwrongwrongwrongwrong got aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E
+mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aontu"	module_integrity
 # A module resolves from ITS OWN project root FIRST, and then from the
 # roots that enclose it -- because a vendored module is a project
 # inside a project, and `mod vendor` only ever produces a FLAT tree, so
@@ -34,7 +34,7 @@ mod-lock-pin-mismatch	errc	x: @"__FIXTURES__/modbad/main.aon"	module_integrity
 # stopping early rather than a fact about the document, and now the
 # import is found and refused as what it is -- a source cannot be its
 # own ancestor.
-mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aon"	syntax
+mod-nested-has-its-own-root	errc	x: @"__FIXTURES__/modself/main.aontu"	syntax
 # THE ROUTING GUARD (ADR-022 part 4, ADR-039 part 4). A path routes to
 # the module resolver when it is domain-shaped -- a first segment with a
 # dot, lowercase, no major -- or spells an alias; a local file says so
@@ -44,7 +44,7 @@ mod-no-dot-is-not-a-module	err	x: @"local"	source not found: local
 mod-major-is-not-a-module	err	x: @"corp.example/schemas/service@1"	source not found: corp.example/schemas/service@1
 mod-shaped-is-a-module	err	x: @"corp.example/schemas/service"	module not fetched: corp.example/schemas/service (run: aontu sync)
 mod-dot-slash-is-a-file	err	x: @"./corp.example/schemas/service"	source not found: ./corp.example/schemas/service
-mod-dot-dot-is-a-file	err	x: @"../corp.example/service.aon"	source not found: ../corp.example/service.aon
+mod-dot-dot-is-a-file	err	x: @"../corp.example/service.aontu"	source not found: ../corp.example/service.aontu
 # A BARE FILE NAME IS THE COMMONEST MISTAKE, now the major has left the
 # name: `config.json` is domain-shaped enough to route here, and the
 # refusal says what was meant rather than `module not fetched`. Only an
@@ -53,20 +53,20 @@ mod-dot-dot-is-a-file	err	x: @"../corp.example/service.aon"	source not found: ..
 mod-local-file-needs-a-prefix	errc	x: @"config.json"	module_local
 mod-local-file-message	err	x: @"config.json"	local files need a ./ prefix: config.json (write @"./config.json")
 mod-local-file-in-a-directory	errc	x: @"my.dir/data.yaml"	module_local
-mod-local-aon-file	errc	x: @"local.aon"	module_local
+mod-local-aontu-file	errc	x: @"local.aontu"	module_local
 mod-unknown-extension-is-a-package	err	x: @"corp.example/schemas/v2.beta"	module not fetched: corp.example/schemas/v2.beta (run: aontu sync)
 # AN ALIAS RESOLVES BY LOOKUP, NEVER BY SHAPE (CLI.0.md §3b): the
-# consumer's pkg.aon names the package it stands for, and the vendor
+# consumer's pkg.aontu names the package it stands for, and the vendor
 # tree holds it under alias/<name>, so a second version of one package
 # lives in the closure under a name the consumer chose.
-mod-alias-resolves	gens	x: @"__FIXTURES__/modalias/main.aon"	{"x":{"legacy":{"name":"auth","port":8080},"svc":{"name":"auth","port":9090}}}
+mod-alias-resolves	gens	x: @"__FIXTURES__/modalias/main.aontu"	{"x":{"legacy":{"name":"auth","port":8080},"svc":{"name":"auth","port":9090}}}
 mod-alias-undeclared	errc	x: @"alias:nobody"	module_missing
-mod-alias-undeclared-message	err	x: @"alias:nobody"	alias not declared: alias:nobody (declare it under dep in pkg.aon)
+mod-alias-undeclared-message	err	x: @"alias:nobody"	alias not declared: alias:nobody (declare it under dep in pkg.aontu)
 # A MOVED PACKAGE REFUSES AND NEVER REDIRECTS (ADR-020 part 6): its own
-# pkg.aon declares the destination, and a name that quietly meant
+# pkg.aontu declares the destination, and a name that quietly meant
 # something else is the failure the convention exists to prevent.
-mod-moved-refuses	errc	x: @"__FIXTURES__/modmoved/main.aon"	module_moved
-mod-moved-message	err	x: @"__FIXTURES__/modmoved/main.aon"	module moved: corp.example/schemas/service (now corp.example/schemas/svc; import that instead, nothing follows a move)
+mod-moved-refuses	errc	x: @"__FIXTURES__/modmoved/main.aontu"	module_moved
+mod-moved-message	err	x: @"__FIXTURES__/modmoved/main.aontu"	module moved: corp.example/schemas/service (now corp.example/schemas/svc; import that instead, nothing follows a move)
 # THE PATH GATE. A path that ROUTES here (domain-shaped) is not yet a
 # path that may become a DIRECTORY. MODULE_RE's element
 # class admits `..`, and pathJoin CLEANS `..` rather than refusing it,
@@ -110,23 +110,23 @@ mod-path-valid-still-routes	err	x: @"corp.example/schemas/service"	module not fe
 # The WRITTEN path stays the identity: the import below spells
 # `Widgets`, the fixture on disk is `!widgets`, and this row resolves
 # only if the two are connected by the escape.
-mod-case-escaped-store	gens	x: @"__FIXTURES__/modcase/main.aon"	{"x":{"w":{"count":3,"kind":"widget"}}}
+mod-case-escaped-store	gens	x: @"__FIXTURES__/modcase/main.aontu"	{"x":{"w":{"count":3,"kind":"widget"}}}
 # THE MODULE FILE'S OWN EDGES. A module file with no `main` uses the
-# default entry (`main.aon`); one naming an entry that is not there is
+# default entry (`main.aontu`); one naming an entry that is not there is
 # the same refusal an absent module is, because the module is not
 # there to be read. A module file that does not stand up has no
 # metadata to read either — the default entry stands rather than the
 # read failing.
-mod-default-entry	gens	x: @"__FIXTURES__/modnomain/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-entry-not-there	errc	x: @"__FIXTURES__/modbadmain/main.aon"	module_missing
-mod-file-unreadable-uses-default	gens	x: @"__FIXTURES__/moduglymod/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-default-entry	gens	x: @"__FIXTURES__/modnomain/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-entry-not-there	errc	x: @"__FIXTURES__/modbadmain/main.aontu"	module_missing
+mod-file-unreadable-uses-default	gens	x: @"__FIXTURES__/moduglymod/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
 # A LOCKFILE IS GENERATED, and only a generated one is read: canonical
 # aontu whose leaves are scalars IS JSON, so a hand-edited lockfile
 # that is no longer canonical does not parse — and an entry with no
 # `canon` pin has nothing to check. Neither is an error: what is
 # missing is the PIN, and a module with no pin is simply unpinned.
-mod-lockfile-not-canonical	gens	x: @"__FIXTURES__/modbadlock/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
-mod-lock-entry-without-pin	gens	x: @"__FIXTURES__/modlocknoc/main.aon"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-lockfile-not-canonical	gens	x: @"__FIXTURES__/modbadlock/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
+mod-lock-entry-without-pin	gens	x: @"__FIXTURES__/modlocknoc/main.aontu"	{"x":{"svc":{"name":"auth","port":8080}}}
 # TWO MISSING MODULES, ONE REFUSAL: the FIRST is the one reported, as
 # the first denied include is. A refusal is about the document not
 # standing up, and the second miss adds nothing to that.

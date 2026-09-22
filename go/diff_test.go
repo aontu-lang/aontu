@@ -18,12 +18,12 @@ func TestDiffResolvesIncludesFromEachSidesBase(t *testing.T) {
 	right := t.TempDir()
 	for dir, k := range map[string]string{left: "k: 1", right: "k: 2"} {
 		if err := os.WriteFile(
-			filepath.Join(dir, "part.aon"), []byte(k), 0o600); nil != err {
+			filepath.Join(dir, "part.aontu"), []byte(k), 0o600); nil != err {
 			t.Fatal(err)
 		}
 	}
 
-	r := Diff(`a: @"./part.aon"`, `a: @"./part.aon"`, &DiffOptions{
+	r := Diff(`a: @"./part.aontu"`, `a: @"./part.aontu"`, &DiffOptions{
 		LeftPath:  left,
 		RightPath: right,
 	})
