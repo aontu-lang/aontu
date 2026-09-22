@@ -6,6 +6,67 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## 0.73.0 — 2026-09-22
+
+### An aontu source file is named `.aontu`, and nothing else
+
+**BREAKING: a project whose documents end `.aon` stops resolving.** The
+fix is a rename, and it is the whole migration: a bare `@"foo"` no
+longer completes to `foo.aon`, an explicit `@"./foo.aon"` refuses as
+`include_extension`, and `aontu fmt` declines the file as not being
+aontu source.
+
+**Two spellings for one thing was a decision nobody took.** `.aon` and
+`.aontu` both resolved to the `source` kind in both ports, both were
+tried when completing a bare reference, both were admitted into a
+published archive, both were bound by the editor plugins, and `aon` was
+an alias of the `aontu` grammar. The reference pages used one as the
+fence tag and the teaching pages the other. [ADR-042](ADR.md) chooses:
+`.aontu`, everywhere. The extension tables hold one entry, the internal
+kind tag matches the extension rather than abbreviating it, 492 files
+were renamed, and the `aon` grammar alias is withdrawn.
+
+**A stranded project is named rather than guessed at.** `packageSelf`
+answers with an *empty* record when it finds no package file, so a
+project still on `pkg.aon` reaches every verb looking like a package
+with no declarations and no lock — `pkg verify` would report `ok` over
+it, and `sync` would write a lockfile with every pin dropped. The
+migration notice that already named the pre-`pkg` layout now names this
+generation too, as a separate finding: that one renames a block inside
+the file, this one renames the file.
+
+**First-seen records are read under both spellings, and this is the one
+place the old one is admitted.** `seen/<package>/<version>` is the
+evidence `list_rollback` is computed from. Reading only the new suffix
+would discard every version a previous release observed, and a
+repository could then shorten a version list undetected until the
+history rebuilt itself. Both are read and neither is overwritten — a
+second write would re-date an old version to today — while new records
+carry the one extension. It is admitted as a fact recorded, never as a
+document to evaluate.
+
+**An archive re-pins; its meaning does not.** An archive digest covers
+file names, so renaming a package's entry moves `archive` while `canon`
+stays. That is the pair of pins in ADR-039 behaving as designed.
+
+### `aontu fmt` gives a trailing comment two spaces
+
+A comment that ends a line of code now sits **two spaces** behind it,
+normalised from whatever the author left, because one space lets the
+`#` read as part of the value. The rule is a property of the writer
+rather than a decision repeated at each site, so it reaches every
+position: the block opener, a comment after a colon, one after an
+operator whose value continues on the next line, and one among a call's
+arguments. A comment alone on its line keeps its indent. Trailing
+comments are still never aligned into a column.
+
+`README.md` now covers the formatter — what it does, the rules it
+applies, a worked example, and the programmatic API in both ports —
+where it had named `fmt` in a list of verbs and said nothing else.
+`docs/reference-api.md` gains the `template` option both ports accept
+and the reference had omitted.
+
+
 ## 0.72.0 — 2026-09-21
 
 ### The error reference counts the registry, and a test keeps it counting
