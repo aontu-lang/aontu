@@ -140,8 +140,9 @@ the `gh` CLI; without `gh`, see
   fails the build.
 - **A `Val` tree is single-use.** Do not cache, reuse or re-unify a
   parsed `Val`; clone first. Both ports.
-- **A transient agent task reports while it runs.** Every background
-  command, wait loop and subagent prints a status line at least every
-  30 seconds, however minimal, with a percentage complete when one can
-  be estimated (`checks 12/32, 37%`). A silent task cannot be told from
-  a hung one.
+- **A transient task reports while it runs.** Every build, test run,
+  script, background command, wait on CI and subagent prints a status
+  line at least every 30 seconds, however minimal, with a percentage
+  complete when one can be estimated (`checks 12/32, 37%`), and an agent
+  relays progress to its person at the same cadence. A silent task cannot
+  be told from a hung one.
