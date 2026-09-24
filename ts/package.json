@@ -1,6 +1,6 @@
 {
   "name": "aontu",
-  "version": "0.75.0",
+  "version": "0.76.0",
   "main": "dist/aontu.js",
   "type": "commonjs",
   "types": "dist/aontu.d.ts",
@@ -78,7 +78,7 @@
     "@tabnas/parser": "0.12.2",
     "@tabnas/path": "0.3.8",
     "@tabnas/toml": "0.5.8",
-    "@tabnas/yaml": "0.5.8",
+    "@tabnas/yaml": "0.5.9",
     "jostraca": "0.39.0"
   },
   "devDependencies": {
