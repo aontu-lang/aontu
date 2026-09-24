@@ -329,14 +329,15 @@ func TestRenderCheckSkipsAnExcludedFileBesideABareNode(t *testing.T) {
 			"  { cmp: \"File\", props: {name: \"keep.txt\", exclude: true},\n"+
 			"    children: [{cmp: \"Line\", props: {src: \"gen\"}}] }\n"+
 			"  { cmp: \"Folder\", props: {name: \"empty\"} }\n"+
+			"  { cmp: \"Folder\", children: [] }\n"+
 			"] }\n")
 	build := filepath.Join(dir, "build")
 	if _, errw, code := renderRunCLI(gen, build); 0 != code {
 		t.Fatalf("code %d: %s", code, errw)
 	}
 
-	// A hand-written tree carries a node with no `children` at all:
-	// the walk reads it without composing a path.
+	// A hand-written tree carries nodes with no `children` and nodes
+	// with no `props`: the walk reads both without composing a path.
 	renderFile(t, build, "keep.txt", "hand written\n")
 	if out, errw, code := renderRunCLI("--check", gen, build); 0 != code ||
 		"" != out || "" != errw {

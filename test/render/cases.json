@@ -544,6 +544,34 @@
         }
       ],
       "after": {}
+    },
+    {
+      "name": "a-nameless-file-anywhere-in-the-tree-is-a-document-error",
+      "files": {
+        "gen.aontu": "out: {cmp: \"Project\", props: {folder: \".\"}, children: [\n  {cmp: \"File\", children: [{cmp: \"Line\", props: {src: \"x\"}}]}\n]}\n"
+      },
+      "steps": [
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 4,
+          "out": "",
+          "err": "aontu: {dir}/gen.aontu: the file at $.out.children.0 has no name\n"
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 4,
+          "out": "",
+          "err": "aontu: {dir}/gen.aontu: the file at $.out.children.0 has no name\n"
+        }
+      ],
+      "after": {}
     }
   ]
 }

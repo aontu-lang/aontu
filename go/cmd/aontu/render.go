@@ -69,6 +69,31 @@ func excludedName(tree any) string {
 	return name
 }
 
+// namelessFile is the path of the first `File` in the tree with no
+// name, or "". The runtime ports disagree about a nameless one wherever
+// it sits, so it is refused at any depth rather than at the root alone.
+// Mirrors namelessFile in ts/src/cli.ts.
+func namelessFile(node any, at string) string {
+	if list, ok := node.([]any); ok {
+		for i, child := range list {
+			if found := namelessFile(child, at+"."+strconv.Itoa(i)); "" != found {
+				return found
+			}
+		}
+		return ""
+	}
+	cmp, _ := node.(map[string]any)
+	props, _ := cmp["props"].(map[string]any)
+	if _, named := props["name"].(string); "File" == cmp["cmp"] && !named {
+		return at
+	}
+	children, ok := cmp["children"].([]any)
+	if !ok {
+		return ""
+	}
+	return namelessFile(children, at+".children")
+}
+
 // `exclude` as the runtime reads it: `true`, or a string or list member
 // equal to the node's COMPONENT path, the chain of `name` props above
 // it, which a Project's `folder` is not part of. Mirrors excludedFile
@@ -337,14 +362,9 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 		}
 		var tree any
 		_ = json.Unmarshal([]byte(report.Out), &tree)
-		// A `File` without a name is refused: the runtime ports disagree
-		// about it.
-		if node, ok := tree.(map[string]any); ok && "File" == node["cmp"] {
-			props, _ := node["props"].(map[string]any)
-			if _, named := props["name"].(string); !named {
-				io.WriteString(stderr, "aontu: "+f+": the file at "+at+" has no name\n")
-				return 4
-			}
+		if nameless := namelessFile(tree, at); "" != nameless {
+			io.WriteString(stderr, "aontu: "+f+": the file at "+nameless+" has no name\n")
+			return 4
 		}
 		trees = append(trees, tree)
 	}

@@ -3375,12 +3375,12 @@ describe('render', () => {
       '  { cmp: "File", props: {name: "keep.txt", exclude: true},\n' +
       '    children: [{cmp: "Line", props: {src: "gen"}}] }\n' +
       '  { cmp: "Folder", props: {name: "empty"} }\n' +
-      '  { cmp: "File", children: [] }\n' +
+      '  { cmp: "Folder", children: [] }\n' +
       '] }\n')
     const build = Path.join(d, 'build')
     Assert.equal((await render([gen, build])).code, 0)
 
-    // A hand-written tree carries nodes with no `children` and a File
+    // A hand-written tree carries nodes with no `children` and nodes
     // with no `props`: the walk reads both without composing a path.
     file(build, 'keep.txt', 'hand written\n')
     const r = await render(['--check', gen, build])

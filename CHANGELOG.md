@@ -6,6 +6,23 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## Unreleased
+
+### A nameless `file` is refused wherever it sits in the tree
+
+Both ports. `render` refused a `File` with no `name` only at the root
+of the tree, so a hand-written one nested inside a project reached the
+runtime, where the two ports parted: TypeScript wrote a file called
+`undefined`, and Go failed the run on an I/O error at exit 2. The guard
+now walks the whole tree, for `render` and `--check` alike, and refuses
+the first nameless `File` as a document error at exit 4, naming its
+path: `the file at $.out.children.0 has no name`.
+
+That closes the last gap in #241, whose entry leaves
+`test/spec/divergent.tsv`. The render matrix case
+`a-nameless-file-anywhere-in-the-tree-is-a-document-error` holds both
+ports to it.
+
 ## 0.75.0 — 2026-09-24
 
 ### jostraca moves to 0.39.0, and the ports agree on `exclude`
