@@ -114,6 +114,11 @@ the `gh` CLI; without `gh`, see
 
 ## The rules that are easy to get wrong
 
+- **Long-running work reports its status at least every 30 seconds**,
+  even in one line, with a percentage-complete estimate where one can be
+  computed: a build, a test run, a script, a background agent, a wait on CI,
+  and an agent's own updates to the person it works for. Silence longer than
+  that cannot be told apart from a hang.
 - **An expected value in a shared spec row is obtained by running both
   engines and requiring them to agree** — never copied out of one.
   Writing it from one engine baselines a divergence as the contract, and
