@@ -198,7 +198,7 @@ help isolate the syntax error.`,
 		Comment: &jsonic.CommentOptions{
 			Lex: boolPtr(true),
 			Def: map[string]*jsonic.CommentDef{
-				"hash":  {Line: true, Start: "#"},
+				"hash":  {Line: boolPtr(true), Start: "#"},
 				"slash": nil,
 				"multi": nil,
 			},
