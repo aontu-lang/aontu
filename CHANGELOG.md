@@ -6,6 +6,27 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## 0.74.0 — 2026-09-24
+
+### The `@tabnas` stack moves to its latest release, in both ports
+
+The packages both ports use move to their latest published versions,
+pinned exactly and identically in `ts/package.json` and `go/go.mod`:
+`parser` 0.12.2, `jsonic` 0.7.1, `abnf` 0.4.15, `bnf` 0.1.19, `expr`
+0.5.10, `path` 0.3.8, `multisource` 0.5.8, `directive` 0.5.8, `json`
+0.5.10, `json5` 0.5.8, `jsonc` 0.5.7, `ini` 0.5.9, `toml` 0.5.8 and
+`yaml` 0.5.8. TypeScript's own `debug` moves to 0.3.8 and `railroad`,
+which draws the figures, to 0.3.7; Go's `hoover`, which arrives through
+`ini`, to 0.3.9. `jsonic` had drifted apart in the two ports, 0.6.2 in
+TypeScript against 0.6.6 in Go, and is one version again.
+
+The shared spec passes unchanged in both ports. Two lines of Go follow
+the parser's breaking changes, and neither reaches the language: a
+comment definition's `Line` is a `*bool` from 0.12.0, and a token's
+position sits in the `Site` it embeds from 0.10.0. The playground
+bundle is rebuilt against the new stack, and `go/vendorhash.txt` moves
+with `go.sum`.
+
 ## 0.73.0 — 2026-09-22
 
 ### An aontu source file is named `.aontu`, and nothing else

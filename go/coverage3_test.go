@@ -700,7 +700,7 @@ func TestGrammarActionsDirect(t *testing.T) {
 	// wrapLeaf: the pre-saturation text fallback for an overflowing
 	// literal, and the bool leaf.
 	r4 := &jsonic.Rule{Node: "1e999", ON: 1,
-		O0: &jsonic.Token{Tin: jsonic.TinTX, SI: 2, Src: "1e999"}}
+		O0: &jsonic.Token{Tin: jsonic.TinTX, Site: jsonic.Site{SI: 2}, Src: "1e999"}}
 	wrapLeaf(r4, nil)
 	if n, ok := r4.Node.(*NilVal); !ok || n.why != "not_number" {
 		t.Fatalf("overflowing text must refuse as not_number")
