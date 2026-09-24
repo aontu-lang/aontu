@@ -172,10 +172,11 @@ What each component adds to the table:
 - **`folder`**: `name` is required and non-empty
   (`cmp-folder-needs-a-name`, `cmp-folder-name-not-empty`).
 - **`file`**: `name` is required and may hold `/`, and the folders on
-  the way are made. `exclude: true` leaves the file alone when it is
-  already there, and is the only form each runtime honours: a path or a
-  list of paths is matched against the COMPONENT path rather than the
-  output path, and the Go runtime skips nothing for either. `mode` is
+  the way are made. `exclude` leaves the file alone when it is already
+  there: `true` always, and a path or a list of paths when one of them
+  is the file's COMPONENT path, the `name` of each enclosing component
+  and its own joined with `/`. A project's `folder` is no part of that
+  path, and neither is the output path. `mode` is
   the permission bits
   as a number: `mode: 493` and `mode: 0o755` are the same value, both
   spellings being [numeric

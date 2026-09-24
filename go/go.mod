@@ -3,7 +3,7 @@ module github.com/aontu-lang/aontu/go
 go 1.24.7
 
 require (
-	github.com/jostraca/jostraca/go v0.38.0
+	github.com/jostraca/jostraca/go v0.39.0
 	github.com/tabnas/abnf/go v0.4.15
 	github.com/tabnas/expr/go v0.5.10
 	github.com/tabnas/ini/go v0.5.9

@@ -4141,9 +4141,10 @@ taken out of the drift **where the target is already there**, so the
 skipped paths are the runtime's own composition rather than this
 engine's. A skipped path with nothing at it keeps its `missing` drift,
 because `render` writes an absent file whatever `exclude` says. Each
-port therefore answers for the `exclude` forms its own runtime honours,
-and those sets differ
-([`test/spec/divergent.tsv`](test/spec/divergent.tsv)). A folder as the
+port therefore answers for the `exclude` forms its own runtime honours.
+Those sets differed until jostraca 0.39.0 taught the Go runtime the
+path forms, and are now one: `true`, or a path or a list of paths
+naming the file's component path. A folder as the
 generator is a set: every regular file directly in it, in name order,
 and their trees are written below `<path>` as one run, so one `--check`
 holds a project written in several languages, and a path two generators

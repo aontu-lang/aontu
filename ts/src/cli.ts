@@ -2979,11 +2979,38 @@ function isDirectory(path: string): boolean {
 const EXCLUDED_NAME = '.aontu-check-excluded-'
 
 
+// Every `name` a node in the tree carries.
+function treeNames(node: any, names: string[]): string[] {
+  if (Array.isArray(node)) {
+    node.forEach((child) => treeNames(child, names))
+    return names
+  }
+  const props: any = node.props ?? {}
+  if ('string' === typeof props.name) {
+    names.push(props.name)
+  }
+  if (Array.isArray(node.children)) {
+    treeNames(node.children, names)
+  }
+  return names
+}
+
+
+// The rename's name, lengthened until no `name` in the tree contains it:
+// a renamed File must not land on a path the tree already claims.
+function excludedName(tree: any): string {
+  const names = treeNames(tree, [])
+  let name = EXCLUDED_NAME
+  while (names.some((n) => n.includes(name))) {
+    name += '-'
+  }
+  return name
+}
+
+
 // `exclude` as the runtime reads it: `true`, or a string or list member
 // equal to the node's COMPONENT path, the chain of `name` props above
-// it, which a Project's `folder` is not part of. The Go runtime honours
-// the boolean alone, so the ports' `--check` answers differ for the
-// path forms (test/spec/divergent.tsv).
+// it, which a Project's `folder` is not part of.
 function excludedFile(exclude: any, at: string[]): boolean {
   if (true === exclude) {
     return true
@@ -2996,22 +3023,26 @@ function excludedFile(exclude: any, at: string[]): boolean {
 }
 
 
-function renameExcluded(node: any, at: string[], cut: number[]): any {
+function renameExcluded(
+  node: any, at: string[], cut: number[], name: string): any {
   if (Array.isArray(node)) {
-    return node.map((child) => renameExcluded(child, at, cut))
+    return node.map((child) => renameExcluded(child, at, cut, name))
   }
   // A hand-written tree carries nodes with no `props` and nodes with
   // no `children`, and neither needs an arm of its own.
   const props: any = node.props ?? {}
   const below = 'string' === typeof props.name ? at.concat(props.name) : at
+  let out = node
   if ('File' === node.cmp && excludedFile(props.exclude, below)) {
     cut.push(1)
-    return { ...node, props: { ...props, name: EXCLUDED_NAME + cut.length } }
+    out = { ...node, props: { ...props, name: name + cut.length } }
   }
+  // An excluded File's children are walked too, under the name it
+  // really has: a File inside it is skipped, or not, on its own terms.
   if (!Array.isArray(node.children)) {
-    return node
+    return out
   }
-  return { ...node, children: renameExcluded(node.children, below, cut) }
+  return { ...out, children: renameExcluded(node.children, below, cut, name) }
 }
 
 
@@ -3192,7 +3223,7 @@ async function runRender(argv: string[]): Promise<number> {
       // writes an absent one -- so drift at a path with nothing at it
       // survives, which is the `missing` a deleted file reports.
       const cut: number[] = []
-      const renamed = renameExcluded(tree, [], cut)
+      const renamed = renameExcluded(tree, [], cut, excludedName(tree))
       if (0 < cut.length) {
         const kept = new Set<string>((await Jostraca().check(
           { folder }, cmpTree(renamed, { raw: true }))).checked)

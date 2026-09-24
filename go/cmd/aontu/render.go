@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,16 +33,68 @@ func exists(path string) bool {
 
 // renameExcluded RENAMES the `File` nodes the write path skips and
 // counts them. Removing a node would take its children's claims with
-// it and hide drift the write path does make. This runtime honours
-// `exclude: true` alone, which is where the ports part company
-// (test/spec/divergent.tsv).
-const excludedName = ".aontu-check-excluded-"
+// it and hide drift the write path does make.
+const excludedPrefix = ".aontu-check-excluded-"
 
-func renameExcluded(node any, cut *int) any {
+// treeNames is every `name` a node in the tree carries.
+func treeNames(node any, names []string) []string {
+	if list, ok := node.([]any); ok {
+		for _, child := range list {
+			names = treeNames(child, names)
+		}
+		return names
+	}
+	cmp, _ := node.(map[string]any)
+	props, _ := cmp["props"].(map[string]any)
+	if name, ok := props["name"].(string); ok {
+		names = append(names, name)
+	}
+	if children, ok := cmp["children"].([]any); ok {
+		names = treeNames(children, names)
+	}
+	return names
+}
+
+// excludedName is the rename's name, lengthened until no `name` in the
+// tree contains it: a renamed File must not land on a path the tree
+// already claims.
+func excludedName(tree any) string {
+	names := treeNames(tree, nil)
+	name := excludedPrefix
+	for slices.ContainsFunc(names, func(n string) bool {
+		return strings.Contains(n, name)
+	}) {
+		name += "-"
+	}
+	return name
+}
+
+// `exclude` as the runtime reads it: `true`, or a string or list member
+// equal to the node's COMPONENT path, the chain of `name` props above
+// it, which a Project's `folder` is not part of. Mirrors excludedFile
+// in ts/src/cli.ts.
+func excludedFile(exclude any, at []string) bool {
+	if true == exclude {
+		return true
+	}
+	path := strings.Join(at, "/")
+	if s, ok := exclude.(string); ok {
+		return s == path
+	}
+	list, _ := exclude.([]any)
+	for _, member := range list {
+		if s, ok := member.(string); ok && s == path {
+			return true
+		}
+	}
+	return false
+}
+
+func renameExcluded(node any, at []string, cut *int, name string) any {
 	if list, ok := node.([]any); ok {
 		tree := make([]any, 0, len(list))
 		for _, child := range list {
-			tree = append(tree, renameExcluded(child, cut))
+			tree = append(tree, renameExcluded(child, at, cut, name))
 		}
 		return tree
 	}
@@ -50,20 +103,28 @@ func renameExcluded(node any, cut *int) any {
 	// -- nor a node that is not a map at all -- needs an arm of its own.
 	cmp, _ := node.(map[string]any)
 	props, _ := cmp["props"].(map[string]any)
-	if "File" == cmp["cmp"] && true == props["exclude"] {
+	below := at
+	if own, ok := props["name"].(string); ok {
+		below = append(append([]string{}, at...), own)
+	}
+	out := node
+	if "File" == cmp["cmp"] && excludedFile(props["exclude"], below) {
 		*cut++
 		renamed := map[string]any{}
 		for k, v := range props {
 			renamed[k] = v
 		}
-		renamed["name"] = excludedName + strconv.Itoa(*cut)
-		return withKey(cmp, "props", renamed)
+		renamed["name"] = name + strconv.Itoa(*cut)
+		cmp = withKey(cmp, "props", renamed)
+		out = cmp
 	}
+	// An excluded File's children are walked too, under the name it
+	// really has: a File inside it is skipped, or not, on its own terms.
 	children, ok := cmp["children"].([]any)
 	if !ok {
-		return node
+		return out
 	}
-	return withKey(cmp, "children", renameExcluded(children, cut))
+	return withKey(cmp, "children", renameExcluded(children, below, cut, name))
 }
 
 func withKey(cmp map[string]any, key string, value any) map[string]any {
@@ -82,7 +143,7 @@ func excludedPaths(
 	folder string, tree any, checked []string) (map[string]bool, error) {
 	skipped := map[string]bool{}
 	cut := 0
-	renamed := renameExcluded(tree, &cut)
+	renamed := renameExcluded(tree, nil, &cut, excludedName(tree))
 	if 0 == cut {
 		return skipped, nil
 	}
@@ -151,13 +212,6 @@ func hasMarkerLine(src, marker string) bool {
 		}
 	}
 	return false
-}
-
-func nonNil(s []string) []string {
-	if nil == s {
-		return []string{}
-	}
-	return s
 }
 
 // runRender hands the component tree a generator answers to jostraca,
@@ -358,7 +412,7 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			io.WriteString(stdout, renderJSON(map[string]any{
 				"aontu":   map[string]any{"version": aontu.VERSION, "verb": "render"},
 				"verdict": verdict,
-				"checked": nonNil(res.Checked),
+				"checked": res.Checked,
 				"drift":   drift,
 			})+"\n")
 		} else {
@@ -385,13 +439,13 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			"aontu":   map[string]any{"version": aontu.VERSION, "verb": "render"},
 			"verdict": "ok",
 			"files": map[string]any{
-				"preserved":  nonNil(res.Files.Preserved),
-				"written":    nonNil(res.Files.Written),
-				"presented":  nonNil(res.Files.Presented),
-				"diffed":     nonNil(res.Files.Diffed),
-				"merged":     nonNil(res.Files.Merged),
-				"conflicted": nonNil(res.Files.Conflicted),
-				"unchanged":  nonNil(res.Files.Unchanged),
+				"preserved":  res.Files.Preserved,
+				"written":    res.Files.Written,
+				"presented":  res.Files.Presented,
+				"diffed":     res.Files.Diffed,
+				"merged":     res.Files.Merged,
+				"conflicted": res.Files.Conflicted,
+				"unchanged":  res.Files.Unchanged,
 				"skipped":    skipped,
 			},
 		})+"\n")

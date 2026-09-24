@@ -539,26 +539,11 @@
 #   explanation both print. The full text earns rows here once Go
 #   agrees.
 #
-# ENTRY (2026-09-17): `file`'s `exclude` prop, the path forms.
-#
-#   ISSUE: #241. REASON: the predicate belongs to the generator runtime,
-#   not to either port of this engine, so the fix is a jostraca change;
-#   normalising it inside aontu would make `--check` disagree with its
-#   own port's write path, which is the defect #238 fixed.
-#
-#   out: project(".", [file({name: "k.txt", exclude: "k.txt"}, ["generated"])])
-#
-#   render, then a hand edit of build/k.txt, then `render --check build`:
-#     TypeScript  exit 0, no output          a later render keeps the edit
-#     Go          exit 1, `content: k.txt`   a later render overwrites it
-#
-#   `exclude: true` is honoured by both and is what the reference
-#   documents; a list form behaves as the string form does. Each port is
-#   self-consistent: `--check` answers what its own write path answers.
-#
 # ENTRY (2026-09-17): a `file` node carrying no `props`.
 #
-#   ISSUE: #241. REASON: the same runtime, and the same argument.
+#   ISSUE: #241. REASON: what a nameless `File` writes belongs to the
+#   generator runtime, not to either port of this engine, so the fix is a
+#   jostraca change.
 #
 #   TypeScript writes a file named `undefined`; Go refuses the run. No
 #   aontu generator reaches it, because `file()` requires a name, so it

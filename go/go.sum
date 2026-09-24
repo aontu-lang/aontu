@@ -1,5 +1,5 @@
-github.com/jostraca/jostraca/go v0.38.0 h1:c06cnCu/5jpAeaQo35KPMskRBwUdy5qFxs/cnUYnIGE=
-github.com/jostraca/jostraca/go v0.38.0/go.mod h1:sChsMPe6E2F006ZscjIXpb4tVK4LclCfMSICkYiX4M8=
+github.com/jostraca/jostraca/go v0.39.0 h1:lHscuD5LY60QwzaGqwLpALtvmjWnWbpquHz0176KVNg=
+github.com/jostraca/jostraca/go v0.39.0/go.mod h1:sChsMPe6E2F006ZscjIXpb4tVK4LclCfMSICkYiX4M8=
 github.com/rjrodger/shape/go v0.5.3 h1:SKmAVLt/shCfhB/xovoFrp0YKsahbcbXKcZ9BJ6oNNo=
 github.com/rjrodger/shape/go v0.5.3/go.mod h1:eIRkEPCxpm9msMgpWkHqRjh7IfFwNQAMvTytoA24i3M=
 github.com/tabnas/abnf/go v0.4.15 h1:MElCjps2Rszqg/b5LeKK4nzf38lkRhKZk1fwY/I8pf0=
