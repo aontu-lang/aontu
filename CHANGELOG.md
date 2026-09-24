@@ -6,6 +6,29 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## Unreleased
+
+### jostraca moves to 0.39.0, and the ports agree on `exclude`
+
+`jostraca`, the generator runtime `aontu render` writes through, moves
+from 0.38.0 to 0.39.0 in both ports, pinned in `ts/package.json` and
+`go/go.mod` as before. Nothing else moves with it.
+
+**`render --check` honours `exclude` by path in Go too.** jostraca
+0.39.0 teaches its Go runtime the path forms of `file`'s `exclude`, a
+string or a list naming the file's component path, which only the
+TypeScript runtime had honoured. The Go CLI's `--check` still skipped
+the boolean form alone, so on the new runtime it reported drift at a
+file its own `render` leaves alone. It now reads `exclude` as the
+TypeScript CLI does, and the two ports answer alike for every form.
+That closes the first gap in #241, whose entry leaves
+`test/spec/divergent.tsv`, and the render matrix gains
+`an-exclude-names-the-component-path` to hold both ports to it.
+
+A `file` node with no props is still divergent: TypeScript writes a
+file named `undefined` and Go refuses the run. It stays in the ledger
+under #241.
+
 ## 0.74.0 — 2026-09-24
 
 ### The `@tabnas` stack moves to its latest release, in both ports

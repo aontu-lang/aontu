@@ -229,29 +229,46 @@ func TestRenderCheckSkipsAnExcludedMode(t *testing.T) {
 	}
 }
 
-func TestRenderCheckHoldsEveryOtherExcludeForm(t *testing.T) {
+func TestRenderCheckFollowsTheWritePathForEveryExcludeForm(t *testing.T) {
 	dir := t.TempDir()
 	build := filepath.Join(dir, "build")
 
-	// Only the boolean form is honoured by both runtime ports; the
-	// string and list forms are held to the generator's bytes, as is a
-	// `File` that does not ask to be excluded at all.
-	for _, form := range [][2]string{
-		{"none.aontu", ""},
-		{"false.aontu", ", exclude: false"},
-		{"string.aontu", `, exclude: "k.txt"`},
-		{"list.aontu", `, exclude: ["k.txt"]`},
+	// What the write path skips, and nothing else. A pattern form is
+	// matched against the COMPONENT path, so `k.txt` skips the file and
+	// `other.txt` does not, which is the rule rather than the spelling.
+	for _, form := range []struct {
+		name, prop string
+		drift      bool
+	}{
+		{"none.aontu", "", true},
+		{"false.aontu", ", exclude: false", true},
+		{"string.aontu", `, exclude: "k.txt"`, false},
+		{"list.aontu", `, exclude: ["k.txt"]`, false},
+		{"other.aontu", `, exclude: "other.txt"`, true},
 	} {
-		gen := renderFile(t, dir, form[0],
-			`out: project(".", [file({name: "k.txt"`+form[1]+
+		gen := renderFile(t, dir, form.name,
+			`out: project(".", [file({name: "k.txt"`+form.prop+
 				`}, ["generated"])])`+"\n")
 		if _, errw, code := renderRunCLI(gen, build); 0 != code {
-			t.Fatalf("%s write: code %d: %s", form[0], code, errw)
+			t.Fatalf("%s write: code %d: %s", form.name, code, errw)
 		}
 		renderFile(t, build, "k.txt", "hand written\n")
-		if out, _, code := renderRunCLI("--check", gen, build); 1 != code ||
-			"content: k.txt\n" != out {
-			t.Fatalf("%s check: code %d out %q", form[0], code, out)
+		wantCode, wantOut, wantBytes := 0, "", "hand written\n"
+		if form.drift {
+			wantCode, wantOut, wantBytes = 1, "content: k.txt\n", "generated\n"
+		}
+		if out, _, code := renderRunCLI("--check", gen, build); wantCode != code ||
+			wantOut != out {
+			t.Fatalf("%s check: code %d out %q", form.name, code, out)
+		}
+
+		// The write path's own answer, which the check must match: the
+		// bytes survive a render exactly where no drift was reported.
+		if _, errw, code := renderRunCLI(gen, build); 0 != code {
+			t.Fatalf("%s rewrite: code %d: %s", form.name, code, errw)
+		}
+		if got := renderRead(t, filepath.Join(build, "k.txt")); wantBytes != got {
+			t.Fatalf("%s rewrite: %q", form.name, got)
 		}
 		if err := os.Remove(filepath.Join(build, "k.txt")); err != nil {
 			t.Fatal(err)

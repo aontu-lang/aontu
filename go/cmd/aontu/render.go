@@ -32,16 +32,35 @@ func exists(path string) bool {
 
 // renameExcluded RENAMES the `File` nodes the write path skips and
 // counts them. Removing a node would take its children's claims with
-// it and hide drift the write path does make. This runtime honours
-// `exclude: true` alone, which is where the ports part company
-// (test/spec/divergent.tsv).
+// it and hide drift the write path does make.
 const excludedName = ".aontu-check-excluded-"
 
-func renameExcluded(node any, cut *int) any {
+// `exclude` as the runtime reads it: `true`, or a string or list member
+// equal to the node's COMPONENT path, the chain of `name` props above
+// it, which a Project's `folder` is not part of. Mirrors excludedFile
+// in ts/src/cli.ts.
+func excludedFile(exclude any, at []string) bool {
+	if true == exclude {
+		return true
+	}
+	path := strings.Join(at, "/")
+	if s, ok := exclude.(string); ok {
+		return s == path
+	}
+	list, _ := exclude.([]any)
+	for _, member := range list {
+		if s, ok := member.(string); ok && s == path {
+			return true
+		}
+	}
+	return false
+}
+
+func renameExcluded(node any, at []string, cut *int) any {
 	if list, ok := node.([]any); ok {
 		tree := make([]any, 0, len(list))
 		for _, child := range list {
-			tree = append(tree, renameExcluded(child, cut))
+			tree = append(tree, renameExcluded(child, at, cut))
 		}
 		return tree
 	}
@@ -50,7 +69,11 @@ func renameExcluded(node any, cut *int) any {
 	// -- nor a node that is not a map at all -- needs an arm of its own.
 	cmp, _ := node.(map[string]any)
 	props, _ := cmp["props"].(map[string]any)
-	if "File" == cmp["cmp"] && true == props["exclude"] {
+	below := at
+	if name, ok := props["name"].(string); ok {
+		below = append(append([]string{}, at...), name)
+	}
+	if "File" == cmp["cmp"] && excludedFile(props["exclude"], below) {
 		*cut++
 		renamed := map[string]any{}
 		for k, v := range props {
@@ -63,7 +86,7 @@ func renameExcluded(node any, cut *int) any {
 	if !ok {
 		return node
 	}
-	return withKey(cmp, "children", renameExcluded(children, cut))
+	return withKey(cmp, "children", renameExcluded(children, below, cut))
 }
 
 func withKey(cmp map[string]any, key string, value any) map[string]any {
@@ -82,7 +105,7 @@ func excludedPaths(
 	folder string, tree any, checked []string) (map[string]bool, error) {
 	skipped := map[string]bool{}
 	cut := 0
-	renamed := renameExcluded(tree, &cut)
+	renamed := renameExcluded(tree, nil, &cut)
 	if 0 == cut {
 		return skipped, nil
 	}
@@ -151,13 +174,6 @@ func hasMarkerLine(src, marker string) bool {
 		}
 	}
 	return false
-}
-
-func nonNil(s []string) []string {
-	if nil == s {
-		return []string{}
-	}
-	return s
 }
 
 // runRender hands the component tree a generator answers to jostraca,
@@ -358,7 +374,7 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			io.WriteString(stdout, renderJSON(map[string]any{
 				"aontu":   map[string]any{"version": aontu.VERSION, "verb": "render"},
 				"verdict": verdict,
-				"checked": nonNil(res.Checked),
+				"checked": res.Checked,
 				"drift":   drift,
 			})+"\n")
 		} else {
@@ -385,13 +401,13 @@ func runRender(argv []string, stdout, stderr io.Writer) int {
 			"aontu":   map[string]any{"version": aontu.VERSION, "verb": "render"},
 			"verdict": "ok",
 			"files": map[string]any{
-				"preserved":  nonNil(res.Files.Preserved),
-				"written":    nonNil(res.Files.Written),
-				"presented":  nonNil(res.Files.Presented),
-				"diffed":     nonNil(res.Files.Diffed),
-				"merged":     nonNil(res.Files.Merged),
-				"conflicted": nonNil(res.Files.Conflicted),
-				"unchanged":  nonNil(res.Files.Unchanged),
+				"preserved":  res.Files.Preserved,
+				"written":    res.Files.Written,
+				"presented":  res.Files.Presented,
+				"diffed":     res.Files.Diffed,
+				"merged":     res.Files.Merged,
+				"conflicted": res.Files.Conflicted,
+				"unchanged":  res.Files.Unchanged,
 				"skipped":    skipped,
 			},
 		})+"\n")

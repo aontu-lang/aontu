@@ -2535,9 +2535,7 @@ function isDirectory(path) {
 const EXCLUDED_NAME = '.aontu-check-excluded-';
 // `exclude` as the runtime reads it: `true`, or a string or list member
 // equal to the node's COMPONENT path, the chain of `name` props above
-// it, which a Project's `folder` is not part of. The Go runtime honours
-// the boolean alone, so the ports' `--check` answers differ for the
-// path forms (test/spec/divergent.tsv).
+// it, which a Project's `folder` is not part of.
 function excludedFile(exclude, at) {
     if (true === exclude) {
         return true;

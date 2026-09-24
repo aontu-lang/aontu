@@ -220,6 +220,64 @@
       }
     },
     {
+      "name": "an-exclude-names-the-component-path",
+      "files": {
+        "gen.aontu": "out: project(\".\", [\n  folder(\"sub\", [file({name: \"k.txt\", exclude: \"sub/k.txt\"}, [\"generated\"])])\n  file({name: \"l.txt\", exclude: [\"x.txt\" \"l.txt\"]}, [\"generated\"])\n  folder(\"two\", [file({name: \"m.txt\", exclude: \"m.txt\"}, [\"generated\"])])\n])\n"
+      },
+      "steps": [
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "build/sub/k.txt": "hand\n",
+            "build/l.txt": "hand\n",
+            "build/two/m.txt": "hand\n"
+          }
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 1,
+          "out": "content: two/m.txt\n",
+          "err": ""
+        },
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
+      ],
+      "after": {
+        "build/l.txt": "hand\n",
+        "build/sub/k.txt": "hand\n",
+        "build/two/m.txt": "generated\n"
+      }
+    },
+    {
       "name": "a-folder-of-generators-is-one-run",
       "files": {
         "gen/a.aontu": "out: file(\"a.txt\", [\"a\"])\n",

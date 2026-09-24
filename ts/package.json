@@ -79,7 +79,7 @@
     "@tabnas/path": "0.3.8",
     "@tabnas/toml": "0.5.8",
     "@tabnas/yaml": "0.5.8",
-    "jostraca": "0.38.0"
+    "jostraca": "0.39.0"
   },
   "devDependencies": {
     "@tabnas/railroad": "0.3.7",
