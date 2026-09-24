@@ -6,7 +6,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
-## Unreleased
+## 0.75.0 — 2026-09-24
 
 ### jostraca moves to 0.39.0, and the ports agree on `exclude`
 
