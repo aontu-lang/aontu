@@ -6,7 +6,7 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
-## Unreleased
+## 0.74.0 — 2026-09-24
 
 ### The `@tabnas` stack moves to its latest release, in both ports
 

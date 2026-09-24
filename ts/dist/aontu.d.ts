@@ -23,7 +23,7 @@ import { loadProfile } from './profile';
 import { desugarTemplate, resugarTemplate, markerFor } from './template';
 import { format, unifiedDiff } from './format';
 export type { LintFinding, FormatReport, FormatOptions } from './format';
-declare const VERSION = "0.73.0";
+declare const VERSION = "0.74.0";
 declare class Aontu {
     opts: AontuOptions;
     lang: Lang;
