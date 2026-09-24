@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,7 +34,40 @@ func exists(path string) bool {
 // renameExcluded RENAMES the `File` nodes the write path skips and
 // counts them. Removing a node would take its children's claims with
 // it and hide drift the write path does make.
-const excludedName = ".aontu-check-excluded-"
+const excludedPrefix = ".aontu-check-excluded-"
+
+// treeNames is every `name` a node in the tree carries.
+func treeNames(node any, names []string) []string {
+	if list, ok := node.([]any); ok {
+		for _, child := range list {
+			names = treeNames(child, names)
+		}
+		return names
+	}
+	cmp, _ := node.(map[string]any)
+	props, _ := cmp["props"].(map[string]any)
+	if name, ok := props["name"].(string); ok {
+		names = append(names, name)
+	}
+	if children, ok := cmp["children"].([]any); ok {
+		names = treeNames(children, names)
+	}
+	return names
+}
+
+// excludedName is the rename's name, lengthened until no `name` in the
+// tree contains it: a renamed File must not land on a path the tree
+// already claims.
+func excludedName(tree any) string {
+	names := treeNames(tree, nil)
+	name := excludedPrefix
+	for slices.ContainsFunc(names, func(n string) bool {
+		return strings.Contains(n, name)
+	}) {
+		name += "-"
+	}
+	return name
+}
 
 // `exclude` as the runtime reads it: `true`, or a string or list member
 // equal to the node's COMPONENT path, the chain of `name` props above
@@ -56,11 +90,11 @@ func excludedFile(exclude any, at []string) bool {
 	return false
 }
 
-func renameExcluded(node any, at []string, cut *int) any {
+func renameExcluded(node any, at []string, cut *int, name string) any {
 	if list, ok := node.([]any); ok {
 		tree := make([]any, 0, len(list))
 		for _, child := range list {
-			tree = append(tree, renameExcluded(child, at, cut))
+			tree = append(tree, renameExcluded(child, at, cut, name))
 		}
 		return tree
 	}
@@ -70,23 +104,27 @@ func renameExcluded(node any, at []string, cut *int) any {
 	cmp, _ := node.(map[string]any)
 	props, _ := cmp["props"].(map[string]any)
 	below := at
-	if name, ok := props["name"].(string); ok {
-		below = append(append([]string{}, at...), name)
+	if own, ok := props["name"].(string); ok {
+		below = append(append([]string{}, at...), own)
 	}
+	out := node
 	if "File" == cmp["cmp"] && excludedFile(props["exclude"], below) {
 		*cut++
 		renamed := map[string]any{}
 		for k, v := range props {
 			renamed[k] = v
 		}
-		renamed["name"] = excludedName + strconv.Itoa(*cut)
-		return withKey(cmp, "props", renamed)
+		renamed["name"] = name + strconv.Itoa(*cut)
+		cmp = withKey(cmp, "props", renamed)
+		out = cmp
 	}
+	// An excluded File's children are walked too, under the name it
+	// really has: a File inside it is skipped, or not, on its own terms.
 	children, ok := cmp["children"].([]any)
 	if !ok {
-		return node
+		return out
 	}
-	return withKey(cmp, "children", renameExcluded(children, below, cut))
+	return withKey(cmp, "children", renameExcluded(children, below, cut, name))
 }
 
 func withKey(cmp map[string]any, key string, value any) map[string]any {
@@ -105,7 +143,7 @@ func excludedPaths(
 	folder string, tree any, checked []string) (map[string]bool, error) {
 	skipped := map[string]bool{}
 	cut := 0
-	renamed := renameExcluded(tree, nil, &cut)
+	renamed := renameExcluded(tree, nil, &cut, excludedName(tree))
 	if 0 == cut {
 		return skipped, nil
 	}

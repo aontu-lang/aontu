@@ -278,6 +278,134 @@
       }
     },
     {
+      "name": "a-file-inside-an-excluded-file-is-held-on-its-own-terms",
+      "files": {
+        "gen.aontu": "out: { cmp: \"Project\", props: {folder: \".\"}, children: [\n  { cmp: \"File\", props: {name: \"parent.txt\", exclude: true}, children: [\n    {cmp: \"Line\", props: {src: \"p\"}}\n    { cmp: \"File\", props: {name: \"kept.txt\", exclude: \"parent.txt/kept.txt\"},\n      children: [{cmp: \"Line\", props: {src: \"k\"}}] }\n    { cmp: \"File\", props: {name: \"held.txt\"}, children: [{cmp: \"Line\", props: {src: \"h\"}}] }\n  ] }\n] }\n"
+      },
+      "steps": [
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "build/parent.txt": "hand\n",
+            "build/kept.txt": "hand\n",
+            "build/held.txt": "hand\n"
+          }
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 1,
+          "out": "content: held.txt\n",
+          "err": ""
+        },
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
+      ],
+      "after": {
+        "build/held.txt": "h\n",
+        "build/kept.txt": "hand\n",
+        "build/parent.txt": "hand\n"
+      }
+    },
+    {
+      "name": "a-file-named-like-the-check-rename-is-its-own-file",
+      "files": {
+        "gen.aontu": "out: project(\".\", [file({name: \"keep.txt\", exclude: \"keep.txt\"}, [\"g\"]) file(\".aontu-check-excluded-1\", [\"x\"])])\n"
+      },
+      "steps": [
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "build/keep.txt": "hand\n"
+          }
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "edit": {
+            "build/.aontu-check-excluded-1": "hand\n"
+          }
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 1,
+          "out": "content: .aontu-check-excluded-1\n",
+          "err": ""
+        },
+        {
+          "args": [
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        },
+        {
+          "args": [
+            "--check",
+            "{dir}/gen.aontu",
+            "{dir}/build"
+          ],
+          "code": 0,
+          "out": "",
+          "err": ""
+        }
+      ],
+      "after": {
+        "build/.aontu-check-excluded-1": "x\n",
+        "build/keep.txt": "hand\n"
+      }
+    },
+    {
       "name": "a-folder-of-generators-is-one-run",
       "files": {
         "gen/a.aontu": "out: file(\"a.txt\", [\"a\"])\n",
