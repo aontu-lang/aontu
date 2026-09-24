@@ -326,14 +326,13 @@ decided by the tree rather than by the command:
 
 | refusal | exit |
 |---|---|
-| the tree root is a `File` with no `name` | 4 |
+| a `File` anywhere in the tree with no `name` | 4 |
 | the tree is refused before any write: an absolute or climbing `Project` folder, or a `props` that is not a map | 4 |
 
 A climbing `Project` folder is refused while the tree is still data, at
 exit 4; a climbing `File` or `Folder` name is refused by the write, at
-exit 2. The nameless-`File` guard reads the tree root alone, so a
-hand-written nameless `File` nested inside a `Project` renders and
-writes a file called `undefined`.
+exit 2. `render` refuses a nameless `File` wherever it sits in the
+tree, and names its path, such as `$.out.children.0`.
 
 ## What `aontu trace` reports
 

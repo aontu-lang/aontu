@@ -539,16 +539,6 @@
 #   explanation both print. The full text earns rows here once Go
 #   agrees.
 #
-# ENTRY (2026-09-17): a `file` node carrying no `props`.
-#
-#   ISSUE: #241. REASON: what a nameless `File` writes belongs to the
-#   generator runtime, not to either port of this engine, so the fix is a
-#   jostraca change.
-#
-#   TypeScript writes a file named `undefined`; Go refuses the run. No
-#   aontu generator reaches it, because `file()` requires a name, so it
-#   is recorded rather than pinned.
-#
 # ---------------------------------------------------------------------
 #
 # OPEN -- the SITE an alias refusal points at, for a value the parse
