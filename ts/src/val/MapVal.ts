@@ -35,7 +35,7 @@ import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal } from './BagVal'
+import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
@@ -226,7 +226,14 @@ class MapVal extends BagVal {
         let oval: Val
         // No `undefined !== child` here: propagateMarks above already
         // dereferenced it, so a missing child would have thrown there.
-        if (!spread_cj.isTop
+        if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
+          oval = child.isAbsent ? child :
+            unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
+              child, TOP, 'map-own')
+          // Decided to be there: the template applies next pass.
+          done = done && oval.isAbsent
+        }
+        else if (!spread_cj.isTop
           && (child as any)._spr === spreadId(spread_cj)) {
           oval = child.done ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
@@ -309,7 +316,10 @@ class MapVal extends BagVal {
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'map-peer')
 
-          if (this.spread.cj) {
+          if (this.spread.cj && undecided(oval)) {
+            done = false
+          }
+          else if (this.spread.cj && !oval.isAbsent) {
             // Same apply-once discipline as the own-key loop: once the
             // constraint is merged into the value (marked with the
             // constraint's id), later passes only self-unify.

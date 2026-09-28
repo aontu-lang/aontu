@@ -54,6 +54,9 @@ mod-local-file-needs-a-prefix	errc	x: @"config.json"	module_local
 mod-local-file-message	err	x: @"config.json"	local files need a ./ prefix: config.json (write @"./config.json")
 mod-local-file-in-a-directory	errc	x: @"my.dir/data.yaml"	module_local
 mod-local-aontu-file	errc	x: @"local.aontu"	module_local
+# The withdrawn `.aon` is a file name, never a module: refused by name.
+mod-withdrawn-aon-extension	errc	x: @"old.aon"	include_extension
+mod-withdrawn-aon-message	err	x: @"old.aon"	include not readable: old.aon (extension: .aon)
 mod-unknown-extension-is-a-package	err	x: @"corp.example/schemas/v2.beta"	module not fetched: corp.example/schemas/v2.beta (run: aontu sync)
 # AN ALIAS RESOLVES BY LOOKUP, NEVER BY SHAPE (CLI.0.md §3b): the
 # consumer's pkg.aontu names the package it stands for, and the vendor

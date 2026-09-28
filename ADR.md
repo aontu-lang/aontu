@@ -71,6 +71,7 @@ capability decision is the phase rows it governed in
 | [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
+| [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 
 ---
 
@@ -3747,9 +3748,10 @@ kinds and the concrete values and below the constraint algebra.
   `[&: ...]`) is `func_arity` / `listval_no_gen` rather than a section
   that vanishes. That is ADR-034's territory, not this decision's --
   the operator rule above holds wherever absence generates at all --
-  and it is filed as [BUGS.md §94](use-cases/BUGS.md). Until it is
-  closed, the heading and its rows vanish together only where no
-  schema constrains the list.
+  and it is filed as [BUGS.md §94](use-cases/BUGS.md). **Closed
+  2026-09-28** by
+  [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided):
+  a container template waits for a member that has not decided.
 - **A pinned row changed meaning.** `edge-plus-lists` pinned
   `mapval_no_gen` for `[1]+[2]`; it now pins the concatenation. The row
   recorded what `+` did not do, not a decision that it should not.
@@ -4429,3 +4431,55 @@ keeps both spellings resolving, and defers the decision rather than
 making it — with no condition that would ever end it, which is the
 failure mode [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series)
 names in its own context.
+
+## ADR-043 — A container template waits for a member that has not decided
+
+**Date:** 2026-09-28
+**Status:** Accepted
+
+### Context
+
+[ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made)
+made absence a value: `maybe(x)` answers `x` when it exists and an
+absence when it does not, and a list or map drops an absent member
+without leaving a hole. Absence is the unit of `&`, so `absent & T` is
+`T`.
+
+A container template (`[&: T]`, `{&: T}`) applies `T` to every member,
+and it applies it when it first meets the member. A `maybe(...)` member
+has not decided at that moment: it is a pending call, not yet a value
+or an absence. The template folds into it, and when the call later
+answers absence, the unit rule leaves `T` standing where the member
+was. A template does not generate, so the member is refused, and the
+refusal depends on the template's shape (`listval_no_gen` for a kind,
+`empty` or `disjunct_no_gen` for a disjunction, `mapval_required` for a
+closed map), and the disjunction case refused with a different code
+in each port. [BUGS.md §94](use-cases/BUGS.md) records the shapes. A
+partial fix that let the absence absorb the template worked for the
+kind case and no other, and was not landed.
+
+### Decision
+
+A container template does not apply to a member that has not decided
+whether it is there. While a member is a pending `maybe(...)`, the
+template waits; when the member answers a value, the template applies
+to it as to any member; when it answers absence, the template never
+applies, and the container drops the member exactly as it would
+without a template.
+
+A key a schema DECLARES is unaffected: `{a:string, b:string}` against
+`{a:"p", b:maybe($.gone)}` is still `mapval_no_gen`, because the
+document declines to supply a key the schema requires.
+
+### Consequences
+
+- The fold order changes for one case only: a template now folds into
+  a `maybe(...)` member one pass later, after the call has answered.
+  Every other member meets the template when it did before.
+- An optional member written as a list element of a constrained list
+  (`decls: [{...} maybe($.note.section)]` under `[&: T]`) drops cleanly,
+  which is the spelling ADR-037 left out of reach.
+- The disjunction parity break goes with the refusal: both ports drop
+  the member.
+- Pinned by the `maybe-template-*` rows in `test/spec/maybe.tsv`, in
+  both ports.

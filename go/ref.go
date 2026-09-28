@@ -287,23 +287,28 @@ func pendingMarkWrapper(v Val) bool {
 	return false
 }
 
-// A copy takes `x` from a pending nested `hide(x)`/`type(x)`.
+// A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
+// wrapper is left for the caller, which defers on it.
 func dropPendingMarkWrappers(v Val) Val {
-	if fv, ok := v.(*FuncVal); ok && ("type" == fv.name || "hide" == fv.name) &&
-		DONE != fv.dc && 0 < len(fv.peg) {
-		return dropPendingMarkWrappers(fv.peg[0])
-	}
 	switch n := v.(type) {
 	case *MapVal:
 		for _, k := range n.keys {
-			n.peg[k] = dropPendingMarkWrappers(n.peg[k])
+			n.peg[k] = dropMarkWrapper(n.peg[k])
 		}
 	case *ListVal:
 		for i, e := range n.peg {
-			n.peg[i] = dropPendingMarkWrappers(e)
+			n.peg[i] = dropMarkWrapper(e)
 		}
 	}
 	return v
+}
+
+func dropMarkWrapper(v Val) Val {
+	if fv, ok := v.(*FuncVal); ok && ("type" == fv.name || "hide" == fv.name) &&
+		DONE != fv.dc && 0 < len(fv.peg) {
+		return dropMarkWrapper(fv.peg[0])
+	}
+	return dropPendingMarkWrappers(v)
 }
 
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {

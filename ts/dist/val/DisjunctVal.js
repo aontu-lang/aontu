@@ -293,12 +293,11 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         return super.gen(ctx);
     }
-} /* node:coverage ignore next 8 */
+}
 exports.DisjunctVal = DisjunctVal;
 // Generated output with the number KINDS the JSON loses: `1` and
 // `1.0` generate the same digits, and are still different values.
-function genShape(val, out) {
-    const v = true === val?.isPref ? val.peg : val;
+function genShape(v, out) {
     if ('number' === typeof out && true === v?.isScalar) {
         return (true === v.isInteger ? 'i' : true === v.isNumber ? 'f' : 'n') + (0, exactjson_1.exactJSON)(out);
     }
@@ -309,5 +308,5 @@ function genShape(val, out) {
         return '[' + out.map((o, i) => genShape(v.peg[i], o)).join(',') + ']';
     }
     return (0, exactjson_1.exactJSON)(out);
-}
+} /* node:coverage ignore next 8 */
 //# sourceMappingURL=DisjunctVal.js.map

@@ -24,9 +24,11 @@ const BigDecimalVal_1 = require("./BigDecimalVal");
 // class it has no rule for. A key cannot contain a NUL, so this can never
 // match, which turns a silent path-shortening bug into a visible miss.
 const UNSPELLABLE_SEGMENT = '\u0000unspellable';
-// A copy takes `x` from a pending nested `hide(x)`/`type(x)`.
+// A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
+// wrapper is left for the caller, which defers on it.
 function dropPendingMarkWrappers(v) {
-    return (0, utility_1.walk)(v, (_key, val) => (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
+    return (0, utility_1.walk)(v, (key, val) => undefined !== key &&
+        (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
         null != val.peg?.[0] ? val.peg[0] : val);
 }
 function pendingMarkWrapper(v) {
@@ -562,6 +564,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
             this.prefix ? 'prefix' : '',
         ].filter(p => '' != p).join(',');
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 exports.RefVal = RefVal;
 //# sourceMappingURL=RefVal.js.map

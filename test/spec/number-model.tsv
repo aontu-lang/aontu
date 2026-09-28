@@ -240,6 +240,7 @@ upper-no-arg-err	err	x:upper()	Cannot resolve value
 lower-no-arg-err	err	x:lower()	Cannot resolve value
 int-float-disjunct-does-not-generate	errc	a: 1|1.0	disjunct_no_gen
 int-float-disjunct-in-a-list-does-not-generate	errc	a: [1|1.0]	disjunct_no_gen
+int-float-list-alternatives-do-not-generate	errc	a: [1]|[1.0]	disjunct_no_gen
 int-decimal-disjunct-does-not-generate	errc	a: 1|0d1	disjunct_no_gen
 int-float-map-disjunct-does-not-generate	errc	a: {x:1}|{x:1.0}	disjunct_no_gen
 same-kind-disjunct-generates	gens	a: 1|1	{"a":1}

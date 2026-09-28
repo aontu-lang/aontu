@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
 exports.sizingResidue = sizingResidue;
 exports.bagGenable = bagGenable;
+exports.undecided = undecided;
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const Val_1 = require("./Val");
@@ -200,5 +201,9 @@ function bagGenable(child) {
         || true === child.isDisjunct
         || true === child.isNil
         || undefined !== sizingResidue(child);
+}
+// A container template waits for a member that has not decided (ADR-043).
+function undecided(child) {
+    return true === child.isMaybeFunc && !child.done;
 }
 //# sourceMappingURL=BagVal.js.map

@@ -168,7 +168,17 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		islot := append(cp(dbase), itoa(i))
 		var ev Val
-		if !isTop(spreadCj) && sprOf(e) == spreadCj {
+		if !isTop(spreadCj) && (isAbsent(e) || undecided(e)) {
+			ev = e
+			if !isAbsent(e) {
+				ctx.slot = islot
+				ev = unite(ctx, e, top())
+				// Decided to be there: the template applies next pass.
+				if !isAbsent(ev) {
+					done = false
+				}
+			}
+		} else if !isTop(spreadCj) && sprOf(e) == spreadCj {
 			if e.Dc() == DONE {
 				ev = e
 			} else {
@@ -221,7 +231,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			} else {
 				ctx.slot = islot
 				uv = unite(ctx, pe, top())
-				if l.spread != nil {
+				if l.spread != nil && undecided(uv) {
+					done = false
+				} else if l.spread != nil && !isAbsent(uv) {
 					sc := spreadCloneFor(spreadCj, islot, ctx)
 					ctx.slot = islot
 					uv = unite(ctx, uv, sc)
@@ -262,4 +274,10 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		propagateMarks(peer, out)
 	}
 	return out
+}
+
+// A container template waits for a member that has not decided (ADR-043).
+func undecided(v Val) bool {
+	f, ok := v.(*FuncVal)
+	return ok && "maybe" == f.name && DONE != f.Dc()
 }

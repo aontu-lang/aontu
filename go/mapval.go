@@ -556,7 +556,17 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		kslot := append(cp(dbase), k)
 		var cv Val
-		if !isTop(spreadCj) && sprOf(child) == spreadCj {
+		if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
+			cv = child
+			if !isAbsent(child) {
+				ctx.slot = kslot
+				cv = unite(ctx, child, top())
+				// Decided to be there: the template applies next pass.
+				if !isAbsent(cv) {
+					done = false
+				}
+			}
+		} else if !isTop(spreadCj) && sprOf(child) == spreadCj {
 			if child.Dc() == DONE {
 				cv = child
 			} else {
@@ -620,7 +630,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// A spread on the receiving map also applies to peer keys —
 			// once per child, same apply-once discipline as the own-key
 			// loop (the peer-loop `_spr` stamp in TS MapVal.unify).
-			if m.spread != nil && sprOf(uv) != spreadCj {
+			if m.spread != nil && undecided(uv) {
+				done = false
+			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
 				uv = unite(ctx, uv, sc)

@@ -161,7 +161,13 @@ class MapVal extends BagVal_1.BagVal {
                 let oval;
                 // No `undefined !== child` here: propagateMarks above already
                 // dereferenced it, so a missing child would have thrown there.
-                if (!spread_cj.isTop
+                if (!spread_cj.isTop && (child.isAbsent || (0, BagVal_1.undecided)(child))) {
+                    oval = child.isAbsent ? child :
+                        (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, TOP, 'map-own');
+                    // Decided to be there: the template applies next pass.
+                    done = done && oval.isAbsent;
+                }
+                else if (!spread_cj.isTop
                     && child._spr === (0, Val_1.spreadId)(spread_cj)) {
                     oval = child.done ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, TOP, 'map-own');
@@ -223,7 +229,10 @@ class MapVal extends BagVal_1.BagVal {
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'map-peer');
-                    if (this.spread.cj) {
+                    if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
+                        done = false;
+                    }
+                    else if (this.spread.cj && !oval.isAbsent) {
                         // Same apply-once discipline as the own-key loop: once the
                         // constraint is merged into the value (marked with the
                         // constraint's id), later passes only self-unify.

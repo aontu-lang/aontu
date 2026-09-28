@@ -2854,9 +2854,10 @@ keys: `{k:"frag", n: emit(maybe($.tags), t)}` drops `n` and keeps a
 `{k:"frag"}` behind. Write the whole element as the optional thing, not
 one of its fields.
 
-**A constrained list refuses it.** Absence leaves a plain list without
-a hole, but a list carrying a spread meets every element against the
-spread's template, and absence is not a member that template admits:
+**A constrained list drops it too.** A list or map carrying a spread
+applies the template to a member only once the member has decided
+whether it is there. An absent member never meets the template, so it drops exactly as it
+does from a plain list:
 
 <!-- test: scenario maybe-under-a-spread -->
 <!-- test: run -->
@@ -2864,15 +2865,18 @@ spread's template, and absence is not a member that template admits:
 $ echo 'x: ["a", maybe($.gone)]' | aontu -c
 {"x":["a",maybe()]}
 $ echo 'x: [&: string]  x: ["a", maybe($.gone)]' | aontu
-[aontu/listval_no_gen]: Cannot resolve value at path $.x.1
-...
-$ echo $?
-1
+{
+  "x": [
+    "a"
+  ]
+}
 ```
 
-So an optional member of a list a schema constrains is written as an
-optional KEY of the map that holds it, or the spread is dropped from
-the list.
+A member that answers a value meets the template like any other, so
+`maybe($.v)` with `v: 1` under `[&: string]` is still a conflict. A key
+a schema DECLARES is a different case: `{a:string, b:string}` against
+`{a:"p", b:maybe($.gone)}` is `mapval_no_gen`, because the document
+declines to supply a key the schema requires.
 
 ## Ordering: `sort`
 

@@ -74,3 +74,24 @@ maybe-meets-top-left	canon	x:maybe($.gone)\ny:$.x & any	{"x":maybe(),"y":maybe()
 maybe-meets-top-right	canon	x:maybe($.gone)\ny:any & $.x	{"x":maybe(),"y":maybe()}
 maybe-meets-absence	canon	b:maybe($.gone) & maybe($.gone)	{"b":maybe()}
 maybe-referenced-meets-value	canon	x:maybe($.gone)\ny:$.x & 1	{"x":maybe(),"y":1}
+# A CONTAINER TEMPLATE WAITS FOR A MEMBER THAT HAS NOT DECIDED
+# (ADR-043): an absent member is dropped as it is with no template, a
+# present one meets the template like any member, and a key a schema
+# DECLARES is still refused.
+maybe-template-list-kind-drops	gens	x: [&: string]\nx: ["a", maybe($.gone)]	{"x":["a"]}
+maybe-template-list-disjunct-drops	gens	x: [&: string|number]\nx: ["a", maybe($.gone)]	{"x":["a"]}
+maybe-template-list-closed-map-drops	gens	x: [&: close({k:string})]\nx: [{k:"a"}, maybe($.gone)]	{"x":[{"k":"a"}]}
+maybe-template-list-inline-drops	gens	x: [&: string, "a", maybe($.gone)]	{"x":["a"]}
+maybe-template-map-drops	gens	x: {&: string}\nx: {a: "p", b: maybe($.gone)}	{"x":{"a":"p"}}
+maybe-template-map-inline-drops	gens	x: {&: string, a: "p", b: maybe($.gone)}	{"x":{"a":"p"}}
+maybe-template-ref-type-drops	gens	T: type(string)\nx: [&: $.T]\nx: ["a", maybe($.gone)]	{"x":["a"]}
+maybe-template-type-map-drops	gens	T: type({k: string})\nx: {&: $.T}\nx: {a: {k:"p"}, b: maybe($.gone)}	{"x":{"a":{"k":"p"}}}
+maybe-template-declared-key-refuses	errc	x: {a:string, b:string}\nx: {a:"p", b:maybe($.gone)}	mapval_no_gen
+maybe-template-present-applies	gens	v: "q"\nx: [&: string]\nx: ["a", maybe($.v)]	{"v":"q","x":["a","q"]}
+maybe-template-present-fills-default	gens	v: {}\nx: [&: {k: *"d" | string}]\nx: [maybe($.v)]	{"v":{},"x":[{"k":"d"}]}
+maybe-template-present-later-applies	gens	x: [&: string]\nx: ["a", maybe($.y.z)]\ny: z: "late"	{"x":["a","late"],"y":{"z":"late"}}
+maybe-template-present-conflicts	errc	v: 1\nx: [&: string]\nx: ["a", maybe($.v)]	no_scalar_unify
+maybe-template-present-conflicts-inline	errc	v: 1\nx: [&: string, "a", maybe($.v)]	no_scalar_unify
+maybe-template-map-present-conflicts	errc	v: 1\nx: {&: string, a: "p", b: maybe($.v)}	no_scalar_unify
+maybe-template-closed-present-refuses	errc	v: {k:"a", z:1}\nx: {&: close({k:string})}\nx: {b: maybe($.v)}	closed
+maybe-template-closed-list-present-refuses	errc	v: {k:"a", z:1}\nx: [&: close({k:string})]\nx: [maybe($.v)]	closed

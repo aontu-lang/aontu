@@ -84,7 +84,13 @@ class ListVal extends BagVal_1.BagVal {
                 const child = this.peg[key];
                 (0, utility_1.propagateMarks)(this, child);
                 let oval;
-                if (!spread_cj.isTop
+                if (!spread_cj.isTop && (child.isAbsent || (0, BagVal_1.undecided)(child))) {
+                    oval = child.isAbsent ? child :
+                        (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, TOP, 'list-own');
+                    // Decided to be there: the template applies next pass.
+                    done = done && oval.isAbsent;
+                }
+                else if (!spread_cj.isTop
                     && child._spr === (0, Val_1.spreadId)(spread_cj)) {
                     oval = child.done ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, TOP, 'list-own');
@@ -138,7 +144,10 @@ class ListVal extends BagVal_1.BagVal {
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'list-peer');
-                    if (this.spread.cj) {
+                    if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
+                        done = false;
+                    }
+                    else if (this.spread.cj && !oval.isAbsent) {
                         let key_spread_cj = spread_cj.spreadClone(peerctx);
                         if (undefined !== peerctx.prov) {
                             (0, provenance_1.markSpread)(key_spread_cj);

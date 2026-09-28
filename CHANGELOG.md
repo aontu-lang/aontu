@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### An absent member drops under a container template (#200)
+
+Both ports, by ADR-043. A `[&: T]` or `{&: T}` template now waits while
+a member is a pending `maybe(...)`: when the member answers absence it
+is dropped exactly as it is from a plain list, and when it answers a
+value the template applies to it as to any member. `x: [&: string]`
+with `x: ["a", maybe($.gone)]` generates `{"x":["a"]}` where it was
+`listval_no_gen`, and the `[&: string|number]` form no longer refuses
+with a different code in each port. A key a schema declares is still
+`mapval_no_gen`. Rows in `test/spec/maybe.tsv`.
+
 ### A failed child stops at its cause (#233)
 
 Both ports. A component function (`file`, `folder`, ...) handed a child
