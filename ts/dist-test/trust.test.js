@@ -660,10 +660,10 @@ function firstCode(fn) {
         Fs.writeFileSync(entry, `a:@"${(0, srcpath_1.srcPath)(w.dir)}/secret.aontu"`);
         const read = (f) => Fs.readFileSync(f, 'utf8');
         const open = (0, cli_1.replCommand)({ mode: 'json', jsonl: true }, ':load ' + entry, read);
-        Assert.match(open.out, /outside/);
+        Assert.match(open.out, /secret\W+outside/);
         const shut = (0, cli_1.replCommand)({ mode: 'json', jsonl: true, trust: { kind: 'none', textExt: [] } }, ':load ' + entry, read);
         Assert.match(shut.out, /include denied/);
-        Assert.doesNotMatch(shut.out, /outside/);
+        Assert.doesNotMatch(shut.out, /secret\W+outside/);
     });
     (0, node_test_1.test)('trust-usage-errors-exit-2', () => {
         for (const args of [

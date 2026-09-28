@@ -425,6 +425,33 @@ const notFoundMetaKey = reservedKeyPrefix + "notfound"
 type notFoundSink struct {
 	msg  string
 	code string
+	// Where it happened; an included file's own path and text for a fault inside one.
+	row, col int
+	url, src string
+	marker   string
+}
+
+// includeSite places a refused include at its `@`, in the file that writes it.
+func includeSite(ctx *jsonic.Context, sink *notFoundSink, path string) {
+	for _, t := range []*jsonic.Token{ctx.V2, ctx.V1, ctx.T0} {
+		if nil == t || "#ST" != t.Name || t.Val != path {
+			continue
+		}
+		at := strings.LastIndexByte(ctx.Lex.Src[:t.SI], '@')
+		if at < 0 { //coverage:ignore an include's string always follows its @
+			return
+		}
+		sink.row, sink.col = rowCol(ctx.Lex.Src, at)
+		sink.url, sink.src = nestedURL(ctx), ctx.Lex.Src
+		return
+	}
+}
+
+// The included file being parsed, or "" at the entry, which has no multisource meta.
+func nestedURL(ctx *jsonic.Context) string {
+	ms, _ := ctx.Meta["multisource"].(map[string]any)
+	path, _ := ms["path"].(string)
+	return path
 }
 
 func recordNotFound(ctx *jsonic.Context, path string) {
@@ -446,6 +473,7 @@ func recordNotFoundMsg(ctx *jsonic.Context, msg string) {
 	if "" == sink.msg {
 		sink.msg = msg
 		sink.code = "multisource_not_found"
+		includeSite(ctx, sink, strings.TrimPrefix(msg, "source not found: "))
 	}
 }
 
@@ -474,10 +502,26 @@ func aonProcessor(
 	ctx *jsonic.Context, j *jsonic.Jsonic,
 ) {
 	multisource.JsonicProcessor(res, opts, ctx, j)
+	if je, ok := res.Err.(*jsonic.JsonicError); ok {
+		recordNestedSyntax(ctx, je, res)
+	}
 	if "" == res.Full { //coverage:ignore a resolution always carries its full path
 		return
 	}
 	stampResolved(res.Val, res.Full)
+}
+
+// A syntax error inside an included file is reported there, not at its `@`.
+func recordNestedSyntax(ctx *jsonic.Context, je *jsonic.JsonicError,
+	res *multisource.Resolution) {
+	sink, ok := ctx.Meta[notFoundMetaKey].(*notFoundSink)
+	if !ok || "" != sink.msg {
+		return
+	}
+	sink.msg, _, _ = strings.Cut(je.Detail, "\n")
+	sink.code, sink.marker = "syntax", je.Code
+	sink.row, sink.col = je.Row, je.Col
+	sink.url, sink.src = res.Full, res.Src
 }
 
 func stampResolved(node any, full string) {

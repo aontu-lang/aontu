@@ -718,3 +718,11 @@ func TestDisplayFileNamesTheIncludeAsTheEntryReachesIt(t *testing.T) {
 		t.Fatalf("relative url: %q", got)
 	}
 }
+
+// An error that carries no position reads as unplaced, never as 0:0.
+func TestParseFindingUnplacedError(t *testing.T) {
+	f := parseFinding("x.aontu", "entry", &AontuError{Msg: "m", Code: "max_depth"})
+	if s := f.Sites[0]; -1 != s.Row || -1 != s.Col {
+		t.Fatalf("want -1:-1, got %d:%d", s.Row, s.Col)
+	}
+}

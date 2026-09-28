@@ -116,7 +116,8 @@ port: *9090|integer
 <!-- test: run -->
 ```sh
 $ aontu main.aontu
-module integrity: corp.example/schemas/service expected aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E got aon1-Bd4OQlOyzyJcXZvYbVcV7NZbMJGGxQH6GtNctkC26VA
+[aontu/module_integrity]: module integrity: corp.example/schemas/service expected aon1-oQs6Ng6XxP2FHQGTYescREGDrDPfLLW1Liq4OS8Gs2E got aon1-Bd4OQlOyzyJcXZvYbVcV7NZbMJGGxQH6GtNctkC26VA
+...
 $ echo $?
 1
 ```

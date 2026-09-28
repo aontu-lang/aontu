@@ -814,13 +814,13 @@ describe('trust-cli', () => {
 
     const open = replCommand(
       { mode: 'json', jsonl: true }, ':load ' + entry, read)
-    Assert.match(open.out, /outside/)
+    Assert.match(open.out, /secret\W+outside/)
 
     const shut = replCommand(
       { mode: 'json', jsonl: true, trust: { kind: 'none', textExt: [] } },
       ':load ' + entry, read)
     Assert.match(shut.out, /include denied/)
-    Assert.doesNotMatch(shut.out, /outside/)
+    Assert.doesNotMatch(shut.out, /secret\W+outside/)
   })
 
   test('trust-usage-errors-exit-2', () => {

@@ -3592,7 +3592,8 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+...
 $ echo $?
 1
 ```
@@ -4103,7 +4104,8 @@ rows: @"./rows.csv"
 <!-- test: run -->
 ```sh
 $ aontu main.aontu
-include not readable: ./rows.csv (extension: .csv)
+[aontu/include_extension]: include not readable: ./rows.csv (extension: .csv)
+...
 $ echo $?
 1
 ```

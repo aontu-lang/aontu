@@ -111,6 +111,7 @@ class Aontu {
         const nil: any = makeNilErr(ac, 'merge_conflict')
         nil.site.row = marker.row
         nil.site.col = marker.col
+        nil.site.url = ac.opts.path ?? this.opts.path
         out = nil
         errs.push(nil)
       }

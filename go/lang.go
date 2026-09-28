@@ -2475,19 +2475,29 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	out, err := lang.ParseMeta(src, meta)
 
 	if nil != trust && "" != trust.denied {
-		return newMap(), &AontuError{Msg: trust.denied, Code: "include_denied"}
+		return newMap(), parseRefusal("include_denied", "include_denied", trust.denied, -1, -1, file, "", "")
 	}
 
 	if nil != trust && "" != trust.modCode {
-		return newMap(), &AontuError{Msg: trust.modMsg, Code: trust.modCode}
+		return newMap(), parseRefusal(trust.modCode, trust.modCode, trust.modMsg, -1, -1, file, "", "")
 	}
 
 	if "" != sink.msg {
-		return newMap(), &AontuError{Msg: sink.msg, Code: sink.code}
+		at, text, tail, marker := file, src, "", sink.code
+		if "" != sink.url {
+			at, text = frameFile(sink.url), sink.src
+		}
+		if "syntax" == sink.code {
+			tail, marker = opCharHint(src), sink.marker
+		}
+		if 0 == sink.row {
+			sink.row, sink.col = -1, -1
+		}
+		return newMap(), parseRefusal(sink.code, marker, sink.msg, sink.row, sink.col, at, text, tail)
 	}
 
 	if err != nil {
-		return newMap(), syntaxError(err, src)
+		return newMap(), syntaxError(err, src, file)
 	}
 	if out == nil {
 		return newMap(), nil
@@ -2518,14 +2528,22 @@ func conflictError(src, file string, off int) *AontuError {
 	}
 }
 
-func syntaxError(err error, src string) *AontuError {
-	row, col := -1, -1
+func syntaxError(err error, src, file string) *AontuError {
+	msg, marker, row, col := err.Error(), "syntax", -1, -1
 	if je, ok := err.(*jsonic.JsonicError); ok {
+		marker = je.Code
+		msg, _, _ = strings.Cut(je.Detail, "\n")
 		row, col = je.Row, je.Col
 	}
+	return parseRefusal("syntax", marker, msg, row, col, file, src, opCharHint(src))
+}
+
+// parseRefusal is a parse-stage failure rendered as every other
+// refusal is (parseMessage), keeping its row and column for vet.
+func parseRefusal(code, marker, msg string, row, col int, file, src, tail string) *AontuError {
 	return &AontuError{
-		Msg:  err.Error() + opCharHint(src),
-		Code: "syntax",
+		Msg:  parseMessage(code, marker, msg, row, col, file, src, tail),
+		Code: code,
 		Row:  row,
 		Col:  col,
 	}

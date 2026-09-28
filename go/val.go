@@ -555,6 +555,63 @@ func (n *NilVal) frame(src, file, attempt string, v, other Val,
 	return b.String()
 }
 
+// parseMessage renders a parse-stage refusal: the failure's own text
+// in place of a value path, under the parser's own code for a syntax
+// error. Twin of parseMessage in ts/src/err.ts.
+func parseMessage(code, marker, msg string, row, col int, file, src, tail string) string {
+	var b strings.Builder
+	b.WriteString("[aontu/" + marker + "]: " + msg)
+	hint := hints[code]
+	if "" != hint {
+		b.WriteString("\n\n")
+		b.WriteString(strinject(strings.TrimRight(hint, "\n"), nil))
+	}
+	b.WriteString("\n")
+	if 0 < row {
+		b.WriteString("\n")
+		b.WriteString(parseFrame(msg, row, col, file, src))
+	}
+	b.WriteString(tail)
+	return b.String()
+}
+
+func parseFrame(msg string, row, col int, file, src string) string {
+	if "" == file {
+		file = "<no-file>"
+	}
+	var b strings.Builder
+	b.WriteString(" " + msg + "\n")
+	lines := strings.Split(src, "\n")
+	line := func(r int) string {
+		if 1 <= r && r <= len(lines) {
+			return lines[r-1]
+		}
+		return ""
+	}
+	fmt.Fprintf(&b, "  %s--> %s:%d:%d\n", ansi("\x1b[34m"), file, row, col)
+	gutter := len(strconv.Itoa(row + 2))
+	excerpt := func(r int) {
+		fmt.Fprintf(&b, "%s  %*d | %s%s\n",
+			ansi("\x1b[34m"), gutter, r, ansi("\x1b[0m"), line(r))
+	}
+	// A column past the line's end is its newline, which the canonical
+	// renderer draws below the NEXT line.
+	caret := row
+	if col > len(line(row)) {
+		caret = row + 1
+	}
+	for r := row - 2; r <= caret; r++ {
+		if 1 <= r {
+			excerpt(r)
+		}
+	}
+	b.WriteString(strings.Repeat(" ", 2+gutter+3+col-1))
+	b.WriteString(ansi("\x1b[34m") + "^ " + msg + ansi("\x1b[0m") + "\n")
+	excerpt(caret + 1)
+	excerpt(caret + 2)
+	return b.String()
+}
+
 // rowCol maps a byte offset into src to 1-based row and column, the
 // coordinates jsonic sites carry in TS. A value with no usable
 // position maps to row 1, column 1.

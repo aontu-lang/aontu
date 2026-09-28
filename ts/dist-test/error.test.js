@@ -168,6 +168,45 @@ const err_1 = require("../dist/err");
         }
         (0, expect_1.expect)(err.message).equal("[aontu/mapval_no_gen]: Cannot resolve value at path $.a\n\nThis value was present after unification, and cannot be generated\nbecause it is not a literal value.\n\n Cannot resolve value: any\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: any\n         \u001b[34m^ key a value was: any\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n");
     });
+    (0, node_test_1.it)('full-message-parse-syntax-twin', () => {
+        let err = undefined;
+        try {
+            new aontu_1.Aontu().generate("a:1\nb:]");
+        }
+        catch (e) {
+            err = e;
+        }
+        if (undefined === err) {
+            throw new Error('expected error');
+        }
+        (0, expect_1.expect)(err.message).equal("[aontu/unexpected]: unexpected character(s): ]\n\nThe text is not valid Aontu syntax. The frame points at the\ncharacter the parser stopped on; the fault is usually just before\nit, and commenting out the suspect lines with # isolates which.\n\n unexpected character(s): ]\n  \u001b[34m--> <no-file>:2:3\n\u001b[34m  1 | \u001b[0ma:1\n\u001b[34m  2 | \u001b[0mb:]\n        \u001b[34m^ unexpected character(s): ]\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n");
+    });
+    (0, node_test_1.it)('full-message-parse-include-twin', () => {
+        let err = undefined;
+        try {
+            new aontu_1.Aontu().generate("a:1\nb: @\"./nosuchfile.aontu\"");
+        }
+        catch (e) {
+            err = e;
+        }
+        if (undefined === err) {
+            throw new Error('expected error');
+        }
+        (0, expect_1.expect)(err.message).equal("[aontu/multisource_not_found]: source not found: ./nosuchfile.aontu\n\nThe source named here was not found. For a file include, check the\npath as written, which is resolved against the document that writes\nit; for an `aontu:` name the message lists the models the language\nsupplies, and a name outside that set is never looked for on disk.\n\n source not found: ./nosuchfile.aontu\n  \u001b[34m--> <no-file>:2:4\n\u001b[34m  1 | \u001b[0ma:1\n\u001b[34m  2 | \u001b[0mb: @\"./nosuchfile.aontu\"\n         \u001b[34m^ source not found: ./nosuchfile.aontu\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n");
+    });
+    (0, node_test_1.it)('full-message-parse-unprintable-twin', () => {
+        let err = undefined;
+        try {
+            new aontu_1.Aontu().generate("x: \"abc\n");
+        }
+        catch (e) {
+            err = e;
+        }
+        if (undefined === err) {
+            throw new Error('expected error');
+        }
+        (0, expect_1.expect)(err.message).equal("[aontu/unprintable]: unprintable character: \n\nThe text is not valid Aontu syntax. The frame points at the\ncharacter the parser stopped on; the fault is usually just before\nit, and commenting out the suspect lines with # isolates which.\n\n unprintable character: \n  \u001b[34m--> <no-file>:1:8\n\u001b[34m  1 | \u001b[0mx: \"abc\n\u001b[34m  2 | \u001b[0m\n             \u001b[34m^ unprintable character: \u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n");
+    });
     (0, node_test_1.it)('full-message-twin', () => {
         let err = undefined;
         try {

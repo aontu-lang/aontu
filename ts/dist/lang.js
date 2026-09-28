@@ -39,6 +39,7 @@ const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
 const Val_1 = require("./val/Val");
 const ctx_1 = require("./ctx");
+const err_1 = require("./err");
 const NilVal_1 = require("./val/NilVal");
 const NullVal_1 = require("./val/NullVal");
 const NumberVal_1 = require("./val/NumberVal");
@@ -1830,6 +1831,25 @@ function arityText(lo, hi) {
     }
     return 'exactly one argument';
 }
+// What a parse-stage refusal says and where: its first line without
+// the renderer's marker, and the file it happened in -- an included
+// file's own text when the fault is inside one.
+function parseRefusal(e, src, path, tail) {
+    const first = String(e.message).split('\n')[0]
+        .replace(/\x1b\[[0-9;]*m/g, '')
+        .replace(/^\[[^\]]*\]:\s*/, '');
+    const nested = 0 < (e.meta?.multisource?.parents?.length ?? 0);
+    return {
+        // The parser's own code names the kind of syntax error.
+        code: e.code,
+        msg: first,
+        row: 'number' === typeof e.lineNumber ? e.lineNumber : -1,
+        col: 'number' === typeof e.columnNumber ? e.columnNumber : -1,
+        url: nested ? e.meta.multisource.path : path,
+        src: nested ? undefined : src,
+        tail,
+    };
+}
 function opCharHint(src) {
     let q = '';
     for (let i = 0; i < src.length; i++) {
@@ -1930,30 +1950,19 @@ class Lang {
             }
         }
         catch (e) {
-            if ('include_denied' === e?.code || 'include_extension' === e?.code ||
-                'multisource_not_found' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code)) {
-                val = new NilVal_1.NilVal({
-                    why: 'parse',
-                    err: new NilVal_1.NilVal({
-                        why: e.code,
-                        msg: e.message,
-                        err: e,
-                    })
-                });
-            }
-            else if (e instanceof jsonic_1.JsonicError || 'JsonicError' === e.constructor.name) {
-                const syntax = new NilVal_1.NilVal({
-                    why: 'syntax',
-                    msg: e.message + opCharHint(src),
-                    err: e,
-                });
-                if ('number' === typeof e.lineNumber) {
-                    syntax.site.row = e.lineNumber;
+            const refused = 'include_denied' === e?.code ||
+                'include_extension' === e?.code ||
+                'multisource_not_found' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code);
+            if (refused || e instanceof jsonic_1.JsonicError || 'JsonicError' === e.constructor.name) {
+                const why = refused ? e.code : 'syntax';
+                const refusal = new NilVal_1.NilVal({ why, err: e });
+                refusal.parse = parseRefusal(e, src, opts?.path ?? this.opts.path, refused ? '' : opCharHint(src));
+                if (!refused) {
+                    refusal.site.row = e.lineNumber;
+                    refusal.site.col = e.columnNumber;
                 }
-                if ('number' === typeof e.columnNumber) {
-                    syntax.site.col = e.columnNumber;
-                }
-                val = new NilVal_1.NilVal({ why: 'parse', err: syntax });
+                (0, err_1.descErr)(refusal, { fs: opts?.fs });
+                val = new NilVal_1.NilVal({ why: 'parse', err: refusal });
             }
             else {
                 throw e;

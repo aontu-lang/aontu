@@ -217,8 +217,9 @@
 #   addsite. Converting at the paren handler, which the Go port had
 #   always done, settled `close(([]%))` outright. `pref(1-3)` then
 #   settled as a wrong ARGUMENT COUNT once arity was checked (#51). The
-#   remaining two agree on the verdict and differ only in trailing
-#   context lines, which is a renderer difference tracked by #50.
+#   remaining two agreed on the verdict and differed only in trailing
+#   context lines, a renderer difference #50 closed on 2026-09-28 by
+#   rendering every parse-stage failure through aontu's own renderer.
 #
 #   The lesson worth keeping: "upstream" was the diagnosis for four
 #   inputs, and was right about none of them. The parser stacks may well

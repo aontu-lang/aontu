@@ -42,7 +42,10 @@ function makeNilErr(ctx, why, av, bv, attempt, details) {
 }
 function descErr(err, errctx) {
     if (err?.isNil) {
-        if (null == err.msg || '' === err.msg) {
+        if ((null == err.msg || '' === err.msg) && null != err.parse) {
+            err.msg = parseMessage(err, errctx);
+        }
+        else if (null == err.msg || '' === err.msg) {
             let v1 = err.primary;
             let v2 = err.secondary;
             let v1src = resolveSrc(v1, errctx);
@@ -120,6 +123,30 @@ function descErr(err, errctx) {
     else {
         return err.map((n) => descErr(n, errctx));
     }
+}
+// A parse-stage refusal: the failure's own text in place of a value
+// path, rendered by the renderer every other refusal uses.
+function parseMessage(err, errctx) {
+    const p = err.parse;
+    const head = errmsg({
+        color: { active: colorActive() },
+        name: 'aontu',
+        code: p.code,
+        txts: { msg: p.msg, hint: getHint(err.why, err.details) },
+    });
+    const frame = 0 < p.row && errmsg({
+        color: { active: colorActive(), line: '\x1b[34m' },
+        txts: { msg: p.msg, site: '' },
+        smsg: p.msg,
+        file: resolveFile(p.url),
+        src: p.src ?? resolveSrc({ site: { url: p.url } }, errctx),
+        row: p.row,
+        col: p.col,
+    });
+    return [head, '\n', frame]
+        .filter((n) => false !== n)
+        .join('\n')
+        .replace(/\n\n/g, '\n') + p.tail;
 }
 function resolveFile(url) {
     const cwd = process.cwd();

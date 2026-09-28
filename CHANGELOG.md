@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### Parse errors render like every other error (#50)
+
+Both ports. A syntax error, a missing include and an include the trust
+profile, the extension table or the module rules refuse are now written
+by aontu's own renderer, the one every unification error already uses,
+so the two ports print them byte for byte alike. A syntax error keeps
+the parser's code in its marker (`[aontu/unexpected]`,
+`[aontu/unprintable]`) and takes its hint from aontu's `syntax` entry;
+a missing include takes the `multisource_not_found` hint. Three things
+change on the way:
+
+- Go's missing include was a bare `source not found:` line; it now has
+  the marker, the hint and a frame at the `@`, as TypeScript's had.
+- A frame names the file as a unification frame does, relative to the
+  working directory, where TypeScript's parse frame printed the resolved
+  absolute path. A conflict-marker frame now names the file in
+  TypeScript too.
+- A fault inside an included file is framed in that file in both ports.
+  Go framed it at the `@` that included it.
+
+The search-path list jsonic printed under a missing include is gone.
+Full-message twins pin the shapes in `ts/test/error.test.ts` and
+`go/hints_test.go`.
+
 ### An absent member drops under a container template (#200)
 
 Both ports, by ADR-043. A `[&: T]` or `{&: T}` template now waits while

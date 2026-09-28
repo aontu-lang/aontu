@@ -465,9 +465,10 @@ func TestTrustCliReplHonoursTheCapability(t *testing.T) {
 		return string(raw), err
 	}
 
+	leaked := regexp.MustCompile(`secret\W+outside`)
 	open := replCommand(
 		replState{Mode: "json", JSONL: true}, ":load "+entry, read)
-	if !strings.Contains(open.Out, "outside") {
+	if !leaked.MatchString(open.Out) {
 		t.Fatalf("default: %q", open.Out)
 	}
 
@@ -475,7 +476,7 @@ func TestTrustCliReplHonoursTheCapability(t *testing.T) {
 		replState{Mode: "json", JSONL: true, Trust: trustArg{kind: "none"}},
 		":load "+entry, read)
 	if !strings.Contains(shut.Out, "include denied") ||
-		strings.Contains(shut.Out, "outside") {
+		leaked.MatchString(shut.Out) {
 		t.Fatalf("none: %q", shut.Out)
 	}
 
