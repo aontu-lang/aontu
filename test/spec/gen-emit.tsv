@@ -191,3 +191,14 @@ emit-replace-blank-piece-untouched	gens	o:emit([{p:z}],{match:{},replace:{P:.p},
 emit-replace-esc-not-a-name	errc	o:emit([{p:x}],{match:{},esc:1,replace:{P:.p},body:["P"]})\n	esc_variant
 emit-match-absent-key-is-a-miss	gens	f:[{n:"a",pk:true},{n:"b"}]\nr:emit($.f,[{match:{pk:true},body:["PK"]},{match:{n:string},body:["COL"]}])	{"f":[{"n":"a","pk":true},{"n":"b"}],"r":["PK","COL"]}
 emit-alias-decl-is-not-a-member	gens	o:emit([{}],{match:{%a=integer},body:[hit]})	{"o":["hit"]}
+#
+# A FAILED CHILD STOPS AT ITS CAUSE. An `emit` that matches nothing,
+# inside a component function, is the one error: the call does not add
+# an `invalid-arg` for the nil it was handed, so the report is the same
+# with and without the `file()` around it.
+emit-none-inside-file	errc	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: file("client.ts", emit($.routes, %route))	emit_none
+emit-none-inside-file-path	err	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: file("client.ts", emit($.routes, %route))	Cannot resolve value at path $.out
+emit-none-inside-file-list	errc	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: file("client.ts", [emit($.routes, %route)])	emit_none
+emit-none-inside-file-list-path	err	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: file("client.ts", [emit($.routes, %route)])	Cannot resolve value at path $.out
+emit-none-bare	errc	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: emit($.routes, %route)	emit_none
+emit-none-bare-path	err	routes: [{ name: "list", verb: "GET" } { name: "create", verb: "POST" }]\n%route = emit(_, { match: verb: GET, body: ["x"] })\nout: emit($.routes, %route)	Cannot resolve value at path $.out

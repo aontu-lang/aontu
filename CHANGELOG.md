@@ -8,6 +8,14 @@ each change affects.
 
 ## Unreleased
 
+### A failed child stops at its cause (#233)
+
+Both ports. A component function (`file`, `folder`, ...) handed a child
+that already failed returns that failure instead of adding an
+`invalid-arg` for it, so an `emit` that matches nothing inside `file()`
+is one `emit_none` at the field, in both ports, exactly as it is without
+the wrapper. The `divergent.tsv` entry is gone; rows in `gen-emit.tsv`.
+
 ### JSON Schema export drops what never generates (#279)
 
 Both ports. A `type()`-marked map child and a `hide()`- or
