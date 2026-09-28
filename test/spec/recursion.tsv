@@ -64,7 +64,7 @@ hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h
 # reflexivity law: every value admits itself, and identity is the hash
 # form (use-cases/BUGS.md 64).
 subsume-identical-recursion-is-reflexive	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Node})	{"findings":[],"verdict":"subsumes"}
-subsume-different-recursions-are-undecided	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Other})\nOther: hide({v: integer, next?: $.Other})	{"findings":[{"actual":"$.Other","class":"compat","code":"sub_unresolved","expected":"$.Node","path":"$.Node.next","severity":"error","sites":[{"col":32,"file":"general","len":1,"role":"general","row":1,"src":"$","value":"$.Node"},{"col":32,"file":"specific","len":1,"role":"specific","row":1,"src":"$","value":"$.Other"}]}],"verdict":"undecided"}
+subsume-different-recursions-are-undecided	subsume	Node: hide({v: integer, next?: $.Node})	Node: hide({v: integer, next?: $.Other})\nOther: hide({v: integer, next?: $.Other})	{"findings":[{"actual":"$.Other","class":"compat","code":"sub_unresolved","expected":"$.Node","message":"no subsumption rule covers this pair of value formers","path":"$.Node.next","severity":"error","sites":[{"col":32,"file":"general","len":1,"role":"general","row":1,"src":"$","value":"$.Node"},{"col":32,"file":"specific","len":1,"role":"specific","row":1,"src":"$","value":"$.Other"}]}],"verdict":"undecided"}
 #
 # --- Two schemas, one bag ---------------------------------------------
 # A recursive Step and a Policy that uses it, side by side in one

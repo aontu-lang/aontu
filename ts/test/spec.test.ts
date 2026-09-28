@@ -296,8 +296,8 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `vet report mismatch: ${row.name}`)
   }
   else if ('subsume' === row.mode) {
-    // Same golden discipline as vet: `opts` rides the expect object,
-    // messages are per-port prose and excluded from parity.
+    // Same golden discipline as vet: `opts` rides the expect object.
+    // Messages are part of the golden: the ports word them identically.
     const golden = JSON.parse(row.expect)
     const opts = golden.opts
     delete golden.opts
@@ -306,7 +306,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     Assert.strictEqual(
       exactJSON({
         verdict: report.verdict,
-        findings: report.findings.map(({ message, ...rest }: any) => rest),
+        findings: report.findings,
       }),
       exactJSON(golden),
       `subsume report mismatch: ${row.name}`)

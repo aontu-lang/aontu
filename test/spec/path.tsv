@@ -125,6 +125,6 @@ arg-mid-path-dot	errc	x: {a:{b:1}, y: path(.a..b)}	path_address
 arg-absolute-parent-step	errc	y: path($..a) a:{}	path_address
 
 # --- Subsumption: string does not cover path; kind over value -------
-subsume-string-does-not-cover-path	subsume	d: string	d: path($.a)	{"findings":[{"actual":"path($.a)","class":"compat","code":"compat_narrowed","expected":"string","path":"$.d","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"path","value":"path($.a)"}]}],"verdict":"does_not_subsume"}
+subsume-string-does-not-cover-path	subsume	d: string	d: path($.a)	{"findings":[{"actual":"path($.a)","class":"compat","code":"compat_narrowed","expected":"string","message":"the general kind does not admit the specific scalar","path":"$.d","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"path","value":"path($.a)"}]}],"verdict":"does_not_subsume"}
 subsume-kind-over-value	subsume	d: path	d: path($.a)	{"findings":[],"verdict":"subsumes"}
 subsume-prefix-over-extension	subsume	d: path($.a)	d: path($.a.b)	{"findings":[],"verdict":"subsumes"}

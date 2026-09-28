@@ -109,6 +109,17 @@ func TestFrameGutterWidth(t *testing.T) {
 	}
 }
 
+func TestFullMessageAnyFieldTwin(t *testing.T) {
+	_, err := New().Generate("a: any")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/mapval_no_gen]: Cannot resolve value at path $.a\n\nThis value was present after unification, and cannot be generated\nbecause it is not a literal value.\n\n Cannot resolve value: any\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: any\n         \u001b[34m^ key a value was: any\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
 func TestFullMessageTwin(t *testing.T) {
 	_, err := New().Generate("a:1 a:2")
 	if err == nil {

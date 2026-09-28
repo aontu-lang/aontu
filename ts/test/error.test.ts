@@ -201,6 +201,22 @@ describe('error', function() {
   })
 
 
+
+  it('full-message-any-field-twin', () => {
+    let err: any = undefined
+    try {
+      new Aontu().generate('a: any')
+    }
+    catch (e: any) {
+      err = e
+    }
+    if (undefined === err) {
+      throw new Error('expected error')
+    }
+    expect(err.message).equal("[aontu/mapval_no_gen]: Cannot resolve value at path $.a\n\nThis value was present after unification, and cannot be generated\nbecause it is not a literal value.\n\n Cannot resolve value: any\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: any\n         \u001b[34m^ key a value was: any\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n")
+  })
+
+
   it('full-message-twin', () => {
     let err: any = undefined
     try {

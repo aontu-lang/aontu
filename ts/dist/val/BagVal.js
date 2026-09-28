@@ -154,7 +154,10 @@ class BagVal extends FeatureVal_1.FeatureVal {
                     va = va.peg;
                 }
                 const details = { key: p };
-                (0, err_1.makeNilErr)(ctx, code, va, vb, undefined, details);
+                const nerr = (0, err_1.makeNilErr)(ctx, code, va, vb, undefined, details);
+                if (true === va.isTop) {
+                    nerr.path = [...this.path, p];
+                }
                 break;
             }
         }

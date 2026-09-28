@@ -155,6 +155,19 @@ const err_1 = require("../dist/err");
         }
         (0, expect_1.expect)(err.message).equal("[aontu/scalar_value]: Cannot unify values at path $.é\n\nLiteral scalar values of the same kind can only unify if they are\nexactly equal.\n \nExamples:\n  1 & 1   -> 1    # Does unify (equal Integers);\n  a & a   -> a    # Does unify (equal Strings);\n  1 & 2   -> nil  # Does not unify (unequal Integers);\n  1 & 1.0 -> nil  # Does not unify (kinds: Integer & Float).\n\n Cannot unify value: 2 with value: 1\n  \u001b[34m--> <no-file>:4:6\n\u001b[34m  2 | \u001b[0my: 0\n\u001b[34m  3 | \u001b[0m\"é\": 1\n\u001b[34m  4 | \u001b[0m\"é\": 2\n           \u001b[34m^ value was: 2\u001b[0m\n\u001b[34m  5 | \u001b[0mz: 0\n\u001b[34m  6 | \u001b[0m\n\n Cannot unify value: 1 with value: 2\n  \u001b[34m--> <no-file>:3:6\n\u001b[34m  1 | \u001b[0mx: 0\n\u001b[34m  2 | \u001b[0my: 0\n\u001b[34m  3 | \u001b[0m\"é\": 1\n           \u001b[34m^ value was: 1\u001b[0m\n\u001b[34m  4 | \u001b[0m\"é\": 2\n\u001b[34m  5 | \u001b[0mz: 0\n");
     });
+    (0, node_test_1.it)('full-message-any-field-twin', () => {
+        let err = undefined;
+        try {
+            new aontu_1.Aontu().generate('a: any');
+        }
+        catch (e) {
+            err = e;
+        }
+        if (undefined === err) {
+            throw new Error('expected error');
+        }
+        (0, expect_1.expect)(err.message).equal("[aontu/mapval_no_gen]: Cannot resolve value at path $.a\n\nThis value was present after unification, and cannot be generated\nbecause it is not a literal value.\n\n Cannot resolve value: any\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: any\n         \u001b[34m^ key a value was: any\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n");
+    });
     (0, node_test_1.it)('full-message-twin', () => {
         let err = undefined;
         try {

@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### Four parity fixes (#281, #282, #283, #286)
+
+Both ports now answer these identically:
+
+- An unresolved `1|1.0` (and `1|0d1`, `{x:1}|{x:1.0}`, the list form) is
+  refused with `disjunct_no_gen`: TypeScript's collapse of alternatives
+  that generate the same digits now compares their kinds too.
+- An ungenerated `any` field is reported at the field's path (`$.a`) in
+  TypeScript, as it already was in Go.
+- A key a type instance is missing is reported as `mapval_required` at
+  the instance's path in Go, as it already was in TypeScript.
+- Go's `compat_marks_changed` message names both mark records, as
+  TypeScript's does, and subsume goldens now include each finding's
+  message.
+
 ### An unfilled root is refused (#284)
 
 Both ports. A document that is only `any` or `_` no longer generates

@@ -344,7 +344,7 @@ class DisjunctVal extends JunctionVal {
             firstOut = gout
           }
           else {
-            allSame = exactJSON(gout) === exactJSON(firstOut)
+            allSame = genShape(this.peg[gI], gout) === genShape(this.peg[0], firstOut)
           }
         }
         if (allSame) {
@@ -379,6 +379,24 @@ class DisjunctVal extends JunctionVal {
     return super.gen(ctx)
   }
 } /* node:coverage ignore next 8 */
+
+
+// Generated output with the number KINDS the JSON loses: `1` and
+// `1.0` generate the same digits, and are still different values.
+function genShape(val: any, out: any): string {
+  const v: any = true === val?.isPref ? val.peg : val
+  if ('number' === typeof out && true === v?.isScalar) {
+    return (true === v.isInteger ? 'i' : true === v.isNumber ? 'f' : 'n') + exactJSON(out)
+  }
+  if (null != out && 'object' === typeof out && !Array.isArray(out) && true === v?.isMap) {
+    return '{' + Object.keys(out).sort().map((k) =>
+      JSON.stringify(k) + ':' + genShape(v.peg[k], out[k])).join(',') + '}'
+  }
+  if (Array.isArray(out) && true === v?.isList && v.peg.length === out.length) {
+    return '[' + out.map((o: any, i: number) => genShape(v.peg[i], o)).join(',') + ']'
+  }
+  return exactJSON(out)
+}
 
 
 export {

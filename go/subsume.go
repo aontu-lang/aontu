@@ -2,6 +2,8 @@
 
 package aontu
 
+import "fmt"
+
 // Subsume verdicts.
 const (
 	SubsumeYes       = "subsumes"
@@ -228,7 +230,8 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	if "gen" == st.profile && !st.distributing && nil != g && nil != s &&
 		(g.markedType() != s.markedType() || g.markedHide() != s.markedHide()) {
 		st.record("compat_marks_changed", path, g, s,
-			"marks differ between the general and specific values")
+			fmt.Sprintf("marks differ: general {\"type\":%t,\"hide\":%t}, specific {\"type\":%t,\"hide\":%t}",
+				g.markedType(), g.markedHide(), s.markedType(), s.markedHide()))
 		return subNo
 	}
 

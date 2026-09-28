@@ -605,7 +605,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 					ex = sealChild(ex)
 				}
 				uv = unite(ctx, ex, pc)
-			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() {
+			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
+				!m.markedType() && !m.markedHide() {
 				peg := pc
 				if ev, isex := pc.(*ExpectVal); isex {
 					peg = ev.peg

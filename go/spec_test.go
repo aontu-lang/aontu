@@ -685,8 +685,7 @@ func TestSpec(t *testing.T) {
 					}
 				case "subsume":
 					// Same golden discipline as vet: `opts` rides the
-					// expect object, messages are per-port prose and
-					// excluded from parity.
+					// expect object. Messages are part of the golden.
 					var golden map[string]any
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
@@ -844,7 +843,6 @@ func specSubsumeGolden(t *testing.T, report SubsumeReport) string {
 	findings, _ := out["findings"].([]any)
 	for _, f := range findings {
 		if m, ok := f.(map[string]any); ok {
-			delete(m, "message")
 			delete(m, "hint")
 		}
 	}

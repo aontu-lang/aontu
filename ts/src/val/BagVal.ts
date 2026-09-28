@@ -203,7 +203,10 @@ abstract class BagVal extends FeatureVal {
 
         const details = { key: p }
 
-        makeNilErr(ctx, code, va, vb, undefined, details)
+        const nerr = makeNilErr(ctx, code, va, vb, undefined, details)
+        if (true === (va as any).isTop) {
+          nerr.path = [...this.path, p]
+        }
 
         break
       }
