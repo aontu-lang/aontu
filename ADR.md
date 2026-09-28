@@ -443,10 +443,10 @@ the same boundary the kind gate always had.
 - **This is a breaking language change**, taken deliberately.
   `*'auto'|'literal'|'data'` now means what every consumer already
   believed it means. The one known idiom that leaned on the open
-  override — apidef's machine-emitted `*(x)|top` — keeps its meaning
+  override — apidef's machine-emitted `*(x)|any` — keeps its meaning
   *because* of the gate's shape: the `top` branch admits every
   override, so a deliberately open default states its openness
-  explicitly (`*x | top`).
+  explicitly (`*x | any`).
 - **The `pref_not_instance` lint becomes advisory.** The soundness
   hole it guarded (a generated default the disjunct itself refuses) no
   longer exists; it now marks a default that is admitted only by being
@@ -751,8 +751,8 @@ divergence that only an explicit rule prevents. Pinned by
 
 ### Consequences
 
-- **Breaking.** `1|2`, `null|top` and `({x:1}|{y:2}) & {z:3}` no longer
-  generate. The spelling that decides them is a preference (`*null|top`)
+- **Breaking.** `1|2`, `null|any` and `({x:1}|{y:2}) & {z:3}` no longer
+  generate. The spelling that decides them is a preference (`*null|any`)
   or a value that selects one alternative — which is what the model
   always meant. Documents that relied on the fold were relying on a
   value in no branch of their own disjunction.
@@ -1133,7 +1133,7 @@ default the peer merely satisfies now SURVIVES in canon (`*1 & 1` is
 `*1`, where the star used to be consumed — the generated value is
 unchanged), and that a structural default no longer accepts a value of
 another kind. The replace-anything reading stays spellable as
-`*{p:1} | top`.
+`*{p:1} | any`.
 
 `test/spec/defaults.tsv` (29 rows, both runners) pins the rules;
 `pref_rank_clash` joins the registry.
@@ -1602,7 +1602,7 @@ plain string literal exactly as the tower's leaves refuse each other.
 Generation emits the address string; canon renders the call back,
 which reparses to the same value.
 
-`path()` with no argument is the path **kind**. It promotes: a string
+`path` with no argument is the path **kind**. It promotes: a string
 value that spells an address is admitted as the path value — the
 mirror of `number & 1`, and the bridge that keeps the schema/data
 split intact (the schema writes the kind, plain JSON-shaped data
@@ -1610,7 +1610,7 @@ writes the string, the meet promotes). Promotion happens at the kind,
 never between two concrete values. A string that is not an address
 refuses with the new code `path_address` (class `parse`).
 
-`map()` and `list()` are the container **kinds**: they admit exactly
+`map` and `list` are the container **kinds**: they admit exactly
 what the units admit and default to nothing. The convention this
 establishes: **a value constructor's vacuous call is its kind; the
 literal is its unit.** `refer()` is unaffected — it is a constraint,
@@ -1631,8 +1631,8 @@ uses; the CHANGELOG carries the migration note.
 
 The verbs separate cleanly: `$.a` embeds, `path($.a)` names,
 `refer()` asserts, `rel()` declares. A vocabulary can declare a
-path-valued field (`type({host: path()})`) and settle, which `refer`
-inside a `type()` body cannot. `map()` unmet and `refer()` unresolved
+path-valued field (`type({host: path})`) and settle, which `refer`
+inside a `type()` body cannot. `map` unmet and `refer()` unresolved
 are the same flavour of requiredness at the value and graph levels.
 
 Not done here, recorded as future work in
@@ -1656,7 +1656,7 @@ the shared rows live in `test/spec/path.tsv` and
 
 ADR-015 made paths first-class but left two bridges to the string era
 standing: the path kind PROMOTED a string that spelled an address
-(`path() & "$.a"` became the path value), and `refer()`/`rel()` still
+(`path & "$.a"` became the path value), and `refer()`/`rel()` still
 accepted a bare string as an address, so every pre-ADR-015 document
 kept evaluating unchanged. The cost of the bridges was the ambiguity
 they preserved: whether `"$.a"` in a document was a path depended on
@@ -1673,7 +1673,7 @@ at capture, and a COMPUTED argument — an expression, a reference to a
 string — evaluates first and converts by the same grammar at resolve,
 which keeps addresses buildable (`refer() & path("$.customers." +
 key())`). Everywhere else a string stays a string: the kind does not
-promote (`path() & "$.a"` refuses as `integer & "x"` does), `refer()`
+promote (`path & "$.a"` refuses as `integer & "x"` does), `refer()`
 refuses a string address (`refer_address`), and `rel()` refuses
 string leaves (`rel_address`).
 
@@ -1698,7 +1698,7 @@ the same rule, and the RESOLVED LINK is itself a path value — a
 string link could not meet its own address re-stated.
 
 The string-domain constraints treat a path value as a string with
-more structure: `re()` and `length()` check the spelling, `neq()`
+more structure: `re()` and `len()` check the spelling, `neq()`
 takes path arguments and excludes by path identity (kind AND
 spelling — a plain string that happens to spell the address is not
 excluded), and the pattern/message ARGUMENT positions stay

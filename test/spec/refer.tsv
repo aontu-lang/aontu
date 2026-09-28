@@ -112,7 +112,7 @@ flow-nested-in-another-flow-lands-both-ways	gens	c: {r: rel({t:1}) & [path($.b)]
 # a refer residuates while a node might still be introduced -- by a
 # later conjunct, include or spread, as `link-forward` shows -- and the
 # LAST pass is where the question is answered. A relative address that
-# climbs off the top of the tree is the one shape refused AT ONCE: no
+# climbs off the any of the tree is the one shape refused AT ONCE: no
 # later pass can grow a tree upwards.
 unresolved-node	errc	a: {port:8080}\nb: refer() & path($.nope)	refer_unresolved
 unresolved-node-msg	err	a: {port:8080}\nb: refer() & path($.nope)	Cannot refer value at path $.b
@@ -131,7 +131,7 @@ unresolved-empty-document	errc	b: refer() & path($.nope)	refer_unresolved
 # so its mark never transferred, so generation could not skip the
 # marked subtree and raised `mapval_no_gen` naming the DEFINITION -- a
 # path that mentions neither the link nor the field. `type({p:
-# integer})`, `type({p: path()})` and `type({p: min(1)})` all settled;
+# integer})`, `type({p: path})` and `type({p: min(1)})` all settled;
 # only a link did not. G4 phase 4 recorded the cost against
 # `type({from: refer($.aontu.System.Port)})`, which the last three rows here are.
 #
@@ -140,7 +140,7 @@ unresolved-empty-document	errc	b: refer() & path($.nope)	refer_unresolved
 # which is what keeps the pass loop reaching the pass that decides.
 schema-type-body-holds-a-link	gens	T: type({ p: refer() })\nb: 1	{"b":1}
 schema-type-body-link-canons	canon	T: type({ p: refer() })\nb: 1	{"T":{"p":refer()},"b":1}
-schema-closed-type-body-holds-a-link	gens	T: type({ S: close({ p: refer() & path() }) })\nx: $.T.S & { p: path($.b) }\nb: 1	{"b":1,"x":{"p":"$.b"}}
+schema-closed-type-body-holds-a-link	gens	T: type({ S: close({ p: refer() & path }) })\nx: $.T.S & { p: path($.b) }\nb: 1	{"b":1,"x":{"p":"$.b"}}
 unmet-link-is-still-not-generable	errc	p: refer()\nb: 1	mapval_no_gen
 schema-type-body-holds-a-typed-link	gens	K: type({k: integer})\nT: type({ p: refer($.K) })\nb: 1	{"b":1}
 schema-link-flows-into-the-target	gens	K: type({k: integer})\nT: type({ p: refer($.K) })\nsvc: {k: 1}\nx: $.T & { p: path($.svc) }	{"svc":{"k":1},"x":{"p":"$.svc"}}
@@ -176,7 +176,7 @@ address-hyphen-segment	gens	a: {"A_b-c1":1}\nb: refer() & path("$.a.A_b-c1")	{"a
 # rather than parked in a conjunct, because a conjunct rebuilt every
 # pass grows a level every pass. `two-addresses-conflict` is the row
 # that proves they are not simply dropped.
-held-string-kind	gens	a: {k:1}\nb: refer() & string & path($.a)	{"a":{"k":1},"b":"$.a"}
+held-path-kind	gens	a: {k:1}\nb: refer() & path & path($.a)	{"a":{"k":1},"b":"$.a"}
 held-regex-passes	gens	a: {k:1}\nb: refer() & re("a$") & path($.a)	{"a":{"k":1},"b":"$.a"}
 held-regex-refuses	errc	a: {k:1}\nb: refer() & re("^y$") & path($.a)	constraint
 held-wrong-kind	errc	a: {k:1}\nb: refer() & integer & path($.a)	no_scalar_unify
@@ -215,8 +215,8 @@ canon-held-constraint	canon	b: refer() & string	{"b":refer()&string}
 # rather than one shared constraint.
 merge-refer-untyped-first	gens	a: {k:1}\nb: refer() & refer({j:2}) & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
 merge-refer-typed-first	gens	a: {k:1}\nb: refer({j:2}) & refer() & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
-merge-refer-both-held	gens	a: {k:1}\nb: (refer() & string) & (refer() & re("a$")) & path($.a)	{"a":{"k":1},"b":"$.a"}
-merge-refer-one-held	gens	a: {k:1}\nb: (refer() & string) & refer() & path($.a)	{"a":{"k":1},"b":"$.a"}
+merge-refer-both-held	gens	a: {k:1}\nb: (refer() & path) & (refer() & re("a$")) & path($.a)	{"a":{"k":1},"b":"$.a"}
+merge-refer-one-held	gens	a: {k:1}\nb: (refer() & path) & refer() & path($.a)	{"a":{"k":1},"b":"$.a"}
 flow-into-a-list-element	gens	a: {p:[{},{}]}\nb: refer({k:1}) & path($.a.p.0)	{"a":{"p":[{"k":1},{}]},"b":"$.a.p.0"}
 spread-over-a-map	gens	a: {&: refer(), b: path($.z), c: path($.z)}\nz: {}	{"a":{"b":"$.z","c":"$.z"},"z":{}}
 type-through-a-reference	gens	a: {k:1}\nb: refer($.a) & path($.a)	{"a":{"k":1},"b":"$.a"}
@@ -227,7 +227,7 @@ type-through-a-reference	gens	a: {k:1}\nb: refer($.a) & path($.a)	{"a":{"k":1},"
 spread-path-dependent-template	gens	z: {}\na: {&: refer({k:key(0)}), p:path($.z)}	{"a":{"p":"$.z"},"z":{"k":"k"}}
 # Two constraints held on ONE refer, accumulated into each other rather
 # than replacing: both still meet the link when the address arrives.
-held-two-constraints	gens	a: {k:1}\nb: refer() & string & re("a$") & path($.a)	{"a":{"k":1},"b":"$.a"}
+held-two-constraints	gens	a: {k:1}\nb: refer() & path & re("a$") & path($.a)	{"a":{"k":1},"b":"$.a"}
 held-two-constraints-refused	errc	a: {k:1}\nb: refer() & string & re("^y$") & path($.a)	constraint
 # THE FLOWED TYPE IS CONCRETE AT THE TARGET. A schema flowing into a
 # value must not make the value a schema -- the same reasoning as a

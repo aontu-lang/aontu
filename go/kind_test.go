@@ -10,7 +10,7 @@ import (
 
 func TestKindStringNeverEmpty(t *testing.T) {
 	want := map[Kind]string{
-		KindTop:        "top",
+		KindTop:        "any",
 		KindNil:        "nil",
 		KindString:     "string",
 		KindNumber:     "number",
@@ -28,7 +28,7 @@ func TestKindStringNeverEmpty(t *testing.T) {
 		}
 	}
 	// Every declared Kind is covered above; anything added later without
-	// a String case shows up here as "top" at an unexpected index.
+	// a String case shows up here as "any" at an unexpected index.
 	for k := KindTop; k <= KindPath; k++ {
 		if _, ok := want[k]; !ok {
 			t.Errorf("Kind(%d) = %q has no expectation: extend this table and Kind.String", int(k), k.String())
@@ -61,13 +61,12 @@ func TestKindLattice(t *testing.T) {
 			t.Errorf("number must not subsume %s", k)
 		}
 	}
-	// The path kind sits under string (docs/design/PATHS.0.md), the one
-	// non-numeric subtype edge in the lattice.
-	if p, ok := kindParent(KindPath); !ok || p != KindString {
-		t.Errorf("kindParent(path) = (%s, %v), want (string, true)", p, ok)
+	// The path kind is its own kind, directly under any.
+	if _, ok := kindParent(KindPath); ok {
+		t.Error("kindParent(path) should have no parent")
 	}
-	if !kindSubsumes(KindString, KindPath) {
-		t.Error("string should subsume path")
+	if kindSubsumes(KindString, KindPath) {
+		t.Error("string must not subsume path")
 	}
 	if kindSubsumes(KindPath, KindString) {
 		t.Error("path must not subsume string")

@@ -16,12 +16,12 @@ func TestPublicConstructors(t *testing.T) {
 		"bar":  NewString("hello"),
 		"flag": NewBoolean(true),
 		"obj":  NewMap(map[string]Val{"x": NewInteger(1)}),
-		"list": NewList([]Val{NewInteger(1), NewString("a")}),
+		"lst":  NewList([]Val{NewInteger(1), NewString("a")}),
 		"pi":   NewNumber(3.5),
 	}
 
 	out, err := New().GenerateVars(
-		"a:$foo b:$bar c:$flag d:$obj e:$list f:$pi", vars)
+		"a:$foo b:$bar c:$flag d:$obj e:$lst f:$pi", vars)
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}

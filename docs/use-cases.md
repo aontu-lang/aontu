@@ -340,14 +340,14 @@ lockfile: the agent-sandbox mode:
 
 <!-- test: skip a fragment of 11-shared-modules, which resolves against that case's module store; the case's own check.sh runs it -->
 ```aontu
-svc: @"corp.example/schemas/service#aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs"
+svc: @"corp.example/schemas/service#aon1-CSX2m9g0q_ORnSKUR37C8fXGSfhqQLf4MNXW_OjVTow"
 svc: spec: { name:"audit-log" owner:"sec-ops@corp.example" }
 ```
 
 A tampered store is refused, with both hashes named:
 
 ```
-module integrity: corp.example/schemas/service expected aon1-zFHnyVa1fA--g8hTx8lUUhaKzzRUNI--2nDheIMsSFs got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
+module integrity: corp.example/schemas/service expected aon1-CSX2m9g0q_ORnSKUR37C8fXGSfhqQLf4MNXW_OjVTow got aon1-NHmNT6r-Lhy8di9BgGNRfgwNFT3r5PgCZxCYnJ4F0Ws
 ```
 
 The `#aon1-` pin resolves, verifies, and refuses a mangled hash with
@@ -415,7 +415,7 @@ case's registry):
 <!-- test: file registry.aontu -->
 ```aontu
 argschemas: read_file: close({
-  path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
+  path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & len(max(512))
   max_bytes?: integer & min(1) & max(1048576)
 })
 ```
@@ -444,7 +444,7 @@ $ aontu jsonschema --at '$.argschemas.read_file' registry.aontu
         }
       ],
       "maxLength": 512,
-      "minLength": 0,
+      "minLength": 1,
       "type": "string"
     }
   },

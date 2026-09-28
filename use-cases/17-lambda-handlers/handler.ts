@@ -66,7 +66,7 @@ exports.handler = async (
 //-
 //- out: emit($.parts, [
 //-   {
-//-     match: map()
+//-     match: map
 //-     body: [
 //-       emit(_, {
 //-         match: name: string

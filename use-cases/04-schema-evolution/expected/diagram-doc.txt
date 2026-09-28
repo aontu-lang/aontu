@@ -6,11 +6,11 @@ $
     │   ├── analytics *false|boolean
     │   └── marketing *false|boolean
     ├── contact
-    │   ├── phone re("^[+][0-9]{7,15}$")
+    │   ├── phone string&re("^[+][0-9]{7,15}$")
     │   └── verified *false|boolean
-    ├── email re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
-    ├── id re("^C[0-9]{7}$")
-    ├── locale re("^[a-z][a-z](?:-[A-Z][A-Z]...
-    ├── name string&length(integer&min(1))
+    ├── email string&re("^[^@ ]+@[^@ ]+[.][...
+    ├── id string&re("^C[0-9]{7}$")
+    ├── locale string&re("^[a-z][a-z](?:-[A-...
+    ├── name string&len(integer&min(1))
     ├── phone string
     └── tier "standard"|"premium"|"enterpr...

@@ -419,7 +419,7 @@ func TestExactPlusRefusals(t *testing.T) {
 	}
 
 	for _, src := range []string{
-		"x:0d5+true", "x:0d5+null", "x:0d5+top", "x:0d5+integer",
+		"x:0d5+true", "x:0d5+null", "x:0d5+any", "x:0d5+integer",
 		"x:true+0d0.5", "x:0d5+[1]",
 	} {
 		if _, err := New().Generate(src); err == nil {

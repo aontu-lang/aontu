@@ -43,6 +43,8 @@ const unite = (ctx, a, b, whence) => {
                     return a;
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
+                    && a.emptyOk === b.emptyOk
+                    && a.needsNonEmpty === b.needsNonEmpty
                     && !a.isNil && !b.isNil
                     && !a.isMap && !a.isList
                     && !a.isConjunct && !a.isDisjunct
@@ -140,7 +142,17 @@ const unite = (ctx, a, b, whence) => {
                 unified = true;
                 why = 'bv';
             }
+            // These do not know their peers, so they answer from either side.
+            else if (true === b.isConstraintKind
+                || true === b.isEmptyConstraint
+                || true === b.isSeal) {
+                out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BK') }) : ctx);
+                unified = true;
+                why = 'bk';
+            }
             else if (a.constructor === b.constructor && a.peg === b.peg
+                && a.emptyOk === b.emptyOk
+                && a.needsNonEmpty === b.needsNonEmpty
                 && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                 out = update(a, b);
                 why = 'up';

@@ -24,18 +24,17 @@ super(t: any) : any
 type(t: any) : any
 hide(v: any) : any
 maybe(v: any) : any
-close(m: any) : any
-open(m: any) : any
+close(m?: any) : any
+open(m?: any) : any
 move(v: any) : any
 path(capture p?: path) : path
-map() : map
-list() : list
 min(n: number|string) : constraint
 max(n: number|string) : constraint
 above(n: number|string) : constraint
 below(n: number|string) : constraint
 re(text p: string) : constraint
-length(n: number|constraint) : constraint
+len(n: number|constraint) : constraint
+empty() : constraint
 key(up?: integer|biginteger) : string
 unique(projector k?: string) : constraint
 neq(...vals: number|string) : constraint

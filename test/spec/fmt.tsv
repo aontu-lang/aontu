@@ -52,7 +52,7 @@ fmt-list-nil-slots	fmt	a: [1,,2]\nb: [,]\n	a: [1 nil 2]\nb: [nil]\n
 fmt-list-sibling-spread	fmt	x: [1 &: 2]\n	x: [1 &: 2]\n
 fmt-list-elements-separate	fmt	x: [1 -2 {a:1} [2]]\n	x: [1 -2 a:1 [2]]\n
 fmt-root-braces	fmt	{\n  "a": 1,\n  "b": [1, 2]\n}\n	a: 1\nb: [1 2]\n
-fmt-root-braces-comments	fmt	# top\n{ # open\n  a: 1\n} # close\n	# top\n# open\na: 1\n# close\n
+fmt-root-braces-comments	fmt	# any\n{ # open\n  a: 1\n} # close\n	# any\n# open\na: 1\n# close\n
 fmt-root-list	fmt	[1, 2]\n	[1 2]\n
 fmt-root-scalar	fmt	"s"\n	"s"\n
 fmt-root-implicit-list	fmt	1 2 3\n	1\n2\n3\n

@@ -27,16 +27,16 @@ arg-no-path-sited	err	a:min($.zz) a:5	Cannot resolve value at path $.a
 # The sizing and pattern atoms residuate their arguments like the
 # order atoms. (The count argument was refused outright when phase 3
 # landed; phase 4 revisited it, as the design anticipated.)
-cross-length	gen	a:{n:2 v:length($.a.n)&["x","y"]}	{"a":{"n":2,"v":["x","y"]}}
-cross-length-reject	errc	a:{n:3 v:length($.a.n)&["x","y"]}	constraint
-cross-length-relative	gen	a:{n:2 v:length(.n)&["x","y"]}	{"a":{"n":2,"v":["x","y"]}}
+cross-length	gen	a:{n:2 v:len($.a.n)&["x","y"]}	{"a":{"n":2,"v":["x","y"]}}
+cross-length-reject	errc	a:{n:3 v:len($.a.n)&["x","y"]}	constraint
+cross-length-relative	gen	a:{n:2 v:len(.n)&["x","y"]}	{"a":{"n":2,"v":["x","y"]}}
 cross-re	gen	a:{p:"^a+$" v:re($.a.p)&"aaa"}	{"a":{"p":"^a+$","v":"aaa"}}
 cross-re-reject	errc	a:{p:"^a+$" v:re($.a.p)&"bbb"}	constraint
 
 # The count argument may itself be a constraint conjunct or a kind.
-count-arg-conjunct	gen	a:length(min(2)&max(4)) a:[1,2,3]	{"a":[1,2,3]}
-count-arg-conjunct-reject	errc	a:length(min(2)&max(4)) a:[1]	constraint
-count-arg-kind	gen	a:length(integer) a:[1,2]	{"a":[1,2]}
+count-arg-conjunct	gen	a:len(min(2)&max(4)) a:[1,2,3]	{"a":[1,2,3]}
+count-arg-conjunct-reject	errc	a:len(min(2)&max(4)) a:[1]	constraint
+count-arg-kind	gen	a:len(integer) a:[1,2]	{"a":[1,2]}
 
 # Spread interplay: a spread template carries a cross-field bound onto
 # every child (a phase-4 row family the g1 plan names outright).
@@ -75,5 +75,5 @@ budget-chain-exhausted-sited	err	c1:$.c2 c2:$.c3 c3:$.c4 c4:$.c5 c5:$.c6 c6:$.c7
 
 # Two count residuals meet as counts (interval/exclusion part alone);
 # a kindless count adopts the peer count's kind.
-count-meet-kind	gen	a:length(min(2))&length(integer) a:[1,2,3]	{"a":[1,2,3]}
-count-arg-kind-conjunct	gen	a:length(min(2)&integer) a:[1,2]	{"a":[1,2]}
+count-meet-kind	gen	a:len(min(2))&len(integer) a:[1,2,3]	{"a":[1,2,3]}
+count-arg-kind-conjunct	gen	a:len(min(2)&integer) a:[1,2]	{"a":[1,2]}

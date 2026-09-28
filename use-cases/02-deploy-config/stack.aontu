@@ -46,7 +46,7 @@ deploy: pack($.environments, _ & {
 # deploy must fit a closed map holding exactly the declared
 # environments.  A typo'd overlay (deploy: prod2: ...) fails with
 # [aontu/closed] here (probes/env-typo.aontu).
-envguard: hide($.deploy & close(pack($.environments, {})))
+envguard: hide($.deploy & close(pack($.environments, open({}))))
 
 # Paging policy, derived from the catalog: only critical services page
 # the on-call rotation in production.  filter() keeps the services that

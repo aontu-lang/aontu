@@ -36,7 +36,7 @@ everything below them is domains or regions, then services, then fields.
 ```
 $
 ├── %CatalogAddr re("^\\$[.]catalog[.]")
-├── %Description string&length(integer&min(10))
+├── %Description string&len(integer&min(10))
 ├── %Lifecycle *"production"|"production"|"e...
 ├── %Owner re("^team-[a-z]+$")
 ├── catalog
@@ -66,7 +66,7 @@ than its value.
 |---|---|---|
 | `system.aontu` | root: one evaluation joining the vocabulary and both views | `@"aontu:system"`, `@"./..."` includes, `hide()` |
 | `spec.aontu` | Acme vocabulary over the bundled one | `$.aontu.System.Service`, `$.aontu.System.Port`, conjunction-as-subclassing, `re`/`min`/`max`/`length` atoms, `*` defaults, optional `?` keys, `rel(t)` with `re()` address constraints, `acyclic()`, `inverse()` |
-| `catalog.aontu` | catalog view | per-domain `&:` spreads stamping owner + schema, `path()` address lists |
+| `catalog.aontu` | catalog view | per-domain `&:` spreads stamping owner + schema, `path` address lists |
 | `deploy.aontu` | deployment view | references into the catalog view, defaults (`replicas: *2`) |
 | `queries/queries.aontu` | instance-of queries | `filter`, map union as index |
 | `bad/*.aontu` | change requests that must be refused | cycle, missing inverse, cross-view contradiction, wrong-kind endpoint, wrong-kind `rel()` target |

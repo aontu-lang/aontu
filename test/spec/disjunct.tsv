@@ -14,43 +14,43 @@ pref-fold-nonleading	gen	a:1 | *{x:1} | *{y:2}	{"a":{"x":1,"y":2}}
 pref-fold	gen	a:*{x:1} | *{y:2}	{"a":{"x":1,"y":2}}
 # TOP IS IDEMPOTENT UNDER DISJUNCTION.
 #
-# `top|top` is one value with two spellings, so it must collapse. Go's
-# disjunct dedup compared values without a case for top, so the pair
+# `top|any` is one value with two spellings, so it must collapse. Go's
+# disjunct dedup compared values without a case for any, so the pair
 # survived: canon kept both members, and the un-collapsed disjunct then
 # hid the fact that a bare unresolved `top` is not generable -- which both
-# ports already agree on for a plain `x:top`.
+# ports already agree on for a plain `x:any`.
 #
-# The preference row is the control: `*top` and `top` are NOT the same
+# The preference row is the control: `*any` and `top` are NOT the same
 # value, so that pair must NOT collapse.
-disjunct-top-idempotent-canon	canon	x:top|top	{"x":top}
-disjunct-top-idempotent3-canon	canon	x:top|top|top	{"x":top}
-disjunct-top-idempotent-err	err	x:top|top	Cannot resolve value
-disjunct-top-pref-not-deduped-canon	canon	x:*top|top	{"x":*top|top}
+disjunct-top-idempotent-canon	canon	x:any|any	{"x":any}
+disjunct-top-idempotent3-canon	canon	x:any|any|any	{"x":any}
+disjunct-top-idempotent-err	err	x:any|any	Cannot resolve value
+disjunct-top-pref-not-deduped-canon	canon	x:*any|any	{"x":*any|any}
 # A DISJUNCTION THAT RESOLVES TO NULL EMITS null, NOT NOTHING.
 #
 # Go's Gen returns (any, error) and so collapses TypeScript's two distinct
 # empty results -- undefined (nothing) and null (JSON null) -- into one
 # nil, reconstructing the difference from the child Val. That test had no
-# case for a disjunct, so `null|top` (which folds to null, since
-# `null & top` is null) read as "generated nothing" and the key was
+# case for a disjunct, so `null|any` (which folds to null, since
+# `null & any` is null) read as "generated nothing" and the key was
 # silently DROPPED -- and a list element with it, which is worse, because
 # the surrounding indices shift.
 #
 # The members are genuinely different values, so no amount of deduping
-# reaches this: it survives the top|top fix entirely.
+# reaches this: it survives the any|any fix entirely.
 #
 # ADR-007 REWROTE THE SPELLING, NOT THE POINT. These rows used to read
-# `null|top`, which the old generation FOLD turned into null (`null &
-# top` is null) -- an answer that came from the fold rather than from
-# the model, and one a plain `x:top` already refuses as incomplete. An
+# `null|any`, which the old generation FOLD turned into null (`null &
+# any` is null) -- an answer that came from the fold rather than from
+# the model, and one a plain `x:any` already refuses as incomplete. An
 # unresolved disjunction now refuses too, so the null case is spelled
 # with the PREFERENCE that actually decides it. What is being pinned is
 # unchanged: a disjunction whose chosen member is null must emit null,
 # not vanish.
-disjunct-pref-null-top-gens	gens	x:*null|top	{"x":null}
-disjunct-pref-null-top-list-gens	gens	x:[*null|top]	{"x":[null]}
-disjunct-pref-null-top-list-position-gens	gens	x:[1,*null|top,3]	{"x":[1,null,3]}
-disjunct-pref-null-top-nested-gens	gens	x:{y:*null|top}	{"x":{"y":null}}
+disjunct-pref-null-top-gens	gens	x:*null|any	{"x":null}
+disjunct-pref-null-top-list-gens	gens	x:[*null|any]	{"x":[null]}
+disjunct-pref-null-top-list-position-gens	gens	x:[1,*null|any,3]	{"x":[1,null,3]}
+disjunct-pref-null-top-nested-gens	gens	x:{y:*null|any}	{"x":{"y":null}}
 disjunct-null-plain-gens	gens	x:null|null	{"x":null}
 #
 # The unresolved forms themselves, in the class that makes vet work:
@@ -88,8 +88,8 @@ disjunct-optional-differs-stays	canon	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a"?:1,"b":1
 # the spread is part of the shape now, and its base case must still
 # generate.)
 disjunct-optional-differs-resolved	gens	x:{a?:1,b:1}|{b?:1,a:1}	{"x":{"a":1,"b":1}}
-disjunct-null-top-unresolved	errc	x:null|top	disjunct_no_gen
-disjunct-top-null-unresolved	errc	x:top|null	disjunct_no_gen
+disjunct-null-top-unresolved	errc	x:null|any	disjunct_no_gen
+disjunct-top-null-unresolved	errc	x:any|null	disjunct_no_gen
 disjunct-scalar-unresolved	errc	x:1|2	disjunct_no_gen
 disjunct-kind-unresolved	errc	x:string|integer	disjunct_no_gen
 #

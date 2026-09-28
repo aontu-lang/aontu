@@ -50,7 +50,7 @@ func TestWhyNamesEveryContribution(t *testing.T) {
 	}
 	vetMatch(t, out, `1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)`)
 
-	top := whyFile(t, t.TempDir(), "a: top\n")
+	top := whyFile(t, t.TempDir(), "a: any\n")
 	out, _, code = whyRun("$.a", top)
 	if 0 != code || !strings.Contains(out, "no contributions") {
 		t.Fatalf("want 0/no contributions, got %d: %s", code, out)

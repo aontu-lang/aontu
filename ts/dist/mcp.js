@@ -99,7 +99,7 @@ const TOOLS = [
             },
             depth: {
                 type: 'number',
-                description: 'Structure to this depth; deeper nodes render as top',
+                description: 'Structure to this depth; deeper nodes render as any',
             },
         },
         required: ['src', 'path'],
@@ -536,7 +536,7 @@ function summaryOf(src, trust, path) {
         ok: true,
         hash: (0, hcanon_1.canonHash)(v),
         keys,
-        // The top tier only: every key, with its subtree elided to `top`.
+        // The top tier only: every key, with its subtree elided to `any`.
         shape: (0, query_1.get)(src, '$', { view: 'types', depth: 2, path, trust }).out,
         findings: [],
     };

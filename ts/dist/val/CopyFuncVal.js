@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CopyFuncVal = void 0;
 const err_1 = require("../err");
+const SealVal_1 = require("./SealVal");
 const utility_1 = require("../utility");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
@@ -26,12 +27,17 @@ class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const out = null == val || null == ctx ?
             (0, err_1.makeNilErr)(ctx, 'invalid-arg', this) :
             val.clone(ctx);
-        if (!out.isRef) {
+        if (out.isRef) {
+            ;
+            out.copyFound = true;
+        }
+        else {
             (0, utility_1.walk)(out, (_key, val) => {
                 val.mark.type = false;
                 val.mark.hide = false;
                 return val;
             });
+            (0, SealVal_1.unsealTree)(out);
         }
         return out;
     }

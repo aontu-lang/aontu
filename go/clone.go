@@ -173,6 +173,13 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *ConstraintKindVal:
+		c := *n
+		c.path = cp(path)
+		if nil != n.held {
+			c.held = cloneAt(n.held, path, deep)
+		}
+		return &c
 	case *RecurseVal:
 		// The recursive residual clones per position for the same
 		// reason: shared, an expansion at one instance carried the
@@ -201,6 +208,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// site.row/col), so a ref-carried bag still frames at its brace.
 		out.site.sp = n.site.sp
 		out.closed = n.closed
+		out.opened = n.opened
 		out.optional = append([]string{}, n.optional...)
 		out.aliasKeys = append([]string{}, n.aliasKeys...)
 		if n.spread != nil {
@@ -217,6 +225,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.path = overlayPath(path, n.path)
 		out.site.sp = n.site.sp
 		out.closed = n.closed
+		out.opened = n.opened
 		if n.spread != nil {
 			out.spread = cloneAt(n.spread, path, deep)
 		}

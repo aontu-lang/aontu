@@ -15,6 +15,7 @@ type MapVal struct {
 	keys     []string
 	peg      map[string]Val
 	closed   bool     // close() — no keys beyond those present may be added
+	opened   bool     // an explicit open(): a recursive close stops here
 	spread   Val      // &: spread constraint applied to every key (nil if none)
 	optional []string // keys marked optional (a?:1) — dropped if unresolved
 
@@ -489,6 +490,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	} else {
 		out = newMap()
 		out.closed = m.closed
+		out.opened = m.opened
 		out.path = cp(m.path)
 		// The site survives unification (TS: `out.site = this.site` in
 		// MapVal.unify copies row, col AND url), so a unified bag still
@@ -599,6 +601,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			var uv Val
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
+				if m.closed {
+					ex = sealChild(ex)
+				}
 				uv = unite(ctx, ex, pc)
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() {
 				peg := pc
@@ -641,6 +646,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 
 	if nil != bad {
 		return bad
+	}
+
+	if out.closed {
+		for _, k := range out.keys {
+			ctx.slot = append(cp(dbase), k)
+			out.peg[k] = sealChild(out.peg[k])
+		}
 	}
 
 	if done {

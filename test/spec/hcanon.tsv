@@ -26,7 +26,7 @@
 # written.
 
 hcanon-plain	hcanon	a:1	{"a":1}
-hcanon-close-marks-mixed	hcanon	a:hide(close({x:1,y:[1,2]})) b:type(integer) c:*1|2 d:{e?:close([3])}	{"a":hide(close({"x":1,"y":[1,2]})),"b":type(integer),"c":*1|2,"d":{"e"?:close([3])}}
+hcanon-close-marks-mixed	hcanon	a:hide(close({x:1,y:[1,2]})) b:type(integer) c:*1|2 d:{e?:close([3])}	{"a":hide(close({"x":1,"y":close([1,2])})),"b":type(integer),"c":*1|2,"d":{"e"?:close([3])}}
 hcanon-type-map-spread-deprecate	hcanon	t:type({k:integer}) u:{&:type(string)} w:deprecate(close({z:1}))	{"t":type({"k":integer}),"u":{&:type(string)},"w":deprecate(close({"z":1}))}
 hcanon-close-in-disjunct	hcanon	m: close({x:1}) | 2	{"m":close({"x":1})|2}
 hcanon-escape-heavy-string	hcanon	s:"a\\"b\\\\c\\nd\\teé"	{"s":"a\\"b\\\\c\\nd\\teé"}
@@ -34,7 +34,7 @@ hcanon-float-magnitudes	hcanon	n:179769313486231570000.5 m2:-0.000001	{"m2":-0.0
 hcanon-spread-implied	hcanon	q:{&:{r:1}, s:{}}	{"q":{&:{"r":1},"s":{"r":1}}}
 hcanon-optional-key	hcanon	o:{p?:1}	{"o":{"p"?:1}}
 hcanon-pref-disjunct	hcanon	p: *8080|integer	{"p":*8080|integer}
-hcanon-close-at-depth	hcanon	z: close({a:close({b:close([1,{c:2}])})})	{"z":close({"a":close({"b":close([1,{"c":2}])})})}
+hcanon-close-at-depth	hcanon	z: close({a:close({b:close([1,{c:2}])})})	{"z":close({"a":close({"b":close([1,close({"c":2})])})})}
 hcanon-ref-resolved	hcanon	a:1 b:$.a	{"a":1,"b":1}
 hcanon-deprecate-record	hcanon	d: deprecate(1,{msg:"use e"})	{"d":deprecate(1,{"msg":"use e"})}
 hcanon-deprecate-record-multi	hcanon	d2: deprecate(close({k:1}),{msg:"gone",since:"1.2.3",use:"$.e"})	{"d2":deprecate(close({"k":1}),{"msg":"gone","since":"1.2.3","use":"$.e"})}
@@ -53,7 +53,7 @@ hcanon-close-meets-open	hcanon	y: close({a:1}) & {a:integer}	{"y":close({"a":1})
 hcanon-conjunct-of-disjuncts	hcanon	u2: (1|2)&(2|3)	{"u2":2}
 hcanon-scalar-kind	hcanon	s2: string	{"s2":string}
 hcanon-exact-small-magnitude	hcanon	n2: -0d1.5e-30	{"n2":-0d0.0000000000000000000000000000015}
-hcanon-optional-at-depth	hcanon	o3: {a?:close({b?:[1]})}	{"o3":{"a"?:close({"b"?:[1]})}}
+hcanon-optional-at-depth	hcanon	o3: {a?:close({b?:[1]})}	{"o3":{"a"?:close({"b"?:close([1])})}}
 hcanon-type-over-pref	hcanon	t2: type(*1|2)	{"t2":type(*1|2)}
 hcanon-hide-leaf-only	hcanon	h2: {a:hide(1), b:2}	{"h2":{"a":hide(1),"b":2}}
 hcanon-spread-close-instance	hcanon	w3: {&:close({x:integer}), k:{x:1}}	{"w3":{&:close({"x":integer}),"k":close({"x":1})}}
@@ -72,9 +72,9 @@ canon-spread-close-instance	canon	w3: {&:close({x:integer}), k:{x:1}}	{"w3":{&:c
 canon-disjunct-of-closes	canon	x2: close({a:1})|close({b:2})|3	{"x2":{"a":1}|{"b":2}|3}
 
 hash-plain	hash	a:1	aon1-AVq9f1zFei3ZS3WQ8ErYCEJzkF7jPsXOvq5iJ2qX-GI
-hash-close-marks-mixed	hash	a:hide(close({x:1,y:[1,2]})) b:type(integer) c:*1|2 d:{e?:close([3])}	aon1-Oxxyn41hbUdarNvUlt8zi8YQjuly6_x96tZMi7zbe0k
+hash-close-marks-mixed	hash	a:hide(close({x:1,y:[1,2]})) b:type(integer) c:*1|2 d:{e?:close([3])}	aon1-NtuD5kcIwsuw891G56TZmAsUlRjdjC_YjLkTc_ldAnw
 hash-escape-heavy-string	hash	s:"a\\"b\\\\c\\nd\\teé"	aon1-N0sa8wfXKfEb2RB5MvDr5da6PC_BgUBJMAoTRxxQ1fc
-hash-close-at-depth	hash	z: close({a:close({b:close([1,{c:2}])})})	aon1-N8cZt-WPnVQp5SIbrkD05jzObJKJE-SYjh1kXCfCZW4
+hash-close-at-depth	hash	z: close({a:close({b:close([1,{c:2}])})})	aon1-UeAVq2wJ23_hRzz2Z8mysiT7pQFnGAYhWNkAIErhsz0
 hash-exact-integer	hash	x: 0d9007199254740993	aon1-V9euIepaN_Boj0wTAaCUhqI9kMCvXVsnBI-OPAGRtFg
 hash-scalar-literals	hash	b1: true b2: false b3: null	aon1-0wZFCmFTJ5f1gFAGr0k5M0ZgqTQOPidB4SpgkFSJr5E
 hash-key-code-point-order	hash	k1: {"é":1, "z":2, "A":3, "𝄞":4}	aon1-pbCUPrT2LydjBG5RrpO569NTzLeUYxihDjCt5ttAllE
@@ -84,12 +84,12 @@ hash-deprecate-record-multi	hash	d2: deprecate(close({k:1}),{msg:"gone",since:"1
 # A refer residual keeps every conjunct it met (BUGS.md 95). Two
 # settled refers at one position merge; they are NOT interchangeable
 # because a refer's state is tval/addr/held and its peg is absent.
-hcanon-refer-keeps-its-conjunct	hcanon	a: [&: refer() & path()]  a: [&: refer() & path()]  z: {e:1}  a: [path($.z.e)]	{"a":[&:refer()&path(),path($.z.e)],"z":{"e":1}}
-hash-refer-keeps-its-conjunct	hash	a: [&: refer() & path()]  a: [&: refer() & path()]  z: {e:1}  a: [path($.z.e)]	aon1-xJiIfXOOpgTVTK6ZbkuHJx2DOpSkvwbaYOuy5Au2m7M
+hcanon-refer-keeps-its-conjunct	hcanon	a: [&: refer() & path]  a: [&: refer() & path]  z: {e:1}  a: [path($.z.e)]	{"a":[&:refer()&path,path($.z.e)],"z":{"e":1}}
+hash-refer-keeps-its-conjunct	hash	a: [&: refer() & path]  a: [&: refer() & path]  z: {e:1}  a: [path($.z.e)]	aon1-ts4j1-JoLoPbnFIpWzAh_5WL4Kteg-oij1ek147UYr8
 
 # The same, through a spread template applied behind another atom:
 # the instantiated element type must equal the declared one, and a
 # residual must not hold an unresolved call (a doubled refer()).
-hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:refer()&path()]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r"?:[&:refer()&path(),path($.e.c)]&unique()})]&unique("n")})}
-canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:refer()&path()]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r"?:[&:refer()&path(),path($.e.c)]&unique()}]&unique("n")}}
-hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path()]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-ddOxDFGwqOOjTuNphUYPOmQFvD8Hn6J4z7ojt3ylV_A
+hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:refer()&path]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r"?:[&:refer()&path,path($.e.c)]&unique()})]&unique("n")})}
+canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:refer()&path]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r"?:[&:refer()&path,path($.e.c)]&unique()}]&unique("n")}}
+hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-0XaCfSTQTwe4jZdvjaDPwum1VsDHpHaHRVJYK0Vgm8Q

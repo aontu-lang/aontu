@@ -31,7 +31,7 @@ Four documents, one per mood plus the money convention:
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
 - **residue.aontu**: one instance of each loss class: `must()`,
-  `bigdecimal`, `hide()`, a constrained spread template, `length()`
+  `bigdecimal`, `hide()`, a constrained spread template, `len()`
   on a list. The export still happens; every loss is named.
 - **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
@@ -39,9 +39,9 @@ Four documents, one per mood plus the money convention:
 The line between registry.aontu and residue.aontu runs through two
 constructs. A bare-kind template (`[&: string]`, `{ &: string }`)
 crosses as `items` or `additionalProperties`; a template carrying a
-constraint call (`{ &: string & length(max(63)) }`) is held residual,
+constraint call (`{ &: string & len(max(63)) }`) is held residual,
 exports as `{}` in that position, and is reported as `unresolved`.
-`length()` on a list exports as `minItems`/`maxItems` and is reported
+`len()` on a list exports as `minItems`/`maxItems` and is reported
 as well, because a count has no domain until data arrives. One more
 construct reports under a name other than its own: `must()` holds the
 whole value residual, so `number & must(...)` exports as `{}` and is
@@ -60,7 +60,7 @@ spread template, a list template, a concrete string and a `nil`.
 $
 └── report
     ├── amountEur bigdecimal
-    ├── annotations {&:string&length(integer&min(...
+    ├── annotations {&:string&len(integer&min(...
     ├── attempts [&:integer]
     ├── audit "kept-off-the-wire"
     └── total nil

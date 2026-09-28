@@ -62,7 +62,7 @@ ok "canon: round-trips through a reparse unchanged"
 # deliberately elides; test/spec/recursion.tsv pins that data does
 # not move a definition's hash.)
 run vhash 0 -- hash "$DIR/schema.aontu"
-has vhash out 'aon1-7weKgKyiLJ0FoeqJsbNH-ESR1Ufeey1zg-4SATzbVQQ'
+has vhash out 'aon1-MoNC9KytY4HIh2rkb8Kb9hAMFcpZkR04FC1ndDeW0pU'
 ok "hash: the recursive vocabulary pins to one finite aon1- string"
 
 # 5. vet over PLAIN JSON, anchored at the recursive definition: the

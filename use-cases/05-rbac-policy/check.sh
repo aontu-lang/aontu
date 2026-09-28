@@ -158,7 +158,7 @@ ok "audit: filter+length and must() invariants pass on good data"
 run owners 1 -- --include-root "$DIR" "$DIR/audits/two-owners.aontu"
 has owners err '[aontu/constraint]'
 has owners err '$.audit.exactly_one_owner'
-ok "audit: two owners refused by length(1)&filter(...)"
+ok "audit: two owners refused by len(1)&filter(...)"
 
 # 16. must() fires same-layer, reporting the author's message.
 run must 1 -- --include-root "$DIR" "$DIR/audits/no-mfa.aontu"
@@ -257,24 +257,24 @@ ok "GAP pinned: list-shaped grant sets are order-sensitive under subsume"
 
 # ------------------------- cross-layer folding, CLOSED 2026-08-27
 # 28. A sizing atom next to a spread used to make a vet schema
-# unusable: length(min(1)) refused the SCHEMA on its own, counting the
+# unusable: len(min(1)) refused the SCHEMA on its own, counting the
 # template's empty container. A lower bound violated is provisional --
 # more members may still arrive -- so the atom now residuates and the
 # schema is usable (the review's finding C, BUGS.md sec 16).
-printf 'x: length(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aontu"
+printf 'x: len(min(1)) & { &: {r: integer} }\n' > "$WORK/g1.aontu"
 printf '{"x":{"a":{"r":1}}}\n' > "$WORK/g1.json"
 run lenmin 0 -- vet "$WORK/g1.aontu" "$WORK/g1.json"
 has lenmin out 'verdict: valid'
-ok "CLOSED: length(min)+spread schema is usable, and the data satisfies it"
+ok "CLOSED: len(min)+spread schema is usable, and the data satisfies it"
 
 # 29. ...and a satisfied-at-schema-time max no longer VANISHES: it
 # stays on the value until generation, so it counts the data.
-printf 'x: length(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aontu"
+printf 'x: len(max(2)) & { &: {r: integer} }\n' > "$WORK/g2.aontu"
 printf '{"x":{"a":{"r":1},"b":{"r":2},"c":{"r":3}}}\n' > "$WORK/g2.json"
 run lenmax 1 -- vet "$WORK/g2.aontu" "$WORK/g2.json"
 has lenmax out 'verdict: invalid'
 has lenmax out '$.x'
-ok "CLOSED: length(max(2)) refuses 3 data entries under vet"
+ok "CLOSED: len(max(2)) refuses 3 data entries under vet"
 
 # 30. GAP CLOSED 2026-08-27 (ADR-007): stale references under vet. A
 # closed-map branch keyed on a data-supplied field via a reference used

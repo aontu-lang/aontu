@@ -17,7 +17,6 @@ import {
 import { makeNilErr } from '../err'
 
 import { FeatureVal } from './FeatureVal'
-import { FuncBaseVal } from './FuncBaseVal'
 
 
 class MapKindVal extends FeatureVal {
@@ -41,7 +40,7 @@ class MapKindVal extends FeatureVal {
   }
 
   get canon() {
-    return 'map()'
+    return 'map'
   }
 
   same(peer: any): boolean {
@@ -72,69 +71,17 @@ class ListKindVal extends FeatureVal {
   }
 
   get canon() {
-    return 'list()'
+    return 'list'
   }
 
   same(peer: any): boolean {
     return true === peer?.isListKind
   }
 
-} /* node:coverage ignore next 4 */
-
-
-class MapFuncVal extends FuncBaseVal {
-  isMapFunc = true
-
-  constructor(spec: ValSpec, ctx?: AontuContext) {
-    super(spec, ctx)
-  }
-
-  make(_ctx: AontuContext, spec: ValSpec): Val {
-    return new MapFuncVal(spec)
-  }
-
-  funcname() {
-    return 'map'
-  }
-
-  resolve(ctx: AontuContext, _args: Val[]) {
-    const out = new MapKindVal({}, ctx)
-    out.site = this.site
-    out.path = this.path
-    return out
-  }
-
-} /* node:coverage ignore next 4 */
-
-
-class ListFuncVal extends FuncBaseVal {
-  isListFunc = true
-
-  constructor(spec: ValSpec, ctx?: AontuContext) {
-    super(spec, ctx)
-  }
-
-  make(_ctx: AontuContext, spec: ValSpec): Val {
-    return new ListFuncVal(spec)
-  }
-
-  funcname() {
-    return 'list'
-  }
-
-  resolve(ctx: AontuContext, _args: Val[]) {
-    const out = new ListKindVal({}, ctx)
-    out.site = this.site
-    out.path = this.path
-    return out
-  }
-
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 6 */
 
 
 export {
   MapKindVal,
   ListKindVal,
-  MapFuncVal,
-  ListFuncVal,
 }

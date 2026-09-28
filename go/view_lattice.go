@@ -10,27 +10,32 @@ import (
 )
 
 var latticeKindParent = [][2]string{
-	{"string", "top"},
-	{"path()", "string"},
-	{"number", "top"},
+	{"string", "any"},
+	{"path", "any"},
+	{"number", "any"},
 	{"integer", "number"},
 	{"float", "number"},
 	{"biginteger", "number"},
 	{"bigdecimal", "number"},
-	{"boolean", "top"},
-	{"null", "top"},
+	{"boolean", "any"},
+	{"null", "any"},
+	{"map", "any"},
+	{"list", "any"},
+	{"constraint", "any"},
 }
 
-var latticeColumns = []string{"path()", "integer", "float", "biginteger",
-	"bigdecimal", "boolean", "null"}
+var latticeColumns = []string{"string", "path", "integer", "float",
+	"biginteger", "bigdecimal", "boolean", "null", "map", "list",
+	"constraint"}
 
-// latticeRows is the rows, top to bottom. `top` and `nil` are the
+// latticeRows is the rows, top to bottom. `any` and `nil` are the
 // endpoints and are not kinds: no superior() answers either, and no
 // entry above names them as a parent.
 var latticeRows = [][]string{
-	{"top"},
-	{"string", "number", "boolean", "null"},
-	{"path()", "integer", "float", "biginteger", "bigdecimal"},
+	{"any"},
+	{"string", "path", "number", "boolean", "null", "map", "list",
+		"constraint"},
+	{"integer", "float", "biginteger", "bigdecimal"},
 	{"nil"},
 }
 
@@ -38,7 +43,7 @@ var latticeRows = [][]string{
 var latticeNodes = latticeNodeNames()
 
 func latticeNodeNames() []string {
-	out := []string{"top"}
+	out := []string{"any"}
 	for _, e := range latticeKindParent {
 		out = append(out, e[0])
 	}
@@ -105,8 +110,11 @@ func latticePoint(v Val) string {
 	case *NilVal:
 		return "nil"
 	case *TopVal:
-		return "top"
-	case *ScalarKindVal:
+		return "any"
+	case *ConstraintKindVal:
+		// A residual such as `integer & min(1)` is a region, not a point.
+		return "constraint"
+	case *ScalarKindVal, *MapKindVal, *ListKindVal:
 		// A kind marker names its own node.
 		name = node.Canon()
 	case *ScalarVal:
@@ -131,7 +139,7 @@ type latticeFrame struct {
 
 // latticeCensus is the document's own values, gathered by lattice
 // node. Containers are walked but not placed: a map is not a scalar
-// lattice citizen, and counting one at `top` would put every
+// lattice citizen, and counting one at `any` would put every
 // document's root there.
 func latticeCensus(root Val, at string) (map[string][]string, []string) {
 	counts := map[string][]string{}

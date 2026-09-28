@@ -279,8 +279,8 @@ and the closure resolves, both packages pinned:
 ```sh
 $ aontu sync
 verdict: ok
-corp.example/schemas/common 1.0.0 aon1-btDT9RfDGjP4uvd5osF3R3mRW5aIeDz49_JbJpVLDwU
-corp.example/schemas/service 1.0.0 aon1-GublSGsGCwYBgyQBAZSk9imd7xfbeCYKY6qbud8okdc
+corp.example/schemas/common 1.0.0 aon1-3rJ2VOfTPEHlIvWoVQqp-HcIeiq8qHIkDMWiAgNH3CI
+corp.example/schemas/service 1.0.0 aon1-syNia90zuBB4c6Xqn95y9Z3uPfm5NvIWNpvpkLkZfcY
 
 $ aontu main.aontu
 {

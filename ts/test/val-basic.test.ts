@@ -88,7 +88,8 @@ describe('val-basic', function() {
     expect(P('"a"').canon).equal('"a"')
     expect(P('b').canon).equal('"b"')
     expect(P('true').canon).equal('true')
-    expect(P('top').canon).equal('top')
+    expect(P('any').canon).equal('any')
+    expect(P('top').canon).equal('"top"')
     expect(P('nil').canon).match(/^nil/)
     expect(P('a:1').canon).equal('{"a":1}')
     expect(P('a:1,b:nil').canon).match(/^\{"a":1,"b":nil/)
@@ -654,7 +655,7 @@ describe('val-basic', function() {
     expect(tu(ctx, d100, TOP).canon).equal('1')
     expect(tu(ctx, TOP, d100).canon).equal('1')
 
-    expect(tu(ctx, new ConjunctVal({ peg: [] }), TOP).canon).equal('top')
+    expect(tu(ctx, new ConjunctVal({ peg: [] }), TOP).canon).equal('any')
 
     expect(A.parse('1 & .a')?.canon).equal('1&.a')
     expect(A.unify('1 & .a')?.canon).equal('.a&1') // canonical sorting
@@ -690,19 +691,19 @@ describe('val-basic', function() {
     expect(tu(ctx, d1, P('2')).canon).equal('2')
 
     expect(tu(ctx, P('1|number'), TOP).canon).equal('1|number')
-    expect(tu(ctx, P('1|top'), TOP).canon).equal('1|top')
-    expect(tu(ctx, P('1|number|top'), TOP).canon).equal('1|number|top')
+    expect(tu(ctx, P('1|any'), TOP).canon).equal('1|any')
+    expect(tu(ctx, P('1|number|any'), TOP).canon).equal('1|number|any')
 
     expect(() => tu(ctx, P('1|number'), TOP).gen(ctx))
       .throws(/disjunct_no_gen/)
-    expect(() => tu(ctx, P('1|number|top'), TOP).gen(ctx))
+    expect(() => tu(ctx, P('1|number|any'), TOP).gen(ctx))
       .throws(/disjunct_no_gen/)
 
-    expect(tu(ctx, P('number|1').unify(P('top'), ctx), TOP).canon).equal('number|1')
+    expect(tu(ctx, P('number|1').unify(P('any'), ctx), TOP).canon).equal('number|1')
 
-    expect(tu(ctx, P('1|number|1').unify(P('top'), ctx), TOP).canon).equal('1|number')
+    expect(tu(ctx, P('1|number|1').unify(P('any'), ctx), TOP).canon).equal('1|number')
 
-    expect(tu(ctx, P('number|string').unify(P('top'), ctx), TOP).canon)
+    expect(tu(ctx, P('number|string').unify(P('any'), ctx), TOP).canon)
       .equal('number|string')
 
     expect(tu(ctx, P('number|string').unify(P('1'), ctx), TOP).canon).equal('1')
@@ -903,8 +904,8 @@ b: c2: {n:2}
     expect(UC('a:1')).equal('{"a":1}')
     expect(UC('a:1,b:.a')).equal('{"a":1,"b":1}')
     expect(UC('a:*1|number,b:2,c:.a&.b')).equal('{"a":*1|number,"b":2,"c":2}')
-    expect(UC('a:*1|number,b:top,c:.a&.b'))
-      .equal('{"a":*1|number,"b":top,"c":*1|number}')
+    expect(UC('a:*1|number,b:any,c:.a&.b'))
+      .equal('{"a":*1|number,"b":any,"c":*1|number}')
 
     expect(UC('a:*1|number,a:*2|number'))
       .equal('{"a":*2|*1|number}')

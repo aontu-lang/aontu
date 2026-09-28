@@ -123,7 +123,7 @@ inverse-name-not-a-name	errc	d: rel() & inverse("a b")	inverse_name
 target-holds	gens	a: {dependsOn: rel({kind: service}) & [path($.b)]}\nb: {kind: service}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"service"}}
 target-refused	errc	a: {dependsOn: rel({kind: service}) & [path($.b)]}\nb: {kind: database}	scalar_value
 target-unsatisfied-key-is-not-satisfaction	errc	a: {dependsOn: rel({kind: service, port: integer}) & [path($.b)]}\nb: {kind: service}	mapval_spread_required
-target-top-asks-nothing	gens	a: {dependsOn: rel(top) & [path($.b)]}\nb: {kind: database}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"database"}}
+target-top-asks-nothing	gens	a: {dependsOn: rel(any) & [path($.b)]}\nb: {kind: database}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"database"}}
 target-is-per-edge-not-per-node	errc	a: {dependsOn: rel({kind: service}) & [path($.b)], usedBy: rel({kind: database}) & [path($.b)]}\nb: {kind: service}	scalar_value
 target-checks-the-node-the-link-arrives-at	gens	a: {dependsOn: rel({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 1}}}	{"a":{"dependsOn":["$.b.parts.one"]},"b":{"parts":{"one":{"n":1}}}}
 target-refuses-the-node-the-link-arrives-at	errc	a: {dependsOn: rel({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 2}}}	scalar_value

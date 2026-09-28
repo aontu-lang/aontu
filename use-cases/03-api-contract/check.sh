@@ -62,7 +62,7 @@ ok "contract.aontu does not generate (the documented price of gap 2)"
 # change (ADR-005). Two spots inside the api spread TEMPLATE changed:
 # the method disjunction canons as parsed (nested parens, no longer
 # flattened by a destination's application leaking back), and summary's
-# length() keeps its written argument (the `integer&` residue came from
+# len() keeps its written argument (the `integer&` residue came from
 # the same leak). Every applied endpoint is byte-identical.
 run canon 0 -- --canon "$DIR/contract.aontu"
 diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
@@ -110,7 +110,7 @@ run vtypes 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aontu" \
   "$DIR/data/create-user-wrong-types.json"
 has vtypes out '[aontu/constraint]'
 has vtypes out '[aontu/no_scalar_unify]'
-has vtypes out 'expected: string&length(integer&min(1)&max(80))'
+has vtypes out 'expected: string&len(integer&min(1)&max(80))'
 ok "vet: wrong types refused; constraint finding carries expected residual"
 
 run vsubtle 1 -- vet --at '$.msg.CreateUserRequest' "$DIR/contract.aontu" \

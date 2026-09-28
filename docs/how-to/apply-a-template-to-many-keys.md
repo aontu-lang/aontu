@@ -104,7 +104,7 @@ One thing to watch: a spread constrains the children it
 [meets](../unification.md) and creates none of its own, so a map holding
 only `&:` generates `{}`. Generating children from a table is `pack`'s
 job, and sealing what it generates is the subject of [seal generated
-children deeply](seal-generated-children.md). For lists, the choice
+children](seal-generated-children.md). For lists, the choice
 between `[&: T]` and the positional `[T]` is decided in [constrain every
 element of a list](constrain-list-elements.md).
 

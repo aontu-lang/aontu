@@ -25,7 +25,7 @@ pref-func	gen	x:*upper(foo)	{"x":"FOO"}
 path-ref	gen	z:x:{a:64} z:y:path(x.a)	{"z":{"x":{"a":64},"y":".x.a"}}
 path-abs	gen	z:x:{a:65} z:y:path($.z.x.a)	{"z":{"x":{"a":65},"y":"$.z.x.a"}}
 move-basic	gen	m:{x?:number,y:Y} n:move($.m)	{"n":{"y":"Y"}}
-move-top	gen	m:{x?:top,y:Y} n:move($.m)	{"n":{"y":"Y"}}
+move-top	gen	m:{x?:any,y:Y} n:move($.m)	{"n":{"y":"Y"}}
 move-closed	gen	m:close({x?:number,y:Y}) n:move($.m)	{"n":{"y":"Y"}}
 unknown-func	err	x:foo(1)	This function name is not recognized.
 move-pref-canon	canon	m:{x?:number,y:Y} n:move($.m)	{"m":{"x"?:number,"y":"Y"},"n":{"x"?:number,"y":*"Y"}}
@@ -67,7 +67,7 @@ ref-into-move-dest	gen	x:a:{v:6,k:key()} x:c:move($.x.a) y:$.x.c	{"x":{"c":{"k":
 # TypeScript `key(0d1)` and `key({})` did not merely misbehave, they
 # CRASHED: key() called the COERCING global isNaN() on the argument's peg,
 # which throws for a bigint and for the null-prototype object a map's peg
-# is. That surfaced as an opaque [aontu/internal]. path() had the same
+# is. That surfaced as an opaque [aontu/internal]. path had the same
 # class of bug, reading .isScalar off undefined when called with no
 # argument; upper()/lower() were given this exact fix earlier and carry a
 # comment saying so, and these two were missed in that sweep.
@@ -84,23 +84,23 @@ key-arg-list-err	err	a:b:c:key([1])	The argument to key() is a LEVEL
 key-arg-none-defaults-to-parent	gens	a:b:c:key()	{"a":{"b":{"c":"b"}}}
 key-arg-zero-own-key	gens	a:b:c:key(0)	{"a":{"b":{"c":"c"}}}
 key-arg-two	gens	a:b:c:key(2)	{"a":{"b":{"c":"a"}}}
-path-no-arg-err	err	x:path()	Cannot resolve value
-# move(top) MUST ERROR, NOT VANISH.
+path-no-arg-err	err	x:path	Cannot resolve value
+# move(any) MUST ERROR, NOT VANISH.
 #
 # The landed rule for a literal move() argument is set by its neighbours,
 # which both ports already agree on: the destination KEEPS the value
 # (wrapped in a pref), and errors if that value is not generable --
-# `x:move(number)` errors in both. And `top` is not generable: `x:top`,
-# `x:copy(top)` and `x:pref(top)` all error in both ports.
+# `x:move(number)` errors in both. And `top` is not generable: `x:any`,
+# `x:copy(any)` and `x:pref(any)` all error in both ports.
 #
 # TypeScript instead dropped the key silently, and disagreed with ITSELF
-# while doing it: its canon kept `x:top`, its generate did not. move() is
+# while doing it: its canon kept `x:any`, its generate did not. move() is
 # the only function that marks the ORIGINAL rather than the clone, and
 # TopVal.clone is the identity function, so the clone and the original are
 # the same object -- move() hid the very value it was returning.
-move-bare-top-err	err	q:1 a:1 x:move(top)	Cannot resolve value
-move-bare-top-canon	canon	q:1 a:1 x:move(top)	{"a":1,"q":1,"x":top}
-move-top-conjunct-gens	gens	x:move(top)&1	{"x":1}
+move-bare-top-err	err	q:1 a:1 x:move(any)	Cannot resolve value
+move-bare-top-canon	canon	q:1 a:1 x:move(any)	{"a":1,"q":1,"x":any}
+move-top-conjunct-gens	gens	x:move(any)&1	{"x":1}
 move-literal-keeps-value-gens	gens	x:move(1)	{"x":1}
 move-literal-keeps-value-canon	canon	x:move(1)	{"x":*1}
 move-literal-string-gens	gens	x:move("s")	{"x":"s"}
@@ -138,7 +138,7 @@ lower-locale-independent-i	gens	x:lower("I")	{"x":"i"}
 upper-ascii-unchanged	gens	x:upper("abc")	{"x":"ABC"}
 lower-ascii-unchanged	gens	x:lower("ABC")	{"x":"abc"}
 upper-digits-punct-unchanged	gens	x:upper("a1!")	{"x":"A1!"}
-# path() with a string argument reads ADDRESS TEXT (issue #38, then
+# path with a string argument reads ADDRESS TEXT (issue #38, then
 # ADR-015/016): text with no anchor is RELATIVE, the address the raw
 # spelling captures -- `path("b")` is the capture `path(.b)`, position-
 # independent data, not the value at b.
@@ -167,7 +167,7 @@ func-arity-key-two	errc	a:key(1,2)	func_arity
 func-arity-msg	err	a:upper("x",0,1,2)	upper takes one to three arguments, but was given 4
 # A zero-arity builtin renders its own phrasing: before the {0,0} arm
 # (ADR-015's kinds returned it), map(1) claimed map takes exactly one.
-func-arity-none-msg	err	a:map(1)	map takes no arguments, but was given 1
+func-arity-none-msg	err	a:acyclic(1)	acyclic takes no arguments, but was given 1
 # key takes NONE or one (how many levels up the path to read), and neq
 # takes one or more (a set of exclusions). Both are real arities, not
 # exemptions, so both spellings must keep working.
@@ -201,7 +201,7 @@ func-call-on-known-call	errc	a:upper("x")(2)	unknown_function
 func-group-single-term	gen	a:(1+2)	{"a":3}
 func-group-scalar	gen	a:(1)	{"a":1}
 func-group-map	gen	a:({b:1})	{"a":{"b":1}}
-# --- path() argument KIND (issues #60, #67) ---
+# --- path argument KIND (issues #60, #67) ---
 # An argument that is neither a scalar segment name nor a ref is not a
 # path. The Go port used to hand it straight back, so `path([1,2])`
 # generated the list. The refusal is at the argument's KIND, which is

@@ -204,6 +204,9 @@ func (r *ReferVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
+	if ck, ok := peer.(*ConstraintKindVal); ok {
+		return ck.Unify(r, ctx)
+	}
 	// Another `refer` at the same position: one constraint, both types.
 	if pr, ok := peer.(*ReferVal); ok {
 		out := r.reshape()
@@ -515,6 +518,9 @@ func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
 }
 
 func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
+	if ck, ok := peer.(*ConstraintKindVal); ok {
+		return ck.Unify(r, ctx)
+	}
 	// Two rel() at one field: one relation, both types.
 	if pr, ok := peer.(*RelVal); ok {
 		out := newRel(nil)

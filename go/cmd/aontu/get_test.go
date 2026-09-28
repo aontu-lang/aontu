@@ -43,7 +43,7 @@ func TestGetRendersOneNodePerView(t *testing.T) {
 		{[]string{"$.svc.auth", "--canon"}, `{"image":"a:v2","replicas":3}`},
 		{[]string{"$.svc.auth", "--types"}, `{"image":string,"replicas":integer}`},
 		{[]string{"$.svc", "--keys"}, "auth"},
-		{[]string{"$", "--canon", "--depth", "1"}, `{"port":top,"svc":top}`},
+		{[]string{"$", "--canon", "--depth", "1"}, `{"port":any,"svc":any}`},
 	} {
 		out, _, code := getRun(append(c.args, file)...)
 		if 0 != code || c.want != strings.TrimSpace(out) {
@@ -121,8 +121,8 @@ func TestGetUsageErrorsExit2(t *testing.T) {
 	// Eliding below a depth means rendering `top`, which JSON cannot
 	// say — refused rather than silently switching the view.
 	_, errw, code := getRun("$.a", "--depth", "1", file)
-	if 2 != code || !strings.Contains(errw, "JSON cannot say top") {
-		t.Fatalf("want 2/JSON cannot say top, got %d: %s", code, errw)
+	if 2 != code || !strings.Contains(errw, "JSON cannot say any") {
+		t.Fatalf("want 2/JSON cannot say any, got %d: %s", code, errw)
 	}
 
 	out, _, code := getRun("--help")

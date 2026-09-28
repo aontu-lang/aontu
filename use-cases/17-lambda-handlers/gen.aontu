@@ -68,7 +68,7 @@ parts: { handlers:$.svc index:true }
 
 out: emit($.parts, [
   {
-    match: map()
+    match: map
     body: [
       emit(_, {
         match: name: string

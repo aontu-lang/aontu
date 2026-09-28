@@ -15,8 +15,10 @@ highlighting; this is their human twin.
 | `[1,2]` | a list |
 | `"s"`, `1`, `1.5`, `true`, `null` | scalars, as JSON |
 | `0d9007199254740993` | an EXACT number, at any magnitude |
-| `string integer number float boolean null` | kinds: any value of that kind |
-| `top` | anything at all; `nil` is the failure |
+| `string number integer float biginteger bigdecimal boolean path map list` | types: any value of that type; `string` is non-empty |
+| `string & empty()` | any string, `""` included |
+| `constraint` | a constraint (`min(1)`, `re(...)`) rather than a value |
+| `any` | anything at all; `nil` is the failure |
 
 ## Combining
 
@@ -35,17 +37,17 @@ highlighting; this is their human twin.
 | Write | Means |
 |-------|-------|
 | `{&: {k: integer}}` | a TEMPLATE every key must satisfy |
-| `close({a:1})` | no key beyond those named |
+| `close({a:1})` | no key beyond those named, at any depth |
 | `{a?: 1}` | optional: dropped if unresolved |
 | `hide(x)` | evaluated, then dropped from the output |
-| `type(x)` | a definition, not a value: it generates nothing |
+| `type(x)` | a definition, not a value: it generates nothing, and an instance adds nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
 | `refer(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
 ## Constraints
 
 `min(n) max(n) above(n) below(n)` bound a number;
-`length(n)` and `unique()` bound a list or string;
+`len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
 `must(cond, "why")` is the escape hatch.
 

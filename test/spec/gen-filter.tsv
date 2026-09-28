@@ -39,7 +39,7 @@ filter-arity-three	errc	d:filter([1],integer,integer)\n	func_arity
 # drops lists".
 filter-list-empty-pattern-keeps-none	gens	x:filter([[1],[1,2]],[])	{"x":[]}
 filter-list-one-element-pattern	gens	x:filter([[1],[1,2]],[integer])	{"x":[[1]]}
-filter-list-top-keeps-both	gens	x:filter([[1],[1,2]],top)	{"x":[[1],[1,2]]}
+filter-list-top-keeps-both	gens	x:filter([[1],[1,2]],any)	{"x":[[1],[1,2]]}
 # A HOLE IN THE DATA ARGUMENT IS FILLED BY THE PEER, exactly as it is
 # in an unstaged call (`"hello" & upper(_)`). `_` is never done -- it is
 # FILLED -- so a generator gated on its data being done stayed residual

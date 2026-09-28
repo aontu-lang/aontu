@@ -110,7 +110,7 @@ path-seg-neg-one-not-own-key-err	err	a:{"-1":1} b:$.a.-1	Cannot resolve value
 path-seg-plus-is-decimal	gens	a:[10,20,30] b:$.a.+1	{"a":[10,20,30],"b":20}
 
 # A DOT CHAIN WRITTEN AS A STATEMENT is a relative reference, and at the
-# top level with a sibling statement it is ELEMENT 0 of an implicit
+# any level with a sibling statement it is ELEMENT 0 of an implicit
 # list -- so an unresolvable one misses at `$.0`, not at `$`.
 #
 # The two ports disagreed on both halves of this (#62): the reported

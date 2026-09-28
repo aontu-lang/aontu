@@ -16,17 +16,17 @@
 <path d="M32 80V150H50" class="av-line"/>
 <text x="52" y="154" class="av-t">contact</text>
 <path d="M56 160V170H74" class="av-line"/>
-<text x="76" y="174"><tspan class="av-t">phone</tspan><tspan class="av-m"> re(&quot;^[+][0-9]{7,15}$&quot;)</tspan></text>
+<text x="76" y="174"><tspan class="av-t">phone</tspan><tspan class="av-m"> string&amp;re(&quot;^[+][0-9]{7,15}$&quot;)</tspan></text>
 <path d="M56 160V190H74" class="av-line"/>
 <text x="76" y="194"><tspan class="av-t">verified</tspan><tspan class="av-m"> *false|boolean</tspan></text>
 <path d="M32 80V210H50" class="av-line"/>
-<text x="52" y="214"><tspan class="av-t">email</tspan><tspan class="av-m"> re(&quot;^[^@ ]+@[^@ ]+[.][^@ ]+$&quot;)</tspan></text>
+<text x="52" y="214"><tspan class="av-t">email</tspan><tspan class="av-m"> string&amp;re(&quot;^[^@ ]+@[^@ ]+[.][...</tspan></text>
 <path d="M32 80V230H50" class="av-line"/>
-<text x="52" y="234"><tspan class="av-t">id</tspan><tspan class="av-m"> re(&quot;^C[0-9]{7}$&quot;)</tspan></text>
+<text x="52" y="234"><tspan class="av-t">id</tspan><tspan class="av-m"> string&amp;re(&quot;^C[0-9]{7}$&quot;)</tspan></text>
 <path d="M32 80V250H50" class="av-line"/>
-<text x="52" y="254"><tspan class="av-t">locale</tspan><tspan class="av-m"> re(&quot;^[a-z][a-z](?:-[A-Z][A-Z]...</tspan></text>
+<text x="52" y="254"><tspan class="av-t">locale</tspan><tspan class="av-m"> string&amp;re(&quot;^[a-z][a-z](?:-[A-...</tspan></text>
 <path d="M32 80V270H50" class="av-line"/>
-<text x="52" y="274"><tspan class="av-t">name</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(1))</tspan></text>
+<text x="52" y="274"><tspan class="av-t">name</tspan><tspan class="av-m"> string&amp;len(integer&amp;min(1))</tspan></text>
 <path d="M32 80V290H50" class="av-line"/>
 <text x="52" y="294"><tspan class="av-t">phone</tspan><tspan class="av-m"> string</tspan></text>
 <path d="M32 80V310H50" class="av-line"/>

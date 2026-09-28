@@ -155,7 +155,7 @@ const TOOLS: ToolDef[] = [
       },
       depth: {
         type: 'number',
-        description: 'Structure to this depth; deeper nodes render as top',
+        description: 'Structure to this depth; deeper nodes render as any',
       },
     },
     required: ['src', 'path'],
@@ -634,7 +634,7 @@ function summaryOf(src: string, trust: TrustOptions, path?: string): any {
     ok: true,
     hash: canonHash(v),
     keys,
-    // The top tier only: every key, with its subtree elided to `top`.
+    // The top tier only: every key, with its subtree elided to `any`.
     shape: get(src, '$', { view: 'types', depth: 2, path, trust }).out,
     findings: [],
   }

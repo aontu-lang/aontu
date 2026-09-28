@@ -18,10 +18,14 @@ declare function kindSubsumes(sup: any, sub: any): boolean;
 type ScalarConstructor = StringConstructor | NumberConstructor | BooleanConstructor | (typeof Integer) | (typeof Float) | (typeof BigInteger) | (typeof BigDecimal) | (typeof Null) | (typeof Path) | (typeof Integer.constructor);
 declare class ScalarKindVal extends FeatureVal {
     isScalarKind: boolean;
+    emptyOk: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
+    clone(ctx: AontuContext, spec?: ValSpec): Val;
+    withEmpty(ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;
-    get canon(): any;
+    get canon(): string;
     superior(): Val;
     same(peer: any): boolean;
 }
-export { BigDecimal, BigInteger, Float, Integer, Null, Path, ScalarConstructor, ScalarKindVal, kindParent, kindSubsumes, };
+declare const String_: StringConstructor;
+export { String_, BigDecimal, BigInteger, Float, Integer, Null, Path, ScalarConstructor, ScalarKindVal, kindParent, kindSubsumes, };

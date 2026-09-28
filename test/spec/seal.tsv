@@ -1,0 +1,45 @@
+# CLOSING IS RECURSIVE, AND A TYPE IS A CLOSED DEFINITION.
+#
+# `close(x)` closes every map and list beneath x; `open(x)` opens them
+# and holds them open against a close from above. A closed map with a
+# spread is an exhaustive set of keys sharing a shape; a closed list with
+# a spread admits elements, since the spread declares every element. A copy of a type() taken by reference is an
+# instance and adds nothing, at any depth, while the type's own
+# statements still extend it (docs/reference-language.md, "Closed
+# values" and "Types are closed").
+#
+# Columns: name<TAB>mode<TAB>source<TAB>expect
+close-reaches-nested-map	errc	a: close({x: {y: 1}})\na: {x: {z: 2}}	closed
+close-reaches-nested-list	errc	a: close({x: [1]})\na: {x: [1, 2]}	closed
+close-narrows-nested	gens	a: close({x: {y: integer}})\na: {x: {y: 2}}	{"a":{"x":{"y":2}}}
+open-inside-close-holds	gens	a: close({x: open({y: 1})})\na: {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
+open-inside-close-holds-below	gens	a: close({x: open({y: {}})})\na: {x: {y: {q: 1}}}	{"a":{"x":{"y":{"q":1}}}}
+close-then-open-reopens-all	gens	a: open(close({x: {y: 1}}))\na: {x: {z: 2}, w: 3}	{"a":{"w":3,"x":{"y":1,"z":2}}}
+bare-close-reaches-nested	gens	a: close() & {x: {y: 1}}\na: {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
+bare-open-reaches-nested	gens	a: open() & close({x: {y: 1}})\na: {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}
+close-reaches-a-reference	errc	b: {y: 1}\na: close({x: $.b})\na: {x: {z: 2}}	closed
+close-reaches-a-reference-later-value	gens	b: {y: 1}\na: close({x: $.b})\na: {x: {y: 1}}	{"a":{"x":{"y":1}},"b":{"y":1}}
+closed-spread-refuses-an-undeclared-key	errc	a: close({x: 1, &: integer})\na: {y: 2}	closed
+closed-spread-judges-a-declared-key	errc	a: close({x: integer, &: min(1)})\na: {x: 0}	constraint
+closed-list-spread-admits-elements	gens	a: close([&: integer])\na: [1, 2]	{"a":[1,2]}
+closed-list-spread-judges-elements	errc	a: close([&: integer])\na: ["s"]	no_scalar_unify
+closed-spread-instance-is-closed	errc	a: close({&: {p: 1}, k: {}})\na: {k: {q: 2}}	closed
+closed-spread-instance-narrows	gens	a: close({&: {p: integer}, k: {}})\na: {k: {p: 2}}	{"a":{"k":{"p":2}}}
+type-instance-is-closed	errc	T: type({x: 1})\na: $.T & {y: 2}	closed
+type-instance-is-closed-below	errc	T: type({x: {y: 1}})\na: $.T & {x: {z: 2}}	closed
+type-instance-narrows	gens	T: type({x: integer})\na: $.T & {x: 2}	{"a":{"x":2}}
+type-declaration-stays-open	gens	T: type({x: 1})\nT: {y: 2}\na: $.T	{"a":{"x":1,"y":2}}
+type-open-instance-extends	gens	T: type(open({x: 1}))\na: $.T & {y: 2}	{"a":{"x":1,"y":2}}
+type-instance-open-inside	gens	T: type({x: open({}), y: 1})\na: $.T & {x: {q: 1}}	{"a":{"x":{"q":1},"y":1}}
+type-instance-via-spread-is-closed	errc	T: type({x: 1})\na: {&: $.T} & {k: {y: 2}}	closed
+type-instance-via-spread-narrows	gens	T: type({x: integer})\na: {&: $.T} & {k: {x: 2}}	{"a":{"k":{"x":2}}}
+type-instance-opened-by-open	gens	T: type({x: 1})\na: open($.T) & {y: 2}	{"a":{"x":1,"y":2}}
+close-on-reference-closes-copy	errc	b: {y: 1}\na: close($.b) & {z: 2}	closed
+close-on-reference-leaves-source	gens	b: {y: 1}\na: close($.b)\nb: {z: 2}	{"a":{"y":1,"z":2},"b":{"y":1,"z":2}}
+type-of-reference-instance	errc	B: {x: 1}\nT: type($.B)\na: $.T & {y: 2}	closed
+type-of-reference-source-open	gens	B: {x: 1}\nT: type($.B)\nB: {y: 2}	{"B":{"x":1,"y":2}}
+type-instance-required-key	errc	T: type({x: integer})\na: $.T & {}	mapval_required
+closed-instance-requires-missing-key-code	errc	T: type({x: integer, y: 1})\na: $.T & {y: 1}	mapval_required
+copy-of-a-type-instance-is-open	gens	T: type({x: 1})\na: copy($.T) & {y: 2}	{"a":{"x":1,"y":2}}
+copy-of-a-closed-value-is-open	gens	b: close({x: 1})\na: copy($.b) & {y: 2}	{"a":{"x":1,"y":2},"b":{"x":1}}
+close-inside-a-type-instance-holds	gens	T: type({x: close({y: 1})})\na: open($.T) & {x: {z: 2}}	{"a":{"x":{"y":1,"z":2}}}

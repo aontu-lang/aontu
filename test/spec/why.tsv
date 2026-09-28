@@ -56,7 +56,7 @@ why-spread-in-spread	why	&:{&:{z:1}}\np:{q:{}}	$.p.q.z	{"conjuncts":[{"canon":"1
 why-nested-list	why	a:[1,[2,3]]	$.a.1.0	{"conjuncts":[{"canon":"2","role":"literal","site":{"col":7,"file":"","len":1,"row":1},"src":"2"}],"value":"2"}
 why-ref-chain	why	s: "x"\nt: $.s\nu: $.t	$.u	{"conjuncts":[{"canon":"\\"x\\"","role":"literal","site":{"col":4,"file":"","len":3,"row":1},"src":"\\"x\\""},{"canon":"$.t","role":"ref","site":{"col":4,"file":"","len":1,"row":3},"src":"$"}],"value":"\\"x\\""}
 why-exact-leaf	why	n: 0d9007199254740993	$.n	{"conjuncts":[{"canon":"0d9007199254740993","role":"literal","site":{"col":4,"file":"","len":18,"row":1},"src":"0d9007199254740993"}],"value":"0d9007199254740993"}
-why-constraint-re	why	a: string & re("^x")	$.a	{"conjuncts":[{"canon":"string","role":"literal","site":{"col":4,"file":"","len":6,"row":1},"src":"string"},{"canon":"re(\\"^x\\")","role":"literal","site":{"col":13,"file":"","len":2,"row":1},"src":"re"}],"value":"re(\\"^x\\")"}
+why-constraint-re	why	a: string & re("^x")	$.a	{"conjuncts":[{"canon":"string","role":"literal","site":{"col":4,"file":"","len":6,"row":1},"src":"string"},{"canon":"re(\\"^x\\")","role":"literal","site":{"col":13,"file":"","len":2,"row":1},"src":"re"}],"value":"string&re(\\"^x\\")"}
 why-spread-sibling	why	m:{&:{n:integer},x:{n:1},y:{n:2}}	$.m.y.n	{"conjuncts":[{"canon":"integer","role":"spread","site":{"col":9,"file":"","len":7,"row":1},"src":"integer"},{"canon":"2","role":"literal","site":{"col":31,"file":"","len":1,"row":1},"src":"2"}],"value":"2"}
 why-ref-into-copied-map	why	a:1\nb:{c:$.a}\nd:$.b	$.d.c	{"conjuncts":[{"canon":"1","role":"literal","site":{"col":3,"file":"","len":1,"row":1},"src":"1"}],"value":"1"}
 why-unbound-var	why	v: $x	$.v	{"class":"reference","code":"unknown_var"}
@@ -108,7 +108,7 @@ why-refer-flow-leaves-the-target-alone	why	catalog: svc: {tier: 1}\ndeploy: wl: 
 # A NESTED JUNCTION carried through a REFERENCE reports the statement
 # the author wrote, once: the fold's narrowed form stands at the same
 # token, and one written token is one contribution.
-why-top-has-no-contribution	why	a: top	$.a	{"conjuncts":[],"value":"top"}
+why-top-has-no-contribution	why	a: any	$.a	{"conjuncts":[],"value":"any"}
 why-nested-junction-through-a-ref	why	x: 3|(1|2)\na: $.x & 1	$.a	{"conjuncts":[{"canon":"3|(1|2)","role":"literal","site":{"col":4,"file":"","len":1,"row":1},"src":"3"},{"canon":"$.x","role":"ref","site":{"col":4,"file":"","len":1,"row":2},"src":"$"},{"canon":"1","role":"literal","site":{"col":10,"file":"","len":1,"row":2},"src":"1"}],"value":"1"}
 # A SPREAD IS A SPREAD FROM EITHER SIDE. Every row above writes the
 # template and the keys in ONE statement, which is the own-key path.

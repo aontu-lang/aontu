@@ -6,15 +6,15 @@
 %comment = close({ open?:string prefix?:string close?:string })
 
 %profile = close({
-  lang: string & length(min(1))
+  lang: string & len(min(1))
   indent: close({
-    unit: *" "|string & length(min(1))
+    unit: *" "|string & len(min(1))
     width: *2|integer & min(0) & max(16)
   })
   comment?: close({ line?:%comment block?:%comment doc?:%comment })
   template?: close({
-    marker: string & length(min(1))
-    close?: string & length(min(1))
+    marker: string & len(min(1))
+    close?: string & len(min(1))
     ext?: [&: string & re("^[A-Za-z0-9_+-]+$")]
   })
 })

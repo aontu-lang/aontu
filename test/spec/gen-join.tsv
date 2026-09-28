@@ -98,7 +98,7 @@ join-unfired-hcanon	hcanon	m:[string]\no:join($.m,",")\n	{"m":[string],"o":join(
 # This is the half of the design that is not obvious, and getting it
 # wrong in either direction is the defect that matters.
 #
-# An UNSETTLED member -- an unresolved kind, a top, a preferred
+# An UNSETTLED member -- an unresolved kind, a any, a preferred
 # disjunct that has not collapsed -- is NOT a join failure. The call
 # stays residual and generation reports it as ordinary incompleteness
 # (`mapval_no_gen`, class incomplete), exactly as docs/trust.md
@@ -106,7 +106,7 @@ join-unfired-hcanon	hcanon	m:[string]\no:join($.m,",")\n	{"m":[string],"o":join(
 join-unfired-errc	errc	m:[string]\no:join($.m,",")\n	listval_no_gen
 join-unfired-sep-errc	errc	s:string\no:join([a,b],$.s)\n	mapval_no_gen
 join-kind-member-errc	errc	o:join([string],",")\n	mapval_no_gen
-join-top-member-errc	errc	o:join([top],",")\n	mapval_no_gen
+join-top-member-errc	errc	o:join([any],",")\n	mapval_no_gen
 # NOTE the class difference from `sum`, which answers `invalid-arg`
 # (conflict) for this same shape. Both ports agree here, so it is not a
 # parity break; it is `join` calling an uncollapsed disjunction

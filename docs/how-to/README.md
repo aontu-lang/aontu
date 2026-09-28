@@ -30,7 +30,7 @@ Building one model out of reusable parts.
 
 - [Provide defaults that callers can override](provide-defaults.md). Write a default in a disjunction with the type an override must satisfy, and layer defaults by rank.
 - [Apply a template to many keys](apply-a-template-to-many-keys.md). Use a `&:` spread entry to unify one template into every key of a map or every element of a list.
-- [Seal generated children deeply](seal-generated-children.md). Close both the set of `pack`-generated children and each child's shape, or seal from the side with a hidden guard.
+- [Seal generated children](seal-generated-children.md). Close the set of `pack`-generated children and each child's shape in one seal, hold a level open, or seal from the side with a hidden guard.
 - [Reference and reshape other parts of the document](reference-and-reshape.md). Pull other parts of the document in by reference, extend them, and relocate them with `move` and `copy`.
 - [Keep schema and helper fields out of the output](keep-schema-out-of-output.md). Mark schema and helper fields with `type()` or `hide()` so they constrain and compute without being generated.
 

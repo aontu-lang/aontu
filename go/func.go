@@ -16,36 +16,35 @@ var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
 	"move": true, "path": true, "close": true, "open": true,
-	"map": true, "list": true,
 	// ADR-034.
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
-	"re": true, "length": true, "unique": true, "must": true,
-	"deprecate":  true,
-	"rel":        true,
-	"acyclic":    true,
-	"inverse":    true,
-	"refer":      true,
-	"pack":       true,
-	"each":       true,
-	"filter":     true,
-	"match":      true,
-	"emit":       true,
-	"esc":        true,
-	"usc":        true,
-	"rep":        true,
-	"split":      true,
-	"nom":        true,
-	"translate":  true,
-	"add":        true,
-	"sub":        true,
-	"mul":        true,
-	"div":        true,
-	"mod":        true,
-	"rem":        true,
-	"sum":        true,
-	"least":      true,
-	"greatest":   true,
+	"re": true, "len": true, "empty": true, "unique": true, "must": true,
+	"deprecate": true,
+	"rel":       true,
+	"acyclic":   true,
+	"inverse":   true,
+	"refer":     true,
+	"pack":      true,
+	"each":      true,
+	"filter":    true,
+	"match":     true,
+	"emit":      true,
+	"esc":       true,
+	"usc":       true,
+	"rep":       true,
+	"split":     true,
+	"nom":       true,
+	"translate": true,
+	"add":       true,
+	"sub":       true,
+	"mul":       true,
+	"div":       true,
+	"mod":       true,
+	"rem":       true,
+	"sum":       true,
+	"least":     true,
+	"greatest":  true,
 	// Projection, which is what lets the aggregates reach a bag of
 	// RECORDS. Not a clever each template -- each MEETS each child, and
 	// a meet cannot select.
@@ -234,6 +233,15 @@ func captureSpelling(rv *RefVal) (string, bool) {
 		return "$." + strings.Join(parts, "."), true
 	}
 	return strings.Repeat(".", up+1) + strings.Join(parts, "."), true
+}
+
+// cjo places a bare `close()` last in a conjunct and a bare `open()`
+// first (SealVal).
+func (f *FuncVal) cjo() int {
+	if 0 == len(f.peg) && ("close" == f.name || "open" == f.name) {
+		return sealCjo("close" == f.name)
+	}
+	return 99999
 }
 
 func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
@@ -493,6 +501,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := clonePath(args[0], cp(base))
 		walkMark(out, true, false, true, false) // copy clears marks
+		unsealTree(out)
 		return out
 	case "key":
 		return keyFunc(ctx, f, base)
@@ -632,21 +641,6 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return args[0]
 		}
 		return makeNilErr(ctx, "invalid-arg", f, nil)
-	case "map":
-		// The container kinds (docs/design/PATHS.0.md): the vacuous
-		// call admits its values and defaults to nothing, where the
-		// container literal defaults to empty.
-		k := newMapKind()
-		k.site.sp, k.site.spu, k.site.url = f.site.sp, f.site.spu, f.site.url
-		k.site.src = f.site.src
-		k.path = f.path
-		return k
-	case "list":
-		k := newListKind()
-		k.site.sp, k.site.spu, k.site.url = f.site.sp, f.site.spu, f.site.url
-		k.site.src = f.site.src
-		k.path = f.path
-		return k
 	case "deprecate":
 		// G3 phase 4: unification-transparent — the result IS the
 		// argument, with the record riding it (base.deprec). A nil
@@ -967,14 +961,13 @@ func upperLower(ctx *Ctx, args []Val, up bool) Val {
 
 func setClosed(ctx *Ctx, f *FuncVal, args []Val, closed bool) Val {
 	if len(args) == 0 {
-		return makeNilErr(ctx, "no_first_arg", f, nil)
+		s := newSeal(closed)
+		s.site.sp, s.site.spu, s.site.url = f.site.sp, f.site.spu, f.site.url
+		s.site.src = f.site.src
+		s.path = f.path
+		return s
 	}
-	switch v := args[0].(type) {
-	case *MapVal:
-		v.closed = closed
-	case *ListVal:
-		v.closed = closed
-	}
+	sealBag(args[0], closed)
 	return args[0]
 }
 

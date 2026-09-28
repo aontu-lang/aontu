@@ -524,10 +524,10 @@ verdict: invalid
 
 $.spec.Step.then.approver: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.spec.Step.then.approver
-  expected: re("^[a-z]+@acme[.]example$")
+  expected: string&re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: outside.json:5:17 ("EXTERNAL@other.example")
-  schema: schema.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: schema.aontu:3:24 (string&re("^[a-z]+@acme[.]example$"))
 ...
 $ echo $?
 1

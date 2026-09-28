@@ -38,7 +38,7 @@ each-key-is-index	gens	o:each([a,b],{k:key()})\n	{"o":[{"k":"0"},{"k":"1"}]}
 # silent failure, which is why these rows exist.
 each-in-a-bound-each	gens	o:each([{a:1}],_ & {o:each([x,y],{v:_})})\n	{"o":[{"a":1,"o":[{"v":"x"},{"v":"y"}]}]}
 each-in-pack	gens	o:pack([p,q],{items:each([x,y],{v:_})})\n	{"o":{"p":{"items":[{"v":"x"},{"v":"y"}]},"q":{"items":[{"v":"x"},{"v":"y"}]}}}
-each-in-emit-body	gens	o:emit([{l:[x,y]}],{match:{l:list()},body:[each(.l,{v:_})]})\n	{"o":[{"v":"x"},{"v":"y"}]}
+each-in-emit-body	gens	o:emit([{l:[x,y]}],{match:{l:list},body:[each(.l,{v:_})]})\n	{"o":[{"v":"x"},{"v":"y"}]}
 each-of-each	gens	o:each([a,b],each([1,2],{v:_}))\n	{"o":[[{"v":1},{"v":2}],[{"v":1},{"v":2}]]}
 each-of-a-bound-each	gens	o:each(each([1,2],_ & integer),{v:_})\n	{"o":[{"v":1},{"v":2}]}
 each-of-filter	gens	o:each(filter([1,x,2],integer),{v:_})\n	{"o":[{"v":1},{"v":2}]}

@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **172** codes across
+There are seven classes, and the registry holds **175** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 53 | the text is not a document |
-| `conflict` | 55 | two values cannot both hold |
+| `conflict` | 58 | two values cannot both hold |
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
 | `reference` | 27 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** All 172 codes have hint text. `aontu explain --list`
+**Hint text.** All 175 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -221,7 +221,7 @@ twenty rows have no such section and carry no link.
 | `parse_bad_src` | 0.51.0 | The source handed in for parsing is not a non-empty string. |
 | `parse_unknown` | 0.51.0 | A parsed node of a kind the value builder has no case for. |
 | `patch_assignment` | 0.53.0 | A `set` argument that is not `<path>=<value>`. ([`aontu model set`](reference-api.md#aontu-model-set)) |
-| `path_address` | 0.54.0 | `path()` was given text that is not a tree address. ([First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp)) |
+| `path_address` | 0.54.0 | `path` was given text that is not a tree address. ([First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp)) |
 | `pref_implicit_bag` | 0.53.0 | A preference mark written on a bare key rather than on a value. ([Preference / default `*`](reference-language.md#preference--default-)) |
 | `refer_address` | 0.53.0 | `refer()` was given something that is not a path value. ([Addresses](reference-language.md#addresses)) |
 | `rel_address` | 0.53.0 | A `rel()` field holds something other than path values. ([Declared relations](reference-language.md#declared-relations)) |
@@ -249,6 +249,7 @@ twenty rows have no such section and carry no link.
 | `close` | 0.51.0 | The structure could not be closed. ([Closed values: `close` / `open`](reference-language.md#closed-values-close--open)) |
 | `closed` | 0.51.0 | A key or element added to a closed map or list. ([Errors](reference-language.md#errors)) |
 | `constraint` | 0.52.0 | The value does not satisfy the normalised residual the constraint reduced to. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
+| `constraint_kind` | 0.77.0 | The type `constraint` met a value that is not a constraint. ([The type of constraints: `constraint`](reference-language.md#the-type-of-constraints-constraint)) |
 | `constraint_pattern` | 0.53.0 | An `re()` pattern outside the supported subset. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
 | `decimal_budget` | 0.51.0 | An exact decimal past 4096 coefficient digits or an absolute scale of 4096. ([The exactness budget](reference-language.md#the-exactness-budget)) |
 | `divide_by_zero` | 0.53.0 | `div`, `mod`, or `rem` given a zero divisor. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
@@ -256,6 +257,7 @@ twenty rows have no such section and carry no link.
 | `emit_ref` | 0.57.0 | A template body names a field the node it matched does not carry. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
 | `empty` | 0.54.0 | A disjunction with no admitted alternative. ([Preference / default `*`](reference-language.md#preference--default-)) |
 | `empty-dist` | 0.54.0 | Every alternative of a distributed disjunction is refused. ([Disjunction `|`](reference-language.md#disjunction-)) |
+| `empty_domain` | 0.77.0 | `empty()` met a value that is not a string. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `exact_float_mix` | 0.51.0 | An exact number combined with a binary float. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `float_overflow` | 0.53.0 | A result that is not a finite binary64 number. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
@@ -266,12 +268,12 @@ twenty rows have no such section and carry no link.
 | `invalid-arg` | 0.51.0 | An argument does not match the expected type or format. |
 | `join_member` | 0.54.0 | A member of the bag `join()` folds is not text and never will be. ([Folding to a string: `join`](reference-language.md#folding-to-a-string-join)) |
 | `key_level` | 0.51.0 | The argument to `key()` is not a level. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
-| `list` | 0.51.0 | A list was expected and the value is of another kind. ([Container kinds: `map()` and `list()`](reference-language.md#container-kinds-map-and-list)) |
+| `list` | 0.51.0 | A list was expected and the value is of another kind. ([Container kinds: `map` and `list`](reference-language.md#container-kinds-map-and-list)) |
 | `list_length` | 0.53.0 | A literal list alternative admits only a list of its own length; a spread makes it take any length. ([Lists](reference-language.md#lists)) |
 | `literal_nil` | 0.51.0 | A literal nil met another value. ([The value lattice](reference-language.md#the-value-lattice)) |
 | `lossy_integer_literal` | 0.51.0 | An integer literal not exactly representable in binary64; the hint names the `0d` spelling. ([Exact or refused: lossy literals](reference-language.md#exact-or-refused-lossy-literals)) |
 | `make` | 0.51.0 | A value could not be constructed. |
-| `map` | 0.51.0 | A map was expected and the value is of another kind. ([Container kinds: `map()` and `list()`](reference-language.md#container-kinds-map-and-list)) |
+| `map` | 0.51.0 | A map was expected and the value is of another kind. ([Container kinds: `map` and `list`](reference-language.md#container-kinds-map-and-list)) |
 | `match_none` | 0.53.0 | No pattern matched, and `match` has no default. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |
 | `must` | 0.53.0 | The value fails an evaluate-only check written with `must()`; the author's message rides on the finding. ([Band B: `must`](reference-language.md#band-b-must)) |
 | `nil_gen` | 0.51.0 | A nil survived unification, and nil is not a literal value to generate. ([Generation](reference-language.md#generation)) |
@@ -297,6 +299,7 @@ twenty rows have no such section and carry no link.
 | `scalar_value` | 0.51.0 | Two literal scalars of the same kind that are not equal. ([Unification rules](reference-language.md#unification-rules)) |
 | `sort_domain` | 0.63.0 | A bag with no order to be put in. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `sort_key` | 0.63.0 | A child of the bag has no key to order by. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
+| `string_empty` | 0.77.0 | `string` met `""`, which only `string & empty()` admits. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `unite` | 0.51.0 | Two values could not be united. |
 
 ### Class `incomplete`

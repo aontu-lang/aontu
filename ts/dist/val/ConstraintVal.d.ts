@@ -28,6 +28,9 @@ type ConstraintState = {
     musts: MustAtom[];
     clash?: boolean;
     invalid?: string;
+    nonEmpty?: boolean;
+    emptyOk?: boolean;
+    pathKind?: boolean;
 };
 declare function normaliseRe(src: string): [string, string];
 declare class ConstraintVal extends FeatureVal {
@@ -50,6 +53,9 @@ declare class ConstraintVal extends FeatureVal {
     clash?: boolean;
     invalid?: string;
     invalidWhy?: string;
+    nonEmpty?: boolean;
+    emptyOk?: boolean;
+    pathKind?: boolean;
     constructor(spec: ValSpec & {
         atom?: string;
         state?: ConstraintState;
@@ -67,6 +73,7 @@ declare class ConstraintVal extends FeatureVal {
     private finish;
     private fail;
     private cloneState;
+    allowEmpty(ctx: AontuContext, peer: Val): Val;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     get canon(): string;
     same(peer: any): boolean;
@@ -94,10 +101,10 @@ declare class ReConstraintVal extends ConstraintVal {
 declare class MustConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-declare class LengthConstraintVal extends ConstraintVal {
+declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, ReConstraintVal, LengthConstraintVal, UniqueConstraintVal, MustConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };

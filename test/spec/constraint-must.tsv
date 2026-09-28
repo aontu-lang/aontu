@@ -18,15 +18,15 @@ must-evaluate-only	gen	a:must(min(3),"too small") a:9	{"a":9}
 must-expr-arg	gen	a:must(1+2,"sum") a:3	{"a":3}
 must-ref-arg	gen	b:3 a:must($.b,"match b") a:3	{"a":3,"b":3}
 must-ref-arg-reject	err	b:3 a:must($.b,"match b") a:4	match b
-must-container	gen	a:must(length(2),"len") a:[1,2]	{"a":[1,2]}
+must-container	gen	a:must(len(2),"len") a:[1,2]	{"a":[1,2]}
 
 # must folds LAST: the check sees the MERGED value, not the first
-# fragment -- `a:must(length(2),m) a:{x:1} a:{y:2}` is the map
+# fragment -- `a:must(len(2),m) a:{x:1} a:{y:2}` is the map
 # counting both keys, which is the fragment layering the language
 # exists for. Go's cjo() lacked the must arm of the late-fold rule and
 # fired the check against {x:1} alone; these rows are the pin.
-must-folds-last	gen	a:must(length(2),"need two") a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
-must-folds-last-reject	errc	a:must(length(2),"need two") a:{x:1}	must
+must-folds-last	gen	a:must(len(2),"need two") a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
+must-folds-last-reject	errc	a:must(len(2),"need two") a:{x:1}	must
 
 # Kept in written order, never merged or deduplicated: the FIRST
 # failing check reports, with its own message.

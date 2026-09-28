@@ -70,9 +70,9 @@ func TestSignatureHelp(t *testing.T) {
 		t.Fatal("no call should have no help")
 	}
 	// A zero-argument builtin still answers, with no active slot.
-	r = SignatureHelp("x: map()", 0, 7)
+	r = SignatureHelp("x: acyclic()", 0, 11)
 	if nil == r || 0 != r.ActiveParameter || 0 != len(r.Signatures[0].Parameters) {
-		t.Fatalf("map help: %+v", r)
+		t.Fatalf("acyclic help: %+v", r)
 	}
 
 	multi := "a: 1\nb: each($.a,\nc: 2"

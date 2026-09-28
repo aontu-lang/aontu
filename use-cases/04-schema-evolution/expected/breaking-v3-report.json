@@ -5,10 +5,10 @@
   },
   "findings": [
     {
-      "actual": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":re(\"^C[0-9]{7}$\"),\"locale\"?:re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&length(integer&min(1)),\"phone\"?:deprecate(string,{\"msg\":\"free-form phone is unvalidated; write E.164 to contact.phone\",\"since\":\"2.0.0\",\"use\":\"$.profile.contact.phone\"}),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}",
+      "actual": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:string&re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":string&re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":string&re(\"^C[0-9]{7}$\"),\"locale\"?:string&re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&len(integer&min(1)),\"phone\"?:deprecate(string,{\"msg\":\"free-form phone is unvalidated; write E.164 to contact.phone\",\"since\":\"2.0.0\",\"use\":\"$.profile.contact.phone\"}),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}",
       "class": "compat",
       "code": "compat_required_added",
-      "expected": "re(\"^(us|eu|apac)$\")",
+      "expected": "string&re(\"^(us|eu|apac)$\")",
       "message": "the general value requires this key; the specific value admits instances without it",
       "path": "$.profile.region",
       "severity": "error",
@@ -20,7 +20,7 @@
           "role": "general",
           "row": 32,
           "src": "re",
-          "value": "re(\"^(us|eu|apac)$\")"
+          "value": "string&re(\"^(us|eu|apac)$\")"
         },
         {
           "col": 10,
@@ -29,7 +29,7 @@
           "role": "specific",
           "row": 11,
           "src": "close",
-          "value": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":re(\"^C[0-9]{7}$\"),\"locale\"?:re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&length(integer&min(1)),\"phone\"?:deprecate(string,{\"msg\":\"free-form phone is unvalidated; write E.164 to contact.phone\",\"since\":\"2.0.0\",\"use\":\"$.profile.contact.phone\"}),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}"
+          "value": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:string&re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":string&re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":string&re(\"^C[0-9]{7}$\"),\"locale\"?:string&re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&len(integer&min(1)),\"phone\"?:deprecate(string,{\"msg\":\"free-form phone is unvalidated; write E.164 to contact.phone\",\"since\":\"2.0.0\",\"use\":\"$.profile.contact.phone\"}),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "actual": "string",
       "class": "compat",
       "code": "compat_narrowed",
-      "expected": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":re(\"^C[0-9]{7}$\"),\"locale\"?:re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&length(integer&min(1)),\"region\":re(\"^(us|eu|apac)$\"),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}",
+      "expected": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:string&re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":string&re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":string&re(\"^C[0-9]{7}$\"),\"locale\"?:string&re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&len(integer&min(1)),\"region\":string&re(\"^(us|eu|apac)$\"),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}",
       "message": "the closed general value does not declare this key",
       "path": "$.profile.phone",
       "severity": "error",
@@ -49,7 +49,7 @@
           "role": "general",
           "row": 16,
           "src": "close",
-          "value": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":re(\"^C[0-9]{7}$\"),\"locale\"?:re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&length(integer&min(1)),\"region\":re(\"^(us|eu|apac)$\"),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}"
+          "value": "{\"consent\":{\"analytics\":*false|boolean,\"marketing\":*false|boolean},\"contact\"?:{\"phone\"?:string&re(\"^[+][0-9]{7,15}$\"),\"verified\":*false|boolean},\"email\":string&re(\"^[^@ ]+@[^@ ]+[.][^@ ]+$\"),\"id\":string&re(\"^C[0-9]{7}$\"),\"locale\"?:string&re(\"^[a-z][a-z](?:-[A-Z][A-Z])?$\"),\"name\":string&len(integer&min(1)),\"region\":string&re(\"^(us|eu|apac)$\"),\"tier\":\"standard\"|\"premium\"|\"enterprise\"}"
         },
         {
           "col": 11,

@@ -28,6 +28,7 @@ abstract class BagVal extends FeatureVal {
   isGenable = true
 
   closed: boolean = false
+  opened: boolean = false
   optionalKeys: string[] = []
 
   aliasKeys: string[] = []

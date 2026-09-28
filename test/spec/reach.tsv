@@ -45,7 +45,7 @@ a-repeated-edge-is-one-successor	reaches	a: {to: [&: refer(), path($.b), path($.
 # graph is consulted. A path that names a real node with no edges is a
 # perfectly good question with the answer `unreachable`; only one that
 # names NOTHING refuses. The root is a legitimate endpoint -- a link at
-# the top of a document starts there -- even though `$` is not a
+# the any of a document starts there -- even though `$` is not a
 # refer() target (refer.tsv, `address-root-alone`).
 endpoint-inside-a-list	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$.a.list.0","to":"$.b"},"verdict":"unreachable"}
 endpoint-is-the-root	reaches	a: {list: [{}, {}], dep: refer() & path($.b)}\nb: {}\n	{"ask":{"from":"$","to":"$.b"},"verdict":"unreachable"}

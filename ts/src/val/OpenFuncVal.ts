@@ -10,11 +10,10 @@ import {
   AontuContext,
 } from '../ctx'
 
-import { makeNilErr } from '../err'
 
 
 import { FuncBaseVal } from './FuncBaseVal'
-import { BagVal } from '../val/BagVal'
+import { SealVal, sealCjo, sealBag } from './SealVal'
 
 
 class OpenFuncVal extends FuncBaseVal {
@@ -25,6 +24,9 @@ class OpenFuncVal extends FuncBaseVal {
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+    if (0 === spec.peg.length) {
+      this.cjo = sealCjo(false)
+    }
   }
 
 
@@ -41,15 +43,10 @@ class OpenFuncVal extends FuncBaseVal {
     let argval: any = args[0]
 
     if (null == argval) {
-      return makeNilErr(ctx, 'no_first_arg', this, undefined, 'close')
+      return this.place(new SealVal({ closed: false } as any, ctx))
     }
 
-    if (argval.isMap || argval.isList) {
-      // In place, for the reason CloseFuncVal.resolve gives: the
-      // instantiation rule (ADR-005) makes the argument this call's
-      // own wherever the call is multiplied.
-      (argval as BagVal).closed = false
-    }
+    sealBag(argval, false)
 
     return argval
   }

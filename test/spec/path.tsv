@@ -1,6 +1,6 @@
 # FIRST-CLASS PATHS (docs/design/PATHS.0.md): `path(p)` CAPTURES the
 # path expression `p` as a value -- the spelling, never the resolution
-# -- and `path()` with no argument is the path KIND. The captured
+# -- and `path` with no argument is the path KIND. The captured
 # value is a scalar whose generated form is the address string, in
 # exactly the grammar refer() reads: `$.a.b` from the document root,
 # `.b` from the sibling scope, one more leading dot per parent step.
@@ -17,9 +17,9 @@
 # spellings refuse as any two unequal scalars do. A bare string is
 # NEVER a path: `path("...")` -- the call's own string argument -- is
 # the one conversion, so the kind does not promote and refer() refuses
-# a string address outright. The kind still sits UNDER string, so
-# `string` admits a path value and the string constraints apply to
-# spellings.
+# a string address outright. `path` is its own kind directly under
+# `any`, so `string` refuses a path value, while the string constraints
+# (`re`, `len`) still read its spelling.
 #
 # A path value is DATA: existence is refer()'s contract, not the
 # value's -- `path($.nope)` generates. `path($.a) & refer()` is the
@@ -53,14 +53,14 @@ capture-not-resolution	gens	a:{p:1} emb: $.a cap: path($.a)	{"a":{"p":1},"cap":"
 capture-is-data-target-absent	gens	d: path($.nope)	{"d":"$.nope"}
 
 # --- The kind --------------------------------------------------------
-kind-unmet	errc	y: path()	mapval_no_gen
-kind-at-root	errc	path()	no_gen
-kind-admits-value	gens	a:{} d: path() & path($.a)	{"a":{},"d":"$.a"}
-kind-refuses-bare-string	errc	a:{} d: path() & "$.a"	no_scalar_unify
-kind-refuses-relative-string	errc	x:{auth:{}, dep: path() & ".auth"}	no_scalar_unify
-kind-refuses-anchorless-string	errc	d: path() & "auth"	no_scalar_unify
-promotion-not-number	errc	d: path() & 1	no_scalar_unify
-string-kind-admits-path	gens	a:{} d: string & path($.a)	{"a":{},"d":"$.a"}
+kind-unmet	errc	y: path	mapval_no_gen
+kind-at-root	errc	path	no_gen
+kind-admits-value	gens	a:{} d: path & path($.a)	{"a":{},"d":"$.a"}
+kind-refuses-bare-string	errc	a:{} d: path & "$.a"	no_scalar_unify
+kind-refuses-relative-string	errc	x:{auth:{}, dep: path & ".auth"}	no_scalar_unify
+kind-refuses-anchorless-string	errc	d: path & "auth"	no_scalar_unify
+promotion-not-number	errc	d: path & 1	no_scalar_unify
+string-kind-refuses-path	errc	a:{} d: string & path($.a)	no_scalar_unify
 type-mark-rides-prefix-meet	gens	T: type(path($.a)) & path($.a.b) a:{b:{}} x: 1	{"a":{"b":{}},"x":1}
 hide-mark-rides-prefix-meet	gens	h: hide(path($.a)) & path($.a.b) a:{b:{}} x: 1	{"a":{"b":{}},"x":1}
 super-lifts-to-kind	gens	a:{} b:{} d: super(path($.b)) & path($.a)	{"a":{},"b":{},"d":"$.a"}
@@ -77,7 +77,7 @@ prefix-meet-needs-same-anchor	errc	x:{a:{}, d: path(.a) & path(..a)}	scalar_valu
 # --- Canon: the call form is the literal -----------------------------
 canon-capture	canon	d: path($.a.b)	{"d":path($.a.b)}
 canon-relative	canon	x:{dep: path(.auth), auth:{}}	{"x":{"auth":{},"dep":path(.auth)}}
-canon-kind	canon	y: path()	{"y":path()}
+canon-kind	canon	y: path	{"y":path}
 canon-prefix-merged	canon	d: path($.a) & path($.a.b)	{"d":path($.a.b)}
 canon-anchorless-string	canon	d: path("auth")	{"d":path(.auth)}
 
@@ -96,7 +96,7 @@ two-typed-refers-merge-while-pending	gens	h: {} y: refer({z:{}}) & path($.h) x: 
 refer-address-conflict	errc	a:{} b:{} d: refer() & path($.a) & path($.b)	scalar_value
 refer-flow-into-merged	gens	a:{b:{p:1}} d: refer({r:3}) & path($.a) & path($.a.b)	{"a":{"b":{"p":1,"r":3}},"d":"$.a.b"}
 held-re-checks-the-link	gens	z:{} s: refer() & re("z$") & path($.z)	{"s":"$.z","z":{}}
-length-admits-a-path	gens	a:{} d: path($.a) & length(3)	{"a":{},"d":"$.a"}
+length-admits-a-path	gens	a:{} d: path($.a) & len(3)	{"a":{},"d":"$.a"}
 
 # --- neq over paths: exclusion identity is kind AND spelling ---------
 # `neq(path($.a))` excludes exactly that address -- never a plain
@@ -115,7 +115,7 @@ must-message-refuses-a-path	errc	m:1 x: must(re("a"), path($.m)) & "a"	invalid-a
 
 # --- The kind settles inside a schema (the property refer() lacks,
 # --- G4 phase 4) -----------------------------------------------------
-kind-in-type-body	gens	T: type({d: path()}) x: $.T & {d: path("$.a")} a:{}	{"a":{},"x":{"d":"$.a"}}
+kind-in-type-body	gens	T: type({d: path}) x: $.T & {d: path("$.a")} a:{}	{"a":{},"x":{"d":"$.a"}}
 
 # --- Argument refusals -----------------------------------------------
 arg-map	errc	a:path({b:1})	invalid-arg
@@ -124,7 +124,7 @@ arg-variable-segment	errc	k: "b" y: path($.a.$k) a:{b:1}	path_address
 arg-mid-path-dot	errc	x: {a:{b:1}, y: path(.a..b)}	path_address
 arg-absolute-parent-step	errc	y: path($..a) a:{}	path_address
 
-# --- Subsumption: string over path, kind over value ------------------
-subsume-string-over-path	subsume	d: string	d: path($.a)	{"findings":[],"verdict":"subsumes"}
-subsume-kind-over-value	subsume	d: path()	d: path($.a)	{"findings":[],"verdict":"subsumes"}
+# --- Subsumption: string does not cover path; kind over value -------
+subsume-string-does-not-cover-path	subsume	d: string	d: path($.a)	{"findings":[{"actual":"path($.a)","class":"compat","code":"compat_narrowed","expected":"string","path":"$.d","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"path","value":"path($.a)"}]}],"verdict":"does_not_subsume"}
+subsume-kind-over-value	subsume	d: path	d: path($.a)	{"findings":[],"verdict":"subsumes"}
 subsume-prefix-over-extension	subsume	d: path($.a)	d: path($.a.b)	{"findings":[],"verdict":"subsumes"}

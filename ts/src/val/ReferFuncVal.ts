@@ -139,6 +139,10 @@ class ReferVal extends FeatureVal {
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
+    // The type of constraints holds this constraint, not the reverse.
+    if (true === (peer as any)?.isConstraintKind) {
+      return peer.unify(this, ctx)
+    }
     const p: any = peer
 
     // Another `refer` at the same position: one constraint, both
@@ -295,7 +299,7 @@ class RelVal extends FeatureVal {
   // The type to flow into each target; TOP when `rel()` has none.
   tval: Val
   // Container-level constraints met before the container arrived
-  // (`rel() & length(min(1)) & [...]`): they meet the REWRITTEN
+  // (`rel() & len(min(1)) & [...]`): they meet the REWRITTEN
   // container, exactly as refer's held meets the link.
   held?: Val
 
@@ -377,6 +381,9 @@ class RelVal extends FeatureVal {
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
+    if (true === (peer as any)?.isConstraintKind) {
+      return peer.unify(this, ctx)
+    }
     const p: any = peer
 
     // Two rel() at one field: one relation, both types.

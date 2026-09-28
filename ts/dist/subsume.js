@@ -153,8 +153,11 @@ function subsumeNode(state, path, g0, s0) {
     // Scalar kinds: a kind subsumes its scalars, narrower kinds, and the
     // constraint residuals of its domain.
     if (true === g?.isScalarKind) {
+        // A `string` without the waiver refuses the "" a waived one admits.
+        const strict = String === g.peg && true !== g.emptyOk;
         if (true === s?.isScalarKind) {
-            if (g.peg === s.peg || (0, ScalarKindVal_1.kindSubsumes)(g.peg, s.peg)) {
+            if ((g.peg === s.peg || (0, ScalarKindVal_1.kindSubsumes)(g.peg, s.peg)) &&
+                !(strict && true === s.emptyOk)) {
                 return 'yes';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general kind does not admit the specific kind');
@@ -163,7 +166,8 @@ function subsumeNode(state, path, g0, s0) {
         if (true === s?.isScalar) {
             const leaf = s.superior?.();
             if (true === leaf?.isScalarKind &&
-                (g.peg === leaf.peg || (0, ScalarKindVal_1.kindSubsumes)(g.peg, leaf.peg))) {
+                (g.peg === leaf.peg || (0, ScalarKindVal_1.kindSubsumes)(g.peg, leaf.peg)) &&
+                !(strict && true === leaf.emptyOk)) {
                 return 'yes';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general kind does not admit the specific scalar');
@@ -177,7 +181,13 @@ function subsumeNode(state, path, g0, s0) {
                     (null != skind && (0, ScalarKindVal_1.kindSubsumes)(g.peg, skind)))) {
                 return 'yes';
             }
-            if ('string' === dom && String === g.peg) {
+            if ('string' === dom && String === g.peg &&
+                true !== s.pathKind &&
+                !(strict && !(true === s.nonEmpty &&
+                    true !== s.emptyOk))) {
+                return 'yes';
+            }
+            if (ScalarKindVal_1.Path === g.peg && true === s.pathKind) {
                 return 'yes';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general kind does not cover the specific residual');
@@ -186,8 +196,8 @@ function subsumeNode(state, path, g0, s0) {
         record(state, 'compat_narrowed', path, g, s, 'the general kind admits no such value');
         return 'no';
     }
-    // Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
-    // map and itself, `list()` every list. The unit literals (`{}`,
+    // Container kinds (docs/design/PATHS.0.md): `map` subsumes every
+    // map and itself, `list` every list. The unit literals (`{}`,
     // `[]`) already subsume through the container rules; only the kind
     // former needs an arm.
     if (true === g?.isContainerKind) {
@@ -354,7 +364,7 @@ let topVal;
 function topLike() {
     if (null == topVal) {
         topVal = {
-            isTop: true, canon: 'top',
+            isTop: true, canon: 'any',
             site: { row: -1, col: -1, len: -1, src: '' },
         };
     }

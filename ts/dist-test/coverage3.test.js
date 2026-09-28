@@ -45,6 +45,7 @@ const err_1 = require("../dist/err");
 const lang_1 = require("../dist/lang");
 const site_1 = require("../dist/site");
 const CloseFuncVal_1 = require("../dist/val/CloseFuncVal");
+const OpenFuncVal_1 = require("../dist/val/OpenFuncVal");
 const CopyFuncVal_1 = require("../dist/val/CopyFuncVal");
 const HideFuncVal_1 = require("../dist/val/HideFuncVal");
 const MoveFuncVal_1 = require("../dist/val/MoveFuncVal");
@@ -61,6 +62,8 @@ const hcanon_1 = require("../dist/hcanon");
 const query_1 = require("../dist/query");
 const provenance_1 = require("../dist/provenance");
 const ReferFuncVal_1 = require("../dist/val/ReferFuncVal");
+const EmptyVal_1 = require("../dist/val/EmptyVal");
+const SealVal_1 = require("../dist/val/SealVal");
 const PathVal_1 = require("../dist/val/PathVal");
 const graph_1 = require("../dist/graph");
 const trim_1 = require("../dist/trim");
@@ -93,6 +96,7 @@ const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
+const ConstraintKindVal_1 = require("../dist/val/ConstraintKindVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
 const BigDecimalVal_1 = require("../dist/val/BigDecimalVal");
@@ -258,7 +262,6 @@ function capture(fn) {
     (0, node_test_1.test)('func-no-arg-guards-via-api', () => {
         const ctx = CTX();
         const cases = [
-            ['close', new CloseFuncVal_1.CloseFuncVal({ peg: [] }), 'no_first_arg'],
             ['copy', new CopyFuncVal_1.CopyFuncVal({ peg: [] }), 'invalid-arg'],
             ['hide', new HideFuncVal_1.HideFuncVal({ peg: [] }), 'arg'],
             ['move', new MoveFuncVal_1.MoveFuncVal({ peg: [] }), 'arg'],
@@ -270,6 +273,12 @@ function capture(fn) {
             Assert.equal(out.isNil, true, name + ': expected a nil');
             Assert.equal(out.why, why, name + ': why');
         }
+        // `close()` with no argument is a seal, not a refusal.
+        const seal = new CloseFuncVal_1.CloseFuncVal({ peg: [] }).resolve(ctx, []);
+        Assert.equal(seal.isSeal, true);
+        Assert.equal(seal.closed, true);
+        Assert.equal(seal.clone(ctx).same(seal), true);
+        Assert.equal(seal.same(new OpenFuncVal_1.OpenFuncVal({ peg: [] }).resolve(ctx, [])), false);
         const pf = new PathFuncVal_1.PathFuncVal({ peg: [] });
         const prepared = pf.prepare(ctx, []);
         Assert.equal(prepared.length, 0);
@@ -431,14 +440,92 @@ function capture(fn) {
         Assert.equal(mk.same(new ContainerKindVal_1.MapKindVal({}, ctx)), true);
         Assert.equal(lk.same(mk), false);
         Assert.equal(lk.same(new ContainerKindVal_1.ListKindVal({}, ctx)), true);
-        // The func shells: resolved on first unify, so make() and
-        // funcname() never run from source.
-        const mf = new ContainerKindVal_1.MapFuncVal({ peg: [] }, ctx);
-        Assert.equal(mf.funcname(), 'map');
-        Assert.equal(mf.make(ctx, { peg: [] }).isMapFunc, true);
-        const lf = new ContainerKindVal_1.ListFuncVal({ peg: [] }, ctx);
-        Assert.equal(lf.funcname(), 'list');
-        Assert.equal(lf.make(ctx, { peg: [] }).isListFunc, true);
+    });
+    (0, node_test_1.test)('constraint-kind-api-only-arms', () => {
+        const ctx = CTX();
+        const bare = new ConstraintKindVal_1.ConstraintKindVal({}, ctx);
+        const held = new ConstraintKindVal_1.ConstraintKindVal({ held: new ConstraintVal_1.MinConstraintVal({ peg: [new IntegerVal_1.IntegerVal({ peg: 1 })] }, ctx) }, ctx);
+        Assert.equal(bare.same(new ConstraintKindVal_1.ConstraintKindVal({}, ctx)), true);
+        Assert.equal(bare.same(held), false);
+        Assert.equal(held.same(bare), false);
+        Assert.equal(held.same(held.clone(ctx)), true);
+        Assert.equal(bare.same(new ContainerKindVal_1.MapKindVal({}, ctx)), false);
+        Assert.equal(bare.clone(ctx).canon, 'constraint');
+        Assert.equal(bare.unify(bare, ctx), bare);
+        Assert.equal(bare.hold(new NilVal_1.NilVal({}), ctx).isNil, true);
+    });
+    // The dispatcher in unify.ts drives the type of constraints, empty()
+    // and a seal before their peers, so these arms are API-only.
+    (0, node_test_1.test)('keyword-vals-api-only-arms', () => {
+        const ctx = CTX();
+        const bare = new ConstraintKindVal_1.ConstraintKindVal({}, ctx);
+        Assert.equal(bare.unify((0, top_1.top)(), ctx), bare);
+        const pending = new ConstraintVal_1.MinConstraintVal({ peg: [new RefVal_1.RefVal({ peg: ['b'] }, ctx)] }, ctx);
+        const held = new ConstraintKindVal_1.ConstraintKindVal({ held: pending }, ctx);
+        Assert.notEqual(held.dc, -1);
+        Assert.notEqual(held.unify((0, top_1.top)(), ctx), held);
+        Assert.equal(bare.hold(new IntegerVal_1.IntegerVal({ peg: 1 }, ctx), ctx).why, 'constraint_kind');
+        const e = new EmptyVal_1.EmptyVal({}, ctx);
+        Assert.equal(e.unify(undefined, ctx), e);
+        Assert.equal(e.unify((0, top_1.top)(), ctx), e);
+        Assert.equal(e.unify(new EmptyVal_1.EmptyVal({}, ctx), ctx), e);
+        const nil = new NilVal_1.NilVal({ why: 'test-nil' }, ctx);
+        Assert.equal(e.unify(nil, ctx), nil);
+        Assert.equal(e.unify(new ConstraintKindVal_1.ConstraintKindVal({}, ctx), ctx).canon, 'constraint&empty()');
+        Assert.equal(e.same(new EmptyVal_1.EmptyVal({}, ctx)), true);
+        Assert.equal(e.same(bare), false);
+        const closed = new SealVal_1.SealVal({ closed: true }, ctx);
+        const open = new SealVal_1.SealVal({ closed: false }, ctx);
+        Assert.equal(closed.unify(undefined, ctx), closed);
+        Assert.equal(closed.unify((0, top_1.top)(), ctx), closed);
+        Assert.equal(open.unify(closed, ctx), closed);
+        Assert.equal(closed.unify(open, ctx), closed);
+        const one = new IntegerVal_1.IntegerVal({ peg: 1 }, ctx);
+        Assert.equal(closed.unify(one, ctx), one);
+        Assert.equal(closed.same(closed.clone(ctx)), true);
+        Assert.equal(closed.same(open), false);
+        const rel = new ReferFuncVal_1.RelVal({ tval: new StringVal_1.StringVal({ peg: 'x' }, ctx) }, ctx);
+        Assert.equal(rel.unify(new ConstraintKindVal_1.ConstraintKindVal({}, ctx), ctx).canon, 'constraint&rel("x")');
+    });
+    // The empty-string flags fold idempotently, and a value carrying one
+    // hands it to an identical value that does not.
+    (0, node_test_1.test)('empty-flags-api-only-arms', () => {
+        const ctx = CTX();
+        const sk = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx).withEmpty(ctx);
+        Assert.equal(sk.withEmpty(ctx), sk);
+        const s = new StringVal_1.StringVal({ peg: 'x' }, ctx).withEmpty(ctx);
+        Assert.equal(s.withEmpty(ctx), s);
+        const bare = new StringVal_1.StringVal({ peg: 'x' }, ctx);
+        Assert.equal(bare.unify(s, ctx), s);
+        Assert.equal(s.unify(bare, ctx), s);
+        const blank = new StringVal_1.StringVal({ peg: '' }, ctx);
+        const strict = blank.withNonEmpty(ctx);
+        Assert.equal(strict.needsNonEmpty, true);
+        const both = strict.unify(blank.withEmpty(ctx), ctx);
+        Assert.equal(both.needsNonEmpty && both.emptyOk, true);
+        const waived = A().unify('x: string & re("x") & empty()').peg.x;
+        Assert.equal(waived.allowEmpty(ctx, new EmptyVal_1.EmptyVal({}, ctx)), waived);
+        // With an argument, close() and open() are the ordinary calls.
+        const m = new MapVal_1.MapVal({ peg: {} }, ctx);
+        Assert.notEqual(new CloseFuncVal_1.CloseFuncVal({ peg: [m] }, ctx).cjo, new CloseFuncVal_1.CloseFuncVal({ peg: [] }, ctx).cjo);
+        Assert.notEqual(new OpenFuncVal_1.OpenFuncVal({ peg: [m] }, ctx).cjo, new OpenFuncVal_1.OpenFuncVal({ peg: [] }, ctx).cjo);
+    });
+    (0, node_test_1.test)('seal-helpers-api-only-arms', () => {
+        const ctx = CTX();
+        const one = new IntegerVal_1.IntegerVal({ peg: 1 }, ctx);
+        (0, SealVal_1.sealTree)(one, true);
+        (0, SealVal_1.sealBag)(one, true);
+        Assert.equal((0, SealVal_1.sealChild)(ctx, one), one);
+        const held = new MapVal_1.MapVal({ peg: {} }, ctx);
+        held.opened = true;
+        Assert.equal((0, SealVal_1.sealChild)(ctx, held), held);
+        const shut = new ListVal_1.ListVal({ peg: [] }, ctx);
+        shut.closed = true;
+        Assert.equal((0, SealVal_1.sealChild)(ctx, shut), shut);
+        const plain = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const copy = (0, SealVal_1.sealChild)(ctx, plain);
+        Assert.notEqual(copy, plain);
+        Assert.equal(copy.closed, true);
     });
     (0, node_test_1.test)('path-func-api-only-arms', () => {
         const ctx = CTX();
@@ -720,8 +807,8 @@ function capture(fn) {
         Assert.match(label('a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1', 2), /\*reference\*/);
         Assert.match(label('n:1.5', 2), /\*float\*/);
         Assert.match(label('x:null', 2), /\*scalar\*/);
-        Assert.match(label('x:null|top', 2), /\*disjunct\*/);
-        Assert.match(label('x:top|top', 2), /\*top\*/);
+        Assert.match(label('x:null|any', 2), /\*disjunct\*/);
+        Assert.match(label('x:any|any', 2), /\*any\*/);
     });
     (0, node_test_1.test)('publish-for-unopened-document', () => {
         // A uri that changes between the store and the publish leaves the

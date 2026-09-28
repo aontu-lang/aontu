@@ -404,7 +404,7 @@ class Reader {
         items.push({ t: 'paren', inner, at })
         continue
       }
-      if ('#TX' === n && '#E(' === this.name(1)) {
+      if (('#TX' === n || '#VL' === n) && '#E(' === this.name(1)) {
         const name = this.T[this.i].src
         this.i += 2
         const args = this.seq()

@@ -287,14 +287,15 @@ describe('lsp-completion', () => {
 
   test('completion-list', () => {
     const c = computeCompletions('')
-    Assert.equal(c.length, 76)
+    Assert.equal(c.length, 78)
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.kind, COMPLETION_FUNCTION)
     Assert.equal(byLabel.get('string')?.kind, COMPLETION_KEYWORD)
     Assert.equal(byLabel.get('biginteger')?.kind, COMPLETION_KEYWORD)
     for (const want of
       ['close', 'upper', 'path', 'string', 'integer', 'float',
-        'biginteger', 'bigdecimal', 'true', 'null', 'top']) {
+        'biginteger', 'bigdecimal', 'true', 'null', 'any', 'map', 'list',
+        'constraint']) {
       Assert.ok(byLabel.has(want), 'missing ' + want)
     }
   })
@@ -381,9 +382,9 @@ describe('lsp-completion', () => {
     Assert.equal(help(0, 4), null)
 
     // A zero-argument builtin still answers, with no active slot.
-    open('x: map()')
-    r = help(0, 7)
-    Assert.equal(r.signatures[0].label, 'map() : map')
+    open('x: acyclic()')
+    r = help(0, 11)
+    Assert.equal(r.signatures[0].label, 'acyclic() : constraint')
     Assert.equal(r.activeParameter, 0)
     Assert.equal(r.signatures[0].parameters.length, 0)
 
@@ -412,7 +413,7 @@ describe('lsp-completion', () => {
   test('builtin-funcs-match-engine', () => {
     // Drift guard: every BUILTIN_FUNCS name must be recognised by the
     // parser, and a bogus name must not be.
-    Assert.equal(BUILTIN_FUNCS.length, 64)
+    Assert.equal(BUILTIN_FUNCS.length, 63)
     for (const name of BUILTIN_FUNCS) {
       const errs = computeDiagnostics('x:' + name + '(1)')
         .filter(d => d.code === 'unknown_function')
@@ -487,7 +488,7 @@ describe('lsp-handler', () => {
     Assert.match(hov[0].result.contents.value, /8080/)
 
     const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} })
-    Assert.equal(comp[0].result.length, 76)
+    Assert.equal(comp[0].result.length, 78)
   })
 
 

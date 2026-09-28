@@ -47,12 +47,12 @@ billing
 $ aontu model get $.services.auth --types system.aontu
 {"replicas":integer,"tier":*string|string}
 $ aontu model get $ --depth 1 --canon system.aontu
-{"services":top}
+{"services":any}
 ```
 
 Each view is itself a valid aontu document that generalises the
-truth: `top` means "no further information at this tier". `--depth` needs
-`--canon` or `--types`, because JSON has no way to write `top`.
+truth: `any` means "no further information at this tier". `--depth` needs
+`--canon` or `--types`, because JSON has no way to write `any`.
 
 A path that names nothing exits `1` and guesses:
 

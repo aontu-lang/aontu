@@ -364,7 +364,7 @@
 #   EQUAL depth the two ports agree, which is what the two rows
 #   vet-ref-clone-names-the-key-not-the-record and
 #   vet-type-alias-names-the-key-not-the-record in vet.tsv pin, and why
-#   use-cases/10-data-model/money-wire.aontu declares its types at the top
+#   use-cases/10-data-model/money-wire.aontu declares its types at the any
 #   level rather than under a `schema:` namespace.
 #
 #   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
@@ -486,7 +486,7 @@
 #   soundness fix (use-cases/BUGS.md 16), by probing a row through both
 #   library forms and diffing.
 #
-#   Divergent input:  schema `x: length(min(2)) & { &: {r: integer} }`,
+#   Divergent input:  schema `x: len(min(2)) & { &: {r: integer} }`,
 #                     data `{"x": {"a": {"r": 1}}}`
 #   TypeScript: the finding's schema site is len 1, src "{"
 #   Go:         the same site is len -1, src "" (unsited)
@@ -503,7 +503,7 @@
 #
 #   The SAME divergence shows in a finding's PATH, not just its site,
 #   and reaches `--at`: anchoring ON a residuated container
-#   (`x: length(min(2)) & {a: 1}` with `--at $.x`) has TypeScript report
+#   (`x: len(min(2)) & {a: 1}` with `--at $.x`) has TypeScript report
 #   the conflict at `$` and Go at `$.x`, because the path is taken from
 #   whichever operand's location wins and TypeScript has re-pathed the
 #   merged container to the meet position. Both ports still answer

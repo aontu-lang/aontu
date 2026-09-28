@@ -67,9 +67,9 @@ verdict: breaking
 $.profile.owner: compat_required_added [compat]
   the general value requires this key; the specific value admits instances without it
   expected: string
-  actual:   {"email":string,"id":re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"}
+  actual:   {"email":string,"id":string&re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"}
   general: require-owner.aontu:6:10 (string)
-  specific: profile-v2.aontu:1:10 ({"email":string,"id":re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"})
+  specific: profile-v2.aontu:1:10 ({"email":string,"id":string&re("^C[0-9]{7}$"),"locale"?:string,"tier":"standard"|"premium"|"enterprise"})
 $ echo $?
 1
 ```

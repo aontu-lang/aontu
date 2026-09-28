@@ -108,7 +108,7 @@ describe('mcp', () => {
       { src: 'a: {b: 1}', path: '$.a', view: 'canon' })).out, '{"b":1}')
     Assert.equal(payload(callTool('get',
       { src: 'a: {b: 1}', path: '$', view: 'types', depth: 2 })).out,
-      '{"a":{"b":top}}')
+      '{"a":{"b":any}}')
 
     const w = payload(callTool('why',
       { src: 'a: 1\na: integer', path: '$.a' }))

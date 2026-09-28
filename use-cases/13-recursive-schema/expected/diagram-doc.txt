@@ -10,6 +10,6 @@ $
     │   ├── chain $.spec.Step
     │   └── name string
     └── Step
-        ├── approver re("^[a-z]+@acme[.]example$")
+        ├── approver string&re("^[a-z]+@acme[.]exa...
         ├── decision *"pending"|"pending"|"approve...
         └── then $.spec.Step

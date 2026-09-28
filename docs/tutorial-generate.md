@@ -407,7 +407,7 @@ that follow are what else the model should hold:
 
 - The recipes: [generate code from a
   model](how-to/generate-code.md) end to end with goldens,
-  [seal generated children deeply](how-to/seal-generated-children.md)
+  [seal generated children](how-to/seal-generated-children.md)
   when a generated shape must stay closed, and [keep schema out of the
   output](how-to/keep-schema-out-of-output.md) for the helper fields a
   generator needs and a file does not.

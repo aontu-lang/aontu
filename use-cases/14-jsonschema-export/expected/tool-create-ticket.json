@@ -4,6 +4,7 @@
   "properties": {
     "labels": {
       "items": {
+        "minLength": 1,
         "type": "string"
       },
       "type": "array",
@@ -18,6 +19,7 @@
       ]
     },
     "project": {
+      "minLength": 1,
       "pattern": "^[A-Z][A-Z0-9]{1,9}$",
       "type": "string"
     },

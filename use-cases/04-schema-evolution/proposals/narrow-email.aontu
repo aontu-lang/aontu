@@ -4,7 +4,7 @@ aontu_policy: hide({ compat:*backward | forward | full | none })
 profile: close({
   id: string & re("^C[0-9]{7}$")
   email: string & re("^[^@ ]+@example[.]com$")
-  name: string & length(min(1))
+  name: string & len(min(1))
   phone?: deprecate(string, {
     msg: "free-form phone is unvalidated; write E.164 to contact.phone"
     use: "$.profile.contact.phone"

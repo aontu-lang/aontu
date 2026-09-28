@@ -8,6 +8,82 @@ each change affects.
 
 ## Unreleased
 
+### Closing is recursive, and a type is closed for its instances
+
+Both ports. **Breaking.** `close(x)` now seals every map and list
+beneath `x`, not only `x`: `close({x:{y:1}}) & {x:{z:2}}` is refused
+(`closed`), and a child that resolves later inside a closed value (a
+reference, a pending call) is closed when it does. `open(x)` lifts
+the seal at every depth and holds the subtree open against a later
+close from above, so `close({ x: open({...}) })` seals `x`'s parent
+and not `x`. The bare seals `close()` and `open()` reach as deep.
+
+A closed map with a spread stays an exhaustive set of keys sharing a
+shape (`close({ &: T, a:{}, b:{} })` refuses every other key); a
+closed list with a spread admits elements, since the spread declares
+every element (`close([&: integer])` is a list of integers of any
+length). JSON Schema export of a closed map with a spread is now
+exact (`additionalProperties: false`, the shape already in every
+named property) rather than a recorded loss.
+
+A copy of a `type()`-marked value taken by reference is an instance,
+and adds nothing at any depth (`T: type({x:1})` then `a: $.T & {y:2}`
+is `closed`); the type's own statements still extend it. A type meant
+to be extended by its instances says `type(open({...}))`, and
+`open($.T)` lifts the seal on one instance; `copy()` clears any seal
+along with the marks. The built-in
+`aontu:system` shapes (`Port`, `Component`, `Service`) are open for
+that reason. Pinned by `test/spec/seal.tsv`; the migration of the
+use-case corpus is in this change.
+
+### The type keywords: `any`, `map`, `list`, `path`, `constraint`
+
+Both ports. **Breaking.** The types of the language are now all
+spelled as keywords, and the lattice runs from `any` at the top to
+`nil` at the bottom:
+
+- `top` is renamed `any`. A bare `top` is now the string `"top"`.
+- `map()` and `list()` are the keywords `map` and `list`; the calls
+  are refused (`unknown_function`). As keys (`map: 1`) they are keys,
+  and a reference can name such a key (`$.a.map`, `.path`).
+- `path` is a keyword and its own kind, directly under `any` rather
+  than under `string`: `string & path($.a)` is refused, and a schema
+  that holds addresses says `path`. `path()` with no argument is the
+  same kind. The string constraints (`re`, `len`, `neq`) still read a
+  path's spelling, and a constraint remembers which kind it met.
+- `constraint` is the type of constraints. It holds the constraints it
+  meets (`constraint & integer & min(0)`) and refuses a concrete value
+  whichever order the terms fold in (`constraint & min(3) & 5` is
+  `constraint_kind`). A reference copies the held constraint without
+  the type, so `types: type({ uint8: constraint & integer & min(0) &
+  max(255) })` with `port: $.types.uint8 & 80` still applies.
+- `length()` is renamed `len()`.
+
+`aontu view lattice` draws the new lattice, with `map`, `list`, `path`
+and `constraint` beside the scalar kinds. Pinned by
+`test/spec/types.tsv`; the migration of the spec, use-case and model
+corpus is in this change.
+
+### `string` means a non-empty string; `empty()` admits `""`
+
+Both ports. **Breaking.** `string & ""` is refused (`string_empty`),
+and the new constraint `empty()` waives that: `string & empty() & ""`
+is `""`. `empty()` only unifies with strings (`empty_domain`
+otherwise). The requirement and the waiver are carried as flags that
+every meet combines with OR and generation decides, so the answer does not
+depend on which of them meets `""` first, across statements or through
+references; a refused `""` is not pruned from a disjunction. JSON
+Schema export says `minLength: 1` for `string` and not for
+`string & empty()`.
+
+### `close()` and `open()` with no argument
+
+Both ports. `close() & {x:1} & {y:2}` closes the whole meet
+(`close()` folds last in a conjunct), and `open() & close({x:1}) &
+{y:2}` lifts the seal first. On a list, closing fixes the length: the
+elements can still be narrowed, none can be added. A seal that meets
+no map or list leaves the value as it is; unmet, it does not generate.
+
 ### A nameless `file` is refused wherever it sits in the tree
 
 Both ports. `render` refused a `File` with no `name` only at the root

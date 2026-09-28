@@ -167,9 +167,9 @@ spec: hide({
 <!-- test: run -->
 ```sh
 $ aontu --canon spec.aontu
-{"spec":{"Step":{"approver":re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}
+{"spec":{"Step":{"approver":string&re("^[a-z]+@acme[.]example$"),"decision":*"pending"|"pending"|"approved"|"rejected","then"?:$.spec.Step}}}
 $ aontu hash spec.aontu
-aon1-sgTj1hvqaL8vHdKZrlH7eaPbKeE9UW28b9WGBlVW9hw
+aon1-Sz38cTUfozYl_7Dn-eNheno9MmXpNJaXKr0a6GZYkO4
 ```
 
 The definition stays one reference deep (`"then"?:$.spec.Step`), so
@@ -221,10 +221,10 @@ verdict: invalid
 
 $.spec.Step.then.approver: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.spec.Step.then.approver
-  expected: re("^[a-z]+@acme[.]example$")
+  expected: string&re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: chain-bad.json:5:17 ("EXTERNAL@other.example")
-  schema: spec.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: spec.aontu:3:24 (string&re("^[a-z]+@acme[.]example$"))
 $.spec.Step.then.decision: empty [conflict]
   [aontu/empty]: Cannot unify values at path $.spec.Step.then.decision
   data: chain-bad.json:6:17 ("maybe")

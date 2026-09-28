@@ -95,6 +95,10 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         return out;
     }
     unify(peer, ctx) {
+        // The type of constraints holds this constraint, not the reverse.
+        if (true === peer?.isConstraintKind) {
+            return peer.unify(this, ctx);
+        }
         const p = peer;
         // Another `refer` at the same position: one constraint, both
         // types. `refer(A) & refer(B)` is a target that must be both.
@@ -297,6 +301,9 @@ class RelVal extends FeatureVal_1.FeatureVal {
         return out;
     }
     unify(peer, ctx) {
+        if (true === peer?.isConstraintKind) {
+            return peer.unify(this, ctx);
+        }
         const p = peer;
         // Two rel() at one field: one relation, both types.
         if (true === p?.isRel) {

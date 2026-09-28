@@ -102,7 +102,7 @@ class PathKindVal extends ScalarKindVal_1.ScalarKindVal {
         this.isPathKind = true;
     }
     get canon() {
-        return 'path()';
+        return 'path';
     }
 } /* node:coverage ignore next 6 */
 exports.PathKindVal = PathKindVal;

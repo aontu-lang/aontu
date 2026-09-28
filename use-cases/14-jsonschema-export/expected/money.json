@@ -3,6 +3,7 @@
   "additionalProperties": false,
   "properties": {
     "amount": {
+      "minLength": 1,
       "not": {
         "enum": [
           "-0.00"
@@ -12,6 +13,7 @@
       "type": "string"
     },
     "currency": {
+      "minLength": 1,
       "not": {
         "enum": [
           "XTS",

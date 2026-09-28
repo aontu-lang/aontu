@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 const jsonSchemaDraft = "https://json-schema.org/draft/2020-12/schema"
 
 // SchemaLoss is one construct the schema could not carry.
@@ -30,7 +29,7 @@ type SchemaReport struct {
 	Errors []VetFinding `json:"errors,omitempty"`
 	// Lossy names every construct that could not be carried, in document
 	// order.
-	Lossy []SchemaLoss `json:"lossy"`
+	Lossy  []SchemaLoss   `json:"lossy"`
 	Schema map[string]any `json:"schema"`
 	// Verdict: ok everything carried, lossy the schema is a WEAKER
 	// statement than the model, error the document does not stand up.
@@ -83,6 +82,26 @@ func scalarSchemaJSON(sv *ScalarVal) any {
 		return out
 	}
 	return sv.peg
+}
+
+// schemaLosePath: a path is its address string at the JSON boundary,
+// and the schema cannot say which strings are addresses.
+func schemaLosePath(sc *schemaCtx, path []string) {
+	sc.lose(path, "path",
+		"a path admits only path values, but JSON Schema has no path type; "+
+			"the schema says \"string\" and admits any string here")
+}
+
+// schemaAtLeastOne reports whether an exported length bound is already
+// at least 1.
+func schemaAtLeastOne(v any) bool {
+	switch n := v.(type) {
+	case int64:
+		return 1 <= n
+	case float64:
+		return 1 <= n
+	}
+	return false
 }
 
 func scalarSchemaType(sv *ScalarVal) string {
@@ -161,10 +180,17 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			out[hikey] = scalarSchemaJSON(c.count.hi.v)
 		}
 		if !str && "" == c.domain {
-			sc.lose(path, "length",
+			sc.lose(path, "len",
 				"a count with no domain is exported as minItems/maxItems; "+
 					"JSON Schema has no keyword that counts a string OR a container")
 		}
+	}
+
+	if c.nonEmpty && !c.emptyOk && !schemaAtLeastOne(out["minLength"]) {
+		out["minLength"] = 1
+	}
+	if c.pathKind {
+		schemaLosePath(sc, path)
 	}
 
 	if c.uniq {
@@ -259,7 +285,14 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 					"this leaf exists for cannot be carried; the schema says "+
 					"\""+kindType[t.kind]+"\" and a consumer may round")
 		}
+		if KindPath == t.kind {
+			schemaLosePath(sc, path)
+		}
 		if jt, ok := kindType[t.kind]; ok {
+			// `string` refuses "", and `string & empty()` does not.
+			if KindString == t.kind && !t.emptyOk {
+				return map[string]any{"type": jt, "minLength": 1}
+			}
 			return map[string]any{"type": jt}
 		}
 		// Defensive: kindType covers every kind a ScalarKindVal can
@@ -284,6 +317,11 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 
 	if isTop(v) {
 		return map[string]any{}
+	}
+
+	// `empty()` admits exactly the strings, "" included.
+	if _, ok := v.(*EmptyVal); ok {
+		return map[string]any{"type": "string"}
 	}
 
 	sc.lose(path, schemaResidueName(v),
@@ -406,15 +444,7 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 
 	if v.closed {
 		out["additionalProperties"] = false
-		if nil != spread {
-			sc.lose(path, "&:",
-				"a spread on a CLOSED map constrains keys that cannot exist, "+
-					"so additionalProperties:false stands alone and the "+
-					"template is dropped")
-		}
 	} else if nil != spread {
-		// A spread IS additionalProperties-with-a-schema: every key the
-		// author did not name must still satisfy the template.
 		out["additionalProperties"] = spread
 	}
 

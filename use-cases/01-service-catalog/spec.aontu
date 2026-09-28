@@ -1,7 +1,7 @@
 # spec.aontu --- Acme's service vocabulary, layered over @"aontu:system".
 #
 # THE ADDRESS SHAPE HAS A NAME. `%CatalogAddr` is an alias: `%name = value` at
-# the top level declares one, `%name` in value position uses it, and
+# the any level declares one, `%name` in value position uses it, and
 # that is the whole of it -- an alias does not generate and does not
 # appear in canon, so this file and the one with the pattern written
 # out at both use sites are the same document and hash the same
@@ -10,7 +10,7 @@
 # twice: the two uses can no longer drift.
 #
 # The declaration must land at the ROOT of the document, so this file
-# is spliced (`@"./spec.aontu"` at the top level of system.aontu) rather
+# is spliced (`@"./spec.aontu"` at the any level of system.aontu) rather
 # than bound to a key: `a: @"./spec.aontu"` would be refused, because
 # the declaration would be at the root of its own file and not of the
 # document that reads it.
@@ -35,7 +35,7 @@
 # reintroducing the reference that gap is about.
 %Owner = string & re("^team-[a-z]+$")
 %Lifecycle = *production | production | experimental | deprecated
-%Description = string & length(min(10))
+%Description = string & len(min(10))
 
 spec: hide({
   # The org's port shape: the bundled Port plus a concrete number.

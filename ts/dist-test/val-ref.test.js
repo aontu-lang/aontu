@@ -561,7 +561,8 @@ b: { c1: { k:1 }}
         (0, expect_1.expect)(G('k:key()')).equal({ k: '' });
         (0, expect_1.expect)(G('a:k:key()')).equal({ a: { k: 'a' } });
         (0, expect_1.expect)(G('a:b:k:key()')).equal({ a: { b: { k: 'b' } } });
-        (0, expect_1.expect)(G('k:key() k:string')).equal({ k: '' });
+        (0, expect_1.expect)(() => G('k:key() k:string')).throw(/string_empty/);
+        (0, expect_1.expect)(G('k:key() k:string k:empty()')).equal({ k: '' });
         (0, expect_1.expect)(G('a:k:key() a:k:a')).equal({ a: { k: 'a' } });
         (0, expect_1.expect)(G('a:k:string a:k:key() a:k:a')).equal({ a: { k: 'a' } });
         (0, expect_1.expect)(G('&:k:key()')).equal({});

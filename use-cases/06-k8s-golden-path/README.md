@@ -143,9 +143,9 @@ than its value.
    `[aontu/closed]` at `...containers.0`.
 7. Onboarding candidates: `data/onboard-good.json` is `verdict: valid`;
    `data/onboard-bad.json` is refused at every field: `$.service` (the
-   DNS-1123 pattern and `length(max(24))`), `$.version`, `$.tier`
+   DNS-1123 pattern and `len(max(24))`), `$.version`, `$.tier`
    (outside the enum, `[aontu/empty]`), `$.port`, `$.reason`
-   (`length(min(12))`), and the extra key `$.forceDeploy`
+   (`len(min(12))`), and the extra key `$.forceDeploy`
    (`[aontu/closed]`); `--format json` emits `"code": "constraint"`.
 8. Drift guard: a version-column entry with no service
    (`svc: version: "ghost-svc": "9.9.9"` unified with `main.aontu`) is
@@ -175,13 +175,12 @@ than its value.
     (`probes/env-append.aontu`).
 16. A bare kebab-case name parses as a negation, `[aontu/negative]`
     (`probes/kebab-bare.aontu`).
-17. `length(min(1))` on a schema list beside a spread is decided at
+17. `len(min(1))` on a schema list beside a spread is decided at
     generation, after a later pack has filled the list; the model
     renders its one port (`probes/length-on-schema-list.aontu`, golden).
-18. `close(pack(...))` seals the set of children, not their keys: an
-    override key `replcias` on a generated child is accepted and
-    rendered beside `replicas: 2`, exit 0
-    (`probes/close-shallow-typo.aontu`, golden).
+18. `close(pack(...))` seals the children too: an override key
+    `replcias` on a generated child is a located `[aontu/closed]`
+    refusal, exit 1 (`probes/close-shallow-typo.aontu`).
 19. A relative reference inside a pack template answers for the child:
     `cpu: .cpu_m + "m"` is `"250m"` in every child
     (`probes/ref-in-pack-template.aontu`, golden).

@@ -110,7 +110,7 @@ function hostileModule(dir) {
         Assert.equal(v.verdict, 'invalid');
         Assert.equal(v.findings[0].code, 'no_scalar_unify');
         Assert.equal(payload((0, mcp_1.callTool)('get', { src: 'a: {b: 1}', path: '$.a', view: 'canon' })).out, '{"b":1}');
-        Assert.equal(payload((0, mcp_1.callTool)('get', { src: 'a: {b: 1}', path: '$', view: 'types', depth: 2 })).out, '{"a":{"b":top}}');
+        Assert.equal(payload((0, mcp_1.callTool)('get', { src: 'a: {b: 1}', path: '$', view: 'types', depth: 2 })).out, '{"a":{"b":any}}');
         const w = payload((0, mcp_1.callTool)('why', { src: 'a: 1\na: integer', path: '$.a' }));
         Assert.equal(w.record.value, '1');
         Assert.equal(w.record.conjuncts.length, 2);

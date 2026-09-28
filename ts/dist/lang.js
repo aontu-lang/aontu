@@ -74,6 +74,9 @@ const PlaceVal_1 = require("./val/PlaceVal");
 const MoveFuncVal_1 = require("./val/MoveFuncVal");
 const PathFuncVal_1 = require("./val/PathFuncVal");
 const ContainerKindVal_1 = require("./val/ContainerKindVal");
+const ConstraintKindVal_1 = require("./val/ConstraintKindVal");
+const EmptyVal_1 = require("./val/EmptyVal");
+const PathVal_1 = require("./val/PathVal");
 const PrefFuncVal_1 = require("./val/PrefFuncVal");
 const CloseFuncVal_1 = require("./val/CloseFuncVal");
 const OpenFuncVal_1 = require("./val/OpenFuncVal");
@@ -488,7 +491,19 @@ help isolate the syntax error.`,
                 'nil': {
                     val: (r, ctx) => addsite(new NilVal_1.NilVal({ why: 'literal_nil' }), r, ctx)
                 },
-                'top': { val: () => (0, top_1.top)() },
+                'any': { val: () => (0, top_1.top)() },
+                'map': {
+                    val: (r, ctx) => addsite(new ContainerKindVal_1.MapKindVal({}), r, ctx)
+                },
+                'list': {
+                    val: (r, ctx) => addsite(new ContainerKindVal_1.ListKindVal({}), r, ctx)
+                },
+                'path': {
+                    val: (r, ctx) => addsite(new PathVal_1.PathKindVal({}), r, ctx)
+                },
+                'constraint': {
+                    val: (r, ctx) => addsite(new ConstraintKindVal_1.ConstraintKindVal({}), r, ctx)
+                },
                 // G8 phase 3: the placeholder. A BARE `_` is the hole; `"_"`
                 // quoted, and any longer bare word containing it, stay text.
                 // Reserving it is a breaking change, pinned by place.tsv.
@@ -559,8 +574,6 @@ help isolate the syntax error.`,
         move: MoveFuncVal_1.MoveFuncVal,
         path: PathFuncVal_1.PathFuncVal,
         pref: PrefFuncVal_1.PrefFuncVal,
-        map: ContainerKindVal_1.MapFuncVal,
-        list: ContainerKindVal_1.ListFuncVal,
         close: CloseFuncVal_1.CloseFuncVal,
         open: OpenFuncVal_1.OpenFuncVal,
         super: SuperFuncVal_1.SuperFuncVal,
@@ -572,7 +585,8 @@ help isolate the syntax error.`,
         // G1 phase 2: pattern membership, over the portable subset both
         // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
         re: ConstraintVal_1.ReConstraintVal,
-        length: ConstraintVal_1.LengthConstraintVal,
+        len: ConstraintVal_1.LenConstraintVal,
+        empty: EmptyVal_1.EmptyVal,
         unique: ConstraintVal_1.UniqueConstraintVal,
         must: ConstraintVal_1.MustConstraintVal,
         abnf: AbnfFuncVal_1.AbnfFuncVal,
@@ -722,7 +736,10 @@ help isolate the syntax error.`,
         },
         'func-paren': (r, ctx, _op, terms) => {
             let val = terms[1];
-            const fname = terms[0];
+            // `path` is both the type keyword and a function name, and the
+            // keyword has already been lexed as a value by the time the paren
+            // arrives.
+            const fname = true === terms[0]?.isPathKind ? 'path' : terms[0];
             if ('' !== fname) {
                 val = buildCall(r, ctx, fname, terms.slice(1));
             }

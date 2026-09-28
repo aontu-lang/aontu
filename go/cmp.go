@@ -124,6 +124,9 @@ func cmpNode(cmp string, props *MapVal, children *ListVal) *MapVal {
 	node.set("cmp", newString(cmp))
 	node.set("props", props)
 	node.set("children", children)
+	// The node's keys are fixed; its props and children are not.
+	props.opened = true
+	children.opened = true
 	node.closed = true
 	return node
 }

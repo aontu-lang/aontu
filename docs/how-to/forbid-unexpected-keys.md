@@ -62,14 +62,14 @@ a: open(close({ x:1 })) & { y:2 }
 }
 ```
 
-What to watch for: `close` seals exactly the node it wraps, and only
-that node. Children generated inside it stay open unless you seal
-them too: around a `pack` generator that difference decides whether
-a misspelled override is refused or absorbed, and [seal generated
-children deeply](seal-generated-children.md) walks through it. A
-list tail is also not closed by the enclosing map's seal; the
-element template is: see
-[constrain every element of a list](constrain-list-elements.md).
+What to watch for: `close` seals the node it wraps and everything
+beneath it, so children generated inside it are sealed too. Around a
+`pack` generator that is what refuses a misspelled override, and
+[seal generated children](seal-generated-children.md) walks through
+it, including how an inner `open()` holds one level open. A list
+under the seal is fixed in length unless an element template `[&: T]`
+declares its elements: see [constrain every element of a
+list](constrain-list-elements.md).
 
 The semantics are specified in [Closed values: `close` /
 `open`](../reference-language.md#closed-values-close--open).

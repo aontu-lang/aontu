@@ -14,9 +14,9 @@
 # difference.
 #
 # MINIMISED, via graphOf directly:
-#   link: refer() & string                        -> 1 edge
-#   link: [&: refer() & string]                   -> 1 edge
-#   link: unique() & [&: refer() & string]        -> 0 edges
+#   link: refer() & path                        -> 1 edge
+#   link: [&: refer() & path]                   -> 1 edge
+#   link: unique() & [&: refer() & path]        -> 0 edges
 #
 # So it is the CONJUNCT, not the list and not the spread: graphOf's
 # walk does not descend into conjunct arms, so any relation guarded by
@@ -24,7 +24,7 @@
 # graph entirely.
 #
 # THIS IS NOT HYPOTHETICAL SPELLING. use-cases/05-rbac-policy writes
-#   grants: unique() & [&: refer() & string]
+#   grants: unique() & [&: refer() & path]
 # which is the natural way to say "a set of grants, no duplicates". On
 # that model graphOf reports 13 entities and ZERO edges, and
 #   aontu reaches admin admin_all
@@ -32,4 +32,4 @@
 # The case's own check.sh does not exercise `reaches`, which is why
 # nothing caught it.
 p: id(pp) & {n: 1}
-a: id(x) & {link: unique() & [&: refer() & string], link: ["pp"]}
+a: id(x) & {link: unique() & [&: refer() & path], link: ["pp"]}

@@ -24,8 +24,8 @@ types: hide({
   # URL-safe project slugs; the regex also bounds the length (3-40).
   Slug: re("^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$")
 
-  # Human-facing names: sized with length() because no pattern applies.
-  DisplayName: string & length(min(1) & max(80))
+  # Human-facing names: sized with len() because no pattern applies.
+  DisplayName: string & len(min(1) & max(80))
 
   # Pagination: page is 1-based, page_size is capped by the gateway.
   Page: integer & min(1)

@@ -180,7 +180,7 @@ func valKind(v Val) string {
 	case *FuncVal:
 		return "function"
 	case *TopVal:
-		return "top"
+		return "any"
 	}
 	return "value"
 }

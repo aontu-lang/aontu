@@ -78,11 +78,11 @@ than its value.
 | file | carries |
 |---|---|
 | `permissions.aontu` | the catalog: a `close()`d record shape per permission with a `risk` enum. Each key is the last segment of the permission's address |
-| `roles.aontu` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`length()` registry invariant |
+| `roles.aontu` | `Role`, a disjunction of two `close()`d shapes keyed by `privileged`; the `close()`d exhaustive registry; `unique()` + `refer()` grants; the same-layer `filter()`+`len()` registry invariant |
 | `plans.aontu` | `Entitlement`, a disjunction of closed maps, one per plan |
 | `tenant.aontu` | the vet schema: `re()`/`neq()` slug, plain `plan` enum, `match()`-derived limits and tier, member records with a `refer()` role foreign key, the MFA implication as a disjunction of closed maps |
 | `example.aontu` | a concrete tenant composed with the schema; evaluates to `expected/example.json` |
-| `audits/` | the tenant and its counting and domain invariants (`filter()`+`length()`, `length(max($.ref))`, `must()`) in one document |
+| `audits/` | the tenant and its counting and domain invariants (`filter()`+`len()`, `len(max($.ref))`, `must()`) in one document |
 | `exhibits/` | the enum-with-default idiom in four spellings; ranked defaults; the registry invariant firing |
 | `proposals/` | agent-emitted registry patches: a new role, a hallucinated permission, a wildcard grant |
 | `queries/` | grant sets as set-as-map projections, for `subsume` |
@@ -150,7 +150,7 @@ prefixes.
   compose the tenant with its invariants in one document, under
   `hide()` so they stay out of the output without being suppressed:
   `exactly_one_owner` is
-  `length(1) & filter($.tenant.members, {role: path($.roles.owner)})`,
+  `len(1) & filter($.tenant.members, {role: path($.roles.owner)})`,
   "for all" written as a counted witness set; `seats_within_plan`
   bounds the member count by the plan-derived `maxSeats`;
   `mfa_mandatory` is a `must()` carrying the policy's own words. The
@@ -160,7 +160,7 @@ prefixes.
   `The author's message is: corporate policy CP-114: MFA is mandatory for every tenant`.
   `audits/two-owners.aontu` fails with the two-owner witness map in the
   message. `roles.aontu` carries the same pattern as a registry
-  invariant, `one_owner_role: length(1) & filter($.roles, {tenantOwner: true})`,
+  invariant, `one_owner_role: len(1) & filter($.roles, {tenantOwner: true})`,
   and `exhibits/registry-two-owners.aontu` shows it firing.
 - **Set questions run over set-as-map projections.** `subsume`
   compares lists positionally, so `queries/*.aontu` state grant sets as
@@ -241,7 +241,7 @@ documents diffed against the `expected/` goldens.
 13. `proposals/member-wildcard.aontu` (the wildcard granted to an
     unprivileged role) is refused with `[aontu/constraint]` at
     `$.roles.member.grants.3`, exit 1.
-14. `audits/good.aontu` evaluates, exit 0: the `filter()`+`length()` and
+14. `audits/good.aontu` evaluates, exit 0: the `filter()`+`len()` and
     `must()` invariants pass on clean data.
 15. `audits/two-owners.aontu` is refused with `[aontu/constraint]` at
     `$.audit.exactly_one_owner`, exit 1.
@@ -278,9 +278,9 @@ documents diffed against the `expected/` goldens.
 27. The same two grants as lists in different orders
     (`["project_read", "member_read"]` against the reverse) are
     `does_not_subsume`, exit 1: lists compare positionally.
-28. A vet schema `x: length(min(1)) & { &: {r: integer} }` against
+28. A vet schema `x: len(min(1)) & { &: {r: integer} }` against
     data with one entry is `verdict: valid`, exit 0.
-29. `x: length(max(2)) & { &: {r: integer} }` against three entries is
+29. `x: len(max(2)) & { &: {r: integer} }` against three entries is
     `verdict: invalid` at `$.x`, exit 1.
 30. A closed-map branch keyed on a reference to a data-supplied field
     (`e: $.Ent & { plan: $.t.p }`, with data `p: "free"` and

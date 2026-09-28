@@ -13,6 +13,7 @@ type ListVal struct {
 	base
 	peg    []Val
 	closed bool
+	opened bool
 	spread Val // &: spread applied to every element
 }
 
@@ -128,6 +129,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	} else {
 		out = &ListVal{}
 		out.closed = l.closed
+		out.opened = l.opened
 		out.path = cp(l.path)
 		out.site.sp = l.site.sp
 		out.site.spu = l.site.spu
@@ -203,13 +205,17 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 		for i, pe := range pl.peg {
-			if l.closed && i >= len(l.peg) {
+			// A spread declares every element.
+			if l.closed && l.spread == nil && i >= len(l.peg) {
 				return makeNilErr(ctx, "closed", pe, nil)
 			}
 			islot := append(cp(dbase), itoa(i))
 			var uv Val
 			if i < len(out.peg) {
 				ctx.slot = islot
+				if l.closed {
+					out.peg[i] = sealChild(out.peg[i])
+				}
 				uv = unite(ctx, out.peg[i], pe)
 				out.peg[i] = uv
 			} else {
@@ -237,6 +243,13 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			return ck.Unify(l, ctx)
 		}
 		return makeNilErr(ctx, "list", l, peer)
+	}
+
+	if out.closed {
+		for i := range out.peg {
+			ctx.slot = append(cp(dbase), itoa(i))
+			out.peg[i] = sealChild(out.peg[i])
+		}
 	}
 
 	if done {

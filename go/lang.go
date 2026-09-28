@@ -224,6 +224,10 @@ help isolate the syntax error.`,
 				"biginteger": kindDef(KindBigInteger),
 				"bigdecimal": kindDef(KindBigDecimal),
 				"boolean":    kindDef(KindBoolean),
+				"path":       kindDef(KindPath),
+				"map":        valDef(func(sp int) Val { k := newMapKind(); k.site.sp = sp; return k }),
+				"list":       valDef(func(sp int) Val { k := newListKind(); k.site.sp = sp; return k }),
+				"constraint": valDef(func(sp int) Val { k := newConstraintKind(nil); k.site.sp = sp; return k }),
 				"alias": {
 					Match:   aliasRe,
 					Consume: true,
@@ -254,7 +258,7 @@ help isolate the syntax error.`,
 						})
 					},
 				},
-				"top":   valDef(func(sp int) Val { t := top(); t.site.sp = sp; return t }),
+				"any":   valDef(func(sp int) Val { t := top(); t.site.sp = sp; return t }),
 				"_":     valDef(func(sp int) Val { p := newPlace(); p.site.sp = sp; return p }),
 				"nil":   valDef(func(sp int) Val { n := newNil("literal_nil"); n.site.sp = sp; return n }),
 				"true":  valDef(func(sp int) Val { v := newBoolean(true); v.site.sp = sp; return v }),
@@ -2038,6 +2042,12 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 		return ov
 	case "func-paren":
 		if len(terms) > 0 {
+			// `path` is both the type keyword and a function name, and
+			// the keyword has already been lexed as a value by the time
+			// the paren arrives.
+			if k, ok := terms[0].(*ScalarKindVal); ok && KindPath == k.kind {
+				terms[0] = "path"
+			}
 			if name, ok := terms[0].(string); ok {
 				return buildCall(r, name, terms[1:])
 			}
@@ -2050,6 +2060,15 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				if r.ON > 0 {
 					n.site.sp = r.O0.SI
 				}
+				stampSrc(n, r)
+				return n
+			}
+			// A value before the paren that is not a function name
+			// (`map()`, `string()`) is not a call; `r.ON` tells it from a
+			// grouping paren.
+			if r.ON > 1 {
+				n := newNil("unknown_function")
+				n.site.sp = r.O0.SI
 				stampSrc(n, r)
 				return n
 			}
@@ -2573,6 +2592,13 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	sp := -1
 	if r.ON > 0 {
 		sp = r.O0.SI
+	}
+
+	if "empty" == name {
+		ev := newEmpty()
+		ev.site.sp = sp
+		stampSrc(ev, r)
+		return ev
 	}
 
 	if constraintAtoms[name] {

@@ -501,10 +501,10 @@ verdict: invalid
 
 $.spec.Step.then.then.approver: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.spec.Step.then.then.approver
-  expected: re("^[a-z]+@acme[.]example$")
+  expected: string&re("^[a-z]+@acme[.]example$")
   actual:   "EXTERNAL@other.example"
   data: request-deep.json:3:32 ("EXTERNAL@other.example")
-  schema: chain.aontu:3:24 (re("^[a-z]+@acme[.]example$"))
+  schema: chain.aontu:3:24 (string&re("^[a-z]+@acme[.]example$"))
 $ echo $?
 1
 ```
@@ -989,16 +989,16 @@ backoff: integer & min(1)
 <!-- test: run -->
 ```sh
 $ aontu view lattice ports.aontu
-                                           top
-                                            │
-      ┌────────────────────────────────┬────┴───────────────────────────┬─────────┐
- string (1)                         number                         boolean (1)  null
-      │                                │                                │         │
-      ├─────────────┬────────────┬─────┴─────┬────────────┐             │         │
-   path()      integer (2)   float (1)  biginteger   bigdecimal         │         │
-      │             │            │           │            │             │         │
-      └─────────────┴────────────┴──────────┬┴────────────┴─────────────┴─────────┘
-                                           nil
+                                                          any
+                                                           │
+      ┌─────────┬─────────────────────────────┬────────────┴───────────────────┬─────────┬──────┬─────┬─────────┐
+ string (1)   path                         number                         boolean (1)  null    map  list   constraint
+      │         │                             │                                │         │      │     │         │
+      │         │          ┌────────────┬─────┴─────┬────────────┐             │         │      │     │         │
+      │         │     integer (2)   float (1)  biginteger   bigdecimal         │         │      │     │         │
+      │         │          │            │           │            │             │         │      │     │         │
+      └─────────┴──────────┴────────────┴───────────┴──────┬─────┴─────────────┴─────────┴──────┴─────┴─────────┘
+                                                          nil
 ```
 
 A concrete scalar sits at its kind (`8080` counts at `integer`) and a
@@ -1289,6 +1289,7 @@ $ aontu jsonschema --at spec contract.aontu
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "name": {
+      "minLength": 1,
       "pattern": "^[a-z][a-z0-9-]{2,39}$",
       "type": "string"
     },
@@ -1359,8 +1360,7 @@ The losses, and why each is one:
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
-| `&:` on a closed map | the template constrains keys that cannot exist |
-| a `length` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
+| a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
 
 The exact-leaf loss is the one with a way around it. Money carried as a
@@ -1394,6 +1394,7 @@ $ aontu jsonschema --strict --at Step steps.aontu
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "approver": {
+      "minLength": 1,
       "pattern": "^[a-z]+@acme[.]example$",
       "type": "string"
     },

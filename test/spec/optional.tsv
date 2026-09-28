@@ -1,6 +1,6 @@
 # Optional keys (a?:1) — dropped from output when unresolved. Columns: name<TAB>mode<TAB>src<TAB>expect
 drop-type	gen	{x?:number,y:Y}	{"y":"Y"}
-drop-top	gen	{x?:top,y:Y}	{"y":"Y"}
+drop-top	gen	{x?:any,y:Y}	{"y":"Y"}
 drop-ref	gen	m:{x?:number,y:Y} n:$.m	{"m":{"y":"Y"},"n":{"y":"Y"}}
 fill	gen	a:{x?:number} a:{x:11}	{"a":{"x":11}}
 partial-empty	gen	a:{y?:number,z:2} a:{}	{"a":{"z":2}}
@@ -14,7 +14,7 @@ optional-merge-canon	canon	a:{x?:number} a:{x:11}	{"a":{"x"?:11}}
 optional-null-kept	gen	b?:null	{"b":null}
 optional-null-kept-canon	canon	b?:null	{"b"?:null}
 optional-elided	errc	a?:	elided_value
-optional-partial-subtree	gen	a?:{x:1,y:top}	{"a":{"x":1}}
+optional-partial-subtree	gen	a?:{x:1,y:any}	{"a":{"x":1}}
 optional-dup-merge	gen	a:1 a?:1	{"a":1}
 optional-dup-conflict	err	a:1 a?:2	Cannot unify value
 # A PAIR IN LIST POSITION IS A SINGLE-KEY MAP ELEMENT: `[x:1]` is

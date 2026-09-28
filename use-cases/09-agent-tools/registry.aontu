@@ -25,17 +25,17 @@ SideEffect: type(readonly | write | destructive)
 
 # close(): a registry entry may not carry unknown metadata.
 ToolSpec: type(close({
-  description: string & length(min(24) & max(200))
+  description: string & len(min(24) & max(200))
   side_effect: $.SideEffect
   requires_approval: boolean
   rate_limit: close({
     per_minute: integer & min(1) & max(600)
     burst: integer & min(1) & max(60)
   })
-  # length(min(1)) is unusable here: it folds against the schema's
+  # len(min(1)) is unusable here: it folds against the schema's
   # own zero-element templated list (README, gap 5). max + unique
   # survive; "at least one role" is unenforceable in-schema today.
-  allowed_roles: [&: $.Role] & length(max(4)) & unique()
+  allowed_roles: [&: $.Role] & len(max(4)) & unique()
   timeout_ms: integer & min(100) & max(600000)
   owner: string & re("^[a-z][a-z0-9-]*@corp[.]example$")
 }))
@@ -50,18 +50,18 @@ ToolSpec: type(close({
 # admissible range.
 argschemas: type(close({
   search_docs: close({
-    query: string & length(min(1) & max(256))
+    query: string & len(min(1) & max(256))
     limit?: integer & min(1) & max(50)
     scope?: workspace | org | web
   })
 
   read_file: close({
-    path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & length(max(512))
+    path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & len(max(512))
     max_bytes?: integer & min(1) & max(1048576)
   })
 
   http_request: close({
-    url: string & re("^https://") & length(max(2048))
+    url: string & re("^https://") & len(max(2048))
     method: GET | HEAD
     timeout_ms?: integer & min(100) & max(30000)
     # Renamed in 1.4.0; still admitted, but every use is warned on.
@@ -75,23 +75,23 @@ argschemas: type(close({
 
   create_ticket: close({
     project: string & re("^[A-Z][A-Z0-9]{1,9}$")
-    title: string & length(min(8) & max(140))
-    body?: string & length(max(20000))
+    title: string & len(min(8) & max(140))
+    body?: string & len(max(20000))
     priority: p1 | p2 | p3 | p4
-    labels?: [&: string & re("^[a-z][a-z0-9\\-]*$")] & length(max(10)) & unique()
+    labels?: [&: string & re("^[a-z][a-z0-9\\-]*$")] & len(max(10)) & unique()
   })
 
   send_email: close({
     to: string & re("^[a-z0-9._\\-]+@corp[.]example$")
-    subject: string & length(min(1) & max(120))
-    body: string & length(min(1) & max(50000))
+    subject: string & len(min(1) & max(120))
+    body: string & len(min(1) & max(50000))
   })
 
   delete_records: close({
     dataset: string & re("^[a-z][a-z0-9_]*[.][a-z][a-z0-9_]*$")
-    # "at least one id" cannot be stated: length(min(1)) conflicts
+    # "at least one id" cannot be stated: len(min(1)) conflicts
     # with the empty templated list (README, gap 5).
-    record_ids: [&: string & re("^rec_[0-9a-f]{8}$")] & length(max(100)) & unique()
+    record_ids: [&: string & re("^rec_[0-9a-f]{8}$")] & len(max(100)) & unique()
     # Required and explicit: destruction must say what it means. A
     # '*false' default would also admit any boolean unchecked (gap 1).
     dry_run: boolean

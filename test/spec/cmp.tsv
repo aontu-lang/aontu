@@ -24,7 +24,7 @@ nom-kebab	gens	x: nom("planet_body", kebab)	{"x":"planet-body"}
 nom-snake	gens	x: nom("planetBody", snake)	{"x":"planet_body"}
 nom-upper	gens	x: nom("planet_body", upper)	{"x":"PLANET_BODY"}
 nom-dot	gens	x: nom("planet_body", dot)	{"x":"planet.body"}
-nom-path	gens	x: nom("planet_body", path)	{"x":"planet/body"}
+nom-path	gens	x: nom("planet_body", "path")	{"x":"planet/body"}
 nom-title	gens	x: nom("planet_body", title)	{"x":"Planet Body"}
 nom-text	gens	x: nom("planet_body", text)	{"x":"Planet body"}
 nom-map	gens	x: nom("planet_body")	{"x":{"camel":"planetBody","dot":"planet.body","kebab":"planet-body","pascal":"PlanetBody","path":"planet/body","snake":"planet_body","text":"Planet body","title":"Planet Body","upper":"PLANET_BODY"}}

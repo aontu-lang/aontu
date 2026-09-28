@@ -25,6 +25,12 @@ const KIND_TYPE = {
     Number: 'number',
     Path: 'string',
 };
+// A path is its address string at the JSON boundary, and the schema
+// cannot say which strings are addresses.
+function losePath(ctx, path) {
+    lose(ctx, path, 'path', 'a path admits only path values, but JSON Schema has no path type; ' +
+        'the schema says "string" and admits any string here');
+}
 function scalarJson(v) {
     if (v.isBigInteger) {
         return Number(v.peg);
@@ -83,9 +89,15 @@ function fromConstraint(ctx, path, c) {
             out[str ? 'maxLength' : 'maxItems'] = hi;
         }
         if (!str && null == c.domain) {
-            lose(ctx, path, 'length', 'a count with no domain is exported as minItems/maxItems; ' +
+            lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
                 'JSON Schema has no keyword that counts a string OR a container');
         }
+    }
+    if (true === c.nonEmpty && true !== c.emptyOk && !(1 <= out.minLength)) {
+        out.minLength = 1;
+    }
+    if (true === c.pathKind) {
+        losePath(ctx, path);
     }
     if (c.uniq) {
         out.uniqueItems = true;
@@ -150,13 +162,22 @@ function fromValInner(ctx, path, v) {
                 'this leaf exists for cannot be carried; the schema says ' +
                 '"' + t + '" and a consumer may round');
         }
-        return { type: t };
+        if ('Path' === v.peg?.name) {
+            losePath(ctx, path);
+        }
+        // `string` refuses "", and `string & empty()` does not.
+        return String === v.peg && true !== v.emptyOk ?
+            { type: t, minLength: 1 } : { type: t };
     }
     if (true === v.isNull) {
         return { type: 'null' };
     }
     if (true === v.isTop) {
         return {};
+    }
+    // `empty()` admits exactly the strings, "" included.
+    if (true === v.isEmptyConstraint) {
+        return { type: 'string' };
     }
     if (true === v.isScalar) {
         if (v.isBigInteger || v.isBigDecimal) {
@@ -233,15 +254,8 @@ function fromMap(ctx, path, v) {
     // the keyword off, since JSON Schema's default is already open.
     if (true === v.closed) {
         out.additionalProperties = false;
-        if (null != spread) {
-            lose(ctx, path, '&:', 'a spread on a CLOSED map constrains keys that cannot exist, ' +
-                'so additionalProperties:false stands alone and the template ' +
-                'is dropped');
-        }
     }
     else if (null != spread) {
-        // A spread IS additionalProperties-with-a-schema: every key the
-        // author did not name must still satisfy the template.
         out.additionalProperties = spread;
     }
     return out;

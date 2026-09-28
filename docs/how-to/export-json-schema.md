@@ -25,7 +25,7 @@ close({
   id: string & re("^evt_[0-9a-f]{12}$")
   kind: created|updated|deleted
   priority: *normal|low|high
-  note?: string & length(min(1) & max(500))
+  note?: string & len(min(1) & max(500))
 })
 ```
 
@@ -37,6 +37,7 @@ $ aontu jsonschema event.aontu
   "additionalProperties": false,
   "properties": {
     "id": {
+      "minLength": 1,
       "pattern": "^evt_[0-9a-f]{12}$",
       "type": "string"
     },
@@ -72,7 +73,7 @@ $ aontu jsonschema event.aontu
 
 Everything here crossed exactly: `re()` as `pattern`, the scalar
 disjunctions as `enum` with the `*` preference as `default`,
-`length()` on a string as `minLength`/`maxLength`, the optional
+`len()` on a string as `minLength`/`maxLength`, the optional
 `note` out of `required`, and the root `close()` as
 `additionalProperties: false`: the one thing the two languages say
 identically. This output is pasteable into an OpenAPI components
@@ -90,7 +91,7 @@ move: keep a registry of tools in one document and answer each tool's
 ```aontu
 argschemas: type(close({
   search_docs: close({
-    query: string & length(min(1) & max(256))
+    query: string & len(min(1) & max(256))
     limit?: integer & min(1) & max(50)
     scope?: workspace|org|web
   })
@@ -134,7 +135,7 @@ closedness the agent must respect crosses without loss: a
 hallucinated argument is a refusal on the aontu side and
 `additionalProperties: false` on the JSON Schema side. Stderr stayed
 empty for this run because the registry is written in the crossing
-subset: kinds, scalar enums, bounds, `re()`, string `length()`,
+subset: kinds, scalar enums, bounds, `re()`, string `len()`,
 optional keys, `close()`. The full crossing table is in the
 reference under
 [`aontu jsonschema`](../reference-api.md#aontu-jsonschema).
@@ -151,7 +152,7 @@ report: {
   total: number & must((v) => 0 <= v, "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
-  attempts: [&: integer] & length(max(3))
+  attempts: [&: integer] & len(max(3))
 }
 ```
 
@@ -193,7 +194,7 @@ a schema admitting more than the model does:
 $ aontu jsonschema --strict --at report report.aontu
 ...
 lossy: $.report.amountEur bigdecimal: JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says "number" and a consumer may round
-lossy: $.report.attempts length: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
+lossy: $.report.attempts len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
 lossy: $.report.total nil: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
@@ -213,7 +214,7 @@ The report above already pins two of them. First, `must()` holds the whole value
 must(...)` exports `{}` under the construct name `nil`: the check is
 opaque by construction, and the `number` kind beside it is lost with
 it (a concrete `5 & must(...)` exports `{}` all the same). Second,
-`length()` on a list has no domain until data arrives, so `attempts`
+`len()` on a list has no domain until data arrives, so `attempts`
 exported real `minItems`/`maxItems` and was still reported: the
 keywords are the sizing atom's best rendering, not its meaning.
 
@@ -225,7 +226,7 @@ constraint call stays residual and exports `{}`, reported as
 <!-- test: file spreads.aontu -->
 ```aontu
 labels: { &: string }
-annotations: { &: string & length(max(63)) }
+annotations: { &: string & len(max(63)) }
 ```
 
 <!-- test: run -->
@@ -241,6 +242,7 @@ $ aontu jsonschema --strict spreads.aontu
     },
     "labels": {
       "additionalProperties": {
+        "minLength": 1,
         "type": "string"
       },
       "properties": {},
@@ -284,6 +286,7 @@ $ aontu jsonschema --strict legacy.aontu
   "properties": {
     "region": {
       "deprecated": true,
+      "minLength": 1,
       "pattern": "^[a-z]{2}-[a-z]+-[0-9]$",
       "type": "string"
     }

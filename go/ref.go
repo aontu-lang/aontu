@@ -156,6 +156,14 @@ func (rv *RefVal) append(part any) {
 			}
 		}
 		rv.peg = append(rv.peg, p.peg...)
+	case *ScalarKindVal, *MapKindVal, *ListKindVal, *TopVal:
+		rv.peg = append(rv.peg, p.(Val).Canon())
+	case *ConstraintKindVal:
+		if nil == p.held {
+			rv.peg = append(rv.peg, p.Canon())
+		} else {
+			rv.peg = append(rv.peg, unspellableSegment)
+		}
 	default:
 		rv.peg = append(rv.peg, unspellableSegment)
 	}
@@ -453,6 +461,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		node.setMarkHide(true)
 	}
 	lifted := !ctx.argsnap || node.markedType() || node.markedHide()
+	typed := node.markedType()
 	var out Val
 	if holdsStaged(node) {
 		out = clonePath(node, cp(rv.path))
@@ -461,8 +470,15 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	if lifted {
 		walkMark(out, true, false, true, false)
+		out = unwrapConstraintKind(out)
+		// A type is a definition: its own statements extend it, a
+		// copy taken by reference is an instance and adds nothing.
+		if typed && !rv.copyFound {
+			sealTree(out, true)
+		}
 	}
 	if rv.copyFound {
+		unsealTree(out)
 		forceRootPath(out, cp(rv.path))
 	}
 	return out

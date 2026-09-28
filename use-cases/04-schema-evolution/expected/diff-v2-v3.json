@@ -8,7 +8,7 @@
     {
       "kind": "added",
       "path": "$.profile.region",
-      "right": "re(\"^(us|eu|apac)$\")"
+      "right": "string&re(\"^(us|eu|apac)$\")"
     }
   ],
   "findings": [],

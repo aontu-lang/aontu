@@ -149,7 +149,10 @@ import {
 import { PlaceVal } from './val/PlaceVal'
 import { MoveFuncVal } from './val/MoveFuncVal'
 import { PathFuncVal } from './val/PathFuncVal'
-import { MapFuncVal, ListFuncVal } from './val/ContainerKindVal'
+import { MapKindVal, ListKindVal } from './val/ContainerKindVal'
+import { ConstraintKindVal } from './val/ConstraintKindVal'
+import { EmptyVal } from './val/EmptyVal'
+import { PathKindVal } from './val/PathVal'
 import { PrefFuncVal } from './val/PrefFuncVal'
 import { CloseFuncVal } from './val/CloseFuncVal'
 import { OpenFuncVal } from './val/OpenFuncVal'
@@ -161,7 +164,7 @@ import {
   BelowConstraintVal,
   NeqConstraintVal,
   ReConstraintVal,
-  LengthConstraintVal,
+  LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,
 } from './val/ConstraintVal'
@@ -687,7 +690,24 @@ help isolate the syntax error.`,
             addsite(new NilVal({ why: 'literal_nil' }), r, ctx)
         },
 
-        'top': { val: () => top() },
+        'any': { val: () => top() },
+
+        'map': {
+          val: (r: Rule, ctx: JsonicContext) =>
+            addsite(new MapKindVal({}), r, ctx)
+        },
+        'list': {
+          val: (r: Rule, ctx: JsonicContext) =>
+            addsite(new ListKindVal({}), r, ctx)
+        },
+        'path': {
+          val: (r: Rule, ctx: JsonicContext) =>
+            addsite(new PathKindVal({}), r, ctx)
+        },
+        'constraint': {
+          val: (r: Rule, ctx: JsonicContext) =>
+            addsite(new ConstraintKindVal({}), r, ctx)
+        },
 
         // G8 phase 3: the placeholder. A BARE `_` is the hole; `"_"`
         // quoted, and any longer bare word containing it, stay text.
@@ -762,8 +782,6 @@ help isolate the syntax error.`,
     path: PathFuncVal,
     pref: PrefFuncVal,
 
-    map: MapFuncVal,
-    list: ListFuncVal,
     close: CloseFuncVal,
     open: OpenFuncVal,
     super: SuperFuncVal,
@@ -778,7 +796,8 @@ help isolate the syntax error.`,
     // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
     re: ReConstraintVal,
 
-    length: LengthConstraintVal,
+    len: LenConstraintVal,
+    empty: EmptyVal,
     unique: UniqueConstraintVal,
 
     must: MustConstraintVal,
@@ -969,7 +988,10 @@ help isolate the syntax error.`,
 
     'func-paren': (r: Rule, ctx: JsonicContext, _op: Op, terms: any) => {
       let val = terms[1]
-      const fname = terms[0]
+      // `path` is both the type keyword and a function name, and the
+      // keyword has already been lexed as a value by the time the paren
+      // arrives.
+      const fname = true === terms[0]?.isPathKind ? 'path' : terms[0]
 
       if ('' !== fname) {
         val = buildCall(r, ctx, fname, terms.slice(1))

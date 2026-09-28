@@ -26,7 +26,7 @@ func TestSizingResidueRecognisesOnlyTheResidueShape(t *testing.T) {
 
 func TestASizingResidueRefusesOutsideACollectingContext(t *testing.T) {
 	a := New()
-	_, err := a.Generate("a: length(min(2))\na: [1]\n")
+	_, err := a.Generate("a: len(min(2))\na: [1]\n")
 	if nil == err {
 		t.Fatal("a short list generated")
 	}
@@ -34,7 +34,7 @@ func TestASizingResidueRefusesOutsideACollectingContext(t *testing.T) {
 	if !ok || "constraint" != ae.Code {
 		t.Fatalf("err = %#v, want a constraint AontuError", err)
 	}
-	if !strings.Contains(ae.Msg, "length") {
+	if !strings.Contains(ae.Msg, "len") {
 		t.Fatalf("the refusal does not name the atom: %s", ae.Msg)
 	}
 }
@@ -61,7 +61,7 @@ func TestAnAnchorStepsThroughASizingResidue(t *testing.T) {
 func TestASizingResidueGenArms(t *testing.T) {
 	build := func() *ConjunctVal {
 		a := New()
-		root, err := a.Unify("a: length(min(2)) & [1]\n")
+		root, err := a.Unify("a: len(min(2)) & [1]\n")
 		if nil != err {
 			t.Fatal(err)
 		}

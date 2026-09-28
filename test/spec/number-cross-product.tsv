@@ -60,7 +60,7 @@ bigint-plus-bigdec	canon	x:0d2+0d0.5	{"x":0d2.5}
 bigint-plus-str	canon	x:0d2+q	{"x":"2q"}
 bigint-plus-bool	canon	x:0d2+true	{"x":0d2+true}
 #
-# ROW 4 -- BIGDECIMAL on the left, the top of the exact ladder: it
+# ROW 4 -- BIGDECIMAL on the left, the any of the exact ladder: it
 # absorbs both other exact leaves and never demotes back (`0d0.5+0d0.5`
 # is `0d1.0`, not `0d1`).
 bigdec-plus-int	canon	x:0d0.5+1	{"x":0d1.5}
@@ -105,7 +105,7 @@ bigdec-plus-bool-no-gen	err	x:0d0.5+true	Cannot resolve value
 #
 # ---------------------------------------------------------------------
 # THE COLUMN THE TABLE DOES NOT HAVE: a NON-SCALAR operand. Kinds, null,
-# lists, maps and top are not operands at all, and an exact leaf does not
+# lists, maps and any are not operands at all, and an exact leaf does not
 # change that -- the op stays unresolved exactly as it does for an
 # integer (plus.tsv:top-operand-err is the landed integer case). These
 # matter because a `*big.Int` or a `Decimal` reaching a coercion path
@@ -118,7 +118,7 @@ bigdec-plus-float-kind	err	x:0d0.5+float	Cannot resolve value
 bigint-plus-null	err	x:0d1+null	Cannot resolve value
 bigint-plus-list	err	x:0d1+[1]	Cannot resolve value
 bigint-plus-map	err	x:0d1+{a:1}	Cannot resolve value
-bigint-plus-top	err	x:0d1+top	Cannot resolve value
+bigint-plus-top	err	x:0d1+any	Cannot resolve value
 #
 # ---------------------------------------------------------------------
 # THE DIGITS RULE, IN FULL. String concatenation renders the number's

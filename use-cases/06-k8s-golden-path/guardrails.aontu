@@ -17,7 +17,7 @@ deploy: {
     apiVersion: "apps/v1"
     kind: "Deployment"
     metadata: {
-      name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$") & length(max(63))
+      name: string & re("^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$") & len(max(63))
       namespace: "payments"
     }
     spec: {

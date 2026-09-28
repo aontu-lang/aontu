@@ -7,6 +7,7 @@ const utility_1 = require("../utility");
 const type_1 = require("../type");
 const err_1 = require("../err");
 const RecurseVal_1 = require("./RecurseVal");
+const SealVal_1 = require("./SealVal");
 const unify_1 = require("../unify");
 const top_1 = require("./top");
 const StringVal_1 = require("./StringVal");
@@ -65,6 +66,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
         this.expansion = undefined;
         this.rxc = 0;
         this.prefix = false;
+        this.copyFound = false;
         this.peg = [];
         // The field initialiser (absolute = false) has just run, so only
         // the spec can carry absoluteness in (RefVal.clone re-passes it).
@@ -119,6 +121,11 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
             this.peg.push(...part.peg);
+        }
+        else if (true === part?.isScalarKind || true === part?.isContainerKind ||
+            true === part?.isTop ||
+            (true === part?.isConstraintKind && null == part.held)) {
+            this.peg.push(part.canon);
         }
         else {
             this.peg.push(UNSPELLABLE_SEGMENT);
@@ -388,13 +395,23 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     }
                     const lifted = true !== ctx.argsnap
                         || true === out.mark.type || true === out.mark.hide;
+                    const typed = true === out.mark.type;
                     out = out.clone(ctx, { dup: !out.holdsStaged });
                     if (lifted) {
-                        (0, utility_1.walk)(out, (_key, val) => {
+                        // The copy carries a held constraint without its type.
+                        out = (0, utility_1.walk)(out, (_key, val) => {
                             val.mark.type = false;
                             val.mark.hide = false;
-                            return val;
+                            const held = val.held;
+                            return true === val.isConstraintKind && null != held ?
+                                held : val;
                         });
+                        if (typed && !this.copyFound) {
+                            (0, SealVal_1.sealTree)(out, true);
+                        }
+                    }
+                    if (this.copyFound) {
+                        (0, SealVal_1.unsealTree)(out);
                     }
                 }
             }
@@ -482,6 +499,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
         // cloned per destination, and each clone's residual must start
         // where the level it came from left off.
         out.rxc = this.rxc;
+        out.copyFound = this.copyFound;
         return out;
     }
     // THE KEY THIS REFERENCE RESOLVES AGAINST, or undefined for a path

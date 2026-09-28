@@ -2,7 +2,7 @@
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
-# The review's finding I: "`length()` counts but nothing sums: an
+# The review's finding I: "`len()` counts but nothing sums: an
 # invoice total, a fleet-wide resource budget, a quota roll-up -- all
 # inexpressible." A fold over a bag the model already holds is as TOTAL
 # as `each` is: no recursion, no user-supplied step, each child visited

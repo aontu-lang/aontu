@@ -34,7 +34,7 @@ type QueryReport struct {
 	Out      string       `json:"out"`
 }
 
-const queryTop = "top"
+const queryTop = "any"
 
 // queryNearestKey is the "did you mean" half of the no_path contract:
 // the closest sibling name by plain edit distance, or "" when nothing

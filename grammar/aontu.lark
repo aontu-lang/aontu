@@ -55,10 +55,10 @@ element: spread
 func: name "(" [value ("," value)*] ")"
 
 name: "content" | "file" | "folder" | "fragment" | "inject" | "line" | "nom" | "project" | "slot" | "translate" | "abnf" | "above" | "acyclic" | "add" | "below" | "close" | "copyfiles" | "copy" | "deprecate" | "div"
-    | "each" | "emit" | "esc" | "filter" | "greatest"
+    | "each" | "emit" | "empty" | "esc" | "filter" | "greatest"
     | "hide"
     | "inverse" | "join" | "key" | "least"
-    | "length" | "listitems" | "list" | "lower" | "map" | "match" | "maybe" | "max" | "min" | "mod" | "move"
+    | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "min" | "mod" | "move"
     | "mul" | "must"
     | "neq"
     | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"
@@ -86,7 +86,8 @@ segment: /[a-zA-Z0-9_]+/
 place: "_"
 
 kind: "biginteger" | "bigdecimal" | "boolean" | "float" | "integer"
-    | "number" | "string" | "top" | "nil"
+    | "number" | "string" | "path" | "map" | "list" | "constraint" | "any"
+    | "nil"
 
 scalar: string | exact | number | "true" | "false" | "null"
 

@@ -68,7 +68,7 @@ describe('func', function() {
     expect(G('z:x:{a:61} z:y:(.x.a)')).equal({ z: { x: { a: 61 }, y: 61 } })
     expect(G('z:x:{a:62} z:y:.x.a')).equal({ z: { x: { a: 62 }, y: 62 } })
     expect(G('z:x:{a:63} z:y:(x.a)')).equal({ z: { x: { a: 63 }, y: 63 } })
-    // path() CAPTURES (docs/design/PATHS.0.md): the value is the
+    // path CAPTURES (docs/design/PATHS.0.md): the value is the
     // address spelling, not the value found there.
     expect(G('z:x:{a:64} z:y:path(x.a)')).equal({ z: { x: { a: 64 }, y: '.x.a' } })
     expect(G('z:x:{a:65} z:y:path($.z.x.a)')).equal({ z: { x: { a: 65 }, y: '$.z.x.a' } })
@@ -287,8 +287,10 @@ describe('func', function() {
     expect(G('a:key()')).equal({ a: '' })
     expect(G('key()')).equal('')
 
-    expect(G('key() & string')).equal('')
-    expect(G('key() & (*a|string)')).equal('')
+    // `string` refuses "", and `empty()` admits it.
+    expect(() => G('key() & string')).throw(/string_empty/)
+    expect(G('key() & string & empty()')).equal('')
+    expect(() => G('key() & (*a|string)')).throw(/string_empty/)
     expect(() => G('key() & *a|string')).throw(/disjunct_no_gen/)
     expect(() => G('key() & number')).throw(/scalar/)
 
@@ -550,7 +552,7 @@ describe('func', function() {
 
 
   test('hide-top', () => {
-    expect(G('a:hide(top) b:1')).equal({ b: 1 })
+    expect(G('a:hide(any) b:1')).equal({ b: 1 })
   })
 
 
@@ -565,7 +567,7 @@ describe('func', function() {
     expect(N('path(".foo")')).equal('path(.foo)')
     expect(N('path("$.a.b")')).equal('path($.a.b)')
     expect(N('path("foo-bar")')).equal('path(.foo-bar)')
-    expect(N('path()')).equal('path()')
+    expect(N('path')).equal('path')
     expect(N('path("")')).equal('nil')
   })
 

@@ -51,7 +51,7 @@ func (k Kind) String() string {
 	case KindNil:
 		return "nil"
 	}
-	return "top"
+	return "any"
 }
 
 var numericLeafKinds = map[Kind]bool{
@@ -62,18 +62,12 @@ var numericLeafKinds = map[Kind]bool{
 }
 
 func kindSubsumes(sup, sub Kind) bool {
-	return (sup == KindNumber && numericLeafKinds[sub]) ||
-		// A path IS a string with more structure (PATHS.0.md), so
-		// string-typed schemas over address fields keep admitting.
-		(sup == KindString && KindPath == sub)
+	return sup == KindNumber && numericLeafKinds[sub]
 }
 
 func kindParent(k Kind) (Kind, bool) {
 	if numericLeafKinds[k] {
 		return KindNumber, true
-	}
-	if KindPath == k {
-		return KindString, true
 	}
 	return KindTop, false
 }
@@ -84,6 +78,34 @@ type ScalarVal struct {
 	peg  any
 
 	src string
+
+	// `string` means a NON-EMPTY string, and `empty()` waives that. Both
+	// are FLAGS that every meet ORs together, and generation decides, so
+	// the answer does not depend on which of them meets "" first.
+	needsNonEmpty bool
+	emptyOk       bool
+}
+
+func (s *ScalarVal) refused() bool {
+	return KindString == s.kind && s.needsNonEmpty && !s.emptyOk && "" == s.peg.(string)
+}
+
+func (s *ScalarVal) withEmpty() *ScalarVal {
+	if s.emptyOk || KindString != s.kind {
+		return s
+	}
+	c := *s
+	c.emptyOk = true
+	return &c
+}
+
+func (s *ScalarVal) withNonEmpty() *ScalarVal {
+	if s.needsNonEmpty || KindString != s.kind || "" != s.peg.(string) {
+		return s
+	}
+	c := *s
+	c.needsNonEmpty = true
+	return &c
 }
 
 func newScalar(kind Kind, peg any) *ScalarVal {
@@ -125,6 +147,10 @@ func scalarPegSame(kind Kind, a, b any) bool {
 
 func (s *ScalarVal) superior() Val {
 	k := newScalarKind(s.kind)
+	// The kind that admits this value: "" needs the waiver.
+	if KindString == s.kind && ("" == s.peg.(string) || s.emptyOk) {
+		k.emptyOk = true
+	}
 	k.site.sp, k.site.spu, k.site.url = s.site.sp, s.site.spu, s.site.url
 	k.site.src = s.site.src
 	return k
@@ -133,6 +159,9 @@ func (s *ScalarVal) superior() Val {
 func (s *ScalarVal) Canon() string {
 	switch s.kind {
 	case KindString:
+		if s.refused() {
+			return "string&" + jsonString(s.peg.(string))
+		}
 		return jsonString(s.peg.(string))
 	case KindInteger:
 		return strconv.FormatInt(s.peg.(int64), 10)
@@ -162,6 +191,9 @@ func (s *ScalarVal) Canon() string {
 }
 
 func (s *ScalarVal) Gen(ctx *Ctx) (any, error) {
+	if s.refused() {
+		return nil, residueErr(ctx, s, "string_empty")
+	}
 	if s.kind == KindFloat {
 		if f, ok := s.peg.(float64); ok && f == 0 {
 			return float64(0), nil
@@ -211,6 +243,12 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 			if ps.mhide {
 				s.mhide = true
 			}
+			if (ps.needsNonEmpty && !s.needsNonEmpty) || (ps.emptyOk && !s.emptyOk) {
+				c := *s
+				c.needsNonEmpty = s.needsNonEmpty || ps.needsNonEmpty
+				c.emptyOk = s.emptyOk || ps.emptyOk
+				return &c
+			}
 			return s
 		}
 		code := "scalar_kind"
@@ -227,6 +265,17 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 type ScalarKindVal struct {
 	base
 	kind Kind
+	// `string & empty()`: the string kind that also admits "".
+	emptyOk bool
+}
+
+func (k *ScalarKindVal) withEmpty() *ScalarKindVal {
+	if k.emptyOk {
+		return k
+	}
+	c := *k
+	c.emptyOk = true
+	return &c
 }
 
 func newScalarKind(k Kind) *ScalarKindVal {
@@ -238,10 +287,8 @@ func newScalarKind(k Kind) *ScalarKindVal {
 
 func (k *ScalarKindVal) superior() Val { return top() } //coverage:ignore no caller: superOf answers for a kind peg (ADR-011 R4)
 func (k *ScalarKindVal) Canon() string {
-	// The path kind renders as the vacuous call (PATHS.0.md): the
-	// bare word `path` is an ordinary string, not a keyword.
-	if KindPath == k.kind {
-		return "path()"
+	if k.emptyOk {
+		return k.kind.String() + "&empty()"
 	}
 	return k.kind.String()
 }
@@ -261,12 +308,21 @@ func (k *ScalarKindVal) Unify(peer Val, ctx *Ctx) Val {
 		// A kind admits a concrete value of that kind, and a supertype
 		// admits a value of any kind below it (`number & 1.5` is 1.5).
 		if ps.kind == k.kind || kindSubsumes(k.kind, ps.kind) {
+			if KindString == k.kind {
+				if k.emptyOk {
+					return ps.withEmpty()
+				}
+				return ps.withNonEmpty()
+			}
 			return ps
 		}
 		return makeNilErr(ctx, "no_scalar_unify", k, peer)
 	}
 	if pk, ok := peer.(*ScalarKindVal); ok {
 		if k.kind == pk.kind {
+			if !k.emptyOk && pk.emptyOk {
+				return pk
+			}
 			return k
 		}
 		if kindSubsumes(k.kind, pk.kind) {

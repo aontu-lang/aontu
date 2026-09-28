@@ -2,13 +2,16 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CloseFuncVal = void 0;
-const err_1 = require("../err");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const SealVal_1 = require("./SealVal");
 class CloseFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isCloseFunc = true;
         this.validateArgs(spec.peg, 1);
+        if (0 === spec.peg.length) {
+            this.cjo = (0, SealVal_1.sealCjo)(true);
+        }
     }
     make(_ctx, spec) {
         return new CloseFuncVal(spec);
@@ -19,11 +22,9 @@ class CloseFuncVal extends FuncBaseVal_1.FuncBaseVal {
     resolve(ctx, args) {
         let argval = args[0];
         if (null == argval) {
-            return (0, err_1.makeNilErr)(ctx, 'no_first_arg', this, undefined, 'close');
+            return this.place(new SealVal_1.SealVal({ closed: true }, ctx));
         }
-        if (argval.isMap || argval.isList) {
-            argval.closed = true;
-        }
+        (0, SealVal_1.sealBag)(argval, true);
         return argval;
     }
 } /* node:coverage ignore next 6 */

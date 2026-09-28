@@ -22,7 +22,7 @@ rel-map-labelled	gens	a: {}\ns: {uses: rel() & {primary: path($.a)}}	{"a":{},"s"
 rel-two-statements	gens	s: {dependsOn: rel()}\ns: {dependsOn: [path($.x)]}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
 rel-two-statements-reversed	gens	s: {dependsOn: [path($.x)]}\ns: {dependsOn: rel()}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
 rel-schema-optional	gens	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: [path($.a)]}	{"a":{},"s":{"dependsOn":["$.a"]}}
-rel-schema-optional-absent	gens	S: type({dependsOn?: rel()})\ns: $.S & {k: 1}	{"s":{"k":1}}
+rel-schema-optional-absent	gens	S: type({dependsOn?: rel() k: integer})\ns: $.S & {k: 1}	{"s":{"k":1}}
 rel-unmet-canon	canon	S: type({dependsOn?: rel()})\nz: 1	{"S":{"dependsOn"?:rel()},"z":1}
 rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
 rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	scalar_value
@@ -33,7 +33,7 @@ rel-unresolved	errc	s: {dependsOn: rel() & [path($.nosuch)]}	rel_unresolved
 rel-nested-map	gens	a: {}\ns: {uses: rel() & {tier1: {primary: path($.a)}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"$.a"}}}}
 rel-unmet-required	errc	d: rel()\nz: 1	mapval_no_gen
 rel-meets-rel	gens	x: {kind: a}\ns: {d: rel({kind: a})}\ns: {d: rel()}\ns: {d: [path($.x)]}	{"s":{"d":["$.x"]},"x":{"kind":"a"}}
-rel-holds-a-kind	gens	x: {}\nd: rel() & string & path($.x)	{"d":"$.x","x":{}}
+rel-holds-a-kind	gens	x: {}\nd: rel() & path & path($.x)	{"d":"$.x","x":{}}
 rel-map-drives	gens	s: {uses: {primary: path($.a)}}\ns: {uses: rel()}\na: {}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
 rel-in-spread-template	gens	T: {&: {d: rel() & [path($.q)]}, s1: {}}\nq: {}	{"T":{"s1":{"d":["$.q"]}},"q":{}}
 rel-meets-nil	errc	q: {}\nd: {x: rel() & path($.q)}\nd: {x: 1 & two}	scalar_kind
@@ -44,7 +44,7 @@ rel-two-typed-canon	canon	s: {d: rel({kind:q})}\ns: {d: rel({kind:q})}	{"s":{"d"
 rel-two-held-canon	canon	s: {d: rel() & string}\ns: {d: rel()}	{"s":{"d":rel()&string}}
 rel-two-held-order-canon	canon	s: {d: rel()}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
 rel-two-held-both-canon	canon	s: {d: rel() & string}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
-rel-two-held-resolves	gens	x: {k:1}\ns: {d: rel() & string}\ns: {d: rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
+rel-two-held-resolves	gens	x: {k:1}\ns: {d: rel() & path}\ns: {d: rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
 rel-in-list-element	gens	q: {}\na: [rel() & path($.q)]	{"a":["$.q"],"q":{}}
 rel-in-list-element-canon	canon	q: {}\na: [rel() & path($.q)]	{"a":[path($.q)],"q":{}}
 rel-two-held-fold-canon	canon	s: {d: rel() & re("a$") & re("^..a")}	{"s":{"d":rel()&re("^..a")&re("a$")}}

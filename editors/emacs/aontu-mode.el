@@ -52,11 +52,10 @@
   "Syntax table for `aontu-mode'.")
 
 (defconst aontu-font-lock-keywords
-  (let ((kinds '("string" "number" "float" "integer" "boolean" "top" "nil"))
+  (let ((kinds '("string" "number" "float" "integer" "biginteger" "bigdecimal" "boolean" "path" "map" "list" "constraint" "any" "nil"))
         (literals '("true" "false" "null"))
         (funcs '("upper" "lower" "copy" "key" "pref" "super"
-                 "type" "hide" "move" "path" "close" "open"
-                 "map" "list")))
+                 "type" "hide" "move" "close" "open" "len" "empty")))
     `(;; Scalar-kind keywords.
       (,(regexp-opt kinds 'symbols) . font-lock-type-face)
       ;; Literals.

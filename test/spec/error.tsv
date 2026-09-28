@@ -4,7 +4,7 @@ int-conflict	err	a:1 a:2	Cannot unify value: 2 with value: 1
 str-conflict	err	a:A a:B	Cannot unify value: "B" with value: "A"
 kind-conflict	err	a:1 & string	Cannot unify value: string with value: 1
 nested-conflict	err	a:b:1 a:b:2	Cannot unify value: 2 with value: 1
-top-no-gen	err	a:top	Cannot resolve value
+top-no-gen	err	a:any	Cannot resolve value
 kind-no-gen	err	a:number	Cannot resolve value
 trailing-paren-err	err	(a|b)&a)	unexpected character(s): )
 #

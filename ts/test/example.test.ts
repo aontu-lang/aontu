@@ -91,51 +91,51 @@ describe('examples', function() {
 
   test('optionals-examples', () => {
     expect(G('{x?:number,y:Y}')).equal({ y: 'Y' })
-    expect(G('{x?:top,y:Y}')).equal({ y: 'Y' })
+    expect(G('{x?:any,y:Y}')).equal({ y: 'Y' })
     expect(() => G('{x:number,y:Y}')).throw(/no_gen/)
-    expect(() => G('{x:top,y:Y}')).throw(/no_gen/)
+    expect(() => G('{x:any,y:Y}')).throw(/no_gen/)
 
     expect(G('m:{x?:number,y:Y} n:$.m')).equal({ m: { y: 'Y' }, n: { y: 'Y' } })
-    expect(G('m:{x?:top,y:Y}  n:$.m')).equal({ m: { y: 'Y' }, n: { y: 'Y' } })
+    expect(G('m:{x?:any,y:Y}  n:$.m')).equal({ m: { y: 'Y' }, n: { y: 'Y' } })
     expect(() => G('m:{x:number,y:Y} n:$.m')).throw(/no_gen/)
-    expect(() => G('m:{x:top,y:Y} n:$.m')).throw(/no_gen/)
+    expect(() => G('m:{x:any,y:Y} n:$.m')).throw(/no_gen/)
 
     expect(G('m:type({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
-    expect(G('m:type({x?:top,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
-    expect(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/no_gen/)
-    expect(() => G('m:type({x:top,y:Y}) n:$.m')).throw(/no_gen/)
+    expect(G('m:type({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
+    expect(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/required/)
+    expect(() => G('m:type({x:any,y:Y}) n:$.m')).throw(/required/)
 
     expect(G('m:hide({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
-    expect(G('m:hide({x?:top,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
+    expect(G('m:hide({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
     expect(() => G('m:hide({x:number,y:Y}) n:$.m')).throw(/no_gen/)
-    expect(() => G('m:hide({x:top,y:Y}) n:$.m')).throw(/no_gen/)
+    expect(() => G('m:hide({x:any,y:Y}) n:$.m')).throw(/no_gen/)
 
     expect(G('m:type({x?:number,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
-    expect(G('m:type({x?:top,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
+    expect(G('m:type({x?:any,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
     expect(() => G('m:type({x:number,y:Y}) n:copy($.m)')).throw(/no_gen/)
-    expect(() => G('m:type({x:top,y:Y}) n:copy($.m)')).throw(/no_gen/)
+    expect(() => G('m:type({x:any,y:Y}) n:copy($.m)')).throw(/no_gen/)
 
     expect(G('m:hide({x?:number,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
-    expect(G('m:hide({x?:top,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
+    expect(G('m:hide({x?:any,y:Y}) n:copy($.m)')).equal({ n: { y: 'Y' } })
     expect(() => G('m:hide({x:number,y:Y}) n:copy($.m)')).throw(/no_gen/)
-    expect(() => G('m:hide({x:top,y:Y}) n:copy($.m)')).throw(/no_gen/)
+    expect(() => G('m:hide({x:any,y:Y}) n:copy($.m)')).throw(/no_gen/)
 
     expect(G('m:{x?:number,y:Y} n:move($.m)')).equal({ n: { y: 'Y' } })
-    expect(G('m:{x?:top,y:Y} n:move($.m)')).equal({ n: { y: 'Y' } })
+    expect(G('m:{x?:any,y:Y} n:move($.m)')).equal({ n: { y: 'Y' } })
     expect(() => G('m:{x:number,y:Y} n:move($.m)')).throw(/no_gen/)
-    expect(() => G('m:{x:top,y:Y} n:move($.m)')).throw(/no_gen/)
+    expect(() => G('m:{x:any,y:Y} n:move($.m)')).throw(/no_gen/)
 
     expect(G('m:close({x?:number,y:Y}) n:move($.m)')).equal({ n: { y: 'Y' } })
-    expect(G('m:close({x?:top,y:Y}) n:move($.m)')).equal({ n: { y: 'Y' } })
+    expect(G('m:close({x?:any,y:Y}) n:move($.m)')).equal({ n: { y: 'Y' } })
     expect(() => G('m:close({x:number,y:Y}) n:move($.m)')).throw(/required/)
-    expect(() => G('m:close({x:top,y:Y}) n:move($.m)')).throw(/required/)
+    expect(() => G('m:close({x:any,y:Y}) n:move($.m)')).throw(/required/)
 
   })
 
 
   test('optionals-dive-examples', () => {
     expect(G('x?:number,y:Y')).equal({ y: 'Y' })
-    expect(G('x?:top,y:Y')).equal({ y: 'Y' })
+    expect(G('x?:any,y:Y')).equal({ y: 'Y' })
 
     expect(G('x:a?:number x:a:1')).equal({ x: { a: 1 } })
     expect(G('x:a?:number')).equal({ x: {} })
@@ -172,7 +172,8 @@ describe('examples', function() {
     expect(G('x:close({a:number,b?:boolean,c:string}), x:{a:1,c:C}'))
       .equal({ x: { a: 1, c: 'C' } })
 
-    expect(G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } })
+    expect(() => G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).throws(/closed/)
+    expect(G('x:close({a:1,b:open({c:2})}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } })
   })
 
 

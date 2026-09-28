@@ -181,7 +181,7 @@ probe_fails kebab-bare '[aontu/negative]' \
   "bare kebab-case name parses as negation"
 
 # FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16):
-# length(min(1)) used to fire against the spread-only schema list (0
+# len(min(1)) used to fire against the spread-only schema list (0
 # members) before the generator merge -- a false refusal of a valid
 # model. A lower bound violated is provisional now: more members may
 # still arrive, so the atom residuates and is decided at generation,
@@ -202,11 +202,12 @@ probe_golden() { # file label
 probe_fails bound-bypass '[aontu/empty]' \
   "bound in a disjunction branch: override 40 refused by the admission gate"
 probe_golden length-on-schema-list \
-  "length(min(1)) beside a spread waits for the generator merge"
-probe_golden close-shallow-typo \
-  "close(pack) does not seal children: typo'd override absorbed, exit 0"
-grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \
-  || die "close-shallow-typo golden lost its point"
+  "len(min(1)) beside a spread waits for the generator merge"
+# Closing is recursive now: the typo'd key on a generated child is a
+# located refusal, where it was once absorbed and rendered (the golden
+# expected/close-shallow-typo.json that pinned that is gone with it).
+probe_fails close-shallow-typo '[aontu/closed]' \
+  "close(pack) seals the children too: typo'd override refused"
 # 2026-08-26: the next four goldens hold the CORRECT outputs — fixed by
 # the template-clone isolation change (ADR-005). They pinned
 # silent-wrong answers before (both children named "web", shared

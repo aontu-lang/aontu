@@ -22,7 +22,7 @@ class TopVal extends Val_1.Val {
     unify(peer, ctx) {
         return peer.unify(this, ctx);
     }
-    get canon() { return 'top'; }
+    get canon() { return 'any'; }
     superior() {
         return this;
     }
