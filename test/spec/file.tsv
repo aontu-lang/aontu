@@ -148,6 +148,7 @@ load-ext-none	err	x:@"__FIXTURES__/noext"	include not readable
 # The extension is NAMED, because the extension is the whole reason.
 load-ext-names-it	err	x:@"__FIXTURES__/conf.csv"	extension: .csv
 load-ext-names-none	err	x:@"__FIXTURES__/noext"	no extension
+load-ext-aon-is-withdrawn	err	x:@"__FIXTURES__/old.aon"	extension: .aon
 # TEXT IS THE THIRD THING AN EXTENSION CAN MEAN, beside aontu source
 # and configuration data: the file's BYTES, as one string scalar. No
 # parser is chosen, so there is nothing here for two ports to disagree

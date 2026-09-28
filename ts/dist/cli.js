@@ -739,6 +739,10 @@ function entryRootOf(file) {
 }
 function runFile(file, mode, format, trust) {
     let src;
+    if (/\.aon$/i.test(file)) {
+        process.stderr.write(`aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu\n`);
+        return 2;
+    }
     try {
         src = (0, node_fs_1.readFileSync)(file, 'utf8');
     }

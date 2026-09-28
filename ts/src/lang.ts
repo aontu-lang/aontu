@@ -1809,6 +1809,9 @@ export function includeFormat(
 // file type at all.
 const REFUSED_EXT = new Set(['js', ''])
 
+// The extension the language once accepted beside `.aontu`.
+const WITHDRAWN_EXT = 'aon'
+
 
 function extKindOf(full: string): string {
   const seg = (full.match(/[^\\/]*$/) as string[])[0]
@@ -2099,6 +2102,10 @@ function makeModelResolver(options: any) {
       if (undefined !== ext &&
         undefined !== includeFormat(ext, options.textExt)) {
         refuseLocalFile(modref.path)
+      }
+      // The withdrawn `.aon` spelling is a file name, never a module.
+      if (WITHDRAWN_EXT === ext) {
+        refuseExtension(path, modref.path)
       }
       const msmeta = (ctx as any)?.meta?.multisource
       const from = dirOf(null != msmeta?.path ? msmeta.path : popts?.path)

@@ -3968,6 +3968,10 @@ things:
 | `.txt`, and whatever `--text-ext` names | **text**: the file's bytes, as one string |
 | anything else | refused, by name |
 
+The `.aon` spelling the language once accepted beside `.aontu` is
+withdrawn: an include naming one is refused by its extension, and the
+command line refuses an entry file spelled that way before reading it.
+
 Every one of those formats maps onto JSON, which is why one word covers
 them: a `.toml` file is a map of scalars, lists and maps, and so is the
 `.aontu` file that unifies with it. What a data format does not get is

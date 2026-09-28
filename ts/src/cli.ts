@@ -804,6 +804,11 @@ function entryRootOf(file: string | undefined): string {
 function runFile(
   file: string, mode: Mode, format: EvalFormat, trust: TrustArg): number {
   let src: string
+  if (/\.aon$/i.test(file)) {
+    process.stderr.write(
+      `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu\n`)
+    return 2
+  }
   try {
     src = readFileSync(file, 'utf8')
   }

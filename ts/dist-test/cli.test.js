@@ -63,6 +63,14 @@ const NO_SERVERS = {
     lsp: () => undefined, mcp: () => undefined, serve: async () => undefined, http: () => ({}),
 };
 (0, node_test_1.describe)('cli', () => {
+    (0, node_test_1.test)('withdrawn-aon-entry-is-refused-by-name', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-aon-'));
+        const file = Path.join(dir, 'old.aon');
+        Fs.writeFileSync(file, 'a: 1\n');
+        const r = run([file]);
+        Assert.equal(r.code, 2);
+        Assert.match(r.out, /withdrawn \.aon extension; the extension is \.aontu/);
+    });
     // --- unit: evalSource is the pure core the CLI renders with ---
     (0, node_test_1.test)('eval-json', () => {
         const r = (0, cli_1.evalSource)(new aontu_1.Aontu(), 'a:1 b:$.a', 'json');

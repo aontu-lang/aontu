@@ -51,6 +51,15 @@ const NO_SERVERS: any = {
 
 describe('cli', () => {
 
+  test('withdrawn-aon-entry-is-refused-by-name', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-aon-'))
+    const file = Path.join(dir, 'old.aon')
+    Fs.writeFileSync(file, 'a: 1\n')
+    const r = run([file])
+    Assert.equal(r.code, 2)
+    Assert.match(r.out, /withdrawn \.aon extension; the extension is \.aontu/)
+  })
+
   // --- unit: evalSource is the pure core the CLI renders with ---
 
   test('eval-json', () => {

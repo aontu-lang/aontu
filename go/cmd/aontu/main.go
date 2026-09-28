@@ -1006,6 +1006,11 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 
 	if file != "" {
+		if strings.EqualFold(".aon", filepath.Ext(file)) {
+			fmt.Fprintf(stderr,
+				"aontu: %s carries the withdrawn .aon extension; the extension is .aontu\n", file)
+			return 2
+		}
 		src, err := os.ReadFile(file)
 		if err != nil {
 			if looksLikeVerb(file) {

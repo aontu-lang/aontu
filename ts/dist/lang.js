@@ -1431,6 +1431,8 @@ function includeFormat(ext, textExt) {
 // default processor; `''` is the no-extension fallback, which names no
 // file type at all.
 const REFUSED_EXT = new Set(['js', '']);
+// The extension the language once accepted beside `.aontu`.
+const WITHDRAWN_EXT = 'aon';
 function extKindOf(full) {
     const seg = full.match(/[^\\/]*$/)[0];
     return (seg.match(/\.([^.]*)$/) || ['', ''])[1].toLowerCase();
@@ -1678,6 +1680,10 @@ function makeModelResolver(options) {
             if (undefined !== ext &&
                 undefined !== includeFormat(ext, options.textExt)) {
                 (0, mod_1.refuseLocalFile)(modref.path);
+            }
+            // The withdrawn `.aon` spelling is a file name, never a module.
+            if (WITHDRAWN_EXT === ext) {
+                refuseExtension(path, modref.path);
             }
             const msmeta = ctx?.meta?.multisource;
             const from = dirOf(null != msmeta?.path ? msmeta.path : popts?.path);

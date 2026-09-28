@@ -8,6 +8,12 @@ each change affects.
 
 ## Unreleased
 
+### The `.aon` extension is withdrawn (#251)
+
+Both ports. **Breaking.** Only `.aontu` names a source file. An include
+of a `.aon` file is refused by its extension (`include_extension`), and
+the command line refuses a `.aon` entry file before reading it.
+
 ### Closing is recursive, and a type is closed for its instances
 
 Both ports. **Breaking.** `close(x)` now seals every map and list

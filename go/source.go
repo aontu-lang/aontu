@@ -89,6 +89,13 @@ func fileResolver(spec multisource.PathSpec, opts *multisource.MultiSourceOption
 		if ext := localFileExt(ref.Path); "" != ext && "" != includeFormat(ext, sink) {
 			out = refuseModule("module_local", localFileMsg(ref.Path))
 		}
+		if withdrawnExt == localFileExt(ref.Path) {
+			recordExtension(ctx, res.Path, withdrawnExt)
+			res.Full = ref.Path
+			res.Kind = extensionKind
+			res.Found = true
+			return res
+		}
 
 		if "" != out.Code {
 			recordModErr(sink, out.Code, out.Msg)
@@ -390,6 +397,8 @@ func extensionProcessor(res *multisource.Resolution, _ *multisource.MultiSourceO
 func textProcessor(res *multisource.Resolution, _ *multisource.MultiSourceOptions, _ *jsonic.Context, _ *jsonic.Jsonic) {
 	res.Val = newString(res.Src)
 }
+
+const withdrawnExt = "aon"
 
 // extOf is the multisource kind of a resolved path: the extension
 // without its dot, lowercased, or "" for a name that has none.

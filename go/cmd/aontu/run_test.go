@@ -82,6 +82,11 @@ func TestRunFileModes(t *testing.T) {
 		!strings.Contains(errw.String(), "cannot read") {
 		t.Fatalf("missing file: %d %q", code, errw.String())
 	}
+	errw.Reset()
+	if code := run([]string{filepath.Join(dir, "old.aon")}, nil, &out, &errw, true); code != 2 ||
+		!strings.Contains(errw.String(), "withdrawn .aon extension") {
+		t.Fatalf("withdrawn extension: %d %q", code, errw.String())
+	}
 }
 
 func TestRunStdinPipe(t *testing.T) {
