@@ -185,6 +185,10 @@ class Aontu {
             if (undefined !== pval && 0 === pval.err.length) {
                 let uval = this.unify(pval, undefined, ac);
                 if (undefined !== uval && 0 === uval.err.length) {
+                    // An unfilled ROOT (`any`, `_`) has no bag to refuse it.
+                    if (true === uval.isTop || true === uval.isPlace) {
+                        ac.adderr((0, err_1.descErr)((0, err_1.makeNilErr)(ac, 'no_gen', uval), ac));
+                    }
                     out = uval.isNil ? (ac.adderr(uval), undefined)
                         : 0 < ac.err.length ? undefined
                             : uval.gen(ac);

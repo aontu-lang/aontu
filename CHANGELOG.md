@@ -8,6 +8,16 @@ each change affects.
 
 ## Unreleased
 
+### An unfilled root is refused (#284)
+
+Both ports. A document that is only `any` or `_` no longer generates
+`null`: it is refused as `no_gen`, exit 1, exactly as an unfilled field
+is refused as `mapval_no_gen`. Pinned by `test/spec/types.tsv`. The
+same change corrects the reference on upper-case radix prefixes
+(`0X1F` is 31), the grammar note on `a:6-2` (a string, not a parse
+error), the stale "known limit" on `min(1024) & *8080`, and the rank
+wording for `**`.
+
 ### The `.aon` extension is withdrawn (#251)
 
 Both ports. **Breaking.** Only `.aontu` names a source file. An include

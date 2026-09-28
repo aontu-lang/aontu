@@ -201,6 +201,11 @@ class Aontu {
 
         if (undefined !== uval && 0 === uval.err.length) {
 
+          // An unfilled ROOT (`any`, `_`) has no bag to refuse it.
+          if (true === (uval as any).isTop || true === (uval as any).isPlace) {
+            ac.adderr(descErr(makeNilErr(ac as any, 'no_gen', uval), ac as any))
+          }
+
           out = uval.isNil ? (ac.adderr(uval as any), undefined)
             : 0 < ac.err.length ? undefined
               : uval.gen(ac as any)
