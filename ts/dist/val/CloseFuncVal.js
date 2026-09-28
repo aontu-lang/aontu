@@ -24,9 +24,7 @@ class CloseFuncVal extends FuncBaseVal_1.FuncBaseVal {
         if (null == argval) {
             return this.place(new SealVal_1.SealVal({ closed: true }, ctx));
         }
-        if (argval.isMap || argval.isList) {
-            argval.closed = true;
-        }
+        (0, SealVal_1.sealBag)(argval, true);
         return argval;
     }
 } /* node:coverage ignore next 6 */

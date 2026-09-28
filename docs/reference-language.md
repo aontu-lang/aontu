@@ -2134,8 +2134,9 @@ Example: `integer & below(10)`
 
 ### `close(m?: any) : any`
 
-Seal a map/list against extra keys. With no argument, seal whatever
-map or list it meets: `close() & {}` is a closed empty map.
+Seal a map/list against extra keys, at every depth beneath it. With
+no argument, seal whatever map or list it meets: `close() & {}` is a
+closed empty map.
 
 Example: see [closed values](#closed-values-close--open)
 
@@ -2366,8 +2367,10 @@ Example: `nom("planet_body", pascal)` → `"PlanetBody"`
 
 ### `open(m?: any) : any`
 
-Reverse a `close`. With no argument, unseal whatever map or list it
-meets: `open() & close({x:1}) & {y:2}` admits `y`.
+Reverse a `close`, at every depth beneath it, and hold the subtree
+open against a later `close` from above. With no argument, unseal
+whatever map or list it meets: `open() & close({x:1}) & {y:2}` admits
+`y`.
 
 Example: `open(close({x:1})) & {y:2}`→`{x:1,y:2}`
 
@@ -2485,7 +2488,9 @@ Example: `translate("a-b-c", "-", "_")` → `"a_b_c"`
 
 ### `type(t: any) : any`
 
-Mark `x` as a type/schema value.
+Mark `x` as a type/schema value: a definition, whose instances (a copy
+taken by reference) are closed at every depth unless the definition
+holds a subtree `open()`. See [Marks: `type` and `hide`](#marks-type-and-hide).
 
 Example: `type(1) & number`→`1`
 
@@ -3823,8 +3828,8 @@ or propagated by conjunction):
 In both cases, **a map field whose value is type- or hide-marked is
 omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
-(`type(1) & number`→`1`). `copy()` clears both marks, making the result
-emittable again:
+(`type(1) & number`→`1`). `copy()` clears both marks and any seal,
+making the result emittable and open again:
 
 ```aontu
 x: type({})
@@ -3835,6 +3840,27 @@ a: copy($.x)
 ```json
 {"a":{"y":1}}
 ```
+
+**A type is a definition, and its instances are closed.** The
+statements at the type's own path extend it (`T: type({ a:1 })` and
+`T: { b:2 }` is one definition with both keys), but a copy taken by
+reference is an instance, and it admits nothing the definition does
+not declare, at any depth:
+
+```aontu
+T: type({ x:integer n:y:integer })
+T: z: string
+a: $.T & { x:1 n:y:2 z:"s" }
+```
+
+```json
+{"a":{"n":{"y":2},"x":1,"z":"s"}}
+```
+
+whereas `a: $.T & { w:1 }` is refused as `closed`. A definition meant
+to be extended by its instances says so with `open()`: `type(open({
+... }))`, or an `open()` on the one subtree that may grow. `open($.T)`
+lifts the seal on a single instance.
 
 **A mark belongs to the field its wrapper was written at**. A reference
 to a `type()`/`hide()`-marked value copies the value with the marks
@@ -3850,8 +3876,10 @@ suppressing its emission.
 
 ## Closed values: `close` / `open`
 
-A **closed** map or list refuses any key/element not already present.
-Narrowing an existing key is fine, and `open` lifts the seal:
+A **closed** map or list refuses any key/element not already present,
+and so does every map and list beneath it: closing is recursive.
+Narrowing an existing key is fine, and `open` lifts the seal, at every
+depth too:
 
 ```aontu
 a: close({ x:1 }) & { x:number }
@@ -3864,12 +3892,32 @@ c: close(42)
 ```
 
 `close` on a scalar is a no-op (`c` above), and `close($.x)` closes a
-referenced node. Adding a key or extending a list is refused:
+copy of the referenced node, leaving the node itself as it was. Adding
+a key or extending a list is refused, at any depth:
 
 ```
-close({x:1}) & {y:2}      → error: closed
-close([1,2]) & [1,2,3]    → error: closed
+close({x:1}) & {y:2}            → error: closed
+close([1,2]) & [1,2,3]          → error: closed
+close({x:{y:1}}) & {x:{z:2}}    → error: closed
 ```
+
+An `open()` written inside a closed value holds its subtree open: the
+close from above stops there, and only there.
+
+```aontu
+a: close({ x:open({ y:1 }) }) & { x:z:2 }
+```
+
+```json
+{"a":{"x":{"y":1,"z":2}}}
+```
+
+The two spreads read differently under a seal. A closed **map** with a
+spread is an exhaustive set of keys sharing a shape: `close({ &: T,
+a:{}, b:{} })` admits `a` and `b`, each satisfying `T`, and refuses
+every other key. A closed **list** with a spread admits elements, since
+the spread declares every element: `close([&: integer])` is a list of
+integers of any length, while `close([1,2])` has exactly two.
 
 On a list, closing fixes the LENGTH: the elements it has can still be
 narrowed (`close([1,number]) & [1,2]` is `[1,2]`), but no element can be
@@ -3893,8 +3941,14 @@ c: open() & close({ x:1 }) & { y:2 }
 including terms written in other statements at the same key. `open()`
 folds first, so it lifts a seal before anything is added (`c`). A
 closed value reached later, through a reference or a separate map
-merge, is closed exactly as `close({...})` is. Unmet, `close()` does not
-generate.
+merge, is closed exactly as `close({...})` is, and a child that
+resolves later inside a closed value (a reference, a pending call) is
+closed when it does. Unmet, `close()` does not generate.
+
+**A type is closed for its instances.** A copy of a `type()`-marked
+value taken by reference is an instance, and adds nothing at any depth,
+while the type's own statements still extend it. See [Marks: `type` and
+`hide`](#marks-type-and-hide).
 
 ## Source loading `@"…"`
 

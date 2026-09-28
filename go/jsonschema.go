@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 const jsonSchemaDraft = "https://json-schema.org/draft/2020-12/schema"
 
 // SchemaLoss is one construct the schema could not carry.
@@ -30,7 +29,7 @@ type SchemaReport struct {
 	Errors []VetFinding `json:"errors,omitempty"`
 	// Lossy names every construct that could not be carried, in document
 	// order.
-	Lossy []SchemaLoss `json:"lossy"`
+	Lossy  []SchemaLoss   `json:"lossy"`
 	Schema map[string]any `json:"schema"`
 	// Verdict: ok everything carried, lossy the schema is a WEAKER
 	// statement than the model, error the document does not stand up.
@@ -445,15 +444,7 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 
 	if v.closed {
 		out["additionalProperties"] = false
-		if nil != spread {
-			sc.lose(path, "&:",
-				"a spread on a CLOSED map constrains keys that cannot exist, "+
-					"so additionalProperties:false stands alone and the "+
-					"template is dropped")
-		}
 	} else if nil != spread {
-		// A spread IS additionalProperties-with-a-schema: every key the
-		// author did not name must still satisfy the template.
 		out["additionalProperties"] = spread
 	}
 

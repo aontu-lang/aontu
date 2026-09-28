@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListVal = void 0;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
+const SealVal_1 = require("./SealVal");
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const top_1 = require("./top");
@@ -59,6 +60,7 @@ class ListVal extends BagVal_1.BagVal {
         // NOTE: not a clone! needs to be constructed.
         let out = (peer.isTop ? this : new ListVal({ peg: [] }, ctx));
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.spread.cj = this.spread.cj;
         out.site = this.site;
@@ -119,11 +121,17 @@ class ListVal extends BagVal_1.BagVal {
                 // NOTE: peerkey is the index
                 for (let peerkey in upeer.peg) {
                     let peerchild = upeer.peg[peerkey];
-                    if (this.closed && !allowedKeys.includes(peerkey)) {
+                    // A spread declares every element, so a closed list with one
+                    // fixes nothing here; the template judges the element.
+                    if (this.closed && null == out.spread.cj &&
+                        !allowedKeys.includes(peerkey)) {
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
                     let child = out.peg[peerkey];
                     const peerctx = ctx.descend(peerkey);
+                    if (this.closed && undefined !== child) {
+                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child);
+                    }
                     let oval = out.peg[peerkey] =
                         undefined === child ? peerchild :
                             child.isTop && peerchild.done ? peerchild :
@@ -153,6 +161,11 @@ class ListVal extends BagVal_1.BagVal {
             }
             if (null != bad) {
                 out = bad;
+            }
+            if (!out.isNil && out.closed) {
+                for (const key of Object.keys(out.peg)) {
+                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key]);
+                }
             }
             if (!out.isNil) {
                 ;
@@ -193,6 +206,7 @@ class ListVal extends BagVal_1.BagVal {
             cj: this.spread.cj ? this.spread.cj.spreadClone(ctx) : undefined,
         };
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         return out;
     }
@@ -213,6 +227,7 @@ class ListVal extends BagVal_1.BagVal {
             out.spread.cj = this.spread.cj.clone(ctx, childspec);
         }
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         return out;
     }

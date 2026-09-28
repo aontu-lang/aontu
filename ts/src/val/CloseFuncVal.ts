@@ -13,8 +13,7 @@ import {
 
 
 import { FuncBaseVal } from './FuncBaseVal'
-import { SealVal, sealCjo } from './SealVal'
-import { BagVal } from '../val/BagVal'
+import { SealVal, sealCjo, sealBag } from './SealVal'
 
 
 class CloseFuncVal extends FuncBaseVal {
@@ -48,9 +47,7 @@ class CloseFuncVal extends FuncBaseVal {
       return this.place(new SealVal({ closed: true } as any, ctx))
     }
 
-    if (argval.isMap || argval.isList) {
-      (argval as BagVal).closed = true
-    }
+    sealBag(argval, true)
 
     return argval
   }

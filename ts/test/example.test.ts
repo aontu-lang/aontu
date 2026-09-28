@@ -102,8 +102,8 @@ describe('examples', function() {
 
     expect(G('m:type({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
     expect(G('m:type({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
-    expect(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/no_gen/)
-    expect(() => G('m:type({x:any,y:Y}) n:$.m')).throw(/no_gen/)
+    expect(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/required/)
+    expect(() => G('m:type({x:any,y:Y}) n:$.m')).throw(/required/)
 
     expect(G('m:hide({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
     expect(G('m:hide({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } })
@@ -172,7 +172,8 @@ describe('examples', function() {
     expect(G('x:close({a:number,b?:boolean,c:string}), x:{a:1,c:C}'))
       .equal({ x: { a: 1, c: 'C' } })
 
-    expect(G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } })
+    expect(() => G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).throws(/closed/)
+    expect(G('x:close({a:1,b:open({c:2})}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } })
   })
 
 

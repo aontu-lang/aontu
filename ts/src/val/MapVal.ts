@@ -14,6 +14,8 @@ import {
 import { AontuContext } from '../ctx'
 import { unite } from '../unify'
 
+import { sealChild } from './SealVal'
+
 import {
   propagateMarks,
   canonRiders,
@@ -152,6 +154,7 @@ class MapVal extends BagVal {
     let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: {} }, ctx))
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
     out.aliasKeys = [...this.aliasKeys]
     out.spread.cj = this.spread.cj
@@ -290,6 +293,10 @@ class MapVal extends BagVal {
 
           const peerctx = ctx.descend(peerkey)
 
+          if (this.closed && undefined !== child) {
+            child = out.peg[peerkey] = sealChild(peerctx, child)
+          }
+
           let oval = out.peg[peerkey] =
             undefined === child
               ? (undefined !== peerctx.prov && peerchild.isGenable
@@ -341,6 +348,12 @@ class MapVal extends BagVal {
         out = bad
       }
 
+      if (!out.isNil && (out as any).closed) {
+        for (const key of Object.keys(out.peg)) {
+          out.peg[key] = sealChild(ctx.descend(key), out.peg[key])
+        }
+      }
+
       if (!out.isNil) {
         ;(out.uh ??= []).push(peer.id)
 
@@ -389,6 +402,7 @@ class MapVal extends BagVal {
     }
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
     out.aliasKeys = [...this.aliasKeys]
 
@@ -419,6 +433,7 @@ class MapVal extends BagVal {
     }
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
     out.aliasKeys = [...this.aliasKeys]
 

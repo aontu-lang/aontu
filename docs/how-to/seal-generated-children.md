@@ -1,74 +1,25 @@
 ---
-description: Close both the set of `pack`-generated children and each child's shape, or seal from the side with a hidden guard.
+description: Close the set of `pack`-generated children and each child's shape in one seal, hold a level open, or seal from the side with a hidden guard.
 group: compose
 order: 30
 ---
 
-# Seal generated children deeply
+# Seal generated children
 
-`close` seals exactly the node it wraps: it is deliberately
-shallow. Around a
+`close` is recursive: it seals the node it wraps and every map and list
+beneath it. Around a
 [`pack`](../reference-language.md#generating-children-pack-and-each)
-generator, that means `close(pack(...))` forbids adding *children*
-to the generated map while each child's own keys stay open. A typo'd
-override is then absorbed instead of refused:
-
-```aontu
-names: hide({ web: {} auth: {} })
-
-deploy: close(pack($.names, { replicas: *1|integer tier: *standard|string }))
-
-deploy: web: replicaz: 3
-```
-
-```json
-{
-  "deploy": {
-    "auth": { "replicas": 1, "tier": "standard" },
-    "web":  { "replicas": 1, "replicaz": 3, "tier": "standard" }
-  }
-}
-```
-
-Exit 0, and `web` ships with the default `replicas: 1`, the
-misspelled `replicaz` riding along beside it, doing nothing. The
-deep-seal spelling closes the template as well, so every generated
-child is sealed too:
-
-```aontu
-names: hide({ web: {} auth: {} })
-
-deploy: close(pack($.names, close({
-  replicas: *1|integer
-  tier: *standard|string
-})))
-
-deploy: web: replicas: 3
-```
-
-```json
-{
-  "deploy": {
-    "auth": { "replicas": 1, "tier": "standard" },
-    "web":  { "replicas": 3, "tier": "standard" }
-  }
-}
-```
-
-The legitimate override composes exactly as before: `web` gets its
-`replicas: 3`, `auth` keeps the defaults. Now misspell it against
-the same sealed shape: the same document with `deploy: web:
-replicaz: 3`, as `deploy.aontu`:
+generator, that means one `close(pack(...))` forbids adding *children*
+to the generated map and forbids adding *keys* to each child. A typo'd
+override is refused, naming the key. Write the document as
+`deploy.aontu`:
 
 <!-- test: scenario deep-seal -->
 <!-- test: file deploy.aontu -->
 ```aontu
 names: hide({ web: {} auth: {} })
 
-deploy: close(pack($.names, close({
-  replicas: *1|integer
-  tier: *standard|string
-})))
+deploy: close(pack($.names, { replicas: *1|integer tier: *standard|string }))
 
 deploy: web: replicaz: 3
 ```
@@ -82,24 +33,66 @@ $ echo $?
 1
 ```
 
-The child refuses, naming the key. The rule generalises: `close`
-never travels, so seal each level you mean to seal: the outer
-`close(...)` pins the *set* of children, the inner `close({...})`
-pins each child's *shape*.
+The legitimate override composes exactly as before: with `deploy: web:
+replicas: 3` as the last line, `web` gets its `replicas: 3` and `auth`
+keeps the defaults:
+
+```aontu
+names: hide({ web: {} auth: {} })
+
+deploy: close(pack($.names, { replicas: *1|integer tier: *standard|string }))
+
+deploy: web: replicas: 3
+```
+
+```json
+{
+  "deploy": {
+    "auth": { "replicas": 1, "tier": "standard" },
+    "web":  { "replicas": 3, "tier": "standard" }
+  }
+}
+```
+
+## Hold a level open
+
+Sometimes the children have to stay open: each one carries keys the
+template cannot know. An `open()` inside the seal holds its subtree
+open, and the outer `close` still pins the *set* of children:
+
+```aontu
+names: hide({ web: {} auth: {} })
+
+deploy: close(pack($.names, open({ replicas: *1|integer })))
+
+deploy: web: tier: frontend
+```
+
+```json
+{
+  "deploy": {
+    "auth": { "replicas": 1 },
+    "web":  { "replicas": 1, "tier": "frontend" }
+  }
+}
+```
+
+A child named nowhere in the table is still refused, since the set is
+closed; only the shape of each child is left to the overlays.
 
 ## Seal the set without closing the tree
 
 Sometimes the generated map itself has to stay open: other statements
 merge into it, or overlays you do not control land on it. A hidden guard
 seals from the side: [meet](../unification.md) a clone of the tree with
-a closed pack of the same table and an empty template:
+a closed pack of the same table and an open, empty template:
 
 ```aontu
 environments: hide({ dev: {} prod: {} })
 
 deploy: pack($.environments, { replicas: *1|integer })
 
-envguard: hide($.deploy & close(pack($.environments, {})))
+envguard: hide($.deploy & close(pack($.environments, open({}))))
 
 deploy: prod: replicas: 3
 ```
@@ -108,9 +101,11 @@ deploy: prod: replicas: 3
 { "deploy": { "dev": { "replicas": 1 }, "prod": { "replicas": 3 } } }
 ```
 
-`envguard` evaluates on every run and emits nothing. An environment
-that exists nowhere in the table now has nowhere to land: change
-the last line of `guard.aontu` to invent one:
+The `open({})` matters: a closed empty template would seal each
+environment's keys as well, and the guard would refuse the
+`replicas` it is meant to leave alone. `envguard` evaluates on every
+run and emits nothing, and an environment that exists nowhere in the
+table has nowhere to land. Invent one on the last line of `guard.aontu`:
 
 <!-- test: scenario envguard -->
 <!-- test: file guard.aontu -->
@@ -119,7 +114,7 @@ environments: hide({ dev: {} prod: {} })
 
 deploy: pack($.environments, { replicas: *1|integer })
 
-envguard: hide($.deploy & close(pack($.environments, {})))
+envguard: hide($.deploy & close(pack($.environments, open({}))))
 
 deploy: prod2: replicas: 3
 ```
@@ -137,9 +132,9 @@ The annotated site is the overlay line that invented `prod2`; the
 reported path is the guard's own, which is the cost of guarding from
 the side rather than in the tree.
 
-For the shallow basics of `close` on a plain map, start at [forbid
-unexpected keys](forbid-unexpected-keys.md); the semantics are
-specified in [Closed values: `close` /
+For the basics of `close` on a plain map, start at [forbid unexpected
+keys](forbid-unexpected-keys.md); the semantics are specified in
+[Closed values: `close` /
 `open`](../reference-language.md#closed-values-close--open). Both
 recipes run live: the [Kubernetes golden
 path](../../use-cases/06-k8s-golden-path/) seals its service set

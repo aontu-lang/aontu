@@ -369,16 +369,8 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
   // the keyword off, since JSON Schema's default is already open.
   if (true === v.closed) {
     out.additionalProperties = false
-    if (null != spread) {
-      lose(ctx, path, '&:',
-        'a spread on a CLOSED map constrains keys that cannot exist, ' +
-        'so additionalProperties:false stands alone and the template ' +
-        'is dropped')
-    }
   }
   else if (null != spread) {
-    // A spread IS additionalProperties-with-a-schema: every key the
-    // author did not name must still satisfy the template.
     out.additionalProperties = spread
   }
 

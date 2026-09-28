@@ -22,6 +22,7 @@ import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
 import { RecurseVal, containsRecurseOf } from './RecurseVal'
+import { sealTree, unsealTree } from './SealVal'
 import { unite } from '../unify'
 
 
@@ -97,6 +98,7 @@ class RefVal extends FeatureVal {
 
   rxc: number = 0
   prefix: boolean = false
+  copyFound: boolean = false
 
   constructor(
     spec: {
@@ -490,6 +492,7 @@ class RefVal extends FeatureVal {
 
           const lifted = true !== (ctx as any).argsnap
             || true === out.mark.type || true === out.mark.hide
+          const typed = true === out.mark.type
 
           out = out.clone(ctx, { dup: !out.holdsStaged })
 
@@ -502,6 +505,12 @@ class RefVal extends FeatureVal {
               return true === (val as any).isConstraintKind && null != held ?
                 held : val
             })
+            if (typed && !this.copyFound) {
+              sealTree(out, true)
+            }
+          }
+          if (this.copyFound) {
+            unsealTree(out)
           }
 
         }
@@ -604,6 +613,7 @@ class RefVal extends FeatureVal {
     // cloned per destination, and each clone's residual must start
     // where the level it came from left off.
     out.rxc = this.rxc
+    out.copyFound = this.copyFound
     return out
   }
 

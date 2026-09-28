@@ -16,7 +16,7 @@ api: {
     request?: any
     query?: any
     path_params?: any
-    responses: {}
+    responses: open({})
   })
 
   list_users: method: "GET"

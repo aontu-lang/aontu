@@ -117,3 +117,34 @@ func TestRefHeldConstraintSegment(t *testing.T) {
 		t.Fatalf("held constraint segment: got %v", rv.peg)
 	}
 }
+
+// The seal helpers answer a non-bag, a held-open bag and a closed bag
+// unchanged; only an open bag is copied and closed.
+func TestSealHelpersApiOnlyArms(t *testing.T) {
+	one := newScalar(KindInteger, int64(1))
+	if isOpened(one) || nil != pathOf(one) {
+		t.Fatalf("a scalar is neither opened nor addressed")
+	}
+	sealBag(one, true)
+	if out := sealChild(one); out != one {
+		t.Fatalf("a done scalar child is itself: got %T", out)
+	}
+	held := newMap()
+	held.opened = true
+	if out := sealChild(held); out != held {
+		t.Fatalf("a held-open child is itself")
+	}
+	shut := &ListVal{}
+	shut.closed = true
+	if out := sealChild(shut); out != shut {
+		t.Fatalf("a closed child is itself")
+	}
+	plain := newMap()
+	if out := sealChild(plain); out == plain || !out.(*MapVal).closed {
+		t.Fatalf("an open child closes as a copy")
+	}
+	list := &ListVal{}
+	if out := sealChild(list); out == list || !out.(*ListVal).closed {
+		t.Fatalf("an open list child closes as a copy")
+	}
+}

@@ -85,6 +85,8 @@ function nodeCmp(v) {
 }
 function cmpNode(cmp, props, children, ctx) {
     const node = new MapVal_1.MapVal({ peg: { cmp: new StringVal_1.StringVal({ peg: cmp }, ctx), props, children } }, ctx);
+    props.opened = true;
+    children.opened = true;
     node.closed = true;
     return node;
 }

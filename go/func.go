@@ -20,31 +20,31 @@ var funcSet = map[string]bool{
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "empty": true, "unique": true, "must": true,
-	"deprecate":  true,
-	"rel":        true,
-	"acyclic":    true,
-	"inverse":    true,
-	"refer":      true,
-	"pack":       true,
-	"each":       true,
-	"filter":     true,
-	"match":      true,
-	"emit":       true,
-	"esc":        true,
-	"usc":        true,
-	"rep":        true,
-	"split":      true,
-	"nom":        true,
-	"translate":  true,
-	"add":        true,
-	"sub":        true,
-	"mul":        true,
-	"div":        true,
-	"mod":        true,
-	"rem":        true,
-	"sum":        true,
-	"least":      true,
-	"greatest":   true,
+	"deprecate": true,
+	"rel":       true,
+	"acyclic":   true,
+	"inverse":   true,
+	"refer":     true,
+	"pack":      true,
+	"each":      true,
+	"filter":    true,
+	"match":     true,
+	"emit":      true,
+	"esc":       true,
+	"usc":       true,
+	"rep":       true,
+	"split":     true,
+	"nom":       true,
+	"translate": true,
+	"add":       true,
+	"sub":       true,
+	"mul":       true,
+	"div":       true,
+	"mod":       true,
+	"rem":       true,
+	"sum":       true,
+	"least":     true,
+	"greatest":  true,
 	// Projection, which is what lets the aggregates reach a bag of
 	// RECORDS. Not a clever each template -- each MEETS each child, and
 	// a meet cannot select.
@@ -501,6 +501,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := clonePath(args[0], cp(base))
 		walkMark(out, true, false, true, false) // copy clears marks
+		unsealTree(out)
 		return out
 	case "key":
 		return keyFunc(ctx, f, base)
@@ -966,12 +967,7 @@ func setClosed(ctx *Ctx, f *FuncVal, args []Val, closed bool) Val {
 		s.path = f.path
 		return s
 	}
-	switch v := args[0].(type) {
-	case *MapVal:
-		v.closed = closed
-	case *ListVal:
-		v.closed = closed
-	}
+	sealBag(args[0], closed)
 	return args[0]
 }
 

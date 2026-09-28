@@ -203,10 +203,11 @@ probe_fails bound-bypass '[aontu/empty]' \
   "bound in a disjunction branch: override 40 refused by the admission gate"
 probe_golden length-on-schema-list \
   "len(min(1)) beside a spread waits for the generator merge"
-probe_golden close-shallow-typo \
-  "close(pack) does not seal children: typo'd override absorbed, exit 0"
-grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \
-  || die "close-shallow-typo golden lost its point"
+# Closing is recursive now: the typo'd key on a generated child is a
+# located refusal, where it was once absorbed and rendered (the golden
+# expected/close-shallow-typo.json that pinned that is gone with it).
+probe_fails close-shallow-typo '[aontu/closed]' \
+  "close(pack) seals the children too: typo'd override refused"
 # 2026-08-26: the next four goldens hold the CORRECT outputs — fixed by
 # the template-clone isolation change (ADR-005). They pinned
 # silent-wrong answers before (both children named "web", shared

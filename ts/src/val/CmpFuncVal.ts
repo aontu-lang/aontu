@@ -121,6 +121,9 @@ function nodeCmp(v: any): string | undefined {
 function cmpNode(cmp: string, props: Val, children: Val,
   ctx: AontuContext): MapVal {
   const node = new MapVal({ peg: { cmp: new StringVal({ peg: cmp }, ctx), props, children } }, ctx)
+  // The node's keys are fixed; its props and children are not.
+  ;(props as any).opened = true
+  ;(children as any).opened = true
   node.closed = true
   return node
 }

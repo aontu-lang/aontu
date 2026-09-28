@@ -11,4 +11,8 @@ declare class SealVal extends FeatureVal {
     same(peer: any): boolean;
 }
 declare function sealCjo(closed: boolean): number;
-export { SealVal, sealCjo, };
+declare function sealTree(v: any, closed: boolean): void;
+declare function unsealTree(v: any): void;
+declare function sealBag(v: any, closed: boolean): void;
+declare function sealChild(ctx: AontuContext, child: any): Val;
+export { SealVal, sealCjo, sealTree, sealBag, sealChild, unsealTree, };

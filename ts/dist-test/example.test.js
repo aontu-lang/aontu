@@ -84,8 +84,8 @@ const G = (s) => A.generate(s);
         (0, expect_1.expect)(() => G('m:{x:any,y:Y} n:$.m')).throw(/no_gen/);
         (0, expect_1.expect)(G('m:type({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } });
         (0, expect_1.expect)(G('m:type({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } });
-        (0, expect_1.expect)(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/no_gen/);
-        (0, expect_1.expect)(() => G('m:type({x:any,y:Y}) n:$.m')).throw(/no_gen/);
+        (0, expect_1.expect)(() => G('m:type({x:number,y:Y}) n:$.m')).throw(/required/);
+        (0, expect_1.expect)(() => G('m:type({x:any,y:Y}) n:$.m')).throw(/required/);
         (0, expect_1.expect)(G('m:hide({x?:number,y:Y}) n:$.m')).equal({ n: { y: 'Y' } });
         (0, expect_1.expect)(G('m:hide({x?:any,y:Y}) n:$.m')).equal({ n: { y: 'Y' } });
         (0, expect_1.expect)(() => G('m:hide({x:number,y:Y}) n:$.m')).throw(/no_gen/);
@@ -137,7 +137,8 @@ const G = (s) => A.generate(s);
         (0, expect_1.expect)(G('x:close({a:number,b?:boolean}), x:{a:1}')).equal({ x: { a: 1 } });
         (0, expect_1.expect)(G('x:close({a:number,b?:boolean,c:string}), x:{a:1,c:C}'))
             .equal({ x: { a: 1, c: 'C' } });
-        (0, expect_1.expect)(G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } });
+        (0, expect_1.expect)(() => G('x:close({a:1,b:{c:2}}) x:{a:1,b:{d:3}}')).throws(/closed/);
+        (0, expect_1.expect)(G('x:close({a:1,b:open({c:2})}) x:{a:1,b:{d:3}}')).equal({ x: { a: 1, b: { c: 2, d: 3 } } });
     });
     (0, node_test_1.test)('move-examples', () => {
         (0, expect_1.expect)(G('x:&:{y:1,k:key()} x:a:z:2 x:c:move($.x.a)'))

@@ -12,6 +12,8 @@ import {
 
 import { makeNilErr } from '../err'
 
+import { unsealTree } from './SealVal'
+
 
 import {
   walk
@@ -57,12 +59,16 @@ class CopyFuncVal extends FuncBaseVal {
       val.clone(ctx)
 
 
-    if (!out.isRef) {
+    if (out.isRef) {
+      ;(out as any).copyFound = true
+    }
+    else {
       walk(out, (_key: string | number | undefined, val: Val) => {
         val.mark.type = false
         val.mark.hide = false
         return val
       })
+      unsealTree(out)
     }
 
 

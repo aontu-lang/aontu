@@ -65,7 +65,7 @@ load-not-found-in-loaded-value	err	@"__FIXTURES__/nest_missing_val.aontu"	source
 # and a marked peer-only child is carried rather than wrapped as an
 # expectation. Parity-probed in both engines.
 load-alias-spread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5}},"schema":{}}
-load-alias-keyspread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:{name:key()}&$.schema.C} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5,"name":"c1"}},"schema":{}}
+load-alias-keyspread	gen	@"__FIXTURES__/alias_schema.aontu" customers:{&:{name:key()}&open($.schema.C)} customers:c1:{ledgerId:5}	{"customers":{"c1":{"ledgerId":5,"name":"c1"}},"schema":{}}
 load-alias-top-conjunct	gen	@"__FIXTURES__/alias_top.aontu" c1:$.C&{a:5}	{"c1":{"a":5}}
 
 # WHAT AN INCLUDE'S EXTENSION MEANS (ADR-012; use-cases/BUGS.md §49).

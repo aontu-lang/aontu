@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### Closing is recursive, and a type is closed for its instances
+
+Both ports. **Breaking.** `close(x)` now seals every map and list
+beneath `x`, not only `x`: `close({x:{y:1}}) & {x:{z:2}}` is refused
+(`closed`), and a child that resolves later inside a closed value (a
+reference, a pending call) is closed when it does. `open(x)` lifts
+the seal at every depth and holds the subtree open against a later
+close from above, so `close({ x: open({...}) })` seals `x`'s parent
+and not `x`. The bare seals `close()` and `open()` reach as deep.
+
+A closed map with a spread stays an exhaustive set of keys sharing a
+shape (`close({ &: T, a:{}, b:{} })` refuses every other key); a
+closed list with a spread admits elements, since the spread declares
+every element (`close([&: integer])` is a list of integers of any
+length). JSON Schema export of a closed map with a spread is now
+exact (`additionalProperties: false`, the shape already in every
+named property) rather than a recorded loss.
+
+A copy of a `type()`-marked value taken by reference is an instance,
+and adds nothing at any depth (`T: type({x:1})` then `a: $.T & {y:2}`
+is `closed`); the type's own statements still extend it. A type meant
+to be extended by its instances says `type(open({...}))`, and
+`open($.T)` lifts the seal on one instance; `copy()` clears any seal
+along with the marks. The built-in
+`aontu:system` shapes (`Port`, `Component`, `Service`) are open for
+that reason. Pinned by `test/spec/seal.tsv`; the migration of the
+use-case corpus is in this change.
+
 ### The type keywords: `any`, `map`, `list`, `path`, `constraint`
 
 Both ports. **Breaking.** The types of the language are now all

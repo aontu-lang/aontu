@@ -15,6 +15,8 @@ import {
 import { AontuContext } from '../ctx'
 import { unite } from '../unify'
 
+import { sealChild } from './SealVal'
+
 import {
   propagateMarks,
   canonRiders,
@@ -104,6 +106,7 @@ class ListVal extends BagVal {
     let out: ListVal | NilVal = (peer.isTop ? this : new ListVal({ peg: [] }, ctx))
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
     out.spread.cj = this.spread.cj
     out.site = this.site
@@ -187,13 +190,20 @@ class ListVal extends BagVal {
         for (let peerkey in upeer.peg) {
           let peerchild = upeer.peg[peerkey]
 
-          if (this.closed && !allowedKeys.includes(peerkey)) {
+          // A spread declares every element, so a closed list with one
+          // fixes nothing here; the template judges the element.
+          if (this.closed && null == out.spread.cj &&
+            !allowedKeys.includes(peerkey)) {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 
           let child = out.peg[peerkey]
 
           const peerctx = ctx.descend(peerkey)
+
+          if (this.closed && undefined !== child) {
+            child = out.peg[peerkey] = sealChild(peerctx, child)
+          }
 
           let oval = out.peg[peerkey] =
             undefined === child ? peerchild :
@@ -231,6 +241,12 @@ class ListVal extends BagVal {
 
       if (null != bad) {
         out = bad
+      }
+
+      if (!out.isNil && (out as any).closed) {
+        for (const key of Object.keys(out.peg)) {
+          out.peg[key] = sealChild(ctx.descend(key), out.peg[key])
+        }
       }
 
       if (!out.isNil) {
@@ -281,6 +297,7 @@ class ListVal extends BagVal {
     }
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
 
     return out
@@ -305,6 +322,7 @@ class ListVal extends BagVal {
     }
 
     out.closed = this.closed
+    out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
 
     return out

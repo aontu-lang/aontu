@@ -2,13 +2,13 @@
 # distribution layer can version it by canon-hash.
 
 aontu: System: {
-  Port: type({ direction: *in|out|inout protocol?:string })
+  Port: type(open({ direction: *in|out|inout protocol?:string }))
 
-  Component: type({ ports?: { &: $.aontu.System.Port } })
+  Component: type(open({ ports?: { &: $.aontu.System.Port } }))
 
   # Written out rather than Component & { kind: service }: a reference
   # to a type()-marked member does not survive the include.
-  Service: type({ kind:service ports?: { &: $.aontu.System.Port } })
+  Service: type(open({ kind:service ports?: { &: $.aontu.System.Port } }))
 
   # A grammar, not re(): the identifier shape is a quantified group
   # holding a quantifier, which re() refuses. hide()n so a schema's

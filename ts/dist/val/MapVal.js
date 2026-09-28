@@ -5,6 +5,7 @@ exports.MapVal = void 0;
 exports.spreadSnapKey = spreadSnapKey;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
+const SealVal_1 = require("./SealVal");
 const utility_1 = require("../utility");
 const err_1 = require("../err");
 const top_1 = require("./top");
@@ -108,6 +109,7 @@ class MapVal extends BagVal_1.BagVal {
         // NOTE: not a clone! needs to be constructed.
         let out = (peer.isTop ? this : new MapVal({ peg: {} }, ctx));
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         out.spread.cj = this.spread.cj;
@@ -208,6 +210,9 @@ class MapVal extends BagVal_1.BagVal {
                     }
                     let child = out.peg[peerkey];
                     const peerctx = ctx.descend(peerkey);
+                    if (this.closed && undefined !== child) {
+                        child = out.peg[peerkey] = (0, SealVal_1.sealChild)(peerctx, child);
+                    }
                     let oval = out.peg[peerkey] =
                         undefined === child
                             ? (undefined !== peerctx.prov && peerchild.isGenable
@@ -250,6 +255,11 @@ class MapVal extends BagVal_1.BagVal {
             if (null != bad) {
                 out = bad;
             }
+            if (!out.isNil && out.closed) {
+                for (const key of Object.keys(out.peg)) {
+                    out.peg[key] = (0, SealVal_1.sealChild)(ctx.descend(key), out.peg[key]);
+                }
+            }
             if (!out.isNil) {
                 ;
                 (out.uh ??= []).push(peer.id);
@@ -288,6 +298,7 @@ class MapVal extends BagVal_1.BagVal {
             cj: this.spread.cj ? this.spread.cj.spreadClone(ctx) : undefined,
         };
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         return out;
@@ -312,6 +323,7 @@ class MapVal extends BagVal_1.BagVal {
                 { mark: spec?.mark, dup: spec?.dup } : {});
         }
         out.closed = this.closed;
+        out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.aliasKeys = [...this.aliasKeys];
         return out;

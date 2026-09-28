@@ -13,8 +13,7 @@ import {
 
 
 import { FuncBaseVal } from './FuncBaseVal'
-import { SealVal, sealCjo } from './SealVal'
-import { BagVal } from '../val/BagVal'
+import { SealVal, sealCjo, sealBag } from './SealVal'
 
 
 class OpenFuncVal extends FuncBaseVal {
@@ -47,12 +46,7 @@ class OpenFuncVal extends FuncBaseVal {
       return this.place(new SealVal({ closed: false } as any, ctx))
     }
 
-    if (argval.isMap || argval.isList) {
-      // In place, for the reason CloseFuncVal.resolve gives: the
-      // instantiation rule (ADR-005) makes the argument this call's
-      // own wherever the call is multiplied.
-      (argval as BagVal).closed = false
-    }
+    sealBag(argval, false)
 
     return argval
   }

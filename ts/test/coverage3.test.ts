@@ -31,7 +31,7 @@ import { projectFor } from '../dist/query'
 import { Provenance, markSpread } from '../dist/provenance'
 import { ReferVal, RelVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
 import { EmptyVal } from '../dist/val/EmptyVal'
-import { SealVal } from '../dist/val/SealVal'
+import { SealVal, sealTree, sealBag, sealChild } from '../dist/val/SealVal'
 import { parseAddress, PathVal } from '../dist/val/PathVal'
 import { graphOf } from '../dist/graph'
 import { canonRiders } from '../dist/utility'
@@ -589,6 +589,24 @@ describe('coverage3-funcs', () => {
     const m = new MapVal({ peg: {} }, ctx)
     Assert.notEqual(new CloseFuncVal({ peg: [m] }, ctx).cjo, new CloseFuncVal({ peg: [] }, ctx).cjo)
     Assert.notEqual(new OpenFuncVal({ peg: [m] }, ctx).cjo, new OpenFuncVal({ peg: [] }, ctx).cjo)
+  })
+
+  test('seal-helpers-api-only-arms', () => {
+    const ctx = CTX()
+    const one: any = new IntegerVal({ peg: 1 }, ctx)
+    sealTree(one, true)
+    sealBag(one, true)
+    Assert.equal(sealChild(ctx, one), one)
+    const held: any = new MapVal({ peg: {} }, ctx)
+    held.opened = true
+    Assert.equal(sealChild(ctx, held), held)
+    const shut: any = new ListVal({ peg: [] }, ctx)
+    shut.closed = true
+    Assert.equal(sealChild(ctx, shut), shut)
+    const plain: any = new MapVal({ peg: {} }, ctx)
+    const copy: any = sealChild(ctx, plain)
+    Assert.notEqual(copy, plain)
+    Assert.equal(copy.closed, true)
   })
 
   test('path-func-api-only-arms', () => {

@@ -178,10 +178,9 @@ than its value.
 17. `len(min(1))` on a schema list beside a spread is decided at
     generation, after a later pack has filled the list; the model
     renders its one port (`probes/length-on-schema-list.aontu`, golden).
-18. `close(pack(...))` seals the set of children, not their keys: an
-    override key `replcias` on a generated child is accepted and
-    rendered beside `replicas: 2`, exit 0
-    (`probes/close-shallow-typo.aontu`, golden).
+18. `close(pack(...))` seals the children too: an override key
+    `replcias` on a generated child is a located `[aontu/closed]`
+    refusal, exit 1 (`probes/close-shallow-typo.aontu`).
 19. A relative reference inside a pack template answers for the child:
     `cpu: .cpu_m + "m"` is `"250m"` in every child
     (`probes/ref-in-pack-template.aontu`, golden).

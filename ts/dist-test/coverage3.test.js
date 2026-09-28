@@ -510,6 +510,23 @@ function capture(fn) {
         Assert.notEqual(new CloseFuncVal_1.CloseFuncVal({ peg: [m] }, ctx).cjo, new CloseFuncVal_1.CloseFuncVal({ peg: [] }, ctx).cjo);
         Assert.notEqual(new OpenFuncVal_1.OpenFuncVal({ peg: [m] }, ctx).cjo, new OpenFuncVal_1.OpenFuncVal({ peg: [] }, ctx).cjo);
     });
+    (0, node_test_1.test)('seal-helpers-api-only-arms', () => {
+        const ctx = CTX();
+        const one = new IntegerVal_1.IntegerVal({ peg: 1 }, ctx);
+        (0, SealVal_1.sealTree)(one, true);
+        (0, SealVal_1.sealBag)(one, true);
+        Assert.equal((0, SealVal_1.sealChild)(ctx, one), one);
+        const held = new MapVal_1.MapVal({ peg: {} }, ctx);
+        held.opened = true;
+        Assert.equal((0, SealVal_1.sealChild)(ctx, held), held);
+        const shut = new ListVal_1.ListVal({ peg: [] }, ctx);
+        shut.closed = true;
+        Assert.equal((0, SealVal_1.sealChild)(ctx, shut), shut);
+        const plain = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const copy = (0, SealVal_1.sealChild)(ctx, plain);
+        Assert.notEqual(copy, plain);
+        Assert.equal(copy.closed, true);
+    });
     (0, node_test_1.test)('path-func-api-only-arms', () => {
         const ctx = CTX();
         const pf = new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx);

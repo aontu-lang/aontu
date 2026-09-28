@@ -17,11 +17,9 @@ import {
 import { FeatureVal } from './FeatureVal'
 
 
-// `close()` and `open()` with no argument: they seal, or unseal, the
-// map or list they meet, and leave any other value as it is. `close()`
-// folds LAST in a conjunct, so it closes the whole meet rather than the
-// first term it finds; `open()` folds first, so it lifts a seal before
-// anything is added.
+// `close()` and `open()` with no argument. `close()` folds LAST in a
+// conjunct, so it closes the whole meet rather than the first term it
+// finds; `open()` folds first, so it lifts a seal before anything is added.
 class SealVal extends FeatureVal {
   isSeal = true
   closed: boolean
@@ -49,7 +47,7 @@ class SealVal extends FeatureVal {
     // against one peer, and a seal set in place would leak across them.
     if (true === p.isMap || true === p.isList) {
       const out: any = p.clone(ctx)
-      out.closed = this.closed
+      sealBag(out, this.closed)
       return out
     }
     return peer
@@ -63,7 +61,7 @@ class SealVal extends FeatureVal {
     return true === peer?.isSeal && this.closed === peer.closed
   }
 
-} /* node:coverage ignore next 11 */
+} /* node:coverage ignore next 2 */
 
 
 function sealCjo(closed: boolean): number {
@@ -71,7 +69,60 @@ function sealCjo(closed: boolean): number {
 }
 
 
+// Closing is recursive, except into a subtree an explicit `open()`
+// holds; opening is recursive and marks each bag so a later close stops.
+function sealTree(v: any, closed: boolean): void {
+  if ((true !== v?.isMap && true !== v?.isList) || (closed && true === v.opened)) {
+    return
+  }
+  v.closed = closed
+  v.opened = !closed
+  for (const key of Object.keys(v.peg)) {
+    sealTree(v.peg[key], closed)
+  }
+}
+
+
+// A plain copy: no seal, held nowhere.
+function unsealTree(v: any): void {
+  if (true === v?.isMap || true === v?.isList) {
+    v.closed = false
+    v.opened = false
+    for (const key of Object.keys(v.peg)) {
+      unsealTree(v.peg[key])
+    }
+  }
+}
+
+
+// An explicit seal: the bag it names obeys whatever it said before.
+function sealBag(v: any, closed: boolean): void {
+  if (true === v?.isMap || true === v?.isList) {
+    v.opened = false
+    sealTree(v, closed)
+  }
+}
+
+
+// A child of a closed bag closes as a copy (a reference answers a shared value).
+function sealChild(ctx: AontuContext, child: any): Val {
+  if (true !== child?.isMap && true !== child?.isList) {
+    return child
+  }
+  if (true === child.closed || true === child.opened) {
+    return child
+  }
+  const out: any = child.clone(ctx)
+  sealTree(out, true)
+  return out
+} /* node:coverage ignore next 10 */
+
+
 export {
   SealVal,
   sealCjo,
+  sealTree,
+  sealBag,
+  sealChild,
+  unsealTree,
 }

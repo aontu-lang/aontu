@@ -37,10 +37,10 @@ highlighting; this is their human twin.
 | Write | Means |
 |-------|-------|
 | `{&: {k: integer}}` | a TEMPLATE every key must satisfy |
-| `close({a:1})` | no key beyond those named |
+| `close({a:1})` | no key beyond those named, at any depth |
 | `{a?: 1}` | optional: dropped if unresolved |
 | `hide(x)` | evaluated, then dropped from the output |
-| `type(x)` | a definition, not a value: it generates nothing |
+| `type(x)` | a definition, not a value: it generates nothing, and an instance adds nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
 | `refer(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
