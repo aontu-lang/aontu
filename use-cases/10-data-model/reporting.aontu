@@ -17,12 +17,12 @@ schema: {
   })
   Order: type({
     id: string
-    customerId: string
+    customerId: path
     # `status: string` alone does NOT subsume: the domain carries a
     # *"open" default, and the subsumption profile requires the view
     # to preserve the effective default (compat_default_changed --
     # README, "what worked", subsume). The view restates it:
     status: *"open" | string
   })
-  Invoice: type({ id:string orderId:string currency:string grossCents:integer })
+  Invoice: type({ id:string orderId:path currency:string grossCents:integer })
 }
