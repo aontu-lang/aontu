@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### JSON Schema export drops what never generates (#279)
+
+Both ports. A `type()`-marked map child and a `hide()`- or
+`type()`-marked list element are dropped from the exported schema and
+reported as a loss, as a hidden map child already was, so the schema no
+longer requires entries the document never produces. An export anchored
+inside a marked block (`--at` into a `type()`) still reads through it.
+`jsonschema` spec rows can now carry `opts` (`at`) in the golden.
+
 ### A copy does not re-stamp a nested mark (#280)
 
 Both ports. A reference or a reference spread that copies a map holding

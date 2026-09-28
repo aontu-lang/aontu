@@ -324,7 +324,11 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `trim report mismatch: ${row.name}`)
   }
   else if ('jsonschema' === row.mode) {
-    const report = jsonSchema(row.src)
+    // `opts` rides the expect object, as in the vet and subsume rows.
+    const golden = JSON.parse(row.expect)
+    const opts = golden.opts
+    delete golden.opts
+    const report = jsonSchema(row.src, opts)
     Assert.strictEqual(
       exactJSON({
         lossy: report.lossy,
@@ -333,7 +337,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
         ...(null == report.errors
           ? {} : { errors: stripProse(report.errors) }),
       }),
-      exactJSON(JSON.parse(row.expect)),
+      exactJSON(golden),
       `jsonschema report mismatch: ${row.name}`)
   }
   else if ('reaches' === row.mode) {

@@ -416,11 +416,7 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 		// A hidden child does not generate, so it is not part of the
 		// value a consumer produces -- and a schema that demanded it
 		// would refuse every correct document.
-		if nil != child && child.markedHide() {
-			sc.lose(append(append([]string{}, path...), key), "hide",
-				"a hidden entry is not generated, so it is omitted from the "+
-					"schema; a consumer is neither asked for it nor allowed to "+
-					"know about it")
+		if schemaSkipMarked(sc, append(append([]string{}, path...), key), v, child) {
 			continue
 		}
 
@@ -452,6 +448,13 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 }
 
 func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
+	idx := []int{}
+	for i, el := range v.peg {
+		if !schemaSkipMarked(sc, append(append([]string{}, path...), itoa(i)), v, el) {
+			idx = append(idx, i)
+		}
+	}
+
 	// A list with a spread template is homogeneous: every element, named
 	// or not, satisfies it. That is items.
 	if nil != v.spread {
@@ -460,23 +463,43 @@ func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
 			"items": schemaFromVal(sc,
 				append(append([]string{}, path...), "&"), v.spread),
 		}
-		if 0 < len(v.peg) {
-			out["minItems"] = len(v.peg)
+		if 0 < len(idx) {
+			out["minItems"] = len(idx)
 		}
 		return out
 	}
 
-	prefix := make([]any, 0, len(v.peg))
-	for i, el := range v.peg {
+	prefix := make([]any, 0, len(idx))
+	for _, i := range idx {
 		prefix = append(prefix, schemaFromVal(sc,
-			append(append([]string{}, path...), itoa(i)), el))
+			append(append([]string{}, path...), itoa(i)), v.peg[i]))
 	}
 	return map[string]any{
 		"type":        "array",
 		"prefixItems": prefix,
 		"items":       false,
-		"minItems":    len(v.peg),
+		"minItems":    len(idx),
 	}
+}
+
+func schemaSkipMarked(sc *schemaCtx, path []string, bag, child Val) bool {
+	if bag.markedHide() || bag.markedType() || nil == child {
+		return false
+	}
+	if child.markedHide() {
+		sc.lose(path, "hide",
+			"a hidden entry is not generated, so it is omitted from the "+
+				"schema; a consumer is neither asked for it nor allowed to "+
+				"know about it")
+		return true
+	}
+	if child.markedType() {
+		sc.lose(path, "type",
+			"a type() entry is a definition and is not generated, so it is "+
+				"omitted from the schema")
+		return true
+	}
+	return false
 }
 
 // JSONSchema exports a document as a JSON Schema. `at`, when non-empty,

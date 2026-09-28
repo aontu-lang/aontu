@@ -543,7 +543,12 @@ func TestSpec(t *testing.T) {
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					r := New().JSONSchema(src, "")
+					at := ""
+					if o, ok := golden["opts"].(map[string]any); ok {
+						at, _ = o["at"].(string)
+						delete(golden, "opts")
+					}
+					r := New().JSONSchema(src, at)
 					out := map[string]any{
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
 						"schema":  r.Schema,

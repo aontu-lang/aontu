@@ -264,14 +264,18 @@ function runRow(row) {
         }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
     }
     else if ('jsonschema' === row.mode) {
-        const report = (0, jsonschema_1.jsonSchema)(row.src);
+        // `opts` rides the expect object, as in the vet and subsume rows.
+        const golden = JSON.parse(row.expect);
+        const opts = golden.opts;
+        delete golden.opts;
+        const report = (0, jsonschema_1.jsonSchema)(row.src, opts);
         Assert.strictEqual((0, aontu_1.exactJSON)({
             lossy: report.lossy,
             schema: report.schema,
             verdict: report.verdict,
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
-        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `jsonschema report mismatch: ${row.name}`);
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
     }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);
