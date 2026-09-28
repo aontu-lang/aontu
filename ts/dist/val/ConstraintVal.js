@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LengthConstraintVal = exports.ReConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -324,7 +324,7 @@ function leafMarker(v) {
 }
 const LATE_CJO = 150000;
 function lateAtom(atom) {
-    return 'length' === atom || 'unique' === atom || 'must' === atom;
+    return 'len' === atom || 'unique' === atom || 'must' === atom;
 }
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -350,6 +350,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.uniqBy = spec.state.uniqBy ?? [];
             this.musts = spec.state.musts ?? [];
             this.invalid = spec.state.invalid;
+            this.nonEmpty = spec.state.nonEmpty;
+            this.emptyOk = spec.state.emptyOk;
+            this.pathKind = spec.state.pathKind;
         }
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
@@ -454,14 +457,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.res = [{ v: a, src, norm, re }];
             return;
         }
-        if ('length' === atom) {
+        if ('len' === atom) {
             const arg = countArgState(a);
             if (null == arg) {
                 return bad('invalid-arg');
             }
             const inner = meetCount(countBase(), arg);
             this.count = inner;
-            // `length(min(5)&max(3))` is unsatisfiable with no peer in sight, so
+            // `len(min(5)&max(3))` is unsatisfiable with no peer in sight, so
             // it is refused at composition time like any other empty meet.
             if (stateEmpty(inner)) {
                 return bad('constraint');
@@ -572,8 +575,16 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (this.uniq || 0 < this.uniqBy.length) {
             return this.fail(ctx, peer);
         }
-        if (!stateAdmits(this, peer)) {
+        if (!stateAdmits(this, peer) ||
+            (true === this.nonEmpty && true === peer.isPath) ||
+            (true === this.pathKind && true !== peer.isPath)) {
             return this.fail(ctx, peer);
+        }
+        if (this.nonEmpty && true === peer.isString) {
+            peer = peer.withNonEmpty(ctx);
+        }
+        if (this.emptyOk && true === peer.isString) {
+            peer = peer.withEmpty(ctx);
         }
         if (null != this.count) {
             if (!stringishLeaf(peer)) {
@@ -708,15 +719,40 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     meetKind(peer, ctx) {
         const marker = peer.peg;
         const merged = this.cloneState();
-        if (Number === marker || String === marker) {
-            const d = Number === marker ? 'number' : 'string';
-            if (d === this.domain) {
+        // `path` and `string` share the string domain, whose atoms read a
+        // spelling, but they are different kinds.
+        if (ScalarKindVal_1.Path === marker) {
+            if (true === this.emptyOk) {
+                return (0, err_1.makeNilErr)(ctx, 'empty_domain', peer, this);
+            }
+            if ('number' === this.domain || true === this.nonEmpty) {
+                return this.fail(ctx, peer);
+            }
+            if (true === this.pathKind) {
                 return this;
             }
-            if (null != this.domain) {
+            const merged = this.cloneState();
+            merged.domain = 'string';
+            merged.pathKind = true;
+            return this.finish(merged, ctx, peer);
+        }
+        if (String === marker && true === this.pathKind) {
+            return this.fail(ctx, peer);
+        }
+        if (Number === marker || String === marker) {
+            const d = Number === marker ? 'number' : 'string';
+            const nonEmpty = true === this.nonEmpty || String === marker;
+            const emptyOk = true === this.emptyOk || true === peer.emptyOk;
+            if (d === this.domain && nonEmpty === (true === this.nonEmpty) &&
+                emptyOk === (true === this.emptyOk)) {
+                return this;
+            }
+            if (null != this.domain && d !== this.domain) {
                 return this.fail(ctx, peer);
             }
             merged.domain = d;
+            merged.nonEmpty = nonEmpty || undefined;
+            merged.emptyOk = emptyOk || undefined;
             return this.finish(merged, ctx, peer);
         }
         const isLeaf = ScalarKindVal_1.Integer === marker || ScalarKindVal_1.Float === marker ||
@@ -743,6 +779,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (null != this.kind && null != peer.kind && this.kind !== peer.kind) {
             return this.fail(ctx, peer);
         }
+        if ((true === this.pathKind && true === peer.nonEmpty) ||
+            (true === this.nonEmpty && true === peer.pathKind)) {
+            return this.fail(ctx, peer);
+        }
+        if ((true === this.pathKind && true === peer.emptyOk) ||
+            (true === this.emptyOk && true === peer.pathKind)) {
+            return (0, err_1.makeNilErr)(ctx, 'empty_domain', peer, this);
+        }
         const d = (this.domain ?? peer.domain);
         const merged = this.cloneState();
         merged.domain = d;
@@ -751,7 +795,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.hi = tighter(d, this.hi, peer.hi, false);
         merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs]);
         merged.res = dedupSortedRes([...this.res, ...peer.res]);
-        // `length(c1) & length(c2)` is `length(c1 & c2)`: the count atom reuses
+        // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
         // numeric algebra recursively, over the counts rather than the
         // values.
         merged.count = null == this.count ? peer.count :
@@ -760,6 +804,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.uniq = this.uniq || peer.uniq;
         merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort();
         merged.musts = [...this.musts, ...peer.musts];
+        merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
+        merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
+        merged.pathKind = this.pathKind || peer.pathKind || undefined;
         return this.finish(merged, ctx, peer);
     }
     // Build the merged residual, applying the eager emptiness rules.
@@ -769,9 +816,13 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         const out = new ConstraintVal({ peg: [], state }, ctx);
         out.path = this.path;
+        // The whole site, span and text included: a report frames the
+        // merged residual at the atom that was written.
         out.site.row = this.site.row;
         out.site.col = this.site.col;
         out.site.url = this.site.url;
+        out.site.len = this.site.len;
+        out.site.src = this.site.src;
         (0, utility_1.propagateMarks)(this, out);
         (0, utility_1.propagateMarks)(peer, out);
         return out;
@@ -795,7 +846,24 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             uniqBy: [...this.uniqBy],
             musts: [...this.musts],
             invalid: this.invalid,
+            nonEmpty: this.nonEmpty,
+            emptyOk: this.emptyOk,
+            pathKind: this.pathKind,
         };
+    }
+    // Meet with `empty()`: the residual becomes a string one that also
+    // admits "".
+    allowEmpty(ctx, peer) {
+        if ('number' === this.domain || null != this.kind || this.pathKind) {
+            return (0, err_1.makeNilErr)(ctx, 'empty_domain', peer, this);
+        }
+        if (this.emptyOk && 'string' === this.domain) {
+            return this;
+        }
+        const merged = this.cloneState();
+        merged.domain = 'string';
+        merged.emptyOk = true;
+        return this.finish(merged, ctx, peer);
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, {
@@ -816,6 +884,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.cjo = this.cjo;
         out.invalid = this.invalid;
         out.invalidWhy = this.invalidWhy;
+        out.nonEmpty = this.nonEmpty;
+        out.emptyOk = this.emptyOk;
+        out.pathKind = this.pathKind;
         return out;
     }
     // The fixed canonical atom order: kind, lower, upper, neq (arguments
@@ -915,8 +986,12 @@ function canonState(s) {
     if (null != s.kind) {
         parts.push(s.kind.name.toLowerCase());
     }
-    else if ('string' === s.domain &&
-        null == s.lo && null == s.hi && 0 === s.neqs.length && 0 === s.res.length) {
+    else if (true === s.pathKind) {
+        parts.push('path');
+    }
+    else if ('string' === s.domain && (true === s.nonEmpty ||
+        (null == s.lo && null == s.hi && 0 === s.neqs.length &&
+            0 === s.res.length && true !== s.emptyOk))) {
         parts.push('string');
     }
     if (null != s.lo) {
@@ -932,7 +1007,7 @@ function canonState(s) {
         parts.push('re(' + r.v.canon + ')');
     }
     if (null != s.count) {
-        parts.push('length(' + canonState(s.count) + ')');
+        parts.push('len(' + canonState(s.count) + ')');
     }
     if (s.uniq) {
         parts.push('unique()');
@@ -942,6 +1017,9 @@ function canonState(s) {
     }
     for (const m of s.musts) {
         parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')');
+    }
+    if (true === s.emptyOk) {
+        parts.push('empty()');
     }
     if (0 === parts.length) {
         // Raw invalid atom: render the call so the error frame shows it.
@@ -1311,12 +1389,12 @@ class MustConstraintVal extends ConstraintVal {
     }
 }
 exports.MustConstraintVal = MustConstraintVal;
-class LengthConstraintVal extends ConstraintVal {
+class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
-        super({ ...spec, atom: 'length' }, ctx);
+        super({ ...spec, atom: 'len' }, ctx);
     }
 }
-exports.LengthConstraintVal = LengthConstraintVal;
+exports.LenConstraintVal = LenConstraintVal;
 class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);

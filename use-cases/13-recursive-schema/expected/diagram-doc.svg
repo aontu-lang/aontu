@@ -24,7 +24,7 @@
 <path d="M32 160V230H50" class="av-line"/>
 <text x="52" y="234" class="av-t">Step</text>
 <path d="M56 240V250H74" class="av-line"/>
-<text x="76" y="254"><tspan class="av-t">approver</tspan><tspan class="av-m"> re(&quot;^[a-z]+@acme[.]example$&quot;)</tspan></text>
+<text x="76" y="254"><tspan class="av-t">approver</tspan><tspan class="av-m"> string&amp;re(&quot;^[a-z]+@acme[.]exa...</tspan></text>
 <path d="M56 240V270H74" class="av-line"/>
 <text x="76" y="274"><tspan class="av-t">decision</tspan><tspan class="av-m"> *&quot;pending&quot;|&quot;pending&quot;|&quot;approve...</tspan></text>
 <path d="M56 240V290H74" class="av-line"/>

@@ -190,7 +190,7 @@ than its value.
 
   `--format json` and `--format sarif` emit the same findings for
   machines. A hallucinated field in an agent candidate is refused by
-  the schema's `close()` with the exact key path, and `length()`
+  the schema's `close()` with the exact key path, and `len()`
   bounds the free-text rationale. `must()` carries the author's
   message into the report, which is what a policy file wants:
 

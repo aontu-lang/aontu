@@ -17,7 +17,7 @@ export type QueryView = 'json' | 'canon' | 'types' | 'keys'
 export type QueryOptions = {
   view?: QueryView
   // Levels of structure kept below the selected node; everything
-  // deeper renders as `top`. Undefined means the whole subtree.
+  // deeper renders as `any`. Undefined means the whole subtree.
   depth?: number
   // Where the document CAME FROM, so a relative `@"file"` load inside
   // it resolves from its own directory (vet's schemaPath precedent).
@@ -38,7 +38,7 @@ export type QueryReport = {
 }
 
 
-const TOP = 'top'
+const TOP = 'any'
 
 
 export function nearestKey(

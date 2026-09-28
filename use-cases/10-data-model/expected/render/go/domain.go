@@ -13,12 +13,12 @@ type Invoice struct {
 	GrossCents int64 `json:"grossCents"`
 	ID string `json:"id"`
 	NetCents int64 `json:"netCents"`
-	OrderID string `json:"orderId"`
+	OrderID any `json:"orderId"`
 	TaxCents int64 `json:"taxCents"`
 }
 
 type Order struct {
-	CustomerID string `json:"customerId"`
+	CustomerID any `json:"customerId"`
 	ID string `json:"id"`
 	Lines []OrderLine `json:"lines"`
 	Placed *string `json:"placed,omitempty"`

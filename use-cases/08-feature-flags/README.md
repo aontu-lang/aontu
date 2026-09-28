@@ -132,7 +132,7 @@ graph TD
   c1["**5<br/>pref | layers.aontu:20:43"]
   c2["*25<br/>pref | layers.aontu:26:42"]
   val{{"*25"}}
-  top --> c0
+  any --> c0
   c0 --> c1
   c1 --> c2
   c2 --> val
@@ -220,7 +220,7 @@ contribution) before drawing.
    $.effective.prod.base.ops_incident_banner.message: constraint [conflict]
      [aontu/constraint]: Cannot unify values at path $.effective.prod.base.ops_incident_banner.message
      data: overlay.aontu:3:44 ("this incident message is deliberately way over the eighty character maximum length")
-     schema: flags.aontu:81:24 (string&length(integer&min(0)&max(80)))
+     schema: flags.aontu:81:24 (string&len(integer&min(0)&max(80)))
    ```
 
    The in-range message `"Elevated 5xx on EU checkout; incident

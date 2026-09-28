@@ -120,6 +120,11 @@ class RefVal extends FeatureVal_1.FeatureVal {
             }
             this.peg.push(...part.peg);
         }
+        else if (true === part?.isScalarKind || true === part?.isContainerKind ||
+            true === part?.isTop ||
+            (true === part?.isConstraintKind && null == part.held)) {
+            this.peg.push(part.canon);
+        }
         else {
             this.peg.push(UNSPELLABLE_SEGMENT);
         }
@@ -390,10 +395,13 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         || true === out.mark.type || true === out.mark.hide;
                     out = out.clone(ctx, { dup: !out.holdsStaged });
                     if (lifted) {
-                        (0, utility_1.walk)(out, (_key, val) => {
+                        // The copy carries a held constraint without its type.
+                        out = (0, utility_1.walk)(out, (_key, val) => {
                             val.mark.type = false;
                             val.mark.hide = false;
-                            return val;
+                            const held = val.held;
+                            return true === val.isConstraintKind && null != held ?
+                                held : val;
                         });
                     }
                 }

@@ -440,7 +440,7 @@ func (r *fmtReader) valueAt() *fmtNode {
 			items = append(items, &fmtNode{t: "paren", inner: inner, at: at})
 			continue
 		}
-		if "#TX" == n && "#E(" == r.name(1) {
+		if ("#TX" == n || "#VL" == n) && "#E(" == r.name(1) {
 			name := r.T[r.i].src
 			r.i += 2
 			args := r.seq()

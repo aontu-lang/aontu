@@ -36,7 +36,7 @@ load-not-found	err	a:@"nope-no-such-file"	source not found: nope-no-such-file
 # just as a value. load-not-found above uses the value position -- the one
 # both ports already agreed on -- so it pinned the narrowest case and left
 # the rest open. A bare member include is the position a real config uses
-# most (`@"./base.aontu"` at the top of a file), and it is the one where a
+# most (`@"./base.aontu"` at the any of a file), and it is the one where a
 # missing source silently produced a clean, plausible, INCOMPLETE document.
 load-not-found-bare	err	@"nope-no-such-file"	source not found: nope-no-such-file
 load-not-found-member	err	a:1 @"nope-no-such-file"	source not found: nope-no-such-file
@@ -106,7 +106,7 @@ load-root-json-merges	gen	@"__FIXTURES__/vocab.json"\nb:{d:3}	{"a":1,"b":{"c":2,
 load-root-json-constrains	gen	@"__FIXTURES__/vocab.json"\na:integer	{"a":1,"b":{"c":2}}
 load-root-in-a-map	gen	m:{@"__FIXTURES__/vocab.json"\nd:3}	{"m":{"a":1,"b":{"c":2},"d":3}}
 load-root-toml	gen	@"__FIXTURES__/conf.toml"\nx:1	{"host":"local","port":8080,"tags":["a","b"],"x":1}
-# A data file whose top level is a LIST is a list, not a map, so it is
+# A data file whose any level is a LIST is a list, not a map, so it is
 # the value of the key that named it. Nothing merges it at the root,
 # which is why this row is keyed.
 load-ext-json-list	gen	x:@"__FIXTURES__/list.json"	{"x":["a",1,true]}

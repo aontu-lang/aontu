@@ -13,7 +13,7 @@
 # declared over different endpoint types by a typo.
 #
 # The declaration lands at the ROOT of the document, which is why
-# model.aontu splices this file (`@"./spec.aontu"` at the top level)
+# model.aontu splices this file (`@"./spec.aontu"` at the any level)
 # rather than binding it to a key.
 %JobEdge = rel($.spec.JobShape)
 

@@ -724,33 +724,37 @@ function treeSvg(
 
 
 const LATTICE_PARENT: [string, string][] = [
-  ['string', 'top'],
-  ['path()', 'string'],
-  ['number', 'top'],
+  ['string', 'any'],
+  ['path', 'any'],
+  ['number', 'any'],
   ['integer', 'number'],
   ['float', 'number'],
   ['biginteger', 'number'],
   ['bigdecimal', 'number'],
-  ['boolean', 'top'],
-  ['null', 'top'],
+  ['boolean', 'any'],
+  ['null', 'any'],
+  ['map', 'any'],
+  ['list', 'any'],
+  ['constraint', 'any'],
 ]
 
 const LATTICE_COLS =
-  ['path()', 'integer', 'float', 'biginteger', 'bigdecimal', 'boolean',
-    'null']
+  ['string', 'path', 'integer', 'float', 'biginteger', 'bigdecimal',
+    'boolean', 'null', 'map', 'list', 'constraint']
 
-// The rows, top to bottom. `top` and `nil` are the endpoints and are
+// The rows, top to bottom. `any` and `nil` are the endpoints and are
 // not kinds: no `superior()` answers either, and no entry above names
 // them as a parent.
 const LATTICE_ROWS: string[][] = [
-  ['top'],
-  ['string', 'number', 'boolean', 'null'],
-  ['path()', 'integer', 'float', 'biginteger', 'bigdecimal'],
+  ['any'],
+  ['string', 'path', 'number', 'boolean', 'null', 'map', 'list',
+    'constraint'],
+  ['integer', 'float', 'biginteger', 'bigdecimal'],
   ['nil'],
 ]
 
 const LATTICE_NODES: string[] =
-  ['top', ...LATTICE_PARENT.map(([name]) => name), 'nil']
+  ['any', ...LATTICE_PARENT.map(([name]) => name), 'nil']
 
 // Every node at or above one, itself included.
 function latticeAncestors(name: string): string[] {
@@ -789,9 +793,17 @@ function latticePoint(v: any): string | undefined {
     return 'nil'
   }
   if (true === node?.isTop) {
-    return 'top'
+    return 'any'
   }
-  const name: string = true === node?.isScalarKind ? String(node.canon)
+  // A field TYPED `constraint` holds a constraint. A residual such as
+  // `integer & min(1)` is a region of its kind, not a point, and stays
+  // unplaced.
+  if (true === node?.isConstraintKind) {
+    return 'constraint'
+  }
+  const name: string =
+    true === node?.isScalarKind || true === node?.isContainerKind
+      ? String(node.canon)
     : true === node?.isScalar ? String(node.superior?.().canon) : ''
   return LATTICE_NODES.includes(name) ? name : undefined
 }
@@ -799,7 +811,7 @@ function latticePoint(v: any): string | undefined {
 
 // The document's own values, gathered by lattice node. Containers are
 // walked but not placed: a map is not a scalar lattice citizen, and
-// counting one at `top` would put every document's root there.
+// counting one at `any` would put every document's root there.
 function latticeCensus(root: any, at: string):
   { counts: Map<string, string[]>, unplaced: string[] } {
   const counts = new Map<string, string[]>()
@@ -2167,12 +2179,12 @@ function drawLadder(
   const out: string[] = []
   if ('mermaid' === as) {
     const esc = (s: string): string => escape(s, MERMAID_ESC)
-    out.push('graph TD', '  top(("top"))')
+    out.push('graph TD', '  any(("any"))')
     rungs.forEach((c, i) => {
       out.push(`  c${i}["${esc(c.canon)}<br/>${c.role} | ${esc(where(c))}"]`)
     })
     out.push(`  val{{"${esc(rep.record.value)}"}}`)
-    let prev = 'top'
+    let prev = 'any'
     rungs.forEach((_c, i) => {
       out.push(`  ${prev} --> c${i}`)
       prev = `c${i}`
@@ -2182,13 +2194,13 @@ function drawLadder(
   else {
     const esc = (s: string): string => escape(s, DOT_ESC)
     out.push('digraph G {', '  rankdir=TB;', '  node [shape=box];',
-      '  top [shape=circle, label="top"];')
+      '  any [shape=circle, label="any"];')
     rungs.forEach((c, i) => {
       out.push(
         `  c${i} [label="${esc(c.canon)}\\n${c.role} | ${esc(where(c))}"];`)
     })
     out.push(`  val [shape=hexagon, label="${esc(rep.record.value)}"];`)
-    let prev = 'top'
+    let prev = 'any'
     rungs.forEach((_c, i) => {
       out.push(`  ${prev} -> c${i};`)
       prev = `c${i}`

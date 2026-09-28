@@ -11,12 +11,12 @@ export interface Invoice {
   grossCents: number;
   id: string;
   netCents: number;
-  orderId: string;
+  orderId: unknown;
   taxCents: number;
 }
 
 export interface Order {
-  customerId: string;
+  customerId: unknown;
   id: string;
   lines: unknown[];
   placed: string;

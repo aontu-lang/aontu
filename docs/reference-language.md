@@ -18,7 +18,7 @@ the [Explanation](explanation.md).
 - [Scalar kinds (types)](#scalar-kinds-types)
 - [Maps](#maps)
 - [Lists](#lists)
-- [Container kinds: `map()` and `list()`](#container-kinds-map-and-list)
+- [Container kinds: `map` and `list`](#container-kinds-map-and-list)
 - [Conjunction `&`](#conjunction-)
 - [Disjunction `|`](#disjunction-)
 - [Preference / default `*`](#preference--default-)
@@ -164,14 +164,14 @@ d: "hi there"
 Every aontu value is a point in a lattice ordered from most general to
 most specific:
 
-![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
+![The value lattice: any at the join; string, path, number, boolean, null, map, list and constraint under it; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
 
 The engine draws this figure itself: it is
 [`aontu view lattice`](reference-api.md#aontu-view) over a document
 with no values in it. Run the same verb over your own document and
 each node carries a count of the values that landed there.
 
-- **`top`** is the unit: unifying anything with `top` yields the other
+- **`any`** is the unit: unifying anything with `any` yields the other
   value. It is what an unconstrained field is.
 - **`nil`** (bottom) is the result of a failed unification. It carries an
   error message and cannot be generated.
@@ -206,19 +206,75 @@ A bare kind name is a *type*: the set of all scalars of that kind.
 
 | Kind         | Matches                                        |
 |--------------|------------------------------------------------|
-| `string`     | any string                                     |
+| `string`     | any **non-empty** string: see [The empty string](#the-empty-string-empty) |
 | `number`     | any numeric value: the supertype over the four leaves below |
 | `integer`    | any value of *integer kind* (below)            |
 | `float`      | any value of *float kind* (below)              |
 | `biginteger` | any value of *biginteger kind* (below)         |
 | `bigdecimal` | any value of *bigdecimal kind* (below)         |
 | `boolean`    | `true` or `false`                              |
-| `top`        | any value at all                               |
+| `path`       | a path value, which is its own kind and not a string: see [First-class paths](#first-class-paths-pathp) |
+| `map`        | any map: see [Container kinds](#container-kinds-map-and-list) |
+| `list`       | any list: see [Container kinds](#container-kinds-map-and-list) |
+| `constraint` | a constraint rather than a value: see [The type of constraints](#the-type-of-constraints-constraint) |
+| `any`        | any value at all                               |
 
-The path kind is spelled `path()` rather than a bare word, and sits
-under `string`: see [First-class paths](#first-class-paths-pathp).
-The container kinds are `map()` and `list()`: see
-[Container kinds](#container-kinds-map-and-list).
+The null kind has no keyword: the literal `null` is both the value and
+its type. Every keyword is a type only where a value is written. As a
+key (`map: 1`) it is a key, and a reference can name that key
+(`$.a.map`, `.path`). Quote a keyword to write it as a string
+(`kind: "map"`).
+
+### The empty string: `empty()`
+
+`string` means a non-empty string. `empty()` admits `""` as well, and
+only unifies with strings:
+
+```aontu
+a: string & x
+c: string & empty() & ""
+```
+
+```json
+{"a":"x","c":""}
+```
+
+`b: string & ""` is refused with `string_empty`, and `empty() & 1` with
+`empty_domain`. `empty()` also meets a string constraint
+(`string & re("^a*$") & empty()` admits `""`).
+
+`empty()` waives a requirement rather than adding one, so it is not an
+ordinary meet. The engine carries the two facts as flags on the string
+(it met `string`; it met `empty()`) that every unification ORs together,
+and decides at generation. The answer is the same whichever order the
+terms meet in, including across statements and through references. One
+consequence is that a refused `""` is not pruned from a disjunction:
+`string & "" | "z"` does not generate, where `"z"` alone would.
+
+### The type of constraints: `constraint`
+
+`constraint` is the type of constraints (`min`, `max`, `above`,
+`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `refer`, `rel`).
+It holds the constraints it meets and refuses a concrete value,
+whichever order the terms meet in:
+
+```
+constraint & min(3)        → constraint&min(3)   (does not generate)
+constraint & min(3) & 5    → error: constraint_kind
+```
+
+A field typed `constraint` is a claim about that field only. A
+reference copies the constraint it holds without the type, so a named
+constraint still applies where it is used:
+
+```aontu
+types: type({ uint8:constraint & integer & min(0) & max(255) })
+port: $.types.uint8 & 80
+```
+
+```json
+{"port":80}
+```
 
 ### The four numeric leaves
 
@@ -505,17 +561,17 @@ routes: [get:"/health" post:"/orders"]
 { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
 ```
 
-## Container kinds: `map()` and `list()`
+## Container kinds: `map` and `list`
 
 `{}` and `[]` are the container *units*: each admits any value of its
-shape, and generates empty when nothing else arrives. `map()` and
-`list()` are the container *kinds*: each admits exactly the same
+shape, and generates empty when nothing else arrives. `map` and
+`list` are the container *kinds*: each admits exactly the same
 values and defaults to nothing, as `string` does. The kind is the
 spelling of "a map must be supplied here": an unmet unit silently
 manufactures its empty value, an unmet kind refuses to generate.
 
 ```aontu
-required: map() & { a:1 }
+required: map & { a:1 }
 ```
 
 ```json
@@ -529,7 +585,7 @@ The contrast, unmet:
 ```sh
 $ echo 'y: {}' | aontu -c
 {"y":{}}
-$ echo 'y: map()' | aontu
+$ echo 'y: map' | aontu
 [aontu/mapval_no_gen]: Cannot resolve value at path $.y
 ...
 $ echo $?
@@ -537,12 +593,12 @@ $ echo $?
 ```
 
 A kind mismatch refuses with the unit's own codes (`[aontu/map]`,
-`[aontu/list]`): `map() & [1]` is the same fact `{} & [1]` reports.
-Neither function takes arguments: element constraints belong to the
+`[aontu/list]`): `map & [1]` is the same fact `{} & [1]` reports.
+Neither is a function (`map()` is refused): element constraints belong to the
 spreads (`{&: V}`, `[&: V]`). The kinds settle inside `type()` bodies,
-[meet](unification.md) the unit literals (`map() & {}` is `{}`: an
+[meet](unification.md) the unit literals (`map & {}` is `{}`: an
 explicitly supplied empty map satisfies the kind), and subsume their
-containers (`map()` subsumes `{a:1}`). Pinned by
+containers (`map` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
 ## Conjunction `&`
@@ -694,7 +750,7 @@ override (`*8080 | integer` accepts any integer), and a constraint
 alternative is consulted rather than bypassed (`*8080 | (integer &
 min(1024) & max(65535))` refuses `80` and accepts `2048`; `*8080 |
 (integer & neq(80))` refuses `80`). A deliberately open default states
-its openness: `*x | top` admits every override. The gate covers scalar
+its openness: `*x | any` admits every override. The gate covers scalar
 preferred values: the same boundary as the kind gate above.
 
 ```aontu
@@ -730,7 +786,7 @@ met by `1.5` is `[aontu/empty]` (the other numeric leaf), and
 exclusion is consulted, not bypassed.
 
 A document that wants an open override says so by writing the open
-branch explicitly, `*x | top`.
+branch explicitly, `*x | any`.
 
 **A structural default is gated too**, by the same rule as every
 other: the peer must pass `super(x)`, and `super({x:1})` is
@@ -754,7 +810,7 @@ because `{x:1}` cannot admit `{x:2}` but its type can. A peer of
 another kind (`a: "s"`) refuses, as the scalar case always did.
 
 A document that wants a structural default any peer may replace says so
-by writing the open branch explicitly, `*{x:1} | top`.
+by writing the open branch explicitly, `*{x:1} | any`.
 
 Writing `a:{x:*1}` rather than `a:*{x:1}` is still the clearer
 spelling when you mean "a map whose `x` defaults to 1", and it is what
@@ -2076,9 +2132,10 @@ Constrain a numeric or string value to be strictly less than a bound. See [bound
 
 Example: `integer & below(10)`
 
-### `close(m: any) : any`
+### `close(m?: any) : any`
 
-Seal a map/list against extra keys.
+Seal a map/list against extra keys. With no argument, seal whatever
+map or list it meets: `close() & {}` is a closed empty map.
 
 Example: see [closed values](#closed-values-close--open)
 
@@ -2128,6 +2185,14 @@ Example: `each([a, b], upper(_))` → `["A", "B"]`
 One flat list of pieces from a selection and a rule table: for each node, the first template whose `match` it already satisfies, its `body` instantiated at that node. See [Transforming](#transforming-emit).
 
 Example: `lines: emit($.services, {match:{pin:string}, body:[.pin]})`
+
+### `empty() : constraint`
+
+Admit the empty string. `string` means a **non-empty** string, and
+`empty()` waives that; it only unifies with strings. See [The empty
+string](#the-empty-string-empty).
+
+Example: `string & empty() & ""`→`""`; `string & ""`→ error
 
 ### `esc(s: string, variant?: string) : string`
 
@@ -2208,11 +2273,11 @@ Return the least numeric member, preserving its kind. An empty collection is ref
 
 Example: `least([2, 7, 4])` → `2`
 
-### `length(n: number|constraint) : constraint`
+### `len(n: number|constraint) : constraint`
 
-Constrain a string length or collection size. See [length semantics](#length-semantics).
+Constrain a string length or collection size. See [`len` semantics](#len-semantics).
 
-Example: `list() & length(min(1))`
+Example: `list & len(min(1))`
 
 ### `line(spec: string|map) : map`
 
@@ -2221,12 +2286,6 @@ text with a newline added, which is the whole difference from
 `content`. An empty span is a blank line.
 
 Example: `line("import fs from 'fs'")`; `line("")` is a blank line
-
-### `list() : list`
-
-The list **kind**: admits any list, defaults to nothing.
-
-Example: `y: list() & [1]`→`[1]`
 
 ### `listitems(spec: map, children?: list) : map`
 
@@ -2242,12 +2301,6 @@ Example: `listitems({item: $.rows}, [line("x")])`
 Lowercase a string, or a run of it; **floor** of a number, keeping the argument's kind. The range is `upper`'s; see [`upper`](#uppers-stringnumber-start-integerbiginteger-len-integerbiginteger--string).
 
 Example: `lower(ABC)`→`"abc"`, `lower("FOO",1,-1)`→`"Foo"`, `lower("FOOBAR",-3,-1)`→`"fooBAR"`, `lower(1.9)`→ float `1`
-
-### `map() : map`
-
-The map **kind**: admits any map, defaults to nothing. See [Container kinds](#container-kinds-map-and-list).
-
-Example: `y: map() & {a:1}`→`{a:1}`; `y: map()`→ error
 
 ### `match(s: any, ...pr: (trial any, any), dflt?: any) : any`
 
@@ -2311,9 +2364,10 @@ is named: `camel`, `dot`, `kebab`, `pascal`, `path`, `snake`,
 
 Example: `nom("planet_body", pascal)` → `"PlanetBody"`
 
-### `open(m: any) : any`
+### `open(m?: any) : any`
 
-Reverse a `close`.
+Reverse a `close`. With no argument, unseal whatever map or list it
+meets: `open() & close({x:1}) & {y:2}` admits `y`.
 
 Example: `open(close({x:1})) & {y:2}`→`{x:1,y:2}`
 
@@ -2333,7 +2387,7 @@ Example: `parse($.G, "12")` → `{rule:"v" src:"12" kids:[...]}`; `*"" | parse($
 
 **capture** `p` as a path value: the spelling, never the resolution; with no argument, the path **kind**. See [First-class paths](#first-class-paths-pathp).
 
-Example: `dep: path(.auth)` generates `".auth"`; `host: path()`
+Example: `dep: path(.auth)` generates `".auth"`; `host: path`
 
 ### `pick(d: map|list, projector k: string|integer) : any`
 
@@ -2439,7 +2493,7 @@ Example: `type(1) & number`→`1`
 
 Require distinct members, optionally comparing a named field. See [unique semantics](#unique-semantics).
 
-Example: `list() & unique(id)`
+Example: `list & unique(id)`
 
 ### `upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string`
 
@@ -2473,7 +2527,7 @@ when it has one, otherwise the domain its atoms compare in.
 <!-- test: run -->
 ```sh
 $ echo 'a: super(1)  b: super(1.5)  c: super(integer)  d: super(number)' | aontu -c
-{"a":integer,"b":float,"c":number,"d":top}
+{"a":integer,"b":float,"c":number,"d":any}
 $ echo 'e: super({port: 8080, name?: web})  f: super([1, on])' | aontu -c
 {"e":{"name"?:string,"port":integer},"f":[integer,string]}
 $ echo 'g: super(*8080)  h: super(1|2)  i: super(min(3))  j: super(integer & min(3))' | aontu -c
@@ -2504,7 +2558,7 @@ $ echo $?
 The answer is `top` only where `top` is the immediate parent: the
 root kinds (`number`, `string`, `boolean`), `top` itself, a
 disjunction with an arm that lifts to `top`, and a constraint that
-admits several container kinds (`length(n)` constrains strings, lists
+admits several container kinds (`len(n)` constrains strings, lists
 and maps alike). Two edges are pinned in `test/spec/super.tsv`: a
 recursion residual met by `super` stays a symbolic call (the finite
 spelling of a lift that is itself recursive) which generation
@@ -2891,7 +2945,7 @@ $ echo 'cols: [{n:"id"}, {n:"age"}]  sql: join(pick(sort($.cols, n), n), ", ")' 
 
 ## Aggregating: `sum` `least` `greatest`
 
-`length()` counts a bag; these three fold one. Each takes a **single
+`len()` counts a bag; these three fold one. Each takes a **single
 bag** (a list or a map) and walks the children the model already
 holds:
 
@@ -3259,10 +3313,11 @@ empty segment (`"a..b"`), a broken `$` spelling) refuses at the call
 (`path_address`); a number or a container argument is refused as
 `invalid-arg`.
 
-`path()` with no argument is the path **kind**: the set of all path
-values. It sits under `string` in the kind lattice, so `string` admits a
-path value and the string constraints apply to spellings, but the kind
-does **not** promote: `path() & "$.a"` refuses (`no_scalar_unify`)
+`path` with no argument is the path **kind**: the set of all path
+values. It is its own kind directly under `any`, not a kind of
+`string`: `string & path($.a)` refuses (`no_scalar_unify`), though the
+string constraints (`re`, `len`) still read a path's spelling. The kind
+does **not** promote either: `path & "$.a"` refuses (`no_scalar_unify`)
 exactly as `integer & "x"` does, because outside the `path(...)` call a
 string never becomes a path.
 
@@ -3293,7 +3348,7 @@ The kind settles inside `type()` bodies, which a `refer` cannot
 declare a path-valued field for the data to meet:
 
 ```aontu
-Service: type({ host:path() })
+Service: type({ host:path })
 db: $.Service & { host:path($.hosts.h1) }
 hosts: h1: {}
 ```
@@ -3396,7 +3451,7 @@ it.
 ### The argument is a template, not an address
 
 `refer(t)` takes the value the **target** must satisfy. The address
-comes from the `path()` beside it, never from the argument, so
+comes from the `path` beside it, never from the argument, so
 `refer(key())` does not mean "link to the node this key names". It means
 "the target must unify with whatever `key()` answers here", and `key()`
 answers with a *string*, so the link is constrained to a target that is
@@ -3412,7 +3467,7 @@ link: refer(key())     → [aontu/mapval_no_gen] at $.link
 answers for the destination it lands at) and a reference is a new
 destination, so referring to a field whose value came from `key()`
 re-fires it at the referring site rather than carrying the target's
-key across. There is no built-in that takes a `path()` value and
+key across. There is no built-in that takes a `path` value and
 yields its last segment.
 
 Generate the link and the name together instead, from the one place
@@ -3696,7 +3751,7 @@ Two of its behaviours are the language rather than the vocabulary:
   `direction: *in | out | inout` is a true enum-with-default under the
   admission gate: unset generates `in`, `out` and `inout`
   override, and any other value is refused (`[aontu/empty]`). A
-  vocabulary that wants an open field says so with a `| top` (or
+  vocabulary that wants an open field says so with a `| any` (or
   `| string`) branch.
 - **`Service` is written out rather than as `$.aontu.System.Component & {kind:
   service}`.** A reference from one member of an included file to
@@ -3813,8 +3868,33 @@ referenced node. Adding a key or extending a list is refused:
 
 ```
 close({x:1}) & {y:2}      → error: closed
-close([1,2]) & [3,4,5]    → error: closed
+close([1,2]) & [1,2,3]    → error: closed
 ```
+
+On a list, closing fixes the LENGTH: the elements it has can still be
+narrowed (`close([1,number]) & [1,2]` is `[1,2]`), but no element can be
+added past the end. A list is open by default, so `[1,2] & [1,2,3]` is
+`[1,2,3]`, and `open(close([1,2])) & [1,2,3]` is too.
+
+With no argument, `close()` and `open()` seal or unseal whatever map or
+list they meet, and leave any other value as it is:
+
+```aontu
+a: close() & {}
+b: close() & { x:1 } & { y:2 }
+c: open() & close({ x:1 }) & { y:2 }
+```
+
+```json
+{"a":{},"b":{"x":1,"y":2},"c":{"x":1,"y":2}}
+```
+
+`close()` folds last in a conjunct, so it closes the whole meet (`b`),
+including terms written in other statements at the same key. `open()`
+folds first, so it lifts a seal before anything is added (`c`). A
+closed value reached later, through a reference or a separate map
+merge, is closed exactly as `close({...})` is. Unmet, `close()` does not
+generate.
 
 ## Source loading `@"…"`
 
@@ -3894,7 +3974,7 @@ $ aontu -c main.aontu
 ```
 
 The result is an ordinary string, so the language's string operations
-reach it and a schema can constrain it: `notes: string & length(1)`
+reach it and a schema can constrain it: `notes: string & len(1)`
 holds, and `upper(@"./notes.txt")` uppercases the file.
 
 **Other extensions need an allowance.** `--text-ext md,sql` reads those
@@ -5050,7 +5130,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `below(n: number\|string) : constraint` | A | value < x |
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
 | `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
-| `length(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
+| `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 
@@ -5096,7 +5176,7 @@ schema-composition time, before any data arrives:
 | interval & interval | intersection: `min(0) & min(5)` → `min(5)`; `min(2) & max(10) & max(7)` → `min(2)&max(7)` |
 | `neq` & `neq` | exclusion-set union, arguments sorted |
 | `re` & `re` | regex-set accumulation (patterns sorted; never simplified) |
-| `length(c1)` & `length(c2)` | `length(c1 & c2)`: the count atom reuses the numeric algebra recursively |
+| `len(c1)` & `len(c2)` | `len(c1 & c2)`: the count atom reuses the numeric algebra recursively |
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
@@ -5120,7 +5200,7 @@ guessed where it is not:
   `integer & min(3) & max(3) & neq(3)` → nil. This is the tower
   re-derivation of the pre-tower example, and the spec rows pin both
   directions.
-- `length(c)` is empty iff `c & integer & min(0)` is.
+- `len(c)` is empty iff `c & integer & min(0)` is.
 - Regex emptiness is deliberately approximate: distinct `re` atoms
   accumulate and are never declared empty: sound (no false
   conflicts), incomplete (some contradictions surface only against
@@ -5160,7 +5240,7 @@ in this sense and are marked; the rest are exact.
 | `neq(S)`    | `neq(T)`     | `S ⊆ T`: excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
 | `neq(S)`    | concrete scalar | the scalar is in neither S nor excluded by A's other atoms |
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
-| `length(c)`    | `length(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
+| `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
 | `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
 | `must(f)`   | anything     | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
@@ -5219,17 +5299,17 @@ identical canon) for each rule.
 Two renderings follow from that round trip rather than from taste:
 
 -  **`length`'s argument renders unabridged**, implied parts and all:
-  `length(3)` canonicalises to `length(integer&min(3)&max(3))`, because
-  that *is* the residual the count must satisfy (`length(c)` always
+  `len(3)` canonicalises to `len(integer&min(3)&max(3))`, because
+  that *is* the residual the count must satisfy (`len(c)` always
   meets `integer & min(0)`; see [`length`
-  semantics](#length-semantics)). Abbreviating it would mean a second
+  semantics](#len-semantics)). Abbreviating it would mean a second
   set of rules for when the implied parts may be dropped, and canon is a
   normal form ([`aontu hash`](reference-api.md#aontu-hash) digests it) not
   a pretty-printer.
 - **A bare domain is spelled out when nothing implies it.** An order
   atom's argument names its own domain, so `min(2)` need not say
-  `number`. A sizing residual carries no order, so `string & length(3)`
-  renders as `string&length(...)`: drop the `string` and the reparse would
+  `number`. A sizing residual carries no order, so `string & len(3)`
+  renders as `string&len(...)`: drop the `string` and the reparse would
   admit lists and maps of three members too.
 
 ### `re` and the portable pattern subset
@@ -5321,32 +5401,32 @@ Canon renders the pattern **as written**, never the rewritten form:
 canon round-trips source, and the semantic hash
 ([`aontu hash`](reference-api.md#aontu-hash)) is taken over canon.
 
-### `length` semantics
+### `len` semantics
 
-`length` applies to strings, lists, and maps, with the domain fixed by
+`len` applies to strings, lists, and maps, with the domain fixed by
 the peer:
 
 - **strings**: length in **Unicode code points**: not UTF-16 code
-  units (TS's native count) and not bytes (Go's): `length(1) & "𝄞"`
+  units (TS's native count) and not bytes (Go's): `len(1) & "𝄞"`
   holds, in both implementations. Astral-plane rows are part of the
   spec suite, not an implementation accident.
 - **lists**: element count. **maps**: entry count.
 
-Its argument is any integer-domain constraint: `length(3)` means exactly
-3; `length(min(2) & max(5))` means between 2 and 5. Every argument meets
+Its argument is any integer-domain constraint: `len(3)` means exactly
+3; `len(min(2) & max(5))` means between 2 and 5. Every argument meets
 `integer & min(0)` (a count is a non-negative whole number) which is
-what makes `length(max(-1))` and `length(1.5)` empty on their own, and what
+what makes `len(max(-1))` and `len(1.5)` empty on their own, and what
 canon renders.
 
 Like every other atom's argument, it **residuates** until it settles:
-`length($.n)` waits for `$.n`, then checks the count. Only
+`len($.n)` waits for `$.n`, then checks the count. Only
 a *settled* argument of the wrong shape (a string, a boolean, a
 contradictory kind) is refused.
 
 A sizing residual has **no domain of its own** (a count says nothing
 about what is counted) so meeting a kind *sets* one rather than merely
-agreeing with it. `string & length(3)` is a three-character string, and
-`number & length(3)` is empty, because a number has neither a length nor
+agreeing with it. `string & len(3)` is a three-character string, and
+`number & len(3)` is empty, because a number has neither a length nor
 members. `min(2) & unique()` and `re("^a") & unique()` are empty for the
 same reason.
 
@@ -5355,9 +5435,9 @@ is dropped at generation, so it does not count. The constraint is a
 claim about the data, and the data is what comes out:
 
 ```aontu
-a: string & length(3)
+a: string & len(3)
 a: abc
-b: length(1) & { x:1 y?:number }
+b: len(1) & { x:1 y?:number }
 ```
 
 ```json
@@ -5382,7 +5462,7 @@ whose value cannot generate. So:
 - **Every optional child settled**: this includes `{x:1, y?:number}`,
   where the map converges immediately and `y` holds an
   unresolved kind. The count is known, and `length` decides at composition
-  time like every other atom, `length(1) & {x:1, y?:number}` included.
+  time like every other atom, `len(1) & {x:1, y?:number}` included.
 - **Some optional child still converging**: `{x:1, y?:$.z}` before `z`
   resolves, where the child's fate genuinely is not yet decided. `length`
   **residuates**: it stays in place and is retried, exactly as an
@@ -5391,7 +5471,7 @@ whose value cannot generate. So:
 So `length` is eager in the ordinary case and defers only where the answer
 is not yet determined, which is the same discipline every other
 deferring value in the language follows. What is never deferred is the
-atom's own arithmetic: `length(min(5) & max(3))` is empty at composition
+atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
@@ -5407,7 +5487,7 @@ it is grouped. A sizing atom cannot, because meeting further containers
 *grows* the member set:
 
 ```aontu
-a: length(2)
+a: len(2)
 a: { x:1 y:2 }
 ```
 
@@ -5422,13 +5502,13 @@ the order atoms fold before containers, the sizing atoms after every
 value that could contribute a member. The size is then read once, from
 the merged container.
 
-Written order does not matter (`a: {x:1} a: {y:2} a: length(2)` is the
+Written order does not matter (`a: {x:1} a: {y:2} a: len(2)` is the
 same value) which is the property the sort order exists to guarantee.
 
 **`must` folds last for the same reason**, and the slot is named for
 what the three atoms share rather than for sizing alone: `length`,
 `unique` and `must` all need the *whole* value. An evaluate-only check
-run against the first fragment would refuse `a: must(length(2),m)` /
+run against the first fragment would refuse `a: must(len(2),m)` /
 `a: {x:1}` / `a: {y:2}` on a count of one, exactly as an early-folding
 `length` would.
 
@@ -5454,9 +5534,9 @@ it**: members accumulate under unification, they are never removed:
 
 Anything provisional **residuates**, exactly as an atom over a container
 that has not settled does, and is decided at **generation**, which is
-where nothing more can arrive. So `length(min(1)) & {&: {r: integer}}`
+where nothing more can arrive. So `len(min(1)) & {&: {r: integer}}`
 no longer refuses the schema it was written for, and
-`length(max(2)) & {&: {r: integer}}` no longer passes three records.
+`len(max(2)) & {&: {r: integer}}` no longer passes three records.
 A residuated atom is visible in [canon](#canonical-form), which is the
 correct rendering: the value really does still carry the constraint.
 

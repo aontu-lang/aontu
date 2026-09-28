@@ -87,10 +87,10 @@
               {
                 "col": 19,
                 "file": "schema.aontu",
-                "len": -1,
+                "len": 3,
                 "role": "schema",
                 "row": 3,
-                "src": "",
+                "src": "min",
                 "value": "integer&min(1024)"
               }
             ]

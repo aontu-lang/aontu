@@ -97,8 +97,6 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 		{"move", "arg"},
 		{"upper", "arg"},
 		{"lower", "arg"},
-		{"close", "no_first_arg"},
-		{"open", "no_first_arg"},
 	} {
 		f := newFunc(tc.name, nil)
 		out := f.resolve(ctx, nil, nil)
@@ -111,7 +109,19 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 		}
 	}
 
-	// path() with no argument is the path KIND now
+	// close() and open() with no argument are seals, not refusals.
+	for _, tc := range []struct {
+		name   string
+		closed bool
+	}{{"close", true}, {"open", false}} {
+		out := newFunc(tc.name, nil).resolve(ctx, nil, nil)
+		sv, ok := out.(*SealVal)
+		if !ok || sv.closed != tc.closed {
+			t.Fatalf("%s: want a seal (closed=%v), got %T %+v", tc.name, tc.closed, out, out)
+		}
+	}
+
+	// path with no argument is the path KIND now
 	// (docs/design/PATHS.0.md), not a missing-argument refusal.
 	pf := newFunc("path", nil)
 	if k, ok := pf.resolve(ctx, nil, nil).(*ScalarKindVal); !ok || KindPath != k.kind {

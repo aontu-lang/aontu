@@ -97,10 +97,10 @@ verdict: invalid
 
 $.invoice.total: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.invoice.total
-  expected: re("^-?[0-9]+\\.[0-9][0-9]$")
+  expected: string&re("^-?[0-9]+\\.[0-9][0-9]$")
   actual:   "19.9"
   data: bad.json:1:23 ("19.9")
-  schema: invoice.aontu:1:26 (re("^-?[0-9]+\\.[0-9][0-9]$"))
+  schema: invoice.aontu:1:26 (string&re("^-?[0-9]+\\.[0-9][0-9]$"))
 $ echo $?
 1
 ```

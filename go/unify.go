@@ -114,6 +114,16 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 		isGraphAtom(b) || isRecurse(b) || isDrivingOp(b) {
 		return drive(b, a)
 	}
+	// These do not know their peers, so they answer from either side.
+	if _, ok := b.(*ConstraintKindVal); ok {
+		return drive(b, a)
+	}
+	if _, ok := b.(*EmptyVal); ok {
+		return drive(b, a)
+	}
+	if _, ok := b.(*SealVal); ok {
+		return drive(b, a)
+	}
 	return drive(a, b)
 }
 

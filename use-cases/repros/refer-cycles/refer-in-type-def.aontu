@@ -12,7 +12,7 @@
 schema: {
   Order: type(close({
     id: string
-    customerId: refer() & string & re("^cust-")
+    customerId: refer() & path & re("^cust-")
   }))
 }
 customers: { "cust-1": id("cust-1") & { } }

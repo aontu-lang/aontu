@@ -34,14 +34,14 @@ pick a winner: it either narrows to a consistent answer or fails loudly.
 Values are ordered from general to specific:
 
 ```
-top  ⊐  string ⊐ "ada"
+any  ⊐  string ⊐ "ada"
      ⊐  number ⊐ integer ⊐ 1
      ⊐  boolean ⊐ true
                          ⊐ … ⊐  nil (⊥)
 ```
 
-- **`top`** sits above everything and is the unit element: `x & top == x`.
-  An unconstrained field *is* `top`.
+- **Top**, written `any`, sits above everything and is the unit element:
+  `x & any == x`. An unconstrained field *is* `any`.
 - **`nil`** sits below everything; it is what you get when two values have
   no common lower bound. `nil` carries a message and poisons generation.
 - Unification walks *down* the lattice. `number & integer` → `integer`

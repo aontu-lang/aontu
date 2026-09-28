@@ -7,7 +7,7 @@
 #            {"customerId":"cust-1001","id":"ord-7001"}}} exit 0
 # actual:   [aontu/unify_cycle]: Cannot unify values at path
 #           $.schema.Order.customerId (Cannot unify value:
-#           refer()&re("^cust-") with value: top) exit 1
+#           refer()&re("^cust-") with value: any) exit 1
 @"./refer-in-type-schema.aontu"
 customers: { "cust-1001": id("cust-1001") & { } }
 orders: { "ord-7001": id("ord-7001") & { customerId: "cust-1001" } }

@@ -85,6 +85,20 @@ func scalarSchemaJSON(sv *ScalarVal) any {
 	return sv.peg
 }
 
+// schemaAtLeastOne reports whether an exported length bound is already
+// at least 1.
+func schemaAtLeastOne(v any) bool {
+	switch n := v.(type) {
+	case int64:
+		return 1 <= n
+	case float64:
+		return 1 <= n
+	case int:
+		return 1 <= n
+	}
+	return false
+}
+
 func scalarSchemaType(sv *ScalarVal) string {
 	switch sv.kind {
 	case KindBigDecimal, KindFloat:
@@ -161,10 +175,14 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			out[hikey] = scalarSchemaJSON(c.count.hi.v)
 		}
 		if !str && "" == c.domain {
-			sc.lose(path, "length",
+			sc.lose(path, "len",
 				"a count with no domain is exported as minItems/maxItems; "+
 					"JSON Schema has no keyword that counts a string OR a container")
 		}
+	}
+
+	if c.nonEmpty && !c.emptyOk && !schemaAtLeastOne(out["minLength"]) {
+		out["minLength"] = 1
 	}
 
 	if c.uniq {
@@ -260,6 +278,10 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 					"\""+kindType[t.kind]+"\" and a consumer may round")
 		}
 		if jt, ok := kindType[t.kind]; ok {
+			// `string` refuses "", and `string & empty()` does not.
+			if KindString == t.kind && !t.emptyOk {
+				return map[string]any{"type": jt, "minLength": 1}
+			}
 			return map[string]any{"type": jt}
 		}
 		// Defensive: kindType covers every kind a ScalarKindVal can

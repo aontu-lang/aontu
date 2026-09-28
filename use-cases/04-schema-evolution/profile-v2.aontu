@@ -12,7 +12,7 @@ profile: close({
   id: string & re("^C[0-9]{7}$")
 
   email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
-  name: string & length(min(1))
+  name: string & len(min(1))
 
   # Deprecated: unvalidated free-form number.  Writers should move to
   # contact.phone (E.164).  Removal is scheduled for v3 via the

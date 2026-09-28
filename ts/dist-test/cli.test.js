@@ -1438,7 +1438,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const q = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.db.replicas', file]), 0));
         Assert.match(q.out, /1\. \*1\|integer.*doc\.aontu:2:18  \(spread\)/);
         const topFile = Path.join(dir, 'top.aontu');
-        Fs.writeFileSync(topFile, 'a: top\n');
+        Fs.writeFileSync(topFile, 'a: any\n');
         const t = vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.a', topFile]), 0));
         Assert.match(t.out, /no contributions/);
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runWhy)(['$.services.auth.replicas', '--format', 'json', file]), 0)).out);
@@ -1496,7 +1496,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.svc.auth', '--types', file]), 0)).out.trim(), '{"image":string,"replicas":integer}');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.svc', '--keys', file]), 0))
             .out.trim(), 'auth');
-        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$', '--canon', '--depth', '1', file]), 0)).out.trim(), '{"port":top,"svc":top}');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$', '--canon', '--depth', '1', file]), 0)).out.trim(), '{"port":any,"svc":any}');
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.svc.auth', '--format', 'json', file]), 0)).out);
         Assert.equal(j.aontu.verb, 'model get');
         Assert.equal(j.ok, true);
@@ -1532,7 +1532,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', '--depth', f.general]), 2));
         // Eliding below a depth means rendering `top`, which JSON cannot
         // say -- refused rather than silently switching the view.
-        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', '--depth', '1', f.general]), 2)).err.includes('JSON cannot say top'), true);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', '--depth', '1', f.general]), 2)).err.includes('JSON cannot say any'), true);
         vetCapture(() => Assert.equal((0, cli_1.runGet)(['$.a', Path.join(f.dir, 'missing.aontu')]), 2));
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runGet)(['--help']), 0)).out.includes('aontu model get'), true);
     });

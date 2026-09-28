@@ -436,6 +436,11 @@ type ConstraintVal struct {
 	// so emptiness carries the news instead.
 	clash   bool
 	invalid string // why-code when the atom's arguments were unusable
+	// nonEmpty met `string`, which refuses ""; emptyOk met `empty()`.
+	nonEmpty bool
+	emptyOk  bool
+	// pathKind met `path`, which shares string's domain but not its kind.
+	pathKind bool
 	// invalidWhy is the human half of a constraint_pattern refusal: which
 	// construct put the pattern outside the portable subset. Injected
 	// into the hint as {reason}; the TS twin carries the same string.
@@ -445,7 +450,7 @@ type ConstraintVal struct {
 const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
-	return "length" == atom || "unique" == atom || "must" == atom
+	return "len" == atom || "unique" == atom || "must" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
@@ -462,7 +467,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 // the func-paren handler in lang.go.
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
-	"re": true, "length": true, "unique": true, "must": true,
+	"re": true, "len": true, "unique": true, "must": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -630,7 +635,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		return c
 	}
 
-	if "length" == atom {
+	if "len" == atom {
 		arg := countArgState(args[0])
 		if nil == arg {
 			return bad("invalid-arg")
@@ -771,8 +776,15 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if c.uniq || 0 < len(c.uniqBy) {
 		return c.fail(ctx, peer)
 	}
-	if !stateAdmits(c, peer) {
+	if !stateAdmits(c, peer) ||
+		(c.nonEmpty && KindPath == peer.kind) || (c.pathKind && KindPath != peer.kind) {
 		return c.fail(ctx, peer)
+	}
+	if c.nonEmpty {
+		peer = peer.withNonEmpty()
+	}
+	if c.emptyOk {
+		peer = peer.withEmpty()
 	}
 	if nil != c.count {
 		if KindString != peer.kind && KindPath != peer.kind {
@@ -910,20 +922,42 @@ func (c *ConstraintVal) hold(peer Val) Val {
 }
 
 func (c *ConstraintVal) meetKind(peer *ScalarKindVal, ctx *Ctx) Val {
+	if KindPath == peer.kind {
+		if c.emptyOk {
+			return makeNilErr(ctx, "empty_domain", peer, c)
+		}
+		if "number" == c.domain || c.nonEmpty {
+			return c.fail(ctx, peer)
+		}
+		if c.pathKind {
+			return c
+		}
+		merged := c.cloneState()
+		merged.domain = "string"
+		merged.pathKind = true
+		return c.finish(merged, ctx, peer)
+	}
+	if KindString == peer.kind && c.pathKind {
+		return c.fail(ctx, peer)
+	}
 	switch peer.kind {
 	case KindNumber, KindString:
 		d := "number"
 		if KindString == peer.kind {
 			d = "string"
 		}
-		if d == c.domain {
+		nonEmpty := c.nonEmpty || KindString == peer.kind
+		emptyOk := c.emptyOk || peer.emptyOk
+		if d == c.domain && nonEmpty == c.nonEmpty && emptyOk == c.emptyOk {
 			return c
 		}
-		if "" != c.domain {
+		if "" != c.domain && d != c.domain {
 			return c.fail(ctx, peer)
 		}
 		merged := c.cloneState()
 		merged.domain = d
+		merged.nonEmpty = nonEmpty
+		merged.emptyOk = emptyOk
 		return c.finish(merged, ctx, peer)
 	case KindInteger, KindFloat, KindBigInteger, KindBigDecimal:
 		if "string" == c.domain {
@@ -952,6 +986,12 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	if KindTop != c.kind && KindTop != peer.kind && c.kind != peer.kind {
 		return c.fail(ctx, peer)
 	}
+	if (c.pathKind && peer.nonEmpty) || (c.nonEmpty && peer.pathKind) {
+		return c.fail(ctx, peer)
+	}
+	if (c.pathKind && peer.emptyOk) || (c.emptyOk && peer.pathKind) {
+		return makeNilErr(ctx, "empty_domain", peer, c)
+	}
 
 	merged := c.cloneState()
 	if "" == merged.domain {
@@ -979,7 +1019,24 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.uniq = c.uniq || peer.uniq
 	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	merged.musts = append(append([]constraintMust{}, c.musts...), peer.musts...)
+	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
+	merged.emptyOk = c.emptyOk || peer.emptyOk
+	merged.pathKind = c.pathKind || peer.pathKind
 
+	return c.finish(merged, ctx, peer)
+}
+
+// allowEmpty is the meet with `empty()`.
+func (c *ConstraintVal) allowEmpty(ctx *Ctx, peer Val) Val {
+	if "number" == c.domain || KindTop != c.kind || c.pathKind {
+		return makeNilErr(ctx, "empty_domain", peer, c)
+	}
+	if c.emptyOk && "string" == c.domain {
+		return c
+	}
+	merged := c.cloneState()
+	merged.domain = "string"
+	merged.emptyOk = true
 	return c.finish(merged, ctx, peer)
 }
 
@@ -992,8 +1049,11 @@ func (c *ConstraintVal) finish(state *ConstraintVal, ctx *Ctx, peer Val) Val {
 
 	state.dc = DONE
 	state.path = cp(c.path)
+	// The whole site, so a report frames the residual at its atom.
 	state.site.sp = c.site.sp
+	state.site.spu = c.site.spu
 	state.site.url = c.site.url
+	state.site.src = c.site.src
 	return state
 }
 
@@ -1026,6 +1086,9 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		invalid: c.invalid,
 	}
 	out.invalidWhy = c.invalidWhy
+	out.nonEmpty = c.nonEmpty
+	out.emptyOk = c.emptyOk
+	out.pathKind = c.pathKind
 	out.dc = DONE
 	return out
 }
@@ -1069,8 +1132,10 @@ func (c *ConstraintVal) Canon() string {
 	parts := []string{}
 	if KindTop != c.kind {
 		parts = append(parts, c.kind.String())
-	} else if "string" == c.domain &&
-		nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) {
+	} else if c.pathKind {
+		parts = append(parts, "path")
+	} else if "string" == c.domain && (c.nonEmpty ||
+		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) && !c.emptyOk)) {
 		parts = append(parts, "string")
 	}
 	if nil != c.lo {
@@ -1098,7 +1163,7 @@ func (c *ConstraintVal) Canon() string {
 		parts = append(parts, "re("+r.v.Canon()+")")
 	}
 	if nil != c.count {
-		parts = append(parts, "length("+c.count.Canon()+")")
+		parts = append(parts, "len("+c.count.Canon()+")")
 	}
 	if c.uniq {
 		parts = append(parts, "unique()")
@@ -1108,6 +1173,9 @@ func (c *ConstraintVal) Canon() string {
 	}
 	for _, m := range c.musts {
 		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
+	}
+	if c.emptyOk {
+		parts = append(parts, "empty()")
 	}
 	if 0 == len(parts) {
 		// Raw invalid atom: render the call so the error frame shows it.

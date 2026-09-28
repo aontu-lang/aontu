@@ -479,3 +479,6 @@ parse_failed	errcode	conflict	0.63.0
 sort_key	errcode	conflict	0.63.0
 sort_domain	errcode	conflict	0.63.0
 sort_dir	errcode	parse	0.63.0
+constraint_kind	errcode	conflict	0.77.0
+string_empty	errcode	conflict	0.77.0
+empty_domain	errcode	conflict	0.77.0

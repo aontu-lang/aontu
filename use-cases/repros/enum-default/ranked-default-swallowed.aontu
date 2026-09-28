@@ -9,7 +9,7 @@
 #         (Old behaviour: a:**1.5&float -> [aontu/mapval_no_gen] exit 1,
 #         and b's default was silently dropped -- canon {"b":integer} --
 #         because the gate read the immediate peg, a PrefVal whose
-#         superior is top, so ANY conjunct overrode a ranked default.)
+#         superior is any, so ANY conjunct overrode a ranked default.)
 a: **1.5 & float
 b: **2 | integer
 b: integer

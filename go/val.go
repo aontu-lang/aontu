@@ -259,7 +259,7 @@ func newTop() *TopVal {
 
 func top() *TopVal { return newTop() }
 
-func (t *TopVal) Canon() string { return "top" }
+func (t *TopVal) Canon() string { return "any" }
 func (t *TopVal) superior() Val { return t }
 
 func (t *TopVal) Gen(ctx *Ctx) (any, error) {

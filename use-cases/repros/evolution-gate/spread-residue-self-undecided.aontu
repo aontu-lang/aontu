@@ -1,5 +1,5 @@
 # C1 (use-cases 03, 07): a &: spread template that contains constraint
-# residue (close(), min(), length(), ...) is not comparable TO ITSELF:
+# residue (close(), min(), len(), ...) is not comparable TO ITSELF:
 # subsume/breaking of a byte-identical document answers undecided,
 # sub_unresolved, at $.svcs.&.port and $.lines.&. The same expressions
 # at a PLAIN key self-subsume fine (port: integer & min(0) => subsumes),

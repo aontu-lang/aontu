@@ -67,7 +67,7 @@ than its value.
 ## Model design
 
 - `domain.aontu`: record types (`close()`d maps, optional keys `?`,
-  `re()` for ISO codes, `neq()` to ban XXX/XTS, `length()` on names,
+  `re()` for ISO codes, `neq()` to ban XXX/XTS, `len()` on names,
   `min`/`max` cents bounds), plus the record bags whose `&:` spreads
   apply the types, force `id == key` via `key()`, and attach `refer()`
   links (`order.customerId`, `invoice.orderId`).
@@ -191,7 +191,7 @@ The one-file models in `gaps/` each evaluate on their own:
   the `must()` argument do not resolve against each record there, and
   the file is refused with `[aontu/no_path]`; `seed.aontu` writes that
   `must()` on each invoice record, where the same references resolve.
-- `list-length-template.aontu` attaches `length(min(1) & max(50))` to a
+- `list-length-template.aontu` attaches `len(min(1) & max(50))` to a
   list template. A sizing atom is read from the merged container, and
   here that is the template list itself, with no members, so the file
   is refused with `[aontu/constraint]`; `domain.aontu` leaves

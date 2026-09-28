@@ -7,7 +7,7 @@
 #
 # Everything here is chosen to cross exactly (reference-api.md, "What
 # crosses exactly"): re() as `pattern`, a scalar disjunction as
-# `enum` (and its '*' preference as `default`), length() on strings
+# `enum` (and its '*' preference as `default`), len() on strings
 # as minLength/maxLength, bounds as minimum/maximum, and the two
 # optional keys simply absent from `required`.
 
@@ -17,6 +17,6 @@ close({
   kind: created | updated | deleted
   actor: string & re("^[a-z0-9._\\-]+@corp[.]example$")
   priority: *normal | low | high
-  note?: string & length(min(1) & max(500))
+  note?: string & len(min(1) & max(500))
   retries?: integer & min(0) & max(5)
 })

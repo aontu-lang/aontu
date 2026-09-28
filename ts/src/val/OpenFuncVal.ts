@@ -10,10 +10,10 @@ import {
   AontuContext,
 } from '../ctx'
 
-import { makeNilErr } from '../err'
 
 
 import { FuncBaseVal } from './FuncBaseVal'
+import { SealVal, sealCjo } from './SealVal'
 import { BagVal } from '../val/BagVal'
 
 
@@ -25,6 +25,9 @@ class OpenFuncVal extends FuncBaseVal {
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+    if (0 === (spec.peg ?? []).length) {
+      this.cjo = sealCjo(false)
+    }
   }
 
 
@@ -41,7 +44,7 @@ class OpenFuncVal extends FuncBaseVal {
     let argval: any = args[0]
 
     if (null == argval) {
-      return makeNilErr(ctx, 'no_first_arg', this, undefined, 'close')
+      return this.place(new SealVal({ closed: false } as any, ctx))
     }
 
     if (argval.isMap || argval.isList) {

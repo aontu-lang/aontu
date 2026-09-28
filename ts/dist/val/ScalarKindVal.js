@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ScalarKindVal = exports.Path = exports.Null = exports.Integer = exports.Float = exports.BigInteger = exports.BigDecimal = void 0;
+exports.ScalarKindVal = exports.Path = exports.Null = exports.Integer = exports.Float = exports.BigInteger = exports.BigDecimal = exports.String_ = void 0;
 exports.kindParent = kindParent;
 exports.kindSubsumes = kindSubsumes;
 const type_1 = require("../type");
@@ -36,10 +36,9 @@ const KIND_PARENT = new Map([
     [Float, Number],
     [BigInteger, Number],
     [BigDecimal, Number],
-    [Path, String],
 ]);
 // The immediate lattice superior of a kind marker, or undefined when the
-// marker's superior is top.
+// marker's superior is any.
 function kindParent(kind) {
     return KIND_PARENT.get(kind);
 }
@@ -61,7 +60,14 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
         if (null == this.peg) {
             throw new err_1.AontuError('ScalarKindVal spec.peg undefined');
         }
+        this.emptyOk = String === this.peg && true === spec.emptyOk;
         this.dc = type_1.DONE;
+    }
+    clone(ctx, spec) {
+        return super.clone(ctx, { emptyOk: this.emptyOk, ...(spec ?? {}) });
+    }
+    withEmpty(ctx) {
+        return this.emptyOk ? this : this.clone(ctx, { emptyOk: true });
     }
     unify(peer, ctx) {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'ScalarKind', this, peer);
@@ -76,16 +82,20 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
         }
         else if (peerIsScalarVal) {
             let peerKind = peer.kind;
-            if (kindSubsumes(this.peg, peerKind)) {
-                out = peer;
+            if (!kindSubsumes(this.peg, peerKind)) {
+                out = (0, err_1.makeNilErr)(ctx, 'no_scalar_unify', this, peer);
+            }
+            else if (String === this.peg) {
+                out = this.emptyOk ? peer.withEmpty(ctx) :
+                    peer.withNonEmpty(ctx);
             }
             else {
-                out = (0, err_1.makeNilErr)(ctx, 'no_scalar_unify', this, peer);
+                out = peer;
             }
         }
         else if (peerIsScalarKind) {
             if (this.peg === peer.peg) {
-                out = this;
+                out = !this.emptyOk && true === peer.emptyOk ? peer : this;
             }
             else if (kindSubsumes(this.peg, peer.peg)) {
                 out = peer;
@@ -105,7 +115,7 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
     }
     get canon() {
         let ctor = this.peg;
-        return ctor.name.toLowerCase();
+        return ctor.name.toLowerCase() + (this.emptyOk ? '&empty()' : '');
     }
     superior() {
         const parent = kindParent(this.peg);
@@ -114,9 +124,15 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
             this.place(new ScalarKindVal({ peg: parent }));
     }
     same(peer) {
-        let out = peer?.isScalarKind ? this.peg === peer?.peg : super.same(peer);
+        let out = peer?.isScalarKind ?
+            this.peg === peer?.peg && this.emptyOk === peer?.emptyOk :
+            super.same(peer);
         return out;
     }
 } /* node:coverage ignore next 15 */
 exports.ScalarKindVal = ScalarKindVal;
+// The string kind's marker, under a name a module that has its own
+// `String` in scope can import.
+const String_ = String;
+exports.String_ = String_;
 //# sourceMappingURL=ScalarKindVal.js.map

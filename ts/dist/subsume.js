@@ -186,8 +186,8 @@ function subsumeNode(state, path, g0, s0) {
         record(state, 'compat_narrowed', path, g, s, 'the general kind admits no such value');
         return 'no';
     }
-    // Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
-    // map and itself, `list()` every list. The unit literals (`{}`,
+    // Container kinds (docs/design/PATHS.0.md): `map` subsumes every
+    // map and itself, `list` every list. The unit literals (`{}`,
     // `[]`) already subsume through the container rules; only the kind
     // former needs an arm.
     if (true === g?.isContainerKind) {
@@ -354,7 +354,7 @@ let topVal;
 function topLike() {
     if (null == topVal) {
         topVal = {
-            isTop: true, canon: 'top',
+            isTop: true, canon: 'any',
             site: { row: -1, col: -1, len: -1, src: '' },
         };
     }

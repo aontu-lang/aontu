@@ -18,7 +18,7 @@ profile: close({
 
   # Contact identity.
   email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
-  name: string & length(min(1))
+  name: string & len(min(1))
 
   # Legacy free-form direct-dial number.
   phone?: string

@@ -1102,7 +1102,7 @@ describe('pkg-tool', () => {
     const nested = publishable('1.0.0',
       'svc: { port: 8080, tags: ["a", "b"] }\nsecret: hide(1)\n')
     const gone = manifestOf(
-      publishable('1.1.0', 'svc: top\nsecret: hide(1)\n'), nested)
+      publishable('1.1.0', 'svc: any\nsecret: hide(1)\n'), nested)
     Assert.equal(gone.report.verdict, 'breaking')
     Assert.deepEqual(gone.report.findings.map((f: any) => [f.code, f.path]),
       [['compat_undetermined', '$.svc']])
@@ -1128,7 +1128,7 @@ describe('pkg-tool', () => {
       { verdict: 'error', findings: [] })
     Assert.equal(compatOutcome('a: *1|integer\n', 'a: **1|*2|integer\n').verdict, 'breaking')
     Assert.equal(compatOutcome('s: hide({ a: 2 })\n', 's: hide({ a: 1 })\n').verdict, 'ok')
-    Assert.equal(compatOutcome('svc: top\n', 'svc: { h: hide({ a: 1 }), k: integer }\n').verdict, 'ok')
+    Assert.equal(compatOutcome('svc: any\n', 'svc: { h: hide({ a: 1 }), k: integer }\n').verdict, 'ok')
     Assert.equal(compatOutcome('a: *2|integer\n', 'a: *2|**1|integer\n').verdict, 'ok')
     Assert.equal(compatOutcome('a: 1|2\n', 'a: 1|2\n').verdict, 'ok')
     Assert.equal(manifestOf(publishable('1.1.0', 'a: 1\n'),

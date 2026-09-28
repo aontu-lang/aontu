@@ -13,7 +13,7 @@ Role: type(
     rank: integer & min(0) & max(100)
     tenantOwner: boolean
     privileged: true
-    grants: unique() & [&: refer() & string]
+    grants: unique() & [&: refer() & path]
   })
   | close({
     desc: string
@@ -21,7 +21,7 @@ Role: type(
     tenantOwner: false
     privileged: false
     grants: unique() & [
-      &: refer() & string & neq(path($.permissions.admin_all))
+      &: refer() & path & neq(path($.permissions.admin_all))
     ]
   })
 )
@@ -72,11 +72,11 @@ roles: close({
 })
 
 # Registry invariant: exactly one role may hold the tenant.
-# filter()+length() works here because the counted entries and the
+# filter()+len() works here because the counted entries and the
 # atom are in the SAME document layer; across an include or the vet
 # meet this pattern silently miscounts (see README, "length across
 # layers"). hide() keeps the check out of generated output while it
 # still evaluates -- and still fails loudly on violation.
 registry_invariant: hide({
-  one_owner_role: length(1) & filter($.roles, { tenantOwner:true })
+  one_owner_role: len(1) & filter($.roles, { tenantOwner:true })
 })

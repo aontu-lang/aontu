@@ -180,6 +180,12 @@ class RefVal extends FeatureVal {
       this.peg.push(...part.peg)
     }
 
+    else if (true === part?.isScalarKind || true === part?.isContainerKind ||
+      true === part?.isTop ||
+      (true === part?.isConstraintKind && null == part.held)) {
+      this.peg.push(part.canon)
+    }
+
     else {
       this.peg.push(UNSPELLABLE_SEGMENT)
     }
@@ -488,10 +494,13 @@ class RefVal extends FeatureVal {
           out = out.clone(ctx, { dup: !out.holdsStaged })
 
           if (lifted) {
-            walk(out, (_key: string | number | undefined, val: Val) => {
+            // The copy carries a held constraint without its type.
+            out = walk(out, (_key: string | number | undefined, val: Val) => {
               val.mark.type = false
               val.mark.hide = false
-              return val
+              const held = (val as any).held
+              return true === (val as any).isConstraintKind && null != held ?
+                held : val
             })
           }
 

@@ -1,5 +1,5 @@
 # A `+` whose operand is a STAGED call is refused where it meets a
-# kind at a key INSIDE a map; the same sum at the top level stands up,
+# kind at a key INSIDE a map; the same sum at the any level stands up,
 # and so does one whose operands are both literals. Run:
 #   aontu staged-op-under-a-key.aontu
 # The string spelling below fails the same way and long predates list

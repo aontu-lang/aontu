@@ -1841,12 +1841,12 @@ func (a *Aontu) drawLadder(src, at, as string, max int) (string, []VetFinding) {
 	out := []string{}
 	if "mermaid" == as {
 		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
-		out = append(out, "graph TD", "  top((\"top\"))")
+		out = append(out, "graph TD", "  any((\"any\"))")
 		for i, c := range rungs {
 			out = append(out, "  c"+strconv.Itoa(i)+"[\""+esc(c.Canon)+"<br/>"+c.Role+" | "+esc(where(c))+"\"]")
 		}
 		out = append(out, "  val{{\""+esc(rep.Record.Value)+"\"}}")
-		prev := "top"
+		prev := "any"
 		for i := range rungs {
 			out = append(out, "  "+prev+" --> c"+strconv.Itoa(i))
 			prev = "c" + strconv.Itoa(i)
@@ -1855,12 +1855,12 @@ func (a *Aontu) drawLadder(src, at, as string, max int) (string, []VetFinding) {
 	} else {
 		esc := func(s string) string { return viewEscape(s, dotEsc) }
 		out = append(out, "digraph G {", "  rankdir=TB;", "  node [shape=box];",
-			"  top [shape=circle, label=\"top\"];")
+			"  any [shape=circle, label=\"any\"];")
 		for i, c := range rungs {
 			out = append(out, "  c"+strconv.Itoa(i)+" [label=\""+esc(c.Canon)+"\\n"+c.Role+" | "+esc(where(c))+"\"];")
 		}
 		out = append(out, "  val [shape=hexagon, label=\""+esc(rep.Record.Value)+"\"];")
-		prev := "top"
+		prev := "any"
 		for i := range rungs {
 			out = append(out, "  "+prev+" -> c"+strconv.Itoa(i)+";")
 			prev = "c" + strconv.Itoa(i)

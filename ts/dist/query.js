@@ -14,7 +14,7 @@ const exactjson_1 = require("./exactjson");
 const vet_1 = require("./vet");
 const keyorder_1 = require("./keyorder");
 const provenance_1 = require("./provenance");
-const TOP = 'top';
+const TOP = 'any';
 function nearestKey(want, have) {
     let best;
     let bestd = Infinity;

@@ -46,12 +46,11 @@ const KIND_PARENT = new Map<any, any>([
   [Float, Number],
   [BigInteger, Number],
   [BigDecimal, Number],
-  [Path, String],
 ])
 
 
 // The immediate lattice superior of a kind marker, or undefined when the
-// marker's superior is top.
+// marker's superior is any.
 function kindParent(kind: any): any {
   return KIND_PARENT.get(kind)
 }
@@ -86,6 +85,9 @@ type ScalarConstructor =
 class ScalarKindVal extends FeatureVal {
   isScalarKind = true
 
+  // `string & empty()`: the string kind that also admits "".
+  emptyOk: boolean
+
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
@@ -96,7 +98,18 @@ class ScalarKindVal extends FeatureVal {
       throw new AontuError('ScalarKindVal spec.peg undefined')
     }
 
+    this.emptyOk = String === this.peg && true === (spec as any).emptyOk
     this.dc = DONE
+  }
+
+
+  clone(ctx: AontuContext, spec?: ValSpec): Val {
+    return super.clone(ctx, { emptyOk: this.emptyOk, ...(spec ?? {}) } as any)
+  }
+
+
+  withEmpty(ctx: AontuContext): Val {
+    return this.emptyOk ? this : this.clone(ctx, { emptyOk: true } as any)
   }
 
 
@@ -117,16 +130,20 @@ class ScalarKindVal extends FeatureVal {
     else if (peerIsScalarVal) {
       let peerKind = (peer as any).kind
 
-      if (kindSubsumes(this.peg, peerKind)) {
-        out = peer
+      if (!kindSubsumes(this.peg, peerKind)) {
+        out = makeNilErr(ctx, 'no_scalar_unify', this, peer)
+      }
+      else if (String === this.peg) {
+        out = this.emptyOk ? (peer as any).withEmpty(ctx) :
+          (peer as any).withNonEmpty(ctx)
       }
       else {
-        out = makeNilErr(ctx, 'no_scalar_unify', this, peer)
+        out = peer
       }
     }
     else if (peerIsScalarKind) {
       if (this.peg === peer.peg) {
-        out = this
+        out = !this.emptyOk && true === (peer as any).emptyOk ? peer : this
       }
       else if (kindSubsumes(this.peg, peer.peg)) {
         out = peer
@@ -150,7 +167,7 @@ class ScalarKindVal extends FeatureVal {
 
   get canon() {
     let ctor = (this.peg as any)
-    return ctor.name.toLowerCase()
+    return ctor.name.toLowerCase() + (this.emptyOk ? '&empty()' : '')
   }
 
 
@@ -163,7 +180,9 @@ class ScalarKindVal extends FeatureVal {
 
 
   same(peer: any): boolean {
-    let out = peer?.isScalarKind ? this.peg === peer?.peg : super.same(peer)
+    let out = peer?.isScalarKind ?
+      this.peg === peer?.peg && this.emptyOk === peer?.emptyOk :
+      super.same(peer)
     return out
   }
 
@@ -171,7 +190,13 @@ class ScalarKindVal extends FeatureVal {
 } /* node:coverage ignore next 15 */
 
 
+// The string kind's marker, under a name a module that has its own
+// `String` in scope can import.
+const String_ = String
+
+
 export {
+  String_,
   BigDecimal,
   BigInteger,
   Float,

@@ -97,7 +97,7 @@ describe('nom', () => {
   test('namers-own-separators-and-styles', () => {
     Assert.equal(G('x: nom("a.b/c", pascal)').x, 'ABC')
     Assert.equal(G('x: nom("userId", dot)').x, 'user.id')
-    Assert.equal(G('x: nom("userId", path)').x, 'user/id')
+    Assert.equal(G('x: nom("userId", "path")').x, 'user/id')
     Assert.equal(G('x: nom("userId", title)').x, 'User Id')
 
     // `as-is` is the profile's way of saying "do nothing"; it is not a
@@ -141,11 +141,13 @@ describe('nom', () => {
   })
 
 
-  test('a-path-is-text', () => {
-    expect(G('z: x: {a: 1}\nz: y: nom(path($.z.x.a), kebab)').z.y)
-      .equal('$-z-x-a')
-    expect(G('z: x: {a: 1}\nz: y: nom(path(.x.a), kebab)').z.y)
-      .equal('x-a')
+  test('a-path-is-not-text', () => {
+    Assert.equal(
+      E('z: x: {a: 1}\nz: y: nom(path($.z.x.a), kebab)'),
+      'func_arg')
+    Assert.equal(
+      E('z: x: {a: 1}\nz: y: nom(path(.x.a), kebab)'),
+      'func_arg')
   })
 
 

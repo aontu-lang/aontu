@@ -10,9 +10,9 @@
 <path d="M32 80V90H50" class="av-line"/>
 <text x="52" y="94"><tspan class="av-t">allowed_roles</tspan><tspan class="av-m"> [&amp;:$.Role]</tspan></text>
 <path d="M32 80V110H50" class="av-line"/>
-<text x="52" y="114"><tspan class="av-t">description</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(24)...</tspan></text>
+<text x="52" y="114"><tspan class="av-t">description</tspan><tspan class="av-m"> string&amp;len(integer&amp;min(24)&amp;ma...</tspan></text>
 <path d="M32 80V130H50" class="av-line"/>
-<text x="52" y="134"><tspan class="av-t">owner</tspan><tspan class="av-m"> re(&quot;^[a-z][a-z0-9-]*@corp[.]e...</tspan></text>
+<text x="52" y="134"><tspan class="av-t">owner</tspan><tspan class="av-m"> string&amp;re(&quot;^[a-z][a-z0-9-]*@c...</tspan></text>
 <path d="M32 80V150H50" class="av-line"/>
 <text x="52" y="154"><tspan class="av-t">rate_limit</tspan><tspan class="av-m"> (2)</tspan></text>
 <path d="M32 80V170H50" class="av-line"/>

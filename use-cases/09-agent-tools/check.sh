@@ -112,7 +112,7 @@ ok "vet: sunset argument admitted with a deprecation warning (exit 0)"
 
 # FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16): this used
 # to pin a HOLE. The schema says
-# labels: [...] & length(max(10)) & unique(), and the sizing atoms
+# labels: [...] & len(max(10)) & unique(), and the sizing atoms
 # folded against the schema's OWN empty templated list the moment the
 # schema settled alone, so vet never re-checked them against the data
 # and duplicate labels vetted valid. A sizing verdict is now taken only

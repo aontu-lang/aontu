@@ -11,11 +11,11 @@ api: {
   &: close({
     method: "GET" | "POST" | "PATCH" | "DELETE"
     path: re("^/v1/[a-z0-9/{}_-]+$")
-    summary: string & length(min(8) & max(120))
+    summary: string & len(min(8) & max(120))
     auth: "bearer" | "none"
-    request?: top
-    query?: top
-    path_params?: top
+    request?: any
+    query?: any
+    path_params?: any
     responses: {}
   })
 

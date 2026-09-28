@@ -45,6 +45,7 @@ const err_1 = require("../dist/err");
 const lang_1 = require("../dist/lang");
 const site_1 = require("../dist/site");
 const CloseFuncVal_1 = require("../dist/val/CloseFuncVal");
+const OpenFuncVal_1 = require("../dist/val/OpenFuncVal");
 const CopyFuncVal_1 = require("../dist/val/CopyFuncVal");
 const HideFuncVal_1 = require("../dist/val/HideFuncVal");
 const MoveFuncVal_1 = require("../dist/val/MoveFuncVal");
@@ -93,6 +94,7 @@ const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
+const ConstraintKindVal_1 = require("../dist/val/ConstraintKindVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
 const BigDecimalVal_1 = require("../dist/val/BigDecimalVal");
@@ -258,7 +260,6 @@ function capture(fn) {
     (0, node_test_1.test)('func-no-arg-guards-via-api', () => {
         const ctx = CTX();
         const cases = [
-            ['close', new CloseFuncVal_1.CloseFuncVal({ peg: [] }), 'no_first_arg'],
             ['copy', new CopyFuncVal_1.CopyFuncVal({ peg: [] }), 'invalid-arg'],
             ['hide', new HideFuncVal_1.HideFuncVal({ peg: [] }), 'arg'],
             ['move', new MoveFuncVal_1.MoveFuncVal({ peg: [] }), 'arg'],
@@ -270,6 +271,12 @@ function capture(fn) {
             Assert.equal(out.isNil, true, name + ': expected a nil');
             Assert.equal(out.why, why, name + ': why');
         }
+        // `close()` with no argument is a seal, not a refusal.
+        const seal = new CloseFuncVal_1.CloseFuncVal({ peg: [] }).resolve(ctx, []);
+        Assert.equal(seal.isSeal, true);
+        Assert.equal(seal.closed, true);
+        Assert.equal(seal.clone(ctx).same(seal), true);
+        Assert.equal(seal.same(new OpenFuncVal_1.OpenFuncVal({ peg: [] }).resolve(ctx, [])), false);
         const pf = new PathFuncVal_1.PathFuncVal({ peg: [] });
         const prepared = pf.prepare(ctx, []);
         Assert.equal(prepared.length, 0);
@@ -431,14 +438,19 @@ function capture(fn) {
         Assert.equal(mk.same(new ContainerKindVal_1.MapKindVal({}, ctx)), true);
         Assert.equal(lk.same(mk), false);
         Assert.equal(lk.same(new ContainerKindVal_1.ListKindVal({}, ctx)), true);
-        // The func shells: resolved on first unify, so make() and
-        // funcname() never run from source.
-        const mf = new ContainerKindVal_1.MapFuncVal({ peg: [] }, ctx);
-        Assert.equal(mf.funcname(), 'map');
-        Assert.equal(mf.make(ctx, { peg: [] }).isMapFunc, true);
-        const lf = new ContainerKindVal_1.ListFuncVal({ peg: [] }, ctx);
-        Assert.equal(lf.funcname(), 'list');
-        Assert.equal(lf.make(ctx, { peg: [] }).isListFunc, true);
+    });
+    (0, node_test_1.test)('constraint-kind-api-only-arms', () => {
+        const ctx = CTX();
+        const bare = new ConstraintKindVal_1.ConstraintKindVal({}, ctx);
+        const held = new ConstraintKindVal_1.ConstraintKindVal({ held: new ConstraintVal_1.MinConstraintVal({ peg: [new IntegerVal_1.IntegerVal({ peg: 1 })] }, ctx) }, ctx);
+        Assert.equal(bare.same(new ConstraintKindVal_1.ConstraintKindVal({}, ctx)), true);
+        Assert.equal(bare.same(held), false);
+        Assert.equal(held.same(bare), false);
+        Assert.equal(held.same(held.clone(ctx)), true);
+        Assert.equal(bare.same(new ContainerKindVal_1.MapKindVal({}, ctx)), false);
+        Assert.equal(bare.clone(ctx).canon, 'constraint');
+        Assert.equal(bare.unify(bare, ctx), bare);
+        Assert.equal(bare.hold(new NilVal_1.NilVal({}), ctx).isNil, true);
     });
     (0, node_test_1.test)('path-func-api-only-arms', () => {
         const ctx = CTX();
@@ -720,8 +732,8 @@ function capture(fn) {
         Assert.match(label('a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:$.l l:1', 2), /\*reference\*/);
         Assert.match(label('n:1.5', 2), /\*float\*/);
         Assert.match(label('x:null', 2), /\*scalar\*/);
-        Assert.match(label('x:null|top', 2), /\*disjunct\*/);
-        Assert.match(label('x:top|top', 2), /\*top\*/);
+        Assert.match(label('x:null|any', 2), /\*disjunct\*/);
+        Assert.match(label('x:any|any', 2), /\*any\*/);
     });
     (0, node_test_1.test)('publish-for-unopened-document', () => {
         // A uri that changes between the store and the publish leaves the

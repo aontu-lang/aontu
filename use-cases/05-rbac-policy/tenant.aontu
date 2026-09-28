@@ -4,7 +4,7 @@
 # The tenant document schema: what an agent-emitted tenant candidate
 # must satisfy (aontu vet tenant.aontu data/<candidate>.json).
 tenant: {
-  name: string & length(min(1) & max(64))
+  name: string & len(min(1) & max(64))
 
   # Reserved slugs are excluded by identity (neq), the format by re().
   slug: string & re("^[a-z][a-z0-9-]{1,30}$") & neq(admin, root, system, api)
@@ -44,7 +44,7 @@ tenant: {
   # refer() inside a close()d spread template never settles
   # (mapval_no_gen) -- splitting the spreads is the workaround that
   # keeps both the typo protection and the role foreign-key check.
-  members: { &: close({ role:string invitedBy?:string }) }
+  members: { &: close({ role:path invitedBy?:string }) }
   members: { &: { role:refer() } }
 
   # "No MFA implies short sessions" as a disjunction of closed maps.

@@ -75,7 +75,7 @@ func runGet(argv []string, stdout, stderr io.Writer) int {
 	// --check` refused to make — the combination is a usage error.
 	if 0 < depth && aontu.QueryCanon != view && aontu.QueryTypes != view {
 		io.WriteString(stderr,
-			"aontu: --depth needs --canon or --types (JSON cannot say top)\n")
+			"aontu: --depth needs --canon or --types (JSON cannot say any)\n")
 		return 2
 	}
 

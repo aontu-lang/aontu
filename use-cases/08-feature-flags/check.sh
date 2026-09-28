@@ -233,7 +233,7 @@ grep -q "payments_legacy_gateway" "$OV" \
 ok "a refused set leaves the overlay untouched"
 
 # Over-length message on the CONSTRAINED field: ops_incident_banner
-# declares message?: string & length(max(80)), so the length
+# declares message?: string & len(max(80)), so the length
 # constraint refuses the write and nothing lands in the overlay.
 run setmsglong 1 model set \
   '$.flags.ops_incident_banner.message="this incident message is deliberately way over the eighty character maximum length"' \
@@ -242,7 +242,7 @@ has setmsglong "[aontu/constraint]" "over-length message code"
 has setmsglong "verdict: invalid"   "over-length verdict"
 grep -q "ops_incident_banner" "$OV" \
   && die "refused over-length set leaked a line into the overlay" || true
-ok "over-length message refused by length(max(80)); overlay untouched"
+ok "over-length message refused by len(max(80)); overlay untouched"
 
 # Narrowing set: the same constraint-only optional key accepts its
 # first concrete IN-RANGE value (this NARROWS, it does not contradict).

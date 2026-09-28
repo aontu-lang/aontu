@@ -42,7 +42,7 @@
 <path d="M8 20V410H26" class="av-line"/>
 <text x="28" y="414" class="av-t">types</text>
 <path d="M32 420V430H50" class="av-line"/>
-<text x="52" y="434"><tspan class="av-t">DisplayName</tspan><tspan class="av-m"> string&amp;length(integer&amp;min(1)&amp;...</tspan></text>
+<text x="52" y="434"><tspan class="av-t">DisplayName</tspan><tspan class="av-m"> string&amp;len(integer&amp;min(1)&amp;max...</tspan></text>
 <path d="M32 420V450H50" class="av-line"/>
 <text x="52" y="454"><tspan class="av-t">Email</tspan><tspan class="av-m"> re(&quot;^[A-Za-z0-9._%+-]+@[A-Za-...</tspan></text>
 <path d="M32 420V470H50" class="av-line"/>

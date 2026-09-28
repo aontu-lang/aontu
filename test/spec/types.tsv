@@ -1,0 +1,140 @@
+# THE TYPE KEYWORDS: `any`, `map`, `list`, `path` and `constraint`.
+#
+# The lattice runs from `any` at the top to `nil` at the bottom. `map`,
+# `list`, `path` and `constraint` are type keywords like `string`: a
+# bare keyword is the type, and the word itself is a string only when
+# quoted. They replace the calls `map()` and `list()` and the keyword
+# `top`, which no longer exist, and `len()` replaces `length()`. `path`
+# is its own kind, not a kind of `string`, and `path()` with no
+# argument is the same kind.
+#
+# `constraint` is the type of constraints. It HOLDS the constraints it
+# meets and refuses a concrete value whichever order the terms fold in,
+# and a reference carries the held constraint, not the type, so a named
+# constraint still applies where it is used.
+#
+# Every expectation below was probed in both engines.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+any-admits	gens	a: any & 1	{"a":1}
+any-canon	canon	a: any	{"a":any}
+any-unmet	errc	a: any	mapval_no_gen
+top-is-a-string	gens	a: top	{"a":"top"}
+map-kind-admits-a-map	gens	a: map & {x:1}	{"a":{"x":1}}
+map-kind-refuses-a-list	errc	a: map & [1]	map
+map-kind-unmet	errc	a: map	mapval_no_gen
+map-kind-canon	canon	a: map	{"a":map}
+list-kind-admits-a-list	gens	a: list & [1]	{"a":[1]}
+list-kind-canon	canon	a: list	{"a":list}
+map-call-is-gone	errc	a: map()	unknown_function
+list-call-is-gone	errc	a: list()	unknown_function
+kind-call-is-not-a-call	errc	a: string()	unknown_function
+length-is-gone	errc	a: length(3)	unknown_function
+len-admits	gens	a: string & len(3) & abc	{"a":"abc"}
+len-canon	canon	a: len(2)	{"a":len(integer&min(2)&max(2))}
+keywords-are-keys	gens	map: 1\nlist: 2\npath: 3\nconstraint: 4\nany: 5	{"any":5,"constraint":4,"list":2,"map":1,"path":3}
+quoted-keywords-are-strings	gens	a: "map"\nb: "list"\nc: "path"\nd: "constraint"\ne: "any"	{"a":"map","b":"list","c":"path","d":"constraint","e":"any"}
+path-kind-admits-a-path	gens	b: 1\na: path & path($.b)	{"a":"$.b","b":1}
+path-call-without-argument-is-the-kind	canon	a: path()	{"a":path}
+path-kind-is-its-own-superior	canon	a: super(path($.x))	{"a":path}
+constraint-holds	canon	a: constraint & min(3)	{"a":constraint&min(3)}
+constraint-holds-either-order	canon	a: min(3) & constraint	{"a":constraint&min(3)}
+constraint-unmet	errc	a: constraint & min(3)	mapval_no_gen
+constraint-refuses-a-value	errc	a: constraint & 5	constraint_kind
+constraint-refuses-a-met-value	errc	a: constraint & min(3) & 5	constraint_kind
+constraint-refuses-a-met-value-reordered	errc	a: 5 & min(3) & constraint	constraint_kind
+constraint-refuses-a-map	errc	a: constraint & {x:1}	constraint_kind
+constraint-refuses-a-container-kind	errc	a: constraint & map	constraint_kind
+constraint-with-a-domain	canon	a: constraint & integer & min(0)	{"a":constraint&integer&min(0)}
+constraint-across-statements	canon	a: constraint\na: min(2)\na: max(5)	{"a":constraint&min(2)&max(5)}
+constraint-bare	canon	a: constraint & constraint	{"a":constraint}
+constraint-string-atoms	canon	a: constraint & re("x") & len(2)	{"a":constraint&re("x")&len(integer&min(2)&max(2))}
+constraint-reads-a-reference	canon	x: 3\na: constraint & min($.x)	{"a":constraint&min(3),"x":3}
+constraint-reads-a-later-reference	canon	a: constraint & min($.x)\nx: 3	{"a":constraint&min(3),"x":3}
+constraint-with-refer	canon	b: {}\na: constraint & refer()	{"a":refer()&constraint,"b":{}}
+constraint-in-a-template	errc	a: {&: constraint & min(1), p: {}}	constraint
+named-constraint-applies	gens	types: type({ uint8: constraint & integer & min(0) & max(255) })\nport: $.types.uint8 & 80	{"port":80}
+named-constraint-refuses	errc	types: type({ uint8: constraint & integer & min(0) & max(255) })\nport: $.types.uint8 & 300	constraint
+reference-to-a-bare-constraint	canon	u: constraint\nv: $.u	{"u":constraint,"v":constraint}
+reference-carries-a-nested-constraint	canon	t: {p: constraint & min(1)}\nx: $.t & {p: 5}	{"t":{"p":constraint&min(1)},"x":{"p":5}}
+reference-carries-a-constraint-in-a-list	canon	t: [constraint & min(1)]\nv: $.t & [5]	{"t":[constraint&min(1)],"v":[5]}
+reference-carries-a-constraint-in-a-disjunction	canon	t: (constraint & min(1)) | "x"\nv: $.t & 5	{"t":constraint&min(1)|"x","v":5}
+
+# `string` MEANS A NON-EMPTY STRING; `empty()` ADMITS "".
+#
+# `empty()` waives the requirement rather than adding one, which is not
+# a meet, so it is carried as two FLAGS on the string -- "met string"
+# and "met empty()" -- that every meet ORs together, and generation
+# decides. The answer is the same whichever of them meets "" first,
+# including across statements; the cost is that a refused "" is not
+# pruned from a disjunction. `empty()` only unifies with strings.
+string-admits-a-non-empty-string	gens	a: string & x	{"a":"x"}
+string-refuses-the-empty-string	errc	b: string & ""	string_empty
+string-empty-canon	canon	b: string & ""	{"b":string&""}
+empty-admits-the-empty-string	gens	c: string & empty() & ""	{"c":""}
+empty-admits-in-any-order	gens	c: "" & string & empty()	{"c":""}
+empty-admits-in-any-order-2	gens	c: "" & empty() & string	{"c":""}
+empty-alone-admits-the-empty-string	gens	c: empty() & ""	{"c":""}
+empty-refuses-a-number	errc	c: empty() & 1	empty_domain
+empty-refuses-a-number-kind	errc	c: integer & empty()	empty_domain
+empty-refuses-a-number-constraint	errc	c: min(1) & empty()	empty_domain
+empty-refuses-a-path	errc	c: path & empty()	empty_domain
+empty-unmet	errc	c: empty()	mapval_no_gen
+empty-canon	canon	c: empty()	{"c":empty()}
+string-and-empty-canon	canon	c: string & empty()	{"c":string&empty()}
+string-constraint-refuses-the-empty-string	errc	c: string & re("^a*$") & ""	string_empty
+string-constraint-keeps-its-kind	canon	c: string & re("^a*$")	{"c":string&re("^a*$")}
+string-constraint-with-empty-admits	gens	c: string & re("^a*$") & empty() & ""	{"c":""}
+constraint-without-string-admits-the-empty-string	gens	c: re("^a*$") & ""	{"c":""}
+empty-with-a-pattern-canon	canon	c: empty() & re("^a*$")	{"c":re("^a*$")&empty()}
+string-length-refuses-the-empty-string	errc	c: string & len(max(3)) & ""	string_empty
+string-length-with-empty-admits	gens	c: string & empty() & len(max(2)) & ""	{"c":""}
+string-bounds-still-apply	gens	c: string & min("a") & b	{"c":"b"}
+empty-is-a-constraint	canon	c: constraint & empty()	{"c":constraint&empty()}
+string-template-refuses-the-empty-string	errc	c: {&: string}\nc: {x: ""}	string_empty
+empty-across-statements	gens	a: {x: string}\na: {x: ""}\na: {x: empty()}	{"a":{"x":""}}
+empty-across-statements-reordered	gens	a: {x: ""}\na: {x: empty()}\na: {x: string}	{"a":{"x":""}}
+empty-through-a-reference	canon	s: string & empty()\nt: $.s & ""	{"s":string&empty(),"t":""}
+a-refused-empty-string-is-not-pruned	errc	c: string & ""|"z"	disjunct_no_gen
+string-in-a-list-refuses-the-empty-string	errc	c: [string & ""]	string_empty
+
+# A KEYWORD IS A KEY TOO, AND A REFERENCE CAN NAME IT. A segment spelled
+# with a type keyword (`.path`, `$.a.map`, `$.a.string`) names the key of
+# that spelling, not the type.
+ref-segment-path	gens	s: { kind: http, path: "/a" }\nx: $.s.path	{"s":{"kind":"http","path":"/a"},"x":"/a"}
+ref-segment-every-keyword	gens	a: {string: s1, map: m1, list: l1, any: y1, constraint: c1, path: p1, integer: 2}\nb: [$.a.string, $.a.map, $.a.list, $.a.any, $.a.constraint, $.a.path, $.a.integer]	{"a":{"any":"y1","constraint":"c1","integer":2,"list":"l1","map":"m1","path":"p1","string":"s1"},"b":["s1","m1","l1","y1","c1","p1",2]}
+ref-segment-relative-keyword	gens	z: { path: "p", q: .path }	{"z":{"path":"p","q":"p"}}
+
+# `close()` AND `open()` WITH NO ARGUMENT seal, or unseal, the map or
+# list they meet and leave any other value as it is. `close()` folds last
+# in a conjunct, so it closes the whole meet; `open()` folds first, so it
+# lifts a seal before anything is added. When two seals meet, `close()`
+# wins: closed is the more specific.
+seal-close-an-empty-map	gens	a: close() & {}	{"a":{}}
+seal-open-an-empty-map	gens	a: open() & {}	{"a":{}}
+seal-close-folds-last	gens	a: close() & {x:1} & {y:2}	{"a":{"x":1,"y":2}}
+seal-close-across-statements	gens	a: close() & {x:1}\na: {y:2}	{"a":{"x":1,"y":2}}
+seal-open-lifts-a-seal-first	gens	a: open() & close({x:1}) & {y:2}	{"a":{"x":1,"y":2}}
+seal-close-leaves-a-scalar	gens	a: close() & 42	{"a":42}
+seal-close-unmet	errc	a: close()	mapval_no_gen
+seal-close-canon	canon	a: close()	{"a":close()}
+seal-close-beats-open	gens	a: close() & open() & {}	{"a":{}}
+seal-closed-through-a-reference	errc	t: close() & {x: integer}\nv: $.t & {y: 1}	closed
+seal-close-a-list	errc	a: close() & [1,2]\nb: $.a & [1,2,3]	closed
+seal-close-folds-last-over-a-list	gens	a: close() & [1,2] & [1,2,3]	{"a":[1,2,3]}
+
+# `path` AND `string` SHARE THE STRING DOMAIN, whose atoms (`neq`, `re`,
+# `len`) read a spelling, but they are different kinds: a constraint
+# remembers which kind it met, admits only values of that kind, and
+# refuses the other kind and `empty()` beside a path.
+path-constraint-holds	canon	p: {a:{}, b:{}}\nx: path & neq(path($.p.a))	{"p":{"a":{},"b":{}},"x":path&neq(path($.p.a))}
+path-constraint-admits-a-path	canon	p: {a:{}, b:{}}\nx: path & neq(path($.p.a)) & path($.p.b)	{"p":{"a":{},"b":{}},"x":path($.p.b)}
+path-constraint-refuses-the-excluded-path	errc	p: {a:{}, b:{}}\nx: path & neq(path($.p.a)) & path($.p.a)	constraint
+path-constraint-refuses-a-string	errc	x: path & neq(path($.p.a)) & "x"	constraint
+string-constraint-refuses-a-path	errc	x: string & neq("a") & path($.p.b)	constraint
+path-pattern-reads-the-spelling	canon	x: path & re("^[$]") & path($.p)\np: 1	{"p":1,"x":path($.p)}
+path-and-string-constraint-conflict	errc	x: path & string & neq("a")	constraint
+path-constraint-merges-exclusions	canon	x: neq(path($.p.a)) & path & neq("zz")	{"x":path&neq(path($.p.a),"zz")}
+path-constraint-refuses-empty	errc	x: path & re("x") & empty()	empty_domain
+path-constraint-refuses-empty-reordered	errc	x: empty() & re("x") & path	empty_domain
+path-constraint-refuses-empty-across-constraints	errc	x: (path & re("x")) & (empty() & re("y"))	empty_domain

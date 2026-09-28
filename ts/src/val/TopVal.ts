@@ -45,7 +45,7 @@ class TopVal extends Val {
     return peer.unify(this, ctx)
   }
 
-  get canon() { return 'top' }
+  get canon() { return 'any' }
 
   superior(): Val {
     return this

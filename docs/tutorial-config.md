@@ -209,7 +209,7 @@ port: "high"
 Cannot unify value: "high" with value: integer
 ```
 
-The built-in kinds are `string`, `boolean`, `top` (the catch-all that
+The built-in kinds are `string`, `boolean`, `any` (the catch-all that
 admits anything), and the numeric family: `number` covers every
 numeric value, over its four leaves `integer`, `float`, `biginteger`
 and `bigdecimal`. Say `number` when you mean "some number", and name a

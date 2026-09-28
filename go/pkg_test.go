@@ -682,7 +682,7 @@ func TestPkgManifestGateChecksOutcomeAsWellAsAcceptance(t *testing.T) {
 	// Below the top level: a map that becomes a kind, a list element,
 	// and a key that vanishes; hidden values generate nothing to lose.
 	nested := pkgPublishable(t, "1.0.0", "svc: { port: 8080, tags: [\"a\", \"b\"] }\nsecret: hide(1)\n")
-	gone := PkgManifestOf(pkgPublishable(t, "1.1.0", "svc: top\nsecret: hide(1)\n"), nested, nil)
+	gone := PkgManifestOf(pkgPublishable(t, "1.1.0", "svc: any\nsecret: hide(1)\n"), nested, nil)
 	if "breaking" != gone.Verdict || 1 != len(gone.Findings) ||
 		"compat_undetermined" != gone.Findings[0].Code || "$.svc" != gone.Findings[0].Path {
 		t.Fatalf("verdict %q findings %+v", gone.Verdict, gone.Findings)
@@ -728,7 +728,7 @@ func TestPkgManifestGateChecksOutcomeAsWellAsAcceptance(t *testing.T) {
 		t.Fatalf("report %+v", r)
 	}
 	// A bag whose children generate nothing loses nothing when it goes.
-	if r := CompatOutcome("svc: top\n", "svc: { h: hide({ a: 1 }), k: integer }\n", nil); "ok" != r.Verdict {
+	if r := CompatOutcome("svc: any\n", "svc: { h: hide({ a: 1 }), k: integer }\n", nil); "ok" != r.Verdict {
 		t.Fatalf("report %+v", r)
 	}
 	// A prior that does not evaluate cannot be gated against: error.

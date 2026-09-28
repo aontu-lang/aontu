@@ -49,7 +49,7 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(G('z:x:{a:61} z:y:(.x.a)')).equal({ z: { x: { a: 61 }, y: 61 } });
         (0, expect_1.expect)(G('z:x:{a:62} z:y:.x.a')).equal({ z: { x: { a: 62 }, y: 62 } });
         (0, expect_1.expect)(G('z:x:{a:63} z:y:(x.a)')).equal({ z: { x: { a: 63 }, y: 63 } });
-        // path() CAPTURES (docs/design/PATHS.0.md): the value is the
+        // path CAPTURES (docs/design/PATHS.0.md): the value is the
         // address spelling, not the value found there.
         (0, expect_1.expect)(G('z:x:{a:64} z:y:path(x.a)')).equal({ z: { x: { a: 64 }, y: '.x.a' } });
         (0, expect_1.expect)(G('z:x:{a:65} z:y:path($.z.x.a)')).equal({ z: { x: { a: 65 }, y: '$.z.x.a' } });
@@ -236,8 +236,10 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(G('a:b:key()')).equal({ a: { b: 'a' } });
         (0, expect_1.expect)(G('a:key()')).equal({ a: '' });
         (0, expect_1.expect)(G('key()')).equal('');
-        (0, expect_1.expect)(G('key() & string')).equal('');
-        (0, expect_1.expect)(G('key() & (*a|string)')).equal('');
+        // `string` refuses "", and `empty()` admits it.
+        (0, expect_1.expect)(() => G('key() & string')).throw(/string_empty/);
+        (0, expect_1.expect)(G('key() & string & empty()')).equal('');
+        (0, expect_1.expect)(() => G('key() & (*a|string)')).throw(/string_empty/);
         (0, expect_1.expect)(() => G('key() & *a|string')).throw(/disjunct_no_gen/);
         (0, expect_1.expect)(() => G('key() & number')).throw(/scalar/);
         (0, expect_1.expect)(G('a:b:c:key(0)')).equal({ a: { b: { c: 'c' } } });
@@ -447,7 +449,7 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(N('hide([1,2])')).equal('[1,2]');
     });
     (0, node_test_1.test)('hide-top', () => {
-        (0, expect_1.expect)(G('a:hide(top) b:1')).equal({ b: 1 });
+        (0, expect_1.expect)(G('a:hide(any) b:1')).equal({ b: 1 });
     });
     (0, node_test_1.test)('path-canon', () => {
         const N = (x) => new unify_1.Unify(x, lang).res.canon;
@@ -460,7 +462,7 @@ const G = (x) => A.generate(x);
         (0, expect_1.expect)(N('path(".foo")')).equal('path(.foo)');
         (0, expect_1.expect)(N('path("$.a.b")')).equal('path($.a.b)');
         (0, expect_1.expect)(N('path("foo-bar")')).equal('path(.foo-bar)');
-        (0, expect_1.expect)(N('path()')).equal('path()');
+        (0, expect_1.expect)(N('path')).equal('path');
         (0, expect_1.expect)(N('path("")')).equal('nil');
     });
     (0, node_test_1.test)('path-number', () => {

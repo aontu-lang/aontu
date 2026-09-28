@@ -558,7 +558,9 @@ function pendingCtx() {
         const of2 = new OpenFuncVal_1.OpenFuncVal({ peg: [] });
         Assert.ok(of2.make(ctx, { peg: [] }) instanceof OpenFuncVal_1.OpenFuncVal);
         Assert.equal(of2.funcname(), 'open');
-        Assert.equal(of2.resolve(ctx, []).isNil, true);
+        const seal = of2.resolve(ctx, []);
+        Assert.equal(seal.isSeal, true);
+        Assert.equal(seal.closed, false);
         const pf = new PathFuncVal_1.PathFuncVal({ peg: [new IntegerVal_1.IntegerVal({ peg: 1 })] });
         Assert.ok(null != pf.unify((0, top_1.top)(), ctx));
     });

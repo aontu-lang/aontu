@@ -168,7 +168,7 @@ ok "gap: cross-field must() in a spread template does not re-anchor (no_path)"
 
 run glen 1 -- "$DIR/gaps/list-length-template.aontu"
 has glen '[aontu/constraint]'
-ok "gap: length() on a list template folds against the template itself"
+ok "gap: len() on a list template folds against the template itself"
 
 run guniq 1 -- "$DIR/gaps/unique-by-field.aontu"
 has guniq '[aontu/constraint]'

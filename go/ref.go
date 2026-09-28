@@ -156,6 +156,14 @@ func (rv *RefVal) append(part any) {
 			}
 		}
 		rv.peg = append(rv.peg, p.peg...)
+	case *ScalarKindVal, *MapKindVal, *ListKindVal, *TopVal:
+		rv.peg = append(rv.peg, p.(Val).Canon())
+	case *ConstraintKindVal:
+		if nil == p.held {
+			rv.peg = append(rv.peg, p.Canon())
+		} else {
+			rv.peg = append(rv.peg, unspellableSegment)
+		}
 	default:
 		rv.peg = append(rv.peg, unspellableSegment)
 	}
@@ -461,6 +469,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	if lifted {
 		walkMark(out, true, false, true, false)
+		out = unwrapConstraintKind(out)
 	}
 	if rv.copyFound {
 		forceRootPath(out, cp(rv.path))

@@ -53,7 +53,7 @@ $
 │   ├── ListUsersQuery (4)
 │   └── UserPage (4)
 └── types
-    ├── DisplayName string&length(integer&min(1)&...
+    ├── DisplayName string&len(integer&min(1)&...
     ├── Email re("^[A-Za-z0-9._%+-]+@[A-Za-...
     ├── Page integer&min(1)
     ├── PageSize integer&min(1)&max(100)
@@ -76,7 +76,7 @@ than its value.
 
 | file | role | constructs |
 |---|---|---|
-| `types.aontu` | shared wire vocabulary (`$.types.*`) | `hide()`, `re()`, `min`/`max`, `length()`, enum disjunctions |
+| `types.aontu` | shared wire vocabulary (`$.types.*`) | `hide()`, `re()`, `min`/`max`, `len()`, enum disjunctions |
 | `entities.aontu` | `User`, `Project` | `close()`, optional `k?:`, refs |
 | `errors.aontu` | the error envelope | nested `close()`, inline list-spread template |
 | `messages.aontu` | request, query and page shapes: the vet anchors | `close()`, refs, `[ &: $.entities.User ]` |
@@ -93,7 +93,7 @@ generated output, and every other file references it. `re()` implies
 `string`, and where a pattern exists its quantifiers double as length
 bounds (`Slug` is 3 to 40 characters by its regex alone);
 `DisplayName` has no pattern, so it is sized with
-`length(min(1) & max(80))`. `Timestamp` spells optional fractional
+`len(min(1) & max(80))`. `Timestamp` spells optional fractional
 seconds as an unquantified alternation, `(Z|\.\d{3}Z)`, because `re()`
 refuses a quantifier on a group that itself contains a quantifier (the
 rule and its reason are in [the language
@@ -159,7 +159,7 @@ both spellings.
 8. Wrong types (`"name": 42`, `"send_invite": "true"`) are refused,
    exit 1, with `[aontu/constraint]` and `[aontu/no_scalar_unify]`;
    the constraint finding carries
-   `expected: string&length(integer&min(1)&max(80))`.
+   `expected: string&len(integer&min(1)&max(80))`.
 9. A malformed email and `"role": "owner"` are refused: the constraint
    finding shows the `Email` pattern as `expected`, and the
    `[aontu/empty]` finding lists the alternatives with the enum's own
@@ -180,7 +180,7 @@ both spellings.
     ```
     $.msg.CreateUserRequest.name: mapval_required [incomplete]
       [aontu/mapval_required]: Cannot resolve value at path $.msg.CreateUserRequest.name
-      schema: types.aontu:28:25 (string&length(integer&min(1)&max(80)))
+      schema: types.aontu:28:25 (string&len(integer&min(1)&max(80)))
     ```
 
 11. A missing `role`, a required enum, is `incomplete` too, exit 3:

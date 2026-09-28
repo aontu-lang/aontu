@@ -295,7 +295,7 @@ class RelVal extends FeatureVal {
   // The type to flow into each target; TOP when `rel()` has none.
   tval: Val
   // Container-level constraints met before the container arrived
-  // (`rel() & length(min(1)) & [...]`): they meet the REWRITTEN
+  // (`rel() & len(min(1)) & [...]`): they meet the REWRITTEN
   // container, exactly as refer's held meets the link.
   held?: Val
 

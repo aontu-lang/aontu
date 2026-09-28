@@ -31,12 +31,12 @@ float-meet-integer-err	err	a:float & integer	Cannot unify
 float-meet-float-canon	canon	a:float & float	{"a":float}
 #
 # The super() ladder gains a real rung: a concrete value lifts to its
-# leaf, a leaf lifts to number, and number lifts to top.
+# leaf, a leaf lifts to number, and number lifts to any.
 super-float-value-canon	canon	x:super(1.5)	{"x":float}
 super-integer-value-canon	canon	x:super(1)	{"x":integer}
 super-integer-kind-canon	canon	x:super(integer)	{"x":number}
 super-float-kind-canon	canon	x:super(float)	{"x":number}
-super-number-kind-canon	canon	x:super(number)	{"x":top}
+super-number-kind-canon	canon	x:super(number)	{"x":any}
 super-float-value-unify	gen	x:super(1.5) & 2.5	{"x":2.5}
 super-float-value-unify-integer-err	err	x:super(1.5) & 2	Cannot unify scalar values
 #
@@ -172,8 +172,8 @@ float-meet-number-canon	canon	a:float & number	{"a":float}
 integer-meet-float-err	err	a:integer & float	Cannot unify
 number-meet-string-err	err	a:number & string	Cannot unify
 float-meet-string-err	err	a:float & string	Cannot unify
-float-meet-top-canon	canon	a:float & top	{"a":float}
-number-meet-top-canon	canon	a:top & number	{"a":number}
+float-meet-top-canon	canon	a:float & any	{"a":float}
+number-meet-top-canon	canon	a:any & number	{"a":number}
 # `number` is a pure supertype, so meeting it with BOTH leaves is still
 # a meet of two disjoint leaves.
 number-meet-both-leaves-err	err	a:number & integer & float	Cannot unify
@@ -192,11 +192,11 @@ float-admits-negative-zero-canon	canon	a:-0.0 & float	{"a":0.0}
 integer-rejects-integral-float-err	err	a:0.0 & integer	Cannot unify
 #
 # super() beyond the numeric family, and two rungs at once.
-super-string-kind-canon	canon	x:super(string)	{"x":top}
-super-boolean-kind-canon	canon	x:super(boolean)	{"x":top}
+super-string-kind-canon	canon	x:super(string)	{"x":any}
+super-boolean-kind-canon	canon	x:super(boolean)	{"x":any}
 super-integer-two-rungs-canon	canon	x:super(super(1))	{"x":number}
 super-float-two-rungs-canon	canon	x:super(super(1.5))	{"x":number}
-super-number-three-rungs-canon	canon	x:super(super(number))	{"x":top}
+super-number-three-rungs-canon	canon	x:super(super(number))	{"x":any}
 #
 # `float` and `number` inside disjuncts and as type constraints.
 float-disjunct-canon	canon	a:float|integer	{"a":float|integer}

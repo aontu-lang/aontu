@@ -14,7 +14,7 @@ profile: close({
     use: "$.profile.contact.phone"
     since: "2.0.0"
   })
-  name: string & length(min(1))
+  name: string & len(min(1))
   email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
   id: string & re("^C[0-9]{7}$")
 })

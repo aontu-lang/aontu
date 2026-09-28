@@ -123,8 +123,8 @@ emit-body-disjunct	errc	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[.p | y]})\
 # dispatches; a scalar node simply has no field for a reference to name.
 emit-scalar-nodes	gens	o:emit([1,2],{match:integer,body:[n]})\n	{"o":["n","n"]}
 emit-ref-scalar-node	errc	o:emit([1],{match:integer,body:[.a]})\n	emit_ref
-emit-ref-list-index	gens	s:[{l:[a,b]}]\no:emit($.s,{match:{l:list()},body:[.l.1]})\n	{"o":["b"],"s":[{"l":["a","b"]}]}
-emit-ref-list-index-past-end	errc	s:[{l:[a]}]\no:emit($.s,{match:{l:list()},body:[.l.9]})\n	emit_ref
+emit-ref-list-index	gens	s:[{l:[a,b]}]\no:emit($.s,{match:{l:list},body:[.l.1]})\n	{"o":["b"],"s":[{"l":["a","b"]}]}
+emit-ref-list-index-past-end	errc	s:[{l:[a]}]\no:emit($.s,{match:{l:list},body:[.l.9]})\n	emit_ref
 emit-ref-through-scalar	errc	s:[{p:x}]\no:emit($.s,{match:{p:string},body:[.p.q]})\n	emit_ref
 # A CALL IS NOT A TABLE. `emit`'s table argument is never driven, so a
 # generator written there arrives as the call it is, and a call is

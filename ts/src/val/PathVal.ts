@@ -143,7 +143,7 @@ class PathKindVal extends ScalarKindVal {
   }
 
   get canon() {
-    return 'path()'
+    return 'path'
   }
 
 } /* node:coverage ignore next 6 */

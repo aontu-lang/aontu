@@ -3,7 +3,7 @@
 #
 # `invoice.total = sum(lines[].amountCents)` was the single most natural
 # invariant in this domain and it was inexpressible: there was no
-# sum/fold/reduce, and `length()` could COUNT members but nothing could
+# sum/fold/reduce, and `len()` could COUNT members but nothing could
 # ADD them, so the model's totals were self-declared and spot-checked
 # with per-record must() (seed.aontu). A model asserting what it should be
 # able to COMPUTE.

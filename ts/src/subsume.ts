@@ -273,8 +273,8 @@ export function subsumeNode(
     return 'no'
   }
 
-  // Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
-  // map and itself, `list()` every list. The unit literals (`{}`,
+  // Container kinds (docs/design/PATHS.0.md): `map` subsumes every
+  // map and itself, `list` every list. The unit literals (`{}`,
   // `[]`) already subsume through the container rules; only the kind
   // former needs an arm.
   if (true === (g as any)?.isContainerKind) {
@@ -479,7 +479,7 @@ let topVal: any
 function topLike(): any {
   if (null == topVal) {
     topVal = {
-      isTop: true, canon: 'top',
+      isTop: true, canon: 'any',
       site: { row: -1, col: -1, len: -1, src: '' },
     }
   }

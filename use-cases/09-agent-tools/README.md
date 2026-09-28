@@ -43,7 +43,7 @@ $
 ├── SideEffect "readonly"|"write"|"destructive"
 ├── ToolSpec
 │   ├── allowed_roles [&:$.Role]
-│   ├── description string&length(integer&min(24)...
+│   ├── description string&len(integer&min(24)...
 │   ├── owner re("^[a-z][a-z0-9-]*@corp[.]e...
 │   ├── rate_limit (2)
 │   ├── requires_approval boolean
@@ -104,9 +104,9 @@ than its value.
   `aontu vet --at $.guard.<tool> guard.aontu call.json` is the
   dispatcher's one command.
 - **Constraint atoms are the guardrail vocabulary**: `re()` for URL /
-  email / id shapes, `min`/`max` bounds, `length()` on strings,
-  `length(max(n))` and `unique()` on lists, enum disjunctions for
-  `method`, `priority`, `scope`, `side_effect`. A `length(min(n))`
+  email / id shapes, `min`/`max` bounds, `len()` on strings,
+  `len(max(n))` and `unique()` on lists, enum disjunctions for
+  `method`, `priority`, `scope`, `side_effect`. A `len(min(n))`
   written on a templated list (`[&: ...]`) refuses at composition, so
   "at least one" is a dispatcher rule rather than a schema one.
 - **`type()` marks** keep every schema out of the generated JSON while
@@ -142,10 +142,10 @@ than its value.
 
   $.guard.http_request.url: constraint [conflict]
     [aontu/constraint]: Cannot unify values at path $.guard.http_request.url
-    expected: re("^https://")&length(integer&min(0)&max(2048))
+    expected: re("^https://")&len(integer&min(0)&max(2048))
     actual:   "http://169.254.169.254/latest/meta-data/"
     data: data/call-http-bad.json:4:12 ("http://169.254.169.254/latest/meta-data/")
-    schema: registry.aontu:64:19 (re("^https://")&length(integer&min(0)&max(2048)))
+    schema: registry.aontu:64:19 (re("^https://")&len(integer&min(0)&max(2048)))
   $.guard.http_request.method: empty [conflict]
     [aontu/empty]: Cannot unify values at path $.guard.http_request.method
     data: data/call-http-bad.json:5:15 ("DELETE")
@@ -213,7 +213,7 @@ than its value.
 11. `data/call-ticket-dup-labels.json` repeats a label: `verdict:
     invalid`, exit 1, `[aontu/constraint]` at
     `$.guard.create_ticket.labels` against
-    `length(integer&min(0)&max(10))&unique()`.
+    `len(integer&min(0)&max(10))&unique()`.
 12. `registry.aontu` alone is not the guardrail entrypoint: `vet --at
     '$.guard.search_docs' registry.aontu data/call-search-missing.json`
     is `verdict: error` with `no_path`, exit 4, because `$.guard`

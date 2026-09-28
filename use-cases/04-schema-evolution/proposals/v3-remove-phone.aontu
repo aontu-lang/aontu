@@ -7,7 +7,7 @@ aontu_policy: hide({ compat:*backward | forward | full | none })
 profile: close({
   id: string & re("^C[0-9]{7}$")
   email: string & re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
-  name: string & length(min(1))
+  name: string & len(min(1))
   contact?: close({
     phone?: string & re("^[+][0-9]{7,15}$")
     verified: *false | boolean

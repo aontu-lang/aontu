@@ -17,7 +17,7 @@
 #   ABSENCE GENERATES NOTHING, and generation drops it at a REQUIRED
 #   key as readily as at an optional one (maybe-map-drops-key), and
 #   from a list without leaving a hole (maybe-list-leaves-no-hole).
-#   That is the whole difference from top, which is not generable and
+#   That is the whole difference from any, which is not generable and
 #   so refuses with mapval_no_gen.
 #
 #   ABSENCE PROPAGATES THROUGH A CALL: a call on an absent argument is
@@ -68,9 +68,9 @@ maybe-unit-left	gens	a:maybe($.gone) & 1	{"a":1}
 maybe-join-separator	gens	a:1\nb:join([x,y], maybe($.gone))	{"a":1}
 maybe-add-operand	gens	a:1\nb:add(1, maybe($.gone))	{"a":1}
 maybe-match-subject	gens	a:1\nb:match(maybe($.gone), integer, 1)	{"a":1}
-maybe-meets-top	gens	a:1\nb:top & maybe($.gone)	{"a":1}
+maybe-meets-top	gens	a:1\nb:any & maybe($.gone)	{"a":1}
 maybe-referenced	canon	x:maybe($.gone)\ny:$.x	{"x":maybe(),"y":maybe()}
-maybe-meets-top-left	canon	x:maybe($.gone)\ny:$.x & top	{"x":maybe(),"y":maybe()}
-maybe-meets-top-right	canon	x:maybe($.gone)\ny:top & $.x	{"x":maybe(),"y":maybe()}
+maybe-meets-top-left	canon	x:maybe($.gone)\ny:$.x & any	{"x":maybe(),"y":maybe()}
+maybe-meets-top-right	canon	x:maybe($.gone)\ny:any & $.x	{"x":maybe(),"y":maybe()}
 maybe-meets-absence	canon	b:maybe($.gone) & maybe($.gone)	{"b":maybe()}
 maybe-referenced-meets-value	canon	x:maybe($.gone)\ny:$.x & 1	{"x":maybe(),"y":1}

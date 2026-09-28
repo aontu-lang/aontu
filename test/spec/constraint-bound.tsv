@@ -32,7 +32,7 @@ bound-open-window	canon	a:above(1)&below(2)	{"a":above(1)&below(2)}
 # implied and evaporates; a numeric LEAF narrows the residual and is
 # rendered first in the canon.
 bound-number-passthrough	canon	a:number&min(0)	{"a":min(0)}
-bound-string-passthrough	canon	a:string&min("a")	{"a":min("a")}
+bound-string-passthrough	canon	a:string&min("a")	{"a":string&min("a")}
 bound-float-narrow	canon	a:float&min(0)	{"a":float&min(0)}
 #
 # Lazy endpoints: no rewriting of what the author wrote — an integer

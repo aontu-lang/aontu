@@ -181,7 +181,7 @@ probe_fails kebab-bare '[aontu/negative]' \
   "bare kebab-case name parses as negation"
 
 # FIXED 2026-08-27 (the review's finding C, BUGS.md sec 16):
-# length(min(1)) used to fire against the spread-only schema list (0
+# len(min(1)) used to fire against the spread-only schema list (0
 # members) before the generator merge -- a false refusal of a valid
 # model. A lower bound violated is provisional now: more members may
 # still arrive, so the atom residuates and is decided at generation,
@@ -202,7 +202,7 @@ probe_golden() { # file label
 probe_fails bound-bypass '[aontu/empty]' \
   "bound in a disjunction branch: override 40 refused by the admission gate"
 probe_golden length-on-schema-list \
-  "length(min(1)) beside a spread waits for the generator merge"
+  "len(min(1)) beside a spread waits for the generator merge"
 probe_golden close-shallow-typo \
   "close(pack) does not seal children: typo'd override absorbed, exit 0"
 grep -q '"replcias": 4' "$DIR/expected/close-shallow-typo.json" \

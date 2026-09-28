@@ -254,7 +254,7 @@ Model get options:
   -c, --canon     Canonical-form fragment (default: generated JSON)
   --keys          Keys at the node, one per line
   --types         Shape view: concrete leaves lifted to their kinds
-  --depth <n>     Structure to depth n; deeper nodes render as top
+  --depth <n>     Structure to depth n; deeper nodes render as any
   --format <f>    text (default) or json
 
 Model get exit codes: 0 rendered, 1 the path names nothing, 2 usage, 4
@@ -404,7 +404,7 @@ Agentsmd options:
                   aontu:begin and aontu:end markers, appending them
                   when they are absent; the rest is left alone
   --depth <n>     How deep the shape line projects (default 2). Two
-                  levels name the root keys and say top under them; a
+                  levels name the root keys and say any under them; a
                   caller that wants the fields asks for them
 
 Agentsmd exit codes: 0 generated, 2 usage, 4 the document does not

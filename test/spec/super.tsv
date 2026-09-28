@@ -5,10 +5,10 @@
 # that replaced the old blanket `top`: maps and lists lift child by
 # child (shape -- optionality, closedness, spread -- carried, the
 # spread template lifted), preferences unwrap to their value's
-# parent, disjunctions distribute arm by arm (top absorbs, duplicates
+# parent, disjunctions distribute arm by arm (any absorbs, duplicates
 # collapse), constraints answer the kind they constrain (absorbed
-# leaf kind, else comparison domain, else top for the multi-domain
-# length()), and a recursion residual stays a symbolic call -- the
+# leaf kind, else comparison domain, else any for the multi-domain
+# len()), and a recursion residual stays a symbolic call -- the
 # finite spelling of a lift that is itself recursive.
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
@@ -31,10 +31,10 @@ super-map-as-schema-errc	errc	x:super({a:1})&{a:7.5}	no_scalar_unify
 super-pref-canon	canon	x:super(*1)	{"x":integer}
 super-pref-kind-canon	canon	x:super(*integer)	{"x":number}
 
-# --- disjunctions distribute; top absorbs; duplicates collapse ---
+# --- disjunctions distribute; any absorbs; duplicates collapse ---
 super-disjunct-canon	canon	x:super(1|2)	{"x":integer}
 super-disjunct-mixed-canon	canon	x:super(1|"a")	{"x":integer|string}
-super-disjunct-kinds-canon	canon	x:super(integer|string)	{"x":top}
+super-disjunct-kinds-canon	canon	x:super(integer|string)	{"x":any}
 super-ranked-disjunct-canon	canon	x:super(*1|2)	{"x":integer}
 
 # --- constraints answer the kind they constrain ---
@@ -42,7 +42,7 @@ super-constraint-number-canon	canon	x:super(min(3))	{"x":number}
 super-constraint-string-canon	canon	x:super(min("a"))	{"x":string}
 super-constraint-re-canon	canon	x:super(re(abc))	{"x":string}
 super-constraint-kind-canon	canon	x:super(integer&min(3))	{"x":integer}
-super-constraint-length-canon	canon	x:super(length(3))	{"x":top}
+super-constraint-length-canon	canon	x:super(len(3))	{"x":any}
 
 # --- shape carries: closedness survives the lift, and the lifted
 # spread admits at the lifted level (floats the original refused)
@@ -56,16 +56,16 @@ super-recursive-symbolic-canon	canon	N:type({v:integer,next?:$.N}) x:super($.N)	
 super-descent-residual-canon	canon	N:type({v:integer,next?:$.N}) x:super({v:1,n?:$.N})	{"N":{"next"?:$.N,"v":integer},"x":{"n"?:super($.N),"v":integer}}
 
 # --- the null ladder: the null KIND prints as the value does, and
-# its own parent is top (the print ambiguity is recorded in SUPER.0.md)
+# its own parent is any (the print ambiguity is recorded in SUPER.0.md)
 super-null-kind-canon	canon	x:super(null)	{"x":null}
-super-null-ladder-canon	canon	x:super(super(null))	{"x":top}
+super-null-ladder-canon	canon	x:super(super(null))	{"x":any}
 
 # --- the whole kind ladder, in one row, because a FIGURE draws it ---
 # `aontu view lattice` draws this ladder as the value lattice: `top`
-# at the join, the kind families under it, `path()` under `string`,
+# at the join, the kind families under it, `path` under `string`,
 # the four numeric leaves under `number`. The figure carries its own
 # copy of the shape (the tables in ts/src/view.ts and
 # go/view_lattice.go), so this row is where the two are held together
 # -- change the ladder and this fails, which is the reminder that the
 # figure has to grow or lose a node with it.
-super-kind-ladder-canon	canon	string: super(string)\npath: super(path())\nnumber: super(number)\ninteger: super(integer)\nfloat: super(float)\nbiginteger: super(biginteger)\nbigdecimal: super(bigdecimal)\nboolean: super(boolean)\nnull: super(super(null))	{"bigdecimal":number,"biginteger":number,"boolean":top,"float":number,"integer":number,"null":top,"number":top,"path":string,"string":top}
+super-kind-ladder-canon	canon	string: super(string)\npath: super(path)\nnumber: super(number)\ninteger: super(integer)\nfloat: super(float)\nbiginteger: super(biginteger)\nbigdecimal: super(bigdecimal)\nboolean: super(boolean)\nnull: super(super(null))	{"bigdecimal":number,"biginteger":number,"boolean":any,"float":number,"integer":number,"null":any,"number":any,"path":any,"string":any}

@@ -3,9 +3,9 @@ if exists('b:current_syntax')
   finish
 endif
 
-syn keyword aontuType     string number float integer boolean top nil
+syn keyword aontuType     string number float integer biginteger bigdecimal boolean path map list constraint any nil
 syn keyword aontuConstant true false null
-syn keyword aontuFunction upper lower copy key pref super type hide move path close open map list
+syn keyword aontuFunction upper lower copy key pref super type hide move close open len empty
 
 syn match  aontuComment  "#.*$"
 syn region aontuString   start=+"+ skip=+\\"+ end=+"+

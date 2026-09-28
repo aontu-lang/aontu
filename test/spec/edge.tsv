@@ -39,7 +39,7 @@ edge-disjunct-intersect	canon	a:(1|2)&(2|3)	{"a":2}
 edge-disjunct-empty	errc	a:(1|2)&3	empty
 #
 # References and variables: numeric segments, relative misses, $vars
-# of every bound kind, self-prefix cycles, path().
+# of every bound kind, self-prefix cycles, path.
 edge-ref-list-index	gens	a:[5,6] b:$.a.1	{"a":[5,6],"b":6}
 edge-ref-relative-miss	errc	a:.zz	no_path
 edge-var-int	gens	x:$foo	{"x":11}
@@ -66,7 +66,7 @@ edge-plus-list-absent	gens	b:1\na:[1]+maybe($.gone)	{"b":1}
 edge-plus-absent-string	gens	b:1\na:"x"+maybe($.gone)	{"b":1}
 edge-plus-absent-left	gens	b:1\na:maybe($.gone)+[1]	{"b":1}
 edge-plus-list-generated	canon	a:["x"]+each(["y"],_)	{"a":["x","y"]}
-edge-plus-list-under-kind	canon	a:list()&(["x"]+each(["y"],_))	{"a":["x","y"]}
+edge-plus-list-under-kind	canon	a:list&(["x"]+each(["y"],_))	{"a":["x","y"]}
 # AN OP DRIVES THE MEET while an operand has not decided, at a key
 # inside a map as well as in a conjunct: only the op knows to wait,
 # and the kind it meets would refuse it outright. A staged CALL
@@ -111,9 +111,9 @@ edge-list-null-elem	gens	a:[null,2]	{"a":[null,2]}
 edge-list-spread-canon	canon	a:[&:number,1]	{"a":[&:number,1]}
 edge-list-spread-via-ref	errc	q:[&:{r:string} {}] w:$.q	mapval_spread_required
 #
-# Expectations: escape with extra peer keys; a top expectation.
+# Expectations: escape with extra peer keys; a any expectation.
 edge-expect-escape-extra	gens	m:{&:{r:string} a:{r:x}} m:{a:{q:1}}	{"m":{"a":{"q":1,"r":"x"}}}
-edge-expect-top	canon	m:{&:{r:top} a:{}}	{"m":{&:{"r":top},"a":{"r":top}}}
+edge-expect-top	canon	m:{&:{r:any} a:{}}	{"m":{&:{"r":any},"a":{"r":any}}}
 #
 # Functions: exact-leaf rounding, string case, invalid args, move,
 # open/close, key levels.
@@ -228,7 +228,7 @@ edge-bigdec-4000	canon	a:0d1e4000	{"a":0d100000000000000000000000000000000000000
 edge-decimal-over-budget	errc	a:0d1e40000	decimal_budget
 edge-empty-map	gens	{}	{}
 edge-map-meet-empty	gens	a:{}&{}	{"a":{}}
-edge-top-canon	canon	a:top	{"a":top}
+edge-top-canon	canon	a:any	{"a":any}
 edge-kind-disjoint-families	errc	a:number&string	scalar-type
 edge-string-dup	gens	a:"x" a:"x"	{"a":"x"}
 edge-conjunct-triple	canon	a:1&1&1	{"a":1}
@@ -251,7 +251,7 @@ edge-type-noarg	errc	a:type()	func_arity
 edge-hide-noarg	errc	a:hide()	func_arity
 edge-move-noarg	errc	a:move()	func_arity
 edge-upper-bool	errc	a:upper(true)	func_arg
-edge-close-noarg	errc	a:close()	func_arity
+edge-close-noarg-is-an-unmet-seal	errc	a:close()	mapval_no_gen
 edge-pref-list	gens	a:pref([1,2]) a:[1,2]	{"a":[1,2]}
 edge-pref-of-disjunct	canon	a:*(1|2)	{"a":*1|2}
 edge-pref-of-conjunct	canon	a:*(1&1)	{"a":*1}

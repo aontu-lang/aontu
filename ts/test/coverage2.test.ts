@@ -595,7 +595,9 @@ describe('coverage2-vals', () => {
     const of2 = new OpenFuncVal({ peg: [] })
     Assert.ok(of2.make(ctx, { peg: [] }) instanceof OpenFuncVal)
     Assert.equal(of2.funcname(), 'open')
-    Assert.equal(of2.resolve(ctx, [] as any).isNil, true)
+    const seal: any = of2.resolve(ctx, [] as any)
+    Assert.equal(seal.isSeal, true)
+    Assert.equal(seal.closed, false)
 
     const pf = new PathFuncVal({ peg: [new IntegerVal({ peg: 1 })] })
     Assert.ok(null != pf.unify(top(), ctx))

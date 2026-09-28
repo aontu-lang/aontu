@@ -40,7 +40,7 @@ edge-at-the-top-of-the-document	graph	a: refer() & path($.z)\nz: {}	{"edges":[{"
 edge-into-a-node-inside-a-node	graph	z: {ports: {http: 80}}\ns: {uses: refer() & path($.z.ports.http)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z.ports.http","at":"$.s.uses"}]}
 edge-self	graph	s: {uses: refer() & path($.s)}	{"edges":[{"from":"$.s","key":"uses","to":"$.s","at":"$.s.uses"}]}
 edge-cycle-is-data-not-an-error	graph	a: {next: refer() & path($.b)}\nb: {next: refer() & path($.a)}	{"edges":[{"from":"$.a","key":"next","to":"$.b","at":"$.a.next"},{"from":"$.b","key":"next","to":"$.a","at":"$.b.next"}]}
-edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & string & path($.z)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
+edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: refer() & path & path($.z)}	{"edges":[{"from":"$.s","key":"uses","to":"$.z","at":"$.s.uses"}]}
 
 # --- A relative address is resolved, not spelled ---------------------
 #
@@ -115,7 +115,7 @@ edge-at-a-list-root	graph	[refer() & path($.0)]	{"edges":[{"from":"$","key":"","
 # arm is not a fact. A link inside a hide()-marked subtree is still an
 # edge, flagged `hidden` so a figure can decline to disclose it.
 edge-inside-a-residual-conjunct	graph	a: {x: unique() & [&: refer(), path($.b)]}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","key":"x","to":"$.b"}]}
-edge-inside-a-nested-conjunct	graph	a: {x: unique() & (length(1) & [&: refer(), path($.b)])}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","key":"x","to":"$.b"}]}
+edge-inside-a-nested-conjunct	graph	a: {x: unique() & (len(1) & [&: refer(), path($.b)])}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","key":"x","to":"$.b"}]}
 edge-under-an-unresolved-disjunct-is-not-a-fact	graph	a: {x: [&: refer(), path($.b)] | 1}\nb: {}	{"disjunct":["$.a.x.0"],"edges":[]}
 edge-inside-a-hidden-subtree-is-flagged	graph	a: hide({x: [&: refer(), path($.b)]})\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","hidden":true,"key":"x","to":"$.b"}]}
 edge-inside-a-hidden-list	graph	a: {x: hide([&: refer(), path($.b)])}\nb: {}	{"edges":[{"at":"$.a.x.0","from":"$.a","hidden":true,"key":"x","to":"$.b"}]}

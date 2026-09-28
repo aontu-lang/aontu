@@ -68,7 +68,7 @@ product-mina-neq12	errc	x: min("a") & neq(1,2)	constraint
 product-mina-neqa	canon	x: min("a") & neq("a")	{"x":min("a")&neq("a")}
 product-mina-integer	errc	x: min("a") & integer	constraint
 product-mina-number	errc	x: min("a") & number	constraint
-product-mina-string	canon	x: min("a") & string	{"x":min("a")}
+product-mina-string	canon	x: min("a") & string	{"x":string&min("a")}
 product-mina-5	errc	x: min("a") & 5	constraint
 product-mina-m	canon	x: min("a") & "m"	{"x":"m"}
 product-max3-min0	canon	x: max(3) & min(0)	{"x":min(0)&max(3)}
@@ -116,7 +116,7 @@ product-maxz-neq12	errc	x: max("z") & neq(1,2)	constraint
 product-maxz-neqa	canon	x: max("z") & neq("a")	{"x":max("z")&neq("a")}
 product-maxz-integer	errc	x: max("z") & integer	constraint
 product-maxz-number	errc	x: max("z") & number	constraint
-product-maxz-string	canon	x: max("z") & string	{"x":max("z")}
+product-maxz-string	canon	x: max("z") & string	{"x":string&max("z")}
 product-maxz-5	errc	x: max("z") & 5	constraint
 product-maxz-m	canon	x: max("z") & "m"	{"x":"m"}
 product-above1-min0	canon	x: above(1) & min(0)	{"x":above(1)}
@@ -196,7 +196,7 @@ product-neqa-neq12	errc	x: neq("a") & neq(1,2)	constraint
 product-neqa-neqa	canon	x: neq("a") & neq("a")	{"x":neq("a")}
 product-neqa-integer	errc	x: neq("a") & integer	constraint
 product-neqa-number	errc	x: neq("a") & number	constraint
-product-neqa-string	canon	x: neq("a") & string	{"x":neq("a")}
+product-neqa-string	canon	x: neq("a") & string	{"x":string&neq("a")}
 product-neqa-5	errc	x: neq("a") & 5	constraint
 product-neqa-m	canon	x: neq("a") & "m"	{"x":"m"}
 product-integer-min0	canon	x: integer & min(0)	{"x":integer&min(0)}
@@ -233,15 +233,15 @@ product-number-5	canon	x: number & 5	{"x":5}
 product-number-m	errc	x: number & "m"	no_scalar_unify
 product-string-min0	errc	x: string & min(0)	constraint
 product-string-min5	errc	x: string & min(5)	constraint
-product-string-mina	canon	x: string & min("a")	{"x":min("a")}
+product-string-mina	canon	x: string & min("a")	{"x":string&min("a")}
 product-string-max3	errc	x: string & max(3)	constraint
 product-string-max10	errc	x: string & max(10)	constraint
-product-string-maxz	canon	x: string & max("z")	{"x":max("z")}
+product-string-maxz	canon	x: string & max("z")	{"x":string&max("z")}
 product-string-above1	errc	x: string & above(1)	constraint
 product-string-below2	errc	x: string & below(2)	constraint
 product-string-neq1	errc	x: string & neq(1)	constraint
 product-string-neq12	errc	x: string & neq(1,2)	constraint
-product-string-neqa	canon	x: string & neq("a")	{"x":neq("a")}
+product-string-neqa	canon	x: string & neq("a")	{"x":string&neq("a")}
 product-string-integer	errc	x: string & integer	scalar-type
 product-string-number	errc	x: string & number	scalar-type
 product-string-string	canon	x: string & string	{"x":string}

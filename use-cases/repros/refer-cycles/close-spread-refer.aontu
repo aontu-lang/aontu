@@ -8,7 +8,7 @@
 # (reference-language.md, "Closed values").
 # expected: {"members":{"ada":{"role":"member"}},"roles":{"member":{}}} exit 0
 # actual:   [aontu/mapval_no_gen]: Cannot resolve value at path
-#           $.members.ada (residue: close({"role":refer()&string})&
+#           $.members.ada (residue: close({"role":refer() & path})&
 #           {"role":"member"}) exit 1
 roles: { member: id("member") & { } }
-members: { &: close({ role: refer() & string }), ada: { role: "member" } }
+members: { &: close({ role: refer() & path }), ada: { role: "member" } }

@@ -30,7 +30,7 @@ $ aontu agentsmd system.aontu
 - Pin: `aon1-kmZi3pPU2hnWQfwLnaFoC5iUtlrt6vbUzU7og-KxWJE`
 ...
 - Top-level keys: `services`
-- Shape: `{"services":{&:top,"auth":top,"billing":top}}`
+- Shape: `{"services":{&:any,"auth":any,"billing":any}}`
 ...
 <!-- aontu:end -->
 $ aontu agentsmd --write AGENTS.md system.aontu

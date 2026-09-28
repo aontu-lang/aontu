@@ -173,6 +173,13 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *ConstraintKindVal:
+		c := *n
+		c.path = cp(path)
+		if nil != n.held {
+			c.held = cloneAt(n.held, path, deep)
+		}
+		return &c
 	case *RecurseVal:
 		// The recursive residual clones per position for the same
 		// reason: shared, an expansion at one instance carried the

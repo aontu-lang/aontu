@@ -4,74 +4,74 @@
 # output, per the parity-probe rule in AGENTS.md. Normative design:
 # docs/reference-language.md, "`length` semantics" and "`unique` semantics".
 #
-# length(c) constrains the SIZE: a string's length in code points, a list's
+# len(c) constrains the SIZE: a string's length in code points, a list's
 # element count, a map's entry count. Its argument is any integer-domain
 # constraint, so the count atom reuses the numeric algebra recursively.
-length-exact-list	gen	a:length(3) a:[1,2,3]	{"a":[1,2,3]}
-length-exact-list-gens	gens	a:length(3) a:[1,2,3]	{"a":[1,2,3]}
-length-window-list	gen	a:length(min(2)&max(5)) a:[1,2,3]	{"a":[1,2,3]}
-length-reject-list	errc	a:length(min(2)) a:[1]	constraint
-length-reject-list-msg	err	a:length(min(2)) a:[1]	Cannot unify
-length-empty-list	gen	a:length(0) a:[]	{"a":[]}
-length-empty-map	gen	a:length(0) a:{}	{"a":{}}
-length-map	gen	a:length(2) a:{x:1,y:2}	{"a":{"x":1,"y":2}}
-length-map-three	gen	a:length(3) a:{x:1,y:2,z:3}	{"a":{"x":1,"y":2,"z":3}}
-length-nested	gen	a:{b:length(2)} a:{b:[1,2]}	{"a":{"b":[1,2]}}
+length-exact-list	gen	a:len(3) a:[1,2,3]	{"a":[1,2,3]}
+length-exact-list-gens	gens	a:len(3) a:[1,2,3]	{"a":[1,2,3]}
+length-window-list	gen	a:len(min(2)&max(5)) a:[1,2,3]	{"a":[1,2,3]}
+length-reject-list	errc	a:len(min(2)) a:[1]	constraint
+length-reject-list-msg	err	a:len(min(2)) a:[1]	Cannot unify
+length-empty-list	gen	a:len(0) a:[]	{"a":[]}
+length-empty-map	gen	a:len(0) a:{}	{"a":{}}
+length-map	gen	a:len(2) a:{x:1,y:2}	{"a":{"x":1,"y":2}}
+length-map-three	gen	a:len(3) a:{x:1,y:2,z:3}	{"a":{"x":1,"y":2,"z":3}}
+length-nested	gen	a:{b:len(2)} a:{b:[1,2]}	{"a":{"b":[1,2]}}
 #
 # A string is counted in UNICODE CODE POINTS -- not UTF-16 code units
 # (TypeScript's native count) and not bytes (Go's). U+1D11E MUSICAL
 # SYMBOL G CLEF is one code point, two UTF-16 units, four UTF-8 bytes,
 # and this row is what stops either port from counting its own way.
-length-string	gen	a:length(5) a:hello	{"a":"hello"}
-length-string-codepoints	gen	a:length(1) a:"𝄞"	{"a":"𝄞"}
-length-string-reject	errc	a:length(1) a:"ab"	constraint
+length-string	gen	a:len(5) a:hello	{"a":"hello"}
+length-string-codepoints	gen	a:len(1) a:"𝄞"	{"a":"𝄞"}
+length-string-reject	errc	a:len(1) a:"ab"	constraint
 #
 # A sizing residual has no domain of its own -- a count says nothing
 # about what is counted -- so a kind SETS one, and canon must spell that
 # kind out or the reparse would admit lists and maps too.
-length-string-kind	gen	a:string&length(3) a:abc	{"a":"abc"}
-length-string-kind-canon	canon	a:string&length(3)	{"a":string&length(integer&min(3)&max(3))}
+length-string-kind	gen	a:string&len(3) a:abc	{"a":"abc"}
+length-string-kind-canon	canon	a:string&len(3)	{"a":string&len(integer&min(3)&max(3))}
 #
 # A number has neither a length nor members, so sizing over the number
 # domain is empty at composition time -- no peer needed.
-length-number-domain-empty	errc	a:number&length(3)	constraint
+length-number-domain-empty	errc	a:number&len(3)	constraint
 unique-number-domain-empty	errc	a:min(2)&unique()	constraint
 unique-string-domain-empty	errc	a:re("^a")&unique()	constraint
 constraint-map-domain	errc	a:min(2) a:{x:1}	constraint
 #
-# length's own emptiness reuses the numeric algebra: length(c) is empty iff
+# length's own emptiness reuses the numeric algebra: len(c) is empty iff
 # c & integer & min(0) is.
-length-empty	errc	a:length(min(5)&max(3)) a:[1]	constraint
-length-negative-empty	errc	a:length(max(-1)) a:[]	constraint
-length-conflict	errc	a:length(2)&length(3) a:[1,2]	constraint
-length-float-kind-empty	errc	a:length(float) a:[1,2]	constraint
+length-empty	errc	a:len(min(5)&max(3)) a:[1]	constraint
+length-negative-empty	errc	a:len(max(-1)) a:[]	constraint
+length-conflict	errc	a:len(2)&len(3) a:[1,2]	constraint
+length-float-kind-empty	errc	a:len(float) a:[1,2]	constraint
 #
-# `length(c1) & length(c2)` is `length(c1 & c2)`.
-length-meet	gen	a:length(min(2))&length(max(4)) a:[1,2,3]	{"a":[1,2,3]}
-length-meet-canon	canon	a:length(min(2))&length(max(4))	{"a":length(integer&min(2)&max(4))}
-length-idempotent	gen	a:length(1)&length(1) a:[7]	{"a":[7]}
-length-neq-count	gen	a:length(neq(2)) a:[1]	{"a":[1]}
-length-neq-count-reject	errc	a:length(neq(2)) a:[1,2]	constraint
-length-number-kind	gen	a:length(number) a:[1,2]	{"a":[1,2]}
+# `len(c1) & len(c2)` is `len(c1 & c2)`.
+length-meet	gen	a:len(min(2))&len(max(4)) a:[1,2,3]	{"a":[1,2,3]}
+length-meet-canon	canon	a:len(min(2))&len(max(4))	{"a":len(integer&min(2)&max(4))}
+length-idempotent	gen	a:len(1)&len(1) a:[7]	{"a":[7]}
+length-neq-count	gen	a:len(neq(2)) a:[1]	{"a":[1]}
+length-neq-count-reject	errc	a:len(neq(2)) a:[1,2]	constraint
+length-number-kind	gen	a:len(number) a:[1,2]	{"a":[1,2]}
 #
 # Canon renders the count residual UNABRIDGED, implied parts and all:
 # that IS the residual the count must satisfy, and canon is a normal
 # form, not a pretty-printer. The reparse row proves the round trip.
-length-canon	canon	a:length(3)	{"a":length(integer&min(3)&max(3))}
-length-canon-window	canon	a:length(min(2)&max(5))	{"a":length(integer&min(2)&max(5))}
-length-canon-reparse	gen	a:length(integer&min(3)&max(3)) a:[1,2,3]	{"a":[1,2,3]}
-length-unique-canon	canon	a:length(3)&unique()	{"a":length(integer&min(3)&max(3))&unique()}
-length-unique-canon-order	canon	a:unique()&length(3)	{"a":length(integer&min(3)&max(3))&unique()}
+length-canon	canon	a:len(3)	{"a":len(integer&min(3)&max(3))}
+length-canon-window	canon	a:len(min(2)&max(5))	{"a":len(integer&min(2)&max(5))}
+length-canon-reparse	gen	a:len(integer&min(3)&max(3)) a:[1,2,3]	{"a":[1,2,3]}
+length-unique-canon	canon	a:len(3)&unique()	{"a":len(integer&min(3)&max(3))&unique()}
+length-unique-canon-order	canon	a:unique()&len(3)	{"a":len(integer&min(3)&max(3))&unique()}
 #
 # A settled argument of the wrong shape is refused. An UNSETTLED one
 # residuates instead (G1 phase 4) -- see the reference rows below.
-length-arg-string	errc	a:length("x") a:[1]	invalid-arg
-length-arg-boolean	errc	a:length(true) a:[1]	invalid-arg
+length-arg-string	errc	a:len("x") a:[1]	invalid-arg
+length-arg-boolean	errc	a:len(true) a:[1]	invalid-arg
 # G1 phase 4 REVERSED this pair. A reference argument no longer refuses:
 # it residuates, settles, and the count is then checked like any other.
-length-arg-ref	gen	a:length($.z) a:[1,2,3]\nz:3	{"a":[1,2,3],"z":3}
-length-arg-ref-reject	errc	a:length($.z) a:[1]\nz:3	constraint
-length-arity	errc	a:length()	func_arity
+length-arg-ref	gen	a:len($.z) a:[1,2,3]\nz:3	{"a":[1,2,3],"z":3}
+length-arg-ref-reject	errc	a:len($.z) a:[1]\nz:3	constraint
+length-arity	errc	a:len()	func_arity
 # unique's ONE argument is a PROJECTOR (the review's finding I): the
 # arity was reserved for it and is now spent. `unique(port)` says no
 # two members share a `port`, so the arity error moves to TWO
@@ -94,27 +94,27 @@ unique-arity-message	err	a:unique(p,q)	unique takes no arguments or one
 #
 # length counts what GENERATES, so it mirrors generation's own skip rules:
 # type and hide marks are not members.
-length-skips-hidden	gen	a:length(1) a:{x:1,y:hide(2)}	{"a":{"x":1}}
-length-skips-type	errc	a:length(2) a:{x:1,y:type(2)}	constraint
+length-skips-hidden	gen	a:len(1) a:{x:1,y:hide(2)}	{"a":{"x":1}}
+length-skips-type	errc	a:len(2) a:{x:1,y:type(2)}	constraint
 #
 # An optional key that never resolves is dropped at generation and does
 # not count, and that is knowable BEFORE generation runs: the map
 # converges on the first pass with the optional child settled and simply
 # not generable, so length decides eagerly here. A supplied optional DOES
 # count. length residuates only while a child is still converging.
-length-drops-unresolved-optional	gen	a:length(1) a:{x:1,y?:number}	{"a":{"x":1}}
-length-optional-count-mismatch	errc	a:length(2) a:{x:1,y?:number}	constraint
-length-counts-supplied-optional	gen	a:length(2) a:{x:1,y?:number} a:{y:2}	{"a":{"x":1,"y":2}}
-length-optional-resolves-late	gen	a:length(2) a:{x:1,y?:$.z}\nz:9	{"a":{"x":1,"y":9},"z":9}
-length-member-resolves-late	gen	a:length(3) a:[1,2,$.z]\nz:5	{"a":[1,2,5],"z":5}
+length-drops-unresolved-optional	gen	a:len(1) a:{x:1,y?:number}	{"a":{"x":1}}
+length-optional-count-mismatch	errc	a:len(2) a:{x:1,y?:number}	constraint
+length-counts-supplied-optional	gen	a:len(2) a:{x:1,y?:number} a:{y:2}	{"a":{"x":1,"y":2}}
+length-optional-resolves-late	gen	a:len(2) a:{x:1,y?:$.z}\nz:9	{"a":{"x":1,"y":9},"z":9}
+length-member-resolves-late	gen	a:len(3) a:[1,2,$.z]\nz:5	{"a":[1,2,5],"z":5}
 #
 # A sizing atom folds LAST in a conjunct (SIZING_CJO), so it counts the
 # MERGED container rather than the first fragment. Layering fragments is
 # the whole point of the language, and an atom that folded early would
 # refuse it.
-length-counts-merged-map	gen	a:length(2) a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
-length-atom-written-last	gen	a:{x:1} a:{y:2} a:length(2)	{"a":{"x":1,"y":2}}
-length-unique-counts-merged	gen	a:length(2)&unique() a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
+length-counts-merged-map	gen	a:len(2) a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
+length-atom-written-last	gen	a:{x:1} a:{y:2} a:len(2)	{"a":{"x":1,"y":2}}
+length-unique-counts-merged	gen	a:len(2)&unique() a:{x:1} a:{y:2}	{"a":{"x":1,"y":2}}
 unique-merged-list	gen	a:unique() a:[1] a:[1]	{"a":[1]}
 #
 # unique() with NO argument is a property of the container, not a
@@ -128,7 +128,7 @@ unique-map-ok	gen	a:unique() a:{x:1,y:2}	{"a":{"x":1,"y":2}}
 unique-map-reject	errc	a:unique() a:{x:1,y:1}	constraint
 unique-idempotent	gen	a:unique()&unique() a:[1,2]	{"a":[1,2]}
 unique-canon	canon	a:unique()	{"a":unique()}
-length-and-unique	gen	a:length(3)&unique() a:[1,2,3]	{"a":[1,2,3]}
+length-and-unique	gen	a:len(3)&unique() a:[1,2,3]	{"a":[1,2,3]}
 #
 # Any peer that is not a container is a domain conflict: no scalar has
 # members.
@@ -152,40 +152,40 @@ unique-mixed-shapes	gen	a:unique() a:[1,"1",[1]]	{"a":[1,"1",[1]]}
 #
 # The remaining shapes a sizing residual must refuse or count, each
 # pinning one branch of the two ports' agreement.
-length-scalar-not-string	errc	a:length(3) a:5	constraint
-length-required-residue	errc	a:length(1) a:{x:1,y:number}	mapval_no_gen
-length-conflict-no-peer	errc	a:length(2)&length(3)	constraint
-length-meet-empty	errc	a:length(min(2))&length(max(1))	constraint
+length-scalar-not-string	errc	a:len(3) a:5	constraint
+length-required-residue	errc	a:len(1) a:{x:1,y:number}	mapval_no_gen
+length-conflict-no-peer	errc	a:len(2)&len(3)	constraint
+length-meet-empty	errc	a:len(min(2))&len(max(1))	constraint
 constraint-func-peer	errc	a:min(2) a:upper("x")	constraint
 unique-op-peer	errc	a:unique() a:1+1	constraint
 #
 # A count argument must be an integer-domain constraint: a string bound,
 # a pattern, a sizing atom or a non-numeric kind is not one.
-length-arg-string-bound	errc	a:length(min("x")) a:[1]	invalid-arg
-length-arg-pattern	errc	a:length(re("^a")) a:[1]	invalid-arg
-length-arg-unique	errc	a:length(unique()) a:[1]	invalid-arg
-length-arg-length	errc	a:length(length(2)) a:[1]	invalid-arg
-length-arg-string-kind	errc	a:length(string) a:[1]	invalid-arg
-length-arg-boolean-kind	errc	a:length(boolean) a:[1]	invalid-arg
+length-arg-string-bound	errc	a:len(min("x")) a:[1]	invalid-arg
+length-arg-pattern	errc	a:len(re("^a")) a:[1]	invalid-arg
+length-arg-unique	errc	a:len(unique()) a:[1]	invalid-arg
+length-arg-length	errc	a:len(len(2)) a:[1]	invalid-arg
+length-arg-string-kind	errc	a:len(string) a:[1]	invalid-arg
+length-arg-boolean-kind	errc	a:len(boolean) a:[1]	invalid-arg
 # ... and a conjunct argument settles BEFORE the count reads it, so a
 # contradiction inside it is reported where it actually is.
-length-arg-conjunct	gen	a:length(integer&min(2)) a:[1,2,3]	{"a":[1,2,3]}
-length-arg-conjunct-bad	errc	a:length(integer&string) a:[1]	scalar-type
+length-arg-conjunct	gen	a:len(integer&min(2)) a:[1,2,3]	{"a":[1,2,3]}
+length-arg-conjunct-bad	errc	a:len(integer&string) a:[1]	scalar-type
 #
 # A JSON null is a member like any other: it generates, so it counts,
 # and two of them are not distinct.
-length-counts-null-member	gen	a:length(2) a:{x:1,y:null}	{"a":{"x":1,"y":null}}
-length-counts-null-element	gen	a:length(1) a:[null]	{"a":[null]}
+length-counts-null-member	gen	a:len(2) a:{x:1,y:null}	{"a":{"x":1,"y":null}}
+length-counts-null-element	gen	a:len(1) a:[null]	{"a":[null]}
 unique-null-members	errc	a:unique() a:[null,null]	constraint
 #
 # Residuation: while a member is still converging the count is not yet
 # determined, so the atom defers rather than decides. A chained
 # reference takes more than one pass to settle, which is what makes the
 # deferral observable.
-length-optional-resolves-late-chain	gen	a:length(2) a:{x:1,y?:$.z}\nz:$.w\nw:9	{"a":{"x":1,"y":9},"w":9,"z":9}
-length-member-resolves-late-chain	gen	a:length(3) a:[1,$.z,3]\nz:$.w\nw:2	{"a":[1,2,3],"w":2,"z":2}
-length-counts-late-optional	gen	a:length(2) a:{x:1,y?:number} a:{y:$.z}\nz:2	{"a":{"x":1,"y":2},"z":2}
+length-optional-resolves-late-chain	gen	a:len(2) a:{x:1,y?:$.z}\nz:$.w\nw:9	{"a":{"x":1,"y":9},"w":9,"z":9}
+length-member-resolves-late-chain	gen	a:len(3) a:[1,$.z,3]\nz:$.w\nw:2	{"a":[1,2,3],"w":2,"z":2}
+length-counts-late-optional	gen	a:len(2) a:{x:1,y?:number} a:{y:$.z}\nz:2	{"a":{"x":1,"y":2},"z":2}
 # An optional child that generates an EMPTY container is dropped by
 # generation, so it is not a member either.
-length-drops-empty-optional	gen	a:length(1) a:{x:1,y?:{}}	{"a":{"x":1}}
-length-drops-empty-optional-list	gen	a:length(1) a:{x:1,y?:[]}	{"a":{"x":1}}
+length-drops-empty-optional	gen	a:len(1) a:{x:1,y?:{}}	{"a":{"x":1}}
+length-drops-empty-optional-list	gen	a:len(1) a:{x:1,y?:[]}	{"a":{"x":1}}

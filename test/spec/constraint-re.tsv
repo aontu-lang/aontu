@@ -24,7 +24,7 @@ re-nested	gen	a:{b:re("^v[0-9]$")} a:{b:v2}	{"a":{"b":"v2"}}
 # implied-kind rule wins, and the promoted row records what the engines
 # agree on rather than what the draft predicted.
 re-canon	canon	a:re("^[a-z]$")	{"a":re("^[a-z]$")}
-re-kind-implied-canon	canon	a:string&re("^[a-z]$")	{"a":re("^[a-z]$")}
+re-kind-implied-canon	canon	a:string&re("^[a-z]$")	{"a":string&re("^[a-z]$")}
 #
 # Distinct patterns ACCUMULATE (sorted by source in canon) and are never
 # simplified: deciding one pattern subsumes another is regex
@@ -40,7 +40,7 @@ re-accumulate-one-fails	errc	a:re("^h")&re("z$") a:hello	constraint
 # Atom order in canon: kind, lower bound, upper bound, neq, re.
 re-canon-order-bound	canon	a:min("a")&re("x")	{"a":min("a")&re("x")}
 re-canon-order-neq	canon	a:neq("q")&re("^.$")	{"a":neq("q")&re("^.$")}
-re-canon-order-full	canon	a:string&re("x")&max("z")	{"a":max("z")&re("x")}
+re-canon-order-full	canon	a:string&re("x")&max("z")	{"a":string&max("z")&re("x")}
 #
 # Domain and shape: a pattern is a STRING membership test, so it mixes
 # emptily with the numeric domain and refuses every non-string peer.

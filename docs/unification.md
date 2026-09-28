@@ -65,10 +65,10 @@ constraint at once.
 An ordering like this needs two endpoints, and both are ordinary
 values you can write.
 
-**`top`** is the most general value: it admits everything. It is what an
-unconstrained field is, and it is the identity of the meet: `top & x` is
-`x`, for every `x`. A field that is still `top` at the end of a run says
-nothing, so it cannot be generated.
+**Top**, written `any`, is the most general value: it admits
+everything. It is what an unconstrained field is, and it is the identity
+of the meet: `any & x` is `x`, for every `x`. A field that is still
+`any` at the end of a run says nothing, so it cannot be generated.
 
 **`nil`**, also called **bottom** and written `⊥` in order theory, is the most
 specific: it admits nothing. It is what a failed unification produces.
@@ -77,7 +77,7 @@ that made it and cannot be generated either.
 
 Every other value sits between them, under the kind it belongs to:
 
-![The value lattice: top at the join; string, number, boolean and null under it; path() under string; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
+![The value lattice: any at the join; string, path, number, boolean, null, map, list and constraint under it; integer, float, biginteger and bigdecimal under number; nil at the meet, below every kind.](figures/value-lattice.svg)
 
 `"ada"` sits under `string`, `1` under `integer`, `0d0.1` under
 `bigdecimal`, `true` under `boolean`: each one a point below the kind

@@ -50,7 +50,7 @@ $
     ├── email re("^[^@ ]+@[^@ ]+[.][^@ ]+$")
     ├── id re("^C[0-9]{7}$")
     ├── locale re("^[a-z][a-z](?:-[A-Z][A-Z]...
-    ├── name string&length(integer&min(1))
+    ├── name string&len(integer&min(1))
     ├── phone string
     └── tier "standard"|"premium"|"enterpr...
 ```
@@ -67,7 +67,7 @@ than its value.
   closedness is also what makes *removal* of a key visible to the gate
   (an open map would silently admit stragglers).
 - **Constraint atoms** carry the field contracts: `re()` for id,
-  email, phone (E.164), locale; `length(min(1))` for name;
+  email, phone (E.164), locale; `len(min(1))` for name;
   `integer & min(0)` for the proposed loyalty balance. `re()` takes a
   portable pattern subset that excludes a quantifier applied to a
   group containing another quantifier, so the locale pattern is

@@ -482,6 +482,7 @@ function hoverMarkdown(val: any): string {
 // A short human description of a Val's kind, shown under the hover canon.
 function valKind(val: any): string {
   if (val.isNil) return 'error'
+  if (val.isTop) return 'any'
   if (val.isScalarKind) return 'type'
   if (val.isConstraint) return 'constraint'
   if (val.isRef) return 'reference'
@@ -518,11 +519,11 @@ const BUILTIN_FUNCS = [
   'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'content', 'copy',
   'copyfiles', 'deprecate',
   'div',
-  'each', 'emit', 'esc',
+  'each', 'emit', 'empty', 'esc',
   'file', 'filter', 'folder', 'fragment', 'greatest',
-  'hide', 'inject', 'inverse', 'join', 'key', 'least', 'length', 'line',
-  'list', 'listitems', 'lower',
-  'map', 'match', 'max', 'maybe', 'min', 'mod', 'move', 'mul', 'must', 'neq',
+  'hide', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
+  'listitems', 'lower',
+  'match', 'max', 'maybe', 'min', 'mod', 'move', 'mul', 'must', 'neq',
   'nom', 'open',
   'pack', 'parse', 'path', 'pick',
   'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'slot', 'sort',
@@ -535,10 +536,11 @@ const BUILTIN_FUNCS = [
 // and `bigdecimal` are its leaves. New leaves join this list as they land.
 const KIND_KEYWORDS = [
   'string', 'number', 'integer', 'float', 'biginteger', 'bigdecimal', 'boolean',
+  'map', 'list', 'constraint',
 ]
 // `_` joins these as of G8 phase 3: it is a literal of the language
 // now, not text.
-const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'top']
+const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'any']
 
 
 // The built-in functions, scalar-kind keywords and literals, and the

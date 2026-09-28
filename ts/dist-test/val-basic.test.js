@@ -51,7 +51,8 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(P('"a"').canon).equal('"a"');
         (0, expect_1.expect)(P('b').canon).equal('"b"');
         (0, expect_1.expect)(P('true').canon).equal('true');
-        (0, expect_1.expect)(P('top').canon).equal('top');
+        (0, expect_1.expect)(P('any').canon).equal('any');
+        (0, expect_1.expect)(P('top').canon).equal('"top"');
         (0, expect_1.expect)(P('nil').canon).match(/^nil/);
         (0, expect_1.expect)(P('a:1').canon).equal('{"a":1}');
         (0, expect_1.expect)(P('a:1,b:nil').canon).match(/^\{"a":1,"b":nil/);
@@ -464,7 +465,7 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(tu(ctx, TOP, d3).canon).equal('1');
         (0, expect_1.expect)(tu(ctx, d100, TOP).canon).equal('1');
         (0, expect_1.expect)(tu(ctx, TOP, d100).canon).equal('1');
-        (0, expect_1.expect)(tu(ctx, new ConjunctVal_1.ConjunctVal({ peg: [] }), TOP).canon).equal('top');
+        (0, expect_1.expect)(tu(ctx, new ConjunctVal_1.ConjunctVal({ peg: [] }), TOP).canon).equal('any');
         (0, expect_1.expect)(A.parse('1 & .a')?.canon).equal('1&.a');
         (0, expect_1.expect)(A.unify('1 & .a')?.canon).equal('.a&1'); // canonical sorting
         (0, expect_1.expect)(() => A.generate('1 & .a')).throws(/conjunct/);
@@ -487,15 +488,15 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         let d1 = new DisjunctVal_1.DisjunctVal({ peg: [P('1'), P('2')] });
         (0, expect_1.expect)(tu(ctx, d1, P('2')).canon).equal('2');
         (0, expect_1.expect)(tu(ctx, P('1|number'), TOP).canon).equal('1|number');
-        (0, expect_1.expect)(tu(ctx, P('1|top'), TOP).canon).equal('1|top');
-        (0, expect_1.expect)(tu(ctx, P('1|number|top'), TOP).canon).equal('1|number|top');
+        (0, expect_1.expect)(tu(ctx, P('1|any'), TOP).canon).equal('1|any');
+        (0, expect_1.expect)(tu(ctx, P('1|number|any'), TOP).canon).equal('1|number|any');
         (0, expect_1.expect)(() => tu(ctx, P('1|number'), TOP).gen(ctx))
             .throws(/disjunct_no_gen/);
-        (0, expect_1.expect)(() => tu(ctx, P('1|number|top'), TOP).gen(ctx))
+        (0, expect_1.expect)(() => tu(ctx, P('1|number|any'), TOP).gen(ctx))
             .throws(/disjunct_no_gen/);
-        (0, expect_1.expect)(tu(ctx, P('number|1').unify(P('top'), ctx), TOP).canon).equal('number|1');
-        (0, expect_1.expect)(tu(ctx, P('1|number|1').unify(P('top'), ctx), TOP).canon).equal('1|number');
-        (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('top'), ctx), TOP).canon)
+        (0, expect_1.expect)(tu(ctx, P('number|1').unify(P('any'), ctx), TOP).canon).equal('number|1');
+        (0, expect_1.expect)(tu(ctx, P('1|number|1').unify(P('any'), ctx), TOP).canon).equal('1|number');
+        (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('any'), ctx), TOP).canon)
             .equal('number|string');
         (0, expect_1.expect)(tu(ctx, P('number|string').unify(P('1'), ctx), TOP).canon).equal('1');
         (0, expect_1.expect)(tu(ctx, P('number|1').unify(P('1'), ctx), TOP).canon).equal('1');
@@ -634,8 +635,8 @@ b: c2: {n:2}
         (0, expect_1.expect)(UC('a:1')).equal('{"a":1}');
         (0, expect_1.expect)(UC('a:1,b:.a')).equal('{"a":1,"b":1}');
         (0, expect_1.expect)(UC('a:*1|number,b:2,c:.a&.b')).equal('{"a":*1|number,"b":2,"c":2}');
-        (0, expect_1.expect)(UC('a:*1|number,b:top,c:.a&.b'))
-            .equal('{"a":*1|number,"b":top,"c":*1|number}');
+        (0, expect_1.expect)(UC('a:*1|number,b:any,c:.a&.b'))
+            .equal('{"a":*1|number,"b":any,"c":*1|number}');
         (0, expect_1.expect)(UC('a:*1|number,a:*2|number'))
             .equal('{"a":*2|*1|number}');
         (0, expect_1.expect)(UC('a:*1|number,b:*2|number,c:.a&.b'))

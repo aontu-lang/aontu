@@ -15,7 +15,7 @@
 # canon-hash.
 #
 # Every expectation was obtained by running BOTH engines and diffing.
-profile-shape-hash	hash	{ %profile } = @"aontu:profile"\nshape: %profile	aon1-26pxlNes1GOCepo2rnfmbD44wdKbSK4UTWE0Onu_lVs
+profile-shape-hash	hash	{ %profile } = @"aontu:profile"\nshape: %profile	aon1-xk1YIK7Kb4C1XNNe8qu2nDLE4BmWN_dq7phln6vBwHk
 profile-vocabulary-alone-does-not-generate	errc	@"aontu:profile"\nx: 1	mapval_required
 profile-minimal	gens	@"aontu:profile"\naontu: Lang: { lang: "python", indent: {} }	{"aontu":{"Lang":{"indent":{"unit":" ","width":2},"lang":"python"}}}
 profile-full	gens	@"aontu:profile"\naontu: Lang: { lang: "ocaml", indent: { unit: " ", width: 2 }, comment: { block: { open: "(*", close: "*)" } }, template: { marker: "(*-", close: "*)", ext: ["ml", "mli"] } }	{"aontu":{"Lang":{"comment":{"block":{"close":"*)","open":"(*"}},"indent":{"unit":" ","width":2},"lang":"ocaml","template":{"close":"*)","ext":["ml","mli"],"marker":"(*-"}}}}
@@ -30,7 +30,7 @@ profile-template-ext-shape-refused	errc	@"aontu:profile"\naontu: Lang: { lang: "
 # verb: two languages with no lowering to describe. The hash pins the
 # bytes in both engines, and the generated form shows the defaults the
 # vocabulary fills in.
-lang-text-hash	hash	@"aontu:lang/text"	aon1-NjtZooqnPlN0xxSHrPf87EXnDBJjnrLoBkW4QfNrSjA
+lang-text-hash	hash	@"aontu:lang/text"	aon1-DY6ZEo8pDuiqh7fwp7yLU9XFkn53GxTlhopQAWAxQGo
 lang-text-generates	gens	@"aontu:lang/text"	{"aontu":{"Lang":{"indent":{"unit":" ","width":2},"lang":"text"}}}
-lang-markdown-hash	hash	@"aontu:lang/markdown"	aon1-maiuahfNRIRom2dMl1OhYCJMViENnayFXL6mZEdJNcQ
+lang-markdown-hash	hash	@"aontu:lang/markdown"	aon1-7bPtvuKtWhotDEo3pLbEUli3vTyxVdz3TH8RFTyw6gA
 lang-markdown-generates	gens	@"aontu:lang/markdown"	{"aontu":{"Lang":{"comment":{"block":{"close":"-->","open":"<!--"}},"indent":{"unit":" ","width":2},"lang":"markdown","template":{"ext":["md","markdown"],"marker":"<!---"}}}}

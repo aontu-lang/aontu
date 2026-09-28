@@ -108,7 +108,7 @@ has res err 'lossy: $.report.total nil:'
 has res err 'lossy: $.report.amountEur bigdecimal:'
 has res err 'lossy: $.report.audit hide:'
 has res err 'lossy: $.report.annotations.& unresolved:'
-has res err 'lossy: $.report.attempts length:'
+has res err 'lossy: $.report.attempts len:'
 ok "residue: lossy export still exports, five losses each named"
 
 # 6. --strict makes lossiness an error: same document, same report,
@@ -128,7 +128,7 @@ r = json.load(open(sys.argv[1]))
 assert r["aontu"]["verb"] == "jsonschema"
 assert r["verdict"] == "lossy", r["verdict"]
 assert {l["construct"] for l in r["lossy"]} \
-    == {"nil", "bigdecimal", "hide", "unresolved", "length"}
+    == {"nil", "bigdecimal", "hide", "unresolved", "len"}
 assert all({"path", "construct", "reason"} <= set(l) for l in r["lossy"])
 assert r["schema"]["properties"]["total"] == {}
 EOF

@@ -47,10 +47,10 @@ verdict: invalid
 
 $.currency: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.currency
-  expected: re("^[A-Z]{3}$")
+  expected: string&re("^[A-Z]{3}$")
   actual:   "eur"
   data: price.aontu:1:11 ("eur")
-  schema: rates/rates.aontu:1:20 (re("^[A-Z]{3}$"))
+  schema: rates/rates.aontu:1:20 (string&re("^[A-Z]{3}$"))
 $ echo $?
 1
 ```
@@ -113,7 +113,7 @@ $ aontu publish --key key.pem --to repo rates
 verdict: dry-run
 corp.example/schemas/rates 1.0.0 public
 archive: sha256:a9a0e58992180c5088a57f972864f221e98e4a9f5de59bc4b1e1ef470593e21d (2 files, 363 bytes)
-module: corp.example/schemas/rates rates.aontu aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA
+module: corp.example/schemas/rates rates.aontu aon1-wDjCpctak5kaDtoag_9_mg5h41yAcSoi14Z6WOUAOSA
 file: pkg.aontu sha256:c1f80fd400d103ffdef9dd336bd49ed11d81f6aa03c2b7de78b31edbb570ed5e 94
 file: rates.aontu sha256:fed42fa726c3df4155c84dd35e690383b8a1a07d7f05a0544168a7f487c524d2 55
 ...
@@ -221,7 +221,7 @@ turns a copy into a dependency:
 ```sh
 $ aontu sync checkout
 verdict: ok
-corp.example/schemas/rates 1.0.0 aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA
+corp.example/schemas/rates 1.0.0 aon1-wDjCpctak5kaDtoag_9_mg5h41yAcSoi14Z6WOUAOSA
 ```
 
 That hash is the one the publish printed. `sync` resolved the closure,
@@ -282,7 +282,7 @@ Evaluate anyway:
 <!-- test: run -->
 ```sh
 $ aontu checkout/main.aontu
-module integrity: corp.example/schemas/rates expected aon1-vO_nsrLAdRBPpq8Vi8G_FgDDMWmoVGRjm6eZThS0QHA got aon1-wixJdyL2g90c1HaWaoBKBpHA6da7Hn-MEikz6LW-BVI
+module integrity: corp.example/schemas/rates expected aon1-wDjCpctak5kaDtoag_9_mg5h41yAcSoi14Z6WOUAOSA got aon1-wixJdyL2g90c1HaWaoBKBpHA6da7Hn-MEikz6LW-BVI
 $ echo $?
 1
 ```

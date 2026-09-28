@@ -83,9 +83,12 @@ function fromConstraint(ctx, path, c) {
             out[str ? 'maxLength' : 'maxItems'] = hi;
         }
         if (!str && null == c.domain) {
-            lose(ctx, path, 'length', 'a count with no domain is exported as minItems/maxItems; ' +
+            lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
                 'JSON Schema has no keyword that counts a string OR a container');
         }
+    }
+    if (true === c.nonEmpty && true !== c.emptyOk && !(1 <= out.minLength)) {
+        out.minLength = 1;
     }
     if (c.uniq) {
         out.uniqueItems = true;
@@ -150,7 +153,9 @@ function fromValInner(ctx, path, v) {
                 'this leaf exists for cannot be carried; the schema says ' +
                 '"' + t + '" and a consumer may round');
         }
-        return { type: t };
+        // `string` refuses "", and `string & empty()` does not.
+        return String === v.peg && true !== v.emptyOk ?
+            { type: t, minLength: 1 } : { type: t };
     }
     if (true === v.isNull) {
         return { type: 'null' };

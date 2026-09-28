@@ -89,7 +89,7 @@ roles: admin: { tenantOwner:false rank:80 }
 roles: auditor: { tenantOwner:false rank:20 }
 
 registry_invariant: hide({
-  one_owner: length(1) & filter($.roles, { tenantOwner:true })
+  one_owner: len(1) & filter($.roles, { tenantOwner:true })
 })
 ```
 
@@ -110,7 +110,7 @@ roles: admin: { tenantOwner:true rank:80 }
 roles: auditor: { tenantOwner:false rank:20 }
 
 registry_invariant: hide({
-  one_owner: length(1) & filter($.roles, { tenantOwner:true })
+  one_owner: len(1) & filter($.roles, { tenantOwner:true })
 })
 ```
 

@@ -46,7 +46,7 @@ schema: {
     # NOT bare `number` either: that would admit floats. The honest
     # spelling is the two-leaf disjunction.
     ledgerId: integer & min(1) | biginteger & min(1)
-    name: string & length(min(1) & max(120))
+    name: string & len(min(1) & max(120))
     country: string & re("^[A-Z]{2}$") # ISO 3166-1 a2
     currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS") # ISO 4217
     email?: string & re("^[^@ ]+@[^@ ]+[.][a-z][a-z]+$")
@@ -65,7 +65,7 @@ schema: {
 
   Order: type(close({
     id: string & re("^ord-[0-9]{4}$")
-    # INTENDED: `customerId: refer() & string & re(...)`, making
+    # INTENDED: `customerId: refer() & path & re(...)`, making
     # referential integrity part of the named type. A refer() inside
     # a type definition cannot settle at its own definition site and
     # kills (or hangs) the evaluation (README, gap 7), so the refer()
@@ -75,10 +75,10 @@ schema: {
     # path, so the shape to pin is `$.customers.cust-NNNN` rather than
     # a bare id. It still catches a link into the wrong bag, which is
     # what it was for.
-    customerId: string & re("^\\$\\.customers\\.cust-")
+    customerId: path & re("^\\$\\.customers\\.cust-")
     status: *"open" | "invoiced" | "cancelled"
     placed: string & re("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-    # NOTE: the intended `& length(min(1) & max(50))` cannot be added:
+    # NOTE: the intended `& len(min(1) & max(50))` cannot be added:
     # the sizing atom folds against this template list itself (zero
     # elements) at the definition site and the schema dies (README,
     # gap 5; gaps/list-length-template.aontu).
@@ -88,7 +88,7 @@ schema: {
   Invoice: type(close({
     id: string & re("^inv-[0-9]{4}$")
     # The address shape, as above: refer() is applied at the bag spread.
-    orderId: string & re("^\\$\\.orders\\.ord-")
+    orderId: path & re("^\\$\\.orders\\.ord-")
     currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")
     netCents: integer & min(0) & max(100000000000)
     taxCents: integer & min(0) & max(100000000000)

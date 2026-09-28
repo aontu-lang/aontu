@@ -23,9 +23,9 @@ flags: {
   # of another kind is refused); range/type checking is done by
   # `vet` against defs.Flag, and by the range audit in policy.aontu.
   &: {
-    key: string & re("^[a-z][a-z0-9_.\\-]*$") & length(min(3)) & length(max(64))
+    key: string & re("^[a-z][a-z0-9_.\\-]*$") & len(min(3)) & len(max(64))
     owner: string & re("^[a-z0-9._\\-]+@acme\\.example$")
-    description: string & length(min(12)) & length(max(160))
+    description: string & len(min(12)) & len(max(160))
     created: string & re("^\\d{4}-\\d{2}-\\d{2}$")
     expiry: string & re("^\\d{4}-\\d{2}-\\d{2}$")
     enabled: ***false
@@ -78,6 +78,6 @@ flags: {
     # Narrow-only field: constrained here, never given a value.  The
     # first concrete value arrives through the overlay (aontu set),
     # which may only narrow, never contradict.
-    message?: string & length(max(80))
+    message?: string & len(max(80))
   }
 }

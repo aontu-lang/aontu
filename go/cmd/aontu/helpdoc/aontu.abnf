@@ -82,10 +82,10 @@ func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 ; listed before `re`, and `rem` before `re` as well.
 name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"copyfiles" / %s"copy" / %s"deprecate" / %s"div"
-          / %s"each" / %s"emit" / %s"esc" / %s"filter" / %s"greatest"
+          / %s"each" / %s"emit" / %s"empty" / %s"esc" / %s"filter" / %s"greatest"
           / %s"hide"
           / %s"inverse" / %s"join" / %s"key" / %s"least"
-          / %s"length" / %s"listitems" / %s"list" / %s"lower" / %s"map" / %s"match"
+          / %s"len" / %s"listitems" / %s"lower" / %s"match"
           / %s"maybe" / %s"max" / %s"min" / %s"mod" / %s"move"
           / %s"mul" / %s"must"
           / %s"neq"
@@ -120,7 +120,8 @@ place     = %s"_"
 ; fourth character), but `biginteger` before `boolean` is: see the
 ; ordered-alternation note above.
 kind      = %s"biginteger" / %s"bigdecimal" / %s"boolean" / %s"float"
-          / %s"integer" / %s"number" / %s"string" / %s"top" / %s"nil"
+          / %s"integer" / %s"number" / %s"string" / %s"path" / %s"map"
+          / %s"list" / %s"constraint" / %s"any" / %s"nil"
 
 ; `exact` before `number`, or `0d5` would match `number` as the single
 ; digit `0` and leave `d5` unconsumed.

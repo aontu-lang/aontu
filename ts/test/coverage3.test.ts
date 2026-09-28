@@ -13,6 +13,7 @@ import { AontuError, makeNilErr, descErr } from '../dist/err'
 import { Lang, Site as LangSite } from '../dist/lang'
 import { Site } from '../dist/site'
 import { CloseFuncVal } from '../dist/val/CloseFuncVal'
+import { OpenFuncVal } from '../dist/val/OpenFuncVal'
 import { CopyFuncVal } from '../dist/val/CopyFuncVal'
 import { HideFuncVal } from '../dist/val/HideFuncVal'
 import { MoveFuncVal } from '../dist/val/MoveFuncVal'
@@ -67,12 +68,13 @@ import { FeatureVal } from '../dist/val/FeatureVal'
 import { FuncBaseVal } from '../dist/val/FuncBaseVal'
 import { PathFuncVal } from '../dist/val/PathFuncVal'
 import {
-  MapKindVal, ListKindVal, MapFuncVal, ListFuncVal,
+  MapKindVal, ListKindVal,
 } from '../dist/val/ContainerKindVal'
 import { UpperFuncVal } from '../dist/val/UpperFuncVal'
 import { LowerFuncVal } from '../dist/val/LowerFuncVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
 import { ConstraintVal, MinConstraintVal } from '../dist/val/ConstraintVal'
+import { ConstraintKindVal } from '../dist/val/ConstraintKindVal'
 import { Decimal, decimalOverBudget } from '../dist/val/Decimal'
 import { BigIntegerVal } from '../dist/val/BigIntegerVal'
 import { BigDecimalVal } from '../dist/val/BigDecimalVal'
@@ -289,7 +291,6 @@ describe('coverage3-bags', () => {
   test('func-no-arg-guards-via-api', () => {
     const ctx = CTX()
     const cases: [string, any, string][] = [
-      ['close', new CloseFuncVal({ peg: [] }), 'no_first_arg'],
       ['copy', new CopyFuncVal({ peg: [] }), 'invalid-arg'],
       ['hide', new HideFuncVal({ peg: [] }), 'arg'],
       ['move', new MoveFuncVal({ peg: [] }), 'arg'],
@@ -301,6 +302,13 @@ describe('coverage3-bags', () => {
       Assert.equal(out.isNil, true, name + ': expected a nil')
       Assert.equal(out.why, why, name + ': why')
     }
+
+    // `close()` with no argument is a seal, not a refusal.
+    const seal: any = new CloseFuncVal({ peg: [] }).resolve(ctx, [])
+    Assert.equal(seal.isSeal, true)
+    Assert.equal(seal.closed, true)
+    Assert.equal(seal.clone(ctx).same(seal), true)
+    Assert.equal(seal.same(new OpenFuncVal({ peg: [] }).resolve(ctx, [])), false)
 
     const pf: any = new PathFuncVal({ peg: [] })
     const prepared: any = pf.prepare(ctx, [])
@@ -501,14 +509,20 @@ describe('coverage3-funcs', () => {
     Assert.equal(lk.same(mk), false)
     Assert.equal(lk.same(new ListKindVal({}, ctx)), true)
 
-    // The func shells: resolved on first unify, so make() and
-    // funcname() never run from source.
-    const mf: any = new MapFuncVal({ peg: [] }, ctx)
-    Assert.equal(mf.funcname(), 'map')
-    Assert.equal((mf.make(ctx, { peg: [] }) as any).isMapFunc, true)
-    const lf: any = new ListFuncVal({ peg: [] }, ctx)
-    Assert.equal(lf.funcname(), 'list')
-    Assert.equal((lf.make(ctx, { peg: [] }) as any).isListFunc, true)
+  })
+
+  test('constraint-kind-api-only-arms', () => {
+    const ctx = CTX()
+    const bare = new ConstraintKindVal({}, ctx)
+    const held: any = new ConstraintKindVal({ held: new MinConstraintVal({ peg: [new IntegerVal({ peg: 1 })] }, ctx) } as any, ctx)
+    Assert.equal(bare.same(new ConstraintKindVal({}, ctx)), true)
+    Assert.equal(bare.same(held), false)
+    Assert.equal(held.same(bare), false)
+    Assert.equal(held.same(held.clone(ctx)), true)
+    Assert.equal(bare.same(new MapKindVal({}, ctx)), false)
+    Assert.equal(bare.clone(ctx).canon, 'constraint')
+    Assert.equal((bare.unify(bare, ctx) as any), bare)
+    Assert.equal((bare.hold(new NilVal({}), ctx) as any).isNil, true)
   })
 
   test('path-func-api-only-arms', () => {
@@ -852,8 +866,8 @@ describe('coverage3-lsp', () => {
       2), /\*reference\*/)
     Assert.match(label('n:1.5', 2), /\*float\*/)
     Assert.match(label('x:null', 2), /\*scalar\*/)
-    Assert.match(label('x:null|top', 2), /\*disjunct\*/)
-    Assert.match(label('x:top|top', 2), /\*top\*/)
+    Assert.match(label('x:null|any', 2), /\*disjunct\*/)
+    Assert.match(label('x:any|any', 2), /\*any\*/)
   })
 
   test('publish-for-unopened-document', () => {

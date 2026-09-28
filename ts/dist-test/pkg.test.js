@@ -913,7 +913,7 @@ function withCache(dir, fn) {
         Assert.equal(widened.report.verdict, 'ok');
         Assert.deepEqual(widened.report.findings, []);
         const nested = publishable('1.0.0', 'svc: { port: 8080, tags: ["a", "b"] }\nsecret: hide(1)\n');
-        const gone = manifestOf(publishable('1.1.0', 'svc: top\nsecret: hide(1)\n'), nested);
+        const gone = manifestOf(publishable('1.1.0', 'svc: any\nsecret: hide(1)\n'), nested);
         Assert.equal(gone.report.verdict, 'breaking');
         Assert.deepEqual(gone.report.findings.map((f) => [f.code, f.path]), [['compat_undetermined', '$.svc']]);
         const element = manifestOf(publishable('1.1.0', 'svc: { port: 8080, tags: ["a", string] }\nsecret: hide(1)\n'), nested);
@@ -930,7 +930,7 @@ function withCache(dir, fn) {
         Assert.deepEqual((0, compat_1.compatOutcome)('a: 1 & 2\n', 'a: 1\n'), { verdict: 'error', findings: [] });
         Assert.equal((0, compat_1.compatOutcome)('a: *1|integer\n', 'a: **1|*2|integer\n').verdict, 'breaking');
         Assert.equal((0, compat_1.compatOutcome)('s: hide({ a: 2 })\n', 's: hide({ a: 1 })\n').verdict, 'ok');
-        Assert.equal((0, compat_1.compatOutcome)('svc: top\n', 'svc: { h: hide({ a: 1 }), k: integer }\n').verdict, 'ok');
+        Assert.equal((0, compat_1.compatOutcome)('svc: any\n', 'svc: { h: hide({ a: 1 }), k: integer }\n').verdict, 'ok');
         Assert.equal((0, compat_1.compatOutcome)('a: *2|integer\n', 'a: *2|**1|integer\n').verdict, 'ok');
         Assert.equal((0, compat_1.compatOutcome)('a: 1|2\n', 'a: 1|2\n').verdict, 'ok');
         Assert.equal(manifestOf(publishable('1.1.0', 'a: 1\n'), publishable('1.0.0', 'a: 1 & 2\n')).report.verdict, 'error');

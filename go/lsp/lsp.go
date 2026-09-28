@@ -335,12 +335,12 @@ func Completions(src string) []CompletionItem {
 		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: aontu.FuncSignature(f)})
 	}
 	for _, k := range []string{"string", "number", "integer", "float",
-		"biginteger", "bigdecimal", "boolean"} {
+		"biginteger", "bigdecimal", "boolean", "map", "list", "constraint"} {
 		out = append(out, CompletionItem{Label: k, Kind: CompletionKeyword, Detail: "scalar kind"})
 	}
 	// `_` joins these as of G8 phase 3: it is a literal of the language
 	// now, not text.
-	for _, k := range []string{"_", "true", "false", "null", "top"} {
+	for _, k := range []string{"_", "true", "false", "null", "any"} {
 		out = append(out, CompletionItem{Label: k, Kind: CompletionKeyword, Detail: "keyword"})
 	}
 	// A name that binds more than once is still one name to offer.

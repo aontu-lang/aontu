@@ -48,6 +48,6 @@ letter = %x41-5A / %x61-7A
       *0|(integer & min(0))
       *""|parse($.aontu.System.semverPreRelease)
       *""|parse($.aontu.System.semverBuild)
-    ] & length(5)
+    ] & len(5)
   )
 }

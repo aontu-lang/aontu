@@ -12,7 +12,7 @@ bool-or	gen	x:true+false	{"x":true}
 str-num-concat	gen	x:a+1	{"x":"a1"}
 qstr-num-concat	gen	x:"q"+0.001	{"x":"q0.001"}
 pref-operand	gen	x:pref(1)+2	{"x":3}
-top-operand-err	err	x:top+1	Cannot resolve value
+top-operand-err	err	x:any+1	Cannot resolve value
 
 # An expression arriving as a PEER-ONLY key computes exactly as it does
 # written inline (2026-08-26, BUGS.md sec 36's general form): the map

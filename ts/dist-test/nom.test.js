@@ -104,7 +104,7 @@ const E = (src) => {
     (0, node_test_1.test)('namers-own-separators-and-styles', () => {
         Assert.equal(G('x: nom("a.b/c", pascal)').x, 'ABC');
         Assert.equal(G('x: nom("userId", dot)').x, 'user.id');
-        Assert.equal(G('x: nom("userId", path)').x, 'user/id');
+        Assert.equal(G('x: nom("userId", "path")').x, 'user/id');
         Assert.equal(G('x: nom("userId", title)').x, 'User Id');
         // `as-is` is the profile's way of saying "do nothing"; it is not a
         // spelling anyone asks a namer for, so it is not a style here.
@@ -137,11 +137,9 @@ const E = (src) => {
         Assert.equal(E('x: nom("_", pascal)'), 'invalid-arg');
         Assert.equal(E('x: nom("_")'), 'invalid-arg');
     });
-    (0, node_test_1.test)('a-path-is-text', () => {
-        (0, expect_1.expect)(G('z: x: {a: 1}\nz: y: nom(path($.z.x.a), kebab)').z.y)
-            .equal('$-z-x-a');
-        (0, expect_1.expect)(G('z: x: {a: 1}\nz: y: nom(path(.x.a), kebab)').z.y)
-            .equal('x-a');
+    (0, node_test_1.test)('a-path-is-not-text', () => {
+        Assert.equal(E('z: x: {a: 1}\nz: y: nom(path($.z.x.a), kebab)'), 'func_arg');
+        Assert.equal(E('z: x: {a: 1}\nz: y: nom(path(.x.a), kebab)'), 'func_arg');
     });
     // A forward reference residuates and answers once the model settles:
     // `nom` answers from its arguments alone and is not staged.

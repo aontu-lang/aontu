@@ -6,7 +6,7 @@
 <path d="M32 40V50H50" class="av-line"/>
 <text x="52" y="54"><tspan class="av-t">amountEur</tspan><tspan class="av-m"> bigdecimal</tspan></text>
 <path d="M32 40V70H50" class="av-line"/>
-<text x="52" y="74"><tspan class="av-t">annotations</tspan><tspan class="av-m"> {&amp;:string&amp;length(integer&amp;min(...</tspan></text>
+<text x="52" y="74"><tspan class="av-t">annotations</tspan><tspan class="av-m"> {&amp;:string&amp;len(integer&amp;min(0)&amp;...</tspan></text>
 <path d="M32 40V90H50" class="av-line"/>
 <text x="52" y="94"><tspan class="av-t">attempts</tspan><tspan class="av-m"> [&amp;:integer]</tspan></text>
 <path d="M32 40V110H50" class="av-line"/>

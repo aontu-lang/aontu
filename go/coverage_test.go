@@ -64,7 +64,7 @@ func TestExpectValContracts(t *testing.T) {
 		t.Fatalf("ExpectVal.superior must be top")
 	}
 	if isExpect(newTop()) {
-		t.Fatalf("isExpect(top) must be false")
+		t.Fatalf("isExpect(any) must be false")
 	}
 	out := e.Unify(top(), nil)
 	if out != Val(e) || out.Dc() != DONE {
@@ -100,7 +100,7 @@ func TestListSpreadRequiredBranch(t *testing.T) {
 // the LSP surface contract (valKind, collectSpans, collectNils).
 func TestCheckAndSpansKinds(t *testing.T) {
 	a := New()
-	spans := a.Spans("a:1 b:1.5 c:x d:true e:null f:{g:[2]} h:number i:$.a j:1|top k:*7 m:min(0) n:upper(z)")
+	spans := a.Spans("a:1 b:1.5 c:x d:true e:null f:{g:[2]} h:number i:$.a j:1|any k:*7 m:min(0) n:upper(z)")
 	kinds := map[string]bool{}
 	for _, sp := range spans {
 		kinds[sp.Kind] = true
@@ -373,7 +373,7 @@ func TestCheckParseError(t *testing.T) {
 		t.Fatalf("spans of unparseable source must be empty")
 	}
 	// Deeper span walks: nested bags, junction residue, funcs, refs.
-	spans := a.Spans("a:{b:[1,{c:2}]} d:$.a e:top f:1|$.zz g:upper($.zz)")
+	spans := a.Spans("a:{b:[1,{c:2}]} d:$.a e:any f:1|$.zz g:upper($.zz)")
 	if len(spans) == 0 {
 		t.Fatalf("expected spans")
 	}
@@ -449,7 +449,7 @@ func TestConjunctDirectArms(t *testing.T) {
 }
 
 func TestScalarRenderingEdges(t *testing.T) {
-	if Kind(99).String() != "top" || KindNil.String() != "nil" {
+	if Kind(99).String() != "any" || KindNil.String() != "nil" {
 		t.Fatalf("kind string fallbacks")
 	}
 	if formatNumber(math.NaN()) != "NaN" ||
