@@ -5,6 +5,7 @@ exports.StringVal = void 0;
 const err_1 = require("../err");
 const err_2 = require("../err");
 const ScalarVal_1 = require("./ScalarVal");
+const ScalarKindVal_1 = require("./ScalarKindVal");
 class StringVal extends ScalarVal_1.ScalarVal {
     constructor(spec, ctx) {
         super({ peg: spec.peg, kind: String }, ctx);
@@ -36,6 +37,12 @@ class StringVal extends ScalarVal_1.ScalarVal {
                     this.clone(ctx, { needsNonEmpty: needs, emptyOk: ok });
         }
         return super.unify(peer, ctx);
+    }
+    // The kind that admits this value: "" needs the waiver.
+    superior() {
+        return this.place(new ScalarKindVal_1.ScalarKindVal({
+            peg: String, emptyOk: '' === this.peg || this.emptyOk,
+        }));
     }
     get refused() {
         return '' === this.peg && this.needsNonEmpty && !this.emptyOk;

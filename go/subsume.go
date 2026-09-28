@@ -286,16 +286,19 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Scalar kinds.
 	if gk, ok := g.(*ScalarKindVal); ok {
+		// A `string` without the waiver refuses the "" a waived one admits.
+		strict := KindString == gk.kind && !gk.emptyOk
 		switch sn := s.(type) {
 		case *ScalarKindVal:
-			if gk.kind == sn.kind || kindSubsumes(gk.kind, sn.kind) {
+			if (gk.kind == sn.kind || kindSubsumes(gk.kind, sn.kind)) && !(strict && sn.emptyOk) {
 				return subYes
 			}
 			st.record("compat_narrowed", path, g, s,
 				"the general kind does not admit the specific kind")
 			return subNo
 		case *ScalarVal:
-			if gk.kind == sn.kind || kindSubsumes(gk.kind, sn.kind) {
+			if (gk.kind == sn.kind || kindSubsumes(gk.kind, sn.kind)) &&
+				!(strict && KindString == sn.kind && ("" == sn.peg.(string) || sn.emptyOk)) {
 				return subYes
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -308,7 +311,11 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 					(KindTop != sn.kind && gk.kind == sn.kind)) {
 				return subYes
 			}
-			if "string" == sn.domain && KindString == gk.kind {
+			if "string" == sn.domain && KindString == gk.kind && !sn.pathKind &&
+				!(strict && !(sn.nonEmpty && !sn.emptyOk)) {
+				return subYes
+			}
+			if KindPath == gk.kind && sn.pathKind {
 				return subYes
 			}
 			st.record("compat_narrowed", path, g, s,

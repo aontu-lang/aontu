@@ -129,7 +129,7 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
             super.same(peer);
         return out;
     }
-} /* node:coverage ignore next 15 */
+} /* node:coverage ignore next 20 */
 exports.ScalarKindVal = ScalarKindVal;
 // The string kind's marker, under a name a module that has its own
 // `String` in scope can import.

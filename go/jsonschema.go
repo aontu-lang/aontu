@@ -85,6 +85,14 @@ func scalarSchemaJSON(sv *ScalarVal) any {
 	return sv.peg
 }
 
+// schemaLosePath: a path is its address string at the JSON boundary,
+// and the schema cannot say which strings are addresses.
+func schemaLosePath(sc *schemaCtx, path []string) {
+	sc.lose(path, "path",
+		"a path admits only path values, but JSON Schema has no path type; "+
+			"the schema says \"string\" and admits any string here")
+}
+
 // schemaAtLeastOne reports whether an exported length bound is already
 // at least 1.
 func schemaAtLeastOne(v any) bool {
@@ -92,8 +100,6 @@ func schemaAtLeastOne(v any) bool {
 	case int64:
 		return 1 <= n
 	case float64:
-		return 1 <= n
-	case int:
 		return 1 <= n
 	}
 	return false
@@ -183,6 +189,9 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 	if c.nonEmpty && !c.emptyOk && !schemaAtLeastOne(out["minLength"]) {
 		out["minLength"] = 1
+	}
+	if c.pathKind {
+		schemaLosePath(sc, path)
 	}
 
 	if c.uniq {
@@ -277,6 +286,9 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 					"this leaf exists for cannot be carried; the schema says "+
 					"\""+kindType[t.kind]+"\" and a consumer may round")
 		}
+		if KindPath == t.kind {
+			schemaLosePath(sc, path)
+		}
 		if jt, ok := kindType[t.kind]; ok {
 			// `string` refuses "", and `string & empty()` does not.
 			if KindString == t.kind && !t.emptyOk {
@@ -306,6 +318,11 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 
 	if isTop(v) {
 		return map[string]any{}
+	}
+
+	// `empty()` admits exactly the strings, "" included.
+	if _, ok := v.(*EmptyVal); ok {
+		return map[string]any{"type": "string"}
 	}
 
 	sc.lose(path, schemaResidueName(v),

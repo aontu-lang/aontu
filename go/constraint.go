@@ -1270,6 +1270,15 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 	if KindTop != g.kind && g.kind != s.kind {
 		return false, false
 	}
+	// The string-domain flags admit different sets: `path` and `string`
+	// are disjoint kinds, and a non-empty general does not cover a
+	// specific that admits "".
+	if g.pathKind && !s.pathKind {
+		return false, false
+	}
+	if g.nonEmpty && !g.emptyOk && !(s.nonEmpty && !s.emptyOk) {
+		return false, false
+	}
 	d := g.domain
 	if "" == d {
 		d = s.domain
@@ -1345,6 +1354,11 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 		return false, true
 	}
 	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
+		return false, false
+	}
+	if (g.pathKind && KindPath != scalar.kind) ||
+		(g.nonEmpty && KindPath == scalar.kind) ||
+		(g.nonEmpty && !g.emptyOk && KindString == scalar.kind && "" == scalar.peg.(string)) {
 		return false, false
 	}
 	return stateAdmits(g, scalar), false

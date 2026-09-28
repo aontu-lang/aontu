@@ -77,6 +77,15 @@ const KIND_TYPE: Record<string, string> = {
 }
 
 
+// A path is its address string at the JSON boundary, and the schema
+// cannot say which strings are addresses.
+function losePath(ctx: Ctx, path: string[]) {
+  lose(ctx, path, 'path',
+    'a path admits only path values, but JSON Schema has no path type; ' +
+    'the schema says "string" and admits any string here')
+}
+
+
 function scalarJson(v: any): any {
   if (v.isBigInteger) {
     return Number(v.peg)
@@ -152,6 +161,9 @@ function fromConstraint(ctx: Ctx, path: string[], c: any): any {
 
   if (true === c.nonEmpty && true !== c.emptyOk && !(1 <= out.minLength)) {
     out.minLength = 1
+  }
+  if (true === c.pathKind) {
+    losePath(ctx, path)
   }
 
   if (c.uniq) {
@@ -238,6 +250,9 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
         'this leaf exists for cannot be carried; the schema says ' +
         '"' + t + '" and a consumer may round')
     }
+    if ('Path' === v.peg?.name) {
+      losePath(ctx, path)
+    }
     // `string` refuses "", and `string & empty()` does not.
     return String === v.peg && true !== v.emptyOk ?
       { type: t, minLength: 1 } : { type: t }
@@ -249,6 +264,11 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
 
   if (true === v.isTop) {
     return {}
+  }
+
+  // `empty()` admits exactly the strings, "" included.
+  if (true === v.isEmptyConstraint) {
+    return { type: 'string' }
   }
 
   if (true === v.isScalar) {

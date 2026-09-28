@@ -26,7 +26,7 @@ class CloseFuncVal extends FuncBaseVal {
   ) {
     super(spec, ctx)
     this.validateArgs(spec.peg, 1)
-    if (0 === (spec.peg ?? []).length) {
+    if (0 === spec.peg.length) {
       this.cjo = sealCjo(true)
     }
   }

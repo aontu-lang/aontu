@@ -37,7 +37,7 @@ class SealVal extends FeatureVal {
     return super.clone(ctx, { closed: this.closed, ...(spec ?? {}) } as any)
   }
 
-  unify(peer: Val, _ctx: AontuContext): Val {
+  unify(peer: Val, ctx: AontuContext): Val {
     const p: any = peer
     if (null == p || true === p.isTop) {
       return this
@@ -45,9 +45,12 @@ class SealVal extends FeatureVal {
     if (true === p.isSeal) {
       return this.closed || !p.closed ? this : p
     }
+    // A copy, not the peer: a disjunction trials every alternative
+    // against one peer, and a seal set in place would leak across them.
     if (true === p.isMap || true === p.isList) {
-      p.closed = this.closed
-      return p
+      const out: any = p.clone(ctx)
+      out.closed = this.closed
+      return out
     }
     return peer
   }
@@ -60,7 +63,7 @@ class SealVal extends FeatureVal {
     return true === peer?.isSeal && this.closed === peer.closed
   }
 
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 11 */
 
 
 function sealCjo(closed: boolean): number {

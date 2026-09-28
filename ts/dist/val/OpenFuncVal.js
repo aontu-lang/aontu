@@ -8,7 +8,7 @@ class OpenFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isOpenFunc = true;
-        if (0 === (spec.peg ?? []).length) {
+        if (0 === spec.peg.length) {
             this.cjo = (0, SealVal_1.sealCjo)(false);
         }
     }

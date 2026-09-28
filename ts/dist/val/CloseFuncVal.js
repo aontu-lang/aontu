@@ -9,7 +9,7 @@ class CloseFuncVal extends FuncBaseVal_1.FuncBaseVal {
         super(spec, ctx);
         this.isCloseFunc = true;
         this.validateArgs(spec.peg, 1);
-        if (0 === (spec.peg ?? []).length) {
+        if (0 === spec.peg.length) {
             this.cjo = (0, SealVal_1.sealCjo)(true);
         }
     }

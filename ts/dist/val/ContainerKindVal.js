@@ -53,6 +53,6 @@ class ListKindVal extends FeatureVal_1.FeatureVal {
     same(peer) {
         return true === peer?.isListKind;
     }
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 6 */
 exports.ListKindVal = ListKindVal;
 //# sourceMappingURL=ContainerKindVal.js.map

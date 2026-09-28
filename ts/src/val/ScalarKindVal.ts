@@ -187,7 +187,7 @@ class ScalarKindVal extends FeatureVal {
   }
 
 
-} /* node:coverage ignore next 15 */
+} /* node:coverage ignore next 20 */
 
 
 // The string kind's marker, under a name a module that has its own

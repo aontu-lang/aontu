@@ -1045,6 +1045,16 @@ function constraintStateSubsumes(g, s) {
     if (null != g.kind && g.kind !== s.kind) {
         return false;
     }
+    // `path` and `string` are disjoint kinds, and a non-empty general
+    // does not cover a specific that admits "".
+    const ga = g, sa = s;
+    if (true === ga.pathKind && true !== sa.pathKind) {
+        return false;
+    }
+    if (true === ga.nonEmpty && true !== ga.emptyOk &&
+        !(true === sa.nonEmpty && true !== sa.emptyOk)) {
+        return false;
+    }
     // Interval containment: the general's endpoints at or beyond the
     // specific's, and where they coincide the general's may not be the
     // open one.
@@ -1110,6 +1120,13 @@ function constraintAdmitsScalar(g, scalar) {
         return false;
     }
     if (null != g.count) {
+        return false;
+    }
+    const ga = g;
+    if ((true === ga.pathKind && true !== scalar.isPath) ||
+        (true === ga.nonEmpty && true === scalar.isPath) ||
+        (true === ga.nonEmpty && true !== ga.emptyOk &&
+            true === scalar.isString && '' === scalar.peg)) {
         return false;
     }
     return stateAdmits(g, scalar);

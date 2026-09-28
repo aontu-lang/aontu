@@ -13,6 +13,7 @@ import { makeNilErr, descErr } from '../err'
 import { AontuError } from '../err'
 
 import { ScalarVal } from './ScalarVal'
+import { ScalarKindVal } from './ScalarKindVal'
 
 
 class StringVal extends ScalarVal {
@@ -60,6 +61,13 @@ class StringVal extends ScalarVal {
           this.clone(ctx, { needsNonEmpty: needs, emptyOk: ok } as any)
     }
     return super.unify(peer, ctx)
+  }
+
+  // The kind that admits this value: "" needs the waiver.
+  superior() {
+    return this.place(new ScalarKindVal({
+      peg: String, emptyOk: '' === this.peg || this.emptyOk,
+    } as any))
   }
 
   get refused(): boolean {

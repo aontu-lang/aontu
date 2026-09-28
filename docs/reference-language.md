@@ -245,7 +245,7 @@ c: string & empty() & ""
 
 `empty()` waives a requirement rather than adding one, so it is not an
 ordinary meet. The engine carries the two facts as flags on the string
-(it met `string`; it met `empty()`) that every unification ORs together,
+(it met `string`; it met `empty()`) that every unification combines with OR,
 and decides at generation. The answer is the same whichever order the
 terms meet in, including across statements and through references. One
 consequence is that a refused `""` is not pruned from a disjunction:

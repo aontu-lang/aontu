@@ -25,7 +25,7 @@ class OpenFuncVal extends FuncBaseVal {
     ctx?: AontuContext
   ) {
     super(spec, ctx)
-    if (0 === (spec.peg ?? []).length) {
+    if (0 === spec.peg.length) {
       this.cjo = sealCjo(false)
     }
   }

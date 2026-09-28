@@ -60,7 +60,7 @@ class EmptyVal extends FeatureVal {
     return true === peer?.isEmptyConstraint
   }
 
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 5 */
 
 
 export {

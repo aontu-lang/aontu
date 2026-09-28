@@ -10,6 +10,7 @@ declare class StringVal extends ScalarVal {
     withEmpty(ctx: AontuContext): Val;
     withNonEmpty(ctx: AontuContext): Val;
     unify(peer: Val, ctx: AontuContext): Val;
+    superior(): Val;
     get refused(): boolean;
     get canon(): string;
     gen(ctx: AontuContext): any;

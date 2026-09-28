@@ -50,12 +50,16 @@ func (s *SealVal) Unify(peer Val, ctx *Ctx) Val {
 			return s
 		}
 		return p
+	// A copy, not the peer: a disjunction trials every alternative
+	// against one peer, and a seal set in place would leak across them.
 	case *MapVal:
-		p.closed = s.closed
-		return p
+		c := clonePath(p, cp(p.path)).(*MapVal)
+		c.closed = s.closed
+		return c
 	case *ListVal:
-		p.closed = s.closed
-		return p
+		c := clonePath(p, cp(p.path)).(*ListVal)
+		c.closed = s.closed
+		return c
 	}
 	return peer
 }

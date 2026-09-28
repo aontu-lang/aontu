@@ -6,7 +6,7 @@ declare class SealVal extends FeatureVal {
     closed: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    unify(peer: Val, _ctx: AontuContext): Val;
+    unify(peer: Val, ctx: AontuContext): Val;
     get canon(): "close()" | "open()";
     same(peer: any): boolean;
 }

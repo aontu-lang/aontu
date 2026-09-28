@@ -139,6 +139,10 @@ class ReferVal extends FeatureVal {
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
+    // The type of constraints holds this constraint, not the reverse.
+    if (true === (peer as any)?.isConstraintKind) {
+      return peer.unify(this, ctx)
+    }
     const p: any = peer
 
     // Another `refer` at the same position: one constraint, both
@@ -377,6 +381,9 @@ class RelVal extends FeatureVal {
   }
 
   unify(peer: Val, ctx: AontuContext): Val {
+    if (true === (peer as any)?.isConstraintKind) {
+      return peer.unify(this, ctx)
+    }
     const p: any = peer
 
     // Two rel() at one field: one relation, both types.

@@ -41,6 +41,6 @@ class EmptyVal extends FeatureVal_1.FeatureVal {
     same(peer) {
         return true === peer?.isEmptyConstraint;
     }
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 5 */
 exports.EmptyVal = EmptyVal;
 //# sourceMappingURL=EmptyVal.js.map

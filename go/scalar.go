@@ -147,6 +147,10 @@ func scalarPegSame(kind Kind, a, b any) bool {
 
 func (s *ScalarVal) superior() Val {
 	k := newScalarKind(s.kind)
+	// The kind that admits this value: "" needs the waiver.
+	if KindString == s.kind && ("" == s.peg.(string) || s.emptyOk) {
+		k.emptyOk = true
+	}
 	k.site.sp, k.site.spu, k.site.url = s.site.sp, s.site.spu, s.site.url
 	k.site.src = s.site.src
 	return k

@@ -29,7 +29,9 @@ import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
 import { Provenance, markSpread } from '../dist/provenance'
-import { ReferVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
+import { ReferVal, RelVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
+import { EmptyVal } from '../dist/val/EmptyVal'
+import { SealVal } from '../dist/val/SealVal'
 import { parseAddress, PathVal } from '../dist/val/PathVal'
 import { graphOf } from '../dist/graph'
 import { canonRiders } from '../dist/utility'
@@ -523,6 +525,70 @@ describe('coverage3-funcs', () => {
     Assert.equal(bare.clone(ctx).canon, 'constraint')
     Assert.equal((bare.unify(bare, ctx) as any), bare)
     Assert.equal((bare.hold(new NilVal({}), ctx) as any).isNil, true)
+  })
+
+  // The dispatcher in unify.ts drives the type of constraints, empty()
+  // and a seal before their peers, so these arms are API-only.
+  test('keyword-vals-api-only-arms', () => {
+    const ctx = CTX()
+    const bare: any = new ConstraintKindVal({}, ctx)
+    Assert.equal(bare.unify(top(), ctx), bare)
+    const pending: any = new MinConstraintVal({ peg: [new RefVal({ peg: ['b'] }, ctx)] }, ctx)
+    const held: any = new ConstraintKindVal({ held: pending } as any, ctx)
+    Assert.notEqual(held.dc, -1)
+    Assert.notEqual(held.unify(top(), ctx), held)
+    Assert.equal(bare.hold(new IntegerVal({ peg: 1 }, ctx), ctx).why, 'constraint_kind')
+
+    const e: any = new EmptyVal({}, ctx)
+    Assert.equal(e.unify(undefined, ctx), e)
+    Assert.equal(e.unify(top(), ctx), e)
+    Assert.equal(e.unify(new EmptyVal({}, ctx), ctx), e)
+    const nil: any = new NilVal({ why: 'test-nil' }, ctx)
+    Assert.equal(e.unify(nil, ctx), nil)
+    Assert.equal(e.unify(new ConstraintKindVal({}, ctx), ctx).canon, 'constraint&empty()')
+    Assert.equal(e.same(new EmptyVal({}, ctx)), true)
+    Assert.equal(e.same(bare), false)
+
+    const closed: any = new SealVal({ closed: true } as any, ctx)
+    const open: any = new SealVal({ closed: false } as any, ctx)
+    Assert.equal(closed.unify(undefined, ctx), closed)
+    Assert.equal(closed.unify(top(), ctx), closed)
+    Assert.equal(open.unify(closed, ctx), closed)
+    Assert.equal(closed.unify(open, ctx), closed)
+    const one = new IntegerVal({ peg: 1 }, ctx)
+    Assert.equal(closed.unify(one, ctx), one)
+    Assert.equal(closed.same(closed.clone(ctx)), true)
+    Assert.equal(closed.same(open), false)
+
+    const rel: any = new RelVal({ tval: new StringVal({ peg: 'x' }, ctx) } as any, ctx)
+    Assert.equal(rel.unify(new ConstraintKindVal({}, ctx), ctx).canon, 'constraint&rel("x")')
+  })
+
+  // The empty-string flags fold idempotently, and a value carrying one
+  // hands it to an identical value that does not.
+  test('empty-flags-api-only-arms', () => {
+    const ctx = CTX()
+    const sk: any = new ScalarKindVal({ peg: String }, ctx).withEmpty(ctx)
+    Assert.equal(sk.withEmpty(ctx), sk)
+
+    const s: any = new StringVal({ peg: 'x' }, ctx).withEmpty(ctx)
+    Assert.equal(s.withEmpty(ctx), s)
+    const bare: any = new StringVal({ peg: 'x' }, ctx)
+    Assert.equal(bare.unify(s, ctx), s)
+    Assert.equal(s.unify(bare, ctx), s)
+    const blank: any = new StringVal({ peg: '' }, ctx)
+    const strict: any = blank.withNonEmpty(ctx)
+    Assert.equal(strict.needsNonEmpty, true)
+    const both: any = strict.unify(blank.withEmpty(ctx), ctx)
+    Assert.equal(both.needsNonEmpty && both.emptyOk, true)
+
+    const waived: any = A().unify('x: string & re("x") & empty()').peg.x
+    Assert.equal(waived.allowEmpty(ctx, new EmptyVal({}, ctx)), waived)
+
+    // With an argument, close() and open() are the ordinary calls.
+    const m = new MapVal({ peg: {} }, ctx)
+    Assert.notEqual(new CloseFuncVal({ peg: [m] }, ctx).cjo, new CloseFuncVal({ peg: [] }, ctx).cjo)
+    Assert.notEqual(new OpenFuncVal({ peg: [m] }, ctx).cjo, new OpenFuncVal({ peg: [] }, ctx).cjo)
   })
 
   test('path-func-api-only-arms', () => {

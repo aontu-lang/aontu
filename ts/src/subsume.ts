@@ -11,7 +11,7 @@ import {
   constraintSubsumesConstraint,
   constraintAdmitsScalar,
 } from './val/ConstraintVal'
-import { kindSubsumes } from './val/ScalarKindVal'
+import { Path, kindSubsumes } from './val/ScalarKindVal'
 import { prefixMeet } from './val/PathVal'
 import { prefInnerPeg } from './val/PrefVal'
 
@@ -235,8 +235,11 @@ export function subsumeNode(
   // Scalar kinds: a kind subsumes its scalars, narrower kinds, and the
   // constraint residuals of its domain.
   if (true === g?.isScalarKind) {
+    // A `string` without the waiver refuses the "" a waived one admits.
+    const strict = String === g.peg && true !== (g as any).emptyOk
     if (true === s?.isScalarKind) {
-      if (g.peg === s.peg || kindSubsumes(g.peg, s.peg)) {
+      if ((g.peg === s.peg || kindSubsumes(g.peg, s.peg)) &&
+        !(strict && true === (s as any).emptyOk)) {
         return 'yes'
       }
       record(state, 'compat_narrowed', path, g, s,
@@ -246,7 +249,8 @@ export function subsumeNode(
     if (true === s?.isScalar) {
       const leaf = s.superior?.()
       if (true === leaf?.isScalarKind &&
-        (g.peg === leaf.peg || kindSubsumes(g.peg, leaf.peg))) {
+        (g.peg === leaf.peg || kindSubsumes(g.peg, leaf.peg)) &&
+        !(strict && true === leaf.emptyOk)) {
         return 'yes'
       }
       record(state, 'compat_narrowed', path, g, s,
@@ -261,7 +265,13 @@ export function subsumeNode(
           (null != skind && kindSubsumes(g.peg, skind)))) {
         return 'yes'
       }
-      if ('string' === dom && String === g.peg) {
+      if ('string' === dom && String === g.peg &&
+        true !== (s as any).pathKind &&
+        !(strict && !(true === (s as any).nonEmpty &&
+          true !== (s as any).emptyOk))) {
+        return 'yes'
+      }
+      if (Path === g.peg && true === (s as any).pathKind) {
         return 'yes'
       }
       record(state, 'compat_narrowed', path, g, s,

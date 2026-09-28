@@ -11,7 +11,7 @@ const FeatureVal_1 = require("./FeatureVal");
 function constrains(v) {
     return true === v?.isConstraint || true === v?.isRefer
         || true === v?.isRel || true === v?.isScalarKind
-        || true === v?.isEmptyConstraint;
+        || true === v?.isEmptyConstraint || true === v?.isGraphAtom;
 }
 // The type of constraints. It HOLDS the meet of the constraints it has
 // met rather than answering with them, so a concrete value is refused
@@ -67,6 +67,6 @@ class ConstraintKindVal extends FeatureVal_1.FeatureVal {
             (null == this.held ? null == peer.held :
                 null != peer.held && this.held.same(peer.held));
     }
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 5 */
 exports.ConstraintKindVal = ConstraintKindVal;
 //# sourceMappingURL=ConstraintKindVal.js.map

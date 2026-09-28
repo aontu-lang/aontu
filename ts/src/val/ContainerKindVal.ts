@@ -78,7 +78,7 @@ class ListKindVal extends FeatureVal {
     return true === peer?.isListKind
   }
 
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 6 */
 
 
 export {

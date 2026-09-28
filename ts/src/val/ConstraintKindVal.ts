@@ -26,7 +26,7 @@ import { FeatureVal } from './FeatureVal'
 function constrains(v: any): boolean {
   return true === v?.isConstraint || true === v?.isRefer
     || true === v?.isRel || true === v?.isScalarKind
-    || true === v?.isEmptyConstraint
+    || true === v?.isEmptyConstraint || true === v?.isGraphAtom
 }
 
 
@@ -94,7 +94,7 @@ class ConstraintKindVal extends FeatureVal {
         null != peer.held && this.held.same(peer.held))
   }
 
-} /* node:coverage ignore next 4 */
+} /* node:coverage ignore next 5 */
 
 
 export {

@@ -42,7 +42,7 @@ Both ports. **Breaking.** `string & ""` is refused (`string_empty`),
 and the new constraint `empty()` waives that: `string & empty() & ""`
 is `""`. `empty()` only unifies with strings (`empty_domain`
 otherwise). The requirement and the waiver are carried as flags that
-every meet ORs together and generation decides, so the answer does not
+every meet combines with OR and generation decides, so the answer does not
 depend on which of them meets `""` first, across statements or through
 references; a refused `""` is not pruned from a disjunction. JSON
 Schema export says `minLength: 1` for `string` and not for
