@@ -287,6 +287,25 @@ func pendingMarkWrapper(v Val) bool {
 	return false
 }
 
+// A copy takes `x` from a pending nested `hide(x)`/`type(x)`.
+func dropPendingMarkWrappers(v Val) Val {
+	if fv, ok := v.(*FuncVal); ok && ("type" == fv.name || "hide" == fv.name) &&
+		DONE != fv.dc && 0 < len(fv.peg) {
+		return dropPendingMarkWrappers(fv.peg[0])
+	}
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			n.peg[k] = dropPendingMarkWrappers(n.peg[k])
+		}
+	case *ListVal:
+		for i, e := range n.peg {
+			n.peg[i] = dropPendingMarkWrappers(e)
+		}
+	}
+	return v
+}
+
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if rv.isPrefixPath() {
 		degenerate := 0 == len(rv.path)
@@ -471,6 +490,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if lifted {
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)
+		out = dropPendingMarkWrappers(out)
 		// A type is a definition: its own statements extend it, a
 		// copy taken by reference is an instance and adds nothing.
 		if typed && !rv.copyFound {

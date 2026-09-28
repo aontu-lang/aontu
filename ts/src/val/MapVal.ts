@@ -30,7 +30,7 @@ import { makeNilErr, AontuError } from '../err'
 import {
   top
 } from './top'
-import { pendingMarkWrapper } from './RefVal'
+import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 
 import { ConjunctVal } from './ConjunctVal'
@@ -78,6 +78,7 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
         v.mark.type = false
         return v
       })
+      snap = dropPendingMarkWrappers(snap)
       snapmap.set(sk, snap)
     }
   }

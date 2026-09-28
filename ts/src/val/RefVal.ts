@@ -48,6 +48,14 @@ import { BigDecimalVal } from './BigDecimalVal'
 const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 
 
+// A copy takes `x` from a pending nested `hide(x)`/`type(x)`.
+function dropPendingMarkWrappers(v: Val): Val {
+  return walk(v, (_key: string | number | undefined, val: any) =>
+    (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
+      null != val.peg?.[0] ? val.peg[0] : val)
+}
+
+
 function pendingMarkWrapper(v: any): boolean {
   if (true === v.isTypeFunc || true === v.isHideFunc) {
     return !v.done
@@ -505,6 +513,7 @@ class RefVal extends FeatureVal {
               return true === (val as any).isConstraintKind && null != held ?
                 held : val
             })
+            out = dropPendingMarkWrappers(out)
             if (typed && !this.copyFound) {
               sealTree(out, true)
             }
@@ -692,6 +701,7 @@ class RefVal extends FeatureVal {
 
 
 export {
+  dropPendingMarkWrappers,
   pendingMarkWrapper,
   RefVal,
 }

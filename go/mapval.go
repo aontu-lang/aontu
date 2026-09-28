@@ -153,6 +153,7 @@ func snapshotRefSpread(cj *RefVal, ctx *Ctx) Val {
 		// Clear TYPE marks on the snapshot: a type() template constrains
 		// values but must not make the destination type-invisible.
 		walkMark(snap, true, false, false, false)
+		snap = dropPendingMarkWrappers(snap)
 		ctx.snapmap[sk] = snap
 		return snap
 	}

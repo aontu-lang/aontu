@@ -8,6 +8,15 @@ each change affects.
 
 ## Unreleased
 
+### A copy does not re-stamp a nested mark (#280)
+
+Both ports. A reference or a reference spread that copies a map holding
+an unresolved `hide(x)` or `type(x)` (one whose argument is
+path-dependent, such as `key()`) now copies `x`, so the argument
+re-resolves at the destination and the mark stays where it was written:
+`t: { n: key(), h: hide(key()) }` with `c: $.t` gives `c` as
+`{"h":"c","n":"c"}`. Pinned in `test/spec/marks.tsv`.
+
 ### Four parity fixes (#281, #282, #283, #286)
 
 Both ports now answer these identically:

@@ -53,6 +53,7 @@ function snapshotRefSpread(cj, ctx) {
                 v.mark.type = false;
                 return v;
             });
+            snap = (0, RefVal_1.dropPendingMarkWrappers)(snap);
             snapmap.set(sk, snap);
         }
     }
