@@ -4,9 +4,8 @@
 # is the one go/aontu.go declares; the vendorHash of the vendored Go
 # modules is go/vendorhash.txt, which `nix build` names anew whenever
 # go.mod or go.sum change and go/flake_test.go recomputes. It sits
-# beside the module it describes so the Go test cache tracks it. No
-# lock file is committed: run `nix flake lock` where nix is, and commit
-# it, to pin nixpkgs.
+# beside the module it describes so the Go test cache tracks it.
+# flake.lock pins nixpkgs; `nix flake update` moves it.
 {
   description = "Aontu, the unifying configuration language: the aontu CLI and the aontu-lsp language server";
 
@@ -31,7 +30,7 @@
           modRoot = "go";
           subPackages = [ "cmd/aontu" "cmd/aontu-lsp" ];
           inherit vendorHash;
-          CGO_ENABLED = 0;
+          env.CGO_ENABLED = 0;
           ldflags = [ "-s" "-w" ];
           # The suite runs in CI (make test) and takes a minute; the
           # build here is the release's, not the gate's.
