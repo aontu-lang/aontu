@@ -125,7 +125,7 @@ Run it:
 ```sh
 $ aontu model get '$.out' client.aontu
 ...
-[aontu/emit_none]: Cannot resolve value at path $.out.0
+[aontu/emit_none]: Cannot resolve value at path $.out
 ...
 $ echo $?
 4

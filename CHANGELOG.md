@@ -8,6 +8,99 @@ each change affects.
 
 ## Unreleased
 
+### Parse errors render like every other error (#50)
+
+Both ports. A syntax error, a missing include and an include the trust
+profile, the extension table or the module rules refuse are now written
+by aontu's own renderer, the one every unification error already uses,
+so the two ports print them byte for byte alike. A syntax error keeps
+the parser's code in its marker (`[aontu/unexpected]`,
+`[aontu/unprintable]`) and takes its hint from aontu's `syntax` entry;
+a missing include takes the `multisource_not_found` hint. Three things
+change on the way:
+
+- Go's missing include was a bare `source not found:` line; it now has
+  the marker, the hint and a frame at the `@`, as TypeScript's had.
+- A frame names the file as a unification frame does, relative to the
+  working directory, where TypeScript's parse frame printed the resolved
+  absolute path. A conflict-marker frame now names the file in
+  TypeScript too.
+- A fault inside an included file is framed in that file in both ports.
+  Go framed it at the `@` that included it.
+
+The search-path list jsonic printed under a missing include is gone.
+Full-message twins pin the shapes in `ts/test/error.test.ts` and
+`go/hints_test.go`.
+
+### An absent member drops under a container template (#200)
+
+Both ports, by ADR-043. A `[&: T]` or `{&: T}` template now waits while
+a member is a pending `maybe(...)`: when the member answers absence it
+is dropped exactly as it is from a plain list, and when it answers a
+value the template applies to it as to any member. `x: [&: string]`
+with `x: ["a", maybe($.gone)]` generates `{"x":["a"]}` where it was
+`listval_no_gen`, and the `[&: string|number]` form no longer refuses
+with a different code in each port. A key a schema declares is still
+`mapval_no_gen`. Rows in `test/spec/maybe.tsv`.
+
+### A failed child stops at its cause (#233)
+
+Both ports. A component function (`file`, `folder`, ...) handed a child
+that already failed returns that failure instead of adding an
+`invalid-arg` for it, so an `emit` that matches nothing inside `file()`
+is one `emit_none` at the field, in both ports, exactly as it is without
+the wrapper. The `divergent.tsv` entry is gone; rows in `gen-emit.tsv`.
+
+### JSON Schema export drops what never generates (#279)
+
+Both ports. A `type()`-marked map child and a `hide()`- or
+`type()`-marked list element are dropped from the exported schema and
+reported as a loss, as a hidden map child already was, so the schema no
+longer requires entries the document never produces. An export anchored
+inside a marked block (`--at` into a `type()`) still reads through it.
+`jsonschema` spec rows can now carry `opts` (`at`) in the golden.
+
+### A copy does not re-stamp a nested mark (#280)
+
+Both ports. A reference or a reference spread that copies a map holding
+an unresolved `hide(x)` or `type(x)` (one whose argument is
+path-dependent, such as `key()`) now copies `x`, so the argument
+re-resolves at the destination and the mark stays where it was written:
+`t: { n: key(), h: hide(key()) }` with `c: $.t` gives `c` as
+`{"h":"c","n":"c"}`. Pinned in `test/spec/marks.tsv`.
+
+### Four parity fixes (#281, #282, #283, #286)
+
+Both ports now answer these identically:
+
+- An unresolved `1|1.0` (and `1|0d1`, `{x:1}|{x:1.0}`, the list form) is
+  refused with `disjunct_no_gen`: TypeScript's collapse of alternatives
+  that generate the same digits now compares their kinds too.
+- An ungenerated `any` field is reported at the field's path (`$.a`) in
+  TypeScript, as it already was in Go.
+- A key a type instance is missing is reported as `mapval_required` at
+  the instance's path in Go, as it already was in TypeScript.
+- Go's `compat_marks_changed` message names both mark records, as
+  TypeScript's does, and subsume goldens now include each finding's
+  message.
+
+### An unfilled root is refused (#284)
+
+Both ports. A document that is only `any` or `_` no longer generates
+`null`: it is refused as `no_gen`, exit 1, exactly as an unfilled field
+is refused as `mapval_no_gen`. Pinned by `test/spec/types.tsv`. The
+same change corrects the reference on upper-case radix prefixes
+(`0X1F` is 31), the grammar note on `a:6-2` (a string, not a parse
+error), the stale "known limit" on `min(1024) & *8080`, and the rank
+wording for `**`.
+
+### The `.aon` extension is withdrawn (#251)
+
+Both ports. **Breaking.** Only `.aontu` names a source file. An include
+of a `.aon` file is refused by its extension (`include_extension`),
+even under `--text-ext aon`. Every verb and the REPL's `:load` refuse a
+`.aon` file argument before reading it, with exit 2.
+
 ### Closing is recursive, and a type is closed for its instances
 
 Both ports. **Breaking.** `close(x)` now seals every map and list

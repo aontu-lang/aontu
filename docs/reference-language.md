@@ -113,10 +113,9 @@ plugins, so the surface syntax is "relaxed JSON".
   digit after it is not a literal at all: `0d` is the bare string
   `"0d"`, and `0d.5` reads as member access on that string.
 - **Other numeric forms.** Hexadecimal (`0x1f`), octal (`0o17`) and
-  binary (`0b1010`) literals use lower-case prefixes, and belong to
-  the plain family, not the exact one. (Only the exact marker also
-  accepts its letter in upper case: `0D12` is a literal, `0X1F` is the
-  bare string `"0X1F"`.) `_` may separate digits (`1_000_000`,
+  binary (`0b1010`) literals belong to the plain family, not the exact
+  one, and their prefix letter reads in either case: `0X1F` is 31, as
+  `0D12` is an exact literal. `_` may separate digits (`1_000_000`,
   `0d1_000`), but only singly and only *between* digits: a run that
   breaks the rule is not a number at all, so `1__0` is the string
   `"1__0"`, not `10`.
@@ -691,9 +690,9 @@ The preference survives in canonical form (`a` above canons as
 resolved value.
 
 Defaults propagate through nesting and spreads. `pref(x)` is the
-function form of `*x` (canon `*x`). Preferences can be ranked (a `*` of
-a `*` outranks a single `*`); the lowest rank wins when two preferred
-values meet. A ranked preference meets its peers exactly as rank 1
+function form of `*x` (canon `*x`). Preferences can be ranked: `**`
+has a higher rank number than `*`, and the lowest rank wins when two
+preferred values meet (`*1|**2` is `1`). A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
 `a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its
 default.
@@ -1233,7 +1232,8 @@ tested.
 A hole is not a function parameter: it cannot be named, passed, or
 partially applied, and there is no way to write one that is not
 already inside a call. Unfilled at generation it is an error, exactly
-as `top` is.
+as `any` is: `mapval_no_gen` at a field, and `no_gen` for a document
+that is only `_` or `any`.
 
 A bare `_` is a hole, pinned by `test/spec/place.tsv`. Quoted `"_"`
 is that string, any longer bare word containing it (`_b`) is ordinary
@@ -2854,9 +2854,10 @@ keys: `{k:"frag", n: emit(maybe($.tags), t)}` drops `n` and keeps a
 `{k:"frag"}` behind. Write the whole element as the optional thing, not
 one of its fields.
 
-**A constrained list refuses it.** Absence leaves a plain list without
-a hole, but a list carrying a spread meets every element against the
-spread's template, and absence is not a member that template admits:
+**A constrained list drops it too.** A list or map carrying a spread
+applies the template to a member only once the member has decided
+whether it is there. An absent member never meets the template, so it drops exactly as it
+does from a plain list:
 
 <!-- test: scenario maybe-under-a-spread -->
 <!-- test: run -->
@@ -2864,15 +2865,18 @@ spread's template, and absence is not a member that template admits:
 $ echo 'x: ["a", maybe($.gone)]' | aontu -c
 {"x":["a",maybe()]}
 $ echo 'x: [&: string]  x: ["a", maybe($.gone)]' | aontu
-[aontu/listval_no_gen]: Cannot resolve value at path $.x.1
-...
-$ echo $?
-1
+{
+  "x": [
+    "a"
+  ]
+}
 ```
 
-So an optional member of a list a schema constrains is written as an
-optional KEY of the map that holds it, or the spread is dropped from
-the list.
+A member that answers a value meets the template like any other, so
+`maybe($.v)` with `v: 1` under `[&: string]` is still a conflict. A key
+a schema DECLARES is a different case: `{a:string, b:string}` against
+`{a:"p", b:maybe($.gone)}` is `mapval_no_gen`, because the document
+declines to supply a key the schema requires.
 
 ## Ordering: `sort`
 
@@ -3588,7 +3592,8 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+...
 $ echo $?
 1
 ```
@@ -3968,6 +3973,10 @@ things:
 | `.txt`, and whatever `--text-ext` names | **text**: the file's bytes, as one string |
 | anything else | refused, by name |
 
+The `.aon` spelling the language once accepted beside `.aontu` is
+withdrawn: an include naming one is refused by its extension, and the
+command line refuses an entry file spelled that way before reading it.
+
 Every one of those formats maps onto JSON, which is why one word covers
 them: a `.toml` file is a map of scalars, lists and maps, and so is the
 `.aontu` file that unifies with it. What a data format does not get is
@@ -4095,7 +4104,8 @@ rows: @"./rows.csv"
 <!-- test: run -->
 ```sh
 $ aontu main.aontu
-include not readable: ./rows.csv (extension: .csv)
+[aontu/include_extension]: include not readable: ./rows.csv (extension: .csv)
+...
 $ echo $?
 1
 ```
@@ -5160,14 +5170,12 @@ spelling, and nothing turns it into `30`.
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
 > raise the registered `constraint` code, and a pattern outside the
-> portable subset raises `constraint_pattern`. Known limit: a
-> preference meeting a constraint in a CONJUNCT (`min(1024) & *8080`)
-> does not resolve to the default: use the disjunct form
-> (`*8080 | (integer & min(1024))`). Under the admission gate
-> the disjunct form also ENFORCES on override: an
-> out-of-bound peer is refused rather than silently bypassing the
-> constraint branch, so the recommended spelling both defaults and
-> validates.
+> portable subset raises `constraint_pattern`. A preference meeting a
+> constraint in a conjunct (`min(1024) & *8080`) resolves to the
+> default, and the disjunct form (`*8080 | (integer & min(1024))`)
+> also ENFORCES on override under the admission gate: an out-of-bound
+> peer is refused rather than silently bypassing the constraint
+> branch, so that spelling both defaults and validates.
 
 ### Vocabulary
 

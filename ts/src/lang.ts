@@ -108,6 +108,7 @@ import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
 import { repathInstance } from './val/Val'
 import { AontuContext } from './ctx'
+import { descErr } from './err'
 import { NilVal } from './val/NilVal'
 import { NullVal } from './val/NullVal'
 import { NumberVal } from './val/NumberVal'
@@ -1797,7 +1798,7 @@ export function includeFormat(
   if (undefined !== known) {
     return known
   }
-  if (REFUSED_EXT.has(ext)) {
+  if (REFUSED_EXT.has(ext) || WITHDRAWN_EXT === ext) {
     return undefined
   }
   return textExt?.includes(ext) ? 'text' : undefined
@@ -1808,6 +1809,9 @@ export function includeFormat(
 // default processor; `''` is the no-extension fallback, which names no
 // file type at all.
 const REFUSED_EXT = new Set(['js', ''])
+
+// The extension the language once accepted beside `.aontu`.
+const WITHDRAWN_EXT = 'aon'
 
 
 function extKindOf(full: string): string {
@@ -1899,7 +1903,18 @@ function includeProcessors(textExt?: string[]): { [kind: string]: any } {
     // ... and the one upstream default that would EXECUTE the file.
     js: refuseProcessor,
   }
-  const source = makeJsonicProcessor()
+  const parse = makeJsonicProcessor()
+  // A failure inside an included file carries that file's text out, so
+  // its frame shows the file whatever reader the resolver used.
+  const source = (res: any, ...rest: any[]) => {
+    try {
+      return (parse as any)(res, ...rest)
+    }
+    catch (e: any) {
+      e.includedSrc ??= res.src
+      throw e
+    }
+  }
   const forKind = (kind: string) => {
     const format = includeFormat(kind, textExt)
     if ('source' === format) return source
@@ -2100,6 +2115,10 @@ function makeModelResolver(options: any) {
         undefined !== includeFormat(ext, options.textExt)) {
         refuseLocalFile(modref.path)
       }
+      // The withdrawn `.aon` spelling is a file name, never a module.
+      if (WITHDRAWN_EXT === ext) {
+        refuseExtension(path, modref.path)
+      }
       const msmeta = (ctx as any)?.meta?.multisource
       const from = dirOf(null != msmeta?.path ? msmeta.path : popts?.path)
       const found = resolveModule(modref, from, modFs(ctx), {
@@ -2264,6 +2283,28 @@ function arityText(lo: number, hi: number): string {
 }
 
 
+// What a parse-stage refusal says and where: its first line without
+// the renderer's marker, and the file it happened in -- an included
+// file's own text when the fault is inside one.
+function parseRefusal(e: any, src: string, path: string | undefined,
+  tail: string) {
+  const first = String(e.message).split('\n')[0]
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .replace(/^\[[^\]]*\]:\s*/, '')
+  const nested = undefined !== e.includedSrc
+  return {
+    // The parser's own code names the kind of syntax error.
+    code: e.code,
+    msg: first,
+    row: 'number' === typeof e.lineNumber ? e.lineNumber : -1,
+    col: 'number' === typeof e.columnNumber ? e.columnNumber : -1,
+    url: nested ? e.meta?.multisource?.path : path,
+    src: nested ? e.includedSrc : src,
+    tail,
+  }
+}
+
+
 function opCharHint(src: string): string {
   let q = ''
   for (let i = 0; i < src.length; i++) {
@@ -2388,30 +2429,19 @@ class Lang {
       }
     }
     catch (e: any) {
-      if ('include_denied' === e?.code || 'include_extension' === e?.code ||
-        'multisource_not_found' === e?.code || MODULE_REFUSAL_CODES.has(e?.code)) {
-        val = new NilVal({
-          why: 'parse',
-          err: new NilVal({
-            why: e.code,
-            msg: e.message,
-            err: e,
-          })
-        })
-      }
-      else if (e instanceof JsonicError || 'JsonicError' === e.constructor.name) {
-        const syntax: any = new NilVal({
-          why: 'syntax',
-          msg: e.message + opCharHint(src),
-          err: e,
-        })
-        if ('number' === typeof e.lineNumber) {
-          syntax.site.row = e.lineNumber
+      const refused = 'include_denied' === e?.code ||
+        'include_extension' === e?.code ||
+        'multisource_not_found' === e?.code || MODULE_REFUSAL_CODES.has(e?.code)
+      if (refused || e instanceof JsonicError || 'JsonicError' === e.constructor.name) {
+        const why = refused ? e.code : 'syntax'
+        const refusal: any = new NilVal({ why, err: e })
+        refusal.parse = parseRefusal(e, src, opts?.path ?? this.opts.path, refused ? '' : opCharHint(src))
+        if (!refused) {
+          refusal.site.row = e.lineNumber
+          refusal.site.col = e.columnNumber
         }
-        if ('number' === typeof e.columnNumber) {
-          syntax.site.col = e.columnNumber
-        }
-        val = new NilVal({ why: 'parse', err: syntax })
+        descErr(refusal, { fs: opts?.fs } as any)
+        val = new NilVal({ why: 'parse', err: refusal })
       }
       else {
         throw e

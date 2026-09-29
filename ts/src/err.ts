@@ -65,7 +65,10 @@ function descErr<NILS extends NilVal | NilVal[]>(
   errctx?: ErrContext,
 ): any {
   if (err?.isNil) {
-    if (null == err.msg || '' === err.msg) {
+    if ((null == err.msg || '' === err.msg) && null != err.parse) {
+      err.msg = parseMessage(err, errctx)
+    }
+    else if (null == err.msg || '' === err.msg) {
       let v1: any = err.primary
       let v2: any = err.secondary
 
@@ -157,6 +160,32 @@ function descErr<NILS extends NilVal | NilVal[]>(
     return err.map((n: any) => descErr(n, errctx))
   }
 }
+
+// A parse-stage refusal: the failure's own text in place of a value
+// path, rendered by the renderer every other refusal uses.
+function parseMessage(err: any, errctx?: ErrContext): string {
+  const p = err.parse
+  const head = errmsg({
+    color: { active: colorActive() },
+    name: 'aontu',
+    code: p.code,
+    txts: { msg: p.msg, hint: getHint(err.why, err.details) },
+  })
+  const frame = 0 < p.row && errmsg({
+    color: { active: colorActive(), line: '\x1b[34m' },
+    txts: { msg: p.msg, site: '' },
+    smsg: p.msg,
+    file: resolveFile(p.url),
+    src: p.src ?? resolveSrc({ site: { url: p.url } } as any, errctx),
+    row: p.row,
+    col: p.col,
+  })
+  return [head, '\n', frame]
+    .filter((n: any) => false !== n)
+    .join('\n')
+    .replace(/\n\n/g, '\n') + p.tail
+}
+
 
 function resolveFile(url: string | undefined) {
   const cwd = process.cwd()

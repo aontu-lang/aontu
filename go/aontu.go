@@ -168,6 +168,12 @@ func (a *Aontu) GenerateVars(src string, vars map[string]Val) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// An unfilled ROOT (`any`, `_`) has no bag to refuse it, so the
+	// document does.
+	switch res.(type) {
+	case *TopVal, *PlaceVal:
+		return nil, residueErr(ctx, res, "no_gen")
+	}
 	out, gerr := res.Gen(ctx)
 	if gerr = genErr(ctx, gerr); gerr != nil {
 		return nil, gerr

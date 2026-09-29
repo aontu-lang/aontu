@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 
 	aontu "github.com/aontu-lang/aontu/go"
@@ -118,6 +119,9 @@ func replCommand(
 	case ":load":
 		if "" == arg {
 			return refuse(":load needs a file")
+		}
+		if strings.EqualFold(".aon", filepath.Ext(arg)) {
+			return refuse(strings.TrimPrefix(withdrawnMsg(arg), "aontu: "))
 		}
 		src, err := read(arg)
 		if nil != err {

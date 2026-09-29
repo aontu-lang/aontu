@@ -103,47 +103,34 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- absence under a DISJUNCTION spread: the two ports answer from
-#   different points in the fold, and `aontu vet` puts that in the EXIT
-#   CODE -- 1 from TypeScript, 3 from Go, for the same schema and the
-#   same data.
-#   issue: #200. That issue asks a language-design question -- whether
-#   absence absorbs a container template or the template stands -- and
-#   was filed recording that BOTH ports agreed. They no longer do.
+# OPEN -- a maybe() inside a disjunction alternative is judged
+#   before it settles, differently in each port.
+#   issue: #289 (found 2026-09-28, both ports, present on main).
 #
-#   Divergent input:  x: [&: string|number]   x: ["a", maybe($.gone)]
-#   TypeScript: [aontu/empty], class conflict, at $.x.1, over the value
-#               (maybe($.gone)&string)|(maybe($.gone)&number) -- the
-#               template distributed into each alternative, every one
-#               of them failed, so the disjunction is EMPTY
-#   Go:         [aontu/disjunct_no_gen], class incomplete, at $.x.1,
-#               over the value string|number -- the template did not
-#               distribute, so MORE THAN ONE alternative is still
-#               admitted
+#   Divergent input:  x: [maybe($.gone), 1] | [1.0]
+#   TypeScript: generates {"x":[1]}
+#   Go:         [aontu/disjunct_no_gen] at $.x
 #
-#   The hints say opposite things about one document: "no valid
-#   alternatives" against "more than one alternative is still
-#   admitted". The classes carry that to a caller as opposite next
-#   moves -- conflict says fix the data, incomplete says supply more --
-#   and `aontu vet` spells it as exit 1 against exit 3, so a gate
-#   branching on the exit code takes a different branch per port.
+#   Divergent input:  x: [maybe($.gone), 1] | [maybe($.gone), 1]
+#   TypeScript: [aontu/empty] at $.x
+#   Go:         generates {"x":[1]}
 #
-#   The other four shapes in #200's table AGREE, so the divergence is
-#   the disjunction alone: a plain list drops the member, [&: string]
-#   gives listval_no_gen at $.x.1, [&: close({k:string})] gives
-#   mapval_required at $.x.1.k, and {&: string} gives mapval_no_gen at
-#   $.x.b.
+#   No spec row asserts either answer.
 #
-#   Not simply fixed because which port is right falls out of the
-#   decision #200 asks for, and cannot be settled ahead of it. If
-#   absence absorbs the template the member is gone and neither code is
-#   raised at all; if the template stands, the answer turns on whether
-#   it distributes into the alternatives first -- which IS the fold
-#   order #200 says wants an ADR of its own. Picking a code now would
-#   baseline one engine's fold order as the contract before the
-#   language question is answered.
+# ---------------------------------------------------------------------
 #
-#   No spec row asserts any of it.
+# OPEN -- a template's declared key is refused at the TEMPLATE's path,
+#   and each port spells that path differently.
+#   issue: #287 (found 2026-09-28, both ports, present on main).
+#
+#   Divergent input:  x: [&: {k: string}]   x: [{k: "a"}, {k: maybe($.gone)}]
+#   TypeScript: [aontu/mapval_no_gen] at $.x.&.k
+#   Go:         [aontu/mapval_no_gen] at $.x.k
+#
+#   The code agrees and is right. The right path is the element's,
+#   $.x.1.k, which both ports report when the same key is declared by
+#   a plain element rather than a template. No spec row asserts either
+#   path.
 #
 # ---------------------------------------------------------------------
 #
@@ -246,8 +233,9 @@
 #   addsite. Converting at the paren handler, which the Go port had
 #   always done, settled `close(([]%))` outright. `pref(1-3)` then
 #   settled as a wrong ARGUMENT COUNT once arity was checked (#51). The
-#   remaining two agree on the verdict and differ only in trailing
-#   context lines, which is a renderer difference tracked by #50.
+#   remaining two agreed on the verdict and differed only in trailing
+#   context lines, a renderer difference #50 closed on 2026-09-28 by
+#   rendering every parse-stage failure through aontu's own renderer.
 #
 #   The lesson worth keeping: "upstream" was the diagnosis for four
 #   inputs, and was right about none of them. The parser stacks may well
@@ -519,27 +507,6 @@
 #   containers the meet does not mint and which both ports agree on byte
 #   for byte.
 
-#
-# OPEN -- an unresolved `emit` inside a component function is located
-# differently, and Go cascades.
-#   issue: #233. Which side is right is not in doubt (TypeScript names
-#   the element that could not be produced, and stops at the cause), but
-#   the fix is in the Go resolution path rather than in a message, and
-#   the shared suite has no rows for it yet.
-#
-#   Divergent input:  a route table whose only template matches `GET`,
-#   emitted into a file: `out: file("client.ts", emit($.routes, %route))`
-#   with a `POST` route in the selection.
-#   TypeScript: one error, emit_none at $.out.0, exit 4
-#   Go:         three errors, emit_none at $.out then invalid-arg twice
-#               for the nil carried up through file(), exit 4
-#
-#   Without the file() wrapper both ports are byte-identical at $.out
-#   with one error each, so `docs/tutorial-generate.md` asserts only the
-#   explanation both print. The full text earns rows here once Go
-#   agrees.
-#
-# ---------------------------------------------------------------------
 #
 # OPEN -- the SITE an alias refusal points at, for a value the parse
 #   HOISTED or a map an include placed: TypeScript names the position

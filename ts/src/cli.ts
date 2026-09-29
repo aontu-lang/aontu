@@ -801,6 +801,11 @@ function entryRootOf(file: string | undefined): string {
 }
 
 
+function withdrawnMsg(file: string): string {
+  return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`
+}
+
+
 function runFile(
   file: string, mode: Mode, format: EvalFormat, trust: TrustArg): number {
   let src: string
@@ -927,6 +932,9 @@ export function replCommand(
     case ':load': {
       if ('' === arg) {
         return refuse(':load needs a file')
+      }
+      if (/\.aon$/i.test(arg)) {
+        return refuse(withdrawnMsg(arg).replace(/^aontu: /, ''))
       }
       let src: string
       try {
@@ -5385,6 +5393,13 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   // than the design's --json, which would read as the `:json` output
   // mode the REPL already has.
   let jsonl = false
+
+  // One spelling throughout the tools (ADR-042): every verb, one gate.
+  const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a))
+  if (undefined !== withdrawn) {
+    process.stderr.write(withdrawnMsg(withdrawn) + '\n')
+    return finish(2)
+  }
 
   if ('vet' === argv[2]) {
     return void Promise.resolve(runVet(argv.slice(3))).then(finish)

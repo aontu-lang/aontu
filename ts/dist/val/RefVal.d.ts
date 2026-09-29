@@ -1,6 +1,7 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FeatureVal } from './FeatureVal';
+declare function dropPendingMarkWrappers(v: Val): Val;
 declare function pendingMarkWrapper(v: any): boolean;
 declare class RefVal extends FeatureVal {
     isRef: boolean;
@@ -30,4 +31,4 @@ declare class RefVal extends FeatureVal {
     gen(ctx: AontuContext): undefined;
     inspection(): string;
 }
-export { pendingMarkWrapper, RefVal, };
+export { dropPendingMarkWrappers, pendingMarkWrapper, RefVal, };

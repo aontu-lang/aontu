@@ -177,9 +177,10 @@ escaped, and a grammar that refused them would refuse less than the
 parser accepts in the one direction this file may not take.
 
 A path segment has no `-` because a hyphen is not a bare-text
-character: `a:6-2` is a parse error rather than the key `6-2`, so
-admitting it in a segment would describe a language wider than the one
-the engine reads.
+character in a reference: `a:6-2` is the string `"6-2"` (only `a: 6 -
+2`, with spaces, is a parse error), and `$.a.6-2` never names a key, so
+admitting `-` in a segment would describe a language wider than the
+one the engine reads.
 
 ## What holds the files to the engine
 

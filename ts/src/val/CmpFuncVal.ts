@@ -257,12 +257,15 @@ class CmpFuncVal extends FuncBaseVal {
       }
       const bad = splice(kids.peg as Val[])
       if (undefined !== bad) {
-        return makeNilErr(ctx, 'invalid-arg', this, bad, 'children')
+        // A child that already failed carries its own error.
+        return true === (bad as any).isNil ? bad :
+          makeNilErr(ctx, 'invalid-arg', this, bad, 'children')
       }
       children = new ListVal({ peg: flat }, ctx)
     }
     else {
-      return makeNilErr(ctx, 'invalid-arg', this, kids, 'children')
+      return true === kids?.isNil ? kids :
+        makeNilErr(ctx, 'invalid-arg', this, kids, 'children')
     }
 
     return this.place(cmpNode(def.cmp, props, children, ctx))

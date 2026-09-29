@@ -203,7 +203,10 @@ abstract class BagVal extends FeatureVal {
 
         const details = { key: p }
 
-        makeNilErr(ctx, code, va, vb, undefined, details)
+        const nerr = makeNilErr(ctx, code, va, vb, undefined, details)
+        if (true === (va as any).isTop) {
+          nerr.path = [...this.path, p]
+        }
 
         break
       }
@@ -257,4 +260,10 @@ export function bagGenable(child: any): boolean {
     || true === child.isDisjunct
     || true === child.isNil
     || undefined !== sizingResidue(child)
+}
+
+
+// A container template waits for a member that has not decided (ADR-043).
+export function undecided(child: any): boolean {
+  return true === child.isMaybeFunc && !child.done
 }

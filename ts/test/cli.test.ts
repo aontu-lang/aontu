@@ -8,6 +8,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 
 import { Aontu, viewTree } from '../dist/aontu'
+import { Lang } from '../dist/lang'
 import {
   evalSource, runVet, runSubsume, runBreaking, runTrim, runRelations,
   runJsonSchema,
@@ -50,6 +51,47 @@ const NO_SERVERS: any = {
 }
 
 describe('cli', () => {
+
+  test('a-syntax-error-in-an-include-is-framed-in-that-file', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-nest-'))
+    Fs.writeFileSync(Path.join(dir, 'bad.aontu'), 'a:1\nb:]\n')
+    Fs.writeFileSync(Path.join(dir, 'outer.aontu'), 'x:1\ny: @"./bad.aontu"\n')
+    const r = run([Path.join(dir, 'outer.aontu')])
+    Assert.equal(r.code, 1)
+    Assert.match(r.out, /bad\.aontu:2:3/)
+    Assert.match(r.out, /2 \| .*b:\]/)
+
+    let n = 0
+    const lang = new Lang({
+      get resolver() {
+        return 0 === n++ ? { mem: { 'm.aontu': 'a:1\nb:]' }, pkg: {} } : undefined
+      },
+    } as any)
+    const mem: any = lang.parse('x:@"m.aontu"')
+    Assert.match(mem.err[0].msg, /m\.aontu:2:3/)
+    Assert.match(mem.err[0].msg, /2 \| .*b:\]/)
+  })
+
+  test('withdrawn-aon-entry-is-refused-by-name', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-aon-'))
+    const file = Path.join(dir, 'old.aon')
+    Fs.writeFileSync(file, 'a: 1\n')
+    const r = run([file])
+    Assert.equal(r.code, 2)
+    Assert.match(r.out, /withdrawn \.aon extension; the extension is \.aontu/)
+
+    const verb = run(['hash', file])
+    Assert.equal(verb.code, 2)
+    Assert.match(verb.out, /withdrawn \.aon extension/)
+
+    const repl = replCommand({ mode: 'json' } as any, ':load ' + file, () => 'a:1')
+    Assert.match(repl.out, /withdrawn \.aon extension/)
+
+    const wide: any = new Lang({ textExt: ['aon'] } as any)
+      .parse('x:@"' + file.split(Path.sep).join('/') + '"')
+    Assert.equal(wide.canon, 'nil')
+    Assert.match(wide.err[0].msg, /extension: \.aon/)
+  })
 
   // --- unit: evalSource is the pure core the CLI renders with ---
 

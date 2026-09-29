@@ -282,7 +282,8 @@ Evaluate anyway:
 <!-- test: run -->
 ```sh
 $ aontu checkout/main.aontu
-module integrity: corp.example/schemas/rates expected aon1-wDjCpctak5kaDtoag_9_mg5h41yAcSoi14Z6WOUAOSA got aon1-wixJdyL2g90c1HaWaoBKBpHA6da7Hn-MEikz6LW-BVI
+[aontu/module_integrity]: module integrity: corp.example/schemas/rates expected aon1-wDjCpctak5kaDtoag_9_mg5h41yAcSoi14Z6WOUAOSA got aon1-wixJdyL2g90c1HaWaoBKBpHA6da7Hn-MEikz6LW-BVI
+...
 $ echo $?
 1
 ```

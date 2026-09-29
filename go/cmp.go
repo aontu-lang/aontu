@@ -124,7 +124,6 @@ func cmpNode(cmp string, props *MapVal, children *ListVal) *MapVal {
 	node.set("cmp", newString(cmp))
 	node.set("props", props)
 	node.set("children", children)
-	// The node's keys are fixed; its props and children are not.
 	props.opened = true
 	children.opened = true
 	node.closed = true
@@ -242,11 +241,18 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 
 	kids := []Val{}
 	if 1 < len(args) {
+		// A child that already failed carries its own error.
+		if n, isNil := args[1].(*NilVal); isNil {
+			return n
+		}
 		list, ok := args[1].(*ListVal)
 		if !ok {
 			return makeNilErrFull(ctx, "invalid-arg", f, args[1], "children", nil)
 		}
 		if bad := cmpFlatten(def, list.peg, &kids); nil != bad {
+			if n, isNil := bad.(*NilVal); isNil {
+				return n
+			}
 			return makeNilErrFull(ctx, "invalid-arg", f, bad, "children", nil)
 		}
 	}

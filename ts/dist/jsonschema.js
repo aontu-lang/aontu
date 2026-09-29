@@ -220,6 +220,22 @@ function fromDisjunct(ctx, path, v) {
         { anyOf: bare.map((m) => fromVal(ctx, path, m)) };
     return undefined === def ? out : { ...out, default: def };
 }
+function skipMarked(ctx, path, bag, child) {
+    // A mark the container carries too is read through (an export
+    // anchored inside it); one of the child's own is not.
+    if (true === child?.mark?.hide && true !== bag.mark?.hide) {
+        lose(ctx, path, 'hide', 'a hidden entry is not generated, so it is omitted from the ' +
+            'schema; a consumer is neither asked for it nor allowed to know ' +
+            'about it');
+        return true;
+    }
+    if (true === child?.mark?.type && true !== bag.mark?.type) {
+        lose(ctx, path, 'type', 'a type() entry is a definition and is not generated, so it is ' +
+            'omitted from the schema');
+        return true;
+    }
+    return false;
+}
 function fromMap(ctx, path, v) {
     const props = {};
     const required = [];
@@ -227,13 +243,11 @@ function fromMap(ctx, path, v) {
     let spread = undefined;
     for (const key of Object.keys(v.peg).sort()) {
         const child = v.peg[key];
-        // A hidden child does not generate, so it is not part of the value
+        // A marked child does not generate, so it is not part of the value
         // a consumer produces -- and a schema that demanded it would refuse
-        // every correct document.
-        if (true === child?.mark?.hide) {
-            lose(ctx, [...path, key], 'hide', 'a hidden entry is not generated, so it is omitted from the ' +
-                'schema; a consumer is neither asked for it nor allowed to know ' +
-                'about it');
+        // every correct document. Inside a marked container (an export
+        // anchored in a `type()` block) the marks are the container's own.
+        if (skipMarked(ctx, [...path, key], v, child)) {
             continue;
         }
         props[key] = fromVal(ctx, [...path, key], child);
@@ -261,7 +275,7 @@ function fromMap(ctx, path, v) {
     return out;
 }
 function fromList(ctx, path, v) {
-    const els = v.peg;
+    const els = v.peg.filter((el, i) => !skipMarked(ctx, [...path, String(i)], v, el));
     const spr = v.spread?.cj;
     // A list with a spread template is homogeneous: every element, named
     // or not, satisfies it. That is `items`.
@@ -277,7 +291,7 @@ function fromList(ctx, path, v) {
     }
     return {
         type: 'array',
-        prefixItems: els.map((el, i) => fromVal(ctx, [...path, String(i)], el)),
+        prefixItems: els.map((el) => fromVal(ctx, [...path, String(v.peg.indexOf(el))], el)),
         items: false,
         minItems: els.length,
     };

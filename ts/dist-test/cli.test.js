@@ -41,6 +41,7 @@ const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
+const lang_1 = require("../dist/lang");
 const cli_1 = require("../dist/cli");
 const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
 function run(args, input) {
@@ -63,6 +64,41 @@ const NO_SERVERS = {
     lsp: () => undefined, mcp: () => undefined, serve: async () => undefined, http: () => ({}),
 };
 (0, node_test_1.describe)('cli', () => {
+    (0, node_test_1.test)('a-syntax-error-in-an-include-is-framed-in-that-file', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-nest-'));
+        Fs.writeFileSync(Path.join(dir, 'bad.aontu'), 'a:1\nb:]\n');
+        Fs.writeFileSync(Path.join(dir, 'outer.aontu'), 'x:1\ny: @"./bad.aontu"\n');
+        const r = run([Path.join(dir, 'outer.aontu')]);
+        Assert.equal(r.code, 1);
+        Assert.match(r.out, /bad\.aontu:2:3/);
+        Assert.match(r.out, /2 \| .*b:\]/);
+        let n = 0;
+        const lang = new lang_1.Lang({
+            get resolver() {
+                return 0 === n++ ? { mem: { 'm.aontu': 'a:1\nb:]' }, pkg: {} } : undefined;
+            },
+        });
+        const mem = lang.parse('x:@"m.aontu"');
+        Assert.match(mem.err[0].msg, /m\.aontu:2:3/);
+        Assert.match(mem.err[0].msg, /2 \| .*b:\]/);
+    });
+    (0, node_test_1.test)('withdrawn-aon-entry-is-refused-by-name', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-aon-'));
+        const file = Path.join(dir, 'old.aon');
+        Fs.writeFileSync(file, 'a: 1\n');
+        const r = run([file]);
+        Assert.equal(r.code, 2);
+        Assert.match(r.out, /withdrawn \.aon extension; the extension is \.aontu/);
+        const verb = run(['hash', file]);
+        Assert.equal(verb.code, 2);
+        Assert.match(verb.out, /withdrawn \.aon extension/);
+        const repl = (0, cli_1.replCommand)({ mode: 'json' }, ':load ' + file, () => 'a:1');
+        Assert.match(repl.out, /withdrawn \.aon extension/);
+        const wide = new lang_1.Lang({ textExt: ['aon'] })
+            .parse('x:@"' + file.split(Path.sep).join('/') + '"');
+        Assert.equal(wide.canon, 'nil');
+        Assert.match(wide.err[0].msg, /extension: \.aon/);
+    });
     // --- unit: evalSource is the pure core the CLI renders with ---
     (0, node_test_1.test)('eval-json', () => {
         const r = (0, cli_1.evalSource)(new aontu_1.Aontu(), 'a:1 b:$.a', 'json');

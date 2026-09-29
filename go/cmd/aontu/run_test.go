@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"regexp"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -81,6 +82,33 @@ func TestRunFileModes(t *testing.T) {
 	if code := run([]string{filepath.Join(dir, "missing.aontu")}, nil, &out, &errw, true); code != 1 ||
 		!strings.Contains(errw.String(), "cannot read") {
 		t.Fatalf("missing file: %d %q", code, errw.String())
+	}
+	errw.Reset()
+	if code := run([]string{filepath.Join(dir, "old.aon")}, nil, &out, &errw, true); code != 2 ||
+		!strings.Contains(errw.String(), "withdrawn .aon extension") {
+		t.Fatalf("withdrawn extension: %d %q", code, errw.String())
+	}
+	errw.Reset()
+	if code := run([]string{"hash", filepath.Join(dir, "old.aon")}, nil, &out, &errw, true); code != 2 ||
+		!strings.Contains(errw.String(), "withdrawn .aon extension") {
+		t.Fatalf("withdrawn extension, named verb: %d %q", code, errw.String())
+	}
+}
+
+func TestRunNestedSyntaxErrorIsFramedInItsFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "bad.aontu"), []byte("a:1\nb:]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outer := filepath.Join(dir, "outer.aontu")
+	if err := os.WriteFile(outer, []byte("x:1\ny: @\"./bad.aontu\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errw bytes.Buffer
+	code := run([]string{outer}, nil, &out, &errw, true)
+	if code != 1 || !strings.Contains(errw.String(), "bad.aontu:2:3") ||
+		!regexp.MustCompile(`2 \| .*b:\]`).MatchString(errw.String()) {
+		t.Fatalf("nested frame: %d %q", code, errw.String())
 	}
 }
 

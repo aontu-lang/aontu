@@ -25,3 +25,4 @@ export declare function sizingResidue(v: any): {
     bag: any;
 } | undefined;
 export declare function bagGenable(child: any): boolean;
+export declare function undecided(child: any): boolean;

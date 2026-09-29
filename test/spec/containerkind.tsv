@@ -36,7 +36,7 @@ map-kind-under-close	gens	y: close(map & {a:1})	{"y":{"a":1}}
 map-kind-in-type-body	gens	T: type({d: map}) x: $.T & {d:{k:1}}	{"x":{"d":{"k":1}}}
 canon-map-kind	canon	y: map	{"y":map}
 subsume-map-kind-over-map	subsume	d: map	d: {a:1}	{"findings":[],"verdict":"subsumes"}
-subsume-map-kind-not-scalar	subsume	d: map	d: 1	{"findings":[{"code":"compat_narrowed","class":"compat","severity":"error","path":"$.d","sites":[{"file":"general","row":1,"col":4,"len":3,"role":"general","src":"map","value":"map"},{"file":"specific","row":1,"col":4,"len":1,"role":"specific","src":"1","value":"1"}],"expected":"map","actual":"1"}],"verdict":"does_not_subsume"}
+subsume-map-kind-not-scalar	subsume	d: map	d: 1	{"findings":[{"actual":"1","class":"compat","code":"compat_narrowed","expected":"map","message":"the general container kind admits no such value","path":"$.d","severity":"error","sites":[{"col":4,"file":"general","len":3,"role":"general","row":1,"src":"map","value":"map"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"1","value":"1"}]}],"verdict":"does_not_subsume"}
 super-map-kind-is-top	gens	y: super(map) & 1	{"y":1}
 
 # --- list ----------------------------------------------------------
@@ -50,7 +50,7 @@ list-kind-refuses-map	errc	y: list & {a:1}	list
 list-kind-refuses-scalar	errc	y: list & "x"	list
 canon-list-kind	canon	y: list	{"y":list}
 subsume-list-kind-over-list	subsume	d: list	d: [1]	{"findings":[],"verdict":"subsumes"}
-subsume-list-kind-not-scalar	subsume	d: list	d: 1	{"findings":[{"code":"compat_narrowed","class":"compat","severity":"error","path":"$.d","sites":[{"file":"general","row":1,"col":4,"len":4,"role":"general","src":"list","value":"list"},{"file":"specific","row":1,"col":4,"len":1,"role":"specific","src":"1","value":"1"}],"expected":"list","actual":"1"}],"verdict":"does_not_subsume"}
+subsume-list-kind-not-scalar	subsume	d: list	d: 1	{"findings":[{"actual":"1","class":"compat","code":"compat_narrowed","expected":"list","message":"the general container kind admits no such value","path":"$.d","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"list","value":"list"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"1","value":"1"}]}],"verdict":"does_not_subsume"}
 super-list-kind-is-top	gens	y: super(list) & "s"	{"y":"s"}
 
 # --- Selection by kind: a disjunct of kinds picks by the value -------

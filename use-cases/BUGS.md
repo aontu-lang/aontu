@@ -4111,7 +4111,7 @@ at `$`; pinned by `load-root-json-list`.
 
 ## absence-schema — what a schema does with a value that is not there
 
-### 94. Absence under a schema-constrained list is refused, not dropped [major]
+### 94. Absence under a schema-constrained list is refused, not dropped [FIXED 2026-09-28]
 
 `maybe()` drops out of a plain list without leaving a hole, which is
 [ADR-034](../ADR.md#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made)'s
@@ -4180,12 +4180,13 @@ where is a language question ADR-034 did not settle. Recognising
 absence before the spread applies means deferring the spread until the
 member has decided, which changes when a template is folded.
 
-Status: OPEN, tracked as
-[issue #200](https://github.com/aontu-lang/aontu/issues/200), and
-deliberately not half-fixed: a rule that holds for `[&: string]` and
-not for `[&: string|number]` is worse than one that refuses uniformly. `docs/reference-language.md` states the
-containing-map half ("It cannot make a containing map vanish") and the
-constrained-list half.
+Status: FIXED 2026-09-28, both ports, by
+[ADR-043](../ADR.md#adr-043--a-container-template-waits-for-a-member-that-has-not-decided):
+a container template waits while a member is a pending `maybe(...)`,
+applies once it answers a value, and never applies to an absence. Every
+shape in the table above now drops the member, the disjunction parity
+break goes with it, and the declared-key case is still `mapval_no_gen`.
+Pinned by the `maybe-template-*` rows in `test/spec/maybe.tsv`.
 
 ## the mod verbs — what a pin is minted from, and under what capability
 

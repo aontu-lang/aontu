@@ -101,7 +101,7 @@ func formatParse(src, file string, sink *[]fmtTok) (Val, *AontuError) {
 	out, err := formatParser().ParseMeta(src, meta)
 	formatSink = nil
 	if err != nil {
-		return nil, syntaxError(err, src)
+		return nil, syntaxError(err, src, file)
 	}
 	if out == nil {
 		return newMap(), nil

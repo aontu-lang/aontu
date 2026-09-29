@@ -34,7 +34,7 @@ import {
 
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal } from './BagVal'
+import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
 
@@ -142,7 +142,14 @@ class ListVal extends BagVal {
         propagateMarks(this, child)
 
         let oval: Val
-        if (!spread_cj.isTop
+        if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
+          oval = child.isAbsent ? child :
+            unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
+              child, TOP, 'list-own')
+          // Decided to be there: the template applies next pass.
+          done = done && oval.isAbsent
+        }
+        else if (!spread_cj.isTop
           && (child as any)._spr === spreadId(spread_cj)) {
           oval = child.done ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
@@ -213,7 +220,10 @@ class ListVal extends BagVal {
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'list-peer')
 
-          if (this.spread.cj) {
+          if (this.spread.cj && undecided(oval)) {
+            done = false
+          }
+          else if (this.spread.cj && !oval.isAbsent) {
             let key_spread_cj = spread_cj.spreadClone(peerctx)
             if (undefined !== peerctx.prov) {
               markSpread(key_spread_cj)

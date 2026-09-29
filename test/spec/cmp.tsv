@@ -67,7 +67,7 @@ nom-acronym-in-second-place-must-be-text	errc	x: nom("a", [1])	invalid-arg
 nom-name-past-the-gate	errc	y: {a: *}\nx: nom($.y.a)	invalid-arg
 nom-style-past-the-gate	errc	y: {a: *}\nx: nom("a", $.y.a)	invalid-arg
 cmp-spec-past-the-gate	errc	y: {a: *}\nx: folder($.y.a)	invalid-arg
-cmp-children-past-the-gate	errc	y: {a: *}\nx: folder("s", $.y.a)	invalid-arg
+cmp-children-past-the-gate	errc	y: {a: *}\nx: folder("s", $.y.a)	incomplete_expression
 translate-src-past-the-gate	errc	y: {a: *}\nx: translate($.y.a, "a", "b")	invalid-arg
 translate-from-past-the-gate	errc	y: {a: *}\nx: translate("a", $.y.a, "b")	invalid-arg
 translate-to-past-the-gate	errc	y: {a: *}\nx: translate("a", "a", $.y.a)	invalid-arg

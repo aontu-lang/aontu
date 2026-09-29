@@ -107,8 +107,8 @@ name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
 ; `number`: a numeric literal always starts with a digit or `-`.
 ref       = %s"$" 1*( %s"." segment ) / 1*( %s"." segment )
 
-; No `-`: it is not a bare-text character (test/spec/op-chars.tsv pins
-; `a:6-2` as a parse error), so admitting it would over-approximate.
+; No `-`: `a:6-2` is the string "6-2" (test/spec/op-chars.tsv), and a
+; reference never reaches such a key, so admitting it would over-approximate.
 segment   = 1*( ALPHA / DIGIT / %s"_" )
 
 ; The placeholder: a hole a call is filled through. BARE only --- `"_"`

@@ -64,7 +64,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `errc`  | `generate(src)` must raise an error whose FIRST failure's why-code **equals** `expect` |
 | `errcode` | registry row: `name` is an error code, `src` its class, `expect` its since-version: asserted against the engine's code→class table |
 | `vet`   | five columns: `vet(schema, data)` must produce the report `expect` describes, MINUS each finding's message |
-| `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), MINUS each finding's message |
+| `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), message included |
 | `query` | five columns: `get(src, path)` must produce the report `expect` describes (`out`, or `code`/`note`; options ride `opts`), and a canon-shaped VIEW must additionally SUBSUME the truth it summarises |
 | `why`   | five columns: `why(src, path)` must produce the record `expect` describes (`value` and the ordered `conjuncts`, or `code`/`note`) |
 | `patch` | five columns: `patch(entry, overlay, set)` must produce the report `expect` describes (`appended`, `overlay`, `verdict`, and `codes` when there are findings), and the result must be ORDER-INDEPENDENT: entry-against-overlay and overlay-against-entry must reach the same verdict |
@@ -80,7 +80,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `graph` | the DERIVED GRAPH of `unify(src)` (the entity index and the edge set) must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
 | `hcanon` | `unify(src)` then its HASH FORM (canon plus the `close()`/`type()`/`hide()` wrappers) must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
-| `jsonschema` | `jsonSchema(src)` must produce the report `expect` describes: the translated `schema` as JSON Schema 2020-12, the `lossy` list of what the translation could not carry, the `verdict`, and `errors` when the document does not stand up |
+| `jsonschema` | `jsonSchema(src, opts)` must produce the report `expect` describes: the translated `schema` as JSON Schema 2020-12, the `lossy` list of what the translation could not carry, the `verdict`, and `errors` when the document does not stand up; an `opts` key in `expect` (`at`) is the run's options |
 | `fmt`   | `format(src)`, the source in its agreed form, must equal `expect` **byte for byte**; `expect` must be a fixed point, `format(expect) == expect`; and where `src` evaluates, the canon-hash of `src` and of `expect` must agree, because formatting never changes the document |
 | `fmt-refuse` | `format(src)` must be refused: `expect` is the verdict and the finding codes, joined by a colon and commas (`error:format_check`), so that both ports refuse the same sources; nothing is written on a refusal |
 | `fmt-lint` | `format(src, {lint: true})` must format, and its style findings, one `line:col: rule: message` per finding joined by newlines and empty when there is none, must equal `expect` |
@@ -166,9 +166,11 @@ options ride in the golden under a reserved `opts` key (`at`, `closed`,
 `partial`, `maxErrors`) rather than in a sixth column that most rows
 would leave empty.
 
-Each finding's `message` is EXCLUDED from the golden. It is the one part
-of a report that is prose, and prose is not in cross-port parity: the
-same split the `errc` mode makes, and the reason `errc` exists at all.
+In a `vet` row each finding's `message` is EXCLUDED from the golden. It
+is the one part of a report that is prose, and vet prose is not in
+cross-port parity: the same split the `errc` mode makes, and the reason
+`errc` exists at all. A `subsume` row includes the message, since the
+two ports word every subsume finding identically.
 Everything else in the report *is* contractual: the verdict, the
 truncation flag, and each finding's code, class, severity, path, sites
 (file, row, column, role, value) and the `expected`/`actual`/`note` the

@@ -1360,6 +1360,7 @@ The losses, and why each is one:
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
+| `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
 

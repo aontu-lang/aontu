@@ -109,6 +109,50 @@ func TestFrameGutterWidth(t *testing.T) {
 	}
 }
 
+func TestFullMessageAnyFieldTwin(t *testing.T) {
+	_, err := New().Generate("a: any")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/mapval_no_gen]: Cannot resolve value at path $.a\n\nThis value was present after unification, and cannot be generated\nbecause it is not a literal value.\n\n Cannot resolve value: any\n  \u001b[34m--> <no-file>:1:4\n\u001b[34m  1 | \u001b[0ma: any\n         \u001b[34m^ key a value was: any\u001b[0m\n\u001b[34m  2 | \u001b[0m\n\u001b[34m  3 | \u001b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
+func TestFullMessageParseSyntaxTwin(t *testing.T) {
+	_, err := New().Generate("a:1\nb:]")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/unexpected]: unexpected character(s): ]\n\nThe text is not valid Aontu syntax. The frame points at the\ncharacter the parser stopped on; the fault is usually just before\nit, and commenting out the suspect lines with # isolates which.\n\n unexpected character(s): ]\n  \u001b[34m--> <no-file>:2:3\n\u001b[34m  1 | \u001b[0ma:1\n\u001b[34m  2 | \u001b[0mb:]\n        \u001b[34m^ unexpected character(s): ]\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
+func TestFullMessageParseIncludeTwin(t *testing.T) {
+	_, err := New().Generate("a:1\nb: @\"./nosuchfile.aontu\"")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/multisource_not_found]: source not found: ./nosuchfile.aontu\n\nThe source named here was not found. For a file include, check the\npath as written, which is resolved against the document that writes\nit; for an `aontu:` name the message lists the models the language\nsupplies, and a name outside that set is never looked for on disk.\n\n source not found: ./nosuchfile.aontu\n  \u001b[34m--> <no-file>:2:4\n\u001b[34m  1 | \u001b[0ma:1\n\u001b[34m  2 | \u001b[0mb: @\"./nosuchfile.aontu\"\n         \u001b[34m^ source not found: ./nosuchfile.aontu\u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
+func TestFullMessageParseUnprintableTwin(t *testing.T) {
+	_, err := New().Generate("x: \"abc\n")
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	want := "[aontu/unprintable]: unprintable character: \n\nThe text is not valid Aontu syntax. The frame points at the\ncharacter the parser stopped on; the fault is usually just before\nit, and commenting out the suspect lines with # isolates which.\n\n unprintable character: \n  \u001b[34m--> <no-file>:1:8\n\u001b[34m  1 | \u001b[0mx: \"abc\n\u001b[34m  2 | \u001b[0m\n             \u001b[34m^ unprintable character: \u001b[0m\n\u001b[34m  3 | \u001b[0m\n\u001b[34m  4 | \u001b[0m\n"
+	if got := err.Error(); got != want {
+		t.Fatalf("full message mismatch\n want: %q\n got:  %q", want, got)
+	}
+}
+
 func TestFullMessageTwin(t *testing.T) {
 	_, err := New().Generate("a:1 a:2")
 	if err == nil {

@@ -196,3 +196,11 @@ path-constraint-refuses-string-constraint-by-reference	errc	p: path & re("x")\ns
 path-constraint-refuses-empty-constraint-by-reference	errc	p: path & re("x")\ns: re("y") & empty()\nx: $.p & $.s	empty_domain
 constraint-refuses-an-empty-meet-by-reference	errc	c: min(1)\nd: max(0)\nx: constraint & $.c & $.d	constraint
 constraint-refuses-a-refer-resolved-by-reference	errc	b: {}\nr: refer()\nx: constraint & $.r & path($.b)	constraint_kind
+any-at-the-root-does-not-generate	errc	any	no_gen
+hole-at-the-root-does-not-generate	errc	_	no_gen
+any-at-a-field-does-not-generate	errc	a: any	mapval_no_gen
+any-at-a-nested-field-does-not-generate	errc	a: b: any	mapval_no_gen
+any-in-a-list-does-not-generate	errc	a: [any]	listval_no_gen
+type-instance-missing-key-is-required	errc	x: type({})\nx: {y: number}\na: $.x\na: {}	mapval_required
+type-instance-by-reference-missing-key-is-required	errc	x: type({})\nx: {y: number}\na: $.x	mapval_required
+untyped-peer-declared-key-is-spread-required	errc	x: {}\nx: {y: number}\na: $.x	mapval_spread_required

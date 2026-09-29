@@ -273,7 +273,7 @@ A list of files is written below the path:
 $ aontu render struct.go gen
 ```
 
-Three things follow from writing it this way:
+Four things follow from writing it this way:
 
 - **The output lines are the target's, at their own indentation.**
   `gofmt` formats them, an editor highlights them, and `go vet` reads
@@ -287,6 +287,14 @@ Three things follow from writing it this way:
   target's syntax. That needs an inner dispatch: `replace` reaches the
   lines a rule wrote, so the file's lines and the map naming the file
   are two rules rather than one.
+- **A placeholder obeys the target's lexical rules.** `NAME` stands in
+  the generator where the target expects an identifier, so it has to be
+  one the target accepts there. `def METHOD(ARGS)` is a Ruby syntax
+  error, because Ruby refuses a constant as a formal argument, and the
+  generator stops being a valid Ruby file. The failure is in the
+  target's parser, not aontu's, so nothing here reports it: where the
+  target needs a local, spell the placeholder as one (`def method(args)`
+  with `replace: { method: ..., args: ... }`).
 - **The whitespace is the artifact.** A line of two spaces is two
   spaces of output, so the generator's bytes matter as much as the
   generated file's. `aontu template --check struct.go` holds the file
