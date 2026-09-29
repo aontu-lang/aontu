@@ -15,6 +15,7 @@ import {
 } from '../ctx'
 
 import { FeatureVal } from './FeatureVal'
+import { repathInstance } from './Val'
 
 
 // Top with one difference (ADR-034): absence is GENERABLE, and
@@ -36,8 +37,18 @@ class AbsentVal extends FeatureVal {
   // Nothing here meets an absence with TOP, so there is no top arm;
   // Go has one because it MEETS an op's result where this port places
   // it. edge-plus-list-absent guards the day that changes.
-  unify(peer: Val, _ctx: AontuContext): Val {
+  unify(peer: Val, ctx: AontuContext): Val {
+    const at: string[] = ctx.path
+    if (0 < at.length && at.join('\u0000') !== peer.path.map(String).join('\u0000')) {
+      const out = peer.clone(ctx, { path: [...at] })
+      repathInstance(out, out.path)
+      return out
+    }
     return peer
+  }
+
+  same(peer: Val): boolean {
+    return true === (peer as any)?.isAbsent
   }
 
   get canon() { return 'maybe()' }

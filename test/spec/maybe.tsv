@@ -95,3 +95,23 @@ maybe-template-present-conflicts-inline	errc	v: 1\nx: [&: string, "a", maybe($.v
 maybe-template-map-present-conflicts	errc	v: 1\nx: {&: string, a: "p", b: maybe($.v)}	no_scalar_unify
 maybe-template-closed-present-refuses	errc	v: {k:"a", z:1}\nx: {&: close({k:string})}\nx: {b: maybe($.v)}	closed
 maybe-template-closed-list-present-refuses	errc	v: {k:"a", z:1}\nx: [&: close({k:string})]\nx: [maybe($.v)]	closed
+# A maybe() INSIDE A DISJUNCTION ALTERNATIVE settles like any other: its
+# absence drops out of the alternative, and the alternatives are then
+# compared as they generate, kinds included.
+maybe-in-alternative-kinds-differ	errc	x: [maybe($.gone), 1] | [1.0]	disjunct_no_gen
+maybe-in-both-alternatives-collapses	gens	x: [maybe($.gone), 1] | [maybe($.gone), 1]	{"x":[1]}
+maybe-in-both-alternatives-canon	canon	x: [maybe($.gone), 1] | [maybe($.gone), 1]	{"x":[maybe(),1]}
+maybe-in-both-alternatives-kinds-differ	errc	x: [maybe($.gone), 1] | [maybe($.gone), 1.0]	disjunct_no_gen
+maybe-in-alternative-still-two-values	errc	x: [maybe($.gone), 1] | [2]	disjunct_no_gen
+two-absences-are-one-member	canon	x: maybe($.gone) | maybe($.gone)	{"x":maybe()}
+# A TEMPLATE'S DECLARED KEY IS REFUSED AT THE ELEMENT THAT LACKS IT, not
+# at the template's own path: an absence hands the shared member over,
+# and generation places a shared subtree at the key that holds it.
+template-key-absent-list-path	err	x: [&: {k: string}]\nx: [{k: "a"}, {k: maybe($.gone)}]	Cannot resolve value at path $.x.1.k
+template-key-absent-map-path	err	x: {&: {k: string}}\nx: {a: {k: maybe($.gone)}}	Cannot resolve value at path $.x.a.k
+template-key-absent-nested-path	err	x: [&: {m: {k: string}}]\nx: [{m: {k: maybe($.gone)}}]	Cannot resolve value at path $.x.0.m.k
+template-submap-absent-path	err	x: [&: {m: {k: string}}]\nx: [{m: maybe($.gone)}]	Cannot resolve value at path $.x.0.m.k
+template-key-missing-list-path	err	x: [&: {k: string}]\nx: [{}]	Cannot unify values at path $.x.0.k
+template-key-missing-map-path	err	x: {&: {k: string}}\nx: {a: {}}	Cannot unify values at path $.x.a.k
+template-shared-submap-path	err	x: {&: {m: {k: string}}}\nx: {a: {j: 1}}	Cannot resolve value at path $.x.a.m.k
+template-shared-sublist-path	err	x: {&: {m: [string]}}\nx: {a: {j: 1}}	Cannot resolve value at path $.x.a.m.0

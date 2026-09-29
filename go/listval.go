@@ -53,6 +53,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 	}
 	out := make([]any, 0, len(l.peg))
 	for i, e := range l.peg {
+		e = placeShared(e, append(cp(l.path), itoa(i)))
 		if (e.markedType() || e.markedHide()) && !probing(ctx) {
 			continue
 		}

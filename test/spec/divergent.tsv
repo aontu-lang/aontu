@@ -103,37 +103,6 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- a maybe() inside a disjunction alternative is judged
-#   before it settles, differently in each port.
-#   issue: #289 (found 2026-09-28, both ports, present on main).
-#
-#   Divergent input:  x: [maybe($.gone), 1] | [1.0]
-#   TypeScript: generates {"x":[1]}
-#   Go:         [aontu/disjunct_no_gen] at $.x
-#
-#   Divergent input:  x: [maybe($.gone), 1] | [maybe($.gone), 1]
-#   TypeScript: [aontu/empty] at $.x
-#   Go:         generates {"x":[1]}
-#
-#   No spec row asserts either answer.
-#
-# ---------------------------------------------------------------------
-#
-# OPEN -- a template's declared key is refused at the TEMPLATE's path,
-#   and each port spells that path differently.
-#   issue: #287 (found 2026-09-28, both ports, present on main).
-#
-#   Divergent input:  x: [&: {k: string}]   x: [{k: "a"}, {k: maybe($.gone)}]
-#   TypeScript: [aontu/mapval_no_gen] at $.x.&.k
-#   Go:         [aontu/mapval_no_gen] at $.x.k
-#
-#   The code agrees and is right. The right path is the element's,
-#   $.x.1.k, which both ports report when the same key is declared by
-#   a plain element rather than a template. No spec row asserts either
-#   path.
-#
-# ---------------------------------------------------------------------
-#
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
 #   issue: #66 (recorded 2026-08-24, from the 2026-08-21 status

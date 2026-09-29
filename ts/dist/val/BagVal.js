@@ -91,7 +91,12 @@ class BagVal extends FeatureVal_1.FeatureVal {
         }
         for (let item of entries) {
             const p = item[0];
-            const child = item[1];
+            let child = item[1];
+            const at = [...this.path, String(p)];
+            if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+                child = child.clone(ctx, { path: at });
+                (0, Val_1.repathInstance)(child, at);
+            }
             if ((child.mark.type || child.mark.hide) && true !== ctx?.probe) {
                 continue;
             }
@@ -156,7 +161,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 }
                 const details = { key: p };
                 const nerr = (0, err_1.makeNilErr)(ctx, code, va, vb, undefined, details);
-                if (true === va.isTop) {
+                if (true === va.isTop || undefined !== vb) {
                     nerr.path = [...this.path, p];
                 }
                 break;

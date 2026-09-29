@@ -31,6 +31,9 @@ func (a *AbsentVal) Unify(peer Val, ctx *Ctx) Val {
 	if isTop(peer) {
 		return a
 	}
+	if nil != ctx && 0 < len(ctx.slot) && !pathEq(peer.vpath(), ctx.slot) {
+		return instanceClone(peer, cp(ctx.slot))
+	}
 	return peer
 }
 
