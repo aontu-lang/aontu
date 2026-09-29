@@ -141,15 +141,10 @@ func (r *RecurseVal) Gen(ctx *Ctx) (any, error) {
 	// isolated context swallows this and drops the key.
 	n := makeNilErrFull(ctx, "recursion_unexpanded", r, nil, "recurse",
 		map[string]string{"target": r.targetSpelling()})
-	if nil != ctx && ctx.collect {
+	if nil != ctx {
 		return nil, nil
 	}
-	src, file := "", ""
-	var texts map[string]string
-	if nil != ctx {
-		src, file, texts = ctx.src, ctx.file, ctx.texts
-	}
-	return nil, &AontuError{Msg: n.FullMessage(src, file, texts), Code: "recursion_unexpanded"}
+	return nil, &AontuError{Msg: n.FullMessage("", "", nil), Code: "recursion_unexpanded"}
 }
 
 func containsRecurseOf(v Val, target []string, depth int) bool {

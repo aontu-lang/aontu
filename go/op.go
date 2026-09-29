@@ -28,7 +28,7 @@ func (o *PlusOpVal) Canon() string {
 }
 
 func (o *PlusOpVal) Gen(ctx *Ctx) (any, error) {
-	return nil, residueErr(ctx, o, "op")
+	return nil, residueWalkOn(ctx, o, "op")
 }
 
 func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {

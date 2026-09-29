@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### Every element under a template's preferred member reports (#291)
+
+Go. An unresolved conjunction, reference, operator or recursion residue
+that generation reaches now records its finding and lets the container
+walk on to its later members, as TypeScript's has, so
+`x: [&: {k: *{n: string}}]` with `x: [{k: maybe($.gone)}, {k: maybe($.gone)}]`
+reports `conjunct` at `$.x.0.k` and at `$.x.1.k` in both ports, where Go
+stopped at the first. Rows in `test/spec/maybe.tsv`; the ledger entry
+is removed. The site such a finding names under a map template still
+differs (#292) and is registered in its place.
+
 ### A template's key is refused where it is missing (#287)
 
 Both ports. A key a container template declares, and an element does

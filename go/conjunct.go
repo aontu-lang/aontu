@@ -63,7 +63,7 @@ func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {
 
 	// An unresolved conjunct is not a concrete value. Code mirrors TS
 	// ConjunctVal.gen ('conjunct').
-	return nil, residueErr(ctx, c, "conjunct")
+	return nil, residueWalkOn(ctx, c, "conjunct")
 }
 
 func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
