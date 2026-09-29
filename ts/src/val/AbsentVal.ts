@@ -40,7 +40,7 @@ class AbsentVal extends FeatureVal {
   unify(peer: Val, ctx: AontuContext): Val {
     const at: string[] = ctx.path
     if (0 < at.length && at.join('\u0000') !== peer.path.map(String).join('\u0000')) {
-      const out = peer.clone(ctx, { path: [...at] })
+      const out = peer.clone(ctx, { path: [...at], dup: true })
       repathInstance(out, out.path)
       return out
     }

@@ -103,6 +103,21 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- an unresolved conjunction inside a preferred list-template
+#   member is reported once per element in TypeScript, once in all by Go.
+#   issue: none filed yet; found 2026-09-29 while answering a review of
+#   the #287 fix. Present on main.
+#
+#   Divergent input:  x: [&: {k: *{n: string}}]
+#                     x: [{k: maybe($.gone)}, {k: maybe($.gone)}]
+#   TypeScript: [aontu/conjunct] at $.x.0.k and again at $.x.1.k
+#   Go:         [aontu/conjunct] at $.x.0.k only
+#
+#   The first finding agrees in both ports; only the count differs. No
+#   spec row asserts it.
+#
+# ---------------------------------------------------------------------
+#
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
 #   issue: #66 (recorded 2026-08-24, from the 2026-08-21 status

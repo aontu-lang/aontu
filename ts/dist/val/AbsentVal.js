@@ -22,7 +22,7 @@ class AbsentVal extends FeatureVal_1.FeatureVal {
     unify(peer, ctx) {
         const at = ctx.path;
         if (0 < at.length && at.join('\u0000') !== peer.path.map(String).join('\u0000')) {
-            const out = peer.clone(ctx, { path: [...at] });
+            const out = peer.clone(ctx, { path: [...at], dup: true });
             (0, Val_1.repathInstance)(out, out.path);
             return out;
         }
