@@ -28,6 +28,8 @@ export type {
 } from './allow'
 import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
+import { reachCheck } from './reach'
+import { jsonSchema } from './jsonschema'
 import { aliasBudget, aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
@@ -403,6 +405,8 @@ export {
   allow,
   graphOf,
   relationCheck,
+  reachCheck,
+  jsonSchema,
   view,
   viewSet,
   viewTree,

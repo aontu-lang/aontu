@@ -154,13 +154,14 @@ checkout.
 | `grammar` | the published ABNF, for a parser or a constrained decoder |
 
 `aontu help` with no topic lists them, `aontu --help` documents the
-verbs and their flags, and `--format json` answers either as an object.
+verbs and their flags, and `aontu help --format json`, with or without
+a topic, answers as an object.
 
 ## Which implementation has it
 
 | door | TypeScript | Go |
 |---|---|---|
-| the verbs | yes | yes, less the tool server |
+| the verbs | yes | yes, less the tool server and `allow` |
 | the embedded API | yes | yes |
 | the language server | yes | yes |
 | the tool server | yes | no: `aontu mcp` says so and exits `2` |

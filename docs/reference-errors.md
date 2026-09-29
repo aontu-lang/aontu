@@ -386,8 +386,8 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `format_check` | 0.56.0 | The formatted text is not the same document, so nothing was written. ([`aontu fmt`](reference-api.md#aontu-fmt)) |
 | `internal` | 0.51.0 | An unexpected state during unification. |
-| `unify_failed` | 0.67.0 | A document does not evaluate, and the failure carries no code of its own. |
 | `patch_span_mismatch` | 0.53.0 | The overlay text does not hold the recorded source at the recorded span, so the span cannot be verified before writing. ([`aontu model set`](reference-api.md#aontu-model-set)) |
+| `unify_failed` | 0.67.0 | A document does not evaluate, and the failure carries no code of its own. |
 | `unify_no_res` | 0.51.0 | Unification produced no result. |
 | `unknown_op` | 0.51.0 | An operator expression the evaluator has no rule for. |
 

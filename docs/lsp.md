@@ -76,7 +76,7 @@ resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
 concrete values (scalars, kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 41 today, the
+prefix): the built-in functions (the engine's full roster, 63 today, the
 constraint atoms (`min`, `re`, `length`, …) and the entity and relation
 atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included) the
 scalar-kind keywords (`string`, `number`, `integer`, `float`,
@@ -314,7 +314,7 @@ d := lsp.Diagnostics("a:1\na:2")
 lsp.Diagnostics("a:string") // len 0 (valid schema)
 ```
 
-#### `func Hover(src string, line, character int) *HoverResult`
+#### `func Hover(src string, line, character int, provenance bool) *HoverResult`
 
 Resolve the value at a 0-based position, or `nil`. `HoverResult` is
 `{ Contents MarkupContent; Range *Range }`. Built on the core

@@ -602,7 +602,7 @@ aontu breaking --against <file|git#rev> [--at <path>]
 -  `--against` takes a file path or `git#<rev>`, and is repeatable. A
   `git#<rev>` spelling is the old version of the **whole tree**, not of
   the entry file alone: the revision's includable sources (`.aontu`,
-  `.aontu`, `.jsonic`, `.json`) are materialised into a temporary
+  `.jsonic`, `.json`) are materialised into a temporary
   directory by shelling out to git (no embedded git) and the old document
   is evaluated from there, so a change inside an `@"…"`-included file is
   part of the comparison. The temporary tree is removed when the run
@@ -1250,7 +1250,7 @@ the matrix, [04-schema-evolution](../use-cases/04-schema-evolution/)
 the poset, [08-feature-flags](../use-cases/08-feature-flags/) the
 ladder, [12-relations](../use-cases/12-relations/) the graph and the
 ER diagram, and [16-module-deps](../use-cases/16-module-deps/) the
-tree, the matrix and the layers; 16 also declares all seven of its
+tree, the matrix and the layers; 16 also declares all eight of its
 figures in a `views.aontu` that its `check.sh` gates in one run.
 
 ### `aontu jsonschema`
@@ -1481,7 +1481,7 @@ distortion:
 | flag | view |
 |------|------|
 | `--types` | every concrete leaf lifted to its own kind: `{"replicas":3}` becomes `{"replicas":integer}` |
-| `--depth n` | structure to depth n; every elided subtree renders as `top`: "no further information at this tier" |
+| `--depth n` | structure to depth n; every elided subtree renders as `any`: "no further information at this tier". Needs `--canon` or `--types`, since JSON cannot say `any` |
 | `--keys` | the node's own key names (or list indices), one per line |
 
 On `app.aontu` the shape view erases the concrete leaves:
@@ -3084,7 +3084,7 @@ not slow ones.
 ## TypeScript API
 
 Package `aontu` (canonical). Entry point `dist/aontu.js`, types
-`dist/aontu.d.ts`. Requires Node ≥ 22.
+`dist/aontu.d.ts`. Requires Node ≥ 24.
 
 <!-- test: skip TypeScript API sample; the API surface is pinned by ts/test/ -->
 ```ts
@@ -3497,6 +3497,15 @@ diff           // what changed at which paths between two documents:
 agentsMd       // the generated AGENTS.md stanza (see `aontu agentsmd`
                // above): agentsMd(src, {name?}) -> {stanza, ok};
                // Go: (*Aontu).AgentsMd
+relationCheck  // the relation checks (see `aontu relations` above):
+               // relationCheck(src, {path?, trust?}) -> {verdict, findings};
+               // Go: (*Aontu).RelationCheck
+reachCheck     // reachability over the entity graph (see `aontu reaches`
+               // above): reachCheck(src, from, to, {relation?, path?,
+               // trust?}) -> {verdict, path?}; Go: (*Aontu).Reach
+jsonSchema     // the JSON Schema export (see `aontu jsonschema` above):
+               // jsonSchema(src, {at?, path?, trust?}) -> {verdict,
+               // schema, lossy}; Go: (*Aontu).JSONSchema
 format         // the source formatter (see `aontu fmt` above):
                // format(src, {path?, lint?, template?}) -> {verdict,
                // text, changed, findings} or {verdict, errors};
@@ -3549,11 +3558,9 @@ vet(schemaSrc, candidateSrc, { trust: { include: 'none' } })
 The [MCP server](#the-mcp-server) supplies its profile (`{ include:
 'none' }`, or `{ include: { root } }` when started with `--root <dir>`) to every tool from a single place, rather than each tool applying
 it for itself: a tool that must remember to confine itself is one that
-eventually forgets, and the forgetting is silent. The engines that take
-no `trust` option (`subsume`, `trimCheck`, `relationCheck`, `patch`) are
-confined there by a pre-parse under the same profile: includes resolve
-at parse, so a document whose confined parse is clean gives the engine
-nothing it could reach further with.
+eventually forgets, and the forgetting is silent. `subsume`,
+`trimCheck`, `relationCheck` and `patch` take the same `trust` option,
+and the server hands each its profile the same way.
 
 ---
 
@@ -3786,8 +3793,8 @@ kinds (including the numeric tower's four leaves (`integer`, `float`,
 `0d` exact literals, and exact arithmetic) maps (nesting, merge,
 spreads `&:`, optional keys, `close`/`open`), lists (incl. spreads),
 conjunction `&`, disjunction `|`, preference `*`, references (`$.a.b`,
-`.x.a`), `$name` variables, the `+` operator, all twelve
-functions, `type`/`hide` marks, and `@"…"` source loading: plus
+`.x.a`), `$name` variables, the `+` operator, every declared
+built-in function, `type`/`hide` marks, and `@"…"` source loading: plus
 `parse` / `unify` / `generate` and the canonical form.
 
 Generated **bytes** are in parity too: `exactJSON` in TypeScript and

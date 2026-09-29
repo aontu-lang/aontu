@@ -45,17 +45,19 @@ implementations and requiring them to agree — never copied out of one:
 `echo 'x:1.0' | node ts/bin/aontu.js -c` and
 `(cd go && echo 'x:1.0' | go run ./cmd/aontu -c)`. Writing the
 expectation from one engine's output is how a divergence gets baselined
-as the contract (AGENTS.md, "The parity probe").
+as the contract ([docs/contributing/testing.md](docs/contributing/testing.md#the-parity-probe),
+"The parity probe").
 
 ## Releasing
 
-Two artifacts, two version series, one workflow file — and half of it is
-irreversible, so the process has guards rather than steps to remember.
+Two artifacts, one version series (ADR-041), one workflow file — and
+half of it is irreversible, so the process has guards rather than steps
+to remember.
 [`docs/release-and-tag.md`](docs/release-and-tag.md) is the whole story;
 the short version is:
 
 ```sh
-make publish V=0.54.0 GOV=0.1.12   # npm version, Go module version
+make publish V=x.y.z GOV=x.y.z   # one number, for npm and the Go module
 ```
 
 That bumps, runs both suites, pushes `main`, and dispatches the publish
@@ -65,7 +67,7 @@ bypasses trusted publishing entirely.
 
 ## Where use-cases/ fits
 
-[use-cases/](use-cases/) is sixteen enterprise-shaped systems built as
+[use-cases/](use-cases/) is eighteen enterprise-shaped systems built as
 real Aontu documents, each with a `check.sh` that drives the CLI and
 asserts every outcome. Defects found while building them are recorded
 in [use-cases/BUGS.md](use-cases/BUGS.md), with minimal reproductions

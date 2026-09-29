@@ -171,8 +171,8 @@ it cannot do.
 
 Three normalisations make one expectation fit both: the temporary
 directory becomes `{dir}`, a backslash becomes a forward slash so
-Windows agrees, and the package version becomes `{version}`, the two
-series being the one field the ports never share. Two behaviours stay
+Windows agrees, and the package version becomes `{version}`, so a
+release bump moves no row. Two behaviours stay
 out and stay in the twins: an I/O refusal, whose prose each generator
 runtime writes for itself, and the drift of a file mode, which no
 runner sets portably.
@@ -233,9 +233,10 @@ appropriate spec file.
 The ledger is not the same list as
 [Known TS/Go divergences](../../DIVERGENCE.md). Those differ
 deliberately and permanently and are never going to be pinned, so they
-are not tracked as debt. (After the 2026-08-11 reclassification that
-list holds a single entry — the Unicode table vintage; everything else
-that once lived there is now OPEN debt in the ledger.)
+are not tracked as debt. (The 2026-08-11 reclassification moved
+everything then on that list but the Unicode table vintage into the
+ledger as OPEN debt; the entries decided since are listed there, each
+with its reason.)
 
 [`docs/design/number-model.md`](../../docs/design/number-model.md) is the
 worked example of what this discipline catches. TypeScript classified a

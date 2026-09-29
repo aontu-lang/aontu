@@ -54,8 +54,9 @@ The path names the exact element, so a thousand-entry list fails at
 Reach for the positional form when the positions genuinely differ (a
 pair, a fixed header) and for `[&: T]` whenever the list is a
 collection. `close` on the enclosing map seals that map's
-keys and leaves the list tail open: the spread is what constrains
-the elements. Constraints on the list itself (`length`, `unique`)
+keys and, when the list carries a `&:` template, leaves the list
+tail open: the spread is what constrains the elements. A positional
+list under `close` is fixed in length. Constraints on the list itself (`length`, `unique`)
 sit beside the spread with `&`; see [`length`
 semantics](../reference-language.md#len-semantics).
 

@@ -328,7 +328,7 @@ where the edge set is complete: the same settle point the sizing atoms
 use:
 
 ```
-a: { feeds: rel() & acyclic() & ["$.b"] }
+a: { feeds: rel() & acyclic() & [path($.b)] }
 b: { feeds: rel() & [path($.a)] }
     → refused: [aontu/relation_cycle] at $.a.feeds
 ```
@@ -516,14 +516,12 @@ stages of completion. A half-written definition has to be allowed to be
 incomplete while the finished one beside it is allowed to be strict,
 and no single default serves both.
 
-So closedness is a property of a **node**. `close()` seals one map or
-one list and `open()` lifts that seal, and the seal covers the node it
-was written on rather than everything beneath it: a map nested inside a
-closed map is still open, and so is a list. That is deliberate, and the
-alternative (a mark that travels further than it was written) is
-worse in a language where a subtree is routinely a template someone
-else will extend. `aontu vet --closed` is the same dial at the command
-line: it closes the anchor being validated, not the whole document, so
+So closedness is a property of a **node**, written where it is wanted.
+`close()` seals a map or a list and every map and list beneath it, and
+`open()` on a subtree lifts that seal from there down, so a subtree
+that is a template someone else will extend is held open by saying so
+at that node rather than by leaving the whole document open. `aontu
+vet --closed` is the same dial at the command line: it closes the anchor being validated, not the whole document, so
 "no keys you did not declare *here*" is a question you can ask without
 sealing everything else.
 

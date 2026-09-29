@@ -36,8 +36,8 @@ inputs:
   version:
     description: >-
       aontu npm package version to run. Must be a release that carries
-      the `vet` verb: 0.53.0 is the first, and is the default here,
-      kept in step by the repo's version bump so a workflow pinning
+      the `vet` verb: 0.53.0 is the first. The default is the release
+      this Action revision was last updated for, so a workflow pinning
       the Action by ref cannot silently acquire a newer CLI. (0.52.1
       and earlier have no `vet` verb at all.)
     required: false

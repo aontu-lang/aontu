@@ -6,7 +6,13 @@ pipe (phase 0's defect-fencing half went with G1 phase 0). **Phase 4
 was later REMOVED (ADR-018, 2026-08-31)**: the pipe was a second
 spelling of an ordinary call, and its precedence and atom carve-out
 cost more grammar than the reading bought; the design text below
-stands as the record of what was built and why. Per-phase status is in
+stands as the record of what was built and why. **`each` was
+re-founded by [ADR-026](../../ADR.md#adr-026--each-is-retired-form-carries-the-bound) and
+[ADR-027](../../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)
+(2026-09-08 and 2026-09-09, both relocated to #189)**: the template
+is required, `each(d, _ & t)` is the bound and `each(d, _)` the
+members as a list; the `each` paragraph below carries the
+correction. Per-phase status is in
 the [progress register](progress.md), which is authoritative for status;
 this document is authoritative for design. Part of the
 [capability review](index.md) (August 2026). This document expands gap
@@ -265,7 +271,10 @@ Elixir-style. *(One landed exception, the register's G8.4 departure:
 a constraint atom that already BUILT cannot be piped into — an atom
 with a complete argument list folds into a residual at
 construction, and the Go residual keeps no atom to rebuild; the
-refusal is `pipe_target`, pinned by `pipe.tsv:pipe-into-built-atom`.)*
+refusal was `pipe_target`, pinned by `pipe.tsv:pipe-into-built-atom`;
+both went with the operator under ADR-018, and at 2026-09-29
+`errcodes.tsv` carries no `pipe_target` and `test/spec/pipe.tsv` does
+not exist.)*
 This deviates from the IDEAS.md sketch (data-last,
 F#-style); the deviation is deliberate: without pipes, data-first
 calls read as "pack these names into this template", and pipes must
@@ -300,8 +309,12 @@ deploy: billing: replicas: 4
 `data`, in source order for lists and sorted-key order for maps
 (matching canon's key ordering, `MapVal.canon`, and the Go port's
 JSON marshalling — generated order must be identical across
-implementations and runs). `tmpl` unifies with each element; omitted,
-`each(m)` converts a map's children to a list.
+implementations and runs). `tmpl` unifies with each element~~; omitted,
+`each(m)` converts a map's children to a list~~. *(Corrected under
+ADR-026/ADR-027: the template is required, `each(d, _ & t)` is the
+bound and `each(d, _)` the members as a list; `a: each([1,2])` is
+`func_arity` in both ports, and `test/spec/signature.tsv` declares
+`each(d: map|list, template t: any) : list`.)*
 
 **`filter(data, cond)` — subset by ALREADY SATISFIES.** Children of
 `data` that the condition adds nothing to are kept (keys preserved for
@@ -600,7 +613,8 @@ published grammars and both LSP literal lists carry it too.
 desugaring only; pipe.tsv's canon rows all show call forms, proving
 canon never emits the token. One departure, recorded in the
 register and in the pipe rule above: a built constraint atom cannot
-be piped into (`pipe_target`). Files: ts/src/lang.ts, go/lang.go. The
+be piped into (`pipe_target`; the code and `pipe.tsv` went with the
+operator, and neither exists at 2026-09-29). Files: ts/src/lang.ts, go/lang.go. The
 drop clause was not exercised: it asked for adoption evidence that
 call nesting is acceptable, and there is none either way for a
 capability that shipped in the same series. What landing it cost was

@@ -317,8 +317,8 @@ closing back on the first node.
 ### Refusing a missing inverse
 
 A new job taps the transform output, and nobody records the feeder
-on its `fedBy`. The `change` list restates `job_load` because lists
-unify positionally (the first tutorial's §11 rule). Save it as
+on its `fedBy`. The `feeds` list restates `$.pipeline.jobs.load`
+because lists unify positionally (the first tutorial's §11 rule). Save it as
 `metrics.aontu`:
 
 <!-- test: file metrics.aontu -->

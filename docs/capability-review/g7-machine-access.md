@@ -308,8 +308,11 @@ reference means by `$.a.b`, down to the canonical-decimal index
 rule; the register's G7.1 row records it.)* The renderings:
 
 - default: generated JSON of the fragment — which inherits `gen`
-  semantics, including the known `DisjunctVal.gen` fold defect
-  (ts/src/val/DisjunctVal.ts, ~line 263) until it is fixed;
+  semantics, ~~including the known `DisjunctVal.gen` fold defect
+  (ts/src/val/DisjunctVal.ts, ~line 263) until it is fixed~~ *(that
+  defect was fixed by [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
+  2026-08-27: an unresolved disjunction is `disjunct_no_gen` in both
+  ports, and its members are never folded)*;
 - `--canon`: the fragment's canonical form — constraint-preserving,
   deterministic, and for the root path byte-identical to today's
   `--canon` output (pinned by a spec row).
@@ -527,10 +530,12 @@ landed: `:load` holds the SOURCE, not the rendered document this
 text specified — every later question re-evaluates, which is what
 single-use trees require — and the session flag is `--jsonl`, not
 `--json`, which would read as the `:json` output mode the REPL
-already has. And the phase is PARTIAL: the `--jsonl` flag is
+already has. ~~And the phase is PARTIAL: the `--jsonl` flag is
 unreachable in the Go CLI and TTY-gated in TypeScript — the
 register's G7.7 row, recorded 2026-08-21, says exactly what is
-missing.)*
+missing.~~ The phase is LANDED, per the register's G7.7 row and the
+status line at the head of this document: `--jsonl` has answered
+byte-identically in both ports since 2026-08-24.)*
 
 ## Boundary: what we will not do
 
@@ -578,7 +583,7 @@ missing.)*
 | Why-chains explode on large conjunct fan-in (CUE's 30-site pile-up) | Medium | Medium | Dedupe by (pathidx, val id); default chain cap with `--all`; order entries by application, not discovery |
 | Published grammar drifts from the real parsers | Medium | High | CI parity test: all spec-suite canon outputs parse under the grammar; sampled grammar strings accepted by both parsers; grammar versioned with the language |
 | Projections mistaken for canonical form (fed to hashes/pins) | Medium | Medium | Distinct flags; projected output carries no `--canon`; G6 hashes only unify-level canon; docs state it |
-| `get --json` hits the DisjunctVal.gen fold defect | Medium | Medium | Default agent guidance is `--canon`; fix tracked with regression spec rows; JSON output of unresolved disjunctions documented as affected until then |
+| `get --json` hits the DisjunctVal.gen fold defect | Medium | Medium | Default agent guidance is `--canon`; fix tracked with regression spec rows; JSON output of unresolved disjunctions documented as affected until then. *(Fixed by ADR-007, 2026-08-27: members are never folded.)* |
 | Overlay files accumulate into an unreadable sediment | High | Low | One well-known overlay per entry document; `why` shows overlay sites like any other; consolidation tooling deferred to stage 2 |
 | MCP spec churn breaks the server | Medium | Low | Tool library is transport-free (LSP split); only ts/src/mcp-server.ts tracks protocol versions |
 | Adoption risk: agents read the file instead of calling tools | Medium | High | `aontu agentsmd` writes the stanza that names the tools; skill teaches the get/why/vet loop; slices are cheaper in tokens than the file — measured and stated |
@@ -647,8 +652,9 @@ resolver only.
 
 **Phase 7 — REPL inspection mode and hover-provenance (S).**
 Code: ts/src/cli.ts (`:load`, `:get`, `:why`, the JSONL session
-mode — landed as `--jsonl`, and PARTIAL per the register's G7.7
-row); ts/src/lsp.ts and go/lsp (config-gated provenance in hover
+mode — landed as `--jsonl`, ~~and PARTIAL per the register's G7.7
+row~~ and LANDED per the register's G7.7 row, in both ports since
+2026-08-24); ts/src/lsp.ts and go/lsp (config-gated provenance in hover
 markdown). LSP diagnostic text is unchanged.
 
 ## Open questions

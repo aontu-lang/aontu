@@ -80,12 +80,12 @@ having been agreed.
   Closing it needs a way for a processor to report, which is upstream
   work in `@tabnas/multisource`.
 
-- **`.csv` is not a readable include** (ADR-012), because the two
-  ports' CSV parsers disagree about what a CSV file is: `@tabnas/csv`
-  answers header-keyed records with string fields,
-  `github.com/tabnas/csv/go` answers raw rows including the header,
-  with numbers parsed. Rather than admit that divergence into
-  documents, the extension is refused in both ports and
+- **`.csv` is not a readable include** (ADR-012). Neither port ships a
+  CSV reader, because the two `@tabnas` readers that would be wired in
+  disagree about what a CSV file is: `@tabnas/csv` answers header-keyed
+  records with string fields, `github.com/tabnas/csv/go` answers raw
+  rows including the header, with numbers parsed. Rather than admit
+  that divergence into documents, the extension is refused in both ports and
   `file.tsv:load-ext-csv` pins the refusal — so the day the two parsers
   agree, that row is what says so. Every other config format
   (`.toml`, `.yaml`, `.yml`, `.ini`, `.jsonc`, `.json5`, `.jsonic`,

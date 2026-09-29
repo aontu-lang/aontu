@@ -30,7 +30,7 @@ Extension Development Host, and open a `.aontu` file.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `aontu.server.command` | `aontu` | Command to launch the server; `aontu.server.args` defaults to `["lsp"]`. |
-| `aontu.server.args` | `[]` | Arguments for the command. |
+| `aontu.server.args` | `["lsp"]` | Arguments for the command. |
 
 To run the TypeScript server directly from a repo checkout without
 installing the binary:
@@ -38,7 +38,7 @@ installing the binary:
 ```jsonc
 {
   "aontu.server.command": "node",
-  "aontu.server.args": ["/abs/path/to/aontu/ts/dist/lsp-server.js"]
+  "aontu.server.args": ["/abs/path/to/aontu/ts/bin/aontu-lsp.js"]
 }
 ```
 

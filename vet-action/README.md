@@ -52,7 +52,7 @@ jobs:
 Inputs: `schema` (required), `data` (required, whitespace-separated),
 `format` (`text`/`json`/`sarif`), `output-file`, `args` (extra flags,
 e.g. `--at $.services --closed --partial`), `version` (npm version of
-`aontu` to run; it must carry the `vet` verb, so 0.53.0 or newer: see the note above. The default tracks the CLI release this Action
-revision ships with, so a pinned Action cannot silently acquire a
-newer CLI). Output: `exit-code`, the verdict class (0 valid, 1
+`aontu` to run; it must carry the `vet` verb, so 0.53.0 or newer: see the note above. The default is the release this Action revision
+was last updated for, pinned in `action.yml`, so a pinned Action cannot
+silently acquire a newer CLI). Output: `exit-code`, the verdict class (0 valid, 1
 invalid, 2 usage, 3 incomplete, 4 schema error).

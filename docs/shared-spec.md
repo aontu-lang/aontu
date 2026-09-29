@@ -293,7 +293,7 @@ reasoning behind them is in
    baselines a divergence as the contract. From the repository root:
 
    ```sh
-   echo 'x:1.0' | node ts/dist/cli.js -c
+   echo 'x:1.0' | node ts/bin/aontu.js -c
    (cd go && echo 'x:1.0' | go run ./cmd/aontu -c)
    ```
 
@@ -327,4 +327,5 @@ it carries no data rows. A row there would be executed by both runners
 and, by definition, could not pass in both, so the file is entirely
 commentary and contributes zero cases. Recording a divergence there is a
 deliberate, reviewed act rather than a way to quieten a failing row; the
-rules for an entry are in [`AGENTS.md`](../AGENTS.md).
+rules for an entry are in
+[the divergence ledger](contributing/testing.md#the-divergence-ledger).

@@ -98,8 +98,9 @@ once:
 Tooling:
 
 - [The `aontu` command](reference-api.md#command-line-interface). One
-  binary, nineteen verbs, both implementations. Each verb has its own
-  reference section:
+  binary, one verb per task, both implementations (`allow` and the
+  MCP server are TypeScript-only). Each verb has its own reference
+  section:
   - validate: [`vet`](reference-api.md#aontu-vet), wrapped for CI as a
     [GitHub Action](../vet-action/README.md)
   - evolve a schema: [`subsume`](reference-api.md#aontu-subsume),

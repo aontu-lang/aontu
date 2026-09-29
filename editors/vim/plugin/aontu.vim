@@ -4,7 +4,7 @@
 " `aontu-lsp` server manually — see editors/vim/README.md.
 "
 " Customise the launch command with, e.g.:
-"   let g:aontu_lsp_cmd = ['node', '/abs/path/ts/dist/lsp-server.js']
+"   let g:aontu_lsp_cmd = ['node', '/abs/path/ts/bin/aontu-lsp.js']
 
 if !has('nvim')
   finish

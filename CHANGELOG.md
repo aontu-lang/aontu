@@ -19,6 +19,23 @@ stopped at the first. Rows in `test/spec/maybe.tsv`; the ledger entry
 is removed. The site such a finding names under a map template still
 differs (#292) and is registered in its place.
 
+### `reachCheck` and `jsonSchema` are exported
+
+TypeScript. The library forms of `aontu reaches` and `aontu jsonschema`,
+which `docs/reference-api.md` already named, are now exported from the
+package beside `relationCheck`, `subsume` and the other verbs' engines.
+
+### The documentation says what the code does
+
+A sweep that ran both CLIs against the prose corrected the statements
+that had drifted: counts (verbs, built-ins, spec rows, coverage
+markers, use cases), paths and symbols that were renamed, the
+language-server launch path in the editor guides, `close()` being
+recursive in the explanation, `model get`/`why`/`set` spelled as the
+verbs they are, one version series in the contributor guide, and the
+register and ADR pins that named rows, codes or files that no longer
+exist. No behaviour changed for it.
+
 ### A template's key is refused where it is missing (#287)
 
 Both ports. A key a container template declares, and an element does

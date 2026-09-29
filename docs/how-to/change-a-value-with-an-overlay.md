@@ -81,7 +81,7 @@ $ echo $?
 
 The overlay is written only when the change holds, so this refusal
 leaves its contents unchanged. The finding names
-the site doing the pinning (`system.aontu:3:24`, which [`aontu
+the site doing the pinning (`system.aontu:2:27`, which [`aontu
 why`](explain-a-value.md) will list as a contribution) and to
 rewrite that literal rather than contradict it, [change the pinned
 value](change-a-pinned-value.md).

@@ -79,9 +79,9 @@ and whose declared type words are all scalar kinds: `string`, `number`,
 slot declared `any`, `map`, `list`, or `constraint` is skipped, and so
 is an argument that is absent, nil, or unsettled. What the gate admits
 is a concrete scalar whose leaf kind is or sits below one of the
-declared words, so `number` admits every numeric leaf and `string`
-admits a path, while a scalar kind written in place of a value is
-refused. A miss is `func_arg`, class `conflict`, and the message prints
+declared words, so `number` admits every numeric leaf (a path is its
+own kind and does not fit `string`), while a scalar kind written in
+place of a value is refused. A miss is `func_arg`, class `conflict`, and the message prints
 the whole declaration and names the slot by number and by name:
 
 <!-- test: run -->
