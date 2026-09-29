@@ -296,11 +296,21 @@ func dropPendingMarkWrappers(v Val) Val {
 			n.peg[k] = dropMarkWrapper(n.peg[k])
 		}
 	case *ListVal:
-		for i, e := range n.peg {
-			n.peg[i] = dropMarkWrapper(e)
-		}
+		dropEach(n.peg)
+	case *ConjunctVal:
+		dropEach(n.peg)
+	case *DisjunctVal:
+		dropEach(n.peg)
+	case *FuncVal:
+		dropEach(n.peg)
 	}
 	return v
+}
+
+func dropEach(vals []Val) {
+	for i, e := range vals {
+		vals[i] = dropMarkWrapper(e)
+	}
 }
 
 func dropMarkWrapper(v Val) Val {

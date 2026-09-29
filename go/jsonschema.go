@@ -483,17 +483,16 @@ func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
 }
 
 func schemaSkipMarked(sc *schemaCtx, path []string, bag, child Val) bool {
-	if bag.markedHide() || bag.markedType() || nil == child {
-		return false
-	}
-	if child.markedHide() {
+	// A mark the container carries too is read through (an export
+	// anchored inside it); one of the child's own is not.
+	if child.markedHide() && !bag.markedHide() {
 		sc.lose(path, "hide",
 			"a hidden entry is not generated, so it is omitted from the "+
 				"schema; a consumer is neither asked for it nor allowed to "+
 				"know about it")
 		return true
 	}
-	if child.markedType() {
+	if child.markedType() && !bag.markedType() {
 		sc.lose(path, "type",
 			"a type() entry is a definition and is not generated, so it is "+
 				"omitted from the schema")

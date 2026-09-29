@@ -329,17 +329,16 @@ function fromDisjunct(ctx: Ctx, path: string[], v: any): any {
 
 
 function skipMarked(ctx: Ctx, path: string[], bag: any, child: any): boolean {
-  if (true === bag.mark?.hide || true === bag.mark?.type) {
-    return false
-  }
-  if (true === child?.mark?.hide) {
+  // A mark the container carries too is read through (an export
+  // anchored inside it); one of the child's own is not.
+  if (true === child?.mark?.hide && true !== bag.mark?.hide) {
     lose(ctx, path, 'hide',
       'a hidden entry is not generated, so it is omitted from the ' +
       'schema; a consumer is neither asked for it nor allowed to know ' +
       'about it')
     return true
   }
-  if (true === child?.mark?.type) {
+  if (true === child?.mark?.type && true !== bag.mark?.type) {
     lose(ctx, path, 'type',
       'a type() entry is a definition and is not generated, so it is ' +
       'omitted from the schema')

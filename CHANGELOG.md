@@ -97,8 +97,9 @@ wording for `**`.
 ### The `.aon` extension is withdrawn (#251)
 
 Both ports. **Breaking.** Only `.aontu` names a source file. An include
-of a `.aon` file is refused by its extension (`include_extension`), and
-the command line refuses a `.aon` entry file before reading it.
+of a `.aon` file is refused by its extension (`include_extension`),
+even under `--text-ext aon`. Every verb and the REPL's `:load` refuse a
+`.aon` file argument before reading it, with exit 2.
 
 ### Closing is recursive, and a type is closed for its instances
 

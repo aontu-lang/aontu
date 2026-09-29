@@ -149,6 +149,7 @@ hide-staged-then-picked	gens	d: {x: {n: "a"}}\ns: hide(each($.d, _ & {o: .n}))\n
 # the mark stays at the field it was written at. An inline template is
 # the field itself and keeps its mark.
 ref-copies-the-argument-of-a-pending-nested-hide	gens	t: { n: key(), h: hide(key()) }\nc: $.t	{"c":{"h":"c","n":"c"},"t":{"n":"t"}}
+ref-copies-a-pending-hide-inside-a-conjunction	gens	t: { n: key(), h: hide(key()) & string }\nc: $.t	{"c":{"h":"c","n":"c"},"t":{"n":"t"}}
 ref-copies-the-argument-of-a-pending-nested-type	gens	t: { n: key(), h: type(key()) }\nc: $.t	{"c":{"h":"c","n":"c"},"t":{"n":"t"}}
 ref-spread-copies-the-argument-of-a-pending-nested-hide	gens	t: { n: key(), h: hide(key()) }\na: { &: $.t b: {} }	{"a":{"b":{"h":"b","n":"b"}},"t":{"n":"t"}}
 inline-spread-keeps-a-nested-hide	gens	a: { &: { n: key(), h: hide(key()) } b: {} }	{"a":{"b":{"n":"b"}}}

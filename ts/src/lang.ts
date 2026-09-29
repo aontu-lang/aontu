@@ -1798,7 +1798,7 @@ export function includeFormat(
   if (undefined !== known) {
     return known
   }
-  if (REFUSED_EXT.has(ext)) {
+  if (REFUSED_EXT.has(ext) || WITHDRAWN_EXT === ext) {
     return undefined
   }
   return textExt?.includes(ext) ? 'text' : undefined
@@ -1903,7 +1903,18 @@ function includeProcessors(textExt?: string[]): { [kind: string]: any } {
     // ... and the one upstream default that would EXECUTE the file.
     js: refuseProcessor,
   }
-  const source = makeJsonicProcessor()
+  const parse = makeJsonicProcessor()
+  // A failure inside an included file carries that file's text out, so
+  // its frame shows the file whatever reader the resolver used.
+  const source = (res: any, ...rest: any[]) => {
+    try {
+      return (parse as any)(res, ...rest)
+    }
+    catch (e: any) {
+      e.includedSrc ??= res.src
+      throw e
+    }
+  }
   const forKind = (kind: string) => {
     const format = includeFormat(kind, textExt)
     if ('source' === format) return source
@@ -2280,15 +2291,15 @@ function parseRefusal(e: any, src: string, path: string | undefined,
   const first = String(e.message).split('\n')[0]
     .replace(/\x1b\[[0-9;]*m/g, '')
     .replace(/^\[[^\]]*\]:\s*/, '')
-  const nested = 0 < (e.meta?.multisource?.parents?.length ?? 0)
+  const nested = undefined !== e.includedSrc
   return {
     // The parser's own code names the kind of syntax error.
     code: e.code,
     msg: first,
     row: 'number' === typeof e.lineNumber ? e.lineNumber : -1,
     col: 'number' === typeof e.columnNumber ? e.columnNumber : -1,
-    url: nested ? e.meta.multisource.path : path,
-    src: nested ? undefined : src,
+    url: nested ? e.meta?.multisource?.path : path,
+    src: nested ? e.includedSrc : src,
     tail,
   }
 }

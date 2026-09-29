@@ -846,6 +846,14 @@ func colorFor(w io.Writer) *bool {
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int {
 	aontu.SetColor(colorFor(stderr))
 
+	// One spelling throughout the tools (ADR-042): every verb, one gate.
+	for _, a := range args {
+		if !strings.HasPrefix(a, "-") && strings.EqualFold(".aon", filepath.Ext(a)) {
+			fmt.Fprintln(stderr, withdrawnMsg(a))
+			return 2
+		}
+	}
+
 	if 0 < len(args) && "vet" == args[0] {
 		return runVet(args[1:], stdout, stderr)
 	}
@@ -1006,11 +1014,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 
 	if file != "" {
-		if strings.EqualFold(".aon", filepath.Ext(file)) {
-			fmt.Fprintf(stderr,
-				"aontu: %s carries the withdrawn .aon extension; the extension is .aontu\n", file)
-			return 2
-		}
 		src, err := os.ReadFile(file)
 		if err != nil {
 			if looksLikeVerb(file) {
@@ -1059,4 +1062,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 
 	repl(mode, jsonl, trust, stdin, stdout)
 	return 0
+}
+
+func withdrawnMsg(file string) string {
+	return "aontu: " + file + " carries the withdrawn .aon extension; the extension is .aontu"
 }

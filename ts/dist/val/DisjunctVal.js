@@ -304,8 +304,11 @@ function genShape(v, out) {
     if (null != out && 'object' === typeof out && !Array.isArray(out) && true === v?.isMap) {
         return '{' + Object.keys(out).sort().map((k) => JSON.stringify(k) + ':' + genShape(v.peg[k], out[k])).join(',') + '}';
     }
-    if (Array.isArray(out) && true === v?.isList && v.peg.length === out.length) {
-        return '[' + out.map((o, i) => genShape(v.peg[i], o)).join(',') + ']';
+    // Generation drops marked and absent elements, so pair what remains.
+    const kids = true === v?.isList ? v.peg.filter((c) => !(c.mark?.type || c.mark?.hide) && true !== c.isAbsent &&
+        true !== c.isMaybeFunc) : [];
+    if (Array.isArray(out) && kids.length === out.length) {
+        return '[' + out.map((o, i) => genShape(kids[i], o)).join(',') + ']';
     }
     return (0, exactjson_1.exactJSON)(out);
 } /* node:coverage ignore next 8 */

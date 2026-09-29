@@ -391,6 +391,15 @@ func TestTextExtWideningAndItsLimits(t *testing.T) {
 		t.Fatalf("widened md: %s", got)
 	}
 
+	// The withdrawn spelling is not widened back in.
+	aon := write("old.aon", "z:1\n")
+	w := New()
+	w.TextExt = []string{"aon"}
+	if _, err := w.Parse(`x:@"` + srcPath(aon) + `"`); nil == err ||
+		!strings.Contains(err.Error(), "extension: .aon") {
+		t.Fatalf("aon was widened: %v", err)
+	}
+
 	b := New()
 	b.TextExt = []string{"js"}
 	if _, err := b.Parse(`x:@"` + srcPath(js) + `"`); nil == err ||

@@ -94,6 +94,14 @@ func TestReplLoadsADocumentAndAnswersAboutIt(t *testing.T) {
 	}
 }
 
+func TestReplLoadRefusesTheWithdrawnExtension(t *testing.T) {
+	res := replCommand(replState{Mode: "json"}, ":load old.aon",
+		func(string) (string, error) { return "a:1", nil })
+	if res.State.Loaded || !strings.Contains(res.Out, "withdrawn .aon extension") {
+		t.Fatalf("bad refusal: %+v", res)
+	}
+}
+
 // A document that does not stand up is refused at :load, and nothing
 // is held: the session keeps whatever it had.
 func TestReplLoadRefusesABrokenDocument(t *testing.T) {

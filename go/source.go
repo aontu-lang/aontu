@@ -211,7 +211,7 @@ func includeFormat(ext string, sink *trustSink) string {
 	if known := includeKinds[ext]; "" != known {
 		return known
 	}
-	if "js" == ext || "" == ext {
+	if "js" == ext || "" == ext || withdrawnExt == ext {
 		return ""
 	}
 	if nil != sink {
