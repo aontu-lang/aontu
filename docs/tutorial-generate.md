@@ -394,10 +394,10 @@ either way, which is why [§5](#5-a-folder-and-a-project) could read a
 leaf of it with `aontu model get` before anything was written.
 
 The rest is a pipe, and it is a recipe rather than a lesson:
-[generate code from a model](how-to/generate-code.md) has the command
-that hands `aontu model get` output to a runtime, the `--folder` form
-that compares instead of writing (a generated file edited by hand is
-then a red build), and the way to write the generator in the target's
+[generate code from a model](how-to/generate-code.md) has the
+`aontu render` command that writes the tree to disk, its `--check`
+form that compares instead of writing (a generated file edited by hand
+is then a red build), and the way to write the generator in the target's
 own syntax so that `gofmt` and an editor can read it.
 
 ## Where to go next

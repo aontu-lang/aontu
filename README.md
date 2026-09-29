@@ -57,9 +57,9 @@ aontu                         # no file on a terminal -> REPL
 ```
 
 Beyond evaluation the command has a verb for each task around a
-document: `vet` (validate data against a schema), `get` and `why`
-(query, and provenance), `set` (change a value in an overlay, by
-appending or in place), `subsume` and `breaking` (schema evolution),
+document: `vet` (validate data against a schema), `model get` and
+`model why` (query, and provenance), `model set` (change a value in an
+overlay, by appending or in place), `subsume` and `breaking` (schema evolution),
 `hash` (pin what a document means), `relations`, `reaches` and `view`
 (the declared entity graph: its checks, reachability over it, and its
 figures drawn as text: tree, matrix, graph, layers, sets, the meet

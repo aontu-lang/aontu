@@ -134,52 +134,63 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**3751 cases across 97 files**) is run by *both*
+`test/spec/*.tsv` (**5567 cases across 115 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `defaults.tsv` | 29 |
-| `edge.tsv`                  | 312 | `diff.tsv` | 28 |
-| `constraint-product.tsv`    | 256 | `super.tsv` | 28 |
-| `func.tsv`                  | 122 | `file.tsv` | 27 |
-| `errcodes.tsv`              | 120 | `recursion.tsv` | 27 |
-| `constraint-re.tsv`         | 118 | `pipe.tsv` | 26 |
-| `number-model.tsv`          | 112 | `budget.tsv` | 25 |
-| `subsume.tsv`               | 106 | `engine-parity.tsv` | 23 |
-| `constraint-length.tsv`     | 102 | `var.tsv` | 23 |
-| `query.tsv`                 |  92 | `constraint-alias.tsv` | 21 |
-| `id.tsv`                    |  81 | `deprecate.tsv` | 21 |
-| `vet.tsv`                   |  80 | `elision.tsv` | 21 |
-| `constraint-bound.tsv`      |  74 | `gen-each.tsv` | 21 |
-| `pref.tsv`                  |  70 | `gen-match.tsv` | 21 |
-| `refer.tsv`                 |  62 | `mod.tsv` | 21 |
-| `arith.tsv`                 |  59 | `map.tsv` | 20 |
-| `number-cross-product.tsv`  |  59 | `std-system.tsv` | 20 |
-| `ref.tsv`                   |  56 | `list.tsv` | 18 |
-| `jsonschema.tsv`            |  54 | `gen-filter.tsv` | 16 |
-| `hcanon.tsv`                |  53 | `plus.tsv` | 16 |
-| `why.tsv`                   |  50 | `conjunct.tsv` | 13 |
-| `relation.tsv`              |  48 | `merge-conflict.tsv` | 13 |
-| `agg.tsv`                   |  44 | `op-chars.tsv` | 13 |
-| `patch.tsv`                 |  42 | `reach.tsv` | 13 |
-| `place.tsv`                 |  41 | `gen-close.tsv` | 11 |
-| `rel.tsv`                   |  40 | `trim.tsv` | 11 |
-| `scalar.tsv`                |  40 | `gen-key.tsv` | 10 |
-| `alias.tsv`                 |  38 | `close.tsv` |  9 |
-| `disjunct.tsv`              |  38 | `gen-spread.tsv` |  9 |
-| `graph.tsv`                 |  37 | `incomplete.tsv` |  9 |
-| `optional.tsv`              |  37 | `agentsmd.tsv` |  7 |
-| `constraint-must.tsv`       |  34 | `container-path.tsv` |  7 |
-| `error.tsv`                 |  34 | `comment.tsv` |  6 |
-| `gen-pack.tsv`              |  31 | `include-trust.tsv` |  4 |
-| `constraint-cross.tsv`      |  30 | `divergent.tsv` |  0 |
-| `marks.tsv`                 |  30 | | |
+| `number-tower.tsv`          | 395 | `aontu-system.tsv` | 37 |
+| `edge.tsv`                  | 337 | `optional.tsv` | 37 |
+| `constraint-product.tsv`    | 256 | `views.tsv` | 37 |
+| `fmt.tsv`                   | 230 | `graph.tsv` | 36 |
+| `errcodes.tsv`              | 175 | `defaults.tsv` | 35 |
+| `view.tsv`                  | 175 | `constraint-must.tsv` | 34 |
+| `alias.tsv`                 | 164 | `gen-pack.tsv` | 34 |
+| `types.tsv`                 | 164 | `seal.tsv` | 34 |
+| `func.tsv`                  | 148 | `template.tsv` | 34 |
+| `subsume.tsv`               | 121 | `constraint-cross.tsv` | 33 |
+| `number-model.tsv`          | 120 | `containerkind.tsv` | 32 |
+| `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
+| `vet.tsv`                   | 111 | `budget.tsv` | 28 |
+| `constraint-length.tsv`     | 102 | `diff.tsv` | 28 |
+| `str.tsv`                   |  99 | `gen-match.tsv` | 28 |
+| `cmp.tsv`                   |  93 | `recursion.tsv` | 28 |
+| `query.tsv`                 |  93 | `gen-filter.tsv` | 25 |
+| `refer.tsv`                 |  87 | `engine-parity.tsv` | 23 |
+| `gen-emit.tsv`              |  86 | `var.tsv` | 23 |
+| `maybe.tsv`                 |  75 | `constraint-alias.tsv` | 21 |
+| `pref.tsv`                  |  75 | `deprecate.tsv` | 21 |
+| `constraint-bound.tsv`      |  74 | `elision.tsv` | 21 |
+| `ref.tsv`                   |  74 | `map.tsv` | 20 |
+| `file.tsv`                  |  70 | `reach.tsv` | 19 |
+| `jsonschema.tsv`            |  67 | `list.tsv` | 18 |
+| `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
+| `marks.tsv`                 |  62 | `plus.tsv` | 16 |
+| `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
+| `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |
+| `hcanon.tsv`                |  58 | `conjunct.tsv` | 13 |
+| `arith.tsv`                 |  57 | `merge-conflict.tsv` | 13 |
+| `relation.tsv`              |  56 | `gen-close.tsv` | 11 |
+| `gen-each.tsv`              |  55 | `trim.tsv` | 11 |
+| `why.tsv`                   |  53 | `close.tsv` |  9 |
+| `abnf.tsv`                  |  52 | `gen-spread.tsv` |  9 |
+| `agg.tsv`                   |  50 | `incomplete.tsv` |  9 |
+| `mod.tsv`                   |  46 | `trace.tsv` |  9 |
+| `op-chars.tsv`              |  46 | `agentsmd.tsv` |  7 |
+| `error.tsv`                 |  45 | `container-path.tsv` |  7 |
+| `rel.tsv`                   |  42 | `comment.tsv` |  6 |
+| `patch.tsv`                 |  41 | `aontu-scheme.tsv` |  4 |
+| `place.tsv`                 |  41 | `include-trust.tsv` |  4 |
+| `scalar.tsv`                |  40 | `divergent.tsv` |  0 |
+| `sort.tsv`                  |  39 | `signature.tsv` |  0 |
+| `disjunct.tsv`              |  38 | | |
 
 plus the `spread*.tsv` family: **26 files, 167 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,
-no data rows (see [the shared spec](shared-spec.md#the-divergence-ledger)).
+no data rows (see [the shared spec](shared-spec.md#the-divergence-ledger)),
+and `signature.tsv` is the built-in signature declaration the `sig`
+generator reads, not a row file, so both count zero.
 
 Regenerate the whole table rather than patching cells: it has drifted
 before, and an omitted file reads as "this behaviour is not pinned":
@@ -208,11 +219,12 @@ error code (`errc`), an error-code registry entry (`errcode`), the hash
 form (`hcanon`) or the canon-hash itself (`hash`), a redundancy report
 (`trim`), the derived entity index and edge set (`graph`), a
 relation-property report (`relation`), a reachability verdict
-(`reaches`), or (in the seven five-column modes) a whole report
+(`reaches`), or (in the nine five-column modes) a whole report
 about a second input: a validation (`vet`), a compatibility verdict
 (`subsume`), a path's value (`query`) or the contributions that made it
-(`why`), an overlay (`patch`), a comparison (`diff`), or the generated
-AGENTS.md stanza (`agentsmd`). The full encoding of each is in
+(`why`), an overlay (`patch`), a comparison (`diff`), the generated
+AGENTS.md stanza (`agentsmd`), or a generator's desugaring under a
+marker (`fmt-template`, `fmt-template-lint`). The full encoding of each is in
 [the shared spec](shared-spec.md#modes).
 
 ### Per-port tests
@@ -247,9 +259,9 @@ engine never builds.
 
 ## The exclusions, in full
 
-100 % is only meaningful if what was excluded is visible. Seventy-five
-Go sites carry a `//coverage:ignore` marker (two of them
-`ignore-block` markers over a pair) and TypeScript carries none at all
+100 % is only meaningful if what was excluded is visible. One hundred and twenty-four
+Go sites carry a `//coverage:ignore` marker (five of them
+`ignore-block` markers over a block) and TypeScript carries none at all
 beyond the export blocks (see below). TypeScript's markers drop LINES
 and not branch arms, so a defensive `if` cannot be excused there at
 all: the arm is either reachable and tested, or it is deleted. Several
@@ -288,47 +300,59 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go: 75 marked sites
+### Go: 124 marked sites
 
-| Site | Why it cannot be reached |
+| Site | Why it cannot be reached, as the marker says |
 |------|--------------------------|
-| `lang.go` × 6: `makeLang`, `langForBase`, and the four `j.Use(...)` registrations | Plugin registration takes compile-time literal options and ignores the base; the same registrations already succeed at package init, so a failure would panic at load rather than reach these arms. |
-| `lang.go` × 4: `big.Int.SetString` guards in `isLossyIntegerLiteral`, `exactLiteral`, `exactDecimal` and the signed-digit helper | The digit strings are pre-vetted by `allDigits` or by the literal regex before the call, so `SetString` cannot reject them. |
-| `func.go` × 2: `resolve() == nil` and the whole `result == Val(f)` block | No `FuncVal.resolve` arm returns nil or the receiver. The block mirrors TS `FuncBaseVal`, where `resolve()` can return `this`: kept for the ADR-001 shape correspondence. |
-| `graphatom.go`: the string type-assert in `predicateName` | A `KindString` scalar always holds a `string`; the assert exists so a broken invariant refuses rather than panics. |
-| `unify.go` / `unify.ts`: `applyFlows`' unresolved-path guard | A recorded type flow is written only for a path that HAD resolved, and unification never takes a node back out of the tree: `move` copies and hides its source rather than removing it, which is the one rearrangement that looked like it would (probed in both ports; `flow-lands-then-its-parent-moves` in `test/spec/refer.tsv` pins that the flow still resolves on every pass). The guard is the contract for a rearrangement that does. |
-| `conjunct.go`: `case 0` of the outvals switch | A fold over ≥ 1 term always appends; the empty case returned 30 lines earlier. |
-| `constraint.go` × 2: `must`'s arity guard, and the final arm of the meet ladder | The parser already refuses a `must` that is not given exactly two arguments. The ladder above the arm is total in practice: every remaining `Val` kind either sorts below a constraint in a conjunct and drives the meet from its own side, or resolves to a scalar or container before a constraint sees it. Both are kept because a broken invariant should fail as a refusal, not as a panic or a silent fall-through. |
-| `disjunct.go`: the nil check after an equal-rank pref merge | `PrefVal.Unify` with a pref peer always yields a pref, never a bare nil. |
-| `op.go`: the trailing `return nil` of `operate` | `peg` is provably one of string, bool or float64, all handled above. |
-| `query.go` × 2: the JSON encoder error arms | A value that generated is a value that encodes; the arms exist so a future generator change refuses rather than emits half a document. |
-| `trim.go`: the re-parse failure arm | The baseline pass already parsed the same source. |
-| `val.go`: the caret-column clamp in `NilVal.frame` | `rowCol` never returns a column below 1. |
-| `vet.go` × 2: the non-`*AontuError` and empty-code arms of `parseFinding` | Every parse failure path in `lang.go` returns an `*AontuError` and names a code; the two arms exist so the report cannot be built from nothing if one ever does not. |
-| `aontu.go`, `cmd/aontu/main.go` × 2, `cmd/aontu/subsume.go`: `filepath.Abs` / `os.Getwd` guards | Both fail only on an unreadable or deleted working directory, which no test can produce without breaking the runner itself. |
-| `cmd/aontu/main.go`: the `pkg` arm of the trust warning | The Go resolver chain has no package leg to warn about; the arm keeps the two ports' warning code the same shape. |
-| `cmd/aontu/main.go`, `cmd/aontu-lsp/main.go`: `main()` | Executed for real by the `GOCOVERDIR` leg of `make cov-go`; the marker keeps the unit-only profile accurate rather than excusing an untested function. |
-| `modtool.go` × 9, `mod.go`: the filesystem arms of the module tooling | Every one is a second failure of something the line above already succeeded at: a directory the caller just stat'd, a file the listing just named, or a copy into a project the same call chain has already written to. Making any of them fail needs the filesystem to change under the process mid-call. |
-| `cmd/aontu/pkg.go` × 2: the JSON round-trip arms of the report renderer | `Marshal` and `Unmarshal` over a plain struct the command itself built, so neither can fail; the arms exist so a future report shape refuses rather than prints half an object. |
-| `cmd/aontu/pkgnet.go`: `defaultServers` | The platform transport and the wait on the process's SIGINT that `pkg serve` makes; the tests hand in a directory-backed transport and a served registry on a loopback port instead. |
-| `pkgnet.go`: the closure-size and depth guards in `acquire` | A thousand-package closure is beyond a unit test, and the evaluator's own depth bound refuses a chain of seventeen before the guard is reached. |
-| `pkgnet.go`: `DirHTTP.Get` on a URL that does not parse | Every URL the client builds is a base it admitted plus a layout path. |
-| `mod.go` (the `strconv` guard after a `\d+` match | The pattern has already vetted the digits, so the conversion cannot reject them) the same family as the `big.Int.SetString` guards above. |
-| `mod.go`: the `Unify` nil guard in the resolver | `Unify` always answers a `Val`; the guard exists so a broken invariant refuses rather than dereferences nil. |
-| `source.go`: the `filepath.Abs` guard | Same family as the `aontu.go` and `cmd/` guards above: `Abs` fails only on an unreadable working directory. |
-| `place.go`: the trailing `return v` of the place fold | `hasPlace` reporting true implies one of the cases above matched; the arm is the total-function tail. |
-| `jsonschema.go` × 2: the `nil == v` child guard and `kindType`'s miss | A bag never holds a nil child, and every scalar kind has a JSON type; both arms exist so a broken invariant refuses rather than panics or emits an untyped schema. The TypeScript twin has NEITHER, because its marker cannot excuse a branch (above). |
-| `patch.go`: the non-map guard on a parsed document | A parsed `v X` document is always a map; the guard is type safety on an interface value, not a reachable state. |
-| `cmd/aontu/subsume.go` × 7: the temp-tree arms of the git-revision leg | Every one is a second failure of something the line above already succeeded at: `MkdirTemp`, then writes and reads under the directory it just created, and a path `git ls-tree` has just listed. |
-| `cmd/aontu/repl.go`, `source.go`, `vet.go` × 2: `os.Getwd` / `filepath.Abs` guards | Same family as the `aontu.go` and `cmd/` guards above; one of the `vet.go` pair needs two drive letters and so is unreachable off Windows. |
-| `source.go` × 2: the empty-`Full` guard and the jsonic result `ignore-block` | A resolution always carries its full path, and jsonic hands back a `Val` or a map, never a raw third thing. |
-| `trim.go`: the neither-value-nor-error arm of `parseEntry` | `parseEntry` answers one or the other. (The re-parse arm is listed above.) |
-| `lang.go` × 4 more than listed above: further `j.Use` registrations and digit guards | Same two families: compile-time plugin options that already succeeded at package init, and digit strings a regex or `allDigits` has already vetted. |
-| `relation.go` × 5 (`addressedNode`'s lookup, its two walk guards, its `default` arm, and the caller's nil check | An edge exists only because `refer()` RESOLVED its full address, so the walk cannot miss: an address that does not walk is `refer_unresolved` at unification and the document never reaches the graph) probed for a missing key, a scalar mid-path and an out-of-range index, in both ports. The TypeScript twin has NONE of them, because its marker cannot excuse a branch; it relies on optional chaining, where a Go nil would panic. |
-| `vet.go`: `failureFinding`'s last resort | The fallback for a root that is nil-the-INTERFACE rather than nil-the-value. Every caller's condition is `nil == root \|\| root.Nil() \|\| 0 < len(ctx.err)` and the first arm has never been observed to fire, but a failed type assertion would otherwise dereference nil: the panic that function was fixed to stop ([use-cases/BUGS.md](../use-cases/BUGS.md), entry 43). |
+| `aontu.go` × 1 | `Abs fails only on an unreadable cwd` |
+| `cmd/aontu-lsp/main.go` × 1 | `run under GOCOVERDIR by make cov-go` |
+| `cmd/aontu/help.go` × 3 | `the file is embedded; absence fails the build`; `the generator writes four columns`; `every indexed file is embedded beside the index` |
+| `cmd/aontu/init.go` × 4 | `the file is embedded; absence fails the build`; `the generator writes three columns`; `the generator writes an octal mode`; `every indexed file is embedded beside the index` |
+| `cmd/aontu/main.go` × 8 | `no generated value is unencodable`; `Unify and Generate return an *AontuError on every failure path`; `Go has no package leg to warn about`; `Abs fails only on an unreadable cwd` (× 2); `run under GOCOVERDIR by make cov-go`; `Abs fails only on a deleted cwd`; `Getwd fails only on a deleted cwd` |
+| `cmd/aontu/pkg.go` × 3 | `Abs fails only on an unreadable cwd`; `the reports are plain structs`; `see above` |
+| `cmd/aontu/pkgnet.go` × 1 | `see above` |
+| `cmd/aontu/render.go` × 3 | `the whole tree passed CmpTree already, and one File's name is not what it reads`; `the renamed tree claims the same paths bar one, so a check that succeeded once succeeds here`; `excludedPaths refuses only what the first check already took` |
+| `cmd/aontu/repl.go` × 1 | `Getwd fails only on a deleted cwd` |
+| `cmd/aontu/subsume.go` × 7 | `Abs fails only on an unreadable cwd`; `MkdirTemp fails only on an unwritable tmp`; `--show-prefix above fails first`; `a path git just listed always shows`; `MkdirAll under a fresh temp dir`; `WriteFile under a fresh temp dir`; `the entry was just written from the tree` |
+| `cmd/aontu/view.go` × 1 | `Abs fails only on an unreadable cwd` |
+| `cmp.go` × 1 | `each component declares its arity; a bad count is refused at parse` |
+| `conjunct.go` × 1 | `a fold over >=1 term always appends` |
+| `constraint.go` × 2 | `parse-time arity guarantees two; see above`; `no Val kind reaches this arm; see above` |
+| `disjunct.go` × 2 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `the meet returns the preference itself; see above` |
+| `format.go` × 1 | `a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first` |
+| `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
+| `generate.go` × 1 | `hasNodeRef true implies a case above` |
+| `graphatom.go` × 1 | `a string-kind scalar always holds a string` |
+| `jsonschema.go` × 2 | `a bag never holds a nil child`; `every scalar kind has a JSON type` |
+| `lang.go` × 10 | `makeLang cannot fail: see mustMakeLang`; `plugin registration cannot fail` (× 4); `allDigits above already vetted the run`; `the literal regex already vetted the digits`; `both callers pass a signed digit run`; `both callers pass unsigned digit runs`; `langForBase cannot fail: see makeLang` |
+| `listval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |
+| `mapval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |
+| `maybe.go` × 1 | `the interface requires it; nothing asks an absence for a supertype` |
+| `mod.go` × 1 | `Unify always answers a Val` |
+| `nom.go` × 2 | `arity {1,3} is refused at parse`; `a name with words styles in every style` |
+| `op.go` × 1 | `peg is always string, bool or float64` |
+| `patch.go` × 1 | `a parsed v: X document is always a map; the guard is type safety on an interface value, not a reachable state` |
+| `pkg.go` × 13 | `the caller stat'd this directory` (× 2); `ReadDir listed it a moment ago` (× 2); `a regular, listed file reads`; `a readable store copies` (× 2); `a writable project makes dirs`; `see above` (× 4); `the directory the lock was just read from` |
+| `pkgnet.go` × 6 | `the platform's random source answers`; `see above` (× 4); `every URL the client builds parses` |
+| `place.go` × 1 | `hasPlace true implies a case above` |
+| `profile.go` × 1 | `vet passed, so the meet generates` |
+| `query.go` × 3 | `a generated value is always encodable` (× 2); `the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is nil != uerr \|\| nil == root \|\| root.Nil(), and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)` |
+| `refer.go` × 1 | `pegs are pre-validated by the capture` |
+| `scalar.go` × 1 | `no caller: superOf answers for a kind peg (ADR-011 R4)` |
+| `sig.go` × 2 | `the grammar is static; registration failure is a build defect`; `the embedded text is suite-gated; a parse failure is a build defect` |
+| `source.go` × 8 | `a plugin that cannot install is a broken dependency, not an input`; `Abs fails only on an unreadable cwd`; `an include's string always follows its @`; `parseBase always seats the sink`; `a resolution always carries its full path`; `jsonic hands back a Val or a map, never a raw`; `the readers cannot nest deeper than their own parser allows`; `a JSON-shaped value has no other kind` |
+| `trace.go` × 1 | `a resolved tree holds no nil, and keys may outlive peg` |
+| `translate.go` × 1 | `arity {2,3} is refused at parse` |
+| `trim.go` × 2 | `parseEntry answers a value or an error, never neither`; `the baseline above already parsed this source` |
+| `unify.go` × 1 | `a recorded path always resolves; see above` |
+| `val.go` × 4 | `Getwd fails only if the cwd is gone`; `a stamped use always carries its offset`; `rowCol never returns a column below 1` (× 2) |
+| `vet.go` × 5 | `Abs fails only on an unreadable cwd`; `needs two drives, so no test can reach it`; `the last resort for a root that is nil-the-INTERFACE rather than nil-the-value: every caller's condition is nil == root \|\| root.Nil() \|\| 0 < len(ctx.err), and the first arm has never been observed to fire, but a typed-nil assertion that failed would otherwise dereference nil here: the panic this whole function was fixed to stop (use-cases/BUGS.md §43)`; `every parse failure path returns an *AontuError (lang.go)`; `parseBase names a code on every failure path` |
+| `view.go` × 2 | `Abs fails only on an unreadable cwd`; `Rel fails only across volumes` |
 
-Regenerate the site list rather than patching rows: the count above is
-whatever `covmerge` reports on the run:
+Regenerate the site list rather than patching rows: each row is a
+file, its marker count, and the markers' own justifications in source
+order (`see above` refers to the marker before it in the same file),
+and the count above is whatever `covmerge` reports on the run:
 
 ```
 cd go && grep -rn 'coverage:ignore' *.go cmd/*/*.go lsp/*.go | grep -v _test.go

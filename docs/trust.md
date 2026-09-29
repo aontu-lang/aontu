@@ -102,9 +102,9 @@ Every evaluation halts within deterministic budgets counted in
 
 | budget     | counts                                   | current state |
 |------------|------------------------------------------|-----------------|
-| `passes`   | fixpoint passes over the whole model     | 9 (`maxcc`, `ts/src/unify.ts`; `go/unify.go`) |
-| `revisits` | same-pair re-unifications within a pass  | 999 (`MAXCYCLE`, `ts/src/unify.ts`) |
-| `depth`    | structural recursion depth               | 1000 (`MAXDEPTH`, `ts/src/unify.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
+| `passes`   | fixpoint passes over the whole model     | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
+| `revisits` | same-pair re-unifications within a pass  | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
+| `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
 
 (The shared 1000 sits above every real document and below both hosts'
 stack limits, so the budget, not the host, decides the verdict.)
@@ -312,6 +312,6 @@ Guarantees are as much about what will never be added:
 | canon byte-stability | every `canon` row (strict equality, both runners) |
 | generated-JSON byte-stability | `gens` rows (both runners) |
 | graph and relation-verdict byte-stability | [test/spec/graph.tsv](../test/spec/graph.tsv) (`graph` rows: both runners re-derive the entity index and edge set on a fresh engine and require the same bytes) + [test/spec/relation.tsv](../test/spec/relation.tsv) (`relation` verdict rows, both engines) |
-| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv): each entry carries its tracking issue; read the file for the live list rather than a count copied here. Only the Unicode table vintage is permanent |
-| resolver posture | SECURITY comment, `ts/src/lang.ts`; this document |
+| known open divergences | [test/spec/divergent.tsv](../test/spec/divergent.tsv): each entry carries its tracking issue; read the ledger for the live list, and the repository's divergence record for the few decided permanent, rather than a count copied here |
+| resolver posture | this document; enforced by `makeModelResolver` (`ts/src/lang.ts`) and the include capability in `go/source.go` |
 | single-use trees | reference-api.md rule; `Aontu.parse` / Go `Parse` doc comments |

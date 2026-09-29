@@ -184,7 +184,7 @@ change here must keep the default (no override, no `NO_COLOR`) coloured.
 
 ## Mutation caveat (both implementations)
 
-Although `Val.unify` is documented "MUST not mutate", the fixpoint
+`Val.unify` is not a pure function: the fixpoint
 driver relies on `unify` mutating the result/`this` in place on the
 self-unify-with-TOP path (e.g. `MapVal`/`ListVal` write back their
 children, `Conjunct`/`Disjunct`/`Ref`/`Pref`/`Func` advance their own

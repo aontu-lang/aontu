@@ -189,7 +189,13 @@ class FuncBaseVal extends FeatureVal {
       return this
     }
 
-    return new ConjunctVal({ peg: [this, peer] }, ctx)
+    const out = new ConjunctVal({ peg: [this, peer] }, ctx)
+    out.site.row = this.site.row
+    out.site.col = this.site.col
+    out.site.url = this.site.url
+    out.site.len = this.site.len
+    out.site.src = this.site.src
+    return out
   }
 
 

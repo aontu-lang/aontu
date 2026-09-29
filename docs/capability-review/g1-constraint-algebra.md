@@ -132,8 +132,9 @@ missing:
   branch. These are embryonic, ad-hoc residuation — the design
   below formalises them.
 - **Functions as the extension idiom.** *(Written before this gap's
-  own work; the count is now 28 — the nine atoms below plus seven
-  that G3, G4 and G8 added after them. At review time)* the parser's
+  own work; the count was 28 when this note was added — the nine
+  atoms below plus seven that G3, G4 and G8 added after them — and is
+  63 at 2026-09-29, by `test/spec/signature.tsv`. At review time)* the parser's
   `funcMap` (`ts/src/lang.ts`) held exactly 12 builtins — `upper`,
   `lower`, `copy`, `key`, `type`, `hide`, `move`, `path`, `pref`,
   `close`, `open`, `super` — mirrored in `go/func.go`. The nine atoms
@@ -708,7 +709,8 @@ which is fixed: it now canons as `top`, and no row is exempt.)*
    only narrow. A sizing atom cannot: meeting further containers GROWS
    the member set, so `a:length(2) a:{x:1} a:{y:2}` folded at 50000 counts
    `{x:1}` alone and refuses the fragment layering the language exists
-   for. The residual therefore takes `SIZING_CJO` (150000) when it
+   for. The residual therefore takes `LATE_CJO` (150000; `sizingCjo`
+   in `go/constraint.go`) when it
    carries `length` or `unique`, and `MapVal`/`ListVal` hand a constraint
    peer straight back to the constraint, because the new order reverses
    which side drives the meet. `docs/reference-language.md`, "Sizing
@@ -767,14 +769,18 @@ applied to the language itself.
 
 ## Open questions
 
-- **Token sugar later?** Should `>0` ever parse as sugar for
+- ~~**Token sugar later?**~~ **Settled: no, by
+  [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+  (2026-08-28); the Reconciliation section below carries the
+  reasoning.** *(The question as posed:)* Should `>0` ever parse as sugar for
   `above(0)` once adoption data exists? For: CUE familiarity and
   agent emissions observed in the wild. Against: grammar budget,
   two spellings, the op-chars reservation policy. Decide after G7
   publishes the grammar and real usage shows how often the hint
   fires. *(G7 has since published the grammar — `grammar/aontu.gbnf`,
-  `grammar/aontu.lark` — so the first precondition is met; the
-  question stays open on the second, real usage data.)*
+  `grammar/aontu.lark` — so the first precondition is met; ~~the
+  question stays open on the second, real usage data~~ ADR-008
+  settled it without waiting for the second.)*
 - ~~**String length semantics.**~~ **Decided by phase 0, and
   implemented: Unicode code points**, in both ports, pinned by the
   astral-plane rows in `test/spec/constraint-length.tsv`.
@@ -796,9 +802,13 @@ applied to the language itself.
   `docs/reference-language.md`, "`unique` semantics". What remains open
   is uniqueness by KEY ("no two services share a port"), which needs a
   projection and so drags in G8's combinator questions. Deferred, arity
-  reserved. *(G8's combinators have since landed — `pack`, `each`,
+  reserved. ~~*(G8's combinators have since landed — `pack`, `each`,
   `filter`, `match` — without a projection form, so the deferral
-  stands on its own terms: still open, arity still reserved.)*
+  stands on its own terms: still open, arity still reserved.)*~~
+  **Settled: `unique(k)` landed.** `test/spec/signature.tsv` declares
+  `unique(projector k?: string) : constraint`, the `unique-by-key-*`
+  rows in `test/spec/constraint-length.tsv` pin it, and the
+  Reconciliation section below already counts it (checked 2026-09-29).
 - ~~**How much admissible-set detail travels in `NilVal.details`.**~~
   **Settled with G2 phase 2, as this question asked it to be:** the
   finding object carries `expected` (the residual's canon — which IS
@@ -897,7 +907,7 @@ admits `"zebra"` and refuses `"apple"`.
   used. `a: int8` is still the bare string `"int8"`, and stays that way.
   Pinned by `test/spec/constraint-alias.tsv`, documented in
   `docs/reference-language.md` "Named constraint aliases" and
-  `docs/how-to.md` "Name a reusable constraint", both executed by
+  `docs/how-to/name-a-reusable-constraint.md`, both executed by
   `ts/test/docs.test.ts`. The idiom also exposes a trap a keyword would
   have hidden: bounds alone bound a *number*, so an alias must lead with
   `integer` or `1.5` satisfies it.

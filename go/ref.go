@@ -735,7 +735,7 @@ func (rv *RefVal) spelling() string {
 
 func (rv *RefVal) Gen(ctx *Ctx) (any, error) {
 	// Code mirrors TS RefVal.gen ('ref').
-	return nil, residueErr(ctx, rv, "ref")
+	return nil, residueWalkOn(ctx, rv, "ref")
 }
 
 // VarVal is a variable reference (e.g. `$name`). Full variable lookup

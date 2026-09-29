@@ -376,10 +376,12 @@ Checked against this repository at review time (TS v0.49.0 line).
 **Several have since moved — the review's own work changed them
 — and are marked inline; the rest still hold as written.**
 
-- ~~Exactly 12 builtin functions~~ **now 48** — this correction
-  itself rotted once, reading "17" for three days after G1's later
+- ~~Exactly 12 builtin functions~~ **now 63** (re-counted 2026-09-29
+  from `test/spec/signature.tsv`) — this correction itself rotted
+  twice: it read "17" for three days after G1's later
   atoms, G3's `deprecate`, G4's `id`/`refer` and G8's four
-  combinators had landed. Hard-wired in the parser's `funcMap`
+  combinators had landed, and "48" from 2026-09-05 to 2026-09-29.
+  Hard-wired in the parser's `funcMap`
   (`ts/src/lang.ts`): the original twelve — `upper`, `lower`,
   `copy`, `key`, `type`, `hide`, `move`, `path`, `pref`, `close`,
   `open`, `super` — plus G1's nine constraint atoms, `deprecate`,
@@ -395,8 +397,8 @@ Checked against this repository at review time (TS v0.49.0 line).
   operator sugar — but bounds themselves now exist in function form
   (`a: number & min(0)`), so the underlying gap is partly closed.**
 - ~~45 shared spec files (~426 rows; modes `canon`/`gen`/`err`)~~
-  **the suite has grown roughly sevenfold and its three modes are
-  twenty-five**; the
+  **the suite has grown roughly thirteenfold and its three modes are
+  twenty-nine** (5,567 rows at 2026-09-29); the
   Go runner executes every row with no skip list. Counts move with
   every capability phase, so they are kept in one place with their
   reproduction commands — see the
@@ -409,11 +411,18 @@ Checked against this repository at review time (TS v0.49.0 line).
   (default 9) and the revisit bound stays an internal spec constant,
   with a `depth` budget (default 1000) beside them — see
   `docs/trust.md`.
-- The resolver security posture is documented in code
+- ~~The resolver security posture is documented in code
   (`ts/src/lang.ts`, "treat opening an untrusted source as running
-  it").
-- Disjunct generation has a known distribution defect, acknowledged in
-  a code comment (`ts/src/val/DisjunctVal.ts`).
+  it").~~ **No such comment exists under `ts/src/` (checked
+  2026-09-29); the posture is stated in [`docs/trust.md`](../trust.md)
+  ("Treat opening an untrusted source as reading your disk").**
+- ~~Disjunct generation has a known distribution defect, acknowledged in
+  a code comment (`ts/src/val/DisjunctVal.ts`).~~ **Fixed by
+  [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does)
+  (2026-08-27): an unresolved disjunction is not a value, so its
+  members are never folded; `a: ({x:1}|{y:2}) & {z:3}` is
+  `disjunct_no_gen` in both ports, and the comment is gone
+  (re-checked 2026-09-29).**
 - ~~Both implementations use IEEE-754 double number semantics (Go
   reproduces JS `Number.toString`).~~ **Superseded by G1 phase 6,
   which went well past the "decide and bound the defect" it was

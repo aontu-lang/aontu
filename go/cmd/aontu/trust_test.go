@@ -272,6 +272,7 @@ func TestTrustCliEveryVerbHonoursTheCapability(t *testing.T) {
 
 	denied("trace", entry)
 	denied("render", gen, filepath.Join(dir, "out"))
+	denied("allow", "--role", "dev", entry, "$.a")
 	denied("fmt", entry, "--profile", profile)
 	denied("template", generator, "--profile", profile)
 
@@ -389,6 +390,17 @@ func TestTrustCliEveryVerbHonoursTheTextExtensions(t *testing.T) {
 	both("render", gen, filepath.Join(dir, "out"))
 	both("fmt", entry, "--profile", profile)
 	both("template", generator, "--profile", profile)
+
+	// `allow` answers a verdict rather than the refusal text.
+	seen["allow"] = true
+	allowBare, _, _ := trustRun("allow", "--role", "dev", entry, "$.doc")
+	if !strings.Contains(allowBare, "verdict: error") {
+		t.Fatalf("allow read the include with no flag: %q", allowBare)
+	}
+	allowWide, _, _ := trustRun("allow", "--role", "dev", entry, "$.doc", "--text-ext", "md")
+	if !strings.Contains(allowWide, "verdict: refused") {
+		t.Fatalf("allow dropped --text-ext: %q", allowWide)
+	}
 
 	// The package verbs read a MODULE's document, so the extension
 	// that has to be readable is one inside the closure.

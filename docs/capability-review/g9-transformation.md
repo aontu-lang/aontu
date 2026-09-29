@@ -1,6 +1,12 @@
 # G9: Declarative transformation — one model, many generated artifacts
 
-*Status: design proposal. Part of the
+*Status: largely implemented — phases 1, 2, 3, 6, 7 and 9 landed in
+both ports, phase 0 is partial, and phases 4, 5 and 8 were retired
+(ADR-023, [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages));
+`aontu render` ships under [ADR-040](../../ADR.md#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports).
+Per-phase status is in the [progress register](progress.md), which is
+authoritative for status; this document is authoritative for design.
+Part of the
 [capability review](index.md), opened August 2026 after G1–G8 landed.
 This document expands a gap the original eight did not name: turning
 an evaluated aontu model into OUTPUT CODE — TypeScript, Go, SQL,

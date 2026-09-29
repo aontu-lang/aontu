@@ -358,6 +358,37 @@ has why out '$.roles.dev.deny.0 = "$.services.*.tier"'
 has why out 'roles.aontu:20:12'
 ok "why on the deciding entry names roles.aontu and the line"
 
+# 20. ADR-001: the Go port answers the same reports, byte for byte. The
+# text report, the undeclared role, the JSON report, a moved anchor and
+# a broken role model, each diffed against what the TypeScript CLI
+# printed above.
+if command -v go >/dev/null 2>&1; then
+  GOBIN="$WORK/aontu-go"
+  (cd "$REPO/go" && go build -o "$GOBIN" ./cmd/aontu) \
+    || fail "could not build the Go CLI"
+  gorun() {
+    local name="$1" want="$2"; shift 3
+    local got=0
+    "$GOBIN" "$@" >"$WORK/$name.go.out" 2>"$WORK/$name.go.err" || got=$?
+    [ "$got" -eq "$want" ] \
+      || { cat "$WORK/$name.go.out" "$WORK/$name.go.err" >&2; fail "go $name: exit $got, wanted $want"; }
+    diff -u "$WORK/$name.out" "$WORK/$name.go.out" \
+      || fail "go $name: the Go port's report differs from the TypeScript one"
+  }
+  gorun devtext 1 -- allow --role dev "$DIR/roles.aontu" '$.services.auth.replicas' \
+    '$.deploy.eu1.replicas.search' '$.services.auth.tier' '$.services.billing' \
+    '$.features.dark_mode'
+  gorun ops 1 -- allow --role ops "$DIR/roles.aontu" '$.features.dark_mode'
+  gorun qajson 1 -- allow --role qa --format json "$DIR/roles.aontu" '$.tests.smoke' '$.services'
+  gorun at1 1 -- allow --role dev --at '$.policy.roles' "$DIR/policy.aontu" \
+    '$.services.auth.replicas' '$.services.auth.tier'
+  gorun badkey 4 -- allow --include-root "$DIR" --role dev \
+    "$DIR/proposals/role-unknown-key.aontu" '$.services.auth.replicas'
+  ok "the Go port answers the same reports, byte for byte"
+else
+  echo "skip - no Go toolchain; the Go port's reports are not compared"
+fi
+
 echo
 
 # THE MODEL TREE. The shape of the governed document, drawn by the one

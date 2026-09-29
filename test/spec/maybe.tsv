@@ -117,3 +117,17 @@ template-shared-submap-path	err	x: {&: {m: {k: string}}}\nx: {a: {j: 1}}	Cannot 
 template-shared-sublist-path	err	x: {&: {m: [string]}}\nx: {a: {j: 1}}	Cannot resolve value at path $.x.a.m.0
 template-shared-map-kind-path	err	x: {&: {m: {k: map}}}\nx: {a: {j: 1}}	Cannot resolve value at path $.x.a.m.k
 template-key-absent-list-kind-path	err	x: [&: {k: list}]\nx: [{k: maybe($.gone)}]	Cannot resolve value at path $.x.0.k
+# AN UNRESOLVED CONJUNCTION UNDER A TEMPLATE'S PREFERRED MEMBER IS REPORTED
+# AT EVERY ELEMENT: the residue is recorded and the container walks on to
+# its later members, so the second element's finding is in the message.
+template-pref-member-unresolved-first	errc	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}, {k: maybe($.gone)}]	conjunct
+template-pref-member-unresolved-each-element	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}, {k: maybe($.gone)}]	Cannot resolve value at path $.x.1.k
+template-pref-member-unresolved-each-key	err	x: {&: {k: *{n: string}}}\nx: {a: {k: maybe($.gone)}, b: {k: maybe($.gone)}}	Cannot resolve value at path $.x.b.k
+template-pref-scalar-unresolved-each-element	err	x: [&: {k: *string}]\nx: [{k: maybe($.gone)}, {k: maybe($.gone)}]	Cannot resolve value at path $.x.1.k
+template-pref-member-unresolved-later-element-stands	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}, {k: {n: "a"}}, {k: maybe($.gone)}]	Cannot resolve value at path $.x.2.k
+# THE FINDING NAMES THE maybe() THAT COULD NOT RESOLVE: the conjunction
+# the meet mints carries that term's site through every re-wrap, under a
+# list template and a map template alike, and per element.
+template-pref-member-unresolved-site-list	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}]	<no-file>:2:9
+template-pref-member-unresolved-site-map	err	x: {&: {k: *{n: string}}}\nx: {a: {k: maybe($.gone)}}	<no-file>:2:12
+template-pref-member-unresolved-site-second	err	x: [&: {k: *{n: string}}]\nx: [{k: maybe($.gone)}, {k: maybe($.gone)}]	<no-file>:2:29

@@ -256,6 +256,20 @@ func TestRecurseBudgetBackstop(t *testing.T) {
 	}
 }
 
+func TestRecurseGenArms(t *testing.T) {
+	rec := newRecurse([]string{"n"}, 0)
+	_, err := rec.Gen(nil)
+	ae, ok := err.(*AontuError)
+	if !ok || "recursion_unexpanded" != ae.Code {
+		t.Fatalf("no context: %v", err)
+	}
+	ctx := &Ctx{root: newMap()}
+	out, err := rec.Gen(ctx)
+	if nil != out || nil != err || 1 != len(ctx.err) || "recursion_unexpanded" != ctx.err[0].why {
+		t.Fatalf("with a context: %v %v %v", out, err, ctx.err)
+	}
+}
+
 func TestGraphAtomShape(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
 

@@ -646,7 +646,9 @@ same family — a generator over spread-augmented data dying as
   requiredness, defaults and id-merge through the combine), `vet.tsv`
   vet-unequal-spread-depths, `gen-pack.tsv`
   pack-over-spread-augmented / pack-merge-expr-onto-child,
-  `gen-each.tsv` each-over-spread-augmented, `plus.tsv`
+  `gen-each.tsv` each-over-spread-augmented (the row is
+  `each-bound-over-spread-augmented` in `test/spec/gen-each.tsv` at
+  2026-09-29), `plus.tsv`
   peer-key-expr*. Author-facing rules in
   [`docs/reference-language.md`](docs/reference-language.md)
   ("Spreads `&:`", "Generating children").
@@ -1037,7 +1039,10 @@ Two boundaries, so the rule cuts where intended:
   or it gets a function.
 - ADR-009's removal is ratified as an instance of this rule rather
   than a one-off.
-- File-system conventions (`aontu_meta/mod-lock.aon`, `aontu_meta/vendor/`) are outside
+- File-system conventions (`aontu_meta/mod-lock.aon`, so named when
+  this was written and `aontu_meta/pkg-lock.aontu` since
+  [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins);
+  `aontu_meta/vendor/`) are outside
   the tree and outside this rule.
 
 ### Enforcement
@@ -1136,7 +1141,8 @@ unchanged), and that a structural default no longer accepts a value of
 another kind. The replace-anything reading stays spellable as
 `*{p:1} | any`.
 
-`test/spec/defaults.tsv` (29 rows, both runners) pins the rules;
+`test/spec/defaults.tsv` (29 rows at landing, 35 at 2026-09-29; both
+runners) pins the rules;
 `pref_rank_clash` joins the registry.
 
 ## ADR-012 — An include's extension decides what the file is: Aontu source, config data, or refused
@@ -1297,7 +1303,9 @@ semantics are the ones that apply: `.ini` has no types, so `port=8080`
 is the STRING `"8080"` and a schema wanting `port: integer` has to say
 so (pinned by `load-ext-ini`). And a malformed config file refuses the
 document rather than becoming an anonymous nil under the key that
-included it — with one divergence, recorded in `DIVERGENCE.md` #67:
+included it — with one divergence, recorded in `DIVERGENCE.md` ~~#67~~
+under "A malformed config file's error PROSE" (the ledger's entries
+carry no numbers):
 TypeScript's reader throws, so the frame it drew (the `.toml`, its
 line, its caret) reaches the user, where Go's outer parse fails
 afterwards and names its own `@`. Same verdict, same class, same exit
@@ -1836,7 +1844,8 @@ Two developments made the reversal cheaper than it would have been when
 ADR-013 was written. Sigstore's Rekor v2 reached general availability
 and is served as C2SP `tlog-tiles` static objects with `sumdb/note`
 checkpoints — the exact format the client half already verifies against
-689 upstream-generated vectors. And the artifact channel ADR-013
+689 upstream-generated vectors (720 in `test/vectors/tlog.json` at
+2026-09-29). And the artifact channel ADR-013
 assumed, an OCI registry, was foreclosed by a later constraint, leaving
 the artifact question open rather than settled.
 
@@ -2127,7 +2136,9 @@ evaluating. No shared spec row changes, because no language behaviour
 changes.
 
 **Part 6 is the exception, and it is language work.** `moved` is a field
-in `mod.aon`, which resolution already reads locally, and `module_moved`
+in `mod.aon` (so named when this was written; `pkg.aontu` since
+[ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins)),
+which resolution already reads locally, and `module_moved`
 is an addition to the error-code contract. Both land in both ports under
 [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec),
 and because the check is local — a vendored module can carry `moved` —
@@ -2830,7 +2841,7 @@ the CHANGELOG carries in its place. Both records are
 
 The engine bundled seven schemas and served them under **two** naming
 schemes. Five carried the `aontu:` prefix
-([MODELS.0.md](design/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
+([MODELS.0.md](docs/design/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
 `aontu:profile` and the three language profiles. Two did not:
 `std/system` (G4 phase 4) and `std/view`, spelled as bare paths, each
 also answering to a `.aontu` suffix.
@@ -2893,7 +2904,10 @@ that was already true of the other five.
 - `test/spec/std-system.tsv` and `std-view.tsv` become
   `aontu-system.tsv` and `aontu-view.tsv`. The `.aontu` rows become
   refusal rows, which is what `aontu-scheme.tsv` already pins for
-  `aontu:code.aontu`.
+  `aontu:code.aontu` (`aontu:code` went with
+  [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
+  the row, `scheme-name-is-not-a-file`, spells `aontu:profile.aontu`
+  at 2026-09-29).
 - The dependency-kind label `std`, recorded for a bundled source, is
   left alone: it names a source's PROVENANCE (engine-bundled), not a
   name, and it is not user-visible.
@@ -2940,6 +2954,10 @@ safe. The landing site needed the same treatment.
     @"aontu:code"     ->  $.aontu.Code.units
     @"aontu:profile"  ->  $.aontu.Profile
 
+*(Amended 2026-09-29: `aontu:code` and its `$.aontu.Code` root went
+with [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
+the other three rows stand.)*
+
 One key is reserved instead of seven, it is named for the language
 rather than for a domain a user might want, and a reader seeing
 `$.aontu` anywhere knows immediately that it is not the document's own.
@@ -2951,7 +2969,9 @@ rather than for a domain a user might want, and a reader seeing
   the reference.
 - **The renderer reads `$.aontu.Code`**, and `renderProfile` reads
   `$.aontu.Profile`. That is a change to the verb's input contract, and
-  every transform moves with it.
+  every transform moves with it. *(Amended 2026-09-29: both readers
+  went with [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
+  `renderProfile` is a symbol in neither port.)*
 - **Coverage got a better rule, not just a moved one.** The dead-path
   walk excluded exactly the `code` node before, so a document that
   included a *vocabulary* had its `$.system` or `$.profile` reported as
@@ -3293,7 +3313,9 @@ itself.
   ports were on different versions of the engine's own parser before
   this, and are not now. All three grammar packages are pinned
   EXACTLY and identically across the ports — `parser` 0.9.0, `abnf`
-  0.4.7, `bnf` 0.1.10 — rather than by range: `bnf` 0.1.11 peer-asks
+  0.4.7, `bnf` 0.1.10 at landing; 0.12.2, 0.4.15 and 0.1.19 at
+  2026-09-29, still identical, with `ts/package.json` and `go/go.mod`
+  as the pins — rather than by range: `bnf` 0.1.11 peer-asks
   for `parser` 0.9.1, and 0.9.1 regresses `path($.z.x.a)` in
   TypeScript alone (it captures `.x.a`), which ADR-001 makes fatal.
   A range would have let a fresh install cross that line silently.
@@ -3363,7 +3385,8 @@ itself.
     this back is avoided outright by the `digit = "0" / positive-digit`
     factoring below, which never puts a class and a literal in the same
     slot, so both grammars parse identically on the pinned 0.9.0/0.4.7
-    pair.
+    pair (the pins at landing; `ts/package.json` and `go/go.mod` carry
+    the current ones).
 
 - **A class must not contain a literal used elsewhere.** Write
   `digit = "0" / positive-digit`, not `digit = %x30-39`, whenever `"0"`

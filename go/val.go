@@ -696,6 +696,17 @@ func residueErr(ctx *Ctx, v Val, code string) error {
 	return &AontuError{Msg: n.FullMessage(src, file, texts), Code: code}
 }
 
+// Recorded and walked past, as the TS arms for these codes are: the
+// bag reaches its later members and the caller raises from the context.
+func residueWalkOn(ctx *Ctx, v Val, code string) error {
+	n := makeNilErr(ctx, code, v, nil)
+	n.path = cp(v.vpath())
+	if nil != ctx {
+		return nil
+	}
+	return &AontuError{Msg: n.FullMessage("", "", nil), Code: code}
+}
+
 // makeNilErrFull is makeNilErr with the attempt name and hint details
 // TS's makeNilErr carries as its trailing arguments.
 func makeNilErrFull(ctx *Ctx, why string, a, b Val, attempt string, details map[string]string) *NilVal {

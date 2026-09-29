@@ -22,4 +22,4 @@ files, which the table above counts.
 Each subdirectory has its own README with install and configuration. All
 default to launching `aontu lsp` from `PATH` (`npm install -g aontu`, or
 any install channel), and all allow overriding the command to run the
-server from a checkout (`node .../ts/dist/lsp-server.js`) or a Go build.
+server from a checkout (`node .../ts/bin/aontu-lsp.js`) or a Go build.

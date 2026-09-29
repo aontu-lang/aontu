@@ -7,7 +7,7 @@ order: 20
 # Call aontu from TypeScript
 
 The npm package `aontu` is not a wrapper around the CLI: the CLI is a
-thin client over the class the package exports. Requires Node ≥ 22.
+thin client over the class the package exports. Requires Node ≥ 24.
 Three methods cover most embeddings:
 
 <!-- test: skip TypeScript API sample; the API is pinned by ts/test/ -->

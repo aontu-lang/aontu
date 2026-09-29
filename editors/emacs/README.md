@@ -32,7 +32,7 @@ npm install -g aontu      # or any install channel
 …or customise the command (e.g. to run from a checkout):
 
 ```elisp
-(setq aontu-lsp-command '("node" "/abs/path/to/aontu/ts/dist/lsp-server.js"))
+(setq aontu-lsp-command '("node" "/abs/path/to/aontu/ts/bin/aontu-lsp.js"))
 ;; or the Go binary:
 (setq aontu-lsp-command '("/abs/path/to/aontu" "lsp"))
 ```

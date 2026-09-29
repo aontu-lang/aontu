@@ -75,7 +75,7 @@ cause is the `"*"` mistake above: reach for `&:`.
 
 ```
 aontu relations model.aontu        # declared entity edges: targets resolve, no cycles
-aontu reaches planet moon model.aontu   # does one entity reach another, at any remove?
+aontu reaches $.jobs.extract $.jobs.load --relation feeds pipeline.aontu   # does one entity reach another, at any remove?
 aontu trim --check model.aontu     # entries whose removal changes nothing
 ```
 
@@ -123,7 +123,7 @@ a pinned value is refused, and the file is left alone.
 ## Gate a change to the model itself
 
 ```
-aontu subsume old.aontu new.aontu              # does the general admit every specific?
+aontu subsume new.aontu old.aontu              # does the general admit every specific?
 aontu breaking --against git#HEAD~1 model.aontu
 aontu hash model.aontu                       # a pin that survives reformatting
 ```

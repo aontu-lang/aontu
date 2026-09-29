@@ -35,7 +35,7 @@ below do. On opening a
 Customise or disable:
 
 ```vim
-let g:aontu_lsp_cmd = ['node', '/abs/path/to/aontu/ts/dist/lsp-server.js']  " or the Go binary
+let g:aontu_lsp_cmd = ['node', '/abs/path/to/aontu/ts/bin/aontu-lsp.js']  " or the Go binary
 let g:aontu_lsp_enable = 0   " disable autostart
 ```
 

@@ -68,7 +68,7 @@ PR:
 
 ```
 # ts/package.json  "version": "0.54.0"
-# go/aontu.go      const VERSION = "0.1.12"
+# go/aontu.go      const VERSION = "0.54.0"
 ```
 
 A version input would let the dispatch and the files disagree: you would

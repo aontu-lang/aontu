@@ -46,6 +46,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu model get <path> [options] <file>
        aontu model why <path> [options] <file>
        aontu model set <path>=<value>... --entry <file> --overlay <file>
+       aontu allow --role <role> [--at <path>] <roles-file> <path>...
        aontu agentsmd [--write <AGENTS.md>] [--depth <n>] <file>
        aontu fmt [-w|-l|--check|-d|--lint] [--marker <token>]
                  [--profile <file>] <file>...
@@ -399,6 +400,28 @@ change contradicts a pinned value -- aontu model why locates it, and
 --in-place rewrites it), 2 usage, 3 incomplete, 4 the entry does not
 stand up on its own.
 
+Allow options:
+  --role <role>     The role the caller is operating under (required)
+  --at <path>       Where the roles map lives in the role model
+                    (default $.roles)
+  --format <f>      text (default) or json
+
+The allow verb asks a role model whether a role may modify every one
+of the given subtrees, and answers before the change is made. The
+role model is an aontu document: one entry per role, each carrying
+allow (the subtrees it may modify) and optionally deny (the ones it
+may not), as path strings starting at $; * in a path matches any one
+key. A path is allowed when an allow entry is at or above it, and
+refused when a deny entry is at, above or below it, whatever the
+order. Every path starts with $, and may be spelled as set's
+assignment, <path>=<value>, whose value must be one value: a value
+carrying a second pair would write a subtree the gate was not asked
+about.
+
+Allow exit codes: 0 allowed (every path), 1 refused (at least one
+path, or a role the model does not declare), 2 usage, 4 the role
+model does not stand up on its own.
+
 Agentsmd options:
   --write <file>  Splice the stanza into this file between the
                   aontu:begin and aontu:end markers, appending them
@@ -572,10 +595,10 @@ func emit(a *aontu.Aontu, src, mode, format string, out, errw io.Writer) int {
 }
 
 var knownVerbs = []string{
-	"add", "agentsmd", "breaking", "explain", "fmt", "get", "hash", "help",
-	"init", "jsonschema", "lsp", "mcp", "model", "pkg", "publish", "reaches",
-	"relations", "remove", "render", "subsume", "sync", "template", "trace",
-	"trim", "vet", "view", "why",
+	"add", "agentsmd", "allow", "breaking", "explain", "fmt", "get", "hash",
+	"help", "init", "jsonschema", "lsp", "mcp", "model", "pkg", "publish",
+	"reaches", "relations", "remove", "render", "subsume", "sync", "template",
+	"trace", "trim", "vet", "view", "why",
 }
 
 // looksLikeVerb reports whether an unreadable argument was meant as a
@@ -868,6 +891,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 	if 0 < len(args) && isPackageVerb(args[0]) {
 		return runPackageVerb(args[0], args[1:], cliServers(), stdout, stderr)
+	}
+	if 0 < len(args) && "allow" == args[0] {
+		return runAllow(args[1:], stdout, stderr)
 	}
 	if 0 < len(args) && "model" == args[0] {
 		return runModel(args[1:], stdout, stderr)

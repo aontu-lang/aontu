@@ -2064,7 +2064,8 @@ c: ["x"] + each(["y"], _)
 {"a":[1,2],"b":[2],"c":["x","y"]}
 ```
 
-A list with a scalar is not a sum and is refused, in either order.
+A list with a scalar is not a sum: in either order it stays an
+unresolved `+` and does not generate (`mapval_no_gen` at the field).
 
 **A sum of an absence is absent.** `maybe()` travels through `+` the
 way it travels through a call, on either side and whatever the other
@@ -3833,8 +3834,8 @@ or propagated by conjunction):
 In both cases, **a map field whose value is type- or hide-marked is
 omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
-(`type(1) & number`→`1`). `copy()` clears both marks and any seal,
-making the result emittable and open again:
+(`type(1) & number`→`1`). `copy()` of a referenced node clears both
+marks and any seal, making the result emittable and open again:
 
 ```aontu
 x: type({})
@@ -4311,7 +4312,7 @@ constraints, defaults, and open disjunctions. Rules:
 - Maps render as `{"k":v,…}` with **quoted keys**, no spaces:
   `{"a":{"b":1,"c":2}}`. Lists as `[v,…]`.
 - Strings are quoted (`"hello"`); numbers, booleans and `null` render
-  literally; `top` renders as `top`.
+  literally; the top value renders as `any`.
 - **Numbers render so that canon reparses to the same kind.** An
   integer-kind value renders plainly (`1000`). A float-kind value
   always carries a fraction or an exponent, so a `.0` suffix is
@@ -4781,11 +4782,10 @@ Failures surface as messages (thrown as `AontuError` in TS, returned as
 | wrong argument count   | `takes exactly one argument, but was given 2` (code `func_arity`) |
 | key or element with no value | `written with no value after the colon` (code `elided_value`) |
 
-**Every built-in has a fixed arity, checked at parse.** Nearly all take
-exactly one argument; the two exceptions are `key`, which takes none or
-one (how many levels up the path to read: none means the parent), and
-`neq`, which takes one or more exclusions. A wrong count is a mistake in
-the source and is refused before anything is evaluated.
+**Every built-in has a fixed arity, checked at parse.** The arity of
+each, with its optional slots, is the call-surface table of the
+[functions reference](reference-functions.md). A wrong count is a
+mistake in the source and is refused before anything is evaluated.
 
 **An elided value is refused.** A key, element or spread written with
 nothing after its colon (`a:`, `a?:`, `[,]`, `[1,,2]`, `x:$obj&:`) is a

@@ -3,8 +3,9 @@
 Eighteen enterprise-shaped use cases, each built as real aontu models and
 *executed* against the TypeScript CLI (`ts/bin/aontu.js`, the canonical
 implementation). Every case directory carries a `check.sh` that drives
-the verbs (`vet`, `subsume`, `breaking`, `get`, `why`, `set`, `hash`,
-`relations`, `mod`, the MCP server) and asserts outcomes: golden `diff`s
+the verbs (`vet`, `subsume`, `breaking`, `model get`, `model why`,
+`model set`, `hash`, `relations`, `sync`, `pkg`, the MCP server) and
+asserts outcomes: golden `diff`s
 for expected output, error-code greps for expected refusals. A case's
 `README.md` walks through the scenario, the model, and what its
 `check.sh` proves, quoting the CLI's output verbatim.
@@ -18,9 +19,9 @@ for expected output, error-code greps for expected refusals. A case's
 
 Requirements: Node (per `ts/package.json` engines) with an installed
 `ts/node_modules` (`cd ts && npm install`), plus `python3` (JSON
-assertions in cases 03, 07, 14 and 15) and `git` (case 04's `git#rev`
-gate). A Go toolchain is optional: case 15 skips the checks that need
-it when `go` is absent. Scripts locate the repository root from their
+assertions in cases 03, 07, 14, 15 and 17) and `git` (case 04's
+`git#rev` gate). A Go toolchain is optional: cases 10, 15, 17 and 18 skip
+the checks that need it when `go` is absent. Scripts locate the repository root from their
 own path and honour `AONTU` (and, in case 09, `MCP`) to point at a
 different build.
 
@@ -79,9 +80,9 @@ gate for a committed figure.
 
 ## Scope and conventions
 
-- Scripts exercise the **TypeScript CLI**. Case 15 additionally builds
-  the Go port when a Go toolchain is present and checks that both ports
-  emit byte-identical output.
+- Scripts exercise the **TypeScript CLI**. Cases 10, 15, 17 and 18
+  additionally build the Go port when a Go toolchain is present and
+  check that both ports emit byte-identical output.
 - Checks are hermetic: no network, fixtures inside each case directory,
   temp files under `mktemp -d`. Where a case evaluates a deliberately
   hostile input, the trust posture is explicit (`--trust root:…`).

@@ -5,10 +5,10 @@
 > constrains it, and the defaults that fill it in; a single operation —
 > unification — combines them or reports exactly where they conflict,
 > with two-sited findings and stable error codes. The toolchain's verbs
-> serve the agent loop: `vet` validates data against a schema, `get` and
-> `why` query a document and explain a value's provenance, `subsume` and
-> `breaking` gate schema evolution, `hash` pins what a document means,
-> `set` repairs a value in place, `relations` checks declared entity
+> serve the agent loop: `vet` validates data against a schema, `model get`
+> and `model why` query a document and explain a value's provenance,
+> `subsume` and `breaking` gate schema evolution, `hash` pins what a
+> document means, `model set` repairs a value in place, `relations` checks declared entity
 > graphs, `reaches` answers whether one entity reaches another at any
 > remove, `view` draws a model as text (tree, matrix, graph, layers,
 > sets, the meet ladder, the subsumption poset, the key document and
@@ -47,7 +47,7 @@
   tree, every node and its props, the children each admits, and what
   `aontu render` and `aontu trace` do with a tree
 - [Functions reference](docs/reference-functions.md): the call surface
-  of all 64 built-ins, as one table and as slices through it: arity,
+  of all 63 built-ins, as one table and as slices through it: arity,
   argument modes, accepted kinds, result words
 - [Error reference](docs/reference-errors.md): every registered error
   code, by class, with what raises it and what a report carries

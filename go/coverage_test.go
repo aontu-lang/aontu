@@ -427,9 +427,13 @@ func TestPrefDirectArms(t *testing.T) {
 	if out := p.Unify(newNil("x"), &Ctx{}); !out.Nil() {
 		t.Fatalf("nil peer")
 	}
-	_, err := (&PrefVal{peg: &RefVal{absolute: true, peg: []any{"zz"}}}).Gen(&Ctx{})
-	if err == nil {
-		t.Fatalf("unresolved pref gen must refuse")
+	ctx := &Ctx{}
+	g, err := (&PrefVal{peg: &RefVal{absolute: true, peg: []any{"zz"}}}).Gen(ctx)
+	if nil != g || nil != err || 1 != len(ctx.err) || "ref" != ctx.err[0].why {
+		t.Fatalf("unresolved pref gen must record ref and walk on: %v %v %v", g, err, ctx.err)
+	}
+	if _, err = (&PrefVal{peg: &RefVal{absolute: true, peg: []any{"zz"}}}).Gen(nil); nil == err {
+		t.Fatalf("unresolved pref gen without a context must refuse")
 	}
 }
 

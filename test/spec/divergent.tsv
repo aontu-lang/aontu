@@ -103,20 +103,6 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- an unresolved conjunction inside a preferred list-template
-#   member is reported once per element in TypeScript, once in all by Go.
-#   issue: none filed yet; found 2026-09-29 while answering a review of
-#   the #287 fix. Present on main.
-#
-#   Divergent input:  x: [&: {k: *{n: string}}]
-#                     x: [{k: maybe($.gone)}, {k: maybe($.gone)}]
-#   TypeScript: [aontu/conjunct] at $.x.0.k and again at $.x.1.k
-#   Go:         [aontu/conjunct] at $.x.0.k only
-#
-#   The first finding agrees in both ports; only the count differs. No
-#   spec row asserts it.
-#
-# ---------------------------------------------------------------------
 #
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
@@ -319,6 +305,23 @@
 # storage, not chosen. It is pinned per-port instead: ts/test/
 # exactjson.test.ts and go/generate_test.go.
 #
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- `jsonschema` exports a MIXED-DOMAIN neq() differently, and
+#   both ports call the export ok.
+#   issue: #297; found 2026-09-29 while answering what the export can
+#   carry. Present on main.
+#
+#   Divergent input:  a: neq(1,"a")
+#   TypeScript: properties.a = {}               verdict ok, lossy []
+#   Go:         properties.a = {"type":"number"} verdict ok, lossy []
+#
+#   The value itself is mapval_no_gen in both ports; only the exporter's
+#   reading of the exclusions differs, and neither reports a loss. Not
+#   fixed here because which answer is right is a decision: the
+#   exclusions as `not: {enum: [1, "a"]}` with no type is the likely
+#   one, and the row that pins it must be probed in both engines.
 #
 # ---------------------------------------------------------------------
 #

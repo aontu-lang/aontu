@@ -63,7 +63,7 @@ func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {
 
 	// An unresolved conjunct is not a concrete value. Code mirrors TS
 	// ConjunctVal.gen ('conjunct').
-	return nil, residueErr(ctx, c, "conjunct")
+	return nil, residueWalkOn(ctx, c, "conjunct")
 }
 
 func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
@@ -140,6 +140,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// still-refining node by this path, so a pathless wrapper
 		// reported `$` where TypeScript reports the node's location.
 		nc.path = cp(c.path)
+		nc.site.sp, nc.site.spu, nc.site.url = c.site.sp, c.site.spu, c.site.url
 		out = nc
 	}
 	if done {

@@ -380,8 +380,11 @@ Field semantics:
   the register's phase-2 note records the omission. For a failed
   disjunction, `alternatives` would list the member canons a
   corrected value could still satisfy — rendered from member canons,
-  *not* via `DisjunctVal.gen`, whose fold has a known
-  over-unification defect (ts/src/val/DisjunctVal.ts); for a closed
+  *not* via `DisjunctVal.gen`, ~~whose fold has a known
+  over-unification defect (ts/src/val/DisjunctVal.ts)~~ *(fixed by
+  [ADR-007](../../ADR.md#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does),
+  2026-08-27: an unresolved disjunction is `disjunct_no_gen` in both
+  ports, and its members are never folded)*; for a closed
   struct, `allowed` would list the key set and `nearest` give an
   edit-distance-≤2 suggestion. Each needs something the engine does
   not yet hand over, and none of the three changes the report's shape
@@ -487,7 +490,8 @@ byte-identical JSON for the same inputs, pinned by spec rows.
 
 - **GitHub Action** (`aontu-vet-action`, separate repo): runs vet
   over declared (schema, data) pairs, uploads SARIF, fails the job by
-  exit class. A pre-commit hook recipe ships in docs/how-to.md.
+  exit class. A pre-commit hook recipe ships in
+  docs/how-to/validate-in-ci.md.
 - **Watch mode**: `--watch` re-runs on file mtime change, one report
   per run. Honestly non-incremental: parsed trees are single-use, so
   every run is a full re-parse and re-unify — acceptable at current
@@ -536,7 +540,7 @@ byte-identical JSON for the same inputs, pinned by spec rows.
 | First-error truncation makes "multi-error report" oversell | High | Medium | `truncated: true` in the contract from day one; phased engine work (Phase 6) removes it; docs state the limit plainly |
 | Error-tolerant fixpoint causes cascading spurious findings (CUE's stacked-error pathology) | Medium | High | Gate Phase 6 behind spec rows for nil-localisation; `--max-errors` cap; findings deduplicated by (code, path) |
 | Freezing today's why-codes bakes in bad names | Medium | Low | Append-only registry with an alias/deprecation column; codes are contracts, hint text is not |
-| Alternatives enumeration touches the known DisjunctVal.gen fold defect | Medium | Medium | Render alternatives from member canons only; never call `gen` on a disjunct to enumerate; add regression spec rows |
+| Alternatives enumeration touches the known DisjunctVal.gen fold defect | Medium | Medium | Render alternatives from member canons only; never call `gen` on a disjunct to enumerate; add regression spec rows. *(The defect was fixed by ADR-007, 2026-08-27.)* |
 | Per-data-file schema re-evaluation is slow in watch/CI loops (single-use trees) | Medium | Medium | Acceptable now (the pass budget, default 9, bounds passes); measure; incrementality is explicitly deferred, budgets are G5's |
 | Canon round-trip or existing error text regresses while adding classes | Low | High | `class` is additive on `NilVal`; error.tsv substrings and canon convergence stay green throughout (the enforced property is CONVERGENCE, not the stronger round-trip this line states — see the correction in [G1](g1-constraint-algebra.md#implementation-plan)) |
 | Exit-class numbering collides with scripts assuming 0/1 | Low | Low | Non-zero on any failure is preserved; classes are refinements; documented in reference-api.md |
@@ -598,7 +602,8 @@ exported from ts/src/aontu.ts and as `aontu.Vet`.
 **Phase 3 — CLI verb and JSON format (M).** LANDED, in both ports.
 Code: ts/src/cli.ts and go/cmd/aontu/vet.go (`vet` subcommand, `--at`,
 `--closed`, `--partial`, `--max-errors`, `--format`, verdict exit
-classes); docs/reference-api.md, docs/how-to.md. **Departure:** the
+classes); docs/reference-api.md, docs/how-to.md (now
+docs/how-to/validate-in-ci.md). **Departure:** the
 text renderer does NOT reuse `descErr`. `descErr` renders NilVals
 through the TypeScript-only error path, ANSI colour included, while
 the report is a plain projection the Go port matches byte for byte —

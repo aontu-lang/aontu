@@ -36,7 +36,7 @@ $.services.auth.replicas = 3
 ```
 
 The role in brackets marks a contribution that arrived indirectly:
-`(spread)` is the `&:` template on line 3, applied to this key. The
+`(spread)` is the `&:` template on line 2, applied to this key. The
 concrete `3` carries no role: the author wrote it at the path it
 stands at. Contributions are listed in source order (file, row,
 column), not in the order the engine happened to meet them.

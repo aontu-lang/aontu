@@ -207,11 +207,17 @@ context than the task. Whatever ships in the binary must be sized for
 a context window, which is what makes `docs/skill/`'s four short files
 the right corpus and `docs/reference-language.md` the wrong one.
 
-**Coverage as a first-class report** already exists in this repository:
+**Coverage as a first-class report** ~~already exists in this repository:
 `aontu render --coverage` reports model paths no output consumed and
-rendered declarations no rule produced. Phase 5 below is that idea
+rendered declarations no rule produced.~~ existed in this repository
+when this was written, as `aontu render --coverage` (model paths no
+output consumed, rendered declarations no rule produced); that flag
+went with [ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+(2026-09-13), and `aontu render --coverage` is refused as an unknown
+option in both ports at 2026-09-29. Phase 5 below is that idea
 carried to `vet`, and it should be read as an extension of a shipped
-design rather than a new one.
+design rather than a new one; `vet --coverage` is the form that
+survives, in both CLIs' help.
 
 ## Design space
 
@@ -368,7 +374,7 @@ data — rather than a reading of the meet. A meet-based reading would
 count a value the data supplied to itself as covered, which is the
 opposite of the question being asked.
 
-Modelled on `render --coverage`, including its refusal to write
+Modelled on `render --coverage` (since removed by ADR-038), including its refusal to write
 anything, its `--coverage-at` narrowing, and its shallowest-path
 reporting, so the two coverage reports read alike.
 
