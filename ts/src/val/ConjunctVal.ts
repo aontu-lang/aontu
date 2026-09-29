@@ -176,6 +176,11 @@ class ConjunctVal extends JunctionVal {
     }
     else {
       out = new ConjunctVal({ peg: outvals, mark: { type: newtype, hide: newhide } }, ctx)
+      out.site.row = this.site.row
+      out.site.col = this.site.col
+      out.site.url = this.site.url
+      out.site.len = this.site.len
+      out.site.src = this.site.src
     }
 
     out.dc = done ? DONE : this.dc + 1

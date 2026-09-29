@@ -134,7 +134,13 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
             && peer.canon === this.canon) {
             return this;
         }
-        return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+        const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+        out.site.row = this.site.row;
+        out.site.col = this.site.col;
+        out.site.url = this.site.url;
+        out.site.len = this.site.len;
+        out.site.src = this.site.src;
+        return out;
     }
     unify(peer, ctx) {
         if (this.staged && !ctx.settle) {

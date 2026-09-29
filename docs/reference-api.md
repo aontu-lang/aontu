@@ -1767,7 +1767,6 @@ Three limits follow from what the gate compares:
   value is written. A path reached through a reference is `set`'s
   business: the append lands at the named path, and `--in-place` is
   refused there.
-- The verb is TypeScript-only for now: the Go CLI does not have it.
 
 Write a `roles.aontu` that declares three roles:
 

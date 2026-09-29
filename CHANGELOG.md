@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The finding under a template's preferred member names the maybe() (#292)
+
+Both ports. The conjunction the meet mints for `x: [&: {k: *{n: string}}]`
+with `x: [{k: maybe($.gone)}]` now carries the site of the `maybe()`
+that could not resolve, and keeps it through every re-wrap of the
+fixpoint, so the finding points at line 2 of the element under a list
+template and a map template alike, where TypeScript named no site and
+Go named one for the map case only. Rows in `test/spec/maybe.tsv`; the
+ledger entry is removed.
+
+### `aontu allow` in the Go CLI (#294)
+
+Go. The role gate is in both ports: `Aontu.Allow` beside `Vet` and
+`Patch`, the `allow` verb with the same usage, options, text and JSON
+reports and exit codes, and `OneValue` for the assignment spelling's
+one-value rule. Use case 18 diffs the two ports' reports byte for byte
+when a Go toolchain is present. Only the MCP server remains
+TypeScript-only.
+
 ### Every element under a template's preferred member reports (#291)
 
 Go. An unresolved conjunction, reference, operator or recursion residue
@@ -16,8 +35,7 @@ walk on to its later members, as TypeScript's has, so
 `x: [&: {k: *{n: string}}]` with `x: [{k: maybe($.gone)}, {k: maybe($.gone)}]`
 reports `conjunct` at `$.x.0.k` and at `$.x.1.k` in both ports, where Go
 stopped at the first. Rows in `test/spec/maybe.tsv`; the ledger entry
-is removed. The site such a finding names under a map template still
-differs (#292) and is registered in its place.
+is removed.
 
 ### `reachCheck` and `jsonSchema` are exported
 

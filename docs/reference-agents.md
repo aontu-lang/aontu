@@ -161,7 +161,7 @@ a topic, answers as an object.
 
 | door | TypeScript | Go |
 |---|---|---|
-| the verbs | yes | yes, less the tool server and `allow` |
+| the verbs | yes | yes, less the tool server |
 | the embedded API | yes | yes |
 | the language server | yes | yes |
 | the tool server | yes | no: `aontu mcp` says so and exits `2` |

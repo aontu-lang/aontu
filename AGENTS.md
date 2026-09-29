@@ -52,8 +52,8 @@ belongs in the pages below; add it there, not here.
 ```
 
 Both implementations ship an `aontu` CLI and an `aontu-lsp` language
-server, kept in parity down to their output text; the `allow` verb and
-the MCP server are TypeScript-only.
+server, kept in parity down to their output text; the MCP server is
+TypeScript-only.
 
 ## Build & test
 
