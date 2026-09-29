@@ -297,7 +297,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	keys := append([]string(nil), m.keys...)
 	sort.Strings(keys)
 	for _, k := range keys {
-		child := m.peg[k]
+		child := placeShared(m.peg[k], append(cp(m.path), k))
 		// Type and hidden values are excluded from generation (a key
 		// whose source was moved away carries the hide mark set by
 		// RefVal.find's hide-found handling).
@@ -333,7 +333,10 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 				va = ev.peg
 			}
 			details := map[string]string{"key": k}
-			makeNilErrFull(ctx, code, va, vb, "", details)
+			n := makeNilErrFull(ctx, code, va, vb, "", details)
+			if nil != vb {
+				n.path = append(cp(m.path), k)
+			}
 			break
 		}
 
@@ -680,4 +683,16 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		propagateMarks(peer, out)
 	}
 	return out
+}
+
+// A template's shared member generates at the key that holds it, so
+// what it reports names this path rather than the template's.
+func placeShared(child Val, at []string) Val {
+	switch child.(type) {
+	case *MapVal, *ListVal:
+		if !pathEq(child.vpath(), at) {
+			return instanceClone(child, at)
+		}
+	}
+	return child
 }

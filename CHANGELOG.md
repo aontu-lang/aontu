@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### A template's key is refused where it is missing (#287)
+
+Both ports. A key a container template declares, and an element does
+not supply, is now reported at that element: `x: [&: {k: string}]` with
+`x: [{k: "a"}, {k: maybe($.gone)}]` is `mapval_no_gen` at `$.x.1.k`,
+where TypeScript said `$.x.&.k` and Go `$.x.k`. The same holds for a
+map template, for a key missing outright (`mapval_spread_required`,
+which named `$`), and for a template's shared sub-map or sub-list.
+Rows in `test/spec/maybe.tsv`.
+
+### A maybe() inside a disjunction settles (#289)
+
+TypeScript. A `maybe(...)` inside one alternative of a disjunction now
+settles to absence as it does anywhere else, so the alternatives are
+compared as they generate, as Go already did:
+`[maybe($.gone), 1] | [1.0]` is `disjunct_no_gen`, and two identical
+alternatives collapse instead of reporting `empty`. Two absences are
+one member of a disjunction in both ports.
+
+### The flake builds again (#207)
+
+`flake.lock` is committed, pinning nixpkgs, and the package sets
+`env.CGO_ENABLED`, which current nixpkgs requires. `nix build` produces
+both binaries at the version `go/aontu.go` declares, with the vendor
+hash already on `main`.
+
 ### Parse errors render like every other error (#50)
 
 Both ports. A syntax error, a missing include and an include the trust

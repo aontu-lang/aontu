@@ -63,6 +63,7 @@ class MaybeFuncVal extends FuncBaseVal {
     // own-property hazard trialUnify documents at length.
     const sink: Val[] = []
     const actx = ctx.clone({ err: sink, collect: true })
+    ;(actx as any)._trialMode = false
     const out = unite(actx, args[0], top(), 'maybe')
 
     // ONLY a missing referent. A conflict inside the argument stays

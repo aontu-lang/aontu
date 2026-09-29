@@ -381,6 +381,9 @@ func valSame(a, b Val) bool {
 	if isTop(a) || isTop(b) {
 		return isTop(a) && isTop(b)
 	}
+	if isAbsent(a) || isAbsent(b) {
+		return isAbsent(a) && isAbsent(b)
+	}
 	if as, ok := a.(*ScalarVal); ok {
 		if bs, ok := b.(*ScalarVal); ok {
 			// Per-kind VALUE comparison (D2). A bare `as.peg == bs.peg`

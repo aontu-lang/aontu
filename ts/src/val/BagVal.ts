@@ -14,7 +14,7 @@ import {
 } from '../utility'
 
 import { makeNilErr } from '../err'
-import { empty } from './Val'
+import { empty, repathInstance } from './Val'
 
 import { Val } from './Val'
 import { NilVal } from './NilVal'
@@ -123,7 +123,13 @@ abstract class BagVal extends FeatureVal {
 
     for (let item of entries) {
       const p = item[0]
-      const child = item[1]
+      let child = item[1]
+
+      const at = [...this.path, String(p)]
+      if (true === child.isBag && child.path.join('\u0000') !== at.join('\u0000')) {
+        child = child.clone(ctx, { path: at })
+        repathInstance(child, at)
+      }
 
       if ((child.mark.type || child.mark.hide) && true !== ctx?.probe) {
         continue
@@ -204,7 +210,7 @@ abstract class BagVal extends FeatureVal {
         const details = { key: p }
 
         const nerr = makeNilErr(ctx, code, va, vb, undefined, details)
-        if (true === (va as any).isTop) {
+        if (true === (va as any).isTop || undefined !== vb) {
           nerr.path = [...this.path, p]
         }
 

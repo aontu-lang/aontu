@@ -4,7 +4,8 @@ import { FeatureVal } from './FeatureVal';
 declare class AbsentVal extends FeatureVal {
     isAbsent: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
-    unify(peer: Val, _ctx: AontuContext): Val;
+    unify(peer: Val, ctx: AontuContext): Val;
+    same(peer: Val): boolean;
     get canon(): string;
     gen(_ctx?: AontuContext): undefined;
 }

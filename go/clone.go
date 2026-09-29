@@ -169,6 +169,14 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *MapKindVal:
+		c := *n
+		c.path = cp(path)
+		return &c
+	case *ListKindVal:
+		c := *n
+		c.path = cp(path)
+		return &c
 	case *ReferVal:
 		c := *n
 		c.path = cp(path)
