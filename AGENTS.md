@@ -134,7 +134,7 @@ the `gh` CLI; without `gh`, see
 - **A phase's row in
   [`docs/capability-review/progress.md`](docs/capability-review/progress.md)
   changes in the same commit that changes its status.** Forward-looking
-  design is the gap documents G1–G11; the register is the only record of
+  design is the gap documents G1–G12; the register is the only record of
   what has been built.
 - **Comments are for the surprising code and nothing else** (ADR-032),
   and a comment naming a path, symbol or decision that does not resolve
