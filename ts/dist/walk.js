@@ -38,13 +38,20 @@ function walkVals(v, visit, seen) {
 }
 function collectNils(root, seen) {
     const out = [];
+    const walked = new Set();
     walkVals(root, (v) => {
         if (true === v.isNil) {
             out.push(v);
+            seen.add(v);
             return false;
         }
+        // A spread template is not an instance value: generation never emits
+        // it, and each child it applies to carries its own copy.
+        if (null != v.spread?.cj) {
+            walked.add(v.spread.cj);
+        }
         return true;
-    }, seen);
+    }, walked);
     return out;
 }
 //# sourceMappingURL=walk.js.map

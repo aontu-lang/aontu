@@ -325,42 +325,6 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- `vet` reports a `nil` written as the unselected default of a
-#   `match`, and the two ports put that finding at different paths.
-#   issue: #299; found 2026-09-30 while probing the per-object closure
-#   carrier for the JSON Schema gap document (G12). Present on main.
-#
-#   Divergent input:  vet schema  a: {a?: integer, &: match(key(0), "a", any, nil)}
-#                     vet data    a: {a: 1}
-#   TypeScript: verdict invalid, literal_nil at $.a.2
-#   Go:         verdict invalid, literal_nil at $.a
-#
-#   Evaluating the schema and data as one document answers {"a":{"a":1}}
-#   in both ports, so the finding itself is the defect (vet disagrees
-#   with eval), and the path split is a second symptom. Not fixed here
-#   because the fix is to vet's nil collection, which the issue scopes;
-#   once vet stops reporting the argument, the paths stop mattering and
-#   this entry is removed.
-#
-# ---------------------------------------------------------------------
-#
-# OPEN -- `jsonschema` exports an alias slot as a required property,
-#   and the two ports spell the property differently.
-#   issue: #301; found 2026-09-30 while probing `$defs` carriers for the
-#   JSON Schema gap document (G12). Present on main.
-#
-#   Divergent input:  %T = {v?: integer}
-#                     t: %T
-#   TypeScript: properties "%T@al.aontu" (the file name), in required
-#   Go:         properties "%T@#1", in required
-#
-#   Evaluation leaves the alias out of the output in both ports; the
-#   exporter finds the slot among the map's keys. Not fixed here because
-#   the fix is to move alias slots out of the key namespace, which the
-#   issue scopes; the export then has no slot to spell.
-#
-# ---------------------------------------------------------------------
-#
 # OPEN -- `$` followed by a map refuses with a different code in each
 #   port.
 #   issue: #302; found 2026-09-30 while probing a root reference for

@@ -357,6 +357,10 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
   for (const key of Object.keys(v.peg).sort()) {
     const child: any = v.peg[key]
 
+    if (v.aliasKeys.includes(key)) {
+      continue
+    }
+
     // A marked child does not generate, so it is not part of the value
     // a consumer produces -- and a schema that demanded it would refuse
     // every correct document. Inside a marked container (an export

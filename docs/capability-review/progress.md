@@ -98,15 +98,18 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,567 rows**, in twenty-nine
+   **115 `.tsv` files, 113 row-bearing, 5,576 rows**, in twenty-nine
    modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 628,
-   `err` 346, `fmt` 191, `view` 175, `errcode` 175, `vet` 130,
-   `subsume` 125, `query` 93, `jsonschema` 67, `why` 53, `hcanon` 42,
+   `err` 349, `fmt` 191, `view` 175, `errcode` 175, `vet` 134,
+   `subsume` 125, `query` 93, `jsonschema` 69, `why` 53, `hcanon` 42,
    `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-09-29 with the two commands below, from 113 files,
+   (Re-derived 2026-09-30 with the two commands below, when the review
+   of G12 added six rows; `main` already read 5,570 against the 5,567
+   written here, three `err` rows having landed without this line.
+   Before that re-derived 2026-09-29, from 113 files,
    111 row-bearing and 5,166 rows; the mode list is unchanged. Before
    that 2026-09-18, twice: the first derivation that day read
    5,153 and was overtaken within hours by `cf75be16`, which added
@@ -2777,30 +2780,37 @@ changing meaning. Design is [g12-jsonschema-fidelity.md](g12-jsonschema-fidelity
 
 The measurement that opened it, driven against both CLIs at `7619130`:
 there is no importer; the exporter differs from the model in seven
-places while reporting `ok` (#300), and an alias exports as a required
-property that each port spells differently (#301); a required key met
-with an optional one answers optional (#298); `vet` refuses a `nil`
-that evaluation drops (#299); and `must`, aontu's only general
+places while reporting `ok` (#300), and an alias exported as a
+required property that each port spelled differently (#301); a required
+key met with an optional one answers optional (#298); an optional key
+holding `nil` drops a supplied value under evaluation and refuses an
+absent one under `vet` (#299); and `must`, aontu's only general
 predicate, asks whether a value can unify with its argument, where JSON
-Schema asks whether it already is an instance. Of 109 keywords and
-aspects inventoried, five cross exactly today.
+Schema asks whether it already is an instance. Of 105 keywords and
+aspects inventoried, five cross exactly today. Two of those defects
+split the ports and were fixed with the document rather than listed in
+the divergence ledger: the exporter skips alias slots
+(`js-alias-is-not-a-property` in `test/spec/jsonschema.tsv`), and `vet`
+no longer reads spread templates (`vet-nil-in-*-template-*` in
+`test/spec/vet.tsv`). Neither closes its issue, and no phase row moves
+for them.
 
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **1**: a truthful exporter | S | **NOT STARTED** | #295, #296, #297 and #300 closed; `test/spec/jsonschema.tsv` rows for each, probed from both engines; no export differs from its model without a loss entry |
-| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; their `divergent.tsv` entries removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
-| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
-| **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; wire literals beyond binary64 read exactly under `vet`; the suite's numeric groups off the skip ledger |
+| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
+| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `vet --exact-numbers`; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
+| **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
 | **5**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR |
 | **6**: conditionals and dependencies | M | **NOT STARTED** | `when(c, t, e?)` and the `when` code; `if`, `then`, `else`, `dependentSchemas`, `dependentRequired` both ways |
 | **7**: `contains` | M | **NOT STARTED** | `contains(c, n?)`; `minContains`, `maxContains`, `uniqueItems` off the skip ledger |
 | **8**: annotations | M | **NOT STARTED** | `meta(v, ...r)` with its union meet and ADR; `deprecate()`'s record on the same meet; every annotation keyword both ways |
-| **9**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; `$id`, remote references and `jsonschema_ref`; `$defs` and `$ref` on export |
-| **10**: dynamic references | M | **NOT STARTED** | the specialisation walk; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger |
+| **9**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; `$id`, remote references and `jsonschema_ref`; `jsonschema_duplicate` for `$id`; `$defs` and `$ref` on export |
+| **10**: dynamic references | M | **NOT STARTED** | the specialisation walk and `jsonschema_budget`; the use-site provenance record; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger and exported as written |
 | **11**: evaluated coverage | L | **NOT STARTED** | `rest(t, ...cover)`; `unevaluatedProperties` and `unevaluatedItems` both ways; its ADR |
 | **12**: format assertion | L | **NOT STARTED** | `format(name)` and `format_unknown`; the committed checkers and Unicode table; `optional/format/` in the harness |
 | **13**: the owned regex matcher | L | **NOT STARTED** | the ECMA-262 `u`-mode parser and Pike VM in both ports; the regenerated regex corpus; ADR-003's direction recorded as a decision |
 | **14**: legacy dialects | M | **NOT STARTED** | the upgrade stage; the `jsonschema-upgrade` mode; the draft-04 to 2019-09 suite directories in the harness |
 | **15**: vocabularies and the meta-schema | M | **NOT STARTED** | the vocabulary TSV generated into both ports; the bundled meta-schema models; input validated before mapping |
-| **16**: output units | M | **NOT STARTED** | `vet --output flag\|basic`; the importer's source map; `output-tests/` in the harness |
+| **16**: output units | M | **NOT STARTED** | `vet --output flag\|basic`; the source map file with its text hash and `--source-map` on both verbs; `output-tests/` in the harness |
 | **17**: the round-trip gate | S | **NOT STARTED** | `import(export(import(S)))` canon-equal to `import(S)` and `subsume` both ways, for every schema the harness imports |

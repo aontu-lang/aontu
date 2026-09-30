@@ -47,12 +47,19 @@ export function walkVals(
 
 export function collectNils(root: any, seen: Set<any>): any[] {
   const out: any[] = []
+  const walked = new Set<any>()
   walkVals(root, (v: any) => {
     if (true === v.isNil) {
       out.push(v)
+      seen.add(v)
       return false
     }
+    // A spread template is not an instance value: generation never emits
+    // it, and each child it applies to carries its own copy.
+    if (null != v.spread?.cj) {
+      walked.add(v.spread.cj)
+    }
     return true
-  }, seen)
+  }, walked)
   return out
 }

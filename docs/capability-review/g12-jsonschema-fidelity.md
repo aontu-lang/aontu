@@ -23,7 +23,8 @@ Full fidelity is four properties, and this document holds the design to
 all of them:
 
 1. **Instance fidelity.** For every 2020-12 schema `S` and every JSON
-   instance `I`, `vet --no-fill import(S) I` answers `valid` exactly
+   instance `I`, `vet --no-fill --exact-numbers import(S) I` answers
+   `valid` exactly
    when a conforming 2020-12 validator accepts `I`. The verdicts
    `invalid` and `incomplete` both mean the validator rejects it.
 2. **Round trip.** `import(export(import(S)))` is canon-equal to
@@ -59,22 +60,29 @@ more such defects were filed a day earlier
 [#296](https://github.com/aontu-lang/aontu/issues/296),
 [#297](https://github.com/aontu-lang/aontu/issues/297)).
 
-**An alias exports as a required property**, spelled `%T@<file>` in
-TypeScript and `%T@#1` in Go, so the exported schema refuses every
+**An alias exported as a required property**, spelled `%T@<file>` in
+TypeScript and `%T@#1` in Go, so the exported schema refused every
 instance ([#301](https://github.com/aontu-lang/aontu/issues/301)). The
-same defect lets a data key spelled `"%T"` meet the alias `%T`.
+exporter now skips alias slots as generation does, in both ports,
+pinned by `js-alias-is-not-a-property`. The cause remains: a data key
+spelled `"%T"` still meets the alias `%T`, because alias slots share
+the key namespace.
 
 **Three engine behaviours contradict the lattice laws the importer
 would rely on.** A required key met with an optional one answers
 optional, so `{x: integer} & {x?: integer}` loses the requirement
-([#298](https://github.com/aontu-lang/aontu/issues/298)). `vet` refuses
-a schema-written `nil` that evaluation drops, at an unsupplied optional
-key or as the unselected default of a `match`, so `vet` and evaluation
-disagree, and the two ports put the second finding at different paths
-([#299](https://github.com/aontu-lang/aontu/issues/299)). A bare `$`
-followed by a map parses as a variable named by the map and refuses
-with a different code in each port
-([#302](https://github.com/aontu-lang/aontu/issues/302)).
+([#298](https://github.com/aontu-lang/aontu/issues/298)). An optional
+key holding `nil` has no settled meaning
+([#299](https://github.com/aontu-lang/aontu/issues/299)): evaluation of
+`{k?: nil}` with `{k: 1}` answers `{}`, silently dropping the supplied
+value, while `vet` refuses `{}` against `{k?: nil}`, where no value was
+supplied. JSON Schema's `properties: {k: false}` needs the opposite of
+both. A third case, `vet` refusing a `nil` inside a spread template
+that no child selected, split the ports on the finding's path; `vet`
+now skips spread templates in both ports, pinned by the
+`vet-nil-in-*-template-*` rows. A bare `$` followed by a map parses as
+a variable named by the map and refuses with a different code in each
+port ([#302](https://github.com/aontu-lang/aontu/issues/302)).
 
 **aontu's only general predicate asks the wrong question.**
 `must({x: any}, "needs x")` admits `{}`, because `must` asks whether
@@ -110,14 +118,15 @@ refuses it, exactly as 2020-12 does.
 ### The gap in numbers
 
 Every keyword of the 2020-12 vocabularies, every `format` attribute,
-the legacy keywords of draft-04 to 2019-09, and each evaluation and
-interop aspect (dialects, references, output units, annotation
-collection, the number model) was inventoried against aontu on
-2026-09-30, one entry each, 109 entries in all. Five cross exactly
-today, thirty-four cross lossily, sixty-seven have no carrier at all,
-and three differ from JSON Schema in the model itself (the number
-tower, data-model equality and `$defs` placement). The matrix below
-gives each one its carrier.
+the legacy keywords of draft-04 to 2019-09 (grouped where one upgrade
+carries several), and each evaluation and interop aspect (dialects,
+references, output units, annotation collection, the number model) was
+inventoried against aontu on 2026-09-30: 105 entries, listed one per
+row with their class in the [appendix](#appendix-the-inventory). Five
+cross exactly today, thirty-four cross lossily, sixty-three have no
+carrier at all, and three differ from JSON Schema in the model itself
+(the number tower, data-model equality and `$defs` placement). The
+matrix below groups them and gives each group its carrier.
 
 ## Current state
 
@@ -251,7 +260,7 @@ Every carrier is in both ports.
 |---|---|---|---|
 | `type` | the kinds | lossy | the kind split: `null`, `boolean`, `number`, `empty()`, `map`, `list` ([2](#2-the-kind-split)) |
 | `type: "integer"` | the `integer` leaf, which refuses `1.0` | lossy | `number & multiple(1)` ([4](#4-numbers-and-equality)) |
-| `enum`, `const` | literals and `\|` | lossy | literals with every numeric point in every leaf JSON can reach |
+| `enum`, `const` | literals and `\|` | lossy | literals, with numbers read and written by value under `--exact-numbers` |
 | `multipleOf` | none | absent | `multiple(n)` |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | the bounds | lossy | the bounds, with an exact endpoint rule on export |
 | `minLength`, `maxLength` | `len` | exact | `len`; the export's open-bound defect is fixed |
@@ -277,8 +286,8 @@ Every carrier is in both ports.
 
 | Aspect | Today | Class | Carrier |
 |---|---|---|---|
-| JSON number model | disjoint leaves; wire literals beyond binary64 refused | divergent | `multiple(1)` for integrality; a data-reading mode for wide literals |
-| JSON data-model equality | leaf and value | divergent | the importer spells every point in every reachable leaf; export deduplicates |
+| JSON number model | disjoint leaves; wire literals beyond binary64 refused | divergent | `multiple(1)` for integrality; `vet --exact-numbers` reads wire numbers by exact value |
+| JSON data-model equality | leaf and value | divergent | numbers normalised by value on both sides; export deduplicates |
 | remote references | none | absent | a document set handed to the importer; nothing is fetched |
 | draft detection, draft-04 to 2019-09 | none | absent | an upgrade stage inside the importer ([13](#13-dialects-vocabularies-and-the-meta-schema)) |
 | meta-schema validation of the input | none | absent | the importer vets the input against bundled meta-schema models |
@@ -323,8 +332,8 @@ evaluation, so nothing at unification time depends on them. Annotations
 ride values without taking part in the meet.
 
 **Recommendation: E.** It is the only option that meets all four goals,
-and it keeps aontu's surface small: the design adds seven builtins, two
-`vet` options and an import mode. It changes the meaning of an existing
+and it keeps aontu's surface small: the design adds seven builtins,
+four `vet` options and an import mode. It changes the meaning of an existing
 construct in five places only: the four defects it has to fix first
 ([#298](https://github.com/aontu-lang/aontu/issues/298),
 [#299](https://github.com/aontu-lang/aontu/issues/299),
@@ -416,8 +425,9 @@ clones, so the single-use rule for `Val` trees holds.
 **`vet --no-fill`** is the same trial applied at the anchor: the verdict
 is `vet`'s, and additionally the schema may not supply any member the
 data does not carry. A filled member is a finding with a new code,
-`vet_filled`, class `incomplete`. This is what goal 1 is stated
-against, and what the conformance harness runs. It also makes the
+`vet_filled`, class `incomplete`. Goal 1 is stated against it, with
+`--exact-numbers` from section 4, and the conformance harness runs
+both. It also makes the
 literal `const` exact under `required`: `x: 1` fills an absent `x`
 under plain `vet`, and is refused under `--no-fill`. The vet-equals-eval
 differential extends to it directly: `vet --no-fill S D` is `valid`
@@ -444,23 +454,34 @@ the `integer` leaf. The grammar's `name` rule lists `multiple` before
 leaf untouched. The exporter reports `integer` and `float` kinds as
 losses, since their schemas admit a leaf the kind refuses.
 
-**Wire numbers** read under a data mode in the shared parser, switched
-on for `vet`'s data argument and for configuration-data includes: an
-integer literal binary64 cannot hold becomes a `biginteger` leaf rather
-than `lossy_integer_literal`, and a decimal beyond binary64's range
-becomes a `bigdecimal` within the existing digit budget. Authoring
-documents keep the refusal, whose purpose is to stop an author writing
-a rounded literal.
+**Wire numbers are read by value.** Under **`vet --exact-numbers`**,
+every number in the data is read as the exact value of its text and
+then normalised by that value: an integral value becomes an `integer`
+leaf where that leaf holds it exactly and a `biginteger` beyond, and
+any other value becomes a `bigdecimal`, within the existing digit
+budget. Nothing is rounded, so `1.0`, `1` and `1e0` are one value and
+a twenty-digit decimal keeps all twenty digits. The importer writes
+every schema number, whether a bound, a `multipleOf` divisor or an
+`enum` or `const` point, by the same rule. Every comparison between a
+schema and an instance is then between two exact values in the leaf
+their value selects, which is how 2020-12 compares numbers, including
+past the seventeenth significant digit.
 
-**Equality** follows JSON's data model at the boundary, not inside the
-lattice. The importer spells each numeric point of `enum` and `const`
-in every leaf the data reader can produce for it, so `const: 1` is
-`1 | 1.0`; strings, booleans and `null` are imported verbatim, and a
-container member is imported closed. The exporter deduplicates `enum`
-and `not: {enum}` members by JSON value and reports a lone numeric leaf
-as a loss. `unique()` keeps canon identity; `uniqueItems` imports as
-`unique()` with a reported loss wherever a list can hold two leaves of
-one number, until the data mode makes that impossible for wire data.
+It is an option, not the default, because it changes the answer for
+native schemas: no data number is ever a `float` under it, so a native
+`float` kind refuses every non-integral value, and a native `integer`
+kind admits `1.0`. Without the option, data reads exactly as it does
+today. Goal 1 is stated with it, and the harness passes it.
+
+**Equality** then needs no special case. Two JSON numbers are equal
+exactly when their normalised values are the same aontu value, so
+`const: 1` imports as `1`, `enum`, `const` and `uniqueItems` (as
+`unique()`) are exact, and strings, booleans and `null` are imported
+verbatim; a container member is imported closed. On export, where a
+native value may hold both leaves of one number, the exporter
+deduplicates `enum` and `not: {enum}` members by JSON value, reports a
+lone numeric leaf as a loss, and reports `unique()` wherever a list can
+hold two leaves of one number.
 
 ### 5. Strings, patterns and formats
 
@@ -524,10 +545,12 @@ which `close()` cannot give. **`propertyNames: c`** is
 Three prerequisites make this exact. The meet must keep a required key
 required ([#298](https://github.com/aontu-lang/aontu/issues/298)), or
 `required` and `properties` split across `allOf` branches lose the
-requirement. `vet` must stop refusing a `nil` that generation never
-reaches ([#299](https://github.com/aontu-lang/aontu/issues/299)), or
-`properties: {k: false}` and every `nil` default refuse valid data.
-Alias slots must leave the key namespace
+requirement. An optional key holding `nil` must refuse a supplied
+value and pass an absent one, in evaluation and `vet` alike
+([#299](https://github.com/aontu-lang/aontu/issues/299)), or
+`properties: {k: false}` is wrong in both directions; a `nil` default
+inside a spread template already passes, since `vet` stopped reading
+templates. Alias slots must leave the key namespace
 ([#301](https://github.com/aontu-lang/aontu/issues/301)), or a
 property may meet a minted alias name.
 
@@ -563,9 +586,15 @@ admits, where `n` is an integer or a count constraint over the same
 algebra `len` uses. Every branch is tried; there is no short-circuit.
 It refuses with a new code, `nof`, class `conflict`, whose details
 carry the admissible count, the observed count and each branch's
-verdict. It is opaque to emptiness and subsumption, as `must` is. Its
-branches are canon-sorted and deduplicated, so `&` stays commutative
-and idempotent by canon; `must`'s written-order canon is not copied.
+verdict. It is opaque to emptiness and subsumption, as `must` is.
+
+Its branches are canon-sorted but **never deduplicated**, because a
+count counts duplicates: `oneOf: [{type: "string"}, {type: "string"}]`
+admits no string, since every string matches both branches, and a
+deduplicated `nof(1, empty())` would admit them all. The branch list is
+a sorted multiset. What is deduplicated is the atom: two canon-equal
+`nof` atoms on one value are one check, so `&` stays commutative and
+idempotent by canon. `must`'s written-order canon is not copied.
 
 The importer's carriers:
 
@@ -637,6 +666,17 @@ shared corpus in the manner of the regex corpus, since host URL parsers
 disagree at the edges. It builds a table from canonical URI to alias,
 base, dialect and anchors.
 
+**A duplicate identifier refuses the import**, with a new code,
+`jsonschema_duplicate`, class `reference`, so that no table entry wins
+by walk order. Two schema positions whose `$id` values resolve to one
+canonical URI are a duplicate, and so are two `$anchor` values, or two
+`$dynamicAnchor` values, with one name in one resource. An identifier
+that sits in a non-schema position (inside `enum`, `const`, `default`,
+`examples` or an unknown keyword) is data and is not registered. One
+resource reached twice, by reference and by descent, is the same entry
+and not a duplicate. Phase 3 lands the rule for anchors within one
+document, and phase 9 extends it to `$id` across the document set.
+
 **Every `$ref` target becomes an alias**: a `$defs` entry, an anchored
 subschema, or any pointer target such as `#/properties/a/items`, hoisted
 into `%name = I(target)`. The use site is `%name`, and `$ref` with
@@ -689,6 +729,23 @@ alternative, a reference resolved against the copy chain at
 unification time, is rejected: the same term would denote different
 values at different sites, breaking canon and the hash.
 
+**Specialisation must not erase the dynamic edge**, or export cannot
+restore it. After the rewrite, a `$dynamicRef` and a `$ref` that
+resolve to the same alias in the imported scope are the same reference,
+yet they differ under any other outer scope. So each rewritten use site
+keeps a provenance record on the `meta` rider, `dynamicRef`, holding
+the original fragment and the node of its initial target, and each
+clone keeps the source resource it was cloned from and the environment
+it was cloned under. The exporter folds the clones of one source
+resource back into a single `$defs` entry carrying its
+`$dynamicAnchor`, and writes each use that carries the record as
+`$dynamicRef` with its original fragment. Where the clones cannot be
+folded, because their bodies differ in more than the rewritten targets,
+the exporter writes each clone as its own entry and reports a
+`$dynamicRef` loss naming the entry point it was specialised for,
+rather than a plain `$ref` that silently changes what an overriding
+anchor would do.
+
 The 2020-12 meta-schema is itself written with `$dynamicRef`, so this
 section is a prerequisite for validating input against it.
 
@@ -701,7 +758,8 @@ applications. Its record keys are fixed: `title`, `description`,
 `comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`,
 `contentEncoding`, `contentMediaType`, `contentSchema`, and `x` for
 unknown keywords, plus the identity keys of section 10, which only a
-declaration keeps. A record value must be concrete data; a wrong kind
+declaration keeps, and the use-site `dynamicRef` record of section 11.
+A record value must be concrete data; a wrong kind
 refuses with `func_arg`.
 
 The rider's meet is a key-wise union of canon-sorted value sets: it is
@@ -776,6 +834,18 @@ Every existing report field keeps its spelling; the pointer is additive.
 `detailed` and `verbose` are outside the boundary unless the coverage
 channel of section 9 grows into a full evaluation trace.
 
+**The source map is a file, named on both sides.** The import mode
+writes it with `--source-map <file>`, and `--format json` also carries
+it in its object. The map records the SHA-256 of the aontu text it
+describes, because its spans are byte positions and any edit, a
+reformat included, moves them. `vet --source-map <file>` reads it
+back, and refuses at the command line when the schema's bytes no
+longer hash to the recorded value, rather than attribute a finding to
+the wrong keyword. `vet` never looks for a map it was not given:
+finding one by file name would make a report depend on a file nobody
+named. `--output basic` requires a map, since 2020-12 requires
+`keywordLocation` on every unit; `--output flag` does not.
+
 ### 15. The exporter
 
 The exporter keeps its contract and gains an arm for every construct
@@ -799,7 +869,8 @@ The official suite is vendored under `test/vectors/jsonschema/`, pinned
 to an upstream commit named in its README, with `remotes/` beside it
 loaded into the importer's document set under both
 `http://localhost:1234/` and each file's own `$id`. One runner per port
-imports each schema, runs `vet --no-fill` on each instance, and requires
+imports each schema, runs `vet --no-fill --exact-numbers` on each
+instance, and requires
 the verdict to match `valid`. It also requires evaluation of schema and
 instance together to agree with `vet`, and, from phase 17, that
 `import(export(import(S)))` is canon-equal to `import(S)` and that
@@ -821,9 +892,9 @@ definition.
 | Kind | Items |
 |---|---|
 | New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)` |
-| New options | `vet --no-fill`, `vet --output flag\|basic`, the import mode of `jsonschema` |
+| New options | `vet --no-fill`, `vet --exact-numbers`, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
 | New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`) |
-| New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`) |
+| New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
 | New shared modes | `jsonschema-import`, `jsonschema-upgrade` |
 | New ADRs | required wins in the meet; the admission trial and Band B checks; the annotation rider's union meet; the importer owns JSON Schema's meaning |
 | Existing defects fixed first | [#295](https://github.com/aontu-lang/aontu/issues/295), [#296](https://github.com/aontu-lang/aontu/issues/296), [#297](https://github.com/aontu-lang/aontu/issues/297), [#298](https://github.com/aontu-lang/aontu/issues/298), [#299](https://github.com/aontu-lang/aontu/issues/299), [#300](https://github.com/aontu-lang/aontu/issues/300), [#301](https://github.com/aontu-lang/aontu/issues/301), [#302](https://github.com/aontu-lang/aontu/issues/302) |
@@ -860,12 +931,10 @@ from `breaking` than schemas built from types, bounds and properties.
 - **No backreferences or lookaround** in `pattern`, ever. Neither is a
   regular language, and both stay reported losses after the owned
   matcher lands.
-- **Instance numbers with more than 17 significant digits** that fit in
-  binary64's range are read as the nearest double, so a strict bound or
-  equality at that precision can misjudge them. Making every wire
-  decimal a `bigdecimal` would make `float` refuse JSON's `1.5`. The
-  suite's `optional/bignum.json` and `optional/float-overflow.json`
-  cases that depend on it are listed skips with this reason.
+- **No number beyond the digit budget.** Under `--exact-numbers` a
+  data number is read exactly within the existing budget of 4096 digits
+  and scale. One beyond it is refused as data rather than rounded, and a
+  suite test that needs one is a listed skip with that reason.
 - **No export to older drafts.** The exporter writes 2020-12 only; the
   upgrade stage is one-way.
 - **No `detailed` or `verbose` output** unless the coverage channel
@@ -886,7 +955,7 @@ from `breaking` than schemas built from types, bounds and properties.
 |------|-----------|--------|------------|
 | The required-wins meet (#298) changes the answer for existing documents | Medium | High | An ADR, a `breaking` run over every use case and bundled model before it lands, and `canon`, `gens` and `subsume` rows probed from both engines |
 | The admission trial is slow: every Band B atom trial-generates every branch | Medium | Medium | Decide scalars at the meet; charge trials against the existing event budget; the suite's timing per port is reported in the register |
-| Specialising `$dynamicRef` multiplies aliases for deep generic schemas | Low | Medium | The environment set is finite by construction; a budget refuses runaway specialisation with a registered code rather than hanging |
+| Specialising `$dynamicRef` multiplies aliases for deep generic schemas | Low | Medium | The environment set is finite by construction; a budget refuses runaway specialisation with `jsonschema_budget` rather than hanging |
 | The two ports' format checkers or Unicode tables drift | Medium | High | Generated tables committed once and asserted byte-identical, the regex-corpus precedent; the vendored `optional/format` suite runs in both |
 | The skip ledger becomes a place to hide failures | Medium | High | A passing skipped test fails the run; the bound tightens per phase; each skip names a construct and a reason |
 | `nof` and `when` look like general predicates and grow into a programming language | Low | High | Band B atoms take only schema values, never functions; G8's no-guard rule for `match` stands; the ADR states the family closed |
@@ -910,29 +979,33 @@ deduplication by JSON value. Each change is a `jsonschema` row in
 `go/jsonschema.go`.
 
 **Phase 2: the engine prerequisites (M).** Required wins in the meet
-(#298) with its ADR; `vet` stops collecting unreached `nil` (#299); alias
-slots move to a side table (#301); a bare `$` gets one meaning in both
-ports (#302). Each removes its `divergent.tsv` entry and lands `canon`,
+(#298) with its ADR; an optional `nil` key refuses a supplied value and
+passes an absent one, in evaluation and `vet` alike (#299); alias slots
+move to a side table (#301); a bare `$` gets one meaning in both ports
+(#302), which removes its `divergent.tsv` entry. Each lands `canon`,
 `gens`, `vet`, `subsume` or `errc` rows. `ts/src/val/MapVal.ts`,
-`ts/src/vet.ts`, the grammar, then their Go twins.
+`ts/src/val/BagVal.ts`, `ts/src/vet.ts`, the grammar, then their Go
+twins.
 
 **Phase 3: the importer core, the admission trial and the harness
 (L).** `importJsonSchema` and its Go twin and the import mode of the
 verb; the admission trial as a shared primitive and `vet --no-fill`
-with `vet_filled`; the kind split; `type`, `enum`, `const` and `null`
-with numeric points spelled in every leaf; `properties`, `required`,
-`additionalProperties`, `patternProperties` and `propertyNames` as
-guarded spreads; `prefixItems` and `items` as the index guard; the
-counts and bounds; `minLength` and `maxLength`; `pattern` stages one and
-two; boolean schemas; local `$ref`, `$defs` and `$anchor` as aliases.
+with `vet_filled`; `vet --exact-numbers` and schema numbers written by
+value; the kind split; `type`, `enum`, `const` and `null`;
+`properties`, `required`, `additionalProperties`, `patternProperties`
+and `propertyNames` as guarded spreads; `prefixItems` and `items` as
+the index guard; the counts and bounds; `minLength` and `maxLength`;
+`pattern` stages one and two; boolean schemas; local `$ref`, `$defs`
+and `$anchor` as aliases, with `jsonschema_duplicate` for a repeated
+anchor.
 The `jsonschema-import` mode in both runners and `docs/shared-spec.md`;
 the vendored suite, both runners and `skips.tsv`, which lists
 everything later phases carry.
 
 **Phase 4: numbers (M).** `multiple(n)` with its grammar entry,
 `type: "integer"` as `number & multiple(1)`, the integral-gap rule on
-`multiple(1)`, the data-reading mode for wide literals, and losses on
-the `integer` and `float` kinds' export. A new
+`multiple(1)`, and losses on the `integer` and `float` kinds'
+export. A new
 `test/spec/constraint-multiple.tsv`.
 
 **Phase 5: the logic atom (L).** `nof(n, ...c)` with the `nof` code;
@@ -957,10 +1030,13 @@ and its option, and the LSP hover in both servers.
 **Phase 9: resources and identity (M).** The RFC 3986 resolver and its
 shared corpus; the resource table; `$id` on alias declarations and its
 stripping on copy; the origin mark; `$defs` and `$ref` on export; the
-document set, remote references and `jsonschema_ref`.
+document set, remote references and `jsonschema_ref`; the duplicate
+rule extended to `$id` across the document set.
 
 **Phase 10: dynamic references (M).** The specialisation walk, its
-budget and code, and `$dynamicRef` and `$dynamicAnchor` on export.
+budget and `jsonschema_budget`, the use-site `dynamicRef` provenance
+record, and the exporter's fold of clones back into `$dynamicRef` and
+`$dynamicAnchor`, with a reported loss where clones cannot fold.
 
 **Phase 11: evaluated coverage (L).** `rest(t, ...cover)`, the coverage
 records the importer writes, the branch hoisting that shares them with
@@ -988,8 +1064,9 @@ meta-schema models, imported from the published documents; input
 validation before mapping.
 
 **Phase 16: output units (M).** `vet --output flag|basic`, the
-pointer field, the importer's source map and the three location fields;
-the suite's `output-tests/` in the harness.
+pointer field, the importer's source map file with its text hash,
+`--source-map` on the import mode and on `vet`, and the three location
+fields; the suite's `output-tests/` in the harness.
 
 **Phase 17: the round-trip gate (S).** The harness requires
 `import(export(import(S)))` to be canon-equal to `import(S)` and
@@ -1018,9 +1095,9 @@ are forced as well:
    then branch fails". Phase 6 pins it; if a call refuses at
    construction, the rule that trial arguments are inert becomes part of
    the phase.
-2. **Should `vet --no-fill` be the default for a schema that came from
-   the importer?** The import mode could stamp the document so that
-   `vet` applies the trial without the flag. That would couple a verb to
+2. **Should `--no-fill` and `--exact-numbers` be the default for a
+   schema that came from the importer?** The import mode could stamp
+   the document so that `vet` applies both without the flags. That would couple a verb to
    provenance, which nothing else in aontu does.
 3. **Where does identity metadata live when an alias is declared by
    hand?** Section 10 puts it on the declaration's `meta` record. A
@@ -1034,3 +1111,118 @@ are forced as well:
    is a valid module path could name an aontu package directly (ADR-020),
    which would let a JSON Schema catalogue become an aontu registry. Out
    of scope here and worth a gap of its own if asked for.
+
+## Appendix: the inventory
+
+The 105 entries behind [the gap in numbers](#the-gap-in-numbers), one
+per row, each classed by what aontu did with it on 2026-09-30. The
+legacy keywords are grouped with the upgrade or keyword that carries
+them, and an aspect two groups both examined is listed once.
+
+| # | Entry | Group | Class |
+|---|---|---|---|
+| 1 | `$schema` | Core | lossy |
+| 2 | `$id`, and base-URI resolution | Core | absent |
+| 3 | `$ref` | Core | lossy |
+| 4 | `$defs` | Core | divergent |
+| 5 | `definitions` | Core | lossy |
+| 6 | `$anchor` | Core | absent |
+| 7 | `$dynamicRef` | Core | absent |
+| 8 | `$dynamicAnchor` | Core | absent |
+| 9 | `$recursiveRef`, `$recursiveAnchor` (2019-09) | Core | absent |
+| 10 | `$vocabulary` | Core | absent |
+| 11 | `$comment` | Core | absent |
+| 12 | boolean schema `true` | Core | exact |
+| 13 | boolean schema `false` | Core | lossy |
+| 14 | `$ref` with sibling keywords | Core | lossy |
+| 15 | `allOf` | Applicator | lossy |
+| 16 | `anyOf` | Applicator | lossy |
+| 17 | `oneOf` | Applicator | absent |
+| 18 | `not` | Applicator | absent |
+| 19 | `if` | Applicator | absent |
+| 20 | `then` | Applicator | absent |
+| 21 | `else` | Applicator | absent |
+| 22 | `dependentSchemas` | Applicator | absent |
+| 23 | `dependentRequired` | Applicator | absent |
+| 24 | `dependencies` | Applicator | absent |
+| 25 | `properties` | Object | lossy |
+| 26 | `patternProperties` | Object | absent |
+| 27 | `additionalProperties` | Object | lossy |
+| 28 | `propertyNames` | Object | absent |
+| 29 | `unevaluatedProperties` | Object | lossy |
+| 30 | `required` | Object | lossy |
+| 31 | `minProperties` | Object | lossy |
+| 32 | `maxProperties` | Object | lossy |
+| 33 | `prefixItems` | Array | lossy |
+| 34 | `items` | Array | lossy |
+| 35 | `items` array form and `additionalItems` (draft-04 to 2019-09) | Array | absent |
+| 36 | `contains` | Array | absent |
+| 37 | `minContains` | Array | absent |
+| 38 | `maxContains` | Array | absent |
+| 39 | `unevaluatedItems` | Array | absent |
+| 40 | `minItems` | Array | lossy |
+| 41 | `maxItems` | Array | lossy |
+| 42 | `uniqueItems` | Array | lossy |
+| 43 | `type`, one name | Any type | lossy |
+| 44 | `type: "integer"` | Any type | lossy |
+| 45 | `type`, an array of names | Any type | lossy |
+| 46 | `enum` | Any type | lossy |
+| 47 | `const` | Any type | lossy |
+| 48 | `type: "null"`, and `null` in `enum` and `const` | Any type | exact |
+| 49 | JSON data-model equality | Any type | divergent |
+| 50 | `multipleOf` | Numeric | absent |
+| 51 | `minimum` | Numeric | lossy |
+| 52 | `maximum` | Numeric | lossy |
+| 53 | `exclusiveMinimum` | Numeric | lossy |
+| 54 | `exclusiveMaximum` | Numeric | lossy |
+| 55 | boolean `exclusiveMinimum` and `exclusiveMaximum` (draft-04) | Numeric | absent |
+| 56 | JSON number model | Numeric | divergent |
+| 57 | `minLength` | String, format, content | exact |
+| 58 | `maxLength` | String, format, content | exact |
+| 59 | `pattern` | String, format, content | lossy |
+| 60 | `format` | String, format, content | absent |
+| 61 | `format: date-time` | String, format, content | absent |
+| 62 | `format: date` | String, format, content | absent |
+| 63 | `format: time` | String, format, content | absent |
+| 64 | `format: duration` | String, format, content | absent |
+| 65 | `format: email` | String, format, content | absent |
+| 66 | `format: idn-email` | String, format, content | absent |
+| 67 | `format: hostname` | String, format, content | absent |
+| 68 | `format: idn-hostname` | String, format, content | absent |
+| 69 | `format: ipv4` | String, format, content | absent |
+| 70 | `format: ipv6` | String, format, content | absent |
+| 71 | `format: uri` | String, format, content | absent |
+| 72 | `format: uri-reference` | String, format, content | absent |
+| 73 | `format: iri` | String, format, content | absent |
+| 74 | `format: iri-reference` | String, format, content | absent |
+| 75 | `format: uuid` | String, format, content | absent |
+| 76 | `format: uri-template` | String, format, content | absent |
+| 77 | `format: json-pointer` | String, format, content | absent |
+| 78 | `format: relative-json-pointer` | String, format, content | absent |
+| 79 | `format: regex` | String, format, content | absent |
+| 80 | `contentEncoding` | String, format, content | absent |
+| 81 | `contentMediaType` | String, format, content | absent |
+| 82 | `contentSchema` | String, format, content | absent |
+| 83 | `title` | Annotation | absent |
+| 84 | `description` | Annotation | absent |
+| 85 | `default` | Annotation | lossy |
+| 86 | `deprecated` | Annotation | lossy |
+| 87 | `readOnly` | Annotation | absent |
+| 88 | `writeOnly` | Annotation | absent |
+| 89 | `examples` | Annotation | absent |
+| 90 | annotation collection | Annotation | lossy |
+| 91 | output unit `flag` | Evaluation and interop | exact |
+| 92 | output unit `basic` | Evaluation and interop | lossy |
+| 93 | output unit `detailed` | Evaluation and interop | absent |
+| 94 | output unit `verbose` | Evaluation and interop | absent |
+| 95 | `instanceLocation` | Evaluation and interop | lossy |
+| 96 | `keywordLocation` | Evaluation and interop | absent |
+| 97 | `absoluteKeywordLocation` | Evaluation and interop | lossy |
+| 98 | remote references | Evaluation and interop | absent |
+| 99 | meta-schema validation of the input | Evaluation and interop | absent |
+| 100 | draft detection | Evaluation and interop | absent |
+| 101 | upgrade from draft-04 | Evaluation and interop | absent |
+| 102 | upgrade from draft-06 | Evaluation and interop | absent |
+| 103 | upgrade from draft-07 | Evaluation and interop | absent |
+| 104 | upgrade from 2019-09 | Evaluation and interop | absent |
+| 105 | conformance against the official test suite | Evaluation and interop | absent |

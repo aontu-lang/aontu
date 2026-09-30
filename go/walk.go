@@ -80,11 +80,24 @@ func stampURL(v Val, url string) map[string]bool {
 }
 
 func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
+	walked := map[Val]bool{}
 	walkVals(v, func(n Val) bool {
-		if nv, ok := n.(*NilVal); ok {
-			*out = append(*out, nv)
+		switch t := n.(type) {
+		case *NilVal:
+			*out = append(*out, t)
+			seen[n] = true
 			return false
+		// A spread template is not an instance value: generation never
+		// emits it, and each child it applies to carries its own copy.
+		case *MapVal:
+			if t.spread != nil {
+				walked[t.spread] = true
+			}
+		case *ListVal:
+			if t.spread != nil {
+				walked[t.spread] = true
+			}
 		}
 		return true
-	}, seen)
+	}, walked)
 }

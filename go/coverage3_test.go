@@ -90,8 +90,13 @@ func TestCheckWalkersDirect(t *testing.T) {
 	collectNils(l2, &nils, map[Val]bool{})
 	collectNils(newConjunct([]Val{newNil("e")}), &nils, map[Val]bool{})
 	collectNils(newDisjunct([]Val{newNil("f")}), &nils, map[Val]bool{})
-	if len(nils) != 6 {
-		t.Fatalf("expected 6 nils, got %d", len(nils))
+	if len(nils) != 4 {
+		t.Fatalf("expected 4 nils, got %d", len(nils))
+	}
+	for _, n := range nils {
+		if "b" == n.why || "d" == n.why {
+			t.Fatalf("a spread template's nil %q was collected", n.why)
+		}
 	}
 }
 
