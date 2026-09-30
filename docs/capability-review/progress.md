@@ -1,7 +1,7 @@
 # Capability review — progress register
 
 This is the single record of **where the [capability review](index.md)
-stands**: every numbered phase of G1–G11, its status, and the artifact
+stands**: every numbered phase of G1–G12, its status, and the artifact
 that proves it.
 
 An entry belongs here when it is a *numbered phase of a gap document's
@@ -95,18 +95,21 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 5. **Counts of the shared suite live here and nowhere else.** All eight
    gap documents had frozen a row count into a "nothing may regress"
    clause, and all eight had gone wrong by a thousand rows or more.
-   **Applied:** all eleven gap documents now link this line or name no
+   **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,567 rows**, in twenty-nine
+   **115 `.tsv` files, 113 row-bearing, 5,576 rows**, in twenty-nine
    modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 628,
-   `err` 346, `fmt` 191, `view` 175, `errcode` 175, `vet` 130,
-   `subsume` 125, `query` 93, `jsonschema` 67, `why` 53, `hcanon` 42,
+   `err` 349, `fmt` 191, `view` 175, `errcode` 175, `vet` 134,
+   `subsume` 125, `query` 93, `jsonschema` 69, `why` 53, `hcanon` 42,
    `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-09-29 with the two commands below, from 113 files,
+   (Re-derived 2026-09-30 with the two commands below, when the review
+   of G12 added six rows; `main` already read 5,570 against the 5,567
+   written here, three `err` rows having landed without this line.
+   Before that re-derived 2026-09-29, from 113 files,
    111 row-bearing and 5,166 rows; the mode list is unchanged. Before
    that 2026-09-18, twice: the first derivation that day read
    5,153 and was overtaken within hours by `cf75be16`, which added
@@ -144,7 +147,7 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Seventy-four of the seventy-five phases in the table below have moved;
+Seventy-four of the ninety-two phases in the table below have moved;
 sixty-four of those are complete, three are partial, and seven were
 retired, superseded or removed by an ADR. **These four numbers are the
 total row of the table below**, which
@@ -153,8 +156,9 @@ derives from the phase rows and holds the table to — so quoting them
 here rather than counting again is what keeps this paragraph from
 drifting away from the rows, which is how it went wrong before: it
 read seventy-two and sixty-three, and split the retired seven into two
-groups of three. The seven are named in their own sections; the one
-phase that has not moved is G10 phase 6. G5 phase 6 is
+groups of three. The seven are named in their own sections; the
+eighteen phases that have not moved are G10 phase 6 and the seventeen
+phases of G12, which was opened on 2026-09-30. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -192,7 +196,8 @@ for `query`, `why`, `view` and `views` alike.
 | [G9](g9-transformation.md) | Declarative transformation | D | 6 | 1 | 0 | 3 |
 | [G10](g10-transparency.md) | Transparency log | D | 3 | 1 | 1 | 1 |
 | [G11](g11-agent-onramp.md) | Offline agent on-ramp | A | 7 | 0 | 0 | 0 |
-| | | **total** | **64** | **3** | **1** | **7** |
+| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 0 | 0 | 17 | 0 |
+| | | **total** | **64** | **3** | **18** | **7** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
 REMOVED, and they fall on two sides. Four landed first — G4.0 and
@@ -284,7 +289,9 @@ Against the review's own [sequencing](index.md#sequencing):
   local closure, a lockfile written in canonical form, and an artifact
   description gated on the breaking check. The network verbs landed on
   2026-09-16 as G10 phase 3, with trusted publishing as phase 4 the
-  same day, under ADR-039.
+  same day, under ADR-039. The sequencing table's "JSON Schema
+  interop" is export only; G12, opened on 2026-09-30, is its plan, and
+  none of its phases has started.
 
 **Every phase of G1–G8 has now landed but one**; G9 and G10, opened
 after this paragraph was written, carry their own partials and
@@ -2761,3 +2768,49 @@ can ask what a check actually examined and gate on the answer.
 | **5** — `vet --coverage` and `--strict-coverage` | L | **LANDED 2026-09-09** | The phase the gap was opened for. `VetCoverage` on the report and `Coverage`/`CoverageAt` on the options in both engines (`ts/src/vet.ts` `vetCoverage`, `go/vetcover.go` `vetCoverageOf`), with `--coverage`, `--strict-coverage` and `--coverage-at` in both CLIs. Eight shared rows in `test/spec/vet.tsv`, written through the existing five-column `vet` mode by putting the run's knobs in the golden's `opts` — no new mode was needed — and parity-probed: the goldens were generated from the canonical engine and the Go runner passed them unmodified on the first run. Port-native CLI cases in `ts/test/cli.test.ts` and `go/cmd/aontu/vet_test.go`; the executed transcript is `docs/how-to/validate-in-ci.md`. **The report is ABSENT unless asked for**, so every one of the 100+ vet rows written before this phase compares exactly as it did, and the accounting costs nothing by default. **Departures, four.** (1) **`vacuous` is about LEAVES, and the design was wrong.** The design said "no schema path constrained any data path"; measured that way the headline failure answers `false`, because the `"*"` schema does declare `entity` and that container path matches. A leaf is where a value lives and a container match constrains no value, so `checked` counts data leaves and `vacuous` is true when none was constrained over a document that HAS leaves — a document with none was not vacuously checked, there was nothing to examine. (2) The field names are `checked`/`leaves`/`declared`/`unchecked`/`unused`/`vacuous` rather than the design's `schema_paths_*`, to sit in the same register as `render --coverage`'s `read`/`dead`/`unruled` — a surface since deleted with the render road (ADR-038; `unruled` appears nowhere in either port now, and `render`'s usage line carries no `--coverage`), so the names outlived the vocabulary they were chosen to match — and the two lists are the SHALLOWEST paths for the same reason its `dead` was: a subtree nothing constrained is named once, not once per leaf. (3) The accounting is STRUCTURAL — what the schema declares about the data — and not a reading of the meet, which would count a value the data supplied to itself as covered, the opposite of the question. It is measured BEFORE the meet, because the meet consumes its operands and under `--at` the anchor is the left operand; the data side is its own evaluation so a document reaching its values through `@"..."` is measured on the paths it actually has. (4) `--strict-coverage` and `--coverage-at` IMPLY `--coverage`: a gate cannot fire on what was never measured, and requiring both flags is a usage trap with one correct answer. The verdict WORD never changes — only the exit code, and only under the flag — so nothing that passes today starts failing. **What the ADR-002 gate cost, and what it settled:** the two walks were written with the identity guard `walkVals` carries, and neither port could reach it. `walkVals` needs one because it walks values unification MINTED — findings, conjunct operands, disjunct trials; these walks descend a SETTLED bag through `peg` and `spread` alone, and an alias, a repeated spread, a list of references and a recursive residual were each probed and share nothing. `canon` already walks the same edges with no guard, on every one of these values, so the acyclicity is relied on repository-wide. Both guards were REMOVED rather than marked: TypeScript's covcheck can suppress a line and not a branch arm, which is the gate saying the same thing. Two more dead arms went with them — a nil check on a value only ever reassigned to a non-nil child, and an empty-path return the data walk cannot produce — and a leftover `-1 !== cut \|\| true` that was always true. |
 | **6** — `aontu init` | S/M | **LANDED 2026-09-09** | `aontu init [dir]` in both ports (`ts/src/cli.ts` `runInit`, `go/cmd/aontu/init.go`), writing the trio `model.aontu` (an entity map constrained with `&:`), `data.aontu` (an instance that holds) and `check.sh` (the four checks, `vet --strict-coverage` first). The trio lives in `docs/skill/init/` as real files and is staged into both ports by the generator that stages the teaching pack (`ts/scripts/helpdoc.cjs`, `make helpdoc`), so the two write the SAME BYTES; both suites assert the staged copy is byte-identical with its source, that the ports stage the same files in the same order and mode, and that the emitted documents pass their own `check.sh` (`init-writes-a-trio-that-checks-itself`, `TestInitWritesATrioThatChecksItself` — the Go case reads the four commands OUT OF the emitted script rather than copying them). **Departures, three.** (1) The MODE rides in the generated index (`helpdoc/init/index.tsv`, `name\tmode\tfile`): a scaffold whose script has to be `chmod`'ed before it runs is a scaffold with a step missing, and the mode is asserted on both the staged record and the written file. (2) It checks EVERY member for existence before writing ANY of them, so a refusal cannot leave a half-scaffolded directory — a state neither the caller nor a re-run can reason about. (3) The starting model is asserted to use `&:` and NOT to carry a quoted `"*"` outside its comments, because a starting document that reached for the wildcard would teach the exact failure the gap was opened for. `--help` gained a NOTHING TO EDIT YET? block, in both ports, so the door is visible from the page an agent actually runs. |
 | **7** — `--format json` on the bare command, `agentsmd --depth` | S | **LANDED 2026-09-09** | `--format text\|json` on the bare command in both ports (`emitEval` in `ts/src/cli.ts`, `emit` in `go/cmd/aontu/main.go`), answering `{aontu, findings, ok, out}` on stdout in either verdict — the same envelope `get` uses, for the same reason. `--depth <n>` on `agentsmd` in both ports and engines (`AgentsMdOptions.depth`/`Depth`), default 2 and unchanged, and the stanza gained a line pointing at `aontu help language`; the five golden stanzas in `test/spec/agentsmd.tsv` moved with it, which is what proves the two ports gained the same line. **Departures, three.** (1) The finding carries **the headline only and no `hint`**, and both are parity decisions: the frames under the headline are drawn for a person reading a terminal and only the first line is held to byte parity, and the hint TABLES are deliberately not in parity while the code registry is (phase 3) — a hint here would make the ports answer differently for a code only one of them explains. `aontu explain <code>` is where the hint lives. (2) The `class` comes from the REGISTRY (`codeClass`, `ExplainCode`) rather than from the nil, because the registry is what both ports hold set-equal to `test/spec/errcodes.tsv`; the existing `evalFailure` path hardcodes `reference` and reports the whole frame text, which is why this is not routed through it. (3) An error the engine did not collect — `exactJSON`'s circular refusal, a foreign object claiming to be an `AontuError` — carries NO finding rather than an invented code, and answers with the text alone. `out` is exactly what the text form prints (empty on failure), so `--canon` still chooses what the answer IS while `--format` chooses how it is wrapped. |
+
+## G12: JSON Schema fidelity
+
+Opened 2026-09-30, and it is the review's null hypothesis taken up
+directly: JSON Schema 2020-12 plus prose is the strongest competitor
+for "ground truth for agents", and what aontu adds (unification,
+subsumption, located conflicts, hashing) reaches a schema that already
+exists only if that schema can cross into aontu and back without
+changing meaning. Design is [g12-jsonschema-fidelity.md](g12-jsonschema-fidelity.md).
+
+The measurement that opened it, driven against both CLIs at `7619130`:
+there is no importer; the exporter differs from the model in seven
+places while reporting `ok` (#300), and an alias exported as a
+required property that each port spelled differently (#301); a required
+key met with an optional one answers optional (#298); an optional key
+holding `nil` drops a supplied value under evaluation and refuses an
+absent one under `vet` (#299); and `must`, aontu's only general
+predicate, asks whether a value can unify with its argument, where JSON
+Schema asks whether it already is an instance. Of 105 keywords and
+aspects inventoried, five cross exactly today. Two of those defects
+split the ports and were fixed with the document rather than listed in
+the divergence ledger: the exporter skips alias slots
+(`js-alias-is-not-a-property` in `test/spec/jsonschema.tsv`), and `vet`
+no longer reads spread templates (`vet-nil-in-*-template-*` in
+`test/spec/vet.tsv`). Neither closes its issue, and no phase row moves
+for them.
+
+| Phase | Size | Status | Pin |
+|-------|------|--------|-----|
+| **1**: a truthful exporter | S | **NOT STARTED** | #295, #296, #297 and #300 closed; `test/spec/jsonschema.tsv` rows for each, probed from both engines; no export differs from its model without a loss entry |
+| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
+| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `vet --exact-numbers`; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
+| **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
+| **5**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR |
+| **6**: conditionals and dependencies | M | **NOT STARTED** | `when(c, t, e?)` and the `when` code; `if`, `then`, `else`, `dependentSchemas`, `dependentRequired` both ways |
+| **7**: `contains` | M | **NOT STARTED** | `contains(c, n?)`; `minContains`, `maxContains`, `uniqueItems` off the skip ledger |
+| **8**: annotations | M | **NOT STARTED** | `meta(v, ...r)` with its union meet and ADR; `deprecate()`'s record on the same meet; every annotation keyword both ways |
+| **9**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; `$id`, remote references and `jsonschema_ref`; `jsonschema_duplicate` for `$id`; `$defs` and `$ref` on export |
+| **10**: dynamic references | M | **NOT STARTED** | the specialisation walk and `jsonschema_budget`; the use-site provenance record; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger and exported as written |
+| **11**: evaluated coverage | L | **NOT STARTED** | `rest(t, ...cover)`; `unevaluatedProperties` and `unevaluatedItems` both ways; its ADR |
+| **12**: format assertion | L | **NOT STARTED** | `format(name)` and `format_unknown`; the committed checkers and Unicode table; `optional/format/` in the harness |
+| **13**: the owned regex matcher | L | **NOT STARTED** | the ECMA-262 `u`-mode parser and Pike VM in both ports; the regenerated regex corpus; ADR-003's direction recorded as a decision |
+| **14**: legacy dialects | M | **NOT STARTED** | the upgrade stage; the `jsonschema-upgrade` mode; the draft-04 to 2019-09 suite directories in the harness |
+| **15**: vocabularies and the meta-schema | M | **NOT STARTED** | the vocabulary TSV generated into both ports; the bundled meta-schema models; input validated before mapping |
+| **16**: output units | M | **NOT STARTED** | `vet --output flag\|basic`; the source map file with its text hash and `--source-map` on both verbs; `output-tests/` in the harness |
+| **17**: the round-trip gate | S | **NOT STARTED** | `import(export(import(S)))` canon-equal to `import(S)` and `subsume` both ways, for every schema the harness imports |

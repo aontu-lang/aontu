@@ -413,6 +413,10 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 	for _, key := range keys {
 		child := v.peg[key]
 
+		if v.isAliasKey(key) {
+			continue
+		}
+
 		// A hidden child does not generate, so it is not part of the
 		// value a consumer produces -- and a schema that demanded it
 		// would refuse every correct document.

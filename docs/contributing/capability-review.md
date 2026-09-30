@@ -5,10 +5,10 @@ can. Summary in [AGENTS.md](../../AGENTS.md).
 
 
 Forward-looking design work lives in
-[`docs/capability-review/`](../../docs/capability-review/index.md): eleven gap
-documents (G1–G11), each ending in a numbered implementation plan
+[`docs/capability-review/`](../../docs/capability-review/index.md): twelve gap
+documents (G1–G12), each ending in a numbered implementation plan
 (G9 and G10 were opened 2026-08-30, after the original eight had landed;
-G11 on 2026-09-09).
+G11 on 2026-09-09; G12 on 2026-09-30).
 **When a phase of one of those plans lands, its row in
 [`docs/capability-review/progress.md`](../../docs/capability-review/progress.md)
 changes in the same commit** — the register is the single record of what

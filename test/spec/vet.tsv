@@ -437,3 +437,11 @@ vet-coverage-list-index-is-a-declaration	vet	xs:[integer,string]	xs:[1,"a"]	{"co
 vet-coverage-root-template-covers-every-key	vet	&:{a:integer}	x:{a:1}	{"coverage":{"checked":1,"declared":2,"leaves":1,"unchecked":[],"unused":[],"vacuous":false},"findings":[],"opts":{"coverage":true},"truncated":false,"verdict":"valid"}
 vet-coverage-at-marks-an-ancestor-used	vet	a:{b:string}	a:{b:"x"}	{"coverage":{"checked":1,"declared":2,"leaves":1,"unchecked":[],"unused":[],"vacuous":false},"findings":[],"opts":{"coverage":true,"coverageAt":"$.a.b"},"truncated":false,"verdict":"valid"}
 vet-coverage-a-top-spread-declares-nothing	vet	x:{&:any,k:integer}	x:{k:1}	{"coverage":{"checked":1,"declared":2,"leaves":1,"unchecked":[],"unused":[],"vacuous":false},"findings":[],"opts":{"coverage":true},"truncated":false,"verdict":"valid"}
+
+# A nil inside a spread template is not an instance value (#299): the
+# template is never generated, and a child it applies to carries its own
+# copy. Only a child that selects the nil arm is refused, at its own path.
+vet-nil-in-map-template-unselected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)}	a:{a:1}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-nil-in-map-template-selected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)}	a:{z:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.z","severity":"error","sites":[{"col":17,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+vet-nil-in-list-template-unselected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1]	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2]	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.1","severity":"error","sites":[{"col":6,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}

@@ -4,12 +4,12 @@
 literature, comparable languages, and industry practice, asking one
 question: what fundamental capabilities does aontu lack to fulfil its
 stated purpose — a systems-definition language and ground truth for
-agents? Each identified gap has a companion design document (G1–G11,
+agents? Each identified gap has a companion design document (G1–G12,
 linked below) with alternatives, boundaries, risks, and an
 implementation plan.*
 
 > **Where the work stands** is recorded in the
-> [progress register](progress.md) — every numbered phase of G1–G11,
+> [progress register](progress.md) — every numbered phase of G1–G12,
 > its status, and the artifact that proves it. This index and the gap
 > documents describe what *should* be built and were written before any
 > of it landed; the register is the only place that says what *has*
@@ -68,7 +68,7 @@ infrastructure around the lattice, not syntax on top of it.
 
 ## The eight fundamental gaps
 
-> **Three more were opened later.** G1–G8 are the August 2026 survey.
+> **Four more were opened later.** G1–G8 are the August 2026 survey.
 > [G9](g9-transformation.md) was opened on 2026-08-30, after all eight
 > had landed, and asks a question the survey did not: once a model is
 > trustworthy, how does the CODE come from it? Its companion for the
@@ -86,6 +86,11 @@ infrastructure around the lattice, not syntax on top of it.
 > agent can CONSUME a definition, and this one asks whether it can
 > arrive at one — what it can learn about aontu from aontu alone,
 > offline, holding the binary and nothing else.
+> [G12](g12-jsonschema-fidelity.md) was opened on 2026-09-30 and takes
+> up the null hypothesis under [traps to refuse](#traps-to-refuse)
+> directly: whether every JSON Schema 2020-12 construct can cross into
+> aontu and back without changing meaning, so that what aontu adds
+> reaches schemas that already exist.
 
 | # | Gap | Why it changes what the language is | Design doc |
 |---|-----|-------------------------------------|------------|
@@ -100,6 +105,7 @@ infrastructure around the lattice, not syntax on top of it.
 | G9 | Declarative transformation | The model is the source of the CODE — one model, many generated artifacts, each over part of it | [g9-transformation.md](g9-transformation.md) |
 | G10 | A transparency log | A lockfile is a private memory; the first resolution of a version needs a public, append-only, auditable record | [g10-transparency.md](g10-transparency.md) |
 | G11 | The offline agent on-ramp | An agent holding only the binary, with no network, can operate every verb and cannot learn the language — and a check that examined nothing answers like a check that passed | [g11-agent-onramp.md](g11-agent-onramp.md) |
+| G12 | JSON Schema fidelity | The null hypothesis is JSON Schema itself: unless a schema crosses into aontu and back with its meaning intact, unification, subsumption and hashing never reach the contracts teams already have | [g12-jsonschema-fidelity.md](g12-jsonschema-fidelity.md) |
 
 ## What aontu already has right
 
@@ -359,7 +365,8 @@ landed too** — G7.7's Go `--jsonl` gap, named here when this paragraph
 was last corrected, closed on 2026-08-24 — but two unnumbered Phase C
 items have not: incremental LSP is not built and belongs to no plan
 (both servers use full document sync), and JSON Schema interop is
-export only. And G5.6 is no longer the register's only partial: G9 and
+export only, the gap [G12](g12-jsonschema-fidelity.md) now plans. And
+G5.6 is no longer the register's only partial: G9 and
 G10, opened after this paragraph was written, carry partials of their
 own (2026-09-05). This paragraph was written
 before any of the work and is kept only for the sequencing rationale

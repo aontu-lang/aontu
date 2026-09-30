@@ -243,6 +243,9 @@ function fromMap(ctx, path, v) {
     let spread = undefined;
     for (const key of Object.keys(v.peg).sort()) {
         const child = v.peg[key];
+        if (v.aliasKeys.includes(key)) {
+            continue;
+        }
         // A marked child does not generate, so it is not part of the value
         // a consumer produces -- and a schema that demanded it would refuse
         // every correct document. Inside a marked container (an export

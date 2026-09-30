@@ -325,6 +325,22 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- `$` followed by a map refuses with a different code in each
+#   port.
+#   issue: #302; found 2026-09-30 while probing a root reference for
+#   `"$ref": "#"` for the JSON Schema gap document (G12). Present on main.
+#
+#   Divergent input:  a: ${b: 1}
+#   TypeScript: [aontu/var[object]], no hint text
+#   Go:         [aontu/var], the `$name` variable hint
+#
+#   Both prefixes are registered in errcodes.tsv, so no row can see which
+#   one a port picks. Not fixed here because what a bare `$` at value
+#   position should mean is a language decision the issue asks for; the
+#   code both ports raise follows from it.
+#
+# ---------------------------------------------------------------------
+#
 # OPEN -- a finding inside a value that arrived by a reference to a
 #   DEEPER target is reported at a path that does not exist, in
 #   TypeScript only.
