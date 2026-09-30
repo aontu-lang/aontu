@@ -2808,7 +2808,7 @@ for them.
 | **9**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; `$id`, remote references and `jsonschema_ref`; `jsonschema_duplicate` for `$id`; `$defs` and `$ref` on export |
 | **10**: dynamic references | M | **NOT STARTED** | the specialisation walk and `jsonschema_budget`; the use-site provenance record; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger and exported as written |
 | **11**: evaluated coverage | L | **NOT STARTED** | `rest(t, ...cover)`; `unevaluatedProperties` and `unevaluatedItems` both ways; its ADR |
-| **12**: format assertion | L | **NOT STARTED** | `format(name)` and `format_unknown`; the committed checkers and Unicode table; `optional/format/` in the harness |
+| **12**: format assertion | L | **NOT STARTED** | `format(name, g?)` with `format_unknown`, `format_redefined` and `format_grammar`; the nineteen committed grammars under `grammar/format/`; the format set on import; `optional/format/` in the harness |
 | **13**: the owned regex matcher | L | **NOT STARTED** | the ECMA-262 `u`-mode parser and Pike VM in both ports; the regenerated regex corpus; ADR-003's direction recorded as a decision |
 | **14**: legacy dialects | M | **NOT STARTED** | the upgrade stage; the `jsonschema-upgrade` mode; the draft-04 to 2019-09 suite directories in the harness |
 | **15**: vocabularies and the meta-schema | M | **NOT STARTED** | the vocabulary TSV generated into both ports; the bundled meta-schema models; input validated before mapping |

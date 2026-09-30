@@ -6,7 +6,9 @@ opened 2026-09-30. Per-phase status is in the
 this document is authoritative for design. It expands gap G12, whether
 aontu can carry every JSON Schema 2020-12 construct with full fidelity,
 with a keyword-by-keyword gap matrix, alternatives, an explicit
-boundary, risks, and an implementation plan.*
+boundary, risks, and an implementation plan. Revised the same day:
+every format is an ABNF grammar, and `format` takes a grammar as
+`parse` does ([section 5](#5-strings-patterns-and-formats)).*
 
 ## Problem
 
@@ -278,7 +280,7 @@ Every carrier is in both ports.
 | `default` | a `*` preference exports `default` | lossy | the `meta` rider; `*` only under an option |
 | `deprecated` | `deprecate()` | lossy | `deprecate()`, its record carried in an extension keyword |
 | `format`, annotation mode | none | absent | the `meta` rider |
-| `format`, assertion mode, 19 attributes | none | absent | `format(name)` with aontu-owned checkers |
+| `format`, assertion mode, 19 attributes | none | absent | `format(name, g?)` over nineteen committed ABNF grammars; a grammar argument defines more |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | none | absent | the `meta` rider; never asserted |
 | unknown keywords | none | absent | the `meta` rider, under `x` |
 
@@ -508,19 +510,110 @@ regular language, and both stay reported losses.
 mode, the 2020-12 default, `format` is a record on the `meta` rider and
 never asserts. In assertion mode, selected by a meta-schema whose
 `$vocabulary` requires `format-assertion` or by an explicit importer
-switch, it is also **`format(name) : constraint`**, a Band A atom in
-the string domain that accumulates like `re`. Its checkers are aontu
-code in both ports: committed ABNF texts through the shared tabnas
-engine (ADR-033) for `email`, `idn-email`, `uri`, `uri-reference`,
-`iri`, `iri-reference`, `uri-template`, `duration`, `json-pointer`,
-`relative-json-pointer`, `ipv6` and `regex`; hand-written twins for
-`date`, `time` and `date-time` (calendar and leap-second rules),
-`ipv4`, `uuid` and `hostname`; and IDNA2008 over a generated Unicode
-table for `idn-hostname`. An unknown name in assertion mode refuses at
-declaration with a new code, `format_unknown`. The exporter writes
-`format` for either mode, and reports a loss when an asserting atom is
-exported under the default dialect, which would read it as an
-annotation.
+switch, it is also **`format(name, g?) : constraint`**, a Band A atom
+in the string domain that accumulates like `re`.
+
+**Every format is an ABNF grammar, and `format` takes one as `parse`
+does.** `name` is what the `format` keyword holds. `g` is a grammar in
+the form `parse(g)` takes (ADR-033): an RFC 5234 string,
+compiled once, refused where it is declared with `abnf_grammar` when it
+does not compile, and run under the same step bound. Without `g`, the
+name selects one of nineteen committed grammars, one per 2020-12
+format. With `g`, it names a format the document defines, which is how
+the set grows. Neither port holds checker code: the nineteen are files
+under `grammar/format/`, staged into both ports as the signature table
+is and asserted byte-identical with their source, and the tabnas
+engine, pinned to one version in both ports, runs them. A string the
+grammar refuses is `parse_failed`, as under `parse(g)`, with the
+format's name in the finding.
+
+**A name means one grammar.** A committed name takes no grammar, so
+`format("email", g)` refuses where it is declared, and two `format`
+atoms that meet with one name and different grammar texts refuse at the
+meet, naming both sites. Both refusals carry a new code,
+`format_redefined`, class `conflict`. A name with neither a committed
+grammar nor a given one refuses where it is declared with
+`format_unknown`. A defined format is reused by reference, like any
+value: an alias holding `format("semver", g)`, or a hidden member
+holding `g`, as the `Semver` vocabulary holds its grammars.
+
+**A grammar is admitted only in a form the engine runs as written.**
+The engine does not give every grammar its RFC 5234 meaning. RFC 3986's
+`dec-octet`, transcribed as published, admits `0` to `99` and refuses
+`100` to `255` in both ports, and reversing its alternatives still
+refuses `255`. The same language written with single-character
+literals, no two alternatives of a rule beginning with the same
+character, is exact in both. The published form compiles, so nothing
+refuses it where it is declared: it refuses valid strings later, one
+instance at a time. `format` therefore checks every grammar it runs,
+committed or given, before its first use: no two alternatives of a rule
+may begin with the same character, an option or a repetition may not
+begin with a character that can also follow it, and no character class
+may overlap a literal the grammar uses elsewhere, the rule ADR-033
+records. A grammar that breaks one refuses with a new code,
+`format_grammar`, class `parse`, naming the rule and the character. The
+committed grammars are the RFC grammars rewritten into this form, each
+naming in a comment the RFC section it transcribes.
+
+**The rules the RFCs leave in prose are finite-state, so they are
+grammar too.** The days of each month and the 29 February of a leap
+year (RFC 3339), a second of `60` only in the minute that is 23:59 in
+UTC once the offset is applied, the 63-octet label, and IDNA2008's code
+point classes, contextual rules and Bidi rule (RFCs 5892 and 5893) are
+each a condition a finite automaton checks. The small ones are written
+by hand. The large ones, the IDNA2008 tables from the Unicode Character
+Database and the leap-second pairs, come from one committed generator
+and are regenerated, never edited; the IDNA2008 tables move only when
+the pinned Unicode version does. The UTS #46 mappings the suite's
+`idn-hostname` tests expect (the four label separators, the ignored
+code points, width folding) substitute code points, so the grammar
+accepts a mapped code point wherever it accepts its image.
+
+**The empty string is decided by the grammar.** `parse` refuses `""`
+under every grammar (ADR-033), because both engines accept empty input
+under any. `format` cannot: `json-pointer`,
+`uri-reference` and `uri-template` admit `""` by their RFCs, and the
+suite tests all three. `format` admits `""` exactly when the grammar's
+start rule derives the empty string, decided by aontu's own pass over
+the grammar's rules without asking the engine, so the suite's ten
+empty-string tests come out as it expects: three admit it and seven
+refuse it. The determinism check runs in the same pass, and both are
+aontu code in both ports, as ADR-003 asks where a host library would
+otherwise decide the meaning.
+
+**The step bound errs toward refusal.** A tripped bound surfaces as
+`parse_failed`, so a valid string too long for it is refused and never
+admitted. A committed grammar is deterministic, so its step count grows
+linearly with the input, and each carries a row at the longest input
+the suite gives it.
+
+**What no grammar states is not checked.** Punycode is an algorithm: an
+A-label is held to its ASCII syntax and never decoded, so the
+contextual rules reach a U-label and not the A-label that encodes one.
+A host name's whole-name length is a count across labels, which a
+grammar can state only with a separate rule for every length reached,
+and `len(max(253))` states it where an author wants it. Unicode
+normalisation is not checked; the suite's three tests of it expect
+input that is not NFC to be valid, which a grammar that does not
+normalise already answers. Measured on 2026-09-30 against the suite's
+2020-12 `optional/format/` directory, thirty of its 742 string tests
+need what stays outside: 28 whose A-label must be decoded, 23 of them
+`hostname` and five `idn-hostname`, one whose U-label must be encoded
+to measure it, and one whole-name length. Each is a listed skip with
+that reason.
+
+**A defined format crosses by name, with its grammar beside it.** The
+exporter writes `format` for either mode, and reports a loss when an
+asserting atom is exported under the default dialect, which would read
+it as an annotation. For a defined format it also writes the grammar in
+an extension keyword, `x-aontu-format`, and reports a loss, since a
+validator without the grammar ignores the name or, under
+`format-assertion`, fails on it. The importer reads `x-aontu-format`
+back, and takes further grammars in a format set, `{name: grammar}`,
+handed to it as the document set is. In assertion mode, a name that is
+neither committed nor supplied refuses the import with
+`format_unknown`, as 2020-12 requires of an unknown format under
+`format-assertion`.
 
 The content keywords ride the `meta` rider and never assert, as the
 specification requires.
@@ -821,7 +914,7 @@ with `jsonschema_schema`, located by the meta-schema's keyword.
 The import mode answers aontu text on stdout and the report on stderr,
 as the export does, and `--format json` puts both in one object. Its
 options are the dialect default, the retrieval URI, the document set,
-format assertion, default filling and `--strict`.
+format assertion and the format set, default filling and `--strict`.
 
 **`vet --output flag|basic`** projects a `vet` report onto 2020-12's
 output units. `flag` is `{valid}`, where `incomplete` is `false`.
@@ -891,11 +984,12 @@ definition.
 
 | Kind | Items |
 |---|---|
-| New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)` |
+| New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name, g?)`, `meta(v, ...r)` |
 | New options | `vet --no-fill`, `vet --exact-numbers`, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
-| New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`) |
+| New engine codes | `nof`, `when`, `format_unknown`, `format_redefined` (class `conflict`); `format_grammar` (`parse`); `vet_filled` (`incomplete`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
 | New shared modes | `jsonschema-import`, `jsonschema-upgrade` |
+| Committed grammars | nineteen under `grammar/format/`, the large ones from one committed generator |
 | New ADRs | required wins in the meet; the admission trial and Band B checks; the annotation rider's union meet; the importer owns JSON Schema's meaning |
 | Existing defects fixed first | [#295](https://github.com/aontu-lang/aontu/issues/295), [#296](https://github.com/aontu-lang/aontu/issues/296), [#297](https://github.com/aontu-lang/aontu/issues/297), [#298](https://github.com/aontu-lang/aontu/issues/298), [#299](https://github.com/aontu-lang/aontu/issues/299), [#300](https://github.com/aontu-lang/aontu/issues/300), [#301](https://github.com/aontu-lang/aontu/issues/301), [#302](https://github.com/aontu-lang/aontu/issues/302) |
 
@@ -922,8 +1016,9 @@ from `breaking` than schemas built from types, bounds and properties.
 - **No network.** `$ref` and `$schema` never fetch. Remote resources
   arrive in the document set, and the trust contract is unchanged.
 - **No host semantics.** No host regex, URL, date or IP parser decides
-  a keyword's meaning (ADR-003). Every checker is aontu code in both
-  ports.
+  a keyword's meaning (ADR-003). Every format is a committed grammar,
+  admitted only in a form the engine runs as written, and every other
+  checker is aontu code in both ports.
 - **No complement in the lattice.** `not`, `oneOf`, `if` and
   `unevaluated*` are Band B checks: they never narrow a value and never
   take part in emptiness or subsumption. The review's refusal of
@@ -931,6 +1026,10 @@ from `breaking` than schemas built from types, bounds and properties.
 - **No backreferences or lookaround** in `pattern`, ever. Neither is a
   regular language, and both stay reported losses after the owned
   matcher lands.
+- **No format rule outside a grammar.** Punycode, a host name's
+  whole-name length and Unicode normalisation are not checked, and the
+  suite tests that need the first two are listed skips
+  ([section 5](#5-strings-patterns-and-formats)).
 - **No number beyond the digit budget.** Under `--exact-numbers` a
   data number is read exactly within the existing budget of 4096 digits
   and scale. One beyond it is refused as data rather than rounded, and a
@@ -956,7 +1055,9 @@ from `breaking` than schemas built from types, bounds and properties.
 | The required-wins meet (#298) changes the answer for existing documents | Medium | High | An ADR, a `breaking` run over every use case and bundled model before it lands, and `canon`, `gens` and `subsume` rows probed from both engines |
 | The admission trial is slow: every Band B atom trial-generates every branch | Medium | Medium | Decide scalars at the meet; charge trials against the existing event budget; the suite's timing per port is reported in the register |
 | Specialising `$dynamicRef` multiplies aliases for deep generic schemas | Low | Medium | The environment set is finite by construction; a budget refuses runaway specialisation with `jsonschema_budget` rather than hanging |
-| The two ports' format checkers or Unicode tables drift | Medium | High | Generated tables committed once and asserted byte-identical, the regex-corpus precedent; the vendored `optional/format` suite runs in both |
+| The two ports' engines answer one grammar differently | Low | High | One grammar text per format, staged byte-identical; the engine pinned to one version in both ports (ADR-033); the vendored `optional/format` suite runs in both |
+| A committed grammar is wrong, and a fix to it changes what `format(name)` admits while no document's hash moves | Medium | High | Each grammar names the RFC section it transcribes and carries rows for the rules the RFC leaves in prose; a change to one lands with its rows and a CHANGELOG line, like any change to what the language admits |
+| The determinism check refuses a grammar an author needs, or a long valid string trips the step bound | Medium | Medium | The refusal names the rule and the character to rewrite; committed grammars are deterministic, and each carries a row at its longest suite input |
 | The skip ledger becomes a place to hide failures | Medium | High | A passing skipped test fails the run; the bound tightens per phase; each skip names a construct and a reason |
 | `nof` and `when` look like general predicates and grow into a programming language | Low | High | Band B atoms take only schema values, never functions; G8's no-guard rule for `match` stands; the ADR states the family closed |
 | Seven builtins raise the surface an agent must learn | Medium | Medium | Each is named for the JSON Schema keyword family it carries; the teaching pack gains one page mapping keywords to spellings |
@@ -1043,10 +1144,14 @@ records the importer writes, the branch hoisting that shares them with
 `nof` and `when`, and both `unevaluated*` keywords in both directions,
 with its ADR.
 
-**Phase 12: format assertion (L).** `format(name)` and
-`format_unknown`; the ABNF texts; the date, time, IP, UUID and hostname
-twins; IDNA2008 over a generated, committed Unicode table asserted
-byte-identical in both ports; `optional/format/` in the harness.
+**Phase 12: format assertion (L).** `format(name, g?)` with
+`format_unknown`, `format_redefined` and `format_grammar`; the
+determinism check and the empty-string rule, one pass over a grammar's
+rules in each port; the nineteen committed grammars under
+`grammar/format/` and the generator for the large ones, staged
+byte-identical into both ports; the format set on the import mode and
+`x-aontu-format` on export; `optional/format/` in the harness, with the
+tests that need Punycode or a whole-name length on the skip ledger.
 
 **Phase 13: the owned regex matcher (L).** An ECMA-262 `u`-mode parser
 and a Pike VM in both ports, Unicode property tables, the regenerated
@@ -1111,6 +1216,17 @@ are forced as well:
    is a valid module path could name an aontu package directly (ADR-020),
    which would let a JSON Schema catalogue become an aontu registry. Out
    of scope here and worth a gap of its own if asked for.
+6. **Should Punycode be checked?** It is an algorithm, not a grammar, so
+   checking it would be the one piece of format code in either port.
+   Without it, an A-label is accepted on its syntax, and the tests that
+   need one decoded or encoded are listed skips
+   ([section 5](#5-strings-patterns-and-formats)).
+7. **Should `parse` take `format`'s two rules?** The determinism check
+   and the empty-string rule are passes over a grammar's rules, and
+   `parse(g)` has the same exposure: the RFC `dec-octet` measured in
+   section 5 was run through `parse`. Adopting them there changes the
+   answer for documents that parse today, so it is a decision of its
+   own.
 
 ## Appendix: the inventory
 
