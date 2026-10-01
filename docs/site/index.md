@@ -523,9 +523,9 @@ absence looks like an oversight.
 
 ## Recording the decision
 
-When the site is built, D2 — *the site renders, it does not author* —
-belongs in [`ADR.md`](../../ADR.md) as a new entry at the next free
-number. It is exactly the kind of decision that file exists for: cheap
+D2, *the site renders, it does not author*, is recorded as
+[ADR-044](../../ADR.md#adr-044--the-site-renders-the-documentation-it-does-not-author-it),
+because it is exactly the kind of decision that file exists for: cheap
 to reverse by accident, expensive to have reversed, and invisible in the
 diff that reverses it. The other decisions here are implementation
 choices and stay in this document.
