@@ -20,8 +20,9 @@
 #               residual, so additionalProperties is {} and the `&`
 #               entry is reported `unresolved`. (A bare-kind template,
 #               registry.aontu's labels, crosses without loss.)
-#   attempts    len() on a list has no domain until data arrives:
-#               exported as minItems/maxItems, and still reported.
+#   attempts    len() beside a list counts its items, so the bound
+#               crosses as maxItems with nothing to report; a bare
+#               len() with no bag or string beside it is the loss.
 
 report: {
   total: number & must((v) => 0 <= v, "total must not be negative")

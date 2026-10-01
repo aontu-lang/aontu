@@ -1327,12 +1327,21 @@ preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern` (aontu's portable subset is a subset of
 ECMA-262, which is what JSON Schema reads, so no translation happens);
-`neq` becomes `not: {enum: …}`; `length` becomes
-`minLength`/`maxLength` on a string and `minItems`/`maxItems`
-otherwise; `unique()` becomes `uniqueItems`; an optional key is simply
-absent from `required`. A spread is `additionalProperties: <template>`,
-which is what a spread means. A written list is a **tuple**, so
-`prefixItems` plus `items: false`.
+`neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
+`len` becomes `minLength`/`maxLength` on a string,
+`minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
+a list, an open bound rounded inward to the next whole number
+(`len(above(2))` is `minLength: 3`) and an excluded count as `not`
+both bounds at it; `unique()` becomes `uniqueItems`; an optional key is
+simply absent from `required`; `map` and `list` become `object` and
+`array`; a disjunction of bare kinds becomes a `type` array; a bare
+`*x` becomes the kind of x, with x as `default`, because `*1` admits
+every integer; and a written `nil` becomes the schema `false`, because it
+admits nothing. A spread is `additionalProperties: <template>`, which
+is what a spread means. A written list is `prefixItems` for its
+positions and `minItems` for their count, and it stays **open**, as
+the meet does: `[integer, string]` admits `[1, "x", true]`, so only
+`close()` adds `items: false`.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1359,10 +1368,12 @@ The losses, and why each is one:
 | `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| an exact `0d` endpoint binary64 cannot hold | the bound crosses as the nearest double, which draws a different boundary; one beyond binary64 altogether is omitted |
+| `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
-| residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
+| residue: an unresolved reference, a waiting call, a nil the engine minted | not a property constraint at all; guessing one would be inventing a promise |
 
 The exact-leaf loss is the one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss (the

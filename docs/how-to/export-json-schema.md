@@ -153,6 +153,7 @@ report: {
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   attempts: [&: integer] & len(max(3))
+  retries: len(max(3))
 }
 ```
 
@@ -170,14 +171,17 @@ $ aontu jsonschema --at report report.aontu
         "type": "integer"
       },
       "maxItems": 3,
-      "minItems": 0,
       "type": "array"
+    },
+    "retries": {
+      "maxItems": 3
     },
     "total": {}
   },
   "required": [
     "amountEur",
     "attempts",
+    "retries",
     "total"
   ],
   "type": "object"
@@ -194,8 +198,8 @@ a schema admitting more than the model does:
 $ aontu jsonschema --strict --at report report.aontu
 ...
 lossy: $.report.amountEur bigdecimal: JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says "number" and a consumer may round
-lossy: $.report.attempts len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
+lossy: $.report.retries len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
 lossy: $.report.total nil: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
 1
@@ -213,10 +217,12 @@ the export loss-free as a decimal string with a conversion mark.
 The report above already pins two of them. First, `must()` holds the whole value residual, so `number &
 must(...)` exports `{}` under the construct name `nil`: the check is
 opaque by construction, and the `number` kind beside it is lost with
-it (a concrete `5 & must(...)` exports `{}` all the same). Second,
-`len()` on a list has no domain until data arrives, so `attempts`
-exported real `minItems`/`maxItems` and was still reported: the
-keywords are the sizing atom's best rendering, not its meaning.
+it (a concrete `5 & must(...)` exports `{}` all the same). Second, a
+count needs something to count. `attempts` sizes a list, so its
+`len(max(3))` crossed as `maxItems` with nothing to report, and beside
+a map it would be `maxProperties`; `retries` is a bare count with no
+list, map or string beside it, so its domain is undecided, the export
+writes `minItems`/`maxItems` as the convention, and the report says so.
 
 Third, a spread template crosses as `additionalProperties` (or
 `items`) only when it is a bare kind. A template carrying a

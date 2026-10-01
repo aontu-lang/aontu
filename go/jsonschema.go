@@ -3,6 +3,8 @@
 package aontu
 
 import (
+	"encoding/json"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -68,20 +70,64 @@ var kindType = map[Kind]string{
 	KindPath: "string",
 }
 
+var schemaCountKeys = map[string][2]string{
+	"string": {"minLength", "maxLength"},
+	"map":    {"minProperties", "maxProperties"},
+	"list":   {"minItems", "maxItems"},
+}
+
+// schemaEndpoint: the nearest float64, whether it is exact, and whether one is finite.
+func schemaEndpoint(sv *ScalarVal) (f float64, exact bool, finite bool) {
+	switch sv.kind {
+	case KindBigInteger:
+		f, acc := new(big.Float).SetInt(sv.peg.(*big.Int)).Float64()
+		return f, big.Exact == acc, !math.IsInf(f, 0)
+	case KindBigDecimal:
+		d := sv.peg.(*Decimal)
+		f, exact := new(big.Rat).SetFrac(d.coeff, pow10(int64(d.scale))).Float64()
+		return f, exact, !math.IsInf(f, 0)
+	}
+	return 0, true, true
+}
+
 // scalarSchemaJSON is the JSON value of a concrete scalar, for const,
 // enum and default.
 func scalarSchemaJSON(sv *ScalarVal) any {
 	switch sv.kind {
-	case KindBigInteger:
-		f, _ := new(big.Float).SetInt(sv.peg.(*big.Int)).Float64()
+	case KindBigInteger, KindBigDecimal:
+		f, _, _ := schemaEndpoint(sv)
 		return f
-	case KindBigDecimal:
-		f, _, _ := big.ParseFloat(sv.peg.(*Decimal).digits(), 10, 53,
-			big.ToNearestEven)
-		out, _ := f.Float64()
-		return out
 	}
 	return sv.peg
+}
+
+func schemaConstJSON(sc *schemaCtx, path []string, sv *ScalarVal) (any, bool) {
+	if KindBigInteger == sv.kind || KindBigDecimal == sv.kind {
+		if _, _, finite := schemaEndpoint(sv); !finite {
+			sc.lose(path, "exact literal",
+				"this exact value lies beyond binary64, and JSON has no number "+
+					"for it, so the schema cannot carry it")
+			return nil, false
+		}
+		sc.lose(path, "exact literal",
+			"JSON has one number type and it is binary64, so this exact "+
+				"value is emitted as the nearest JSON number")
+	}
+	return scalarSchemaJSON(sv), true
+}
+
+// schemaDedupeJSON: 1 and 1.0 are one JSON number, so an enum carries it once.
+func schemaDedupeJSON(vals []any) []any {
+	seen := map[string]bool{}
+	out := []any{}
+	for _, v := range vals {
+		key, _ := json.Marshal(v)
+		if !seen[string(key)] {
+			seen[string(key)] = true
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // schemaLosePath: a path is its address string at the JSON boundary,
@@ -92,16 +138,18 @@ func schemaLosePath(sc *schemaCtx, path []string) {
 			"the schema says \"string\" and admits any string here")
 }
 
+func schemaLoseExactKind(sc *schemaCtx, path []string, leaf, t string) {
+	sc.lose(path, leaf,
+		"JSON has one number type and it is binary64, so the EXACTNESS "+
+			"this leaf exists for cannot be carried; the schema says "+
+			"\""+t+"\" and a consumer may round")
+}
+
 // schemaAtLeastOne reports whether an exported length bound is already
 // at least 1.
 func schemaAtLeastOne(v any) bool {
-	switch n := v.(type) {
-	case int64:
-		return 1 <= n
-	case float64:
-		return 1 <= n
-	}
-	return false
+	n, ok := v.(int64)
+	return ok && 1 <= n
 }
 
 func scalarSchemaType(sv *ScalarVal) string {
@@ -116,12 +164,93 @@ func scalarSchemaType(sv *ScalarVal) string {
 	return "string"
 }
 
-// schemaFromConstraint maps the residual's atoms onto JSON Schema's
-// keywords. The three that map exactly (bounds, pattern, count) go
-// across; the two that cannot (must, unique(k)) are reported.
+// schemaKindOfLiteral is what a bare `*x` admits beside x.
+func schemaKindOfLiteral(sc *schemaCtx, path []string, sv *ScalarVal) map[string]any {
+	t := scalarSchemaType(sv)
+	if KindBigInteger == sv.kind {
+		schemaLoseExactKind(sc, path, "biginteger", t)
+	}
+	if KindBigDecimal == sv.kind {
+		schemaLoseExactKind(sc, path, "bigdecimal", t)
+	}
+	if "string" == t {
+		return map[string]any{"type": t, "minLength": 1}
+	}
+	return map[string]any{"type": t}
+}
+
+// schemaBoundOut reports what JSON cannot say about a bound, never approximates it.
+func schemaBoundOut(sc *schemaCtx, path []string, out map[string]any,
+	b *constraintBound, isLo bool) {
+	atom, key := "min", "minimum"
+	if isLo && b.open {
+		atom, key = "above", "exclusiveMinimum"
+	} else if !isLo && b.open {
+		atom, key = "below", "exclusiveMaximum"
+	} else if !isLo {
+		atom, key = "max", "maximum"
+	}
+	switch b.v.kind {
+	case KindInteger, KindFloat, KindBigInteger, KindBigDecimal:
+	default:
+		sc.lose(path, atom,
+			"JSON Schema has no keyword for a bound on a string (minimum and "+
+				"maximum take numbers only), so this bound is DROPPED and the "+
+				"schema admits strings outside it")
+		return
+	}
+	_, exact, finite := schemaEndpoint(b.v)
+	if !finite {
+		sc.lose(path, atom,
+			"this exact endpoint lies beyond binary64, and JSON has no number "+
+				"for it, so the bound is OMITTED and the schema admits values the "+
+				"model refuses")
+		return
+	}
+	if !exact {
+		sc.lose(path, atom,
+			"JSON has one number type and it is binary64, which cannot hold "+
+				"this exact endpoint; the schema carries the nearest number, so "+
+				"the boundary it draws is not the model's")
+	}
+	out[key] = scalarSchemaJSON(b.v)
+}
+
+func schemaNumber(sv *ScalarVal) float64 {
+	switch n := scalarSchemaJSON(sv).(type) {
+	case int64:
+		return float64(n)
+	case float64:
+		return n
+	}
+	return 0 //coverage:ignore a count is always numeric
+}
+
+// schemaCountEndpoint: the whole number a count keyword takes; above(2) is at least 3.
+func schemaCountEndpoint(b *constraintBound, isLo bool) (int64, bool) {
+	if nil == b {
+		return 0, false
+	}
+	n := schemaNumber(b.v)
+	switch {
+	case isLo && b.open:
+		return int64(math.Floor(n)) + 1, true
+	case isLo:
+		return int64(math.Ceil(n)), true
+	case b.open:
+		return int64(math.Ceil(n)) - 1, true
+	}
+	return int64(math.Floor(n)), true
+}
+
+// schemaFromConstraint maps the residual's atoms onto keywords; `bag`
+// names what a count counted ("map", "list" or "").
 func schemaFromConstraint(sc *schemaCtx, path []string,
-	c *ConstraintVal) map[string]any {
+	c *ConstraintVal, bag string) map[string]any {
 	out := map[string]any{}
+	// allOf members: a second pattern or exclusion has no keyword of its own.
+	extra := []any{}
+	nots := []map[string]any{}
 
 	if t, ok := kindType[c.kind]; ok {
 		out["type"] = t
@@ -132,18 +261,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	}
 
 	if nil != c.lo {
-		key := "minimum"
-		if c.lo.open {
-			key = "exclusiveMinimum"
-		}
-		out[key] = scalarSchemaJSON(c.lo.v)
+		schemaBoundOut(sc, path, out, c.lo, true)
 	}
 	if nil != c.hi {
-		key := "maximum"
-		if c.hi.open {
-			key = "exclusiveMaximum"
-		}
-		out[key] = scalarSchemaJSON(c.hi.v)
+		schemaBoundOut(sc, path, out, c.hi, false)
 	}
 
 	// neq(1,2) is "not one of these", which is exactly not: {enum}.
@@ -152,38 +273,56 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		for _, n := range c.neqs {
 			vals = append(vals, scalarSchemaJSON(n))
 		}
-		out["not"] = map[string]any{"enum": vals}
+		nots = append(nots, map[string]any{"enum": schemaDedupeJSON(vals)})
 	}
 
 	if 1 == len(c.res) {
 		out["pattern"] = c.res[0].src
 	} else if 1 < len(c.res) {
-		all := make([]any, 0, len(c.res))
 		for _, r := range c.res {
-			all = append(all, map[string]any{"pattern": r.src})
+			extra = append(extra, map[string]any{"pattern": r.src})
 		}
-		out["allOf"] = all
 	}
 
-	// A COUNT is a length or a size depending on what is counted, and
-	// the residual does not always know which.
 	if nil != c.count {
-		str := "string" == c.domain || "string" == out["type"]
-		lokey, hikey := "minItems", "maxItems"
-		if str {
-			lokey, hikey = "minLength", "maxLength"
+		domain := bag
+		if "string" == c.domain || "string" == out["type"] {
+			domain = "string"
 		}
-		if nil != c.count.lo {
-			out[lokey] = scalarSchemaJSON(c.count.lo.v)
+		keys := schemaCountKeys["list"]
+		if "" != domain {
+			keys = schemaCountKeys[domain]
 		}
-		if nil != c.count.hi {
-			out[hikey] = scalarSchemaJSON(c.count.hi.v)
+		// A whole-number count's zero lower bound says nothing.
+		if lo, ok := schemaCountEndpoint(c.count.lo, true); ok && 0 < lo {
+			out[keys[0]] = lo
 		}
-		if !str && "" == c.domain {
+		if hi, ok := schemaCountEndpoint(c.count.hi, false); ok {
+			out[keys[1]] = hi
+		}
+		// An excluded length is exactly not both bounds at it.
+		for _, n := range c.count.neqs {
+			k := schemaNumber(n)
+			if k == math.Trunc(k) {
+				nots = append(nots, map[string]any{keys[0]: int64(k), keys[1]: int64(k)})
+			}
+		}
+		if "" == domain {
 			sc.lose(path, "len",
 				"a count with no domain is exported as minItems/maxItems; "+
 					"JSON Schema has no keyword that counts a string OR a container")
 		}
+	}
+
+	if 1 == len(nots) {
+		out["not"] = nots[0]
+	} else if 1 < len(nots) {
+		for _, n := range nots {
+			extra = append(extra, map[string]any{"not": n})
+		}
+	}
+	if 0 < len(extra) {
+		out["allOf"] = extra
 	}
 
 	if c.nonEmpty && !c.emptyOk && !schemaAtLeastOne(out["minLength"]) {
@@ -216,32 +355,35 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 var schemaDeprecationText = []string{"msg", "use", "since"}
 
-func schemaFromVal(sc *schemaCtx, path []string, v Val) map[string]any {
+// schemaFromVal is a schema object, or false where a value admits nothing.
+func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 	out := schemaFromValInner(sc, path, v)
 
 	if nil != v {
-		if rec := v.deprecRec(); nil != rec && nil != out {
-			said := []string{}
-			for _, k := range schemaDeprecationText {
-				if _, ok := rec[k]; ok {
-					said = append(said, k)
+		if rec := v.deprecRec(); nil != rec {
+			if obj, ok := out.(map[string]any); ok {
+				said := []string{}
+				for _, k := range schemaDeprecationText {
+					if _, ok := rec[k]; ok {
+						said = append(said, k)
+					}
 				}
+				if 0 < len(said) {
+					sc.lose(path, "deprecate",
+						"JSON Schema 2020-12 has the `deprecated` flag and no field "+
+							"for what it SAYS, so "+strings.Join(said, "/")+
+							" cannot cross; the schema marks the property deprecated "+
+							"and a consumer must read the model for the reason")
+				}
+				obj["deprecated"] = true
 			}
-			if 0 < len(said) {
-				sc.lose(path, "deprecate",
-					"JSON Schema 2020-12 has the `deprecated` flag and no field "+
-						"for what it SAYS, so "+strings.Join(said, "/")+
-						" cannot cross; the schema marks the property deprecated "+
-						"and a consumer must read the model for the reason")
-			}
-			out["deprecated"] = true
 		}
 	}
 
 	return out
 }
 
-func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
+func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 	if nil == v { //coverage:ignore a bag never holds a nil child
 		// Defensive. Every caller walks a bag's own children, and a bag
 		// holds Vals; the guard is here so a degenerate parse cannot
@@ -251,9 +393,20 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 
 	switch t := v.(type) {
 	case *PrefVal:
+		// A bare `*x` admits every value of x's kind and prefers x (ADR-004),
+		// so const: x would refuse what the model admits.
+		if sv, ok := t.peg.(*ScalarVal); ok {
+			inner := schemaKindOfLiteral(sc, path, sv)
+			if d, ok := schemaConstJSON(sc, path, sv); ok {
+				inner["default"] = d
+			}
+			return inner
+		}
 		inner := schemaFromVal(sc, path, t.peg)
 		if gen, ok := schemaGenerated(t.peg); ok {
-			inner["default"] = gen
+			if obj, ok := inner.(map[string]any); ok {
+				obj["default"] = gen
+			}
 		}
 		return inner
 
@@ -261,16 +414,29 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 		return schemaFromDisjunct(sc, path, t)
 
 	case *ConstraintVal:
-		return schemaFromConstraint(sc, path, t)
+		// Arguments the constructor refused (neq(1, "a") spans domains)
+		// leave a constraint that refuses every peer: it admits nothing.
+		if "" != t.invalid {
+			return false
+		}
+		return schemaFromConstraint(sc, path, t, "")
 
 	case *ConjunctVal:
 		if con, bag, ok := sizingResidue(t); ok {
-			out := schemaFromVal(sc, path, bag)
-			for k, val := range schemaFromConstraint(sc, path, con) {
+			out := schemaFromVal(sc, path, bag).(map[string]any)
+			counted := "list"
+			if _, isMap := bag.(*MapVal); isMap {
+				counted = "map"
+			}
+			for k, val := range schemaFromConstraint(sc, path, con, counted) {
 				out[k] = val
 			}
 			return out
 		}
+
+	case *ExpectVal:
+		// The member a second map literal expects reads through to its constraint.
+		return schemaFromVal(sc, path, t.peg)
 
 	case *MapVal:
 		return schemaFromMap(sc, path, t)
@@ -278,12 +444,15 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 	case *ListVal:
 		return schemaFromList(sc, path, t)
 
+	case *MapKindVal:
+		return map[string]any{"type": "object"}
+
+	case *ListKindVal:
+		return map[string]any{"type": "array"}
+
 	case *ScalarKindVal:
 		if KindBigInteger == t.kind || KindBigDecimal == t.kind {
-			sc.lose(path, t.kind.String(),
-				"JSON has one number type and it is binary64, so the EXACTNESS "+
-					"this leaf exists for cannot be carried; the schema says "+
-					"\""+kindType[t.kind]+"\" and a consumer may round")
+			schemaLoseExactKind(sc, path, t.kind.String(), kindType[t.kind])
 		}
 		if KindPath == t.kind {
 			schemaLosePath(sc, path)
@@ -304,14 +473,16 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) map[string]any {
 		if KindNull == t.kind {
 			return map[string]any{"type": "null"}
 		}
-		if KindBigInteger == t.kind || KindBigDecimal == t.kind {
-			sc.lose(path, "exact literal",
-				"JSON has one number type and it is binary64, so this exact "+
-					"value is emitted as the nearest JSON number")
+		out := map[string]any{"type": scalarSchemaType(t)}
+		if c, ok := schemaConstJSON(sc, path, t); ok {
+			out["const"] = c
 		}
-		return map[string]any{
-			"const": scalarSchemaJSON(t),
-			"type":  scalarSchemaType(t),
+		return out
+
+	case *NilVal:
+		// A written nil is bottom and admits nothing; a minted one is a refusal nobody collected.
+		if "literal_nil" == t.why {
+			return false
 		}
 	}
 
@@ -354,6 +525,20 @@ func schemaGenerated(v Val) (any, bool) {
 	return out, true
 }
 
+// schemaTypeFold: bare kinds fold to a type array; anything more keeps the anyOf.
+func schemaTypeFold(members []any) map[string]any {
+	types := make([]any, 0, len(members))
+	for _, m := range members {
+		obj, isObj := m.(map[string]any)
+		t, isType := obj["type"].(string)
+		if !isObj || 1 != len(obj) || !isType {
+			return map[string]any{"anyOf": members}
+		}
+		types = append(types, t)
+	}
+	return map[string]any{"type": types}
+}
+
 func schemaFromDisjunct(sc *schemaCtx, path []string,
 	v *DisjunctVal) map[string]any {
 	var def any
@@ -371,26 +556,30 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 		bare = append(bare, m)
 	}
 
-	consts := make([]any, 0, len(bare))
 	allConst := true
 	for _, m := range bare {
-		sv, ok := m.(*ScalarVal)
-		if !ok || KindNil == sv.kind {
+		if sv, ok := m.(*ScalarVal); !ok || KindNil == sv.kind {
 			allConst = false
 			break
 		}
-		consts = append(consts, scalarSchemaJSON(sv))
 	}
 
-	out := map[string]any{}
+	var out map[string]any
 	if allConst {
-		out["enum"] = consts
-	} else {
-		any_ := make([]any, 0, len(bare))
+		// A member no finite double holds is reported and left out.
+		consts := make([]any, 0, len(bare))
 		for _, m := range bare {
-			any_ = append(any_, schemaFromVal(sc, path, m))
+			if c, ok := schemaConstJSON(sc, path, m.(*ScalarVal)); ok {
+				consts = append(consts, c)
+			}
 		}
-		out["anyOf"] = any_
+		out = map[string]any{"enum": schemaDedupeJSON(consts)}
+	} else {
+		members := make([]any, 0, len(bare))
+		for _, m := range bare {
+			members = append(members, schemaFromVal(sc, path, m))
+		}
+		out = schemaTypeFold(members)
 	}
 	if haveDef {
 		out["default"] = def
@@ -436,7 +625,7 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 		out["required"] = required
 	}
 
-	var spread map[string]any
+	var spread any
 	if nil != v.spread {
 		spread = schemaFromVal(sc,
 			append(append([]string{}, path...), "&"), v.spread)
@@ -459,31 +648,25 @@ func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
 		}
 	}
 
-	// A list with a spread template is homogeneous: every element, named
-	// or not, satisfies it. That is items.
-	if nil != v.spread {
-		out := map[string]any{
-			"type": "array",
-			"items": schemaFromVal(sc,
-				append(append([]string{}, path...), "&"), v.spread),
+	out := map[string]any{"type": "array"}
+	if 0 < len(idx) {
+		prefix := make([]any, 0, len(idx))
+		for _, i := range idx {
+			prefix = append(prefix, schemaFromVal(sc,
+				append(append([]string{}, path...), itoa(i)), v.peg[i]))
 		}
-		if 0 < len(idx) {
-			out["minItems"] = len(idx)
-		}
-		return out
+		out["prefixItems"] = prefix
+		out["minItems"] = len(idx)
 	}
 
-	prefix := make([]any, 0, len(idx))
-	for _, i := range idx {
-		prefix = append(prefix, schemaFromVal(sc,
-			append(append([]string{}, path...), itoa(i)), v.peg[i]))
+	// An open list admits anything after its positions, as the meet does.
+	if nil != v.spread {
+		out["items"] = schemaFromVal(sc,
+			append(append([]string{}, path...), "&"), v.spread)
+	} else if v.closed {
+		out["items"] = false
 	}
-	return map[string]any{
-		"type":        "array",
-		"prefixItems": prefix,
-		"items":       false,
-		"minItems":    len(idx),
-	}
+	return out
 }
 
 func schemaSkipMarked(sc *schemaCtx, path []string, bag, child Val) bool {
@@ -549,8 +732,13 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 	body := schemaFromVal(sc, anchor, node)
 
 	schema := map[string]any{"$schema": jsonSchemaDraft}
-	for k, val := range body {
-		schema[k] = val
+	if obj, ok := body.(map[string]any); ok {
+		for k, val := range obj {
+			schema[k] = val
+		}
+	} else {
+		// A root admitting nothing cannot carry $schema as false; not: {} can.
+		schema["not"] = map[string]any{}
 	}
 
 	verdict := "ok"

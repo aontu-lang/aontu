@@ -1085,7 +1085,10 @@ as `object` and `array`, a read-through for conjuncts of map literals,
 the `type` array fold for a disjunction of bare kinds, and `enum`
 deduplication by JSON value. Each change is a `jsonschema` row in
 `test/spec/jsonschema.tsv`; `ts/src/jsonschema.ts`, then
-`go/jsonschema.go`.
+`go/jsonschema.go`. The two number rows of #300, the `integer` and
+`float` kinds, wait for phase 4: their mismatch is the number model's,
+and the register's row says why a loss on every integer was not the
+answer.
 
 **Phase 2: the engine prerequisites (M).** Required wins in the meet
 (#298) with its ADR; an optional `nil` key refuses a supplied value and

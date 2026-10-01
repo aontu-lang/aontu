@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The JSON Schema export is truthful (#295, #296, #297, #300)
+
+Both ports, G12 phase 1. `aontu jsonschema` no longer answers `ok` for
+a projection that admits more or less than the model. A written list
+stays open, as the meet does, so `items: false` appears only under
+`close()`; a spread beside positions keeps its `prefixItems`; a count
+honours an open bound (`len(above(2))` is `minLength: 3`), rounds a
+fractional one inward (`len(min(1.5))` is `minLength: 2`, where it was
+an invalid `1.5`) and carries its exclusions (`len(neq(3))` is
+`not: {minLength: 3, maxLength: 3}`); a bare `*1` is `type: integer`
+with `default: 1` rather than `const: 1`, since it admits every
+integer; and `1 | 1.0` is one `enum` member. A count beside a map is
+`minProperties`/`maxProperties` and beside a list `minItems`/`maxItems`,
+neither a loss (#296). A bound on a string is a reported loss rather
+than an invalid `minimum` (#295). A `neq` whose arguments span two
+domains is invalid at construction in both ports and refuses every
+peer, so it exports as `false` in both, where TypeScript wrote `{}` and
+Go `{"type":"number"}`, and its canon agrees (#297). An exact `0d`
+endpoint crosses only as a double that holds it, otherwise as the
+nearest double with a loss, or is omitted with a loss when no finite
+one exists, which Go could not serialise before; the same rule reaches
+an exact literal in `const`, `default` and `enum`. A written `nil` is
+the schema `false`; `map` and `list` are `object` and `array`; a
+disjunction of bare kinds is a `type` array; and a member a second map
+literal expects reads through instead of exporting `{}`. Forty-two rows in
+`test/spec/jsonschema.tsv`, nine re-pinned, every expectation from both
+engines; the #297 ledger entry is removed.
+
 ### The finding under a template's preferred member names the maybe() (#292)
 
 Both ports. The conjunction the meet mints for `x: [&: {k: *{n: string}}]`

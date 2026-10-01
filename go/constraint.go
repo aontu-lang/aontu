@@ -593,14 +593,18 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("arg")
 		}
 		neqs := make([]*ScalarVal, 0, len(args))
+		// The domain settles only once every argument agrees, so an
+		// invalid call leaves none behind: its canon is the TS twin's.
+		domain := ""
 		for _, a := range args {
 			sv, d := orderableScalar(a)
-			if nil == sv || ("" != c.domain && d != c.domain) {
+			if nil == sv || ("" != domain && d != domain) {
 				return bad("invalid-arg")
 			}
-			c.domain = d
+			domain = d
 			neqs = append(neqs, sv)
 		}
+		c.domain = domain
 		c.neqs = dedupSortedNeqs(c.domain, neqs)
 		return c
 	}

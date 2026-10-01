@@ -308,23 +308,6 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- `jsonschema` exports a MIXED-DOMAIN neq() differently, and
-#   both ports call the export ok.
-#   issue: #297; found 2026-09-29 while answering what the export can
-#   carry. Present on main.
-#
-#   Divergent input:  a: neq(1,"a")
-#   TypeScript: properties.a = {}               verdict ok, lossy []
-#   Go:         properties.a = {"type":"number"} verdict ok, lossy []
-#
-#   The value itself is mapval_no_gen in both ports; only the exporter's
-#   reading of the exclusions differs, and neither reports a loss. Not
-#   fixed here because which answer is right is a decision: the
-#   exclusions as `not: {enum: [1, "a"]}` with no type is the likely
-#   one, and the row that pins it must be probed in both engines.
-#
-# ---------------------------------------------------------------------
-#
 # OPEN -- `$` followed by a map refuses with a different code in each
 #   port.
 #   issue: #302; found 2026-09-30 while probing a root reference for

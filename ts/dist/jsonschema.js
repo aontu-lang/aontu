@@ -6,6 +6,7 @@ const utility_1 = require("./utility");
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
+const Decimal_1 = require("./val/Decimal");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -25,11 +26,21 @@ const KIND_TYPE = {
     Number: 'number',
     Path: 'string',
 };
+const COUNT_KEYS = {
+    string: ['minLength', 'maxLength'],
+    map: ['minProperties', 'maxProperties'],
+    list: ['minItems', 'maxItems'],
+};
 // A path is its address string at the JSON boundary, and the schema
 // cannot say which strings are addresses.
 function losePath(ctx, path) {
     lose(ctx, path, 'path', 'a path admits only path values, but JSON Schema has no path type; ' +
         'the schema says "string" and admits any string here');
+}
+function loseExactKind(ctx, path, leaf, t) {
+    lose(ctx, path, leaf, 'JSON has one number type and it is binary64, so the EXACTNESS ' +
+        'this leaf exists for cannot be carried; the schema says ' +
+        '"' + t + '" and a consumer may round');
 }
 function scalarJson(v) {
     if (v.isBigInteger) {
@@ -39,6 +50,56 @@ function scalarJson(v) {
         return Number(v.peg.toString());
     }
     return v.peg;
+}
+function constJson(ctx, path, v) {
+    if (v.isBigInteger || v.isBigDecimal) {
+        const n = scalarJson(v);
+        if (!Number.isFinite(n)) {
+            lose(ctx, path, 'exact literal', 'this exact value lies beyond binary64, and JSON has no number ' +
+                'for it, so the schema cannot carry it');
+            return undefined;
+        }
+        lose(ctx, path, 'exact literal', 'JSON has one number type and it is binary64, so this exact ' +
+            'value is emitted as the nearest JSON number');
+    }
+    return scalarJson(v);
+}
+// m / 2^e is m * 5^e / 10^e, and doubling a double never rounds.
+function decimalOfDouble(f) {
+    let m = Math.abs(f);
+    let e = 0;
+    while (!Number.isInteger(m)) {
+        m *= 2;
+        e++;
+    }
+    const unscaled = BigInt(m) * (5n ** BigInt(e));
+    return new Decimal_1.Decimal(f < 0 ? -unscaled : unscaled, e);
+}
+// The nearest double, whether it is exact, and undefined when none is finite.
+function endpointJson(v) {
+    if (v.isBigInteger) {
+        const f = Number(v.peg);
+        return Number.isFinite(f) ? [f, BigInt(f) === v.peg] : [undefined, false];
+    }
+    if (v.isBigDecimal) {
+        const f = Number(v.peg.toString());
+        return Number.isFinite(f) ?
+            [f, decimalOfDouble(f).equals(v.peg)] : [undefined, false];
+    }
+    return [v.peg, true];
+}
+// `1` and `1.0` are one JSON number, so an enum carries it once.
+function dedupeJson(vals) {
+    const seen = new Set();
+    const out = [];
+    for (const v of vals) {
+        const key = JSON.stringify(v);
+        if (!seen.has(key)) {
+            seen.add(key);
+            out.push(v);
+        }
+    }
+    return out;
 }
 function scalarType(v) {
     if (v.isBigDecimal) {
@@ -50,8 +111,45 @@ function scalarType(v) {
     const t = typeof v.peg;
     return 'number' === t ? 'number' : 'boolean' === t ? 'boolean' : 'string';
 }
-function fromConstraint(ctx, path, c) {
+// What JSON cannot say about a bound is reported, never approximated.
+function boundOut(ctx, path, out, b, isLo) {
+    const atom = isLo ? (b.open ? 'above' : 'min') : (b.open ? 'below' : 'max');
+    const v = b.v;
+    if (!('number' === typeof v.peg || v.isBigInteger || v.isBigDecimal)) {
+        lose(ctx, path, atom, 'JSON Schema has no keyword for a bound on a string (minimum and ' +
+            'maximum take numbers only), so this bound is DROPPED and the ' +
+            'schema admits strings outside it');
+        return;
+    }
+    const [n, exact] = endpointJson(v);
+    if (undefined === n) {
+        lose(ctx, path, atom, 'this exact endpoint lies beyond binary64, and JSON has no number ' +
+            'for it, so the bound is OMITTED and the schema admits values the ' +
+            'model refuses');
+        return;
+    }
+    if (!exact) {
+        lose(ctx, path, atom, 'JSON has one number type and it is binary64, which cannot hold ' +
+            'this exact endpoint; the schema carries the nearest number, so ' +
+            'the boundary it draws is not the model\'s');
+    }
+    out[isLo ? (b.open ? 'exclusiveMinimum' : 'minimum') :
+        (b.open ? 'exclusiveMaximum' : 'maximum')] = n;
+}
+// The whole number a count keyword takes: `above(2)` is at least 3.
+function countEndpoint(b, isLo) {
+    if (null == b) {
+        return undefined;
+    }
+    const n = scalarJson(b.v);
+    return isLo ? (b.open ? Math.floor(n) + 1 : Math.ceil(n)) :
+        (b.open ? Math.ceil(n) - 1 : Math.floor(n));
+}
+function fromConstraint(ctx, path, c, bag) {
     const out = {};
+    // `allOf` members: a second pattern or exclusion has no keyword of its own.
+    const extra = [];
+    const nots = [];
     if (null != c.kind && null != KIND_TYPE[c.kind.name]) {
         out.type = KIND_TYPE[c.kind.name];
     }
@@ -62,36 +160,53 @@ function fromConstraint(ctx, path, c) {
         out.type = 'number';
     }
     if (null != c.lo) {
-        out[c.lo.open ? 'exclusiveMinimum' : 'minimum'] = scalarJson(c.lo.v);
+        boundOut(ctx, path, out, c.lo, true);
     }
     if (null != c.hi) {
-        out[c.hi.open ? 'exclusiveMaximum' : 'maximum'] = scalarJson(c.hi.v);
+        boundOut(ctx, path, out, c.hi, false);
     }
-    // Exclusions. `neq(1,2)` is "not one of these", which is exactly
-    // `not: {enum: [...]}`.
+    // `neq(1,2)` is "not one of these", which is exactly `not: {enum}`.
     if (0 < c.neqs.length) {
-        out.not = { enum: c.neqs.map(scalarJson) };
+        nots.push({ enum: dedupeJson(c.neqs.map(scalarJson)) });
     }
     if (1 === c.res.length) {
         out.pattern = c.res[0].src;
     }
     else if (1 < c.res.length) {
-        out.allOf = c.res.map((r) => ({ pattern: r.src }));
+        extra.push(...c.res.map((r) => ({ pattern: r.src })));
     }
     if (null != c.count) {
-        const lo = null == c.count.lo ? undefined : scalarJson(c.count.lo.v);
-        const hi = null == c.count.hi ? undefined : scalarJson(c.count.hi.v);
-        const str = 'string' === c.domain || 'string' === out.type;
-        if (null != lo) {
-            out[str ? 'minLength' : 'minItems'] = lo;
+        const domain = 'string' === c.domain || 'string' === out.type ? 'string' : bag;
+        const [lokey, hikey] = COUNT_KEYS[domain ?? 'list'];
+        const lo = countEndpoint(c.count.lo, true);
+        const hi = countEndpoint(c.count.hi, false);
+        // A whole-number count's zero lower bound says nothing.
+        if (null != lo && 0 < lo) {
+            out[lokey] = lo;
         }
         if (null != hi) {
-            out[str ? 'maxLength' : 'maxItems'] = hi;
+            out[hikey] = hi;
         }
-        if (!str && null == c.domain) {
+        // An excluded length is exactly `not` both bounds at it.
+        for (const n of c.count.neqs) {
+            const k = scalarJson(n);
+            if (Number.isInteger(k)) {
+                nots.push({ [lokey]: k, [hikey]: k });
+            }
+        }
+        if (undefined === domain) {
             lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
                 'JSON Schema has no keyword that counts a string OR a container');
         }
+    }
+    if (1 === nots.length) {
+        out.not = nots[0];
+    }
+    else if (1 < nots.length) {
+        extra.push(...nots.map((n) => ({ not: n })));
+    }
+    if (0 < extra.length) {
+        out.allOf = extra;
     }
     if (true === c.nonEmpty && true !== c.emptyOk && !(1 <= out.minLength)) {
         out.minLength = 1;
@@ -130,8 +245,23 @@ function fromVal(ctx, path, v) {
     return out;
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
+// The schema of a literal's kind: what a bare `*x` admits beside x.
+function kindOfLiteral(ctx, path, v) {
+    const t = scalarType(v);
+    if (v.isBigInteger || v.isBigDecimal) {
+        loseExactKind(ctx, path, v.isBigInteger ? 'biginteger' : 'bigdecimal', t);
+    }
+    return 'string' === t ? { type: t, minLength: 1 } : { type: t };
+}
 function fromValInner(ctx, path, v) {
     if (true === v.isPref) {
+        // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
+        // so `const: x` would refuse what the model admits.
+        if (true === v.peg?.isScalar) {
+            const kind = kindOfLiteral(ctx, path, v.peg);
+            const d = constJson(ctx, path, v.peg);
+            return undefined === d ? kind : { ...kind, default: d };
+        }
         const inner = fromVal(ctx, path, v.peg);
         const gen = generated(v.peg);
         return undefined === gen ? inner : { ...inner, default: gen };
@@ -140,14 +270,20 @@ function fromValInner(ctx, path, v) {
         return fromDisjunct(ctx, path, v);
     }
     if (true === v.isConstraint) {
-        return fromConstraint(ctx, path, v);
+        // Arguments the constructor refused (`neq(1, "a")` spans domains)
+        // leave a constraint that refuses every peer: it admits nothing.
+        return null != v.invalid ? false : fromConstraint(ctx, path, v);
     }
     const residue = (0, BagVal_1.sizingResidue)(v);
     if (undefined !== residue) {
         return {
             ...fromVal(ctx, path, residue.bag),
-            ...fromConstraint(ctx, path, residue.con),
+            ...fromConstraint(ctx, path, residue.con, true === residue.bag.isMap ? 'map' : 'list'),
         };
+    }
+    // The member a second map literal expects reads through to its constraint.
+    if (true === v.isExpect) {
+        return fromVal(ctx, path, v.peg);
     }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);
@@ -155,12 +291,16 @@ function fromValInner(ctx, path, v) {
     if (true === v.isList) {
         return fromList(ctx, path, v);
     }
+    if (true === v.isMapKind) {
+        return { type: 'object' };
+    }
+    if (true === v.isListKind) {
+        return { type: 'array' };
+    }
     if (true === v.isScalarKind) {
         const t = KIND_TYPE[v.peg?.name];
         if ('BigInteger' === v.peg?.name || 'BigDecimal' === v.peg?.name) {
-            lose(ctx, path, v.peg.name.toLowerCase(), 'JSON has one number type and it is binary64, so the EXACTNESS ' +
-                'this leaf exists for cannot be carried; the schema says ' +
-                '"' + t + '" and a consumer may round');
+            loseExactKind(ctx, path, v.peg.name.toLowerCase(), t);
         }
         if ('Path' === v.peg?.name) {
             losePath(ctx, path);
@@ -180,11 +320,13 @@ function fromValInner(ctx, path, v) {
         return { type: 'string' };
     }
     if (true === v.isScalar) {
-        if (v.isBigInteger || v.isBigDecimal) {
-            lose(ctx, path, 'exact literal', 'JSON has one number type and it is binary64, so this exact ' +
-                'value is emitted as the nearest JSON number');
-        }
-        return { const: scalarJson(v), type: scalarType(v) };
+        const c = constJson(ctx, path, v);
+        const t = scalarType(v);
+        return undefined === c ? { type: t } : { const: c, type: t };
+    }
+    // A written `nil` is bottom and admits nothing; a minted one is a refusal nobody collected.
+    if (true === v.isNil && 'literal_nil' === v.why) {
+        return false;
     }
     lose(ctx, path, residueName(v), 'this is not a value yet, so there is nothing to constrain a ' +
         'consumer to; the schema admits anything here');
@@ -205,6 +347,13 @@ function generated(v) {
     const out = v.gen(ctx);
     return 0 === ctx.err.length ? out : undefined;
 }
+// Bare kinds fold to a `type` array; anything more keeps the `anyOf`.
+function typeFold(members) {
+    const types = members.map((m) => 1 === Object.keys(m).length && 'string' === typeof m.type ?
+        m.type : undefined);
+    return types.every((t) => undefined !== t) ?
+        { type: types } : { anyOf: members };
+}
 function fromDisjunct(ctx, path, v) {
     const members = v.peg;
     let def = undefined;
@@ -215,9 +364,11 @@ function fromDisjunct(ctx, path, v) {
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
     const consts = bare.map((m) => true === m?.isScalar && true !== m?.isNil ? scalarJson(m) : undefined);
+    // A member no finite double holds is reported and left out.
     const out = consts.every((c) => undefined !== c) ?
-        { enum: consts } :
-        { anyOf: bare.map((m) => fromVal(ctx, path, m)) };
+        { enum: dedupeJson(bare.map((m) => constJson(ctx, path, m))
+                .filter((c) => undefined !== c)) } :
+        typeFold(bare.map((m) => fromVal(ctx, path, m)));
     return undefined === def ? out : { ...out, default: def };
 }
 function skipMarked(ctx, path, bag, child) {
@@ -280,24 +431,19 @@ function fromMap(ctx, path, v) {
 function fromList(ctx, path, v) {
     const els = v.peg.filter((el, i) => !skipMarked(ctx, [...path, String(i)], v, el));
     const spr = v.spread?.cj;
-    // A list with a spread template is homogeneous: every element, named
-    // or not, satisfies it. That is `items`.
-    if (null != spr) {
-        const out = {
-            type: 'array',
-            items: fromVal(ctx, [...path, '&'], spr),
-        };
-        if (0 < els.length) {
-            out.minItems = els.length;
-        }
-        return out;
+    const out = { type: 'array' };
+    if (0 < els.length) {
+        out.prefixItems = els.map((el) => fromVal(ctx, [...path, String(v.peg.indexOf(el))], el));
+        out.minItems = els.length;
     }
-    return {
-        type: 'array',
-        prefixItems: els.map((el) => fromVal(ctx, [...path, String(v.peg.indexOf(el))], el)),
-        items: false,
-        minItems: els.length,
-    };
+    // An open list admits anything after its positions, as the meet does.
+    if (null != spr) {
+        out.items = fromVal(ctx, [...path, '&'], spr);
+    }
+    else if (true === v.closed) {
+        out.items = false;
+    }
+    return out;
 }
 // The verb. Evaluate, anchor, walk, report.
 function jsonSchema(src, options) {
@@ -334,9 +480,17 @@ function jsonSchema(src, options) {
     }
     const ctx = { lossy: [] };
     const body = fromVal(ctx, anchor, node);
+    // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
+    const schema = { $schema: DRAFT };
+    if ('object' === typeof body) {
+        Object.assign(schema, body);
+    }
+    else {
+        schema.not = {};
+    }
     return {
         verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
-        schema: { $schema: DRAFT, ...body },
+        schema,
         lossy: ctx.lossy,
     };
 }

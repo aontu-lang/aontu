@@ -31,8 +31,10 @@ Four documents, one per mood plus the money convention:
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
 - **residue.aontu**: one instance of each loss class: `must()`,
-  `bigdecimal`, `hide()`, a constrained spread template, `len()`
-  on a list. The export still happens; every loss is named.
+  `bigdecimal`, `hide()`, a constrained spread template. The export
+  still happens; every loss is named. Its `len()` beside a list is
+  the counter-example: a count crosses as `maxItems` with nothing to
+  report.
 - **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
 
@@ -41,8 +43,9 @@ constructs. A bare-kind template (`[&: string]`, `{ &: string }`)
 crosses as `items` or `additionalProperties`; a template carrying a
 constraint call (`{ &: string & len(max(63)) }`) is held residual,
 exports as `{}` in that position, and is reported as `unresolved`.
-`len()` on a list exports as `minItems`/`maxItems` and is reported
-as well, because a count has no domain until data arrives. One more
+`len()` beside a list exports as `minItems`/`maxItems` and beside a
+map as `minProperties`/`maxProperties`; only a bare count with nothing
+to count is reported, because its domain is undecided. One more
 construct reports under a name other than its own: `must()` holds the
 whole value residual, so `number & must(...)` exports as `{}` and is
 reported as `nil`.
