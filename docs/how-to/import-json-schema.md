@@ -130,23 +130,21 @@ member the data left out, where JSON Schema reports it missing.
 
 A keyword the importer does not carry yet is dropped and reported on
 stderr, so `aontu jsonschema import s.json > s.aontu` writes a usable
-document and still says what it left behind. An annotation such as
-`title` or `format` asserts nothing, so dropping it changes no answer;
-a validation keyword such as `unevaluatedItems` widens the schema, and the report
-says so. `--strict` turns any loss into exit 1, for a pipeline that
-must not accept a widened schema. Write `email.json`:
+document and still says what it left behind. A validation keyword such
+as `unevaluatedProperties` widens the schema, and the report says so.
+`--strict` turns any loss into exit 1, for a pipeline that must not
+accept a widened schema. Write `email.json`:
 
 <!-- test: file email.json -->
 ```json
-{"type": "string", "format": "email", "title": "Email"}
+{"type": "object", "properties": {"email": {"type": "string", "format": "email", "title": "Email"}}, "unevaluatedProperties": false}
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict email.json
-empty()
-lossy: #/format format: an annotation asserts nothing, and the importer does not keep annotations yet, so it is dropped
-lossy: #/title title: an annotation asserts nothing, and the importer does not keep annotations yet, so it is dropped
+email?: meta(empty(), { format:"email" title:"Email" })
+lossy: #/unevaluatedProperties unevaluatedProperties: the importer does not carry this keyword yet, so it is dropped and the position admits more than the schema does
 $ echo $?
 1
 ```
@@ -154,6 +152,35 @@ $ echo $?
 Without `--strict` the same import exits 0. Text that is not a schema
 is refused with `jsonschema_schema` and exit 4, naming where the text
 goes wrong.
+
+## Keep the annotations
+
+The `format` and `title` above are not lost. The annotation keywords
+of JSON Schema assert nothing, so the importer carries them on the value they
+describe, in a `meta()` record: `title`, `description`, `$comment`,
+`default`, `examples`, `readOnly`, `writeOnly`, `format` and the
+content keywords, with any keyword JSON Schema does not name under `x`.
+`deprecated` imports as `deprecate()`. A record never changes what its
+value admits, and the export writes it back.
+
+A `default` stays an annotation, as JSON Schema means it, so it fills
+nothing. `--defaults` makes an optional property's `default` a
+preference, which generation fills, where the property's own
+assertions admit it. Write `port.json`:
+
+<!-- test: file port.json -->
+```json
+{"type": "object", "properties": {"port": {"type": "integer", "default": 8080, "description": "The listen port"}}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --defaults port.json
+port?: *8080|meta(number & multiple(1), {
+  default: 8080
+  description: "The listen port"
+})
+```
 
 ## What to watch for
 

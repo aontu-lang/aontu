@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 67 built-in functions and no user-defined ones. The name set
+aontu has 68 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,8 +217,8 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 57 of the 67 names, and 47 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 49 of the 67 use no
+in 58 of the 68 names, and 48 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 50 of the 68 use no
 mode but `value`, and 18 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
@@ -340,6 +340,7 @@ documentation page and fails on a difference of one space.
 | `match(s: any, ...pr: (trial any, any), dflt?: any) : any` | `3..n` | `value`, `trial` | `any` |
 | `max(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `maybe(v: any) : any` | `1` | `value` | `any` |
+| `meta(v: any, ...r: map) : any` | `2..n` | `value` | `any` |
 | `min(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `mod(a: number, b: number) : number` | `2` | `value` | `number` |
 | `move(v: any) : any` | `1` | `value` | `any` |
@@ -382,7 +383,7 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 67 names, cut by result word, by rest slot, and by optional
+The same 68 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -390,7 +391,7 @@ The ten result words, and the names under each:
 
 | result | count | names |
 |---|---|---|
-| `any` | 12 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `move`, `open`, `pick`, `pref`, `super`, `type` |
+| `any` | 13 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
 | `constraint` | 18 | `above`, `acyclic`, `below`, `contains`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
@@ -417,16 +418,19 @@ with `split`, which answers `list`:
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Three names take a rest slot, spelled `...` in the declaration. `neq`
+Four names take a rest slot, spelled `...` in the declaration. `neq`
 takes one or more single values and has a floor of one. `nof` takes its
-count and then one or more trial schemas, so its floor is two. `match` takes a
+count and then one or more trial schemas, so its floor is two, and
+`meta` takes its value and then one or more records, so its floor is
+two as well. `match` takes a
 repeating pair whose first member is the pattern and whose second is the
 answer, and the pair's length counts toward the floor, which is why the
 floor is three: a scrutinee, a pattern, and an answer. `match` is
 specified at [Selecting: `filter` and
 `match`](reference-language.md#selecting-filter-and-match), `neq` at
 [The constraint algebra](reference-language.md#the-constraint-algebra),
-and `nof` at [Band B: `nof`](reference-language.md#band-b-nof).
+`nof` at [Band B: `nof`](reference-language.md#band-b-nof), and `meta`
+at [Annotations: `meta`](reference-language.md#annotations-meta).
 
 Twenty-seven names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message

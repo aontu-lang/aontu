@@ -829,3 +829,18 @@ func TestListIndexIsCanonicalDecimal(t *testing.T) {
 		}
 	}
 }
+
+// G12 phase 8: a span carries its value's titles and descriptions, which
+// the language server's hover shows.
+func TestSpansCarryAnnotations(t *testing.T) {
+	for _, s := range New().Spans(`a: meta(1, {title: "t", description: "d"})`) {
+		if "1" == s.Canon {
+			if 1 != len(s.Titles) || "t" != s.Titles[0] ||
+				1 != len(s.Descriptions) || "d" != s.Descriptions[0] {
+				t.Fatalf("span: %+v", s)
+			}
+			return
+		}
+	}
+	t.Fatal("no span for the annotated value")
+}

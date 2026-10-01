@@ -34,14 +34,14 @@ func junctChildCanon(v Val) string {
 	switch t := v.(type) {
 	case *ConjunctVal:
 		if len(t.peg) > 1 {
-			return "(" + t.Canon() + ")"
+			return "(" + CanonRiders(t) + ")"
 		}
 	case *DisjunctVal:
 		if len(t.peg) > 1 {
-			return "(" + t.Canon() + ")"
+			return "(" + CanonRiders(t) + ")"
 		}
 	}
-	return v.Canon()
+	return CanonRiders(v)
 }
 
 func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {

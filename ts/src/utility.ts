@@ -2,6 +2,7 @@
 
 
 import type { AontuOptions, TrustOptions, Val } from './type'
+import { riderText } from './rider'
 
 
 type IncludeOptions = {
@@ -69,24 +70,19 @@ function walkBagVals(
 
 // The one-line prose for a deprecation record, shared by vet's warning
 // findings and the LSP's tagged diagnostics.
-function deprecationMessage(d: Record<string, string>): string {
-  const msg = 'string' === typeof d.msg ? d.msg : ''
+// Records met on one value read as one, each field's values joined.
+function deprecationMessage(d: Record<string, string[]>): string {
+  const field = (k: string): string | undefined =>
+    undefined === d[k] ? undefined : d[k].join('; ')
+  const msg = field('msg') ?? ''
   return 'deprecated' + ('' === msg ? '' : ': ' + msg) +
-    ('string' === typeof d.use ? ' (use ' + d.use + ')' : '') +
-    ('string' === typeof d.since ? ' (since ' + d.since + ')' : '')
+    (undefined === d.use ? '' : ' (use ' + field('use') + ')') +
+    (undefined === d.since ? '' : ' (since ' + field('since') + ')')
 }
 
 
 function canonRiders(v: Val): string {
-  const c = v.canon
-  const d = v.deprecation
-  if (null == d) {
-    return c
-  }
-  const keys = Object.keys(d).sort()
-  const rec = keys.map((k) =>
-    JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',')
-  return 'deprecate(' + c + ('' === rec ? '' : ',{' + rec + '}') + ')'
+  return riderText(v.canon, v)
 }
 
 

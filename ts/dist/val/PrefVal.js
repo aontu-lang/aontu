@@ -151,7 +151,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
     }
     get canon() {
         // return this.pref instanceof Nil ? this.peg.canon : '*' + this.pref.canon
-        return '*' + this.peg.canon;
+        return '*' + (0, utility_1.canonRiders)(this.peg);
     }
     gen(ctx) {
         let val = this.peg;

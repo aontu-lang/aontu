@@ -106,7 +106,7 @@ func TestSpec(t *testing.T) {
 					if err != nil {
 						t.Fatalf("unify error: %v\n src: %q", err, src)
 					}
-					if got := v.Canon(); got != expect {
+					if got := CanonRiders(v); got != expect {
 						t.Fatalf("canon mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
 					}
 					assertCanonConverges(t, name, expect, vars)
@@ -569,7 +569,12 @@ func TestSpec(t *testing.T) {
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					r := ImportJSONSchema(src, nil)
+					opts := &ImportOptions{}
+					if o, ok := golden["opts"].(map[string]any); ok {
+						opts.Defaults = true == o["defaults"]
+					}
+					delete(golden, "opts")
+					r := ImportJSONSchema(src, opts)
 					out := map[string]any{
 						"aontu":   r.Aontu,
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
@@ -914,12 +919,12 @@ func assertCanonConverges(t *testing.T, name, expect string, vars map[string]Val
 	if err != nil {
 		t.Fatalf("canon does not reparse: %s\n canon: %s\n err:   %v", name, expect, err)
 	}
-	c2 := v2.Canon()
+	c2 := CanonRiders(v2)
 	v3, err := New().UnifyVars(c2, vars)
 	if err != nil {
 		t.Fatalf("re-canon does not reparse: %s\n canon: %s\n err:   %v", name, c2, err)
 	}
-	if c3 := v3.Canon(); c3 != c2 {
+	if c3 := CanonRiders(v3); c3 != c2 {
 		t.Fatalf("canon does not converge: %s\n c2: %s\n c3: %s", name, c2, c3)
 	}
 }

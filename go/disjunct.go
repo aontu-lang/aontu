@@ -347,6 +347,7 @@ func dedup(vals []Val) []Val {
 		for eI, e := range out {
 			if valSame(e, v) {
 				dup = true
+				out[eI] = keepRiders(e, v)
 				break
 			}
 			ep, eok := e.(*PrefVal)
@@ -354,7 +355,9 @@ func dedup(vals []Val) []Val {
 			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) {
 				dup = true
 				if vp.rank < ep.rank {
-					out[eI] = v
+					out[eI] = keepRiders(v, e)
+				} else {
+					out[eI] = keepRiders(e, v)
 				}
 				break
 			}
@@ -364,6 +367,58 @@ func dedup(vals []Val) []Val {
 		}
 	}
 	return out
+}
+
+// keepRiders gives a dedup's survivor the dropped member's riders, at
+// every depth, so the join is as order-free as the meet (ADR-051).
+func keepRiders(keep, drop Val) Val {
+	if !ridden(drop) {
+		return keep
+	}
+	out := clonePath(keep, keep.vpath())
+	ride(out, keep, drop)
+	if dp, ok := drop.(*PrefVal); ok {
+		if _, kp := out.(*PrefVal); !kp {
+			// A twin of a higher rank holds one more preference layer.
+			return keepRiders(out, dp.peg)
+		}
+	}
+	switch o := out.(type) {
+	case *MapVal:
+		for _, k := range o.keys {
+			o.peg[k] = keepRiders(o.peg[k], drop.(*MapVal).peg[k])
+		}
+	case *ListVal:
+		for i := range o.peg {
+			o.peg[i] = keepRiders(o.peg[i], drop.(*ListVal).peg[i])
+		}
+	case *PrefVal:
+		o.peg = keepRiders(o.peg, drop.(*PrefVal).peg)
+	}
+	return out
+}
+
+func ridden(v Val) bool {
+	if nil != v.deprecRec() || nil != v.metaRec() {
+		return true
+	}
+	switch n := v.(type) {
+	case *MapVal:
+		for _, k := range n.keys {
+			if ridden(n.peg[k]) {
+				return true
+			}
+		}
+	case *ListVal:
+		for _, e := range n.peg {
+			if ridden(e) {
+				return true
+			}
+		}
+	case *PrefVal:
+		return ridden(n.peg)
+	}
+	return false
 }
 
 func spreadSame(a, b Val) bool {

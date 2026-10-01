@@ -3,12 +3,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.unite = exports.Unify = void 0;
 exports.applyFlows = applyFlows;
+exports.ride = ride;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
+const rider_1 = require("./rider");
 const lang_1 = require("./lang");
 const utility_1 = require("./utility");
 const top_1 = require("./val/top");
@@ -27,6 +29,15 @@ const withDepth = (ctx, a, b, run) => {
 exports.withDepth = withDepth;
 // Vals should only have to unify downwards (in .unify) over Vals they understand.
 // and for complex Vals, TOP, which means self unify if not yet done
+// The meet's riders are the union of its operands' (ADR-051).
+function ride(out, a, b) {
+    if (null != out.deprecation || null != a?.deprecation || null != b?.deprecation) {
+        out.deprecation = (0, rider_1.unionRecords)([out.deprecation, a?.deprecation, b?.deprecation], (s) => s);
+    }
+    if (null != out.meta || null != a?.meta || null != b?.meta) {
+        out.meta = (0, rider_1.unionRecords)([out.meta, a?.meta, b?.meta], (v) => v.canon);
+    }
+}
 const unite = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
@@ -36,10 +47,8 @@ const unite = (ctx, a, b, whence) => {
         else if (b !== undefined && b !== null && undefined === ctx.prov) {
             if (a.done && b.done) {
                 if (a.id === b.id) {
-                    // The deprecation record survives the fast path (G3).
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
+                    // The riders survive the fast path (G3, G12).
+                    ride(a, a, b);
                     return a;
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
@@ -52,11 +61,8 @@ const unite = (ctx, a, b, whence) => {
                     && !a.isTop && !b.isTop
                     && !a.isRefer
                     && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
-                    // The deprecation record survives the fast path too (G3):
-                    // `deprecate(5) & 5` short-circuits here.
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
+                    // The riders survive this fast path too: `deprecate(5) & 5`.
+                    ride(a, a, b);
                     return a;
                 }
             }
@@ -196,13 +202,8 @@ const unite = (ctx, a, b, whence) => {
     if (undefined !== ctx.prov) {
         ctx.prov.record(ctx.path, a, b, out);
     }
-    if (null != out && true === out.isVal &&
-        !out.isTop && !out.isNil && null == out.deprecation) {
-        const dep = (null != a ? a.deprecation : undefined) ??
-            (null != b ? b.deprecation : undefined);
-        if (null != dep) {
-            out.deprecation = dep;
-        }
+    if (null != out && true === out.isVal && !out.isTop && !out.isNil) {
+        ride(out, a, b);
     }
     if (undefined !== ctx.reads &&
         null != out && true === out.isVal && !out.isTop && !out.isNil) {

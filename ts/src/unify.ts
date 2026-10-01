@@ -13,6 +13,7 @@ import { findAt } from './val/ReferFuncVal'
 import { NilVal } from './val/NilVal'
 import { hasPlace } from './val/PlaceVal'
 import { expandAliases } from './alias'
+import { unionRecords } from './rider'
 
 import {
   Lang
@@ -47,6 +48,18 @@ const withDepth = (
 
 // Vals should only have to unify downwards (in .unify) over Vals they understand.
 // and for complex Vals, TOP, which means self unify if not yet done
+// The meet's riders are the union of its operands' (ADR-051).
+function ride(out: any, a: any, b: any): void {
+  if (null != out.deprecation || null != a?.deprecation || null != b?.deprecation) {
+    out.deprecation = unionRecords([out.deprecation, a?.deprecation, b?.deprecation],
+      (s: string) => s)
+  }
+  if (null != out.meta || null != a?.meta || null != b?.meta) {
+    out.meta = unionRecords([out.meta, a?.meta, b?.meta], (v: any) => v.canon)
+  }
+}
+
+
 const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
   if (a !== undefined && a !== null) {
     if (a === b) {
@@ -55,10 +68,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     else if (b !== undefined && b !== null && undefined === ctx.prov) {
       if (a.done && b.done) {
         if (a.id === b.id) {
-          // The deprecation record survives the fast path (G3).
-          if (null == a.deprecation && null != b.deprecation) {
-            a.deprecation = b.deprecation
-          }
+          // The riders survive the fast path (G3, G12).
+          ride(a, a, b)
           return a
         }
         if (a.constructor === b.constructor && a.peg === b.peg
@@ -71,11 +82,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && !a.isTop && !b.isTop
             && !a.isRefer
             && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
-          // The deprecation record survives the fast path too (G3):
-          // `deprecate(5) & 5` short-circuits here.
-          if (null == a.deprecation && null != b.deprecation) {
-            a.deprecation = b.deprecation
-          }
+          // The riders survive this fast path too: `deprecate(5) & 5`.
+          ride(a, a, b)
           return a
         }
       }
@@ -228,13 +236,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     ctx.prov.record(ctx.path, a, b, out)
   }
 
-  if (null != out && true === (out as any).isVal &&
-    !out.isTop && !out.isNil && null == out.deprecation) {
-    const dep = (null != a ? a.deprecation : undefined) ??
-      (null != b ? b.deprecation : undefined)
-    if (null != dep) {
-      out.deprecation = dep
-    }
+  if (null != out && true === (out as any).isVal && !out.isTop && !out.isNil) {
+    ride(out, a, b)
   }
 
   if (undefined !== ctx.reads &&
@@ -429,4 +432,5 @@ export {
   unite,
   withDepth,
   applyFlows,
+  ride,
 }

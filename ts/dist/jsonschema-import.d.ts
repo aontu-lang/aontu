@@ -3,6 +3,7 @@ import type { SchemaLoss, SchemaVerdict } from './jsonschema';
 import type { FormatReport } from './format';
 export type ImportOptions = {
     path?: string;
+    defaults?: boolean;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;

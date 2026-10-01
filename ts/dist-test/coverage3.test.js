@@ -57,6 +57,7 @@ const lsp_server_1 = require("../dist/lsp-server");
 const lsp_1 = require("../dist/lsp");
 const subsume_1 = require("../dist/subsume");
 const DeprecateFuncVal_1 = require("../dist/val/DeprecateFuncVal");
+const MetaFuncVal_1 = require("../dist/val/MetaFuncVal");
 const utility_1 = require("../dist/utility");
 const hcanon_1 = require("../dist/hcanon");
 const query_1 = require("../dist/query");
@@ -980,13 +981,21 @@ function capture(fn) {
         const nil = new NilVal_1.NilVal({ why: 'test' });
         Assert.equal(d.resolve(ctx, [nil]), nil);
     });
+    (0, node_test_1.test)('meta-func-internals', () => {
+        const ctx = new ctx_1.AontuContext({ root: (0, top_1.top)() });
+        const m = new MetaFuncVal_1.MetaFuncVal({ peg: [] });
+        Assert.equal(m.make(ctx, { peg: [] }).isMetaFunc, true);
+        const argless = m.resolve(ctx, []);
+        Assert.equal(argless.isNil, true);
+        Assert.equal(argless.why, 'arg');
+    });
     // The shared walk behind vet's warnings and the LSP tags: the
     // non-Val guard is for a bag's raw peg entries, which degenerate
     // parses can leave behind — pinned directly, with one.
     (0, node_test_1.test)('collect-deprecations-walk', () => {
         const m = new MapVal_1.MapVal({ peg: {} });
         const dep = new IntegerVal_1.IntegerVal({ peg: 1 });
-        dep.deprecation = { msg: 'm' };
+        dep.deprecation = { msg: ['m'] };
         const plain = new IntegerVal_1.IntegerVal({ peg: 2 });
         const inner = new ListVal_1.ListVal({ peg: [dep] });
         m.peg.a = inner;

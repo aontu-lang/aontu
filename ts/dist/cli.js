@@ -78,7 +78,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -584,7 +584,7 @@ function evalFinding(code, text) {
 function evalSource(aontu, src, mode) {
     try {
         const text = 'canon' === mode
-            ? aontu.unify(src).canon
+            ? (0, utility_1.canonRiders)(aontu.unify(src))
             : (0, aontu_1.exactJSON)(aontu.generate(src), 2);
         return { ok: true, text, findings: [] };
     }
@@ -3318,6 +3318,7 @@ function runJsonSchemaImport(argv) {
     const files = [];
     let format = 'text';
     let strict = false;
+    let defaults = false;
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -3334,6 +3335,9 @@ function runJsonSchemaImport(argv) {
         }
         else if ('--strict' === arg) {
             strict = true;
+        }
+        else if ('--defaults' === arg) {
+            defaults = true;
         }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown jsonschema import option ${arg} (try --help)\n`);
@@ -3355,7 +3359,7 @@ function runJsonSchemaImport(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0] });
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema' },

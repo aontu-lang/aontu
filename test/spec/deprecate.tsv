@@ -15,6 +15,15 @@ dep-canon-bare	canon	a:deprecate(8080)	{"a":deprecate(8080)}
 # The meet keeps the record whichever side carries it -- order-free.
 dep-canon-meet	canon	a:deprecate(integer,{msg:"old"}) a:5	{"a":deprecate(5,{"msg":"old"})}
 dep-canon-meet-rev	canon	a:5 a:deprecate(integer,{msg:"old"})	{"a":deprecate(5,{"msg":"old"})}
+# Two records meet as their key-wise union (G12 phase 8, ADR-051),
+# rendered as nested calls, one record per layer of values.
+dep-canon-meet-unions	canon	a: deprecate(integer, {msg: "old"}) & deprecate(5, {msg: "older"})	{"a":deprecate(deprecate(5,{"msg":"old"}),{"msg":"older"})}
+dep-canon-meet-unions-rev	canon	a: deprecate(5, {msg: "older"}) & deprecate(integer, {msg: "old"})	{"a":deprecate(deprecate(5,{"msg":"old"}),{"msg":"older"})}
+dep-canon-meet-idempotent	canon	a: deprecate(5, {msg: "m"}) & deprecate(5, {msg: "m"})	{"a":deprecate(5,{"msg":"m"})}
+dep-canon-meet-unions-keys	canon	a: deprecate(integer, {msg: "m"}) & deprecate(5, {since: "2.0.0"})	{"a":deprecate(5,{"msg":"m","since":"2.0.0"})}
+dep-canon-bare-meets-record	canon	a: deprecate(integer) & deprecate(5, {msg: "m"})	{"a":deprecate(5,{"msg":"m"})}
+dep-canon-bare-twice	canon	a: deprecate(integer) & deprecate(5)	{"a":deprecate(5)}
+dep-canon-dedup-ranks	canon	a: **deprecate(1, {msg: "b"}) | *1	{"a":*deprecate(1,{"msg":"b"})}
 # A reference clones its target, record included: q's use of p is a
 # deprecated use.
 dep-canon-ref	canon	p:deprecate(*8080|integer,{msg:"m"}) q:$.p q:9	{"p":deprecate(*8080|integer,{"msg":"m"}),"q":deprecate(9,{"msg":"m"})}
@@ -45,6 +54,8 @@ dep-arity-three	errc	a:deprecate(1,{msg:"m"},2)	func_arity
 # and the report says so while saying it is deprecated.
 dep-vet-warning	vet	p:deprecate(integer,{msg:"old port",use:"$.listen",since:"2.0.0"}) listen:integer	p:8080 listen:9090	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","len":4,"role":"data","row":1,"src":"8080","value":"8080"}]}],"truncated":false,"verdict":"valid"}
 dep-vet-warning-bare	vet	p:deprecate(integer)	p:1	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":3,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"valid"}
+# Two records on one value are one deprecation, so one warning.
+dep-vet-two-records	vet	p: deprecate(integer, {msg: "a"}) & deprecate(integer, {msg: "b"})	p: 1	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":4,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"valid"}
 # A conflict on a deprecated value reports the CONFLICT: the nil
 # replaced the value, so there is no deprecated survivor to warn about.
 dep-vet-still-invalid	vet	p:deprecate(integer,{msg:"m"})	p:hello	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.p","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"hello","value":"\\"hello\\""},{"col":3,"file":"schema","len":9,"role":"schema","row":1,"src":"deprecate","value":"integer"}]}],"truncated":false,"verdict":"invalid"}

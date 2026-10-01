@@ -752,4 +752,15 @@ func TestDiagnosticsDeprecated(t *testing.T) {
 	if d2 := Diagnostics("a:1"); 0 != len(d2) {
 		t.Fatalf("expected no diagnostics, got %+v", d2)
 	}
+
+	met := []string{}
+	for _, x := range Diagnostics("p: deprecate(integer, {msg: \"a\"}) & " +
+		"deprecate(1, {msg: \"b\", use: \"$.q\"})\nq: 1") {
+		if "deprecated" == x.Code {
+			met = append(met, x.Message)
+		}
+	}
+	if 1 != len(met) || "deprecated: a; b (use $.q)" != met[0] {
+		t.Fatalf("met records: %v", met)
+	}
 }

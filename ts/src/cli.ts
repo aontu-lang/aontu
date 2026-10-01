@@ -69,7 +69,7 @@ import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
 import { format, unifiedDiff } from './format'
-import { includeOpts } from './utility'
+import { canonRiders, includeOpts } from './utility'
 import { HELPDOC, INITDOC } from './helpdoc'
 import type { HelpTopic } from './helpdoc'
 import { hints, codeClasses, codeClass } from './hints'
@@ -96,7 +96,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -614,7 +614,7 @@ function evalSource(
 ): { ok: boolean; text: string; findings: VetFinding[] } {
   try {
     const text = 'canon' === mode
-      ? aontu.unify(src).canon
+      ? canonRiders(aontu.unify(src))
       : exactJSON(aontu.generate(src), 2)
     return { ok: true, text, findings: [] }
   }
@@ -3848,6 +3848,7 @@ function runJsonSchemaImport(argv: string[]): number {
   const files: string[] = []
   let format: SubsumeFormat = 'text'
   let strict = false
+  let defaults = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -3865,6 +3866,9 @@ function runJsonSchemaImport(argv: string[]): number {
     }
     else if ('--strict' === arg) {
       strict = true
+    }
+    else if ('--defaults' === arg) {
+      defaults = true
     }
     else if (arg.startsWith('-')) {
       process.stderr.write(
@@ -3891,7 +3895,7 @@ function runJsonSchemaImport(argv: string[]): number {
     return 2
   }
 
-  const report = importJsonSchema(src, { path: files[0] })
+  const report = importJsonSchema(src, { path: files[0], defaults })
 
   if ('json' === format) {
     process.stdout.write(exactJSON({

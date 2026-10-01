@@ -26,7 +26,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -517,7 +517,7 @@ func render(a *aontu.Aontu, src, mode string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return v.Canon(), nil
+		return aontu.CanonRiders(v), nil
 	}
 	out, err := a.Generate(src)
 	if err != nil {

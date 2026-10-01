@@ -1317,7 +1317,7 @@ func (c *ConstraintVal) Canon() string {
 		// as written -- the same shape FuncVal renders while deferring.
 		as := make([]string, len(c.pending.args))
 		for i, a := range c.pending.args {
-			as[i] = a.Canon()
+			as[i] = CanonRiders(a)
 		}
 		return c.pending.atom + "(" + strings.Join(as, ",") + ")"
 	}
@@ -1370,7 +1370,7 @@ func (c *ConstraintVal) Canon() string {
 		parts = append(parts, containsCanon(k))
 	}
 	for _, m := range c.musts {
-		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
+		parts = append(parts, "must("+CanonRiders(m.v)+","+m.msg.Canon()+")")
 	}
 	for _, n := range c.nofs {
 		parts = append(parts, nofCanon(n))
@@ -1406,7 +1406,7 @@ func atomArgs(atom string, args []Val) []Val {
 func canonSorted(vals []Val) []Val {
 	sorted := append([]Val{}, vals...)
 	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].Canon() < sorted[j].Canon()
+		return CanonRiders(sorted[i]) < CanonRiders(sorted[j])
 	})
 	return sorted
 }
@@ -1454,9 +1454,9 @@ func containsCanon(k constraintContains) string {
 	one := nil != c.lo && !c.lo.open && 0 == cmpNumeric(c.lo.v, countVal(1)) &&
 		nil == c.hi && 0 == len(c.neqs)+len(c.mults)
 	if one {
-		return "contains(" + k.c.Canon() + ")"
+		return "contains(" + CanonRiders(k.c) + ")"
 	}
-	return "contains(" + k.c.Canon() + "," + countCanon(c) + ")"
+	return "contains(" + CanonRiders(k.c) + "," + countCanon(c) + ")"
 }
 
 func atLeastOne() *ConstraintVal {
@@ -1500,9 +1500,9 @@ func mergeWhens(whens []constraintWhen) []constraintWhen {
 }
 
 func whenCanon(w constraintWhen) string {
-	parts := []string{w.c.Canon(), w.t.Canon()}
+	parts := []string{CanonRiders(w.c), CanonRiders(w.t)}
 	if nil != w.e {
-		parts = append(parts, w.e.Canon())
+		parts = append(parts, CanonRiders(w.e))
 	}
 	return "when(" + strings.Join(parts, ",") + ")"
 }
@@ -1542,7 +1542,7 @@ func countCanon(c *ConstraintVal) string {
 func nofCanon(n constraintNof) string {
 	parts := []string{countCanon(n.count)}
 	for _, b := range n.cs {
-		parts = append(parts, b.Canon())
+		parts = append(parts, CanonRiders(b))
 	}
 	return "nof(" + strings.Join(parts, ",") + ")"
 }

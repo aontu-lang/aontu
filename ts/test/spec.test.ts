@@ -18,6 +18,7 @@ import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
 import { traceRun } from '../dist/trace'
 import { codeClasses } from '../dist/hints'
+import { canonRiders } from '../dist/utility'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -132,9 +133,9 @@ function assertCanonConverges(row: Omit<Row, 'file'> & { file?: string }): void 
     return
   }
   const a1 = rowAontu(row)
-  const c2 = a1.unify(row.expect, undefined, makeVarsCtx(a1)).canon
+  const c2 = canonRiders(a1.unify(row.expect, undefined, makeVarsCtx(a1)))
   const a2 = rowAontu(row)
-  const c3 = a2.unify(c2, undefined, makeVarsCtx(a2)).canon
+  const c3 = canonRiders(a2.unify(c2, undefined, makeVarsCtx(a2)))
   Assert.strictEqual(c3, c2, `canon does not converge: ${row.name}`)
 }
 
@@ -239,7 +240,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   const ctx = makeVarsCtx(a0)
 
   if ('canon' === row.mode) {
-    Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect)
+    Assert.strictEqual(canonRiders(a0.unify(row.src, undefined, ctx)), row.expect)
     assertCanonConverges(row)
   }
   else if ('gen' === row.mode) {
@@ -342,7 +343,9 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `jsonschema report mismatch: ${row.name}`)
   }
   else if ('jsonschema-import' === row.mode) {
-    const report = importJsonSchema(row.src)
+    const golden = JSON.parse(row.expect)
+    const report = importJsonSchema(row.src, golden.opts)
+    delete golden.opts
     Assert.strictEqual(
       exactJSON({
         aontu: report.aontu,
@@ -351,7 +354,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
         ...(null == report.errors
           ? {} : { errors: stripProse(report.errors) }),
       }),
-      exactJSON(JSON.parse(row.expect)),
+      exactJSON(golden),
       `jsonschema-import report mismatch: ${row.name}`)
   }
   else if ('reaches' === row.mode) {

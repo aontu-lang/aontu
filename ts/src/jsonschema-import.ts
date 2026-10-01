@@ -10,6 +10,8 @@ import type { VetFinding } from './vet'
 import type { SchemaLoss, SchemaVerdict } from './jsonschema'
 
 import { codeClass } from './hints'
+import { admits } from './admit'
+import { cmpCodePoint } from './keyorder'
 import { Aontu } from './aontu'
 import { getHint } from './err'
 import { format } from './format'
@@ -22,6 +24,8 @@ import type { ExactNumber } from './val/numkind'
 export type ImportOptions = {
   // Where the schema came from, named in the report's sites.
   path?: string
+  // An optional property's default becomes a preference (ADR-051).
+  defaults?: boolean
 }
 
 export type ImportReport = {
@@ -386,6 +390,7 @@ type Ctx = {
   decls: Map<string, string>
   stack: JNode[]
   copies: number
+  defaults: boolean
 }
 
 // The copies a root that is not a map may make before they are cut.
@@ -618,22 +623,38 @@ function collectRefs(ctx: Ctx, node: JNode, seen: Set<JNode>): void {
 // What each keyword the importer does not yet carry costs, for its loss.
 const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped ' +
   'and the position admits more than the schema does'
-const ANNOTATION = 'an annotation asserts nothing, and the importer does not keep ' +
-  'annotations yet, so it is dropped'
+// A legacy dialect's keyword asserts there, though the dialect read here
+// takes it as an annotation.
+const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, ' +
+  'so it is dropped and the position admits more than that dialect does'
 const LATER: Record<string, string> = {
   $dynamicRef: NOT_YET, $dynamicAnchor: NOT_YET,
   unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
-  title: ANNOTATION, description: ANNOTATION, default: ANNOTATION, examples: ANNOTATION,
-  deprecated: ANNOTATION, readOnly: ANNOTATION, writeOnly: ANNOTATION, format: ANNOTATION,
-  contentMediaType: ANNOTATION, contentEncoding: ANNOTATION, contentSchema: ANNOTATION,
   $id: 'a resource identifier, and references resolve within this document ' +
     'only, so it is dropped',
   $vocabulary: 'a vocabulary declaration, and the 2020-12 vocabularies are read ' +
     'whatever it says, so it is dropped',
+  dependencies: LEGACY, additionalItems: LEGACY,
+  $recursiveRef: LEGACY, $recursiveAnchor: LEGACY,
+}
+
+// Each annotation keyword's meta() key and the JSON kind it takes.
+const ANNOTATED: Record<string, [string, string]> = {
+  title: ['title', 'string'], description: ['description', 'string'],
+  $comment: ['comment', 'string'], default: ['default', 'any'],
+  examples: ['examples', 'array'], readOnly: ['readOnly', 'boolean'],
+  writeOnly: ['writeOnly', 'boolean'], format: ['format', 'string'],
+  contentEncoding: ['contentEncoding', 'string'],
+  contentMediaType: ['contentMediaType', 'string'], contentSchema: ['contentSchema', 'any'],
+}
+
+const KIND_TEXT: Record<string, string> = {
+  string: 'a string', boolean: 'a boolean', array: 'an array', object: 'an object',
 }
 
 const CARRIED = [
-  '$schema', '$ref', '$defs', 'definitions', '$anchor', '$comment', 'type',
+  '$schema', '$ref', '$defs', 'definitions', '$anchor', 'type', 'deprecated',
+  'x-aontu-deprecate',
   'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
   'dependentSchemas', 'dependentRequired', 'properties', 'required',
   'additionalProperties',
@@ -914,7 +935,7 @@ function kindsOf(e: Expr): string[] {
       return ALL_KINDS.filter((k) => e.items.some((it) => kindsOf(it).includes(k)))
     case 'call':
       return 'empty' === e.name || 're' === e.name ? ['string'] :
-        'close' === e.name ? kindsOf(e.args[0]) :
+        'close' === e.name || rider(e) ? kindsOf(e.args[0]) :
           ['min', 'max', 'above', 'below', 'multiple'].includes(e.name) ? ['number'] :
             ALL_KINDS
     case 'list':
@@ -937,6 +958,9 @@ function rawKinds(text: string): string[] {
 
 // The scalar literals an expression is, where it is nothing else.
 function literalTexts(e: Expr): string[] | undefined {
+  if (rider(e)) {
+    return literalTexts(ridden(e))
+  }
   if ('or' === e.k) {
     const each = e.items.map(literalTexts)
     return each.some((t) => undefined === t) ? undefined : (each as string[][]).flat()
@@ -946,8 +970,22 @@ function literalTexts(e: Expr): string[] | undefined {
 }
 
 
-// The expressions directly inside one.
+// A call whose value is its first argument, carrying a record beside it.
+function rider(e: Expr): boolean {
+  return 'call' === e.k && ('meta' === e.name || 'deprecate' === e.name)
+}
+
+
+function ridden(e: Expr): Expr {
+  return (e as Expr & { k: 'call' }).args[0]
+}
+
+
+// The expressions directly inside one; a rider's record holds none.
 function children(e: Expr): Expr[] {
+  if (rider(e)) {
+    return [ridden(e)]
+  }
   switch (e.k) {
     case 'raw':
       return []
@@ -1055,6 +1093,10 @@ function holdsAlias(e: Expr): boolean {
 
 let TRIAL: Aontu | undefined
 
+function trialEngine(): Aontu {
+  return TRIAL = TRIAL ?? new Aontu()
+}
+
 // Whether a position admits nothing: its meet conflicts when evaluated
 // alone. One naming an alias is left as written, as the declaration may
 // be being written itself.
@@ -1062,11 +1104,29 @@ function bottom(e: Expr): boolean {
   if ('raw' === e.k || holdsAlias(e)) {
     return false
   }
-  TRIAL = TRIAL ?? new Aontu()
-  const ctx: any = TRIAL.ctx({ collect: true })
-  TRIAL.unify('x: ' + print(e, ''), undefined, ctx)
+  const engine = trialEngine()
+  const ctx: any = engine.ctx({ collect: true })
+  engine.unify('x: ' + print(e, ''), undefined, ctx)
   return 0 < ctx.err.length &&
     ctx.err.every((n: any) => 'conflict' === codeClass(n.why))
+}
+
+
+// Under the defaults option, an optional property's default is preferred
+// where its own assertions admit it; a reference is not followed, so a
+// schema that names an alias keeps its default as an annotation only.
+function preferDefault(ctx: Ctx, node: JNode, e: Expr): Expr {
+  const d = entry(node, 'default')
+  const value = undefined === d ? undefined : data({ ...ctx, lossy: [] }, '', 'default', d)
+  if (undefined === value || holdsAlias(e)) {
+    return e
+  }
+  const text = print(value, '')
+  const engine = trialEngine()
+  const trial = engine.parse(print(e, ''))
+  const parsed = engine.parse(text)
+  return undefined !== trial && undefined !== parsed && admits(engine, trial, parsed) ?
+    { k: 'or', items: [raw('*' + text), e] } : e
 }
 
 
@@ -1138,10 +1198,6 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   for (const e of node.entries) {
     if (null != LATER[e.key]) {
       lose(ctx, at(e.key), e.key, LATER[e.key])
-    }
-    else if (!CARRIED.includes(e.key)) {
-      lose(ctx, at(e.key), e.key, 'an unknown keyword asserts nothing, and the ' +
-        'importer does not keep it yet, so it is dropped')
     }
   }
   const dialect = get('$schema')
@@ -1247,7 +1303,112 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   }
 
   const met = and(parts)
-  return bottom(met) ? NIL : met
+  return bottom(met) ? NIL : annotate(ctx, node, ptr, met)
+}
+
+
+function jsonKind(n: JNode): string {
+  return 'true' === n.t || 'false' === n.t ? 'boolean' : n.t
+}
+
+
+// A JSON value as aontu data, or undefined where a number in it is past
+// the exactness budget, which drops the annotation with a loss.
+function data(ctx: Ctx, path: string, keyword: string, node: JNode): Expr | undefined {
+  switch (node.t) {
+    case 'number': {
+      const text = exactText(node.text)
+      if (undefined === text) {
+        lose(ctx, path, keyword, 'the number ' + node.text + ' exceeds the ' +
+          'exactness budget, so the annotation that holds it is dropped')
+      }
+      return undefined === text ? undefined : raw(text)
+    }
+    case 'array': {
+      const items = node.items.map((it, i) => data(ctx, path + '/' + i, keyword, it))
+      return items.some((it) => undefined === it) ? undefined : { k: 'list', items: items as Expr[] }
+    }
+    case 'object': {
+      const vals = node.entries.map((e) => data(ctx, child(path, e.key), keyword, e.val))
+      return vals.some((v) => undefined === v) ? undefined : {
+        k: 'map', spreads: [],
+        entries: node.entries.map((e, i) => ({ key: e.key, optional: false, val: vals[i] as Expr })),
+      }
+    }
+    default:
+      return literal(ctx, path, keyword, node)
+  }
+}
+
+
+// A schema object's annotations ride its value: the annotation keywords
+// and every keyword JSON Schema does not name in a meta() record, under
+// `x` for the second, and `deprecated` as deprecate().
+function annotate(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr): Expr {
+  const entries: MapEntry[] = []
+  const x: MapEntry[] = []
+  for (const en of node.entries) {
+    const at = child(ptr, en.key)
+    const ann = ANNOTATED[en.key]
+    if (undefined !== ann && 'any' !== ann[1] && ann[1] !== jsonKind(en.val)) {
+      wrongType(ctx, at, en.key, KIND_TEXT[ann[1]], en.val)
+      continue
+    }
+    if (undefined === ann && (CARRIED.includes(en.key) || undefined !== LATER[en.key])) {
+      continue
+    }
+    const val = data(ctx, at, en.key, en.val)
+    if (undefined !== val) {
+      (undefined === ann ? x : entries).push({ key: ann?.[0] ?? en.key, optional: false, val })
+    }
+  }
+  if (0 < x.length) {
+    entries.push({ key: 'x', optional: false, val: { k: 'map', entries: x, spreads: [] } })
+  }
+  const dep = deprecation(ctx, node, ptr, e)
+  return 0 === entries.length ? dep : call('meta', dep, { k: 'map', spreads: [],
+    entries: entries.sort((a, b) => cmpCodePoint(a.key, b.key)) })
+}
+
+
+// `deprecated: true`, with x-aontu-deprecate's fields as its record; a
+// field holding several values is a deprecate() for each.
+function deprecation(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr): Expr {
+  const flag = entry(node, 'deprecated')
+  const rec = entry(node, 'x-aontu-deprecate')
+  if (null != flag && 'boolean' !== jsonKind(flag)) {
+    wrongType(ctx, child(ptr, 'deprecated'), 'deprecated', 'a boolean', flag)
+  }
+  if (null != rec && 'object' !== rec.t) {
+    wrongType(ctx, child(ptr, 'x-aontu-deprecate'), 'x-aontu-deprecate', 'an object', rec)
+  }
+  if ('true' !== flag?.t && 'object' !== rec?.t) {
+    return e
+  }
+  const fields: string[][] = []
+  for (const k of ['msg', 'since', 'use']) {
+    const v = 'object' === rec?.t ? entry(rec, k) : undefined
+    const vals = undefined === v ? [] : 'string' === v.t ? [v] : 'array' === v.t ? v.items : [v]
+    if (vals.some((it) => 'string' !== it.t)) {
+      wrongType(ctx, child(child(ptr, 'x-aontu-deprecate'), k), 'x-aontu-deprecate',
+        'a string or an array of strings', v as JNode)
+      continue
+    }
+    vals.forEach((it, i) => {
+      fields[i] = fields[i] ?? []
+      fields[i].push(k, (it as JNode & { t: 'string' }).s)
+    })
+  }
+  if (0 === fields.length) {
+    return call('deprecate', e)
+  }
+  return fields.reduce((acc: Expr, layer: string[]) => {
+    const entries: MapEntry[] = []
+    for (let i = 0; i < layer.length; i += 2) {
+      entries.push({ key: layer[i], optional: false, val: raw(quote(layer[i + 1])) })
+    }
+    return call('deprecate', acc, { k: 'map', spreads: [], entries })
+  }, e)
 }
 
 
@@ -1458,9 +1619,10 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
     else {
       for (const e of props.entries) {
         declared.push(e.key)
+        const optional = !required.includes(e.key)
+        const val = convert(ctx, e.val, child(at('properties'), e.key), false)
         entries.push({
-          key: e.key, optional: !required.includes(e.key),
-          val: convert(ctx, e.val, child(at('properties'), e.key), false),
+          key: e.key, optional, val: optional && ctx.defaults ? preferDefault(ctx, e.val, val) : val,
         })
       }
     }
@@ -1578,6 +1740,7 @@ function run(base: Ctx, mapRoot: boolean): [Ctx, Expr] {
 export function importJsonSchema(text: string, options?: ImportOptions): ImportReport {
   const base: Ctx = {
     src: text, file: options?.path ?? 'schema', root: { t: 'null', off: 0, end: 0 },
+    defaults: true === options?.defaults,
     lossy: [], errors: [], anchors: new Map(), resourceOf: new Map(), ptrOf: new Map(),
     targets: new Map(), mapRoot: true, decls: new Map(), stack: [], copies: 0,
   }

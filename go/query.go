@@ -108,6 +108,14 @@ func queryProject(v Val, view string, depth int) string {
 	if depth <= 0 {
 		return queryTop
 	}
+	s := queryProjectNode(v, view, depth)
+	if QueryCanon == view {
+		return riderText(s, v)
+	}
+	return s
+}
+
+func queryProjectNode(v Val, view string, depth int) string {
 	switch b := v.(type) {
 	case *MapVal:
 		var out strings.Builder

@@ -134,57 +134,60 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5567 cases across 115 files**) is run by *both*
+`test/spec/*.tsv` (**6309 cases across 121 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `aontu-system.tsv` | 37 |
-| `edge.tsv`                  | 337 | `optional.tsv` | 37 |
-| `constraint-product.tsv`    | 256 | `views.tsv` | 37 |
-| `fmt.tsv`                   | 230 | `graph.tsv` | 36 |
-| `errcodes.tsv`              | 175 | `defaults.tsv` | 35 |
-| `view.tsv`                  | 175 | `constraint-must.tsv` | 34 |
-| `alias.tsv`                 | 164 | `gen-pack.tsv` | 34 |
-| `types.tsv`                 | 164 | `seal.tsv` | 34 |
-| `func.tsv`                  | 148 | `template.tsv` | 34 |
-| `subsume.tsv`               | 121 | `constraint-cross.tsv` | 33 |
-| `number-model.tsv`          | 120 | `containerkind.tsv` | 32 |
-| `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
-| `vet.tsv`                   | 111 | `budget.tsv` | 28 |
-| `constraint-length.tsv`     | 102 | `diff.tsv` | 28 |
-| `str.tsv`                   |  99 | `gen-match.tsv` | 28 |
-| `cmp.tsv`                   |  93 | `recursion.tsv` | 28 |
-| `query.tsv`                 |  93 | `gen-filter.tsv` | 25 |
-| `refer.tsv`                 |  87 | `engine-parity.tsv` | 23 |
-| `gen-emit.tsv`              |  86 | `var.tsv` | 23 |
-| `maybe.tsv`                 |  75 | `constraint-alias.tsv` | 21 |
-| `pref.tsv`                  |  75 | `deprecate.tsv` | 21 |
-| `constraint-bound.tsv`      |  74 | `elision.tsv` | 21 |
-| `ref.tsv`                   |  74 | `map.tsv` | 20 |
+| `number-tower.tsv`          | 395 | `patch.tsv` | 41 |
+| `edge.tsv`                  | 340 | `place.tsv` | 41 |
+| `constraint-product.tsv`    | 256 | `scalar.tsv` | 40 |
+| `jsonschema-import.tsv`     | 252 | `sort.tsv` | 39 |
+| `fmt.tsv`                   | 233 | `containerkind.tsv` | 38 |
+| `errcodes.tsv`              | 181 | `aontu-system.tsv` | 37 |
+| `view.tsv`                  | 175 | `views.tsv` | 37 |
+| `alias.tsv`                 | 173 | `graph.tsv` | 36 |
+| `types.tsv`                 | 164 | `defaults.tsv` | 35 |
+| `func.tsv`                  | 148 | `map.tsv` | 35 |
+| `vet.tsv`                   | 134 | `constraint-must.tsv` | 34 |
+| `subsume.tsv`               | 123 | `gen-pack.tsv` | 34 |
+| `number-model.tsv`          | 120 | `seal.tsv` | 34 |
+| `constraint-re.tsv`         | 118 | `template.tsv` | 34 |
+| `jsonschema.tsv`            | 112 | `constraint-cross.tsv` | 33 |
+| `constraint-length.tsv`     | 102 | `deprecate.tsv` | 29 |
+| `str.tsv`                   |  99 | `super.tsv` | 29 |
+| `query.tsv`                 |  98 | `budget.tsv` | 28 |
+| `cmp.tsv`                   |  93 | `diff.tsv` | 28 |
+| `meta.tsv`                  |  89 | `gen-match.tsv` | 28 |
+| `refer.tsv`                 |  87 | `recursion.tsv` | 28 |
+| `gen-emit.tsv`              |  86 | `gen-filter.tsv` | 25 |
+| `maybe.tsv`                 |  78 | `engine-parity.tsv` | 23 |
+| `pref.tsv`                  |  75 | `var.tsv` | 23 |
+| `constraint-bound.tsv`      |  74 | `constraint-alias.tsv` | 21 |
+| `ref.tsv`                   |  74 | `elision.tsv` | 21 |
 | `file.tsv`                  |  70 | `reach.tsv` | 19 |
-| `jsonschema.tsv`            |  67 | `list.tsv` | 18 |
-| `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
-| `marks.tsv`                 |  62 | `plus.tsv` | 16 |
-| `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
-| `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |
-| `hcanon.tsv`                |  58 | `conjunct.tsv` | 13 |
-| `arith.tsv`                 |  57 | `merge-conflict.tsv` | 13 |
-| `relation.tsv`              |  56 | `gen-close.tsv` | 11 |
-| `gen-each.tsv`              |  55 | `trim.tsv` | 11 |
-| `why.tsv`                   |  53 | `close.tsv` |  9 |
-| `abnf.tsv`                  |  52 | `gen-spread.tsv` |  9 |
-| `agg.tsv`                   |  50 | `incomplete.tsv` |  9 |
-| `mod.tsv`                   |  46 | `trace.tsv` |  9 |
-| `op-chars.tsv`              |  46 | `agentsmd.tsv` |  7 |
-| `error.tsv`                 |  45 | `container-path.tsv` |  7 |
-| `rel.tsv`                   |  42 | `comment.tsv` |  6 |
-| `patch.tsv`                 |  41 | `aontu-scheme.tsv` |  4 |
-| `place.tsv`                 |  41 | `include-trust.tsv` |  4 |
-| `scalar.tsv`                |  40 | `divergent.tsv` |  0 |
-| `sort.tsv`                  |  39 | `signature.tsv` |  0 |
-| `disjunct.tsv`              |  38 | | |
+| `path.tsv`                  |  66 | `list.tsv` | 18 |
+| `hcanon.tsv`                |  64 | `aontu-view.tsv` | 16 |
+| `constraint-when.tsv`       |  63 | `plus.tsv` | 16 |
+| `constraint-contains.tsv`   |  62 | `aontu-profile.tsv` | 14 |
+| `constraint-nof.tsv`        |  62 | `gen-key.tsv` | 14 |
+| `marks.tsv`                 |  62 | `conjunct.tsv` | 13 |
+| `number-cross-product.tsv`  |  59 | `merge-conflict.tsv` | 13 |
+| `optional.tsv`              |  59 | `gen-close.tsv` | 11 |
+| `gen-join.tsv`              |  58 | `trim.tsv` | 11 |
+| `arith.tsv`                 |  57 | `close.tsv` |  9 |
+| `relation.tsv`              |  56 | `gen-spread.tsv` |  9 |
+| `gen-each.tsv`              |  55 | `incomplete.tsv` |  9 |
+| `constraint-multiple.tsv`   |  54 | `trace.tsv` |  9 |
+| `why.tsv`                   |  53 | `agentsmd.tsv` |  7 |
+| `abnf.tsv`                  |  52 | `container-path.tsv` |  7 |
+| `agg.tsv`                   |  50 | `comment.tsv` |  6 |
+| `mod.tsv`                   |  46 | `aontu-scheme.tsv` |  4 |
+| `op-chars.tsv`              |  46 | `include-trust.tsv` |  4 |
+| `error.tsv`                 |  45 | `divergent.tsv` |  0 |
+| `disjunct.tsv`              |  42 | `signature.tsv` |  0 |
+| `rel.tsv`                   |  42 | | |
 
 plus the `spread*.tsv` family: **26 files, 167 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,

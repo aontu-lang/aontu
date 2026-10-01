@@ -45,7 +45,7 @@ Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1365,7 +1365,13 @@ a list, an open bound rounded inward to the next whole number
 (`len(above(2))` is `minLength: 3`) and an excluded count as `not`
 both bounds at it; `unique()` becomes `uniqueItems`; an optional key is
 simply absent from `required`; `map` and `list` become `object` and
-`array`; a disjunction of bare kinds becomes a `type` array; a bare
+`array`; a `meta()` record becomes the annotation keywords of the same
+meaning, `comment` as `$comment` and each member of `x` as itself, with
+a second record in an `allOf` of schemas that only annotate;
+`deprecate()` becomes `deprecated: true`, with its record's `msg`,
+`use` and `since` under the extension keyword `x-aontu-deprecate`, a
+field holding several values as a list; a disjunction of bare kinds
+becomes a `type` array; a bare
 `*x` becomes the kind of x, with x as `default`, because `*1` admits
 every integer; and a written `nil` becomes the schema `false`, because it
 admits nothing. A spread is `additionalProperties: <template>`, which
@@ -1408,6 +1414,7 @@ The losses, and why each is one:
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
+| a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | residue: an unresolved reference, a waiting call, a nil the engine minted | not a property constraint at all; guessing one would be inventing a promise |
 
@@ -1471,7 +1478,7 @@ Import a **JSON Schema** (draft 2020-12) document as aontu, and say
 what could not be carried.
 
 ```
-aontu jsonschema import [--strict] [--format text|json] <file>
+aontu jsonschema import [--strict] [--defaults] [--format text|json] <file>
 ```
 
 This is the bridge in the other direction. A schema another tool
@@ -1507,6 +1514,9 @@ y: number
 - `--format json` prints the whole report (`text`, `lossy`, `verdict`,
   and `errors` when the text is refused) under the usual
   `aontu: {version, verb}` envelope.
+- `--defaults` makes an optional property's `default` a preference,
+  `*d | …`, where the property's own assertions admit it; without it a
+  `default` is an annotation only, as JSON Schema means it.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1542,7 +1552,10 @@ y: number
 | `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
 | `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
-| `$schema`, `$comment` | read and dropped: the dialect is 2020-12, and a comment asserts nothing |
+| `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`, `contentEncoding`, `contentMediaType`, `contentSchema` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
+| a keyword JSON Schema does not name | the same record, under `x` |
+| `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |
+| `$schema` | read and dropped: the dialect is 2020-12 |
 
 A string is `empty()` rather than `string`, because the strings of
 JSON Schema include `""` and aontu's `string` does not. A boolean schema
@@ -1552,9 +1565,11 @@ other: `allOf` of a string and a number admits nothing, and imports as
 
 **What does not cross is reported, never dropped in silence.** Each
 loss names a pointer into the schema, the keyword, and what dropping it
-costs. An annotation such as `title`, `format` or `default` asserts
-nothing, so dropping it changes no answer; a validation keyword such as
-`unevaluatedProperties` widens the position, and the loss says so. A
+costs. A validation keyword such as `unevaluatedProperties` widens the
+position, and the loss says so. So does a keyword of an earlier
+dialect, `dependencies`, `additionalItems`, `$recursiveRef` or
+`$recursiveAnchor`: it asserts in that dialect, though 2020-12 would
+read it as an annotation. A
 `$ref` that names another document is a loss too, and its position
 admits anything: the importer reads one document.
 

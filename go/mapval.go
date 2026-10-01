@@ -96,7 +96,7 @@ func (m *MapVal) Canon() string {
 	b.WriteByte('{')
 	if m.spread != nil {
 		b.WriteString("&:")
-		b.WriteString(m.spread.Canon())
+		b.WriteString(CanonRiders(m.spread))
 		if len(m.keys) > 0 {
 			b.WriteByte(',')
 		}
@@ -119,9 +119,9 @@ func (m *MapVal) Canon() string {
 			b.WriteByte('?')
 		}
 		b.WriteByte(':')
-		// canonRiders, not Canon: a deprecated field renders back
+		// CanonRiders, not Canon: a deprecated field renders back
 		// as its `deprecate(x, m)` call, reparseably (G3).
-		b.WriteString(canonRiders(m.peg[k]))
+		b.WriteString(CanonRiders(m.peg[k]))
 	}
 	b.WriteByte('}')
 	return b.String()

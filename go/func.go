@@ -25,6 +25,7 @@ var funcSet = map[string]bool{
 	"when":      true,
 	"contains":  true,
 	"deprecate": true,
+	"meta":      true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -658,7 +659,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return args[0]
 		}
 		out := clonePath(args[0], cp(base))
-		rec := map[string]string{}
+		rec := map[string][]string{}
 		if len(args) > 1 {
 			if m, ok := args[1].(*MapVal); ok {
 				// The record's whole vocabulary; other keys are DROPPED
@@ -666,13 +667,37 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 				for _, key := range []string{"msg", "use", "since"} {
 					if sv, ok := m.peg[key].(*ScalarVal); ok && KindString == sv.kind {
 						if str, ok := sv.peg.(string); ok {
-							rec[key] = str
+							rec[key] = []string{str}
 						}
 					}
 				}
 			}
 		}
-		out.setDeprecRec(rec)
+		// A second record on a deprecated value joins the first.
+		out.setDeprecRec(unionRiders(sameString, out.deprecRec(), rec))
+		return out
+	case "meta":
+		if args[0].Nil() {
+			return args[0]
+		}
+		recs := []map[string][]Val{}
+		for i, r := range args[1:] {
+			rec, ok := metaRecord(r)
+			if !ok {
+				return makeNilErrFull(ctx, "func_arg", f, r, "", map[string]string{
+					"func": "meta",
+					"sig":  renderSig(funcSig["meta"]),
+					"arg":  "r",
+					"argn": itoa(i + 2),
+					"got":  r.Canon(),
+				})
+			}
+			recs = append(recs, rec)
+		}
+		out := clonePath(args[0], cp(base))
+		if meta := unionRiders(valCanon, append([]map[string][]Val{out.metaRec()}, recs...)...); 0 < len(meta) {
+			out.setMetaRec(meta)
+		}
 		return out
 	case "acyclic", "inverse":
 		invname := ""

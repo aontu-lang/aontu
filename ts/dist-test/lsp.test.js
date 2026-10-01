@@ -144,6 +144,14 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.match(h.contents.value, /min\(0\)&max\(10\)/);
         Assert.match(h.contents.value, /\*constraint\*/);
     });
+    // G12 phase 8: a value's meta() titles and descriptions close its
+    // hover, byte-identical to go/lsp/hover_test.go (TestHoverAnnotations).
+    (0, node_test_1.test)('hover-shows-titles-and-descriptions', () => {
+        const one = (0, lsp_1.computeHover)('port: meta(8080, {title: "Port", description: "The listen port"})', { line: 0, character: 6 });
+        Assert.equal(one.contents.value, '```aontu\n8080\n```\n\n*integer*\n\n**Port**\n\nThe listen port');
+        const two = (0, lsp_1.computeHover)('port: meta(8080, {title: "A"}) & meta(8080, {title: "B"})', { line: 0, character: 6 });
+        Assert.equal(two.contents.value, '```aontu\n8080\n```\n\n*integer*\n\n**A**\n\n**B**');
+    });
     (0, node_test_1.test)('hover-miss-returns-null', () => {
         Assert.equal((0, lsp_1.computeHover)('port: 8080', { line: 5, character: 0 }), null);
     });
@@ -249,7 +257,7 @@ const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-completion', () => {
     (0, node_test_1.test)('completion-list', () => {
         const c = (0, lsp_1.computeCompletions)('');
-        Assert.equal(c.length, 82);
+        Assert.equal(c.length, 83);
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.kind, lsp_1.COMPLETION_FUNCTION);
         Assert.equal(byLabel.get('string')?.kind, lsp_1.COMPLETION_KEYWORD);
@@ -357,7 +365,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('builtin-funcs-match-engine', () => {
         // Drift guard: every BUILTIN_FUNCS name must be recognised by the
         // parser, and a bogus name must not be.
-        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 67);
+        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 68);
         for (const name of lsp_1.BUILTIN_FUNCS) {
             const errs = (0, lsp_1.computeDiagnostics)('x:' + name + '(1)')
                 .filter(d => d.code === 'unknown_function');
@@ -422,7 +430,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
         Assert.match(hov[0].result.contents.value, /8080/);
         const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} });
-        Assert.equal(comp[0].result.length, 82);
+        Assert.equal(comp[0].result.length, 83);
     });
     (0, node_test_1.test)('initialize-advertises-capabilities', () => {
         const h = new lsp_1.LspHandler();
@@ -584,6 +592,12 @@ const lsp_server_1 = require("../dist/lsp-server");
             Assert.match(t.message, /use \$\.listen/);
             Assert.match(t.message, /since 2\.0\.0/);
         }
+    });
+    (0, node_test_1.test)('met-records-read-as-one-message', () => {
+        const d = (0, lsp_1.computeDiagnostics)('p: deprecate(integer, {msg: "a"}) & ' +
+            'deprecate(1, {msg: "b", use: "$.q"})\nq: 1');
+        Assert.deepEqual(d.filter((x) => 'deprecated' === x.code)
+            .map((x) => x.message), ['deprecated: a; b (use $.q)']);
     });
     (0, node_test_1.test)('undeprecated-documents-carry-no-tag', () => {
         const d = (0, lsp_1.computeDiagnostics)('a:1');

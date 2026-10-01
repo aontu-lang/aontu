@@ -79,6 +79,7 @@ capability decision is the phase rows it governed in
 | [ADR-048](#adr-048--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
 | [ADR-049](#adr-049--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
 | [ADR-050](#adr-050--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
+| [ADR-051](#adr-051--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
 
 ---
 
@@ -4948,3 +4949,78 @@ distinct as JSON values, which `unique()` already asks of aontu values.
   over a long list is slower than a spread.
 - Pinned by `test/spec/constraint-contains.tsv` and the array rows of
   `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-051 — Annotations ride a value and meet as a union
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 8 brings
+JSON Schema's annotation keywords into aontu: `title`, `description`,
+`$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`
+and the content keywords, which assert nothing, and every keyword the
+specification does not name. JSON Schema collects them from each
+subschema a value passes. aontu had one rider, `deprecate()`, whose
+record kept whichever arrived first when two met on one value, so the
+answer depended on the order of the meet, and the importer reported
+every annotation as a loss.
+
+### Decision
+
+1. **`meta(v, ...r)` is a value-transparent rider.** The value unifies
+   exactly as `v`, generation is unchanged, and each record `r` rides
+   the result through meets, reference copies and spread applications,
+   as a `deprecate()` record does. The record keys are fixed: the
+   annotation keywords, `comment` for `$comment`, and `x` for the
+   keywords JSON Schema does not name. Each holds concrete data of its
+   kind, and anything else refuses the call with `func_arg`.
+2. **Records meet as their key-wise union.** Each key holds the
+   canon-sorted set of every value either record holds, so the meet is
+   commutative and idempotent and never refuses. `deprecate()` records
+   move to the same meet, and a deprecation field holding several
+   values reads as them joined with `; `.
+3. **The join is as order-free.** A disjunction member dropped as
+   another's duplicate leaves its riders on the member that stays, at
+   every depth, and so does a preference dropped for its twin of a lower
+   rank; a member that fails takes its riders with it.
+4. **A trial schema keeps its riders.** `nof`, `when`, `contains` and
+   `must` try a value and add nothing to it (ADR-048), so a record
+   inside a trial never reaches the value. JSON Schema collects a
+   passing branch's annotations for each instance; whether they should
+   reach the value is G12's open question 9.
+5. **Canon renders a rider wherever its value is held.** A map field, a
+   list item, a junction member, a preference, a spread template, a
+   trial argument, and the document's root, which the CLI renders as
+   `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) does. The riders go
+   outermost, `meta` around `deprecate`, one record per layer, so a
+   reparse unions them back, and the hash form includes them.
+6. **The importer and exporter carry annotations.** The importer writes
+   each schema object's annotations as one `meta()` record, unknown
+   keywords under `x`, and `deprecated` with `x-aontu-deprecate` as
+   `deprecate()`. A `default` is not a preference unless `--defaults`
+   asks, and then only on an optional property whose own assertions
+   admit it. An earlier dialect's keyword, `dependencies`,
+   `additionalItems`, `$recursiveRef` or `$recursiveAnchor`, is a
+   reported loss, since it asserts in that dialect. The exporter writes
+   the first record inline and any other in an `allOf` of
+   annotation-only subschemas, the members of `x` as keywords of their
+   own names, where one naming a JSON Schema keyword is a reported loss,
+   and a deprecation as `deprecated: true` with its record under
+   `x-aontu-deprecate`.
+
+### Consequences
+
+- An imported schema keeps its documentation, the language server's
+  hover shows a value's titles and descriptions, and a deprecation
+  message crosses to JSON Schema without loss.
+- The canon changes wherever a rider sat on a junction member, a
+  preference, a spread template, a trial argument or the root, which it
+  used to drop, and the hash where one sat in a trial argument; both
+  change wherever two deprecation records met.
+- A count's or a conditional's trial schemas keep their annotations
+  rather than lend them to the value.
+- Pinned by `test/spec/meta.tsv`, the union rows of
+  `test/spec/deprecate.tsv`, and rows in `hcanon.tsv`, `query.tsv`,
+  `jsonschema.tsv` and `jsonschema-import.tsv`, in both ports.

@@ -8,6 +8,8 @@ import { sizingResidue } from './val/BagVal'
 import { Decimal } from './val/Decimal'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
 import { nofCounts } from './val/ConstraintVal'
+import { recordLayers } from './rider'
+import { cmpCodePoint } from './keyorder'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
@@ -528,25 +530,85 @@ function keyword(out: any, extra: any[], key: string, val: any): void {
 
 function fromVal(ctx: Ctx, path: string[], v: any): any {
   const out = fromValInner(ctx, path, v)
-
-  const dep = v?.deprecation
-  if (null != dep && null != out && 'object' === typeof out) {
-    const said = DEPRECATION_TEXT.filter((k) => null != dep[k])
-    if (0 < said.length) {
-      lose(ctx, path, 'deprecate',
-        'JSON Schema 2020-12 has the `deprecated` flag and no field for ' +
-        'what it SAYS, so ' + said.join('/') + ' cannot cross; the ' +
-        'schema marks the property deprecated and a consumer must read ' +
-        'the model for the reason')
-    }
-    return { ...out, deprecated: true }
-  }
-
-  return out
+  return null == out || 'object' !== typeof out ||
+    (null == v?.deprecation && null == v?.meta) ? out : annotate(ctx, path, out, v)
 }
 
 
 const DEPRECATION_TEXT = ['msg', 'use', 'since']
+
+const META_KEYWORD: Record<string, string> = {
+  title: 'title', description: 'description', comment: '$comment', default: 'default',
+  examples: 'examples', readOnly: 'readOnly', writeOnly: 'writeOnly', format: 'format',
+  contentEncoding: 'contentEncoding', contentMediaType: 'contentMediaType',
+  contentSchema: 'contentSchema',
+}
+
+// The JSON Schema keywords: one held under `x` would assert where the
+// record only annotates, so it is not written.
+const KEYWORDS = new Set([
+  '$schema', '$id', '$ref', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary',
+  '$comment', '$defs', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
+  'dependentSchemas', 'prefixItems', 'items', 'contains', 'properties',
+  'patternProperties', 'additionalProperties', 'propertyNames', 'unevaluatedItems',
+  'unevaluatedProperties', 'type', 'enum', 'const', 'multipleOf', 'maximum',
+  'exclusiveMaximum', 'minimum', 'exclusiveMinimum', 'maxLength', 'minLength',
+  'pattern', 'maxItems', 'minItems', 'uniqueItems', 'maxContains', 'minContains',
+  'maxProperties', 'minProperties', 'required', 'dependentRequired', 'title',
+  'description', 'default', 'deprecated', 'readOnly', 'writeOnly', 'examples',
+  'format', 'contentEncoding', 'contentMediaType', 'contentSchema',
+])
+
+
+// A value's riders as annotations: the first record inline and any other
+// in an allOf of annotation-only subschemas, and a deprecation record as
+// `deprecated`, its fields under x-aontu-deprecate.
+function annotate(ctx: Ctx, path: string[], out: any, v: any): any {
+  const res: any = { ...out }
+  const dep = v.deprecation
+  if (null != dep) {
+    res.deprecated = true
+    const rec: any = {}
+    for (const k of DEPRECATION_TEXT.filter((k) => undefined !== dep[k])) {
+      rec[k] = 1 === dep[k].length ? dep[k][0] : dep[k]
+    }
+    if (0 < Object.keys(rec).length) {
+      res['x-aontu-deprecate'] = rec
+    }
+  }
+  const extra: any[] = []
+  for (const layer of null == v.meta ? [] : recordLayers(v.meta)) {
+    const part: any = {}
+    for (const [k, val] of Object.entries(layer)) {
+      const json = generated(val)
+      if ('x' !== k) {
+        part[META_KEYWORD[k]] = json
+        continue
+      }
+      for (const xk of Object.keys(json).sort(cmpCodePoint)) {
+        const xv = json[xk]
+        if (KEYWORDS.has(xk)) {
+          lose(ctx, path, 'meta',
+            'the unknown keyword ' + xk + ' is a JSON Schema keyword, which ' +
+            'would assert where the record only annotates, so it is DROPPED')
+        }
+        else {
+          part[xk] = xv
+        }
+      }
+    }
+    if (0 === extra.length && Object.keys(part).every((k) => undefined === res[k])) {
+      Object.assign(res, part)
+    }
+    else if (0 < Object.keys(part).length) {
+      extra.push(part)
+    }
+  }
+  if (0 < extra.length) {
+    res.allOf = [...(res.allOf ?? []), ...extra]
+  }
+  return res
+}
 
 
 // The schema of a literal's kind: what a bare `*x` admits beside x.

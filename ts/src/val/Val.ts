@@ -142,7 +142,9 @@ abstract class Val {
     hide: false,
   }
 
-  deprecation?: Record<string, string>
+  deprecation?: Record<string, string[]>
+
+  meta?: Record<string, Val[]>
 
   link?: string
 
@@ -257,6 +259,9 @@ abstract class Val {
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation
+    }
+    if (null != this.meta) {
+      out.meta = this.meta
     }
 
     if (null != this.origin) {

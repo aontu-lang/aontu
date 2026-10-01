@@ -21,6 +21,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	var files []string
 	format := "text"
 	strict := false
+	defaults := false
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
 		switch {
@@ -36,6 +37,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			format = argv[i]
 		case "--strict" == arg:
 			strict = true
+		case "--defaults" == arg:
+			defaults = true
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema import option "+arg+" (try --help)\n")
@@ -56,7 +59,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontu.ImportJSONSchema(string(src), &aontu.ImportOptions{Path: files[0]})
+	report := aontu.ImportJSONSchema(string(src),
+		&aontu.ImportOptions{Path: files[0], Defaults: defaults})
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaImportJSON(report)+"\n")

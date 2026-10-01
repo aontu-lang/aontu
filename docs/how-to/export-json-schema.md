@@ -276,9 +276,9 @@ says so. The same split decides list templates: `[&: string]`
 crosses as `items`, a constrained element template does not.
 
 Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
-`deprecated: true`, and what the deprecation SAYS does not, because
-the draft has no field for it. That half is reported. Write
-`legacy.aontu`:
+`deprecated: true`, and what the deprecation says crosses beside it in
+an extension keyword, `x-aontu-deprecate`, which a validator ignores
+and `aontu jsonschema import` reads back. Write `legacy.aontu`:
 
 <!-- test: file legacy.aontu -->
 ```aontu
@@ -299,7 +299,12 @@ $ aontu jsonschema --strict legacy.aontu
       "deprecated": true,
       "minLength": 1,
       "pattern": "^[a-z]{2}-[a-z]+-[0-9]$",
-      "type": "string"
+      "type": "string",
+      "x-aontu-deprecate": {
+        "msg": "renamed",
+        "since": "2.0.0",
+        "use": "$.zone"
+      }
     }
   },
   "required": [
@@ -307,17 +312,16 @@ $ aontu jsonschema --strict legacy.aontu
   ],
   "type": "object"
 }
-lossy: $.region deprecate: JSON Schema 2020-12 has the `deprecated` flag and no field for what it SAYS, so msg/use/since cannot cross; the schema marks the property deprecated and a consumer must read the model for the reason
 $ echo $?
-1
+0
 ```
 
-A consumer of the exported schema learns that the property is
-deprecated, which is the part that changes what a client does. It does
-not learn the reason, the replacement or the version (`msg`, `use`
-and `since` have nowhere to go in 2020-12), so `--strict` reports that
-half and exits 1. Announce renames through a channel that carries the
-text.
+Every consumer learns that the property is deprecated, which is the
+part that changes what a client does, and one that reads
+`x-aontu-deprecate` learns the reason, the replacement and the version
+too. Nothing is lost, so `--strict` passes. A `meta()` record crosses
+the same way, as the annotation keywords it holds: a `title` becomes
+`title`, and a member of its `x` becomes a keyword of its own name.
 
 ## The refusals
 

@@ -1025,7 +1025,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             // A pending atom has no residual yet, so canon renders the call as
             // written — the same shape FuncBaseVal renders while deferring.
             return this.pending.atom +
-                '(' + this.pending.args.map((a) => a.canon).join(',') + ')';
+                '(' + this.pending.args.map((a) => (0, utility_1.canonRiders)(a)).join(',') + ')';
         }
         return canonState(this);
     }
@@ -1086,7 +1086,7 @@ function integralState(s) {
         multsOf(s).some((m) => (0, numcmp_1.scaledIsIntegral)((0, numcmp_1.scaledOfShown)(m)));
 }
 function canonSorted(vals) {
-    return [...vals].sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.canon, b.canon));
+    return [...vals].sort((a, b) => (0, keyorder_1.cmpCodePoint)((0, utility_1.canonRiders)(a), (0, utility_1.canonRiders)(b)));
 }
 // Each canon once: equal checks over one value are one check.
 function byCanon(atoms, canon) {
@@ -1104,7 +1104,7 @@ function containsCanon(k) {
     const c = k.count;
     const one = null != c.lo && !c.lo.open && 0 === cmpVal('number', c.lo.v, countVal(1)) &&
         null == c.hi && 0 === c.neqs.length + multsOf(c).length;
-    return 'contains(' + k.c.canon + (one ? '' : ',' + countCanon(c)) + ')';
+    return 'contains(' + (0, utility_1.canonRiders)(k.c) + (one ? '' : ',' + countCanon(c)) + ')';
 }
 function atLeastOne() {
     return {
@@ -1121,7 +1121,7 @@ function containsMatches(ctx, k, members) {
 }
 function whenCanon(w) {
     return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]
-        .map((v) => v.canon).join(',') + ')';
+        .map((v) => (0, utility_1.canonRiders)(v)).join(',') + ')';
 }
 // A count is written bare where it is one integer, as `nof(1, …)` reads.
 function countCanon(c) {
@@ -1130,7 +1130,7 @@ function countCanon(c) {
     return point ? c.lo.v.canon : canonState({ ...c, kind: undefined });
 }
 function nofCanon(n) {
-    return 'nof(' + [countCanon(n.count), ...n.cs.map((c) => c.canon)].join(',') + ')';
+    return 'nof(' + [countCanon(n.count), ...n.cs.map((c) => (0, utility_1.canonRiders)(c))].join(',') + ')';
 }
 // A trial schema settles apart from the document: one that conflicts
 // admits nothing, while any other failure is the document's own.
@@ -1213,7 +1213,7 @@ function canonState(s) {
         parts.push(containsCanon(k));
     }
     for (const m of s.musts) {
-        parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')');
+        parts.push('must(' + (0, utility_1.canonRiders)(m.v) + ',' + m.msg.canon + ')');
     }
     for (const n of s.nofs ?? []) {
         parts.push(nofCanon(n));

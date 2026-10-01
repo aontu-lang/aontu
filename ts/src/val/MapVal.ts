@@ -487,7 +487,7 @@ class MapVal extends BagVal {
       // (this.mark.type ? '<type>' : '') +
       // (this.id + '=') +
       '{' +
-      (this.spread.cj ? '&:' + this.spread.cj.canon +
+      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
         (0 < keys.length ? ',' : '') : '') +
       keys
         .map(k => [

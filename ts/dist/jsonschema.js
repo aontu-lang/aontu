@@ -9,6 +9,8 @@ const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
 const numcmp_1 = require("./val/numcmp");
 const ConstraintVal_1 = require("./val/ConstraintVal");
+const rider_1 = require("./rider");
+const keyorder_1 = require("./keyorder");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -403,20 +405,78 @@ function keyword(out, extra, key, val) {
 }
 function fromVal(ctx, path, v) {
     const out = fromValInner(ctx, path, v);
-    const dep = v?.deprecation;
-    if (null != dep && null != out && 'object' === typeof out) {
-        const said = DEPRECATION_TEXT.filter((k) => null != dep[k]);
-        if (0 < said.length) {
-            lose(ctx, path, 'deprecate', 'JSON Schema 2020-12 has the `deprecated` flag and no field for ' +
-                'what it SAYS, so ' + said.join('/') + ' cannot cross; the ' +
-                'schema marks the property deprecated and a consumer must read ' +
-                'the model for the reason');
-        }
-        return { ...out, deprecated: true };
-    }
-    return out;
+    return null == out || 'object' !== typeof out ||
+        (null == v?.deprecation && null == v?.meta) ? out : annotate(ctx, path, out, v);
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
+const META_KEYWORD = {
+    title: 'title', description: 'description', comment: '$comment', default: 'default',
+    examples: 'examples', readOnly: 'readOnly', writeOnly: 'writeOnly', format: 'format',
+    contentEncoding: 'contentEncoding', contentMediaType: 'contentMediaType',
+    contentSchema: 'contentSchema',
+};
+// The JSON Schema keywords: one held under `x` would assert where the
+// record only annotates, so it is not written.
+const KEYWORDS = new Set([
+    '$schema', '$id', '$ref', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary',
+    '$comment', '$defs', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
+    'dependentSchemas', 'prefixItems', 'items', 'contains', 'properties',
+    'patternProperties', 'additionalProperties', 'propertyNames', 'unevaluatedItems',
+    'unevaluatedProperties', 'type', 'enum', 'const', 'multipleOf', 'maximum',
+    'exclusiveMaximum', 'minimum', 'exclusiveMinimum', 'maxLength', 'minLength',
+    'pattern', 'maxItems', 'minItems', 'uniqueItems', 'maxContains', 'minContains',
+    'maxProperties', 'minProperties', 'required', 'dependentRequired', 'title',
+    'description', 'default', 'deprecated', 'readOnly', 'writeOnly', 'examples',
+    'format', 'contentEncoding', 'contentMediaType', 'contentSchema',
+]);
+// A value's riders as annotations: the first record inline and any other
+// in an allOf of annotation-only subschemas, and a deprecation record as
+// `deprecated`, its fields under x-aontu-deprecate.
+function annotate(ctx, path, out, v) {
+    const res = { ...out };
+    const dep = v.deprecation;
+    if (null != dep) {
+        res.deprecated = true;
+        const rec = {};
+        for (const k of DEPRECATION_TEXT.filter((k) => undefined !== dep[k])) {
+            rec[k] = 1 === dep[k].length ? dep[k][0] : dep[k];
+        }
+        if (0 < Object.keys(rec).length) {
+            res['x-aontu-deprecate'] = rec;
+        }
+    }
+    const extra = [];
+    for (const layer of null == v.meta ? [] : (0, rider_1.recordLayers)(v.meta)) {
+        const part = {};
+        for (const [k, val] of Object.entries(layer)) {
+            const json = generated(val);
+            if ('x' !== k) {
+                part[META_KEYWORD[k]] = json;
+                continue;
+            }
+            for (const xk of Object.keys(json).sort(keyorder_1.cmpCodePoint)) {
+                const xv = json[xk];
+                if (KEYWORDS.has(xk)) {
+                    lose(ctx, path, 'meta', 'the unknown keyword ' + xk + ' is a JSON Schema keyword, which ' +
+                        'would assert where the record only annotates, so it is DROPPED');
+                }
+                else {
+                    part[xk] = xv;
+                }
+            }
+        }
+        if (0 === extra.length && Object.keys(part).every((k) => undefined === res[k])) {
+            Object.assign(res, part);
+        }
+        else if (0 < Object.keys(part).length) {
+            extra.push(part);
+        }
+    }
+    if (0 < extra.length) {
+        res.allOf = [...(res.allOf ?? []), ...extra];
+    }
+    return res;
+}
 // The schema of a literal's kind: what a bare `*x` admits beside x.
 function kindOfLiteral(ctx, path, v) {
     const t = scalarType(v);

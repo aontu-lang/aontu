@@ -82,8 +82,10 @@ type Val interface {
 	setWritten()
 	innerOf() Val
 	setInnerOf(v Val)
-	deprecRec() map[string]string
-	setDeprecRec(rec map[string]string)
+	deprecRec() map[string][]string
+	setDeprecRec(rec map[string][]string)
+	metaRec() map[string][]Val
+	setMetaRec(rec map[string][]Val)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -126,7 +128,8 @@ type base struct {
 	fspr    bool
 	fwrt    bool
 	finner  Val
-	deprec  map[string]string
+	deprec  map[string][]string
+	meta    map[string][]Val
 	origin  string
 	emitted *emitOrigin
 	link    string
@@ -207,8 +210,10 @@ func (b *base) vpath() []string     { return b.path }
 func (b *base) setvpath(p []string) { b.path = p }
 
 func (b *base) markedType() bool                   { return b.mtype }
-func (b *base) deprecRec() map[string]string       { return b.deprec }
-func (b *base) setDeprecRec(rec map[string]string) { b.deprec = rec }
+func (b *base) deprecRec() map[string][]string       { return b.deprec }
+func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
+func (b *base) metaRec() map[string][]Val            { return b.meta }
+func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }

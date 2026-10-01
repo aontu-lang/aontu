@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### `meta(v, ...r)`, and JSON Schema's annotations
+
+Both ports, G12 phase 8. `meta(v, ...r)` is a new value-transparent
+rider: the value unifies exactly as `v`, and each record, a map of
+annotation keys such as `title`, `description`, `default` and
+`examples`, with `x` for keywords JSON Schema does not name, rides the
+result through meets, reference copies and spread applications
+(ADR-051). Two records on one value meet as their key-wise union, in
+either order, and `deprecate()` records now meet the same way, where the
+first used to win; a deprecation message joins a field's values with
+`; `. A disjunction member dropped as another's duplicate, or as a
+preference of a higher rank than its twin, leaves its records on the
+one that stays. Canon now renders a `meta()` or
+`deprecate()` record wherever its value is held, where it used to drop
+one on a disjunction member, a preference, a spread template, a trial
+argument or the document's root, so the canon of such a document
+changes, and its canon-hash where the record sat in a trial argument. The importer carries the annotation keywords as
+`meta()` records rather than reporting them, `deprecated` as
+`deprecate()`, and a `default` as a preference only under the new
+`--defaults` option; a keyword of an earlier dialect, such as
+`dependencies`, is now a reported loss. The exporter writes the records
+back as annotation keywords, and a deprecation's message, replacement
+and version under `x-aontu-deprecate`, where they used to be a loss. The
+language servers' hover shows a value's titles and descriptions.
+
 ### `contains(c, n?)`, and JSON Schema's array counts
 
 Both ports, G12 phase 7. `contains(c, n?)` is a new Band B atom: the

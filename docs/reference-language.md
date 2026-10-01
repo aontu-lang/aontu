@@ -48,6 +48,7 @@ the [Explanation](explanation.md).
 - [Checked links: `refer(t?)`](#checked-links-refert)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
+- [Annotations: `meta`](#annotations-meta)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
   - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
@@ -2206,7 +2207,7 @@ Example: `copyfiles("assets")`
 
 ### `deprecate(v: any, r?: map) : any`
 
-Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
+Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Two records on one value meet as their union, as [`meta()`](#annotations-meta)'s do, and a field holding several values reads as them joined with `; `. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
 
 Example: `port: deprecate(*8080|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})`
 
@@ -2361,6 +2362,12 @@ Example: `integer & max(10)`
 The value when it resolves, and **absence** when the only thing wrong is that it is not there. See [Optional input](#optional-input-maybe).
 
 Example: `maybe($.gone)` generates nothing; `maybe($.here)` is `$.here`
+
+### `meta(v: any, ...r: map) : any`
+
+Annotate `v` with the records `r`; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
+
+Example: `port: meta(*8080|integer, {title: "Port"})`
 
 ### `min(n: number|string) : constraint`
 
@@ -3942,6 +3949,71 @@ does (the generated children stay usable downstream (`out: pack($.m,
 inside another `type()` body constrains the referring field without
 suppressing its emission.
 
+## Annotations: `meta`
+
+`meta(v, ...r)` annotates a value without changing it. The value
+unifies exactly as `v` does, generation is unchanged, and each record
+`r` rides the result through meets, reference copies and spread
+applications, as a `deprecate()` record does:
+
+```aontu
+port: meta(*8080|integer, { title:"Port" description:"The listen port" })
+```
+
+```json
+{"port":8080}
+```
+
+A record is a map of annotation keys, and each key holds concrete data
+of one kind:
+
+| key | holds |
+|---|---|
+| `title`, `description`, `comment`, `format`, `contentEncoding`, `contentMediaType` | a string |
+| `readOnly`, `writeOnly` | a boolean |
+| `examples` | a list |
+| `default`, `contentSchema` | any concrete data |
+| `x` | a map of the keywords JSON Schema does not name |
+
+A key outside the table, a value of the wrong kind, and a value that is
+not concrete data, such as a kind, a spread, an optional key or a
+preference, refuse the call with `func_arg`. A call needs at least one
+record.
+
+**Records meet as their union.** Where two records reach one value,
+each key holds every value either record holds, in canon order. The
+meet never refuses, gives one answer in either order, and changes
+nothing when the same record arrives twice: `meta(number, {title:
+"b"}) & meta(1, {title: "a"})` has the canon
+`meta(1,{"title":"a"},{"title":"b"})`. `deprecate()` records meet the
+same way.
+
+**A disjunction keeps each member's record.** A member that fails
+takes its record with it, and a member dropped as a duplicate of
+another leaves its record on the one that stays, at every depth, so `1 |
+meta(1, {title: "a"})` and `meta(1, {title: "a"}) | 1` both have the
+canon `meta(1,{"title":"a"})`. A preference dropped for a twin of a
+lower rank does the same: `*meta(1, {title: "a"}) | **meta(1, {title:
+"b"})` keeps both titles on `*1`.
+
+**A trial schema keeps its record.** The arguments of `nof`, `when`,
+`contains` and `must` are tried against a value and add nothing to it,
+so a record inside one stays with the atom: `nof(1, meta(number,
+{title: "n"})) & 1` is `1`.
+
+**Canon writes the call back**, outermost and after `deprecate()`, one
+record per layer, the first holding each key's first value, so that a
+reparse unions them back. It renders a record wherever its value sits:
+a field, an item, a disjunction member, a preference, a spread, a trial
+schema, and the document's root. The hash form includes every record,
+so changing one changes the canon-hash.
+
+`vet`, `subsume` and `breaking` read through a record. The language
+server's hover shows a value's titles in bold, then its descriptions,
+and `aontu jsonschema` writes each key as the JSON Schema keyword of
+the same meaning, which `aontu jsonschema import` reads back as
+`meta()` ([JSON Schema](reference-api.md#aontu-jsonschema)).
+
 ## Closed values: `close` / `open`
 
 A **closed** map or list refuses any key/element not already present,
@@ -4408,6 +4480,12 @@ constraints, defaults, and open disjunctions. Rules:
 - Conjunction: `a&b` (for example `number&"A"`). Disjunction: `a|b`
   (for example `1|2`, `string|number`). Preference: `*x` (for example `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
+- A `deprecate()` or `meta()` record renders as the call that carries
+  it, wherever its value is held: a field, an item, a disjunction
+  member, a preference, a spread, and a trial argument. A value's own
+  `canon` leaves out its own records, which its holder renders;
+  `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) renders them, as
+  `aontu --canon` does for the document's root.
 
 ## The formatted form
 

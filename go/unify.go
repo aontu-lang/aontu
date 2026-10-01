@@ -22,17 +22,8 @@ func unite(ctx *Ctx, a, b Val) Val {
 	if nil != ctx.prov {
 		ctx.prov.record(provPath, a, b, out)
 	}
-	if nil != out && !isTop(out) && !out.Nil() && nil == out.deprecRec() {
-		var dep map[string]string
-		if nil != a {
-			dep = a.deprecRec()
-		}
-		if nil == dep && nil != b {
-			dep = b.deprecRec()
-		}
-		if nil != dep {
-			out.setDeprecRec(dep)
-		}
+	if nil != out && !isTop(out) && !out.Nil() {
+		ride(out, a, b)
 	}
 	if nil != ctx.reads && nil != out && !isTop(out) && !out.Nil() {
 		if "" == out.readAddr() {
@@ -92,9 +83,8 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 		return b
 	}
 	if b == nil || isTop(b) {
-		// No `a.Dc() == DONE` check here: the fast path at the top of the
-		// function already returned for that case, so anything reaching
-		// this line is not done.
+		// No `a.Dc() == DONE` check: the fast path at the top already
+		// returned for that case, so nothing reaching here is done.
 		return drive(a, top())
 	}
 	if isTop(a) {

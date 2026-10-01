@@ -343,7 +343,7 @@ class ListVal extends BagVal {
     let keys = Object.keys(this.peg)
     return '' +
       '[' +
-      (this.spread.cj ? '&:' + this.spread.cj.canon +
+      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
         (0 < keys.length ? ',' : '') : '') +
       keys.map(k => canonRiders(this.peg[k])).join(',') +
       ']'

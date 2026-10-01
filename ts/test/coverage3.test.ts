@@ -25,6 +25,7 @@ import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
 import { subsumeNode } from '../dist/subsume'
 import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
+import { MetaFuncVal } from '../dist/val/MetaFuncVal'
 import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
@@ -1181,13 +1182,22 @@ describe('coverage3-deprecate', () => {
     Assert.equal(d.resolve(ctx, [nil]), nil)
   })
 
+  test('meta-func-internals', () => {
+    const ctx = new AontuContext({ root: top() } as any)
+    const m = new MetaFuncVal({ peg: [] })
+    Assert.equal((m.make(ctx, { peg: [] }) as any).isMetaFunc, true)
+    const argless: any = m.resolve(ctx, [])
+    Assert.equal(argless.isNil, true)
+    Assert.equal(argless.why, 'arg')
+  })
+
   // The shared walk behind vet's warnings and the LSP tags: the
   // non-Val guard is for a bag's raw peg entries, which degenerate
   // parses can leave behind — pinned directly, with one.
   test('collect-deprecations-walk', () => {
     const m = new MapVal({ peg: {} })
     const dep = new IntegerVal({ peg: 1 })
-    ;(dep as any).deprecation = { msg: 'm' }
+    ;(dep as any).deprecation = { msg: ['m'] }
     const plain = new IntegerVal({ peg: 2 })
     const inner = new ListVal({ peg: [dep] })
     m.peg.a = inner

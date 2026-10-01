@@ -873,10 +873,13 @@ The rider's meet is a key-wise union of canon-sorted value sets: it is
 commutative, idempotent and monotone, and it never refuses, which is
 how JSON Schema aggregates annotations from every applicator that
 passes. `deprecate()`'s record moves to the same rule; today two
-different records on one value keep whichever arrived first. A failing
-branch's rider is discarded with the branch, and `nof(0, …)` never
-contributes one. Canon renders `meta(…)` in a fixed position after
-`type`, `hide` and `deprecate`, and the hash includes it.
+different records on one value keep whichever arrived first. A trial
+schema's rider stays with its atom: `nof`, `when` and `contains` try a
+value and add nothing to it (ADR-048), so the annotations a passing
+branch would contribute for one instance are an evaluation result, not
+part of the value ([open question 9](#open-questions)). Canon renders
+`meta(…)` in a fixed position after `type`, `hide` and `deprecate`,
+and the hash includes it.
 
 **`default` imports into the rider, never as `*`.** A preference fills
 and gates admission (ADR-004), which a 2020-12 `default` never does.
@@ -1260,6 +1263,15 @@ are forced as well:
    carries beside a root of any kind, which changes the grammar, or an
    import that always answers a map and puts a non-map root's value
    under a key, which changes what the import's root means.
+9. **Should a passing trial schema's annotations reach the value?**
+   JSON Schema collects the annotations of every branch an instance
+   passes, so a `deprecated` inside a matching `anyOf` branch marks the
+   instance. Phase 8 keeps a trial schema's riders with its atom, as a
+   trial adds nothing to the value, so `vet` warns only on a deprecation
+   the value carries itself. Attaching them would make a value's riders
+   depend on which branches its data passes, decided at the meet for a
+   scalar and at generation for a container, and the two ports would
+   have to attach them at the same point.
 
 ## Appendix: the inventory
 

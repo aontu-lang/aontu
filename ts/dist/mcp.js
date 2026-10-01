@@ -17,6 +17,7 @@ const vet_1 = require("./vet");
 const query_1 = require("./query");
 const diff_1 = require("./diff");
 const hcanon_1 = require("./hcanon");
+const utility_1 = require("./utility");
 const keyorder_1 = require("./keyorder");
 const subsume_1 = require("./subsume");
 const trim_1 = require("./trim");
@@ -520,7 +521,7 @@ function canonOf(src, trust, path) {
     if (0 < ctx.err.length) {
         return { ok: false, canon: '', findings: [(0, query_1.evalFailure)(ctx)] };
     }
-    return { ok: true, canon: v.canon, findings: [] };
+    return { ok: true, canon: (0, utility_1.canonRiders)(v), findings: [] };
 }
 function summaryOf(src, trust, path) {
     const aontu = served(trust);

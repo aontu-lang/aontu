@@ -105,6 +105,9 @@ class Val {
         if (null != this.deprecation) {
             out.deprecation = this.deprecation;
         }
+        if (null != this.meta) {
+            out.meta = this.meta;
+        }
         if (null != this.origin) {
             out.origin = this.origin;
         }

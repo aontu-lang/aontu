@@ -1,5 +1,6 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 import { includeOpts } from './utility'
+import { riderText } from './rider'
 
 
 import { Aontu } from './aontu'
@@ -103,6 +104,12 @@ function project(v: any, view: QueryView, depth: number): string {
   if (depth <= 0) {
     return TOP
   }
+  const s = projectNode(v, view, depth)
+  return 'canon' === view ? riderText(s, v) : s
+}
+
+
+function projectNode(v: any, view: QueryView, depth: number): string {
   if (true === v?.isMap) {
     const keys = Object.keys(v.peg).sort(cmpCodePoint)
     return '{' +

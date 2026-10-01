@@ -1,0 +1,126 @@
+# META -- `meta(v, ...r)` (G12 phase 8, ADR-051): a value-transparent
+# rider. The value unifies exactly as v, and each record r rides the
+# result through meets, reference copies and spread applications. A
+# record's keys are the annotation keys -- title, description, comment,
+# default, examples, readOnly, writeOnly, format, contentEncoding,
+# contentMediaType and contentSchema, and x for the keywords JSON Schema
+# does not name -- each holding concrete data of its kind; anything else
+# refuses with func_arg. Two records meet as their key-wise union of
+# canon-sorted value sets, so the meet is commutative and idempotent and
+# never refuses. Every expectation is both engines' agreed answer.
+#
+# Canon renders the call back reparseably and outermost, after
+# deprecate(); each record holds every key's next value.
+meta-canon-one-record	canon	a: meta(number, {title: "n"})	{"a":meta(number,{"title":"n"})}
+meta-canon-keys-sort	canon	a: meta(1, {title: "t", description: "d", comment: "c"})	{"a":meta(1,{"comment":"c","description":"d","title":"t"})}
+meta-canon-an-empty-record-is-the-value	canon	a: meta(1, {})	{"a":1}
+meta-canon-map	canon	a: meta({x: 1}, {title: "t"})	{"a":meta({"x":1},{"title":"t"})}
+meta-canon-list	canon	a: [meta(1, {title: "t"})]	{"a":[meta(1,{"title":"t"})]}
+meta-canon-preference	canon	a: meta(*1 | number, {title: "t"})	{"a":meta(*1|number,{"title":"t"})}
+meta-canon-disjunction	canon	a: meta(1 | 2, {title: "t"})	{"a":meta(1|2,{"title":"t"})}
+meta-canon-x-map	canon	a: meta(1, {x: {"x-custom": [1, true]}})	{"a":meta(1,{"x":{"x-custom":[1,true]}})}
+meta-canon-default-data	canon	a: meta(number, {default: {a: [1]}})	{"a":meta(number,{"default":{"a":[1]}})}
+meta-canon-examples	canon	a: meta(number, {examples: [1, 2]})	{"a":meta(number,{"examples":[1,2]})}
+meta-canon-flags	canon	a: meta(number, {readOnly: true, writeOnly: false})	{"a":meta(number,{"readOnly":true,"writeOnly":false})}
+meta-canon-path-value	canon	a: meta(1, {description: "$.b"})	{"a":meta(1,{"description":"$.b"})}
+meta-canon-ref-arg	canon	b: 2, a: meta($.b, {title: "t"})	{"a":meta(2,{"title":"t"}),"b":2}
+meta-canon-ref-in-record	canon	b: "t", a: meta(1, {title: $.b})	{"a":meta(1,{"title":"t"}),"b":"t"}
+meta-canon-with-deprecate	canon	a: meta(deprecate(1, {msg: "m"}), {title: "t"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"t"})}
+meta-canon-goes-outside-deprecate	canon	a: deprecate(meta(1, {title: "t"}), {msg: "m"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"t"})}
+meta-canon-type-mark-is-not-canon	canon	a: meta(type(number), {title: "t"})	{"a":meta(number,{"title":"t"})}
+meta-canon-type-outside-is-not-canon	canon	a: type(meta(number, {title: "t"}))	{"a":meta(number,{"title":"t"})}
+meta-canon-hide-mark-is-not-canon	canon	a: meta(hide(1), {title: "t"})	{"a":meta(1,{"title":"t"})}
+#
+# The meet unions the records, in either order and any number of times.
+meta-canon-meet-plain	canon	a: meta(number, {title: "n"}) & 1	{"a":meta(1,{"title":"n"})}
+meta-canon-meet-unions-keys	canon	a: meta(number, {title: "a"}) & meta(1, {description: "d"})	{"a":meta(1,{"description":"d","title":"a"})}
+meta-canon-meet-one-key-two-values	canon	a: meta(number, {title: "b"}) & meta(1, {title: "a"})	{"a":meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-meet-commutes	canon	a: meta(1, {title: "a"}) & meta(number, {title: "b"})	{"a":meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-meet-idempotent	canon	a: meta(1, {title: "a"}) & meta(1, {title: "a"})	{"a":meta(1,{"title":"a"})}
+meta-canon-two-records-one-call	canon	a: meta(1, {title: "a"}, {title: "b", description: "d"})	{"a":meta(1,{"description":"d","title":"a"},{"title":"b"})}
+meta-canon-nested-call	canon	a: meta(meta(1, {title: "a"}), {description: "d"})	{"a":meta(1,{"description":"d","title":"a"})}
+meta-canon-many-layers	canon	a: meta(1, {title: "c"}) & meta(1, {title: "a", description: "x"}) & meta(1, {title: "b"})	{"a":meta(1,{"description":"x","title":"a"},{"title":"b"},{"title":"c"})}
+#
+# A record rides a reference copy, a spread application and a conjunct,
+# and the document renders its root's.
+meta-canon-ref	canon	p: meta(number, {title: "n"}), q: $.p & 9	{"p":meta(number,{"title":"n"}),"q":meta(9,{"title":"n"})}
+meta-canon-spread	canon	a: {&: meta(number, {title: "n"})} & {x: 1}	{"a":{&:meta(number,{"title":"n"}),"x":meta(1,{"title":"n"})}}
+meta-canon-conjunct-member	canon	a: meta($.b, {title: "t"}) & number, b: 1	{"a":meta(1,{"title":"t"}),"b":1}
+meta-canon-root	canon	meta({a: 1}, {title: "root"})	meta({"a":1},{"title":"root"})
+meta-canon-root-meet	canon	meta({a: 1}, {title: "r"}) & {b: 2}	meta({"a":1,"b":2},{"title":"r"})
+#
+# A disjunction renders each member's record. A failing member's record
+# goes with it, and a member dropped as another's duplicate leaves its
+# record on the survivor, at every depth, so the join is order-free too.
+meta-canon-member-records	canon	a: meta(1, {title: "one"}) | meta(2, {title: "two"})	{"a":meta(1,{"title":"one"})|meta(2,{"title":"two"})}
+meta-canon-pref-inner	canon	a: *meta(1, {title: "t"}) | number	{"a":*meta(1,{"title":"t"})|number}
+meta-canon-failing-member-takes-its-record	canon	a: (meta(number, {title: "n"}) | meta(string, {title: "s"})) & "x"	{"a":meta("x",{"title":"s"})}
+meta-canon-dedup-first	canon	a: meta(1, {title: "a"}) | 1	{"a":meta(1,{"title":"a"})}
+meta-canon-dedup-second	canon	a: 1 | meta(1, {title: "a"})	{"a":meta(1,{"title":"a"})}
+meta-canon-dedup-union	canon	a: (meta(1, {title: "b"}) | meta(1, {title: "a"})) & 1	{"a":meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-two-kinds	canon	a: meta(number, {title: "a"}) | meta(number, {description: "d"})	{"a":meta(number,{"description":"d","title":"a"})}
+meta-canon-dedup-nested-map	canon	a: {b: 1} | {b: meta(1, {title: "x"})}	{"a":{"b":meta(1,{"title":"x"})}}
+meta-canon-dedup-nested-map-rev	canon	a: {b: meta(1, {title: "x"})} | {b: 1}	{"a":{"b":meta(1,{"title":"x"})}}
+meta-canon-dedup-nested-list	canon	a: [1] | [meta(1, {title: "x"})]	{"a":[meta(1,{"title":"x"})]}
+meta-canon-dedup-nested-list-rev	canon	a: [meta(1, {title: "x"})] | [1]	{"a":[meta(1,{"title":"x"})]}
+meta-canon-dedup-pref	canon	a: *meta(1, {title: "b"}) | *meta(1, {title: "a"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-pref-rev	canon	a: *meta(1, {title: "a"}) | *meta(1, {title: "b"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-ranks	canon	a: *meta(1, {title: "a"}) | **meta(1, {title: "b"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-ranks-rev	canon	a: **meta(1, {title: "b"}) | *meta(1, {title: "a"})	{"a":*meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-dedup-ranks-nested	canon	a: *{x: meta(1, {title: "a"})} | **{x: meta(1, {title: "b"})}	{"a":*{"x":meta(1,{"title":"a"},{"title":"b"})}}
+#
+# A trial schema keeps its record: the atom renders it, and the value
+# the trial admits takes none, since a trial adds nothing to the value.
+meta-canon-nof-adds-no-record	canon	a: nof(1, meta(number, {title: "n"})) & 1	{"a":1}
+meta-canon-when-adds-no-record	canon	a: when(meta(number, {title: "c"}), meta(1, {title: "t"})) & 1	{"a":1}
+meta-canon-contains-adds-no-record	canon	a: contains(meta(number, {title: "n"})) & [1]	{"a":[1]&contains(meta(number,{"title":"n"}))}
+meta-canon-nof-args	canon	a: nof(1, meta(number, {title: "n"}), meta(integer, {title: "i"}))	{"a":nof(1,meta(integer,{"title":"i"}),meta(number,{"title":"n"}))}
+meta-canon-nof-args-differ-by-rider	canon	a: nof(1, meta(number, {title: "n"}), number)	{"a":nof(1,meta(number,{"title":"n"}),number)}
+meta-canon-when-args	canon	a: when(meta({x: any}, {title: "c"}), meta({y: any}, {title: "t"}), meta({z: any}, {title: "e"}))	{"a":when(meta({"x":any},{"title":"c"}),meta({"y":any},{"title":"t"}),meta({"z":any},{"title":"e"}))}
+meta-canon-contains-arg	canon	a: contains(meta(number, {title: "n"}), 2)	{"a":contains(meta(number,{"title":"n"}),2)}
+#
+# Generation is unchanged: a record never reaches the output.
+meta-gens-transparent	gens	a: meta(*8080 | integer, {title: "port"})	{"a":8080}
+meta-gens-map	gens	a: meta({x: 1}, {title: "t"}) & {y: 2}	{"a":{"x":1,"y":2}}
+meta-gens-list	gens	a: [meta(1, {title: "t"}), 2]	{"a":[1,2]}
+#
+# The value and at least one record; each record a map of annotation
+# keys holding concrete data of the key's kind. The value refuses as
+# it would without the record.
+meta-errc-arity-none	errc	a: meta()	func_arity
+meta-errc-value-alone	errc	a: meta(1)	func_arity
+meta-errc-record-not-a-map	errc	a: meta(1, "t")	func_arg
+meta-errc-unknown-key	errc	a: meta(1, {nope: "x"})	func_arg
+meta-errc-title-not-a-string	errc	a: meta(1, {title: 1})	func_arg
+meta-errc-readonly-not-a-boolean	errc	a: meta(1, {readOnly: "yes"})	func_arg
+meta-errc-examples-not-a-list	errc	a: meta(1, {examples: 1})	func_arg
+meta-errc-x-not-a-map	errc	a: meta(1, {x: 1})	func_arg
+meta-errc-default-not-data	errc	a: meta(1, {default: number})	func_arg
+meta-errc-optional-key-not-data	errc	a: meta(1, {x: {a?: 1}})	func_arg
+meta-errc-record-spread-not-data	errc	a: meta(1, {&: string})	func_arg
+meta-errc-list-spread-not-data	errc	a: meta(1, {examples: [&: 1]})	func_arg
+meta-errc-list-item-not-data	errc	a: meta(1, {examples: [number]})	func_arg
+meta-errc-preference-not-data	errc	a: meta(1, {default: *1 | 2})	func_arg
+meta-errc-second-record-checked	errc	a: meta(1, {title: "a"}, {title: 2})	func_arg
+meta-errc-value-conflict	errc	a: meta(1, {title: "a"}) & 2	scalar_value
+meta-errc-nil-stays-nil	errc	a: meta(nil, {title: "t"})	literal_nil
+#
+# vet and subsume read through the record.
+meta-vet-annotation-decides-nothing	vet	a: meta(number, {title: "n"})	a: 1	{"findings":[],"truncated":false,"verdict":"valid"}
+meta-vet-refusal-unchanged	vet	a: meta(number, {title: "n"})	a: "x"	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":4,"file":"schema","len":4,"role":"schema","row":1,"src":"meta","value":"number"}]}],"truncated":false,"verdict":"invalid"}
+meta-subsume-general-record-ignored	subsume	a: meta(number, {title: "n"})	a: 1	{"findings":[],"verdict":"subsumes"}
+meta-subsume-specific-record-ignored	subsume	a: number	a: meta(1, {title: "t"})	{"findings":[],"verdict":"subsumes"}
+#
+# Export: the first record inline and any other in an allOf of
+# annotation-only subschemas; x's members inline, where one naming a
+# JSON Schema keyword is a reported loss, since it would assert.
+js-meta-inline	jsonschema	a: meta(number, {title: "n", description: "d"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"description":"d","title":"n","type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-every-key	jsonschema	a: meta(string, {comment: "c", default: "x", examples: ["x"], readOnly: true, writeOnly: false, format: "email", contentEncoding: "base64", contentMediaType: "text/plain", contentSchema: {type: "string"}})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"$comment":"c","contentEncoding":"base64","contentMediaType":"text/plain","contentSchema":{"type":"string"},"default":"x","examples":["x"],"format":"email","minLength":1,"readOnly":true,"type":"string","writeOnly":false}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-x-keywords	jsonschema	a: meta(number, {x: {"x-custom": 1, nullable: true}})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"nullable":true,"type":"number","x-custom":1}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-x-keyword-dropped	jsonschema	a: meta(number, {x: {type: "string", "x-ok": 1}})	{"lossy":[{"construct":"meta","path":"$.a","reason":"the unknown keyword type is a JSON Schema keyword, which would assert where the record only annotates, so it is DROPPED"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"number","x-ok":1}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-meta-several-records	jsonschema	a: meta(number, {title: "a"}) & meta(number, {title: "b"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"title":"b"}],"title":"a","type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-root	jsonschema	meta({a: 1}, {title: "root"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1,"type":"integer"}},"required":["a"],"title":"root","type":"object"},"verdict":"ok"}
+js-meta-with-deprecate	jsonschema	a: meta(deprecate(number, {msg: "m"}), {title: "t"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"deprecated":true,"title":"t","type":"number","x-aontu-deprecate":{"msg":"m"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-default-beside-preference	jsonschema	a: meta(*1 | number, {default: 2})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"default":2}],"anyOf":[{"const":1,"type":"integer"},{"type":"number"}],"default":1}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-on-a-branch	jsonschema	a: meta(number, {title: "n"}) | meta(string, {title: "s"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"title":"n","type":"number"},{"minLength":1,"title":"s","type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-meta-on-a-literal	jsonschema	a: meta(1, {title: "one"})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":1,"title":"one","type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}

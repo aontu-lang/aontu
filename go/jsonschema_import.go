@@ -21,6 +21,9 @@ import (
 // ImportOptions names where the schema came from, for the report's sites.
 type ImportOptions struct {
 	Path string
+	// Defaults makes an optional property's default a preference
+	// (ADR-051).
+	Defaults bool
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -533,6 +536,8 @@ type importCtx struct {
 	decls   map[string]string
 	stack   []*jnode
 	copies  int
+	// defaults is ImportOptions.Defaults.
+	defaults bool
 }
 
 // importCopyBudget is the copies a root that is not a map may make.
@@ -762,29 +767,43 @@ func (ctx *importCtx) collectRefs(node *jnode, seen map[*jnode]bool) {
 }
 
 // What each keyword the importer does not yet carry costs, for its loss.
-const (
-	importNotYet = "the importer does not carry this keyword yet, so it is dropped " +
-		"and the position admits more than the schema does"
-	importAnnotation = "an annotation asserts nothing, and the importer does not keep " +
-		"annotations yet, so it is dropped"
-)
+const importNotYet = "the importer does not carry this keyword yet, so it is dropped " +
+	"and the position admits more than the schema does"
+
+// importLegacy is a legacy dialect's keyword, which asserts there though
+// the dialect read here takes it as an annotation.
+const importLegacy = "a keyword of an earlier dialect, which 2020-12 does not define, " +
+	"so it is dropped and the position admits more than that dialect does"
 
 var importLater = map[string]string{
 	"$dynamicRef": importNotYet, "$dynamicAnchor": importNotYet,
 	"unevaluatedProperties": importNotYet, "unevaluatedItems": importNotYet,
-	"title": importAnnotation, "description": importAnnotation, "default": importAnnotation,
-	"examples": importAnnotation, "deprecated": importAnnotation, "readOnly": importAnnotation,
-	"writeOnly": importAnnotation, "format": importAnnotation,
-	"contentMediaType": importAnnotation, "contentEncoding": importAnnotation,
-	"contentSchema": importAnnotation,
 	"$id": "a resource identifier, and references resolve within this document " +
 		"only, so it is dropped",
 	"$vocabulary": "a vocabulary declaration, and the 2020-12 vocabularies are read " +
 		"whatever it says, so it is dropped",
+	"dependencies": importLegacy, "additionalItems": importLegacy,
+	"$recursiveRef": importLegacy, "$recursiveAnchor": importLegacy,
+}
+
+// importAnnotated is each annotation keyword's meta() key and the JSON
+// kind it takes.
+var importAnnotated = map[string][2]string{
+	"title": {"title", "string"}, "description": {"description", "string"},
+	"$comment": {"comment", "string"}, "default": {"default", "any"},
+	"examples": {"examples", "array"}, "readOnly": {"readOnly", "boolean"},
+	"writeOnly": {"writeOnly", "boolean"}, "format": {"format", "string"},
+	"contentEncoding":  {"contentEncoding", "string"},
+	"contentMediaType": {"contentMediaType", "string"}, "contentSchema": {"contentSchema", "any"},
+}
+
+var importKindText = map[string]string{
+	"string": "a string", "boolean": "a boolean", "array": "an array", "object": "an object",
 }
 
 var importCarried = []string{
-	"$schema", "$ref", "$defs", "definitions", "$anchor", "$comment", "type",
+	"$schema", "$ref", "$defs", "definitions", "$anchor", "type", "deprecated",
+	"x-aontu-deprecate",
 	"enum", "const", "allOf", "anyOf", "oneOf", "not", "if", "then", "else",
 	"dependentSchemas", "dependentRequired", "properties", "required",
 	"additionalProperties",
@@ -1115,7 +1134,7 @@ func kindsOf(e *ixpr) []string {
 		switch e.name {
 		case "empty", "re":
 			return []string{"string"}
-		case "close":
+		case "close", "meta", "deprecate":
 			return kindsOf(e.items[0])
 		case "min", "max", "above", "below", "multiple":
 			return []string{"number"}
@@ -1150,6 +1169,9 @@ func rawKinds(text string) []string {
 // literalTexts is the scalar literals an expression is, where it is
 // nothing else.
 func literalTexts(e *ixpr) ([]string, bool) {
+	if isRider(e) {
+		return literalTexts(e.items[0])
+	}
 	if "or" == e.k {
 		out := []string{}
 		for _, it := range e.items {
@@ -1168,8 +1190,18 @@ func literalTexts(e *ixpr) ([]string, bool) {
 	return nil, false
 }
 
-// someExpr reports whether any expression directly inside e answers test.
+// isRider reports a call whose value is its first argument, carrying a
+// record beside it.
+func isRider(e *ixpr) bool {
+	return "call" == e.k && ("meta" == e.name || "deprecate" == e.name)
+}
+
+// someExpr reports whether any expression directly inside e answers test;
+// a rider's record holds none.
 func someExpr(e *ixpr, test func(*ixpr) bool) bool {
+	if isRider(e) {
+		return test(e.items[0])
+	}
 	for _, it := range e.items {
 		if test(it) {
 			return true
@@ -1356,6 +1388,31 @@ func importBottom(e *ixpr) bool {
 	return conflict
 }
 
+// preferDefault, under the defaults option, prefers an optional
+// property's default where its own assertions admit it; a reference is
+// not followed, so a schema that names an alias keeps its default as an
+// annotation only.
+func (ctx *importCtx) preferDefault(node *jnode, e *ixpr) *ixpr {
+	d := jentryOf(node, "default")
+	if nil == d || holdsAlias(e) {
+		return e
+	}
+	quiet := *ctx
+	quiet.lossy = nil
+	value, ok := quiet.data("", "default", d)
+	if !ok {
+		return e
+	}
+	text := iprint(value, "")
+	a := New()
+	trial, err := a.Parse(iprint(e, ""))
+	parsed, perr := a.Parse(text)
+	if nil != err || nil != perr || !Admits(trial, parsed) {
+		return e
+	}
+	return ior([]*ixpr{iraw("*" + text), e})
+}
+
 func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
 	parts := []*ixpr{}
 	if hasLo && "0" != lo {
@@ -1426,9 +1483,6 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	for _, e := range node.entries {
 		if later, ok := importLater[e.key]; ok {
 			ctx.lose(at(e.key), e.key, later)
-		} else if !inList(importCarried, e.key) {
-			ctx.lose(at(e.key), e.key, "an unknown keyword asserts nothing, and the "+
-				"importer does not keep it yet, so it is dropped")
 		}
 	}
 	if dialect := get("$schema"); nil != dialect && !("string" == dialect.t && importDraft == dialect.s) {
@@ -1575,7 +1629,151 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if importBottom(met) {
 		return iNil
 	}
-	return met
+	return ctx.annotate(node, ptr, met)
+}
+
+func jsonKindOf(n *jnode) string {
+	if "true" == n.t || "false" == n.t {
+		return "boolean"
+	}
+	return n.t
+}
+
+// data writes a JSON value as aontu data; ok is false where a number in
+// it is past the exactness budget, which drops the annotation with a
+// loss.
+func (ctx *importCtx) data(path, keyword string, node *jnode) (*ixpr, bool) {
+	switch node.t {
+	case "number":
+		text, ok := exactText(node.s)
+		if !ok {
+			ctx.lose(path, keyword, "the number "+node.s+" exceeds the "+
+				"exactness budget, so the annotation that holds it is dropped")
+			return nil, false
+		}
+		return iraw(text), true
+	case "array":
+		items := make([]*ixpr, len(node.items))
+		all := true
+		for i, it := range node.items {
+			d, ok := ctx.data(path+"/"+strconv.Itoa(i), keyword, it)
+			items[i], all = d, all && ok
+		}
+		if !all {
+			return nil, false
+		}
+		return &ixpr{k: "list", lit: true, items: items}, true
+	case "object":
+		entries := make([]ientry, len(node.entries))
+		all := true
+		for i, e := range node.entries {
+			d, ok := ctx.data(ptrChild(path, e.key), keyword, e.val)
+			entries[i], all = ientry{key: e.key, val: d}, all && ok
+		}
+		if !all {
+			return nil, false
+		}
+		return &ixpr{k: "map", entries: entries}, true
+	}
+	return ctx.literal(path, keyword, node), true
+}
+
+// annotate lets a schema object's annotations ride its value: the
+// annotation keywords and every keyword JSON Schema does not name in a
+// meta() record, under `x` for the second, and `deprecated` as
+// deprecate().
+func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
+	entries := []ientry{}
+	x := []ientry{}
+	for _, en := range node.entries {
+		at := ptrChild(ptr, en.key)
+		ann, annotated := importAnnotated[en.key]
+		if annotated && "any" != ann[1] && ann[1] != jsonKindOf(en.val) {
+			ctx.wrongType(at, en.key, importKindText[ann[1]], en.val)
+			continue
+		}
+		if !annotated && (inList(importCarried, en.key) || "" != importLater[en.key]) {
+			continue
+		}
+		val, ok := ctx.data(at, en.key, en.val)
+		if !ok {
+			continue
+		}
+		if annotated {
+			entries = append(entries, ientry{key: ann[0], val: val})
+		} else {
+			x = append(x, ientry{key: en.key, val: val})
+		}
+	}
+	if 0 < len(x) {
+		entries = append(entries, ientry{key: "x", val: &ixpr{k: "map", entries: x}})
+	}
+	dep := ctx.deprecation(node, ptr, e)
+	if 0 == len(entries) {
+		return dep
+	}
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
+	return icall("meta", dep, &ixpr{k: "map", entries: entries})
+}
+
+// deprecation reads `deprecated: true`, with x-aontu-deprecate's fields
+// as its record; a field holding several values is a deprecate() for
+// each.
+func (ctx *importCtx) deprecation(node *jnode, ptr string, e *ixpr) *ixpr {
+	flag := jentryOf(node, "deprecated")
+	rec := jentryOf(node, "x-aontu-deprecate")
+	if nil != flag && "boolean" != jsonKindOf(flag) {
+		ctx.wrongType(ptrChild(ptr, "deprecated"), "deprecated", "a boolean", flag)
+	}
+	if nil != rec && "object" != rec.t {
+		ctx.wrongType(ptrChild(ptr, "x-aontu-deprecate"), "x-aontu-deprecate", "an object", rec)
+	}
+	isObject := nil != rec && "object" == rec.t
+	if !(nil != flag && "true" == flag.t) && !isObject {
+		return e
+	}
+	fields := [][]string{}
+	for _, k := range []string{"msg", "since", "use"} {
+		var v *jnode
+		if isObject {
+			v = jentryOf(rec, k)
+		}
+		vals := []*jnode{}
+		switch {
+		case nil == v:
+		case "array" == v.t:
+			vals = v.items
+		default:
+			vals = []*jnode{v}
+		}
+		strs := true
+		for _, it := range vals {
+			strs = strs && "string" == it.t
+		}
+		if !strs {
+			ctx.wrongType(ptrChild(ptrChild(ptr, "x-aontu-deprecate"), k), "x-aontu-deprecate",
+				"a string or an array of strings", v)
+			continue
+		}
+		for i, it := range vals {
+			if len(fields) <= i {
+				fields = append(fields, []string{})
+			}
+			fields[i] = append(fields[i], k, it.s)
+		}
+	}
+	if 0 == len(fields) {
+		return icall("deprecate", e)
+	}
+	out := e
+	for _, layer := range fields {
+		entries := []ientry{}
+		for i := 0; i < len(layer); i += 2 {
+			entries = append(entries, ientry{key: layer[i], val: iraw(importQuote(layer[i+1]))})
+		}
+		out = icall("deprecate", out, &ixpr{k: "map", entries: entries})
+	}
+	return out
 }
 
 // conditional pairs an `if` with the `then` and `else` of its own schema
@@ -1817,10 +2015,12 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 		} else {
 			for _, e := range props.entries {
 				declared = append(declared, e.key)
-				entries = append(entries, ientry{
-					key: e.key, optional: !inList(required, e.key),
-					val: ctx.convert(e.val, ptrChild(at("properties"), e.key), false, nil),
-				})
+				optional := !inList(required, e.key)
+				val := ctx.convert(e.val, ptrChild(at("properties"), e.key), false, nil)
+				if optional && ctx.defaults {
+					val = ctx.preferDefault(e.val, val)
+				}
+				entries = append(entries, ientry{key: e.key, optional: optional, val: val})
 			}
 		}
 	}
@@ -1953,6 +2153,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		anchors: map[*jnode]map[string]*jnode{}, resourceOf: map[*jnode]*jnode{},
 		ptrOf: map[*jnode]string{}, targets: map[*jnode]*importTarget{},
 		mapRoot: true, decls: map[string]string{},
+		defaults: nil != opts && opts.Defaults,
 	}
 	errorReport := func(ctx *importCtx) ImportReport {
 		return ImportReport{Verdict: "error", Aontu: "", Lossy: []SchemaLoss{}, Errors: ctx.errors}

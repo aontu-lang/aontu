@@ -807,11 +807,16 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const ok = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
         Assert.equal(ok.out, 'n?: number & multiple(1)\n');
         Assert.equal(ok.err, '');
-        Fs.writeFileSync(file, '{"type": "string", "title": "t"}');
+        Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}');
         const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
         Assert.equal(lossy.out, 'empty()\n');
-        Assert.match(lossy.err, /^lossy: #\/title title:/);
+        Assert.match(lossy.err, /^lossy: #\/\$vocabulary \$vocabulary:/);
         vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--strict', file]), 1));
+        // --defaults makes an optional property's default a preference.
+        Fs.writeFileSync(file, '{"type": "object", "properties": {"p": {"type": "integer", "default": 8080}}}');
+        const pref = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--defaults', file]), 0));
+        Assert.match(pref.out, /^p\?: \*8080\|/);
+        Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}');
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'json', file]), 0)).out);
         Assert.equal(j.aontu.verb, 'jsonschema');
         Assert.equal(j.text, 'empty()\n');

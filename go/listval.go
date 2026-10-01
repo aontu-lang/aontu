@@ -30,7 +30,7 @@ func (l *ListVal) Canon() string {
 	b.WriteByte('[')
 	if l.spread != nil {
 		b.WriteString("&:")
-		b.WriteString(l.spread.Canon())
+		b.WriteString(CanonRiders(l.spread))
 		if len(l.peg) > 0 {
 			b.WriteByte(',')
 		}
@@ -39,9 +39,9 @@ func (l *ListVal) Canon() string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		// canonRiders, not Canon: a deprecated element renders back
+		// CanonRiders, not Canon: a deprecated element renders back
 		// as its `deprecate(x, m)` call, reparseably (G3).
-		b.WriteString(canonRiders(e))
+		b.WriteString(CanonRiders(e))
 	}
 	b.WriteByte(']')
 	return b.String()

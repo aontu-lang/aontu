@@ -1977,6 +1977,13 @@ with nothing said: flag, no loss), `js-deprecate-msg-is-a-loss`, and
 it would require; the use-case's own eight checks are unchanged and
 still pass.
 
+Superseded 2026-10-01 by G12 phase 8 (ADR-051): the record's
+`msg`/`use`/`since` now cross in the extension keyword
+`x-aontu-deprecate` beside `deprecated: true`, which a validator
+ignores and the importer reads back, so nothing is lost and `--strict`
+passes. The second pin is renamed `js-deprecate-msg-crosses-as-an-extension`,
+and `docs/how-to/export-json-schema.md` shows the extension.
+
 The other boundaries this entry lists -- `must()` exporting `{}`, a
 constrained spread template, list `length()`'s domain-less loss -- are
 untouched. They were already REPORTED, so they are not the contract

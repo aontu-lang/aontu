@@ -598,29 +598,115 @@ var schemaDeprecationText = []string{"msg", "use", "since"}
 // schemaFromVal is a schema object, or false where a value admits nothing.
 func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 	out := schemaFromValInner(sc, path, v)
+	if obj, ok := out.(map[string]any); ok && nil != v &&
+		(nil != v.deprecRec() || nil != v.metaRec()) {
+		schemaAnnotate(sc, path, obj, v)
+	}
+	return out
+}
 
-	if nil != v {
-		if rec := v.deprecRec(); nil != rec {
-			if obj, ok := out.(map[string]any); ok {
-				said := []string{}
-				for _, k := range schemaDeprecationText {
-					if _, ok := rec[k]; ok {
-						said = append(said, k)
-					}
-				}
-				if 0 < len(said) {
-					sc.lose(path, "deprecate",
-						"JSON Schema 2020-12 has the `deprecated` flag and no field "+
-							"for what it SAYS, so "+strings.Join(said, "/")+
-							" cannot cross; the schema marks the property deprecated "+
-							"and a consumer must read the model for the reason")
-				}
-				obj["deprecated"] = true
+var schemaMetaKeyword = map[string]string{
+	"title": "title", "description": "description", "comment": "$comment", "default": "default",
+	"examples": "examples", "readOnly": "readOnly", "writeOnly": "writeOnly", "format": "format",
+	"contentEncoding": "contentEncoding", "contentMediaType": "contentMediaType",
+	"contentSchema": "contentSchema",
+}
+
+// schemaKeywords are the JSON Schema keywords: one held under `x` would
+// assert where the record only annotates, so it is not written.
+var schemaKeywords = map[string]bool{}
+
+func init() {
+	for _, k := range []string{
+		"$schema", "$id", "$ref", "$anchor", "$dynamicRef", "$dynamicAnchor", "$vocabulary",
+		"$comment", "$defs", "allOf", "anyOf", "oneOf", "not", "if", "then", "else",
+		"dependentSchemas", "prefixItems", "items", "contains", "properties",
+		"patternProperties", "additionalProperties", "propertyNames", "unevaluatedItems",
+		"unevaluatedProperties", "type", "enum", "const", "multipleOf", "maximum",
+		"exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
+		"pattern", "maxItems", "minItems", "uniqueItems", "maxContains", "minContains",
+		"maxProperties", "minProperties", "required", "dependentRequired", "title",
+		"description", "default", "deprecated", "readOnly", "writeOnly", "examples",
+		"format", "contentEncoding", "contentMediaType", "contentSchema",
+	} {
+		schemaKeywords[k] = true
+	}
+}
+
+// schemaAnnotate writes a value's riders as annotations: the first record
+// inline and any other in an allOf of annotation-only subschemas, and a
+// deprecation record as `deprecated`, its fields under x-aontu-deprecate.
+func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
+	if dep := v.deprecRec(); nil != dep {
+		obj["deprecated"] = true
+		rec := map[string]any{}
+		for _, k := range schemaDeprecationText {
+			vs, ok := dep[k]
+			if !ok {
+				continue
 			}
+			if 1 == len(vs) {
+				rec[k] = vs[0]
+				continue
+			}
+			list := make([]any, len(vs))
+			for i := range vs {
+				list[i] = vs[i]
+			}
+			rec[k] = list
+		}
+		if 0 < len(rec) {
+			obj["x-aontu-deprecate"] = rec
 		}
 	}
-
-	return out
+	extra := []any{}
+	for _, layer := range riderLayers(v.metaRec()) {
+		part := map[string]any{}
+		keys := make([]string, 0, len(layer))
+		for k := range layer {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			json, _ := schemaGenerated(layer[k])
+			if "x" != k {
+				part[schemaMetaKeyword[k]] = json
+				continue
+			}
+			xm, _ := json.(map[string]any)
+			xkeys := make([]string, 0, len(xm))
+			for xk := range xm {
+				xkeys = append(xkeys, xk)
+			}
+			sort.Strings(xkeys)
+			for _, xk := range xkeys {
+				if schemaKeywords[xk] {
+					sc.lose(path, "meta",
+						"the unknown keyword "+xk+" is a JSON Schema keyword, which "+
+							"would assert where the record only annotates, so it is DROPPED")
+				} else {
+					part[xk] = xm[xk]
+				}
+			}
+		}
+		free := true
+		for k := range part {
+			if _, has := obj[k]; has {
+				free = false
+			}
+		}
+		if 0 == len(extra) && free {
+			for k, pv := range part {
+				obj[k] = pv
+			}
+		} else if 0 < len(part) {
+			extra = append(extra, part)
+		}
+	}
+	if 0 < len(extra) {
+		all, _ := obj["allOf"].([]any)
+		obj["allOf"] = append(append([]any{}, all...), extra...)
+	}
 }
 
 func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {

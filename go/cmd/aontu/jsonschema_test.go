@@ -177,14 +177,22 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		t.Fatalf("clean import: %d %q %q", code, out, errw)
 	}
 
-	write(`{"type": "string", "title": "t"}`)
+	write(`{"type": "string", "$vocabulary": {}}`)
 	out, errw, code = jsonSchemaRun("import", file)
-	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/title title:") {
+	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/$vocabulary $vocabulary:") {
 		t.Fatalf("lossy import: %d %q %q", code, out, errw)
 	}
 	if _, _, code = jsonSchemaRun("import", "--strict", file); 1 != code {
 		t.Fatalf("--strict: %d", code)
 	}
+
+	// --defaults makes an optional property's default a preference.
+	write(`{"type": "object", "properties": {"p": {"type": "integer", "default": 8080}}}`)
+	if out, _, code := jsonSchemaRun("import", "--defaults", file); 0 != code ||
+		!strings.HasPrefix(out, "p?: *8080|") {
+		t.Fatalf("--defaults: %d %q", code, out)
+	}
+	write(`{"type": "string", "$vocabulary": {}}`)
 
 	out, _, code = jsonSchemaRun("import", "--format", "json", file)
 	var j map[string]any

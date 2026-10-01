@@ -19,6 +19,7 @@ import {
   explainClose,
   propagateMarks,
   items,
+  canonRiders,
 } from '../utility'
 
 import { empty, repathInstance } from './Val'
@@ -1273,7 +1274,7 @@ class ConstraintVal extends FeatureVal {
       // A pending atom has no residual yet, so canon renders the call as
       // written — the same shape FuncBaseVal renders while deferring.
       return this.pending.atom +
-        '(' + this.pending.args.map((a: any) => a.canon).join(',') + ')'
+        '(' + this.pending.args.map((a: any) => canonRiders(a)).join(',') + ')'
     }
     return canonState(this)
   }
@@ -1354,7 +1355,7 @@ function integralState(s: ConstraintState): boolean {
 
 
 function canonSorted(vals: any[]): any[] {
-  return [...vals].sort((a: any, b: any) => cmpCodePoint(a.canon, b.canon))
+  return [...vals].sort((a: any, b: any) => cmpCodePoint(canonRiders(a), canonRiders(b)))
 }
 
 
@@ -1378,7 +1379,7 @@ function containsCanon(k: ContainsAtom): string {
   const c = k.count
   const one = null != c.lo && !c.lo.open && 0 === cmpVal('number', c.lo.v, countVal(1)) &&
     null == c.hi && 0 === c.neqs.length + multsOf(c).length
-  return 'contains(' + k.c.canon + (one ? '' : ',' + countCanon(c)) + ')'
+  return 'contains(' + canonRiders(k.c) + (one ? '' : ',' + countCanon(c)) + ')'
 }
 
 
@@ -1401,7 +1402,7 @@ function containsMatches(ctx: AontuContext, k: ContainsAtom, members: any[]): an
 
 function whenCanon(w: WhenAtom): string {
   return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]
-    .map((v: any) => v.canon).join(',') + ')'
+    .map((v: any) => canonRiders(v)).join(',') + ')'
 }
 
 
@@ -1414,7 +1415,7 @@ function countCanon(c: ConstraintState): string {
 
 
 function nofCanon(n: NofAtom): string {
-  return 'nof(' + [countCanon(n.count), ...n.cs.map((c: any) => c.canon)].join(',') + ')'
+  return 'nof(' + [countCanon(n.count), ...n.cs.map((c: any) => canonRiders(c))].join(',') + ')'
 }
 
 
@@ -1510,7 +1511,7 @@ function canonState(s: ConstraintState): string {
     parts.push(containsCanon(k))
   }
   for (const m of s.musts) {
-    parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')')
+    parts.push('must(' + canonRiders(m.v) + ',' + m.msg.canon + ')')
   }
   for (const n of s.nofs ?? []) {
     parts.push(nofCanon(n))

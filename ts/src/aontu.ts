@@ -11,7 +11,7 @@ import { AontuContext, AontuContextConfig } from './ctx'
 import { MapVal } from './val/MapVal'
 import { Decimal } from './val/Decimal'
 import { exactJSON } from './exactjson'
-import { formatExplain } from './utility'
+import { canonRiders, formatExplain } from './utility'
 import { makeNilErr, descErr, AontuError, setColor, colorActive } from './err'
 import { vet } from './vet'
 import { sarifReport } from './report-sarif'
@@ -391,6 +391,7 @@ export {
 
   hcanon,
   canonHash,
+  canonRiders,
 
   // G7 -- the machine-facing query surface: select one node by path
   // and render it, plainly (json/canon) or as a lattice ABSTRACTION

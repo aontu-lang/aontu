@@ -2,8 +2,6 @@
 
 package aontu
 
-import "sort"
-
 // propagateMarks copies type/hide marks from one Val to another (mirrors
 // propagateMarks in ts/src/utility.ts).
 func propagateMarks(from, to Val) {
@@ -15,29 +13,6 @@ func propagateMarks(from, to Val) {
 	}
 }
 
-func canonRiders(v Val) string {
-	c := v.Canon()
-	d := v.deprecRec()
-	if nil == d {
-		return c
-	}
-	keys := make([]string, 0, len(d))
-	for k := range d {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	rec := ""
-	for i, k := range keys {
-		if 0 < i {
-			rec += ","
-		}
-		rec += jsonString(k) + ":" + jsonString(d[k])
-	}
-	if "" == rec {
-		return "deprecate(" + c + ")"
-	}
-	return "deprecate(" + c + ",{" + rec + "})"
-}
 
 // walkMark sets or clears the type/hide marks on a Val and all of its
 // descendants (the walk used by type(), hide() and copy()).
@@ -94,6 +69,7 @@ func copyMarks(to, from Val) {
 	to.setMarkType(from.markedType())
 	to.setMarkHide(from.markedHide())
 	to.setDeprecRec(from.deprecRec())
+	to.setMetaRec(from.metaRec())
 	to.setLinkAddr(from.linkAddr())
 	// THE RENDER RIDERS TRAVEL WITH THE CLONE (P7), for the reason the
 	// deprecation record does: a clone of a value read at `$.schema`

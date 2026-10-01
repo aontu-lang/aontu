@@ -190,10 +190,9 @@ func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
 	}
 }
 
-// sitesOf lists the data site first — it is the thing to fix — then the
-// schema site. The underlying NilVal fields are untouched: this is a
-// report-layer projection, so the existing error.tsv assertions do not
-// move.
+// sitesOf lists the data site first, the thing to fix, then the schema
+// site: a report-layer projection, so the NilVal fields it reads and the
+// error.tsv assertions on them do not move.
 func sitesOf(n *NilVal, prov vetProv, sources vetSources) []VetSite {
 	sites := []VetSite{}
 	// The nil ITSELF when it has no operands: a failure raised about a
@@ -711,17 +710,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	findings = append(findings, lintFindings...)
 
 	for _, d := range collectDeprecatedVals(unified) {
-		rec := d.v.deprecRec()
-		msg := "deprecated"
-		if m, ok := rec["msg"]; ok {
-			msg += ": " + m
-		}
-		if u, ok := rec["use"]; ok {
-			msg += " (use " + u + ")"
-		}
-		if sv, ok := rec["since"]; ok {
-			msg += " (since " + sv + ")"
-		}
+		msg := deprecationMessage(d.v.deprecRec())
 		site := siteOf(d.v, prov, sources)
 		findings = append(findings, VetFinding{
 			Code:     "deprecated",

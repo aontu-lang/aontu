@@ -14,6 +14,7 @@ exports.explainOpen = explainOpen;
 exports.ec = ec;
 exports.explainClose = explainClose;
 exports.formatExplain = formatExplain;
+const rider_1 = require("./rider");
 function includeOpts(options) {
     return {
         ...(null == options.trust ? {} : { trust: options.trust }),
@@ -62,21 +63,16 @@ function walkBagVals(root, fn) {
 }
 // The one-line prose for a deprecation record, shared by vet's warning
 // findings and the LSP's tagged diagnostics.
+// Records met on one value read as one, each field's values joined.
 function deprecationMessage(d) {
-    const msg = 'string' === typeof d.msg ? d.msg : '';
+    const field = (k) => undefined === d[k] ? undefined : d[k].join('; ');
+    const msg = field('msg') ?? '';
     return 'deprecated' + ('' === msg ? '' : ': ' + msg) +
-        ('string' === typeof d.use ? ' (use ' + d.use + ')' : '') +
-        ('string' === typeof d.since ? ' (since ' + d.since + ')' : '');
+        (undefined === d.use ? '' : ' (use ' + field('use') + ')') +
+        (undefined === d.since ? '' : ' (since ' + field('since') + ')');
 }
 function canonRiders(v) {
-    const c = v.canon;
-    const d = v.deprecation;
-    if (null == d) {
-        return c;
-    }
-    const keys = Object.keys(d).sort();
-    const rec = keys.map((k) => JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',');
-    return 'deprecate(' + c + ('' === rec ? '' : ',{' + rec + '}') + ')';
+    return (0, rider_1.riderText)(v.canon, v);
 }
 function formatPath(path, absolute) {
     let parts;

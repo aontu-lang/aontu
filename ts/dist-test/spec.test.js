@@ -46,6 +46,7 @@ const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
 const trace_1 = require("../dist/trace");
 const hints_1 = require("../dist/hints");
+const utility_1 = require("../dist/utility");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
@@ -130,9 +131,9 @@ function assertCanonConverges(row) {
         return;
     }
     const a1 = rowAontu(row);
-    const c2 = a1.unify(row.expect, undefined, makeVarsCtx(a1)).canon;
+    const c2 = (0, utility_1.canonRiders)(a1.unify(row.expect, undefined, makeVarsCtx(a1)));
     const a2 = rowAontu(row);
-    const c3 = a2.unify(c2, undefined, makeVarsCtx(a2)).canon;
+    const c3 = (0, utility_1.canonRiders)(a2.unify(c2, undefined, makeVarsCtx(a2)));
     Assert.strictEqual(c3, c2, `canon does not converge: ${row.name}`);
 }
 function assertFormatSameDocument(row) {
@@ -208,7 +209,7 @@ function runRow(row) {
     // Fresh context per row carrying the shared $var test variables.
     const ctx = makeVarsCtx(a0);
     if ('canon' === row.mode) {
-        Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect);
+        Assert.strictEqual((0, utility_1.canonRiders)(a0.unify(row.src, undefined, ctx)), row.expect);
         assertCanonConverges(row);
     }
     else if ('gen' === row.mode) {
@@ -279,14 +280,16 @@ function runRow(row) {
         }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
     }
     else if ('jsonschema-import' === row.mode) {
-        const report = (0, jsonschema_import_1.importJsonSchema)(row.src);
+        const golden = JSON.parse(row.expect);
+        const report = (0, jsonschema_import_1.importJsonSchema)(row.src, golden.opts);
+        delete golden.opts;
         Assert.strictEqual((0, aontu_1.exactJSON)({
             aontu: report.aontu,
             lossy: report.lossy,
             verdict: report.verdict,
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
-        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `jsonschema-import report mismatch: ${row.name}`);
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
     }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);
