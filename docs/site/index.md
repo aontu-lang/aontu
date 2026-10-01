@@ -1,7 +1,9 @@
 # aontu.dev — the project site
 
-*Status: plan. Nothing here is built yet. This document decides what the
-site is and where every piece of its content comes from; the maintainer
+*Status: live at [aontu.dev](https://aontu.dev). What has landed, and
+what is still open, is recorded under [Phases](#phases). This document
+decides what the site is and where every piece of its content comes
+from; the maintainer
 steps that have to happen outside a session — Cloudflare, GitHub, npm,
 DNS — are broken out in [`manual-tasks.md`](manual-tasks.md).*
 
