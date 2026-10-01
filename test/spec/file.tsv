@@ -124,6 +124,11 @@ load-root-json-list-msg	err	@"__FIXTURES__/list.json"\nx:1	Cannot unify value: {
 load-ext-toml	gen	x:@"__FIXTURES__/conf.toml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yaml	gen	x:@"__FIXTURES__/conf.yaml"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-yml	gen	x:@"__FIXTURES__/conf.yml"	{"x":{"host":"local","port":8080}}
+# A FLOW COLLECTION ON THE LINE AFTER ITS KEY (`required:` then `[a, b, c]`)
+# is valid YAML 1.2 that the inline rows above never reach. TypeScript read
+# it and Go refused it while the ports pinned different @tabnas/yaml
+# releases (#304), and no row held the shape.
+load-ext-yaml-flow-next-line	gen	x:@"__FIXTURES__/flow-next-line.yaml"	{"x":{"map":{"x":1},"required":["a","b","c"]}}
 load-ext-jsonc	gen	x:@"__FIXTURES__/conf.jsonc"	{"x":{"cert":null,"host":"local","port":8080,"tags":["a","b"],"tls":true}}
 load-ext-json5	gen	x:@"__FIXTURES__/conf.json5"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
 load-ext-jsonic	gen	x:@"__FIXTURES__/conf.jsonic"	{"x":{"host":"local","port":8080,"tags":["a","b"]}}
