@@ -1,8 +1,9 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
+exports.nofCounts = nofCounts;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -12,10 +13,13 @@ const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
 const ConjunctVal_1 = require("./ConjunctVal");
 const BagVal_1 = require("./BagVal");
+const NilVal_1 = require("./NilVal");
+const admission_1 = require("./admission");
 const top_1 = require("./top");
 const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
 const err_1 = require("../err");
+const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
@@ -325,7 +329,8 @@ function leafMarker(v) {
 }
 const LATE_CJO = 150000;
 function lateAtom(atom) {
-    return 'len' === atom || 'unique' === atom || 'must' === atom;
+    return 'len' === atom || 'unique' === atom || 'must' === atom ||
+        'nof' === atom;
 }
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -338,6 +343,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.uniq = false;
         this.uniqBy = [];
         this.musts = [];
+        this.nofs = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -352,6 +358,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.uniq = spec.state.uniq ?? false;
             this.uniqBy = spec.state.uniqBy ?? [];
             this.musts = spec.state.musts ?? [];
+            this.nofs = spec.state.nofs ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -359,7 +366,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
-            if ('must' === spec.atom && args.some((a) => holdsMove(a))) {
+            if (('must' === spec.atom || 'nof' === spec.atom) &&
+                args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
             else if (args.some((a) => true !== a?.done)) {
@@ -370,7 +378,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
         }
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
-            0 < this.musts.length ||
+            0 < this.musts.length || 0 < this.nofs.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -413,6 +421,18 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             // constructor: by the time this arm sees a settled `move($.b)`
             // the move has already run.)
             this.musts = [{ v: args[0], msg: args[1] }];
+            return;
+        }
+        if ('nof' === atom) {
+            const arg = countArgState(args[0]);
+            if (null == arg) {
+                return bad('invalid-arg');
+            }
+            const count = meetCount(countBase(), arg);
+            if (stateEmpty(count)) {
+                return bad('constraint');
+            }
+            this.nofs = [{ count, cs: canonSorted(args.slice(1)) }];
             return;
         }
         if ('neq' === atom) {
@@ -545,9 +565,12 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const pend = this.pending;
         let settled = true;
         const args = [];
-        for (const arg of pend.args) {
+        for (const [i, arg] of pend.args.entries()) {
             let next = arg;
-            if (true !== arg?.done) {
+            if ('nof' === pend.atom && 0 < i) {
+                next = trialArg(ctx, arg, this.path);
+            }
+            else if (true !== arg?.done) {
                 next = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, ctx));
             }
             settled = settled && true === next?.done;
@@ -616,7 +639,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (null != bad) {
             return bad;
         }
-        return peer;
+        return this.checkNofs(peer, ctx) ?? peer;
     }
     checkMusts(peer, ctx, final) {
         for (const m of this.musts) {
@@ -639,6 +662,27 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return undefined;
     }
+    // Every branch is tried; the number that admit must be one the count admits.
+    checkNofs(peer, ctx) {
+        const own = 0 === this.nofs.length ? undefined : (0, admission_1.ownJson)(peer, ctx);
+        if (undefined === own) {
+            return undefined;
+        }
+        for (const n of this.nofs) {
+            const verdicts = n.cs.map((c) => (0, admission_1.admitsSettled)(ctx, c, peer, own));
+            const k = verdicts.filter((v) => v).length;
+            if (!stateAdmits(n.count, countVal(k))) {
+                return (0, err_1.makeNilErr)(ctx, 'nof', this, peer, undefined, {
+                    expected: nofCanon(n),
+                    actual: peer.canon,
+                    count: countCanon(n.count),
+                    admitted: String(k),
+                    branches: n.cs.map((c, i) => c.canon + (verdicts[i] ? ' admits' : ' refuses')).join('; '),
+                });
+            }
+        }
+        return undefined;
+    }
     settleContainer(peer, ctx) {
         return this.admitContainer(peer, ctx, true);
     }
@@ -654,12 +698,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.dc = 0;
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
-        const bad = this.checkMusts(peer, ctx, final);
+        const bad = this.checkMusts(peer, ctx, final) ??
+            (true === final ? this.checkNofs(peer, ctx) : undefined);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
-            if (true === final || 0 === this.musts.length) {
+            if (true === final ||
+                (0 === this.musts.length && 0 === this.nofs.length)) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -716,7 +762,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // lower bound already met is the one reading that cannot be undone,
         // and an atom holding nothing else is spent: that is when it goes.
         const spent = true === final || (0 === this.musts.length &&
-            !this.uniq && 0 === this.uniqBy.length &&
+            0 === this.nofs.length && !this.uniq && 0 === this.uniqBy.length &&
             (null == count ||
                 (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
                     stateAdmits(count, countVal(n)))));
@@ -820,6 +866,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.uniq = this.uniq || peer.uniq;
         merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort();
         merged.musts = [...this.musts, ...peer.musts];
+        merged.nofs = mergeNofs([...this.nofs, ...peer.nofs]);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -862,6 +909,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             uniq: this.uniq,
             uniqBy: [...this.uniqBy],
             musts: [...this.musts],
+            nofs: [...this.nofs],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -898,6 +946,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.uniq = this.uniq;
         out.uniqBy = [...this.uniqBy];
         out.musts = [...this.musts];
+        out.nofs = [...this.nofs];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -975,42 +1024,61 @@ function integralState(s) {
     return ScalarKindVal_1.Integer === s.kind || ScalarKindVal_1.BigInteger === s.kind ||
         multsOf(s).some((m) => (0, numcmp_1.scaledIsIntegral)((0, numcmp_1.scaledOfShown)(m)));
 }
-function holdsNil(v) {
-    if (true === v.isNil) {
-        return true;
+function canonSorted(vals) {
+    return [...vals].sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.canon, b.canon));
+}
+// Each canon once: equal counts over one value are one check.
+function mergeNofs(nofs) {
+    const out = new Map();
+    for (const n of nofs) {
+        out.set(nofCanon(n), n);
     }
-    const peg = v.peg;
-    if (Array.isArray(peg)) {
-        return peg.some((c) => holdsNil(c));
+    return [...out.keys()].sort(keyorder_1.cmpCodePoint).map((k) => out.get(k));
+}
+// A count is written bare where it is one integer, as `nof(1, …)` reads.
+function countCanon(c) {
+    const point = null != c.lo && null != c.hi && !c.lo.open && !c.hi.open &&
+        0 === cmpVal('number', c.lo.v, c.hi.v);
+    return point ? c.lo.v.canon : canonState({ ...c, kind: undefined });
+}
+function nofCanon(n) {
+    return 'nof(' + [countCanon(n.count), ...n.cs.map((c) => c.canon)].join(',') + ')';
+}
+// A trial schema settles apart from the document: one that conflicts
+// admits nothing, while any other failure is the document's own.
+function trialArg(ctx, arg, path) {
+    if (true === arg?.done) {
+        return arg;
     }
-    if (null != peg && 'object' === typeof peg) {
-        for (const k in peg) {
-            if (holdsNil(peg[k])) {
-                return true;
-            }
+    const at = arg.clone(ctx);
+    (0, Val_1.repathInstance)(at, path);
+    const tctx = ctx.clone({ err: [], collect: true });
+    const next = (0, unify_1.withDepth)(tctx, at, (0, top_1.top)(), () => at.unify((0, top_1.top)(), tctx));
+    const conflict = (e) => '|:trial-nil' === e.why || 'conflict' === (0, hints_1.codeClass)(e.why);
+    if (0 === tctx.err.length || !tctx.err.every(conflict)) {
+        for (const e of tctx.err) {
+            ctx.adderr(e);
         }
+        return next;
     }
-    return false;
+    return new NilVal_1.NilVal({ why: 'nof' });
+}
+// The members of a list, map or disjunction; not a wrapper's one Val, as in Go.
+function heldVals(v) {
+    const peg = v.peg;
+    return Array.isArray(peg) ? peg :
+        null != peg && 'object' === typeof peg && true !== peg.isVal ?
+            Object.values(peg) : [];
+}
+function holdsNil(v) {
+    return true === v.isNil || heldVals(v).some((c) => holdsNil(c));
 }
 function holdsMove(v) {
-    if (true === v.isFunc && 'move' === v.funcname?.()) {
-        return true;
-    }
-    const peg = v.peg;
-    if (Array.isArray(peg)) {
-        return peg.some((c) => holdsMove(c));
-    }
-    if (null != peg && 'object' === typeof peg) {
-        for (const k in peg) {
-            if (holdsMove(peg[k])) {
-                return true;
-            }
-        }
-    }
-    return false;
+    return (true === v.isFunc && 'move' === v.funcname?.()) ||
+        heldVals(v).some((c) => holdsMove(c));
 }
 function atomArgs(atom, args) {
-    if (('neq' === atom || 'must' === atom) && 1 === args.length &&
+    if (('neq' === atom || 'must' === atom || 'nof' === atom) && 1 === args.length &&
         true === args[0]?.isList) {
         return args[0].peg;
     }
@@ -1056,6 +1124,9 @@ function canonState(s) {
     for (const m of s.musts) {
         parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')');
     }
+    for (const n of s.nofs ?? []) {
+        parts.push(nofCanon(n));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1069,7 +1140,7 @@ function constraintStateSubsumes(g, s) {
     // A Band B predicate on the general side makes its admitted set
     // unknowable; an extra `must` on the SPECIFIC side only narrows it
     // and is ignored.
-    if (0 < g.musts.length) {
+    if (0 < g.musts.length || 0 < (g.nofs ?? []).length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1169,7 +1240,7 @@ function constraintSubsumesKind(g, marker) {
     });
 }
 function constraintAdmitsScalar(g, scalar) {
-    if (0 < g.musts.length) {
+    if (0 < g.musts.length || 0 < g.nofs.length) {
         return 'undecided';
     }
     if (g.uniq || 0 < g.uniqBy.length) {
@@ -1191,11 +1262,11 @@ function stateAdmits(s, peer) {
     const domainOf = numericLeaf(peer) ? 'number' :
         stringishLeaf(peer) ? 'string' : undefined;
     if (null == s.domain) {
-        // A sizing residual has no domain, and admits any scalar the sizing
-        // atoms can then rule on. Booleans and null are not among them:
-        // they have no order, no length and no members.
+        // A residual with no domain admits any scalar its atoms can rule on.
+        // A sizing atom reads no boolean or null, which have no order, length
+        // or members; a Band B check reads anything.
         if (null == domainOf) {
-            return false;
+            return null == s.count && !s.uniq && 0 === s.uniqBy.length;
         }
         return true;
     }
@@ -1475,16 +1546,26 @@ class MustConstraintVal extends ConstraintVal {
     }
 }
 exports.MustConstraintVal = MustConstraintVal;
+class NofConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'nof' }, ctx);
+    }
+}
+exports.NofConstraintVal = NofConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);
     }
 }
 exports.LenConstraintVal = LenConstraintVal;
+// Which counts from none to every branch a nof atom admits.
+function nofCounts(n) {
+    return [...n.cs, undefined].map((_c, i) => stateAdmits(n.count, countVal(i)));
+}
 class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 23 */
+} /* node:coverage ignore next 24 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

@@ -16,6 +16,11 @@ const PathVal_1 = require("./val/PathVal");
 const PrefVal_1 = require("./val/PrefVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
+function opaqueNote(g) {
+    return 0 < g.musts.length ?
+        'an evaluate-only check (must) makes the admitted set opaque' :
+        'a count of trial schemas (nof) makes the admitted set opaque';
+}
 function pathText(path) {
     return '$' + (0 < path.length ? '.' + path.join('.') : '');
 }
@@ -217,7 +222,7 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('undecided' === r) {
-                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (must) makes the admitted set opaque');
+                record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g));
                 return 'undecided';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not contain the specific residual');
@@ -229,7 +234,7 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('undecided' === r) {
-                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (must) makes the admitted set opaque');
+                record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g));
                 return 'undecided';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not admit the specific scalar');

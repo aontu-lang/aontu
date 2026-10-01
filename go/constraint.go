@@ -22,6 +22,13 @@ type constraintMust struct {
 	msg *ScalarVal // the author's message (Canon renders the literal)
 }
 
+// constraintNof is a count of trial schemas that must admit the settled
+// peer (nof()).
+type constraintNof struct {
+	count *ConstraintVal // over the integers, as len()'s count is
+	cs    []Val          // canon-sorted, and never deduplicated
+}
+
 type constraintPending struct {
 	atom string
 	args []Val
@@ -428,6 +435,8 @@ type ConstraintVal struct {
 	// musts are Band B checks, kept in written order and never
 	// simplified: each carries its own author message.
 	musts []constraintMust
+	// nofs are Band B counts, canon-sorted, each canon once.
+	nofs []constraintNof
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -451,12 +460,13 @@ type ConstraintVal struct {
 const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
-	return "len" == atom || "unique" == atom || "must" == atom
+	return "len" == atom || "unique" == atom || "must" == atom ||
+		"nof" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
 	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
-		(nil != c.pending && lateAtom(c.pending.atom)) {
+		0 < len(c.nofs) || (nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
 	return 50000
@@ -469,6 +479,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "unique": true, "must": true, "multiple": true,
+	"nof": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -537,7 +548,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	args = atomArgs(atom, args)
 
-	if "must" == atom {
+	if "must" == atom || "nof" == atom {
 		for _, a := range args {
 			if holdsMove(a) {
 				return bad("invalid-arg")
@@ -586,6 +597,19 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		// the time this arm sees a settled `move($.b)` the move has
 		// already run.)
 		c.musts = []constraintMust{{v: args[0], msg: msv}}
+		return c
+	}
+
+	if "nof" == atom {
+		arg := countArgState(args[0])
+		if nil == arg {
+			return bad("invalid-arg")
+		}
+		count := meetCount(countBase(), arg)
+		if stateEmpty(count) {
+			return bad("constraint")
+		}
+		c.nofs = []constraintNof{{count: count, cs: canonSorted(args[1:])}}
 		return c
 	}
 
@@ -723,9 +747,11 @@ func (c *ConstraintVal) Unify(peer Val, ctx *Ctx) Val {
 func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	settled := true
 	args := make([]Val, 0, len(c.pending.args))
-	for _, arg := range c.pending.args {
+	for i, arg := range c.pending.args {
 		next := arg
-		if DONE != arg.Dc() {
+		if "nof" == c.pending.atom && 0 < i {
+			next = trialArg(ctx, arg)
+		} else if DONE != arg.Dc() {
 			next = arg.Unify(top(), ctx)
 		}
 		settled = settled && DONE == next.Dc()
@@ -820,7 +846,43 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if bad := c.checkMusts(peer, ctx); nil != bad {
 		return bad
 	}
+	if bad := c.checkNofs(peer, ctx); nil != bad {
+		return bad
+	}
 	return peer
+}
+
+// checkNofs tries every branch against the settled peer: the number
+// that admit it must be one the count admits.
+func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx) Val {
+	if 0 == len(c.nofs) {
+		return nil
+	}
+	own, ok := ownJSON(peer, ctx, c.path)
+	if !ok {
+		return nil
+	}
+	for _, n := range c.nofs {
+		k := 0
+		said := make([]string, len(n.cs))
+		for i, b := range n.cs {
+			said[i] = b.Canon() + " refuses"
+			if admitsSettled(ctx, b, peer, own, c.path) {
+				k++
+				said[i] = b.Canon() + " admits"
+			}
+		}
+		if !stateAdmits(n.count, countVal(k)) {
+			return makeNilErrFull(ctx, "nof", c, peer, "", map[string]string{
+				"expected": nofCanon(n),
+				"actual":   peer.Canon(),
+				"count":    countCanon(n.count),
+				"admitted": strconv.Itoa(k),
+				"branches": strings.Join(said, "; "),
+			})
+		}
+	}
+	return nil
 }
 
 func (c *ConstraintVal) settleContainer(bag Val, ctx *Ctx) Val {
@@ -853,9 +915,14 @@ func (c *ConstraintVal) admitContainerFinal(
 	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
 		return bad
 	}
+	if final {
+		if bad := c.checkNofs(peer, ctx); nil != bad {
+			return bad
+		}
+	}
 
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
-		if final || 0 == len(c.musts) {
+		if final || (0 == len(c.musts) && 0 == len(c.nofs)) {
 			return peer
 		}
 		return c.hold(peer)
@@ -926,7 +993,8 @@ func (c *ConstraintVal) admitContainerFinal(
 	// WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
 	// lower bound already met is the one reading that cannot be undone,
 	// and an atom holding nothing else is spent: that is when it goes.
-	spent := final || (0 == len(c.musts) && !c.uniq && 0 == len(c.uniqBy) &&
+	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) && !c.uniq &&
+		0 == len(c.uniqBy) &&
 		(nil == c.count ||
 			(nil == c.count.hi && 0 == len(c.count.neqs)+len(c.count.mults) &&
 				stateAdmits(c.count, countVal(n)))))
@@ -1042,6 +1110,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.uniq = c.uniq || peer.uniq
 	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	merged.musts = append(append([]constraintMust{}, c.musts...), peer.musts...)
+	merged.nofs = mergeNofs(append(append([]constraintNof{}, c.nofs...), peer.nofs...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1106,6 +1175,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		uniq:    c.uniq,
 		uniqBy:  append([]string{}, c.uniqBy...),
 		musts:   append([]constraintMust{}, c.musts...),
+		nofs:    append([]constraintNof{}, c.nofs...),
 		clash:   c.clash,
 		invalid: c.invalid,
 	}
@@ -1201,6 +1271,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, m := range c.musts {
 		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
 	}
+	for _, n := range c.nofs {
+		parts = append(parts, nofCanon(n))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1218,12 +1291,91 @@ func (c *ConstraintVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func atomArgs(atom string, args []Val) []Val {
-	if ("neq" == atom || "must" == atom) && 1 == len(args) {
+	if ("neq" == atom || "must" == atom || "nof" == atom) && 1 == len(args) {
 		if lv, ok := args[0].(*ListVal); ok {
 			return lv.peg
 		}
 	}
 	return args
+}
+
+func canonSorted(vals []Val) []Val {
+	sorted := append([]Val{}, vals...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].Canon() < sorted[j].Canon()
+	})
+	return sorted
+}
+
+// mergeNofs keeps each canon once: equal counts over one value are one
+// check.
+func mergeNofs(nofs []constraintNof) []constraintNof {
+	byCanon := map[string]constraintNof{}
+	keys := []string{}
+	for _, n := range nofs {
+		k := nofCanon(n)
+		if _, has := byCanon[k]; !has {
+			keys = append(keys, k)
+		}
+		byCanon[k] = n
+	}
+	sort.Strings(keys)
+	out := make([]constraintNof, len(keys))
+	for i, k := range keys {
+		out[i] = byCanon[k]
+	}
+	return out
+}
+
+// countCanon writes a count bare where it is one integer, as `nof(1, …)`
+// reads.
+func countCanon(c *ConstraintVal) string {
+	if nil != c.lo && nil != c.hi && !c.lo.open && !c.hi.open &&
+		0 == cmpNumeric(c.lo.v, c.hi.v) {
+		return c.lo.v.Canon()
+	}
+	k := c.cloneState()
+	k.kind = KindTop
+	return k.Canon()
+}
+
+func nofCanon(n constraintNof) string {
+	parts := []string{countCanon(n.count)}
+	for _, b := range n.cs {
+		parts = append(parts, b.Canon())
+	}
+	return "nof(" + strings.Join(parts, ",") + ")"
+}
+
+// nofCounts reports which counts, from none to every branch, a nof atom
+// admits.
+func nofCounts(n constraintNof) []bool {
+	out := make([]bool, len(n.cs)+1)
+	for i := range out {
+		out[i] = stateAdmits(n.count, countVal(i))
+	}
+	return out
+}
+
+// trialArg settles a trial schema apart from the document: one that
+// conflicts admits nothing, while any other failure is the document's.
+func trialArg(ctx *Ctx, arg Val) Val {
+	if DONE == arg.Dc() {
+		return arg
+	}
+	tctx := trialCtx(ctx)
+	next := arg.Unify(top(), tctx)
+	conflicts := 0 < len(tctx.err)
+	for _, e := range tctx.err {
+		conflicts = conflicts && "conflict" == codeClass(e.why)
+	}
+	if !conflicts {
+		for _, e := range tctx.err {
+			ctx.adderr(e)
+		}
+		return next
+	}
+	return newNil("nof")
 }
 
 func holdsNil(v Val) bool {
@@ -1288,7 +1440,7 @@ func holdsMove(v Val) bool {
 }
 
 func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
-	if 0 < len(g.musts) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) {
 		return false, true
 	}
 	if "" != g.domain && g.domain != s.domain {
@@ -1404,7 +1556,7 @@ func constraintSubsumesKind(g *ConstraintVal, k Kind) bool {
 }
 
 func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
-	if 0 < len(g.musts) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) {
 		return false, true
 	}
 	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
@@ -1421,12 +1573,12 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 	sv, d := orderableScalar(peer)
 	if nil == sv {
-		// Booleans and null: no order, no length and no members.
-		return false
+		// A sizing atom reads no boolean or null, which have no order,
+		// length or members; a Band B check reads anything.
+		return "" == s.domain && nil == s.count && !s.uniq && 0 == len(s.uniqBy)
 	}
 	if "" == s.domain {
-		// A sizing residual has no domain, and admits any scalar the
-		// sizing atoms can then rule on.
+		// A residual with no domain admits any scalar its atoms can rule on.
 		return true
 	}
 	if d != s.domain {

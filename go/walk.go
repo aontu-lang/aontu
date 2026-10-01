@@ -64,6 +64,11 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		for _, m := range n.musts {
 			walkVals(m.v, visit, seen)
 		}
+		for _, nof := range n.nofs {
+			for _, b := range nof.cs {
+				walkVals(b, visit, seen)
+			}
+		}
 	}
 }
 
@@ -77,6 +82,17 @@ func stampURL(v Val, url string) map[string]bool {
 		return true
 	}, map[Val]bool{})
 	return urls
+}
+
+func trialSchemas(c *ConstraintVal) []Val {
+	if nil != c.pending && "nof" == c.pending.atom {
+		return c.pending.args[1:]
+	}
+	out := []Val{}
+	for _, n := range c.nofs {
+		out = append(out, n.cs...)
+	}
+	return out
 }
 
 func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
@@ -103,6 +119,11 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 		case *ListVal:
 			if t.spread != nil {
 				walked[t.spread] = true
+			}
+		// A trial schema is no instance value, and a nil one admits nothing.
+		case *ConstraintVal:
+			for _, b := range trialSchemas(t) {
+				walked[b] = true
 			}
 		}
 		return true

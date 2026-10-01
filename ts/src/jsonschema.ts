@@ -7,6 +7,7 @@ import { makeNilErr } from './err'
 import { sizingResidue } from './val/BagVal'
 import { Decimal } from './val/Decimal'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
+import { nofCounts } from './val/ConstraintVal'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
@@ -349,6 +350,39 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     }
   }
 
+  for (const n of c.nofs) {
+    const branches = (): any[] => n.cs.map((b: any) =>
+      true === b.isNil ? false : fromVal(ctx, path, b))
+    const counts: boolean[] = nofCounts(n)
+    const only = (...at: number[]): boolean =>
+      counts.every((ok: boolean, i: number) => ok === at.includes(i))
+    const k = n.cs.length
+    const all = counts.map((_ok: boolean, i: number) => i)
+    if (only(...all)) {
+      continue
+    }
+    if (only(...all.slice(1))) {
+      keyword(out, extra, 'anyOf', branches())
+    }
+    else if (only(1)) {
+      keyword(out, extra, 'oneOf', branches())
+    }
+    else if (only(0)) {
+      nots.push(1 === k ? branches()[0] : { anyOf: branches() })
+    }
+    else if (only(k)) {
+      extra.push(...branches())
+    }
+    else if (only()) {
+      extra.push(false)
+    }
+    else {
+      lose(ctx, path, 'nof',
+        'JSON Schema counts its branches only as anyOf, oneOf, allOf and not, ' +
+        'so this count is DROPPED and the schema admits values the model refuses')
+    }
+  }
+
   if (1 === nots.length) {
     out.not = nots[0]
   }
@@ -385,6 +419,17 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
   }
 
   return out
+}
+
+
+// A keyword this schema object has once; a second goes under allOf.
+function keyword(out: any, extra: any[], key: string, val: any): void {
+  if (undefined === out[key]) {
+    out[key] = val
+  }
+  else {
+    extra.push({ [key]: val })
+  }
 }
 
 

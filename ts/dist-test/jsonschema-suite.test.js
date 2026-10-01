@@ -50,7 +50,7 @@ const admit_1 = require("../dist/admit");
 const SUITE = Path.join(__dirname, '..', '..', 'test', 'vectors', 'jsonschema');
 const TESTS = Path.join(SUITE, 'tests', 'draft2020-12');
 // The ledger may not grow past this; the register tightens it per phase.
-const SKIP_BOUND = 320;
+const SKIP_BOUND = 260;
 function readSkips() {
     const out = [];
     for (const line of Fs.readFileSync(Path.join(SUITE, 'skips.tsv'), 'utf8').split('\n')) {

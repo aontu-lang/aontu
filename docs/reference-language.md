@@ -2398,6 +2398,13 @@ Exclude the listed numeric or string values. See [constraint atoms](#the-constra
 
 Example: `string & neq("reserved")`
 
+### `nof(n: number|constraint, ...c: (trial any)) : constraint`
+
+Admit a value that a number of the trial schemas `c` admit, a number
+the count `n` admits. See [`nof`](#band-b-nof).
+
+Example: `nof(1, string, number) & "x"` → `"x"`
+
 ### `nom(name: string, style?: string|list, acronyms?: list) : string|map`
 
 One name in one spelling, or every spelling as a map when no style
@@ -5204,9 +5211,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All nine atoms (the bounds `min`/`max`/`above`/`below`, the
-> exclusion `neq`, the pattern `re`, the sizing atoms `length` and
-> `unique`, and the evaluate-only `must`) are implemented in both
+> All eleven atoms (the bounds `min`/`max`/`above`/`below`, the
+> exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
+> atoms `length` and `unique`, and the evaluate-only `must` and `nof`)
+> are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
 > raise the registered `constraint` code, and a pattern outside the
@@ -5219,9 +5227,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Nine builtins join the function registry. Eight are **Band A**: full
+Eleven builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. One is **Band B**: evaluate-only, and reported
+canonical form. Two are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5236,6 +5244,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
+| `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of trial schemas c that admit the value is one n admits |
 
 ### Bounds and the number tower
 
@@ -5293,6 +5302,7 @@ schema-composition time, before any data arrives:
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
+| `nof` & `nof` | both kept, sorted by canon, with one canon once; their branches are never deduplicated |
 
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
@@ -5320,6 +5330,8 @@ guessed where it is not:
   accumulate and are never declared empty: sound (no false
   conflicts), incomplete (some contradictions surface only against
   data).
+- A Band B atom is never declared empty: `must` and `nof` are decided
+  against data, where `nof(3, string, number)` refuses every value.
 
 ### Subsumption
 
@@ -5327,8 +5339,8 @@ guessed where it is not:
 per-former rules are in [Subsumption](#subsumption) above). One
 mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
-`sub_evaluate_only`: the admitted set is opaque, which is
-undecided rather than refused.*
+`sub_evaluate_only`, and a `nof` on the general side the same way: the
+admitted set is opaque, which is undecided rather than refused.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
 value B admits, A admits too**. It is the lattice's own order, and for
@@ -5751,6 +5763,33 @@ nil (`NilVal.details`). `must` never participates in emptiness or
 subsumption, and any report including one states that the check was
 evaluate-only: the channel for domain rules beyond the
 algebra.
+
+### Band B: `nof`
+
+`nof(n, ...c)` counts the trial schemas `c` that admit the settled
+value, and requires the count to be one `n` admits: an integer, or a
+count constraint over the integers, as `len` takes. A branch admits the
+value when their meet adds nothing and generates the value itself, so a
+branch with a member the value lacks, required or filled by a default,
+does not: `nof(1, {x?: number}, {y?: string}) & {x: 1}` counts both
+branches and is refused, where `nof(1, {x: number}, {y: string})` counts
+one. Every branch is tried, a scalar at the meet and a container at
+generation, when no member can still arrive. A branch that conflicts on
+its own admits nothing, as `nil` does, and a reference that names
+nothing is the document's error.
+
+The branches are sorted by canon and never deduplicated, since a count
+counts duplicates: `nof(1, string, string)` admits no string. Two equal
+`nof` atoms on one value are one check, so `&` stays commutative and
+idempotent by canon. Like `must`, `nof` is opaque to emptiness and
+subsumption, and a value it refuses is reported as `nof`, class
+`conflict`, with the count, the number of branches that admitted it and
+each branch's verdict.
+
+It is how the applicators of JSON Schema cross into aontu: `anyOf` is
+`nof(min(1), …)`, `oneOf` is `nof(1, …)` and `not` is `nof(0, …)`, and
+the exporter writes those counts back as those keywords, with `allOf`
+for a count of every branch.
 
 ### Errors
 

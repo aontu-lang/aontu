@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### `nof(n, ...c)`, and JSON Schema's logic keywords
+
+Both ports, G12 phase 5. `nof(n, ...c)` is a new Band B atom: the
+number of trial schemas `c` that admit the settled value must be one
+the count `n` admits, an integer or a count constraint as `len` takes
+(ADR-048). A branch admits a value when their meet adds nothing and
+generates the value itself, every branch is tried, a branch that
+conflicts on its own admits nothing, and a value it refuses is the new
+code `nof`, class `conflict`. The importer carries `anyOf`, as a
+disjunction where at most one branch can hold and `nof(min(1), …)`
+otherwise, `oneOf` as `nof(1, …)` and `not` as `nof(0, …)`, or as a
+`neq` beside a single `string` or `integer` type; a position whose
+keywords contradict each other imports as `nil`, where it was an error
+in the imported document. The exporter writes `nof` back as `anyOf`,
+`oneOf`, `not` or `allOf`, and reports any other count. A residual of
+`must` and `nof` atoms alone now admits booleans and null, so
+`must(true, "m") & true` is `true` where it was refused, and the
+TypeScript engine no longer throws on a `must` whose argument holds a
+preference. A reference cycle through `nof` branches that never reaches
+a value is answered differently by the two ports, which is recorded as
+an open divergence.
+
 ### `multiple(n)`, and the integer JSON Schema means
 
 Both ports, G12 phase 4. `multiple(n)` is a new constraint atom: a

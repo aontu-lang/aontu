@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **179** codes across
+There are seven classes, and the registry holds **180** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 55 | the text is not a document |
-| `conflict` | 58 | two values cannot both hold |
+| `conflict` | 59 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 28 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** All 179 codes have hint text. `aontu explain --list`
+**Hint text.** All 180 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -281,6 +281,7 @@ twenty rows have no such section and carry no link.
 | `nil_gen` | 0.51.0 | A nil survived unification, and nil is not a literal value to generate. ([Generation](reference-language.md#generation)) |
 | `no_first_arg` | 0.51.0 | The function's first argument is missing. |
 | `no_scalar_unify` | 0.51.0 | Two scalar values of incompatible types. ([Unification rules](reference-language.md#unification-rules)) |
+| `nof` | 0.77.0 | The number of a `nof()`'s trial schemas that admit the value is not one its count admits; the hint names the count and each branch's verdict. ([Band B: `nof`](reference-language.md#band-b-nof)) |
 | `not-scalar-type` | 0.51.0 | A scalar type was expected and the value is not one. ([Unification rules](reference-language.md#unification-rules)) |
 | `op` | 0.51.0 | An operator operation failed; the named operator carries the detail. |
 | `op:` | 0.51.0 | Dynamic-prefix family: a named operator's own failure, the name appended (`op:add`). |

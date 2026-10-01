@@ -67,6 +67,13 @@ type SubState = {
 type Tri = 'yes' | 'no' | 'undecided'
 
 
+function opaqueNote(g: any): string {
+  return 0 < g.musts.length ?
+    'an evaluate-only check (must) makes the admitted set opaque' :
+    'a count of trial schemas (nof) makes the admitted set opaque'
+}
+
+
 export function pathText(path: string[]): string {
   return '$' + (0 < path.length ? '.' + path.join('.') : '')
 }
@@ -307,8 +314,7 @@ export function subsumeNode(
         return 'yes'
       }
       if ('undecided' === r) {
-        record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+        record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g))
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,
@@ -321,8 +327,7 @@ export function subsumeNode(
         return 'yes'
       }
       if ('undecided' === r) {
-        record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+        record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g))
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,

@@ -39,9 +39,20 @@ export function walkVals(
   for (const must of (v.musts ?? [])) {
     walkVals(must?.v, visit, seen)
   }
+  for (const nof of (v.nofs ?? [])) {
+    for (const c of nof.cs) {
+      walkVals(c, visit, seen)
+    }
+  }
 
   walkVals(v.primary, visit, seen)
   walkVals(v.secondary, visit, seen)
+}
+
+
+function trialSchemas(v: any): any[] {
+  return 'nof' === v.pending?.atom ? v.pending.args.slice(1) :
+    (v.nofs ?? []).flatMap((n: any) => n.cs)
 }
 
 
@@ -58,6 +69,10 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     // it, and each child it applies to carries its own copy.
     if (null != v.spread?.cj) {
       walked.add(v.spread.cj)
+    }
+    // A trial schema is no instance value, and a nil one admits nothing.
+    for (const c of trialSchemas(v)) {
+      walked.add(c)
     }
     // A written `nil` under an optional key nobody supplied is no
     // finding (ADR-045).

@@ -5,6 +5,7 @@ exports.parseJson = parseJson;
 exports.importJsonSchema = importJsonSchema;
 exports.agreedForm = agreedForm;
 const hints_1 = require("./hints");
+const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const format_1 = require("./format");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -247,7 +248,10 @@ function print(e, indent) {
         case 'raw':
             return e.text;
         case 'call':
-            return e.name + '(' + e.args.map((a) => print(a, indent)).join(', ') + ')';
+            // The TypeScript parser cannot read a call of three or more whose
+            // first argument and a later one are negative (test/spec/divergent.tsv).
+            return e.name + '(' + e.args.map((a, i) => 0 === i && 3 <= e.args.length &&
+                'raw' === a.k && '-' === a.text[0] ? '(' + a.text + ')' : print(a, indent)).join(', ') + ')';
         case 'and':
             return chain(e.items.map((it) => 'or' === it.k ? '(' + print(it, indent) + ')' : print(it, indent)), ' & ');
         case 'or':
@@ -487,7 +491,6 @@ const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped 
 const ANNOTATION = 'an annotation asserts nothing, and the importer does not keep ' +
     'annotations yet, so it is dropped';
 const LATER = {
-    anyOf: NOT_YET, oneOf: NOT_YET, not: NOT_YET,
     if: NOT_YET, then: NOT_YET, else: NOT_YET,
     dependentSchemas: NOT_YET, dependentRequired: NOT_YET,
     contains: NOT_YET, minContains: NOT_YET, maxContains: NOT_YET, uniqueItems: NOT_YET,
@@ -503,7 +506,8 @@ const LATER = {
 };
 const CARRIED = [
     '$schema', '$ref', '$defs', 'definitions', '$anchor', '$comment', 'type',
-    'enum', 'const', 'allOf', 'properties', 'required', 'additionalProperties',
+    'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'properties', 'required',
+    'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
     'prefixItems', 'items', 'minItems', 'maxItems', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
@@ -736,6 +740,150 @@ function literal(ctx, path, keyword, node) {
             return raw(node.t);
     }
 }
+// The JSON kinds an expression can admit, read from its shape: a kind, a
+// literal, a container, or a meet or disjunction of them. An alias or a
+// call that names no kind may be anything.
+const ALL_KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
+function kindsOf(e) {
+    switch (e.k) {
+        case 'raw':
+            return rawKinds(e.text);
+        case 'and':
+            return e.items.reduce((acc, it) => acc.filter((k) => kindsOf(it).includes(k)), ALL_KINDS);
+        case 'or':
+            return ALL_KINDS.filter((k) => e.items.some((it) => kindsOf(it).includes(k)));
+        case 'call':
+            return 'empty' === e.name || 're' === e.name ? ['string'] :
+                'close' === e.name ? kindsOf(e.args[0]) :
+                    ['min', 'max', 'above', 'below', 'multiple'].includes(e.name) ? ['number'] :
+                        ALL_KINDS;
+        case 'list':
+            return ['array'];
+        case 'map':
+            return ['object'];
+    }
+}
+const RAW_KINDS = new Map([
+    ['nil', []], ['true', ['boolean']], ['false', ['boolean']], ['null', ['null']],
+    ['boolean', ['boolean']], ['number', ['number']], ['map', ['object']], ['list', ['array']],
+]);
+function rawKinds(text) {
+    return RAW_KINDS.get(text) ?? ('"' === text[0] ? ['string'] :
+        /^-?[0-9]/.test(text) ? ['number'] : ALL_KINDS);
+}
+// The scalar literals an expression is, where it is nothing else.
+function literalTexts(e) {
+    if ('or' === e.k) {
+        const each = e.items.map(literalTexts);
+        return each.some((t) => undefined === t) ? undefined : each.flat();
+    }
+    return 'raw' === e.k && ('null' === e.text || 'true' === e.text || 'false' === e.text ||
+        '"' === e.text[0] || /^-?[0-9]/.test(e.text)) ? [e.text] : undefined;
+}
+// The expressions directly inside one.
+function children(e) {
+    switch (e.k) {
+        case 'raw':
+            return [];
+        case 'and':
+        case 'or':
+            return e.items;
+        case 'call':
+            return e.args;
+        case 'list':
+            return [...(e.items ?? []), ...(null == e.spread ? [] : [e.spread])];
+        case 'map':
+            return [...e.entries.map((en) => en.val), ...e.spreads];
+    }
+}
+function holdsNilExpr(e) {
+    return isRaw(e, 'nil') || children(e).some(holdsNilExpr);
+}
+// What makes a branch's meet with an instance depend on more than its
+// kind, at any depth: a required key, a container's count, a Band B atom,
+// closure, or an alias, which may hold any of them.
+function blocker(e) {
+    const counted = 'and' === e.k && e.items.some((it) => 'call' === it.k && 'len' === it.name) &&
+        !kindsOf(e).includes('string');
+    const closed = 'list' === e.k ? null != e.items || holdsNilExpr(e.spread) :
+        'map' === e.k ? e.entries.some((en) => !en.optional) || e.spreads.some(holdsNilExpr) :
+            'call' === e.k && ['nof', 'must', 'close'].includes(e.name);
+    return ('raw' === e.k && '%' === e.text[0]) || counted || closed ||
+        children(e).some(blocker);
+}
+// anyOf is `|` where at most one branch can survive a meet with any
+// instance, and a count of at least one otherwise.
+function anyOf(branches) {
+    const live = branches.filter((b) => !isRaw(b, 'nil'));
+    const literal = live.every((b) => undefined !== literalTexts(b));
+    const disjoint = live.every((b, i) => !blocker(b) &&
+        live.every((c, j) => j <= i || !kindsOf(b).some((k) => kindsOf(c).includes(k))));
+    return 0 === live.length ? NIL : literal || disjoint ? or(live) :
+        call('nof', call('min', raw('1')), ...branches);
+}
+// oneOf is a count of exactly one, or `|` over scalar literals that are
+// pairwise distinct, since a scalar equals at most one of them.
+function oneOf(branches) {
+    const texts = branches.map(literalTexts);
+    const flat = texts.flat();
+    return !texts.includes(undefined) && new Set(flat).size === flat.length ?
+        or(branches) : call('nof', raw('1'), ...branches);
+}
+// A whole number in every leaf that holds it exactly, as `neq` reads a
+// value by its leaf.
+function wholeLeaves(text) {
+    const n = (0, numkind_1.readExactNumber)(text);
+    if ('integer' !== n.leaf && 'biginteger' !== n.leaf) {
+        return [];
+    }
+    const whole = BigInt(n.int);
+    const sign = whole < 0n ? '-' : '';
+    const mag = (whole < 0n ? -whole : whole).toString();
+    return [
+        ...('integer' === n.leaf ? [sign + mag] : []),
+        ...((0, numkind_1.isExactInBinary64)(whole) ? [sign + mag + '.0'] : []),
+        sign + '0d' + mag, sign + '0d' + mag + '.0',
+    ];
+}
+// `not: {enum: [...]}` beside a type of exactly string or integer is that
+// kind's exclusion. Without the type it must stay a count of none, or the
+// exclusion would refuse every other kind.
+function typedExclusion(node, neg) {
+    const typed = entry(node, 'type');
+    const kind = 'string' !== typed?.t ? undefined : 'string' === typed.s ? 'string' :
+        'integer' === typed.s ? 'number' : undefined;
+    const en = 'object' === neg.t && 1 === neg.entries.length ? entry(neg, 'enum') : undefined;
+    if (undefined === kind || undefined === en || 'array' !== en.t) {
+        return undefined;
+    }
+    const out = [];
+    for (const it of en.items) {
+        if ('string' === kind && 'string' === it.t) {
+            out.push(quote(it.s));
+        }
+        else if ('number' === kind && 'number' === it.t) {
+            out.push(...wholeLeaves(it.text));
+        }
+    }
+    return { [kind]: out };
+}
+function holdsAlias(e) {
+    return ('raw' === e.k && '%' === e.text[0]) || children(e).some(holdsAlias);
+}
+let TRIAL;
+// Whether a position admits nothing: its meet conflicts when evaluated
+// alone. One naming an alias is left as written, as the declaration may
+// be being written itself.
+function bottom(e) {
+    if ('raw' === e.k || holdsAlias(e)) {
+        return false;
+    }
+    TRIAL = TRIAL ?? new aontu_1.Aontu();
+    const ctx = TRIAL.ctx({ collect: true });
+    TRIAL.unify('x: ' + print(e, ''), undefined, ctx);
+    return 0 < ctx.err.length &&
+        ctx.err.every((n) => 'conflict' === (0, hints_1.codeClass)(n.why));
+}
 function lenOf(lo, hi) {
     const parts = [];
     if (undefined !== lo && '0' !== lo) {
@@ -847,6 +995,22 @@ function convertObject(ctx, node, ptr, only) {
             all.items.forEach((it, i) => parts.push(convert(ctx, it, at('allOf') + '/' + i, false, only)));
         }
     }
+    for (const [key, carry] of [['anyOf', anyOf], ['oneOf', oneOf]]) {
+        const list = get(key);
+        if (null != list) {
+            if ('array' !== list.t || 0 === list.items.length) {
+                wrongType(ctx, at(key), key, 'a non-empty array', list);
+            }
+            else {
+                parts.push(carry(list.items.map((it, i) => convert(ctx, it, at(key) + '/' + i, false, only))));
+            }
+        }
+    }
+    const neg = get('not');
+    const excluded = null == neg ? undefined : typedExclusion(node, neg);
+    if (null != neg && undefined === excluded) {
+        parts.push(call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)));
+    }
     // The kind split.
     const typed = get('type');
     let allowed = undefined;
@@ -868,12 +1032,15 @@ function convertObject(ctx, node, ptr, only) {
     if (undefined !== allowed || kinds.some(scoped)) {
         const integral = undefined !== allowed && allowed.includes('integer') &&
             !allowed.includes('number');
-        const branches = kinds.map((kind) => branch(ctx, node, ptr, kind, integral));
+        const branches = kinds.map((kind) => branch(ctx, node, ptr, kind, integral, excluded));
         parts.push(0 === branches.length ? NIL : or(branches));
     }
-    return and(parts);
+    const met = and(parts);
+    return bottom(met) ? NIL : met;
 }
-function branch(ctx, node, ptr, kind, integral) {
+function branch(ctx, node, ptr, kind, integral, excluded) {
+    const exclude = (parts) => 0 < (excluded?.[kind] ?? []).length ?
+        [...parts, call('neq', ...excluded[kind].map(raw))] : parts;
     const get = (k) => entry(node, k);
     const at = (k) => child(ptr, k);
     const counted = (lo, hi) => {
@@ -898,7 +1065,7 @@ function branch(ctx, node, ptr, kind, integral) {
                 parts.push(call(fn, raw(text)));
             }
         }
-        return and(parts);
+        return and(exclude(parts));
     }
     if ('string' === kind) {
         const parts = [call('empty')];
@@ -918,7 +1085,7 @@ function branch(ctx, node, ptr, kind, integral) {
                 }
             }
         }
-        return and(parts);
+        return and(exclude(parts));
     }
     if ('object' === kind) {
         const map = objectBranch(ctx, node, ptr);

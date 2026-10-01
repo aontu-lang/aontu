@@ -282,7 +282,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	out := map[string]any{}
 	// allOf members: a second pattern or exclusion has no keyword of its own.
 	extra := []any{}
-	nots := []map[string]any{}
+	nots := []any{}
 
 	if t, ok := kindType[c.kind]; ok {
 		out["type"] = t
@@ -380,6 +380,58 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
+	for _, n := range c.nofs {
+		branches := func() []any {
+			out := make([]any, len(n.cs))
+			for i, b := range n.cs {
+				out[i] = false
+				if !b.Nil() {
+					out[i] = schemaFromVal(sc, path, b)
+				}
+			}
+			return out
+		}
+		counts := nofCounts(n)
+		only := func(at ...int) bool {
+			for i, ok := range counts {
+				in := false
+				for _, a := range at {
+					in = in || a == i
+				}
+				if ok != in {
+					return false
+				}
+			}
+			return true
+		}
+		k := len(n.cs)
+		all := make([]int, k+1)
+		for i := range all {
+			all[i] = i
+		}
+		switch {
+		case only(all...):
+		case only(all[1:]...):
+			extra = schemaKeyword(out, extra, "anyOf", branches())
+		case only(1):
+			extra = schemaKeyword(out, extra, "oneOf", branches())
+		case only(0):
+			if 1 == k {
+				nots = append(nots, branches()[0])
+			} else {
+				nots = append(nots, map[string]any{"anyOf": branches()})
+			}
+		case only(k):
+			extra = append(extra, branches()...)
+		case only():
+			extra = append(extra, false)
+		default:
+			sc.lose(path, "nof",
+				"JSON Schema counts its branches only as anyOf, oneOf, allOf and not, "+
+					"so this count is DROPPED and the schema admits values the model refuses")
+		}
+	}
+
 	if 1 == len(nots) {
 		out["not"] = nots[0]
 	} else if 1 < len(nots) {
@@ -417,6 +469,16 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	}
 
 	return out
+}
+
+// schemaKeyword sets a keyword a schema object has once; a second goes
+// under allOf.
+func schemaKeyword(out map[string]any, extra []any, key string, val any) []any {
+	if _, has := out[key]; !has {
+		out[key] = val
+		return extra
+	}
+	return append(extra, map[string]any{key: val})
 }
 
 var schemaDeprecationText = []string{"msg", "use", "since"}

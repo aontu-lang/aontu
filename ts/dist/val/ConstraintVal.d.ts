@@ -15,6 +15,10 @@ type MustAtom = {
     v: any;
     msg: any;
 };
+type NofAtom = {
+    count: ConstraintState;
+    cs: any[];
+};
 type ConstraintState = {
     domain?: 'number' | 'string';
     kind?: any;
@@ -27,6 +31,7 @@ type ConstraintState = {
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs?: NofAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
@@ -48,6 +53,7 @@ declare class ConstraintVal extends FeatureVal {
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs: NofAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -67,6 +73,7 @@ declare class ConstraintVal extends FeatureVal {
     private settle;
     private admit;
     private checkMusts;
+    private checkNofs;
     settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
     private hold;
@@ -107,10 +114,14 @@ declare class ReConstraintVal extends ConstraintVal {
 declare class MustConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class NofConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare function nofCounts(n: NofAtom): boolean[];
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };
+export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, };

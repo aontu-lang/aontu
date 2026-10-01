@@ -76,6 +76,7 @@ capability decision is the phase rows it governed in
 | [ADR-045](#adr-045--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
 | [ADR-046](#adr-046--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-047](#adr-047--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
+| [ADR-048](#adr-048--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
 
 ---
 
@@ -4768,3 +4769,75 @@ number by its value.
   residual that kind is, so `multiple(0.5) ⊒ integer` holds.
 - Pinned by `test/spec/constraint-multiple.tsv` in both ports, with the
   `integer` and `float` kind losses in `test/spec/jsonschema.tsv`.
+
+## ADR-048 — Logic counts the trial schemas that admit a value
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 5 brings
+JSON Schema's `anyOf`, `oneOf` and `not` into aontu. Each asks how many
+subschemas an instance *is* valid against. aontu has two near
+neighbours, and neither asks that. A disjunction meets every branch
+with the value and keeps the survivors, so a branch may add a member
+the value lacks, and two survivors are a choice rather than a count.
+`must` asks whether the value *can* unify with its argument, which a
+schema with a required key the value lacks still answers yes. Phase 3
+shipped the question JSON Schema asks as the admission trial, `admits`
+and `Admits`, for `vet`; the logic keywords need it inside the engine,
+on values still being evaluated.
+
+### Decision
+
+1. **The admission trial runs inside the engine.** A trial schema
+   admits a settled value when their meet, run to a fixpoint in a
+   sandbox whose failures are thrown away, is not bottom and generates
+   the value's own JSON, with nothing added but an optional member: the
+   question G12 section 3 defines. Both sides have settled, so the calls
+   that wait for a settled tree, `match` among them, resolve at once. A
+   scalar is tried at the meet, and a container at generation, when no
+   member can still arrive.
+2. **`nof(n, ...c)` counts.** It requires the number of trial schemas
+   `c` that admit the value to be one `n` admits: an integer, or a count
+   constraint over the integers, as `len` takes. Every branch is tried,
+   with no short-circuit, and a value it refuses is `nof`, class
+   `conflict`, whose hint carries the count, the number that admitted
+   it and each branch's verdict.
+3. **Band B is a family.** An atom whose admitted set depends on the
+   value as data rather than on the algebra is Band B: `must` asks
+   whether the value can unify, and `nof` how many schemas admit it.
+   Both are opaque to emptiness and subsumption, and both fold last.
+   `nof`'s branches are sorted by canon and never deduplicated, since a
+   count counts duplicates; two canon-equal atoms on one value are one
+   check, so `&` stays commutative and idempotent by canon.
+4. **A branch settles apart from the document.** A branch that
+   conflicts on its own admits nothing, as `nil`, the false schema,
+   does; any other failure, such as a reference that names nothing, is
+   the document's error.
+5. **A Band B residual reads any scalar.** A residual of Band B atoms
+   alone admits a boolean or null for its atoms to rule on, where a
+   sizing atom has nothing to read in one: `must(true, "m") & true` is
+   `true`, where it was refused.
+6. **The importer carries the logic keywords.** `anyOf` is `|` where at
+   most one branch can survive a meet with any instance, and
+   `nof(min(1), …)` otherwise; `oneOf` is `nof(1, …)`, or `|` over scalar
+   literals that are pairwise distinct; `not` is `nof(0, …)`, and beside
+   one `string` or `integer` type an excluded `enum` is that kind's
+   `neq`, in every leaf for a number. A schema position whose meet
+   conflicts when evaluated alone admits nothing, and imports as `nil`.
+   The exporter writes the counts back: at least one is `anyOf`,
+   exactly one `oneOf`, none `not` and every one `allOf`, and any other
+   count is a reported loss.
+
+### Consequences
+
+- `|` and ADR-007 are untouched: the importer reaches for `nof` only
+  where a disjunction would choose where JSON Schema counts.
+- A branch's trial costs a meet and a generation, so a `nof` with many
+  branches over a large value is slower than a disjunction of them.
+- `must` admits booleans and null, which it refused for want of a
+  domain rather than by design.
+- Pinned by `test/spec/constraint-nof.tsv` and the logic rows of
+  `test/spec/jsonschema-import.tsv` in both ports.

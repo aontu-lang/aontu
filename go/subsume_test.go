@@ -56,6 +56,10 @@ func TestSubsumeConstraintPathFunc(t *testing.T) {
 	if !hasPathFunc(countCv) {
 		t.Fatal("expected a count holding key() to be path-dependent")
 	}
+	nofCv := &ConstraintVal{nofs: []constraintNof{{cs: []Val{newFunc("key", nil)}}}}
+	if !hasPathFunc(nofCv) {
+		t.Fatal("expected a nof branch holding key() to be path-dependent")
+	}
 	plain := &ConstraintVal{musts: []constraintMust{{v: newInteger(1)}}}
 	if hasPathFunc(plain) {
 		t.Fatal("expected a plain must to not be path-dependent")

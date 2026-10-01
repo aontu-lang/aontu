@@ -1350,6 +1350,9 @@ ECMA-262, which is what JSON Schema reads, so no translation happens);
 `neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
 `multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
 and `number & multiple(1)` is `type: integer`;
+`nof(n, …)` becomes `anyOf` for a count of at least one, `oneOf` for
+exactly one, `not` for none and an `allOf` of the branches for every
+one;
 `len` becomes `minLength`/`maxLength` on a string,
 `minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
 a list, an open bound rounded inward to the next whole number
@@ -1392,6 +1395,7 @@ The losses, and why each is one:
 | `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
 | `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
 | `len(multiple(n))` | no keyword constrains a count's divisor |
+| `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
 | an exact `0d` endpoint binary64 cannot hold | the bound crosses as the nearest double, which draws a different boundary; one beyond binary64 altogether is omitted |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
@@ -1521,18 +1525,23 @@ y: number
 | `propertyNames` | a spread that refuses a key whose name the schema does not admit |
 | `prefixItems`, `items` | one list spread, guarded by each element's index |
 | `allOf` | the meet: every member unified in place |
+| `anyOf` | a disjunction where at most one branch can hold for any instance, because the branches are scalar literals or have disjoint kinds and none needs more than its kind; otherwise `nof(min(1), …)`, at least one branch admitting the value |
+| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals |
+| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer |
 | `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
 | `$schema`, `$comment` | read and dropped: the dialect is 2020-12, and a comment asserts nothing |
 
 A string is `empty()` rather than `string`, because the strings of
 JSON Schema include `""` and aontu's `string` does not. A boolean schema
-is `any` or `nil`.
+is `any` or `nil`, and so is a position whose keywords contradict each
+other: `allOf` of a string and a number admits nothing, and imports as
+`nil`.
 
 **What does not cross is reported, never dropped in silence.** Each
 loss names a pointer into the schema, the keyword, and what dropping it
 costs. An annotation such as `title`, `format` or `default` asserts
 nothing, so dropping it changes no answer; a validation keyword such as
-`oneOf` or `multipleOf` widens the position, and the loss says so. A
+`if` or `contains` widens the position, and the loss says so. A
 `$ref` that names another document is a loss too, and its position
 admits anything: the importer reads one document.
 

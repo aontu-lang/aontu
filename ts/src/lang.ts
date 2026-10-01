@@ -171,6 +171,7 @@ import {
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,
+  NofConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -844,6 +845,7 @@ help isolate the syntax error.`,
     unique: UniqueConstraintVal,
 
     must: MustConstraintVal,
+    nof: NofConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,

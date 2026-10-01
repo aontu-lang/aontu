@@ -8,6 +8,7 @@ const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
 const numcmp_1 = require("./val/numcmp");
+const ConstraintVal_1 = require("./val/ConstraintVal");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -251,6 +252,35 @@ function fromConstraint(ctx, path, c, bag) {
                 'DROPPED and the schema admits lengths the model refuses');
         }
     }
+    for (const n of c.nofs) {
+        const branches = () => n.cs.map((b) => true === b.isNil ? false : fromVal(ctx, path, b));
+        const counts = (0, ConstraintVal_1.nofCounts)(n);
+        const only = (...at) => counts.every((ok, i) => ok === at.includes(i));
+        const k = n.cs.length;
+        const all = counts.map((_ok, i) => i);
+        if (only(...all)) {
+            continue;
+        }
+        if (only(...all.slice(1))) {
+            keyword(out, extra, 'anyOf', branches());
+        }
+        else if (only(1)) {
+            keyword(out, extra, 'oneOf', branches());
+        }
+        else if (only(0)) {
+            nots.push(1 === k ? branches()[0] : { anyOf: branches() });
+        }
+        else if (only(k)) {
+            extra.push(...branches());
+        }
+        else if (only()) {
+            extra.push(false);
+        }
+        else {
+            lose(ctx, path, 'nof', 'JSON Schema counts its branches only as anyOf, oneOf, allOf and not, ' +
+                'so this count is DROPPED and the schema admits values the model refuses');
+        }
+    }
     if (1 === nots.length) {
         out.not = nots[0];
     }
@@ -280,6 +310,15 @@ function fromConstraint(ctx, path, c, bag) {
             'it -- so it is DROPPED and the schema admits values `vet` refuses');
     }
     return out;
+}
+// A keyword this schema object has once; a second goes under allOf.
+function keyword(out, extra, key, val) {
+    if (undefined === out[key]) {
+        out[key] = val;
+    }
+    else {
+        extra.push({ [key]: val });
+    }
 }
 function fromVal(ctx, path, v) {
     const out = fromValInner(ctx, path, v);

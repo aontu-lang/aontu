@@ -77,7 +77,7 @@ name ::=
   | "inverse" | "join" | "key" | "least"
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "min" | "mod" | "move"
   | "multiple" | "mul" | "must"
-  | "neq"
+  | "neq" | "nof"
   | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"
   | "sort" | "split" | "super"
   | "sub" | "sum"

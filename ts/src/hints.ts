@@ -101,6 +101,21 @@ const hints: Record<string, string> = {
     '                                                   #     with "tier";\n' +
     '  min(0) & must(integer,"whole") & 3    -> 3      # Bands compose.',
 
+  nof:
+    'This value is admitted by {admitted} of the trial schemas of a nof(),\n' +
+    'and the count must be {count}. Branch by branch: {branches}.' +
+    '\n \n' +
+    'nof(n, ...c) is Band B of the constraint algebra: every branch is\n' +
+    'tried against the settled value, and a branch admits it when their\n' +
+    'meet adds nothing and generates the value itself. The count n is an\n' +
+    'integer or a count constraint, as len() takes, and a branch that\n' +
+    'conflicts admits nothing. It carries anyOf, oneOf and not.' +
+    '\n \nExamples:\n' +
+    '  nof(1, string, number) & "a" -> "a"  # One branch admits;\n' +
+    '  nof(1, number, min(0)) & 5   -> nil  # Two admit;\n' +
+    '  nof(min(1), number, nil) & 5 -> 5    # At least one;\n' +
+    '  nof(0, string) & 5           -> 5    # None may admit.',
+
   abnf_grammar:
     'This ABNF grammar could not be compiled:\n' +
     '{reason}\n' +
@@ -959,6 +974,7 @@ const codeClasses: Record<string, string> = {
   // empty meets at composition time, and domain/kind mixing.)
   constraint: 'conflict',
   must: 'conflict',
+  nof: 'conflict',
   constraint_pattern: 'conflict',
   abnf_grammar: 'parse',
   parse_arg: 'parse',

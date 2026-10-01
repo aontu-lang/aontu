@@ -4,6 +4,7 @@ package aontu
 
 import (
 	"fmt"
+	"math/big"
 	"regexp"
 	"sort"
 	"strconv"
@@ -399,6 +400,12 @@ func iwrite(b *strings.Builder, e *ixpr, indent string) {
 			if 0 < i {
 				b.WriteString(", ")
 			}
+			// The TypeScript parser cannot read a call of three or more whose
+			// first argument and a later one are negative (test/spec/divergent.tsv).
+			if 0 == i && 3 <= len(e.items) && "raw" == a.k && strings.HasPrefix(a.text, "-") {
+				b.WriteString("(" + a.text + ")")
+				continue
+			}
 			iwrite(b, a, indent)
 		}
 		b.WriteString(")")
@@ -763,7 +770,6 @@ const (
 )
 
 var importLater = map[string]string{
-	"anyOf": importNotYet, "oneOf": importNotYet, "not": importNotYet,
 	"if": importNotYet, "then": importNotYet, "else": importNotYet,
 	"dependentSchemas": importNotYet, "dependentRequired": importNotYet,
 	"contains": importNotYet, "minContains": importNotYet, "maxContains": importNotYet,
@@ -783,7 +789,8 @@ var importLater = map[string]string{
 
 var importCarried = []string{
 	"$schema", "$ref", "$defs", "definitions", "$anchor", "$comment", "type",
-	"enum", "const", "allOf", "properties", "required", "additionalProperties",
+	"enum", "const", "allOf", "anyOf", "oneOf", "not", "properties", "required",
+	"additionalProperties",
 	"patternProperties", "propertyNames", "minProperties", "maxProperties",
 	"prefixItems", "items", "minItems", "maxItems", "minimum", "maximum",
 	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
@@ -1074,6 +1081,282 @@ func (ctx *importCtx) literal(path, keyword string, node *jnode) *ixpr {
 	return iraw(node.t)
 }
 
+// kindsOf is the JSON kinds an expression can admit, read from its shape:
+// a kind, a literal, a container, or a meet or disjunction of them. An
+// alias or a call that names no kind may be anything.
+func kindsOf(e *ixpr) []string {
+	switch e.k {
+	case "raw":
+		return rawKinds(e.text)
+	case "and":
+		out := importKinds
+		for _, it := range e.items {
+			ik := kindsOf(it)
+			kept := []string{}
+			for _, k := range out {
+				if inList(ik, k) {
+					kept = append(kept, k)
+				}
+			}
+			out = kept
+		}
+		return out
+	case "or":
+		out := []string{}
+		for _, k := range importKinds {
+			for _, it := range e.items {
+				if inList(kindsOf(it), k) {
+					out = append(out, k)
+					break
+				}
+			}
+		}
+		return out
+	case "call":
+		switch e.name {
+		case "empty", "re":
+			return []string{"string"}
+		case "close":
+			return kindsOf(e.items[0])
+		case "min", "max", "above", "below", "multiple":
+			return []string{"number"}
+		}
+		return importKinds
+	case "list":
+		return []string{"array"}
+	}
+	return []string{"object"}
+}
+
+var importNumberText = regexp.MustCompile(`^-?[0-9]`)
+
+var rawKindTable = map[string][]string{
+	"nil": {}, "true": {"boolean"}, "false": {"boolean"}, "null": {"null"},
+	"boolean": {"boolean"}, "number": {"number"}, "map": {"object"}, "list": {"array"},
+}
+
+func rawKinds(text string) []string {
+	if kinds, ok := rawKindTable[text]; ok {
+		return kinds
+	}
+	switch {
+	case strings.HasPrefix(text, "\""):
+		return []string{"string"}
+	case importNumberText.MatchString(text):
+		return []string{"number"}
+	}
+	return importKinds
+}
+
+// literalTexts is the scalar literals an expression is, where it is
+// nothing else.
+func literalTexts(e *ixpr) ([]string, bool) {
+	if "or" == e.k {
+		out := []string{}
+		for _, it := range e.items {
+			t, ok := literalTexts(it)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, t...)
+		}
+		return out, true
+	}
+	if "raw" == e.k && ("null" == e.text || "true" == e.text || "false" == e.text ||
+		strings.HasPrefix(e.text, "\"") || importNumberText.MatchString(e.text)) {
+		return []string{e.text}, true
+	}
+	return nil, false
+}
+
+// someExpr reports whether any expression directly inside e answers test.
+func someExpr(e *ixpr, test func(*ixpr) bool) bool {
+	for _, it := range e.items {
+		if test(it) {
+			return true
+		}
+	}
+	if nil != e.spread && test(e.spread) {
+		return true
+	}
+	for _, en := range e.entries {
+		if test(en.val) {
+			return true
+		}
+	}
+	for _, sp := range e.spreads {
+		if test(sp) {
+			return true
+		}
+	}
+	return false
+}
+
+func holdsNilExpr(e *ixpr) bool {
+	return isRawText(e, "nil") || someExpr(e, holdsNilExpr)
+}
+
+func holdsAlias(e *ixpr) bool {
+	return ("raw" == e.k && strings.HasPrefix(e.text, "%")) || someExpr(e, holdsAlias)
+}
+
+// blocker reports what makes a branch's meet with an instance depend on
+// more than its kind, at any depth: a required key, a container's count,
+// a Band B atom, closure, or an alias, which may hold any of them.
+func blocker(e *ixpr) bool {
+	counted := false
+	if "and" == e.k {
+		for _, it := range e.items {
+			counted = counted || ("call" == it.k && "len" == it.name)
+		}
+		counted = counted && !inList(kindsOf(e), "string")
+	}
+	closed := false
+	switch e.k {
+	case "list":
+		closed = e.lit || holdsNilExpr(e.spread)
+	case "map":
+		for _, en := range e.entries {
+			closed = closed || !en.optional
+		}
+		for _, sp := range e.spreads {
+			closed = closed || holdsNilExpr(sp)
+		}
+	case "call":
+		closed = inList([]string{"nof", "must", "close"}, e.name)
+	}
+	return ("raw" == e.k && strings.HasPrefix(e.text, "%")) || counted || closed ||
+		someExpr(e, blocker)
+}
+
+// importAnyOf is `|` where at most one branch can survive a meet with any
+// instance, and a count of at least one otherwise.
+func importAnyOf(branches []*ixpr) *ixpr {
+	live := []*ixpr{}
+	for _, b := range branches {
+		if !isRawText(b, "nil") {
+			live = append(live, b)
+		}
+	}
+	literal, disjoint := true, true
+	for i, b := range live {
+		if _, ok := literalTexts(b); !ok {
+			literal = false
+		}
+		disjoint = disjoint && !blocker(b)
+		for _, c := range live[i+1:] {
+			for _, k := range kindsOf(b) {
+				disjoint = disjoint && !inList(kindsOf(c), k)
+			}
+		}
+	}
+	switch {
+	case 0 == len(live):
+		return iNil
+	case literal || disjoint:
+		return ior(live)
+	}
+	return icall("nof", append([]*ixpr{icall("min", iraw("1"))}, branches...)...)
+}
+
+// importOneOf is a count of exactly one, or `|` over scalar literals that
+// are pairwise distinct, since a scalar equals at most one of them.
+func importOneOf(branches []*ixpr) *ixpr {
+	seen := map[string]bool{}
+	distinct := true
+	for _, b := range branches {
+		texts, ok := literalTexts(b)
+		distinct = distinct && ok
+		for _, t := range texts {
+			distinct = distinct && !seen[t]
+			seen[t] = true
+		}
+	}
+	if distinct {
+		return ior(branches)
+	}
+	return icall("nof", append([]*ixpr{iraw("1")}, branches...)...)
+}
+
+// wholeLeaves writes a whole number in every leaf that holds it exactly,
+// as `neq` reads a value by its leaf.
+func wholeLeaves(text string) []string {
+	n, _ := readExactNumber(text)
+	var whole *big.Int
+	switch n.leaf {
+	case "integer":
+		whole = big.NewInt(n.i)
+	case "biginteger":
+		whole = n.big
+	default:
+		return nil
+	}
+	sign := ""
+	if whole.Sign() < 0 {
+		sign = "-"
+	}
+	mag := new(big.Int).Abs(whole).String()
+	out := []string{}
+	if "integer" == n.leaf {
+		out = append(out, sign+mag)
+	}
+	if isExactInBinary64(whole) {
+		out = append(out, sign+mag+".0")
+	}
+	return append(out, sign+"0d"+mag, sign+"0d"+mag+".0")
+}
+
+// typedExclusion reads `not: {enum: [...]}` beside a type of exactly
+// string or integer as that kind's exclusion. Without the type it stays
+// a count of none, or the exclusion would refuse every other kind.
+func typedExclusion(node, neg *jnode) map[string][]string {
+	typed := jentryOf(node, "type")
+	kind := ""
+	if nil != typed && "string" == typed.t {
+		switch typed.s {
+		case "string":
+			kind = "string"
+		case "integer":
+			kind = "number"
+		}
+	}
+	var en *jnode
+	if "object" == neg.t && 1 == len(neg.entries) {
+		en = jentryOf(neg, "enum")
+	}
+	if "" == kind || nil == en || "array" != en.t {
+		return nil
+	}
+	out := []string{}
+	for _, it := range en.items {
+		switch {
+		case "string" == kind && "string" == it.t:
+			out = append(out, importQuote(it.s))
+		case "number" == kind && "number" == it.t:
+			out = append(out, wholeLeaves(it.s)...)
+		}
+	}
+	return map[string][]string{kind: out}
+}
+
+// importBottom reports whether a position admits nothing: its meet
+// conflicts when evaluated alone. One naming an alias is left as written,
+// as the declaration may be being written itself.
+func importBottom(e *ixpr) bool {
+	if "raw" == e.k || holdsAlias(e) {
+		return false
+	}
+	text := "x: " + iprint(e, "")
+	a := New()
+	v, _ := a.Parse(text)
+	_, ctx, _ := a.unifyCtx(v, nil, text)
+	conflict := 0 < len(ctx.err)
+	for _, n := range ctx.err {
+		conflict = conflict && "conflict" == codeClass(n.why)
+	}
+	return conflict
+}
+
 func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
 	parts := []*ixpr{}
 	if hasLo && "0" != lo {
@@ -1199,6 +1482,32 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		}
 	}
 
+	for _, carrier := range []struct {
+		key   string
+		carry func([]*ixpr) *ixpr
+	}{{"anyOf", importAnyOf}, {"oneOf", importOneOf}} {
+		if list := get(carrier.key); nil != list {
+			if "array" != list.t || 0 == len(list.items) {
+				ctx.wrongType(at(carrier.key), carrier.key, "a non-empty array", list)
+			} else {
+				branches := []*ixpr{}
+				for i, it := range list.items {
+					branches = append(branches,
+						ctx.convert(it, at(carrier.key)+"/"+strconv.Itoa(i), false, only))
+				}
+				parts = append(parts, carrier.carry(branches))
+			}
+		}
+	}
+
+	var excluded map[string][]string
+	if neg := get("not"); nil != neg {
+		excluded = typedExclusion(node, neg)
+		if nil == excluded {
+			parts = append(parts, icall("nof", iraw("0"), ctx.convert(neg, at("not"), false, only)))
+		}
+	}
+
 	// The kind split.
 	var allowed []string
 	typed := get("type")
@@ -1251,7 +1560,7 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		integral := nil != allowed && inList(allowed, "integer") && !inList(allowed, "number")
 		branches := []*ixpr{}
 		for _, kind := range kinds {
-			branches = append(branches, ctx.branch(node, ptr, kind, integral))
+			branches = append(branches, ctx.branch(node, ptr, kind, integral, excluded))
 		}
 		if 0 == len(branches) {
 			parts = append(parts, iNil)
@@ -1260,10 +1569,25 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		}
 	}
 
-	return iand(parts)
+	met := iand(parts)
+	if importBottom(met) {
+		return iNil
+	}
+	return met
 }
 
-func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool) *ixpr {
+func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
+	excluded map[string][]string) *ixpr {
+	exclude := func(parts []*ixpr) []*ixpr {
+		if 0 == len(excluded[kind]) {
+			return parts
+		}
+		args := []*ixpr{}
+		for _, t := range excluded[kind] {
+			args = append(args, iraw(t))
+		}
+		return append(parts, icall("neq", args...))
+	}
 	get := func(k string) *jnode { return jentryOf(node, k) }
 	at := func(k string) string { return ptrChild(ptr, k) }
 	counted := func(lo, hi string) *ixpr {
@@ -1300,7 +1624,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool) *ixpr
 				}
 			}
 		}
-		return iand(parts)
+		return iand(exclude(parts))
 	case "string":
 		parts := []*ixpr{icall("empty")}
 		if l := counted("minLength", "maxLength"); nil != l {
@@ -1313,7 +1637,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool) *ixpr
 				parts = append(parts, re)
 			}
 		}
-		return iand(parts)
+		return iand(exclude(parts))
 	case "object":
 		m := ctx.objectBranch(node, ptr)
 		l := counted("minProperties", "maxProperties")

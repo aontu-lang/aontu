@@ -127,6 +127,58 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- a call whose first argument and a later one are negative
+#   overflows the TypeScript parser.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 5,
+#   whose importer writes an excluded negative integer as a `neq` over
+#   every leaf. NOT introduced by that work: it reproduces on a plain
+#   document.
+#
+#   Divergent input:  a: neq(-1, -2, -3)   (three arguments or more,
+#                     the first and another negative; two agree, and
+#                     so does a positive first argument)
+#   TypeScript: `aontu: unexpected error: Maximum call stack size
+#               exceeded`, exit 1, thrown while parsing
+#   Go:         {"a":neq(-3,-2,-1)}: the call parses and evaluates
+#
+#   Not simply fixed because the recursion is in the pinned
+#   @tabnas/expr, whose `evaluation` meets a cyclic term for this
+#   argument list. The importer writes a negative first argument in
+#   parentheses, `neq((-1), -2, -3)`, which both parsers read, so an
+#   imported schema never reaches the defect.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a reference cycle through trial schemas that never reaches a
+#   value is cut at a different point, so the two engines answer it
+#   differently.
+#   issue: none filed yet; found 2026-10-01 by the parity probe while
+#   landing G12 phase 5.
+#
+#   Divergent input:  %A = nof(1, null, %B)
+#                     %B = nof(1, number, %A)
+#                     a: %A
+#                     vetted against {"a": 5}
+#   TypeScript: verdict valid. The innermost repetition fails inside an
+#               admission trial, which counts as a refusal, so %B's
+#               `number` branch is the one that admits.
+#   Go:         verdict error, unify_cycle at $.%A@#1.
+#   The same split shows for `a: nof(1, $.b)` beside `b: nof(1, $.a)`
+#   against {"a": 1, "b": 1}: TypeScript refuses both with `nof`, and
+#   Go reports unify_cycle.
+#
+#   Not simply fixed because the right reading is an open design
+#   question: whether a trial that cannot decide, the schemas recursing
+#   without consuming the value, refuses it or is the document's error.
+#   JSON Schema leaves such recursion to the implementation. Each engine
+#   cuts the cycle where its evaluation order meets it: TypeScript
+#   settles a reference lazily, inside the admission trial whose
+#   failures ADR-048 discards, and Go settles a trial argument eagerly,
+#   where ADR-048 makes a failure other than a conflict the document's.
+#   No row pins either answer.
+#
+# ---------------------------------------------------------------------
+#
 #
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.

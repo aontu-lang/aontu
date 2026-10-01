@@ -1,0 +1,78 @@
+# NOF -- `nof(n, ...c)` (G12 phase 5, ADR-048): the number of trial
+# schemas c that admit the settled value must be one the count n admits,
+# an integer or a count constraint as `len` takes. A branch admits the
+# value when their meet adds nothing and generates the value itself; a
+# scalar is tried at the meet and a container at generation. Branches
+# are canon-sorted and never deduplicated, a branch that conflicts on
+# its own admits nothing, and `nof` is opaque to emptiness and
+# subsumption, as `must` is. Every expectation is both engines' agreed
+# answer.
+#
+# Canon: branches sorted by canon and never deduplicated; the atom once.
+nof-canon-sorts-branches	canon	a: nof(1, string, number)	{"a":nof(1,number,string)}
+nof-canon-keeps-a-repeated-branch	canon	a: nof(1, string, string)	{"a":nof(1,string,string)}
+nof-canon-writes-a-point-count-bare	canon	a: nof(min(1) & max(1), string, number)	{"a":nof(1,number,string)}
+nof-canon-writes-a-count-constraint	canon	a: nof(min(1), string, number)	{"a":nof(min(1),number,string)}
+nof-canon-one-atom-once	canon	a: nof(1, string, number) & nof(1, number, string)	{"a":nof(1,number,string)}
+nof-canon-atoms-sort	canon	a: nof(1, string) & nof(0, number)	{"a":nof(0,number)&nof(1,string)}
+nof-canon-beside-a-bound	canon	a: min(0) & nof(1, integer, max(5))	{"a":min(0)&nof(1,integer,max(5))}
+nof-canon-held-on-a-map	canon	a: nof(min(1), {x: 1}) & {x: 1}	{"a":{"x":1}&nof(min(1),{"x":1})}
+nof-canon-a-conflicting-branch-is-nil	canon	a: nof(1, 1 & 2, string)	{"a":nof(1,nil,string)}
+# The trial: a branch admits the settled value when their meet adds nothing.
+nof-one-branch-admits	gens	a: nof(1, string, number) & "x"	{"a":"x"}
+nof-admits-a-boolean	gens	a: nof(1, boolean, null) & true	{"a":true}
+nof-admits-null	gens	a: nof(1, boolean, null) & null	{"a":null}
+nof-at-least-one-over-a-map	gens	a: nof(min(1), {x: 1}, {y: 2}) & {x: 1}	{"a":{"x":1}}
+nof-none-admits	gens	a: nof(0, string) & 5	{"a":5}
+nof-a-nil-branch-admits-nothing	gens	a: nof(0, nil) & 5	{"a":5}
+nof-a-conflicting-branch-admits-nothing	gens	a: nof(1, 1 & 2, string) & "s"	{"a":"s"}
+nof-an-open-branch-admits-more-members	gens	a: nof(1, {x?: number}) & {x: 1, y: 2}	{"a":{"x":1,"y":2}}
+nof-a-closed-branch-refuses-more-members	gens	a: nof(1, close({x?: number}), {y?: string}) & {x: 1, z: 2}	{"a":{"x":1,"z":2}}
+nof-list-branches	gens	a: nof(min(1), [&: number], [&: string]) & [1, 2]	{"a":[1,2]}
+nof-a-guarded-spread-branch	gens	a: nof(min(1), [&: match(key(0), "0", any, "1", "bar", any)]) & ["foo", "bar"]	{"a":["foo","bar"]}
+nof-a-count-constraint	gens	a: nof(max(1), string, number) & 1	{"a":1}
+nof-an-excluded-count	gens	a: nof(neq(1), string, number, min(0)) & 5	{"a":5}
+nof-in-a-spread	gens	a: {&: nof(1, string, number)} & {x: "s", y: 2}	{"a":{"x":"s","y":2}}
+nof-an-optional-default-admits	gens	a: nof(1, {x?: *1 | number}) & {}	{"a":{}}
+nof-nested	gens	a: nof(1, {b: nof(0, string)}) & {b: 1}	{"a":{"b":1}}
+nof-a-required-nil-member-admits-nothing	gens	a: nof(0, {x: nil}) & {}	{"a":{}}
+nof-an-ungenerable-meet-admits-nothing	gens	a: nof(0, {x: string}) & {}	{"a":{}}
+nof-a-reference-branch	gens	x: type(string)\na: nof(1, $.x, number) & "s"	{"a":"s"}
+must-admits-a-boolean	gens	a: must(true, "m") & true	{"a":true}
+must-reads-a-preference-inside-its-check	gens	a: must({x?: *1 | number}, "m") & {}	{"a":{}}
+# Refusals: the count of admitting branches is not one the count admits.
+nof-refuses-when-none-admits	errc	a: nof(1, string, number) & true	nof
+nof-refuses-when-two-admit	errc	a: nof(1, number, min(0)) & 5	nof
+nof-a-repeated-branch-counts-twice	errc	a: nof(1, string, string) & "s"	nof
+nof-none-refuses-an-admitted-value	errc	a: nof(0, string) & "s"	nof
+nof-a-filled-default-does-not-admit	errc	a: nof(1, {x: *1 | number}) & {}	nof
+nof-a-required-member-does-not-admit	errc	a: nof(1, {x: 1}, {y: 2}) & {}	nof
+nof-list-refusal	errc	a: nof(min(1), [&: number], [&: string]) & [1, "x"]	nof
+nof-a-count-past-the-branches	errc	a: nof(2, string, number) & "s"	nof
+nof-a-nested-refusal	errc	a: nof(1, {b: nof(0, string)}) & {b: "s"}	nof
+nof-count-not-a-count	errc	a: nof("x", 1) & 1	invalid-arg
+nof-count-negative-is-empty	errc	a: nof(-1, 1) & 1	constraint
+nof-needs-a-branch	errc	a: nof(1)	func_arity
+nof-refuses-a-move	errc	b: 1\na: nof(1, move($.b)) & 1	invalid-arg
+nof-a-reference-error-is-the-documents	errc	a: nof(1, $.t, number) & "s"	no_path
+nof-leaves-an-incomplete-value-to-generation	errc	a: nof(1, {x?: number}) & {x: string}	mapval_no_gen
+# vet reports the atom and the value it refuses.
+vet-nof-finding	vet	a: nof(1, string, number)	{"a": true}	{"findings":[{"actual":"true","class":"conflict","code":"nof","expected":"nof(1,number,string)","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":4,"role":"data","row":1,"src":"true","value":"true"},{"col":4,"file":"schema","len":3,"role":"schema","row":1,"src":"nof","value":"nof(1,number,string)"}]}],"truncated":false,"verdict":"invalid"}
+vet-nof-admits	vet	a: nof(min(1), {x: number}, {y: string})	{"a": {"x": 1}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-nof-over-a-container	vet	a: nof(min(1), {x: number}, {y: string})	{"a": {"z": 1}}	{"findings":[{"actual":"{\\"z\\":1}","class":"conflict","code":"nof","expected":"nof(min(1),{\\"x\\":number},{\\"y\\":string})","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"z\\":1}"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nof(min(1),{\\"x\\":number},{\\"y\\":string})"}]}],"truncated":false,"verdict":"invalid"}
+vet-nof-a-pending-atom	vet	a: nof(1, $.t, number)	{"a": "s"}	{"findings":[{"class":"reference","code":"no_path","path":"$.a","severity":"error","sites":[{"col":11,"file":"schema","len":1,"role":"schema","row":1,"src":"$","value":"$.t"}]}],"truncated":false,"verdict":"error"}
+# Opaque to subsumption, as must is.
+nof-general-is-undecided	subsume	a: nof(1, string, number)	a: "s"	{"findings":[{"actual":"\\"s\\"","class":"compat","code":"sub_evaluate_only","expected":"nof(1,number,string)","message":"a count of trial schemas (nof) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":3,"role":"general","row":1,"src":"nof","value":"nof(1,number,string)"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"\\"s\\"","value":"\\"s\\""}]}],"verdict":"undecided"}
+nof-general-residual-is-undecided	subsume	a: nof(1, string, number)	a: nof(1, string, number)	{"findings":[{"actual":"nof(1,number,string)","class":"compat","code":"sub_evaluate_only","expected":"nof(1,number,string)","message":"a count of trial schemas (nof) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":3,"role":"general","row":1,"src":"nof","value":"nof(1,number,string)"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"nof","value":"nof(1,number,string)"}]}],"verdict":"undecided"}
+# The exporter: at least one is anyOf, exactly one oneOf, none not, every one allOf.
+js-nof-any-of	jsonschema	a: nof(min(1), string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"type":"number"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-one-of	jsonschema	a: nof(1, string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"oneOf":[{"type":"number"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-not	jsonschema	a: nof(0, string)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"not":{"minLength":1,"type":"string"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-not-of-several	jsonschema	a: nof(0, string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"not":{"anyOf":[{"type":"number"},{"minLength":1,"type":"string"}]}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-all-of	jsonschema	a: nof(2, {x?: number}, {y?: string})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"properties":{"x":{"type":"number"}},"type":"object"},{"properties":{"y":{"minLength":1,"type":"string"}},"type":"object"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-any-count-says-nothing	jsonschema	a: nof(min(0), string)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-an-unreachable-count	jsonschema	a: nof(3, string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[false]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-another-count-is-a-loss	jsonschema	a: nof(max(1), string, number, boolean)	{"lossy":[{"construct":"nof","path":"$.a","reason":"JSON Schema counts its branches only as anyOf, oneOf, allOf and not, so this count is DROPPED and the schema admits values the model refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-nof-a-nil-branch-is-false	jsonschema	a: nof(1, nil, string)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"oneOf":[false,{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-a-second-one-of	jsonschema	a: nof(1, string, number) & nof(1, string, boolean)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"oneOf":[{"type":"number"},{"minLength":1,"type":"string"}]}],"oneOf":[{"type":"boolean"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-nof-beside-neq	jsonschema	a: neq(1) & nof(0, 5)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"not":{"enum":[1]}},{"not":{"const":5,"type":"integer"}}],"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}

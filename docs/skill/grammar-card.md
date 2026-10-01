@@ -50,6 +50,7 @@ highlighting; this is their human twin.
 asks for a whole multiple of n;
 `len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
+`nof(n, a, b)` asks that n of the branches admit the value;
 `must(cond, "why")` is the escape hatch.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two

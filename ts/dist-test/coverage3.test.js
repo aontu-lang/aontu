@@ -96,6 +96,7 @@ const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
+const walk_1 = require("../dist/walk");
 const ConstraintKindVal_1 = require("../dist/val/ConstraintKindVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
@@ -218,6 +219,16 @@ function capture(fn) {
         const cv = new ConstraintVal_1.MinConstraintVal({}, ctx);
         Assert.equal(cv.invalid, 'arg');
         Assert.equal(cv.unify(new IntegerVal_1.IntegerVal({ peg: 1 }), ctx).isNil, true);
+    });
+    (0, node_test_1.test)('pending-nof-branches-are-not-collected', () => {
+        const ctx = CTX();
+        const nof = new ConstraintVal_1.ConstraintVal({
+            peg: [new IntegerVal_1.IntegerVal({ peg: 1 }), new NilVal_1.NilVal({ why: 'g' }),
+                new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'nof',
+        }, ctx);
+        Assert.equal(nof.pending.atom, 'nof');
+        Assert.deepEqual((0, walk_1.collectNils)(nof, new Set()), []);
     });
     (0, node_test_1.test)('domain-adopted-from-peer', () => {
         const ctx = CTX();

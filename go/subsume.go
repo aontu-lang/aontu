@@ -361,8 +361,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if und {
-				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -375,8 +374,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if und {
-				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -745,4 +743,11 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 		verdict = SubsumeUndecided
 	}
 	return SubsumeReport{Verdict: verdict, Findings: st.findings}
+}
+
+func opaqueNote(g *ConstraintVal) string {
+	if 0 < len(g.musts) {
+		return "an evaluate-only check (must) makes the admitted set opaque"
+	}
+	return "a count of trial schemas (nof) makes the admitted set opaque"
 }

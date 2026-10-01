@@ -130,6 +130,68 @@ func sameJSON(a, b any) bool {
 	return a == b
 }
 
+// trialCtx is a context whose failures go to a throwaway list.
+func trialCtx(ctx *Ctx) *Ctx {
+	trial := &Ctx{}
+	if nil != ctx {
+		t := *ctx
+		t.err = nil
+		trial = &t
+	}
+	trial.collect = true
+	return trial
+}
+
+func ownJSON(v Val, ctx *Ctx, path []string) (any, bool) {
+	gctx := trialCtx(ctx)
+	out, err := clonePath(v, path).Gen(gctx)
+	return out, nil == err && 0 == len(gctx.err)
+}
+
+// trialMeet runs the meet to a fixpoint as the document is, the calls
+// that wait for a settled tree, `match` among them, resolving once a pass
+// changes nothing.
+func trialMeet(tctx *Ctx, trial, value Val) Val {
+	maxcc := tctx.budgetPasses
+	if 0 == maxcc {
+		maxcc = 9
+	}
+	tctx.settle = false
+	tctx.cc = 0
+	met := unite(tctx, trial, value)
+	last := ""
+	for cc := 1; cc < maxcc && DONE != met.Dc(); cc++ {
+		now := met.Canon()
+		tctx.settle = now == last
+		last = now
+		tctx.cc = cc
+		met = unite(tctx, met, top())
+	}
+	return met
+}
+
+// admitsSettled is the trial inside the engine: `trial` admits the
+// settled `value`, whose JSON is `own`.
+func admitsSettled(ctx *Ctx, trial, value Val, own any, path []string) bool {
+	if trial.Nil() {
+		return false
+	}
+	tctx := trialCtx(ctx)
+	met := trialMeet(tctx, clonePath(trial, path), clonePath(value, path))
+	if met.Nil() || 0 < len(tctx.err) {
+		return false
+	}
+	var nils []*NilVal
+	collectNils(met, &nils, map[Val]bool{})
+	if 0 < len(nils) {
+		return false
+	}
+	out, err := met.Gen(tctx)
+	return nil == err && 0 == len(tctx.err) &&
+		0 == len(fillDiff(out, own, met, nil, nil)) &&
+		sameJSON(withoutOptionalFills(out, own), own)
+}
+
 func generatedOf(v Val, src string) (any, bool) {
 	ctx := &Ctx{root: v, src: src, collect: true}
 	out, err := v.Gen(ctx)

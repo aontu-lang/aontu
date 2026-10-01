@@ -76,6 +76,7 @@ import { UpperFuncVal } from '../dist/val/UpperFuncVal'
 import { LowerFuncVal } from '../dist/val/LowerFuncVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
 import { ConstraintVal, MinConstraintVal } from '../dist/val/ConstraintVal'
+import { collectNils } from '../dist/walk'
 import { ConstraintKindVal } from '../dist/val/ConstraintKindVal'
 import { Decimal, decimalOverBudget } from '../dist/val/Decimal'
 import { BigIntegerVal } from '../dist/val/BigIntegerVal'
@@ -229,6 +230,17 @@ describe('coverage3-constraint', () => {
     const cv: any = new MinConstraintVal({} as any, ctx)
     Assert.equal(cv.invalid, 'arg')
     Assert.equal(cv.unify(new IntegerVal({ peg: 1 }), ctx).isNil, true)
+  })
+
+  test('pending-nof-branches-are-not-collected', () => {
+    const ctx = CTX()
+    const nof: any = new ConstraintVal({
+      peg: [new IntegerVal({ peg: 1 }), new NilVal({ why: 'g' }),
+        new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'nof',
+    } as any, ctx)
+    Assert.equal(nof.pending.atom, 'nof')
+    Assert.deepEqual(collectNils(nof, new Set()), [])
   })
 
   test('domain-adopted-from-peer', () => {
