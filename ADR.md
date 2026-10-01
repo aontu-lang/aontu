@@ -75,6 +75,7 @@ capability decision is the phase rows it governed in
 | [ADR-044](#adr-044--required-wins-in-the-meet) | Required wins in the meet | Accepted |
 | [ADR-045](#adr-045--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
 | [ADR-046](#adr-046--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
+| [ADR-047](#adr-047--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
 
 ---
 
@@ -4716,3 +4717,54 @@ two values, and the conformance harness requires it to agree with
   `fmt-optional-*` rows of `test/spec/fmt.tsv`, and rows in
   `test/spec/containerkind.tsv` and `test/spec/disjunct.tsv`, in both
   ports.
+
+## ADR-047 — Divisibility reads the number a value shows
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 4 brings
+JSON Schema's `multipleOf` and its `integer` type into aontu. Both are
+statements about a number's value. aontu's numbers live in four leaves,
+two of them binary: the double nearest 0.3 is not a multiple of the
+double nearest 0.1, yet every JSON document that carries `0.3` against
+`"multipleOf": 0.1` means a multiple. A divisibility test over binary
+values would refuse what every schema author wrote, and one over the
+written text would depend on the spelling, so neither is the meaning.
+The exporter has the converse problem: aontu's `integer` and `float`
+kinds each admit one leaf of a number, where JSON Schema's types read a
+number by its value.
+
+### Decision
+
+1. **`multiple(n)` is a Band A atom in the number domain.** It admits a
+   number that is a whole multiple of `n`, which must be a positive
+   number; anything else is `invalid-arg`.
+2. **It reads the value a number shows.** An integer, `biginteger` or
+   `bigdecimal` leaf is read exactly, and a `float`, divisor or value,
+   through its shortest round-trip rendering, the text both ports write
+   for it. So `multiple(0.1) & 0.3` is `0.3` and `multiple(1) & 1.0` is
+   `1.0`.
+3. **Divisors accumulate.** Several `multiple` atoms keep every divisor,
+   sorted by value and each value once; no least common multiple is
+   synthesised, as `re` keeps every pattern. A whole divisor makes the
+   residual integral, so the integral gap applies to it.
+4. **`type: "integer"` imports as `number & multiple(1)`,** and the
+   exporter folds that back to `type: integer`. The `integer` and
+   `float` kinds export with a reported loss, since JSON Schema's
+   types admit values those kinds refuse. A literal does not: `1`
+   exports as `const: 1`, and `vet --exact-numbers` reads data the way
+   the schema does.
+
+### Consequences
+
+- `number & multiple(1)` is the spelling of an integer that crosses
+  JSON Schema in both directions without loss.
+- A count is a number, so `len(multiple(2))` admits even lengths; no
+  JSON Schema keyword says so, and the exporter reports it.
+- A residual meets the subsumption query against a numeric kind as the
+  residual that kind is, so `multiple(0.5) ⊒ integer` holds.
+- Pinned by `test/spec/constraint-multiple.tsv` in both ports, with the
+  `integer` and `float` kind losses in `test/spec/jsonschema.tsv`.

@@ -1,9 +1,10 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
+exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
 const type_1 = require("../type");
 const utility_1 = require("../utility");
@@ -332,6 +333,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.isConstraint = true;
         this.cjo = 50000;
         this.neqs = [];
+        this.mults = [];
         this.res = [];
         this.uniq = false;
         this.uniqBy = [];
@@ -342,6 +344,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.lo = spec.state.lo;
             this.hi = spec.state.hi;
             this.neqs = spec.state.neqs;
+            this.mults = spec.state.mults ?? [];
             // A state built by an embedder (or by a per-port test) may predate
             // the pattern field; an absent one means "no patterns", not undefined.
             this.res = spec.state.res ?? [];
@@ -432,6 +435,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return bad('arg');
         }
         const a = args[0];
+        if ('multiple' === atom) {
+            if (!numericLeaf(a) || (0, numcmp_1.scaledOfShown)(a).unscaled <= 0n) {
+                return bad('invalid-arg');
+            }
+            this.domain = 'number';
+            this.mults = [a];
+            return;
+        }
         // `re` is the one atom whose argument is not an ORDER point: a
         // pattern is a membership test, so it takes the string domain
         // outright rather than inferring a domain from the argument's leaf.
@@ -666,7 +677,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             if (null != count.hi && !stateAdmits({ ...count, lo: undefined }, countVal(n))) {
                 return this.fail(ctx, peer);
             }
-            if (0 < count.neqs.length && !stateAdmits({ ...count, lo: undefined, hi: undefined }, countVal(n))) {
+            if (0 < count.neqs.length + multsOf(count).length && !stateAdmits({ ...count, lo: undefined, hi: undefined }, countVal(n))) {
                 return this.fail(ctx, peer);
             }
             // The provisional half, decided only when nothing more can
@@ -707,7 +718,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const spent = true === final || (0 === this.musts.length &&
             !this.uniq && 0 === this.uniqBy.length &&
             (null == count ||
-                (null == count.hi && 0 === count.neqs.length &&
+                (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
                     stateAdmits(count, countVal(n)))));
         if (spent) {
             return peer;
@@ -798,6 +809,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.lo = tighter(d, this.lo, peer.lo, true);
         merged.hi = tighter(d, this.hi, peer.hi, false);
         merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs]);
+        merged.mults = dedupMults([...this.mults, ...peer.mults]);
         merged.res = dedupSortedRes([...this.res, ...peer.res]);
         // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
         // numeric algebra recursively, over the counts rather than the
@@ -844,6 +856,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             lo: this.lo,
             hi: this.hi,
             neqs: [...this.neqs],
+            mults: [...this.mults],
             res: [...this.res],
             count: this.count,
             uniq: this.uniq,
@@ -879,6 +892,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.lo = this.lo;
         out.hi = this.hi;
         out.neqs = [...this.neqs];
+        out.mults = [...this.mults];
         out.res = [...this.res];
         out.count = this.count;
         out.uniq = this.uniq;
@@ -944,6 +958,23 @@ function dedupSorted(domain, neqs) {
     }
     return out;
 }
+// Divisors sort by the value they show, and one value is kept once: the
+// atoms accumulate, and no least common multiple is synthesised.
+function dedupMults(ms) {
+    const sorted = [...ms].sort((a, b) => (0, numcmp_1.cmpScaled)((0, numcmp_1.scaledOfShown)(a), (0, numcmp_1.scaledOfShown)(b)) || (0, numcmp_1.towerRank)(a) - (0, numcmp_1.towerRank)(b));
+    return sorted.filter((m, i) => 0 === i || 0 !== (0, numcmp_1.cmpScaled)((0, numcmp_1.scaledOfShown)(sorted[i - 1]), (0, numcmp_1.scaledOfShown)(m)));
+}
+function multsOf(s) {
+    return s.mults ?? [];
+}
+function isMultiple(peer, d) {
+    return (0, numcmp_1.scaledIsMultiple)((0, numcmp_1.scaledOfShown)(peer), (0, numcmp_1.scaledOfShown)(d));
+}
+// Integral: an integer leaf, or a whole divisor, whose multiples are whole.
+function integralState(s) {
+    return ScalarKindVal_1.Integer === s.kind || ScalarKindVal_1.BigInteger === s.kind ||
+        multsOf(s).some((m) => (0, numcmp_1.scaledIsIntegral)((0, numcmp_1.scaledOfShown)(m)));
+}
 function holdsNil(v) {
     if (true === v.isNil) {
         return true;
@@ -1006,6 +1037,9 @@ function canonState(s) {
     }
     if (0 < s.neqs.length) {
         parts.push('neq(' + s.neqs.map((n) => n.canon).join(',') + ')');
+    }
+    for (const m of multsOf(s)) {
+        parts.push('multiple(' + m.canon + ')');
     }
     for (const r of s.res) {
         parts.push('re(' + r.v.canon + ')');
@@ -1088,6 +1122,15 @@ function constraintStateSubsumes(g, s) {
             return false;
         }
     }
+    // A general divisor holds where some specific divisor is its multiple,
+    // or where the specific side is integral and 1 is.
+    const one = new IntegerVal_1.IntegerVal({ peg: 1 });
+    for (const a of multsOf(g)) {
+        if (!multsOf(s).some((b) => isMultiple(b, a)) &&
+            !(integralState(s) && isMultiple(one, a))) {
+            return false;
+        }
+    }
     // Patterns compare as TEXT sets (the sanctioned approximation:
     // deciding regex containment is what this algebra refuses to do).
     for (const r of g.res) {
@@ -1115,6 +1158,15 @@ function constraintStateSubsumes(g, s) {
 // scalar case undecided/false exactly as the meet would).
 function constraintSubsumesConstraint(g, s) {
     return constraintStateSubsumes(g, s);
+}
+// A numeric kind meets the query as the residual it names.
+function constraintSubsumesKind(g, marker) {
+    const leaf = ScalarKindVal_1.Integer === marker || ScalarKindVal_1.Float === marker ||
+        ScalarKindVal_1.BigInteger === marker || ScalarKindVal_1.BigDecimal === marker;
+    return (leaf || Number === marker) && true === constraintStateSubsumes(g, {
+        domain: 'number', kind: leaf ? marker : undefined,
+        neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
+    });
 }
 function constraintAdmitsScalar(g, scalar) {
     if (0 < g.musts.length) {
@@ -1171,6 +1223,11 @@ function stateAdmits(s, peer) {
             return false;
         }
     }
+    for (const m of multsOf(s)) {
+        if (!isMultiple(peer, m)) {
+            return false;
+        }
+    }
     for (const r of s.res) {
         if (!r.re.test(peer.peg)) {
             return false;
@@ -1190,7 +1247,7 @@ function stateEmpty(s) {
             return true;
         }
     }
-    const integral = ScalarKindVal_1.Integer === s.kind || ScalarKindVal_1.BigInteger === s.kind;
+    const integral = integralState(s);
     // Integral gap: an integer-narrowed interval containing no whole
     // number is empty (integer & above(1) & below(2)).
     if (integral && null != s.lo && null != s.hi) {
@@ -1262,6 +1319,7 @@ function meetCount(a, b) {
         lo: tighter('number', a.lo, b.lo, true),
         hi: tighter('number', a.hi, b.hi, false),
         neqs: dedupSorted('number', [...a.neqs, ...b.neqs]),
+        mults: dedupMults([...multsOf(a), ...multsOf(b)]),
         res: [],
         musts: [],
         uniq: false,
@@ -1294,6 +1352,7 @@ function countArgState(arg) {
             lo: c.lo,
             hi: c.hi,
             neqs: [...c.neqs],
+            mults: [...c.mults],
             res: [], musts: [], uniq: false, uniqBy: [],
         };
     }
@@ -1398,6 +1457,12 @@ class NeqConstraintVal extends ConstraintVal {
     }
 }
 exports.NeqConstraintVal = NeqConstraintVal;
+class MultipleConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'multiple' }, ctx);
+    }
+}
+exports.MultipleConstraintVal = MultipleConstraintVal;
 class ReConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 're' }, ctx);

@@ -60,8 +60,8 @@ func TestHoverMiss(t *testing.T) {
 
 func TestCompletionsList(t *testing.T) {
 	c := Completions("")
-	if len(c) != 78 {
-		t.Fatalf("expected 78 completions, got %d", len(c))
+	if len(c) != 79 {
+		t.Fatalf("expected 79 completions, got %d", len(c))
 	}
 	byLabel := map[string]CompletionItem{}
 	for _, it := range c {
@@ -117,7 +117,7 @@ func TestBuiltinFuncNamesParity(t *testing.T) {
 	// The completion function list must match the engine's recognised
 	// functions exactly (guards against drift).
 	got := aontu.BuiltinFuncNames()
-	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "fragment", "greatest", "hide", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "min", "mod", "move", "mul", "must", "neq", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc"}
+	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "fragment", "greatest", "hide", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "min", "mod", "move", "mul", "multiple", "must", "neq", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc"}
 	if len(got) != len(want) {
 		t.Fatalf("BuiltinFuncNames = %v, want %v", got, want)
 	}
@@ -162,8 +162,8 @@ func TestHandlerCompletion(t *testing.T) {
 	if err := json.Unmarshal(outs[0].Result, &items); err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 78 {
-		t.Errorf("expected 78 completion items, got %d", len(items))
+	if len(items) != 79 {
+		t.Errorf("expected 79 completion items, got %d", len(items))
 	}
 }
 

@@ -31,7 +31,7 @@ func jsonSchemaFile(t *testing.T, src string) string {
 const schemaContract = `spec: {
   name: string & re("^[a-z]+$")
   tier: *"internal" | "critical"
-  port?: integer & min(1024)
+  port?: number & multiple(1) & min(1024)
 }
 `
 
@@ -173,7 +173,7 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 	// THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
 	write(`{"type": "object", "properties": {"n": {"type": "integer"}}}`)
 	out, errw, code := jsonSchemaRun("import", file)
-	if 0 != code || "n?: integer\n" != out || "" != errw {
+	if 0 != code || "n?: number & multiple(1)\n" != out || "" != errw {
 		t.Fatalf("clean import: %d %q %q", code, out, errw)
 	}
 

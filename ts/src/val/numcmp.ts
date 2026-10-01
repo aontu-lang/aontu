@@ -100,6 +100,27 @@ function cmpNumeric(a: any, b: any): number {
 }
 
 
+// The value a number shows, a float read through its shortest round-trip
+// rendering: rounding moves a multiple off its divisor (0.3 off 0.1).
+function scaledOfShown(v: any): Scaled {
+  if (1 !== towerRank(v)) {
+    return scaledOfNumeric(v)
+  }
+  const m = /^(-?\d+)(?:\.(\d+))?(?:e([-+]\d+))?$/.exec(String(v.peg)) as RegExpExecArray
+  const frac = m[2] ?? ''
+  const unscaled = BigInt(m[1] + frac)
+  const scale = frac.length - Number(m[3] ?? 0)
+  return scale < 0 ? { unscaled: unscaled * pow10(-scale), scale: 0 } : { unscaled, scale }
+}
+
+
+// Whether `p` is a whole multiple of `d`, both exact and finite.
+function scaledIsMultiple(p: Scaled, d: Scaled): boolean {
+  const s = Math.max(p.scale, d.scale)
+  return 0n === (p.unscaled * pow10(s - p.scale)) % (d.unscaled * pow10(s - d.scale))
+}
+
+
 function cmpCodePoints(a: string, b: string): number {
   let ai = 0
   let bi = 0
@@ -147,7 +168,7 @@ function scaledFloor(s: Scaled): bigint {
   const q = s.unscaled / p
   // BigInt division truncates toward zero; floor rounds down.
   return (s.unscaled < 0n && 0n !== s.unscaled % p) ? q - 1n : q
-} /* node:coverage ignore next 14 */
+} /* node:coverage ignore next 16 */
 
 
 export {
@@ -160,4 +181,6 @@ export {
   towerRank,
   scaledIsIntegral,
   scaledFloor,
+  scaledOfShown,
+  scaledIsMultiple,
 }

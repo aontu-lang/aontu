@@ -21,6 +21,7 @@ type ConstraintState = {
     lo?: Bound;
     hi?: Bound;
     neqs: any[];
+    mults?: any[];
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
@@ -41,6 +42,7 @@ declare class ConstraintVal extends FeatureVal {
     lo?: Bound;
     hi?: Bound;
     neqs: any[];
+    mults: any[];
     res: ReAtom[];
     count?: ConstraintState;
     uniq: boolean;
@@ -79,6 +81,7 @@ declare class ConstraintVal extends FeatureVal {
     same(peer: any): boolean;
 }
 declare function constraintSubsumesConstraint(g: ConstraintVal, s: ConstraintVal): boolean | 'undecided';
+declare function constraintSubsumesKind(g: ConstraintVal, marker: any): boolean;
 declare function constraintAdmitsScalar(g: ConstraintVal, scalar: any): boolean | 'undecided';
 declare class MinConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
@@ -95,6 +98,9 @@ declare class BelowConstraintVal extends ConstraintVal {
 declare class NeqConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class MultipleConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class ReConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -107,4 +113,4 @@ declare class LenConstraintVal extends ConstraintVal {
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };

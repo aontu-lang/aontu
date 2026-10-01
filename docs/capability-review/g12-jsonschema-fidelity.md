@@ -397,9 +397,6 @@ refuses `""`), `map` and `list`. `type` removes the branches it
 excludes; `type: "integer"` adds `multiple(1)` to the number branch.
 A branch with no scoped keywords is the bare kind, and when all six are
 bare and `type` is absent the disjunction is `any` and is not written.
-Until `multiple` exists, the number branch of `type: "integer"` is the
-`integer` kind, which admits `1.0` only where `vet --exact-numbers`
-reads it as the integer it is.
 
 The branches are pairwise kind-disjoint, so exactly one survives any
 concrete instance, and the disjunction is decided at the meet. ADR-007's
@@ -457,8 +454,9 @@ does not survive binary rounding (the double nearest 0.3 is not a
 multiple of 0.1, and every JSON reader writes it as 0.3). Both ports
 already render floats byte-identically. Several `multiple` atoms
 accumulate without synthesising an lcm, the rule `re` follows, and
-`multiple(1)` enables the integral-gap emptiness rule that today keys on
-the `integer` leaf. The grammar's `name` rule lists `multiple` before
+a whole divisor, `multiple(1)` among them, enables the integral-gap
+emptiness rule that keys on the `integer` leaf, since every multiple of
+a whole number is whole. The grammar's `name` rule lists `multiple` before
 `mul`, since one prefixes the other.
 
 **`type: "integer"`** imports as `number & multiple(1)`, which admits

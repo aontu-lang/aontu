@@ -38,6 +38,7 @@ empty() : constraint
 key(up?: integer|biginteger) : string
 unique(projector k?: string) : constraint
 neq(...vals: number|string) : constraint
+multiple(n: number) : constraint
 must(trial c: any, text msg: string) : constraint
 deprecate(v: any, r?: map) : any
 acyclic() : constraint

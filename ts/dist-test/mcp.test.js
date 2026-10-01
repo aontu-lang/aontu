@@ -424,7 +424,7 @@ function hostileModule(dir) {
     });
     (0, node_test_1.test)('jsonschema-tool-exports-and-refuses', () => {
         const ok = payload((0, mcp_1.callTool)('jsonschema', {
-            source: 'a: string & re("^x$")\nb?: integer\n',
+            source: 'a: string & re("^x$")\nb?: number & multiple(1)\n',
         }));
         Assert.equal(ok.verdict, 'ok');
         Assert.equal(ok.schema.properties.a.pattern, '^x$');
@@ -433,7 +433,7 @@ function hostileModule(dir) {
         // A loss is reported WITH the schema: a weaker schema is still a
         // usable one, and the caller is told what it cannot say.
         const lossy = payload((0, mcp_1.callTool)('jsonschema', {
-            source: 'a: integer & must(min(2), "two")\n',
+            source: 'a: number & multiple(1) & must(min(2), "two")\n',
         }));
         Assert.equal(lossy.verdict, 'lossy');
         Assert.equal(lossy.schema.properties.a.type, 'integer');

@@ -1341,13 +1341,15 @@ $ aontu jsonschema --at spec contract.aontu
   `4` the document does not stand up on its own. Without `--strict` a
   lossy export is still an export and exits 0.
 
-**What crosses exactly.** Kinds become `type`; a concrete scalar
-becomes `const`; a disjunction of scalars becomes `enum`, and its
+**What crosses exactly.** Kinds become `type`, and the `integer` and
+`float` leaves are reported (below); a concrete scalar becomes `const`; a disjunction of scalars becomes `enum`, and its
 preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern` (aontu's portable subset is a subset of
 ECMA-262, which is what JSON Schema reads, so no translation happens);
 `neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
+`multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
+and `number & multiple(1)` is `type: integer`;
 `len` becomes `minLength`/`maxLength` on a string,
 `minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
 a list, an open bound rounded inward to the next whole number
@@ -1388,6 +1390,8 @@ The losses, and why each is one:
 | `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
+| `len(multiple(n))` | no keyword constrains a count's divisor |
 | an exact `0d` endpoint binary64 cannot hold | the bound crosses as the nearest double, which draws a different boundary; one beyond binary64 altogether is omitted |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
@@ -1505,9 +1509,10 @@ y: number
 
 | Keyword | Becomes |
 |---|---|
-| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number` or `integer`, `empty()` for a string, `map`, `list` |
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)` |
 | `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
+| `multipleOf` | `multiple`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
 | `pattern` | `re`, rewritten from ECMA-262 into the portable subset, so `\s`, `.`, `\u` escapes and named groups keep their JSON Schema meaning |
 | `properties`, `required` | keys, optional unless required |

@@ -47,9 +47,10 @@ Write this as `order.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import order.json
-%d_line = { sku:empty() & re("^[A-Z]{3}-\\d{4}$") qty:integer & min(1) }
+%d_line = sku: empty() & re("^[A-Z]{3}-\\d{4}$")
+%d_line = qty: number & multiple(1) & min(1)
 
-id: integer & min(1)
+id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
@@ -64,8 +65,10 @@ Each keyword lands on the construct that means it:
 - `items` is a list spread, and `minItems` a count with `len`.
 - `type: "string"` is `empty()`, because the strings of JSON Schema
   include `""` and aontu's `string` does not.
+- `type: "integer"` is `number & multiple(1)`: a number with no
+  fraction, however it is written, so `2.0` is one.
 - A `$defs` entry that something references is an alias, here
-  `%d_line`.
+  `%d_line`, declared one member to a line.
 
 ## Check data against it
 
@@ -73,9 +76,10 @@ Save the text above as `order.aontu`:
 
 <!-- test: file order.aontu -->
 ```aontu
-%d_line = { sku:empty() & re("^[A-Z]{3}-\\d{4}$") qty:integer & min(1) }
+%d_line = sku: empty() & re("^[A-Z]{3}-\\d{4}$")
+%d_line = qty: number & multiple(1) & min(1)
 
-id: integer & min(1)
+id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
@@ -116,7 +120,9 @@ $ echo $?
 1
 ```
 
-Without `--exact-numbers`, `2.0` is a float and `integer` refuses it.
+Without `--exact-numbers`, a decimal in the data is read as a binary
+float, so `0.3` sent against `"minimum": 0.3` falls just short of the
+bound and is refused.
 Without `--no-fill`, a default or a literal in the schema fills a
 member the data left out, where JSON Schema reports it missing.
 

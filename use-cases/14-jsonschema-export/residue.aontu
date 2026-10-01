@@ -29,5 +29,5 @@ report: {
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   annotations: { &: string & len(max(63)) }
-  attempts: [&: integer] & len(max(3))
+  attempts: [&: multiple(1)] & len(max(3))
 }

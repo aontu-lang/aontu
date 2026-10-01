@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### `multiple(n)`, and the integer JSON Schema means
+
+Both ports, G12 phase 4. `multiple(n)` is a new constraint atom: a
+number that is a whole multiple of `n`, a positive number, read by the
+value it shows, so a float divides as it is written (`multiple(0.1) &
+0.3` is `0.3`) and `multiple(1) & 1.0` is `1.0` (ADR-047). Divisors
+accumulate, a whole divisor makes the integral gap apply, a count takes
+one (`len(multiple(2))` admits even lengths), and `multiple(2)`
+subsumes `multiple(4)`. JSON Schema's `multipleOf` imports as
+`multiple`, and `type: "integer"` as `number & multiple(1)`, which
+admits `1.0` as the schema does. On export, `multiple` is `multipleOf`,
+`number & multiple(1)` is `type: integer`, and the `integer` and
+`float` kinds now report a loss, since a JSON Schema validator reads a
+number by its value: a model whose export must stay loss-free spells a
+whole number `number & multiple(1)`. Use case 14 does so. A residual
+compared with a numeric kind by `subsume` is now compared as the
+residual that kind is, where it answered `does_not_subsume` for every
+pair.
+
 ### Import JSON Schema, and vet as JSON Schema asks
 
 Both ports, G12 phase 3. `aontu jsonschema import <file>` rewrites a

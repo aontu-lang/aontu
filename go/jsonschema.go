@@ -138,6 +138,43 @@ func schemaLosePath(sc *schemaCtx, path []string) {
 			"the schema says \"string\" and admits any string here")
 }
 
+// schemaLoseLeafKind: a kind narrowed to one leaf of a number has no
+// JSON Schema type, since JSON Schema reads a number by its value.
+func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
+	switch k {
+	case KindBigInteger, KindBigDecimal:
+		schemaLoseExactKind(sc, path, k.String(), kindType[k])
+	case KindInteger:
+		sc.lose(path, "integer",
+			"JSON Schema reads a number by its value, so its integer also admits "+
+				"1.0 and whole numbers past the integer leaf, which this kind refuses; "+
+				"number & multiple(1) is the integer it means")
+	case KindFloat:
+		sc.lose(path, "float",
+			"JSON Schema has no float: its number also admits the integer leaf, "+
+				"which this kind refuses")
+	}
+}
+
+// schemaDivisorJSON is a divisor as a JSON number, by the exact-endpoint
+// rule.
+func schemaDivisorJSON(sc *schemaCtx, path []string, m *ScalarVal) (any, bool) {
+	_, exact, finite := schemaEndpoint(m)
+	switch {
+	case !finite:
+		sc.lose(path, "multiple",
+			"this divisor lies beyond binary64, and JSON has no number for it, "+
+				"so it is OMITTED and the schema admits values the model refuses")
+		return nil, false
+	case !exact:
+		sc.lose(path, "multiple",
+			"JSON has one number type and it is binary64, which cannot hold "+
+				"this divisor; the schema carries the nearest number, so the "+
+				"multiples it admits are not the model's")
+	}
+	return scalarSchemaJSON(m), true
+}
+
 func schemaLoseExactKind(sc *schemaCtx, path []string, leaf, t string) {
 	sc.lose(path, leaf,
 		"JSON has one number type and it is binary64, so the EXACTNESS "+
@@ -167,12 +204,7 @@ func scalarSchemaType(sv *ScalarVal) string {
 // schemaKindOfLiteral is what a bare `*x` admits beside x.
 func schemaKindOfLiteral(sc *schemaCtx, path []string, sv *ScalarVal) map[string]any {
 	t := scalarSchemaType(sv)
-	if KindBigInteger == sv.kind {
-		schemaLoseExactKind(sc, path, "biginteger", t)
-	}
-	if KindBigDecimal == sv.kind {
-		schemaLoseExactKind(sc, path, "bigdecimal", t)
-	}
+	schemaLoseLeafKind(sc, path, sv.kind)
 	if "string" == t {
 		return map[string]any{"type": t, "minLength": 1}
 	}
@@ -254,6 +286,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 	if t, ok := kindType[c.kind]; ok {
 		out["type"] = t
+		schemaLoseLeafKind(sc, path, c.kind)
 	} else if "string" == c.domain {
 		out["type"] = "string"
 	} else if "number" == c.domain {
@@ -274,6 +307,34 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			vals = append(vals, scalarSchemaJSON(n))
 		}
 		nots = append(nots, map[string]any{"enum": schemaDedupeJSON(vals)})
+	}
+
+	// A number with no leaf that is a multiple of 1 is JSON Schema's integer.
+	mults := c.mults
+	if KindTop == c.kind && "number" == out["type"] {
+		kept := []*ScalarVal{}
+		for _, m := range mults {
+			if 0 != cmpScaled(scaledOfShown(m), scaled{unscaled: big.NewInt(1)}) {
+				kept = append(kept, m)
+			}
+		}
+		if len(kept) < len(mults) {
+			out["type"] = "integer"
+			mults = kept
+		}
+	}
+	divisors := []any{}
+	for _, m := range mults {
+		if n, ok := schemaDivisorJSON(sc, path, m); ok {
+			divisors = append(divisors, n)
+		}
+	}
+	if 1 == len(divisors) {
+		out["multipleOf"] = divisors[0]
+	} else {
+		for _, n := range divisors {
+			extra = append(extra, map[string]any{"multipleOf": n})
+		}
 	}
 
 	if 1 == len(c.res) {
@@ -311,6 +372,11 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			sc.lose(path, "len",
 				"a count with no domain is exported as minItems/maxItems; "+
 					"JSON Schema has no keyword that counts a string OR a container")
+		}
+		if 0 < len(c.count.mults) {
+			sc.lose(path, "len",
+				"JSON Schema has no keyword for a divisor of a count, so it is "+
+					"DROPPED and the schema admits lengths the model refuses")
 		}
 	}
 
@@ -451,9 +517,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return map[string]any{"type": "array"}
 
 	case *ScalarKindVal:
-		if KindBigInteger == t.kind || KindBigDecimal == t.kind {
-			schemaLoseExactKind(sc, path, t.kind.String(), kindType[t.kind])
-		}
+		schemaLoseLeafKind(sc, path, t.kind)
 		if KindPath == t.kind {
 			schemaLosePath(sc, path)
 		}

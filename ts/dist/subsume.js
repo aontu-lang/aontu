@@ -235,6 +235,9 @@ function subsumeNode(state, path, g0, s0) {
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not admit the specific scalar');
             return 'no';
         }
+        if (true === s?.isScalarKind && (0, ConstraintVal_1.constraintSubsumesKind)(g, s.peg)) {
+            return 'yes';
+        }
         record(state, 'compat_narrowed', path, g, s, 'the general residual constrains a domain the specific value is not in');
         return 'no';
     }

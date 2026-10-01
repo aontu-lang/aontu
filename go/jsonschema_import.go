@@ -763,7 +763,7 @@ const (
 )
 
 var importLater = map[string]string{
-	"multipleOf": importNotYet, "anyOf": importNotYet, "oneOf": importNotYet, "not": importNotYet,
+	"anyOf": importNotYet, "oneOf": importNotYet, "not": importNotYet,
 	"if": importNotYet, "then": importNotYet, "else": importNotYet,
 	"dependentSchemas": importNotYet, "dependentRequired": importNotYet,
 	"contains": importNotYet, "minContains": importNotYet, "maxContains": importNotYet,
@@ -786,7 +786,8 @@ var importCarried = []string{
 	"enum", "const", "allOf", "properties", "required", "additionalProperties",
 	"patternProperties", "propertyNames", "minProperties", "maxProperties",
 	"prefixItems", "items", "minItems", "maxItems", "minimum", "maximum",
-	"exclusiveMinimum", "exclusiveMaximum", "minLength", "maxLength", "pattern",
+	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
+	"pattern",
 }
 
 const importDraft = "https://json-schema.org/draft/2020-12/schema"
@@ -795,7 +796,7 @@ var importKinds = []string{"null", "boolean", "number", "string", "object", "arr
 
 var importScoped = map[string][]string{
 	"string": {"minLength", "maxLength", "pattern"},
-	"number": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"},
+	"number": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"object": {"properties", "required", "additionalProperties", "patternProperties",
 		"propertyNames", "minProperties", "maxProperties"},
 	"array": {"prefixItems", "items", "minItems", "maxItems"},
@@ -1281,15 +1282,20 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool) *ixpr
 	case "null", "boolean":
 		return iraw(kind)
 	case "number":
-		base := "number"
+		// An integer is a number with no fraction, whatever its spelling.
+		parts := []*ixpr{iraw("number")}
 		if integral {
-			base = "integer"
+			parts = append(parts, icall("multiple", iraw("1")))
 		}
-		parts := []*ixpr{iraw(base)}
 		for _, kf := range [][2]string{{"minimum", "min"}, {"maximum", "max"},
-			{"exclusiveMinimum", "above"}, {"exclusiveMaximum", "below"}} {
+			{"exclusiveMinimum", "above"}, {"exclusiveMaximum", "below"},
+			{"multipleOf", "multiple"}} {
 			if v := get(kf[0]); nil != v {
-				if text, ok := ctx.number(at(kf[0]), kf[0], v); ok {
+				text, ok := ctx.number(at(kf[0]), kf[0], v)
+				switch {
+				case ok && "multiple" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
+					ctx.wrongType(at(kf[0]), kf[0], "a number greater than 0", v)
+				case ok:
 					parts = append(parts, icall(kf[1], iraw(text)))
 				}
 			}

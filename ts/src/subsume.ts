@@ -9,6 +9,7 @@ import { hcanon } from './hcanon'
 import type { VetFinding, VetSite } from './vet'
 import {
   constraintSubsumesConstraint,
+  constraintSubsumesKind,
   constraintAdmitsScalar,
 } from './val/ConstraintVal'
 import { Path, kindSubsumes } from './val/ScalarKindVal'
@@ -327,6 +328,9 @@ export function subsumeNode(
       record(state, 'compat_narrowed', path, g, s,
         'the general residual does not admit the specific scalar')
       return 'no'
+    }
+    if (true === s?.isScalarKind && constraintSubsumesKind(g, s.peg)) {
+      return 'yes'
     }
     record(state, 'compat_narrowed', path, g, s,
       'the general residual constrains a domain the specific value is not in')

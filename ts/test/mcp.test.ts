@@ -527,7 +527,7 @@ describe('mcp', () => {
 
   test('jsonschema-tool-exports-and-refuses', () => {
     const ok = payload(callTool('jsonschema', {
-      source: 'a: string & re("^x$")\nb?: integer\n',
+      source: 'a: string & re("^x$")\nb?: number & multiple(1)\n',
     }))
     Assert.equal(ok.verdict, 'ok')
     Assert.equal(ok.schema.properties.a.pattern, '^x$')
@@ -537,7 +537,7 @@ describe('mcp', () => {
     // A loss is reported WITH the schema: a weaker schema is still a
     // usable one, and the caller is told what it cannot say.
     const lossy = payload(callTool('jsonschema', {
-      source: 'a: integer & must(min(2), "two")\n',
+      source: 'a: number & multiple(1) & must(min(2), "two")\n',
     }))
     Assert.equal(lossy.verdict, 'lossy')
     Assert.equal(lossy.schema.properties.a.type, 'integer')

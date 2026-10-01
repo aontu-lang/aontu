@@ -79,7 +79,8 @@ element   = spread / value
 func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 
 ; ORDER MATTERS where one name is a prefix of another: `refer` is
-; listed before `re`, and `rem` before `re` as well.
+; listed before `re`, `rem` before `re` as well, and `multiple` before
+; `mul`.
 name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"copyfiles" / %s"copy" / %s"deprecate" / %s"div"
           / %s"each" / %s"emit" / %s"empty" / %s"esc" / %s"filter" / %s"greatest"
@@ -87,7 +88,7 @@ name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"inverse" / %s"join" / %s"key" / %s"least"
           / %s"len" / %s"listitems" / %s"lower" / %s"match"
           / %s"maybe" / %s"max" / %s"min" / %s"mod" / %s"move"
-          / %s"mul" / %s"must"
+          / %s"multiple" / %s"mul" / %s"must"
           / %s"neq"
           / %s"open" / %s"pack" / %s"parse" / %s"path" / %s"pick" / %s"pref"
           / %s"refer" / %s"rel" / %s"rem" / %s"rep" / %s"re" / %s"sort" / %s"split"

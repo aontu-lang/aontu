@@ -989,7 +989,7 @@ describe('cli-subsume', () => {
       'spec: {\n' +
       '  name: string & re("^[a-z]+$")\n' +
       '  tier: *"internal" | "critical"\n' +
-      '  port?: integer & min(1024)\n' +
+      '  port?: number & multiple(1) & min(1024)\n' +
       '}\n')
 
     // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
@@ -1009,7 +1009,7 @@ describe('cli-subsume', () => {
 
     // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
     // redirect keeps the schema clean and the warning visible.
-    Fs.writeFileSync(file, 'a: integer & must(min(2), "two")\n')
+    Fs.writeFileSync(file, 'a: number & multiple(1) & must(min(2), "two")\n')
     const lossy = vetCapture(() => Assert.equal(runJsonSchema([file]), 0))
     Assert.match(lossy.out, /"type": "integer"/)
     Assert.match(lossy.err, /^lossy: \$\.a must:/)
@@ -1076,7 +1076,7 @@ describe('cli-subsume', () => {
     // THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
     Fs.writeFileSync(file, '{"type": "object", "properties": {"n": {"type": "integer"}}}')
     const ok = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
-    Assert.equal(ok.out, 'n?: integer\n')
+    Assert.equal(ok.out, 'n?: number & multiple(1)\n')
     Assert.equal(ok.err, '')
 
     Fs.writeFileSync(file, '{"type": "string", "title": "t"}')

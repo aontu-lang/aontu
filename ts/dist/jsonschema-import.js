@@ -487,7 +487,7 @@ const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped 
 const ANNOTATION = 'an annotation asserts nothing, and the importer does not keep ' +
     'annotations yet, so it is dropped';
 const LATER = {
-    multipleOf: NOT_YET, anyOf: NOT_YET, oneOf: NOT_YET, not: NOT_YET,
+    anyOf: NOT_YET, oneOf: NOT_YET, not: NOT_YET,
     if: NOT_YET, then: NOT_YET, else: NOT_YET,
     dependentSchemas: NOT_YET, dependentRequired: NOT_YET,
     contains: NOT_YET, minContains: NOT_YET, maxContains: NOT_YET, uniqueItems: NOT_YET,
@@ -506,13 +506,14 @@ const CARRIED = [
     'enum', 'const', 'allOf', 'properties', 'required', 'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
     'prefixItems', 'items', 'minItems', 'maxItems', 'minimum', 'maximum',
-    'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength', 'pattern',
+    'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
+    'pattern',
 ];
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
 const SCOPED = {
     string: ['minLength', 'maxLength', 'pattern'],
-    number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'],
+    number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
     object: ['properties', 'required', 'additionalProperties', 'patternProperties',
         'propertyNames', 'minProperties', 'maxProperties'],
     array: ['prefixItems', 'items', 'minItems', 'maxItems'],
@@ -884,12 +885,16 @@ function branch(ctx, node, ptr, kind, integral) {
         return raw(kind);
     }
     if ('number' === kind) {
-        const parts = [raw(integral ? 'integer' : 'number')];
+        // An integer is a number with no fraction, whatever its spelling.
+        const parts = [raw('number'), ...(integral ? [call('multiple', raw('1'))] : [])];
         for (const [k, fn] of [['minimum', 'min'], ['maximum', 'max'],
-            ['exclusiveMinimum', 'above'], ['exclusiveMaximum', 'below']]) {
+            ['exclusiveMinimum', 'above'], ['exclusiveMaximum', 'below'], ['multipleOf', 'multiple']]) {
             const v = get(k);
             const text = null == v ? undefined : number(ctx, at(k), k, v);
-            if (undefined !== text) {
+            if ('multiple' === fn && undefined !== text && (text.startsWith('-') || '0' === text)) {
+                wrongType(ctx, at(k), k, 'a number greater than 0', v);
+            }
+            else if (undefined !== text) {
                 parts.push(call(fn, raw(text)));
             }
         }

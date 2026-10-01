@@ -28,7 +28,7 @@ registry: { platform:hermes version:"1.0.0" }
 argschemas: type(close({
   search_docs: close({
     query: string & len(min(1) & max(256))
-    limit?: integer & min(1) & max(50)
+    limit?: number & multiple(1) & min(1) & max(50)
     scope?: workspace | org | web
   })
 
@@ -36,7 +36,7 @@ argschemas: type(close({
     # Two re() calls: the export renders them as allOf of patterns,
     # since JSON Schema allows one `pattern` per schema object.
     path: string & re("^[A-Za-z0-9._/\\-]+$") & re("^[a-z]") & len(max(512))
-    max_bytes?: integer & min(1) & max(1048576)
+    max_bytes?: number & multiple(1) & min(1) & max(1048576)
   })
 
   create_ticket: close({

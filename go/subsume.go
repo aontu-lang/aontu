@@ -383,6 +383,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				"the general residual does not admit the specific scalar")
 			return subNo
 		}
+		if kv, ok := s.(*ScalarKindVal); ok && constraintSubsumesKind(gc, kv.kind) {
+			return subYes
+		}
 		st.record("compat_narrowed", path, g, s,
 			"the general residual constrains a domain the specific value is not in")
 		return subNo

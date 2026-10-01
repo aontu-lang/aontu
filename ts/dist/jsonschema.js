@@ -7,6 +7,7 @@ const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
+const numcmp_1 = require("./val/numcmp");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -36,6 +37,36 @@ const COUNT_KEYS = {
 function losePath(ctx, path) {
     lose(ctx, path, 'path', 'a path admits only path values, but JSON Schema has no path type; ' +
         'the schema says "string" and admits any string here');
+}
+// A kind narrowed to one leaf of a number has no JSON Schema type, since
+// JSON Schema reads a number by its value.
+function loseLeafKind(ctx, path, name, t) {
+    if ('BigInteger' === name || 'BigDecimal' === name) {
+        loseExactKind(ctx, path, name.toLowerCase(), t);
+    }
+    else if ('Integer' === name) {
+        lose(ctx, path, 'integer', 'JSON Schema reads a number by its value, so its integer also admits ' +
+            '1.0 and whole numbers past the integer leaf, which this kind refuses; ' +
+            'number & multiple(1) is the integer it means');
+    }
+    else if ('Float' === name) {
+        lose(ctx, path, 'float', 'JSON Schema has no float: its number also admits the integer leaf, ' +
+            'which this kind refuses');
+    }
+}
+// A divisor as a JSON number, by the exact-endpoint rule.
+function divisorJson(ctx, path, m) {
+    const [n, exact] = endpointJson(m);
+    if (undefined === n) {
+        lose(ctx, path, 'multiple', 'this divisor lies beyond binary64, and JSON has no number for it, ' +
+            'so it is OMITTED and the schema admits values the model refuses');
+    }
+    else if (!exact) {
+        lose(ctx, path, 'multiple', 'JSON has one number type and it is binary64, which cannot hold ' +
+            'this divisor; the schema carries the nearest number, so the ' +
+            'multiples it admits are not the model\'s');
+    }
+    return n;
 }
 function loseExactKind(ctx, path, leaf, t) {
     lose(ctx, path, leaf, 'JSON has one number type and it is binary64, so the EXACTNESS ' +
@@ -152,6 +183,7 @@ function fromConstraint(ctx, path, c, bag) {
     const nots = [];
     if (null != c.kind && null != KIND_TYPE[c.kind.name]) {
         out.type = KIND_TYPE[c.kind.name];
+        loseLeafKind(ctx, path, c.kind.name, out.type);
     }
     else if ('string' === c.domain) {
         out.type = 'string';
@@ -168,6 +200,21 @@ function fromConstraint(ctx, path, c, bag) {
     // `neq(1,2)` is "not one of these", which is exactly `not: {enum}`.
     if (0 < c.neqs.length) {
         nots.push({ enum: dedupeJson(c.neqs.map(scalarJson)) });
+    }
+    // A number with no leaf that is a multiple of 1 is JSON Schema's integer.
+    const one = (m) => 0 === (0, numcmp_1.cmpScaled)((0, numcmp_1.scaledOfShown)(m), { unscaled: 1n, scale: 0 });
+    let mults = c.mults;
+    if (null == c.kind && 'number' === out.type && mults.some(one)) {
+        out.type = 'integer';
+        mults = mults.filter((m) => !one(m));
+    }
+    const divisors = mults.map((m) => divisorJson(ctx, path, m))
+        .filter((n) => undefined !== n);
+    if (1 === divisors.length) {
+        out.multipleOf = divisors[0];
+    }
+    else {
+        extra.push(...divisors.map((n) => ({ multipleOf: n })));
     }
     // The normalised form, valid in ECMA-262 and meaning what aontu means.
     if (1 === c.res.length) {
@@ -198,6 +245,10 @@ function fromConstraint(ctx, path, c, bag) {
         if (undefined === domain) {
             lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
                 'JSON Schema has no keyword that counts a string OR a container');
+        }
+        if (0 < (c.count.mults ?? []).length) {
+            lose(ctx, path, 'len', 'JSON Schema has no keyword for a divisor of a count, so it is ' +
+                'DROPPED and the schema admits lengths the model refuses');
         }
     }
     if (1 === nots.length) {
@@ -249,9 +300,8 @@ const DEPRECATION_TEXT = ['msg', 'use', 'since'];
 // The schema of a literal's kind: what a bare `*x` admits beside x.
 function kindOfLiteral(ctx, path, v) {
     const t = scalarType(v);
-    if (v.isBigInteger || v.isBigDecimal) {
-        loseExactKind(ctx, path, v.isBigInteger ? 'biginteger' : 'bigdecimal', t);
-    }
+    loseLeafKind(ctx, path, v.isBigDecimal ? 'BigDecimal' : v.isBigInteger ? 'BigInteger' :
+        v.isInteger ? 'Integer' : 'number' === typeof v.peg ? 'Float' : '', t);
     return 'string' === t ? { type: t, minLength: 1 } : { type: t };
 }
 function fromValInner(ctx, path, v) {
@@ -300,9 +350,7 @@ function fromValInner(ctx, path, v) {
     }
     if (true === v.isScalarKind) {
         const t = KIND_TYPE[v.peg?.name];
-        if ('BigInteger' === v.peg?.name || 'BigDecimal' === v.peg?.name) {
-            loseExactKind(ctx, path, v.peg.name.toLowerCase(), t);
-        }
+        loseLeafKind(ctx, path, v.peg?.name, t);
         if ('Path' === v.peg?.name) {
             losePath(ctx, path);
         }

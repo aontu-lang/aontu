@@ -415,6 +415,7 @@ type ConstraintVal struct {
 	kind   Kind   // KindTop when unnarrowed; a numeric leaf otherwise
 	lo, hi *constraintBound
 	neqs   []*ScalarVal
+	mults  []*ScalarVal   // divisors, each a positive number (multiple())
 	res    []constraintRe // accumulated patterns, sorted by source
 	// count is the len() residual: itself a residual over the integer
 	// domain, because the count atom reuses this same algebra
@@ -467,7 +468,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 // the func-paren handler in lang.go.
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
-	"re": true, "len": true, "unique": true, "must": true,
+	"re": true, "len": true, "unique": true, "must": true, "multiple": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -611,6 +612,16 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	if 1 != len(args) {
 		return bad("arg")
+	}
+
+	if "multiple" == atom {
+		sv, d := orderableScalar(args[0])
+		if nil == sv || "number" != d || 0 >= scaledOfShown(sv).unscaled.Sign() {
+			return bad("invalid-arg")
+		}
+		c.domain = "number"
+		c.mults = []*ScalarVal{sv}
+		return c
 	}
 
 	// `re` is the one atom whose argument is not an ORDER point: a
@@ -867,7 +878,7 @@ func (c *ConstraintVal) admitContainerFinal(
 				return c.fail(ctx, peer)
 			}
 		}
-		if 0 < len(c.count.neqs) {
+		if 0 < len(c.count.neqs)+len(c.count.mults) {
 			only := *c.count
 			only.lo = nil
 			only.hi = nil
@@ -917,7 +928,7 @@ func (c *ConstraintVal) admitContainerFinal(
 	// and an atom holding nothing else is spent: that is when it goes.
 	spent := final || (0 == len(c.musts) && !c.uniq && 0 == len(c.uniqBy) &&
 		(nil == c.count ||
-			(nil == c.count.hi && 0 == len(c.count.neqs) &&
+			(nil == c.count.hi && 0 == len(c.count.neqs)+len(c.count.mults) &&
 				stateAdmits(c.count, countVal(n)))))
 	if spent {
 		return peer
@@ -1014,6 +1025,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.lo = tighterBound(merged.domain, c.lo, peer.lo, true)
 	merged.hi = tighterBound(merged.domain, c.hi, peer.hi, false)
 	merged.neqs = dedupSortedNeqs(merged.domain, append(append([]*ScalarVal{}, c.neqs...), peer.neqs...))
+	merged.mults = dedupMults(append(append([]*ScalarVal{}, c.mults...), peer.mults...))
 	merged.res = dedupSortedRes(append(append([]constraintRe{}, c.res...), peer.res...))
 	// `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses the
 	// numeric algebra recursively, over the counts rather than the
@@ -1088,6 +1100,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		lo:      c.lo,
 		hi:      c.hi,
 		neqs:    append([]*ScalarVal{}, c.neqs...),
+		mults:   append([]*ScalarVal{}, c.mults...),
 		res:     append([]constraintRe{}, c.res...),
 		count:   c.count,
 		uniq:    c.uniq,
@@ -1169,6 +1182,9 @@ func (c *ConstraintVal) Canon() string {
 			ns[i] = n.Canon()
 		}
 		parts = append(parts, "neq("+strings.Join(ns, ",")+")")
+	}
+	for _, m := range c.mults {
+		parts = append(parts, "multiple("+m.Canon()+")")
 	}
 	for _, r := range c.res {
 		parts = append(parts, "re("+r.v.Canon()+")")
@@ -1326,6 +1342,18 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	// A general divisor holds where some specific divisor is its multiple,
+	// or where the specific side is integral and 1 is.
+	one := newInteger(1)
+	for _, a := range g.mults {
+		found := integralState(s) && isMultiple(one, a)
+		for _, b := range s.mults {
+			found = found || isMultiple(b, a)
+		}
+		if !found {
+			return false, false
+		}
+	}
 	// Patterns compare as TEXT sets (the sanctioned approximation).
 	for _, r := range g.res {
 		found := false
@@ -1358,6 +1386,21 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 		return constraintStateSubsumes(g.count, s.count)
 	}
 	return true, false
+}
+
+// constraintSubsumesKind: a numeric kind is the residual it names, so a
+// general residual is compared with it as with any other.
+func constraintSubsumesKind(g *ConstraintVal, k Kind) bool {
+	switch k {
+	case KindNumber, KindInteger, KindFloat, KindBigInteger, KindBigDecimal:
+		s := &ConstraintVal{domain: "number"}
+		if KindNumber != k {
+			s.kind = k
+		}
+		ok, _ := constraintStateSubsumes(g, s)
+		return ok
+	}
+	return false
 }
 
 func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
@@ -1409,6 +1452,11 @@ func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 			return false
 		}
 	}
+	for _, m := range s.mults {
+		if !isMultiple(peer, m) {
+			return false
+		}
+	}
 	for _, r := range s.res {
 		if !r.re.MatchString(peer.peg.(string)) {
 			return false
@@ -1432,7 +1480,7 @@ func stateEmpty(s *ConstraintVal) bool {
 		}
 	}
 
-	integral := KindInteger == s.kind || KindBigInteger == s.kind
+	integral := integralState(s)
 
 	if integral && nil != s.lo && nil != s.hi {
 		lo := scaledOfNumeric(s.lo.v)
@@ -1502,6 +1550,7 @@ func meetCount(a, b *ConstraintVal) *ConstraintVal {
 		hi:     tighterBound("number", a.hi, b.hi, false),
 		neqs: dedupSortedNeqs("number",
 			append(append([]*ScalarVal{}, a.neqs...), b.neqs...)),
+		mults: dedupMults(append(append([]*ScalarVal{}, a.mults...), b.mults...)),
 		clash: a.clash || b.clash ||
 			(KindTop != a.kind && KindTop != b.kind && a.kind != b.kind),
 	}
@@ -1534,6 +1583,7 @@ func countArgState(arg Val) *ConstraintVal {
 			lo:     cv.lo,
 			hi:     cv.hi,
 			neqs:   append([]*ScalarVal{}, cv.neqs...),
+			mults:  append([]*ScalarVal{}, cv.mults...),
 		}
 		out.dc = DONE
 		return out
@@ -1677,6 +1727,43 @@ func tighterBound(domain string, a, b *constraintBound, lower bool) *constraintB
 // dedupSortedNeqs sorts excluded scalars for canon (numeric: by point
 // then tower rank; string: code-point order) and drops identity
 // duplicates.
+// dedupMults sorts divisors by the value they show and keeps one value
+// once: the atoms accumulate, and no least common multiple is synthesised.
+func dedupMults(ms []*ScalarVal) []*ScalarVal {
+	sorted := append([]*ScalarVal{}, ms...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if c := cmpScaled(scaledOfShown(sorted[i]), scaledOfShown(sorted[j])); 0 != c {
+			return c < 0
+		}
+		return towerRank(sorted[i]) < towerRank(sorted[j])
+	})
+	out := []*ScalarVal{}
+	for i, m := range sorted {
+		if 0 == i || 0 != cmpScaled(scaledOfShown(sorted[i-1]), scaledOfShown(m)) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func isMultiple(peer, d *ScalarVal) bool {
+	return scaledIsMultiple(scaledOfShown(peer), scaledOfShown(d))
+}
+
+// integralState: an integer leaf, or a whole divisor, whose multiples are
+// whole. A double shows a whole number exactly when it is one.
+func integralState(s *ConstraintVal) bool {
+	if KindInteger == s.kind || KindBigInteger == s.kind {
+		return true
+	}
+	for _, m := range s.mults {
+		if scaledIsIntegral(scaledOfShown(m)) {
+			return true
+		}
+	}
+	return false
+}
+
 func dedupSortedNeqs(domain string, neqs []*ScalarVal) []*ScalarVal {
 	sorted := append([]*ScalarVal{}, neqs...)
 	sort.SliceStable(sorted, func(i, j int) bool {
