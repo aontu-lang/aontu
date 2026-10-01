@@ -59,6 +59,11 @@ function snapshotRefSpread(cj, ctx) {
     }
     return snap;
 }
+// A written `nil` refuses a supplied value (ADR-045); a minted nil is a
+// refusal already recorded.
+function literalNilRefuses(n, v) {
+    return 'literal_nil' === n.why && true === v.isGenable && !v.isTop;
+}
 class MapVal extends BagVal_1.BagVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -208,9 +213,16 @@ class MapVal extends BagVal_1.BagVal {
                         !upeer.aliasKeys.includes(peerkey)) {
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
-                    // key optionality is additive
-                    if (upeer.optionalKeys.includes(peerkey) && !out.optionalKeys.includes(peerkey)) {
-                        out.optionalKeys.push(peerkey);
+                    // REQUIRED WINS (ADR-044): a key is optional only where every
+                    // side that declares it says so.
+                    const oi = out.optionalKeys.indexOf(peerkey);
+                    if (upeer.optionalKeys.includes(peerkey)) {
+                        if (!(peerkey in this.peg) && -1 === oi) {
+                            out.optionalKeys.push(peerkey);
+                        }
+                    }
+                    else if (-1 !== oi) {
+                        out.optionalKeys.splice(oi, 1);
                     }
                     if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {
                         out.aliasKeys.push(peerkey);
@@ -226,8 +238,10 @@ class MapVal extends BagVal_1.BagVal {
                                 ? (0, unify_1.unite)(peerctx, peerchild, TOP, 'map-peer-only')
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
                             child.isTop && peerchild.done ? peerchild :
-                                child.isNil ? child :
-                                    peerchild.isNil ? peerchild :
+                                child.isNil ? (literalNilRefuses(child, peerchild) ?
+                                    (0, err_1.makeNilErr)(peerctx, 'literal_nil', child, peerchild) : child) :
+                                    peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
+                                        (0, err_1.makeNilErr)(peerctx, 'literal_nil', peerchild, child) : peerchild) :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'map-peer');
                     if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;

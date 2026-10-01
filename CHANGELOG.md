@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### Required wins in the meet, and three more engine rules (#298, #299, #301, #302)
+
+Both ports, G12 phase 2. A key is optional in a meet only where every
+side that declares it says so (ADR-044): `{x?: integer} & {x: integer}`
+is `{x: integer}`, where it was `{x?: integer}` and admitted a map
+without `x`; a side that does not declare the key does not vote, and
+two statements, two pairs of one map, or an included module and the map
+around it merge by the same rule. A value supplied for an optional
+key now makes it required in the result, so the canon, and the `aon1-`
+hash, of such documents moves once; the bundled `aontu:lang/markdown`
+model is one. A written `nil` under an optional key forbids the key
+(ADR-045): `{k?: nil}` refuses a supplied `k` with `literal_nil` in
+evaluation and under `vet`, where evaluation dropped the value and
+`vet` refused an absent key. An alias declaration is not a key: `%T =
+{...}` and a quoted `"%T": 5` in one file keep both, where they met and
+refused each other. A `$` followed by anything but a name or a path is
+refused where it is written with the new code `var_name` in both
+ports, where TypeScript answered `var[object]` and Go `var`; the ledger
+entry is removed.
+
 ### The JSON Schema export is truthful (#295, #296, #297, #300)
 
 Both ports, G12 phase 1. `aontu jsonschema` no longer answers `ok` for

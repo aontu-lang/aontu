@@ -72,6 +72,8 @@ capability decision is the phase rows it governed in
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
+| [ADR-044](#adr-044--required-wins-in-the-meet) | Required wins in the meet | Accepted |
+| [ADR-045](#adr-045--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
 
 ---
 
@@ -4506,3 +4508,103 @@ document declines to supply a key the schema requires.
   the member.
 - Pinned by the `maybe-template-*` rows in `test/spec/maybe.tsv`, in
   both ports.
+
+---
+
+## ADR-044 — Required wins in the meet
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+`{x: T}` lies strictly below `{x?: T}`: the subsumption table says so
+(`optional-weakened` in `test/spec/subsume.tsv`, where the general
+`{x: integer}` does not subsume the specific `{x?: integer}`, code
+`compat_required_added`). The meet of two values is their greatest
+lower bound, so `{x?: T} & {x: T}` has to be `{x: T}`.
+
+Both ports answered `{x?: T}`. The map meet took optionality to be
+additive ("key optionality is additive", in `MapVal.unify` and its Go
+twin), so a required key met with an optional one lost its
+requirement: `a: {x?: integer}` beside `a: {x: integer}` admitted
+`a: {}`, and the meet was not below its left operand, which the
+lattice laws forbid. #298 found it while measuring for
+[G12](docs/capability-review/g12-jsonschema-fidelity.md), whose
+importer writes `required` and `properties` as separate statements the
+way JSON Schema's `allOf` and `$ref` split them; without this rule a
+key required in one object and declared in another validated when
+missing.
+
+### Decision
+
+A key is optional in a meet only where every side that declares it
+says so. A side that does not declare the key does not vote:
+`{x?: integer} & {y: integer}` keeps `x` optional. The parse-time merge
+of statements follows the same rule, so `a: {x?: integer}` and
+`a: {x: integer}` written as two statements are the document
+`a: {x: integer}`, and `x?: integer` beside `x: integer` in one map is
+`x: integer`. An included module votes with the keys it declares and
+no others: `@"m"` beside `x: integer` requires `x` whether `m` wrote it
+optional or not, and a key only `m` declares keeps the mark `m` gave
+it.
+
+### Consequences
+
+- The meet is below both operands, and the meet and the subsumption
+  table agree.
+- A value supplied for an optional key makes the key required in the
+  result: `{x?: number} & {x: 11}` canons as `{"x":11}`, where it
+  canonicalised as `{"x"?:11}`. Generation does not change, since the
+  value was there either way, and `vet` does not change for data that
+  supplies the key; the canon, and so the `aon1-` hash, of every
+  document where an optional key received a value moves once. The
+  bundled `aontu:lang/markdown` model is one, through its `comment`
+  block, and `test/spec/aontu-profile.tsv` re-pins its hash.
+- A document that weakened a required key by writing it optional in a
+  later statement now refuses the missing key (`mapval_no_gen`).
+- Pinned by the `required-wins-*` rows of `test/spec/optional.tsv` and
+  `test/spec/vet.tsv`, in both ports; the moved rows are
+  `optional-merge-canon`, `canon-symbolic` in `test/spec/recursion.tsv`
+  and the `refer-conjunct-behind-a-spread` trio in
+  `test/spec/hcanon.tsv`.
+
+---
+
+## ADR-045 — A written `nil` under an optional key forbids the key
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+A literal `nil` is the lattice's bottom: it admits nothing, and a value
+met with it is refused (`literal_nil`). Under an optional key it had no
+settled meaning (#299). Evaluation of `a: {k?: nil}` with `a: {k: 1}`
+answered `{"a": {}}`, dropping the supplied value without a finding,
+because the meet returned the nil and generation drops an optional key
+whose value does not generate. `vet` refused `a: {}` against the same
+schema with `literal_nil` at `$.a.k`, where nothing had been supplied.
+JSON Schema's `properties: {k: false}` needs the opposite of both, and
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) imports it as
+`k?: nil`.
+
+### Decision
+
+A written `nil` under an optional key forbids the key. A value supplied
+for it is refused at the meet, with `literal_nil` naming both sites,
+in evaluation and under `vet` alike; a map that does not supply the
+key passes, and the nil is no finding. A nil the engine minted, which
+carries another code, is a refusal already recorded and is unchanged.
+
+### Consequences
+
+- `{k?: nil}` is the schema `false` at `k`, which is what the JSON
+  Schema export writes for it (G12 phase 1) and what the importer
+  reads back.
+- The meet refuses a nil against a supplied value in either order:
+  `{k?: 1} & {k?: nil}` is refused as `{k?: nil} & {k?: 1}` is. A kind
+  or a constraint is not a value, so `{k?: nil} & {k?: integer}` stays
+  `{k?: nil}`.
+- Pinned by the `optional-nil-*` rows of `test/spec/optional.tsv` and
+  `test/spec/vet.tsv`, in both ports.

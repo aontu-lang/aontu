@@ -32,5 +32,5 @@ profile-template-ext-shape-refused	errc	@"aontu:profile"\naontu: Lang: { lang: "
 # vocabulary fills in.
 lang-text-hash	hash	@"aontu:lang/text"	aon1-MXBQgvMkfyT2hy3VoOe59ATetNp71hrObpjmj9yYTcI
 lang-text-generates	gens	@"aontu:lang/text"	{"aontu":{"Lang":{"indent":{"unit":" ","width":2},"lang":"text"}}}
-lang-markdown-hash	hash	@"aontu:lang/markdown"	aon1-A-Uy_I1ZzYZYKInGTGzarTdKFYjyuiMvefRgWTdtEEo
+lang-markdown-hash	hash	@"aontu:lang/markdown"	aon1-He9JcJ0W4qCb0fTCKV7tguV_-0AUZQr_PY4hCMom7OM
 lang-markdown-generates	gens	@"aontu:lang/markdown"	{"aontu":{"Lang":{"comment":{"block":{"close":"-->","open":"<!--"}},"indent":{"unit":" ","width":2},"lang":"markdown","template":{"ext":["md","markdown"],"marker":"<!---"}}}}

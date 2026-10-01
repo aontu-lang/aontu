@@ -586,6 +586,13 @@ const hints: Record<string, string> = {
     'was written with nothing for it to work on -- `a:()` is the bare\n' +
     'case. Supply the operand, or delete the construct.',
 
+  'var_name':
+    'A `$` is followed by a variable name or a path: `$name` reads a\n' +
+    'value the caller bound, and `$.a.b` reads one from the document.\n' +
+    'What follows this `$` is neither, so there is nothing for it to\n' +
+    'read. A `$` that ends a line takes the next line as its operand,\n' +
+    'which is the usual way this arises.',
+
   'alias_in_path':
     'An alias is not a path segment. The alias namespace and the path\n' +
     'namespace are disjoint, so `$.%foo` is refused at any depth: an\n' +
@@ -911,6 +918,7 @@ const codeClasses: Record<string, string> = {
   elided_value: 'parse',
   unify_no_src: 'parse',
   incomplete_expression: 'parse',
+  var_name: 'parse',
   pref_implicit_bag: 'parse',
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',

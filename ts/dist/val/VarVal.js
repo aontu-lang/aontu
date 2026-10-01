@@ -41,7 +41,8 @@ class VarVal extends FeatureVal_1.FeatureVal {
             nameVal = new StringVal_1.StringVal({ peg: '' + this.peg }, ctx);
         }
         if (!(nameVal.isRef) && type_1.DONE === nameVal.dc) {
-            if (nameVal instanceof StringVal_1.StringVal) {
+            // `$` admits only a name, so a settled name is a string.
+            {
                 let found = ctx.vars[nameVal.peg];
                 const ft = typeof found;
                 // Single ladder: a missing var must report `unknown_var` and not
@@ -77,9 +78,6 @@ class VarVal extends FeatureVal_1.FeatureVal {
                 if (!out.isNil && null != peer && !peer.isTop) {
                     out = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'VAL') }) : ctx, out, peer, 'var-val');
                 }
-            }
-            else {
-                out = (0, err_1.makeNilErr)(ctx, 'var[' + typeof nameVal + ']', this, peer);
             }
         }
         else {

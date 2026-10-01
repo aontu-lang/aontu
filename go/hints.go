@@ -187,6 +187,11 @@ var hints = map[string]string{
 		"past the range a double can hold (1e999) overflows to infinity\n" +
 		"while lexing, which is an error value and not a number. Write it\n" +
 		"within range, or as a decimal literal with the 0d escape.",
+	"var_name": "A `$` is followed by a variable name or a path: `$name` reads a\n" +
+		"value the caller bound, and `$.a.b` reads one from the document.\n" +
+		"What follows this `$` is neither, so there is nothing for it to\n" +
+		"read. A `$` that ends a line takes the next line as its operand,\n" +
+		"which is the usual way this arises.",
 	"incomplete_expression": "The expression has no terms. An operator or a pair of parentheses\n" +
 		"was written with nothing for it to work on -- `a:()` is the bare\n" +
 		"case. Supply the operand, or delete the construct.",
@@ -455,6 +460,7 @@ var codeClasses = map[string]string{
 	"elided_value":          "parse",
 	"unify_no_src":          "parse",
 	"incomplete_expression": "parse",
+	"var_name":              "parse",
 	"pref_implicit_bag":     "parse",
 	"alias_not_toplevel":    "parse",
 	"alias_in_path":         "parse",

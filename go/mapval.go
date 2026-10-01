@@ -380,6 +380,21 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	return out, nil
 }
 
+func withoutKey(keys []string, k string) []string {
+	for i, ok := range keys {
+		if ok == k {
+			return append(keys[:i], keys[i+1:]...)
+		}
+	}
+	return keys
+}
+
+// A written nil refuses a supplied value (ADR-045); a minted nil is a
+// refusal already recorded.
+func literalNilRefuses(n *NilVal, v Val) bool {
+	return "literal_nil" == n.why && genable(v) && !isTop(v)
+}
+
 func genable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *PrefVal, *RefVal,
@@ -508,7 +523,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
-	// Combine spreads and optional keys (additive) from both sides.
+	// Combine spreads. REQUIRED WINS (ADR-044): a key is optional only
+	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
 		if out.spread == nil {
 			out.spread = pm.spread
@@ -520,9 +536,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				out.aliasKeys = append(out.aliasKeys, ak)
 			}
 		}
-		for _, ok := range pm.optional {
-			if !out.isOptional(ok) {
-				out.optional = append(out.optional, ok)
+		for _, k := range pm.keys {
+			if pm.isOptional(k) {
+				if _, declared := m.peg[k]; !declared && !out.isOptional(k) {
+					out.optional = append(out.optional, k)
+				}
+			} else {
+				out.optional = withoutKey(out.optional, k)
 			}
 		}
 	}
@@ -618,7 +638,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				if m.closed {
 					ex = sealChild(ex)
 				}
-				uv = unite(ctx, ex, pc)
+				if nv, isNil := ex.(*NilVal); isNil && literalNilRefuses(nv, pc) {
+					uv = makeNilErr(ctx, "literal_nil", ex, pc)
+				} else if nv, isNil := pc.(*NilVal); isNil && literalNilRefuses(nv, ex) {
+					uv = makeNilErr(ctx, "literal_nil", pc, ex)
+				} else {
+					uv = unite(ctx, ex, pc)
+				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
 				!m.markedType() && !m.markedHide() {
 				peg := pc

@@ -25,6 +25,7 @@ const reservedKeyPrefix = "\x00aontu_"
 const orderKey = reservedKeyPrefix + "order"
 const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
+const requiredKey = reservedKeyPrefix + "required"
 
 // aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
 // -- `%name = value` pairs, which bind a file-local name and are not fields
@@ -35,6 +36,9 @@ const keyRefusalsKey = reservedKeyPrefix + "keyrefusals"
 
 // The declarations before scoping, the names published and the heads.
 const aliasDeclsKey = reservedKeyPrefix + "aliasdecls"
+
+// aliasValsKey: a declaration set aside because a data key spelled its name.
+const aliasValsKey = reservedKeyPrefix + "aliasvals"
 const exportDeclsKey = reservedKeyPrefix + "exportdecls"
 const exportKeysKey = reservedKeyPrefix + "exportkeys"
 const importDeclsKey = reservedKeyPrefix + "importdecls"
@@ -274,6 +278,32 @@ help isolate the syntax error.`,
 			// Duplicate keys combine into a conjunct (mirrors the jsonic
 			// merge in ts/src/lang.ts), e.g. `a:1 a:2` -> `a:1&2`.
 			Merge: func(prev, val any, r *jsonic.Rule, ctx *jsonic.Context) any {
+				// A DECLARATION IS NOT A FIELD: a data key spelling its name
+				// shares no slot with it, so it waits until the map is built.
+				if m, ok := r.Node.(map[string]any); ok && r.ON > 0 {
+					key := keyOf(r.O0)
+					aside, _ := m[aliasValsKey].(map[string]any)
+					if aside == nil {
+						aside = map[string]any{}
+						m[aliasValsKey] = aside
+					}
+					held, set := aside[key]
+					declared := aliasDeclared(m, key)
+					if isAliasDecl(r.O0, r.O1, key) {
+						// A second declaration meets the first wherever it is.
+						if set {
+							aside[key] = mergeVals(asVal(held), asVal(val))
+							return prev
+						}
+						if !declared {
+							aside[key] = val
+							return prev
+						}
+					} else if declared && !set {
+						aside[key] = prev
+						return val
+					}
+				}
 				if prev == nil {
 					return val
 				}
@@ -555,8 +585,13 @@ func scopeAliasKeys(m map[string]any) {
 	decls, _ := m[aliasDeclsKey].([]aliasDecl)
 	ord, _ := m[orderKey].([]string)
 	ak, _ := m[aliasKeysKey].([]string)
+	aside, _ := m[aliasValsKey].(map[string]any)
 	for _, d := range decls {
-		if v, seen := m[d.name]; seen {
+		if v, set := aside[d.name]; set {
+			// A data key spelled the name: the data keeps its slot.
+			m[d.key] = v
+			ord = appendNew(ord, d.key)
+		} else if v, seen := m[d.name]; seen {
 			delete(m, d.name)
 			m[d.key] = v
 			for i, k := range ord {
@@ -1290,6 +1325,11 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		m[importDeclsKey] = append(ims, importDecl{
 			key: key, binds: binds, url: srcURL(ctx),
 			sp: r.O0.SI, src: r.O0.Src})
+	} else if r.U["optional"] != true &&
+		(r.Child == nil || r.Child.Name != "multisource") {
+		// REQUIRED WINS (ADR-044): a plain pair votes for its key.
+		req, _ := m[requiredKey].([]string)
+		m[requiredKey] = appendNew(req, key)
 	}
 
 	// An optional pair (key?:value) bypasses jsonic's value storage,
@@ -1341,6 +1381,18 @@ func keyOf(t *jsonic.Token) string {
 		}
 	}
 	return t.Src
+}
+
+// aliasDeclared reports whether the map has declared an alias of this
+// bare name so far.
+func aliasDeclared(m map[string]any, name string) bool {
+	decls, _ := m[aliasDeclsKey].([]aliasDecl)
+	for _, d := range decls {
+		if d.name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
@@ -2024,6 +2076,15 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			stampSrc(r0, r)
 			return r0
 		}
+		// `$` takes a name or a path; anything else is refused where written.
+		if sv, ok := asVal(terms[0]).(*ScalarVal); !ok || KindString != sv.kind {
+			nv := newNil("var_name")
+			if r.ON > 0 {
+				nv.site.sp = r.O0.SI
+			}
+			stampSrc(nv, r)
+			return nv
+		}
 		vv := newVar(asVal(terms[0]))
 		if r.ON > 0 {
 			vv.site.sp = r.O0.SI
@@ -2255,7 +2316,12 @@ func asValDepth(node any, depth int) Val {
 			mv.spread = sp.(Val)
 		}
 		if opt, ok := n[optionalKey].([]string); ok {
-			mv.optional = opt
+			mv.optional = append([]string{}, opt...)
+		}
+		if req, ok := n[requiredKey].([]string); ok {
+			for _, k := range req {
+				mv.optional = withoutKey(mv.optional, k)
+			}
 		}
 		if ak, ok := n[aliasKeysKey].([]string); ok {
 			mv.aliasKeys = ak

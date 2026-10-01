@@ -93,6 +93,13 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 			if t.spread != nil {
 				walked[t.spread] = true
 			}
+			// A written nil under an optional key nobody supplied is no
+			// finding (ADR-045).
+			for _, k := range t.optional {
+				if nv, isNil := t.peg[k].(*NilVal); isNil && "literal_nil" == nv.why {
+					walked[nv] = true
+				}
+			}
 		case *ListVal:
 			if t.spread != nil {
 				walked[t.spread] = true

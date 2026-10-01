@@ -447,3 +447,11 @@ alias-key-before-include	gens	%parent: {n:2}\n@"__FIXTURES__/alias_key_private.a
 alias-key-root-list-use	errc	[%a: 1, %a]	alias_not_toplevel
 alias-key-root-list-longhand	errc	[a: %a = 1, %a]	alias_not_toplevel
 alias-key-elided-use	errc	x:[%a:] y:%a	no_path
+
+# AN ALIAS DECLARATION IS NOT A KEY (#301): a quoted key spelling its
+# name shares no slot with it, in either order, and a second declaration
+# still meets the first.
+alias-slot-is-not-a-key	gens	%T = {x?: integer}\n"%T": 5	{"%T":5}
+alias-slot-is-not-a-key-data-first	gens	"%T": 5\n%T = {x?: integer}	{"%T":5}
+alias-slot-beside-its-use	canon	%T = {x?: integer}\n"%T": 5\nt: %T	{"%T":5,"t":{"x"?:integer}}
+alias-redeclared-beside-a-key	gens	%n = 1\n"%n": 5\n%n = integer\na: %n	{"%n":5,"a":1}

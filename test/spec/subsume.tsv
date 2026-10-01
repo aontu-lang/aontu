@@ -230,3 +230,8 @@ subsume-string-covers-a-string-constraint	subsume	a: string	a: string & re("x")	
 subsume-path-constraint-does-not-admit-a-string	subsume	a: path & re("x")	a: "x"	{"findings":[{"actual":"\\"x\\"","class":"compat","code":"compat_narrowed","expected":"path&re(\\"x\\")","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":11,"file":"general","len":2,"role":"general","row":1,"src":"re","value":"path&re(\\"x\\")"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"\\"x\\"","value":"\\"x\\""}]}],"verdict":"does_not_subsume"}
 subsume-string-constraint-does-not-admit-a-path	subsume	a: string & re("x")	b: 1\na: path($.b)	{"findings":[{"actual":"path($.b)","class":"compat","code":"compat_narrowed","expected":"string&re(\\"x\\")","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":13,"file":"general","len":2,"role":"general","row":1,"src":"re","value":"string&re(\\"x\\")"},{"col":4,"file":"specific","len":4,"role":"specific","row":2,"src":"path","value":"path($.b)"}]}],"verdict":"does_not_subsume"}
 subsume-path-constraint-admits-a-path	subsume	a: path & re("b")	b: 1\na: path($.b)	{"findings":[],"verdict":"subsumes"}
+
+# Required wins (ADR-044): the meet of an optional and a required key is
+# the required key, so it and `{x:integer}` subsume each other.
+required-wins-meet-equals-required	subsume	a:{x?:integer}&{x:integer}	a:{x:integer}	{"findings":[],"verdict":"subsumes"}
+required-wins-meet-is-below-optional	subsume	a:{x?:integer}	a:{x?:integer}&{x:integer}	{"findings":[],"verdict":"subsumes"}

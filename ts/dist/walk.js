@@ -50,6 +50,15 @@ function collectNils(root, seen) {
         if (null != v.spread?.cj) {
             walked.add(v.spread.cj);
         }
+        // A written `nil` under an optional key nobody supplied is no
+        // finding (ADR-045).
+        if (true === v.isMap) {
+            for (const k of v.optionalKeys) {
+                if (true === v.peg[k]?.isNil && 'literal_nil' === v.peg[k].why) {
+                    walked.add(v.peg[k]);
+                }
+            }
+        }
         return true;
     }, walked);
     return out;

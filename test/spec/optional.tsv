@@ -10,7 +10,7 @@ drop-nested-map	gen	{id?:{field:string},y:Y}	{"y":"Y"}
 keep-nested-fill	gen	a:{id?:{field:string},z:2} a:{id:{field:F1}}	{"a":{"id":{"field":"F1"},"z":2}}
 top-optional	gen	a?:1	{"a":1}
 top-optional-canon	canon	a?:1	{"a"?:1}
-optional-merge-canon	canon	a:{x?:number} a:{x:11}	{"a":{"x"?:11}}
+optional-merge-canon	canon	a:{x?:number} a:{x:11}	{"a":{"x":11}}
 optional-null-kept	gen	b?:null	{"b":null}
 optional-null-kept-canon	canon	b?:null	{"b"?:null}
 optional-elided	errc	a?:	elided_value
@@ -59,3 +59,35 @@ list-elem-then-optional-gap-gens	gens	a:[5, 1?:9]	{"a":[5,{"1":9}]}
 # The map-level optional key is untouched and must stay that way.
 map-optional-still-works-gens	gens	a:{x?:1}	{"a":{"x":1}}
 top-optional-still-works-gens	gens	x?:1	{"x":1}
+
+# REQUIRED WINS (ADR-044, #298): a key is optional in a meet only where
+# every side that declares it says so, and a side that does not declare
+# it does not vote. Two statements merge by the same rule.
+required-wins-canon	canon	a:{x?:integer}&{x:integer}	{"a":{"x":integer}}
+required-wins-canon-reversed	canon	a:{x:integer}&{x?:integer}	{"a":{"x":integer}}
+required-wins-statements	canon	a:{x?:integer} a:{x:integer}	{"a":{"x":integer}}
+required-wins-missing-key-refused	errc	a:{x?:integer} a:{x:integer} a:{}	mapval_no_gen
+required-wins-both-optional-stay	canon	a:{x?:integer}&{x?:integer}	{"a":{"x"?:integer}}
+required-wins-undeclared-side-does-not-vote	canon	a:{x?:integer}&{y:integer}	{"a":{"x"?:integer,"y":integer}}
+required-wins-value-fills	gens	a:{x?:1}&{x:integer} a:{}	{"a":{"x":1}}
+required-wins-supplied-value-is-required	canon	a:{x?:number}&{x:11}	{"a":{"x":11}}
+# The statements of one map, and the keys an include brings, vote the
+# same way: a plain pair is a required vote, an include votes by its
+# own optional list, and the directive itself is not a key.
+required-wins-statement-pair	canon	x?:integer x:integer	{"x":integer}
+required-wins-statement-pair-reversed	canon	x:integer x?:integer	{"x":integer}
+required-wins-optional-statements-stay	canon	x?:1 x?:integer	{"x"?:1}
+required-wins-supplied-empty-map	gens	x:{a?:{b?:number}} x:{a:{}}	{"x":{"a":{}}}
+required-wins-include-keeps-optional	canon	@"__FIXTURES__/optional_xy.aontu"	{"x":1,"y"?:integer}
+required-wins-include-beside-statement	canon	@"__FIXTURES__/optional_x.aontu" x:integer	{"x":integer}
+required-wins-statement-beside-include	canon	x?:integer @"__FIXTURES__/required_x.aontu"	{"x":integer}
+required-wins-include-twice	canon	@"__FIXTURES__/optional_x.aontu" @"__FIXTURES__/optional_x.aontu"	{"x"?:integer}
+required-wins-two-includes	canon	@"__FIXTURES__/optional_x.aontu" @"__FIXTURES__/required_x.aontu"	{"x":integer}
+required-wins-nested-include	canon	q:@"__FIXTURES__/optional_xy.aontu" q:{x:1}	{"q":{"x":1,"y"?:integer}}
+# A WRITTEN NIL UNDER AN OPTIONAL KEY FORBIDS THE KEY (ADR-045, #299):
+# a supplied value is refused at the meet, an absent one passes, and a
+# kind is not a value.
+optional-nil-refuses-a-value	errc	a:{k?:nil} a:{k:1}	literal_nil
+optional-nil-passes-absent	gens	a:{k?:nil,z:1} a:{}	{"a":{"z":1}}
+optional-nil-meets-a-kind	gens	a:{k?:nil}&{k?:integer} a:{}	{"a":{}}
+optional-value-meets-a-nil	errc	a:{k?:1} a:{k?:nil}	literal_nil

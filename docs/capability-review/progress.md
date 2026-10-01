@@ -98,16 +98,17 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,618 rows**, in twenty-nine
-   modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 628,
-   `err` 349, `fmt` 191, `view` 175, `errcode` 175, `vet` 134,
-   `subsume` 125, `jsonschema` 111, `query` 93, `why` 53, `hcanon` 42,
+   **115 `.tsv` files, 113 row-bearing, 5,653 rows**, in twenty-nine
+   modes — `errc` 1,126, `gens` 1,105, `canon` 1,015, `gen` 628,
+   `err` 349, `fmt` 191, `view` 175, `errcode` 176, `vet` 137,
+   `subsume` 127, `jsonschema` 111, `query` 93, `why` 53, `hcanon` 42,
    `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-10-01 with the two commands below, when G12 phase 1
-   added forty-two `jsonschema` rows. Before that re-derived 2026-09-30, when the review
+   (Re-derived 2026-10-01 with the two commands below, when G12 phase 2
+   added thirty-five rows across six files, after phase 1 had
+   added forty-two `jsonschema` rows the same day. Before that re-derived 2026-09-30, when the review
    of G12 added six rows; `main` already read 5,570 against the 5,567
    written here, three `err` rows having landed without this line.
    Before that re-derived 2026-09-29, from 113 files,
@@ -158,9 +159,9 @@ here rather than counting again is what keeps this paragraph from
 drifting away from the rows, which is how it went wrong before: it
 read seventy-two and sixty-three, and split the retired seven into two
 groups of three. The seven are named in their own sections; the
-seventeen phases that have not moved are G10 phase 6 and sixteen
-phases of G12, which was opened on 2026-09-30 and landed its first on
-2026-10-01. G5 phase 6 is
+sixteen phases that have not moved are G10 phase 6 and fifteen
+phases of G12, which was opened on 2026-09-30 and landed its first two
+on 2026-10-01. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -198,8 +199,8 @@ for `query`, `why`, `view` and `views` alike.
 | [G9](g9-transformation.md) | Declarative transformation | D | 6 | 1 | 0 | 3 |
 | [G10](g10-transparency.md) | Transparency log | D | 3 | 1 | 1 | 1 |
 | [G11](g11-agent-onramp.md) | Offline agent on-ramp | A | 7 | 0 | 0 | 0 |
-| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 1 | 0 | 16 | 0 |
-| | | **total** | **65** | **3** | **17** | **7** |
+| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 2 | 0 | 15 | 0 |
+| | | **total** | **66** | **3** | **16** | **7** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
 REMOVED, and they fall on two sides. Four landed first — G4.0 and
@@ -293,7 +294,8 @@ Against the review's own [sequencing](index.md#sequencing):
   2026-09-16 as G10 phase 3, with trusted publishing as phase 4 the
   same day, under ADR-039. The sequencing table's "JSON Schema
   interop" is export only; G12, opened on 2026-09-30, is its plan, and
-  its phase 1, the truthful exporter, landed on 2026-10-01.
+  its phases 1 and 2, the truthful exporter and the engine
+  prerequisites, landed on 2026-10-01.
 
 **Every phase of G1–G8 has now landed but one**; G9 and G10, opened
 after this paragraph was written, carry their own partials and
@@ -2801,7 +2803,7 @@ after.
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **1**: a truthful exporter | S | **LANDED 2026-10-01** | `ts/src/jsonschema.ts` and `go/jsonschema.go`, rewritten arm for arm, and the `neq` arm of the Go constructor (`go/constraint.go`), which left the first argument's domain behind on an invalid call where TypeScript left none. Forty-two rows added to `test/spec/jsonschema.tsv` and nine re-pinned, every expectation re-derived from both CLIs by one script and diffed, so no row was written from one engine; the #297 entry is out of `test/spec/divergent.tsv`; `use-cases/14-jsonschema-export`, `docs/how-to/export-json-schema.md` and `docs/reference-api.md` moved with the output. #295 (a string bound is a loss, never an invalid `minimum`), #296 (a count beside a map is `minProperties`/`maxProperties`, beside a list `minItems`/`maxItems`, neither a loss) and #297 are closed; #300's five non-number rows are: an open written list (`items: false` only under `close()`), `prefixItems` beside `items`, count bounds that honour `above`/`below` and exclusions that export as `not` both bounds, a bare `*1` as `type: integer` with `default: 1`, and `enum` deduplicated by JSON value. The phase's own list landed too: the exact-endpoint rule, `nil` as `false`, `map` and `list` as `object` and `array`, the read-through of an `ExpectVal` (the member a second map literal expects, which exported `{}` as `unresolved`), and the `type` fold for bare kinds. **Departures, four.** (1) **#300's two number rows move to phase 4.** The design says the `integer` and `float` kinds report a loss, since `type: integer` admits `1.0`; the mismatch is the number model's and sits in every numeric position (`const: 1` admits `1.0` too), and the design resolves it systemically with `vet --exact-numbers` (phase 3) rather than a loss on every number, which would make `lossy` the verdict of every schema with an integer in it and drown the losses a reader can act on. #300 stays open for those two rows until phase 4 decides them. (2) **A mixed-domain `neq` exports `false`, not `not: {enum}`.** The issue guessed `not: {enum: [1, "a"]}` with no `type`, which would need the call to MEAN something; both ports mark it invalid at construction and refuse every peer, so the model admits nothing there and `false` is the exact schema. Whether `neq` should span domains is a G1 question, not an exporter one. (3) **The exact-value rule reached literals.** `0d1e400` as a `const`, a `default` or an `enum` member is omitted with a loss: Go refused to serialise `+Inf` and answered no JSON at all, TypeScript wrote `null`. (4) **Count bounds round inward to whole numbers** and a zero lower bound is omitted: `len(min(1.5))` exported `minLength: 1.5`, which 2020-12 does not allow, and now exports `2`; `[&: integer] & len(max(3))` no longer carries a vacuous `minItems: 0`. |
-| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
+| **2**: the engine prerequisites | M | **LANDED 2026-10-01** | Required wins in the meet, [ADR-044](../../ADR.md#adr-044--required-wins-in-the-meet): the key merge in `ts/src/val/MapVal.ts` and `go/mapval.go`, and the parse-time statement merge in `ts/src/lang.ts` (`REQUIRED_MARK_KEY`), where Go reaches the meet through `mergeVals`. A written `nil` under an optional key forbids the key, [ADR-045](../../ADR.md#adr-045--a-written-nil-under-an-optional-key-forbids-the-key): `literalNilRefuses` in both map meets, and `collectNils` in `ts/src/walk.ts` and `go/walk.go` skipping the nil nobody supplied. An alias declaration is not a key (#301): the duplicate-key merge hook in both parsers sets a declaration aside when a data key spells its name (`aontu_alias_vals`, `aliasValsKey`) and the map's close lands it under its scoped key, so a second declaration still meets the first. A `$` followed by anything but a name or a path refuses where it is written with the new code `var_name` (#302), raised by the `dollar-prefix` arm in both parsers, with its `errcodes.tsv` row and hint text in both ports; TypeScript's dead `var[` arm is gone. Twenty-four rows re-derived from both ports by one script and diffed: the `required-wins-*` and `optional-nil-*` rows of `test/spec/optional.tsv`, `test/spec/vet.tsv` and `test/spec/subsume.tsv`, the `alias-slot-*` rows of `test/spec/alias.tsv`, the `var-name-*` rows of `test/spec/edge.tsv`, and six rows the meet moved (`optional-merge-canon`, `canon-symbolic`, the `refer-conjunct-behind-a-spread` trio and `lang-markdown-hash`). The #302 ledger entry is removed. **Departures, three.** (1) **Alias slots did not move to a side table.** The issue proposed one; the collision was in the parser, where a declaration and a data key of one name shared a slot in the map node before the rename to the scoped key, so the fix is in the merge hook that joins duplicate keys, and the slot keeps its scoped key in `peg`, which no source key can spell. (2) **A hash moved.** A value supplied for an optional key now makes the key required in the result, as the lattice requires, so the canon of every such document changes once, and `aontu:lang/markdown` is one; the ADR records it. (3) **`var_name` is a new code rather than one meaning for `var`.** The design asked for one code in both ports; `var` means an unbound variable at generation, which this is not, and a parse-class code with its own text says what to fix. |
 | **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `vet --exact-numbers`; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
 | **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
 | **5**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR |

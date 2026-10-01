@@ -843,6 +843,33 @@ default still applies beside the filled key.
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
 
+**Required wins.** A key is optional in a meet only where every side
+that declares it says so: `{x?: integer} & {x: integer}` is
+`{x: integer}`, and a value supplied for an optional key makes the key
+required in the result, so `{x?: number} & {x: 11}` is `{x: 11}`. A
+side that does not declare the key does not vote, so
+`{x?: integer} & {y: integer}` keeps `x` optional. Two statements merge
+by the same rule: `a: {x?: integer}` beside `a: {x: integer}` requires
+`x`, and so does `x?: integer` beside `x: integer` in one map. A module
+brought in with `@"..."` votes with the keys it declares: an included
+`x?: integer` beside a written `x: integer` requires `x`, and an
+included `y?: integer` that nothing else declares stays optional.
+
+**A written `nil` under an optional key forbids it.** `{k?: nil}`
+admits a map without `k` and refuses one that supplies it, in
+evaluation and under `vet` alike:
+
+```aontu
+a: { k?:nil z:1 }
+```
+
+```json
+{"a":{"z":1}}
+```
+
+With `a: { k: 1 }` beside it the document is refused with
+`[aontu/literal_nil]`, naming both sites.
+
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map
@@ -1547,7 +1574,10 @@ a:$obj               → {"a":{"x":1}}
 a:$foo & number      → {"a":11}            (variables unify like values)
 ```
 
-An unknown variable is a `Cannot resolve` error.
+An unknown variable is a `Cannot resolve` error. A `$` followed by
+anything but a name or a path (`${b: 1}`, `$1`) is refused where it is
+written, with `[aontu/var_name]`; a `$` that ends a line takes the
+next line as its operand, which is the usual way this arises.
 
 ## Aliases `%`
 
@@ -1587,7 +1617,9 @@ written position, and the alias belongs to the file. This form works
 at the root, inside nested maps, and in list elements. Alias declarations
 require a map-root document; a root list with declarations is refused
 with `alias_not_toplevel`. Wrap that list in a field. Quoting the key,
-`"%name": value`, creates an ordinary key with the sigil in its name.
+`"%name": value`, creates an ordinary key with the sigil in its name,
+beside a declaration of that name too: `%T = {x?: integer}` and
+`"%T": 5` in one file keep both, since a declaration is not a key.
 
 ```aontu
 schema: type({ %row:name:string })

@@ -217,6 +217,8 @@ let SCOPE_SEQ = 0
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
+// Keys a merged statement declared REQUIRED, so required wins (ADR-044).
+const REQUIRED_MARK_KEY = RESERVED_KEY_PREFIX + 'required'
 
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -721,7 +723,29 @@ help isolate the syntax error.`,
     },
 
     map: {
-      merge: (prev: any, curr: any, _r: Rule, ctx: JsonicContext) => {
+      merge: (prev: any, curr: any, r: Rule, ctx: JsonicContext) => {
+        // A DECLARATION IS NOT A FIELD: it waits until the map is built.
+        const holder: any = r.parent
+        const kname = keyName(r.o0)
+        const declared = true ===
+          holder?.u?.aontu_alias_keys?.some((d: any) => d.name === kname)
+        const aside: any = (holder.u.aontu_alias_vals ||= {})
+        if (isAliasDecl(r.o0, r.o1)) {
+          if (undefined !== aside[kname]) {
+            aside[kname] = addsite(
+              new ConjunctVal({ peg: [aside[kname], curr] }), aside[kname], ctx)
+            return prev
+          }
+          if (!declared) {
+            aside[kname] = curr
+            return prev
+          }
+        }
+        else if (declared && undefined === aside[kname]) {
+          aside[kname] = prev
+          return curr
+        }
+
         let pval = (prev as Val)
         let cval = (curr as Val)
 
@@ -745,12 +769,16 @@ help isolate the syntax error.`,
         else {
           if (true === (cval as any)?.isMap) {
             const lm: any = cval
+            const required: string[] = (prev[REQUIRED_MARK_KEY] ||= [])
             for (const k of Object.keys(lm.peg)) {
               const own = (prev as any)[k]
               ;(prev as any)[k] = (null == own) ? lm.peg[k] :
                 (own?.isVal
                   ? new ConjunctVal({ peg: [own, lm.peg[k]] })
                   : lm.peg[k])
+              if (!lm.optionalKeys.includes(k) && !required.includes(k)) {
+                required.push(k)
+              }
             }
             if (null != lm.spread?.cj) {
               ;(prev as any)[SPREAD] =
@@ -947,6 +975,10 @@ help isolate the syntax error.`,
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
         return terms[0]
+      }
+      // `$` takes a name or a path; anything else is refused where written.
+      if (!('string' === typeof terms[0] || true === terms[0]?.isString)) {
+        return addsite(new NilVal({ why: 'var_name' }), r, ctx)
       }
       return addsite(new VarVal({ peg: terms[0] }), r, ctx)
     },
@@ -1236,6 +1268,12 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
+        // REQUIRED WINS (ADR-044) between the statements of one map.
+        const requiredKeys: string[] = r.u.aontu_required_keys ?? []
+        for (const k of requiredKeys) {
+          const oi = optionalKeys.indexOf(k)
+          if (-1 !== oi) { optionalKeys.splice(oi, 1) }
+        }
         const aliasDecls = r.u.aontu_alias_keys ?? []
         const aliasKeys: string[] = []
         const exportKeys: string[] = []
@@ -1255,7 +1293,7 @@ help isolate the syntax error.`,
         }
 
         for (const k in mo) {
-          if (null == mo[k] && MERGE_KEY !== k &&
+          if (null == mo[k] && MERGE_KEY !== k && REQUIRED_MARK_KEY !== k &&
             OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
             // Pathed at the KEY, not at the enclosing map. addsite takes
             // the rule's path, which here is the map's, so the error
@@ -1312,18 +1350,26 @@ help isolate the syntax error.`,
           }
         }
         if (0 < renamed.size) {
+          // A declaration set aside lands under its scoped key.
+          const aside: Record<string, any> = r.u.aontu_alias_vals ?? {}
           const entries = Object.entries(mo)
           for (const [k] of entries) {
             delete mo[k]
           }
           for (const [k, v] of entries) {
             const key = renamed.get(k)
-            if (undefined === key) {
+            if (undefined === key || undefined !== aside[k]) {
               mo[k] = v
             }
             else {
               mo[key] = v
               repathInstance(v, [...(r.k?.path ?? []), key])
+            }
+          }
+          for (const [name, key] of renamed) {
+            if (undefined !== aside[name]) {
+              mo[key] = aside[name]
+              repathInstance(aside[name], [...(r.k?.path ?? []), key])
             }
           }
         }
@@ -1390,10 +1436,18 @@ help isolate the syntax error.`,
 
         // Marks carried over from a map include folded in the merge
         // hook above, applied here where the MapVal is built.
-        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY]) {
-          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
-            if (!optionalKeys.includes(k)) { optionalKeys.push(k) }
+        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY] || mo[REQUIRED_MARK_KEY]) {
+          const required = [...requiredKeys, ...(mo[REQUIRED_MARK_KEY] || [])]
+          for (const k of required) {
+            const oi = optionalKeys.indexOf(k)
+            if (-1 !== oi) { optionalKeys.splice(oi, 1) }
           }
+          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
+            if (!optionalKeys.includes(k) && !required.includes(k)) {
+              optionalKeys.push(k)
+            }
+          }
+          delete mo[REQUIRED_MARK_KEY]
           for (const k of (mo[ALIAS_MARK_KEY] || [])) {
             if (!aliasKeys.includes(k)) { aliasKeys.push(k) }
           }
@@ -1608,6 +1662,11 @@ help isolate the syntax error.`,
             url: srcUrl(ctx),
             tkn: ktkn,
           })
+        }
+        else if (!rule.u.spread && true !== rule.prev?.u?.aontu_optional &&
+          'multisource' !== rule.child?.name) {
+          holder.u.aontu_required_keys = (holder.u.aontu_required_keys || [])
+          holder.u.aontu_required_keys.push(keyName(ktkn))
         }
 
         if (rule.u.spread) {

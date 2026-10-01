@@ -44,12 +44,12 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **175** codes across
+There are seven classes, and the registry holds **176** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 53 | the text is not a document |
+| `parse` | 54 | the text is not a document |
 | `conflict` | 58 | two values cannot both hold |
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
 | `reference` | 27 | a name or path resolves to nothing |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** All 175 codes have hint text. `aontu explain --list`
+**Hint text.** All 176 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -237,6 +237,7 @@ twenty rows have no such section and carry no link.
 | `syntax` | 0.51.0 | The parser refused the source text; the message is the parser's own, with the operator-character hint appended. ([Lexical structure](reference-language.md#lexical-structure)) |
 | `unify_no_src` | 0.51.0 | No source was handed in for unification. |
 | `usc_malformed` | 0.57.0 | `usc()` was given text the named convention could not have produced. ([`esc(s, variant?)` and `usc(s, variant?)`](reference-language.md#escs-variant-and-uscs-variant)) |
+| `var_name` | 0.77.0 | A `$` is followed by something other than a variable name or a path. ([Variables `$name`](reference-language.md#variables-name)) |
 | `view_line_break` | 0.54.0 | A label the figure would draw holds a line terminator. ([`aontu view`](reference-api.md#aontu-view)) |
 
 ### Class `conflict`

@@ -78,8 +78,9 @@ class VarVal extends FeatureVal {
     }
 
     if (!(nameVal.isRef) && DONE === nameVal.dc) {
-      if (nameVal instanceof StringVal) {
-        let found = ctx.vars[nameVal.peg]
+      // `$` admits only a name, so a settled name is a string.
+      {
+        let found = ctx.vars[(nameVal as StringVal).peg]
 
         const ft = typeof found
         // Single ladder: a missing var must report `unknown_var` and not
@@ -117,9 +118,6 @@ class VarVal extends FeatureVal {
           out = unite(te ? ctx.clone({ explain: ec(te, 'VAL') }) : ctx,
             out, peer, 'var-val')
         }
-      }
-      else {
-        out = makeNilErr(ctx, 'var[' + typeof nameVal + ']', this, peer)
       }
     }
     else {

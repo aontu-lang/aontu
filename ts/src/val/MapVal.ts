@@ -86,6 +86,13 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
 }
 
 
+// A written `nil` refuses a supplied value (ADR-045); a minted nil is a
+// refusal already recorded.
+function literalNilRefuses(n: any, v: any): boolean {
+  return 'literal_nil' === n.why && true === v.isGenable && !v.isTop
+}
+
+
 class MapVal extends BagVal {
   isMap = true
 
@@ -288,9 +295,16 @@ class MapVal extends BagVal {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 
-          // key optionality is additive
-          if (upeer.optionalKeys.includes(peerkey) && !out.optionalKeys.includes(peerkey)) {
-            out.optionalKeys.push(peerkey)
+          // REQUIRED WINS (ADR-044): a key is optional only where every
+          // side that declares it says so.
+          const oi = out.optionalKeys.indexOf(peerkey)
+          if (upeer.optionalKeys.includes(peerkey)) {
+            if (!(peerkey in this.peg) && -1 === oi) {
+              out.optionalKeys.push(peerkey)
+            }
+          }
+          else if (-1 !== oi) {
+            out.optionalKeys.splice(oi, 1)
           }
 
           if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {
@@ -311,8 +325,10 @@ class MapVal extends BagVal {
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
               child.isTop && peerchild.done ? peerchild :
-                child.isNil ? child :
-                  peerchild.isNil ? peerchild :
+                child.isNil ? (literalNilRefuses(child, peerchild) ?
+                  makeNilErr(peerctx, 'literal_nil', child, peerchild) : child) :
+                  peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
+                    makeNilErr(peerctx, 'literal_nil', peerchild, child) : peerchild) :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'map-peer')
 

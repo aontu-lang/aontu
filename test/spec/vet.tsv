@@ -445,3 +445,9 @@ vet-nil-in-map-template-unselected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)
 vet-nil-in-map-template-selected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)}	a:{z:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.z","severity":"error","sites":[{"col":17,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-nil-in-list-template-unselected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1]	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2]	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.1","severity":"error","sites":[{"col":6,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+
+# Required wins (ADR-044) and the written nil under an optional key
+# (ADR-045) under vet: the gate asks the evaluator's question.
+vet-required-wins	vet	a:{x?:integer}&{x:integer}	a:{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.a.x","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"incomplete"}
+vet-optional-nil-absent-passes	vet	a:{k?:nil}	a:{}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-optional-nil-supplied-refused	vet	a:{k?:nil}	a:{k:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":7,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
