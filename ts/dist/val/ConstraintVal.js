@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
@@ -329,9 +329,9 @@ function leafMarker(v) {
 }
 const LATE_CJO = 150000;
 function lateAtom(atom) {
-    return 'len' === atom || 'unique' === atom || 'must' === atom ||
-        'nof' === atom;
+    return 'len' === atom || 'unique' === atom || BAND_B.includes(atom);
 }
+const BAND_B = ['must', 'nof', 'when'];
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super({ ...spec, peg: spec.peg ?? [] }, ctx);
@@ -344,6 +344,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.uniqBy = [];
         this.musts = [];
         this.nofs = [];
+        this.whens = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -359,6 +360,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.uniqBy = spec.state.uniqBy ?? [];
             this.musts = spec.state.musts ?? [];
             this.nofs = spec.state.nofs ?? [];
+            this.whens = spec.state.whens ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -366,8 +368,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
-            if (('must' === spec.atom || 'nof' === spec.atom) &&
-                args.some((a) => holdsMove(a))) {
+            if (BAND_B.includes(spec.atom) && args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
             else if (args.some((a) => true !== a?.done)) {
@@ -378,7 +379,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
         }
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
-            0 < this.musts.length || 0 < this.nofs.length ||
+            0 < this.musts.length + this.nofs.length + this.whens.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -433,6 +434,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return bad('constraint');
             }
             this.nofs = [{ count, cs: canonSorted(args.slice(1)) }];
+            return;
+        }
+        if ('when' === atom) {
+            this.whens = [{ c: args[0], t: args[1], e: args[2] }];
             return;
         }
         if ('neq' === atom) {
@@ -567,7 +572,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const args = [];
         for (const [i, arg] of pend.args.entries()) {
             let next = arg;
-            if ('nof' === pend.atom && 0 < i) {
+            if (('nof' === pend.atom && 0 < i) || 'when' === pend.atom) {
                 next = trialArg(ctx, arg, this.path);
             }
             else if (true !== arg?.done) {
@@ -639,7 +644,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (null != bad) {
             return bad;
         }
-        return this.checkNofs(peer, ctx) ?? peer;
+        return this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) ?? peer;
     }
     checkMusts(peer, ctx, final) {
         for (const m of this.musts) {
@@ -657,6 +662,26 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                     message: m.msg.peg,
                     expected: m.v.canon,
                     actual: peer.canon,
+                });
+            }
+        }
+        return undefined;
+    }
+    // The branch the condition picks must admit the peer; no else passes.
+    checkWhens(peer, ctx) {
+        const own = 0 === this.whens.length ? undefined : (0, admission_1.ownJson)(peer, ctx);
+        if (undefined === own) {
+            return undefined;
+        }
+        for (const w of this.whens) {
+            const holds = (0, admission_1.admitsSettled)(ctx, w.c, peer, own);
+            const branch = holds ? w.t : w.e;
+            if (undefined !== branch && !(0, admission_1.admitsSettled)(ctx, branch, peer, own)) {
+                return (0, err_1.makeNilErr)(ctx, 'when', this, peer, undefined, {
+                    expected: whenCanon(w),
+                    actual: peer.canon,
+                    branch: holds ? 'then' : 'else',
+                    condition: holds ? 'admits' : 'does not admit',
                 });
             }
         }
@@ -698,14 +723,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.dc = 0;
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
-        const bad = this.checkMusts(peer, ctx, final) ??
-            (true === final ? this.checkNofs(peer, ctx) : undefined);
+        const bad = this.checkMusts(peer, ctx, final) ?? (true === final ?
+            this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) : undefined);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
             if (true === final ||
-                (0 === this.musts.length && 0 === this.nofs.length)) {
+                0 === this.musts.length + this.nofs.length + this.whens.length) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -761,11 +786,12 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
         // lower bound already met is the one reading that cannot be undone,
         // and an atom holding nothing else is spent: that is when it goes.
-        const spent = true === final || (0 === this.musts.length &&
-            0 === this.nofs.length && !this.uniq && 0 === this.uniqBy.length &&
-            (null == count ||
-                (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
-                    stateAdmits(count, countVal(n)))));
+        const spent = true === final ||
+            (0 === this.musts.length + this.nofs.length + this.whens.length &&
+                !this.uniq && 0 === this.uniqBy.length &&
+                (null == count ||
+                    (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
+                        stateAdmits(count, countVal(n)))));
         if (spent) {
             return peer;
         }
@@ -867,6 +893,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort();
         merged.musts = [...this.musts, ...peer.musts];
         merged.nofs = mergeNofs([...this.nofs, ...peer.nofs]);
+        merged.whens = byCanon([...this.whens, ...peer.whens], whenCanon);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -910,6 +937,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             uniqBy: [...this.uniqBy],
             musts: [...this.musts],
             nofs: [...this.nofs],
+            whens: [...this.whens],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -947,6 +975,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.uniqBy = [...this.uniqBy];
         out.musts = [...this.musts];
         out.nofs = [...this.nofs];
+        out.whens = [...this.whens];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -1027,13 +1056,20 @@ function integralState(s) {
 function canonSorted(vals) {
     return [...vals].sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.canon, b.canon));
 }
-// Each canon once: equal counts over one value are one check.
-function mergeNofs(nofs) {
+// Each canon once: equal checks over one value are one check.
+function byCanon(atoms, canon) {
     const out = new Map();
-    for (const n of nofs) {
-        out.set(nofCanon(n), n);
+    for (const a of atoms) {
+        out.set(canon(a), a);
     }
     return [...out.keys()].sort(keyorder_1.cmpCodePoint).map((k) => out.get(k));
+}
+function mergeNofs(nofs) {
+    return byCanon(nofs, nofCanon);
+}
+function whenCanon(w) {
+    return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]
+        .map((v) => v.canon).join(',') + ')';
 }
 // A count is written bare where it is one integer, as `nof(1, …)` reads.
 function countCanon(c) {
@@ -1078,7 +1114,7 @@ function holdsMove(v) {
         heldVals(v).some((c) => holdsMove(c));
 }
 function atomArgs(atom, args) {
-    if (('neq' === atom || 'must' === atom || 'nof' === atom) && 1 === args.length &&
+    if (('neq' === atom || BAND_B.includes(atom)) && 1 === args.length &&
         true === args[0]?.isList) {
         return args[0].peg;
     }
@@ -1127,6 +1163,9 @@ function canonState(s) {
     for (const n of s.nofs ?? []) {
         parts.push(nofCanon(n));
     }
+    for (const w of s.whens ?? []) {
+        parts.push(whenCanon(w));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1140,7 +1179,7 @@ function constraintStateSubsumes(g, s) {
     // A Band B predicate on the general side makes its admitted set
     // unknowable; an extra `must` on the SPECIFIC side only narrows it
     // and is ignored.
-    if (0 < g.musts.length || 0 < (g.nofs ?? []).length) {
+    if (0 < g.musts.length + (g.nofs ?? []).length + (g.whens ?? []).length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1240,7 +1279,7 @@ function constraintSubsumesKind(g, marker) {
     });
 }
 function constraintAdmitsScalar(g, scalar) {
-    if (0 < g.musts.length || 0 < g.nofs.length) {
+    if (0 < g.musts.length + g.nofs.length + g.whens.length) {
         return 'undecided';
     }
     if (g.uniq || 0 < g.uniqBy.length) {
@@ -1552,6 +1591,12 @@ class NofConstraintVal extends ConstraintVal {
     }
 }
 exports.NofConstraintVal = NofConstraintVal;
+class WhenConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'when' }, ctx);
+    }
+}
+exports.WhenConstraintVal = WhenConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);
@@ -1566,6 +1611,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 24 */
+} /* node:coverage ignore next 25 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

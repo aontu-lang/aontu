@@ -179,6 +179,27 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- the SITE of a reference that names nothing, in the first
+#   argument of a call of two or more arguments.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 6.
+#   NOT introduced by that work: `must` has always shown it.
+#
+#   Divergent input:  a: must($.t, "m")   vetted against {"a": "s"}
+#                     (also `nof($.t, number)` and `when($.t, number)`;
+#                     a reference in a later argument, or the one
+#                     argument of `min($.t)`, is sited alike)
+#   TypeScript: no_path sited at col 10, len 1, src ".": the `.` inside
+#               the reference.
+#   Go:         no_path sited at col 4, len 4, src "must": the call.
+#
+#   Not simply fixed because neither site is the one a reader wants,
+#   the reference's own span from its `$`, and moving either changes
+#   the site rule for every argument position, which rows in several
+#   files pin. The rows of test/spec/constraint-when.tsv put a pending
+#   reference in a later argument.
+#
+# ---------------------------------------------------------------------
+#
 #
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.

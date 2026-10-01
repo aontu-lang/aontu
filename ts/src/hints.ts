@@ -116,6 +116,21 @@ const hints: Record<string, string> = {
     '  nof(min(1), number, nil) & 5 -> 5    # At least one;\n' +
     '  nof(0, string) & 5           -> 5    # None may admit.',
 
+  when:
+    'This value fails the {branch} branch of a when(): the condition\n' +
+    '{condition} the value, so that branch must admit it, and it does not.' +
+    '\n \n' +
+    'when(c, t, e?) is Band B of the constraint algebra: the condition c\n' +
+    'is tried against the settled value as a nof() branch is, and the\n' +
+    'value must then be admitted by t where c admits it and by e where\n' +
+    'it does not. An absent e passes, and nil in any position admits\n' +
+    'nothing. It carries if, then and else, and the dependent keywords.' +
+    '\n \nExamples:\n' +
+    '  when(string, "a") & "a"         -> "a"  # The condition holds;\n' +
+    '  when(string, "a") & "b"         -> nil  # ... and then refuses;\n' +
+    '  when(string, "a", min(0)) & 5   -> 5    # Else admits;\n' +
+    '  when({k: any}, {n: any}) & {}   -> {}   # No k: nothing to hold.',
+
   abnf_grammar:
     'This ABNF grammar could not be compiled:\n' +
     '{reason}\n' +
@@ -975,6 +990,7 @@ const codeClasses: Record<string, string> = {
   constraint: 'conflict',
   must: 'conflict',
   nof: 'conflict',
+  when: 'conflict',
   constraint_pattern: 'conflict',
   abnf_grammar: 'parse',
   parse_arg: 'parse',

@@ -97,7 +97,7 @@ name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
           / %s"line" / %s"nom" / %s"project" / %s"slot" / %s"translate"
           / %s"sub" / %s"sum"
           / %s"type"
-          / %s"unique" / %s"upper" / %s"usc"
+          / %s"unique" / %s"upper" / %s"usc" / %s"when"
 
 ; A path reference, absolute from the document root. At least one
 ; segment: a bare `$` is an incomplete expression, not a reference.

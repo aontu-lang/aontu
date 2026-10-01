@@ -23,7 +23,7 @@ const SUITE = Path.join(__dirname, '..', '..', 'test', 'vectors', 'jsonschema')
 const TESTS = Path.join(SUITE, 'tests', 'draft2020-12')
 
 // The ledger may not grow past this; the register tightens it per phase.
-const SKIP_BOUND = 260
+const SKIP_BOUND = 230
 
 
 type Skip = { file: string, group: string, test: string, construct: string, used: boolean }

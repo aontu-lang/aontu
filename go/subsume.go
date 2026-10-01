@@ -749,5 +749,8 @@ func opaqueNote(g *ConstraintVal) string {
 	if 0 < len(g.musts) {
 		return "an evaluate-only check (must) makes the admitted set opaque"
 	}
-	return "a count of trial schemas (nof) makes the admitted set opaque"
+	if 0 < len(g.nofs) {
+		return "a count of trial schemas (nof) makes the admitted set opaque"
+	}
+	return "a conditional over trial schemas (when) makes the admitted set opaque"
 }

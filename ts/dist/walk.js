@@ -33,17 +33,22 @@ function walkVals(v, visit, seen) {
     for (const must of (v.musts ?? [])) {
         walkVals(must?.v, visit, seen);
     }
-    for (const nof of (v.nofs ?? [])) {
-        for (const c of nof.cs) {
-            walkVals(c, visit, seen);
-        }
+    for (const c of settledTrials(v)) {
+        walkVals(c, visit, seen);
     }
     walkVals(v.primary, visit, seen);
     walkVals(v.secondary, visit, seen);
 }
+function settledTrials(v) {
+    return [
+        ...(v.nofs ?? []).flatMap((n) => n.cs),
+        ...(v.whens ?? []).flatMap((w) => undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
+    ];
+}
 function trialSchemas(v) {
-    return 'nof' === v.pending?.atom ? v.pending.args.slice(1) :
-        (v.nofs ?? []).flatMap((n) => n.cs);
+    const atom = v.pending?.atom;
+    return 'nof' === atom ? v.pending.args.slice(1) :
+        'when' === atom ? v.pending.args : settledTrials(v);
 }
 function collectNils(root, seen) {
     const out = [];

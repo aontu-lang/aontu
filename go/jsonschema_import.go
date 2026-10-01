@@ -770,8 +770,6 @@ const (
 )
 
 var importLater = map[string]string{
-	"if": importNotYet, "then": importNotYet, "else": importNotYet,
-	"dependentSchemas": importNotYet, "dependentRequired": importNotYet,
 	"contains": importNotYet, "minContains": importNotYet, "maxContains": importNotYet,
 	"uniqueItems": importNotYet,
 	"$dynamicRef": importNotYet, "$dynamicAnchor": importNotYet,
@@ -789,7 +787,8 @@ var importLater = map[string]string{
 
 var importCarried = []string{
 	"$schema", "$ref", "$defs", "definitions", "$anchor", "$comment", "type",
-	"enum", "const", "allOf", "anyOf", "oneOf", "not", "properties", "required",
+	"enum", "const", "allOf", "anyOf", "oneOf", "not", "if", "then", "else",
+	"dependentSchemas", "dependentRequired", "properties", "required",
 	"additionalProperties",
 	"patternProperties", "propertyNames", "minProperties", "maxProperties",
 	"prefixItems", "items", "minItems", "maxItems", "minimum", "maximum",
@@ -1223,7 +1222,7 @@ func blocker(e *ixpr) bool {
 			closed = closed || holdsNilExpr(sp)
 		}
 	case "call":
-		closed = inList([]string{"nof", "must", "close"}, e.name)
+		closed = inList([]string{"nof", "must", "when", "close"}, e.name)
 	}
 	return ("raw" == e.k && strings.HasPrefix(e.text, "%")) || counted || closed ||
 		someExpr(e, blocker)
@@ -1508,6 +1507,9 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		}
 	}
 
+	parts = append(parts, ctx.conditional(node, ptr, only)...)
+	parts = append(parts, ctx.dependents(node, ptr, only)...)
+
 	// The kind split.
 	var allowed []string
 	typed := get("type")
@@ -1574,6 +1576,75 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		return iNil
 	}
 	return met
+}
+
+// conditional pairs an `if` with the `then` and `else` of its own schema
+// object. A `then` or `else` without one asserts nothing, and so does a
+// lone `if`.
+func (ctx *importCtx) conditional(node *jnode, ptr string, only []string) []*ixpr {
+	cond, then, els := jentryOf(node, "if"), jentryOf(node, "then"), jentryOf(node, "else")
+	if nil == cond || (nil == then && nil == els) {
+		return nil
+	}
+	arm := func(n *jnode, k string) *ixpr { return ctx.convert(n, ptrChild(ptr, k), false, only) }
+	args := []*ixpr{arm(cond, "if"), iAny}
+	if nil != then {
+		args[1] = arm(then, "then")
+	}
+	if nil != els {
+		args = append(args, arm(els, "else"))
+	}
+	return []*ixpr{icall("when", args...)}
+}
+
+// present is the map that holds each of these keys, whatever it holds
+// there.
+func present(keys []string) *ixpr {
+	entries := []ientry{}
+	seen := map[string]bool{}
+	for _, k := range keys {
+		if !seen[k] {
+			seen[k] = true
+			entries = append(entries, ientry{key: k, val: iAny})
+		}
+	}
+	return &ixpr{k: "map", entries: entries}
+}
+
+// dependents writes each dependent keyword's entry as a conditional on
+// its key's presence.
+func (ctx *importCtx) dependents(node *jnode, ptr string, only []string) []*ixpr {
+	out := []*ixpr{}
+	at := func(k string) string { return ptrChild(ptr, k) }
+	if schemas := jentryOf(node, "dependentSchemas"); nil != schemas && "object" == schemas.t {
+		for _, e := range schemas.entries {
+			out = append(out, icall("when", present([]string{e.key}),
+				ctx.convert(e.val, ptrChild(at("dependentSchemas"), e.key), false, only)))
+		}
+	} else if nil != schemas {
+		ctx.wrongType(at("dependentSchemas"), "dependentSchemas", "an object", schemas)
+	}
+	if required := jentryOf(node, "dependentRequired"); nil != required && "object" == required.t {
+		for _, e := range required.entries {
+			names := []string{}
+			ok := "array" == e.val.t
+			if ok {
+				for _, n := range e.val.items {
+					ok = ok && "string" == n.t
+					names = append(names, n.s)
+				}
+			}
+			if !ok {
+				ctx.wrongType(ptrChild(at("dependentRequired"), e.key), "dependentRequired",
+					"an array of strings", e.val)
+			} else if 0 < len(names) {
+				out = append(out, icall("when", present([]string{e.key}), present(names)))
+			}
+		}
+	} else if nil != required {
+		ctx.wrongType(at("dependentRequired"), "dependentRequired", "an object", required)
+	}
+	return out
 }
 
 func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,

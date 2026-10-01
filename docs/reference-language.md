@@ -2562,6 +2562,13 @@ Decode text escaped with the named convention, refusing malformed input. See [es
 
 Example: `usc(esc("<a>", xml), xml)` → `"<a>"`
 
+### `when(trial c: any, trial t: any, trial e?: any) : constraint`
+
+Hold a value to `t` where the trial schema `c` admits it, and to `e`
+where it does not; an `e` not written passes. See [`when`](#band-b-when).
+
+Example: `when(string, "a", min(0)) & 5` → `5`
+
 
 ### Parent types
 
@@ -5211,9 +5218,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All eleven atoms (the bounds `min`/`max`/`above`/`below`, the
+> All twelve atoms (the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must` and `nof`)
+> atoms `length` and `unique`, and the evaluate-only `must`, `nof` and
+> `when`)
 > are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
@@ -5227,9 +5235,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Eleven builtins join the function registry. Nine are **Band A**: full
+Twelve builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. Two are **Band B**: evaluate-only, and reported
+canonical form. Three are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5245,6 +5253,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of trial schemas c that admit the value is one n admits |
+| `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits the value where c does, and e where c does not |
 
 ### Bounds and the number tower
 
@@ -5330,8 +5339,9 @@ guessed where it is not:
   accumulate and are never declared empty: sound (no false
   conflicts), incomplete (some contradictions surface only against
   data).
-- A Band B atom is never declared empty: `must` and `nof` are decided
-  against data, where `nof(3, string, number)` refuses every value.
+- A Band B atom is never declared empty: `must`, `nof` and `when` are
+  decided against data, where `nof(3, string, number)` refuses every
+  value.
 
 ### Subsumption
 
@@ -5339,8 +5349,9 @@ guessed where it is not:
 per-former rules are in [Subsumption](#subsumption) above). One
 mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
-`sub_evaluate_only`, and a `nof` on the general side the same way: the
-admitted set is opaque, which is undecided rather than refused.*
+`sub_evaluate_only`, and a `nof` or a `when` on the general side the
+same way: the admitted set is opaque, which is undecided rather than
+refused.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
 value B admits, A admits too**. It is the lattice's own order, and for
@@ -5790,6 +5801,31 @@ It is how the applicators of JSON Schema cross into aontu: `anyOf` is
 `nof(min(1), …)`, `oneOf` is `nof(1, …)` and `not` is `nof(0, …)`, and
 the exporter writes those counts back as those keywords, with `allOf`
 for a count of every branch.
+
+### Band B: `when`
+
+`when(c, t, e?)` holds the settled value to the branch its condition
+picks: where the trial schema `c` admits the value, `t` must admit it,
+and where `c` does not, `e` must. An `e` not written passes, so
+`when(c, t)` says nothing about a value `c` refuses. Each argument is
+tried as a `nof` branch is, a scalar at the meet and a container at
+generation, and `nil` in any position admits nothing: `when(string,
+nil)` refuses every string, and `when(nil, t, e)` holds every value to
+`e`.
+
+A condition on a key being present reads as the key held as `any`:
+`when({k: any}, {n: any}) & {k: 1}` is refused, since the value holds
+`k` and not `n`, and `& {x: 1}` passes, since `{k: any}` does not
+admit a value without `k`. Two equal `when` atoms on one value are one
+check. Like `must` and `nof`, `when` is opaque to emptiness and
+subsumption, and a value it refuses is reported as `when`, class
+`conflict`, naming the branch taken.
+
+It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
+`else` are `when(c, t, e)`, `dependentSchemas: {k: S}` is
+`when({k: any}, S)` and `dependentRequired: {k: [a, b]}` is
+`when({k: any}, {a: any, b: any})`, and the exporter writes each shape
+back.
 
 ### Errors
 

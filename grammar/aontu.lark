@@ -65,7 +65,7 @@ name: "content" | "file" | "folder" | "fragment" | "inject" | "line" | "nom" | "
     | "sort" | "split" | "super"
     | "sub" | "sum"
     | "type"
-    | "unique" | "upper" | "usc"
+    | "unique" | "upper" | "usc" | "when"
 
 // At least one segment: a bare `$` is an incomplete expression.
 //

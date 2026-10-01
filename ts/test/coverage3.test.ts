@@ -232,7 +232,7 @@ describe('coverage3-constraint', () => {
     Assert.equal(cv.unify(new IntegerVal({ peg: 1 }), ctx).isNil, true)
   })
 
-  test('pending-nof-branches-are-not-collected', () => {
+  test('pending-trial-schemas-are-not-collected', () => {
     const ctx = CTX()
     const nof: any = new ConstraintVal({
       peg: [new IntegerVal({ peg: 1 }), new NilVal({ why: 'g' }),
@@ -241,6 +241,12 @@ describe('coverage3-constraint', () => {
     } as any, ctx)
     Assert.equal(nof.pending.atom, 'nof')
     Assert.deepEqual(collectNils(nof, new Set()), [])
+    const when: any = new ConstraintVal({
+      peg: [new NilVal({ why: 'h' }), new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'when',
+    } as any, ctx)
+    Assert.equal(when.pending.atom, 'when')
+    Assert.deepEqual(collectNils(when, new Set()), [])
   })
 
   test('domain-adopted-from-peer', () => {

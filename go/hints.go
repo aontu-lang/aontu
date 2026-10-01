@@ -51,6 +51,20 @@ var hints = map[string]string{
 		"  nof(min(1), number, nil) & 5 -> 5    # At least one;\n" +
 		"  nof(0, string) & 5           -> 5    # None may admit.",
 
+	"when": "This value fails the {branch} branch of a when(): the condition\n" +
+		"{condition} the value, so that branch must admit it, and it does not." +
+		"\n \n" +
+		"when(c, t, e?) is Band B of the constraint algebra: the condition c\n" +
+		"is tried against the settled value as a nof() branch is, and the\n" +
+		"value must then be admitted by t where c admits it and by e where\n" +
+		"it does not. An absent e passes, and nil in any position admits\n" +
+		"nothing. It carries if, then and else, and the dependent keywords." +
+		"\n \nExamples:\n" +
+		"  when(string, \"a\") & \"a\"         -> \"a\"  # The condition holds;\n" +
+		"  when(string, \"a\") & \"b\"         -> nil  # ... and then refuses;\n" +
+		"  when(string, \"a\", min(0)) & 5   -> 5    # Else admits;\n" +
+		"  when({k: any}, {n: any}) & {}   -> {}   # No k: nothing to hold.",
+
 	"abnf_grammar":            "This ABNF grammar could not be compiled:\n{reason}\n \nabnf() takes RFC 5234 ABNF -- `=` and `/`, not `::=`. The\ncompiler reports the first thing it could not read; a rule\nreferenced but never defined is the usual cause, after a\nquantifier written the EBNF way.",
 	"parse_arg":               "parse(grammar, text) takes two strings: a grammar, normally the\nanswer of an abnf() call, and the text to parse.\n \nExamples:\n  G: abnf(\"v = 1*DIGIT\")\n  a: parse($.G, \"12\")     # the AST\n  b: parse($.G, 12)       # parse_arg: the text is not a string",
 	"parse_failed":            "The text does not parse under this grammar:\n{reason}\n \nA failure to parse is a failure to unify, so the field is\nrefused rather than set to a value meaning \"no\".",
@@ -514,6 +528,7 @@ var codeClasses = map[string]string{
 	"parse_failed":          "conflict",
 	"must":                  "conflict",
 	"nof":                   "conflict",
+	"when":                  "conflict",
 	"scalar_value":          "conflict",
 	"scalar_kind":           "conflict",
 	"no_scalar_unify":       "conflict",

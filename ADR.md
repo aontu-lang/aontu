@@ -77,6 +77,7 @@ capability decision is the phase rows it governed in
 | [ADR-046](#adr-046--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-047](#adr-047--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
 | [ADR-048](#adr-048--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
+| [ADR-049](#adr-049--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
 
 ---
 
@@ -4840,4 +4841,56 @@ on values still being evaluated.
 - `must` admits booleans and null, which it refused for want of a
   domain rather than by design.
 - Pinned by `test/spec/constraint-nof.tsv` and the logic rows of
+  `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-049 — A conditional holds a value to the branch its condition picks
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 6 brings
+JSON Schema's `if`, `then` and `else` into aontu, with
+`dependentSchemas` and `dependentRequired`, which are conditionals on a
+key being present. Each asks whether an instance *is* valid against
+one subschema and, by the answer, which other subschema it must also be
+valid against. `nof` could spell the case split as two counts, but the
+canon would then hide a conditional inside nested counts, and the
+exporter would have to recognise the pattern to write it back.
+
+### Decision
+
+1. **`when(c, t, e?)` is a Band B atom.** Where the trial schema `c`
+   admits the settled value, by the admission trial of ADR-048, `t` must
+   admit it, and where `c` does not, `e` must; an `e` not written
+   passes. A value the taken branch refuses is the new code `when`,
+   class `conflict`, whose hint names the branch and the condition's
+   verdict.
+2. **Every argument is a trial schema.** No argument is evaluated
+   against the call site, so `nil` is the false schema in each position:
+   `when(c, nil)` refuses every value `c` admits, and a branch that
+   conflicts on its own is `nil`. This settles G12's first open question
+   for `when` as phase 5 settled it for `nof`.
+3. **`when` is checked as `nof` is.** A scalar is tried at the meet and
+   a container at generation; two canon-equal atoms on one value are one
+   check; it is opaque to emptiness and subsumption.
+4. **The importer pairs within one schema object.** An `if` takes the
+   `then` and `else` of its own object, never those of a sibling in an
+   `allOf`; a `then` or `else` without an `if`, and an `if` with
+   neither, assert nothing and import as nothing. `dependentSchemas:
+   {k: S}` is `when({k: any}, S)` and `dependentRequired: {k: [a, b]}`
+   is `when({k: any}, {a: any, b: any})`.
+5. **The exporter writes both shapes back.** A `when` whose condition
+   holds one key as `any` and nothing else, with no `else`, is a
+   dependent keyword: `dependentRequired` where its branch holds only
+   keys as `any`, `dependentSchemas` otherwise. Any other `when` is
+   `if`, `then` and `else`, with `then` left off where it is `any`.
+
+### Consequences
+
+- G8's refusal of boolean guards in `match` is untouched: `when` checks
+  a value, and never selects one.
+- A conditional costs one or two trials, a meet and a generation each.
+- Pinned by `test/spec/constraint-when.tsv` and the conditional rows of
   `test/spec/jsonschema-import.tsv` in both ports.

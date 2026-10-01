@@ -132,7 +132,7 @@ A keyword the importer does not carry yet is dropped and reported on
 stderr, so `aontu jsonschema import s.json > s.aontu` writes a usable
 document and still says what it left behind. An annotation such as
 `title` or `format` asserts nothing, so dropping it changes no answer;
-a validation keyword such as `if` widens the schema, and the report
+a validation keyword such as `contains` widens the schema, and the report
 says so. `--strict` turns any loss into exit 1, for a pipeline that
 must not accept a widened schema. Write `email.json`:
 
@@ -165,6 +165,10 @@ goes wrong.
   hold for one value; otherwise it is `nof(min(1), …)`, which counts the
   branches that admit the data rather than choosing one. `oneOf` is
   `nof(1, …)` and `not` is `nof(0, …)`.
+- `if`, `then` and `else` import as `when(c, t, e)`, and only within
+  one schema object: an `if` in one `allOf` branch never pairs with a
+  `then` in another. `dependentSchemas` and `dependentRequired` are a
+  `when` on the key being present, `when({k: any}, …)`.
 - A reference is an alias only where the schema's root is an object
   schema with `type: "object"`. Any other root copies each referenced
   schema in place, and a reference that reaches itself through such a

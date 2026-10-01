@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `when(c, t, e?)`, and JSON Schema's conditionals
+
+Both ports, G12 phase 6. `when(c, t, e?)` is a new Band B atom: where
+the trial schema `c` admits the settled value, `t` must admit it, and
+where it does not, `e` must; an `e` not written passes. Each argument
+is tried by the admission trial `nof` uses, so `nil` is the false
+schema in every position, and a value the taken branch refuses is the
+new code `when`, class `conflict`. Like `nof`, it is opaque to emptiness
+and subsumption. The importer carries `if`, `then` and `else` as
+`when(c, t, e)`, pairing them only within one schema object, and
+`dependentSchemas` and `dependentRequired` as a `when` on the key being
+present, `when({k: any}, …)`. The exporter writes `if`, `then` and
+`else` back, and the presence shape as the dependent keywords. The
+vendored JSON Schema suite passes 24 more tests, 1,506 of 1,906.
+
 ### `nof(n, ...c)`, and JSON Schema's logic keywords
 
 Both ports, G12 phase 5. `nof(n, ...c)` is a new Band B atom: the

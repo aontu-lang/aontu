@@ -383,6 +383,10 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     }
   }
 
+  for (const w of c.whens) {
+    whenOut(ctx, path, out, extra, w)
+  }
+
   if (1 === nots.length) {
     out.not = nots[0]
   }
@@ -423,6 +427,53 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
 
 
 // A keyword this schema object has once; a second goes under allOf.
+// A conditional on one key's presence is a dependent keyword, and one
+// whose branch only asks for keys is dependentRequired.
+function whenOut(ctx: Ctx, path: string[], out: any, extra: any[], w: any): void {
+  const arm = (b: any): any => true === b.isNil ? false : fromVal(ctx, path, b)
+  const key = presentKeys(w.c)
+  if (undefined !== key && 1 === key.length && undefined === w.e) {
+    const names = presentKeys(w.t)
+    const [dep, val] = undefined === names ? ['dependentSchemas', arm(w.t)] :
+      ['dependentRequired', names]
+    if (undefined === out[dep]?.[key[0]]) {
+      out[dep] = { ...out[dep], [key[0]]: val }
+    }
+    else {
+      extra.push({ [dep]: { [key[0]]: val } })
+    }
+    return
+  }
+  if (true === w.t.isTop && undefined === w.e) {
+    return
+  }
+  const cond: any = { if: arm(w.c) }
+  if (true !== w.t.isTop) {
+    cond.then = arm(w.t)
+  }
+  if (undefined !== w.e) {
+    cond.else = arm(w.e)
+  }
+  if (undefined === out.if) {
+    Object.assign(out, cond)
+  }
+  else {
+    extra.push(cond)
+  }
+}
+
+
+// The keys of a map that holds each of them as `any`, and nothing else.
+function presentKeys(v: any): string[] | undefined {
+  if (true !== v.isMap || null != v.spread?.cj || true === v.closed) {
+    return undefined
+  }
+  const keys = Object.keys(v.peg).sort()
+  return 0 < keys.length && keys.every((k) => true === v.peg[k]?.isTop &&
+    !v.optionalKeys.includes(k)) ? keys : undefined
+}
+
+
 function keyword(out: any, extra: any[], key: string, val: any): void {
   if (undefined === out[key]) {
     out[key] = val

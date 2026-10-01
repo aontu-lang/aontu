@@ -528,7 +528,7 @@ const BUILTIN_FUNCS = [
   'pack', 'parse', 'path', 'pick',
   'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'slot', 'sort',
   'split', 'sub', 'sum',
-  'super', 'translate', 'type', 'unique', 'upper', 'usc',
+  'super', 'translate', 'type', 'unique', 'upper', 'usc', 'when',
 ]
 
 // Scalar-kind and literal keywords.

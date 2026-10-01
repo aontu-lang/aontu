@@ -62,10 +62,8 @@ func setPaths(v Val, path []string) {
 		for _, m := range n.musts {
 			setPaths(m.v, path)
 		}
-		for _, nof := range n.nofs {
-			for _, b := range nof.cs {
-				setPaths(b, path)
-			}
+		for _, b := range n.settledTrials() {
+			setPaths(b, path)
 		}
 	}
 }

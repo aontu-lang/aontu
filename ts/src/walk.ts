@@ -39,10 +39,8 @@ export function walkVals(
   for (const must of (v.musts ?? [])) {
     walkVals(must?.v, visit, seen)
   }
-  for (const nof of (v.nofs ?? [])) {
-    for (const c of nof.cs) {
-      walkVals(c, visit, seen)
-    }
+  for (const c of settledTrials(v)) {
+    walkVals(c, visit, seen)
   }
 
   walkVals(v.primary, visit, seen)
@@ -50,9 +48,19 @@ export function walkVals(
 }
 
 
+function settledTrials(v: any): any[] {
+  return [
+    ...(v.nofs ?? []).flatMap((n: any) => n.cs),
+    ...(v.whens ?? []).flatMap((w: any) =>
+      undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
+  ]
+}
+
+
 function trialSchemas(v: any): any[] {
-  return 'nof' === v.pending?.atom ? v.pending.args.slice(1) :
-    (v.nofs ?? []).flatMap((n: any) => n.cs)
+  const atom = v.pending?.atom
+  return 'nof' === atom ? v.pending.args.slice(1) :
+    'when' === atom ? v.pending.args : settledTrials(v)
 }
 
 

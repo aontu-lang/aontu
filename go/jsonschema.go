@@ -432,6 +432,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
+	for _, w := range c.whens {
+		extra = schemaWhen(sc, path, out, extra, w)
+	}
+
 	if 1 == len(nots) {
 		out["not"] = nots[0]
 	} else if 1 < len(nots) {
@@ -473,6 +477,70 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 // schemaKeyword sets a keyword a schema object has once; a second goes
 // under allOf.
+// schemaWhen writes a conditional on one key's presence as a dependent
+// keyword, and one whose branch only asks for keys as dependentRequired.
+func schemaWhen(sc *schemaCtx, path []string, out map[string]any, extra []any,
+	w constraintWhen) []any {
+	arm := func(b Val) any {
+		if b.Nil() {
+			return false
+		}
+		return schemaFromVal(sc, path, b)
+	}
+	if key := presentKeys(w.c); 1 == len(key) && nil == w.e {
+		dep, val := "dependentSchemas", any(nil)
+		if names := presentKeys(w.t); nil != names {
+			dep, val = "dependentRequired", names
+		} else {
+			val = arm(w.t)
+		}
+		held, _ := out[dep].(map[string]any)
+		if _, has := held[key[0]]; has {
+			return append(extra, map[string]any{dep: map[string]any{key[0]: val}})
+		}
+		if nil == held {
+			held = map[string]any{}
+			out[dep] = held
+		}
+		held[key[0]] = val
+		return extra
+	}
+	if isTop(w.t) && nil == w.e {
+		return extra
+	}
+	cond := map[string]any{"if": arm(w.c)}
+	if !isTop(w.t) {
+		cond["then"] = arm(w.t)
+	}
+	if nil != w.e {
+		cond["else"] = arm(w.e)
+	}
+	if _, has := out["if"]; has {
+		return append(extra, cond)
+	}
+	for k, v := range cond {
+		out[k] = v
+	}
+	return extra
+}
+
+// presentKeys is the keys of a map that holds each of them as `any`, and
+// nothing else.
+func presentKeys(v Val) []string {
+	m, ok := v.(*MapVal)
+	if !ok || nil != m.spread || m.closed || 0 == len(m.keys) {
+		return nil
+	}
+	keys := append([]string{}, m.keys...)
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !isTop(m.peg[k]) || m.isOptional(k) {
+			return nil
+		}
+	}
+	return keys
+}
+
 func schemaKeyword(out map[string]any, extra []any, key string, val any) []any {
 	if _, has := out[key]; !has {
 		out[key] = val

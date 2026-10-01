@@ -19,7 +19,9 @@ const DEFAULT_SPECIFIC_URL = 'specific';
 function opaqueNote(g) {
     return 0 < g.musts.length ?
         'an evaluate-only check (must) makes the admitted set opaque' :
-        'a count of trial schemas (nof) makes the admitted set opaque';
+        0 < g.nofs.length ?
+            'a count of trial schemas (nof) makes the admitted set opaque' :
+            'a conditional over trial schemas (when) makes the admitted set opaque';
 }
 function pathText(path) {
     return '$' + (0 < path.length ? '.' + path.join('.') : '');

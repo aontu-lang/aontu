@@ -219,11 +219,9 @@ func computePathFunc(v Val) bool {
 				return true
 			}
 		}
-		for _, nof := range n.nofs {
-			for _, b := range nof.cs {
-				if hasPathFunc(b) {
-					return true
-				}
+		for _, b := range n.settledTrials() {
+			if hasPathFunc(b) {
+				return true
 			}
 		}
 		if nil != n.count && hasPathFunc(n.count) {

@@ -64,10 +64,8 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		for _, m := range n.musts {
 			walkVals(m.v, visit, seen)
 		}
-		for _, nof := range n.nofs {
-			for _, b := range nof.cs {
-				walkVals(b, visit, seen)
-			}
+		for _, b := range n.settledTrials() {
+			walkVals(b, visit, seen)
 		}
 	}
 }
@@ -88,11 +86,10 @@ func trialSchemas(c *ConstraintVal) []Val {
 	if nil != c.pending && "nof" == c.pending.atom {
 		return c.pending.args[1:]
 	}
-	out := []Val{}
-	for _, n := range c.nofs {
-		out = append(out, n.cs...)
+	if nil != c.pending && "when" == c.pending.atom {
+		return c.pending.args
 	}
-	return out
+	return c.settledTrials()
 }
 
 func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {

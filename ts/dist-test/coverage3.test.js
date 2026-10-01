@@ -220,7 +220,7 @@ function capture(fn) {
         Assert.equal(cv.invalid, 'arg');
         Assert.equal(cv.unify(new IntegerVal_1.IntegerVal({ peg: 1 }), ctx).isNil, true);
     });
-    (0, node_test_1.test)('pending-nof-branches-are-not-collected', () => {
+    (0, node_test_1.test)('pending-trial-schemas-are-not-collected', () => {
         const ctx = CTX();
         const nof = new ConstraintVal_1.ConstraintVal({
             peg: [new IntegerVal_1.IntegerVal({ peg: 1 }), new NilVal_1.NilVal({ why: 'g' }),
@@ -229,6 +229,12 @@ function capture(fn) {
         }, ctx);
         Assert.equal(nof.pending.atom, 'nof');
         Assert.deepEqual((0, walk_1.collectNils)(nof, new Set()), []);
+        const when = new ConstraintVal_1.ConstraintVal({
+            peg: [new NilVal_1.NilVal({ why: 'h' }), new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'when',
+        }, ctx);
+        Assert.equal(when.pending.atom, 'when');
+        Assert.deepEqual((0, walk_1.collectNils)(when, new Set()), []);
     });
     (0, node_test_1.test)('domain-adopted-from-peer', () => {
         const ctx = CTX();

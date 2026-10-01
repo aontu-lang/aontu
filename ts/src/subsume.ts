@@ -70,7 +70,9 @@ type Tri = 'yes' | 'no' | 'undecided'
 function opaqueNote(g: any): string {
   return 0 < g.musts.length ?
     'an evaluate-only check (must) makes the admitted set opaque' :
-    'a count of trial schemas (nof) makes the admitted set opaque'
+    0 < g.nofs.length ?
+      'a count of trial schemas (nof) makes the admitted set opaque' :
+      'a conditional over trial schemas (when) makes the admitted set opaque'
 }
 
 

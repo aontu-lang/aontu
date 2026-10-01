@@ -621,8 +621,6 @@ const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped 
 const ANNOTATION = 'an annotation asserts nothing, and the importer does not keep ' +
   'annotations yet, so it is dropped'
 const LATER: Record<string, string> = {
-  if: NOT_YET, then: NOT_YET, else: NOT_YET,
-  dependentSchemas: NOT_YET, dependentRequired: NOT_YET,
   contains: NOT_YET, minContains: NOT_YET, maxContains: NOT_YET, uniqueItems: NOT_YET,
   $dynamicRef: NOT_YET, $dynamicAnchor: NOT_YET,
   unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
@@ -637,7 +635,8 @@ const LATER: Record<string, string> = {
 
 const CARRIED = [
   '$schema', '$ref', '$defs', 'definitions', '$anchor', '$comment', 'type',
-  'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'properties', 'required',
+  'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
+  'dependentSchemas', 'dependentRequired', 'properties', 'required',
   'additionalProperties',
   'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
   'prefixItems', 'items', 'minItems', 'maxItems', 'minimum', 'maximum',
@@ -977,7 +976,7 @@ function blocker(e: Expr): boolean {
     !kindsOf(e).includes('string')
   const closed = 'list' === e.k ? null != e.items || holdsNilExpr(e.spread as Expr) :
     'map' === e.k ? e.entries.some((en) => !en.optional) || e.spreads.some(holdsNilExpr) :
-      'call' === e.k && ['nof', 'must', 'close'].includes(e.name)
+      'call' === e.k && ['nof', 'must', 'when', 'close'].includes(e.name)
   return ('raw' === e.k && '%' === e.text[0]) || counted || closed ||
     children(e).some(blocker)
 }
@@ -1216,6 +1215,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     parts.push(call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)))
   }
 
+  parts.push(...conditional(ctx, node, ptr, only), ...dependents(ctx, node, ptr, only))
+
   // The kind split.
   const typed = get('type')
   let allowed: string[] | undefined = undefined
@@ -1246,6 +1247,67 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
 
   const met = and(parts)
   return bottom(met) ? NIL : met
+}
+
+
+// An `if` pairs with the `then` and `else` of its own schema object. A
+// `then` or `else` without one asserts nothing, and so does a lone `if`.
+function conditional(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
+  only?: string[]): Expr[] {
+  const cond = entry(node, 'if')
+  const then = entry(node, 'then')
+  const els = entry(node, 'else')
+  if (null == cond || (null == then && null == els)) {
+    return []
+  }
+  const arm = (n: JNode, k: string): Expr => convert(ctx, n, child(ptr, k), false, only)
+  return [call('when', arm(cond, 'if'), null == then ? ANY : arm(then, 'then'),
+    ...(null == els ? [] : [arm(els, 'else')]))]
+}
+
+
+// The map that holds each of these keys, whatever it holds there.
+function present(keys: string[]): Expr {
+  return {
+    k: 'map', spreads: [],
+    entries: [...new Set(keys)].map((key) => ({ key, optional: false, val: ANY })),
+  }
+}
+
+
+// Each dependent keyword's entry is a conditional on its key's presence.
+function dependents(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
+  only?: string[]): Expr[] {
+  const out: Expr[] = []
+  const schemas = entry(node, 'dependentSchemas')
+  const at = (k: string): string => child(ptr, k)
+  if ('object' === schemas?.t) {
+    for (const e of schemas.entries) {
+      out.push(call('when', present([e.key]),
+        convert(ctx, e.val, child(at('dependentSchemas'), e.key), false, only)))
+    }
+  }
+  else if (null != schemas) {
+    wrongType(ctx, at('dependentSchemas'), 'dependentSchemas', 'an object', schemas)
+  }
+  const required = entry(node, 'dependentRequired')
+  if ('object' === required?.t) {
+    for (const e of required.entries) {
+      const names = 'array' === e.val.t ? e.val.items : []
+      if ('array' !== e.val.t || names.some((n) => 'string' !== n.t)) {
+        wrongType(ctx, child(at('dependentRequired'), e.key), 'dependentRequired',
+          'an array of strings', e.val)
+      }
+      else if (0 < names.length) {
+        out.push(call('when', present([e.key]),
+          present(names.map((n) => (n as JNode & { t: 'string' }).s))))
+      }
+    }
+  }
+  else if (null != required) {
+    wrongType(ctx, at('dependentRequired'), 'dependentRequired', 'an object', required)
+  }
+  return out
 }
 
 

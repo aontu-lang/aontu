@@ -41,6 +41,7 @@ neq(...vals: number|string) : constraint
 multiple(n: number) : constraint
 must(trial c: any, text msg: string) : constraint
 nof(n: number|constraint, ...c: (trial any)) : constraint
+when(trial c: any, trial t: any, trial e?: any) : constraint
 deprecate(v: any, r?: map) : any
 acyclic() : constraint
 inverse(projector k: string) : constraint
