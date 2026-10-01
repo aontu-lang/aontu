@@ -74,9 +74,10 @@ having been agreed.
   Routing the inner message across was tried and does not work: the
   channel that carries a load failure to `parseBase` (`notFoundSink`)
   is reachable only from the RESOLVER, and a config format is parsed in
-  the PROCESSOR. Messages are already outside cross-port parity — the
-  shared spec excludes them from its goldens for exactly this reason —
-  and `file.tsv:load-ext-broken` pins what both ports do agree on.
+  the PROCESSOR. It is an exception to the parity the full-message twin
+  tests hold for thrown-error text. The shared spec excludes message
+  prose from its goldens, and `file.tsv:load-ext-broken` pins what both
+  ports do agree on.
   Closing it needs a way for a processor to report, which is upstream
   work in `@tabnas/multisource`.
 
