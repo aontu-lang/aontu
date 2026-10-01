@@ -397,6 +397,9 @@ refuses `""`), `map` and `list`. `type` removes the branches it
 excludes; `type: "integer"` adds `multiple(1)` to the number branch.
 A branch with no scoped keywords is the bare kind, and when all six are
 bare and `type` is absent the disjunction is `any` and is not written.
+A container literal from `enum` or `const` is closed, and still meets
+the optional keys a branch writes, because a closed map drops an
+optional key it does not declare (ADR-052).
 
 The branches are pairwise kind-disjoint, so exactly one survives any
 concrete instance, and the disjunction is decided at the meet. ADR-007's

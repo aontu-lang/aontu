@@ -1908,9 +1908,9 @@ Entry] } }` where `Entry` is `string & re("^[$]") & re("[^.]$")`, so
 a malformed role (`allow: "$.a"`, `deny: [1]`, an entry that is empty
 or does not start at `$` or ends in a dot, a roles map that is a
 number) is refused with the engine's own code and site, exit 4. A
-role model that `close()`s its role vocabulary must declare `deny?`
-in it, or the template's optional key is refused as `[aontu/closed]`
-and no role can be asked about. The lists are read from the written
+role model that `close()`s its role vocabulary need not declare
+`deny?`: the closed role drops the template's optional key, and a role
+that declares no `deny` denies nothing. The lists are read from the written
 tree rather than the generated document, so a `hide()`d `deny` still
 denies; each entry must be one concrete string, and a kind (`string`)
 in an entry's place is refused as `no_gen`.

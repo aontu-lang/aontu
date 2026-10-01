@@ -4039,6 +4039,22 @@ a key or extending a list is refused, at any depth:
 close({x:1}) & {y:2}            → error: closed
 close([1,2]) & [1,2,3]          → error: closed
 close({x:{y:1}}) & {x:{z:2}}    → error: closed
+close({x:1}) & close({y?:2})    → error: closed
+```
+
+An **optional** key the closed map does not declare is dropped rather
+than refused: no instance of the closed map can hold it, so it adds
+nothing. A required key is still refused, as the last line above shows,
+and where both sides are closed each holds the other to its own keys,
+so two closed maps keep only the optional keys both declare:
+
+```aontu
+a: close({ b:1 }) & { a?:number }
+b: close({ a?:1 }) & close({ b?:2 })
+```
+
+```json
+{"a":{"b":1},"b":{}}
 ```
 
 An `open()` written inside a closed value holds its subtree open: the

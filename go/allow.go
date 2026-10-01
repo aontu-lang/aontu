@@ -124,7 +124,8 @@ func allowList(node Val, key string) *ListVal {
 			return l
 		}
 	}
-	return newList(nil) //coverage:ignore the shape has met the role as a map that holds both lists
+	// A closed role that declares no `deny` has none to read.
+	return newList(nil)
 }
 
 // Allow evaluates the role model, selects the role, and decides every

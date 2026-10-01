@@ -119,7 +119,8 @@ function allow(src, role, paths, opts) {
     if (null != allows.finding) {
         return errorReport(role, allows.finding);
     }
-    const denies = readEntries(node.peg.deny, `${atRole}.deny`, ctx);
+    const denies = undefined === node.peg.deny ? { entries: [] } :
+        readEntries(node.peg.deny, `${atRole}.deny`, ctx);
     if (null != denies.finding) {
         return errorReport(role, denies.finding);
     }

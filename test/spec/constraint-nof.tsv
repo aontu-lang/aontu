@@ -76,3 +76,12 @@ js-nof-another-count-is-a-loss	jsonschema	a: nof(max(1), string, number, boolean
 js-nof-a-nil-branch-is-false	jsonschema	a: nof(1, nil, string)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"oneOf":[false,{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-nof-a-second-one-of	jsonschema	a: nof(1, string, number) & nof(1, string, boolean)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"oneOf":[{"type":"number"},{"minLength":1,"type":"string"}]}],"oneOf":[{"type":"boolean"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-nof-beside-neq	jsonschema	a: neq(1) & nof(0, 5)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"not":{"enum":[1]}},{"not":{"const":5,"type":"integer"}}],"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+
+# A closed literal branch meets the optional keys around it: the
+# trial drops the key it does not declare (ADR-052), so the branch
+# admits the literal, and refuses it once the key is held.
+nof-a-closed-literal-branch-beside-an-optional-key	vet	a: nof(min(1), close({ b:1 }), { c:any }) & { o?: number }	{"a": {"b": 1}}	{"findings":[],"truncated":false,"verdict":"valid"}
+nof-a-closed-literal-branch-refuses-a-held-key	vet	a: nof(min(1), close({ b:1 }), { c:any }) & { o?: number }	{"a": {"b": 1, "o": 2}}	{"findings":[{"actual":"{\\"b\\":1,\\"o\\":2}","class":"conflict","code":"nof","expected":"nof(min(1),{\\"b\\":1},{\\"c\\":any})","path":"$.a","severity":"error","sites":[{"col":45,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"b\\":1,\\"o\\":2}"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nof(min(1),{\\"b\\":1},{\\"c\\":any})"}]}],"truncated":false,"verdict":"invalid"}
+# A met container keeps its source site in both ports: the finding
+# frames a map at its brace and a list at its bracket.
+nof-a-met-list-is-sited-at-its-bracket	vet	a: nof(min(1), [1]) & [&: number]	{"a": [2]}	{"findings":[{"actual":"[&:number,2]","class":"conflict","code":"nof","expected":"nof(min(1),[1])","path":"$.a","severity":"error","sites":[{"col":23,"file":"schema","len":1,"role":"schema","row":1,"src":"[","value":"[&:number,2]"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nof(min(1),[1])"}]}],"truncated":false,"verdict":"invalid"}

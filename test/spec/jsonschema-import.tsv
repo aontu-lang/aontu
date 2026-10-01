@@ -113,6 +113,9 @@ import-enum-repeated-member-once	jsonschema-import	{"enum": [1, 1.0, "a", "a"]}	
 import-enum-long-is-grouped	jsonschema-import	{"enum":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]}	{"aontu":"(0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31)|(32|33|34|35|36|37|38|39)\\n","lossy":[],"verdict":"ok"}
 import-all-of-repeated-member-once	jsonschema-import	{"allOf": [{"type": "integer"}, {"type": "integer"}]}	{"aontu":"number & multiple(1)\\n","lossy":[],"verdict":"ok"}
 import-json-escapes	jsonschema-import	{"const": "😀\\ud800 é   \\/ \\b"}	{"aontu":"\\"😀� é \\\\u2028 / \\\\u0008\\"\\n","lossy":[],"verdict":"ok"}
+import-const-object-beside-properties	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer"}}, "const": {"b": 1}}	{"aontu":"close({ b:1 }) & { a?:number & multiple(1) }\\n","lossy":[],"verdict":"ok"}
+import-enum-objects-beside-properties	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer"}}, "enum": [{"b": 1}, {"a": "x"}, {"a": 2}]}	{"aontu":"(close({ b:1 })|close({ a:\\"x\\" })|close({ a:2 })) & { a?:number & multiple(1) }\\n","lossy":[],"verdict":"ok"}
+import-all-of-an-object-literal-beside-properties	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer"}}, "allOf": [{"const": {"b": 1}}]}	{"aontu":"close({ b:1 }) & { a?:number & multiple(1) }\\n","lossy":[],"verdict":"ok"}
 # allOf is the meet.
 import-all-of	jsonschema-import	{"allOf": [{"type": "integer"}, {"minimum": 0}]}	{"aontu":"number & multiple(1) & (null|boolean|number & min(0)|empty()|map|list)\\n","lossy":[],"verdict":"ok"}
 import-all-of-with-false	jsonschema-import	{"allOf": [true, false]}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}

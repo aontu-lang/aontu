@@ -134,7 +134,7 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**6309 cases across 121 files**) is run by *both*
+`test/spec/*.tsv` (**6329 cases across 121 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
@@ -143,7 +143,7 @@ implementations and is the contract that defines shared behaviour
 | `number-tower.tsv`          | 395 | `patch.tsv` | 41 |
 | `edge.tsv`                  | 340 | `place.tsv` | 41 |
 | `constraint-product.tsv`    | 256 | `scalar.tsv` | 40 |
-| `jsonschema-import.tsv`     | 252 | `sort.tsv` | 39 |
+| `jsonschema-import.tsv`     | 255 | `sort.tsv` | 39 |
 | `fmt.tsv`                   | 233 | `containerkind.tsv` | 38 |
 | `errcodes.tsv`              | 181 | `aontu-system.tsv` | 37 |
 | `view.tsv`                  | 175 | `views.tsv` | 37 |
@@ -162,21 +162,21 @@ implementations and is the contract that defines shared behaviour
 | `meta.tsv`                  |  89 | `gen-match.tsv` | 28 |
 | `refer.tsv`                 |  87 | `recursion.tsv` | 28 |
 | `gen-emit.tsv`              |  86 | `gen-filter.tsv` | 25 |
-| `maybe.tsv`                 |  78 | `engine-parity.tsv` | 23 |
-| `pref.tsv`                  |  75 | `var.tsv` | 23 |
-| `constraint-bound.tsv`      |  74 | `constraint-alias.tsv` | 21 |
-| `ref.tsv`                   |  74 | `elision.tsv` | 21 |
-| `file.tsv`                  |  70 | `reach.tsv` | 19 |
-| `path.tsv`                  |  66 | `list.tsv` | 18 |
+| `maybe.tsv`                 |  78 | `close.tsv` | 23 |
+| `pref.tsv`                  |  75 | `engine-parity.tsv` | 23 |
+| `constraint-bound.tsv`      |  74 | `var.tsv` | 23 |
+| `ref.tsv`                   |  74 | `constraint-alias.tsv` | 21 |
+| `file.tsv`                  |  70 | `elision.tsv` | 21 |
+| `path.tsv`                  |  66 | `reach.tsv` | 19 |
+| `constraint-nof.tsv`        |  65 | `list.tsv` | 18 |
 | `hcanon.tsv`                |  64 | `aontu-view.tsv` | 16 |
 | `constraint-when.tsv`       |  63 | `plus.tsv` | 16 |
 | `constraint-contains.tsv`   |  62 | `aontu-profile.tsv` | 14 |
-| `constraint-nof.tsv`        |  62 | `gen-key.tsv` | 14 |
-| `marks.tsv`                 |  62 | `conjunct.tsv` | 13 |
-| `number-cross-product.tsv`  |  59 | `merge-conflict.tsv` | 13 |
-| `optional.tsv`              |  59 | `gen-close.tsv` | 11 |
-| `gen-join.tsv`              |  58 | `trim.tsv` | 11 |
-| `arith.tsv`                 |  57 | `close.tsv` |  9 |
+| `marks.tsv`                 |  62 | `gen-key.tsv` | 14 |
+| `number-cross-product.tsv`  |  59 | `conjunct.tsv` | 13 |
+| `optional.tsv`              |  59 | `merge-conflict.tsv` | 13 |
+| `gen-join.tsv`              |  58 | `gen-close.tsv` | 11 |
+| `arith.tsv`                 |  57 | `trim.tsv` | 11 |
 | `relation.tsv`              |  56 | `gen-spread.tsv` |  9 |
 | `gen-each.tsv`              |  55 | `incomplete.tsv` |  9 |
 | `constraint-multiple.tsv`   |  54 | `trace.tsv` |  9 |

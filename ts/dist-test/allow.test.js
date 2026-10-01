@@ -279,13 +279,15 @@ function failure(src, role = 'dev', path = '$.a') {
         // An anchor the model holds as something other than a map.
         Assert.equal((0, aontu_1.allow)('policy: roles: 1', 'dev', ['$.a'], { at: '$.policy.roles' }).verdict, 'error');
     });
-    (0, node_test_1.test)('a-closed-vocabulary-declares-deny-or-is-refused', () => {
-        // close() on the role shape must admit the optional deny the
-        // template carries, or the meet is refused with the engine's code.
+    (0, node_test_1.test)('a-closed-vocabulary-need-not-declare-deny', () => {
+        // A closed role drops the template's optional deny it does not
+        // declare, and so denies nothing.
         const closed = 'roles: dev: close({ allow: ["$"] })';
-        Assert.equal(failure(closed).code, 'closed');
+        Assert.equal(decision('dev', '$.x', closed).reason, 'allow');
         const declared = 'roles: dev: close({ allow: ["$"] deny?: [&: string] })';
         Assert.equal(decision('dev', '$.x', declared).reason, 'allow');
+        const denied = 'roles: dev: close({ allow: ["$"] deny: ["$.x"] })';
+        Assert.equal(decision('dev', '$.x', denied).reason, 'deny');
     });
     (0, node_test_1.test)('relative-loads-resolve-from-the-models-own-directory', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-allow-'));

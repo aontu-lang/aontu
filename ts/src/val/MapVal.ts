@@ -299,8 +299,12 @@ class MapVal extends BagVal {
         for (let peerkey in upeer.peg) {
           let peerchild = upeer.peg[peerkey]
 
+          // An optional key the closed side lacks is one no instance holds.
           if (this.closed && !allowedKeys.includes(peerkey) &&
             !upeer.aliasKeys.includes(peerkey)) {
+            if (upeer.optionalKeys.includes(peerkey)) {
+              continue
+            }
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 
@@ -378,6 +382,23 @@ class MapVal extends BagVal {
       }
       else if (!peer.isTop) {
         out = makeNilErr(ctx, 'map', this, peer)
+      }
+
+      // Both sides closed: each must declare the other's keys too.
+      if (null == bad && this.closed && peer instanceof MapVal && peer.closed &&
+        !out.isNil) {
+        for (const key of [...allowedKeys].sort(cmpCodePoint)) {
+          if (!(key in peer.peg) && !this.aliasKeys.includes(key)) {
+            if ((out as MapVal).optionalKeys.includes(key)) {
+              delete out.peg[key]
+              ;(out as MapVal).optionalKeys =
+                (out as MapVal).optionalKeys.filter((k) => k !== key)
+            }
+            else if (null == bad) {
+              bad = makeNilErr(ctx, 'closed', this.peg[key], undefined)
+            }
+          }
+        }
       }
 
       if (null != bad) {

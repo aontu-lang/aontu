@@ -90,9 +90,9 @@ prefixes.
   with the engine's own finding. The model meets the shape `aontu
   allow` needs, a spread over the registry, `roles: { &: { allow: [&:
   string] deny?: [&: string] } }` with every entry held to start at
-  `$`, which is why a `close()`d vocabulary has to declare `deny?`
-  itself: without it the shape's optional key is the first thing
-  `close()` refuses.
+  `$`. A `close()`d vocabulary need not declare `deny?`: the closed
+  role drops the shape's optional key, and a role that declares no
+  `deny` denies nothing.
 - **An allow entry covers itself and everything below it, and never
   the map above it.** `product` may change `$.features` and so
   `$.features.checkout_v2`; it may not change `$` or `$.services`,
@@ -308,9 +308,9 @@ temporary copy, so the committed `changes.aontu` is never written.
     is `[aontu/closed]` at `$.roles.dev.scope`,
     `proposals/role-allow-string.aontu` is `[aontu/list]` at
     `$.roles.qa.allow`, `proposals/add-undeclared-role.aontu` is
-    `[aontu/closed]` at `$.roles.ops`, and a scratch vocabulary that
-    `close()`s without `deny?` is `[aontu/closed]` at the shape's
-    `deny`.
+    `[aontu/closed]` at `$.roles.ops`. A scratch vocabulary that
+    `close()`s without `deny?` is no error: its role allows what its
+    `allow` list covers and denies nothing.
 19. `why '$.roles.dev.deny.0' roles.aontu` prints the entry and names
     `roles.aontu:20:12`, the line that wrote the rule.
 20. The model tree above matches `expected/diagram-doc.txt`, and

@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A closed map drops an optional key it does not declare
+
+Both ports. A closed map met with an optional key it does not declare
+now drops the key, where it used to refuse the meet as `closed`: no
+instance of the closed map can hold the key, so it adds nothing
+(ADR-052). A required key it does not declare is refused as before, and
+two closed maps each hold the other to its own keys, so
+`close({ a?:1 }) & close({ b?:2 })` is the empty closed map while
+`close({ a:1 }) & close({ b?:2 })` is still refused. An imported JSON
+Schema `const` or `enum` object now meets the same schema's
+`properties`, where the position answered `nil`, and a `nof` branch
+that is a closed literal admits it beside an optional key. A role model
+for `aontu allow` that `close()`s its role vocabulary no longer has to
+declare `deny?`: a role that declares no `deny` denies nothing. In Go, a
+met map or list keeps the source text of its site, so a finding on one
+is framed at its brace or bracket, as it is in TypeScript.
+
 ### `meta(v, ...r)`, and JSON Schema's annotations
 
 Both ports, G12 phase 8. `meta(v, ...r)` is a new value-transparent

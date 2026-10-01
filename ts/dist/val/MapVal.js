@@ -217,8 +217,12 @@ class MapVal extends BagVal_1.BagVal {
                 let upeer = peer.done ? peer : (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PER') }) : ctx, peer, TOP, 'map-peer-map');
                 for (let peerkey in upeer.peg) {
                     let peerchild = upeer.peg[peerkey];
+                    // An optional key the closed side lacks is one no instance holds.
                     if (this.closed && !allowedKeys.includes(peerkey) &&
                         !upeer.aliasKeys.includes(peerkey)) {
+                        if (upeer.optionalKeys.includes(peerkey)) {
+                            continue;
+                        }
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
                     // REQUIRED WINS (ADR-044): a key is optional only where every
@@ -283,6 +287,22 @@ class MapVal extends BagVal_1.BagVal {
             }
             else if (!peer.isTop) {
                 out = (0, err_1.makeNilErr)(ctx, 'map', this, peer);
+            }
+            // Both sides closed: each must declare the other's keys too.
+            if (null == bad && this.closed && peer instanceof MapVal && peer.closed &&
+                !out.isNil) {
+                for (const key of [...allowedKeys].sort(keyorder_1.cmpCodePoint)) {
+                    if (!(key in peer.peg) && !this.aliasKeys.includes(key)) {
+                        if (out.optionalKeys.includes(key)) {
+                            delete out.peg[key];
+                            out.optionalKeys =
+                                out.optionalKeys.filter((k) => k !== key);
+                        }
+                        else if (null == bad) {
+                            bad = (0, err_1.makeNilErr)(ctx, 'closed', this.peg[key], undefined);
+                        }
+                    }
+                }
             }
             if (null != bad) {
                 out = bad;

@@ -517,11 +517,12 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out.opened = m.opened
 		out.path = cp(m.path)
 		// The site survives unification (TS: `out.site = this.site` in
-		// MapVal.unify copies row, col AND url), so a unified bag still
-		// frames at its brace and keeps its clone mark.
+		// MapVal.unify copies row, col, length AND url), so a unified bag
+		// still frames at its brace and keeps its clone mark.
 		out.site.sp = m.site.sp
 		out.site.spu = m.site.spu
 		out.site.url = m.site.url
+		out.site.src = m.site.src
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)
@@ -543,7 +544,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for _, k := range pm.keys {
 			if pm.isOptional(k) {
-				if _, declared := m.peg[k]; !declared && !out.isOptional(k) {
+				if _, declared := m.peg[k]; !declared && !out.isOptional(k) &&
+					(!m.closed || pm.isAliasKey(k)) {
 					out.optional = append(out.optional, k)
 				}
 			} else {
@@ -637,9 +639,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for _, pk := range pm.keys {
 			pc := pm.peg[pk]
-			// A DECLARATION IS NOT A FIELD: `close` never counts one.
+			// A DECLARATION IS NOT A FIELD: `close` never counts one. No
+			// instance can hold an optional key the closed side does not
+			// declare, so it adds nothing rather than refusing.
 			if _, allowed := m.peg[pk]; m.closed && !allowed &&
 				!pm.isAliasKey(pk) {
+				if pm.isOptional(pk) {
+					continue
+				}
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)
@@ -698,6 +705,22 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			return ck.Unify(m, ctx)
 		}
 		return makeNilErr(ctx, "map", m, peer)
+	}
+
+	// Both sides closed: each must declare the other's keys too.
+	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed {
+		own := append([]string{}, m.keys...)
+		sort.Strings(own)
+		for _, k := range own {
+			if _, declared := pm.peg[k]; !declared && !m.isAliasKey(k) {
+				if out.isOptional(k) {
+					out.remove(k)
+					out.optional = withoutKey(out.optional, k)
+				} else if nil == bad {
+					bad = makeNilErr(ctx, "closed", m.peg[k], nil)
+				}
+			}
+		}
 	}
 
 	if nil != bad {

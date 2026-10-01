@@ -135,6 +135,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		out.site.sp = l.site.sp
 		out.site.spu = l.site.spu
 		out.site.url = l.site.url
+		out.site.src = l.site.src
 		out.spread = l.spread
 	}
 	done := true

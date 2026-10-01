@@ -80,6 +80,7 @@ capability decision is the phase rows it governed in
 | [ADR-049](#adr-049--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
 | [ADR-050](#adr-050--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
 | [ADR-051](#adr-051--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
+| [ADR-052](#adr-052--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
 
 ---
 
@@ -5024,3 +5025,55 @@ every annotation as a loss.
 - Pinned by `test/spec/meta.tsv`, the union rows of
   `test/spec/deprecate.tsv`, and rows in `hcanon.tsv`, `query.tsv`,
   `jsonschema.tsv` and `jsonschema-import.tsv`, in both ports.
+
+## ADR-052 — A closed map drops an optional key it does not declare
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+A closed map refused every key it did not declare, an optional one
+included, so `close({ b:1 }) & { a?:number }` was the error `closed`.
+No instance of either side can be refused by the other there: the
+closed map's instances hold no `a`, and the optional key asserts
+nothing about a value that holds none. The refusal surfaced in
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 9, where
+an imported `const` or `enum` object, which the importer writes as a
+closed literal, met the optional keys the same schema's `properties`
+writes: the position answered `nil`, admitting nothing where the schema
+admits the literal, and a `nof` branch that was such a literal refused
+a value beside any optional key. The same rule made `aontu allow` refuse
+every role of a model that closes its role vocabulary without declaring
+the template's `deny?`, a limit its design note recorded.
+
+### Decision
+
+1. **An optional key a closed map does not declare is dropped from the
+   meet.** It adds nothing, since no instance can hold it, and the meet
+   does not refuse. A required key the closed map does not declare is
+   refused as `closed`, as before, and so is the key once a later meet
+   makes it required.
+2. **Two closed maps each hold the other to its own keys.** The
+   driving side's own keys are checked against the other too: an
+   optional key either side does not declare is dropped, and a required
+   one is refused, so the meet keeps only the optional keys both
+   declare, in either order.
+3. **The dropped key's own value is still evaluated.** A conflict inside
+   it is reported, as it is in the map that wrote it.
+4. **Lists are unchanged.** A closed list still fixes its length, and
+   its map elements follow the rule above wherever a seal reaches them.
+
+### Consequences
+
+- An imported object literal beside `properties`, in `allOf` or as a
+  `nof` branch, admits what the schema admits.
+- A role model may close its role vocabulary without declaring `deny?`,
+  and such a role denies nothing.
+- A document that relied on the refusal to catch a misspelt optional key
+  meeting a closed map no longer sees it; a misspelt required key is
+  still refused.
+- Pinned by the closure rows of `test/spec/close.tsv`, the closed
+  literal rows of `test/spec/constraint-nof.tsv` and
+  `test/spec/jsonschema-import.tsv`, and the `allow` tests, in both
+  ports.
