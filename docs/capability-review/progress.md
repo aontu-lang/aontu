@@ -98,16 +98,17 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,576 rows**, in twenty-nine
-   modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 628,
+   **115 `.tsv` files, 113 row-bearing, 5,577 rows**, in twenty-nine
+   modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 629,
    `err` 349, `fmt` 191, `view` 175, `errcode` 175, `vet` 134,
    `subsume` 125, `query` 93, `jsonschema` 69, `why` 53, `hcanon` 42,
    `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-09-30 with the two commands below, when the review
-   of G12 added six rows; `main` already read 5,570 against the 5,567
+   (Re-derived 2026-10-01 with the two commands below, when the fix for
+   #304 added one `gen` row. Before that re-derived 2026-09-30, when the
+   review of G12 added six rows; `main` already read 5,570 against the 5,567
    written here, three `err` rows having landed without this line.
    Before that re-derived 2026-09-29, from 113 files,
    111 row-bearing and 5,166 rows; the mode list is unchanged. Before

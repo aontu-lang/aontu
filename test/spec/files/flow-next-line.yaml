@@ -1,0 +1,4 @@
+required:
+  [a, b, c]
+map:
+  {x: 1}

@@ -34,8 +34,8 @@ github.com/tabnas/support/go v0.3.5 h1:BOjCXg7M+1DhNso2CTso6f/ED7n/q8IASVkrF5PDY
 github.com/tabnas/support/go v0.3.5/go.mod h1:q+EGPO8fRFQAYDwRHFH4lafD5l5W/NCdY8vhN9IJOkY=
 github.com/tabnas/toml/go v0.5.8 h1:ctgZJNDw5UieBQms3w0Ed6TaJp4eCXkQoYIa7A46PVg=
 github.com/tabnas/toml/go v0.5.8/go.mod h1:qRklUuxRGlvT2pb0W2QOUpfHYlPlTfF+N3Ml/bF8J1w=
-github.com/tabnas/yaml/go v0.5.8 h1:pMM/dgyp197sMTJYlZdnOf5FzuJ82nymOgYtM/TIJ+A=
-github.com/tabnas/yaml/go v0.5.8/go.mod h1:dEhhPxxEsK3M6JbQZFEa8lrwO8kLqbcabRH+61JAaQI=
+github.com/tabnas/yaml/go v0.5.9 h1:duJIqw4ja87OtUcgZKZBG7pPcRKHd0kegsiZIli7o4s=
+github.com/tabnas/yaml/go v0.5.9/go.mod h1:dEhhPxxEsK3M6JbQZFEa8lrwO8kLqbcabRH+61JAaQI=
 golang.org/x/mod v0.32.0 h1:9F4d3PHLljb6x//jOyokMv3eX+YDeepZSEo3mFJy93c=
 golang.org/x/mod v0.32.0/go.mod h1:SgipZ/3h2Ci89DlEtEXWUk/HteuRin+HHhN+WbNhguU=
 golang.org/x/text v0.34.0 h1:oL/Qq0Kdaqxa1KbNeMKwQq0reLCCaFtqu2eNuSeNHbk=

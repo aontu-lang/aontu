@@ -15,7 +15,7 @@ require (
 	github.com/tabnas/parser/go v0.12.2
 	github.com/tabnas/path/go v0.3.8
 	github.com/tabnas/toml/go v0.5.8
-	github.com/tabnas/yaml/go v0.5.8
+	github.com/tabnas/yaml/go v0.5.9
 	golang.org/x/mod v0.32.0
 	golang.org/x/text v0.34.0
 )

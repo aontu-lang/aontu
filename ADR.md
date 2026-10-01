@@ -72,6 +72,7 @@ capability decision is the phase rows it governed in
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
+| [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
 
 ---
 
@@ -4506,3 +4507,51 @@ document declines to supply a key the schema requires.
   the member.
 - Pinned by the `maybe-template-*` rows in `test/spec/maybe.tsv`, in
   both ports.
+
+## ADR-044 — The site renders the documentation; it does not author it
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+aontu.dev publishes the documentation from a repository of its own,
+`aontu-lang/web`. The documentation set is already held to the engine
+where the engine lives: `ts/test/docs.test.ts` requires every
+`aontu`-fenced block in the published pages to parse, and every one
+followed by a `json` fence to evaluate to exactly that, and
+`ts/test/skill.test.ts` does the same for `docs/skill/`.
+
+The site's template, tabnas/web, authors its documentation in the site
+repository and executes its examples there. Copying that model would
+mean a second, hand-written copy of the tutorial, the how-to guides and
+the reference. This project has already recorded what happens to a
+second copy: `DIVERGENCE.md` keeps one description of each divergence
+because three descriptions of one drifted apart, and the progress
+register exists for the same reason. A hand-written second copy of the
+documentation on a website is that failure with a public URL on it.
+
+The decision was taken as D2 in `docs/site/index.md`, which asked for it
+to be recorded here once the site was built. aontu.dev is live.
+
+### Decision
+
+**`docs/*.md` is synced into the site repository, generated and
+committed, and rendered.** Site-only pages (the landing page, "why
+aontu", the community and comparison pages) are authored in the site
+repository, because they have no counterpart here to drift from.
+
+**If a page states what the engine does, this repository is where it is
+written.** The site may frame it, link it and set it in type; it may not
+restate it.
+
+### Consequences
+
+- A documentation change lands here, under the gates every `make test`
+  already runs, and reaches the site through the sync.
+- A site-authored page that starts stating engine behaviour breaks this
+  entry, however small the statement; the repair is to move the
+  statement here and link to it.
+- The decision is cheap to reverse by accident, expensive to have
+  reversed, and invisible in the diff that reverses it, which is why it
+  is recorded here rather than left in the site plan.

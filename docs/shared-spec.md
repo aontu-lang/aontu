@@ -167,10 +167,10 @@ options ride in the golden under a reserved `opts` key (`at`, `closed`,
 would leave empty.
 
 In a `vet` row each finding's `message` is EXCLUDED from the golden. It
-is the one part of a report that is prose, and vet prose is not in
-cross-port parity: the same split the `errc` mode makes, and the reason
-`errc` exists at all. A `subsume` row includes the message, since the
-two ports word every subsume finding identically.
+is the one part of a report that is prose, and the `vet` mode pins codes
+rather than prose: the same split the `errc` mode makes. A `subsume` row
+includes the message, and so holds the two ports to one wording of every
+subsume finding.
 Everything else in the report *is* contractual: the verdict, the
 truncation flag, and each finding's code, class, severity, path, sites
 (file, row, column, role, value) and the `expected`/`actual`/`note` the

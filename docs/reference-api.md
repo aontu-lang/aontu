@@ -144,9 +144,9 @@ the package cache they write.
   empty when it did not evaluate; `findings` then carries one finding
   with the `code` to hand to [`aontu explain`](#aontu-explain), its
   `class` from the registry, and the headline as `message`. The
-  finding names no site and carries no hint: the frames under the
-  headline are drawn for a person, and hint prose is deliberately
-  outside cross-port parity. Exit codes are unchanged.
+  finding names no site and carries no hint, because the frames under
+  the headline are drawn for a person; `aontu explain` prints the hint
+  for its `code`. Exit codes are unchanged.
 
 ### `aontu vet`
 
@@ -407,7 +407,7 @@ It is the text a human sees under the error frame, and for several
 codes it is the only place the FIX is written down. A lossy integer
 literal is the clearest case (abridged):
 
-<!-- test: skip abridged finding excerpt; hint prose is deliberately outside cross-port parity and tracks the engine's wording -->
+<!-- test: skip abridged finding excerpt; the hint is cut with an ellipsis, so the text is not the engine's output verbatim -->
 ```json
 { "code": "lossy_integer_literal",
   "message": "[aontu/lossy_integer_literal]: Cannot resolve value at path $.port",
@@ -415,7 +415,8 @@ literal is the clearest case (abridged):
 ```
 
 The field is absent, not empty, for a code that has no hint text.
-Hint prose, like `message`, is deliberately outside cross-port parity.
+Like `message`, the hint is prose that no shared spec row pins: match on
+`code`.
 
 **Colour is a decision about the destination.** Error frames are
 coloured for a terminal and plain everywhere else: `NO_COLOR` (set, to
