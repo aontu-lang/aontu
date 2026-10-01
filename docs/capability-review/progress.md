@@ -98,17 +98,19 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,653 rows**, in twenty-nine
-   modes — `errc` 1,126, `gens` 1,105, `canon` 1,015, `gen` 628,
-   `err` 349, `fmt` 191, `view` 175, `errcode` 176, `vet` 137,
-   `subsume` 127, `jsonschema` 111, `query` 93, `why` 53, `hcanon` 42,
-   `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
-   `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
-   `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
-   `fmt-refuse` 1.
-   (Re-derived 2026-10-01 with the two commands below, when G12 phase 2
-   added thirty-five rows across six files, after phase 1 had
-   added forty-two `jsonschema` rows the same day. Before that re-derived 2026-09-30, when the review
+   **116 `.tsv` files, 114 row-bearing, 5,839 rows**, in thirty
+   modes — `errc` 1,132, `gens` 1,118, `canon` 1,026, `gen` 628,
+   `err` 349, `fmt` 194, `errcode` 179, `view` 175, `vet` 153,
+   `jsonschema-import` 134, `subsume` 127, `jsonschema` 111, `query` 93,
+   `why` 53, `hcanon` 42, `patch` 41, `graph` 38, `views` 37, `hash` 37,
+   `template` 34, `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19,
+   `trim` 11, `trace` 9, `agentsmd` 7, `fmt-template` 7,
+   `fmt-template-lint` 3, `fmt-refuse` 1.
+   (Re-derived 2026-10-01 with the two commands below, when G12 phase 3
+   added `test/spec/jsonschema-import.tsv` and the `jsonschema-import`
+   mode with 134 rows, and 52 rows across seven other files. Earlier
+   the same day phase 2 had added thirty-five rows across six files,
+   after phase 1 had added forty-two `jsonschema` rows. Before that re-derived 2026-09-30, when the review
    of G12 added six rows; `main` already read 5,570 against the 5,567
    written here, three `err` rows having landed without this line.
    Before that re-derived 2026-09-29, from 113 files,
@@ -149,8 +151,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Seventy-four of the ninety-two phases in the table below have moved;
-sixty-four of those are complete, three are partial, and seven were
+Seventy-seven of the ninety-two phases in the table below have moved;
+sixty-seven of those are complete, three are partial, and seven were
 retired, superseded or removed by an ADR. **These four numbers are the
 total row of the table below**, which
 [`ts/test/capability-review.test.ts`](../../ts/test/capability-review.test.ts)
@@ -159,9 +161,9 @@ here rather than counting again is what keeps this paragraph from
 drifting away from the rows, which is how it went wrong before: it
 read seventy-two and sixty-three, and split the retired seven into two
 groups of three. The seven are named in their own sections; the
-sixteen phases that have not moved are G10 phase 6 and fifteen
-phases of G12, which was opened on 2026-09-30 and landed its first two
-on 2026-10-01. G5 phase 6 is
+fifteen phases that have not moved are G10 phase 6 and fourteen
+phases of G12, which was opened on 2026-09-30 and landed its first
+three on 2026-10-01. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -199,8 +201,8 @@ for `query`, `why`, `view` and `views` alike.
 | [G9](g9-transformation.md) | Declarative transformation | D | 6 | 1 | 0 | 3 |
 | [G10](g10-transparency.md) | Transparency log | D | 3 | 1 | 1 | 1 |
 | [G11](g11-agent-onramp.md) | Offline agent on-ramp | A | 7 | 0 | 0 | 0 |
-| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 2 | 0 | 15 | 0 |
-| | | **total** | **66** | **3** | **16** | **7** |
+| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 3 | 0 | 14 | 0 |
+| | | **total** | **67** | **3** | **15** | **7** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
 REMOVED, and they fall on two sides. Four landed first — G4.0 and
@@ -2804,7 +2806,7 @@ after.
 |-------|------|--------|-----|
 | **1**: a truthful exporter | S | **LANDED 2026-10-01** | `ts/src/jsonschema.ts` and `go/jsonschema.go`, rewritten arm for arm, and the `neq` arm of the Go constructor (`go/constraint.go`), which left the first argument's domain behind on an invalid call where TypeScript left none. Forty-two rows added to `test/spec/jsonschema.tsv` and nine re-pinned, every expectation re-derived from both CLIs by one script and diffed, so no row was written from one engine; the #297 entry is out of `test/spec/divergent.tsv`; `use-cases/14-jsonschema-export`, `docs/how-to/export-json-schema.md` and `docs/reference-api.md` moved with the output. #295 (a string bound is a loss, never an invalid `minimum`), #296 (a count beside a map is `minProperties`/`maxProperties`, beside a list `minItems`/`maxItems`, neither a loss) and #297 are closed; #300's five non-number rows are: an open written list (`items: false` only under `close()`), `prefixItems` beside `items`, count bounds that honour `above`/`below` and exclusions that export as `not` both bounds, a bare `*1` as `type: integer` with `default: 1`, and `enum` deduplicated by JSON value. The phase's own list landed too: the exact-endpoint rule, `nil` as `false`, `map` and `list` as `object` and `array`, the read-through of an `ExpectVal` (the member a second map literal expects, which exported `{}` as `unresolved`), and the `type` fold for bare kinds. **Departures, four.** (1) **#300's two number rows move to phase 4.** The design says the `integer` and `float` kinds report a loss, since `type: integer` admits `1.0`; the mismatch is the number model's and sits in every numeric position (`const: 1` admits `1.0` too), and the design resolves it systemically with `vet --exact-numbers` (phase 3) rather than a loss on every number, which would make `lossy` the verdict of every schema with an integer in it and drown the losses a reader can act on. #300 stays open for those two rows until phase 4 decides them. (2) **A mixed-domain `neq` exports `false`, not `not: {enum}`.** The issue guessed `not: {enum: [1, "a"]}` with no `type`, which would need the call to MEAN something; both ports mark it invalid at construction and refuse every peer, so the model admits nothing there and `false` is the exact schema. Whether `neq` should span domains is a G1 question, not an exporter one. (3) **The exact-value rule reached literals.** `0d1e400` as a `const`, a `default` or an `enum` member is omitted with a loss: Go refused to serialise `+Inf` and answered no JSON at all, TypeScript wrote `null`. (4) **Count bounds round inward to whole numbers** and a zero lower bound is omitted: `len(min(1.5))` exported `minLength: 1.5`, which 2020-12 does not allow, and now exports `2`; `[&: integer] & len(max(3))` no longer carries a vacuous `minItems: 0`. |
 | **2**: the engine prerequisites | M | **LANDED 2026-10-01** | Required wins in the meet, [ADR-044](../../ADR.md#adr-044--required-wins-in-the-meet): the key merge in `ts/src/val/MapVal.ts` and `go/mapval.go`, and the parse-time statement merge in `ts/src/lang.ts` (`REQUIRED_MARK_KEY`), where Go reaches the meet through `mergeVals`. A written `nil` under an optional key forbids the key, [ADR-045](../../ADR.md#adr-045--a-written-nil-under-an-optional-key-forbids-the-key): `literalNilRefuses` in both map meets, and `collectNils` in `ts/src/walk.ts` and `go/walk.go` skipping the nil nobody supplied. An alias declaration is not a key (#301): the duplicate-key merge hook in both parsers sets a declaration aside when a data key spells its name (`aontu_alias_vals`, `aliasValsKey`) and the map's close lands it under its scoped key, so a second declaration still meets the first. A `$` followed by anything but a name or a path refuses where it is written with the new code `var_name` (#302), raised by the `dollar-prefix` arm in both parsers, with its `errcodes.tsv` row and hint text in both ports; TypeScript's dead `var[` arm is gone. Twenty-four rows re-derived from both ports by one script and diffed: the `required-wins-*` and `optional-nil-*` rows of `test/spec/optional.tsv`, `test/spec/vet.tsv` and `test/spec/subsume.tsv`, the `alias-slot-*` rows of `test/spec/alias.tsv`, the `var-name-*` rows of `test/spec/edge.tsv`, and six rows the meet moved (`optional-merge-canon`, `canon-symbolic`, the `refer-conjunct-behind-a-spread` trio and `lang-markdown-hash`). The #302 ledger entry is removed. **Departures, three.** (1) **Alias slots did not move to a side table.** The issue proposed one; the collision was in the parser, where a declaration and a data key of one name shared a slot in the map node before the rename to the scoped key, so the fix is in the merge hook that joins duplicate keys, and the slot keeps its scoped key in `peg`, which no source key can spell. (2) **A hash moved.** A value supplied for an optional key now makes the key required in the result, as the lattice requires, so the canon of every such document changes once, and `aontu:lang/markdown` is one; the ADR records it. (3) **`var_name` is a new code rather than one meaning for `var`.** The design asked for one code in both ports; `var` means an unbound variable at generation, which this is not, and a parse-class code with its own text says what to fix. |
-| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `vet --exact-numbers`; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
+| **3**: the importer core, the admission trial and the harness | L | **LANDED 2026-10-01** | The importer, [ADR-046](../../ADR.md#adr-046--the-json-schema-importer-owns-the-meaning): `importJsonSchema` in `ts/src/jsonschema-import.ts` and `ImportJSONSchema` in `go/jsonschema_import.go`, each with its own JSON reader (`parseJson`, `parseSchemaJSON`) that keeps every number's text and refuses a duplicate key, and `aontu jsonschema import` in both CLIs (`runJsonSchemaImport`). It carries the kind split, `type`, `enum`, `const`, the bounds and counts written by value, `minLength`, `maxLength`, `pattern` stages one and two, `properties`, `required`, the three key spreads guarded by `match(key(0), ...)`, `prefixItems` and `items` as one index-guarded list spread, `allOf`, boolean schemas, and local `$ref`, `$defs` and `$anchor`, with `jsonschema_duplicate` for a repeated anchor. The admission trial is `admits` in `ts/src/admit.ts` and `Admits` in `go/admit.go`; `vet --no-fill` raises `vet_filled` (`filledFindings` in `go/vet.go`), and `vet --exact-numbers` reads data numbers through `readExactNumber` (`ts/src/val/numkind.ts`, `go/exactnum.go`). Three codes with their `errcodes.tsv` rows: `jsonschema_schema`, `jsonschema_duplicate`, `vet_filled`. The `jsonschema-import` mode in both runners and `docs/shared-spec.md`, with 134 rows in `test/spec/jsonschema-import.tsv`; 52 more rows across `alias.tsv`, `containerkind.tsv`, `disjunct.tsv`, `errcodes.tsv`, `fmt.tsv`, `map.tsv` and `vet.tsv`, every expectation from both engines agreeing, and 464 import reports, every suite schema and a set of hostile inputs, byte-identical between the two CLIs. The 2020-12 suite is vendored in `test/vectors/jsonschema/` and run by `ts/test/jsonschema-suite.test.ts` and `go/jsonschema_suite_test.go`: 1,906 tests, 1,407 passing and 499 covered by the 315 rows of `skips.tsv`, whose bound both runners hold at 400. `docs/how-to/import-json-schema.md` and the `aontu jsonschema import` section of `docs/reference-api.md`. **Departures, six.** (1) **A reference through a root that is not a map is cut.** An alias is declared in a map, so such a root copies each target in place and a reference that reaches itself through it is cut with a loss; two suite groups are listed skips, and the design's section 10 and open question 8 say so. (2) **The suite came from PyPI.** The design names the upstream repository; this environment reached PyPI and not GitHub, so the copy is the `json/` tree of the `jsonschema` 4.26.0 source distribution, pinned by its digest, which pins one upstream commit. (3) **`jsonschema_schema` landed here, not in phase 15.** The import needs a refusal for text that is not JSON, a root that is neither an object nor a boolean, and a keyword holding the wrong JSON type; phase 15 widens the same code to validation against the meta-schema. (4) **`type: "integer"` is the `integer` kind until phase 4.** Section 2 writes `multiple(1)`, which is phase 4's builtin; under `--exact-numbers` the kind already admits `1.0`, and section 2 now says so. (5) **The suite found five engine faults**, fixed in both ports where either was affected and listed in ADR-046: a map's spread reached its alias declarations, a container kind refused a count, a disjunction decided to a count's residue was refused, a key spelt like an inherited JavaScript member broke the TypeScript meet while the parser wrote onto the host's object prototype, and an optional key could not be a value keyword. (6) **The import is printed in the agreed form, with long chains grouped and nesting bounded.** A disjunction of 2,000 members overflows the TypeScript parser inside the pinned `@tabnas/expr`, where Go evaluates it, so a chain of more than 32 members is nested in groups of at most 32; the divergence itself is an OPEN entry in `test/spec/divergent.tsv`. A schema nested deeper than 256 levels is refused with `max_depth`: past about 600 the TypeScript importer exhausted its stack, and Go's printer, which copied each subtree once per enclosing level, took seven seconds at the bound until it wrote into one builder (`iwrite`). |
 | **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
 | **5**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR |
 | **6**: conditionals and dependencies | M | **NOT STARTED** | `when(c, t, e?)` and the `when` code; `if`, `then`, `else`, `dependentSchemas`, `dependentRequired` both ways |

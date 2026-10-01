@@ -45,6 +45,7 @@ Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -161,6 +162,8 @@ aontu vet [options] <schema> <data> [more-data...]
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies (vet_filled)
+  --exact-numbers   Read every data number by its exact value
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check examined
   --strict-coverage --coverage, and exit 1 when the run was vacuous
@@ -185,6 +188,23 @@ Each data file is vetted separately, and the worst verdict wins: two
 data files are two candidates for the same truth, not one merged
 candidate. `--max-errors` caps the whole report, not each file, and
 says so with `truncated`.
+
+**`--no-fill` asks whether the data is an instance as written.**
+Without it, `vet` asks whether the data can be made to hold, and a
+member the schema supplies, from a default or a literal, fills in
+silently. Under `--no-fill` each such member is a `vet_filled` finding,
+class `incomplete`, at the member's path. An optional member is the
+schema's to supply and is not a finding. This is the question JSON
+Schema asks, and the one a schema imported by `aontu jsonschema import`
+is checked with.
+
+**`--exact-numbers` reads every data number by its value.** An integral
+value lands in `integer` where that leaf holds it exactly and in
+`biginteger` beyond, and every other value in `bigdecimal`, within the
+[exactness budget](reference-language.md#the-exactness-budget). So
+`1.0`, `1` and `1e0` are one integer, `0.1` keeps its digits, and a
+twenty-digit identifier is not rounded. Without it a data number reads
+exactly as it does in a document.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as
@@ -1428,6 +1448,93 @@ Without `--strict` the same export exits 0.
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
+
+### `aontu jsonschema import`
+
+Import a **JSON Schema** (draft 2020-12) document as aontu, and say
+what could not be carried.
+
+```
+aontu jsonschema import [--strict] [--format text|json] <file>
+```
+
+This is the bridge in the other direction. A schema another tool
+publishes, an OpenAPI component or an MCP tool's `inputSchema`,
+becomes a document aontu can unify with a model, compare with
+[`subsume`](#aontu-subsume), and check data against with
+[`vet`](#aontu-vet).
+
+**aontu reads the schema itself and decides what each keyword means.**
+Its JSON reader keeps every number as it was written, so `0.1` and a
+twenty-digit bound keep their digits, and it refuses an object that
+writes one key twice rather than keeping either value. Each keyword it
+carries is rewritten as the aontu construct that means it, and nothing
+is handed to a host validator to interpret.
+
+**The document goes to stdout and the losses to stderr**, in the agreed
+form [`aontu fmt`](#aontu-fmt) writes. Write a `point.json`:
+
+<!-- test: scenario jsonschema-import -->
+<!-- test: file point.json -->
+```json
+{"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "required": ["x", "y"], "additionalProperties": false}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import point.json
+x: number
+y: number
+&: match(key(0), "x", any, "y", any, nil)
+```
+
+- `--format json` prints the whole report (`text`, `lossy`, `verdict`,
+  and `errors` when the text is refused) under the usual
+  `aontu: {version, verb}` envelope.
+- Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
+  `4` the text is not a schema, or nests deeper than 256 levels
+  (`max_depth`). Without `--strict` a lossy import is still an import
+  and exits 0.
+- The library form is `importJsonSchema(text, options?)` in TypeScript
+  and `ImportJSONSchema(text, opts)` in Go, returning the identical
+  `{verdict, aontu, lossy}` record (plus `errors` when the text is
+  refused). The CLI's JSON names the document `text`, because its
+  `aontu` key is the envelope.
+
+**What crosses.** Each keyword becomes the construct that means it:
+
+| Keyword | Becomes |
+|---|---|
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number` or `integer`, `empty()` for a string, `map`, `list` |
+| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
+| `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
+| `pattern` | `re`, rewritten from ECMA-262 into the portable subset, so `\s`, `.`, `\u` escapes and named groups keep their JSON Schema meaning |
+| `properties`, `required` | keys, optional unless required |
+| `patternProperties` | one spread per pattern, which applies its schema to the keys the pattern matches |
+| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil` |
+| `propertyNames` | a spread that refuses a key whose name the schema does not admit |
+| `prefixItems`, `items` | one list spread, guarded by each element's index |
+| `allOf` | the meet: every member unified in place |
+| `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
+| `$schema`, `$comment` | read and dropped: the dialect is 2020-12, and a comment asserts nothing |
+
+A string is `empty()` rather than `string`, because the strings of
+JSON Schema include `""` and aontu's `string` does not. A boolean schema
+is `any` or `nil`.
+
+**What does not cross is reported, never dropped in silence.** Each
+loss names a pointer into the schema, the keyword, and what dropping it
+costs. An annotation such as `title`, `format` or `default` asserts
+nothing, so dropping it changes no answer; a validation keyword such as
+`oneOf` or `multipleOf` widens the position, and the loss says so. A
+`$ref` that names another document is a loss too, and its position
+admits anything: the importer reads one document.
+
+**Data is checked against an import with `vet --no-fill
+--exact-numbers`**, which asks the question JSON Schema asks: whether
+the data is an instance as written, with its numbers read by value. See
+[Import JSON Schema](how-to/import-json-schema.md).
 
 ### `aontu model get`
 

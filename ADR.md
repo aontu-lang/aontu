@@ -74,6 +74,7 @@ capability decision is the phase rows it governed in
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--required-wins-in-the-meet) | Required wins in the meet | Accepted |
 | [ADR-045](#adr-045--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
+| [ADR-046](#adr-046--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 
 ---
 
@@ -4608,3 +4609,110 @@ carries another code, is a refusal already recorded and is unchanged.
   `{k?: nil}`.
 - Pinned by the `optional-nil-*` rows of `test/spec/optional.tsv` and
   `test/spec/vet.tsv`, in both ports.
+
+---
+
+## ADR-046 — The JSON Schema importer owns the meaning
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 3 brings
+JSON Schema 2020-12 into aontu. The two languages differ at the
+construct: a JSON Schema keyword applies to one instance kind and passes
+every other, its numbers compare by value, its `properties` never imply
+presence, its closure is per object, and its question is whether an
+instance *is* valid, where aontu's meet asks whether two values can be
+made consistent and generation fills what the schema supplies. Handing
+a schema to a host validator, or reading it with a host JSON reader
+that rounds `12345678901234567890`, would let the host decide those
+meanings, which ADR-003 refuses.
+
+### Decision
+
+**Import is a rewrite into aontu text, in both ports, that the importer
+owns.** `importJsonSchema` in TypeScript, `ImportJSONSchema` in Go and
+`aontu jsonschema import` answer the aontu text and a report shaped like
+the export's, `{aontu, lossy, verdict, errors}`; the CLI's JSON names the
+text `text`, since its `aontu` key is the envelope. The text is in the
+agreed form `aontu fmt` writes, so an import is a source a person edits.
+
+1. **Its own JSON reader.** The schema is read by a reader that keeps
+   every number's text, every key's order and every node's span, and
+   refuses a duplicate key, so no host decides what the text says.
+2. **The kind split.** A schema object imports as its kind-agnostic
+   keywords met with a disjunction of the kinds, each met with the
+   keywords scoped to it: `null`, `boolean`, `number` (`integer` under
+   `type: integer`), `empty()` for strings, a map and a list.
+3. **Numbers by value.** Every schema number is written in the leaf its
+   exact value selects: an integral value in `integer` where that leaf
+   holds it, a `biginteger` beyond, a `bigdecimal` otherwise. The leaf
+   is chosen by magnitude, so a sign, which aontu writes as an operator,
+   never moves a value between leaves.
+4. **Objects and arrays as guarded spreads.** `properties` are optional
+   keys and `required` removes the `?`; `patternProperties`,
+   `additionalProperties` and `propertyNames` are `match` spreads over
+   `key(0)`; `prefixItems` and `items` are one list spread guarded by
+   index. `enum` and `const` are literals, containers closed, and
+   `allOf` is the meet.
+5. **References.** A local `$ref` is an alias where the root is a map,
+   declared once; anywhere else it is copied in place, and a cycle there
+   is cut and reported, because an alias lives on a map root. Anchors
+   belong to a resource, and one name twice in one resource refuses
+   with `jsonschema_duplicate`.
+6. **Nothing is dropped in silence.** A keyword the importer does not
+   carry yet is a loss saying what dropping it costs, an annotation's
+   loss says it asserts nothing, a pattern outside the portable subset
+   is a loss naming the construct, and text that is not a schema
+   refuses with `jsonschema_schema`.
+7. **Bounded text.** A disjunction or meet repeats no member, and one of
+   more than 32 members is written as nested groups of at most 32, so a
+   schema's `enum` of thousands of values imports as text both ports'
+   parsers read without exhausting their depth. A schema nested deeper
+   than 256 levels is refused with `max_depth`, class `budget`, at the
+   bracket that crosses the bound, where the TypeScript importer would
+   exhaust its stack and the Go one spend seconds.
+
+**Two `vet` options and one primitive** carry JSON Schema's question.
+`--no-fill` reports a member the schema supplies and the data does not
+carry as `vet_filled`, class `incomplete`; an optional member is the
+schema's to supply and is not a finding. `--exact-numbers` reads every
+data number by its exact value, by the rule of decision 3. The
+admission trial, `admits` and `Admits`, is the same question asked of
+two values, and the conformance harness requires it to agree with
+`vet --no-fill --exact-numbers` on every instance of the vendored suite.
+
+### Consequences
+
+- The official test suite runs in both ports through the importer and
+  `vet`, against one skip ledger whose every row names the phase that
+  carries it (`test/vectors/jsonschema/README.md`).
+- The suite found five engine defects, fixed here in both ports where
+  either was affected. A key spelt like a member every JavaScript object
+  inherits (`toString`, `__proto__`) broke the TypeScript meet and
+  generation, and the parser wrote a marker onto the host's object
+  prototype, so a map's key table and every node the parser builds has
+  no prototype. A disjunction decided to a container count's residue
+  was discarded as no progress. A container kind refused every
+  constraint, a count included. A map's spread reached the alias
+  declarations beside it, so an alias referenced from a list template
+  met the spread's `nil`; a declaration is not a field, and no spread
+  or template of its map applies to it. An optional key could not be a
+  value keyword, so the formatter quoted `"list"?:` and could not
+  reread it; the grammar takes one wherever it takes a plain key. A
+  non-scalar variable used as a path segment now answers `no_path` in
+  TypeScript without coercing the value to a string, as Go did.
+- The exporter writes each pattern's normalised form, which is valid
+  ECMA-262 in `u` mode and means what aontu means: stage one of G12
+  section 5.
+- A recursive reference through a root that is not a map has no
+  spelling today, and is a listed skip; G12 records it as an open
+  question.
+- Pinned by `test/spec/jsonschema-import.tsv`, the `vet-no-fill-*` and
+  `vet-exact-numbers-*` rows of `test/spec/vet.tsv`, the `key-*` rows of
+  `test/spec/map.tsv`, the G12 rows of `test/spec/alias.tsv`, the
+  `fmt-optional-*` rows of `test/spec/fmt.tsv`, and rows in
+  `test/spec/containerkind.tsv` and `test/spec/disjunct.tsv`, in both
+  ports.

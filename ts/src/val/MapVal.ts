@@ -35,7 +35,7 @@ import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, undecided } from './BagVal'
+import { BagVal, keyTable, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
@@ -105,6 +105,9 @@ class MapVal extends BagVal {
     if (null == this.peg) {
       throw new AontuError('MapVal spec.peg undefined')
     }
+    if (null !== Object.getPrototypeOf(this.peg)) {
+      Object.setPrototypeOf(this.peg, null)
+    }
 
     this.mark.type = !!spec.mark?.type
     this.mark.hide = !!spec.mark?.hide
@@ -159,7 +162,7 @@ class MapVal extends BagVal {
     let exit = false
 
     // NOTE: not a clone! needs to be constructed.
-    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: {} }, ctx))
+    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: keyTable() }, ctx))
 
     out.closed = this.closed
     out.opened = this.opened
@@ -231,9 +234,15 @@ class MapVal extends BagVal {
         propagateMarks(this, child)
 
         let oval: Val
+        // A DECLARATION IS NOT A CHILD: no template reaches it.
+        if (this.aliasKeys.includes(key)) {
+          oval = child.done ? child :
+            unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
+              child, TOP, 'map-own')
+        }
         // No `undefined !== child` here: propagateMarks above already
         // dereferenced it, so a missing child would have thrown there.
-        if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
+        else if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
           oval = child.isAbsent ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
               child, TOP, 'map-own')
@@ -335,7 +344,7 @@ class MapVal extends BagVal {
           if (this.spread.cj && undecided(oval)) {
             done = false
           }
-          else if (this.spread.cj && !oval.isAbsent) {
+          else if (this.spread.cj && !oval.isAbsent && !out.aliasKeys.includes(peerkey)) {
             // Same apply-once discipline as the own-key loop: once the
             // constraint is merged into the value (marked with the
             // constraint's id), later passes only self-unify.
@@ -417,7 +426,7 @@ class MapVal extends BagVal {
     }
 
     let out = (super.clone(ctx) as MapVal)
-    out.peg = {}
+    out.peg = keyTable()
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] = entry[1]
@@ -439,7 +448,7 @@ class MapVal extends BagVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as MapVal)
-    out.peg = {}
+    out.peg = keyTable()
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] =

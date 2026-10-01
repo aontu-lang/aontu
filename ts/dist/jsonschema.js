@@ -169,11 +169,12 @@ function fromConstraint(ctx, path, c, bag) {
     if (0 < c.neqs.length) {
         nots.push({ enum: dedupeJson(c.neqs.map(scalarJson)) });
     }
+    // The normalised form, valid in ECMA-262 and meaning what aontu means.
     if (1 === c.res.length) {
-        out.pattern = c.res[0].src;
+        out.pattern = c.res[0].norm;
     }
     else if (1 < c.res.length) {
-        extra.push(...c.res.map((r) => ({ pattern: r.src })));
+        extra.push(...c.res.map((r) => ({ pattern: r.norm })));
     }
     if (null != c.count) {
         const domain = 'string' === c.domain || 'string' === out.type ? 'string' : bag;

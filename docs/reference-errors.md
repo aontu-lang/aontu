@@ -44,15 +44,15 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **176** codes across
+There are seven classes, and the registry holds **179** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 54 | the text is not a document |
+| `parse` | 55 | the text is not a document |
 | `conflict` | 58 | two values cannot both hold |
-| `incomplete` | 11 | nothing contradicts, but the value is not concrete |
-| `reference` | 27 | a name or path resolves to nothing |
+| `incomplete` | 12 | nothing contradicts, but the value is not concrete |
+| `reference` | 28 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 7 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 that line is each implementation's own, since the shared suite holds
 codes and classes rather than prose.
 
-**Hint text.** All 176 codes have hint text. `aontu explain --list`
+**Hint text.** All 179 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -206,6 +206,7 @@ twenty rows have no such section and carry no link.
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
 | `inverse_name` | 0.53.0 | The argument to `inverse()` is not a relation name. ([Declared relations](reference-language.md#declared-relations)) |
+| `jsonschema_schema` | 0.77.0 | The text handed to the JSON Schema importer is not a schema: not JSON, a root that is neither an object nor a boolean, or a keyword holding a value of the wrong type. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `merge_conflict` | 0.53.0 | A version-control conflict marker left in the source. ([Errors](reference-language.md#errors)) |
 | `module_integrity` | 0.53.0 | A module resolved locally does not carry the meaning its canon-hash pin recorded. ([Modules](reference-language.md#modules)) |
 | `module_local` | 0.65.0 | A bare module reference whose last segment carries an extension the include table knows. ([Modules](reference-language.md#modules)) |
@@ -318,6 +319,7 @@ twenty rows have no such section and carry no link.
 | `no_gen` | 0.51.0 | A value survived unification as something other than a literal value. ([Generation](reference-language.md#generation)) |
 | `recursion_unexpanded` | 0.53.0 | A schema refers to itself, and no data reached the position to expand it against. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
 | `required_listelem` | 0.51.0 | A non-optional list element has no value. ([Optional keys `?`](reference-language.md#optional-keys-)) |
+| `vet_filled` | 0.77.0 | Under `vet --no-fill`, the schema supplies a member the data does not carry: the data is not an instance as written. ([`aontu vet`](reference-api.md#aontu-vet)) |
 
 ### Class `reference`
 
@@ -325,6 +327,7 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
+| `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |
 | `patch_ambiguous` | 0.53.0 | Two or more statements pin the path, so an in-place edit has no single place to write. ([`aontu model set`](reference-api.md#aontu-model-set)) |

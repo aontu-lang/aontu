@@ -483,3 +483,6 @@ constraint_kind	errcode	conflict	0.77.0
 string_empty	errcode	conflict	0.77.0
 empty_domain	errcode	conflict	0.77.0
 var_name	errcode	parse	0.77.0
+jsonschema_duplicate	errcode	reference	0.77.0
+jsonschema_schema	errcode	parse	0.77.0
+vet_filled	errcode	incomplete	0.77.0

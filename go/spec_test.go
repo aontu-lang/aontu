@@ -564,6 +564,27 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "jsonschema-import":
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					r := ImportJSONSchema(src, nil)
+					out := map[string]any{
+						"aontu":   r.Aontu,
+						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
+						"verdict": r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(out, "errors")
+					}
+					got := specJSON(t, out)
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("jsonschema-import report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
 				case "reaches":
 					var golden map[string]any
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
@@ -824,6 +845,10 @@ func specVetOpts(t *testing.T, raw any) *VetOptions {
 			opts.Coverage, _ = v.(bool)
 		case "coverageAt":
 			opts.CoverageAt, _ = v.(string)
+		case "noFill":
+			opts.NoFill, _ = v.(bool)
+		case "exactNumbers":
+			opts.ExactNumbers, _ = v.(bool)
 		default:
 			t.Fatalf("unknown vet opt %q", k)
 		}

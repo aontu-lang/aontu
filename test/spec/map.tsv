@@ -35,3 +35,23 @@ astral-key-order-around-surrogates	gens	x:{"퟿":1,"":2,"𐀀":3}	{"x":{"퟿"
 astral-key-order-replacement-char	gens	x:{"�":1,"💩":2}	{"x":{"�":1,"💩":2}}
 astral-key-order-ascii-first	gens	x:{"😀":1,"a":2,"Ａ":3}	{"x":{"a":2,"Ａ":3,"😀":1}}
 astral-key-order-nested	gens	x:{"😀":{"😀":1,"":2},"":3}	{"x":{"":3,"😀":{"":2,"😀":1}}}
+# A KEY IS DATA, never a property lookup: a key spelt like a member every
+# JavaScript object inherits is a key like any other, in the meet, in
+# generation and inside a list (G12: the JSON Schema suite tests these).
+key-tostring-meets-an-empty-map	canon	a: {} & {"toString": 1}	{"a":{"toString":1}}
+key-constructor-stays-optional	canon	a: {} & {"constructor"?: number}	{"a":{"constructor"?:number}}
+key-hasownproperty-meets	gens	a: {x: 1} & {"hasOwnProperty": 2}	{"a":{"hasOwnProperty":2,"x":1}}
+key-proto-generates	gens	a: {"__proto__": 1} & {"b": 2}	{"a":{"__proto__":1,"b":2}}
+key-proto-meets-optional	gens	a: {"__proto__"?: number} & {"__proto__": 12}	{"a":{"__proto__":12}}
+key-proto-statements-merge	gens	a: {"__proto__": 1} a: {"__proto__": 1}	{"a":{"__proto__":1}}
+key-proto-in-a-list-element	gens	a: [{"__proto__": 1}]	{"a":[{"__proto__":1}]}
+# An optional key may be any key a plain pair takes: a quoted key spelt
+# like an inherited member, or a value keyword such as `list` or `nil`.
+key-proto-optional-at-the-top	canon	"__proto__"?: integer	{"__proto__"?:integer}
+key-proto-optional-in-a-dive	canon	a: "__proto__"?: 1	{"a":{"__proto__"?:1}}
+key-proto-in-a-spread-template	gens	a: &: {"__proto__": 1}\na: b: {}	{"a":{"b":{"__proto__":1}}}
+key-proto-optional-nested-dive	canon	"__proto__"?: {x?: 1}	{"__proto__"?:{"x"?:1}}
+key-keyword-optional	canon	list?: any	{"list"?:any}
+key-keyword-optional-in-braces	canon	a: {string?: integer} a: {}	{"a":{"string"?:integer}}
+key-keyword-optional-dive	canon	x: list?: 1	{"x":{"list"?:1}}
+key-keyword-optional-in-a-list	canon	[nil?: 1]	[{"nil"?:1}]

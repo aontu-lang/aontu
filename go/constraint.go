@@ -698,6 +698,13 @@ func (c *ConstraintVal) Unify(peer Val, ctx *Ctx) Val {
 	if pl, ok := peer.(*ListVal); ok {
 		return c.admitContainer(pl, nil, ctx, peer)
 	}
+	switch peer.(type) {
+	case *MapKindVal, *ListKindVal:
+		if "" != c.domain {
+			return c.fail(ctx, peer)
+		}
+		return newConjunct([]Val{c, peer})
+	}
 	//coverage:ignore-block no Val kind reaches this arm; see above
 	return c.fail(ctx, peer)
 }

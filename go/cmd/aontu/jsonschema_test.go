@@ -161,3 +161,81 @@ func TestJsonSchemaArgumentErrors(t *testing.T) {
 		t.Fatalf("--help = %d", code)
 	}
 }
+
+func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "schema.json")
+	write := func(src string) {
+		if err := os.WriteFile(file, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
+	write(`{"type": "object", "properties": {"n": {"type": "integer"}}}`)
+	out, errw, code := jsonSchemaRun("import", file)
+	if 0 != code || "n?: integer\n" != out || "" != errw {
+		t.Fatalf("clean import: %d %q %q", code, out, errw)
+	}
+
+	write(`{"type": "string", "title": "t"}`)
+	out, errw, code = jsonSchemaRun("import", file)
+	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/title title:") {
+		t.Fatalf("lossy import: %d %q %q", code, out, errw)
+	}
+	if _, _, code = jsonSchemaRun("import", "--strict", file); 1 != code {
+		t.Fatalf("--strict: %d", code)
+	}
+
+	out, _, code = jsonSchemaRun("import", "--format", "json", file)
+	var j map[string]any
+	if err := json.Unmarshal([]byte(out), &j); nil != err || 0 != code {
+		t.Fatalf("json: %d %v\n%s", code, err, out)
+	}
+	producer, _ := j["aontu"].(map[string]any)
+	if "jsonschema" != producer["verb"] || "empty()\n" != j["text"] || "lossy" != j["verdict"] {
+		t.Fatalf("json envelope: %v", j)
+	}
+	if _, has := j["errors"]; has {
+		t.Fatalf("errors on a run that stood up: %v", j)
+	}
+
+	// Text that is not a schema refuses, in vet's finding shape.
+	write(`{"type": 5`)
+	out, errw, code = jsonSchemaRun("import", file)
+	if 4 != code || "" != out || !strings.Contains(errw, "jsonschema_schema") {
+		t.Fatalf("refusal: %d %q %q", code, out, errw)
+	}
+	out, _, code = jsonSchemaRun("import", "--format", "json", file)
+	var je struct {
+		Verdict string `json:"verdict"`
+		Errors  []struct {
+			Code string `json:"code"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(out), &je); nil != err || 4 != code ||
+		"error" != je.Verdict || "jsonschema_schema" != je.Errors[0].Code {
+		t.Fatalf("json refusal: %d %v\n%s", code, err, out)
+	}
+}
+
+func TestJsonSchemaImportUsageErrorsExit2(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "schema.json")
+	if err := os.WriteFile(file, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"import"},
+		{"import", file, file},
+		{"import", "--bogus", file},
+		{"import", "--format", "yaml", file},
+		{"import", filepath.Join(filepath.Dir(file), "missing.json")},
+	} {
+		if _, _, code := jsonSchemaRun(args...); 2 != code {
+			t.Fatalf("%v: exit %d", args, code)
+		}
+	}
+	if out, _, code := jsonSchemaRun("import", "--help"); 0 != code ||
+		!strings.Contains(out, "aontu jsonschema import") {
+		t.Fatalf("--help: %d", code)
+	}
+}

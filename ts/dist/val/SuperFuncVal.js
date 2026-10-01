@@ -5,6 +5,7 @@ exports.SuperFuncVal = void 0;
 exports.superOf = superOf;
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const MapVal_1 = require("./MapVal");
+const BagVal_1 = require("./BagVal");
 const ListVal_1 = require("./ListVal");
 const DisjunctVal_1 = require("./DisjunctVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
@@ -40,7 +41,7 @@ function superOf(ctx, v) {
         return v.place(call);
     }
     if (true === v.isMap) {
-        const peg = {};
+        const peg = (0, BagVal_1.keyTable)();
         for (const k of Object.keys(v.peg)) {
             peg[k] = superOf(ctx, v.peg[k]);
         }

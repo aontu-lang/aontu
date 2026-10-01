@@ -8,6 +8,51 @@ each change affects.
 
 ## Unreleased
 
+### Import JSON Schema, and vet as JSON Schema asks
+
+Both ports, G12 phase 3. `aontu jsonschema import <file>` rewrites a
+JSON Schema 2020-12 document as an aontu document, in the agreed form,
+with every keyword it cannot carry yet named on stderr; `--strict`
+turns a loss into exit 1, and a text that is not a schema is refused
+with `jsonschema_schema` (class `parse`) and exit 4 (ADR-046). The
+library form is `importJsonSchema` in TypeScript and `ImportJSONSchema`
+in Go. The importer reads the schema with its own JSON reader, so a
+number keeps its digits and a key written twice is refused, and writes
+each number by value in the leaf that holds it exactly. It carries
+`type` as one branch per kind, so a string keyword constrains only
+strings and a string is `empty()`; `enum` and `const`; the bounds and
+counts; `pattern`, rewritten from ECMA-262 into the portable subset;
+`properties` and `required`; `patternProperties`,
+`additionalProperties` and `propertyNames` as spreads guarded by
+`match(key(0), ...)`; `prefixItems` and `items` as one list spread
+guarded by index; `allOf` as the meet; boolean schemas; and local
+`$ref`, `$defs` and `$anchor`, as aliases when the root is an object
+schema and as copies otherwise. Two anchors of one name in one resource
+are refused with `jsonschema_duplicate` (class `reference`), and a schema
+nested deeper than 256 levels with `max_depth`.
+
+`vet --no-fill` asks whether the data is an instance as written: a
+member the schema fills from a default or a literal is a `vet_filled`
+finding (class `incomplete`), and an optional member is not.
+`vet --exact-numbers` reads every data number by value, so `1.0` is the
+integer `1` and `0.1` keeps its digits. Together they ask JSON Schema's
+question. The official JSON-Schema-Test-Suite for 2020-12 is vendored
+under `test/vectors/jsonschema/` and run in both ports through the
+importer and `vet`, with a skip ledger for what later phases carry.
+
+The suite found five engine faults. In both ports, an alias
+declaration is no longer reached by a spread of the map that declares
+it, so `lines: [&: %d_line]` beside `&: match(key(0), "lines", any,
+nil)` no longer meets the spread's `nil` through the alias. A kind
+meets a count: `map & len(min(1))` waits for the literal, where it was
+refused. A disjunction decided to one branch that carries a container
+count keeps that branch, where the meet refused it. An optional key may
+be a value keyword, so `list?: any` parses and the formatter no longer
+quotes it. In TypeScript, a key spelt like a member every JavaScript
+object inherits is a key like any other: `__proto__` was dropped,
+`toString` failed with `internal`, and an evaluation wrote a marker
+property onto the host's object prototype.
+
 ### Required wins in the meet, and three more engine rules (#298, #299, #301, #302)
 
 Both ports, G12 phase 2. A key is optional in a meet only where every

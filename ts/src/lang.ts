@@ -99,20 +99,22 @@ import {
 
 import { BigDecimalVal } from './val/BigDecimalVal'
 import { BigIntegerVal } from './val/BigIntegerVal'
-import { BIG_LITERAL_RE, readBigLiteral } from './val/Decimal'
+import { BIG_LITERAL_RE, Decimal, readBigLiteral } from './val/Decimal'
 import { BooleanVal } from './val/BooleanVal'
 import { ConjunctVal } from './val/ConjunctVal'
 import { DisjunctVal } from './val/DisjunctVal'
 import { IntegerVal } from './val/IntegerVal'
 import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
+import { keyTable } from './val/BagVal'
 import { repathInstance } from './val/Val'
 import { AontuContext } from './ctx'
 import { descErr } from './err'
 import { NilVal } from './val/NilVal'
 import { NullVal } from './val/NullVal'
 import { NumberVal } from './val/NumberVal'
-import { isIntegerKind, isLossyIntegerLiteral } from './val/numkind'
+import { isIntegerKind, isLossyIntegerLiteral, readExactNumber } from './val/numkind'
+import type { ExactNumber } from './val/numkind'
 import { PrefVal } from './val/PrefVal'
 import { RefVal } from './val/RefVal'
 import { StringVal } from './val/StringVal'
@@ -176,6 +178,16 @@ const asPlugin = (p: unknown): Plugin => p as Plugin
 
 function negsrc(src: string): string {
   return src.startsWith('-') ? src.slice(1) : '-' + src
+}
+
+
+// A data number under exactNumbers: the leaf its value selects.
+function exactNumberVal(n: ExactNumber, src: string): Val {
+  return 'integer' === n.leaf ? new IntegerVal({ peg: n.int, src }) :
+    'biginteger' === n.leaf ? new BigIntegerVal({ peg: n.int, src }) :
+      'bigdecimal' === n.leaf ?
+        new BigDecimalVal({ peg: new Decimal(n.unscaled, n.scale), src }) :
+        new NilVal({ why: n.code })
 }
 
 
@@ -1141,7 +1153,8 @@ help isolate the syntax error.`,
 
   const VL = jsonic.token.VL
 
-  const OPTKEY = [TX, ST, NR]
+  // A value keyword is a key wherever a key is written, optional or not.
+  const OPTKEY = [TX, ST, NR, VL]
 
 
   jsonic.rule('expr', (rs: RuleSpec) => {
@@ -1171,7 +1184,7 @@ help isolate the syntax error.`,
           // @tabnas seeds a descended rule's node from its parent; without
           // a fresh node here the nested spread map (`a:&:{x:1}`) would
           // share the parent map's node object and self-reference.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'spread'
         },
 
@@ -1182,7 +1195,7 @@ help isolate the syntax error.`,
           b: 2,
           // Fresh node (see spread alt above): the optional dive descends
           // to a map and must not share the parent's node object.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'pair,jsonic,top,aontu-optional',
         },
 
@@ -1191,7 +1204,7 @@ help isolate the syntax error.`,
           p: 'map',
           b: 2,
           n: { pk: 1 },
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'pair,jsonic,top,dive,aontu-optional',
         },
 
@@ -1206,9 +1219,14 @@ help isolate the syntax error.`,
           valnode = addsite(new StringVal({ peg: r.node }), r, ctx)
         }
         else if ('number' === valtype) {
+          const exact = true === ctx.meta.aontu?.exactNumbers ?
+            readExactNumber(r.o0.src) : undefined
           // An overflowing literal (1e999) lexes to Infinity; that is an
           // error value, not a number (mirrors not_number in go/lang.go).
-          if (!Number.isFinite(r.node)) {
+          if (undefined !== exact) {
+            valnode = addsite(exactNumberVal(exact, r.o0.src), r, ctx)
+          }
+          else if (!Number.isFinite(r.node)) {
             valnode = addsite(new NilVal({ why: 'not_number' }), r, ctx)
           }
           else if (isLossyIntegerLiteral(r.node, r.o0.src)) {
@@ -2408,7 +2426,7 @@ function rawToVal(n: any): Val {
   if ('boolean' === t) {
     return new BooleanVal({ peg: n })
   }
-  const peg: Record<string, Val> = {}
+  const peg: Record<string, Val> = keyTable()
   for (const k in n) {
     peg[k] = rawToVal(n[k])
   }
@@ -2461,6 +2479,7 @@ class Lang {
       // child-meta spread carries the same array to nested includes.
       aontu: {
         manifest: (opts as any)?.manifest,
+        exactNumbers: true === opts?.exactNumbers,
       },
     }
 

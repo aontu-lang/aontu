@@ -6,6 +6,7 @@ const type_1 = require("../type");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const StringVal_1 = require("./StringVal");
 const MapVal_1 = require("./MapVal");
+const BagVal_1 = require("./BagVal");
 const ListVal_1 = require("./ListVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const err_1 = require("../err");
@@ -44,7 +45,7 @@ function astVal(node, ctx) {
             peg: node.map((e, i) => astVal(e, ctx.descend(String(i)))),
         }, ctx);
     }
-    const peg = {};
+    const peg = (0, BagVal_1.keyTable)();
     for (const k of Object.keys(node).sort()) {
         peg[k] = astVal(node[k], ctx.descend(k));
     }

@@ -355,9 +355,10 @@ of `deprecate()`'s record, which moves from first-wins to a union.
 
 Import is a JSON-to-aontu rewrite in both ports, run before evaluation:
 `importJsonSchema(text, opts)` in TypeScript, `ImportJSONSchema` in Go,
-and an import mode of the `jsonschema` verb whose spelling phase 3
-settles under the verb tiers of ADR-039. It answers the aontu text and
-a report shaped like the exporter's, `{aontu, lossy, verdict,
+and an import mode of the `jsonschema` verb, spelled `aontu jsonschema
+import` in the second tier of ADR-039 beside `aontu model get`, while
+the bare `aontu jsonschema` stays the export. It answers the aontu text
+and a report shaped like the exporter's, `{aontu, lossy, verdict,
 errors}`, so the two directions read alike.
 
 The importer is where ADR-003 applies. URI resolution, JSON Pointer
@@ -396,6 +397,9 @@ refuses `""`), `map` and `list`. `type` removes the branches it
 excludes; `type: "integer"` adds `multiple(1)` to the number branch.
 A branch with no scoped keywords is the bare kind, and when all six are
 bare and `type` is absent the disjunction is `any` and is not written.
+Until `multiple` exists, the number branch of `type: "integer"` is the
+`integer` kind, which admits `1.0` only where `vet --exact-numbers`
+reads it as the integer it is.
 
 The branches are pairwise kind-disjoint, so exactly one survives any
 concrete instance, and the disjunction is decided at the meet. ADR-007's
@@ -785,10 +789,14 @@ siblings is `%name & I(siblings)`. A path reference into the instance
 tree is never used, for the reason the measurement shows. Alias names
 are derived reversibly from the resource's URI and the fragment, since
 anchors and `$defs` keys admit characters alias names do not.
-`"$ref": "#"` needs a reference to the document root, which waits on
-[#302](https://github.com/aontu-lang/aontu/issues/302); until then the
-importer hoists the root body into an alias, which is exact for
-validation.
+`"$ref": "#"` names the document root, and aontu has no reference that
+does: [#302](https://github.com/aontu-lang/aontu/issues/302) settled the
+bare `$` without making it one. The importer hoists the root body into
+an alias, `%root`, which is exact for validation. Like every alias it
+needs a map to be declared in, so a root that is not an object schema
+copies each referenced schema in place instead, and a reference that
+reaches itself through such a root is cut and reported
+([open question 8](#open-questions)).
 
 **Identity lives on the declaration, not on the value.** The alias
 declaration carries the resource's `$id`, `$anchor` and original
@@ -1243,6 +1251,17 @@ are forced as well:
    and `format` adds only the committed names. Adopting them changes
    the answer for documents that parse today, so it is a decision of
    its own.
+8. **Where does an alias live when the root is not a map?** An alias
+   is declared in a map, so an import whose root schema is not an
+   object schema copies each referenced schema in place, and a
+   reference that reaches itself through that root is cut, with a
+   loss: the root admits anything at the cut. Two suite groups meet
+   it, `root pointer ref` in `ref.json` and the single cyclic `$ref`
+   of `unevaluatedProperties.json`, and both are listed skips. Two
+   spellings would close it: a declaration block that a document
+   carries beside a root of any kind, which changes the grammar, or an
+   import that always answers a map and puts a non-map root's value
+   under a key, which changes what the import's root means.
 
 ## Appendix: the inventory
 

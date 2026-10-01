@@ -455,3 +455,10 @@ alias-slot-is-not-a-key	gens	%T = {x?: integer}\n"%T": 5	{"%T":5}
 alias-slot-is-not-a-key-data-first	gens	"%T": 5\n%T = {x?: integer}	{"%T":5}
 alias-slot-beside-its-use	canon	%T = {x?: integer}\n"%T": 5\nt: %T	{"%T":5,"t":{"x"?:integer}}
 alias-redeclared-beside-a-key	gens	%n = 1\n"%n": 5\n%n = integer\na: %n	{"%n":5,"a":1}
+# A DECLARATION IS NOT A CHILD (G12): a template at the root applies to
+# every field and never to an alias declaration, which is no field.
+alias-declaration-is-not-reached-by-a-root-spread	gens	%t = integer\nx: %t & 5\n&: match(key(0), "x", any, nil)	{"x":5}
+alias-declaration-is-not-reached-by-a-root-template	gens	%t = {n: integer}\nx: %t & {n: 1}\n&: {n: integer}	{"x":{"n":1}}
+alias-declaration-root-spread-still-refuses-a-field	errc	%t = integer\nx: %t & 5\ny: 2\n&: match(key(0), "x", any, nil)	literal_nil
+alias-declaration-reached-through-a-list-template	gens	%d_line = { sku: string }\nlines: [&: %d_line]\n&: match(key(0), "lines", any, nil)\nlines: [{sku: "a"}]	{"lines":[{"sku":"a"}]}
+alias-declaration-through-a-list-template-still-checks	errc	%d_line = { sku: string }\nlines: [&: %d_line]\n&: match(key(0), "lines", any, nil)\nlines: [{sku: 1}]	no_scalar_unify

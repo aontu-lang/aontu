@@ -242,6 +242,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         if (part.isNil) {
                             return;
                         }
+                        else if (true !== part.isScalar) {
+                            return (0, err_1.makeNilErr)(ctx, 'no_path', this);
+                        }
                         else {
                             parts.push(part.isInteger ?
                                 (0, numkind_1.integerDigits)(part.peg) : '' + part.peg);

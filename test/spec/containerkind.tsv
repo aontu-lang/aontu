@@ -55,3 +55,13 @@ super-list-kind-is-top	gens	y: super(list) & "s"	{"y":"s"}
 
 # --- Selection by kind: a disjunct of kinds picks by the value -------
 disjunct-of-kinds	gens	y: (map | list) & {a:1}	{"y":{"a":1}}
+# --- A kind meets a constraint (G12) -----------------------------------
+# A kind says what the container will be and nothing of its members, so
+# a count waits for the literal and a scalar residual refuses, as it
+# does the literal.
+containerkind-map-meets-a-count	canon	a: map & len(min(1))	{"a":map&len(integer&min(1))}
+containerkind-map-count-settles-on-the-literal	gens	a: map & len(min(1)) & {x: 1}	{"a":{"x":1}}
+containerkind-list-count-refuses-the-literal	errc	a: list & len(max(2)) & [1, 2, 3]	constraint
+containerkind-map-refuses-a-scalar-bound	errc	a: map & min(1)	constraint
+containerkind-list-refuses-a-pattern	errc	a: list & re("x")	constraint
+containerkind-count-in-a-disjunction	gens	a: [] & (list & len(max(2)) | null)	{"a":[]}

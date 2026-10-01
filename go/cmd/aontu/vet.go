@@ -48,6 +48,8 @@ type vetArgs struct {
 	at        string
 	closed    bool
 	partial   bool
+	noFill    bool
+	exact     bool
 	maxErrors int
 	watch     bool
 	// G11 phase 5. strictCoverage implies coverage; coverageAt narrows
@@ -99,6 +101,10 @@ func parseVetArgs(argv []string) (*vetArgs, string) {
 			args.closed = true
 		case "--partial" == arg:
 			args.partial = true
+		case "--no-fill" == arg:
+			args.noFill = true
+		case "--exact-numbers" == arg:
+			args.exact = true
 		case "--coverage" == arg:
 			args.coverage = true
 		case "--strict-coverage" == arg:
@@ -354,6 +360,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 			At:        args.at,
 			Closed:    args.closed,
 			Partial:   args.partial,
+			NoFill:    args.noFill,
 			MaxErrors: args.maxErrors,
 			SchemaURL: args.schema,
 			DataURL:   source.file,
@@ -361,6 +368,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 			DataPath:   source.file,
 			Coverage:   args.coverage,
 			CoverageAt: args.coverageAt,
+			ExactNumbers: args.exact,
 		})
 
 		if vetRank[verdict] < vetRank[report.Verdict] {

@@ -110,3 +110,9 @@ guard-pref-disjunct-gens	gens	a:*8080|1024	{"a":8080}
 # exactly as identical keys always have -- only a DIFFERING spread
 # (the regime-4 fix) holds a disjunction open.
 disjunct-equal-spreads-dedup	gens	y: ([&: integer] | [&: integer]) & [3]\nz: ({&: integer} | {&: integer}) & {a: 4}	{"y":[3],"z":{"a":4}}
+# A DISJUNCTION DECIDED TO A RESIDUE IS THE MEET SO FAR (G12): the one
+# branch a container count leaves is kept, not discarded as no progress.
+disjunct-decided-to-a-map-count	canon	a: {x: 1} & ({} & len(max(2)) | null)	{"a":{"x":1}&len(integer&min(0)&max(2))}
+disjunct-decided-to-a-list-count	gens	a: [1] & ([&: any] & len(max(2)) | null)	{"a":[1]}
+disjunct-count-refuses-every-branch	errc	a: [1, 2, 3] & ([&: any] & len(max(2)) | null)	empty
+disjunct-decided-reference-bound	gens	s: {lo: 2, hi: 10, t: (integer & min($.s.lo) & max($.s.hi) | null)} s: t: 7	{"s":{"hi":10,"lo":2,"t":7}}

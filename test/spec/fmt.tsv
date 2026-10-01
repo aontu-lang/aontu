@@ -290,3 +290,8 @@ fmt-alias-key-nested	fmt	x:{%a:{n:1}} y:%a	x: %a: n: 1\ny: %a\n
 fmt-alias-key-list	fmt	x:[%a:1] y:%a	x: [%a:1]\ny: %a\n
 fmt-alias-key-self	fmt	%a: %a	%a: %a\n
 fmt-alias-key-value-prefix	fmt	%a: %a = 1	%a: %a = 1\n
+# A quoted optional key spelt like a value keyword or an inherited
+# member is unquoted, since the parser takes either as an optional key.
+fmt-optional-keyword-key-unquoted	fmt	"list"?: any	list?: any\n
+fmt-optional-proto-key-unquoted	fmt	"__proto__"?: integer	__proto__?: integer\n
+fmt-optional-keyword-key-nested	fmt	a: {"string"?: integer}	a: string?: integer\n

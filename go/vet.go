@@ -102,6 +102,12 @@ type VetOptions struct {
 
 	SchemaPath string
 	DataPath   string
+
+	// NoFill requires the data to be an instance as written (G12): a member
+	// the schema supplies and the data lacks is a vet_filled finding.
+	NoFill bool
+	// ExactNumbers reads every data number by its exact value (G12).
+	ExactNumbers bool
 }
 
 func aontuForPathTrust(
@@ -339,6 +345,51 @@ func anchorAt(root Val, at string) Val {
 	return node
 }
 
+// filledFindings reports each member the schema supplied and the data
+// does not carry, at the anchor's own paths.
+func filledFindings(generated any, unified Val, dataSrc string,
+	options VetOptions, prov vetProv, sources vetSources) []VetFinding {
+	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt)
+	ownA.ExactNumbers = options.ExactNumbers
+	parsed, _ := ownA.Parse(dataSrc)
+	ownCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
+	own := unifyRoot(parsed, ownCtx)
+	if 0 < len(ownCtx.err) {
+		return nil
+	}
+	ownGen, _ := own.Gen(&Ctx{root: own, src: dataSrc, collect: true})
+	out := []VetFinding{}
+	prefix := anchorSegs(options.At)
+	for _, p := range fillDiff(generated, ownGen, unified, nil, nil) {
+		sites := []VetSite{}
+		if s := siteOf(valAt(unified, p), prov, sources); nil != s {
+			sites = append(sites, *s)
+		}
+		out = append(out, fromRegistry(VetFinding{
+			Class:    codeClass("vet_filled"),
+			Code:     "vet_filled",
+			Message:  "The schema supplies this member, and the data does not carry it.",
+			Path:     subPathText(append(cp(prefix), p...)),
+			Severity: "error",
+			Sites:    sites,
+		}, "vet_filled", nil))
+	}
+	return out
+}
+
+// valAt is the value a filled member is blamed on, at a generated path.
+func valAt(root Val, path []string) Val {
+	v := root
+	for _, seg := range path {
+		next := admitMember(v, seg)
+		if nil == next {
+			return v
+		}
+		v = next
+	}
+	return v
+}
+
 func anchorSegs(at string) []string {
 	out := []string{}
 	for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
@@ -453,6 +504,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		options.SchemaPath, options.Trust, options.TextExt)
 	dataA := aontuForPathTrust(
 		options.DataPath, options.Trust, options.TextExt)
+	dataA.ExactNumbers = options.ExactNumbers
 
 	// 1. The schema alone. If it does not stand up on its own, the data
 	//    is never blamed for it.
@@ -572,6 +624,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		measured := dataVal
 		coverA := aontuForPathTrust(
 			options.DataPath, options.Trust, options.TextExt)
+		coverA.ExactNumbers = options.ExactNumbers
 		if parsed, cerr := coverA.Parse(dataSrc); nil == cerr {
 			coverCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
 			settled := unifyRoot(parsed, coverCtx)
@@ -645,11 +698,15 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
 		probe: "" != options.At}
-	_, _ = unified.Gen(genCtx)
+	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() || "conflict" == e.Class() {
 			findings = append(findings, findingOf(e, prov, sources))
 		}
+	}
+	if options.NoFill && nil != generated {
+		findings = append(findings,
+			filledFindings(generated, unified, dataSrc, options, prov, sources)...)
 	}
 	findings = append(findings, lintFindings...)
 

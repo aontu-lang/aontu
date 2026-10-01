@@ -26,6 +26,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -178,6 +179,11 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies and the data
+                    does not carry (vet_filled): the data must be an
+                    instance as written, not as filled
+  --exact-numbers   Read every data number by its exact value, so 1,
+                    1.0 and 1e0 are one integer and 0.1 keeps its digits
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the

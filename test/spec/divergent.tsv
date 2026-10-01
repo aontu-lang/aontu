@@ -103,6 +103,30 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- a long flat operator chain overflows the TypeScript parser.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 3,
+#   whose importer writes a JSON Schema `enum` as one disjunction. NOT
+#   introduced by that work: it reproduces on a plain document.
+#
+#   Divergent input:  a: 0|1|2|...|1999   (one disjunction of 2,000
+#                     integers; 1,000 members agree)
+#   TypeScript: `aontu: unexpected error: Maximum call stack size
+#               exceeded`, exit 1, thrown while parsing
+#   Go:         [aontu/disjunct_no_gen] at $.a, exit 1: the chain
+#               parses and evaluates, and has no default to generate
+#
+#   Not simply fixed because the recursion is in the pinned
+#   @tabnas/expr (TypeScript), whose `evaluation` folds an operator
+#   chain by recursing once per member; flattening it is an upstream
+#   change. Turning the RangeError into `max_depth` here would give a
+#   registered code but still not Go's answer. The importer bounds
+#   what it writes instead: a disjunction or meet of more than 32
+#   members is nested in groups of at most 32 (ADR-046), so an
+#   imported schema never reaches the limit, while a hand-written chain
+#   of that length still does.
+#
+# ---------------------------------------------------------------------
+#
 #
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.

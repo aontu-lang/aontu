@@ -20,6 +20,7 @@ const BagVal_1 = require("./val/BagVal");
 const utility_1 = require("./utility");
 const subsume_1 = require("./subsume");
 const query_1 = require("./query");
+const admit_1 = require("./admit");
 const keyorder_1 = require("./keyorder");
 // The default cap, exported because the CLI applies it to the WHOLE
 // report across several data files and must not carry a second copy of
@@ -87,6 +88,18 @@ function sitesOf(nil, prov) {
         ...sites.filter((s) => 'data' === s.role),
         ...sites.filter((s) => 'schema' === s.role),
     ];
+}
+// The value at a generated path, for the site a filled member is blamed on.
+function valAt(root, path) {
+    let v = root;
+    for (const seg of path) {
+        const next = Array.isArray(v?.peg) ? v.peg[Number(seg)] : v?.peg?.[seg];
+        if (null == next) {
+            return v;
+        }
+        v = next;
+    }
+    return v;
 }
 function materialise(nil, ctx) {
     if (null == nil.msg || '' === nil.msg) {
@@ -415,8 +428,10 @@ function vet(schemaSrc, dataSrc, opts) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const schemaOpts = null == options.schemaPath ?
         undefined : { path: options.schemaPath };
-    const dataOpts = null == options.dataPath ?
-        undefined : { path: options.dataPath };
+    const dataOpts = {
+        ...(null == options.dataPath ? {} : { path: options.dataPath }),
+        ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+    };
     // 1. The schema alone. If it does not stand up on its own, the data
     //    is never blamed for it.
     const schemaCtx = aontu.ctx({ collect: true });
@@ -557,11 +572,30 @@ function vet(schemaSrc, dataSrc, opts) {
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
     genCtx.probe = null != options.at;
-    unified.gen(genCtx);
+    const generated = unified.gen(genCtx);
     for (const err of genCtx.err) {
         if ('incomplete' === err.class || 'conflict' === err.class) {
             materialise(err, genCtx);
             findings.push(findingOf(err, prov));
+        }
+    }
+    if (true === options.noFill && undefined !== generated) {
+        const ownCtx = aontu.ctx({ collect: true });
+        const own = aontu.unify(dataSrc, dataOpts, ownCtx);
+        const genOwn = aontu.ctx({ collect: true });
+        genOwn.root = own;
+        const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined;
+        // Under --at the paths are the anchor's, as every other finding's are.
+        const anchorPath = ctx.path ?? [];
+        for (const path of (0, admit_1.fillDiff)(generated, ownGen, unified)) {
+            findings.push(fromRegistry({
+                code: 'vet_filled',
+                class: (0, hints_1.codeClass)('vet_filled'),
+                severity: 'error',
+                path: pathText([...anchorPath, ...path]),
+                message: 'The schema supplies this member, and the data does not carry it.',
+                sites: [siteOf(valAt(unified, path), prov)],
+            }, { why: 'vet_filled' }));
         }
     }
     findings.push(...lintFindings);

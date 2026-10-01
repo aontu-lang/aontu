@@ -116,8 +116,12 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		if val.Dc() != DONE {
 			done = false
 		}
-		if _, ok := val.(*ConjunctVal); ok {
-			// Could not merge t0 and t1; keep t0, advance.
+		_, t0dj := t0.(*DisjunctVal)
+		_, t1dj := t1.(*DisjunctVal)
+		if cj, ok := val.(*ConjunctVal); ok && (!t0dj && !t1dj || sameTerms(cj, t0, t1)) {
+			// A conjunct answer is no progress, unless a disjunction was
+			// decided and settled to a conjunct of other terms: the sizing
+			// residue of the one branch that survived is the meet so far.
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {
@@ -164,6 +168,14 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		out.setMarkHide(true)
 	}
 	return out
+}
+
+func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
+	if 2 != len(cj.peg) {
+		return false
+	}
+	has := func(t Val) bool { return cj.peg[0] == t || cj.peg[1] == t }
+	return has(t0) && has(t1)
 }
 
 // norm flattens nested conjuncts and orders terms by cjo so that

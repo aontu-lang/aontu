@@ -12,6 +12,7 @@ import {
   patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
+import { importJsonSchema } from '../dist/jsonschema-import'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
@@ -339,6 +340,19 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `jsonschema report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-import' === row.mode) {
+    const report = importJsonSchema(row.src)
+    Assert.strictEqual(
+      exactJSON({
+        aontu: report.aontu,
+        lossy: report.lossy,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+      }),
+      exactJSON(JSON.parse(row.expect)),
+      `jsonschema-import report mismatch: ${row.name}`)
   }
   else if ('reaches' === row.mode) {
     const golden = JSON.parse(row.expect)

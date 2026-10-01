@@ -88,8 +88,10 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 done = done && type_1.DONE === val.dc;
                 newtype = this.mark.type || val.mark.type;
                 newhide = this.mark.hide || val.mark.hide;
-                // Unite was just a conjunt anyway, so discard.
-                if (val.isConjunct) {
+                // A conjunct answer is no progress, unless a disjunction was
+                // decided and settled to a conjunct of other terms: the sizing
+                // residue of the one branch that survived is the meet so far.
+                if (val.isConjunct && (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
                     outvals.push(t0);
                     t0 = t1;
                 }
@@ -151,6 +153,9 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.ConjunctVal = ConjunctVal;
+function sameTerms(cj, t0, t1) {
+    return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);
+}
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms

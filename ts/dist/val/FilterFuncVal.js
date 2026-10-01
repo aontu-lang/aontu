@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FilterFuncVal = void 0;
 const err_1 = require("../err");
 const MapVal_1 = require("./MapVal");
+const BagVal_1 = require("./BagVal");
 const ListVal_1 = require("./ListVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const Val_1 = require("./Val");
@@ -43,7 +44,7 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
         // emit (./members.ts, BUGS.md §79) -- so a hidden child is never
         // selected into the result.
         if (true === data?.isMap) {
-            const peg = {};
+            const peg = (0, BagVal_1.keyTable)();
             for (const { key, val } of (0, members_1.bagMembers)(data, ctx)) {
                 const kctx = ctx.descend(key);
                 if (keeps(val, kctx)) {

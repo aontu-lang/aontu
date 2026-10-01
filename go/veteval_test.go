@@ -14,6 +14,7 @@ import (
 
 type vetEvalRow struct {
 	file, name, schema, data string
+	noFill, exact            bool
 }
 
 func loadVetEvalRows(t *testing.T) []vetEvalRow {
@@ -43,10 +44,12 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 			}
 			var expect struct {
 				Opts struct {
-					At        string `json:"at"`
-					Closed    bool   `json:"closed"`
-					Partial   bool   `json:"partial"`
-					MaxErrors *int   `json:"maxErrors"`
+					At           string `json:"at"`
+					Closed       bool   `json:"closed"`
+					Partial      bool   `json:"partial"`
+					MaxErrors    *int   `json:"maxErrors"`
+					NoFill       bool   `json:"noFill"`
+					ExactNumbers bool   `json:"exactNumbers"`
 				} `json:"opts"`
 			}
 			if err := json.Unmarshal(
@@ -66,8 +69,8 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 				strings.Contains(data, "__FIXTURES__") {
 				continue
 			}
-			rows = append(rows,
-				vetEvalRow{file: e.Name(), name: parts[0], schema: schema, data: data})
+			rows = append(rows, vetEvalRow{file: e.Name(), name: parts[0],
+				schema: schema, data: data, noFill: o.NoFill, exact: o.ExactNumbers})
 		}
 	}
 	return rows
@@ -131,6 +134,31 @@ func vetEvalWrap(src string) string {
 	return "veteval: (" + t + ")"
 }
 
+// Under --no-fill or --exact-numbers the data is a value read its own
+// way, so the one-document form is the meet of the schema's parse and the
+// data's, and --no-fill asks the admission trial.
+func vetEvalByValue(row vetEvalRow) bool {
+	sval, err := New().Parse(row.schema)
+	if nil != err {
+		return false
+	}
+	da := New()
+	da.ExactNumbers = row.exact
+	dval, err := da.Parse(row.data)
+	if nil != err {
+		return false
+	}
+	if row.noFill {
+		return Admits(sval, dval)
+	}
+	met, held := settledMeet(sval, dval)
+	if !held {
+		return false
+	}
+	_, ok := generatedOf(met, "")
+	return ok
+}
+
 func TestVetEqualsEval(t *testing.T) {
 	rows := loadVetEvalRows(t)
 
@@ -144,17 +172,22 @@ func TestVetEqualsEval(t *testing.T) {
 	disagree := []string{}
 	skipped := 0
 	for _, row := range rows {
-		report := Vet(row.schema, row.data,
-			&VetOptions{SchemaURL: "schema", DataURL: "data"})
+		report := Vet(row.schema, row.data, &VetOptions{SchemaURL: "schema",
+			DataURL: "data", NoFill: row.noFill, ExactNumbers: row.exact})
 		vetAccepts := VetValid == report.Verdict
 
-		one := vetEvalUnion(row.schema, row.data)
-		if "" == one {
-			skipped++
-			continue
+		var evalOK bool
+		if row.noFill || row.exact {
+			evalOK = vetEvalByValue(row)
+		} else {
+			one := vetEvalUnion(row.schema, row.data)
+			if "" == one {
+				skipped++
+				continue
+			}
+			out, err := New().Generate(one)
+			evalOK = nil == err && nil != out
 		}
-		out, err := New().Generate(one)
-		evalOK := nil == err && nil != out
 
 		if vetAccepts != evalOK {
 			verb := "refuses"

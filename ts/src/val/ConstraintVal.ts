@@ -682,6 +682,10 @@ class ConstraintVal extends FeatureVal {
     else if ((peer as any).isMap || (peer as any).isList) {
       out = this.admitContainer(peer, ctx)
     }
+    else if ((peer as any).isContainerKind) {
+      out = null != this.domain ? this.fail(ctx, peer) :
+        new ConjunctVal({ peg: [this, peer] }, ctx)
+    }
     /* node:coverage ignore next 12 */
     else {
       out = this.fail(ctx, peer)

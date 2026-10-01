@@ -602,6 +602,25 @@ const hints: Record<string, string> = {
     '  listen: %port    -> the alias, reached by its own name;\n' +
     '  listen: $.%port  -> nil  # Not a path segment.',
 
+  'jsonschema_schema':
+    'The text handed to the JSON Schema importer is not a schema: it is\n' +
+    'not JSON, its root is neither an object nor a boolean, or a keyword\n' +
+    'holds a value of the wrong type. The site names the first fault.\n' +
+    'Fix the schema text; nothing in the aontu document is at issue.',
+
+  'jsonschema_duplicate':
+    'A JSON Schema resource declares one `$anchor` name twice, so a\n' +
+    'reference to it would be answered by whichever declaration the\n' +
+    'walk reached first. Rename one anchor, or give the second subschema\n' +
+    'its own `$id` so that the two names live in different resources.',
+
+  'vet_filled':
+    'Under --no-fill a member the schema supplies and the data does not\n' +
+    'carry is a finding: the data is not an instance of the schema as\n' +
+    'written, even though evaluation would fill the member from a\n' +
+    'default or a literal. Supply the member in the data, or run without\n' +
+    '--no-fill to accept the fill.',
+
   'alias_not_toplevel':
     'An alias declaration written as a KEY sits at the root of the\n' +
     'document. A nested `x: { %a = 1 }` is refused because `%a` resolves\n' +
@@ -919,6 +938,9 @@ const codeClasses: Record<string, string> = {
   unify_no_src: 'parse',
   incomplete_expression: 'parse',
   var_name: 'parse',
+  jsonschema_schema: 'parse',
+  jsonschema_duplicate: 'reference',
+  vet_filled: 'incomplete',
   pref_implicit_bag: 'parse',
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',

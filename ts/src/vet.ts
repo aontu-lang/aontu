@@ -19,6 +19,7 @@ import { collectDeprecations, walkBagVals, deprecationMessage,
 } from './utility'
 import { subsumeNode, effectiveDefault } from './subsume'
 import { noPathFinding } from './query'
+import { fillDiff } from './admit'
 import { cmpCodePoint } from './keyorder'
 
 
@@ -90,6 +91,11 @@ export type VetOptions = {
 
   schemaPath?: string
   dataPath?: string
+
+  // G12: a member the schema supplies and the data lacks is vet_filled.
+  noFill?: boolean
+  // G12: every data number read by its exact value.
+  exactNumbers?: boolean
 
   trust?: TrustOptions
 
@@ -195,6 +201,20 @@ function sitesOf(nil: any, prov: Prov): VetSite[] {
     ...sites.filter((s) => 'data' === s.role),
     ...sites.filter((s) => 'schema' === s.role),
   ]
+}
+
+
+// The value at a generated path, for the site a filled member is blamed on.
+function valAt(root: any, path: string[]): any {
+  let v = root
+  for (const seg of path) {
+    const next = Array.isArray(v?.peg) ? v.peg[Number(seg)] : v?.peg?.[seg]
+    if (null == next) {
+      return v
+    }
+    v = next
+  }
+  return v
 }
 
 
@@ -595,8 +615,10 @@ export function vet(
   const aontu = new Aontu(includeOpts(options))
   const schemaOpts = null == options.schemaPath ?
     undefined : { path: options.schemaPath }
-  const dataOpts = null == options.dataPath ?
-    undefined : { path: options.dataPath }
+  const dataOpts = {
+    ...(null == options.dataPath ? {} : { path: options.dataPath }),
+    ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+  }
 
   // 1. The schema alone. If it does not stand up on its own, the data
   //    is never blamed for it.
@@ -748,11 +770,31 @@ export function vet(
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
   genCtx.probe = null != options.at
-  unified.gen(genCtx)
+  const generated = unified.gen(genCtx)
   for (const err of genCtx.err) {
     if ('incomplete' === err.class || 'conflict' === err.class) {
       materialise(err, genCtx)
       findings.push(findingOf(err, prov))
+    }
+  }
+
+  if (true === options.noFill && undefined !== generated) {
+    const ownCtx: any = aontu.ctx({ collect: true })
+    const own: any = aontu.unify(dataSrc, dataOpts, ownCtx)
+    const genOwn: any = aontu.ctx({ collect: true })
+    genOwn.root = own
+    const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
+    // Under --at the paths are the anchor's, as every other finding's are.
+    const anchorPath: string[] = (ctx as any).path ?? []
+    for (const path of fillDiff(generated, ownGen, unified)) {
+      findings.push(fromRegistry({
+        code: 'vet_filled',
+        class: codeClass('vet_filled'),
+        severity: 'error',
+        path: pathText([...anchorPath, ...path]),
+        message: 'The schema supplies this member, and the data does not carry it.',
+        sites: [siteOf(valAt(unified, path), prov) as VetSite],
+      }, { why: 'vet_filled' }))
     }
   }
 

@@ -52,6 +52,8 @@ type Aontu struct {
 	TrustWarnRoot string
 
 	TextExt []string
+
+	ExactNumbers bool
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -68,7 +70,7 @@ func (a *Aontu) Parse(src string) (Val, error) {
 // and leaves the include manifest on IncludeDeps.
 func (a *Aontu) parseEntry(src string) (Val, error) {
 	sink := a.newTrustSink()
-	v, err := parseWithTrust(src, a.base, a.File, sink)
+	v, err := parseWithTrust(src, a.base, a.File, sink, a.ExactNumbers)
 	a.IncludeDeps = manifestOf(*sink.deps)
 	a.IncludeText = sink.texts
 	return v, err

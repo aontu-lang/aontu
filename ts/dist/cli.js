@@ -55,6 +55,7 @@ const report_sarif_1 = require("./report-sarif");
 const lsp_server_1 = require("./lsp-server");
 const mcp_server_1 = require("./mcp-server");
 const jsonschema_1 = require("./jsonschema");
+const jsonschema_import_1 = require("./jsonschema-import");
 const pkg_1 = require("./pkg");
 const pkg_net_1 = require("./pkg-net");
 const mod_1 = require("./mod");
@@ -77,6 +78,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -229,6 +231,11 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies and the data
+                    does not carry (vet_filled): the data must be an
+                    instance as written, not as filled
+  --exact-numbers   Read every data number by its exact value, so 1,
+                    1.0 and 1e0 are one integer and 0.1 keeps its digits
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -921,6 +928,8 @@ function parseVetArgs(argv) {
     let at;
     let closed = false;
     let partial = false;
+    let noFill = false;
+    let exactNumbers = false;
     let maxErrors;
     let watch = false;
     let coverage = false;
@@ -961,6 +970,12 @@ function parseVetArgs(argv) {
         else if ('--partial' === arg) {
             partial = true;
         }
+        else if ('--no-fill' === arg) {
+            noFill = true;
+        }
+        else if ('--exact-numbers' === arg) {
+            exactNumbers = true;
+        }
         else if ('--coverage' === arg) {
             coverage = true;
         }
@@ -1000,6 +1015,8 @@ function parseVetArgs(argv) {
             at,
             closed,
             partial,
+            noFill,
+            exactNumbers,
             maxErrors,
             watch,
             coverage,
@@ -1134,6 +1151,8 @@ function vetOnce(args, trust) {
             at: args.at,
             closed: args.closed,
             partial: args.partial,
+            noFill: args.noFill,
+            exactNumbers: args.exactNumbers,
             maxErrors: args.maxErrors,
             schemaUrl: args.schema,
             dataUrl: source.file,
@@ -3292,13 +3311,81 @@ function renderRelationsJson(report) {
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
-const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] <file> (try --help)';
+const JSONSCHEMA_HELP = 'aontu jsonschema [import] [--at <path>] [--strict] <file> (try --help)';
+// The import mode: JSON Schema text in, an aontu document out, the
+// losses on stderr, exactly as the export reads the other way.
+function runJsonSchemaImport(argv) {
+    const files = [];
+    let format = 'text';
+    let strict = false;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--strict' === arg) {
+            strict = true;
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown jsonschema import option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            files.push(arg);
+        }
+    }
+    if (1 !== files.length) {
+        process.stderr.write(`aontu: jsonschema import needs one file\n${JSONSCHEMA_HELP}\n`);
+        return 2;
+    }
+    let src;
+    try {
+        src = (0, node_fs_1.readFileSync)(files[0], 'utf8');
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0] });
+    if ('json' === format) {
+        process.stdout.write((0, aontu_1.exactJSON)({
+            aontu: { version: version(), verb: 'jsonschema' },
+            verdict: report.verdict,
+            text: report.aontu,
+            lossy: report.lossy,
+            ...(null == report.errors ? {} : { errors: report.errors }),
+        }, 2) + '\n');
+    }
+    else if ('error' === report.verdict) {
+        process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n');
+    }
+    else {
+        process.stdout.write(report.aontu);
+        for (const l of report.lossy) {
+            process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`);
+        }
+    }
+    return 'error' === report.verdict ? 4 :
+        strict && 'lossy' === report.verdict ? 1 : 0;
+}
 function runJsonSchema(argv) {
     const trusted = takeTrust(argv);
     if (null == trusted) {
         return 2;
     }
     argv = trusted.argv;
+    if ('import' === argv[0]) {
+        return runJsonSchemaImport(argv.slice(1));
+    }
     const trust = trusted.trust;
     const files = [];
     let format = 'text';

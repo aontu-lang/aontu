@@ -37,6 +37,7 @@ const DisjunctVal_1 = require("./val/DisjunctVal");
 const IntegerVal_1 = require("./val/IntegerVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
+const BagVal_1 = require("./val/BagVal");
 const Val_1 = require("./val/Val");
 const ctx_1 = require("./ctx");
 const err_1 = require("./err");
@@ -86,6 +87,14 @@ const ConstraintVal_1 = require("./val/ConstraintVal");
 const asPlugin = (p) => p;
 function negsrc(src) {
     return src.startsWith('-') ? src.slice(1) : '-' + src;
+}
+// A data number under exactNumbers: the leaf its value selects.
+function exactNumberVal(n, src) {
+    return 'integer' === n.leaf ? new IntegerVal_1.IntegerVal({ peg: n.int, src }) :
+        'biginteger' === n.leaf ? new BigIntegerVal_1.BigIntegerVal({ peg: n.int, src }) :
+            'bigdecimal' === n.leaf ?
+                new BigDecimalVal_1.BigDecimalVal({ peg: new Decimal_1.Decimal(n.unscaled, n.scale), src }) :
+                new NilVal_1.NilVal({ why: n.code });
 }
 function bigVal(res) {
     const lit = (0, Decimal_1.readBigLiteral)(res);
@@ -863,7 +872,8 @@ help isolate the syntax error.`,
     const NR = jsonic.token.NR;
     const QM = jsonic.token.QM;
     const VL = jsonic.token.VL;
-    const OPTKEY = [TX, ST, NR];
+    // A value keyword is a key wherever a key is written, optional or not.
+    const OPTKEY = [TX, ST, NR, VL];
     jsonic.rule('expr', (rs) => {
         rs.close([
             { s: [CJ, CL], b: 2, n: { expr: 0 }, g: 'expr,expr-end,spread' },
@@ -888,7 +898,7 @@ help isolate the syntax error.`,
                 // @tabnas seeds a descended rule's node from its parent; without
                 // a fresh node here the nested spread map (`a:&:{x:1}`) would
                 // share the parent map's node object and self-reference.
-                a: (r) => { r.node = {}; },
+                a: (r) => { r.node = (0, BagVal_1.keyTable)(); },
                 g: 'spread'
             },
             {
@@ -898,7 +908,7 @@ help isolate the syntax error.`,
                 b: 2,
                 // Fresh node (see spread alt above): the optional dive descends
                 // to a map and must not share the parent's node object.
-                a: (r) => { r.node = {}; },
+                a: (r) => { r.node = (0, BagVal_1.keyTable)(); },
                 g: 'pair,jsonic,top,aontu-optional',
             },
             {
@@ -906,7 +916,7 @@ help isolate the syntax error.`,
                 p: 'map',
                 b: 2,
                 n: { pk: 1 },
-                a: (r) => { r.node = {}; },
+                a: (r) => { r.node = (0, BagVal_1.keyTable)(); },
                 g: 'pair,jsonic,top,dive,aontu-optional',
             },
         ])
@@ -917,9 +927,14 @@ help isolate the syntax error.`,
                 valnode = addsite(new StringVal_1.StringVal({ peg: r.node }), r, ctx);
             }
             else if ('number' === valtype) {
+                const exact = true === ctx.meta.aontu?.exactNumbers ?
+                    (0, numkind_1.readExactNumber)(r.o0.src) : undefined;
                 // An overflowing literal (1e999) lexes to Infinity; that is an
                 // error value, not a number (mirrors not_number in go/lang.go).
-                if (!Number.isFinite(r.node)) {
+                if (undefined !== exact) {
+                    valnode = addsite(exactNumberVal(exact, r.o0.src), r, ctx);
+                }
+                else if (!Number.isFinite(r.node)) {
                     valnode = addsite(new NilVal_1.NilVal({ why: 'not_number' }), r, ctx);
                 }
                 else if ((0, numkind_1.isLossyIntegerLiteral)(r.node, r.o0.src)) {
@@ -1961,7 +1976,7 @@ function rawToVal(n) {
     if ('boolean' === t) {
         return new BooleanVal_1.BooleanVal({ peg: n });
     }
-    const peg = {};
+    const peg = (0, BagVal_1.keyTable)();
     for (const k in n) {
         peg[k] = rawToVal(n[k]);
     }
@@ -1999,6 +2014,7 @@ class Lang {
             // child-meta spread carries the same array to nested includes.
             aontu: {
                 manifest: opts?.manifest,
+                exactNumbers: true === opts?.exactNumbers,
             },
         };
         if (null != opts?.idcount) {

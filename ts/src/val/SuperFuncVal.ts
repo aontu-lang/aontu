@@ -13,6 +13,7 @@ import {
 
 import { FuncBaseVal } from './FuncBaseVal'
 import { MapVal } from './MapVal'
+import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { DisjunctVal } from './DisjunctVal'
 import { ScalarKindVal } from './ScalarKindVal'
@@ -64,7 +65,7 @@ function superOf(ctx: AontuContext, v: any): Val {
   }
 
   if (true === v.isMap) {
-    const peg: Record<string, Val> = {}
+    const peg: Record<string, Val> = keyTable()
     for (const k of Object.keys(v.peg)) {
       peg[k] = superOf(ctx, v.peg[k])
     }

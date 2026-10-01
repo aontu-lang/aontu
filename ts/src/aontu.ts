@@ -30,6 +30,7 @@ import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { reachCheck } from './reach'
 import { jsonSchema } from './jsonschema'
+import { importJsonSchema } from './jsonschema-import'
 import { aliasBudget, aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
@@ -337,6 +338,7 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
     fs: ctx.fs,
     path: ctx.opts.path,
     manifest: ctx.manifest,
+    exactNumbers: ctx.opts.exactNumbers,
   }
   let val
 
@@ -407,6 +409,7 @@ export {
   relationCheck,
   reachCheck,
   jsonSchema,
+  importJsonSchema,
   view,
   viewSet,
   viewTree,

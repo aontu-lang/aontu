@@ -579,7 +579,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		kslot := append(cp(dbase), k)
 		var cv Val
-		if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
+		if m.isAliasKey(k) {
+			// A DECLARATION IS NOT A CHILD: no template reaches it.
+			cv = child
+			if DONE != child.Dc() {
+				ctx.slot = kslot
+				cv = unite(ctx, child, top())
+			}
+		} else if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
 			cv = child
 			if !isAbsent(child) {
 				ctx.slot = kslot
@@ -661,7 +668,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// loop (the peer-loop `_spr` stamp in TS MapVal.unify).
 			if m.spread != nil && undecided(uv) {
 				done = false
-			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj {
+			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj &&
+				!out.isAliasKey(pk) {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
 				uv = unite(ctx, uv, sc)

@@ -277,10 +277,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	}
 
 	if 1 == len(c.res) {
-		out["pattern"] = c.res[0].src
+		out["pattern"] = c.res[0].norm
 	} else if 1 < len(c.res) {
 		for _, r := range c.res {
-			extra = append(extra, map[string]any{"pattern": r.src})
+			extra = append(extra, map[string]any{"pattern": r.norm})
 		}
 	}
 

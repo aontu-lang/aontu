@@ -220,6 +220,20 @@ describe('cli-vet', () => {
   })
 
 
+  test('vet-no-fill-and-exact-numbers', () => {
+    // --no-fill: a member the schema supplies is a finding, exit 3.
+    const filled = vetFiles('x: 1\nz: integer', '{"z": 5}')
+    const r = vetCapture(() => Assert.equal(runVet(['--no-fill', filled.schema, filled.data]), 3))
+    Assert.match(r.out, /\$\.x: vet_filled \[incomplete\]/)
+    vetCapture(() => Assert.equal(runVet([filled.schema, filled.data]), 0))
+
+    // --exact-numbers: 1.0 is the integer 1.
+    const exact = vetFiles('a: 1', '{"a": 1.0}')
+    vetCapture(() => Assert.equal(runVet(['--exact-numbers', exact.schema, exact.data]), 0))
+    vetCapture(() => Assert.equal(runVet([exact.schema, exact.data]), 1))
+  })
+
+
   test('vet-reports-findings-that-never-reached-the-tree', () => {
     const f = vetFiles(
       'service: close({ name: string, port: integer, replicas: integer })',
@@ -1053,6 +1067,53 @@ describe('cli-subsume', () => {
     Assert.equal(vetCapture(() =>
       Assert.equal(runJsonSchema(['--help']), 0)
     ).out.includes('aontu jsonschema'), true)
+  })
+
+  test('jsonschema-import-writes-aontu-and-names-what-it-cannot-carry', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsi-'))
+    const file = Path.join(dir, 'schema.json')
+
+    // THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
+    Fs.writeFileSync(file, '{"type": "object", "properties": {"n": {"type": "integer"}}}')
+    const ok = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
+    Assert.equal(ok.out, 'n?: integer\n')
+    Assert.equal(ok.err, '')
+
+    Fs.writeFileSync(file, '{"type": "string", "title": "t"}')
+    const lossy = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
+    Assert.equal(lossy.out, 'empty()\n')
+    Assert.match(lossy.err, /^lossy: #\/title title:/)
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--strict', file]), 1))
+
+    const j = JSON.parse(vetCapture(() => Assert.equal(
+      runJsonSchema(['import', '--format', 'json', file]), 0)).out)
+    Assert.equal(j.aontu.verb, 'jsonschema')
+    Assert.equal(j.text, 'empty()\n')
+    Assert.equal(j.verdict, 'lossy')
+    Assert.equal('errors' in j, false)
+
+    // Text that is not a schema refuses, in vet's finding shape.
+    Fs.writeFileSync(file, '{"type": 5')
+    const bad = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 4))
+    Assert.equal(bad.out, '')
+    Assert.match(bad.err, /jsonschema_schema/)
+    const je = JSON.parse(vetCapture(() => Assert.equal(
+      runJsonSchema(['import', '--format', 'json', file]), 4)).out)
+    Assert.equal(je.verdict, 'error')
+    Assert.equal(je.errors[0].code, 'jsonschema_schema')
+  })
+
+  test('jsonschema-import-usage-errors-exit-2', () => {
+    const f = subFiles('{}', '{}')
+    vetCapture(() => Assert.equal(runJsonSchema(['import']), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', f.general, f.specific]), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--bogus', f.general]), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--format', 'yaml', f.general]), 2))
+    vetCapture(() => Assert.equal(
+      runJsonSchema(['import', Path.join(f.dir, 'missing.json')]), 2))
+    Assert.equal(vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--help']), 0)
+    ).out.includes('aontu jsonschema import'), true)
   })
 
   test('reaches-answers-with-the-path-and-its-exit-code', () => {

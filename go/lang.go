@@ -25,6 +25,9 @@ const reservedKeyPrefix = "\x00aontu_"
 const orderKey = reservedKeyPrefix + "order"
 const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
+
+// exactNumbersMetaKey asks the parse to read numbers by exact value (G12).
+const exactNumbersMetaKey = reservedKeyPrefix + "exactnumbers"
 const requiredKey = reservedKeyPrefix + "required"
 
 // aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
@@ -375,7 +378,8 @@ help isolate the syntax error.`,
 		)
 	})
 	qm := j.Token("#QM", "?")
-	optkey := []jsonic.Tin{jsonic.TinTX, jsonic.TinST, jsonic.TinNR}
+	// A value keyword is a key wherever a key is written, optional or not.
+	optkey := []jsonic.Tin{jsonic.TinTX, jsonic.TinST, jsonic.TinNR, jsonic.TinVL}
 
 	freshMapNode := func(r *jsonic.Rule, _ *jsonic.Context) { r.Node = map[string]any{} }
 
@@ -836,7 +840,7 @@ func valDef(mk func(sp int) Val) *jsonic.ValueDef {
 
 // wrapLeaf converts a plain scalar leaf (number/string/bool) produced by
 // jsonic into the matching Val, recording the source byte offset.
-func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
+func wrapLeaf(r *jsonic.Rule, ctx *jsonic.Context) {
 	// Leave the @"path" argument of the multisource directive as a raw
 	// string so the directive can read it (it extracts the path itself,
 	// unlike the TS resolver which reads StringVal.peg).
@@ -848,6 +852,17 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 	if r.ON > 0 {
 		sp = r.O0.SI
 		src = r.O0.Src
+	}
+	if exact := nil != ctx && true == ctx.Meta[exactNumbersMetaKey]; exact {
+		_, num := r.Node.(float64)
+		txt, isText := r.Node.(string)
+		num = num || (isText && r.ON > 0 && r.O0.Tin == jsonic.TinTX && txt == src)
+		if en, ok := readExactNumber(src); num && ok {
+			v := exactNumberVal(en, src, sp)
+			stampSrc(v, r)
+			r.Node = v
+			return
+		}
 	}
 	switch n := r.Node.(type) {
 	case float64:
@@ -2517,7 +2532,7 @@ func placeAliasHoists(out any, sink *aliasHoistSink) {
 	m[aliasKeysKey] = ak
 }
 
-func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
+func parseWithTrust(src, base, file string, trust *trustSink, exact bool) (Val, error) {
 	src = toValidSource(src)
 
 	if off := findConflictMarker(src); off >= 0 {
@@ -2531,6 +2546,9 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	sink := &notFoundSink{}
 	hoists := &aliasHoistSink{}
 	meta := map[string]any{notFoundMetaKey: sink, aliasHoistMetaKey: hoists}
+	if exact {
+		meta[exactNumbersMetaKey] = true
+	}
 	if nil != trust {
 		meta[trustMetaKey] = trust
 	}

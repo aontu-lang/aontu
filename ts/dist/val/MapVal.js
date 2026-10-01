@@ -71,6 +71,9 @@ class MapVal extends BagVal_1.BagVal {
         if (null == this.peg) {
             throw new err_1.AontuError('MapVal spec.peg undefined');
         }
+        if (null !== Object.getPrototypeOf(this.peg)) {
+            Object.setPrototypeOf(this.peg, null);
+        }
         this.mark.type = !!spec.mark?.type;
         this.mark.hide = !!spec.mark?.hide;
         let spread = this.peg[type_1.SPREAD];
@@ -113,7 +116,7 @@ class MapVal extends BagVal_1.BagVal {
         let done = true;
         let exit = false;
         // NOTE: not a clone! needs to be constructed.
-        let out = (peer.isTop ? this : new MapVal({ peg: {} }, ctx));
+        let out = (peer.isTop ? this : new MapVal({ peg: (0, BagVal_1.keyTable)() }, ctx));
         out.closed = this.closed;
         out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
@@ -164,9 +167,14 @@ class MapVal extends BagVal_1.BagVal {
                 const keyctx = ctx.descend(key);
                 (0, utility_1.propagateMarks)(this, child);
                 let oval;
+                // A DECLARATION IS NOT A CHILD: no template reaches it.
+                if (this.aliasKeys.includes(key)) {
+                    oval = child.done ? child :
+                        (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, TOP, 'map-own');
+                }
                 // No `undefined !== child` here: propagateMarks above already
                 // dereferenced it, so a missing child would have thrown there.
-                if (!spread_cj.isTop && (child.isAbsent || (0, BagVal_1.undecided)(child))) {
+                else if (!spread_cj.isTop && (child.isAbsent || (0, BagVal_1.undecided)(child))) {
                     oval = child.isAbsent ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, TOP, 'map-own');
                     // Decided to be there: the template applies next pass.
@@ -246,7 +254,7 @@ class MapVal extends BagVal_1.BagVal {
                     if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;
                     }
-                    else if (this.spread.cj && !oval.isAbsent) {
+                    else if (this.spread.cj && !oval.isAbsent && !out.aliasKeys.includes(peerkey)) {
                         // Same apply-once discipline as the own-key loop: once the
                         // constraint is merged into the value (marked with the
                         // constraint's id), later passes only self-unify.
@@ -313,7 +321,7 @@ class MapVal extends BagVal_1.BagVal {
             return out;
         }
         let out = super.clone(ctx);
-        out.peg = {};
+        out.peg = (0, BagVal_1.keyTable)();
         for (let entry of Object.entries(this.peg)) {
             out.peg[entry[0]] = entry[1];
         }
@@ -329,7 +337,7 @@ class MapVal extends BagVal_1.BagVal {
     }
     clone(ctx, spec) {
         let out = super.clone(ctx, spec);
-        out.peg = {};
+        out.peg = (0, BagVal_1.keyTable)();
         for (let entry of Object.entries(this.peg)) {
             out.peg[entry[0]] =
                 entry[1]?.isVal ?

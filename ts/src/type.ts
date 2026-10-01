@@ -48,6 +48,9 @@ type AontuOptions = {
 
   textExt?: string[]
 
+  // Read every data number by its exact value (G12).
+  exactNumbers?: boolean
+
   trustWarn?: (kind: 'escape' | 'pkg', path: string) => void
   trustWarnRoot?: string
 }

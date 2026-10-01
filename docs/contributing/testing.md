@@ -199,6 +199,11 @@ evaluator disagree fails here even when every golden still matches.
 That is how it earns its place: the five defects the 2026-08 review
 found under this heading each passed a fully green suite.
 
+A row under `--no-fill` or `--exact-numbers` reads its data as a value
+of its own, so its one-document form is the meet of the two parses
+rather than one text, and under `--no-fill` it is the admission trial:
+the meet must generate the data's own value (G12).
+
 Rows with no single-document spelling are skipped — `--at` and
 `--closed` change the truth rather than the documents, `--partial`
 calls residue acceptable where eval never does, `--maxErrors` shapes
@@ -207,6 +212,43 @@ base, and a rootless literal carrying an absolute reference has no
 honest wrapped form. The skip COUNT is bounded by the check itself, so
 a skip list that grew to swallow the corpus fails rather than passing
 over nothing.
+
+## The JSON Schema suite
+
+The JSON Schema importer (G12) is graded by the official
+JSON-Schema-Test-Suite, vendored under
+[`test/vectors/jsonschema/`](../../test/vectors/jsonschema/README.md)
+with its provenance. The runners,
+[`ts/test/jsonschema-suite.test.ts`](../../ts/test/jsonschema-suite.test.ts)
+and [`go/jsonschema_suite_test.go`](../../go/jsonschema_suite_test.go),
+import every schema, run `vet --no-fill --exact-numbers` on every
+instance, and require the verdict to be `valid` exactly when the suite
+says the instance is valid. Each also requires the admission trial to
+answer as `vet` does on every instance, so the two ways of asking
+whether a value is an instance cannot drift apart.
+
+Each schema and instance is handed over as the suite's own text, sliced
+out of the file by the importer's JSON reader. A harness that decoded
+the file with the host's JSON parser would round the suite's large
+numbers before aontu saw them, and would grade the host instead.
+
+[`skips.tsv`](../../test/vectors/jsonschema/skips.tsv) is the skip
+ledger: one row per upstream test the importer cannot yet honour,
+naming the construct it waits on. Both runners enforce three rules on
+it:
+
+- a failing test that is not listed fails the run;
+- a listed test that passes fails the run, so the change that fixes it
+  deletes its row;
+- the ledger may not hold more rows than the bound both runners carry,
+  which the [register](../capability-review/progress.md) tightens as
+  each phase lands.
+
+The importer's own behaviour is pinned the usual way, by the
+`jsonschema-import` rows of
+[`test/spec/jsonschema-import.tsv`](../../test/spec/jsonschema-import.tsv),
+obtained from both engines agreeing. The suite grades meaning; the rows
+pin the text both ports print.
 
 ## The divergence ledger
 

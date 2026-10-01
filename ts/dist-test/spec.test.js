@@ -40,6 +40,7 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
+const jsonschema_import_1 = require("../dist/jsonschema-import");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
@@ -276,6 +277,16 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-import' === row.mode) {
+        const report = (0, jsonschema_import_1.importJsonSchema)(row.src);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            aontu: report.aontu,
+            lossy: report.lossy,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+        }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `jsonschema-import report mismatch: ${row.name}`);
     }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);
