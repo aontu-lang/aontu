@@ -32,7 +32,7 @@ not used, except for aontu's own.
 
 | Aspect | aontu 0.76.0 |
 |---|---|
-| Implementations | TypeScript (canonical) and a Go port, held to parity by 5,576 rows in 115 shared files under `test/spec/`, each port at 100 % coverage ([ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
+| Implementations | TypeScript (canonical) and a Go port, held to parity by the shared suite under `test/spec/` (whose size the [register](../capability-review/progress.md#the-update-protocol) records, rule 5, and nowhere else), each port at 100 % coverage ([ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
 | Licence and steward | MIT, a single maintainer, sponsored by Voxgig (`README.md:8`) |
 | Adoption | Minimal. 11 GitHub stars and no forks. npm counted 11,656 downloads in the 30 days to 2026-09-29 and 28,271 in the year; in the week before, 76 % were of the two newest releases, which points to the project's own CI more than to users. Four codebases are known to consume it (podmind, todo-app, voxgig/apidef and voxgig/sdkgen, `use-cases/REVIEW.md:9-10`), and in August their use was "includes + spreads + `*default \| widetype` + references, full stop" (`use-cases/REVIEW.md:378-379`). A web search found no independent public discussion. |
 | Turing-complete | No, by design: "No Turing-completeness, no SMT solvers" (`docs/trust.md:298`). There are no user-defined functions (`docs/reference-language.md:2090-2091`), generators iterate finite bags that already exist, recursion expands only against concrete data, and every evaluation runs under event budgets of 9 passes, 999 revisits and depth 1000 (`docs/trust.md:100-110`). Two open defects are inputs that do not terminate: [BUGS.md](../../use-cases/BUGS.md) §18 and §57. |
@@ -41,7 +41,7 @@ not used, except for aontu's own.
 | Generation | `pack`, `each`, `filter`, `match` and `emit` over settled data. No comprehension keywords, no if/else, no string interpolation. |
 | Numbers | Four disjoint leaves (`integer`, `float`, `biginteger`, `bigdecimal`); `0d` literals are exact; an integer that binary64 would round is refused |
 | Verbs | `vet` (verdicts with exit classes, JSON or SARIF, a GitHub Action), `subsume` and `breaking` (three-valued, with witnesses), `why`, `get` and `set`, `hash` (`aon1-` meaning pins), `fmt`, `view` (ten kinds), `render`, `jsonschema` (export) |
-| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, YAML, TOML and INI as include data ([ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and imports no schema language: G12 is 0 of 17 phases ([progress.md](../capability-review/progress.md)). |
+| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI as include data ([ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and imports no schema language: G12 is 0 of 17 phases ([progress.md](../capability-review/progress.md)). |
 | Trust | No clock, randomness, environment or network in the language; includes governed by a capability (`none`, `mem`, `root`, `system`), with the default left at `system` until the next major (G5 phase 6, `docs/capability-review/progress.md:1470`) |
 | Tooling | An LSP in both ports (diagnostics, hover, completion, go-to-definition on alias names, signature help, `docs/lsp.md:453`); an MCP server, TypeScript only; GBNF, Lark and ABNF grammars for constrained decoding; editor plugins for VS Code, Emacs and Vim |
 | Packages | Domain-shaped module paths, a lockfile with three pins, vendoring, Sigstore and OIDC publishing (G6, landed). The public repository at `pkg.aontu.dev` is not serving (`CHANGELOG.md:1273`). |
@@ -427,7 +427,8 @@ schemas.
 ### Plain data formats
 
 Any JSON document parses as aontu source, and JSON, JSON-LD, JSONC,
-JSON5, YAML, TOML and INI can be included as data. XML, HOCON, UCL,
+JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI can be included
+as data. XML, HOCON, UCL,
 KDL, EDN, RON, plist, `.properties` and protobuf text cannot be read,
 and CSV is refused because the two ports' readers disagreed
 ([DIVERGENCE.md](../../DIVERGENCE.md)). Of these formats only HOCON
@@ -446,11 +447,13 @@ use is JSON Schema.
    subsumption with a breaking gate, positive provenance, meaning-based
    pins, coded two-site findings, an agent-facing toolchain and two
    native engines at tested parity.
-2. Adoption is the widest gap. Every other language here has a
-   company, a foundation or a dominant tool behind it: CUE Labs, Apple,
-   Google, Meta, Tweag, IBM's HashiCorp, the CNCF or the NixOS
-   Foundation. aontu has a single maintainer and a sponsor, and its
-   production use stops at includes, spreads, defaults and references.
+2. Adoption is the widest gap. Every other language here except Dhall
+   has a company, a foundation or a dominant tool behind it: CUE Labs,
+   Apple, Google, Meta, Tweag, IBM's HashiCorp, the CNCF or the NixOS
+   Foundation. Dhall, a community project with an Open Collective, is
+   also the one in decline. aontu has a single maintainer and a sponsor,
+   and its production use stops at includes, spreads, defaults and
+   references.
 3. Interchange is the next gap. CUE, KCL, Nickel and Pkl each import
    JSON Schema or OpenAPI, and each writes YAML. aontu imports neither,
    writes JSON only, and has no serving package repository.
