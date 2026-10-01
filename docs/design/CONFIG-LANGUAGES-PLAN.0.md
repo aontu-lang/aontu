@@ -75,19 +75,6 @@ Sizes use the register's scale: S, M and L.
 | L9 | No type generation for TypeScript or Go | Pkl's code generators; CUE's Go type generation | Bundled models or packages that drive `render`, since ADR-038 keeps languages out of the engine | G9 follow-on | M |
 | L10 | Install friction | CUE, Jsonnet, Pkl and Nickel, all in homebrew-core | Seed `aontu-lang/homebrew-tap` and `aontu-lang/scoop-bucket` from the manifests each release already builds (`docs/release-and-tag.md:226`), and measure whether the npm package's Node floor can drop from 24 to the oldest maintained LTS | release | S |
 
-## Defects outside the comparison
-
-The survey turned these up in passing. They are defects rather than
-design, so each is filed as an issue, where its record lives; the
-priorities use the scale above.
-
-| Priority | Issue | Defect |
-|---|---|---|
-| HIGH | [#304](https://github.com/aontu-lang/aontu/issues/304) | A YAML flow collection on the line after its key loads in TypeScript and is refused in Go, because the ports pin `@tabnas/yaml` 0.5.9 and v0.5.8 against the exact-pin rule |
-| MEDIUM | [#305](https://github.com/aontu-lang/aontu/issues/305) | Published pages disagree on whether error-message text is in cross-port parity, and the `lossy_integer_literal` note saying Go words it differently is stale |
-| LOW | [#306](https://github.com/aontu-lang/aontu/issues/306) | `docs/site/index.md` opens with "Nothing here is built yet", but aontu.dev is live |
-| LOW | [#307](https://github.com/aontu-lang/aontu/issues/307) | `docs/lsp.md` lists `length`, `id` and `top` among completions; both servers offer `len`, no `id`, and `any` |
-
 ## Not proposed
 
 These are the capabilities of other languages that this plan leaves
@@ -108,8 +95,7 @@ out, and the decision that rules each one out.
 
 ## Suggested order
 
-1. H1, the HIGH defect (#304), the claim corrections that open H3, and
-   G12 phase 1 within H2.
+1. H1, the claim corrections that open H3, and G12 phase 1 within H2.
 2. G12 phases 2 and 3 (the rest of H2), H4, the comparisons page and
    the two guides (the rest of H3), and M7.
 3. The remaining MEDIUM items, M3 after H2 because its phases build on
