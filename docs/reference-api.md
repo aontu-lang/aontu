@@ -1357,6 +1357,8 @@ one;
 key being present, `when({k: any}, …)` with no `else`, becomes
 `dependentRequired` where its branch only asks for keys and
 `dependentSchemas` otherwise;
+`contains(c, n)` on a list becomes `contains`, with the count as
+`minContains` and `maxContains`;
 `len` becomes `minLength`/`maxLength` on a string,
 `minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
 a list, an open bound rounded inward to the next whole number
@@ -1400,6 +1402,8 @@ The losses, and why each is one:
 | `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
 | `len(multiple(n))` | no keyword constrains a count's divisor |
 | `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
+| `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
+| `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
 | an exact `0d` endpoint binary64 cannot hold | the bound crosses as the nearest double, which draws a different boundary; one beyond binary64 altogether is omitted |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
@@ -1535,6 +1539,8 @@ y: number
 | `if`, `then`, `else` | `when(c, t, e)`, paired within one schema object; a `then` or `else` without an `if`, and an `if` with neither, assert nothing |
 | `dependentSchemas` | `when({k: any}, S)` for each key `k`: the schema applies where the object holds `k` |
 | `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |
+| `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
+| `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
 | `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
 | `$schema`, `$comment` | read and dropped: the dialect is 2020-12, and a comment asserts nothing |
 
@@ -1548,7 +1554,7 @@ other: `allOf` of a string and a number admits nothing, and imports as
 loss names a pointer into the schema, the keyword, and what dropping it
 costs. An annotation such as `title`, `format` or `default` asserts
 nothing, so dropping it changes no answer; a validation keyword such as
-`contains` or `uniqueItems` widens the position, and the loss says so. A
+`unevaluatedProperties` widens the position, and the loss says so. A
 `$ref` that names another document is a loss too, and its position
 admits anything: the importer reads one document.
 

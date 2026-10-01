@@ -770,8 +770,6 @@ const (
 )
 
 var importLater = map[string]string{
-	"contains": importNotYet, "minContains": importNotYet, "maxContains": importNotYet,
-	"uniqueItems": importNotYet,
 	"$dynamicRef": importNotYet, "$dynamicAnchor": importNotYet,
 	"unevaluatedProperties": importNotYet, "unevaluatedItems": importNotYet,
 	"title": importAnnotation, "description": importAnnotation, "default": importAnnotation,
@@ -791,7 +789,8 @@ var importCarried = []string{
 	"dependentSchemas", "dependentRequired", "properties", "required",
 	"additionalProperties",
 	"patternProperties", "propertyNames", "minProperties", "maxProperties",
-	"prefixItems", "items", "minItems", "maxItems", "minimum", "maximum",
+	"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
+	"maxContains", "uniqueItems", "minimum", "maximum",
 	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
 	"pattern",
 }
@@ -805,7 +804,8 @@ var importScoped = map[string][]string{
 	"number": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"object": {"properties", "required", "additionalProperties", "patternProperties",
 		"propertyNames", "minProperties", "maxProperties"},
-	"array": {"prefixItems", "items", "minItems", "maxItems"},
+	"array": {"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
+		"maxContains", "uniqueItems"},
 }
 
 // ecmaSpace is what `\s` means in a JSON Schema pattern, as a class body
@@ -1222,7 +1222,7 @@ func blocker(e *ixpr) bool {
 			closed = closed || holdsNilExpr(sp)
 		}
 	case "call":
-		closed = inList([]string{"nof", "must", "when", "close"}, e.name)
+		closed = inList([]string{"nof", "must", "when", "close", "contains", "unique"}, e.name)
 	}
 	return ("raw" == e.k && strings.HasPrefix(e.text, "%")) || counted || closed ||
 		someExpr(e, blocker)
@@ -1721,8 +1721,14 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 		return iand([]*ixpr{m, l})
 	}
 	spread := ctx.arraySpread(node, ptr)
-	l := counted("minItems", "maxItems")
-	if nil == l {
+	sized := []*ixpr{}
+	for _, e := range []*ixpr{counted("minItems", "maxItems"), ctx.containsOf(node, ptr),
+		ctx.uniqueOf(node, ptr)} {
+		if nil != e {
+			sized = append(sized, e)
+		}
+	}
+	if 0 == len(sized) {
 		if nil == spread {
 			return iraw("list")
 		}
@@ -1732,7 +1738,56 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 	if nil == spread {
 		spread = iAny
 	}
-	return iand([]*ixpr{{k: "list", spread: spread}, l})
+	return iand(append([]*ixpr{{k: "list", spread: spread}}, sized...))
+}
+
+// containsOf counts the items its schema admits, at least one unless
+// minContains says otherwise; a count of at least none asserts nothing.
+func (ctx *importCtx) containsOf(node *jnode, ptr string) *ixpr {
+	has := jentryOf(node, "contains")
+	if nil == has {
+		return nil
+	}
+	bound := func(k string) (string, bool) {
+		if v := jentryOf(node, k); nil != v {
+			return ctx.count(ptrChild(ptr, k), k, v)
+		}
+		return "", false
+	}
+	lo, ok := bound("minContains")
+	if !ok {
+		lo = "1"
+	}
+	hi, hasHi := bound("maxContains")
+	if "0" == lo && !hasHi {
+		return nil
+	}
+	c := ctx.convert(has, ptrChild(ptr, "contains"), false, nil)
+	if "1" == lo && !hasHi {
+		return icall("contains", c)
+	}
+	if hasHi && lo == hi {
+		return icall("contains", c, iraw(lo))
+	}
+	parts := []*ixpr{}
+	if "0" != lo {
+		parts = append(parts, icall("min", iraw(lo)))
+	}
+	if hasHi {
+		parts = append(parts, icall("max", iraw(hi)))
+	}
+	return icall("contains", c, iand(parts))
+}
+
+func (ctx *importCtx) uniqueOf(node *jnode, ptr string) *ixpr {
+	uniq := jentryOf(node, "uniqueItems")
+	if nil != uniq && "true" != uniq.t && "false" != uniq.t {
+		ctx.wrongType(ptrChild(ptr, "uniqueItems"), "uniqueItems", "a boolean", uniq)
+	}
+	if nil != uniq && "true" == uniq.t {
+		return icall("unique")
+	}
+	return nil
 }
 
 func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {

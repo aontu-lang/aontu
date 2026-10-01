@@ -96,11 +96,14 @@ func TestCheckWalkersDirect(t *testing.T) {
 	pendWhen := &ConstraintVal{pending: &constraintPending{atom: "when",
 		args: []Val{newNil("h"), newInteger(1)}}}
 	collectNils(pendWhen, &nils, map[Val]bool{})
+	pendContains := &ConstraintVal{pending: &constraintPending{atom: "contains",
+		args: []Val{newNil("i")}}}
+	collectNils(pendContains, &nils, map[Val]bool{})
 	if len(nils) != 4 {
 		t.Fatalf("expected 4 nils, got %d", len(nils))
 	}
 	for _, n := range nils {
-		if "b" == n.why || "d" == n.why || "g" == n.why || "h" == n.why {
+		if "b" == n.why || "d" == n.why || "g" == n.why || "h" == n.why || "i" == n.why {
 			t.Fatalf("a template's or trial schema's nil %q was collected", n.why)
 		}
 	}

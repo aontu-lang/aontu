@@ -444,7 +444,7 @@ exports.COMPLETION_VARIABLE = COMPLETION_VARIABLE;
 const COMPLETION_KEYWORD = 14;
 exports.COMPLETION_KEYWORD = COMPLETION_KEYWORD;
 const BUILTIN_FUNCS = [
-    'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'content', 'copy',
+    'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'contains', 'content', 'copy',
     'copyfiles', 'deprecate',
     'div',
     'each', 'emit', 'empty', 'esc',

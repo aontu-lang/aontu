@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `contains(c, n?)`, and JSON Schema's array counts
+
+Both ports, G12 phase 7. `contains(c, n?)` is a new Band B atom: the
+number of a list's or map's members that the trial schema `c` admits
+must be one the count `n` admits, at least one where `n` is not
+written. Each member is tried alone by the admission trial `nof` uses;
+an exceeded upper bound refuses once the members have settled, a lower
+bound is decided at generation, and a scalar is refused. A refusal is
+the registered `constraint` code, as a sizing atom's is. The importer
+carries `contains`, `minContains` and `maxContains` as `contains(c, n)`
+on the list, and `uniqueItems` as `unique()`, which `vet
+--exact-numbers` makes JSON Schema's equality. The exporter writes
+`contains` back with its count, and reports a count over a map. The
+vendored JSON Schema suite passes 46 more tests, 1,552 of 1,906.
+
 ### `when(c, t, e?)`, and JSON Schema's conditionals
 
 Both ports, G12 phase 6. `when(c, t, e?)` is a new Band B atom: where

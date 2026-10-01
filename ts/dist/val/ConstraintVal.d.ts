@@ -24,6 +24,10 @@ type WhenAtom = {
     t: any;
     e?: any;
 };
+type ContainsAtom = {
+    c: any;
+    count: ConstraintState;
+};
 type ConstraintState = {
     domain?: 'number' | 'string';
     kind?: any;
@@ -38,6 +42,7 @@ type ConstraintState = {
     musts: MustAtom[];
     nofs?: NofAtom[];
     whens?: WhenAtom[];
+    contains?: ContainsAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
@@ -61,6 +66,7 @@ declare class ConstraintVal extends FeatureVal {
     musts: MustAtom[];
     nofs: NofAtom[];
     whens: WhenAtom[];
+    contains: ContainsAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -125,6 +131,9 @@ declare class MustConstraintVal extends ConstraintVal {
 declare class NofConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class ContainsConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class WhenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -135,4 +144,4 @@ declare function nofCounts(n: NofAtom): boolean[];
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, };
+export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, };

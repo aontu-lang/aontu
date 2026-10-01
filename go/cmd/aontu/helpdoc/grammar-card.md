@@ -52,6 +52,7 @@ asks for a whole multiple of n;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
 `nof(n, a, b)` asks that n of the branches admit the value;
 `when(c, t, e)` holds the value to t where c admits it, else to e;
+`contains(c, n)` asks that n of a list's members meet c;
 `must(cond, "why")` is the escape hatch.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two

@@ -247,6 +247,12 @@ describe('coverage3-constraint', () => {
     } as any, ctx)
     Assert.equal(when.pending.atom, 'when')
     Assert.deepEqual(collectNils(when, new Set()), [])
+    const contains: any = new ConstraintVal({
+      peg: [new NilVal({ why: 'i' }), new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'contains',
+    } as any, ctx)
+    Assert.equal(contains.pending.atom, 'contains')
+    Assert.deepEqual(collectNils(contains, new Set()), [])
   })
 
   test('domain-adopted-from-peer', () => {

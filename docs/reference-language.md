@@ -2173,6 +2173,14 @@ closed empty map.
 
 Example: see [closed values](#closed-values-close--open)
 
+### `contains(trial c: any, n?: number|constraint) : constraint`
+
+Admit a list or map whose members the trial schema `c` admits a number
+of times the count `n` admits, at least one where `n` is not written.
+See [`contains`](#band-b-contains).
+
+Example: `contains(number, 2) & [1, "x", 2]` → `[1, "x", 2]`
+
 ### `content(spec: string|map) : map`
 
 A text node of the [component tree](#generation): a span of target
@@ -5218,10 +5226,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All twelve atoms (the bounds `min`/`max`/`above`/`below`, the
+> All thirteen atoms (the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must`, `nof` and
-> `when`)
+> atoms `length` and `unique`, and the evaluate-only `must`, `nof`,
+> `when` and `contains`)
 > are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
@@ -5235,9 +5243,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Twelve builtins join the function registry. Nine are **Band A**: full
+Thirteen builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. Three are **Band B**: evaluate-only, and reported
+canonical form. Four are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5254,6 +5262,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of trial schemas c that admit the value is one n admits |
 | `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits the value where c does, and e where c does not |
+| `contains(trial c: any, n?: number\|constraint) : constraint` | B | the number of members c admits is one n admits, at least one unless written |
 
 ### Bounds and the number tower
 
@@ -5339,9 +5348,9 @@ guessed where it is not:
   accumulate and are never declared empty: sound (no false
   conflicts), incomplete (some contradictions surface only against
   data).
-- A Band B atom is never declared empty: `must`, `nof` and `when` are
-  decided against data, where `nof(3, string, number)` refuses every
-  value.
+- A Band B atom is never declared empty: `must`, `nof`, `when` and
+  `contains` are decided against data, where `nof(3, string, number)`
+  refuses every value.
 
 ### Subsumption
 
@@ -5349,9 +5358,9 @@ guessed where it is not:
 per-former rules are in [Subsumption](#subsumption) above). One
 mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
-`sub_evaluate_only`, and a `nof` or a `when` on the general side the
-same way: the admitted set is opaque, which is undecided rather than
-refused.*
+`sub_evaluate_only`, and a `nof`, a `when` or a `contains` on the
+general side the same way: the admitted set is opaque, which is
+undecided rather than refused.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
 value B admits, A admits too**. It is the lattice's own order, and for
@@ -5826,6 +5835,30 @@ It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
 `when({k: any}, S)` and `dependentRequired: {k: [a, b]}` is
 `when({k: any}, {a: any, b: any})`, and the exporter writes each shape
 back.
+
+### Band B: `contains`
+
+`contains(c, n?)` counts the members of a list or map that the trial
+schema `c` admits, and requires the count to be one `n` admits: an
+integer or a count constraint, as `len` takes, and at least one where
+`n` is not written. Each member is tried alone, as a `nof` branch is,
+so `contains({k: number}) & [{k: 1}, {j: 2}]` counts one member. A
+scalar has no members and is refused.
+
+It folds late with `len` and `unique`. An exceeded upper bound refuses
+as soon as the members have settled, `contains(number, max(1)) & [1,
+2]`, and a lower bound is decided at generation, when no member can
+still arrive. A refusal is reported as `constraint`, as a sizing atom's
+is. Two equal `contains` atoms on one value are one check, and the canon
+leaves out a count of at least one. Like the other Band B atoms, it is
+opaque to emptiness and subsumption.
+
+It is how `contains`, `minContains` and `maxContains` cross into aontu,
+on the list the array branch imports as, and the exporter writes the
+count back as those keywords. `uniqueItems` is `unique()`, which
+compares members as aontu values: read through `vet --exact-numbers`,
+`1.0` in the data is `1`, so a list of both is refused as JSON Schema
+refuses it.
 
 ### Errors
 

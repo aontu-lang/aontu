@@ -173,6 +173,7 @@ import {
   MustConstraintVal,
   NofConstraintVal,
   WhenConstraintVal,
+  ContainsConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -848,6 +849,7 @@ help isolate the syntax error.`,
     must: MustConstraintVal,
     nof: NofConstraintVal,
     when: WhenConstraintVal,
+    contains: ContainsConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,
@@ -2297,6 +2299,8 @@ for (const name of Object.keys(CMP_FUNCS)) {
   POSITIONAL_ARG_FUNCS[name] = true
 }
 POSITIONAL_ARG_FUNCS['nom'] = true
+// A trial schema may itself be a list, so the count is read by position.
+POSITIONAL_ARG_FUNCS['contains'] = true
 POSITIONAL_ARG_FUNCS['translate'] = true
 
 

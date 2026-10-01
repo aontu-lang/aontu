@@ -89,6 +89,9 @@ func trialSchemas(c *ConstraintVal) []Val {
 	if nil != c.pending && "when" == c.pending.atom {
 		return c.pending.args
 	}
+	if nil != c.pending && "contains" == c.pending.atom {
+		return c.pending.args[:1]
+	}
 	return c.settledTrials()
 }
 

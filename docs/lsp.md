@@ -76,7 +76,7 @@ resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
 concrete values (scalars, kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 66 today, the
+prefix): the built-in functions (the engine's full roster, 67 today, the
 constraint atoms (`min`, `re`, `length`, …) and the entity and relation
 atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included) the
 scalar-kind keywords (`string`, `number`, `integer`, `float`,

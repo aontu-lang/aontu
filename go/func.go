@@ -23,6 +23,7 @@ var funcSet = map[string]bool{
 	"multiple":  true,
 	"nof":       true,
 	"when":      true,
+	"contains":  true,
 	"deprecate": true,
 	"rel":       true,
 	"acyclic":   true,
@@ -88,6 +89,8 @@ func derivePositional() map[string]bool {
 			out[name] = true
 		}
 	}
+	// A trial schema may be a list, so the count is read by position.
+	out["contains"] = true
 	return out
 }
 

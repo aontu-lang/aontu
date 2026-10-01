@@ -88,6 +88,11 @@ type NofAtom = {
 
 type WhenAtom = { c: any, t: any, e?: any }
 
+type ContainsAtom = {
+  c: any                  // the trial schema a member must meet
+  count: ConstraintState  // over the integers, at least one unless written
+}
+
 type ConstraintState = {
   domain?: 'number' | 'string'
   kind?: any      // numeric leaf marker (Integer | Float | ...) or undefined
@@ -105,6 +110,7 @@ type ConstraintState = {
   musts: MustAtom[]  // Band B checks, kept in written order, never simplified
   nofs?: NofAtom[]   // Band B counts, canon-sorted, each canon once
   whens?: WhenAtom[] // Band B conditionals, canon-sorted, each canon once
+  contains?: ContainsAtom[] // member counts, canon-sorted, each canon once
   clash?: boolean // a kind disagreement inside a len() argument, recorded
                   // rather than raised: the argument's own meet has no
                   // ctx to report through, so emptiness carries the news
@@ -464,11 +470,15 @@ function leafMarker(v: any): any {
 const LATE_CJO = 150000
 
 function lateAtom(atom: string): boolean {
-  return 'len' === atom || 'unique' === atom || BAND_B.includes(atom)
+  return 'len' === atom || 'unique' === atom || 'contains' === atom ||
+    BAND_B.includes(atom)
 }
 
 
 const BAND_B = ['must', 'nof', 'when']
+
+// The atoms whose arguments are trial schemas, which may not move.
+const TRIAL_ATOMS = [...BAND_B, 'contains']
 
 
 class ConstraintVal extends FeatureVal {
@@ -488,6 +498,7 @@ class ConstraintVal extends FeatureVal {
   musts: MustAtom[] = []
   nofs: NofAtom[] = []
   whens: WhenAtom[] = []
+  contains: ContainsAtom[] = []
   // An atom whose arguments have not settled yet (G1 phase 4). Held
   // until unify has a ctx to resolve them through; never present on a
   // residual.
@@ -521,6 +532,7 @@ class ConstraintVal extends FeatureVal {
       this.musts = spec.state.musts ?? []
       this.nofs = spec.state.nofs ?? []
       this.whens = spec.state.whens ?? []
+      this.contains = spec.state.contains ?? []
       this.invalid = spec.state.invalid
       this.nonEmpty = spec.state.nonEmpty
       this.emptyOk = spec.state.emptyOk
@@ -528,7 +540,7 @@ class ConstraintVal extends FeatureVal {
     }
     else if (spec.atom) {
       const args = atomArgs(spec.atom, (spec.peg as any[]) ?? [])
-      if (BAND_B.includes(spec.atom) && args.some((a: any) => holdsMove(a))) {
+      if (TRIAL_ATOMS.includes(spec.atom) && args.some((a: any) => holdsMove(a))) {
         this.invalid = 'invalid-arg'
       }
       else if (args.some((a: any) => true !== a?.done)) {
@@ -540,7 +552,8 @@ class ConstraintVal extends FeatureVal {
     }
 
     if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
-      0 < this.musts.length + this.nofs.length + this.whens.length ||
+      0 < this.musts.length + this.nofs.length + this.whens.length +
+      this.contains.length ||
       (null != this.pending && lateAtom(this.pending.atom))) {
       this.cjo = LATE_CJO
     }
@@ -606,6 +619,19 @@ class ConstraintVal extends FeatureVal {
 
     if ('when' === atom) {
       this.whens = [{ c: args[0], t: args[1], e: args[2] }]
+      return
+    }
+
+    if ('contains' === atom) {
+      const arg = 1 === args.length ? atLeastOne() : countArgState(args[1])
+      if (null == arg) {
+        return bad('invalid-arg')
+      }
+      const count = meetCount(countBase(), arg)
+      if (stateEmpty(count)) {
+        return bad('constraint')
+      }
+      this.contains = [{ c: args[0], count }]
       return
     }
 
@@ -757,7 +783,8 @@ class ConstraintVal extends FeatureVal {
     const args: any[] = []
     for (const [i, arg] of pend.args.entries()) {
       let next = arg
-      if (('nof' === pend.atom && 0 < i) || 'when' === pend.atom) {
+      if (('nof' === pend.atom && 0 < i) || 'when' === pend.atom ||
+        ('contains' === pend.atom && 0 === i)) {
         next = trialArg(ctx, arg, this.path)
       }
       else if (true !== arg?.done) {
@@ -805,8 +832,8 @@ class ConstraintVal extends FeatureVal {
   // the whole meet is a located conflict.
   private admit(peer: any, ctx: AontuContext): Val {
     // No scalar has members, so a `unique()` residual admits none --
-    // and neither does a `unique(k)` one, for the same reason.
-    if (this.uniq || 0 < this.uniqBy.length) {
+    // and neither does a `unique(k)` or a `contains` one.
+    if (this.uniq || 0 < this.uniqBy.length + this.contains.length) {
       return this.fail(ctx, peer)
     }
     if (!stateAdmits(this, peer) ||
@@ -934,7 +961,8 @@ class ConstraintVal extends FeatureVal {
       return bad
     }
 
-    if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
+    if (!this.uniq && 0 === this.uniqBy.length + this.contains.length &&
+      null == this.count) {
       if (true === final ||
         0 === this.musts.length + this.nofs.length + this.whens.length) {
         return peer
@@ -980,6 +1008,16 @@ class ConstraintVal extends FeatureVal {
       }
     }
 
+    for (const k of this.contains) {
+      const matched = countVal(containsMatches(ctx, k, members).length)
+      if ((null != k.count.hi && !stateAdmits({ ...k.count, lo: undefined }, matched)) ||
+        (0 < k.count.neqs.length + multsOf(k.count).length &&
+          !stateAdmits({ ...k.count, lo: undefined, hi: undefined }, matched)) ||
+        (true === final && !stateAdmits(k.count, matched))) {
+        return this.fail(ctx, peer)
+      }
+    }
+
     for (const field of this.uniqBy) {
       const seen = new Set<string>()
       for (const m of members) {
@@ -1000,8 +1038,8 @@ class ConstraintVal extends FeatureVal {
     // lower bound already met is the one reading that cannot be undone,
     // and an atom holding nothing else is spent: that is when it goes.
     const spent = true === final ||
-      (0 === this.musts.length + this.nofs.length + this.whens.length &&
-        !this.uniq && 0 === this.uniqBy.length &&
+      (0 === this.musts.length + this.nofs.length + this.whens.length +
+        this.contains.length && !this.uniq && 0 === this.uniqBy.length &&
       (null == count ||
         (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
           stateAdmits(count, countVal(n)))))
@@ -1119,6 +1157,7 @@ class ConstraintVal extends FeatureVal {
     merged.musts = [...this.musts, ...peer.musts]
     merged.nofs = mergeNofs([...this.nofs, ...peer.nofs])
     merged.whens = byCanon([...this.whens, ...peer.whens], whenCanon)
+    merged.contains = byCanon([...this.contains, ...peer.contains], containsCanon)
     merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined
     merged.emptyOk = this.emptyOk || peer.emptyOk || undefined
     merged.pathKind = this.pathKind || peer.pathKind || undefined
@@ -1171,6 +1210,7 @@ class ConstraintVal extends FeatureVal {
       musts: [...this.musts],
       nofs: [...this.nofs],
       whens: [...this.whens],
+      contains: [...this.contains],
       invalid: this.invalid,
       nonEmpty: this.nonEmpty,
       emptyOk: this.emptyOk,
@@ -1213,6 +1253,7 @@ class ConstraintVal extends FeatureVal {
     out.musts = [...this.musts]
     out.nofs = [...this.nofs]
     out.whens = [...this.whens]
+    out.contains = [...this.contains]
     out.pending = this.pending
     out.cjo = this.cjo
     out.invalid = this.invalid
@@ -1332,6 +1373,32 @@ function mergeNofs(nofs: NofAtom[]): NofAtom[] {
 }
 
 
+// A count of at least one is the default, and is not written.
+function containsCanon(k: ContainsAtom): string {
+  const c = k.count
+  const one = null != c.lo && !c.lo.open && 0 === cmpVal('number', c.lo.v, countVal(1)) &&
+    null == c.hi && 0 === c.neqs.length + multsOf(c).length
+  return 'contains(' + k.c.canon + (one ? '' : ',' + countCanon(c)) + ')'
+}
+
+
+function atLeastOne(): ConstraintState {
+  return {
+    domain: 'number', lo: { v: countVal(1), open: false },
+    neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
+  }
+}
+
+
+// The members the trial schema admits, each settled member tried alone.
+function containsMatches(ctx: AontuContext, k: ContainsAtom, members: any[]): any[] {
+  return members.filter((m: any) => {
+    const own = ownJson(m, ctx)
+    return undefined !== own && admitsSettled(ctx, k.c, m, own)
+  })
+}
+
+
 function whenCanon(w: WhenAtom): string {
   return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]
     .map((v: any) => v.canon).join(',') + ')'
@@ -1439,6 +1506,9 @@ function canonState(s: ConstraintState): string {
   for (const key of s.uniqBy) {
     parts.push('unique(' + JSON.stringify(key) + ')')
   }
+  for (const k of s.contains ?? []) {
+    parts.push(containsCanon(k))
+  }
   for (const m of s.musts) {
     parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')')
   }
@@ -1467,6 +1537,7 @@ function constraintStateSubsumes(
     musts: MustAtom[],
     nofs?: NofAtom[],
     whens?: WhenAtom[],
+    contains?: ContainsAtom[],
   },
   s: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
@@ -1475,10 +1546,11 @@ function constraintStateSubsumes(
     musts: MustAtom[],
   },
 ): boolean | 'undecided' {
-  // A Band B predicate on the general side makes its admitted set
-  // unknowable; an extra `must` on the SPECIFIC side only narrows it
-  // and is ignored.
-  if (0 < g.musts.length + (g.nofs ?? []).length + (g.whens ?? []).length) {
+  // A Band B predicate or a member count on the general side makes its
+  // admitted set unknowable; an extra `must` on the SPECIFIC side only
+  // narrows it and is ignored.
+  if (0 < g.musts.length + (g.nofs ?? []).length + (g.whens ?? []).length +
+    (g.contains ?? []).length) {
     return 'undecided'
   }
 
@@ -1597,7 +1669,7 @@ function constraintAdmitsScalar(
   if (0 < g.musts.length + g.nofs.length + g.whens.length) {
     return 'undecided'
   }
-  if (g.uniq || 0 < g.uniqBy.length) {
+  if (g.uniq || 0 < g.uniqBy.length + g.contains.length) {
     return false
   }
   if (null != (g as any).count) {
@@ -1949,6 +2021,12 @@ class NofConstraintVal extends ConstraintVal {
   }
 }
 
+class ContainsConstraintVal extends ConstraintVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super({ ...spec, atom: 'contains' }, ctx)
+  }
+}
+
 class WhenConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'when' }, ctx)
@@ -1970,7 +2048,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 25 */
+} /* node:coverage ignore next 26 */
 
 
 export {
@@ -1995,4 +2073,5 @@ export {
   MustConstraintVal,
   NofConstraintVal,
   WhenConstraintVal,
+  ContainsConstraintVal,
 }

@@ -78,6 +78,7 @@ capability decision is the phase rows it governed in
 | [ADR-047](#adr-047--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
 | [ADR-048](#adr-048--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
 | [ADR-049](#adr-049--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
+| [ADR-050](#adr-050--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
 
 ---
 
@@ -4893,4 +4894,57 @@ exporter would have to recognise the pattern to write it back.
   a value, and never selects one.
 - A conditional costs one or two trials, a meet and a generation each.
 - Pinned by `test/spec/constraint-when.tsv` and the conditional rows of
+  `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-050 — A container counts the members a trial schema admits
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 7 brings
+JSON Schema's `contains`, `minContains`, `maxContains` and `uniqueItems`
+into aontu. `contains` asks how many of an array's items are valid
+against a subschema, a question no aontu atom answered: a list spread
+holds every member to one schema, and `len` counts members without
+looking at them. `uniqueItems` asks whether the items are pairwise
+distinct as JSON values, which `unique()` already asks of aontu values.
+
+### Decision
+
+1. **`contains(c, n?)` counts the members `c` admits.** Each member of
+   a list or map is tried alone by the admission trial of ADR-048, and
+   the number admitted must be one the count `n` admits: an integer or
+   a count constraint, as `len` takes, and at least one where `n` is
+   not written. A scalar has no members and is refused.
+2. **It folds late with the sizing atoms.** An exceeded upper bound
+   refuses as soon as the members have settled, and a lower bound is
+   decided at generation, as `len`'s is; a refusal is the registered
+   `constraint` code. Two canon-equal atoms on one value are one check,
+   and the canon leaves out a count of at least one.
+3. **It is Band B.** Whether a member is admitted depends on the member
+   as data, so the atom is opaque to emptiness and subsumption, as
+   `must`, `nof` and `when` are, and its trial schema may not move.
+4. **The trial schema is read by position.** A constraint atom's
+   arguments arrive as one list where the call has several, so a list
+   written as the one argument would read as an argument list;
+   `contains` takes its arguments positionally, as a function of two or
+   more arguments that answers a value does.
+5. **The importer and exporter carry the array keywords.** `contains`
+   imports as `contains(c, n)` on the list the array branch builds, with
+   `minContains` and `maxContains` as the count's endpoints; a count of
+   at least none asserts nothing, and so does either bound without
+   `contains`. `uniqueItems: true` is `unique()`, exact under `vet
+   --exact-numbers`, where `1.0` in the data reads as `1`. The exporter
+   writes `contains` back on a list, and reports a count over a map, a
+   count with no container, and an excluded count or divisor.
+
+### Consequences
+
+- A count over a map's members has no JSON Schema keyword; aontu says
+  it, and the exporter reports it.
+- Each member's trial costs a meet and a generation, so a `contains`
+  over a long list is slower than a spread.
+- Pinned by `test/spec/constraint-contains.tsv` and the array rows of
   `test/spec/jsonschema-import.tsv` in both ports.

@@ -235,6 +235,12 @@ function capture(fn) {
         }, ctx);
         Assert.equal(when.pending.atom, 'when');
         Assert.deepEqual((0, walk_1.collectNils)(when, new Set()), []);
+        const contains = new ConstraintVal_1.ConstraintVal({
+            peg: [new NilVal_1.NilVal({ why: 'i' }), new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'contains',
+        }, ctx);
+        Assert.equal(contains.pending.atom, 'contains');
+        Assert.deepEqual((0, walk_1.collectNils)(contains, new Set()), []);
     });
     (0, node_test_1.test)('domain-adopted-from-peer', () => {
         const ctx = CTX();

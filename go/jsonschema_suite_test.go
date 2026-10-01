@@ -17,7 +17,7 @@ import (
 // test/vectors/jsonschema/README.md. Each schema and instance is the
 // suite's own text, so no JSON reader rounds its numbers.
 
-const suiteSkipBound = 230
+const suiteSkipBound = 180
 
 type suiteSkip struct {
 	file, group, test, construct string

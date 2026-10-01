@@ -53,6 +53,7 @@ function settledTrials(v: any): any[] {
     ...(v.nofs ?? []).flatMap((n: any) => n.cs),
     ...(v.whens ?? []).flatMap((w: any) =>
       undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
+    ...(v.contains ?? []).map((k: any) => k.c),
   ]
 }
 
@@ -60,7 +61,8 @@ function settledTrials(v: any): any[] {
 function trialSchemas(v: any): any[] {
   const atom = v.pending?.atom
   return 'nof' === atom ? v.pending.args.slice(1) :
-    'when' === atom ? v.pending.args : settledTrials(v)
+    'when' === atom ? v.pending.args :
+      'contains' === atom ? v.pending.args.slice(0, 1) : settledTrials(v)
 }
 
 

@@ -621,7 +621,6 @@ const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped 
 const ANNOTATION = 'an annotation asserts nothing, and the importer does not keep ' +
   'annotations yet, so it is dropped'
 const LATER: Record<string, string> = {
-  contains: NOT_YET, minContains: NOT_YET, maxContains: NOT_YET, uniqueItems: NOT_YET,
   $dynamicRef: NOT_YET, $dynamicAnchor: NOT_YET,
   unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
   title: ANNOTATION, description: ANNOTATION, default: ANNOTATION, examples: ANNOTATION,
@@ -639,7 +638,8 @@ const CARRIED = [
   'dependentSchemas', 'dependentRequired', 'properties', 'required',
   'additionalProperties',
   'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
-  'prefixItems', 'items', 'minItems', 'maxItems', 'minimum', 'maximum',
+  'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
+  'maxContains', 'uniqueItems', 'minimum', 'maximum',
   'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
   'pattern',
 ]
@@ -653,7 +653,8 @@ const SCOPED: Record<string, string[]> = {
   number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
   object: ['properties', 'required', 'additionalProperties', 'patternProperties',
     'propertyNames', 'minProperties', 'maxProperties'],
-  array: ['prefixItems', 'items', 'minItems', 'maxItems'],
+  array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
+    'maxContains', 'uniqueItems'],
 }
 
 
@@ -976,7 +977,7 @@ function blocker(e: Expr): boolean {
     !kindsOf(e).includes('string')
   const closed = 'list' === e.k ? null != e.items || holdsNilExpr(e.spread as Expr) :
     'map' === e.k ? e.entries.some((en) => !en.optional) || e.spreads.some(holdsNilExpr) :
-      'call' === e.k && ['nof', 'must', 'when', 'close'].includes(e.name)
+      'call' === e.k && ['nof', 'must', 'when', 'close', 'contains', 'unique'].includes(e.name)
   return ('raw' === e.k && '%' === e.text[0]) || counted || closed ||
     children(e).some(blocker)
 }
@@ -1377,12 +1378,50 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
   }
 
   const spread = arraySpread(ctx, node, ptr)
-  const len = counted('minItems', 'maxItems')
-  if (undefined === len) {
+  const sized = [counted('minItems', 'maxItems'), containsOf(ctx, node, ptr),
+    uniqueOf(ctx, node, ptr)].filter((e) => undefined !== e) as Expr[]
+  if (0 === sized.length) {
     return undefined === spread ? raw('list') : { k: 'list', spread }
   }
   // Open by a spread: a literal list alternative admits only its own length.
-  return and([{ k: 'list', spread: spread ?? ANY }, len])
+  return and([{ k: 'list', spread: spread ?? ANY }, ...sized])
+}
+
+
+// contains counts the items its schema admits, at least one unless
+// minContains says otherwise; a count of at least none asserts nothing.
+function containsOf(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr | undefined {
+  const has = entry(node, 'contains')
+  if (null == has) {
+    return undefined
+  }
+  const bound = (k: string): string | undefined => {
+    const v = entry(node, k)
+    return null == v ? undefined : count(ctx, child(ptr, k), k, v)
+  }
+  const lo = bound('minContains') ?? '1'
+  const hi = bound('maxContains')
+  if ('0' === lo && undefined === hi) {
+    return undefined
+  }
+  const c = convert(ctx, has, child(ptr, 'contains'), false)
+  if ('1' === lo && undefined === hi) {
+    return call('contains', c)
+  }
+  if (lo === hi) {
+    return call('contains', c, raw(lo))
+  }
+  return call('contains', c, and([...('0' === lo ? [] : [call('min', raw(lo))]),
+    ...(undefined === hi ? [] : [call('max', raw(hi))])]))
+}
+
+
+function uniqueOf(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr | undefined {
+  const uniq = entry(node, 'uniqueItems')
+  if (null != uniq && 'true' !== uniq.t && 'false' !== uniq.t) {
+    wrongType(ctx, child(ptr, 'uniqueItems'), 'uniqueItems', 'a boolean', uniq)
+  }
+  return 'true' === uniq?.t ? call('unique') : undefined
 }
 
 

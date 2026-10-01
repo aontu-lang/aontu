@@ -1,0 +1,78 @@
+# CONTAINS -- `contains(c, n?)` (G12 phase 7, ADR-050): the number of a
+# container's members that the trial schema c admits must be one the
+# count n admits, at least one where n is not written. A member is tried
+# as a nof() branch tries a value: their meet adds nothing and generates
+# the member itself. It folds late with len and unique: an exceeded upper
+# bound refuses as soon as the members have settled, and a lower bound is
+# decided at generation. A scalar has no members and is refused. It is
+# opaque to emptiness and subsumption. Every expectation is both engines'
+# agreed answer.
+#
+# Canon: a count of at least one is not written; the atom once, sorted.
+contains-canon-the-default-count	canon	a: contains(number)	{"a":contains(number)}
+contains-canon-at-least-one-is-the-default	canon	a: contains(number, min(1))	{"a":contains(number)}
+contains-canon-a-point-count	canon	a: contains(number, 2)	{"a":contains(number,2)}
+contains-canon-a-range	canon	a: contains(number, min(2) & max(3))	{"a":contains(number,min(2)&max(3))}
+contains-canon-at-most	canon	a: contains(number, max(2))	{"a":contains(number,min(0)&max(2))}
+contains-canon-at-most-none-is-zero	canon	a: contains(string, max(0))	{"a":contains(string,0)}
+contains-canon-one-atom-once	canon	a: contains(number) & contains(number, min(1))	{"a":contains(number)}
+contains-canon-atoms-sort	canon	a: contains(string) & contains(number)	{"a":contains(number)&contains(string)}
+contains-canon-a-list-schema	canon	a: contains([1])	{"a":contains([1])}
+contains-canon-held-on-a-list	canon	a: contains(number) & [1, "x"]	{"a":[1,"x"]&contains(number)}
+contains-canon-a-conflicting-schema-is-nil	canon	a: contains(1 & 2, 0)	{"a":contains(nil,0)}
+# The trial: each member is tried alone, and the matches are counted.
+contains-one-member-matches	gens	a: contains(number) & [1, "x"]	{"a":[1,"x"]}
+contains-two-members-match	gens	a: contains(number, 2) & [1, 2, "x"]	{"a":[1,2,"x"]}
+contains-a-range-is-met	gens	a: contains(number, min(2) & max(3)) & [1, 2, 3, "x"]	{"a":[1,2,3,"x"]}
+contains-none-is-allowed	gens	a: contains(number, 0) & ["x"]	{"a":["x"]}
+contains-at-most-allows-none	gens	a: contains(number, max(1)) & ["x"]	{"a":["x"]}
+contains-a-list-member	gens	a: contains([1]) & [[1], 2]	{"a":[[1],2]}
+contains-a-map-member	gens	a: contains({k: number}) & [{k: 1}, {j: 2}]	{"a":[{"k":1},{"j":2}]}
+contains-an-open-schema-admits-more-members	gens	a: contains({k?: number}) & [{j: 2}]	{"a":[{"j":2}]}
+contains-counts-a-map-s-values	gens	a: contains(number) & {x: 1, y: "s"}	{"a":{"x":1,"y":"s"}}
+contains-beside-a-spread	gens	a: [&: number] & contains(min(5)) & [1, 7]	{"a":[1,7]}
+contains-beside-len	gens	a: len(max(3)) & contains(string) & [1, "s"]	{"a":[1,"s"]}
+contains-beside-unique	gens	a: unique() & contains(number) & [1, 2]	{"a":[1,2]}
+contains-nested	gens	a: contains([&: number] & contains(min(5))) & [[1], [6]]	{"a":[[1],[6]]}
+contains-a-reference-schema	gens	x: type(number)\na: contains($.x) & ["s", 1]	{"a":["s",1]}
+contains-in-a-spread	gens	a: {&: contains(number)} & {p: [1], q: ["x", 2]}	{"a":{"p":[1],"q":["x",2]}}
+contains-two-atoms	gens	a: contains(number) & contains(string) & [1, "x"]	{"a":[1,"x"]}
+contains-a-nil-schema-with-none-required	gens	a: contains(nil, 0) & [1]	{"a":[1]}
+contains-an-empty-list-with-none-required	gens	a: contains(number, 0) & []	{"a":[]}
+# Refusals: the number of matching members is not one the count admits.
+contains-no-member-matches	errc	a: contains(number) & ["x"]	constraint
+contains-an-empty-list	errc	a: contains(number) & []	constraint
+contains-too-many-match	errc	a: contains(number, max(1)) & [1, 2]	constraint
+contains-too-few-match	errc	a: contains(number, 2) & [1, "x"]	constraint
+contains-a-nil-schema-matches-nothing	errc	a: contains(nil) & [1]	constraint
+contains-a-filled-default-does-not-match	errc	a: contains({k: *1 | number}) & [{}]	constraint
+contains-refuses-a-scalar	errc	a: contains(number) & 5	constraint
+contains-refuses-a-string	errc	a: contains(string) & "abc"	constraint
+contains-counts-a-map-s-values-refuses	errc	a: contains(number) & {x: "s"}	constraint
+contains-a-nested-refusal	errc	a: contains([&: number] & contains(min(5))) & [[1], [2]]	constraint
+contains-count-not-a-count	errc	a: contains(number, "x") & [1]	invalid-arg
+contains-count-negative-is-empty	errc	a: contains(number, -1) & [1]	constraint
+contains-needs-a-schema	errc	a: contains()	func_arity
+contains-takes-at-most-a-count	errc	a: contains(number, 1, 2)	func_arity
+contains-refuses-a-move	errc	b: 1\na: contains(move($.b)) & [1]	invalid-arg
+contains-a-reference-error-is-the-documents	errc	a: contains($.t) & [1]	no_path
+contains-two-atoms-refuse	errc	a: contains(number) & contains(string) & [1]	constraint
+# vet reports the atom and the container it refuses.
+vet-contains-finding	vet	a: contains(number)	{"a": ["x"]}	{"findings":[{"actual":"[\\"x\\"]","class":"conflict","code":"constraint","expected":"contains(number)","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[\\"x\\"]"},{"col":4,"file":"schema","len":8,"role":"schema","row":1,"src":"contains","value":"contains(number)"}]}],"truncated":false,"verdict":"invalid"}
+vet-contains-admits	vet	a: contains(number, max(2))	{"a": [1, "x", 2]}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-contains-too-many	vet	a: contains(number, max(1))	{"a": [1, 2]}	{"findings":[{"actual":"[1,2]","class":"conflict","code":"constraint","expected":"contains(number,min(0)&max(1))","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[1,2]"},{"col":4,"file":"schema","len":8,"role":"schema","row":1,"src":"contains","value":"contains(number,min(0)&max(1))"}]}],"truncated":false,"verdict":"invalid"}
+# Opaque to subsumption, as the Band B atoms are.
+contains-general-is-undecided	subsume	a: contains(number)	a: contains(number)	{"findings":[{"actual":"contains(number)","class":"compat","code":"sub_evaluate_only","expected":"contains(number)","message":"a count of the members a trial schema admits (contains) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"contains","value":"contains(number)"},{"col":4,"file":"specific","len":8,"role":"specific","row":1,"src":"contains","value":"contains(number)"}]}],"verdict":"undecided"}
+contains-refuses-a-specific-scalar	subsume	a: contains(number)	a: 5	{"findings":[{"actual":"5","class":"compat","code":"compat_narrowed","expected":"contains(number)","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"contains","value":"contains(number)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"5","value":"5"}]}],"verdict":"does_not_subsume"}
+# The exporter: contains, with its count as minContains and maxContains.
+js-contains	jsonschema	a: [&: any] & contains(number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-a-point-count	jsonschema	a: [&: any] & contains(number, 2)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"maxContains":2,"minContains":2,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-a-range	jsonschema	a: [&: any] & contains(number, min(2) & max(3))	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"maxContains":3,"minContains":2,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-none-allowed	jsonschema	a: [&: any] & contains(number, max(1))	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"maxContains":1,"minContains":0,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-exactly-none	jsonschema	a: [&: any] & contains(number, 0)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"maxContains":0,"minContains":0,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-at-least-none	jsonschema	a: [&: any] & contains(number, min(0))	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"minContains":0,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-a-nil-schema-is-false	jsonschema	a: [&: any] & contains(nil, 0)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":false,"items":{},"maxContains":0,"minContains":0,"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-a-second-count	jsonschema	a: [&: any] & contains(number) & contains(string)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"contains":{"minLength":1,"type":"string"}}],"contains":{"type":"number"},"items":{},"type":"array"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-contains-with-no-container-is-a-loss	jsonschema	a: contains(number)	{"lossy":[{"construct":"contains","path":"$.a","reason":"JSON Schema applies contains to an array only and passes any other value, where the model refuses a scalar and counts a map's members"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"}}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-contains-over-a-map-is-a-loss	jsonschema	a: {&: any} & contains(number)	{"lossy":[{"construct":"contains","path":"$.a","reason":"JSON Schema counts only the items of an array, so a count of a map's members is DROPPED and the schema admits maps the model refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-contains-an-excluded-count-is-a-loss	jsonschema	a: [&: any] & contains(number, neq(1))	{"lossy":[{"construct":"contains","path":"$.a","reason":"JSON Schema bounds a count of matching items only above and below, so an excluded count or a divisor is DROPPED"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"contains":{"type":"number"},"items":{},"minContains":0,"type":"array"}},"required":["a"],"type":"object"},"verdict":"lossy"}

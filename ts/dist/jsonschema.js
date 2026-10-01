@@ -284,6 +284,9 @@ function fromConstraint(ctx, path, c, bag) {
     for (const w of c.whens) {
         whenOut(ctx, path, out, extra, w);
     }
+    for (const k of c.contains) {
+        containsOut(ctx, path, out, extra, k, bag);
+    }
     if (1 === nots.length) {
         out.not = nots[0];
     }
@@ -315,6 +318,38 @@ function fromConstraint(ctx, path, c, bag) {
     return out;
 }
 // A keyword this schema object has once; a second goes under allOf.
+// A member count is contains, with its endpoints as minContains and
+// maxContains; JSON Schema counts an array's items only.
+function containsOut(ctx, path, out, extra, k, bag) {
+    if ('map' === bag) {
+        lose(ctx, path, 'contains', 'JSON Schema counts only the items of an array, so a count of a ' +
+            'map\'s members is DROPPED and the schema admits maps the model refuses');
+        return;
+    }
+    if (undefined === bag) {
+        lose(ctx, path, 'contains', 'JSON Schema applies contains to an array only and passes any other ' +
+            'value, where the model refuses a scalar and counts a map\'s members');
+    }
+    if (0 < k.count.neqs.length + k.count.mults.length) {
+        lose(ctx, path, 'contains', 'JSON Schema bounds a count of matching items only above and below, ' +
+            'so an excluded count or a divisor is DROPPED');
+    }
+    const part = { contains: true === k.c.isNil ? false : fromVal(ctx, path, k.c) };
+    const lo = countEndpoint(k.count.lo, true);
+    const hi = countEndpoint(k.count.hi, false);
+    if (1 !== lo) {
+        part.minContains = lo;
+    }
+    if (undefined !== hi) {
+        part.maxContains = hi;
+    }
+    if (undefined === out.contains) {
+        Object.assign(out, part);
+    }
+    else {
+        extra.push(part);
+    }
+}
 // A conditional on one key's presence is a dependent keyword, and one
 // whose branch only asks for keys is dependentRequired.
 function whenOut(ctx, path, out, extra, w) {

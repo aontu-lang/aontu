@@ -436,6 +436,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		extra = schemaWhen(sc, path, out, extra, w)
 	}
 
+	for _, k := range c.contains {
+		extra = schemaContains(sc, path, out, extra, k, bag)
+	}
+
 	if 1 == len(nots) {
 		out["not"] = nots[0]
 	} else if 1 < len(nots) {
@@ -477,6 +481,46 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 // schemaKeyword sets a keyword a schema object has once; a second goes
 // under allOf.
+// schemaContains writes a member count as contains, with its endpoints
+// as minContains and maxContains; JSON Schema counts an array's items
+// only.
+func schemaContains(sc *schemaCtx, path []string, out map[string]any, extra []any,
+	k constraintContains, bag string) []any {
+	if "map" == bag {
+		sc.lose(path, "contains",
+			"JSON Schema counts only the items of an array, so a count of a "+
+				"map's members is DROPPED and the schema admits maps the model refuses")
+		return extra
+	}
+	if "" == bag {
+		sc.lose(path, "contains",
+			"JSON Schema applies contains to an array only and passes any other "+
+				"value, where the model refuses a scalar and counts a map's members")
+	}
+	if 0 < len(k.count.neqs)+len(k.count.mults) {
+		sc.lose(path, "contains",
+			"JSON Schema bounds a count of matching items only above and below, "+
+				"so an excluded count or a divisor is DROPPED")
+	}
+	part := map[string]any{"contains": false}
+	if !k.c.Nil() {
+		part["contains"] = schemaFromVal(sc, path, k.c)
+	}
+	if lo, _ := schemaCountEndpoint(k.count.lo, true); 1 != lo {
+		part["minContains"] = lo
+	}
+	if hi, ok := schemaCountEndpoint(k.count.hi, false); ok {
+		part["maxContains"] = hi
+	}
+	if _, has := out["contains"]; has {
+		return append(extra, part)
+	}
+	for key, v := range part {
+		out[key] = v
+	}
+	return extra
+}
+
 // schemaWhen writes a conditional on one key's presence as a dependent
 // keyword, and one whose branch only asks for keys as dependentRequired.
 func schemaWhen(sc *schemaCtx, path []string, out map[string]any, extra []any,

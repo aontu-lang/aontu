@@ -43,12 +43,14 @@ function settledTrials(v) {
     return [
         ...(v.nofs ?? []).flatMap((n) => n.cs),
         ...(v.whens ?? []).flatMap((w) => undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
+        ...(v.contains ?? []).map((k) => k.c),
     ];
 }
 function trialSchemas(v) {
     const atom = v.pending?.atom;
     return 'nof' === atom ? v.pending.args.slice(1) :
-        'when' === atom ? v.pending.args : settledTrials(v);
+        'when' === atom ? v.pending.args :
+            'contains' === atom ? v.pending.args.slice(0, 1) : settledTrials(v);
 }
 function collectNils(root, seen) {
     const out = [];
