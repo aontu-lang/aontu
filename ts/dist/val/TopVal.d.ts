@@ -10,7 +10,6 @@ declare class TopVal extends Val {
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
     superior(): Val;
-    clone(_ctx: AontuContext, _spec?: ValSpec): Val;
     gen(_ctx?: AontuContext): undefined;
 }
 export { TopVal, };

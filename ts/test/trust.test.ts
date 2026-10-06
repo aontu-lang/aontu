@@ -219,10 +219,13 @@ describe('trust-budget', () => {
   })
 
   test('depth-budget-trips-unify-cycle', () => {
-    Assert.equal(
+    const code = (src: string) =>
       firstCode(() => new Aontu({ trust: { budget: { depth: 3 } } })
-        .generate('a:{b:{c:{d:{e:1}}}}')),
-      'unify_cycle')
+        .generate(src))
+    const nestedCalls = 'a: upper(upper(upper("x")))'
+    const nestedMaps = 'a:{b:{c:{d:1}}}'
+    Assert.equal(code(nestedCalls), 'unify_cycle')
+    Assert.equal(code(nestedMaps), 'max_depth')
   })
 })
 

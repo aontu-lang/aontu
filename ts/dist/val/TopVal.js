@@ -26,9 +26,6 @@ class TopVal extends Val_1.Val {
     superior() {
         return this;
     }
-    clone(_ctx, _spec) {
-        return this;
-    }
     gen(_ctx) {
         return undefined;
     }

@@ -339,6 +339,7 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
     path: ctx.opts.path,
     manifest: ctx.manifest,
     exactNumbers: ctx.opts.exactNumbers,
+    depth: ctx.budget.depth,
   }
   let val
 

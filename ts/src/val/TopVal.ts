@@ -52,10 +52,6 @@ class TopVal extends Val {
     return this
   }
 
-  clone(_ctx: AontuContext, _spec?: ValSpec): Val {
-    return this
-  }
-
   gen(_ctx?: AontuContext) {
     return undefined
   }

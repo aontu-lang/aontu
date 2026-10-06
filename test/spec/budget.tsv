@@ -84,7 +84,9 @@ budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"w
 # go/unify.go maxUniteDepth) and report `unify_cycle` past it. These
 # rows pin the boundary from both sides, so raising or lowering it is a
 # spec-visible change in both ports at once, exactly like the pass
-# budget above.
+# budget above. The reader holds the same budget over the maps and
+# lists it reads, and refuses past it with `max_depth` before a value
+# is built (the rows after deep-exhausts).
 #
 # TypeScript had NO explicit depth budget until this pair landed: deep
 # nesting exhausted the V8 call stack and surfaced as `internal`, a
@@ -98,8 +100,19 @@ budget-wide-conjunct-canon	canon	a:@"__FIXTURES__/large-siblings.aontu"	{"a":{"w
 # deep-ok wraps its nesting in hide() so the expectation stays readable
 # -- the unifier still walks all 900 levels, it just generates nothing.
 budget-depth-900-resolves	gens	x:@"__FIXTURES__/deep-ok.aontu"	{"x":{"z":1}}
-budget-depth-1200-exhausts	errc	x:@"__FIXTURES__/deep-exhausts.aontu"	unify_cycle
-budget-depth-1200-msg	err	x:@"__FIXTURES__/deep-exhausts.aontu"	Circular reference detected during unification.
+budget-depth-1200-exhausts	errc	x:@"__FIXTURES__/deep-exhausts.aontu"	max_depth
+budget-depth-1200-msg	err	x:@"__FIXTURES__/deep-exhausts.aontu"	maps and lists nest more than 1000 deep, past the depth budget
+# The reader's cutoff, both sides. A document is read while its maps
+# and lists nest no deeper than the budget, so one nested exactly to it
+# reaches the unifier, whose own budget answers. One level past, the
+# reader refuses at the bracket that crosses, which is what keeps a
+# document deep enough to exhaust the host from being built at all.
+# Each source counts from its own root, so the include wrapper costs
+# the fixture nothing; a chain of keys nests as the maps it opens.
+budget-parse-depth-at-the-budget	errc	x:@"__FIXTURES__/deep-parse-at.aontu"	unify_cycle
+budget-parse-depth-past-the-budget	errc	x:@"__FIXTURES__/deep-parse-past.aontu"	max_depth
+budget-parse-depth-names-the-site	err	x:@"__FIXTURES__/deep-parse-past.aontu"	deep-parse-past.aontu:5:1002
+budget-parse-depth-chain-past-the-budget	errc	x:@"__FIXTURES__/deep-parse-chain.aontu"	max_depth
 # Function arguments evaluate through arg.unify rather than the unite
 # dispatcher, so they need their own guard (withDepth, ts/src/unify.ts;
 # Go routes them through its counted dispatcher already). Without it a
@@ -138,3 +151,10 @@ vet-trials-a-repeated-scalar-is-tried-once	vet	x: filter([1, 1, 1], integer)	{}	
 vet-trials-match-past-its-budget	vet	x: match("b", "a", 1, "b", 2, 3)	{}	{"findings":[{"class":"budget","code":"trial_budget","path":"$","severity":"error","sites":[{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"error","opts":{"trust":{"budget":{"trials":1}}}}
 vet-trials-match-at-its-budget	vet	x: match("b", "a", 1, "b", 2, 3)	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"trust":{"budget":{"trials":2}}}}
 vet-trials-data-past-its-budget	vet	x: [&: integer]	{"x": filter([1, 2], integer)}	{"findings":[{"class":"budget","code":"trial_budget","path":"$","severity":"error","sites":[{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"trust":{"budget":{"trials":1}}}}
+#
+# max_depth under a configured budget: `trust.budget.depth` sets the
+# reader's bound with the unifier's, so the same cutoff holds at any
+# size, data side or schema side.
+vet-depth-budget-reads-data-at-it	vet	any	[[[[[1]]]]]	{"findings":[{"class":"budget","code":"unify_cycle","path":"$.0.0.0.0","severity":"error","sites":[{"col":5,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[1]"},{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"any"}]}],"truncated":false,"verdict":"invalid","opts":{"trust":{"budget":{"depth":5}}}}
+vet-depth-budget-refuses-data-past-it	vet	any	[[[[[[1]]]]]]	{"findings":[{"class":"budget","code":"max_depth","path":"$","severity":"error","sites":[{"col":6,"file":"data","len":-1,"role":"data","row":1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"trust":{"budget":{"depth":5}}}}
+vet-depth-budget-refuses-a-schema-past-it	vet	a: [[[[[1]]]]]	{}	{"findings":[{"class":"budget","code":"max_depth","path":"$","severity":"error","sites":[{"col":8,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"error","opts":{"trust":{"budget":{"depth":5}}}}

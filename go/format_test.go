@@ -55,8 +55,20 @@ func TestFormatRefusesPastTheDepthBudget(t *testing.T) {
 		t.Fatalf("999 levels: %s %q", ok.Verdict, ok.Text[:40])
 	}
 	deep := New().Format(nest(1000))
-	if "error" != deep.Verdict || "max_depth" != deep.Errors[0].Code || "budget" != deep.Errors[0].Class {
+	if "error" != deep.Verdict || "max_depth" != deep.Errors[0].Code || "budget" != deep.Errors[0].Class ||
+		!strings.Contains(deep.Errors[0].Message, "past the depth budget") {
 		t.Fatalf("1000 levels: %+v", deep)
+	}
+	parens := func(n int) string {
+		return "a: " + strings.Repeat("(", n) + "1" + strings.Repeat(")", n) + "\n"
+	}
+	if r := New().Format(parens(999)); "formatted" != r.Verdict {
+		t.Fatalf("999 parentheses: %+v", r)
+	}
+	own := New().Format(parens(1000))
+	if "error" != own.Verdict || "max_depth" != own.Errors[0].Code ||
+		!strings.Contains(own.Errors[0].Message, "past what the formatter reads") {
+		t.Fatalf("1000 parentheses: %+v", own)
 	}
 }
 

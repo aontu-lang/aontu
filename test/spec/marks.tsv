@@ -153,3 +153,13 @@ ref-copies-a-pending-hide-inside-a-conjunction	gens	t: { n: key(), h: hide(key()
 ref-copies-the-argument-of-a-pending-nested-type	gens	t: { n: key(), h: type(key()) }\nc: $.t	{"c":{"h":"c","n":"c"},"t":{"n":"t"}}
 ref-spread-copies-the-argument-of-a-pending-nested-hide	gens	t: { n: key(), h: hide(key()) }\na: { &: $.t b: {} }	{"a":{"b":{"h":"b","n":"b"}},"t":{"n":"t"}}
 inline-spread-keeps-a-nested-hide	gens	a: { &: { n: key(), h: hide(key()) } b: {} }	{"a":{"b":{"n":"b"}}}
+#
+# A MARKED `any` IS ITS OWN VALUE. TypeScript's clone of `any` answered
+# the value itself, so the copy a reference makes was the referenced
+# field's own `any`, and clearing the copy's marks un-hid the field:
+# `s: hide(any)` beside `i: $.s` refused at `$.s` as mapval_no_gen, where
+# Go, whose clone is a fresh `any`, generated `{"i":1}`. Found by the
+# vendored JSON Schema suite, whose `true` schema imports as `any`.
+hide-any-a-reference-leaves-the-field-hidden	gens	s: hide(any)\ni: $.s\ni: 1	{"i":1}
+type-any-a-reference-leaves-the-field-a-type	gens	s: type(any)\ni: $.s\ni: 1	{"i":1}
+hide-any-conjunct-a-reference-leaves-the-field-hidden	gens	s: hide(any & any)\ni: $.s\ni: "foo"	{"i":"foo"}

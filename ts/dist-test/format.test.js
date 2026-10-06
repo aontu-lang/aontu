@@ -94,6 +94,12 @@ function aonFiles(dir, out = []) {
         Assert.equal(deep.verdict, 'error');
         Assert.equal(deep.errors[0].code, 'max_depth');
         Assert.equal(deep.errors[0].class, 'budget');
+        Assert.match(deep.errors[0].message, /past the depth budget/);
+        const parens = (n) => 'a: ' + '('.repeat(n) + '1' + ')'.repeat(n) + '\n';
+        Assert.equal((0, aontu_1.format)(parens(999)).verdict, 'formatted');
+        const own = (0, aontu_1.format)(parens(1000));
+        Assert.equal(own.errors[0].code, 'max_depth');
+        Assert.match(own.errors[0].message, /past what the formatter reads/);
     });
     (0, node_test_1.test)('format-refuses-its-own-defect', () => {
         const r = (0, aontu_1.format)('a: {b: 1}\n', undefined, { same: () => false });

@@ -191,8 +191,12 @@ function firstCode(fn) {
         Assert.equal(new aontu_1.Aontu().generate(chain).a1, 1);
     });
     (0, node_test_1.test)('depth-budget-trips-unify-cycle', () => {
-        Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { budget: { depth: 3 } } })
-            .generate('a:{b:{c:{d:{e:1}}}}')), 'unify_cycle');
+        const code = (src) => firstCode(() => new aontu_1.Aontu({ trust: { budget: { depth: 3 } } })
+            .generate(src));
+        const nestedCalls = 'a: upper(upper(upper("x")))';
+        const nestedMaps = 'a:{b:{c:{d:1}}}';
+        Assert.equal(code(nestedCalls), 'unify_cycle');
+        Assert.equal(code(nestedMaps), 'max_depth');
     });
 });
 (0, node_test_1.describe)('trust-lsp', () => {

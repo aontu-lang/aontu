@@ -303,6 +303,7 @@ function runparse(src, lang, ctx) {
         path: ctx.opts.path,
         manifest: ctx.manifest,
         exactNumbers: ctx.opts.exactNumbers,
+        depth: ctx.budget.depth,
     };
     let val;
     const tsrc = src.trim().replace(/^(\n\s*)+/, '');

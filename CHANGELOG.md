@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript: a reference to a hidden `any` leaves it hidden
+
+TypeScript only. G12 phase 3.
+
+- A copy of `any` was the value itself rather than a new one, so a
+  reference to `s: hide(any)` or `s: type(any)` cleared the marks of
+  `s` along with its own copy's, and generation then refused `$.s` as
+  `mapval_no_gen`. Go, whose copy is a new `any`, generated the
+  document. A JSON Schema `true` imports as `any`, so `allOf: [true]`
+  evaluated with its instance refused. Three `marks.tsv` rows, every
+  golden probed from both engines.
+
+### A document nested past the depth budget is refused as it is read
+
+Both ports unless marked. G12 phase 3.
+
+- Maps and lists nested deeper than the depth budget,
+  `trust.budget.depth` (default 1000), are refused while the document
+  is read, with `max_depth` (class `budget`) at the bracket that
+  crosses. Such a document used to be built in full first: one nested
+  100,000 deep exhausted memory in both ports, and is now refused in a
+  fraction of a second. Each aontu source counts from its own root, and
+  a fault inside an include names the included file. A data include,
+  such as a `.json` or `.yaml` file, is read by its format's own parser
+  and is not counted here.
+- `aontu fmt` in Go reports a document nested past the budget as
+  `max_depth`, as TypeScript does, where it reported a `syntax` error.
+- TypeScript: a document nested past about 2,500 levels overflowed the
+  host stack while it was read. It is refused at the budget instead.
+- A document nested exactly to the budget is still read, and the
+  unifier's own budget answers it as before. The 1200-deep fixture
+  behind `budget-depth-1200-exhausts` is now refused by the reader,
+  so that row and its message row are re-pinned from `unify_cycle` to
+  `max_depth`.
+- Seven shared rows in `budget.tsv`, every golden probed from both
+  engines: four at the default budget and three `vet` rows under a
+  configured one.
+
 ### `vet --no-fill` leaves an absent optional key, and `__proto__` is a key
 
 Both ports unless marked. G12 phase 3.

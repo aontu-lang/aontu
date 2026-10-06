@@ -306,10 +306,13 @@ func TestTrustPassesBudgetExhaustsLoudly(t *testing.T) {
 }
 
 func TestTrustDepthBudgetTripsUnifyCycle(t *testing.T) {
-	code := trustCode(t,
-		&TrustOptions{Budget: TrustBudget{Depth: 3}}, "a:{b:{c:{d:{e:1}}}}")
-	if "unify_cycle" != code {
-		t.Fatalf("code: %q", code)
+	budget := &TrustOptions{Budget: TrustBudget{Depth: 3}}
+	nestedCalls, nestedMaps := `a: upper(upper(upper("x")))`, "a:{b:{c:{d:1}}}"
+	if code := trustCode(t, budget, nestedCalls); "unify_cycle" != code {
+		t.Fatalf("nested calls: %q", code)
+	}
+	if code := trustCode(t, budget, nestedMaps); "max_depth" != code {
+		t.Fatalf("nested maps: %q", code)
 	}
 }
 

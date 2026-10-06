@@ -304,6 +304,8 @@ type trustSink struct {
 	textExt []string
 	// Every number literal is read by its value (Aontu.ExactNumbers).
 	exactNumbers bool
+	// The depth budget, past which maps and lists refuse as they are read.
+	depth int
 }
 
 func trustSinkOf(ctx *jsonic.Context) *trustSink {

@@ -93,13 +93,18 @@ func formatParse(src, file string, sink *[]fmtTok) (Val, *AontuError) {
 	if off := findConflictMarker(src); off >= 0 {
 		return nil, conflictError(src, file, off)
 	}
-	meta := map[string]any{notFoundMetaKey: &notFoundSink{}}
+	refused := &notFoundSink{}
+	meta := map[string]any{notFoundMetaKey: refused}
 	if "" != file {
 		meta["fileName"] = file
 	}
 	formatSink = sink
 	out, err := formatParser().ParseMeta(src, meta)
 	formatSink = nil
+	if "" != refused.msg {
+		return nil, parseRefusal(refused.code, refused.code, refused.msg,
+			refused.row, refused.col, file, src, "")
+	}
 	if err != nil {
 		return nil, syntaxError(err, src, file)
 	}

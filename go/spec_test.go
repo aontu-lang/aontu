@@ -882,11 +882,13 @@ func specVetOpts(t *testing.T, raw any) *VetOptions {
 		case "noFill":
 			opts.NoFill, _ = v.(bool)
 		case "trust":
-			// The budget rows set the trials budget alone.
+			// The budget rows set the trials and depth budgets alone.
 			t, _ := v.(map[string]any)
 			b, _ := t["budget"].(map[string]any)
-			n, _ := b["trials"].(float64)
-			opts.Trust = &TrustOptions{Budget: TrustBudget{Trials: int(n)}}
+			trials, _ := b["trials"].(float64)
+			depth, _ := b["depth"].(float64)
+			opts.Trust = &TrustOptions{Budget: TrustBudget{
+				Trials: int(trials), Depth: int(depth)}}
 		default:
 			t.Fatalf("unknown vet opt %q", k)
 		}

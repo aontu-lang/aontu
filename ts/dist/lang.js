@@ -129,6 +129,29 @@ const CC_TAB = 9;
 const CC_OB = 123;
 const WS_RE = /\s/;
 let SCOPE_SEQ = 0;
+const DEPTH_DEFAULT = 1000;
+// A document nested past the depth budget is refused while it is read:
+// what the reader holds per level grows with the depth, so the document
+// would exhaust memory before any later check ran. A map or list is one
+// deeper than the nearest one enclosing it; the parser's own map and list
+// counters run on across sibling terms, so they are not a depth.
+function depthGuard(r, ctx) {
+    let p = r.parent;
+    while (null != p && ctx.NORULE !== p &&
+        undefined === p.u?.aontu_depth) {
+        p = p.parent;
+    }
+    const depth = 1 + (p?.u?.aontu_depth ?? 0);
+    r.u.aontu_depth = depth;
+    const limit = ctx.meta.aontu?.depth ?? DEPTH_DEFAULT;
+    if (limit < depth) {
+        throw Object.assign(new Error('maps and lists nest more than ' + limit +
+            ' deep, past the depth budget'), {
+            code: 'max_depth', lineNumber: ctx.t0.rI, columnNumber: ctx.t0.cI,
+            meta: ctx.meta,
+        });
+    }
+}
 const MERGE_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'merge';
 const ALIAS_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'alias';
 const OPTIONAL_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'optional';
@@ -962,6 +985,7 @@ help isolate the syntax error.`,
     });
     jsonic.rule('map', (rs) => {
         rs
+            .bo(depthGuard)
             .open([
             { s: [CJ, CL], p: 'pair', b: 2, g: 'spread' },
             { s: [OPTKEY, QM], p: 'pair', b: 2, g: 'pair,list,val,imp,jsonic,aontu-optional' },
@@ -1140,6 +1164,7 @@ help isolate the syntax error.`,
     });
     jsonic.rule('list', (rs) => {
         rs
+            .bo(depthGuard)
             .bc((r, ctx) => {
             const optionalKeys = r.u.aontu_optional_keys ?? [];
             let ao = r.node;
@@ -1955,6 +1980,7 @@ class Lang {
             aontu: {
                 manifest: opts?.manifest,
                 exactNumbers: opts?.exactNumbers ?? this.opts.exactNumbers,
+                depth: opts?.depth ?? this.opts.trust?.budget?.depth,
             },
         };
         if (null != opts?.idcount) {
@@ -1976,14 +2002,14 @@ class Lang {
             }
         }
         catch (e) {
-            const refused = 'include_denied' === e?.code ||
+            const refused = 'include_denied' === e?.code || 'max_depth' === e?.code ||
                 'include_extension' === e?.code ||
                 'multisource_not_found' === e?.code || mod_1.MODULE_REFUSAL_CODES.has(e?.code);
             if (refused || e instanceof jsonic_1.JsonicError || 'JsonicError' === e.constructor.name) {
                 const why = refused ? e.code : 'syntax';
                 const refusal = new NilVal_1.NilVal({ why, err: e });
                 refusal.parse = parseRefusal(e, src, opts?.path ?? this.opts.path, refused ? '' : opCharHint(src));
-                if (!refused) {
+                if (!refused || 'max_depth' === e.code) {
                     refusal.site.row = e.lineNumber;
                     refusal.site.col = e.columnNumber;
                 }

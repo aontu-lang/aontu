@@ -387,6 +387,7 @@ help isolate the syntax error.`,
 	})
 
 	j.Rule("map", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
+		rs.AddBO(depthGuard)
 		rs.PrependOpen(
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, P: "pair", B: 2, N: map[string]int{"pk": 1}, G: "spread"},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{optkey, {qm}}, P: "pair", B: 2, G: "optional"},
@@ -471,6 +472,7 @@ help isolate the syntax error.`,
 	})
 
 	j.Rule("list", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
+		rs.AddBO(depthGuard)
 		rs.AddAC(wrapList)
 	})
 
@@ -2181,6 +2183,37 @@ func toVals(terms []interface{}) []Val {
 }
 
 const maxNodeDepth = 10000
+
+// depthGuard refuses a document nested past the depth budget while it is
+// read: what the reader holds per level grows with the depth, so the
+// document would exhaust memory before any later check ran. A map or list
+// is one deeper than the nearest one enclosing it; the parser's own map
+// and list counters run on across sibling terms, so they are not a depth.
+func depthGuard(r *jsonic.Rule, ctx *jsonic.Context) {
+	depth := 1
+	for p := r.Parent; nil != p && jsonic.NoRule != p; p = p.Parent {
+		if d, ok := p.U["aontu_depth"].(int); ok {
+			depth = d + 1
+			break
+		}
+	}
+	r.EnsureU()["aontu_depth"] = depth
+	limit := maxUniteDepth
+	if s := trustSinkOf(ctx); nil != s && 0 < s.depth {
+		limit = s.depth
+	}
+	if depth <= limit {
+		return
+	}
+	if sink, _ := ctx.Meta[notFoundMetaKey].(*notFoundSink); nil != sink && "" == sink.msg {
+		sink.code = "max_depth"
+		sink.msg = "maps and lists nest more than " + strconv.Itoa(limit) +
+			" deep, past the depth budget"
+		sink.row, sink.col = ctx.T0.RI, ctx.T0.CI
+		sink.url, sink.src = nestedURL(ctx), ctx.Lex.Src
+	}
+	ctx.ParseErr = ctx.T0.Bad("max_depth")
+}
 
 func valTreeDepth(v Val) int {
 	type item struct {

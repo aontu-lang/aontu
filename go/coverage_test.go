@@ -198,6 +198,18 @@ func TestMaxDepthGuard(t *testing.T) {
 	}
 }
 
+// The reader counts maps and lists alone, so calls nested in calls are
+// read in full, and the depth of the built tree is what refuses them.
+func TestMaxDepthGuardOnTheBuiltTree(t *testing.T) {
+	n := maxNodeDepth + 2
+	src := "a:" + strings.Repeat("upper(", n) + `"x"` + strings.Repeat(")", n)
+	_, err := New().Generate(src)
+	ae, ok := err.(*AontuError)
+	if !ok || ae.Code != "max_depth" || strings.Contains(ae.Msg, "maps and lists") {
+		t.Fatalf("want the built tree's max_depth, got %v", err)
+	}
+}
+
 // asValDepth defensive fallbacks: an unknown raw node is parse_unknown;
 // beyond-limit raw nesting is max_depth (the raw-side guard).
 func TestAsValFallbacks(t *testing.T) {

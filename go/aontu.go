@@ -97,6 +97,7 @@ func (a *Aontu) newTrustSink() *trustSink {
 	}
 	if nil != a.Trust {
 		sink.none = a.Trust.IncludeNone
+		sink.depth = a.Trust.Budget.Depth
 		sink.mem = a.Trust.IncludeMem
 		if "" != a.Trust.IncludeRoot {
 			root, err := filepath.Abs(a.Trust.IncludeRoot)

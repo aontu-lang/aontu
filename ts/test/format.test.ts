@@ -72,6 +72,12 @@ describe('format', () => {
     Assert.equal(deep.verdict, 'error')
     Assert.equal(deep.errors[0].code, 'max_depth')
     Assert.equal(deep.errors[0].class, 'budget')
+    Assert.match(deep.errors[0].message, /past the depth budget/)
+    const parens = (n: number) => 'a: ' + '('.repeat(n) + '1' + ')'.repeat(n) + '\n'
+    Assert.equal((format(parens(999)) as any).verdict, 'formatted')
+    const own: any = format(parens(1000))
+    Assert.equal(own.errors[0].code, 'max_depth')
+    Assert.match(own.errors[0].message, /past what the formatter reads/)
   })
 
   test('format-refuses-its-own-defect', () => {

@@ -7,6 +7,8 @@ declare class Lang {
     opts: AontuOptions;
     idcount: number | undefined;
     constructor(options?: Partial<AontuOptions>);
-    parse(src: string, opts?: Partial<AontuOptions>): Val;
+    parse(src: string, opts?: Partial<AontuOptions> & {
+        depth?: number;
+    }): Val;
 }
 export { Lang, Site, };

@@ -134,19 +134,19 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5918 cases across 117 files**) is run by *both*
+`test/spec/*.tsv` (**5928 cases across 117 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `sort.tsv` | 39 |
-| `edge.tsv`                  | 337 | `disjunct.tsv` | 38 |
-| `constraint-product.tsv`    | 256 | `aontu-system.tsv` | 37 |
-| `fmt.tsv`                   | 230 | `views.tsv` | 37 |
-| `errcodes.tsv`              | 181 | `graph.tsv` | 36 |
-| `view.tsv`                  | 177 | `defaults.tsv` | 35 |
-| `alias.tsv`                 | 172 | `budget.tsv` | 34 |
+| `number-tower.tsv`          | 395 | `scalar.tsv` | 40 |
+| `edge.tsv`                  | 337 | `sort.tsv` | 39 |
+| `constraint-product.tsv`    | 256 | `disjunct.tsv` | 38 |
+| `fmt.tsv`                   | 230 | `aontu-system.tsv` | 37 |
+| `errcodes.tsv`              | 181 | `views.tsv` | 37 |
+| `view.tsv`                  | 177 | `graph.tsv` | 36 |
+| `alias.tsv`                 | 172 | `defaults.tsv` | 35 |
 | `types.tsv`                 | 166 | `constraint-must.tsv` | 34 |
 | `func.tsv`                  | 148 | `gen-pack.tsv` | 34 |
 | `jsonschema.tsv`            | 145 | `seal.tsv` | 34 |
@@ -167,7 +167,7 @@ implementations and is the contract that defines shared behaviour
 | `ref.tsv`                   |  74 | `reach.tsv` | 19 |
 | `file.tsv`                  |  71 | `list.tsv` | 18 |
 | `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
-| `marks.tsv`                 |  62 | `plus.tsv` | 16 |
+| `marks.tsv`                 |  65 | `plus.tsv` | 16 |
 | `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
 | `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |
 | `hcanon.tsv`                |  58 | `conjunct.tsv` | 13 |
@@ -183,9 +183,9 @@ implementations and is the contract that defines shared behaviour
 | `optional.tsv`              |  45 | `comment.tsv` |  6 |
 | `containerkind.tsv`         |  42 | `aontu-scheme.tsv` |  4 |
 | `rel.tsv`                   |  42 | `include-trust.tsv` |  4 |
-| `patch.tsv`                 |  41 | `divergent.tsv` |  0 |
-| `place.tsv`                 |  41 | `signature.tsv` |  0 |
-| `scalar.tsv`                |  40 | | |
+| `budget.tsv`                |  41 | `divergent.tsv` |  0 |
+| `patch.tsv`                 |  41 | `signature.tsv` |  0 |
+| `place.tsv`                 |  41 | | |
 
 plus the `spread*.tsv` family: **26 files, 173 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,
