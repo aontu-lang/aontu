@@ -69,8 +69,7 @@ function jsonOf(v) {
 }
 function sameJSON(a, b) {
     return undefined !== leafOf(a) && undefined !== leafOf(b) ?
-        0 === (0, numcmp_1.cmpNumeric)(a, b) :
-        a.peg === b.peg && typeof a.peg === typeof b.peg;
+        0 === (0, numcmp_1.cmpNumeric)(a, b) : a.peg === b.peg;
 }
 // One entry per JSON value, in written order, with every leaf the value
 // is written in.

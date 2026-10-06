@@ -141,8 +141,7 @@ function jsonOf(v: any): any {
 
 function sameJSON(a: any, b: any): boolean {
   return undefined !== leafOf(a) && undefined !== leafOf(b) ?
-    0 === cmpNumeric(a, b) :
-    a.peg === b.peg && typeof a.peg === typeof b.peg
+    0 === cmpNumeric(a, b) : a.peg === b.peg
 }
 
 
