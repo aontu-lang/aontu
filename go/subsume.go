@@ -59,10 +59,11 @@ type subState struct {
 	distributing bool
 }
 
+// A declaration is reported by the name its source spells.
 func subPathText(path []string) string {
 	out := "$"
 	for _, p := range path {
-		out += "." + p
+		out += "." + aliasPathSegment(p)
 	}
 	return out
 }

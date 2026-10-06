@@ -144,13 +144,13 @@ describe('examples', function() {
 
     expect(G('{x:{a?:{b?:number}} x:{a:{b:1}}')).equal({ x: { a: { b: 1 } } })
     expect(G('{x:{a?:{b?:number}} x:{a:{c:2}}')).equal({ x: { a: { c: 2 } } })
-    expect(G('{x:{a?:{b?:number}} x:{a:{}}')).equal({ x: {} })
+    expect(G('{x:{a?:{b?:number}} x:{a:{}}')).equal({ x: { a: {} } })
     expect(G('{x:{a?:{b?:number}} x:{c:2}}')).equal({ x: { c: 2 } })
     expect(G('{x:{a?:{b?:number}} x:{}}')).equal({ x: {} })
 
     expect(G('x:a?:b?:number x:a:b:1')).equal({ x: { a: { b: 1 } } })
     expect(G('x:a?:b?:number x:a:{c:2}')).equal({ x: { a: { c: 2 } } })
-    expect(G('x:a?:b?:number x:a:{}')).equal({ x: {} })
+    expect(G('x:a?:b?:number x:a:{}')).equal({ x: { a: {} } })
     expect(G('x:a?:b?:number x:{c:2}')).equal({ x: { c: 2 } })
     expect(G('x:a?:b?:number x:{}')).equal({ x: {} })
 

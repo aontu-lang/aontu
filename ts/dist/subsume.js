@@ -10,14 +10,16 @@ const utility_1 = require("./utility");
 const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const hcanon_1 = require("./hcanon");
+const aliasname_1 = require("./aliasname");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
 const PathVal_1 = require("./val/PathVal");
 const PrefVal_1 = require("./val/PrefVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
+// A declaration is reported by the name its source spells.
 function pathText(path) {
-    return '$' + (0 < path.length ? '.' + path.join('.') : '');
+    return '$' + (0 < path.length ? '.' + path.map(aliasname_1.aliasPathSegment).join('.') : '');
 }
 function siteOf(v, role, url) {
     return {

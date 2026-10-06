@@ -44,12 +44,12 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **175** codes across
+There are seven classes, and the registry holds **176** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 53 | the text is not a document |
+| `parse` | 54 | the text is not a document |
 | `conflict` | 58 | two values cannot both hold |
 | `incomplete` | 11 | nothing contradicts, but the value is not concrete |
 | `reference` | 27 | a name or path resolves to nothing |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 175 codes have hint text. `aontu explain --list`
+**Hint text.** All 176 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -231,12 +231,13 @@ twenty rows have no such section and carry no link.
 | `rep_sub` | 0.57.0 | The substitution given to `rep()` names a group the pattern does not have. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `replace_overlap` | 0.58.0 | Two keys of a template's `replace` map overlap, one inside the other. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `replace_unused` | 0.58.0 | A key of a template's `replace` map appears in none of the body's literal lines. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
-| `reserved_key` | 0.69.0 | A source key beginning with the engine's reserved `\u0000aontu_` prefix, where the parser keeps a document's marks. ([Errors](reference-language.md#errors)) |
+| `reserved_key` | 0.69.0 | A source key beginning with the engine's reserved `\u0000aontu_` prefix, where the engine keeps a document's marks and its alias declarations. ([Errors](reference-language.md#errors)) |
 | `sort_dir` | 0.63.0 | A sort direction other than `asc` or `desc`. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `split_sep` | 0.57.0 | The separator given to `split()` is neither a string nor a pattern. ([Text: `esc` `usc` `rep` `split`](reference-language.md#text-esc-usc-rep-split)) |
 | `syntax` | 0.51.0 | The parser refused the source text; the message is the parser's own, with the operator-character hint appended. ([Lexical structure](reference-language.md#lexical-structure)) |
 | `unify_no_src` | 0.51.0 | No source was handed in for unification. |
 | `usc_malformed` | 0.57.0 | `usc()` was given text the named convention could not have produced. ([`esc(s, variant?)` and `usc(s, variant?)`](reference-language.md#escs-variant-and-uscs-variant)) |
+| `var_name` | 0.77.0 | A `$` followed by something other than a name, bare or quoted, or a path from the root. ([Variables `$name`](reference-language.md#variables-name)) |
 | `view_line_break` | 0.54.0 | A label the figure would draw holds a line terminator. ([`aontu view`](reference-api.md#aontu-view)) |
 
 ### Class `conflict`

@@ -5,10 +5,9 @@ import { includeOpts } from './utility'
 import { Aontu } from './aontu'
 import type { TrustOptions } from './type'
 import { canonHash } from './hcanon'
-import { get } from './query'
+import { docKeys, get } from './query'
 import { evalFailure } from './query'
 import type { VetFinding } from './vet'
-import { cmpCodePoint } from './keyorder'
 
 
 // The markers an update rewrites between. A stanza outside them is
@@ -51,7 +50,7 @@ export function agentsMd(
     return { findings: [evalFailure(ctx)], ok: false, stanza: '' }
   }
 
-  const keys = true === v.isMap ? Object.keys(v.peg).sort(cmpCodePoint) : []
+  const keys = true === v.isMap ? docKeys(v) : []
   const shape = get(src, '$', {
     view: 'types', depth: options.depth ?? 2,
     path: options.path, ...includeOpts(options),

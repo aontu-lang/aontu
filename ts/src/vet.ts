@@ -20,6 +20,7 @@ import { collectDeprecations, walkBagVals, deprecationMessage,
 import { subsumeNode, effectiveDefault } from './subsume'
 import { noPathFinding } from './query'
 import { cmpCodePoint } from './keyorder'
+import { aliasPathSegment } from './aliasname'
 
 
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error'
@@ -158,7 +159,8 @@ function roleOf(file: string, prov: Prov): VetRole {
 
 
 function pathText(path?: string[]): string {
-  return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '')
+  return '$' + (null != path && 0 < path.length ?
+    '.' + path.map(aliasPathSegment).join('.') : '')
 }
 
 

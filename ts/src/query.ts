@@ -99,12 +99,19 @@ export function projectFor(
 }
 
 
+// A map's own keys, code-point ordered: a declaration is not one.
+export function docKeys(v: any): string[] {
+  return Object.keys(v.peg)
+    .filter((k) => !v.aliasKeys.includes(k)).sort(cmpCodePoint)
+}
+
+
 function project(v: any, view: QueryView, depth: number): string {
   if (depth <= 0) {
     return TOP
   }
   if (true === v?.isMap) {
-    const keys = Object.keys(v.peg).sort(cmpCodePoint)
+    const keys = docKeys(v)
     return '{' +
       (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
         (0 < keys.length ? ',' : '') : '') +
@@ -144,7 +151,7 @@ function project(v: any, view: QueryView, depth: number): string {
 // here" is a true statement about a scalar.
 function keyList(v: any): string {
   if (true === v?.isMap) {
-    return Object.keys(v.peg).sort(cmpCodePoint).join('\n')
+    return docKeys(v).join('\n')
   }
   if (true === v?.isList) {
     return Object.keys(v.peg).join('\n')

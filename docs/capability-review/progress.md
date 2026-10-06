@@ -98,15 +98,17 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **115 `.tsv` files, 113 row-bearing, 5,639 rows**, in twenty-nine
-   modes — `errc` 1,120, `gens` 1,098, `canon` 999, `gen` 629,
-   `err` 349, `fmt` 191, `view` 175, `errcode` 175, `vet` 134,
-   `jsonschema` 131, `subsume` 125, `query` 93, `why` 53, `hcanon` 42,
+   **115 `.tsv` files, 113 row-bearing, 5,670 rows**, in twenty-nine
+   modes — `errc` 1,129, `gens` 1,103, `canon` 1,003, `gen` 630,
+   `err` 349, `fmt` 191, `view` 177, `errcode` 176, `vet` 138,
+   `jsonschema` 131, `subsume` 127, `query` 95, `why` 53, `hcanon` 42,
    `patch` 41, `graph` 38, `views` 37, `hash` 37, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
-   `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
+   `trace` 9, `agentsmd` 8, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-10-06 with the two commands below, when G12 phase 1
+   (Re-derived 2026-10-06 with the two commands below, when G12 phase 2
+   added thirty-one rows across nine files. Before that re-derived
+   2026-10-06, when G12 phase 1
    added sixty-two `jsonschema` rows. Before that re-derived 2026-10-01,
    when the fix for
    #304 added one `gen` row. Before that re-derived 2026-09-30, when the
@@ -150,8 +152,8 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
 
 ## Summary
 
-Seventy-four of the ninety-two phases in the table below have moved;
-sixty-four of those are complete, three are partial, and seven were
+Seventy-six of the ninety-three phases in the table below have moved;
+sixty-six of those are complete, three are partial, and seven were
 retired, superseded or removed by an ADR. **These four numbers are the
 total row of the table below**, which
 [`ts/test/capability-review.test.ts`](../../ts/test/capability-review.test.ts)
@@ -160,9 +162,9 @@ here rather than counting again is what keeps this paragraph from
 drifting away from the rows, which is how it went wrong before: it
 read seventy-two and sixty-three, and split the retired seven into two
 groups of three. The seven are named in their own sections; the
-eighteen phases that have not moved are G10 phase 6 and seventeen of
+seventeen phases that have not moved are G10 phase 6 and sixteen of
 the eighteen phases of G12, which was opened on 2026-09-30 and landed
-its phase 1 on 2026-10-06. G5 phase 6 is
+its phases 1 and 2 on 2026-10-06. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
 without this register saying so**: #99 fixed two of its four named
@@ -200,8 +202,8 @@ for `query`, `why`, `view` and `views` alike.
 | [G9](g9-transformation.md) | Declarative transformation | D | 6 | 1 | 0 | 3 |
 | [G10](g10-transparency.md) | Transparency log | D | 3 | 1 | 1 | 1 |
 | [G11](g11-agent-onramp.md) | Offline agent on-ramp | A | 7 | 0 | 0 | 0 |
-| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 1 | 0 | 17 | 0 |
-| | | **total** | **65** | **3** | **18** | **7** |
+| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 2 | 0 | 16 | 0 |
+| | | **total** | **66** | **3** | **17** | **7** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
 REMOVED, and they fall on two sides. Four landed first — G4.0 and
@@ -2804,13 +2806,13 @@ A review on 2026-10-06 probed the design's premises against both CLIs,
 recorded eight decisions in the design document (its "Resolved" list
 and the sections it names), and added phase 4, the exporter's carriers,
 which also takes over the `$defs`/`$ref` export the recursion design's
-P2 left open; #310 joined phase 1. Phase 1 landed the same day, and its
-row records where it departed from the design.
+P2 left open; #310 joined phase 1. Phases 1 and 2 landed the same day,
+and each row records where it departed from the design.
 
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
 | **1**: a truthful exporter | S | **LANDED** | #295, #296, #297, #300 and #310 fixed in `ts/src/jsonschema.ts` and `go/jsonschema.go`; `test/spec/jsonschema.tsv` holds 131 rows (69 before), every golden probed from both engines and compared by exact digits in both runners; the #297 entry is gone from `test/spec/divergent.tsv`; `use-cases/14-jsonschema-export` is re-pinned, each tool's loss report a golden of its own. **Departures:** (1) a loss is judged against plain `vet`'s reading of JSON numbers, so the `integer` and `float` kinds, a literal in one leaf, a `neq` of one leaf, `unique()` over two leaves and every exact leaf are reported; a `0d` value's digits are always written exactly, and the no-loss reading waits for `jsonschema --exact-numbers` in phase 3 (design section 4). (2) `neq(1, "a")` is an invalid atom in both engines, so the export refuses with `invalid-arg` rather than inventing `not: {enum}`, and any failure nested in the exported value refuses the same way. (3) The normalised pattern of design section 5 and the integer and float kind losses, placed in phases 3 and 5, landed here. |
-| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; a bare `$` refusing at parse time with one code in both ports; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
+| **2**: the engine prerequisites | M | **LANDED** | #298, #299, #301 and #302 fixed in both ports. [ADR-045](../../ADR.md#adr-045--a-key-one-side-requires-stays-required-in-the-meet): in the meet of two maps a key is optional only where every side naming it says so (`ts/src/val/MapVal.ts`, `go/mapval.go`); an optional key holding `nil` passes absent and refuses a supplied value, `vet` skipping the written `nil` of a key still optional (`ts/src/walk.ts`, `go/walk.go`); a `$` followed by anything but a name, bare or quoted, or a path refuses at parse time with `var_name`, and #302's entry is gone from `test/spec/divergent.tsv`; a declaration's key is spelled in the engine's reserved `\u0000aontu_` namespace (`ts/src/aliasname.ts`, `go/lang.go`), so a quoted key or path segment spelled like an alias is the document's own. Thirty-one rows in `canon`, `gens`, `vet`, `subsume`, `errc`, `query`, `view` and `agentsmd` modes, every golden probed from both engines, and six `canon`, `hcanon` and `hash` rows re-pinned for the meet. **Departures:** (1) the alias slot moves into the reserved key namespace rather than a side table: a reference path is a list of strings, so a side table would still need a first segment no data key can spell, and the reserved namespace, refused to every source key, is that segment and that key at once. (2) A quoted path segment, `$."%T"`, names the field it spells in both ports, where TypeScript refused it at every depth and Go at the root only; the design did not name the case. (3) Five surfaces printed the engine's alias key, spelled differently by each port: every finding inside a declaration, `agentsmd`, the `types` and `keys` query views and Go's `view layers`; and `view doc` dropped every key starting with `%`. Each now reports the document's own keys and the names its source spells. (4) A computed variable name, which TypeScript alone accepted, is refused with the rest. |
 | **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; the `trials` budget and `trial_budget`; `--exact-numbers` on `vet`, on evaluation and on the export; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite, Ajv's extras and JSONTestSuite under `test/vectors/`, each with its LICENSE, pinned commit and skip ledger read by both |
 | **4**: the exporter's carriers | M | **NOT STARTED** | a residual template exported by its structure and each guarded-spread shape as its keyword; the origin mark and local `$defs`/`$ref` on export, closing the recursion design's P2; `js-spread-template-residue` and `js-recursive-alias-is-not-a-property` re-pinned from both engines |
 | **5**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |

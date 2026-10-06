@@ -4,7 +4,6 @@
 package aontu
 
 import (
-	"sort"
 	"strings"
 )
 
@@ -48,8 +47,7 @@ func (a *Aontu) AgentsMd(src string, opts *AgentsMdOptions) AgentsMdReport {
 
 	keys := []string{}
 	if m, ok := v.(*MapVal); ok {
-		keys = append(keys, m.keys...)
-		sort.Strings(keys)
+		keys = m.docKeys()
 	}
 	shape := a.Get(src, "$", &QueryOptions{View: QueryTypes, Depth: depth})
 

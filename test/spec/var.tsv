@@ -33,3 +33,11 @@ path-segment	gen	hello:{r:1} r:2 out:$bar.r	{"hello":{"r":1},"out":1,"r":2}
 # rounded key must NOT be reachable. Together they pin the exact rendering.
 var-path-seg-exact-int	canon	a:{"1152921504606846976":7}\nb:$.a.$big	{"a":{"1152921504606846976":7},"b":7}
 var-path-seg-exact-int-not-rounded	err	a:{"1152921504606847000":7}\nb:$.a.$big	Cannot resolve value
+#
+# A `$` IS FOLLOWED BY A NAME OR A PATH. Anything else names nothing and
+# is refused where it is written, with one code in both ports.
+var-name-map-refuses	errc	a: ${b: 1}	var_name
+var-name-list-refuses	errc	a: $[1]	var_name
+var-name-number-refuses	errc	a: $1	var_name
+var-name-empty-refuses	errc	a: $""	var_name
+var-name-quoted-names	gen	a: $"foo"	{"a":11}

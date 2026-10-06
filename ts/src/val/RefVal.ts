@@ -91,7 +91,7 @@ function markedChild(v: any, part: any): Val | undefined {
 }
 
 
-import { ALIAS_NAME_RE, aliasBareName } from '../aliasname'
+import { aliasBareName, isAliasSlotKey } from '../aliasname'
 
 
 class RefVal extends FeatureVal {
@@ -458,7 +458,7 @@ class RefVal extends FeatureVal {
           // address a rule can be reported AT and never a path coverage
           // could call dead: it is stamped, and it is not in the set
           // the model is measured against.
-          if (!refpath[0]?.startsWith('%')) {
+          if (!isAliasSlotKey(refpath[0])) {
             ctx.reads.add(addr)
           }
           if (null == (node as any).origin) {
@@ -636,9 +636,7 @@ class RefVal extends FeatureVal {
   // reference was WRITTEN in (ALIAS-FILE-SCOPE.0.md).
   get aliasKey(): string | undefined {
     return this.absolute && 1 === this.peg.length &&
-      'string' === typeof this.peg[0] &&
-      ALIAS_NAME_RE.test(aliasBareName(this.peg[0])) ?
-      this.peg[0] : undefined
+      isAliasSlotKey(this.peg[0]) ? this.peg[0] : undefined
   }
 
 

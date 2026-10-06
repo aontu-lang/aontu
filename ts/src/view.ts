@@ -10,6 +10,7 @@ import type { TrustOptions } from './type'
 import { graphOf } from './graph'
 import type { Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
+import { isAliasSlotKey } from './aliasname'
 import { Provenance } from './provenance'
 import type { WhyConjunct } from './provenance'
 import { why, pathParts } from './query'
@@ -1061,7 +1062,7 @@ function docKids(v: any): string[] {
   const node: any = throughDoc(v)
   if (true === node?.isMap) {
     return Object.keys(node.peg)
-      .filter((k) => !k.startsWith('%')).sort(cmpCodePoint)
+      .filter((k) => !node.aliasKeys.includes(k)).sort(cmpCodePoint)
   }
   if (true === node?.isList) {
     return Object.keys(node.peg).filter((k) => /^[0-9]+$/.test(k))
@@ -2101,7 +2102,8 @@ function drawLayers(
   const paths: string[] = []
   const atParts = undefined === o.at ? [] : pathParts(o.at)
   for (const [key, rec] of prov.paths) {
-    if (0 === rec.conjuncts.length || null == anchorAt(root, '$.' + key)) {
+    if (0 === rec.conjuncts.length || isAliasSlotKey(key) ||
+      null == anchorAt(root, '$.' + key)) {
       continue
     }
     const parts = '' === key ? [] : key.split('.')

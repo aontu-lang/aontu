@@ -12,8 +12,9 @@ type AliasBind = {
     remote: string;
 };
 declare function aliasScopedKey(name: string, url: string): string;
+declare function isAliasSlotKey(key: unknown): boolean;
 declare function aliasBareName(key: string): string;
 declare function aliasPathSegment(seg: string): string;
 declare function aliasSetItems(text: string): AliasBind[] | undefined;
-export { ALIAS_NAME, ALIAS_RE, ALIAS_NAME_RE, ALIAS_SET, ALIAS_SHORTHAND_RE, EXPORT_DECL_NAME, RESERVED_KEY_PREFIX, exportHoldKey, isExportHoldKey, aliasScopedKey, aliasBareName, aliasPathSegment, aliasSetItems, };
+export { ALIAS_NAME, ALIAS_RE, ALIAS_NAME_RE, ALIAS_SET, ALIAS_SHORTHAND_RE, EXPORT_DECL_NAME, RESERVED_KEY_PREFIX, exportHoldKey, isExportHoldKey, aliasScopedKey, isAliasSlotKey, aliasBareName, aliasPathSegment, aliasSetItems, };
 export type { AliasBind, };

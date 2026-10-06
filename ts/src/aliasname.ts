@@ -22,11 +22,13 @@ const ALIAS_SHORTHAND =
   '(?:(?:\\s*,\\s*|\\s+)' + ALIAS_NAME + ')*\\s*\\}'
 const ALIAS_SHORTHAND_RE = new RegExp('^' + ALIAS_SHORTHAND)
 
-// A key carries the url of the file that declared the name.
+// A key is the engine's prefix, the name, and the declaring file's url.
 const ALIAS_SCOPE = '@'
 
 // THE ENGINE'S KEY NAMESPACE, refused to a source key.
 const RESERVED_KEY_PREFIX = '\u0000aontu_'
+
+const ALIAS_KEY_PREFIX = RESERVED_KEY_PREFIX + '%'
 
 // `export(...)` is read as a pair, its value under a key that changes
 // with each declaration, so a field of that name is the document's.
@@ -47,19 +49,23 @@ type AliasBind = { local: string, remote: string }
 
 
 function aliasScopedKey(name: string, url: string): string {
-  return name + ALIAS_SCOPE + url
+  return RESERVED_KEY_PREFIX + name + ALIAS_SCOPE + url
+}
+
+
+function isAliasSlotKey(key: unknown): boolean {
+  return 'string' === typeof key && key.startsWith(ALIAS_KEY_PREFIX)
 }
 
 
 function aliasBareName(key: string): string {
-  const at = key.indexOf(ALIAS_SCOPE)
-  return -1 === at ? key : key.substring(0, at)
+  const name = key.substring(RESERVED_KEY_PREFIX.length)
+  return name.substring(0, name.indexOf(ALIAS_SCOPE))
 }
 
 
 function aliasPathSegment(seg: string): string {
-  const name = aliasBareName(seg)
-  return ALIAS_NAME_RE.test(name) ? name : seg
+  return isAliasSlotKey(seg) ? aliasBareName(seg) : seg
 }
 
 
@@ -70,7 +76,7 @@ function aliasSetItems(text: string): AliasBind[] | undefined {
   }
   return Array.from(text.matchAll(ALIAS_ITEMS_RE),
     (m) => ({ local: m[1], remote: m[2] ?? m[1] }))
-} /* node:coverage ignore next 22 */
+} /* node:coverage ignore next 23 */
 
 
 export {
@@ -84,6 +90,7 @@ export {
   exportHoldKey,
   isExportHoldKey,
   aliasScopedKey,
+  isAliasSlotKey,
   aliasBareName,
   aliasPathSegment,
   aliasSetItems,

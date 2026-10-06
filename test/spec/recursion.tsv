@@ -54,7 +54,7 @@ mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hi
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}
 #
 # --- Canon and the hash: symbolic, never expanded --------------------
-canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next"?:{"next"?:$.Node,"v":2},"v":1}}
+canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next":{"next"?:$.Node,"v":2},"v":1}}
 hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h8iheHHF6KqorbFfM9BG5oWYLpIO6KldjKOL4
 #
 # --- Subsume: a recursion is residue, and reflexivity is a law -----

@@ -104,6 +104,18 @@ func queryPathParts(path string) []string {
 	return out
 }
 
+// A map's own keys, code-point ordered: a declaration is not one.
+func (m *MapVal) docKeys() []string {
+	keys := []string{}
+	for _, k := range m.keys {
+		if !m.isAliasKey(k) {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func queryProject(v Val, view string, depth int) string {
 	if depth <= 0 {
 		return queryTop
@@ -119,8 +131,7 @@ func queryProject(v Val, view string, depth int) string {
 				out.WriteByte(',')
 			}
 		}
-		keys := append([]string(nil), b.keys...)
-		sort.Strings(keys)
+		keys := b.docKeys()
 		for i, k := range keys {
 			if i > 0 {
 				out.WriteByte(',')
@@ -191,9 +202,7 @@ func queryJunction(members []Val, sym, view string, depth int) string {
 func queryKeyList(v Val) string {
 	switch b := v.(type) {
 	case *MapVal:
-		keys := append([]string(nil), b.keys...)
-		sort.Strings(keys)
-		return strings.Join(keys, "\n")
+		return strings.Join(b.docKeys(), "\n")
 	case *ListVal:
 		out := make([]string, len(b.peg))
 		for i := range b.peg {

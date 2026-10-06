@@ -4,6 +4,7 @@ package aontu
 
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,7 +38,7 @@ func docEntries(v Val) []docEntry {
 	case *MapVal:
 		keys := []string{}
 		for k := range n.peg {
-			if strings.HasPrefix(k, "%") {
+			if slices.Contains(n.aliasKeys, k) {
 				continue
 			}
 			keys = append(keys, k)

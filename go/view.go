@@ -1723,7 +1723,8 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols i
 	sort.Strings(keys)
 	for _, key := range keys {
 		rec := prov.paths[key]
-		if 0 == len(rec.conjuncts) || nil == anchorAt(root, "$."+key) {
+		// A declaration's body is held under its slot key and is no path.
+		if 0 == len(rec.conjuncts) || isAliasSlotKey(key) || nil == anchorAt(root, "$."+key) {
 			continue
 		}
 		parts := []string{}

@@ -114,6 +114,11 @@ query-root-types-2	query	x: 0d9007199254740993\ny: "<b>&</b>"\nz: 1.0	$	{"opts":
 query-y-types	query	x: 0d9007199254740993\ny: "<b>&</b>"\nz: 1.0	$.y	{"opts": {"view": "types"}, "out": "string"}
 query-root-canon-4	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}		{"opts": {"view": "canon"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":1},\\"k\\":integer,\\"l\\":{\\"z\\":1},\\"opt\\":{\\"q\\"?:1},\\"port\\":*8080|integer,\\"sp\\":{&:{\\"n\\":integer},\\"x\\":{\\"n\\":1}},\\"svc\\":{\\"auth\\":{\\"image\\":\\"a:v2\\",\\"ports\\":[80,443],\\"replicas\\":3},\\"db\\":{\\"host\\":\\"h\\"}},\\"u\\":{\\"A\\":2,\\"é\\":1}}"}
 query-root-canon-5	query	svc:{auth:{image:"a:v2",replicas:3,ports:[80,443]},db:{host:"h"}}\nport: *8080|integer\nk: integer\nc: integer&min(3)\nl: close({z:1})\nopt:{q?:1}\nsp:{&:{n:integer},x:{n:1}}\nesc:{"a.b":1}\nu:{"é":1,"A":2}	$.	{"opts": {"view": "canon"}, "out": "{\\"c\\":integer&min(3),\\"esc\\":{\\"a.b\\":1},\\"k\\":integer,\\"l\\":{\\"z\\":1},\\"opt\\":{\\"q\\"?:1},\\"port\\":*8080|integer,\\"sp\\":{&:{\\"n\\":integer},\\"x\\":{\\"n\\":1}},\\"svc\\":{\\"auth\\":{\\"image\\":\\"a:v2\\",\\"ports\\":[80,443],\\"replicas\\":3},\\"db\\":{\\"host\\":\\"h\\"}},\\"u\\":{\\"A\\":2,\\"é\\":1}}"}
+# A DECLARATION IS NOT A KEY of the document, and a quoted key spelled
+# like one is (#301): the shape and key views list what the
+# document holds.
+query-root-types-a-declaration-is-not-a-key	query	%P = integer & min(1)\n"%x": 1\na: %P & 5	$	{"opts":{"view":"types"},"out":"{\\"%x\\":integer,\\"a\\":integer}"}
+query-root-keys-a-declaration-is-not-a-key	query	%P = integer & min(1)\n"%x": 1\na: %P & 5	$	{"opts":{"view":"keys"},"out":"%x\\na"}
 query-list-spread-canon	query	l:[&:integer,1,2]	$.l	{"opts": {"view": "canon"}, "out": "[&:integer,1,2]"}
 query-list-spread-types	query	l:[&:integer,1,2]	$.l	{"opts": {"view": "types"}, "out": "[&:integer,integer,integer]"}
 query-list-spread-keys	query	l:[&:integer,1,2]	$.l	{"opts": {"view": "keys"}, "out": "0\\n1"}

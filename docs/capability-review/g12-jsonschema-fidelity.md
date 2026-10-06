@@ -1143,7 +1143,8 @@ nested in the exported value or an atom with unusable arguments. Each change is 
 **Phase 2: the engine prerequisites (M).** Required wins in the meet
 (#298) with its ADR; an optional `nil` key refuses a supplied value and
 passes an absent one, in evaluation and `vet` alike (#299); alias slots
-move to a side table (#301); a bare `$` refuses at parse time with one
+move into the engine's reserved key namespace, which no document key can
+spell (#301); a bare `$` refuses at parse time with one
 code in both ports, naming the variable form (#302), which removes its
 `divergent.tsv` entry. Each lands `canon`,
 `gens`, `vet`, `subsume` or `errc` rows. `ts/src/val/MapVal.ts`,

@@ -33,8 +33,7 @@ const aliasKeysKey = reservedKeyPrefix + "aliaskeys"
 
 const keyRefusalsKey = reservedKeyPrefix + "keyrefusals"
 
-// The declarations before scoping, the names published and the heads.
-const aliasDeclsKey = reservedKeyPrefix + "aliasdecls"
+// The names published and the heads.
 const exportDeclsKey = reservedKeyPrefix + "exportdecls"
 const exportKeysKey = reservedKeyPrefix + "exportkeys"
 const importDeclsKey = reservedKeyPrefix + "importdecls"
@@ -44,12 +43,6 @@ const importMergeKey = reservedKeyPrefix + "importmerge"
 type aliasBind struct {
 	local  string
 	remote string
-}
-
-// The name the source spells and the key it is held under.
-type aliasDecl struct {
-	name string
-	key  string
 }
 
 // One `export(...)`, and whether its argument named a set.
@@ -415,6 +408,18 @@ help isolate the syntax error.`,
 				A: func(r *jsonic.Rule, _ *jsonic.Context) { r.U["key"] = r.O0.Src[1:] },
 				G: "alias-key",
 			},
+			// A DECLARATION TAKES ITS SLOT KEY here, so a quoted `"%T"` is data.
+			&jsonic.AltSpec{
+				S: [][]jsonic.Tin{{jsonic.TinVL}, {cl}}, P: "val",
+				C: func(r *jsonic.Rule, _ *jsonic.Context) bool {
+					return isAliasDecl(r.O0, r.O1, keyOf(r.O0))
+				},
+				U: map[string]any{"pair": true, "aontu_decl": true},
+				A: func(r *jsonic.Rule, ctx *jsonic.Context) {
+					r.U["key"] = aliasScopedKey(r.O0.Src, srcURL(ctx))
+				},
+				G: "alias-decl",
+			},
 			&jsonic.AltSpec{S: [][]jsonic.Tin{{cj}, {cl}}, P: "val", U: map[string]any{"spread": true}, G: "spread"},
 			// `key ? : value` — optional key.
 			&jsonic.AltSpec{S: [][]jsonic.Tin{optkey, {qm}, {cl}}, P: "val", U: map[string]any{"optional": true}, G: "optional"},
@@ -546,32 +551,6 @@ func elemSpread(r *jsonic.Rule, ctx *jsonic.Context) {
 		return
 	}
 	list[len(list)-1] = &listSpread{val: sv}
-}
-
-// A NAME BELONGS TO THE FILE THAT DECLARED IT. Renamed here and not at
-// the key, so an elided value is still reported by the name the source
-// spells; the order entry moves with it, as key order is resolution.
-func scopeAliasKeys(m map[string]any) {
-	decls, _ := m[aliasDeclsKey].([]aliasDecl)
-	ord, _ := m[orderKey].([]string)
-	ak, _ := m[aliasKeysKey].([]string)
-	for _, d := range decls {
-		if v, seen := m[d.name]; seen {
-			delete(m, d.name)
-			m[d.key] = v
-			for i, k := range ord {
-				if k == d.name {
-					ord[i] = d.key
-				}
-			}
-		}
-		ak = appendNew(ak, d.key)
-	}
-	if 0 < len(decls) {
-		m[orderKey] = ord
-		m[aliasKeysKey] = ak
-	}
-
 }
 
 func deleteNodeKey(m map[string]any, key string) {
@@ -712,7 +691,6 @@ func declaredAs(declared []string, name string) (string, bool) {
 func closeMap(r *jsonic.Rule, ctx *jsonic.Context) {
 	m, ok := r.Node.(map[string]any)
 	if ok {
-		scopeAliasKeys(m)
 		recordExports(m)
 		bindImports(m, ctx)
 		if r.D == 1 {
@@ -1022,26 +1000,29 @@ func isExportHoldKey(val any) bool {
 	return ok && strings.HasPrefix(s, exportHoldKey)
 }
 
+// A declaration's key is the engine's: no source key can spell it.
+const aliasKeyPrefix = reservedKeyPrefix + "%"
+
 func aliasScopedKey(name, url string) string {
-	return name + aliasScopeSep + url
+	return reservedKeyPrefix + name + aliasScopeSep + url
+}
+
+func isAliasSlotKey(key string) bool {
+	return strings.HasPrefix(key, aliasKeyPrefix)
 }
 
 // A path segment as the source spells it: a key drops its scope.
 func aliasPathSegment(seg string) string {
-	name := aliasBareName(seg)
-	if aliasNameRe.MatchString(name) {
-		return name
+	if isAliasSlotKey(seg) {
+		return aliasBareName(seg)
 	}
 	return seg
 }
 
-// An unscoped key is its own name: how a path segment answers no above.
+// A slot key's name, without the namespace and the declaring file.
 func aliasBareName(key string) string {
-	at := strings.Index(key, aliasScopeSep)
-	if -1 == at {
-		return key
-	}
-	return key[:at]
+	name := key[len(reservedKeyPrefix):]
+	return name[:strings.Index(name, aliasScopeSep)]
 }
 
 // Empty where the text is not a set; the wildcard answers EMPTY, true.
@@ -1221,7 +1202,7 @@ var quarantineSeq atomic.Int64
 // why. The engine writes one key here itself: an `export` declaration.
 func reserveKeyNamespace(r *jsonic.Rule, _ *jsonic.Context) {
 	key, _ := r.U["key"].(string)
-	if !strings.HasPrefix(key, reservedKeyPrefix) ||
+	if !strings.HasPrefix(key, reservedKeyPrefix) || true == r.U["aontu_decl"] ||
 		(r.ON > 0 && r.O0.Use["aontu_export"] == true) {
 		return
 	}
@@ -1269,17 +1250,19 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		key = orig
 	}
 
+	// A declaration's slot key is one the namespace rule refuses a source.
+	decl := true == r.U["aontu_decl"]
 	kr, refused := keyRefusalOf(r.O0, r.O1, key)
-	if refused {
+	refused = refused && !decl
+	if decl {
+		ak, _ := m[aliasKeysKey].([]string)
+		m[aliasKeysKey] = appendNew(ak, key)
+	} else if refused {
 		kr.url = srcURL(ctx)
 		krs, _ := m[keyRefusalsKey].([]keyRefusal)
 		m[keyRefusalsKey] = append(krs, kr)
 	} else if isAliasKey(r.O0, r.O1) && !isElidedNode(r.Child.Node) {
 		addAliasHoist(ctx, aliasScopedKey(r.O0.Src, srcURL(ctx)), r.Child.Node)
-	} else if isAliasDecl(r.O0, r.O1, key) {
-		decls, _ := m[aliasDeclsKey].([]aliasDecl)
-		m[aliasDeclsKey] = append(decls,
-			aliasDecl{name: key, key: aliasScopedKey(key, srcURL(ctx))})
 	} else if names, nok, ok := exportNamesOf(r.O0); ok {
 		exs, _ := m[exportDeclsKey].([]exportDecl)
 		m[exportDeclsKey] = append(exs,
@@ -1377,19 +1360,20 @@ func keyRefusalOf(ktkn, _ *jsonic.Token, key string) (keyRefusal, bool) {
 func refuseAliasSegment(terms []any, r *jsonic.Rule) *NilVal {
 	// Terms here are always Vals, and the shapes are exactly two that
 	// can carry a name: a RefVal (whose peg is the segment list) and a
-	// StringVal (whose peg is the segment). Anything else is a numeric
-	// or exact segment, which cannot be an alias name.
+	// StringVal (whose peg is the segment). A quoted `"%a"` is a key;
+	// only an alias's slot key is refused.
 	bad := false
 	for _, t := range terms {
 		switch seg := t.(type) {
 		case *RefVal:
 			for _, p := range seg.peg {
-				if ps, ok := p.(string); ok && aliasRe.MatchString(ps) {
+				if ps, ok := p.(string); ok && isAliasSlotKey(ps) {
 					bad = true
 				}
 			}
 		case *ScalarVal:
-			bad = bad || aliasRe.MatchString(seg.Canon())
+			ps, ok := seg.peg.(string)
+			bad = bad || (ok && isAliasSlotKey(ps))
 		}
 	}
 	if !bad {
@@ -2024,7 +2008,16 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			stampSrc(r0, r)
 			return r0
 		}
-		vv := newVar(asVal(terms[0]))
+		name := asVal(terms[0])
+		if sv, ok := name.(*ScalarVal); !ok || KindString != sv.kind || "" == sv.peg {
+			nv := newNil("var_name")
+			if r.ON > 0 {
+				nv.site.sp = r.O0.SI
+			}
+			stampSrc(nv, r)
+			return nv
+		}
+		vv := newVar(name)
 		if r.ON > 0 {
 			vv.site.sp = r.O0.SI
 		}

@@ -190,8 +190,9 @@ let AontuJsonic = function AontuLang(jsonic) {
         for (const t of terms) {
             const segs = Array.isArray(t.peg) ? t.peg :
                 ('string' === typeof t.peg ? [t.peg] : []);
+            // A quoted `"%a"` is a key; only an alias's slot key is refused.
             for (const seg of segs) {
-                if ('string' === typeof seg && aliasname_1.ALIAS_RE.test(seg)) {
+                if ((0, aliasname_1.isAliasSlotKey)(seg)) {
                     return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
                 }
             }
@@ -690,13 +691,16 @@ help isolate the syntax error.`,
             // `$%foo` -- the sigil directly after the root -- reaches here
             // as the alias reference rather than through the dot rule, and
             // is refused for the same reason.
-            if (terms[0] instanceof RefVal_1.RefVal &&
-                terms[0].peg.some((seg) => 'string' === typeof seg && aliasname_1.ALIAS_RE.test(seg))) {
+            if (terms[0] instanceof RefVal_1.RefVal && terms[0].peg.some(aliasname_1.isAliasSlotKey)) {
                 return addsite(new NilVal_1.NilVal({ why: 'alias_in_path' }), r, ctx);
             }
             if (terms[0] instanceof RefVal_1.RefVal) {
                 terms[0].absolute = true;
                 return terms[0];
+            }
+            const name = terms[0];
+            if (true !== name.isString || '' === name.peg) {
+                return addsite(new NilVal_1.NilVal({ why: 'var_name' }), r, ctx);
             }
             return addsite(new VarVal_1.VarVal({ peg: terms[0] }), r, ctx);
         },
@@ -994,30 +998,9 @@ help isolate the syntax error.`,
                     mo[key] = en;
                 }
             }
-            // A NAME BELONGS TO THE FILE THAT DECLARED IT. Renamed here and
-            // not at the key, so an elided value is still reported by the
-            // name the source spells; rebuilt, as key order is resolution.
-            const renamed = new Map();
-            for (const { name, key } of aliasDecls) {
-                renamed.set(name, key);
+            for (const key of aliasDecls) {
                 if (!aliasKeys.includes(key)) {
                     aliasKeys.push(key);
-                }
-            }
-            if (0 < renamed.size) {
-                const entries = Object.entries(mo);
-                for (const [k] of entries) {
-                    delete mo[k];
-                }
-                for (const [k, v] of entries) {
-                    const key = renamed.get(k);
-                    if (undefined === key) {
-                        mo[k] = v;
-                    }
-                    else {
-                        mo[key] = v;
-                        (0, Val_1.repathInstance)(v, [...(r.k?.path ?? []), key]);
-                    }
                 }
             }
             // `export` PUBLISHES NAMES AND NOTHING ELSE; a bare name, a key
@@ -1198,6 +1181,14 @@ help isolate the syntax error.`,
                 a: (r) => { r.u.key = ('' + r.o0.src).substring(1); },
                 g: 'aontu-alias-key',
             },
+            // A DECLARATION TAKES ITS SLOT KEY here, so a quoted `"%T"` is data.
+            {
+                s: [VL, CL], p: 'val',
+                c: (r) => isAliasDecl(r.o0, r.o1),
+                u: { pair: true },
+                a: (r, ctx) => { r.u.key = (0, aliasname_1.aliasScopedKey)('' + r.o0.src, srcUrl(ctx)); },
+                g: 'aontu-alias-decl',
+            },
             {
                 s: [CJ, CL], p: 'val',
                 u: { spread: true },
@@ -1247,10 +1238,7 @@ help isolate the syntax error.`,
             }
             else if (isAliasDecl(ktkn, rule.o1)) {
                 holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || []);
-                holder.u.aontu_alias_keys.push({
-                    name: '' + ktkn.src,
-                    key: (0, aliasname_1.aliasScopedKey)('' + ktkn.src, srcUrl(ctx)),
-                });
+                holder.u.aontu_alias_keys.push(rule.u.key);
             }
             else if (true === ktkn?.use?.aontu_export) {
                 holder.u.aontu_export_decls = (holder.u.aontu_export_decls || []);

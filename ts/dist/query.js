@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.nearestKey = nearestKey;
 exports.pathParts = pathParts;
 exports.projectFor = projectFor;
+exports.docKeys = docKeys;
 exports.evalFailure = evalFailure;
 exports.noPathFinding = noPathFinding;
 exports.get = get;
@@ -58,12 +59,17 @@ function pathText(path) {
 function projectFor(v, view, depth) {
     return project(v, view, depth);
 }
+// A map's own keys, code-point ordered: a declaration is not one.
+function docKeys(v) {
+    return Object.keys(v.peg)
+        .filter((k) => !v.aliasKeys.includes(k)).sort(keyorder_1.cmpCodePoint);
+}
 function project(v, view, depth) {
     if (depth <= 0) {
         return TOP;
     }
     if (true === v?.isMap) {
-        const keys = Object.keys(v.peg).sort(keyorder_1.cmpCodePoint);
+        const keys = docKeys(v);
         return '{' +
             (v.spread.cj ? '&:' + project(v.spread.cj, view, depth - 1) +
                 (0 < keys.length ? ',' : '') : '') +
@@ -98,7 +104,7 @@ function project(v, view, depth) {
 // here" is a true statement about a scalar.
 function keyList(v) {
     if (true === v?.isMap) {
-        return Object.keys(v.peg).sort(keyorder_1.cmpCodePoint).join('\n');
+        return docKeys(v).join('\n');
     }
     if (true === v?.isList) {
         return Object.keys(v.peg).join('\n');

@@ -59,6 +59,12 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     if (null != v.spread?.cj) {
       walked.add(v.spread.cj)
     }
+    // A written nil at a key still optional says the key is absent.
+    for (const k of v.optionalKeys ?? []) {
+      if ('literal_nil' === v.peg[k]?.why) {
+        walked.add(v.peg[k])
+      }
+    }
     return true
   }, walked)
   return out

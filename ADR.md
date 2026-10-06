@@ -73,6 +73,7 @@ capability decision is the phase rows it governed in
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
+| [ADR-045](#adr-045--a-key-one-side-requires-stays-required-in-the-meet) | A key one side requires stays required in the meet | Accepted |
 
 ---
 
@@ -4555,3 +4556,63 @@ restate it.
 - The decision is cheap to reverse by accident, expensive to have
   reversed, and invisible in the diff that reverses it, which is why it
   is recorded here rather than left in the site plan.
+
+## ADR-045 — A key one side requires stays required in the meet
+
+**Date:** 2026-10-06
+**Status:** Accepted
+
+### Context
+
+A map marks a key optional with `?`, and an optional key that does not
+resolve is dropped from the output instead of refused. When two maps
+met, the meet made a key optional if either side marked it optional,
+so `{x: integer} & {x?: integer}` answered `{x?: integer}` and the
+requirement was gone. The subsumption table says the opposite of that
+meet: `{x: T}` is strictly narrower than `{x?: T}` (the
+`optional-weakened` row of
+[`test/spec/subsume.tsv`](test/spec/subsume.tsv)), so the answer was
+not a lower bound of its required operand, which is what a meet must
+be.
+
+Two consequences reached past the algebra. JSON Schema's `required`
+and `properties` are independent keywords that `allOf`, and `$ref`
+with siblings, split across schema objects; an import that writes
+`{x?: T}` from one object and `{x: any}` from another lost the
+requirement and admitted a document without `x`
+([#298](https://github.com/aontu-lang/aontu/issues/298)). And an
+optional key holding `nil`, the spelling the importer gives
+`properties: {k: false}`, had no settled meaning: evaluation of
+`{k?: nil}` with `{k: 1}` dropped the supplied value without a
+finding, while `vet` refused `{}` against `{k?: nil}`, where nothing
+was supplied ([#299](https://github.com/aontu-lang/aontu/issues/299)).
+
+### Decision
+
+**In the meet of two maps, a key is optional only when every side that
+names it marks it optional.** A key one side requires is required in
+the result, so `{k?: X} & {k: Y}` is `{k: X & Y}`; a key only one side
+names keeps that side's marking.
+
+An optional `nil` follows from it. Absent, the key contributes
+nothing, as any unresolved optional key does. Supplied, the key is
+required and its value is `nil & Y`, which refuses. `vet` asks the
+same question: a written `nil` at a key that is still optional after
+the meet is not a finding, and one at a key the data supplied is.
+
+### Consequences
+
+- A document whose optional declaration used to weaken a required one
+  now refuses where it omits the key, because the key is required, and
+  a written key keeps what it holds, an empty map included. Every use
+  case and bundled model, 356 files, evaluated identically before and
+  after this landed; use case 03's pinned canon moved at the four keys
+  its endpoints write and its template marks optional.
+- Canon follows the meet: `a: {x?: number}` met with `a: {x: 11}` is
+  `{"a": {"x": 11}}`, where it was `{"a": {"x"?: 11}}`.
+- The vet-equals-eval differential holds for `nil` at an optional key
+  in both directions.
+- Pinned in both ports by rows in
+  [`test/spec/optional.tsv`](test/spec/optional.tsv) and
+  [`test/spec/vet.tsv`](test/spec/vet.tsv), and by the `subsume` rows
+  the meet already agreed with.

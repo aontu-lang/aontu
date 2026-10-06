@@ -64,6 +64,10 @@ ok "contract.aontu does not generate (the documented price of gap 2)"
 # flattened by a destination's application leaking back), and summary's
 # len() keeps its written argument (the `integer&` residue came from
 # the same leak). Every applied endpoint is byte-identical.
+# 2026-10-06 (ADR-045): golden regenerated after the required-wins meet.
+# An endpoint that writes `request`, `path_params` or `query` holds it
+# required where the api template marks it optional, so those four keys
+# lost their `?`; the template's own optional keys are unchanged.
 run canon 0 -- --canon "$DIR/contract.aontu"
 diff -u "$DIR/expected/contract.canon" "$WORK/canon.out" \
   || fail "canonical form drifted from expected/contract.canon"

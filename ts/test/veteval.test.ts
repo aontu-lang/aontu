@@ -90,7 +90,7 @@ function evalAccepts(src: string): boolean {
 // spelling: concatenation would hand it the other document's declaration,
 // and a name does not cross between documents. Checking the union would
 // then be checking a different question from the one the row asks.
-const ALIAS_USE_RE = /%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/g
+const ALIAS_USE_RE = /(?<!["\w])%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*/g
 
 function declaredNames(src: string): Set<string> {
   const declared = new Set<string>()

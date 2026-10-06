@@ -60,6 +60,17 @@ const hints: Record<string, string> = {
 
   unify_cycle: 'Circular reference detected during unification.',
 
+  var_name:
+    'A `$` starts a path from the document root, as in `$.a.b`, or a\n' +
+    'variable the caller supplies, as in `$name` or `$"name"`. Only a name,\n' +
+    'bare or quoted, names a variable: a map, a list, a number, a keyword\n' +
+    'such as `true`, a call or an empty name names nothing, and a `$` that\n' +
+    'ends a line takes the next value as its operand.' +
+    '\n \nExamples:\n' +
+    '  a: $.b      -> $.b      # A path from the root;\n' +
+    '  a: $name    -> $"name"  # ... a variable the caller binds;\n' +
+    '  a: ${b: 1}  -> nil      # ... and a map is not a name.',
+
   pref_implicit_bag:
     'A preference marks a VALUE, and a bare key is not one. Without\n' +
     'braces the `*` took the whole implicit map as its operand, so the\n' +
@@ -912,6 +923,7 @@ const codeClasses: Record<string, string> = {
   unify_no_src: 'parse',
   incomplete_expression: 'parse',
   pref_implicit_bag: 'parse',
+  var_name: 'parse',
   alias_not_toplevel: 'parse',
   alias_in_path: 'parse',
   alias_budget: 'budget',

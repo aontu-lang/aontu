@@ -1546,6 +1546,17 @@ a:$foo & number      → {"a":11}            (variables unify like values)
 
 An unknown variable is a `Cannot resolve` error.
 
+**Only a name follows the `$`.** A bare name or a quoted one names a
+variable, and a `.` after the `$` starts a path from the root. Anything
+else names nothing and is refused where it is written, with
+`[aontu/var_name]`: a map, a list, a number, a keyword such as `true`, a
+call, or an empty name.
+
+```
+a:$"foo"             → {"a":11}            (a quoted name is a name)
+a:${b:1}             → [aontu/var_name]    (a map is not a name)
+```
+
 ## Aliases `%`
 
 An **alias** is a name for a value, written with a leading `%`.
@@ -1612,7 +1623,10 @@ implementations, but the canon does not reparse on its own.
 
 **An alias is not a path segment.** `$.%foo` is refused, at any depth:
 the alias namespace and the path namespace are disjoint, and an alias
-is reached by writing `%foo` and only that.
+is reached by writing `%foo` and only that. A quoted segment is a key,
+as a quoted key is: `$."%foo"` reaches the field `"%foo"`, and no field
+can meet a declaration, which the engine holds under a key no document
+can write.
 
 **A declaration sits at the root of the document.** A nested
 `x: { %a = 1 }` is refused: `%a` resolves from the root, so a nested

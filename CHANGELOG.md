@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### A key one side requires stays required, and a quoted key is never an alias (#298, #299, #301, #302)
+
+Both ports. G12 phase 2, the engine changes the JSON Schema importer
+needs (ADR-045).
+
+- **Breaking.** In the meet of two maps a key is optional only where
+  every side naming it marks it so: `{k?: X} & {k: Y}` is `{k: X & Y}`.
+  A document whose optional declaration used to weaken a required one
+  now refuses where the key is absent, and a key one side writes keeps
+  what it holds: `x: {a?: {b?: number}}` with `x: {a: {}}` generates
+  `{"x": {"a": {}}}`, where the empty map was dropped. Canon follows:
+  `{"x"?: 11}` met with a required `x` canons as `{"x": 11}`.
+- An optional key holding `nil` passes when absent and refuses a
+  supplied value, in evaluation and `vet` alike; `vet` no longer
+  reports the `nil` of an absent optional key.
+- A declaration is held under a key in the engine's reserved
+  `\u0000aontu_` namespace, so a quoted key spelled like an alias,
+  `"%T": 5`, is the document's own field and never meets `%T`, and a
+  quoted path segment, `$."%T"`, names that field. Findings inside a
+  declaration report the name the source spells (`$.%T`) in every verb,
+  where they printed the engine's key, spelled differently by each port.
+  `aontu agentsmd`, `aontu model get --view types|keys`, `aontu view
+  doc` and `aontu view layers` list a document's own keys: the first two
+  listed declarations as keys, `view doc` dropped any key starting with
+  `%`, and the Go `view layers` counted a declaration as a path.
+- `$` followed by anything but a name, bare or quoted, or a `.` refuses
+  at parse time with the new `var_name` code in both ports, where the
+  two ports raised `var[object]` and `var` for `${b: 1}`; the ledger
+  entry is removed. A computed variable name is no longer accepted.
+
 ### `aontu jsonschema` exports what the model admits, or names the difference (#295, #296, #297, #300, #310)
 
 Both ports. G12 phase 1: no export now differs from its model without a

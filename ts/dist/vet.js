@@ -21,6 +21,7 @@ const utility_1 = require("./utility");
 const subsume_1 = require("./subsume");
 const query_1 = require("./query");
 const keyorder_1 = require("./keyorder");
+const aliasname_1 = require("./aliasname");
 // The default cap, exported because the CLI applies it to the WHOLE
 // report across several data files and must not carry a second copy of
 // the number (ts/src/cli.ts).
@@ -56,7 +57,8 @@ function roleOf(file, prov) {
     return prov.data.has(file) ? 'data' : 'schema';
 }
 function pathText(path) {
-    return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '');
+    return '$' + (null != path && 0 < path.length ?
+        '.' + path.map(aliasname_1.aliasPathSegment).join('.') : '');
 }
 function siteOf(v, prov) {
     if (null == v) {

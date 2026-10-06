@@ -445,3 +445,9 @@ vet-nil-in-map-template-unselected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)
 vet-nil-in-map-template-selected	vet	a:{a?:integer,&:match(key(0),"a",any,nil)}	a:{z:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.z","severity":"error","sites":[{"col":17,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 vet-nil-in-list-template-unselected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1]	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2]	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.1","severity":"error","sites":[{"col":6,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+#
+# A WRITTEN NIL AT A KEY STILL OPTIONAL AFTER THE MEET IS NOT A FINDING
+# (ADR-045): it says the key is absent, and a key the data supplies is
+# required, so its nil refuses the value.
+vet-optional-nil-absent-is-valid	vet	a: {k?: nil}	a: {}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-optional-nil-supplied-is-invalid	vet	a: {k?: nil}	a: {k: 1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","severity":"error","sites":[{"col":9,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}

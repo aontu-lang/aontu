@@ -342,11 +342,17 @@ func (n *NilVal) attemptName() string {
 	return "unify"
 }
 
+// A declaration is reported by the name its source spells.
 func (n *NilVal) Path() string {
-	if p := n.pathSegments(); 0 < len(p) {
-		return "$." + strings.Join(p, ".")
+	p := n.pathSegments()
+	if 0 == len(p) {
+		return "$"
 	}
-	return "$"
+	segs := make([]string, len(p))
+	for i, seg := range p {
+		segs[i] = aliasPathSegment(seg)
+	}
+	return "$." + strings.Join(segs, ".")
 }
 
 // pathSegments is the raw path the failure is reported at.

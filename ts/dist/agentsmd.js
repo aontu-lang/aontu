@@ -9,7 +9,6 @@ const aontu_1 = require("./aontu");
 const hcanon_1 = require("./hcanon");
 const query_1 = require("./query");
 const query_2 = require("./query");
-const keyorder_1 = require("./keyorder");
 // The markers an update rewrites between. A stanza outside them is
 // prose someone wrote, and is left alone.
 exports.AGENTSMD_BEGIN = '<!-- aontu:begin -->';
@@ -25,7 +24,7 @@ function agentsMd(src, opts) {
     if (0 < ctx.err.length) {
         return { findings: [(0, query_2.evalFailure)(ctx)], ok: false, stanza: '' };
     }
-    const keys = true === v.isMap ? Object.keys(v.peg).sort(keyorder_1.cmpCodePoint) : [];
+    const keys = true === v.isMap ? (0, query_1.docKeys)(v) : [];
     const shape = (0, query_1.get)(src, '$', {
         view: 'types', depth: options.depth ?? 2,
         path: options.path, ...(0, utility_1.includeOpts)(options),

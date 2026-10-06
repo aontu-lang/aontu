@@ -205,6 +205,7 @@ import {
   aliasBareName,
   aliasScopedKey,
   aliasSetItems,
+  isAliasSlotKey,
 } from './aliasname'
 
 const CC_EQ = 61
@@ -315,8 +316,9 @@ let AontuJsonic: Plugin = function AontuLang(jsonic: Jsonic) {
       const segs: any[] =
         Array.isArray(t.peg) ? t.peg :
           ('string' === typeof t.peg ? [t.peg] : [])
+      // A quoted `"%a"` is a key; only an alias's slot key is refused.
       for (const seg of segs) {
-        if ('string' === typeof seg && ALIAS_RE.test(seg)) {
+        if (isAliasSlotKey(seg)) {
           return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
         }
       }
@@ -939,14 +941,16 @@ help isolate the syntax error.`,
       // `$%foo` -- the sigil directly after the root -- reaches here
       // as the alias reference rather than through the dot rule, and
       // is refused for the same reason.
-      if (terms[0] instanceof RefVal &&
-        terms[0].peg.some((seg: any) =>
-          'string' === typeof seg && ALIAS_RE.test(seg))) {
+      if (terms[0] instanceof RefVal && terms[0].peg.some(isAliasSlotKey)) {
         return addsite(new NilVal({ why: 'alias_in_path' }), r, ctx)
       }
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
         return terms[0]
+      }
+      const name: any = terms[0]
+      if (true !== name.isString || '' === name.peg) {
+        return addsite(new NilVal({ why: 'var_name' }), r, ctx)
       }
       return addsite(new VarVal({ peg: terms[0] }), r, ctx)
     },
@@ -1301,30 +1305,9 @@ help isolate the syntax error.`,
           }
         }
 
-        // A NAME BELONGS TO THE FILE THAT DECLARED IT. Renamed here and
-        // not at the key, so an elided value is still reported by the
-        // name the source spells; rebuilt, as key order is resolution.
-        const renamed = new Map<string, string>()
-        for (const { name, key } of aliasDecls as any[]) {
-          renamed.set(name, key)
+        for (const key of aliasDecls as string[]) {
           if (!aliasKeys.includes(key)) {
             aliasKeys.push(key)
-          }
-        }
-        if (0 < renamed.size) {
-          const entries = Object.entries(mo)
-          for (const [k] of entries) {
-            delete mo[k]
-          }
-          for (const [k, v] of entries) {
-            const key = renamed.get(k)
-            if (undefined === key) {
-              mo[k] = v
-            }
-            else {
-              mo[key] = v
-              repathInstance(v, [...(r.k?.path ?? []), key])
-            }
           }
         }
 
@@ -1535,6 +1518,15 @@ help isolate the syntax error.`,
           g: 'aontu-alias-key',
         },
 
+        // A DECLARATION TAKES ITS SLOT KEY here, so a quoted `"%T"` is data.
+        {
+          s: [VL, CL], p: 'val',
+          c: (r) => isAliasDecl(r.o0, r.o1),
+          u: { pair: true },
+          a: (r, ctx) => { r.u.key = aliasScopedKey('' + r.o0.src, srcUrl(ctx)) },
+          g: 'aontu-alias-decl',
+        },
+
         {
           s: [CJ, CL], p: 'val',
           u: { spread: true },
@@ -1590,10 +1582,7 @@ help isolate the syntax error.`,
         }
         else if (isAliasDecl(ktkn, rule.o1)) {
           holder.u.aontu_alias_keys = (holder.u.aontu_alias_keys || [])
-          holder.u.aontu_alias_keys.push({
-            name: '' + ktkn.src,
-            key: aliasScopedKey('' + ktkn.src, srcUrl(ctx)),
-          })
+          holder.u.aontu_alias_keys.push(rule.u.key)
         }
         else if (true === ktkn?.use?.aontu_export) {
           holder.u.aontu_export_decls = (holder.u.aontu_export_decls || [])

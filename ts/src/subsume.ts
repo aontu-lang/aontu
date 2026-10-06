@@ -6,6 +6,7 @@ import type { TrustOptions } from './type'
 import { Aontu } from './aontu'
 import { anchorAt } from './vet'
 import { hcanon } from './hcanon'
+import { aliasPathSegment } from './aliasname'
 import type { VetFinding, VetSite } from './vet'
 import {
   constraintSubsumesConstraint,
@@ -66,8 +67,9 @@ type SubState = {
 type Tri = 'yes' | 'no' | 'undecided'
 
 
+// A declaration is reported by the name its source spells.
 export function pathText(path: string[]): string {
-  return '$' + (0 < path.length ? '.' + path.join('.') : '')
+  return '$' + (0 < path.length ? '.' + path.map(aliasPathSegment).join('.') : '')
 }
 
 

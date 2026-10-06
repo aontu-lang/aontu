@@ -10,6 +10,7 @@ const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
+const aliasname_1 = require("./aliasname");
 const provenance_1 = require("./provenance");
 const query_1 = require("./query");
 const subsume_1 = require("./subsume");
@@ -698,7 +699,7 @@ function docKids(v) {
     const node = throughDoc(v);
     if (true === node?.isMap) {
         return Object.keys(node.peg)
-            .filter((k) => !k.startsWith('%')).sort(keyorder_1.cmpCodePoint);
+            .filter((k) => !node.aliasKeys.includes(k)).sort(keyorder_1.cmpCodePoint);
     }
     if (true === node?.isList) {
         return Object.keys(node.peg).filter((k) => /^[0-9]+$/.test(k));
@@ -1550,7 +1551,8 @@ function drawLayers(prov, root, entry, o, max, loss) {
     const paths = [];
     const atParts = undefined === o.at ? [] : (0, query_1.pathParts)(o.at);
     for (const [key, rec] of prov.paths) {
-        if (0 === rec.conjuncts.length || null == (0, vet_1.anchorAt)(root, '$.' + key)) {
+        if (0 === rec.conjuncts.length || (0, aliasname_1.isAliasSlotKey)(key) ||
+            null == (0, vet_1.anchorAt)(root, '$.' + key)) {
             continue;
         }
         const parts = '' === key ? [] : key.split('.');

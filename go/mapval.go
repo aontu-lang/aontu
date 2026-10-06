@@ -508,7 +508,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
-	// Combine spreads and optional keys (additive) from both sides.
+	// Combine spreads from both sides; a key is optional only where every
+	// side naming it says so.
 	if pm, ok := peer.(*MapVal); ok {
 		if out.spread == nil {
 			out.spread = pm.spread
@@ -520,9 +521,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				out.aliasKeys = append(out.aliasKeys, ak)
 			}
 		}
-		for _, ok := range pm.optional {
-			if !out.isOptional(ok) {
-				out.optional = append(out.optional, ok)
+		for _, k := range pm.keys {
+			_, mine := m.peg[k]
+			switch {
+			case !mine && pm.isOptional(k) && !out.isOptional(k):
+				out.optional = append(out.optional, k)
+			case mine && !pm.isOptional(k):
+				out.optional = withoutKey(out.optional, k)
 			}
 		}
 	}
@@ -695,4 +700,14 @@ func placeShared(child Val, at []string) Val {
 		}
 	}
 	return child
+}
+
+func withoutKey(keys []string, k string) []string {
+	out := make([]string, 0, len(keys))
+	for _, x := range keys {
+		if x != k {
+			out = append(out, x)
+		}
+	}
+	return out
 }

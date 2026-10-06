@@ -288,9 +288,15 @@ class MapVal extends BagVal {
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 
-          // key optionality is additive
-          if (upeer.optionalKeys.includes(peerkey) && !out.optionalKeys.includes(peerkey)) {
-            out.optionalKeys.push(peerkey)
+          // A key is optional only where every side naming it says so.
+          const peerOptional = upeer.optionalKeys.includes(peerkey)
+          if (undefined === this.peg[peerkey]) {
+            if (peerOptional && !out.optionalKeys.includes(peerkey)) {
+              out.optionalKeys.push(peerkey)
+            }
+          }
+          else if (!peerOptional) {
+            out.optionalKeys = out.optionalKeys.filter((k) => k !== peerkey)
           }
 
           if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {

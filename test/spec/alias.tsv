@@ -398,6 +398,22 @@ alias-import-through-a-wrapper	gens	{ %port } = @"__FIXTURES__/alias_open_export
 # parser waits under a key that changes with each one, so a field the
 # document happens to name the same way is still the document's.
 alias-export-beside-a-like-named-field	gens	%u = 7\n"___export": 42\nexport({ %u })\na: %u	{"___export":42,"a":7}
+# A QUOTED KEY IS DATA, whatever it spells (#301). A declaration sits
+# under a key in the engine's namespace, which no source key may spell,
+# so a field named like an alias stays the document's and does not meet
+# the declaration, and a quoted path segment names that field. Only the
+# name written as a name, `$.%a`, or the slot's own spelling quoted, is
+# a path segment that reaches for an alias, and both are refused.
+alias-quoted-key-is-data	gens	%T = {x?: integer}\n"%T": 5\na: %T & {x: 1}	{"%T":5,"a":{"x":1}}
+alias-quoted-key-spelled-like-the-slot	errc	%T = 1\n"\\u0000aontu_%T@x": 2\na: %T	reserved_key
+alias-quoted-segment-names-the-field	gens	%T = 2\n"%T": 1\nx: $."%T"\ny: %T	{"%T":1,"x":1,"y":2}
+alias-quoted-segment-names-the-field-deeper	gens	a: {"%T": 1}\nx: $.a."%T"	{"a":{"%T":1},"x":1}
+alias-slot-spelled-segment-refused	errc	x: $."\\u0000aontu_%T@x"	alias_in_path
+alias-slot-spelled-segment-refused-deeper	errc	a: {b: 1}\nx: $.a."\\u0000aontu_%T@x"	alias_in_path
+alias-vet-quoted-key-is-data	vet	%T = {x?: integer}\n"%T": number\nt: %T	"%T": 5\nt: {x: 1}	{"findings":[],"truncated":false,"verdict":"valid"}
+# A finding inside a declaration is reported at the name its source
+# spells, never at the key the engine holds the declaration under.
+alias-vet-finding-in-a-declaration-names-it	vet	%T = 1 & 2\nt: 1	{"t": 1}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.%T","severity":"error","sites":[{"col":10,"file":"schema","len":1,"role":"schema","row":1,"src":"2","value":"2"},{"col":6,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"error"}
 #
 # A NAME DOES NOT CROSS BETWEEN DOCUMENTS. `vet` is where two SEPARATELY
 # PARSED roots meet, and each resolves its OWN names: the schema's alias

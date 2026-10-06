@@ -10,7 +10,7 @@ drop-nested-map	gen	{id?:{field:string},y:Y}	{"y":"Y"}
 keep-nested-fill	gen	a:{id?:{field:string},z:2} a:{id:{field:F1}}	{"a":{"id":{"field":"F1"},"z":2}}
 top-optional	gen	a?:1	{"a":1}
 top-optional-canon	canon	a?:1	{"a"?:1}
-optional-merge-canon	canon	a:{x?:number} a:{x:11}	{"a":{"x"?:11}}
+optional-merge-canon	canon	a:{x?:number} a:{x:11}	{"a":{"x":11}}
 optional-null-kept	gen	b?:null	{"b":null}
 optional-null-kept-canon	canon	b?:null	{"b"?:null}
 optional-elided	errc	a?:	elided_value
@@ -59,3 +59,18 @@ list-elem-then-optional-gap-gens	gens	a:[5, 1?:9]	{"a":[5,{"1":9}]}
 # The map-level optional key is untouched and must stay that way.
 map-optional-still-works-gens	gens	a:{x?:1}	{"a":{"x":1}}
 top-optional-still-works-gens	gens	x?:1	{"x":1}
+#
+# A KEY ONE SIDE REQUIRES STAYS REQUIRED IN THE MEET (ADR-045). A key is
+# optional only where every side naming it marks it optional, so a
+# required key met with an optional one is required, and a written nil
+# at an optional key admits the key's absence and refuses a value.
+optional-required-wins-canon	canon	a: {x: integer} & {x?: integer}	{"a":{"x":integer}}
+optional-required-wins-either-order-canon	canon	a: {x?: integer} & {x: integer}	{"a":{"x":integer}}
+optional-required-wins-refuses-absent	errc	a: {x: integer}\na: {x?: integer}\na: {}	mapval_no_gen
+optional-both-optional-stays-optional-canon	canon	a: {x?: 1}\na: {x?: 1}	{"a":{"x"?:1}}
+optional-one-side-only-keeps-its-mark-canon	canon	a: {x?: 1}\na: {y: 2}	{"a":{"x"?:1,"y":2}}
+# A key one side writes is kept with what it holds, an empty map
+# included: the meet keeps it required.
+optional-meet-keeps-a-written-empty-map	gens	x: {a?: {b?: number}}\nx: {a: {}}	{"x":{"a":{}}}
+optional-nil-absent-gens	gens	a: {k?: nil}	{"a":{}}
+optional-nil-supplied-refuses	errc	a: {k?: nil}\na: {k: 1}	literal_nil

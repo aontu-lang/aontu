@@ -435,7 +435,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 				addr += "." + seg
 			}
 		}
-		if 0 == len(refpath) || !strings.HasPrefix(refpath[0], "%") {
+		if 0 == len(refpath) || !isAliasSlotKey(refpath[0]) {
 			ctx.reads[addr] = true
 		}
 		if "" == node.readAddr() {
@@ -674,10 +674,8 @@ func refSpelling(v Val) string {
 // carrying the url of the file it was written in.
 func (rv *RefVal) aliasKey() (string, bool) {
 	if rv.absolute && 1 == len(rv.peg) {
-		if s, ok := rv.peg[0].(string); ok {
-			if n := aliasBareName(s); aliasRe.FindString(n) == n {
-				return s, true
-			}
+		if s, ok := rv.peg[0].(string); ok && isAliasSlotKey(s) {
+			return s, true
 		}
 	}
 	return "", false
