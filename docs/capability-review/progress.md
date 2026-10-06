@@ -158,7 +158,7 @@ here rather than counting again is what keeps this paragraph from
 drifting away from the rows, which is how it went wrong before: it
 read seventy-two and sixty-three, and split the retired seven into two
 groups of three. The seven are named in their own sections; the
-eighteen phases that have not moved are G10 phase 6 and the seventeen
+nineteen phases that have not moved are G10 phase 6 and the eighteen
 phases of G12, which was opened on 2026-09-30. G5 phase 6 is
 deliberately held for the next major release, a release act rather
 than an engineering one. **G9 phase 0 became partial on 2026-08-30
@@ -197,8 +197,8 @@ for `query`, `why`, `view` and `views` alike.
 | [G9](g9-transformation.md) | Declarative transformation | D | 6 | 1 | 0 | 3 |
 | [G10](g10-transparency.md) | Transparency log | D | 3 | 1 | 1 | 1 |
 | [G11](g11-agent-onramp.md) | Offline agent on-ramp | A | 7 | 0 | 0 | 0 |
-| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 0 | 0 | 17 | 0 |
-| | | **total** | **64** | **3** | **18** | **7** |
+| [G12](g12-jsonschema-fidelity.md) | JSON Schema fidelity | C | 0 | 0 | 18 | 0 |
+| | | **total** | **64** | **3** | **19** | **7** |
 
 *Retired* counts the rows whose status is SUPERSEDED, RETIRED or
 REMOVED, and they fall on two sides. Four landed first — G4.0 and
@@ -564,7 +564,8 @@ TSVs, and paired anchored-vet unit tests; documented in
 `docs/how-to/define-a-recursive-schema.md`, both executed;
 exercised end to end by `use-cases/13-recursive-schema` (and BUGS §52
 is FIXED per regime). `jsonschema` `$defs`/`$ref` export remains (the
-rest of P2), and P3 subsumption-through-expansion stays future.
+rest of P2, now owned by G12 phase 4), and P3
+subsumption-through-expansion stays future.
 
 **RELATIONS P2 LANDED 2026-08-29** (docs/design/RELATIONS.0.md), in
 both ports: the graph atoms — `acyclic()` and `inverse(name)`,
@@ -2796,22 +2797,29 @@ no longer reads spread templates (`vet-nil-in-*-template-*` in
 `test/spec/vet.tsv`). Neither closes its issue, and no phase row moves
 for them.
 
+A review on 2026-10-06 probed the design's premises against both CLIs,
+recorded eight decisions in the design document (its "Resolved" list
+and the sections it names), and added phase 4, the exporter's carriers,
+which also takes over the `$defs`/`$ref` export the recursion design's
+P2 left open; #310 joined phase 1. No status moved.
+
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|
-| **1**: a truthful exporter | S | **NOT STARTED** | #295, #296, #297 and #300 closed; `test/spec/jsonschema.tsv` rows for each, probed from both engines; no export differs from its model without a loss entry |
-| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
-| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `vet --exact-numbers`; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
-| **4**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
-| **5**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR |
-| **6**: conditionals and dependencies | M | **NOT STARTED** | `when(c, t, e?)` and the `when` code; `if`, `then`, `else`, `dependentSchemas`, `dependentRequired` both ways |
-| **7**: `contains` | M | **NOT STARTED** | `contains(c, n?)`; `minContains`, `maxContains`, `uniqueItems` off the skip ledger |
-| **8**: annotations | M | **NOT STARTED** | `meta(v, ...r)` with its union meet and ADR; `deprecate()`'s record on the same meet; every annotation keyword both ways |
-| **9**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; `$id`, remote references and `jsonschema_ref`; `jsonschema_duplicate` for `$id`; `$defs` and `$ref` on export |
-| **10**: dynamic references | M | **NOT STARTED** | the specialisation walk and `jsonschema_budget`; the use-site provenance record; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger and exported as written |
-| **11**: evaluated coverage | L | **NOT STARTED** | `rest(t, ...cover)`; `unevaluatedProperties` and `unevaluatedItems` both ways; its ADR |
-| **12**: format assertion | L | **NOT STARTED** | `format(name)` and `format_unknown`; the committed checkers and Unicode table; `optional/format/` in the harness |
-| **13**: the owned regex matcher | L | **NOT STARTED** | the ECMA-262 `u`-mode parser and Pike VM in both ports; the regenerated regex corpus; ADR-003's direction recorded as a decision |
-| **14**: legacy dialects | M | **NOT STARTED** | the upgrade stage; the `jsonschema-upgrade` mode; the draft-04 to 2019-09 suite directories in the harness |
-| **15**: vocabularies and the meta-schema | M | **NOT STARTED** | the vocabulary TSV generated into both ports; the bundled meta-schema models; input validated before mapping |
-| **16**: output units | M | **NOT STARTED** | `vet --output flag\|basic`; the source map file with its text hash and `--source-map` on both verbs; `output-tests/` in the harness |
-| **17**: the round-trip gate | S | **NOT STARTED** | `import(export(import(S)))` canon-equal to `import(S)` and `subsume` both ways, for every schema the harness imports |
+| **1**: a truthful exporter | S | **NOT STARTED** | #295, #296, #297, #300 and #310 closed; `test/spec/jsonschema.tsv` rows for each, probed from both engines; no export differs from its model without a loss entry |
+| **2**: the engine prerequisites | M | **NOT STARTED** | #298, #299, #301 and #302 closed with an ADR for the required-wins meet; an optional `nil` key refusing a supplied value and passing an absent one in evaluation and `vet`; a bare `$` refusing at parse time with one code in both ports; #302's `divergent.tsv` entry removed; `canon`, `gens`, `vet`, `subsume` and `errc` rows |
+| **3**: the importer core, the admission trial and the harness | L | **NOT STARTED** | the import mode in both ports; `vet --no-fill` and `vet_filled`; `--exact-numbers` on `vet` and on evaluation; `jsonschema_duplicate` for anchors; the `jsonschema-import` mode in both runners; the vendored suite with `test/vectors/jsonschema/skips.tsv` read by both |
+| **4**: the exporter's carriers | M | **NOT STARTED** | a residual template exported by its structure and each guarded-spread shape as its keyword; the origin mark and local `$defs`/`$ref` on export, closing the recursion design's P2; `js-spread-template-residue` and `js-recursive-alias-is-not-a-property` re-pinned from both engines |
+| **5**: numbers | M | **NOT STARTED** | `multiple(n)` in `test/spec/signature.tsv`; `type: "integer"` admitting `1.0`; the suite's numeric groups off the skip ledger |
+| **6**: the logic atom | L | **NOT STARTED** | `nof(n, ...c)` and the `nof` code; `anyOf`, `oneOf` and `not` imported and exported; its ADR; `must` on the admission trial under its own ADR, with a `breaking` run over every use case and bundled model before it |
+| **7**: conditionals and dependencies | M | **NOT STARTED** | `when(c, t, e?)` and the `when` code; `if`, `then`, `else`, `dependentSchemas`, `dependentRequired` both ways; `nil` inert in a trial position pinned by rows |
+| **8**: `contains` | M | **NOT STARTED** | `contains(c, n?)`; `minContains`, `maxContains`, `uniqueItems` off the skip ledger |
+| **9**: annotations | M | **NOT STARTED** | `meta(v, ...r)` with its union meet and ADR; `deprecate()`'s record on the same meet; every annotation keyword both ways |
+| **10**: resources and identity | M | **NOT STARTED** | the RFC 3986 resolver and its shared corpus; the declaration-only identity builtin and its stripping on copy; `$id`, remote references and `jsonschema_ref`; `jsonschema_duplicate` for `$id`; `$id` and `$anchor` on export |
+| **11**: dynamic references | M | **NOT STARTED** | the specialisation walk and `jsonschema_budget`; the use-site provenance record; `$dynamicRef` and `$dynamicAnchor` groups off the skip ledger and exported as written |
+| **12**: evaluated coverage | L | **NOT STARTED** | `rest(t, ...cover)`; `unevaluatedProperties` and `unevaluatedItems` both ways; its ADR |
+| **13**: format assertion | L | **NOT STARTED** | `format(name)` and `format_unknown`; the committed checkers and Unicode table; `regex` through the owned parser once phase 14 lands; `optional/format/` in the harness |
+| **14**: the owned regex matcher | L | **NOT STARTED** | the ECMA-262 `u`-mode parser and Pike VM in both ports; the regenerated regex corpus; ADR-003's direction recorded as a decision |
+| **15**: legacy dialects | M | **NOT STARTED** | the upgrade stage; the `jsonschema-upgrade` mode; the draft-04 to 2019-09 suite directories in the harness |
+| **16**: vocabularies and the meta-schema | M | **NOT STARTED** | the vocabulary TSV generated into both ports; the bundled meta-schema models; input validated before mapping |
+| **17**: output units | M | **NOT STARTED** | `vet --output flag\|basic`; the source map file with its text hash and `--source-map` on both verbs; `output-tests/` in the harness |
+| **18**: the round-trip gate | S | **NOT STARTED** | `import(export(import(S)))` canon-equal to `import(S)` and `subsume` both ways, for every schema the harness imports |

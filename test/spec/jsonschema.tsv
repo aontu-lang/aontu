@@ -26,15 +26,27 @@
 # one aontu and JSON Schema say identically -- `close()` to
 # `additionalProperties: false`. A spread is
 # `additionalProperties: <template>`, which is what it means; a written
-# list is a TUPLE, so prefixItems plus items:false.
+# list is exported as prefixItems plus items:false, which is right only
+# for a closed list (see the deviations below).
 #
 # WHAT DOES NOT, AND IS REPORTED: an evaluate-only `must()` (opaque by
 # construction), the exact `0d` leaves (JSON has one number type and it
 # is binary64), `unique(k)` (JSON Schema has no uniqueness-by-property
 # keyword), a hidden entry (not generated, so not part of the value a
-# consumer produces), a spread on a closed map, and any residue -- an
-# unresolved reference is not a property constraint, and guessing one
-# would be inventing a promise.
+# consumer produces), and any residue -- an unresolved reference is not
+# a property constraint, and guessing one would be inventing a promise.
+#
+# KNOWN DEVIATIONS, pinned below as the engines answer today and fixed
+# by G12 phase 1 (docs/capability-review/g12-jsonschema-fidelity.md),
+# each with its issue: an open written list exports as a tuple, and a
+# spread beside positions drops the positions (#300); a preference
+# exports `const` beside `default` (#300); an open or fractional count
+# bound exports as written, so `len(above(2))` reads as closed and
+# `len(min(1.5))` is not a valid schema (#300, #310); a string bound
+# exports through the numeric keywords (#295); a count on a map exports
+# as `minItems`/`maxItems` (#296); and a mixed-domain `neq` differs by
+# port (#297, in divergent.tsv). A row that pins one of these pins the
+# defect, not the contract, until its fix re-pins it from both engines.
 
 js-kind-string	jsonschema	a: string	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minLength":1,"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-kind-integer	jsonschema	a: integer	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}

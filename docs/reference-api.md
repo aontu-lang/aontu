@@ -1332,8 +1332,10 @@ ECMA-262, which is what JSON Schema reads, so no translation happens);
 `minLength`/`maxLength` on a string and `minItems`/`maxItems`
 otherwise; `unique()` becomes `uniqueItems`; an optional key is simply
 absent from `required`. A spread is `additionalProperties: <template>`,
-which is what a spread means. A written list is a **tuple**, so
-`prefixItems` plus `items: false`.
+which is what a spread means. A written list exports as `prefixItems`
+plus `items: false`, which is exact for a closed list and over-strict
+for an open one: an open list admits elements beyond its positions, and
+the schema refuses them.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
