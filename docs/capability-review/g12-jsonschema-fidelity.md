@@ -399,6 +399,11 @@ because an instance is always concrete. The exporter recognises the
 split and folds it back into one schema object with the matching
 `type`.
 
+The unifier selects the branch by the instance's kind before any meet,
+since the branches are kind-disjoint by construction: no branch is
+cloned or met for a kind the instance does not have, so the split
+costs one meet per schema object, not six.
+
 ### 3. The admission trial and `vet --no-fill`
 
 JSON Schema asks whether an instance *is* valid. aontu's meet asks
@@ -424,6 +429,19 @@ For a scalar this reduces to the meet not being bottom and answering
 container only at generation, when no more members can arrive; the one
 early answer allowed is a refusal that cannot be retracted. It runs on
 clones, so the single-use rule for `Val` trees holds.
+
+Three rules bound its cost. A trial runs on the subtree at the atom's
+position, never on the document. Step 3 compares the two trees
+structurally, without generating and canonicalising JSON. And every
+verdict is memoised per atom and instance node for the length of one
+evaluation, so a fixpoint re-wrap, a second atom over the same branch
+and the coverage channel of section 9 never trial a branch twice. The
+trials an evaluation runs are counted by a budget of their own,
+`trials`, beside the passes, revisits and depth of the trust contract,
+and exhausting it refuses with a new code, `trial_budget`, class
+`budget`: charging trials to the revisit budget would move the verdict
+of existing `budget.tsv` rows for large instances, and that budget is
+spec-visible.
 
 **`vet --no-fill`** is the same trial applied at the anchor: the verdict
 is `vet`'s, and additionally the schema may not supply any member the
@@ -482,7 +500,11 @@ native schemas: no data number is ever a `float` under it, so a native
 kind admits `1.0`. Without the option, data reads exactly as it does
 today. Goal 1 is stated with it, and the harness passes it to `vet`
 and to evaluation alike, so the vet-equals-eval differential reads the
-data one way.
+data one way. An integral value takes the `integer` leaf's path and
+costs what it costs today; a decimal allocates an exact value, and
+`multiple(n)` divides exactly, so a numeric-heavy instance pays a
+constant factor the register records rather than this document
+promises.
 
 **Equality** then needs no special case. Two JSON numbers are equal
 exactly when their normalised values are the same aontu value, so
@@ -536,7 +558,12 @@ phase 14 for `regex`, a listed skip until that phase lands, so that the
 dialect has one definition; hand-written twins for
 `date`, `time` and `date-time` (calendar and leap-second rules),
 `ipv4`, `uuid` and `hostname`; and IDNA2008 over a generated Unicode
-table for `idn-hostname`. An unknown name in assertion mode refuses at
+table for `idn-hostname`. The ABNF checkers run under the event
+budget, so a string that makes a grammar backtrack, which RFC 5322's
+`CFWS` and `obs-` rules invite, refuses with the budget's code rather
+than running on; the hot formats have hand-written twins for that
+reason, and the register records each format's time over its corpus.
+An unknown name in assertion mode refuses at
 declaration with a new code, `format_unknown`. The exporter writes
 `format` for either mode, and reports a loss when an asserting atom is
 exported under the default dialect, which would read it as an
@@ -553,7 +580,10 @@ presence; `required` removes the `?` in the same literal, and a
 required name not declared is `"k": any`. **`patternProperties`** is one
 guarded spread per pattern, `&: match(key(0), re(p), I(S), any)`,
 which the measurement shows working in both ports; spreads accumulate,
-so every matching pattern applies. **`additionalProperties: S`** is a
+so every matching pattern applies, at one regex match per pattern per
+key, which is the cost 2020-12 itself specifies; what a key must not
+pay is a clone of every arm, which section 7 rules out.
+**`additionalProperties: S`** is a
 guarded spread whose literal arms are the object's own declared names
 and whose `re` arms are its own patterns, each answering `any`, with
 `I(S)` as the default, or `nil` for `false`. Because each object
@@ -586,7 +616,12 @@ exports as `allOf` of per-object schemas.
 spread answers the index as a string, positions are not required, the
 list stays open, and the default arm is `items` (`any` when absent,
 `nil` for `items: false`). The measurement shows this working in both
-ports. A written list stays the spelling for positions that are also
+ports. A guarded spread is instantiated per child as every spread is
+(ADR-005), but the instance holds only the key test and the arm the
+child selects: the dead arms and the template body are shared,
+immutable, until a meet needs a copy, so a hundred-thousand-element
+list with ten prefix arms pays for one arm per element and not eleven.
+A written list stays the spelling for positions that are also
 required by `minItems`. **`minItems`**, **`maxItems`** are `len` on the
 list.
 
@@ -603,9 +638,12 @@ keeps the matched indexes for the coverage channel.
 **`nof(n, ...c) : constraint`** is a Band B atom: the settled peer must
 be admitted by a number of the trial schemas `c` that the count `n`
 admits, where `n` is an integer or a count constraint over the same
-algebra `len` uses. Every branch is tried; there is no short-circuit.
+algebra `len` uses. A branch is tried while a remaining branch can
+still change the verdict: `nof(min(1), …)` stops at the first admitting
+branch, `nof(0, …)` refuses at the first, and `nof(1, …)` tries every
+branch, since a second admitting one refuses it.
 It refuses with a new code, `nof`, class `conflict`, whose details
-carry the admissible count, the observed count and each branch's
+carry the admissible count, the observed count and each tried branch's
 verdict. It is opaque to emptiness and subsumption, as `must` is.
 
 Its branches are canon-sorted but **never deduplicated**, because a
@@ -674,7 +712,10 @@ cover of every member when its trial passes, which is how an inner
 unions the passing covers and requires every uncovered member to be
 admitted by `t` (`nil` for `false`). The importer hoists each
 conditional branch into an alias, so the `nof` or `when` that checks it
-and the `rest` that reads its coverage share one definition.
+and the `rest` that reads its coverage share one definition and one
+memoised verdict: a `rest` that needs the verdict of a branch the count
+stopped before trials it then, through the same memo, so no branch is
+trialled twice in one evaluation.
 
 On a flattened object with no conditional branch, `rest(nil)` and the
 guarded spread agree, and the exporter writes `additionalProperties`;
@@ -845,14 +886,20 @@ keywords into rider entries.
 The 2020-12 meta-schema and its vocabulary meta-schemas ship as bundled
 models, produced by the importer from the published documents, which
 makes self-hosting the acceptance test. A violation refuses the import
-with `jsonschema_schema`, located by the meta-schema's keyword.
+with `jsonschema_schema`, located by the meta-schema's keyword. The
+check is on by default and is the import mode's one costly step for a
+large input, since the meta-schema is recursive through `$dynamicRef`
+and dense with `anyOf`; an option turns it off for a trusted input, its
+result is cached by the hash of the input text within a run, and the
+harness checks each schema once rather than once per instance.
 
 ### 14. The verb, the report and output formats
 
 The import mode answers aontu text on stdout and the report on stderr,
 as the export does, and `--format json` puts both in one object. Its
 options are the dialect default, the retrieval URI, the document set,
-format assertion, default filling and `--strict`.
+format assertion, default filling, the meta-schema check of section 13
+and `--strict`.
 
 **`vet --output flag|basic`** projects a `vet` report onto 2020-12's
 output units. `flag` is `{valid}`, where `incomplete` is `false`.
@@ -913,8 +960,8 @@ The official suite is vendored under `test/vectors/jsonschema/`, pinned
 to an upstream commit named in its README, with `remotes/` beside it
 loaded into the importer's document set under both
 `http://localhost:1234/` and each file's own `$id`. One runner per port
-imports each schema, runs `vet --no-fill --exact-numbers` on each
-instance, and requires
+imports each schema once per test group, runs `vet --no-fill
+--exact-numbers` on each instance, and requires
 the verdict to match `valid`. It also requires evaluation of schema and
 instance together, under the same `--exact-numbers`, to agree with
 `vet`, and, from phase 18, that
@@ -967,7 +1014,7 @@ when a triple's `valid`, the two engines and this design disagree.
 |---|---|
 | New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)`, and the declaration-only identity builtin of section 10 |
 | New options | `vet --no-fill`, `--exact-numbers` on `vet` and on evaluation, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
-| New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`) |
+| New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`); `trial_budget` (`budget`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
 | New shared modes | `jsonschema-import`, `jsonschema-upgrade` |
 | Vendored corpora | the official suite, the meta-schemas, Ajv's extras, JSONTestSuite, isemail, uritemplate-test, `IdnaTestV2.txt`, the test262 property escapes, the regex test data and a SchemaStore subset, each under its own licence (section 16) |
@@ -1029,12 +1076,37 @@ from `breaking` than schemas built from types, bounds and properties.
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | The required-wins meet (#298) changes the answer for existing documents | Medium | High | An ADR, a `breaking` run over every use case and bundled model before it lands, and `canon`, `gens` and `subsume` rows probed from both engines |
-| The admission trial is slow: every Band B atom trial-generates every branch | Medium | Medium | Decide scalars at the meet; charge trials against the existing event budget; the suite's timing per port is reported in the register |
+| The admission trial is slow: every Band B atom trials every branch | Medium | Medium | Subtree-only trials, structural comparison, one memoised verdict per atom and node and the `trials` budget (section 3); the short-circuit rule (section 8); the suite's timing per port is reported in the register |
 | Specialising `$dynamicRef` multiplies aliases for deep generic schemas | Low | Medium | The environment set is finite by construction; a budget refuses runaway specialisation with `jsonschema_budget` rather than hanging |
 | The two ports' format checkers or Unicode tables drift | Medium | High | Generated tables committed once and asserted byte-identical, the regex-corpus precedent; the vendored `optional/format` suite runs in both |
 | The skip ledger becomes a place to hide failures | Medium | High | A passing skipped test fails the run; the bound tightens per phase; each skip names a construct and a reason |
 | `nof` and `when` look like general predicates and grow into a programming language | Low | High | Band B atoms take only schema values, never functions; G8's no-guard rule for `match` stands; the ADR states the family closed |
 | Eight builtins raise the surface an agent must learn | Medium | Medium | Each is named for the JSON Schema keyword family it carries; the teaching pack gains one page mapping keywords to spellings |
+| Meta-schema validation dominates the import of a large schema | High | Medium | On by default and switchable off; cached by the input's hash; the harness checks each schema once (section 13) |
+| Guarded spreads clone every arm into every child | High | High | Only the selected arm is instantiated per child; template bodies are shared until a meet needs a copy (section 7) |
+| The Unicode, IDNA and format tables inflate both binaries | Medium | Low | Generate only the properties ECMA-262 `u` mode requires; the bytes each table adds to the npm package and the Go binary are recorded in the register |
+| Reference copies and specialised aliases grow memory on large schemas | Medium | Medium | Bounded by `jsonschema_budget`; peak memory over the meta-schema and the SchemaStore subset is recorded per port |
+
+### Performance
+
+Performance is measured and recorded, never gated by a test: a
+wall-clock gate is what the event budgets of the trust contract exist
+to avoid. Each phase records in the register, per port, the harness
+time over the suite; from phase 18 the time and peak memory over the
+SchemaStore subset; and the bytes each generated table adds to the npm
+package and the Go binary. A figure worse than the previous phase's is
+a finding the phase's row carries, not a failing build.
+
+The mechanisms the design commits to, each in the section that owns
+it: the branch is selected by kind before any meet (2); a trial runs on
+the subtree, compares structurally, is memoised per atom and node, and
+is counted by its own budget (3); an integral value keeps the `integer`
+leaf's path under `--exact-numbers` (4); the ABNF checkers run under
+the event budget (5); a key pays one regex match per pattern and never
+a clone of every arm (6, 7); a count stops when no remaining branch can
+change its verdict (8); a `rest` reads the memo rather than trialling
+again (9); the meta-schema check is switchable and cached, and the
+harness runs it once per schema (13, 16).
 
 ## Implementation plan
 
@@ -1066,8 +1138,9 @@ twins.
 
 **Phase 3: the importer core, the admission trial and the harness
 (L).** `importJsonSchema` and its Go twin and the import mode of the
-verb; the admission trial as a shared primitive and `vet --no-fill`
-with `vet_filled`; `--exact-numbers` on `vet` and on evaluation, and
+verb; the admission trial as a shared primitive, with its memo, the
+`trials` budget and `trial_budget` in `budget.tsv` and the trust
+page's table, and `vet --no-fill` with `vet_filled`; `--exact-numbers` on `vet` and on evaluation, and
 schema numbers written by value; the kind split; `type`, `enum`,
 `const` and `null`, with `type: "integer"` a listed skip until phase 5;
 `properties`, `required`, `additionalProperties`, `patternProperties`
@@ -1147,7 +1220,8 @@ the isemail, uritemplate-test and `IdnaTestV2.txt` corpora vendored
 beside it.
 
 **Phase 14: the owned regex matcher (L).** An ECMA-262 `u`-mode parser
-and a Pike VM in both ports, Unicode property tables, the regenerated
+and a Pike VM in both ports, Unicode property tables limited to what
+`u` mode requires and sized in the register, the regenerated
 regex corpus (ADR-003 rule 6), the test262 property-escape tests and
 the regex test data vendored, and `pattern` stage three. ADR-003's
 recorded direction becomes a decision.
@@ -1172,7 +1246,10 @@ fields; the suite's `output-tests/` in the harness.
 `subsume` to hold both ways for every schema it imports, the suite and
 a pinned SchemaStore subset alike, with each port's timing over the
 subset recorded in the register, and the skip ledger holds only the
-boundary's cases.
+boundary's cases. It needs the recursion design's P3, seen-pair
+subsumption of recursive schemas, which is not a phase of this
+document: without it `subsume` over a recursive import has no
+termination argument.
 
 Phases 1 and 2 have no dependencies and may land in either order, and
 phase 3 needs both. Every later phase needs phase 3, and these orderings
@@ -1185,7 +1262,8 @@ are forced as well:
 - Phase 16 needs 11, because the meta-schema is written with dynamic
   references.
 - Phase 17 needs 10, for the resource URIs in its locations.
-- Phase 18 is last.
+- Phase 18 is last, and needs the recursion design's P3 (seen-pair
+  subsumption of recursive schemas), which is outside this document.
 
 ## Open questions
 
