@@ -4,11 +4,6 @@
     "amountEur": {
       "type": "number"
     },
-    "annotations": {
-      "additionalProperties": {},
-      "properties": {},
-      "type": "object"
-    },
     "attempts": {
       "items": {
         "type": "integer"
@@ -17,14 +12,33 @@
       "minItems": 0,
       "type": "array"
     },
+    "counters": {
+      "additionalProperties": {
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "next": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "n",
+          "next"
+        ],
+        "type": "object"
+      },
+      "properties": {},
+      "type": "object"
+    },
     "total": {
       "type": "number"
     }
   },
   "required": [
     "amountEur",
-    "annotations",
     "attempts",
+    "counters",
     "total"
   ],
   "type": "object"

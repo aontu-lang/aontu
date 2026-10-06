@@ -487,6 +487,24 @@ describe('lang', function() {
     }
   })
 
+
+  it('object-member-keys-leave-the-prototype-alone', () => {
+    const before = Object.getOwnPropertyNames(Object.prototype).sort()
+    const rows: [string, string][] = [
+      ['__proto__?: 1', '__proto__'],
+      ['__proto__?: {x: 1}\n__proto__?: {y: 2}', '__proto__'],
+      ['__proto__?: constructor?: 1', '__proto__'],
+      ['&: number\n__proto__: 1', '__proto__'],
+      ['constructor?: 1', 'constructor'],
+      ['toString?: 1', 'toString'],
+    ]
+    for (const [src, key] of rows) {
+      expect(Object.keys((P(src) as MapVal).peg)).equal([key])
+      expect(Object.getOwnPropertyNames(Object.prototype).sort()).equal(before)
+    }
+    expect(P('x: __proto__?: 1').canon).equal('{"x":{"__proto__"?:1}}')
+  })
+
 })
 
 

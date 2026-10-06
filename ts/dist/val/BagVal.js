@@ -30,7 +30,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
     clone(ctx, spec) {
         const bag = super.clone(ctx, spec);
-        bag.spread = this.spread;
+        bag.spread = { cj: this.spread.cj };
         return bag;
     }
     handleExpectedVal(key, val, parent, ctx) {

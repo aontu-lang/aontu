@@ -516,6 +516,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		unsealTree(out)
 		forceRootPath(out, cp(rv.path))
 	}
+	if key, ok := rv.aliasKey(); ok {
+		out.setAliasOrigin(key)
+	}
 	return out
 }
 

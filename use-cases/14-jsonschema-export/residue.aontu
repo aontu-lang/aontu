@@ -16,10 +16,12 @@
 #               exact leaf. money.aontu is the convention that avoids it.
 #   audit       hide() is omitted entirely, and reported: a consumer
 #               is neither asked for it nor allowed to know about it.
-#   annotations a spread template carrying a constraint call stays
-#               residual, so additionalProperties is {} and the `&`
-#               entry is reported `unresolved`. (A bare-kind template,
-#               registry.aontu's labels, crosses without loss.)
+#   counters    a member the template computes is worked out only
+#               when the document is evaluated, so `next` crosses as
+#               the number add() returns and is reported. (The rest of
+#               the template crosses as it is: a constrained template
+#               such as `{ &: string & len(max(63)) }` is the schema
+#               its terms meet to.)
 #   attempts    len() on a list crosses as minItems/maxItems; the
 #               `integer` template is reported, because JSON reads 1
 #               and 1.0 as one number and vet reads them as two leaves.
@@ -28,6 +30,6 @@ report: {
   total: number & must(min(0), "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
-  annotations: { &: string & len(max(63)) }
+  counters: { &: { n:number next:add(.n, 1) } }
   attempts: [&: integer] & len(max(3))
 }

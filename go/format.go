@@ -208,9 +208,26 @@ func fmtAtomText(tok fmtTok) string {
 // A quoted key whose text is a legal bare key is written bare; the
 // keywords are legal keys too (`string: 1` is the key `string`), so no
 // word is reserved. Anything else keeps its spelling.
-func fmtKeyText(tok fmtTok) string {
+var fmtBareOptional sync.Map
+
+// fmtReadsAsOptionalKey: whether a bare word reads back as an optional
+// key. One the lexer reads as a value does not (`true?:`), and keeps its
+// quotes.
+func fmtReadsAsOptionalKey(w string) bool {
+	if ok, seen := fmtBareOptional.Load(w); seen {
+		return ok.(bool)
+	}
+	v, err := New().Parse(w + "?: 1")
+	m, isMap := v.(*MapVal)
+	ok := nil == err && isMap && nil != m.peg[w]
+	fmtBareOptional.Store(w, ok)
+	return ok
+}
+
+func fmtKeyText(tok fmtTok, opt bool) string {
 	if "#ST" == tok.name {
-		if val, ok := tok.val.(string); ok && fmtBare.MatchString(val) {
+		if val, ok := tok.val.(string); ok && fmtBare.MatchString(val) &&
+			(!opt || fmtReadsAsOptionalKey(val)) {
 			return val
 		}
 		return fmtNormStr(tok.src)
@@ -359,7 +376,7 @@ func (r *fmtReader) entry() *fmtNode {
 		}
 		alias := "=" == r.T[r.i+sep].src
 		r.i += sep + 1
-		return &fmtNode{t: "pair", key: fmtKeyText(tok), opt: opt, alias: alias, value: r.value(), at: at}
+		return &fmtNode{t: "pair", key: fmtKeyText(tok, opt), opt: opt, alias: alias, value: r.value(), at: at}
 	}
 	return r.value()
 }

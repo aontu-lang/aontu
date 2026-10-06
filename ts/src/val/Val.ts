@@ -148,6 +148,9 @@ abstract class Val {
 
   origin?: string
 
+  // The slot of the alias this value is a copy of.
+  aliasOrigin?: string
+
   emitted?: EmitOrigin
 
   // The GRAPH of an evaluated document (G4 phase 3): the edge set,
@@ -261,6 +264,9 @@ abstract class Val {
 
     if (null != this.origin) {
       out.origin = this.origin
+    }
+    if (null != this.aliasOrigin) {
+      out.aliasOrigin = this.aliasOrigin
     }
     if (null != this.emitted) {
       out.emitted = this.emitted

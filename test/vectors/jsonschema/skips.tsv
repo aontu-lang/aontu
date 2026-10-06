@@ -90,7 +90,7 @@ draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - 
 draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	correct extended schema	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	number is valid	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	non-number is invalid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$dynamicRef points to a boolean schema	follow $dynamicRef to a true schema	$dynamicRef	11
+draft2020-12/dynamicRef.json	$dynamicRef points to a boolean schema	follow $dynamicRef to a false schema	$dynamicRef	11
 draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	integer property passes	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is sufficient for schema at second#/$defs/length	jsonschema_ref	10

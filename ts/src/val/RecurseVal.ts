@@ -210,11 +210,12 @@ function containsRecurseOf(v: any, target: string[], depth?: number): boolean {
     return true
   }
   return false
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   RecurseVal,
   bumpRecurse,
   containsRecurseOf,
+  walkTarget,
 }

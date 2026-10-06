@@ -50,7 +50,7 @@ abstract class BagVal extends FeatureVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     const bag = super.clone(ctx, spec) as BagVal
-    bag.spread = this.spread
+    bag.spread = { cj: this.spread.cj }
     return bag
   }
 

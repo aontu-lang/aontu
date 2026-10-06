@@ -62,6 +62,10 @@ fmt-key-kept-quoted	fmt	"a?": 1\n"a-b": 2\n"1": 3\n"": 4\n"%N": 5\n	"a?": 1\n"a-
 fmt-key-single-quoted	fmt	'host': 1\n'a-b': 2\n	host: 1\n"a-b": 2\n
 fmt-key-optional-spaced	fmt	a ?: 1\n	a?: 1\n
 fmt-key-numeric-and-keyword	fmt	1: x\nnull: y\n_: z\n	1: x\nnull: y\n_: z\n
+# A word the lexer reads as a value keeps its quotes as an optional key:
+# `true?:` is not read back as a key, so the bare spelling would refuse.
+fmt-key-optional-value-word-keeps-its-quotes	fmt	"true"?: 1\n"string"?: 2\n"foo"?: 3\n"any"?: 4\n"_"?: 5\n	"true"?: 1\n"string"?: 2\nfoo?: 3\n"any"?: 4\n"_"?: 5\n
+fmt-key-optional-object-member-names-go-bare	fmt	"__proto__"?: 6\n"constructor"?: 7\n"toString"?: {"__proto__"?: 8}\n	__proto__?: 6\nconstructor?: 7\ntoString?: __proto__?: 8\n
 fmt-string-single-to-double	fmt	a: 'plain'\n	a: "plain"\n
 fmt-string-single-kept	fmt	a: 'say "hi"'\n	a: 'say "hi"'\n
 fmt-string-escape-kept	fmt	a: 'it\\'s'\nb: "a\\nb"\n	a: "it\\'s"\nb: "a\\nb"\n

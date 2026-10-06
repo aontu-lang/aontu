@@ -523,6 +523,9 @@ class RefVal extends FeatureVal {
           if (this.copyFound) {
             unsealTree(out)
           }
+          if (undefined !== this.aliasKey) {
+            out.aliasOrigin = this.aliasKey
+          }
 
         }
       }

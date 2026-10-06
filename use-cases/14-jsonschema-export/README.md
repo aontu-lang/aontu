@@ -32,20 +32,20 @@ Four documents, one per mood plus the money convention:
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
 - **residue.aontu**: one instance of each loss class: `must()`,
-  `bigdecimal`, `hide()`, a constrained spread template, an
-  `integer` list template. The export still happens; every loss is
-  named.
+  `bigdecimal`, `hide()`, a template member computed by a builtin,
+  an `integer` list template. The export still happens, and the
+  report names every loss.
 - **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
 
 The line between registry.aontu and residue.aontu runs through one
-construct. A bare-kind template (`[&: string]`, `{ &: string }`)
-crosses as `items` or `additionalProperties`; a template carrying a
-constraint call (`{ &: string & len(max(63)) }`) is held residual,
-exports as `{}` in that position, and is reported as `unresolved`.
-`len()` on a list crosses as `minItems`/`maxItems`, and `must()` is
-dropped and reported while the `number` kind beside it still
-crosses.
+construct. A template (`[&: string]`, `{ &: string & len(max(63)) }`)
+crosses as `items` or `additionalProperties`, as the schema its terms
+meet to; evaluation computes a member such as `next: add(.n, 1)`, so
+it crosses as the kind the builtin returns and the report names it
+`add`. `len()` on a list
+crosses as `minItems`/`maxItems`, and `must()` is dropped and
+reported while the `number` kind beside it still crosses.
 
 Every golden in `expected/` is captured engine output.
 
@@ -54,16 +54,16 @@ Every golden in `expected/` is captured engine output.
 `residue.aontu` is deliberately small and deliberately awkward: every
 field of `report` is a construct the JSON Schema export must either
 carry or drop, and the loss report says which. A `bigdecimal`, a
-spread template, a list template, a concrete string and a `must()`
-check.
+list template, a concrete string, a template with a computed member
+and a `must()` check.
 
 ```
 $
 └── report
     ├── amountEur bigdecimal
-    ├── annotations {&:string&len(integer&min(0)&...
     ├── attempts [&:integer]
     ├── audit "kept-off-the-wire"
+    ├── counters {&:{"n":number,"next":add(.n,...
     └── total must(min(0),"total must not b...
 ```
 

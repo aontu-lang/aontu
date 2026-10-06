@@ -225,14 +225,15 @@ a fraction, such as `1.5`, crosses exactly, as does the `number`
 kind.
 
 Third, a spread template crosses as `additionalProperties` (or
-`items`) only when it is a bare kind. A template carrying a
-constraint call stays residual and exports `{}`, reported as
-`unresolved`. Put both in `spreads.aontu`:
+`items`), a constrained one included, as the schema its terms meet to.
+Evaluation computes a member such as `add(.n, 1)`, so it crosses as
+the kind the builtin returns, and the loss report names it. Put both in
+`spreads.aontu`:
 
 <!-- test: file spreads.aontu -->
 ```aontu
-labels: { &: string }
 annotations: { &: string & len(max(63)) }
+counters: { &: { n:number next:add(.n, 1) } }
 ```
 
 <!-- test: run -->
@@ -242,14 +243,29 @@ $ aontu jsonschema --strict spreads.aontu
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "annotations": {
-      "additionalProperties": {},
+      "additionalProperties": {
+        "maxLength": 63,
+        "minLength": 1,
+        "type": "string"
+      },
       "properties": {},
       "type": "object"
     },
-    "labels": {
+    "counters": {
       "additionalProperties": {
-        "minLength": 1,
-        "type": "string"
+        "properties": {
+          "n": {
+            "type": "number"
+          },
+          "next": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "n",
+          "next"
+        ],
+        "type": "object"
       },
       "properties": {},
       "type": "object"
@@ -257,18 +273,18 @@ $ aontu jsonschema --strict spreads.aontu
   },
   "required": [
     "annotations",
-    "labels"
+    "counters"
   ],
   "type": "object"
 }
-lossy: $.annotations.& unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
+lossy: $.counters.&.next add: this is computed when the document is evaluated, which a schema cannot say, so the schema admits any number here
 $ echo $?
 1
 ```
 
-`labels` admits string values; `annotations` admits anything, and
-says so. The same split decides list templates: `[&: string]`
-crosses as `items`, a constrained element template does not.
+`annotations` admits strings of at most 63 characters; `counters`
+admits any number at `next`, and says so. List templates cross the
+same way, as `items`.
 
 Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
 `deprecated: true`, and what the deprecation SAYS does not, because

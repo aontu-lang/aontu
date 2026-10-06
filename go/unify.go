@@ -34,6 +34,18 @@ func unite(ctx *Ctx, a, b Val) Val {
 			out.setDeprecRec(dep)
 		}
 	}
+	if nil != out && !isTop(out) && !out.Nil() && "" == out.aliasOrigin() {
+		alias := ""
+		if nil != a {
+			alias = a.aliasOrigin()
+		}
+		if "" == alias && nil != b {
+			alias = b.aliasOrigin()
+		}
+		if "" != alias {
+			out.setAliasOrigin(alias)
+		}
+	}
 	if nil != ctx.reads && nil != out && !isTop(out) && !out.Nil() {
 		if "" == out.readAddr() {
 			org := ""

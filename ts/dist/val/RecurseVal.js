@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecurseVal = void 0;
 exports.bumpRecurse = bumpRecurse;
 exports.containsRecurseOf = containsRecurseOf;
+exports.walkTarget = walkTarget;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const aliasname_1 = require("../aliasname");
@@ -173,5 +174,5 @@ function containsRecurseOf(v, target, depth) {
         return true;
     }
     return false;
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 //# sourceMappingURL=RecurseVal.js.map

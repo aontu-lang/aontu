@@ -108,6 +108,9 @@ class Val {
         if (null != this.origin) {
             out.origin = this.origin;
         }
+        if (null != this.aliasOrigin) {
+            out.aliasOrigin = this.aliasOrigin;
+        }
         if (null != this.emitted) {
             out.emitted = this.emitted;
         }

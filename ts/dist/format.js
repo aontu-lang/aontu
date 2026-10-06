@@ -74,9 +74,27 @@ function atomText(tok) {
 // A quoted key whose text is a legal bare key is written bare; the
 // keywords are legal keys too (`string: 1` is the key `string`), so no
 // word is reserved. Anything else keeps its spelling.
-function keyText(tok) {
+const BARE_OPTIONAL = new Map();
+// Whether a bare word reads back as an optional key: one the lexer reads
+// as a value does not (`true?:`), and keeps its quotes.
+function bareOptional(w) {
+    let ok = BARE_OPTIONAL.get(w);
+    if (undefined === ok) {
+        try {
+            const v = new aontu_1.Aontu().parse(w + '?: 1');
+            ok = undefined !== v.peg[w];
+        }
+        catch {
+            ok = false;
+        }
+        BARE_OPTIONAL.set(w, ok);
+    }
+    return ok;
+}
+function keyText(tok, opt) {
     if ('#ST' === tok.name) {
-        return BARE.test(tok.val) ? tok.val : normStr(tok.src);
+        return BARE.test(tok.val) && (!opt || bareOptional(tok.val)) ?
+            tok.val : normStr(tok.src);
     }
     return tok.src;
 }
@@ -211,7 +229,7 @@ class Reader {
             const opt = '#QM' === this.name(1);
             const alias = '=' === this.T[this.i + (opt ? 2 : 1)].src;
             this.i += opt ? 3 : 2;
-            return { t: 'pair', key: keyText(tok), opt, alias, value: this.value(), at };
+            return { t: 'pair', key: keyText(tok, opt), opt, alias, value: this.value(), at };
         }
         return this.value();
     }

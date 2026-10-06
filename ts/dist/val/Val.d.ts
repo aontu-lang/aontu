@@ -79,6 +79,7 @@ declare abstract class Val {
     deprecation?: Record<string, string>;
     link?: string;
     origin?: string;
+    aliasOrigin?: string;
     emitted?: EmitOrigin;
     graph?: any;
     peg: any;

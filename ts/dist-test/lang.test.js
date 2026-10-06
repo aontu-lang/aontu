@@ -339,6 +339,22 @@ let P = lang.parse.bind(lang);
             (0, expect_1.expect)(P(src).canon).equal(canon);
         }
     });
+    (0, node_test_1.it)('object-member-keys-leave-the-prototype-alone', () => {
+        const before = Object.getOwnPropertyNames(Object.prototype).sort();
+        const rows = [
+            ['__proto__?: 1', '__proto__'],
+            ['__proto__?: {x: 1}\n__proto__?: {y: 2}', '__proto__'],
+            ['__proto__?: constructor?: 1', '__proto__'],
+            ['&: number\n__proto__: 1', '__proto__'],
+            ['constructor?: 1', 'constructor'],
+            ['toString?: 1', 'toString'],
+        ];
+        for (const [src, key] of rows) {
+            (0, expect_1.expect)(Object.keys(P(src).peg)).equal([key]);
+            (0, expect_1.expect)(Object.getOwnPropertyNames(Object.prototype).sort()).equal(before);
+        }
+        (0, expect_1.expect)(P('x: __proto__?: 1').canon).equal('{"x":{"__proto__"?:1}}');
+    });
 });
 function makeCtx(opts) {
     return new ctx_1.AontuContext(opts || { root: new MapVal_1.MapVal({ peg: {} }) });

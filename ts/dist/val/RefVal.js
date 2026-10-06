@@ -422,6 +422,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     if (this.copyFound) {
                         (0, SealVal_1.unsealTree)(out);
                     }
+                    if (undefined !== this.aliasKey) {
+                        out.aliasOrigin = this.aliasKey;
+                    }
                 }
             }
         }

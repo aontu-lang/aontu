@@ -237,6 +237,15 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     }
   }
 
+  if (null != out && true === (out as any).isVal && !out.isTop &&
+    !out.isNil && null == out.aliasOrigin) {
+    const alias = (null != a ? a.aliasOrigin : undefined) ??
+      (null != b ? b.aliasOrigin : undefined)
+    if (null != alias) {
+      out.aliasOrigin = alias
+    }
+  }
+
   if (undefined !== ctx.reads &&
     null != out && true === (out as any).isVal && !out.isTop && !out.isNil) {
     riders(a, b, out)

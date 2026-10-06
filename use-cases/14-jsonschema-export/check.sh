@@ -107,7 +107,7 @@ diff -u "$DIR/expected/residue.json" "$WORK/res.out" \
 has res err 'lossy: $.report.total must:'
 has res err 'lossy: $.report.amountEur bigdecimal:'
 has res err 'lossy: $.report.audit hide:'
-has res err 'lossy: $.report.annotations.& unresolved:'
+has res err 'lossy: $.report.counters.&.next add:'
 has res err 'lossy: $.report.attempts.& integer:'
 ok "residue: lossy export still exports, five losses each named"
 
@@ -128,7 +128,7 @@ r = json.load(open(sys.argv[1]))
 assert r["aontu"]["verb"] == "jsonschema"
 assert r["verdict"] == "lossy", r["verdict"]
 assert {l["construct"] for l in r["lossy"]} \
-    == {"must", "bigdecimal", "hide", "unresolved", "integer"}
+    == {"must", "bigdecimal", "hide", "add", "integer"}
 assert all({"path", "construct", "reason"} <= set(l) for l in r["lossy"])
 assert r["schema"]["properties"]["total"] == {"type": "number"}
 EOF

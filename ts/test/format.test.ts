@@ -132,9 +132,9 @@ describe('format', () => {
 
     const repro = Fs.readFileSync(Path.join(repoRoot(),
       'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aontu'), 'utf8')
-    const kept: any = format(repro)
-    Assert.ok(kept.text.includes(
-      'a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text)
+    const taken: any = format(repro)
+    Assert.ok(taken.text.includes(
+      'a: b: { c:d:e:$.a.b.f f: { &: { n:key() } x: {} } }\n'), taken.text)
   })
 
   test('format-lints-only-when-asked', () => {

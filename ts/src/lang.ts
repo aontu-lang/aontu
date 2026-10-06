@@ -1199,7 +1199,7 @@ help isolate the syntax error.`,
           // @tabnas seeds a descended rule's node from its parent; without
           // a fresh node here the nested spread map (`a:&:{x:1}`) would
           // share the parent map's node object and self-reference.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = Object.create(null) },
           g: 'spread'
         },
 
@@ -1210,7 +1210,7 @@ help isolate the syntax error.`,
           b: 2,
           // Fresh node (see spread alt above): the optional dive descends
           // to a map and must not share the parent's node object.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = Object.create(null) },
           g: 'pair,jsonic,top,aontu-optional',
         },
 
@@ -1219,7 +1219,7 @@ help isolate the syntax error.`,
           p: 'map',
           b: 2,
           n: { pk: 1 },
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = Object.create(null) },
           g: 'pair,jsonic,top,dive,aontu-optional',
         },
 

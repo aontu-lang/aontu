@@ -41,3 +41,15 @@ astral-key-order-nested	gens	x:{"😀":{"😀":1,"":2},"":3}	{"x":{"":3
 map-a-proto-key-generates	gens	a: {"__proto__": 1}	{"a":{"__proto__":1}}
 map-a-proto-key-meets	gens	a: {"__proto__": number} & {"__proto__": 1}	{"a":{"__proto__":1}}
 map-object-property-names-are-keys	gens	a: {"constructor": 1, "toString": 2, "hasOwnProperty": 3}	{"a":{"constructor":1,"hasOwnProperty":3,"toString":2}}
+#
+# At the top of a document an optional member, a dive or a spread opens
+# the map, and the key is a key there too.
+map-an-optional-proto-key-at-the-top	gens	__proto__?: 1	{"__proto__":1}
+map-optional-proto-keys-at-the-top-meet	gens	__proto__?: {x: 1}\n__proto__?: {y: 2}	{"__proto__":{"x":1,"y":2}}
+map-an-optional-proto-key-meets-a-plain-one	gens	__proto__?: 1\n__proto__: number	{"__proto__":1}
+map-an-optional-proto-dive	gens	__proto__?: constructor?: 1	{"__proto__":{"constructor":1}}
+map-an-optional-proto-key-in-a-dive	gens	x: __proto__?: 1	{"x":{"__proto__":1}}
+map-an-optional-proto-key-holds-a-spread	gens	__proto__?: &: number\n__proto__: {a: 1}	{"__proto__":{"a":1}}
+map-a-proto-key-after-a-top-spread	gens	&: number\n__proto__: 1	{"__proto__":1}
+map-a-top-spread-reaches-a-constructor-key	errc	&: {}\nconstructor: 1	scalar_kind
+map-optional-object-property-names-are-keys	gens	toString?: 1\nhasOwnProperty?: x: 1\nconstructor?: 2	{"constructor":2,"hasOwnProperty":{"x":1},"toString":1}

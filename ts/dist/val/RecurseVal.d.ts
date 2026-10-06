@@ -15,6 +15,7 @@ declare class RecurseVal extends FeatureVal {
     get canon(): string;
     gen(ctx: AontuContext): undefined;
 }
+declare function walkTarget(root: any, target: string[]): Val | undefined;
 declare function bumpRecurse(v: any, xc: number): void;
 declare function containsRecurseOf(v: any, target: string[], depth?: number): boolean;
-export { RecurseVal, bumpRecurse, containsRecurseOf, };
+export { RecurseVal, bumpRecurse, containsRecurseOf, walkTarget, };

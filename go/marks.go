@@ -101,4 +101,5 @@ func copyMarks(to, from Val) {
 	// that dispatch's. Both are empty unless the run is instrumented.
 	to.setReadAddr(from.readAddr())
 	to.setEmitOrig(from.emitOrig())
+	to.setAliasOrigin(from.aliasOrigin())
 }

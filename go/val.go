@@ -86,6 +86,8 @@ type Val interface {
 	setDeprecRec(rec map[string]string)
 	readAddr() string
 	setReadAddr(addr string)
+	aliasOrigin() string
+	setAliasOrigin(key string)
 	emitOrig() *emitOrigin
 	setEmitOrig(o *emitOrigin)
 	linkAddr() string
@@ -128,6 +130,7 @@ type base struct {
 	finner  Val
 	deprec  map[string]string
 	origin  string
+	alias   string // the slot of the alias this value is a copy of
 	emitted *emitOrigin
 	link    string
 	relkey  string
@@ -212,6 +215,8 @@ func (b *base) setDeprecRec(rec map[string]string) { b.deprec = rec }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }
+func (b *base) aliasOrigin() string       { return b.alias }
+func (b *base) setAliasOrigin(key string) { b.alias = key }
 func (b *base) emitOrig() *emitOrigin     { return b.emitted }
 func (b *base) setEmitOrig(o *emitOrigin) { b.emitted = o }
 

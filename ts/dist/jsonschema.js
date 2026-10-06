@@ -5,7 +5,13 @@ exports.jsonSchema = jsonSchema;
 const utility_1 = require("./utility");
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
+const aliasname_1 = require("./aliasname");
 const BagVal_1 = require("./val/BagVal");
+const RecurseVal_1 = require("./val/RecurseVal");
+const sig_1 = require("./sig");
+const unify_1 = require("./unify");
+const top_1 = require("./val/top");
+const keyorder_1 = require("./keyorder");
 const Decimal_1 = require("./val/Decimal");
 const numcmp_1 = require("./val/numcmp");
 const numkind_1 = require("./val/numkind");
@@ -28,6 +34,7 @@ const KIND_TYPE = {
     BigDecimal: 'number',
     Number: 'number',
     Path: 'string',
+    Null: 'null',
 };
 const ALL = ['integer', 'float', 'biginteger', 'bigdecimal'];
 const PLAIN_READ = ['integer', 'float'];
@@ -100,9 +107,22 @@ function readings(ctx, v) {
     }
     return (0, numkind_1.isIntegerStorable)((0, numcmp_1.scaledFloor)(s)) ? ['integer'] : ['biginteger'];
 }
+// A preference with nothing to generate, as `*any` has, is dropped from
+// the document, so the schema does not ask for it.
+function dropped(v) {
+    if (true !== v.isPref) {
+        return false;
+    }
+    const ctx = new aontu_1.Aontu().ctx({ collect: true });
+    return undefined === v.gen(ctx) && 0 === ctx.err.length;
+}
+// An integer past 2^53 is held as the double equal to it, whose shortest
+// spelling is another integer.
 function jsonOf(v) {
     return true === v.isBigInteger || true === v.isBigDecimal ?
-        RAW.rawJSON(v.peg.toString()) : v.peg;
+        RAW.rawJSON(v.peg.toString()) :
+        true === v.isInteger && !Number.isSafeInteger(v.peg) ?
+            RAW.rawJSON(BigInt(v.peg).toString()) : v.peg;
 }
 function sameJSON(a, b) {
     return undefined !== leafOf(a) && undefined !== leafOf(b) ?
@@ -317,6 +337,10 @@ function fromConstraint(ctx, path, c, bag) {
     return out;
 }
 function fromVal(ctx, path, v) {
+    const ref = aliasRef(ctx, v);
+    if (undefined !== ref) {
+        return ref;
+    }
     const out = fromValInner(ctx, path, v);
     const dep = v?.deprecation;
     if (null != dep && null != out && 'object' === typeof out) {
@@ -332,6 +356,50 @@ function fromVal(ctx, path, v) {
     return out;
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
+// An alias's copy, unchanged, or a recursion back into a definition, is
+// written once under $defs and referred to wherever it is used.
+function aliasRef(ctx, v) {
+    let target;
+    if (true === v?.isRecurse) {
+        target = v.target;
+        if (ctx.anchor.length === v.target.length &&
+            v.target.every((s, i) => s === ctx.anchor[i])) {
+            return { $ref: '#' };
+        }
+    }
+    else if (null != v?.aliasOrigin &&
+        (0, RecurseVal_1.walkTarget)(ctx.root, [v.aliasOrigin])?.canon === v.canon) {
+        target = [v.aliasOrigin];
+    }
+    const body = undefined === target ? undefined : (0, RecurseVal_1.walkTarget)(ctx.root, target);
+    if (undefined === target || undefined === body) {
+        return undefined;
+    }
+    const at = target.map(aliasname_1.aliasPathSegment);
+    const id = JSON.stringify(target);
+    let key = ctx.names.get(id);
+    if (undefined === key) {
+        const base = at.join('.').replace(/^%/, '');
+        key = base;
+        for (let n = 2; ctx.defs.has(key); n++) {
+            key = base + '-' + n;
+        }
+        ctx.names.set(id, key);
+        ctx.defs.set(key, {});
+        ctx.defs.set(key, fromVal(ctx, at, body));
+    }
+    return { $ref: '#/$defs/' + pointerToken(key) };
+}
+// A JSON pointer token (RFC 6901), escaped again as the URI fragment
+// that carries it (RFC 3986).
+function pointerToken(key) {
+    let out = '';
+    for (const ch of key.replace(/~/g, '~0').replace(/\//g, '~1')) {
+        out += /^[A-Za-z0-9\-._~!$&'()*+,;=:@]$/.test(ch) ? ch :
+            [...new TextEncoder().encode(ch)].map((b) => '%' + b.toString(16).toUpperCase().padStart(2, '0')).join('');
+    }
+    return out;
+}
 const MIN_COUNT = /^min(Items|Length|Properties)$/;
 // A bag and its sizing atom, described as one schema object: the bag's
 // positions and the atom both give a lower count, and the higher holds.
@@ -360,6 +428,9 @@ function fromValInner(ctx, path, v) {
     }
     if (true === v.isConjunct && v.peg.every((t) => true === t?.isMap)) {
         return { allOf: v.peg.map((t) => fromVal(ctx, path, t)) };
+    }
+    if (true === v.isConjunct) {
+        return fromConjunct(ctx, path, v);
     }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);
@@ -405,9 +476,44 @@ function fromValInner(ctx, path, v) {
         }
         return false;
     }
+    const kind = true === v.isFunc ?
+        RESULT_TYPE[sig_1.funcSig[v.funcname()]?.out] : undefined;
+    if (undefined !== kind) {
+        lose(ctx, path, residueName(v), 'this is computed when the document is evaluated, which a schema ' +
+            'cannot say, so the schema admits any ' + kind + ' here');
+        return { type: kind };
+    }
     lose(ctx, path, residueName(v), 'this is not a value yet, so there is nothing to constrain a ' +
         'consumer to; the schema admits anything here');
     return {};
+}
+const RESULT_TYPE = {
+    string: 'string', number: 'number', map: 'object', list: 'array',
+};
+// A conjunct held unmet in a template meets here on its own, so a kind
+// and its atoms export as one schema object. Terms that read the
+// document, or do not meet alone, export side by side.
+function plainTerm(t) {
+    return true === t.isScalarKind || true === t.isConstraint ||
+        true === t.isEmptyConstraint || true === t.isScalar || true === t.isNull ||
+        true === t.isTop || true === t.isMapKind || true === t.isListKind ||
+        ((true === t.isDisjunct || true === t.isConjunct) && t.peg.every(plainTerm));
+}
+function fromConjunct(ctx, path, v) {
+    if (v.peg.every(plainTerm)) {
+        // Each term meets top first, as a parsed value does: a nested
+        // disjunction is held unflattened until then.
+        const trial = new aontu_1.Aontu().ctx({ collect: true });
+        let met = (0, top_1.top)();
+        for (const t of v.peg) {
+            met = (0, unify_1.unite)(trial, met, (0, unify_1.unite)(trial, (0, top_1.top)(), t.clone(trial), 'jsonschema'), 'jsonschema');
+        }
+        if (0 === trial.err.length && true !== met.isConjunct &&
+            true !== met.isNil) {
+            return fromVal(ctx, path, met);
+        }
+    }
+    return { allOf: v.peg.map((t) => fromVal(ctx, path, t)) };
 }
 function residueName(v) {
     return true === v.isRef ? 'reference' :
@@ -436,12 +542,65 @@ function generated(v) {
     const out = v.gen(ctx);
     return 0 === ctx.err.length ? exactSafe(out) : undefined;
 }
-function bareType(s) {
-    return 1 === Object.keys(s).length && 'string' === typeof s.type ?
-        s.type : undefined;
+// The keywords that hold for one JSON kind and pass every other, so the
+// arms of a split by kind may share one schema object.
+const SCOPED = {
+    null: [],
+    boolean: [],
+    number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'],
+    integer: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'],
+    string: ['minLength', 'maxLength', 'pattern'],
+    object: ['properties', 'required', 'additionalProperties',
+        'patternProperties', 'propertyNames', 'minProperties', 'maxProperties'],
+    array: ['prefixItems', 'items', 'minItems', 'maxItems', 'uniqueItems'],
+};
+const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
+function schemaText(s) {
+    return JSON.stringify(s, (_k, x) => null != x && 'object' === typeof x &&
+        !Array.isArray(x) ?
+        Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x);
+}
+// Arms of distinct kinds as one schema object: `type` names the kinds,
+// left off when all six are there, and each arm's own keywords join it.
+// The numeric arms must agree on their keywords, or the fold is refused.
+function foldKinds(arms) {
+    const out = {};
+    const types = [];
+    const held = {};
+    for (const arm of arms) {
+        const t = arm?.type;
+        const scoped = SCOPED[t];
+        if (undefined === scoped) {
+            return undefined;
+        }
+        const { type: _, ...own } = arm;
+        if (Object.keys(own).some((k) => !scoped.includes(k))) {
+            return undefined;
+        }
+        const family = 'integer' === t ? 'number' : t;
+        if (undefined === held[family]) {
+            held[family] = schemaText(own);
+            Object.assign(out, own);
+        }
+        else if (held[family] !== schemaText(own)) {
+            return undefined;
+        }
+        if (!types.includes(t)) {
+            types.push(t);
+        }
+    }
+    if (types.length !== KINDS.length || !KINDS.every((k) => types.includes(k))) {
+        out.type = 1 === types.length ? types[0] : types;
+    }
+    return out;
+}
+// A disjunction held unmet in a template keeps the nesting it was
+// written with, which says nothing a flat one does not.
+function disjuncts(v) {
+    return v.peg.flatMap((m) => true === m?.isDisjunct ? disjuncts(m) : [m]);
 }
 function fromDisjunct(ctx, path, v) {
-    const members = v.peg;
+    const members = disjuncts(v);
     let def = undefined;
     for (const m of members) {
         if (true === m?.isPref && undefined === def) {
@@ -457,9 +616,7 @@ function fromDisjunct(ctx, path, v) {
     }
     else {
         const arms = bare.map((m) => fromVal(ctx, path, m));
-        const types = arms.map(bareType);
-        out = types.includes(undefined) ? { anyOf: arms } :
-            { type: 1 === new Set(types).size ? types[0] : [...new Set(types)] };
+        out = foldKinds(arms) ?? { anyOf: arms };
     }
     return undefined === def ? out : { ...out, default: def };
 }
@@ -480,10 +637,10 @@ function skipMarked(ctx, path, bag, child) {
     return false;
 }
 function fromMap(ctx, path, v) {
-    const props = {};
+    const props = [];
     const required = [];
     const optional = v.optionalKeys;
-    for (const key of Object.keys(v.peg).sort()) {
+    for (const key of Object.keys(v.peg).sort(keyorder_1.cmpCodePoint)) {
         const child = v.peg[key];
         if (v.aliasKeys.includes(key)) {
             continue;
@@ -494,12 +651,12 @@ function fromMap(ctx, path, v) {
         if (skipMarked(ctx, [...path, key], v, child)) {
             continue;
         }
-        props[key] = fromVal(ctx, [...path, key], child);
-        if (!optional.includes(key)) {
+        props.push([key, fromVal(ctx, [...path, key], child)]);
+        if (!optional.includes(key) && !dropped(child)) {
             required.push(key);
         }
     }
-    const out = { type: 'object', properties: props };
+    const out = { type: 'object', properties: Object.fromEntries(props) };
     if (0 < required.length) {
         out.required = required;
     }
@@ -511,9 +668,130 @@ function fromMap(ctx, path, v) {
         out.additionalProperties = false;
     }
     else if (null != spr) {
-        out.additionalProperties = fromVal(ctx, [...path, '&'], spr);
+        mapSpread(ctx, [...path, '&'], out, spr, Object.keys(v.peg).filter((k) => !v.aliasKeys.includes(k)));
     }
     return out;
+}
+// A spread the import wrote as a test on the key: `match(key(0), ...)`
+// with its arms and its default.
+function keyGuard(t) {
+    const a = t?.peg;
+    if (true !== t?.isMatchFunc || true !== a[0]?.isKeyFunc ||
+        !(0 === a[0].peg.length || 0 === a[0].peg[0]?.peg) || 0 !== a.length % 2) {
+        return undefined;
+    }
+    const arms = [];
+    for (let i = 1; i < a.length - 1; i += 2) {
+        arms.push([a[i], a[i + 1]]);
+    }
+    return { arms, dflt: a[a.length - 1] };
+}
+// The one pattern a bare `re()` holds, and nothing for anything more.
+function lonePattern(c) {
+    return true === c?.isConstraint && 1 === c.res.length && null == c.kind &&
+        null == c.lo && null == c.hi && 0 === c.neqs.length && null == c.count &&
+        0 === c.musts.length ? c.res[0].norm : undefined;
+}
+// The map guards of design section 6: one per pattern, one naming every
+// declared key and every pattern, and one on the key itself. A spread
+// with no guard is the schema every further key meets.
+function mapSpread(ctx, path, out, spr, names) {
+    const terms = true === spr.isConjunct ? spr.peg : [spr];
+    const guards = terms.map(keyGuard);
+    if (guards.every((g) => undefined === g)) {
+        out.additionalProperties = fromVal(ctx, path, spr);
+        return;
+    }
+    const patterns = [];
+    const exempts = [];
+    const apart = [];
+    let lost = false;
+    for (const g of guards) {
+        const [test, then] = g?.arms[0] ?? [];
+        const p = 1 === g?.arms.length ? lonePattern(test) : undefined;
+        if (undefined === g) {
+            continue;
+        }
+        else if (undefined !== p && true === g.dflt.isTop) {
+            const s = fromVal(ctx, path, then);
+            if (patterns.some(([q]) => q === p)) {
+                apart.push({ patternProperties: Object.fromEntries([[p, s]]) });
+            }
+            else {
+                patterns.push([p, s]);
+            }
+        }
+        else if (1 === g.arms.length && true === test.isConjunct &&
+            2 === test.peg.length && true === test.peg[0].isEmptyConstraint &&
+            true === then.isTop && true === g.dflt.isNil) {
+            const c = fromVal(ctx, path, test);
+            if (undefined === out.propertyNames) {
+                out.propertyNames = c;
+            }
+            else {
+                apart.push({ propertyNames: c });
+            }
+        }
+        else if (g.arms.every(([k, a]) => true === a.isTop &&
+            (true === k.isString || undefined !== lonePattern(k)))) {
+            exempts.push(g);
+        }
+        else {
+            lost = true;
+        }
+    }
+    if (0 < patterns.length) {
+        out.patternProperties = Object.fromEntries(patterns);
+    }
+    // `additionalProperties` exempts the keys its own object names, so a
+    // guard exempting any other keys stands in an object of its own.
+    for (const g of exempts) {
+        const named = g.arms.filter(([k]) => true === k.isString)
+            .map(([k]) => k.peg);
+        const pats = g.arms.map(([k]) => lonePattern(k))
+            .filter((x) => undefined !== x);
+        const d = fromVal(ctx, path, g.dflt);
+        if (undefined === out.additionalProperties && sameSet(named, names) &&
+            sameSet(pats, patterns.map(([q]) => q))) {
+            out.additionalProperties = d;
+        }
+        else {
+            const own = {};
+            if (0 < named.length) {
+                own.properties = Object.fromEntries(named.map((n) => [n, {}]));
+            }
+            if (0 < pats.length) {
+                own.patternProperties = Object.fromEntries(pats.map((q) => [q, {}]));
+            }
+            own.additionalProperties = d;
+            apart.push(own);
+        }
+    }
+    // A template holds for every key, which `additionalProperties` says
+    // only in an object whose patterns exempt none.
+    const plain = terms.filter((_t, i) => undefined === guards[i])
+        .map((t) => fromVal(ctx, path, t));
+    if (0 < plain.length) {
+        const t = 1 === plain.length ? plain[0] : { allOf: plain };
+        if (undefined === out.additionalProperties && 0 === patterns.length) {
+            out.additionalProperties = t;
+        }
+        else {
+            apart.push({ additionalProperties: t });
+        }
+    }
+    if (0 < apart.length) {
+        out.allOf = apart;
+    }
+    if (lost) {
+        lose(ctx, path, 'match', 'this spread tests each key in a way no keyword says, so it is ' +
+            'DROPPED and the schema admits keys it refuses');
+    }
+}
+function sameSet(a, b) {
+    const x = [...new Set(a)].sort();
+    const y = [...new Set(b)].sort();
+    return x.length === y.length && x.every((e, i) => e === y[i]);
 }
 // A written list is open unless closed, and its spread already holds for
 // every position, so positions are prefixItems and the spread is items.
@@ -528,11 +806,26 @@ function fromList(ctx, path, v) {
     const out = { type: 'array' };
     if (0 < kept.length) {
         out.prefixItems = kept.map((i) => fromVal(ctx, at(i), v.peg[i]));
-        out.minItems = kept.length;
+        let need = kept.length;
+        while (0 < need && dropped(v.peg[kept[need - 1]])) {
+            need--;
+        }
+        if (0 < need) {
+            out.minItems = need;
+        }
     }
     const spr = v.spread?.cj;
+    const g = keyGuard(spr);
     if (true === v.closed) {
         out.items = false;
+    }
+    else if (undefined !== g && kept.length === v.peg.length &&
+        g.arms.every(([k], i) => true === k.isString && String(i) === k.peg)) {
+        out.prefixItems = [...(out.prefixItems ?? []), ...g.arms
+                .slice(kept.length).map(([, a], i) => fromVal(ctx, at(kept.length + i), a))];
+        if (true !== g.dflt.isTop) {
+            out.items = fromVal(ctx, [...path, '&'], g.dflt);
+        }
     }
     else if (null != spr) {
         out.items = fromVal(ctx, [...path, '&'], spr);
@@ -572,7 +865,10 @@ function jsonSchema(src, options) {
         node = found;
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
-    const ctx = { lossy: [], exact: true === opts.exactNumbers };
+    const ctx = {
+        lossy: [], exact: true === opts.exactNumbers, root, defs: new Map(),
+        names: new Map(), anchor,
+    };
     const body = fromVal(ctx, anchor, node);
     if (null != ctx.failed) {
         const f = ctx.failed;
@@ -583,9 +879,13 @@ function jsonSchema(src, options) {
             errors: [(0, vet_1.failureFinding)(actx, opts.path, nil)],
         };
     }
+    const defs = 0 === ctx.defs.size ? {} : {
+        $defs: Object.fromEntries([...ctx.defs.entries()]
+            .sort(([a], [b]) => (0, keyorder_1.cmpCodePoint)(a, b))),
+    };
     return {
         verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
-        schema: { $schema: DRAFT, ...(false === body ? { not: {} } : body) },
+        schema: { $schema: DRAFT, ...(false === body ? { not: {} } : body), ...defs },
         lossy: ctx.lossy,
     };
 }

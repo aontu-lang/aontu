@@ -145,8 +145,8 @@ function aonFiles(dir, out = []) {
                 '  c: ' + V + ': 1\n  c: d: 2\n',
             ]]);
         const repro = Fs.readFileSync(Path.join(repoRoot(), 'use-cases', 'repros', 'key-func', 'spread-key-through-deep-ref.aontu'), 'utf8');
-        const kept = (0, aontu_1.format)(repro);
-        Assert.ok(kept.text.includes('a: b: c: d: e: $.a.b.f\na: b: f: { &: { n:key() } }\na: b: f: x: {}\n'), kept.text);
+        const taken = (0, aontu_1.format)(repro);
+        Assert.ok(taken.text.includes('a: b: { c:d:e:$.a.b.f f: { &: { n:key() } x: {} } }\n'), taken.text);
     });
     (0, node_test_1.test)('format-lints-only-when-asked', () => {
         const src = 'a: 1\r\nHTTP_PORT: 8080\r\n';

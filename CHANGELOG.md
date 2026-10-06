@@ -8,6 +8,58 @@ each change affects.
 
 ## Unreleased
 
+### `aontu jsonschema` carries guarded spreads, templates and aliases
+
+Both ports unless marked. G12 phase 4.
+
+- A spread that tests each key with `match(key(0), …)` exports as the
+  keyword the import writes it from: `patternProperties` for a pattern,
+  `propertyNames` for a test on the key itself, and
+  `additionalProperties` for arms exempting the map's own names and
+  patterns. A guard that cannot share the map's object stands in an
+  object of its own under `allOf`, as does a template beside a
+  pattern, and the export drops and reports a guard no keyword says. A list
+  spread guarded by index exports as `prefixItems`, with its default as
+  `items`.
+- A template held unevaluated exports as the schema its terms meet to,
+  where it exported `{}` with an `unresolved` loss; a member the
+  template computes exports as the kind its builtin returns, with a
+  loss.
+- A disjunction whose members are of different kinds exports as one
+  object whose `type` lists them, each member's keywords holding for
+  its own kind, where it exported `anyOf`, and leaves `type` off when
+  all six kinds are present.
+- The export writes an alias once under `$defs`, and each unchanged use
+  of it is a `$ref` there. A recursive reference is a `$ref` to its target,
+  `#` when the target is the export's anchor, where it exported `{}`
+  with an `unresolved` loss. A `$defs` name another target holds takes
+  a numeric suffix, and the export escapes a `$ref` as a JSON pointer
+  and again for the URI fragment.
+- A preference with nothing to generate, such as `*any`, is not
+  required, and a list counts it in `minItems` only before a position
+  that is, since generation drops it.
+- `super(null)` exports as `{"type": "null"}`, where TypeScript wrote
+  `{}` and Go `{"type": ""}`.
+- Go: `*any` exported a `"default": null` it does not have.
+- TypeScript: the export writes an integer past 2^53 in its own digits
+  in a `const`, an `enum` or a bound, as generation does, where it
+  wrote the double's shortest spelling, a different integer.
+- TypeScript: the export dropped a property named `__proto__` from the
+  schema's `properties` while keeping it in `required`.
+- TypeScript: `required` and the loss report list keys in code point
+  order, as Go and generation do, where an astral key came first.
+- TypeScript: parsing a top-level optional member named after an
+  `Object.prototype` member, such as `__proto__?: 1`, wrote onto
+  `Object.prototype` or refused with an internal error. Such a member
+  is a key like any other.
+- TypeScript: a copy of a map or list shared its spread with the
+  original, so meeting the copy could rewrite the template it came
+  from. `aontu fmt` now merges the statements of BUGS.md §50's repro
+  into one block, as Go's formatter does.
+- `aontu fmt` and the import keep the quotes on an optional key spelled
+  like a value word, such as `"true"?:`, which reads back as a value
+  without them, so a schema with such a property imports.
+
 ### The import's conformance harness, over three vendored corpora
 
 Both ports unless marked. G12 phase 3.

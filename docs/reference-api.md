@@ -1368,8 +1368,10 @@ $ aontu jsonschema --at spec contract.aontu
 become `type`, and `map` and `list` become `object` and `array`; a
 concrete string, boolean or fractional float becomes `const`; a
 disjunction of scalars becomes `enum`, its members deduplicated by
-JSON value and its preference written as `default`; a disjunction of
-bare kinds becomes a `type` array; bounds become
+JSON value and its preference written as `default`; a disjunction whose
+members are of different kinds becomes one object whose `type` lists
+them, each member's keywords holding for its own kind, and `anyOf` when
+two members share a kind; bounds become
 `minimum`/`maximum`, with the open endpoints as 2020-12's
 `exclusiveMinimum`/`exclusiveMaximum` and an exact endpoint written in
 its own digits; `re` becomes `pattern` in its normalised form, the
@@ -1380,11 +1382,22 @@ on a map, with an open or fractional bound moved to the whole count
 inside it and an integer exclusion as `not`; `unique()` becomes
 `uniqueItems`; an optional key is simply absent from `required`; and
 the written `nil` becomes `false`. A spread is
-`additionalProperties: <template>`, which is what a spread means. A
-written list is open: its positions become `prefixItems`, its spread
-becomes `items`, and only a closed list gets `items: false`. A lone
-preference such as `*1` admits any value of its kind, so it exports
-that kind with the preferred value as `default`.
+`additionalProperties: <template>`, which is what a spread means, and a
+template held unevaluated exports as the schema its terms meet to. A
+spread that tests each key with `match(key(0), …)` is the keyword
+[the import](#aontu-jsonschema-import) writes it from:
+`patternProperties` for a pattern, `propertyNames` for a test on the
+key itself, and `additionalProperties` for arms exempting the map's
+own names and patterns. A guard that cannot share the map's object
+stands in an object of its own under `allOf`. A written list is open:
+its positions become `prefixItems`, its spread becomes `items`, and
+only a closed list gets `items: false`; a list spread guarded by index
+is `prefixItems` with its default as `items`. A lone preference such
+as `*1` admits any value of its kind, so it exports that kind with the
+preferred value as `default`, and one with nothing to generate, such
+as `*any`, is not required, since generation drops it. The export
+writes an alias once under `$defs`, and each unchanged use of it is a
+`$ref` there; a use met with more exports as its structure.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1417,6 +1430,8 @@ The losses, and why each is one:
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
+| a spread testing each key in a shape no keyword says | the export drops it, and the schema admits keys the spread refuses |
+| a computed member of a template, such as `add(.n, 1)` | evaluation computes the value, so the schema admits any value of the kind the builtin returns |
 | residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
 
 The exact-leaf loss is the one with a way around it. Money carried as a
@@ -1424,19 +1439,15 @@ The exact-leaf loss is the one with a way around it. Money carried as a
 pattern and the mark both cross) and stays exact on the aontu side:
 see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
 
-**A recursive position is residue, and exports as residue.** JSON
-Schema can spell recursion (`$defs` plus `$ref`), but this exporter
-does not mint it: a
+**A recursive position is a `$ref`.** A
 [recursive reference](reference-language.md#recursive-references-fixpoints)
-that has met no data is unresolved, so it crosses as the empty schema
-`{}` (a position that admits *anything*) and is reported under
-`lossy` as `unresolved`, like any other residue. Two consequences
-follow. Anchor the export at a definition kept **un-hidden**, because
-a `hide()` mark propagates and a hidden entry is omitted from the
-export entirely; and treat the exported schema as wider than the
-model at the recursive position: [`vet`](#aontu-vet) the produced
-value against the model, which does check every depth. `--strict`
-turns the loss into exit 1. Write a recursive `steps.aontu`:
+exports as a `$ref` to the definition it recurses into: `#` when that
+definition is the export's own anchor, and otherwise an entry under
+`$defs` that holds the definition once. So the schema checks every
+depth, as [`vet`](#aontu-vet) does. Anchor the export at a definition
+kept **un-hidden**, because a `hide()` mark propagates and the export
+omits a hidden entry entirely. Write a recursive
+`steps.aontu`:
 
 <!-- test: file steps.aontu -->
 ```aontu
@@ -1454,20 +1465,23 @@ $ aontu jsonschema --strict --at Step steps.aontu
       "pattern": "^[a-z]+@acme[.]example$",
       "type": "string"
     },
-    "then": {}
+    "then": {
+      "$ref": "#"
+    }
   },
   "required": [
     "approver"
   ],
   "type": "object"
 }
-lossy: $.Step.then unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
-1
+0
 ```
 
-Everything above `then` crosses intact; the tail is the gap it reports.
-Without `--strict` the same export exits 0.
+The export loses nothing, so `--strict` exits 0. It escapes each
+`$ref` as a JSON pointer and again as the `#` fragment that carries
+it, and gives a numeric suffix to a `$defs` name another definition
+already holds.
 
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
