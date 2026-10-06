@@ -103,6 +103,9 @@ function readJson(src: string): J {
         continue
       }
       const e = src[++i]
+      if (undefined === e) {
+        fail('the text ends inside a string')
+      }
       i++
       const simple = '"\\/bfnrt'.indexOf(e)
       if (0 <= simple) {

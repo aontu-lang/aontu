@@ -163,3 +163,9 @@ inline-spread-keeps-a-nested-hide	gens	a: { &: { n: key(), h: hide(key()) } b: {
 hide-any-a-reference-leaves-the-field-hidden	gens	s: hide(any)\ni: $.s\ni: 1	{"i":1}
 type-any-a-reference-leaves-the-field-a-type	gens	s: type(any)\ni: $.s\ni: 1	{"i":1}
 hide-any-conjunct-a-reference-leaves-the-field-hidden	gens	s: hide(any & any)\ni: $.s\ni: "foo"	{"i":"foo"}
+#
+# ... and the same holds for `empty()`, whose copy Go answered as the
+# value itself: a reference to `s: hide(empty())` cleared the marks of
+# `s`, and generation refused `$.s`, where TypeScript generated it.
+hide-empty-a-reference-leaves-the-field-hidden	gens	s: hide(empty())\ni: $.s\ni: "x"	{"i":"x"}
+type-empty-a-reference-leaves-the-field-a-type	gens	s: type(empty())\ni: $.s\ni: "x"	{"i":"x"}

@@ -306,8 +306,7 @@ function runparse(src, lang, ctx) {
         depth: ctx.budget.depth,
     };
     let val;
-    const tsrc = src.trim().replace(/^(\n\s*)+/, '');
-    if ('string' === typeof src && '' !== tsrc) {
+    if ('string' === typeof src && !/^[ \t\r\n]*$/.test(src)) {
         val = lang.parse(src, popts);
     }
     if (undefined === val) {

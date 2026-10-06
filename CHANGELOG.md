@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The import's conformance harness, over three vendored corpora
+
+Both ports unless marked. G12 phase 3.
+
+- The official JSON-Schema-Test-Suite (draft 2020-12, with its optional
+  tests), Ajv's extra tests and JSONTestSuite are vendored under
+  `test/vectors/`, each with its upstream licence and pinned commit, and
+  both test suites run all three. Each JSON Schema test is imported
+  once per group and vetted with `--at '$.schema' --no-fill
+  --exact-numbers`; a test that does not answer as the suite says is
+  listed in the corpus's skip ledger with the construct the import lost
+  and the phase that carries it, and a listed test that does answer
+  fails the run. Evaluating the import with each instance as one
+  document agrees with `vet` on every test the import answers.
+- Every JSONTestSuite file is read as `vet` reads data and as the
+  import reads a schema, and each answer that is not the file's own is
+  listed with its reason.
+- Go: a reference to `s: hide(empty())` or `s: type(empty())` cleared
+  the marks of `s`, because a copy of `empty()` was the value itself,
+  and generation refused `$.s`. A copy is now a new value, as it was
+  for every other kind.
+- Go: the import panicked on schema text that ends in a backslash
+  inside a string. Both ports now refuse it as the text ending inside a
+  string, where TypeScript called it an unknown escape.
+- Go: bytes that are not UTF-8 read as one U+FFFD for each run of them.
+  They now read as one U+FFFD for each maximal subpart, as the host's
+  decoder writes them in TypeScript, so the same bytes are the same
+  string in both ports.
+- TypeScript: a source holding nothing but a byte order mark, or
+  another space the lexer does not read, was taken as empty and
+  generated `{}`. It is read like any other source, and refused as Go
+  refuses it.
+
 ### TypeScript: a reference to a hidden `any` leaves it hidden
 
 TypeScript only. G12 phase 3.

@@ -474,3 +474,9 @@ edge-reserved-key-optional-mark	errc	"\\u0000aontu_merge"?: 1	reserved_key
 edge-reserved-key-optional-in-a-list	errc	a:[ "\\u0000aontu_order"?:1 ]	reserved_key
 # ... and an ordinary optional key is untouched by any of it.
 edge-optional-key-still-optional	gens	x?: 1\ny: 2	{"x":1,"y":2}
+#
+# A SOURCE OF NOTHING BUT A BYTE ORDER MARK is read, and refused as the
+# lexer refuses the mark anywhere. TypeScript asked String.trim whether
+# a source was empty, and trim drops U+FEFF, so the source generated {}
+# where Go refused it. The cell holds the mark alone.
+edge-a-byte-order-mark-alone-is-refused	errc	﻿	bare_punct

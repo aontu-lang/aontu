@@ -1,0 +1,14 @@
+# bound 3
+#
+# The skip ledger of the vendored Ajv's spec/extras (README.md): one line
+# per test the import does not honour yet, read by
+# ts/test/vectors.test.ts and go/vectors_test.go.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>phase, where
+# file is the path under spec/extras/, construct is what the import says it
+# lost, comma-joined, or the code it refused the schema with, and
+# phase is the phase of docs/capability-review/g12-jsonschema-fidelity.md
+# that carries it. A listed test the import honours fails the run, so
+# a phase deletes the lines it clears and lowers the bound to match.
+contains.json	contains keyword requires the item matching schema to be present	array without item matching schema is invalid	contains	8
+contains.json	contains keyword requires the item matching schema to be present	empty array is invalid	contains	8
+contains.json	contains keyword with const keyword requires a specific item to be present	array without item 5 is invalid	contains	8

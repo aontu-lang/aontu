@@ -343,9 +343,7 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
   }
   let val
 
-  const tsrc = src.trim().replace(/^(\n\s*)+/, '')
-
-  if ('string' === typeof src && '' !== tsrc) {
+  if ('string' === typeof src && !/^[ \t\r\n]*$/.test(src)) {
     val = lang.parse(src, popts)
   }
 

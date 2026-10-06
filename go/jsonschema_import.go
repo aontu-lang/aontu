@@ -122,10 +122,10 @@ func readSchemaJSON(src string) any {
 				continue
 			}
 			i++
-			e := byte(0)
-			if i < len(src) {
-				e = src[i]
+			if i >= len(src) {
+				fail("the text ends inside a string")
 			}
+			e := src[i]
 			i++
 			if k := strings.IndexByte("\"\\/bfnrt", e); 0 <= k {
 				out.WriteByte("\"\\/\b\f\n\r\t"[k])

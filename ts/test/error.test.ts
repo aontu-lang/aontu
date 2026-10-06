@@ -371,6 +371,8 @@ describe('error', function() {
     const out: any = new Aontu().generate(src)
     expect(out.b).equal('x\uFFFDy')
     expect(out.c).equal('p\uFFFDq')
+    expect(out.d).equal('r\uFFFD\uFFFDs')
+    expect(out.e).equal('t\uFFFD\uFFFD\uFFFDu')
   })
 
 

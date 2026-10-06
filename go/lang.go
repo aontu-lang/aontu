@@ -2457,11 +2457,59 @@ func findConflictMarker(src string) int {
 	return -1
 }
 
+// toValidSource writes U+FFFD for each maximal subpart of a sequence
+// that is not UTF-8, as the decoder the canonical port's host reads
+// with does (the Encoding Standard's): strings.ToValidUTF8 writes one
+// for a whole run, so the same bytes read as different strings.
 func toValidSource(src string) string {
 	if utf8.ValidString(src) {
 		return src
 	}
-	return strings.ToValidUTF8(src, "�")
+	var out strings.Builder
+	for i := 0; i < len(src); {
+		r, size := utf8.DecodeRuneInString(src[i:])
+		if utf8.RuneError == r && 1 == size {
+			size = maximalSubpart(src[i:])
+		}
+		if utf8.RuneError == r {
+			out.WriteRune(utf8.RuneError)
+		} else {
+			out.WriteString(src[i : i+size])
+		}
+		i += size
+	}
+	return out.String()
+}
+
+// maximalSubpart is how many bytes of a sequence that is not UTF-8 one
+// U+FFFD stands for: its lead byte and the continuation bytes the lead
+// still admits.
+func maximalSubpart(s string) int {
+	lo, hi, need := byte(0x80), byte(0xBF), 0
+	switch b := s[0]; {
+	case 0xC2 <= b && b <= 0xDF:
+		need = 1
+	case 0xE0 <= b && b <= 0xEF:
+		need = 2
+		if 0xE0 == b {
+			lo = 0xA0
+		} else if 0xED == b {
+			hi = 0x9F
+		}
+	case 0xF0 <= b && b <= 0xF4:
+		need = 3
+		if 0xF0 == b {
+			lo = 0x90
+		} else if 0xF4 == b {
+			hi = 0x8F
+		}
+	}
+	n := 1
+	for n <= need && n < len(s) && lo <= s[n] && s[n] <= hi {
+		lo, hi = 0x80, 0xBF
+		n++
+	}
+	return n
 }
 
 // aliasHoistMetaKey holds the sink for value-prefix alias declarations

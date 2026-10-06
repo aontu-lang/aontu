@@ -134,14 +134,14 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5928 cases across 117 files**) is run by *both*
+`test/spec/*.tsv` (**5932 cases across 117 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
 | `number-tower.tsv`          | 395 | `scalar.tsv` | 40 |
-| `edge.tsv`                  | 337 | `sort.tsv` | 39 |
+| `edge.tsv`                  | 338 | `sort.tsv` | 39 |
 | `constraint-product.tsv`    | 256 | `disjunct.tsv` | 38 |
 | `fmt.tsv`                   | 230 | `aontu-system.tsv` | 37 |
 | `errcodes.tsv`              | 181 | `views.tsv` | 37 |
@@ -150,8 +150,8 @@ implementations and is the contract that defines shared behaviour
 | `types.tsv`                 | 166 | `constraint-must.tsv` | 34 |
 | `func.tsv`                  | 148 | `gen-pack.tsv` | 34 |
 | `jsonschema.tsv`            | 145 | `seal.tsv` | 34 |
-| `vet.tsv`                   | 140 | `template.tsv` | 34 |
-| `jsonschema-import.tsv`     | 139 | `constraint-cross.tsv` | 33 |
+| `jsonschema-import.tsv`     | 140 | `template.tsv` | 34 |
+| `vet.tsv`                   | 140 | `constraint-cross.tsv` | 33 |
 | `subsume.tsv`               | 123 | `gen-filter.tsv` | 29 |
 | `number-model.tsv`          | 120 | `gen-match.tsv` | 29 |
 | `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
@@ -166,8 +166,8 @@ implementations and is the contract that defines shared behaviour
 | `constraint-bound.tsv`      |  74 | `elision.tsv` | 21 |
 | `ref.tsv`                   |  74 | `reach.tsv` | 19 |
 | `file.tsv`                  |  71 | `list.tsv` | 18 |
-| `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
-| `marks.tsv`                 |  65 | `plus.tsv` | 16 |
+| `marks.tsv`                 |  67 | `aontu-view.tsv` | 16 |
+| `path.tsv`                  |  66 | `plus.tsv` | 16 |
 | `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
 | `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |
 | `hcanon.tsv`                |  58 | `conjunct.tsv` | 13 |

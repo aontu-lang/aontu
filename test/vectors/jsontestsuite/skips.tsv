@@ -1,0 +1,172 @@
+# bound 161
+#
+# The skip ledger of the vendored JSONTestSuite (README.md): each
+# answer a reader gives that is not the file's own, read by
+# ts/test/vectors.test.ts and go/vectors_test.go. A y_ file is to be
+# accepted and an n_ file refused; an i_ file's answer is the reader's
+# to choose, so each i_ file is listed for both readers.
+# Columns: file<TAB>reader<TAB>answer<TAB>reason, where reader is
+# instance (the data of `vet --exact-numbers`) or import (the schema
+# text of `aontu jsonschema import`). A listed line that answers as
+# the corpus says fails the run.
+i_number_double_huge_neg_exp.json	instance	accept	under --exact-numbers a number is read by its value, at any size
+i_number_double_huge_neg_exp.json	import	accept	the import reads a number by its text, at any size
+i_number_huge_exp.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_huge_exp.json	import	accept	the import reads a number by its text, at any size
+i_number_neg_int_huge_exp.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_neg_int_huge_exp.json	import	accept	the import reads a number by its text, at any size
+i_number_pos_double_huge_exp.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_pos_double_huge_exp.json	import	accept	the import reads a number by its text, at any size
+i_number_real_neg_overflow.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_real_neg_overflow.json	import	accept	the import reads a number by its text, at any size
+i_number_real_pos_overflow.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_real_pos_overflow.json	import	accept	the import reads a number by its text, at any size
+i_number_real_underflow.json	instance	refuse	under --exact-numbers its value is past the decimal budget
+i_number_real_underflow.json	import	accept	the import reads a number by its text, at any size
+i_number_too_big_neg_int.json	instance	accept	under --exact-numbers a number is read by its value, at any size
+i_number_too_big_neg_int.json	import	accept	the import reads a number by its text, at any size
+i_number_too_big_pos_int.json	instance	accept	under --exact-numbers a number is read by its value, at any size
+i_number_too_big_pos_int.json	import	accept	the import reads a number by its text, at any size
+i_number_very_big_negative_int.json	instance	accept	under --exact-numbers a number is read by its value, at any size
+i_number_very_big_negative_int.json	import	accept	the import reads a number by its text, at any size
+i_object_key_lone_2nd_surrogate.json	instance	accept	aontu reads an unpaired surrogate escape
+i_object_key_lone_2nd_surrogate.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_1st_surrogate_but_2nd_missing.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_1st_surrogate_but_2nd_missing.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_1st_valid_surrogate_2nd_invalid.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_1st_valid_surrogate_2nd_invalid.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_UTF-16LE_with_BOM.json	instance	refuse	the text is UTF-16, which the reader decodes as UTF-8 and refuses
+i_string_UTF-16LE_with_BOM.json	import	refuse	the import refuses text that is not UTF-8
+i_string_UTF-8_invalid_sequence.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_UTF-8_invalid_sequence.json	import	refuse	the import refuses text that is not UTF-8
+i_string_UTF8_surrogate_U+D800.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_UTF8_surrogate_U+D800.json	import	refuse	the import refuses text that is not UTF-8
+i_string_incomplete_surrogate_and_escape_valid.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_incomplete_surrogate_and_escape_valid.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_incomplete_surrogate_pair.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_incomplete_surrogate_pair.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_incomplete_surrogates_escape_valid.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_incomplete_surrogates_escape_valid.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_invalid_lonely_surrogate.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_invalid_lonely_surrogate.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_invalid_surrogate.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_invalid_surrogate.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_invalid_utf-8.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_invalid_utf-8.json	import	refuse	the import refuses text that is not UTF-8
+i_string_inverted_surrogates_U+1D11E.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_inverted_surrogates_U+1D11E.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_iso_latin_1.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_iso_latin_1.json	import	refuse	the import refuses text that is not UTF-8
+i_string_lone_second_surrogate.json	instance	accept	aontu reads an unpaired surrogate escape
+i_string_lone_second_surrogate.json	import	refuse	the import refuses an unpaired surrogate escape
+i_string_lone_utf8_continuation_byte.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_lone_utf8_continuation_byte.json	import	refuse	the import refuses text that is not UTF-8
+i_string_not_in_unicode_range.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_not_in_unicode_range.json	import	refuse	the import refuses text that is not UTF-8
+i_string_overlong_sequence_2_bytes.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_overlong_sequence_2_bytes.json	import	refuse	the import refuses text that is not UTF-8
+i_string_overlong_sequence_6_bytes.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_overlong_sequence_6_bytes.json	import	refuse	the import refuses text that is not UTF-8
+i_string_overlong_sequence_6_bytes_null.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_overlong_sequence_6_bytes_null.json	import	refuse	the import refuses text that is not UTF-8
+i_string_truncated-utf-8.json	instance	accept	the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+i_string_truncated-utf-8.json	import	refuse	the import refuses text that is not UTF-8
+i_string_utf16BE_no_BOM.json	instance	refuse	the text is UTF-16, which the reader decodes as UTF-8 and refuses
+i_string_utf16BE_no_BOM.json	import	refuse	the import refuses text that is not UTF-8
+i_string_utf16LE_no_BOM.json	instance	refuse	the text is UTF-16, which the reader decodes as UTF-8 and refuses
+i_string_utf16LE_no_BOM.json	import	refuse	the import refuses text that is not UTF-8
+i_structure_500_nested_arrays.json	instance	accept	500 levels is within the depth budget
+i_structure_500_nested_arrays.json	import	accept	500 levels is within the import's depth limit
+i_structure_UTF-8_BOM_empty_object.json	instance	refuse	the reader refuses a byte order mark
+i_structure_UTF-8_BOM_empty_object.json	import	accept	the import skips a leading byte order mark, as RFC 8259 allows
+n_array_1_true_without_comma.json	instance	accept	aontu separates elements by space as well as by comma
+n_array_colon_instead_of_comma.json	instance	accept	aontu reads a key and value inside a list as a map
+n_array_comma_after_close.json	instance	accept	aontu reads a trailing or repeated comma
+n_array_extra_comma.json	instance	accept	aontu reads a trailing or repeated comma
+n_array_incomplete.json	instance	accept	aontu closes what the end of the text leaves open
+n_array_incomplete_invalid_value.json	instance	accept	aontu closes what the end of the text leaves open, and a word it does not define as a string
+n_array_inner_array_no_comma.json	instance	accept	aontu separates elements by space as well as by comma
+n_array_items_separated_by_semicolon.json	instance	accept	aontu reads a key and value inside a list as a map
+n_array_newlines_unclosed.json	instance	accept	aontu closes what the end of the text leaves open
+n_array_number_and_comma.json	instance	accept	aontu reads a trailing or repeated comma
+n_array_unclosed.json	instance	accept	aontu closes what the end of the text leaves open
+n_array_unclosed_trailing_comma.json	instance	accept	aontu closes what the end of the text leaves open
+n_array_unclosed_with_new_lines.json	instance	accept	aontu closes what the end of the text leaves open
+n_array_unclosed_with_object_inside.json	instance	accept	aontu closes what the end of the text leaves open
+n_incomplete_false.json	instance	accept	aontu reads a word it does not define as a string
+n_incomplete_null.json	instance	accept	aontu reads a word it does not define as a string
+n_incomplete_true.json	instance	accept	aontu reads a word it does not define as a string
+n_number_++.json	instance	accept	aontu reads a leading plus
+n_number_+1.json	instance	accept	aontu reads a leading plus
+n_number_+Inf.json	instance	accept	aontu reads a leading plus, and a word it does not define as a string
+n_number_-01.json	instance	accept	aontu reads a number with a leading zero
+n_number_-2..json	instance	accept	aontu reads a number with a point and no fraction
+n_number_0.1.2.json	instance	accept	aontu reads it as a path reference, which vet admits without resolving: a defect, since evaluation refuses it
+n_number_0.3e.json	instance	accept	aontu reads it as a path reference, which vet admits without resolving: a defect, since evaluation refuses it
+n_number_0.e1.json	instance	accept	aontu reads a number with a point and no fraction
+n_number_0_capital_E.json	instance	accept	aontu reads a word it does not define as a string
+n_number_0e.json	instance	accept	aontu reads a word it does not define as a string
+n_number_1_000.json	instance	accept	aontu separates elements by space as well as by comma
+n_number_1eE2.json	instance	accept	aontu reads a word it does not define as a string
+n_number_2.e+3.json	instance	accept	aontu reads a number with a point and no fraction
+n_number_2.e-3.json	instance	accept	aontu reads a number with a point and no fraction
+n_number_2.e3.json	instance	accept	aontu reads a number with a point and no fraction
+n_number_Inf.json	instance	accept	aontu reads a word it does not define as a string
+n_number_NaN.json	instance	accept	aontu reads a word it does not define as a string
+n_number_U+FF11_fullwidth_digit_one.json	instance	accept	aontu reads a word it does not define as a string
+n_number_expression.json	instance	accept	aontu evaluates an operator expression
+n_number_hex_1_digit.json	instance	accept	aontu reads a hexadecimal number
+n_number_hex_2_digits.json	instance	accept	aontu reads a hexadecimal number
+n_number_infinity.json	instance	accept	aontu reads a word it does not define as a string
+n_number_invalid+-.json	instance	accept	aontu evaluates an operator expression
+n_number_minus_space_1.json	instance	accept	aontu reads a minus parted from its number
+n_number_neg_int_starting_with_zero.json	instance	accept	aontu reads a number with a leading zero
+n_number_real_garbage_after_e.json	instance	accept	aontu reads a word it does not define as a string
+n_number_real_without_fractional_part.json	instance	accept	aontu reads a number with a point and no fraction
+n_number_with_leading_zero.json	instance	accept	aontu reads a number with a leading zero
+n_object_bad_value.json	instance	accept	aontu reads a word it does not define as a string
+n_object_key_with_single_quotes.json	instance	accept	aontu reads a key that is not a quoted string, and a single-quoted string
+n_object_lone_continuation_byte_in_key_and_trailing_comma.json	instance	accept	aontu reads a trailing or repeated comma; the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+n_object_non_string_key.json	instance	accept	aontu reads a key that is not a quoted string
+n_object_non_string_key_but_huge_number_instead.json	instance	accept	aontu reads a key that is not a quoted string
+n_object_repeated_null_null.json	instance	accept	aontu reads a key that is not a quoted string, and the same key twice with the same value as one
+n_object_several_trailing_commas.json	instance	accept	aontu reads a trailing or repeated comma
+n_object_single_quote.json	instance	accept	aontu reads a single-quoted string
+n_object_trailing_comma.json	instance	accept	aontu reads a trailing or repeated comma
+n_object_two_commas_in_a_row.json	instance	accept	aontu reads a trailing or repeated comma
+n_object_unquoted_key.json	instance	accept	aontu reads a key that is not a quoted string
+n_object_with_trailing_garbage.json	instance	accept	aontu reads # as a comment
+n_single_space.json	instance	accept	aontu reads a text with nothing in it as an empty map
+n_string_accentuated_char_no_quotes.json	instance	accept	aontu reads a word it does not define as a string
+n_string_backslash_00.json	instance	accept	aontu reads an escape JSON does not define
+n_string_escape_x.json	instance	accept	aontu reads an escape JSON does not define
+n_string_escaped_ctrl_char_tab.json	instance	accept	aontu reads an escape JSON does not define
+n_string_escaped_emoji.json	instance	accept	aontu reads an escape JSON does not define
+n_string_invalid_backslash_esc.json	instance	accept	aontu reads an escape JSON does not define
+n_string_invalid_utf8_after_escape.json	instance	accept	aontu reads an escape JSON does not define; the instance reader writes U+FFFD for bytes that are not UTF-8, as the source reader does
+n_string_single_quote.json	instance	accept	aontu reads a single-quoted string
+n_string_single_string_no_double_quotes.json	instance	accept	aontu reads a word it does not define as a string
+n_string_unicode_CapitalU.json	instance	accept	aontu reads an escape JSON does not define
+n_string_with_trailing_garbage.json	instance	accept	aontu reads values written one after another as a list
+n_structure_array_trailing_garbage.json	instance	accept	aontu reads values written one after another as a list
+n_structure_ascii-unicode-identifier.json	instance	accept	aontu reads a word it does not define as a string
+n_structure_capitalized_True.json	instance	accept	aontu reads a word it does not define as a string
+n_structure_comma_instead_of_closing_brace.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_double_array.json	instance	accept	aontu reads values written one after another as a list
+n_structure_lone-open-bracket.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_no_data.json	instance	accept	aontu reads a text with nothing in it as an empty map
+n_structure_object_with_trailing_garbage.json	instance	accept	aontu reads values written one after another as a list
+n_structure_open_array_open_object.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_open_array_string.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_open_object.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_open_object_comma.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_trailing_#.json	instance	accept	aontu reads # as a comment
+n_structure_unclosed_array.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_unclosed_array_partial_null.json	instance	accept	aontu closes what the end of the text leaves open, and a word it does not define as a string
+n_structure_unclosed_array_unfinished_false.json	instance	accept	aontu closes what the end of the text leaves open, and a word it does not define as a string
+n_structure_unclosed_array_unfinished_true.json	instance	accept	aontu closes what the end of the text leaves open, and a word it does not define as a string
+n_structure_unclosed_object.json	instance	accept	aontu closes what the end of the text leaves open
+n_structure_unicode-identifier.json	instance	accept	aontu reads a word it does not define as a string
+y_object_duplicated_key.json	instance	refuse	a key written twice is one key, and its two values conflict
+y_object_duplicated_key.json	import	refuse	the import refuses a key written twice, which JSON Schema leaves undefined
+y_object_duplicated_key_and_value.json	import	refuse	the import refuses a key written twice, which JSON Schema leaves undefined

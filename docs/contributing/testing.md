@@ -208,6 +208,44 @@ honest wrapped form. The skip COUNT is bounded by the check itself, so
 a skip list that grew to swallow the corpus fails rather than passing
 over nothing.
 
+## The vendored corpora
+
+Public test corpora live under [`test/vectors/`](../../test/vectors/),
+each in a directory of its own with its upstream licence unchanged
+and a README naming the upstream URL and the pinned commit:
+[JSON-Schema-Test-Suite](../../test/vectors/jsonschema/README.md),
+[Ajv's extras](../../test/vectors/ajv-extras/README.md) and
+[JSONTestSuite](../../test/vectors/jsontestsuite/README.md).
+[`ts/test/vectors.test.ts`](../../ts/test/vectors.test.ts) and
+[`go/vectors_test.go`](../../go/vectors_test.go) run all three inside
+`make test`.
+
+A corpus is not a set of shared rows. A row holds an answer both
+engines give and agree is right; a corpus holds its own answers, and
+the import does not yet give all of them. Each corpus therefore
+carries a **skip ledger**, `skips.tsv`, which lists every answer that
+is not the corpus's own: with the construct the import lost and the
+phase that carries it for the JSON Schema corpora, and with the reason
+for JSONTestSuite. Both runners read the same ledger, so the ledger is
+the parity check: an answer the ports give differently fails one of
+them.
+
+The rules that keep a ledger honest:
+
+- an unlisted answer that is not the corpus's own fails the run, and so
+  does a listed line that now answers as the corpus says, so a fix
+  deletes its own line;
+- a JSON Schema line names exactly what the import reports for its
+  group, so a line cannot outlive the loss it was written for;
+- each ledger states a bound on its first line, and the phase that
+  clears lines lowers the bound in the same commit.
+
+Evaluation must agree with `vet` on every test the import answers,
+with the import and the instance as one document, as in
+[the vet ≡ eval differential](#the-vet--eval-differential). An
+expectation here is the corpus's own, so the parity probe does not
+apply; what a ledger change needs is a run of both ports.
+
 ## The divergence ledger
 
 When a probe shows the two engines disagreeing, that is a **bug**, and

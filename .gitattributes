@@ -60,6 +60,14 @@ go/aontumodel/** text eol=lf
 *.lark text eol=lf
 *.tmLanguage.json text eol=lf
 
+# Vendored test vectors (test/vectors/README.md) are other projects'
+# bytes, and JSONTestSuite's are the test itself: text that is
+# deliberately not UTF-8, or a newline where the case needs one. No
+# platform may rewrite them, so git keeps them exactly as committed.
+# This follows the globs above so that it wins for the READMEs and
+# ledgers too, whose readers split on LF alone.
+test/vectors/** -text
+
 # GITHUB'S HIGHLIGHTING, UNTIL LINGUIST HAS THE LANGUAGE.
 #
 # github.com colours a blob only for a language Linguist knows, and

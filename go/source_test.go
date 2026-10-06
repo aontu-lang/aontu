@@ -109,6 +109,36 @@ func TestInvalidUTF8ReplacementTwin(t *testing.T) {
 	if m["c"] != "p�q" {
 		t.Fatalf("c: want %q, got %q", "p�q", m["c"])
 	}
+	if m["d"] != "r\ufffd\ufffds" {
+		t.Fatalf("d: want one U+FFFD per byte, got %q", m["d"])
+	}
+	if m["e"] != "t\ufffd\ufffd\ufffdu" {
+		t.Fatalf("e: want one U+FFFD per maximal subpart, got %q", m["e"])
+	}
+}
+
+// Each expectation is the host decoder's own answer for the bytes.
+func TestToValidSourceReplacesEachMaximalSubpart(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"\xff\xfe", "\ufffd\ufffd"},
+		{"\xe2\x82X", "\ufffdX"},
+		{"\xf0\x9f\x98", "\ufffd"},
+		{"\xed\xa0\x80", "\ufffd\ufffd\ufffd"},
+		{"\xc0\xaf", "\ufffd\ufffd"},
+		{"\xf4\x90\x80\x80", "\ufffd\ufffd\ufffd\ufffd"},
+		{"\xe0\x80\x80", "\ufffd\ufffd\ufffd"},
+		{"\x80\x80", "\ufffd\ufffd"},
+		{"\xf0\x9fA", "\ufffdA"},
+		{"\xc3x", "\ufffdx"},
+		{"\xf1\x80\x80A", "\ufffdA"},
+		{"\xf0\x80\x80\x80", "\ufffd\ufffd\ufffd\ufffd"},
+		{"\xc3", "\ufffd"},
+		{"a\ufffd\xffb", "a\ufffd\ufffdb"},
+	} {
+		if got := toValidSource(c.in); got != c.want {
+			t.Errorf("%q: want %q, got %q", c.in, c.want, got)
+		}
+	}
 }
 
 func TestParseErrorNamesFile(t *testing.T) {

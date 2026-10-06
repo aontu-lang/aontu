@@ -303,6 +303,8 @@ const err_1 = require("../dist/err");
         const out = new aontu_1.Aontu().generate(src);
         (0, expect_1.expect)(out.b).equal('x\uFFFDy');
         (0, expect_1.expect)(out.c).equal('p\uFFFDq');
+        (0, expect_1.expect)(out.d).equal('r\uFFFD\uFFFDs');
+        (0, expect_1.expect)(out.e).equal('t\uFFFD\uFFFD\uFFFDu');
     });
     (0, node_test_1.it)('merge-conflict-crlf', () => {
         let err = undefined;

@@ -195,6 +195,10 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *EmptyVal:
+		c := *n
+		c.path = cp(path)
+		return &c
 	case *ConstraintVal:
 		// Residuals are immutable after construction (constraint.go), so
 		// bounds and exclusions are shared, like a ScalarKindVal's marker.
