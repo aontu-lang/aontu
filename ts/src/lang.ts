@@ -99,7 +99,8 @@ import {
 
 import { BigDecimalVal } from './val/BigDecimalVal'
 import { BigIntegerVal } from './val/BigIntegerVal'
-import { BIG_LITERAL_RE, readBigLiteral } from './val/Decimal'
+import { BIG_LITERAL_RE, readBigLiteral, readExactNumber } from './val/Decimal'
+import type { ExactNumber } from './val/Decimal'
 import { BooleanVal } from './val/BooleanVal'
 import { ConjunctVal } from './val/ConjunctVal'
 import { DisjunctVal } from './val/DisjunctVal'
@@ -185,6 +186,36 @@ function bigVal(res: RegExpExecArray): Val {
   return 'biginteger' === lit.leaf ? new BigIntegerVal({ peg: lit.int, src }) :
     'bigdecimal' === lit.leaf ? new BigDecimalVal({ peg: lit.dec, src }) :
       new NilVal({ why: lit.code })
+}
+
+
+const EXACT_DEC_RE =
+  /^([0-9](?:_?[0-9])*)(?:\.((?:[0-9](?:_?[0-9])*)?))?(?:[eE]([-+]?[0-9](?:_?[0-9])*))?$/
+const EXACT_BASED_RE = /^0[xXoObB][0-9a-fA-F](?:_?[0-9a-fA-F])*$/
+
+
+// A number literal read by the value its text spells (`exactNumbers`).
+function exactVal(src: string): Val {
+  let lit: ExactNumber
+  if (EXACT_BASED_RE.test(src)) {
+    lit = readExactNumber(
+      BigInt(src.replace(/_/g, '').toLowerCase()).toString(), '')
+  }
+  else {
+    const dec = EXACT_DEC_RE.exec(src) as RegExpExecArray
+    lit = readExactNumber(dec[1].replace(/_/g, ''),
+      (dec[2] ?? '').replace(/_/g, ''), dec[3]?.replace(/_/g, ''))
+  }
+  if ('integer' === lit.leaf) {
+    return new IntegerVal({ peg: Number(lit.int), src })
+  }
+  if ('biginteger' === lit.leaf) {
+    return new BigIntegerVal({ peg: lit.int, src })
+  }
+  if ('bigdecimal' === lit.leaf) {
+    return new BigDecimalVal({ peg: lit.dec, src })
+  }
+  return new NilVal({ why: lit.code })
 }
 
 
@@ -1178,9 +1209,12 @@ help isolate the syntax error.`,
           valnode = addsite(new StringVal({ peg: r.node }), r, ctx)
         }
         else if ('number' === valtype) {
+          if (true === ctx.meta.aontu?.exactNumbers) {
+            valnode = addsite(exactVal(r.o0.src), r, ctx)
+          }
           // An overflowing literal (1e999) lexes to Infinity; that is an
           // error value, not a number (mirrors not_number in go/lang.go).
-          if (!Number.isFinite(r.node)) {
+          else if (!Number.isFinite(r.node)) {
             valnode = addsite(new NilVal({ why: 'not_number' }), r, ctx)
           }
           else if (isLossyIntegerLiteral(r.node, r.o0.src)) {
@@ -2391,6 +2425,7 @@ class Lang {
       // child-meta spread carries the same array to nested includes.
       aontu: {
         manifest: (opts as any)?.manifest,
+        exactNumbers: opts?.exactNumbers ?? this.opts.exactNumbers,
       },
     }
 

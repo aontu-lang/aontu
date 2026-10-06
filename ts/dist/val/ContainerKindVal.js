@@ -20,6 +20,9 @@ class MapKindVal extends FeatureVal_1.FeatureVal {
         if (true === p.isMapKind) {
             return this;
         }
+        if (true === p.isConstraint) {
+            return peer.unify(this, ctx);
+        }
         return (0, err_1.makeNilErr)(ctx, 'map', this, peer);
     }
     get canon() {
@@ -44,6 +47,9 @@ class ListKindVal extends FeatureVal_1.FeatureVal {
         }
         if (true === p.isListKind) {
             return this;
+        }
+        if (true === p.isConstraint) {
+            return peer.unify(this, ctx);
         }
         return (0, err_1.makeNilErr)(ctx, 'list', this, peer);
     }

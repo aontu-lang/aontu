@@ -145,6 +145,15 @@ describe('cli', () => {
     Assert.equal(r.out.trim(), '{"a":1|2}')
   })
 
+  test('cli-exact-numbers-reads-every-number-by-value', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-exact-'))
+    const file = Path.join(dir, 'n.aontu')
+    Fs.writeFileSync(file, 'x: 1.0\ny: 0.1 + 0.2\n')
+    const r = vetCapture(() =>
+      cliMainVet(['node', 'cli', '--exact-numbers', '-c', file]))
+    Assert.equal(r.out.trim(), '{"x":1,"y":0d0.3}')
+  })
+
   test('cli-error-exit-code', () => {
     const r = run([], 'a:1 a:2')
     Assert.equal(r.code, 1)
@@ -217,6 +226,14 @@ describe('cli-vet', () => {
     Assert.match(r.out, /\$\.service\.port: no_scalar_unify \[conflict\]/)
     Assert.match(r.out, /data: .*data\.json:1:\d+ \("8080"\)/)
     Assert.match(r.out, /schema: .*schema\.aontu:1:\d+ \(integer\)/)
+  })
+
+
+  test('vet-exact-numbers-reads-the-data-by-value', () => {
+    const f = vetFiles('a: integer', '{"a": 1.0}')
+    vetCapture(() => Assert.equal(runVet([f.schema, f.data]), 1))
+    vetCapture(() =>
+      Assert.equal(runVet(['--exact-numbers', f.schema, f.data]), 0))
   })
 
 
@@ -965,6 +982,19 @@ describe('cli-subsume', () => {
     // ABSENT, not empty, on a run that stood up: the graph had
     // findings, and nothing stopped the graph being looked at.
     Assert.equal('errors' in report, false)
+  })
+
+  test('jsonschema-exact-numbers-judges-against-the-exact-reading', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'))
+    const file = Path.join(dir, 'doc.aontu')
+    Fs.writeFileSync(file, 'a: 1\n')
+    const plain = vetCapture(() =>
+      Assert.equal(runJsonSchema(['--strict', file]), 1))
+    Assert.match(plain.err, /integer literal/)
+    const exact = vetCapture(() => Assert.equal(
+      runJsonSchema(['--strict', '--exact-numbers', file]), 0))
+    Assert.equal(exact.err, '')
+    Assert.match(exact.out, /"const": 1/)
   })
 
   test('jsonschema-exports-the-model-and-names-what-it-cannot-carry', () => {

@@ -44,7 +44,8 @@ Usage: aontu [options] [file]
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
-       aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
+                        <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -134,6 +135,13 @@ the package cache they write.
   [marshalling types](#exact-numbers-in-go), with HTML escaping **off**
   in both, so `<`, `>` and `&` stay literal and the two CLIs print the
   same bytes.
+- **`--exact-numbers` reads every number by its value**, never through
+  a double: an integral value is an `integer` where that leaf holds it
+  exactly and a `biginteger` beyond, and any other value is a
+  `bigdecimal`. So `x:1.0` evaluates to the integer `1` and
+  `x:0.1 + 0.2` to exactly `0.3`. A number past the bigdecimal's budget of 4096 digits
+  and scale is refused as `decimal_budget` rather than rounded. Without
+  the option a document reads exactly as it always has.
 - Results go to **stdout**; errors go to **stderr** with a non-zero exit
   status (`1` for an evaluation error, `2` for a bad option).
 - **`--format json` makes the answer an object**, so the default entry
@@ -161,6 +169,7 @@ aontu vet [options] <schema> <data> [more-data...]
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --exact-numbers   Read every data number by its value
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check examined
   --strict-coverage --coverage, and exit 1 when the run was vacuous
@@ -185,6 +194,15 @@ Each data file is vetted separately, and the worst verdict wins: two
 data files are two candidates for the same truth, not one merged
 candidate. `--max-errors` caps the whole report, not each file, and
 says so with `truncated`.
+
+**`--exact-numbers` reads the data by value** and the schema as
+written. A data number is the exact value its text spells, in the leaf
+that value selects, so `1`, `1.0` and `1e0` are one integer and a
+twenty-digit decimal keeps its twenty digits; no data number is ever a
+`float`. That is how JSON Schema compares numbers. It changes the
+answer for a schema that names floats: a `float` kind or a `1.5`
+literal refuses every data number under it, and an `integer` kind
+admits `1.0`.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as
@@ -1260,7 +1278,8 @@ Export a document as a **JSON Schema** (draft 2020-12), and say what
 could not be carried.
 
 ```
-aontu jsonschema [--at <path>] [--strict] [--format text|json] <file>
+aontu jsonschema [--at <path>] [--strict] [--exact-numbers]
+                 [--format text|json] <file>
 ```
 
 This is the interop bridge. Every major LLM provider's
@@ -1318,6 +1337,13 @@ $ aontu jsonschema --at spec contract.aontu
   in both.
 - `--format json` prints the whole report (`schema`, `lossy`,
   `verdict`) under the usual `aontu: {version, verb}` envelope.
+- `--exact-numbers` judges the export against
+  [`vet --exact-numbers`](#aontu-vet) rather than plain `vet`. Under
+  that reading the `number` kind, an integer literal, an exact literal
+  in the leaf its value selects, a `neq` and a `unique()` cross with
+  nothing reported, and the `float` kind and float literals are the
+  losses. The `integer` kind and the two exact kinds each refuse the
+  integral values of the other leaf, and are reported too.
 - Exit codes: `0` exported, `1` lossy **under `--strict`**, `2` usage,
   `4` the document does not stand up on its own, which includes a
   failure nested in the exported value and an atom whose arguments
@@ -1432,6 +1458,9 @@ Without `--strict` the same export exits 0.
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
+  The TypeScript options carry `exactNumbers`; in Go,
+  `JSONSchemaWith(src, JSONSchemaOptions{At, ExactNumbers})` is the same
+  export with every option.
 
 ### `aontu model get`
 
@@ -3156,6 +3185,7 @@ into a context.
 | `debug` / `trace` | `boolean` | Enable parser debug / parse tracing. |
 | `deps`     | `object`    | Dependency record populated by `@"…"` loads. |
 | `log`      | `number`    | Parser log verbosity. |
+| `exactNumbers` | `boolean` | Read every number literal by its value, as [`--exact-numbers`](#command-line-interface) does. `vet` takes the same option for its data alone. |
 
 `@"…"` resolution tries an **in-memory** resolver, then the
 **filesystem**, then **package** resolution, in that order. The chain
@@ -3518,8 +3548,9 @@ reachCheck     // reachability over the entity graph (see `aontu reaches`
                // above): reachCheck(src, from, to, {relation?, path?,
                // trust?}) -> {verdict, path?}; Go: (*Aontu).Reach
 jsonSchema     // the JSON Schema export (see `aontu jsonschema` above):
-               // jsonSchema(src, {at?, path?, trust?}) -> {verdict,
-               // schema, lossy}; Go: (*Aontu).JSONSchema
+               // jsonSchema(src, {at?, exactNumbers?, path?, trust?}) ->
+               // {verdict, schema, lossy}; Go: (*Aontu).JSONSchema, and
+               // JSONSchemaWith(src, JSONSchemaOptions{At, ExactNumbers})
 format         // the source formatter (see `aontu fmt` above):
                // format(src, {path?, lint?, template?}) -> {verdict,
                // text, changed, findings} or {verdict, errors};
@@ -3671,6 +3702,11 @@ as the two types that can hold them exactly:
 A `0d`-free document generates exactly what it always did. An
 *integral* bigdecimal is still a `*Decimal` and never a `*big.Int`:
 `0d1e3` is a bigdecimal by source form, and the leaves are disjoint.
+
+Set the `ExactNumbers` field on an `Aontu` to read every number literal
+by its value, as `--exact-numbers` does: `x:1.0` is then the `int64`
+`1` and `x:1.5` a `*Decimal`. `VetOptions.ExactNumbers` is the same
+reading for `Vet`'s data alone.
 
 Both types implement `json.Marshaler` and emit **exact digits as a raw
 JSON number**, so `encoding/json` needs no help:

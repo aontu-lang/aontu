@@ -25,7 +25,8 @@ const helpText = `Usage: aontu [options] [file]
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
-       aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
+                        <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -103,6 +104,9 @@ Options:
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
                   and out
+  --exact-numbers Read every number by its value: 1.0 is the integer 1
+                  and 1.5 an exact decimal, never a float (the bare
+                  command's; vet has its own)
   -h, --help      Show this help and exit (the verbs and their flags);
                   aontu help is the LANGUAGE, and lists its own topics
   --jsonl         REPL: answer every command as one JSON line
@@ -178,6 +182,8 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --exact-numbers   Read every data number by its value: 1.0 is the
+                    integer 1 and 1.5 an exact decimal, never a float
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -619,6 +625,8 @@ type trustArg struct {
 	kind    string // "system-warn", "system", "none", "root"
 	dir     string // root's directory ("" = the entry root)
 	textExt []string
+	// Every number literal is read by its value (--exact-numbers).
+	exactNumbers bool
 }
 
 func parseTextExt(arg string) ([]string, bool) {
@@ -680,6 +688,7 @@ func applyTrust(a *aontu.Aontu, trust trustArg, entryRoot string, stderr io.Writ
 	// capability below reads text the same way, and only WHICH files
 	// are reachable differs.
 	a.TextExt = trust.textExt
+	a.ExactNumbers = trust.exactNumbers
 	switch trust.kind {
 	case "none":
 		a.Trust = &aontu.TrustOptions{IncludeNone: true}
@@ -961,6 +970,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	var files []string
 	trust := trustArg{kind: "system-warn"}
 	textExt := []string{}
+	exactNumbers := false
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -974,6 +984,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 				return 2
 			}
 			format = args[i]
+		case "--exact-numbers":
+			exactNumbers = true
 		case "--jsonl":
 			jsonl = true
 			off := false
@@ -1033,6 +1045,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	}
 
 	trust.textExt = textExt
+	trust.exactNumbers = exactNumbers
 
 	file := ""
 	if 0 < len(files) {

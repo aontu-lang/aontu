@@ -72,8 +72,8 @@ function loadVetRows(): VetRow[] {
 // Does the one document stand up: does it evaluate to a concrete
 // value? `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalAccepts(src: string): boolean {
-  const aontu = new Aontu()
+function evalAccepts(src: string, exactNumbers: boolean): boolean {
+  const aontu = new Aontu({ exactNumbers })
   const ctx: any = aontu.ctx({ collect: true })
   let out: any
   try {
@@ -128,9 +128,26 @@ function sharesADeclaration(schema: string, data: string): boolean {
 }
 
 
-function union(schema: string, data: string): string | undefined {
+// Under exactNumbers evaluation reads the schema by value too, so a
+// schema whose literals read differently has no one-document spelling.
+function readsAlike(schema: string): boolean {
+  const canon = (exactNumbers: boolean) => {
+    try {
+      return (new Aontu({ exactNumbers }).parse(schema) as any)?.canon
+    }
+    catch {
+      return undefined
+    }
+  }
+  return canon(false) === canon(true)
+}
+
+
+function union(schema: string, data: string, exactNumbers: boolean):
+  string | undefined {
   if (borrowsAName(schema) || borrowsAName(data) ||
-    sharesADeclaration(schema, data)) {
+    sharesADeclaration(schema, data) ||
+    (exactNumbers && !readsAlike(schema))) {
     return undefined
   }
   if (statementForm(schema) && statementForm(data)) {
@@ -191,12 +208,13 @@ describe('vet-equals-eval', () => {
         { ...row.opts, schemaUrl: 'schema', dataUrl: 'data' } as any)
       const vetAccepts = 'valid' === report.verdict
 
-      const one = union(row.schema, row.data)
+      const exact = true === row.opts.exactNumbers
+      const one = union(row.schema, row.data, exact)
       if (null == one) {
         skipped++
         continue
       }
-      const evalOk = evalAccepts(one)
+      const evalOk = evalAccepts(one, exact)
 
       if (vetAccepts !== evalOk) {
         disagree.push(

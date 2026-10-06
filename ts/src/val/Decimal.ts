@@ -1,5 +1,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
+import { isIntegerStorable } from './numkind'
+
 
 const DECIMAL_COEFFICIENT_BUDGET = 4096
 const DECIMAL_SCALE_BUDGET = 4096
@@ -202,7 +204,36 @@ function readBigLiteral(m: RegExpExecArray | (string | undefined)[]): BigLiteral
     leaf: 'bigdecimal',
     dec: new Decimal(BigInt(intd + (fracd ?? '')), scale),
   }
-} /* node:coverage ignore next 12 */
+}
+
+
+type ExactNumber =
+  { leaf: 'integer', int: bigint } |
+  { leaf: 'biginteger', int: bigint } |
+  { leaf: 'bigdecimal', dec: Decimal } |
+  { leaf: 'error', code: string }
+
+
+// `--exact-numbers`: a plain literal read by the VALUE its digits spell,
+// where readBigLiteral reads a `0d` literal by its spelling. An integral
+// value is an integer while that leaf stores it and a biginteger beyond;
+// any other value is a bigdecimal, under the bigdecimal's budget.
+function readExactNumber(
+  intd: string, fracd: string, expd?: string): ExactNumber {
+  const exp = undefined === expd ? 0 : Number(expd)
+  const scale = fracd.length - exp
+  if (overBudget(intd.length + fracd.length, scale)) {
+    return { leaf: 'error', code: 'decimal_budget' }
+  }
+  const unscaled = BigInt(intd + fracd)
+  const p = pow10(scale < 0 ? 0 : scale)
+  if (0n !== unscaled % p) {
+    return { leaf: 'bigdecimal', dec: new Decimal(unscaled, scale) }
+  }
+  const int = scale < 0 ? unscaled * pow10(-scale) : unscaled / p
+  return isIntegerStorable(int) ?
+    { leaf: 'integer', int } : { leaf: 'biginteger', int }
+} /* node:coverage ignore next 14 */
 
 
 export {
@@ -212,5 +243,7 @@ export {
   DECIMAL_SCALE_BUDGET,
   Decimal,
   decimalOverBudget,
+  ExactNumber,
   readBigLiteral,
+  readExactNumber,
 }

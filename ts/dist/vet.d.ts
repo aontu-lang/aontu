@@ -47,6 +47,7 @@ export type VetOptions = {
     dataUrl?: string;
     schemaPath?: string;
     dataPath?: string;
+    exactNumbers?: boolean;
     trust?: TrustOptions;
     textExt?: string[];
 };

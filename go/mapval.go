@@ -502,6 +502,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out.site.sp = m.site.sp
 		out.site.spu = m.site.spu
 		out.site.url = m.site.url
+		out.site.src = m.site.src
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)

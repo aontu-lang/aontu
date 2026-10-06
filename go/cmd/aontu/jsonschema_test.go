@@ -161,3 +161,17 @@ func TestJsonSchemaArgumentErrors(t *testing.T) {
 		t.Fatalf("--help = %d", code)
 	}
 }
+
+func TestJsonSchemaExactNumbersJudgesAgainstTheExactReading(t *testing.T) {
+	// An integer literal is lossy against plain vet, which reads 1.0 as
+	// a float, and exact against vet --exact-numbers.
+	file := jsonSchemaFile(t, "a: 1\n")
+	_, plainErr, code := jsonSchemaRun("--strict", file)
+	if 1 != code || !strings.Contains(plainErr, "integer literal") {
+		t.Fatalf("plain: code %d: %s", code, plainErr)
+	}
+	out, errw, code := jsonSchemaRun("--strict", "--exact-numbers", file)
+	if 0 != code || "" != errw || !strings.Contains(out, `"const": 1`) {
+		t.Fatalf("exact: code %d: %s\n%s", code, errw, out)
+	}
+}

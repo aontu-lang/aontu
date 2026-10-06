@@ -731,3 +731,13 @@ func TestVetCoverageUsageRefusals(t *testing.T) {
 		t.Errorf("want 2 and a reason, got %d: %s", code, errw)
 	}
 }
+
+func TestVetExactNumbersReadsTheDataByValue(t *testing.T) {
+	_, s, d := vetFiles(t, "a: integer", `{"a": 1.0}`)
+	if _, _, code := vetRun(s, d); 1 != code {
+		t.Fatalf("plain vet reads 1.0 as a float: exit %d", code)
+	}
+	if out, errw, code := vetRun("--exact-numbers", s, d); 0 != code {
+		t.Fatalf("exact: exit %d\n%s%s", code, out, errw)
+	}
+}

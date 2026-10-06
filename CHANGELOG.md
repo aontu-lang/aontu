@@ -8,6 +8,40 @@ each change affects.
 
 ## Unreleased
 
+### Numbers read by value under `--exact-numbers`, and a container kind meets a count
+
+Both ports. G12 phase 3, the reading the JSON Schema importer writes
+for, and two engine fixes it needs.
+
+- New option `--exact-numbers` on the bare command, `vet` and
+  `jsonschema`; `exactNumbers` on `AontuOptions`, `vet` and
+  `jsonSchema` in TypeScript; `ExactNumbers` on `Aontu`, `VetOptions`
+  and the new `JSONSchemaOptions` in Go, whose `JSONSchemaWith` is the
+  export with every option. A number reads as the exact value its text
+  spells: an integral value is an `integer` where that leaf holds it
+  exactly and a `biginteger` beyond, and any other value a
+  `bigdecimal`, so `1.0` is the integer 1, `0.1 + 0.2` is exactly
+  `0.3`, and a number past the 4096-digit budget refuses as
+  `decimal_budget` rather than rounding. `vet` reads the data that way
+  and the schema as written. Without the option nothing changes.
+- `jsonschema --exact-numbers` judges the export against
+  `vet --exact-numbers`: the `number` kind, integer literals, exact
+  literals in the leaf their value selects, `neq` and `unique()` cross
+  with nothing reported, and the `float` kind and float literals are
+  the losses.
+- `map` and `list` meet a count, `unique()` or `must()` in either
+  order: `map & len(min(1))` refused as a conflict in both ports, where
+  `len(min(1)) & map` held.
+- A count inside `hide()` counts the members its own mark covers:
+  TypeScript refused `hide([&: integer] & len(min(1)))` for `[1]` under
+  `vet --at`, where Go admitted it.
+- Go: a map or list unified or cloned on the way to a finding keeps its
+  source text, so its site carries the same `src` and `len` as the
+  TypeScript port's.
+- The shared spec gains `test/spec/number-exact.tsv` and the
+  `canon-exact` mode, and the vet-equals-eval differential reads a row
+  run under `exactNumbers` the same way on both sides.
+
 ### A key one side requires stays required, and a quoted key is never an alias (#298, #299, #301, #302)
 
 Both ports. G12 phase 2, the engine changes the JSON Schema importer

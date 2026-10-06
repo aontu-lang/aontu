@@ -52,6 +52,8 @@ type Aontu struct {
 	TrustWarnRoot string
 
 	TextExt []string
+
+	ExactNumbers bool
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -80,7 +82,7 @@ func (a *Aontu) newTrustSink() *trustSink {
 		deps: &deps, texts: map[string]string{},
 		warn: a.TrustWarn, warnRoot: a.TrustWarnRoot,
 		modDepth: a.modDepth, modCache: a.modCacheDir(),
-		textExt: a.TextExt,
+		textExt: a.TextExt, exactNumbers: a.ExactNumbers,
 	}
 	if nil != a.Trust {
 		sink.none = a.Trust.IncludeNone

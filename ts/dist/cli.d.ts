@@ -20,6 +20,7 @@ type TrustArg = ({
     dir?: string;
 }) & {
     textExt: string[];
+    exactNumbers?: boolean;
 };
 export type ReplState = {
     mode: Mode;

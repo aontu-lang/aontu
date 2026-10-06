@@ -76,7 +76,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu reaches <from> <to> [--relation <name>] [options] <file>
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
-       aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
+                        <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -154,6 +155,9 @@ Options:
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
                   and out
+  --exact-numbers Read every number by its value: 1.0 is the integer 1
+                  and 1.5 an exact decimal, never a float (the bare
+                  command's; vet has its own)
   -h, --help      Show this help and exit (the verbs and their flags);
                   aontu help is the LANGUAGE, and lists its own topics
   --jsonl         REPL: answer every command as one JSON line
@@ -229,6 +233,8 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --exact-numbers   Read every data number by its value: 1.0 is the
+                    integer 1 and 1.5 an exact decimal, never a float
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -637,7 +643,10 @@ function makeTrustWarn() {
 // entryRoot (the entry file's directory, or the working directory for
 // stdin/REPL).
 function trustOpts(trust, entryRoot) {
-    const text = 0 === trust.textExt.length ? {} : { textExt: trust.textExt };
+    const text = {
+        ...(0 === trust.textExt.length ? {} : { textExt: trust.textExt }),
+        ...(true === trust.exactNumbers ? { exactNumbers: true } : {}),
+    };
     switch (trust.kind) {
         case 'none':
             return { ...text, trust: { include: 'none' } };
@@ -926,6 +935,7 @@ function parseVetArgs(argv) {
     let coverage = false;
     let strictCoverage = false;
     let coverageAt;
+    let exactNumbers = false;
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         // `-h`/`--help` before anything else, INCLUDING the file count:
@@ -960,6 +970,9 @@ function parseVetArgs(argv) {
         }
         else if ('--partial' === arg) {
             partial = true;
+        }
+        else if ('--exact-numbers' === arg) {
+            exactNumbers = true;
         }
         else if ('--coverage' === arg) {
             coverage = true;
@@ -1005,6 +1018,7 @@ function parseVetArgs(argv) {
             coverage,
             strictCoverage,
             coverageAt,
+            exactNumbers,
         },
     };
 }
@@ -1141,6 +1155,7 @@ function vetOnce(args, trust) {
             dataPath: source.file,
             coverage: args.coverage,
             coverageAt: args.coverageAt,
+            exactNumbers: args.exactNumbers,
         });
         if (VET_RANK[verdict] < VET_RANK[report.verdict]) {
             verdict = report.verdict;
@@ -3292,7 +3307,7 @@ function renderRelationsJson(report) {
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
-const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] <file> (try --help)';
+const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)';
 function runJsonSchema(argv) {
     const trusted = takeTrust(argv);
     if (null == trusted) {
@@ -3304,6 +3319,7 @@ function runJsonSchema(argv) {
     let format = 'text';
     let at = undefined;
     let strict = false;
+    let exactNumbers = false;
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -3328,6 +3344,9 @@ function runJsonSchema(argv) {
         else if ('--strict' === arg) {
             strict = true;
         }
+        else if ('--exact-numbers' === arg) {
+            exactNumbers = true;
+        }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown jsonschema option ${arg} (try --help)\n`);
             return 2;
@@ -3349,7 +3368,7 @@ function runJsonSchema(argv) {
         return 2;
     }
     const report = (0, jsonschema_1.jsonSchema)(src, {
-        at, path: files[0], ...verbOpts(trust, entryRootOf(files[0])),
+        at, path: files[0], exactNumbers, ...verbOpts(trust, entryRootOf(files[0])),
     });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
@@ -4643,6 +4662,7 @@ function main(argv, servers = SERVERS) {
     const files = [];
     let trust = { kind: 'system-warn', textExt: [] };
     let textExt = [];
+    let exactNumbers = false;
     // The REPL's SESSION protocol (G7 phase 7): one JSON line per
     // answer, so a harness can drive the session. Named --jsonl rather
     // than the design's --json, which would read as the `:json` output
@@ -4757,6 +4777,9 @@ function main(argv, servers = SERVERS) {
             }
             format = f;
         }
+        else if ('--exact-numbers' === arg) {
+            exactNumbers = true;
+        }
         else if ('--jsonl' === arg) {
             jsonl = true;
             // A JSONL answer is machine-read by definition, even when the
@@ -4797,7 +4820,7 @@ function main(argv, servers = SERVERS) {
             ' (try --help)\n');
         return finish(2);
     }
-    trust = { ...trust, textExt };
+    trust = { ...trust, textExt, exactNumbers };
     const file = files[0];
     if (null != file) {
         finish(runFile(file, mode, format, trust));

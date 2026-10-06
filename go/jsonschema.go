@@ -40,6 +40,7 @@ type SchemaReport struct {
 type schemaCtx struct {
 	lossy  []SchemaLoss
 	failed Val
+	exact  bool
 }
 
 func (sc *schemaCtx) lose(path []string, construct, reason string) {
@@ -76,25 +77,30 @@ var kindType = map[Kind]string{
 	KindPath:       "string",
 }
 
-// The numeric leaves, and the ones vet reads JSON data as: a spelling
-// with a point is a float, one without is an integer, and nothing is
-// read as an exact leaf.
+// The numeric leaves, and the ones vet reads JSON data as. Plain vet
+// reads a spelling with a point as a float and one without as an
+// integer, and nothing as an exact leaf; vet --exact-numbers reads a
+// number by its value alone, never as a float.
 type schemaLeaf string
 
 const (
-	leafInteger schemaLeaf = "integer"
-	leafFloat   schemaLeaf = "float"
-	leafExact   schemaLeaf = "exact"
+	leafInteger    schemaLeaf = "integer"
+	leafFloat      schemaLeaf = "float"
+	leafBigInteger schemaLeaf = "biginteger"
+	leafBigDecimal schemaLeaf = "bigdecimal"
 )
 
-var leavesBoth = []schemaLeaf{leafInteger, leafFloat}
+var leavesAll = []schemaLeaf{leafInteger, leafFloat, leafBigInteger,
+	leafBigDecimal}
+
+var leavesPlainRead = []schemaLeaf{leafInteger, leafFloat}
 
 var kindLeaves = map[Kind][]schemaLeaf{
 	KindInteger:    {leafInteger},
 	KindFloat:      {leafFloat},
-	KindBigInteger: {},
-	KindBigDecimal: {},
-	KindNumber:     leavesBoth,
+	KindBigInteger: {leafBigInteger},
+	KindBigDecimal: {leafBigDecimal},
+	KindNumber:     leavesAll,
 }
 
 var kindLoss = map[Kind]string{
@@ -108,14 +114,43 @@ var kindLoss = map[Kind]string{
 		"which vet reads as an integer or a float, never as the bigdecimal leaf",
 }
 
+var exactKindLoss = map[Kind]string{
+	KindInteger: "the schema says \"integer\" and admits an integral JSON number " +
+		"beyond the integer leaf, which vet --exact-numbers reads as a " +
+		"biginteger and the integer leaf refuses",
+	KindFloat: "the schema says \"number\" and admits every JSON number, which vet " +
+		"--exact-numbers reads by its value, never as a float",
+	KindBigInteger: "the schema says \"integer\" and admits an integral JSON number " +
+		"the integer leaf holds, which vet --exact-numbers reads as an integer " +
+		"and the biginteger leaf refuses",
+	KindBigDecimal: "the schema says \"number\" and admits an integral JSON number, " +
+		"which vet --exact-numbers reads as an integer or a biginteger and the " +
+		"bigdecimal leaf refuses",
+}
+
+const exactLiteralReason = "the schema admits this value in every JSON spelling, " +
+	"which vet reads as an integer or a float, never as the exact leaf; the " +
+	"digits are written exactly"
+
 var literalLoss = map[schemaLeaf]string{
 	leafInteger: "the schema admits the float spelling of this value, which vet " +
 		"reads as a float and the integer leaf refuses",
 	leafFloat: "the schema admits the integer spelling of this value, which vet " +
 		"reads as an integer and the float leaf refuses",
-	leafExact: "the schema admits this value in every JSON spelling, which vet " +
-		"reads as an integer or a float, never as the exact leaf; the digits " +
-		"are written exactly",
+	leafBigInteger: exactLiteralReason,
+	leafBigDecimal: exactLiteralReason,
+}
+
+// An integer literal is always a value the integer leaf holds, so under
+// the exact reading it is never lone.
+var exactLiteralLoss = map[schemaLeaf]string{
+	leafFloat: "the schema admits this value, which vet --exact-numbers reads by " +
+		"its value, never as a float",
+	leafBigInteger: "the schema admits this value, which vet --exact-numbers reads " +
+		"as an integer, and the biginteger leaf refuses it",
+	leafBigDecimal: "the schema admits this integral value, which vet " +
+		"--exact-numbers reads as an integer or a biginteger, and the " +
+		"bigdecimal leaf refuses it",
 }
 
 func leafOf(sv *ScalarVal) (schemaLeaf, bool) {
@@ -124,17 +159,29 @@ func leafOf(sv *ScalarVal) (schemaLeaf, bool) {
 		return leafInteger, true
 	case KindFloat:
 		return leafFloat, true
-	case KindBigInteger, KindBigDecimal:
-		return leafExact, true
+	case KindBigInteger:
+		return leafBigInteger, true
+	case KindBigDecimal:
+		return leafBigDecimal, true
 	}
 	return "", false
 }
 
-func leafReadings(sv *ScalarVal) []schemaLeaf {
-	if scaledIsIntegral(scaledOfNumeric(sv)) {
-		return leavesBoth
+func (sc *schemaCtx) readings(sv *ScalarVal) []schemaLeaf {
+	s := scaledOfNumeric(sv)
+	if !scaledIsIntegral(s) {
+		if sc.exact {
+			return []schemaLeaf{leafBigDecimal}
+		}
+		return []schemaLeaf{leafFloat}
 	}
-	return []schemaLeaf{leafFloat}
+	if !sc.exact {
+		return leavesPlainRead
+	}
+	if isIntegerStorable(scaledFloorBig(s)) {
+		return []schemaLeaf{leafInteger}
+	}
+	return []schemaLeaf{leafBigInteger}
 }
 
 // jsonOfScalar is the JSON value of a concrete scalar; the exact leaves
@@ -189,14 +236,14 @@ func schemaGroups(members []*ScalarVal) []*schemaGroup {
 	return out
 }
 
-// schemaLone is the first number with an admitted JSON spelling no
+// lone is the first number with an admitted JSON spelling no
 // member is written in: there the schema and the model disagree.
-func schemaLone(gs []*schemaGroup, admitted []schemaLeaf) *ScalarVal {
+func (sc *schemaCtx) lone(gs []*schemaGroup, admitted []schemaLeaf) *ScalarVal {
 	for _, g := range gs {
 		if _, numeric := leafOf(g.v); !numeric {
 			continue
 		}
-		for _, r := range leafReadings(g.v) {
+		for _, r := range sc.readings(g.v) {
 			if leafIn(admitted, r) && !leafIn(g.leaves, r) {
 				return g.v
 			}
@@ -206,14 +253,26 @@ func schemaLone(gs []*schemaGroup, admitted []schemaLeaf) *ScalarVal {
 }
 
 func (sc *schemaCtx) loseLiterals(path []string, gs []*schemaGroup) {
-	if v := schemaLone(gs, leavesBoth); nil != v {
+	if v := sc.lone(gs, leavesAll); nil != v {
 		leaf, _ := leafOf(v)
-		sc.lose(path, string(leaf)+" literal", literalLoss[leaf])
+		construct := "exact"
+		if leafInteger == leaf || leafFloat == leaf {
+			construct = string(leaf)
+		}
+		reasons := literalLoss
+		if sc.exact {
+			reasons = exactLiteralLoss
+		}
+		sc.lose(path, construct+" literal", reasons[leaf])
 	}
 }
 
 func (sc *schemaCtx) loseKind(path []string, k Kind) {
-	if reason, ok := kindLoss[k]; ok {
+	reasons := kindLoss
+	if sc.exact {
+		reasons = exactKindLoss
+	}
+	if reason, ok := reasons[k]; ok {
 		sc.lose(path, k.String(), reason)
 	}
 }
@@ -336,7 +395,7 @@ func elementLeaves(e Val) ([]schemaLeaf, bool) {
 		if "string" == t.domain {
 			return []schemaLeaf{}, true
 		}
-		return leavesBoth, true
+		return leavesAll, true
 	case *EmptyVal:
 		return []schemaLeaf{}, true
 	case *DisjunctVal:
@@ -360,10 +419,14 @@ func elementLeaves(e Val) ([]schemaLeaf, bool) {
 // uniqueExact: unique() tells an integer from a float of the same value
 // and uniqueItems does not, so they agree only on a list that cannot
 // hold both.
-func uniqueExact(bag Val) bool {
+func (sc *schemaCtx) uniqueExact(bag Val) bool {
 	l, ok := bag.(*ListVal)
 	if !ok {
 		return false
+	}
+	// Read by value, JSON numbers equal in value are one aontu value.
+	if sc.exact {
+		return true
 	}
 	if nil == l.spread && !l.closed {
 		return false
@@ -379,7 +442,7 @@ func uniqueExact(bag Val) bool {
 			return false
 		}
 		for _, x := range ls {
-			if !leafIn(leaves, x) {
+			if leafIn(leavesPlainRead, x) && !leafIn(leaves, x) {
 				leaves = append(leaves, x)
 			}
 		}
@@ -417,9 +480,9 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		out["not"] = map[string]any{"enum": vals}
 		admitted, ok := kindLeaves[c.kind]
 		if !ok {
-			admitted = leavesBoth
+			admitted = leavesAll
 		}
-		if nil != schemaLone(gs, admitted) {
+		if nil != sc.lone(gs, admitted) {
 			sc.lose(path, "neq",
 				"the schema refuses every JSON spelling of an excluded number, and "+
 					"neq excludes only the leaves it names, so the model admits a "+
@@ -458,7 +521,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 	if c.uniq {
 		out["uniqueItems"] = true
-		if !uniqueExact(bag) {
+		if !sc.uniqueExact(bag) {
 			sc.lose(path, "unique",
 				"uniqueItems compares numbers by value, so the schema refuses a list "+
 					"such as [1, 1.0], which unique() admits because vet reads the two "+
@@ -831,9 +894,25 @@ func schemaSkipMarked(sc *schemaCtx, path []string, bag, child Val) bool {
 	return false
 }
 
+// JSONSchemaOptions configures an export.
+type JSONSchemaOptions struct {
+	// At, when non-empty, names the subtree to export -- the same anchor
+	// vet --at takes.
+	At string
+	// ExactNumbers judges the export against vet --exact-numbers, which
+	// reads every number by its value, rather than against plain vet.
+	ExactNumbers bool
+}
+
 // JSONSchema exports a document as a JSON Schema. `at`, when non-empty,
 // names the subtree to export -- the same anchor vet --at takes.
 func (a *Aontu) JSONSchema(src, at string) SchemaReport {
+	return a.JSONSchemaWith(src, JSONSchemaOptions{At: at})
+}
+
+// JSONSchemaWith is JSONSchema with every option.
+func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport {
+	at := opts.At
 	empty := map[string]any{}
 
 	parsed, perr := a.parseEntry(src)
@@ -871,7 +950,7 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 		}
 	}
 
-	sc := &schemaCtx{lossy: []SchemaLoss{}}
+	sc := &schemaCtx{lossy: []SchemaLoss{}, exact: opts.ExactNumbers}
 	body := schemaFromVal(sc, anchor, node)
 
 	if nil != sc.failed {

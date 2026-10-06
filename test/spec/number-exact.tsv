@@ -1,0 +1,53 @@
+# THE EXACT READING (G12, docs/capability-review/g12-jsonschema-fidelity.md,
+# section 4): `--exact-numbers` reads every number by the value its text
+# spells, never through a double.
+#
+# Columns: name<TAB>canon-exact<TAB>src<TAB>expect
+#          name<TAB>vet<TAB>schema<TAB>data<TAB>expect
+#
+# EVERY EXPECTATION HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND
+# DIFFING.
+#
+# An integral value is an integer where that leaf holds it exactly and a
+# biginteger beyond, and any other value a bigdecimal, within the
+# bigdecimal's digit budget. Nothing is rounded and nothing is a float,
+# so `1.0`, `1` and `1e0` are one value, and a twenty-digit decimal keeps
+# its digits. A based or underscored literal reads by its value too.
+#
+# --- evaluation -------------------------------------------------------
+# A `canon-exact` row evaluates the whole document under the option, and
+# its canon must read back as itself.
+exact-point-spelling-is-an-integer	canon-exact	a: 1.0	{"a":1}
+exact-exponent-is-an-integer	canon-exact	a: 1e3	{"a":1000}
+exact-decimal-is-a-bigdecimal	canon-exact	a: 1.5	{"a":0d1.5}
+exact-twenty-digits-are-kept	canon-exact	a: 0.12345678901234567890	{"a":0d0.1234567890123456789}
+exact-beyond-binary64-is-a-biginteger	canon-exact	a: 12345678901234567890123	{"a":0d12345678901234567890123}
+exact-int64-max-beyond-binary64	canon-exact	a: 9223372036854775807	{"a":0d9223372036854775807}
+exact-pow53-plus-one	canon-exact	a: 9007199254740993	{"a":0d9007199254740993}
+exact-pow53	canon-exact	a: 9007199254740992	{"a":9007199254740992}
+exact-negative-zero-is-zero	canon-exact	a: -0.0	{"a":0}
+exact-negative-decimal	canon-exact	a: -2.50	{"a":-0d2.5}
+exact-hex-is-an-integer	canon-exact	a: 0x1F	{"a":31}
+exact-underscores	canon-exact	a: 1_000.5	{"a":0d1000.5}
+exact-arithmetic-by-value	canon-exact	a: 0.1 + 0.2	{"a":0d0.3}
+exact-integer-kind-meets-a-point-spelling	canon-exact	a: integer & 1.0	{"a":1}
+exact-0d-is-unchanged	canon-exact	a: 0d1.50	{"a":0d1.5}
+exact-list	canon-exact	a: [1.0, 2.5, 3]	{"a":[1,0d2.5,3]}
+#
+# --- vet --------------------------------------------------------------
+# `vet --exact-numbers` reads the DATA by value and the schema as
+# written, so a schema's own float literal refuses the data's decimal:
+# the option is for a schema written by value, as the importer writes
+# one. The `plain` rows are the same questions without the option.
+vet-exact-point-spelling-is-an-integer	vet	a: integer	{"a": 1.0}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}
+vet-plain-point-spelling-is-a-float	vet	a: integer	{"a": 1.0}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":3,"role":"data","row":1,"src":"1.0","value":"1.0"},{"col":4,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+vet-exact-exponent-meets-an-integer	vet	a: 100	{"a": 1e2}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}
+vet-exact-decimal-is-never-a-float	vet	a: float	{"a": 1.5}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":3,"role":"data","row":1,"src":"1.5","value":"0d1.5"},{"col":4,"file":"schema","len":5,"role":"schema","row":1,"src":"float","value":"float"}]}],"truncated":false,"verdict":"invalid","opts":{"exactNumbers":true}}
+vet-exact-decimal-meets-its-exact-literal	vet	a: 0d0.1	{"a": 0.1}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}
+vet-exact-beyond-binary64	vet	a: 0d12345678901234567890123	{"a": 12345678901234567890123}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}
+vet-exact-past-the-seventeenth-digit	vet	a: number & max(0d0.12345678901234567891)	{"a": 0.12345678901234567892}	{"findings":[{"actual":"0d0.12345678901234567892","class":"conflict","code":"constraint","expected":"max(0d0.12345678901234567891)","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":22,"role":"data","row":1,"src":"0.12345678901234567892","value":"0d0.12345678901234567892"},{"col":13,"file":"schema","len":3,"role":"schema","row":1,"src":"max","value":"max(0d0.12345678901234567891)"}]}],"truncated":false,"verdict":"invalid","opts":{"exactNumbers":true}}
+vet-plain-rounds-at-the-seventeenth-digit	vet	a: number & max(0d0.12345678901234567891)	{"a": 0.12345678901234567892}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-exact-negative-zero-is-zero	vet	a: 0	{"a": -0.0}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}
+vet-exact-beyond-the-budget	vet	a: number	{"a": 1e5000}	{"findings":[{"class":"conflict","code":"decimal_budget","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":6,"role":"data","row":1,"src":"1e5000","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"exactNumbers":true}}
+vet-exact-schema-is-read-as-written	vet	a: 1.5	{"a": 1.5}	{"findings":[{"class":"conflict","code":"scalar_kind","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":3,"role":"data","row":1,"src":"1.5","value":"0d1.5"},{"col":4,"file":"schema","len":3,"role":"schema","row":1,"src":"1.5","value":"1.5"}]}],"truncated":false,"verdict":"invalid","opts":{"exactNumbers":true}}
+vet-exact-integer-list	vet	a: [&: integer]	{"a": [1, 2.0, 3e0]}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"exactNumbers":true}}

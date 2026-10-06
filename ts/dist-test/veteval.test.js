@@ -90,8 +90,8 @@ function loadVetRows() {
 // Does the one document stand up: does it evaluate to a concrete
 // value? `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalAccepts(src) {
-    const aontu = new aontu_1.Aontu();
+function evalAccepts(src, exactNumbers) {
+    const aontu = new aontu_1.Aontu({ exactNumbers });
     const ctx = aontu.ctx({ collect: true });
     let out;
     try {
@@ -137,9 +137,23 @@ function sharesADeclaration(schema, data) {
     }
     return false;
 }
-function union(schema, data) {
+// Under exactNumbers evaluation reads the schema by value too, so a
+// schema whose literals read differently has no one-document spelling.
+function readsAlike(schema) {
+    const canon = (exactNumbers) => {
+        try {
+            return new aontu_1.Aontu({ exactNumbers }).parse(schema)?.canon;
+        }
+        catch {
+            return undefined;
+        }
+    };
+    return canon(false) === canon(true);
+}
+function union(schema, data, exactNumbers) {
     if (borrowsAName(schema) || borrowsAName(data) ||
-        sharesADeclaration(schema, data)) {
+        sharesADeclaration(schema, data) ||
+        (exactNumbers && !readsAlike(schema))) {
         return undefined;
     }
     if (statementForm(schema) && statementForm(data)) {
@@ -188,12 +202,13 @@ function wrap(src) {
         for (const row of rows) {
             const report = (0, vet_1.vet)(row.schema, row.data, { ...row.opts, schemaUrl: 'schema', dataUrl: 'data' });
             const vetAccepts = 'valid' === report.verdict;
-            const one = union(row.schema, row.data);
+            const exact = true === row.opts.exactNumbers;
+            const one = union(row.schema, row.data, exact);
             if (null == one) {
                 skipped++;
                 continue;
             }
-            const evalOk = evalAccepts(one);
+            const evalOk = evalAccepts(one, exact);
             if (vetAccepts !== evalOk) {
                 disagree.push(`${row.file}:${row.name}` +
                     ` vet=${report.verdict}` +

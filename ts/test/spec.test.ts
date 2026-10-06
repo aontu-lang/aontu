@@ -241,6 +241,14 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect)
     assertCanonConverges(row)
   }
+  else if ('canon-exact' === row.mode) {
+    // The whole document read by value, and its canon read back the same.
+    for (const src of [row.src, row.expect]) {
+      const ae = new Aontu({ exactNumbers: true })
+      Assert.strictEqual(ae.unify(src, undefined, makeVarsCtx(ae)).canon,
+        row.expect, `canon-exact mismatch: ${row.name}`)
+    }
+  }
   else if ('gen' === row.mode) {
     Assert.deepStrictEqual(
       a0.generate(row.src, undefined, ctx), JSON.parse(row.expect))

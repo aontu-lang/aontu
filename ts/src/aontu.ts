@@ -337,6 +337,7 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
     fs: ctx.fs,
     path: ctx.opts.path,
     manifest: ctx.manifest,
+    exactNumbers: ctx.opts.exactNumbers,
   }
   let val
 

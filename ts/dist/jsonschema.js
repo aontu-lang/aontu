@@ -8,6 +8,7 @@ const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
 const numcmp_1 = require("./val/numcmp");
+const numkind_1 = require("./val/numkind");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -28,13 +29,14 @@ const KIND_TYPE = {
     Number: 'number',
     Path: 'string',
 };
-const BOTH = ['integer', 'float'];
+const ALL = ['integer', 'float', 'biginteger', 'bigdecimal'];
+const PLAIN_READ = ['integer', 'float'];
 const KIND_LEAVES = {
     Integer: ['integer'],
     Float: ['float'],
-    BigInteger: [],
-    BigDecimal: [],
-    Number: BOTH,
+    BigInteger: ['biginteger'],
+    BigDecimal: ['bigdecimal'],
+    Number: ALL,
 };
 const KIND_LOSS = {
     Integer: 'the schema says "integer" and admits a JSON spelling such as ' +
@@ -46,22 +48,57 @@ const KIND_LOSS = {
     BigDecimal: 'the schema says "number" and admits every JSON number, ' +
         'which vet reads as an integer or a float, never as the bigdecimal leaf',
 };
+const EXACT_KIND_LOSS = {
+    Integer: 'the schema says "integer" and admits an integral JSON number ' +
+        'beyond the integer leaf, which vet --exact-numbers reads as a ' +
+        'biginteger and the integer leaf refuses',
+    Float: 'the schema says "number" and admits every JSON number, which vet ' +
+        '--exact-numbers reads by its value, never as a float',
+    BigInteger: 'the schema says "integer" and admits an integral JSON number ' +
+        'the integer leaf holds, which vet --exact-numbers reads as an integer ' +
+        'and the biginteger leaf refuses',
+    BigDecimal: 'the schema says "number" and admits an integral JSON number, ' +
+        'which vet --exact-numbers reads as an integer or a biginteger and the ' +
+        'bigdecimal leaf refuses',
+};
+const EXACT_LITERAL_REASON = 'the schema admits this value in every JSON spelling, ' +
+    'which vet reads as an integer or a float, never as the exact leaf; the ' +
+    'digits are written exactly';
 const LITERAL_LOSS = {
     integer: 'the schema admits the float spelling of this value, which vet ' +
         'reads as a float and the integer leaf refuses',
     float: 'the schema admits the integer spelling of this value, which vet ' +
         'reads as an integer and the float leaf refuses',
-    exact: 'the schema admits this value in every JSON spelling, which vet ' +
-        'reads as an integer or a float, never as the exact leaf; the digits ' +
-        'are written exactly',
+    biginteger: EXACT_LITERAL_REASON,
+    bigdecimal: EXACT_LITERAL_REASON,
+};
+// An integer literal is always a value the integer leaf holds, so under
+// the exact reading it is never lone.
+const EXACT_LITERAL_LOSS = {
+    integer: '',
+    float: 'the schema admits this value, which vet --exact-numbers reads by ' +
+        'its value, never as a float',
+    biginteger: 'the schema admits this value, which vet --exact-numbers reads ' +
+        'as an integer, and the biginteger leaf refuses it',
+    bigdecimal: 'the schema admits this integral value, which vet ' +
+        '--exact-numbers reads as an integer or a biginteger, and the ' +
+        'bigdecimal leaf refuses it',
 };
 function leafOf(v) {
     return true === v.isInteger ? 'integer' :
         true === v.isNumber ? 'float' :
-            true === v.isBigInteger || true === v.isBigDecimal ? 'exact' : undefined;
+            true === v.isBigInteger ? 'biginteger' :
+                true === v.isBigDecimal ? 'bigdecimal' : undefined;
 }
-function readings(v) {
-    return (0, numcmp_1.scaledIsIntegral)((0, numcmp_1.scaledOfNumeric)(v)) ? BOTH : ['float'];
+function readings(ctx, v) {
+    const s = (0, numcmp_1.scaledOfNumeric)(v);
+    if (!(0, numcmp_1.scaledIsIntegral)(s)) {
+        return ctx.exact ? ['bigdecimal'] : ['float'];
+    }
+    if (!ctx.exact) {
+        return PLAIN_READ;
+    }
+    return (0, numkind_1.isIntegerStorable)((0, numcmp_1.scaledFloor)(s)) ? ['integer'] : ['biginteger'];
 }
 function jsonOf(v) {
     return true === v.isBigInteger || true === v.isBigDecimal ?
@@ -90,19 +127,19 @@ function groups(members) {
 }
 // The first number with an admitted JSON spelling no member is written
 // in: there the schema and the model disagree.
-function lone(gs, admitted) {
-    return gs.find((g) => undefined !== leafOf(g.v) && readings(g.v)
+function lone(ctx, gs, admitted) {
+    return gs.find((g) => undefined !== leafOf(g.v) && readings(ctx, g.v)
         .some((r) => admitted.includes(r) && !g.leaves.includes(r)))?.v;
 }
 function loseLiterals(ctx, path, gs) {
-    const v = lone(gs, BOTH);
+    const v = lone(ctx, gs, ALL);
     if (undefined !== v) {
         const leaf = leafOf(v);
-        lose(ctx, path, leaf + ' literal', LITERAL_LOSS[leaf]);
+        lose(ctx, path, ('integer' === leaf || 'float' === leaf ? leaf : 'exact') + ' literal', (ctx.exact ? EXACT_LITERAL_LOSS : LITERAL_LOSS)[leaf]);
     }
 }
 function loseKind(ctx, path, kind) {
-    const reason = KIND_LOSS[kind?.name];
+    const reason = (ctx.exact ? EXACT_KIND_LOSS : KIND_LOSS)[kind?.name];
     if (undefined !== reason) {
         lose(ctx, path, kind.name.toLowerCase(), reason);
     }
@@ -177,7 +214,7 @@ function elementLeaves(e) {
         return KIND_LEAVES[e.peg?.name] ?? [];
     }
     if (true === e.isConstraint && null == e.count) {
-        return KIND_LEAVES[e.kind?.name] ?? ('string' === e.domain ? [] : BOTH);
+        return KIND_LEAVES[e.kind?.name] ?? ('string' === e.domain ? [] : ALL);
     }
     if (true === e.isEmptyConstraint) {
         return [];
@@ -192,9 +229,13 @@ function elementLeaves(e) {
 // unique() tells an integer from a float of the same value and
 // uniqueItems does not, so they agree only on a list that cannot hold
 // both.
-function uniqueExact(bag) {
+function uniqueExact(ctx, bag) {
     if (true !== bag?.isList) {
         return false;
+    }
+    // Read by value, JSON numbers equal in value are one aontu value.
+    if (ctx.exact) {
+        return true;
     }
     const spr = bag.spread?.cj;
     if (null == spr && true !== bag.closed) {
@@ -206,7 +247,7 @@ function uniqueExact(bag) {
         if (undefined === ls) {
             return false;
         }
-        ls.forEach((l) => leaves.add(l));
+        ls.filter((l) => PLAIN_READ.includes(l)).forEach((l) => leaves.add(l));
     }
     return leaves.size <= 1;
 }
@@ -231,7 +272,7 @@ function fromConstraint(ctx, path, c, bag) {
     if (0 < c.neqs.length) {
         const gs = groups(c.neqs);
         out.not = { enum: gs.map((g) => jsonOf(g.v)) };
-        if (undefined !== lone(gs, KIND_LEAVES[c.kind?.name] ?? BOTH)) {
+        if (undefined !== lone(ctx, gs, KIND_LEAVES[c.kind?.name] ?? ALL)) {
             lose(ctx, path, 'neq', 'the schema refuses every JSON spelling of an excluded number, and ' +
                 'neq excludes only the leaves it names, so the model admits a ' +
                 'spelling the schema refuses');
@@ -257,7 +298,7 @@ function fromConstraint(ctx, path, c, bag) {
     }
     if (c.uniq) {
         out.uniqueItems = true;
-        if (!uniqueExact(bag)) {
+        if (!uniqueExact(ctx, bag)) {
             lose(ctx, path, 'unique', 'uniqueItems compares numbers by value, so the schema refuses a list ' +
                 'such as [1, 1.0], which unique() admits because vet reads the two ' +
                 'as different leaves');
@@ -531,7 +572,7 @@ function jsonSchema(src, options) {
         node = found;
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
-    const ctx = { lossy: [] };
+    const ctx = { lossy: [], exact: true === opts.exactNumbers };
     const body = fromVal(ctx, anchor, node);
     if (null != ctx.failed) {
         const f = ctx.failed;

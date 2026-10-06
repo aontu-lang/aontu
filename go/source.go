@@ -302,6 +302,8 @@ type trustSink struct {
 	modCode  string
 	modMsg   string
 	textExt []string
+	// Every number literal is read by its value (Aontu.ExactNumbers).
+	exactNumbers bool
 }
 
 func trustSinkOf(ctx *jsonic.Context) *trustSink {

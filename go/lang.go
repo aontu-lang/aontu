@@ -779,7 +779,7 @@ func valDef(mk func(sp int) Val) *jsonic.ValueDef {
 
 // wrapLeaf converts a plain scalar leaf (number/string/bool) produced by
 // jsonic into the matching Val, recording the source byte offset.
-func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
+func wrapLeaf(r *jsonic.Rule, ctx *jsonic.Context) {
 	// Leave the @"path" argument of the multisource directive as a raw
 	// string so the directive can read it (it extracts the path itself,
 	// unlike the TS resolver which reads StringVal.peg).
@@ -792,8 +792,18 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		sp = r.O0.SI
 		src = r.O0.Src
 	}
+	exact := false
+	if s := trustSinkOf(ctx); nil != s {
+		exact = s.exactNumbers
+	}
 	switch n := r.Node.(type) {
 	case float64:
+		if exact {
+			nv := exactNumberVal(src, sp)
+			stampSrc(nv, r)
+			r.Node = nv
+			return
+		}
 		if math.IsInf(n, 0) || math.IsNaN(n) {
 			e := newNil("not_number")
 			e.site.sp = sp
@@ -814,8 +824,14 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 		// which is a not_number error nil. Match that — but only for
 		// unquoted text (a quoted "1e999" stays a string).
 		if r.ON > 0 && r.O0.Tin == jsonic.TinTX && n == src && overflowsFloat(src) {
-			e := newNil("not_number")
-			e.site.sp = sp
+			var e Val
+			if exact {
+				e = exactNumberVal(src, sp)
+			} else {
+				ne := newNil("not_number")
+				ne.site.sp = sp
+				e = ne
+			}
 			stampSrc(e, r)
 			r.Node = e
 			return
@@ -1153,6 +1169,46 @@ func exactDecimal(neg bool, intPart, frac, exp string) (*Decimal, string) {
 	}
 	// Normalised at construction (D4): one value, one rendering.
 	return newDecimal(coeff, int32(scale.Int64())), ""
+}
+
+var exactDecRe = regexp.MustCompile(
+	`^([0-9](?:_?[0-9])*)(?:\.((?:[0-9](?:_?[0-9])*)?))?(?:[eE]([-+]?[0-9](?:_?[0-9])*))?$`)
+var exactBasedRe = regexp.MustCompile(`^0[xXoObB][0-9a-fA-F](?:_?[0-9a-fA-F])*$`)
+
+// A number literal read by the value its text spells (ExactNumbers): an
+// integral value is an integer while that leaf stores it and a
+// biginteger beyond, and any other value a bigdecimal, under the
+// bigdecimal's budget.
+func exactNumberVal(src string, sp int) Val {
+	var n *big.Int
+	if exactBasedRe.MatchString(src) {
+		n, _ = new(big.Int).SetString(strings.ToLower(stripSeps(src)), 0)
+	} else {
+		m := exactDecRe.FindStringSubmatch(src)
+		d, why := exactDecimal(false, stripSeps(m[1]), stripSeps(m[2]), stripSeps(m[3]))
+		if "" != why {
+			nv := newNil(why)
+			nv.site.sp = sp
+			return nv
+		}
+		q, r := new(big.Int).QuoRem(d.coeff, pow10(int64(d.scale)), new(big.Int))
+		if 0 != r.Sign() {
+			v := newBigDecimal(d)
+			v.site.sp = sp
+			v.src = src
+			return v
+		}
+		n = q
+	}
+	var v *ScalarVal
+	if isIntegerStorable(n) {
+		v = newInteger(n.Int64())
+	} else {
+		v = newBigInteger(n)
+	}
+	v.site.sp = sp
+	v.src = src
+	return v
 }
 
 // exactNil builds the constructor for a located error nil — a refused

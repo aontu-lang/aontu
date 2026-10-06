@@ -141,6 +141,13 @@ const NO_SERVERS = {
         Assert.equal(r.code, 0);
         Assert.equal(r.out.trim(), '{"a":1|2}');
     });
+    (0, node_test_1.test)('cli-exact-numbers-reads-every-number-by-value', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-exact-'));
+        const file = Path.join(dir, 'n.aontu');
+        Fs.writeFileSync(file, 'x: 1.0\ny: 0.1 + 0.2\n');
+        const r = vetCapture(() => (0, cli_1.main)(['node', 'cli', '--exact-numbers', '-c', file]));
+        Assert.equal(r.out.trim(), '{"x":1,"y":0d0.3}');
+    });
     (0, node_test_1.test)('cli-error-exit-code', () => {
         const r = run([], 'a:1 a:2');
         Assert.equal(r.code, 1);
@@ -198,6 +205,11 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(r.out, /\$\.service\.port: no_scalar_unify \[conflict\]/);
         Assert.match(r.out, /data: .*data\.json:1:\d+ \("8080"\)/);
         Assert.match(r.out, /schema: .*schema\.aontu:1:\d+ \(integer\)/);
+    });
+    (0, node_test_1.test)('vet-exact-numbers-reads-the-data-by-value', () => {
+        const f = vetFiles('a: integer', '{"a": 1.0}');
+        vetCapture(() => Assert.equal((0, cli_1.runVet)([f.schema, f.data]), 1));
+        vetCapture(() => Assert.equal((0, cli_1.runVet)(['--exact-numbers', f.schema, f.data]), 0));
     });
     (0, node_test_1.test)('vet-reports-findings-that-never-reached-the-tree', () => {
         const f = vetFiles('service: close({ name: string, port: integer, replicas: integer })', 'service: { name: "auth", prot: 8080, replicas: "3" }');
@@ -723,6 +735,16 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // ABSENT, not empty, on a run that stood up: the graph had
         // findings, and nothing stopped the graph being looked at.
         Assert.equal('errors' in report, false);
+    });
+    (0, node_test_1.test)('jsonschema-exact-numbers-judges-against-the-exact-reading', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'));
+        const file = Path.join(dir, 'doc.aontu');
+        Fs.writeFileSync(file, 'a: 1\n');
+        const plain = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--strict', file]), 1));
+        Assert.match(plain.err, /integer literal/);
+        const exact = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--strict', '--exact-numbers', file]), 0));
+        Assert.equal(exact.err, '');
+        Assert.match(exact.out, /"const": 1/);
     });
     (0, node_test_1.test)('jsonschema-exports-the-model-and-names-what-it-cannot-carry', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-js-'));

@@ -110,6 +110,19 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("canon mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
 					}
 					assertCanonConverges(t, name, expect, vars)
+				case "canon-exact":
+					// The whole document read by value, and its canon read
+					// back the same.
+					for _, in := range []string{src, expect} {
+						v, err := (&Aontu{ExactNumbers: true}).UnifyVars(in, vars)
+						if err != nil {
+							t.Fatalf("unify error: %v\n src: %q", err, in)
+						}
+						if got := v.Canon(); got != expect {
+							t.Fatalf("canon-exact mismatch\n src:  %q\n want: %s\n got:  %s",
+								in, expect, got)
+						}
+					}
 				case "gen":
 					got, err := a.GenerateVars(src, vars)
 					if err != nil {
@@ -546,12 +559,13 @@ func TestSpec(t *testing.T) {
 					if err := dec.Decode(&golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					at := ""
+					opts := JSONSchemaOptions{}
 					if o, ok := golden["opts"].(map[string]any); ok {
-						at, _ = o["at"].(string)
+						opts.At, _ = o["at"].(string)
+						opts.ExactNumbers, _ = o["exactNumbers"].(bool)
 						delete(golden, "opts")
 					}
-					r := New().JSONSchema(src, at)
+					r := New().JSONSchemaWith(src, opts)
 					out := map[string]any{
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
 						"schema":  r.Schema,
@@ -827,6 +841,8 @@ func specVetOpts(t *testing.T, raw any) *VetOptions {
 			opts.Coverage, _ = v.(bool)
 		case "coverageAt":
 			opts.CoverageAt, _ = v.(string)
+		case "exactNumbers":
+			opts.ExactNumbers, _ = v.(bool)
 		default:
 			t.Fatalf("unknown vet opt %q", k)
 		}

@@ -24,7 +24,7 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
+| `mode`   | `canon`, `canon-exact`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
@@ -58,6 +58,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | mode    | assertion                                                       |
 |---------|-----------------------------------------------------------------|
 | `canon` | `unify(src)` then its canonical form must equal `expect`        |
+| `canon-exact` | `unify(src)` with every number read by its value (`exactNumbers`), then its canonical form must equal `expect`, and `expect` read the same way must canon as itself |
 | `gen`   | `generate(src)` must deep-equal `JSON.parse(expect)`            |
 | `gens`  | `generate(src)` serialised as compact JSON must equal `expect` **byte for byte** |
 | `err`   | `generate(src)` must raise an error whose message contains `expect` |
@@ -80,7 +81,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `graph` | the DERIVED GRAPH of `unify(src)` (the entity index and the edge set) must equal `expect` as JSON, and must be the same bytes again on a fresh engine |
 | `hcanon` | `unify(src)` then its HASH FORM (canon plus the `close()`/`type()`/`hide()` wrappers) must equal `expect`, and that text must round-trip through the engine unchanged |
 | `hash`  | `canonHash(unify(src))` must equal `expect`, the full `aon1-…` pin |
-| `jsonschema` | `jsonSchema(src, opts)` must produce the report `expect` describes: the translated `schema` as JSON Schema 2020-12, the `lossy` list of what the translation could not carry, the `verdict`, and `errors` when the document does not stand up; an `opts` key in `expect` (`at`) is the run's options |
+| `jsonschema` | `jsonSchema(src, opts)` must produce the report `expect` describes: the translated `schema` as JSON Schema 2020-12, the `lossy` list of what the translation could not carry, the `verdict`, and `errors` when the document does not stand up; an `opts` key in `expect` (`at`, `exactNumbers`) is the run's options |
 | `fmt`   | `format(src)`, the source in its agreed form, must equal `expect` **byte for byte**; `expect` must be a fixed point, `format(expect) == expect`; and where `src` evaluates, the canon-hash of `src` and of `expect` must agree, because formatting never changes the document |
 | `fmt-refuse` | `format(src)` must be refused: `expect` is the verdict and the finding codes, joined by a colon and commas (`error:format_check`), so that both ports refuse the same sources; nothing is written on a refusal |
 | `fmt-lint` | `format(src, {lint: true})` must format, and its style findings, one `line:col: rule: message` per finding joined by newlines and empty when there is none, must equal `expect` |
@@ -163,8 +164,8 @@ and the fifth is the report `vet(schema, data)` must produce. Both sides
 of that comparison are re-emitted through the same serialiser before
 comparing, so the golden may be written in any key order, and the run's
 options ride in the golden under a reserved `opts` key (`at`, `closed`,
-`partial`, `maxErrors`) rather than in a sixth column that most rows
-would leave empty.
+`partial`, `maxErrors`, `exactNumbers`) rather than in a sixth column
+that most rows would leave empty.
 
 In a `vet` row each finding's `message` is EXCLUDED from the golden. It
 is the one part of a report that is prose, and the `vet` mode pins codes

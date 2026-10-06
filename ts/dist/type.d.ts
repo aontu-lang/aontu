@@ -33,6 +33,7 @@ type AontuOptions = {
     err?: any[];
     explain?: any[];
     trust?: TrustOptions;
+    exactNumbers?: boolean;
     textExt?: string[];
     trustWarn?: (kind: 'escape' | 'pkg', path: string) => void;
     trustWarnRoot?: string;

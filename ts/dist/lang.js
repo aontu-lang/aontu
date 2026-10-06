@@ -94,6 +94,29 @@ function bigVal(res) {
         'bigdecimal' === lit.leaf ? new BigDecimalVal_1.BigDecimalVal({ peg: lit.dec, src }) :
             new NilVal_1.NilVal({ why: lit.code });
 }
+const EXACT_DEC_RE = /^([0-9](?:_?[0-9])*)(?:\.((?:[0-9](?:_?[0-9])*)?))?(?:[eE]([-+]?[0-9](?:_?[0-9])*))?$/;
+const EXACT_BASED_RE = /^0[xXoObB][0-9a-fA-F](?:_?[0-9a-fA-F])*$/;
+// A number literal read by the value its text spells (`exactNumbers`).
+function exactVal(src) {
+    let lit;
+    if (EXACT_BASED_RE.test(src)) {
+        lit = (0, Decimal_1.readExactNumber)(BigInt(src.replace(/_/g, '').toLowerCase()).toString(), '');
+    }
+    else {
+        const dec = EXACT_DEC_RE.exec(src);
+        lit = (0, Decimal_1.readExactNumber)(dec[1].replace(/_/g, ''), (dec[2] ?? '').replace(/_/g, ''), dec[3]?.replace(/_/g, ''));
+    }
+    if ('integer' === lit.leaf) {
+        return new IntegerVal_1.IntegerVal({ peg: Number(lit.int), src });
+    }
+    if ('biginteger' === lit.leaf) {
+        return new BigIntegerVal_1.BigIntegerVal({ peg: lit.int, src });
+    }
+    if ('bigdecimal' === lit.leaf) {
+        return new BigDecimalVal_1.BigDecimalVal({ peg: lit.dec, src });
+    }
+    return new NilVal_1.NilVal({ why: lit.code });
+}
 // Char codes of the literal's fixed opening, for the guard below.
 const CC_0 = 48;
 const CC_d = 100;
@@ -891,9 +914,12 @@ help isolate the syntax error.`,
                 valnode = addsite(new StringVal_1.StringVal({ peg: r.node }), r, ctx);
             }
             else if ('number' === valtype) {
+                if (true === ctx.meta.aontu?.exactNumbers) {
+                    valnode = addsite(exactVal(r.o0.src), r, ctx);
+                }
                 // An overflowing literal (1e999) lexes to Infinity; that is an
                 // error value, not a number (mirrors not_number in go/lang.go).
-                if (!Number.isFinite(r.node)) {
+                else if (!Number.isFinite(r.node)) {
                     valnode = addsite(new NilVal_1.NilVal({ why: 'not_number' }), r, ctx);
                 }
                 else if ((0, numkind_1.isLossyIntegerLiteral)(r.node, r.o0.src)) {
@@ -1928,6 +1954,7 @@ class Lang {
             // child-meta spread carries the same array to nested includes.
             aontu: {
                 manifest: opts?.manifest,
+                exactNumbers: opts?.exactNumbers ?? this.opts.exactNumbers,
             },
         };
         if (null != opts?.idcount) {

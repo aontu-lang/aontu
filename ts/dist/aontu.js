@@ -300,6 +300,7 @@ function runparse(src, lang, ctx) {
         fs: ctx.fs,
         path: ctx.opts.path,
         manifest: ctx.manifest,
+        exactNumbers: ctx.opts.exactNumbers,
     };
     let val;
     const tsrc = src.trim().replace(/^(\n\s*)+/, '');

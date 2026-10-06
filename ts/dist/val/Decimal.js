@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Decimal = exports.DECIMAL_SCALE_BUDGET = exports.DECIMAL_COEFFICIENT_BUDGET = exports.BIG_LITERAL_RE = void 0;
 exports.decimalOverBudget = decimalOverBudget;
 exports.readBigLiteral = readBigLiteral;
+exports.readExactNumber = readExactNumber;
+const numkind_1 = require("./numkind");
 const DECIMAL_COEFFICIENT_BUDGET = 4096;
 exports.DECIMAL_COEFFICIENT_BUDGET = DECIMAL_COEFFICIENT_BUDGET;
 const DECIMAL_SCALE_BUDGET = 4096;
@@ -148,5 +150,24 @@ function readBigLiteral(m) {
         leaf: 'bigdecimal',
         dec: new Decimal(BigInt(intd + (fracd ?? '')), scale),
     };
-} /* node:coverage ignore next 12 */
+}
+// `--exact-numbers`: a plain literal read by the VALUE its digits spell,
+// where readBigLiteral reads a `0d` literal by its spelling. An integral
+// value is an integer while that leaf stores it and a biginteger beyond;
+// any other value is a bigdecimal, under the bigdecimal's budget.
+function readExactNumber(intd, fracd, expd) {
+    const exp = undefined === expd ? 0 : Number(expd);
+    const scale = fracd.length - exp;
+    if (overBudget(intd.length + fracd.length, scale)) {
+        return { leaf: 'error', code: 'decimal_budget' };
+    }
+    const unscaled = BigInt(intd + fracd);
+    const p = pow10(scale < 0 ? 0 : scale);
+    if (0n !== unscaled % p) {
+        return { leaf: 'bigdecimal', dec: new Decimal(unscaled, scale) };
+    }
+    const int = scale < 0 ? unscaled * pow10(-scale) : unscaled / p;
+    return (0, numkind_1.isIntegerStorable)(int) ?
+        { leaf: 'integer', int } : { leaf: 'biginteger', int };
+} /* node:coverage ignore next 14 */
 //# sourceMappingURL=Decimal.js.map

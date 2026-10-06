@@ -102,6 +102,9 @@ type VetOptions struct {
 
 	SchemaPath string
 	DataPath   string
+
+	// ExactNumbers reads every number in the data by its value (G12).
+	ExactNumbers bool
 }
 
 func aontuForPathTrust(
@@ -453,6 +456,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		options.SchemaPath, options.Trust, options.TextExt)
 	dataA := aontuForPathTrust(
 		options.DataPath, options.Trust, options.TextExt)
+	dataA.ExactNumbers = options.ExactNumbers
 
 	// 1. The schema alone. If it does not stand up on its own, the data
 	//    is never blamed for it.

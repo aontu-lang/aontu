@@ -694,6 +694,15 @@ func (c *ConstraintVal) Unify(peer Val, ctx *Ctx) Val {
 	if pl, ok := peer.(*ListVal); ok {
 		return c.admitContainer(pl, nil, ctx, peer)
 	}
+	// A container kind meets a count, `unique()` or `must()` as a
+	// residual, decided when a container arrives.
+	switch peer.(type) {
+	case *MapKindVal, *ListKindVal:
+		if "" != c.domain {
+			return c.fail(ctx, peer)
+		}
+		return c.hold(peer)
+	}
 	//coverage:ignore-block no Val kind reaches this arm; see above
 	return c.fail(ctx, peer)
 }
@@ -1587,7 +1596,8 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 	out := []Val{}
 
 	for i, child := range children {
-		if child.markedType() || child.markedHide() {
+		// Inside `hide()` a member shares its container's mark, and counts.
+		if (child.markedType() && !bag.markedType()) || (child.markedHide() && !bag.markedHide()) {
 			continue
 		}
 

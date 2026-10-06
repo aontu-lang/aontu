@@ -55,3 +55,18 @@ super-list-kind-is-top	gens	y: super(list) & "s"	{"y":"s"}
 
 # --- Selection by kind: a disjunct of kinds picks by the value -------
 disjunct-of-kinds	gens	y: (map | list) & {a:1}	{"y":{"a":1}}
+
+# --- A kind meets a container constraint ----------------------------
+# A count, `unique()` or `must()` reads the container the kind admits,
+# so the meet is a residual in either order, decided when a container
+# arrives; a constraint with a scalar domain still refuses the kind.
+map-kind-meets-a-count-canon	canon	y: map & len(min(1))	{"y":map&len(integer&min(1))}
+map-kind-meets-a-count-either-order-canon	canon	y: len(min(1)) & map	{"y":map&len(integer&min(1))}
+map-kind-count-admits	gens	y: map & len(min(1))\ny: {a: 1}	{"y":{"a":1}}
+map-kind-count-refuses	errc	y: map & len(min(1))\ny: {}	constraint
+list-kind-meets-a-count-canon	canon	y: list & len(max(2))	{"y":list&len(integer&min(0)&max(2))}
+list-kind-count-refuses	errc	y: list & len(max(1))\ny: [1, 2]	constraint
+list-kind-meets-unique-canon	canon	y: list & unique()	{"y":list&unique()}
+list-kind-unique-refuses	errc	y: list & unique()\ny: [1, 1]	constraint
+map-kind-refuses-a-scalar-constraint	errc	y: map & min(1)	constraint
+map-kind-count-vet	vet	y: map & len(min(1))	{"y": {}}	{"findings":[{"actual":"{}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$.y","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{}"},{"col":10,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(1))"}]}],"truncated":false,"verdict":"invalid"}

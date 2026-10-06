@@ -13,7 +13,7 @@ import (
 	aontu "github.com/aontu-lang/aontu/go"
 )
 
-const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] <file> (try --help)"
+const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)"
 
 func runJsonSchema(argv []string, stdout, stderr io.Writer) int {
 	argv, trust, trustOK := takeTrust(argv, stderr)
@@ -24,6 +24,7 @@ func runJsonSchema(argv []string, stdout, stderr io.Writer) int {
 	format := "text"
 	at := ""
 	strict := false
+	exactNumbers := false
 
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
@@ -47,6 +48,8 @@ func runJsonSchema(argv []string, stdout, stderr io.Writer) int {
 			at = argv[i]
 		case "--strict" == arg:
 			strict = true
+		case "--exact-numbers" == arg:
+			exactNumbers = true
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema option "+arg+" (try --help)\n")
@@ -69,7 +72,8 @@ func runJsonSchema(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontuForFileTrust(files[0], trust).JSONSchema(string(src), at)
+	report := aontuForFileTrust(files[0], trust).JSONSchemaWith(string(src),
+		aontu.JSONSchemaOptions{At: at, ExactNumbers: exactNumbers})
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaJSON(report)+"\n")

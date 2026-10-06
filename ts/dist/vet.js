@@ -417,8 +417,8 @@ function vet(schemaSrc, dataSrc, opts) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const schemaOpts = null == options.schemaPath ?
         undefined : { path: options.schemaPath };
-    const dataOpts = null == options.dataPath ?
-        undefined : { path: options.dataPath };
+    const dataOpts = null == options.dataPath && true !== options.exactNumbers ?
+        undefined : { path: options.dataPath, exactNumbers: options.exactNumbers };
     // 1. The schema alone. If it does not stand up on its own, the data
     //    is never blamed for it.
     const schemaCtx = aontu.ctx({ collect: true });

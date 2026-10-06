@@ -682,6 +682,9 @@ class ConstraintVal extends FeatureVal {
     else if ((peer as any).isMap || (peer as any).isList) {
       out = this.admitContainer(peer, ctx)
     }
+    else if ((peer as any).isContainerKind) {
+      out = null != this.domain ? this.fail(ctx, peer) : this.hold(peer, ctx)
+    }
     /* node:coverage ignore next 12 */
     else {
       out = this.fail(ctx, peer)
@@ -735,9 +738,8 @@ class ConstraintVal extends FeatureVal {
     if (null == peer || (peer as any).isTop) {
       return again
     }
-    // No nil-peer arm: `unite` returns a nil operand before dispatching
-    // to any Val's unify (ts/src/unify.ts), so a nil never reaches here
-    // — and were one to, the conjunct below folds to it unchanged.
+    // No nil-peer arm: `unite` returns a nil operand before any Val's
+    // unify (ts/src/unify.ts), and the conjunct below would fold one.
     return new ConjunctVal({ peg: [again, peer] }, ctx)
   }
 
@@ -1632,7 +1634,8 @@ function emittedMembers(bag: any, ctx: AontuContext): any[] | undefined {
     const key = item[0]
     const child: any = item[1]
 
-    if (child.mark.type || child.mark.hide) {
+    // Inside `hide()` a member shares its container's mark, and counts.
+    if ((child.mark.type && !bag.mark.type) || (child.mark.hide && !bag.mark.hide)) {
       continue
     }
 

@@ -14,6 +14,7 @@ export type SchemaReport = {
 };
 export type SchemaOptions = {
     at?: string;
+    exactNumbers?: boolean;
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];

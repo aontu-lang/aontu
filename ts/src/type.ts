@@ -45,6 +45,7 @@ type AontuOptions = {
   err?: any[]
   explain?: any[]
   trust?: TrustOptions // Trust profile (G5, docs/trust.md)
+  exactNumbers?: boolean // Read every number literal by its value (G12)
 
   textExt?: string[]
 

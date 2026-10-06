@@ -215,6 +215,8 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// The source site travels with the clone (TS Val.clone copies
 		// site.row/col), so a ref-carried bag still frames at its brace.
 		out.site.sp = n.site.sp
+		out.site.url = n.site.url
+		out.site.src = n.site.src
 		out.closed = n.closed
 		out.opened = n.opened
 		out.optional = append([]string{}, n.optional...)
@@ -232,6 +234,8 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.dc = n.dc
 		out.path = overlayPath(path, n.path)
 		out.site.sp = n.site.sp
+		out.site.url = n.site.url
+		out.site.src = n.site.src
 		out.closed = n.closed
 		out.opened = n.opened
 		if n.spread != nil {

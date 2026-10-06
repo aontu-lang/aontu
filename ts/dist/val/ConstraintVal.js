@@ -518,6 +518,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         else if (peer.isMap || peer.isList) {
             out = this.admitContainer(peer, ctx);
         }
+        else if (peer.isContainerKind) {
+            out = null != this.domain ? this.fail(ctx, peer) : this.hold(peer, ctx);
+        }
         /* node:coverage ignore next 12 */
         else {
             out = this.fail(ctx, peer);
@@ -562,9 +565,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (null == peer || peer.isTop) {
             return again;
         }
-        // No nil-peer arm: `unite` returns a nil operand before dispatching
-        // to any Val's unify (ts/src/unify.ts), so a nil never reaches here
-        // — and were one to, the conjunct below folds to it unchanged.
+        // No nil-peer arm: `unite` returns a nil operand before any Val's
+        // unify (ts/src/unify.ts), and the conjunct below would fold one.
         return new ConjunctVal_1.ConjunctVal({ peg: [again, peer] }, ctx);
     }
     // Membership: the peer scalar passes every part of the residual, or
@@ -1336,7 +1338,8 @@ function emittedMembers(bag, ctx) {
     for (const item of entries) {
         const key = item[0];
         const child = item[1];
-        if (child.mark.type || child.mark.hide) {
+        // Inside `hide()` a member shares its container's mark, and counts.
+        if ((child.mark.type && !bag.mark.type) || (child.mark.hide && !bag.mark.hide)) {
             continue;
         }
         const optional = bag.optionalKeys.includes('' + key);

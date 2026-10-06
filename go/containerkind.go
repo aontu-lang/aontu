@@ -33,6 +33,9 @@ func (k *MapKindVal) Unify(peer Val, ctx *Ctx) Val {
 	if _, ok := peer.(*MapKindVal); ok {
 		return k
 	}
+	if _, ok := peer.(*ConstraintVal); ok {
+		return peer.Unify(k, ctx)
+	}
 	return makeNilErr(ctx, "map", k, peer)
 }
 
@@ -63,6 +66,9 @@ func (k *ListKindVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if _, ok := peer.(*ListKindVal); ok {
 		return k
+	}
+	if _, ok := peer.(*ConstraintVal); ok {
+		return peer.Unify(k, ctx)
 	}
 	return makeNilErr(ctx, "list", k, peer)
 }

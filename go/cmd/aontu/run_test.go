@@ -515,3 +515,15 @@ func TestVacuitySignals(t *testing.T) {
 		t.Errorf("a declaring document was called vacuous: %q", errs)
 	}
 }
+
+func TestRunExactNumbersReadsEveryNumberByValue(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "n.aontu")
+	if err := os.WriteFile(file, []byte("x: 1.0\ny: 0.1 + 0.2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errw bytes.Buffer
+	if code := run([]string{"--exact-numbers", "-c", file}, nil, &out, &errw, true); code != 0 ||
+		strings.TrimSpace(out.String()) != `{"x":1,"y":0d0.3}` {
+		t.Fatalf("exact: %d %q %q", code, out.String(), errw.String())
+	}
+}

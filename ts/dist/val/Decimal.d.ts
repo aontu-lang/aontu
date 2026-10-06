@@ -30,4 +30,18 @@ type BigLiteral = {
     code: string;
 };
 declare function readBigLiteral(m: RegExpExecArray | (string | undefined)[]): BigLiteral;
-export { BIG_LITERAL_RE, BigLiteral, DECIMAL_COEFFICIENT_BUDGET, DECIMAL_SCALE_BUDGET, Decimal, decimalOverBudget, readBigLiteral, };
+type ExactNumber = {
+    leaf: 'integer';
+    int: bigint;
+} | {
+    leaf: 'biginteger';
+    int: bigint;
+} | {
+    leaf: 'bigdecimal';
+    dec: Decimal;
+} | {
+    leaf: 'error';
+    code: string;
+};
+declare function readExactNumber(intd: string, fracd: string, expd?: string): ExactNumber;
+export { BIG_LITERAL_RE, BigLiteral, DECIMAL_COEFFICIENT_BUDGET, DECIMAL_SCALE_BUDGET, Decimal, decimalOverBudget, ExactNumber, readBigLiteral, readExactNumber, };

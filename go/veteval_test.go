@@ -14,6 +14,7 @@ import (
 
 type vetEvalRow struct {
 	file, name, schema, data string
+	exact                    bool
 }
 
 func loadVetEvalRows(t *testing.T) []vetEvalRow {
@@ -47,6 +48,7 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 					Closed    bool   `json:"closed"`
 					Partial   bool   `json:"partial"`
 					MaxErrors *int   `json:"maxErrors"`
+					Exact     bool   `json:"exactNumbers"`
 				} `json:"opts"`
 			}
 			if err := json.Unmarshal(
@@ -66,8 +68,8 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 				strings.Contains(data, "__FIXTURES__") {
 				continue
 			}
-			rows = append(rows,
-				vetEvalRow{file: e.Name(), name: parts[0], schema: schema, data: data})
+			rows = append(rows, vetEvalRow{file: e.Name(), name: parts[0],
+				schema: schema, data: data, exact: o.Exact})
 		}
 	}
 	return rows
@@ -92,8 +94,21 @@ func vetEvalSharesDecl(schema, data string) bool {
 	return false
 }
 
-func vetEvalUnion(schema, data string) string {
-	if vetEvalSharesDecl(schema, data) {
+// Under exactNumbers evaluation reads the schema by value too, so a
+// schema whose literals read differently has no one-document spelling.
+func vetEvalReadsAlike(schema string) bool {
+	canon := func(exact bool) string {
+		v, err := (&Aontu{ExactNumbers: exact}).Parse(schema)
+		if nil != err {
+			return ""
+		}
+		return v.Canon()
+	}
+	return canon(false) == canon(true)
+}
+
+func vetEvalUnion(schema, data string, exact bool) string {
+	if vetEvalSharesDecl(schema, data) || (exact && !vetEvalReadsAlike(schema)) {
 		return ""
 	}
 	if vetEvalStatements(schema) && vetEvalStatements(data) {
@@ -144,16 +159,16 @@ func TestVetEqualsEval(t *testing.T) {
 	disagree := []string{}
 	skipped := 0
 	for _, row := range rows {
-		report := Vet(row.schema, row.data,
-			&VetOptions{SchemaURL: "schema", DataURL: "data"})
+		report := Vet(row.schema, row.data, &VetOptions{SchemaURL: "schema",
+			DataURL: "data", ExactNumbers: row.exact})
 		vetAccepts := VetValid == report.Verdict
 
-		one := vetEvalUnion(row.schema, row.data)
+		one := vetEvalUnion(row.schema, row.data, row.exact)
 		if "" == one {
 			skipped++
 			continue
 		}
-		out, err := New().Generate(one)
+		out, err := (&Aontu{ExactNumbers: row.exact}).Generate(one)
 		evalOK := nil == err && nil != out
 
 		if vetAccepts != evalOK {
