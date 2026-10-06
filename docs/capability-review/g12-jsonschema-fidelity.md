@@ -932,6 +932,35 @@ exercises is also pinned by shared rows in a new `jsonschema-import`
 mode, or the phase that claims it is partial by the register's
 definition.
 
+**The vendored corpora.** The official suite is one of several public
+corpora whose licences allow vendoring beside MIT code, each read from
+its upstream on 2026-10-06. Every corpus lives in its own directory
+under `test/vectors/`, carries its upstream LICENSE unchanged, and its
+NOTICE where the licence is Apache-2.0, and has a README naming the
+upstream URL and the pinned commit. A generator turns each corpus into
+`jsonschema-vet` cases at test time, so one runner path serves them
+all in both ports, and each corpus has its own skip ledger under the
+rule above. The vendored files keep their own licences beside the
+project's MIT; nothing under AGPL, which is what the Sourcemeta
+tooling and benchmark carry, is vendored.
+
+| Corpus | Licence | What it holds | Phase |
+|---|---|---|---|
+| JSON-Schema-Test-Suite | MIT | `tests/` for draft-03 to 2020-12 as `{schema, instance, valid}` triples, `optional/` with the 21 `format` files, `remotes/`, `output-tests/` and `annotations/` | 3; `annotations/` from 9; `optional/format/` from 13; `output-tests/` from 17 |
+| json-schema-spec meta-schemas | BSD-3-Clause, offered beside AFL-3.0; BSD is taken | the 2020-12 meta-schema and its vocabulary schemas | 16 |
+| Ajv `spec/extras` | MIT | further triples in the suite's shape | 3 |
+| JSONTestSuite | MIT | RFC 8259 parser cases: accept, reject and implementation-defined | 3, for the instance reader under `--exact-numbers` |
+| isemail `tests.xml` | BSD-3-Clause | an email-address corpus with per-address diagnostics | 13 |
+| uritemplate-test | Apache-2.0 | the RFC 6570 examples, extended and negative cases | 13 |
+| Unicode `IdnaTestV2.txt` | Unicode License V3 | UTS #46 conformance vectors, which cover the mapping and validity tables and not IDNA2008's contextual rules | 13 |
+| test262 `built-ins/RegExp/property-escapes` | Ecma's BSD-style licence | generated tests for every `\p{…}` property and its complement | 14 |
+| `rust-lang/regex` test data; RE2 and Go `regexp` test data | MIT or Apache-2.0; BSD-3-Clause | pattern, haystack and match-span cases | 14 |
+| SchemaStore | Apache-2.0 | real-world schemas with positive instances under `src/test/` and negative under `src/negative_test/`; a pinned subset named in the README, never the store | 18, and the timing record |
+
+Bowtie (MIT) is not vendored: its published reports say what each
+real validator answers on every suite test, which is the reference
+when a triple's `valid`, the two engines and this design disagree.
+
 ### 17. What lands, in one table
 
 | Kind | Items |
@@ -941,6 +970,7 @@ definition.
 | New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
 | New shared modes | `jsonschema-import`, `jsonschema-upgrade` |
+| Vendored corpora | the official suite, the meta-schemas, Ajv's extras, JSONTestSuite, isemail, uritemplate-test, `IdnaTestV2.txt`, the test262 property escapes, the regex test data and a SchemaStore subset, each under its own licence (section 16) |
 | New ADRs | required wins in the meet; the admission trial and Band B checks; the annotation rider's union meet; the importer owns JSON Schema's meaning; `must` on the admission trial |
 | Existing defects fixed first | [#295](https://github.com/aontu-lang/aontu/issues/295), [#296](https://github.com/aontu-lang/aontu/issues/296), [#297](https://github.com/aontu-lang/aontu/issues/297), [#298](https://github.com/aontu-lang/aontu/issues/298), [#299](https://github.com/aontu-lang/aontu/issues/299), [#300](https://github.com/aontu-lang/aontu/issues/300), [#301](https://github.com/aontu-lang/aontu/issues/301), [#302](https://github.com/aontu-lang/aontu/issues/302), [#310](https://github.com/aontu-lang/aontu/issues/310) |
 
@@ -1047,8 +1077,9 @@ the index guard; the counts and bounds; `minLength` and `maxLength`;
 and `$anchor` as aliases, with `jsonschema_duplicate` for a repeated
 anchor.
 The `jsonschema-import` mode in both runners and `docs/shared-spec.md`;
-the vendored suite, both runners and `skips.tsv`, which lists
-everything later phases carry.
+the vendored suite, with Ajv's extras and JSONTestSuite beside it
+under `test/vectors/` as section 16 vendors them, both runners and
+`skips.tsv`, which lists everything later phases carry.
 
 **Phase 4: the exporter's carriers (M).** The exporter reads a residual
 template by its structure: a conjunct of a kind and constraint atoms
@@ -1088,7 +1119,8 @@ its matched-index record, and `uniqueItems` over JSON equality.
 its ADR; `deprecate()`'s record moved to the same meet; every
 annotation keyword, unknown keywords under `x`, the content keywords,
 `format` in annotation mode, `x-aontu-deprecate`, the `default` policy
-and its option, and the LSP hover in both servers.
+and its option, the LSP hover in both servers, and the suite's
+`annotations/` directory in the harness.
 
 **Phase 10: resources and identity (M).** The RFC 3986 resolver and its
 shared corpus; the resource table; the declaration-only identity
@@ -1110,11 +1142,14 @@ with its ADR.
 **Phase 13: format assertion (L).** `format(name)` and
 `format_unknown`; the ABNF texts; the date, time, IP, UUID and hostname
 twins; IDNA2008 over a generated, committed Unicode table asserted
-byte-identical in both ports; `optional/format/` in the harness.
+byte-identical in both ports; `optional/format/` in the harness, with
+the isemail, uritemplate-test and `IdnaTestV2.txt` corpora vendored
+beside it.
 
 **Phase 14: the owned regex matcher (L).** An ECMA-262 `u`-mode parser
 and a Pike VM in both ports, Unicode property tables, the regenerated
-regex corpus (ADR-003 rule 6), and `pattern` stage three. ADR-003's
+regex corpus (ADR-003 rule 6), the test262 property-escape tests and
+the regex test data vendored, and `pattern` stage three. ADR-003's
 recorded direction becomes a decision.
 
 **Phase 15: legacy dialects (M).** The dialect table's legacy entries,
@@ -1134,8 +1169,10 @@ fields; the suite's `output-tests/` in the harness.
 
 **Phase 18: the round-trip gate (S).** The harness requires
 `import(export(import(S)))` to be canon-equal to `import(S)` and
-`subsume` to hold both ways for every schema it imports, and the skip
-ledger holds only the boundary's cases.
+`subsume` to hold both ways for every schema it imports, the suite and
+a pinned SchemaStore subset alike, with each port's timing over the
+subset recorded in the register, and the skip ledger holds only the
+boundary's cases.
 
 Phases 1 and 2 have no dependencies and may land in either order, and
 phase 3 needs both. Every later phase needs phase 3, and these orderings
