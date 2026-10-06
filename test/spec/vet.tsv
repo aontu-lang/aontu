@@ -457,16 +457,20 @@ vet-optional-nil-supplied-is-invalid	vet	a: {k?: nil}	a: {k: 1}	{"findings":[{"c
 # instance: the verdict is vet's, and a member the generated value has
 # that the data does not carry is `vet_filled`, class `incomplete`, at
 # the schema site that wrote it. A literal, a preferred default, a
-# concrete optional, a template's key and a position past the data's
-# list are each a fill; an absent optional with no value of its own is
-# not, and a conflict is reported as plain vet reports it.
+# template's key and a position past the data's list are each a fill.
+# An optional member the data does not carry is not, whatever it holds,
+# since the admission trial removes it before comparing; one the data
+# does carry is checked member by member. A conflict is reported as
+# plain vet reports it.
 vet-plain-fills-a-literal	vet	x: 1	{}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-no-fill-refuses-a-filled-literal	vet	x: 1	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.x","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
 vet-no-fill-admits-a-carried-literal	vet	x: 1	{"x": 1}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
 vet-no-fill-refuses-a-filled-default	vet	tier: *"internal" | string	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.tier","severity":"error","sites":[{"col":7,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*\\"internal\\"|string"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
 vet-no-fill-admits-a-chosen-alternative	vet	tier: *"internal" | string	{"tier": "critical"}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
 vet-no-fill-leaves-an-absent-optional	vet	port?: number	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
-vet-no-fill-refuses-a-filled-optional-value	vet	port?: 8080	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.port","severity":"error","sites":[{"col":8,"file":"schema","len":4,"role":"schema","row":1,"src":"8080","value":"8080"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-leaves-an-absent-optional-value	vet	port?: 8080	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
+vet-no-fill-leaves-an-absent-optional-map	vet	a?: {b: 1}	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
+vet-no-fill-fills-inside-a-supplied-optional	vet	a?: {b: 1}	{"a": {}}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a.b","severity":"error","sites":[{"col":9,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
 vet-no-fill-names-the-nested-member	vet	a: {b: 1, c?: string}	{"a": {}}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a.b","severity":"error","sites":[{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
 vet-no-fill-names-the-whole-map	vet	a: {b: 1}	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"b\\":1}"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
 vet-no-fill-refuses-a-longer-list	vet	l: [1, 2]	{"l": [1]}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.l.1","severity":"error","sites":[{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"2","value":"2"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
@@ -480,3 +484,9 @@ vet-no-fill-refuses-a-kind-the-schema-settles	vet	a: *1 | integer	{"a": integer}
 # carries is not a fill however the schema sizes it.
 vet-no-fill-admits-a-counted-list	vet	l: [&: integer] & len(max(3))	{"l": [1]}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
 vet-no-fill-refuses-a-counted-list-too-long	vet	l: [&: integer] & len(max(1))	{"l": [1, 2]}	{"findings":[{"actual":"[1,2]","class":"conflict","code":"constraint","expected":"len(integer&min(0)&max(1))","path":"$.l","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[1,2]"},{"col":19,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(0)&max(1))"}]}],"truncated":false,"verdict":"invalid","opts":{"noFill":true}}
+#
+# A key spelled like a JavaScript object property is a key like any
+# other, `__proto__` included: TypeScript keeps it an own member.
+vet-a-proto-key-is-a-key	vet	schema: hide({"__proto__"?: number})	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+vet-a-proto-key-is-checked	vet	schema: hide({"__proto__"?: number})	{"__proto__": "x"}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.schema.__proto__","severity":"error","sites":[{"col":15,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":29,"file":"schema","len":6,"role":"schema","row":1,"src":"number","value":"number"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}
+vet-a-proto-key-is-admitted	vet	schema: hide({"__proto__"?: number})	{"__proto__": 1}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}

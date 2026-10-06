@@ -87,6 +87,41 @@ function evalValue(src: string, opts: any): string | undefined {
 }
 
 
+// What the one document generates less each optional member the data's
+// own value lacks, which the admission trial removes before comparing.
+function unfilled(src: string, opts: any, alone: string): string | undefined {
+  const ctx: any = new Aontu(opts).ctx({ collect: true })
+  let met: any
+  let out: any
+  try {
+    met = new Aontu(opts).unify(src, undefined, ctx)
+    out = new Aontu(opts).generate(src)
+  }
+  catch {
+    return undefined
+  }
+  const prune = (g: any, u: any, d: any): any => {
+    if (true === u?.isMap && null != d && 'object' === typeof d &&
+      !Array.isArray(d)) {
+      for (const k of Object.keys(g)) {
+        if (Object.prototype.hasOwnProperty.call(d, k)) {
+          g[k] = prune(g[k], u.peg[k], d[k])
+        }
+        else if (u.optionalKeys.includes(k)) {
+          delete g[k]
+        }
+      }
+    }
+    else if (true === u?.isList && Array.isArray(d)) {
+      g = g.map((x: any, i: number) =>
+        i < d.length ? prune(x, u.peg[i], d[i]) : x)
+    }
+    return g
+  }
+  return exactJSON(sortKeys(prune(out, met, JSON.parse(alone))))
+}
+
+
 function sortKeys(v: any): any {
   return Array.isArray(v) ? v.map(sortKeys) :
     null != v && Object === v.constructor ?
@@ -223,11 +258,13 @@ describe('vet-equals-eval', () => {
         skipped++
         continue
       }
-      // Under --no-fill the one document generates the data's own value.
+      // Under --no-fill the one document generates the data's own value,
+      // less the optional members the data does not carry.
       const opts = { exactNumbers: exact, trust: row.opts.trust }
       const got = evalValue(both.one, opts)
+      const alone = evalValue(both.alone, opts)
       const evalOk = undefined !== got && (true !== row.opts.noFill ||
-        got === evalValue(both.alone, opts))
+        (undefined !== alone && unfilled(both.one, opts, alone) === alone))
 
       if (vetAccepts !== evalOk) {
         disagree.push(

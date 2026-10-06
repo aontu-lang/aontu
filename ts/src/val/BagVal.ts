@@ -148,8 +148,14 @@ abstract class BagVal extends FeatureVal {
       // Lists append compactly: a skipped element (hidden, dropped
       // optional) must not leave a hole/null at its index (matches the
       // Go port, which also drops skipped elements).
+      // A key named `__proto__` is an own member, not the prototype.
       const put = (v: any) => {
-        if (this.isMap) {
+        if (this.isMap && '__proto__' === p) {
+          Object.defineProperty(out, p, {
+            value: v, enumerable: true, writable: true, configurable: true,
+          })
+        }
+        else if (this.isMap) {
           out[p] = v
         }
         else {

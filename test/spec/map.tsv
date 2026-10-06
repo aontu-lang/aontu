@@ -35,3 +35,9 @@ astral-key-order-around-surrogates	gens	x:{"퟿":1,"":2,"𐀀":3}	{"x":{"퟿"
 astral-key-order-replacement-char	gens	x:{"�":1,"💩":2}	{"x":{"�":1,"💩":2}}
 astral-key-order-ascii-first	gens	x:{"😀":1,"a":2,"Ａ":3}	{"x":{"a":2,"Ａ":3,"😀":1}}
 astral-key-order-nested	gens	x:{"😀":{"😀":1,"":2},"":3}	{"x":{"":3,"😀":{"":2,"😀":1}}}
+#
+# A key spelled like a JavaScript object property is a key like any
+# other, `__proto__` included: it generates, meets and orders as one.
+map-a-proto-key-generates	gens	a: {"__proto__": 1}	{"a":{"__proto__":1}}
+map-a-proto-key-meets	gens	a: {"__proto__": number} & {"__proto__": 1}	{"a":{"__proto__":1}}
+map-object-property-names-are-keys	gens	a: {"constructor": 1, "toString": 2, "hasOwnProperty": 3}	{"a":{"constructor":1,"hasOwnProperty":3,"toString":2}}

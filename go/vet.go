@@ -267,8 +267,8 @@ func filledFinding(v Val, path []string, prov vetProv,
 }
 
 // filledAt walks what generated (g) over the met value (u) and the
-// data's own (d), reporting each position the data does not supply. The
-// walk carries the path: a template's member holds its template's.
+// data's own (d), reporting each position the data lacks but an optional
+// key. The walk carries the path: a template's member holds its template's.
 func filledAt(g any, met, own Val, path []string, prov vetProv,
 	sources vetSources, out *[]VetFinding) {
 	u, d := throughResidue(met), throughResidue(own)
@@ -284,7 +284,7 @@ func filledAt(g any, met, own Val, path []string, prov vetProv,
 				at := append(cp(path), k)
 				if dk, has := dv.peg[k]; has {
 					filledAt(gk, uv.peg[k], dk, at, prov, sources, out)
-				} else {
+				} else if !uv.isOptional(k) {
 					*out = append(*out,
 						filledFinding(uv.peg[k], at, prov, sources))
 				}

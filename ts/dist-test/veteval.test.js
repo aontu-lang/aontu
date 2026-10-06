@@ -103,6 +103,38 @@ function evalValue(src, opts) {
     return 0 === ctx.err.length && undefined !== out ?
         (0, aontu_1.exactJSON)(sortKeys(out)) : undefined;
 }
+// What the one document generates less each optional member the data's
+// own value lacks, which the admission trial removes before comparing.
+function unfilled(src, opts, alone) {
+    const ctx = new aontu_1.Aontu(opts).ctx({ collect: true });
+    let met;
+    let out;
+    try {
+        met = new aontu_1.Aontu(opts).unify(src, undefined, ctx);
+        out = new aontu_1.Aontu(opts).generate(src);
+    }
+    catch {
+        return undefined;
+    }
+    const prune = (g, u, d) => {
+        if (true === u?.isMap && null != d && 'object' === typeof d &&
+            !Array.isArray(d)) {
+            for (const k of Object.keys(g)) {
+                if (Object.prototype.hasOwnProperty.call(d, k)) {
+                    g[k] = prune(g[k], u.peg[k], d[k]);
+                }
+                else if (u.optionalKeys.includes(k)) {
+                    delete g[k];
+                }
+            }
+        }
+        else if (true === u?.isList && Array.isArray(d)) {
+            g = g.map((x, i) => i < d.length ? prune(x, u.peg[i], d[i]) : x);
+        }
+        return g;
+    };
+    return (0, aontu_1.exactJSON)(sortKeys(prune(out, met, JSON.parse(alone))));
+}
 function sortKeys(v) {
     return Array.isArray(v) ? v.map(sortKeys) :
         null != v && Object === v.constructor ?
@@ -215,11 +247,13 @@ function wrap(src) {
                 skipped++;
                 continue;
             }
-            // Under --no-fill the one document generates the data's own value.
+            // Under --no-fill the one document generates the data's own value,
+            // less the optional members the data does not carry.
             const opts = { exactNumbers: exact, trust: row.opts.trust };
             const got = evalValue(both.one, opts);
+            const alone = evalValue(both.alone, opts);
             const evalOk = undefined !== got && (true !== row.opts.noFill ||
-                got === evalValue(both.alone, opts));
+                (undefined !== alone && unfilled(both.one, opts, alone) === alone));
             if (vetAccepts !== evalOk) {
                 disagree.push(`${row.file}:${row.name}` +
                     ` vet=${report.verdict}` +

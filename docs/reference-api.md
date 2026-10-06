@@ -212,10 +212,11 @@ a schema's `x: 1` fills an absent `x`, and a preferred default fills
 its key. Under `--no-fill` the verdict is the same, and every member
 the evaluated value holds that the data does not carry is a
 `vet_filled` finding at the schema site that wrote it: a literal, a
-default, a concrete optional value, a template's key, or a list
-position past the data's own. Class `incomplete`, so the run answers
-`incomplete` and exits 3. An optional key with no value of its own is
-not a fill.
+default, a template's key, or a list position past the data's own.
+Class `incomplete`, so the run answers `incomplete` and exits 3. An
+optional key the data does not carry is not a fill, whatever value the
+schema gives it, so `port?: 8080` admits `{}`; inside an optional key
+the data does carry, each member is checked as any other.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as

@@ -349,7 +349,7 @@ function runparse(src: string, lang: Lang, ctx: AontuContext): Val {
   }
 
   if (undefined === val) {
-    val = new MapVal({ peg: {} })
+    val = new MapVal({ peg: Object.create(null) })
   }
 
   return val

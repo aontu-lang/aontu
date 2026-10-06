@@ -119,7 +119,7 @@ class CmpFuncVal extends FuncBaseVal_1.FuncBaseVal {
         const spec = args[0];
         let props;
         if (undefined === spec) {
-            props = new MapVal_1.MapVal({ peg: {} }, ctx);
+            props = new MapVal_1.MapVal({ peg: Object.create(null) }, ctx);
         }
         else if (true === spec?.isScalar && 'string' === typeof spec.peg) {
             if (undefined === def.text) {

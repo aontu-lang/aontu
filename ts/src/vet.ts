@@ -281,8 +281,8 @@ function filledFinding(v: any, path: string[], prov: Prov): VetFinding {
 
 
 // Walks what generated (`g`) over the met value (`u`) and the data's
-// own (`d`), reporting each position the data does not supply. The
-// walk carries the path: a template's member holds its template's.
+// own (`d`), reporting each position the data lacks but an optional key.
+// The walk carries the path: a template's member holds its template's.
 function filledAt(g: any, met: any, own: any, path: string[], prov: Prov,
   out: VetFinding[]): void {
   const u = throughResidue(met)
@@ -291,7 +291,9 @@ function filledAt(g: any, met: any, own: any, path: string[], prov: Prov,
     for (const key of Object.keys(g)) {
       const at = [...path, key]
       if (undefined === d.peg[key]) {
-        out.push(filledFinding(u.peg[key], at, prov))
+        if (!u.optionalKeys.includes(key)) {
+          out.push(filledFinding(u.peg[key], at, prov))
+        }
       }
       else {
         filledAt(g[key], u.peg[key], d.peg[key], at, prov, out)

@@ -152,7 +152,7 @@ class MapVal extends BagVal {
     let exit = false
 
     // NOTE: not a clone! needs to be constructed.
-    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: {} }, ctx))
+    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: Object.create(null) }, ctx))
 
     out.closed = this.closed
     out.opened = this.opened
@@ -407,7 +407,7 @@ class MapVal extends BagVal {
     }
 
     let out = (super.clone(ctx) as MapVal)
-    out.peg = {}
+    out.peg = Object.create(null)
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] = entry[1]
@@ -429,7 +429,7 @@ class MapVal extends BagVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as MapVal)
-    out.peg = {}
+    out.peg = Object.create(null)
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] =

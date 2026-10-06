@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### `vet --no-fill` leaves an absent optional key, and `__proto__` is a key
+
+Both ports unless marked. G12 phase 3.
+
+- `vet --no-fill` no longer reports an optional key the data does not
+  carry, whatever value the schema gives it: `port?: 8080` admits `{}`,
+  where it was `vet_filled`. A member the schema fills inside an
+  optional key the data does carry is still a finding. This is the
+  admission trial's own rule, which removes an absent optional member
+  before comparing, and an imported `properties` entry holding a
+  `const` or a one-member `enum` needs it.
+- TypeScript: a key named `__proto__` is a key like any other. It was
+  dropped from every generated value and from every copy of a map, so
+  `a: {"__proto__": 1}` generated `{"a": {}}` where Go kept the key,
+  and a schema naming it under `hide()` refused data as `internal`.
+- Eleven shared rows, every golden probed from both engines: five in
+  `vet.tsv`, three in `map.tsv` and three `jsonschema-import` rows, with
+  one `vet.tsv` row re-pinned. The vet-equals-eval differential removes
+  each absent optional member from what the one document generates
+  before comparing it with the data.
+
 ### `aontu jsonschema import`: a JSON Schema read into aontu source
 
 Both ports. G12 phase 3.
@@ -70,7 +91,8 @@ Both ports. G12 phase 3.
   `vet`'s, and each member the evaluated value holds that the data does
   not carry is a finding with the new code `vet_filled`, class
   `incomplete`, at the schema site that wrote it: `x: 1` fills an
-  absent `x` under plain `vet`, and is refused under `--no-fill`.
+  absent `x` under plain `vet`, and is refused under `--no-fill`. An
+  optional key the data does not carry is not a fill.
 - `match`, `filter` and `emit` decide by one admission trial, counted
   against a new `trials` budget (`trust.budget.trials` in TypeScript,
   `TrustBudget.Trials` in Go, default 1,000,000). A settled scalar tried

@@ -143,6 +143,48 @@ func vetEvalValue(row vetEvalRow, src string) string {
 	return string(raw)
 }
 
+// vetEvalUnfilled is what the one document generates less each optional
+// member the data's own value lacks, which the admission trial removes
+// before comparing.
+func vetEvalUnfilled(row vetEvalRow, one, alone string) string {
+	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(one)
+	met, merr := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Unify(one)
+	own, oerr := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(alone)
+	if nil != err || nil != merr || nil != oerr || nil == out {
+		return ""
+	}
+	raw, _ := json.Marshal(vetEvalPrune(out, met, own))
+	return string(raw)
+}
+
+func vetEvalPrune(g any, u Val, d any) any {
+	switch uv := u.(type) {
+	case *MapVal:
+		gm, gok := g.(map[string]any)
+		dm, dok := d.(map[string]any)
+		if gok && dok {
+			for k, gk := range gm {
+				if dk, has := dm[k]; has {
+					gm[k] = vetEvalPrune(gk, uv.peg[k], dk)
+				} else if uv.isOptional(k) {
+					delete(gm, k)
+				}
+			}
+		}
+	case *ListVal:
+		gl, gok := g.([]any)
+		dl, dok := d.([]any)
+		if gok && dok {
+			for i := range gl {
+				if i < len(dl) && i < len(uv.peg) {
+					gl[i] = vetEvalPrune(gl[i], uv.peg[i], dl[i])
+				}
+			}
+		}
+	}
+	return g
+}
+
 // vetEvalStatements reports whether the source is written as key
 // statements at the root, rather than as one literal.
 func vetEvalStatements(src string) bool {
@@ -192,9 +234,12 @@ func TestVetEqualsEval(t *testing.T) {
 			skipped++
 			continue
 		}
-		// Under --no-fill the one document generates the data's own value.
+		// Under --no-fill the one document generates the data's own value,
+		// less the optional members the data does not carry.
 		got := vetEvalValue(row, one)
-		evalOK := "" != got && (!row.noFill || got == vetEvalValue(row, alone))
+		own := vetEvalValue(row, alone)
+		evalOK := "" != got && (!row.noFill ||
+			("" != own && vetEvalUnfilled(row, one, alone) == own))
 
 		if vetAccepts != evalOK {
 			verb := "refuses"

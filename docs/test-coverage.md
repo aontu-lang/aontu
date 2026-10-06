@@ -134,7 +134,7 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5907 cases across 117 files**) is run by *both*
+`test/spec/*.tsv` (**5918 cases across 117 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
@@ -150,8 +150,8 @@ implementations and is the contract that defines shared behaviour
 | `types.tsv`                 | 166 | `constraint-must.tsv` | 34 |
 | `func.tsv`                  | 148 | `gen-pack.tsv` | 34 |
 | `jsonschema.tsv`            | 145 | `seal.tsv` | 34 |
-| `jsonschema-import.tsv`     | 136 | `template.tsv` | 34 |
-| `vet.tsv`                   | 135 | `constraint-cross.tsv` | 33 |
+| `vet.tsv`                   | 140 | `template.tsv` | 34 |
+| `jsonschema-import.tsv`     | 139 | `constraint-cross.tsv` | 33 |
 | `subsume.tsv`               | 123 | `gen-filter.tsv` | 29 |
 | `number-model.tsv`          | 120 | `gen-match.tsv` | 29 |
 | `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
@@ -160,10 +160,10 @@ implementations and is the contract that defines shared behaviour
 | `query.tsv`                 |  95 | `recursion.tsv` | 28 |
 | `cmp.tsv`                   |  93 | `var.tsv` | 28 |
 | `refer.tsv`                 |  87 | `engine-parity.tsv` | 23 |
-| `gen-emit.tsv`              |  86 | `constraint-alias.tsv` | 21 |
-| `maybe.tsv`                 |  78 | `deprecate.tsv` | 21 |
-| `pref.tsv`                  |  75 | `elision.tsv` | 21 |
-| `constraint-bound.tsv`      |  74 | `map.tsv` | 20 |
+| `gen-emit.tsv`              |  86 | `map.tsv` | 23 |
+| `maybe.tsv`                 |  78 | `constraint-alias.tsv` | 21 |
+| `pref.tsv`                  |  75 | `deprecate.tsv` | 21 |
+| `constraint-bound.tsv`      |  74 | `elision.tsv` | 21 |
 | `ref.tsv`                   |  74 | `reach.tsv` | 19 |
 | `file.tsv`                  |  71 | `list.tsv` | 18 |
 | `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |

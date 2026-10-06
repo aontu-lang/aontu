@@ -310,7 +310,7 @@ function runparse(src, lang, ctx) {
         val = lang.parse(src, popts);
     }
     if (undefined === val) {
-        val = new MapVal_1.MapVal({ peg: {} });
+        val = new MapVal_1.MapVal({ peg: Object.create(null) });
     }
     return val;
 }
