@@ -125,3 +125,16 @@ alias-budget-names-the-document	err	%a0 = 1\n%a1 = [%a0, %a0]\n%a2 = [%a1, %a1]\
 # ... and a ladder that fits is not refused, which is what keeps the
 # budget a bound rather than a ban on naming a name.
 alias-budget-under-the-cap	gens	%b0 = 1\n%b1 = [%b0, %b0]\n%b2 = [%b1, %b1]\n%b3 = [%b2, %b2]\n%b4 = [%b3, %b3]\n%b5 = [%b4, %b4]\nout: %b5	{"out":[[[[[1,1],[1,1]],[[1,1],[1,1]]],[[[1,1],[1,1]],[[1,1],[1,1]]]],[[[[1,1],[1,1]],[[1,1],[1,1]]],[[[1,1],[1,1]],[[1,1],[1,1]]]]]}
+#
+# trial_budget -- the admission trials an evaluation runs (the question
+# match, filter and emit ask) count against `trust.budget.trials`,
+# default 1000000. A settled scalar tried against a condition that reads
+# no position is decided once, so a repeat is free. Past the budget the
+# run refuses, schema side or data side, rather than answer from a
+# search it did not finish.
+vet-trials-filter-at-its-budget	vet	x: filter([1, "a", 2], integer)	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"trust":{"budget":{"trials":3}}}}
+vet-trials-filter-past-its-budget	vet	x: filter([1, "a", 2, true], integer)	{}	{"findings":[{"class":"budget","code":"trial_budget","path":"$","severity":"error","sites":[{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"error","opts":{"trust":{"budget":{"trials":2}}}}
+vet-trials-a-repeated-scalar-is-tried-once	vet	x: filter([1, 1, 1], integer)	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"trust":{"budget":{"trials":1}}}}
+vet-trials-match-past-its-budget	vet	x: match("b", "a", 1, "b", 2, 3)	{}	{"findings":[{"class":"budget","code":"trial_budget","path":"$","severity":"error","sites":[{"col":-1,"file":"schema","len":-1,"role":"schema","row":-1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"error","opts":{"trust":{"budget":{"trials":1}}}}
+vet-trials-match-at-its-budget	vet	x: match("b", "a", 1, "b", 2, 3)	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"trust":{"budget":{"trials":2}}}}
+vet-trials-data-past-its-budget	vet	x: [&: integer]	{"x": filter([1, 2], integer)}	{"findings":[{"class":"budget","code":"trial_budget","path":"$","severity":"error","sites":[{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"trust":{"budget":{"trials":1}}}}

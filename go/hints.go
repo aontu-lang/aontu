@@ -283,6 +283,12 @@ var hints = map[string]string{
 		"message, and where they supplied them, what to use instead and the\n" +
 		"version it was deprecated in. Nothing refuses: a deprecation is a\n" +
 		"warning and never changes a verdict.",
+	"vet_filled": "The schema supplies a member the data does not carry. vet --no-fill\n" +
+		"asks whether the data already IS an instance, so a value only the\n" +
+		"schema writes -- a literal, a preferred default, a template's key, a\n" +
+		"position past the data's list -- is refused at the site that wrote\n" +
+		"it. Supply the member in the data, or vet without --no-fill to let\n" +
+		"the schema fill it.",
 	"pref_not_instance": "The preferred value is not repeated among the remaining\n" +
 		"alternatives of its disjunction. Nothing is refused and the\n" +
 		"preference still holds -- the default stays admitted, and\n" +
@@ -336,6 +342,7 @@ var hints = map[string]string{
 	"mapval_spread_required":  "The value for key {key} is required (defined in spread).",
 	"listval_spread_required": "The value for key {key} is required (defined in spread).",
 
+	"trial_budget": "An evaluation runs at most {limit} admission trials: the question\nmatch, filter and emit ask, whether a value already satisfies a\ncondition. The budget was spent, so the evaluation stops rather\nthan answer from a search it did not finish. A settled scalar tried\nagainst the same condition again costs nothing; raise the budget\nwith trust.budget.trials where the document is trusted.",
 	"budget_passes": "The evaluation budget of {limit} fixpoint passes was spent before\nthe model converged; still refining: {paths}.\nThis is the evaluator giving up, not a contradiction in the model:\nraising the budget helps only a model that is still converging --\na genuine cycle never converges at any budget.",
 
 	// Go-only: TS never raises decimal_syntax.
@@ -368,6 +375,7 @@ var codeClasses = map[string]string{
 	"sub_default_indeterminate": "compat",
 	"deprecated":                "compat",
 	"pref_not_instance":         "compat",
+	"vet_filled":                "incomplete",
 	"pack_data": "parse",
 	"pack_key":  "parse",
 	"each_data": "parse",
@@ -556,6 +564,7 @@ var codeClasses = map[string]string{
 	"unify_cycle":   "budget",
 	"max_depth":     "budget",
 	"budget_passes": "budget",
+	"trial_budget": "budget",
 
 	// internal -- the engine reached a state it should not reach
 	"internal":     "internal",

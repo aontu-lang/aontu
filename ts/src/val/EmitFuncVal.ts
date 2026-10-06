@@ -17,7 +17,7 @@ import { cmpCodePoint } from '../keyorder'
 import { top } from './top'
 import { ListVal } from './ListVal'
 import { StringVal } from './StringVal'
-import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
+import { FuncBaseVal, admits } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import type { EmitOrigin } from './Val'
 import { boundArgStart, fillPlace, rebuild } from './PlaceVal'
@@ -464,8 +464,8 @@ class EmitFuncVal extends FuncBaseVal {
       // The trial is against CLONES: `unite` refines a bag in place
       // against a TOP peer, and a pattern that failed must be untouched
       // for the next node.
-      const met = trialUnify(ctx, node.clone(ctx), tmpl.match.clone(ctx))
-      if (undefined !== met && sameMembers(node, met, ctx)) {
+      if (admits(ctx, node, tmpl.match,
+        () => [node.clone(ctx), tmpl.match.clone(ctx)])) {
         return tmpl
       }
     }

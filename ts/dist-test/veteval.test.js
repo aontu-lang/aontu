@@ -87,20 +87,27 @@ function loadVetRows() {
     }
     return rows;
 }
-// Does the one document stand up: does it evaluate to a concrete
-// value? `collect` so a failure is recorded rather than thrown, which
+// What the one document generates, or undefined where it does not
+// stand up. `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalAccepts(src, exactNumbers) {
-    const aontu = new aontu_1.Aontu({ exactNumbers });
+function evalValue(src, opts) {
+    const aontu = new aontu_1.Aontu(opts);
     const ctx = aontu.ctx({ collect: true });
     let out;
     try {
         out = aontu.generate(src, undefined, ctx);
     }
     catch {
-        return false;
+        return undefined;
     }
-    return 0 === ctx.err.length && undefined !== out;
+    return 0 === ctx.err.length && undefined !== out ?
+        (0, aontu_1.exactJSON)(sortKeys(out)) : undefined;
+}
+function sortKeys(v) {
+    return Array.isArray(v) ? v.map(sortKeys) :
+        null != v && Object === v.constructor ?
+            Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) :
+            v;
 }
 // A document that USES a name it does not DECLARE has no single-document
 // spelling: concatenation would hand it the other document's declaration,
@@ -157,12 +164,12 @@ function union(schema, data, exactNumbers) {
         return undefined;
     }
     if (statementForm(schema) && statementForm(data)) {
-        return schema + '\n' + data + '\n';
+        return { one: schema + '\n' + data + '\n', alone: data };
     }
     if (schema.includes('$.') || data.includes('$.')) {
         return undefined;
     }
-    return wrap(schema) + '\n' + wrap(data) + '\n';
+    return { one: wrap(schema) + '\n' + wrap(data) + '\n', alone: wrap(data) };
 }
 // Written as key statements at the root, rather than as one literal.
 function statementForm(src) {
@@ -203,12 +210,16 @@ function wrap(src) {
             const report = (0, vet_1.vet)(row.schema, row.data, { ...row.opts, schemaUrl: 'schema', dataUrl: 'data' });
             const vetAccepts = 'valid' === report.verdict;
             const exact = true === row.opts.exactNumbers;
-            const one = union(row.schema, row.data, exact);
-            if (null == one) {
+            const both = union(row.schema, row.data, exact);
+            if (null == both) {
                 skipped++;
                 continue;
             }
-            const evalOk = evalAccepts(one, exact);
+            // Under --no-fill the one document generates the data's own value.
+            const opts = { exactNumbers: exact, trust: row.opts.trust };
+            const got = evalValue(both.one, opts);
+            const evalOk = undefined !== got && (true !== row.opts.noFill ||
+                got === evalValue(both.alone, opts));
             if (vetAccepts !== evalOk) {
                 disagree.push(`${row.file}:${row.name}` +
                     ` vet=${report.verdict}` +

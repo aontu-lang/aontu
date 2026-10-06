@@ -14,7 +14,8 @@ import (
 
 type vetEvalRow struct {
 	file, name, schema, data string
-	exact                    bool
+	exact, noFill            bool
+	trust                    *TrustOptions
 }
 
 func loadVetEvalRows(t *testing.T) []vetEvalRow {
@@ -49,6 +50,10 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 					Partial   bool   `json:"partial"`
 					MaxErrors *int   `json:"maxErrors"`
 					Exact     bool   `json:"exactNumbers"`
+					NoFill    bool   `json:"noFill"`
+					Trust     *struct {
+						Budget TrustBudget `json:"budget"`
+					} `json:"trust"`
 				} `json:"opts"`
 			}
 			if err := json.Unmarshal(
@@ -68,8 +73,12 @@ func loadVetEvalRows(t *testing.T) []vetEvalRow {
 				strings.Contains(data, "__FIXTURES__") {
 				continue
 			}
-			rows = append(rows, vetEvalRow{file: e.Name(), name: parts[0],
-				schema: schema, data: data, exact: o.Exact})
+			row := vetEvalRow{file: e.Name(), name: parts[0],
+				schema: schema, data: data, exact: o.Exact, noFill: o.NoFill}
+			if nil != o.Trust {
+				row.trust = &TrustOptions{Budget: o.Trust.Budget}
+			}
+			rows = append(rows, row)
 		}
 	}
 	return rows
@@ -107,17 +116,31 @@ func vetEvalReadsAlike(schema string) bool {
 	return canon(false) == canon(true)
 }
 
-func vetEvalUnion(schema, data string, exact bool) string {
+// vetEvalUnion is the one document, and the data alone in the same
+// spelling.
+func vetEvalUnion(schema, data string, exact bool) (string, string) {
 	if vetEvalSharesDecl(schema, data) || (exact && !vetEvalReadsAlike(schema)) {
-		return ""
+		return "", ""
 	}
 	if vetEvalStatements(schema) && vetEvalStatements(data) {
-		return schema + "\n" + data + "\n"
+		return schema + "\n" + data + "\n", data
 	}
 	if strings.Contains(schema, "$.") || strings.Contains(data, "$.") {
+		return "", ""
+	}
+	return vetEvalWrap(schema) + "\n" + vetEvalWrap(data) + "\n",
+		vetEvalWrap(data)
+}
+
+// vetEvalValue is what the one document generates, or "" where it does
+// not stand up.
+func vetEvalValue(row vetEvalRow, src string) string {
+	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(src)
+	if nil != err || nil == out {
 		return ""
 	}
-	return vetEvalWrap(schema) + "\n" + vetEvalWrap(data) + "\n"
+	raw, _ := json.Marshal(out)
+	return string(raw)
 }
 
 // vetEvalStatements reports whether the source is written as key
@@ -160,16 +183,18 @@ func TestVetEqualsEval(t *testing.T) {
 	skipped := 0
 	for _, row := range rows {
 		report := Vet(row.schema, row.data, &VetOptions{SchemaURL: "schema",
-			DataURL: "data", ExactNumbers: row.exact})
+			DataURL: "data", ExactNumbers: row.exact, NoFill: row.noFill,
+			Trust: row.trust})
 		vetAccepts := VetValid == report.Verdict
 
-		one := vetEvalUnion(row.schema, row.data, row.exact)
+		one, alone := vetEvalUnion(row.schema, row.data, row.exact)
 		if "" == one {
 			skipped++
 			continue
 		}
-		out, err := (&Aontu{ExactNumbers: row.exact}).Generate(one)
-		evalOK := nil == err && nil != out
+		// Under --no-fill the one document generates the data's own value.
+		got := vetEvalValue(row, one)
+		evalOK := "" != got && (!row.noFill || got == vetEvalValue(row, alone))
 
 		if vetAccepts != evalOK {
 			verb := "refuses"

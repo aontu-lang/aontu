@@ -99,6 +99,41 @@ function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
 }
 
 
+// A condition whose verdict over a settled scalar its canon decides: it
+// reads no position, so one trial answers every node that canons alike.
+function pureCond(c: any): boolean {
+  return true === c.isScalar || true === c.isScalarKind ||
+    (true === c.isConstraint && null == c.pending && 0 === c.musts.length) ||
+    (true === c.isDisjunct &&
+      c.peg.every((m: any) => true !== m.isPref && pureCond(m)))
+}
+
+
+// The admission trial (G12 design, section 3): does `node` already
+// satisfy `cond`? Each one run counts against the `trials` budget.
+function admits(ctx: AontuContext, node: Val, cond: Val,
+  pair: () => [Val, Val]): boolean {
+  const st = ctx._trials
+  const key = true === node.isScalar && pureCond(cond) ?
+    node.canon + '\u0000' + cond.canon : undefined
+  const known = undefined === key ? undefined : st.memo.get(key)
+  if (undefined !== known || st.over) {
+    return true === known
+  }
+  if (ctx.budget.trials < ++st.n) {
+    st.over = true
+    return false
+  }
+  const [a, b] = pair()
+  const met = trialUnify(ctx, a, b)
+  const ok = undefined !== met && sameMembers(node, met, ctx)
+  if (undefined !== key) {
+    st.memo.set(key, ok)
+  }
+  return ok
+}
+
+
 class FuncBaseVal extends FeatureVal {
   isFunc = true
 
@@ -365,6 +400,6 @@ class FuncBaseVal extends FeatureVal {
 
 export {
   trialUnify,
-  sameMembers,
+  admits,
   FuncBaseVal,
 }

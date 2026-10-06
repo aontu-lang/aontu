@@ -48,7 +48,9 @@ class AontuContext {
             revisits: 999,
             depth: budget.depth ?? 1000,
             alias: budget.alias ?? 1000000,
+            trials: budget.trials ?? 1000000,
         };
+        this._trials = { n: 0, over: false, memo: new Map() };
     }
     clone(cfg) {
         const ctx = Object.create(this);

@@ -483,3 +483,8 @@ constraint_kind	errcode	conflict	0.77.0
 string_empty	errcode	conflict	0.77.0
 empty_domain	errcode	conflict	0.77.0
 var_name	errcode	parse	0.77.0
+# G12 phase 3. `vet_filled` is class `incomplete`: the member the data
+# lacks may still be supplied. `trial_budget` is class `budget`, the
+# evaluator giving up, as `budget_passes` is.
+vet_filled	errcode	incomplete	0.77.0
+trial_budget	errcode	budget	0.77.0

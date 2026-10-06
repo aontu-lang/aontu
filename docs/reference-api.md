@@ -170,6 +170,7 @@ aontu vet [options] <schema> <data> [more-data...]
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
   --exact-numbers   Read every data number by its value
+  --no-fill         Refuse a member only the schema supplies
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check examined
   --strict-coverage --coverage, and exit 1 when the run was vacuous
@@ -203,6 +204,17 @@ twenty-digit decimal keeps its twenty digits; no data number is ever a
 answer for a schema that names floats: a `float` kind or a `1.5`
 literal refuses every data number under it, and an `integer` kind
 admits `1.0`.
+
+**`--no-fill` asks whether the data already is an instance.** Plain
+`vet` asks whether the data can be made consistent with the schema, so
+a schema's `x: 1` fills an absent `x`, and a preferred default fills
+its key. Under `--no-fill` the verdict is the same, and every member
+the evaluated value holds that the data does not carry is a
+`vet_filled` finding at the schema site that wrote it: a literal, a
+default, a concrete optional value, a template's key, or a list
+position past the data's own. Class `incomplete`, so the run answers
+`incomplete` and exits 3. An optional key with no value of its own is
+not a fill.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as

@@ -166,6 +166,7 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if over := aliasBudget(ctx, root); nil != over {
 		return over
 	}
+	ctx.trialRun()
 	res := root
 	// The pass budget: the spec constant unless the trust profile set
 	// one (ctx.budgetPasses, zero = default).
@@ -219,6 +220,13 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 		}
 		makeNilErrFull(ctx, "budget_passes", nil, nil, "resolve",
 			map[string]string{"limit": strconv.Itoa(maxcc), "paths": joined})
+	}
+	// A spent trial budget refuses the run: past it every trial said no.
+	if ctx.trials.over {
+		ctx.err = nil
+		res = makeNilErrFull(ctx, "trial_budget", nil, nil, "resolve",
+			map[string]string{"budget": "trials",
+				"limit": strconv.Itoa(ctx.trialLimit())})
 	}
 	// The settled tree's alias references canon as the values they name
 	// (go/alias.go): attached once, after the last pass, from the

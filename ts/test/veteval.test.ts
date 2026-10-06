@@ -6,7 +6,7 @@ import * as Assert from 'node:assert'
 import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
-import { Aontu } from '../dist/aontu'
+import { Aontu, exactJSON } from '../dist/aontu'
 import { vet } from '../dist/vet'
 
 
@@ -69,20 +69,29 @@ function loadVetRows(): VetRow[] {
 }
 
 
-// Does the one document stand up: does it evaluate to a concrete
-// value? `collect` so a failure is recorded rather than thrown, which
+// What the one document generates, or undefined where it does not
+// stand up. `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalAccepts(src: string, exactNumbers: boolean): boolean {
-  const aontu = new Aontu({ exactNumbers })
+function evalValue(src: string, opts: any): string | undefined {
+  const aontu = new Aontu(opts)
   const ctx: any = aontu.ctx({ collect: true })
   let out: any
   try {
     out = aontu.generate(src, undefined, ctx)
   }
   catch {
-    return false
+    return undefined
   }
-  return 0 === ctx.err.length && undefined !== out
+  return 0 === ctx.err.length && undefined !== out ?
+    exactJSON(sortKeys(out)) : undefined
+}
+
+
+function sortKeys(v: any): any {
+  return Array.isArray(v) ? v.map(sortKeys) :
+    null != v && Object === v.constructor ?
+      Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) :
+      v
 }
 
 
@@ -144,19 +153,19 @@ function readsAlike(schema: string): boolean {
 
 
 function union(schema: string, data: string, exactNumbers: boolean):
-  string | undefined {
+  { one: string, alone: string } | undefined {
   if (borrowsAName(schema) || borrowsAName(data) ||
     sharesADeclaration(schema, data) ||
     (exactNumbers && !readsAlike(schema))) {
     return undefined
   }
   if (statementForm(schema) && statementForm(data)) {
-    return schema + '\n' + data + '\n'
+    return { one: schema + '\n' + data + '\n', alone: data }
   }
   if (schema.includes('$.') || data.includes('$.')) {
     return undefined
   }
-  return wrap(schema) + '\n' + wrap(data) + '\n'
+  return { one: wrap(schema) + '\n' + wrap(data) + '\n', alone: wrap(data) }
 }
 
 
@@ -209,12 +218,16 @@ describe('vet-equals-eval', () => {
       const vetAccepts = 'valid' === report.verdict
 
       const exact = true === row.opts.exactNumbers
-      const one = union(row.schema, row.data, exact)
-      if (null == one) {
+      const both = union(row.schema, row.data, exact)
+      if (null == both) {
         skipped++
         continue
       }
-      const evalOk = evalAccepts(one, exact)
+      // Under --no-fill the one document generates the data's own value.
+      const opts = { exactNumbers: exact, trust: row.opts.trust }
+      const got = evalValue(both.one, opts)
+      const evalOk = undefined !== got && (true !== row.opts.noFill ||
+        got === evalValue(both.alone, opts))
 
       if (vetAccepts !== evalOk) {
         disagree.push(

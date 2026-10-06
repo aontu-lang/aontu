@@ -11,6 +11,7 @@ type TrustInclude = 'none' | 'system' | {
 type TrustBudget = {
     passes?: number;
     depth?: number;
+    trials?: number;
 };
 type TrustOptions = {
     include?: TrustInclude;

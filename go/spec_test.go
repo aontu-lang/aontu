@@ -843,6 +843,14 @@ func specVetOpts(t *testing.T, raw any) *VetOptions {
 			opts.CoverageAt, _ = v.(string)
 		case "exactNumbers":
 			opts.ExactNumbers, _ = v.(bool)
+		case "noFill":
+			opts.NoFill, _ = v.(bool)
+		case "trust":
+			// The budget rows set the trials budget alone.
+			t, _ := v.(map[string]any)
+			b, _ := t["budget"].(map[string]any)
+			n, _ := b["trials"].(float64)
+			opts.Trust = &TrustOptions{Budget: TrustBudget{Trials: int(n)}}
 		default:
 			t.Fatalf("unknown vet opt %q", k)
 		}

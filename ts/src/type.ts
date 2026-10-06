@@ -21,6 +21,7 @@ type TrustInclude =
 type TrustBudget = {
   passes?: number    // fixpoint passes (default 9)
   depth?: number     // structural recursion depth (default 1000)
+  trials?: number
 }
 
 type TrustOptions = {

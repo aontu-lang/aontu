@@ -105,6 +105,7 @@ type VetOptions struct {
 
 	// ExactNumbers reads every number in the data by its value (G12).
 	ExactNumbers bool
+	NoFill       bool // refuse a member only the schema supplies
 }
 
 func aontuForPathTrust(
@@ -248,6 +249,64 @@ func fromRegistry(f VetFinding, code string,
 	}
 
 	return f
+}
+
+// filledFinding is a member of the generated value the data does not
+// carry: what vet --no-fill refuses, at the schema site that supplied it.
+func filledFinding(v Val, path []string, prov vetProv,
+	sources vetSources) VetFinding {
+	return fromRegistry(VetFinding{
+		Class: codeClass("vet_filled"),
+		Code:  "vet_filled",
+		Message: "the schema supplies " + v.Canon() +
+			", which the data does not carry",
+		Path:     subPathText(path),
+		Severity: "error",
+		Sites:    []VetSite{*siteOf(v, prov, sources)},
+	}, "vet_filled", nil)
+}
+
+// filledAt walks what generated (g) over the met value (u) and the
+// data's own (d), reporting each position the data does not supply. The
+// walk carries the path: a template's member holds its template's.
+func filledAt(g any, u, d Val, path []string, prov vetProv,
+	sources vetSources, out *[]VetFinding) {
+	switch uv := u.(type) {
+	case *MapVal:
+		if dv, ok := d.(*MapVal); ok {
+			gm := g.(map[string]any)
+			for _, k := range uv.keys {
+				gk, generated := gm[k]
+				if !generated {
+					continue
+				}
+				at := append(cp(path), k)
+				if dk, has := dv.peg[k]; has {
+					filledAt(gk, uv.peg[k], dk, at, prov, sources, out)
+				} else {
+					*out = append(*out,
+						filledFinding(uv.peg[k], at, prov, sources))
+				}
+			}
+			return
+		}
+	case *ListVal:
+		if dv, ok := d.(*ListVal); ok {
+			for i, gi := range g.([]any) {
+				at := append(cp(path), itoa(i))
+				if i < len(dv.peg) {
+					filledAt(gi, uv.peg[i], dv.peg[i], at, prov, sources, out)
+				} else {
+					*out = append(*out,
+						filledFinding(uv.peg[i], at, prov, sources))
+				}
+			}
+			return
+		}
+	}
+	if ds, ok := d.(*ScalarVal); !ok || ds.Canon() != u.Canon() {
+		*out = append(*out, filledFinding(u, path, prov, sources))
+	}
 }
 
 func findingOf(n *NilVal, prov vetProv, sources vetSources) VetFinding {
@@ -468,7 +527,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Findings:  []VetFinding{parseFinding(schemaURL, VetRoleSchema, perr)},
 		}
 	}
-	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
+	schemaCtx := budgeted(&Ctx{root: schemaParsed, src: schemaSrc,
+		collect: true}, options.Trust)
 	schemaVal := unifyRoot(schemaParsed, schemaCtx)
 	schemaCtx.root = schemaVal
 	if 0 < len(schemaCtx.err) || schemaVal.Nil() {
@@ -577,7 +637,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		coverA := aontuForPathTrust(
 			options.DataPath, options.Trust, options.TextExt)
 		if parsed, cerr := coverA.Parse(dataSrc); nil == cerr {
-			coverCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
+			coverCtx := budgeted(&Ctx{root: parsed, src: dataSrc,
+				collect: true}, options.Trust)
 			settled := unifyRoot(parsed, coverCtx)
 			// A data document that does not stand alone is already
 			// reported by the meet below; here it falls back to what was
@@ -618,7 +679,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	pair := newConjunct([]Val{meetAnchor, dataVal})
 	pair.path = anchorSegs(options.At)
-	ctx := &Ctx{root: pair, src: dataSrc, collect: true}
+	ctx := budgeted(&Ctx{root: pair, src: dataSrc, collect: true},
+		options.Trust)
 	if "" != options.At {
 		ctx.fixroot = schemaVal
 	}
@@ -647,13 +709,22 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		findings = append(findings, findingOf(n, prov, sources))
 	}
 
-	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
-		probe: "" != options.At}
-	_, _ = unified.Gen(genCtx)
+	genCtx := budgeted(&Ctx{root: unified, src: dataSrc, collect: true,
+		probe: "" != options.At}, options.Trust)
+	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() || "conflict" == e.Class() {
 			findings = append(findings, findingOf(e, prov, sources))
 		}
+	}
+
+	if options.NoFill && 0 == len(findings) {
+		ownA := aontuForPathTrust(
+			options.DataPath, options.Trust, options.TextExt)
+		ownA.ExactNumbers = options.ExactNumbers
+		own, _ := ownA.Unify(dataSrc)
+		filledAt(generated, unified, own, anchorSegs(options.At), prov,
+			sources, &findings)
 	}
 	findings = append(findings, lintFindings...)
 

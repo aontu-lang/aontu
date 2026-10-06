@@ -411,6 +411,13 @@ class Unify {
         })
       }
 
+      // A spent trial budget refuses the run: past it every trial said no.
+      if (uctx._trials.over) {
+        uctx.err.length = 0
+        res = makeNilErr(uctx, 'trial_budget', undefined, undefined,
+          'resolve', { budget: 'trials', limit: uctx.budget.trials })
+      }
+
       // The settled tree's alias references canon as the values they
       // name (ts/src/alias.ts): attached here, once, after the last
       // pass, from the snapshot store this run kept.

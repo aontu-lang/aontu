@@ -36,8 +36,7 @@ class FilterFuncVal extends FuncBaseVal_1.FuncBaseVal {
             const inst = cond.clone(kctx, { dup: true });
             (0, Val_1.repathInstance)(inst, inst.path);
             const test = (0, PlaceVal_1.fillPlace)(inst, child, kctx);
-            const met = (0, FuncBaseVal_1.trialUnify)(kctx, child.clone(kctx), test);
-            return undefined !== met && (0, FuncBaseVal_1.sameMembers)(child, met, kctx);
+            return (0, FuncBaseVal_1.admits)(kctx, child, test, () => [child.clone(kctx), test]);
         };
         // The candidates are the bag's MEMBERS -- what generation would
         // emit (./members.ts, BUGS.md §79) -- so a hidden child is never

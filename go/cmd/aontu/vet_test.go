@@ -741,3 +741,14 @@ func TestVetExactNumbersReadsTheDataByValue(t *testing.T) {
 		t.Fatalf("exact: exit %d\n%s%s", code, out, errw)
 	}
 }
+
+func TestVetNoFillRefusesAMemberOnlyTheSchemaSupplies(t *testing.T) {
+	_, s, d := vetFiles(t, "x: 1", `{}`)
+	if _, _, code := vetRun(s, d); 0 != code {
+		t.Fatalf("plain vet fills x: exit %d", code)
+	}
+	out, errw, code := vetRun("--no-fill", s, d)
+	if 3 != code || !strings.Contains(out, "vet_filled") {
+		t.Fatalf("no-fill: exit %d\n%s%s", code, out, errw)
+	}
+}

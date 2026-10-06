@@ -253,6 +253,8 @@ Vet options:
   --partial         Residue is reported but does not fail the run
   --exact-numbers   Read every data number by its value: 1.0 is the
                     integer 1 and 1.5 an exact decimal, never a float
+  --no-fill         Refuse a member only the schema supplies: the data
+                    must already be the instance, with nothing filled
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -1066,6 +1068,7 @@ type VetArgs = {
   strictCoverage?: boolean
   coverageAt?: string
   exactNumbers?: boolean
+  noFill?: boolean
 }
 
 
@@ -1083,6 +1086,7 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
   let strictCoverage = false
   let coverageAt: string | undefined
   let exactNumbers = false
+  let noFill = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -1123,6 +1127,9 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
     }
     else if ('--exact-numbers' === arg) {
       exactNumbers = true
+    }
+    else if ('--no-fill' === arg) {
+      noFill = true
     }
     else if ('--coverage' === arg) {
       coverage = true
@@ -1171,6 +1178,7 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
       strictCoverage,
       coverageAt,
       exactNumbers,
+      noFill,
     },
   }
 }
@@ -1330,6 +1338,7 @@ function vetOnce(args: VetArgs, trust: TrustArg): number {
       coverage: args.coverage,
       coverageAt: args.coverageAt,
       exactNumbers: args.exactNumbers,
+      noFill: args.noFill,
     })
 
     if (VET_RANK[verdict] < VET_RANK[report.verdict]) {

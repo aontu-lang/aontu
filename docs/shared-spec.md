@@ -164,8 +164,9 @@ and the fifth is the report `vet(schema, data)` must produce. Both sides
 of that comparison are re-emitted through the same serialiser before
 comparing, so the golden may be written in any key order, and the run's
 options ride in the golden under a reserved `opts` key (`at`, `closed`,
-`partial`, `maxErrors`, `exactNumbers`) rather than in a sixth column
-that most rows would leave empty.
+`partial`, `maxErrors`, `exactNumbers`, `noFill`, and `trust`, whose
+`budget.trials` the budget rows set) rather than in a sixth column that
+most rows would leave empty.
 
 In a `vet` row each finding's `message` is EXCLUDED from the golden. It
 is the one part of a report that is prose, and the `vet` mode pins codes

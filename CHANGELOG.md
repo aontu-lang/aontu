@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### `vet --no-fill`, and a budget for admission trials
+
+Both ports. G12 phase 3.
+
+- New option `--no-fill` on `vet` (`noFill` in TypeScript, `NoFill` in
+  Go) asks whether the data already is an instance. The verdict is
+  `vet`'s, and each member the evaluated value holds that the data does
+  not carry is a finding with the new code `vet_filled`, class
+  `incomplete`, at the schema site that wrote it: `x: 1` fills an
+  absent `x` under plain `vet`, and is refused under `--no-fill`.
+- `match`, `filter` and `emit` decide by one admission trial, counted
+  against a new `trials` budget (`trust.budget.trials` in TypeScript,
+  `TrustBudget.Trials` in Go, default 1,000,000). A settled scalar tried
+  against a condition that reads no position is decided once per
+  evaluation. Past the budget the run refuses with the new code
+  `trial_budget`, class `budget`.
+- Go: `vet` reads the trust profile's budgets in each evaluation it
+  runs, as TypeScript's does; the pass, depth and alias budgets a
+  profile set were ignored there.
+- Twenty-two shared rows: sixteen `--no-fill` rows in `vet.tsv` and six
+  budget rows in `budget.tsv`, every golden probed from both engines.
+  The vet-equals-eval differential holds a `--no-fill` row to the data's
+  own value, and runs a row's trust budget on both sides.
+
 ### Numbers read by value under `--exact-numbers`, and a container kind meets a count
 
 Both ports. G12 phase 3, the reading the JSON Schema importer writes

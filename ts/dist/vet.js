@@ -132,6 +132,49 @@ function findingOf(nil, prov) {
         sites: sitesOf(nil, prov),
     }, nil);
 }
+function anchorPath(at) {
+    return null == at ? [] :
+        at.replace(/^\$\.?/, '').split('.').filter((s) => '' !== s);
+}
+// A member of the generated value the data does not carry: what
+// `vet --no-fill` refuses, at the schema site that supplied it.
+function filledFinding(v, path, prov) {
+    return fromRegistry({
+        code: 'vet_filled',
+        class: (0, hints_1.codeClass)('vet_filled'),
+        severity: 'error',
+        path: pathText(path),
+        message: 'the schema supplies ' + v.canon +
+            ', which the data does not carry',
+        sites: [siteOf(v, prov)],
+    }, { why: 'vet_filled' });
+}
+// Walks what generated (`g`) over the met value (`u`) and the data's
+// own (`d`), reporting each position the data does not supply. The
+// walk carries the path: a template's member holds its template's.
+function filledAt(g, u, d, path, prov, out) {
+    if (true === u.isMap && true === d?.isMap) {
+        for (const key of Object.keys(g)) {
+            const at = [...path, key];
+            if (undefined === d.peg[key]) {
+                out.push(filledFinding(u.peg[key], at, prov));
+            }
+            else {
+                filledAt(g[key], u.peg[key], d.peg[key], at, prov, out);
+            }
+        }
+    }
+    else if (true === u.isList && true === d?.isList) {
+        g.forEach((gi, i) => {
+            const at = [...path, '' + i];
+            i < d.peg.length ? filledAt(gi, u.peg[i], d.peg[i], at, prov, out) :
+                out.push(filledFinding(u.peg[i], at, prov));
+        });
+    }
+    else if (true !== d?.isScalar || d.canon !== u.canon) {
+        out.push(filledFinding(u, path, prov));
+    }
+}
 const ORDER_PAD = 9;
 function pad(n) {
     return String(n).padStart(ORDER_PAD, '0');
@@ -539,8 +582,7 @@ function vet(schemaSrc, dataSrc, opts) {
     else {
         ;
         ctx._fixroot = schemaVal;
-        ctx.path = options.at.replace(/^\$\.?/, '')
-            .split('.').filter((s) => '' !== s);
+        ctx.path = anchorPath(options.at);
     }
     const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);
@@ -559,12 +601,16 @@ function vet(schemaSrc, dataSrc, opts) {
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
     genCtx.probe = null != options.at;
-    unified.gen(genCtx);
+    const generated = unified.gen(genCtx);
     for (const err of genCtx.err) {
         if ('incomplete' === err.class || 'conflict' === err.class) {
             materialise(err, genCtx);
             findings.push(findingOf(err, prov));
         }
+    }
+    if (true === options.noFill && 0 === findings.length) {
+        const ownCtx = aontu.ctx({ collect: true });
+        filledAt(generated, unified, aontu.unify(dataSrc, dataOpts, ownCtx), anchorPath(options.at), prov, findings);
     }
     findings.push(...lintFindings);
     for (const { val, path } of (0, utility_1.collectDeprecations)(unified)) {

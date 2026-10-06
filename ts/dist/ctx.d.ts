@@ -64,6 +64,12 @@ declare class AontuContext {
         revisits: number;
         depth: number;
         alias: number;
+        trials: number;
+    };
+    _trials: {
+        n: number;
+        over: boolean;
+        memo: Map<string, boolean>;
     };
     manifest: {
         path: string;

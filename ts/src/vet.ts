@@ -93,6 +93,7 @@ export type VetOptions = {
   dataPath?: string
 
   exactNumbers?: boolean
+  noFill?: boolean     // refuse a member only the schema supplies
 
   trust?: TrustOptions
 
@@ -255,6 +256,56 @@ function findingOf(nil: any, prov: Prov): VetFinding {
     message: stripAnsi(nil.msg.split('\n')[0]),
     sites: sitesOf(nil, prov),
   }, nil)
+}
+
+
+function anchorPath(at?: string): string[] {
+  return null == at ? [] :
+    at.replace(/^\$\.?/, '').split('.').filter((s: string) => '' !== s)
+}
+
+
+// A member of the generated value the data does not carry: what
+// `vet --no-fill` refuses, at the schema site that supplied it.
+function filledFinding(v: any, path: string[], prov: Prov): VetFinding {
+  return fromRegistry({
+    code: 'vet_filled',
+    class: codeClass('vet_filled'),
+    severity: 'error',
+    path: pathText(path),
+    message: 'the schema supplies ' + v.canon +
+      ', which the data does not carry',
+    sites: [siteOf(v, prov) as VetSite],
+  }, { why: 'vet_filled' })
+}
+
+
+// Walks what generated (`g`) over the met value (`u`) and the data's
+// own (`d`), reporting each position the data does not supply. The
+// walk carries the path: a template's member holds its template's.
+function filledAt(g: any, u: any, d: any, path: string[], prov: Prov,
+  out: VetFinding[]): void {
+  if (true === u.isMap && true === d?.isMap) {
+    for (const key of Object.keys(g)) {
+      const at = [...path, key]
+      if (undefined === d.peg[key]) {
+        out.push(filledFinding(u.peg[key], at, prov))
+      }
+      else {
+        filledAt(g[key], u.peg[key], d.peg[key], at, prov, out)
+      }
+    }
+  }
+  else if (true === u.isList && true === d?.isList) {
+    g.forEach((gi: any, i: number) => {
+      const at = [...path, '' + i]
+      i < d.peg.length ? filledAt(gi, u.peg[i], d.peg[i], at, prov, out) :
+        out.push(filledFinding(u.peg[i], at, prov))
+    })
+  }
+  else if (true !== d?.isScalar || d.canon !== u.canon) {
+    out.push(filledFinding(u, path, prov))
+  }
 }
 
 
@@ -729,8 +780,7 @@ export function vet(
   }
   else {
     ; (ctx as any)._fixroot = schemaVal
-    ; (ctx as any).path = options.at.replace(/^\$\.?/, '')
-      .split('.').filter((s: string) => '' !== s)
+    ; (ctx as any).path = anchorPath(options.at)
   }
   const pair = new ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx)
   const unified: any = aontu.unify(pair, undefined, ctx)
@@ -752,12 +802,18 @@ export function vet(
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
   genCtx.probe = null != options.at
-  unified.gen(genCtx)
+  const generated = unified.gen(genCtx)
   for (const err of genCtx.err) {
     if ('incomplete' === err.class || 'conflict' === err.class) {
       materialise(err, genCtx)
       findings.push(findingOf(err, prov))
     }
+  }
+
+  if (true === options.noFill && 0 === findings.length) {
+    const ownCtx = aontu.ctx({ collect: true })
+    filledAt(generated, unified, aontu.unify(dataSrc, dataOpts, ownCtx),
+      anchorPath(options.at), prov, findings)
   }
 
   findings.push(...lintFindings)

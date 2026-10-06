@@ -94,8 +94,11 @@ class AontuContext {
   _fixroot: any
 
   budget: {
-    passes: number, revisits: number, depth: number, alias: number
+    passes: number, revisits: number, depth: number, alias: number,
+    trials: number
   }
+
+  _trials: { n: number, over: boolean, memo: Map<string, boolean> }
 
   // The include manifest sink (G5, docs/trust.md): every include the
   // resolver reads is recorded here as { path, capability }, and
@@ -156,7 +159,9 @@ class AontuContext {
       revisits: 999,
       depth: budget.depth ?? 1000,
       alias: budget.alias ?? 1000000,
+      trials: budget.trials ?? 1000000,
     }
+    this._trials = { n: 0, over: false, memo: new Map() }
   }
 
 

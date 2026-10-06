@@ -171,6 +171,14 @@ const hints: Record<string, string> = {
     '  re("(?=x)y")             # Refused (lookahead);\n' +
     '  re("(a+)+")              # Refused (nested quantifier).',
 
+  trial_budget:
+    'An evaluation runs at most {limit} admission trials: the question\n' +
+    'match, filter and emit ask, whether a value already satisfies a\n' +
+    'condition. The budget was spent, so the evaluation stops rather\n' +
+    'than answer from a search it did not finish. A settled scalar tried\n' +
+    'against the same condition again costs nothing; raise the budget\n' +
+    'with trust.budget.trials where the document is trusted.',
+
   budget_passes:
     'The evaluation budget of {limit} fixpoint passes was spent before\n' +
     'the model converged; still refining: {paths}.\n' +
@@ -742,6 +750,14 @@ const hints: Record<string, string> = {
     'version it was deprecated in. Nothing refuses: a deprecation is a\n' +
     'warning and never changes a verdict.',
 
+  'vet_filled':
+    'The schema supplies a member the data does not carry. vet --no-fill\n' +
+    'asks whether the data already IS an instance, so a value only the\n' +
+    'schema writes -- a literal, a preferred default, a template\'s key, a\n' +
+    'position past the data\'s list -- is refused at the site that wrote\n' +
+    'it. Supply the member in the data, or vet without --no-fill to let\n' +
+    'the schema fill it.',
+
   'pref_not_instance':
     'The preferred value is not repeated among the remaining\n' +
     'alternatives of its disjunction. Nothing is refused and the\n' +
@@ -816,6 +832,7 @@ const codeClasses: Record<string, string> = {
   sub_default_indeterminate: 'compat',
   deprecated: 'compat',
   pref_not_instance: 'compat',
+  vet_filled: 'incomplete',
 
   // G7 phase 5 -- the overlay patch verb: an assignment that is not
   // <path>=<value>. Class `parse`, because what is malformed IS
@@ -1023,6 +1040,7 @@ const codeClasses: Record<string, string> = {
   unify_cycle: 'budget',
   max_depth: 'budget',
   budget_passes: 'budget',
+  trial_budget: 'budget',
 
   // internal -- the engine reached a state it should not reach
   internal: 'internal',

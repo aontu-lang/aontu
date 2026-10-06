@@ -237,6 +237,15 @@ describe('cli-vet', () => {
   })
 
 
+  test('vet-no-fill-refuses-a-member-only-the-schema-supplies', () => {
+    const f = vetFiles('x: 1', '{}')
+    vetCapture(() => Assert.equal(runVet([f.schema, f.data]), 0))
+    const r = vetCapture(() =>
+      Assert.equal(runVet(['--no-fill', f.schema, f.data]), 3))
+    Assert.match(r.out, /vet_filled/)
+  })
+
+
   test('vet-reports-findings-that-never-reached-the-tree', () => {
     const f = vetFiles(
       'service: close({ name: string, port: integer, replicas: integer })',

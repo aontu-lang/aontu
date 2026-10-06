@@ -34,10 +34,35 @@ type Ctx struct {
 	budgetPasses int
 	budgetDepth  int
 	budgetAlias  int
+	budgetTrials int
+
+	trials *trialState
 
 	prov *Provenance
 
 	reads map[string]bool
+}
+
+// trialState is one evaluation's admission trials: how many ran,
+// whether the budget is spent, and the verdicts a canon decides.
+type trialState struct {
+	n    int
+	over bool
+	memo map[string]bool
+}
+
+func (c *Ctx) trialLimit() int {
+	if 0 < c.budgetTrials {
+		return c.budgetTrials
+	}
+	return maxTrials
+}
+
+func (c *Ctx) trialRun() *trialState {
+	if nil == c.trials {
+		c.trials = &trialState{memo: map[string]bool{}}
+	}
+	return c.trials
 }
 
 func (c *Ctx) adderr(n *NilVal) {

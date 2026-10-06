@@ -56,3 +56,13 @@ filter-list-skips-a-hidden-element	gens	l: ["a", hide("b"), "c"]\nf: filter($.l,
 filter-list-spread-already-satisfies	gens	d:filter([[1,2]],[&:integer])	{"d":[[1,2]]}
 filter-preferred-disjunct-reads-the-preference	gens	d:filter([*{a:1}|{c:3}],{c:3})	{"d":[]}
 filter-alias-decl-is-not-a-member	gens	d:filter([{}],{%a=integer})	{"d":[{}]}
+#
+# THE ADMISSION TRIAL (G12 phase 3). Each kept-or-not question is one
+# trial against the evaluation's `trials` budget. A settled scalar tried
+# against a condition that reads no position (a scalar, a kind, a
+# settled constraint, or a disjunction of those with no preference) is
+# decided once; any other condition is tried each time.
+filter-by-a-disjunction	gens	x: filter([1, "a", true], integer | string)	{"x":[1,"a"]}
+filter-by-a-preferred-disjunction	gens	x: filter([1, "a", true], *integer | string)	{"x":["a"]}
+filter-by-a-constraint	gens	x: filter([0, 5, 9], min(1) & max(8))	{"x":[5]}
+filter-a-repeated-scalar	gens	x: filter([2, 2, "b", 2], integer)	{"x":[2,2,2]}

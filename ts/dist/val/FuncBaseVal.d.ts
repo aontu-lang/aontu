@@ -1,8 +1,8 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FeatureVal } from '../val/FeatureVal';
-declare function sameMembers(a: any, b: any, ctx: AontuContext): boolean;
 declare function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined;
+declare function admits(ctx: AontuContext, node: Val, cond: Val, pair: () => [Val, Val]): boolean;
 declare class FuncBaseVal extends FeatureVal {
     isFunc: boolean;
     forgives: boolean;
@@ -22,4 +22,4 @@ declare class FuncBaseVal extends FeatureVal {
     resolve(ctx: AontuContext, _args: Val[]): Val;
     deferResolve(_ctx: AontuContext, _args?: Val[]): boolean;
 }
-export { trialUnify, sameMembers, FuncBaseVal, };
+export { trialUnify, admits, FuncBaseVal, };

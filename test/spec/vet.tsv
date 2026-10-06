@@ -451,3 +451,28 @@ vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2
 # required, so its nil refuses the value.
 vet-optional-nil-absent-is-valid	vet	a: {k?: nil}	a: {}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-optional-nil-supplied-is-invalid	vet	a: {k?: nil}	a: {k: 1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","severity":"error","sites":[{"col":9,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+#
+# --- no fill ----------------------------------------------------------
+# G12 phase 3. `--no-fill` asks whether the data already IS an
+# instance: the verdict is vet's, and a member the generated value has
+# that the data does not carry is `vet_filled`, class `incomplete`, at
+# the schema site that wrote it. A literal, a preferred default, a
+# concrete optional, a template's key and a position past the data's
+# list are each a fill; an absent optional with no value of its own is
+# not, and a conflict is reported as plain vet reports it.
+vet-plain-fills-a-literal	vet	x: 1	{}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-no-fill-refuses-a-filled-literal	vet	x: 1	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.x","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-admits-a-carried-literal	vet	x: 1	{"x": 1}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
+vet-no-fill-refuses-a-filled-default	vet	tier: *"internal" | string	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.tier","severity":"error","sites":[{"col":7,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*\\"internal\\"|string"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-admits-a-chosen-alternative	vet	tier: *"internal" | string	{"tier": "critical"}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
+vet-no-fill-leaves-an-absent-optional	vet	port?: number	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true}}
+vet-no-fill-refuses-a-filled-optional-value	vet	port?: 8080	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.port","severity":"error","sites":[{"col":8,"file":"schema","len":4,"role":"schema","row":1,"src":"8080","value":"8080"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-names-the-nested-member	vet	a: {b: 1, c?: string}	{"a": {}}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a.b","severity":"error","sites":[{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-names-the-whole-map	vet	a: {b: 1}	{}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"b\\":1}"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-refuses-a-longer-list	vet	l: [1, 2]	{"l": [1]}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.l.1","severity":"error","sites":[{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"2","value":"2"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-refuses-a-template-key	vet	a: {&: {k: 1}}	{"a": {"x": {}}}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a.x.k","severity":"error","sites":[{"col":12,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-refuses-a-reference-fill	vet	a: string, b: $.a	{"a": "x"}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.b","severity":"error","sites":[{"col":7,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}
+vet-no-fill-under-an-anchor	vet	schema: hide({x: 1, y: string})	{"y": "s"}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.schema.x","severity":"error","sites":[{"col":18,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true,"at":"$.schema"}}
+vet-no-fill-with-exact-numbers	vet	x: 1	{"x": 1.0}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"noFill":true,"exactNumbers":true}}
+vet-no-fill-keeps-a-conflict	vet	x: 1	{"x": 2}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.x","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"2","value":"2"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"invalid","opts":{"noFill":true}}
+vet-no-fill-refuses-a-kind-the-schema-settles	vet	a: *1 | integer	{"a": integer}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.a","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"*1|integer"}]}],"truncated":false,"verdict":"incomplete","opts":{"noFill":true}}

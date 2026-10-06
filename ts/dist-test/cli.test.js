@@ -211,6 +211,12 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runVet)([f.schema, f.data]), 1));
         vetCapture(() => Assert.equal((0, cli_1.runVet)(['--exact-numbers', f.schema, f.data]), 0));
     });
+    (0, node_test_1.test)('vet-no-fill-refuses-a-member-only-the-schema-supplies', () => {
+        const f = vetFiles('x: 1', '{}');
+        vetCapture(() => Assert.equal((0, cli_1.runVet)([f.schema, f.data]), 0));
+        const r = vetCapture(() => Assert.equal((0, cli_1.runVet)(['--no-fill', f.schema, f.data]), 3));
+        Assert.match(r.out, /vet_filled/);
+    });
     (0, node_test_1.test)('vet-reports-findings-that-never-reached-the-tree', () => {
         const f = vetFiles('service: close({ name: string, port: integer, replicas: integer })', 'service: { name: "auth", prot: 8080, replicas: "3" }');
         const r = vetCapture(() => (0, cli_1.runVet)([f.schema, f.data]));

@@ -15,6 +15,7 @@ type TrustBudget struct {
 	Passes int // fixpoint passes (default 9)
 	Depth  int // structural recursion depth (default 1000)
 	Alias  int // expanded alias nodes (default 1000000)
+	Trials int // admission trials (default 1000000)
 }
 
 type TrustOptions struct {
@@ -54,6 +55,16 @@ type Aontu struct {
 	TextExt []string
 
 	ExactNumbers bool
+}
+
+func budgeted(ctx *Ctx, trust *TrustOptions) *Ctx {
+	if nil != trust {
+		ctx.budgetPasses = trust.Budget.Passes
+		ctx.budgetDepth = trust.Budget.Depth
+		ctx.budgetAlias = trust.Budget.Alias
+		ctx.budgetTrials = trust.Budget.Trials
+	}
+	return ctx
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -137,13 +148,8 @@ func (a *Aontu) unifyCtx(v Val, vars map[string]Val, src string) (Val, *Ctx, err
 
 func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	reads map[string]bool) (Val, *Ctx, error) {
-	ctx := &Ctx{root: v, vars: vars, src: src, file: a.File, reads: reads,
-		texts: a.IncludeText}
-	if nil != a.Trust {
-		ctx.budgetPasses = a.Trust.Budget.Passes
-		ctx.budgetDepth = a.Trust.Budget.Depth
-		ctx.budgetAlias = a.Trust.Budget.Alias
-	}
+	ctx := budgeted(&Ctx{root: v, vars: vars, src: src, file: a.File,
+		reads: reads, texts: a.IncludeText}, a.Trust)
 	res := unifyRoot(v, ctx)
 	ctx.root = res
 	a.Graph = GraphOf(res)

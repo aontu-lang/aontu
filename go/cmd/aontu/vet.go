@@ -56,6 +56,7 @@ type vetArgs struct {
 	strictCoverage bool
 	coverageAt     string
 	exactNumbers   bool
+	noFill         bool
 }
 
 // parseVetArgs reads the verb's argument tail. It returns the error
@@ -102,6 +103,8 @@ func parseVetArgs(argv []string) (*vetArgs, string) {
 			args.partial = true
 		case "--exact-numbers" == arg:
 			args.exactNumbers = true
+		case "--no-fill" == arg:
+			args.noFill = true
 		case "--coverage" == arg:
 			args.coverage = true
 		case "--strict-coverage" == arg:
@@ -365,6 +368,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 			Coverage:   args.coverage,
 			CoverageAt: args.coverageAt,
 			ExactNumbers: args.exactNumbers,
+			NoFill:       args.noFill,
 		})
 
 		if vetRank[verdict] < vetRank[report.Verdict] {

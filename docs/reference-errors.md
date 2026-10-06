@@ -44,17 +44,17 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **176** codes across
+There are seven classes, and the registry holds **178** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 54 | the text is not a document |
 | `conflict` | 58 | two values cannot both hold |
-| `incomplete` | 11 | nothing contradicts, but the value is not concrete |
+| `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 27 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
-| `budget` | 7 | evaluation hit a deterministic limit |
+| `budget` | 8 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 176 codes have hint text. `aontu explain --list`
+**Hint text.** All 178 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -318,6 +318,7 @@ twenty rows have no such section and carry no link.
 | `no_gen` | 0.51.0 | A value survived unification as something other than a literal value. ([Generation](reference-language.md#generation)) |
 | `recursion_unexpanded` | 0.53.0 | A schema refers to itself, and no data reached the position to expand it against. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
 | `required_listelem` | 0.51.0 | A non-optional list element has no value. ([Optional keys `?`](reference-language.md#optional-keys-)) |
+| `vet_filled` | 0.77.0 | Under `vet --no-fill`, the schema supplies a member the data does not carry. ([`aontu vet`](reference-api.md#aontu-vet)) |
 
 ### Class `reference`
 
@@ -378,6 +379,7 @@ twenty rows have no such section and carry no link.
 | `max_depth` | 0.51.0 | Input nested deeper than the engine processes. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `module_depth` | 0.53.0 | Module verification nested past its depth, usually a vendor tree leading back to itself. ([Modules](reference-language.md#modules)) |
 | `recursion_budget` | 0.53.0 | A recursive schema expanded past the depth budget without meeting concrete data. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
+| `trial_budget` | 0.77.0 | The evaluation ran more admission trials than its budget allows. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `unify_cycle` | 0.51.0 | A circular reference reached during unification. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `view_rows_exceeded` | 0.54.0 | The figure has more rows than the row cap allows; the figure is refused rather than trimmed. ([`aontu view`](reference-api.md#aontu-view)) |
 

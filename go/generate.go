@@ -146,6 +146,57 @@ func sameMembers(a, b Val, ctx *Ctx) bool {
 	return sameKids(a, b, ctx)
 }
 
+// The default trials budget, raised by trust.budget.trials.
+const maxTrials = 1000000
+
+// pureCond reports whether a condition's verdict over a settled scalar
+// is decided by its canon: it reads no position, so one trial answers
+// every node that canons alike.
+func pureCond(c Val) bool {
+	switch t := c.(type) {
+	case *ScalarVal, *ScalarKindVal:
+		return true
+	case *ConstraintVal:
+		return nil == t.pending && 0 == len(t.musts)
+	case *DisjunctVal:
+		for _, m := range t.peg {
+			if _, isPref := m.(*PrefVal); isPref || !pureCond(m) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// admits is the admission trial (G12 design, section 3): does node
+// already satisfy cond? Each one run counts against the trials budget.
+func admits(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
+	st := ctx.trialRun()
+	key := ""
+	if _, scalar := node.(*ScalarVal); scalar && pureCond(cond) {
+		key = node.Canon() + "\x00" + cond.Canon()
+		if known, has := st.memo[key]; has {
+			return known
+		}
+	}
+	if st.over {
+		return false
+	}
+	st.n++
+	if ctx.trialLimit() < st.n {
+		st.over = true
+		return false
+	}
+	a, b := pair()
+	met := trialUnify(ctx, a, b)
+	ok := nil != met && sameMembers(node, met, ctx)
+	if "" != key {
+		st.memo[key] = ok
+	}
+	return ok
+}
+
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	var data Val = top()
 	if 0 < len(args) {
@@ -159,8 +210,9 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	keeps := func(child Val, slot []string) bool {
 		ctx.slot = slot
 		test := fillPlace(instanceClone(cond, slot), child)
-		met := trialUnify(ctx, clonePath(child, slot), test)
-		return nil != met && sameMembers(child, met, ctx)
+		return admits(ctx, child, test, func() (Val, Val) {
+			return clonePath(child, slot), test
+		})
 	}
 
 	// The candidates are the bag's MEMBERS -- what generation would
@@ -232,9 +284,10 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 	for i := 1; i < last; i += 2 {
 		tried = append(tried, args[i].Canon())
 		ctx.slot = base
-		met := trialUnify(ctx,
-			clonePath(scrutinee, base), clonePath(args[i], base))
-		if nil != met && sameMembers(scrutinee, met, ctx) {
+		pattern := args[i]
+		if admits(ctx, scrutinee, pattern, func() (Val, Val) {
+			return clonePath(scrutinee, base), clonePath(pattern, base)
+		}) {
 			// The RESULT is the answer: a match MAPS a value to another
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
@@ -766,9 +819,10 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		// The trial is against CLONES: unite refines a bag in place
 		// against a TOP peer, and a pattern that failed must be
 		// untouched for the next node.
-		met := trialUnify(ctx, clonePath(node, base),
-			clonePath(templates[i].match, base))
-		if nil != met && sameMembers(node, met, ctx) {
+		match := templates[i].match
+		if admits(ctx, node, match, func() (Val, Val) {
+			return clonePath(node, base), clonePath(match, base)
+		}) {
 			return &templates[i], nil
 		}
 	}

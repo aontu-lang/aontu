@@ -105,6 +105,7 @@ Every evaluation halts within deterministic budgets counted in
 | `passes`   | fixpoint passes over the whole model     | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
 | `revisits` | same-pair re-unifications within a pass  | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
 | `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
+| `trials`   | admission trials: whether a value already satisfies a condition, as `match`, `filter` and `emit` ask | 1000000 (`ctx.budget.trials`, `ts/src/ctx.ts`; `maxTrials`, `go/generate.go`). A settled scalar tried against a condition that reads no position is decided once per evaluation, so a repeat costs nothing. Shared: both engines report `trial_budget` past it, pinned from both sides by the `vet-trials-*` rows in `test/spec/budget.tsv`. |
 
 (The shared 1000 sits above every real document and below both hosts'
 stack limits, so the budget, not the host, decides the verdict.)
@@ -127,6 +128,7 @@ the taxonomy rows: [test/spec/budget.tsv](../test/spec/budget.tsv)):
 | `unify_cycle`   | `budget`    | the revisit bound tripped: **suspected** non-convergence | inspect; may be a cycle or a very large model |
 | `recursion_unexpanded` | `incomplete` | a required recursive-schema position that no data ever expanded: refused at generation, at the instance | supply the data, or guard the field (`next?:` drops, a `*null` preference generates) |
 | `recursion_budget` | `budget` | a recursive schema expanded past the depth budget without meeting concrete data: two definitions feeding each other, or data deeper than the budget | restructure the definitions, or raise `trust.budget.depth` for genuinely deep data |
+| `trial_budget` | `budget` | the evaluation ran more admission trials than its budget allows; past it every trial would answer no, so the run refuses rather than answer from a search it did not finish | raise `trust.budget.trials` for a trusted document, or restructure |
 
 A *stable* residue (a stuck `1+true`, an unresolved kind) is none of
 these: it is ordinary incompleteness, silent at unify time and a
@@ -258,9 +260,11 @@ Denied resolution is a located, deterministic parse-stage error
 raised, not injected as a value, so a bare-member include
 (`@"./denied.aontu"` at the top of a file) cannot vanish in the merge.
 
-Budgets are part of the same profile: `trust.budget.passes` and
-`trust.budget.depth` (TypeScript) / `TrustOptions.Budget` (Go), integer
-counts of engine events defaulting to the spec constants of clause 2.
+Budgets are part of the same profile: `trust.budget.passes`,
+`trust.budget.depth` and `trust.budget.trials` (TypeScript) /
+`TrustOptions.Budget` (Go), integer counts of engine events defaulting
+to the spec constants of clause 2. Every evaluation a verb runs reads
+them, the two `vet` runs included.
 The per-pair revisit bound is NOT profile surface: the Go dispatcher
 has no revisit counter to configure, and a knob one port cannot honour
 would break the parity contract by construction.
@@ -308,6 +312,7 @@ Guarantees are as much about what will never be added:
 |-------|-----|
 | cycle/no-path taxonomy codes | [test/spec/budget.tsv](../test/spec/budget.tsv) (`errc` + substring rows, both engines) |
 | `budget_passes` code, class and "evaluation budget" substring | shared rows: [test/spec/budget.tsv](../test/spec/budget.tsv) `budget-chain-*` (verdicts, code and message substring, both engines); `ts/test/unify.test.ts` and `go/hints_test.go` keep the per-port err-shape guards |
+| `trial_budget` code, class and boundary | shared `vet` rows: [test/spec/budget.tsv](../test/spec/budget.tsv) `vet-trials-*` (a budget met and one short, schema side and data side, and a repeated scalar tried once, both engines) |
 | code → class registry | [test/spec/errcodes.tsv](../test/spec/errcodes.tsv) + set-equality tests in both runners |
 | canon byte-stability | every `canon` row (strict equality, both runners) |
 | generated-JSON byte-stability | `gens` rows (both runners) |
