@@ -97,6 +97,11 @@ empty-across-statements-reordered	gens	a: {x: ""}\na: {x: empty()}\na: {x: strin
 empty-through-a-reference	canon	s: string & empty()\nt: $.s & ""	{"s":string&empty(),"t":""}
 a-refused-empty-string-is-not-pruned	errc	c: string & ""|"z"	disjunct_no_gen
 string-in-a-list-refuses-the-empty-string	errc	c: [string & ""]	string_empty
+# An unresolved call meeting `empty()` is waited for, not refused as
+# no string: two `match` calls a template applies settle once the key
+# is known.
+empty-waits-for-an-unresolved-call	canon	x: {&: match(key(0), "s", any, any) & match(key(0), "t", any, any), s: empty()}	{"x":{&:match(key(0),"s",any,any)&match(key(0),"t",any,any),"s":empty()}}
+empty-waits-for-an-unresolved-call-gens	gens	x: {&: match(key(0), "s", any, any) & match(key(0), "t", any, any), s: empty() & ""}	{"x":{"s":""}}
 
 # A KEYWORD IS A KEY TOO, AND A REFERENCE CAN NAME IT. A segment spelled
 # with a type keyword (`.path`, `$.a.map`, `$.a.string`) names the key of

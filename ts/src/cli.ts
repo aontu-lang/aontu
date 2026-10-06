@@ -31,6 +31,8 @@ import { sarifReport } from './report-sarif'
 import { main as lspMain } from './lsp-server'
 import { main as mcpMain } from './mcp-server'
 import { jsonSchema } from './jsonschema'
+import { importJsonSchema } from './jsonschema-import'
+import type { SchemaImportError } from './jsonschema-import'
 import {
   pkgTidy, pkgVerify, pkgVendor, pkgManifest, pkgRefreeze, pkgTree,
   versionCompare,
@@ -96,6 +98,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
+       aontu jsonschema import [--strict] [--format text|json] <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3846,7 +3849,94 @@ function renderRelationsJson(report: RelationReport): string {
 const JSONSCHEMA_HELP =
   'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)'
 
+const JSONSCHEMA_IMPORT_HELP =
+  'aontu jsonschema import [--strict] [--format text|json] <schema.json> (try --help)'
+
+
+// The aontu source on stdout; what it could not carry, and how to vet
+// data against it, on stderr.
+function runJsonSchemaImport(argv: string[]): number {
+  const files: string[] = []
+  let format: SubsumeFormat = 'text'
+  let strict = false
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    else if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--strict' === arg) {
+      strict = true
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(
+        `aontu: unknown jsonschema import option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      files.push(arg)
+    }
+  }
+
+  if (1 !== files.length) {
+    process.stderr.write(
+      `aontu: jsonschema import needs one file\n${JSONSCHEMA_IMPORT_HELP}\n`)
+    return 2
+  }
+
+  let bytes: Buffer
+  try {
+    bytes = readFileSync(files[0])
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+  // Bytes that are not UTF-8 reach the reader as text that is not
+  // well-formed, which it refuses as the Go port refuses them.
+  let text = '\uD800'
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+      .decode(bytes)
+  }
+  catch { }
+
+  const report = importJsonSchema(text)
+  if ('json' === format) {
+    process.stdout.write(exactJSON({
+      aontu: { version: version(), verb: 'jsonschema import' }, ...report,
+    }, 2) + '\n')
+  }
+  else if ('error' === report.verdict) {
+    process.stderr.write((report.errors as SchemaImportError[]).map((e) =>
+      `${e.path}: ${e.code} [${e.class}]\n  ${e.message}`).join('\n') + '\n')
+  }
+  else {
+    process.stdout.write(report.source)
+    for (const l of report.lossy) {
+      process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`)
+    }
+    process.stderr.write('vet data against it with: aontu vet --at ' +
+      "'$.schema' --no-fill --exact-numbers <file.aontu> <data>\n")
+  }
+
+  return 'error' === report.verdict ? 4 :
+    strict && 'lossy' === report.verdict ? 1 : 0
+}
+
 function runJsonSchema(argv: string[]): number {
+  if ('import' === argv[0]) {
+    return runJsonSchemaImport(argv.slice(1))
+  }
   const trusted = takeTrust(argv)
   if (null == trusted) {
     return 2

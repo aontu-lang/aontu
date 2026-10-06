@@ -8,6 +8,59 @@ each change affects.
 
 ## Unreleased
 
+### `aontu jsonschema import`: a JSON Schema read into aontu source
+
+Both ports. G12 phase 3.
+
+- New verb `aontu jsonschema import [--strict] [--format text|json]
+  <schema.json>`, and `importJsonSchema(text)` in TypeScript and
+  `(*Aontu).ImportJSONSchema(text)` in Go, each answering `{source,
+  lossy, verdict, errors?}`. A draft 2020-12 schema imports as aontu
+  source in its agreed form: an alias declaration for each `$defs`
+  entry and each other subschema a `$ref` names, then
+  `schema: hide(…)`. The source is written for
+  `vet --at '$.schema' --no-fill --exact-numbers`, which stderr names
+  beside the losses.
+- Carried: boolean schemas, `type` as a split by kind (`"string"` as
+  `empty()`, `"integer"` as `(integer|biginteger)`), `enum`, `const`,
+  `properties`, `required`, `additionalProperties`,
+  `patternProperties`, `propertyNames`, `prefixItems`, `items`, the
+  counts and bounds, `minLength`, `maxLength`, `pattern`, and local
+  `$ref`, `$defs` and `$anchor`. The schema text is read by aontu, not
+  by the host's JSON parser, and each number is written by its value.
+- A pattern is read as ECMA-262 reads it: `\s`, `\S` and `.` keep ECMA's
+  sets, which are wider than `re()`'s own, a `\u` escape becomes its
+  character, a named group a non-capturing one, and a quantified
+  alternation of single characters, `(a|b)*`, the class `[ab]*`. A
+  pattern ECMA-262 refuses, or one `re()` still cannot carry, such as a
+  lookaround or a backreference, is a loss.
+- A keyword not carried yet is dropped and named in `lossy`, an
+  annotation is dropped and changes nothing admitted, and a keyword
+  2020-12 does not define is ignored. `--strict` exits 1 on any loss.
+- New codes: `jsonschema_schema`, class `parse`, for text that is not
+  JSON or a keyword holding a value 2020-12 does not define for it;
+  `jsonschema_ref`, class `reference`, for a `$ref` to another document
+  or to nothing in this one; `jsonschema_duplicate`, class `reference`,
+  for one anchor naming two subschemas. A refusal exits 4.
+- Engine fixes the import needed, in both ports unless marked:
+  - `empty()` waits for an unresolved call instead of refusing it, so
+    `{&: match(…) & match(…), s: empty()}` no longer refuses as
+    `empty_domain`.
+  - A count inside a disjunction counts the container it meets:
+    `(len(max(2)) | null) & [1]` failed to generate.
+  - `vet --no-fill` reads through a count, so a counted list the data
+    carries is not a fill.
+  - Go: `hide()` keeps a template applied to a member it copies, so a
+    guard is not applied a second time:
+    `hide({a?: any, &: match(key(0), "a", any, nil)})` refused `{}`
+    under `vet --at`, where TypeScript admitted it.
+- The shared spec gains `test/spec/jsonschema-import.tsv` and the
+  `jsonschema-import` mode. Each of its 136 reports, refusal messages
+  included, is probed from both engines, and each instance's verdict is
+  the one JSON Schema gives; a pattern's comes from ECMA-262's own
+  reading of it. Thirteen engine rows land in `types.tsv`,
+  `constraint-length.tsv`, `vet.tsv` and `spread-hide.tsv`.
+
 ### `vet --no-fill`, and a budget for admission trials
 
 Both ports. G12 phase 3.

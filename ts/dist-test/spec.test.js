@@ -40,6 +40,7 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
+const jsonschema_import_1 = require("../dist/jsonschema-import");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
@@ -284,6 +285,27 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-import' === row.mode) {
+        // `instances` rides the expect object: each must vet as the schema
+        // judges it, under the reading the import is written for.
+        const golden = JSON.parse(row.expect, (_k, v, c) => 'number' === typeof v ? JSON.rawJSON(c?.source) : v);
+        const instances = golden.instances ?? {};
+        delete golden.instances;
+        const report = (0, jsonschema_import_1.importJsonSchema)(row.src);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            source: report.source,
+            lossy: report.lossy,
+            verdict: report.verdict,
+            ...(null == report.errors ? {} : { errors: report.errors }),
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
+        for (const [want, list] of Object.entries(instances)) {
+            for (const inst of list) {
+                const got = (0, aontu_1.vet)(report.source, JSON.stringify(inst), { at: '$.schema', noFill: true, exactNumbers: true }).verdict;
+                Assert.strictEqual('valid' === got, 'valid' === want, `jsonschema-import instance ${JSON.stringify(inst)}: ${row.name} ` +
+                    `(vet said ${got})`);
+            }
+        }
     }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);

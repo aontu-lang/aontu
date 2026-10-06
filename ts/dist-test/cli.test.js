@@ -816,6 +816,54 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--trust', 'none', f.general]), 0)).out).type, 'object');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--help']), 0)).out.includes('aontu jsonschema'), true);
     });
+    (0, node_test_1.test)('jsonschema-import-writes-source-and-names-what-it-cannot-carry', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-ji-'));
+        const file = Path.join(dir, 'schema.json');
+        Fs.writeFileSync(file, '{"title": "T", "type": "object", ' +
+            '"properties": {"a": {"type": "null"}}}');
+        const r = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
+        Assert.equal(r.out, 'schema: hide({ a?:null })\n');
+        Assert.equal(r.err, 'lossy: #/title title: an annotation; it is dropped, and what the ' +
+            'import admits is unchanged\n' +
+            "vet data against it with: aontu vet --at '$.schema' --no-fill " +
+            '--exact-numbers <file.aontu> <data>\n');
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--strict', file]), 1));
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'json', file]), 0)).out);
+        Assert.equal(j.aontu.verb, 'jsonschema import');
+        Assert.equal(j.verdict, 'lossy');
+        Assert.equal(j.source, r.out);
+        Assert.equal('errors' in j, false);
+        Fs.writeFileSync(file, '{"$ref": "#/nope"}');
+        const bad = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 4));
+        Assert.equal(bad.out, '');
+        Assert.equal(bad.err, '#/$ref: jsonschema_ref [reference]\n' +
+            '  the reference "#/nope" names no schema in this document\n');
+        const je = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'json', file]), 4)).out);
+        Assert.equal(je.verdict, 'error');
+        Assert.equal(je.source, '');
+        Assert.equal(je.errors[0].code, 'jsonschema_ref');
+        // Bytes that are not UTF-8 are the schema's fault, refused as Go
+        // refuses them.
+        Fs.writeFileSync(file, Buffer.from([0x22, 0xff, 0x22]));
+        const nu = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 4));
+        Assert.equal(nu.err, '#: jsonschema_schema [parse]\n' +
+            '  the schema is not JSON: the text is not well-formed Unicode\n');
+    });
+    (0, node_test_1.test)('jsonschema-import-raises-what-is-not-a-refusal', () => {
+        // A fault that is not the schema's own is not reported as one.
+        Assert.throws(() => (0, aontu_1.importJsonSchema)(undefined), TypeError);
+    });
+    (0, node_test_1.test)('jsonschema-import-usage-errors-exit-2', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-ji-'));
+        const file = Path.join(dir, 'schema.json');
+        Fs.writeFileSync(file, 'true');
+        for (const args of [[], [file, file], ['--bogus', file],
+            ['--format', 'yaml', file], ['--format'],
+            [Path.join(dir, 'missing.json')]]) {
+            vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', ...args]), 2));
+        }
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--help']), 0)).out.includes('aontu jsonschema import'), true);
+    });
     (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));
         const file = Path.join(dir, 'doc.aontu');

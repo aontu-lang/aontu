@@ -189,6 +189,12 @@ length-counts-late-optional	gen	a:len(2) a:{x:1,y?:number} a:{y:$.z}\nz:2	{"a":{
 # generation, so it is not a member either.
 length-drops-empty-optional	gen	a:len(1) a:{x:1,y?:{}}	{"a":{"x":1}}
 length-drops-empty-optional-list	gen	a:len(1) a:{x:1,y?:[]}	{"a":{"x":1}}
+# A count inside a DISJUNCTION counts the container the disjunction
+# meets, as one outside it does: the alternative carrying the count
+# waits for the container rather than being dropped.
+len-residue-in-a-disjunction-counts-a-list	gens	x: (len(max(2)) | null) & [1]	{"x":[1]}
+len-residue-in-a-disjunction-counts-a-map	gens	x: ((map & len(max(2))) | list) & {"a": 1}	{"x":{"a":1}}
+len-residue-in-a-disjunction-refuses-a-longer-list	errc	x: (len(max(1)) | null) & [1, 2]	empty
 
 # A CONTAINER HIDDEN WHOLE STILL HOLDS ITS MEMBERS: `hide()` changes what
 # generates, not what a count reads, while a member hidden alone does

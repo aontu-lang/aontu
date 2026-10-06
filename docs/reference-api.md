@@ -46,6 +46,7 @@ Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
+       aontu jsonschema import [--strict] [--format text|json] <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1473,6 +1474,167 @@ Without `--strict` the same export exits 0.
   The TypeScript options carry `exactNumbers`; in Go,
   `JSONSchemaWith(src, JSONSchemaOptions{At, ExactNumbers})` is the same
   export with every option.
+
+### `aontu jsonschema import`
+
+Read a **JSON Schema** (draft 2020-12) into aontu source, and say what
+could not be carried.
+
+```
+aontu jsonschema import [--strict] [--format text|json] <schema.json>
+```
+
+This is the bridge the other way. A schema someone else publishes
+becomes an ordinary aontu value, which unifies, refines and is
+referenced like any other. **The source goes to stdout and the losses
+to stderr**, with the `vet` invocation the source is written for.
+Write a `service.schema.json`:
+
+<!-- test: scenario jsonschema-import -->
+<!-- test: file service.schema.json -->
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["name", "port"],
+  "additionalProperties": false
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import service.schema.json
+schema: hide({
+  name: empty() & re("^[a-z][a-z0-9-]*$")
+  port: (integer|biginteger) & min(1) & max(65535)
+  tags?: [&: empty()]
+  &: match(key(0), "name", any, "port", any, "tags", any, nil)
+})
+```
+
+The definition sits under `hide()` at `schema`, so the file generates
+nothing of its own. Save it as `service.aontu`:
+
+<!-- test: file service.aontu -->
+```aontu
+schema: hide({
+  name: empty() & re("^[a-z][a-z0-9-]*$")
+  port: (integer|biginteger) & min(1) & max(65535)
+  tags?: [&: empty()]
+  &: match(key(0), "name", any, "port", any, "tags", any, nil)
+})
+```
+
+Write data the schema admits as `good.json`:
+
+<!-- test: file good.json -->
+```json
+{"name": "billing", "port": 8080, "tags": ["core"]}
+```
+
+Then data it refuses, as `bad.json`:
+
+<!-- test: file bad.json -->
+```json
+{"name": "billing", "port": 80.5, "owner": "ops"}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --at '$.schema' --no-fill --exact-numbers service.aontu good.json
+verdict: valid
+$ aontu vet --at '$.schema' --no-fill --exact-numbers service.aontu bad.json
+verdict: invalid
+
+$.schema.port: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.schema.port
+  data: bad.json:1:29 (0d80.5)
+  schema: service.aontu:3:9 (integer&min(1)&max(65535)|biginteger&min(1)&max(65535))
+$.schema.owner: literal_nil [conflict]
+  [aontu/literal_nil]: Cannot resolve value at path $.schema.owner
+  schema: service.aontu:5:6 (nil)
+$ echo $?
+1
+```
+
+`owner` is refused by the guard `additionalProperties: false` became,
+and `80.5` by the integer kind.
+
+- **A schema object is split by kind.** `type` keeps the kinds it
+  names; without one every kind is an alternative,
+  `(null|boolean|number|empty()|map|list)`. `"string"` is `empty()`,
+  the string that may be empty, and `"integer"` is
+  `(integer|biginteger)`, an integer of any size.
+- `properties` are optional keys and `required` makes a key required.
+  `patternProperties`, `additionalProperties` and `propertyNames` guard
+  the keys with `&: match(key(0), …)`.
+- `$defs`, and every schema a `$ref` names, become alias
+  declarations (`%name = …`) ahead of `schema`, so a recursive schema
+  imports as a recursive alias.
+- **The schema text is read by aontu, not by the host's JSON parser**,
+  so a number is written by its exact value: `1.0` is the integer `1`,
+  `0.1` is `0d0.1`, and a twenty-digit integer keeps all twenty digits.
+  That is why `vet` reads the data with `--exact-numbers`.
+- **A pattern is read as ECMA-262 reads it.** `\s`, `\S` and `.` keep
+  the sets ECMA-262 gives them, which are wider than `re()`'s own, a
+  `\u` escape becomes its character, a named group a non-capturing
+  one, and `(a|b)*` the class `[ab]*`. A pattern `re()` still cannot
+  carry this way, one with a lookaround or with backreferences, is a
+  loss.
+- The import writes no default, but a `const` or `enum` literal
+  generates on its own. `--no-fill` makes `vet` ask whether the data
+  already *is* an instance rather than whether it can be filled into
+  one.
+- **Losses** are on stderr, one per line. A keyword the import does
+  not carry yet (such as `multipleOf`) is dropped, so the import admits
+  instances the schema refuses; an annotation (`title`, `description`,
+  `format`) is dropped and changes nothing admitted; a keyword 2020-12
+  does not define is ignored, as 2020-12 ignores it. Under `--strict`
+  any loss exits 1.
+
+Write a `release.schema.json` that uses one of each:
+
+<!-- test: file release.schema.json -->
+```json
+{
+  "title": "Release",
+  "type": "object",
+  "properties": {
+    "version": {"type": "string", "format": "semver"},
+    "count": {"type": "integer", "multipleOf": 5}
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --strict release.schema.json
+schema: hide({ version?:empty() count?: (integer|biginteger) })
+lossy: #/properties/count/multipleOf multipleOf: not carried yet, so it is DROPPED and the import admits instances the schema refuses
+lossy: #/properties/version/format format: an annotation; it is dropped, and what the import admits is unchanged
+lossy: #/title title: an annotation; it is dropped, and what the import admits is unchanged
+vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
+$ echo $?
+1
+```
+
+Without `--strict` the same import exits 0.
+
+- **A schema the import cannot read is refused** with exit 4 and a
+  finding at the JSON Pointer of the fault: `jsonschema_schema` when
+  the text is not JSON or a keyword holds a value 2020-12 does not
+  define for it, `jsonschema_ref` when a `$ref` names another document
+  or nothing in this one, and `jsonschema_duplicate` when one anchor
+  names two schemas. Nothing is written to stdout on a refusal.
+- `--format json` answers `{aontu, errors, lossy, source, verdict}` on
+  stdout, with `errors` only on a refusal.
+- The library form is `importJsonSchema(text)` in TypeScript and
+  `(*Aontu).ImportJSONSchema(text)` in Go, returning the identical
+  `{source, lossy, verdict}` record (plus `errors` on a refusal).
 
 ### `aontu model get`
 
@@ -3563,6 +3725,9 @@ jsonSchema     // the JSON Schema export (see `aontu jsonschema` above):
                // jsonSchema(src, {at?, exactNumbers?, path?, trust?}) ->
                // {verdict, schema, lossy}; Go: (*Aontu).JSONSchema, and
                // JSONSchemaWith(src, JSONSchemaOptions{At, ExactNumbers})
+importJsonSchema // the JSON Schema import (see `aontu jsonschema
+               // import` above): importJsonSchema(text) -> {verdict,
+               // source, lossy, errors?}; Go: (*Aontu).ImportJSONSchema
 format         // the source formatter (see `aontu fmt` above):
                // format(src, {path?, lint?, template?}) -> {verdict,
                // text, changed, findings} or {verdict, errors};

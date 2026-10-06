@@ -30,6 +30,7 @@ import { graphOf } from './graph'
 import { relationCheck, relationErrors } from './relation'
 import { reachCheck } from './reach'
 import { jsonSchema } from './jsonschema'
+import { importJsonSchema } from './jsonschema-import'
 import { aliasBudget, aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
@@ -408,6 +409,7 @@ export {
   relationCheck,
   reachCheck,
   jsonSchema,
+  importJsonSchema,
   view,
   viewSet,
   viewTree,

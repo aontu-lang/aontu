@@ -43,6 +43,9 @@ func (e *EmptyVal) Unify(peer Val, ctx *Ctx) Val {
 		return p.allowEmpty(ctx, e)
 	case *ConstraintKindVal:
 		return p.Unify(e, ctx)
+	case *FuncVal:
+		// An unresolved call drives: it knows to wait for its value.
+		return p.Unify(e, ctx)
 	}
 	return makeNilErr(ctx, "empty_domain", e, peer)
 }

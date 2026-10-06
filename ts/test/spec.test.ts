@@ -12,6 +12,7 @@ import {
   patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
+import { importJsonSchema } from '../dist/jsonschema-import'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
@@ -349,6 +350,33 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `jsonschema report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-import' === row.mode) {
+    // `instances` rides the expect object: each must vet as the schema
+    // judges it, under the reading the import is written for.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, c?: any) =>
+      'number' === typeof v ? (JSON as any).rawJSON(c?.source) : v)
+    const instances = golden.instances ?? {}
+    delete golden.instances
+    const report = importJsonSchema(row.src)
+    Assert.strictEqual(
+      exactJSON({
+        source: report.source,
+        lossy: report.lossy,
+        verdict: report.verdict,
+        ...(null == report.errors ? {} : { errors: report.errors }),
+      }),
+      exactJSON(golden),
+      `jsonschema-import report mismatch: ${row.name}`)
+    for (const [want, list] of Object.entries(instances) as [string, any[]][]) {
+      for (const inst of list) {
+        const got = vet(report.source, JSON.stringify(inst),
+          { at: '$.schema', noFill: true, exactNumbers: true }).verdict
+        Assert.strictEqual('valid' === got, 'valid' === want,
+          `jsonschema-import instance ${JSON.stringify(inst)}: ${row.name} ` +
+          `(vet said ${got})`)
+      }
+    }
   }
   else if ('reaches' === row.mode) {
     const golden = JSON.parse(row.expect)

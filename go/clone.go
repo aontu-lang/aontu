@@ -226,7 +226,12 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		}
 		copyMarks(out, n)
 		for _, k := range n.keys {
-			out.set(k, cloneAt(n.peg[k], append(cp(path), k), deep))
+			c := cloneAt(n.peg[k], append(cp(path), k), deep)
+			// A child the template already applied to keeps that.
+			if nil != n.spread && sprOf(n.peg[k]) == n.spread {
+				setSprOn(c, out.spread)
+			}
+			out.set(k, c)
 		}
 		return out
 	case *ListVal:
@@ -243,7 +248,11 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		}
 		copyMarks(out, n)
 		for i, e := range n.peg {
-			out.peg = append(out.peg, cloneAt(e, append(cp(path), itoa(i)), deep))
+			c := cloneAt(e, append(cp(path), itoa(i)), deep)
+			if nil != n.spread && sprOf(e) == n.spread {
+				setSprOn(c, out.spread)
+			}
+			out.peg = append(out.peg, c)
 		}
 		return out
 	case *ConjunctVal:

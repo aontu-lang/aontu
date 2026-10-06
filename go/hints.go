@@ -283,6 +283,9 @@ var hints = map[string]string{
 		"message, and where they supplied them, what to use instead and the\n" +
 		"version it was deprecated in. Nothing refuses: a deprecation is a\n" +
 		"warning and never changes a verdict.",
+	"jsonschema_schema": "The JSON Schema could not be read: the text is not JSON, or a\nkeyword holds a value 2020-12 does not define for it, such as a count\nthat is not a non-negative integer or a type that names no type. The\nimport refuses rather than guess what a malformed schema meant; fix\nthe schema at the pointer the finding names.",
+	"jsonschema_ref": "A $ref names nothing the import can read: another document, since\nthe import reads one document, or a pointer or anchor that names no\nschema in this one. The import refuses rather than leave the position\nunconstrained.",
+	"jsonschema_duplicate": "One anchor names two subschemas in one document. Which one a $ref\nmeans would depend on the order the schema is walked, so the import\nrefuses; rename one of them.",
 	"vet_filled": "The schema supplies a member the data does not carry. vet --no-fill\n" +
 		"asks whether the data already IS an instance, so a value only the\n" +
 		"schema writes -- a literal, a preferred default, a template's key, a\n" +
@@ -376,6 +379,9 @@ var codeClasses = map[string]string{
 	"deprecated":                "compat",
 	"pref_not_instance":         "compat",
 	"vet_filled":                "incomplete",
+	"jsonschema_schema":         "parse",
+	"jsonschema_ref":            "reference",
+	"jsonschema_duplicate":      "reference",
 	"pack_data": "parse",
 	"pack_key":  "parse",
 	"each_data": "parse",

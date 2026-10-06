@@ -566,6 +566,18 @@ const hints = {
         'message, and where they supplied them, what to use instead and the\n' +
         'version it was deprecated in. Nothing refuses: a deprecation is a\n' +
         'warning and never changes a verdict.',
+    jsonschema_schema: 'The JSON Schema could not be read: the text is not JSON, or a\n' +
+        'keyword holds a value 2020-12 does not define for it, such as a count\n' +
+        'that is not a non-negative integer or a type that names no type. The\n' +
+        'import refuses rather than guess what a malformed schema meant; fix\n' +
+        'the schema at the pointer the finding names.',
+    jsonschema_ref: 'A $ref names nothing the import can read: another document, since\n' +
+        'the import reads one document, or a pointer or anchor that names no\n' +
+        'schema in this one. The import refuses rather than leave the position\n' +
+        'unconstrained.',
+    jsonschema_duplicate: 'One anchor names two subschemas in one document. Which one a $ref\n' +
+        'means would depend on the order the schema is walked, so the import\n' +
+        'refuses; rename one of them.',
     'vet_filled': 'The schema supplies a member the data does not carry. vet --no-fill\n' +
         'asks whether the data already IS an instance, so a value only the\n' +
         'schema writes -- a literal, a preferred default, a template\'s key, a\n' +
@@ -633,6 +645,9 @@ const codeClasses = {
     deprecated: 'compat',
     pref_not_instance: 'compat',
     vet_filled: 'incomplete',
+    jsonschema_schema: 'parse',
+    jsonschema_ref: 'reference',
+    jsonschema_duplicate: 'reference',
     // G7 phase 5 -- the overlay patch verb: an assignment that is not
     // <path>=<value>. Class `parse`, because what is malformed IS
     // source text; report-layer, so no NilVal carries it.

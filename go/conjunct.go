@@ -116,8 +116,14 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		if val.Dc() != DONE {
 			done = false
 		}
-		if _, ok := val.(*ConjunctVal); ok {
-			// Could not merge t0 and t1; keep t0, advance.
+		_, isCj := val.(*ConjunctVal)
+		_, _, residue := sizingResidue(val)
+		_, dj0 := t0.(*DisjunctVal)
+		_, dj1 := t1.(*DisjunctVal)
+		if isCj && !(residue && (dj0 || dj1)) {
+			// Could not merge t0 and t1; keep t0, advance: unless a
+			// disjunction settled to a count over a container, which the
+			// terms kept apart would never reach.
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {

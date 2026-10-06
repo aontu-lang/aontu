@@ -269,8 +269,9 @@ func filledFinding(v Val, path []string, prov vetProv,
 // filledAt walks what generated (g) over the met value (u) and the
 // data's own (d), reporting each position the data does not supply. The
 // walk carries the path: a template's member holds its template's.
-func filledAt(g any, u, d Val, path []string, prov vetProv,
+func filledAt(g any, met, own Val, path []string, prov vetProv,
 	sources vetSources, out *[]VetFinding) {
+	u, d := throughResidue(met), throughResidue(own)
 	switch uv := u.(type) {
 	case *MapVal:
 		if dv, ok := d.(*MapVal); ok {

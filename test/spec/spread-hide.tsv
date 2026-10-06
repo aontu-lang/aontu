@@ -1,3 +1,14 @@
 # Spread cases salvaged from the perf0 branch (spread-hide.tsv).
-# Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: gen
+# Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: gen, and vet with
+# the data before the expect.
 spread-hide-1	gen	a:{&:{h:hide(1)},b:{x:2}}	{"a":{"b":{"x":2}}}
+#
+# A template that already applied to a member keeps it applied when
+# `hide()` copies the map or list, so a guard is not applied again to a
+# value the first application settled.
+hide-keeps-a-guarded-spread-applied	vet	schema: hide({a?: any, &: match(key(0), "a", any, nil)})	{}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+hide-keeps-a-guarded-spread-applied-to-data	vet	schema: hide({a?: any, &: match(key(0), "a", any, nil)})	{"a": 1}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+hide-keeps-a-guarded-spread-refusing	vet	schema: hide({a?: any, &: match(key(0), "a", any, nil)})	{"b": 1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.schema.b","severity":"error","sites":[{"col":27,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}
+hide-keeps-a-guarded-list-spread	vet	schema: hide([&: match(key(0), "0", any, nil)])	[1]	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+hide-keeps-a-guarded-list-spread-own	vet	schema: hide([1] & [&: match(key(0), "0", any, nil)])	[1]	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+hide-keeps-a-guarded-list-spread-refusing	vet	schema: hide([&: match(key(0), "0", any, nil)])	[1, 2]	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.schema.1","severity":"error","sites":[{"col":18,"file":"schema","len":5,"role":"schema","row":1,"src":"match","value":"nil"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}

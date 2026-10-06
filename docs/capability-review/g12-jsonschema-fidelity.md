@@ -352,8 +352,10 @@ Import is a JSON-to-aontu rewrite in both ports, run before evaluation:
 `importJsonSchema(text, opts)` in TypeScript, `ImportJSONSchema` in Go,
 and an import mode of the `jsonschema` verb whose spelling phase 3
 settles under the verb tiers of ADR-039. It answers the aontu text and
-a report shaped like the exporter's, `{aontu, lossy, verdict,
-errors}`, so the two directions read alike.
+a report shaped like the exporter's, `{source, lossy, verdict,
+errors}`, so the two directions read alike. The text is `source`, not
+`aontu`, because every verb's JSON envelope already spends `aontu` on
+its producer record.
 
 The importer is where ADR-003 applies. URI resolution, JSON Pointer
 unescaping, the dialect, the vocabulary set, anchors and dynamic scope

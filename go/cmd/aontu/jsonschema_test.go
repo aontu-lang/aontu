@@ -175,3 +175,94 @@ func TestJsonSchemaExactNumbersJudgesAgainstTheExactReading(t *testing.T) {
 		t.Fatalf("exact: code %d: %s\n%s", code, errw, out)
 	}
 }
+
+func jsonSchemaImportFile(t *testing.T, src []byte) string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "schema.json")
+	if err := os.WriteFile(file, src, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
+	file := jsonSchemaImportFile(t, []byte(`{"title": "T", "type": "object", `+
+		`"properties": {"a": {"type": "null"}}}`))
+
+	out, errw, code := jsonSchemaRun("import", file)
+	if 0 != code || "schema: hide({ a?:null })\n" != out {
+		t.Fatalf("code %d: %q", code, out)
+	}
+	if "lossy: #/title title: an annotation; it is dropped, and what the "+
+		"import admits is unchanged\n"+
+		"vet data against it with: aontu vet --at '$.schema' --no-fill "+
+		"--exact-numbers <file.aontu> <data>\n" != errw {
+		t.Fatalf("stderr: %q", errw)
+	}
+	if _, _, code = jsonSchemaRun("import", "--strict", file); 1 != code {
+		t.Fatalf("--strict on a lossy import = %d, want 1", code)
+	}
+
+	jout, _, code := jsonSchemaRun("import", "--format", "json", file)
+	var report map[string]any
+	if err := json.Unmarshal([]byte(jout), &report); err != nil || 0 != code {
+		t.Fatalf("code %d, not JSON: %v\n%s", code, err, jout)
+	}
+	envelope, _ := report["aontu"].(map[string]any)
+	if "jsonschema import" != envelope["verb"] || "lossy" != report["verdict"] ||
+		out != report["source"] || nil != report["errors"] {
+		t.Fatalf("report: %s", jout)
+	}
+
+	bad := jsonSchemaImportFile(t, []byte(`{"$ref": "#/nope"}`))
+	out, errw, code = jsonSchemaRun("import", bad)
+	if 4 != code || "" != out || "#/$ref: jsonschema_ref [reference]\n"+
+		"  the reference \"#/nope\" names no schema in this document\n" != errw {
+		t.Fatalf("refusal = %d: %q %q", code, out, errw)
+	}
+	jout, _, code = jsonSchemaRun("import", "--format", "json", bad)
+	report = map[string]any{}
+	if err := json.Unmarshal([]byte(jout), &report); err != nil || 4 != code {
+		t.Fatalf("code %d, not JSON: %v\n%s", code, err, jout)
+	}
+	errs, _ := report["errors"].([]any)
+	first, _ := errs[0].(map[string]any)
+	if "error" != report["verdict"] || "" != report["source"] ||
+		"jsonschema_ref" != first["code"] {
+		t.Fatalf("refusal report: %s", jout)
+	}
+
+	// Bytes that are not UTF-8 are the schema's fault, refused as
+	// TypeScript refuses them.
+	_, errw, code = jsonSchemaRun("import",
+		jsonSchemaImportFile(t, []byte{0x22, 0xff, 0x22}))
+	if 4 != code || "#: jsonschema_schema [parse]\n"+
+		"  the schema is not JSON: the text is not well-formed Unicode\n" != errw {
+		t.Fatalf("invalid UTF-8 = %d: %q", code, errw)
+	}
+}
+
+func TestJsonSchemaImportArgumentErrors(t *testing.T) {
+	file := jsonSchemaImportFile(t, []byte("true"))
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{}, "jsonschema import needs one file"},
+		{[]string{file, file}, "jsonschema import needs one file"},
+		{[]string{"--bogus", file}, "unknown jsonschema import option"},
+		{[]string{"--format", "yaml", file}, "--format needs"},
+		{[]string{"--format"}, "--format needs"},
+		{[]string{filepath.Join(t.TempDir(), "missing.json")}, "cannot read"},
+	} {
+		_, errw, code := jsonSchemaRun(append([]string{"import"}, c.args...)...)
+		if 2 != code || !strings.Contains(errw, c.want) {
+			t.Fatalf("%v = %d: %s", c.args, code, errw)
+		}
+	}
+
+	out, _, code := jsonSchemaRun("import", "--help")
+	if 0 != code || !strings.Contains(out, "aontu jsonschema import") {
+		t.Fatalf("--help = %d", code)
+	}
+}

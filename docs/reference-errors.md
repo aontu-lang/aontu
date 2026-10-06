@@ -44,15 +44,15 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **178** codes across
+There are seven classes, and the registry holds **181** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 54 | the text is not a document |
+| `parse` | 55 | the text is not a document |
 | `conflict` | 58 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
-| `reference` | 27 | a name or path resolves to nothing |
+| `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 8 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 178 codes have hint text. `aontu explain --list`
+**Hint text.** All 181 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -206,6 +206,7 @@ twenty rows have no such section and carry no link.
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
 | `inverse_name` | 0.53.0 | The argument to `inverse()` is not a relation name. ([Declared relations](reference-language.md#declared-relations)) |
+| `jsonschema_schema` | 0.77.0 | The JSON Schema `jsonschema import` was given is not JSON, or a keyword holds a value 2020-12 does not define for it. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
 | `merge_conflict` | 0.53.0 | A version-control conflict marker left in the source. ([Errors](reference-language.md#errors)) |
 | `module_integrity` | 0.53.0 | A module resolved locally does not carry the meaning its canon-hash pin recorded. ([Modules](reference-language.md#modules)) |
 | `module_local` | 0.65.0 | A bare module reference whose last segment carries an extension the include table knows. ([Modules](reference-language.md#modules)) |
@@ -326,6 +327,8 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
+| `jsonschema_duplicate` | 0.77.0 | One anchor names two different schemas inside the JSON Schema `jsonschema import` was given. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
+| `jsonschema_ref` | 0.77.0 | A `$ref` in the JSON Schema `jsonschema import` was given names another document, or nothing in this one. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |
 | `patch_ambiguous` | 0.53.0 | Two or more statements pin the path, so an in-place edit has no single place to write. ([`aontu model set`](reference-api.md#aontu-model-set)) |

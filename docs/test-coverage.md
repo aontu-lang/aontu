@@ -134,30 +134,31 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5670 cases across 115 files**) is run by *both*
+`test/spec/*.tsv` (**5907 cases across 117 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `disjunct.tsv` | 38 |
-| `edge.tsv`                  | 337 | `aontu-system.tsv` | 37 |
-| `constraint-product.tsv`    | 256 | `views.tsv` | 37 |
-| `fmt.tsv`                   | 230 | `graph.tsv` | 36 |
+| `number-tower.tsv`          | 395 | `sort.tsv` | 39 |
+| `edge.tsv`                  | 337 | `disjunct.tsv` | 38 |
+| `constraint-product.tsv`    | 256 | `aontu-system.tsv` | 37 |
+| `fmt.tsv`                   | 230 | `views.tsv` | 37 |
+| `errcodes.tsv`              | 181 | `graph.tsv` | 36 |
 | `view.tsv`                  | 177 | `defaults.tsv` | 35 |
-| `errcodes.tsv`              | 176 | `constraint-must.tsv` | 34 |
-| `alias.tsv`                 | 172 | `gen-pack.tsv` | 34 |
-| `types.tsv`                 | 164 | `seal.tsv` | 34 |
-| `func.tsv`                  | 148 | `template.tsv` | 34 |
-| `jsonschema.tsv`            | 131 | `constraint-cross.tsv` | 33 |
-| `subsume.tsv`               | 123 | `containerkind.tsv` | 32 |
-| `number-model.tsv`          | 120 | `super.tsv` | 29 |
-| `constraint-re.tsv`         | 118 | `budget.tsv` | 28 |
-| `vet.tsv`                   | 117 | `diff.tsv` | 28 |
-| `constraint-length.tsv`     | 102 | `gen-match.tsv` | 28 |
-| `str.tsv`                   |  99 | `recursion.tsv` | 28 |
-| `query.tsv`                 |  95 | `var.tsv` | 28 |
-| `cmp.tsv`                   |  93 | `gen-filter.tsv` | 25 |
+| `alias.tsv`                 | 172 | `budget.tsv` | 34 |
+| `types.tsv`                 | 166 | `constraint-must.tsv` | 34 |
+| `func.tsv`                  | 148 | `gen-pack.tsv` | 34 |
+| `jsonschema.tsv`            | 145 | `seal.tsv` | 34 |
+| `jsonschema-import.tsv`     | 136 | `template.tsv` | 34 |
+| `vet.tsv`                   | 135 | `constraint-cross.tsv` | 33 |
+| `subsume.tsv`               | 123 | `gen-filter.tsv` | 29 |
+| `number-model.tsv`          | 120 | `gen-match.tsv` | 29 |
+| `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
+| `constraint-length.tsv`     | 109 | `diff.tsv` | 28 |
+| `str.tsv`                   |  99 | `number-exact.tsv` | 28 |
+| `query.tsv`                 |  95 | `recursion.tsv` | 28 |
+| `cmp.tsv`                   |  93 | `var.tsv` | 28 |
 | `refer.tsv`                 |  87 | `engine-parity.tsv` | 23 |
 | `gen-emit.tsv`              |  86 | `constraint-alias.tsv` | 21 |
 | `maybe.tsv`                 |  78 | `deprecate.tsv` | 21 |
@@ -180,13 +181,13 @@ implementations and is the contract that defines shared behaviour
 | `op-chars.tsv`              |  46 | `agentsmd.tsv` |  8 |
 | `error.tsv`                 |  45 | `container-path.tsv` |  7 |
 | `optional.tsv`              |  45 | `comment.tsv` |  6 |
-| `rel.tsv`                   |  42 | `aontu-scheme.tsv` |  4 |
-| `patch.tsv`                 |  41 | `include-trust.tsv` |  4 |
-| `place.tsv`                 |  41 | `divergent.tsv` |  0 |
-| `scalar.tsv`                |  40 | `signature.tsv` |  0 |
-| `sort.tsv`                  |  39 | | |
+| `containerkind.tsv`         |  42 | `aontu-scheme.tsv` |  4 |
+| `rel.tsv`                   |  42 | `include-trust.tsv` |  4 |
+| `patch.tsv`                 |  41 | `divergent.tsv` |  0 |
+| `place.tsv`                 |  41 | `signature.tsv` |  0 |
+| `scalar.tsv`                |  40 | | |
 
-plus the `spread*.tsv` family: **26 files, 167 cases**, one spread
+plus the `spread*.tsv` family: **26 files, 173 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,
 no data rows (see [the shared spec](shared-spec.md#the-divergence-ledger)),
 and `signature.tsv` is the built-in signature declaration the `sig`
@@ -300,10 +301,11 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go: 124 marked sites
+### Go: 125 marked sites
 
 | Site | Why it cannot be reached, as the marker says |
 |------|--------------------------|
+| `allow.go` × 2 | `the shape has met the role as a map that holds both lists`; `the shape has met the anchor as a map` |
 | `aontu.go` × 1 | `Abs fails only on an unreadable cwd` |
 | `cmd/aontu-lsp/main.go` × 1 | `run under GOCOVERDIR by make cov-go` |
 | `cmd/aontu/help.go` × 3 | `the file is embedded; absence fails the build`; `the generator writes four columns`; `every indexed file is embedded beside the index` |
@@ -323,7 +325,7 @@ marker stopped working.
 | `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
 | `generate.go` × 1 | `hasNodeRef true implies a case above` |
 | `graphatom.go` × 1 | `a string-kind scalar always holds a string` |
-| `jsonschema.go` × 2 | `a bag never holds a nil child`; `every scalar kind has a JSON type` |
+| `jsonschema_import.go` × 1 | `a panic that is not a refusal is a defect, re-raised as it came; TypeScript's twin is reached by an argument Go's signature cannot take` |
 | `lang.go` × 10 | `makeLang cannot fail: see mustMakeLang`; `plugin registration cannot fail` (× 4); `allDigits above already vetted the run`; `the literal regex already vetted the digits`; `both callers pass a signed digit run`; `both callers pass unsigned digit runs`; `langForBase cannot fail: see makeLang` |
 | `listval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |
 | `mapval.go` × 1 | `no caller: superOf lifts a bag child by child (ADR-011 R4)` |

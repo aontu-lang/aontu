@@ -88,8 +88,11 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 done = done && type_1.DONE === val.dc;
                 newtype = this.mark.type || val.mark.type;
                 newhide = this.mark.hide || val.mark.hide;
-                // Unite was just a conjunt anyway, so discard.
-                if (val.isConjunct) {
+                // Unite was just a conjunt anyway, so discard: unless a disjunction
+                // settled to a count over a container, as far as one goes before
+                // generation, which the terms kept apart would never reach.
+                if (val.isConjunct && !((t0.isDisjunct || t1.isDisjunct) &&
+                    undefined !== (0, BagVal_1.sizingResidue)(val))) {
                     outvals.push(t0);
                     t0 = t1;
                 }

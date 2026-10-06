@@ -581,6 +581,42 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "jsonschema-import":
+					// `instances` rides the expect object: each must vet as
+					// the schema judges it, under the reading the import is
+					// written for.
+					var golden map[string]any
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					instances, _ := golden["instances"].(map[string]any)
+					delete(golden, "instances")
+					r := New().ImportJSONSchema(src)
+					out := map[string]any{
+						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
+						"source":  r.Source,
+						"verdict": r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+					}
+					if got, want := specJSON(t, out), specJSON(t, golden); got != want {
+						t.Fatalf("jsonschema-import report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
+					for want, list := range instances {
+						for _, inst := range list.([]any) {
+							raw, _ := json.Marshal(inst)
+							got := Vet(r.Source, string(raw), &VetOptions{At: "$.schema",
+								NoFill: true, ExactNumbers: true}).Verdict
+							if (VetValid == got) != ("valid" == want) {
+								t.Fatalf("jsonschema-import instance %s: %s (vet said %s)",
+									raw, name, got)
+							}
+						}
+					}
 				case "reaches":
 					var golden map[string]any
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {

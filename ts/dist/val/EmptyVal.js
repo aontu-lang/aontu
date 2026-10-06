@@ -30,7 +30,8 @@ class EmptyVal extends FeatureVal_1.FeatureVal {
         if (true === p.isConstraint) {
             return p.allowEmpty(ctx, this);
         }
-        if (true === p.isConstraintKind) {
+        // An unresolved call drives: it knows to wait for its value.
+        if (true === p.isConstraintKind || true === p.isFunc) {
             return p.unify(this, ctx);
         }
         return (0, err_1.makeNilErr)(ctx, 'empty_domain', this, peer);

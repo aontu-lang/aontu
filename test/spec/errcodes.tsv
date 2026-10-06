@@ -488,3 +488,9 @@ var_name	errcode	parse	0.77.0
 # evaluator giving up, as `budget_passes` is.
 vet_filled	errcode	incomplete	0.77.0
 trial_budget	errcode	budget	0.77.0
+# The JSON Schema import: `jsonschema_schema` is class `parse`, the
+# schema text is not a schema; a `$ref` that names nothing and one
+# anchor naming two subschemas are class `reference`.
+jsonschema_schema	errcode	parse	0.77.0
+jsonschema_ref	errcode	reference	0.77.0
+jsonschema_duplicate	errcode	reference	0.77.0
