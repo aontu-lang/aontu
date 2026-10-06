@@ -1,0 +1,1 @@
+lossy: $.argschemas.search_docs.limit integer: the schema says "integer" and admits a JSON spelling such as 1.0, which vet reads as a float and the integer leaf refuses

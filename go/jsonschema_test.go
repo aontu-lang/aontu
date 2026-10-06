@@ -9,7 +9,7 @@ import (
 )
 
 func TestJSONSchemaAnchorSelectsTheSubtree(t *testing.T) {
-	src := "spec: {name: string}\nother: {x: 1}\n"
+	src := "spec: {name: string}\nother: {x: \"y\"}\n"
 
 	// WITHOUT an anchor the whole document is the schema.
 	whole := New().JSONSchema(src, "")
@@ -73,7 +73,7 @@ func TestJSONSchemaRootPathInALoss(t *testing.T) {
 	if "$" != r.Lossy[0].Path {
 		t.Fatalf("root path rendered as %q", r.Lossy[0].Path)
 	}
-	if !strings.Contains(r.Lossy[0].Reason, "binary64") {
+	if !strings.Contains(r.Lossy[0].Reason, "exact leaf") {
 		t.Fatalf("reason %q", r.Lossy[0].Reason)
 	}
 }

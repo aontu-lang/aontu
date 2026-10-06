@@ -1319,23 +1319,32 @@ $ aontu jsonschema --at spec contract.aontu
 - `--format json` prints the whole report (`schema`, `lossy`,
   `verdict`) under the usual `aontu: {version, verb}` envelope.
 - Exit codes: `0` exported, `1` lossy **under `--strict`**, `2` usage,
-  `4` the document does not stand up on its own. Without `--strict` a
-  lossy export is still an export and exits 0.
+  `4` the document does not stand up on its own, which includes a
+  failure nested in the exported value and an atom whose arguments
+  are unusable. Without `--strict` a lossy export is still an export
+  and exits 0.
 
-**What crosses exactly.** Kinds become `type`; a concrete scalar
-becomes `const`; a disjunction of scalars becomes `enum`, and its
-preference becomes `default`; bounds become `minimum`/`maximum`, with
-the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
-`re` becomes `pattern` (aontu's portable subset is a subset of
-ECMA-262, which is what JSON Schema reads, so no translation happens);
-`neq` becomes `not: {enum: …}`; `length` becomes
-`minLength`/`maxLength` on a string and `minItems`/`maxItems`
-otherwise; `unique()` becomes `uniqueItems`; an optional key is simply
-absent from `required`. A spread is `additionalProperties: <template>`,
-which is what a spread means. A written list exports as `prefixItems`
-plus `items: false`, which is exact for a closed list and over-strict
-for an open one: an open list admits elements beyond its positions, and
-the schema refuses them.
+**What crosses exactly.** The string, boolean, null and number kinds
+become `type`, and `map` and `list` become `object` and `array`; a
+concrete string, boolean or fractional float becomes `const`; a
+disjunction of scalars becomes `enum`, its members deduplicated by
+JSON value and its preference written as `default`; a disjunction of
+bare kinds becomes a `type` array; bounds become
+`minimum`/`maximum`, with the open endpoints as 2020-12's
+`exclusiveMinimum`/`exclusiveMaximum` and an exact endpoint written in
+its own digits; `re` becomes `pattern` in its normalised form, the
+ECMA-262 reading of what aontu means; `neq` becomes `not: {enum: …}`;
+`len` becomes `minLength`/`maxLength` on a string,
+`minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
+on a map, with an open or fractional bound moved to the whole count
+inside it and an integer exclusion as `not`; `unique()` becomes
+`uniqueItems`; an optional key is simply absent from `required`; and
+the written `nil` becomes `false`. A spread is
+`additionalProperties: <template>`, which is what a spread means. A
+written list is open: its positions become `prefixItems`, its spread
+becomes `items`, and only a closed list gets `items: false`. A lone
+preference such as `*1` admits any value of its kind, so it exports
+that kind with the preferred value as `default`.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1361,7 +1370,10 @@ The losses, and why each is one:
 |---|---|
 | `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
-| `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| the `integer` and `float` kinds, and a number literal written in one leaf | JSON reads `1` and `1.0` as one number and `vet` reads them as two leaves, so the schema admits a spelling the model refuses |
+| a `neq` of one leaf, and `unique()` over a list that can hold both leaves of one number | the same reading, in the other direction: the schema refuses a spelling the model admits |
+| `biginteger`, `bigdecimal`, and exact literals | `vet` reads JSON data as an integer or a float, never as an exact leaf, so the schema admits values the model refuses; the digits are written exactly |
+| a bound on a string | JSON Schema has no ordering keyword for strings |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |

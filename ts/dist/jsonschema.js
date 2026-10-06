@@ -6,9 +6,12 @@ const utility_1 = require("./utility");
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
+const Decimal_1 = require("./val/Decimal");
+const numcmp_1 = require("./val/numcmp");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
+const RAW = JSON;
 function pathText(path) {
     return '$' + (0 < path.length ? '.' + path.join('.') : '');
 }
@@ -25,20 +28,91 @@ const KIND_TYPE = {
     Number: 'number',
     Path: 'string',
 };
+const BOTH = ['integer', 'float'];
+const KIND_LEAVES = {
+    Integer: ['integer'],
+    Float: ['float'],
+    BigInteger: [],
+    BigDecimal: [],
+    Number: BOTH,
+};
+const KIND_LOSS = {
+    Integer: 'the schema says "integer" and admits a JSON spelling such as ' +
+        '1.0, which vet reads as a float and the integer leaf refuses',
+    Float: 'the schema says "number" and admits a JSON spelling such as 1, ' +
+        'which vet reads as an integer and the float leaf refuses',
+    BigInteger: 'the schema says "integer" and admits every JSON integer, ' +
+        'which vet reads as an integer or a float, never as the biginteger leaf',
+    BigDecimal: 'the schema says "number" and admits every JSON number, ' +
+        'which vet reads as an integer or a float, never as the bigdecimal leaf',
+};
+const LITERAL_LOSS = {
+    integer: 'the schema admits the float spelling of this value, which vet ' +
+        'reads as a float and the integer leaf refuses',
+    float: 'the schema admits the integer spelling of this value, which vet ' +
+        'reads as an integer and the float leaf refuses',
+    exact: 'the schema admits this value in every JSON spelling, which vet ' +
+        'reads as an integer or a float, never as the exact leaf; the digits ' +
+        'are written exactly',
+};
+function leafOf(v) {
+    return true === v.isInteger ? 'integer' :
+        true === v.isNumber ? 'float' :
+            true === v.isBigInteger || true === v.isBigDecimal ? 'exact' : undefined;
+}
+function readings(v) {
+    return (0, numcmp_1.scaledIsIntegral)((0, numcmp_1.scaledOfNumeric)(v)) ? BOTH : ['float'];
+}
+function jsonOf(v) {
+    return true === v.isBigInteger || true === v.isBigDecimal ?
+        RAW.rawJSON(v.peg.toString()) : v.peg;
+}
+function sameJSON(a, b) {
+    return undefined !== leafOf(a) && undefined !== leafOf(b) ?
+        0 === (0, numcmp_1.cmpNumeric)(a, b) :
+        a.peg === b.peg && typeof a.peg === typeof b.peg;
+}
+// One entry per JSON value, in written order, with every leaf the value
+// is written in.
+function groups(members) {
+    const out = [];
+    for (const m of members) {
+        let g = out.find((x) => sameJSON(x.v, m));
+        if (undefined === g) {
+            g = { v: m, leaves: [] };
+            out.push(g);
+        }
+        const leaf = leafOf(m);
+        if (undefined !== leaf && !g.leaves.includes(leaf)) {
+            g.leaves.push(leaf);
+        }
+    }
+    return out;
+}
+// The first number with an admitted JSON spelling no member is written
+// in: there the schema and the model disagree.
+function lone(gs, admitted) {
+    return gs.find((g) => undefined !== leafOf(g.v) && readings(g.v)
+        .some((r) => admitted.includes(r) && !g.leaves.includes(r)))?.v;
+}
+function loseLiterals(ctx, path, gs) {
+    const v = lone(gs, BOTH);
+    if (undefined !== v) {
+        const leaf = leafOf(v);
+        lose(ctx, path, leaf + ' literal', LITERAL_LOSS[leaf]);
+    }
+}
+function loseKind(ctx, path, kind) {
+    const reason = KIND_LOSS[kind?.name];
+    if (undefined !== reason) {
+        lose(ctx, path, kind.name.toLowerCase(), reason);
+    }
+}
 // A path is its address string at the JSON boundary, and the schema
 // cannot say which strings are addresses.
 function losePath(ctx, path) {
     lose(ctx, path, 'path', 'a path admits only path values, but JSON Schema has no path type; ' +
         'the schema says "string" and admits any string here');
-}
-function scalarJson(v) {
-    if (v.isBigInteger) {
-        return Number(v.peg);
-    }
-    if (v.isBigDecimal) {
-        return Number(v.peg.toString());
-    }
-    return v.peg;
 }
 function scalarType(v) {
     if (v.isBigDecimal) {
@@ -50,10 +124,102 @@ function scalarType(v) {
     const t = typeof v.peg;
     return 'number' === t ? 'number' : 'boolean' === t ? 'boolean' : 'string';
 }
-function fromConstraint(ctx, path, c) {
+function allOf(out, part) {
+    out.allOf = [...(out.allOf ?? []), part];
+}
+function bound(ctx, path, out, b, key, openKey, atom, openAtom) {
+    if (null == b) {
+        return;
+    }
+    if (true === b.v.isString) {
+        lose(ctx, path, b.open ? openAtom : atom, 'JSON Schema has no ordering keyword for strings, so this bound is ' +
+            'DROPPED and the schema admits strings outside it');
+        return;
+    }
+    out[b.open ? openKey : key] = jsonOf(b.v);
+}
+const COUNT_KEYS = {
+    string: ['minLength', 'maxLength'],
+    map: ['minProperties', 'maxProperties'],
+    list: ['minItems', 'maxItems'],
+};
+// The integer a count bound admits at its edge: counts are whole, so an
+// open or fractional bound moves to the nearest whole count inside it.
+function countEdge(b, upper) {
+    const s = (0, numcmp_1.scaledOfNumeric)(b.v);
+    const whole = (0, numcmp_1.scaledIsIntegral)(s);
+    const floor = (0, numcmp_1.scaledFloor)(s);
+    return Number(upper ? (b.open && whole ? floor - 1n : floor) :
+        (b.open || !whole ? floor + 1n : floor));
+}
+function count(ctx, path, out, n, kind) {
+    const [lo, hi] = COUNT_KEYS[kind ?? 'list'];
+    out[lo] = countEdge(n.lo, false);
+    if (null != n.hi) {
+        out[hi] = countEdge(n.hi, true);
+    }
+    // A count is an integer leaf, so only an integer exclusion meets one.
+    for (const x of n.neqs) {
+        if (true === x.isInteger) {
+            allOf(out, { not: { [lo]: x.peg, [hi]: x.peg } });
+        }
+    }
+    if (undefined === kind) {
+        lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
+            'JSON Schema has no keyword that counts a string OR a container');
+    }
+}
+function elementLeaves(e) {
+    if (true === e.isScalar) {
+        const leaf = leafOf(e);
+        return undefined === leaf ? [] : [leaf];
+    }
+    if (true === e.isScalarKind) {
+        return KIND_LEAVES[e.peg?.name] ?? [];
+    }
+    if (true === e.isConstraint && null == e.count) {
+        return KIND_LEAVES[e.kind?.name] ?? ('string' === e.domain ? [] : BOTH);
+    }
+    if (true === e.isEmptyConstraint) {
+        return [];
+    }
+    if (true === e.isDisjunct && Array.isArray(e.peg)) {
+        const all = e.peg.map(elementLeaves);
+        return all.includes(undefined) ? undefined :
+            [...new Set(all.flat())];
+    }
+    return undefined;
+}
+// unique() tells an integer from a float of the same value and
+// uniqueItems does not, so they agree only on a list that cannot hold
+// both.
+function uniqueExact(bag) {
+    if (true !== bag?.isList) {
+        return false;
+    }
+    const spr = bag.spread?.cj;
+    if (null == spr && true !== bag.closed) {
+        return false;
+    }
+    const leaves = new Set();
+    for (const e of null == spr ? bag.peg : [spr, ...bag.peg]) {
+        const ls = elementLeaves(e);
+        if (undefined === ls) {
+            return false;
+        }
+        ls.forEach((l) => leaves.add(l));
+    }
+    return leaves.size <= 1;
+}
+function fromConstraint(ctx, path, c, bag) {
     const out = {};
+    if (null != c.invalid) {
+        ctx.failed = ctx.failed ?? c;
+        return out;
+    }
     if (null != c.kind && null != KIND_TYPE[c.kind.name]) {
         out.type = KIND_TYPE[c.kind.name];
+        loseKind(ctx, path, c.kind);
     }
     else if ('string' === c.domain) {
         out.type = 'string';
@@ -61,37 +227,28 @@ function fromConstraint(ctx, path, c) {
     else if ('number' === c.domain) {
         out.type = 'number';
     }
-    if (null != c.lo) {
-        out[c.lo.open ? 'exclusiveMinimum' : 'minimum'] = scalarJson(c.lo.v);
-    }
-    if (null != c.hi) {
-        out[c.hi.open ? 'exclusiveMaximum' : 'maximum'] = scalarJson(c.hi.v);
-    }
-    // Exclusions. `neq(1,2)` is "not one of these", which is exactly
-    // `not: {enum: [...]}`.
+    bound(ctx, path, out, c.lo, 'minimum', 'exclusiveMinimum', 'min', 'above');
+    bound(ctx, path, out, c.hi, 'maximum', 'exclusiveMaximum', 'max', 'below');
     if (0 < c.neqs.length) {
-        out.not = { enum: c.neqs.map(scalarJson) };
+        const gs = groups(c.neqs);
+        out.not = { enum: gs.map((g) => jsonOf(g.v)) };
+        if (undefined !== lone(gs, KIND_LEAVES[c.kind?.name] ?? BOTH)) {
+            lose(ctx, path, 'neq', 'the schema refuses every JSON spelling of an excluded number, and ' +
+                'neq excludes only the leaves it names, so the model admits a ' +
+                'spelling the schema refuses');
+        }
     }
-    if (1 === c.res.length) {
-        out.pattern = c.res[0].src;
-    }
-    else if (1 < c.res.length) {
-        out.allOf = c.res.map((r) => ({ pattern: r.src }));
+    for (const r of c.res) {
+        if (1 === c.res.length) {
+            out.pattern = r.norm;
+        }
+        else {
+            allOf(out, { pattern: r.norm });
+        }
     }
     if (null != c.count) {
-        const lo = null == c.count.lo ? undefined : scalarJson(c.count.lo.v);
-        const hi = null == c.count.hi ? undefined : scalarJson(c.count.hi.v);
-        const str = 'string' === c.domain || 'string' === out.type;
-        if (null != lo) {
-            out[str ? 'minLength' : 'minItems'] = lo;
-        }
-        if (null != hi) {
-            out[str ? 'maxLength' : 'maxItems'] = hi;
-        }
-        if (!str && null == c.domain) {
-            lose(ctx, path, 'len', 'a count with no domain is exported as minItems/maxItems; ' +
-                'JSON Schema has no keyword that counts a string OR a container');
-        }
+        count(ctx, path, out, c.count, 'string' === c.domain ? 'string' :
+            true === bag?.isMap ? 'map' : true === bag?.isList ? 'list' : undefined);
     }
     if (true === c.nonEmpty && true !== c.emptyOk && !(1 <= out.minLength)) {
         out.minLength = 1;
@@ -101,6 +258,11 @@ function fromConstraint(ctx, path, c) {
     }
     if (c.uniq) {
         out.uniqueItems = true;
+        if (!uniqueExact(bag)) {
+            lose(ctx, path, 'unique', 'uniqueItems compares numbers by value, so the schema refuses a list ' +
+                'such as [1, 1.0], which unique() admits because vet reads the two ' +
+                'as different leaves');
+        }
     }
     for (const key of c.uniqBy) {
         lose(ctx, path, 'unique(' + key + ')', 'JSON Schema has no uniqueness-by-property keyword; uniqueItems ' +
@@ -130,9 +292,19 @@ function fromVal(ctx, path, v) {
     return out;
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
+const MIN_COUNT = /^min(Items|Length|Properties)$/;
+// A bag and its sizing atom, described as one schema object: the bag's
+// positions and the atom both give a lower count, and the higher holds.
+function meet(a, b) {
+    const out = { ...a };
+    for (const k of Object.keys(b)) {
+        out[k] = MIN_COUNT.test(k) && null != out[k] ? Math.max(out[k], b[k]) : b[k];
+    }
+    return out;
+}
 function fromValInner(ctx, path, v) {
     if (true === v.isPref) {
-        const inner = fromVal(ctx, path, v.peg);
+        const inner = fromVal(ctx, path, v.superpeg);
         const gen = generated(v.peg);
         return undefined === gen ? inner : { ...inner, default: gen };
     }
@@ -144,10 +316,10 @@ function fromValInner(ctx, path, v) {
     }
     const residue = (0, BagVal_1.sizingResidue)(v);
     if (undefined !== residue) {
-        return {
-            ...fromVal(ctx, path, residue.bag),
-            ...fromConstraint(ctx, path, residue.con),
-        };
+        return meet(fromVal(ctx, path, residue.bag), fromConstraint(ctx, path, residue.con, residue.bag));
+    }
+    if (true === v.isConjunct && v.peg.every((t) => true === t?.isMap)) {
+        return { allOf: v.peg.map((t) => fromVal(ctx, path, t)) };
     }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);
@@ -155,13 +327,15 @@ function fromValInner(ctx, path, v) {
     if (true === v.isList) {
         return fromList(ctx, path, v);
     }
+    if (true === v.isMapKind) {
+        return { type: 'object' };
+    }
+    if (true === v.isListKind) {
+        return { type: 'array' };
+    }
     if (true === v.isScalarKind) {
         const t = KIND_TYPE[v.peg?.name];
-        if ('BigInteger' === v.peg?.name || 'BigDecimal' === v.peg?.name) {
-            lose(ctx, path, v.peg.name.toLowerCase(), 'JSON has one number type and it is binary64, so the EXACTNESS ' +
-                'this leaf exists for cannot be carried; the schema says ' +
-                '"' + t + '" and a consumer may round');
-        }
+        loseKind(ctx, path, v.peg);
         if ('Path' === v.peg?.name) {
             losePath(ctx, path);
         }
@@ -180,21 +354,38 @@ function fromValInner(ctx, path, v) {
         return { type: 'string' };
     }
     if (true === v.isScalar) {
-        if (v.isBigInteger || v.isBigDecimal) {
-            lose(ctx, path, 'exact literal', 'JSON has one number type and it is binary64, so this exact ' +
-                'value is emitted as the nearest JSON number');
+        loseLiterals(ctx, path, groups([v]));
+        return { const: jsonOf(v), type: scalarType(v) };
+    }
+    // The written `nil` is the bottom, which admits nothing; any other nil
+    // is a failure the document carries, and refuses the run.
+    if (true === v.isNil) {
+        if ('literal_nil' !== v.why) {
+            ctx.failed = ctx.failed ?? v;
         }
-        return { const: scalarJson(v), type: scalarType(v) };
+        return false;
     }
     lose(ctx, path, residueName(v), 'this is not a value yet, so there is nothing to constrain a ' +
         'consumer to; the schema admits anything here');
     return {};
 }
 function residueName(v) {
-    return true === v.isNil ? 'nil' :
-        true === v.isRef ? 'reference' :
-            true === v.isFunc ? v.funcname() :
-                'unresolved';
+    return true === v.isRef ? 'reference' :
+        true === v.isFunc ? v.funcname() :
+            'unresolved';
+}
+// Exact numbers as raw JSON text, so every serialiser writes their digits.
+function exactSafe(x) {
+    if ('bigint' === typeof x || x instanceof Decimal_1.Decimal) {
+        return RAW.rawJSON(x.toString());
+    }
+    if (Array.isArray(x)) {
+        return x.map(exactSafe);
+    }
+    if (null != x && 'object' === typeof x) {
+        return Object.fromEntries(Object.entries(x).map(([k, e]) => [k, exactSafe(e)]));
+    }
+    return x;
 }
 // The generated JSON of a value, or undefined where it does not
 // generate. Used for `default` and for `enum` members: both are VALUES
@@ -203,7 +394,11 @@ function generated(v) {
     const a0 = new aontu_1.Aontu();
     const ctx = a0.ctx({ collect: true });
     const out = v.gen(ctx);
-    return 0 === ctx.err.length ? out : undefined;
+    return 0 === ctx.err.length ? exactSafe(out) : undefined;
+}
+function bareType(s) {
+    return 1 === Object.keys(s).length && 'string' === typeof s.type ?
+        s.type : undefined;
 }
 function fromDisjunct(ctx, path, v) {
     const members = v.peg;
@@ -214,10 +409,18 @@ function fromDisjunct(ctx, path, v) {
         }
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
-    const consts = bare.map((m) => true === m?.isScalar && true !== m?.isNil ? scalarJson(m) : undefined);
-    const out = consts.every((c) => undefined !== c) ?
-        { enum: consts } :
-        { anyOf: bare.map((m) => fromVal(ctx, path, m)) };
+    let out;
+    if (bare.every((m) => true === m?.isScalar)) {
+        const gs = groups(bare);
+        loseLiterals(ctx, path, gs);
+        out = { enum: gs.map((g) => jsonOf(g.v)) };
+    }
+    else {
+        const arms = bare.map((m) => fromVal(ctx, path, m));
+        const types = arms.map(bareType);
+        out = types.includes(undefined) ? { anyOf: arms } :
+            { type: 1 === new Set(types).size ? types[0] : [...new Set(types)] };
+    }
     return undefined === def ? out : { ...out, default: def };
 }
 function skipMarked(ctx, path, bag, child) {
@@ -240,7 +443,6 @@ function fromMap(ctx, path, v) {
     const props = {};
     const required = [];
     const optional = v.optionalKeys;
-    let spread = undefined;
     for (const key of Object.keys(v.peg).sort()) {
         const child = v.peg[key];
         if (v.aliasKeys.includes(key)) {
@@ -248,8 +450,7 @@ function fromMap(ctx, path, v) {
         }
         // A marked child does not generate, so it is not part of the value
         // a consumer produces -- and a schema that demanded it would refuse
-        // every correct document. Inside a marked container (an export
-        // anchored in a `type()` block) the marks are the container's own.
+        // every correct document.
         if (skipMarked(ctx, [...path, key], v, child)) {
             continue;
         }
@@ -258,10 +459,6 @@ function fromMap(ctx, path, v) {
             required.push(key);
         }
     }
-    const spr = v.spread?.cj;
-    if (null != spr) {
-        spread = fromVal(ctx, [...path, '&'], spr);
-    }
     const out = { type: 'object', properties: props };
     if (0 < required.length) {
         out.required = required;
@@ -269,35 +466,38 @@ function fromMap(ctx, path, v) {
     // CLOSEDNESS IS THE ONE THING JSON SCHEMA SAYS EXACTLY AS AONTU DOES.
     // A closed map is `additionalProperties: false`; an open one leaves
     // the keyword off, since JSON Schema's default is already open.
+    const spr = v.spread?.cj;
     if (true === v.closed) {
         out.additionalProperties = false;
     }
-    else if (null != spread) {
-        out.additionalProperties = spread;
+    else if (null != spr) {
+        out.additionalProperties = fromVal(ctx, [...path, '&'], spr);
     }
     return out;
 }
+// A written list is open unless closed, and its spread already holds for
+// every position, so positions are prefixItems and the spread is items.
 function fromList(ctx, path, v) {
-    const els = v.peg.filter((el, i) => !skipMarked(ctx, [...path, String(i)], v, el));
-    const spr = v.spread?.cj;
-    // A list with a spread template is homogeneous: every element, named
-    // or not, satisfies it. That is `items`.
-    if (null != spr) {
-        const out = {
-            type: 'array',
-            items: fromVal(ctx, [...path, '&'], spr),
-        };
-        if (0 < els.length) {
-            out.minItems = els.length;
+    const at = (i) => [...path, String(i)];
+    const kept = [];
+    v.peg.forEach((el, i) => {
+        if (!skipMarked(ctx, at(i), v, el)) {
+            kept.push(i);
         }
-        return out;
+    });
+    const out = { type: 'array' };
+    if (0 < kept.length) {
+        out.prefixItems = kept.map((i) => fromVal(ctx, at(i), v.peg[i]));
+        out.minItems = kept.length;
     }
-    return {
-        type: 'array',
-        prefixItems: els.map((el) => fromVal(ctx, [...path, String(v.peg.indexOf(el))], el)),
-        items: false,
-        minItems: els.length,
-    };
+    const spr = v.spread?.cj;
+    if (true === v.closed) {
+        out.items = false;
+    }
+    else if (null != spr) {
+        out.items = fromVal(ctx, [...path, '&'], spr);
+    }
+    return out;
 }
 // The verb. Evaluate, anchor, walk, report.
 function jsonSchema(src, options) {
@@ -334,9 +534,18 @@ function jsonSchema(src, options) {
     }
     const ctx = { lossy: [] };
     const body = fromVal(ctx, anchor, node);
+    if (null != ctx.failed) {
+        const f = ctx.failed;
+        const nil = true === f.isNil ? f :
+            (0, err_1.makeNilErr)(actx, f.invalid, f, undefined, 'constrain');
+        return {
+            verdict: 'error', schema: {}, lossy: [],
+            errors: [(0, vet_1.failureFinding)(actx, opts.path, nil)],
+        };
+    }
     return {
         verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
-        schema: { $schema: DRAFT, ...body },
+        schema: { $schema: DRAFT, ...(false === body ? { not: {} } : body) },
         lossy: ctx.lossy,
     };
 }

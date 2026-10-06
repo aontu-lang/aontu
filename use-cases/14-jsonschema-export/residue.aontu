@@ -9,22 +9,23 @@
 #
 # What each field becomes (probed, not guessed):
 #
-#   total       must() is evaluate-only, and the engine holds the WHOLE
-#               value residual, so the export is {} and the report says
-#               `nil` -- the `number` bound beside it is lost too.
-#   amountEur   bigdecimal exports as "number" with the exactness loss
-#               reported; money.aontu is the convention that avoids this.
+#   total       must() is evaluate-only, so it is dropped and reported,
+#               while the `number` kind beside it still crosses.
+#   amountEur   bigdecimal exports as "number" and is reported: vet
+#               reads JSON data as an integer or a float, never as the
+#               exact leaf. money.aontu is the convention that avoids it.
 #   audit       hide() is omitted entirely, and reported: a consumer
 #               is neither asked for it nor allowed to know about it.
 #   annotations a spread template carrying a constraint call stays
 #               residual, so additionalProperties is {} and the `&`
 #               entry is reported `unresolved`. (A bare-kind template,
 #               registry.aontu's labels, crosses without loss.)
-#   attempts    len() on a list has no domain until data arrives:
-#               exported as minItems/maxItems, and still reported.
+#   attempts    len() on a list crosses as minItems/maxItems; the
+#               `integer` template is reported, because JSON reads 1
+#               and 1.0 as one number and vet reads them as two leaves.
 
 report: {
-  total: number & must((v) => 0 <= v, "total must not be negative")
+  total: number & must(min(0), "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   annotations: { &: string & len(max(63)) }

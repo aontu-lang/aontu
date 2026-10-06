@@ -12,5 +12,5 @@
 <path d="M32 40V110H50" class="av-line"/>
 <text x="52" y="114"><tspan class="av-t">audit</tspan><tspan class="av-m"> &quot;kept-off-the-wire&quot;</tspan></text>
 <path d="M32 40V130H50" class="av-line"/>
-<text x="52" y="134"><tspan class="av-t">total</tspan><tspan class="av-m"> nil</tspan></text>
+<text x="52" y="134"><tspan class="av-t">total</tspan><tspan class="av-m"> must(min(0),&quot;total must not b...</tspan></text>
 </svg>

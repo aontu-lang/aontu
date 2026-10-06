@@ -35,16 +35,17 @@ has() {
 # ----------------------------------------------------------------
 # 1. The MCP bridge: each tool's argument schema exports at its own
 # anchor as exactly the inputSchema shape the protocol requires, and
-# stderr stays EMPTY -- the registry is written in the crossing subset,
-# so nothing is lost, and the goldens are complete contracts.
+# stderr names exactly what did not cross: nothing for create_ticket,
+# and the `integer` argument of each of the other two, which JSON
+# reads by value and vet reads by leaf.
 for tool in search_docs read_file create_ticket; do
   run "t_$tool" 0 -- jsonschema --at "\$.argschemas.$tool" "$DIR/registry.aontu"
   diff -u "$DIR/expected/tool-${tool//_/-}.json" "$WORK/t_$tool.out" \
     || fail "$tool export drifted from expected/tool-${tool//_/-}.json"
-  [ -s "$WORK/t_$tool.err" ] \
-    && { cat "$WORK/t_$tool.err" >&2; fail "$tool: expected a clean export"; }
+  diff -u "$DIR/expected/tool-${tool//_/-}.err" "$WORK/t_$tool.err" \
+    || fail "$tool loss report drifted from expected/tool-${tool//_/-}.err"
 done
-ok "jsonschema --at: three inputSchema-shaped exports, zero losses"
+ok "jsonschema --at: three inputSchema-shaped exports, each loss named"
 
 # 2. The exports hold structurally under a stock JSON reader (python3;
 # the jsonschema validator package is deliberately not required --
@@ -97,25 +98,24 @@ ok "money: Dec2 pattern and the bigdecimal:2 const mark both cross"
 
 # 5. The loss report: residue.aontu collects one instance of each class
 # that cannot cross, the schema still exports (exit 0), and EVERY loss
-# is named on stderr with its path and construct. Note must() reports
-# as `nil` -- the engine holds the whole value residual, so the number
-# bound beside it is lost too (reference-api.md documents this loss
-# under `must`; the README records the difference).
+# is named on stderr with its path and construct. must() is dropped
+# while the `number` kind beside it crosses, and len() on a list
+# crosses while its `integer` template is the loss.
 run res 0 -- jsonschema --at report "$DIR/residue.aontu"
 diff -u "$DIR/expected/residue.json" "$WORK/res.out" \
   || fail "residue export drifted from expected/residue.json"
-has res err 'lossy: $.report.total nil:'
+has res err 'lossy: $.report.total must:'
 has res err 'lossy: $.report.amountEur bigdecimal:'
 has res err 'lossy: $.report.audit hide:'
 has res err 'lossy: $.report.annotations.& unresolved:'
-has res err 'lossy: $.report.attempts len:'
+has res err 'lossy: $.report.attempts.& integer:'
 ok "residue: lossy export still exports, five losses each named"
 
 # 6. --strict makes lossiness an error: same document, same report,
 # exit 1 -- the mode for a pipeline that must not ship a schema
 # admitting more than the model does.
 run strict 1 -- jsonschema --strict --at report "$DIR/residue.aontu"
-has strict err 'lossy: $.report.total nil:'
+has strict err 'lossy: $.report.total must:'
 ok "--strict: a lossy export exits 1 instead of 0"
 
 # 7. --format json is the machine face of the same report: verdict
@@ -128,9 +128,9 @@ r = json.load(open(sys.argv[1]))
 assert r["aontu"]["verb"] == "jsonschema"
 assert r["verdict"] == "lossy", r["verdict"]
 assert {l["construct"] for l in r["lossy"]} \
-    == {"nil", "bigdecimal", "hide", "unresolved", "len"}
+    == {"must", "bigdecimal", "hide", "unresolved", "integer"}
 assert all({"path", "construct", "reason"} <= set(l) for l in r["lossy"])
-assert r["schema"]["properties"]["total"] == {}
+assert r["schema"]["properties"]["total"] == {"type": "number"}
 EOF
 ok "--format json: verdict lossy, losses as {path, construct, reason}"
 

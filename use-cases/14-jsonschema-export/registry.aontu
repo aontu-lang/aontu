@@ -4,16 +4,14 @@
 #
 # Modelled on use-case 09's registry (see 09-agent-tools/registry.aontu
 # for the full six-tool version and the gaps it records), but
-# self-contained, and trimmed to constructs that CROSS the export
-# without loss -- check.sh asserts stderr stays empty for every tool.
-# The two trims that buy that:
-#
-#   - no len() on lists: the sizing atom has no domain until data
-#     arrives, so it exports as minItems/maxItems WITH a lossy report
-#     (residue.aontu keeps one to show the report);
-#   - no constrained element templates ([&: string & re(...)]): only a
-#     bare-kind template crosses as `items`; a constrained one exports
-#     as items:{} and is reported (residue.aontu again).
+# self-contained, and trimmed to constructs that CROSS the export.
+# check.sh pins each tool's stderr: create_ticket's is empty, and the
+# other two carry one line each, for their `integer` argument, because
+# JSON reads 1 and 1.0 as one number and vet reads them as two leaves.
+# The one trim: no constrained element templates
+# ([&: string & re(...)]). Only a bare-kind template crosses as
+# `items`; a constrained one exports as items:{} and is reported
+# (residue.aontu keeps one to show the report).
 #
 # type() keeps the map out of generated output while it still
 # constrains; the export reads straight through the mark.

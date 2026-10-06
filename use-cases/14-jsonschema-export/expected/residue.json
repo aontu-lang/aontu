@@ -17,7 +17,9 @@
       "minItems": 0,
       "type": "array"
     },
-    "total": {}
+    "total": {
+      "type": "number"
+    }
   },
   "required": [
     "amountEur",

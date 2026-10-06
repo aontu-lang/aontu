@@ -16,10 +16,11 @@ its three moods: exact, lossy, refused.
 Four documents, one per mood plus the money convention:
 
 - **registry.aontu**: a three-tool MCP-flavoured registry (use-case
-  09's shape, self-contained), written in the subset that crosses
-  without loss, so each per-tool export is complete.
+  09's shape, self-contained), written in the subset that crosses.
   `jsonschema --at '$.argschemas.<tool>'` answers the tool's
-  `inputSchema` directly, with nothing on stderr.
+  `inputSchema` directly. Stderr names one loss for each `integer`
+  argument and nothing else: JSON reads `1` and `1.0` as one number,
+  and `vet` reads them as two leaves.
 - **message.aontu**: a wire message whose root is one `close()`
   expression, so the whole-document export carries
   `additionalProperties: false` at its root: pasteable into an
@@ -31,21 +32,20 @@ Four documents, one per mood plus the money convention:
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
 - **residue.aontu**: one instance of each loss class: `must()`,
-  `bigdecimal`, `hide()`, a constrained spread template, `len()`
-  on a list. The export still happens; every loss is named.
+  `bigdecimal`, `hide()`, a constrained spread template, an
+  `integer` list template. The export still happens; every loss is
+  named.
 - **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
 
-The line between registry.aontu and residue.aontu runs through two
-constructs. A bare-kind template (`[&: string]`, `{ &: string }`)
+The line between registry.aontu and residue.aontu runs through one
+construct. A bare-kind template (`[&: string]`, `{ &: string }`)
 crosses as `items` or `additionalProperties`; a template carrying a
 constraint call (`{ &: string & len(max(63)) }`) is held residual,
 exports as `{}` in that position, and is reported as `unresolved`.
-`len()` on a list exports as `minItems`/`maxItems` and is reported
-as well, because a count has no domain until data arrives. One more
-construct reports under a name other than its own: `must()` holds the
-whole value residual, so `number & must(...)` exports as `{}` and is
-reported as `nil`.
+`len()` on a list crosses as `minItems`/`maxItems`, and `must()` is
+dropped and reported while the `number` kind beside it still
+crosses.
 
 Every golden in `expected/` is captured engine output.
 
@@ -54,16 +54,17 @@ Every golden in `expected/` is captured engine output.
 `residue.aontu` is deliberately small and deliberately awkward: every
 field of `report` is a construct the JSON Schema export must either
 carry or drop, and the loss report says which. A `bigdecimal`, a
-spread template, a list template, a concrete string and a `nil`.
+spread template, a list template, a concrete string and a `must()`
+check.
 
 ```
 $
 └── report
     ├── amountEur bigdecimal
-    ├── annotations {&:string&len(integer&min(...
+    ├── annotations {&:string&len(integer&min(0)&...
     ├── attempts [&:integer]
     ├── audit "kept-off-the-wire"
-    └── total nil
+    └── total must(min(0),"total must not b...
 ```
 
 `aontu view doc --depth 3 residue.aontu` draws it, and `check.sh` pins it
@@ -74,8 +75,9 @@ than its value.
 
 ## What check.sh proves
 
-1.  Three per-tool exports match their goldens with EMPTY
-   stderr: inputSchema-shaped, closed, nothing lost.
+1. Three per-tool exports match their goldens, the schema on stdout
+   and the loss report on stderr: inputSchema-shaped and closed, with
+   only the `integer` arguments reported.
 2. The exports hold under a stock JSON reader (python3): closedness,
    the required list, an enum, and two `re()` on one string rendered
    as `allOf` of patterns.

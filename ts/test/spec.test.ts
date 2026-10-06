@@ -325,7 +325,9 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   }
   else if ('jsonschema' === row.mode) {
     // `opts` rides the expect object, as in the vet and subsume rows.
-    const golden = JSON.parse(row.expect)
+    // Numbers keep their written digits, as the exporter's do.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, c?: any) =>
+      'number' === typeof v ? (JSON as any).rawJSON(c?.source) : v)
     const opts = golden.opts
     delete golden.opts
     const report = jsonSchema(row.src, opts)

@@ -69,6 +69,9 @@ function emit(v: any, unit: string, pad: string, seen: Set<any>): string {
   if (v instanceof Decimal) {
     return v.toString()
   }
+  if (true === (JSON as any).isRawJSON(v)) {
+    return v.rawJSON
+  }
 
   if ('object' === t && 'function' === typeof v.toJSON) {
     return emit(v.toJSON(), unit, pad, seen)

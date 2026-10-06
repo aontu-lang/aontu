@@ -730,7 +730,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Fs.writeFileSync(file, 'spec: {\n' +
             '  name: string & re("^[a-z]+$")\n' +
             '  tier: *"internal" | "critical"\n' +
-            '  port?: integer & min(1024)\n' +
+            '  port?: number & min(1024)\n' +
             '}\n');
         // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
         // writes a usable file, and --at names the subtree as vet's does.
@@ -746,9 +746,9 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(r.err, '');
         // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
         // redirect keeps the schema clean and the warning visible.
-        Fs.writeFileSync(file, 'a: integer & must(min(2), "two")\n');
+        Fs.writeFileSync(file, 'a: number & must(min(2), "two")\n');
         const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 0));
-        Assert.match(lossy.out, /"type": "integer"/);
+        Assert.match(lossy.out, /"type": "number"/);
         Assert.match(lossy.err, /^lossy: \$\.a must:/);
         // ... and --strict turns the report into a refusal.
         vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--strict', file]), 1));
@@ -759,7 +759,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(broken.out, '');
         Assert.match(broken.err, /scalar_value/);
         // An anchor that names nothing is the same class of refusal.
-        Fs.writeFileSync(file, 'a: 1\n');
+        Fs.writeFileSync(file, 'a: "x"\n');
         const noat = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--at', 'nope', file]), 4));
         Assert.match(noat.err, /no_path/);
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['--format', 'json', file]), 0)).out);

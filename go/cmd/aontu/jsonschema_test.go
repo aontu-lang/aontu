@@ -31,7 +31,7 @@ func jsonSchemaFile(t *testing.T, src string) string {
 const schemaContract = `spec: {
   name: string & re("^[a-z]+$")
   tier: *"internal" | "critical"
-  port?: integer & min(1024)
+  port?: number & min(1024)
 }
 `
 
@@ -96,7 +96,7 @@ func TestJsonSchemaLossGoesToStderrAndStrictRefuses(t *testing.T) {
 }
 
 func TestJsonSchemaJSONFormatAndRefusals(t *testing.T) {
-	file := jsonSchemaFile(t, "a: 1\n")
+	file := jsonSchemaFile(t, "a: \"x\"\n")
 	out, _, code := jsonSchemaRun("--format", "json", file)
 	if 0 != code {
 		t.Fatalf("code %d", code)

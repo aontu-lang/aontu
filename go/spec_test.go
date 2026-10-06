@@ -539,8 +539,11 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "jsonschema":
+					// Numbers keep their written digits, as the exporter's do.
 					var golden map[string]any
-					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					at := ""

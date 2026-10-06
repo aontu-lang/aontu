@@ -133,11 +133,13 @@ $ aontu jsonschema --at '$.argschemas.search_docs' tools.aontu
 The export reads straight through the `type()` mark, and the
 closedness the agent must respect crosses without loss: a
 hallucinated argument is a refusal on the aontu side and
-`additionalProperties: false` on the JSON Schema side. Stderr stayed
-empty for this run because the registry is written in the crossing
-subset: kinds, scalar enums, bounds, `re()`, string `len()`,
-optional keys, `close()`. The full crossing table is in the
-reference under
+`additionalProperties: false` on the JSON Schema side. Stderr carried
+one loss, for `limit`: JSON reads `1` and `1.0` as one number, while
+`vet` reads `1.0` as a float that the `integer` kind refuses, so the
+schema admits a spelling the model does not. Everything else
+here crosses exactly: the string kind, scalar enums, bounds, `re()`,
+`len()`, optional keys and `close()`. The full crossing table is in
+the reference under
 [`aontu jsonschema`](../reference-api.md#aontu-jsonschema).
 
 ## Read the loss report
@@ -149,7 +151,7 @@ construct. Collect the classes in `report.aontu`:
 <!-- test: file report.aontu -->
 ```aontu
 report: {
-  total: number & must((v) => 0 <= v, "total must not be negative")
+  total: number & must(min(0), "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   attempts: [&: integer] & len(max(3))
@@ -173,7 +175,9 @@ $ aontu jsonschema --at report report.aontu
       "minItems": 0,
       "type": "array"
     },
-    "total": {}
+    "total": {
+      "type": "number"
+    }
   },
   "required": [
     "amountEur",
@@ -193,10 +197,10 @@ a schema admitting more than the model does:
 ```sh
 $ aontu jsonschema --strict --at report report.aontu
 ...
-lossy: $.report.amountEur bigdecimal: JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says "number" and a consumer may round
-lossy: $.report.attempts len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
+lossy: $.report.amountEur bigdecimal: the schema says "number" and admits every JSON number, which vet reads as an integer or a float, never as the bigdecimal leaf
+lossy: $.report.attempts.& integer: the schema says "integer" and admits a JSON spelling such as 1.0, which vet reads as a float and the integer leaf refuses
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
-lossy: $.report.total nil: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
+lossy: $.report.total must: an evaluate-only check is opaque by construction -- it carries the author's own message and the algebra never reasons about it -- so it is DROPPED and the schema admits values `vet` refuses
 $ echo $?
 1
 ```
@@ -210,13 +214,15 @@ the export loss-free as a decimal string with a conversion mark.
 
 ## Four edges
 
-The report above already pins two of them. First, `must()` holds the whole value residual, so `number &
-must(...)` exports `{}` under the construct name `nil`: the check is
-opaque by construction, and the `number` kind beside it is lost with
-it (a concrete `5 & must(...)` exports `{}` all the same). Second,
-`len()` on a list has no domain until data arrives, so `attempts`
-exported real `minItems`/`maxItems` and was still reported: the
-keywords are the sizing atom's best rendering, not its meaning.
+The report above already pins two of them. First, `must()` is an
+evaluate-only check, so it is dropped and reported while the kind
+beside it still crosses: `total` exported `"type": "number"` and the
+check went to stderr. Second, the numeric leaves. JSON reads `1` and
+`1.0` as one number and `vet` reads them as two leaves, so the
+`integer` kind under `attempts` admits a spelling the model refuses,
+and an integer literal is reported for the same reason. A float with
+a fraction, such as `1.5`, crosses exactly, as does the `number`
+kind.
 
 Third, a spread template crosses as `additionalProperties` (or
 `items`) only when it is a bare kind. A template carrying a
@@ -344,11 +350,14 @@ $ echo $?
 ```
 
 That is not a loss to report: the verb exports what a document
-*means*, and this one does not mean anything.
+*means*, and this one does not mean anything. A failure nested
+anywhere in the exported value refuses the run the same way, and so
+does an atom whose arguments the engine cannot use, such as
+`neq(1, "a")`.
 
 The live version is
 [use-cases/14-jsonschema-export](../../use-cases/14-jsonschema-export/):
-a three-tool registry exported per-anchor with empty stderr, a wire
-message exported whole, the money convention crossing intact, and
-every loss class pinned by golden files, including the exports
-re-checked under a stock JSON reader.
+a three-tool registry exported per anchor, a wire message exported
+whole, the money convention crossing intact, and every loss class
+pinned by golden files, including the exports re-checked under a
+stock JSON reader.

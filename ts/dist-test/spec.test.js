@@ -265,7 +265,8 @@ function runRow(row) {
     }
     else if ('jsonschema' === row.mode) {
         // `opts` rides the expect object, as in the vet and subsume rows.
-        const golden = JSON.parse(row.expect);
+        // Numbers keep their written digits, as the exporter's do.
+        const golden = JSON.parse(row.expect, (_k, v, c) => 'number' === typeof v ? JSON.rawJSON(c?.source) : v);
         const opts = golden.opts;
         delete golden.opts;
         const report = (0, jsonschema_1.jsonSchema)(row.src, opts);

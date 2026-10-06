@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### `aontu jsonschema` exports what the model admits, or names the difference (#295, #296, #297, #300, #310)
+
+Both ports. G12 phase 1: no export now differs from its model without a
+loss entry.
+
+- A written list is open, so it exports `prefixItems` for its positions,
+  `items` for its spread, and `items: false` only when it is closed. A
+  spread beside positions keeps the positions.
+- A count bound that is open or fractional moves to the whole count
+  inside it (`len(above(2))` is `minLength: 3`, `len(min(1.5))` is
+  `minLength: 2`); an integer exclusion exports as `not`; a count on a
+  map exports as `minProperties`/`maxProperties`, and on a list as
+  `minItems`/`maxItems` with no loss.
+- A lone preference such as `*1` admits any value of its kind, so it
+  exports that kind with the preferred value as `default`, not `const`.
+- The numeric leaves are reported where JSON and `vet` read a number
+  differently: the `integer` and `float` kinds, a number literal written
+  in one leaf, a `neq` of one leaf, and `unique()` over a list that can
+  hold both leaves of one number. Enum members are deduplicated by JSON
+  value, and an exact number is written in its own digits.
+- A bound on a string is dropped and reported rather than written as a
+  non-numeric `minimum`; `map` and `list` export as `object` and
+  `array`; the written `nil` exports as `false`; a disjunction of bare
+  kinds folds to a `type` array; a conjunct of map templates exports as
+  `allOf`; and a pattern exports in its normalised form.
+- A failure nested in the exported value, or an atom whose arguments are
+  unusable such as `neq(1, "a")`, refuses the run with exit 4. The two
+  ports used to answer `neq(1, "a")` differently; the ledger entry is
+  removed.
+
 ### The finding under a template's preferred member names the maybe() (#292)
 
 Both ports. The conjunction the meet mints for `x: [&: {k: *{n: string}}]`

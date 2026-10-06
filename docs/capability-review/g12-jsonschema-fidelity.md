@@ -515,13 +515,24 @@ native value may hold both leaves of one number, the exporter
 deduplicates `enum` and `not: {enum}` members by JSON value, reports a
 lone numeric leaf as a loss, and reports `unique()` wherever a list can
 hold two leaves of one number. An exact literal, `enum` member or
-endpoint is written as its exact decimal text and nothing is reported,
-because 2020-12 compares numbers by mathematical value and that is the
-reading goal 1 is stated against; a consumer that parses the schema
-with binary64 rounds on its own side. Both ports emit the number text
-directly rather than through a double (`JSON.rawJSON` in TypeScript,
-`json.Number` in Go). A `biginteger` or `bigdecimal` kind, which no
-schema number can carry, stays a reported loss.
+endpoint is written as its exact decimal text, so its digits are never
+a loss; a consumer that parses the schema with binary64 rounds on its
+own side. Both ports emit the number text directly rather than
+through a double (`JSON.rawJSON` in TypeScript, the exact values'
+own encoders in Go).
+
+**An export is judged against the reading of the `vet` it serves.**
+Plain `jsonschema` is judged against plain `vet`, which reads a JSON
+spelling with a point as a float and one without as an integer, and
+never as an exact leaf. Under that reading the `integer` and `float`
+kinds, a literal written in one leaf, a `neq` of one leaf, a
+`unique()` over a list that can hold both leaves of one number, and
+every exact literal and kind are reported. `jsonschema --exact-numbers`
+is judged against `vet --exact-numbers`, under which the `integer`
+kind, an integer literal and an exact literal cross with nothing
+reported, and the `float` kind and float literals are the losses. The
+round-trip gate exports with the option, since the importer writes
+every schema number by value.
 
 ### 5. Strings, patterns and formats
 
@@ -931,10 +942,10 @@ above, each the inverse of the importer's: the kind split folds to
 `type`, the guarded spreads to their keywords, `nof`, `when`,
 `contains`, `rest`, `multiple` and `format` to theirs, aliases to
 `$defs` and `$ref`, `meta` records to annotations. Before any of that,
-the defects the measurement found are fixed, and numbers follow the
-exact-value rule of section 4: an exact literal, member or endpoint is
-written as its decimal text with no loss, and a non-finite endpoint is
-omitted with a loss.
+the defects the measurement found are fixed, and numbers follow
+section 4: an exact literal, member or endpoint is written in its own
+digits, the reading the export is judged against decides which leaves
+are losses, and a non-finite endpoint is omitted with a loss.
 
 The carriers come first. Today a constrained template or a guarded
 spread exports as `{}` with a loss, because the exporter walks the
@@ -1013,7 +1024,7 @@ when a triple's `valid`, the two engines and this design disagree.
 | Kind | Items |
 |---|---|
 | New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)`, and the declaration-only identity builtin of section 10 |
-| New options | `vet --no-fill`, `--exact-numbers` on `vet` and on evaluation, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
+| New options | `vet --no-fill`, `--exact-numbers` on `vet`, on evaluation and on the export, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
 | New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`); `trial_budget` (`budget`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
 | New shared modes | `jsonschema-import`, `jsonschema-upgrade` |
@@ -1121,8 +1132,11 @@ that group's skips in the same commit.
 #310. Add the exact-number rule, the ceiling and floor of fractional and
 open count bounds, `nil` exported as `false`, `map` and `list`
 as `object` and `array`, a read-through for conjuncts of map literals,
-the `type` array fold for a disjunction of bare kinds, and `enum`
-deduplication by JSON value. Each change is a `jsonschema` row in
+the `type` array fold for a disjunction of bare kinds, `enum`
+deduplication by JSON value, the losses of the numeric leaves under
+plain `vet`'s reading (section 4), the normalised form of each
+pattern (`pattern` stage one of section 5), and a refusal for a failure
+nested in the exported value or an atom with unusable arguments. Each change is a `jsonschema` row in
 `test/spec/jsonschema.tsv`; `ts/src/jsonschema.ts`, then
 `go/jsonschema.go`.
 
@@ -1140,8 +1154,8 @@ twins.
 (L).** `importJsonSchema` and its Go twin and the import mode of the
 verb; the admission trial as a shared primitive, with its memo, the
 `trials` budget and `trial_budget` in `budget.tsv` and the trust
-page's table, and `vet --no-fill` with `vet_filled`; `--exact-numbers` on `vet` and on evaluation, and
-schema numbers written by value; the kind split; `type`, `enum`,
+page's table, and `vet --no-fill` with `vet_filled`; `--exact-numbers` on `vet`, on evaluation and on
+the export, and schema numbers written by value; the kind split; `type`, `enum`,
 `const` and `null`, with `type: "integer"` a listed skip until phase 5;
 `properties`, `required`, `additionalProperties`, `patternProperties`
 and `propertyNames` as guarded spreads; `prefixItems` and `items` as
@@ -1166,9 +1180,8 @@ probed from both engines; `ts/src/jsonschema.ts`, then
 `go/jsonschema.go`.
 
 **Phase 5: numbers (M).** `multiple(n)` with its grammar entry,
-`type: "integer"` as `number & multiple(1)`, the integral-gap rule on
-`multiple(1)`, and losses on the `integer` and `float` kinds'
-export. A new
+`type: "integer"` as `number & multiple(1)`, and the integral-gap rule
+on `multiple(1)`. A new
 `test/spec/constraint-multiple.tsv`.
 
 **Phase 6: the logic atom (L).** `nof(n, ...c)` with the `nof` code;
@@ -1294,8 +1307,9 @@ this list says where.
 - **A bare `$` at value position is a parse error** with one code in
   both ports, and the importer keeps hoisting the root body for
   `"$ref": "#"` (section 10).
-- **An exact number exports as its digits with no loss** (section 4),
-  and the exporter's carriers and local `$defs` export are phase 4
+- **An exact number exports in its own digits** (section 4), and
+  whether its leaf is a loss follows the reading the export is judged
+  against; the exporter's carriers and local `$defs` export are phase 4
   (section 15).
 
 ## Appendix: the inventory

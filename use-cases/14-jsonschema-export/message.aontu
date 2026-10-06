@@ -5,11 +5,13 @@
 # schema you hand a structured-output API or an OpenAPI components
 # entry, with no envelope key to strip.
 #
-# Everything here is chosen to cross exactly (reference-api.md, "What
+# Everything but one field crosses exactly (reference-api.md, "What
 # crosses exactly"): re() as `pattern`, a scalar disjunction as
 # `enum` (and its '*' preference as `default`), len() on strings
 # as minLength/maxLength, bounds as minimum/maximum, and the two
-# optional keys simply absent from `required`.
+# optional keys simply absent from `required`. `retries` is the one:
+# its `integer` kind is reported, since JSON reads 1 and 1.0 as one
+# number and vet reads them as two leaves.
 
 close({
   id: string & re("^evt_[0-9a-f]{12}$")
