@@ -254,7 +254,7 @@ consequence is that a refused `""` is not pruned from a disjunction:
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
 `below`, `neq`, `multiple`, `re`, `len`, `unique`, `must`, `nof`,
-`when`, `empty`, `refer`, `rel`).
+`when`, `contains`, `empty`, `refer`, `rel`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -2171,6 +2171,12 @@ no argument, seal whatever map or list it meets: `close() & {}` is a
 closed empty map.
 
 Example: see [closed values](#closed-values-close--open)
+
+### `contains(trial c: any, n?: number|constraint) : constraint`
+
+Count the members of a list or map that `c` already admits, and require the count to satisfy `n`, at least one where `n` is absent. See [Band B: `contains`](#band-b-contains).
+
+Example: `contains(integer, min(2))`
 
 ### `content(spec: string|map) : map`
 
@@ -5213,10 +5219,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All twelve atoms (the bounds `min`/`max`/`above`/`below`, the
+> All thirteen atoms (the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must`, `nof` and
-> `when`) are
+> atoms `length` and `unique`, and the evaluate-only `must`, `nof`,
+> `when` and `contains`) are
 > implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
@@ -5249,6 +5255,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of the alternatives c that admit the value satisfies n |
 | `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits a value c admits, and e one c does not |
+| `contains(trial c: any, n?: number\|constraint) : constraint` | B | the number of the members c admits satisfies n, at least one without it |
 
 ### Bounds and the number tower
 
@@ -5317,6 +5324,7 @@ schema-composition time, before any data arrives:
 | bound & `must` | both kept; `must` stays opaque |
 | `nof` & `nof` | accumulation, one atom per canon, sorted by canon; the alternatives are never deduplicated |
 | `when` & `when` | accumulation, one atom per canon, sorted by canon |
+| `contains` & `contains` | accumulation, one atom per canon, sorted by canon |
 
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
@@ -5383,8 +5391,8 @@ approximate in this sense and are marked; the rest are exact.
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
 | `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
-| `must(f)`, `nof(…)`, `when(…)` | anything | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
-| anything    | `must(…)`, `nof(…)`, `when(…)` | decided by A's other atoms alone; an extra Band B atom on B can only narrow B |
+| `must(f)`, `nof(…)`, `when(…)`, `contains(…)` | anything | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
+| anything    | `must(…)`, `nof(…)`, `when(…)`, `contains(…)` | decided by A's other atoms alone; an extra Band B atom on B can only narrow B |
 | anything    | nil (empty)  | always: the empty set is an instance of everything |
 
 A whole residual subsumes another when **every** row above holds for the
@@ -5397,8 +5405,8 @@ common multiple, the same ruling the meet makes. `re` compares
 patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
 do: the same ruling that stops two `re` atoms being declared empty at
-composition time. `must`, `nof` and `when` are opaque by construction:
-that is what Band B *means*. In both cases the answer is "not
+composition time. `must`, `nof`, `when` and `contains` are opaque by
+construction: that is what Band B *means*. In both cases the answer is "not
 subsumed", so the error is always toward reporting a difference that
 is not there.
 
@@ -5425,8 +5433,8 @@ by the meet rules above).
 A residual constraint renders as its normalised atoms joined by `&`
 in a fixed order (**kind, lower bound (`min`/`above`), upper bound
 (`max`/`below`), `neq` (arguments sorted), `multiple` (by value), `re`
-(patterns sorted), `length`, `unique`, `must`, `nof`, `when` (both by
-canon)**) no
+(patterns sorted), `length`, `unique`, `must`, `nof`, `when`,
+`contains` (the last three by canon)**) no
 spaces,
 reparseable, endpoint leaves preserved:
 
@@ -5650,10 +5658,10 @@ the merged container.
 Written order does not matter (`a: {x:1} a: {y:2} a: len(2)` is the
 same value) which is the property the sort order exists to guarantee.
 
-**`must`, `nof` and `when` fold last for the same reason**, and the slot
-is named for what the atoms share rather than for sizing alone:
-`length`, `unique`, `must`, `nof` and `when` all need the *whole*
-value. An evaluate-only check run against the first fragment would
+**`must`, `nof`, `when` and `contains` fold last for the same
+reason**, and the slot is named for what the atoms share rather than
+for sizing alone: `length`, `unique`, `must`, `nof`, `when` and
+`contains` all need the *whole* value. An evaluate-only check run against the first fragment would
 refuse `a: must(len(2),m)` / `a: {x:1}` / `a: {y:2}` on a count of
 one, exactly as an early-folding `length` would.
 
@@ -5847,6 +5855,32 @@ condition chose. Two `when` atoms with one canon are one check, and
 
 `when` checks a value and never selects one: unlike `match`, it adds
 nothing to what generation emits.
+
+### Band B: `contains`
+
+`contains(c, n?)` counts the members of a list or map that the schema
+`c` admits, by the admission trial `nof` reads its alternatives with,
+and requires the count to satisfy `n`: an integer, or a count
+constraint as `len` reads one. Without `n` the count is `min(1)`, so
+at least one member must be admitted:
+
+```aontu
+a: contains(integer) & [1 "x"]  # one integer
+b: contains(integer, 2) & [1 2 "x"]  # exactly two
+c: contains(integer, min(0)) & []  # none is enough
+```
+
+```json
+{ "a": [1, "x"], "b": [1, 2, "x"], "c": [] }
+```
+
+A scalar has no members, so it is refused. A count past its upper
+bound is refused once the members it counts are concrete scalars,
+since no later member can take an admission back; every other count is
+decided at generation, when no member can still arrive. A refusal has
+the code `contains`, whose details name the count and the members the
+trial admitted. Two `contains` atoms with one canon are one check, and
+`contains` never takes part in emptiness or subsumption.
 
 ### Errors
 

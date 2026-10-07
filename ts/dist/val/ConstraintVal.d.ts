@@ -24,6 +24,10 @@ type WhenAtom = {
     t: any;
     e?: any;
 };
+type ContainsAtom = {
+    c: any;
+    count: ConstraintState;
+};
 type ConstraintState = {
     domain?: 'number' | 'string';
     kind?: any;
@@ -38,6 +42,7 @@ type ConstraintState = {
     musts: MustAtom[];
     nofs: NofAtom[];
     whens?: WhenAtom[];
+    contains?: ContainsAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
@@ -61,6 +66,7 @@ declare class ConstraintVal extends FeatureVal {
     musts: MustAtom[];
     nofs: NofAtom[];
     whens: WhenAtom[];
+    contains: ContainsAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -82,6 +88,7 @@ declare class ConstraintVal extends FeatureVal {
     private checkMusts;
     private checkNofs;
     private checkWhens;
+    private checkContains;
     settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
     private hold;
@@ -128,10 +135,13 @@ declare class NofConstraintVal extends ConstraintVal {
 declare class WhenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class ContainsConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, };

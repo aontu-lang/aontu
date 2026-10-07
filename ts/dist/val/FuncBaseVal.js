@@ -79,7 +79,8 @@ function sandboxed(ctx, fn) {
 function pureCond(c) {
     return true === c.isScalar || true === c.isScalarKind ||
         (true === c.isConstraint && null == c.pending && 0 === c.musts.length &&
-            0 === c.nofs.length && 0 === c.whens.length) ||
+            0 === c.nofs.length && 0 === c.whens.length &&
+            0 === c.contains.length) ||
         (true === c.isDisjunct &&
             c.peg.every((m) => true !== m.isPref && pureCond(m)));
 }

@@ -602,6 +602,10 @@ func TestMapValArmsDirect(t *testing.T) {
 		{c: newInteger(1), t: newFunc("key", nil)}}}) {
 		t.Fatalf("when branch")
 	}
+	if !hasPathFunc(&ConstraintVal{contains: []constraintContains{
+		{c: newFunc("key", nil)}}}) {
+		t.Fatalf("contains schema")
+	}
 
 	m := newMap()
 	m.mtype = true

@@ -516,8 +516,8 @@ const COMPLETION_VARIABLE = 6
 const COMPLETION_KEYWORD = 14
 
 const BUILTIN_FUNCS = [
-  'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'content', 'copy',
-  'copyfiles', 'deprecate',
+  'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'contains',
+  'content', 'copy', 'copyfiles', 'deprecate',
   'div',
   'each', 'emit', 'empty', 'esc',
   'file', 'filter', 'folder', 'fragment', 'greatest',

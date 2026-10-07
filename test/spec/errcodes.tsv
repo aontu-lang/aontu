@@ -500,3 +500,6 @@ nof	errcode	conflict	0.77.0
 # G12 phase 7: `when` is class `conflict`, the value the branch its
 # condition chose refuses (ADR-046).
 when	errcode	conflict	0.77.0
+# G12 phase 8: `contains` is class `conflict`, the value whose count of
+# admitted members its count refuses (ADR-046).
+contains	errcode	conflict	0.77.0

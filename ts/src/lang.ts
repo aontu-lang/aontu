@@ -172,6 +172,7 @@ import {
   MustConstraintVal,
   NofConstraintVal,
   WhenConstraintVal,
+  ContainsConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -871,6 +872,7 @@ help isolate the syntax error.`,
     must: MustConstraintVal,
     nof: NofConstraintVal,
     when: WhenConstraintVal,
+    contains: ContainsConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,
@@ -2293,6 +2295,8 @@ for (const name of Object.keys(CMP_FUNCS)) {
 }
 POSITIONAL_ARG_FUNCS['nom'] = true
 POSITIONAL_ARG_FUNCS['translate'] = true
+// The one atom whose first argument may be a list of its own.
+POSITIONAL_ARG_FUNCS['contains'] = true
 
 
 function sigArity(sig: FuncSig): [number, number] {

@@ -34,6 +34,11 @@ type constraintWhen struct {
 	e Val // and what one it refuses must; nil passes
 }
 
+type constraintContains struct {
+	c     Val            // the trial schema a member must meet
+	count *ConstraintVal // the admissible number of admitted members
+}
+
 type constraintPending struct {
 	atom string
 	args []Val
@@ -444,6 +449,8 @@ type ConstraintVal struct {
 	nofs []constraintNof
 	// whens are Band B conditionals, sorted and deduplicated by canon.
 	whens []constraintWhen
+	// contains are Band B member counts, likewise.
+	contains []constraintContains
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -468,12 +475,12 @@ const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
 	return "len" == atom || "unique" == atom || "must" == atom ||
-		"nof" == atom || "when" == atom
+		"nof" == atom || "when" == atom || "contains" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
 	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
-		0 < len(c.nofs) || 0 < len(c.whens) ||
+		0 < len(c.nofs) || 0 < len(c.whens) || 0 < len(c.contains) ||
 		(nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
@@ -487,7 +494,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
-	"nof": true, "when": true,
+	"nof": true, "when": true, "contains": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -556,7 +563,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	args = atomArgs(atom, args)
 
-	if "must" == atom || "nof" == atom || "when" == atom {
+	if "must" == atom || "nof" == atom || "when" == atom || "contains" == atom {
 		for _, a := range args {
 			if holdsMove(a) {
 				return bad("invalid-arg")
@@ -630,6 +637,22 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			w.e = args[2]
 		}
 		c.whens = []constraintWhen{w}
+		return c
+	}
+
+	if "contains" == atom {
+		n := atLeastOne()
+		if 1 < len(args) {
+			n = countArgState(args[1])
+		}
+		if nil == n {
+			return bad("invalid-arg")
+		}
+		count := meetCount(countBase(), n)
+		if stateEmpty(count) {
+			return bad("constraint")
+		}
+		c.contains = []constraintContains{{c: args[0], count: count}}
 		return c
 	}
 
@@ -838,8 +861,8 @@ func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 // residual, or the meet is a located conflict.
 func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	// No scalar has members, so a `unique()` residual admits none -- and
-	// neither does a `unique(k)` one, for the same reason.
-	if c.uniq || 0 < len(c.uniqBy) {
+	// neither does a `unique(k)` or a `contains` one.
+	if c.uniq || 0 < len(c.uniqBy) || 0 < len(c.contains) {
 		return c.fail(ctx, peer)
 	}
 	if !stateAdmits(c, peer) ||
@@ -911,6 +934,50 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx, final bool) Val {
 				"actual":    peer.Canon(),
 				"condition": condition,
 				"branch":    branch,
+			})
+		}
+	}
+	return nil
+}
+
+// checkContains counts the members the trial admits, and stops once no
+// member left can move the verdict. Before generation only a concrete
+// scalar's admission is final, so the one refusal then is an upper
+// bound those members already pass.
+func (c *ConstraintVal) checkContains(
+	bag Val, optional []string, peer Val, ctx *Ctx, final bool) Val {
+	if 0 == len(c.contains) {
+		return nil
+	}
+	members, keys := emittedEntries(bag, optional, ctx)
+	if nil == members {
+		return nil
+	}
+	for _, a := range c.contains {
+		tctx := *ctx
+		tctx.settle = false
+		matched := []string{}
+		for i := 0; i < len(members) && !countSettled(a.count, len(matched)); i++ {
+			m, slot := members[i], append(cp(c.path), keys[i])
+			if _, scalar := m.(*ScalarVal); (final || scalar) &&
+				admitsSettled(&tctx, m, a.c, func() (Val, Val) {
+					return clonePath(m, slot), clonePath(a.c, c.path)
+				}) {
+				matched = append(matched, keys[i])
+			}
+		}
+		if countExceeded(a.count, len(matched)) ||
+			(final && !stateAdmits(a.count, countVal(len(matched)))) {
+			list := "none"
+			if 0 < len(matched) {
+				list = strings.Join(matched, ", ")
+			}
+			return makeNilErrFull(ctx, "contains", c, peer, "", map[string]string{
+				"expected": containsCanon(a),
+				"actual":   peer.Canon(),
+				"count":    a.count.Canon(),
+				"admitted": strconv.Itoa(len(matched)),
+				"matched":  list,
 			})
 		}
 	}
@@ -1009,9 +1076,13 @@ func (c *ConstraintVal) admitContainerFinal(
 	if bad := c.checkWhens(peer, ctx, final); nil != bad {
 		return bad
 	}
+	if bad := c.checkContains(bag, optional, peer, ctx, final); nil != bad {
+		return bad
+	}
 
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
-		if final || (0 == len(c.musts) && 0 == len(c.nofs) && 0 == len(c.whens)) {
+		if final || (0 == len(c.musts) && 0 == len(c.nofs) && 0 == len(c.whens) &&
+			0 == len(c.contains)) {
 			return peer
 		}
 		return c.hold(peer)
@@ -1083,7 +1154,8 @@ func (c *ConstraintVal) admitContainerFinal(
 	// lower bound already met is the one reading that cannot be undone,
 	// and an atom holding nothing else is spent: that is when it goes.
 	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) &&
-		0 == len(c.whens) && !c.uniq && 0 == len(c.uniqBy) &&
+		0 == len(c.whens) && 0 == len(c.contains) && !c.uniq &&
+		0 == len(c.uniqBy) &&
 		(nil == c.count ||
 			(nil == c.count.hi && 0 == len(c.count.neqs) &&
 				stateAdmits(c.count, countVal(n)))))
@@ -1201,6 +1273,8 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.musts = append(append([]constraintMust{}, c.musts...), peer.musts...)
 	merged.nofs = dedupNofs(append(append([]constraintNof{}, c.nofs...), peer.nofs...))
 	merged.whens = dedupWhens(append(append([]constraintWhen{}, c.whens...), peer.whens...))
+	merged.contains = dedupContains(append(append([]constraintContains{}, c.contains...),
+		peer.contains...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1267,6 +1341,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		musts:   append([]constraintMust{}, c.musts...),
 		nofs:    append([]constraintNof{}, c.nofs...),
 		whens:   append([]constraintWhen{}, c.whens...),
+		contains: append([]constraintContains{}, c.contains...),
 		clash:   c.clash,
 		invalid: c.invalid,
 	}
@@ -1372,6 +1447,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, w := range c.whens {
 		parts = append(parts, whenCanon(w))
 	}
+	for _, a := range c.contains {
+		parts = append(parts, containsCanon(a))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1455,7 +1533,7 @@ func holdsMove(v Val) bool {
 }
 
 func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
-	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) || 0 < len(g.contains) {
 		return false, true
 	}
 	if "" != g.domain && g.domain != s.domain {
@@ -1556,7 +1634,7 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 }
 
 func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
-	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) || 0 < len(g.contains) {
 		return false, true
 	}
 	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
@@ -1731,7 +1809,7 @@ func countArgState(arg Val) *ConstraintVal {
 		// inside a count is not a count constraint, nor is a broken one.
 		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
 			0 < len(cv.uniqBy) || nil != cv.count || 0 < len(cv.nofs) ||
-			0 < len(cv.whens) || "number" != cv.domain {
+			0 < len(cv.whens) || 0 < len(cv.contains) || "number" != cv.domain {
 			return nil
 		}
 		out := &ConstraintVal{
@@ -1799,11 +1877,24 @@ func bagKeys(bag Val) []string {
 }
 
 func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
+	out, _ := emittedEntries(bag, optional, ctx)
+	return out
+}
+
+// emittedEntries is emittedMembers with each member's key beside it, a
+// list's index written as a string.
+func emittedEntries(bag Val, optional []string, ctx *Ctx) ([]Val, []string) {
 	children := bagChildren(bag)
 	keys := bagKeys(bag)
+	_, isList := bag.(*ListVal)
 	out := []Val{}
+	at := []string{}
 
 	for i, child := range children {
+		key := keys[i]
+		if isList {
+			key = strconv.Itoa(i)
+		}
 		// Inside `hide()` a member shares its container's mark, and counts.
 		if (child.markedType() && !bag.markedType()) || (child.markedHide() && !bag.markedHide()) {
 			continue
@@ -1825,7 +1916,7 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 			if opt {
 				continue
 			}
-			return nil
+			return nil, nil
 		}
 
 		// Generation decides in an isolated collect context, so an
@@ -1846,6 +1937,7 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 			// except a JSON null, which is a member like any other.
 			if nil == err && nil == cv && gensNull(ctx, child) {
 				out = append(out, child)
+				at = append(at, key)
 			}
 			continue
 		}
@@ -1854,9 +1946,10 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 		}
 
 		out = append(out, child)
+		at = append(at, key)
 	}
 
-	return out
+	return out, at
 }
 
 func tighterBound(domain string, a, b *constraintBound, lower bool) *constraintBound {
@@ -1946,6 +2039,53 @@ func dedupWhens(ws []constraintWhen) []constraintWhen {
 		out = append(out, byCanon[key])
 	}
 	return out
+}
+
+// atLeastOne is the count `contains` asks for without one: one admitted
+// member at least.
+func atLeastOne() *ConstraintVal {
+	out := countBase()
+	out.lo = &constraintBound{v: countVal(1), open: false}
+	return out
+}
+
+func containsCanon(a constraintContains) string {
+	return "contains(" + a.c.Canon() + "," + a.count.Canon() + ")"
+}
+
+func dedupContains(cs []constraintContains) []constraintContains {
+	byCanon := map[string]constraintContains{}
+	keys := []string{}
+	for _, a := range cs {
+		key := containsCanon(a)
+		if _, has := byCanon[key]; !has {
+			byCanon[key] = a
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	out := make([]constraintContains, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, byCanon[key])
+	}
+	return out
+}
+
+// countExceeded: a count of admitted members only grows as members are
+// tried, so past the upper bound it is refused for good.
+func countExceeded(count *ConstraintVal, a int) bool {
+	if nil == count.hi {
+		return false
+	}
+	upper := *count
+	upper.lo = nil
+	upper.neqs = nil
+	return !stateAdmits(&upper, countVal(a))
+}
+
+func countSettled(count *ConstraintVal, a int) bool {
+	return countExceeded(count, a) || (nil == count.hi &&
+		0 == len(count.neqs) && stateAdmits(count, countVal(a)))
 }
 
 func nofCanon(n constraintNof) string {

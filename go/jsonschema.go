@@ -566,7 +566,43 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		sc.whenKeyword(path, out, w)
 	}
 
+	for _, a := range c.contains {
+		sc.containsKeyword(path, out, a, bag)
+	}
+
 	return out
+}
+
+// containsKeyword writes a member count as contains and its endpoints,
+// an excluded count as the `not` of that count alone, as `len` writes one.
+func (sc *schemaCtx) containsKeyword(path []string, out map[string]any,
+	a constraintContains, bag Val) {
+	schema := schemaFromVal(sc, path, a.c)
+	kw := map[string]any{"contains": schema}
+	if lo := countEdge(a.count.lo, false); 1 != lo {
+		kw["minContains"] = lo
+	}
+	if nil != a.count.hi {
+		kw["maxContains"] = countEdge(a.count.hi, true)
+	}
+	if _, has := out["contains"]; has {
+		schemaAllOf(out, kw)
+	} else {
+		for k, v := range kw {
+			out[k] = v
+		}
+	}
+	for _, x := range a.count.neqs {
+		if KindInteger == x.kind {
+			schemaAllOf(out, map[string]any{"not": map[string]any{
+				"contains": schema, "minContains": x.peg, "maxContains": x.peg}})
+		}
+	}
+	if _, list := bag.(*ListVal); !list {
+		sc.lose(path, "contains",
+			"JSON Schema reads contains on an array alone, so the schema admits a "+
+				"scalar or an object that contains() refuses")
+	}
 }
 
 // whenKeyword writes a conditional as the keywords its shape spells: a

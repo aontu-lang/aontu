@@ -349,7 +349,36 @@ function fromConstraint(ctx, path, c, bag) {
     for (const w of c.whens) {
         whenKeyword(ctx, path, out, w);
     }
+    for (const a of c.contains) {
+        containsKeyword(ctx, path, out, a, bag);
+    }
     return out;
+}
+// A member count as contains and its endpoints, an excluded count as the
+// `not` of that count alone, as `len` writes one.
+function containsKeyword(ctx, path, out, a, bag) {
+    const schema = fromVal(ctx, path, a.c);
+    const lo = countEdge(a.count.lo, false);
+    const kw = {
+        contains: schema,
+        ...(1 === lo ? {} : { minContains: lo }),
+        ...(null == a.count.hi ? {} : { maxContains: countEdge(a.count.hi, true) }),
+    };
+    if (undefined === out.contains) {
+        Object.assign(out, kw);
+    }
+    else {
+        allOf(out, kw);
+    }
+    for (const x of a.count.neqs) {
+        if (true === x.isInteger) {
+            allOf(out, { not: { contains: schema, minContains: x.peg, maxContains: x.peg } });
+        }
+    }
+    if (true !== bag?.isList) {
+        lose(ctx, path, 'contains', 'JSON Schema reads contains on an array alone, so the schema admits a ' +
+            'scalar or an object that contains() refuses');
+    }
 }
 // A conditional as the keywords its shape spells: a condition asking only
 // that one key be present is a dependency, and any other is `if`.

@@ -233,6 +233,11 @@ func computePathFunc(v Val) bool {
 				}
 			}
 		}
+		for _, a := range n.contains {
+			if hasPathFunc(a.c) {
+				return true
+			}
+		}
 		if nil != n.count && hasPathFunc(n.count) {
 			return true
 		}

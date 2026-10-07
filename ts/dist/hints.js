@@ -108,6 +108,19 @@ const hints = {
         '  when(integer, min(0)) & 5          -> 5    # Admitted by both;\n' +
         '  when(integer, min(0)) & -5         -> nil  # ... refused by then;\n' +
         '  when(integer, min(0), string) & 1.5 -> nil # ... and by else.',
+    contains: 'The value has a number of members its contains() count refuses.\n' +
+        'contains(c, n) tries each member of the settled list or map against c\n' +
+        'and counts the ones c already admits: {admitted} did, and the count\n' +
+        'must be {count}. Admitted: {matched}.' +
+        '\n \n' +
+        'contains is Band B of the constraint algebra, read by the admission\n' +
+        'trial as nof reads its alternatives, and without n its count is\n' +
+        'min(1). The JSON Schema import writes contains, minContains and\n' +
+        'maxContains as one contains(c, n).' +
+        '\n \nExamples:\n' +
+        '  contains(integer) & [1, "x"]       -> [1, "x"]  # One admitted;\n' +
+        '  contains(integer) & ["x"]          -> nil       # ... none here;\n' +
+        '  contains(integer, max(1)) & [1, 2] -> nil       # ... two, too many.',
     abnf_grammar: 'This ABNF grammar could not be compiled:\n' +
         '{reason}\n' +
         ' \n' +
@@ -790,6 +803,7 @@ const codeClasses = {
     must: 'conflict',
     nof: 'conflict',
     when: 'conflict',
+    contains: 'conflict',
     constraint_pattern: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',

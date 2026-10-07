@@ -276,13 +276,13 @@ const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
     'pattern', 'properties', 'required', 'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
-    'prefixItems', 'items', 'minItems', 'maxItems']);
+    'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
+    'maxContains', 'uniqueItems']);
 const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
     'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
     'contentEncoding', 'contentMediaType', 'contentSchema']);
-const LATER = new Set(['contains', 'minContains', 'maxContains', 'uniqueItems', '$dynamicRef',
-    '$dynamicAnchor', 'unevaluatedProperties', 'unevaluatedItems',
-    '$vocabulary']);
+const LATER = new Set(['$dynamicRef', '$dynamicAnchor',
+    'unevaluatedProperties', 'unevaluatedItems', '$vocabulary']);
 function lose(ctx, path, construct, reason) {
     ctx.lossy.push({ path, construct, reason });
 }
@@ -728,10 +728,36 @@ function arrayBranch(ctx, o, ptr) {
     ];
     const lens = counts.flatMap((c, n) => undefined === c ? [] :
         ['len(' + (0 === n ? 'min' : 'max') + '(' + c + '))']);
-    if (undefined === spread && 0 === lens.length) {
+    const u = o.get('uniqueItems');
+    if (undefined !== u && 'boolean' !== typeof u) {
+        refuse(ptrAt(ptr, 'uniqueItems'), 'uniqueItems must be a boolean');
+    }
+    const atoms = [...lens, ...(true === u ? ['unique()'] : []),
+        ...containsAtom(ctx, o, ptr)];
+    if (atoms.includes('nil')) {
+        return 'nil';
+    }
+    if (undefined === spread && 0 === atoms.length) {
         return undefined;
     }
-    return both([undefined === spread ? 'list' : '[&: ' + spread + ']', ...lens]);
+    return both([undefined === spread ? 'list' : '[&: ' + spread + ']', ...atoms]);
+}
+// minContains and maxContains count only beside contains, the lower one
+// defaulting to one; a count no number meets admits no list.
+function containsAtom(ctx, o, ptr) {
+    if (!o.has('contains')) {
+        return [];
+    }
+    const c = I(ctx, o.get('contains'), ptrAt(ptr, 'contains'));
+    const lo = count(o.get('minContains'), ptrAt(ptr, 'minContains')) ?? '1';
+    const hi = count(o.get('maxContains'), ptrAt(ptr, 'maxContains'));
+    if (undefined !== hi && BigInt(hi) < BigInt(lo)) {
+        return ['nil'];
+    }
+    const n = lo === hi ? lo : [...('0' === lo ? [] : ['min(' + lo + ')']),
+        ...(undefined === hi ? [] : ['max(' + hi + ')'])].join(' & ');
+    return ['contains(' + c + (undefined === hi && '1' === lo ? '' :
+            ', ' + (n || 'min(0)')) + ')'];
 }
 function numberBranch(o, ptr, integral) {
     const bounds = [['minimum', 'min'], ['maximum', 'max'],

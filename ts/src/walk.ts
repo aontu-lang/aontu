@@ -49,6 +49,9 @@ export function walkVals(
       walkVals(branch, visit, seen)
     }
   }
+  for (const a of (v.contains ?? [])) {
+    walkVals(a.c, visit, seen)
+  }
 
   walkVals(v.primary, visit, seen)
   walkVals(v.secondary, visit, seen)
@@ -81,6 +84,9 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     }
     for (const w of v.whens ?? []) {
       [w.c, w.t, w.e].forEach((b: any) => walked.add(b))
+    }
+    for (const a of v.contains ?? []) {
+      walked.add(a.c)
     }
     return true
   }, walked)

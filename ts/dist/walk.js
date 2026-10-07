@@ -43,6 +43,9 @@ function walkVals(v, visit, seen) {
             walkVals(branch, visit, seen);
         }
     }
+    for (const a of (v.contains ?? [])) {
+        walkVals(a.c, visit, seen);
+    }
     walkVals(v.primary, visit, seen);
     walkVals(v.secondary, visit, seen);
 }
@@ -72,6 +75,9 @@ function collectNils(root, seen) {
         }
         for (const w of v.whens ?? []) {
             [w.c, w.t, w.e].forEach((b) => walked.add(b));
+        }
+        for (const a of v.contains ?? []) {
+            walked.add(a.c);
         }
         return true;
     }, walked);

@@ -1383,7 +1383,9 @@ and the export drops and reports one that counts otherwise;
 a conditional check, `when(c, t, e)`, becomes `if`, `then` and `else`,
 and one with no `e` whose condition only asks for a key becomes
 `dependentRequired` where `t` only asks for keys too, and
-`dependentSchemas` where it asks more;
+`dependentSchemas` where it asks more; a count of admitted items,
+`contains(c, n)`, becomes `contains` with `minContains` and
+`maxContains`, an excluded count as the `not` of that count alone;
 `len` becomes `minLength`/`maxLength` on a string,
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
@@ -1622,6 +1624,11 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   `dependentSchemas` and `dependentRequired` are the same check with a
   present key as its condition: `{"dependentRequired": {"card":
   ["holder"]}}` imports as `when({ card:any }, { holder:any })`.
+- **`contains` counts the items it admits**, `contains(C, n)`, with
+  `minContains` and `maxContains` as the endpoints of `n` and at least
+  one item without them; a count no number meets admits no array.
+  `uniqueItems` is `unique()`, which compares items by JSON value under
+  the import's reading of numbers.
 - **The schema text is read by aontu, not by the host's JSON parser**,
   so a number is written by its exact value: `1.0` is the integer `1`,
   `0.1` is `0d0.1`, and a twenty-digit integer keeps all twenty digits.
@@ -1637,11 +1644,11 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   already *is* an instance rather than whether it can be filled into
   one.
 - **Losses** are on stderr, one per line. A keyword the import does
-  not carry yet (such as `uniqueItems`) is dropped, so the import admits
-  instances the schema refuses; an annotation (`title`, `description`,
-  `format`) is dropped and changes nothing admitted; a keyword 2020-12
-  does not define is ignored, as 2020-12 ignores it. Under `--strict`
-  any loss exits 1.
+  not carry yet (such as `unevaluatedItems`) is dropped, so the import
+  admits instances the schema refuses; an annotation (`title`,
+  `description`, `format`) is dropped and changes nothing admitted; a
+  keyword 2020-12 does not define is ignored, as 2020-12 ignores it.
+  Under `--strict` any loss exits 1.
 
 Write a `release.schema.json` that uses one of each:
 
@@ -1652,7 +1659,7 @@ Write a `release.schema.json` that uses one of each:
   "type": "object",
   "properties": {
     "version": {"type": "string", "format": "semver"},
-    "tags": {"type": "array", "uniqueItems": true}
+    "tags": {"type": "array", "unevaluatedItems": false}
   }
 }
 ```
@@ -1661,7 +1668,7 @@ Write a `release.schema.json` that uses one of each:
 ```sh
 $ aontu jsonschema import --strict release.schema.json
 schema: hide({ version?:empty() tags?:list })
-lossy: #/properties/tags/uniqueItems uniqueItems: not carried yet, so it is DROPPED and the import admits instances the schema refuses
+lossy: #/properties/tags/unevaluatedItems unevaluatedItems: not carried yet, so it is DROPPED and the import admits instances the schema refuses
 lossy: #/properties/version/format format: an annotation; it is dropped, and what the import admits is unchanged
 lossy: #/title title: an annotation; it is dropped, and what the import admits is unchanged
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>

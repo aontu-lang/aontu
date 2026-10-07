@@ -642,13 +642,19 @@ A written list stays the spelling for positions that are also
 required by `minItems`. **`minItems`**, **`maxItems`** are `len` on the
 list.
 
-**`contains(c, n?) : constraint`** is the one array atom. It counts the
-members `c` admits, by the admission trial, and requires the count to
-meet `n & integer & min(0)`, the count residual `len` already uses;
-`n` defaults to `min(1)`. `minContains` and `maxContains` are the
-count's endpoints. It folds late with `len` and `unique`, refuses an
-exceeded upper bound at once, decides a lower bound at generation, and
-keeps the matched indexes for the coverage channel.
+**`contains(c, n?) : constraint`** is the one array atom, and a Band B
+one under ADR-046. It counts the members `c` admits, by the admission
+trial, and requires the count to meet `n & integer & min(0)`, the count
+residual `len` already uses; `n` defaults to `min(1)`, and the count is
+always written in its canon. `minContains` and `maxContains` are the
+count's endpoints, read only beside `contains`, and a count no number
+meets makes the array branch `nil`. It folds late with `len` and
+`unique`, refuses an exceeded upper bound at once over members that are
+concrete scalars, whose admission nothing can take back, decides every
+other count at generation, and stops counting once no member left can
+change the answer. A scalar has no members and is refused, and a map's
+members are counted as a list's are. Its refusal names the indexes the
+trial matched, which the coverage channel of section 9 reads.
 
 ### 8. Logic and conditionals
 

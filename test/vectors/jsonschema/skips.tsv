@@ -1,4 +1,4 @@
-# bound 271
+# bound 224
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -15,14 +15,6 @@ draft2020-12/anchor.json	Location-independent identifier with base URI change in
 draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	mismatch	jsonschema_ref	10
 draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	jsonschema_duplicate	10
 draft2020-12/anchor.json	same $anchor with different base uri	$ref does not resolve to /$defs/A/allOf/0	jsonschema_duplicate	10
-draft2020-12/contains.json	contains keyword validation	array without items matching schema is invalid	contains	8
-draft2020-12/contains.json	contains keyword validation	empty array is invalid	contains	8
-draft2020-12/contains.json	contains keyword with const keyword	array without item 5 is invalid	contains	8
-draft2020-12/contains.json	contains keyword with boolean schema true	empty array is invalid	contains	8
-draft2020-12/contains.json	contains keyword with boolean schema false	any non-empty array is invalid	contains	8
-draft2020-12/contains.json	contains keyword with boolean schema false	empty array is invalid	contains	8
-draft2020-12/contains.json	items + contains	matches items, does not match contains	contains	8
-draft2020-12/contains.json	contains with false if subschema	empty array is invalid	contains	8
 draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	10
 draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	10
 draft2020-12/dynamicRef.json	A $dynamicRef to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
@@ -66,27 +58,6 @@ draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - dir
 draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is sufficient for schema at second#/$defs/length	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	jsonschema_ref	10
-draft2020-12/maxContains.json	maxContains with contains	empty data	contains,maxContains	8
-draft2020-12/maxContains.json	maxContains with contains	all elements match, invalid maxContains	contains,maxContains	8
-draft2020-12/maxContains.json	maxContains with contains	some elements match, invalid maxContains	contains,maxContains	8
-draft2020-12/maxContains.json	maxContains with contains, value with a decimal	too many elements match, invalid maxContains	contains,maxContains	8
-draft2020-12/maxContains.json	minContains < maxContains	actual < minContains < maxContains	contains,maxContains,minContains	8
-draft2020-12/maxContains.json	minContains < maxContains	minContains < maxContains < actual	contains,maxContains,minContains	8
-draft2020-12/maxContains.json	maxContains = 0 with minContains = 0	one matching item	contains,maxContains,minContains	8
-draft2020-12/minContains.json	minContains=1 with contains	empty data	contains,minContains	8
-draft2020-12/minContains.json	minContains=1 with contains	no elements match	contains,minContains	8
-draft2020-12/minContains.json	minContains=2 with contains	empty data	contains,minContains	8
-draft2020-12/minContains.json	minContains=2 with contains	all elements match, invalid minContains	contains,minContains	8
-draft2020-12/minContains.json	minContains=2 with contains	some elements match, invalid minContains	contains,minContains	8
-draft2020-12/minContains.json	minContains=2 with contains with a decimal value	one element matches, invalid minContains	contains,minContains	8
-draft2020-12/minContains.json	maxContains = minContains	empty data	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains = minContains	all elements match, invalid minContains	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains = minContains	all elements match, invalid maxContains	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains < minContains	empty data	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains < minContains	invalid minContains	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains < minContains	invalid maxContains	contains,maxContains,minContains	8
-draft2020-12/minContains.json	maxContains < minContains	invalid maxContains and minContains	contains,maxContains,minContains	8
-draft2020-12/minContains.json	minContains = 0 with maxContains	too many	contains,maxContains,minContains	8
 draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
 draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	jsonschema_ref	10
 draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	dependencies	15
@@ -204,15 +175,14 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with no une
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	jsonschema_ref	10
 draft2020-12/unevaluatedItems.json	unevaluatedItems can't see inside cousins	always fails	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains fails, second item is not evaluated	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems depends on multiple nested contains	7 not evaluated, fails unevaluatedItems	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's are invalid	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only c's are invalid	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's and c's are invalid	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only a's and c's are invalid	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	no items evaluated by contains	contains,minContains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	some but not all items evaluated by contains	contains,minContains,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems depends on multiple nested contains	7 not evaluated, fails unevaluatedItems	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's are invalid	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only c's are invalid	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's and c's are invalid	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only a's and c's are invalid	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	no items evaluated by contains	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	some but not all items evaluated by contains	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems can see annotations from if without then and else	invalid in case if is evaluated	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	Evaluated items collection needs to consider instance location	with an unevaluated item that exists at another location	unevaluatedItems	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties schema	with invalid unevaluated properties	unevaluatedProperties	12
@@ -262,21 +232,4 @@ draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedPropert
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location	with an unevaluated property that exists at another location	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with patternProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with additionalProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of integers is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of more than two integers is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	numbers are unique if mathematically unequal	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of strings is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of objects is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	property order of array of objects is ignored	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of nested objects is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of arrays is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique array of more than two arrays is invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	non-unique heterogeneous types are invalid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems validation	objects are non-unique despite key order	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items	[false, false] from items array is not valid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items	[true, true] from items array is not valid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items	non-unique array extended from [false, true] is not valid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items	non-unique array extended from [true, false] is not valid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items and additionalItems=false	[false, false] from items array is not valid	uniqueItems	8
-draft2020-12/uniqueItems.json	uniqueItems with an array of items and additionalItems=false	[true, true] from items array is not valid	uniqueItems	8
 draft2020-12/vocabulary.json	schema that uses custom metaschema with with no validation vocabulary	no validation: invalid number, but it still validates	$schema	16

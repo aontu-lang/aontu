@@ -23,6 +23,7 @@ var funcSet = map[string]bool{
 	"must":      true,
 	"nof":       true,
 	"when":      true,
+	"contains":  true,
 	"deprecate": true,
 	"rel":       true,
 	"acyclic":   true,
@@ -88,6 +89,8 @@ func derivePositional() map[string]bool {
 			out[name] = true
 		}
 	}
+	// The one atom whose first argument may be a list of its own.
+	out["contains"] = true
 	return out
 }
 

@@ -12,7 +12,7 @@
 # suite (ADR-001).
 #
 # Every row's expectation was PROBED through both engines and compared
-# byte-for-byte before being pinned; all 400 agreed. The atom
+# byte-for-byte before being pinned; all 441 agreed. The atom
 # vocabulary is shared, one entry per line, in
 # test/spec/files/constraint-atoms.txt -- both law tests read it, so
 # the lists cannot drift apart.
@@ -43,6 +43,7 @@ product-min0-5	canon	x: min(0) & 5	{"x":5}
 product-min0-m	errc	x: min(0) & "m"	constraint
 product-min0-nof1integerstring	canon	x: min(0) & nof(1,integer,string)	{"x":min(0)&nof(integer&min(1)&max(1),integer,string)}
 product-min0-whenintegermin0	canon	x: min(0) & when(integer,min(0))	{"x":min(0)&when(integer,min(0))}
+product-min0-containsinteger	canon	x: min(0) & contains(integer)	{"x":min(0)&contains(integer,integer&min(1))}
 product-min5-min0	canon	x: min(5) & min(0)	{"x":min(5)}
 product-min5-min5	canon	x: min(5) & min(5)	{"x":min(5)}
 product-min5-mina	errc	x: min(5) & min("a")	constraint
@@ -63,6 +64,7 @@ product-min5-5	canon	x: min(5) & 5	{"x":5}
 product-min5-m	errc	x: min(5) & "m"	constraint
 product-min5-nof1integerstring	canon	x: min(5) & nof(1,integer,string)	{"x":min(5)&nof(integer&min(1)&max(1),integer,string)}
 product-min5-whenintegermin0	canon	x: min(5) & when(integer,min(0))	{"x":min(5)&when(integer,min(0))}
+product-min5-containsinteger	canon	x: min(5) & contains(integer)	{"x":min(5)&contains(integer,integer&min(1))}
 product-mina-min0	errc	x: min("a") & min(0)	constraint
 product-mina-min5	errc	x: min("a") & min(5)	constraint
 product-mina-mina	canon	x: min("a") & min("a")	{"x":min("a")}
@@ -83,6 +85,7 @@ product-mina-5	errc	x: min("a") & 5	constraint
 product-mina-m	canon	x: min("a") & "m"	{"x":"m"}
 product-mina-nof1integerstring	canon	x: min("a") & nof(1,integer,string)	{"x":min("a")&nof(integer&min(1)&max(1),integer,string)}
 product-mina-whenintegermin0	canon	x: min("a") & when(integer,min(0))	{"x":min("a")&when(integer,min(0))}
+product-mina-containsinteger	canon	x: min("a") & contains(integer)	{"x":min("a")&contains(integer,integer&min(1))}
 product-max3-min0	canon	x: max(3) & min(0)	{"x":min(0)&max(3)}
 product-max3-min5	errc	x: max(3) & min(5)	constraint
 product-max3-mina	errc	x: max(3) & min("a")	constraint
@@ -103,6 +106,7 @@ product-max3-5	errc	x: max(3) & 5	constraint
 product-max3-m	errc	x: max(3) & "m"	constraint
 product-max3-nof1integerstring	canon	x: max(3) & nof(1,integer,string)	{"x":max(3)&nof(integer&min(1)&max(1),integer,string)}
 product-max3-whenintegermin0	canon	x: max(3) & when(integer,min(0))	{"x":max(3)&when(integer,min(0))}
+product-max3-containsinteger	canon	x: max(3) & contains(integer)	{"x":max(3)&contains(integer,integer&min(1))}
 product-max10-min0	canon	x: max(10) & min(0)	{"x":min(0)&max(10)}
 product-max10-min5	canon	x: max(10) & min(5)	{"x":min(5)&max(10)}
 product-max10-mina	errc	x: max(10) & min("a")	constraint
@@ -123,6 +127,7 @@ product-max10-5	canon	x: max(10) & 5	{"x":5}
 product-max10-m	errc	x: max(10) & "m"	constraint
 product-max10-nof1integerstring	canon	x: max(10) & nof(1,integer,string)	{"x":max(10)&nof(integer&min(1)&max(1),integer,string)}
 product-max10-whenintegermin0	canon	x: max(10) & when(integer,min(0))	{"x":max(10)&when(integer,min(0))}
+product-max10-containsinteger	canon	x: max(10) & contains(integer)	{"x":max(10)&contains(integer,integer&min(1))}
 product-maxz-min0	errc	x: max("z") & min(0)	constraint
 product-maxz-min5	errc	x: max("z") & min(5)	constraint
 product-maxz-mina	canon	x: max("z") & min("a")	{"x":min("a")&max("z")}
@@ -143,6 +148,7 @@ product-maxz-5	errc	x: max("z") & 5	constraint
 product-maxz-m	canon	x: max("z") & "m"	{"x":"m"}
 product-maxz-nof1integerstring	canon	x: max("z") & nof(1,integer,string)	{"x":max("z")&nof(integer&min(1)&max(1),integer,string)}
 product-maxz-whenintegermin0	canon	x: max("z") & when(integer,min(0))	{"x":max("z")&when(integer,min(0))}
+product-maxz-containsinteger	canon	x: max("z") & contains(integer)	{"x":max("z")&contains(integer,integer&min(1))}
 product-above1-min0	canon	x: above(1) & min(0)	{"x":above(1)}
 product-above1-min5	canon	x: above(1) & min(5)	{"x":min(5)}
 product-above1-mina	errc	x: above(1) & min("a")	constraint
@@ -163,6 +169,7 @@ product-above1-5	canon	x: above(1) & 5	{"x":5}
 product-above1-m	errc	x: above(1) & "m"	constraint
 product-above1-nof1integerstring	canon	x: above(1) & nof(1,integer,string)	{"x":above(1)&nof(integer&min(1)&max(1),integer,string)}
 product-above1-whenintegermin0	canon	x: above(1) & when(integer,min(0))	{"x":above(1)&when(integer,min(0))}
+product-above1-containsinteger	canon	x: above(1) & contains(integer)	{"x":above(1)&contains(integer,integer&min(1))}
 product-below2-min0	canon	x: below(2) & min(0)	{"x":min(0)&below(2)}
 product-below2-min5	errc	x: below(2) & min(5)	constraint
 product-below2-mina	errc	x: below(2) & min("a")	constraint
@@ -183,6 +190,7 @@ product-below2-5	errc	x: below(2) & 5	constraint
 product-below2-m	errc	x: below(2) & "m"	constraint
 product-below2-nof1integerstring	canon	x: below(2) & nof(1,integer,string)	{"x":below(2)&nof(integer&min(1)&max(1),integer,string)}
 product-below2-whenintegermin0	canon	x: below(2) & when(integer,min(0))	{"x":below(2)&when(integer,min(0))}
+product-below2-containsinteger	canon	x: below(2) & contains(integer)	{"x":below(2)&contains(integer,integer&min(1))}
 product-neq1-min0	canon	x: neq(1) & min(0)	{"x":min(0)&neq(1)}
 product-neq1-min5	canon	x: neq(1) & min(5)	{"x":min(5)&neq(1)}
 product-neq1-mina	errc	x: neq(1) & min("a")	constraint
@@ -203,6 +211,7 @@ product-neq1-5	canon	x: neq(1) & 5	{"x":5}
 product-neq1-m	errc	x: neq(1) & "m"	constraint
 product-neq1-nof1integerstring	canon	x: neq(1) & nof(1,integer,string)	{"x":neq(1)&nof(integer&min(1)&max(1),integer,string)}
 product-neq1-whenintegermin0	canon	x: neq(1) & when(integer,min(0))	{"x":neq(1)&when(integer,min(0))}
+product-neq1-containsinteger	canon	x: neq(1) & contains(integer)	{"x":neq(1)&contains(integer,integer&min(1))}
 product-neq12-min0	canon	x: neq(1,2) & min(0)	{"x":min(0)&neq(1,2)}
 product-neq12-min5	canon	x: neq(1,2) & min(5)	{"x":min(5)&neq(1,2)}
 product-neq12-mina	errc	x: neq(1,2) & min("a")	constraint
@@ -223,6 +232,7 @@ product-neq12-5	canon	x: neq(1,2) & 5	{"x":5}
 product-neq12-m	errc	x: neq(1,2) & "m"	constraint
 product-neq12-nof1integerstring	canon	x: neq(1,2) & nof(1,integer,string)	{"x":neq(1,2)&nof(integer&min(1)&max(1),integer,string)}
 product-neq12-whenintegermin0	canon	x: neq(1,2) & when(integer,min(0))	{"x":neq(1,2)&when(integer,min(0))}
+product-neq12-containsinteger	canon	x: neq(1,2) & contains(integer)	{"x":neq(1,2)&contains(integer,integer&min(1))}
 product-neqa-min0	errc	x: neq("a") & min(0)	constraint
 product-neqa-min5	errc	x: neq("a") & min(5)	constraint
 product-neqa-mina	canon	x: neq("a") & min("a")	{"x":min("a")&neq("a")}
@@ -243,6 +253,7 @@ product-neqa-5	errc	x: neq("a") & 5	constraint
 product-neqa-m	canon	x: neq("a") & "m"	{"x":"m"}
 product-neqa-nof1integerstring	canon	x: neq("a") & nof(1,integer,string)	{"x":neq("a")&nof(integer&min(1)&max(1),integer,string)}
 product-neqa-whenintegermin0	canon	x: neq("a") & when(integer,min(0))	{"x":neq("a")&when(integer,min(0))}
+product-neqa-containsinteger	canon	x: neq("a") & contains(integer)	{"x":neq("a")&contains(integer,integer&min(1))}
 product-multiple2-min0	canon	x: multiple(2) & min(0)	{"x":min(0)&multiple(2)}
 product-multiple2-min5	canon	x: multiple(2) & min(5)	{"x":min(5)&multiple(2)}
 product-multiple2-mina	errc	x: multiple(2) & min("a")	constraint
@@ -263,6 +274,7 @@ product-multiple2-5	errc	x: multiple(2) & 5	constraint
 product-multiple2-m	errc	x: multiple(2) & "m"	constraint
 product-multiple2-nof1integerstring	canon	x: multiple(2) & nof(1,integer,string)	{"x":multiple(2)&nof(integer&min(1)&max(1),integer,string)}
 product-multiple2-whenintegermin0	canon	x: multiple(2) & when(integer,min(0))	{"x":multiple(2)&when(integer,min(0))}
+product-multiple2-containsinteger	canon	x: multiple(2) & contains(integer)	{"x":multiple(2)&contains(integer,integer&min(1))}
 product-multiple05-min0	canon	x: multiple(0.5) & min(0)	{"x":min(0)&multiple(0.5)}
 product-multiple05-min5	canon	x: multiple(0.5) & min(5)	{"x":min(5)&multiple(0.5)}
 product-multiple05-mina	errc	x: multiple(0.5) & min("a")	constraint
@@ -283,6 +295,7 @@ product-multiple05-5	canon	x: multiple(0.5) & 5	{"x":5}
 product-multiple05-m	errc	x: multiple(0.5) & "m"	constraint
 product-multiple05-nof1integerstring	canon	x: multiple(0.5) & nof(1,integer,string)	{"x":multiple(0.5)&nof(integer&min(1)&max(1),integer,string)}
 product-multiple05-whenintegermin0	canon	x: multiple(0.5) & when(integer,min(0))	{"x":multiple(0.5)&when(integer,min(0))}
+product-multiple05-containsinteger	canon	x: multiple(0.5) & contains(integer)	{"x":multiple(0.5)&contains(integer,integer&min(1))}
 product-integer-min0	canon	x: integer & min(0)	{"x":integer&min(0)}
 product-integer-min5	canon	x: integer & min(5)	{"x":integer&min(5)}
 product-integer-mina	errc	x: integer & min("a")	constraint
@@ -303,6 +316,7 @@ product-integer-5	canon	x: integer & 5	{"x":5}
 product-integer-m	errc	x: integer & "m"	no_scalar_unify
 product-integer-nof1integerstring	canon	x: integer & nof(1,integer,string)	{"x":integer&nof(integer&min(1)&max(1),integer,string)}
 product-integer-whenintegermin0	canon	x: integer & when(integer,min(0))	{"x":integer&when(integer,min(0))}
+product-integer-containsinteger	canon	x: integer & contains(integer)	{"x":integer&contains(integer,integer&min(1))}
 product-number-min0	canon	x: number & min(0)	{"x":min(0)}
 product-number-min5	canon	x: number & min(5)	{"x":min(5)}
 product-number-mina	errc	x: number & min("a")	constraint
@@ -323,6 +337,7 @@ product-number-5	canon	x: number & 5	{"x":5}
 product-number-m	errc	x: number & "m"	no_scalar_unify
 product-number-nof1integerstring	canon	x: number & nof(1,integer,string)	{"x":number&nof(integer&min(1)&max(1),integer,string)}
 product-number-whenintegermin0	canon	x: number & when(integer,min(0))	{"x":number&when(integer,min(0))}
+product-number-containsinteger	canon	x: number & contains(integer)	{"x":number&contains(integer,integer&min(1))}
 product-string-min0	errc	x: string & min(0)	constraint
 product-string-min5	errc	x: string & min(5)	constraint
 product-string-mina	canon	x: string & min("a")	{"x":string&min("a")}
@@ -343,6 +358,7 @@ product-string-5	errc	x: string & 5	no_scalar_unify
 product-string-m	canon	x: string & "m"	{"x":"m"}
 product-string-nof1integerstring	canon	x: string & nof(1,integer,string)	{"x":string&nof(integer&min(1)&max(1),integer,string)}
 product-string-whenintegermin0	canon	x: string & when(integer,min(0))	{"x":string&when(integer,min(0))}
+product-string-containsinteger	canon	x: string & contains(integer)	{"x":string&contains(integer,integer&min(1))}
 product-5-min0	canon	x: 5 & min(0)	{"x":5}
 product-5-min5	canon	x: 5 & min(5)	{"x":5}
 product-5-mina	errc	x: 5 & min("a")	constraint
@@ -363,6 +379,7 @@ product-5-5	canon	x: 5 & 5	{"x":5}
 product-5-m	errc	x: 5 & "m"	scalar_kind
 product-5-nof1integerstring	canon	x: 5 & nof(1,integer,string)	{"x":5}
 product-5-whenintegermin0	canon	x: 5 & when(integer,min(0))	{"x":5}
+product-5-containsinteger	errc	x: 5 & contains(integer)	constraint
 product-m-min0	errc	x: "m" & min(0)	constraint
 product-m-min5	errc	x: "m" & min(5)	constraint
 product-m-mina	canon	x: "m" & min("a")	{"x":"m"}
@@ -383,6 +400,7 @@ product-m-5	errc	x: "m" & 5	scalar_kind
 product-m-m	canon	x: "m" & "m"	{"x":"m"}
 product-m-nof1integerstring	canon	x: "m" & nof(1,integer,string)	{"x":"m"}
 product-m-whenintegermin0	canon	x: "m" & when(integer,min(0))	{"x":"m"}
+product-m-containsinteger	errc	x: "m" & contains(integer)	constraint
 product-nof1integerstring-min0	canon	x: nof(1,integer,string) & min(0)	{"x":min(0)&nof(integer&min(1)&max(1),integer,string)}
 product-nof1integerstring-min5	canon	x: nof(1,integer,string) & min(5)	{"x":min(5)&nof(integer&min(1)&max(1),integer,string)}
 product-nof1integerstring-mina	canon	x: nof(1,integer,string) & min("a")	{"x":min("a")&nof(integer&min(1)&max(1),integer,string)}
@@ -403,6 +421,7 @@ product-nof1integerstring-5	canon	x: nof(1,integer,string) & 5	{"x":5}
 product-nof1integerstring-m	canon	x: nof(1,integer,string) & "m"	{"x":"m"}
 product-nof1integerstring-nof1integerstring	canon	x: nof(1,integer,string) & nof(1,integer,string)	{"x":nof(integer&min(1)&max(1),integer,string)}
 product-nof1integerstring-whenintegermin0	canon	x: nof(1,integer,string) & when(integer,min(0))	{"x":nof(integer&min(1)&max(1),integer,string)&when(integer,min(0))}
+product-nof1integerstring-containsinteger	canon	x: nof(1,integer,string) & contains(integer)	{"x":nof(integer&min(1)&max(1),integer,string)&contains(integer,integer&min(1))}
 product-whenintegermin0-min0	canon	x: when(integer,min(0)) & min(0)	{"x":min(0)&when(integer,min(0))}
 product-whenintegermin0-min5	canon	x: when(integer,min(0)) & min(5)	{"x":min(5)&when(integer,min(0))}
 product-whenintegermin0-mina	canon	x: when(integer,min(0)) & min("a")	{"x":min("a")&when(integer,min(0))}
@@ -423,3 +442,25 @@ product-whenintegermin0-5	canon	x: when(integer,min(0)) & 5	{"x":5}
 product-whenintegermin0-m	canon	x: when(integer,min(0)) & "m"	{"x":"m"}
 product-whenintegermin0-nof1integerstring	canon	x: when(integer,min(0)) & nof(1,integer,string)	{"x":nof(integer&min(1)&max(1),integer,string)&when(integer,min(0))}
 product-whenintegermin0-whenintegermin0	canon	x: when(integer,min(0)) & when(integer,min(0))	{"x":when(integer,min(0))}
+product-whenintegermin0-containsinteger	canon	x: when(integer,min(0)) & contains(integer)	{"x":when(integer,min(0))&contains(integer,integer&min(1))}
+product-containsinteger-min0	canon	x: contains(integer) & min(0)	{"x":min(0)&contains(integer,integer&min(1))}
+product-containsinteger-min5	canon	x: contains(integer) & min(5)	{"x":min(5)&contains(integer,integer&min(1))}
+product-containsinteger-mina	canon	x: contains(integer) & min("a")	{"x":min("a")&contains(integer,integer&min(1))}
+product-containsinteger-max3	canon	x: contains(integer) & max(3)	{"x":max(3)&contains(integer,integer&min(1))}
+product-containsinteger-max10	canon	x: contains(integer) & max(10)	{"x":max(10)&contains(integer,integer&min(1))}
+product-containsinteger-maxz	canon	x: contains(integer) & max("z")	{"x":max("z")&contains(integer,integer&min(1))}
+product-containsinteger-above1	canon	x: contains(integer) & above(1)	{"x":above(1)&contains(integer,integer&min(1))}
+product-containsinteger-below2	canon	x: contains(integer) & below(2)	{"x":below(2)&contains(integer,integer&min(1))}
+product-containsinteger-neq1	canon	x: contains(integer) & neq(1)	{"x":neq(1)&contains(integer,integer&min(1))}
+product-containsinteger-neq12	canon	x: contains(integer) & neq(1,2)	{"x":neq(1,2)&contains(integer,integer&min(1))}
+product-containsinteger-neqa	canon	x: contains(integer) & neq("a")	{"x":neq("a")&contains(integer,integer&min(1))}
+product-containsinteger-multiple2	canon	x: contains(integer) & multiple(2)	{"x":multiple(2)&contains(integer,integer&min(1))}
+product-containsinteger-multiple05	canon	x: contains(integer) & multiple(0.5)	{"x":multiple(0.5)&contains(integer,integer&min(1))}
+product-containsinteger-integer	canon	x: contains(integer) & integer	{"x":integer&contains(integer,integer&min(1))}
+product-containsinteger-number	canon	x: contains(integer) & number	{"x":number&contains(integer,integer&min(1))}
+product-containsinteger-string	canon	x: contains(integer) & string	{"x":string&contains(integer,integer&min(1))}
+product-containsinteger-5	errc	x: contains(integer) & 5	constraint
+product-containsinteger-m	errc	x: contains(integer) & "m"	constraint
+product-containsinteger-nof1integerstring	canon	x: contains(integer) & nof(1,integer,string)	{"x":nof(integer&min(1)&max(1),integer,string)&contains(integer,integer&min(1))}
+product-containsinteger-whenintegermin0	canon	x: contains(integer) & when(integer,min(0))	{"x":when(integer,min(0))&contains(integer,integer&min(1))}
+product-containsinteger-containsinteger	canon	x: contains(integer) & contains(integer)	{"x":contains(integer,integer&min(1))}

@@ -163,7 +163,7 @@ func pureCond(c Val) bool {
 		return true
 	case *ConstraintVal:
 		return nil == t.pending && 0 == len(t.musts) && 0 == len(t.nofs) &&
-			0 == len(t.whens)
+			0 == len(t.whens) && 0 == len(t.contains)
 	case *DisjunctVal:
 		for _, m := range t.peg {
 			if _, isPref := m.(*PrefVal); isPref || !pureCond(m) {

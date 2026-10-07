@@ -74,6 +74,9 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 				walkVals(b, visit, seen)
 			}
 		}
+		for _, a := range n.contains {
+			walkVals(a.c, visit, seen)
+		}
 	}
 }
 
@@ -124,6 +127,9 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 				for _, b := range []Val{w.c, w.t, w.e} {
 					walked[b] = true
 				}
+			}
+			for _, a := range t.contains {
+				walked[a.c] = true
 			}
 		}
 		return true

@@ -384,15 +384,16 @@ var importCarried = map[string]bool{"$schema": true, "$id": true,
 	"minLength": true, "maxLength": true, "pattern": true, "properties": true,
 	"required": true, "additionalProperties": true, "patternProperties": true,
 	"propertyNames": true, "minProperties": true, "maxProperties": true,
-	"prefixItems": true, "items": true, "minItems": true, "maxItems": true}
+	"prefixItems": true, "items": true, "minItems": true, "maxItems": true,
+	"contains": true, "minContains": true, "maxContains": true,
+	"uniqueItems": true}
 
 var importAnnotation = map[string]bool{"title": true, "description": true,
 	"default": true, "examples": true, "deprecated": true, "readOnly": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"contains": true, "minContains": true, "maxContains": true, "uniqueItems": true,
-	"$dynamicRef": true, "$dynamicAnchor": true,
+var importLater = map[string]bool{"$dynamicRef": true, "$dynamicAnchor": true,
 	"unevaluatedProperties": true, "unevaluatedItems": true,
 	"$vocabulary": true}
 
@@ -1116,14 +1117,68 @@ func (ic *importCtx) arrayBranch(o *jobj, ptr string) string {
 	}
 	lens := importLens(importCount(o.get("minItems"), importPtrAt(ptr, "minItems")),
 		importCount(o.get("maxItems"), importPtrAt(ptr, "maxItems")))
-	if "" == spread && 0 == len(lens) {
+	u := o.get("uniqueItems")
+	if _, ok := u.(bool); nil != u && !ok {
+		refuseSchema(importPtrAt(ptr, "uniqueItems"), "uniqueItems must be a boolean")
+	}
+	atoms := append([]string{}, lens...)
+	if true == u {
+		atoms = append(atoms, "unique()")
+	}
+	atoms = append(atoms, ic.containsAtom(o, ptr)...)
+	for _, a := range atoms {
+		if "nil" == a {
+			return "nil"
+		}
+	}
+	if "" == spread && 0 == len(atoms) {
 		return ""
 	}
 	base := "list"
 	if "" != spread {
 		base = "[&: " + spread + "]"
 	}
-	return importBoth(append([]string{base}, lens...))
+	return importBoth(append([]string{base}, atoms...))
+}
+
+// containsAtom: minContains and maxContains count only beside contains,
+// the lower one defaulting to one; a count no number meets admits no
+// list.
+func (ic *importCtx) containsAtom(o *jobj, ptr string) []string {
+	if !o.has("contains") {
+		return nil
+	}
+	c := ic.I(o.get("contains"), importPtrAt(ptr, "contains"))
+	lo := importCount(o.get("minContains"), importPtrAt(ptr, "minContains"))
+	if "" == lo {
+		lo = "1"
+	}
+	hi := importCount(o.get("maxContains"), importPtrAt(ptr, "maxContains"))
+	if "" != hi {
+		h, _ := new(big.Int).SetString(hi, 10)
+		l, _ := new(big.Int).SetString(lo, 10)
+		if h.Cmp(l) < 0 {
+			return []string{"nil"}
+		}
+	}
+	if "" == hi && "1" == lo {
+		return []string{"contains(" + c + ")"}
+	}
+	n := lo
+	if lo != hi {
+		parts := []string{}
+		if "0" != lo {
+			parts = append(parts, "min("+lo+")")
+		}
+		if "" != hi {
+			parts = append(parts, "max("+hi+")")
+		}
+		n = strings.Join(parts, " & ")
+	}
+	if "" == n {
+		n = "min(0)"
+	}
+	return []string{"contains(" + c + ", " + n + ")"}
 }
 
 func importNumberBranch(o *jobj, ptr string, integral bool) string {

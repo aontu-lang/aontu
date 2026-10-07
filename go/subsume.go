@@ -761,5 +761,8 @@ func opaqueNames(g *ConstraintVal) string {
 	if 0 < len(g.whens) {
 		names = append(names, "when")
 	}
+	if 0 < len(g.contains) {
+		names = append(names, "contains")
+	}
 	return strings.Join(names, ", ")
 }

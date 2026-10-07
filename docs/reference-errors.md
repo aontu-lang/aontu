@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **183** codes across
+There are seven classes, and the registry holds **184** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 55 | the text is not a document |
-| `conflict` | 60 | two values cannot both hold |
+| `conflict` | 61 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 183 codes have hint text. `aontu explain --list`
+**Hint text.** All 184 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -253,6 +253,7 @@ twenty rows have no such section and carry no link.
 | `constraint` | 0.52.0 | The value does not satisfy the normalised residual the constraint reduced to. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
 | `constraint_kind` | 0.77.0 | The type `constraint` met a value that is not a constraint. ([The type of constraints: `constraint`](reference-language.md#the-type-of-constraints-constraint)) |
 | `constraint_pattern` | 0.53.0 | An `re()` pattern outside the supported subset. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
+| `contains` | 0.77.0 | A `contains()` atom's count refuses the number of members its schema admits; the details name the count, that number and the members admitted. ([Band B: `contains`](reference-language.md#band-b-contains)) |
 | `decimal_budget` | 0.51.0 | An exact decimal past 4096 coefficient digits or an absolute scale of 4096. ([The exactness budget](reference-language.md#the-exactness-budget)) |
 | `divide_by_zero` | 0.53.0 | `div`, `mod`, or `rem` given a zero divisor. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `emit_none` | 0.57.0 | No template matched a node, and the table has no catch-all. ([Transforming: `emit`](reference-language.md#transforming-emit)) |

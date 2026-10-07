@@ -66,6 +66,20 @@ var hints = map[string]string{
 		"  when(integer, min(0)) & -5         -> nil  # ... refused by then;\n" +
 		"  when(integer, min(0), string) & 1.5 -> nil # ... and by else.",
 
+	"contains": "The value has a number of members its contains() count refuses.\n" +
+		"contains(c, n) tries each member of the settled list or map against c\n" +
+		"and counts the ones c already admits: {admitted} did, and the count\n" +
+		"must be {count}. Admitted: {matched}." +
+		"\n \n" +
+		"contains is Band B of the constraint algebra, read by the admission\n" +
+		"trial as nof reads its alternatives, and without n its count is\n" +
+		"min(1). The JSON Schema import writes contains, minContains and\n" +
+		"maxContains as one contains(c, n)." +
+		"\n \nExamples:\n" +
+		"  contains(integer) & [1, \"x\"]       -> [1, \"x\"]  # One admitted;\n" +
+		"  contains(integer) & [\"x\"]          -> nil       # ... none here;\n" +
+		"  contains(integer, max(1)) & [1, 2] -> nil       # ... two, too many.",
+
 	"abnf_grammar":            "This ABNF grammar could not be compiled:\n{reason}\n \nabnf() takes RFC 5234 ABNF -- `=` and `/`, not `::=`. The\ncompiler reports the first thing it could not read; a rule\nreferenced but never defined is the usual cause, after a\nquantifier written the EBNF way.",
 	"parse_arg":               "parse(grammar, text) takes two strings: a grammar, normally the\nanswer of an abnf() call, and the text to parse.\n \nExamples:\n  G: abnf(\"v = 1*DIGIT\")\n  a: parse($.G, \"12\")     # the AST\n  b: parse($.G, 12)       # parse_arg: the text is not a string",
 	"parse_failed":            "The text does not parse under this grammar:\n{reason}\n \nA failure to parse is a failure to unify, so the field is\nrefused rather than set to a value meaning \"no\".",
@@ -523,6 +537,7 @@ var codeClasses = map[string]string{
 	"must":                  "conflict",
 	"nof":                   "conflict",
 	"when":                  "conflict",
+	"contains":              "conflict",
 	"scalar_value":          "conflict",
 	"scalar_kind":           "conflict",
 	"no_scalar_unify":       "conflict",

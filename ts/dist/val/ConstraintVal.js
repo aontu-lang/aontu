@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -327,7 +327,7 @@ function leafMarker(v) {
 const LATE_CJO = 150000;
 function lateAtom(atom) {
     return 'len' === atom || 'unique' === atom || 'must' === atom ||
-        'nof' === atom || 'when' === atom;
+        'nof' === atom || 'when' === atom || 'contains' === atom;
 }
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -342,6 +342,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.musts = [];
         this.nofs = [];
         this.whens = [];
+        this.contains = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -358,6 +359,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.musts = spec.state.musts ?? [];
             this.nofs = spec.state.nofs ?? [];
             this.whens = spec.state.whens ?? [];
+            this.contains = spec.state.contains ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -366,7 +368,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
             if (('must' === spec.atom || 'nof' === spec.atom ||
-                'when' === spec.atom) && args.some((a) => holdsMove(a))) {
+                'when' === spec.atom || 'contains' === spec.atom) &&
+                args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
             else if (args.some((a) => true !== a?.done)) {
@@ -378,7 +381,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
             0 < this.musts.length || 0 < this.nofs.length ||
-            0 < this.whens.length ||
+            0 < this.whens.length || 0 < this.contains.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -437,6 +440,18 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         if ('when' === atom) {
             this.whens = [{ c: args[0], t: args[1], e: args[2] }];
+            return;
+        }
+        if ('contains' === atom) {
+            const n = 1 === args.length ? atLeastOne() : countArgState(args[1]);
+            if (null == n) {
+                return bad('invalid-arg');
+            }
+            const count = meetCount(countBase(), n);
+            if (stateEmpty(count)) {
+                return bad('constraint');
+            }
+            this.contains = [{ c: args[0], count }];
             return;
         }
         if ('neq' === atom) {
@@ -609,8 +624,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // the whole meet is a located conflict.
     admit(peer, ctx) {
         // No scalar has members, so a `unique()` residual admits none --
-        // and neither does a `unique(k)` one, for the same reason.
-        if (this.uniq || 0 < this.uniqBy.length) {
+        // and neither does a `unique(k)` or a `contains` one.
+        if (this.uniq || 0 < this.uniqBy.length || 0 < this.contains.length) {
             return this.fail(ctx, peer);
         }
         if (!stateAdmits(this, peer) ||
@@ -732,6 +747,43 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return undefined;
     }
+    // A member counts when the trial admits it, and counting stops once no
+    // member left can move the verdict. Before generation only a concrete
+    // scalar's admission is final, so the one refusal then is an upper
+    // bound those members already pass.
+    checkContains(peer, ctx, final) {
+        if (0 === this.contains.length) {
+            return undefined;
+        }
+        const keys = [];
+        const members = emittedMembers(peer, ctx, keys);
+        if (undefined === members) {
+            return undefined;
+        }
+        for (const a of this.contains) {
+            const tctx = ctx.clone({});
+            tctx.settle = false;
+            const matched = [];
+            for (let i = 0; i < members.length &&
+                !countSettled(a.count, matched.length); i++) {
+                const m = members[i];
+                if ((true === final || true === m.isScalar) && (0, FuncBaseVal_1.admits)(tctx, m, a.c, () => [m.clone(tctx), a.c.clone(tctx)], true)) {
+                    matched.push(keys[i]);
+                }
+            }
+            if (countExceeded(a.count, matched.length) || (true === final &&
+                !stateAdmits(a.count, countVal(matched.length)))) {
+                return (0, err_1.makeNilErr)(ctx, 'contains', this, peer, undefined, {
+                    expected: containsCanon(a),
+                    actual: peer.canon,
+                    count: canonState(a.count),
+                    admitted: '' + matched.length,
+                    matched: 0 === matched.length ? 'none' : matched.join(', '),
+                });
+            }
+        }
+        return undefined;
+    }
     settleContainer(peer, ctx) {
         return this.admitContainer(peer, ctx, true);
     }
@@ -748,13 +800,15 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
         const bad = this.checkMusts(peer, ctx, final) ??
-            this.checkNofs(peer, ctx, final) ?? this.checkWhens(peer, ctx, final);
+            this.checkNofs(peer, ctx, final) ?? this.checkWhens(peer, ctx, final) ??
+            this.checkContains(peer, ctx, final);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
             if (true === final || (0 === this.musts.length &&
-                0 === this.nofs.length && 0 === this.whens.length)) {
+                0 === this.nofs.length && 0 === this.whens.length &&
+                0 === this.contains.length)) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -811,8 +865,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // lower bound already met is the one reading that cannot be undone,
         // and an atom holding nothing else is spent: that is when it goes.
         const spent = true === final || (0 === this.musts.length &&
-            0 === this.nofs.length && 0 === this.whens.length && !this.uniq &&
-            0 === this.uniqBy.length &&
+            0 === this.nofs.length && 0 === this.whens.length &&
+            0 === this.contains.length && !this.uniq && 0 === this.uniqBy.length &&
             (null == count ||
                 (null == count.hi && 0 === count.neqs.length &&
                     stateAdmits(count, countVal(n)))));
@@ -918,6 +972,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.musts = [...this.musts, ...peer.musts];
         merged.nofs = dedupNofs([...this.nofs, ...peer.nofs]);
         merged.whens = dedupWhens([...this.whens, ...peer.whens]);
+        merged.contains = dedupContains([...this.contains, ...peer.contains]);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -962,6 +1017,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             musts: [...this.musts],
             nofs: [...this.nofs],
             whens: [...this.whens],
+            contains: [...this.contains],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -1000,6 +1056,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.musts = [...this.musts];
         out.nofs = [...this.nofs];
         out.whens = [...this.whens];
+        out.contains = [...this.contains];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -1158,6 +1215,9 @@ function canonState(s) {
     for (const w of s.whens ?? []) {
         parts.push(whenCanon(w));
     }
+    for (const a of s.contains ?? []) {
+        parts.push(containsCanon(a));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1171,7 +1231,8 @@ function constraintStateSubsumes(g, s) {
     // A Band B predicate on the general side makes its admitted set
     // unknowable; an extra one on the SPECIFIC side only narrows it and
     // is ignored.
-    if (0 < g.musts.length || 0 < g.nofs.length || 0 < (g.whens ?? []).length) {
+    if (0 < g.musts.length || 0 < g.nofs.length || 0 < (g.whens ?? []).length ||
+        0 < (g.contains ?? []).length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1262,7 +1323,8 @@ function constraintSubsumesConstraint(g, s) {
     return constraintStateSubsumes(g, s);
 }
 function constraintAdmitsScalar(g, scalar) {
-    if (0 < g.musts.length || 0 < g.nofs.length || 0 < g.whens.length) {
+    if (0 < g.musts.length || 0 < g.nofs.length || 0 < g.whens.length ||
+        0 < g.contains.length) {
         return 'undecided';
     }
     if (g.uniq || 0 < g.uniqBy.length) {
@@ -1443,7 +1505,7 @@ function countArgState(arg) {
         // bound inside a count is not a count constraint, nor is a broken one.
         if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
             0 < c.uniqBy.length || null != c.count || 0 < c.nofs.length ||
-            0 < c.whens.length || 'number' !== c.domain) {
+            0 < c.whens.length || 0 < c.contains.length || 'number' !== c.domain) {
             return undefined;
         }
         return {
@@ -1488,7 +1550,7 @@ function genable(child) {
         true === child.isNil ||
         undefined !== (0, BagVal_1.sizingResidue)(child);
 }
-function emittedMembers(bag, ctx) {
+function emittedMembers(bag, ctx, keys) {
     const out = [];
     let entries = (0, utility_1.items)(bag.peg);
     if (bag.isMap) {
@@ -1518,6 +1580,7 @@ function emittedMembers(bag, ctx) {
             continue;
         }
         out.push(child);
+        keys?.push('' + key);
     }
     return out;
 }
@@ -1583,6 +1646,34 @@ function dedupWhens(ws) {
     }
     return [...byCanon.keys()].sort(keyorder_1.cmpCodePoint)
         .map((key) => byCanon.get(key));
+}
+// Without a count, `contains` asks for one admitted member at least.
+function atLeastOne() {
+    return { ...countBase(), lo: { v: countVal(1), open: false } };
+}
+function containsCanon(a) {
+    return 'contains(' + a.c.canon + ',' + canonState(a.count) + ')';
+}
+function dedupContains(cs) {
+    const byCanon = new Map();
+    for (const a of cs) {
+        const key = containsCanon(a);
+        if (!byCanon.has(key)) {
+            byCanon.set(key, a);
+        }
+    }
+    return [...byCanon.keys()].sort(keyorder_1.cmpCodePoint)
+        .map((key) => byCanon.get(key));
+}
+// A count of admitted members only grows as members are tried, so past
+// the upper bound it is refused for good.
+function countExceeded(count, a) {
+    return null != count.hi &&
+        !stateAdmits({ ...count, lo: undefined, neqs: [] }, countVal(a));
+}
+function countSettled(count, a) {
+    return countExceeded(count, a) || (null == count.hi &&
+        0 === count.neqs.length && stateAdmits(count, countVal(a)));
 }
 // The counts of admitting branches, from none to all of them, that an
 // atom accepts: what the export names its keyword by.
@@ -1676,6 +1767,12 @@ class WhenConstraintVal extends ConstraintVal {
     }
 }
 exports.WhenConstraintVal = WhenConstraintVal;
+class ContainsConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'contains' }, ctx);
+    }
+}
+exports.ContainsConstraintVal = ContainsConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);
@@ -1686,6 +1783,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 27 */
+} /* node:coverage ignore next 28 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

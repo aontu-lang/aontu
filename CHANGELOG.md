@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### `contains(c, n?)`, `contains`, `minContains`, `maxContains` and `uniqueItems`
+
+Both ports. G12 phase 8, ADR-046.
+
+- `contains(c, n?)` is a Band B constraint atom: the number of a list's
+  or map's members that the admission trial finds `c` admits must
+  satisfy `n`, an integer or a count constraint as `len` reads one, and
+  at least one without it. A scalar has no members and is refused. A
+  count past its upper bound is refused as soon as the members it
+  counts are concrete scalars, whose admission nothing can take back;
+  every other count is decided at generation. A refusal has the new
+  code `contains`, class `conflict`, whose details name the count, the
+  number of members admitted, and the indexes or keys that were. Atoms
+  with one canon are one check, sorted by canon after `when`, and
+  `contains` never takes part in emptiness or subsumption.
+- Counting stops once no member left can change the answer, so
+  `contains(c)` over a long list stops at the first member it admits.
+- `aontu jsonschema import` carries `contains` with `minContains` and
+  `maxContains` as one `contains(C, n)` on the array branch, where all
+  four were dropped and reported; a count no number meets admits no
+  array, and a `minContains` or `maxContains` that is no non-negative
+  integer refuses with `jsonschema_schema`. `uniqueItems: true` is
+  `unique()`, which compares items by JSON value under the import's
+  reading of numbers, and a `uniqueItems` that is no boolean refuses.
+- `aontu jsonschema export` writes a `contains` back with its
+  endpoints, an excluded count as the `not` of that count alone, and a
+  second one under `allOf`; one that meets no list is reported, since
+  JSON Schema reads `contains` on an array alone.
+- The grammars, the help card, the language server's builtin roster
+  and the hints name `contains`.
+
 ### `when(c, t, e?)`, `if`, `then` and `else`, and the dependent keywords
 
 Both ports. G12 phase 7, ADR-046.

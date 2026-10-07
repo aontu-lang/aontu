@@ -1,0 +1,80 @@
+# G12 phase 8: contains(c, n?), the member count
+# (docs/reference-language.md, `Band B: contains`, ADR-046). Every
+# expectation was obtained by running both engines and requiring them
+# to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# The count is of the members the trial admits, at least one without a
+# count; a member the trial would have to fill is not admitted.
+contains-admits-one	gens	a: contains(integer) & [1, "x"]	{"a":[1,"x"]}
+contains-refuses-none	errc	a: contains(integer) & ["x"]	contains
+contains-refuses-an-empty-list	errc	a: contains(integer) & []	contains
+contains-min-zero-admits-an-empty-list	gens	a: contains(integer, min(0)) & []	{"a":[]}
+contains-exact-count	gens	a: contains(integer, 2) & [1, 2, "x"]	{"a":[1,2,"x"]}
+contains-exact-count-refuses-more	errc	a: contains(integer, 2) & [1, 2, 3]	contains
+contains-exact-count-refuses-fewer	errc	a: contains(integer, 2) & [1, "x"]	contains
+contains-at-most	gens	a: contains(integer, max(1)) & [1, "x"]	{"a":[1,"x"]}
+contains-at-most-refuses	errc	a: contains(integer, max(1)) & [1, 2]	contains
+contains-at-most-admits-none	gens	a: contains(integer, max(1)) & ["x"]	{"a":["x"]}
+contains-range	gens	a: contains(integer, min(1) & max(2)) & [1, 2, "x"]	{"a":[1,2,"x"]}
+contains-range-refuses	errc	a: contains(integer, min(1) & max(2)) & [1, 2, 3]	contains
+contains-neq-count	gens	a: contains(integer, neq(1)) & [1, 2]	{"a":[1,2]}
+contains-neq-count-refuses	errc	a: contains(integer, neq(1)) & [1, "x"]	contains
+contains-member-maps	gens	a: contains({k: 1}) & [{k: 1}, {j: 2}]	{"a":[{"k":1},{"j":2}]}
+contains-a-member-map-is-not-filled	errc	a: contains({k: any}) & [{j: 2}]	contains
+contains-a-default-is-a-fill	errc	a: contains({k: *1 | integer}) & [{j: 1}]	contains
+contains-a-list-schema	gens	a: contains([integer]) & [[1], "x"]	{"a":[[1],"x"]}
+contains-a-list-schema-refuses	errc	a: contains([integer]) & ["x"]	contains
+contains-nil-admits-nothing	errc	a: contains(nil) & [1]	contains
+contains-nil-with-min-zero	gens	a: contains(nil, min(0)) & [1]	{"a":[1]}
+contains-any-admits-every-member	gens	a: contains(any, 2) & [1, "x"]	{"a":[1,"x"]}
+contains-a-float-is-its-own-leaf	errc	a: contains(1) & [1.0]	contains
+#
+# A contains atom canons after the conditionals, its count written as
+# the count constraint it means, and two with one canon are one.
+contains-canon	canon	a: contains(integer)	{"a":contains(integer,integer&min(1))}
+contains-canon-count	canon	a: contains(string, 2)	{"a":contains(string,integer&min(2)&max(2))}
+contains-canon-range	canon	a: contains(string, min(1) & max(3))	{"a":contains(string,integer&min(1)&max(3))}
+contains-atoms-dedupe-by-canon	canon	a: contains(integer) & contains(integer)	{"a":contains(integer,integer&min(1))}
+contains-default-count-is-min-one	canon	a: contains(integer) & contains(integer, min(1))	{"a":contains(integer,integer&min(1))}
+contains-atoms-accumulate	canon	a: contains(string) & contains(integer)	{"a":contains(integer,integer&min(1))&contains(string,integer&min(1))}
+contains-two-atoms	gens	a: contains(integer) & contains(string) & [1, "x"]	{"a":[1,"x"]}
+contains-two-atoms-refuses	errc	a: contains(integer) & contains(string) & [1]	contains
+#
+# A scalar has no members; a map's members are its values.
+contains-refuses-a-scalar	errc	a: contains(integer) & 5	constraint
+contains-refuses-a-string	errc	a: contains(string) & "x"	constraint
+contains-refuses-a-boolean	errc	a: contains(boolean) & true	constraint
+contains-over-a-map	gens	a: contains(integer) & {p: 1, q: "x"}	{"a":{"p":1,"q":"x"}}
+contains-over-a-map-refuses	errc	a: contains(integer) & {q: "x"}	contains
+#
+# Before generation only a concrete scalar member's admission is final:
+# a count past its upper bound refuses then, inside hide() too, and
+# every other count waits for generation.
+contains-hidden-audit-refuses	errc	a: hide(contains(integer, max(1)) & [1, 2])	contains
+contains-an-unsettled-member-is-decided-at-generation	gens	a: contains(integer, max(1)) & [1, {k: 2}]	{"a":[1,{"k":2}]}
+contains-a-map-member-counts-at-generation	errc	a: contains({k: any}, max(1)) & [{k: 1}, {k: 2}]	contains
+contains-leaves-a-member-that-cannot-generate-to-generation	errc	a: contains(integer) & [1, string]	listval_no_gen
+#
+# The arguments: one or two, never an effect, and the count a count.
+contains-needs-one	errc	a: contains()	func_arity
+contains-needs-at-most-two	errc	a: contains(integer, 1, 2)	func_arity
+contains-count-is-a-number	errc	a: contains(integer, "x") & [1]	invalid-arg
+contains-count-is-never-negative	errc	a: contains(integer, -1) & [1]	constraint
+contains-count-is-no-pattern	errc	a: contains(integer, re("a")) & [1]	invalid-arg
+contains-refuses-a-move	errc	a: contains(move($.b)) & [1]\nb: 1	invalid-arg
+contains-in-len-is-no-count	errc	a: len(number & contains(integer)) & "ab"	invalid-arg
+#
+# Composition.
+contains-in-a-spread	gens	a: {&: contains(integer)} & {p: [1], q: [2, "x"]}	{"a":{"p":[1],"q":[2,"x"]}}
+contains-in-a-spread-refuses	errc	a: {&: contains(integer)} & {p: [1], q: ["x"]}	contains
+contains-nested	gens	a: contains(contains(integer)) & [[1], ["x"]]	{"a":[[1],["x"]]}
+contains-nested-refuses	errc	a: contains(contains(integer)) & [["x"]]	contains
+contains-with-len	gens	a: len(2) & contains(integer) & [1, "x"]	{"a":[1,"x"]}
+contains-with-unique	gens	a: unique() & contains(integer) & [1, 2]	{"a":[1,2]}
+contains-beside-nof	gens	a: nof(1, list, string) & contains(integer) & [1]	{"a":[1]}
+#
+# The finding names the count and the members the trial admitted.
+contains-names-the-members-it-admitted	err	a: contains(integer, max(1)) & [1, "x", 2]	Admitted: 0, 2.
+contains-names-the-keys-it-admitted	err	a: contains(integer, 2) & {p: 1, q: "x"}	Admitted: p.
+contains-names-none-admitted	err	a: contains(integer) & ["x"]	Admitted: none.
