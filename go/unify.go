@@ -180,12 +180,7 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	}
 	ctx.trialRun()
 	res := root
-	// The pass budget: the spec constant unless the trust profile set
-	// one (ctx.budgetPasses, zero = default).
-	maxcc := ctx.budgetPasses
-	if 0 == maxcc {
-		maxcc = 9
-	}
+	maxcc := ctx.passLimit()
 	prevCanon := ""
 	sawPrev := false
 	lastCanon := ""

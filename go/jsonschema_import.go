@@ -377,7 +377,8 @@ var importSchemaLists = []string{"prefixItems", "allOf", "anyOf", "oneOf"}
 
 var importCarried = map[string]bool{"$schema": true, "$id": true,
 	"$ref": true, "$anchor": true, "$defs": true, "type": true, "enum": true,
-	"const": true, "allOf": true, "minimum": true, "maximum": true,
+	"const": true, "allOf": true, "anyOf": true, "oneOf": true, "not": true,
+	"minimum": true, "maximum": true,
 	"exclusiveMinimum": true, "exclusiveMaximum": true, "multipleOf": true,
 	"minLength": true, "maxLength": true, "pattern": true, "properties": true,
 	"required": true, "additionalProperties": true, "patternProperties": true,
@@ -389,8 +390,7 @@ var importAnnotation = map[string]bool{"title": true, "description": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"anyOf": true,
-	"oneOf": true, "not": true, "if": true, "then": true, "else": true,
+var importLater = map[string]bool{"if": true, "then": true, "else": true,
 	"dependentRequired": true, "dependentSchemas": true, "contains": true,
 	"minContains": true, "maxContains": true, "uniqueItems": true,
 	"$dynamicRef": true, "$dynamicAnchor": true,
@@ -1231,6 +1231,346 @@ func (ic *importCtx) kinds(o *jobj, ptr string) string {
 	return "(" + strings.Join(branches, " | ") + ")"
 }
 
+// importKindsOf is the set of JSON kinds a schema can admit,
+// over-approximated: an alternative whose kind no other alternative
+// shares can be told apart by its kind.
+func importKindsOf(node any) map[string]bool {
+	ks := map[string]bool{}
+	o, ok := node.(*jobj)
+	if !ok {
+		if true == node {
+			for _, k := range importKindOrder {
+				ks[k] = true
+			}
+		}
+		return ks
+	}
+	for _, k := range importKindOrder {
+		ks[k] = true
+	}
+	keep := func(s map[string]bool) {
+		for k := range ks {
+			if !s[k] {
+				delete(ks, k)
+			}
+		}
+	}
+	if o.has("type") {
+		s := map[string]bool{}
+		names, isList := o.get("type").([]any)
+		if !isList {
+			names = []any{o.get("type")}
+		}
+		for _, n := range names {
+			name := n.(string)
+			if "integer" == name {
+				name = "number"
+			}
+			s[name] = true
+		}
+		keep(s)
+	}
+	if o.has("const") {
+		keep(map[string]bool{importJSONKind(o.get("const")): true})
+	}
+	if o.has("enum") {
+		s := map[string]bool{}
+		for _, v := range o.get("enum").([]any) {
+			s[importJSONKind(v)] = true
+		}
+		keep(s)
+	}
+	all, _ := o.get("allOf").([]any)
+	for _, s := range all {
+		keep(importKindsOf(s))
+	}
+	for _, k := range []string{"anyOf", "oneOf"} {
+		if o.has(k) {
+			s := map[string]bool{}
+			for _, b := range o.get(k).([]any) {
+				for kk := range importKindsOf(b) {
+					s[kk] = true
+				}
+			}
+			keep(s)
+		}
+	}
+	return ks
+}
+
+func importJSONKind(v any) string {
+	switch v.(type) {
+	case jnull:
+		return "null"
+	case bool:
+		return "boolean"
+	case jnum:
+		return "number"
+	case string:
+		return "string"
+	case []any:
+		return "array"
+	}
+	return "object"
+}
+
+// importUnplain names what makes `|` answer differently from a count: a
+// member the value may lack, a count decided at generation, a Band B
+// atom, a closed container, or a reference the walk cannot see through.
+var importUnplain = map[string]bool{"required": true, "minProperties": true,
+	"maxProperties": true, "minItems": true, "maxItems": true, "contains": true,
+	"minContains": true, "maxContains": true, "uniqueItems": true,
+	"anyOf": true, "oneOf": true, "not": true, "if": true, "then": true,
+	"else": true, "dependentRequired": true, "dependentSchemas": true,
+	"additionalProperties": true, "unevaluatedProperties": true,
+	"unevaluatedItems": true, "$ref": true, "$dynamicRef": true}
+
+func importPlain(node any) bool {
+	o, ok := node.(*jobj)
+	if !ok {
+		return true
+	}
+	for _, k := range o.keys {
+		v := o.get(k)
+		l, isList := v.([]any)
+		empty := "required" == k && isList && 0 == len(l)
+		open := true == v && strings.HasSuffix(k, "Properties")
+		container := false
+		if "const" == k || "enum" == k {
+			vals := []any{v}
+			if "enum" == k {
+				vals = l
+			}
+			for _, x := range vals {
+				_, isArr := x.([]any)
+				_, isObj := x.(*jobj)
+				container = container || isArr || isObj
+			}
+		}
+		if (importUnplain[k] && !empty && !open) || container ||
+			("items" == k && false == v) {
+			return false
+		}
+	}
+	subs := []any{}
+	for _, k := range []string{"properties", "patternProperties"} {
+		if m, isMap := o.get(k).(*jobj); isMap {
+			for _, kk := range m.keys {
+				subs = append(subs, m.get(kk))
+			}
+		}
+	}
+	for _, k := range []string{"prefixItems", "allOf"} {
+		l, _ := o.get(k).([]any)
+		subs = append(subs, l...)
+	}
+	for _, k := range []string{"items", "propertyNames"} {
+		if o.has(k) {
+			subs = append(subs, o.get(k))
+		}
+	}
+	for _, s := range subs {
+		if !importPlain(s) {
+			return false
+		}
+	}
+	return true
+}
+
+// importLiterals reads a scalar literal alternative, a `const` or an
+// `enum` of scalars and nothing else, its JSON values keyed by value.
+func importLiterals(node any) ([]string, bool) {
+	o, ok := node.(*jobj)
+	if !ok {
+		return nil, false
+	}
+	keys := []string{}
+	for _, k := range o.keys {
+		if !importAnnotation[k] {
+			keys = append(keys, k)
+		}
+	}
+	var vals []any
+	switch {
+	case 1 == len(keys) && "const" == keys[0]:
+		vals = []any{o.get("const")}
+	case 1 == len(keys) && "enum" == keys[0]:
+		vals = o.get("enum").([]any)
+	default:
+		return nil, false
+	}
+	out := []string{}
+	for _, v := range vals {
+		switch t := v.(type) {
+		case jnull:
+			out = append(out, "z")
+		case bool:
+			out = append(out, "b"+strconv.FormatBool(t))
+		case jnum:
+			out = append(out, "n"+importNumberText(t.text, "#"))
+		case string:
+			out = append(out, "s"+t)
+		default:
+			return nil, false
+		}
+	}
+	return out, true
+}
+
+func importDisjoin(srcs []string) string {
+	if 1 == len(srcs) {
+		return srcs[0]
+	}
+	parts := make([]string, len(srcs))
+	for i, s := range srcs {
+		parts[i] = importParen(s)
+	}
+	return "(" + strings.Join(parts, " | ") + ")"
+}
+
+func (ic *importCtx) alternatives(o *jobj, ptr, key string) ([]any, []string) {
+	at := importPtrAt(ptr, key)
+	list := importSchemaList(o.get(key), at)
+	srcs := make([]string, len(list))
+	for n, s := range list {
+		srcs[n] = ic.I(s, importPtrAt(at, importIdx(n)))
+	}
+	return list, srcs
+}
+
+// anyOf is `|` where at most one alternative can survive the meet with
+// any value, and a count of at least one everywhere else.
+func (ic *importCtx) anyOf(o *jobj, ptr string) string {
+	list, srcs := ic.alternatives(o, ptr, "anyOf")
+	kinds := make([]map[string]bool, len(list))
+	for n, s := range list {
+		kinds[n] = importKindsOf(s)
+	}
+	apart := true
+	for i := range kinds {
+		for j := range kinds {
+			for k := range kinds[i] {
+				apart = apart && (i == j || !kinds[j][k])
+			}
+		}
+	}
+	lits, plain := true, true
+	for _, s := range list {
+		_, ok := importLiterals(s)
+		lits = lits && ok
+		plain = plain && importPlain(s)
+	}
+	if lits || (apart && plain) {
+		return importDisjoin(srcs)
+	}
+	return "nof(min(1), " + strings.Join(srcs, ", ") + ")"
+}
+
+// oneOf is `|` only over scalar literals no alternative shares with
+// another, since a scalar equals at most one of them.
+func (ic *importCtx) oneOf(o *jobj, ptr string) string {
+	list, srcs := ic.alternatives(o, ptr, "oneOf")
+	seen := map[string]bool{}
+	distinct := true
+	for _, s := range list {
+		l, ok := importLiterals(s)
+		distinct = distinct && ok
+		mine := map[string]bool{}
+		for _, v := range l {
+			distinct = distinct && (mine[v] || !seen[v])
+			mine[v] = true
+		}
+		for v := range mine {
+			seen[v] = true
+		}
+	}
+	if distinct {
+		return importDisjoin(srcs)
+	}
+	return "nof(1, " + strings.Join(srcs, ", ") + ")"
+}
+
+// not reads an `enum` or `const` beside a single `string` or `integer`
+// as an exclusion the meet decides, every leaf of a number spelled, and
+// anything else as a count of none; an exclusion of nothing is no part.
+func (ic *importCtx) not(o *jobj, ptr string) (string, bool) {
+	at := importPtrAt(ptr, "not")
+	n := importSchemaOneOf(o.get("not"), at)
+	src := ic.I(n, at)
+	t, _ := o.get("type").(string)
+	var vals []any
+	typed := false
+	if m, isObj := n.(*jobj); isObj {
+		lits := []string{}
+		for _, k := range m.keys {
+			if !importAnnotation[k] {
+				lits = append(lits, k)
+			}
+		}
+		switch {
+		case 1 == len(lits) && "const" == lits[0]:
+			vals, typed = []any{m.get("const")}, true
+		case 1 == len(lits) && "enum" == lits[0]:
+			vals, typed = m.get("enum").([]any), true
+		}
+	}
+	if typed && ("string" == t || "integer" == t) {
+		spelt := []string{}
+		whole := true
+		for _, v := range vals {
+			if "string" == t {
+				if s, isStr := v.(string); isStr {
+					spelt = append(spelt, importStrLit(s))
+				}
+				continue
+			}
+			num := "0d."
+			if j, isNum := v.(jnum); isNum {
+				num = importNumberText(j.text, at)
+			}
+			if strings.Contains(num, ".") {
+				continue
+			}
+			neg := ""
+			if strings.HasPrefix(num, "-") {
+				neg = "-"
+			}
+			digits := num[len(neg):]
+			if strings.HasPrefix(digits, "0d") {
+				whole = false
+				continue
+			}
+			for _, s := range []string{num, num + ".0", neg + "0d" + digits, neg + "0d" + digits + ".0"} {
+				if "" != neg {
+					s = "(" + s + ")"
+				}
+				spelt = append(spelt, s)
+			}
+		}
+		if whole {
+			if 0 == len(spelt) {
+				return "", false
+			}
+			return "neq(" + strings.Join(spelt, ", ") + ")", true
+		}
+	}
+	return "nof(0, " + src + ")", true
+}
+
+// importMeetOrNil writes a meet empty where it stands as the schema that
+// admits nothing, `nil`; a meet through an alias is left to evaluation.
+func importMeetOrNil(parts []string) string {
+	src := importBoth(parts)
+	if 2 > len(parts) || strings.Contains(src, "%") {
+		return src
+	}
+	v, _ := New().Unify("x: " + src)
+	if v.(*MapVal).peg["x"].Nil() {
+		return "nil"
+	}
+	return src
+}
+
 func (ic *importCtx) I(node any, ptr string) string {
 	if b, ok := node.(bool); ok {
 		if b {
@@ -1297,7 +1637,18 @@ func (ic *importCtx) I(node any, ptr string) string {
 	if k := ic.kinds(o, ptr); "" != k {
 		parts = append(parts, k)
 	}
-	return importBoth(parts)
+	if o.has("not") {
+		if n, ok := ic.not(o, ptr); ok {
+			parts = append(parts, n)
+		}
+	}
+	if o.has("anyOf") {
+		parts = append(parts, ic.anyOf(o, ptr))
+	}
+	if o.has("oneOf") {
+		parts = append(parts, ic.oneOf(o, ptr))
+	}
+	return importMeetOrNil(parts)
 }
 
 // ImportJSONSchema reads a JSON Schema document into aontu source,

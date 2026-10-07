@@ -660,6 +660,7 @@ export function vet(
   // 1. The schema alone. If it does not stand up on its own, the data
   //    is never blamed for it.
   const schemaCtx = aontu.ctx({ collect: true })
+  schemaCtx.noFill = true === options.noFill
   const schemaVal: any = aontu.unify(schemaSrc, schemaOpts, schemaCtx)
   if (0 < schemaCtx.err.length || true === schemaVal?.isNil) {
     const failure: any =
@@ -769,6 +770,7 @@ export function vet(
   }
 
   const ctx = aontu.ctx({ collect: true })
+  ctx.noFill = schemaCtx.noFill
   let meetAnchor: any = anchor
   if (null == options.at) {
     const meetCtx = aontu.ctx({ collect: true })
@@ -806,6 +808,7 @@ export function vet(
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
   genCtx.probe = null != options.at
+  genCtx.noFill = ctx.noFill
   const generated = unified.gen(genCtx)
   for (const err of genCtx.err) {
     if ('incomplete' === err.class || 'conflict' === err.class) {

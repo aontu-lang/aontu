@@ -558,7 +558,59 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 				"it -- so it is DROPPED and the schema admits values `vet` refuses")
 	}
 
+	for _, n := range c.nofs {
+		sc.nofKeyword(path, out, n)
+	}
+
 	return out
+}
+
+// nofKeyword writes a count of admitting branches as the keyword that
+// counts the same: none of them, exactly one, any, or all.
+func (sc *schemaCtx) nofKeyword(path []string, out map[string]any, n constraintNof) {
+	k := len(n.branches)
+	counts := nofCounts(n)
+	from := func(lo int) bool {
+		return len(counts) == k-lo+1 && lo == counts[0]
+	}
+	put := func(kw string, v any) {
+		if _, has := out[kw]; !has {
+			out[kw] = v
+		} else {
+			schemaAllOf(out, map[string]any{kw: v})
+		}
+	}
+	schemas := func() []any {
+		out := []any{}
+		for _, b := range n.branches {
+			out = append(out, schemaFromVal(sc, path, b))
+		}
+		return out
+	}
+	switch {
+	case from(0):
+	case 0 == len(counts):
+		put("not", map[string]any{})
+	case 1 == len(counts) && 0 == counts[0]:
+		if 1 == k {
+			put("not", schemas()[0])
+		} else {
+			put("not", map[string]any{"anyOf": schemas()})
+		}
+	case 1 == len(counts) && 1 == counts[0]:
+		put("oneOf", schemas())
+	case from(1):
+		put("anyOf", schemas())
+	case 1 == len(counts) && k == counts[0]:
+		for _, s := range schemas() {
+			schemaAllOf(out, s)
+		}
+	default:
+		sc.lose(path, "nof",
+			"nof counts the alternatives that admit a value, and JSON Schema "+
+				"counts none, one, any or all of them; this count is none of those, "+
+				"so it is DROPPED and the schema admits values `vet` refuses")
+	}
 }
 
 // schemaAtLeastOne reports whether an exported length bound is already

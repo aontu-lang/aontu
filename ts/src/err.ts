@@ -51,7 +51,9 @@ function makeNilErr(
   attempt?: string,
   details?: Record<string, any>
 ): NilVal {
-  if (ctx !== undefined && ctx._trialMode === true) {
+  // A held conflict stays in the value, so it is made in full.
+  if (ctx !== undefined && ctx._trialMode === true &&
+    ctx.err !== ctx._heldErr) {
     if (ctx.err.length === 0) ctx.err.push(TRIAL_NIL)
     return TRIAL_NIL
   }

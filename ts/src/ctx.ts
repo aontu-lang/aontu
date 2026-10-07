@@ -63,6 +63,9 @@ class AontuContext {
 
   probe: boolean = false
 
+  // `vet --no-fill`: a key still optional is no member of the instance.
+  noFill: boolean = false
+
   // The provenance recorder (G7 phase 3), or undefined for an
   // uninstrumented run. Inherited by every descended and cloned
   // context through the prototype chain, so one run has one record.
@@ -106,6 +109,8 @@ class AontuContext {
   manifest: { path: string, capability: string }[]
 
   _trialMode?: boolean
+
+  _heldErr?: any[]
 
   _childCache?: Map<string, AontuContext>
 

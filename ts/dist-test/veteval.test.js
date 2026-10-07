@@ -90,9 +90,10 @@ function loadVetRows() {
 // What the one document generates, or undefined where it does not
 // stand up. `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalValue(src, opts) {
+function evalValue(src, opts, noFill) {
     const aontu = new aontu_1.Aontu(opts);
     const ctx = aontu.ctx({ collect: true });
+    ctx.noFill = true === noFill;
     let out;
     try {
         out = aontu.generate(src, undefined, ctx);
@@ -107,16 +108,21 @@ function evalValue(src, opts) {
 // own value lacks, which the admission trial removes before comparing.
 function unfilled(src, opts, alone) {
     const ctx = new aontu_1.Aontu(opts).ctx({ collect: true });
+    ctx.noFill = true;
+    const gen = new aontu_1.Aontu(opts);
+    const gctx = gen.ctx();
+    gctx.noFill = true;
     let met;
     let out;
     try {
         met = new aontu_1.Aontu(opts).unify(src, undefined, ctx);
-        out = new aontu_1.Aontu(opts).generate(src);
+        out = gen.generate(src, undefined, gctx);
     }
     catch {
         return undefined;
     }
-    const prune = (g, u, d) => {
+    const prune = (g, held, d) => {
+        const u = (0, vet_1.throughResidue)(held);
         if (true === u?.isMap && null != d && 'object' === typeof d &&
             !Array.isArray(d)) {
             for (const k of Object.keys(g)) {
@@ -250,8 +256,8 @@ function wrap(src) {
             // Under --no-fill the one document generates the data's own value,
             // less the optional members the data does not carry.
             const opts = { exactNumbers: exact, trust: row.opts.trust };
-            const got = evalValue(both.one, opts);
-            const alone = evalValue(both.alone, opts);
+            const got = evalValue(both.one, opts, row.opts.noFill);
+            const alone = evalValue(both.alone, opts, row.opts.noFill);
             const evalOk = undefined !== got && (true !== row.opts.noFill ||
                 (undefined !== alone && unfilled(both.one, opts, alone) === alone));
             if (vetAccepts !== evalOk) {

@@ -1,4 +1,4 @@
-# Shared Band A atom vocabulary for the constraint algebra law tests
+# Shared atom vocabulary for the constraint algebra law tests
 # (ts/test/constraint-laws.test.ts, go/constraint_laws_test.go) and the
 # probed cross-product in test/spec/constraint-product.tsv.
 #
@@ -24,3 +24,4 @@ number
 string
 5
 "m"
+nof(1,integer,string)

@@ -15,6 +15,10 @@ type MustAtom = {
     v: any;
     msg: any;
 };
+type NofAtom = {
+    count: ConstraintState;
+    branches: any[];
+};
 type ConstraintState = {
     domain?: 'number' | 'string';
     kind?: any;
@@ -27,6 +31,7 @@ type ConstraintState = {
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs: NofAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
@@ -48,6 +53,7 @@ declare class ConstraintVal extends FeatureVal {
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs: NofAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -67,6 +73,7 @@ declare class ConstraintVal extends FeatureVal {
     private settle;
     private admit;
     private checkMusts;
+    private checkNofs;
     settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
     private hold;
@@ -82,6 +89,7 @@ declare class ConstraintVal extends FeatureVal {
 }
 declare function constraintSubsumesConstraint(g: ConstraintVal, s: ConstraintVal): boolean | 'undecided';
 declare function constraintAdmitsScalar(g: ConstraintVal, scalar: any): boolean | 'undecided';
+declare function nofCounts(n: NofAtom): number[];
 declare class MinConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -106,10 +114,13 @@ declare class MultipleConstraintVal extends ConstraintVal {
 declare class MustConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class NofConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, };

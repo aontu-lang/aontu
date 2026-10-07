@@ -1377,6 +1377,9 @@ two members share a kind; bounds become
 its own digits; `re` becomes `pattern` in its normalised form, the
 ECMA-262 reading of what aontu means; `neq` becomes `not: {enum: …}`;
 `multiple(n)` becomes `multipleOf: n`, several of them under `allOf`;
+a count of alternatives, `nof(n, …)`, becomes `not` for none of them,
+`oneOf` for exactly one, `anyOf` for at least one and `allOf` for all,
+and the export drops and reports one that counts otherwise;
 `len` becomes `minLength`/`maxLength` on a string,
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
@@ -1594,6 +1597,19 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
 - `$defs`, and every schema a `$ref` names, become alias
   declarations (`%name = …`) ahead of `schema`, so a recursive schema
   imports as a recursive alias.
+- **`allOf` is the meet**, and a meet empty where it stands is `nil`,
+  the schema that admits nothing: `{"allOf": [{"type":
+  "string"}, {"type": "integer"}]}` imports as `nil`, so `vet` finds
+  the data invalid where it would otherwise find the schema broken.
+- **`anyOf`, `oneOf` and `not` count the alternatives that already
+  admit the value**: `nof(min(1), …)`, `nof(1, …)` and `nof(0, S)`.
+  `anyOf` is a plain `|` where at most one alternative can survive the
+  meet with any value, which holds for scalar literals and for
+  alternatives of different kinds with no required key, container
+  count, count of alternatives, closure or reference in them. `oneOf`
+  is a `|` of scalar literals no two alternatives share. `not` of an
+  `enum` or a `const` beside `"type": "string"` or `"integer"` is
+  `neq(…)`, with every leaf of a whole number spelled.
 - **The schema text is read by aontu, not by the host's JSON parser**,
   so a number is written by its exact value: `1.0` is the integer `1`,
   `0.1` is `0d0.1`, and a twenty-digit integer keeps all twenty digits.

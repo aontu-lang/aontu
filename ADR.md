@@ -74,6 +74,9 @@ capability decision is the phase rows it governed in
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
 | [ADR-045](#adr-045--a-key-one-side-requires-stays-required-in-the-meet) | A key one side requires stays required in the meet | Accepted |
+| [ADR-046](#adr-046--a-band-b-check-asks-whether-the-value-is-already-admitted) | A Band B check asks whether the value is already admitted | Accepted |
+| [ADR-047](#adr-047--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
+| [ADR-048](#adr-048--a-key-still-optional-is-absent-when-its-value-cannot-be-made) | A key still optional is absent when its value cannot be made | Accepted |
 
 ---
 
@@ -4616,3 +4619,184 @@ the meet is not a finding, and one at a key the data supplied is.
   [`test/spec/optional.tsv`](test/spec/optional.tsv) and
   [`test/spec/vet.tsv`](test/spec/vet.tsv), and by the `subsume` rows
   the meet already agreed with.
+
+
+## ADR-046 — A Band B check asks whether the value is already admitted
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+aontu's meet asks whether two values can be made consistent, and
+generation fills whatever a schema supplies. JSON Schema's applicators
+ask another question: whether an instance already is valid against a
+subschema. `anyOf` asks it of each branch and wants at least one yes,
+`oneOf` exactly one, and `not` none, so a count of admitting branches
+carries all three, and the count is only right when no branch can
+answer yes by filling in what the instance lacks: against `{}`, every
+branch with a required key would unify by supplying it.
+
+The engine already asked that question in three places. `filter`,
+`match` and `emit`'s template selection keep a value only when it
+already satisfies a condition, and `vet --no-fill` asks it of the whole
+document. G12 phase 3 gave the rule one definition, the admission trial
+of the G12 design, section 3, with a memo and a budget of its own,
+`trials`. `must` did not use it: its check is that the value unifies
+with its argument, a weaker question.
+
+### Decision
+
+**A Band B check reads a value through the admission trial, and the
+family is the atoms that need it.** A trial schema `c` admits a settled
+value `V` when `clone(V) & clone(c)` is not bottom and its members are
+`V`'s own, compared structurally: a member `c` adds that generation
+would emit, a default included, or a leaf `c` narrows means `c` does
+not admit `V`. Every Band B atom
+shares four rules:
+
+- It is decided on a concrete scalar at the meet, and on a container
+  at generation, when no member can still arrive. Before then the one
+  answer it gives is a refusal no member could retract: a meet already
+  empty stays empty, so a check inside a part nothing generates, such
+  as a `hide()`-marked audit, still refuses a contradiction. A boolean
+  or `null` is a scalar like any other here: a residual of Band B
+  checks alone leaves every scalar to them.
+- It never takes part in emptiness, and subsumption answers
+  `undecided` where the general side holds one.
+- It never contributes to the value: the trial runs on clones, and
+  what it met is discarded.
+- Its arguments are schema values. A function is never a Band B
+  argument, and `match` keeps its refusal of boolean guards (G8).
+
+The first atom built on the trial is `nof(n, ...c)`: the number of the
+schemas `c` that admit the value must satisfy `n`, an integer or a
+count constraint over the algebra `len` uses. Branches are sorted by
+canon and never deduplicated, because a count counts duplicates; two
+canon-equal `nof` atoms on one value are one check, so the meet stays
+commutative and idempotent by canon. A branch is tried while a
+remaining one can still change the verdict. A refusal has the code
+`nof`, class `conflict`, and its details carry the admissible count,
+the number of branches tried that admitted the value, and each tried
+branch's verdict.
+
+### Consequences
+
+- The import reads `anyOf`, `oneOf` and `not` as `nof` where `|` would
+  answer differently, and the export writes a `nof` back as the keyword
+  its count names.
+- `must` is a Band B atom that still asks unifiability, a weaker
+  question than the trial; moving it is a decision of its own, because
+  a document relying on `must` admitting a value that only unifies
+  changes its answer.
+- A `nof` costs one trial per branch it tries; the trials are counted
+  by the `trials` budget, and a scalar verdict against a branch that
+  reads no position is memoised for the evaluation.
+- Pinned in both ports by `test/spec/constraint-nof.tsv`, the `nof`
+  row of `test/spec/errcodes.tsv`, and rows in `subsume.tsv` and
+  `vet.tsv`.
+
+
+## ADR-047 — `must` asks the admission trial
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+`must(c, msg)` checked that the settled value unifies with `c`, and on
+a failure attached the author's message. ADR-046 made the admission
+trial the question every Band B check asks: whether `c` already admits
+the value, with nothing filled in. The two answers differ wherever `c`
+supplies what the value lacks. `must({x: 1}, m) & {}` passed, because
+the meet fills `x`, while `nof(1, {x: 1}) & {}` refuses, so the two
+evaluate-only checks asked different questions of the same value. The
+same gap kept `must` out of the JSON Schema export: `allOf: [c]` asks
+JSON Schema's question, admission, and would refuse values `must(c)`
+admitted.
+
+### Decision
+
+**`must(c, msg)` passes when `c` already admits the settled value**, the
+question `nof(1, c)` asks, and the message rides the refusal as it did.
+It follows ADR-046's rules for the family: a scalar is decided at the
+meet and a map or list at generation, and a boolean or `null` is a
+scalar like any other. Its canon keeps the written order.
+
+### Consequences
+
+- A document that relied on `must` admitting a value that only unifies
+  now refuses it. Every use case and bundled model, 356 files, was
+  evaluated before and after this landed, and one answer moved: the
+  repro `vet-soundness/must-cross-layer.aontu`, evaluated without the
+  data it is written for. Its `t` is a bare `integer`, which
+  `{t: max(60)}` narrows, so it is now refused as `must` at `$.s`,
+  where generation used to stop at `$.s.t` with `mapval_no_gen`.
+- A `must` over a map or list that contradicts `c` is refused at once,
+  as before; one that only lacks what `c` supplies is refused at
+  generation, so `must({x: 1}, m) & {}` canons as
+  `{}&must({"x":1},"m")` and refuses when generated, and a check in a
+  part nothing generates, such as a `hide()`-marked audit, refuses
+  only the contradiction.
+- The export still drops `must` with a reported loss. With the check
+  now admission, `allOf: [c]` would carry it, its message the only
+  thing lost; that arm is left to the exporter.
+- Pinned in both ports by the `must` rows of
+  `test/spec/constraint-nof.tsv` and `test/spec/vet.tsv`.
+
+
+## ADR-048 — A key still optional is absent when its value cannot be made
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+ADR-045 settled an optional key holding a written `nil`: absent, the
+key contributes nothing, as any unresolved optional key does, and a
+supplied value refuses. A `nil` the meet makes was left outside that
+rule. `{"a"?: 1} & {"a"?: 2}` refused the document with
+`scalar_value`, and a disjunction dropped any arm holding one, though
+the reference already says an optional key that never receives a
+concrete value is dropped from the output instead of erroring.
+
+JSON Schema reads the shape the other way. `allOf` over two
+`properties` entries that cannot both hold for one key, `[{properties:
+{a: {const: 1}}}, {properties: {a: {const: 2}}}]`, admits every object
+without `a`. The import writes that meet as it stands, so it refused
+every object lacking `a`, and once the importer wrote an empty meet as
+`nil`, every instance.
+
+### Decision
+
+**A key still optional is absent when its value cannot be made.** A
+conflict met while the value of a key optional on every side is
+evaluated, at any depth, is held by the key rather than reported.
+Absent, the key contributes nothing: generation drops it, `vet` passes
+it, a disjunction keeps the arm, and an admission trial counts the
+alternative as admitting. Supplied, the key is required, and the value
+it holds refuses with the code of the conflict it records.
+
+Only conflict-class codes are held. A failure of another class under an
+optional key, a reference that does not resolve or a spent budget, is
+reported as before, since it says the document is wrong whatever the
+data holds.
+
+### Consequences
+
+- A document whose optional declarations conflict now evaluates, with
+  those keys forbidden, where it was refused; a mistake in an optional
+  declaration surfaces when data supplies the key.
+- A disjunction arm whose only conflict sits under an optional key
+  survives: `{"a"?: 1} & ({"a"?: 2} | {b: 1})` keeps both arms, and
+  generation reports `disjunct_no_gen` where it chose the second.
+- `vet` reads nothing under a key still optional, as generation reads
+  nothing there, so a written `nil` inside one, `{"a"?: {b: nil}}`
+  against `{}`, is no longer a finding.
+- A key one map literal writes both with and without `?`, `a: 1 a?: 2`,
+  is required, as ADR-045 has it for a meet. Both parsers had made it
+  optional, which the reported conflict hid.
+- Every use case and bundled model, 356 files, was evaluated before
+  and after this landed, and no answer moved.
+- Pinned in both ports by rows in `test/spec/optional.tsv`,
+  `test/spec/vet.tsv` and `test/spec/jsonschema-import.tsv`.

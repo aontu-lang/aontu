@@ -1,0 +1,89 @@
+# G12 phase 6: nof(n, ...c), the count of the alternatives that
+# already admit a value (docs/reference-language.md, `Band B: nof`,
+# ADR-046). Every expectation was obtained by running both engines and
+# requiring them to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# The count is an integer or a count constraint, the algebra len reads,
+# and an alternative is counted when it admits the value.
+nof-admits-one-of-two	gens	a: nof(1, integer, string) & 5	{"a":5}
+nof-refuses-two-of-two	errc	a: nof(1, number, integer) & 5	nof
+nof-refuses-none-of-two	errc	a: nof(1, string, boolean) & 5	nof
+nof-min-one-admits	gens	a: nof(min(1), integer, string) & "x"	{"a":"x"}
+nof-min-one-refuses-none	errc	a: nof(min(1), integer, string) & true	nof
+nof-zero-admits-when-none-does	gens	a: nof(0, string) & 5	{"a":5}
+nof-zero-refuses-when-one-does	errc	a: nof(0, string) & "x"	nof
+nof-count-constraint-max	errc	a: nof(max(1), integer, number) & 5	nof
+nof-count-constraint-neq	errc	a: nof(neq(1), integer, string) & 5	nof
+nof-count-constraint-neq-admits	gens	a: nof(neq(1), integer, number) & 5	{"a":5}
+nof-all-of-them	gens	a: nof(2, integer, min(0)) & 5	{"a":5}
+nof-count-of-more-than-the-branches	errc	a: nof(3, integer, number) & 5	nof
+nof-count-any-number	gens	a: nof(min(0), string) & 5	{"a":5}
+nof-over-a-string-len	gens	a: nof(1, len(min(2)), len(max(1))) & "abc"	{"a":"abc"}
+nof-names-what-it-counted	err	a: nof(1, number, integer) & 5	Tried: integer admits, number admits.
+#
+# A scalar of any kind, a boolean and null included, is decided at the
+# meet; a nil alternative admits nothing and any admits everything.
+nof-admits-a-boolean	gens	a: nof(1, true, string) & true	{"a":true}
+nof-admits-null	gens	a: nof(1, null, string) & null	{"a":null}
+nof-refuses-a-boolean	errc	a: nof(0, boolean) & true	nof
+nof-nil-branch-admits-nothing	gens	a: nof(0, nil) & 5	{"a":5}
+nof-nil-branch-cannot-count	errc	a: nof(min(1), nil) & 5	nof
+nof-any-branch-admits-everything	errc	a: nof(0, any) & 5	nof
+nof-default-in-a-branch	gens	a: nof(1, *1 | integer) & 2	{"a":2}
+nof-nested	errc	a: nof(1, nof(0, string), integer) & 5	nof
+nof-nested-refuses-when-none-admits	errc	a: nof(1, nof(0, string), integer) & "x"	nof
+#
+# A map or list is decided at generation. An alternative admits it when
+# meeting it adds no member generation would emit: a required key, a
+# resolved optional one and a default are all members the value lacks.
+nof-over-a-map-admits	gens	a: nof(1, {x: integer}, {y: string}) & {x: 1}	{"a":{"x":1}}
+nof-over-a-map-refuses-a-fill	errc	a: nof(1, {x: integer, y: 2}) & {x: 1}	nof
+nof-over-a-map-optional-is-no-fill	gens	a: nof(1, {x: integer, y?: integer}) & {x: 1}	{"a":{"x":1}}
+nof-over-a-map-resolved-optional-is-a-fill	errc	a: nof(1, {x: integer, y?: 2}) & {x: 1}	nof
+nof-over-a-map-default-is-a-fill	errc	a: nof(1, {x: *1 | integer}) & {}	nof
+nof-over-a-list-admits	gens	a: nof(1, [integer], [string]) & [1]	{"a":[1]}
+nof-in-a-spread	gens	a: {&: nof(min(1), integer, string)} & {p: 1, q: "s"}	{"a":{"p":1,"q":"s"}}
+nof-in-a-spread-refuses	errc	a: {&: nof(min(1), integer, string)} & {p: 1, q: true}	nof
+#
+# Canon: the alternatives are sorted and never deduplicated, since a
+# count counts duplicates; atoms are one per canon, sorted by canon, and
+# write after must. A number residual holding only Band B atoms names
+# its kind.
+nof-canon-sorts-branches	canon	a: nof(1, string, integer)	{"a":nof(integer&min(1)&max(1),integer,string)}
+nof-canon-keeps-duplicates	canon	a: nof(1, string, string)	{"a":nof(integer&min(1)&max(1),string,string)}
+nof-duplicates-count-twice	errc	a: nof(1, string, string) & "x"	nof
+nof-atoms-dedupe-by-canon	canon	a: nof(1, string, integer) & nof(1, integer, string)	{"a":nof(integer&min(1)&max(1),integer,string)}
+nof-atoms-accumulate	canon	a: nof(1, string, integer) & nof(0, 5)	{"a":nof(integer&min(0)&max(0),5)&nof(integer&min(1)&max(1),integer,string)}
+nof-atoms-accumulate-commutes	canon	a: nof(0, 5) & nof(1, string, integer)	{"a":nof(integer&min(0)&max(0),5)&nof(integer&min(1)&max(1),integer,string)}
+nof-beside-a-kind	canon	a: number & nof(1, integer, float)	{"a":number&nof(integer&min(1)&max(1),float,integer)}
+nof-beside-a-kind-admits	gens	a: number & nof(1, integer, float) & 1.5	{"a":1.5}
+nof-beside-a-kind-refuses	errc	a: number & nof(1, integer, number) & 5	nof
+nof-beside-bounds-in-canon	canon	a: nof(0, 5) & min(1) & multiple(1)	{"a":min(1)&multiple(1)&nof(integer&min(0)&max(0),5)}
+nof-canon-reparses	gens	a: nof(integer&min(1)&max(1),integer,string) & 5	{"a":5}
+nof-alone-does-not-generate	canon	a: nof(1, integer, string)	{"a":nof(integer&min(1)&max(1),integer,string)}
+#
+# Refusals of the atom itself. A count needs at least one alternative
+# beside it, and an effectful alternative is refused as must refuses it.
+nof-needs-a-branch	errc	a: nof(1)	func_arity
+nof-refuses-a-string-count	errc	a: nof("x", integer) & 1	invalid-arg
+nof-refuses-a-pattern-count	errc	a: nof(re("x"), integer) & 1	invalid-arg
+nof-refuses-an-empty-count	errc	a: nof(min(3) & max(1), integer)	constraint
+nof-refuses-an-integer-gap-count	errc	a: nof(above(1) & below(2), integer) & 1	constraint
+nof-refuses-a-move	errc	a: nof(1, move($.b)) & 1\nb: 1	invalid-arg
+nof-in-len-is-no-count	errc	a: len(number & nof(1, integer)) & "ab"	invalid-arg
+#
+# Before generation a count refuses only what no member could change: an
+# alternative whose meet is already empty never admits.
+nof-refuses-an-unreachable-count-in-a-hidden-part	errc	audit: hide({n: nof(1, {mfa: true}, {mfa: 1}) & {mfa: false}})	nof
+nof-in-a-hidden-part-waits-for-a-generation-that-never-comes	gens	audit: hide({n: nof(0, {mfa: false}) & {mfa: false}})	{}
+# A trial settles the counts its alternative holds, in a map or a list,
+# and a count held in a referenced spread is read through the reference.
+nof-trial-settles-a-nested-count-in-a-map	errc	a: nof(1, {x: len(min(2))}) & {x: [1]}	nof
+nof-trial-settles-a-nested-count-in-a-list	errc	a: nof(1, [len(min(2))]) & [[1]]	nof
+nof-trial-settles-a-nested-count-that-admits	gens	a: nof(1, {x: len(min(2))}) & {x: [1, 2]}	{"a":{"x":[1,2]}}
+nof-in-a-ref-spread-refuses	errc	T: hide(nof(1, string, integer))\na: {&: $.T} & {p: "p", q: true}	nof
+nof-in-a-ref-spread-admits	gens	T: hide(nof(1, string, integer))\na: {&: $.T} & {p: "p", q: 1}	{"a":{"p":"p","q":1}}
+nof-with-a-reference-branch-in-a-ref-spread	gens	a: {&: $.T} & {p: "p", q: 2}\nT: hide(nof(1, $.U, integer))\nU: hide("p")	{"a":{"p":"p","q":2}}
+nof-with-a-reference-branch-in-a-ref-spread-refuses	errc	a: {&: $.T} & {p: "q"}\nT: hide(nof(1, $.U, integer))\nU: hide("p")	nof
+must-argument-holding-an-expectation	gens	a: must({x: 1} & {y: integer}, "m") & {x: 1, y: 2}	{"a":{"x":1,"y":2}}

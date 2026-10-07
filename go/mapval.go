@@ -219,6 +219,13 @@ func computePathFunc(v Val) bool {
 				return true
 			}
 		}
+		for _, nf := range n.nofs {
+			for _, b := range nf.branches {
+				if hasPathFunc(b) {
+					return true
+				}
+			}
+		}
 		if nil != n.count && hasPathFunc(n.count) {
 			return true
 		}
@@ -451,6 +458,26 @@ func isEmptyGen(v any) bool {
 	return false
 }
 
+// heldUnite meets a key's value. A key still optional is absent when
+// its value cannot be made, so a conflict met there is held by the key,
+// not reported (ADR-048).
+func heldUnite(ctx *Ctx, optional bool, fn func() Val) Val {
+	if !optional {
+		return fn()
+	}
+	saved := ctx.err
+	ctx.err = nil
+	out := fn()
+	held := ctx.err
+	ctx.err = saved
+	for _, n := range held {
+		if "conflict" != n.Class() {
+			ctx.adderr(n)
+		}
+	}
+	return out
+}
+
 func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
@@ -564,12 +591,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			child.setMarkHide(true)
 		}
 		kslot := append(cp(dbase), k)
+		opt := out.isOptional(k)
 		var cv Val
 		if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
 			cv = child
 			if !isAbsent(child) {
 				ctx.slot = kslot
-				cv = unite(ctx, child, top())
+				cv = heldUnite(ctx, opt, func() Val { return unite(ctx, child, top()) })
 				// Decided to be there: the template applies next pass.
 				if !isAbsent(cv) {
 					done = false
@@ -580,13 +608,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				cv = child
 			} else {
 				ctx.slot = kslot
-				cv = unite(ctx, child, top())
+				cv = heldUnite(ctx, opt, func() Val { return unite(ctx, child, top()) })
 			}
 			setSprOn(cv, spreadCj)
 		} else {
 			sc := spreadCloneFor(spreadCj, kslot, ctx)
 			ctx.slot = kslot
-			cv = unite(ctx, child, sc)
+			cv = heldUnite(ctx, opt, func() Val { return unite(ctx, child, sc) })
 			if !isTop(spreadCj) && !cv.Nil() {
 				setSprOn(cv, spreadCj)
 			}
@@ -618,13 +646,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 			pkslot := append(cp(dbase), pk)
 			_, pcIsOp := pc.(*PlusOpVal)
+			opt := out.isOptional(pk)
 			var uv Val
 			if ex, ok := out.peg[pk]; ok {
 				ctx.slot = pkslot
 				if m.closed {
 					ex = sealChild(ex)
 				}
-				uv = unite(ctx, ex, pc)
+				uv = heldUnite(ctx, opt, func() Val { return unite(ctx, ex, pc) })
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
 				!m.markedType() && !m.markedHide() {
 				peg := pc
@@ -634,7 +663,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				uv = &ExpectVal{peg: peg, parent: m, key: pk}
 			} else {
 				ctx.slot = pkslot
-				uv = unite(ctx, pc, top())
+				uv = heldUnite(ctx, opt, func() Val { return unite(ctx, pc, top()) })
 			}
 			// A spread on the receiving map also applies to peer keys —
 			// once per child, same apply-once discipline as the own-key
@@ -644,7 +673,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
-				uv = unite(ctx, uv, sc)
+				met := uv
+				uv = heldUnite(ctx, opt, func() Val { return unite(ctx, met, sc) })
 				if !isTop(spreadCj) && !uv.Nil() {
 					setSprOn(uv, spreadCj)
 				}

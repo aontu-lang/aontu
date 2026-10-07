@@ -253,8 +253,8 @@ consequence is that a refused `""` is not pruned from a disjunction:
 ### The type of constraints: `constraint`
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
-`below`, `neq`, `multiple`, `re`, `len`, `unique`, `must`, `empty`,
-`refer`, `rel`).
+`below`, `neq`, `multiple`, `re`, `len`, `unique`, `must`, `nof`,
+`empty`, `refer`, `rel`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -840,6 +840,25 @@ default still applies beside the filled key.
 
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
+
+A key is optional only where every side naming it marks it so, in a
+meet and in one map literal alike: `{k: 1} & {k?: 1}` and `k: 1 k?: 1`
+both require `k`. A key optional on every side whose value meets a
+conflict, at any depth, is absent, and the conflict is no error of the
+document: generation drops the key, `vet` passes data without it, and a
+value the data supplies meets the conflict and refuses.
+
+```aontu
+p: { k?:1 } & { k?:2 }
+q: { k?:1 } & { k?:2 } & { j:3 }
+```
+
+```json
+{"p":{},"q":{"j":3}}
+```
+
+`{k?: 1} & {k?: 2} & {k: 1}` refuses with `scalar_value`, and so does
+`{k: 1} & {k?: 2}`, which requires `k`.
 
 ## Spreads `&:`
 
@@ -2375,6 +2394,12 @@ Example: `must(min(1), "must be positive")`
 Exclude the listed numeric or string values. See [constraint atoms](#the-constraint-algebra).
 
 Example: `string & neq("reserved")`
+
+### `nof(n: number|constraint, ...c: (trial any)) : constraint`
+
+Admit a value when the number of the alternatives `c` that already admit it satisfies the count `n`. See [Band B: `nof`](#band-b-nof).
+
+Example: `nof(1, integer, string)`
 
 ### `nom(name: string, style?: string|list, acronyms?: list) : string|map`
 
@@ -5182,9 +5207,9 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All ten atoms (the bounds `min`/`max`/`above`/`below`, the
+> All eleven atoms (the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must`) are
+> atoms `length` and `unique`, and the evaluate-only `must` and `nof`) are
 > implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
@@ -5198,9 +5223,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Ten builtins join the function registry. Nine are **Band A**: full
+Eleven builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. One is **Band B**: evaluate-only, and reported
+canonical form. Two are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5215,6 +5240,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
+| `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of the alternatives c that admit the value satisfies n |
 
 ### Bounds and the number tower
 
@@ -5281,6 +5307,7 @@ schema-composition time, before any data arrives:
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
+| `nof` & `nof` | accumulation, one atom per canon, sorted by canon; the alternatives are never deduplicated |
 
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
@@ -5347,8 +5374,8 @@ approximate in this sense and are marked; the rest are exact.
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
 | `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
-| `must(f)`   | anything     | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
-| anything    | `must(…)`    | decided by A's other atoms alone; an extra `must` on B can only narrow B |
+| `must(f)`, `nof(…)` | anything | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
+| anything    | `must(…)`, `nof(…)` | decided by A's other atoms alone; an extra Band B atom on B can only narrow B |
 | anything    | nil (empty)  | always: the empty set is an instance of everything |
 
 A whole residual subsumes another when **every** row above holds for the
@@ -5361,8 +5388,8 @@ common multiple, the same ruling the meet makes. `re` compares
 patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
 do: the same ruling that stops two `re` atoms being declared empty at
-composition time. `must` is opaque by construction: that is what Band B
-*means*. In both cases the answer is "not subsumed", so the error is
+composition time. `must` and `nof` are opaque by construction: that is
+what Band B *means*. In both cases the answer is "not subsumed", so the error is
 always toward reporting a difference that is not there.
 
 **Normalisation makes the spelling irrelevant.** Subsumption is decided
@@ -5388,7 +5415,8 @@ by the meet rules above).
 A residual constraint renders as its normalised atoms joined by `&`
 in a fixed order (**kind, lower bound (`min`/`above`), upper bound
 (`max`/`below`), `neq` (arguments sorted), `multiple` (by value), `re`
-(patterns sorted), `length`, `unique`, `must`**) no spaces,
+(patterns sorted), `length`, `unique`, `must`, `nof` (by canon)**) no
+spaces,
 reparseable, endpoint leaves preserved:
 
 ```aontu
@@ -5611,9 +5639,9 @@ the merged container.
 Written order does not matter (`a: {x:1} a: {y:2} a: len(2)` is the
 same value) which is the property the sort order exists to guarantee.
 
-**`must` folds last for the same reason**, and the slot is named for
-what the three atoms share rather than for sizing alone: `length`,
-`unique` and `must` all need the *whole* value. An evaluate-only check
+**`must` and `nof` fold last for the same reason**, and the slot is
+named for what the atoms share rather than for sizing alone: `length`,
+`unique`, `must` and `nof` all need the *whole* value. An evaluate-only check
 run against the first fragment would refuse `a: must(len(2),m)` /
 `a: {x:1}` / `a: {y:2}` on a count of one, exactly as an early-folding
 `length` would.
@@ -5735,12 +5763,51 @@ contract](trust.md), clause 2).
 ### Band B: `must`
 
 `must(c, msg)` wraps any aontu value as an evaluate-only check: it
-residuates until its peer is concrete, then requires the peer to
-unify with `c`; on failure the author's message is attached to the
-nil (`NilVal.details`). `must` never participates in emptiness or
+residuates until its peer settles, then requires that `c` already
+admit the peer, the question [`nof`](#band-b-nof) asks, so
+`must({x: 1}, m) & {}` refuses where `&` alone would fill `x`. The
+meet decides a scalar and generation decides a map or list, though a
+map or list that contradicts `c` refuses at once, as a meet would. On failure the author's message is
+attached to the nil (`NilVal.details`). `must` never participates in emptiness or
 subsumption, and any report including one states that the check was
 evaluate-only: the channel for domain rules beyond the
 algebra.
+
+### Band B: `nof`
+
+`nof(n, ...c)` counts alternatives: the number of the schemas `c` that
+admit the value must be one the count `n` admits. `n` is an integer
+or a count constraint, the algebra `len` reads, so `nof(1, ...)` asks
+for exactly one, `nof(min(1), ...)` for at least one, and `nof(0, ...)`
+for none:
+
+```aontu
+a: nof(1, integer, string) & 5  # one alternative admits 5
+b: nof(min(1), integer, string) & 5
+c: nof(0, string) & 5
+```
+
+```json
+{ "a": 5, "b": 5, "c": 5 }
+```
+
+An alternative admits a value when meeting it adds nothing the value
+lacks: `nof(1, {x: integer, y: 2}) & {x: 1}` refuses, because the
+alternative would supply `y`, where `&` alone would fill it. A default
+is a member supplied the same way. The meet decides the check on a
+scalar, and generation decides it on a map or list, when no member can
+still arrive. Before then it refuses only what no member could change: an
+alternative whose meet is already empty never admits, and a count the
+rest cannot reach refuses at once, inside a `hide()` too.
+
+`nof` sorts its alternatives by canon and keeps every duplicate, because
+a count counts duplicates: `nof(1, string, string)` admits no string.
+Two `nof` atoms with one canon are one check, so `&` stays commutative
+and idempotent. `nof` tries an alternative only while the remaining
+ones can still change the answer, so `nof(min(1), ...)` stops at the first that
+admits. A refusal has the code `nof`, whose details carry the count,
+the number of tried alternatives that admitted the value, and each
+one's verdict. `nof` never takes part in emptiness or subsumption.
 
 ### Errors
 

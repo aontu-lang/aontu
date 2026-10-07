@@ -89,11 +89,16 @@ func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 // swapped for a throwaway one exactly as DisjunctVal's member trials do
 // (disjunct.go). Mirrors trialUnify in ts/src/val/FuncBaseVal.ts.
 func trialUnify(ctx *Ctx, a, b Val) Val {
+	return sandboxed(ctx, func() Val { return unite(ctx, a, b) })
+}
+
+// sandboxed runs fn as a trial: a failure is an answer, not an error.
+func sandboxed(ctx *Ctx, fn func() Val) Val {
 	saved := ctx.err
 	savedTrial := ctx.trial
 	ctx.err = []*NilVal{}
 	ctx.trial = true
-	out := unite(ctx, a, b)
+	out := fn()
 	failed := 0 < len(ctx.err) || (nil != out && out.Nil())
 	ctx.err = saved
 	ctx.trial = savedTrial
@@ -157,7 +162,7 @@ func pureCond(c Val) bool {
 	case *ScalarVal, *ScalarKindVal:
 		return true
 	case *ConstraintVal:
-		return nil == t.pending && 0 == len(t.musts)
+		return nil == t.pending && 0 == len(t.musts) && 0 == len(t.nofs)
 	case *DisjunctVal:
 		for _, m := range t.peg {
 			if _, isPref := m.(*PrefVal); isPref || !pureCond(m) {
@@ -169,9 +174,60 @@ func pureCond(c Val) bool {
 	return false
 }
 
+// settleTrial runs a settled value's trial: the meet, then settled
+// passes until done, so a staged builtin answers per member.
+func settleTrial(ctx *Ctx, met Val) Val {
+	sctx := *ctx
+	sctx.settle = true
+	for i := 0; nil != met && DONE != met.Dc() && i < ctx.passLimit(); i++ {
+		met = trialUnify(&sctx, met, top())
+	}
+	if nil == met {
+		return nil
+	}
+	return sandboxed(&sctx, func() Val { return finished(&sctx, met) })
+}
+
+// finished does as generation does: a container a constraint still
+// holds is decided, at any depth.
+func finished(ctx *Ctx, v Val) Val {
+	out := v
+	if con, bag, ok := sizingResidue(v); ok {
+		out = con.settleContainer(bag, ctx)
+	}
+	switch t := out.(type) {
+	case *MapVal:
+		for _, k := range t.keys {
+			child := finished(ctx, t.peg[k])
+			if child.Nil() && !t.isOptional(k) {
+				return child
+			}
+			t.peg[k] = child
+		}
+	case *ListVal:
+		for i, e := range t.peg {
+			child := finished(ctx, e)
+			if child.Nil() {
+				return child
+			}
+			t.peg[i] = child
+		}
+	}
+	return out
+}
+
 // admits is the admission trial (G12 design, section 3): does node
 // already satisfy cond? Each one run counts against the trials budget.
 func admits(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
+	return admitsWith(ctx, node, cond, pair, false)
+}
+
+// admitsSettled is admits for a value nothing more can reach.
+func admitsSettled(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
+	return admitsWith(ctx, node, cond, pair, true)
+}
+
+func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool) bool {
 	st := ctx.trialRun()
 	key := ""
 	if _, scalar := node.(*ScalarVal); scalar && pureCond(cond) {
@@ -190,6 +246,9 @@ func admits(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
 	}
 	a, b := pair()
 	met := trialUnify(ctx, a, b)
+	if settled {
+		met = settleTrial(ctx, met)
+	}
 	ok := nil != met && sameMembers(node, met, ctx)
 	if "" != key {
 		st.memo[key] = ok

@@ -12,6 +12,8 @@ class AontuContext {
         this.settle = false;
         this.vars = {};
         this.probe = false;
+        // `vet --no-fill`: a key still optional is no member of the instance.
+        this.noFill = false;
         this.root = cfg.root;
         this.path = [...(cfg.path ?? [])];
         this.src = cfg.src;

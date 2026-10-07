@@ -62,6 +62,11 @@ func setPaths(v Val, path []string) {
 		for _, m := range n.musts {
 			setPaths(m.v, path)
 		}
+		for _, nf := range n.nofs {
+			for _, b := range nf.branches {
+				setPaths(b, path)
+			}
+		}
 	}
 }
 

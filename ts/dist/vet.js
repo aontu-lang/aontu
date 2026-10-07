@@ -469,6 +469,7 @@ function vet(schemaSrc, dataSrc, opts) {
     // 1. The schema alone. If it does not stand up on its own, the data
     //    is never blamed for it.
     const schemaCtx = aontu.ctx({ collect: true });
+    schemaCtx.noFill = true === options.noFill;
     const schemaVal = aontu.unify(schemaSrc, schemaOpts, schemaCtx);
     if (0 < schemaCtx.err.length || true === schemaVal?.isNil) {
         const failure = 0 < schemaCtx.err.length ? schemaCtx.err[0] : schemaVal;
@@ -570,6 +571,7 @@ function vet(schemaSrc, dataSrc, opts) {
         anchor.closed = true;
     }
     const ctx = aontu.ctx({ collect: true });
+    ctx.noFill = schemaCtx.noFill;
     let meetAnchor = anchor;
     if (null == options.at) {
         const meetCtx = aontu.ctx({ collect: true });
@@ -605,6 +607,7 @@ function vet(schemaSrc, dataSrc, opts) {
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
     genCtx.probe = null != options.at;
+    genCtx.noFill = ctx.noFill;
     const generated = unified.gen(genCtx);
     for (const err of genCtx.err) {
         if ('incomplete' === err.class || 'conflict' === err.class) {

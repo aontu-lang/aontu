@@ -74,3 +74,31 @@ optional-one-side-only-keeps-its-mark-canon	canon	a: {x?: 1}\na: {y: 2}	{"a":{"x
 optional-meet-keeps-a-written-empty-map	gens	x: {a?: {b?: number}}\nx: {a: {}}	{"x":{"a":{}}}
 optional-nil-absent-gens	gens	a: {k?: nil}	{"a":{}}
 optional-nil-supplied-refuses	errc	a: {k?: nil}\na: {k: 1}	literal_nil
+# G12 phase 6, ADR-048: a key optional on every side is absent when its
+# value cannot be made. A conflict met there is held by the key, not
+# reported; a supplied value refuses with the conflict's code, and a
+# failure of any other class is reported as before. A key one literal
+# writes both with and without `?` is required.
+optional-conflict-held-canon	canon	x: {"a"?: 1} & {"a"?: 2}	{"x":{"a"?:nil}}
+optional-conflict-held-generates-nothing	gens	x: {"a"?: 1} & {"a"?: 2}	{"x":{}}
+optional-conflict-held-beside-data	gens	x: {"a"?: 1} & {"a"?: 2} & {b: 1}	{"x":{"b":1}}
+optional-conflict-supplied-refuses	errc	x: {"a"?: 1} & {"a"?: 2} & {a: 3}	scalar_value
+optional-conflict-keeps-the-arm	gens	x: {"a"?: 1} & (string | {"a"?: 2})	{"x":{}}
+optional-conflict-arm-is-an-alternative	errc	x: {"a"?: 1} & ({"a"?: 2} | {"b": 1})	disjunct_no_gen
+optional-conflict-in-one-value	gens	x: {"a"?: 1 & string}	{"x":{}}
+optional-conflict-in-one-value-supplied	errc	x: {"a"?: 1 & string} & {a: 1}	no_scalar_unify
+optional-conflict-deep	gens	x: {"a"?: {b: 1 & 2}}	{"x":{}}
+optional-conflict-from-a-spread	gens	x: {&: string, "a"?: 1}	{"x":{}}
+optional-conflict-of-kinds	gens	x: {"a"?: {b: 1}} & {"a"?: 5}	{"x":{}}
+optional-conflict-with-a-default	gens	x: {"a"?: *1 | integer} & {"a"?: string}	{"x":{}}
+optional-conflict-in-a-list-element	gens	x: [{"a"?: 1}] & [{"a"?: 2}]	{"x":[{}]}
+optional-conflict-nested-supplied	gens	x: {"a"?: {"b"?: 1}} & {"a"?: {"b"?: 2}} & {a: {}}	{"x":{"a":{}}}
+optional-conflict-nested-supplied-deep	errc	x: {"a"?: {"b"?: 1}} & {"a"?: {"b"?: 2}} & {a: {b: 1}}	scalar_value
+optional-required-side-still-refuses	errc	x: {a: 1} & {"a"?: 2}	scalar_value
+optional-required-side-still-refuses-flipped	errc	x: {"a"?: 2} & {a: 1}	scalar_value
+optional-reference-failure-still-reported	errc	x: {"a"?: $.nope}	no_path
+optional-closed-key-still-refuses	errc	x: close({a: 1}) & {"b"?: 2}	closed
+optional-dup-required-wins-canon	canon	a:1 a?:1	{"a":1}
+optional-dup-required-wins-either-order	canon	a?:1 a:1	{"a":1}
+optional-dup-all-optional-is-optional	canon	a?:1 a?:2	{"a"?:nil}
+optional-dup-required-wins-nested	gens	x: {a?:{b:1} a:{c:2}}	{"x":{"a":{"b":1,"c":2}}}

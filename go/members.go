@@ -20,7 +20,7 @@ func bagMembers(bag Val, ctx *Ctx) []member {
 			if (!lifted && (v.markedHide() || v.markedType())) || m.isAliasKey(k) {
 				continue
 			}
-			if m.isOptional(k) && !filledMember(v, ctx) {
+			if m.isOptional(k) && (ctx.noFill || !filledMember(v, ctx)) {
 				continue
 			}
 			out = append(out, member{key: k, val: v})

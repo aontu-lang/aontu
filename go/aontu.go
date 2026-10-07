@@ -55,6 +55,8 @@ type Aontu struct {
 	TextExt []string
 
 	ExactNumbers bool
+
+	noFill bool
 }
 
 func budgeted(ctx *Ctx, trust *TrustOptions) *Ctx {
@@ -150,7 +152,7 @@ func (a *Aontu) unifyCtx(v Val, vars map[string]Val, src string) (Val, *Ctx, err
 func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	reads map[string]bool) (Val, *Ctx, error) {
 	ctx := budgeted(&Ctx{root: v, vars: vars, src: src, file: a.File,
-		reads: reads, texts: a.IncludeText}, a.Trust)
+		reads: reads, texts: a.IncludeText, noFill: a.noFill}, a.Trust)
 	res := unifyRoot(v, ctx)
 	ctx.root = res
 	a.Graph = GraphOf(res)

@@ -145,6 +145,13 @@ export function effectiveDefault(v: any): any {
 
 // Is this evaluated value concrete enough to serve as a witness — a
 // value that certainly IS an instance of the specific side?
+// The Band B atoms that make a general residual opaque, by name.
+function opaqueNames(g: any): string {
+  return [...(0 < g.musts.length ? ['must'] : []),
+    ...(0 < g.nofs.length ? ['nof'] : [])].join(', ')
+}
+
+
 function isConcrete(v: any): boolean {
   if (true === v?.isScalar) {
     return true
@@ -309,7 +316,8 @@ export function subsumeNode(
       }
       if ('undecided' === r) {
         record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+          'an evaluate-only check (' + opaqueNames(g) +
+          ') makes the admitted set opaque')
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,
@@ -323,7 +331,8 @@ export function subsumeNode(
       }
       if ('undecided' === r) {
         record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+          'an evaluate-only check (' + opaqueNames(g) +
+          ') makes the admitted set opaque')
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,

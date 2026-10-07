@@ -64,6 +64,11 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		for _, m := range n.musts {
 			walkVals(m.v, visit, seen)
 		}
+		for _, nf := range n.nofs {
+			for _, b := range nf.branches {
+				walkVals(b, visit, seen)
+			}
+		}
 	}
 }
 
@@ -93,15 +98,22 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 			if t.spread != nil {
 				walked[t.spread] = true
 			}
-			// A written nil at a key still optional says the key is absent.
+			// A key still optional is absent, whatever its value holds.
 			for _, k := range t.optional {
-				if nv, ok := t.peg[k].(*NilVal); ok && "literal_nil" == nv.why {
-					walked[nv] = true
+				if cv, ok := t.peg[k]; ok {
+					walked[cv] = true
 				}
 			}
 		case *ListVal:
 			if t.spread != nil {
 				walked[t.spread] = true
+			}
+		// A count's alternatives are trial schemas, where nil admits nothing.
+		case *ConstraintVal:
+			for _, nf := range t.nofs {
+				for _, b := range nf.branches {
+					walked[b] = true
+				}
 			}
 		}
 		return true

@@ -1,4 +1,4 @@
-# bound 356
+# bound 296
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -9,20 +9,12 @@
 # phase is the phase of docs/capability-review/g12-jsonschema-fidelity.md
 # that carries it. A listed test the import honours fails the run, so
 # a phase deletes the lines it clears and lowers the bound to match.
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: false	anyOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: true	anyOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: true, oneOf: false	anyOf,oneOf	6
 draft2020-12/anchor.json	Location-independent identifier with absolute URI	match	jsonschema_ref	10
 draft2020-12/anchor.json	Location-independent identifier with absolute URI	mismatch	jsonschema_ref	10
 draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	match	jsonschema_ref	10
 draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	mismatch	jsonschema_ref	10
 draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	jsonschema_duplicate	10
 draft2020-12/anchor.json	same $anchor with different base uri	$ref does not resolve to /$defs/A/allOf/0	jsonschema_duplicate	10
-draft2020-12/anyOf.json	anyOf	neither anyOf valid	anyOf	6
-draft2020-12/anyOf.json	anyOf with base schema	both anyOf invalid	anyOf	6
-draft2020-12/anyOf.json	anyOf with boolean schemas, all false	any value is invalid	anyOf	6
-draft2020-12/anyOf.json	anyOf complex types	neither anyOf valid (complex)	anyOf	6
-draft2020-12/anyOf.json	nested anyOf, to check validation semantics	anything non-null is invalid	anyOf	6
 draft2020-12/contains.json	contains keyword validation	array without items matching schema is invalid	contains	8
 draft2020-12/contains.json	contains keyword validation	empty array is invalid	contains	8
 draft2020-12/contains.json	contains keyword with const keyword	array without item 5 is invalid	contains	8
@@ -120,46 +112,7 @@ draft2020-12/minContains.json	maxContains < minContains	invalid minContains	cont
 draft2020-12/minContains.json	maxContains < minContains	invalid maxContains	contains,maxContains,minContains	8
 draft2020-12/minContains.json	maxContains < minContains	invalid maxContains and minContains	contains,maxContains,minContains	8
 draft2020-12/minContains.json	minContains = 0 with maxContains	too many	contains,maxContains,minContains	8
-draft2020-12/not.json	not	disallowed	not	6
-draft2020-12/not.json	not multiple types	mismatch	not	6
-draft2020-12/not.json	not multiple types	other mismatch	not	6
-draft2020-12/not.json	not more complex schema	mismatch	not	6
-draft2020-12/not.json	forbidden property	property present	not	6
-draft2020-12/not.json	forbid everything with empty schema	number is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	string is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	boolean true is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	boolean false is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	null is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	object is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	empty object is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	array is invalid	not	6
-draft2020-12/not.json	forbid everything with empty schema	empty array is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	number is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	string is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	boolean true is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	boolean false is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	null is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	object is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	empty object is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	array is invalid	not	6
-draft2020-12/not.json	forbid everything with boolean schema true	empty array is invalid	not	6
-draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	annotations are still collected inside a 'not'	not	6
-draft2020-12/oneOf.json	oneOf	both oneOf valid	oneOf	6
-draft2020-12/oneOf.json	oneOf	neither oneOf valid	oneOf	6
-draft2020-12/oneOf.json	oneOf with base schema	both oneOf valid	oneOf	6
-draft2020-12/oneOf.json	oneOf with boolean schemas, all true	any value is invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf with boolean schemas, more than one true	any value is invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf with boolean schemas, all false	any value is invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf complex types	both oneOf valid (complex)	oneOf	6
-draft2020-12/oneOf.json	oneOf complex types	neither oneOf valid (complex)	oneOf	6
-draft2020-12/oneOf.json	oneOf with empty schema	both valid - invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf with required	both invalid - invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf with required	both valid - invalid	oneOf	6
-draft2020-12/oneOf.json	oneOf with missing optional property	both oneOf valid	oneOf	6
-draft2020-12/oneOf.json	oneOf with missing optional property	neither oneOf valid	oneOf	6
-draft2020-12/oneOf.json	nested oneOf, to check validation semantics	anything non-null is invalid	oneOf	6
-draft2020-12/optional/anchor.json	$anchor inside an enum is not a real identifier	in implementations that strip $anchor, this may match either $def	anyOf	6
-draft2020-12/optional/anchor.json	$anchor inside an enum is not a real identifier	no match on enum or $ref to $anchor	anyOf	6
+draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
 draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	jsonschema_ref	10
 draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	dependencies	15
 draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing dependency	dependencies	15
@@ -185,9 +138,12 @@ draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantic
 draft2020-12/optional/ecmascript-regex.json	patternProperties with non-ASCII digits	ascii non-digits	additionalProperties,pattern	14
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: false	format-assertion: false: invalid string	$schema	16
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: true	format-assertion: true: invalid string	$schema	16
-draft2020-12/optional/id.json	$id inside an enum is not a real identifier	no match on enum or $ref to $id	$id,anyOf	10
-draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in first anyOf	$id,anyOf,not	10
-draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in third anyOf	$id,anyOf,not	10
+draft2020-12/optional/id.json	$id inside an enum is not a real identifier	no match on enum or $ref to $id	jsonschema_ref	10
+draft2020-12/optional/id.json	$id inside an enum is not a real identifier	exact match to enum, and type matches	jsonschema_ref	10
+draft2020-12/optional/id.json	$id inside an enum is not a real identifier	match $ref to $id	jsonschema_ref	10
+draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in first anyOf	jsonschema_ref	10
+draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in third anyOf	jsonschema_ref	10
+draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches second anyOf, which has a real schema in it	jsonschema_ref	10
 draft2020-12/pattern.json	pattern with Unicode property escape requires unicode mode	Digits do not match	pattern	14
 draft2020-12/ref.json	remote ref, containing refs itself	remote ref valid	jsonschema_ref	10
 draft2020-12/ref.json	remote ref, containing refs itself	remote ref invalid	jsonschema_ref	10
@@ -259,11 +215,11 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems false	with unevaluated items
 draft2020-12/unevaluatedItems.json	unevaluatedItems as schema	with invalid unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with tuple	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with nested tuple	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with nested items	with invalid additional item	anyOf,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when one schema matches and has unevaluated items	anyOf,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when two schemas match and has unevaluated items	anyOf,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with oneOf	with unevaluated items	oneOf,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with not	with unevaluated items	not,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with nested items	with invalid additional item	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when one schema matches and has unevaluated items	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when two schemas match and has unevaluated items	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with oneOf	with unevaluated items	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with not	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if matches and it has unevaluated items	else,if,then,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if doesn't match and it has unevaluated items	else,if,then,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with boolean schemas	with unevaluated items	unevaluatedItems	12
@@ -272,7 +228,7 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems before $ref	with unevaluated
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with no unevaluated items	jsonschema_ref	10
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	jsonschema_ref	10
 draft2020-12/unevaluatedItems.json	unevaluatedItems can't see inside cousins	always fails	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	anyOf,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains fails, second item is not evaluated	contains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	contains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on multiple nested contains	7 not evaluated, fails unevaluatedItems	contains,unevaluatedItems	12
@@ -290,10 +246,10 @@ draft2020-12/unevaluatedProperties.json	unevaluatedProperties with adjacent prop
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with adjacent patternProperties	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with nested properties	with additional properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with nested patternProperties	with additional properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when one matches and has unevaluated properties	anyOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when two match and has unevaluated properties	anyOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with oneOf	with unevaluated properties	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with not	with unevaluated properties	not,unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when one matches and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when two match and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with oneOf	with unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with not	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is true and has unevaluated properties	else,if,then,unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is false and has unevaluated properties	else,if,then,unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is true and has unevaluated properties	else,if,unevaluatedProperties	12
@@ -315,31 +271,15 @@ draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true
 draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, true with properties	with no nested unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, true with properties	with nested unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, false with properties	with nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	property is evaluated in an uncle schema to unevaluatedProperties	uncle keyword evaluation is not significant	anyOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	base case: both properties present	anyOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	in place applicator siblings, foo is missing	anyOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	base case: both properties present	anyOf	6
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	in place applicator siblings, bar is missing	anyOf	6
+draft2020-12/unevaluatedProperties.json	property is evaluated in an uncle schema to unevaluatedProperties	uncle keyword evaluation is not significant	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	base case: both properties present	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	in place applicator siblings, foo is missing	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	base case: both properties present	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	in place applicator siblings, bar is missing	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 1st level is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 2nd level is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 3rd level is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + ref inside allOf / oneOf	Empty is invalid (no x or y)	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + ref inside allOf / oneOf	a and b are invalid (no x or y)	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + ref inside allOf / oneOf	x and y are invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + ref inside allOf / oneOf	a and b and x and y are invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	Empty is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	a + b is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	a + c is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	a + d is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	b + c is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	b + d is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	c + d is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + foo is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + a is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + b is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + c is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + d is invalid	oneOf,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	all + a is invalid	oneOf,unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + foo is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties not affected by propertyNames	string property is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties can see annotations from if without then and else	invalid in case if is evaluated	if,unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't consider dependentSchemas	dependentSchemas,unevaluatedProperties	12

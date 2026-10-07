@@ -49,7 +49,9 @@ highlighting; this is their human twin.
 `min(n) max(n) above(n) below(n)` bound a number, and `multiple(n)`
 admits its multiples. `len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
-`must(cond, "why")` is the escape hatch.
+`must(cond, "why")` is the escape hatch. `nof(n, a, b, …)` counts the
+alternatives that already admit a value: `nof(1, a, b)` is exactly one,
+`nof(min(1), a, b)` at least one and `nof(0, a)` none.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two
 ranges meet to their overlap.

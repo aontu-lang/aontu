@@ -26,6 +26,10 @@ const orderKey = reservedKeyPrefix + "order"
 const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
 
+// requiredKey lists the keys a map literal writes without `?`, so a key
+// written both ways stays required (ADR-045).
+const requiredKey = reservedKeyPrefix + "required"
+
 // aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
 // -- `%name = value` pairs, which bind a file-local name and are not fields
 // of the document. Twin of aontu_alias_keys in ts/src/lang.ts.
@@ -1350,6 +1354,9 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		} else {
 			m[key] = cn
 		}
+	} else if !refused && !decl {
+		req, _ := m[requiredKey].([]string)
+		m[requiredKey] = appendNew(req, key)
 	}
 
 	ord, _ := m[orderKey].([]string)
@@ -2338,6 +2345,10 @@ func asValDepth(node any, depth int) Val {
 		}
 		if opt, ok := n[optionalKey].([]string); ok {
 			mv.optional = opt
+			req, _ := n[requiredKey].([]string)
+			for _, k := range req {
+				mv.optional = withoutKey(mv.optional, k)
+			}
 		}
 		if ak, ok := n[aliasKeysKey].([]string); ok {
 			mv.aliasKeys = ak

@@ -1,10 +1,11 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
+exports.nofCounts = nofCounts;
 const type_1 = require("../type");
 const utility_1 = require("../utility");
 const Val_1 = require("./Val");
@@ -16,6 +17,7 @@ const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
 const err_1 = require("../err");
 const FeatureVal_1 = require("./FeatureVal");
+const FuncBaseVal_1 = require("./FuncBaseVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
 const RE_REPEAT_MAX = 1000;
@@ -324,7 +326,8 @@ function leafMarker(v) {
 }
 const LATE_CJO = 150000;
 function lateAtom(atom) {
-    return 'len' === atom || 'unique' === atom || 'must' === atom;
+    return 'len' === atom || 'unique' === atom || 'must' === atom ||
+        'nof' === atom;
 }
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -337,6 +340,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.uniq = false;
         this.uniqBy = [];
         this.musts = [];
+        this.nofs = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -351,6 +355,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.uniq = spec.state.uniq ?? false;
             this.uniqBy = spec.state.uniqBy ?? [];
             this.musts = spec.state.musts ?? [];
+            this.nofs = spec.state.nofs ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -358,7 +363,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
-            if ('must' === spec.atom && args.some((a) => holdsMove(a))) {
+            if (('must' === spec.atom || 'nof' === spec.atom) &&
+                args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
             else if (args.some((a) => true !== a?.done)) {
@@ -369,7 +375,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
         }
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
-            0 < this.musts.length ||
+            0 < this.musts.length || 0 < this.nofs.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -412,6 +418,18 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             // constructor: by the time this arm sees a settled `move($.b)`
             // the move has already run.)
             this.musts = [{ v: args[0], msg: args[1] }];
+            return;
+        }
+        if ('nof' === atom) {
+            const n = countArgState(args[0]);
+            if (null == n) {
+                return bad('invalid-arg');
+            }
+            const count = meetCount(countBase(), n);
+            if (stateEmpty(count)) {
+                return bad('constraint');
+            }
+            this.nofs = [{ count, branches: sortedByCanon(args.slice(1)) }];
             return;
         }
         if ('neq' === atom) {
@@ -610,28 +628,72 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
         // here and never residuate: the final reading is the only reading
         // a scalar has.
-        const bad = this.checkMusts(peer, ctx, true);
+        const bad = this.checkMusts(peer, ctx, true) ??
+            this.checkNofs(peer, ctx, true);
         if (null != bad) {
             return bad;
         }
         return peer;
     }
+    // `must(c)` asks the admission trial `nof(1, c)` asks (ADR-047). Before
+    // the value is settled the one answer given is a refusal no member
+    // could retract, a meet already empty, as for every Band B check.
     checkMusts(peer, ctx, final) {
         for (const m of this.musts) {
-            const trial = ctx.clone({ err: [], collect: true });
-            let got = (0, unify_1.unite)(trial, m.v.clone(trial), peer.clone(trial), 'must');
-            const residue = (0, BagVal_1.sizingResidue)(got);
-            if (undefined !== residue) {
-                if (true !== final) {
-                    continue;
-                }
-                got = residue.con.settleContainer(residue.bag, trial);
-            }
-            if (true === got?.isNil || 0 < trial.err.length) {
+            const tctx = ctx.clone({});
+            tctx.settle = false;
+            const ok = true === final ?
+                (0, FuncBaseVal_1.admits)(tctx, peer, m.v, () => [peer.clone(tctx), m.v.clone(tctx)], true) :
+                undefined !== (0, FuncBaseVal_1.trialUnify)(tctx, peer.clone(tctx), m.v.clone(tctx));
+            if (!ok) {
                 return (0, err_1.makeNilErr)(ctx, 'must', this, peer, undefined, {
                     message: m.msg.peg,
                     expected: m.v.canon,
                     actual: peer.canon,
+                });
+            }
+        }
+        return undefined;
+    }
+    // Each branch is tried while a remaining one can still move the
+    // verdict, so `nof(min(1), ...)` stops at the first that admits. The
+    // value is settled, so each trial runs to settlement from a first meet
+    // that is not.
+    checkNofs(peer, ctx, final) {
+        for (const n of this.nofs) {
+            const tctx = ctx.clone({});
+            tctx.settle = false;
+            const k = n.branches.length;
+            const tried = [];
+            let admitted = 0;
+            let refused = false;
+            if (true === final) {
+                for (let i = 0; i < k && !settledCount(n.count, admitted, k - i); i++) {
+                    const b = n.branches[i];
+                    const ok = (0, FuncBaseVal_1.admits)(tctx, peer, b, () => [peer.clone(tctx), b.clone(tctx)], true);
+                    admitted += ok ? 1 : 0;
+                    tried.push(b.canon + (ok ? ' admits' : ' refuses'));
+                }
+                refused = !stateAdmits(n.count, countVal(admitted));
+            }
+            else {
+                // An alternative whose meet is already empty can never admit
+                // the value, so the count is at most the rest.
+                for (const b of n.branches) {
+                    const open = undefined !== (0, FuncBaseVal_1.trialUnify)(tctx, peer.clone(tctx), b.clone(tctx));
+                    admitted += open ? 1 : 0;
+                    tried.push(b.canon + (open ? ' may admit' : ' refuses'));
+                }
+                refused = settledCount(n.count, 0, admitted) &&
+                    !stateAdmits(n.count, countVal(0));
+            }
+            if (refused) {
+                return (0, err_1.makeNilErr)(ctx, 'nof', this, peer, undefined, {
+                    expected: nofCanon(n),
+                    actual: peer.canon,
+                    count: canonState(n.count),
+                    observed: (true === final ? '' : 'at most ') + admitted,
+                    tried: 0 === tried.length ? 'none' : tried.join(', '),
                 });
             }
         }
@@ -652,12 +714,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.dc = 0;
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
-        const bad = this.checkMusts(peer, ctx, final);
+        const bad = this.checkMusts(peer, ctx, final) ??
+            this.checkNofs(peer, ctx, final);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
-            if (true === final || 0 === this.musts.length) {
+            if (true === final ||
+                (0 === this.musts.length && 0 === this.nofs.length)) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -714,7 +778,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // lower bound already met is the one reading that cannot be undone,
         // and an atom holding nothing else is spent: that is when it goes.
         const spent = true === final || (0 === this.musts.length &&
-            !this.uniq && 0 === this.uniqBy.length &&
+            0 === this.nofs.length && !this.uniq && 0 === this.uniqBy.length &&
             (null == count ||
                 (null == count.hi && 0 === count.neqs.length &&
                     stateAdmits(count, countVal(n)))));
@@ -818,6 +882,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.uniq = this.uniq || peer.uniq;
         merged.uniqBy = [...new Set([...this.uniqBy, ...peer.uniqBy])].sort();
         merged.musts = [...this.musts, ...peer.musts];
+        merged.nofs = dedupNofs([...this.nofs, ...peer.nofs]);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -860,6 +925,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             uniq: this.uniq,
             uniqBy: [...this.uniqBy],
             musts: [...this.musts],
+            nofs: [...this.nofs],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -896,6 +962,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.uniq = this.uniq;
         out.uniqBy = [...this.uniqBy];
         out.musts = [...this.musts];
+        out.nofs = [...this.nofs];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -964,6 +1031,9 @@ function holdsNil(v) {
     if (Array.isArray(peg)) {
         return peg.some((c) => holdsNil(c));
     }
+    if (true === peg?.isVal) {
+        return holdsNil(peg);
+    }
     if (null != peg && 'object' === typeof peg) {
         for (const k in peg) {
             if (holdsNil(peg[k])) {
@@ -981,6 +1051,9 @@ function holdsMove(v) {
     if (Array.isArray(peg)) {
         return peg.some((c) => holdsMove(c));
     }
+    if (true === peg?.isVal) {
+        return holdsMove(peg);
+    }
     if (null != peg && 'object' === typeof peg) {
         for (const k in peg) {
             if (holdsMove(peg[k])) {
@@ -991,7 +1064,8 @@ function holdsMove(v) {
     return false;
 }
 function atomArgs(atom, args) {
-    if (('neq' === atom || 'must' === atom) && 1 === args.length &&
+    if (('neq' === atom || 'must' === atom || 'nof' === atom) &&
+        1 === args.length &&
         true === args[0]?.isList) {
         return args[0].peg;
     }
@@ -1004,6 +1078,10 @@ function canonState(s) {
     }
     else if (true === s.pathKind) {
         parts.push('path');
+    }
+    else if ('number' === s.domain && null == s.invalid && null == s.lo &&
+        null == s.hi && 0 === s.neqs.length && 0 === s.mults.length) {
+        parts.push('number');
     }
     else if ('string' === s.domain && (true === s.nonEmpty ||
         (null == s.lo && null == s.hi && 0 === s.neqs.length &&
@@ -1037,6 +1115,9 @@ function canonState(s) {
     for (const m of s.musts) {
         parts.push('must(' + m.v.canon + ',' + m.msg.canon + ')');
     }
+    for (const n of s.nofs) {
+        parts.push(nofCanon(n));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1048,9 +1129,9 @@ function canonState(s) {
 }
 function constraintStateSubsumes(g, s) {
     // A Band B predicate on the general side makes its admitted set
-    // unknowable; an extra `must` on the SPECIFIC side only narrows it
-    // and is ignored.
-    if (0 < g.musts.length) {
+    // unknowable; an extra one on the SPECIFIC side only narrows it and
+    // is ignored.
+    if (0 < g.musts.length || 0 < g.nofs.length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1141,7 +1222,7 @@ function constraintSubsumesConstraint(g, s) {
     return constraintStateSubsumes(g, s);
 }
 function constraintAdmitsScalar(g, scalar) {
-    if (0 < g.musts.length) {
+    if (0 < g.musts.length || 0 < g.nofs.length) {
         return 'undecided';
     }
     if (g.uniq || 0 < g.uniqBy.length) {
@@ -1165,9 +1246,10 @@ function stateAdmits(s, peer) {
     if (null == s.domain) {
         // A sizing residual has no domain, and admits any scalar the sizing
         // atoms can then rule on. Booleans and null are not among them:
-        // they have no order, no length and no members.
+        // they have no order, no length and no members. A residual of
+        // evaluate-only checks alone leaves every scalar to the checks.
         if (null == domainOf) {
-            return false;
+            return null == s.count && !s.uniq && 0 === s.uniqBy.length;
         }
         return true;
     }
@@ -1275,6 +1357,7 @@ function countBase() {
         mults: [],
         res: [],
         musts: [],
+        nofs: [],
         // A COUNT is a number, and a number has no members to be distinct.
         uniq: false,
         uniqBy: [],
@@ -1297,6 +1380,7 @@ function meetCount(a, b) {
         mults: [],
         res: [],
         musts: [],
+        nofs: [],
         uniq: false,
         uniqBy: [],
         clash: true === a.clash || true === b.clash ||
@@ -1309,15 +1393,16 @@ function countArgState(arg) {
             domain: 'number',
             lo: { v: arg, open: false },
             hi: { v: arg, open: false },
-            neqs: [], mults: [], res: [], musts: [], uniq: false, uniqBy: [],
+            neqs: [], mults: [], res: [], musts: [], nofs: [], uniq: false,
+            uniqBy: [],
         };
     }
     if (true === arg?.isConstraint) {
         const c = arg;
-        // A pattern, a divisor, a sizing atom or a string bound inside a
-        // count is not a count constraint at all, and neither is a broken one.
+        // A pattern, a divisor, a branch count, a sizing atom or a string
+        // bound inside a count is not a count constraint, nor is a broken one.
         if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
-            0 < c.uniqBy.length || null != c.count ||
+            0 < c.uniqBy.length || null != c.count || 0 < c.nofs.length ||
             'number' !== c.domain) {
             return undefined;
         }
@@ -1327,14 +1412,14 @@ function countArgState(arg) {
             lo: c.lo,
             hi: c.hi,
             neqs: [...c.neqs],
-            mults: [], res: [], musts: [], uniq: false, uniqBy: [],
+            mults: [], res: [], musts: [], nofs: [], uniq: false, uniqBy: [],
         };
     }
     if (true === arg?.isScalarKind) {
         const marker = arg.peg;
         if (Number === marker) {
             return {
-                domain: 'number', neqs: [], mults: [], res: [], musts: [],
+                domain: 'number', neqs: [], mults: [], res: [], musts: [], nofs: [],
                 uniq: false, uniqBy: [],
             };
         }
@@ -1342,7 +1427,7 @@ function countArgState(arg) {
             ScalarKindVal_1.BigInteger === marker || ScalarKindVal_1.BigDecimal === marker) {
             return {
                 domain: 'number', kind: marker, neqs: [], mults: [], res: [],
-                musts: [],
+                musts: [], nofs: [],
                 uniq: false, uniqBy: [],
             };
         }
@@ -1379,6 +1464,9 @@ function emittedMembers(bag, ctx) {
             continue;
         }
         const optional = bag.optionalKeys.includes('' + key);
+        if (optional && true === ctx.noFill) {
+            continue;
+        }
         if (!genable(child)) {
             if (optional) {
                 continue;
@@ -1422,6 +1510,46 @@ function dedupMults(ms) {
         }
     }
     return out;
+}
+function sortedByCanon(vs) {
+    return [...vs].sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.canon, b.canon));
+}
+function nofCanon(n) {
+    return 'nof(' + [canonState(n.count),
+        ...n.branches.map((b) => b.canon)].join(',') + ')';
+}
+function dedupNofs(ns) {
+    const byCanon = new Map();
+    for (const n of ns) {
+        const key = nofCanon(n);
+        if (!byCanon.has(key)) {
+            byCanon.set(key, n);
+        }
+    }
+    return [...byCanon.keys()].sort(keyorder_1.cmpCodePoint)
+        .map((key) => byCanon.get(key));
+}
+// The counts of admitting branches, from none to all of them, that an
+// atom accepts: what the export names its keyword by.
+function nofCounts(n) {
+    const out = [];
+    for (let i = 0; i <= n.branches.length; i++) {
+        if (stateAdmits(n.count, countVal(i))) {
+            out.push(i);
+        }
+    }
+    return out;
+}
+// No branch left to try can move the verdict: every count from `a` to
+// `a + r` answers alike.
+function settledCount(count, a, r) {
+    const first = stateAdmits(count, countVal(a));
+    for (let i = 1; i <= r; i++) {
+        if (stateAdmits(count, countVal(a + i)) !== first) {
+            return false;
+        }
+    }
+    return true;
 }
 function dedupSortedRes(res) {
     const sorted = [...res].sort((a, b) => (0, numcmp_1.cmpCodePoints)(a.src, b.src));
@@ -1481,6 +1609,12 @@ class MustConstraintVal extends ConstraintVal {
     }
 }
 exports.MustConstraintVal = MustConstraintVal;
+class NofConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'nof' }, ctx);
+    }
+}
+exports.NofConstraintVal = NofConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);
@@ -1491,6 +1625,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 24 */
+} /* node:coverage ignore next 26 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

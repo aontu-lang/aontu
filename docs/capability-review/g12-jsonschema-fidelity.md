@@ -605,7 +605,7 @@ which `close()` cannot give. **`propertyNames: c`** is
 `&: match(key(0), empty() & I(c), any, nil)`. **`minProperties`** and
 **`maxProperties`** are `len` on the map.
 
-Three prerequisites make this exact. The meet must keep a required key
+Four prerequisites make this exact. The meet must keep a required key
 required ([#298](https://github.com/aontu-lang/aontu/issues/298)), or
 `required` and `properties` split across `allOf` branches lose the
 requirement. An optional key holding `nil` must refuse a supplied
@@ -615,7 +615,11 @@ value and pass an absent one, in evaluation and `vet` alike
 inside a spread template already passes, since `vet` stopped reading
 templates. Alias slots must leave the key namespace
 ([#301](https://github.com/aontu-lang/aontu/issues/301)), or a
-property may meet a minted alias name.
+property may meet a minted alias name. And a key optional on every
+side must be absent when its value cannot be made, a conflict there
+held by the key rather than reported (ADR-048, found in phase 6), or
+`allOf` over two `properties` entries that cannot both hold for one key
+refuses every object, where it admits the objects without the key.
 
 The exporter recognises each guarded spread shape and writes it back as
 the keyword it came from. A guarded spread whose literal arms are not
@@ -657,7 +661,9 @@ branch, `nof(0, …)` refuses at the first, and `nof(1, …)` tries every
 branch, since a second admitting one refuses it.
 It refuses with a new code, `nof`, class `conflict`, whose details
 carry the admissible count, the observed count and each tried branch's
-verdict. It is opaque to emptiness and subsumption, as `must` is.
+verdict. It is opaque to emptiness and subsumption, as `must` is. The
+count is held and written as the count constraint it means, so
+`nof(1, …)` canons as `nof(integer&min(1)&max(1), …)`.
 
 Its branches are canon-sorted but **never deduplicated**, because a
 count counts duplicates: `oneOf: [{type: "string"}, {type: "string"}]`
@@ -670,23 +676,29 @@ idempotent by canon. `must`'s written-order canon is not copied.
 The importer's carriers:
 
 - **`allOf`** is `&`. With per-object closure carried by guarded spreads
-  and the required-key meet fixed, the meet is exact, and where it is
-  bottom at import the position is `nil`, which is what an unsatisfiable
-  `allOf` means. `nof(N, …)` remains available and is what the exporter
+  and the required-key meet fixed, the meet is exact, and where a meet
+  of two or more parts is bottom at its own position at import, the
+  position is `nil`, which is what an unsatisfiable `allOf` means; a
+  meet through an alias is left to evaluation. `nof(N, …)` remains available and is what the exporter
   writes back when a meet holds parts one object cannot express.
 - **`anyOf`** is `|` when at most one branch can survive the meet with
   any instance: all branches are scalar literals, or they are pairwise
-  kind-disjoint and hold no required key, container count, Band B atom
-  or closure at any depth. Every other `anyOf` is `nof(min(1), …)`.
+  kind-disjoint and hold no required key, container count,
+  `uniqueItems`, applicator, closure, `items: false`, container literal
+  or reference at any depth, the last because the walk cannot see
+  through one. Every other `anyOf` is `nof(min(1), …)`.
   `|` itself does not change; ADR-007 stands.
 - **`oneOf`** is `nof(1, …)`. A `oneOf` of scalar literals with
   pairwise-distinct JSON values may be `|`, because a scalar equals at
   most one of them.
 - **`not`** is `nof(0, S)`. The one Band A special case is a typed
-  scalar exclusion: `not: {enum: [...]}` beside `type: "string"` or
-  `"integer"` imports as `neq(...)`, with every numeric point in every
-  leaf. Without a sibling `type` it must not become `neq`, which would
-  refuse the other kinds.
+  scalar exclusion: `not: {enum: [...]}` or `not: {const: v}` beside a
+  single `type: "string"` or `"integer"` imports as `neq(...)`, with
+  every numeric point in every leaf and a negative one parenthesised. A
+  point outside the type is dropped, an exclusion left with none imports
+  as nothing, and an integer binary64 cannot hold leaves the `not` as
+  `nof(0, S)`. Without a sibling `type` it must not become `neq`, which
+  would refuse the other kinds.
 
 **`when(c, t, e?) : constraint`** is the conditional: if `c` admits the
 settled peer, `t` must admit it, otherwise `e` must, and an absent
@@ -959,13 +971,12 @@ alias once under `$defs` with its uses as `$ref`, through the origin
 mark; that phase takes over the `$defs`/`$ref` export the recursion
 design left as its P2.
 
-`must` moves to the admission trial, under its own ADR after the logic
-atom lands, so that `must(c)` and `nof(1, c)` ask one question; the ADR
-carries a `breaking` run over every use case and bundled model first,
-because a document that relies on `must` admitting a value that only
-unifies changes its answer. Until it lands, `must` stays a reported
-loss: its trial is unifiability, not admission, so `allOf: [c]` would
-refuse values `must(c)` admits.
+`must` moved to the admission trial in phase 6, under its own ADR
+(ADR-047), so that `must(c)` and `nof(1, c)` ask one question; the ADR
+carries a `breaking` run over every use case and bundled model, because
+a document that relies on `must` admitting a value that only unifies
+changes its answer. The export still drops `must` with a reported loss,
+though `allOf: [c]` would now carry it with only its message lost.
 
 ### 16. Conformance
 

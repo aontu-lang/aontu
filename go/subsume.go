@@ -2,7 +2,10 @@
 
 package aontu
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Subsume verdicts.
 const (
@@ -363,7 +366,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 			}
 			if und {
 				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+					"an evaluate-only check ("+opaqueNames(gc)+") makes the admitted set opaque")
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -377,7 +380,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 			}
 			if und {
 				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+					"an evaluate-only check ("+opaqueNames(gc)+") makes the admitted set opaque")
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -743,4 +746,17 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 		verdict = SubsumeUndecided
 	}
 	return SubsumeReport{Verdict: verdict, Findings: st.findings}
+}
+
+// opaqueNames names the Band B atoms that make a general residual
+// opaque.
+func opaqueNames(g *ConstraintVal) string {
+	names := []string{}
+	if 0 < len(g.musts) {
+		names = append(names, "must")
+	}
+	if 0 < len(g.nofs) {
+		names = append(names, "nof")
+	}
+	return strings.Join(names, ", ")
 }

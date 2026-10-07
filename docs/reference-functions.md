@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 64 built-in functions and no user-defined ones. The name set
+aontu has 65 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,9 +217,9 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 55 of the 64 names, and 47 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 49 of the 64 use no
-mode but `value`, and 15 carry at least one slot in another mode.
+in 56 of the 65 names, and 47 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 49 of the 65 use no
+mode but `value`, and 16 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
@@ -341,6 +341,7 @@ documentation page and fails on a difference of one space.
 | `multiple(n: number) : constraint` | `1` | `value` | `constraint` |
 | `must(trial c: any, text msg: string) : constraint` | `2` | `trial`, `text` | `constraint` |
 | `neq(...vals: number\|string) : constraint` | `1..n` | `value` | `constraint` |
+| `nof(n: number\|constraint, ...c: (trial any)) : constraint` | `2..n` | `value`, `trial` | `constraint` |
 | `nom(name: string, style?: string\|list, acronyms?: list) : string\|map` | `1..3` | `value` | `string\|map` |
 | `open(m?: any) : any` | `0..1` | `value` | `any` |
 | `pack(d: map\|list, template t: any) : map` | `2` | `value`, `template` | `map` |
@@ -374,7 +375,7 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 64 names, cut by result word, by rest slot, and by optional
+The same 65 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -383,7 +384,7 @@ The ten result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `any` | 12 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 15 | `above`, `acyclic`, `below`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `re`, `refer`, `rel`, `unique` |
+| `constraint` | 16 | `above`, `acyclic`, `below`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -393,7 +394,7 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the fifteen that answer `constraint`, including which
+The algebra of the sixteen that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written
@@ -409,14 +410,15 @@ with `split`, which answers `list`:
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Two names take a rest slot, spelled `...` in the declaration. `neq`
-takes one or more single values and has a floor of one. `match` takes a
+Three names take a rest slot, spelled `...` in the declaration. `neq`
+takes one or more single values and has a floor of one. `nof` takes a
+count and then one or more alternatives, so its floor is two. `match` takes a
 repeating pair whose first member is the pattern and whose second is the
 answer, and the pair's length counts toward the floor, which is why the
 floor is three: a scrutinee, a pattern, and an answer. `match` is
 specified at [Selecting: `filter` and
-`match`](reference-language.md#selecting-filter-and-match), `neq` at
-[The constraint algebra](reference-language.md#the-constraint-algebra).
+`match`](reference-language.md#selecting-filter-and-match), `neq` and
+`nof` at [The constraint algebra](reference-language.md#the-constraint-algebra).
 
 Twenty-five names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message

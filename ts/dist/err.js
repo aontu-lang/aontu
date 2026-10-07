@@ -32,7 +32,9 @@ function getHint(why, details) {
     return undefined;
 }
 function makeNilErr(ctx, why, av, bv, attempt, details) {
-    if (ctx !== undefined && ctx._trialMode === true) {
+    // A held conflict stays in the value, so it is made in full.
+    if (ctx !== undefined && ctx._trialMode === true &&
+        ctx.err !== ctx._heldErr) {
         if (ctx.err.length === 0)
             ctx.err.push(NilVal_1.TRIAL_NIL);
         return NilVal_1.TRIAL_NIL;

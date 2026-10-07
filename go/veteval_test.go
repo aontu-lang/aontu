@@ -135,7 +135,8 @@ func vetEvalUnion(schema, data string, exact bool) (string, string) {
 // vetEvalValue is what the one document generates, or "" where it does
 // not stand up.
 func vetEvalValue(row vetEvalRow, src string) string {
-	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(src)
+	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust,
+		noFill: row.noFill}).Generate(src)
 	if nil != err || nil == out {
 		return ""
 	}
@@ -147,8 +148,10 @@ func vetEvalValue(row vetEvalRow, src string) string {
 // member the data's own value lacks, which the admission trial removes
 // before comparing.
 func vetEvalUnfilled(row vetEvalRow, one, alone string) string {
-	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(one)
-	met, merr := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Unify(one)
+	out, err := (&Aontu{ExactNumbers: row.exact, Trust: row.trust,
+		noFill: true}).Generate(one)
+	met, merr := (&Aontu{ExactNumbers: row.exact, Trust: row.trust,
+		noFill: true}).Unify(one)
 	own, oerr := (&Aontu{ExactNumbers: row.exact, Trust: row.trust}).Generate(alone)
 	if nil != err || nil != merr || nil != oerr || nil == out {
 		return ""
@@ -158,7 +161,7 @@ func vetEvalUnfilled(row vetEvalRow, one, alone string) string {
 }
 
 func vetEvalPrune(g any, u Val, d any) any {
-	switch uv := u.(type) {
+	switch uv := throughResidue(u).(type) {
 	case *MapVal:
 		gm, gok := g.(map[string]any)
 		dm, dok := d.(map[string]any)

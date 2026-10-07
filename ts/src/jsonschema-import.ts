@@ -5,6 +5,7 @@
 // schema text is read here, not by the host's JSON parser (ADR-003), so
 // a number keeps its text and is written by its value.
 
+import { Aontu } from './aontu'
 import { format } from './format'
 import { codeClass } from './hints'
 import { cmpCodePoint } from './keyorder'
@@ -324,7 +325,8 @@ const SCHEMA_ONE = ['additionalProperties', 'propertyNames', 'items',
 const SCHEMA_LISTS = ['prefixItems', 'allOf', 'anyOf', 'oneOf']
 
 const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
-  'type', 'enum', 'const', 'allOf', 'minimum', 'maximum',
+  'type', 'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'minimum',
+  'maximum',
   'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
   'pattern', 'properties', 'required', 'additionalProperties',
   'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
@@ -334,8 +336,7 @@ const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
   'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
   'contentEncoding', 'contentMediaType', 'contentSchema'])
 
-const LATER = new Set(['anyOf', 'oneOf', 'not', 'if',
-  'then', 'else', 'dependentRequired', 'dependentSchemas', 'contains',
+const LATER = new Set(['if', 'then', 'else', 'dependentRequired', 'dependentSchemas', 'contains',
   'minContains', 'maxContains', 'uniqueItems', '$dynamicRef',
   '$dynamicAnchor', 'unevaluatedProperties', 'unevaluatedItems',
   '$vocabulary'])
@@ -935,6 +936,193 @@ function kinds(ctx: Ctx, o: Map<string, J>, ptr: string): string | undefined {
 }
 
 
+// The JSON kinds a schema can admit, over-approximated: an alternative
+// whose kind no other alternative shares can be told apart by its kind.
+function kindsOf(node: J): Set<string> {
+  if (!isObj(node)) {
+    return new Set(true === node ? KIND_ORDER : [])
+  }
+  let ks = new Set(KIND_ORDER)
+  const keep = (s: Set<string>) => {
+    ks = new Set([...ks].filter((k) => s.has(k)))
+  }
+  const t = node.get('type')
+  if (undefined !== t) {
+    keep(new Set((Array.isArray(t) ? t : [t])
+      .map((n) => 'integer' === n ? 'number' : n as string)))
+  }
+  if (node.has('const')) {
+    keep(new Set([jsonKind(node.get('const') as J)]))
+  }
+  if (node.has('enum')) {
+    keep(new Set((node.get('enum') as J[]).map(jsonKind)))
+  }
+  for (const s of (node.get('allOf') ?? []) as J[]) {
+    keep(kindsOf(s))
+  }
+  for (const k of ['anyOf', 'oneOf']) {
+    if (node.has(k)) {
+      keep(new Set((node.get(k) as J[]).flatMap((s) => [...kindsOf(s)])))
+    }
+  }
+  return ks
+}
+
+
+function jsonKind(v: J): string {
+  return null === v ? 'null' : 'boolean' === typeof v ? 'boolean' :
+    v instanceof JNum ? 'number' : 'string' === typeof v ? 'string' :
+      Array.isArray(v) ? 'array' : 'object'
+}
+
+
+// What makes `|` answer differently from a count: a member the value
+// may lack, a count decided at generation, a Band B atom, a closed
+// container, or a reference the walk cannot see through.
+const UNPLAIN = ['required', 'minProperties', 'maxProperties', 'minItems',
+  'maxItems', 'contains', 'minContains', 'maxContains', 'uniqueItems',
+  'anyOf', 'oneOf', 'not', 'if', 'then', 'else', 'dependentRequired',
+  'dependentSchemas', 'additionalProperties', 'unevaluatedProperties',
+  'unevaluatedItems', '$ref', '$dynamicRef']
+
+function plain(node: J): boolean {
+  if (!isObj(node)) {
+    return true
+  }
+  for (const [k, v] of node) {
+    const empty = 'required' === k && Array.isArray(v) && 0 === v.length
+    const open = true === v && k.endsWith('Properties')
+    if ((UNPLAIN.includes(k) && !empty && !open) ||
+      (('const' === k || 'enum' === k) &&
+        [...('enum' === k ? v as J[] : [v])].some((x) =>
+          Array.isArray(x) || isObj(x))) ||
+      ('items' === k && false === v)) {
+      return false
+    }
+  }
+  const subs: J[] = [
+    ...[...schemaMapOf(node.get('properties'))],
+    ...[...schemaMapOf(node.get('patternProperties'))],
+    ...((node.get('prefixItems') ?? []) as J[]),
+    ...((node.get('allOf') ?? []) as J[]),
+    ...(['items', 'propertyNames'].flatMap((k) => node.has(k) ?
+      [node.get(k) as J] : [])),
+  ]
+  return subs.every(plain)
+}
+
+
+function schemaMapOf(v: J | undefined): J[] {
+  return isObj(v as J) ? [...(v as Map<string, J>).values()] : []
+}
+
+
+// A scalar literal alternative: a `const` or an `enum` of scalars and
+// nothing else, its JSON values keyed by value.
+function literals(node: J): string[] | undefined {
+  if (!isObj(node)) {
+    return undefined
+  }
+  const keys = [...node.keys()].filter((k) => !ANNOTATION.has(k))
+  const vals = 1 !== keys.length ? undefined : 'const' === keys[0] ?
+    [node.get('const') as J] : 'enum' === keys[0] ? node.get('enum') as J[] :
+      undefined
+  if (undefined === vals || vals.some((v) => Array.isArray(v) || isObj(v))) {
+    return undefined
+  }
+  return vals.map((v) => null === v ? 'z' : 'boolean' === typeof v ? 'b' + v :
+    v instanceof JNum ? 'n' + numberText(v.text, '#') : 's' + v)
+}
+
+
+function disjoin(srcs: string[]): string {
+  return 1 === srcs.length ? srcs[0] :
+    '(' + srcs.map(paren).join(' | ') + ')'
+}
+
+
+// `anyOf` is `|` where at most one alternative can survive the meet with
+// any value, and a count of at least one everywhere else.
+function anyOf(ctx: Ctx, o: Map<string, J>, ptr: string): string {
+  const at = ptrAt(ptr, 'anyOf')
+  const list = schemaList(o.get('anyOf'), at)
+  const srcs = list.map((s, n) => I(ctx, s, ptrAt(at, n)))
+  const kinds = list.map(kindsOf)
+  const apart = kinds.every((a, i) => kinds.every((b, j) =>
+    i === j || ![...a].some((k) => b.has(k))))
+  return list.every((s) => undefined !== literals(s)) ||
+    (apart && list.every(plain)) ? disjoin(srcs) :
+    'nof(min(1), ' + srcs.join(', ') + ')'
+}
+
+
+// `oneOf` is `|` only over scalar literals no alternative shares with
+// another, since a scalar equals at most one of them.
+function oneOf(ctx: Ctx, o: Map<string, J>, ptr: string): string {
+  const at = ptrAt(ptr, 'oneOf')
+  const list = schemaList(o.get('oneOf'), at)
+  const srcs = list.map((s, n) => I(ctx, s, ptrAt(at, n)))
+  const lits = list.map(literals)
+  const seen = new Set<string>()
+  const distinct = lits.every((l) => undefined !== l &&
+    [...new Set(l)].every((v) => !seen.has(v) && (seen.add(v), true)))
+  return distinct ? disjoin(srcs) : 'nof(1, ' + srcs.join(', ') + ')'
+}
+
+
+// `not: {enum: [...]}` beside a single `string` or `integer` type is an
+// exclusion the meet decides, every leaf of a number spelled; anything
+// else is a count of none.
+function not(ctx: Ctx, o: Map<string, J>, ptr: string): string | undefined {
+  const at = ptrAt(ptr, 'not')
+  const n = schemaOne(o.get('not'), at) as J
+  const src = I(ctx, n, at)
+  const t = o.get('type')
+  const m = isObj(n) ? n : undefined
+  const lits = undefined === m ? [] :
+    [...m.keys()].filter((k) => !ANNOTATION.has(k))
+  const vals = undefined === m || 1 !== lits.length ? undefined :
+    'const' === lits[0] ? [m.get('const') as J] :
+      'enum' === lits[0] ? m.get('enum') as J[] : undefined
+  if (undefined !== vals && ('string' === t || 'integer' === t)) {
+    const spelt = vals.flatMap((v): (string | undefined)[] => {
+      if ('string' === t) {
+        return 'string' === typeof v ? [strLit(v)] : []
+      }
+      const num = v instanceof JNum ? numberText(v.text, at) : '0d.'
+      if (num.includes('.')) {
+        return []
+      }
+      const neg = num.startsWith('-') ? '-' : ''
+      const digits = num.substring(neg.length)
+      // Parenthesised, since the TypeScript parser loops on a call whose
+      // first argument is negative (use-cases/BUGS.md, 98).
+      const spell = (s: string) => '' === neg ? s : '(' + s + ')'
+      return digits.startsWith('0d') ? [undefined] :
+        [num, num + '.0', neg + '0d' + digits, neg + '0d' + digits + '.0']
+          .map(spell)
+    })
+    if (!spelt.includes(undefined)) {
+      return 0 === spelt.length ? undefined : 'neq(' + spelt.join(', ') + ')'
+    }
+  }
+  return 'nof(0, ' + src + ')'
+}
+
+
+// A meet empty where it stands is the schema that admits nothing, which
+// aontu writes `nil`; a meet through an alias is left to evaluation.
+function meetOrNil(parts: string[]): string {
+  const src = both(parts)
+  if (parts.length < 2 || src.includes('%')) {
+    return src
+  }
+  const a = new Aontu()
+  const v: any = a.unify('x: ' + src, undefined, a.ctx({ collect: true }))
+  return true === v.peg.x.isNil ? 'nil' : src
+}
+
+
 function I(ctx: Ctx, node: J, ptr: string): string {
   if (true === node) {
     return 'any'
@@ -993,7 +1181,19 @@ function I(ctx: Ctx, node: J, ptr: string): string {
   if (undefined !== k) {
     parts.push(k)
   }
-  return both(parts)
+  if (o.has('not')) {
+    const n = not(ctx, o, ptr)
+    if (undefined !== n) {
+      parts.push(n)
+    }
+  }
+  if (o.has('anyOf')) {
+    parts.push(anyOf(ctx, o, ptr))
+  }
+  if (o.has('oneOf')) {
+    parts.push(oneOf(ctx, o, ptr))
+  }
+  return meetOrNil(parts)
 }
 
 

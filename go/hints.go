@@ -26,8 +26,8 @@ var hints = map[string]string{
 	"must": "This value fails an evaluate-only check written with must().\n" +
 		"The author's message is: {message}" +
 		"\n \n" +
-		"must(c, msg) is Band B of the constraint algebra: the value must\n" +
-		"unify with c, but the check itself is OPAQUE to the algebra -- it\n" +
+		"must(c, msg) is Band B of the constraint algebra: c must already\n" +
+		"admit the value, but the check itself is OPAQUE to the algebra -- it\n" +
 		"never participates in emptiness or subsumption, and it never\n" +
 		"contributes to the value. It is the honest channel for a domain\n" +
 		"rule the algebra cannot reason about, which is why it carries a\n" +
@@ -37,6 +37,20 @@ var hints = map[string]string{
 		"  must(\"gold\"|\"silver\",\"tier\") & \"lead\" -> nil    # ... reported\n" +
 		"                                                   #     with \"tier\";\n" +
 		"  min(0) & must(integer,\"whole\") & 3    -> 3      # Bands compose.",
+	"nof": "The value is admitted by a number of alternatives its nof() count\n" +
+		"refuses. nof(n, c1, c2, ...) tries each alternative against the settled\n" +
+		"value and counts the ones that already admit it: {observed} of those\n" +
+		"tried did, and the count must be {count}. Tried: {tried}." +
+		"\n \n" +
+		"nof is Band B of the constraint algebra: an alternative admits a value\n" +
+		"when meeting it adds no member and fills no default, and the check\n" +
+		"never takes part in emptiness or subsumption. The JSON Schema import\n" +
+		"writes anyOf, oneOf and not as nof(min(1), ...), nof(1, ...) and\n" +
+		"nof(0, ...)." +
+		"\n \nExamples:\n" +
+		"  nof(1, integer, string) & 5   -> 5    # One alternative admits 5;\n" +
+		"  nof(1, number, integer) & 5   -> nil  # ... two admit it here;\n" +
+		"  nof(0, string) & 5            -> 5    # ... and none may, here.",
 
 	"abnf_grammar":            "This ABNF grammar could not be compiled:\n{reason}\n \nabnf() takes RFC 5234 ABNF -- `=` and `/`, not `::=`. The\ncompiler reports the first thing it could not read; a rule\nreferenced but never defined is the usual cause, after a\nquantifier written the EBNF way.",
 	"parse_arg":               "parse(grammar, text) takes two strings: a grammar, normally the\nanswer of an abnf() call, and the text to parse.\n \nExamples:\n  G: abnf(\"v = 1*DIGIT\")\n  a: parse($.G, \"12\")     # the AST\n  b: parse($.G, 12)       # parse_arg: the text is not a string",
@@ -302,10 +316,10 @@ var hints = map[string]string{
 		"residue is still standing here, or the two sides are value formers\n" +
 		"no comparison rule covers, so the answer is undecided rather than\n" +
 		"yes or no.",
-	"sub_evaluate_only": "An evaluate-only check makes the admitted set opaque. must() is\n" +
-		"checked by running it and never by reasoning about what it admits,\n" +
-		"so a value carrying one cannot be compared and the answer is\n" +
-		"undecided rather than yes or no.",
+	"sub_evaluate_only": "An evaluate-only check makes the admitted set opaque. must() and\n" +
+		"nof() are checked by running them and never by reasoning about what\n" +
+		"they admit, so a value carrying one cannot be compared and the answer\n" +
+		"is undecided rather than yes or no.",
 	"sub_disjunct_distribution": "An alternative is not admitted member by member, and no concrete\n" +
 		"value settles it either way. Comparing a disjunction member-wise\n" +
 		"is sound when it answers yes; a no needs a counterexample, and\n" +
@@ -493,6 +507,7 @@ var codeClasses = map[string]string{
 	"parse_arg":             "parse",
 	"parse_failed":          "conflict",
 	"must":                  "conflict",
+	"nof":                   "conflict",
 	"scalar_value":          "conflict",
 	"scalar_kind":           "conflict",
 	"no_scalar_unify":       "conflict",

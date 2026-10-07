@@ -80,6 +80,11 @@ function effectiveDefault(v) {
 }
 // Is this evaluated value concrete enough to serve as a witness — a
 // value that certainly IS an instance of the specific side?
+// The Band B atoms that make a general residual opaque, by name.
+function opaqueNames(g) {
+    return [...(0 < g.musts.length ? ['must'] : []),
+        ...(0 < g.nofs.length ? ['nof'] : [])].join(', ');
+}
 function isConcrete(v) {
     if (true === v?.isScalar) {
         return true;
@@ -219,7 +224,8 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('undecided' === r) {
-                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (must) makes the admitted set opaque');
+                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (' + opaqueNames(g) +
+                    ') makes the admitted set opaque');
                 return 'undecided';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not contain the specific residual');
@@ -231,7 +237,8 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('undecided' === r) {
-                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (must) makes the admitted set opaque');
+                record(state, 'sub_evaluate_only', path, g, s, 'an evaluate-only check (' + opaqueNames(g) +
+                    ') makes the admitted set opaque');
                 return 'undecided';
             }
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not admit the specific scalar');

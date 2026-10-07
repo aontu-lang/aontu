@@ -34,6 +34,7 @@ declare class AontuContext {
     seen: Record<string, number>;
     collect: boolean;
     probe: boolean;
+    noFill: boolean;
     prov?: any;
     reads?: Set<string>;
     err: any[];
@@ -76,6 +77,7 @@ declare class AontuContext {
         capability: string;
     }[];
     _trialMode?: boolean;
+    _heldErr?: any[];
     _childCache?: Map<string, AontuContext>;
     constructor(cfg: AontuContextConfig);
     clone(cfg: {

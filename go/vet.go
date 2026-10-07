@@ -529,7 +529,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		}
 	}
 	schemaCtx := budgeted(&Ctx{root: schemaParsed, src: schemaSrc,
-		collect: true}, options.Trust)
+		collect: true, noFill: options.NoFill}, options.Trust)
 	schemaVal := unifyRoot(schemaParsed, schemaCtx)
 	schemaCtx.root = schemaVal
 	if 0 < len(schemaCtx.err) || schemaVal.Nil() {
@@ -680,8 +680,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	pair := newConjunct([]Val{meetAnchor, dataVal})
 	pair.path = anchorSegs(options.At)
-	ctx := budgeted(&Ctx{root: pair, src: dataSrc, collect: true},
-		options.Trust)
+	ctx := budgeted(&Ctx{root: pair, src: dataSrc, collect: true,
+		noFill: options.NoFill}, options.Trust)
 	if "" != options.At {
 		ctx.fixroot = schemaVal
 	}
@@ -711,7 +711,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	}
 
 	genCtx := budgeted(&Ctx{root: unified, src: dataSrc, collect: true,
-		probe: "" != options.At}, options.Trust)
+		probe: "" != options.At, noFill: options.NoFill}, options.Trust)
 	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() || "conflict" == e.Class() {

@@ -4238,3 +4238,35 @@ of the bare cache string. Under a root the user cache is left out, as
 the evaluator's own module leg already does. Pinned by
 `the-mod-verbs-take-the-trust-options`, Go's
 `TestModManifestUnderAConfinement`, and a CLI row in each port.
+
+## parser — a call whose first argument is negative
+
+One entry, found 2026-10-07 by the JSON Schema import's typed
+exclusions (G12 phase 6), which write whole numbers in every leaf.
+
+### 98. TypeScript: a call whose first argument is negative overflows the parser [major]
+
+TypeScript only. A call of three or more arguments whose first is a
+negative number, such as `neq(-1, -2, 4)`, never returns from the
+parser: `aontu` answers `unexpected error: Maximum call stack size
+exceeded`, where Go parses it and answers `{"x": 3}` for the repro.
+`neq(-1, 2, 3)` parses, so the shape depends on what follows, and a
+canon that sorts negatives first, `neq(-2,-1,4)`, cannot be read back.
+
+The cause is in the pinned `@tabnas/expr` 0.5.10, unchanged through
+0.5.13. Its implicit-list hook repoints the frames between a call's
+paren and the comma at the argument list it is building, and with a
+prefix operator first one of those frames is an element of that list,
+so the list ends up holding itself. Go's port of the library builds
+the list without the cycle.
+
+Parenthesising the negative arguments, `neq((-1), (-2), 4)`, avoids
+it, and the JSON Schema import writes its exclusions that way in both
+ports. The fix belongs to the library. The repro is inline rather than
+under `repros/`, because every `.aontu` file there is also a document
+the formatter's corpus test parses, and this one would stop that test
+in TypeScript:
+
+```text
+x: 3 & neq(-1, -2, 4)
+```

@@ -74,3 +74,18 @@ must-move-arg-in-disjunct	errc	b:1 a:must(move($.b)|1,"m") a:1	invalid-arg
 # hide() marks the value it wraps rather than reaching out to another
 # node, so it is not effectful in this sense and stays admissible.
 must-hide-arg	gen	b:1 a:must(hide($.b),"m") a:1	{"a":1,"b":1}
+#
+# G12 phase 6, ADR-047: must(c) asks the admission trial nof(1, c) asks,
+# so c must already admit the value: a member c supplies, a default
+# included, refuses where & alone would fill it. A map or list is decided
+# at generation; a contradiction with c refuses at once, inside a hidden
+# part too, and a check in a part nothing generates waits for nothing.
+must-asks-admission-not-unification	errc	a: must({x: 1}, "m") & {}	must
+must-holds-a-map-until-generation	canon	a: must({x: 1}, "m") & {}	{"a":{}&must({"x":1},"m")}
+must-admits-what-already-holds	gens	a: must({x: integer}, "m") & {x: 2}	{"a":{"x":2}}
+must-a-default-is-a-fill	errc	a: must({x: *1 | integer}, "m") & {}	must
+must-checks-a-boolean	gens	a: must(true, "m") & true	{"a":true}
+must-checks-null	gens	a: must(null, "m") & null	{"a":null}
+must-refuses-a-boolean	errc	a: must(false, "m") & true	must
+must-refuses-a-contradiction-in-a-hidden-part	errc	audit: hide({m: must({mfa: true}, "CP") & {mfa: false}})	must
+must-in-a-hidden-part-waits-for-a-generation-that-never-comes	gens	audit: hide({m: must({extra: 1}, "CP") & {mfa: true}})	{}

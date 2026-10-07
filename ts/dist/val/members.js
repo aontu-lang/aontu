@@ -21,7 +21,8 @@ function bagMembers(data, ctx) {
             || data.aliasKeys.includes(key)) {
             continue;
         }
-        if (data.optionalKeys.includes(key) && !filled(val, ctx)) {
+        if (data.optionalKeys.includes(key) &&
+            (true === ctx.noFill || !filled(val, ctx))) {
             continue;
         }
         out.push({ key, val });

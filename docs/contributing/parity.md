@@ -23,7 +23,7 @@ lists (incl. `&:` spreads), conjunction (`&`), disjunction (`|`),
 preference/defaults (`*`), references (`$.a.b`, relative `.x.a`,
 cross/chained refs), `$name` variables, the `+` operator (and
 parenthesised grouping), every built-in function declared in
-`test/spec/signature.tsv` (64 at 2026-10-06, `upper` to `listitems`), type/hide marks, and `@"file"` source loading
+`test/spec/signature.tsv` (65 at 2026-10-07, `upper` to `listitems`), type/hide marks, and `@"file"` source loading
 via the multisource plugin — plus `parse`, `unify`, `generate` and
 `canon`.
 

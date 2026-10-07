@@ -11,6 +11,7 @@ import { funcSig } from './sig'
 import { unite } from './unify'
 import { top } from './val/top'
 import { cmpCodePoint } from './keyorder'
+import { nofCounts } from './val/ConstraintVal'
 import { Decimal } from './val/Decimal'
 import {
   cmpNumeric,
@@ -481,7 +482,53 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: any): any {
       'it -- so it is DROPPED and the schema admits values `vet` refuses')
   }
 
+  for (const n of c.nofs) {
+    nofKeyword(ctx, path, out, n)
+  }
+
   return out
+}
+
+
+// A count of admitting branches as the keyword that counts the same:
+// none of them, exactly one, any, or all.
+function nofKeyword(ctx: Ctx, path: string[], out: any, n: any) {
+  const k = n.branches.length
+  const counts = nofCounts(n)
+  const from = (lo: number) => counts.length === k - lo + 1 && lo === counts[0]
+  const put = (kw: string, v: any) => {
+    if (undefined === out[kw]) {
+      out[kw] = v
+    }
+    else {
+      allOf(out, { [kw]: v })
+    }
+  }
+  const schemas = () => n.branches.map((b: any) => fromVal(ctx, path, b))
+  if (from(0)) {
+    return
+  }
+  if (0 === counts.length) {
+    put('not', {})
+  }
+  else if (1 === counts.length && 0 === counts[0]) {
+    put('not', 1 === k ? schemas()[0] : { anyOf: schemas() })
+  }
+  else if (1 === counts.length && 1 === counts[0]) {
+    put('oneOf', schemas())
+  }
+  else if (from(1)) {
+    put('anyOf', schemas())
+  }
+  else if (1 === counts.length && k === counts[0]) {
+    schemas().forEach((s: any) => allOf(out, s))
+  }
+  else {
+    lose(ctx, path, 'nof',
+      'nof counts the alternatives that admit a value, and JSON Schema ' +
+      'counts none, one, any or all of them; this count is none of those, ' +
+      'so it is DROPPED and the schema admits values `vet` refuses')
+  }
 }
 
 

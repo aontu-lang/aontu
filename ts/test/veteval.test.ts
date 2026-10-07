@@ -7,7 +7,7 @@ import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
 import { Aontu, exactJSON } from '../dist/aontu'
-import { vet } from '../dist/vet'
+import { vet, throughResidue } from '../dist/vet'
 
 
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec')
@@ -72,9 +72,11 @@ function loadVetRows(): VetRow[] {
 // What the one document generates, or undefined where it does not
 // stand up. `collect` so a failure is recorded rather than thrown, which
 // is the same mode vet's own passes use.
-function evalValue(src: string, opts: any): string | undefined {
+function evalValue(src: string, opts: any, noFill?: boolean):
+  string | undefined {
   const aontu = new Aontu(opts)
   const ctx: any = aontu.ctx({ collect: true })
+  ctx.noFill = true === noFill
   let out: any
   try {
     out = aontu.generate(src, undefined, ctx)
@@ -91,16 +93,21 @@ function evalValue(src: string, opts: any): string | undefined {
 // own value lacks, which the admission trial removes before comparing.
 function unfilled(src: string, opts: any, alone: string): string | undefined {
   const ctx: any = new Aontu(opts).ctx({ collect: true })
+  ctx.noFill = true
+  const gen = new Aontu(opts)
+  const gctx: any = gen.ctx()
+  gctx.noFill = true
   let met: any
   let out: any
   try {
     met = new Aontu(opts).unify(src, undefined, ctx)
-    out = new Aontu(opts).generate(src)
+    out = gen.generate(src, undefined, gctx)
   }
   catch {
     return undefined
   }
-  const prune = (g: any, u: any, d: any): any => {
+  const prune = (g: any, held: any, d: any): any => {
+    const u = throughResidue(held)
     if (true === u?.isMap && null != d && 'object' === typeof d &&
       !Array.isArray(d)) {
       for (const k of Object.keys(g)) {
@@ -261,8 +268,8 @@ describe('vet-equals-eval', () => {
       // Under --no-fill the one document generates the data's own value,
       // less the optional members the data does not carry.
       const opts = { exactNumbers: exact, trust: row.opts.trust }
-      const got = evalValue(both.one, opts)
-      const alone = evalValue(both.alone, opts)
+      const got = evalValue(both.one, opts, row.opts.noFill)
+      const alone = evalValue(both.alone, opts, row.opts.noFill)
       const evalOk = undefined !== got && (true !== row.opts.noFill ||
         (undefined !== alone && unfilled(both.one, opts, alone) === alone))
 

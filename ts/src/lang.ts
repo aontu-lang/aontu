@@ -170,6 +170,7 @@ import {
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,
+  NofConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -275,6 +276,7 @@ function depthGuard(r: Rule, ctx: JsonicContext): void {
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
+const REQUIRED_MARK_KEY = RESERVED_KEY_PREFIX + 'required'
 
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -818,6 +820,10 @@ help isolate the syntax error.`,
             }
             prev[OPTIONAL_MARK_KEY] = (prev[OPTIONAL_MARK_KEY] || [])
             for (const k of lm.optionalKeys) { prev[OPTIONAL_MARK_KEY].push(k) }
+            prev[REQUIRED_MARK_KEY] = (prev[REQUIRED_MARK_KEY] || [])
+            for (const k of Object.keys(lm.peg)) {
+              if (!lm.optionalKeys.includes(k)) { prev[REQUIRED_MARK_KEY].push(k) }
+            }
             prev[ALIAS_MARK_KEY] = (prev[ALIAS_MARK_KEY] || [])
             for (const k of lm.aliasKeys) { prev[ALIAS_MARK_KEY].push(k) }
             return prev
@@ -862,6 +868,7 @@ help isolate the syntax error.`,
     unique: UniqueConstraintVal,
 
     must: MustConstraintVal,
+    nof: NofConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,
@@ -1322,7 +1329,8 @@ help isolate the syntax error.`,
 
         for (const k in mo) {
           if (null == mo[k] && MERGE_KEY !== k &&
-            OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
+            OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k &&
+            REQUIRED_MARK_KEY !== k) {
             // Pathed at the KEY, not at the enclosing map. addsite takes
             // the rule's path, which here is the map's, so the error
             // would otherwise name the container and leave the reader to
@@ -1444,6 +1452,17 @@ help isolate the syntax error.`,
           }
           delete mo[OPTIONAL_MARK_KEY]
           delete mo[ALIAS_MARK_KEY]
+        }
+
+        // A key the literal also writes required is required (ADR-045).
+        const required = [...(r.u.aontu_required_keys ?? []),
+          ...(mo[REQUIRED_MARK_KEY] ?? [])]
+        delete mo[REQUIRED_MARK_KEY]
+        for (const k of required) {
+          for (let oi = optionalKeys.indexOf(k); -1 !== oi;
+            oi = optionalKeys.indexOf(k)) {
+            optionalKeys.splice(oi, 1)
+          }
         }
 
         // A value-prefix declaration lands here, at the document root
@@ -1667,6 +1686,11 @@ help isolate the syntax error.`,
             (rule.node[SPREAD] || { o: rule.o0.src, v: [] })
 
           rule.node[SPREAD].v.push(rule.child.node)
+        }
+        else if (true === rule.u.pair && true !== rule.prev?.u?.aontu_optional
+          && null == kr && null != rule.u.key) {
+          holder.u.aontu_required_keys = (holder.u.aontu_required_keys || [])
+          holder.u.aontu_required_keys.push('' + rule.u.key)
         }
 
         return undefined

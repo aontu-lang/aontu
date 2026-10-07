@@ -155,6 +155,7 @@ function depthGuard(r, ctx) {
 const MERGE_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'merge';
 const ALIAS_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'alias';
 const OPTIONAL_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'optional';
+const REQUIRED_MARK_KEY = aliasname_1.RESERVED_KEY_PREFIX + 'required';
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
 const IMPORT_HEAD_RE = new RegExp('^(' + aliasname_1.ALIAS_SET + ')[ \\t]*=(?!=)');
@@ -599,6 +600,12 @@ help isolate the syntax error.`,
                         for (const k of lm.optionalKeys) {
                             prev[OPTIONAL_MARK_KEY].push(k);
                         }
+                        prev[REQUIRED_MARK_KEY] = (prev[REQUIRED_MARK_KEY] || []);
+                        for (const k of Object.keys(lm.peg)) {
+                            if (!lm.optionalKeys.includes(k)) {
+                                prev[REQUIRED_MARK_KEY].push(k);
+                            }
+                        }
                         prev[ALIAS_MARK_KEY] = (prev[ALIAS_MARK_KEY] || []);
                         for (const k of lm.aliasKeys) {
                             prev[ALIAS_MARK_KEY].push(k);
@@ -638,6 +645,7 @@ help isolate the syntax error.`,
         empty: EmptyVal_1.EmptyVal,
         unique: ConstraintVal_1.UniqueConstraintVal,
         must: ConstraintVal_1.MustConstraintVal,
+        nof: ConstraintVal_1.NofConstraintVal,
         abnf: AbnfFuncVal_1.AbnfFuncVal,
         parse: AbnfFuncVal_1.ParseFuncVal,
         // G3 phase 4: the deprecation mark. Unification-transparent; the
@@ -1010,7 +1018,8 @@ help isolate the syntax error.`,
             }
             for (const k in mo) {
                 if (null == mo[k] && MERGE_KEY !== k &&
-                    OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
+                    OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k &&
+                    REQUIRED_MARK_KEY !== k) {
                     // Pathed at the KEY, not at the enclosing map. addsite takes
                     // the rule's path, which here is the map's, so the error
                     // would otherwise name the container and leave the reader to
@@ -1123,6 +1132,15 @@ help isolate the syntax error.`,
                 }
                 delete mo[OPTIONAL_MARK_KEY];
                 delete mo[ALIAS_MARK_KEY];
+            }
+            // A key the literal also writes required is required (ADR-045).
+            const required = [...(r.u.aontu_required_keys ?? []),
+                ...(mo[REQUIRED_MARK_KEY] ?? [])];
+            delete mo[REQUIRED_MARK_KEY];
+            for (const k of required) {
+                for (let oi = optionalKeys.indexOf(k); -1 !== oi; oi = optionalKeys.indexOf(k)) {
+                    optionalKeys.splice(oi, 1);
+                }
             }
             // A value-prefix declaration lands here, at the document root
             // (ALIASES.0.md), as a copy pathed at its name.
@@ -1309,6 +1327,11 @@ help isolate the syntax error.`,
                 rule.node[type_1.SPREAD] =
                     (rule.node[type_1.SPREAD] || { o: rule.o0.src, v: [] });
                 rule.node[type_1.SPREAD].v.push(rule.child.node);
+            }
+            else if (true === rule.u.pair && true !== rule.prev?.u?.aontu_optional
+                && null == kr && null != rule.u.key) {
+                holder.u.aontu_required_keys = (holder.u.aontu_required_keys || []);
+                holder.u.aontu_required_keys.push('' + rule.u.key);
             }
             return undefined;
         })

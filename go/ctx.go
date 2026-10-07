@@ -24,6 +24,7 @@ type Ctx struct {
 	vars   map[string]Val // user-provided variables, resolved by $name
 	collect bool
 	probe bool
+	noFill bool // `vet --no-fill`: a key still optional is no member
 	snapmap map[string]Val
 	referflows map[string]Val
 	referflow map[string]bool
@@ -56,6 +57,15 @@ func (c *Ctx) trialLimit() int {
 		return c.budgetTrials
 	}
 	return maxTrials
+}
+
+// passLimit is the pass budget: the spec constant unless the trust
+// profile set one (budgetPasses, zero = default).
+func (c *Ctx) passLimit() int {
+	if 0 == c.budgetPasses {
+		return 9
+	}
+	return c.budgetPasses
 }
 
 func (c *Ctx) trialRun() *trialState {

@@ -8,6 +8,65 @@ each change affects.
 
 ## Unreleased
 
+### `nof(n, ...c)`, `anyOf`, `oneOf` and `not`, and `must` on the admission trial
+
+Both ports unless marked. G12 phase 6, ADR-046, ADR-047 and ADR-048.
+
+- `nof(n, ...c)` is a Band B constraint atom: the value must be
+  admitted by a number of the alternatives `c` that the count `n`
+  admits, an integer or a count constraint as `len` reads one. An
+  alternative admits a value when meeting it adds no member and fills
+  no default. A scalar is decided at the meet and a map or list at
+  generation, where before then only a meet already empty refuses, and
+  a refusal has the new code `nof`, class `conflict`. The alternatives
+  are sorted by canon and never deduplicated, and a branch is tried
+  only while one left can still change the answer.
+- `must(c, msg)` asks the same question (ADR-047): `c` must already
+  admit the value, so `must({x: 1}, m) & {}` refuses where it passed by
+  filling `x`. A map or list that contradicts `c` is still refused at
+  once, inside a `hide()` too; one that only lacks what `c` supplies is
+  refused at generation.
+- `must` and `nof` check a boolean or `null`, which a residual of
+  evaluate-only checks refused with `constraint`.
+- The canon of a number residual holding only evaluate-only checks
+  names its kind, `number&must(…)`, where it dropped `number`.
+- TypeScript: a default inside a `must` argument, `must(*1 | integer,
+  m)`, crashed the argument walk. Go's walk now reaches the
+  conjunctions, defaults and operators TypeScript's does, so an
+  effectful or `nil` argument inside one is refused in both.
+- **A key still optional is absent when its value cannot be made**
+  (ADR-048). A conflict met while the value of a key optional on every
+  side is evaluated, `{"a"?: 1} & {"a"?: 2}` or `{"a"?: 1 & string}`, is
+  held by the key rather than refusing the document: generation drops
+  the key, `vet` passes it, a disjunction keeps the arm and an admission
+  trial counts it, and a value the data supplies refuses with the
+  conflict's code. Only conflict-class codes are held. `vet` reads
+  nothing under a key still optional, as generation reads nothing there.
+  So `allOf` over two `properties` entries that cannot both hold for
+  one key admits the objects without it, as JSON Schema does.
+- A key one map literal writes both with and without `?`, `a: 1 a?: 2`,
+  is required, as ADR-045 has it for a meet, where both parsers made it
+  optional. TypeScript also made it optional where an included map
+  wrote it required; Go did not.
+- `vet --no-fill`: a key still optional after the meet, one the data
+  did not supply, is no member of the instance, so a count and the
+  admission trial no longer count a value only the schema supplies.
+  An imported `minProperties`, `anyOf`, `oneOf` or `not` beside a
+  `properties` entry holding a `const` answers as JSON Schema does.
+- `aontu jsonschema import` carries `anyOf`, `oneOf` and `not`:
+  `anyOf` as `|` where at most one alternative can survive the meet and
+  as `nof(min(1), …)` elsewhere, `oneOf` as `|` over distinct scalar
+  literals and as `nof(1, …)` elsewhere, and `not` as `nof(0, S)`, or
+  as `neq(…)` for an `enum` or a `const` beside a single `string` or
+  `integer` type. A meet that is empty where it stands imports as
+  `nil`, so an unsatisfiable `allOf` makes the data invalid rather than
+  the schema broken.
+- `aontu jsonschema export` writes a `nof` as the keyword that counts
+  the same, `not`, `oneOf`, `anyOf` or `allOf`, and drops and reports
+  any other count.
+- `aontu subsume` names the evaluate-only atoms that make its answer
+  `undecided`.
+
 ### `multiple(n)`, the divisor, and `multipleOf` both ways
 
 Both ports. G12 phase 5.

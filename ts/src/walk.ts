@@ -39,6 +39,11 @@ export function walkVals(
   for (const must of (v.musts ?? [])) {
     walkVals(must?.v, visit, seen)
   }
+  for (const nof of (v.nofs ?? [])) {
+    for (const branch of nof.branches) {
+      walkVals(branch, visit, seen)
+    }
+  }
 
   walkVals(v.primary, visit, seen)
   walkVals(v.secondary, visit, seen)
@@ -59,11 +64,15 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     if (null != v.spread?.cj) {
       walked.add(v.spread.cj)
     }
-    // A written nil at a key still optional says the key is absent.
+    // A key still optional is absent, whatever its value holds.
     for (const k of v.optionalKeys ?? []) {
-      if ('literal_nil' === v.peg[k]?.why) {
+      if (undefined !== v.peg[k]) {
         walked.add(v.peg[k])
       }
+    }
+    // A count's alternatives are trial schemas, where nil admits nothing.
+    for (const nof of v.nofs ?? []) {
+      nof.branches.forEach((b: any) => walked.add(b))
     }
     return true
   }, walked)

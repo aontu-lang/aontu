@@ -14,6 +14,7 @@ const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
 const PlaceVal_1 = require("../val/PlaceVal");
 const members_1 = require("./members");
+const BagVal_1 = require("./BagVal");
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
 function sameKids(a, b, ctx) {
@@ -37,6 +38,10 @@ function sameMembers(a, b, ctx) {
     return sameKids(a, b, ctx);
 }
 function trialUnify(ctx, a, b) {
+    return sandboxed(ctx, () => (0, unify_1.unite)(ctx, a, b, 'trial'));
+}
+// Runs `fn` as a trial: a failure is an answer, not an error.
+function sandboxed(ctx, fn) {
     const savedErr = ctx.err;
     const savedTrial = ctx._trialMode;
     // Restored by DELETION where they were inherited, for the reason
@@ -51,7 +56,7 @@ function trialUnify(ctx, a, b) {
     ctx._trialMode = true;
     let out;
     try {
-        out = (0, unify_1.unite)(ctx, a, b, 'trial');
+        out = fn();
     }
     finally {
         if (ownErr) {
@@ -73,13 +78,43 @@ function trialUnify(ctx, a, b) {
 // reads no position, so one trial answers every node that canons alike.
 function pureCond(c) {
     return true === c.isScalar || true === c.isScalarKind ||
-        (true === c.isConstraint && null == c.pending && 0 === c.musts.length) ||
+        (true === c.isConstraint && null == c.pending && 0 === c.musts.length &&
+            0 === c.nofs.length) ||
         (true === c.isDisjunct &&
             c.peg.every((m) => true !== m.isPref && pureCond(m)));
 }
+// A settled value's trial runs the meet, then settled passes until done,
+// so a staged builtin in the condition answers per member.
+function settleTrial(ctx, met) {
+    const sctx = ctx.clone({});
+    sctx.settle = true;
+    for (let i = 0; undefined !== met && true !== met.done &&
+        i < ctx.budget.passes; i++) {
+        met = trialUnify(sctx, met, (0, top_1.top)());
+    }
+    const done = met;
+    return undefined === done ? undefined :
+        sandboxed(sctx, () => finished(sctx, done));
+}
+// As generation does: a container a constraint still holds is decided.
+function finished(ctx, v) {
+    const residue = (0, BagVal_1.sizingResidue)(v);
+    const out = undefined === residue ? v :
+        residue.con.settleContainer(residue.bag, ctx);
+    if (true === out.isMap || true === out.isList) {
+        for (const k of Object.keys(out.peg)) {
+            const child = finished(ctx, out.peg[k]);
+            if (true === child.isNil && !out.optionalKeys.includes(k)) {
+                return child;
+            }
+            out.peg[k] = child;
+        }
+    }
+    return out;
+}
 // The admission trial (G12 design, section 3): does `node` already
 // satisfy `cond`? Each one run counts against the `trials` budget.
-function admits(ctx, node, cond, pair) {
+function admits(ctx, node, cond, pair, settled) {
     const st = ctx._trials;
     const key = true === node.isScalar && pureCond(cond) ?
         node.canon + '\u0000' + cond.canon : undefined;
@@ -92,7 +127,8 @@ function admits(ctx, node, cond, pair) {
         return false;
     }
     const [a, b] = pair();
-    const met = trialUnify(ctx, a, b);
+    const first = trialUnify(ctx, a, b);
+    const met = true === settled ? settleTrial(ctx, first) : first;
     const ok = undefined !== met && sameMembers(node, met, ctx);
     if (undefined !== key) {
         st.memo.set(key, ok);

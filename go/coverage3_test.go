@@ -594,6 +594,10 @@ func TestMapValArmsDirect(t *testing.T) {
 	if !hasPathFunc(newPref(newPref(newFunc("key", nil)))) {
 		t.Fatalf("nested pref peg")
 	}
+	if !hasPathFunc(&ConstraintVal{nofs: []constraintNof{
+		{branches: []Val{newFunc("key", nil)}}}}) {
+		t.Fatalf("nof branch")
+	}
 
 	m := newMap()
 	m.mtype = true

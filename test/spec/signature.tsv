@@ -40,6 +40,7 @@ key(up?: integer|biginteger) : string
 unique(projector k?: string) : constraint
 neq(...vals: number|string) : constraint
 must(trial c: any, text msg: string) : constraint
+nof(n: number|constraint, ...c: (trial any)) : constraint
 deprecate(v: any, r?: map) : any
 acyclic() : constraint
 inverse(projector k: string) : constraint

@@ -23,6 +23,11 @@ type constraintMust struct {
 	msg *ScalarVal // the author's message (Canon renders the literal)
 }
 
+type constraintNof struct {
+	count    *ConstraintVal // the admissible number of admitting branches
+	branches []Val          // sorted by canon, never deduplicated
+}
+
 type constraintPending struct {
 	atom string
 	args []Val
@@ -429,6 +434,8 @@ type ConstraintVal struct {
 	// musts are Band B checks, kept in written order and never
 	// simplified: each carries its own author message.
 	musts []constraintMust
+	// nofs are Band B counts (ADR-046), sorted and deduplicated by canon.
+	nofs []constraintNof
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -452,12 +459,12 @@ type ConstraintVal struct {
 const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
-	return "len" == atom || "unique" == atom || "must" == atom
+	return "len" == atom || "unique" == atom || "must" == atom || "nof" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
 	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
-		(nil != c.pending && lateAtom(c.pending.atom)) {
+		0 < len(c.nofs) || (nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
 	return 50000
@@ -470,6 +477,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
+	"nof": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -538,7 +546,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	args = atomArgs(atom, args)
 
-	if "must" == atom {
+	if "must" == atom || "nof" == atom {
 		for _, a := range args {
 			if holdsMove(a) {
 				return bad("invalid-arg")
@@ -587,6 +595,22 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		// the time this arm sees a settled `move($.b)` the move has
 		// already run.)
 		c.musts = []constraintMust{{v: args[0], msg: msv}}
+		return c
+	}
+
+	if "nof" == atom {
+		var n *ConstraintVal
+		if 0 < len(args) {
+			n = countArgState(args[0])
+		}
+		if nil == n {
+			return bad("invalid-arg")
+		}
+		count := meetCount(countBase(), n)
+		if stateEmpty(count) {
+			return bad("constraint")
+		}
+		c.nofs = []constraintNof{{count: count, branches: sortedByCanon(args[1:])}}
 		return c
 	}
 
@@ -761,31 +785,30 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 	return c.checkMustsFinal(peer, ctx, true)
 }
 
+// checkMustsFinal asks the trial nof asks (ADR-047); before the value is
+// settled only an empty meet, which no member could undo, refuses.
 func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 	for _, m := range c.musts {
-		trial := &Ctx{}
+		tctx := Ctx{}
 		if nil != ctx {
-			t := *ctx
-			t.err = nil
-			trial = &t
+			tctx = *ctx
 		}
-		trial.collect = true
-		got := unite(trial, clonePath(m.v, c.path), clonePath(peer, c.path))
-		if con, bag, ok := sizingResidue(got); ok {
-			if !final {
-				continue
-			}
-			got = con.settleContainer(bag, trial)
+		tctx.settle = false
+		pair := func() (Val, Val) {
+			return clonePath(peer, c.path), clonePath(m.v, c.path)
 		}
-		if (nil != got && got.Nil()) || 0 < len(trial.err) {
-			pcanon := ""
-			if nil != peer {
-				pcanon = peer.Canon()
-			}
+		ok := false
+		if final {
+			ok = admitsSettled(&tctx, peer, m.v, pair)
+		} else {
+			a, b := pair()
+			ok = nil != trialUnify(&tctx, a, b)
+		}
+		if !ok {
 			return makeNilErrFull(ctx, "must", c, peer, "", map[string]string{
 				"message":  m.msg.peg.(string),
 				"expected": m.v.Canon(),
-				"actual":   pcanon,
+				"actual":   peer.Canon(),
 			})
 		}
 	}
@@ -822,7 +845,66 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if bad := c.checkMusts(peer, ctx); nil != bad {
 		return bad
 	}
+	if bad := c.checkNofs(peer, ctx, true); nil != bad {
+		return bad
+	}
 	return peer
+}
+
+// checkNofs tries a branch while one left can still move the verdict;
+// each trial runs to settlement from a first meet that is not settled.
+func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool) Val {
+	for _, n := range c.nofs {
+		tctx := *ctx
+		tctx.settle = false
+		k := len(n.branches)
+		tried := []string{}
+		admitted := 0
+		refused := false
+		observed := ""
+		if final {
+			for i := 0; i < k && !settledCount(n.count, admitted, k-i); i++ {
+				b := n.branches[i]
+				ok := admitsSettled(&tctx, peer, b, func() (Val, Val) {
+					return clonePath(peer, c.path), clonePath(b, c.path)
+				})
+				verdict := " refuses"
+				if ok {
+					admitted++
+					verdict = " admits"
+				}
+				tried = append(tried, b.Canon()+verdict)
+			}
+			refused = !stateAdmits(n.count, countVal(admitted))
+		} else {
+			// An alternative whose meet is empty already never admits.
+			for _, b := range n.branches {
+				verdict := " refuses"
+				if nil != trialUnify(&tctx, clonePath(peer, c.path), clonePath(b, c.path)) {
+					admitted++
+					verdict = " may admit"
+				}
+				tried = append(tried, b.Canon()+verdict)
+			}
+			refused = settledCount(n.count, 0, admitted) &&
+				!stateAdmits(n.count, countVal(0))
+			observed = "at most "
+		}
+		if refused {
+			list := "none"
+			if 0 < len(tried) {
+				list = strings.Join(tried, ", ")
+			}
+			return makeNilErrFull(ctx, "nof", c, peer, "", map[string]string{
+				"expected": nofCanon(n),
+				"actual":   peer.Canon(),
+				"count":    n.count.Canon(),
+				"observed": observed + strconv.Itoa(admitted),
+				"tried":    list,
+			})
+		}
+	}
+	return nil
 }
 
 func (c *ConstraintVal) settleContainer(bag Val, ctx *Ctx) Val {
@@ -855,9 +937,12 @@ func (c *ConstraintVal) admitContainerFinal(
 	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
 		return bad
 	}
+	if bad := c.checkNofs(peer, ctx, final); nil != bad {
+		return bad
+	}
 
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
-		if final || 0 == len(c.musts) {
+		if final || (0 == len(c.musts) && 0 == len(c.nofs)) {
 			return peer
 		}
 		return c.hold(peer)
@@ -928,7 +1013,8 @@ func (c *ConstraintVal) admitContainerFinal(
 	// WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
 	// lower bound already met is the one reading that cannot be undone,
 	// and an atom holding nothing else is spent: that is when it goes.
-	spent := final || (0 == len(c.musts) && !c.uniq && 0 == len(c.uniqBy) &&
+	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) && !c.uniq &&
+		0 == len(c.uniqBy) &&
 		(nil == c.count ||
 			(nil == c.count.hi && 0 == len(c.count.neqs) &&
 				stateAdmits(c.count, countVal(n)))))
@@ -1044,6 +1130,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.uniq = c.uniq || peer.uniq
 	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	merged.musts = append(append([]constraintMust{}, c.musts...), peer.musts...)
+	merged.nofs = dedupNofs(append(append([]constraintNof{}, c.nofs...), peer.nofs...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1108,6 +1195,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		uniq:    c.uniq,
 		uniqBy:  append([]string{}, c.uniqBy...),
 		musts:   append([]constraintMust{}, c.musts...),
+		nofs:    append([]constraintNof{}, c.nofs...),
 		clash:   c.clash,
 		invalid: c.invalid,
 	}
@@ -1164,6 +1252,9 @@ func (c *ConstraintVal) Canon() string {
 	} else if "string" == c.domain && (c.nonEmpty ||
 		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) && !c.emptyOk)) {
 		parts = append(parts, "string")
+	} else if "number" == c.domain && "" == c.invalid && nil == c.lo &&
+		nil == c.hi && 0 == len(c.neqs) && 0 == len(c.mults) {
+		parts = append(parts, "number")
 	}
 	if nil != c.lo {
 		a := "min("
@@ -1204,6 +1295,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, m := range c.musts {
 		parts = append(parts, "must("+m.v.Canon()+","+m.msg.Canon()+")")
 	}
+	for _, n := range c.nofs {
+		parts = append(parts, nofCanon(n))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1221,7 +1315,7 @@ func (c *ConstraintVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func atomArgs(atom string, args []Val) []Val {
-	if ("neq" == atom || "must" == atom) && 1 == len(args) {
+	if ("neq" == atom || "must" == atom || "nof" == atom) && 1 == len(args) {
 		if lv, ok := args[0].(*ListVal); ok {
 			return lv.peg
 		}
@@ -1229,69 +1323,64 @@ func atomArgs(atom string, args []Val) []Val {
 	return args
 }
 
+// pegChildren are the values a value holds in its peg: what holdsNil
+// and holdsMove read, in both ports.
+func pegChildren(v Val) []Val {
+	switch t := v.(type) {
+	case *MapVal:
+		out := make([]Val, 0, len(t.keys))
+		for _, k := range t.keys {
+			out = append(out, t.peg[k])
+		}
+		return out
+	case *ListVal:
+		return t.peg
+	case *ConjunctVal:
+		return t.peg
+	case *DisjunctVal:
+		return t.peg
+	case *PlusOpVal:
+		return t.peg
+	case *FuncVal:
+		return t.peg
+	case *PrefVal:
+		return []Val{t.peg}
+	case *ExpectVal:
+		return []Val{t.peg}
+	case *ConstraintVal:
+		if nil != t.pending {
+			return t.pending.args
+		}
+	}
+	return nil
+}
+
 func holdsNil(v Val) bool {
 	if v.Nil() {
 		return true
 	}
-	switch t := v.(type) {
-	case *MapVal:
-		for _, child := range t.peg {
-			if holdsNil(child) {
-				return true
-			}
-		}
-	case *ListVal:
-		for _, child := range t.peg {
-			if holdsNil(child) {
-				return true
-			}
-		}
-	case *DisjunctVal:
-		for _, child := range t.peg {
-			if holdsNil(child) {
-				return true
-			}
+	for _, child := range pegChildren(v) {
+		if holdsNil(child) {
+			return true
 		}
 	}
 	return false
 }
 
 func holdsMove(v Val) bool {
-	if f, ok := v.(*FuncVal); ok {
-		if "move" == f.name {
-			return true
-		}
-		for _, arg := range f.peg {
-			if holdsMove(arg) {
-				return true
-			}
-		}
+	if f, ok := v.(*FuncVal); ok && "move" == f.name {
+		return true
 	}
-	switch t := v.(type) {
-	case *MapVal:
-		for _, child := range t.peg {
-			if holdsMove(child) {
-				return true
-			}
-		}
-	case *ListVal:
-		for _, child := range t.peg {
-			if holdsMove(child) {
-				return true
-			}
-		}
-	case *DisjunctVal:
-		for _, child := range t.peg {
-			if holdsMove(child) {
-				return true
-			}
+	for _, child := range pegChildren(v) {
+		if holdsMove(child) {
+			return true
 		}
 	}
 	return false
 }
 
 func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
-	if 0 < len(g.musts) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) {
 		return false, true
 	}
 	if "" != g.domain && g.domain != s.domain {
@@ -1392,7 +1481,7 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 }
 
 func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
-	if 0 < len(g.musts) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) {
 		return false, true
 	}
 	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
@@ -1409,8 +1498,9 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 	sv, d := orderableScalar(peer)
 	if nil == sv {
-		// Booleans and null: no order, no length and no members.
-		return false
+		// Booleans and null: no order, no length and no members, so only
+		// a residual of evaluate-only checks alone leaves them to the checks.
+		return "" == s.domain && nil == s.count && !s.uniq && 0 == len(s.uniqBy)
 	}
 	if "" == s.domain {
 		// A sizing residual has no domain, and admits any scalar the
@@ -1562,10 +1652,10 @@ func countArgState(arg Val) *ConstraintVal {
 	}
 
 	if cv, ok := arg.(*ConstraintVal); ok {
-		// A pattern, divisor, sizing atom or string bound inside a count
-		// is not a count constraint at all, and neither is a broken one.
+		// A pattern, divisor, branch count, sizing atom or string bound
+		// inside a count is not a count constraint, nor is a broken one.
 		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
-			0 < len(cv.uniqBy) || nil != cv.count ||
+			0 < len(cv.uniqBy) || nil != cv.count || 0 < len(cv.nofs) ||
 			"number" != cv.domain {
 			return nil
 		}
@@ -1650,6 +1740,10 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 				opt = true
 				break
 			}
+		}
+
+		if opt && nil != ctx && ctx.noFill {
+			continue
 		}
 
 		if !genable(child) {
@@ -1743,6 +1837,63 @@ func scaledDivides(d, v scaled) bool {
 
 func isMultipleOf(v, d *ScalarVal) bool {
 	return scaledDivides(multipleScaled(d), multipleScaled(v))
+}
+
+func sortedByCanon(vs []Val) []Val {
+	out := append([]Val{}, vs...)
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Canon() < out[j].Canon()
+	})
+	return out
+}
+
+func nofCanon(n constraintNof) string {
+	parts := []string{n.count.Canon()}
+	for _, b := range n.branches {
+		parts = append(parts, b.Canon())
+	}
+	return "nof(" + strings.Join(parts, ",") + ")"
+}
+
+func dedupNofs(ns []constraintNof) []constraintNof {
+	byCanon := map[string]constraintNof{}
+	keys := []string{}
+	for _, n := range ns {
+		key := nofCanon(n)
+		if _, has := byCanon[key]; !has {
+			byCanon[key] = n
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	out := make([]constraintNof, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, byCanon[key])
+	}
+	return out
+}
+
+// nofCounts are the counts, none to all, an atom accepts.
+func nofCounts(n constraintNof) []int {
+	out := []int{}
+	for i := 0; i <= len(n.branches); i++ {
+		if stateAdmits(n.count, countVal(i)) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// settledCount reports that no branch left to try can move the verdict:
+// every count from a to a+r answers alike.
+func settledCount(count *ConstraintVal, a, r int) bool {
+	first := stateAdmits(count, countVal(a))
+	for i := 1; i <= r; i++ {
+		if stateAdmits(count, countVal(a+i)) != first {
+			return false
+		}
+	}
+	return true
 }
 
 func dedupMults(ms []*ScalarVal) []*ScalarVal {
