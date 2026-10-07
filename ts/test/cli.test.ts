@@ -1126,6 +1126,11 @@ describe('cli-subsume', () => {
     'schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & ' +
     '(*1|any) })\n')
 
+    Fs.writeFileSync(file, '{"type": "string", "format": "date"}')
+    Assert.equal(vetCapture(() => Assert.equal(
+      runJsonSchema(['import', '--format-assertion', file]), 0)).out,
+    'schema: hide(meta(empty() & format("date"), { format:"date" }))\n')
+
     // A reference into another document reads it from the set.
     const other = Path.join(dir, 'other.json')
     Fs.writeFileSync(other, '{"$defs": {"n": {"type": "integer"}}}')

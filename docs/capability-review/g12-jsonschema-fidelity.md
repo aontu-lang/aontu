@@ -582,6 +582,61 @@ declaration with a new code, `format_unknown`. The exporter writes
 exported under the default dialect, which would read it as an
 annotation.
 
+*Departures, as landed (phase 13):* (1) The checkers are hand-written
+twins (`ts/src/strformat.ts`, `go/strformat.go`, and `ts/src/idna.ts`,
+`go/idna.go` for the IDNA formats), not committed ABNF texts through
+tabnas. The engine is not RFC 5234's: its repetition is greedy and
+never gives back, its ordered choice commits, alternatives that share a
+leading literal do not recover, it matches a numeric value in either
+case, and it accepts a trailing newline, so RFC 3986's own
+`IPv6address`, even left-factored, answered 39 of the suite's 51 `ipv6`
+tests, and each text would have been rewritten to suit the engine
+rather than read from its RFC. Written out by hand, no checker
+backtracks, so none runs under the event budget the ABNF ones were to
+have. A letter an RFC lets be either case is spelled in both, never
+matched under a host's case folding: Go's `(?i)` admits U+017F for `s`
+and the Kelvin sign for `k`, which JavaScript's `i` does not. (2) The
+importer asserts under its option alone, `formatAssertion` and
+`--format-assertion`; a meta-schema's `$vocabulary` selects it once
+phase 16's vocabulary table can read one. (3) Under the option a name
+2020-12 does not define asserts nothing, as 2020-12 asks of a format
+an implementation does not know and the suite's
+`optional/format/unknown.json` checks, and `regex`, which has no
+checker until phase 14, is a reported loss. (4) An unknown name in
+aontu source refuses with `format_unknown` when the atom meets a value,
+as an invalid divisor does, rather than on the declaration alone.
+(5) The export does not fold a string arm that carries `format` into
+one object with the other kinds' arms, as it folds `pattern`: a reader
+that takes `format` for an annotation collects it from every instance
+the object applies to, so the fold would annotate the other kinds too.
+(6) `idn-hostname` processes a name as UTS #46 does, mapped, normalised
+to NFC and split at each full stop, the ideographic ones included,
+before IDNA2008 checks its labels, because the suite's
+`idn-hostname.json` asks for the mapping: fullwidth digits, an ignored
+zero width space and a name not in NFC are valid there. IDNA2008's
+derived property still decides each code point beside UTS #46's
+status, so a character the mapping table marks NV8 or XV8 is refused.
+`hostname` checks each A-label by the same rules, with no mapping, and
+leaves RFC 1123's own labels as they are. (7) The table is one
+committed file of Unicode 16.0.0, the newest version whose UTS #46 data
+has a numbered directory, written by `ts/scripts/idnatable.cjs` from
+inputs pinned by SHA-256 and copied into both ports by `make idna`. It
+holds UTS #46's statuses and mappings, the IDNA2008 derived property,
+which Unicode now publishes, so it is read rather than computed from
+RFC 5892's rules, and the properties the contextual rules, the Bidi
+rule and NFC read. NFC is aontu's own over the same table, not a host's
+`normalize`, so both ports normalise alike. It answered all 19,965
+lines of the version's `NormalizationTest.txt` when checked at
+landing; that file is not vendored, so the suite's check of NFC is
+`IdnaTestV2.txt`. (8) An email address literal's `::`
+elides two groups at least, as RFC 5321 section 4.1.3 says, where an
+`ipv6` may elide one; the isemail corpus found it. (9) The corpora's
+ledgers: isemail's four lines are RFC 5321's length limits, outside the
+Mailbox grammar JSON Schema names; uritemplate-test's five are
+templates RFC 6570's grammar admits and an expander refuses; and
+IdnaTestV2's holds none, its NV8 and XV8 lines answering invalid as
+the file's notes give IDNA2008 to do.
+
 The content keywords ride the `meta` rider and never assert, as the
 specification requires.
 

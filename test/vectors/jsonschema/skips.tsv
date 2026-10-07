@@ -1,4 +1,4 @@
-# bound 30
+# bound 37
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -34,6 +34,13 @@ draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantic
 draft2020-12/optional/ecmascript-regex.json	pattern with non-ASCII digits	ascii non-digits	pattern	14
 draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantics with patternProperties	unicode matching is case-sensitive	additionalProperties,pattern	14
 draft2020-12/optional/ecmascript-regex.json	patternProperties with non-ASCII digits	ascii non-digits	additionalProperties,pattern	14
+draft2020-12/optional/format/ecmascript-regex.json	Python-specific regular expression syntax is not valid ECMA 262	Python named backreference (?P=name) is not ECMA 262	format	14
+draft2020-12/optional/format/ecmascript-regex.json	Python-specific regular expression syntax is not valid ECMA 262	Python named group (?P<name>...) is not ECMA 262	format	14
+draft2020-12/optional/format/ecmascript-regex.json	Python-specific regular expression syntax is not valid ECMA 262	inline comment group (?#...) is not ECMA 262	format	14
+draft2020-12/optional/format/ecmascript-regex.json	\a is not an ECMA 262 control escape	when used as a pattern	format	14
+draft2020-12/optional/format/ecmascript-regex.json	global inline flag groups are not valid ECMA 262	a single global inline flag (?i)	format	14
+draft2020-12/optional/format/ecmascript-regex.json	global inline flag groups are not valid ECMA 262	multiple global inline flags (?ims)	format	14
+draft2020-12/optional/format/regex.json	validation of regular expressions	a regular expression with unclosed parens is invalid	format	14
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: false	format-assertion: false: invalid string	$schema	16
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: true	format-assertion: true: invalid string	$schema	16
 draft2020-12/pattern.json	pattern with Unicode property escape requires unicode mode	Digits do not match	pattern	14

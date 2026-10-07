@@ -79,7 +79,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+       aontu jsonschema import [--strict] [--defaults] [--format-assertion]
+                               [--format text|json]
                                [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
@@ -3319,8 +3320,9 @@ function renderRelationsJson(report) {
     }, 2);
 }
 const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)';
-const JSONSCHEMA_IMPORT_HELP = 'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
-    '[--document <uri>=<file>]... <schema.json> (try --help)';
+const JSONSCHEMA_IMPORT_HELP = 'aontu jsonschema import [--strict] [--defaults] [--format-assertion] ' +
+    '[--format text|json] [--document <uri>=<file>]... <schema.json> ' +
+    '(try --help)';
 // A file's text as the import reads it: bytes that are not UTF-8 reach
 // the reader as text that is not well-formed, which it refuses as the Go
 // port refuses them.
@@ -3348,6 +3350,7 @@ function runJsonSchemaImport(argv) {
     let format = 'text';
     let strict = false;
     let defaults = false;
+    let formatAssertion = false;
     const docs = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -3370,6 +3373,9 @@ function runJsonSchemaImport(argv) {
                 return 2;
             }
             docs.push([spec.slice(0, eq), spec.slice(eq + 1)]);
+        }
+        else if ('--format-assertion' === arg) {
+            formatAssertion = true;
         }
         else if ('--format' === arg) {
             const f = argv[++i];
@@ -3406,7 +3412,7 @@ function runJsonSchemaImport(argv) {
         }
         documents[uri] = doc;
     }
-    const report = (0, jsonschema_import_1.importJsonSchema)(text, { defaults, documents });
+    const report = (0, jsonschema_import_1.importJsonSchema)(text, { defaults, formatAssertion, documents });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema import' }, ...report,

@@ -409,6 +409,7 @@ const importCloneBudget = 1000
 type importCtx struct {
 	root      any
 	defaults  bool
+	formats   bool
 	lossy     []SchemaLoss
 	aliases   map[string]*string
 	resources map[string]importAnchor
@@ -1821,6 +1822,16 @@ func (ic *importCtx) stringBranch(o *jobj, ptr string) string {
 			parts = append(parts, re)
 		}
 	}
+	// A name JSON Schema does not define asserts nothing, as the suite asks.
+	if f, isStr := o.get("format").(string); ic.formats && isStr {
+		if nil != formatCheck(f) {
+			parts = append(parts, "format("+importStrLit(f)+")")
+		} else if fmtUnchecked[f] {
+			ic.lose(importPtrAt(ptr, "format"), "format", "format "+importStrLit(f)+
+				" has no checker in aontu yet, so it rides as an annotation and "+
+				"the import admits strings the schema refuses")
+		}
+	}
 	content := importRiderOf(o, ptr, true)
 	branch := ""
 	if 0 < len(parts) {
@@ -2426,6 +2437,9 @@ func (ic *importCtx) bodyIn(node any, ptr string) string {
 type JSONSchemaImportOptions struct {
 	Defaults bool
 
+	// FormatAssertion asserts each format a checker knows, as format().
+	FormatAssertion bool
+
 	// Documents holds the other documents a reference may reach, each
 	// by its retrieval URI.
 	Documents map[string]string
@@ -2460,6 +2474,7 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 func (a *Aontu) importOnce(text string, opts JSONSchemaImportOptions,
 	hoist map[string]bool) (report SchemaImportReport, wanted map[string]bool) {
 	ic := &importCtx{aliases: map[string]*string{}, defaults: opts.Defaults,
+		formats:   opts.FormatAssertion,
 		resources: map[string]importAnchor{},
 		anchors:   map[string]map[string]importAnchor{},
 		bases:     map[*jobj]string{}, defKeys: map[*jobj]string{},

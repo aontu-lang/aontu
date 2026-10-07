@@ -1,0 +1,12 @@
+# bound 4
+#
+# The skip ledger of the vendored isemail tests.xml (README.md): one
+# line per test that `email` answers otherwise than its category, read
+# by ts/test/vectors.test.ts and go/vectors_test.go.
+# Columns: id<TAB>answer<TAB>reason, where id is the test's id and
+# answer is valid or invalid. A listed test that answers as the corpus
+# says fails the run.
+26	valid	the local part is past 64 octets, a limit of RFC 5321 section 4.5.3.1 and not of the Mailbox grammar JSON Schema names
+39	valid	the address is past 254 octets, a limit of RFC 5321 section 4.5.3.1 and not of the Mailbox grammar JSON Schema names
+59	valid	the quoted local part is past 64 octets, a limit of RFC 5321 section 4.5.3.1 and not of the Mailbox grammar JSON Schema names
+60	valid	the quoted local part is past 64 octets, a limit of RFC 5321 section 4.5.3.1 and not of the Mailbox grammar JSON Schema names

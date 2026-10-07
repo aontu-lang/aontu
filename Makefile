@@ -1,7 +1,7 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
-        helpdoc aontu prose prose-counts comments hooks
+        helpdoc aontu idna prose prose-counts comments hooks
 
 all: build test
 
@@ -113,7 +113,7 @@ cov-go:
 	cd go && rm -rf covdata bin coverage-unit.out coverage-main.out
 
 # TypeScript (canonical implementation, package lives in ts/)
-build-ts: sig helpdoc aontu
+build-ts: sig helpdoc aontu idna
 	cd ts && npm run build
 	node ts/scripts/figures.cjs
 
@@ -132,6 +132,13 @@ aontu:
 # source test/spec/signature.tsv (docs/design/SIGNATURES.0.md).
 sig:
 	node ts/scripts/sigdecl.cjs
+
+# Copy the shared IDNA table, test/spec/files/idna.txt, into
+# ts/src/idnatable.ts and go/idnatable.txt. Regenerating the table
+# itself takes the pinned Unicode files: `node ts/scripts/idnatable.cjs
+# <dir>`.
+idna:
+	node ts/scripts/idnatable.cjs
 
 # Regenerate the build-time-inlined TEACHING PACK -- the corpus
 # `aontu help <topic>` serves (G11 phase 1) -- from docs/skill/*.md and

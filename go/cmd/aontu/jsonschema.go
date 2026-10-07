@@ -15,8 +15,9 @@ import (
 
 const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)"
 
-const jsonSchemaImportHelp = "aontu jsonschema import [--strict] [--defaults] [--format text|json] " +
-	"[--document <uri>=<file>]... <schema.json> (try --help)"
+const jsonSchemaImportHelp = "aontu jsonschema import [--strict] [--defaults] [--format-assertion] " +
+	"[--format text|json] [--document <uri>=<file>]... <schema.json> " +
+	"(try --help)"
 
 // runJsonSchemaImport writes the aontu source on stdout, and on stderr
 // what it could not carry and how to vet data against it.
@@ -25,6 +26,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	format := "text"
 	strict := false
 	defaults := false
+	formatAssertion := false
 	var docs [][2]string
 
 	for i := 0; i < len(argv); i++ {
@@ -44,6 +46,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			strict = true
 		case "--defaults" == arg:
 			defaults = true
+		case "--format-assertion" == arg:
+			formatAssertion = true
 		case "--document" == arg:
 			i++
 			spec := ""
@@ -95,7 +99,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	}
 
 	report := aontu.New().ImportJSONSchemaWith(string(src),
-		aontu.JSONSchemaImportOptions{Defaults: defaults, Documents: documents})
+		aontu.JSONSchemaImportOptions{Defaults: defaults,
+			FormatAssertion: formatAssertion, Documents: documents})
 	if "json" == format {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)

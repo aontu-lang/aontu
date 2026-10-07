@@ -1,0 +1,161 @@
+# G12 phase 13: format(name), the string-format atom
+# (docs/reference-language.md, `format`). Every expectation was
+# obtained by running both engines and requiring them to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# A string is admitted when the checker of the format it names accepts
+# it, each format as JSON Schema 2020-12 defines it: RFC 3339 dates and
+# times, with its calendar and its leap second at 23:59:60 UTC, and its
+# durations; RFC 5321 addresses; RFC 1123 host names; IPv4 in four
+# decimal octets without leading zeros; RFC 4291 IPv6; RFC 4122 UUIDs;
+# RFC 3986 and RFC 3987 references; RFC 6570 templates; and RFC 6901
+# pointers with their relative form.
+#
+# A letter the RFCs let be either case is ASCII in either case, never a
+# letter a host's case folding would admit in its place.
+format-admits-a-date	gens	a: "2020-01-31" & format("date")	{"a":"2020-01-31"}
+format-admits-a-leap-day	gens	a: "2020-02-29" & format("date")	{"a":"2020-02-29"}
+format-refuses-a-leap-day-off-a-leap-year	errc	a: "2021-02-29" & format("date")	constraint
+format-refuses-a-thirtieth-of-february	errc	a: "2020-02-30" & format("date")	constraint
+format-refuses-a-date-of-one-digit-day	errc	a: "2020-01-1" & format("date")	constraint
+format-admits-a-time-with-an-offset	gens	a: "08:30:06+01:00" & format("time")	{"a":"08:30:06+01:00"}
+format-admits-a-leap-second-at-utc-midnight	gens	a: "23:59:60Z" & format("time")	{"a":"23:59:60Z"}
+format-admits-a-leap-second-at-midnight-by-its-offset	gens	a: "15:59:60-08:00" & format("time")	{"a":"15:59:60-08:00"}
+format-refuses-a-leap-second-off-midnight	errc	a: "22:59:60Z" & format("time")	constraint
+format-refuses-a-time-without-an-offset	errc	a: "08:30:06" & format("time")	constraint
+format-admits-a-date-time	gens	a: "1963-06-19T08:30:06.283185Z" & format("date-time")	{"a":"1963-06-19T08:30:06.283185Z"}
+format-admits-a-date-time-in-lower-case	gens	a: "1963-06-19t08:30:06z" & format("date-time")	{"a":"1963-06-19t08:30:06z"}
+format-refuses-a-date-time-with-a-space	errc	a: "1963-06-19 08:30:06Z" & format("date-time")	constraint
+format-admits-a-duration	gens	a: "P4DT12H30M5S" & format("duration")	{"a":"P4DT12H30M5S"}
+format-admits-a-duration-of-weeks	gens	a: "P2W" & format("duration")	{"a":"P2W"}
+format-refuses-a-duration-with-days-after-t	errc	a: "PT1D" & format("duration")	constraint
+format-refuses-weeks-beside-days	errc	a: "P1Y2W" & format("duration")	constraint
+format-admits-a-duration-in-lower-case	gens	a: "p4dt12h30m5s" & format("duration")	{"a":"p4dt12h30m5s"}
+format-refuses-a-designator-a-host-would-fold	errc	a: "PT1ſ" & format("duration")	constraint
+format-admits-an-email	gens	a: "joe.bloggs@example.com" & format("email")	{"a":"joe.bloggs@example.com"}
+format-admits-a-quoted-local-part	gens	a: "\\"joe bloggs\\"@example.com" & format("email")	{"a":"\\"joe bloggs\\"@example.com"}
+format-admits-an-address-literal	gens	a: "joe.bloggs@[127.0.0.1]" & format("email")	{"a":"joe.bloggs@[127.0.0.1]"}
+format-admits-an-ipv6-address-literal	gens	a: "joe@[IPv6:::1]" & format("email")	{"a":"joe@[IPv6:::1]"}
+format-refuses-an-address-tag-a-host-would-fold	errc	a: "joe@[ıPv6:::1]" & format("email")	constraint
+format-admits-an-address-literal-eliding-two-groups	gens	a: "joe@[IPv6:1:2:3:4:5:6::]" & format("email")	{"a":"joe@[IPv6:1:2:3:4:5:6::]"}
+format-refuses-an-address-literal-eliding-one-group	errc	a: "joe@[IPv6:1:2:3:4:5:6:7::]" & format("email")	constraint
+format-refuses-an-email-of-two-dots	errc	a: "joe..bloggs@example.com" & format("email")	constraint
+format-refuses-a-string-without-at	errc	a: "2962" & format("email")	constraint
+format-admits-a-hostname	gens	a: "www.example.com" & format("hostname")	{"a":"www.example.com"}
+format-refuses-a-label-starting-with-a-hyphen	errc	a: "-a.example.com" & format("hostname")	constraint
+format-refuses-a-label-of-64	errc	a: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com" & format("hostname")	constraint
+format-admits-an-ipv4	gens	a: "192.168.0.1" & format("ipv4")	{"a":"192.168.0.1"}
+format-refuses-an-ipv4-octet-past-255	errc	a: "256.256.256.256" & format("ipv4")	constraint
+format-refuses-an-ipv4-leading-zero	errc	a: "087.10.0.1" & format("ipv4")	constraint
+format-admits-an-ipv6-loopback	gens	a: "::1" & format("ipv6")	{"a":"::1"}
+format-admits-an-ipv6-with-an-ipv4-tail	gens	a: "::ffff:192.168.0.1" & format("ipv6")	{"a":"::ffff:192.168.0.1"}
+format-refuses-an-ipv6-group-of-five	errc	a: "12345::" & format("ipv6")	constraint
+format-refuses-two-ipv6-gaps	errc	a: "1::2::3" & format("ipv6")	constraint
+format-admits-an-ipv6-eliding-one-group	gens	a: "1:2:3:4:5:6:7::" & format("ipv6")	{"a":"1:2:3:4:5:6:7::"}
+format-admits-a-uuid	gens	a: "2EB8AA08-AA98-11EA-B4AA-73B441D16380" & format("uuid")	{"a":"2EB8AA08-AA98-11EA-B4AA-73B441D16380"}
+format-admits-a-uuid-in-lower-case	gens	a: "2eb8aa08-aa98-11ea-b4aa-73b441d16380" & format("uuid")	{"a":"2eb8aa08-aa98-11ea-b4aa-73b441d16380"}
+format-refuses-a-short-uuid	errc	a: "2eb8aa08-aa98-11ea-b4aa-73b441d1638" & format("uuid")	constraint
+format-admits-a-uri	gens	a: "http://example.com/a?b=1#c" & format("uri")	{"a":"http://example.com/a?b=1#c"}
+format-refuses-a-relative-reference-as-a-uri	errc	a: "//example.com/a" & format("uri")	constraint
+format-refuses-a-uri-with-a-space	errc	a: "http://example.com/a b" & format("uri")	constraint
+format-admits-a-future-ip-literal	gens	a: "http://[v1.fe]/" & format("uri")	{"a":"http://[v1.fe]/"}
+format-refuses-a-future-ip-literal-a-host-would-fold	errc	a: "http://[v1.K]/" & format("iri")	constraint
+format-refuses-an-ip-literal-left-open	errc	a: "http://[::1/x" & format("uri")	constraint
+format-admits-a-relative-reference	gens	a: "//example.com/a" & format("uri-reference")	{"a":"//example.com/a"}
+format-admits-a-reference-of-a-path	gens	a: "/abc/def" & format("uri-reference")	{"a":"/abc/def"}
+format-refuses-a-reference-with-a-backslash	errc	a: "\\\\\\\\WINDOWS\\\\fileshare" & format("uri-reference")	constraint
+format-refuses-a-colon-in-a-first-relative-segment	errc	a: ":a" & format("uri-reference")	constraint
+format-admits-a-colon-past-the-first-relative-segment	gens	a: "a/:b" & format("uri-reference")	{"a":"a/:b"}
+format-admits-an-iri	gens	a: "http://ƒøø.ßår/?∂éœ=πîx#πîüx" & format("iri")	{"a":"http://ƒøø.ßår/?∂éœ=πîx#πîüx"}
+format-refuses-an-iri-as-a-uri	errc	a: "http://ƒøø.ßår/?∂éœ=πîx#πîüx" & format("uri")	constraint
+format-admits-an-iri-reference	gens	a: "#ƒrägmênt" & format("iri-reference")	{"a":"#ƒrägmênt"}
+format-admits-a-uri-template	gens	a: "http://example.com/dictionary/{term:1}/{term}" & format("uri-template")	{"a":"http://example.com/dictionary/{term:1}/{term}"}
+format-refuses-an-unclosed-template	errc	a: "http://example.com/dictionary/{term:1}/{term" & format("uri-template")	constraint
+format-admits-a-json-pointer	gens	a: "/foo/bar~0/baz~1/%a" & format("json-pointer")	{"a":"/foo/bar~0/baz~1/%a"}
+format-refuses-a-pointer-with-a-lone-tilde	errc	a: "/foo/bar~" & format("json-pointer")	constraint
+format-refuses-a-pointer-without-a-slash	errc	a: "foo" & format("json-pointer")	constraint
+format-admits-a-relative-json-pointer	gens	a: "0/foo/bar" & format("relative-json-pointer")	{"a":"0/foo/bar"}
+format-admits-a-relative-pointer-to-a-key	gens	a: "1#" & format("relative-json-pointer")	{"a":"1#"}
+format-refuses-a-negative-relative-pointer	errc	a: "-1/foo" & format("relative-json-pointer")	constraint
+format-refuses-a-relative-pointer-with-a-leading-zero	errc	a: "01/a" & format("relative-json-pointer")	constraint
+#
+# `hostname` checks each A-label as RFC 5891 does. `idn-hostname` maps,
+# normalises and splits a name as UTS #46 does, then checks each label
+# by IDNA2008's derived property and contextual rules, and the name by
+# RFC 5893's Bidi rule and DNS's lengths; `idn-email` takes any
+# non-ASCII character in its local part, and an `idn-hostname` domain.
+format-admits-an-idn-hostname	gens	a: "실례.테스트" & format("idn-hostname")	{"a":"실례.테스트"}
+format-admits-an-a-label-as-an-idn-hostname	gens	a: "xn--ihqwcrb4cv8a8dqg056pqjye" & format("idn-hostname")	{"a":"xn--ihqwcrb4cv8a8dqg056pqjye"}
+format-maps-fullwidth-digits-before-it-checks	gens	a: "１２３" & format("idn-hostname")	{"a":"１２３"}
+format-normalises-to-nfc-before-it-checks	gens	a: "cafe\\u0301.com" & format("idn-hostname")	{"a":"café.com"}
+format-reads-an-ideographic-full-stop-as-a-dot	gens	a: "a。b" & format("idn-hostname")	{"a":"a。b"}
+format-refuses-a-label-beginning-with-a-mark	errc	a: "\\u0300hello" & format("idn-hostname")	constraint
+format-refuses-a-disallowed-code-point	errc	a: "실〮례.테스트" & format("idn-hostname")	constraint
+format-admits-a-middle-dot-between-ells	gens	a: "l·l" & format("idn-hostname")	{"a":"l·l"}
+format-refuses-a-middle-dot-off-an-ell	errc	a: "a·l" & format("idn-hostname")	constraint
+format-refuses-a-joiner-without-a-virama	errc	a: "क\\u200Dष" & format("idn-hostname")	constraint
+format-refuses-a-digit-first-label-in-a-bidi-name	errc	a: "0a.א" & format("idn-hostname")	constraint
+format-admits-arabic-digits-in-separate-labels	gens	a: "ب٠.ب۰" & format("idn-hostname")	{"a":"ب٠.ب۰"}
+format-refuses-arabic-digits-of-both-kinds	errc	a: "ب٠۰" & format("idn-hostname")	constraint
+format-refuses-invalid-punycode	errc	a: "xn--X" & format("idn-hostname")	constraint
+format-refuses-punycode-that-does-not-round-trip	errc	a: "xn---9uc" & format("idn-hostname")	constraint
+format-refuses-an-a-label-of-ascii	errc	a: "xn--example-" & format("idn-hostname")	constraint
+format-refuses-an-a-label-holding-non-ascii	errc	a: "xn--ü" & format("idn-hostname")	constraint
+format-refuses-an-a-label-that-overflows	errc	a: "xn--zzzzzzzzzzzzzzzzzzzz" & format("idn-hostname")	constraint
+format-refuses-an-a-label-decoding-to-a-surrogate	errc	a: "xn--a-rc4g" & format("idn-hostname")	constraint
+format-refuses-an-a-label-decoding-past-unicode	errc	a: "xn--a-j023p" & format("idn-hostname")	constraint
+format-refuses-a-u-label-whose-a-label-is-past-63	errc	a: "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü" & format("idn-hostname")	constraint
+format-refuses-the-empty-idn-hostname	errc	a: "" & format("idn-hostname")	constraint
+format-refuses-an-idn-hostname-with-a-trailing-dot	errc	a: "example." & format("idn-hostname")	constraint
+format-admits-an-a-label-as-a-hostname	gens	a: "xn--ll-0ea" & format("hostname")	{"a":"xn--ll-0ea"}
+format-refuses-an-a-label-a-rule-refuses	errc	a: "xn--l-fda" & format("hostname")	constraint
+format-refuses-an-a-label-whose-u-label-is-not-nfc	errc	a: "xn--x-xbb7d" & format("hostname")	constraint
+format-keeps-a-hostname-label-of-two-inner-hyphens	gens	a: "ab--cd.xn--ll-0ea" & format("hostname")	{"a":"ab--cd.xn--ll-0ea"}
+format-refuses-a-u-label-as-a-hostname	errc	a: "실례.테스트" & format("hostname")	constraint
+format-admits-an-idn-email	gens	a: "실례@실례.테스트" & format("idn-email")	{"a":"실례@실례.테스트"}
+format-admits-a-non-ascii-local-part	gens	a: "δοκιμή@example.com" & format("idn-email")	{"a":"δοκιμή@example.com"}
+format-admits-a-non-ascii-quoted-local-part	gens	a: "\\"δοκιμή\\"@example.com" & format("idn-email")	{"a":"\\"δοκιμή\\"@example.com"}
+format-refuses-a-fullwidth-at	errc	a: "user＠example.com" & format("idn-email")	constraint
+format-refuses-a-non-ascii-local-part-as-an-email	errc	a: "δοκιμή@example.com" & format("email")	constraint
+#
+# The empty string is admitted where the format admits it, as the empty
+# pointer is, and a format refuses every value that is not a string.
+format-admits-the-empty-json-pointer	gens	a: "" & format("json-pointer")	{"a":""}
+format-refuses-the-empty-string-as-an-email	errc	a: "" & format("email")	constraint
+format-refuses-a-number	errc	a: 1 & format("ipv4")	constraint
+format-refuses-a-boolean	errc	a: true & format("date")	constraint
+#
+# Formats meet one another and the other string atoms, a list's members,
+# a spread's, a disjunction's string arm and a reference's target.
+format-meets-both-checkers	gens	a: "1.2.3.4" & format("ipv4") & format("hostname")	{"a":"1.2.3.4"}
+format-meets-and-refuses	errc	a: "::1" & format("ipv6") & format("ipv4")	constraint
+format-meets-re	gens	a: "2020-01-31" & format("date") & re("^2020")	{"a":"2020-01-31"}
+format-meets-re-and-refuses	errc	a: "2021-01-31" & format("date") & re("^2020")	constraint
+format-meets-len	gens	a: "2020-01-31" & format("date") & len(max(10))	{"a":"2020-01-31"}
+format-in-a-list	gens	a: [format("uuid")] & ["2EB8AA08-AA98-11EA-B4AA-73B441D16380"]	{"a":["2EB8AA08-AA98-11EA-B4AA-73B441D16380"]}
+format-in-a-spread	gens	a: { &: format("ipv4") } & { x: "1.2.3.4", y: "10.0.0.1" }	{"a":{"x":"1.2.3.4","y":"10.0.0.1"}}
+format-in-a-spread-refuses	errc	a: { &: format("ipv4") } & { x: "1.2.3.4", y: "x" }	constraint
+format-beside-a-kind-disjunction	canon	a: (number | format("date"))	{"a":number|format("date")}
+format-beside-a-kind-disjunction-meets-a-date	gens	a: (number | format("date")) & "2020-01-31"	{"a":"2020-01-31"}
+format-beside-a-kind-disjunction-refuses	errc	a: (number | format("date")) & "x"	empty
+format-optional-key-admits-absence	gens	a: { b?: format("date") } & {}	{"a":{}}
+format-with-an-alias	canon	f: format("date")\na: $.f & "2020-01-31"	{"a":"2020-01-31","f":format("date")}
+#
+# A name with no checker refuses with format_unknown when the atom meets
+# a value, as an invalid divisor does; names are case-sensitive, and
+# format() takes exactly one string.
+format-unknown-refuses-beside-a-string	errc	a: "x" & format("nonesuch")	format_unknown
+format-unknown-names-the-format	err	a: "x" & format("nonesuch")	no checker: "nonesuch"
+format-name-is-case-sensitive	errc	a: "2020-01-31" & format("Date")	format_unknown
+format-refuses-a-number-name	errc	a: "x" & format(1)	invalid-arg
+format-refuses-a-name-of-two-strings	errc	a: "x" & format("date" | "time")	invalid-arg
+format-refuses-two-names	errc	a: format("date", "time")	func_arity
+format-refuses-no-name	errc	a: format()	func_arity
+#
+# Names accumulate as atoms, one per name and in code-point order, and
+# canon writes them after re.
+format-atoms-accumulate	canon	a: format("uri") & format("iri")	{"a":format("iri")&format("uri")}
+format-atoms-are-one-per-name	canon	a: format("date") & format("date")	{"a":format("date")}
+format-in-canonical-order	canon	a: format("email") & re("@") & len(min(3))	{"a":re("@")&format("email")&len(integer&min(3))}
+format-under-string	canon	a: string & format("date")	{"a":string&format("date")}
+format-under-empty	canon	a: empty() & format("date")	{"a":format("date")&empty()}

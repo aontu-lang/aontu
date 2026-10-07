@@ -2261,6 +2261,12 @@ and holding folders, files, and copies: one directory of the output.
 
 Example: `folder("src", [file("index.ts")])`
 
+### `format(text name: string) : constraint`
+
+Constrain a string to be what the JSON Schema format `name` means. See [string formats](#format-and-the-string-formats).
+
+Example: `string & format("date")`
+
 ### `fragment(spec: string|map, children?: list) : map`
 
 A fragment node of the [component tree](#generation): a file read from
@@ -5323,15 +5329,16 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All fourteen atoms (the bounds `min`/`max`/`above`/`below`, the
-> exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must`, `nof`,
-> `when`, `contains` and `rest`) are
+> All fifteen atoms (the bounds `min`/`max`/`above`/`below`, the
+> exclusion `neq`, the divisor `multiple`, the pattern `re`, the string
+> format `format`, the sizing atoms `length` and `unique`, and the
+> evaluate-only `must`, `nof`, `when`, `contains` and `rest`) are
 > implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
-> raise the registered `constraint` code, and a pattern outside the
-> portable subset raises `constraint_pattern`. A preference meeting a
+> raise the registered `constraint` code, a pattern outside the
+> portable subset raises `constraint_pattern`, and a format with no
+> checker raises `format_unknown`. A preference meeting a
 > constraint in a conjunct (`min(1024) & *8080`) resolves to the
 > default, and the disjunct form (`*8080 | (integer & min(1024))`)
 > also ENFORCES on override under the admission gate: an out-of-bound
@@ -5340,9 +5347,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Eleven builtins join the function registry. Nine are **Band A**: full
+Fifteen builtins join the function registry. Ten are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. Two are **Band B**: evaluate-only, and reported
+canonical form. Five are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5354,6 +5361,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
 | `multiple(n: number) : constraint` | A | value is an integer multiple of n, which is positive |
 | `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
+| `format(text name: string) : constraint` | A | string is what the JSON Schema format `name` means |
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
@@ -5539,7 +5547,8 @@ by the meet rules above).
 A residual constraint renders as its normalised atoms joined by `&`
 in a fixed order (**kind, lower bound (`min`/`above`), upper bound
 (`max`/`below`), `neq` (arguments sorted), `multiple` (by value), `re`
-(patterns sorted), `length`, `unique`, `must`, `nof`, `when`,
+(patterns sorted), `format` (names sorted), `length`, `unique`, `must`,
+`nof`, `when`,
 `contains`, `rest` (the last four by canon)**) no
 spaces,
 reparseable, endpoint leaves preserved:
@@ -5659,6 +5668,52 @@ schema.
 Canon renders the pattern **as written**, never the rewritten form:
 canon round-trips source, and the semantic hash
 ([`aontu hash`](reference-api.md#aontu-hash)) is taken over canon.
+
+### `format` and the string formats
+
+`format(name)` admits a string that the format of that name holds, and
+refuses any other value with `constraint`. Each format is the one JSON
+Schema 2020-12 defines, as the RFC it cites states it, and each checker
+is aontu's own code, written out the same in both implementations
+rather than taken from a host library:
+
+| name | admits |
+|---|---|
+| `date` | RFC 3339's `full-date`, with each month's days and the Gregorian leap years: `"2020-02-29"`, not `"2021-02-29"` |
+| `time` | RFC 3339's `full-time`: a fraction of any length, an offset of `Z` or `+hh:mm` or `-hh:mm`, and a leap second only at 23:59 UTC, so `"23:59:60Z"` and `"15:59:60-08:00"` |
+| `date-time` | a `date`, a `T`, and a `time`, the `T` and the `Z` in either case |
+| `duration` | RFC 3339 appendix A: `P`, then weeks alone, or a date part with a time part after `T`, or the time part alone: `"P4DT12H30M5S"`, `"P2W"` |
+| `email` | an RFC 5321 mailbox: a dot-atom or quoted local part, the last `@`, and a host name or an address literal such as `[127.0.0.1]`, whose `::` elides two groups at least |
+| `idn-email` | an RFC 6531 mailbox: an `email` whose local part may hold any non-ASCII character and whose domain is an `idn-hostname` |
+| `hostname` | RFC 1123 host names: labels of letters, digits and inner hyphens, at most 63 characters each and 253 in all, an A-label among them valid as RFC 5891 asks |
+| `idn-hostname` | a name as UTS #46 processes it, mapped, normalised to NFC and split at each full stop, each label then valid by IDNA2008's derived property, its contextual rules and RFC 5893's rule for right-to-left labels, and the name within the lengths DNS allows |
+| `ipv4` | four decimal octets up to 255, without leading zeros |
+| `ipv6` | RFC 4291's text forms: eight groups of up to four hexadecimal digits, one `::` for one or more of them, and a dotted-quad tail |
+| `uuid` | RFC 4122's hexadecimal 8-4-4-4-12 form, in either case |
+| `uri`, `uri-reference` | RFC 3986's URI, which has a scheme, and URI reference, which may not |
+| `iri`, `iri-reference` | RFC 3987's IRI and IRI reference: a URI's characters and the non-ASCII ones RFC 3987 admits |
+| `uri-template` | RFC 6570 templates: literals, and expressions of an operator, variables, prefixes and explodes |
+| `json-pointer` | RFC 6901 pointers: empty, or tokens each after a `/`, in which `~` escapes only `0` and `1` |
+| `relative-json-pointer` | a non-negative integer without leading zeros, then `#` or a JSON pointer |
+
+A name outside the table refuses with `format_unknown` when the atom
+meets a value, as an invalid divisor does, and the message lists the
+eighteen names. Names are case-sensitive, so `format("Date")` is
+unknown. JSON Schema 2020-12 defines one format that has no checker
+yet: `regex` waits for aontu's own regular-expression engine.
+
+The IDNA formats read one committed table of Unicode 16.0.0: UTS #46's
+mapping, the IDNA2008 derived property, and the properties the
+contextual and right-to-left rules and NFC ask for. Both implementations carry
+the same bytes of it, so a name answers alike in both.
+
+Formats **accumulate** as patterns do, one atom per name, sorted by
+name in canon: `format("uri") & format("iri")` is
+`format("iri")&format("uri")`. Two formats are never declared empty at
+composition time, since that would compare the languages of two
+checkers, so a contradiction between them surfaces against data. A
+format holds every string its checker admits, so `format("date")`
+subsumes `format("date") & format("uri")` and the string `"2020-01-31"`.
 
 ### `len` semantics
 

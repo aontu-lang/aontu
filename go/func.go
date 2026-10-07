@@ -19,7 +19,8 @@ var funcSet = map[string]bool{
 	// ADR-034.
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
-	"multiple": true, "re": true, "len": true, "empty": true, "unique": true,
+	"multiple": true, "re": true, "format": true, "len": true, "empty": true,
+	"unique":    true,
 	"must":      true,
 	"nof":       true,
 	"when":      true,

@@ -43,6 +43,7 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
+const strformat_1 = require("../dist/strformat");
 const vet_1 = require("../dist/vet");
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors');
 const VET = { at: '$.schema', noFill: true, exactNumbers: true };
@@ -204,8 +205,10 @@ function suiteProblems(root, ledger, documents = {}) {
     for (const file of jsonFiles(root)) {
         const text = Fs.readFileSync(Path.join(root, file), 'utf8');
         const at = (s, k) => text.slice(s.kv.get(k).s, s.kv.get(k).e);
+        // The suite's optional/format/ asks for format as an assertion.
+        const formatAssertion = file.includes('optional/format/');
         for (const group of spans(text).items) {
-            const report = (0, aontu_1.importJsonSchema)(at(group, 'schema'), { documents });
+            const report = (0, aontu_1.importJsonSchema)(at(group, 'schema'), { documents, formatAssertion });
             const account = 'error' === report.verdict ? report.errors[0].code :
                 [...new Set(report.lossy.map((l) => l.construct))].sort().join(',') ||
                     '-';
@@ -354,6 +357,67 @@ function annotationProblems(root, ledger) {
     }
     return problems;
 }
+// Each case's answer against a ledger of the answers that are not the
+// corpus's own: the case's key, the corpus's answer and aontu's.
+function answerProblems(ledger, cases) {
+    const problems = [];
+    const seen = new Set();
+    for (const [key, own, answer] of cases) {
+        Assert.ok(!seen.has(key), 'a case named twice: ' + key);
+        seen.add(key);
+        const listed = ledger.lines.get(key);
+        if (undefined === listed) {
+            if (answer !== own) {
+                problems.push('answers ' + answer + ' and is not listed: ' + key);
+            }
+        }
+        else if (listed[0] !== answer) {
+            problems.push('listed as ' + listed[0] + ', but answers ' + answer + ': ' + key);
+        }
+        else if (answer === own) {
+            problems.push('listed, but answers as the corpus says: ' + key);
+        }
+    }
+    for (const key of ledger.lines.keys()) {
+        if (!seen.has(key)) {
+            problems.push('listed, but names no case: ' + key);
+        }
+    }
+    if (ledger.bound < ledger.lines.size) {
+        problems.push(ledger.lines.size + ' lines, past the bound of ' + ledger.bound);
+    }
+    return problems;
+}
+// The ranges of a Unicode data file, each with its fields.
+function ucdRows(text) {
+    const out = [];
+    for (const raw of text.split('\n')) {
+        const line = raw.split('#')[0].trim();
+        if ('' !== line) {
+            const cells = line.split(';').map((c) => c.trim());
+            const [lo, hi] = cells[0].split('..').map((h) => parseInt(h, 16));
+            out.push({ lo, hi: hi ?? lo, cells });
+        }
+    }
+    return out;
+}
+// A cell of IdnaTestV2.txt as text: blank is the default, `""` empty,
+// and an escaped lone surrogate is a string no Go string can hold.
+function idnaCell(cell, blank) {
+    if ('' === cell) {
+        return blank;
+    }
+    if ('""' === cell) {
+        return '';
+    }
+    let lone = false;
+    const text = cell.replace(/\\u([0-9A-Fa-f]{4})/g, (_m, h) => {
+        const c = parseInt(h, 16);
+        lone = lone || (0xd800 <= c && c <= 0xdfff);
+        return String.fromCharCode(c);
+    });
+    return lone ? undefined : text;
+}
 (0, node_test_1.describe)('vectors', () => {
     (0, node_test_1.test)('json-schema-test-suite', () => {
         const dir = Path.join(VECTORS, 'jsonschema');
@@ -419,6 +483,115 @@ function annotationProblems(root, ledger) {
                 ledger.bound);
         }
         Assert.deepStrictEqual(problems, []);
+    });
+    // UTS 46's conformance file through `idn-hostname`. A line whose
+    // toUnicode holds a character the mapping table marks NV8 or XV8 is
+    // one the file's notes give IDNA2008 to refuse, so it answers invalid;
+    // every other line answers as its toAsciiN status says.
+    (0, node_test_1.test)('idna-test-v2', () => {
+        const dir = Path.join(VECTORS, 'idna');
+        const strict = new Set();
+        for (const r of ucdRows(Fs.readFileSync(Path.join(dir, 'IdnaMappingTable.txt'), 'utf8'))) {
+            if ('NV8' === r.cells[3] || 'XV8' === r.cells[3]) {
+                for (let c = r.lo; c <= r.hi; c++) {
+                    strict.add(c);
+                }
+            }
+        }
+        const check = (0, strformat_1.formatCheck)('idn-hostname');
+        const cases = [];
+        for (const line of Fs.readFileSync(Path.join(dir, 'IdnaTestV2.txt'), 'utf8').split('\n')) {
+            const cell = line.split('#')[0].split(';').map((c) => c.trim());
+            const src = idnaCell(cell[0], '');
+            if (cell.length < 5 || undefined === src) {
+                continue;
+            }
+            const uni = idnaCell(cell[1], src);
+            const status = '' !== cell[4] ? cell[4] : '' !== cell[2] ? cell[2] : '[]';
+            const own = '[]' === status &&
+                ![...uni].some((ch) => strict.has(ch.codePointAt(0)));
+            cases.push([cell[0], own ? 'valid' : 'invalid', check(src) ? 'valid' : 'invalid']);
+        }
+        Assert.equal(cases.length, 6387);
+        Assert.deepStrictEqual(answerProblems(readLedger(Path.join(dir, 'skips.tsv'), 1), cases), []);
+    });
+    // The table both ports read holds what the vendored files say of each
+    // code point: its status and mapping under UTS 46, and its IDNA2008
+    // property.
+    (0, node_test_1.test)('idna-table', () => {
+        const dir = Path.join(VECTORS, 'idna');
+        const hexes = (t) => t.split(' ').map((h) => parseInt(h, 16)).join(' ');
+        const want = new Array(0x110000).fill('');
+        for (const r of ucdRows(Fs.readFileSync(Path.join(dir, 'IdnaMappingTable.txt'), 'utf8'))) {
+            const st = { valid: 'V', deviation: 'V', ignored: 'I', mapped: 'M' }[r.cells[1]];
+            for (let c = r.lo; c <= r.hi && undefined !== st; c++) {
+                want[c] = 'M' === st ? 'M ' + hexes(r.cells[2]) : st;
+            }
+        }
+        for (const r of ucdRows(Fs.readFileSync(Path.join(dir, 'Idna2008-16.0.0.txt'), 'utf8'))) {
+            const cat = { PVALID: 'P', CONTEXTJ: 'J', CONTEXTO: 'O' }[r.cells[1]];
+            for (let c = r.lo; c <= r.hi && undefined !== cat; c++) {
+                want[c] += '|' + cat;
+            }
+        }
+        const got = new Array(0x110000).fill('');
+        let section = '';
+        for (const line of Fs.readFileSync(Path.join(VECTORS, '..', 'spec', 'files', 'idna.txt'), 'utf8').split('\n')) {
+            const [span, ...v] = line.split(' ');
+            const [lo, hi] = span.split('-').map((h) => parseInt(h, 16));
+            for (let c = lo; c <= (hi ?? lo) && !line.startsWith('@'); c++) {
+                got[c] = 'status' === section ? v[0] : 'mapping' === section ?
+                    'M ' + hexes(v.join(' ')) : 'category' === section ? got[c] + '|' + v[0] : got[c];
+            }
+            section = line.startsWith('@') ? span.substring(1) : section;
+        }
+        const differ = want.flatMap((w, c) => w === got[c] ? [] : [c.toString(16)]);
+        Assert.deepStrictEqual(differ.slice(0, 5), []);
+    });
+    // isemail's corpus through `email`: a category of valid, a DNS warning
+    // or RFC 5321 is a mailbox RFC 5321's grammar admits, and any other a
+    // text it refuses. The file writes a control character as its symbol,
+    // U+2400 on.
+    (0, node_test_1.test)('isemail', () => {
+        const dir = Path.join(VECTORS, 'isemail');
+        const xml = Fs.readFileSync(Path.join(dir, 'tests.xml'), 'utf8');
+        const entity = (s) => s.replace(/&#x([0-9A-Fa-f]+);|&(lt|gt|amp|quot|apos);/g, (_m, h, n) => undefined !== h ? String.fromCodePoint(parseInt(h, 16)) :
+            { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[n]);
+        const email = (0, strformat_1.formatCheck)('email');
+        const cases = [];
+        for (const m of xml.matchAll(/<test id="(\d+)">([\s\S]*?)<\/test>/g)) {
+            const at = /<address>([\s\S]*?)<\/address>/.exec(m[2]);
+            const address = [...entity(null == at ? '' : at[1])].map((ch) => {
+                const c = ch.codePointAt(0);
+                return 0x2400 <= c && c <= 0x241f ? String.fromCharCode(c - 0x2400) : ch;
+            }).join('');
+            const category = /<category>([^<]*)<\/category>/.exec(m[2])[1];
+            const own = ['ISEMAIL_VALID_CATEGORY', 'ISEMAIL_DNSWARN', 'ISEMAIL_RFC5321']
+                .includes(category);
+            cases.push([m[1], own ? 'valid' : 'invalid', email(address) ? 'valid' : 'invalid']);
+        }
+        Assert.equal(cases.length, 164);
+        Assert.deepStrictEqual(answerProblems(readLedger(Path.join(dir, 'skips.tsv'), 1), cases), []);
+    });
+    // uritemplate-test through `uri-template`: a template the files expand
+    // is valid, and one whose expansion they give as false is not.
+    (0, node_test_1.test)('uritemplate-test', () => {
+        const dir = Path.join(VECTORS, 'uritemplate-test');
+        const check = (0, strformat_1.formatCheck)('uri-template');
+        const cases = [];
+        for (const file of ['spec-examples.json', 'spec-examples-by-section.json',
+            'extended-tests.json', 'negative-tests.json']) {
+            const groups = JSON.parse(Fs.readFileSync(Path.join(dir, file), 'utf8'));
+            for (const group of Object.keys(groups)) {
+                for (const [template, expanded] of groups[group].testcases) {
+                    cases.push([file + '\t' + group + '\t' + template,
+                        false === expanded ? 'invalid' : 'valid',
+                        check(template) ? 'valid' : 'invalid']);
+                }
+            }
+        }
+        Assert.equal(cases.length, 270);
+        Assert.deepStrictEqual(answerProblems(readLedger(Path.join(dir, 'skips.tsv'), 3), cases), []);
     });
 });
 //# sourceMappingURL=vectors.test.js.map

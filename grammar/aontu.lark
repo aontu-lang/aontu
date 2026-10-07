@@ -55,7 +55,7 @@ element: spread
 func: name "(" [value ("," value)*] ")"
 
 name: "content" | "file" | "folder" | "fragment" | "inject" | "line" | "nom" | "project" | "slot" | "translate" | "abnf" | "above" | "acyclic" | "add" | "below" | "close" | "contains" | "copyfiles" | "copy" | "deprecate" | "div"
-    | "each" | "emit" | "empty" | "esc" | "filter" | "greatest"
+    | "each" | "emit" | "empty" | "esc" | "filter" | "format" | "greatest"
     | "hide" | "identity"
     | "inverse" | "join" | "key" | "least"
     | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "meta" | "min" | "mod" | "move"

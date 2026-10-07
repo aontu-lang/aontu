@@ -10,6 +10,7 @@ exports.importJsonSchema = importJsonSchema;
 // a number keeps its text and is written by its value.
 const aontu_1 = require("./aontu");
 const format_1 = require("./format");
+const strformat_1 = require("./strformat");
 const hints_1 = require("./hints");
 const keyorder_1 = require("./keyorder");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -1175,6 +1176,18 @@ function stringBranch(ctx, o, ptr) {
             parts.push(re);
         }
     }
+    // A name JSON Schema does not define asserts nothing, as the suite asks.
+    const f = o.get('format');
+    if (ctx.formats && 'string' === typeof f) {
+        if (undefined !== (0, strformat_1.formatCheck)(f)) {
+            parts.push('format(' + strLit(f) + ')');
+        }
+        else if (strformat_1.UNCHECKED.includes(f)) {
+            lose(ctx, ptrAt(ptr, 'format'), 'format', 'format ' + strLit(f) +
+                ' has no checker in aontu yet, so it rides as an annotation and ' +
+                'the import admits strings the schema refuses');
+        }
+    }
     const content = rider(o, ptr, true);
     const branch = 0 === parts.length ? undefined : both(['empty()', ...parts]);
     return '' === content ? branch :
@@ -1518,7 +1531,8 @@ function importJsonSchema(text, options) {
 }
 function importOnce(text, options, hoist) {
     const ctx = {
-        root: null, defaults: true === options?.defaults, lossy: [],
+        root: null, defaults: true === options?.defaults,
+        formats: true === options?.formatAssertion, lossy: [],
         aliases: new Map(), resources: new Map(), anchors: new Map(),
         bases: new Map(), defKeys: new Map(), unread: new Map(),
         dynamics: new Map(), env: new Map(), rootEnv: new Map(), clones: 0,

@@ -643,6 +643,7 @@ help isolate the syntax error.`,
         // G1 phase 2: pattern membership, over the portable subset both
         // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
         re: ConstraintVal_1.ReConstraintVal,
+        format: ConstraintVal_1.FormatConstraintVal,
         len: ConstraintVal_1.LenConstraintVal,
         empty: EmptyVal_1.EmptyVal,
         unique: ConstraintVal_1.UniqueConstraintVal,

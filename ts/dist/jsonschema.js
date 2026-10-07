@@ -317,6 +317,17 @@ function fromConstraint(ctx, path, c, bag) {
             allOf(out, { pattern: r.norm });
         }
     }
+    for (const f of c.fmts) {
+        if (1 === c.fmts.length) {
+            out.format = f;
+        }
+        else {
+            allOf(out, { format: f });
+        }
+        lose(ctx, path, 'format', 'the default dialect reads format ' +
+            JSON.stringify(f) + ' as an annotation, so the schema admits a ' +
+            'string the model refuses');
+    }
     if (null != c.count) {
         count(ctx, path, out, c.count, 'string' === c.domain ? 'string' :
             true === bag?.isMap ? 'map' : true === bag?.isList ? 'list' : undefined);
@@ -1288,7 +1299,7 @@ function keyGuard(t) {
 function lonePattern(c) {
     return true === c?.isConstraint && 1 === c.res.length && null == c.kind &&
         null == c.lo && null == c.hi && 0 === c.neqs.length && null == c.count &&
-        0 === c.musts.length ? c.res[0].norm : undefined;
+        0 === c.musts.length && 0 === c.fmts.length ? c.res[0].norm : undefined;
 }
 // The map guards of design section 6: one per pattern, one naming every
 // declared key and every pattern, and one on the key itself. A spread

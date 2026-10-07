@@ -455,6 +455,7 @@ type ConstraintVal struct {
 	neqs   []*ScalarVal
 	mults  []*ScalarVal   // divisors, one per value, in value order (never an lcm)
 	res    []constraintRe // accumulated patterns, sorted by source
+	fmts   []string       // string formats by name, sorted, one per name
 	// count is the len() residual: itself a residual over the integer
 	// domain, because the count atom reuses this same algebra
 	// recursively. nil when the residual says nothing about length.
@@ -516,8 +517,9 @@ func (c *ConstraintVal) superior() Val { return top() }
 // the func-paren handler in lang.go.
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
-	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
-	"nof": true, "when": true, "contains": true, "rest": true,
+	"multiple": true, "re": true, "format": true, "len": true, "unique": true,
+	"must": true,
+	"nof":  true, "when": true, "contains": true, "rest": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -749,6 +751,21 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		}
 		c.domain = "string"
 		c.res = []constraintRe{{v: psv, src: src, norm: norm, re: re}}
+		return c
+	}
+
+	if "format" == atom {
+		psv, pd := orderableScalar(args[0])
+		if nil == psv || "string" != pd || KindPath == psv.kind {
+			return bad("invalid-arg")
+		}
+		name := psv.peg.(string)
+		if nil == formatCheck(name) {
+			c.invalidWhy = jsonString(name)
+			return bad("format_unknown")
+		}
+		c.domain = "string"
+		c.fmts = []string{name}
 		return c
 	}
 
@@ -1462,6 +1479,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.neqs = dedupSortedNeqs(merged.domain, append(append([]*ScalarVal{}, c.neqs...), peer.neqs...))
 	merged.mults = dedupMults(append(append([]*ScalarVal{}, c.mults...), peer.mults...))
 	merged.res = dedupSortedRes(append(append([]constraintRe{}, c.res...), peer.res...))
+	merged.fmts = dedupSortedStrings(append(append([]string{}, c.fmts...), peer.fmts...))
 	// `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses the
 	// numeric algebra recursively, over the counts rather than the
 	// values.
@@ -1536,23 +1554,24 @@ func (c *ConstraintVal) fail(ctx *Ctx, peer Val) Val {
 // and exclusions share pointers; they are immutable).
 func (c *ConstraintVal) cloneState() *ConstraintVal {
 	out := &ConstraintVal{
-		domain:  c.domain,
-		kind:    c.kind,
-		lo:      c.lo,
-		hi:      c.hi,
-		neqs:    append([]*ScalarVal{}, c.neqs...),
-		mults:   append([]*ScalarVal{}, c.mults...),
-		res:     append([]constraintRe{}, c.res...),
-		count:   c.count,
-		uniq:    c.uniq,
-		uniqBy:  append([]string{}, c.uniqBy...),
-		musts:   append([]constraintMust{}, c.musts...),
-		nofs:    append([]constraintNof{}, c.nofs...),
-		whens:   append([]constraintWhen{}, c.whens...),
+		domain:   c.domain,
+		kind:     c.kind,
+		lo:       c.lo,
+		hi:       c.hi,
+		neqs:     append([]*ScalarVal{}, c.neqs...),
+		mults:    append([]*ScalarVal{}, c.mults...),
+		res:      append([]constraintRe{}, c.res...),
+		fmts:     append([]string{}, c.fmts...),
+		count:    c.count,
+		uniq:     c.uniq,
+		uniqBy:   append([]string{}, c.uniqBy...),
+		musts:    append([]constraintMust{}, c.musts...),
+		nofs:     append([]constraintNof{}, c.nofs...),
+		whens:    append([]constraintWhen{}, c.whens...),
 		contains: append([]constraintContains{}, c.contains...),
 		rests:    append([]constraintRest{}, c.rests...),
-		clash:   c.clash,
-		invalid: c.invalid,
+		clash:    c.clash,
+		invalid:  c.invalid,
 	}
 	out.invalidWhy = c.invalidWhy
 	out.nonEmpty = c.nonEmpty
@@ -1605,7 +1624,8 @@ func (c *ConstraintVal) Canon() string {
 	} else if c.pathKind {
 		parts = append(parts, "path")
 	} else if "string" == c.domain && (c.nonEmpty ||
-		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) && !c.emptyOk)) {
+		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) &&
+			0 == len(c.fmts) && !c.emptyOk)) {
 		parts = append(parts, "string")
 	} else if "number" == c.domain && "" == c.invalid && nil == c.lo &&
 		nil == c.hi && 0 == len(c.neqs) && 0 == len(c.mults) {
@@ -1637,6 +1657,9 @@ func (c *ConstraintVal) Canon() string {
 	}
 	for _, r := range c.res {
 		parts = append(parts, "re("+r.v.Canon()+")")
+	}
+	for _, f := range c.fmts {
+		parts = append(parts, "format("+jsonString(f)+")")
 	}
 	if nil != c.count {
 		parts = append(parts, "len("+c.count.Canon()+")")
@@ -1825,6 +1848,11 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	for _, f := range g.fmts {
+		if !containsString(s.fmts, f) {
+			return false, false
+		}
+	}
 	// ... and a general `unique(k)` needs the same key on the specific
 	// side: distinctness on `port` says nothing about distinctness on
 	// `name`.
@@ -1903,6 +1931,11 @@ func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 	}
 	for _, r := range s.res {
 		if !r.re.MatchString(peer.peg.(string)) {
+			return false
+		}
+	}
+	for _, f := range s.fmts {
+		if !formatCheck(f)(peer.peg.(string)) {
 			return false
 		}
 	}
@@ -2020,7 +2053,8 @@ func countArgState(arg Val) *ConstraintVal {
 	if cv, ok := arg.(*ConstraintVal); ok {
 		// A pattern, divisor, branch count, sizing atom or string bound
 		// inside a count is not a count constraint, nor is a broken one.
-		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
+		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.fmts) ||
+			0 < len(cv.mults) || cv.uniq ||
 			0 < len(cv.uniqBy) || nil != cv.count || 0 < len(cv.nofs) ||
 			0 < len(cv.whens) || 0 < len(cv.contains) || 0 < len(cv.rests) ||
 			"number" != cv.domain {
@@ -2501,6 +2535,17 @@ func mergeUniqBy(a, b []string) []string {
 		}
 	}
 	sort.Strings(out)
+	return out
+}
+
+func dedupSortedStrings(xs []string) []string {
+	sort.Strings(xs)
+	out := []string{}
+	for _, x := range xs {
+		if 0 == len(out) || out[len(out)-1] != x {
+			out = append(out, x)
+		}
+	}
 	return out
 }
 

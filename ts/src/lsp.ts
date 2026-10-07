@@ -532,7 +532,7 @@ const BUILTIN_FUNCS = [
   'content', 'copy', 'copyfiles', 'deprecate',
   'div',
   'each', 'emit', 'empty', 'esc',
-  'file', 'filter', 'folder', 'fragment', 'greatest',
+  'file', 'filter', 'folder', 'format', 'fragment', 'greatest',
   'hide', 'identity', 'inject', 'inverse', 'join', 'key', 'least', 'len',
   'line',
   'listitems', 'lower',

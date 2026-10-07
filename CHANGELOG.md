@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### `format(name)` and format assertion
+
+Both ports. G12 phase 13.
+
+- `format(name)` admits a string that the JSON Schema format of that
+  name holds, as JSON Schema 2020-12 and the RFC it cites define it:
+  `date`, `time`, `date-time`, `duration`, `email`, `idn-email`,
+  `hostname`, `idn-hostname`, `ipv4`, `ipv6`, `uuid`, `uri`,
+  `uri-reference`, `iri`, `iri-reference`, `uri-template`,
+  `json-pointer` and `relative-json-pointer`. Each checker is aontu's
+  own code, the same in both ports. Formats accumulate as `re` patterns
+  do, and canon writes them after `re`. A name with no checker refuses
+  with the new `format_unknown` code (class `conflict`).
+- `idn-hostname` processes a name as UTS #46 does, then checks it by
+  IDNA2008 and RFC 5893's Bidi rule; `hostname` checks each A-label the
+  same way. Both read one committed table of Unicode 16.0.0, which
+  `make idna` copies into both ports.
+- `aontu jsonschema import --format-assertion`, the `formatAssertion`
+  option (`FormatAssertion` in Go), makes a format aontu checks assert
+  as `format(name)` beside its annotation. `regex` has no checker yet
+  and is reported as a loss; a name 2020-12 does not define asserts
+  nothing.
+- The export writes `format(name)` as `format`, under `allOf` for more
+  than one, and reports each as a loss, since the default dialect reads
+  `format` as an annotation.
+- The JSON-Schema-Test-Suite's `optional/format/` is vendored and run
+  with format assertion on: 867 of its 874 tests answer as the suite
+  says, and the skip ledger lists the other 7, `regex`'s. UTS #46's
+  conformance file, isemail's tests and uritemplate-test are vendored
+  beside it, each with its own ledger.
+
 ### Annotations from the branches that pass
 
 Both ports. G12 phase 12, part 2, amending ADR-049 and ADR-051.

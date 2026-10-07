@@ -169,6 +169,7 @@ import {
   NeqConstraintVal,
   MultipleConstraintVal,
   ReConstraintVal,
+  FormatConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,
@@ -867,6 +868,7 @@ help isolate the syntax error.`,
     // G1 phase 2: pattern membership, over the portable subset both
     // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
     re: ReConstraintVal,
+    format: FormatConstraintVal,
 
     len: LenConstraintVal,
     empty: EmptyVal,

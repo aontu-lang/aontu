@@ -52,6 +52,7 @@ type ConstraintState = {
     neqs: any[];
     mults: any[];
     res: ReAtom[];
+    fmts: string[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
@@ -77,6 +78,7 @@ declare class ConstraintVal extends FeatureVal {
     neqs: any[];
     mults: any[];
     res: ReAtom[];
+    fmts: string[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
@@ -144,6 +146,9 @@ declare class NeqConstraintVal extends ConstraintVal {
 declare class ReConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class FormatConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class MultipleConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -168,4 +173,4 @@ declare class LenConstraintVal extends ConstraintVal {
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, restCanon, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, restCanon, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, FormatConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };

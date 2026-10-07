@@ -13,6 +13,7 @@ export type SchemaImportReport = {
 };
 export type SchemaImportOptions = {
     defaults?: boolean;
+    formatAssertion?: boolean;
     documents?: Record<string, string>;
 };
 export declare const DEPRECATE_KEY = "x-aontu-deprecate";

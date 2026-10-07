@@ -1,0 +1,13 @@
+# bound 5
+#
+# The skip ledger of the vendored uritemplate-test (README.md): one line
+# per template that `uri-template` answers otherwise than the files, read
+# by ts/test/vectors.test.ts and go/vectors_test.go.
+# Columns: file<TAB>group<TAB>template<TAB>answer<TAB>reason, where answer
+# is valid or invalid. A listed template that answers as the files say
+# fails the run.
+negative-tests.json	Failure Tests	{!hello}	valid	an operator RFC 6570 reserves for future extensions: the grammar admits it, and an expander refuses it
+negative-tests.json	Failure Tests	{=path}	valid	an operator RFC 6570 reserves for future extensions: the grammar admits it, and an expander refuses it
+negative-tests.json	Failure Tests	{|var*}	valid	an operator RFC 6570 reserves for future extensions: the grammar admits it, and an expander refuses it
+negative-tests.json	Failure Tests	{keys:1}	valid	a prefix on a variable whose value is a map is an error of expansion, which the value decides and the syntax does not
+negative-tests.json	Failure Tests	{+keys:1}	valid	a prefix on a variable whose value is a map is an error of expansion, which the value decides and the syntax does not

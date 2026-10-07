@@ -838,6 +838,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             '{"type": "integer", "default": 1}}}');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--defaults', file]), 0)).out, 'schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & ' +
             '(*1|any) })\n');
+        Fs.writeFileSync(file, '{"type": "string", "format": "date"}');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format-assertion', file]), 0)).out, 'schema: hide(meta(empty() & format("date"), { format:"date" }))\n');
         // A reference into another document reads it from the set.
         const other = Path.join(dir, 'other.json');
         Fs.writeFileSync(other, '{"$defs": {"n": {"type": "integer"}}}');

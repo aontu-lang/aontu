@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -20,6 +20,7 @@ const StringVal_1 = require("./StringVal");
 const err_1 = require("../err");
 const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const strformat_1 = require("../strformat");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
 const RE_REPEAT_MAX = 1000;
@@ -340,6 +341,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.neqs = [];
         this.mults = [];
         this.res = [];
+        this.fmts = [];
         this.uniq = false;
         this.uniqBy = [];
         this.musts = [];
@@ -357,6 +359,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             // the pattern field; an absent one means "no patterns", not undefined.
             this.mults = spec.state.mults ?? [];
             this.res = spec.state.res ?? [];
+            this.fmts = spec.state.fmts ?? [];
             this.count = spec.state.count;
             this.uniq = spec.state.uniq ?? false;
             this.uniqBy = spec.state.uniqBy ?? [];
@@ -524,6 +527,18 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
             this.domain = 'string';
             this.res = [{ v: a, src, norm, re }];
+            return;
+        }
+        if ('format' === atom) {
+            if (!stringLeaf(a)) {
+                return bad('invalid-arg');
+            }
+            if (undefined === (0, strformat_1.formatCheck)(a.peg)) {
+                this.invalidWhy = JSON.stringify(a.peg);
+                return bad('format_unknown');
+            }
+            this.domain = 'string';
+            this.fmts = [a.peg];
             return;
         }
         if ('len' === atom) {
@@ -1053,6 +1068,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs]);
         merged.mults = dedupMults([...this.mults, ...peer.mults]);
         merged.res = dedupSortedRes([...this.res, ...peer.res]);
+        merged.fmts = [...new Set([...this.fmts, ...peer.fmts])].sort(keyorder_1.cmpCodePoint);
         // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
         // numeric algebra recursively, over the counts rather than the
         // values.
@@ -1104,6 +1120,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             neqs: [...this.neqs],
             mults: [...this.mults],
             res: [...this.res],
+            fmts: [...this.fmts],
             count: this.count,
             uniq: this.uniq,
             uniqBy: [...this.uniqBy],
@@ -1144,6 +1161,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.neqs = [...this.neqs];
         out.mults = [...this.mults];
         out.res = [...this.res];
+        out.fmts = [...this.fmts];
         out.count = this.count;
         out.uniq = this.uniq;
         out.uniqBy = [...this.uniqBy];
@@ -1291,7 +1309,8 @@ function canonState(s) {
     }
     else if ('string' === s.domain && (true === s.nonEmpty ||
         (null == s.lo && null == s.hi && 0 === s.neqs.length &&
-            0 === s.res.length && true !== s.emptyOk))) {
+            0 === s.res.length && 0 === s.fmts.length &&
+            true !== s.emptyOk))) {
         parts.push('string');
     }
     if (null != s.lo) {
@@ -1308,6 +1327,9 @@ function canonState(s) {
     }
     for (const r of s.res) {
         parts.push('re(' + r.v.canon + ')');
+    }
+    for (const f of s.fmts) {
+        parts.push('format(' + JSON.stringify(f) + ')');
     }
     if (null != s.count) {
         parts.push('len(' + canonState(s.count) + ')');
@@ -1416,6 +1438,9 @@ function constraintStateSubsumes(g, s) {
             return false;
         }
     }
+    if (g.fmts.some((f) => !s.fmts.includes(f))) {
+        return false;
+    }
     if (g.uniqBy.some((k) => !s.uniqBy.includes(k))) {
         return false;
     }
@@ -1504,6 +1529,11 @@ function stateAdmits(s, peer) {
             return false;
         }
     }
+    for (const f of s.fmts) {
+        if (!(0, strformat_1.formatCheck)(f)(peer.peg)) {
+            return false;
+        }
+    }
     return true;
 }
 function stateEmpty(s) {
@@ -1573,6 +1603,7 @@ function countBase() {
         neqs: [],
         mults: [],
         res: [],
+        fmts: [],
         musts: [],
         nofs: [],
         // A COUNT is a number, and a number has no members to be distinct.
@@ -1596,6 +1627,7 @@ function meetCount(a, b) {
         neqs: dedupSorted('number', [...a.neqs, ...b.neqs]),
         mults: [],
         res: [],
+        fmts: [],
         musts: [],
         nofs: [],
         uniq: false,
@@ -1610,15 +1642,16 @@ function countArgState(arg) {
             domain: 'number',
             lo: { v: arg, open: false },
             hi: { v: arg, open: false },
-            neqs: [], mults: [], res: [], musts: [], nofs: [], uniq: false,
-            uniqBy: [],
+            neqs: [], mults: [], res: [], fmts: [], musts: [], nofs: [],
+            uniq: false, uniqBy: [],
         };
     }
     if (true === arg?.isConstraint) {
         const c = arg;
         // A pattern, a divisor, a branch count, a sizing atom or a string
         // bound inside a count is not a count constraint, nor is a broken one.
-        if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
+        if (null != c.invalid || 0 < c.res.length || 0 < c.fmts.length ||
+            0 < c.mults.length || c.uniq ||
             0 < c.uniqBy.length || null != c.count || 0 < c.nofs.length ||
             0 < c.whens.length || 0 < c.contains.length || 0 < c.rests.length ||
             'number' !== c.domain) {
@@ -1630,22 +1663,23 @@ function countArgState(arg) {
             lo: c.lo,
             hi: c.hi,
             neqs: [...c.neqs],
-            mults: [], res: [], musts: [], nofs: [], uniq: false, uniqBy: [],
+            mults: [], res: [], fmts: [], musts: [], nofs: [], uniq: false,
+            uniqBy: [],
         };
     }
     if (true === arg?.isScalarKind) {
         const marker = arg.peg;
         if (Number === marker) {
             return {
-                domain: 'number', neqs: [], mults: [], res: [], musts: [], nofs: [],
-                uniq: false, uniqBy: [],
+                domain: 'number', neqs: [], mults: [], res: [], fmts: [], musts: [],
+                nofs: [], uniq: false, uniqBy: [],
             };
         }
         if (ScalarKindVal_1.Integer === marker || ScalarKindVal_1.Float === marker ||
             ScalarKindVal_1.BigInteger === marker || ScalarKindVal_1.BigDecimal === marker) {
             return {
                 domain: 'number', kind: marker, neqs: [], mults: [], res: [],
-                musts: [], nofs: [],
+                fmts: [], musts: [], nofs: [],
                 uniq: false, uniqBy: [],
             };
         }
@@ -1909,6 +1943,12 @@ class ReConstraintVal extends ConstraintVal {
     }
 }
 exports.ReConstraintVal = ReConstraintVal;
+class FormatConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'format' }, ctx);
+    }
+}
+exports.FormatConstraintVal = FormatConstraintVal;
 class MultipleConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'multiple' }, ctx);
@@ -1955,6 +1995,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 29 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

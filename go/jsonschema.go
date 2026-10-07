@@ -533,6 +533,17 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
+	for _, f := range c.fmts {
+		if 1 == len(c.fmts) {
+			out["format"] = f
+		} else {
+			schemaAllOf(out, map[string]any{"format": f})
+		}
+		sc.lose(path, "format", "the default dialect reads format "+
+			jsonString(f)+" as an annotation, so the schema admits a "+
+			"string the model refuses")
+	}
+
 	if nil != c.count {
 		kind := ""
 		switch bag.(type) {
@@ -2029,7 +2040,7 @@ func schemaKeyGuard(t Val) *schemaGuard {
 func schemaLonePattern(v Val) (string, bool) {
 	c, ok := v.(*ConstraintVal)
 	if !ok || 1 != len(c.res) || KindTop != c.kind || nil != c.lo || nil != c.hi ||
-		0 < len(c.neqs) || nil != c.count || 0 < len(c.musts) {
+		0 < len(c.neqs) || nil != c.count || 0 < len(c.musts) || 0 < len(c.fmts) {
 		return "", false
 	}
 	return c.res[0].norm, true

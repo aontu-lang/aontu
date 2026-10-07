@@ -54,9 +54,10 @@ const hints = {
         '  *{a: 1}      -> *{"a":1}  # ... or brace the bag to prefer it whole;\n' +
         '  *{x:1}|*{y:2} -> *{"x":1}|*{"y":2}  # which is what disjunction needs.',
     constraint: 'This value does not satisfy the constraint. A constraint is the\n' +
-        'meet of bound atoms (min, max, above, below), exclusions (neq)\n' +
-        'and divisors (multiple) over one domain; the expected form shown\n' +
-        'is the normalised residual the value must satisfy.' +
+        'meet of bound atoms (min, max, above, below), exclusions (neq),\n' +
+        'divisors (multiple), patterns (re) and formats (format) over one\n' +
+        'domain; the expected form shown is the normalised residual the\n' +
+        'value must satisfy.' +
         '\n \nExamples:\n' +
         '  min(0) & 3                    -> 3    # Admitted (3 >= 0);\n' +
         '  min(0) & 0d5                  -> 0d5  # Bounds are leaf-agnostic;\n' +
@@ -65,7 +66,8 @@ const hints = {
         '  integer & above(1) & below(2) -> nil  # No integer in the gap;\n' +
         '  neq(1) & 1.0                  -> 1.0  # neq excludes leaf AND value.\n' +
         '  multiple(0.1) & 0.3           -> 0.3  # A float divides as written.\n' +
-        '  re("^a") & "abc"              -> "abc" # Patterns are unanchored.',
+        '  re("^a") & "abc"              -> "abc" # Patterns are unanchored.\n' +
+        '  format("date") & "2026-02-30" -> nil  # No such day.',
     must: 'This value fails an evaluate-only check written with must().\n' +
         'The author\'s message is: {message}' +
         '\n \n' +
@@ -154,6 +156,16 @@ const hints = {
         ' \n' +
         'A failure to parse is a failure to unify, so the field is\n' +
         'refused rather than set to a value meaning "no".',
+    format_unknown: 'format() names a string format with no checker: {reason}. The\n' +
+        'formats it checks, each as JSON Schema 2020-12 and its RFC define\n' +
+        'it, are date, time, date-time, duration, email, idn-email,\n' +
+        'hostname, idn-hostname, ipv4, ipv6, json-pointer,\n' +
+        'relative-json-pointer, uri, uri-reference, iri, iri-reference,\n' +
+        'uri-template and uuid.' +
+        '\n \nExamples:\n' +
+        '  format("date") & "2026-10-07"  -> "2026-10-07"  # A date;\n' +
+        '  format("date") & "2026-02-30"  -> nil           # No such day;\n' +
+        '  format("zip") & "12345"        -> nil           # Unknown.',
     constraint_pattern: 'This re() pattern is outside the supported subset. It uses\n' +
         '{reason}.\n' +
         ' \n' +
@@ -825,6 +837,7 @@ const codeClasses = {
     contains: 'conflict',
     rest: 'conflict',
     constraint_pattern: 'conflict',
+    format_unknown: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',
     parse_failed: 'conflict',

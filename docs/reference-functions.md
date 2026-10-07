@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 70 built-in functions and no user-defined ones. The name set
+aontu has 71 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,9 +217,9 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 60 of the 70 names, and 49 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 51 of the 70 use no
-mode but `value`, and 19 carry at least one slot in another mode.
+in 60 of the 71 names, and 49 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 51 of the 71 use no
+mode but `value`, and 20 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
@@ -261,23 +261,26 @@ with the slot, and where the semantics are specified:
   [Band B: `contains`](reference-language.md#band-b-contains),
   [Band B: `rest`](reference-language.md#band-b-rest), and
   [Sizing atoms fold last](reference-language.md#sizing-atoms-fold-last).
-- `text`, four slots in three names: `re`'s pattern, `must`'s message,
-  and `rep`'s pattern and substitution. The slot settles to a string
-  like any other, and the settled string is then read as text in another
-  notation rather than compared as a value.
+- `text`, five slots in four names: `re`'s pattern, `format`'s name,
+  `must`'s message, and `rep`'s pattern and substitution. The slot
+  settles to a string like any other, and the settled string is then
+  read as text in another notation rather than compared as a value.
   [`re` and the portable pattern
-  subset](reference-language.md#re-and-the-portable-pattern-subset) and
+  subset](reference-language.md#re-and-the-portable-pattern-subset),
+  [`format` and the string
+  formats](reference-language.md#format-and-the-string-formats) and
   [`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub).
 - `capture`, one slot, `path`'s. The slot is read for its spelling and
   its value is never asked for, which is the one argument position the
   evaluator does not drive.
   [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Five non-value slots answer a code of their own rather than
+Six non-value slots answer a code of their own rather than
 `invalid-arg`:
 
 | name | slot | mode | code |
 |---|---|---|---|
+| `format` | `name` | `text` | `format_unknown` |
 | `inverse` | `k` | `projector` | `inverse_name` |
 | `path` | `p` | `capture` | `path_address` |
 | `re` | `p` | `text` | `constraint_pattern` |
@@ -326,6 +329,7 @@ documentation page and fails on a difference of one space.
 | `file(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `filter(d: map\|list, trial c: any) : map\|list` | `2` | `value`, `trial` | `map\|list` |
 | `folder(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
+| `format(text name: string) : constraint` | `1` | `text` | `constraint` |
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
@@ -386,7 +390,7 @@ were given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 70 names, cut by result word, by rest slot, and by optional
+The same 71 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -395,7 +399,7 @@ The ten result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `identity`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
+| `constraint` | 20 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -405,7 +409,7 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the nineteen that answer `constraint`, including which
+The algebra of the twenty that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written

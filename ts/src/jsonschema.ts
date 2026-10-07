@@ -457,6 +457,18 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: any): any {
     }
   }
 
+  for (const f of c.fmts) {
+    if (1 === c.fmts.length) {
+      out.format = f
+    }
+    else {
+      allOf(out, { format: f })
+    }
+    lose(ctx, path, 'format', 'the default dialect reads format ' +
+      JSON.stringify(f) + ' as an annotation, so the schema admits a ' +
+      'string the model refuses')
+  }
+
   if (null != c.count) {
     count(ctx, path, out, c.count,
       'string' === c.domain ? 'string' :
@@ -1609,7 +1621,7 @@ function keyGuard(t: any): Guard | undefined {
 function lonePattern(c: any): string | undefined {
   return true === c?.isConstraint && 1 === c.res.length && null == c.kind &&
     null == c.lo && null == c.hi && 0 === c.neqs.length && null == c.count &&
-    0 === c.musts.length ? c.res[0].norm : undefined
+    0 === c.musts.length && 0 === c.fmts.length ? c.res[0].norm : undefined
 }
 
 

@@ -215,8 +215,11 @@ each in a directory of its own with its upstream licence unchanged
 and a README naming the upstream URL and the pinned commit:
 [JSON-Schema-Test-Suite](../../test/vectors/jsonschema/README.md),
 with its annotations suite,
-[Ajv's extras](../../test/vectors/ajv-extras/README.md) and
-[JSONTestSuite](../../test/vectors/jsontestsuite/README.md).
+[Ajv's extras](../../test/vectors/ajv-extras/README.md),
+[JSONTestSuite](../../test/vectors/jsontestsuite/README.md),
+[UTS #46's conformance file](../../test/vectors/idna/README.md),
+[isemail's tests](../../test/vectors/isemail/README.md) and
+[uritemplate-test](../../test/vectors/uritemplate-test/README.md).
 [`ts/test/vectors.test.ts`](../../ts/test/vectors.test.ts) and
 [`go/vectors_test.go`](../../go/vectors_test.go) run all of them
 inside `make test`.
@@ -227,7 +230,7 @@ the import does not yet give all of them. Each corpus therefore
 carries a **skip ledger**, `skips.tsv`, which lists every answer that
 is not the corpus's own: with the construct the import lost and the
 phase that carries it for the JSON Schema corpora, and with the reason
-for JSONTestSuite. The annotations suite keeps its own,
+for the others. The annotations suite keeps its own,
 `annotation-skips.tsv`, one line per assertion. Both runners read the same ledger, so the ledger is
 the parity check: an answer the ports give differently fails one of
 them.
@@ -240,7 +243,9 @@ The rules that keep a ledger honest:
 - a JSON Schema line names exactly what the import reports for its
   group, so a line cannot outlive the loss it was written for;
 - each ledger states a bound on its first line, and the phase that
-  clears lines lowers the bound in the same commit.
+  clears lines lowers the bound in the same commit; a commit that
+  vendors more of a corpus raises it by exactly the lines the new
+  files add.
 
 Evaluation must agree with `vet` on every test the import answers,
 with the import and the instance as one document, as in

@@ -222,6 +222,12 @@ func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
 		t.Fatalf("--defaults = %d: %q", code, out)
 	}
 
+	date := jsonSchemaImportFile(t, []byte(`{"type": "string", "format": "date"}`))
+	if out, _, code := jsonSchemaRun("import", "--format-assertion", date); 0 != code ||
+		"schema: hide(meta(empty() & format(\"date\"), { format:\"date\" }))\n" != out {
+		t.Fatalf("--format-assertion = %d: %q", code, out)
+	}
+
 	// A reference into another document reads it from the set.
 	other := jsonSchemaImportFile(t, []byte(`{"$defs": {"n": {"type": "integer"}}}`))
 	main := jsonSchemaImportFile(t, []byte(`{"$ref": "http://e.com/other.json#/$defs/n"}`))

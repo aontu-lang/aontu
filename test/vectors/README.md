@@ -37,4 +37,9 @@ and a skip ledger both ports read
 - [`ajv-extras/`](ajv-extras/README.md): Ajv's tests in the suite's
   shape;
 - [`jsontestsuite/`](jsontestsuite/README.md): JSONTestSuite's RFC 8259
-  parser cases.
+  parser cases;
+- [`idna/`](idna/README.md): UTS #46's conformance file and the Unicode
+  16.0.0 files the IDNA table is checked against;
+- [`isemail/`](isemail/README.md): the isemail address tests;
+- [`uritemplate-test/`](uritemplate-test/README.md): the RFC 6570
+  template tests.

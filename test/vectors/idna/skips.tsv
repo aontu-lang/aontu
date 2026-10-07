@@ -1,0 +1,8 @@
+# bound 0
+#
+# The skip ledger of the vendored IdnaTestV2.txt (README.md): one line
+# per line of the file that `idn-hostname` answers otherwise than the
+# file does, read by ts/test/vectors.test.ts and go/vectors_test.go.
+# Columns: source<TAB>answer<TAB>reason, where source is the line's
+# first column as the file writes it and answer is valid or invalid.
+# A listed line that answers as the file says fails the run.

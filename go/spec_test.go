@@ -616,7 +616,8 @@ func TestSpec(t *testing.T) {
 						}
 					}
 					r := New().ImportJSONSchemaWith(src, JSONSchemaImportOptions{
-						Defaults: true == options["defaults"], Documents: docs})
+						Defaults:        true == options["defaults"],
+						FormatAssertion: true == options["formatAssertion"], Documents: docs})
 					out := map[string]any{
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
 						"source":  r.Source,

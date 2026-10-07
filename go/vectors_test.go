@@ -135,9 +135,11 @@ func vectorSuiteProblems(t *testing.T, root string, ledger vectorLedger,
 		if err := json.Unmarshal(raw, &groups); nil != err {
 			t.Fatalf("%s: %v", file, err)
 		}
+		// The suite's optional/format/ asks for format as an assertion.
+		asserts := strings.Contains(file, "optional/format/")
 		for _, g := range groups {
 			report := New().ImportJSONSchemaWith(string(g.Schema),
-				JSONSchemaImportOptions{Documents: documents})
+				JSONSchemaImportOptions{Documents: documents, FormatAssertion: asserts})
 			account := vectorLost(report)
 			if "error" == report.Verdict {
 				account = report.Errors[0].Code
@@ -489,5 +491,275 @@ func TestVectorsJSONTestSuite(t *testing.T) {
 	if 0 < len(problems) {
 		sort.Strings(problems)
 		t.Fatalf("%d problem(s):\n%s", len(problems), strings.Join(problems, "\n"))
+	}
+}
+
+type vectorAnswer struct{ key, own, answer string }
+
+// vectorAnswerProblems: each case's answer against a ledger of the
+// answers that are not the corpus's own.
+func vectorAnswerProblems(t *testing.T, ledger vectorLedger, cases []vectorAnswer) []string {
+	t.Helper()
+	problems := []string{}
+	seen := map[string]bool{}
+	for _, c := range cases {
+		if seen[c.key] {
+			t.Fatalf("a case named twice: %s", c.key)
+		}
+		seen[c.key] = true
+		listed, has := ledger.lines[c.key]
+		switch {
+		case !has && c.answer != c.own:
+			problems = append(problems, "answers "+c.answer+" and is not listed: "+c.key)
+		case has && listed[0] != c.answer:
+			problems = append(problems, "listed as "+listed[0]+", but answers "+c.answer+": "+c.key)
+		case has && c.answer == c.own:
+			problems = append(problems, "listed, but answers as the corpus says: "+c.key)
+		}
+	}
+	for key := range ledger.lines {
+		if !seen[key] {
+			problems = append(problems, "listed, but names no case: "+key)
+		}
+	}
+	if ledger.bound < len(ledger.lines) {
+		problems = append(problems, strconv.Itoa(len(ledger.lines))+
+			" lines, past the bound of "+strconv.Itoa(ledger.bound))
+	}
+	sort.Strings(problems)
+	return problems
+}
+
+type vectorUCDRow struct {
+	lo, hi rune
+	cells  []string
+}
+
+// vectorUCDRows: the ranges of a Unicode data file, each with its fields.
+func vectorUCDRows(t *testing.T, file string) []vectorUCDRow {
+	t.Helper()
+	raw, err := os.ReadFile(file)
+	if nil != err {
+		t.Fatalf("cannot read %s: %v", file, err)
+	}
+	out := []vectorUCDRow{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		if "" == line {
+			continue
+		}
+		cells := strings.Split(line, ";")
+		for i := range cells {
+			cells[i] = strings.TrimSpace(cells[i])
+		}
+		lo, hi, isRange := strings.Cut(cells[0], "..")
+		if !isRange {
+			hi = lo
+		}
+		out = append(out, vectorUCDRow{idnaHex(lo), idnaHex(hi), cells})
+	}
+	return out
+}
+
+func vectorValid(ok bool) string {
+	if ok {
+		return "valid"
+	}
+	return "invalid"
+}
+
+var vectorIdnaEscape = regexp.MustCompile(`\\u([0-9A-Fa-f]{4})`)
+
+// vectorIdnaCell: a cell of IdnaTestV2.txt as text, false where it
+// escapes a lone surrogate, which no Go string can hold.
+func vectorIdnaCell(cell, blank string) (string, bool) {
+	if "" == cell {
+		return blank, true
+	}
+	if `""` == cell {
+		return "", true
+	}
+	lone := false
+	text := vectorIdnaEscape.ReplaceAllStringFunc(cell, func(m string) string {
+		c := idnaHex(m[2:])
+		lone = lone || (0xd800 <= c && c <= 0xdfff)
+		return string(c)
+	})
+	return text, !lone
+}
+
+func TestVectorsIdnaTestV2(t *testing.T) {
+	dir := filepath.Join(vectorsDir, "idna")
+	strict := map[rune]bool{}
+	for _, r := range vectorUCDRows(t, filepath.Join(dir, "IdnaMappingTable.txt")) {
+		if 3 < len(r.cells) && ("NV8" == r.cells[3] || "XV8" == r.cells[3]) {
+			for c := r.lo; c <= r.hi; c++ {
+				strict[c] = true
+			}
+		}
+	}
+	check := formatCheck("idn-hostname")
+	raw, _ := os.ReadFile(filepath.Join(dir, "IdnaTestV2.txt"))
+	cases := []vectorAnswer{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		cell := strings.Split(strings.SplitN(line, "#", 2)[0], ";")
+		for i := range cell {
+			cell[i] = strings.TrimSpace(cell[i])
+		}
+		src, ok := vectorIdnaCell(cell[0], "")
+		if len(cell) < 5 || !ok {
+			continue
+		}
+		uni, _ := vectorIdnaCell(cell[1], src)
+		status := cell[4]
+		if "" == status {
+			status = cell[2]
+		}
+		own := "" == status || "[]" == status
+		for _, c := range uni {
+			own = own && !strict[c]
+		}
+		cases = append(cases, vectorAnswer{cell[0], vectorValid(own), vectorValid(check(src))})
+	}
+	if 6387 != len(cases) {
+		t.Fatalf("%d lines read", len(cases))
+	}
+	if p := vectorAnswerProblems(t, readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 1), cases); 0 < len(p) {
+		t.Fatalf("%d problem(s):\n%s", len(p), strings.Join(p, "\n"))
+	}
+}
+
+func TestVectorsIdnaTable(t *testing.T) {
+	dir := filepath.Join(vectorsDir, "idna")
+	hexes := func(s string) string {
+		out := []string{}
+		for _, h := range strings.Fields(s) {
+			out = append(out, strconv.Itoa(int(idnaHex(h))))
+		}
+		return strings.Join(out, " ")
+	}
+	want := make([]string, 0x110000)
+	for _, r := range vectorUCDRows(t, filepath.Join(dir, "IdnaMappingTable.txt")) {
+		st := map[string]string{"valid": "V", "deviation": "V", "ignored": "I", "mapped": "M"}[r.cells[1]]
+		for c := r.lo; c <= r.hi && "" != st; c++ {
+			want[c] = st
+			if "M" == st {
+				want[c] = "M " + hexes(r.cells[2])
+			}
+		}
+	}
+	for _, r := range vectorUCDRows(t, filepath.Join(dir, "Idna2008-16.0.0.txt")) {
+		cat := map[string]string{"PVALID": "P", "CONTEXTJ": "J", "CONTEXTO": "O"}[r.cells[1]]
+		for c := r.lo; c <= r.hi && "" != cat; c++ {
+			want[c] += "|" + cat
+		}
+	}
+	got := make([]string, 0x110000)
+	raw, _ := os.ReadFile(filepath.Join(vectorsDir, "..", "spec", "files", "idna.txt"))
+	section := ""
+	for _, line := range strings.Split(string(raw), "\n") {
+		if strings.HasPrefix(line, "@") {
+			section = line[1:strings.Index(line, " ")]
+			continue
+		}
+		f := strings.Fields(line)
+		if 2 > len(f) || strings.HasPrefix(line, "#") {
+			continue
+		}
+		lo, hi, isRange := strings.Cut(f[0], "-")
+		if !isRange {
+			hi = lo
+		}
+		for c := idnaHex(lo); c <= idnaHex(hi); c++ {
+			switch section {
+			case "status":
+				got[c] = f[1]
+			case "mapping":
+				got[c] = "M " + hexes(strings.Join(f[1:], " "))
+			case "category":
+				got[c] += "|" + f[1]
+			}
+		}
+	}
+	differ := []string{}
+	for c := range want {
+		if want[c] != got[c] && len(differ) < 5 {
+			differ = append(differ, strconv.FormatInt(int64(c), 16))
+		}
+	}
+	if 0 < len(differ) {
+		t.Fatalf("the table and the vendored files differ at %v", differ)
+	}
+}
+
+var (
+	vectorIsemailTest   = regexp.MustCompile(`(?s)<test id="(\d+)">(.*?)</test>`)
+	vectorIsemailAddr   = regexp.MustCompile(`(?s)<address>(.*?)</address>`)
+	vectorIsemailCat    = regexp.MustCompile(`<category>([^<]*)</category>`)
+	vectorIsemailEntity = regexp.MustCompile(`&#x([0-9A-Fa-f]+);|&(lt|gt|amp|quot|apos);`)
+)
+
+func TestVectorsIsemail(t *testing.T) {
+	dir := filepath.Join(vectorsDir, "isemail")
+	raw, _ := os.ReadFile(filepath.Join(dir, "tests.xml"))
+	email := formatCheck("email")
+	cases := []vectorAnswer{}
+	for _, m := range vectorIsemailTest.FindAllStringSubmatch(string(raw), -1) {
+		address := ""
+		if at := vectorIsemailAddr.FindStringSubmatch(m[2]); nil != at {
+			address = vectorIsemailEntity.ReplaceAllStringFunc(at[1], func(e string) string {
+				if strings.HasPrefix(e, "&#x") {
+					return string(idnaHex(e[3 : len(e)-1]))
+				}
+				return map[string]string{"&lt;": "<", "&gt;": ">", "&amp;": "&", "&quot;": `"`, "&apos;": "'"}[e]
+			})
+		}
+		var b strings.Builder
+		for _, c := range address {
+			if 0x2400 <= c && c <= 0x241f {
+				c -= 0x2400
+			}
+			b.WriteRune(c)
+		}
+		category := vectorIsemailCat.FindStringSubmatch(m[2])[1]
+		own := "ISEMAIL_VALID_CATEGORY" == category || "ISEMAIL_DNSWARN" == category ||
+			"ISEMAIL_RFC5321" == category
+		cases = append(cases, vectorAnswer{m[1], vectorValid(own), vectorValid(email(b.String()))})
+	}
+	if 164 != len(cases) {
+		t.Fatalf("%d tests read", len(cases))
+	}
+	if p := vectorAnswerProblems(t, readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 1), cases); 0 < len(p) {
+		t.Fatalf("%d problem(s):\n%s", len(p), strings.Join(p, "\n"))
+	}
+}
+
+func TestVectorsURITemplateTest(t *testing.T) {
+	dir := filepath.Join(vectorsDir, "uritemplate-test")
+	check := formatCheck("uri-template")
+	cases := []vectorAnswer{}
+	for _, file := range []string{"spec-examples.json", "spec-examples-by-section.json",
+		"extended-tests.json", "negative-tests.json"} {
+		raw, _ := os.ReadFile(filepath.Join(dir, file))
+		var groups map[string]struct {
+			Testcases [][]json.RawMessage `json:"testcases"`
+		}
+		if err := json.Unmarshal(raw, &groups); nil != err {
+			t.Fatalf("%s: %v", file, err)
+		}
+		for group, g := range groups {
+			for _, tc := range g.Testcases {
+				var template string
+				_ = json.Unmarshal(tc[0], &template)
+				cases = append(cases, vectorAnswer{file + "\t" + group + "\t" + template,
+					vectorValid("false" != string(tc[1])), vectorValid(check(template))})
+			}
+		}
+	}
+	if 270 != len(cases) {
+		t.Fatalf("%d templates read", len(cases))
+	}
+	if p := vectorAnswerProblems(t, readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 3), cases); 0 < len(p) {
+		t.Fatalf("%d problem(s):\n%s", len(p), strings.Join(p, "\n"))
 	}
 }

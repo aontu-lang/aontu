@@ -12,7 +12,7 @@
 # suite (ADR-001).
 #
 # Every row's expectation was PROBED through both engines and compared
-# byte-for-byte before being pinned; all 484 agreed. The atom
+# byte-for-byte before being pinned; all 576 agreed. The atom
 # vocabulary is shared, one entry per line, in
 # test/spec/files/constraint-atoms.txt -- both law tests read it, so
 # the lists cannot drift apart.
@@ -45,6 +45,8 @@ product-min0-nof1integerstring	canon	x: min(0) & nof(1,integer,string)	{"x":min(
 product-min0-whenintegermin0	canon	x: min(0) & when(integer,min(0))	{"x":min(0)&when(integer,min(0))}
 product-min0-containsinteger	canon	x: min(0) & contains(integer)	{"x":min(0)&contains(integer,integer&min(1))}
 product-min0-restinteger	canon	x: min(0) & rest(integer)	{"x":min(0)&rest(integer)}
+product-min0-formatdate	errc	x: min(0) & format("date")	constraint
+product-min0-formaturi	errc	x: min(0) & format("uri")	constraint
 product-min5-min0	canon	x: min(5) & min(0)	{"x":min(5)}
 product-min5-min5	canon	x: min(5) & min(5)	{"x":min(5)}
 product-min5-mina	errc	x: min(5) & min("a")	constraint
@@ -67,6 +69,8 @@ product-min5-nof1integerstring	canon	x: min(5) & nof(1,integer,string)	{"x":min(
 product-min5-whenintegermin0	canon	x: min(5) & when(integer,min(0))	{"x":min(5)&when(integer,min(0))}
 product-min5-containsinteger	canon	x: min(5) & contains(integer)	{"x":min(5)&contains(integer,integer&min(1))}
 product-min5-restinteger	canon	x: min(5) & rest(integer)	{"x":min(5)&rest(integer)}
+product-min5-formatdate	errc	x: min(5) & format("date")	constraint
+product-min5-formaturi	errc	x: min(5) & format("uri")	constraint
 product-mina-min0	errc	x: min("a") & min(0)	constraint
 product-mina-min5	errc	x: min("a") & min(5)	constraint
 product-mina-mina	canon	x: min("a") & min("a")	{"x":min("a")}
@@ -89,6 +93,8 @@ product-mina-nof1integerstring	canon	x: min("a") & nof(1,integer,string)	{"x":mi
 product-mina-whenintegermin0	canon	x: min("a") & when(integer,min(0))	{"x":min("a")&when(integer,min(0))}
 product-mina-containsinteger	canon	x: min("a") & contains(integer)	{"x":min("a")&contains(integer,integer&min(1))}
 product-mina-restinteger	canon	x: min("a") & rest(integer)	{"x":min("a")&rest(integer)}
+product-mina-formatdate	canon	x: min("a") & format("date")	{"x":min("a")&format("date")}
+product-mina-formaturi	canon	x: min("a") & format("uri")	{"x":min("a")&format("uri")}
 product-max3-min0	canon	x: max(3) & min(0)	{"x":min(0)&max(3)}
 product-max3-min5	errc	x: max(3) & min(5)	constraint
 product-max3-mina	errc	x: max(3) & min("a")	constraint
@@ -111,6 +117,8 @@ product-max3-nof1integerstring	canon	x: max(3) & nof(1,integer,string)	{"x":max(
 product-max3-whenintegermin0	canon	x: max(3) & when(integer,min(0))	{"x":max(3)&when(integer,min(0))}
 product-max3-containsinteger	canon	x: max(3) & contains(integer)	{"x":max(3)&contains(integer,integer&min(1))}
 product-max3-restinteger	canon	x: max(3) & rest(integer)	{"x":max(3)&rest(integer)}
+product-max3-formatdate	errc	x: max(3) & format("date")	constraint
+product-max3-formaturi	errc	x: max(3) & format("uri")	constraint
 product-max10-min0	canon	x: max(10) & min(0)	{"x":min(0)&max(10)}
 product-max10-min5	canon	x: max(10) & min(5)	{"x":min(5)&max(10)}
 product-max10-mina	errc	x: max(10) & min("a")	constraint
@@ -133,6 +141,8 @@ product-max10-nof1integerstring	canon	x: max(10) & nof(1,integer,string)	{"x":ma
 product-max10-whenintegermin0	canon	x: max(10) & when(integer,min(0))	{"x":max(10)&when(integer,min(0))}
 product-max10-containsinteger	canon	x: max(10) & contains(integer)	{"x":max(10)&contains(integer,integer&min(1))}
 product-max10-restinteger	canon	x: max(10) & rest(integer)	{"x":max(10)&rest(integer)}
+product-max10-formatdate	errc	x: max(10) & format("date")	constraint
+product-max10-formaturi	errc	x: max(10) & format("uri")	constraint
 product-maxz-min0	errc	x: max("z") & min(0)	constraint
 product-maxz-min5	errc	x: max("z") & min(5)	constraint
 product-maxz-mina	canon	x: max("z") & min("a")	{"x":min("a")&max("z")}
@@ -155,6 +165,8 @@ product-maxz-nof1integerstring	canon	x: max("z") & nof(1,integer,string)	{"x":ma
 product-maxz-whenintegermin0	canon	x: max("z") & when(integer,min(0))	{"x":max("z")&when(integer,min(0))}
 product-maxz-containsinteger	canon	x: max("z") & contains(integer)	{"x":max("z")&contains(integer,integer&min(1))}
 product-maxz-restinteger	canon	x: max("z") & rest(integer)	{"x":max("z")&rest(integer)}
+product-maxz-formatdate	canon	x: max("z") & format("date")	{"x":max("z")&format("date")}
+product-maxz-formaturi	canon	x: max("z") & format("uri")	{"x":max("z")&format("uri")}
 product-above1-min0	canon	x: above(1) & min(0)	{"x":above(1)}
 product-above1-min5	canon	x: above(1) & min(5)	{"x":min(5)}
 product-above1-mina	errc	x: above(1) & min("a")	constraint
@@ -177,6 +189,8 @@ product-above1-nof1integerstring	canon	x: above(1) & nof(1,integer,string)	{"x":
 product-above1-whenintegermin0	canon	x: above(1) & when(integer,min(0))	{"x":above(1)&when(integer,min(0))}
 product-above1-containsinteger	canon	x: above(1) & contains(integer)	{"x":above(1)&contains(integer,integer&min(1))}
 product-above1-restinteger	canon	x: above(1) & rest(integer)	{"x":above(1)&rest(integer)}
+product-above1-formatdate	errc	x: above(1) & format("date")	constraint
+product-above1-formaturi	errc	x: above(1) & format("uri")	constraint
 product-below2-min0	canon	x: below(2) & min(0)	{"x":min(0)&below(2)}
 product-below2-min5	errc	x: below(2) & min(5)	constraint
 product-below2-mina	errc	x: below(2) & min("a")	constraint
@@ -199,6 +213,8 @@ product-below2-nof1integerstring	canon	x: below(2) & nof(1,integer,string)	{"x":
 product-below2-whenintegermin0	canon	x: below(2) & when(integer,min(0))	{"x":below(2)&when(integer,min(0))}
 product-below2-containsinteger	canon	x: below(2) & contains(integer)	{"x":below(2)&contains(integer,integer&min(1))}
 product-below2-restinteger	canon	x: below(2) & rest(integer)	{"x":below(2)&rest(integer)}
+product-below2-formatdate	errc	x: below(2) & format("date")	constraint
+product-below2-formaturi	errc	x: below(2) & format("uri")	constraint
 product-neq1-min0	canon	x: neq(1) & min(0)	{"x":min(0)&neq(1)}
 product-neq1-min5	canon	x: neq(1) & min(5)	{"x":min(5)&neq(1)}
 product-neq1-mina	errc	x: neq(1) & min("a")	constraint
@@ -221,6 +237,8 @@ product-neq1-nof1integerstring	canon	x: neq(1) & nof(1,integer,string)	{"x":neq(
 product-neq1-whenintegermin0	canon	x: neq(1) & when(integer,min(0))	{"x":neq(1)&when(integer,min(0))}
 product-neq1-containsinteger	canon	x: neq(1) & contains(integer)	{"x":neq(1)&contains(integer,integer&min(1))}
 product-neq1-restinteger	canon	x: neq(1) & rest(integer)	{"x":neq(1)&rest(integer)}
+product-neq1-formatdate	errc	x: neq(1) & format("date")	constraint
+product-neq1-formaturi	errc	x: neq(1) & format("uri")	constraint
 product-neq12-min0	canon	x: neq(1,2) & min(0)	{"x":min(0)&neq(1,2)}
 product-neq12-min5	canon	x: neq(1,2) & min(5)	{"x":min(5)&neq(1,2)}
 product-neq12-mina	errc	x: neq(1,2) & min("a")	constraint
@@ -243,6 +261,8 @@ product-neq12-nof1integerstring	canon	x: neq(1,2) & nof(1,integer,string)	{"x":n
 product-neq12-whenintegermin0	canon	x: neq(1,2) & when(integer,min(0))	{"x":neq(1,2)&when(integer,min(0))}
 product-neq12-containsinteger	canon	x: neq(1,2) & contains(integer)	{"x":neq(1,2)&contains(integer,integer&min(1))}
 product-neq12-restinteger	canon	x: neq(1,2) & rest(integer)	{"x":neq(1,2)&rest(integer)}
+product-neq12-formatdate	errc	x: neq(1,2) & format("date")	constraint
+product-neq12-formaturi	errc	x: neq(1,2) & format("uri")	constraint
 product-neqa-min0	errc	x: neq("a") & min(0)	constraint
 product-neqa-min5	errc	x: neq("a") & min(5)	constraint
 product-neqa-mina	canon	x: neq("a") & min("a")	{"x":min("a")&neq("a")}
@@ -265,6 +285,8 @@ product-neqa-nof1integerstring	canon	x: neq("a") & nof(1,integer,string)	{"x":ne
 product-neqa-whenintegermin0	canon	x: neq("a") & when(integer,min(0))	{"x":neq("a")&when(integer,min(0))}
 product-neqa-containsinteger	canon	x: neq("a") & contains(integer)	{"x":neq("a")&contains(integer,integer&min(1))}
 product-neqa-restinteger	canon	x: neq("a") & rest(integer)	{"x":neq("a")&rest(integer)}
+product-neqa-formatdate	canon	x: neq("a") & format("date")	{"x":neq("a")&format("date")}
+product-neqa-formaturi	canon	x: neq("a") & format("uri")	{"x":neq("a")&format("uri")}
 product-multiple2-min0	canon	x: multiple(2) & min(0)	{"x":min(0)&multiple(2)}
 product-multiple2-min5	canon	x: multiple(2) & min(5)	{"x":min(5)&multiple(2)}
 product-multiple2-mina	errc	x: multiple(2) & min("a")	constraint
@@ -287,6 +309,8 @@ product-multiple2-nof1integerstring	canon	x: multiple(2) & nof(1,integer,string)
 product-multiple2-whenintegermin0	canon	x: multiple(2) & when(integer,min(0))	{"x":multiple(2)&when(integer,min(0))}
 product-multiple2-containsinteger	canon	x: multiple(2) & contains(integer)	{"x":multiple(2)&contains(integer,integer&min(1))}
 product-multiple2-restinteger	canon	x: multiple(2) & rest(integer)	{"x":multiple(2)&rest(integer)}
+product-multiple2-formatdate	errc	x: multiple(2) & format("date")	constraint
+product-multiple2-formaturi	errc	x: multiple(2) & format("uri")	constraint
 product-multiple05-min0	canon	x: multiple(0.5) & min(0)	{"x":min(0)&multiple(0.5)}
 product-multiple05-min5	canon	x: multiple(0.5) & min(5)	{"x":min(5)&multiple(0.5)}
 product-multiple05-mina	errc	x: multiple(0.5) & min("a")	constraint
@@ -309,6 +333,8 @@ product-multiple05-nof1integerstring	canon	x: multiple(0.5) & nof(1,integer,stri
 product-multiple05-whenintegermin0	canon	x: multiple(0.5) & when(integer,min(0))	{"x":multiple(0.5)&when(integer,min(0))}
 product-multiple05-containsinteger	canon	x: multiple(0.5) & contains(integer)	{"x":multiple(0.5)&contains(integer,integer&min(1))}
 product-multiple05-restinteger	canon	x: multiple(0.5) & rest(integer)	{"x":multiple(0.5)&rest(integer)}
+product-multiple05-formatdate	errc	x: multiple(0.5) & format("date")	constraint
+product-multiple05-formaturi	errc	x: multiple(0.5) & format("uri")	constraint
 product-integer-min0	canon	x: integer & min(0)	{"x":integer&min(0)}
 product-integer-min5	canon	x: integer & min(5)	{"x":integer&min(5)}
 product-integer-mina	errc	x: integer & min("a")	constraint
@@ -331,6 +357,8 @@ product-integer-nof1integerstring	canon	x: integer & nof(1,integer,string)	{"x":
 product-integer-whenintegermin0	canon	x: integer & when(integer,min(0))	{"x":integer&when(integer,min(0))}
 product-integer-containsinteger	canon	x: integer & contains(integer)	{"x":integer&contains(integer,integer&min(1))}
 product-integer-restinteger	canon	x: integer & rest(integer)	{"x":integer&rest(integer)}
+product-integer-formatdate	errc	x: integer & format("date")	constraint
+product-integer-formaturi	errc	x: integer & format("uri")	constraint
 product-number-min0	canon	x: number & min(0)	{"x":min(0)}
 product-number-min5	canon	x: number & min(5)	{"x":min(5)}
 product-number-mina	errc	x: number & min("a")	constraint
@@ -353,6 +381,8 @@ product-number-nof1integerstring	canon	x: number & nof(1,integer,string)	{"x":nu
 product-number-whenintegermin0	canon	x: number & when(integer,min(0))	{"x":number&when(integer,min(0))}
 product-number-containsinteger	canon	x: number & contains(integer)	{"x":number&contains(integer,integer&min(1))}
 product-number-restinteger	canon	x: number & rest(integer)	{"x":number&rest(integer)}
+product-number-formatdate	errc	x: number & format("date")	constraint
+product-number-formaturi	errc	x: number & format("uri")	constraint
 product-string-min0	errc	x: string & min(0)	constraint
 product-string-min5	errc	x: string & min(5)	constraint
 product-string-mina	canon	x: string & min("a")	{"x":string&min("a")}
@@ -375,6 +405,8 @@ product-string-nof1integerstring	canon	x: string & nof(1,integer,string)	{"x":st
 product-string-whenintegermin0	canon	x: string & when(integer,min(0))	{"x":string&when(integer,min(0))}
 product-string-containsinteger	canon	x: string & contains(integer)	{"x":string&contains(integer,integer&min(1))}
 product-string-restinteger	canon	x: string & rest(integer)	{"x":string&rest(integer)}
+product-string-formatdate	canon	x: string & format("date")	{"x":string&format("date")}
+product-string-formaturi	canon	x: string & format("uri")	{"x":string&format("uri")}
 product-5-min0	canon	x: 5 & min(0)	{"x":5}
 product-5-min5	canon	x: 5 & min(5)	{"x":5}
 product-5-mina	errc	x: 5 & min("a")	constraint
@@ -397,6 +429,8 @@ product-5-nof1integerstring	canon	x: 5 & nof(1,integer,string)	{"x":5}
 product-5-whenintegermin0	canon	x: 5 & when(integer,min(0))	{"x":5}
 product-5-containsinteger	errc	x: 5 & contains(integer)	constraint
 product-5-restinteger	gens	x: 5 & rest(integer)	{"x":5}
+product-5-formatdate	errc	x: 5 & format("date")	constraint
+product-5-formaturi	errc	x: 5 & format("uri")	constraint
 product-m-min0	errc	x: "m" & min(0)	constraint
 product-m-min5	errc	x: "m" & min(5)	constraint
 product-m-mina	canon	x: "m" & min("a")	{"x":"m"}
@@ -419,6 +453,8 @@ product-m-nof1integerstring	canon	x: "m" & nof(1,integer,string)	{"x":"m"}
 product-m-whenintegermin0	canon	x: "m" & when(integer,min(0))	{"x":"m"}
 product-m-containsinteger	errc	x: "m" & contains(integer)	constraint
 product-m-restinteger	gens	x: "m" & rest(integer)	{"x":"m"}
+product-m-formatdate	errc	x: "m" & format("date")	constraint
+product-m-formaturi	errc	x: "m" & format("uri")	constraint
 product-nof1integerstring-min0	canon	x: nof(1,integer,string) & min(0)	{"x":min(0)&nof(integer&min(1)&max(1),integer,string)}
 product-nof1integerstring-min5	canon	x: nof(1,integer,string) & min(5)	{"x":min(5)&nof(integer&min(1)&max(1),integer,string)}
 product-nof1integerstring-mina	canon	x: nof(1,integer,string) & min("a")	{"x":min("a")&nof(integer&min(1)&max(1),integer,string)}
@@ -441,6 +477,8 @@ product-nof1integerstring-nof1integerstring	canon	x: nof(1,integer,string) & nof
 product-nof1integerstring-whenintegermin0	canon	x: nof(1,integer,string) & when(integer,min(0))	{"x":nof(integer&min(1)&max(1),integer,string)&when(integer,min(0))}
 product-nof1integerstring-containsinteger	canon	x: nof(1,integer,string) & contains(integer)	{"x":nof(integer&min(1)&max(1),integer,string)&contains(integer,integer&min(1))}
 product-nof1integerstring-restinteger	canon	x: nof(1,integer,string) & rest(integer)	{"x":nof(integer&min(1)&max(1),integer,string)&rest(integer)}
+product-nof1integerstring-formatdate	canon	x: nof(1,integer,string) & format("date")	{"x":format("date")&nof(integer&min(1)&max(1),integer,string)}
+product-nof1integerstring-formaturi	canon	x: nof(1,integer,string) & format("uri")	{"x":format("uri")&nof(integer&min(1)&max(1),integer,string)}
 product-whenintegermin0-min0	canon	x: when(integer,min(0)) & min(0)	{"x":min(0)&when(integer,min(0))}
 product-whenintegermin0-min5	canon	x: when(integer,min(0)) & min(5)	{"x":min(5)&when(integer,min(0))}
 product-whenintegermin0-mina	canon	x: when(integer,min(0)) & min("a")	{"x":min("a")&when(integer,min(0))}
@@ -463,6 +501,8 @@ product-whenintegermin0-nof1integerstring	canon	x: when(integer,min(0)) & nof(1,
 product-whenintegermin0-whenintegermin0	canon	x: when(integer,min(0)) & when(integer,min(0))	{"x":when(integer,min(0))}
 product-whenintegermin0-containsinteger	canon	x: when(integer,min(0)) & contains(integer)	{"x":when(integer,min(0))&contains(integer,integer&min(1))}
 product-whenintegermin0-restinteger	canon	x: when(integer,min(0)) & rest(integer)	{"x":when(integer,min(0))&rest(integer)}
+product-whenintegermin0-formatdate	canon	x: when(integer,min(0)) & format("date")	{"x":format("date")&when(integer,min(0))}
+product-whenintegermin0-formaturi	canon	x: when(integer,min(0)) & format("uri")	{"x":format("uri")&when(integer,min(0))}
 product-containsinteger-min0	canon	x: contains(integer) & min(0)	{"x":min(0)&contains(integer,integer&min(1))}
 product-containsinteger-min5	canon	x: contains(integer) & min(5)	{"x":min(5)&contains(integer,integer&min(1))}
 product-containsinteger-mina	canon	x: contains(integer) & min("a")	{"x":min("a")&contains(integer,integer&min(1))}
@@ -485,6 +525,8 @@ product-containsinteger-nof1integerstring	canon	x: contains(integer) & nof(1,int
 product-containsinteger-whenintegermin0	canon	x: contains(integer) & when(integer,min(0))	{"x":when(integer,min(0))&contains(integer,integer&min(1))}
 product-containsinteger-containsinteger	canon	x: contains(integer) & contains(integer)	{"x":contains(integer,integer&min(1))}
 product-containsinteger-restinteger	canon	x: contains(integer) & rest(integer)	{"x":contains(integer,integer&min(1))&rest(integer)}
+product-containsinteger-formatdate	canon	x: contains(integer) & format("date")	{"x":format("date")&contains(integer,integer&min(1))}
+product-containsinteger-formaturi	canon	x: contains(integer) & format("uri")	{"x":format("uri")&contains(integer,integer&min(1))}
 product-restinteger-min0	canon	x: rest(integer) & min(0)	{"x":min(0)&rest(integer)}
 product-restinteger-min5	canon	x: rest(integer) & min(5)	{"x":min(5)&rest(integer)}
 product-restinteger-mina	canon	x: rest(integer) & min("a")	{"x":min("a")&rest(integer)}
@@ -507,3 +549,53 @@ product-restinteger-nof1integerstring	canon	x: rest(integer) & nof(1,integer,str
 product-restinteger-whenintegermin0	canon	x: rest(integer) & when(integer,min(0))	{"x":when(integer,min(0))&rest(integer)}
 product-restinteger-containsinteger	canon	x: rest(integer) & contains(integer)	{"x":contains(integer,integer&min(1))&rest(integer)}
 product-restinteger-restinteger	canon	x: rest(integer) & rest(integer)	{"x":rest(integer)}
+product-restinteger-formatdate	canon	x: rest(integer) & format("date")	{"x":format("date")&rest(integer)}
+product-restinteger-formaturi	canon	x: rest(integer) & format("uri")	{"x":format("uri")&rest(integer)}
+product-formatdate-min0	errc	x: format("date") & min(0)	constraint
+product-formatdate-min5	errc	x: format("date") & min(5)	constraint
+product-formatdate-mina	canon	x: format("date") & min("a")	{"x":min("a")&format("date")}
+product-formatdate-max3	errc	x: format("date") & max(3)	constraint
+product-formatdate-max10	errc	x: format("date") & max(10)	constraint
+product-formatdate-maxz	canon	x: format("date") & max("z")	{"x":max("z")&format("date")}
+product-formatdate-above1	errc	x: format("date") & above(1)	constraint
+product-formatdate-below2	errc	x: format("date") & below(2)	constraint
+product-formatdate-neq1	errc	x: format("date") & neq(1)	constraint
+product-formatdate-neq12	errc	x: format("date") & neq(1,2)	constraint
+product-formatdate-neqa	canon	x: format("date") & neq("a")	{"x":neq("a")&format("date")}
+product-formatdate-multiple2	errc	x: format("date") & multiple(2)	constraint
+product-formatdate-multiple05	errc	x: format("date") & multiple(0.5)	constraint
+product-formatdate-integer	errc	x: format("date") & integer	constraint
+product-formatdate-number	errc	x: format("date") & number	constraint
+product-formatdate-string	canon	x: format("date") & string	{"x":string&format("date")}
+product-formatdate-5	errc	x: format("date") & 5	constraint
+product-formatdate-m	errc	x: format("date") & "m"	constraint
+product-formatdate-nof1integerstring	canon	x: format("date") & nof(1,integer,string)	{"x":format("date")&nof(integer&min(1)&max(1),integer,string)}
+product-formatdate-whenintegermin0	canon	x: format("date") & when(integer,min(0))	{"x":format("date")&when(integer,min(0))}
+product-formatdate-containsinteger	canon	x: format("date") & contains(integer)	{"x":format("date")&contains(integer,integer&min(1))}
+product-formatdate-restinteger	canon	x: format("date") & rest(integer)	{"x":format("date")&rest(integer)}
+product-formatdate-formatdate	canon	x: format("date") & format("date")	{"x":format("date")}
+product-formatdate-formaturi	canon	x: format("date") & format("uri")	{"x":format("date")&format("uri")}
+product-formaturi-min0	errc	x: format("uri") & min(0)	constraint
+product-formaturi-min5	errc	x: format("uri") & min(5)	constraint
+product-formaturi-mina	canon	x: format("uri") & min("a")	{"x":min("a")&format("uri")}
+product-formaturi-max3	errc	x: format("uri") & max(3)	constraint
+product-formaturi-max10	errc	x: format("uri") & max(10)	constraint
+product-formaturi-maxz	canon	x: format("uri") & max("z")	{"x":max("z")&format("uri")}
+product-formaturi-above1	errc	x: format("uri") & above(1)	constraint
+product-formaturi-below2	errc	x: format("uri") & below(2)	constraint
+product-formaturi-neq1	errc	x: format("uri") & neq(1)	constraint
+product-formaturi-neq12	errc	x: format("uri") & neq(1,2)	constraint
+product-formaturi-neqa	canon	x: format("uri") & neq("a")	{"x":neq("a")&format("uri")}
+product-formaturi-multiple2	errc	x: format("uri") & multiple(2)	constraint
+product-formaturi-multiple05	errc	x: format("uri") & multiple(0.5)	constraint
+product-formaturi-integer	errc	x: format("uri") & integer	constraint
+product-formaturi-number	errc	x: format("uri") & number	constraint
+product-formaturi-string	canon	x: format("uri") & string	{"x":string&format("uri")}
+product-formaturi-5	errc	x: format("uri") & 5	constraint
+product-formaturi-m	errc	x: format("uri") & "m"	constraint
+product-formaturi-nof1integerstring	canon	x: format("uri") & nof(1,integer,string)	{"x":format("uri")&nof(integer&min(1)&max(1),integer,string)}
+product-formaturi-whenintegermin0	canon	x: format("uri") & when(integer,min(0))	{"x":format("uri")&when(integer,min(0))}
+product-formaturi-containsinteger	canon	x: format("uri") & contains(integer)	{"x":format("uri")&contains(integer,integer&min(1))}
+product-formaturi-restinteger	canon	x: format("uri") & rest(integer)	{"x":format("uri")&rest(integer)}
+product-formaturi-formatdate	canon	x: format("uri") & format("date")	{"x":format("date")&format("uri")}
+product-formaturi-formaturi	canon	x: format("uri") & format("uri")	{"x":format("uri")}

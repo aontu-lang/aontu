@@ -40,6 +40,7 @@ import { makeNilErr } from '../err'
 
 import { FeatureVal } from './FeatureVal'
 import { admits, trialUnify } from './FuncBaseVal'
+import { formatCheck } from '../strformat'
 
 import {
   BigDecimal,
@@ -125,6 +126,7 @@ type ConstraintState = {
   neqs: any[]     // excluded scalars, identity per leaf+value
   mults: any[]    // divisors, one per value, in value order (never an lcm)
   res: ReAtom[]   // accumulated patterns, sorted by source (never simplified)
+  fmts: string[]  // string formats by name, sorted, one per name
   count?: ConstraintState  // the COUNT residual (len()), itself a residual
                            // over the integer domain -- the count atom reuses
                            // this same algebra recursively
@@ -512,6 +514,7 @@ class ConstraintVal extends FeatureVal {
   neqs: any[] = []
   mults: any[] = []
   res: ReAtom[] = []
+  fmts: string[] = []
   count?: ConstraintState
   uniq = false
   uniqBy: string[] = []
@@ -547,6 +550,7 @@ class ConstraintVal extends FeatureVal {
       // the pattern field; an absent one means "no patterns", not undefined.
       this.mults = spec.state.mults ?? []
       this.res = spec.state.res ?? []
+      this.fmts = spec.state.fmts ?? []
       this.count = spec.state.count
       this.uniq = spec.state.uniq ?? false
       this.uniqBy = spec.state.uniqBy ?? []
@@ -728,6 +732,19 @@ class ConstraintVal extends FeatureVal {
       }
       this.domain = 'string'
       this.res = [{ v: a, src, norm, re }]
+      return
+    }
+
+    if ('format' === atom) {
+      if (!stringLeaf(a)) {
+        return bad('invalid-arg')
+      }
+      if (undefined === formatCheck(a.peg)) {
+        this.invalidWhy = JSON.stringify(a.peg)
+        return bad('format_unknown')
+      }
+      this.domain = 'string'
+      this.fmts = [a.peg]
       return
     }
 
@@ -1330,6 +1347,7 @@ class ConstraintVal extends FeatureVal {
     merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs])
     merged.mults = dedupMults([...this.mults, ...peer.mults])
     merged.res = dedupSortedRes([...this.res, ...peer.res])
+    merged.fmts = [...new Set([...this.fmts, ...peer.fmts])].sort(cmpCodePoint)
     // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
     // numeric algebra recursively, over the counts rather than the
     // values.
@@ -1389,6 +1407,7 @@ class ConstraintVal extends FeatureVal {
       neqs: [...this.neqs],
       mults: [...this.mults],
       res: [...this.res],
+      fmts: [...this.fmts],
       count: this.count,
       uniq: this.uniq,
       uniqBy: [...this.uniqBy],
@@ -1433,6 +1452,7 @@ class ConstraintVal extends FeatureVal {
     out.neqs = [...this.neqs]
     out.mults = [...this.mults]
     out.res = [...this.res]
+    out.fmts = [...this.fmts]
     out.count = this.count
     out.uniq = this.uniq
     out.uniqBy = [...this.uniqBy]
@@ -1607,7 +1627,8 @@ function canonState(s: ConstraintState): string {
   }
   else if ('string' === s.domain && (true === s.nonEmpty ||
     (null == s.lo && null == s.hi && 0 === s.neqs.length &&
-      0 === s.res.length && true !== s.emptyOk))) {
+      0 === s.res.length && 0 === s.fmts.length &&
+      true !== s.emptyOk))) {
     parts.push('string')
   }
   if (null != s.lo) {
@@ -1624,6 +1645,9 @@ function canonState(s: ConstraintState): string {
   }
   for (const r of s.res) {
     parts.push('re(' + r.v.canon + ')')
+  }
+  for (const f of s.fmts) {
+    parts.push('format(' + JSON.stringify(f) + ')')
   }
   if (null != s.count) {
     parts.push('len(' + canonState(s.count) + ')')
@@ -1663,15 +1687,15 @@ function canonState(s: ConstraintState): string {
 function constraintStateSubsumes(
   g: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], mults: any[], res: ReAtom[], count?: ConstraintState,
-    uniq: boolean, uniqBy: string[],
+    neqs: any[], mults: any[], res: ReAtom[], fmts: string[],
+    count?: ConstraintState, uniq: boolean, uniqBy: string[],
     musts: MustAtom[], nofs: NofAtom[], whens?: WhenAtom[],
     contains?: ContainsAtom[], rests?: RestAtom[],
   },
   s: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], mults: any[], res: ReAtom[], count?: ConstraintState,
-    uniq: boolean, uniqBy: string[],
+    neqs: any[], mults: any[], res: ReAtom[], fmts: string[],
+    count?: ConstraintState, uniq: boolean, uniqBy: string[],
     musts: MustAtom[], nofs: NofAtom[],
   },
 ): boolean | 'undecided' {
@@ -1754,6 +1778,9 @@ function constraintStateSubsumes(
     if (!s.res.some((q: ReAtom) => q.src === r.src)) {
       return false
     }
+  }
+  if (g.fmts.some((f: string) => !s.fmts.includes(f))) {
+    return false
   }
 
   if (g.uniqBy.some((k: string) => !s.uniqBy.includes(k))) {
@@ -1854,6 +1881,11 @@ function stateAdmits(s: ConstraintState, peer: any): boolean {
       return false
     }
   }
+  for (const f of s.fmts) {
+    if (!(formatCheck(f) as (v: string) => boolean)(peer.peg)) {
+      return false
+    }
+  }
   return true
 }
 
@@ -1935,6 +1967,7 @@ function countBase(): ConstraintState {
     neqs: [],
     mults: [],
     res: [],
+    fmts: [],
     musts: [],
     nofs: [],
     // A COUNT is a number, and a number has no members to be distinct.
@@ -1962,6 +1995,7 @@ function meetCount(a: ConstraintState, b: ConstraintState): ConstraintState {
     neqs: dedupSorted('number', [...a.neqs, ...b.neqs]),
     mults: [],
     res: [],
+    fmts: [],
     musts: [],
     nofs: [],
     uniq: false,
@@ -1978,8 +2012,8 @@ function countArgState(arg: any): ConstraintState | undefined {
       domain: 'number',
       lo: { v: arg, open: false },
       hi: { v: arg, open: false },
-      neqs: [], mults: [], res: [], musts: [], nofs: [], uniq: false,
-      uniqBy: [],
+      neqs: [], mults: [], res: [], fmts: [], musts: [], nofs: [],
+      uniq: false, uniqBy: [],
     }
   }
 
@@ -1987,7 +2021,8 @@ function countArgState(arg: any): ConstraintState | undefined {
     const c = arg as ConstraintVal
     // A pattern, a divisor, a branch count, a sizing atom or a string
     // bound inside a count is not a count constraint, nor is a broken one.
-    if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
+    if (null != c.invalid || 0 < c.res.length || 0 < c.fmts.length ||
+      0 < c.mults.length || c.uniq ||
       0 < c.uniqBy.length || null != c.count || 0 < c.nofs.length ||
       0 < c.whens.length || 0 < c.contains.length || 0 < c.rests.length ||
       'number' !== c.domain) {
@@ -1999,7 +2034,8 @@ function countArgState(arg: any): ConstraintState | undefined {
       lo: c.lo,
       hi: c.hi,
       neqs: [...c.neqs],
-      mults: [], res: [], musts: [], nofs: [], uniq: false, uniqBy: [],
+      mults: [], res: [], fmts: [], musts: [], nofs: [], uniq: false,
+      uniqBy: [],
     }
   }
 
@@ -2007,15 +2043,15 @@ function countArgState(arg: any): ConstraintState | undefined {
     const marker = arg.peg
     if (Number === marker) {
       return {
-        domain: 'number', neqs: [], mults: [], res: [], musts: [], nofs: [],
-        uniq: false, uniqBy: [],
+        domain: 'number', neqs: [], mults: [], res: [], fmts: [], musts: [],
+        nofs: [], uniq: false, uniqBy: [],
       }
     }
     if (Integer === marker || Float === marker ||
       BigInteger === marker || BigDecimal === marker) {
       return {
         domain: 'number', kind: marker, neqs: [], mults: [], res: [],
-        musts: [], nofs: [],
+        fmts: [], musts: [], nofs: [],
         uniq: false, uniqBy: [],
       }
     }
@@ -2345,6 +2381,12 @@ class ReConstraintVal extends ConstraintVal {
   }
 }
 
+class FormatConstraintVal extends ConstraintVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super({ ...spec, atom: 'format' }, ctx)
+  }
+}
+
 class MultipleConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'multiple' }, ctx)
@@ -2391,7 +2433,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 29 */
 
 
 export {
@@ -2411,6 +2453,7 @@ export {
   NeqConstraintVal,
   MultipleConstraintVal,
   ReConstraintVal,
+  FormatConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,

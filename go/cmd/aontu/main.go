@@ -27,7 +27,8 @@ const helpText = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+       aontu jsonschema import [--strict] [--defaults] [--format-assertion]
+                               [--format text|json]
                                [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>

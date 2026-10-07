@@ -46,7 +46,8 @@ Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+       aontu jsonschema import [--strict] [--defaults] [--format-assertion]
+                               [--format text|json]
                                [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
@@ -1378,7 +1379,9 @@ two members share a kind; bounds become
 its own digits; `re` becomes `pattern` in its normalised form, the
 ECMA-262 reading of what aontu means; `neq` becomes `not: {enum: …}`;
 `multiple(n)` becomes `multipleOf: n`, several of them under `allOf`;
-a count of alternatives, `nof(n, …)`, becomes `not` for none of them,
+`format(name)` becomes `format: name`, several of them under `allOf`,
+and is reported, since the default dialect reads `format` as an
+annotation that asserts nothing; a count of alternatives, `nof(n, …)`, becomes `not` for none of them,
 `oneOf` for exactly one, `anyOf` for at least one and `allOf` for all,
 and the export drops and reports one that counts otherwise;
 a conditional check, `when(c, t, e)`, becomes `if`, `then` and `else`,
@@ -1461,6 +1464,7 @@ The losses, and why each is one:
 | a `neq` of one leaf, and `unique()` over a list that can hold both leaves of one number | the same reading, in the other direction: the schema refuses a spelling the model admits |
 | `biginteger`, `bigdecimal`, and exact literals | `vet` reads JSON data as an integer or a float, never as an exact leaf, so the schema admits values the model refuses; the digits are written exactly |
 | a bound on a string | JSON Schema has no ordering keyword for strings |
+| `format(name)` | 2020-12 reads `format` as an annotation unless a meta-schema asks for the format-assertion vocabulary, so the schema admits strings the model refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
@@ -1531,7 +1535,8 @@ Read a **JSON Schema** (draft 2020-12) into aontu source, and say what
 could not be carried.
 
 ```
-aontu jsonschema import [--strict] [--defaults] [--format text|json]
+aontu jsonschema import [--strict] [--defaults] [--format-assertion]
+                        [--format text|json]
                         [--document <uri>=<file>]... <schema.json>
 ```
 
@@ -1707,7 +1712,12 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   fills nothing in, though a `const` or `enum` literal generates on its
   own. `--defaults` also makes a property's default its preference,
   where the schema does not require the property and the property's
-  own schema admits the default. `--no-fill` makes `vet` ask whether
+  own schema admits the default. `--format-assertion` makes a format
+  aontu checks assert as well, as `format(name)`. `regex`, the one
+  format 2020-12 defines that aontu does not check yet, is then a loss,
+  and any other name asserts nothing, as 2020-12 asks of a format an
+  implementation does not know.
+  `--no-fill` makes `vet` ask whether
   the data already *is* an instance rather than whether it can be
   filled into one.
 - **Losses** are on stderr, one per line. The import drops each
@@ -1802,10 +1812,11 @@ $ aontu server.aontu
   stdout on a refusal.
 - `--format json` answers `{aontu, errors, lossy, source, verdict}` on
   stdout, with `errors` only on a refusal.
-- The library form is `importJsonSchema(text, {defaults, documents})`
-  in TypeScript and `(*Aontu).ImportJSONSchema(text)` in Go, with
+- The library form is `importJsonSchema(text, {defaults,
+  formatAssertion, documents})` in TypeScript and
+  `(*Aontu).ImportJSONSchema(text)` in Go, with
   `ImportJSONSchemaWith(text, JSONSchemaImportOptions{Defaults,
-  Documents})` the same import with its options; `documents` maps each
+  FormatAssertion, Documents})` the same import with its options; `documents` maps each
   URI to a document's text. Each returns the identical
   `{source, lossy, verdict}` record (plus `errors` on a refusal).
 

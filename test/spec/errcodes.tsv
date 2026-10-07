@@ -126,6 +126,7 @@ decimal_syntax	errcode	parse	0.51.0
 # decided once at its introduction, since the registry is append-only.)
 constraint	errcode	conflict	0.52.0
 constraint_pattern	errcode	conflict	0.53.0
+format_unknown	errcode	conflict	0.77.0
 must	errcode	conflict	0.53.0
 scalar_value	errcode	conflict	0.51.0
 scalar_kind	errcode	conflict	0.51.0

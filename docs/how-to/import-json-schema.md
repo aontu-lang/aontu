@@ -207,6 +207,71 @@ schema does not name. `--strict` exits 1 on any loss, for a pipeline
 that must not admit more than the schema does.
 Without it the same import exits 0.
 
+## Assert the formats
+
+2020-12 makes `format` an annotation, so by default the import keeps
+it in `meta()` and admits any string. `--format-assertion` asks for the
+check a validator makes when it is set to assert formats. Write
+`contact.schema.json`:
+
+<!-- test: file contact.schema.json -->
+```json
+{
+  "type": "object",
+  "properties": {
+    "email": {"type": "string", "format": "email"},
+    "since": {"type": "string", "format": "date"}
+  }
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --format-assertion contact.schema.json
+schema: hide({
+  email?: meta(empty() & format("email"), { format:"email" })
+  since?: meta(empty() & format("date"), { format:"date" })
+})
+```
+
+Each format aontu checks is also `format(name)`, so it asserts. Save
+the output as `contact.aontu`:
+
+<!-- test: file contact.aontu -->
+```aontu
+schema: hide({
+  email?: meta(empty() & format("email"), { format:"email" })
+  since?: meta(empty() & format("date"), { format:"date" })
+})
+```
+
+Write a contact whose date names no such day as `contact.json`:
+
+<!-- test: file contact.json -->
+```json
+{"email": "ana@example.com", "since": "2026-02-30"}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --at '$.schema' --no-fill --exact-numbers contact.aontu contact.json
+verdict: invalid
+
+$.schema.since: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.schema.since
+  expected: format("date")&empty()
+  actual:   "2026-02-30"
+  data: contact.json:1:39 ("2026-02-30")
+  schema: contact.aontu:3:11 (format("date")&empty())
+$ echo $?
+1
+```
+
+`regex`, the one format 2020-12 defines that aontu does not check yet,
+is a loss, and a name 2020-12 does not define asserts nothing. The export writes each `format()` back as
+`format` and reports it, since a reader of the default dialect takes
+it for an annotation again.
+
 ## The refusals
 
 A schema the import cannot read exits 4 with a finding at the JSON

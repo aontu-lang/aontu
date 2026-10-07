@@ -7,6 +7,7 @@
 
 import { Aontu } from './aontu'
 import { format } from './format'
+import { formatCheck, UNCHECKED } from './strformat'
 import { codeClass } from './hints'
 import { cmpCodePoint } from './keyorder'
 import { normaliseRe } from './val/ConstraintVal'
@@ -31,6 +32,7 @@ export type SchemaImportReport = {
 
 export type SchemaImportOptions = {
   defaults?: boolean
+  formatAssertion?: boolean
   documents?: Record<string, string>
 }
 
@@ -355,6 +357,7 @@ const CLONE_BUDGET = 1000
 type Ctx = {
   root: J
   defaults: boolean
+  formats: boolean
   lossy: SchemaLoss[]
   aliases: Map<string, string | undefined>
   resources: Map<string, Place>
@@ -1411,6 +1414,18 @@ function stringBranch(ctx: Ctx, o: Map<string, J>, ptr: string): string | undefi
       parts.push(re)
     }
   }
+  // A name JSON Schema does not define asserts nothing, as the suite asks.
+  const f = o.get('format')
+  if (ctx.formats && 'string' === typeof f) {
+    if (undefined !== formatCheck(f)) {
+      parts.push('format(' + strLit(f) + ')')
+    }
+    else if (UNCHECKED.includes(f)) {
+      lose(ctx, ptrAt(ptr, 'format'), 'format', 'format ' + strLit(f) +
+        ' has no checker in aontu yet, so it rides as an annotation and ' +
+        'the import admits strings the schema refuses')
+    }
+  }
   const content = rider(o, ptr, true)
   const branch = 0 === parts.length ? undefined : both(['empty()', ...parts])
   return '' === content ? branch :
@@ -1801,7 +1816,8 @@ export function importJsonSchema(text: string,
 function importOnce(text: string, options: SchemaImportOptions | undefined,
   hoist: Set<string>): [SchemaImportReport, Set<string>] {
   const ctx: Ctx = {
-    root: null, defaults: true === options?.defaults, lossy: [],
+    root: null, defaults: true === options?.defaults,
+    formats: true === options?.formatAssertion, lossy: [],
     aliases: new Map(), resources: new Map(), anchors: new Map(),
     bases: new Map(), defKeys: new Map(), unread: new Map(),
     dynamics: new Map(), env: new Map(), rootEnv: new Map(), clones: 0,

@@ -10,10 +10,9 @@ of `aontu jsonschema import`
 | Commit | `5b0ee1613e45fcc2bddac00e07c19cd49b00d8a8`, read 2026-10-06 |
 | Licence | MIT, in [`LICENSE`](LICENSE), unchanged |
 
-Vendored unchanged: `tests/draft2020-12/` with its `optional/`
-directory, `remotes/`, and `annotations/`. The suite's
-`optional/format/` arrives with format assertion, and its other drafts
-with the legacy dialects.
+Vendored unchanged: `tests/draft2020-12/` with its `optional/` and
+`optional/format/` directories, `remotes/`, and `annotations/`. The
+suite's other drafts arrive with the legacy dialects.
 
 ## How it is run
 
@@ -21,9 +20,11 @@ with the legacy dialects.
 [`go/vectors_test.go`](../../../go/vectors_test.go) read the same files.
 Each imports a group's schema once, from the schema's own text, and
 vets each instance, from its own text, as
-`vet --at '$.schema' --no-fill --exact-numbers` does. A test is
-honoured when the import stands up and the verdict is `valid` exactly
-where the suite says `valid: true`. Evaluating the import and the
+`vet --at '$.schema' --no-fill --exact-numbers` does. A file under
+`optional/format/` is imported with format assertion on, the
+`formatAssertion` option, since those files ask what a validator that
+asserts formats answers. A test is honoured when the import stands up
+and the verdict is `valid` exactly where the suite says `valid: true`. Evaluating the import and the
 instance as one document must agree with `vet` on every test the
 import answers, honoured or not.
 

@@ -98,7 +98,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+       aontu jsonschema import [--strict] [--defaults] [--format-assertion]
+                               [--format text|json]
                                [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
@@ -3851,8 +3852,9 @@ const JSONSCHEMA_HELP =
   'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)'
 
 const JSONSCHEMA_IMPORT_HELP =
-  'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
-  '[--document <uri>=<file>]... <schema.json> (try --help)'
+  'aontu jsonschema import [--strict] [--defaults] [--format-assertion] ' +
+  '[--format text|json] [--document <uri>=<file>]... <schema.json> ' +
+  '(try --help)'
 
 
 // A file's text as the import reads it: bytes that are not UTF-8 reach
@@ -3884,6 +3886,7 @@ function runJsonSchemaImport(argv: string[]): number {
   let format: SubsumeFormat = 'text'
   let strict = false
   let defaults = false
+  let formatAssertion = false
   const docs: [string, string][] = []
 
   for (let i = 0; i < argv.length; i++) {
@@ -3908,6 +3911,9 @@ function runJsonSchemaImport(argv: string[]): number {
         return 2
       }
       docs.push([spec.slice(0, eq), spec.slice(eq + 1)])
+    }
+    else if ('--format-assertion' === arg) {
+      formatAssertion = true
     }
     else if ('--format' === arg) {
       const f = argv[++i]
@@ -3949,7 +3955,7 @@ function runJsonSchemaImport(argv: string[]): number {
     documents[uri] = doc
   }
 
-  const report = importJsonSchema(text, { defaults, documents })
+  const report = importJsonSchema(text, { defaults, formatAssertion, documents })
   if ('json' === format) {
     process.stdout.write(exactJSON({
       aontu: { version: version(), verb: 'jsonschema import' }, ...report,
