@@ -78,6 +78,7 @@ capability decision is the phase rows it governed in
 | [ADR-047](#adr-047--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
 | [ADR-048](#adr-048--a-key-still-optional-is-absent-when-its-value-cannot-be-made) | A key still optional is absent when its value cannot be made | Accepted |
 | [ADR-049](#adr-049--an-annotation-rides-its-value-and-two-riders-meet-as-their-union) | An annotation rides its value, and two riders meet as their union | Accepted |
+| [ADR-050](#adr-050--a-resources-identity-is-held-by-its-declaration) | A resource's identity is held by its declaration | Accepted |
 
 ---
 
@@ -4855,3 +4856,58 @@ covers it.
   `test/spec/deprecate.tsv`, `test/spec/jsonschema-import.tsv` and
   `test/spec/jsonschema.tsv`, and by the JSON-Schema-Test-Suite's
   `annotations/` directory.
+
+## ADR-050 — A resource's identity is held by its declaration
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+A JSON Schema resource has a name of its own: an `$id`, the anchors it
+holds, and the key a document filed it under in `$defs`. The import
+resolves every reference against those names and writes each schema a
+reference reaches as an alias declaration, so the names have done
+their work by the time the source exists. The export needs them back:
+without them a schema crosses out under alias names the import made
+up, and a resource another document refers to by its `$id` loses the
+`$id` it is referred to by.
+
+ADR-014 refused a location-independent name on a value, because every
+node carrying one name was unified with every other, and a model that
+carried one could not be instantiated twice. A resource's `$id` is a
+name of that kind, so it cannot ride the value the way `meta()`'s
+annotations do (ADR-049): two copies of one definition would carry it,
+and two copies of different definitions would meet two of them.
+
+### Decision
+
+**The identity is held by the declaration, never by the value.**
+`identity(v, r)` is `v`, and its record of `id`, `anchor` and `key` is
+held only where the call is the value of an alias declaration, or a
+term of it, and not another call's argument. A reference's copy of the
+alias never takes it, as a copy already drops the `type()` and `hide()`
+marks, so no answer evaluation gives can depend on it. Two records at
+one declaration, from two declarations of one alias, meet as the
+key-wise union of their values, as two riders do. Neither the canon
+nor the hash shows the record: it names the place a schema came from,
+not what the value admits. The export reads it at the declaration.
+
+### Consequences
+
+- Nothing is unified by name, so ADR-014's argument is untouched: a
+  model can hold any number of copies of an identified definition.
+- An `id` is an absolute URI, so the export writes it and refers to it
+  from anywhere without resolving it against a base it cannot know.
+- A definition with an `$id` is a resource of its own in the export, so
+  a reference from inside it to one without names the root by the
+  root's `$id`; where the root has none, the export writes the
+  definitions without their `$id`s and reports it.
+- A call that is another call's argument holds nothing, which the copy
+  rule needs: a reference that copies a declaration before it settles
+  lands its copy where the argument stands, and that is the
+  declaration of another alias.
+- A document without an `identity()` call evaluates as it did: the
+  record is absent, and every path that carries it carries nothing.
+- Pinned in both ports by rows in `test/spec/identity.tsv`,
+  `test/spec/jsonschema-import.tsv` and `test/spec/jsonschema.tsv`.

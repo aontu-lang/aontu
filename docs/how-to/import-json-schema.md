@@ -204,8 +204,8 @@ schema does. Without it the same import exits 0.
 ## The refusals
 
 A schema the import cannot read exits 4 with a finding at the JSON
-Pointer of the fault, and stdout stays empty. The import reads one
-document, so a `$ref` to another is one such fault. Write
+Pointer of the fault, and stdout stays empty. A `$ref` to a document
+the import was not given is one such fault. Write
 `address.schema.json`:
 
 <!-- test: file address.schema.json -->
@@ -222,14 +222,83 @@ document, so a `$ref` to another is one such fault. Write
 ```sh
 $ aontu jsonschema import address.schema.json
 #/properties/billing/$ref: jsonschema_ref [reference]
-  the reference "https://example.com/address.json" names another document, and the import reads one document
+  the reference "https://example.com/address.json" names a document the import was not given
 $ echo $?
 4
 ```
 
 The same code answers a pointer or an anchor that names nothing in
-the document. Text that is not JSON, or a keyword holding a value
-2020-12 does not define for it, is `jsonschema_schema`.
+the document it names. Text that is not JSON, or a keyword holding a
+value 2020-12 does not define for it, is `jsonschema_schema`, and an
+identifier or an anchor that names two schemas is
+`jsonschema_duplicate`.
+
+## A reference to another document
+
+The import reads the documents a schema refers to from the ones it is
+given, each with `--document <uri>=<file>`: the URI is the one the
+references name, and the file holds the document. Write
+`address.json`:
+
+<!-- test: file address.json -->
+```json
+{
+  "$id": "https://example.com/address.json",
+  "type": "object",
+  "properties": {"city": {"type": "string"}},
+  "required": ["city"]
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --document https://example.com/address.json=address.json address.schema.json
+%_d-https_3a__2f__2f_example_2e_com_2f_address_2e_json = identity(
+  { city:empty() },
+  { id:"https://example.com/address.json" }
+)
+
+schema: hide({ billing?:%_d-https_3a__2f__2f_example_2e_com_2f_address_2e_json })
+```
+
+The other document is imported into the same source, as an alias
+named for its URI, so the result refers to nothing outside itself.
+`identity()` holds the URI on the declaration, where the export reads
+it back as the definition's `$id`. Save the source as `order.aontu`:
+
+<!-- test: file order.aontu -->
+```aontu
+%_d-https_3a__2f__2f_example_2e_com_2f_address_2e_json = identity(
+  { city:empty() },
+  { id:"https://example.com/address.json" }
+)
+
+schema: hide({ billing?:%_d-https_3a__2f__2f_example_2e_com_2f_address_2e_json })
+```
+
+Write an order whose city is not a string, as `order.json`:
+
+<!-- test: file order.json -->
+```json
+{"billing": {"city": 5}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --at '$.schema' --no-fill --exact-numbers order.aontu order.json
+verdict: invalid
+
+$.schema.billing.city: empty_domain [conflict]
+  [aontu/empty_domain]: Cannot unify values at path $.schema.billing.city
+  data: order.json:1:22 (5)
+  schema: order.aontu:2:10 (empty())
+$ echo $?
+1
+```
+
+A document is read when a reference first reaches it. A reference to
+a URI that names no document it was given reads the rest, since an
+`$id` inside one may be the URI it names.
 
 The full mapping is in the reference under
 [`aontu jsonschema import`](../reference-api.md#aontu-jsonschema-import),

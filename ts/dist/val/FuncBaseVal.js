@@ -239,17 +239,25 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 }
                 else {
                     this.peg = pegprep;
-                    for (let arg of this.peg) {
-                        let newarg = arg;
-                        if (!arg.done) {
-                            const argctx = te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'ARG') }) : ctx;
-                            newarg = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, argctx));
-                            newtype = newtype || newarg.mark.type;
-                            newhide = newhide || newarg.mark.hide;
+                    const inarg = ctx.inarg;
+                    ctx.inarg = true;
+                    try {
+                        for (let arg of this.peg) {
+                            let newarg = arg;
+                            if (!arg.done) {
+                                const argctx = te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'ARG') }) : ctx;
+                                newarg = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, argctx));
+                                newtype = newtype || newarg.mark.type;
+                                newhide = newhide || newarg.mark.hide;
+                            }
+                            // pegdone &&= arg.done
+                            pegdone &&= newarg.done;
+                            newpeg.push(newarg);
                         }
-                        // pegdone &&= arg.done
-                        pegdone &&= newarg.done;
-                        newpeg.push(newarg);
+                    }
+                    finally {
+                        ;
+                        ctx.inarg = inarg;
                     }
                 }
                 // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))

@@ -110,6 +110,21 @@ function jsonFiles(dir: string, rel = ''): string[] {
 }
 
 
+// The documents the suite's tests name: the remotes of the releases
+// they refer to, each under the URI the suite serves it from.
+function remotes(): Record<string, string> {
+  const dir = Path.join(VECTORS, 'jsonschema', 'remotes')
+  const out: Record<string, string> = {}
+  for (const release of ['draft2019-09', 'draft2020-12']) {
+    for (const f of jsonFiles(Path.join(dir, release))) {
+      out['http://localhost:1234/' + release + '/' + f] =
+        Fs.readFileSync(Path.join(dir, release, f), 'utf8')
+    }
+  }
+  return out
+}
+
+
 function sortKeys(v: any): any {
   return Array.isArray(v) ? v.map(sortKeys) :
     null != v && 'object' === typeof v && !(v as any).isVal &&
@@ -170,7 +185,8 @@ function evalAccepts(source: string, data: string): boolean {
 // A corpus in the suite's own shape: groups of a schema and its tests.
 // A listed test names, beside its key, what the import says it lost or
 // why it refused, and the line must say exactly that.
-function suiteProblems(root: string, ledger: Ledger): string[] {
+function suiteProblems(root: string, ledger: Ledger,
+  documents: Record<string, string> = {}): string[] {
   const problems: string[] = []
   const seen = new Set<string>()
   for (const file of jsonFiles(root)) {
@@ -178,7 +194,7 @@ function suiteProblems(root: string, ledger: Ledger): string[] {
     const at = (s: Span, k: string) =>
       text.slice(s.kv!.get(k)!.s, s.kv!.get(k)!.e)
     for (const group of spans(text).items!) {
-      const report = importJsonSchema(at(group, 'schema'))
+      const report = importJsonSchema(at(group, 'schema'), { documents })
       const account = 'error' === report.verdict ? report.errors![0].code :
         [...new Set(report.lossy.map((l) => l.construct))].sort().join(',') ||
         '-'
@@ -345,7 +361,7 @@ describe('vectors', () => {
   test('json-schema-test-suite', () => {
     const dir = Path.join(VECTORS, 'jsonschema')
     const problems = suiteProblems(Path.join(dir, 'tests'),
-      readLedger(Path.join(dir, 'skips.tsv'), 3))
+      readLedger(Path.join(dir, 'skips.tsv'), 3), remotes())
     Assert.deepStrictEqual(problems, [])
   })
 

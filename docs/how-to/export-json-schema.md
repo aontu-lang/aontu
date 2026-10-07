@@ -334,6 +334,60 @@ the version, and one that does not ignores them, as 2020-12 ignores
 every keyword it does not define. Nothing is lost, so `--strict` exits
 0.
 
+## Definitions that name their resource
+
+An alias whose declaration is an `identity()` crosses as the resource
+it names. Its definition keeps its key under `$defs`, its `$anchor` and
+its `$id`, and each use of it is a `$ref` to that `$id`.
+`aontu jsonschema import` writes these declarations, so a resource a
+schema named crosses back under its own name. Write `address.aontu`:
+
+<!-- test: file address.aontu -->
+```aontu
+%Address = identity({ city:string }, { id:"https://example.com/address" })
+order: { billing:%Address shipping?:%Address }
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema --at '$.order' address.aontu
+{
+  "$defs": {
+    "Address": {
+      "$id": "https://example.com/address",
+      "properties": {
+        "city": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "city"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "billing": {
+      "$ref": "https://example.com/address"
+    },
+    "shipping": {
+      "$ref": "https://example.com/address"
+    }
+  },
+  "required": [
+    "billing"
+  ],
+  "type": "object"
+}
+```
+
+Inside a definition with an `$id`, a reference resolves against that
+`$id`, so a reference from there to a definition without one names the
+root by the root's own `$id`. Where the root has none, the export
+writes every definition without its `$id`, and the loss report says so.
+
 ## The refusals
 
 A lossy export exits 0; a run that cannot produce a truthful schema

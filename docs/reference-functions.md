@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 68 built-in functions and no user-defined ones. The name set
+aontu has 69 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,8 +217,8 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 58 of the 68 names, and 48 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 50 of the 68 use no
+in 59 of the 69 names, and 49 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 51 of the 69 use no
 mode but `value`, and 18 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
@@ -327,6 +327,7 @@ documentation page and fails on a difference of one space.
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
+| `identity(v: any, r: map) : any` | `2` | `value` | `any` |
 | `inject(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `inverse(projector k: string) : constraint` | `1` | `projector` | `constraint` |
 | `join(d: map\|list, sep?: string) : string` | `1..2` | `value` | `string` |
@@ -376,13 +377,13 @@ documentation page and fails on a difference of one space.
 
 A result word of `constraint` marks a residual whose meet depends on the
 peer it lands beside. `any` is the result word where the declaration
-cannot name the result: ten wrappers that answer whatever they were
-given, plus `pick`, which answers a projection out of every child, and
+cannot name the result: twelve wrappers that answer whatever they
+were given, plus `pick`, which answers a projection out of every child, and
 `match`, which answers one of its pattern results.
 
 ## Slices
 
-The same 68 names, cut by result word, by rest slot, and by optional
+The same 69 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -390,7 +391,7 @@ The ten result words, and the names under each:
 
 | result | count | names |
 |---|---|---|
-| `any` | 13 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
+| `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `identity`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
 | `constraint` | 18 | `above`, `acyclic`, `below`, `contains`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |

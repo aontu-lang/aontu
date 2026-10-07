@@ -78,6 +78,7 @@ declare abstract class Val {
     mark: ValMark;
     deprecation?: Record<string, string[]>;
     meta?: Record<string, Val[]>;
+    identity?: Record<string, string[]>;
     link?: string;
     origin?: string;
     aliasOrigin?: string;

@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### `identity(v, r)`, `$id`, `$anchor` and references across documents
+
+Both ports. G12 phase 10, ADR-050.
+
+- `identity(v, r)` is `v`, with the JSON Schema resource it was read
+  from named on the alias declaration it is the value of: the record's
+  `id` is an absolute URI with no fragment, its `anchor` a plain name,
+  and its `key` the name the schema had under `$defs`. Only a call that
+  is the declaration's value holds it, never a reference's copy or a
+  call that is another call's argument, and two records at one
+  declaration meet as their union. Neither the canon nor generation
+  shows it. A record that is not a map, a key outside the three, and a
+  value of the wrong form refuse with `func_arg`.
+- `aontu jsonschema import` reads each `$id` against the base where it
+  stands and each `$ref` against its own base, where it read every
+  reference against the document and reported a nested `$id` lost. An
+  `$id` with a fragment refuses with `jsonschema_schema`, and one URI,
+  or one anchor in one resource, naming two schemas refuses with
+  `jsonschema_duplicate`.
+- `--document <uri>=<file>`, and the importer's `documents` option,
+  hand over the other documents a schema refers to. A document is read
+  when a reference first reaches it, and each schema reached is
+  imported into the same source. A reference to a document the import
+  was not given refuses with `jsonschema_ref`, whose message now says
+  so.
+- A schema reached by anchor and by pointer is one alias, named for
+  the place it stands, where it was two. A schema with an absolute
+  `$id`, an anchor or a `$defs` key its alias name does not spell is
+  declared as `identity(…)`, the root included.
+- `aontu jsonschema export` writes an alias declared with `identity()`
+  under its key, with its `$anchor` and its `$id`, and refers to it by
+  its `$id`. A reference from inside such a definition to one without
+  names the root by the root's `$id`; where the root has none, every
+  definition is written without its `$id`, and the loss is reported.
+- The JSON-Schema-Test-Suite's `remotes/` is read by both ports'
+  harness: 98 more of its 2020-12 tests answer as the suite says, and
+  the skip ledger falls from 224 lines to 126.
+
 ### `meta(v, ...r)`, annotations both ways, and `--defaults`
 
 Both ports. G12 phase 9, ADR-049.

@@ -320,18 +320,25 @@ class FuncBaseVal extends FeatureVal {
         else {
           this.peg = pegprep
 
-          for (let arg of this.peg) {
+          const inarg = (ctx as any).inarg
+          ; (ctx as any).inarg = true
+          try {
+            for (let arg of this.peg) {
 
-            let newarg = arg
-            if (!arg.done) {
-              const argctx = te ? ctx.clone({ explain: ec(te, 'ARG') }) : ctx
-              newarg = withDepth(ctx, arg, TOP, () => arg.unify(TOP, argctx))
-              newtype = newtype || newarg.mark.type
-              newhide = newhide || newarg.mark.hide
+              let newarg = arg
+              if (!arg.done) {
+                const argctx = te ? ctx.clone({ explain: ec(te, 'ARG') }) : ctx
+                newarg = withDepth(ctx, arg, TOP, () => arg.unify(TOP, argctx))
+                newtype = newtype || newarg.mark.type
+                newhide = newhide || newarg.mark.hide
+              }
+              // pegdone &&= arg.done
+              pegdone &&= newarg.done
+              newpeg.push(newarg)
             }
-            // pegdone &&= arg.done
-            pegdone &&= newarg.done
-            newpeg.push(newarg)
+          }
+          finally {
+            ; (ctx as any).inarg = inarg
           }
         }
 

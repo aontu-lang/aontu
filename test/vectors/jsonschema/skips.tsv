@@ -1,4 +1,4 @@
-# bound 224
+# bound 126
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -10,57 +10,31 @@
 # phase is the phase of docs/capability-review/g12-jsonschema-fidelity.md
 # that carries it. A listed test the import honours fails the run, so
 # a phase deletes the lines it clears and lowers the bound to match.
-draft2020-12/anchor.json	Location-independent identifier with absolute URI	match	jsonschema_ref	10
-draft2020-12/anchor.json	Location-independent identifier with absolute URI	mismatch	jsonschema_ref	10
-draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	match	jsonschema_ref	10
-draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	mismatch	jsonschema_ref	10
-draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	jsonschema_duplicate	10
-draft2020-12/anchor.json	same $anchor with different base uri	$ref does not resolve to /$defs/A/allOf/0	jsonschema_duplicate	10
-draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	10
-draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	10
+draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	-	18
+draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	16
+draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	16
 draft2020-12/dynamicRef.json	A $dynamicRef to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
 draft2020-12/dynamicRef.json	A $dynamicRef to an $anchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicRef	11
-draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array of strings is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated	An array of strings is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated	An array containing non-strings is invalid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef without anchor in fragment behaves identical to $ref	An array of strings is invalid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef without anchor in fragment behaves identical to $ref	An array of numbers is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef with intermediate scopes that don't include a matching $dynamicAnchor does not affect dynamic scope resolution	An array of strings is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef with intermediate scopes that don't include a matching $dynamicAnchor does not affect dynamic scope resolution	An array containing non-strings is invalid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	An $anchor with the same name as a $dynamicAnchor is not used for dynamic scope resolution	Any array is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef without a matching $dynamicAnchor in the same schema resource behaves like a normal $ref to $anchor	Any array is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef with a non-matching $dynamicAnchor in the same schema resource behaves like a normal $ref to $anchor	Any array is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef that initially resolves to a schema with a matching $dynamicAnchor resolves to the first $dynamicAnchor in the dynamic scope	The recursive part is valid against the root	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef that initially resolves to a schema with a matching $dynamicAnchor resolves to the first $dynamicAnchor in the dynamic scope	The recursive part is not valid against the root	jsonschema_ref	10
-draft2020-12/dynamicRef.json	A $dynamicRef that initially resolves to a schema without a matching $dynamicAnchor behaves like a normal $ref to $anchor	The recursive part doesn't need to validate against the root	jsonschema_ref	10
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	number list with number values	jsonschema_ref	10
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	number list with string values	jsonschema_ref	10
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with number values	jsonschema_ref	10
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with string values	jsonschema_ref	10
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	string matches /$defs/thingy, but the $dynamicRef does not stop here	jsonschema_ref	11
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	first_scope is not in dynamic scope for the $dynamicRef	jsonschema_ref	11
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	/then/$defs/thingy is the final stop for the $dynamicRef	jsonschema_ref	11
-draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	jsonschema_ref	10
-draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with correct field	jsonschema_ref	10
-draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	incorrect parent schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	incorrect extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	correct extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $defs first	incorrect parent schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $defs first	incorrect extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $defs first	correct extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	incorrect parent schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	incorrect extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	correct extended schema	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	number is valid	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	non-number is invalid	jsonschema_ref	10
+draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array of strings is valid	jsonschema_ref	11
+draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	jsonschema_ref	11
+draft2020-12/dynamicRef.json	A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	A $dynamicRef without anchor in fragment behaves identical to $ref	An array of strings is invalid	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	A $dynamicRef with intermediate scopes that don't include a matching $dynamicAnchor does not affect dynamic scope resolution	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	A $dynamicRef that initially resolves to a schema with a matching $dynamicAnchor resolves to the first $dynamicAnchor in the dynamic scope	The recursive part is not valid against the root	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	number list with string values	$dynamicRef	11
+draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with number values	$dynamicRef	11
+draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	string matches /$defs/thingy, but the $dynamicRef does not stop here	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	first_scope is not in dynamic scope for the $dynamicRef	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	$dynamicAnchor,$dynamicRef,unevaluatedProperties	12
+draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	incorrect extended schema	$dynamicAnchor,$dynamicRef	11
+draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $defs first	incorrect extended schema	$dynamicRef	11
+draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	incorrect extended schema	$dynamicRef	11
+draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	non-number is invalid	$dynamicRef	11
 draft2020-12/dynamicRef.json	$dynamicRef points to a boolean schema	follow $dynamicRef to a false schema	$dynamicRef	11
-draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	integer property passes	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is sufficient for schema at second#/$defs/length	jsonschema_ref	10
-draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	jsonschema_ref	10
+draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	$dynamicRef	11
+draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	$dynamicRef	11
 draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
-draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	jsonschema_ref	10
+draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	$schema	16
 draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	-	15
 draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing dependency	-	15
 draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing other dependency	-	15
@@ -75,8 +49,7 @@ draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object 
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote	-	15
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted tab invalid under dependent schema	-	15
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote invalid under dependent schema	-	15
-draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	integer property passes	jsonschema_ref	10
-draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	string property fails	jsonschema_ref	10
+draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	string property fails	$dynamicRef	11
 draft2020-12/optional/ecmascript-regex.json	ECMA 262 regex escapes control codes with \c and upper letter	does not match	pattern	14
 draft2020-12/optional/ecmascript-regex.json	ECMA 262 regex escapes control codes with \c and lower letter	does not match	pattern	14
 draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantics with pattern	unicode matching is case-sensitive	pattern	14
@@ -85,79 +58,10 @@ draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantic
 draft2020-12/optional/ecmascript-regex.json	patternProperties with non-ASCII digits	ascii non-digits	additionalProperties,pattern	14
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: false	format-assertion: false: invalid string	$schema	16
 draft2020-12/optional/format-assertion.json	schema that uses custom metaschema with format-assertion: true	format-assertion: true: invalid string	$schema	16
-draft2020-12/optional/id.json	$id inside an enum is not a real identifier	no match on enum or $ref to $id	jsonschema_ref	10
-draft2020-12/optional/id.json	$id inside an enum is not a real identifier	exact match to enum, and type matches	jsonschema_ref	10
-draft2020-12/optional/id.json	$id inside an enum is not a real identifier	match $ref to $id	jsonschema_ref	10
-draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in first anyOf	jsonschema_ref	10
-draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches non-schema in third anyOf	jsonschema_ref	10
-draft2020-12/optional/unknownKeyword.json	$id inside an unknown keyword is not a real identifier	type matches second anyOf, which has a real schema in it	jsonschema_ref	10
 draft2020-12/pattern.json	pattern with Unicode property escape requires unicode mode	Digits do not match	pattern	14
-draft2020-12/ref.json	remote ref, containing refs itself	remote ref valid	jsonschema_ref	10
-draft2020-12/ref.json	remote ref, containing refs itself	remote ref invalid	jsonschema_ref	10
-draft2020-12/ref.json	Recursive references between schemas	valid tree	jsonschema_ref	10
-draft2020-12/ref.json	Recursive references between schemas	invalid tree	jsonschema_ref	10
+draft2020-12/ref.json	remote ref, containing refs itself	remote ref valid	jsonschema_ref	16
+draft2020-12/ref.json	remote ref, containing refs itself	remote ref invalid	jsonschema_ref	16
 draft2020-12/ref.json	ref creates new scope when adjacent to keywords	referenced subschema doesn't see annotations from properties	unevaluatedProperties	12
-draft2020-12/ref.json	refs with relative uris and defs	invalid on inner field	jsonschema_ref	10
-draft2020-12/ref.json	refs with relative uris and defs	invalid on outer field	jsonschema_ref	10
-draft2020-12/ref.json	refs with relative uris and defs	valid on both fields	jsonschema_ref	10
-draft2020-12/ref.json	relative refs with absolute uris and defs	invalid on inner field	jsonschema_ref	10
-draft2020-12/ref.json	relative refs with absolute uris and defs	invalid on outer field	jsonschema_ref	10
-draft2020-12/ref.json	relative refs with absolute uris and defs	valid on both fields	jsonschema_ref	10
-draft2020-12/ref.json	$id must be resolved against nearest parent, not just immediate parent	number is valid	jsonschema_ref	10
-draft2020-12/ref.json	$id must be resolved against nearest parent, not just immediate parent	non-number is invalid	jsonschema_ref	10
-draft2020-12/ref.json	order of evaluation: $id and $ref	data is valid against first definition	jsonschema_ref	10
-draft2020-12/ref.json	order of evaluation: $id and $ref	data is invalid against first definition	jsonschema_ref	10
-draft2020-12/ref.json	order of evaluation: $id and $anchor and $ref	data is valid against first definition	jsonschema_duplicate	10
-draft2020-12/ref.json	order of evaluation: $id and $anchor and $ref	data is invalid against first definition	jsonschema_duplicate	10
-draft2020-12/ref.json	order of evaluation: $id and $ref on nested schema	data is valid against nested sibling	jsonschema_ref	10
-draft2020-12/ref.json	order of evaluation: $id and $ref on nested schema	data is invalid against nested sibling	jsonschema_ref	10
-draft2020-12/ref.json	simple URN base URI with $ref via the URN	valid under the URN IDed schema	jsonschema_ref	10
-draft2020-12/ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	jsonschema_ref	10
-draft2020-12/ref.json	URN base URI with URN and JSON pointer ref	a string is valid	jsonschema_ref	10
-draft2020-12/ref.json	URN base URI with URN and JSON pointer ref	a non-string is invalid	jsonschema_ref	10
-draft2020-12/ref.json	URN base URI with URN and anchor ref	a string is valid	jsonschema_ref	10
-draft2020-12/ref.json	URN base URI with URN and anchor ref	a non-string is invalid	jsonschema_ref	10
-draft2020-12/ref.json	URN ref with nested pointer ref	a string is valid	jsonschema_ref	10
-draft2020-12/ref.json	URN ref with nested pointer ref	a non-string is invalid	jsonschema_ref	10
-draft2020-12/ref.json	ref to if	a non-integer is invalid due to the $ref	jsonschema_ref	10
-draft2020-12/ref.json	ref to if	an integer is valid	jsonschema_ref	10
-draft2020-12/ref.json	ref to then	a non-integer is invalid due to the $ref	jsonschema_ref	10
-draft2020-12/ref.json	ref to then	an integer is valid	jsonschema_ref	10
-draft2020-12/ref.json	ref to else	a non-integer is invalid due to the $ref	jsonschema_ref	10
-draft2020-12/ref.json	ref to else	an integer is valid	jsonschema_ref	10
-draft2020-12/ref.json	ref with absolute-path-reference	a string is valid	jsonschema_ref	10
-draft2020-12/ref.json	ref with absolute-path-reference	an integer is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote ref	remote ref valid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote ref	remote ref invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	fragment within remote ref	remote fragment valid	jsonschema_ref	10
-draft2020-12/refRemote.json	fragment within remote ref	remote fragment invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	anchor within remote ref	remote anchor valid	jsonschema_ref	10
-draft2020-12/refRemote.json	anchor within remote ref	remote anchor invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	ref within remote ref	ref within ref valid	jsonschema_ref	10
-draft2020-12/refRemote.json	ref within remote ref	ref within ref invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change	base URI change ref valid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change	base URI change ref invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change - change folder	number is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change - change folder	string is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change - change folder in subschema	number is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	base URI change - change folder in subschema	string is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	root ref in remote ref	string is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	root ref in remote ref	null is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	root ref in remote ref	object is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote ref with ref to defs	invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote ref with ref to defs	valid	jsonschema_ref	10
-draft2020-12/refRemote.json	Location-independent identifier in remote ref	integer is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	Location-independent identifier in remote ref	string is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	retrieved nested refs resolve relative to their URI not $id	number is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	retrieved nested refs resolve relative to their URI not $id	string is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with different $id	number is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with different $id	string is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with different URN $id	number is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with different URN $id	string is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with nested absolute ref	number is invalid	jsonschema_ref	10
-draft2020-12/refRemote.json	remote HTTP ref with nested absolute ref	string is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	$ref to $ref finds detached $anchor	number is valid	jsonschema_ref	10
-draft2020-12/refRemote.json	$ref to $ref finds detached $anchor	non-number is invalid	jsonschema_ref	10
 draft2020-12/unevaluatedItems.json	unevaluatedItems false	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems as schema	with invalid unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with tuple	with unevaluated items	unevaluatedItems	12
@@ -172,8 +76,7 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if do
 draft2020-12/unevaluatedItems.json	unevaluatedItems with boolean schemas	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $ref	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems before $ref	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with no unevaluated items	jsonschema_ref	10
-draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	jsonschema_ref	10
+draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	$dynamicAnchor,$dynamicRef,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems can't see inside cousins	always fails	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	unevaluatedItems	12
@@ -207,8 +110,7 @@ draft2020-12/unevaluatedProperties.json	unevaluatedProperties with dependentSche
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with boolean schemas	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $ref	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties before $ref	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with no unevaluated properties	jsonschema_ref	10
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with unevaluated properties	jsonschema_ref	10
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with unevaluated properties	$dynamicAnchor,$dynamicRef,unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins	always fails	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins (reverse order)	always fails	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true, inner false, properties outside	with no nested unevaluated properties	unevaluatedProperties	12

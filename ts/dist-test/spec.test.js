@@ -41,6 +41,7 @@ const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
 const jsonschema_import_1 = require("../dist/jsonschema-import");
+const uri_1 = require("../dist/uri");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
@@ -94,7 +95,8 @@ function loadRows() {
             const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
                 'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
-                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1];
+                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+                'uri' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -285,6 +287,9 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
+    }
+    else if ('uri' === row.mode) {
+        Assert.strictEqual((0, uri_1.resolveUri)(row.src, row.data), row.expect);
     }
     else if ('jsonschema-import' === row.mode) {
         // `instances` rides the expect object: each must vet as the schema

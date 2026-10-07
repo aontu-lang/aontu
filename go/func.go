@@ -26,6 +26,7 @@ var funcSet = map[string]bool{
 	"contains":  true,
 	"deprecate": true,
 	"meta":      true,
+	"identity":  true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -343,6 +344,8 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		generatorFuncs[f.name] {
 		newpeg = f.peg
 	} else {
+		inarg := ctx.inarg
+		ctx.inarg = true
 		for i, arg := range f.peg {
 			na := arg
 			if arg.Dc() != DONE {
@@ -366,6 +369,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 			newpeg = append(newpeg, na)
 		}
+		ctx.inarg = inarg
 	}
 
 	if "super" == f.name && 0 < len(newpeg) {
@@ -708,6 +712,38 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		out := clonePath(args[0], cp(base))
 		if 0 < len(rider) {
 			out.setMetaRec(unionRider(out.metaRec(), rider, valCanon))
+		}
+		return out
+	case "identity":
+		// G12 phase 10: a resource's identity, held by its declaration.
+		if args[0].Nil() {
+			return args[0]
+		}
+		m, ok := args[1].(*MapVal)
+		ok = ok && nil == m.spread && 0 == len(m.optional)
+		for j := 0; ok && j < len(m.keys); j++ {
+			check, known := identityKeys[m.keys[j]]
+			ok = known && check(m.peg[m.keys[j]])
+		}
+		if !ok {
+			return makeNilErrFull(ctx, "func_arg", f, args[1], "", map[string]string{
+				"func": "identity",
+				"sig":  renderSig(funcSig["identity"]),
+				"arg":  "r",
+				"argn": "2",
+				"got":  args[1].Canon(),
+			})
+		}
+		out := clonePath(args[0], cp(base))
+		// Only the declaration carries the record, from a call that is no
+		// other call's argument: a reference's copy of the call resolves
+		// where the reference stands, as its value.
+		if 1 == len(base) && isAliasSlotKey(base[0]) && !ctx.inarg && !ctx.argsnap {
+			rec := map[string][]string{}
+			for _, k := range m.keys {
+				rec[k] = []string{m.peg[k].(*ScalarVal).peg.(string)}
+			}
+			out.setIdentityRec(unionRider(out.identityRec(), rec, strSelf))
 		}
 		return out
 	case "acyclic", "inverse":

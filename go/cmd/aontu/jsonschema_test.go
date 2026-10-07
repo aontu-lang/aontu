@@ -222,6 +222,17 @@ func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
 		t.Fatalf("--defaults = %d: %q", code, out)
 	}
 
+	// A reference into another document reads it from the set.
+	other := jsonSchemaImportFile(t, []byte(`{"$defs": {"n": {"type": "integer"}}}`))
+	main := jsonSchemaImportFile(t, []byte(`{"$ref": "http://e.com/other.json#/$defs/n"}`))
+	if out, _, code := jsonSchemaRun("import", "--document",
+		"http://e.com/other.json="+other, main); 0 != code ||
+		"%_d-http_3a__2f__2f_e_2e_com_2f_other_2e_json-_24_defs-n = identity(\n"+
+			"  number & multiple(1),\n  { key:\"n\" }\n)\n\n"+
+			"schema: hide(%_d-http_3a__2f__2f_e_2e_com_2f_other_2e_json-_24_defs-n)\n" != out {
+		t.Fatalf("--document = %d: %q", code, out)
+	}
+
 	bad := jsonSchemaImportFile(t, []byte(`{"$ref": "#/nope"}`))
 	out, errw, code = jsonSchemaRun("import", bad)
 	if 4 != code || "" != out || "#/$ref: jsonschema_ref [reference]\n"+
@@ -262,6 +273,12 @@ func TestJsonSchemaImportArgumentErrors(t *testing.T) {
 		{[]string{"--format", "yaml", file}, "--format needs"},
 		{[]string{"--format"}, "--format needs"},
 		{[]string{filepath.Join(t.TempDir(), "missing.json")}, "cannot read"},
+		{[]string{"--document"}, "--document needs"},
+		{[]string{"--document", "nouri", file}, "--document needs"},
+		{[]string{"--document", "u=" + filepath.Join(t.TempDir(), "missing.json"), file},
+			"cannot read"},
+		{[]string{"--document", "u=" + file, "--document", "u=" + file, file},
+			"names u twice"},
 	} {
 		_, errw, code := jsonSchemaRun(append([]string{"import"}, c.args...)...)
 		if 2 != code || !strings.Contains(errw, c.want) {

@@ -31,6 +31,7 @@ type Ctx struct {
 	slot []string
 
 	argsnap bool
+	inarg   bool
 
 	budgetPasses int
 	budgetDepth  int

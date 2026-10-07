@@ -99,7 +99,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
        aontu jsonschema import [--strict] [--defaults] [--format text|json]
-                               <schema.json>
+                               [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3852,7 +3852,29 @@ const JSONSCHEMA_HELP =
 
 const JSONSCHEMA_IMPORT_HELP =
   'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
-  '<schema.json> (try --help)'
+  '[--document <uri>=<file>]... <schema.json> (try --help)'
+
+
+// A file's text as the import reads it: bytes that are not UTF-8 reach
+// the reader as text that is not well-formed, which it refuses as the Go
+// port refuses them.
+function readSchemaText(file: string): string | undefined {
+  let bytes: Buffer
+  try {
+    bytes = readFileSync(file)
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return undefined
+  }
+  let text = '\uD800'
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+      .decode(bytes)
+  }
+  catch { }
+  return text
+}
 
 
 // The aontu source on stdout; what it could not carry, and how to vet
@@ -3862,6 +3884,7 @@ function runJsonSchemaImport(argv: string[]): number {
   let format: SubsumeFormat = 'text'
   let strict = false
   let defaults = false
+  const docs: [string, string][] = []
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -3871,6 +3894,20 @@ function runJsonSchemaImport(argv: string[]): number {
     }
     else if ('--defaults' === arg) {
       defaults = true
+    }
+    else if ('--document' === arg) {
+      const spec = argv[++i] ?? ''
+      const eq = spec.indexOf('=')
+      if (eq < 1 || eq === spec.length - 1) {
+        process.stderr.write('aontu: --document needs <uri>=<file>\n')
+        return 2
+      }
+      if (docs.some(([uri]) => uri === spec.slice(0, eq))) {
+        process.stderr.write(
+          `aontu: --document names ${spec.slice(0, eq)} twice\n`)
+        return 2
+      }
+      docs.push([spec.slice(0, eq), spec.slice(eq + 1)])
     }
     else if ('--format' === arg) {
       const f = argv[++i]
@@ -3899,24 +3936,20 @@ function runJsonSchemaImport(argv: string[]): number {
     return 2
   }
 
-  let bytes: Buffer
-  try {
-    bytes = readFileSync(files[0])
-  }
-  catch (err: any) {
-    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+  const text = readSchemaText(files[0])
+  if (undefined === text) {
     return 2
   }
-  // Bytes that are not UTF-8 reach the reader as text that is not
-  // well-formed, which it refuses as the Go port refuses them.
-  let text = '\uD800'
-  try {
-    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
-      .decode(bytes)
+  const documents: Record<string, string> = {}
+  for (const [uri, file] of docs) {
+    const doc = readSchemaText(file)
+    if (undefined === doc) {
+      return 2
+    }
+    documents[uri] = doc
   }
-  catch { }
 
-  const report = importJsonSchema(text, { defaults })
+  const report = importJsonSchema(text, { defaults, documents })
   if ('json' === format) {
     process.stdout.write(exactJSON({
       aontu: { version: version(), verb: 'jsonschema import' }, ...report,

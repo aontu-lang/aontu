@@ -528,7 +528,7 @@ function aliasRef(ctx, v) {
         target = v.target;
         if (ctx.anchor.length === v.target.length &&
             v.target.every((s, i) => s === ctx.anchor[i])) {
-            return { $ref: '#' };
+            return { $ref: refTo(ctx, ROOT_DEF) };
         }
     }
     else if (null != v?.aliasOrigin && sameCopy((0, RecurseVal_1.walkTarget)(ctx.root, [v.aliasOrigin]), v)) {
@@ -542,16 +542,93 @@ function aliasRef(ctx, v) {
     const id = JSON.stringify(target);
     let key = ctx.names.get(id);
     if (undefined === key) {
-        const base = at.join('.').replace(/^%/, '');
+        const ident = single(ctx, at, body.identity);
+        const base = ident.key ?? at.join('.').replace(/^%/, '');
         key = base;
         for (let n = 2; ctx.defs.has(key); n++) {
             key = base + '-' + n;
         }
         ctx.names.set(id, key);
         ctx.defs.set(key, {});
-        ctx.defs.set(key, fromVal(ctx, at, body));
+        let rid = true === ctx.ids ? ident.id : undefined;
+        if (undefined !== rid && (rid === ctx.rootId ||
+            [...ctx.addr.values()].includes(rid))) {
+            lose(ctx, at, '$id', 'another schema carries the $id ' + rid +
+                ', which names one schema, so this one is written without it');
+            rid = undefined;
+        }
+        if (undefined !== rid) {
+            ctx.addr.set(key, rid);
+        }
+        let anchor = ident.anchor;
+        if (undefined !== anchor && undefined === rid) {
+            if (ctx.anchors.has(anchor)) {
+                lose(ctx, at, '$anchor', 'another schema in the resource carries ' +
+                    'the anchor ' + anchor + ', which names one schema, so this one ' +
+                    'is written without it');
+                anchor = undefined;
+            }
+            else {
+                ctx.anchors.add(anchor);
+            }
+        }
+        const outer = ctx.base;
+        ctx.base = rid;
+        const schema = fromVal(ctx, at, body);
+        ctx.base = outer;
+        ctx.defs.set(key, stamp(schema, rid, anchor));
     }
-    return { $ref: '#/$defs/' + pointerToken(key) };
+    return { $ref: refTo(ctx, key) };
+}
+// The export root's own place among the definitions.
+const ROOT_DEF = '';
+// A reference to a definition, spelled to resolve from the resource the
+// walk is in: a definition with an $id by it, and one without from the
+// root, which a fragment names only from the root's own resource.
+function refTo(ctx, key) {
+    const rid = ctx.addr.get(key);
+    if (undefined !== rid) {
+        return rid;
+    }
+    const frag = ROOT_DEF === key ? '#' : '#/$defs/' + pointerToken(key);
+    if (undefined === ctx.base) {
+        return frag;
+    }
+    if (undefined === ctx.rootId) {
+        ctx.unaddressable = true;
+        return frag;
+    }
+    return ROOT_DEF === key ? ctx.rootId : ctx.rootId + frag;
+}
+// An identity's keys, each where it holds one value: a key that holds
+// more names no one place, so none of them is written.
+function single(ctx, path, rec) {
+    const out = {};
+    for (const [k, keyword] of [['id', '$id'], ['anchor', '$anchor'],
+        ['key', '$defs']]) {
+        const vals = rec?.[k] ?? [];
+        if (1 === vals.length) {
+            out[k] = vals[0];
+        }
+        else if (1 < vals.length) {
+            lose(ctx, path, keyword, 'the declaration names ' + vals.join(' and ') +
+                ' for one schema, so neither is written');
+        }
+    }
+    return out;
+}
+// A schema with its resource's $id and its $anchor written on it.
+function stamp(schema, id, anchor) {
+    if (undefined === id && undefined === anchor) {
+        return schema;
+    }
+    if (undefined !== id) {
+        schema.$id = id;
+    }
+    if (undefined !== anchor) {
+        schema.$anchor = anchor;
+    }
+    return schema;
 }
 // An alias's copy is unchanged when its value is, and what rides it.
 function sameCopy(def, v) {
@@ -1046,11 +1123,41 @@ function jsonSchema(src, options) {
         node = found;
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
-    const ctx = {
-        lossy: [], exact: true === opts.exactNumbers, root, defs: new Map(),
-        names: new Map(), anchor,
+    // The root, where it is an alias's unchanged copy whose declaration
+    // names a resource, is written as that resource.
+    const run = (ids) => {
+        const ctx = {
+            lossy: [], exact: true === opts.exactNumbers, root, defs: new Map(),
+            names: new Map(), anchor, ids, addr: new Map(), anchors: new Set(),
+            unaddressable: false,
+        };
+        const decl = null == node.aliasOrigin ? undefined :
+            (0, RecurseVal_1.walkTarget)(root, [node.aliasOrigin]);
+        let top = node;
+        let ident = {};
+        if (1 === decl?.identity?.id?.length && sameCopy(decl, node)) {
+            ident = single(ctx, anchor, decl.identity);
+        }
+        if (undefined !== ident.id) {
+            ctx.rootId = ident.id;
+            ctx.names.set(JSON.stringify([node.aliasOrigin]), ROOT_DEF);
+            if (undefined !== ident.anchor) {
+                ctx.anchors.add(ident.anchor);
+            }
+            top = decl;
+        }
+        const body = fromVal(ctx, anchor, top);
+        return {
+            ctx, body: top === node ? body : stamp(body, ident.id, ident.anchor),
+        };
     };
-    const body = fromVal(ctx, anchor, node);
+    let { ctx, body } = run(true);
+    if (ctx.unaddressable) {
+        ({ ctx, body } = run(false));
+        lose(ctx, anchor, '$id', 'a definition with an $id refers to one the ' +
+            'document names only from its root, which has no $id to name it by, ' +
+            'so the definitions are written without theirs');
+    }
     if (null != ctx.failed) {
         const f = ctx.failed;
         const nil = true === f.isNil ? f :

@@ -128,6 +128,7 @@ import { HideFuncVal } from './val/HideFuncVal'
 import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { MetaFuncVal } from './val/MetaFuncVal'
+import { IdentityFuncVal } from './val/IdentityFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -885,6 +886,9 @@ help isolate the syntax error.`,
 
     // G12 phase 9: the annotation rider, on deprecate()'s precedent.
     meta: MetaFuncVal,
+
+    // G12 phase 10: a resource's identity, held by its declaration.
+    identity: IdentityFuncVal,
 
     refer: ReferFuncVal,
     rel: RelFuncVal,

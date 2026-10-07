@@ -505,6 +505,7 @@ class RefVal extends FeatureVal {
           const typed = true === out.mark.type
 
           out = out.clone(ctx, { dup: !out.holdsStaged })
+          out.identity = undefined
 
           if (lifted) {
             // The copy carries a held constraint without its type.

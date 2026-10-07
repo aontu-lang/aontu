@@ -1,0 +1,77 @@
+# RFC 3986 REFERENCE RESOLUTION (G12 phase 10, docs/capability-review/
+# g12-jsonschema-fidelity.md, section 10): the resolver both ports carry
+# for JSON Schema's $id and $ref, written out rather than taken from a
+# host URL parser.
+#
+# Columns: name<TAB>uri<TAB>base<TAB>reference<TAB>expect
+#
+# `expect` is the reference resolved against the base, section 5.2.2
+# strict. The rfc rows are section 5.4's examples, whose answers are the
+# RFC's own; the rest are the shapes JSON Schema's suite uses. Every
+# answer was obtained by running both engines, and the rfc rows were
+# also checked against the RFC.
+#
+uri-rfc-normal-01-g-h	uri	http://a/b/c/d;p?q	g:h	g:h
+uri-rfc-normal-02-g	uri	http://a/b/c/d;p?q	g	http://a/b/c/g
+uri-rfc-normal-03-g	uri	http://a/b/c/d;p?q	./g	http://a/b/c/g
+uri-rfc-normal-04-g	uri	http://a/b/c/d;p?q	g/	http://a/b/c/g/
+uri-rfc-normal-05-g	uri	http://a/b/c/d;p?q	/g	http://a/g
+uri-rfc-normal-06-g	uri	http://a/b/c/d;p?q	//g	http://g
+uri-rfc-normal-07-y	uri	http://a/b/c/d;p?q	?y	http://a/b/c/d;p?y
+uri-rfc-normal-08-g-y	uri	http://a/b/c/d;p?q	g?y	http://a/b/c/g?y
+uri-rfc-normal-09-s	uri	http://a/b/c/d;p?q	#s	http://a/b/c/d;p?q#s
+uri-rfc-normal-10-g-s	uri	http://a/b/c/d;p?q	g#s	http://a/b/c/g#s
+uri-rfc-normal-11-g-y-s	uri	http://a/b/c/d;p?q	g?y#s	http://a/b/c/g?y#s
+uri-rfc-normal-12-x	uri	http://a/b/c/d;p?q	;x	http://a/b/c/;x
+uri-rfc-normal-13-g-x	uri	http://a/b/c/d;p?q	g;x	http://a/b/c/g;x
+uri-rfc-normal-14-g-x-y-s	uri	http://a/b/c/d;p?q	g;x?y#s	http://a/b/c/g;x?y#s
+uri-rfc-normal-15-empty	uri	http://a/b/c/d;p?q		http://a/b/c/d;p?q
+uri-rfc-normal-16-empty	uri	http://a/b/c/d;p?q	.	http://a/b/c/
+uri-rfc-normal-17-empty	uri	http://a/b/c/d;p?q	./	http://a/b/c/
+uri-rfc-normal-18-empty	uri	http://a/b/c/d;p?q	..	http://a/b/
+uri-rfc-normal-19-empty	uri	http://a/b/c/d;p?q	../	http://a/b/
+uri-rfc-normal-20-g	uri	http://a/b/c/d;p?q	../g	http://a/b/g
+uri-rfc-normal-21-empty	uri	http://a/b/c/d;p?q	../..	http://a/
+uri-rfc-normal-22-empty	uri	http://a/b/c/d;p?q	../../	http://a/
+uri-rfc-normal-23-g	uri	http://a/b/c/d;p?q	../../g	http://a/g
+uri-rfc-abnormal-01-g	uri	http://a/b/c/d;p?q	../../../g	http://a/g
+uri-rfc-abnormal-02-g	uri	http://a/b/c/d;p?q	../../../../g	http://a/g
+uri-rfc-abnormal-03-g	uri	http://a/b/c/d;p?q	/./g	http://a/g
+uri-rfc-abnormal-04-g	uri	http://a/b/c/d;p?q	/../g	http://a/g
+uri-rfc-abnormal-05-g	uri	http://a/b/c/d;p?q	g.	http://a/b/c/g.
+uri-rfc-abnormal-06-g	uri	http://a/b/c/d;p?q	.g	http://a/b/c/.g
+uri-rfc-abnormal-07-g	uri	http://a/b/c/d;p?q	g..	http://a/b/c/g..
+uri-rfc-abnormal-08-g	uri	http://a/b/c/d;p?q	..g	http://a/b/c/..g
+uri-rfc-abnormal-09-g	uri	http://a/b/c/d;p?q	./../g	http://a/b/g
+uri-rfc-abnormal-10-g	uri	http://a/b/c/d;p?q	./g/.	http://a/b/c/g/
+uri-rfc-abnormal-11-g-h	uri	http://a/b/c/d;p?q	g/./h	http://a/b/c/g/h
+uri-rfc-abnormal-12-g-h	uri	http://a/b/c/d;p?q	g/../h	http://a/b/c/h
+uri-rfc-abnormal-13-g-x-1-y	uri	http://a/b/c/d;p?q	g;x=1/./y	http://a/b/c/g;x=1/y
+uri-rfc-abnormal-14-g-x-1-y	uri	http://a/b/c/d;p?q	g;x=1/../y	http://a/b/c/y
+uri-rfc-abnormal-15-g-y-x	uri	http://a/b/c/d;p?q	g?y/./x	http://a/b/c/g?y/./x
+uri-rfc-abnormal-16-g-y-x	uri	http://a/b/c/d;p?q	g?y/../x	http://a/b/c/g?y/../x
+uri-rfc-abnormal-17-g-s-x	uri	http://a/b/c/d;p?q	g#s/./x	http://a/b/c/g#s/./x
+uri-rfc-abnormal-18-g-s-x	uri	http://a/b/c/d;p?q	g#s/../x	http://a/b/c/g#s/../x
+uri-rfc-abnormal-19-http-g	uri	http://a/b/c/d;p?q	http:g	http:g
+uri-urn-pointer-fragment	uri	urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed	#/$defs/bar	urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed#/$defs/bar
+uri-urn-anchor-fragment	uri	urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed	#something	urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed#something
+uri-urn-with-nss-anchor	uri	urn:example:1/406/47452/2	#foo	urn:example:1/406/47452/2#foo
+uri-urn-relative-path-merges-the-strict-way	uri	urn:uuid:deadbeef-1234-ffff-ffff-4321feebdaed	nested.json	urn:nested.json
+uri-urn-base-and-a-dot	uri	urn:example:a	.	urn:
+uri-urn-base-and-two-dots	uri	urn:example:a	..	urn:
+uri-tag-anchor	uri	tag:example.com,2005:foo	#bar	tag:example.com,2005:foo#bar
+uri-file-unix-pointer	uri	file:///folder/file.json	#/$defs/foo	file:///folder/file.json#/$defs/foo
+uri-file-windows-pointer	uri	file:///c:/folder/file.json	#/$defs/foo	file:///c:/folder/file.json#/$defs/foo
+uri-folder-base-and-a-folder	uri	http://localhost:1234/draft2020-12/	baseUriChange/	http://localhost:1234/draft2020-12/baseUriChange/
+uri-folder-base-and-a-file	uri	http://localhost:1234/draft2020-12/baseUriChange/	folderInteger.json	http://localhost:1234/draft2020-12/baseUriChange/folderInteger.json
+uri-sibling-file-with-pointer	uri	http://example.com/a.json	b.json#/x	http://example.com/b.json#/x
+uri-empty-fragment-is-kept	uri	http://example.com/root.json	#	http://example.com/root.json#
+uri-authority-with-empty-path	uri	http://a	g	http://a/g
+uri-empty-reference-keeps-the-query	uri	http://a/b?q		http://a/b?q
+uri-empty-base-keeps-a-relative-path	uri		foo.json	foo.json
+uri-empty-base-keeps-a-fragment	uri		#foo	#foo
+uri-empty-base-drops-dot-segments	uri		../x/./y.json	x/y.json
+uri-relative-base-merges	uri	dir/a.json	b.json	dir/b.json
+uri-non-ascii-is-left-as-written	uri	http://a/ß/	ü	http://a/ß/ü
+uri-absolute-reference-ignores-the-base	uri	http://a/b	https://c/d/../e#f	https://c/e#f
+uri-authority-reference-keeps-the-scheme	uri	https://a/b	//c/./d	https://c/d

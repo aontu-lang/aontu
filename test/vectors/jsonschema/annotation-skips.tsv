@@ -21,8 +21,8 @@ applicators.json	`if`, `then`, and `else`	2		title	-	12
 applicators.json	`oneOf`	1		title	-	12
 applicators.json	`oneOf`	2		title	-	12
 core.json	`$dynamicRef` resolves to `$dynamicAnchor`	1		title	$dynamicAnchor,$dynamicRef	11
-core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	1	/list/0	title	jsonschema_ref	11
-core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	2	/list/0	title	jsonschema_ref	11
+core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	1	/list/0	title	$dynamicRef	11
+core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	2	/list/0	title	$dynamicRef	11
 unevaluated.json	`unevaluatedItems` alone	1	/0	title	unevaluatedItems	12
 unevaluated.json	`unevaluatedItems` alone	1	/1	title	unevaluatedItems	12
 unevaluated.json	`unevaluatedItems` with `allOf`	1	/1	title	unevaluatedItems	12

@@ -74,7 +74,7 @@ func TestSpec(t *testing.T) {
 			vetRow := "vet" == mode || "subsume" == mode || "query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
-				"fmt-template-lint" == mode
+				"fmt-template-lint" == mode || "uri" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -581,6 +581,11 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
+				case "uri":
+					if got := resolveURI(src, data); got != expect {
+						t.Fatalf("uri mismatch\n base: %q\n ref:  %q\n want: %q\n got:  %q",
+							src, data, expect, got)
+					}
 				case "jsonschema-import":
 					// `instances` rides the expect object: each must vet as
 					// the schema judges it, under the reading the import is
@@ -595,8 +600,14 @@ func TestSpec(t *testing.T) {
 					options, _ := golden["options"].(map[string]any)
 					delete(golden, "instances")
 					delete(golden, "options")
-					r := New().ImportJSONSchemaWith(src,
-						JSONSchemaImportOptions{Defaults: true == options["defaults"]})
+					docs := map[string]string{}
+					if set, isSet := options["documents"].(map[string]any); isSet {
+						for uri, text := range set {
+							docs[uri] = text.(string)
+						}
+					}
+					r := New().ImportJSONSchemaWith(src, JSONSchemaImportOptions{
+						Defaults: true == options["defaults"], Documents: docs})
 					out := map[string]any{
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
 						"source":  r.Source,

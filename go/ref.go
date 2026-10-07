@@ -502,6 +502,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
+	out.setIdentityRec(nil)
 	if lifted {
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)

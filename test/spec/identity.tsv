@@ -1,0 +1,35 @@
+# G12 phase 10: identity(v, r) -- a resource's identity on its alias
+# declaration (docs/capability-review/g12-jsonschema-fidelity.md,
+# section 10). The record names the resource's $id, an absolute URI
+# with no fragment, its $anchor, which is a plain name, and the key it
+# had under $defs. Value-transparent: the value unifies and generates
+# exactly as v. Only an alias declaration carries the record, from a
+# call that is its value rather than another call's argument; a
+# reference's copy never does, and two records at one declaration meet
+# as a key-wise union. Neither canon nor generation shows the record:
+# the JSON Schema export reads it, and test/spec/jsonschema.tsv pins
+# what it does there.
+# Every expectation was obtained by the parity probe (AGENTS.md).
+
+identity-is-its-value	gens	%A = identity({x: 1}, {id: "http://e/a", anchor: "n", key: "A b"})\nb: %A	{"b":{"x":1}}
+identity-at-a-field-is-its-value	gens	a: identity({x: 1}, {id: "http://e/a"})	{"a":{"x":1}}
+identity-of-a-scalar	gens	%A = identity(1, {key: "k"})\nb: %A	{"b":1}
+identity-of-any	gens	%A = identity(any, {key: "k"})\nb: %A & 2	{"b":2}
+identity-of-a-type	canon	%A = identity(integer, {key: "k"})\nb: %A	{"b":integer}
+identity-empty-record	gens	%A = identity({x: 1}, {})\nb: %A	{"b":{"x":1}}
+identity-unknown-key-refuses	errc	%A = identity({x: 1}, {idd: "u"})\nb: %A	func_arg
+identity-id-with-a-fragment-refuses	errc	%A = identity({x: 1}, {id: "u#f"})\nb: %A	func_arg
+identity-id-with-an-empty-fragment-refuses	errc	%A = identity({x: 1}, {id: "u#"})\nb: %A	func_arg
+identity-id-must-be-absolute-refuses	errc	%A = identity({x: 1}, {id: "a.json"})\nb: %A	func_arg
+identity-anchor-not-a-name-refuses	errc	%A = identity({x: 1}, {anchor: "1x"})\nb: %A	func_arg
+identity-key-not-a-string-refuses	errc	%A = identity({x: 1}, {key: 1})\nb: %A	func_arg
+identity-record-not-a-map-refuses	errc	%A = identity({x: 1}, "k")\nb: %A	func_arg
+identity-record-spread-refuses	errc	%A = identity({x: 1}, {&: string})\nb: %A	func_arg
+identity-record-optional-refuses	errc	%A = identity({x: 1}, {key?: "k"})\nb: %A	func_arg
+identity-nil-value-unchanged	errc	%A = identity(1 & 2, {key: "k"})\nb: %A	scalar_value
+identity-arity-one-refuses	errc	%A = identity({x: 1})\nb: %A	func_arity
+identity-arity-three-refuses	errc	%A = identity({x: 1}, {}, {})\nb: %A	func_arity
+identity-unresolved-record-refuses	errc	%A = identity({x: 1}, {key: string})\nb: %A	func_arg
+identity-record-by-reference	gens	r: {key: "k"}\n%A = identity({x: 1}, $.r)\nb: %A	{"b":{"x":1},"r":{"key":"k"}}
+identity-meets	gens	%A = identity({x: 1}, {key: "a"})\n%B = identity({y: 2}, {key: "b"})\nc: %A & %B	{"c":{"x":1,"y":2}}
+identity-redeclared	gens	%A = identity({x: 1}, {key: "a"})\n%A = {y: 2}\nb: %A	{"b":{"x":1,"y":2}}

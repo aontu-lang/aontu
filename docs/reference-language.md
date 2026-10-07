@@ -2281,6 +2281,12 @@ Mark `x` as hidden.
 
 Example: `hide(world) & string`→`"world"`
 
+### `identity(v: any, r: map) : any`
+
+`v`, with the JSON Schema resource it was read from named on the alias declaration it is the value of: its `$id`, its `$anchor` and its key under `$defs`. Unifies and generates exactly as `v`; a reference's copy never takes the record. See [Resource identity](#resource-identity-identity).
+
+Example: `%Address = identity({ city:string }, { id:"https://example.com/address" })`
+
 ### `inject(spec: string|map, children?: list) : map`
 
 An injection node of the [component tree](#generation): a body written
@@ -3977,6 +3983,39 @@ A record that is not a map, a key outside that set, a value of the
 wrong kind, and a value that is not concrete data each refuse with
 `func_arg`. An empty record adds nothing, and a nil `v` is returned
 as it is.
+
+## Resource identity: `identity`
+
+`identity(v, r)` is `v`, with the JSON Schema resource it was read from
+named on the alias declaration it is the value of. The record's `id` is
+the resource's `$id`, an absolute URI with no fragment; its `anchor` is
+a plain name; and its `key` is the name the schema had under `$defs`.
+Each is a string, and each may be left out. The JSON Schema import
+writes the record, and the export reads it at the declaration, to give
+the definition back its key, its `$anchor` and its `$id`.
+
+```aontu
+%Address = identity({ city:string }, { id:"https://example.com/address" })
+home: %Address & { city:"Cork" }
+```
+
+```json
+{ "home": { "city": "Cork" } }
+```
+
+Only the declaration holds the record, and only from a call that is
+its value, or a term of it, rather than another call's argument. A
+reference's copy of the alias never takes it, so two copies of
+different resources never meet two identities. Two records at one
+declaration, from two declarations of one alias, meet as the union of
+their values, as two `meta()` riders do, and the export writes no value
+of a key that holds more than one. Neither the canon nor generation
+shows the record.
+
+A record that is not a map, a key outside the three, a value that is
+not a string, an `id` that is not an absolute URI or that names a
+fragment, and an `anchor` that is not a plain name each refuse with
+`func_arg`. A nil `v` is returned as it is.
 
 ## Closed values: `close` / `open`
 

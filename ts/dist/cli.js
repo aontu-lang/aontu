@@ -80,7 +80,7 @@ const HELP = `Usage: aontu [options] [file]
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
        aontu jsonschema import [--strict] [--defaults] [--format text|json]
-                               <schema.json>
+                               [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3320,7 +3320,27 @@ function renderRelationsJson(report) {
 }
 const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)';
 const JSONSCHEMA_IMPORT_HELP = 'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
-    '<schema.json> (try --help)';
+    '[--document <uri>=<file>]... <schema.json> (try --help)';
+// A file's text as the import reads it: bytes that are not UTF-8 reach
+// the reader as text that is not well-formed, which it refuses as the Go
+// port refuses them.
+function readSchemaText(file) {
+    let bytes;
+    try {
+        bytes = (0, node_fs_1.readFileSync)(file);
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return undefined;
+    }
+    let text = '\uD800';
+    try {
+        text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
+            .decode(bytes);
+    }
+    catch { }
+    return text;
+}
 // The aontu source on stdout; what it could not carry, and how to vet
 // data against it, on stderr.
 function runJsonSchemaImport(argv) {
@@ -3328,6 +3348,7 @@ function runJsonSchemaImport(argv) {
     let format = 'text';
     let strict = false;
     let defaults = false;
+    const docs = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -3336,6 +3357,19 @@ function runJsonSchemaImport(argv) {
         }
         else if ('--defaults' === arg) {
             defaults = true;
+        }
+        else if ('--document' === arg) {
+            const spec = argv[++i] ?? '';
+            const eq = spec.indexOf('=');
+            if (eq < 1 || eq === spec.length - 1) {
+                process.stderr.write('aontu: --document needs <uri>=<file>\n');
+                return 2;
+            }
+            if (docs.some(([uri]) => uri === spec.slice(0, eq))) {
+                process.stderr.write(`aontu: --document names ${spec.slice(0, eq)} twice\n`);
+                return 2;
+            }
+            docs.push([spec.slice(0, eq), spec.slice(eq + 1)]);
         }
         else if ('--format' === arg) {
             const f = argv[++i];
@@ -3360,23 +3394,19 @@ function runJsonSchemaImport(argv) {
         process.stderr.write(`aontu: jsonschema import needs one file\n${JSONSCHEMA_IMPORT_HELP}\n`);
         return 2;
     }
-    let bytes;
-    try {
-        bytes = (0, node_fs_1.readFileSync)(files[0]);
-    }
-    catch (err) {
-        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+    const text = readSchemaText(files[0]);
+    if (undefined === text) {
         return 2;
     }
-    // Bytes that are not UTF-8 reach the reader as text that is not
-    // well-formed, which it refuses as the Go port refuses them.
-    let text = '\uD800';
-    try {
-        text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
-            .decode(bytes);
+    const documents = {};
+    for (const [uri, file] of docs) {
+        const doc = readSchemaText(file);
+        if (undefined === doc) {
+            return 2;
+        }
+        documents[uri] = doc;
     }
-    catch { }
-    const report = (0, jsonschema_import_1.importJsonSchema)(text, { defaults });
+    const report = (0, jsonschema_import_1.importJsonSchema)(text, { defaults, documents });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema import' }, ...report,

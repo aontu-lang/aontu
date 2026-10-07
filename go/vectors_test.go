@@ -80,6 +80,24 @@ func vectorFiles(t *testing.T, dir string) []string {
 	return files
 }
 
+// vectorRemotes: the documents the suite's tests name, the remotes of
+// the releases they refer to, each under the URI the suite serves it
+// from.
+func vectorRemotes(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, release := range []string{"draft2019-09", "draft2020-12"} {
+		for _, f := range vectorFiles(t, filepath.Join(dir, release)) {
+			raw, err := os.ReadFile(filepath.Join(dir, release, f))
+			if nil != err {
+				t.Fatalf("cannot read %s: %v", f, err)
+			}
+			out["http://localhost:1234/"+release+"/"+f] = string(raw)
+		}
+	}
+	return out
+}
+
 func vectorEvalAccepts(source, data string) bool {
 	one := source + "\ninstance: $.schema\ninstance: " + data + "\n"
 	alone := "instance: " + data + "\n"
@@ -103,7 +121,8 @@ func vectorEvalAccepts(source, data string) bool {
 	return string(pruned) == string(want)
 }
 
-func vectorSuiteProblems(t *testing.T, root string, ledger vectorLedger) []string {
+func vectorSuiteProblems(t *testing.T, root string, ledger vectorLedger,
+	documents map[string]string) []string {
 	t.Helper()
 	problems := []string{}
 	seen := map[string]bool{}
@@ -117,7 +136,8 @@ func vectorSuiteProblems(t *testing.T, root string, ledger vectorLedger) []strin
 			t.Fatalf("%s: %v", file, err)
 		}
 		for _, g := range groups {
-			report := New().ImportJSONSchema(string(g.Schema))
+			report := New().ImportJSONSchemaWith(string(g.Schema),
+				JSONSchemaImportOptions{Documents: documents})
 			account := vectorLost(report)
 			if "error" == report.Verdict {
 				account = report.Errors[0].Code
@@ -403,7 +423,8 @@ func TestVectorsJSONSchemaTestSuiteAnnotations(t *testing.T) {
 func TestVectorsJSONSchemaTestSuite(t *testing.T) {
 	dir := filepath.Join(vectorsDir, "jsonschema")
 	problems := vectorSuiteProblems(t, filepath.Join(dir, "tests"),
-		readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 3))
+		readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 3),
+		vectorRemotes(t, filepath.Join(dir, "remotes")))
 	if 0 < len(problems) {
 		t.Fatalf("%d problem(s):\n%s", len(problems), strings.Join(problems, "\n"))
 	}
@@ -412,7 +433,7 @@ func TestVectorsJSONSchemaTestSuite(t *testing.T) {
 func TestVectorsAjvExtras(t *testing.T) {
 	dir := filepath.Join(vectorsDir, "ajv-extras")
 	problems := vectorSuiteProblems(t, filepath.Join(dir, "spec", "extras"),
-		readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 3))
+		readVectorLedger(t, filepath.Join(dir, "skips.tsv"), 3), nil)
 	if 0 < len(problems) {
 		t.Fatalf("%d problem(s):\n%s", len(problems), strings.Join(problems, "\n"))
 	}

@@ -1126,6 +1126,16 @@ describe('cli-subsume', () => {
     'schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & ' +
     '(*1|any) })\n')
 
+    // A reference into another document reads it from the set.
+    const other = Path.join(dir, 'other.json')
+    Fs.writeFileSync(other, '{"$defs": {"n": {"type": "integer"}}}')
+    Fs.writeFileSync(file, '{"$ref": "http://e.com/other.json#/$defs/n"}')
+    Assert.equal(vetCapture(() => Assert.equal(runJsonSchema(['import',
+      '--document', 'http://e.com/other.json=' + other, file]), 0)).out,
+    '%_d-http_3a__2f__2f_e_2e_com_2f_other_2e_json-_24_defs-n = identity(\n' +
+    '  number & multiple(1),\n  { key:"n" }\n)\n\n' +
+    'schema: hide(%_d-http_3a__2f__2f_e_2e_com_2f_other_2e_json-_24_defs-n)\n')
+
     Fs.writeFileSync(file, '{"$ref": "#/nope"}')
     const bad = vetCapture(() =>
       Assert.equal(runJsonSchema(['import', file]), 4))
@@ -1156,9 +1166,11 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-ji-'))
     const file = Path.join(dir, 'schema.json')
     Fs.writeFileSync(file, 'true')
+    const missing = Path.join(dir, 'missing.json')
     for (const args of [[], [file, file], ['--bogus', file],
-      ['--format', 'yaml', file], ['--format'],
-      [Path.join(dir, 'missing.json')]]) {
+      ['--format', 'yaml', file], ['--format'], [missing], ['--document'],
+      ['--document', 'nouri', file], ['--document', 'u=' + missing, file],
+      ['--document', 'u=' + file, '--document', 'u=' + file, file]]) {
       vetCapture(() =>
         Assert.equal(runJsonSchema(['import', ...args]), 2))
     }

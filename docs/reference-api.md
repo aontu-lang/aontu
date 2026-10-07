@@ -47,7 +47,7 @@ Usage: aontu [options] [file]
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
        aontu jsonschema import [--strict] [--defaults] [--format text|json]
-                               <schema.json>
+                               [--document <uri>=<file>]... <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1412,7 +1412,15 @@ as `*1` admits any value of its kind, so it exports that kind with the
 preferred value as `default`, and one with nothing to generate, such
 as `*any`, is not required, since generation drops it. The export
 writes an alias once under `$defs`, and each unchanged use of it is a
-`$ref` there; a use met with more exports as its structure.
+`$ref` there; a use met with more exports as its structure. An alias
+whose declaration is an `identity()` keeps its key under `$defs` and
+its `$anchor`, and its `$id` makes the definition a resource of its
+own: a reference to it is that `$id`, and a reference from inside it to
+a definition without one names the root by the root's `$id`. The root,
+when it is an unchanged use of such an alias, is written as that
+resource. Where a definition with an `$id` refers to one that only the
+root can name, and the root has no `$id`, every definition is written
+without its `$id`, and that is reported.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1511,7 +1519,8 @@ Read a **JSON Schema** (draft 2020-12) into aontu source, and say what
 could not be carried.
 
 ```
-aontu jsonschema import [--strict] [--defaults] [--format text|json] <schema.json>
+aontu jsonschema import [--strict] [--defaults] [--format text|json]
+                        [--document <uri>=<file>]... <schema.json>
 ```
 
 This is the bridge the other way. A schema someone else publishes
@@ -1607,7 +1616,19 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   the keys with `&: match(key(0), …)`.
 - `$defs`, and every schema a `$ref` names, become alias
   declarations (`%name = …`) ahead of `schema`, so a recursive schema
-  imports as a recursive alias.
+  imports as a recursive alias. A `$ref` is read against the base URI
+  where it stands, which each `$id` sets for the schemas inside it, and
+  an `$anchor` names its schema within its own resource. A schema with
+  an absolute `$id`, an anchor the export can keep, or a `$defs` key its
+  alias name does not spell, is declared as `identity(…)`, which holds
+  those names on the declaration for the export.
+- **A reference into another document reads it from the documents the
+  import is given**, each with `--document <uri>=<file>`, where the URI
+  is everything before the first `=`. A document is read when a
+  reference first reaches it, and a reference to a URI no document is
+  given under reads them all, since an `$id` inside one may be that
+  URI. Each schema reached is imported into the same source, so the
+  result refers to nothing outside itself.
 - **`allOf` is the meet**, and a meet empty where it stands is `nil`,
   the schema that admits nothing: `{"allOf": [{"type":
   "string"}, {"type": "integer"}]}` imports as `nil`, so `vet` finds
@@ -1743,15 +1764,18 @@ $ aontu server.aontu
 - **A schema the import cannot read is refused** with exit 4 and a
   finding at the JSON Pointer of the fault: `jsonschema_schema` when
   the text is not JSON or a keyword holds a value 2020-12 does not
-  define for it, `jsonschema_ref` when a `$ref` names another document
-  or nothing in this one, and `jsonschema_duplicate` when one anchor
-  names two schemas. Nothing is written to stdout on a refusal.
+  define for it, or an `$id` names a fragment, `jsonschema_ref` when a
+  `$ref` names a document the import was not given or nothing in the
+  document it names, and `jsonschema_duplicate` when one identifier, or
+  one anchor in one resource, names two schemas. Nothing is written to
+  stdout on a refusal.
 - `--format json` answers `{aontu, errors, lossy, source, verdict}` on
   stdout, with `errors` only on a refusal.
-- The library form is `importJsonSchema(text, {defaults})` in
-  TypeScript and `(*Aontu).ImportJSONSchema(text)` in Go, with
-  `ImportJSONSchemaWith(text, JSONSchemaImportOptions{Defaults})` the
-  same import with its option. Each returns the identical
+- The library form is `importJsonSchema(text, {defaults, documents})`
+  in TypeScript and `(*Aontu).ImportJSONSchema(text)` in Go, with
+  `ImportJSONSchemaWith(text, JSONSchemaImportOptions{Defaults,
+  Documents})` the same import with its options; `documents` maps each
+  URI to a document's text. Each returns the identical
   `{source, lossy, verdict}` record (plus `errors` on a refusal).
 
 ### `aontu model get`

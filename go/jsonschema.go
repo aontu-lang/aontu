@@ -47,6 +47,16 @@ type schemaCtx struct {
 	defs   map[string]any
 	names  map[string]string
 	anchor []string
+
+	// The identities (G12 phase 10): whether a definition writes its
+	// $id, the $id of the resource the walk is in, the root's, each
+	// definition's, and the anchors the root's resource holds.
+	ids           bool
+	base          string
+	rootID        string
+	addr          map[string]string
+	anchors       map[string]bool
+	unaddressable bool
 }
 
 func (sc *schemaCtx) lose(path []string, construct, reason string) {
@@ -828,12 +838,10 @@ func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
 	if r, ok := v.(*RecurseVal); ok {
 		target = r.target
 		if slices.Equal(target, sc.anchor) {
-			return map[string]any{"$ref": "#"}, true
+			return map[string]any{"$ref": sc.refTo(schemaRootDef)}, true
 		}
 	} else if key := v.aliasOrigin(); "" != key {
-		// A copy is unchanged when its value is, and what rides it.
-		if def := walkTarget(sc.root, []string{key}); nil != def && def.Canon() == v.Canon() &&
-			wrapRiders("", def) == wrapRiders("", v) {
+		if schemaSameCopy(walkTarget(sc.root, []string{key}), v) {
 			target = []string{key}
 		}
 	}
@@ -851,7 +859,11 @@ func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
 	id := strings.Join(target, "\x00")
 	key, named := sc.names[id]
 	if !named {
-		base := strings.TrimPrefix(strings.Join(at, "."), "%")
+		ident := sc.single(at, body.identityRec())
+		base, hasKey := ident["key"]
+		if !hasKey {
+			base = strings.TrimPrefix(strings.Join(at, "."), "%")
+		}
 		key = base
 		for n := 2; ; n++ {
 			if _, taken := sc.defs[key]; !taken {
@@ -861,9 +873,108 @@ func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
 		}
 		sc.names[id] = key
 		sc.defs[key] = map[string]any{}
-		sc.defs[key] = schemaFromVal(sc, at, body)
+		rid := ""
+		if sc.ids {
+			rid = ident["id"]
+		}
+		if "" != rid && (rid == sc.rootID || slices.Contains(schemaValues(sc.addr), rid)) {
+			sc.lose(at, "$id", "another schema carries the $id "+rid+
+				", which names one schema, so this one is written without it")
+			rid = ""
+		}
+		if "" != rid {
+			sc.addr[key] = rid
+		}
+		anchor := ident["anchor"]
+		if "" != anchor && "" == rid {
+			if sc.anchors[anchor] {
+				sc.lose(at, "$anchor", "another schema in the resource carries "+
+					"the anchor "+anchor+", which names one schema, so this one "+
+					"is written without it")
+				anchor = ""
+			} else {
+				sc.anchors[anchor] = true
+			}
+		}
+		outer := sc.base
+		sc.base = rid
+		schema := schemaFromVal(sc, at, body)
+		sc.base = outer
+		sc.defs[key] = schemaStamp(schema, rid, anchor)
 	}
-	return map[string]any{"$ref": "#/$defs/" + schemaPointerToken(key)}, true
+	return map[string]any{"$ref": sc.refTo(key)}, true
+}
+
+// schemaSameCopy: a copy is unchanged when its value is, and what rides
+// it.
+func schemaSameCopy(def, v Val) bool {
+	return nil != def && def.Canon() == v.Canon() && wrapRiders("", def) == wrapRiders("", v)
+}
+
+func schemaValues(m map[string]string) []string {
+	out := []string{}
+	for _, v := range m {
+		out = append(out, v)
+	}
+	return out
+}
+
+// schemaRootDef is the export root's own place among the definitions.
+const schemaRootDef = ""
+
+// refTo spells a reference to a definition to resolve from the resource
+// the walk is in: a definition with an $id by it, and one without from
+// the root, which a fragment names only from the root's own resource.
+func (sc *schemaCtx) refTo(key string) string {
+	if rid, has := sc.addr[key]; has {
+		return rid
+	}
+	frag := "#"
+	if schemaRootDef != key {
+		frag = "#/$defs/" + schemaPointerToken(key)
+	}
+	if "" == sc.base {
+		return frag
+	}
+	if "" == sc.rootID {
+		sc.unaddressable = true
+		return frag
+	}
+	if schemaRootDef == key {
+		return sc.rootID
+	}
+	return sc.rootID + frag
+}
+
+// single reads an identity's keys, each where it holds one value: a key
+// that holds more names no one place, so none of them is written.
+func (sc *schemaCtx) single(path []string, rec map[string][]string) map[string]string {
+	out := map[string]string{}
+	for _, kw := range [][2]string{{"id", "$id"}, {"anchor", "$anchor"}, {"key", "$defs"}} {
+		vals := rec[kw[0]]
+		if 1 == len(vals) {
+			out[kw[0]] = vals[0]
+		} else if 1 < len(vals) {
+			sc.lose(path, kw[1], "the declaration names "+strings.Join(vals, " and ")+
+				" for one schema, so neither is written")
+		}
+	}
+	return out
+}
+
+// schemaStamp writes a resource's $id and its $anchor on a schema.
+func schemaStamp(schema any, id, anchor string) any {
+	if "" == id && "" == anchor {
+		return schema
+	}
+	out := schema.(map[string]any)
+	if "" != id {
+		out["$id"] = id
+	}
+	if "" != anchor {
+		out["$anchor"] = anchor
+	}
+	return out
 }
 
 // schemaPointerToken: a JSON pointer token (RFC 6901), escaped again as
@@ -1672,9 +1783,43 @@ func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport 
 		}
 	}
 
-	sc := &schemaCtx{lossy: []SchemaLoss{}, exact: opts.ExactNumbers,
-		root: root, defs: map[string]any{}, names: map[string]string{}, anchor: anchor}
-	body := schemaFromVal(sc, anchor, node)
+	// The root, where it is an alias's unchanged copy whose declaration
+	// names a resource, is written as that resource.
+	run := func(ids bool) (*schemaCtx, any) {
+		sc := &schemaCtx{lossy: []SchemaLoss{}, exact: opts.ExactNumbers,
+			root: root, defs: map[string]any{}, names: map[string]string{},
+			anchor: anchor, ids: ids, addr: map[string]string{},
+			anchors: map[string]bool{}}
+		var decl Val
+		if key := node.aliasOrigin(); "" != key {
+			decl = walkTarget(root, []string{key})
+		}
+		top := node
+		ident := map[string]string{}
+		if nil != decl && 1 == len(decl.identityRec()["id"]) && schemaSameCopy(decl, node) {
+			ident = sc.single(anchor, decl.identityRec())
+		}
+		if id, has := ident["id"]; has {
+			sc.rootID = id
+			sc.names[node.aliasOrigin()] = schemaRootDef
+			if a, hasA := ident["anchor"]; hasA {
+				sc.anchors[a] = true
+			}
+			top = decl
+		}
+		body := schemaFromVal(sc, anchor, top)
+		if top != node {
+			body = schemaStamp(body, ident["id"], ident["anchor"])
+		}
+		return sc, body
+	}
+	sc, body := run(true)
+	if sc.unaddressable {
+		sc, body = run(false)
+		sc.lose(anchor, "$id", "a definition with an $id refers to one the "+
+			"document names only from its root, which has no $id to name it by, "+
+			"so the definitions are written without theirs")
+	}
 
 	if nil != sc.failed {
 		failed := sc.failed

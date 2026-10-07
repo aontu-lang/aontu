@@ -16,7 +16,7 @@ import (
 const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)"
 
 const jsonSchemaImportHelp = "aontu jsonschema import [--strict] [--defaults] [--format text|json] " +
-	"<schema.json> (try --help)"
+	"[--document <uri>=<file>]... <schema.json> (try --help)"
 
 // runJsonSchemaImport writes the aontu source on stdout, and on stderr
 // what it could not carry and how to vet data against it.
@@ -25,6 +25,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	format := "text"
 	strict := false
 	defaults := false
+	var docs [][2]string
 
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
@@ -43,6 +44,24 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			strict = true
 		case "--defaults" == arg:
 			defaults = true
+		case "--document" == arg:
+			i++
+			spec := ""
+			if i < len(argv) {
+				spec = argv[i]
+			}
+			eq := strings.Index(spec, "=")
+			if eq < 1 || eq == len(spec)-1 {
+				io.WriteString(stderr, "aontu: --document needs <uri>=<file>\n")
+				return 2
+			}
+			for _, d := range docs {
+				if d[0] == spec[:eq] {
+					io.WriteString(stderr, "aontu: --document names "+spec[:eq]+" twice\n")
+					return 2
+				}
+			}
+			docs = append(docs, [2]string{spec[:eq], spec[eq+1:]})
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema import option "+arg+" (try --help)\n")
@@ -65,8 +84,18 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	documents := map[string]string{}
+	for _, d := range docs {
+		text, derr := os.ReadFile(d[1])
+		if nil != derr {
+			io.WriteString(stderr, "aontu: cannot read "+d[1]+": "+derr.Error()+"\n")
+			return 2
+		}
+		documents[d[0]] = string(text)
+	}
+
 	report := aontu.New().ImportJSONSchemaWith(string(src),
-		aontu.JSONSchemaImportOptions{Defaults: defaults})
+		aontu.JSONSchemaImportOptions{Defaults: defaults, Documents: documents})
 	if "json" == format {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)

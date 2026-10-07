@@ -1,0 +1,17 @@
+# 103 (found 2026-10-07 loading remotes/ into the suite harness, G12
+# phase 10), by design in the language, whose consequence is the
+# finding: JSON Schema reads a definition that admits nothing as a
+# schema like any other, which a document may hold and never use, and
+# the import writes every $defs entry as an alias declaration. A
+# declaration whose value admits nothing is a conflict wherever it is
+# used, as docs/design/ALIASES.0.md has it, so vet refuses every
+# instance. This is the import of
+#   {"$defs": {"A": {"allOf": [{"type": "number"}, {"type": "string"}]}},
+#    "type": "string"}
+# and both ports agree.
+#
+# expected: {"schema":"a"}
+# actual:   [aontu/empty_domain] at $.%A
+%A = number & empty()
+schema: empty()
+schema: "a"

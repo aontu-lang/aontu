@@ -13,6 +13,7 @@ import {
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
 import { importJsonSchema } from '../dist/jsonschema-import'
+import { resolveUri } from '../dist/uri'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
@@ -86,7 +87,8 @@ function loadRows(): Row[] {
       const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
         'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
-        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1]
+        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+        'uri' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -350,6 +352,9 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `jsonschema report mismatch: ${row.name}`)
+  }
+  else if ('uri' === row.mode) {
+    Assert.strictEqual(resolveUri(row.src, row.data as string), row.expect)
   }
   else if ('jsonschema-import' === row.mode) {
     // `instances` rides the expect object: each must vet as the schema

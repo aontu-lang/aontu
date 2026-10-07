@@ -43,6 +43,7 @@ highlighting; this is their human twin.
 | `type(x)` | a definition, not a value: it generates nothing, and an instance adds nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
 | `meta(x, {title:"…"})` | `x`, with annotations that never change what it admits |
+| `%A = identity(x, {id:"…"})` | `x`; the declaration names the JSON Schema resource it came from |
 | `refer(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
 ## Constraints

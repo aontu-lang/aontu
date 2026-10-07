@@ -4338,3 +4338,20 @@ same gap. An instance always gives the key a value, so the annotations
 an instance collects are unaffected.
 
 Repro: `repros/riders/spread-onto-a-type.aontu`.
+
+### 103. A definition that admits nothing fails every instance of its import [major]
+
+By design in the language, whose consequence is the finding. Both
+ports. JSON Schema reads a `$defs` entry that admits nothing, such as
+`allOf` of a number and a string, as a schema like any other, which a
+document may hold and never use. The import writes every `$defs` entry
+as an alias declaration, and a declaration whose value admits nothing
+is a conflict wherever it is used, as
+[ALIASES.0.md](../docs/design/ALIASES.0.md) has it, so `vet` refuses
+every instance with the conflict, at the declaration. A `false` schema
+is not affected: the import writes it as `nil`, which a declaration may
+hold. The suite's `anchor.json` case "same $anchor with different base
+uri" meets it once phase 10 resolves its reference, and is listed under
+phase 18, which needs the ledger to hold only the boundary's cases.
+
+Repro: `repros/jsonschema-import/unsatisfiable-definition.aontu`.

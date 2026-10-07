@@ -126,6 +126,11 @@ function carryRiders(out: any, a: any, b: any): void {
   if (m !== out.meta) {
     out.meta = m
   }
+  const i = unionRider(unionRider(out.identity, a?.identity, String),
+    b?.identity, String)
+  if (i !== out.identity) {
+    out.identity = i
+  }
 }
 
 
@@ -144,7 +149,7 @@ function wrapRiders(c: string, v: Val): string {
 
 
 function hasRiders(v: any): boolean {
-  return null != v?.meta || null != v?.deprecation
+  return null != v?.meta || null != v?.deprecation || null != v?.identity
 }
 
 

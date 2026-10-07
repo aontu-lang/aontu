@@ -146,6 +146,7 @@ abstract class Val {
   // and deduplicated, and every meet takes their union.
   deprecation?: Record<string, string[]>
   meta?: Record<string, Val[]>
+  identity?: Record<string, string[]>
 
   link?: string
 
@@ -266,6 +267,9 @@ abstract class Val {
     }
     if (null != this.meta) {
       out.meta = this.meta
+    }
+    if (null != this.identity) {
+      out.identity = this.identity
     }
 
     if (null != this.origin) {

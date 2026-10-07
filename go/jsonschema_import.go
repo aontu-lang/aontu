@@ -349,10 +349,7 @@ func importEnc(s string, opens bool) string {
 	return out.String()
 }
 
-func importAliasName(anchor *string, segs []string) string {
-	if nil != anchor {
-		return "_a-" + importEnc(*anchor, false)
-	}
+func importAliasName(segs []string) string {
 	if 0 == len(segs) {
 		return "_root"
 	}
@@ -403,11 +400,15 @@ type importAnchor struct {
 }
 
 type importCtx struct {
-	root     any
-	defaults bool
-	lossy    []SchemaLoss
-	aliases  map[string]*string
-	anchors  map[string]importAnchor
+	root      any
+	defaults  bool
+	lossy     []SchemaLoss
+	aliases   map[string]*string
+	resources map[string]importAnchor
+	anchors   map[string]map[string]importAnchor
+	bases     map[*jobj]string
+	defKeys   map[*jobj]string
+	unread    map[string]string
 }
 
 func (ic *importCtx) lose(path, construct, reason string) {
@@ -417,52 +418,184 @@ func (ic *importCtx) lose(path, construct, reason string) {
 
 var importAnchorRe = regexp.MustCompile(`^[A-Za-z_][-A-Za-z0-9._]*$`)
 
-// collectAnchors reads the anchors of every schema position before any
-// reference is read: one name in one document is one subschema.
-func (ic *importCtx) collectAnchors(node any, ptr string) {
+func importSplitFragment(uri string) (string, string, bool) {
+	if i := strings.Index(uri, "#"); i >= 0 {
+		return uri[:i], uri[i+1:], true
+	}
+	return uri, "", false
+}
+
+// claim: one URI names one schema, across every document the import
+// reads.
+func (ic *importCtx) claim(uri string, place importAnchor, path string) {
+	if had, has := ic.resources[uri]; has && had.node != place.node {
+		panic(&importRefusal{code: "jsonschema_duplicate", path: path,
+			why: "the identifier " + importStrLit(uri) + " names two schemas"})
+	}
+	ic.resources[uri] = place
+}
+
+// index reads the resources and anchors of every schema position, each
+// against the base in effect where it stands, before any reference is
+// read: one anchor in one resource names one subschema.
+func (ic *importCtx) index(node any, ptr, base string) {
 	o, ok := node.(*jobj)
 	if !ok {
+		ic.inherit(node, base)
 		return
 	}
+	if o.has("$id") {
+		id, isStr := o.get("$id").(string)
+		if !isStr {
+			refuseSchema(importPtrAt(ptr, "$id"), "$id must be a string")
+		}
+		uri, frag, _ := importSplitFragment(resolveURI(base, id))
+		if "" != frag {
+			refuseSchema(importPtrAt(ptr, "$id"), "an $id names a resource, "+
+				"not a fragment of one")
+		}
+		base = uri
+		ic.claim(base, importAnchor{node: node, ptr: ptr}, importPtrAt(ptr, "$id"))
+	}
+	ic.bases[o] = base
 	if o.has("$anchor") {
 		anchor, isStr := o.get("$anchor").(string)
 		if !isStr || !importAnchorRe.MatchString(anchor) {
 			refuseSchema(importPtrAt(ptr, "$anchor"), "an anchor must be a plain name")
 		}
-		if _, dup := ic.anchors[anchor]; dup {
+		names := ic.anchors[base]
+		if nil == names {
+			names = map[string]importAnchor{}
+			ic.anchors[base] = names
+		}
+		if _, dup := names[anchor]; dup {
 			panic(&importRefusal{code: "jsonschema_duplicate",
 				path: importPtrAt(ptr, "$anchor"),
 				why:  "the anchor " + importStrLit(anchor) + " names two subschemas"})
 		}
-		ic.anchors[anchor] = importAnchor{node: node, ptr: ptr}
+		names[anchor] = importAnchor{node: node, ptr: ptr}
 	}
 	for _, k := range o.keys {
 		v := o.get(k)
+		m, isMap := v.(*jobj)
+		l, isList := v.([]any)
 		switch {
-		case containsStr(importSchemaMaps, k):
-			if m, isMap := v.(*jobj); isMap {
-				for _, sk := range m.keys {
-					ic.collectAnchors(m.get(sk), importPtrAt(importPtrAt(ptr, k), sk))
+		case containsStr(importSchemaMaps, k) && isMap:
+			ic.bases[m] = base
+			for _, sk := range m.keys {
+				if def, isDef := m.get(sk).(*jobj); isDef && "$defs" == k {
+					ic.defKeys[def] = sk
 				}
+				ic.index(m.get(sk), importPtrAt(importPtrAt(ptr, k), sk), base)
 			}
 		case containsStr(importSchemaOne, k):
-			ic.collectAnchors(v, importPtrAt(ptr, k))
-		case containsStr(importSchemaLists, k):
-			if l, isList := v.([]any); isList {
-				for n, sv := range l {
-					ic.collectAnchors(sv, importPtrAt(importPtrAt(ptr, k), importIdx(n)))
-				}
+			ic.index(v, importPtrAt(ptr, k), base)
+		case containsStr(importSchemaLists, k) && isList:
+			for n, sv := range l {
+				ic.index(sv, importPtrAt(importPtrAt(ptr, k), importIdx(n)), base)
 			}
+		default:
+			ic.inherit(v, base)
 		}
 	}
+}
+
+// inherit: what stands in no schema position is data, and names no
+// resource or anchor; a reference that reaches into it reads it against
+// the base around it.
+func (ic *importCtx) inherit(v any, base string) {
+	switch t := v.(type) {
+	case *jobj:
+		ic.bases[t] = base
+		for _, k := range t.keys {
+			ic.inherit(t.get(k), base)
+		}
+	case []any:
+		for _, e := range t {
+			ic.inherit(e, base)
+		}
+	}
+}
+
+// resource: a document of the set is read when a reference first reaches
+// for it, by its retrieval URI, and every one left when a reference
+// names none of those, since it may name an $id inside one.
+func (ic *importCtx) resource(uri string) (importAnchor, bool) {
+	unread := []string{}
+	if _, named := ic.resources[uri]; !named {
+		if _, has := ic.unread[uri]; has {
+			unread = append(unread, uri)
+		} else {
+			for doc := range ic.unread {
+				unread = append(unread, doc)
+			}
+			sort.Strings(unread)
+		}
+	}
+	for _, doc := range unread {
+		text := ic.unread[doc]
+		delete(ic.unread, doc)
+		root := importReadDocument(doc, text)
+		ic.claim(doc, importAnchor{node: root, ptr: doc + "#"}, doc+"#")
+		ic.index(root, doc+"#", doc)
+	}
+	place, has := ic.resources[uri]
+	return place, has
+}
+
+// readDocuments keys each document of the set by its URI without the
+// fragment, which a retrieval URI does not use.
+func (ic *importCtx) readDocuments(docs map[string]string) {
+	keys := []string{}
+	for k := range docs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		uri, _, _ := importSplitFragment(k)
+		if _, dup := ic.unread[uri]; dup {
+			panic(&importRefusal{code: "jsonschema_duplicate", path: uri + "#",
+				why: "the identifier " + importStrLit(uri) + " names two schemas"})
+		}
+		ic.unread[uri] = docs[k]
+	}
+}
+
+func importReadDocument(doc, text string) any {
+	defer func() {
+		if r := recover(); nil != r {
+			ref := r.(*importRefusal)
+			panic(&importRefusal{code: ref.code, path: doc + ref.path, why: ref.why})
+		}
+	}()
+	return readSchemaJSON(text)
+}
+
+// importPlaceName names an alias for what a place holds: a place in the
+// document the import was handed by its pointer, and one in another
+// document by that document's URI too.
+func importPlaceName(ptr string) string {
+	at := strings.Index(ptr, "#")
+	segs := []string{}
+	for _, s := range strings.Split(ptr[at+1:], "/")[1:] {
+		segs = append(segs, strings.ReplaceAll(strings.ReplaceAll(s, "~1", "/"), "~0", "~"))
+	}
+	if 0 == at {
+		return importAliasName(segs)
+	}
+	out := "_d-" + importEnc(ptr[:at], false)
+	for _, s := range segs {
+		out += "-" + importEnc(s, false)
+	}
+	return out
 }
 
 var importBadTilde = regexp.MustCompile(`~[^01]|~$`)
 var importIndexRe = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
 
-// refAlias reads a `$ref` inside this document: `#`, a JSON pointer, or
-// an anchor.
-func (ic *importCtx) refAlias(ref any, path string) string {
+// refAlias reads a `$ref`, resolved against the base of the schema it
+// sits in.
+func (ic *importCtx) refAlias(o *jobj, ref any, path string) string {
 	r, ok := ref.(string)
 	if !ok {
 		refuseSchema(path, "$ref must be a string")
@@ -471,30 +604,28 @@ func (ic *importCtx) refAlias(ref any, path string) string {
 		panic(&importRefusal{code: "jsonschema_ref", path: path,
 			why: "the reference " + importStrLit(r) + " " + why})
 	}
-	if !strings.HasPrefix(r, "#") {
-		bad("names another document, and the import reads one document")
+	uri, raw, _ := importSplitFragment(resolveURI(ic.bases[o], r))
+	res, found := ic.resource(uri)
+	if !found {
+		bad("names a document the import was not given")
 	}
-	frag, err := url.PathUnescape(r[1:])
+	frag, err := url.PathUnescape(raw)
 	if nil != err || !utf8.ValidString(frag) {
 		bad("is not a well-formed fragment")
 	}
 	var node any
-	ptr := "#"
-	var name string
+	ptr := res.ptr
 	if "" == frag || strings.HasPrefix(frag, "/") {
 		segs := []string{}
 		if "" != frag {
 			segs = strings.Split(frag[1:], "/")
 		}
-		keys := []string{}
+		node = res.node
 		for _, s := range segs {
 			if importBadTilde.MatchString(s) {
 				bad("is not a well-formed JSON pointer")
 			}
-			keys = append(keys, strings.ReplaceAll(strings.ReplaceAll(s, "~1", "/"), "~0", "~"))
-		}
-		node = ic.root
-		for _, k := range keys {
+			k := strings.ReplaceAll(strings.ReplaceAll(s, "~1", "/"), "~0", "~")
 			switch n := node.(type) {
 			case *jobj:
 				node = n.get(k)
@@ -510,16 +641,15 @@ func (ic *importCtx) refAlias(ref any, path string) string {
 			}
 			ptr = importPtrAt(ptr, k)
 		}
-		name = importAliasName(nil, keys)
-	} else {
-		if anchored, has := ic.anchors[frag]; has {
-			node, ptr = anchored.node, anchored.ptr
-		}
-		name = importAliasName(&frag, nil)
+	} else if anchored, has := ic.anchors[uri][frag]; has {
+		node, ptr = anchored.node, anchored.ptr
 	}
 	if !isJSchema(node) {
 		bad("names no schema in this document")
 	}
+	// One place, one alias: an anchor names the alias of the place it
+	// stands, so a schema reached by anchor and by pointer is one alias.
+	name := importPlaceName(ptr)
 	ic.declare(name, node, ptr)
 	return "%" + name
 }
@@ -527,9 +657,41 @@ func (ic *importCtx) refAlias(ref any, path string) string {
 func (ic *importCtx) declare(name string, node any, ptr string) {
 	if _, has := ic.aliases[name]; !has {
 		ic.aliases[name] = nil
-		text := ic.I(node, ptr)
+		text := ic.bodyOf(node, ptr)
+		if rec := ic.identity(name, node, ptr); "" != rec {
+			text = "identity(" + text + ", " + rec + ")"
+		}
 		ic.aliases[name] = &text
 	}
+}
+
+// identity: what the export needs to give a schema back its place: the
+// $id of the resource it is, where that is absolute, its $anchor, where
+// the export leaves the anchor in the resource that holds it, and its
+// $defs key.
+func (ic *importCtx) identity(name string, node any, ptr string) string {
+	o, ok := node.(*jobj)
+	if !ok {
+		return ""
+	}
+	at := strings.Index(ptr, "#")
+	base := ic.bases[o]
+	own := o.has("$id") || (at == len(ptr)-1 && 0 < at)
+	parts := []string{}
+	if own && parseURI(base).hasScheme {
+		parts = append(parts, "id: "+importStrLit(base))
+	}
+	if anchor, has := o.get("$anchor").(string); has && (1 == len(parts) ||
+		(0 == at && base == ic.bases[ic.root.(*jobj)])) {
+		parts = append(parts, "anchor: "+importStrLit(anchor))
+	}
+	if key, has := ic.defKeys[o]; has && key != name {
+		parts = append(parts, "key: "+importStrLit(key))
+	}
+	if 0 == len(parts) {
+		return ""
+	}
+	return "{ " + strings.Join(parts, ", ") + " }"
 }
 
 // importDatum writes an annotation's value as the plain data it is.
@@ -1800,7 +1962,18 @@ func importMeetOrNil(parts []string) string {
 	return src
 }
 
+// I: a schema with an identity of its own is hoisted, so that a
+// declaration carries it.
 func (ic *importCtx) I(node any, ptr string) string {
+	name := importPlaceName(ptr)
+	if "" == ic.identity(name, node, ptr) {
+		return ic.bodyOf(node, ptr)
+	}
+	ic.declare(name, node, ptr)
+	return "%" + name
+}
+
+func (ic *importCtx) bodyOf(node any, ptr string) string {
 	if b, ok := node.(bool); ok {
 		if b {
 			return "any"
@@ -1825,14 +1998,10 @@ func (ic *importCtx) I(node any, ptr string) string {
 		ic.lose(importPtrAt(ptr, "$schema"), "$schema", "the import reads "+
 			"2020-12, so a schema for another dialect is read as 2020-12")
 	}
-	if o.has("$id") && "#" != ptr {
-		ic.lose(importPtrAt(ptr, "$id"), "$id", "a nested resource is not "+
-			"carried yet; its references are read against the document")
-	}
 
 	parts := []string{}
 	if o.has("$ref") {
-		parts = append(parts, ic.refAlias(o.get("$ref"), importPtrAt(ptr, "$ref")))
+		parts = append(parts, ic.refAlias(o, o.get("$ref"), importPtrAt(ptr, "$ref")))
 	}
 	if o.has("const") {
 		parts = append(parts, ic.lit(o.get("const"), importPtrAt(ptr, "const")))
@@ -1895,6 +2064,10 @@ func (ic *importCtx) I(node any, ptr string) string {
 // require the property and the property's own schema admits it.
 type JSONSchemaImportOptions struct {
 	Defaults bool
+
+	// Documents holds the other documents a reference may reach, each
+	// by its retrieval URI.
+	Documents map[string]string
 }
 
 // ImportJSONSchema reads a JSON Schema document into aontu source,
@@ -1905,8 +2078,11 @@ func (a *Aontu) ImportJSONSchema(text string) SchemaImportReport {
 
 // ImportJSONSchemaWith is ImportJSONSchema with every option.
 func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) (report SchemaImportReport) {
-	ic := &importCtx{aliases: map[string]*string{},
-		anchors: map[string]importAnchor{}, defaults: opts.Defaults}
+	ic := &importCtx{aliases: map[string]*string{}, defaults: opts.Defaults,
+		resources: map[string]importAnchor{},
+		anchors:   map[string]map[string]importAnchor{},
+		bases:     map[*jobj]string{}, defKeys: map[*jobj]string{},
+		unread: map[string]string{}}
 	defer func() {
 		if r := recover(); nil != r {
 			ref, isRefusal := r.(*importRefusal)
@@ -1920,12 +2096,14 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 		}
 	}()
 
+	ic.readDocuments(opts.Documents)
 	ic.root = readSchemaJSON(text)
-	ic.collectAnchors(ic.root, "#")
+	ic.claim("", importAnchor{node: ic.root, ptr: "#"}, "#")
+	ic.index(ic.root, "#", "")
 	if root, ok := ic.root.(*jobj); ok {
 		defs := importSchemaMap(root.get("$defs"), "#/$defs")
 		for _, k := range defs.keys {
-			ic.declare(importAliasName(nil, []string{"$defs", k}), defs.get(k),
+			ic.declare(importAliasName([]string{"$defs", k}), defs.get(k),
 				importPtrAt("#/$defs", k))
 		}
 	}

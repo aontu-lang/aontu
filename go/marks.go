@@ -151,21 +151,37 @@ func deprecationMessage(rec map[string][]string) string {
 	return msg
 }
 
-// carryRiders lands the riders of a meet's operands on its result.
 func hasRiders(v Val) bool {
-	return nil != v && (nil != v.deprecRec() || nil != v.metaRec())
+	return nil != v && (nil != v.deprecRec() || nil != v.metaRec() ||
+		nil != v.identityRec())
 }
 
+// carryRiders lands the riders of a meet's operands on its result.
 func carryRiders(out, a, b Val) {
-	d, m := out.deprecRec(), out.metaRec()
+	d, m, id := out.deprecRec(), out.metaRec(), out.identityRec()
 	for _, v := range []Val{a, b} {
 		if nil != v {
 			d = unionRider(d, v.deprecRec(), strSelf)
 			m = unionRider(m, v.metaRec(), valCanon)
+			id = unionRider(id, v.identityRec(), strSelf)
 		}
 	}
 	out.setDeprecRec(d)
 	out.setMetaRec(m)
+	out.setIdentityRec(id)
+}
+
+// identityKeys is the identity record's whole vocabulary: an $id is an
+// absolute URI, and an $anchor is a plain name.
+var identityKeys = map[string]func(Val) bool{
+	"id": func(v Val) bool {
+		return metaText(v) && parseURI(v.(*ScalarVal).peg.(string)).hasScheme &&
+			!strings.Contains(v.(*ScalarVal).peg.(string), "#")
+	},
+	"anchor": func(v Val) bool {
+		return metaText(v) && importAnchorRe.MatchString(v.(*ScalarVal).peg.(string))
+	},
+	"key": metaText,
 }
 
 func wrapRiders(c string, v Val) string {
@@ -240,6 +256,7 @@ func copyMarks(to, from Val) {
 	to.setMarkHide(from.markedHide())
 	to.setDeprecRec(from.deprecRec())
 	to.setMetaRec(from.metaRec())
+	to.setIdentityRec(from.identityRec())
 	to.setLinkAddr(from.linkAddr())
 	// THE RENDER RIDERS TRAVEL WITH THE CLONE (P7), for the reason the
 	// deprecation record does: a clone of a value read at `$.schema`

@@ -14,6 +14,7 @@ const hints_1 = require("./hints");
 const keyorder_1 = require("./keyorder");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const numkind_1 = require("./val/numkind");
+const uri_1 = require("./uri");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const MAX_DEPTH = 1000;
 const BUDGET = 4096;
@@ -251,11 +252,7 @@ function enc(s, opens) {
     }
     return out;
 }
-function aliasName(frag) {
-    if (undefined !== frag.anchor) {
-        return '_a-' + enc(frag.anchor, false);
-    }
-    const segs = frag.segs;
+function aliasName(segs) {
     if (0 === segs.length) {
         return '_root';
     }
@@ -291,89 +288,206 @@ function lose(ctx, path, construct, reason) {
 function refuse(path, why) {
     throw new Refusal('jsonschema_schema', path, why);
 }
-// The anchors of every schema position, before any reference is read:
-// one name in one document is one subschema (`jsonschema_duplicate`).
-function collectAnchors(ctx, node, ptr) {
-    if (!isObj(node)) {
-        return;
+function splitFragment(uri) {
+    const i = uri.indexOf('#');
+    return -1 === i ? [uri, undefined] : [uri.slice(0, i), uri.slice(i + 1)];
+}
+// One URI names one schema, across every document the import reads.
+function claim(ctx, uri, place, path) {
+    if (place.node !== (ctx.resources.get(uri) ?? place).node) {
+        throw new Refusal('jsonschema_duplicate', path, 'the identifier ' + strLit(uri) + ' names two schemas');
     }
-    const anchor = node.get('$anchor');
+    ctx.resources.set(uri, place);
+}
+// The resources and anchors of every schema position, each read against
+// the base in effect where it stands, before any reference is read: one
+// anchor in one resource names one subschema.
+function index(ctx, node, ptr, base) {
+    if (!isObj(node)) {
+        return inherit(ctx, node, base);
+    }
+    if (node.has('$id')) {
+        const id = node.get('$id');
+        if ('string' !== typeof id) {
+            refuse(ptrAt(ptr, '$id'), '$id must be a string');
+        }
+        const [uri, frag] = splitFragment((0, uri_1.resolveUri)(base, id));
+        if ('' !== (frag ?? '')) {
+            refuse(ptrAt(ptr, '$id'), 'an $id names a resource, not a fragment ' +
+                'of one');
+        }
+        base = uri;
+        claim(ctx, base, { node, ptr }, ptrAt(ptr, '$id'));
+    }
+    ctx.bases.set(node, base);
     if (node.has('$anchor')) {
+        const anchor = node.get('$anchor');
         if ('string' !== typeof anchor || !/^[A-Za-z_][-A-Za-z0-9._]*$/.test(anchor)) {
             refuse(ptrAt(ptr, '$anchor'), 'an anchor must be a plain name');
         }
-        if (ctx.anchors.has(anchor)) {
+        const names = ctx.anchors.get(base) ?? new Map();
+        if (names.has(anchor)) {
             throw new Refusal('jsonschema_duplicate', ptrAt(ptr, '$anchor'), 'the anchor ' + strLit(anchor) + ' names two subschemas');
         }
-        ctx.anchors.set(anchor, { node, ptr });
+        ctx.anchors.set(base, names.set(anchor, { node, ptr }));
     }
     for (const [k, v] of node) {
         if (SCHEMA_MAPS.includes(k) && isObj(v)) {
+            ctx.bases.set(v, base);
             for (const [sk, sv] of v) {
-                collectAnchors(ctx, sv, ptrAt(ptrAt(ptr, k), sk));
+                if ('$defs' === k && isObj(sv)) {
+                    ctx.defKeys.set(sv, sk);
+                }
+                index(ctx, sv, ptrAt(ptrAt(ptr, k), sk), base);
             }
         }
         else if (SCHEMA_ONE.includes(k)) {
-            collectAnchors(ctx, v, ptrAt(ptr, k));
+            index(ctx, v, ptrAt(ptr, k), base);
         }
         else if (SCHEMA_LISTS.includes(k) && Array.isArray(v)) {
-            v.forEach((sv, n) => collectAnchors(ctx, sv, ptrAt(ptrAt(ptr, k), n)));
+            v.forEach((sv, n) => index(ctx, sv, ptrAt(ptrAt(ptr, k), n), base));
+        }
+        else {
+            inherit(ctx, v, base);
         }
     }
 }
-// `$ref` inside this document: `#`, a JSON pointer, or an anchor.
-function refAlias(ctx, ref, path) {
+// What stands in no schema position is data, and names no resource or
+// anchor; a reference that reaches into it reads it against the base
+// around it.
+function inherit(ctx, v, base) {
+    if (isObj(v)) {
+        ctx.bases.set(v, base);
+    }
+    if (isObj(v) || Array.isArray(v)) {
+        for (const sv of v.values()) {
+            inherit(ctx, sv, base);
+        }
+    }
+}
+// A document of the set is read when a reference first reaches for it,
+// by its retrieval URI, and every one left when a reference names none
+// of those, since it may name an $id inside one.
+function resource(ctx, uri) {
+    const named = ctx.resources.get(uri);
+    const unread = undefined !== named ? [] : ctx.unread.has(uri) ? [uri] :
+        [...ctx.unread.keys()].sort(keyorder_1.cmpCodePoint);
+    for (const doc of unread) {
+        const text = ctx.unread.get(doc);
+        ctx.unread.delete(doc);
+        let root;
+        try {
+            root = readJson(text);
+        }
+        catch (e) {
+            throw new Refusal(e.code, doc + e.path, e.message);
+        }
+        claim(ctx, doc, { node: root, ptr: doc + '#' }, doc + '#');
+        index(ctx, root, doc + '#', doc);
+    }
+    return ctx.resources.get(uri);
+}
+// An alias for what a place holds: a place in the document the import
+// was handed is named by its pointer, and one in another document by
+// that document's URI too.
+// Each document of the set is keyed by its URI without the fragment,
+// which a retrieval URI does not use.
+function readDocuments(ctx, docs) {
+    for (const k of Object.keys(docs).sort(keyorder_1.cmpCodePoint)) {
+        const uri = splitFragment(k)[0];
+        if (ctx.unread.has(uri)) {
+            throw new Refusal('jsonschema_duplicate', uri + '#', 'the identifier ' + strLit(uri) + ' names two schemas');
+        }
+        ctx.unread.set(uri, docs[k]);
+    }
+}
+function placeName(ptr) {
+    const at = ptr.indexOf('#');
+    const segs = ptr.slice(at + 1).split('/').slice(1)
+        .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'));
+    return 0 === at ? aliasName(segs) :
+        '_d-' + enc(ptr.slice(0, at), false) + segs.map((s) => '-' + enc(s, false)).join('');
+}
+// `$ref`, resolved against the base of the schema it sits in.
+function refAlias(ctx, o, ref, path) {
     if ('string' !== typeof ref) {
         refuse(path, '$ref must be a string');
     }
     const bad = (why) => {
         throw new Refusal('jsonschema_ref', path, 'the reference ' + strLit(ref) + ' ' + why);
     };
-    if (!ref.startsWith('#')) {
-        bad('names another document, and the import reads one document');
-    }
+    const [uri, raw] = splitFragment((0, uri_1.resolveUri)(ctx.bases.get(o), ref));
+    const res = resource(ctx, uri) ?? bad('names a document the import was ' +
+        'not given');
     let frag;
     try {
-        frag = decodeURIComponent(ref.substring(1));
+        frag = decodeURIComponent(raw ?? '');
     }
     catch {
         return bad('is not a well-formed fragment');
     }
     let node;
-    let ptr = '#';
-    let name;
+    let ptr = res.ptr;
     if ('' === frag || frag.startsWith('/')) {
         const segs = '' === frag ? [] : frag.substring(1).split('/');
         if (segs.some((s) => /~[^01]|~$/.test(s))) {
             bad('is not a well-formed JSON pointer');
         }
-        const keys = segs.map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'));
-        node = ctx.root;
-        for (const k of keys) {
+        node = res.node;
+        for (const k of segs.map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))) {
             node = isObj(node) ? node.get(k) :
                 Array.isArray(node) && /^(0|[1-9][0-9]*)$/.test(k) ? node[Number(k)] :
                     undefined;
             ptr = ptrAt(ptr, k);
         }
-        name = aliasName({ segs: keys });
     }
     else {
-        const anchored = ctx.anchors.get(frag);
+        const anchored = ctx.anchors.get(uri)?.get(frag);
         node = anchored?.node;
         ptr = anchored?.ptr ?? ptr;
-        name = aliasName({ anchor: frag });
     }
     if (undefined === node || !isSchema(node)) {
         bad('names no schema in this document');
     }
+    // One place, one alias: an anchor names the alias of the place it
+    // stands, so a schema reached by anchor and by pointer is one alias.
+    const name = placeName(ptr);
     declare(ctx, name, node, ptr);
     return '%' + name;
 }
 function declare(ctx, name, node, ptr) {
     if (!ctx.aliases.has(name)) {
         ctx.aliases.set(name, undefined);
-        ctx.aliases.set(name, I(ctx, node, ptr));
+        const body = bodyOf(ctx, node, ptr);
+        const rec = identity(ctx, name, node, ptr);
+        ctx.aliases.set(name, '' === rec ? body : 'identity(' + body + ', ' +
+            rec + ')');
     }
+}
+// What the export needs to give a schema back its place: the $id of the
+// resource it is, where that is absolute, its $anchor, where the export
+// leaves the anchor in the resource that holds it, and its $defs key.
+function identity(ctx, name, node, ptr) {
+    if (!isObj(node)) {
+        return '';
+    }
+    const at = ptr.indexOf('#');
+    const base = ctx.bases.get(node);
+    const own = node.has('$id') || at === ptr.length - 1 && 0 < at;
+    const parts = [];
+    if (own && undefined !== (0, uri_1.parseUri)(base).scheme) {
+        parts.push('id: ' + strLit(base));
+    }
+    const anchor = node.get('$anchor');
+    if (undefined !== anchor && (1 === parts.length ||
+        0 === at && base === ctx.bases.get(ctx.root))) {
+        parts.push('anchor: ' + strLit(anchor));
+    }
+    const key = ctx.defKeys.get(node);
+    if (undefined !== key && key !== name) {
+        parts.push('key: ' + strLit(key));
+    }
+    return 0 === parts.length ? '' : '{ ' + parts.join(', ') + ' }';
 }
 function lit(ctx, v, path) {
     if (null === v || 'boolean' === typeof v) {
@@ -1083,7 +1197,17 @@ function meetOrNil(parts) {
     const v = a.unify('x: ' + src, undefined, a.ctx({ collect: true }));
     return true === v.peg.x.isNil ? 'nil' : src;
 }
+// A schema with an identity of its own is hoisted, so that a
+// declaration carries it.
 function I(ctx, node, ptr) {
+    const name = placeName(ptr);
+    if ('' === identity(ctx, name, node, ptr)) {
+        return bodyOf(ctx, node, ptr);
+    }
+    declare(ctx, name, node, ptr);
+    return '%' + name;
+}
+function bodyOf(ctx, node, ptr) {
     if (true === node) {
         return 'any';
     }
@@ -1109,13 +1233,9 @@ function I(ctx, node, ptr) {
         lose(ctx, ptrAt(ptr, '$schema'), '$schema', 'the import reads ' +
             '2020-12, so a schema for another dialect is read as 2020-12');
     }
-    if (o.has('$id') && '#' !== ptr) {
-        lose(ctx, ptrAt(ptr, '$id'), '$id', 'a nested resource is not ' +
-            'carried yet; its references are read against the document');
-    }
     const parts = [];
     if (o.has('$ref')) {
-        parts.push(refAlias(ctx, o.get('$ref'), ptrAt(ptr, '$ref')));
+        parts.push(refAlias(ctx, o, o.get('$ref'), ptrAt(ptr, '$ref')));
     }
     if (o.has('const')) {
         parts.push(lit(ctx, o.get('const'), ptrAt(ptr, 'const')));
@@ -1160,15 +1280,18 @@ function I(ctx, node, ptr) {
 function importJsonSchema(text, options) {
     const ctx = {
         root: null, defaults: true === options?.defaults, lossy: [],
-        aliases: new Map(), anchors: new Map(),
+        aliases: new Map(), resources: new Map(), anchors: new Map(),
+        bases: new Map(), defKeys: new Map(), unread: new Map(),
     };
     let source;
     try {
+        readDocuments(ctx, options?.documents ?? {});
         ctx.root = readJson(text);
-        collectAnchors(ctx, ctx.root, '#');
+        claim(ctx, '', { node: ctx.root, ptr: '#' }, '#');
+        index(ctx, ctx.root, '#', '');
         if (isObj(ctx.root)) {
             for (const [k, s] of schemaMap(ctx.root.get('$defs'), '#/$defs')) {
-                declare(ctx, aliasName({ segs: ['$defs', k] }), s, ptrAt('#/$defs', k));
+                declare(ctx, aliasName(['$defs', k]), s, ptrAt('#/$defs', k));
             }
         }
         const inline = I(ctx, ctx.root, '#');

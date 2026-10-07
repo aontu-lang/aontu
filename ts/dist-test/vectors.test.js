@@ -131,6 +131,19 @@ function jsonFiles(dir, rel = '') {
     }
     return out;
 }
+// The documents the suite's tests name: the remotes of the releases
+// they refer to, each under the URI the suite serves it from.
+function remotes() {
+    const dir = Path.join(VECTORS, 'jsonschema', 'remotes');
+    const out = {};
+    for (const release of ['draft2019-09', 'draft2020-12']) {
+        for (const f of jsonFiles(Path.join(dir, release))) {
+            out['http://localhost:1234/' + release + '/' + f] =
+                Fs.readFileSync(Path.join(dir, release, f), 'utf8');
+        }
+    }
+    return out;
+}
 function sortKeys(v) {
     return Array.isArray(v) ? v.map(sortKeys) :
         null != v && 'object' === typeof v && !v.isVal &&
@@ -185,14 +198,14 @@ function evalAccepts(source, data) {
 // A corpus in the suite's own shape: groups of a schema and its tests.
 // A listed test names, beside its key, what the import says it lost or
 // why it refused, and the line must say exactly that.
-function suiteProblems(root, ledger) {
+function suiteProblems(root, ledger, documents = {}) {
     const problems = [];
     const seen = new Set();
     for (const file of jsonFiles(root)) {
         const text = Fs.readFileSync(Path.join(root, file), 'utf8');
         const at = (s, k) => text.slice(s.kv.get(k).s, s.kv.get(k).e);
         for (const group of spans(text).items) {
-            const report = (0, aontu_1.importJsonSchema)(at(group, 'schema'));
+            const report = (0, aontu_1.importJsonSchema)(at(group, 'schema'), { documents });
             const account = 'error' === report.verdict ? report.errors[0].code :
                 [...new Set(report.lossy.map((l) => l.construct))].sort().join(',') ||
                     '-';
@@ -343,7 +356,7 @@ function annotationProblems(root, ledger) {
 (0, node_test_1.describe)('vectors', () => {
     (0, node_test_1.test)('json-schema-test-suite', () => {
         const dir = Path.join(VECTORS, 'jsonschema');
-        const problems = suiteProblems(Path.join(dir, 'tests'), readLedger(Path.join(dir, 'skips.tsv'), 3));
+        const problems = suiteProblems(Path.join(dir, 'tests'), readLedger(Path.join(dir, 'skips.tsv'), 3), remotes());
         Assert.deepStrictEqual(problems, []);
     });
     (0, node_test_1.test)('json-schema-test-suite-annotations', () => {

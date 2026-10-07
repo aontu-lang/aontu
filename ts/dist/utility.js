@@ -112,6 +112,10 @@ function carryRiders(out, a, b) {
     if (m !== out.meta) {
         out.meta = m;
     }
+    const i = unionRider(unionRider(out.identity, a?.identity, String), b?.identity, String);
+    if (i !== out.identity) {
+        out.identity = i;
+    }
 }
 function wrapRiders(c, v) {
     const d = v.deprecation;
@@ -126,7 +130,7 @@ function wrapRiders(c, v) {
     return c;
 }
 function hasRiders(v) {
-    return null != v?.meta || null != v?.deprecation;
+    return null != v?.meta || null != v?.deprecation || null != v?.identity;
 }
 // A top a meet may pass over: one that carries a rider carries it into
 // whatever it meets, so it has to be met.

@@ -786,8 +786,15 @@ subschema, or any pointer target such as `#/properties/a/items`, hoisted
 into `%name = I(target)`. The use site is `%name`, and `$ref` with
 siblings is `%name & I(siblings)`. A path reference into the instance
 tree is never used, for the reason the measurement shows. Alias names
-are derived reversibly from the resource's URI and the fragment, since
-anchors and `$defs` keys admit characters alias names do not.
+are derived reversibly from the place a schema stands, its JSON
+Pointer, with the document's URI as well for a schema in another
+document, since pointer tokens and URIs admit characters alias names
+do not. An anchor names the alias of the place it stands, so a schema
+reached by anchor and by pointer is one alias; this replaced the
+design's names from the fragment, which gave one schema two aliases
+and the export two definitions with one anchor. A reference that
+reaches into data, a position no keyword reads as a schema, reads it
+against the base around it, and data registers no identifier.
 `"$ref": "#"` names the document root, which the importer carries by
 hoisting the root body into an alias, which is exact for validation. A
 bare `$` at value position is not a root reference: it refuses at parse
@@ -797,14 +804,28 @@ path reference into the instance tree is never used here.
 
 **Identity lives on the declaration, not on the value.** The alias
 declaration carries the resource's `$id`, `$anchor` and original
-`$defs` key in a declaration-only identity builtin, which only an alias
-declaration may carry and whose name phase 10 settles, and a reference
-copy strips it as it already clears `type()` and `hide()` marks: the
-strip rule is a property of the construct, and the `meta` rider's union
-meet carries no special keys. Two copies of
+`$defs` key in `identity(v, r)`, a declaration-only builtin (ADR-050):
+only a call that is the declaration's value, or a term of it, and not
+another call's argument, holds the record, and a reference copy strips
+it as it already clears `type()` and `hide()` marks: the strip rule is
+a property of the construct, and the `meta` rider's union meet carries
+no special keys. Two records at one declaration meet as their key-wise
+union. The import records an `$id` only where it is absolute, an
+anchor only where the export leaves it in the resource that holds it,
+and a `$defs` key only where the alias name does not spell it, and it
+hoists into a declaration every schema whose record is not empty, the
+root included, since only a declaration can hold one. Two copies of
 different resources therefore never meet identity records, and the
 exporter reads them at the declaration to emit each alias once under
-`$defs`, with its `$id` and `$anchor`, and each use as `$ref`. The
+`$defs`, with its `$id` and `$anchor`, and each use as `$ref`. A
+definition with an `$id` is its own resource in the export, so a
+`$ref` to it is that `$id`, and one from inside it to a definition
+without an `$id` names the root by the root's; the root, when it is an
+unchanged copy of an alias whose declaration names an `$id`, is written
+as that resource. Where the root has no `$id` and a definition with one
+refers to one without, the export writes no definition's `$id` and
+reports the loss, which the design had not foreseen: a `$defs` that
+holds several resources flat needs a URI for the root. The
 exporter needs one more fact for that: which values arrived through an
 alias. A reference copy gains an origin mark, carried through the meet
 and read by the exporter in both ports; phase 4 lands the mark and the
@@ -814,7 +835,11 @@ identity.
 **Remote references** are resolved against a document set handed to
 the importer, `{uri: text}`, never fetched: G5's trust contract has no
 network clause to relax. A reference outside the set refuses the import
-with a new code, `jsonschema_ref`. Every reached resource is imported
+with a new code, `jsonschema_ref`. A document is read when a reference
+first reaches it by its URI, and a reference to a URI the set names no
+document under reads the rest, since an `$id` inside one may be that
+URI. The command line names each document with `--document
+<uri>=<file>`. Every reached resource is imported
 into the same aontu document, so the result is hermetic and holds only
 internal references.
 
@@ -1019,8 +1044,12 @@ though `allOf: [c]` would now carry it with only its message lost.
 
 The official suite is vendored under `test/vectors/jsonschema/`, pinned
 to an upstream commit named in its README, with `remotes/` beside it
-loaded into the importer's document set under both
-`http://localhost:1234/` and each file's own `$id`. One runner per port
+loaded into the importer's document set under `http://localhost:1234/`:
+the files of the releases the 2020-12 tests name. A file's own `$id`
+is found by reading the set rather than by a second key, since two
+keys for one text would be two resources with one identifier, and the
+draft 6 and draft 7 directories, which write anchors as `$id`s with a
+fragment, are not loaded. One runner per port
 imports each schema once per test group, runs `vet --no-fill
 --exact-numbers` on each instance, and requires
 the verdict to match `valid`. It also requires evaluation of schema and
@@ -1082,7 +1111,7 @@ when a triple's `valid`, the two engines and this design disagree.
 
 | Kind | Items |
 |---|---|
-| New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)`, and the declaration-only identity builtin of section 10 |
+| New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(name)`, `meta(v, ...r)`, and the declaration-only `identity(v, r)` of section 10 |
 | New options | `vet --no-fill`, `--exact-numbers` on `vet`, on evaluation and on the export, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
 | New engine codes | `nof`, `when` (class `conflict`); `vet_filled` (`incomplete`); `format_unknown` (`conflict`); `trial_budget` (`budget`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |

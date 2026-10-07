@@ -78,7 +78,7 @@ below them, as plain text. Hover targets concrete values (scalars,
 kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 68 today, the
+prefix): the built-in functions (the engine's full roster, 69 today, the
 constraint atoms (`min`, `re`, `len`, …) and the relation atoms
 (`refer`, `rel`, `acyclic`, `inverse`) included), the kind keywords
 (`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,

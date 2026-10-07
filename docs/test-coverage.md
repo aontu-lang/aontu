@@ -134,7 +134,7 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**6706 cases across 122 files**) is run by *both*
+`test/spec/*.tsv` (**6847 cases across 124 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
@@ -143,8 +143,8 @@ implementations and is the contract that defines shared behaviour
 | `constraint-product.tsv`    | 441 | `patch.tsv` | 41 |
 | `number-tower.tsv`          | 395 | `place.tsv` | 41 |
 | `edge.tsv`                  | 338 | `scalar.tsv` | 40 |
-| `jsonschema.tsv`            | 261 | `constraint-when.tsv` | 39 |
-| `jsonschema-import.tsv`     | 249 | `sort.tsv` | 39 |
+| `jsonschema.tsv`            | 291 | `constraint-when.tsv` | 39 |
+| `jsonschema-import.tsv`     | 274 | `sort.tsv` | 39 |
 | `fmt.tsv`                   | 232 | `disjunct.tsv` | 38 |
 | `errcodes.tsv`              | 184 | `aontu-system.tsv` | 37 |
 | `view.tsv`                  | 177 | `views.tsv` | 37 |
@@ -165,11 +165,12 @@ implementations and is the contract that defines shared behaviour
 | `pref.tsv`                  |  75 | `recursion.tsv` | 28 |
 | `constraint-bound.tsv`      |  74 | `var.tsv` | 28 |
 | `ref.tsv`                   |  74 | `engine-parity.tsv` | 23 |
-| `meta.tsv`                  |  73 | `constraint-alias.tsv` | 21 |
-| `file.tsv`                  |  71 | `elision.tsv` | 21 |
-| `optional.tsv`              |  68 | `reach.tsv` | 19 |
-| `marks.tsv`                 |  67 | `list.tsv` | 18 |
-| `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
+| `meta.tsv`                  |  73 | `identity.tsv` | 22 |
+| `file.tsv`                  |  71 | `constraint-alias.tsv` | 21 |
+| `optional.tsv`              |  68 | `elision.tsv` | 21 |
+| `marks.tsv`                 |  67 | `reach.tsv` | 19 |
+| `path.tsv`                  |  66 | `list.tsv` | 18 |
+| `uri.tsv`                   |  64 | `aontu-view.tsv` | 16 |
 | `constraint-nof.tsv`        |  61 | `plus.tsv` | 16 |
 | `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
 | `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |

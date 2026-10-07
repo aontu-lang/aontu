@@ -27,8 +27,15 @@ where the suite says `valid: true`. Evaluating the import and the
 instance as one document must agree with `vet` on every test the
 import answers, honoured or not.
 
-`remotes/` is not read yet: the import reads one document, so a test
-whose schema names another is refused, and listed.
+The import of each schema is handed `remotes/` as its document set,
+each file under the URI the suite serves it from,
+`http://localhost:1234/` and its path: the files of `draft2020-12/`,
+and of `draft2019-09/`, which one 2020-12 test refers to. The other
+releases' directories are not handed over: no 2020-12 test names
+them, and draft 6 and draft 7 write an anchor as an `$id` with a
+fragment, which a 2020-12 import refuses. A document is
+read when a reference first reaches it, by that URI or by an `$id`
+inside it.
 
 ## The skip ledger
 

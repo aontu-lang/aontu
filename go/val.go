@@ -86,6 +86,8 @@ type Val interface {
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
 	setMetaRec(rec map[string][]Val)
+	identityRec() map[string][]string
+	setIdentityRec(rec map[string][]string)
 	readAddr() string
 	setReadAddr(addr string)
 	aliasOrigin() string
@@ -122,16 +124,17 @@ type site struct {
 }
 
 type base struct {
-	dc     int
-	site   site
-	path   []string // path from root (for reference resolution)
-	mtype  bool
-	mhide  bool // hide mark
-	fspr   bool
-	fwrt   bool
-	finner Val
+	dc      int
+	site    site
+	path    []string // path from root (for reference resolution)
+	mtype   bool
+	mhide   bool // hide mark
+	fspr    bool
+	fwrt    bool
+	finner  Val
 	deprec  map[string][]string
 	meta    map[string][]Val
+	ident   map[string][]string
 	origin  string
 	alias   string // the slot of the alias this value is a copy of
 	emitted *emitOrigin
@@ -217,6 +220,10 @@ func (b *base) deprecRec() map[string][]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
 func (b *base) metaRec() map[string][]Val            { return b.meta }
 func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
+func (b *base) identityRec() map[string][]string     { return b.ident }
+func (b *base) setIdentityRec(rec map[string][]string) {
+	b.ident = rec
+}
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }
