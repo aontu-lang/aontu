@@ -64,6 +64,20 @@ function holding(ctx: AontuContext, optional: boolean, te: any,
 }
 
 
+// Templates meet term by term, a term the first already holds, by
+// canon, once: the meet is idempotent, and a template met again with a
+// copy of its own terms, as each pair of a disjunction's arms is, would
+// otherwise grow by a term at every meet.
+function meetSpreads(ctx: AontuContext, a: Val, b: Val, why: string): Val {
+  const terms = (v: any): any[] => true === v.isConjunct ? v.peg : [v]
+  const have = new Set(terms(a).map((t: any) => t.canon))
+  const all = terms(b)
+  const fresh = all.filter((t: any) => !have.has(t.canon) && (have.add(t.canon), true))
+  return 0 === fresh.length ? a : unite(ctx, a, fresh.length === all.length ? b :
+    1 === fresh.length ? fresh[0] : new ConjunctVal({ peg: fresh }, ctx), why)
+}
+
+
 function spreadSnapKey(cj: any): string {
   return cj.spelling + '~' + cj.site.url + '~' + cj.site.row + ':' + cj.site.col
 }
@@ -213,9 +227,8 @@ class MapVal extends BagVal {
       if (!exit) {
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
           null == peer.spread.cj ? out.spread.cj :
-            out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
-              unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
-                out.spread.cj, peer.spread.cj, 'map-self')
+            meetSpreads(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
+              out.spread.cj, peer.spread.cj, 'map-self')
         )
       }
     }
@@ -513,10 +526,11 @@ class MapVal extends BagVal {
     return this.spread.cj ? '&:' + this.spread.cj.inspect(null == d ? 0 : d + 1) : ''
   }
 
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 
 
 export {
   MapVal,
+  meetSpreads,
   spreadSnapKey,
 }

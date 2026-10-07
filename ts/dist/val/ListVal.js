@@ -12,6 +12,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const provenance_1 = require("../provenance");
+const MapVal_1 = require("./MapVal");
 class ListVal extends BagVal_1.BagVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -71,8 +72,8 @@ class ListVal extends BagVal_1.BagVal {
             }
             else {
                 out.closed = out.closed || peer.closed;
-                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj : (out.spread.cj =
-                    (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer')));
+                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
+                    (0, MapVal_1.meetSpreads)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer'));
             }
         }
         if (!exit) {

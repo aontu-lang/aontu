@@ -24,6 +24,7 @@ var funcSet = map[string]bool{
 	"nof":       true,
 	"when":      true,
 	"contains":  true,
+	"rest":      true,
 	"deprecate": true,
 	"meta":      true,
 	"identity":  true,
@@ -112,9 +113,11 @@ func deriveArity() map[string][2]int {
 		min, max := 0, 0
 		for _, a := range sig.Args {
 			if a.Rest {
-				if nil == a.Group {
+				switch {
+				case a.Opt:
+				case nil == a.Group:
 					min++
-				} else {
+				default:
 					min += len(a.Group)
 				}
 				max = -1

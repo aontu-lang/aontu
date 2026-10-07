@@ -175,6 +175,7 @@ import {
   NofConstraintVal,
   WhenConstraintVal,
   ContainsConstraintVal,
+  RestConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -875,6 +876,7 @@ help isolate the syntax error.`,
     nof: NofConstraintVal,
     when: WhenConstraintVal,
     contains: ContainsConstraintVal,
+    rest: RestConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,
@@ -2312,7 +2314,7 @@ function sigArity(sig: FuncSig): [number, number] {
   let max = 0
   for (const a of sig.args) {
     if (true === a.rest) {
-      min += undefined === a.group ? 1 : a.group.length
+      min += true === a.opt ? 0 : undefined === a.group ? 1 : a.group.length
       max = -1
     }
     else {

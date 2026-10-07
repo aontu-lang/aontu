@@ -384,15 +384,14 @@ var importCarried = map[string]bool{"$schema": true, "$id": true,
 	"propertyNames": true, "minProperties": true, "maxProperties": true,
 	"prefixItems": true, "items": true, "minItems": true, "maxItems": true,
 	"contains": true, "minContains": true, "maxContains": true,
-	"uniqueItems": true}
+	"uniqueItems": true, "unevaluatedProperties": true, "unevaluatedItems": true}
 
 var importAnnotation = map[string]bool{"title": true, "description": true,
 	"default": true, "examples": true, "deprecated": true, "readOnly": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"unevaluatedProperties": true,
-	"unevaluatedItems": true, "$vocabulary": true}
+var importLater = map[string]bool{"$vocabulary": true}
 
 type importAnchor struct {
 	node any
@@ -421,6 +420,10 @@ type importCtx struct {
 	env       importEnv
 	rootEnv   importEnv
 	clones    int
+	// wanted: the places a rest() reads by alias; hoist: those the count
+	// or condition beside it reads by the same alias.
+	wanted map[string]bool
+	hoist  map[string]bool
 }
 
 func (ic *importCtx) lose(path, construct, reason string) {
@@ -1360,6 +1363,7 @@ func importLens(min, max string) []string {
 }
 
 func (ic *importCtx) objectBranch(o *jobj, ptr string) string {
+	rest := ic.restAtom(o, ptr, "unevaluatedProperties")
 	props := importSchemaMap(o.get("properties"), importPtrAt(ptr, "properties"))
 	required := []string{}
 	if o.has("required") {
@@ -1444,6 +1448,7 @@ func (ic *importCtx) objectBranch(o *jobj, ptr string) string {
 
 	lens := importLens(importCount(o.get("minProperties"), importPtrAt(ptr, "minProperties")),
 		importCount(o.get("maxProperties"), importPtrAt(ptr, "maxProperties")))
+	lens = append(lens, rest...)
 	if 0 == len(entries) && 0 == len(guards) {
 		if 0 == len(lens) {
 			return ""
@@ -1496,6 +1501,7 @@ func (ic *importCtx) arrayBranch(o *jobj, ptr string) string {
 			return "nil"
 		}
 	}
+	atoms = append(atoms, ic.restAtom(o, ptr, "unevaluatedItems")...)
 	if "" == spread && 0 == len(atoms) {
 		return ""
 	}
@@ -1506,6 +1512,245 @@ func (ic *importCtx) arrayBranch(o *jobj, ptr string) string {
 	return importBoth(append([]string{base}, atoms...))
 }
 
+// importReach is what a schema evaluates at its own instance location,
+// the members its own keywords reach. An applicator in place adds what
+// its schemas evaluate: always for `allOf` and a reference, and under
+// the trial that decides it for the conditional ones.
+type importReach struct {
+	keys    []string
+	all     bool
+	prefix  int
+	items   []importAnchor
+	covers  []importCover
+	inexact bool
+}
+
+// importCover: a trial place, or the trial's own text where it has no
+// place, and the records read where it admits and where it refuses.
+type importCover struct {
+	trial *importAnchor
+	text  string
+	rec   *importReach
+	alt   *importReach
+}
+
+func (r *importReach) add(b *importReach) *importReach {
+	for _, k := range b.keys {
+		if !containsStr(r.keys, k) {
+			r.keys = append(r.keys, k)
+		}
+	}
+	r.all = r.all || b.all
+	if b.prefix > r.prefix {
+		r.prefix = b.prefix
+	}
+	r.items = append(r.items, b.items...)
+	r.covers = append(r.covers, b.covers...)
+	r.inexact = r.inexact || b.inexact
+	return r
+}
+
+func (r *importReach) empty() bool {
+	return 0 == len(r.keys) && !r.all && 0 == r.prefix && 0 == len(r.items) &&
+		0 == len(r.covers)
+}
+
+func (ic *importCtx) reach(node any, ptr, kw string, path map[*jobj]bool,
+	own bool) *importReach {
+	r := &importReach{}
+	o, ok := node.(*jobj)
+	if !ok || path[o] {
+		return r
+	}
+	outer := ic.env
+	ic.env = ic.enter(outer, node)
+	path[o] = true
+	defer func() {
+		delete(path, o)
+		ic.env = outer
+	}()
+	sub := func(s any, at string) *importReach { return ic.reach(s, at, kw, path, false) }
+	at := func(k, n string) string { return importPtrAt(importPtrAt(ptr, k), n) }
+	if "unevaluatedProperties" == kw {
+		if props, isObj := o.get("properties").(*jobj); isObj {
+			for _, k := range props.keys {
+				r.keys = append(r.keys, importStrLit(k))
+			}
+		}
+		if pats, isObj := o.get("patternProperties").(*jobj); isObj {
+			for _, p := range pats.keys {
+				re := ic.pattern(p, at("patternProperties", p))
+				r.inexact = r.inexact || "" == re
+				if "" != re {
+					r.keys = append(r.keys, re)
+				}
+			}
+		}
+		r.all = o.has("additionalProperties") ||
+			(!own && o.has("unevaluatedProperties"))
+	} else {
+		if prefix, isList := o.get("prefixItems").([]any); isList {
+			r.prefix = len(prefix)
+		}
+		r.all = o.has("items") || (!own && o.has("unevaluatedItems"))
+		if o.has("contains") {
+			r.items = append(r.items, importAnchor{node: o.get("contains"),
+				ptr: importPtrAt(ptr, "contains")})
+		}
+	}
+	list := func(k string) []any {
+		l, _ := o.get(k).([]any)
+		return l
+	}
+	for n, s := range list("allOf") {
+		r.add(sub(s, at("allOf", importIdx(n))))
+	}
+	for _, kr := range []string{"$ref", "$dynamicRef"} {
+		if o.has(kr) {
+			to, frag, _ := ic.target(o, kr, importPtrAt(ptr, kr))
+			if t, isObj := to.node.(*jobj); "$dynamicRef" == kr && isObj &&
+				t.get("$dynamicAnchor") == frag {
+				if bound, has := ic.env[frag]; has {
+					to = bound
+				}
+			}
+			r.add(sub(to.node, to.ptr))
+		}
+	}
+	for _, k := range []string{"anyOf", "oneOf"} {
+		for n, s := range list(k) {
+			place := importAnchor{node: s, ptr: at(k, importIdx(n))}
+			rec := sub(s, place.ptr)
+			r.inexact = r.inexact || rec.inexact
+			if !rec.empty() {
+				r.covers = append(r.covers, importCover{trial: &place, rec: rec})
+			}
+		}
+	}
+	if o.has("if") {
+		c := o.get("if")
+		then := sub(c, importPtrAt(ptr, "if"))
+		if o.has("then") {
+			then.add(sub(o.get("then"), importPtrAt(ptr, "then")))
+		}
+		alt := &importReach{}
+		if o.has("else") {
+			alt = sub(o.get("else"), importPtrAt(ptr, "else"))
+		}
+		r.inexact = r.inexact || then.inexact || alt.inexact
+		if b, isBool := c.(bool); isBool {
+			if b {
+				r.add(then)
+			} else {
+				r.add(alt)
+			}
+		} else if !then.empty() || !alt.empty() {
+			cv := importCover{trial: &importAnchor{node: c, ptr: importPtrAt(ptr, "if")},
+				rec: then}
+			if !alt.empty() {
+				cv.alt = alt
+			}
+			r.covers = append(r.covers, cv)
+		}
+	}
+	if deps, isObj := o.get("dependentSchemas").(*jobj); isObj {
+		for _, k := range deps.keys {
+			rec := sub(deps.get(k), at("dependentSchemas", k))
+			r.inexact = r.inexact || rec.inexact
+			if !rec.empty() {
+				r.covers = append(r.covers, importCover{
+					text: "{" + importStrLit(k) + ": any}", rec: rec})
+			}
+		}
+	}
+	return r
+}
+
+// trialOf: the alias a trial reads, recorded so the check beside it
+// reads it too.
+func (ic *importCtx) trialOf(place importAnchor) string {
+	if _, ok := place.node.(*jobj); !ok {
+		return ic.I(place.node, place.ptr)
+	}
+	ic.wanted[place.ptr] = true
+	return ic.use(place)
+}
+
+// reachRecord: a record, as rest() reads one.
+func (ic *importCtx) reachRecord(r, alt *importReach) string {
+	fields := []string{}
+	if r.all {
+		fields = append(fields, "keys: any")
+	} else {
+		if 0 < len(r.keys) {
+			fields = append(fields, "keys: "+strings.Join(r.keys, " | "))
+		}
+		if 0 < r.prefix {
+			fields = append(fields, "prefix: "+importIdx(r.prefix))
+		}
+		if 0 < len(r.items) {
+			srcs := []string{}
+			for _, p := range r.items {
+				srcs = append(srcs, ic.trialOf(p))
+			}
+			fields = append(fields, "items: "+importDisjoin(srcs))
+		}
+		if 0 < len(r.covers) {
+			fields = append(fields, "covers: ["+strings.Join(ic.reachPairs(r.covers), ", ")+"]")
+		}
+	}
+	if nil != alt {
+		fields = append(fields, "else: "+ic.reachRecord(alt, nil))
+	}
+	return "{" + strings.Join(fields, ", ") + "}"
+}
+
+func (ic *importCtx) reachPairs(covers []importCover) []string {
+	out := []string{}
+	for _, cv := range covers {
+		trial := cv.text
+		if nil != cv.trial {
+			trial = ic.trialOf(*cv.trial)
+		}
+		out = append(out, trial+", "+ic.reachRecord(cv.rec, cv.alt))
+	}
+	return out
+}
+
+// restAtom reads `unevaluatedProperties` or `unevaluatedItems` as
+// rest(t, ...): every member what the schema evaluates in place does not
+// reach must meet t. Where everything is reached it asks nothing, and
+// where a pattern it would read is not carried it is dropped, since it
+// would refuse the keys the pattern reaches.
+func (ic *importCtx) restAtom(o *jobj, ptr, kw string) []string {
+	u := importSchemaOneOf(o.get(kw), importPtrAt(ptr, kw))
+	if nil == u || true == u {
+		return nil
+	}
+	r := ic.reach(o, ptr, kw, map[*jobj]bool{}, true)
+	if r.all {
+		return nil
+	}
+	if r.inexact {
+		ic.lose(importPtrAt(ptr, kw), kw, "a pattern a schema in place beside it "+
+			"reads is not carried, so the members it evaluates are not known and "+
+			"it is DROPPED: the import admits instances the schema refuses")
+		return nil
+	}
+	t := ic.I(u, importPtrAt(ptr, kw))
+	if "any" == t {
+		return nil
+	}
+	parts := []string{t}
+	own := *r
+	own.covers = nil
+	if !own.empty() {
+		parts = append(parts, "any, "+ic.reachRecord(&own, nil))
+	}
+	parts = append(parts, ic.reachPairs(r.covers)...)
+	return []string{"rest(" + strings.Join(parts, ", ") + ")"}
+}
+
 // containsAtom: minContains and maxContains count only beside contains,
 // the lower one defaulting to one; a count no number meets admits no
 // list.
@@ -1513,7 +1758,7 @@ func (ic *importCtx) containsAtom(o *jobj, ptr string) []string {
 	if !o.has("contains") {
 		return nil
 	}
-	c := ic.I(o.get("contains"), importPtrAt(ptr, "contains"))
+	c := ic.branch(o.get("contains"), importPtrAt(ptr, "contains"))
 	lo := importCount(o.get("minContains"), importPtrAt(ptr, "minContains"))
 	if "" == lo {
 		lo = "1"
@@ -1860,7 +2105,7 @@ func (ic *importCtx) alternatives(o *jobj, ptr, key string) ([]any, []string) {
 	list := importSchemaList(o.get(key), at)
 	srcs := make([]string, len(list))
 	for n, s := range list {
-		srcs[n] = ic.I(s, importPtrAt(at, importIdx(n)))
+		srcs[n] = ic.branch(s, importPtrAt(at, importIdx(n)))
 	}
 	return list, srcs
 }
@@ -1988,7 +2233,7 @@ func (ic *importCtx) not(o *jobj, ptr string) (string, bool) {
 // without the other asks nothing of a value.
 func (ic *importCtx) conditional(o *jobj, ptr string) string {
 	arm := func(k string) string { return ic.I(o.get(k), importPtrAt(ptr, k)) }
-	parts := []string{arm("if"), "any"}
+	parts := []string{ic.branch(o.get("if"), importPtrAt(ptr, "if")), "any"}
 	if o.has("then") {
 		parts[1] = arm("then")
 	}
@@ -2061,6 +2306,15 @@ func importMeetOrNil(parts []string) string {
 
 // I: a schema with an identity of its own is hoisted, so that a
 // declaration carries it.
+// branch: a branch a rest() reads is the alias it reads, so the check
+// beside it and the rest share one definition and one verdict.
+func (ic *importCtx) branch(node any, ptr string) string {
+	if _, ok := node.(*jobj); ok && ic.hoist[ptr] {
+		return ic.use(importAnchor{node: node, ptr: ptr})
+	}
+	return ic.I(node, ptr)
+}
+
 func (ic *importCtx) I(node any, ptr string) string {
 	if "" == ic.identity(importPlaceName(ptr), node, ptr) {
 		return ic.bodyOf(node, ptr)
@@ -2183,14 +2437,35 @@ func (a *Aontu) ImportJSONSchema(text string) SchemaImportReport {
 	return a.ImportJSONSchemaWith(text, JSONSchemaImportOptions{})
 }
 
-// ImportJSONSchemaWith is ImportJSONSchema with every option.
-func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) (report SchemaImportReport) {
+// ImportJSONSchemaWith is ImportJSONSchema with every option. A branch a
+// rest() reads that its check had already written in place is read again
+// by alias, so the import runs once more with it hoisted.
+func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) SchemaImportReport {
+	hoist := map[string]bool{}
+	for {
+		report, wanted := a.importOnce(text, opts, hoist)
+		grown := false
+		for p := range wanted {
+			if !hoist[p] {
+				hoist[p] = true
+				grown = true
+			}
+		}
+		if !grown {
+			return report
+		}
+	}
+}
+
+func (a *Aontu) importOnce(text string, opts JSONSchemaImportOptions,
+	hoist map[string]bool) (report SchemaImportReport, wanted map[string]bool) {
 	ic := &importCtx{aliases: map[string]*string{}, defaults: opts.Defaults,
 		resources: map[string]importAnchor{},
 		anchors:   map[string]map[string]importAnchor{},
 		bases:     map[*jobj]string{}, defKeys: map[*jobj]string{},
 		unread:   map[string]string{},
-		dynamics: map[string]map[string]importAnchor{}}
+		dynamics: map[string]map[string]importAnchor{},
+		wanted:   map[string]bool{}, hoist: hoist}
 	defer func() {
 		if r := recover(); nil != r {
 			ref, isRefusal := r.(*importRefusal)
@@ -2201,6 +2476,7 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 				Verdict: "error",
 				Errors: []SchemaImportError{{Code: ref.code,
 					Class: codeClass(ref.code), Path: ref.path, Message: ref.why}}}
+			wanted = map[string]bool{}
 		}
 	}()
 
@@ -2253,5 +2529,6 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 	if 0 < len(lossy) {
 		verdict = "lossy"
 	}
-	return SchemaImportReport{Source: formatted.Text, Lossy: lossy, Verdict: verdict}
+	return SchemaImportReport{Source: formatted.Text, Lossy: lossy, Verdict: verdict},
+		ic.wanted
 }

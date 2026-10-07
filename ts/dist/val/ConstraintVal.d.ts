@@ -28,6 +28,22 @@ type ContainsAtom = {
     c: any;
     count: ConstraintState;
 };
+type RestRecord = {
+    keys?: any;
+    prefix?: bigint;
+    items?: any;
+    covers: RestCover[];
+    else?: RestRecord;
+};
+type RestCover = {
+    trial: any;
+    rec: RestRecord;
+    src: any;
+};
+type RestAtom = {
+    t: any;
+    covers: RestCover[];
+};
 type ConstraintState = {
     domain?: 'number' | 'string';
     kind?: any;
@@ -43,6 +59,7 @@ type ConstraintState = {
     nofs: NofAtom[];
     whens?: WhenAtom[];
     contains?: ContainsAtom[];
+    rests?: RestAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
@@ -67,6 +84,7 @@ declare class ConstraintVal extends FeatureVal {
     nofs: NofAtom[];
     whens: WhenAtom[];
     contains: ContainsAtom[];
+    rests: RestAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -83,12 +101,13 @@ declare class ConstraintVal extends FeatureVal {
     }, ctx?: AontuContext);
     private fromAtom;
     unify(peer: Val, ctx: AontuContext): Val;
-    private settle;
+    settle(peer: Val, ctx: AontuContext): Val;
     private admit;
     private checkMusts;
     private checkNofs;
     private checkWhens;
     private checkContains;
+    private checkRests;
     settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
     private hold;
@@ -104,6 +123,7 @@ declare class ConstraintVal extends FeatureVal {
 }
 declare function constraintSubsumesConstraint(g: ConstraintVal, s: ConstraintVal): boolean | 'undecided';
 declare function constraintAdmitsScalar(g: ConstraintVal, scalar: any): boolean | 'undecided';
+declare function restCanon(r: RestAtom): string;
 declare function nofCounts(n: NofAtom): number[];
 declare class MinConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
@@ -138,10 +158,13 @@ declare class WhenConstraintVal extends ConstraintVal {
 declare class ContainsConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class RestConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, };
+export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, nofCounts, restCanon, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };

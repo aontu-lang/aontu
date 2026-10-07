@@ -8,6 +8,7 @@ import { makeNilErr } from './err'
 import { cmpCodePoint } from './keyorder'
 import { spreadSnapKey } from './val/MapVal'
 import { ALIAS_NAME, aliasSetItems } from './aliasname'
+import { restArgs } from './walk'
 
 
 const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g')
@@ -213,34 +214,47 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
   }
 
   const seen = new Set<Val>()
+  const path = new Map<Val, number>()
 
-  const visit = (v: any, stack: string[]): void => {
-    if (null == v || true !== v.isVal || seen.has(v)) {
-      return
+  // A copy may share its call's arguments with the declaration, so the
+  // value a reference names can hold it: the walk answers how shallow a
+  // value it meets again on its own path, and the deepest expansion
+  // such a cycle passes through is a knot instead.
+  const visit = (v: any, stack: string[]): number => {
+    if (null == v || true !== v.isVal) {
+      return Infinity
+    }
+    if (seen.has(v)) {
+      return path.get(v) ?? Infinity
     }
     seen.add(v)
-
-    if (true === v.isRef) {
-      const key: string | undefined = v.aliasKey
-      if (undefined === key) {
-        return
+    const depth = path.size
+    path.set(v, depth)
+    try {
+      if (true !== v.isRef) {
+        let low = Infinity
+        for (const kid of aliasKids(v)) {
+          low = Math.min(low, visit(kid, stack))
+        }
+        return low
       }
+      const key: string | undefined = v.aliasKey
       v.expansion = undefined
-      if (stack.includes(key)) {
-        return
+      if (undefined === key || stack.includes(key)) {
+        return Infinity
       }
       const target: Val | undefined =
         snapmap.get(spreadSnapKey(v)) ?? (root as any).peg[key]
-      if (null == target) {
-        return
+      if (null != target) {
+        v.expansion = target
+        if (visit(target, [...stack, key]) <= depth) {
+          v.expansion = undefined
+        }
       }
-      v.expansion = target
-      visit(target, [...stack, key])
-      return
+      return Infinity
     }
-
-    for (const kid of aliasKids(v)) {
-      visit(kid, stack)
+    finally {
+      path.delete(v)
     }
   }
 
@@ -266,7 +280,8 @@ function aliasKids(v: any): any[] {
     out.push(...v.musts.map((m: any) => m.v),
       ...v.nofs.flatMap((n: any) => n.branches),
       ...v.whens.flatMap((w: any) => [w.c, w.t, w.e]),
-      ...v.contains.map((c: any) => c.c))
+      ...v.contains.map((c: any) => c.c),
+      ...v.rests.flatMap(restArgs))
   }
   return out
 }

@@ -39,6 +39,27 @@ type constraintContains struct {
 	count *ConstraintVal // the admissible number of admitted members
 }
 
+// restRecord is what one cover reaches where it applies, read from its
+// record map.
+type restRecord struct {
+	keys   Val      // a schema the member's key must meet
+	prefix *big.Int // list members below this index
+	items  Val      // a schema the member itself must meet
+	covers []restCover
+	alt    *restRecord // what applies where the trial refuses
+}
+
+type restCover struct {
+	trial Val // the trial schema; `any` applies everywhere
+	rec   *restRecord
+	src   Val // the record map as written
+}
+
+type constraintRest struct {
+	t      Val         // what a member no cover reaches must meet
+	covers []restCover // sorted by canon, never deduplicated
+}
+
 type constraintPending struct {
 	atom string
 	args []Val
@@ -451,6 +472,8 @@ type ConstraintVal struct {
 	whens []constraintWhen
 	// contains are Band B member counts, likewise.
 	contains []constraintContains
+	// rests are Band B evaluated coverage, likewise.
+	rests []constraintRest
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -475,13 +498,13 @@ const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
 	return "len" == atom || "unique" == atom || "must" == atom ||
-		"nof" == atom || "when" == atom || "contains" == atom
+		"nof" == atom || "when" == atom || "contains" == atom || "rest" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
 	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
 		0 < len(c.nofs) || 0 < len(c.whens) || 0 < len(c.contains) ||
-		(nil != c.pending && lateAtom(c.pending.atom)) {
+		0 < len(c.rests) || (nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
 	return 50000
@@ -494,7 +517,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
-	"nof": true, "when": true, "contains": true,
+	"nof": true, "when": true, "contains": true, "rest": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -563,7 +586,8 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	args = atomArgs(atom, args)
 
-	if "must" == atom || "nof" == atom || "when" == atom || "contains" == atom {
+	if "must" == atom || "nof" == atom || "when" == atom || "contains" == atom ||
+		"rest" == atom {
 		for _, a := range args {
 			if holdsMove(a) {
 				return bad("invalid-arg")
@@ -653,6 +677,18 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("constraint")
 		}
 		c.contains = []constraintContains{{c: args[0], count: count}}
+		return c
+	}
+
+	if "rest" == atom {
+		if 0 == len(args)%2 {
+			return bad("arg")
+		}
+		covers, ok := restCovers(args[1:])
+		if !ok {
+			return bad("invalid-arg")
+		}
+		c.rests = []constraintRest{{t: args[0], covers: covers}}
 		return c
 	}
 
@@ -1040,6 +1076,90 @@ func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool) Val {
 	return nil
 }
 
+// checkRests: a member is reached by a cover whose trial admits the
+// value, or by the else of one whose trial refuses it, and every other
+// must meet t. Before generation a trial or member schema admits unless
+// its meet is already empty, so the one refusal then is a member no cover
+// could reach whose meet with t is empty.
+func (c *ConstraintVal) checkRests(
+	bag Val, optional []string, peer Val, ctx *Ctx, final bool) Val {
+	if 0 == len(c.rests) {
+		return nil
+	}
+	members, keys := emittedEntries(bag, optional, ctx)
+	if nil == members {
+		return nil
+	}
+	_, isList := bag.(*ListVal)
+	tctx := *ctx
+	tctx.settle = false
+	trial := func(node Val, path []string, v Val) bool {
+		if isTop(v) {
+			return true
+		}
+		if v.Nil() {
+			return false
+		}
+		if final {
+			return admitsSettled(&tctx, node, v, func() (Val, Val) {
+				return clonePath(node, path), clonePath(v, c.path)
+			})
+		}
+		return nil != trialUnify(&tctx, clonePath(node, path), clonePath(v, c.path))
+	}
+	verdicts := map[Val]bool{}
+	passes := func(v Val) bool {
+		ok, has := verdicts[v]
+		if !has {
+			ok = trial(peer, c.path, v)
+			verdicts[v] = ok
+		}
+		return ok
+	}
+	at := 0
+	var covered func(cs []restCover) bool
+	reach := func(r *restRecord) bool {
+		slot := append(cp(c.path), keys[at])
+		if nil != r.keys && trial(newString(keys[at]), slot, r.keys) {
+			return true
+		}
+		if nil != r.prefix && isList {
+			n, _ := new(big.Int).SetString(keys[at], 10)
+			if n.Cmp(r.prefix) < 0 {
+				return true
+			}
+		}
+		if nil != r.items && trial(members[at], slot, r.items) {
+			return true
+		}
+		return covered(r.covers)
+	}
+	covered = func(cs []restCover) bool {
+		for _, cv := range cs {
+			pass := passes(cv.trial)
+			if (pass && reach(cv.rec)) ||
+				(nil != cv.rec.alt && (!final || !pass) && reach(cv.rec.alt)) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, r := range c.rests {
+		for at = 0; at < len(members); at++ {
+			if (!final && containsStr(optional, keys[at])) || covered(r.covers) ||
+				trial(members[at], append(cp(c.path), keys[at]), r.t) {
+				continue
+			}
+			return makeNilErrFull(ctx, "rest", c, peer, "", map[string]string{
+				"expected": restCanon(r),
+				"actual":   peer.Canon(),
+				"key":      keys[at],
+			})
+		}
+	}
+	return nil
+}
+
 func (c *ConstraintVal) settleContainer(bag Val, ctx *Ctx) Val {
 	var optional []string
 	if m, ok := bag.(*MapVal); ok {
@@ -1081,10 +1201,13 @@ func (c *ConstraintVal) admitContainerFinal(
 	if bad := c.checkContains(bag, optional, peer, ctx, final); nil != bad {
 		return bad
 	}
+	if bad := c.checkRests(bag, optional, peer, ctx, final); nil != bad {
+		return bad
+	}
 
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
 		if final || (0 == len(c.musts) && 0 == len(c.nofs) && 0 == len(c.whens) &&
-			0 == len(c.contains)) {
+			0 == len(c.contains) && 0 == len(c.rests)) {
 			return peer
 		}
 		return c.hold(peer)
@@ -1156,8 +1279,8 @@ func (c *ConstraintVal) admitContainerFinal(
 	// lower bound already met is the one reading that cannot be undone,
 	// and an atom holding nothing else is spent: that is when it goes.
 	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) &&
-		0 == len(c.whens) && 0 == len(c.contains) && !c.uniq &&
-		0 == len(c.uniqBy) &&
+		0 == len(c.whens) && 0 == len(c.contains) && 0 == len(c.rests) &&
+		!c.uniq && 0 == len(c.uniqBy) &&
 		(nil == c.count ||
 			(nil == c.count.hi && 0 == len(c.count.neqs) &&
 				stateAdmits(c.count, countVal(n)))))
@@ -1278,6 +1401,8 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.whens = dedupWhens(append(append([]constraintWhen{}, c.whens...), peer.whens...))
 	merged.contains = dedupContains(append(append([]constraintContains{}, c.contains...),
 		peer.contains...))
+	merged.rests = dedupRests(append(append([]constraintRest{}, c.rests...),
+		peer.rests...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1345,6 +1470,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		nofs:    append([]constraintNof{}, c.nofs...),
 		whens:   append([]constraintWhen{}, c.whens...),
 		contains: append([]constraintContains{}, c.contains...),
+		rests:    append([]constraintRest{}, c.rests...),
 		clash:   c.clash,
 		invalid: c.invalid,
 	}
@@ -1453,6 +1579,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, a := range c.contains {
 		parts = append(parts, containsCanon(a))
 	}
+	for _, r := range c.rests {
+		parts = append(parts, restCanon(r))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1470,8 +1599,8 @@ func (c *ConstraintVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func atomArgs(atom string, args []Val) []Val {
-	if ("neq" == atom || "must" == atom || "nof" == atom || "when" == atom) &&
-		1 == len(args) {
+	if ("neq" == atom || "must" == atom || "nof" == atom || "when" == atom ||
+		"rest" == atom) && 1 == len(args) {
 		if lv, ok := args[0].(*ListVal); ok {
 			return lv.peg
 		}
@@ -1536,7 +1665,8 @@ func holdsMove(v Val) bool {
 }
 
 func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
-	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) || 0 < len(g.contains) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) ||
+		0 < len(g.contains) || 0 < len(g.rests) {
 		return false, true
 	}
 	if "" != g.domain && g.domain != s.domain {
@@ -1812,7 +1942,8 @@ func countArgState(arg Val) *ConstraintVal {
 		// inside a count is not a count constraint, nor is a broken one.
 		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
 			0 < len(cv.uniqBy) || nil != cv.count || 0 < len(cv.nofs) ||
-			0 < len(cv.whens) || 0 < len(cv.contains) || "number" != cv.domain {
+			0 < len(cv.whens) || 0 < len(cv.contains) || 0 < len(cv.rests) ||
+			"number" != cv.domain {
 			return nil
 		}
 		out := &ConstraintVal{
@@ -2068,6 +2199,105 @@ func dedupContains(cs []constraintContains) []constraintContains {
 	}
 	sort.Strings(keys)
 	out := make([]constraintContains, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, byCanon[key])
+	}
+	return out
+}
+
+// restCovers reads cover pairs: a trial and the record of what it
+// reaches, `keys` a key schema, `prefix` a list length, `items` a member
+// schema, `covers` the pairs read where it applies and `else` the record
+// read where it does not.
+func restCovers(args []Val) ([]restCover, bool) {
+	out := []restCover{}
+	for i := 0; i < len(args); i += 2 {
+		rec, ok := restRecordOf(args[i+1])
+		if !ok {
+			return nil, false
+		}
+		out = append(out, restCover{trial: args[i], rec: rec, src: args[i+1]})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return coverCanon(out[i]) < coverCanon(out[j])
+	})
+	return out, true
+}
+
+func restRecordOf(v Val) (*restRecord, bool) {
+	m, ok := v.(*MapVal)
+	if !ok {
+		return nil, false
+	}
+	for _, k := range m.keys {
+		if !containsStr([]string{"keys", "prefix", "items", "covers", "else"}, k) {
+			return nil, false
+		}
+	}
+	r := &restRecord{keys: m.peg["keys"], items: m.peg["items"], covers: []restCover{}}
+	if p, has := m.peg["prefix"]; has {
+		sv, isScalar := p.(*ScalarVal)
+		if !isScalar || (KindInteger != sv.kind && KindBigInteger != sv.kind) ||
+			scaledOfNumeric(sv).unscaled.Sign() < 0 {
+			return nil, false
+		}
+		r.prefix = scaledOfNumeric(sv).unscaled
+	}
+	if cs, has := m.peg["covers"]; has {
+		l, isList := cs.(*ListVal)
+		if !isList || 0 != len(l.peg)%2 {
+			return nil, false
+		}
+		nested, ok := restCovers(l.peg)
+		if !ok {
+			return nil, false
+		}
+		r.covers = nested
+	}
+	if e, has := m.peg["else"]; has {
+		alt, ok := restRecordOf(e)
+		if !ok {
+			return nil, false
+		}
+		r.alt = alt
+	}
+	return r, true
+}
+
+// restArgs: what a member no cover reaches must meet, and each cover's
+// trial and record.
+func restArgs(r constraintRest) []Val {
+	out := []Val{r.t}
+	for _, cv := range r.covers {
+		out = append(out, cv.trial, cv.src)
+	}
+	return out
+}
+
+func coverCanon(c restCover) string {
+	return c.trial.Canon() + "," + c.src.Canon()
+}
+
+func restCanon(r constraintRest) string {
+	parts := []string{r.t.Canon()}
+	for _, cv := range r.covers {
+		parts = append(parts, coverCanon(cv))
+	}
+	return "rest(" + strings.Join(parts, ",") + ")"
+}
+
+func dedupRests(rs []constraintRest) []constraintRest {
+	byCanon := map[string]constraintRest{}
+	keys := []string{}
+	for _, r := range rs {
+		key := restCanon(r)
+		if _, has := byCanon[key]; !has {
+			byCanon[key] = r
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	out := make([]constraintRest, 0, len(keys))
 	for _, key := range keys {
 		out = append(out, byCanon[key])
 	}

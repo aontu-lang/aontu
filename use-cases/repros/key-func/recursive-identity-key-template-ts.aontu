@@ -1,0 +1,10 @@
+# 116 (found 2026-10-07 importing the suite's dynamicRef.json, G12
+# phase 12): a recursive identity() beside a key template refuses its
+# own data in TypeScript. Go generates it, and without identity() so
+# does TypeScript.
+#
+# expected: {"i":{"children":[{"data":1}]}}
+# actual:   [aontu/literal_nil] at $.i.children.0.data (TypeScript only)
+%r = identity({data?: any, children?: [&: %r]} & (null|{&: match(key(0), "data", any, "children", any, nil)}), {id: "http://x/r"})
+i: %r
+i: {"children":[{"data":1}]}

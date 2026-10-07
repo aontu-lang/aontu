@@ -606,6 +606,10 @@ func TestMapValArmsDirect(t *testing.T) {
 		{c: newFunc("key", nil)}}}) {
 		t.Fatalf("contains schema")
 	}
+	if !hasPathFunc(&ConstraintVal{rests: []constraintRest{{t: newInteger(1),
+		covers: []restCover{{trial: newFunc("key", nil), src: newMap()}}}}}) {
+		t.Fatalf("rest cover trial")
+	}
 
 	m := newMap()
 	m.mtype = true
@@ -837,5 +841,17 @@ func TestListIndexIsCanonicalDecimal(t *testing.T) {
 		if i, valid := listIndex(bad); valid {
 			t.Fatalf("listIndex(%q) = %d, accepted", bad, i)
 		}
+	}
+}
+
+// meetSpreads: a template met with one that holds a term of its own and
+// more beside meets those others as one conjunct.
+func TestMeetSpreadsMeetsWhatIsNew(t *testing.T) {
+	a := newFunc("key", nil)
+	b := newConjunct([]Val{newFunc("key", nil), newString("x"),
+		newScalarKind(KindString)})
+	out := meetSpreads(&Ctx{root: newMap()}, a, b).Canon()
+	if !strings.Contains(out, `"x"`) || !strings.Contains(out, "string") {
+		t.Fatalf("both new terms must be met, got %s", out)
 	}
 }

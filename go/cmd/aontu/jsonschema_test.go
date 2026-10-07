@@ -186,16 +186,16 @@ func jsonSchemaImportFile(t *testing.T, src []byte) string {
 }
 
 func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
-	file := jsonSchemaImportFile(t, []byte(`{"unevaluatedProperties": false, `+
-		`"type": "object", "properties": {"a": {"type": "null"}}}`))
+	file := jsonSchemaImportFile(t, []byte(`{"type": "object", "properties": `+
+		`{"a": {"type": "string", "pattern": "(?<=a)b"}}}`))
 
 	out, errw, code := jsonSchemaRun("import", file)
-	if 0 != code || "schema: hide({ a?:null })\n" != out {
+	if 0 != code || "schema: hide({ a?:empty() })\n" != out {
 		t.Fatalf("code %d: %q", code, out)
 	}
-	if "lossy: #/unevaluatedProperties unevaluatedProperties: not carried "+
-		"yet, so it is DROPPED and the import admits instances the schema "+
-		"refuses\n"+
+	if "lossy: #/properties/a/pattern pattern: the pattern uses a (?...) "+
+		"group other than the non-capturing (?:, which re() does not carry, "+
+		"so it is DROPPED and the import admits strings the schema refuses\n"+
 		"vet data against it with: aontu vet --at '$.schema' --no-fill "+
 		"--exact-numbers <file.aontu> <data>\n" != errw {
 		t.Fatalf("stderr: %q", errw)

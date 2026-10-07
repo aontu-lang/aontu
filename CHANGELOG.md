@@ -8,6 +8,43 @@ each change affects.
 
 ## Unreleased
 
+### `rest(t, ...c)`, `unevaluatedProperties` and `unevaluatedItems`
+
+Both ports. G12 phase 12, part 1, ADR-051.
+
+- `rest(t, ...c)` checks the members of a list or map that no cover
+  reaches: each must meet `t`, so `rest(nil)` refuses them all. A cover
+  pairs a trial schema with a record map of what it reaches where the
+  trial admits the value, whose fields `keys`, `prefix`, `items`,
+  `covers` and `else` are each optional. A scalar is admitted,
+  generation decides the check, and a refusal has the new code `rest`,
+  of class `conflict`. The signature grammar gains an optional rest
+  slot, `...c?`.
+- `aontu jsonschema import` writes `unevaluatedProperties` and
+  `unevaluatedItems` as `rest`, where it reported them lost: a cover for
+  the schema's own keywords, `allOf` and references, and one for each
+  `anyOf` or `oneOf` alternative, `if` and `dependentSchemas` entry that
+  counts only where it passes. A pattern in place that `re()` does not
+  carry drops the check, as a loss.
+- `aontu jsonschema` writes `rest` as `unevaluatedProperties` or
+  `unevaluatedItems` where its covers reach what the object written
+  beside it evaluates in place, and drops and reports it elsewhere. A
+  definition keyed by the empty string is written under a key of its
+  own, where its references were written as `#`, the root.
+- A spread template met again through a disjunction no longer grows a
+  term at every meet until `unify_cycle`. A container a check holds
+  stays held when it meets one more term, or a recursion that expands
+  to such a container, where generation answered `mapval_no_gen` or
+  `incomplete`. A check whose trial is still settling meets one already
+  built, where it met it as empty.
+- A self-reference in a call's argument no longer names the value that
+  holds it, which made its canon endless and overflowed the stack under
+  `vet --at` and in the message that describes a refusal.
+- Go only: under `vet --at`, a reference whose walk stops at a container
+  a check still holds reads the schema root, as TypeScript does.
+- The JSON-Schema-Test-Suite's harness: 76 more 2020-12 tests answer as
+  the suite says, and the skip ledger falls from 106 lines to 30.
+
 ### `$dynamicRef` and `$dynamicAnchor`, and references a template holds
 
 Both ports. G12 phase 11, amending ADR-049 and ADR-050.

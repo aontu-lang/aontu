@@ -1,6 +1,7 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { BagVal } from './BagVal';
+declare function meetSpreads(ctx: AontuContext, a: Val, b: Val, why: string): Val;
 declare function spreadSnapKey(cj: any): string;
 declare class MapVal extends BagVal {
     isMap: boolean;
@@ -12,4 +13,4 @@ declare class MapVal extends BagVal {
     get canon(): string;
     inspection(d?: number): string;
 }
-export { MapVal, spreadSnapKey, };
+export { MapVal, meetSpreads, spreadSnapKey, };

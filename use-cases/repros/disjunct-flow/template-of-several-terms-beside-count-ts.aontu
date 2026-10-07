@@ -1,0 +1,12 @@
+# 118 (found 2026-10-07 covering the G12 phase 12 spread meet): a
+# template met again through a disjunction, beside a count, with more
+# than one term the other arm's template lacks, never settles in
+# TypeScript. Go generates the data, and so do both ports with one new
+# term or without the count.
+#
+# expected: {"x":["a",1,true]}, in both ports
+# actual:   [aontu/unify_cycle] at $.x.0 (TypeScript only; `empty` before
+#           the fix of BUGS.md 110)
+%t = match(key(0), "1", number, any) & match(key(0), "2", boolean, any)
+x: (map|[&: match(key(0), "0", string, any)]) & (map|[&: %t] & len(max(5)))
+x: ["a", 1, true]

@@ -507,3 +507,6 @@ when	errcode	conflict	0.77.0
 # G12 phase 8: `contains` is class `conflict`, the value whose count of
 # admitted members its count refuses (ADR-046).
 contains	errcode	conflict	0.77.0
+# G12 phase 12: `rest` is class `conflict`, the value with a member no
+# cover reaches that its schema refuses (ADR-046).
+rest	errcode	conflict	0.77.0

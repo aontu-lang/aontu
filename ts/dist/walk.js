@@ -1,8 +1,14 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.restArgs = restArgs;
 exports.walkVals = walkVals;
 exports.collectNils = collectNils;
+// A rest atom's arguments: what a member no cover reaches must meet, and
+// each cover's trial and record.
+function restArgs(r) {
+    return [r.t, ...r.covers.flatMap((c) => [c.trial, c.src])];
+}
 function walkVals(v, visit, seen) {
     if (null == v || 'object' !== typeof v || true !== v.isVal) {
         return;
@@ -46,6 +52,11 @@ function walkVals(v, visit, seen) {
     for (const a of (v.contains ?? [])) {
         walkVals(a.c, visit, seen);
     }
+    for (const r of (v.rests ?? [])) {
+        for (const arg of restArgs(r)) {
+            walkVals(arg, visit, seen);
+        }
+    }
     walkVals(v.primary, visit, seen);
     walkVals(v.secondary, visit, seen);
 }
@@ -78,6 +89,9 @@ function collectNils(root, seen) {
         }
         for (const a of v.contains ?? []) {
             walked.add(a.c);
+        }
+        for (const r of v.rests ?? []) {
+            restArgs(r).forEach((b) => walked.add(b));
         }
         return true;
     }, walked);

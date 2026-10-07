@@ -163,7 +163,7 @@ func pureCond(c Val) bool {
 		return true
 	case *ConstraintVal:
 		return nil == t.pending && 0 == len(t.musts) && 0 == len(t.nofs) &&
-			0 == len(t.whens) && 0 == len(t.contains)
+			0 == len(t.whens) && 0 == len(t.contains) && 0 == len(t.rests)
 	case *DisjunctVal:
 		for _, m := range t.peg {
 			if _, isPref := m.(*PrefVal); isPref || !pureCond(m) {
@@ -218,7 +218,9 @@ func finished(ctx *Ctx, v Val) Val {
 }
 
 // admits is the admission trial (G12 design, section 3): does node
-// already satisfy cond? Each one run counts against the trials budget.
+// already satisfy cond? Each one run counts against the trials budget. A
+// settled container's verdict is kept by its place as well as its canon,
+// so the count that tries a branch and the cover that reads it share one.
 func admits(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
 	return admitsWith(ctx, node, cond, pair, false)
 }
@@ -231,8 +233,18 @@ func admitsSettled(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
 func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool) bool {
 	st := ctx.trialRun()
 	key := ""
-	if _, scalar := node.(*ScalarVal); scalar && pureCond(cond) {
+	_, scalar := node.(*ScalarVal)
+	_, isMap := node.(*MapVal)
+	_, isList := node.(*ListVal)
+	switch {
+	case scalar && pureCond(cond):
 		key = node.Canon() + "\x00" + cond.Canon()
+	case settled && (isMap || isList):
+		key = "\x01" + strings.Join(node.vpath(), "\x00") + "\x01" +
+			strconv.FormatBool(ctx.noFill) + "\x01" + node.Canon() + "\x01" +
+			cond.Canon()
+	}
+	if "" != key {
 		if known, has := st.memo[key]; has {
 			return known
 		}

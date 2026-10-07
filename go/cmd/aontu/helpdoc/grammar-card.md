@@ -56,7 +56,8 @@ alternatives that already admit a value: `nof(1, a, b)` is exactly one,
 `nof(min(1), a, b)` at least one and `nof(0, a)` none.
 `when(c, t, e)` asks `t` of a value `c` admits, and `e` of any other.
 `contains(c, n)` counts the members of a list `c` admits, at least one
-without `n`.
+without `n`. `rest(t, any, {keys: "a"})` asks `t` of every member no
+cover reaches, so `rest(nil, …)` refuses them.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two
 ranges meet to their overlap.

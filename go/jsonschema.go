@@ -4,7 +4,9 @@ package aontu
 
 import (
 	"encoding/json"
+	"maps"
 	"math/big"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -60,6 +62,11 @@ type schemaCtx struct {
 	// dynamics: each definition in the root's resource that carries a
 	// $dynamicAnchor.
 	dynamics map[string]string
+	// The definition each reference written names, and the keywords the
+	// rest() atoms ask for, settled once the schema is whole.
+	refKeys  map[string]string
+	rests    []*schemaRestMark
+	restArms map[uintptr]bool
 }
 
 func (sc *schemaCtx) lose(path []string, construct, reason string) {
@@ -583,7 +590,492 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		sc.containsKeyword(path, out, a, bag)
 	}
 
+	for _, r := range c.rests {
+		sc.restKeyword(path, out, r, bag)
+	}
+
 	return out
+}
+
+// restKeyword writes what no cover reaches as the keyword that reads the
+// unevaluated members of the container it stands beside, both where the
+// container's kind is not known. Each is a mark until settleRests
+// decides it.
+func (sc *schemaCtx) restKeyword(path []string, out map[string]any,
+	r constraintRest, bag Val) {
+	t := schemaFromVal(sc, path, r.t)
+	kws := []string{"unevaluatedProperties", "unevaluatedItems"}
+	switch bag.(type) {
+	case *MapVal:
+		kws = kws[:1]
+	case *ListVal:
+		kws = kws[1:]
+	}
+	group := &schemaRestGroup{}
+	for _, kw := range kws {
+		mark := &schemaRestMark{r: r, t: t, kw: kw,
+			path: append([]string{}, path...), base: sc.base, group: group}
+		sc.rests = append(sc.rests, mark)
+		if _, has := out[kw]; has {
+			arm := map[string]any{kw: mark}
+			sc.restArms[schemaObjID(arm)] = true
+			schemaAllOf(out, arm)
+		} else {
+			out[kw] = mark
+		}
+	}
+}
+
+type schemaRestGroup struct{ lost bool }
+
+type schemaRestMark struct {
+	r     constraintRest
+	t     any
+	kw    string
+	path  []string
+	base  string
+	group *schemaRestGroup
+}
+
+func (m *schemaRestMark) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]string{"rest", m.kw, restCanon(m.r)})
+}
+
+func schemaObjID(m map[string]any) uintptr {
+	return reflect.ValueOf(m).Pointer()
+}
+
+// schemaReached is what an object evaluates in place, as
+// unevaluatedProperties ("map") or unevaluatedItems ("list") reads it,
+// and what a rest() atom's covers reach, in the same terms: each
+// conditional cover is its trial's schema text with what it reaches
+// where that passes and where it fails.
+type schemaReached struct {
+	all    bool
+	names  map[string]bool
+	pats   map[string]bool
+	prefix *big.Int
+	items  map[string]bool
+	conds  []schemaCond
+}
+
+type schemaCond struct {
+	trial    string
+	rec, alt *schemaReached
+}
+
+func schemaReachedNone() *schemaReached {
+	return &schemaReached{names: map[string]bool{}, pats: map[string]bool{},
+		prefix: big.NewInt(0), items: map[string]bool{}}
+}
+
+func (a *schemaReached) add(b *schemaReached) *schemaReached {
+	a.all = a.all || b.all
+	for n := range b.names {
+		a.names[n] = true
+	}
+	for p := range b.pats {
+		a.pats[p] = true
+	}
+	if a.prefix.Cmp(b.prefix) < 0 {
+		a.prefix = b.prefix
+	}
+	for i := range b.items {
+		a.items[i] = true
+	}
+	a.conds = append(a.conds, b.conds...)
+	return a
+}
+
+func (a *schemaReached) empty() bool {
+	return !a.all && 0 == len(a.names) && 0 == len(a.pats) &&
+		0 == a.prefix.Sign() && 0 == len(a.items) && 0 == len(a.conds)
+}
+
+func schemaSortedKeys(m map[string]bool) []string {
+	out := []string{}
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (a *schemaReached) text() string {
+	if a.all {
+		return `"all"`
+	}
+	conds := map[string]bool{}
+	for _, c := range a.conds {
+		conds[schemaText([]string{c.trial, c.rec.text(), c.alt.text()})] = true
+	}
+	return schemaText([]any{schemaSortedKeys(a.names), schemaSortedKeys(a.pats),
+		a.prefix.String(), schemaSortedKeys(a.items), schemaSortedKeys(conds)})
+}
+
+func schemaSameReach(a, b *schemaReached) bool {
+	return nil != a && a.text() == b.text()
+}
+
+// schemaContainerKinds: the container kinds a schema object can hold
+// for, which its `type` and its allOf arms' narrow for it and for the
+// subschemas in place beneath it.
+func schemaContainerKinds(s map[string]any) []string {
+	var ts []string
+	switch t := s["type"].(type) {
+	case nil:
+		return []string{"map", "list"}
+	case string:
+		ts = []string{t}
+	case []any:
+		for _, x := range t {
+			if str, ok := x.(string); ok {
+				ts = append(ts, str)
+			}
+		}
+	}
+	out := []string{}
+	if slices.Contains(ts, "object") {
+		out = append(out, "map")
+	}
+	if slices.Contains(ts, "array") {
+		out = append(out, "list")
+	}
+	return out
+}
+
+type schemaSeen struct {
+	obj   map[string]any
+	kinds []string
+}
+
+var schemaChildOne = []string{"additionalProperties", "items", "contains",
+	"propertyNames", "unevaluatedProperties", "unevaluatedItems"}
+
+func schemaRestSites(s any, scope []string, seen map[uintptr]*schemaSeen,
+	order *[]uintptr) {
+	obj, ok := s.(map[string]any)
+	if !ok {
+		return
+	}
+	arms, _ := obj["allOf"].([]any)
+	now := slices.Clone(scope)
+	for _, x := range append([]any{obj}, arms...) {
+		if xo, isObj := x.(map[string]any); isObj {
+			ks := schemaContainerKinds(xo)
+			now = slices.DeleteFunc(now, func(k string) bool {
+				return !slices.Contains(ks, k)
+			})
+		}
+	}
+	id := schemaObjID(obj)
+	sn, been := seen[id]
+	if !been {
+		sn = &schemaSeen{obj: obj}
+		seen[id] = sn
+		*order = append(*order, id)
+	}
+	for _, k := range now {
+		if !slices.Contains(sn.kinds, k) {
+			sn.kinds = append(sn.kinds, k)
+		}
+	}
+	full := []string{"map", "list"}
+	for _, kw := range []string{"unevaluatedProperties", "unevaluatedItems"} {
+		if m, isMark := obj[kw].(*schemaRestMark); isMark {
+			schemaRestSites(m.t, full, seen, order)
+		}
+	}
+	for _, k := range []string{"allOf", "anyOf", "oneOf"} {
+		xs, _ := obj[k].([]any)
+		for _, x := range xs {
+			schemaRestSites(x, now, seen, order)
+		}
+	}
+	for _, k := range []string{"not", "if", "then", "else"} {
+		schemaRestSites(obj[k], now, seen, order)
+	}
+	deps, _ := obj["dependentSchemas"].(map[string]any)
+	for _, x := range deps {
+		schemaRestSites(x, now, seen, order)
+	}
+	for _, k := range []string{"properties", "patternProperties"} {
+		m, _ := obj[k].(map[string]any)
+		for _, x := range m {
+			schemaRestSites(x, full, seen, order)
+		}
+	}
+	for _, k := range schemaChildOne {
+		schemaRestSites(obj[k], full, seen, order)
+	}
+	pre, _ := obj["prefixItems"].([]any)
+	for _, x := range pre {
+		schemaRestSites(x, full, seen, order)
+	}
+}
+
+// evaluated: what an object of the written schema evaluates in place. A
+// schema met again on its own path adds nothing it has not already
+// added.
+func (sc *schemaCtx) evaluated(defs map[string]any, s any, kind string,
+	own bool, path map[uintptr]bool) *schemaReached {
+	out := schemaReachedNone()
+	obj, ok := s.(map[string]any)
+	if !ok || path[schemaObjID(obj)] {
+		return out
+	}
+	id := schemaObjID(obj)
+	path[id] = true
+	sub := func(x any) *schemaReached {
+		return sc.evaluated(defs, x, kind, false, path)
+	}
+	uneval, more := "unevaluatedItems", "items"
+	if "map" == kind {
+		uneval, more = "unevaluatedProperties", "additionalProperties"
+	}
+	_, hasU := obj[uneval]
+	_, hasM := obj[more]
+	out.all = (!own && hasU) || hasM
+	if "map" == kind {
+		props, _ := obj["properties"].(map[string]any)
+		for n := range props {
+			out.names[n] = true
+		}
+		pats, _ := obj["patternProperties"].(map[string]any)
+		for p := range pats {
+			out.pats[p] = true
+		}
+	} else {
+		pre, _ := obj["prefixItems"].([]any)
+		out.prefix = big.NewInt(int64(len(pre)))
+		if c, has := obj["contains"]; has {
+			out.items[schemaText(c)] = true
+		}
+	}
+	all, _ := obj["allOf"].([]any)
+	for _, a := range all {
+		out.add(sub(a))
+	}
+	for _, kr := range []string{"$ref", "$dynamicRef"} {
+		ref, _ := obj[kr].(string)
+		if key, known := sc.refKeys[ref]; known {
+			out.add(sub(defs[key]))
+		}
+	}
+	type cond struct {
+		trial    any
+		rec, alt *schemaReached
+	}
+	conds := []cond{}
+	for _, k := range []string{"anyOf", "oneOf"} {
+		xs, _ := obj[k].([]any)
+		for _, x := range xs {
+			conds = append(conds, cond{x, sub(x), schemaReachedNone()})
+		}
+	}
+	deps, _ := obj["dependentSchemas"].(map[string]any)
+	for k, x := range deps {
+		conds = append(conds, cond{map[string]any{"type": "object",
+			"properties": map[string]any{k: map[string]any{}},
+			"required":   []any{k}}, sub(x), schemaReachedNone()})
+	}
+	if c, has := obj["if"]; has {
+		conds = append(conds, cond{c, sub(c).add(sub(obj["then"])), sub(obj["else"])})
+	}
+	for _, c := range conds {
+		if !c.rec.empty() || !c.alt.empty() {
+			out.conds = append(out.conds,
+				schemaCond{schemaText(c.trial), c.rec, c.alt})
+		}
+	}
+	delete(path, id)
+	return out
+}
+
+// covered: what a rest() atom's covers reach, in the terms of the
+// written schema; nil where JSON Schema has no keyword that reaches the
+// same.
+func (sc *schemaCtx) covered(m *schemaRestMark, kind string) *schemaReached {
+	scratch := *sc
+	scratch.lossy, scratch.failed, scratch.base = nil, nil, m.base
+	scratch.defs = maps.Clone(sc.defs)
+	scratch.names = maps.Clone(sc.names)
+	scratch.addr = maps.Clone(sc.addr)
+	scratch.anchors = maps.Clone(sc.anchors)
+	scratch.dynamics = maps.Clone(sc.dynamics)
+	scratch.refKeys = maps.Clone(sc.refKeys)
+	scratch.rests, scratch.restArms = nil, map[uintptr]bool{}
+	return scratch.coverPairs(m.path, m.r.covers, kind, schemaReachedNone())
+}
+
+func (sc *schemaCtx) coverPairs(path []string, covers []restCover, kind string,
+	out *schemaReached) *schemaReached {
+	for _, c := range covers {
+		rec := sc.recordReach(path, c.rec, kind)
+		_, top := c.trial.(*TopVal)
+		alt := schemaReachedNone()
+		if nil != c.rec.alt && !top {
+			alt = sc.recordReach(path, c.rec.alt, kind)
+		}
+		if nil == rec || nil == alt {
+			return nil
+		}
+		if top {
+			out.add(rec)
+		} else if !rec.empty() || !alt.empty() {
+			out.conds = append(out.conds, schemaCond{
+				schemaText(schemaFromVal(sc, path, c.trial)), rec, alt})
+		}
+	}
+	return out
+}
+
+var schemaIndexKey = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
+
+func (sc *schemaCtx) recordReach(path []string, rec *restRecord,
+	kind string) *schemaReached {
+	out := schemaReachedNone()
+	keys := []Val{}
+	if d, isD := rec.keys.(*DisjunctVal); isD {
+		keys = schemaDisjuncts(d)
+	} else if nil != rec.keys {
+		keys = []Val{rec.keys}
+	}
+	for _, k := range keys {
+		p, isPat := schemaLonePattern(k)
+		str, isStr := schemaIsString(k)
+		_, isTop := k.(*TopVal)
+		switch {
+		case isTop:
+			out.all = true
+		case "map" == kind && isStr:
+			out.names[str] = true
+		case "map" == kind && isPat:
+			out.pats[p] = true
+		case !isStr || schemaIndexKey.MatchString(str):
+			return nil
+		}
+	}
+	if "list" == kind && nil != rec.prefix {
+		out.prefix = rec.prefix
+	}
+	if nil != rec.items {
+		_, isTop := rec.items.(*TopVal)
+		switch {
+		case isTop:
+			out.all = true
+		case "map" == kind:
+			return nil
+		default:
+			out.items[schemaText(schemaFromVal(sc, path, rec.items))] = true
+		}
+	}
+	return sc.coverPairs(path, rec.covers, kind, out)
+}
+
+// settleRests: the unevaluated keywords read what the object they stand
+// in evaluates, which the export may spell otherwise than the covers
+// say, so a mark is written only where the two agree and dropped as a
+// loss elsewhere, until none drops; nor is one needed where its kind
+// cannot reach or its covers reach every member.
+func (sc *schemaCtx) settleRests(body any) {
+	if 0 == len(sc.rests) {
+		return
+	}
+	full := []string{"map", "list"}
+	seen := map[uintptr]*schemaSeen{}
+	order := []uintptr{}
+	schemaRestSites(body, full, seen, &order)
+	for _, d := range sc.defs {
+		schemaRestSites(d, full, seen, &order)
+	}
+	defs := maps.Clone(sc.defs)
+	defs[schemaRootDef] = body
+	kindOf := func(kw string) string {
+		if "unevaluatedProperties" == kw {
+			return "map"
+		}
+		return "list"
+	}
+	type site struct {
+		obj map[string]any
+		m   *schemaRestMark
+	}
+	wants := map[*schemaRestMark]*schemaReached{}
+	known := map[*schemaRestMark]bool{}
+	emptied := map[uintptr]bool{}
+	sites := []site{}
+	for _, id := range order {
+		sn := seen[id]
+		for _, kw := range []string{"unevaluatedProperties", "unevaluatedItems"} {
+			m, isMark := sn.obj[kw].(*schemaRestMark)
+			if !isMark {
+				continue
+			}
+			if !known[m] {
+				wants[m], known[m] = sc.covered(m, kindOf(kw)), true
+			}
+			_, anyT := m.r.t.(*TopVal)
+			if !slices.Contains(sn.kinds, kindOf(kw)) || anyT ||
+				(nil != wants[m] && wants[m].all) {
+				delete(sn.obj, kw)
+				emptied[id] = true
+			} else {
+				sites = append(sites, site{sn.obj, m})
+			}
+		}
+	}
+	for drop := true; drop; {
+		out := []site{}
+		for _, s := range sites {
+			if _, has := s.obj[s.m.kw]; has && !schemaSameReach(wants[s.m],
+				sc.evaluated(defs, s.obj, kindOf(s.m.kw), true, map[uintptr]bool{})) {
+				out = append(out, s)
+			}
+		}
+		for _, s := range out {
+			delete(s.obj, s.m.kw)
+			emptied[schemaObjID(s.obj)] = true
+			s.m.group.lost = true
+		}
+		drop = 0 < len(out)
+	}
+	for _, s := range sites {
+		if _, has := s.obj[s.m.kw]; has {
+			s.obj[s.m.kw] = s.m.t
+		}
+	}
+	for _, id := range order {
+		obj := seen[id].obj
+		arms, isArms := obj["allOf"].([]any)
+		if !isArms {
+			continue
+		}
+		kept := []any{}
+		for _, a := range arms {
+			ao, isObj := a.(map[string]any)
+			if !isObj || 0 < len(ao) ||
+				!(sc.restArms[schemaObjID(ao)] || emptied[schemaObjID(ao)]) {
+				kept = append(kept, a)
+			}
+		}
+		if 0 == len(kept) {
+			delete(obj, "allOf")
+		} else {
+			obj["allOf"] = kept
+		}
+	}
+	told := map[*schemaRestGroup]bool{}
+	for _, m := range sc.rests {
+		if m.group.lost && !told[m.group] {
+			told[m.group] = true
+			sc.lose(m.path, "rest",
+				"unevaluatedProperties and unevaluatedItems read the members the "+
+					"schema beside them does not evaluate in place, and the members "+
+					"this rest() reaches are not those, so it is DROPPED and the "+
+					"schema admits values `vet` refuses")
+		}
+	}
 }
 
 // containsKeyword writes a member count as contains and its endpoints,
@@ -876,7 +1368,7 @@ func schemaAliasKey(sc *schemaCtx, v Val) (string, bool) {
 		}
 		key = base
 		for n := 2; ; n++ {
-			if _, taken := sc.defs[key]; !taken {
+			if _, taken := sc.defs[key]; !taken && schemaRootDef != key {
 				break
 			}
 			key = base + "-" + itoa(n)
@@ -941,7 +1433,9 @@ func (sc *schemaCtx) useOf(path []string, key string, uris []Val) any {
 		frags[s[strings.Index(s, "#")+1:]] = true
 	}
 	if name, has := sc.dynamics[key]; has && 1 == len(frags) && frags[name] {
-		return map[string]any{"$dynamicRef": sc.fromRoot(name)}
+		ref := sc.fromRoot(name)
+		sc.refKeys[ref] = key
+		return map[string]any{"$dynamicRef": ref}
 	}
 	sc.lose(path, "$dynamicRef", "the import resolved this reference in "+
 		"the dynamic scope it read the schema in, and the export writes the "+
@@ -983,13 +1477,14 @@ const schemaRootDef = ""
 // the walk is in: a definition with an $id by it, and one without from
 // the root, which a fragment names only from the root's own resource.
 func (sc *schemaCtx) refTo(key string) string {
-	if rid, has := sc.addr[key]; has {
-		return rid
+	ref, has := sc.addr[key]
+	if !has && schemaRootDef == key {
+		ref = sc.fromRoot("")
+	} else if !has {
+		ref = sc.fromRoot("/$defs/" + schemaPointerToken(key))
 	}
-	if schemaRootDef == key {
-		return sc.fromRoot("")
-	}
-	return sc.fromRoot("/$defs/" + schemaPointerToken(key))
+	sc.refKeys[ref] = key
+	return ref
 }
 
 // fromRoot spells a fragment of the root's resource to resolve from the
@@ -1867,7 +2362,8 @@ func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport 
 		sc := &schemaCtx{lossy: []SchemaLoss{}, exact: opts.ExactNumbers,
 			root: root, defs: map[string]any{}, names: map[string]string{},
 			anchor: anchor, ids: ids, addr: map[string]string{},
-			anchors: map[string]bool{}, dynamics: map[string]string{}}
+			anchors: map[string]bool{}, dynamics: map[string]string{},
+			refKeys: map[string]string{}, restArms: map[uintptr]bool{}}
 		var decl Val
 		if key := node.aliasOrigin(); "" != key {
 			decl = walkTarget(root, []string{key})
@@ -1894,6 +2390,7 @@ func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport 
 		if top != node {
 			body = schemaStamp(body, ident["id"], ident["anchor"], ident["dynamicAnchor"])
 		}
+		sc.settleRests(body)
 		return sc, body
 	}
 	sc, body := run(true)

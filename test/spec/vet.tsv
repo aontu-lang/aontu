@@ -169,6 +169,8 @@ vet-at-bare-path	vet	services:{auth:{port:integer}}	auth:{port:"x"}	{"findings":
 vet-at-list-index	vet	a:[{p:integer}]	p:"x"	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a.0.p","severity":"error","sites":[{"col":3,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.a.0"},"truncated":false,"verdict":"invalid"}
 vet-at-missing	vet	a:{b:1}	x:1	{"findings":[{"class":"reference","code":"no_path","path":"$.nope","severity":"error","sites":[]}],"opts":{"at":"$.nope"},"truncated":false,"verdict":"error"}
 vet-at-through-scalar	vet	a:1	x:1	{"findings":[{"class":"reference","code":"no_path","path":"$.a.b","severity":"error","sites":[]}],"opts":{"at":"$.a.b"},"truncated":false,"verdict":"error"}
+vet-at-a-reference-neither-root-holds	vet	schema: {a: $.nothere}	{"a": 1}	{"findings":[{"class":"reference","code":"no_path","path":"$.schema.a","severity":"error","sites":[{"col":13,"file":"schema","len":1,"role":"schema","row":1,"src":"$","value":"$.nothere"}]}],"truncated":false,"verdict":"error","opts":{"at":"$.schema"}}
+vet-at-a-template-reference-neither-root-holds	vet	schema: {&: {a: $.nothere}}	{"k": {"a": 1}}	{"findings":[{"class":"reference","code":"no_path","path":"$.schema.k.a","severity":"error","sites":[{"col":17,"file":"schema","len":1,"role":"schema","row":1,"src":"$","value":"$.nothere"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}
 # `--closed` on a LIST schema, unanchored: the flag seals the anchor
 # whatever kind of bag it is, so a surplus ELEMENT is refused the way a
 # surplus key is. (The anchored list case is vet-at-list-index above.)

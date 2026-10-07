@@ -11,10 +11,10 @@ node ../../ts/bin/aontu.js <file>       # or the command in # run:
 
 Two cautions:
 
-- `refer-cycles/refer-in-type-hang.aontu` (with its `-schema` companion)
-  and `recursion/recursive-spread-conjunct-hangs.aontu` do not terminate
-  in any practical time — run them under `timeout` as their headers
-  say. `identity/id-names-own-descendant-crashes.aontu` used to belong
+- `refer-cycles/refer-in-type-hang.aontu` (with its `-schema` companion),
+  `recursion/recursive-spread-conjunct-hangs.aontu` and, in Go,
+  `recursion/rider-self-reference-hangs-go.aontu` do not terminate in
+  any practical time — run them under `timeout` as their headers say. `identity/id-names-own-descendant-crashes.aontu` used to belong
   beside them, terminating only by overflowing the host stack (in Go a
   `fatal error` the embedding program cannot recover from); §58 is
   fixed and it now refuses as `id_ancestor`. `run-all.sh` never

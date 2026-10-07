@@ -79,6 +79,7 @@ capability decision is the phase rows it governed in
 | [ADR-048](#adr-048--a-key-still-optional-is-absent-when-its-value-cannot-be-made) | A key still optional is absent when its value cannot be made | Accepted |
 | [ADR-049](#adr-049--an-annotation-rides-its-value-and-two-riders-meet-as-their-union) | An annotation rides its value, and two riders meet as their union | Accepted |
 | [ADR-050](#adr-050--a-resources-identity-is-held-by-its-declaration) | A resource's identity is held by its declaration | Accepted |
+| [ADR-051](#adr-051--evaluated-coverage-is-a-check-on-the-members-no-cover-reaches) | Evaluated coverage is a check on the members no cover reaches | Accepted |
 
 ---
 
@@ -4930,3 +4931,63 @@ it, on a resource of its own or in the root's resource, and the export
 writes it as `$dynamicAnchor` on the definition. A `$dynamicRef` is
 written back only to such a definition in the root's resource, which
 every dynamic scope binds alike.
+
+## ADR-051 — Evaluated coverage is a check on the members no cover reaches
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+`unevaluatedProperties` and `unevaluatedItems` read the members of an
+instance that nothing in place evaluated, and what is evaluated depends
+on which subschemas in place passed: an `anyOf` alternative evaluates
+its properties only where it admits the instance, and an `if`
+evaluates its own only where it holds. No meet says that, because a
+meet cannot ask which branch passed. The Band B atoms already ask
+whether a schema admits a value, through the admission trial
+(ADR-046), and `nof` and `when` count and choose by its answer.
+
+### Decision
+
+**`rest(t, ...c)` is a Band B atom that checks the members no cover
+reaches.** Each cover pairs a trial schema with a record of what it
+reaches where the trial admits the value: `keys`, a schema a member's
+key meets, with a list index read as its decimal string; `prefix`, the
+list members below an index; `items`, a schema the member itself
+meets; `covers`, pairs read only where the record applies; and `else`,
+the record that applies where the trial refuses. Every member no cover
+reaches must meet `t`, so `rest(nil)` refuses every one. Generation
+decides the check, as it decides `contains`; before then it refuses
+only a member no cover could reach that `t` already refuses. The
+admission trial memoises a settled container's verdict by its path and
+canon, so the count that reads a branch and the `rest` that reads its
+coverage answer from one trial.
+
+The import writes every `unevaluated*` keyword as `rest`, with covers
+computed from the schema in place without evaluating it. The export
+writes a `rest` back as the keyword only where its covers reach what
+the written object evaluates in place, which it reads from the written
+schema itself, and drops and reports it elsewhere.
+
+### Consequences
+
+- `rest` is opaque to subsumption, as every Band B atom is, so
+  `subsume` and `breaking` read a schema that gains one as narrowed,
+  never widened.
+- A trial is any schema, so a cover can name an alias the import
+  hoists, and the count and the coverage read one definition.
+- A member a cover reaches is not checked by `t`: `rest(nil, any,
+  {keys: any})` asks nothing, and the import writes no atom where the
+  schema evaluates every member.
+- One record shape reaches the members of a map and of a list alike,
+  because `keys` reads a list index as its decimal string.
+- The export cannot reproduce every cover tree a hand-written `rest`
+  holds, and says so: a loss names each one it drops, and a keyword it
+  writes admits what the check admits.
+- The annotations a passing branch contributes ride the same coverage,
+  and land with the second part of G12 phase 12.
+- Pinned in both ports by `test/spec/constraint-rest.tsv`, the
+  phase-12 rows of `test/spec/jsonschema-import.tsv` and
+  `test/spec/jsonschema.tsv`, and the suite's
+  `unevaluatedProperties.json` and `unevaluatedItems.json`.

@@ -10,6 +10,7 @@ const err_1 = require("./err");
 const keyorder_1 = require("./keyorder");
 const MapVal_1 = require("./val/MapVal");
 const aliasname_1 = require("./aliasname");
+const walk_1 = require("./walk");
 const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + aliasname_1.ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g');
 const NON_CODE_RE = /"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|`(?:\\[\s\S]|[^`\\])*(?:`|$)|\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
 // Whether the head IS a set is aliasSetItems's answer, not the shape's.
@@ -181,30 +182,45 @@ function expandAliases(root, snapmap) {
         return;
     }
     const seen = new Set();
+    const path = new Map();
+    // A copy may share its call's arguments with the declaration, so the
+    // value a reference names can hold it: the walk answers how shallow a
+    // value it meets again on its own path, and the deepest expansion
+    // such a cycle passes through is a knot instead.
     const visit = (v, stack) => {
-        if (null == v || true !== v.isVal || seen.has(v)) {
-            return;
+        if (null == v || true !== v.isVal) {
+            return Infinity;
+        }
+        if (seen.has(v)) {
+            return path.get(v) ?? Infinity;
         }
         seen.add(v);
-        if (true === v.isRef) {
-            const key = v.aliasKey;
-            if (undefined === key) {
-                return;
+        const depth = path.size;
+        path.set(v, depth);
+        try {
+            if (true !== v.isRef) {
+                let low = Infinity;
+                for (const kid of aliasKids(v)) {
+                    low = Math.min(low, visit(kid, stack));
+                }
+                return low;
             }
+            const key = v.aliasKey;
             v.expansion = undefined;
-            if (stack.includes(key)) {
-                return;
+            if (undefined === key || stack.includes(key)) {
+                return Infinity;
             }
             const target = snapmap.get((0, MapVal_1.spreadSnapKey)(v)) ?? root.peg[key];
-            if (null == target) {
-                return;
+            if (null != target) {
+                v.expansion = target;
+                if (visit(target, [...stack, key]) <= depth) {
+                    v.expansion = undefined;
+                }
             }
-            v.expansion = target;
-            visit(target, [...stack, key]);
-            return;
+            return Infinity;
         }
-        for (const kid of aliasKids(v)) {
-            visit(kid, stack);
+        finally {
+            path.delete(v);
         }
     };
     visit(root, []);
@@ -224,7 +240,7 @@ function aliasKids(v) {
     }
     // A merged residual's peg is empty: its atoms hold the arguments.
     if (true === v.isConstraint) {
-        out.push(...v.musts.map((m) => m.v), ...v.nofs.flatMap((n) => n.branches), ...v.whens.flatMap((w) => [w.c, w.t, w.e]), ...v.contains.map((c) => c.c));
+        out.push(...v.musts.map((m) => m.v), ...v.nofs.flatMap((n) => n.branches), ...v.whens.flatMap((w) => [w.c, w.t, w.e]), ...v.contains.map((c) => c.c), ...v.rests.flatMap(walk_1.restArgs));
     }
     return out;
 }

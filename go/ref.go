@@ -416,10 +416,11 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 
 	node, outcome := rv.walkFrom(ctx.root, refpath)
 
-	if walkMissed == outcome && rv.absolute && nil != ctx.fixroot &&
+	if walkFound != outcome && rv.absolute && nil != ctx.fixroot &&
 		ctx.fixroot != ctx.root {
-		if fnode, fout := rv.walkFrom(ctx.fixroot, refpath); walkFound == fout {
-			node, outcome = fnode, fout
+		node, outcome = rv.walkFrom(ctx.fixroot, refpath)
+		if walkFound != outcome {
+			outcome = walkMissed
 		}
 	}
 

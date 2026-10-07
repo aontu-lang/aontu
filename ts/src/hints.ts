@@ -160,6 +160,22 @@ const hints: Record<string, string> = {
     '  contains(integer) & ["x"]          -> nil       # ... none here;\n' +
     '  contains(integer, max(1)) & [1, 2] -> nil       # ... two, too many.',
 
+  rest:
+    'The value has a member no cover reaches that its rest() schema\n' +
+    'refuses: {key}. rest(t, c, r, ...) pairs each trial schema c with a\n' +
+    'record r of the members it reaches where c admits the settled value,\n' +
+    'and every member none reaches must meet t, which nil refuses.' +
+    '\n \n' +
+    'rest is Band B of the constraint algebra, read by the admission trial\n' +
+    'as nof reads its alternatives. A record names keys, a list prefix,\n' +
+    'a member schema, further covers, and an else record for where c\n' +
+    'refuses. The JSON Schema import writes unevaluatedProperties and\n' +
+    'unevaluatedItems as rest.' +
+    '\n \nExamples:\n' +
+    '  rest(nil, any, {keys: "a"}) & {a: 1}       -> {a: 1}   # Reached;\n' +
+    '  rest(nil, any, {keys: "a"}) & {a: 1, b: 2} -> nil      # ... b is not;\n' +
+    '  rest(string, any, {prefix: 1}) & [1, "x"]  -> [1, "x"] # ... "x" meets t.',
+
   abnf_grammar:
     'This ABNF grammar could not be compiled:\n' +
     '{reason}\n' +
@@ -1037,6 +1053,7 @@ const codeClasses: Record<string, string> = {
   nof: 'conflict',
   when: 'conflict',
   contains: 'conflict',
+  rest: 'conflict',
   constraint_pattern: 'conflict',
   abnf_grammar: 'parse',
   parse_arg: 'parse',

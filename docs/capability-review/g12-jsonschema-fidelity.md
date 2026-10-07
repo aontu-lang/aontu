@@ -761,6 +761,28 @@ guarded spread agree, and the exporter writes `additionalProperties`;
 it writes `unevaluatedProperties` or `unevaluatedItems` back only for a
 `rest` that carries conditional covers.
 
+*Departures, as landed (phase 12, part 1):* (1) The coverage record is
+a map, `{keys, prefix, items, covers, else}`: `keys` is a schema the
+member's key meets, so the declared names and the patterns are one
+disjunction and `keys: any` is "all", `items` is what `contains`
+reaches, and an `if` is one pair whose record carries the `else`.
+(2) The rest group is optional, `...c?` in the signature grammar, so
+`rest(nil)` with no cover refuses every member. (3) Every
+`unevaluated*` keyword imports as `rest`, conditional covers or not: a
+guarded spread for the flattened case overflowed the stack on
+`dynamicRef.json`'s strict-tree schema, and once that was mended made
+`vet` and evaluation disagree on it. (4) The
+export writes `unevaluatedProperties` or `unevaluatedItems` for every
+`rest` whose covers reach what the written object evaluates in place,
+read from the written schema, never `additionalProperties`; on a
+flattened object the two admit alike, and the check is what keeps a
+fold of `allOf` from widening one. (5) The admission memo keys a
+settled container's trial by its path and canon, which is what lets
+the `nof` that counts a branch and the `rest` that reads it share a
+verdict, and the import hoists only the branches a `rest` reads, found
+by a first pass over the schema. (6) The annotations of section 12
+that a passing branch contributes land in a second part.
+
 ### 10. References, resources and identity
 
 A resource is a subschema with its own `$id`, or the document. The

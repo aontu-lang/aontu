@@ -80,7 +80,7 @@ function pureCond(c) {
     return true === c.isScalar || true === c.isScalarKind ||
         (true === c.isConstraint && null == c.pending && 0 === c.musts.length &&
             0 === c.nofs.length && 0 === c.whens.length &&
-            0 === c.contains.length) ||
+            0 === c.contains.length && 0 === c.rests.length) ||
         (true === c.isDisjunct &&
             c.peg.every((m) => true !== m.isPref && pureCond(m)));
 }
@@ -114,11 +114,17 @@ function finished(ctx, v) {
     return out;
 }
 // The admission trial (G12 design, section 3): does `node` already
-// satisfy `cond`? Each one run counts against the `trials` budget.
+// satisfy `cond`? Each one run counts against the `trials` budget. A
+// settled container's verdict is kept by its place as well as its canon,
+// so the count that tries a branch and the cover that reads it share one.
 function admits(ctx, node, cond, pair, settled) {
     const st = ctx._trials;
     const key = true === node.isScalar && pureCond(cond) ?
-        node.canon + '\u0000' + cond.canon : undefined;
+        node.canon + '\u0000' + cond.canon :
+        true === settled && (true === node.isMap || true === node.isList) ?
+            JSON.stringify([node.path.map(String), true === ctx.noFill, node.canon,
+                cond.canon]) :
+            undefined;
     const known = undefined === key ? undefined : st.memo.get(key);
     if (undefined !== known || st.over) {
         return true === known;

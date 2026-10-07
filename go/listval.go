@@ -144,7 +144,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		if out.spread == nil {
 			out.spread = pl.spread
 		} else if pl.spread != nil {
-			out.spread = unite(ctx, out.spread, pl.spread)
+			out.spread = meetSpreads(ctx, out.spread, pl.spread)
 		}
 	}
 	var spreadCj Val = top()

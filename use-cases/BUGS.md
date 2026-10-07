@@ -12,7 +12,7 @@ or spec rows.
 
 Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aontu` carries an `# expected:` / `# actual:` header.
-The nontermination repros (§57 and
+The nontermination repros (§57, §115 and
 `refer-cycles/refer-in-type-hang.aontu`) are marked in-file to be run
 under `timeout`. (`identity/id-names-own-descendant-crashes.aontu` used
 to belong beside them, overflowing the host stack; §58 is fixed and it
@@ -4442,3 +4442,113 @@ resolved to `%b`'s copy, so the use named `%b`: the export wrote a
 `$ref` to `%b` and never wrote `%a`'s `$id`, and said nothing of it. The
 result of `identity()` now keeps the copy's alias (row
 `js-identity-an-alias-copied-before-it-settles`).
+
+## phase 12 — what evaluated coverage found in the engine
+
+Found 2026-10-07 building `rest()` and the `unevaluated*` bridge (G12
+phase 12), whose trials meet counts, conditions and recursions in
+shapes no earlier row held, and by sending the phase's imports back
+through the export.
+
+### 110. A spread template met again grew a term at every meet [FIXED 2026-10-07]
+
+Both ports. A template met with itself again through a disjunction, as
+`(map|[&: t]) & (map|([&: t] & len(max(5))))` does, kept both copies as
+terms of one spread, and each later meet added another, so the fold
+reached `unify_cycle` before it settled. Templates now meet term by
+term, and a term the spread already holds is held once (the `spread-*`
+rows at the end of `test/spec/spread-disjunct.tsv`).
+
+### 111. A container a check holds stayed apart from what it met [FIXED 2026-10-07]
+
+Both ports. A container a check holds, `{x?: %r} & len(max(5))`, met
+one more term, or a recursion that expands to such a container, and
+the conjunct kept the terms apart: generation answered `mapval_no_gen`
+or `incomplete`, where the held container meeting them is itself a
+held container. The fix showed a Go-only divergence under it: under
+`vet --at`, a reference whose walk stopped at a root a check still
+holds never read the schema root, as a walk that misses does, and
+generation recursed until the stack ran out (the `held-*` rows of
+`test/spec/constraint-nof.tsv`, `recursion-beside-a-count-*` in
+`test/spec/recursion.tsv`, and
+`import-unevaluated-properties-in-a-recursive-schema` in
+`test/spec/jsonschema-import.tsv`).
+
+### 112. A check whose trial was still settling met a built one as empty [FIXED 2026-10-07]
+
+Both ports. `nof`, `when` and `rest` take an alias of another count as
+a trial. Met while that alias was still settling, the pending atom met
+one already built as if it held nothing, and the container could not
+generate (`mapval_no_gen`). A pending atom now settles against the
+built one (the `pending-*` rows of `test/spec/constraint-nof.tsv` and
+`test/spec/constraint-rest.tsv`).
+
+### 113. A self-reference in a call's argument named its own enclosing value [FIXED 2026-10-07]
+
+Both ports. A reference's copy of an alias shares the arguments of the
+calls it holds with the declaration, so a self-reference inside them,
+as in `%r = nof(min(1), null, {kids: [&: %r]})`, was reached from the
+copy with no alias on the expansion stack, and its expansion was the
+value that held it. The canon then never ended, and overflowed the
+stack wherever it was read: `vet --at`, and the message that describes
+a refusal. The expansion walk now finds a value it meets again on its
+own path, and the deepest reference that closes such a cycle is a knot
+(the `recursion-a-self-reference-*` rows of `test/spec/recursion.tsv`).
+
+### 114. A definition keyed by the empty string was written as the root [FIXED 2026-10-07]
+
+Both ports. The export names its root by the empty key, so a
+definition whose `$defs` key is `""`, as the suite's
+`#/$defs//$defs/` imports, had its references written as `#`, the root
+itself: the schema said something else, and the report said nothing of
+it. A definition never takes the root's key now (row
+`js-a-definition-keyed-by-the-empty-string` of
+`test/spec/jsonschema.tsv`).
+
+### 115. A self-reference in a rider beside a key template hangs in Go [critical]
+
+Go only, and present before phase 12. `vet --at $.schema` against
+`%r = {c?: meta(%r, {title: "x"}), &: match(key(0), "c", any, any)}`,
+written `schema: %r`, does not answer in Go in any practical time,
+where TypeScript answers at once. Without the rider, without the
+template, or with `hide()` in place of `meta()`, both ports answer
+alike.
+
+Repro: `repros/recursion/rider-self-reference-hangs-go.aontu`.
+
+### 116. A recursive identity beside a key template refuses its own data in TypeScript [major]
+
+TypeScript only, and present before phase 12. `%r =
+identity({data?: any, children?: [&: %r]} & (null|{&: match(key(0),
+"data", any, "children", any, nil)}), {id: "http://x/r"})` met with
+`{"children":[{"data":1}]}` answers `literal_nil` at
+`$.i.children.0.data`: the template's `match` takes its default arm
+for the `data` member, though `key(0)` written in that arm reads
+`data`. Go generates the data, and without `identity()` so does
+TypeScript.
+
+Repro: `repros/key-func/recursive-identity-key-template-ts.aontu`.
+
+### 117. `key(0)` in an alias declaration reads the alias's internal key [minor]
+
+Both ports, and present before phase 12. `key(0)` evaluated where an
+alias is declared reads the key the alias is held under in the side
+table, not its name, and the ports spell that key differently:
+TypeScript as `\u0000aontu_%t@` and the source path, Go as
+`\u0000aontu_%t@#1`. So `%t = key(0) & len(max(100))`, which no field
+uses, refuses in TypeScript where the path is long and evaluates in Go.
+At a use, `x: %t`, `key(0)` reads the use's key in both.
+
+Repro: `repros/key-func/key-in-alias-declaration-reads-internal-key.aontu`.
+
+### 118. A template of several terms met again beside a count never settles in TypeScript [major]
+
+TypeScript only, and present before phase 12. A list template met
+again through a disjunction, beside a count, with more than one term
+the other arm's template lacks, as in
+`(map|[&: match(key(0), "0", string, any)]) & (map|[&: %t] & len(max(5)))`
+with `%t` two `match()` terms, answers `unify_cycle` at the first
+member, where it answered `empty` before §110. Go generates the data,
+and both ports do with one new term or without the count.
+
+Repro: `repros/disjunct-flow/template-of-several-terms-beside-count-ts.aontu`.

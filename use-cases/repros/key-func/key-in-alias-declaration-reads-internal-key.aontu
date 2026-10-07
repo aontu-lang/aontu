@@ -1,0 +1,11 @@
+# 117 (found 2026-10-07 covering the G12 phase 12 spread meet): key(0)
+# where an alias is declared reads the key the alias is held under in the
+# side table, which each port spells its own way, rather than its name.
+# A count over it then refuses in TypeScript where the source path is
+# long, as `%t = key(0) & len(max(100))` does, and evaluates in Go.
+#
+# expected: one answer in both ports, reading the alias's own name
+# actual:   TypeScript meets "zz" with "\u0000aontu_%t@<this file's
+#           path>", Go with "\u0000aontu_%t@#1"
+%t = key(0) & "zz"
+x: 1

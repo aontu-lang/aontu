@@ -3,7 +3,9 @@
 package aontu
 
 import (
+	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -215,40 +217,52 @@ func expandAliases(root Val, snapmap map[string]Val) {
 	}
 
 	seen := map[Val]bool{}
+	path := map[Val]int{}
 
-	var visit func(v Val, stack []string)
-	visit = func(v Val, stack []string) {
-		if nil == v || seen[v] {
-			return
+	// A copy may share its call's arguments with the declaration, so the
+	// value a reference names can hold it: the walk answers how shallow a
+	// value it meets again on its own path, and the deepest expansion
+	// such a cycle passes through is a knot instead.
+	var visit func(v Val, stack []string) int
+	visit = func(v Val, stack []string) int {
+		if nil == v {
+			return math.MaxInt
+		}
+		if seen[v] {
+			if d, on := path[v]; on {
+				return d
+			}
+			return math.MaxInt
 		}
 		seen[v] = true
+		depth := len(path)
+		path[v] = depth
+		defer delete(path, v)
 
 		n, isRef := v.(*RefVal)
 		if !isRef {
+			low := math.MaxInt
 			for _, kid := range aliasKids(v) {
-				visit(kid, stack)
+				low = min(low, visit(kid, stack))
 			}
-			return
+			return low
 		}
 		key, isAlias := n.aliasKey()
-		if !isAlias {
-			return
-		}
 		n.expansion = nil
-		for _, s := range stack {
-			if s == key {
-				return
-			}
+		if !isAlias || slices.Contains(stack, key) {
+			return math.MaxInt
 		}
 		target, snapped := snapmap[refSnapKey(n)]
 		if !snapped {
 			target = rm.peg[key]
 		}
-		if nil == target {
-			return
+		if nil != target {
+			n.expansion = target
+			if visit(target, append(append([]string{}, stack...), key)) <= depth {
+				n.expansion = nil
+			}
 		}
-		n.expansion = target
-		visit(target, append(append([]string{}, stack...), key))
+		return math.MaxInt
 	}
 
 	visit(root, nil)
@@ -300,6 +314,9 @@ func aliasKids(v Val) []Val {
 		}
 		for _, c := range n.contains {
 			out = append(out, c.c)
+		}
+		for _, r := range n.rests {
+			out = append(out, restArgs(r)...)
 		}
 		if nil != n.pending {
 			out = append(out, n.pending.args...)

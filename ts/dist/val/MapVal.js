@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MapVal = void 0;
+exports.meetSpreads = meetSpreads;
 exports.spreadSnapKey = spreadSnapKey;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
@@ -34,6 +35,18 @@ function holding(ctx, optional, te, note, fn) {
         }
     }
     return out;
+}
+// Templates meet term by term, a term the first already holds, by
+// canon, once: the meet is idempotent, and a template met again with a
+// copy of its own terms, as each pair of a disjunction's arms is, would
+// otherwise grow by a term at every meet.
+function meetSpreads(ctx, a, b, why) {
+    const terms = (v) => true === v.isConjunct ? v.peg : [v];
+    const have = new Set(terms(a).map((t) => t.canon));
+    const all = terms(b);
+    const fresh = all.filter((t) => !have.has(t.canon) && (have.add(t.canon), true));
+    return 0 === fresh.length ? a : (0, unify_1.unite)(ctx, a, fresh.length === all.length ? b :
+        1 === fresh.length ? fresh[0] : new ConjunctVal_1.ConjunctVal({ peg: fresh }, ctx), why);
 }
 function spreadSnapKey(cj) {
     return cj.spelling + '~' + cj.site.url + '~' + cj.site.row + ':' + cj.site.col;
@@ -154,8 +167,7 @@ class MapVal extends BagVal_1.BagVal {
             }
             if (!exit) {
                 out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
-                    out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
-                        (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'map-self'));
+                    meetSpreads(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'map-self'));
             }
         }
         else {
@@ -388,6 +400,6 @@ class MapVal extends BagVal_1.BagVal {
     inspection(d) {
         return this.spread.cj ? '&:' + this.spread.cj.inspect(null == d ? 0 : d + 1) : '';
     }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 7 */
 exports.MapVal = MapVal;
 //# sourceMappingURL=MapVal.js.map

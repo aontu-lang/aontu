@@ -2,3 +2,12 @@
 # Columns: name<TAB>mode<TAB>src<TAB>expect ; mode: gen
 spread-disjunct-1	gen	a:{&:{x:1|2},b:{x:1}}	{"a":{"b":{"x":1}}}
 spread-disjunct-2	gen	a:{&:{x:1|2},b:{x:2}}	{"a":{"b":{"x":2}}}
+# G12 phase 12 (use-cases/BUGS.md, 110): templates met again through a
+# disjunction meet term by term, a term already held once, so a
+# template beside a count no longer grows a term at every meet. Every
+# expectation from both engines.
+spread-a-list-template-met-again-through-a-disjunction-holds	errc	x: (map|[&: match(key(0), "1", number, any)]) & (map|([&: key(0)] & len(max(5)))) & ["0", 42]	no_scalar_unify
+spread-a-list-template-met-again-admits-what-it-admits	gens	x: (map|[&: match(key(0), "1", number, any)]) & (map|([&: any] & len(max(5)))) & ["foo", 42]	{"x":["foo",42]}
+spread-a-map-template-met-again-through-a-disjunction-holds	errc	x: (list|{&: match(key(0), "b", number, any)}) & (list|({&: key(0)} & len(max(5)))) & {a: "a", b: 42}	no_scalar_unify
+spread-a-map-template-met-again-admits-what-it-admits	gens	x: (list|{&: match(key(0), "b", number, any)}) & (list|({&: any} & len(max(5)))) & {a: "a", b: 42}	{"x":{"a":"a","b":42}}
+spread-two-tuples-beside-a-count	gens	x: (map|[&: match(key(0), "0", any, "1", number, any)]) & (map|([&: match(key(0), "0", string, any)] & len(max(5)))) & ["foo", 42]	{"x":["foo",42]}

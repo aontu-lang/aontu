@@ -87,3 +87,18 @@ nof-in-a-ref-spread-admits	gens	T: hide(nof(1, string, integer))\na: {&: $.T} & 
 nof-with-a-reference-branch-in-a-ref-spread	gens	a: {&: $.T} & {p: "p", q: 2}\nT: hide(nof(1, $.U, integer))\nU: hide("p")	{"a":{"p":"p","q":2}}
 nof-with-a-reference-branch-in-a-ref-spread-refuses	errc	a: {&: $.T} & {p: "q"}\nT: hide(nof(1, $.U, integer))\nU: hide("p")	nof
 must-argument-holding-an-expectation	gens	a: must({x: 1} & {y: integer}, "m") & {x: 1, y: 2}	{"a":{"x":1,"y":2}}
+#
+# G12 phase 12 (use-cases/BUGS.md, 111): a container a check holds, met
+# with one more term, stays a held container, where the conjunct kept
+# three terms apart and could not generate. Both engines agree.
+held-a-check-held-beside-a-container-meets-another	gens	x: (null|(map & nof(1, {a: any}))) & nof(1, {z: any}) & {a: 1, z: 1}	{"x":{"a":1,"z":1}}
+held-a-check-held-beside-a-container-refuses-for-the-other	errc	x: (null|(map & nof(1, {a: any}))) & nof(1, {z: any}) & {z: 1}	nof
+held-two-counts-on-one-map	gens	x: nof(1, {a: any}) & nof(1, {b: any}) & {a: 1, b: 2}	{"x":{"a":1,"b":2}}
+#
+# G12 phase 12 (use-cases/BUGS.md, 112): a check whose trial is an alias
+# still settling meets one already built by settling against it, where
+# it met the built one as empty and the container could not generate.
+# Both engines agree.
+pending-a-count-whose-alternative-is-still-settling	gens	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & nof(1, %one, {q: any}))) & nof(1, %one, {a: any}) & {b: 1}	{"x":{"b":1}}
+pending-a-condition-whose-trial-is-still-settling	gens	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & when(%one, {b: 1}))) & nof(1, %one, {a: any}) & {b: 1}	{"x":{"b":1}}
+pending-a-condition-whose-trial-is-still-settling-refuses	errc	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & when(%one, {b: 2}))) & nof(1, %one, {a: any}) & {b: 1}	when

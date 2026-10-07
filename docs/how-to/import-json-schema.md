@@ -163,8 +163,8 @@ however `vet` reads it.
 
 ## Read the losses
 
-A keyword the import does not carry yet is dropped and named, so the
-import admits more than the schema does. An annotation is no loss: it
+The import drops and names each construct it has no reading for, so
+it admits more than the schema does. An annotation is no loss: it
 rides `meta()` beside the value it describes, and changes nothing
 admitted. Write `payment.schema.json`:
 
@@ -175,7 +175,7 @@ admitted. Write `payment.schema.json`:
   "type": "object",
   "properties": {
     "method": {"enum": ["card", "transfer"]},
-    "card": {"type": "string", "minLength": 12},
+    "card": {"type": "string", "pattern": "^(?=[0-9]{12,19}$)[0-9]+$"},
     "holder": {"type": "string"}
   },
   "required": ["method"],
@@ -187,19 +187,25 @@ admitted. Write `payment.schema.json`:
 ```sh
 $ aontu jsonschema import --strict payment.schema.json
 schema: hide(meta(
-  { method: ("card"|"transfer") card?:empty() & len(min(12)) holder?:empty() },
+  { method: ("card"|"transfer") card?:empty() holder?:empty() } & rest(
+    nil,
+    any,
+    { keys:"method"|"card"|"holder" }
+  ),
   { description:"How an order is paid." }
 ))
-lossy: #/unevaluatedProperties unevaluatedProperties: not carried yet, so it is DROPPED and the import admits instances the schema refuses
+lossy: #/properties/card/pattern pattern: the pattern uses a (?...) group other than the non-capturing (?:, which re() does not carry, so it is DROPPED and the import admits strings the schema refuses
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
 $ echo $?
 1
 ```
 
-`unevaluatedProperties` refused every key the schema does not name,
-and the imported source admits an order that carries one. `--strict`
-exits 1 on any loss, for a pipeline that must not admit more than the
-schema does. Without it the same import exits 0.
+The import drops the pattern, which holds a `(?=` group, so the
+imported source admits a card number the pattern refuses. It carries
+`unevaluatedProperties` as `rest()`, which refuses every key the
+schema does not name. `--strict` exits 1 on any loss, for a pipeline
+that must not admit more than the schema does.
+Without it the same import exits 0.
 
 ## The refusals
 

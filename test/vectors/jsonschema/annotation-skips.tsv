@@ -22,34 +22,34 @@ applicators.json	`oneOf`	1		title	-	12
 applicators.json	`oneOf`	2		title	-	12
 core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	1	/list/0	title	-	12
 core.json	`$dynamicRef` resolves to different `$dynamicAnchor`s depending on dynamic path	2	/list/0	title	-	12
-unevaluated.json	`unevaluatedItems` alone	1	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` alone	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `allOf`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `anyOf`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `contains`	1	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `contains`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	1	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	2	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	2	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `not`	1	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `not`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `oneOf`	1	/0	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `oneOf`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedItems` with `prefixItems`	1	/1	title	unevaluatedItems	12
-unevaluated.json	`unevaluatedProperties` alone	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` alone	1	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `allOf`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `anyOf`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `dependentSchemas`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `dependentSchemas`	1	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	1	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	2	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	2	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `not`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `not`	1	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `oneOf`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `oneOf`	1	/foo	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `patternProperties`	1	/bar	title	unevaluatedProperties	12
-unevaluated.json	`unevaluatedProperties` with `properties`	1	/bar	title	unevaluatedProperties	12
+unevaluated.json	`unevaluatedItems` alone	1	/0	title	-	12
+unevaluated.json	`unevaluatedItems` alone	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `allOf`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `anyOf`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `contains`	1	/0	title	-	12
+unevaluated.json	`unevaluatedItems` with `contains`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	1	/0	title	-	12
+unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	2	/0	title	-	12
+unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	2	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `not`	1	/0	title	-	12
+unevaluated.json	`unevaluatedItems` with `not`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `oneOf`	1	/0	title	-	12
+unevaluated.json	`unevaluatedItems` with `oneOf`	1	/1	title	-	12
+unevaluated.json	`unevaluatedItems` with `prefixItems`	1	/1	title	-	12
+unevaluated.json	`unevaluatedProperties` alone	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` alone	1	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `allOf`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `anyOf`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `dependentSchemas`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `dependentSchemas`	1	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	1	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	2	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	2	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `not`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `not`	1	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `oneOf`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `oneOf`	1	/foo	title	-	12
+unevaluated.json	`unevaluatedProperties` with `patternProperties`	1	/bar	title	-	12
+unevaluated.json	`unevaluatedProperties` with `properties`	1	/bar	title	-	12

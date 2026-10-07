@@ -99,7 +99,7 @@ the message builder consume:
 
     line = name '(' [ arg {',' arg} ] ')' ':' type
     arg  = [mode] name ['?'] ':' type
-         | '...' name ':' ( type | '(' [mode] type {',' [mode] type} ')' )
+         | '...' name ['?'] ':' ( type | '(' [mode] type {',' [mode] type} ')' )
     type = word {'|' word}
     mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
 
@@ -113,7 +113,8 @@ parse, and the parsed registry is the ONE input to the runtime
 signature checker and the error-message builder below. (Implemented:
 a rest slot with a plain type is `neq`'s spelling, so the grammar
 gained that arm and the parsed form a `group` field; the arity
-derivation counts required slots plus a rest slot's group size, and
+derivation counts required slots plus a rest slot's group size, a
+rest slot marked `?` counting none, so `rest` may take no cover, and
 the positional set derives as "two or more slots, excluding the
 `constraint` results" — the constraint atoms expand their own comma
 group in `atomArgs`, deliberately before the settled check, which is

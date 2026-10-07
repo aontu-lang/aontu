@@ -1,0 +1,86 @@
+# G12 phase 12: rest(t, ...c), evaluated coverage
+# (docs/reference-language.md, `Band B: rest`, ADR-051). Every
+# expectation was obtained by running both engines and requiring them
+# to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# A member is reached by a cover whose trial admits the value; every
+# member none reaches must meet t, which nil refuses.
+rest-a-member-a-cover-reaches	gens	a: rest(nil, any, {keys: "x"}) & {x: 1}	{"a":{"x":1}}
+rest-refuses-a-member-no-cover-reaches	errc	a: rest(nil, any, {keys: "x"}) & {x: 1, y: 2}	rest
+rest-t-admits-a-member-no-cover-reaches	gens	a: rest(integer, any, {keys: "x"}) & {x: "s", y: 2}	{"a":{"x":"s","y":2}}
+rest-t-refuses-a-member-no-cover-reaches	errc	a: rest(integer, any, {keys: "x"}) & {x: "s", y: "t"}	rest
+rest-without-covers-refuses-every-member	errc	a: rest(nil) & {x: 1}	rest
+rest-without-covers-admits-the-empty-map	gens	a: rest(nil) & {}	{"a":{}}
+rest-without-covers-admits-the-empty-list	gens	a: rest(nil) & []	{"a":[]}
+rest-standalone-canon	canon	a: rest(nil, any, {keys: "x"})	{"a":rest(nil,any,{"keys":"x"})}
+#
+# A scalar has no members, so every rest admits it.
+rest-admits-a-number-which-has-no-members	gens	a: rest(nil) & 5	{"a":5}
+rest-admits-a-boolean-which-has-no-members	gens	a: rest(nil) & true	{"a":true}
+rest-admits-null-which-has-no-members	gens	a: rest(nil) & null	{"a":null}
+#
+# A record's keys is a schema each reached key meets, a list index read
+# as its digits; prefix reaches the list members below it, and no key of
+# a map; items reaches the members its schema admits.
+rest-keys-a-pattern	gens	a: rest(nil, any, {keys: re("^x")}) & {xa: 1, xb: 2}	{"a":{"xa":1,"xb":2}}
+rest-keys-a-pattern-refuses	errc	a: rest(nil, any, {keys: re("^x")}) & {xa: 1, b: 2}	rest
+rest-keys-a-disjunction	gens	a: rest(nil, any, {keys: "p" | re("^x")}) & {p: 1, xb: 2}	{"a":{"p":1,"xb":2}}
+rest-keys-any-reaches-every-member	gens	a: rest(nil, any, {keys: any}) & {p: 1, q: 2}	{"a":{"p":1,"q":2}}
+rest-keys-the-empty-key	gens	a: rest(nil, any, {keys: ""}) & {"": 1}	{"a":{"":1}}
+rest-prefix-reaches-the-first-members	gens	a: rest(nil, any, {prefix: 2}) & [1, 2]	{"a":[1,2]}
+rest-prefix-refuses-a-member-past-it	errc	a: rest(nil, any, {prefix: 2}) & [1, 2, 3]	rest
+rest-prefix-zero-reaches-nothing	errc	a: rest(nil, any, {prefix: 0}) & [1]	rest
+rest-prefix-reaches-no-key-of-a-map	errc	a: rest(nil, any, {prefix: 2}) & {x: 1}	rest
+rest-keys-reach-a-list-index-as-text	errc	a: rest(nil, any, {keys: "1"}) & [0, 1]	rest
+rest-keys-reach-every-list-index	gens	a: rest(nil, any, {keys: "0" | "1"}) & [0, 1]	{"a":[0,1]}
+rest-items-reaches-the-members-it-admits	gens	a: rest(nil, any, {items: integer}) & [1, 2]	{"a":[1,2]}
+rest-items-refuses-a-member-it-does-not-admit	errc	a: rest(nil, any, {items: integer}) & [1, "x"]	rest
+rest-items-reaches-a-map-member	gens	a: rest(nil, any, {items: string}) & {p: "x"}	{"a":{"p":"x"}}
+#
+# A trial reads the value by the admission trial: a record applies where
+# its trial admits, the else record where it refuses, and nested covers
+# only where their own record applies.
+rest-a-trial-that-admits-applies-its-record	gens	a: rest(nil, {k: 1}, {keys: "k" | "x"}) & {k: 1, x: 2}	{"a":{"k":1,"x":2}}
+rest-a-trial-that-refuses-applies-nothing	errc	a: rest(nil, {k: 2}, {keys: "k" | "x"}) & {k: 1, x: 2}	rest
+rest-a-trial-that-adds-a-member-refuses	errc	a: rest(nil, {k: 1, z: 1}, {keys: "k" | "x"}) & {k: 1, x: 2}	rest
+rest-else-applies-where-the-trial-refuses	gens	a: rest(nil, {k: 2}, {keys: "x", else: {keys: "k" | "x"}}) & {k: 1, x: 2}	{"a":{"k":1,"x":2}}
+rest-else-is-unread-where-the-trial-admits	errc	a: rest(nil, {k: 1}, {keys: "x", else: {keys: "k" | "x"}}) & {k: 1, x: 2}	rest
+rest-nested-covers-under-a-trial-that-admits	gens	a: rest(nil, any, {keys: "k", covers: [{k: 1}, {keys: "x"}]}) & {k: 1, x: 2}	{"a":{"k":1,"x":2}}
+rest-nested-covers-under-a-trial-that-refuses	errc	a: rest(nil, any, {keys: "k", covers: [{k: 2}, {keys: "x"}]}) & {k: 1, x: 2}	rest
+rest-nested-covers-read-only-where-their-pair-applies	errc	a: rest(nil, {k: 2}, {covers: [any, {keys: "k" | "x"}]}) & {k: 1, x: 2}	rest
+rest-a-nil-trial-reaches-nothing	errc	a: rest(nil, nil, {keys: "x"}) & {x: 1}	rest
+#
+# Atoms with one canon are one check, and the pairs sort by canon.
+rest-two-atoms-are-both-checks	errc	a: rest(nil, any, {keys: "x"}) & rest(nil, any, {keys: "y"}) & {x: 1}	rest
+rest-two-alike-are-one	canon	a: rest(nil, any, {keys: "x"}) & rest(nil, any, {keys: "x"})	{"a":rest(nil,any,{"keys":"x"})}
+rest-covers-sort-by-canon	canon	a: rest(nil, {b: 2}, {keys: "a"}, any, {keys: "b"})	{"a":rest(nil,any,{"keys":"b"},{"b":2},{"keys":"a"})}
+rest-beside-a-count	gens	a: rest(nil, any, {keys: "x"}) & len(max(2)) & {x: 1}	{"a":{"x":1}}
+rest-beside-a-count-refuses-what-it-refuses	errc	a: rest(nil, any, {keys: "x"}) & len(max(2)) & {x: 1, y: 2}	rest
+#
+# Members are those generation emits: an optional key the value lacks
+# is none, and one generation fills is one.
+rest-an-optional-key-the-value-lacks-is-no-member	gens	a: rest(nil) & {x?: integer}	{"a":{}}
+rest-an-optional-key-generation-fills-is-a-member	errc	a: rest(nil) & {x?: 1}	rest
+#
+# A rest inside a trial decides the trial.
+rest-in-a-nof-branch-refuses-the-branch	errc	a: nof(1, {x: any} & rest(nil, any, {keys: "x"})) & {x: 1, y: 2}	nof
+rest-in-a-nof-branch-admits-the-branch	gens	a: nof(1, {x: any} & rest(nil, any, {keys: "x"})) & {x: 1}	{"a":{"x":1}}
+#
+# An atom whose trial is still settling meets one already built by
+# settling against it, so neither is read as empty (use-cases/BUGS.md,
+# 112).
+pending-a-rest-whose-trial-is-still-settling	errc	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & rest(nil, %one, {keys: "b" | "c" | "d"}))) & nof(1, %one, {a: any}) & {b: 1, z: 1}	empty
+pending-a-rest-whose-trial-is-still-settling-admits	gens	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & rest(nil, %one, {keys: "b" | "c" | "d"}))) & nof(1, %one, {a: any}) & {b: 1}	{"x":{"b":1}}
+#
+# Unusable arguments, refused when a value meets the atom.
+rest-a-record-key-it-does-not-know	errc	a: rest(nil, any, {foo: 1}) & {}	invalid-arg
+rest-a-record-that-is-not-a-map	errc	a: rest(nil, any, 1) & {}	invalid-arg
+rest-an-even-number-of-arguments	errc	a: rest(nil, any) & {}	arg
+rest-a-negative-prefix	errc	a: rest(nil, any, {prefix: -1}) & {}	invalid-arg
+rest-a-prefix-that-is-not-an-integer	errc	a: rest(nil, any, {prefix: 1.5}) & {}	invalid-arg
+rest-covers-that-are-not-pairs	errc	a: rest(nil, any, {covers: [any]}) & {}	invalid-arg
+rest-a-nested-cover-is-a-record	errc	a: rest(nil, any, {covers: [any, 1]}) & {}	invalid-arg
+rest-covers-that-are-not-a-list	errc	a: rest(nil, any, {covers: 1}) & {}	invalid-arg
+rest-an-else-that-is-not-a-record	errc	a: rest(nil, any, {else: 1}) & {}	invalid-arg
+rest-refuses-a-move	errc	a: rest(move($.b)) & {}\nb: 1	invalid-arg

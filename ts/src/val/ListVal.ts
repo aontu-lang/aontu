@@ -38,6 +38,7 @@ import { NilVal } from './NilVal'
 import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
+import { meetSpreads } from './MapVal'
 
 
 class ListVal extends BagVal {
@@ -120,11 +121,9 @@ class ListVal extends BagVal {
       else {
         out.closed = out.closed || peer.closed
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
-          null == peer.spread.cj ? out.spread.cj : (
-            out.spread.cj =
-            unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
+          null == peer.spread.cj ? out.spread.cj :
+            meetSpreads(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
               out.spread.cj, peer.spread.cj, 'list-peer')
-          )
         )
       }
     }

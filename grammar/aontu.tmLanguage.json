@@ -108,7 +108,7 @@
 
     "builtin": {
       "comment": "The engine's function registry. `func: name \"(\" ...` in aontu.lark — only these names can be called, so a call to anything else is deliberately left uncoloured rather than dressed up as valid. The prefix family is spelled longest-first (refer|rel|rem|re) to keep the intent legible; the trailing \\b already makes the order immaterial, since a short alternative that swallowed the stem fails the boundary and backtracks.",
-      "match": "\\b(abnf|above|acyclic|add|below|close|contains|content|copyfiles|copy|deprecate|div|each|emit|empty|esc|file|filter|folder|fragment|greatest|hide|identity|inject|inverse|join|key|least|len|line|listitems|lower|match|maybe|max|meta|min|mod|move|multiple|mul|must|neq|nof|nom|open|pack|parse|path|pick|pref|project|refer|rel|rem|rep|re|slot|sort|split|sub|sum|super|translate|type|unique|upper|usc|when)\\b(?=\\s*\\()",
+      "match": "\\b(abnf|above|acyclic|add|below|close|contains|content|copyfiles|copy|deprecate|div|each|emit|empty|esc|file|filter|folder|fragment|greatest|hide|identity|inject|inverse|join|key|least|len|line|listitems|lower|match|maybe|max|meta|min|mod|move|multiple|mul|must|neq|nof|nom|open|pack|parse|path|pick|pref|project|refer|rel|rem|rep|rest|re|slot|sort|split|sub|sum|super|translate|type|unique|upper|usc|when)\\b(?=\\s*\\()",
       "captures": {
         "1": { "name": "support.function.builtin.aontu" }
       }

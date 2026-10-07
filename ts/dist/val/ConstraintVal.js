@@ -1,11 +1,12 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
 exports.nofCounts = nofCounts;
+exports.restCanon = restCanon;
 const type_1 = require("../type");
 const utility_1 = require("../utility");
 const Val_1 = require("./Val");
@@ -15,6 +16,7 @@ const BagVal_1 = require("./BagVal");
 const top_1 = require("./top");
 const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
+const StringVal_1 = require("./StringVal");
 const err_1 = require("../err");
 const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
@@ -327,7 +329,8 @@ function leafMarker(v) {
 const LATE_CJO = 150000;
 function lateAtom(atom) {
     return 'len' === atom || 'unique' === atom || 'must' === atom ||
-        'nof' === atom || 'when' === atom || 'contains' === atom;
+        'nof' === atom || 'when' === atom || 'contains' === atom ||
+        'rest' === atom;
 }
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -343,6 +346,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.nofs = [];
         this.whens = [];
         this.contains = [];
+        this.rests = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -360,6 +364,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.nofs = spec.state.nofs ?? [];
             this.whens = spec.state.whens ?? [];
             this.contains = spec.state.contains ?? [];
+            this.rests = spec.state.rests ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -368,7 +373,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
             if (('must' === spec.atom || 'nof' === spec.atom ||
-                'when' === spec.atom || 'contains' === spec.atom) &&
+                'when' === spec.atom || 'contains' === spec.atom ||
+                'rest' === spec.atom) &&
                 args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
@@ -382,6 +388,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
             0 < this.musts.length || 0 < this.nofs.length ||
             0 < this.whens.length || 0 < this.contains.length ||
+            0 < this.rests.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -452,6 +459,17 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return bad('constraint');
             }
             this.contains = [{ c: args[0], count }];
+            return;
+        }
+        if ('rest' === atom) {
+            if (0 === args.length % 2) {
+                return bad('arg');
+            }
+            const covers = restCovers(args.slice(1));
+            if (undefined === covers) {
+                return bad('invalid-arg');
+            }
+            this.rests = [{ t: args[0], covers }];
             return;
         }
         if ('neq' === atom) {
@@ -547,6 +565,12 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         else if (null != this.pending) {
             out = this.settle(peer, ctx);
+        }
+        // An atom whose arguments are still settling holds no state to meet
+        // yet, so it settles against this one rather than be read as empty.
+        else if (true === peer?.isConstraint &&
+            null != peer.pending) {
+            out = peer.settle(this, ctx);
         }
         else if (null != this.invalid) {
             out = (0, err_1.makeNilErr)(ctx, this.invalid, this, undefined, 'constrain', null == this.invalidWhy ? undefined : { reason: this.invalidWhy });
@@ -784,6 +808,59 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return undefined;
     }
+    // A member is reached by a cover whose trial admits the value, or by
+    // the else of one whose trial refuses it, and every member none reaches
+    // must meet t. Before generation each trial and member schema counts as
+    // admitting unless its meet is already empty, so the one refusal then
+    // is a member no cover could reach whose meet with t is empty.
+    checkRests(peer, ctx, final) {
+        if (0 === this.rests.length) {
+            return undefined;
+        }
+        const keys = [];
+        const members = emittedMembers(peer, ctx, keys);
+        if (undefined === members) {
+            return undefined;
+        }
+        const tctx = ctx.clone({});
+        tctx.settle = false;
+        const trial = (node, v) => true === v.isTop ||
+            (true !== v.isNil && (true === final ?
+                (0, FuncBaseVal_1.admits)(tctx, node, v, () => [node.clone(tctx), v.clone(tctx)], true) :
+                undefined !== (0, FuncBaseVal_1.trialUnify)(tctx, node.clone(tctx), v.clone(tctx))));
+        const verdicts = new Map();
+        const passes = (v) => {
+            if (!verdicts.has(v)) {
+                verdicts.set(v, trial(peer, v));
+            }
+            return verdicts.get(v);
+        };
+        let at = 0;
+        const reach = (r) => (undefined !== r.keys && trial(new StringVal_1.StringVal({ peg: keys[at] }, ctx), r.keys)) ||
+            (undefined !== r.prefix && true === peer.isList &&
+                BigInt(keys[at]) < r.prefix) ||
+            (undefined !== r.items && trial(members[at], r.items)) ||
+            covered(r.covers);
+        const covered = (cs) => cs.some((c) => {
+            const pass = passes(c.trial);
+            return (pass && reach(c.rec)) || (undefined !== c.rec.else &&
+                (true !== final || !pass) && reach(c.rec.else));
+        });
+        for (const r of this.rests) {
+            for (at = 0; at < members.length; at++) {
+                if ((true !== final && peer.optionalKeys.includes(keys[at])) ||
+                    covered(r.covers) || trial(members[at], r.t)) {
+                    continue;
+                }
+                return (0, err_1.makeNilErr)(ctx, 'rest', this, peer, undefined, {
+                    expected: restCanon(r),
+                    actual: peer.canon,
+                    key: keys[at],
+                });
+            }
+        }
+        return undefined;
+    }
     settleContainer(peer, ctx) {
         return this.admitContainer(peer, ctx, true);
     }
@@ -801,14 +878,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         const bad = this.checkMusts(peer, ctx, final) ??
             this.checkNofs(peer, ctx, final) ?? this.checkWhens(peer, ctx, final) ??
-            this.checkContains(peer, ctx, final);
+            this.checkContains(peer, ctx, final) ?? this.checkRests(peer, ctx, final);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length && null == this.count) {
             if (true === final || (0 === this.musts.length &&
                 0 === this.nofs.length && 0 === this.whens.length &&
-                0 === this.contains.length)) {
+                0 === this.contains.length && 0 === this.rests.length)) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -866,10 +943,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // and an atom holding nothing else is spent: that is when it goes.
         const spent = true === final || (0 === this.musts.length &&
             0 === this.nofs.length && 0 === this.whens.length &&
-            0 === this.contains.length && !this.uniq && 0 === this.uniqBy.length &&
-            (null == count ||
-                (null == count.hi && 0 === count.neqs.length &&
-                    stateAdmits(count, countVal(n)))));
+            0 === this.contains.length && 0 === this.rests.length && !this.uniq &&
+            0 === this.uniqBy.length && (null == count ||
+            (null == count.hi && 0 === count.neqs.length &&
+                stateAdmits(count, countVal(n)))));
         if (spent) {
             return peer;
         }
@@ -973,6 +1050,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.nofs = dedupNofs([...this.nofs, ...peer.nofs]);
         merged.whens = dedupWhens([...this.whens, ...peer.whens]);
         merged.contains = dedupContains([...this.contains, ...peer.contains]);
+        merged.rests = dedupRests([...this.rests, ...peer.rests]);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -1018,6 +1096,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             nofs: [...this.nofs],
             whens: [...this.whens],
             contains: [...this.contains],
+            rests: [...this.rests],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -1057,6 +1136,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.nofs = [...this.nofs];
         out.whens = [...this.whens];
         out.contains = [...this.contains];
+        out.rests = [...this.rests];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -1159,7 +1239,7 @@ function holdsMove(v) {
 }
 function atomArgs(atom, args) {
     if (('neq' === atom || 'must' === atom || 'nof' === atom ||
-        'when' === atom) && 1 === args.length &&
+        'when' === atom || 'rest' === atom) && 1 === args.length &&
         true === args[0]?.isList) {
         return args[0].peg;
     }
@@ -1218,6 +1298,9 @@ function canonState(s) {
     for (const a of s.contains ?? []) {
         parts.push(containsCanon(a));
     }
+    for (const r of s.rests ?? []) {
+        parts.push(restCanon(r));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1232,7 +1315,7 @@ function constraintStateSubsumes(g, s) {
     // unknowable; an extra one on the SPECIFIC side only narrows it and
     // is ignored.
     if (0 < g.musts.length || 0 < g.nofs.length || 0 < (g.whens ?? []).length ||
-        0 < (g.contains ?? []).length) {
+        0 < (g.contains ?? []).length || 0 < (g.rests ?? []).length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1505,7 +1588,8 @@ function countArgState(arg) {
         // bound inside a count is not a count constraint, nor is a broken one.
         if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
             0 < c.uniqBy.length || null != c.count || 0 < c.nofs.length ||
-            0 < c.whens.length || 0 < c.contains.length || 'number' !== c.domain) {
+            0 < c.whens.length || 0 < c.contains.length || 0 < c.rests.length ||
+            'number' !== c.domain) {
             return undefined;
         }
         return {
@@ -1648,6 +1732,56 @@ function dedupWhens(ws) {
         .map((key) => byCanon.get(key));
 }
 // Without a count, `contains` asks for one admitted member at least.
+// A cover is a trial and the record of what it reaches: `keys` a key
+// schema, `prefix` a list length, `items` a member schema, `covers` the
+// pairs read where it applies and `else` the record read where it does not.
+function restCovers(args) {
+    const out = [];
+    for (let i = 0; i < args.length; i += 2) {
+        const rec = restRecord(args[i + 1]);
+        if (undefined === rec) {
+            return undefined;
+        }
+        out.push({ trial: args[i], rec, src: args[i + 1] });
+    }
+    return out.sort((a, b) => (0, keyorder_1.cmpCodePoint)(coverCanon(a), coverCanon(b)));
+}
+function coverCanon(c) {
+    return c.trial.canon + ',' + c.src.canon;
+}
+function restRecord(v) {
+    if (true !== v.isMap || Object.keys(v.peg).some((k) => !['keys', 'prefix', 'items', 'covers', 'else'].includes(k))) {
+        return undefined;
+    }
+    const { keys, prefix, items, covers, else: other } = v.peg;
+    const p = true === prefix?.isInteger || true === prefix?.isBigInteger ?
+        BigInt(prefix.peg) : undefined;
+    if ((undefined !== prefix && (undefined === p || p < 0n)) ||
+        (undefined !== covers && (true !== covers.isList ||
+            0 !== covers.peg.length % 2))) {
+        return undefined;
+    }
+    const nested = undefined === covers ? [] : restCovers(covers.peg);
+    const alt = undefined === other ? undefined : restRecord(other);
+    if (undefined === nested || (undefined !== other && undefined === alt)) {
+        return undefined;
+    }
+    return { keys, prefix: p, items, covers: nested, else: alt };
+}
+function restCanon(r) {
+    return 'rest(' + [r.t.canon, ...r.covers.map(coverCanon)].join(',') + ')';
+}
+function dedupRests(rs) {
+    const byCanon = new Map();
+    for (const r of rs) {
+        const key = restCanon(r);
+        if (!byCanon.has(key)) {
+            byCanon.set(key, r);
+        }
+    }
+    return [...byCanon.keys()].sort(keyorder_1.cmpCodePoint)
+        .map((key) => byCanon.get(key));
+}
 function atLeastOne() {
     return { ...countBase(), lo: { v: countVal(1), open: false } };
 }
@@ -1773,6 +1907,12 @@ class ContainsConstraintVal extends ConstraintVal {
     }
 }
 exports.ContainsConstraintVal = ContainsConstraintVal;
+class RestConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'rest' }, ctx);
+    }
+}
+exports.RestConstraintVal = RestConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);

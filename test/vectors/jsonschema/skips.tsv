@@ -1,4 +1,4 @@
-# bound 106
+# bound 30
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -13,8 +13,6 @@
 draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	-	18
 draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	16
 draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	16
-draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	unevaluatedProperties	12
-draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
 draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	$schema	16
 draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	-	15
 draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing dependency	-	15
@@ -41,78 +39,4 @@ draft2020-12/optional/format-assertion.json	schema that uses custom metaschema w
 draft2020-12/pattern.json	pattern with Unicode property escape requires unicode mode	Digits do not match	pattern	14
 draft2020-12/ref.json	remote ref, containing refs itself	remote ref valid	jsonschema_ref	16
 draft2020-12/ref.json	remote ref, containing refs itself	remote ref invalid	jsonschema_ref	16
-draft2020-12/ref.json	ref creates new scope when adjacent to keywords	referenced subschema doesn't see annotations from properties	unevaluatedProperties	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems false	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems as schema	with invalid unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with tuple	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with nested tuple	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with nested items	with invalid additional item	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when one schema matches and has unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when two schemas match and has unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with oneOf	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with not	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if matches and it has unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if doesn't match and it has unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with boolean schemas	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with $ref	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems before $ref	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems can't see inside cousins	always fails	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems depends on multiple nested contains	7 not evaluated, fails unevaluatedItems	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's are invalid	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only c's are invalid	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's and c's are invalid	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only a's and c's are invalid	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	no items evaluated by contains	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	some but not all items evaluated by contains	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems can see annotations from if without then and else	invalid in case if is evaluated	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	Evaluated items collection needs to consider instance location	with an unevaluated item that exists at another location	unevaluatedItems	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties schema	with invalid unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties false	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with adjacent properties	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with adjacent patternProperties	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with nested properties	with additional properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with nested patternProperties	with additional properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when one matches and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when two match and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with oneOf	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with not	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is true and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is false and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is true and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is false and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is true and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has no unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with dependentSchemas	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with boolean schemas	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $ref	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties before $ref	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins	always fails	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins (reverse order)	always fails	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true, inner false, properties outside	with no nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true, inner false, properties outside	with nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true, inner false, properties inside	with nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, true with properties	with no nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, true with properties	with nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	cousin unevaluatedProperties, true and false, false with properties	with nested unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	property is evaluated in an uncle schema to unevaluatedProperties	uncle keyword evaluation is not significant	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	base case: both properties present	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, allOf has unevaluated	in place applicator siblings, foo is missing	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	base case: both properties present	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	in-place applicator siblings, anyOf has unevaluated	in place applicator siblings, bar is missing	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 1st level is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 2nd level is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 3rd level is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + foo is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties not affected by propertyNames	string property is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties can see annotations from if without then and else	invalid in case if is evaluated	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't consider dependentSchemas	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't see bar when foo2 is absent	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location	with an unevaluated property that exists at another location	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with patternProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with additionalProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12
 draft2020-12/vocabulary.json	schema that uses custom metaschema with with no validation vocabulary	no validation: invalid number, but it still validates	$schema	16

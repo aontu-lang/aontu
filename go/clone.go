@@ -77,6 +77,11 @@ func setPaths(v Val, path []string) {
 		for _, a := range n.contains {
 			setPaths(a.c, path)
 		}
+		for _, r := range n.rests {
+			for _, arg := range restArgs(r) {
+				setPaths(arg, path)
+			}
+		}
 	}
 }
 

@@ -650,6 +650,7 @@ help isolate the syntax error.`,
         nof: ConstraintVal_1.NofConstraintVal,
         when: ConstraintVal_1.WhenConstraintVal,
         contains: ConstraintVal_1.ContainsConstraintVal,
+        rest: ConstraintVal_1.RestConstraintVal,
         abnf: AbnfFuncVal_1.AbnfFuncVal,
         parse: AbnfFuncVal_1.ParseFuncVal,
         // G3 phase 4: the deprecation mark. Unification-transparent; the
@@ -1861,7 +1862,7 @@ function sigArity(sig) {
     let max = 0;
     for (const a of sig.args) {
         if (true === a.rest) {
-            min += undefined === a.group ? 1 : a.group.length;
+            min += true === a.opt ? 0 : undefined === a.group ? 1 : a.group.length;
             max = -1;
         }
         else {

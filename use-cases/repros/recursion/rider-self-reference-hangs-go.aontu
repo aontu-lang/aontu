@@ -1,0 +1,10 @@
+# 115 (found 2026-10-07 by the G12 phase 12 round trip): a direct
+# self-reference in a meta() rider beside a key template. Go does not
+# answer; TypeScript answers at once. Run it under timeout.
+#
+# run:      aontu vet --at '$.schema' --no-fill this.aontu data.json
+#           with data.json holding {"c": {}}
+# expected: verdict: valid, in both ports
+# actual:   TypeScript valid; Go does not terminate
+%r = {c?: meta(%r, {title: "x"}), &: match(key(0), "c", any, any)}
+schema: %r

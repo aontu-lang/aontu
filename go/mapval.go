@@ -238,6 +238,13 @@ func computePathFunc(v Val) bool {
 				return true
 			}
 		}
+		for _, r := range n.rests {
+			for _, arg := range restArgs(r) {
+				if hasPathFunc(arg) {
+					return true
+				}
+			}
+		}
 		if nil != n.count && hasPathFunc(n.count) {
 			return true
 		}
@@ -490,6 +497,40 @@ func heldUnite(ctx *Ctx, optional bool, fn func() Val) Val {
 	return out
 }
 
+// meetSpreads: templates meet term by term, a term the first already
+// holds, by canon, once: the meet is idempotent, and a template met again
+// with a copy of its own terms, as each pair of a disjunction's arms is,
+// would otherwise grow by a term at every meet.
+func meetSpreads(ctx *Ctx, a, b Val) Val {
+	terms := func(v Val) []Val {
+		if cj, ok := v.(*ConjunctVal); ok {
+			return cj.peg
+		}
+		return []Val{v}
+	}
+	have := map[string]bool{}
+	for _, t := range terms(a) {
+		have[t.Canon()] = true
+	}
+	all := terms(b)
+	fresh := []Val{}
+	for _, t := range all {
+		if !have[t.Canon()] {
+			have[t.Canon()] = true
+			fresh = append(fresh, t)
+		}
+	}
+	switch {
+	case 0 == len(fresh):
+		return a
+	case len(fresh) == len(all):
+		return unite(ctx, a, b)
+	case 1 == len(fresh):
+		return unite(ctx, a, fresh[0])
+	}
+	return unite(ctx, a, newConjunct(fresh))
+}
+
 func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
@@ -553,8 +594,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if pm, ok := peer.(*MapVal); ok {
 		if out.spread == nil {
 			out.spread = pm.spread
-		} else if pm.spread != nil && out.spread.Canon() != pm.spread.Canon() {
-			out.spread = unite(ctx, out.spread, pm.spread)
+		} else if pm.spread != nil {
+			out.spread = meetSpreads(ctx, out.spread, pm.spread)
 		}
 		for _, ak := range pm.aliasKeys {
 			if !out.isAliasKey(ak) {

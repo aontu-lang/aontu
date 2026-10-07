@@ -1387,7 +1387,11 @@ and one with no `e` whose condition only asks for a key becomes
 `dependentSchemas` where it asks more; a count of admitted items,
 `contains(c, n)`, becomes `contains` with `minContains` and
 `maxContains`, an excluded count as the `not` of that count alone;
-`len` becomes `minLength`/`maxLength` on a string,
+a check of the members no cover reaches, `rest(t, …)`, becomes
+`unevaluatedProperties` beside a map and `unevaluatedItems` beside a
+list where its covers reach what the object beside it evaluates in
+place, and the export drops and reports one whose covers reach other
+members; `len` becomes `minLength`/`maxLength` on a string,
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
 inside it and an integer exclusion as `not`; `unique()` becomes
@@ -1673,6 +1677,14 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   one item without them; a count no number meets admits no array.
   `uniqueItems` is `unique()`, which compares items by JSON value under
   the import's reading of numbers.
+- **`unevaluatedProperties` and `unevaluatedItems` are `rest(t, …)`**,
+  the check on each member that nothing the schema evaluates in place
+  reaches: its own keywords, `allOf` and references wholly, and an
+  `anyOf` or `oneOf` alternative, an `if` with its `then` or `else`, or
+  a `dependentSchemas` entry where that passes. Where every member is
+  reached, or `t` admits every member, it writes nothing, and a pattern
+  in place that the import has no reading for drops the check, as a
+  loss.
 - **The schema text is read by aontu, not by the host's JSON parser**,
   so a number is written by its exact value: `1.0` is the integer `1`,
   `0.1` is `0d0.1`, and a twenty-digit integer keeps all twenty digits.
@@ -1698,10 +1710,10 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   own schema admits the default. `--no-fill` makes `vet` ask whether
   the data already *is* an instance rather than whether it can be
   filled into one.
-- **Losses** are on stderr, one per line. A keyword the import does
-  not carry yet (such as `unevaluatedItems`) is dropped, so the import
-  admits instances the schema refuses. Under `--strict` any loss exits
-  1.
+- **Losses** are on stderr, one per line. The import drops each
+  construct it has no reading for, such as a pattern holding a `(?<=`
+  group, which `re()` never reads, so it admits instances the schema
+  refuses. Under `--strict` any loss exits 1.
 
 Write a `release.schema.json` that uses one of each:
 
@@ -1712,7 +1724,7 @@ Write a `release.schema.json` that uses one of each:
   "type": "object",
   "properties": {
     "version": {"type": "string", "format": "semver"},
-    "tags": {"type": "array", "unevaluatedItems": false}
+    "tags": {"type": "array", "items": {"type": "string", "pattern": "(?<=#)\\w+"}}
   }
 }
 ```
@@ -1720,10 +1732,11 @@ Write a `release.schema.json` that uses one of each:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict release.schema.json
-schema: hide(meta({ version?:meta(empty(), { format:"semver" }) tags?:list }, {
-  title: "Release"
-}))
-lossy: #/properties/tags/unevaluatedItems unevaluatedItems: not carried yet, so it is DROPPED and the import admits instances the schema refuses
+schema: hide(meta(
+  { version?:meta(empty(), { format:"semver" }) tags?: [&: empty()] },
+  { title:"Release" }
+))
+lossy: #/properties/tags/items/pattern pattern: the pattern uses a (?...) group other than the non-capturing (?:, which re() does not carry, so it is DROPPED and the import admits strings the schema refuses
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
 $ echo $?
 1

@@ -27,3 +27,4 @@ string
 nof(1,integer,string)
 when(integer,min(0))
 contains(integer)
+rest(integer)

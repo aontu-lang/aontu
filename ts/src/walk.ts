@@ -1,6 +1,13 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 
+// A rest atom's arguments: what a member no cover reaches must meet, and
+// each cover's trial and record.
+export function restArgs(r: any): any[] {
+  return [r.t, ...r.covers.flatMap((c: any) => [c.trial, c.src])]
+}
+
+
 export function walkVals(
   v: any,
   visit: (v: any) => boolean,
@@ -52,6 +59,11 @@ export function walkVals(
   for (const a of (v.contains ?? [])) {
     walkVals(a.c, visit, seen)
   }
+  for (const r of (v.rests ?? [])) {
+    for (const arg of restArgs(r)) {
+      walkVals(arg, visit, seen)
+    }
+  }
 
   walkVals(v.primary, visit, seen)
   walkVals(v.secondary, visit, seen)
@@ -87,6 +99,9 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     }
     for (const a of v.contains ?? []) {
       walked.add(a.c)
+    }
+    for (const r of v.rests ?? []) {
+      restArgs(r).forEach((b: any) => walked.add(b))
     }
     return true
   }, walked)

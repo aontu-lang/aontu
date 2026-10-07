@@ -120,10 +120,15 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		_, _, residue := sizingResidue(val)
 		_, dj0 := t0.(*DisjunctVal)
 		_, dj1 := t1.(*DisjunctVal)
-		if isCj && !(residue && (dj0 || dj1)) {
+		_, rc0 := t0.(*RecurseVal)
+		_, rc1 := t1.(*RecurseVal)
+		_, _, held0 := sizingResidue(t0)
+		_, _, held1 := sizingResidue(t1)
+		if isCj && !(residue && (dj0 || dj1 || rc0 || rc1 || held0 || held1)) {
 			// Could not merge t0 and t1; keep t0, advance: unless a
-			// disjunction settled to a count over a container, which the
-			// terms kept apart would never reach.
+			// disjunction settled, a recursion expanded, or a held
+			// container met one more term, to a check over a container,
+			// which the terms kept apart would never reach.
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {

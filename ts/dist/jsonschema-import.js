@@ -277,12 +277,11 @@ const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
     'pattern', 'properties', 'required', 'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
     'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
-    'maxContains', 'uniqueItems']);
+    'maxContains', 'uniqueItems', 'unevaluatedProperties', 'unevaluatedItems']);
 const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
     'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
     'contentEncoding', 'contentMediaType', 'contentSchema']);
-const LATER = new Set(['unevaluatedProperties', 'unevaluatedItems',
-    '$vocabulary']);
+const LATER = new Set(['$vocabulary']);
 // How many schemas the import may read once more for each further
 // environment a dynamic reference reaches them in.
 const CLONE_BUDGET = 1000;
@@ -887,6 +886,7 @@ function pattern(ctx, p, path) {
     return 're(' + strLit(re) + ')';
 }
 function objectBranch(ctx, o, ptr) {
+    const rest = restAtom(ctx, o, ptr, 'unevaluatedProperties');
     const props = schemaMap(o.get('properties'), ptrAt(ptr, 'properties'));
     const reqv = o.get('required');
     if (undefined !== reqv && (!Array.isArray(reqv) ||
@@ -940,8 +940,8 @@ function objectBranch(ctx, o, ptr) {
         count(o.get('minProperties'), ptrAt(ptr, 'minProperties')),
         count(o.get('maxProperties'), ptrAt(ptr, 'maxProperties')),
     ];
-    const lens = counts.flatMap((c, n) => undefined === c ? [] :
-        ['len(' + (0 === n ? 'min' : 'max') + '(' + c + '))']);
+    const lens = [...counts.flatMap((c, n) => undefined === c ? [] :
+            ['len(' + (0 === n ? 'min' : 'max') + '(' + c + '))']), ...rest];
     if (0 === entries.length && 0 === guards.length) {
         return 0 === lens.length ? undefined : both(['map', ...lens]);
     }
@@ -971,6 +971,8 @@ function arrayBranch(ctx, o, ptr) {
     }
     const atoms = [...lens, ...(true === u ? ['unique()'] : []),
         ...containsAtom(ctx, o, ptr)];
+    atoms.push(...(atoms.includes('nil') ? [] :
+        restAtom(ctx, o, ptr, 'unevaluatedItems')));
     if (atoms.includes('nil')) {
         return 'nil';
     }
@@ -979,13 +981,166 @@ function arrayBranch(ctx, o, ptr) {
     }
     return both([undefined === spread ? 'list' : '[&: ' + spread + ']', ...atoms]);
 }
+function reachNone() {
+    return { keys: [], all: false, prefix: 0, items: [], covers: [], inexact: false };
+}
+function reachAdd(a, b) {
+    a.keys.push(...b.keys.filter((k) => !a.keys.includes(k)));
+    a.all = a.all || b.all;
+    a.prefix = Math.max(a.prefix, b.prefix);
+    a.items.push(...b.items);
+    a.covers.push(...b.covers);
+    a.inexact = a.inexact || b.inexact;
+    return a;
+}
+function reachEmpty(r) {
+    return 0 === r.keys.length && !r.all && 0 === r.prefix &&
+        0 === r.items.length && 0 === r.covers.length;
+}
+function reach(ctx, node, ptr, kw, path, own) {
+    const r = reachNone();
+    if (!isObj(node) || path.has(node)) {
+        return r;
+    }
+    const o = node;
+    const outer = ctx.env;
+    ctx.env = enter(ctx, outer, node);
+    path.add(node);
+    try {
+        const sub = (s, at) => reach(ctx, s, at, kw, path, false);
+        const at = (k, n) => ptrAt(ptrAt(ptr, k), n);
+        if ('unevaluatedProperties' === kw) {
+            const props = o.get('properties');
+            r.keys.push(...(isObj(props) ? [...props.keys()].map(strLit) : []));
+            const pats = o.get('patternProperties');
+            for (const p of isObj(pats) ? pats.keys() : []) {
+                const re = pattern(ctx, p, at('patternProperties', p));
+                r.inexact = r.inexact || undefined === re;
+                r.keys.push(...(undefined === re ? [] : [re]));
+            }
+            r.all = o.has('additionalProperties') ||
+                (!own && o.has('unevaluatedProperties'));
+        }
+        else {
+            const prefix = o.get('prefixItems');
+            r.prefix = Array.isArray(prefix) ? prefix.length : 0;
+            r.all = o.has('items') || (!own && o.has('unevaluatedItems'));
+            if (o.has('contains')) {
+                r.items.push({ node: o.get('contains'), ptr: ptrAt(ptr, 'contains') });
+            }
+        }
+        const list = (k) => Array.isArray(o.get(k)) ? o.get(k) : [];
+        list('allOf').forEach((s, n) => reachAdd(r, sub(s, at('allOf', n))));
+        for (const kr of ['$ref', '$dynamicRef']) {
+            if (o.has(kr)) {
+                const t = target(ctx, o, kr, ptrAt(ptr, kr));
+                const to = '$ref' === kr || !isObj(t.node) ||
+                    t.frag !== t.node.get('$dynamicAnchor') ? t :
+                    ctx.env.get(t.frag) ?? t;
+                reachAdd(r, sub(to.node, to.ptr));
+            }
+        }
+        for (const k of ['anyOf', 'oneOf']) {
+            list(k).forEach((s, n) => {
+                const rec = sub(s, at(k, n));
+                r.inexact = r.inexact || rec.inexact;
+                if (!reachEmpty(rec)) {
+                    r.covers.push({ trial: { node: s, ptr: at(k, n) }, rec });
+                }
+            });
+        }
+        if (o.has('if')) {
+            const c = o.get('if');
+            const then = reachAdd(sub(c, ptrAt(ptr, 'if')), o.has('then') ? sub(o.get('then'), ptrAt(ptr, 'then')) : reachNone());
+            const alt = o.has('else') ? sub(o.get('else'), ptrAt(ptr, 'else')) :
+                reachNone();
+            r.inexact = r.inexact || then.inexact || alt.inexact;
+            if (true === c || false === c) {
+                reachAdd(r, true === c ? then : alt);
+            }
+            else if (!reachEmpty(then) || !reachEmpty(alt)) {
+                r.covers.push({ trial: { node: c, ptr: ptrAt(ptr, 'if') }, rec: then,
+                    alt: reachEmpty(alt) ? undefined : alt });
+            }
+        }
+        const deps = o.get('dependentSchemas');
+        for (const [k, s] of isObj(deps) ? deps : []) {
+            const rec = sub(s, at('dependentSchemas', k));
+            r.inexact = r.inexact || rec.inexact;
+            if (!reachEmpty(rec)) {
+                r.covers.push({ trial: '{' + strLit(k) + ': any}', rec });
+            }
+        }
+        return r;
+    }
+    finally {
+        path.delete(node);
+        ctx.env = outer;
+    }
+}
+// The alias a trial reads, recorded so the check beside it reads it too.
+function trialOf(ctx, place) {
+    if (!isObj(place.node)) {
+        return I(ctx, place.node, place.ptr);
+    }
+    ctx.wanted.add(place.ptr);
+    return use(ctx, place);
+}
+// A record, as rest() reads one, and the pairs that hold records.
+function reachRecord(ctx, r, alt) {
+    const fields = r.all ? ['keys: any'] : [
+        ...(0 === r.keys.length ? [] : ['keys: ' + r.keys.join(' | ')]),
+        ...(0 === r.prefix ? [] : ['prefix: ' + r.prefix]),
+        ...(0 === r.items.length ? [] :
+            ['items: ' + disjoin(r.items.map((p) => trialOf(ctx, p)))]),
+        ...(0 === r.covers.length ? [] :
+            ['covers: [' + reachPairs(ctx, r.covers).join(', ') + ']']),
+    ];
+    if (undefined !== alt) {
+        fields.push('else: ' + reachRecord(ctx, alt));
+    }
+    return '{' + fields.join(', ') + '}';
+}
+function reachPairs(ctx, covers) {
+    return covers.map((c) => ('string' === typeof c.trial ? c.trial :
+        trialOf(ctx, c.trial)) + ', ' + reachRecord(ctx, c.rec, c.alt));
+}
+// `unevaluatedProperties` or `unevaluatedItems` as rest(t, ...): every
+// member what the schema evaluates in place does not reach must meet t.
+// Where everything is reached it asks nothing, and where a pattern it
+// would read is not carried it is dropped, since it would refuse the
+// keys the pattern reaches.
+function restAtom(ctx, o, ptr, kw) {
+    const u = schemaOne(o.get(kw), ptrAt(ptr, kw));
+    if (undefined === u || true === u) {
+        return [];
+    }
+    const r = reach(ctx, o, ptr, kw, new Set(), true);
+    if (r.all) {
+        return [];
+    }
+    if (r.inexact) {
+        lose(ctx, ptrAt(ptr, kw), kw, 'a pattern a schema in place beside it ' +
+            'reads is not carried, so the members it evaluates are not known and ' +
+            'it is DROPPED: the import admits instances the schema refuses');
+        return [];
+    }
+    const t = I(ctx, u, ptrAt(ptr, kw));
+    if ('any' === t) {
+        return [];
+    }
+    const own = { ...r, covers: [] };
+    return ['rest(' + [t,
+            ...(reachEmpty(own) ? [] : ['any, ' + reachRecord(ctx, own)]),
+            ...reachPairs(ctx, r.covers)].join(', ') + ')'];
+}
 // minContains and maxContains count only beside contains, the lower one
 // defaulting to one; a count no number meets admits no list.
 function containsAtom(ctx, o, ptr) {
     if (!o.has('contains')) {
         return [];
     }
-    const c = I(ctx, o.get('contains'), ptrAt(ptr, 'contains'));
+    const c = branch(ctx, o.get('contains'), ptrAt(ptr, 'contains'));
     const lo = count(o.get('minContains'), ptrAt(ptr, 'minContains')) ?? '1';
     const hi = count(o.get('maxContains'), ptrAt(ptr, 'maxContains'));
     if (undefined !== hi && BigInt(hi) < BigInt(lo)) {
@@ -1155,7 +1310,7 @@ function disjoin(srcs) {
 function anyOf(ctx, o, ptr) {
     const at = ptrAt(ptr, 'anyOf');
     const list = schemaList(o.get('anyOf'), at);
-    const srcs = list.map((s, n) => I(ctx, s, ptrAt(at, n)));
+    const srcs = list.map((s, n) => branch(ctx, s, ptrAt(at, n)));
     const kinds = list.map(kindsOf);
     const apart = kinds.every((a, i) => kinds.every((b, j) => i === j || ![...a].some((k) => b.has(k))));
     return list.every((s) => undefined !== literals(s)) ||
@@ -1167,7 +1322,7 @@ function anyOf(ctx, o, ptr) {
 function oneOf(ctx, o, ptr) {
     const at = ptrAt(ptr, 'oneOf');
     const list = schemaList(o.get('oneOf'), at);
-    const srcs = list.map((s, n) => I(ctx, s, ptrAt(at, n)));
+    const srcs = list.map((s, n) => branch(ctx, s, ptrAt(at, n)));
     const lits = list.map(literals);
     const seen = new Set();
     const distinct = lits.every((l) => undefined !== l &&
@@ -1216,7 +1371,8 @@ function not(ctx, o, ptr) {
 // asks nothing of a value.
 function conditional(ctx, o, ptr) {
     const arm = (k) => I(ctx, o.get(k), ptrAt(ptr, k));
-    return 'when(' + [arm('if'), o.has('then') ? arm('then') : 'any',
+    return 'when(' + [branch(ctx, o.get('if'), ptrAt(ptr, 'if')),
+        o.has('then') ? arm('then') : 'any',
         ...(o.has('else') ? [arm('else')] : [])].join(', ') + ')';
 }
 // A dependency is a conditional whose condition is the key's presence.
@@ -1249,6 +1405,12 @@ function meetOrNil(parts) {
     const a = new aontu_1.Aontu();
     const v = a.unify('x: ' + src, undefined, a.ctx({ collect: true }));
     return true === v.peg.x.isNil ? 'nil' : src;
+}
+// A branch a rest() reads is the alias it reads, so the check beside it
+// and the rest share one definition and one verdict.
+function branch(ctx, node, ptr) {
+    return isObj(node) && ctx.hoist.has(ptr) ? use(ctx, { node, ptr }) :
+        I(ctx, node, ptr);
 }
 // A schema with an identity of its own is hoisted, so that a
 // declaration carries it.
@@ -1342,12 +1504,25 @@ function bodyIn(ctx, node, ptr) {
     return true !== dep ? src :
         'deprecate(' + src + (undefined === drec ? '' : ', ' + drec) + ')';
 }
+// A branch a rest() reads that its check had already written in place
+// is read again by alias, so the import runs once more with it hoisted.
 function importJsonSchema(text, options) {
+    let hoist = new Set();
+    for (;;) {
+        const [report, wanted] = importOnce(text, options, hoist);
+        if ([...wanted].every((p) => hoist.has(p))) {
+            return report;
+        }
+        hoist = new Set([...hoist, ...wanted]);
+    }
+}
+function importOnce(text, options, hoist) {
     const ctx = {
         root: null, defaults: true === options?.defaults, lossy: [],
         aliases: new Map(), resources: new Map(), anchors: new Map(),
         bases: new Map(), defKeys: new Map(), unread: new Map(),
         dynamics: new Map(), env: new Map(), rootEnv: new Map(), clones: 0,
+        wanted: new Set(), hoist,
     };
     let source;
     try {
@@ -1372,11 +1547,11 @@ function importJsonSchema(text, options) {
             throw e;
         }
         const r = e;
-        return {
-            source: '', lossy: [], verdict: 'error',
-            errors: [{ code: r.code, class: (0, hints_1.codeClass)(r.code), path: r.path,
-                    message: r.message }],
-        };
+        return [{
+                source: '', lossy: [], verdict: 'error',
+                errors: [{ code: r.code, class: (0, hints_1.codeClass)(r.code), path: r.path,
+                        message: r.message }],
+            }, new Set()];
     }
     // The import writes only source the formatter reads, so the agreed
     // form is always there to take.
@@ -1386,10 +1561,10 @@ function importJsonSchema(text, options) {
         const key = l.path + '\u0000' + l.construct;
         return !seen.has(key) && (seen.add(key), true);
     }).sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.path, b.path));
-    return {
-        source: formatted.text,
-        lossy,
-        verdict: 0 < lossy.length ? 'lossy' : 'ok',
-    };
+    return [{
+            source: formatted.text,
+            lossy,
+            verdict: 0 < lossy.length ? 'lossy' : 'ok',
+        }, ctx.wanted];
 }
 //# sourceMappingURL=jsonschema-import.js.map

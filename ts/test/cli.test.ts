@@ -1097,16 +1097,16 @@ describe('cli-subsume', () => {
   test('jsonschema-import-writes-source-and-names-what-it-cannot-carry', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-ji-'))
     const file = Path.join(dir, 'schema.json')
-    Fs.writeFileSync(file, '{"unevaluatedProperties": false, ' +
-      '"type": "object", "properties": {"a": {"type": "null"}}}')
+    Fs.writeFileSync(file, '{"type": "object", "properties": ' +
+      '{"a": {"type": "string", "pattern": "(?<=a)b"}}}')
 
     const r = vetCapture(() =>
       Assert.equal(runJsonSchema(['import', file]), 0))
-    Assert.equal(r.out, 'schema: hide({ a?:null })\n')
+    Assert.equal(r.out, 'schema: hide({ a?:empty() })\n')
     Assert.equal(r.err,
-      'lossy: #/unevaluatedProperties unevaluatedProperties: not carried ' +
-      'yet, so it is DROPPED and the import admits instances the schema ' +
-      'refuses\n' +
+      'lossy: #/properties/a/pattern pattern: the pattern uses a (?...) ' +
+      'group other than the non-capturing (?:, which re() does not carry, ' +
+      'so it is DROPPED and the import admits strings the schema refuses\n' +
       "vet data against it with: aontu vet --at '$.schema' --no-fill " +
       '--exact-numbers <file.aontu> <data>\n')
     vetCapture(() =>

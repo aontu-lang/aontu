@@ -12,7 +12,7 @@ import { funcSig } from './sig'
 import { unite } from './unify'
 import { top } from './val/top'
 import { cmpCodePoint } from './keyorder'
-import { nofCounts } from './val/ConstraintVal'
+import { nofCounts, restCanon } from './val/ConstraintVal'
 import { Decimal } from './val/Decimal'
 import {
   cmpNumeric,
@@ -88,6 +88,9 @@ type Ctx = {
   anchors: Set<string>, unaddressable: boolean,
   // Each definition in the root's resource that carries a $dynamicAnchor.
   dynamics: Map<string, string>,
+  // The definition each reference written names, and the keywords the
+  // rest() atoms ask for, settled once the schema is whole.
+  refKeys: Map<string, string>, rests: RestMark[], restArms: Set<any>,
 }
 
 
@@ -503,7 +506,338 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: any): any {
     containsKeyword(ctx, path, out, a, bag)
   }
 
+  for (const r of c.rests) {
+    restKeyword(ctx, path, out, r, bag)
+  }
+
   return out
+}
+
+
+// What no cover reaches as the keyword that reads the unevaluated
+// members of the container it stands beside, both where the container's
+// kind is not known. Each is a mark until settleRests decides it.
+function restKeyword(ctx: Ctx, path: string[], out: any, r: any, bag?: any) {
+  const t = fromVal(ctx, path, r.t)
+  const kws = true === bag?.isMap ? ['unevaluatedProperties'] :
+    true === bag?.isList ? ['unevaluatedItems'] :
+      ['unevaluatedProperties', 'unevaluatedItems']
+  const group = { lost: false }
+  for (const kw of kws) {
+    const mark = new RestMark(r, t, kw, path, ctx.base, group)
+    ctx.rests.push(mark)
+    if (undefined === out[kw]) {
+      out[kw] = mark
+    }
+    else {
+      const arm = { [kw]: mark }
+      ctx.restArms.add(arm)
+      allOf(out, arm)
+    }
+  }
+}
+
+
+class RestMark {
+  constructor(readonly r: any, readonly t: any, readonly kw: string,
+    readonly path: string[], readonly base: string | undefined,
+    readonly group: { lost: boolean }) { }
+
+  toJSON() {
+    return ['rest', this.kw, restCanon(this.r)]
+  }
+}
+
+
+// The members an object evaluates in place, as unevaluatedProperties
+// (`map`) or unevaluatedItems (`list`) reads them, and what a rest()
+// atom's covers reach, in the same terms: each conditional cover is its
+// trial's schema text with what it reaches where that passes and where
+// it fails.
+type Reached = {
+  all: boolean, names: Set<string>, pats: Set<string>, prefix: bigint,
+  items: Set<string>, conds: [string, Reached, Reached][],
+}
+
+
+function reachedNone(): Reached {
+  return { all: false, names: new Set(), pats: new Set(), prefix: 0n,
+    items: new Set(), conds: [] }
+}
+
+
+function reachedAdd(a: Reached, b: Reached): Reached {
+  a.all = a.all || b.all
+  b.names.forEach((n) => a.names.add(n))
+  b.pats.forEach((p) => a.pats.add(p))
+  a.prefix = a.prefix < b.prefix ? b.prefix : a.prefix
+  b.items.forEach((i) => a.items.add(i))
+  a.conds.push(...b.conds)
+  return a
+}
+
+
+function reachedEmpty(r: Reached): boolean {
+  return !r.all && 0 === r.names.size && 0 === r.pats.size &&
+    0n === r.prefix && 0 === r.items.size && 0 === r.conds.length
+}
+
+
+function reachedText(r: Reached): string {
+  const sorted = (xs: Iterable<string>) => [...new Set(xs)].sort(cmpCodePoint)
+  return r.all ? '"all"' : JSON.stringify([sorted(r.names), sorted(r.pats),
+    r.prefix.toString(), sorted(r.items), sorted(r.conds.map(([t, a, b]) =>
+      JSON.stringify([t, reachedText(a), reachedText(b)])))])
+}
+
+
+const IN_PLACE = ['allOf', 'anyOf', 'oneOf']
+const IN_PLACE_ONE = ['not', 'if', 'then', 'else']
+const CHILD_ONE = ['additionalProperties', 'items', 'contains',
+  'propertyNames', 'unevaluatedProperties', 'unevaluatedItems']
+
+
+function isSchemaObj(s: any): boolean {
+  return null != s && 'object' === typeof s && !Array.isArray(s) &&
+    !(s instanceof RestMark)
+}
+
+
+// The container kinds a schema object can hold for: its `type` and its
+// allOf arms' narrow what it and its in-place subschemas apply to.
+function containerKinds(s: any): string[] {
+  const t = Array.isArray(s.type) ? s.type :
+    undefined === s.type ? undefined : [s.type]
+  return ['map', 'list'].filter((k) => undefined === t ||
+    t.includes('map' === k ? 'object' : 'array'))
+}
+
+
+function restSites(s: any, scope: string[], kinds: Map<any, Set<string>>) {
+  if (!isSchemaObj(s)) {
+    return
+  }
+  const now = [s, ...(Array.isArray(s.allOf) ? s.allOf : [])]
+    .filter(isSchemaObj).reduce((ks: string[], x: any) =>
+      ks.filter((k) => containerKinds(x).includes(k)), scope)
+  kinds.set(s, new Set([...(kinds.get(s) ?? []), ...now]))
+  const full = ['map', 'list']
+  for (const kw of ['unevaluatedProperties', 'unevaluatedItems']) {
+    if (s[kw] instanceof RestMark) {
+      restSites(s[kw].t, full, kinds)
+    }
+  }
+  IN_PLACE.forEach((k) => (Array.isArray(s[k]) ? s[k] : [])
+    .forEach((x: any) => restSites(x, now, kinds)))
+  IN_PLACE_ONE.forEach((k) => restSites(s[k], now, kinds))
+  Object.values(isSchemaObj(s.dependentSchemas) ? s.dependentSchemas : {})
+    .forEach((x) => restSites(x, now, kinds))
+  for (const k of ['properties', 'patternProperties']) {
+    Object.values(isSchemaObj(s[k]) ? s[k] : {})
+      .forEach((x) => restSites(x, full, kinds))
+  }
+  CHILD_ONE.forEach((k) => restSites(s[k], full, kinds))
+  ;(Array.isArray(s.prefixItems) ? s.prefixItems : [])
+    .forEach((x: any) => restSites(x, full, kinds))
+}
+
+
+// What an object of the written schema evaluates in place. A schema met
+// again on its own path adds nothing it has not already added.
+function evaluated(ctx: Ctx, defs: Map<string, any>, s: any, kind: string,
+  own: boolean, path: Set<any>): Reached {
+  const out = reachedNone()
+  if (!isSchemaObj(s) || path.has(s)) {
+    return out
+  }
+  path.add(s)
+  const sub = (x: any) => evaluated(ctx, defs, x, kind, false, path)
+  const unevaluated = 'map' === kind ? 'unevaluatedProperties' :
+    'unevaluatedItems'
+  out.all = (!own && undefined !== s[unevaluated]) ||
+    undefined !== s['map' === kind ? 'additionalProperties' : 'items']
+  if ('map' === kind) {
+    Object.keys(s.properties ?? {}).forEach((n) => out.names.add(n))
+    Object.keys(s.patternProperties ?? {}).forEach((p) => out.pats.add(p))
+  }
+  else {
+    out.prefix = BigInt((s.prefixItems ?? []).length)
+    if (undefined !== s.contains) {
+      out.items.add(schemaText(s.contains))
+    }
+  }
+  for (const x of [...(s.allOf ?? []), ...['$ref', '$dynamicRef']
+    .map((kr) => defs.get(ctx.refKeys.get(s[kr]) as string))]) {
+    reachedAdd(out, sub(x))
+  }
+  const conds: [any, Reached, Reached][] = [
+    ...['anyOf', 'oneOf'].flatMap((k) => (s[k] ?? []).map((x: any) =>
+      [x, sub(x), reachedNone()] as [any, Reached, Reached])),
+    ...Object.entries(s.dependentSchemas ?? {}).map(([k, x]) =>
+      [{ type: 'object', properties: { [k]: {} }, required: [k] }, sub(x),
+        reachedNone()] as [any, Reached, Reached]),
+    ...(undefined === s.if ? [] :
+      [[s.if, reachedAdd(sub(s.if), sub(s.then)), sub(s.else)]] as
+      [any, Reached, Reached][]),
+  ]
+  for (const [t, a, b] of conds) {
+    if (!reachedEmpty(a) || !reachedEmpty(b)) {
+      out.conds.push([schemaText(t), a, b])
+    }
+  }
+  path.delete(s)
+  return out
+}
+
+
+// What a rest() atom's covers reach, in the terms of the written schema;
+// undefined where JSON Schema has no keyword that reaches the same.
+function covered(ctx: Ctx, m: RestMark, kind: string): Reached | undefined {
+  const scratch: Ctx = {
+    ...ctx, lossy: [], failed: undefined, base: m.base,
+    defs: new Map(ctx.defs), names: new Map(ctx.names),
+    addr: new Map(ctx.addr), anchors: new Set(ctx.anchors),
+    dynamics: new Map(ctx.dynamics), refKeys: new Map(ctx.refKeys),
+    rests: [], restArms: new Set(),
+  }
+  return coverPairs(scratch, m.path, m.r.covers, kind, reachedNone())
+}
+
+
+function coverPairs(ctx: Ctx, path: string[], covers: any[], kind: string,
+  out: Reached): Reached | undefined {
+  for (const c of covers) {
+    const rec = recordReach(ctx, path, c.rec, kind)
+    const alt = undefined === c.rec.else || true === c.trial.isTop ?
+      reachedNone() : recordReach(ctx, path, c.rec.else, kind)
+    if (undefined === rec || undefined === alt) {
+      return undefined
+    }
+    if (true === c.trial.isTop) {
+      reachedAdd(out, rec)
+    }
+    else if (!reachedEmpty(rec) || !reachedEmpty(alt)) {
+      out.conds.push([schemaText(fromVal(ctx, path, c.trial)), rec, alt])
+    }
+  }
+  return out
+}
+
+
+function recordReach(ctx: Ctx, path: string[], rec: any, kind: string):
+  Reached | undefined {
+  const out = reachedNone()
+  for (const k of undefined === rec.keys ? [] : true === rec.keys.isDisjunct ?
+    disjuncts(rec.keys) : [rec.keys]) {
+    const p = lonePattern(k)
+    if (true === k.isTop) {
+      out.all = true
+    }
+    else if ('map' === kind && (true === k.isString || undefined !== p)) {
+      (true === k.isString ? out.names : out.pats).add(p ?? k.peg)
+    }
+    else if (true !== k.isString || /^(0|[1-9][0-9]*)$/.test(k.peg)) {
+      return undefined
+    }
+  }
+  if ('list' === kind && undefined !== rec.prefix) {
+    out.prefix = rec.prefix
+  }
+  if (undefined !== rec.items) {
+    if (true === rec.items.isTop) {
+      out.all = true
+    }
+    else if ('map' === kind) {
+      return undefined
+    }
+    else {
+      out.items.add(schemaText(fromVal(ctx, path, rec.items)))
+    }
+  }
+  return coverPairs(ctx, path, rec.covers, kind, out)
+}
+
+
+// JSON Schema's unevaluated keywords read what the object they stand in
+// evaluates, which the export may spell otherwise than the covers say:
+// each mark is written only where the two agree, and dropped as a loss
+// elsewhere, until no further mark drops; a mark is never needed where
+// its kind cannot reach, nor where its covers reach every member.
+function settleRests(ctx: Ctx, body: any) {
+  if (0 === ctx.rests.length) {
+    return
+  }
+  const full = ['map', 'list']
+  const seen = new Map<any, Set<string>>()
+  restSites(body, full, seen)
+  ctx.defs.forEach((d) => restSites(d, full, seen))
+  const defs = new Map(ctx.defs).set(ROOT_DEF, body)
+  const kindOf = (kw: string) => 'unevaluatedProperties' === kw ? 'map' : 'list'
+  const wants = new Map<RestMark, Reached | undefined>()
+  const emptied = new Set<any>()
+  const sites: [any, RestMark][] = []
+  for (const [s, scope] of seen) {
+    for (const kw of ['unevaluatedProperties', 'unevaluatedItems']) {
+      const m = s[kw]
+      if (!(m instanceof RestMark)) {
+        continue
+      }
+      if (!wants.has(m)) {
+        wants.set(m, covered(ctx, m, kindOf(kw)))
+      }
+      if (!scope.has(kindOf(kw)) || true === m.r.t.isTop ||
+        true === wants.get(m)?.all) {
+        delete s[kw]
+        emptied.add(s)
+      }
+      else {
+        sites.push([s, m])
+      }
+    }
+  }
+  for (let drop = true; drop;) {
+    const out = sites.filter(([s, m]) => m.kw in s && !sameReach(wants.get(m),
+      evaluated(ctx, defs, s, kindOf(m.kw), true, new Set())))
+    out.forEach(([s, m]) => {
+      delete s[m.kw]
+      emptied.add(s)
+      m.group.lost = true
+    })
+    drop = 0 < out.length
+  }
+  for (const [s, m] of sites) {
+    if (m.kw in s) {
+      s[m.kw] = m.t
+    }
+  }
+  for (const s of seen.keys()) {
+    if (Array.isArray(s.allOf)) {
+      const arms = s.allOf.filter((a: any) => 0 < Object.keys(a).length ||
+        !(ctx.restArms.has(a) || emptied.has(a)))
+      if (0 === arms.length) {
+        delete s.allOf
+      }
+      else {
+        s.allOf = arms
+      }
+    }
+  }
+  const told = new Set<any>()
+  for (const m of ctx.rests) {
+    if (m.group.lost && !told.has(m.group)) {
+      told.add(m.group)
+      lose(ctx, m.path, 'rest',
+        'unevaluatedProperties and unevaluatedItems read the members the ' +
+        'schema beside them does not evaluate in place, and the members ' +
+        'this rest() reaches are not those, so it is DROPPED and the ' +
+        'schema admits values `vet` refuses')
+    }
+  }
+}
+
+
+function sameReach(a: Reached | undefined, b: Reached): boolean {
+  return undefined !== a && reachedText(a) === reachedText(b)
 }
 
 
@@ -722,7 +1056,7 @@ function aliasKey(ctx: Ctx, v: any): string | undefined {
     const ident = single(ctx, at, body.identity)
     const base = ident.key ?? at.join('.').replace(/^%/, '')
     key = base
-    for (let n = 2; ctx.defs.has(key); n++) {
+    for (let n = 2; ctx.defs.has(key) || ROOT_DEF === key; n++) {
       key = base + '-' + n
     }
     ctx.names.set(id, key)
@@ -781,7 +1115,9 @@ function useOf(ctx: Ctx, path: string[], key: string, uris?: any[]): any {
   const frags = new Set(uris.map((u) => u.peg.substring(u.peg.indexOf('#') + 1)))
   const name = ctx.dynamics.get(key)
   if (undefined !== name && 1 === frags.size && frags.has(name)) {
-    return { $dynamicRef: fromRoot(ctx, name) }
+    const ref = fromRoot(ctx, name)
+    ctx.refKeys.set(ref, key)
+    return { $dynamicRef: ref }
   }
   lose(ctx, path, '$dynamicRef', 'the import resolved this reference in ' +
     'the dynamic scope it read the schema in, and the export writes the ' +
@@ -799,8 +1135,10 @@ const ROOT_DEF = ''
 // walk is in: a definition with an $id by it, and one without from the
 // root, which a fragment names only from the root's own resource.
 function refTo(ctx: Ctx, key: string): string {
-  return ctx.addr.get(key) ??
+  const ref = ctx.addr.get(key) ??
     fromRoot(ctx, ROOT_DEF === key ? '' : '/$defs/' + pointerToken(key))
+  ctx.refKeys.set(ref, key)
+  return ref
 }
 
 
@@ -1471,7 +1809,8 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
     const ctx: Ctx = {
       lossy: [], exact: true === opts.exactNumbers, root, defs: new Map(),
       names: new Map(), anchor, ids, addr: new Map(), anchors: new Set(),
-      unaddressable: false, dynamics: new Map(),
+      unaddressable: false, dynamics: new Map(), refKeys: new Map(),
+      rests: [], restArms: new Set(),
     }
     const decl = null == node.aliasOrigin ? undefined :
       walkTarget(root, [node.aliasOrigin])
@@ -1493,11 +1832,11 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
       }
       top = decl
     }
-    const body = fromVal(ctx, anchor, top)
-    return {
-      ctx, body: top === node ? body :
-        stamp(body, ident.id, ident.anchor, ident.dynamicAnchor),
-    }
+    const made = fromVal(ctx, anchor, top)
+    const body = top === node ? made :
+      stamp(made, ident.id, ident.anchor, ident.dynamicAnchor)
+    settleRests(ctx, body)
+    return { ctx, body }
   }
   let { ctx, body } = run(true)
   if (ctx.unaddressable) {
