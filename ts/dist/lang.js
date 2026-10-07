@@ -630,6 +630,7 @@ help isolate the syntax error.`,
         above: ConstraintVal_1.AboveConstraintVal,
         below: ConstraintVal_1.BelowConstraintVal,
         neq: ConstraintVal_1.NeqConstraintVal,
+        multiple: ConstraintVal_1.MultipleConstraintVal,
         // G1 phase 2: pattern membership, over the portable subset both
         // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
         re: ConstraintVal_1.ReConstraintVal,

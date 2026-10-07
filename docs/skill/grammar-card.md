@@ -46,8 +46,8 @@ highlighting; this is their human twin.
 
 ## Constraints
 
-`min(n) max(n) above(n) below(n)` bound a number;
-`len(n)` and `unique()` bound a list or string;
+`min(n) max(n) above(n) below(n)` bound a number, and `multiple(n)`
+admits its multiples. `len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
 `must(cond, "why")` is the escape hatch.
 

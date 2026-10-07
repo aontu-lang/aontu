@@ -54,9 +54,9 @@ const hints = {
         '  *{a: 1}      -> *{"a":1}  # ... or brace the bag to prefer it whole;\n' +
         '  *{x:1}|*{y:2} -> *{"x":1}|*{"y":2}  # which is what disjunction needs.',
     constraint: 'This value does not satisfy the constraint. A constraint is the\n' +
-        'meet of bound atoms (min, max, above, below) and exclusions (neq)\n' +
-        'over one domain; the expected form shown is the normalised\n' +
-        'residual the value must satisfy.' +
+        'meet of bound atoms (min, max, above, below), exclusions (neq)\n' +
+        'and divisors (multiple) over one domain; the expected form shown\n' +
+        'is the normalised residual the value must satisfy.' +
         '\n \nExamples:\n' +
         '  min(0) & 3                    -> 3    # Admitted (3 >= 0);\n' +
         '  min(0) & 0d5                  -> 0d5  # Bounds are leaf-agnostic;\n' +
@@ -64,6 +64,7 @@ const hints = {
         '  min(5) & max(3)               -> nil  # Empty at composition time;\n' +
         '  integer & above(1) & below(2) -> nil  # No integer in the gap;\n' +
         '  neq(1) & 1.0                  -> 1.0  # neq excludes leaf AND value.\n' +
+        '  multiple(0.1) & 0.3           -> 0.3  # A float divides as written.\n' +
         '  re("^a") & "abc"              -> "abc" # Patterns are unanchored.',
     must: 'This value fails an evaluate-only check written with must().\n' +
         'The author\'s message is: {message}' +

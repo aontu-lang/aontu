@@ -67,7 +67,7 @@ element ::= spread | value
 # ordered choice, so `refer` is listed before `re` or `re` would match
 # the prefix and the `(` check would then fail on `refer(...)`. The
 # arithmetic family added a second such pair: `rem` must also precede
-# `re`.
+# `re`. And `multiple` precedes `mul`.
 func ::= name "(" ws ( value ( ws "," ws value )* ws )? ")"
 
 name ::=
@@ -76,7 +76,7 @@ name ::=
   | "hide"
   | "inverse" | "join" | "key" | "least"
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "min" | "mod" | "move"
-  | "mul" | "must"
+  | "multiple" | "mul" | "must"
   | "neq"
   | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"
   | "sort" | "split" | "super"

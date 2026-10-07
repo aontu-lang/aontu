@@ -12,7 +12,7 @@
 # suite (ADR-001).
 #
 # Every row's expectation was PROBED through both engines and compared
-# byte-for-byte before being pinned; all 256 agreed. The atom
+# byte-for-byte before being pinned; all 324 agreed. The atom
 # vocabulary is shared, one entry per line, in
 # test/spec/files/constraint-atoms.txt -- both law tests read it, so
 # the lists cannot drift apart.
@@ -34,6 +34,8 @@ product-min0-below2	canon	x: min(0) & below(2)	{"x":min(0)&below(2)}
 product-min0-neq1	canon	x: min(0) & neq(1)	{"x":min(0)&neq(1)}
 product-min0-neq12	canon	x: min(0) & neq(1,2)	{"x":min(0)&neq(1,2)}
 product-min0-neqa	errc	x: min(0) & neq("a")	constraint
+product-min0-multiple2	canon	x: min(0) & multiple(2)	{"x":min(0)&multiple(2)}
+product-min0-multiple05	canon	x: min(0) & multiple(0.5)	{"x":min(0)&multiple(0.5)}
 product-min0-integer	canon	x: min(0) & integer	{"x":integer&min(0)}
 product-min0-number	canon	x: min(0) & number	{"x":min(0)}
 product-min0-string	errc	x: min(0) & string	constraint
@@ -50,6 +52,8 @@ product-min5-below2	errc	x: min(5) & below(2)	constraint
 product-min5-neq1	canon	x: min(5) & neq(1)	{"x":min(5)&neq(1)}
 product-min5-neq12	canon	x: min(5) & neq(1,2)	{"x":min(5)&neq(1,2)}
 product-min5-neqa	errc	x: min(5) & neq("a")	constraint
+product-min5-multiple2	canon	x: min(5) & multiple(2)	{"x":min(5)&multiple(2)}
+product-min5-multiple05	canon	x: min(5) & multiple(0.5)	{"x":min(5)&multiple(0.5)}
 product-min5-integer	canon	x: min(5) & integer	{"x":integer&min(5)}
 product-min5-number	canon	x: min(5) & number	{"x":min(5)}
 product-min5-string	errc	x: min(5) & string	constraint
@@ -66,6 +70,8 @@ product-mina-below2	errc	x: min("a") & below(2)	constraint
 product-mina-neq1	errc	x: min("a") & neq(1)	constraint
 product-mina-neq12	errc	x: min("a") & neq(1,2)	constraint
 product-mina-neqa	canon	x: min("a") & neq("a")	{"x":min("a")&neq("a")}
+product-mina-multiple2	errc	x: min("a") & multiple(2)	constraint
+product-mina-multiple05	errc	x: min("a") & multiple(0.5)	constraint
 product-mina-integer	errc	x: min("a") & integer	constraint
 product-mina-number	errc	x: min("a") & number	constraint
 product-mina-string	canon	x: min("a") & string	{"x":string&min("a")}
@@ -82,6 +88,8 @@ product-max3-below2	canon	x: max(3) & below(2)	{"x":below(2)}
 product-max3-neq1	canon	x: max(3) & neq(1)	{"x":max(3)&neq(1)}
 product-max3-neq12	canon	x: max(3) & neq(1,2)	{"x":max(3)&neq(1,2)}
 product-max3-neqa	errc	x: max(3) & neq("a")	constraint
+product-max3-multiple2	canon	x: max(3) & multiple(2)	{"x":max(3)&multiple(2)}
+product-max3-multiple05	canon	x: max(3) & multiple(0.5)	{"x":max(3)&multiple(0.5)}
 product-max3-integer	canon	x: max(3) & integer	{"x":integer&max(3)}
 product-max3-number	canon	x: max(3) & number	{"x":max(3)}
 product-max3-string	errc	x: max(3) & string	constraint
@@ -98,6 +106,8 @@ product-max10-below2	canon	x: max(10) & below(2)	{"x":below(2)}
 product-max10-neq1	canon	x: max(10) & neq(1)	{"x":max(10)&neq(1)}
 product-max10-neq12	canon	x: max(10) & neq(1,2)	{"x":max(10)&neq(1,2)}
 product-max10-neqa	errc	x: max(10) & neq("a")	constraint
+product-max10-multiple2	canon	x: max(10) & multiple(2)	{"x":max(10)&multiple(2)}
+product-max10-multiple05	canon	x: max(10) & multiple(0.5)	{"x":max(10)&multiple(0.5)}
 product-max10-integer	canon	x: max(10) & integer	{"x":integer&max(10)}
 product-max10-number	canon	x: max(10) & number	{"x":max(10)}
 product-max10-string	errc	x: max(10) & string	constraint
@@ -114,6 +124,8 @@ product-maxz-below2	errc	x: max("z") & below(2)	constraint
 product-maxz-neq1	errc	x: max("z") & neq(1)	constraint
 product-maxz-neq12	errc	x: max("z") & neq(1,2)	constraint
 product-maxz-neqa	canon	x: max("z") & neq("a")	{"x":max("z")&neq("a")}
+product-maxz-multiple2	errc	x: max("z") & multiple(2)	constraint
+product-maxz-multiple05	errc	x: max("z") & multiple(0.5)	constraint
 product-maxz-integer	errc	x: max("z") & integer	constraint
 product-maxz-number	errc	x: max("z") & number	constraint
 product-maxz-string	canon	x: max("z") & string	{"x":string&max("z")}
@@ -130,6 +142,8 @@ product-above1-below2	canon	x: above(1) & below(2)	{"x":above(1)&below(2)}
 product-above1-neq1	canon	x: above(1) & neq(1)	{"x":above(1)&neq(1)}
 product-above1-neq12	canon	x: above(1) & neq(1,2)	{"x":above(1)&neq(1,2)}
 product-above1-neqa	errc	x: above(1) & neq("a")	constraint
+product-above1-multiple2	canon	x: above(1) & multiple(2)	{"x":above(1)&multiple(2)}
+product-above1-multiple05	canon	x: above(1) & multiple(0.5)	{"x":above(1)&multiple(0.5)}
 product-above1-integer	canon	x: above(1) & integer	{"x":integer&above(1)}
 product-above1-number	canon	x: above(1) & number	{"x":above(1)}
 product-above1-string	errc	x: above(1) & string	constraint
@@ -146,6 +160,8 @@ product-below2-below2	canon	x: below(2) & below(2)	{"x":below(2)}
 product-below2-neq1	canon	x: below(2) & neq(1)	{"x":below(2)&neq(1)}
 product-below2-neq12	canon	x: below(2) & neq(1,2)	{"x":below(2)&neq(1,2)}
 product-below2-neqa	errc	x: below(2) & neq("a")	constraint
+product-below2-multiple2	canon	x: below(2) & multiple(2)	{"x":below(2)&multiple(2)}
+product-below2-multiple05	canon	x: below(2) & multiple(0.5)	{"x":below(2)&multiple(0.5)}
 product-below2-integer	canon	x: below(2) & integer	{"x":integer&below(2)}
 product-below2-number	canon	x: below(2) & number	{"x":below(2)}
 product-below2-string	errc	x: below(2) & string	constraint
@@ -162,6 +178,8 @@ product-neq1-below2	canon	x: neq(1) & below(2)	{"x":below(2)&neq(1)}
 product-neq1-neq1	canon	x: neq(1) & neq(1)	{"x":neq(1)}
 product-neq1-neq12	canon	x: neq(1) & neq(1,2)	{"x":neq(1,2)}
 product-neq1-neqa	errc	x: neq(1) & neq("a")	constraint
+product-neq1-multiple2	canon	x: neq(1) & multiple(2)	{"x":neq(1)&multiple(2)}
+product-neq1-multiple05	canon	x: neq(1) & multiple(0.5)	{"x":neq(1)&multiple(0.5)}
 product-neq1-integer	canon	x: neq(1) & integer	{"x":integer&neq(1)}
 product-neq1-number	canon	x: neq(1) & number	{"x":neq(1)}
 product-neq1-string	errc	x: neq(1) & string	constraint
@@ -178,6 +196,8 @@ product-neq12-below2	canon	x: neq(1,2) & below(2)	{"x":below(2)&neq(1,2)}
 product-neq12-neq1	canon	x: neq(1,2) & neq(1)	{"x":neq(1,2)}
 product-neq12-neq12	canon	x: neq(1,2) & neq(1,2)	{"x":neq(1,2)}
 product-neq12-neqa	errc	x: neq(1,2) & neq("a")	constraint
+product-neq12-multiple2	canon	x: neq(1,2) & multiple(2)	{"x":neq(1,2)&multiple(2)}
+product-neq12-multiple05	canon	x: neq(1,2) & multiple(0.5)	{"x":neq(1,2)&multiple(0.5)}
 product-neq12-integer	canon	x: neq(1,2) & integer	{"x":integer&neq(1,2)}
 product-neq12-number	canon	x: neq(1,2) & number	{"x":neq(1,2)}
 product-neq12-string	errc	x: neq(1,2) & string	constraint
@@ -194,11 +214,49 @@ product-neqa-below2	errc	x: neq("a") & below(2)	constraint
 product-neqa-neq1	errc	x: neq("a") & neq(1)	constraint
 product-neqa-neq12	errc	x: neq("a") & neq(1,2)	constraint
 product-neqa-neqa	canon	x: neq("a") & neq("a")	{"x":neq("a")}
+product-neqa-multiple2	errc	x: neq("a") & multiple(2)	constraint
+product-neqa-multiple05	errc	x: neq("a") & multiple(0.5)	constraint
 product-neqa-integer	errc	x: neq("a") & integer	constraint
 product-neqa-number	errc	x: neq("a") & number	constraint
 product-neqa-string	canon	x: neq("a") & string	{"x":string&neq("a")}
 product-neqa-5	errc	x: neq("a") & 5	constraint
 product-neqa-m	canon	x: neq("a") & "m"	{"x":"m"}
+product-multiple2-min0	canon	x: multiple(2) & min(0)	{"x":min(0)&multiple(2)}
+product-multiple2-min5	canon	x: multiple(2) & min(5)	{"x":min(5)&multiple(2)}
+product-multiple2-mina	errc	x: multiple(2) & min("a")	constraint
+product-multiple2-max3	canon	x: multiple(2) & max(3)	{"x":max(3)&multiple(2)}
+product-multiple2-max10	canon	x: multiple(2) & max(10)	{"x":max(10)&multiple(2)}
+product-multiple2-maxz	errc	x: multiple(2) & max("z")	constraint
+product-multiple2-above1	canon	x: multiple(2) & above(1)	{"x":above(1)&multiple(2)}
+product-multiple2-below2	canon	x: multiple(2) & below(2)	{"x":below(2)&multiple(2)}
+product-multiple2-neq1	canon	x: multiple(2) & neq(1)	{"x":neq(1)&multiple(2)}
+product-multiple2-neq12	canon	x: multiple(2) & neq(1,2)	{"x":neq(1,2)&multiple(2)}
+product-multiple2-neqa	errc	x: multiple(2) & neq("a")	constraint
+product-multiple2-multiple2	canon	x: multiple(2) & multiple(2)	{"x":multiple(2)}
+product-multiple2-multiple05	canon	x: multiple(2) & multiple(0.5)	{"x":multiple(0.5)&multiple(2)}
+product-multiple2-integer	canon	x: multiple(2) & integer	{"x":integer&multiple(2)}
+product-multiple2-number	canon	x: multiple(2) & number	{"x":multiple(2)}
+product-multiple2-string	errc	x: multiple(2) & string	constraint
+product-multiple2-5	errc	x: multiple(2) & 5	constraint
+product-multiple2-m	errc	x: multiple(2) & "m"	constraint
+product-multiple05-min0	canon	x: multiple(0.5) & min(0)	{"x":min(0)&multiple(0.5)}
+product-multiple05-min5	canon	x: multiple(0.5) & min(5)	{"x":min(5)&multiple(0.5)}
+product-multiple05-mina	errc	x: multiple(0.5) & min("a")	constraint
+product-multiple05-max3	canon	x: multiple(0.5) & max(3)	{"x":max(3)&multiple(0.5)}
+product-multiple05-max10	canon	x: multiple(0.5) & max(10)	{"x":max(10)&multiple(0.5)}
+product-multiple05-maxz	errc	x: multiple(0.5) & max("z")	constraint
+product-multiple05-above1	canon	x: multiple(0.5) & above(1)	{"x":above(1)&multiple(0.5)}
+product-multiple05-below2	canon	x: multiple(0.5) & below(2)	{"x":below(2)&multiple(0.5)}
+product-multiple05-neq1	canon	x: multiple(0.5) & neq(1)	{"x":neq(1)&multiple(0.5)}
+product-multiple05-neq12	canon	x: multiple(0.5) & neq(1,2)	{"x":neq(1,2)&multiple(0.5)}
+product-multiple05-neqa	errc	x: multiple(0.5) & neq("a")	constraint
+product-multiple05-multiple2	canon	x: multiple(0.5) & multiple(2)	{"x":multiple(0.5)&multiple(2)}
+product-multiple05-multiple05	canon	x: multiple(0.5) & multiple(0.5)	{"x":multiple(0.5)}
+product-multiple05-integer	canon	x: multiple(0.5) & integer	{"x":integer&multiple(0.5)}
+product-multiple05-number	canon	x: multiple(0.5) & number	{"x":multiple(0.5)}
+product-multiple05-string	errc	x: multiple(0.5) & string	constraint
+product-multiple05-5	canon	x: multiple(0.5) & 5	{"x":5}
+product-multiple05-m	errc	x: multiple(0.5) & "m"	constraint
 product-integer-min0	canon	x: integer & min(0)	{"x":integer&min(0)}
 product-integer-min5	canon	x: integer & min(5)	{"x":integer&min(5)}
 product-integer-mina	errc	x: integer & min("a")	constraint
@@ -210,6 +268,8 @@ product-integer-below2	canon	x: integer & below(2)	{"x":integer&below(2)}
 product-integer-neq1	canon	x: integer & neq(1)	{"x":integer&neq(1)}
 product-integer-neq12	canon	x: integer & neq(1,2)	{"x":integer&neq(1,2)}
 product-integer-neqa	errc	x: integer & neq("a")	constraint
+product-integer-multiple2	canon	x: integer & multiple(2)	{"x":integer&multiple(2)}
+product-integer-multiple05	canon	x: integer & multiple(0.5)	{"x":integer&multiple(0.5)}
 product-integer-integer	canon	x: integer & integer	{"x":integer}
 product-integer-number	canon	x: integer & number	{"x":integer}
 product-integer-string	errc	x: integer & string	scalar-type
@@ -226,6 +286,8 @@ product-number-below2	canon	x: number & below(2)	{"x":below(2)}
 product-number-neq1	canon	x: number & neq(1)	{"x":neq(1)}
 product-number-neq12	canon	x: number & neq(1,2)	{"x":neq(1,2)}
 product-number-neqa	errc	x: number & neq("a")	constraint
+product-number-multiple2	canon	x: number & multiple(2)	{"x":multiple(2)}
+product-number-multiple05	canon	x: number & multiple(0.5)	{"x":multiple(0.5)}
 product-number-integer	canon	x: number & integer	{"x":integer}
 product-number-number	canon	x: number & number	{"x":number}
 product-number-string	errc	x: number & string	scalar-type
@@ -242,6 +304,8 @@ product-string-below2	errc	x: string & below(2)	constraint
 product-string-neq1	errc	x: string & neq(1)	constraint
 product-string-neq12	errc	x: string & neq(1,2)	constraint
 product-string-neqa	canon	x: string & neq("a")	{"x":string&neq("a")}
+product-string-multiple2	errc	x: string & multiple(2)	constraint
+product-string-multiple05	errc	x: string & multiple(0.5)	constraint
 product-string-integer	errc	x: string & integer	scalar-type
 product-string-number	errc	x: string & number	scalar-type
 product-string-string	canon	x: string & string	{"x":string}
@@ -258,6 +322,8 @@ product-5-below2	errc	x: 5 & below(2)	constraint
 product-5-neq1	canon	x: 5 & neq(1)	{"x":5}
 product-5-neq12	canon	x: 5 & neq(1,2)	{"x":5}
 product-5-neqa	errc	x: 5 & neq("a")	constraint
+product-5-multiple2	errc	x: 5 & multiple(2)	constraint
+product-5-multiple05	canon	x: 5 & multiple(0.5)	{"x":5}
 product-5-integer	canon	x: 5 & integer	{"x":5}
 product-5-number	canon	x: 5 & number	{"x":5}
 product-5-string	errc	x: 5 & string	no_scalar_unify
@@ -274,6 +340,8 @@ product-m-below2	errc	x: "m" & below(2)	constraint
 product-m-neq1	errc	x: "m" & neq(1)	constraint
 product-m-neq12	errc	x: "m" & neq(1,2)	constraint
 product-m-neqa	canon	x: "m" & neq("a")	{"x":"m"}
+product-m-multiple2	errc	x: "m" & multiple(2)	constraint
+product-m-multiple05	errc	x: "m" & multiple(0.5)	constraint
 product-m-integer	errc	x: "m" & integer	no_scalar_unify
 product-m-number	errc	x: "m" & number	no_scalar_unify
 product-m-string	canon	x: "m" & string	{"x":"m"}

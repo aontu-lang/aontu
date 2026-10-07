@@ -38,7 +38,8 @@ Write the contract as `order.schema.json`:
         },
         "required": ["sku", "qty"]
       }
-    }
+    },
+    "vat": {"enum": [0, 0.2]}
   },
   "required": ["version", "status", "total"]
 }
@@ -53,7 +54,8 @@ schema: hide({
   version: "v1"
   status: ("open"|"paid"|"void")
   total: %money
-  lines?: [&: { sku:empty() qty: (integer|biginteger) & min(1) }]
+  lines?: [&: { sku:empty() qty:number & multiple(1) & min(1) }]
+  vat?: (0|0d0.2)
 })
 ```
 
@@ -77,7 +79,8 @@ schema: hide({
   version: "v1"
   status: ("open"|"paid"|"void")
   total: %money
-  lines?: [&: { sku:empty() qty: (integer|biginteger) & min(1) }]
+  lines?: [&: { sku:empty() qty:number & multiple(1) & min(1) }]
+  vat?: (0|0d0.2)
 })
 ```
 
@@ -127,32 +130,36 @@ $ echo $?
 3
 ```
 
-JSON Schema defines an integer by its value, so `1.0` is one. Write
-an order line with that quantity as `decimal-qty.json`:
+JSON Schema compares numbers by their value, so the `0.2` an order
+carries is the `0.2` the schema lists. Write an order with that rate as
+`vat.json`:
 
-<!-- test: file decimal-qty.json -->
+<!-- test: file vat.json -->
 ```json
-{"version": "v1", "status": "open", "total": "3.00", "lines": [{"sku": "B-7", "qty": 1.0}]}
+{"version": "v1", "status": "open", "total": "3.00", "vat": 0.2}
 ```
 
 <!-- test: run -->
 ```sh
-$ aontu vet --at '$.schema' --no-fill order.aontu decimal-qty.json
+$ aontu vet --at '$.schema' --no-fill order.aontu vat.json
 verdict: invalid
 
-$.schema.lines.0.qty: empty [conflict]
-  [aontu/empty]: Cannot unify values at path $.schema.lines.0.qty
-  data: decimal-qty.json:1:86 (1.0)
-  schema: order.aontu:7:34 (integer&min(1)|biginteger&min(1))
+$.schema.vat: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.schema.vat
+  data: vat.json:1:61 (0.2)
+  schema: order.aontu:8:9 (0|0d0.2)
 $ echo $?
 1
-$ aontu vet --at '$.schema' --no-fill --exact-numbers order.aontu decimal-qty.json
+$ aontu vet --at '$.schema' --no-fill --exact-numbers order.aontu vat.json
 verdict: valid
 ```
 
-Without `--exact-numbers`, `vet` reads `1.0` by its spelling, as a
-float the integer kind refuses. With it, every number is read by its
-value, which is the reading the import was written for.
+Without `--exact-numbers`, `vet` reads `0.2` by its spelling, as a
+float, where the import wrote the schema's `0.2` by its value, as the
+exact `0d0.2`. With it, every number is read by its value, which is the
+reading the import was written for. An integer needs neither:
+`"integer"` imports as `number & multiple(1)`, which admits `1.0`
+however `vet` reads it.
 
 ## Read the losses
 

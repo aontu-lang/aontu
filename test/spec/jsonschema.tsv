@@ -306,6 +306,21 @@ js-dotted-defs-names-stay-apart	jsonschema	a: b: {n?: $.a.b}\n"a.b": {m?: $."a.b
 js-defs-pointer-escapes-a-slash-and-a-tilde	jsonschema	"a/b~c": {n?: $."a/b~c"}	{"lossy":[],"schema":{"$defs":{"a/b~c":{"properties":{"n":{"$ref":"#/$defs/a~1b~0c"}},"type":"object"}},"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a/b~c":{"properties":{"n":{"$ref":"#/$defs/a~1b~0c"}},"type":"object"}},"required":["a/b~c"],"type":"object"},"verdict":"ok"}
 js-defs-pointer-is-percent-encoded	jsonschema	"é x": {n?: $."é x"}	{"lossy":[],"schema":{"$defs":{"é x":{"properties":{"n":{"$ref":"#/$defs/%C3%A9%20x"}},"type":"object"}},"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"é x":{"properties":{"n":{"$ref":"#/$defs/%C3%A9%20x"}},"type":"object"}},"required":["é x"],"type":"object"},"verdict":"ok"}
 #
+# DIVISORS. multiple(n) is multipleOf, one keyword per divisor and
+# several under allOf; divisibility reads a value by its value, so no
+# leaf of the divisor is a loss, and an imported integer crosses back as
+# the number it is.
+js-multiple-is-multiple-of	jsonschema	a: number & multiple(2)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-two-divisors-stand-under-allof	jsonschema	a: multiple(2) & multiple(3)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"multipleOf":2},{"multipleOf":3}],"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-a-float-divisor-is-written-as-read	jsonschema	a: multiple(0.1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":0.1,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-an-exact-divisor-crosses-without-loss	jsonschema	a: multiple(0d0.25)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":0.25,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-an-int64-divisor-keeps-its-digits	jsonschema	a: multiple(1152921504606846976)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":1152921504606846976,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-beside-the-integer-kind	jsonschema	a: integer & multiple(2) & min(0)	{"lossy":[{"construct":"integer","path":"$.a","reason":"the schema says \\"integer\\" and admits a JSON spelling such as 1.0, which vet reads as a float and the integer leaf refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minimum":0,"multipleOf":2,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-multiple-folds-by-kind	jsonschema	a: multiple(2) | string	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minLength":1,"multipleOf":2,"type":["number","string"]}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-under-the-exact-reading	jsonschema	a: integer & multiple(2)	{"lossy":[{"construct":"integer","path":"$.a","reason":"the schema says \\"integer\\" and admits an integral JSON number beyond the integer leaf, which vet --exact-numbers reads as a biginteger and the integer leaf refuses"}],"opts":{"exactNumbers":true},"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-a-divisor-in-a-template	jsonschema	a: {&: number & multiple(5)}	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"additionalProperties":{"multipleOf":5,"type":"number"},"properties":{},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-an-imported-integer-crosses-back-exactly	jsonschema	schema: hide(number & multiple(1))	{"lossy":[],"opts":{"at":"$.schema"},"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","multipleOf":1,"type":"number"},"verdict":"ok"}
+#
 # UNIQUENESS. unique() tells 1 from 1.0 by leaf and uniqueItems does
 # not, so the two agree only where a list cannot hold two leaves of one
 # number.

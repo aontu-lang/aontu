@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### `multiple(n)`, the divisor, and `multipleOf` both ways
+
+Both ports. G12 phase 5.
+
+- `multiple(n)` is a constraint atom of the numeric domain: it admits
+  a number whose exact value is an integer multiple of `n`, which must
+  be positive, so `multiple(2)` admits `4` and `4.0` and refuses `3`.
+  A float is read through its shortest spelling, so `0.3 &
+  multiple(0.1)` is `0.3`. Divisors accumulate one atom per value, with
+  no least common multiple made of them, and a whole divisor empties a
+  range that holds no integer, as `integer` does.
+  `len(multiple(2))` refuses with `invalid-arg`.
+- `aontu jsonschema export` writes `multiple(n)` as `multipleOf: n`,
+  several of them under `allOf`, and the import reads `multipleOf` as
+  `multiple(n)`, refusing a divisor that is no positive number with
+  `jsonschema_schema`.
+- The import reads `type: "integer"` as `number & multiple(1)`, where
+  it wrote `(integer | biginteger)`, so `vet` admits `1.0` for it as
+  JSON Schema does, with or without `--exact-numbers`. The source
+  exports as `{"type": "number", "multipleOf": 1}`, which admits what
+  the original schema admits, and reports no loss.
+- The grammars, the help card, the language server's builtin roster
+  and the `constraint` hint name `multiple`.
+
 ### `aontu jsonschema` carries guarded spreads, templates and aliases
 
 Both ports unless marked. G12 phase 4.

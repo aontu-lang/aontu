@@ -32,6 +32,7 @@ min(n: number|string) : constraint
 max(n: number|string) : constraint
 above(n: number|string) : constraint
 below(n: number|string) : constraint
+multiple(n: number) : constraint
 re(text p: string) : constraint
 len(n: number|constraint) : constraint
 empty() : constraint

@@ -298,6 +298,14 @@ function fromConstraint(ctx, path, c, bag) {
                 'spelling the schema refuses');
         }
     }
+    for (const m of c.mults) {
+        if (1 === c.mults.length) {
+            out.multipleOf = jsonOf(m);
+        }
+        else {
+            allOf(out, { multipleOf: jsonOf(m) });
+        }
+    }
     for (const r of c.res) {
         if (1 === c.res.length) {
             out.pattern = r.norm;
@@ -547,8 +555,10 @@ function generated(v) {
 const SCOPED = {
     null: [],
     boolean: [],
-    number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'],
-    integer: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum'],
+    number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+        'multipleOf'],
+    integer: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+        'multipleOf'],
     string: ['minLength', 'maxLength', 'pattern'],
     object: ['properties', 'required', 'additionalProperties',
         'patternProperties', 'propertyNames', 'minProperties', 'maxProperties'],

@@ -1376,6 +1376,7 @@ two members share a kind; bounds become
 `exclusiveMinimum`/`exclusiveMaximum` and an exact endpoint written in
 its own digits; `re` becomes `pattern` in its normalised form, the
 ECMA-262 reading of what aontu means; `neq` becomes `not: {enum: …}`;
+`multiple(n)` becomes `multipleOf: n`, several of them under `allOf`;
 `len` becomes `minLength`/`maxLength` on a string,
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
@@ -1525,7 +1526,7 @@ Write a `service.schema.json`:
 $ aontu jsonschema import service.schema.json
 schema: hide({
   name: empty() & re("^[a-z][a-z0-9-]*$")
-  port: (integer|biginteger) & min(1) & max(65535)
+  port: number & multiple(1) & min(1) & max(65535)
   tags?: [&: empty()]
   &: match(key(0), "name", any, "port", any, "tags", any, nil)
 })
@@ -1538,7 +1539,7 @@ nothing of its own. Save it as `service.aontu`:
 ```aontu
 schema: hide({
   name: empty() & re("^[a-z][a-z0-9-]*$")
-  port: (integer|biginteger) & min(1) & max(65535)
+  port: number & multiple(1) & min(1) & max(65535)
   tags?: [&: empty()]
   &: match(key(0), "name", any, "port", any, "tags", any, nil)
 })
@@ -1565,10 +1566,12 @@ verdict: valid
 $ aontu vet --at '$.schema' --no-fill --exact-numbers service.aontu bad.json
 verdict: invalid
 
-$.schema.port: empty [conflict]
-  [aontu/empty]: Cannot unify values at path $.schema.port
+$.schema.port: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.schema.port
+  expected: min(1)&max(65535)&multiple(1)
+  actual:   0d80.5
   data: bad.json:1:29 (0d80.5)
-  schema: service.aontu:3:9 (integer&min(1)&max(65535)|biginteger&min(1)&max(65535))
+  schema: service.aontu:3:18 (min(1)&max(65535)&multiple(1))
 $.schema.owner: literal_nil [conflict]
   [aontu/literal_nil]: Cannot resolve value at path $.schema.owner
   schema: service.aontu:5:6 (nil)
@@ -1577,13 +1580,14 @@ $ echo $?
 ```
 
 `owner` is refused by the guard `additionalProperties: false` became,
-and `80.5` by the integer kind.
+and `80.5` by the `multiple(1)` that `"integer"` became.
 
 - **A schema object is split by kind.** `type` keeps the kinds it
   names; without one every kind is an alternative,
   `(null|boolean|number|empty()|map|list)`. `"string"` is `empty()`,
   the string that may be empty, and `"integer"` is
-  `(integer|biginteger)`, an integer of any size.
+  `number & multiple(1)`, a number with no fraction in any spelling,
+  so `1.0` is one. `multipleOf: n` is `multiple(n)`.
 - `properties` are optional keys and `required` makes a key required.
   `patternProperties`, `additionalProperties` and `propertyNames` guard
   the keys with `&: match(key(0), …)`.
@@ -1605,7 +1609,7 @@ and `80.5` by the integer kind.
   already *is* an instance rather than whether it can be filled into
   one.
 - **Losses** are on stderr, one per line. A keyword the import does
-  not carry yet (such as `multipleOf`) is dropped, so the import admits
+  not carry yet (such as `uniqueItems`) is dropped, so the import admits
   instances the schema refuses; an annotation (`title`, `description`,
   `format`) is dropped and changes nothing admitted; a keyword 2020-12
   does not define is ignored, as 2020-12 ignores it. Under `--strict`
@@ -1620,7 +1624,7 @@ Write a `release.schema.json` that uses one of each:
   "type": "object",
   "properties": {
     "version": {"type": "string", "format": "semver"},
-    "count": {"type": "integer", "multipleOf": 5}
+    "tags": {"type": "array", "uniqueItems": true}
   }
 }
 ```
@@ -1628,8 +1632,8 @@ Write a `release.schema.json` that uses one of each:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict release.schema.json
-schema: hide({ version?:empty() count?: (integer|biginteger) })
-lossy: #/properties/count/multipleOf multipleOf: not carried yet, so it is DROPPED and the import admits instances the schema refuses
+schema: hide({ version?:empty() tags?:list })
+lossy: #/properties/tags/uniqueItems uniqueItems: not carried yet, so it is DROPPED and the import admits instances the schema refuses
 lossy: #/properties/version/format format: an annotation; it is dropped, and what the import admits is unchanged
 lossy: #/title title: an annotation; it is dropped, and what the import admits is unchanged
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>

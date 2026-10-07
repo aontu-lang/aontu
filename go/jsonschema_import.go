@@ -378,9 +378,9 @@ var importSchemaLists = []string{"prefixItems", "allOf", "anyOf", "oneOf"}
 var importCarried = map[string]bool{"$schema": true, "$id": true,
 	"$ref": true, "$anchor": true, "$defs": true, "type": true, "enum": true,
 	"const": true, "allOf": true, "minimum": true, "maximum": true,
-	"exclusiveMinimum": true, "exclusiveMaximum": true, "minLength": true,
-	"maxLength": true, "pattern": true, "properties": true, "required": true,
-	"additionalProperties": true, "patternProperties": true,
+	"exclusiveMinimum": true, "exclusiveMaximum": true, "multipleOf": true,
+	"minLength": true, "maxLength": true, "pattern": true, "properties": true,
+	"required": true, "additionalProperties": true, "patternProperties": true,
 	"propertyNames": true, "minProperties": true, "maxProperties": true,
 	"prefixItems": true, "items": true, "minItems": true, "maxItems": true}
 
@@ -389,7 +389,7 @@ var importAnnotation = map[string]bool{"title": true, "description": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"multipleOf": true, "anyOf": true,
+var importLater = map[string]bool{"anyOf": true,
 	"oneOf": true, "not": true, "if": true, "then": true, "else": true,
 	"dependentRequired": true, "dependentSchemas": true, "contains": true,
 	"minContains": true, "maxContains": true, "uniqueItems": true,
@@ -566,6 +566,20 @@ func importCount(v any, path string) string {
 	}
 	if strings.HasPrefix(n, "-") || strings.Contains(n, ".") {
 		refuseSchema(path, "a count must be a non-negative integer")
+	}
+	return n
+}
+
+func importDivisor(v any, path string) string {
+	if nil == v {
+		return ""
+	}
+	n := "-"
+	if j, ok := v.(jnum); ok {
+		n = importNumberText(j.text, path)
+	}
+	if strings.HasPrefix(n, "-") || "0" == n {
+		refuseSchema(path, "a divisor must be a number greater than 0")
 	}
 	return n
 }
@@ -1121,14 +1135,18 @@ func importNumberBranch(o *jobj, ptr string, integral bool) string {
 			bounds = append(bounds, b[1]+"("+n+")")
 		}
 	}
-	if 0 == len(bounds) && !integral {
+	atoms := []string{}
+	if integral {
+		atoms = append(atoms, "multiple(1)")
+	}
+	atoms = append(atoms, bounds...)
+	if d := importDivisor(o.get("multipleOf"), importPtrAt(ptr, "multipleOf")); "" != d {
+		atoms = append(atoms, "multiple("+d+")")
+	}
+	if 0 == len(atoms) {
 		return ""
 	}
-	base := "number"
-	if integral {
-		base = "(integer | biginteger)"
-	}
-	return importBoth(append([]string{base}, bounds...))
+	return importBoth(append([]string{"number"}, atoms...))
 }
 
 func (ic *importCtx) stringBranch(o *jobj, ptr string) string {

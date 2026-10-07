@@ -253,7 +253,8 @@ consequence is that a refused `""` is not pruned from a disjunction:
 ### The type of constraints: `constraint`
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
-`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `refer`, `rel`).
+`below`, `neq`, `multiple`, `re`, `len`, `unique`, `must`, `empty`,
+`refer`, `rel`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -2356,6 +2357,12 @@ Example: `m:{x?:number,y:Y} n:move($.m)`→`n:{y:"Y"}`
 Multiply two numbers under the [number-tower rules](#arithmetic-add-sub-mul-div-mod-rem).
 
 Example: `mul(2, 3)` → `6`
+
+### `multiple(n: number) : constraint`
+
+Admit a number whose exact value is an integer multiple of `n`, which must be positive. See [divisors](#divisors).
+
+Example: `number & multiple(0.5)`
 
 ### `must(trial c: any, text msg: string) : constraint`
 
@@ -5175,9 +5182,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All nine atoms (the bounds `min`/`max`/`above`/`below`, the
-> exclusion `neq`, the pattern `re`, the sizing atoms `length` and
-> `unique`, and the evaluate-only `must`) are implemented in both
+> All ten atoms (the bounds `min`/`max`/`above`/`below`, the
+> exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
+> atoms `length` and `unique`, and the evaluate-only `must`) are
+> implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
 > raise the registered `constraint` code, and a pattern outside the
@@ -5190,7 +5198,7 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Nine builtins join the function registry. Eight are **Band A**: full
+Ten builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
 canonical form. One is **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
@@ -5202,6 +5210,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `above(n: number\|string) : constraint` | A | value > x |
 | `below(n: number\|string) : constraint` | A | value < x |
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
+| `multiple(n: number) : constraint` | A | value is an integer multiple of n, which is positive |
 | `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
@@ -5239,6 +5248,24 @@ String bounds (`min("a")`) use lexical code-point order and imply
 `string`. Mixing domains in one meet (`min(0) & min("a")`) is empty
 and yields nil.
 
+### Divisors
+
+`multiple(n)` admits a number whose exact value is an integer multiple
+of `n`, in any leaf: `multiple(2)` admits `4`, `-4`, `0`, `4.0` and
+`0d4`. An integer or `0d` leaf divides by its own value, and a float
+through its shortest spelling, because divisibility, unlike order, does
+not survive binary rounding: `0.3 & multiple(0.1)` is `0.3`, though the
+double nearest 0.3 is no multiple of the double nearest 0.1, and every
+JSON reader writes the value as `0.3`.
+
+The divisor is a positive number, so `multiple(0)`, `multiple(-1)` and
+`multiple("x")` refuse with `invalid-arg`. Several divisors accumulate
+as atoms, one per value, and the meet makes no least common multiple of them:
+`multiple(3) & multiple(2)` is `multiple(2)&multiple(3)`, and
+`multiple(2) & multiple(2.0)` is `multiple(2)`. A divisor has no
+meaning inside a count, so `len(multiple(2))` refuses with
+`invalid-arg`.
+
 ### The meet
 
 `atom & atom` (same domain) is symbolic: decided at
@@ -5248,6 +5275,7 @@ schema-composition time, before any data arrives:
 |------|--------|
 | interval & interval | intersection: `min(0) & min(5)` → `min(5)`; `min(2) & max(10) & max(7)` → `min(2)&max(7)` |
 | `neq` & `neq` | exclusion-set union, arguments sorted |
+| `multiple` & `multiple` | divisor accumulation, one atom per value, in value order; never their least common multiple |
 | `re` & `re` | regex-set accumulation (patterns sorted; never simplified) |
 | `len(c1)` & `len(c2)` | `len(c1 & c2)`: the count atom reuses the numeric algebra recursively |
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
@@ -5266,7 +5294,9 @@ guessed where it is not:
 - Empty interval: `min(5) & max(3)` → nil, both sites reported.
 - Integral gap: an integral-domain interval containing no integral
   value: `integer & above(1) & below(2)` → nil. (Applies when the
-  domain is narrowed by `integer` or `biginteger`.)
+  domain is narrowed by `integer` or `biginteger`, or holds a whole
+  divisor: `multiple(1) & min(0.5) & max(0.7)` → nil, while a
+  fractional divisor makes no such claim.)
 - Point deletion **requires a narrowed leaf**: `min(3) & max(3)`
   admits the point 3 in any numeric leaf, so `neq(3)` (which excludes
   only the integer `3`) does NOT empty it, but
@@ -5299,8 +5329,8 @@ cross-check against the meet table.
 answer is **not subsumed**, never a guess. That direction is the safe
 one for the `subsume` query built on it: a compatibility check that wrongly
 reports "breaking" costs a reviewer a second look, while one that
-wrongly reports "compatible" ships the break. Two rules are approximate
-in this sense and are marked; the rest are exact.
+wrongly reports "compatible" ships the break. Three rules are
+approximate in this sense and are marked; the rest are exact.
 
 | A (general) | B (specific) | A ⊒ B when |
 |-------------|--------------|------------|
@@ -5312,6 +5342,7 @@ in this sense and are marked; the rest are exact.
 | no bound on a side | any    | an absent endpoint is ±∞ and contains everything |
 | `neq(S)`    | `neq(T)`     | `S ⊆ T`: excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
 | `neq(S)`    | concrete scalar | the scalar is in neither S nor excluded by A's other atoms |
+| `multiple(d)` | `multiple(e)`, or an integer leaf | **approximate**: some divisor `e` of B is a multiple of `d`, or B holds an integer leaf and 1 is a multiple of `d`. `multiple(2) ⊒ multiple(4)`, `multiple(1) ⊒ integer & min(0)`; the rule never combines B's divisors, so `multiple(6) ⊒ multiple(2)&multiple(3)` answers not subsumed |
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
@@ -5324,7 +5355,9 @@ A whole residual subsumes another when **every** row above holds for the
 corresponding atom families, and the domains agree (a numeric residual
 never subsumes a string one, or a container one).
 
-**Why the two approximations are where they are.** `re` compares
+**Why the approximations are where they are.** `multiple` compares
+divisors one at a time because the algebra never forms their least
+common multiple, the same ruling the meet makes. `re` compares
 patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
 do: the same ruling that stops two `re` atoms being declared empty at
@@ -5354,9 +5387,9 @@ by the meet rules above).
 
 A residual constraint renders as its normalised atoms joined by `&`
 in a fixed order (**kind, lower bound (`min`/`above`), upper bound
-(`max`/`below`), `neq` (arguments sorted), `re` (patterns sorted),
-`length`, `unique`, `must`**) no spaces, reparseable, endpoint leaves
-preserved:
+(`max`/`below`), `neq` (arguments sorted), `multiple` (by value), `re`
+(patterns sorted), `length`, `unique`, `must`**) no spaces,
+reparseable, endpoint leaves preserved:
 
 ```aontu
 a: integer & max(10) & min(0) & min(2)

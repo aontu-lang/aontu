@@ -497,6 +497,14 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
+	for _, m := range c.mults {
+		if 1 == len(c.mults) {
+			out["multipleOf"] = jsonOfScalar(m)
+		} else {
+			schemaAllOf(out, map[string]any{"multipleOf": jsonOfScalar(m)})
+		}
+	}
+
 	for _, r := range c.res {
 		if 1 == len(c.res) {
 			out["pattern"] = r.norm
@@ -871,8 +879,8 @@ func schemaGenerated(v Val) (any, bool) {
 var schemaScoped = map[string][]string{
 	"null":    {},
 	"boolean": {},
-	"number":  {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"},
-	"integer": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"},
+	"number":  {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
+	"integer": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"string":  {"minLength", "maxLength", "pattern"},
 	"object": {"properties", "required", "additionalProperties",
 		"patternProperties", "propertyNames", "minProperties", "maxProperties"},

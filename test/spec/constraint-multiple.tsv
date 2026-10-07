@@ -1,0 +1,48 @@
+# G12 phase 5: multiple(n), the divisor atom of the numeric domain
+# (docs/reference-language.md, `multiple`). Every expectation was
+# obtained by running both engines and requiring them to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# A value is admitted when its exact value is an integer multiple of
+# each divisor: an integer or 0d leaf by its own value, a float through
+# its shortest spelling, since 0.3 is a multiple of 0.1 and the double
+# nearest it is not.
+multiple-admits-a-multiple	canon	a: 4 & multiple(2)	{"a":4}
+multiple-admits-a-negative-multiple	canon	a: -4 & multiple(2)	{"a":-4}
+multiple-admits-zero	canon	a: 0 & multiple(7)	{"a":0}
+multiple-reads-a-float-by-its-shortest-spelling	canon	a: 0.3 & multiple(0.1)	{"a":0.3}
+multiple-of-a-tenth	canon	a: 0.7 & multiple(0.1)	{"a":0.7}
+multiple-of-a-thousand-at-1e21	canon	a: 1e21 & multiple(1000)	{"a":1e+21}
+multiple-of-an-exact-divisor	canon	a: 0d1.5 & multiple(0d0.5)	{"a":0d1.5}
+multiple-float-of-a-whole-divisor	canon	a: 6.0 & multiple(3)	{"a":6.0}
+multiple-meets-every-divisor	canon	a: 6 & multiple(2) & multiple(3)	{"a":6}
+multiple-refuses-a-non-multiple	errc	a: 3 & multiple(2)	constraint
+multiple-refuses-a-float-non-multiple	errc	a: 6.0 & multiple(4)	constraint
+multiple-refuses-a-tenth-off	errc	a: 0.35 & multiple(0.1)	constraint
+multiple-refuses-a-string	errc	a: "x" & multiple(2)	constraint
+#
+# Divisors accumulate as atoms, one per value and in value order, with
+# no least common multiple made of them; canon writes them after neq.
+multiple-atoms-accumulate	canon	a: multiple(3) & multiple(2)	{"a":multiple(2)&multiple(3)}
+multiple-atoms-are-one-per-value	canon	a: multiple(2) & multiple(2.0)	{"a":multiple(2)}
+multiple-atoms-are-one-per-value-across-leaves	canon	a: multiple(0d0.1) & multiple(0.1)	{"a":multiple(0.1)}
+multiple-beside-a-kind	canon	a: integer & multiple(2)	{"a":integer&multiple(2)}
+multiple-in-canonical-order	canon	a: multiple(2) & min(1) & neq(2)	{"a":min(1)&neq(2)&multiple(2)}
+multiple-under-number	canon	a: number & multiple(2)	{"a":multiple(2)}
+#
+# A divisor is a positive number, and multiple() takes exactly one.
+multiple-refuses-a-zero-divisor	errc	a: multiple(0) & 1	invalid-arg
+multiple-refuses-a-negative-divisor	errc	a: multiple(-1) & 1	invalid-arg
+multiple-refuses-a-string-divisor	errc	a: multiple("x") & 1	invalid-arg
+multiple-refuses-two-divisors	errc	a: multiple(1, 2)	func_arity
+multiple-refuses-no-divisor	errc	a: multiple()	func_arity
+#
+# A whole divisor admits only whole numbers, so an interval holding none
+# is empty when the atoms meet, as it is under the integer leaf; a
+# fractional divisor makes no such claim.
+multiple-whole-divisor-gap-is-empty	errc	a: multiple(2) & above(1) & below(2)	constraint
+multiple-of-one-gap-is-empty	errc	a: multiple(1) & min(0.5) & max(0.7)	constraint
+multiple-fractional-divisor-has-no-gap	canon	a: multiple(0.5) & above(1) & below(2)	{"a":above(1)&below(2)&multiple(0.5)}
+#
+# A count is not divisible here: len() refuses a divisor.
+multiple-has-no-place-in-a-count	errc	a: len(multiple(2)) & "ab"	invalid-arg

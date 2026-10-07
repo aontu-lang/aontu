@@ -5,6 +5,7 @@ package aontu
 
 import (
 	"math"
+	"math/big"
 	"regexp"
 	"sort"
 	"strconv"
@@ -415,6 +416,7 @@ type ConstraintVal struct {
 	kind   Kind   // KindTop when unnarrowed; a numeric leaf otherwise
 	lo, hi *constraintBound
 	neqs   []*ScalarVal
+	mults  []*ScalarVal   // divisors, one per value, in value order (never an lcm)
 	res    []constraintRe // accumulated patterns, sorted by source
 	// count is the len() residual: itself a residual over the integer
 	// domain, because the count atom reuses this same algebra
@@ -467,7 +469,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 // the func-paren handler in lang.go.
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
-	"re": true, "len": true, "unique": true, "must": true,
+	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -607,6 +609,19 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	if 1 != len(args) {
 		return bad("arg")
+	}
+
+	if "multiple" == atom {
+		sv, d := orderableScalar(args[0])
+		if nil == sv || "number" != d {
+			return bad("invalid-arg")
+		}
+		if v := multipleScaled(sv); 0 != v.inf || 0 >= v.unscaled.Sign() {
+			return bad("invalid-arg")
+		}
+		c.domain = "number"
+		c.mults = []*ScalarVal{sv}
+		return c
 	}
 
 	// `re` is the one atom whose argument is not an ORDER point: a
@@ -1012,6 +1027,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.lo = tighterBound(merged.domain, c.lo, peer.lo, true)
 	merged.hi = tighterBound(merged.domain, c.hi, peer.hi, false)
 	merged.neqs = dedupSortedNeqs(merged.domain, append(append([]*ScalarVal{}, c.neqs...), peer.neqs...))
+	merged.mults = dedupMults(append(append([]*ScalarVal{}, c.mults...), peer.mults...))
 	merged.res = dedupSortedRes(append(append([]constraintRe{}, c.res...), peer.res...))
 	// `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses the
 	// numeric algebra recursively, over the counts rather than the
@@ -1086,6 +1102,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		lo:      c.lo,
 		hi:      c.hi,
 		neqs:    append([]*ScalarVal{}, c.neqs...),
+		mults:   append([]*ScalarVal{}, c.mults...),
 		res:     append([]constraintRe{}, c.res...),
 		count:   c.count,
 		uniq:    c.uniq,
@@ -1126,8 +1143,9 @@ func dedupSortedRes(res []constraintRe) []constraintRe {
 }
 
 // Canon renders the fixed canonical atom order: kind, lower bound,
-// upper bound, neq (arguments sorted), re, length, unique. Reparses to a
-// conjunct of atoms that normalises back to this exact residual.
+// upper bound, neq (arguments sorted), multiple (by value), re, length,
+// unique. Reparses to a conjunct of atoms that normalises back to this
+// exact residual.
 func (c *ConstraintVal) Canon() string {
 	if nil != c.pending {
 		// A pending atom has no residual yet, so Canon renders the call
@@ -1167,6 +1185,9 @@ func (c *ConstraintVal) Canon() string {
 			ns[i] = n.Canon()
 		}
 		parts = append(parts, "neq("+strings.Join(ns, ",")+")")
+	}
+	for _, m := range c.mults {
+		parts = append(parts, "multiple("+m.Canon()+")")
 	}
 	for _, r := range c.res {
 		parts = append(parts, "re("+r.v.Canon()+")")
@@ -1324,6 +1345,18 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	// The multiples of a divisor hold every multiple of its multiples, and
+	// an integer leaf is all multiples of 1.
+	for _, m := range g.mults {
+		found := (KindInteger == s.kind || KindBigInteger == s.kind) &&
+			scaledDivides(multipleScaled(m), scaled{unscaled: big.NewInt(1)})
+		for _, q := range s.mults {
+			found = found || isMultipleOf(q, m)
+		}
+		if !found {
+			return false, false
+		}
+	}
 	// Patterns compare as TEXT sets (the sanctioned approximation).
 	for _, r := range g.res {
 		found := false
@@ -1407,6 +1440,11 @@ func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 			return false
 		}
 	}
+	for _, m := range s.mults {
+		if !isMultipleOf(peer, m) {
+			return false
+		}
+	}
 	for _, r := range s.res {
 		if !r.re.MatchString(peer.peg.(string)) {
 			return false
@@ -1430,7 +1468,12 @@ func stateEmpty(s *ConstraintVal) bool {
 		}
 	}
 
+	// Integral gap: an interval containing no whole number is empty when
+	// all it admits is whole, under an integer leaf or a whole divisor.
 	integral := KindInteger == s.kind || KindBigInteger == s.kind
+	for _, m := range s.mults {
+		integral = integral || scaledIsIntegral(multipleScaled(m))
+	}
 
 	if integral && nil != s.lo && nil != s.hi {
 		lo := scaledOfNumeric(s.lo.v)
@@ -1519,9 +1562,9 @@ func countArgState(arg Val) *ConstraintVal {
 	}
 
 	if cv, ok := arg.(*ConstraintVal); ok {
-		// A pattern, a sizing atom or a string bound inside a count is
-		// not a count constraint at all, and neither is a broken one.
-		if "" != cv.invalid || 0 < len(cv.res) || cv.uniq ||
+		// A pattern, divisor, sizing atom or string bound inside a count
+		// is not a count constraint at all, and neither is a broken one.
+		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
 			0 < len(cv.uniqBy) || nil != cv.count ||
 			"number" != cv.domain {
 			return nil
@@ -1671,6 +1714,52 @@ func tighterBound(domain string, a, b *constraintBound, lower bool) *constraintB
 		return b
 	}
 	return a
+}
+
+// multipleScaled reads a float through its shortest rendering:
+// divisibility, unlike order, does not survive binary rounding, and the
+// double nearest 0.3 is no multiple of 0.1.
+func multipleScaled(v *ScalarVal) scaled {
+	if KindFloat != v.kind || math.IsInf(v.peg.(float64), 0) {
+		return scaledOfNumeric(v)
+	}
+	t := strconv.FormatFloat(v.peg.(float64), 'e', -1, 64)
+	m, e, _ := strings.Cut(t, "e")
+	exp, _ := strconv.Atoi(e)
+	whole, frac, _ := strings.Cut(m, ".")
+	u, _ := new(big.Int).SetString(whole+frac, 10)
+	return scaled{unscaled: u, scale: len(frac) - exp}
+}
+
+func scaledDivides(d, v scaled) bool {
+	if 0 != v.inf {
+		return false
+	}
+	sc := max(d.scale, v.scale)
+	vn := new(big.Int).Mul(v.unscaled, pow10big(sc-v.scale))
+	dn := new(big.Int).Mul(d.unscaled, pow10big(sc-d.scale))
+	return 0 == new(big.Int).Rem(vn, dn).Sign()
+}
+
+func isMultipleOf(v, d *ScalarVal) bool {
+	return scaledDivides(multipleScaled(d), multipleScaled(v))
+}
+
+func dedupMults(ms []*ScalarVal) []*ScalarVal {
+	sorted := append([]*ScalarVal{}, ms...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if cv := cmpScaled(multipleScaled(sorted[i]), multipleScaled(sorted[j])); 0 != cv {
+			return cv < 0
+		}
+		return towerRank(sorted[i]) < towerRank(sorted[j])
+	})
+	out := []*ScalarVal{}
+	for _, m := range sorted {
+		if 0 == len(out) || 0 != cmpScaled(multipleScaled(out[len(out)-1]), multipleScaled(m)) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // dedupSortedNeqs sorts excluded scalars for canon (numeric: by point

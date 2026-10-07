@@ -46,9 +46,12 @@ import {
   Path,
 } from './ScalarKindVal'
 
+import type { Scaled } from './numcmp'
+
 import {
   cmpNumeric,
   cmpCodePoints,
+  cmpScaled,
   towerRank,
   scaledOfNumeric,
   scaledIsIntegral,
@@ -81,6 +84,7 @@ type ConstraintState = {
   lo?: Bound
   hi?: Bound
   neqs: any[]     // excluded scalars, identity per leaf+value
+  mults: any[]    // divisors, one per value, in value order (never an lcm)
   res: ReAtom[]   // accumulated patterns, sorted by source (never simplified)
   count?: ConstraintState  // the COUNT residual (len()), itself a residual
                            // over the integer domain -- the count atom reuses
@@ -461,6 +465,7 @@ class ConstraintVal extends FeatureVal {
   lo?: Bound
   hi?: Bound
   neqs: any[] = []
+  mults: any[] = []
   res: ReAtom[] = []
   count?: ConstraintState
   uniq = false
@@ -491,6 +496,7 @@ class ConstraintVal extends FeatureVal {
       this.neqs = spec.state.neqs
       // A state built by an embedder (or by a per-port test) may predate
       // the pattern field; an absent one means "no patterns", not undefined.
+      this.mults = spec.state.mults ?? []
       this.res = spec.state.res ?? []
       this.count = spec.state.count
       this.uniq = spec.state.uniq ?? false
@@ -587,6 +593,16 @@ class ConstraintVal extends FeatureVal {
       return bad('arg')
     }
     const a = args[0]
+
+    if ('multiple' === atom) {
+      const d = numericLeaf(a) ? decimalOf(a) : undefined
+      if (undefined === d || d.unscaled <= 0n) {
+        return bad('invalid-arg')
+      }
+      this.domain = 'number'
+      this.mults = [a]
+      return
+    }
 
     // `re` is the one atom whose argument is not an ORDER point: a
     // pattern is a membership test, so it takes the string domain
@@ -1000,6 +1016,7 @@ class ConstraintVal extends FeatureVal {
     merged.lo = tighter(d, this.lo, peer.lo, true)
     merged.hi = tighter(d, this.hi, peer.hi, false)
     merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs])
+    merged.mults = dedupMults([...this.mults, ...peer.mults])
     merged.res = dedupSortedRes([...this.res, ...peer.res])
     // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
     // numeric algebra recursively, over the counts rather than the
@@ -1054,6 +1071,7 @@ class ConstraintVal extends FeatureVal {
       lo: this.lo,
       hi: this.hi,
       neqs: [...this.neqs],
+      mults: [...this.mults],
       res: [...this.res],
       count: this.count,
       uniq: this.uniq,
@@ -1093,6 +1111,7 @@ class ConstraintVal extends FeatureVal {
     out.lo = this.lo
     out.hi = this.hi
     out.neqs = [...this.neqs]
+    out.mults = [...this.mults]
     out.res = [...this.res]
     out.count = this.count
     out.uniq = this.uniq
@@ -1110,8 +1129,8 @@ class ConstraintVal extends FeatureVal {
 
 
   // The fixed canonical atom order: kind, lower, upper, neq (arguments
-  // sorted), re, length, unique. No spaces; reparses to a conjunct that
-  // normalises back to this exact residual.
+  // sorted), multiple (by value), re, length, unique. No spaces; reparses
+  // to a conjunct that normalises back to this exact residual.
   get canon() {
     if (null != this.pending) {
       // A pending atom has no residual yet, so canon renders the call as
@@ -1239,6 +1258,9 @@ function canonState(s: ConstraintState): string {
   if (0 < s.neqs.length) {
     parts.push('neq(' + s.neqs.map((n: any) => n.canon).join(',') + ')')
   }
+  for (const m of s.mults) {
+    parts.push('multiple(' + m.canon + ')')
+  }
   for (const r of s.res) {
     parts.push('re(' + r.v.canon + ')')
   }
@@ -1268,14 +1290,14 @@ function canonState(s: ConstraintState): string {
 function constraintStateSubsumes(
   g: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
-    uniqBy: string[],
+    neqs: any[], mults: any[], res: ReAtom[], count?: ConstraintState,
+    uniq: boolean, uniqBy: string[],
     musts: MustAtom[],
   },
   s: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
-    uniqBy: string[],
+    neqs: any[], mults: any[], res: ReAtom[], count?: ConstraintState,
+    uniq: boolean, uniqBy: string[],
     musts: MustAtom[],
   },
 ): boolean | 'undecided' {
@@ -1337,6 +1359,16 @@ function constraintStateSubsumes(
   // must be excluded by the specific too.
   for (const n of g.neqs) {
     if (!s.neqs.some((m: any) => sameScalar(n, m))) {
+      return false
+    }
+  }
+
+  // The multiples of a divisor hold every multiple of its multiples, and
+  // an integer leaf is all multiples of 1.
+  for (const m of g.mults) {
+    if (!s.mults.some((q: any) => isMultipleOf(q, m)) &&
+      !((Integer === s.kind || BigInteger === s.kind) &&
+        divides(decimalOf(m), { unscaled: 1n, scale: 0 }))) {
       return false
     }
   }
@@ -1435,6 +1467,11 @@ function stateAdmits(s: ConstraintState, peer: any): boolean {
       return false
     }
   }
+  for (const m of s.mults) {
+    if (!isMultipleOf(peer, m)) {
+      return false
+    }
+  }
   for (const r of s.res) {
     if (!r.re.test(peer.peg)) {
       return false
@@ -1459,10 +1496,12 @@ function stateEmpty(s: ConstraintState): boolean {
     }
   }
 
-  const integral = Integer === s.kind || BigInteger === s.kind
+  const integral = Integer === s.kind || BigInteger === s.kind ||
+    s.mults.some((m: any) => scaledIsIntegral(decimalOf(m)))
 
-  // Integral gap: an integer-narrowed interval containing no whole
-  // number is empty (integer & above(1) & below(2)).
+  // Integral gap: an interval containing no whole number is empty when
+  // all it admits is whole, under an integer leaf or a whole divisor
+  // (integer & above(1) & below(2), multiple(2) & above(1) & below(2)).
   if (integral && null != s.lo && null != s.hi) {
     const lo = scaledOfNumeric(s.lo.v)
     const hi = scaledOfNumeric(s.hi.v)
@@ -1517,6 +1556,7 @@ function countBase(): ConstraintState {
     kind: Integer,
     lo: { v: countVal(0), open: false },
     neqs: [],
+    mults: [],
     res: [],
     musts: [],
     // A COUNT is a number, and a number has no members to be distinct.
@@ -1542,6 +1582,7 @@ function meetCount(a: ConstraintState, b: ConstraintState): ConstraintState {
     lo: tighter('number', a.lo, b.lo, true),
     hi: tighter('number', a.hi, b.hi, false),
     neqs: dedupSorted('number', [...a.neqs, ...b.neqs]),
+    mults: [],
     res: [],
     musts: [],
     uniq: false,
@@ -1558,15 +1599,15 @@ function countArgState(arg: any): ConstraintState | undefined {
       domain: 'number',
       lo: { v: arg, open: false },
       hi: { v: arg, open: false },
-      neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
+      neqs: [], mults: [], res: [], musts: [], uniq: false, uniqBy: [],
     }
   }
 
   if (true === arg?.isConstraint) {
     const c = arg as ConstraintVal
-    // A pattern, a sizing atom or a string bound inside a count is not
-    // a count constraint at all, and neither is a broken one.
-    if (null != c.invalid || 0 < c.res.length || c.uniq ||
+    // A pattern, a divisor, a sizing atom or a string bound inside a
+    // count is not a count constraint at all, and neither is a broken one.
+    if (null != c.invalid || 0 < c.res.length || 0 < c.mults.length || c.uniq ||
       0 < c.uniqBy.length || null != c.count ||
       'number' !== c.domain) {
       return undefined
@@ -1577,7 +1618,7 @@ function countArgState(arg: any): ConstraintState | undefined {
       lo: c.lo,
       hi: c.hi,
       neqs: [...c.neqs],
-      res: [], musts: [], uniq: false, uniqBy: [],
+      mults: [], res: [], musts: [], uniq: false, uniqBy: [],
     }
   }
 
@@ -1585,14 +1626,15 @@ function countArgState(arg: any): ConstraintState | undefined {
     const marker = arg.peg
     if (Number === marker) {
       return {
-        domain: 'number', neqs: [], res: [], musts: [],
+        domain: 'number', neqs: [], mults: [], res: [], musts: [],
         uniq: false, uniqBy: [],
       }
     }
     if (Integer === marker || Float === marker ||
       BigInteger === marker || BigDecimal === marker) {
       return {
-        domain: 'number', kind: marker, neqs: [], res: [], musts: [],
+        domain: 'number', kind: marker, neqs: [], mults: [], res: [],
+        musts: [],
         uniq: false, uniqBy: [],
       }
     }
@@ -1661,6 +1703,45 @@ function emittedMembers(bag: any, ctx: AontuContext): any[] | undefined {
 }
 
 
+// A float is read through its shortest rendering: divisibility, unlike
+// order, does not survive binary rounding, and the double nearest 0.3 is
+// no multiple of 0.1.
+function decimalOf(v: any): Scaled {
+  if (Float !== leafMarker(v)) {
+    return scaledOfNumeric(v)
+  }
+  const [m, e] = (v.peg as number).toExponential().split('e')
+  const [whole, frac = ''] = m.split('.')
+  return { unscaled: BigInt(whole + frac), scale: frac.length - Number(e) }
+}
+
+
+function divides(d: Scaled, v: Scaled): boolean {
+  const s = Math.max(d.scale, v.scale)
+  return 0n === (v.unscaled * 10n ** BigInt(s - v.scale)) %
+    (d.unscaled * 10n ** BigInt(s - d.scale))
+}
+
+
+function isMultipleOf(v: any, d: any): boolean {
+  return divides(decimalOf(d), decimalOf(v))
+}
+
+
+function dedupMults(ms: any[]): any[] {
+  const sorted = [...ms].sort((a: any, b: any) =>
+    cmpScaled(decimalOf(a), decimalOf(b)) || towerRank(a) - towerRank(b))
+  const out: any[] = []
+  for (const m of sorted) {
+    if (0 === out.length ||
+      0 !== cmpScaled(decimalOf(out[out.length - 1]), decimalOf(m))) {
+      out.push(m)
+    }
+  }
+  return out
+}
+
+
 function dedupSortedRes(res: ReAtom[]): ReAtom[] {
   const sorted = [...res].sort((a, b) => cmpCodePoints(a.src, b.src))
   const out: ReAtom[] = []
@@ -1709,6 +1790,12 @@ class ReConstraintVal extends ConstraintVal {
   }
 }
 
+class MultipleConstraintVal extends ConstraintVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super({ ...spec, atom: 'multiple' }, ctx)
+  }
+}
+
 class MustConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'must' }, ctx)
@@ -1725,7 +1812,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 23 */
+} /* node:coverage ignore next 24 */
 
 
 export {
@@ -1741,6 +1828,7 @@ export {
   AboveConstraintVal,
   BelowConstraintVal,
   NeqConstraintVal,
+  MultipleConstraintVal,
   ReConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,

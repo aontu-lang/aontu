@@ -325,7 +325,7 @@ const SCHEMA_LISTS = ['prefixItems', 'allOf', 'anyOf', 'oneOf']
 
 const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
   'type', 'enum', 'const', 'allOf', 'minimum', 'maximum',
-  'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength',
+  'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
   'pattern', 'properties', 'required', 'additionalProperties',
   'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
   'prefixItems', 'items', 'minItems', 'maxItems'])
@@ -334,7 +334,7 @@ const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
   'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
   'contentEncoding', 'contentMediaType', 'contentSchema'])
 
-const LATER = new Set(['multipleOf', 'anyOf', 'oneOf', 'not', 'if',
+const LATER = new Set(['anyOf', 'oneOf', 'not', 'if',
   'then', 'else', 'dependentRequired', 'dependentSchemas', 'contains',
   'minContains', 'maxContains', 'uniqueItems', '$dynamicRef',
   '$dynamicAnchor', 'unevaluatedProperties', 'unevaluatedItems',
@@ -490,6 +490,18 @@ function num(v: J | undefined, path: string): string | undefined {
     refuse(path, 'a bound must be a number')
   }
   return numberText((v as JNum).text, path)
+}
+
+
+function divisor(v: J | undefined, path: string): string | undefined {
+  if (undefined === v) {
+    return undefined
+  }
+  const n = v instanceof JNum ? numberText(v.text, path) : '-'
+  if (n.startsWith('-') || '0' === n) {
+    refuse(path, 'a divisor must be a number greater than 0')
+  }
+  return n
 }
 
 
@@ -863,8 +875,10 @@ function numberBranch(o: Map<string, J>, ptr: string, integral: boolean): string
       const n = num(o.get(k), ptrAt(ptr, k))
       return undefined === n ? [] : [atom + '(' + n + ')']
     })
-  return 0 === bounds.length && !integral ? undefined :
-    both([integral ? '(integer | biginteger)' : 'number', ...bounds])
+  const d = divisor(o.get('multipleOf'), ptrAt(ptr, 'multipleOf'))
+  const atoms = [...(integral ? ['multiple(1)'] : []), ...bounds,
+    ...(undefined === d ? [] : ['multiple(' + d + ')'])]
+  return 0 === atoms.length ? undefined : both(['number', ...atoms])
 }
 
 

@@ -1,4 +1,4 @@
-# bound 366
+# bound 356
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -9,13 +9,9 @@
 # phase is the phase of docs/capability-review/g12-jsonschema-fidelity.md
 # that carries it. A listed test the import honours fails the run, so
 # a phase deletes the lines it clears and lowers the bound to match.
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: false, anyOf: false, oneOf: false	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: false, anyOf: false, oneOf: true	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: false, anyOf: true, oneOf: false	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: false, anyOf: true, oneOf: true	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: false	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: true	anyOf,multipleOf,oneOf	6
-draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: true, oneOf: false	anyOf,multipleOf,oneOf	6
+draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: false	anyOf,oneOf	6
+draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: false, oneOf: true	anyOf,oneOf	6
+draft2020-12/allOf.json	allOf combined with anyOf, oneOf	allOf: true, anyOf: true, oneOf: false	anyOf,oneOf	6
 draft2020-12/anchor.json	Location-independent identifier with absolute URI	match	jsonschema_ref	10
 draft2020-12/anchor.json	Location-independent identifier with absolute URI	mismatch	jsonschema_ref	10
 draft2020-12/anchor.json	Location-independent identifier with base URI change in subschema	match	jsonschema_ref	10
@@ -33,9 +29,7 @@ draft2020-12/contains.json	contains keyword with const keyword	array without ite
 draft2020-12/contains.json	contains keyword with boolean schema true	empty array is invalid	contains	8
 draft2020-12/contains.json	contains keyword with boolean schema false	any non-empty array is invalid	contains	8
 draft2020-12/contains.json	contains keyword with boolean schema false	empty array is invalid	contains	8
-draft2020-12/contains.json	items + contains	matches items, does not match contains	contains,multipleOf	8
-draft2020-12/contains.json	items + contains	does not match items, matches contains	contains,multipleOf	8
-draft2020-12/contains.json	items + contains	matches neither items nor contains	contains,multipleOf	8
+draft2020-12/contains.json	items + contains	matches items, does not match contains	contains	8
 draft2020-12/contains.json	contains with false if subschema	empty array is invalid	contains	8
 draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	10
 draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	10
@@ -126,10 +120,6 @@ draft2020-12/minContains.json	maxContains < minContains	invalid minContains	cont
 draft2020-12/minContains.json	maxContains < minContains	invalid maxContains	contains,maxContains,minContains	8
 draft2020-12/minContains.json	maxContains < minContains	invalid maxContains and minContains	contains,maxContains,minContains	8
 draft2020-12/minContains.json	minContains = 0 with maxContains	too many	contains,maxContains,minContains	8
-draft2020-12/multipleOf.json	by int	int by int fail	multipleOf	5
-draft2020-12/multipleOf.json	by number	35 is not multiple of 1.5	multipleOf	5
-draft2020-12/multipleOf.json	by small number	0.00751 is not multiple of 0.0001	multipleOf	5
-draft2020-12/multipleOf.json	float division = inf	always invalid, but naive implementations may raise an overflow error	multipleOf	5
 draft2020-12/not.json	not	disallowed	not	6
 draft2020-12/not.json	not multiple types	mismatch	not	6
 draft2020-12/not.json	not multiple types	other mismatch	not	6

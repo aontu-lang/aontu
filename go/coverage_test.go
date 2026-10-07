@@ -31,6 +31,20 @@ func TestScaledInfinities(t *testing.T) {
 	}
 }
 
+// Built here because no document holds an infinite float: the parser
+// refuses such a literal and arithmetic refuses to make one.
+func TestMultipleRefusesAnInfiniteFloat(t *testing.T) {
+	if c := newConstraint("multiple", []Val{NewNumber(math.Inf(1))}, 0); "invalid-arg" != c.invalid {
+		t.Fatalf("an infinite divisor: %q", c.invalid)
+	}
+	two := newConstraint("multiple", []Val{newInteger(2)}, 0)
+	for _, f := range []float64{math.Inf(1), math.Inf(-1)} {
+		if stateAdmits(two, NewNumber(f).(*ScalarVal)) {
+			t.Fatalf("admitted %v", f)
+		}
+	}
+}
+
 // A subnormal float converts exactly (expBits 0 branch), and the
 // scale-alignment branches of cmpScaled agree with float ordering.
 func TestScaledSubnormalAndAlignment(t *testing.T) {
