@@ -66,6 +66,9 @@ class AontuContext {
   // `vet --no-fill`: a key still optional is no member of the instance.
   noFill: boolean = false
 
+  // A decided check gives the value the riders of the branches that pass.
+  annotate: boolean = false
+
   // The provenance recorder (G7 phase 3), or undefined for an
   // uninstrumented run. Inherited by every descended and cloned
   // context through the prototype chain, so one run has one record.
@@ -239,6 +242,7 @@ class AontuContext {
     this.fs = this.opts.fs ?? this.fs
     this.errfs = (this.opts as any).errfs ?? this.errfs
     this.explain = this.opts.explain ?? this.explain
+    this.annotate = this.opts.annotate ?? this.annotate
 
     this.src = ('string' === typeof this.opts.src ? this.opts.src : undefined) ?? this.src
 

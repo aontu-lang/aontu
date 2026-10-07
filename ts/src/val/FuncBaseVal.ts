@@ -16,6 +16,7 @@ import { unite, withDepth } from '../unify'
 
 import {
   propagateMarks,
+  carryAnnotations,
   ec,
   explainClose,
   explainOpen,
@@ -36,11 +37,14 @@ import { sizingResidue } from './BagVal'
 
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
-// not raw keys, so an unfilled optional is not something to add.
+// not raw keys, so an unfilled optional is not something to add. A
+// member a check still holds is its container, on either side.
 function sameKids(a: any, b: any, ctx: AontuContext): boolean {
-  if (true === a?.isMap || true === a?.isList) {
-    const am = bagMembers(a, ctx)
-    const bm = bagMembers(b, ctx)
+  const at = sizingResidue(a)?.bag ?? a
+  const bt = sizingResidue(b)?.bag ?? b
+  if (true === at?.isMap || true === at?.isList) {
+    const am = bagMembers(at, ctx)
+    const bm = bagMembers(bt, ctx)
     if (null == am || null == bm || am.length !== bm.length) {
       return false
     }
@@ -48,7 +52,7 @@ function sameKids(a: any, b: any, ctx: AontuContext): boolean {
     return am.every((m) =>
       peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx))
   }
-  return a?.canon === b?.canon
+  return at?.canon === bt?.canon
 }
 
 
@@ -156,7 +160,8 @@ function finished(ctx: AontuContext, v: Val): Val {
 // settled container's verdict is kept by its place as well as its canon,
 // so the count that tries a branch and the cover that reads it share one.
 function admits(ctx: AontuContext, node: Val, cond: Val,
-  pair: () => [Val, Val], settled?: boolean): boolean {
+  pair: () => [Val, Val], settled?: boolean,
+  passed?: (met: Val) => void): boolean {
   const st = ctx._trials
   const key = true === node.isScalar && pureCond(cond) ?
     node.canon + '\u0000' + cond.canon :
@@ -164,7 +169,8 @@ function admits(ctx: AontuContext, node: Val, cond: Val,
       JSON.stringify([node.path.map(String), true === ctx.noFill, node.canon,
         cond.canon]) :
       undefined
-  const known = undefined === key ? undefined : st.memo.get(key)
+  const known = undefined === key || undefined !== passed ? undefined :
+    st.memo.get(key)
   if (undefined !== known || st.over) {
     return true === known
   }
@@ -179,7 +185,29 @@ function admits(ctx: AontuContext, node: Val, cond: Val,
   if (undefined !== key) {
     st.memo.set(key, ok)
   }
+  if (ok) {
+    passed?.(met as Val)
+  }
   return ok
+}
+
+
+// Decides, as generation does, each check a container still holds.
+function annotated(ctx: AontuContext, v: Val): Val {
+  const residue = sizingResidue(v)
+  const out: any = undefined === residue ? v :
+    residue.con.settleContainer(residue.bag, ctx)
+  carryAnnotations(out, v)
+  if (true === out.isMap || true === out.isList) {
+    for (const k of Object.keys(out.peg)) {
+      const child = out.peg[k]
+      if (!child.mark.hide && !child.mark.type &&
+        !out.optionalKeys.includes(k)) {
+        out.peg[k] = annotated(ctx, child)
+      }
+    }
+  }
+  return out
 }
 
 
@@ -451,11 +479,12 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   trialUnify,
   admits,
+  annotated,
   FuncBaseVal,
 }

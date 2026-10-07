@@ -331,8 +331,9 @@ func vectorPointerAt(node Val, pointer string) Val {
 
 // vectorAnnotationProblems reads the suite's annotations/ (its README):
 // the values each assertion lists for a keyword at an instance location
-// must be what the riders there hold once the instance meets the schema,
-// compared as a set and not by the schema location that gave each.
+// must be what the riders there hold once the instance meets the schema
+// with annotations collected, compared as a set and not by the schema
+// location that gave each.
 func vectorAnnotationProblems(t *testing.T, root string, ledger vectorLedger) []string {
 	t.Helper()
 	problems := []string{}
@@ -362,7 +363,7 @@ func vectorAnnotationProblems(t *testing.T, root string, ledger vectorLedger) []
 			for n, tc := range c.Tests {
 				var node Val
 				if "error" != report.Verdict {
-					met, merr := (&Aontu{ExactNumbers: true}).Unify(report.Source +
+					met, merr := (&Aontu{ExactNumbers: true, Annotate: true}).Unify(report.Source +
 						"\ninstance: $.schema\ninstance: " + string(tc.Instance) + "\n")
 					if mm, ok := met.(*MapVal); ok && nil == merr {
 						node = mm.peg["instance"]

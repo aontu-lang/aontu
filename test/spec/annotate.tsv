@@ -1,0 +1,47 @@
+# G12 phase 12, part 2: the riders of the branches that pass
+# (docs/reference-language.md, `meta`; the G12 design, section 12).
+# Under `annotate`, a check decided over a value gives it, at each
+# place, the riders the meet of every branch that passes leaves there,
+# and unify decides the checks a container still holds, as generation
+# does. Every expectation was obtained by running both engines and
+# requiring them to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# Without the option a branch's rider stays in its check.
+annotate-off-a-branch-rider-stays-in-the-check	canon	x: 42 & nof(min(1), meta(number, {title: "A"}))	{"x":42}
+annotate-off-a-container-check-stays-held	canon	x: {a: 1} & nof(min(1), {a?: meta(number, {title: "A"})})	{"x":{"a":1}&nof(integer&min(1),{"a"?:meta(number,{"title":"A"})})}
+#
+# A count gives every alternative that admits the value, so none is left
+# untried; an alternative that refuses gives nothing, and so does nof(0).
+annotate-every-alternative-that-passes	annotate	x: 42 & nof(min(1), meta(number, {title: "A"}), meta(integer, {title: "B"}), meta(string, {title: "C"}))	{"x":meta(42,{"title":"A"},{"title":"B"})}
+annotate-the-one-alternative-that-passes	annotate	x: "s" & nof(1, meta(number, {title: "A"}), meta(string, {title: "B"}))	{"x":meta("s",{"title":"B"})}
+annotate-a-negation-gives-nothing	annotate	x: 42 & nof(0, meta(string, {title: "A"}))	{"x":42}
+#
+# A condition that holds gives itself and its then-branch; one that
+# fails gives the else-branch. must(c) gives c.
+annotate-a-condition-that-holds-gives-it-and-then	annotate	x: "s" & when(meta(string, {title: "If"}), meta(any, {title: "Then"}), meta(any, {title: "Else"}))	{"x":meta("s",{"title":"If"},{"title":"Then"})}
+annotate-a-condition-that-fails-gives-else	annotate	x: 42 & when(meta(string, {title: "If"}), meta(any, {title: "Then"}), meta(any, {title: "Else"}))	{"x":meta(42,{"title":"Else"})}
+annotate-a-must-gives-its-schema	annotate	x: 5 & must(meta(number, {title: "M"}), "a number")	{"x":meta(5,{"title":"M"})}
+#
+# Over a container, a branch's riders land member by member, and contains
+# and rest give each member they admit or reach.
+annotate-a-map-alternative-reaches-its-members	annotate	x: {a: 1, b: "s"} & nof(min(1), meta({a?: meta(number, {title: "A"})}, {title: "M"}), {b?: number})	{"x":meta({"a":meta(1,{"title":"A"}),"b":"s"},{"title":"M"})}
+annotate-a-list-alternative-reaches-its-members	annotate	x: [1] & nof(min(1), [meta(number, {title: "E"})])	{"x":[meta(1,{"title":"E"})]}
+annotate-a-condition-over-a-map	annotate	x: {k: 1} & when({k: number}, {k?: meta(any, {title: "K"})})	{"x":{"k":meta(1,{"title":"K"})}}
+annotate-contains-gives-the-members-it-admits	annotate	x: ["a", 1, true] & contains(meta(number, {title: "N"}))	{"x":["a",meta(1,{"title":"N"}),true]}
+annotate-rest-gives-the-members-no-cover-reaches	annotate	x: {a: 1, b: 2} & rest(meta(any, {title: "U"}), any, {keys: "a"})	{"x":{"a":1,"b":meta(2,{"title":"U"})}}
+annotate-rest-trials-its-schema	annotate	x: {a: 1, b: 2} & rest(meta(number, {title: "U"}), any, {keys: "a"})	{"x":{"a":1,"b":meta(2,{"title":"U"})}}
+annotate-rest-over-a-list	annotate	x: [1, 2] & rest(meta(any, {title: "U"}), any, {prefix: 1})	{"x":[1,meta(2,{"title":"U"})]}
+#
+# A check inside a branch decides in the branch's own trial, a member a
+# check still holds takes both, and a value keeps its own rider.
+annotate-a-check-inside-a-branch	annotate	x: {a: {b: 1}} & nof(min(1), {a?: meta({b?: number}, {title: "A"}) & nof(min(1), {b?: meta(number, {title: "B"})})})	{"x":{"a":meta({"b":meta(1,{"title":"B"})},{"title":"A"})}}
+annotate-a-held-member-takes-its-own-and-its-container's	annotate	x: {a: {b: 1} & nof(min(1), meta({b?: number}, {title: "Inner"}))} & nof(min(1), {a?: meta({}, {title: "Outer"})})	{"x":{"a":meta({"b":1},{"title":"Inner"},{"title":"Outer"})}}
+annotate-keeps-a-value's-own-rider	annotate	x: meta({a: 1}, {title: "Own"}) & nof(min(1), meta({a?: number}, {title: "B"}))	{"x":meta({"a":1},{"title":"B"},{"title":"Own"})}
+annotate-gives-nothing-without-a-rider	annotate	x: {a: 1} & nof(min(1), {a?: number})	{"x":{"a":1}}
+#
+# Unify decides what generation would: a hidden, type or optional member
+# keeps its check.
+annotate-skips-a-hidden-member	annotate	x: hide({a: 1} & nof(min(1), {a?: meta(number, {title: "A"})}))\ny: 1	{"x":{"a":1}&nof(integer&min(1),{"a"?:meta(number,{"title":"A"})}),"y":1}
+annotate-skips-a-type-member	annotate	x: type({a: 1} & nof(min(1), {a?: meta(number, {title: "A"})}))\ny: 1	{"x":{"a":1}&nof(integer&min(1),{"a"?:meta(number,{"title":"A"})}),"y":1}
+annotate-skips-an-optional-member	annotate	x?: {a: 1} & nof(min(1), {a?: meta(number, {title: "A"})})\ny: 1	{"x"?:{"a":1}&nof(integer&min(1),{"a"?:meta(number,{"title":"A"})}),"y":1}

@@ -59,6 +59,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 |---------|-----------------------------------------------------------------|
 | `canon` | `unify(src)` then its canonical form must equal `expect`        |
 | `canon-exact` | `unify(src)` with every number read by its value (`exactNumbers`), then its canonical form must equal `expect`, and `expect` read the same way must canon as itself |
+| `annotate` | `unify(src)` collecting annotations, as its `annotate` option asks, then its canonical form must equal `expect`, which shows the riders each decided check gave the value |
 | `gen`   | `generate(src)` must deep-equal `JSON.parse(expect)`            |
 | `gens`  | `generate(src)` serialised as compact JSON must equal `expect` **byte for byte** |
 | `err`   | `generate(src)` must raise an error whose message contains `expect` |

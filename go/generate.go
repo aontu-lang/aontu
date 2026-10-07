@@ -109,10 +109,17 @@ func sandboxed(ctx *Ctx, fn func() Val) Val {
 }
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
-// not raw keys, so an unfilled optional is not something to add.
+// not raw keys, so an unfilled optional is not something to add. A
+// member a check still holds is its container, on either side.
 func sameKids(a, b Val, ctx *Ctx) bool {
 	if nil == a || nil == b {
 		return nil == a && nil == b
+	}
+	if _, bag, held := sizingResidue(a); held {
+		a = bag
+	}
+	if _, bag, held := sizingResidue(b); held {
+		b = bag
 	}
 	if isBag(a) {
 		if !isBag(b) {
@@ -222,15 +229,18 @@ func finished(ctx *Ctx, v Val) Val {
 // settled container's verdict is kept by its place as well as its canon,
 // so the count that tries a branch and the cover that reads it share one.
 func admits(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
-	return admitsWith(ctx, node, cond, pair, false)
+	return admitsWith(ctx, node, cond, pair, false, nil)
 }
 
-// admitsSettled is admits for a value nothing more can reach.
-func admitsSettled(ctx *Ctx, node, cond Val, pair func() (Val, Val)) bool {
-	return admitsWith(ctx, node, cond, pair, true)
+// admitsGiving is admits for a value nothing more can reach, handing
+// passed the meet of a cond that admits.
+func admitsGiving(ctx *Ctx, node, cond Val, pair func() (Val, Val),
+	passed func(Val)) bool {
+	return admitsWith(ctx, node, cond, pair, true, passed)
 }
 
-func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool) bool {
+func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool,
+	passed func(Val)) bool {
 	st := ctx.trialRun()
 	key := ""
 	_, scalar := node.(*ScalarVal)
@@ -244,7 +254,8 @@ func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool) 
 			strconv.FormatBool(ctx.noFill) + "\x01" + node.Canon() + "\x01" +
 			cond.Canon()
 	}
-	if "" != key {
+	// A verdict alone cannot say which riders the branch gives.
+	if "" != key && nil == passed {
 		if known, has := st.memo[key]; has {
 			return known
 		}
@@ -266,7 +277,36 @@ func admitsWith(ctx *Ctx, node, cond Val, pair func() (Val, Val), settled bool) 
 	if "" != key {
 		st.memo[key] = ok
 	}
+	if ok && nil != passed {
+		passed(met)
+	}
 	return ok
+}
+
+// annotated decides, as generation does, each check a container still
+// holds, so the branches that pass give their riders.
+func annotated(ctx *Ctx, v Val) Val {
+	out := v
+	if con, bag, ok := sizingResidue(v); ok {
+		out = con.settleContainer(bag, ctx)
+	}
+	carryAnnotations(out, v)
+	switch t := out.(type) {
+	case *MapVal:
+		for _, k := range t.keys {
+			if child := t.peg[k]; !child.markedHide() && !child.markedType() &&
+				!t.isOptional(k) {
+				t.peg[k] = annotated(ctx, child)
+			}
+		}
+	case *ListVal:
+		for i, e := range t.peg {
+			if !e.markedHide() && !e.markedType() {
+				t.peg[i] = annotated(ctx, e)
+			}
+		}
+	}
+	return out
 }
 
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {

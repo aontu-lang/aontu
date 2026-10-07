@@ -14,6 +14,8 @@ class AontuContext {
         this.probe = false;
         // `vet --no-fill`: a key still optional is no member of the instance.
         this.noFill = false;
+        // A decided check gives the value the riders of the branches that pass.
+        this.annotate = false;
         this.root = cfg.root;
         this.path = [...(cfg.path ?? [])];
         this.src = cfg.src;
@@ -108,6 +110,7 @@ class AontuContext {
         this.fs = this.opts.fs ?? this.fs;
         this.errfs = this.opts.errfs ?? this.errfs;
         this.explain = this.opts.explain ?? this.explain;
+        this.annotate = this.opts.annotate ?? this.annotate;
         this.src = ('string' === typeof this.opts.src ? this.opts.src : undefined) ?? this.src;
         this.srcpath = this.opts.path ?? this.srcpath;
     }

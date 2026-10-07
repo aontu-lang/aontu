@@ -102,3 +102,15 @@ held-two-counts-on-one-map	gens	x: nof(1, {a: any}) & nof(1, {b: any}) & {a: 1, 
 pending-a-count-whose-alternative-is-still-settling	gens	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & nof(1, %one, {q: any}))) & nof(1, %one, {a: any}) & {b: 1}	{"x":{"b":1}}
 pending-a-condition-whose-trial-is-still-settling	gens	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & when(%one, {b: 1}))) & nof(1, %one, {a: any}) & {b: 1}	{"x":{"b":1}}
 pending-a-condition-whose-trial-is-still-settling-refuses	errc	%one = nof(1, %two, {b: any})\n%two = nof(1, {c: any}, {d: any})\nx: (null|(map & when(%one, {b: 2}))) & nof(1, %one, {a: any}) & {b: 1}	when
+#
+# A check over a container whose member a check still holds reads that
+# member as its container, as it reads the trial's own, which a filter
+# leaves unsettled: it read the held member's canon and refused every
+# branch (use-cases/BUGS.md 119).
+held-member-a-check-over-its-container-admits	gens	x: {a: {b: 1} & nof(min(1), {b?: number})} & nof(min(1), {a?: {}})	{"x":{"a":{"b":1}}}
+held-member-a-check-over-its-container-reads-its-data	gens	x: {a: {b: 1} & nof(min(1), {b?: number})} & nof(min(1), {a?: {b?: number}})	{"x":{"a":{"b":1}}}
+held-member-whose-own-check-refuses-still-refuses	errc	x: {a: {b: 1} & nof(min(1), {b?: string})} & nof(min(1), {a?: {}})	nof
+held-member-a-condition-over-its-container	gens	x: {a: [1] & contains(number)} & when({a?: list}, {a?: [number]}, {a?: string})	{"x":{"a":[1]}}
+held-member-a-coverage-over-its-container	gens	x: {a: {b: 1} & rest(nil, any, {keys: "b"}), c: 2} & rest(nil, {a?: {}}, {keys: "a" | "c"})	{"x":{"a":{"b":1},"c":2}}
+held-member-a-filter-keeps-one-it-admits	gens	roles: {a: {owner: true} & nof(min(1), {owner?: boolean}), b: {owner: false}}\nx: filter($.roles, {owner: true})	{"roles":{"a":{"owner":true},"b":{"owner":false}},"x":{"a":{"owner":true}}}
+held-member-a-count-over-a-filter-of-them	gens	roles: {a: {owner: true} & nof(min(1), {owner?: boolean}), b: {owner: false}}\nx: len(1) & filter($.roles, {owner: true})	{"roles":{"a":{"owner":true},"b":{"owner":false}},"x":{"a":{"owner":true}}}

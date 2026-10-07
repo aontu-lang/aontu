@@ -25,6 +25,7 @@ type Ctx struct {
 	collect bool
 	probe bool
 	noFill bool // `vet --no-fill`: a key still optional is no member
+	annotate   bool
 	snapmap map[string]Val
 	referflows map[string]Val
 	referflow map[string]bool

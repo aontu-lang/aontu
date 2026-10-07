@@ -47,6 +47,7 @@ type AontuOptions = {
   explain?: any[]
   trust?: TrustOptions // Trust profile (G5, docs/trust.md)
   exactNumbers?: boolean // Read every number literal by its value (G12)
+  annotate?: boolean // Collect the riders of the branches that pass (G12)
 
   textExt?: string[]
 

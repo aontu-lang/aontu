@@ -13,6 +13,7 @@ declare function walkBagVals(root: Val, fn: (v: Val, path: string[]) => void): v
 declare function deprecationMessage(d: Record<string, string[]>): string;
 declare function unionRider<T>(a: Record<string, T[]> | undefined, b: Record<string, T[]> | undefined, canon: (t: T) => string): Record<string, T[]> | undefined;
 declare function carryRiders(out: any, a: any, b: any): void;
+declare function carryAnnotations(out: any, from: any): void;
 declare function wrapRiders(c: string, v: Val): string;
 declare function hasRiders(v: any): boolean;
 declare function bareTop(v: any): boolean;
@@ -30,4 +31,4 @@ declare function explainClose(t: any[] | undefined | null, out?: Val): void;
 declare function formatExplain(t: any[], d?: number): string;
 declare function items(o: any): any[][];
 export type { IncludeOptions };
-export { includeOpts, items, propagateMarks, canonRiders, bareTop, hasRiders, unionRider, carryRiders, wrapRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };
+export { includeOpts, items, propagateMarks, canonRiders, bareTop, hasRiders, unionRider, carryRiders, carryAnnotations, wrapRiders, collectDeprecations, walkBagVals, deprecationMessage, formatPath, walk, WalkApply, explainOpen, ec, explainClose, formatExplain, };

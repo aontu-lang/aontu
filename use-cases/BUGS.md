@@ -4552,3 +4552,16 @@ member, where it answered `empty` before §110. Go generates the data,
 and both ports do with one new term or without the count.
 
 Repro: `repros/disjunct-flow/template-of-several-terms-beside-count-ts.aontu`.
+
+### 119. A check over a container refused it where a member held a check of its own [FIXED 2026-10-07]
+
+Both ports, and present before phase 12. The admission trial compares
+the value's members with the settled meet's, and a member that a
+check still held, as `{b: 1} & nof(min(1), {b?: number})` is, canoned
+with the check beside it, where the meet had settled it to `{"b":1}`.
+So `{a: {b: 1} & nof(…)} & nof(min(1), {a?: {}})` refused at `$.x`,
+and so did a `when`, a `contains` or a `rest` cover that tried the
+container. The trial now reads such a member as its container, on the
+value's side and on the meet's, which a `filter` trial leaves
+unsettled (the `held-member-*` rows at the end of
+`test/spec/constraint-nof.tsv`).

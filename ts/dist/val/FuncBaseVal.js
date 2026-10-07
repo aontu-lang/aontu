@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FuncBaseVal = void 0;
 exports.trialUnify = trialUnify;
 exports.admits = admits;
+exports.annotated = annotated;
 const type_1 = require("../type");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
@@ -16,18 +17,21 @@ const PlaceVal_1 = require("../val/PlaceVal");
 const members_1 = require("./members");
 const BagVal_1 = require("./BagVal");
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
-// not raw keys, so an unfilled optional is not something to add.
+// not raw keys, so an unfilled optional is not something to add. A
+// member a check still holds is its container, on either side.
 function sameKids(a, b, ctx) {
-    if (true === a?.isMap || true === a?.isList) {
-        const am = (0, members_1.bagMembers)(a, ctx);
-        const bm = (0, members_1.bagMembers)(b, ctx);
+    const at = (0, BagVal_1.sizingResidue)(a)?.bag ?? a;
+    const bt = (0, BagVal_1.sizingResidue)(b)?.bag ?? b;
+    if (true === at?.isMap || true === at?.isList) {
+        const am = (0, members_1.bagMembers)(at, ctx);
+        const bm = (0, members_1.bagMembers)(bt, ctx);
         if (null == am || null == bm || am.length !== bm.length) {
             return false;
         }
         const peers = new Map(bm.map((m) => [m.key, m.val]));
         return am.every((m) => peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx));
     }
-    return a?.canon === b?.canon;
+    return at?.canon === bt?.canon;
 }
 // A pref-free disjunction is several values at once: any match counts.
 function sameMembers(a, b, ctx) {
@@ -117,7 +121,7 @@ function finished(ctx, v) {
 // satisfy `cond`? Each one run counts against the `trials` budget. A
 // settled container's verdict is kept by its place as well as its canon,
 // so the count that tries a branch and the cover that reads it share one.
-function admits(ctx, node, cond, pair, settled) {
+function admits(ctx, node, cond, pair, settled, passed) {
     const st = ctx._trials;
     const key = true === node.isScalar && pureCond(cond) ?
         node.canon + '\u0000' + cond.canon :
@@ -125,7 +129,8 @@ function admits(ctx, node, cond, pair, settled) {
             JSON.stringify([node.path.map(String), true === ctx.noFill, node.canon,
                 cond.canon]) :
             undefined;
-    const known = undefined === key ? undefined : st.memo.get(key);
+    const known = undefined === key || undefined !== passed ? undefined :
+        st.memo.get(key);
     if (undefined !== known || st.over) {
         return true === known;
     }
@@ -140,7 +145,27 @@ function admits(ctx, node, cond, pair, settled) {
     if (undefined !== key) {
         st.memo.set(key, ok);
     }
+    if (ok) {
+        passed?.(met);
+    }
     return ok;
+}
+// Decides, as generation does, each check a container still holds.
+function annotated(ctx, v) {
+    const residue = (0, BagVal_1.sizingResidue)(v);
+    const out = undefined === residue ? v :
+        residue.con.settleContainer(residue.bag, ctx);
+    (0, utility_1.carryAnnotations)(out, v);
+    if (true === out.isMap || true === out.isList) {
+        for (const k of Object.keys(out.peg)) {
+            const child = out.peg[k];
+            if (!child.mark.hide && !child.mark.type &&
+                !out.optionalKeys.includes(k)) {
+                out.peg[k] = annotated(ctx, child);
+            }
+        }
+    }
+    return out;
 }
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -344,6 +369,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     deferResolve(_ctx, _args) {
         return false;
     }
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 exports.FuncBaseVal = FuncBaseVal;
 //# sourceMappingURL=FuncBaseVal.js.map

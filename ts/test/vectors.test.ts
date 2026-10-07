@@ -289,8 +289,9 @@ function pointerAt(node: any, pointer: string): any {
 
 // The suite's annotations/ (its README): the values each assertion lists
 // for a keyword at an instance location must be what the riders there
-// hold once the instance meets the schema, compared as a set and not by
-// the schema location that gave each (G12 design, section 16).
+// hold once the instance meets the schema with annotations collected,
+// compared as a set and not by the schema location that gave each (G12
+// design, section 16).
 function annotationProblems(root: string, ledger: Ledger): string[] {
   const problems: string[] = []
   const seen = new Set<string>()
@@ -313,7 +314,7 @@ function annotationProblems(root: string, ledger: Ledger): string[] {
           node = 'error' === report.verdict ? undefined :
             (new Aontu({ exactNumbers: true }).unify(report.source +
               '\ninstance: $.schema\ninstance: ' + at(t, 'instance') + '\n',
-              { collect: true }) as any).peg.instance
+              { collect: true, annotate: true }) as any).peg.instance
         }
         catch { }
         for (const a of t.kv!.get('assertions')!.items!) {

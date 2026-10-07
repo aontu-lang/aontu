@@ -981,6 +981,19 @@ which 2020-12 treats as an annotation, and the import reads that
 record back beside `deprecated: true` and nowhere else. The LSP's
 hover gains `title` and `description`, as plain text.
 
+*Departures, as landed (phase 12, part 2):* (1) Collecting the
+annotations of the branches that pass is an option, `annotate` on
+`unify`, and not the default: without it a branch's rider stays in its
+check, so canon and generation are unchanged, and the trials it adds,
+every branch tried with no memo, are paid only where annotations are
+asked for. (2) Under it `unify` decides each check a container still
+holds, as generation does, and only `meta()` and `deprecate()` cross,
+never an identity. (3) Writing its rows found a defect older than the
+phase: a check over a container whose member held a check of its own
+read that member's canon and refused every branch
+([use-cases/BUGS.md](../../use-cases/BUGS.md) §119), fixed in both
+ports.
+
 ### 13. Dialects, vocabularies and the meta-schema
 
 **The dialect table** maps each known `$schema` URI, including the

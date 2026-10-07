@@ -3533,6 +3533,7 @@ into a context.
 | `deps`     | `object`    | Dependency record populated by `@"…"` loads. |
 | `log`      | `number`    | Parser log verbosity. |
 | `exactNumbers` | `boolean` | Read every number literal by its value, as [`--exact-numbers`](#command-line-interface) does. `vet` takes the same option for its data alone. |
+| `annotate` | `boolean` | Collect [annotations](reference-language.md#annotations-meta) as JSON Schema collects them: a check decided over a value gives it the riders of each branch that passes, place by place, and `unify` decides the checks a container still holds, as generation does. |
 
 `@"…"` resolution tries an **in-memory** resolver, then the
 **filesystem**, then **package** resolution, in that order. The chain
@@ -4006,6 +4007,9 @@ a := aontu.New()
 v, err := a.Unify("a:1 a:number")   // v.Canon() == `{"a":1}`
 out, err := a.Generate("a:1 b:$.a") // out == map[string]any{"a":1,"b":1}
 ```
+
+Set the `Annotate` field on an `Aontu` to collect annotations, as the
+TypeScript `annotate` option does.
 
 All methods return an `error` (never panic for ordinary conflicts);
 `Generate` returns `(nil, err)` on any unresolved or conflicting value.

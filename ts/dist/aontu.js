@@ -52,6 +52,7 @@ Object.defineProperty(exports, "jsonSchema", { enumerable: true, get: function (
 const jsonschema_import_1 = require("./jsonschema-import");
 Object.defineProperty(exports, "importJsonSchema", { enumerable: true, get: function () { return jsonschema_import_1.importJsonSchema; } });
 const alias_1 = require("./alias");
+const FuncBaseVal_1 = require("./val/FuncBaseVal");
 const view_1 = require("./view");
 Object.defineProperty(exports, "view", { enumerable: true, get: function () { return view_1.view; } });
 Object.defineProperty(exports, "viewSet", { enumerable: true, get: function () { return view_1.viewSet; } });
@@ -173,7 +174,7 @@ class Aontu {
                 // Never nullish: Unify.res starts as the root Val, unite() returns a
                 // Val on every arm, and its catch-all turns a throwing node into an
                 // 'internal' NilVal.
-                out = uni.res;
+                out = true === ac.annotate ? (0, FuncBaseVal_1.annotated)(ac, uni.res) : uni.res;
                 out.graph = (0, graph_1.graphOf)(out);
             }
             out.deps = pval.deps;

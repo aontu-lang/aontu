@@ -35,6 +35,7 @@ declare class AontuContext {
     collect: boolean;
     probe: boolean;
     noFill: boolean;
+    annotate: boolean;
     prov?: any;
     reads?: Set<string>;
     err: any[];

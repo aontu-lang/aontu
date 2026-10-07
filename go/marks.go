@@ -172,6 +172,14 @@ func carryRiders(out, a, b Val) {
 	out.setIdentityRec(id)
 }
 
+// carryAnnotations: the riders that annotate, without the identity: a
+// branch that passes says what the value is, and never which
+// declaration holds it.
+func carryAnnotations(out, from Val) {
+	out.setDeprecRec(unionRider(out.deprecRec(), from.deprecRec(), strSelf))
+	out.setMetaRec(unionRider(out.metaRec(), from.metaRec(), valCanon))
+}
+
 func plainName(v Val) bool {
 	return metaText(v) && importAnchorRe.MatchString(v.(*ScalarVal).peg.(string))
 }

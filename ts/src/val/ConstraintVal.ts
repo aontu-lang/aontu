@@ -18,6 +18,7 @@ import {
   explainOpen,
   explainClose,
   propagateMarks,
+  carryAnnotations,
   items,
 } from '../utility'
 
@@ -896,11 +897,14 @@ class ConstraintVal extends FeatureVal {
     // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
     // here and never residuate: the final reading is the only reading
     // a scalar has.
-    const bad = this.checkMusts(peer, ctx, true) ??
-      this.checkNofs(peer, ctx, true) ?? this.checkWhens(peer, ctx, true)
+    const gives: Gives | undefined = true === ctx.annotate ? [] : undefined
+    const bad = this.checkMusts(peer, ctx, true, gives) ??
+      this.checkNofs(peer, ctx, true, gives) ??
+      this.checkWhens(peer, ctx, true, gives)
     if (null != bad) {
       return bad
     }
+    gives?.forEach(([into, met]) => harvestRiders(into, met))
     return peer
   }
 
@@ -908,13 +912,14 @@ class ConstraintVal extends FeatureVal {
   // `must(c)` asks the admission trial `nof(1, c)` asks (ADR-047). Before
   // the value is settled the one answer given is a refusal no member
   // could retract, a meet already empty, as for every Band B check.
-  private checkMusts(
-    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
+  private checkMusts(peer: any, ctx: AontuContext, final?: boolean,
+    gives?: Gives): Val | undefined {
     for (const m of this.musts) {
       const tctx = ctx.clone({})
       tctx.settle = false
       const ok = true === final ?
-        admits(tctx, peer, m.v, () => [peer.clone(tctx), m.v.clone(tctx)], true) :
+        admits(tctx, peer, m.v, () => [peer.clone(tctx), m.v.clone(tctx)], true,
+          give(gives, peer)) :
         undefined !== trialUnify(tctx, peer.clone(tctx), m.v.clone(tctx))
       if (!ok) {
         return makeNilErr(ctx, 'must', this, peer, undefined, {
@@ -932,8 +937,8 @@ class ConstraintVal extends FeatureVal {
   // verdict, so `nof(min(1), ...)` stops at the first that admits. The
   // value is settled, so each trial runs to settlement from a first meet
   // that is not.
-  private checkNofs(
-    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
+  private checkNofs(peer: any, ctx: AontuContext, final?: boolean,
+    gives?: Gives): Val | undefined {
     for (const n of this.nofs) {
       const tctx = ctx.clone({})
       tctx.settle = false
@@ -942,10 +947,12 @@ class ConstraintVal extends FeatureVal {
       let admitted = 0
       let refused = false
       if (true === final) {
-        for (let i = 0; i < k && !settledCount(n.count, admitted, k - i); i++) {
+        // Every branch that passes annotates, so none is left untried.
+        for (let i = 0; i < k && (undefined !== gives ||
+          !settledCount(n.count, admitted, k - i)); i++) {
           const b = n.branches[i]
           const ok = admits(tctx, peer, b,
-            () => [peer.clone(tctx), b.clone(tctx)], true)
+            () => [peer.clone(tctx), b.clone(tctx)], true, give(gives, peer))
           admitted += ok ? 1 : 0
           tried.push(b.canon + (ok ? ' admits' : ' refuses'))
         }
@@ -980,13 +987,14 @@ class ConstraintVal extends FeatureVal {
   // The condition chooses the branch the value must satisfy. Before the
   // value is settled the one answer is a refusal no member could
   // retract: every branch that could still apply already empty.
-  private checkWhens(
-    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
+  private checkWhens(peer: any, ctx: AontuContext, final?: boolean,
+    gives?: Gives): Val | undefined {
     for (const w of this.whens) {
       const tctx = ctx.clone({})
       tctx.settle = false
       const trial = (v: any) => true === final ?
-        admits(tctx, peer, v, () => [peer.clone(tctx), v.clone(tctx)], true) :
+        admits(tctx, peer, v, () => [peer.clone(tctx), v.clone(tctx)], true,
+          give(gives, peer)) :
         undefined !== trialUnify(tctx, peer.clone(tctx), v.clone(tctx))
       const cond = trial(w.c)
       const shut = (v: any) => undefined !== v && !trial(v)
@@ -1010,8 +1018,8 @@ class ConstraintVal extends FeatureVal {
   // member left can move the verdict. Before generation only a concrete
   // scalar's admission is final, so the one refusal then is an upper
   // bound those members already pass.
-  private checkContains(
-    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
+  private checkContains(peer: any, ctx: AontuContext, final?: boolean,
+    gives?: Gives): Val | undefined {
     if (0 === this.contains.length) {
       return undefined
     }
@@ -1024,11 +1032,11 @@ class ConstraintVal extends FeatureVal {
       const tctx = ctx.clone({})
       tctx.settle = false
       const matched: string[] = []
-      for (let i = 0; i < members.length &&
-        !countSettled(a.count, matched.length); i++) {
+      for (let i = 0; i < members.length && (undefined !== gives ||
+        !countSettled(a.count, matched.length)); i++) {
         const m = members[i]
         if ((true === final || true === m.isScalar) && admits(tctx, m, a.c,
-          () => [m.clone(tctx), a.c.clone(tctx)], true)) {
+          () => [m.clone(tctx), a.c.clone(tctx)], true, give(gives, m))) {
           matched.push(keys[i])
         }
       }
@@ -1052,8 +1060,8 @@ class ConstraintVal extends FeatureVal {
   // must meet t. Before generation each trial and member schema counts as
   // admitting unless its meet is already empty, so the one refusal then
   // is a member no cover could reach whose meet with t is empty.
-  private checkRests(
-    peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
+  private checkRests(peer: any, ctx: AontuContext, final?: boolean,
+    gives?: Gives): Val | undefined {
     if (0 === this.rests.length) {
       return undefined
     }
@@ -1064,9 +1072,11 @@ class ConstraintVal extends FeatureVal {
     }
     const tctx = ctx.clone({})
     tctx.settle = false
-    const trial = (node: any, v: any): boolean => true === v.isTop ||
+    const trial = (node: any, v: any, passed?: (met: Val) => void): boolean =>
+      (true === v.isTop && (passed?.(v), true)) ||
       (true !== v.isNil && (true === final ?
-        admits(tctx, node, v, () => [node.clone(tctx), v.clone(tctx)], true) :
+        admits(tctx, node, v, () => [node.clone(tctx), v.clone(tctx)], true,
+          passed) :
         undefined !== trialUnify(tctx, node.clone(tctx), v.clone(tctx))))
     const verdicts = new Map<any, boolean>()
     const passes = (v: any): boolean => {
@@ -1091,7 +1101,7 @@ class ConstraintVal extends FeatureVal {
     for (const r of this.rests) {
       for (at = 0; at < members.length; at++) {
         if ((true !== final && peer.optionalKeys.includes(keys[at])) ||
-          covered(r.covers) || trial(members[at], r.t)) {
+          covered(r.covers) || trial(members[at], r.t, give(gives, members[at]))) {
           continue
         }
         return makeNilErr(ctx, 'rest', this, peer, undefined, {
@@ -1112,6 +1122,18 @@ class ConstraintVal extends FeatureVal {
 
   private admitContainer(
     peer: any, ctx: AontuContext, final?: boolean): Val {
+    const gives: Gives | undefined =
+      true === final && true === ctx.annotate ? [] : undefined
+    const out = this.admitChecked(peer, ctx, final, gives)
+    if (out === peer) {
+      gives?.forEach(([into, met]) => harvestRiders(into, met))
+    }
+    return out
+  }
+
+
+  private admitChecked(peer: any, ctx: AontuContext, final: boolean | undefined,
+    gives: Gives | undefined): Val {
     // A scalar-domain residual has no reading over a container.
     if (null != this.domain) {
       return this.fail(ctx, peer)
@@ -1124,9 +1146,11 @@ class ConstraintVal extends FeatureVal {
       return new ConjunctVal({ peg: [this, peer] }, ctx)
     }
 
-    const bad = this.checkMusts(peer, ctx, final) ??
-      this.checkNofs(peer, ctx, final) ?? this.checkWhens(peer, ctx, final) ??
-      this.checkContains(peer, ctx, final) ?? this.checkRests(peer, ctx, final)
+    const bad = this.checkMusts(peer, ctx, final, gives) ??
+      this.checkNofs(peer, ctx, final, gives) ??
+      this.checkWhens(peer, ctx, final, gives) ??
+      this.checkContains(peer, ctx, final, gives) ??
+      this.checkRests(peer, ctx, final, gives)
     if (null != bad) {
       return bad
     }
@@ -1508,6 +1532,32 @@ function holdsNil(v: any): boolean {
     }
   }
   return false
+}
+
+
+// Each place a passing branch annotates, with the branch's settled meet.
+type Gives = [any, Val][]
+
+
+function give(gives: Gives | undefined, into: any):
+  ((met: Val) => void) | undefined {
+  return undefined === gives ? undefined : (met) => { gives.push([into, met]) }
+}
+
+
+// The riders a branch's meet leaves at each place land on the value at
+// that place, as JSON Schema collects every passing subschema's.
+function harvestRiders(into: any, from: any): void {
+  const at = sizingResidue(into)?.bag ?? into
+  carryAnnotations(at, from)
+  if ((true === at.isMap && true === from.isMap) ||
+    (true === at.isList && true === from.isList)) {
+    for (const k of Object.keys(at.peg)) {
+      if (undefined !== from.peg[k]) {
+        harvestRiders(at.peg[k], from.peg[k])
+      }
+    }
+  }
 }
 
 

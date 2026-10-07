@@ -244,6 +244,10 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect)
     assertCanonConverges(row)
   }
+  else if ('annotate' === row.mode) {
+    Assert.strictEqual(a0.unify(row.src, { annotate: true }, ctx).canon,
+      row.expect)
+  }
   else if ('canon-exact' === row.mode) {
     // The whole document read by value, and its canon read back the same.
     for (const src of [row.src, row.expect]) {

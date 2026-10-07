@@ -3991,6 +3991,20 @@ wrong kind, and a value that is not concrete data each refuse with
 `func_arg`. An empty record adds nothing, and a nil `v` is returned
 as it is.
 
+A rider inside a check's argument rides the argument, and reaches the
+value only when `unify` collects annotations, under its `annotate`
+option. A check decided over the value then gives it, at
+each place, the riders the meet of each branch that passes leaves
+there: every alternative of a `nof` that admits the value, the
+condition and then-branch of a `when` whose condition holds or its
+else-branch, the condition of a `must`, a `contains` schema at each
+member it admits, and a `rest` schema at each member no cover reaches.
+So, with annotations collected,
+`x: 42 & nof(min(1), meta(number, {title: "A"}), meta(string, {title: "B"}))`
+has the canon `{"x":meta(42,{"title":"A"})}`. The option also decides
+the checks a container still holds, as generation does, so a branch
+over a container gives its members their riders.
+
 ## Resource identity: `identity`
 
 `identity(v, r)` is `v`, with the JSON Schema resource it was read from

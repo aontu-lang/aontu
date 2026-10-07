@@ -56,6 +56,8 @@ type Aontu struct {
 
 	ExactNumbers bool
 
+	Annotate bool
+
 	noFill bool
 }
 
@@ -152,8 +154,12 @@ func (a *Aontu) unifyCtx(v Val, vars map[string]Val, src string) (Val, *Ctx, err
 func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 	reads map[string]bool) (Val, *Ctx, error) {
 	ctx := budgeted(&Ctx{root: v, vars: vars, src: src, file: a.File,
-		reads: reads, texts: a.IncludeText, noFill: a.noFill}, a.Trust)
+		reads: reads, texts: a.IncludeText, noFill: a.noFill,
+		annotate: a.Annotate}, a.Trust)
 	res := unifyRoot(v, ctx)
+	if a.Annotate {
+		res = annotated(ctx, res)
+	}
 	ctx.root = res
 	a.Graph = GraphOf(res)
 	if len(ctx.err) > 0 {

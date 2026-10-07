@@ -116,20 +116,26 @@ function riderLayers<T>(r: Record<string, T[]>,
 
 // The riders of a meet's operands land on its result.
 function carryRiders(out: any, a: any, b: any): void {
-  const d = unionRider(unionRider(out.deprecation, a?.deprecation, String),
-    b?.deprecation, String)
-  if (d !== out.deprecation) {
-    out.deprecation = d
-  }
-  const canon = (m: Val) => m.canon
-  const m = unionRider(unionRider(out.meta, a?.meta, canon), b?.meta, canon)
-  if (m !== out.meta) {
-    out.meta = m
-  }
+  carryAnnotations(out, a)
+  carryAnnotations(out, b)
   const i = unionRider(unionRider(out.identity, a?.identity, String),
     b?.identity, String)
   if (i !== out.identity) {
     out.identity = i
+  }
+}
+
+
+// The riders that annotate, without the identity: a branch that passes
+// says what the value is, and never which declaration holds it.
+function carryAnnotations(out: any, from: any): void {
+  const d = unionRider(out.deprecation, from?.deprecation, String)
+  if (d !== out.deprecation) {
+    out.deprecation = d
+  }
+  const m = unionRider(out.meta, from?.meta, (v: Val) => v.canon)
+  if (m !== out.meta) {
+    out.meta = m
   }
 }
 
@@ -328,7 +334,7 @@ function items(o: any) {
   else {
     return []
   }
-} /* node:coverage ignore next 25 */
+} /* node:coverage ignore next 26 */
 
 
 export type { IncludeOptions }
@@ -342,6 +348,7 @@ export {
   hasRiders,
   unionRider,
   carryRiders,
+  carryAnnotations,
   wrapRiders,
   collectDeprecations,
   walkBagVals,

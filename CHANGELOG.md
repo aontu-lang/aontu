@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### Annotations from the branches that pass
+
+Both ports. G12 phase 12, part 2, amending ADR-049 and ADR-051.
+
+- `unify` takes a new option, `annotate` (`Aontu.Annotate` in Go), which
+  collects annotations as JSON Schema collects them: a check decided over
+  a value gives it, at each place, the `meta()` and `deprecate()` riders
+  that each branch that passes leaves there. That is every `nof`
+  alternative that admits the value, a `when`'s condition and
+  then-branch where the condition holds or its else-branch where it
+  fails, `must`'s condition, a `contains` schema at each member it
+  admits, and a `rest` schema at each member no cover reaches. Under it
+  `unify` also decides the checks a container still holds, as
+  generation does. Without it nothing changes.
+- The shared suite gains the `annotate` mode, and the
+  JSON-Schema-Test-Suite's annotations harness collects annotations:
+  all 84 of its 2020-12 assertions answer as the suite says, and its
+  ledger holds none.
+- A check over a container no longer refuses it where a member holds a
+  check of its own, as `{a: {b: 1} & nof(…)} & nof(min(1), {a?: {}})`
+  did.
+
 ### `rest(t, ...c)`, `unevaluatedProperties` and `unevaluatedItems`
 
 Both ports. G12 phase 12, part 1, ADR-051.

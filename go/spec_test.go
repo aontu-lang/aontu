@@ -110,6 +110,15 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("canon mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
 					}
 					assertCanonConverges(t, name, expect, vars)
+				case "annotate":
+					a.Annotate = true
+					v, err := a.UnifyVars(src, vars)
+					if err != nil {
+						t.Fatalf("unify error: %v\n src: %q", err, src)
+					}
+					if got := v.Canon(); got != expect {
+						t.Fatalf("annotate mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
+					}
 				case "canon-exact":
 					// The whole document read by value, and its canon read
 					// back the same.

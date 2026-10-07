@@ -4868,6 +4868,12 @@ export's test of whether a use is an unchanged copy of its definition
 leaves it out, since it says how the use was reached and not what it
 admits.
 
+### Amendment, 2026-10-07: a passing branch's rider reaches the value
+
+A rider inside a check's argument still rides the argument, and
+reaches the value where annotations are collected, from each branch
+that passes (ADR-051, amended).
+
 ## ADR-050 — A resource's identity is held by its declaration
 
 **Date:** 2026-10-07
@@ -4991,3 +4997,28 @@ schema itself, and drops and reports it elsewhere.
   phase-12 rows of `test/spec/jsonschema-import.tsv` and
   `test/spec/jsonschema.tsv`, and the suite's
   `unevaluatedProperties.json` and `unevaluatedItems.json`.
+
+### Amendment, 2026-10-07: the riders of the branches that pass
+
+G12 phase 12's second part. **Where annotations are collected, a check
+decided over a value gives it the riders of the branches that pass.**
+The admission trial that decides a branch already holds the settled
+meet of the branch with the value, and the riders that meet leaves at
+each place land on the value at that place: every `nof` alternative
+that admits the value, so none is left untried, the condition and
+then-branch of a `when` whose condition holds or its else-branch,
+`must`'s condition, a `contains` schema at each member it admits, and
+a `rest` schema at each member no cover reaches. Only `meta()` and
+`deprecate()` cross, never an identity. A check gives nothing until it
+passes as a whole, so a refusal gives nothing.
+
+Collecting is an option, `annotate` on `unify` in TypeScript and
+`Aontu.Annotate` in Go, and not the default. Without it a branch's
+rider stays in its check, so canon, generation and every answer the
+option does not ask for are unchanged, and the trials it adds, every
+branch with no memo, are paid only where annotations are wanted. With
+it, `unify` also decides each check a container still holds, as
+generation does, so a container's branches give their members their
+riders. The JSON-Schema-Test-Suite's annotations harness collects them,
+and the new `annotate` mode of the shared suite pins what each check
+gives (`test/spec/annotate.tsv`).

@@ -859,13 +859,14 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	return out
 }
 
-func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
-	return c.checkMustsFinal(peer, ctx, true)
+func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx, gs *[]giveRec) Val {
+	return c.checkMustsFinal(peer, ctx, true, gs)
 }
 
 // checkMustsFinal asks the trial nof asks (ADR-047); before the value is
 // settled only an empty meet, which no member could undo, refuses.
-func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
+func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool,
+	gs *[]giveRec) Val {
 	for _, m := range c.musts {
 		tctx := Ctx{}
 		if nil != ctx {
@@ -877,7 +878,7 @@ func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 		}
 		ok := false
 		if final {
-			ok = admitsSettled(&tctx, peer, m.v, pair)
+			ok = admitsGiving(&tctx, peer, m.v, pair, giving(gs, peer))
 		} else {
 			a, b := pair()
 			ok = nil != trialUnify(&tctx, a, b)
@@ -920,30 +921,33 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 			return c.fail(ctx, peer)
 		}
 	}
-	if bad := c.checkMusts(peer, ctx); nil != bad {
+	gs := annotating(ctx, true)
+	if bad := c.checkMusts(peer, ctx, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkNofs(peer, ctx, true); nil != bad {
+	if bad := c.checkNofs(peer, ctx, true, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkWhens(peer, ctx, true); nil != bad {
+	if bad := c.checkWhens(peer, ctx, true, gs); nil != bad {
 		return bad
 	}
+	harvestAll(gs)
 	return peer
 }
 
 // checkWhens asks the condition which branch the value must satisfy.
 // Before the value is settled the one answer is a refusal no member
 // could retract: every branch that could still apply already empty.
-func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx, final bool) Val {
+func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx, final bool,
+	gs *[]giveRec) Val {
 	for _, w := range c.whens {
 		tctx := *ctx
 		tctx.settle = false
 		trial := func(v Val) bool {
 			if final {
-				return admitsSettled(&tctx, peer, v, func() (Val, Val) {
+				return admitsGiving(&tctx, peer, v, func() (Val, Val) {
 					return clonePath(peer, c.path), clonePath(v, c.path)
-				})
+				}, giving(gs, peer))
 			}
 			return nil != trialUnify(&tctx, clonePath(peer, c.path), clonePath(v, c.path))
 		}
@@ -980,8 +984,8 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx, final bool) Val {
 // member left can move the verdict. Before generation only a concrete
 // scalar's admission is final, so the one refusal then is an upper
 // bound those members already pass.
-func (c *ConstraintVal) checkContains(
-	bag Val, optional []string, peer Val, ctx *Ctx, final bool) Val {
+func (c *ConstraintVal) checkContains(bag Val, optional []string, peer Val,
+	ctx *Ctx, final bool, gs *[]giveRec) Val {
 	if 0 == len(c.contains) {
 		return nil
 	}
@@ -993,12 +997,13 @@ func (c *ConstraintVal) checkContains(
 		tctx := *ctx
 		tctx.settle = false
 		matched := []string{}
-		for i := 0; i < len(members) && !countSettled(a.count, len(matched)); i++ {
+		for i := 0; i < len(members) &&
+			(nil != gs || !countSettled(a.count, len(matched))); i++ {
 			m, slot := members[i], append(cp(c.path), keys[i])
 			if _, scalar := m.(*ScalarVal); (final || scalar) &&
-				admitsSettled(&tctx, m, a.c, func() (Val, Val) {
+				admitsGiving(&tctx, m, a.c, func() (Val, Val) {
 					return clonePath(m, slot), clonePath(a.c, c.path)
-				}) {
+				}, giving(gs, m)) {
 				matched = append(matched, keys[i])
 			}
 		}
@@ -1022,7 +1027,8 @@ func (c *ConstraintVal) checkContains(
 
 // checkNofs tries a branch while one left can still move the verdict;
 // each trial runs to settlement from a first meet that is not settled.
-func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool) Val {
+func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool,
+	gs *[]giveRec) Val {
 	for _, n := range c.nofs {
 		tctx := *ctx
 		tctx.settle = false
@@ -1032,11 +1038,12 @@ func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool) Val {
 		refused := false
 		observed := ""
 		if final {
-			for i := 0; i < k && !settledCount(n.count, admitted, k-i); i++ {
+			// Every branch that passes annotates, so none is left untried.
+			for i := 0; i < k && (nil != gs || !settledCount(n.count, admitted, k-i)); i++ {
 				b := n.branches[i]
-				ok := admitsSettled(&tctx, peer, b, func() (Val, Val) {
+				ok := admitsGiving(&tctx, peer, b, func() (Val, Val) {
 					return clonePath(peer, c.path), clonePath(b, c.path)
-				})
+				}, giving(gs, peer))
 				verdict := " refuses"
 				if ok {
 					admitted++
@@ -1081,8 +1088,8 @@ func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx, final bool) Val {
 // must meet t. Before generation a trial or member schema admits unless
 // its meet is already empty, so the one refusal then is a member no cover
 // could reach whose meet with t is empty.
-func (c *ConstraintVal) checkRests(
-	bag Val, optional []string, peer Val, ctx *Ctx, final bool) Val {
+func (c *ConstraintVal) checkRests(bag Val, optional []string, peer Val,
+	ctx *Ctx, final bool, gs *[]giveRec) Val {
 	if 0 == len(c.rests) {
 		return nil
 	}
@@ -1093,17 +1100,20 @@ func (c *ConstraintVal) checkRests(
 	_, isList := bag.(*ListVal)
 	tctx := *ctx
 	tctx.settle = false
-	trial := func(node Val, path []string, v Val) bool {
+	trial := func(node Val, path []string, v Val, passed func(Val)) bool {
 		if isTop(v) {
+			if nil != passed {
+				passed(v)
+			}
 			return true
 		}
 		if v.Nil() {
 			return false
 		}
 		if final {
-			return admitsSettled(&tctx, node, v, func() (Val, Val) {
+			return admitsGiving(&tctx, node, v, func() (Val, Val) {
 				return clonePath(node, path), clonePath(v, c.path)
-			})
+			}, passed)
 		}
 		return nil != trialUnify(&tctx, clonePath(node, path), clonePath(v, c.path))
 	}
@@ -1111,7 +1121,7 @@ func (c *ConstraintVal) checkRests(
 	passes := func(v Val) bool {
 		ok, has := verdicts[v]
 		if !has {
-			ok = trial(peer, c.path, v)
+			ok = trial(peer, c.path, v, nil)
 			verdicts[v] = ok
 		}
 		return ok
@@ -1120,7 +1130,7 @@ func (c *ConstraintVal) checkRests(
 	var covered func(cs []restCover) bool
 	reach := func(r *restRecord) bool {
 		slot := append(cp(c.path), keys[at])
-		if nil != r.keys && trial(newString(keys[at]), slot, r.keys) {
+		if nil != r.keys && trial(newString(keys[at]), slot, r.keys, nil) {
 			return true
 		}
 		if nil != r.prefix && isList {
@@ -1129,7 +1139,7 @@ func (c *ConstraintVal) checkRests(
 				return true
 			}
 		}
-		if nil != r.items && trial(members[at], slot, r.items) {
+		if nil != r.items && trial(members[at], slot, r.items, nil) {
 			return true
 		}
 		return covered(r.covers)
@@ -1147,7 +1157,8 @@ func (c *ConstraintVal) checkRests(
 	for _, r := range c.rests {
 		for at = 0; at < len(members); at++ {
 			if (!final && containsStr(optional, keys[at])) || covered(r.covers) ||
-				trial(members[at], append(cp(c.path), keys[at]), r.t) {
+				trial(members[at], append(cp(c.path), keys[at]), r.t,
+					giving(gs, members[at])) {
 				continue
 			}
 			return makeNilErrFull(ctx, "rest", c, peer, "", map[string]string{
@@ -1173,8 +1184,20 @@ func (c *ConstraintVal) admitContainer(
 	return c.admitContainerFinal(bag, optional, ctx, peer, false)
 }
 
+// admitContainerFinal: what the branches that pass give lands only once
+// the whole check has.
 func (c *ConstraintVal) admitContainerFinal(
 	bag Val, optional []string, ctx *Ctx, peer Val, final bool) Val {
+	gs := annotating(ctx, final)
+	out := c.admitChecked(bag, optional, ctx, peer, final, gs)
+	if out == peer {
+		harvestAll(gs)
+	}
+	return out
+}
+
+func (c *ConstraintVal) admitChecked(bag Val, optional []string, ctx *Ctx,
+	peer Val, final bool, gs *[]giveRec) Val {
 	// A scalar-domain residual has no reading over a container.
 	if "" != c.domain {
 		return c.fail(ctx, peer)
@@ -1189,19 +1212,19 @@ func (c *ConstraintVal) admitContainerFinal(
 		return out
 	}
 
-	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
+	if bad := c.checkMustsFinal(peer, ctx, final, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkNofs(peer, ctx, final); nil != bad {
+	if bad := c.checkNofs(peer, ctx, final, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkWhens(peer, ctx, final); nil != bad {
+	if bad := c.checkWhens(peer, ctx, final, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkContains(bag, optional, peer, ctx, final); nil != bad {
+	if bad := c.checkContains(bag, optional, peer, ctx, final, gs); nil != bad {
 		return bad
 	}
-	if bad := c.checkRests(bag, optional, peer, ctx, final); nil != bad {
+	if bad := c.checkRests(bag, optional, peer, ctx, final, gs); nil != bad {
 		return bad
 	}
 
@@ -1288,6 +1311,63 @@ func (c *ConstraintVal) admitContainerFinal(
 		return peer
 	}
 	return c.hold(peer)
+}
+
+// giveRec is a place of the value a check that passed annotates, with
+// the settled meet of the branch that passed there.
+type giveRec struct{ into, met Val }
+
+// annotating: where annotations are collected, a final check keeps what
+// each branch that passes gives.
+func annotating(ctx *Ctx, final bool) *[]giveRec {
+	if final && nil != ctx && ctx.annotate {
+		return &[]giveRec{}
+	}
+	return nil
+}
+
+func giving(gs *[]giveRec, into Val) func(Val) {
+	if nil == gs {
+		return nil
+	}
+	return func(met Val) { *gs = append(*gs, giveRec{into, met}) }
+}
+
+func harvestAll(gs *[]giveRec) {
+	if nil != gs {
+		for _, g := range *gs {
+			harvestRiders(g.into, g.met)
+		}
+	}
+}
+
+// harvestRiders: the riders a branch's meet leaves at each place land on
+// the value at that place, as JSON Schema collects at an instance
+// location the annotations of every subschema that passes there.
+func harvestRiders(into, from Val) {
+	at := into
+	if _, bag, ok := sizingResidue(into); ok {
+		at = bag
+	}
+	carryAnnotations(at, from)
+	switch a := at.(type) {
+	case *MapVal:
+		if b, ok := from.(*MapVal); ok {
+			for _, k := range a.keys {
+				if f, has := b.peg[k]; has {
+					harvestRiders(a.peg[k], f)
+				}
+			}
+		}
+	case *ListVal:
+		if b, ok := from.(*ListVal); ok {
+			for i, e := range a.peg {
+				if i < len(b.peg) {
+					harvestRiders(e, b.peg[i])
+				}
+			}
+		}
+	}
 }
 
 func (c *ConstraintVal) hold(peer Val) Val {

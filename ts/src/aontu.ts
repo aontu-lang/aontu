@@ -32,6 +32,7 @@ import { reachCheck } from './reach'
 import { jsonSchema } from './jsonschema'
 import { importJsonSchema } from './jsonschema-import'
 import { aliasBudget, aliasErrors } from './alias'
+import { annotated } from './val/FuncBaseVal'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
 import { desugarTemplate, resugarTemplate, markerFor } from './template'
@@ -175,7 +176,7 @@ class Aontu {
         // Never nullish: Unify.res starts as the root Val, unite() returns a
         // Val on every arm, and its catch-all turns a throwing node into an
         // 'internal' NilVal.
-        out = uni.res
+        out = true === ac.annotate ? annotated(ac, uni.res) : uni.res
         out.graph = graphOf(out)
       }
 
