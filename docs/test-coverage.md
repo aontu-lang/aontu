@@ -134,7 +134,7 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**6319 cases across 119 files**) is run by *both*
+`test/spec/*.tsv` (**6320 cases across 119 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
@@ -145,7 +145,7 @@ implementations and is the contract that defines shared behaviour
 | `edge.tsv`                  | 338 | `sort.tsv` | 39 |
 | `fmt.tsv`                   | 232 | `disjunct.tsv` | 38 |
 | `jsonschema.tsv`            | 217 | `aontu-system.tsv` | 37 |
-| `jsonschema-import.tsv`     | 192 | `views.tsv` | 37 |
+| `jsonschema-import.tsv`     | 193 | `views.tsv` | 37 |
 | `errcodes.tsv`              | 182 | `graph.tsv` | 36 |
 | `view.tsv`                  | 177 | `defaults.tsv` | 35 |
 | `alias.tsv`                 | 172 | `gen-pack.tsv` | 34 |

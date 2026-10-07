@@ -78,13 +78,13 @@ function effectiveDefault(v) {
     }
     return undefined;
 }
-// Is this evaluated value concrete enough to serve as a witness — a
-// value that certainly IS an instance of the specific side?
 // The Band B atoms that make a general residual opaque, by name.
 function opaqueNames(g) {
     return [...(0 < g.musts.length ? ['must'] : []),
         ...(0 < g.nofs.length ? ['nof'] : [])].join(', ');
 }
+// Is this evaluated value concrete enough to serve as a witness — a
+// value that certainly IS an instance of the specific side?
 function isConcrete(v) {
     if (true === v?.isScalar) {
         return true;

@@ -12,5 +12,5 @@
 <path d="M32 40V110H50" class="av-line"/>
 <text x="52" y="114"><tspan class="av-t">counters</tspan><tspan class="av-m"> {&amp;:{&quot;n&quot;:number,&quot;next&quot;:add(.n,...</tspan></text>
 <path d="M32 40V130H50" class="av-line"/>
-<text x="52" y="134"><tspan class="av-t">total</tspan><tspan class="av-m"> must(min(0),&quot;total must not b...</tspan></text>
+<text x="52" y="134"><tspan class="av-t">total</tspan><tspan class="av-m"> number&amp;must(min(0),&quot;total mus...</tspan></text>
 </svg>

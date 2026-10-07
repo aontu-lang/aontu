@@ -19,12 +19,13 @@ const aliasname_1 = require("../aliasname");
 const provenance_1 = require("../provenance");
 // A key still optional is absent when its value cannot be made, so a
 // conflict met there is held by the key, not reported (ADR-048).
-function holding(ctx, optional, fn) {
+function holding(ctx, optional, te, note, fn) {
+    const base = te ? ctx.clone({ explain: (0, utility_1.ec)(te, note) }) : ctx;
     if (!optional) {
-        return fn(ctx);
+        return fn(base);
     }
     const held = [];
-    const hctx = ctx.clone({ err: held });
+    const hctx = base.clone({ err: held });
     hctx._heldErr = held;
     const out = fn(hctx);
     for (const nil of held) {
@@ -182,13 +183,13 @@ class MapVal extends BagVal_1.BagVal {
                 // No `undefined !== child` here: propagateMarks above already
                 // dereferenced it, so a missing child would have thrown there.
                 if (!spread_cj.isTop && (child.isAbsent || (0, BagVal_1.undecided)(child))) {
-                    oval = child.isAbsent ? child : holding(keyctx, opt, (c) => (0, unify_1.unite)(te ? c.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : c, child, TOP, 'map-own'));
+                    oval = child.isAbsent ? child : holding(keyctx, opt, te, 'KEY:' + key, (c) => (0, unify_1.unite)(c, child, TOP, 'map-own'));
                     // Decided to be there: the template applies next pass.
                     done = done && oval.isAbsent;
                 }
                 else if (!spread_cj.isTop
                     && child._spr === (0, Val_1.spreadId)(spread_cj)) {
-                    oval = child.done ? child : holding(keyctx, opt, (c) => (0, unify_1.unite)(te ? c.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : c, child, TOP, 'map-own'));
+                    oval = child.done ? child : holding(keyctx, opt, te, 'KEY:' + key, (c) => (0, unify_1.unite)(c, child, TOP, 'map-own'));
                     oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
                 else {
@@ -207,7 +208,7 @@ class MapVal extends BagVal_1.BagVal {
                                 key_spread_cj.isTop && child.done && undefined === keyctx.prov
                                     ? child :
                                     child.isTop && key_spread_cj.done ? key_spread_cj :
-                                        holding(keyctx, opt, (c) => (0, unify_1.unite)(te ? c.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : c, child, key_spread_cj, 'map-own'));
+                                        holding(keyctx, opt, te, 'KEY:' + key, (c) => (0, unify_1.unite)(c, child, key_spread_cj, 'map-own'));
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
                         oval._spr = (0, Val_1.spreadId)(spread_cj);
@@ -248,12 +249,12 @@ class MapVal extends BagVal_1.BagVal {
                     let oval = out.peg[peerkey] =
                         undefined === child
                             ? (undefined !== peerctx.prov && peerchild.isGenable
-                                ? holding(peerctx, opt, (c) => (0, unify_1.unite)(c, peerchild, TOP, 'map-peer-only'))
+                                ? holding(peerctx, opt, undefined, '', (c) => (0, unify_1.unite)(c, peerchild, TOP, 'map-peer-only'))
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
                             child.isTop && peerchild.done ? peerchild :
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
-                                        holding(peerctx, opt, (c) => (0, unify_1.unite)(te ? c.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : c, child, peerchild, 'map-peer'));
+                                        holding(peerctx, opt, te, 'CHD', (c) => (0, unify_1.unite)(c, child, peerchild, 'map-peer'));
                     if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;
                     }
@@ -266,7 +267,7 @@ class MapVal extends BagVal_1.BagVal {
                             if (undefined !== peerctx.prov) {
                                 (0, provenance_1.markSpread)(key_spread_cj);
                             }
-                            oval = out.peg[peerkey] = holding(peerctx, opt, (c) => (0, unify_1.unite)(te ? c.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : c, oval, key_spread_cj, 'map-peer-spread'));
+                            oval = out.peg[peerkey] = holding(peerctx, opt, te, 'PSP:' + peerkey, (c) => (0, unify_1.unite)(c, oval, key_spread_cj, 'map-peer-spread'));
                             if (!spread_cj.isTop && !oval.isNil) {
                                 ;
                                 oval._spr = (0, Val_1.spreadId)(spread_cj);
