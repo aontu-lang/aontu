@@ -613,13 +613,17 @@ const hints = {
         'that is not a non-negative integer or a type that names no type. The\n' +
         'import refuses rather than guess what a malformed schema meant; fix\n' +
         'the schema at the pointer the finding names.',
-    jsonschema_ref: 'A $ref names nothing the import can read: another document, since\n' +
-        'the import reads one document, or a pointer or anchor that names no\n' +
-        'schema in this one. The import refuses rather than leave the position\n' +
-        'unconstrained.',
-    jsonschema_duplicate: 'One anchor names two subschemas in one document. Which one a $ref\n' +
-        'means would depend on the order the schema is walked, so the import\n' +
-        'refuses; rename one of them.',
+    jsonschema_ref: 'A $ref or $dynamicRef names nothing the import can read: a document\n' +
+        'the import was not given, or a pointer or anchor that names no schema\n' +
+        'in the document it names. The import refuses rather than leave the\n' +
+        'position unconstrained.',
+    jsonschema_duplicate: 'One identifier names two schemas, or one anchor two subschemas of\n' +
+        'one resource. Which one a reference means would depend on the order\n' +
+        'the schema is walked, so the import refuses; rename one of them.',
+    jsonschema_budget: 'A schema is imported once for each dynamic scope it is read in, since\n' +
+        'a $dynamicRef beneath it may resolve differently in each, and the\n' +
+        'dynamic anchors here make more of those than the budget allows.\n' +
+        'Import a smaller part of the schema.',
     'vet_filled': 'The schema supplies a member the data does not carry. vet --no-fill\n' +
         'asks whether the data already IS an instance, so a value only the\n' +
         'schema writes -- a literal, a preferred default, a template\'s key, a\n' +
@@ -690,6 +694,7 @@ const codeClasses = {
     jsonschema_schema: 'parse',
     jsonschema_ref: 'reference',
     jsonschema_duplicate: 'reference',
+    jsonschema_budget: 'budget',
     // G7 phase 5 -- the overlay patch verb: an assignment that is not
     // <path>=<value>. Class `parse`, because what is malformed IS
     // source text; report-layer, so no NilVal carries it.

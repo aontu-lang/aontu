@@ -49,6 +49,17 @@ list-alternative-still-merges	gens	a: [] a: [1]	{"a":[1]}
 # reference at its landed position and residuates by the same rule.
 # (employer? partially generates by the pinned optional-partial rule.)
 mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hide({title: string, staff: {&: $.Person}})\nacme: $.Company & {title: "Acme", staff: {sam: {name: "Sam"}}}	{"acme":{"staff":{"sam":{"employer":{"staff":{}},"name":"Sam"}},"title":"Acme"}}
+# A reference REACHED BEFORE the pair it names expands the pair where
+# it stands, inside neither definition, so no reference in the copy is
+# a prefix of its landed position and the copy expanded until
+# unify_cycle. A copy taken through a reference now records the targets
+# it was taken through, and a reference inside it naming one of them
+# residuates: the same rule, at a copy's landed position
+# (use-cases/BUGS.md §106).
+mutual-alias-reached-before-its-pair	gens	%R = %E & { foo?: 1 }\n%B = { baz?: %E }\n%E = { bar?: %B }\nx: %R\nx: { bar: { baz: { bar: {} } } }	{"x":{"bar":{"baz":{"bar":{}}},"foo":1}}
+mutual-alias-reached-before-its-pair-refuses-at-depth	errc	%R = %E & { foo?: 1 }\n%B = { baz?: %E & { n?: integer } }\n%E = { bar?: %B }\nx: %R\nx: { bar: { baz: { bar: { baz: { n: "x" } } } } }	no_scalar_unify
+mutual-path-reached-before-its-pair	gens	c: $.a & { z?: 1 }\na: { x?: $.b }\nb: { y?: $.a }\nc: { x: { y: { x: {} } } }	{"a":{},"b":{},"c":{"x":{"y":{"x":{}}},"z":1}}
+mutual-path-reached-before-its-pair-refuses-at-depth	errc	c: $.a & { z?: 1 }\na: { x?: $.b }\nb: { y?: $.a & { n?: integer } }\nc: { x: { y: { x: { y: { n: "x" } } } } }	no_scalar_unify
 #
 # --- JSON itself, as a guarded alias ---------------------------------
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}

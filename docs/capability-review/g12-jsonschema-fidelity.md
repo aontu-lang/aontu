@@ -858,6 +858,15 @@ to `E`'s binding; without that anchor it is a plain `$ref`. The walk
 records a resource entry at every `$id` boundary, whether reached by
 reference or by descent.
 
+*As landed (phase 11):* `E` holds every dynamic anchor in scope, not
+only the names some `$dynamicRef` fragment spells, because a document
+of the set is read only when a reference reaches it, so those names are
+not known in advance. A node read where `E` is the root resource's own
+keeps its plain alias name, and any other alias adds `-_e-<name>-<place>`
+for each binding, sorted by name, rather than a hash, which neither
+port would otherwise need a library for. More than a thousand such
+aliases refuse with `jsonschema_budget`.
+
 This is exact for the entry points imported. A later aontu document
 that references an imported alias from a new outer scope does not
 re-bind it, which the reference documents as static. A native
@@ -870,17 +879,24 @@ restore it. After the rewrite, a `$dynamicRef` and a `$ref` that
 resolve to the same alias in the imported scope are the same reference,
 yet they differ under any other outer scope. So each rewritten use site
 keeps a provenance record on the `meta` rider, `dynamicRef`, holding
-the original fragment and the node of its initial target, and each
-clone keeps the source resource it was cloned from and the environment
-it was cloned under. The exporter folds the clones of one source
-resource back into a single `$defs` entry carrying its
-`$dynamicAnchor`, and writes each use that carries the record as
-`$dynamicRef` with its original fragment. Where the clones cannot be
-folded, because their bodies differ in more than the rewritten targets,
-the exporter writes each clone as its own entry and reports a
-`$dynamicRef` loss naming the entry point it was specialised for,
-rather than a plain `$ref` that silently changes what an overriding
-anchor would do.
+the URI its initial target was resolved to, and the declaration of a
+schema that declares a `$dynamicAnchor` names it in its `identity()`
+record (`dynamicAnchor`, beside section 10's `anchor`). The exporter
+writes a use that carries the record as `$dynamicRef` where the
+definition it resolved to carries that anchor in the root's resource:
+every scope binds a name the root's resource binds to the same schema,
+so the reference resolves alike in the export and under any outer
+scope. Every other rewritten use is written as the `$ref` it resolved
+to, with a reported `$dynamicRef` loss, rather than a `$dynamicRef`
+that would resolve differently.
+
+*Departure, as landed (phase 11):* the clones are not folded back
+into one `$defs` entry. The export writes its definitions flat under
+the root's `$defs`, so a bookend that sits inside a nested resource
+without an `$id` of its own has no place to stand, and a folded
+`$dynamicRef` could not resolve as the import did. A schema whose
+dynamic references all resolve under the root resource's anchors, as
+the meta-schema's do, has no clones and crosses back whole.
 
 The 2020-12 meta-schema is itself written with `$dynamicRef`, so this
 section is a prerequisite for validating input against it.
@@ -1306,8 +1322,9 @@ document set.
 
 **Phase 11: dynamic references (M).** The specialisation walk, its
 budget and `jsonschema_budget`, the use-site `dynamicRef` provenance
-record, and the exporter's fold of clones back into `$dynamicRef` and
-`$dynamicAnchor`, with a reported loss where clones cannot fold.
+record, and the exporter's `$dynamicRef` and `$dynamicAnchor`, written
+back where the root's resource binds the anchor and reported as a loss
+where it does not (section 11 records why clones are not folded).
 
 **Phase 12: evaluated coverage (L).** `rest(t, ...cover)`, the coverage
 records the importer writes, the branch hoisting that shares them with

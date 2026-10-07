@@ -1,4 +1,4 @@
-# bound 126
+# bound 106
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -13,26 +13,7 @@
 draft2020-12/anchor.json	same $anchor with different base uri	$ref resolves to /$defs/A/allOf/1	-	18
 draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	16
 draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	16
-draft2020-12/dynamicRef.json	A $dynamicRef to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	A $dynamicRef to an $anchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicRef	11
-draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array of strings is valid	jsonschema_ref	11
-draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	jsonschema_ref	11
-draft2020-12/dynamicRef.json	A $dynamicRef resolves to the first $dynamicAnchor still in scope that is encountered when the schema is evaluated	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	A $dynamicRef without anchor in fragment behaves identical to $ref	An array of strings is invalid	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	A $dynamicRef with intermediate scopes that don't include a matching $dynamicAnchor does not affect dynamic scope resolution	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	A $dynamicRef that initially resolves to a schema with a matching $dynamicAnchor resolves to the first $dynamicAnchor in the dynamic scope	The recursive part is not valid against the root	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	number list with string values	$dynamicRef	11
-draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with number values	$dynamicRef	11
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	string matches /$defs/thingy, but the $dynamicRef does not stop here	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	first_scope is not in dynamic scope for the $dynamicRef	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	$dynamicAnchor,$dynamicRef,unevaluatedProperties	12
-draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	incorrect extended schema	$dynamicAnchor,$dynamicRef	11
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $defs first	incorrect extended schema	$dynamicRef	11
-draft2020-12/dynamicRef.json	$ref and $dynamicAnchor are independent of order - $ref first	incorrect extended schema	$dynamicRef	11
-draft2020-12/dynamicRef.json	$ref to $dynamicRef finds detached $dynamicAnchor	non-number is invalid	$dynamicRef	11
-draft2020-12/dynamicRef.json	$dynamicRef points to a boolean schema	follow $dynamicRef to a false schema	$dynamicRef	11
-draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	$dynamicRef	11
-draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	$dynamicRef	11
+draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	unevaluatedProperties	12
 draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
 draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	$schema	16
 draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	-	15
@@ -49,7 +30,6 @@ draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object 
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote	-	15
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted tab invalid under dependent schema	-	15
 draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote invalid under dependent schema	-	15
-draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	string property fails	$dynamicRef	11
 draft2020-12/optional/ecmascript-regex.json	ECMA 262 regex escapes control codes with \c and upper letter	does not match	pattern	14
 draft2020-12/optional/ecmascript-regex.json	ECMA 262 regex escapes control codes with \c and lower letter	does not match	pattern	14
 draft2020-12/optional/ecmascript-regex.json	patterns always use unicode semantics with pattern	unicode matching is case-sensitive	pattern	14
@@ -76,7 +56,7 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if do
 draft2020-12/unevaluatedItems.json	unevaluatedItems with boolean schemas	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $ref	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems before $ref	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	$dynamicAnchor,$dynamicRef,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with $dynamicRef	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems can't see inside cousins	always fails	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to unevaluatedItems	uncle keyword evaluation is not significant	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	unevaluatedItems	12
@@ -110,7 +90,7 @@ draft2020-12/unevaluatedProperties.json	unevaluatedProperties with dependentSche
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with boolean schemas	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $ref	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties before $ref	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with unevaluated properties	$dynamicAnchor,$dynamicRef,unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $dynamicRef	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins	always fails	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties can't see inside cousins (reverse order)	always fails	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	nested unevaluatedProperties, outer true, inner false, properties outside	with no nested unevaluated properties	unevaluatedProperties	12

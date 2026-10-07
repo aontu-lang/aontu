@@ -24,6 +24,8 @@ const BigDecimalVal_1 = require("./BigDecimalVal");
 // class it has no rule for. A key cannot contain a NUL, so this can never
 // match, which turns a silent path-shortening bug into a visible miss.
 const UNSPELLABLE_SEGMENT = '\u0000unspellable';
+// The targets a copy in progress is taken through (`within` below).
+let cloneWithin = undefined;
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it.
 function dropPendingMarkWrappers(v) {
@@ -75,6 +77,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
         this.rxc = 0;
         this.prefix = false;
         this.copyFound = false;
+        // The targets this reference was copied in through: one naming any of
+        // them is a recursion, wherever the copy has landed.
+        this.within = [];
         this.peg = [];
         // The field initialiser (absolute = false) has just run, so only
         // the spec can carry absoluteness in (RefVal.clone re-passes it).
@@ -195,6 +200,10 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     break;
                 }
             }
+        }
+        const key = this.withinKey;
+        if (!isprefixpath && undefined !== key && this.within.includes(key)) {
+            isprefixpath = true;
         }
         // Degenerate case: peg is all empty strings (e.g. path("")) and path is empty.
         if (!isprefixpath && this.peg.length > 0 && this.path.length === 0) {
@@ -404,7 +413,14 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const lifted = true !== ctx.argsnap
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
-                    out = out.clone(ctx, { dup: !out.holdsStaged });
+                    const prior = cloneWithin;
+                    cloneWithin = undefined === key ? this.within : [...this.within, key];
+                    try {
+                        out = out.clone(ctx, { dup: !out.holdsStaged });
+                    }
+                    finally {
+                        cloneWithin = prior;
+                    }
                     out.identity = undefined;
                     if (lifted) {
                         // The copy carries a held constraint without its type.
@@ -429,7 +445,6 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 }
             }
         }
-        // console.log('REF-FIND', ctx.cc, this.id, selfpath, 'PEG=', pegpath, 'RP', pI, refpath.join('.'), descent, 'O=', out?.id, out?.canon, out?.done)
         return out;
     }
     detectRefCycle(ctx) {
@@ -508,6 +523,8 @@ class RefVal extends FeatureVal_1.FeatureVal {
             ...(spec || {})
         });
         out.expansion = this.expansion;
+        out.within = undefined === cloneWithin ? this.within :
+            [...new Set([...this.within, ...cloneWithin])];
         // The recursion seed travels with the clone: a spread template is
         // cloned per destination, and each clone's residual must start
         // where the level it came from left off.
@@ -523,6 +540,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
     get aliasKey() {
         return this.absolute && 1 === this.peg.length &&
             (0, aliasname_1.isAliasSlotKey)(this.peg[0]) ? this.peg[0] : undefined;
+    }
+    get withinKey() {
+        return this.absolute && 0 < this.peg.length && this.peg.every((p) => 'string' === typeof p && '' !== p) ? this.peg.join('\u0000') : undefined;
     }
     // What the source spells: the key without its scope.
     get aliasName() {

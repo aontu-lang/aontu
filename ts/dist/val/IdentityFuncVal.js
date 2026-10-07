@@ -9,12 +9,14 @@ const aliasname_1 = require("../aliasname");
 const utility_1 = require("../utility");
 const uri_1 = require("../uri");
 const text = (v) => true === v?.isScalar && 'string' === typeof v.peg;
+const plainName = (v) => text(v) && /^[A-Za-z_][-A-Za-z0-9._]*$/.test(v.peg);
 // The record's whole vocabulary: an $id is an absolute URI, and an
-// $anchor is a plain name.
+// $anchor or a $dynamicAnchor is a plain name.
 const IDENTITY_KEYS = {
     id: (v) => text(v) && undefined !== (0, uri_1.parseUri)(v.peg).scheme &&
         !v.peg.includes('#'),
-    anchor: (v) => text(v) && /^[A-Za-z_][-A-Za-z0-9._]*$/.test(v.peg),
+    anchor: plainName,
+    dynamicAnchor: plainName,
     key: text,
 };
 class IdentityFuncVal extends FuncBaseVal_1.FuncBaseVal {
@@ -47,6 +49,11 @@ class IdentityFuncVal extends FuncBaseVal_1.FuncBaseVal {
             });
         }
         const out = v.clone(ctx);
+        // A reference's copy of the declaration, taken before the call
+        // resolved, is that declaration's copy, not one of the alias it names.
+        if (null != this.aliasOrigin) {
+            out.aliasOrigin = this.aliasOrigin;
+        }
         // Only the declaration carries the record, from a call that is no
         // other call's argument: a reference's copy of the call resolves
         // where the reference stands, as its value.

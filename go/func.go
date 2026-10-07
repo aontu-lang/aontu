@@ -735,6 +735,12 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			})
 		}
 		out := clonePath(args[0], cp(base))
+		// A reference's copy of the declaration, taken before the call
+		// resolved, is that declaration's copy, not one of the alias it
+		// names.
+		if key := f.aliasOrigin(); "" != key {
+			out.setAliasOrigin(key)
+		}
 		// Only the declaration carries the record, from a call that is no
 		// other call's argument: a reference's copy of the call resolves
 		// where the reference stands, as its value.

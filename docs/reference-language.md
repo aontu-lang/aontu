@@ -2283,7 +2283,7 @@ Example: `hide(world) & string`→`"world"`
 
 ### `identity(v: any, r: map) : any`
 
-`v`, with the JSON Schema resource it was read from named on the alias declaration it is the value of: its `$id`, its `$anchor` and its key under `$defs`. Unifies and generates exactly as `v`; a reference's copy never takes the record. See [Resource identity](#resource-identity-identity).
+`v`, with the JSON Schema resource it was read from named on the alias declaration it is the value of: its `$id`, its `$anchor`, its `$dynamicAnchor` and its key under `$defs`. Unifies and generates exactly as `v`; a reference's copy never takes the record. See [Resource identity](#resource-identity-identity).
 
 Example: `%Address = identity({ city:string }, { id:"https://example.com/address" })`
 
@@ -3957,7 +3957,8 @@ Schema: `title`, `description`, `comment`, `format`, `contentEncoding`
 and `contentMediaType` are strings; `readOnly` and `writeOnly` are
 booleans; `default` and `contentSchema` are any data; `examples` is a
 list of data; and `x` maps each keyword JSON Schema does not define to
-its data.
+its data. `dynamicRef` is the URI a `$dynamicRef` resolved to, which the
+import writes and the export reads back.
 
 ```aontu
 port: meta(integer, { title:"Port" description:"Where it listens" })
@@ -3988,11 +3989,12 @@ as it is.
 
 `identity(v, r)` is `v`, with the JSON Schema resource it was read from
 named on the alias declaration it is the value of. The record's `id` is
-the resource's `$id`, an absolute URI with no fragment; its `anchor` is
-a plain name; and its `key` is the name the schema had under `$defs`.
-Each is a string, and each may be left out. The JSON Schema import
-writes the record, and the export reads it at the declaration, to give
-the definition back its key, its `$anchor` and its `$id`.
+the resource's `$id`, an absolute URI with no fragment; its `anchor`
+and its `dynamicAnchor` are plain names; and its `key` is the name the
+schema had under `$defs`. Each is a string, and each may be left out.
+The JSON Schema import writes the record, and the export reads it at
+the declaration, to give the definition back its key, its anchors and
+its `$id`.
 
 ```aontu
 %Address = identity({ city:string }, { id:"https://example.com/address" })

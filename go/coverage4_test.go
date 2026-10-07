@@ -42,10 +42,10 @@ func TestBudgetResidueUnnamedPaths(t *testing.T) {
 // outside it reaches the fallthrough.
 func TestClonePathRecUnknown(t *testing.T) {
 	v := &stubVal{n: 7}
-	if got := clonePathRec(v, []string{"x"}, false); got != Val(v) {
+	if got := clonePathRec(v, []string{"x"}, false, nil); got != Val(v) {
 		t.Fatalf("want the value back unchanged, got %v", got)
 	}
-	if got := clonePathRec(nil, []string{"x"}, false); got != nil {
+	if got := clonePathRec(nil, []string{"x"}, false, nil); got != nil {
 		t.Fatalf("want nil back, got %v", got)
 	}
 }

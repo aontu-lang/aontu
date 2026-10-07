@@ -270,6 +270,7 @@ const SCHEMA_ONE = ['additionalProperties', 'propertyNames', 'items',
     'unevaluatedItems', 'contentSchema'];
 const SCHEMA_LISTS = ['prefixItems', 'allOf', 'anyOf', 'oneOf'];
 const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
+    '$dynamicRef', '$dynamicAnchor',
     'type', 'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then',
     'else', 'dependentSchemas', 'dependentRequired', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
@@ -280,8 +281,11 @@ const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
 const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
     'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
     'contentEncoding', 'contentMediaType', 'contentSchema']);
-const LATER = new Set(['$dynamicRef', '$dynamicAnchor',
-    'unevaluatedProperties', 'unevaluatedItems', '$vocabulary']);
+const LATER = new Set(['unevaluatedProperties', 'unevaluatedItems',
+    '$vocabulary']);
+// How many schemas the import may read once more for each further
+// environment a dynamic reference reaches them in.
+const CLONE_BUDGET = 1000;
 function lose(ctx, path, construct, reason) {
     ctx.lossy.push({ path, construct, reason });
 }
@@ -320,16 +324,22 @@ function index(ctx, node, ptr, base) {
         claim(ctx, base, { node, ptr }, ptrAt(ptr, '$id'));
     }
     ctx.bases.set(node, base);
-    if (node.has('$anchor')) {
-        const anchor = node.get('$anchor');
-        if ('string' !== typeof anchor || !/^[A-Za-z_][-A-Za-z0-9._]*$/.test(anchor)) {
-            refuse(ptrAt(ptr, '$anchor'), 'an anchor must be a plain name');
+    for (const kw of ['$anchor', '$dynamicAnchor']) {
+        if (node.has(kw)) {
+            const name = node.get(kw);
+            if ('string' !== typeof name || !/^[A-Za-z_][-A-Za-z0-9._]*$/.test(name)) {
+                refuse(ptrAt(ptr, kw), 'an anchor must be a plain name');
+            }
+            const names = ctx.anchors.get(base) ?? new Map();
+            if (node !== (names.get(name) ?? { node }).node) {
+                throw new Refusal('jsonschema_duplicate', ptrAt(ptr, kw), 'the anchor ' + strLit(name) + ' names two subschemas');
+            }
+            ctx.anchors.set(base, names.set(name, { node, ptr }));
+            if ('$dynamicAnchor' === kw) {
+                const dyn = ctx.dynamics.get(base) ?? new Map();
+                ctx.dynamics.set(base, dyn.set(name, { node, ptr }));
+            }
         }
-        const names = ctx.anchors.get(base) ?? new Map();
-        if (names.has(anchor)) {
-            throw new Refusal('jsonschema_duplicate', ptrAt(ptr, '$anchor'), 'the anchor ' + strLit(anchor) + ' names two subschemas');
-        }
-        ctx.anchors.set(base, names.set(anchor, { node, ptr }));
     }
     for (const [k, v] of node) {
         if (SCHEMA_MAPS.includes(k) && isObj(v)) {
@@ -408,10 +418,12 @@ function placeName(ptr) {
     return 0 === at ? aliasName(segs) :
         '_d-' + enc(ptr.slice(0, at), false) + segs.map((s) => '-' + enc(s, false)).join('');
 }
-// `$ref`, resolved against the base of the schema it sits in.
-function refAlias(ctx, o, ref, path) {
+// A reference, resolved against the base of the schema it sits in, to
+// the place it names, with the URI it was resolved to.
+function target(ctx, o, kw, path) {
+    const ref = o.get(kw);
     if ('string' !== typeof ref) {
-        refuse(path, '$ref must be a string');
+        refuse(path, kw + ' must be a string');
     }
     const bad = (why) => {
         throw new Refusal('jsonschema_ref', path, 'the reference ' + strLit(ref) + ' ' + why);
@@ -449,11 +461,48 @@ function refAlias(ctx, o, ref, path) {
     if (undefined === node || !isSchema(node)) {
         bad('names no schema in this document');
     }
-    // One place, one alias: an anchor names the alias of the place it
-    // stands, so a schema reached by anchor and by pointer is one alias.
-    const name = placeName(ptr);
-    declare(ctx, name, node, ptr);
+    return { node: node, ptr, frag, uri: uri + '#' + (raw ?? '') };
+}
+// `$dynamicRef`: where its first target declares the dynamic anchor its
+// fragment names, the schema the outermost resource in scope binds it
+// to, or that target where none does, and a `$ref` otherwise.
+function dynamicAlias(ctx, o, path) {
+    const t = target(ctx, o, '$dynamicRef', path);
+    if (!isObj(t.node) || t.frag !== t.node.get('$dynamicAnchor')) {
+        return use(ctx, t);
+    }
+    return 'meta(' + use(ctx, ctx.env.get(t.frag) ?? t) + ', { dynamicRef: ' +
+        strLit(t.uri) + ' })';
+}
+// One place in one environment, one alias: an anchor names the alias of
+// the place it stands, so a schema reached by anchor and by pointer is
+// one alias, and a schema read in another environment is another.
+function use(ctx, place) {
+    const name = aliasOf(ctx, place.node, place.ptr);
+    declare(ctx, name, place.node, place.ptr);
     return '%' + name;
+}
+function aliasOf(ctx, node, ptr) {
+    const env = enter(ctx, ctx.env, node);
+    // An environment only grows from the root resource's, binding names it
+    // lacks, so one no larger is the root's.
+    if (env.size === ctx.rootEnv.size) {
+        return placeName(ptr);
+    }
+    const name = placeName(ptr) + [...env.keys()].sort(keyorder_1.cmpCodePoint).map((n) => '-_e-' + enc(n, false) + '-' + placeName(env.get(n).ptr)).join('');
+    if (!ctx.aliases.has(name) && CLONE_BUDGET < ++ctx.clones) {
+        throw new Refusal('jsonschema_budget', ptr, 'more than ' + CLONE_BUDGET +
+            ' schemas are read once more in another dynamic scope');
+    }
+    return name;
+}
+// The environment a schema is read in: the one around it, and the
+// dynamic anchors its resource declares that no outer one binds.
+function enter(ctx, env, node) {
+    const own = ctx.dynamics.get(ctx.bases.get(node));
+    const fresh = [...(own ?? new Map()).entries()]
+        .filter(([n]) => !env.has(n));
+    return 0 === fresh.length ? env : new Map([...env, ...fresh]);
 }
 function declare(ctx, name, node, ptr) {
     if (!ctx.aliases.has(name)) {
@@ -465,8 +514,9 @@ function declare(ctx, name, node, ptr) {
     }
 }
 // What the export needs to give a schema back its place: the $id of the
-// resource it is, where that is absolute, its $anchor, where the export
-// leaves the anchor in the resource that holds it, and its $defs key.
+// resource it is, where that is absolute, its $anchor and $dynamicAnchor,
+// where the export leaves them in the resource that holds them, and its
+// $defs key.
 function identity(ctx, name, node, ptr) {
     if (!isObj(node)) {
         return '';
@@ -478,10 +528,13 @@ function identity(ctx, name, node, ptr) {
     if (own && undefined !== (0, uri_1.parseUri)(base).scheme) {
         parts.push('id: ' + strLit(base));
     }
-    const anchor = node.get('$anchor');
-    if (undefined !== anchor && (1 === parts.length ||
-        0 === at && base === ctx.bases.get(ctx.root))) {
-        parts.push('anchor: ' + strLit(anchor));
+    const kept = 1 === parts.length ||
+        0 === at && base === ctx.bases.get(ctx.root);
+    for (const kw of ['anchor', 'dynamicAnchor']) {
+        const anchor = node.get('$' + kw);
+        if (undefined !== anchor && kept) {
+            parts.push(kw + ': ' + strLit(anchor));
+        }
     }
     const key = ctx.defKeys.get(node);
     if (undefined !== key && key !== name) {
@@ -1200,14 +1253,23 @@ function meetOrNil(parts) {
 // A schema with an identity of its own is hoisted, so that a
 // declaration carries it.
 function I(ctx, node, ptr) {
-    const name = placeName(ptr);
-    if ('' === identity(ctx, name, node, ptr)) {
+    if ('' === identity(ctx, placeName(ptr), node, ptr)) {
         return bodyOf(ctx, node, ptr);
     }
-    declare(ctx, name, node, ptr);
-    return '%' + name;
+    return use(ctx, { node, ptr });
 }
+// A schema read in the environment its resource makes.
 function bodyOf(ctx, node, ptr) {
+    const outer = ctx.env;
+    ctx.env = enter(ctx, outer, node);
+    try {
+        return bodyIn(ctx, node, ptr);
+    }
+    finally {
+        ctx.env = outer;
+    }
+}
+function bodyIn(ctx, node, ptr) {
     if (true === node) {
         return 'any';
     }
@@ -1235,7 +1297,10 @@ function bodyOf(ctx, node, ptr) {
     }
     const parts = [];
     if (o.has('$ref')) {
-        parts.push(refAlias(ctx, o, o.get('$ref'), ptrAt(ptr, '$ref')));
+        parts.push(use(ctx, target(ctx, o, '$ref', ptrAt(ptr, '$ref'))));
+    }
+    if (o.has('$dynamicRef')) {
+        parts.push(dynamicAlias(ctx, o, ptrAt(ptr, '$dynamicRef')));
     }
     if (o.has('const')) {
         parts.push(lit(ctx, o.get('const'), ptrAt(ptr, 'const')));
@@ -1282,6 +1347,7 @@ function importJsonSchema(text, options) {
         root: null, defaults: true === options?.defaults, lossy: [],
         aliases: new Map(), resources: new Map(), anchors: new Map(),
         bases: new Map(), defKeys: new Map(), unread: new Map(),
+        dynamics: new Map(), env: new Map(), rootEnv: new Map(), clones: 0,
     };
     let source;
     try {
@@ -1289,9 +1355,10 @@ function importJsonSchema(text, options) {
         ctx.root = readJson(text);
         claim(ctx, '', { node: ctx.root, ptr: '#' }, '#');
         index(ctx, ctx.root, '#', '');
+        ctx.env = ctx.rootEnv = enter(ctx, new Map(), ctx.root);
         if (isObj(ctx.root)) {
             for (const [k, s] of schemaMap(ctx.root.get('$defs'), '#/$defs')) {
-                declare(ctx, aliasName(['$defs', k]), s, ptrAt('#/$defs', k));
+                use(ctx, { node: s, ptr: ptrAt('#/$defs', k) });
             }
         }
         const inline = I(ctx, ctx.root, '#');

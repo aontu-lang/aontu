@@ -140,16 +140,22 @@ func instanceClone(v Val, path []string) Val {
 }
 
 func cloneAt(v Val, path []string, deep bool) Val {
-	out := clonePathRec(v, path, deep)
+	return cloneIn(v, path, deep, nil)
+}
+
+// cloneIn is cloneAt for a copy taken through references: each one the
+// copy holds is inside the expansion of the targets within names.
+func cloneIn(v Val, path []string, deep bool, within []string) Val {
+	out := clonePathRec(v, path, deep, within)
 	out.setPosu(true)
 	return out
 }
 
-func clonePathRec(v Val, path []string, deep bool) Val {
+func clonePathRec(v Val, path []string, deep bool, within []string) Val {
 	if v == nil {
 		return nil
 	}
-	out := clonePathKind(v, path, deep)
+	out := clonePathKind(v, path, deep, within)
 	out.setSrcurl(v.srcurl())
 	out.setSrctext(v.srctext())
 	out.setPos(v.pos())
@@ -163,7 +169,7 @@ func clonePathRec(v Val, path []string, deep bool) Val {
 	return out
 }
 
-func clonePathKind(v Val, path []string, deep bool) Val {
+func clonePathKind(v Val, path []string, deep bool, within []string) Val {
 	switch n := v.(type) {
 	case *TopVal:
 		// Return a fresh TOP so marks (e.g. hide(top)) don't leak onto
@@ -200,7 +206,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		if nil != n.held {
-			c.held = cloneAt(n.held, path, deep)
+			c.held = cloneIn(n.held, path, deep, within)
 		}
 		return &c
 	case *RecurseVal:
@@ -241,11 +247,11 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.optional = append([]string{}, n.optional...)
 		out.aliasKeys = append([]string{}, n.aliasKeys...)
 		if n.spread != nil {
-			out.spread = cloneAt(n.spread, path, deep)
+			out.spread = cloneIn(n.spread, path, deep, within)
 		}
 		copyMarks(out, n)
 		for _, k := range n.keys {
-			c := cloneAt(n.peg[k], append(cp(path), k), deep)
+			c := cloneIn(n.peg[k], append(cp(path), k), deep, within)
 			// A child the template already applied to keeps that.
 			if nil != n.spread && sprOf(n.peg[k]) == n.spread {
 				setSprOn(c, out.spread)
@@ -263,11 +269,11 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.closed = n.closed
 		out.opened = n.opened
 		if n.spread != nil {
-			out.spread = cloneAt(n.spread, path, deep)
+			out.spread = cloneIn(n.spread, path, deep, within)
 		}
 		copyMarks(out, n)
 		for i, e := range n.peg {
-			c := cloneAt(e, append(cp(path), itoa(i)), deep)
+			c := cloneIn(e, append(cp(path), itoa(i)), deep, within)
 			if nil != n.spread && sprOf(e) == n.spread {
 				setSprOn(c, out.spread)
 			}
@@ -280,7 +286,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, cloneAt(t, path, deep))
+			out.peg = append(out.peg, cloneIn(t, path, deep, within))
 		}
 		return out
 	case *DisjunctVal:
@@ -289,13 +295,13 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, cloneAt(t, path, deep))
+			out.peg = append(out.peg, cloneIn(t, path, deep, within))
 		}
 		return out
 	case *PrefVal:
 		peg := n.peg
 		if deep {
-			peg = cloneAt(n.peg, path, true)
+			peg = cloneIn(n.peg, path, true, within)
 		}
 		// `narrowed` rides with it: it is the override space the meets
 		// so far have left, and resuper() reapplies it whenever the gate
@@ -313,7 +319,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// destination, and each clone's residual must start where the
 		// level it came from left off (BUGS.md §57).
 		out := &RefVal{absolute: n.absolute, prefix: n.prefix, hideFound: n.hideFound, copyFound: n.copyFound,
-			expansion: n.expansion, rxc: n.rxc}
+			expansion: n.expansion, rxc: n.rxc, within: withinUnion(n.within, within)}
 		out.dc = n.dc
 		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
@@ -333,7 +339,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)
 		for _, t := range n.peg {
-			out.peg = append(out.peg, cloneAt(t, path, deep))
+			out.peg = append(out.peg, cloneIn(t, path, deep, within))
 		}
 		return out
 	case *PlaceVal:
@@ -358,7 +364,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		if deep {
 			args := make([]Val, 0, len(n.peg))
 			for _, a := range n.peg {
-				args = append(args, cloneAt(a, path, true))
+				args = append(args, cloneIn(a, path, true, within))
 			}
 			out.peg = args
 		} else {

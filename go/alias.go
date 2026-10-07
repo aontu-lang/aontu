@@ -223,83 +223,124 @@ func expandAliases(root Val, snapmap map[string]Val) {
 		}
 		seen[v] = true
 
-		switch n := v.(type) {
-		case *RefVal:
-			key, isAlias := n.aliasKey()
-			if !isAlias {
-				return
+		n, isRef := v.(*RefVal)
+		if !isRef {
+			for _, kid := range aliasKids(v) {
+				visit(kid, stack)
 			}
-			n.expansion = nil
-			for _, s := range stack {
-				if s == key {
-					return
-				}
-			}
-			target, snapped := snapmap[refSnapKey(n)]
-			if !snapped {
-				target = rm.peg[key]
-			}
-			if nil == target {
-				return
-			}
-			n.expansion = target
-			visit(target, append(append([]string{}, stack...), key))
-
-		case *MapVal:
-			// A declaration is reached through its references, each
-			// under its own name, never as a child: a self-reference
-			// inside it is a knot only from inside.
-			keys := make([]string, 0, len(n.keys))
-			for _, k := range n.keys {
-				if !n.isAliasKey(k) {
-					keys = append(keys, k)
-				}
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				visit(n.peg[k], stack)
-			}
-			if nil != n.spread {
-				visit(n.spread, stack)
-			}
-
-		case *ListVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-			if nil != n.spread {
-				visit(n.spread, stack)
-			}
-
-		case *ConjunctVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *DisjunctVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *FuncVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *PlusOpVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *PrefVal:
-			visit(n.peg, stack)
-
-		case *ExpectVal:
-			visit(n.peg, stack)
+			return
 		}
+		key, isAlias := n.aliasKey()
+		if !isAlias {
+			return
+		}
+		n.expansion = nil
+		for _, s := range stack {
+			if s == key {
+				return
+			}
+		}
+		target, snapped := snapmap[refSnapKey(n)]
+		if !snapped {
+			target = rm.peg[key]
+		}
+		if nil == target {
+			return
+		}
+		n.expansion = target
+		visit(target, append(append([]string{}, stack...), key))
 	}
 
 	visit(root, nil)
+}
+
+// aliasKids is the values an alias reference inside v may stand in, as
+// its canon reaches them. A declaration is reached through its
+// references, each under its own name, never as a child: a
+// self-reference inside it is a knot only from inside.
+func aliasKids(v Val) []Val {
+	switch n := v.(type) {
+	case *MapVal:
+		keys := make([]string, 0, len(n.keys))
+		for _, k := range n.keys {
+			if !n.isAliasKey(k) {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+		out := make([]Val, 0, len(keys)+1)
+		for _, k := range keys {
+			out = append(out, n.peg[k])
+		}
+		return append(out, n.spread)
+	case *ListVal:
+		return append(append([]Val{}, n.peg...), n.spread)
+	case *ConjunctVal:
+		return n.peg
+	case *DisjunctVal:
+		return n.peg
+	case *FuncVal:
+		return n.peg
+	case *PlusOpVal:
+		return n.peg
+	case *PrefVal:
+		return []Val{n.peg}
+	case *ExpectVal:
+		return []Val{n.peg}
+	case *ConstraintVal:
+		out := []Val{}
+		for _, m := range n.musts {
+			out = append(out, m.v)
+		}
+		for _, nf := range n.nofs {
+			out = append(out, nf.branches...)
+		}
+		for _, w := range n.whens {
+			out = append(out, w.c, w.t, w.e)
+		}
+		for _, c := range n.contains {
+			out = append(out, c.c)
+		}
+		if nil != n.pending {
+			out = append(out, n.pending.args...)
+		}
+		return out
+	}
+	return nil
+}
+
+// spelledCanon is a value's canon with each alias reference spelled by
+// its name, as a declaration and its copy both are, however each was
+// reached (twin of spelledCanon in ts/src/alias.ts).
+func spelledCanon(v Val) string {
+	var held []*RefVal
+	var kept []Val
+	seen := map[Val]bool{}
+	var visit func(n Val)
+	visit = func(n Val) {
+		if nil == n || seen[n] {
+			return
+		}
+		seen[n] = true
+		r, isRef := n.(*RefVal)
+		if !isRef {
+			for _, kid := range aliasKids(n) {
+				visit(kid)
+			}
+			return
+		}
+		if nil != r.expansion {
+			held = append(held, r)
+			kept = append(kept, r.expansion)
+			r.expansion = nil
+		}
+	}
+	visit(v)
+	out := v.Canon()
+	for i, r := range held {
+		r.expansion = kept[i]
+	}
+	return out
 }
 
 // AliasBinding is where a file binds a name, and what to show for it.

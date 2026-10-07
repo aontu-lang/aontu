@@ -57,6 +57,9 @@ type schemaCtx struct {
 	addr          map[string]string
 	anchors       map[string]bool
 	unaddressable bool
+	// dynamics: each definition in the root's resource that carries a
+	// $dynamicAnchor.
+	dynamics map[string]string
 }
 
 func (sc *schemaCtx) lose(path []string, construct, reason string) {
@@ -739,8 +742,8 @@ func schemaAtLeastOne(v any) bool {
 var schemaDeprecationText = []string{"msg", "use", "since"}
 
 func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
-	if ref, ok := schemaAliasRef(sc, v); ok {
-		return ref
+	if key, ok := schemaAliasKey(sc, v); ok {
+		return sc.useOf(path, key, v.metaRec()["dynamicRef"])
 	}
 	out := schemaFromValInner(sc, path, v)
 	if obj, isObj := out.(map[string]any); isObj && hasRiders(v) {
@@ -831,26 +834,33 @@ func (sc *schemaCtx) annotate(path []string, obj map[string]any, v Val) any {
 	return obj
 }
 
-// schemaAliasRef: an alias's copy, unchanged, or a recursion back into a
-// definition, is written once under $defs and referred to where used.
-func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
+// schemaAliasKey: an alias's copy, unchanged, a recursion back into a
+// definition, or a reference a template holds, is written once under
+// $defs and referred to where used: the key of its definition.
+func schemaAliasKey(sc *schemaCtx, v Val) (string, bool) {
 	var target []string
 	if r, ok := v.(*RecurseVal); ok {
 		target = r.target
-		if slices.Equal(target, sc.anchor) {
-			return map[string]any{"$ref": sc.refTo(schemaRootDef)}, true
+	} else if rv, ok := v.(*RefVal); ok {
+		if _, plain := rv.withinKey(); plain {
+			for _, p := range rv.peg {
+				target = append(target, p.(string))
+			}
 		}
 	} else if key := v.aliasOrigin(); "" != key {
 		if schemaSameCopy(walkTarget(sc.root, []string{key}), v) {
 			target = []string{key}
 		}
 	}
+	if nil != target && slices.Equal(target, sc.anchor) {
+		return schemaRootDef, true
+	}
 	var body Val
 	if nil != target {
 		body = walkTarget(sc.root, target)
 	}
 	if nil == body {
-		return nil, false
+		return "", false
 	}
 	at := make([]string, len(target))
 	for i, seg := range target {
@@ -885,30 +895,77 @@ func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
 		if "" != rid {
 			sc.addr[key] = rid
 		}
-		anchor := ident["anchor"]
-		if "" != anchor && "" == rid {
-			if sc.anchors[anchor] {
-				sc.lose(at, "$anchor", "another schema in the resource carries "+
-					"the anchor "+anchor+", which names one schema, so this one "+
-					"is written without it")
-				anchor = ""
-			} else {
-				sc.anchors[anchor] = true
-			}
+		anchor := sc.rootAnchor(at, "$anchor", rid, ident["anchor"])
+		dyn := anchor
+		if ident["dynamicAnchor"] != anchor {
+			dyn = sc.rootAnchor(at, "$dynamicAnchor", rid, ident["dynamicAnchor"])
+		}
+		if "" != dyn && "" == rid {
+			sc.dynamics[key] = dyn
 		}
 		outer := sc.base
 		sc.base = rid
 		schema := schemaFromVal(sc, at, body)
 		sc.base = outer
-		sc.defs[key] = schemaStamp(schema, rid, anchor)
+		sc.defs[key] = schemaStamp(schema, rid, anchor, dyn)
 	}
-	return map[string]any{"$ref": sc.refTo(key)}, true
+	return key, true
+}
+
+// rootAnchor: an anchor of a definition in the root's resource, unless
+// another one there carries it.
+func (sc *schemaCtx) rootAnchor(at []string, keyword, rid, anchor string) string {
+	if "" == anchor || "" != rid {
+		return anchor
+	}
+	if sc.anchors[anchor] {
+		sc.lose(at, keyword, "another schema in the resource carries the "+
+			"anchor "+anchor+", which names one schema, so this one is "+
+			"written without it")
+		return ""
+	}
+	sc.anchors[anchor] = true
+	return anchor
+}
+
+// useOf writes a use of a definition: a $dynamicRef where the import
+// resolved it through the dynamic scope to an anchor the root's resource
+// binds, which every scope then agrees on, and a $ref otherwise.
+func (sc *schemaCtx) useOf(path []string, key string, uris []Val) any {
+	if 0 == len(uris) {
+		return map[string]any{"$ref": sc.refTo(key)}
+	}
+	frags := map[string]bool{}
+	for _, u := range uris {
+		s := u.(*ScalarVal).peg.(string)
+		frags[s[strings.Index(s, "#")+1:]] = true
+	}
+	if name, has := sc.dynamics[key]; has && 1 == len(frags) && frags[name] {
+		return map[string]any{"$dynamicRef": sc.fromRoot(name)}
+	}
+	sc.lose(path, "$dynamicRef", "the import resolved this reference in "+
+		"the dynamic scope it read the schema in, and the export writes the "+
+		"$ref it resolved to, so an outer scope that binds the anchor anew "+
+		"does not change it")
+	return map[string]any{"$ref": sc.refTo(key)}
 }
 
 // schemaSameCopy: a copy is unchanged when its value is, and what rides
-// it.
+// it but the dynamic reference it was reached through.
 func schemaSameCopy(def, v Val) bool {
-	return nil != def && def.Canon() == v.Canon() && wrapRiders("", def) == wrapRiders("", v)
+	if nil == def || spelledCanon(def) != spelledCanon(v) {
+		return false
+	}
+	meta := map[string][]Val{}
+	for k, l := range v.metaRec() {
+		if "dynamicRef" != k {
+			meta[k] = l
+		}
+	}
+	if 0 == len(meta) {
+		meta = nil
+	}
+	return wrapRiders("", def) == wrapRiderRecs("", v.deprecRec(), meta)
 }
 
 func schemaValues(m map[string]string) []string {
@@ -929,28 +986,34 @@ func (sc *schemaCtx) refTo(key string) string {
 	if rid, has := sc.addr[key]; has {
 		return rid
 	}
-	frag := "#"
-	if schemaRootDef != key {
-		frag = "#/$defs/" + schemaPointerToken(key)
+	if schemaRootDef == key {
+		return sc.fromRoot("")
 	}
+	return sc.fromRoot("/$defs/" + schemaPointerToken(key))
+}
+
+// fromRoot spells a fragment of the root's resource to resolve from the
+// resource the walk is in.
+func (sc *schemaCtx) fromRoot(frag string) string {
 	if "" == sc.base {
-		return frag
+		return "#" + frag
 	}
 	if "" == sc.rootID {
 		sc.unaddressable = true
-		return frag
+		return "#" + frag
 	}
-	if schemaRootDef == key {
+	if "" == frag {
 		return sc.rootID
 	}
-	return sc.rootID + frag
+	return sc.rootID + "#" + frag
 }
 
 // single reads an identity's keys, each where it holds one value: a key
 // that holds more names no one place, so none of them is written.
 func (sc *schemaCtx) single(path []string, rec map[string][]string) map[string]string {
 	out := map[string]string{}
-	for _, kw := range [][2]string{{"id", "$id"}, {"anchor", "$anchor"}, {"key", "$defs"}} {
+	for _, kw := range [][2]string{{"id", "$id"}, {"anchor", "$anchor"},
+		{"dynamicAnchor", "$dynamicAnchor"}, {"key", "$defs"}} {
 		vals := rec[kw[0]]
 		if 1 == len(vals) {
 			out[kw[0]] = vals[0]
@@ -962,9 +1025,9 @@ func (sc *schemaCtx) single(path []string, rec map[string][]string) map[string]s
 	return out
 }
 
-// schemaStamp writes a resource's $id and its $anchor on a schema.
-func schemaStamp(schema any, id, anchor string) any {
-	if "" == id && "" == anchor {
+// schemaStamp writes a resource's $id and its anchors on a schema.
+func schemaStamp(schema any, id, anchor, dynamicAnchor string) any {
+	if "" == id && "" == anchor && "" == dynamicAnchor {
 		return schema
 	}
 	out := schema.(map[string]any)
@@ -973,6 +1036,9 @@ func schemaStamp(schema any, id, anchor string) any {
 	}
 	if "" != anchor {
 		out["$anchor"] = anchor
+	}
+	if "" != dynamicAnchor {
+		out["$dynamicAnchor"] = dynamicAnchor
 	}
 	return out
 }
@@ -1094,12 +1160,24 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 	}
 
 	// A rider in a template position is still its call: the value it
-	// rides is what the schema says, and its records the annotations.
+	// rides is what the schema says, and its records the annotations. A
+	// reference it rides is its definition's use, beside them.
 	if f, ok := v.(*FuncVal); ok && ("meta" == f.name || "deprecate" == f.name) {
 		trial := &Ctx{collect: true}
-		met := unite(trial, top(), clonePath(f, cp(f.vpath())))
+		call := clonePath(f, cp(f.vpath())).(*FuncVal)
+		_, rides := f.peg[0].(*RefVal)
+		if rides {
+			call.peg = append([]Val{top()}, f.peg[1:]...)
+		}
+		met := unite(trial, top(), call)
 		if _, still := met.(*FuncVal); 0 == len(trial.err) && !still && !met.Nil() {
-			return schemaFromVal(sc, path, met)
+			if !rides {
+				return schemaFromVal(sc, path, met)
+			}
+			if key, found := schemaAliasKey(sc, f.peg[0]); found {
+				use := sc.useOf(path, key, met.metaRec()["dynamicRef"])
+				return sc.annotate(path, use.(map[string]any), met)
+			}
 		}
 	}
 
@@ -1789,7 +1867,7 @@ func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport 
 		sc := &schemaCtx{lossy: []SchemaLoss{}, exact: opts.ExactNumbers,
 			root: root, defs: map[string]any{}, names: map[string]string{},
 			anchor: anchor, ids: ids, addr: map[string]string{},
-			anchors: map[string]bool{}}
+			anchors: map[string]bool{}, dynamics: map[string]string{}}
 		var decl Val
 		if key := node.aliasOrigin(); "" != key {
 			decl = walkTarget(root, []string{key})
@@ -1802,14 +1880,19 @@ func (a *Aontu) JSONSchemaWith(src string, opts JSONSchemaOptions) SchemaReport 
 		if id, has := ident["id"]; has {
 			sc.rootID = id
 			sc.names[node.aliasOrigin()] = schemaRootDef
-			if a, hasA := ident["anchor"]; hasA {
-				sc.anchors[a] = true
+			for _, kw := range []string{"anchor", "dynamicAnchor"} {
+				if a, hasA := ident[kw]; hasA {
+					sc.anchors[a] = true
+				}
+			}
+			if d, hasD := ident["dynamicAnchor"]; hasD {
+				sc.dynamics[schemaRootDef] = d
 			}
 			top = decl
 		}
 		body := schemaFromVal(sc, anchor, top)
 		if top != node {
-			body = schemaStamp(body, ident["id"], ident["anchor"])
+			body = schemaStamp(body, ident["id"], ident["anchor"], ident["dynamicAnchor"])
 		}
 		return sc, body
 	}

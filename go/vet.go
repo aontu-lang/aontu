@@ -712,6 +712,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	genCtx := budgeted(&Ctx{root: unified, src: dataSrc, collect: true,
 		probe: "" != options.At, noFill: options.NoFill}, options.Trust)
+	genCtx.fixroot = ctx.fixroot
 	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		if "incomplete" == e.Class() || "conflict" == e.Class() {

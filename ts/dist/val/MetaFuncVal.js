@@ -34,6 +34,7 @@ const META_KEYS = {
     contentSchema: plain,
     examples: (v) => true === v?.isList && plain(v),
     x: (v) => true === v?.isMap && plain(v),
+    dynamicRef: text,
 };
 class MetaFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {

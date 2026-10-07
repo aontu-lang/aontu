@@ -44,7 +44,7 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **184** codes across
+There are seven classes, and the registry holds **185** codes across
 them.
 
 | class | codes | what went wrong |
@@ -54,7 +54,7 @@ them.
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
-| `budget` | 8 | evaluation hit a deterministic limit |
+| `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 184 codes have hint text. `aontu explain --list`
+**Hint text.** All 185 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -330,8 +330,8 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
-| `jsonschema_duplicate` | 0.77.0 | One anchor names two different schemas inside the JSON Schema `jsonschema import` was given. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
-| `jsonschema_ref` | 0.77.0 | A `$ref` in the JSON Schema `jsonschema import` was given names another document, or nothing in this one. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
+| `jsonschema_duplicate` | 0.77.0 | One identifier names two schemas, or one anchor two schemas of one resource, in what `jsonschema import` was given. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
+| `jsonschema_ref` | 0.77.0 | A `$ref` or `$dynamicRef` in what `jsonschema import` was given names a document missing from it, or nothing in the document it names. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |
 | `patch_ambiguous` | 0.53.0 | Two or more statements pin the path, so an in-place edit has no single place to write. ([`aontu model set`](reference-api.md#aontu-model-set)) |
@@ -382,6 +382,7 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `alias_budget` | 0.69.0 | Alias expansion counted past the size budget before evaluation; expansion terminates whatever the budget, so this is about size. ([Aliases `%`](reference-language.md#aliases-)) |
 | `budget_passes` | 0.52.0 | The fixpoint pass budget was spent before the model converged; the hint names what was still refining. ([Cross-field bounds and residuation](reference-language.md#cross-field-bounds-and-residuation)) |
+| `jsonschema_budget` | 0.77.0 | A schema's dynamic anchors make more dynamic scopes than `jsonschema import` reads a schema again in. ([`aontu jsonschema import`](reference-api.md#aontu-jsonschema-import)) |
 | `max_depth` | 0.51.0 | Input nested deeper than the engine processes. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `module_depth` | 0.53.0 | Module verification nested past its depth, usually a vendor tree leading back to itself. ([Modules](reference-language.md#modules)) |
 | `recursion_budget` | 0.53.0 | A recursive schema expanded past the depth budget without meeting concrete data. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |

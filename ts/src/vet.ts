@@ -807,6 +807,7 @@ export function vet(
 
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
+  genCtx._fixroot = (ctx as any)._fixroot
   genCtx.probe = null != options.at
   genCtx.noFill = ctx.noFill
   const generated = unified.gen(genCtx)

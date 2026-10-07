@@ -22,6 +22,11 @@ identity-id-with-a-fragment-refuses	errc	%A = identity({x: 1}, {id: "u#f"})\nb: 
 identity-id-with-an-empty-fragment-refuses	errc	%A = identity({x: 1}, {id: "u#"})\nb: %A	func_arg
 identity-id-must-be-absolute-refuses	errc	%A = identity({x: 1}, {id: "a.json"})\nb: %A	func_arg
 identity-anchor-not-a-name-refuses	errc	%A = identity({x: 1}, {anchor: "1x"})\nb: %A	func_arg
+# G12 phase 11: a $dynamicAnchor is a plain name too, and may stand
+# beside an $anchor of the same name.
+identity-a-dynamic-anchor-is-its-value	gens	%A = identity({x: 1}, {anchor: "n", dynamicAnchor: "n"})\nb: %A	{"b":{"x":1}}
+identity-dynamic-anchor-not-a-name-refuses	errc	%A = identity({x: 1}, {dynamicAnchor: "a b"})\nb: %A	func_arg
+identity-dynamic-anchor-not-a-string-refuses	errc	%A = identity({x: 1}, {dynamicAnchor: 1})\nb: %A	func_arg
 identity-key-not-a-string-refuses	errc	%A = identity({x: 1}, {key: 1})\nb: %A	func_arg
 identity-record-not-a-map-refuses	errc	%A = identity({x: 1}, "k")\nb: %A	func_arg
 identity-record-spread-refuses	errc	%A = identity({x: 1}, {&: string})\nb: %A	func_arg

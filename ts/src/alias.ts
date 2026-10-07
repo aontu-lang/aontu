@@ -239,33 +239,68 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
       return
     }
 
-    if (true === v.isMap) {
-      // A declaration is reached through its references, each under
-      // its own name, never as a child: a self-reference inside it
-      // is a knot only from inside.
-      const keys = Object.keys(v.peg)
-        .filter((k: string) => !v.aliasKeys.includes(k))
-        .sort(cmpCodePoint)
-      for (const k of keys) {
-        visit(v.peg[k], stack)
-      }
-    }
-    else if (Array.isArray(v.peg)) {
-      for (const e of v.peg) {
-        visit(e, stack)
-      }
-    }
-    else if (null != v.peg && true === v.peg.isVal) {
-      visit(v.peg, stack)
-    }
-
-    if ((true === v.isMap || true === v.isList) && null != v.spread.cj) {
-      visit(v.spread.cj, stack)
+    for (const kid of aliasKids(v)) {
+      visit(kid, stack)
     }
   }
 
   visit(root, [])
-} /* node:coverage ignore next 13 */
+}
+
+
+// The values an alias reference inside `v` may stand in, as its canon
+// reaches them. A declaration is reached through its references, each
+// under its own name, never as a child: a self-reference inside it is
+// a knot only from inside.
+function aliasKids(v: any): any[] {
+  const out: any[] = true === v.isMap ? Object.keys(v.peg)
+    .filter((k: string) => !v.aliasKeys.includes(k))
+    .sort(cmpCodePoint).map((k: string) => v.peg[k]) :
+    Array.isArray(v.peg) ? [...v.peg] :
+      null != v.peg && true === v.peg.isVal ? [v.peg] : []
+  if (true === v.isMap || true === v.isList) {
+    out.push(v.spread.cj)
+  }
+  // A merged residual's peg is empty: its atoms hold the arguments.
+  if (true === v.isConstraint) {
+    out.push(...v.musts.map((m: any) => m.v),
+      ...v.nofs.flatMap((n: any) => n.branches),
+      ...v.whens.flatMap((w: any) => [w.c, w.t, w.e]),
+      ...v.contains.map((c: any) => c.c))
+  }
+  return out
+}
+
+
+// A value's canon with each alias reference spelled by its name, as a
+// declaration and its copy both are, however each was reached.
+function spelledCanon(v: Val): string {
+  const held: [any, Val][] = []
+  const seen = new Set<Val>()
+  const visit = (n: any): void => {
+    if (null == n || true !== n.isVal || seen.has(n)) {
+      return
+    }
+    seen.add(n)
+    if (true === n.isRef) {
+      if (undefined !== n.expansion) {
+        held.push([n, n.expansion])
+        n.expansion = undefined
+      }
+      return
+    }
+    aliasKids(n).forEach(visit)
+  }
+  visit(v)
+  try {
+    return v.canon
+  }
+  finally {
+    for (const [n, e] of held) {
+      n.expansion = e
+    }
+  }
+} /* node:coverage ignore next 14 */
 
 
 export {
@@ -273,6 +308,7 @@ export {
   aliasErrors,
   aliasScope,
   expandAliases,
+  spelledCanon,
 }
 
 

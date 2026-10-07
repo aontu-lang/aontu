@@ -131,8 +131,9 @@ var metaKeys = map[string]func(Val) bool{
 	"format": metaText, "contentEncoding": metaText,
 	"contentMediaType": metaText, "readOnly": metaFlag, "writeOnly": metaFlag,
 	"default": plainData, "contentSchema": plainData,
-	"examples": func(v Val) bool { _, ok := v.(*ListVal); return ok && plainData(v) },
-	"x":        func(v Val) bool { _, ok := v.(*MapVal); return ok && plainData(v) },
+	"examples":   func(v Val) bool { _, ok := v.(*ListVal); return ok && plainData(v) },
+	"x":          func(v Val) bool { _, ok := v.(*MapVal); return ok && plainData(v) },
+	"dynamicRef": metaText,
 }
 
 // deprecationMessage is the one-line prose for a deprecation record,
@@ -171,21 +172,28 @@ func carryRiders(out, a, b Val) {
 	out.setIdentityRec(id)
 }
 
+func plainName(v Val) bool {
+	return metaText(v) && importAnchorRe.MatchString(v.(*ScalarVal).peg.(string))
+}
+
 // identityKeys is the identity record's whole vocabulary: an $id is an
-// absolute URI, and an $anchor is a plain name.
+// absolute URI, and an $anchor or a $dynamicAnchor is a plain name.
 var identityKeys = map[string]func(Val) bool{
 	"id": func(v Val) bool {
 		return metaText(v) && parseURI(v.(*ScalarVal).peg.(string)).hasScheme &&
 			!strings.Contains(v.(*ScalarVal).peg.(string), "#")
 	},
-	"anchor": func(v Val) bool {
-		return metaText(v) && importAnchorRe.MatchString(v.(*ScalarVal).peg.(string))
-	},
-	"key": metaText,
+	"anchor":        plainName,
+	"dynamicAnchor": plainName,
+	"key":           metaText,
 }
 
 func wrapRiders(c string, v Val) string {
-	if d := v.deprecRec(); nil != d {
+	return wrapRiderRecs(c, v.deprecRec(), v.metaRec())
+}
+
+func wrapRiderRecs(c string, d map[string][]string, m map[string][]Val) string {
+	if nil != d {
 		ls := riderLayers(d, jsonString)
 		if 0 == len(ls) {
 			c = "deprecate(" + c + ")"
@@ -194,7 +202,7 @@ func wrapRiders(c string, v Val) string {
 			c = "deprecate(" + c + "," + l + ")"
 		}
 	}
-	if m := v.metaRec(); nil != m {
+	if nil != m {
 		c = "meta(" + strings.Join(append([]string{c}, riderLayers(m, valCanon)...), ",") + ")"
 	}
 	return c

@@ -1420,7 +1420,14 @@ a definition without one names the root by the root's `$id`. The root,
 when it is an unchanged use of such an alias, is written as that
 resource. Where a definition with an `$id` refers to one that only the
 root can name, and the root has no `$id`, every definition is written
-without its `$id`, and that is reported.
+without its `$id`, and that is reported. A reference a template holds,
+such as the `items` of an imported array, is a use of its definition
+too, and the export writes a `meta()` or `deprecate()` around it beside
+the `$ref`. A use whose `meta()` record holds a `dynamicRef`, which the
+dynamic scope resolved, is a `$dynamicRef` where its definition carries
+a `$dynamicAnchor` in the root's resource, since every scope then
+resolves it alike; anywhere else the export writes the `$ref` it
+resolved to, and reports the loss.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1456,6 +1463,7 @@ The losses, and why each is one:
 | a spread testing each key in a shape no keyword says | the export drops it, and the schema admits keys the spread refuses |
 | a computed member of a template, such as `add(.n, 1)` | evaluation computes the value, so the schema admits any value of the kind the builtin returns |
 | residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
+| a `$dynamicRef` that resolved to an anchor outside the root's resource | the import read the schema once for each dynamic scope, so the export writes the `$ref` each scope resolved to, and no outer scope can bind the anchor anew |
 
 The exact-leaf loss is the one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss (the
@@ -1619,9 +1627,10 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   imports as a recursive alias. A `$ref` is read against the base URI
   where it stands, which each `$id` sets for the schemas inside it, and
   an `$anchor` names its schema within its own resource. A schema with
-  an absolute `$id`, an anchor the export can keep, or a `$defs` key its
-  alias name does not spell, is declared as `identity(…)`, which holds
-  those names on the declaration for the export.
+  an absolute `$id`, an `$anchor` or `$dynamicAnchor` the export can
+  keep, or a `$defs` key its alias name does not spell, is declared as
+  `identity(…)`, which holds those names on the declaration for the
+  export.
 - **A reference into another document reads it from the documents the
   import is given**, each with `--document <uri>=<file>`, where the URI
   is everything before the first `=`. A document is read when a
@@ -1629,6 +1638,15 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   given under reads them all, since an `$id` inside one may be that
   URI. Each schema reached is imported into the same source, so the
   result refers to nothing outside itself.
+- **The import resolves a `$dynamicRef` where it reads the schema.** A
+  `$dynamicAnchor` is an anchor as well. A `$dynamicRef` whose target
+  declares the anchor its fragment names reads the schema that the
+  outermost resource on the way to it binds that name to, and any other
+  `$dynamicRef` is a `$ref`. Where those bindings differ from the root
+  resource's, the import reads the schema once more, under an alias
+  that names them, and past a thousand such schemas it refuses with
+  `jsonschema_budget`. Each use carries the URI its reference resolved
+  to as `meta()`'s `dynamicRef`, for the export.
 - **`allOf` is the meet**, and a meet empty where it stands is `nil`,
   the schema that admits nothing: `{"allOf": [{"type":
   "string"}, {"type": "integer"}]}` imports as `nil`, so `vet` finds

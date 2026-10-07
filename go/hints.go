@@ -326,8 +326,9 @@ var hints = map[string]string{
 		"version it was deprecated in. Nothing refuses: a deprecation is a\n" +
 		"warning and never changes a verdict.",
 	"jsonschema_schema": "The JSON Schema could not be read: the text is not JSON, or a\nkeyword holds a value 2020-12 does not define for it, such as a count\nthat is not a non-negative integer or a type that names no type. The\nimport refuses rather than guess what a malformed schema meant; fix\nthe schema at the pointer the finding names.",
-	"jsonschema_ref": "A $ref names nothing the import can read: another document, since\nthe import reads one document, or a pointer or anchor that names no\nschema in this one. The import refuses rather than leave the position\nunconstrained.",
-	"jsonschema_duplicate": "One anchor names two subschemas in one document. Which one a $ref\nmeans would depend on the order the schema is walked, so the import\nrefuses; rename one of them.",
+	"jsonschema_ref": "A $ref or $dynamicRef names nothing the import can read: a document\nthe import was not given, or a pointer or anchor that names no schema\nin the document it names. The import refuses rather than leave the\nposition unconstrained.",
+	"jsonschema_duplicate": "One identifier names two schemas, or one anchor two subschemas of\none resource. Which one a reference means would depend on the order\nthe schema is walked, so the import refuses; rename one of them.",
+	"jsonschema_budget": "A schema is imported once for each dynamic scope it is read in, since\na $dynamicRef beneath it may resolve differently in each, and the\ndynamic anchors here make more of those than the budget allows.\nImport a smaller part of the schema.",
 	"vet_filled": "The schema supplies a member the data does not carry. vet --no-fill\n" +
 		"asks whether the data already IS an instance, so a value only the\n" +
 		"schema writes -- a literal, a preferred default, a template's key, a\n" +
@@ -424,6 +425,7 @@ var codeClasses = map[string]string{
 	"jsonschema_schema":         "parse",
 	"jsonschema_ref":            "reference",
 	"jsonschema_duplicate":      "reference",
+	"jsonschema_budget":         "budget",
 	"pack_data": "parse",
 	"pack_key":  "parse",
 	"each_data": "parse",

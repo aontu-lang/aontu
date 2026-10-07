@@ -80,6 +80,20 @@ alias-in-spread-nested-canons-as-the-value	canon	%u = integer\n%row = {vals: [&:
 alias-in-spread-child-canons-as-the-value	canon	%u = integer\nt: {&: {a: %u}}\nt: {x: {a: 1}}	{"t":{&:{"a":integer},"x":{"a":1}}}
 alias-in-spread-alternative-canons-as-the-value	canon	%d = 1\nt: {&: *%d | integer}\nt: {a: 2}	{"t":{&:*1|integer,"a":2}}
 alias-in-spread-conjunct-canons-as-the-value	canon	%a = integer\n%b = min(1)\nt: {&: %a & %b}	{"t":{&:integer&min(1)}}
+# ...and inside a constraint atom's arguments, which a residual holds
+# beside its children rather than as them: a when's branch, a must, a
+# nof branch, a contains, a residual two atoms merged, and an atom
+# still waiting on an argument. The hash pair is the meaning: Go
+# hashed the spelling there and TypeScript the value, and a merged
+# residual hashed the spelling in both.
+alias-in-a-when-template	canon	%A = number\nx: when({ k:any }, { items?: [&: %A] })	{"x":when({"k":any},{"items"?:[&:number]})}
+alias-in-a-merged-when-template	canon	%A = number\nx: when({ k:any }, { items?: [&: %A] }) & len(1)	{"x":len(integer&min(1)&max(1))&when({"k":any},{"items"?:[&:number]})}
+alias-in-a-must-template	canon	%A = number\nx: must({ items?: [&: %A] }, "m")	{"x":must({"items"?:[&:number]},"m")}
+alias-in-a-nof-template	canon	%A = number\nx: nof(1, 1, { items?: [&: %A] }, string)	{"x":nof(integer&min(1)&max(1),1,string,{"items"?:[&:number]})}
+alias-in-a-contains-template	canon	%A = number\nx: contains({ items?: [&: %A] })	{"x":contains({"items"?:[&:number]},integer&min(1))}
+alias-in-a-pending-atom-template	canon	%A = number\nx: when($.y, { items?: [&: %A] })\ny: { k: number }	{"x":when({"k":number},{"items"?:[&:number]}),"y":{"k":number}}
+alias-in-a-when-template-hash	hash	%A = number\nx: when({ k:any }, { items?: [&: %A] })	aon1-oEwCu2oHRZb-0m2YTcDAFOwqy0bdjt6wua62ISZHMIU
+alias-in-a-when-template-hash-longhand-twin	hash	x: when({ k:any }, { items?: [&: number] })	aon1-oEwCu2oHRZb-0m2YTcDAFOwqy0bdjt6wua62ISZHMIU
 # ...AND THE HASH FORM KEEPS WHAT THE DECLARATION CARRIED (use-cases/
 # BUGS.md §60). The alias filter erases the declaration, so a close()
 # or a mark on the aliased value has exactly one place left to be

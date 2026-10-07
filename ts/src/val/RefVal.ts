@@ -48,6 +48,10 @@ import { BigDecimalVal } from './BigDecimalVal'
 const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 
 
+// The targets a copy in progress is taken through (`within` below).
+let cloneWithin: string[] | undefined = undefined
+
+
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
 // wrapper is left for the caller, which defers on it.
 function dropPendingMarkWrappers(v: Val): Val {
@@ -109,6 +113,10 @@ class RefVal extends FeatureVal {
   rxc: number = 0
   prefix: boolean = false
   copyFound: boolean = false
+
+  // The targets this reference was copied in through: one naming any of
+  // them is a recursion, wherever the copy has landed.
+  within: string[] = []
 
   constructor(
     spec: {
@@ -273,6 +281,10 @@ class RefVal extends FeatureVal {
           break
         }
       }
+    }
+    const key = this.withinKey
+    if (!isprefixpath && undefined !== key && this.within.includes(key)) {
+      isprefixpath = true
     }
     // Degenerate case: peg is all empty strings (e.g. path("")) and path is empty.
     if (!isprefixpath && this.peg.length > 0 && this.path.length === 0) {
@@ -504,7 +516,14 @@ class RefVal extends FeatureVal {
             || true === out.mark.type || true === out.mark.hide
           const typed = true === out.mark.type
 
-          out = out.clone(ctx, { dup: !out.holdsStaged })
+          const prior = cloneWithin
+          cloneWithin = undefined === key ? this.within : [...this.within, key]
+          try {
+            out = out.clone(ctx, { dup: !out.holdsStaged })
+          }
+          finally {
+            cloneWithin = prior
+          }
           out.identity = undefined
 
           if (lifted) {
@@ -531,8 +550,6 @@ class RefVal extends FeatureVal {
         }
       }
     }
-
-    // console.log('REF-FIND', ctx.cc, this.id, selfpath, 'PEG=', pegpath, 'RP', pI, refpath.join('.'), descent, 'O=', out?.id, out?.canon, out?.done)
 
     return out
   }
@@ -624,6 +641,8 @@ class RefVal extends FeatureVal {
       ...(spec || {})
     }) as RefVal)
     out.expansion = this.expansion
+    out.within = undefined === cloneWithin ? this.within :
+      [...new Set([...this.within, ...cloneWithin])]
     // The recursion seed travels with the clone: a spread template is
     // cloned per destination, and each clone's residual must start
     // where the level it came from left off.
@@ -641,6 +660,12 @@ class RefVal extends FeatureVal {
   get aliasKey(): string | undefined {
     return this.absolute && 1 === this.peg.length &&
       isAliasSlotKey(this.peg[0]) ? this.peg[0] : undefined
+  }
+
+
+  get withinKey(): string | undefined {
+    return this.absolute && 0 < this.peg.length && this.peg.every((p: any) =>
+      'string' === typeof p && '' !== p) ? this.peg.join('\u0000') : undefined
   }
 
 

@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### `$dynamicRef` and `$dynamicAnchor`, and references a template holds
+
+Both ports. G12 phase 11, amending ADR-049 and ADR-050.
+
+- `aontu jsonschema import` reads a `$dynamicAnchor` as an anchor, and
+  resolves each `$dynamicRef` where the schema is read: one whose
+  target declares the anchor its fragment names reads the schema the
+  outermost resource it was reached through binds that name to, and
+  any other is a `$ref`. A schema read where those bindings differ from
+  the root resource's is imported once more, under an alias that names
+  them, and past a thousand such schemas the import refuses with the
+  new `jsonschema_budget`, of class `budget`. Each use the dynamic scope
+  resolved carries the URI it was resolved to as `meta()`'s new
+  `dynamicRef` key, and `identity()` takes a `dynamicAnchor`.
+- `aontu jsonschema` writes such a use back as `$dynamicRef` where its
+  definition carries the anchor in the root's resource, with the
+  definition's `$dynamicAnchor`, and any other as the `$ref` it
+  resolved to, reported as a `$dynamicRef` loss.
+- `aontu jsonschema` writes a reference a template holds, such as an
+  imported `"items": {"$ref": …}`, as the `$ref` of its definition, with
+  what a `meta()` or `deprecate()` around it records beside it. It wrote
+  `{}` and reported a loss. An alias declared as `identity()` of
+  another keeps its `$id` when a use copied it before it settled.
+- `vet --at` decided a `when`, `nof` or `contains` holding a container
+  without the schema's tree, so a reference in a spread template in its
+  argument named nothing and valid data was refused.
+- An alias reference inside a check's argument canons and hashes as the
+  value it names, where Go spelled its name and TypeScript the value.
+- A reference reached before the mutually recursive pair it names
+  residuates inside its copy, where it expanded until `unify_cycle`.
+- The JSON-Schema-Test-Suite's harness: 20 more 2020-12 tests answer as
+  the suite says, and the skip ledger falls from 126 lines to 106.
+
 ### `identity(v, r)`, `$id`, `$anchor` and references across documents
 
 Both ports. G12 phase 10, ADR-050.

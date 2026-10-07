@@ -5,6 +5,7 @@ import { includeOpts, wrapRiders, hasRiders } from './utility'
 import { Aontu } from './aontu'
 import { makeNilErr } from './err'
 import { aliasPathSegment } from './aliasname'
+import { spelledCanon } from './alias'
 import { sizingResidue } from './val/BagVal'
 import { walkTarget } from './val/RecurseVal'
 import { funcSig } from './sig'
@@ -85,6 +86,8 @@ type Ctx = {
   // definition's, and the anchors the root's resource holds.
   ids: boolean, base?: string, rootId?: string, addr: Map<string, string>,
   anchors: Set<string>, unaddressable: boolean,
+  // Each definition in the root's resource that carries a $dynamicAnchor.
+  dynamics: Map<string, string>,
 }
 
 
@@ -618,9 +621,9 @@ function nofKeyword(ctx: Ctx, path: string[], out: any, n: any) {
 
 
 function fromVal(ctx: Ctx, path: string[], v: any): any {
-  const ref = aliasRef(ctx, v)
-  if (undefined !== ref) {
-    return ref
+  const key = aliasKey(ctx, v)
+  if (undefined !== key) {
+    return useOf(ctx, path, key, v.meta?.dynamicRef)
   }
   const out = fromValInner(ctx, path, v)
   return 'object' === typeof out && hasRiders(v) ?
@@ -688,20 +691,25 @@ function annotate(ctx: Ctx, path: string[], out: any, v: any): any {
 }
 
 
-// An alias's copy, unchanged, or a recursion back into a definition, is
-// written once under $defs and referred to wherever it is used.
-function aliasRef(ctx: Ctx, v: any): any {
+// An alias's copy, unchanged, a recursion back into a definition, or a
+// reference a template holds, is written once under $defs and referred
+// to wherever it is used: the key of its definition.
+function aliasKey(ctx: Ctx, v: any): string | undefined {
   let target: string[] | undefined
   if (true === v?.isRecurse) {
     target = v.target
-    if (ctx.anchor.length === v.target.length &&
-      v.target.every((s: string, i: number) => s === ctx.anchor[i])) {
-      return { $ref: refTo(ctx, ROOT_DEF) }
-    }
+  }
+  else if (true === v?.isRef && v.absolute && 0 < v.peg.length &&
+    v.peg.every((p: any) => 'string' === typeof p && '' !== p)) {
+    target = v.peg
   }
   else if (null != v?.aliasOrigin && sameCopy(walkTarget(ctx.root,
     [v.aliasOrigin]), v)) {
     target = [v.aliasOrigin]
+  }
+  if (undefined !== target && ctx.anchor.length === target.length &&
+    target.every((s: string, i: number) => s === ctx.anchor[i])) {
+    return ROOT_DEF
   }
   const body = undefined === target ? undefined : walkTarget(ctx.root, target)
   if (undefined === target || undefined === body) {
@@ -729,24 +737,56 @@ function aliasRef(ctx: Ctx, v: any): any {
     if (undefined !== rid) {
       ctx.addr.set(key, rid)
     }
-    let anchor = ident.anchor
-    if (undefined !== anchor && undefined === rid) {
-      if (ctx.anchors.has(anchor)) {
-        lose(ctx, at, '$anchor', 'another schema in the resource carries ' +
-          'the anchor ' + anchor + ', which names one schema, so this one ' +
-          'is written without it')
-        anchor = undefined
-      }
-      else {
-        ctx.anchors.add(anchor)
-      }
+    const anchor = rootAnchor(ctx, at, '$anchor', rid, ident.anchor)
+    const dyn = ident.dynamicAnchor === anchor ? anchor :
+      rootAnchor(ctx, at, '$dynamicAnchor', rid, ident.dynamicAnchor)
+    if (undefined !== dyn && undefined === rid) {
+      ctx.dynamics.set(key, dyn)
     }
     const outer = ctx.base
     ctx.base = rid
     const schema = fromVal(ctx, at, body)
     ctx.base = outer
-    ctx.defs.set(key, stamp(schema, rid, anchor))
+    ctx.defs.set(key, stamp(schema, rid, anchor, dyn))
   }
+  return key
+}
+
+
+// An anchor of a definition in the root's resource, unless another one
+// there carries it.
+function rootAnchor(ctx: Ctx, at: string[], keyword: string,
+  rid: string | undefined, anchor: string | undefined): string | undefined {
+  if (undefined === anchor || undefined !== rid) {
+    return anchor
+  }
+  if (ctx.anchors.has(anchor)) {
+    lose(ctx, at, keyword, 'another schema in the resource carries the ' +
+      'anchor ' + anchor + ', which names one schema, so this one is ' +
+      'written without it')
+    return undefined
+  }
+  ctx.anchors.add(anchor)
+  return anchor
+}
+
+
+// A use of a definition: a $dynamicRef where the import resolved it
+// through the dynamic scope to an anchor the root's resource binds,
+// which every scope then agrees on, and a $ref otherwise.
+function useOf(ctx: Ctx, path: string[], key: string, uris?: any[]): any {
+  if (undefined === uris) {
+    return { $ref: refTo(ctx, key) }
+  }
+  const frags = new Set(uris.map((u) => u.peg.substring(u.peg.indexOf('#') + 1)))
+  const name = ctx.dynamics.get(key)
+  if (undefined !== name && 1 === frags.size && frags.has(name)) {
+    return { $dynamicRef: fromRoot(ctx, name) }
+  }
+  lose(ctx, path, '$dynamicRef', 'the import resolved this reference in ' +
+    'the dynamic scope it read the schema in, and the export writes the ' +
+    '$ref it resolved to, so an outer scope that binds the anchor anew ' +
+    'does not change it')
   return { $ref: refTo(ctx, key) }
 }
 
@@ -759,29 +799,32 @@ const ROOT_DEF = ''
 // walk is in: a definition with an $id by it, and one without from the
 // root, which a fragment names only from the root's own resource.
 function refTo(ctx: Ctx, key: string): string {
-  const rid = ctx.addr.get(key)
-  if (undefined !== rid) {
-    return rid
-  }
-  const frag = ROOT_DEF === key ? '#' : '#/$defs/' + pointerToken(key)
+  return ctx.addr.get(key) ??
+    fromRoot(ctx, ROOT_DEF === key ? '' : '/$defs/' + pointerToken(key))
+}
+
+
+// A fragment of the root's resource, spelled to resolve from the
+// resource the walk is in.
+function fromRoot(ctx: Ctx, frag: string): string {
   if (undefined === ctx.base) {
-    return frag
+    return '#' + frag
   }
   if (undefined === ctx.rootId) {
     ctx.unaddressable = true
-    return frag
+    return '#' + frag
   }
-  return ROOT_DEF === key ? ctx.rootId : ctx.rootId + frag
+  return ctx.rootId + ('' === frag ? '' : '#' + frag)
 }
 
 
 // An identity's keys, each where it holds one value: a key that holds
 // more names no one place, so none of them is written.
 function single(ctx: Ctx, path: string[], rec?: Record<string, string[]>):
-  { id?: string, anchor?: string, key?: string } {
+  { id?: string, anchor?: string, dynamicAnchor?: string, key?: string } {
   const out: Record<string, string> = {}
   for (const [k, keyword] of [['id', '$id'], ['anchor', '$anchor'],
-    ['key', '$defs']]) {
+    ['dynamicAnchor', '$dynamicAnchor'], ['key', '$defs']]) {
     const vals = rec?.[k] ?? []
     if (1 === vals.length) {
       out[k] = vals[0]
@@ -795,9 +838,11 @@ function single(ctx: Ctx, path: string[], rec?: Record<string, string[]>):
 }
 
 
-// A schema with its resource's $id and its $anchor written on it.
-function stamp(schema: any, id?: string, anchor?: string): any {
-  if (undefined === id && undefined === anchor) {
+// A schema with its resource's $id and its anchors written on it.
+function stamp(schema: any, id?: string, anchor?: string,
+  dynamicAnchor?: string): any {
+  if (undefined === id && undefined === anchor &&
+    undefined === dynamicAnchor) {
     return schema
   }
   if (undefined !== id) {
@@ -806,14 +851,22 @@ function stamp(schema: any, id?: string, anchor?: string): any {
   if (undefined !== anchor) {
     schema.$anchor = anchor
   }
+  if (undefined !== dynamicAnchor) {
+    schema.$dynamicAnchor = dynamicAnchor
+  }
   return schema
 }
 
 
-// An alias's copy is unchanged when its value is, and what rides it.
+// An alias's copy is unchanged when its value is, and what rides it but
+// the dynamic reference it was reached through.
 function sameCopy(def: any, v: any): boolean {
-  return undefined !== def && def.canon === v.canon &&
-    wrapRiders('', def) === wrapRiders('', v)
+  const meta = Object.entries(v.meta ?? {}).filter(([k]) => 'dynamicRef' !== k)
+  return undefined !== def && spelledCanon(def) === spelledCanon(v) &&
+    wrapRiders('', def) === wrapRiders('', {
+      deprecation: v.deprecation,
+      meta: 0 === meta.length ? undefined : Object.fromEntries(meta),
+    } as any)
 }
 
 
@@ -927,12 +980,25 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
   }
 
   // A rider in a template position is still its call: the value it
-  // rides is what the schema says, and its records the annotations.
+  // rides is what the schema says, and its records the annotations. A
+  // reference it rides is its definition's use, beside them.
   if (true === v.isFunc && ['meta', 'deprecate'].includes(v.funcname())) {
     const trial: any = new Aontu().ctx({ collect: true })
-    const met = unite(trial, top(), v.clone(trial), 'jsonschema')
+    const call: any = v.clone(trial)
+    const rides = true === v.peg[0].isRef
+    if (rides) {
+      call.peg = [top(), ...call.peg.slice(1)]
+    }
+    const met = unite(trial, top(), call, 'jsonschema')
     if (0 === trial.err.length && true !== met.isFunc && true !== met.isNil) {
-      return fromVal(ctx, path, met)
+      const key = rides ? aliasKey(ctx, v.peg[0]) : undefined
+      if (undefined !== key) {
+        return annotate(ctx, path,
+          useOf(ctx, path, key, met.meta?.dynamicRef), met)
+      }
+      if (!rides) {
+        return fromVal(ctx, path, met)
+      }
     }
   }
 
@@ -1405,26 +1471,32 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
     const ctx: Ctx = {
       lossy: [], exact: true === opts.exactNumbers, root, defs: new Map(),
       names: new Map(), anchor, ids, addr: new Map(), anchors: new Set(),
-      unaddressable: false,
+      unaddressable: false, dynamics: new Map(),
     }
     const decl = null == node.aliasOrigin ? undefined :
       walkTarget(root, [node.aliasOrigin])
     let top = node
-    let ident: { id?: string, anchor?: string } = {}
+    let ident: { id?: string, anchor?: string, dynamicAnchor?: string } = {}
     if (1 === decl?.identity?.id?.length && sameCopy(decl, node)) {
       ident = single(ctx, anchor, decl.identity)
     }
     if (undefined !== ident.id) {
       ctx.rootId = ident.id
       ctx.names.set(JSON.stringify([node.aliasOrigin]), ROOT_DEF)
-      if (undefined !== ident.anchor) {
-        ctx.anchors.add(ident.anchor)
+      for (const a of [ident.anchor, ident.dynamicAnchor]) {
+        if (undefined !== a) {
+          ctx.anchors.add(a)
+        }
+      }
+      if (undefined !== ident.dynamicAnchor) {
+        ctx.dynamics.set(ROOT_DEF, ident.dynamicAnchor)
       }
       top = decl
     }
     const body = fromVal(ctx, anchor, top)
     return {
-      ctx, body: top === node ? body : stamp(body, ident.id, ident.anchor),
+      ctx, body: top === node ? body :
+        stamp(body, ident.id, ident.anchor, ident.dynamicAnchor),
     }
   }
   let { ctx, body } = run(true)

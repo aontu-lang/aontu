@@ -23,6 +23,10 @@ type RefVal struct {
 	// read by unification: it is a rendering of the settled tree.
 	expansion Val
 	rxc       int
+	// within: the targets this reference was copied in through. One
+	// naming any of them is a recursion wherever it sits (twin of
+	// `within` in ts/src/val/RefVal.ts).
+	within []string
 }
 
 // walkOutcome says how a reference walk ended: it landed on a value,
@@ -322,7 +326,8 @@ func dropMarkWrapper(v Val) Val {
 }
 
 func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
-	if rv.isPrefixPath() {
+	key, keyed := rv.withinKey()
+	if rv.isPrefixPath() || (keyed && containsString(rv.within, key)) {
 		degenerate := 0 == len(rv.path)
 		target := make([]string, 0, len(rv.peg))
 		for _, p := range rv.peg {
@@ -496,12 +501,11 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	lifted := !ctx.argsnap || node.markedType() || node.markedHide()
 	typed := node.markedType()
-	var out Val
-	if holdsStaged(node) {
-		out = clonePath(node, cp(rv.path))
-	} else {
-		out = instanceClone(node, cp(rv.path))
+	chain := rv.within
+	if keyed {
+		chain = append(append([]string{}, rv.within...), key)
 	}
+	out := cloneIn(node, cp(rv.path), !holdsStaged(node), chain)
 	out.setIdentityRec(nil)
 	if lifted {
 		walkMark(out, true, false, true, false)
@@ -606,6 +610,36 @@ func (rv *RefVal) plainRefPath() []string {
 		}
 	}
 	return reduced
+}
+
+// withinKey is the target as one string, for an absolute reference
+// whose segments are all names: what within holds.
+func (rv *RefVal) withinKey() (string, bool) {
+	if !rv.absolute || 0 == len(rv.peg) {
+		return "", false
+	}
+	segs := make([]string, len(rv.peg))
+	for i, p := range rv.peg {
+		s, ok := p.(string)
+		if !ok || "" == s {
+			return "", false
+		}
+		segs[i] = s
+	}
+	return strings.Join(segs, "\x00"), true
+}
+
+func withinUnion(own, more []string) []string {
+	if 0 == len(more) {
+		return own
+	}
+	out := append([]string{}, own...)
+	for _, k := range more {
+		if !containsString(out, k) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // isPrefixPath reports whether the reference path is a prefix of this

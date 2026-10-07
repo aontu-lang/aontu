@@ -4355,3 +4355,90 @@ uri" meets it once phase 10 resolves its reference, and is listed under
 phase 18, which needs the ledger to hold only the boundary's cases.
 
 Repro: `repros/jsonschema-import/unsatisfiable-definition.aontu`.
+
+## checks — references a check's arguments hold
+
+Two entries, found 2026-10-07 importing the suite's `dynamicRef.json`
+(G12 phase 11), whose schemas reach a definition from inside an
+`items` under a condition. Three more, under recursion below, came
+from the same file, and one under identity from its round trip.
+
+### 104. Under `vet --at`, a reference in a check's template refused valid data [FIXED 2026-10-07]
+
+Both ports. A `when`, `nof` or `contains` holding a container is
+decided at generation, by a trial run on the settled value. Under
+`--at` the schema's tree was where an absolute reference found what
+it named, and the generation pass had no such tree, so `%A` or
+`$.defs.A` inside a spread template in the check's argument named
+nothing, the trial refused, and `vet` refused valid data. Generation
+now carries the schema's tree (rows `vet-at-*-in-a-trial-template-*`
+and `vet-at-alias-in-a-nof-template-valid` of `test/spec/vet.tsv`).
+
+### 105. An alias in a check's argument canoned as its name [FIXED 2026-10-07]
+
+A divergence no shared row had pinned. A check's atoms hold its
+arguments beside the residual's children, and the pass that spells an
+alias reference as the value it names did not read them: TypeScript
+reached them only while the atom was unmerged, and Go never did. So
+`when({k:any}, {items?: [&: %A]})` canoned and hashed as `%A` in Go
+and as the value in TypeScript, and with a second atom merged in, as
+`%A` in both, which is not the longhand's hash. Both now read every
+atom (the `alias-in-a-*` rows of `test/spec/alias.tsv`).
+
+## recursion — a mutually recursive pair reached from outside it
+
+Three entries, found 2026-10-07 importing the suite's `dynamicRef.json`
+(G12 phase 11), whose root schema adds keywords beside a `$ref` to one
+of a recursive pair, so the import writes `%_root` as that definition
+met with a map, and `%_root` sorts before the pair.
+
+### 106. A reference reached before its recursive pair expanded without end [FIXED 2026-10-07]
+
+Both ports. A reference to a recursive definition residuates where its
+own path lies under its target, and where the value it finds already
+holds that residual. With `%r = %e & {foo?: 1}` written before
+`%b = {baz?: %e}` and `%e = {bar?: %b}`, `%r` expanded `%e` before
+either definition had residuated, and no reference in that copy lay
+under its own target, so the copy expanded until `unify_cycle`. Paths
+did the same. A copy taken through a reference now records the targets
+it was taken through, and a reference in it naming one of them
+residuates (the `mutual-*-reached-before-its-pair*` rows of
+`test/spec/recursion.tsv`).
+
+### 107. Where a mutual recursion residuates depends on declaration order [minor]
+
+Both ports, before §106 and after it. The rules above place the
+residual where a definition first meets itself, which is a matter of
+which declaration is unified first, so `x: %k` beside `%k = {a?: %m}`
+and `%m = {b?: %k}` is `recursion_unexpanded` with `%k` written first
+and `{"x":{}}` with `%m` written first. An instance meets the same
+schema either way, so `vet` answers alike, but the canon, the hash and
+generation without data do not.
+
+Repro: `repros/recursion/mutual-knot-placement-order.aontu`.
+
+### 108. A hidden mutual pair of optional members never resolves [minor]
+
+Both ports. `a: hide({x?: $.b})` and `b: hide({y?: $.a})` each wait for
+the other's `hide()` to settle before a reference into it is taken, so
+neither settles, and `c: $.a & {...}` is `mapval_no_gen` at `$.a`
+whatever the order. The pair in `mutual-pair` resolves because one side
+reaches the other through a spread, which is not taken until a member
+arrives.
+
+Repro: `repros/recursion/hidden-mutual-pair-never-resolves.aontu`.
+
+## identity — an alias whose value is another alias
+
+One entry, found 2026-10-07 by the round trip of the suite's
+`dynamicRef.json` (G12 phase 11) through import and export.
+
+### 109. An alias of another one lost its `$id` on export when copied early [FIXED 2026-10-07]
+
+Both ports. `%a = identity(%b, {id: …})` is an alias whose value is
+another alias's. A reference that copied `%a` before its call resolved,
+as `%_root` sorting before `%a` does, took the call, and the call
+resolved to `%b`'s copy, so the use named `%b`: the export wrote a
+`$ref` to `%b` and never wrote `%a`'s `$id`, and said nothing of it. The
+result of `identity()` now keeps the copy's alias (row
+`js-identity-an-alias-copied-before-it-settles`).

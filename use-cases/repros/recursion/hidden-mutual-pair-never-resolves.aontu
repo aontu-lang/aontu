@@ -1,0 +1,11 @@
+# 108 (found 2026-10-07 importing the suite's dynamicRef.json, G12
+# phase 11): each hide() waits for the other to settle before a
+# reference into it is taken, so neither does, in either order. Both
+# ports agree, so this is not a parity defect.
+#
+# expected: {"c":{"x":{"y":{"x":{}}},"z":1}}
+# actual:   [aontu/mapval_no_gen] at $.a
+a: hide({x?: $.b})
+b: hide({y?: $.a})
+c: $.a & {z?: 1}
+c: {x: {y: {x: {}}}}

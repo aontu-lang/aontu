@@ -1,0 +1,12 @@
+# 107 (found 2026-10-07 importing the suite's dynamicRef.json, G12
+# phase 11): a mutual recursion residuates where a definition first
+# meets itself, which depends on which declaration is unified first.
+# Written with %k first, x is the residual and generation refuses it;
+# written as below, x is one level of %k and generates. Both ports
+# agree, so this is not a parity defect.
+#
+# expected: [aontu/recursion_unexpanded] at $.x, as with %k first
+# actual:   {"x":{}}
+%m = {b?: %k}
+%k = {a?: %m}
+x: %k

@@ -12,6 +12,7 @@ declare class RefVal extends FeatureVal {
     rxc: number;
     prefix: boolean;
     copyFound: boolean;
+    within: string[];
     constructor(spec: {
         peg: any[];
         absolute?: boolean;
@@ -25,6 +26,7 @@ declare class RefVal extends FeatureVal {
     same(peer: Val): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     get aliasKey(): string | undefined;
+    get withinKey(): string | undefined;
     get aliasName(): string | undefined;
     get spelling(): string;
     get canon(): string;

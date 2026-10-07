@@ -373,7 +373,8 @@ var importSchemaOne = []string{"additionalProperties", "propertyNames", "items",
 var importSchemaLists = []string{"prefixItems", "allOf", "anyOf", "oneOf"}
 
 var importCarried = map[string]bool{"$schema": true, "$id": true,
-	"$ref": true, "$anchor": true, "$defs": true, "type": true, "enum": true,
+	"$ref": true, "$anchor": true, "$defs": true, "$dynamicRef": true,
+	"$dynamicAnchor": true, "type": true, "enum": true,
 	"const": true, "allOf": true, "anyOf": true, "oneOf": true, "not": true,
 	"if": true, "then": true, "else": true, "dependentSchemas": true,
 	"dependentRequired": true, "minimum": true, "maximum": true,
@@ -390,14 +391,21 @@ var importAnnotation = map[string]bool{"title": true, "description": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"$dynamicRef": true, "$dynamicAnchor": true,
-	"unevaluatedProperties": true, "unevaluatedItems": true,
-	"$vocabulary": true}
+var importLater = map[string]bool{"unevaluatedProperties": true,
+	"unevaluatedItems": true, "$vocabulary": true}
 
 type importAnchor struct {
 	node any
 	ptr  string
 }
+
+// importEnv binds each dynamic anchor name in scope to the outermost
+// resource's.
+type importEnv map[string]importAnchor
+
+// importCloneBudget: how many schemas the import may read once more for
+// each further environment a dynamic reference reaches them in.
+const importCloneBudget = 1000
 
 type importCtx struct {
 	root      any
@@ -409,6 +417,10 @@ type importCtx struct {
 	bases     map[*jobj]string
 	defKeys   map[*jobj]string
 	unread    map[string]string
+	dynamics  map[string]map[string]importAnchor
+	env       importEnv
+	rootEnv   importEnv
+	clones    int
 }
 
 func (ic *importCtx) lose(path, construct, reason string) {
@@ -458,22 +470,33 @@ func (ic *importCtx) index(node any, ptr, base string) {
 		ic.claim(base, importAnchor{node: node, ptr: ptr}, importPtrAt(ptr, "$id"))
 	}
 	ic.bases[o] = base
-	if o.has("$anchor") {
-		anchor, isStr := o.get("$anchor").(string)
-		if !isStr || !importAnchorRe.MatchString(anchor) {
-			refuseSchema(importPtrAt(ptr, "$anchor"), "an anchor must be a plain name")
+	for _, kw := range []string{"$anchor", "$dynamicAnchor"} {
+		if !o.has(kw) {
+			continue
+		}
+		name, isStr := o.get(kw).(string)
+		if !isStr || !importAnchorRe.MatchString(name) {
+			refuseSchema(importPtrAt(ptr, kw), "an anchor must be a plain name")
 		}
 		names := ic.anchors[base]
 		if nil == names {
 			names = map[string]importAnchor{}
 			ic.anchors[base] = names
 		}
-		if _, dup := names[anchor]; dup {
+		if had, dup := names[name]; dup && had.node != node {
 			panic(&importRefusal{code: "jsonschema_duplicate",
-				path: importPtrAt(ptr, "$anchor"),
-				why:  "the anchor " + importStrLit(anchor) + " names two subschemas"})
+				path: importPtrAt(ptr, kw),
+				why:  "the anchor " + importStrLit(name) + " names two subschemas"})
 		}
-		names[anchor] = importAnchor{node: node, ptr: ptr}
+		names[name] = importAnchor{node: node, ptr: ptr}
+		if "$dynamicAnchor" == kw {
+			dyn := ic.dynamics[base]
+			if nil == dyn {
+				dyn = map[string]importAnchor{}
+				ic.dynamics[base] = dyn
+			}
+			dyn[name] = importAnchor{node: node, ptr: ptr}
+		}
 	}
 	for _, k := range o.keys {
 		v := o.get(k)
@@ -593,12 +616,12 @@ func importPlaceName(ptr string) string {
 var importBadTilde = regexp.MustCompile(`~[^01]|~$`)
 var importIndexRe = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
 
-// refAlias reads a `$ref`, resolved against the base of the schema it
-// sits in.
-func (ic *importCtx) refAlias(o *jobj, ref any, path string) string {
-	r, ok := ref.(string)
+// target reads a reference, resolved against the base of the schema it
+// sits in, to the place it names, with the URI it was resolved to.
+func (ic *importCtx) target(o *jobj, kw, path string) (importAnchor, string, string) {
+	r, ok := o.get(kw).(string)
 	if !ok {
-		refuseSchema(path, "$ref must be a string")
+		refuseSchema(path, kw+" must be a string")
 	}
 	bad := func(why string) {
 		panic(&importRefusal{code: "jsonschema_ref", path: path,
@@ -647,11 +670,83 @@ func (ic *importCtx) refAlias(o *jobj, ref any, path string) string {
 	if !isJSchema(node) {
 		bad("names no schema in this document")
 	}
-	// One place, one alias: an anchor names the alias of the place it
-	// stands, so a schema reached by anchor and by pointer is one alias.
-	name := importPlaceName(ptr)
-	ic.declare(name, node, ptr)
+	return importAnchor{node: node, ptr: ptr}, frag, uri + "#" + raw
+}
+
+// dynamicAlias reads a `$dynamicRef`: where its first target declares
+// the dynamic anchor its fragment names, the schema the outermost
+// resource in scope binds that anchor to, or that target where none
+// does, and a `$ref` otherwise.
+func (ic *importCtx) dynamicAlias(o *jobj, path string) string {
+	place, frag, uri := ic.target(o, "$dynamicRef", path)
+	if t, ok := place.node.(*jobj); !ok || t.get("$dynamicAnchor") != frag {
+		return ic.use(place)
+	}
+	if bound, has := ic.env[frag]; has {
+		place = bound
+	}
+	return "meta(" + ic.use(place) + ", { dynamicRef: " + importStrLit(uri) +
+		" })"
+}
+
+// use: one place in one environment, one alias. An anchor names the
+// alias of the place it stands, so a schema reached by anchor and by
+// pointer is one alias, and a schema read in another environment is
+// another.
+func (ic *importCtx) use(place importAnchor) string {
+	name := ic.aliasOf(place.node, place.ptr)
+	ic.declare(name, place.node, place.ptr)
 	return "%" + name
+}
+
+func (ic *importCtx) aliasOf(node any, ptr string) string {
+	env := ic.enter(ic.env, node)
+	// An environment only grows from the root resource's, binding names
+	// it lacks, so one no larger is the root's.
+	if len(env) == len(ic.rootEnv) {
+		return importPlaceName(ptr)
+	}
+	names := make([]string, 0, len(env))
+	for n := range env {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	name := importPlaceName(ptr)
+	for _, n := range names {
+		name += "-_e-" + importEnc(n, false) + "-" + importPlaceName(env[n].ptr)
+	}
+	if _, has := ic.aliases[name]; !has {
+		ic.clones++
+		if importCloneBudget < ic.clones {
+			panic(&importRefusal{code: "jsonschema_budget", path: ptr,
+				why: "more than " + strconv.Itoa(importCloneBudget) +
+					" schemas are read once more in another dynamic scope"})
+		}
+	}
+	return name
+}
+
+// enter: the environment a schema is read in is the one around it, and
+// the dynamic anchors its resource declares that no outer one binds.
+func (ic *importCtx) enter(env importEnv, node any) importEnv {
+	o, ok := node.(*jobj)
+	if !ok {
+		return env
+	}
+	own := ic.dynamics[ic.bases[o]]
+	fresh := importEnv{}
+	for n, p := range own {
+		if _, bound := env[n]; !bound {
+			fresh[n] = p
+		}
+	}
+	if 0 == len(fresh) {
+		return env
+	}
+	for n, p := range env {
+		fresh[n] = p
+	}
+	return fresh
 }
 
 func (ic *importCtx) declare(name string, node any, ptr string) {
@@ -666,9 +761,9 @@ func (ic *importCtx) declare(name string, node any, ptr string) {
 }
 
 // identity: what the export needs to give a schema back its place: the
-// $id of the resource it is, where that is absolute, its $anchor, where
-// the export leaves the anchor in the resource that holds it, and its
-// $defs key.
+// $id of the resource it is, where that is absolute, its $anchor and
+// $dynamicAnchor, where the export leaves them in the resource that
+// holds them, and its $defs key.
 func (ic *importCtx) identity(name string, node any, ptr string) string {
 	o, ok := node.(*jobj)
 	if !ok {
@@ -681,9 +776,11 @@ func (ic *importCtx) identity(name string, node any, ptr string) string {
 	if own && parseURI(base).hasScheme {
 		parts = append(parts, "id: "+importStrLit(base))
 	}
-	if anchor, has := o.get("$anchor").(string); has && (1 == len(parts) ||
-		(0 == at && base == ic.bases[ic.root.(*jobj)])) {
-		parts = append(parts, "anchor: "+importStrLit(anchor))
+	kept := 1 == len(parts) || (0 == at && base == ic.bases[ic.root.(*jobj)])
+	for _, kw := range []string{"anchor", "dynamicAnchor"} {
+		if anchor, has := o.get("$" + kw).(string); has && kept {
+			parts = append(parts, kw+": "+importStrLit(anchor))
+		}
 	}
 	if key, has := ic.defKeys[o]; has && key != name {
 		parts = append(parts, "key: "+importStrLit(key))
@@ -1965,15 +2062,21 @@ func importMeetOrNil(parts []string) string {
 // I: a schema with an identity of its own is hoisted, so that a
 // declaration carries it.
 func (ic *importCtx) I(node any, ptr string) string {
-	name := importPlaceName(ptr)
-	if "" == ic.identity(name, node, ptr) {
+	if "" == ic.identity(importPlaceName(ptr), node, ptr) {
 		return ic.bodyOf(node, ptr)
 	}
-	ic.declare(name, node, ptr)
-	return "%" + name
+	return ic.use(importAnchor{node: node, ptr: ptr})
 }
 
+// bodyOf reads a schema in the environment its resource makes.
 func (ic *importCtx) bodyOf(node any, ptr string) string {
+	outer := ic.env
+	ic.env = ic.enter(outer, node)
+	defer func() { ic.env = outer }()
+	return ic.bodyIn(node, ptr)
+}
+
+func (ic *importCtx) bodyIn(node any, ptr string) string {
 	if b, ok := node.(bool); ok {
 		if b {
 			return "any"
@@ -2001,7 +2104,11 @@ func (ic *importCtx) bodyOf(node any, ptr string) string {
 
 	parts := []string{}
 	if o.has("$ref") {
-		parts = append(parts, ic.refAlias(o, o.get("$ref"), importPtrAt(ptr, "$ref")))
+		place, _, _ := ic.target(o, "$ref", importPtrAt(ptr, "$ref"))
+		parts = append(parts, ic.use(place))
+	}
+	if o.has("$dynamicRef") {
+		parts = append(parts, ic.dynamicAlias(o, importPtrAt(ptr, "$dynamicRef")))
 	}
 	if o.has("const") {
 		parts = append(parts, ic.lit(o.get("const"), importPtrAt(ptr, "const")))
@@ -2082,7 +2189,8 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 		resources: map[string]importAnchor{},
 		anchors:   map[string]map[string]importAnchor{},
 		bases:     map[*jobj]string{}, defKeys: map[*jobj]string{},
-		unread: map[string]string{}}
+		unread:   map[string]string{},
+		dynamics: map[string]map[string]importAnchor{}}
 	defer func() {
 		if r := recover(); nil != r {
 			ref, isRefusal := r.(*importRefusal)
@@ -2100,11 +2208,12 @@ func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) 
 	ic.root = readSchemaJSON(text)
 	ic.claim("", importAnchor{node: ic.root, ptr: "#"}, "#")
 	ic.index(ic.root, "#", "")
+	ic.env = ic.enter(importEnv{}, ic.root)
+	ic.rootEnv = ic.env
 	if root, ok := ic.root.(*jobj); ok {
 		defs := importSchemaMap(root.get("$defs"), "#/$defs")
 		for _, k := range defs.keys {
-			ic.declare(importAliasName([]string{"$defs", k}), defs.get(k),
-				importPtrAt("#/$defs", k))
+			ic.use(importAnchor{node: defs.get(k), ptr: importPtrAt("#/$defs", k)})
 		}
 	}
 	inline := ic.I(ic.root, "#")

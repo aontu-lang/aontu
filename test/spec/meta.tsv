@@ -92,3 +92,7 @@ meta-hcanon-typed	hcanon	a: type(meta(integer, {title: "T"}))	{"a":meta(type(int
 meta-hcanon-disjunct-member	hcanon	a: meta(1, {title: "T"}) | 2	{"a":meta(1,{"title":"T"})|2}
 meta-hcanon-beside-deprecate	hcanon	a: deprecate(meta(1, {title: "T"}), {msg: "m"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"T"})}
 meta-hcanon-layers	hcanon	a: meta(1, {title: "T"}) & meta(1, {title: "U"})	{"a":meta(1,{"title":"T"},{"title":"U"})}
+# G12 phase 11: dynamicRef, the URI a $dynamicRef was resolved to, is a
+# string, and rides as every key does.
+meta-dynamic-ref-rides	canon	a: meta(1, { dynamicRef: "http://e.com/a#t" })	{"a":meta(1,{"dynamicRef":"http://e.com/a#t"})}
+meta-dynamic-ref-not-a-string-refuses	errc	a: meta(1, { dynamicRef: 1 })	func_arg

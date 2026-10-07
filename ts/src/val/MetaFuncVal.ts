@@ -50,6 +50,7 @@ const META_KEYS: Record<string, (v: any) => boolean> = {
   contentSchema: plain,
   examples: (v) => true === v?.isList && plain(v),
   x: (v) => true === v?.isMap && plain(v),
+  dynamicRef: text,
 }
 
 

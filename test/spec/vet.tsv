@@ -198,6 +198,15 @@ vet-schema-reference-agrees	vet	a:integer\nb:$.a\n	a:3\nb:3\n	{"findings":[],"tr
 # enforced, in both ports.
 vet-at-absolute-ref-valid	vet	Base:{k:integer}\nA:$.Base & {t:"a"}\n	t:"a"\nk:1\n	{"findings":[],"opts":{"at":"$.A"},"truncated":false,"verdict":"valid"}
 vet-at-absolute-ref-invalid	vet	Base:{k:integer}\nA:$.Base & {t:"a"}\n	t:"a"\nk:"x"\n	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.A.k","severity":"error","sites":[{"col":3,"file":"data","len":3,"role":"data","row":2,"src":"\\"x\\"","value":"\\"x\\""},{"col":9,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.A"},"truncated":false,"verdict":"invalid"}
+# The same holds at generation, where a when, nof or contains decides
+# a container: its admission trial ran without the schema's tree, so a
+# reference inside a spread template in its argument named nothing and
+# refused valid data (use-cases/BUGS.md §104).
+vet-at-alias-in-a-trial-template-valid	vet	%A = number\nschema: hide(when({ k:any }, { items?: [&: %A] }))	{"k":1,"items":[1.1]}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+vet-at-alias-in-a-trial-template-invalid	vet	%A = number\nschema: hide(when({ k:any }, { items?: [&: %A] }))	{"k":1,"items":["x"]}	{"findings":[{"actual":"{\\"items\\":[\\"x\\"],\\"k\\":1}","class":"conflict","code":"when","expected":"when({\\"k\\":any},{\\"items\\"?:[&:number]})","path":"$.schema","severity":"error","sites":[{"col":1,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"items\\":[\\"x\\"],\\"k\\":1}"},{"col":9,"file":"schema","len":4,"role":"schema","row":2,"src":"hide","value":"when({\\"k\\":any},{\\"items\\"?:[&:number]})"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}
+vet-at-path-in-a-trial-template-valid	vet	defs: hide({ A: number })\nschema: hide(when({ k:any }, { items?: [&: $.defs.A] }))	{"k":1,"items":[1.1]}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
+vet-at-path-in-a-trial-template-invalid	vet	defs: hide({ A: number })\nschema: hide(when({ k:any }, { items?: [&: $.defs.A] }))	{"k":1,"items":["x"]}	{"findings":[{"actual":"{\\"items\\":[\\"x\\"],\\"k\\":1}","class":"conflict","code":"when","expected":"when({\\"k\\":any},{\\"items\\"?:[&:$.defs.A]})","path":"$.schema","severity":"error","sites":[{"col":1,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"items\\":[\\"x\\"],\\"k\\":1}"},{"col":9,"file":"schema","len":4,"role":"schema","row":2,"src":"hide","value":"when({\\"k\\":any},{\\"items\\"?:[&:$.defs.A]})"}]}],"truncated":false,"verdict":"invalid","opts":{"at":"$.schema"}}
+vet-at-alias-in-a-nof-template-valid	vet	%A = number\nschema: hide(nof(1, 1, { items?: [&: %A] }))	{"items":[1.1]}	{"findings":[],"truncated":false,"verdict":"valid","opts":{"at":"$.schema"}}
 #
 # A MARK ABOVE THE ANCHOR IS NOT A REASON TO CHECK NOTHING (ADR-007's
 # companion, the completeness probe -- use-cases/BUGS.md §14). Vet finds

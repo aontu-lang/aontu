@@ -606,6 +606,7 @@ function vet(schemaSrc, dataSrc, opts) {
     });
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
+    genCtx._fixroot = ctx._fixroot;
     genCtx.probe = null != options.at;
     genCtx.noFill = ctx.noFill;
     const generated = unified.gen(genCtx);

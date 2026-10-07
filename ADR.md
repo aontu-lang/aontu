@@ -4857,6 +4857,16 @@ covers it.
   `test/spec/jsonschema.tsv`, and by the JSON-Schema-Test-Suite's
   `annotations/` directory.
 
+### Amendment, 2026-10-07: `dynamicRef` joins the vocabulary
+
+G12 phase 11 adds `dynamicRef` to `meta()`'s record: a string, the URI
+a `$dynamicRef` was resolved to. The import writes it at each use it
+resolved through the dynamic scope, and the export reads it to write
+`$dynamicRef` back. It rides and meets as every other key does. The
+export's test of whether a use is an unchanged copy of its definition
+leaves it out, since it says how the use was reached and not what it
+admits.
+
 ## ADR-050 — A resource's identity is held by its declaration
 
 **Date:** 2026-10-07
@@ -4911,3 +4921,12 @@ not what the value admits. The export reads it at the declaration.
   record is absent, and every path that carries it carries nothing.
 - Pinned in both ports by rows in `test/spec/identity.tsv`,
   `test/spec/jsonschema-import.tsv` and `test/spec/jsonschema.tsv`.
+
+### Amendment, 2026-10-07: a dynamic anchor is part of the identity
+
+G12 phase 11 adds `dynamicAnchor` to the record, a plain name held on
+the terms `anchor` is: the import records it where the export can keep
+it, on a resource of its own or in the root's resource, and the export
+writes it as `$dynamicAnchor` on the definition. A `$dynamicRef` is
+written back only to such a definition in the root's resource, which
+every dynamic scope binds alike.
