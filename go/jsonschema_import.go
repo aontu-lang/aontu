@@ -378,7 +378,8 @@ var importSchemaLists = []string{"prefixItems", "allOf", "anyOf", "oneOf"}
 var importCarried = map[string]bool{"$schema": true, "$id": true,
 	"$ref": true, "$anchor": true, "$defs": true, "type": true, "enum": true,
 	"const": true, "allOf": true, "anyOf": true, "oneOf": true, "not": true,
-	"minimum": true, "maximum": true,
+	"if": true, "then": true, "else": true, "dependentSchemas": true,
+	"dependentRequired": true, "minimum": true, "maximum": true,
 	"exclusiveMinimum": true, "exclusiveMaximum": true, "multipleOf": true,
 	"minLength": true, "maxLength": true, "pattern": true, "properties": true,
 	"required": true, "additionalProperties": true, "patternProperties": true,
@@ -390,9 +391,7 @@ var importAnnotation = map[string]bool{"title": true, "description": true,
 	"writeOnly": true, "$comment": true, "format": true,
 	"contentEncoding": true, "contentMediaType": true, "contentSchema": true}
 
-var importLater = map[string]bool{"if": true, "then": true, "else": true,
-	"dependentRequired": true, "dependentSchemas": true, "contains": true,
-	"minContains": true, "maxContains": true, "uniqueItems": true,
+var importLater = map[string]bool{"contains": true, "minContains": true, "maxContains": true, "uniqueItems": true,
 	"$dynamicRef": true, "$dynamicAnchor": true,
 	"unevaluatedProperties": true, "unevaluatedItems": true,
 	"$vocabulary": true}
@@ -1557,6 +1556,67 @@ func (ic *importCtx) not(o *jobj, ptr string) (string, bool) {
 	return "nof(0, " + src + ")", true
 }
 
+// conditional writes `if` with `then` or `else` as a conditional; one
+// without the other asks nothing of a value.
+func (ic *importCtx) conditional(o *jobj, ptr string) string {
+	arm := func(k string) string { return ic.I(o.get(k), importPtrAt(ptr, k)) }
+	parts := []string{arm("if"), "any"}
+	if o.has("then") {
+		parts[1] = arm("then")
+	}
+	if o.has("else") {
+		parts = append(parts, arm("else"))
+	}
+	return "when(" + strings.Join(parts, ", ") + ")"
+}
+
+// dependencies writes each dependency as a conditional whose condition
+// is the key's presence.
+func (ic *importCtx) dependencies(o *jobj, ptr string) []string {
+	out := []string{}
+	sat := importPtrAt(ptr, "dependentSchemas")
+	ds := importSchemaMap(o.get("dependentSchemas"), sat)
+	for _, k := range ds.keys {
+		out = append(out, "when({"+importStrLit(k)+": any}, "+
+			ic.I(ds.get(k), importPtrAt(sat, k))+")")
+	}
+	if !o.has("dependentRequired") {
+		return out
+	}
+	req, ok := o.get("dependentRequired").(*jobj)
+	lists := [][]string{}
+	if ok {
+		for _, k := range req.keys {
+			l, isList := req.get(k).([]any)
+			ok = ok && isList
+			seen := map[string]bool{}
+			names := []string{}
+			for _, n := range l {
+				s, isStr := n.(string)
+				ok = ok && isStr && !seen[s]
+				seen[s] = true
+				names = append(names, s)
+			}
+			lists = append(lists, names)
+		}
+	}
+	if !ok {
+		refuseSchema(importPtrAt(ptr, "dependentRequired"),
+			"dependentRequired must be an object of arrays of distinct strings")
+	}
+	for i, k := range req.keys {
+		if 0 < len(lists[i]) {
+			fields := make([]string, len(lists[i]))
+			for j, n := range lists[i] {
+				fields[j] = importStrLit(n) + ": any"
+			}
+			out = append(out, "when({"+importStrLit(k)+": any}, {"+
+				strings.Join(fields, ", ")+"})")
+		}
+	}
+	return out
+}
+
 // importMeetOrNil writes a meet empty where it stands as the schema that
 // admits nothing, `nil`; a meet through an alias is left to evaluation.
 func importMeetOrNil(parts []string) string {
@@ -1648,6 +1708,10 @@ func (ic *importCtx) I(node any, ptr string) string {
 	if o.has("oneOf") {
 		parts = append(parts, ic.oneOf(o, ptr))
 	}
+	if o.has("if") && (o.has("then") || o.has("else")) {
+		parts = append(parts, ic.conditional(o, ptr))
+	}
+	parts = append(parts, ic.dependencies(o, ptr)...)
 	return importMeetOrNil(parts)
 }
 

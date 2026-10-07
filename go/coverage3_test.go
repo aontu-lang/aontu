@@ -598,6 +598,10 @@ func TestMapValArmsDirect(t *testing.T) {
 		{branches: []Val{newFunc("key", nil)}}}}) {
 		t.Fatalf("nof branch")
 	}
+	if !hasPathFunc(&ConstraintVal{whens: []constraintWhen{
+		{c: newInteger(1), t: newFunc("key", nil)}}}) {
+		t.Fatalf("when branch")
+	}
 
 	m := newMap()
 	m.mtype = true

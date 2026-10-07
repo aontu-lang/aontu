@@ -38,6 +38,11 @@ function walkVals(v, visit, seen) {
             walkVals(branch, visit, seen);
         }
     }
+    for (const w of (v.whens ?? [])) {
+        for (const branch of [w.c, w.t, w.e]) {
+            walkVals(branch, visit, seen);
+        }
+    }
     walkVals(v.primary, visit, seen);
     walkVals(v.secondary, visit, seen);
 }
@@ -64,6 +69,9 @@ function collectNils(root, seen) {
         // A count's alternatives are trial schemas, where nil admits nothing.
         for (const nof of v.nofs ?? []) {
             nof.branches.forEach((b) => walked.add(b));
+        }
+        for (const w of v.whens ?? []) {
+            [w.c, w.t, w.e].forEach((b) => walked.add(b));
         }
         return true;
     }, walked);

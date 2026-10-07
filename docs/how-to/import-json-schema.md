@@ -178,7 +178,7 @@ and changes nothing admitted. Write `payment.schema.json`:
     "holder": {"type": "string"}
   },
   "required": ["method"],
-  "dependentRequired": {"card": ["holder"]}
+  "unevaluatedProperties": false
 }
 ```
 
@@ -190,17 +190,17 @@ schema: hide({
   card?: empty() & len(min(12))
   holder?: empty()
 })
-lossy: #/dependentRequired dependentRequired: not carried yet, so it is DROPPED and the import admits instances the schema refuses
 lossy: #/description description: an annotation; it is dropped, and what the import admits is unchanged
+lossy: #/unevaluatedProperties unevaluatedProperties: not carried yet, so it is DROPPED and the import admits instances the schema refuses
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
 $ echo $?
 1
 ```
 
-`dependentRequired` asked for a `holder` whenever a `card` is given,
-and the imported source admits a card without one. `--strict` exits 1
-on any loss, for a pipeline that must not admit more than the schema
-does. Without it the same import exits 0.
+`unevaluatedProperties` refused every key the schema does not name,
+and the imported source admits an order that carries one. `--strict`
+exits 1 on any loss, for a pipeline that must not admit more than the
+schema does. Without it the same import exits 0.
 
 ## The refusals
 

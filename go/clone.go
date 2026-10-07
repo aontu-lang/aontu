@@ -67,6 +67,13 @@ func setPaths(v Val, path []string) {
 				setPaths(b, path)
 			}
 		}
+		for _, w := range n.whens {
+			for _, b := range []Val{w.c, w.t, w.e} {
+				if nil != b {
+					setPaths(b, path)
+				}
+			}
+		}
 	}
 }
 

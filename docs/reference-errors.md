@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **182** codes across
+There are seven classes, and the registry holds **183** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 55 | the text is not a document |
-| `conflict` | 59 | two values cannot both hold |
+| `conflict` | 60 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 182 codes have hint text. `aontu explain --list`
+**Hint text.** All 183 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -304,6 +304,7 @@ twenty rows have no such section and carry no link.
 | `sort_key` | 0.63.0 | A child of the bag has no key to order by. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `string_empty` | 0.77.0 | `string` met `""`, which only `string & empty()` admits. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `unite` | 0.51.0 | Two values could not be united. |
+| `when` | 0.77.0 | The branch a `when()` atom's condition chose refuses the value, or neither branch can admit it yet; the details name the condition's verdict and the branch. ([Band B: `when`](reference-language.md#band-b-when)) |
 
 ### Class `incomplete`
 

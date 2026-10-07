@@ -146,7 +146,8 @@ export function effectiveDefault(v: any): any {
 // The Band B atoms that make a general residual opaque, by name.
 function opaqueNames(g: any): string {
   return [...(0 < g.musts.length ? ['must'] : []),
-    ...(0 < g.nofs.length ? ['nof'] : [])].join(', ')
+    ...(0 < g.nofs.length ? ['nof'] : []),
+    ...(0 < g.whens.length ? ['when'] : [])].join(', ')
 }
 
 

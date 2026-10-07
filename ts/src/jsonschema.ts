@@ -486,7 +486,53 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: any): any {
     nofKeyword(ctx, path, out, n)
   }
 
+  for (const w of c.whens) {
+    whenKeyword(ctx, path, out, w)
+  }
+
   return out
+}
+
+
+// A conditional as the keywords its shape spells: a condition asking only
+// that one key be present is a dependency, and any other is `if`.
+function whenKeyword(ctx: Ctx, path: string[], out: any, w: any) {
+  const keys = undefined === w.e ? presentKeys(w.c) : undefined
+  if (1 === keys?.length) {
+    const names = presentKeys(w.t)
+    const kw = undefined === names ? 'dependentSchemas' : 'dependentRequired'
+    const v = names ?? fromVal(ctx, path, w.t)
+    if (undefined === out[kw]?.[keys[0]]) {
+      out[kw] = { ...(out[kw] ?? {}), [keys[0]]: v }
+    }
+    else {
+      allOf(out, { [kw]: { [keys[0]]: v } })
+    }
+    return
+  }
+  const schema: any = {
+    if: fromVal(ctx, path, w.c),
+    then: fromVal(ctx, path, w.t),
+    ...(undefined === w.e ? {} : { else: fromVal(ctx, path, w.e) }),
+  }
+  if (undefined === out.if) {
+    Object.assign(out, schema)
+  }
+  else {
+    allOf(out, schema)
+  }
+}
+
+
+// The keys a plain map asks to be present, and nothing more of them.
+function presentKeys(v: any): string[] | undefined {
+  if (true !== v?.isMap || v.closed || null != v.spread?.cj ||
+    0 < v.optionalKeys.length) {
+    return undefined
+  }
+  const keys = Object.keys(v.peg).sort(cmpCodePoint)
+  return 0 < keys.length && keys.every((k) => true === v.peg[k].isTop) ?
+    keys : undefined
 }
 
 

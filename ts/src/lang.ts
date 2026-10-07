@@ -171,6 +171,7 @@ import {
   UniqueConstraintVal,
   MustConstraintVal,
   NofConstraintVal,
+  WhenConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -869,6 +870,7 @@ help isolate the syntax error.`,
 
     must: MustConstraintVal,
     nof: NofConstraintVal,
+    when: WhenConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,

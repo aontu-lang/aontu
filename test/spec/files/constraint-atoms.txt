@@ -25,3 +25,4 @@ string
 5
 "m"
 nof(1,integer,string)
+when(integer,min(0))

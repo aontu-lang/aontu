@@ -646,6 +646,7 @@ help isolate the syntax error.`,
         unique: ConstraintVal_1.UniqueConstraintVal,
         must: ConstraintVal_1.MustConstraintVal,
         nof: ConstraintVal_1.NofConstraintVal,
+        when: ConstraintVal_1.WhenConstraintVal,
         abnf: AbnfFuncVal_1.AbnfFuncVal,
         parse: AbnfFuncVal_1.ParseFuncVal,
         // G3 phase 4: the deprecation mark. Unification-transparent; the

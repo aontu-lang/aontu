@@ -81,7 +81,8 @@ function effectiveDefault(v) {
 // The Band B atoms that make a general residual opaque, by name.
 function opaqueNames(g) {
     return [...(0 < g.musts.length ? ['must'] : []),
-        ...(0 < g.nofs.length ? ['nof'] : [])].join(', ');
+        ...(0 < g.nofs.length ? ['nof'] : []),
+        ...(0 < g.whens.length ? ['when'] : [])].join(', ');
 }
 // Is this evaluated value concrete enough to serve as a witness — a
 // value that certainly IS an instance of the specific side?

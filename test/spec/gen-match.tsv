@@ -65,3 +65,6 @@ match-unfilled-optional-is-not-a-member	gens	m:match({},{a?:integer},"hit","miss
 # A pattern that reads a position (here a map) is tried each time, and
 # a scalar scrutinee fails it by kind.
 match-a-scalar-against-a-map	gens	x: match(1, {a: 1}, "m", "d")	{"x":"d"}
+# G12 phase 7: nil is the false schema in a pattern position.
+match-a-nil-pattern-admits-nothing	gens	a: match(1, nil, "yes", "no")	{"a":"no"}
+match-a-nil-pattern-is-never-chosen	gens	a: match(1, nil, "yes", integer, "num")	{"a":"num"}

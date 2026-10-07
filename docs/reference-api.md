@@ -1380,6 +1380,10 @@ ECMA-262 reading of what aontu means; `neq` becomes `not: {enum: …}`;
 a count of alternatives, `nof(n, …)`, becomes `not` for none of them,
 `oneOf` for exactly one, `anyOf` for at least one and `allOf` for all,
 and the export drops and reports one that counts otherwise;
+a conditional check, `when(c, t, e)`, becomes `if`, `then` and `else`,
+and one with no `e` whose condition only asks for a key becomes
+`dependentRequired` where `t` only asks for keys too, and
+`dependentSchemas` where it asks more;
 `len` becomes `minLength`/`maxLength` on a string,
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
@@ -1610,6 +1614,14 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   is a `|` of scalar literals no two alternatives share. `not` of an
   `enum` or a `const` beside `"type": "string"` or `"integer"` is
   `neq(…)`, with every leaf of a whole number spelled.
+- **`if`, `then` and `else` are a conditional check**,
+  `when(if, then, else)`: a value the `if` schema admits must be
+  admitted by `then`, and any other by `else`. A missing `then` is
+  `any` and a missing `else` passes every value, so an `if` with
+  neither branch, or a branch with no `if`, asks nothing.
+  `dependentSchemas` and `dependentRequired` are the same check with a
+  present key as its condition: `{"dependentRequired": {"card":
+  ["holder"]}}` imports as `when({ card:any }, { holder:any })`.
 - **The schema text is read by aontu, not by the host's JSON parser**,
   so a number is written by its exact value: `1.0` is the integer `1`,
   `0.1` is `0d0.1`, and a twenty-digit integer keeps all twenty digits.

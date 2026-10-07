@@ -51,6 +51,20 @@ var hints = map[string]string{
 		"  nof(1, integer, string) & 5   -> 5    # One alternative admits 5;\n" +
 		"  nof(1, number, integer) & 5   -> nil  # ... two admit it here;\n" +
 		"  nof(0, string) & 5            -> 5    # ... and none may, here.",
+	"when": "The value fails the branch its when() condition chose. when(c, t, e)\n" +
+		"asks whether the condition c already admits the settled value: where\n" +
+		"it does, t must admit the value too, and where it does not, e must,\n" +
+		"an absent e passing. Here the condition {condition} the value, and\n" +
+		"what it leaves ({branch}) refuses it." +
+		"\n \n" +
+		"when is Band B of the constraint algebra, read by the admission trial\n" +
+		"as nof reads its alternatives. The JSON Schema import writes if, then\n" +
+		"and else as when, and dependentSchemas and dependentRequired as a\n" +
+		"when whose condition is the key." +
+		"\n \nExamples:\n" +
+		"  when(integer, min(0)) & 5          -> 5    # Admitted by both;\n" +
+		"  when(integer, min(0)) & -5         -> nil  # ... refused by then;\n" +
+		"  when(integer, min(0), string) & 1.5 -> nil # ... and by else.",
 
 	"abnf_grammar":            "This ABNF grammar could not be compiled:\n{reason}\n \nabnf() takes RFC 5234 ABNF -- `=` and `/`, not `::=`. The\ncompiler reports the first thing it could not read; a rule\nreferenced but never defined is the usual cause, after a\nquantifier written the EBNF way.",
 	"parse_arg":               "parse(grammar, text) takes two strings: a grammar, normally the\nanswer of an abnf() call, and the text to parse.\n \nExamples:\n  G: abnf(\"v = 1*DIGIT\")\n  a: parse($.G, \"12\")     # the AST\n  b: parse($.G, 12)       # parse_arg: the text is not a string",
@@ -508,6 +522,7 @@ var codeClasses = map[string]string{
 	"parse_failed":          "conflict",
 	"must":                  "conflict",
 	"nof":                   "conflict",
+	"when":                  "conflict",
 	"scalar_value":          "conflict",
 	"scalar_kind":           "conflict",
 	"no_scalar_unify":       "conflict",

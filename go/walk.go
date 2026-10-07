@@ -69,6 +69,11 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 				walkVals(b, visit, seen)
 			}
 		}
+		for _, w := range n.whens {
+			for _, b := range []Val{w.c, w.t, w.e} {
+				walkVals(b, visit, seen)
+			}
+		}
 	}
 }
 
@@ -112,6 +117,11 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 		case *ConstraintVal:
 			for _, nf := range t.nofs {
 				for _, b := range nf.branches {
+					walked[b] = true
+				}
+			}
+			for _, w := range t.whens {
+				for _, b := range []Val{w.c, w.t, w.e} {
 					walked[b] = true
 				}
 			}

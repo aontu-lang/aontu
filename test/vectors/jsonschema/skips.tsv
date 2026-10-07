@@ -1,4 +1,4 @@
-# bound 296
+# bound 271
 #
 # The skip ledger of the vendored JSON-Schema-Test-Suite (README.md): one line
 # per test the import does not honour yet, read by
@@ -25,22 +25,6 @@ draft2020-12/contains.json	items + contains	matches items, does not match contai
 draft2020-12/contains.json	contains with false if subschema	empty array is invalid	contains	8
 draft2020-12/defs.json	validate definition against metaschema	valid definition schema	jsonschema_ref	10
 draft2020-12/defs.json	validate definition against metaschema	invalid definition schema	jsonschema_ref	10
-draft2020-12/dependentRequired.json	single dependency	missing dependency	dependentRequired	7
-draft2020-12/dependentRequired.json	multiple dependents required	missing dependency	dependentRequired	7
-draft2020-12/dependentRequired.json	multiple dependents required	missing other dependency	dependentRequired	7
-draft2020-12/dependentRequired.json	multiple dependents required	missing both dependencies	dependentRequired	7
-draft2020-12/dependentRequired.json	dependencies with escaped characters	CRLF missing dependent	dependentRequired	7
-draft2020-12/dependentRequired.json	dependencies with escaped characters	quoted quotes missing dependent	dependentRequired	7
-draft2020-12/dependentSchemas.json	single dependency	wrong type	dependentSchemas	7
-draft2020-12/dependentSchemas.json	single dependency	wrong type other	dependentSchemas	7
-draft2020-12/dependentSchemas.json	single dependency	wrong type both	dependentSchemas	7
-draft2020-12/dependentSchemas.json	boolean subschemas	object with property having schema false is invalid	dependentSchemas	7
-draft2020-12/dependentSchemas.json	boolean subschemas	object with both properties is invalid	dependentSchemas	7
-draft2020-12/dependentSchemas.json	dependencies with escaped characters	quoted quote	dependentSchemas	7
-draft2020-12/dependentSchemas.json	dependencies with escaped characters	quoted tab invalid under dependent schema	dependentSchemas	7
-draft2020-12/dependentSchemas.json	dependencies with escaped characters	quoted quote invalid under dependent schema	dependentSchemas	7
-draft2020-12/dependentSchemas.json	dependent subschema incompatible with root	matches root	dependentSchemas	7
-draft2020-12/dependentSchemas.json	dependent subschema incompatible with root	matches both	dependentSchemas	7
 draft2020-12/dynamicRef.json	A $dynamicRef to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicAnchor,$dynamicRef	11
 draft2020-12/dynamicRef.json	A $dynamicRef to an $anchor in the same schema resource behaves like a normal $ref to an $anchor	An array containing non-strings is invalid	$dynamicRef	11
 draft2020-12/dynamicRef.json	A $ref to a $dynamicAnchor in the same schema resource behaves like a normal $ref to an $anchor	An array of strings is valid	jsonschema_ref	10
@@ -61,8 +45,9 @@ draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	n
 draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	number list with string values	jsonschema_ref	10
 draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with number values	jsonschema_ref	10
 draft2020-12/dynamicRef.json	multiple dynamic paths to the $dynamicRef keyword	string list with string values	jsonschema_ref	10
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	string matches /$defs/thingy, but the $dynamicRef does not stop here	$dynamicAnchor,$dynamicRef,$id,if,then	11
-draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	first_scope is not in dynamic scope for the $dynamicRef	$dynamicAnchor,$dynamicRef,$id,if,then	11
+draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	string matches /$defs/thingy, but the $dynamicRef does not stop here	jsonschema_ref	11
+draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	first_scope is not in dynamic scope for the $dynamicRef	jsonschema_ref	11
+draft2020-12/dynamicRef.json	after leaving a dynamic scope, it is not used by a $dynamicRef	/then/$defs/thingy is the final stop for the $dynamicRef	jsonschema_ref	11
 draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	jsonschema_ref	10
 draft2020-12/dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with correct field	jsonschema_ref	10
 draft2020-12/dynamicRef.json	tests for implementation dynamic anchor and reference link	incorrect parent schema	jsonschema_ref	10
@@ -81,16 +66,6 @@ draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - dir
 draft2020-12/dynamicRef.json	$dynamicRef skips over intermediate resources - direct reference	string property fails	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is sufficient for schema at second#/$defs/length	jsonschema_ref	10
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	jsonschema_ref	10
-draft2020-12/if-then-else.json	if and then without else	invalid through then	if,then	7
-draft2020-12/if-then-else.json	if and else without then	invalid through else	else,if	7
-draft2020-12/if-then-else.json	validate against correct branch, then vs else	invalid through then	else,if,then	7
-draft2020-12/if-then-else.json	validate against correct branch, then vs else	invalid through else	else,if,then	7
-draft2020-12/if-then-else.json	if with boolean schema true	boolean schema true in if always chooses the then path (invalid)	else,if,then	7
-draft2020-12/if-then-else.json	if with boolean schema false	boolean schema false in if always chooses the else path (invalid)	else,if,then	7
-draft2020-12/if-then-else.json	if appears at the end when serialized (keyword processing sequence)	no redirects to then and fails	else,if,then	7
-draft2020-12/if-then-else.json	if appears at the end when serialized (keyword processing sequence)	invalid redirects to else and fails	else,if,then	7
-draft2020-12/if-then-else.json	then: false fails when condition matches	matches if → then=false → invalid	if,then	7
-draft2020-12/if-then-else.json	else: false fails when condition does not match	does not match if → else executes → invalid	else,if	7
 draft2020-12/maxContains.json	maxContains with contains	empty data	contains,maxContains	8
 draft2020-12/maxContains.json	maxContains with contains	all elements match, invalid maxContains	contains,maxContains	8
 draft2020-12/maxContains.json	maxContains with contains	some elements match, invalid maxContains	contains,maxContains	8
@@ -220,8 +195,8 @@ draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when one schema m
 draft2020-12/unevaluatedItems.json	unevaluatedItems with anyOf	when two schemas match and has unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with oneOf	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with not	with unevaluated items	unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if matches and it has unevaluated items	else,if,then,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if doesn't match and it has unevaluated items	else,if,then,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if matches and it has unevaluated items	unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems with if/then/else	when if doesn't match and it has unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with boolean schemas	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with $ref	with unevaluated items	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems before $ref	with unevaluated items	unevaluatedItems	12
@@ -232,13 +207,13 @@ draft2020-12/unevaluatedItems.json	item is evaluated in an uncle schema to uneva
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains fails, second item is not evaluated	contains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on adjacent contains	contains passes, second item is not evaluated	contains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems depends on multiple nested contains	7 not evaluated, fails unevaluatedItems	contains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's are invalid	if,then,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only c's are invalid	if,then,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's and c's are invalid	if,then,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only a's and c's are invalid	if,then,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's are invalid	contains,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only c's are invalid	contains,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only b's and c's are invalid	contains,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems and contains interact to control item dependency relationship	only a's and c's are invalid	contains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	no items evaluated by contains	contains,minContains,unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	unevaluatedItems with minContains = 0	some but not all items evaluated by contains	contains,minContains,unevaluatedItems	12
-draft2020-12/unevaluatedItems.json	unevaluatedItems can see annotations from if without then and else	invalid in case if is evaluated	if,unevaluatedItems	12
+draft2020-12/unevaluatedItems.json	unevaluatedItems can see annotations from if without then and else	invalid in case if is evaluated	unevaluatedItems	12
 draft2020-12/unevaluatedItems.json	Evaluated items collection needs to consider instance location	with an unevaluated item that exists at another location	unevaluatedItems	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties schema	with invalid unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties false	with unevaluated properties	unevaluatedProperties	12
@@ -250,14 +225,14 @@ draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when on
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with anyOf	when two match and has unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with oneOf	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with not	with unevaluated properties	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is true and has unevaluated properties	else,if,then,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is false and has unevaluated properties	else,if,then,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is true and has unevaluated properties	else,if,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is false and has unevaluated properties	else,if,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is true and has unevaluated properties	if,then,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has no unevaluated properties	if,then,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has unevaluated properties	if,then,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties with dependentSchemas	with unevaluated properties	dependentSchemas,unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is true and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else	when if is false and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is true and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, then not defined	when if is false and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is true and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has no unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with if/then/else, else not defined	when if is false and has unevaluated properties	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties with dependentSchemas	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with boolean schemas	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties with $ref	with unevaluated properties	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties before $ref	with unevaluated properties	unevaluatedProperties	12
@@ -281,9 +256,9 @@ draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic re
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 3rd level is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	dynamic evalation inside nested refs	xx + foo is invalid	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	unevaluatedProperties not affected by propertyNames	string property is invalid	unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	unevaluatedProperties can see annotations from if without then and else	invalid in case if is evaluated	if,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't consider dependentSchemas	dependentSchemas,unevaluatedProperties	12
-draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't see bar when foo2 is absent	dependentSchemas,unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	unevaluatedProperties can see annotations from if without then and else	invalid in case if is evaluated	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't consider dependentSchemas	unevaluatedProperties	12
+draft2020-12/unevaluatedProperties.json	dependentSchemas with unevaluatedProperties	unevaluatedProperties doesn't see bar when foo2 is absent	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location	with an unevaluated property that exists at another location	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with patternProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12
 draft2020-12/unevaluatedProperties.json	Evaluated properties collection needs to consider instance location with additionalProperties	with an unevaluated property that exists at another location	unevaluatedProperties	12

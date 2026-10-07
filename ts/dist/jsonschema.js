@@ -346,7 +346,48 @@ function fromConstraint(ctx, path, c, bag) {
     for (const n of c.nofs) {
         nofKeyword(ctx, path, out, n);
     }
+    for (const w of c.whens) {
+        whenKeyword(ctx, path, out, w);
+    }
     return out;
+}
+// A conditional as the keywords its shape spells: a condition asking only
+// that one key be present is a dependency, and any other is `if`.
+function whenKeyword(ctx, path, out, w) {
+    const keys = undefined === w.e ? presentKeys(w.c) : undefined;
+    if (1 === keys?.length) {
+        const names = presentKeys(w.t);
+        const kw = undefined === names ? 'dependentSchemas' : 'dependentRequired';
+        const v = names ?? fromVal(ctx, path, w.t);
+        if (undefined === out[kw]?.[keys[0]]) {
+            out[kw] = { ...(out[kw] ?? {}), [keys[0]]: v };
+        }
+        else {
+            allOf(out, { [kw]: { [keys[0]]: v } });
+        }
+        return;
+    }
+    const schema = {
+        if: fromVal(ctx, path, w.c),
+        then: fromVal(ctx, path, w.t),
+        ...(undefined === w.e ? {} : { else: fromVal(ctx, path, w.e) }),
+    };
+    if (undefined === out.if) {
+        Object.assign(out, schema);
+    }
+    else {
+        allOf(out, schema);
+    }
+}
+// The keys a plain map asks to be present, and nothing more of them.
+function presentKeys(v) {
+    if (true !== v?.isMap || v.closed || null != v.spread?.cj ||
+        0 < v.optionalKeys.length) {
+        return undefined;
+    }
+    const keys = Object.keys(v.peg).sort(keyorder_1.cmpCodePoint);
+    return 0 < keys.length && keys.every((k) => true === v.peg[k].isTop) ?
+        keys : undefined;
 }
 // A count of admitting branches as the keyword that counts the same:
 // none of them, exactly one, any, or all.

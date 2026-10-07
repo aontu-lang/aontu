@@ -22,6 +22,7 @@ var funcSet = map[string]bool{
 	"multiple": true, "re": true, "len": true, "empty": true, "unique": true,
 	"must":      true,
 	"nof":       true,
+	"when":      true,
 	"deprecate": true,
 	"rel":       true,
 	"acyclic":   true,

@@ -271,8 +271,8 @@ const SCHEMA_ONE = ['additionalProperties', 'propertyNames', 'items',
     'unevaluatedItems', 'contentSchema'];
 const SCHEMA_LISTS = ['prefixItems', 'allOf', 'anyOf', 'oneOf'];
 const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
-    'type', 'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'minimum',
-    'maximum',
+    'type', 'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then',
+    'else', 'dependentSchemas', 'dependentRequired', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
     'pattern', 'properties', 'required', 'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties',
@@ -280,8 +280,7 @@ const CARRIED = new Set(['$schema', '$id', '$ref', '$anchor', '$defs',
 const ANNOTATION = new Set(['title', 'description', 'default', 'examples',
     'deprecated', 'readOnly', 'writeOnly', '$comment', 'format',
     'contentEncoding', 'contentMediaType', 'contentSchema']);
-const LATER = new Set(['if', 'then', 'else', 'dependentRequired', 'dependentSchemas', 'contains',
-    'minContains', 'maxContains', 'uniqueItems', '$dynamicRef',
+const LATER = new Set(['contains', 'minContains', 'maxContains', 'uniqueItems', '$dynamicRef',
     '$dynamicAnchor', 'unevaluatedProperties', 'unevaluatedItems',
     '$vocabulary']);
 function lose(ctx, path, construct, reason) {
@@ -947,6 +946,33 @@ function not(ctx, o, ptr) {
     }
     return 'nof(0, ' + src + ')';
 }
+// `if` with `then` or `else` is a conditional; one without the other
+// asks nothing of a value.
+function conditional(ctx, o, ptr) {
+    const arm = (k) => I(ctx, o.get(k), ptrAt(ptr, k));
+    return 'when(' + [arm('if'), o.has('then') ? arm('then') : 'any',
+        ...(o.has('else') ? [arm('else')] : [])].join(', ') + ')';
+}
+// A dependency is a conditional whose condition is the key's presence.
+function dependencies(ctx, o, ptr) {
+    const out = [];
+    const sat = ptrAt(ptr, 'dependentSchemas');
+    for (const [k, s] of schemaMap(o.get('dependentSchemas'), sat)) {
+        out.push('when({' + strLit(k) + ': any}, ' + I(ctx, s, ptrAt(sat, k)) + ')');
+    }
+    const req = o.get('dependentRequired');
+    if (undefined !== req && (!isObj(req) || [...req.values()].some((v) => !Array.isArray(v) || v.some((n) => 'string' !== typeof n) ||
+        new Set(v).size !== v.length))) {
+        refuse(ptrAt(ptr, 'dependentRequired'), 'dependentRequired must be an object of arrays of distinct strings');
+    }
+    for (const [k, names] of isObj(req) ? req : []) {
+        if (0 < names.length) {
+            out.push('when({' + strLit(k) + ': any}, {' + names
+                .map((n) => strLit(n) + ': any').join(', ') + '})');
+        }
+    }
+    return out;
+}
 // A meet empty where it stands is the schema that admits nothing, which
 // aontu writes `nil`; a meet through an alias is left to evaluation.
 function meetOrNil(parts) {
@@ -1026,6 +1052,10 @@ function I(ctx, node, ptr) {
     if (o.has('oneOf')) {
         parts.push(oneOf(ctx, o, ptr));
     }
+    if (o.has('if') && (o.has('then') || o.has('else'))) {
+        parts.push(conditional(ctx, o, ptr));
+    }
+    parts.push(...dependencies(ctx, o, ptr));
     return meetOrNil(parts);
 }
 function importJsonSchema(text) {

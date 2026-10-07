@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### `when(c, t, e?)`, `if`, `then` and `else`, and the dependent keywords
+
+Both ports. G12 phase 7, ADR-046.
+
+- `when(c, t, e?)` is a Band B constraint atom: a value the condition
+  `c` admits must be admitted by `t`, and any other by `e`, an absent
+  `e` passing every value. All three are read by the admission trial.
+  A scalar is decided at the meet and a map or list at generation,
+  where before then only what no member could change refuses: a
+  condition whose meet is already empty leaves the else branch alone,
+  and two branches whose meets are both empty leave nothing to admit.
+  A refusal has the new code `when`, class `conflict`, whose details
+  name the condition's verdict and the branch it chose. Atoms with one
+  canon are one check, sorted by canon after `nof`, and `when` never
+  takes part in emptiness or subsumption.
+- `nil` is the false schema in a trial position: a `when` condition or
+  branch, a `match` pattern and a `filter` condition admit nothing with
+  it, as a `nof` alternative already did. `must` still refuses a check
+  holding a `nil` with `invalid-arg`, the written `nil` included.
+- `aontu jsonschema import` carries `if`, `then` and `else` as
+  `when(if, then, else)`, a missing `then` as `any`, where all three
+  were dropped and reported; an `if` with neither branch, and a branch
+  with no `if`, ask nothing, as 2020-12 reads them. `dependentSchemas`
+  and `dependentRequired` import as one `when` per key whose condition
+  is that key present. An empty `dependentRequired` list asks nothing,
+  and one that is not an object of arrays of distinct strings refuses
+  with `jsonschema_schema`.
+- `aontu jsonschema export` writes a `when` as `if`, `then` and `else`,
+  under `allOf` beside another, and one with no else branch whose
+  condition only asks for a key as `dependentRequired` where its branch
+  only asks for keys too, and as `dependentSchemas` otherwise.
+- The grammars, the help card, the language server's builtin roster
+  and the hints name `when`. The functions reference counts `nof`'s
+  alternatives among the `trial` slots, which phase 6 left out.
+
 ### `nof(n, ...c)`, `anyOf`, `oneOf` and `not`, and `must` on the admission trial
 
 Both ports unless marked. G12 phase 6, ADR-046, ADR-047 and ADR-048.

@@ -701,15 +701,23 @@ The importer's carriers:
   would refuse the other kinds.
 
 **`when(c, t, e?) : constraint`** is the conditional: if `c` admits the
-settled peer, `t` must admit it, otherwise `e` must, and an absent
-branch passes. It refuses with a new code, `when`, class `conflict`,
-naming the branch taken. The importer resolves adjacency per source
-schema object before any meet, so an `if` in one `allOf` branch never
-pairs with a `then` in another. `dependentSchemas: {k: S}` is
-`when({k: any}, I(S))` and `dependentRequired: {k: [a, b]}` is
-`when({k: any}, {a: any, b: any})`; the exporter recognises both shapes
-and writes the dependent keywords back. `nil` is the false schema in
-every trial position.
+settled peer, `t` must admit it, otherwise `e` must, and an absent `e`
+passes; `t` is required, so a missing `then` imports as `any`. Before a
+map or list settles it refuses only what no member could change: a
+condition whose meet is empty leaves `e` alone, and two branches whose
+meets are both empty leave nothing to admit. It refuses with a new
+code, `when`, class `conflict`, naming the condition's verdict and the
+branch taken, and two canon-equal `when` atoms are one check. The
+importer resolves adjacency per source schema object before any meet,
+so an `if` in one `allOf` branch never pairs with a `then` in another,
+and an `if` with neither branch, or a branch with no `if`, imports as
+nothing. `dependentSchemas: {k: S}` is `when({k: any}, I(S))` and
+`dependentRequired: {k: [a, b]}` is `when({k: any}, {a: any, b: any})`,
+an empty list importing as nothing; the exporter recognises both shapes
+where the condition is an open map with one required key holding `any`
+and there is no else branch, and writes the dependent keywords back.
+`nil` is the false schema in every trial position but `must`'s check,
+which refuses a check holding a `nil` as an argument.
 
 A separate `when` rather than a `nof` encoding of the case split keeps
 the conditional readable in canon and exportable without pattern

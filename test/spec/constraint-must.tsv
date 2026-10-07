@@ -54,6 +54,9 @@ must-container-arg-reject	err	a:must({k:1},"shape must match") a:{k:2}	shape mus
 must-list-arg	gen	a:must([1,2],"m") a:[1,2]	{"a":[1,2]}
 must-holds-nil-deep	errc	a:must({k:{j:[-x]}},"m")	invalid-arg
 must-holds-nil-in-disjunct-list	errc	a:must([1|[-x]],"m")	invalid-arg
+# G12 phase 7: the written nil too, which `when`, `nof`, `match` and
+# `filter` read as the false schema.
+must-holds-written-nil	errc	a:must(nil,"m")&5	invalid-arg
 
 # A CHECK THAT MUTATES IS A CONTRADICTION IN TERMS.
 #

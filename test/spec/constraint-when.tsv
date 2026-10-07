@@ -1,0 +1,56 @@
+# G12 phase 7: when(c, t, e?), the conditional check
+# (docs/reference-language.md, `Band B: when`, ADR-046). Every
+# expectation was obtained by running both engines and requiring them
+# to agree.
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# The condition chooses the branch: where it admits the value, the
+# second argument must admit it too, and elsewhere the third must, an
+# absent third passing. nil is the false schema in every position.
+when-then-admits	gens	a: when(integer, min(0)) & 5	{"a":5}
+when-then-refuses	errc	a: when(integer, min(0)) & -5	when
+when-else-admits	gens	a: when(integer, min(0), string) & "x"	{"a":"x"}
+when-else-refuses	errc	a: when(integer, min(0), string) & true	when
+when-no-else-passes	gens	a: when(integer, min(0)) & "x"	{"a":"x"}
+when-condition-false-no-else	gens	a: when(string, min(0)) & 5	{"a":5}
+when-nil-condition-takes-else	gens	a: when(nil, integer, string) & "x"	{"a":"x"}
+when-nil-condition-takes-else-refuses	errc	a: when(nil, integer, string) & 5	when
+when-any-condition-takes-then	gens	a: when(any, integer) & 5	{"a":5}
+when-any-condition-takes-then-refuses	errc	a: when(any, integer) & "x"	when
+when-nil-then-refuses	errc	a: when(integer, nil) & 5	when
+when-nil-else-refuses	errc	a: when(integer, any, nil) & "x"	when
+# The finding names the branch the condition chose.
+when-names-the-then-branch	err	a: when(integer, min(0)) & -5	what it leaves (then) refuses it.
+when-names-the-else-branch	err	a: when(integer, min(0), string) & true	what it leaves (else) refuses it.
+# A when atom canons after the counts, and two with one canon are one.
+when-canon	canon	a: when(integer, min(0), string)	{"a":when(integer,min(0),string)}
+when-canon-two	canon	a: when(integer, min(0))	{"a":when(integer,min(0))}
+when-atoms-dedupe-by-canon	canon	a: when(integer, min(0)) & when(integer, min(0))	{"a":when(integer,min(0))}
+when-atoms-accumulate	canon	a: when(integer, min(0)) & when(string, len(min(1)))	{"a":when(integer,min(0))&when(string,len(integer&min(1)))}
+when-atoms-accumulate-commutes	canon	a: when(string, len(min(1))) & when(integer, min(0))	{"a":when(integer,min(0))&when(string,len(integer&min(1)))}
+when-beside-nof	gens	a: nof(1, integer, string) & when(integer, min(0)) & 5	{"a":5}
+# A map or a list is decided at generation, and a default an argument
+# supplies is a fill.
+when-over-a-map-then	gens	a: when({k: any}, {n: any}) & {k: 1, n: 2}	{"a":{"k":1,"n":2}}
+when-over-a-map-then-refuses	errc	a: when({k: any}, {n: any}) & {k: 1}	when
+when-over-a-map-condition-false	gens	a: when({k: any}, {n: any}) & {j: 1}	{"a":{"j":1}}
+when-over-a-map-default-is-a-fill	errc	a: when({k: any}, {n: *1 | integer}) & {k: 1}	when
+when-over-a-list	gens	a: when([integer], [min(0)]) & [5]	{"a":[5]}
+when-over-a-list-refuses	errc	a: when([integer], [min(0)]) & [-5]	when
+# Before then a map refuses only what no member could change: here
+# the condition may still admit it, and neither branch can.
+when-over-a-map-neither-branch-can-admit	errc	a: when({k: any}, {n: 1}, {n: 2}) & {n: 3}	when
+when-over-a-map-names-both-branches	err	a: when({k: any}, {n: 1}, {n: 2}) & {n: 3}	what it leaves (then and else) refuses it.
+when-in-a-spread	gens	a: {&: when(integer, min(0))} & {p: 1, q: "s"}	{"a":{"p":1,"q":"s"}}
+when-in-a-spread-refuses	errc	a: {&: when(integer, min(0))} & {p: -1}	when
+# The arguments: two or three, never an effect, and no count.
+when-needs-two	errc	a: when(integer)	func_arity
+when-needs-at-most-three	errc	a: when(integer, any, any, any)	func_arity
+when-refuses-a-move	errc	a: when(move($.b), any) & 1\nb: 1	invalid-arg
+when-in-len-is-no-count	errc	a: len(number & when(integer, min(0))) & "ab"	invalid-arg
+# Nesting, and the scalars that have no order.
+when-nested	gens	a: when(integer, when(min(0), max(10))) & 5	{"a":5}
+when-nested-refuses	errc	a: when(integer, when(min(0), max(10))) & 50	when
+when-admits-a-boolean	gens	a: when(boolean, true) & true	{"a":true}
+when-refuses-a-boolean	errc	a: when(boolean, true) & false	when
+when-null	gens	a: when(null, null, string) & null	{"a":null}

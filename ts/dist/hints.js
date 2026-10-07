@@ -94,6 +94,20 @@ const hints = {
         '  nof(1, integer, string) & 5   -> 5    # One alternative admits 5;\n' +
         '  nof(1, number, integer) & 5   -> nil  # ... two admit it here;\n' +
         '  nof(0, string) & 5            -> 5    # ... and none may, here.',
+    when: 'The value fails the branch its when() condition chose. when(c, t, e)\n' +
+        'asks whether the condition c already admits the settled value: where\n' +
+        'it does, t must admit the value too, and where it does not, e must,\n' +
+        'an absent e passing. Here the condition {condition} the value, and\n' +
+        'what it leaves ({branch}) refuses it.' +
+        '\n \n' +
+        'when is Band B of the constraint algebra, read by the admission trial\n' +
+        'as nof reads its alternatives. The JSON Schema import writes if, then\n' +
+        'and else as when, and dependentSchemas and dependentRequired as a\n' +
+        'when whose condition is the key.' +
+        '\n \nExamples:\n' +
+        '  when(integer, min(0)) & 5          -> 5    # Admitted by both;\n' +
+        '  when(integer, min(0)) & -5         -> nil  # ... refused by then;\n' +
+        '  when(integer, min(0), string) & 1.5 -> nil # ... and by else.',
     abnf_grammar: 'This ABNF grammar could not be compiled:\n' +
         '{reason}\n' +
         ' \n' +
@@ -775,6 +789,7 @@ const codeClasses = {
     constraint: 'conflict',
     must: 'conflict',
     nof: 'conflict',
+    when: 'conflict',
     constraint_pattern: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',

@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 65 built-in functions and no user-defined ones. The name set
+aontu has 66 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,9 +217,9 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 56 of the 65 names, and 47 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 49 of the 65 use no
-mode but `value`, and 16 carry at least one slot in another mode.
+in 56 of the 66 names, and 47 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 49 of the 66 use no
+mode but `value`, and 17 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
@@ -246,14 +246,17 @@ with the slot, and where the semantics are specified:
   [Ordering: `sort`](reference-language.md#ordering-sort),
   [`unique` semantics](reference-language.md#unique-semantics), and
   [Declared relations](reference-language.md#declared-relations).
-- `trial`, three slots: `must`'s check, `filter`'s condition, and the
-  odd members of `match`'s rest group. The argument is unified against a
-  candidate in a sandbox with an error sink of its own, and the sandbox
-  is discarded afterwards, so a failed trial is a false answer rather
-  than an error in the document.
+- `trial`, seven slots in five names: `must`'s check, the members of
+  `nof`'s rest group, all three of `when`'s, `filter`'s condition, and
+  the odd members of `match`'s rest group. The argument is unified
+  against a candidate in a sandbox with an error sink of its own, and
+  the sandbox is discarded afterwards, so a failed trial is a false
+  answer rather than an error in the document.
   [Selecting: `filter` and
   `match`](reference-language.md#selecting-filter-and-match),
-  [Band B: `must`](reference-language.md#band-b-must), and
+  [Band B: `must`](reference-language.md#band-b-must),
+  [Band B: `nof`](reference-language.md#band-b-nof),
+  [Band B: `when`](reference-language.md#band-b-when), and
   [Sizing atoms fold last](reference-language.md#sizing-atoms-fold-last).
 - `text`, four slots in three names: `re`'s pattern, `must`'s message,
   and `rep`'s pattern and substitution. The slot settles to a string
@@ -366,6 +369,7 @@ documentation page and fails on a difference of one space.
 | `unique(projector k?: string) : constraint` | `0..1` | `projector` | `constraint` |
 | `upper(s: string\|number, start?: integer\|biginteger, len?: integer\|biginteger) : string` | `1..3` | `value` | `string` |
 | `usc(s: string, variant?: string) : string` | `1..2` | `value` | `string` |
+| `when(trial c: any, trial t: any, trial e?: any) : constraint` | `2..3` | `trial` | `constraint` |
 
 A result word of `constraint` marks a residual whose meet depends on the
 peer it lands beside. `any` is the result word where the declaration
@@ -375,7 +379,7 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 65 names, cut by result word, by rest slot, and by optional
+The same 66 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -384,7 +388,7 @@ The ten result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `any` | 12 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 16 | `above`, `acyclic`, `below`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique` |
+| `constraint` | 17 | `above`, `acyclic`, `below`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -394,7 +398,7 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the sixteen that answer `constraint`, including which
+The algebra of the seventeen that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written
@@ -420,7 +424,7 @@ specified at [Selecting: `filter` and
 `match`](reference-language.md#selecting-filter-and-match), `neq` and
 `nof` at [The constraint algebra](reference-language.md#the-constraint-algebra).
 
-Twenty-five names have at least one optional slot. `must` is the one
+Twenty-six names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

@@ -111,7 +111,7 @@ function sandboxed(ctx: AontuContext, fn: () => Val): Val | undefined {
 function pureCond(c: any): boolean {
   return true === c.isScalar || true === c.isScalarKind ||
     (true === c.isConstraint && null == c.pending && 0 === c.musts.length &&
-      0 === c.nofs.length) ||
+      0 === c.nofs.length && 0 === c.whens.length) ||
     (true === c.isDisjunct &&
       c.peg.every((m: any) => true !== m.isPref && pureCond(m)))
 }

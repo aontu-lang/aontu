@@ -254,7 +254,7 @@ consequence is that a refused `""` is not pruned from a disjunction:
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
 `below`, `neq`, `multiple`, `re`, `len`, `unique`, `must`, `nof`,
-`empty`, `refer`, `rel`).
+`when`, `empty`, `refer`, `rel`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -2557,6 +2557,12 @@ Example: `upper(abc)`→`"ABC"`, `upper("foo",0,1)`→`"Foo"`, `upper("foo",1)`�
 Decode text escaped with the named convention, refusing malformed input. See [escaping](#escs-variant-and-uscs-variant).
 
 Example: `usc(esc("<a>", xml), xml)` → `"<a>"`
+
+### `when(trial c: any, trial t: any, trial e?: any) : constraint`
+
+Require `t` of a value the condition `c` already admits, and `e`, where given, of one it does not. See [Band B: `when`](#band-b-when).
+
+Example: `when(integer, min(0), string)`
 
 
 ### Parent types
@@ -5207,9 +5213,10 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All eleven atoms (the bounds `min`/`max`/`above`/`below`, the
+> All twelve atoms (the bounds `min`/`max`/`above`/`below`, the
 > exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
-> atoms `length` and `unique`, and the evaluate-only `must` and `nof`) are
+> atoms `length` and `unique`, and the evaluate-only `must`, `nof` and
+> `when`) are
 > implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
@@ -5241,6 +5248,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of the alternatives c that admit the value satisfies n |
+| `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits a value c admits, and e one c does not |
 
 ### Bounds and the number tower
 
@@ -5308,6 +5316,7 @@ schema-composition time, before any data arrives:
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
 | `nof` & `nof` | accumulation, one atom per canon, sorted by canon; the alternatives are never deduplicated |
+| `when` & `when` | accumulation, one atom per canon, sorted by canon |
 
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
@@ -5374,8 +5383,8 @@ approximate in this sense and are marked; the rest are exact.
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
 | `unique(k)` | `unique()`   | always (reflexive); nothing else subsumes or is subsumed by it |
-| `must(f)`, `nof(…)` | anything | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
-| anything    | `must(…)`, `nof(…)` | decided by A's other atoms alone; an extra Band B atom on B can only narrow B |
+| `must(f)`, `nof(…)`, `when(…)` | anything | **never**: a Band B predicate is opaque, so A's admitted set is unknown |
+| anything    | `must(…)`, `nof(…)`, `when(…)` | decided by A's other atoms alone; an extra Band B atom on B can only narrow B |
 | anything    | nil (empty)  | always: the empty set is an instance of everything |
 
 A whole residual subsumes another when **every** row above holds for the
@@ -5388,9 +5397,10 @@ common multiple, the same ruling the meet makes. `re` compares
 patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
 do: the same ruling that stops two `re` atoms being declared empty at
-composition time. `must` and `nof` are opaque by construction: that is
-what Band B *means*. In both cases the answer is "not subsumed", so the error is
-always toward reporting a difference that is not there.
+composition time. `must`, `nof` and `when` are opaque by construction:
+that is what Band B *means*. In both cases the answer is "not
+subsumed", so the error is always toward reporting a difference that
+is not there.
 
 **Normalisation makes the spelling irrelevant.** Subsumption is decided
 over the *normalised* residual, so two spellings of one constraint
@@ -5415,7 +5425,8 @@ by the meet rules above).
 A residual constraint renders as its normalised atoms joined by `&`
 in a fixed order (**kind, lower bound (`min`/`above`), upper bound
 (`max`/`below`), `neq` (arguments sorted), `multiple` (by value), `re`
-(patterns sorted), `length`, `unique`, `must`, `nof` (by canon)**) no
+(patterns sorted), `length`, `unique`, `must`, `nof`, `when` (both by
+canon)**) no
 spaces,
 reparseable, endpoint leaves preserved:
 
@@ -5639,12 +5650,12 @@ the merged container.
 Written order does not matter (`a: {x:1} a: {y:2} a: len(2)` is the
 same value) which is the property the sort order exists to guarantee.
 
-**`must` and `nof` fold last for the same reason**, and the slot is
-named for what the atoms share rather than for sizing alone: `length`,
-`unique`, `must` and `nof` all need the *whole* value. An evaluate-only check
-run against the first fragment would refuse `a: must(len(2),m)` /
-`a: {x:1}` / `a: {y:2}` on a count of one, exactly as an early-folding
-`length` would.
+**`must`, `nof` and `when` fold last for the same reason**, and the slot
+is named for what the atoms share rather than for sizing alone:
+`length`, `unique`, `must`, `nof` and `when` all need the *whole*
+value. An evaluate-only check run against the first fragment would
+refuse `a: must(len(2),m)` / `a: {x:1}` / `a: {y:2}` on a count of
+one, exactly as an early-folding `length` would.
 
 **And "last" reaches past the document.** Sorting the atom to the end of
 its conjunct is only half the rule, because a container can settle in
@@ -5808,6 +5819,34 @@ ones can still change the answer, so `nof(min(1), ...)` stops at the first that
 admits. A refusal has the code `nof`, whose details carry the count,
 the number of tried alternatives that admitted the value, and each
 one's verdict. `nof` never takes part in emptiness or subsumption.
+
+### Band B: `when`
+
+`when(c, t, e?)` is a conditional check: where the schema `c` admits
+the value, `t` must admit it too, and elsewhere `e` must, an absent `e`
+passing every value. `c`, `t` and `e` are trial schemas, read by the
+admission trial as `nof` reads its alternatives:
+
+```aontu
+a: when(integer, min(0)) & 5  # 5 is an integer, and min(0) admits it
+b: when(integer, min(0), string) & "x"
+c: when(integer, min(0)) & "x"  # not an integer, and no else
+```
+
+```json
+{ "a": 5, "b": "x", "c": "x" }
+```
+
+The meet decides the check on a scalar, and generation decides it on a
+map or list. Before then it refuses only what no member could change:
+where the condition's meet is already empty, the else branch alone
+applies, and where both branches' meets are empty, neither can admit.
+A refusal has the code `when`, whose details name the branch the
+condition chose. Two `when` atoms with one canon are one check, and
+`when` never takes part in emptiness or subsumption.
+
+`when` checks a value and never selects one: unlike `match`, it adds
+nothing to what generation emits.
 
 ### Errors
 

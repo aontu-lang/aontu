@@ -1,0 +1,14 @@
+# 99 (found 2026-10-07 pinning nil in must's check, G12 phase 7): an
+# atom whose own arguments are unusable is refused with invalid-arg
+# only when a value meets it. Standing alone it is silent: its canon
+# is constraint(), naming none of the atom, and generation answers
+# mapval_no_gen, that the value is not a literal.
+#
+# docs/reference-language.md says multiple(-1) refuses with
+# invalid-arg. `a: multiple(-1) & 4` does, though its site still
+# reads constraint(). Both ports agree, so this is not a parity defect.
+#
+# expected: invalid-arg at $.a, the site naming multiple(-1)
+# actual:   mapval_no_gen at $.a, "Cannot resolve value: constraint()", exit 1
+# run: node ../../ts/bin/aontu.js refused-at-construction.aontu
+a: multiple(-1)

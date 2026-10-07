@@ -82,7 +82,7 @@ name ::=
   | "sort" | "split" | "super"
   | "sub" | "sum"
   | "type"
-  | "unique" | "upper" | "usc"
+  | "unique" | "upper" | "usc" | "when"
 
 # A path reference, absolute from the document root.
 # At least one segment: a bare `$` is an incomplete expression, not a

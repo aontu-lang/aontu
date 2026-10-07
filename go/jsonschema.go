@@ -562,7 +562,77 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		sc.nofKeyword(path, out, n)
 	}
 
+	for _, w := range c.whens {
+		sc.whenKeyword(path, out, w)
+	}
+
 	return out
+}
+
+// whenKeyword writes a conditional as the keywords its shape spells: a
+// condition asking only that one key be present is a dependency, and any
+// other is `if`.
+func (sc *schemaCtx) whenKeyword(path []string, out map[string]any, w constraintWhen) {
+	var keys []string
+	if nil == w.e {
+		keys = schemaPresentKeys(w.c)
+	}
+	if 1 == len(keys) {
+		kw := "dependentRequired"
+		var v any
+		if names := schemaPresentKeys(w.t); nil != names {
+			list := []any{}
+			for _, n := range names {
+				list = append(list, n)
+			}
+			v = list
+		} else {
+			kw = "dependentSchemas"
+			v = schemaFromVal(sc, path, w.t)
+		}
+		m, _ := out[kw].(map[string]any)
+		if _, has := m[keys[0]]; has {
+			schemaAllOf(out, map[string]any{kw: map[string]any{keys[0]: v}})
+			return
+		}
+		if nil == m {
+			m = map[string]any{}
+		}
+		m[keys[0]] = v
+		out[kw] = m
+		return
+	}
+	schema := map[string]any{}
+	schema["if"] = schemaFromVal(sc, path, w.c)
+	schema["then"] = schemaFromVal(sc, path, w.t)
+	if nil != w.e {
+		schema["else"] = schemaFromVal(sc, path, w.e)
+	}
+	if _, has := out["if"]; has {
+		schemaAllOf(out, schema)
+		return
+	}
+	for k, v := range schema {
+		out[k] = v
+	}
+}
+
+// schemaPresentKeys is the keys a plain map asks to be present, and
+// nothing more of them.
+func schemaPresentKeys(v Val) []string {
+	m, ok := v.(*MapVal)
+	if !ok || m.closed || nil != m.spread || 0 < len(m.optional) ||
+		0 == len(m.keys) {
+		return nil
+	}
+	keys := append([]string{}, m.keys...)
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !isTop(m.peg[k]) {
+			return nil
+		}
+	}
+	return keys
 }
 
 // nofKeyword writes a count of admitting branches as the keyword that

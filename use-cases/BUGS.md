@@ -4270,3 +4270,29 @@ in TypeScript:
 ```text
 x: 3 & neq(-1, -2, 4)
 ```
+
+## constraint atoms — an atom whose own arguments are unusable
+
+One entry, found 2026-10-07 while pinning `nil` in `must`'s check
+(G12 phase 7).
+
+### 99. An atom refused at construction says so only when a value meets it [minor]
+
+Both ports. An atom whose arguments are settled and unusable when it
+is built, such as `multiple(-1)`, `neq(1, "x")`, `nof(-1, integer)` or
+`must(nil, "m")`, holds the refusal and reports it at the first meet:
+`a: multiple(-1) & 4` answers `invalid-arg`, as
+[the reference](../docs/reference-language.md) says it refuses.
+Standing alone it is silent. Its canon is `constraint()`, which names
+none of the atom, and generation answers `mapval_no_gen`, that `$.a`
+is not a literal value, rather than the atom's own code. Even the met
+case writes its site as `value was: constraint()`.
+
+`aontu jsonschema export` refuses such an atom with `invalid-arg`
+(`js-invalid-atom-refuses` in `test/spec/jsonschema.tsv`), and an
+argument that settles later, `must([-x], "m")`, is refused when it
+settles, so only an argument already settled at construction takes
+this path (`fromAtom` in `ts/src/val/ConstraintVal.ts`, `newConstraint`
+in `go/constraint.go`).
+
+Repro: `repros/constraint-atoms/refused-at-construction.aontu`.

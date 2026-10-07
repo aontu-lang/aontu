@@ -66,3 +66,6 @@ filter-by-a-disjunction	gens	x: filter([1, "a", true], integer | string)	{"x":[1
 filter-by-a-preferred-disjunction	gens	x: filter([1, "a", true], *integer | string)	{"x":["a"]}
 filter-by-a-constraint	gens	x: filter([0, 5, 9], min(1) & max(8))	{"x":[5]}
 filter-a-repeated-scalar	gens	x: filter([2, 2, "b", 2], integer)	{"x":[2,2,2]}
+# G12 phase 7: nil is the false schema in a condition position.
+filter-a-nil-condition-keeps-nothing	gens	a: filter({x: 1, y: "s"}, nil)	{"a":{}}
+filter-a-nil-condition-keeps-nothing-of-a-list	gens	a: filter([1, 2], nil)	{"a":[]}

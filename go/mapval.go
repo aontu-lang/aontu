@@ -226,6 +226,13 @@ func computePathFunc(v Val) bool {
 				}
 			}
 		}
+		for _, w := range n.whens {
+			for _, b := range []Val{w.c, w.t, w.e} {
+				if nil != b && hasPathFunc(b) {
+					return true
+				}
+			}
+		}
 		if nil != n.count && hasPathFunc(n.count) {
 			return true
 		}

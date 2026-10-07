@@ -28,6 +28,12 @@ type constraintNof struct {
 	branches []Val          // sorted by canon, never deduplicated
 }
 
+type constraintWhen struct {
+	c Val // the condition, a trial schema
+	t Val // what a value the condition admits must satisfy
+	e Val // and what one it refuses must; nil passes
+}
+
 type constraintPending struct {
 	atom string
 	args []Val
@@ -436,6 +442,8 @@ type ConstraintVal struct {
 	musts []constraintMust
 	// nofs are Band B counts (ADR-046), sorted and deduplicated by canon.
 	nofs []constraintNof
+	// whens are Band B conditionals, sorted and deduplicated by canon.
+	whens []constraintWhen
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -459,12 +467,14 @@ type ConstraintVal struct {
 const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
-	return "len" == atom || "unique" == atom || "must" == atom || "nof" == atom
+	return "len" == atom || "unique" == atom || "must" == atom ||
+		"nof" == atom || "when" == atom
 }
 
 func (c *ConstraintVal) cjo() int {
 	if nil != c.count || c.uniq || 0 < len(c.uniqBy) || 0 < len(c.musts) ||
-		0 < len(c.nofs) || (nil != c.pending && lateAtom(c.pending.atom)) {
+		0 < len(c.nofs) || 0 < len(c.whens) ||
+		(nil != c.pending && lateAtom(c.pending.atom)) {
 		return sizingCjo
 	}
 	return 50000
@@ -477,7 +487,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"multiple": true, "re": true, "len": true, "unique": true, "must": true,
-	"nof": true,
+	"nof": true, "when": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -546,7 +556,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 
 	args = atomArgs(atom, args)
 
-	if "must" == atom || "nof" == atom {
+	if "must" == atom || "nof" == atom || "when" == atom {
 		for _, a := range args {
 			if holdsMove(a) {
 				return bad("invalid-arg")
@@ -611,6 +621,15 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("constraint")
 		}
 		c.nofs = []constraintNof{{count: count, branches: sortedByCanon(args[1:])}}
+		return c
+	}
+
+	if "when" == atom {
+		w := constraintWhen{c: args[0], t: args[1]}
+		if 2 < len(args) {
+			w.e = args[2]
+		}
+		c.whens = []constraintWhen{w}
 		return c
 	}
 
@@ -848,7 +867,54 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if bad := c.checkNofs(peer, ctx, true); nil != bad {
 		return bad
 	}
+	if bad := c.checkWhens(peer, ctx, true); nil != bad {
+		return bad
+	}
 	return peer
+}
+
+// checkWhens asks the condition which branch the value must satisfy.
+// Before the value is settled the one answer is a refusal no member
+// could retract: every branch that could still apply already empty.
+func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx, final bool) Val {
+	for _, w := range c.whens {
+		tctx := *ctx
+		tctx.settle = false
+		trial := func(v Val) bool {
+			if final {
+				return admitsSettled(&tctx, peer, v, func() (Val, Val) {
+					return clonePath(peer, c.path), clonePath(v, c.path)
+				})
+			}
+			return nil != trialUnify(&tctx, clonePath(peer, c.path), clonePath(v, c.path))
+		}
+		cond := trial(w.c)
+		shut := func(v Val) bool { return nil != v && !trial(v) }
+		var refused bool
+		switch {
+		case final && cond:
+			refused = shut(w.t)
+		case final:
+			refused = shut(w.e)
+		default:
+			refused = shut(w.e) && (!cond || shut(w.t))
+		}
+		if refused {
+			condition, branch := "refuses", "else"
+			if cond && final {
+				condition, branch = "admits", "then"
+			} else if cond {
+				condition, branch = "may admit", "then and else"
+			}
+			return makeNilErrFull(ctx, "when", c, peer, "", map[string]string{
+				"expected":  whenCanon(w),
+				"actual":    peer.Canon(),
+				"condition": condition,
+				"branch":    branch,
+			})
+		}
+	}
+	return nil
 }
 
 // checkNofs tries a branch while one left can still move the verdict;
@@ -940,9 +1006,12 @@ func (c *ConstraintVal) admitContainerFinal(
 	if bad := c.checkNofs(peer, ctx, final); nil != bad {
 		return bad
 	}
+	if bad := c.checkWhens(peer, ctx, final); nil != bad {
+		return bad
+	}
 
 	if !c.uniq && 0 == len(c.uniqBy) && nil == c.count {
-		if final || (0 == len(c.musts) && 0 == len(c.nofs)) {
+		if final || (0 == len(c.musts) && 0 == len(c.nofs) && 0 == len(c.whens)) {
 			return peer
 		}
 		return c.hold(peer)
@@ -1013,8 +1082,8 @@ func (c *ConstraintVal) admitContainerFinal(
 	// WHAT IS LEFT IS PROVISIONAL, so the atom stays on the value. A
 	// lower bound already met is the one reading that cannot be undone,
 	// and an atom holding nothing else is spent: that is when it goes.
-	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) && !c.uniq &&
-		0 == len(c.uniqBy) &&
+	spent := final || (0 == len(c.musts) && 0 == len(c.nofs) &&
+		0 == len(c.whens) && !c.uniq && 0 == len(c.uniqBy) &&
 		(nil == c.count ||
 			(nil == c.count.hi && 0 == len(c.count.neqs) &&
 				stateAdmits(c.count, countVal(n)))))
@@ -1131,6 +1200,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.uniqBy = mergeUniqBy(c.uniqBy, peer.uniqBy)
 	merged.musts = append(append([]constraintMust{}, c.musts...), peer.musts...)
 	merged.nofs = dedupNofs(append(append([]constraintNof{}, c.nofs...), peer.nofs...))
+	merged.whens = dedupWhens(append(append([]constraintWhen{}, c.whens...), peer.whens...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1196,6 +1266,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		uniqBy:  append([]string{}, c.uniqBy...),
 		musts:   append([]constraintMust{}, c.musts...),
 		nofs:    append([]constraintNof{}, c.nofs...),
+		whens:   append([]constraintWhen{}, c.whens...),
 		clash:   c.clash,
 		invalid: c.invalid,
 	}
@@ -1298,6 +1369,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, n := range c.nofs {
 		parts = append(parts, nofCanon(n))
 	}
+	for _, w := range c.whens {
+		parts = append(parts, whenCanon(w))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1315,7 +1389,8 @@ func (c *ConstraintVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func atomArgs(atom string, args []Val) []Val {
-	if ("neq" == atom || "must" == atom || "nof" == atom) && 1 == len(args) {
+	if ("neq" == atom || "must" == atom || "nof" == atom || "when" == atom) &&
+		1 == len(args) {
 		if lv, ok := args[0].(*ListVal); ok {
 			return lv.peg
 		}
@@ -1380,7 +1455,7 @@ func holdsMove(v Val) bool {
 }
 
 func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
-	if 0 < len(g.musts) || 0 < len(g.nofs) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) {
 		return false, true
 	}
 	if "" != g.domain && g.domain != s.domain {
@@ -1481,7 +1556,7 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 }
 
 func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
-	if 0 < len(g.musts) || 0 < len(g.nofs) {
+	if 0 < len(g.musts) || 0 < len(g.nofs) || 0 < len(g.whens) {
 		return false, true
 	}
 	if g.uniq || 0 < len(g.uniqBy) || nil != g.count {
@@ -1656,7 +1731,7 @@ func countArgState(arg Val) *ConstraintVal {
 		// inside a count is not a count constraint, nor is a broken one.
 		if "" != cv.invalid || 0 < len(cv.res) || 0 < len(cv.mults) || cv.uniq ||
 			0 < len(cv.uniqBy) || nil != cv.count || 0 < len(cv.nofs) ||
-			"number" != cv.domain {
+			0 < len(cv.whens) || "number" != cv.domain {
 			return nil
 		}
 		out := &ConstraintVal{
@@ -1844,6 +1919,32 @@ func sortedByCanon(vs []Val) []Val {
 	sort.SliceStable(out, func(i, j int) bool {
 		return out[i].Canon() < out[j].Canon()
 	})
+	return out
+}
+
+func whenCanon(w constraintWhen) string {
+	parts := []string{w.c.Canon(), w.t.Canon()}
+	if nil != w.e {
+		parts = append(parts, w.e.Canon())
+	}
+	return "when(" + strings.Join(parts, ",") + ")"
+}
+
+func dedupWhens(ws []constraintWhen) []constraintWhen {
+	byCanon := map[string]constraintWhen{}
+	keys := []string{}
+	for _, w := range ws {
+		key := whenCanon(w)
+		if _, has := byCanon[key]; !has {
+			byCanon[key] = w
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	out := make([]constraintWhen, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, byCanon[key])
+	}
 	return out
 }
 
