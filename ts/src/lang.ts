@@ -127,6 +127,7 @@ import { TypeFuncVal } from './val/TypeFuncVal'
 import { HideFuncVal } from './val/HideFuncVal'
 import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
+import { MetaFuncVal } from './val/MetaFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -881,6 +882,9 @@ help isolate the syntax error.`,
     // record rides the result (Val.deprecation) and canon renders the
     // call back (canonRiders).
     deprecate: DeprecateFuncVal,
+
+    // G12 phase 9: the annotation rider, on deprecate()'s precedent.
+    meta: MetaFuncVal,
 
     refer: ReferFuncVal,
     rel: RelFuncVal,

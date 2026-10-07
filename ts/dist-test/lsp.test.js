@@ -144,6 +144,17 @@ const lsp_server_1 = require("../dist/lsp-server");
         Assert.match(h.contents.value, /min\(0\)&max\(10\)/);
         Assert.match(h.contents.value, /\*constraint\*/);
     });
+    (0, node_test_1.test)('hover-annotations', () => {
+        // The meta() rider's titles and descriptions as plain text (the Go
+        // twin is TestHoverAnnotations; identical hover-text contract).
+        const h = (0, lsp_1.computeHover)('a: meta(8080, {title: "Port", description: "Where *it* listens"})', { line: 0, character: 4 });
+        Assert.ok(h);
+        Assert.equal(h.contents.value, '```aontu\n8080\n```\n\n*integer*' +
+            '\n\n**Port**\n\nWhere \\*it\\* listens');
+        const two = (0, lsp_1.computeHover)('a: meta(8080, {title: "Port"}) & meta(8080, {title: "Listen"})', { line: 0, character: 4 });
+        Assert.ok(two);
+        Assert.match(two.contents.value, /\*\*Listen; Port\*\*$/);
+    });
     (0, node_test_1.test)('hover-miss-returns-null', () => {
         Assert.equal((0, lsp_1.computeHover)('port: 8080', { line: 5, character: 0 }), null);
     });
@@ -249,7 +260,7 @@ const lsp_server_1 = require("../dist/lsp-server");
 (0, node_test_1.describe)('lsp-completion', () => {
     (0, node_test_1.test)('completion-list', () => {
         const c = (0, lsp_1.computeCompletions)('');
-        Assert.equal(c.length, 82);
+        Assert.equal(c.length, 83);
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.kind, lsp_1.COMPLETION_FUNCTION);
         Assert.equal(byLabel.get('string')?.kind, lsp_1.COMPLETION_KEYWORD);
@@ -357,7 +368,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     (0, node_test_1.test)('builtin-funcs-match-engine', () => {
         // Drift guard: every BUILTIN_FUNCS name must be recognised by the
         // parser, and a bogus name must not be.
-        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 67);
+        Assert.equal(lsp_1.BUILTIN_FUNCS.length, 68);
         for (const name of lsp_1.BUILTIN_FUNCS) {
             const errs = (0, lsp_1.computeDiagnostics)('x:' + name + '(1)')
                 .filter(d => d.code === 'unknown_function');
@@ -422,7 +433,7 @@ const lsp_server_1 = require("../dist/lsp-server");
         });
         Assert.match(hov[0].result.contents.value, /8080/);
         const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} });
-        Assert.equal(comp[0].result.length, 82);
+        Assert.equal(comp[0].result.length, 83);
     });
     (0, node_test_1.test)('initialize-advertises-capabilities', () => {
         const h = new lsp_1.LspHandler();

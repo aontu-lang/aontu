@@ -79,7 +79,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--format text|json] <schema.json>
+       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+                               <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3318,18 +3319,23 @@ function renderRelationsJson(report) {
     }, 2);
 }
 const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)';
-const JSONSCHEMA_IMPORT_HELP = 'aontu jsonschema import [--strict] [--format text|json] <schema.json> (try --help)';
+const JSONSCHEMA_IMPORT_HELP = 'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
+    '<schema.json> (try --help)';
 // The aontu source on stdout; what it could not carry, and how to vet
 // data against it, on stderr.
 function runJsonSchemaImport(argv) {
     const files = [];
     let format = 'text';
     let strict = false;
+    let defaults = false;
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
             process.stdout.write(HELP);
             return 0;
+        }
+        else if ('--defaults' === arg) {
+            defaults = true;
         }
         else if ('--format' === arg) {
             const f = argv[++i];
@@ -3370,7 +3376,7 @@ function runJsonSchemaImport(argv) {
             .decode(bytes);
     }
     catch { }
-    const report = (0, jsonschema_import_1.importJsonSchema)(text);
+    const report = (0, jsonschema_import_1.importJsonSchema)(text, { defaults });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema import' }, ...report,

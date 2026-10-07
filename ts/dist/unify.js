@@ -36,10 +36,8 @@ const unite = (ctx, a, b, whence) => {
         else if (b !== undefined && b !== null && undefined === ctx.prov) {
             if (a.done && b.done) {
                 if (a.id === b.id) {
-                    // The deprecation record survives the fast path (G3).
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
+                    // The riders survive the fast path (G3).
+                    (0, utility_1.carryRiders)(a, a, b);
                     return a;
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
@@ -52,11 +50,9 @@ const unite = (ctx, a, b, whence) => {
                     && !a.isTop && !b.isTop
                     && !a.isRefer
                     && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
-                    // The deprecation record survives the fast path too (G3):
+                    // The riders survive the fast path too (G3):
                     // `deprecate(5) & 5` short-circuits here.
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
+                    (0, utility_1.carryRiders)(a, a, b);
                     return a;
                 }
             }
@@ -196,12 +192,13 @@ const unite = (ctx, a, b, whence) => {
     if (undefined !== ctx.prov) {
         ctx.prov.record(ctx.path, a, b, out);
     }
-    if (null != out && true === out.isVal &&
-        !out.isTop && !out.isNil && null == out.deprecation) {
-        const dep = (null != a ? a.deprecation : undefined) ??
-            (null != b ? b.deprecation : undefined);
-        if (null != dep) {
-            out.deprecation = dep;
+    if (null != out && true === out.isVal && !out.isNil) {
+        if (!out.isTop) {
+            (0, utility_1.carryRiders)(out, a, b);
+        }
+        else if ((0, utility_1.hasRiders)(a) || (0, utility_1.hasRiders)(b)) {
+            out = out.clone(ctx);
+            (0, utility_1.carryRiders)(out, a, b);
         }
     }
     if (null != out && true === out.isVal && !out.isTop &&

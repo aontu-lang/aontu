@@ -98,7 +98,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--format text|json] <schema.json>
+       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+                               <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3850,7 +3851,8 @@ const JSONSCHEMA_HELP =
   'aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)'
 
 const JSONSCHEMA_IMPORT_HELP =
-  'aontu jsonschema import [--strict] [--format text|json] <schema.json> (try --help)'
+  'aontu jsonschema import [--strict] [--defaults] [--format text|json] ' +
+  '<schema.json> (try --help)'
 
 
 // The aontu source on stdout; what it could not carry, and how to vet
@@ -3859,12 +3861,16 @@ function runJsonSchemaImport(argv: string[]): number {
   const files: string[] = []
   let format: SubsumeFormat = 'text'
   let strict = false
+  let defaults = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if ('-h' === arg || '--help' === arg) {
       process.stdout.write(HELP)
       return 0
+    }
+    else if ('--defaults' === arg) {
+      defaults = true
     }
     else if ('--format' === arg) {
       const f = argv[++i]
@@ -3910,7 +3916,7 @@ function runJsonSchemaImport(argv: string[]): number {
   }
   catch { }
 
-  const report = importJsonSchema(text)
+  const report = importJsonSchema(text, { defaults })
   if ('json' === format) {
     process.stdout.write(exactJSON({
       aontu: { version: version(), verb: 'jsonschema import' }, ...report,

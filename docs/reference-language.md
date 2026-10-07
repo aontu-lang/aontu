@@ -2203,7 +2203,7 @@ Example: `copyfiles("assets")`
 
 ### `deprecate(v: any, r?: map) : any`
 
-Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
+Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Two records meet as the union of their values, as [annotations](#annotations-meta) do, so every message, replacement and version either gave is kept. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
 
 Example: `port: deprecate(*8080|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})`
 
@@ -2358,6 +2358,12 @@ Example: `integer & max(10)`
 The value when it resolves, and **absence** when the only thing wrong is that it is not there. See [Optional input](#optional-input-maybe).
 
 Example: `maybe($.gone)` generates nothing; `maybe($.here)` is `$.here`
+
+### `meta(v: any, ...r: map) : any`
+
+`v` with annotations that ride it; unifies and generates exactly as `v`. The records hold the annotations JSON Schema defines, `x` the keywords it does not, and two riders meet as the union of their values. See [Annotations](#annotations-meta).
+
+Example: `port: meta(integer, {title: "Port"})`
 
 ### `min(n: number|string) : constraint`
 
@@ -3934,6 +3940,43 @@ does (the generated children stay usable downstream (`out: pack($.m,
 {got:_})` emits their values)) and a `type()`-marked alias referenced
 inside another `type()` body constrains the referring field without
 suppressing its emission.
+
+## Annotations: `meta`
+
+`meta(v, ...r)` is `v` with annotations that ride it. It unifies and
+generates exactly as `v`, and each record's values travel with the
+result through meets, reference copies and spread applications, as
+`deprecate()`'s record does. A record holds the annotations of JSON
+Schema: `title`, `description`, `comment`, `format`, `contentEncoding`
+and `contentMediaType` are strings; `readOnly` and `writeOnly` are
+booleans; `default` and `contentSchema` are any data; `examples` is a
+list of data; and `x` maps each keyword JSON Schema does not define to
+its data.
+
+```aontu
+port: meta(integer, { title:"Port" description:"Where it listens" })
+port: 8080
+```
+
+```json
+{ "port": 8080 }
+```
+
+Two riders meet as the union of their values, key by key. A meet never
+refuses over an annotation and its order changes nothing, and a key
+that two records give different values holds both. The canon writes the
+rider after the value, one record for each layer of values, so
+
+```aontu
+a: meta(1, { title:"T" }) & meta(1, { title:"U" description:"D" })
+```
+
+has the canon `{"a":meta(1,{"description":"D","title":"T"},{"title":"U"})}`.
+
+A record that is not a map, a key outside that set, a value of the
+wrong kind, and a value that is not concrete data each refuse with
+`func_arg`. An empty record adds nothing, and a nil `v` is returned
+as it is.
 
 ## Closed values: `close` / `open`
 

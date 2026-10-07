@@ -33,7 +33,7 @@ and a skip ledger both ports read
 ([the vendored corpora](../../docs/contributing/testing.md#the-vendored-corpora)):
 
 - [`jsonschema/`](jsonschema/README.md): the official
-  JSON-Schema-Test-Suite, draft 2020-12;
+  JSON-Schema-Test-Suite, draft 2020-12, with its annotations suite;
 - [`ajv-extras/`](ajv-extras/README.md): Ajv's tests in the suite's
   shape;
 - [`jsontestsuite/`](jsontestsuite/README.md): JSONTestSuite's RFC 8259

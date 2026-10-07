@@ -60,8 +60,8 @@ func TestHoverMiss(t *testing.T) {
 
 func TestCompletionsList(t *testing.T) {
 	c := Completions("")
-	if len(c) != 82 {
-		t.Fatalf("expected 82 completions, got %d", len(c))
+	if len(c) != 83 {
+		t.Fatalf("expected 83 completions, got %d", len(c))
 	}
 	byLabel := map[string]CompletionItem{}
 	for _, it := range c {
@@ -113,11 +113,26 @@ func TestHoverConstraint(t *testing.T) {
 	}
 }
 
+// TestHoverAnnotations: the meta() rider's titles and descriptions as
+// plain text (the TS twin is hover-annotations; identical hover-text
+// contract).
+func TestHoverAnnotations(t *testing.T) {
+	h := Hover(`a: meta(8080, {title: "Port", description: "Where *it* listens"})`, 0, 4, false)
+	want := "```aontu\n8080\n```\n\n*integer*\n\n**Port**\n\nWhere \\*it\\* listens"
+	if h == nil || want != h.Contents.Value {
+		t.Fatalf("hover = %+v, want %q", h, want)
+	}
+	two := Hover(`a: meta(8080, {title: "Port"}) & meta(8080, {title: "Listen"})`, 0, 4, false)
+	if two == nil || !strings.HasSuffix(two.Contents.Value, "**Listen; Port**") {
+		t.Fatalf("hover = %+v, want both titles", two)
+	}
+}
+
 func TestBuiltinFuncNamesParity(t *testing.T) {
 	// The completion function list must match the engine's recognised
 	// functions exactly (guards against drift).
 	got := aontu.BuiltinFuncNames()
-	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "fragment", "greatest", "hide", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "min", "mod", "move", "mul", "multiple", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
+	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "fragment", "greatest", "hide", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "multiple", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
 	if len(got) != len(want) {
 		t.Fatalf("BuiltinFuncNames = %v, want %v", got, want)
 	}
@@ -162,8 +177,8 @@ func TestHandlerCompletion(t *testing.T) {
 	if err := json.Unmarshal(outs[0].Result, &items); err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 82 {
-		t.Errorf("expected 82 completion items, got %d", len(items))
+	if len(items) != 83 {
+		t.Errorf("expected 83 completion items, got %d", len(items))
 	}
 }
 

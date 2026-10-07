@@ -92,6 +92,9 @@ type ValueSpan struct {
 	Canon string
 	Kind  string
 	Path []string
+	// The title and description values the meta() rider holds.
+	Title       []string
+	Description []string
 }
 
 // Spans parses and unifies src and returns a ValueSpan for every
@@ -149,7 +152,8 @@ func collectSpans(v Val, out *[]ValueSpan, seen map[Val]bool) {
 		if len(c) > 0 {
 			*out = append(*out, ValueSpan{
 				Pos: p, Len: srcSpanLen(v), Canon: c, Kind: valKind(v),
-				Path: v.vpath(),
+				Path: v.vpath(), Title: metaTexts(v, "title"),
+				Description: metaTexts(v, "description"),
 			})
 		}
 	}
@@ -242,8 +246,12 @@ func (a *Aontu) DeprecationsVars(src string, vars map[string]Val) []Deprecation 
 	out := []Deprecation{}
 	for _, d := range collectDeprecatedVals(res) {
 		if 0 <= d.v.pos() {
+			rec := map[string]string{}
+			for k, vs := range d.v.deprecRec() {
+				rec[k] = strings.Join(vs, "; ")
+			}
 			out = append(out, Deprecation{
-				Pos: d.v.pos(), Len: srcSpanLen(d.v), Record: d.v.deprecRec(),
+				Pos: d.v.pos(), Len: srcSpanLen(d.v), Record: rec,
 			})
 		}
 	}

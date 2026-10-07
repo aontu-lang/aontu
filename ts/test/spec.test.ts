@@ -357,8 +357,10 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     const golden = JSON.parse(row.expect, (_k: string, v: any, c?: any) =>
       'number' === typeof v ? (JSON as any).rawJSON(c?.source) : v)
     const instances = golden.instances ?? {}
+    const options = golden.options
     delete golden.instances
-    const report = importJsonSchema(row.src)
+    delete golden.options
+    const report = importJsonSchema(row.src, options)
     Assert.strictEqual(
       exactJSON({
         source: report.source,

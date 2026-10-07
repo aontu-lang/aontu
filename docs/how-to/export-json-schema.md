@@ -287,9 +287,9 @@ admits any number at `next`, and says so. List templates cross the
 same way, as `items`.
 
 Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
-`deprecated: true`, and what the deprecation SAYS does not, because
-the draft has no field for it. That half is reported. Write
-`legacy.aontu`:
+`deprecated: true`. What the deprecation says crosses beside it in
+`x-aontu-deprecate`, a keyword the draft does not define, which
+`aontu jsonschema import` reads back. Write `legacy.aontu`:
 
 <!-- test: file legacy.aontu -->
 ```aontu
@@ -310,7 +310,12 @@ $ aontu jsonschema --strict legacy.aontu
       "deprecated": true,
       "minLength": 1,
       "pattern": "^[a-z]{2}-[a-z]+-[0-9]$",
-      "type": "string"
+      "type": "string",
+      "x-aontu-deprecate": {
+        "msg": "renamed",
+        "since": "2.0.0",
+        "use": "$.zone"
+      }
     }
   },
   "required": [
@@ -318,17 +323,16 @@ $ aontu jsonschema --strict legacy.aontu
   ],
   "type": "object"
 }
-lossy: $.region deprecate: JSON Schema 2020-12 has the `deprecated` flag and no field for what it SAYS, so msg/use/since cannot cross; the schema marks the property deprecated and a consumer must read the model for the reason
 $ echo $?
-1
+0
 ```
 
 A consumer of the exported schema learns that the property is
-deprecated, which is the part that changes what a client does. It does
-not learn the reason, the replacement or the version (`msg`, `use`
-and `since` have nowhere to go in 2020-12), so `--strict` reports that
-half and exits 1. Announce renames through a channel that carries the
-text.
+deprecated, which is the part that changes what a client does. One
+that reads the extension also learns the reason, the replacement and
+the version, and one that does not ignores them, as 2020-12 ignores
+every keyword it does not define. Nothing is lost, so `--strict` exits
+0.
 
 ## The refusals
 

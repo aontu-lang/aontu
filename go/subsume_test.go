@@ -156,7 +156,7 @@ func TestDeprecationReaders(t *testing.T) {
 func TestCollectDeprecatedValsNilSlot(t *testing.T) {
 	m := newMap()
 	dep := newInteger(1)
-	dep.setDeprecRec(map[string]string{"msg": "m"})
+	dep.setDeprecRec(map[string][]string{"msg": {"m"}})
 	m.set("a", newList([]Val{dep}))
 	m.set("empty", nil)
 	found := collectDeprecatedVals(m)

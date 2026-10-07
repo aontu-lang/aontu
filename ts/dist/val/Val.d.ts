@@ -76,7 +76,8 @@ declare abstract class Val {
     get site(): Site;
     set site(s: Site);
     mark: ValMark;
-    deprecation?: Record<string, string>;
+    deprecation?: Record<string, string[]>;
+    meta?: Record<string, Val[]>;
     link?: string;
     origin?: string;
     aliasOrigin?: string;

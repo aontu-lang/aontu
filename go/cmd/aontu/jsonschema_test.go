@@ -186,15 +186,16 @@ func jsonSchemaImportFile(t *testing.T, src []byte) string {
 }
 
 func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
-	file := jsonSchemaImportFile(t, []byte(`{"title": "T", "type": "object", `+
-		`"properties": {"a": {"type": "null"}}}`))
+	file := jsonSchemaImportFile(t, []byte(`{"unevaluatedProperties": false, `+
+		`"type": "object", "properties": {"a": {"type": "null"}}}`))
 
 	out, errw, code := jsonSchemaRun("import", file)
 	if 0 != code || "schema: hide({ a?:null })\n" != out {
 		t.Fatalf("code %d: %q", code, out)
 	}
-	if "lossy: #/title title: an annotation; it is dropped, and what the "+
-		"import admits is unchanged\n"+
+	if "lossy: #/unevaluatedProperties unevaluatedProperties: not carried "+
+		"yet, so it is DROPPED and the import admits instances the schema "+
+		"refuses\n"+
 		"vet data against it with: aontu vet --at '$.schema' --no-fill "+
 		"--exact-numbers <file.aontu> <data>\n" != errw {
 		t.Fatalf("stderr: %q", errw)
@@ -212,6 +213,13 @@ func TestJsonSchemaImportWritesSourceAndNamesWhatItCannotCarry(t *testing.T) {
 	if "jsonschema import" != envelope["verb"] || "lossy" != report["verdict"] ||
 		out != report["source"] || nil != report["errors"] {
 		t.Fatalf("report: %s", jout)
+	}
+
+	dflt := jsonSchemaImportFile(t, []byte(`{"type": "object", "properties": {"k": `+
+		`{"type": "integer", "default": 1}}}`))
+	if out, _, code := jsonSchemaRun("import", "--defaults", dflt); 0 != code ||
+		"schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & (*1|any) })\n" != out {
+		t.Fatalf("--defaults = %d: %q", code, out)
 	}
 
 	bad := jsonSchemaImportFile(t, []byte(`{"$ref": "#/nope"}`))

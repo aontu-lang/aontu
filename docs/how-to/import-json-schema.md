@@ -164,8 +164,9 @@ however `vet` reads it.
 ## Read the losses
 
 A keyword the import does not carry yet is dropped and named, so the
-import admits more than the schema does. An annotation is dropped too,
-and changes nothing admitted. Write `payment.schema.json`:
+import admits more than the schema does. An annotation is no loss: it
+rides `meta()` beside the value it describes, and changes nothing
+admitted. Write `payment.schema.json`:
 
 <!-- test: file payment.schema.json -->
 ```json
@@ -185,12 +186,10 @@ and changes nothing admitted. Write `payment.schema.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict payment.schema.json
-schema: hide({
-  method: ("card"|"transfer")
-  card?: empty() & len(min(12))
-  holder?: empty()
-})
-lossy: #/description description: an annotation; it is dropped, and what the import admits is unchanged
+schema: hide(meta(
+  { method: ("card"|"transfer") card?:empty() & len(min(12)) holder?:empty() },
+  { description:"How an order is paid." }
+))
 lossy: #/unevaluatedProperties unevaluatedProperties: not carried yet, so it is DROPPED and the import admits instances the schema refuses
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
 $ echo $?

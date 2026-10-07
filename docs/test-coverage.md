@@ -134,37 +134,38 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**6577 cases across 121 files**) is run by *both*
+`test/spec/*.tsv` (**6706 cases across 122 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `constraint-product.tsv`    | 441 | `place.tsv` | 41 |
-| `number-tower.tsv`          | 395 | `scalar.tsv` | 40 |
-| `edge.tsv`                  | 338 | `constraint-when.tsv` | 39 |
-| `jsonschema.tsv`            | 240 | `sort.tsv` | 39 |
+| `constraint-product.tsv`    | 441 | `patch.tsv` | 41 |
+| `number-tower.tsv`          | 395 | `place.tsv` | 41 |
+| `edge.tsv`                  | 338 | `scalar.tsv` | 40 |
+| `jsonschema.tsv`            | 261 | `constraint-when.tsv` | 39 |
+| `jsonschema-import.tsv`     | 249 | `sort.tsv` | 39 |
 | `fmt.tsv`                   | 232 | `disjunct.tsv` | 38 |
-| `jsonschema-import.tsv`     | 223 | `aontu-system.tsv` | 37 |
-| `errcodes.tsv`              | 184 | `views.tsv` | 37 |
-| `view.tsv`                  | 177 | `graph.tsv` | 36 |
-| `alias.tsv`                 | 172 | `defaults.tsv` | 35 |
-| `vet.tsv`                   | 167 | `gen-pack.tsv` | 34 |
-| `types.tsv`                 | 166 | `seal.tsv` | 34 |
-| `func.tsv`                  | 148 | `template.tsv` | 34 |
-| `subsume.tsv`               | 142 | `constraint-cross.tsv` | 33 |
-| `number-model.tsv`          | 120 | `map.tsv` | 32 |
-| `constraint-re.tsv`         | 118 | `gen-filter.tsv` | 31 |
-| `constraint-length.tsv`     | 109 | `gen-match.tsv` | 31 |
-| `str.tsv`                   |  99 | `super.tsv` | 29 |
-| `query.tsv`                 |  95 | `constraint-multiple.tsv` | 28 |
-| `cmp.tsv`                   |  93 | `diff.tsv` | 28 |
-| `refer.tsv`                 |  87 | `number-exact.tsv` | 28 |
-| `gen-emit.tsv`              |  86 | `recursion.tsv` | 28 |
-| `maybe.tsv`                 |  78 | `var.tsv` | 28 |
-| `pref.tsv`                  |  75 | `engine-parity.tsv` | 23 |
-| `constraint-bound.tsv`      |  74 | `constraint-alias.tsv` | 21 |
-| `ref.tsv`                   |  74 | `deprecate.tsv` | 21 |
+| `errcodes.tsv`              | 184 | `aontu-system.tsv` | 37 |
+| `view.tsv`                  | 177 | `views.tsv` | 37 |
+| `alias.tsv`                 | 172 | `graph.tsv` | 36 |
+| `vet.tsv`                   | 167 | `defaults.tsv` | 35 |
+| `types.tsv`                 | 166 | `gen-pack.tsv` | 34 |
+| `func.tsv`                  | 148 | `seal.tsv` | 34 |
+| `subsume.tsv`               | 142 | `template.tsv` | 34 |
+| `number-model.tsv`          | 120 | `constraint-cross.tsv` | 33 |
+| `constraint-re.tsv`         | 118 | `map.tsv` | 32 |
+| `constraint-length.tsv`     | 109 | `gen-filter.tsv` | 31 |
+| `str.tsv`                   |  99 | `gen-match.tsv` | 31 |
+| `query.tsv`                 |  95 | `deprecate.tsv` | 30 |
+| `cmp.tsv`                   |  93 | `super.tsv` | 29 |
+| `refer.tsv`                 |  87 | `constraint-multiple.tsv` | 28 |
+| `gen-emit.tsv`              |  86 | `diff.tsv` | 28 |
+| `maybe.tsv`                 |  78 | `number-exact.tsv` | 28 |
+| `pref.tsv`                  |  75 | `recursion.tsv` | 28 |
+| `constraint-bound.tsv`      |  74 | `var.tsv` | 28 |
+| `ref.tsv`                   |  74 | `engine-parity.tsv` | 23 |
+| `meta.tsv`                  |  73 | `constraint-alias.tsv` | 21 |
 | `file.tsv`                  |  71 | `elision.tsv` | 21 |
 | `optional.tsv`              |  68 | `reach.tsv` | 19 |
 | `marks.tsv`                 |  67 | `list.tsv` | 18 |
@@ -187,7 +188,6 @@ implementations and is the contract that defines shared behaviour
 | `containerkind.tsv`         |  42 | `include-trust.tsv` |  4 |
 | `rel.tsv`                   |  42 | `divergent.tsv` |  0 |
 | `budget.tsv`                |  41 | `signature.tsv` |  0 |
-| `patch.tsv`                 |  41 | | |
 
 plus the `spread*.tsv` family: **26 files, 173 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,

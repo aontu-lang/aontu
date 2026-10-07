@@ -733,26 +733,92 @@ func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 		return ref
 	}
 	out := schemaFromValInner(sc, path, v)
+	if obj, isObj := out.(map[string]any); isObj && hasRiders(v) {
+		return sc.annotate(path, obj, v)
+	}
+	return out
+}
 
-	obj, isObj := out.(map[string]any)
-	if rec := v.deprecRec(); nil != rec && isObj {
-		said := []string{}
-		for _, k := range schemaDeprecationText {
-			if _, ok := rec[k]; ok {
-				said = append(said, k)
+var schemaMetaKeyword = [][2]string{
+	{"title", "title"}, {"description", "description"}, {"comment", "$comment"},
+	{"default", "default"}, {"examples", "examples"}, {"readOnly", "readOnly"},
+	{"writeOnly", "writeOnly"}, {"format", "format"},
+	{"contentEncoding", "contentEncoding"},
+	{"contentMediaType", "contentMediaType"}, {"contentSchema", "contentSchema"},
+}
+
+// isSchemaKeyword: a name the draft gives a meaning, or deprecate()'s
+// own keyword.
+func isSchemaKeyword(k string) bool {
+	return importCarried[k] || importAnnotation[k] || importLater[k] ||
+		importDeprecateKey == k
+}
+
+// annotate writes a value's riders as the annotations they are: each
+// first value on the schema object itself, and every further one, or
+// one whose keyword the object already spells otherwise, in an
+// annotation-only subschema under allOf, which the draft collects the
+// same.
+func (sc *schemaCtx) annotate(path []string, obj map[string]any, v Val) any {
+	meta, dep := v.metaRec(), v.deprecRec()
+	layers := []map[string]any{obj}
+	place := func(from int, k string, x any) {
+		n := from
+		for ; n < len(layers); n++ {
+			have, taken := layers[n][k]
+			if !taken {
+				break
+			}
+			if schemaText(have) == schemaText(x) {
+				return
 			}
 		}
-		if 0 < len(said) {
-			sc.lose(path, "deprecate",
-				"JSON Schema 2020-12 has the `deprecated` flag and no field "+
-					"for what it SAYS, so "+strings.Join(said, "/")+
-					" cannot cross; the schema marks the property deprecated "+
-					"and a consumer must read the model for the reason")
+		for len(layers) <= n {
+			layers = append(layers, map[string]any{})
 		}
-		obj["deprecated"] = true
+		layers[n][k] = x
 	}
-
-	return out
+	for _, mk := range schemaMetaKeyword {
+		for i, m := range meta[mk[0]] {
+			x, _ := schemaGenerated(m)
+			place(i, mk[1], x)
+		}
+	}
+	for i, m := range meta["x"] {
+		xm := m.(*MapVal)
+		for _, k := range xm.keys {
+			if isSchemaKeyword(k) {
+				sc.lose(path, "meta", "x holds "+k+", a name 2020-12 reads "+
+					"as its own, so it cannot cross as an unknown keyword; it "+
+					"is dropped, and what the schema admits is unchanged")
+				continue
+			}
+			x, _ := schemaGenerated(xm.peg[k])
+			place(i, k, x)
+		}
+	}
+	if nil != dep {
+		depth := 1
+		for _, l := range dep {
+			depth = max(depth, len(l))
+		}
+		for i := 0; i < depth; i++ {
+			place(i, "deprecated", true)
+			rec := map[string]any{}
+			for _, k := range schemaDeprecationText {
+				if i < len(dep[k]) {
+					rec[k] = dep[k][i]
+				}
+			}
+			if 0 < len(rec) {
+				place(i, importDeprecateKey, rec)
+			}
+		}
+	}
+	for _, l := range layers[1:] {
+		schemaAllOf(obj, l)
+	}
+	return obj
 }
 
 // schemaAliasRef: an alias's copy, unchanged, or a recursion back into a
@@ -765,7 +831,9 @@ func schemaAliasRef(sc *schemaCtx, v Val) (any, bool) {
 			return map[string]any{"$ref": "#"}, true
 		}
 	} else if key := v.aliasOrigin(); "" != key {
-		if def := walkTarget(sc.root, []string{key}); nil != def && def.Canon() == v.Canon() {
+		// A copy is unchanged when its value is, and what rides it.
+		if def := walkTarget(sc.root, []string{key}); nil != def && def.Canon() == v.Canon() &&
+			wrapRiders("", def) == wrapRiders("", v) {
 			target = []string{key}
 		}
 	}
@@ -914,6 +982,16 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return map[string]any{"type": "string"}
 	}
 
+	// A rider in a template position is still its call: the value it
+	// rides is what the schema says, and its records the annotations.
+	if f, ok := v.(*FuncVal); ok && ("meta" == f.name || "deprecate" == f.name) {
+		trial := &Ctx{collect: true}
+		met := unite(trial, top(), clonePath(f, cp(f.vpath())))
+		if _, still := met.(*FuncVal); 0 == len(trial.err) && !still && !met.Nil() {
+			return schemaFromVal(sc, path, met)
+		}
+	}
+
 	if f, ok := v.(*FuncVal); ok {
 		if sig, known := funcSig[f.name]; known {
 			if kind, typed := schemaResultType[sig.Out]; typed {
@@ -1039,7 +1117,8 @@ var schemaScoped = map[string][]string{
 	"boolean": {},
 	"number":  {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"integer": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
-	"string":  {"minLength", "maxLength", "pattern"},
+	"string": {"minLength", "maxLength", "pattern", "contentEncoding",
+		"contentMediaType", "contentSchema"},
 	"object": {"properties", "required", "additionalProperties",
 		"patternProperties", "propertyNames", "minProperties", "maxProperties"},
 	"array": {"prefixItems", "items", "minItems", "maxItems", "uniqueItems"},
@@ -1142,7 +1221,7 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 
 	scalars := make([]*ScalarVal, 0, len(bare))
 	for _, m := range bare {
-		if sv, ok := m.(*ScalarVal); ok {
+		if sv, ok := m.(*ScalarVal); ok && "" == wrapRiders("", sv) {
 			scalars = append(scalars, sv)
 		}
 	}

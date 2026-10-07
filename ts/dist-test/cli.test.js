@@ -819,12 +819,13 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('jsonschema-import-writes-source-and-names-what-it-cannot-carry', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-ji-'));
         const file = Path.join(dir, 'schema.json');
-        Fs.writeFileSync(file, '{"title": "T", "type": "object", ' +
-            '"properties": {"a": {"type": "null"}}}');
+        Fs.writeFileSync(file, '{"unevaluatedProperties": false, ' +
+            '"type": "object", "properties": {"a": {"type": "null"}}}');
         const r = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
         Assert.equal(r.out, 'schema: hide({ a?:null })\n');
-        Assert.equal(r.err, 'lossy: #/title title: an annotation; it is dropped, and what the ' +
-            'import admits is unchanged\n' +
+        Assert.equal(r.err, 'lossy: #/unevaluatedProperties unevaluatedProperties: not carried ' +
+            'yet, so it is DROPPED and the import admits instances the schema ' +
+            'refuses\n' +
             "vet data against it with: aontu vet --at '$.schema' --no-fill " +
             '--exact-numbers <file.aontu> <data>\n');
         vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--strict', file]), 1));
@@ -833,6 +834,10 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(j.verdict, 'lossy');
         Assert.equal(j.source, r.out);
         Assert.equal('errors' in j, false);
+        Fs.writeFileSync(file, '{"type": "object", "properties": {"k": ' +
+            '{"type": "integer", "default": 1}}}');
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--defaults', file]), 0)).out, 'schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & ' +
+            '(*1|any) })\n');
         Fs.writeFileSync(file, '{"$ref": "#/nope"}');
         const bad = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 4));
         Assert.equal(bad.out, '');

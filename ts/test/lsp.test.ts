@@ -150,6 +150,22 @@ describe('lsp-hover', () => {
     Assert.match(h!.contents.value, /\*constraint\*/)
   })
 
+  test('hover-annotations', () => {
+    // The meta() rider's titles and descriptions as plain text (the Go
+    // twin is TestHoverAnnotations; identical hover-text contract).
+    const h = computeHover(
+      'a: meta(8080, {title: "Port", description: "Where *it* listens"})',
+      { line: 0, character: 4 })
+    Assert.ok(h)
+    Assert.equal(h!.contents.value, '```aontu\n8080\n```\n\n*integer*' +
+      '\n\n**Port**\n\nWhere \\*it\\* listens')
+    const two = computeHover(
+      'a: meta(8080, {title: "Port"}) & meta(8080, {title: "Listen"})',
+      { line: 0, character: 4 })
+    Assert.ok(two)
+    Assert.match(two!.contents.value, /\*\*Listen; Port\*\*$/)
+  })
+
   test('hover-miss-returns-null', () => {
     Assert.equal(computeHover('port: 8080', { line: 5, character: 0 }), null)
   })
@@ -287,7 +303,7 @@ describe('lsp-completion', () => {
 
   test('completion-list', () => {
     const c = computeCompletions('')
-    Assert.equal(c.length, 82)
+    Assert.equal(c.length, 83)
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.kind, COMPLETION_FUNCTION)
     Assert.equal(byLabel.get('string')?.kind, COMPLETION_KEYWORD)
@@ -413,7 +429,7 @@ describe('lsp-completion', () => {
   test('builtin-funcs-match-engine', () => {
     // Drift guard: every BUILTIN_FUNCS name must be recognised by the
     // parser, and a bogus name must not be.
-    Assert.equal(BUILTIN_FUNCS.length, 67)
+    Assert.equal(BUILTIN_FUNCS.length, 68)
     for (const name of BUILTIN_FUNCS) {
       const errs = computeDiagnostics('x:' + name + '(1)')
         .filter(d => d.code === 'unknown_function')
@@ -488,7 +504,7 @@ describe('lsp-handler', () => {
     Assert.match(hov[0].result.contents.value, /8080/)
 
     const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} })
-    Assert.equal(comp[0].result.length, 82)
+    Assert.equal(comp[0].result.length, 83)
   })
 
 

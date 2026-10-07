@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import type { Val } from './val/Val'
 
 import { cmpCodePoint } from './keyorder'
+import { wrapRiders } from './utility'
 
 
 type HMarks = {
@@ -75,18 +76,10 @@ function render(v: any, inh: HMarks): string {
     s = 'hide(' + s + ')'
   }
 
-  // The deprecation record rides outermost, as canonRiders
-  // renders it (the wrappers are all reparseable calls, so order only
-  // has to be FIXED, and this matches the canon the G3 rows pinned).
-  const d = v.deprecation
-  if (null != d) {
-    const dkeys = Object.keys(d).sort()
-    const rec = dkeys.map((k) =>
-      JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',')
-    s = 'deprecate(' + s + ('' === rec ? '' : ',{' + rec + '}') + ')'
-  }
-
-  return s
+  // The riders ride outermost, as canonRiders renders them (the
+  // wrappers are all reparseable calls, so order only has to be FIXED,
+  // and this matches the canon the G3 rows pinned).
+  return wrapRiders(s, v)
 }
 
 

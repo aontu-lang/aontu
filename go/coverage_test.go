@@ -131,6 +131,17 @@ func TestCheckAndSpansKinds(t *testing.T) {
 	}
 }
 
+// Spans carries what a meta() rider holds for the hover to read.
+func TestSpansCarryAnnotations(t *testing.T) {
+	for _, sp := range New().Spans(`a: meta(8080, {title: "Port", description: "D"})`) {
+		if 1 == len(sp.Title) && "Port" == sp.Title[0] &&
+			1 == len(sp.Description) && "D" == sp.Description[0] {
+			return
+		}
+	}
+	t.Fatal("no span carries the record")
+}
+
 // UnifyVars surfaces a parse error (the error-return branch of the
 // public API).
 func TestUnifyVarsParseError(t *testing.T) {

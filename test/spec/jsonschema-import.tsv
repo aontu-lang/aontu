@@ -10,7 +10,8 @@
 # `vet` row's it is held here. `instances` rides the expect object: every
 # value under `valid` must vet `valid`, and every value under `invalid`
 # must not, with `vet --at $.schema --no-fill --exact-numbers`, the
-# reading the import is written for.
+# reading the import is written for. `options`, where it is there, is
+# the import's options.
 #
 # EVERY REPORT HERE WAS OBTAINED BY RUNNING BOTH ENGINES AND DIFFING, AND
 # EVERY INSTANCE'S VERDICT IS THE ONE JSON SCHEMA GIVES, NOT ONE COPIED
@@ -18,14 +19,14 @@
 #
 # --- the import and its report (design section 1) ---------------------
 # A boolean schema is `any` or `nil`; a keyword the import does not carry
-# yet is a loss that says so, an annotation is a loss that changes nothing
-# admitted, and an unknown keyword is ignored, as 2020-12 ignores it.
+# yet is a loss that says so, and an annotation rides meta(), changing
+# nothing admitted, as an unknown keyword does under `x`.
 import-true	jsonschema-import	true	{"source":"schema: hide(any)\\n","lossy":[],"verdict":"ok","instances":{"valid":[1,"x",{}]}}
 import-false	jsonschema-import	false	{"source":"schema: hide(nil)\\n","lossy":[],"verdict":"ok","instances":{"invalid":[1,null,{}]}}
 import-empty-object-admits-anything	jsonschema-import	{}	{"source":"schema: hide(any)\\n","lossy":[],"verdict":"ok","instances":{"valid":[null,[1],{"a":1}]}}
-import-annotation-is-a-loss-that-admits-the-same	jsonschema-import	{"title": "T", "description": "d", "type": "null"}	{"source":"schema: hide(null)\\n","lossy":[{"path":"#/description","construct":"description","reason":"an annotation; it is dropped, and what the import admits is unchanged"},{"path":"#/title","construct":"title","reason":"an annotation; it is dropped, and what the import admits is unchanged"}],"verdict":"lossy","instances":{"invalid":[1],"valid":[null]}}
+import-annotations-ride-meta-and-admit-the-same	jsonschema-import	{"title": "T", "description": "d", "type": "null"}	{"source":"schema: hide(meta(null, { title:\\"T\\" description:\\"d\\" }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[1],"valid":[null]}}
 import-later-keyword-is-a-loss	jsonschema-import	{"contains": {"type": "string"}, "if": true, "unevaluatedItems": false}	{"source":"schema: hide((null|boolean|number|empty()|map|(list & contains(empty()))))\\n","lossy":[{"path":"#/unevaluatedItems","construct":"unevaluatedItems","reason":"not carried yet, so it is DROPPED and the import admits instances the schema refuses"}],"verdict":"lossy"}
-import-unknown-keyword-is-ignored	jsonschema-import	{"x-vendor": {"type": "string"}}	{"source":"schema: hide(any)\\n","lossy":[{"path":"#/x-vendor","construct":"x-vendor","reason":"not a 2020-12 keyword; it is ignored, as 2020-12 ignores it"}],"verdict":"lossy","instances":{"valid":[1]}}
+import-unknown-keyword-rides-meta-under-x	jsonschema-import	{"x-vendor": {"type": "string"}}	{"source":"schema: hide(meta(any, { x:\\"x-vendor\\":type:\\"string\\" }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
 import-another-dialect-is-a-loss	jsonschema-import	{"$schema": "http://json-schema.org/draft-07/schema#", "type": "boolean"}	{"source":"schema: hide(boolean)\\n","lossy":[{"path":"#/$schema","construct":"$schema","reason":"the import reads 2020-12, so a schema for another dialect is read as 2020-12"}],"verdict":"lossy","instances":{"invalid":[0],"valid":[true]}}
 import-nested-id-is-a-loss	jsonschema-import	{"properties": {"a": {"$id": "https://example.com/a", "type": "string"}}}	{"source":"schema: hide((null|boolean|number|empty()|{ a?:empty() }|list))\\n","lossy":[{"path":"#/properties/a/$id","construct":"$id","reason":"a nested resource is not carried yet; its references are read against the document"}],"verdict":"lossy","instances":{"invalid":[{"a":1}],"valid":[{"a":"x"}]}}
 # --- the kind split (section 2) ----------------------------------------
@@ -243,7 +244,7 @@ import-not-beside-an-integer-type-spells-every-leaf	jsonschema-import	{"type": "
 import-not-beside-an-integer-type-drops-what-it-cannot-hold	jsonschema-import	{"type": "integer", "not": {"enum": [1.5, "x", -2]}}	{"source":"schema: hide(number & multiple(1) & neq((-2), (-2.0), (-0d2), (-0d2.0)))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[-2],"valid":[2,1]}}
 import-not-beside-an-integer-type-excluding-nothing	jsonschema-import	{"type": "integer", "not": {"enum": ["x"]}}	{"source":"schema: hide(number & multiple(1))\\n","lossy":[],"verdict":"ok","instances":{"invalid":["x"],"valid":[1]}}
 import-not-of-an-unstorable-integer-is-a-count	jsonschema-import	{"type": "integer", "not": {"const": 123456789012345678901234567890}}	{"source":"schema: hide(number & multiple(1) & nof(0, 0d123456789012345678901234567890))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[123456789012345678901234567890],"valid":[1]}}
-import-not-of-an-annotated-const	jsonschema-import	{"type": "string", "not": {"description": "reserved", "const": "admin"}}	{"source":"schema: hide(empty() & neq(\\"admin\\"))\\n","lossy":[{"path":"#/not/description","construct":"description","reason":"an annotation; it is dropped, and what the import admits is unchanged"}],"verdict":"lossy","instances":{"invalid":["admin"],"valid":["user"]}}
+import-not-of-an-annotated-const	jsonschema-import	{"type": "string", "not": {"description": "reserved", "const": "admin"}}	{"source":"schema: hide(empty() & neq(\\"admin\\"))\\n","lossy":[],"verdict":"ok","instances":{"invalid":["admin"],"valid":["user"]}}
 # A meet empty where it stands is nil, the schema that admits nothing; a
 # meet through an alias is left to evaluation.
 import-an-empty-allof-is-nil	jsonschema-import	{"allOf": [{"type": "string"}, {"type": "integer"}]}	{"source":"schema: hide(nil)\\n","lossy":[],"verdict":"ok","instances":{"invalid":["x",1]}}
@@ -309,3 +310,38 @@ import-unique-items	jsonschema-import	{"uniqueItems":true}	{"source":"schema: hi
 import-unique-items-false-asks-nothing	jsonschema-import	{"uniqueItems":false}	{"source":"schema: hide(any)\\n","lossy":[],"verdict":"ok","instances":{"valid":[[1,1]]}}
 import-unique-items-refuses-a-bad-shape	jsonschema-import	{"uniqueItems":1}	{"source":"","lossy":[],"verdict":"error","errors":[{"code":"jsonschema_schema","class":"parse","path":"#/uniqueItems","message":"uniqueItems must be a boolean"}]}
 import-contains-with-unique-items	jsonschema-import	{"contains":{"const":1},"uniqueItems":true}	{"source":"schema: hide((null|boolean|number|empty()|map|(list & unique() & contains(1))))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[[1,1],[2]],"valid":[[1,2]]}}
+#
+# --- annotations (design section 12) ----------------------------------
+# Each annotation rides meta() on the schema it sits in, the content
+# keywords on the string branch alone and contentSchema only beside its
+# media type; `deprecated: true` is deprecate(), with the record the
+# exporter writes beside it read back. A wrong kind refuses. The
+# `defaults` option also makes a property's default its preference,
+# where the property is not required, and only where its own schema
+# admits the default.
+import-comment-rides-meta	jsonschema-import	{"$comment": "c", "type": "null"}	{"source":"schema: hide(meta(null, { comment:\\"c\\" }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[1],"valid":[null]}}
+import-default-rides-meta-and-admits-the-same	jsonschema-import	{"default": 5, "type": "integer"}	{"source":"schema: hide(meta(number & multiple(1), { default:5 }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":["x"],"valid":[1]}}
+import-default-number-is-read-exactly	jsonschema-import	{"default": 1.5, "type": "number"}	{"source":"schema: hide(meta(number, { default:0d1.5 }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[2]}}
+import-examples-ride-meta	jsonschema-import	{"examples": [1, "a", {"k": null}]}	{"source":"schema: hide(meta(any, { examples: [1 \\"a\\" k:null] }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[true]}}
+import-read-and-write-only-ride-meta	jsonschema-import	{"readOnly": true, "writeOnly": false, "type": "boolean"}	{"source":"schema: hide(meta(boolean, { readOnly:true writeOnly:false }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[1],"valid":[true]}}
+import-format-is-an-annotation	jsonschema-import	{"type": "string", "format": "email"}	{"source":"schema: hide(meta(empty(), { format:\\"email\\" }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":[1],"valid":["not an address"]}}
+import-content-rides-the-string-branch	jsonschema-import	{"contentMediaType": "application/json", "contentEncoding": "base64"}	{"source":"schema: hide(\\n  (\\n    null|boolean|number|meta(empty(), {\\n      contentEncoding: \\"base64\\"\\n      contentMediaType: \\"application/json\\"\\n    })|map|list\\n  )\\n)\\n","lossy":[],"verdict":"ok","instances":{"valid":["e30=",1]}}
+import-content-schema-beside-its-media-type	jsonschema-import	{"type": "string", "contentMediaType": "application/json", "contentSchema": {"type": "number"}}	{"source":"schema: hide(meta(empty(), {\\n  contentMediaType: \\"application/json\\"\\n  contentSchema: type: \\"number\\"\\n}))\\n","lossy":[],"verdict":"ok","instances":{"valid":["x"]}}
+import-content-schema-alone-is-no-annotation	jsonschema-import	{"type": "string", "contentSchema": {"type": "number"}}	{"source":"schema: hide(empty())\\n","lossy":[],"verdict":"ok","instances":{"valid":["x"]}}
+import-annotations-in-a-property	jsonschema-import	{"properties": {"a": {"title": "A", "type": "string"}}}	{"source":"schema: hide(\\n  (null|boolean|number|empty()|{ a?:meta(empty(), { title:\\"A\\" }) }|list)\\n)\\n","lossy":[],"verdict":"ok","instances":{"invalid":[{"a":1}],"valid":[{"a":"x"}]}}
+import-annotations-through-a-ref	jsonschema-import	{"$defs": {"x": {"title": "X", "type": "integer"}}, "$ref": "#/$defs/x"}	{"source":"%x = meta(number & multiple(1), { title:\\"X\\" })\\nschema: hide(%x)\\n","lossy":[],"verdict":"ok","instances":{"invalid":["a"],"valid":[1]}}
+import-annotations-of-allof-layer	jsonschema-import	{"title": "T", "allOf": [{"title": "U"}]}	{"source":"schema: hide(meta(meta(any, { title:\\"U\\" }), { title:\\"T\\" }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
+import-unknown-keywords-ride-x	jsonschema-import	{"x-a": 1, "x-b": {"k": [true]}, "type": "integer"}	{"source":"schema: hide(meta(number & multiple(1), { x: { \\"x-a\\":1 \\"x-b\\":k: [true] } }))\\n","lossy":[],"verdict":"ok","instances":{"invalid":["a"],"valid":[1]}}
+import-title-must-be-a-string	jsonschema-import	{"title": 5}	{"source":"","lossy":[],"verdict":"error","errors":[{"code":"jsonschema_schema","class":"parse","path":"#/title","message":"title must be a string"}]}
+import-examples-must-be-an-array	jsonschema-import	{"examples": 5}	{"source":"","lossy":[],"verdict":"error","errors":[{"code":"jsonschema_schema","class":"parse","path":"#/examples","message":"examples must be an array"}]}
+import-read-only-must-be-a-boolean	jsonschema-import	{"readOnly": "yes"}	{"source":"","lossy":[],"verdict":"error","errors":[{"code":"jsonschema_schema","class":"parse","path":"#/readOnly","message":"readOnly must be a boolean"}]}
+import-deprecated-must-be-a-boolean	jsonschema-import	{"deprecated": "yes"}	{"source":"","lossy":[],"verdict":"error","errors":[{"code":"jsonschema_schema","class":"parse","path":"#/deprecated","message":"deprecated must be a boolean"}]}
+import-deprecated-true-is-deprecate	jsonschema-import	{"deprecated": true, "type": "integer"}	{"source":"schema: hide(deprecate(number & multiple(1)))\\n","lossy":[],"verdict":"ok","instances":{"invalid":["a"],"valid":[1]}}
+import-deprecated-false-adds-nothing	jsonschema-import	{"deprecated": false, "type": "integer"}	{"source":"schema: hide(number & multiple(1))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
+import-deprecate-record-is-read-back	jsonschema-import	{"deprecated": true, "x-aontu-deprecate": {"msg": "m", "use": "$.b", "since": "2.0.0"}}	{"source":"schema: hide(deprecate(any, { msg:\\"m\\" use:\\"$.b\\" since:\\"2.0.0\\" }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
+import-deprecate-record-alone-is-unknown	jsonschema-import	{"x-aontu-deprecate": {"msg": "m"}}	{"source":"schema: hide(meta(any, { x:\\"x-aontu-deprecate\\":msg:\\"m\\" }))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
+import-deprecate-record-of-another-shape-is-unknown	jsonschema-import	{"deprecated": true, "x-aontu-deprecate": {"msg": 1}}	{"source":"schema: hide(deprecate(meta(any, { x:\\"x-aontu-deprecate\\":msg:1 })))\\n","lossy":[],"verdict":"ok","instances":{"valid":[1]}}
+import-defaults-make-a-default-the-preference	jsonschema-import	{"type": "object", "properties": {"k": {"type": "integer", "default": 1}}}	{"source":"schema: hide({ k?: (meta(number & multiple(1), { default:1 })) & (*1|any) })\\n","lossy":[],"verdict":"ok","options":{"defaults":true},"instances":{"invalid":[{"k":"x"}],"valid":[{},{"k":5}]}}
+import-defaults-skip-a-required-key	jsonschema-import	{"type": "object", "properties": {"k": {"type": "integer", "default": 1}}, "required": ["k"]}	{"source":"schema: hide({ k:meta(number & multiple(1), { default:1 }) })\\n","lossy":[],"verdict":"ok","options":{"defaults":true},"instances":{"invalid":[{}],"valid":[{"k":2}]}}
+import-defaults-skip-a-default-the-schema-refuses	jsonschema-import	{"type": "object", "properties": {"k": {"type": "string", "default": 1}}}	{"source":"schema: hide({ k?:meta(empty(), { default:1 }) & (*1|any) })\\n","lossy":[],"verdict":"ok","options":{"defaults":true},"instances":{"invalid":[{"k":1}],"valid":[{},{"k":"x"}]}}
+import-defaults-take-a-default-of-any-data	jsonschema-import	{"type": "object", "properties": {"k": {"type": "object", "default": {"a": [1]}}}}	{"source":"schema: hide({ k?:meta(map, { default:a: [1] }) & (*{ a: [1] }|any) })\\n","lossy":[],"verdict":"ok","options":{"defaults":true},"instances":{"invalid":[{"k":1}],"valid":[{}]}}

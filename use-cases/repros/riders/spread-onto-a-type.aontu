@@ -1,0 +1,10 @@
+# 102 (found 2026-10-07 running the annotations suite, G12 phase 9): a
+# spread's riders reach every member the data gives, but not a key
+# whose value is still only a type: the key waits for the data, and the
+# spread never meets it. deprecate() in a spread has the same gap. Both
+# ports agree, so this is not a parity defect.
+#
+# expected: {"a":{&:meta(any,{"title":"T"}),"k":meta(any,{"title":"T"})}}
+# actual:   {"a":{&:meta(any,{"title":"T"}),"k":any}}
+# run: node ../../ts/bin/aontu.js --canon spread-onto-a-type.aontu
+a: {&: meta(any, {title: "T"})} & {k: any}

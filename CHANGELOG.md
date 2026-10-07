@@ -8,6 +8,54 @@ each change affects.
 
 ## Unreleased
 
+### `meta(v, ...r)`, annotations both ways, and `--defaults`
+
+Both ports. G12 phase 9, ADR-049.
+
+- `meta(v, ...r)` is `v` with annotations that ride it: it unifies and
+  generates exactly as `v`, and each record's values travel with the
+  result through meets, reference copies and spread applications. A
+  record holds JSON Schema's annotations under a fixed set of keys,
+  `x` for the keywords JSON Schema does not define; one that is not a
+  map, a key outside the set, a value of the wrong kind and a value
+  that is not concrete data refuse with `func_arg`.
+- Two riders meet as the key-wise union of their values, so the meet
+  commutes and never refuses, and the canon writes one record for each
+  layer of values, outside the value. `deprecate()`'s record meets the
+  same way: two different records on one value kept whichever arrived
+  first, and now keep both, and `vet`'s warning names every message.
+- A rider rode a meet only partway. A member that is `any` dropped it
+  when data met it, in TypeScript only; a check held beside a map or
+  list kept it on the check, so `vet` never warned of a deprecated
+  `nof`, `when` or `contains`; and a meet whose result is `any` carried
+  none. All three carry it now, in both ports.
+- `aontu jsonschema import` carries every annotation into `meta()` on
+  the schema it sits in, where each was dropped and reported: `title`,
+  `description`, `$comment`, `default`, `examples`, `readOnly`,
+  `writeOnly` and `format`, and the content keywords on the string
+  branch, `contentSchema` only beside `contentMediaType`. A keyword
+  2020-12 does not define rides under `x`, where it was dropped and
+  reported. `deprecated: true` is `deprecate()`, with the record the
+  export writes beside it read back, and an annotation of the wrong
+  kind refuses with `jsonschema_schema`.
+- `--defaults`, and the importer's `defaults` option, also make a
+  property's default its preference, where the schema does not require
+  the property and the property's own schema admits the default.
+- `aontu jsonschema export` writes a `meta()` record back as the
+  annotations it holds, each further value under `allOf`, and `x` as
+  its keywords, reporting one that 2020-12 defines. `deprecate()`'s
+  message, replacement and version cross in `x-aontu-deprecate` beside
+  `deprecated: true`, where they were reported lost, and a spread's
+  `deprecate()` or `meta()` exports the value it rides, where it was
+  `{}` with a loss.
+- The language server's hover shows a value's titles and
+  descriptions.
+- The JSON-Schema-Test-Suite's `annotations/` directory is vendored
+  and run by both ports, with a skip ledger of its own: 42 of the 84
+  assertions that apply to 2020-12 answer as the suite says. The rest
+  wait for the annotations of conditional branches and
+  `unevaluated*`, and for `$dynamicRef`.
+
 ### `contains(c, n?)`, `contains`, `minContains`, `maxContains` and `uniqueItems`
 
 Both ports. G12 phase 8, ADR-046.

@@ -147,6 +147,10 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// reported `$` where TypeScript reports the node's location.
 		nc.path = cp(c.path)
 		nc.site.sp, nc.site.spu, nc.site.url = c.site.sp, c.site.spu, c.site.url
+		carryRiders(nc, c, peer)
+		for _, t := range outvals {
+			carryRiders(nc, t, nil)
+		}
 		out = nc
 	}
 	if done {

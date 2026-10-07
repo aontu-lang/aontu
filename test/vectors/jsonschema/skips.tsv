@@ -5,7 +5,8 @@
 # ts/test/vectors.test.ts and go/vectors_test.go.
 # Columns: file<TAB>group<TAB>test<TAB>construct<TAB>phase, where
 # file is the path under tests/, construct is what the import says it
-# lost, comma-joined, or the code it refused the schema with, and
+# lost, comma-joined, `-` when it lost nothing, or the code it refused
+# the schema with, and
 # phase is the phase of docs/capability-review/g12-jsonschema-fidelity.md
 # that carries it. A listed test the import honours fails the run, so
 # a phase deletes the lines it clears and lowers the bound to match.
@@ -60,20 +61,20 @@ draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but sco
 draft2020-12/dynamicRef.json	$dynamicRef avoids the root of each schema, but scopes are still registered	data is not sufficient for schema at second#/$defs/length	jsonschema_ref	10
 draft2020-12/not.json	collect annotations inside a 'not', even if collection is disabled	unevaluated property	unevaluatedProperties	12
 draft2020-12/optional/cross-draft.json	refs to historic drafts are processed as historic drafts	first item not a string is valid	jsonschema_ref	10
-draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing dependency	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing other dependency	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing both dependencies	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	dependencies with escaped characters	CRLF missing dependent	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	dependencies with escaped characters	quoted quotes missing dependent	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type other	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type both	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object with property having schema false is invalid	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object with both properties is invalid	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted tab invalid under dependent schema	dependencies	15
-draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote invalid under dependent schema	dependencies	15
+draft2020-12/optional/dependencies-compatibility.json	single dependency	missing dependency	-	15
+draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing dependency	-	15
+draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing other dependency	-	15
+draft2020-12/optional/dependencies-compatibility.json	multiple dependents required	missing both dependencies	-	15
+draft2020-12/optional/dependencies-compatibility.json	dependencies with escaped characters	CRLF missing dependent	-	15
+draft2020-12/optional/dependencies-compatibility.json	dependencies with escaped characters	quoted quotes missing dependent	-	15
+draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type	-	15
+draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type other	-	15
+draft2020-12/optional/dependencies-compatibility.json	single schema dependency	wrong type both	-	15
+draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object with property having schema false is invalid	-	15
+draft2020-12/optional/dependencies-compatibility.json	boolean subschemas	object with both properties is invalid	-	15
+draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote	-	15
+draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted tab invalid under dependent schema	-	15
+draft2020-12/optional/dependencies-compatibility.json	schema dependencies with escaped characters	quoted quote invalid under dependent schema	-	15
 draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	integer property passes	jsonschema_ref	10
 draft2020-12/optional/dynamicRef.json	$dynamicRef skips over intermediate resources - pointer reference across resource boundary	string property fails	jsonschema_ref	10
 draft2020-12/optional/ecmascript-regex.json	ECMA 262 regex escapes control codes with \c and upper letter	does not match	pattern	14

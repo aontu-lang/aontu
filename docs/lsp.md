@@ -30,8 +30,8 @@ to run the server. Wiring it into an editor is a task, and lives in the
 The server provides these features:
 
 - **Diagnostics**: unification problems published as you edit.
-- **Hover**: the resolved value and kind under the cursor, or the
-  declaration of the alias name it is on.
+- **Hover**: the resolved value and kind under the cursor, with its
+  title and description, or the declaration of the alias name it is on.
 - **Completion**: the built-in functions, scalar-kind keywords and
   literals, and the alias names the document binds.
 - **Go to definition**: from an alias name to where the file binds it.
@@ -72,11 +72,13 @@ shouting.
 
 **Hover** reads the *unified* tree, so hovering a value shows what it
 resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
-*integer*; hovering `string` in a schema shows kind *type*. Hover targets
-concrete values (scalars, kinds, references), not containers.
+*integer*; hovering `string` in a schema shows kind *type*. A value a
+`meta()` record annotates shows its titles in bold and its descriptions
+below them, as plain text. Hover targets concrete values (scalars,
+kinds, references), not containers.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 67 today, the
+prefix): the built-in functions (the engine's full roster, 68 today, the
 constraint atoms (`min`, `re`, `len`, …) and the relation atoms
 (`refer`, `rel`, `acyclic`, `inverse`) included), the kind keywords
 (`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,

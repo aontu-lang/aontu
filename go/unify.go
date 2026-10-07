@@ -22,16 +22,13 @@ func unite(ctx *Ctx, a, b Val) Val {
 	if nil != ctx.prov {
 		ctx.prov.record(provPath, a, b, out)
 	}
-	if nil != out && !isTop(out) && !out.Nil() && nil == out.deprecRec() {
-		var dep map[string]string
-		if nil != a {
-			dep = a.deprecRec()
-		}
-		if nil == dep && nil != b {
-			dep = b.deprecRec()
-		}
-		if nil != dep {
-			out.setDeprecRec(dep)
+	if nil != out && !out.Nil() {
+		if !isTop(out) {
+			carryRiders(out, a, b)
+		} else if hasRiders(a) || hasRiders(b) {
+			// A top a rider reaches is a value of its own, never a shared one.
+			out = clonePath(out, cp(out.vpath()))
+			carryRiders(out, a, b)
 		}
 	}
 	if nil != out && !isTop(out) && !out.Nil() && "" == out.aliasOrigin() {

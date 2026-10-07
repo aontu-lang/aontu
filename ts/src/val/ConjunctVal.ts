@@ -28,6 +28,7 @@ import {
   ec,
   explainClose,
   propagateMarks,
+  carryRiders,
 } from '../utility'
 
 
@@ -179,6 +180,8 @@ class ConjunctVal extends JunctionVal {
     }
     else {
       out = new ConjunctVal({ peg: outvals, mark: { type: newtype, hide: newhide } }, ctx)
+      carryRiders(out, this, peer)
+      outvals.forEach((t) => carryRiders(out, t, undefined))
       out.site.row = this.site.row
       out.site.col = this.site.col
       out.site.url = this.site.url

@@ -1,5 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
-import { includeOpts } from './utility'
+import { includeOpts, wrapRiders, hasRiders } from './utility'
 
 
 import { Aontu } from './aontu'
@@ -24,6 +24,7 @@ import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
 import { anchorAt } from './vet'
+import { DEPRECATE_KEY, isKeyword } from './jsonschema-import'
 
 
 export type SchemaLoss = {
@@ -617,25 +618,69 @@ function fromVal(ctx: Ctx, path: string[], v: any): any {
     return ref
   }
   const out = fromValInner(ctx, path, v)
-
-  const dep = v?.deprecation
-  if (null != dep && null != out && 'object' === typeof out) {
-    const said = DEPRECATION_TEXT.filter((k) => null != dep[k])
-    if (0 < said.length) {
-      lose(ctx, path, 'deprecate',
-        'JSON Schema 2020-12 has the `deprecated` flag and no field for ' +
-        'what it SAYS, so ' + said.join('/') + ' cannot cross; the ' +
-        'schema marks the property deprecated and a consumer must read ' +
-        'the model for the reason')
-    }
-    return { ...out, deprecated: true }
-  }
-
-  return out
+  return 'object' === typeof out && hasRiders(v) ?
+    annotate(ctx, path, out, v) : out
 }
 
 
 const DEPRECATION_TEXT = ['msg', 'use', 'since']
+
+const META_KEYWORD: [string, string][] = [
+  ['title', 'title'], ['description', 'description'], ['comment', '$comment'],
+  ['default', 'default'], ['examples', 'examples'], ['readOnly', 'readOnly'],
+  ['writeOnly', 'writeOnly'], ['format', 'format'],
+  ['contentEncoding', 'contentEncoding'],
+  ['contentMediaType', 'contentMediaType'], ['contentSchema', 'contentSchema'],
+]
+
+
+// A value's riders as the annotations they are: each first value on the
+// schema object itself, and every further one, or one whose keyword the
+// object already spells otherwise, in an annotation-only subschema under
+// allOf, which the draft collects the same.
+function annotate(ctx: Ctx, path: string[], out: any, v: any): any {
+  const meta = v.meta ?? {}
+  const dep = v.deprecation
+  const layers: any[] = [{ ...out }]
+  const place = (from: number, k: string, x: any) => {
+    let n = from
+    for (; Object.prototype.hasOwnProperty.call(layers[n] ?? {}, k); n++) {
+      if (schemaText(layers[n][k]) === schemaText(x)) {
+        return
+      }
+    }
+    (layers[n] ??= {})[k] = x
+  }
+  for (const [key, keyword] of META_KEYWORD) {
+    (meta[key] ?? []).forEach((m: any, i: number) =>
+      place(i, keyword, generated(m)))
+  }
+  (meta.x ?? []).forEach((m: any, i: number) => {
+    for (const k of Object.keys(m.peg)) {
+      if (isKeyword(k)) {
+        lose(ctx, path, 'meta', 'x holds ' + k + ', a name 2020-12 reads ' +
+          'as its own, so it cannot cross as an unknown keyword; it is ' +
+          'dropped, and what the schema admits is unchanged')
+      }
+      else {
+        place(i, k, generated(m.peg[k]))
+      }
+    }
+  })
+  if (null != dep) {
+    const depth = Math.max(1, ...Object.values(dep).map((l: any) => l.length))
+    for (let i = 0; i < depth; i++) {
+      place(i, 'deprecated', true)
+      const said = DEPRECATION_TEXT.filter((k) => i < (dep[k] ?? []).length)
+      if (0 < said.length) {
+        place(i, DEPRECATE_KEY,
+          Object.fromEntries(said.map((k) => [k, dep[k][i]])))
+      }
+    }
+  }
+  layers.slice(1).forEach((l) => allOf(layers[0], l))
+  return layers[0]
+}
 
 
 // An alias's copy, unchanged, or a recursion back into a definition, is
@@ -649,8 +694,8 @@ function aliasRef(ctx: Ctx, v: any): any {
       return { $ref: '#' }
     }
   }
-  else if (null != v?.aliasOrigin &&
-    walkTarget(ctx.root, [v.aliasOrigin])?.canon === v.canon) {
+  else if (null != v?.aliasOrigin && sameCopy(walkTarget(ctx.root,
+    [v.aliasOrigin]), v)) {
     target = [v.aliasOrigin]
   }
   const body = undefined === target ? undefined : walkTarget(ctx.root, target)
@@ -671,6 +716,13 @@ function aliasRef(ctx: Ctx, v: any): any {
     ctx.defs.set(key, fromVal(ctx, at, body))
   }
   return { $ref: '#/$defs/' + pointerToken(key) }
+}
+
+
+// An alias's copy is unchanged when its value is, and what rides it.
+function sameCopy(def: any, v: any): boolean {
+  return undefined !== def && def.canon === v.canon &&
+    wrapRiders('', def) === wrapRiders('', v)
 }
 
 
@@ -783,6 +835,16 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
     return false
   }
 
+  // A rider in a template position is still its call: the value it
+  // rides is what the schema says, and its records the annotations.
+  if (true === v.isFunc && ['meta', 'deprecate'].includes(v.funcname())) {
+    const trial: any = new Aontu().ctx({ collect: true })
+    const met = unite(trial, top(), v.clone(trial), 'jsonschema')
+    if (0 === trial.err.length && true !== met.isFunc && true !== met.isNil) {
+      return fromVal(ctx, path, met)
+    }
+  }
+
   const kind = true === v.isFunc ?
     RESULT_TYPE[funcSig[v.funcname()]?.out] : undefined
   if (undefined !== kind) {
@@ -876,7 +938,8 @@ const SCOPED: Record<string, string[]> = {
     'multipleOf'],
   integer: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
     'multipleOf'],
-  string: ['minLength', 'maxLength', 'pattern'],
+  string: ['minLength', 'maxLength', 'pattern', 'contentEncoding',
+    'contentMediaType', 'contentSchema'],
   object: ['properties', 'required', 'additionalProperties',
     'patternProperties', 'propertyNames', 'minProperties', 'maxProperties'],
   array: ['prefixItems', 'items', 'minItems', 'maxItems', 'uniqueItems'],
@@ -948,7 +1011,8 @@ function fromDisjunct(ctx: Ctx, path: string[], v: any): any {
   const bare = members.map((m: any) => true === m?.isPref ? m.peg : m)
 
   let out: any
-  if (bare.every((m: any) => true === m?.isScalar)) {
+  if (bare.every((m: any) => true === m?.isScalar &&
+    '' === wrapRiders('', m))) {
     const gs = groups(bare)
     loseLiterals(ctx, path, gs)
     out = { enum: gs.map((g) => jsonOf(g.v)) }

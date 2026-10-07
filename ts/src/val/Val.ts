@@ -142,7 +142,10 @@ abstract class Val {
     hide: false,
   }
 
-  deprecation?: Record<string, string>
+  // The riders (G12 phase 9): each record key's values, sorted by canon
+  // and deduplicated, and every meet takes their union.
+  deprecation?: Record<string, string[]>
+  meta?: Record<string, Val[]>
 
   link?: string
 
@@ -260,6 +263,9 @@ abstract class Val {
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation
+    }
+    if (null != this.meta) {
+      out.meta = this.meta
     }
 
     if (null != this.origin) {

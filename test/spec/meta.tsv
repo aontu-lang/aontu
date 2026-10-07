@@ -1,0 +1,94 @@
+# G12 phase 9: meta(v, ...r) -- the annotation rider
+# (docs/capability-review/g12-jsonschema-fidelity.md, section 12).
+# Value-transparent, on deprecate()'s precedent: the value unifies
+# exactly as v, and each record's annotations ride the result through
+# meets, reference copies and spread applications. Two riders meet as a
+# key-wise union of their value sets, so the meet commutes, repeats to
+# itself and never refuses; canon writes the rider after the value, one
+# record per layer of values. Generation never sees it.
+# Every expectation was obtained by the parity probe (AGENTS.md).
+
+meta-rides-a-value	canon	a: meta(1, {title: "T"})	{"a":meta(1,{"title":"T"})}
+meta-gen-is-the-value	gens	a: meta(1, {title: "T"})	{"a":1}
+meta-rides-a-map	canon	a: meta({k: 1}, {title: "T"})	{"a":meta({"k":1},{"title":"T"})}
+meta-gen-a-map	gens	a: meta({k: 1}, {title: "T"})	{"a":{"k":1}}
+meta-rides-a-meet	canon	a: meta(integer, {title: "T"}) & 5	{"a":meta(5,{"title":"T"})}
+meta-rides-any	canon	a: meta(any, {description: "D"}) & "x"	{"a":meta("x",{"description":"D"})}
+meta-rides-a-nested-map	canon	a: meta({b: {c: 1}}, {title: "T"}) & {b: {c: 1}}	{"a":meta({"b":{"c":1}},{"title":"T"})}
+meta-rides-a-preference	canon	a: meta(*1 | integer, {title: "T"})	{"a":meta(*1|integer,{"title":"T"})}
+meta-gen-a-preference	gens	a: meta(*1 | integer, {title: "T"})	{"a":1}
+meta-rides-a-disjunction	canon	a: meta(1 | 2, {title: "T"})	{"a":meta(1|2,{"title":"T"})}
+meta-disjunct-member-keeps-its-own	canon	a: (meta(1, {title: "T"}) | meta(2, {title: "U"})) & 2	{"a":meta(2,{"title":"U"})}
+meta-records-union	canon	a: meta(1, {title: "T"}) & meta(1, {title: "U", description: "D"})	{"a":meta(1,{"description":"D","title":"T"},{"title":"U"})}
+meta-union-commutes	canon	a: meta(1, {title: "U", description: "D"}) & meta(1, {title: "T"})	{"a":meta(1,{"description":"D","title":"T"},{"title":"U"})}
+meta-union-is-idempotent	canon	a: meta(1, {title: "T"}) & meta(1, {title: "T"})	{"a":meta(1,{"title":"T"})}
+meta-one-call-several-records	canon	a: meta(1, {title: "T"}, {title: "U"})	{"a":meta(1,{"title":"T"},{"title":"U"})}
+meta-nested-calls-layer	canon	a: meta(meta(1, {title: "T"}), {title: "U"})	{"a":meta(1,{"title":"T"},{"title":"U"})}
+meta-empty-record-adds-nothing	canon	a: meta(1, {})	{"a":1}
+meta-examples	canon	a: meta(any, {examples: [1, 2]}) & "x"	{"a":meta("x",{"examples":[1,2]})}
+meta-examples-hold-any-data	canon	a: meta(1, {examples: [{k: [1, "a"]}, null]})	{"a":meta(1,{"examples":[{"k":[1,"a"]},null]})}
+meta-default	canon	a: meta(any, {default: {k: 1}}) & {k: 2}	{"a":meta({"k":2},{"default":{"k":1}})}
+meta-default-null	canon	a: meta(1, {default: null})	{"a":meta(1,{"default":null})}
+meta-read-only	canon	a: meta(1, {readOnly: true, writeOnly: false})	{"a":meta(1,{"readOnly":true,"writeOnly":false})}
+meta-x	canon	a: meta(1, {x: {"x-foo": [1]}})	{"a":meta(1,{"x":{"x-foo":[1]}})}
+meta-x-proto-is-data	canon	a: meta(1, {x: {"__proto__": 1}})	{"a":meta(1,{"x":{"__proto__":1}})}
+meta-content	canon	a: meta("e30=", {contentEncoding: "base64", contentMediaType: "application/json", contentSchema: {type: "object"}})	{"a":meta("e30=",{"contentEncoding":"base64","contentMediaType":"application/json","contentSchema":{"type":"object"}})}
+meta-format	canon	a: meta("a@b.c", {format: "email"})	{"a":meta("a@b.c",{"format":"email"})}
+meta-comment	canon	a: meta(1, {comment: "c"})	{"a":meta(1,{"comment":"c"})}
+meta-record-reads-a-reference	canon	t: "T"\na: meta(1, {title: $.t})	{"a":meta(1,{"title":"T"}),"t":"T"}
+meta-default-reads-a-reference	canon	d: {k: 1}\na: meta(1, {default: $.d})	{"a":meta(1,{"default":{"k":1}}),"d":{"k":1}}
+meta-record-value-is-met-first	canon	a: meta(1, {title: "a" & string})	{"a":meta(1,{"title":"a"})}
+meta-in-a-map-member	canon	a: {k: meta(1, {title: "T"})} & {k: 1}	{"a":{"k":meta(1,{"title":"T"})}}
+meta-in-a-list-member	canon	a: [meta(1, {title: "T"})] & [1]	{"a":[meta(1,{"title":"T"})]}
+meta-reaches-through-a-reference	canon	a: meta(1, {title: "T"})\nb: $.a	{"a":meta(1,{"title":"T"}),"b":meta(1,{"title":"T"})}
+meta-waits-for-its-value	canon	a: meta($.b, {title: "T"})\nb: $.c\nc: 1	{"a":meta(1,{"title":"T"}),"b":1,"c":1}
+meta-in-a-spread	canon	a: {&: meta(integer, {title: "T"})} & {p: 1, q: 2}	{"a":{&:meta(integer,{"title":"T"}),"p":meta(1,{"title":"T"}),"q":meta(2,{"title":"T"})}}
+meta-gen-a-spread	gens	a: {&: meta(integer, {title: "T"})} & {p: 1, q: 2}	{"a":{"p":1,"q":2}}
+meta-outside-deprecate	canon	a: meta(deprecate(1, {msg: "m"}), {title: "T"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"T"})}
+meta-inside-deprecate	canon	a: deprecate(meta(1, {title: "T"}), {msg: "m"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"T"})}
+meta-gen-hidden	gens	a: hide(meta(1, {title: "T"}))	{}
+
+# The rider rides into whatever it meets, an any and a check held on a
+# container included: a value with nothing to say of its own still says
+# what its riders say.
+meta-rides-into-the-data-from-any	canon	a: {foo?: meta(any, {title: "T"})} & {foo: 42}	{"a":{"foo":meta(42,{"title":"T"})}}
+meta-rides-into-a-map-from-any	canon	a: {foo: meta(any, {title: "T"})} & {foo: {}}	{"a":{"foo":meta({},{"title":"T"})}}
+meta-rides-into-a-list-element-from-any	canon	a: [meta(any, {title: "T"})] & [42]	{"a":[meta(42,{"title":"T"})]}
+meta-any-meeting-any-keeps-it	canon	a: {k: any} & {k: meta(any, {title: "T"})}	{"a":{"k":meta(any,{"title":"T"})}}
+meta-rides-a-check-held-on-a-map	canon	a: meta(nof(0, 1), {title: "T"}) & {}	{"a":meta({}&nof(integer&min(0)&max(0),1),{"title":"T"})}
+meta-rides-a-count-held-on-a-list	canon	a: meta(contains(1), {title: "T"}) & [1]	{"a":meta([1]&contains(1,integer&min(1)),{"title":"T"})}
+meta-rides-a-spread-that-gives-any	canon	s: hide({foo?: meta(any, {title: "T"}), &: match(key(0), "foo", any, integer)})\ni: $.s\ni: {foo: {}}	{"i":{&:match(key(0),"foo",any,integer),"foo":meta({},{"title":"T"})},"s":{&:match(key(0),"foo",any,integer),"foo"?:meta(any,{"title":"T"})}}
+
+# A record is concrete data under the fixed vocabulary, each key with
+# its own kind; anything else refuses with func_arg, naming the record.
+# A nil value is returned unchanged, as deprecate() returns one.
+meta-conflict-is-the-values	errc	a: meta(1, {title: "T"}) & 2	scalar_value
+meta-nil-is-returned	errc	a: meta(nil, {title: "T"})	literal_nil
+meta-needs-a-record	errc	a: meta(1)	func_arity
+meta-refuses-a-record-that-is-no-map	errc	a: meta(1, 5)	func_arg
+meta-refuses-an-unknown-key	errc	a: meta(1, {colour: "red"})	func_arg
+meta-refuses-an-inherited-name	errc	a: meta(1, {constructor: 1})	func_arg
+meta-refuses-an-inherited-method	errc	a: meta(1, {toString: "x"})	func_arg
+meta-refuses-proto	errc	a: meta(1, {"__proto__": "x"})	func_arg
+meta-refuses-a-wrong-kind	errc	a: meta(1, {title: 5})	func_arg
+meta-refuses-a-flag-of-text	errc	a: meta(1, {readOnly: "yes"})	func_arg
+meta-refuses-examples-that-are-no-list	errc	a: meta(1, {examples: 5})	func_arg
+meta-refuses-x-that-is-no-map	errc	a: meta(1, {x: [1]})	func_arg
+meta-refuses-a-nil-value	errc	a: meta(1, {title: nil})	func_arg
+meta-refuses-a-value-not-concrete	errc	a: meta(1, {default: integer})	func_arg
+meta-refuses-a-list-not-concrete	errc	a: meta(1, {default: [1, integer]})	func_arg
+meta-refuses-x-not-concrete	errc	a: meta(1, {x: {a: integer}})	func_arg
+meta-refuses-a-disjunction	errc	a: meta(1, {title: "a" | "b"})	func_arg
+meta-refuses-a-preference	errc	a: meta(1, {title: *"a" | string})	func_arg
+meta-refuses-a-record-spread	errc	a: meta(1, {&: string})	func_arg
+meta-refuses-a-spread-in-a-value	errc	a: meta(1, {default: {&: 1}})	func_arg
+meta-refuses-an-optional-key	errc	a: meta(1, {title?: "T"})	func_arg
+meta-refuses-an-optional-key-in-x	errc	a: meta(1, {x: {k?: 1}})	func_arg
+
+# The hash form shows the rider on every node, a disjunction's members
+# included, outside type() and hide().
+meta-hcanon-hidden	hcanon	a: hide(meta(1, {title: "T"}))	{"a":meta(hide(1),{"title":"T"})}
+meta-hcanon-typed	hcanon	a: type(meta(integer, {title: "T"}))	{"a":meta(type(integer),{"title":"T"})}
+meta-hcanon-disjunct-member	hcanon	a: meta(1, {title: "T"}) | 2	{"a":meta(1,{"title":"T"})|2}
+meta-hcanon-beside-deprecate	hcanon	a: deprecate(meta(1, {title: "T"}), {msg: "m"})	{"a":meta(deprecate(1,{"msg":"m"}),{"title":"T"})}
+meta-hcanon-layers	hcanon	a: meta(1, {title: "T"}) & meta(1, {title: "U"})	{"a":meta(1,{"title":"T"},{"title":"U"})}

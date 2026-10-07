@@ -4296,3 +4296,45 @@ this path (`fromAtom` in `ts/src/val/ConstraintVal.ts`, `newConstraint`
 in `go/constraint.go`).
 
 Repro: `repros/constraint-atoms/refused-at-construction.aontu`.
+
+## riders — annotations a meet passes over
+
+Three entries, found 2026-10-07 running the suite's `annotations/`
+directory (G12 phase 9), which reads the riders an instance collects.
+
+### 100. A rider was dropped where a meet passed over the value it rode [FIXED 2026-10-07]
+
+Three paths dropped a `deprecate()` or `meta()` record in a meet. In
+TypeScript only, a map or list member that is `any` was passed over
+when data met it, so `a: {foo: deprecate(any)} & {foo: 42}` lost the
+mark that Go kept, a divergence no shared row had pinned. In both
+ports a check held against a container, as `deprecate(nof(0, 1)) & {}`
+is, kept its record on the check and not on the held value, so `vet`
+never warned of it; and a meet whose result is `any`, as a key guard
+answering `any` gives, carried no record at all. Each now carries
+what rode its operands (rows `dep-canon-any-member`,
+`dep-canon-held-check`, `dep-vet-held-check` and the
+`meta-rides-*` rows of `test/spec/meta.tsv`).
+
+### 101. The canon drops a rider on a disjunction's member [minor]
+
+Both ports. A rider on a member of a disjunction is held, and the hash
+form writes it, but the canon writes the member alone, so a canon read
+back loses the annotation. `deprecate()` has done the same since G3:
+the canon writes a rider only on a map's or a list's member (`canon`
+in `ts/src/val/JunctionVal.ts`, `junctChildCanon` in
+`go/conjunct.go`). Writing it on a disjunction's member as well would
+change which members are the same.
+
+Repro: `repros/riders/disjunct-member-canon.aontu`.
+
+### 102. A spread's rider does not reach a key that holds only a type [minor]
+
+Both ports. A spread's riders reach every member the data gives a
+value, but a key whose value is still only a type waits for the data,
+and the spread is never met with it, so `{&: meta(any, {title:
+"T"})} & {k: any}` leaves `k` bare. `deprecate()` in a spread has the
+same gap. An instance always gives the key a value, so the annotations
+an instance collects are unaffected.
+
+Repro: `repros/riders/spread-onto-a-type.aontu`.

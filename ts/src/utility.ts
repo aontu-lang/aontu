@@ -3,6 +3,8 @@
 
 import type { AontuOptions, TrustOptions, Val } from './type'
 
+import { cmpCodePoint } from './keyorder'
+
 
 type IncludeOptions = {
   trust?: TrustOptions
@@ -69,24 +71,92 @@ function walkBagVals(
 
 // The one-line prose for a deprecation record, shared by vet's warning
 // findings and the LSP's tagged diagnostics.
-function deprecationMessage(d: Record<string, string>): string {
-  const msg = 'string' === typeof d.msg ? d.msg : ''
+function deprecationMessage(d: Record<string, string[]>): string {
+  const msg = (d.msg ?? []).join('; ')
   return 'deprecated' + ('' === msg ? '' : ': ' + msg) +
-    ('string' === typeof d.use ? ' (use ' + d.use + ')' : '') +
-    ('string' === typeof d.since ? ' (since ' + d.since + ')' : '')
+    (null != d.use ? ' (use ' + d.use.join('; ') + ')' : '') +
+    (null != d.since ? ' (since ' + d.since.join('; ') + ')' : '')
+}
+
+
+// A rider's meet: key by key, the union of their value sets, kept
+// sorted by canon so that the meet commutes.
+function unionRider<T>(a: Record<string, T[]> | undefined,
+  b: Record<string, T[]> | undefined,
+  canon: (t: T) => string): Record<string, T[]> | undefined {
+  if (null == a || null == b || a === b) {
+    return a ?? b
+  }
+  const out: Record<string, T[]> = { ...a }
+  for (const k of Object.keys(b)) {
+    const byCanon = new Map<string, T>()
+    for (const t of [...(a[k] ?? []), ...b[k]]) {
+      byCanon.set(canon(t), byCanon.get(canon(t)) ?? t)
+    }
+    out[k] = [...byCanon.keys()].sort(cmpCodePoint)
+      .map((c) => byCanon.get(c) as T)
+  }
+  return out
+}
+
+
+// A rider written as records, the i-th holding each key's i-th value,
+// which a reparse unions back to the same rider.
+function riderLayers<T>(r: Record<string, T[]>,
+  render: (t: T) => string): string[] {
+  const keys = Object.keys(r).sort()
+  const out: string[] = []
+  for (let i = 0; keys.some((k) => i < r[k].length); i++) {
+    out.push('{' + keys.filter((k) => i < r[k].length).map((k) =>
+      JSON.stringify(k) + ':' + render(r[k][i])).join(',') + '}')
+  }
+  return out
+}
+
+
+// The riders of a meet's operands land on its result.
+function carryRiders(out: any, a: any, b: any): void {
+  const d = unionRider(unionRider(out.deprecation, a?.deprecation, String),
+    b?.deprecation, String)
+  if (d !== out.deprecation) {
+    out.deprecation = d
+  }
+  const canon = (m: Val) => m.canon
+  const m = unionRider(unionRider(out.meta, a?.meta, canon), b?.meta, canon)
+  if (m !== out.meta) {
+    out.meta = m
+  }
+}
+
+
+function wrapRiders(c: string, v: Val): string {
+  const d = v.deprecation
+  if (null != d) {
+    const ls = riderLayers(d, (s) => JSON.stringify(s))
+    c = 0 === ls.length ? 'deprecate(' + c + ')' :
+      ls.reduce((s, l) => 'deprecate(' + s + ',' + l + ')', c)
+  }
+  if (null != v.meta) {
+    c = 'meta(' + [c, ...riderLayers(v.meta, (m) => m.canon)].join(',') + ')'
+  }
+  return c
+}
+
+
+function hasRiders(v: any): boolean {
+  return null != v?.meta || null != v?.deprecation
+}
+
+
+// A top a meet may pass over: one that carries a rider carries it into
+// whatever it meets, so it has to be met.
+function bareTop(v: any): boolean {
+  return true === v?.isTop && !hasRiders(v)
 }
 
 
 function canonRiders(v: Val): string {
-  const c = v.canon
-  const d = v.deprecation
-  if (null == d) {
-    return c
-  }
-  const keys = Object.keys(d).sort()
-  const rec = keys.map((k) =>
-    JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',')
-  return 'deprecate(' + c + ('' === rec ? '' : ',{' + rec + '}') + ')'
+  return wrapRiders(v.canon, v)
 }
 
 
@@ -253,7 +323,7 @@ function items(o: any) {
   else {
     return []
   }
-} /* node:coverage ignore next 20 */
+} /* node:coverage ignore next 25 */
 
 
 export type { IncludeOptions }
@@ -263,6 +333,11 @@ export {
   items,
   propagateMarks,
   canonRiders,
+  bareTop,
+  hasRiders,
+  unionRider,
+  carryRiders,
+  wrapRiders,
   collectDeprecations,
   walkBagVals,
   deprecationMessage,

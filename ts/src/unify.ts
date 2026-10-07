@@ -20,7 +20,7 @@ import {
 
 
 import {
-  explainOpen, ec, explainClose,
+  explainOpen, ec, explainClose, carryRiders, hasRiders,
 } from './utility'
 
 
@@ -55,10 +55,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     else if (b !== undefined && b !== null && undefined === ctx.prov) {
       if (a.done && b.done) {
         if (a.id === b.id) {
-          // The deprecation record survives the fast path (G3).
-          if (null == a.deprecation && null != b.deprecation) {
-            a.deprecation = b.deprecation
-          }
+          // The riders survive the fast path (G3).
+          carryRiders(a, a, b)
           return a
         }
         if (a.constructor === b.constructor && a.peg === b.peg
@@ -71,11 +69,9 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && !a.isTop && !b.isTop
             && !a.isRefer
             && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
-          // The deprecation record survives the fast path too (G3):
+          // The riders survive the fast path too (G3):
           // `deprecate(5) & 5` short-circuits here.
-          if (null == a.deprecation && null != b.deprecation) {
-            a.deprecation = b.deprecation
-          }
+          carryRiders(a, a, b)
           return a
         }
       }
@@ -228,12 +224,13 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     ctx.prov.record(ctx.path, a, b, out)
   }
 
-  if (null != out && true === (out as any).isVal &&
-    !out.isTop && !out.isNil && null == out.deprecation) {
-    const dep = (null != a ? a.deprecation : undefined) ??
-      (null != b ? b.deprecation : undefined)
-    if (null != dep) {
-      out.deprecation = dep
+  if (null != out && true === (out as any).isVal && !out.isNil) {
+    if (!out.isTop) {
+      carryRiders(out, a, b)
+    }
+    else if (hasRiders(a) || hasRiders(b)) {
+      out = out.clone(ctx)
+      carryRiders(out, a, b)
     }
   }
 

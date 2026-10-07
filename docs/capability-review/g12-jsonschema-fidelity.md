@@ -863,37 +863,60 @@ section is a prerequisite for validating input against it.
 ### 12. Annotations
 
 **`meta(v, ...r) : any`** is a value-transparent rider on the
-precedent of `deprecate()`: it unifies exactly as `v`, and the records
-ride the result through meets, reference copies and spread
-applications. Its record keys are fixed: `title`, `description`,
-`comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`,
-`contentEncoding`, `contentMediaType`, `contentSchema`, and `x` for
-unknown keywords, plus the use-site `dynamicRef` record of section 11;
-identity never rides it (section 10).
-A record value must be concrete data; a wrong kind
-refuses with `func_arg`.
+precedent of `deprecate()`: it unifies and generates exactly as `v`,
+and the records ride the result through meets, reference copies and
+spread applications. Its record keys are fixed: `title`,
+`description`, `comment`, `default`, `examples`, `readOnly`,
+`writeOnly`, `format`, `contentEncoding`, `contentMediaType`,
+`contentSchema`, and `x` for unknown keywords, plus the use-site
+`dynamicRef` record of section 11; identity never rides it (section
+10). A record value must be concrete data, and a record that is not a
+map, a key outside the set or a value of the wrong kind refuses with
+`func_arg`.
 
-The rider's meet is a key-wise union of canon-sorted value sets: it is
-commutative, idempotent and monotone, and it never refuses, which is
-how JSON Schema aggregates annotations from every applicator that
-passes. `deprecate()`'s record moves to the same rule; today two
-different records on one value keep whichever arrived first. A failing
-branch's rider is discarded with the branch, and `nof(0, …)` never
-contributes one. Canon renders `meta(…)` in a fixed position after
-`type`, `hide` and `deprecate`, and the hash includes it.
+The rider's meet is a key-wise union of canon-sorted value sets
+(ADR-049): it is commutative, idempotent and monotone, and it never
+refuses, which is how JSON Schema aggregates annotations from every
+applicator that passes. `deprecate()`'s record moved to the same rule;
+before it, two different records on one value kept whichever arrived
+first. A rider rides every meet, one whose result is `any` and one
+held beside a check on a container included. Canon renders `meta(…)`
+outside `type`, `hide` and `deprecate`, one record for each layer of
+values, and the hash includes it; the canon of a disjunction's member
+leaves its rider out, as it always left out `deprecate()`'s, though the
+hash writes it.
+
+The import writes each annotation on the schema it sits in, the content
+keywords on the string branch alone and `contentSchema` only beside
+`contentMediaType`, as the suite asks; `format` rides the whole schema,
+since it annotates every kind. `deprecated: true` is `deprecate()`, and
+`deprecated: false`, which says what its absence says, adds nothing.
+`$comment` rides as `comment` so that the export can write it back,
+though 2020-12 never collects it. An annotation inside a check's
+argument, an `anyOf`, `oneOf` or `not` alternative, an `if`, `then` or
+`else` branch, a dependent schema or a `contains` schema, rides the
+argument and never reaches the value: which branches pass is the
+verdict phase 12 memoises for `rest`, and collecting a passing
+branch's annotations waits for it.
 
 **`default` imports into the rider, never as `*`.** A preference fills
 and gates admission (ADR-004), which a 2020-12 `default` never does.
-An explicit importer option may add the preference where the property
-is not required and its value is admitted by the local assertions, for
-authors who want aontu's defaulting.
+The importer's `defaults` option, `--defaults` on the verb, also writes
+the preference where the property is not required, as
+`S & (*d | any)`: where the property's schema `S` refuses `d`, the
+preferred arm is empty and drops out, so the default is offered only
+where it is admitted.
 
-The exporter writes one record inline and several as an `allOf` of
-annotation-only subschemas, the shape it already uses for several
-patterns. `deprecate()`'s message, replacement and version cross in an
+The exporter writes each key's first value on the schema object itself,
+and every further value, or one the object already spells otherwise
+such as a preference's `default`, in an annotation-only subschema under
+`allOf`, which 2020-12 collects the same. `x` crosses as the unknown
+keywords it holds, and a name 2020-12 defines under it is a reported
+loss. `deprecate()`'s message, replacement and version cross in an
 extension keyword, `x-aontu-deprecate`, beside `deprecated: true`,
-which 2020-12 treats as an annotation. The LSP's hover gains `title`
-and `description`.
+which 2020-12 treats as an annotation, and the import reads that
+record back beside `deprecated: true` and nowhere else. The LSP's
+hover gains `title` and `description`, as plain text.
 
 ### 13. Dialects, vocabularies and the meta-schema
 
@@ -1016,6 +1039,15 @@ runs in assertion mode. The language behaviour each suite file
 exercises is also pinned by shared rows in a new `jsonschema-import`
 mode, or the phase that claims it is partial by the register's
 definition.
+
+**The annotations suite.** `annotations/` has a runner of its own in
+each port. It imports a case's schema, meets each instance with it,
+and requires the riders at each assertion's location to hold exactly
+the values the assertion names for its keyword. They are compared as a
+set, since a rider keeps values and not the schema locations that gave
+them, and a case the suite marks only for other releases, by its
+`compatibility`, is not read. Its ledger is `annotation-skips.tsv`, one
+line per assertion, under the rule above.
 
 **The vendored corpora.** The official suite is one of several public
 corpora whose licences allow vendoring beside MIT code, each read from

@@ -11,8 +11,9 @@ of `aontu jsonschema import`
 | Licence | MIT, in [`LICENSE`](LICENSE), unchanged |
 
 Vendored unchanged: `tests/draft2020-12/` with its `optional/`
-directory, and `remotes/`. The suite's `optional/format/` arrives with
-format assertion, and its other drafts with the legacy dialects.
+directory, `remotes/`, and `annotations/`. The suite's
+`optional/format/` arrives with format assertion, and its other drafts
+with the legacy dialects.
 
 ## How it is run
 
@@ -43,3 +44,20 @@ read it, and a run fails on any of these:
 - a line naming no test in the suite;
 - more lines than the bound on the ledger's first line, which each
   phase lowers as it lands.
+
+## The annotations
+
+`annotations/` asks which annotations an instance collects where. Each
+assertion names an instance location, a keyword, and the values the
+schema gives it there. Both runners import a case's schema, meet each
+instance with it, and read the `meta()` and `deprecate()` riders at the
+location; an assertion is honoured when they hold exactly the values
+it names. The values are compared as a set: which schema location gave
+each is not compared. A case the suite marks only for releases other
+than 2020-12, by its `compatibility`, is not read.
+
+[`annotation-skips.tsv`](annotation-skips.tsv) is its ledger, read
+under the same rules as `skips.tsv`, one line per assertion: the file
+under `annotations/tests/`, the case, the test's place in it from 1,
+the location and keyword, what the import says it lost, `-` when it
+lost nothing, and the phase that carries it.

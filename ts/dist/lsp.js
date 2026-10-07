@@ -401,7 +401,17 @@ function hoverMarkdown(val) {
     // No try needed: a Val only becomes a hover candidate after
     // collectHoverCandidates read this same getter successfully.
     const canon = val.canon;
-    return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*';
+    return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
+        annotationMarkdown(val);
+}
+// What the value's title and description say, as plain text, so an
+// author's own markup shows as written.
+function annotationMarkdown(val) {
+    const text = (key) => (val.meta?.[key] ?? [])
+        .map((m) => String(m.peg).replace(/[\\`*_[\]<>#]/g, '\\$&'));
+    const titles = text('title');
+    return (0 < titles.length ? '\n\n**' + titles.join('; ') + '**' : '') +
+        text('description').map((d) => '\n\n' + d).join('');
 }
 // A short human description of a Val's kind, shown under the hover canon.
 function valKind(val) {
@@ -451,8 +461,8 @@ const BUILTIN_FUNCS = [
     'file', 'filter', 'folder', 'fragment', 'greatest',
     'hide', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
     'listitems', 'lower',
-    'match', 'max', 'maybe', 'min', 'mod', 'move', 'mul', 'multiple', 'must',
-    'neq', 'nof', 'nom', 'open',
+    'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'multiple',
+    'must', 'neq', 'nof', 'nom', 'open',
     'pack', 'parse', 'path', 'pick',
     'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'slot', 'sort',
     'split', 'sub', 'sum',

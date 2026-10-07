@@ -205,9 +205,9 @@ class MapVal extends BagVal_1.BagVal {
                     oval =
                         child.isNil ? child :
                             key_spread_cj.isNil ? key_spread_cj :
-                                key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                                    ? child :
-                                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                                (0, utility_1.bareTop)(key_spread_cj) && child.done &&
+                                    undefined === keyctx.prov ? child :
+                                    (0, utility_1.bareTop)(child) && key_spread_cj.done ? key_spread_cj :
                                         holding(keyctx, opt, te, 'KEY:' + key, (c) => (0, unify_1.unite)(c, child, key_spread_cj, 'map-own'));
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
@@ -251,7 +251,7 @@ class MapVal extends BagVal_1.BagVal {
                             ? (undefined !== peerctx.prov && peerchild.isGenable
                                 ? holding(peerctx, opt, undefined, '', (c) => (0, unify_1.unite)(c, peerchild, TOP, 'map-peer-only'))
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-                            child.isTop && peerchild.done ? peerchild :
+                            (0, utility_1.bareTop)(child) && peerchild.done ? peerchild :
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         holding(peerctx, opt, te, 'CHD', (c) => (0, unify_1.unite)(c, child, peerchild, 'map-peer'));

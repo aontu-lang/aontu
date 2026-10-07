@@ -18,6 +18,7 @@ const numcmp_1 = require("./val/numcmp");
 const numkind_1 = require("./val/numkind");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
+const jsonschema_import_1 = require("./jsonschema-import");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const RAW = JSON;
 function pathText(path) {
@@ -463,20 +464,62 @@ function fromVal(ctx, path, v) {
         return ref;
     }
     const out = fromValInner(ctx, path, v);
-    const dep = v?.deprecation;
-    if (null != dep && null != out && 'object' === typeof out) {
-        const said = DEPRECATION_TEXT.filter((k) => null != dep[k]);
-        if (0 < said.length) {
-            lose(ctx, path, 'deprecate', 'JSON Schema 2020-12 has the `deprecated` flag and no field for ' +
-                'what it SAYS, so ' + said.join('/') + ' cannot cross; the ' +
-                'schema marks the property deprecated and a consumer must read ' +
-                'the model for the reason');
-        }
-        return { ...out, deprecated: true };
-    }
-    return out;
+    return 'object' === typeof out && (0, utility_1.hasRiders)(v) ?
+        annotate(ctx, path, out, v) : out;
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
+const META_KEYWORD = [
+    ['title', 'title'], ['description', 'description'], ['comment', '$comment'],
+    ['default', 'default'], ['examples', 'examples'], ['readOnly', 'readOnly'],
+    ['writeOnly', 'writeOnly'], ['format', 'format'],
+    ['contentEncoding', 'contentEncoding'],
+    ['contentMediaType', 'contentMediaType'], ['contentSchema', 'contentSchema'],
+];
+// A value's riders as the annotations they are: each first value on the
+// schema object itself, and every further one, or one whose keyword the
+// object already spells otherwise, in an annotation-only subschema under
+// allOf, which the draft collects the same.
+function annotate(ctx, path, out, v) {
+    const meta = v.meta ?? {};
+    const dep = v.deprecation;
+    const layers = [{ ...out }];
+    const place = (from, k, x) => {
+        let n = from;
+        for (; Object.prototype.hasOwnProperty.call(layers[n] ?? {}, k); n++) {
+            if (schemaText(layers[n][k]) === schemaText(x)) {
+                return;
+            }
+        }
+        (layers[n] ??= {})[k] = x;
+    };
+    for (const [key, keyword] of META_KEYWORD) {
+        (meta[key] ?? []).forEach((m, i) => place(i, keyword, generated(m)));
+    }
+    (meta.x ?? []).forEach((m, i) => {
+        for (const k of Object.keys(m.peg)) {
+            if ((0, jsonschema_import_1.isKeyword)(k)) {
+                lose(ctx, path, 'meta', 'x holds ' + k + ', a name 2020-12 reads ' +
+                    'as its own, so it cannot cross as an unknown keyword; it is ' +
+                    'dropped, and what the schema admits is unchanged');
+            }
+            else {
+                place(i, k, generated(m.peg[k]));
+            }
+        }
+    });
+    if (null != dep) {
+        const depth = Math.max(1, ...Object.values(dep).map((l) => l.length));
+        for (let i = 0; i < depth; i++) {
+            place(i, 'deprecated', true);
+            const said = DEPRECATION_TEXT.filter((k) => i < (dep[k] ?? []).length);
+            if (0 < said.length) {
+                place(i, jsonschema_import_1.DEPRECATE_KEY, Object.fromEntries(said.map((k) => [k, dep[k][i]])));
+            }
+        }
+    }
+    layers.slice(1).forEach((l) => allOf(layers[0], l));
+    return layers[0];
+}
 // An alias's copy, unchanged, or a recursion back into a definition, is
 // written once under $defs and referred to wherever it is used.
 function aliasRef(ctx, v) {
@@ -488,8 +531,7 @@ function aliasRef(ctx, v) {
             return { $ref: '#' };
         }
     }
-    else if (null != v?.aliasOrigin &&
-        (0, RecurseVal_1.walkTarget)(ctx.root, [v.aliasOrigin])?.canon === v.canon) {
+    else if (null != v?.aliasOrigin && sameCopy((0, RecurseVal_1.walkTarget)(ctx.root, [v.aliasOrigin]), v)) {
         target = [v.aliasOrigin];
     }
     const body = undefined === target ? undefined : (0, RecurseVal_1.walkTarget)(ctx.root, target);
@@ -510,6 +552,11 @@ function aliasRef(ctx, v) {
         ctx.defs.set(key, fromVal(ctx, at, body));
     }
     return { $ref: '#/$defs/' + pointerToken(key) };
+}
+// An alias's copy is unchanged when its value is, and what rides it.
+function sameCopy(def, v) {
+    return undefined !== def && def.canon === v.canon &&
+        (0, utility_1.wrapRiders)('', def) === (0, utility_1.wrapRiders)('', v);
 }
 // A JSON pointer token (RFC 6901), escaped again as the URI fragment
 // that carries it (RFC 3986).
@@ -597,6 +644,15 @@ function fromValInner(ctx, path, v) {
         }
         return false;
     }
+    // A rider in a template position is still its call: the value it
+    // rides is what the schema says, and its records the annotations.
+    if (true === v.isFunc && ['meta', 'deprecate'].includes(v.funcname())) {
+        const trial = new aontu_1.Aontu().ctx({ collect: true });
+        const met = (0, unify_1.unite)(trial, (0, top_1.top)(), v.clone(trial), 'jsonschema');
+        if (0 === trial.err.length && true !== met.isFunc && true !== met.isNil) {
+            return fromVal(ctx, path, met);
+        }
+    }
     const kind = true === v.isFunc ?
         RESULT_TYPE[sig_1.funcSig[v.funcname()]?.out] : undefined;
     if (undefined !== kind) {
@@ -672,7 +728,8 @@ const SCOPED = {
         'multipleOf'],
     integer: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
         'multipleOf'],
-    string: ['minLength', 'maxLength', 'pattern'],
+    string: ['minLength', 'maxLength', 'pattern', 'contentEncoding',
+        'contentMediaType', 'contentSchema'],
     object: ['properties', 'required', 'additionalProperties',
         'patternProperties', 'propertyNames', 'minProperties', 'maxProperties'],
     array: ['prefixItems', 'items', 'minItems', 'maxItems', 'uniqueItems'],
@@ -732,7 +789,8 @@ function fromDisjunct(ctx, path, v) {
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
     let out;
-    if (bare.every((m) => true === m?.isScalar)) {
+    if (bare.every((m) => true === m?.isScalar &&
+        '' === (0, utility_1.wrapRiders)('', m))) {
         const gs = groups(bare);
         loseLiterals(ctx, path, gs);
         out = { enum: gs.map((g) => jsonOf(g.v)) };

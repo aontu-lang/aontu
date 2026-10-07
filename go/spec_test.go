@@ -592,8 +592,11 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					instances, _ := golden["instances"].(map[string]any)
+					options, _ := golden["options"].(map[string]any)
 					delete(golden, "instances")
-					r := New().ImportJSONSchema(src)
+					delete(golden, "options")
+					r := New().ImportJSONSchemaWith(src,
+						JSONSchemaImportOptions{Defaults: true == options["defaults"]})
 					out := map[string]any{
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
 						"source":  r.Source,

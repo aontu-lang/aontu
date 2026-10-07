@@ -3,6 +3,7 @@
 package lsp
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -82,7 +83,7 @@ func DiagnosticsTrust(src string, vars map[string]aontu.Val, trust *aontu.TrustO
 		start := idx.position(d.Pos)
 		end := idx.position(d.Pos + d.Len)
 		msg := "deprecated"
-		if m, ok := d.Record["msg"]; ok {
+		if m := d.Record["msg"]; "" != m {
 			msg += ": " + m
 		}
 		if u, ok := d.Record["use"]; ok {
@@ -179,7 +180,30 @@ func provenanceOf(
 }
 
 func hoverMarkdown(s aontu.ValueSpan) string {
-	return "```aontu\n" + s.Canon + "\n```\n\n*" + s.Kind + "*"
+	return "```aontu\n" + s.Canon + "\n```\n\n*" + s.Kind + "*" +
+		annotationMarkdown(s)
+}
+
+var markdownMark = regexp.MustCompile("[\\\\`*_\\[\\]<>#]")
+
+// annotationMarkdown: what the value's title and description say, as
+// plain text, so an author's own markup shows as written.
+func annotationMarkdown(s aontu.ValueSpan) string {
+	text := func(ts []string) []string {
+		out := make([]string, len(ts))
+		for i, t := range ts {
+			out[i] = markdownMark.ReplaceAllString(t, `\$0`)
+		}
+		return out
+	}
+	out := ""
+	if 0 < len(s.Title) {
+		out += "\n\n**" + strings.Join(text(s.Title), "; ") + "**"
+	}
+	for _, d := range text(s.Description) {
+		out += "\n\n" + d
+	}
+	return out
 }
 
 func provenanceMarkdown(

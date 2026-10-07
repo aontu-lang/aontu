@@ -5,6 +5,11 @@ exports.includeOpts = includeOpts;
 exports.items = items;
 exports.propagateMarks = propagateMarks;
 exports.canonRiders = canonRiders;
+exports.bareTop = bareTop;
+exports.hasRiders = hasRiders;
+exports.unionRider = unionRider;
+exports.carryRiders = carryRiders;
+exports.wrapRiders = wrapRiders;
 exports.collectDeprecations = collectDeprecations;
 exports.walkBagVals = walkBagVals;
 exports.deprecationMessage = deprecationMessage;
@@ -14,6 +19,7 @@ exports.explainOpen = explainOpen;
 exports.ec = ec;
 exports.explainClose = explainClose;
 exports.formatExplain = formatExplain;
+const keyorder_1 = require("./keyorder");
 function includeOpts(options) {
     return {
         ...(null == options.trust ? {} : { trust: options.trust }),
@@ -63,20 +69,72 @@ function walkBagVals(root, fn) {
 // The one-line prose for a deprecation record, shared by vet's warning
 // findings and the LSP's tagged diagnostics.
 function deprecationMessage(d) {
-    const msg = 'string' === typeof d.msg ? d.msg : '';
+    const msg = (d.msg ?? []).join('; ');
     return 'deprecated' + ('' === msg ? '' : ': ' + msg) +
-        ('string' === typeof d.use ? ' (use ' + d.use + ')' : '') +
-        ('string' === typeof d.since ? ' (since ' + d.since + ')' : '');
+        (null != d.use ? ' (use ' + d.use.join('; ') + ')' : '') +
+        (null != d.since ? ' (since ' + d.since.join('; ') + ')' : '');
+}
+// A rider's meet: key by key, the union of their value sets, kept
+// sorted by canon so that the meet commutes.
+function unionRider(a, b, canon) {
+    if (null == a || null == b || a === b) {
+        return a ?? b;
+    }
+    const out = { ...a };
+    for (const k of Object.keys(b)) {
+        const byCanon = new Map();
+        for (const t of [...(a[k] ?? []), ...b[k]]) {
+            byCanon.set(canon(t), byCanon.get(canon(t)) ?? t);
+        }
+        out[k] = [...byCanon.keys()].sort(keyorder_1.cmpCodePoint)
+            .map((c) => byCanon.get(c));
+    }
+    return out;
+}
+// A rider written as records, the i-th holding each key's i-th value,
+// which a reparse unions back to the same rider.
+function riderLayers(r, render) {
+    const keys = Object.keys(r).sort();
+    const out = [];
+    for (let i = 0; keys.some((k) => i < r[k].length); i++) {
+        out.push('{' + keys.filter((k) => i < r[k].length).map((k) => JSON.stringify(k) + ':' + render(r[k][i])).join(',') + '}');
+    }
+    return out;
+}
+// The riders of a meet's operands land on its result.
+function carryRiders(out, a, b) {
+    const d = unionRider(unionRider(out.deprecation, a?.deprecation, String), b?.deprecation, String);
+    if (d !== out.deprecation) {
+        out.deprecation = d;
+    }
+    const canon = (m) => m.canon;
+    const m = unionRider(unionRider(out.meta, a?.meta, canon), b?.meta, canon);
+    if (m !== out.meta) {
+        out.meta = m;
+    }
+}
+function wrapRiders(c, v) {
+    const d = v.deprecation;
+    if (null != d) {
+        const ls = riderLayers(d, (s) => JSON.stringify(s));
+        c = 0 === ls.length ? 'deprecate(' + c + ')' :
+            ls.reduce((s, l) => 'deprecate(' + s + ',' + l + ')', c);
+    }
+    if (null != v.meta) {
+        c = 'meta(' + [c, ...riderLayers(v.meta, (m) => m.canon)].join(',') + ')';
+    }
+    return c;
+}
+function hasRiders(v) {
+    return null != v?.meta || null != v?.deprecation;
+}
+// A top a meet may pass over: one that carries a rider carries it into
+// whatever it meets, so it has to be met.
+function bareTop(v) {
+    return true === v?.isTop && !hasRiders(v);
 }
 function canonRiders(v) {
-    const c = v.canon;
-    const d = v.deprecation;
-    if (null == d) {
-        return c;
-    }
-    const keys = Object.keys(d).sort();
-    const rec = keys.map((k) => JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',');
-    return 'deprecate(' + c + ('' === rec ? '' : ',{' + rec + '}') + ')';
+    return wrapRiders(v.canon, v);
 }
 function formatPath(path, absolute) {
     let parts;
@@ -195,5 +253,5 @@ function items(o) {
     else {
         return [];
     }
-} /* node:coverage ignore next 20 */
+} /* node:coverage ignore next 25 */
 //# sourceMappingURL=utility.js.map

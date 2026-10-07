@@ -291,8 +291,10 @@ function runRow(row) {
         // judges it, under the reading the import is written for.
         const golden = JSON.parse(row.expect, (_k, v, c) => 'number' === typeof v ? JSON.rawJSON(c?.source) : v);
         const instances = golden.instances ?? {};
+        const options = golden.options;
         delete golden.instances;
-        const report = (0, jsonschema_import_1.importJsonSchema)(row.src);
+        delete golden.options;
+        const report = (0, jsonschema_import_1.importJsonSchema)(row.src, options);
         Assert.strictEqual((0, aontu_1.exactJSON)({
             source: report.source,
             lossy: report.lossy,

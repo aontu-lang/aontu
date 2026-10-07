@@ -108,30 +108,10 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		s = "hide(" + s + ")"
 	}
 
-	// The deprecation record rides outermost, as canonRiders
-	// renders it (the wrappers are all reparseable calls, so order
-	// only has to be FIXED, matching ts/src/hcanon.ts).
-	if d := v.deprecRec(); nil != d {
-		keys := make([]string, 0, len(d))
-		for k := range d {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		rec := ""
-		for i, k := range keys {
-			if 0 < i {
-				rec += ","
-			}
-			rec += jsonString(k) + ":" + jsonString(d[k])
-		}
-		if "" == rec {
-			s = "deprecate(" + s + ")"
-		} else {
-			s = "deprecate(" + s + ",{" + rec + "})"
-		}
-	}
-
-	return s
+	// The riders ride outermost, as canonRiders renders them (the
+	// wrappers are all reparseable calls, so order only has to be FIXED,
+	// matching ts/src/hcanon.ts).
+	return wrapRiders(s, v)
 }
 
 // hcanonJunction joins junction members, keeping junctChildCanon's

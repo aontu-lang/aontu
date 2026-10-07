@@ -1,6 +1,8 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DEPRECATE_KEY = void 0;
+exports.isKeyword = isKeyword;
 exports.importJsonSchema = importJsonSchema;
 // THE JSON SCHEMA IMPORT (G12 phase 3): a JSON Schema read into aontu
 // source, checked by `vet --at $.schema --no-fill --exact-numbers`. The
@@ -389,6 +391,69 @@ function lit(ctx, v, path) {
     }
     return 'close({' + [...v].map(([k, e]) => strLit(k) + ': ' + lit(ctx, e, ptrAt(path, k))).join(', ') + '})';
 }
+// An annotation's value, written as the plain data it is.
+function datum(v, path) {
+    if (Array.isArray(v)) {
+        return '[' + v.map((e, n) => datum(e, ptrAt(path, n))).join(', ') + ']';
+    }
+    if (isObj(v)) {
+        return '{' + [...v].map(([k, e]) => strLit(k) + ': ' + datum(e, ptrAt(path, k))).join(', ') + '}';
+    }
+    return null === v || 'boolean' === typeof v ? '' + v :
+        v instanceof JNum ? numberText(v.text, path) : strLit(v);
+}
+// The annotations a schema object carries, each under its rider key, its
+// value checked for the JSON kind the draft gives it.
+const RIDER = [
+    ['title', 'title', 'string'], ['description', 'description', 'string'],
+    ['$comment', 'comment', 'string'], ['default', 'default', undefined],
+    ['examples', 'examples', 'array'], ['readOnly', 'readOnly', 'boolean'],
+    ['writeOnly', 'writeOnly', 'boolean'], ['format', 'format', 'string'],
+    ['contentEncoding', 'contentEncoding', 'string'],
+    ['contentMediaType', 'contentMediaType', 'string'],
+    ['contentSchema', 'contentSchema', undefined],
+];
+const CONTENT = ['contentEncoding', 'contentMediaType', 'contentSchema'];
+function rider(o, ptr, content) {
+    const fields = [];
+    for (const [k, key, kind] of RIDER) {
+        const v = o.get(k);
+        if (undefined === v || content !== CONTENT.includes(k) ||
+            ('contentSchema' === k && !o.has('contentMediaType'))) {
+            continue;
+        }
+        if (undefined !== kind && kind !== (Array.isArray(v) ? 'array' :
+            null === v ? 'null' : typeof v)) {
+            refuse(ptrAt(ptr, k), k + ' must be ' + ('array' === kind ? 'an ' : 'a ') +
+                kind);
+        }
+        fields.push(key + ': ' + datum(v, ptrAt(ptr, k)));
+    }
+    const read = undefined !== deprecRecord(o);
+    const x = content ? [] : [...o].filter(([k]) => !CARRIED.has(k) &&
+        !ANNOTATION.has(k) && !LATER.has(k) && !(read && exports.DEPRECATE_KEY === k));
+    if (0 < x.length) {
+        fields.push('x: {' + x.map(([k, v]) => strLit(k) + ': ' + datum(v, ptrAt(ptr, k))).join(', ') + '}');
+    }
+    return 0 === fields.length ? '' : '{' + fields.join(', ') + '}';
+}
+exports.DEPRECATE_KEY = 'x-aontu-deprecate';
+// A name the draft gives a meaning, or deprecate()'s own keyword.
+function isKeyword(k) {
+    return CARRIED.has(k) || ANNOTATION.has(k) || LATER.has(k) ||
+        exports.DEPRECATE_KEY === k;
+}
+// deprecate()'s record as the exporter writes it beside `deprecated`;
+// in any other shape, or without `deprecated: true`, the keyword is
+// unknown to the draft and rides `x` as any other does.
+function deprecRecord(o) {
+    const r = o.get(exports.DEPRECATE_KEY) ?? null;
+    if (true !== o.get('deprecated') || !isObj(r) || ![...r].every(([k, v]) => ['msg', 'use', 'since'].includes(k) && 'string' === typeof v)) {
+        return undefined;
+    }
+    return '{' + [...r].map(([k, v]) => k + ': ' + strLit(v))
+        .join(', ') + '}';
+}
 function count(v, path) {
     if (undefined === v) {
         return undefined;
@@ -663,9 +728,14 @@ function objectBranch(ctx, o, ptr) {
         refuse(ptrAt(ptr, 'required'), 'required must be an array of distinct strings');
     }
     const required = (reqv ?? []);
-    const entries = [...props].map(([k, s]) => strLit(k) +
-        (required.includes(k) ? '' : '?') + ': ' +
-        I(ctx, s, ptrAt(ptrAt(ptr, 'properties'), k)));
+    const entries = [...props].map(([k, s]) => {
+        const at = ptrAt(ptrAt(ptr, 'properties'), k);
+        const own = I(ctx, s, at);
+        const d = isObj(s) ? s.get('default') : undefined;
+        return strLit(k) + (required.includes(k) ? ': ' + own :
+            '?: ' + (!ctx.defaults || undefined === d ? own : paren(own) +
+                ' & (*' + datum(d, ptrAt(at, 'default')) + ' | any)'));
+    });
     for (const k of required.filter((k) => !props.has(k))) {
         entries.push(strLit(k) + ': any');
     }
@@ -783,7 +853,10 @@ function stringBranch(ctx, o, ptr) {
             parts.push(re);
         }
     }
-    return 0 === parts.length ? undefined : both(['empty()', ...parts]);
+    const content = rider(o, ptr, true);
+    const branch = 0 === parts.length ? undefined : both(['empty()', ...parts]);
+    return '' === content ? branch :
+        'meta(' + (branch ?? 'empty()') + ', ' + content + ')';
 }
 // The kind split (design section 2): each keyword applies to its own
 // instance kind and passes every other, so each kind is one branch.
@@ -1022,19 +1095,14 @@ function I(ctx, node, ptr) {
     }
     const o = node;
     for (const k of o.keys()) {
-        const at = ptrAt(ptr, k);
-        if (ANNOTATION.has(k)) {
-            lose(ctx, at, k, 'an annotation; it is dropped, and what the ' +
-                'import admits is unchanged');
+        if (LATER.has(k)) {
+            lose(ctx, ptrAt(ptr, k), k, 'not carried yet, so it is DROPPED and ' +
+                'the import admits instances the schema refuses');
         }
-        else if (LATER.has(k)) {
-            lose(ctx, at, k, 'not carried yet, so it is DROPPED and the import ' +
-                'admits instances the schema refuses');
-        }
-        else if (!CARRIED.has(k)) {
-            lose(ctx, at, k, 'not a 2020-12 keyword; it is ignored, as 2020-12 ' +
-                'ignores it');
-        }
+    }
+    const dep = o.get('deprecated');
+    if (undefined !== dep && 'boolean' !== typeof dep) {
+        refuse(ptrAt(ptr, 'deprecated'), 'deprecated must be a boolean');
     }
     const schema = o.get('$schema');
     if (undefined !== schema && DRAFT !== schema) {
@@ -1082,11 +1150,17 @@ function I(ctx, node, ptr) {
         parts.push(conditional(ctx, o, ptr));
     }
     parts.push(...dependencies(ctx, o, ptr));
-    return meetOrNil(parts);
+    const rec = rider(o, ptr, false);
+    const met = meetOrNil(parts);
+    const src = '' === rec ? met : 'meta(' + met + ', ' + rec + ')';
+    const drec = deprecRecord(o);
+    return true !== dep ? src :
+        'deprecate(' + src + (undefined === drec ? '' : ', ' + drec) + ')';
 }
-function importJsonSchema(text) {
+function importJsonSchema(text, options) {
     const ctx = {
-        root: null, lossy: [], aliases: new Map(), anchors: new Map(),
+        root: null, defaults: true === options?.defaults, lossy: [],
+        aliases: new Map(), anchors: new Map(),
     };
     let source;
     try {

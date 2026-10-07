@@ -28,6 +28,19 @@ dep-canon-map-arg	canon	a:deprecate({x:1},{msg:"m"})	{"a":deprecate({"x":1},{"ms
 dep-canon-extra-dropped	canon	a:deprecate(integer,{msg:"m",extra:"zz"}) a:1	{"a":deprecate(1,{"msg":"m"})}
 dep-canon-pref	canon	a:deprecate(*1|number,{since:"3.0.0"})	{"a":deprecate(*1|number,{"since":"3.0.0"})}
 dep-canon-ref-arg	canon	b:2 a:deprecate($.b,{msg:"m"})	{"a":deprecate(2,{"msg":"m"}),"b":2}
+# G12 phase 9: two records meet as a key-wise union of their values,
+# so the meet commutes and repeats to itself, and canon nests one call
+# per layer of values. A bare call adds no value to the union.
+dep-union-records	canon	a: deprecate(1, {msg: "a"}) & deprecate(1, {msg: "b"})	{"a":deprecate(deprecate(1,{"msg":"a"}),{"msg":"b"})}
+dep-union-commutes	canon	a: deprecate(1, {msg: "b"}) & deprecate(1, {msg: "a"})	{"a":deprecate(deprecate(1,{"msg":"a"}),{"msg":"b"})}
+dep-union-nested	canon	a: deprecate(deprecate(1, {msg: "a"}), {msg: "b"})	{"a":deprecate(deprecate(1,{"msg":"a"}),{"msg":"b"})}
+dep-union-bare-beside-a-record	canon	a: deprecate(1) & deprecate(1, {msg: "a"})	{"a":deprecate(1,{"msg":"a"})}
+dep-union-keys	canon	a: deprecate(1, {msg: "a"}) & deprecate(1, {use: "b"})	{"a":deprecate(1,{"msg":"a","use":"b"})}
+dep-union-repeats-to-itself	canon	a: deprecate(1, {msg: "a"}) & deprecate(1, {msg: "a"})	{"a":deprecate(1,{"msg":"a"})}
+# The record rides into whatever it meets, an any and a check held on
+# a container included.
+dep-canon-any-member	canon	a: {foo: deprecate(any)} & {foo: 42}	{"a":{"foo":deprecate(42)}}
+dep-canon-held-check	canon	a: deprecate(nof(0, 1)) & {}	{"a":deprecate({}&nof(integer&min(0)&max(0),1))}
 #
 # Generation is unchanged: the mark never reaches the output.
 dep-gen-transparent	gen	a:deprecate(*8080|integer,{msg:"renamed",use:"$.b",since:"2.0.0"})	{"a":8080}
@@ -48,3 +61,5 @@ dep-vet-warning-bare	vet	p:deprecate(integer)	p:1	{"findings":[{"class":"compat"
 # A conflict on a deprecated value reports the CONFLICT: the nil
 # replaced the value, so there is no deprecated survivor to warn about.
 dep-vet-still-invalid	vet	p:deprecate(integer,{msg:"m"})	p:hello	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.p","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"hello","value":"\\"hello\\""},{"col":3,"file":"schema","len":9,"role":"schema","row":1,"src":"deprecate","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+# A deprecated check held on a container still warns.
+dep-vet-held-check	vet	p: deprecate(nof(0, 1))	p: {}	{"findings":[{"class":"compat","code":"deprecated","path":"$.p","severity":"warning","sites":[{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"nof(integer&min(0)&max(0),1)&{}"}]}],"truncated":false,"verdict":"valid"}

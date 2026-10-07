@@ -1064,7 +1064,9 @@ func (c *ConstraintVal) admitContainerFinal(
 	// — the same discipline OpBaseVal follows for a non-concrete operand.
 	if !containerSettled(bag) {
 		c.dc = 0
-		return newConjunct([]Val{c, peer})
+		out := newConjunct([]Val{c, peer})
+		out.path = cp(c.path)
+		return out
 	}
 
 	if bad := c.checkMustsFinal(peer, ctx, final); nil != bad {
@@ -1168,6 +1170,7 @@ func (c *ConstraintVal) admitContainerFinal(
 func (c *ConstraintVal) hold(peer Val) Val {
 	c.dc = DONE
 	held := newConjunct([]Val{c, peer})
+	held.path = cp(c.path)
 	held.dc = DONE
 	return held
 }

@@ -20,6 +20,7 @@ import { sealChild } from './SealVal'
 import {
   propagateMarks,
   canonRiders,
+  bareTop,
   explainOpen,
   ec,
   explainClose,
@@ -169,9 +170,9 @@ class ListVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  bareTop(key_spread_cj) && child.done &&
+                    undefined === keyctx.prov ? child :
+                    bareTop(child) && key_spread_cj.done ? key_spread_cj :
                       unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
                         child, key_spread_cj, 'list-own')
 
@@ -214,7 +215,7 @@ class ListVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child ? peerchild :
-              child.isTop && peerchild.done ? peerchild :
+              bareTop(child) && peerchild.done ? peerchild :
                 child.isNil ? child :
                   peerchild.isNil ? peerchild :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,

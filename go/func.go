@@ -25,6 +25,7 @@ var funcSet = map[string]bool{
 	"when":      true,
 	"contains":  true,
 	"deprecate": true,
+	"meta":      true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -658,7 +659,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return args[0]
 		}
 		out := clonePath(args[0], cp(base))
-		rec := map[string]string{}
+		rec := map[string][]string{}
 		if len(args) > 1 {
 			if m, ok := args[1].(*MapVal); ok {
 				// The record's whole vocabulary; other keys are DROPPED
@@ -666,13 +667,48 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 				for _, key := range []string{"msg", "use", "since"} {
 					if sv, ok := m.peg[key].(*ScalarVal); ok && KindString == sv.kind {
 						if str, ok := sv.peg.(string); ok {
-							rec[key] = str
+							rec[key] = []string{str}
 						}
 					}
 				}
 			}
 		}
-		out.setDeprecRec(rec)
+		prior := out.deprecRec()
+		if nil == prior {
+			prior = map[string][]string{}
+		}
+		out.setDeprecRec(unionRider(prior, rec, strSelf))
+		return out
+	case "meta":
+		// G12 phase 9: the annotation rider, on deprecate()'s precedent.
+		if args[0].Nil() {
+			return args[0]
+		}
+		rider := map[string][]Val{}
+		for i, r := range args[1:] {
+			m, ok := r.(*MapVal)
+			ok = ok && nil == m.spread && 0 == len(m.optional)
+			for j := 0; ok && j < len(m.keys); j++ {
+				check, known := metaKeys[m.keys[j]]
+				ok = known && check(m.peg[m.keys[j]])
+			}
+			if !ok {
+				return makeNilErrFull(ctx, "func_arg", f, r, "", map[string]string{
+					"func": "meta",
+					"sig":  renderSig(funcSig["meta"]),
+					"arg":  "r",
+					"argn": itoa(i + 2),
+					"got":  r.Canon(),
+				})
+			}
+			for _, k := range m.keys {
+				rider = unionRider(rider, map[string][]Val{k: {m.peg[k]}}, valCanon)
+			}
+		}
+		out := clonePath(args[0], cp(base))
+		if 0 < len(rider) {
+			out.setMetaRec(unionRider(out.metaRec(), rider, valCanon))
+		}
 		return out
 	case "acyclic", "inverse":
 		invname := ""

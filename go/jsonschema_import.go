@@ -403,10 +403,11 @@ type importAnchor struct {
 }
 
 type importCtx struct {
-	root    any
-	lossy   []SchemaLoss
-	aliases map[string]*string
-	anchors map[string]importAnchor
+	root     any
+	defaults bool
+	lossy    []SchemaLoss
+	aliases  map[string]*string
+	anchors  map[string]importAnchor
 }
 
 func (ic *importCtx) lose(path, construct, reason string) {
@@ -529,6 +530,106 @@ func (ic *importCtx) declare(name string, node any, ptr string) {
 		text := ic.I(node, ptr)
 		ic.aliases[name] = &text
 	}
+}
+
+// importDatum writes an annotation's value as the plain data it is.
+func importDatum(v any, path string) string {
+	switch t := v.(type) {
+	case jnull:
+		return "null"
+	case bool:
+		return strconv.FormatBool(t)
+	case jnum:
+		return importNumberText(t.text, path)
+	case string:
+		return importStrLit(t)
+	case []any:
+		parts := []string{}
+		for n, e := range t {
+			parts = append(parts, importDatum(e, importPtrAt(path, importIdx(n))))
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
+	}
+	o := v.(*jobj)
+	parts := []string{}
+	for _, k := range o.keys {
+		parts = append(parts, importStrLit(k)+": "+importDatum(o.get(k), importPtrAt(path, k)))
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
+}
+
+// importRider lists the annotations a schema object carries, each under
+// its rider key, with the JSON kind the draft gives its value.
+var importRider = [][3]string{
+	{"title", "title", "string"}, {"description", "description", "string"},
+	{"$comment", "comment", "string"}, {"default", "default", ""},
+	{"examples", "examples", "array"}, {"readOnly", "readOnly", "boolean"},
+	{"writeOnly", "writeOnly", "boolean"}, {"format", "format", "string"},
+	{"contentEncoding", "contentEncoding", "string"},
+	{"contentMediaType", "contentMediaType", "string"},
+	{"contentSchema", "contentSchema", ""},
+}
+
+var importContent = map[string]bool{"contentEncoding": true,
+	"contentMediaType": true, "contentSchema": true}
+
+const importDeprecateKey = "x-aontu-deprecate"
+
+// importDeprecRecord reads deprecate()'s record as the exporter writes
+// it beside `deprecated`; in any other shape, or without `deprecated:
+// true`, the keyword is unknown to the draft and rides `x` as any other
+// does.
+func importDeprecRecord(o *jobj) (string, bool) {
+	r, ok := o.get(importDeprecateKey).(*jobj)
+	if true != o.get("deprecated") || !ok {
+		return "", false
+	}
+	fields := []string{}
+	for _, k := range r.keys {
+		v, isStr := r.get(k).(string)
+		if !isStr || ("msg" != k && "use" != k && "since" != k) {
+			return "", false
+		}
+		fields = append(fields, k+": "+importStrLit(v))
+	}
+	return "{" + strings.Join(fields, ", ") + "}", true
+}
+
+func importRiderOf(o *jobj, ptr string, content bool) string {
+	fields := []string{}
+	for _, r := range importRider {
+		k, key, kind := r[0], r[1], r[2]
+		if !o.has(k) || content != importContent[k] ||
+			("contentSchema" == k && !o.has("contentMediaType")) {
+			continue
+		}
+		v := o.get(k)
+		if "" != kind && kind != importJSONKind(v) {
+			article := "a "
+			if "array" == kind {
+				article = "an "
+			}
+			refuseSchema(importPtrAt(ptr, k), k+" must be "+article+kind)
+		}
+		fields = append(fields, key+": "+importDatum(v, importPtrAt(ptr, k)))
+	}
+	if !content {
+		x := []string{}
+		_, read := importDeprecRecord(o)
+		for _, k := range o.keys {
+			if !importCarried[k] && !importAnnotation[k] && !importLater[k] &&
+				!(read && importDeprecateKey == k) {
+				x = append(x, importStrLit(k)+": "+importDatum(o.get(k), importPtrAt(ptr, k)))
+			}
+		}
+		if 0 < len(x) {
+			fields = append(fields, "x: {"+strings.Join(x, ", ")+"}")
+		}
+	}
+	if 0 == len(fields) {
+		return ""
+	}
+	return "{" + strings.Join(fields, ", ") + "}"
 }
 
 func (ic *importCtx) lit(v any, path string) string {
@@ -1018,12 +1119,17 @@ func (ic *importCtx) objectBranch(o *jobj, ptr string) string {
 	}
 	entries := []string{}
 	for _, k := range props.keys {
-		opt := "?"
+		at := importPtrAt(importPtrAt(ptr, "properties"), k)
+		own := ic.I(props.get(k), at)
 		if containsStr(required, k) {
-			opt = ""
+			entries = append(entries, importStrLit(k)+": "+own)
+			continue
 		}
-		entries = append(entries, importStrLit(k)+opt+": "+
-			ic.I(props.get(k), importPtrAt(importPtrAt(ptr, "properties"), k)))
+		if s, ok := props.get(k).(*jobj); ok && ic.defaults && s.has("default") {
+			own = importParen(own) + " & (*" +
+				importDatum(s.get("default"), importPtrAt(at, "default")) + " | any)"
+		}
+		entries = append(entries, importStrLit(k)+"?: "+own)
 	}
 	for _, k := range required {
 		if !props.has(k) {
@@ -1211,10 +1317,18 @@ func (ic *importCtx) stringBranch(o *jobj, ptr string) string {
 			parts = append(parts, re)
 		}
 	}
-	if 0 == len(parts) {
-		return ""
+	content := importRiderOf(o, ptr, true)
+	branch := ""
+	if 0 < len(parts) {
+		branch = importBoth(append([]string{"empty()"}, parts...))
 	}
-	return importBoth(append([]string{"empty()"}, parts...))
+	if "" == content {
+		return branch
+	}
+	if "" == branch {
+		branch = "empty()"
+	}
+	return "meta(" + branch + ", " + content + ")"
 }
 
 // kinds is the kind split (design section 2): each keyword applies to
@@ -1698,18 +1812,14 @@ func (ic *importCtx) I(node any, ptr string) string {
 		refuseSchema(ptr, "a schema must be an object or a boolean")
 	}
 	for _, k := range o.keys {
-		at := importPtrAt(ptr, k)
-		switch {
-		case importAnnotation[k]:
-			ic.lose(at, k, "an annotation; it is dropped, and what the "+
-				"import admits is unchanged")
-		case importLater[k]:
-			ic.lose(at, k, "not carried yet, so it is DROPPED and the import "+
-				"admits instances the schema refuses")
-		case !importCarried[k]:
-			ic.lose(at, k, "not a 2020-12 keyword; it is ignored, as 2020-12 "+
-				"ignores it")
+		if importLater[k] {
+			ic.lose(importPtrAt(ptr, k), k, "not carried yet, so it is DROPPED and "+
+				"the import admits instances the schema refuses")
 		}
+	}
+	dep, isFlag := o.get("deprecated").(bool)
+	if o.has("deprecated") && !isFlag {
+		refuseSchema(importPtrAt(ptr, "deprecated"), "deprecated must be a boolean")
 	}
 	if o.has("$schema") && jsonSchemaDraft != o.get("$schema") {
 		ic.lose(importPtrAt(ptr, "$schema"), "$schema", "the import reads "+
@@ -1767,14 +1877,36 @@ func (ic *importCtx) I(node any, ptr string) string {
 		parts = append(parts, ic.conditional(o, ptr))
 	}
 	parts = append(parts, ic.dependencies(o, ptr)...)
-	return importMeetOrNil(parts)
+	src := importMeetOrNil(parts)
+	if rec := importRiderOf(o, ptr, false); "" != rec {
+		src = "meta(" + src + ", " + rec + ")"
+	}
+	if dep {
+		if rec, ok := importDeprecRecord(o); ok {
+			return "deprecate(" + src + ", " + rec + ")"
+		}
+		src = "deprecate(" + src + ")"
+	}
+	return src
+}
+
+// JSONSchemaImportOptions are the import's options: Defaults also makes
+// a property's default its preference, where the schema does not
+// require the property and the property's own schema admits it.
+type JSONSchemaImportOptions struct {
+	Defaults bool
 }
 
 // ImportJSONSchema reads a JSON Schema document into aontu source,
 // checked by `vet --at $.schema --no-fill --exact-numbers`.
-func (a *Aontu) ImportJSONSchema(text string) (report SchemaImportReport) {
+func (a *Aontu) ImportJSONSchema(text string) SchemaImportReport {
+	return a.ImportJSONSchemaWith(text, JSONSchemaImportOptions{})
+}
+
+// ImportJSONSchemaWith is ImportJSONSchema with every option.
+func (a *Aontu) ImportJSONSchemaWith(text string, opts JSONSchemaImportOptions) (report SchemaImportReport) {
 	ic := &importCtx{aliases: map[string]*string{},
-		anchors: map[string]importAnchor{}}
+		anchors: map[string]importAnchor{}, defaults: opts.Defaults}
 	defer func() {
 		if r := recover(); nil != r {
 			ref, isRefusal := r.(*importRefusal)

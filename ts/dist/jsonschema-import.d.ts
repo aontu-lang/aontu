@@ -11,4 +11,9 @@ export type SchemaImportReport = {
     verdict: 'ok' | 'lossy' | 'error';
     errors?: SchemaImportError[];
 };
-export declare function importJsonSchema(text: string): SchemaImportReport;
+export type SchemaImportOptions = {
+    defaults?: boolean;
+};
+export declare const DEPRECATE_KEY = "x-aontu-deprecate";
+export declare function isKeyword(k: string): boolean;
+export declare function importJsonSchema(text: string, options?: SchemaImportOptions): SchemaImportReport;

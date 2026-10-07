@@ -19,6 +19,7 @@ import { sealChild } from './SealVal'
 import {
   propagateMarks,
   canonRiders,
+  bareTop,
   walk,
   explainOpen,
   ec,
@@ -277,9 +278,9 @@ class MapVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  bareTop(key_spread_cj) && child.done &&
+                    undefined === keyctx.prov ? child :
+                    bareTop(child) && key_spread_cj.done ? key_spread_cj :
                       holding(keyctx, opt, te, 'KEY:' + key, (c) =>
                         unite(c, child, key_spread_cj, 'map-own'))
 
@@ -340,7 +341,7 @@ class MapVal extends BagVal {
                 ? holding(peerctx, opt, undefined, '', (c) =>
                   unite(c, peerchild, TOP, 'map-peer-only'))
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-              child.isTop && peerchild.done ? peerchild :
+              bareTop(child) && peerchild.done ? peerchild :
                 child.isNil ? child :
                   peerchild.isNil ? peerchild :
                     holding(peerctx, opt, te, 'CHD', (c) =>

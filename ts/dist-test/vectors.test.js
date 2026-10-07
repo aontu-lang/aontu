@@ -194,9 +194,8 @@ function suiteProblems(root, ledger) {
         for (const group of spans(text).items) {
             const report = (0, aontu_1.importJsonSchema)(at(group, 'schema'));
             const account = 'error' === report.verdict ? report.errors[0].code :
-                [...new Set(report.lossy
-                        .filter((l) => !l.reason.startsWith('an annotation'))
-                        .map((l) => l.construct))].sort().join(',');
+                [...new Set(report.lossy.map((l) => l.construct))].sort().join(',') ||
+                    '-';
             for (const t of group.kv.get('tests').items) {
                 const key = [file, JSON.parse(at(group, 'description')),
                     JSON.parse(at(t, 'description'))].join('\t');
@@ -236,10 +235,120 @@ function suiteProblems(root, ledger) {
     }
     return problems;
 }
+// A case the suite marks for other releases only is not this dialect's
+// to answer (the suite's README, "compatibility").
+function for2020(compat) {
+    return undefined === compat || compat.split(',').every((c) => {
+        const n = Number(c.replace(/^<?=/, ''));
+        return c.startsWith('<=') ? 2020 <= n : c.startsWith('=') ? 2020 === n :
+            n <= 2020;
+    });
+}
+const META = ['title', 'description', 'default', 'examples', 'readOnly',
+    'writeOnly', 'format', 'contentEncoding', 'contentMediaType',
+    'contentSchema'];
+// The values a location collects for a keyword, read off the riders the
+// meet leaves there, as JSON; an unknown keyword's values ride `x`.
+function collected(node, keyword) {
+    const json = (m) => (0, aontu_1.exactJSON)(sortKeys(m.gen(new aontu_1.Aontu({
+        exactNumbers: true,
+    }).ctx({ collect: true }))));
+    const meta = node?.meta ?? {};
+    const vals = 'deprecated' === keyword ?
+        (null == node?.deprecation ? [] : ['true']) :
+        META.includes(keyword) ? (meta[keyword] ?? []).map(json) :
+            (meta.x ?? []).filter((m) => Object.prototype.hasOwnProperty.call(m.peg, keyword))
+                .map((m) => json(m.peg[keyword]));
+    return [...new Set(vals)].sort();
+}
+// A key still optional after the meet is one the instance does not have,
+// and a container held beside a check is reached through it.
+function pointerAt(node, pointer) {
+    for (const seg of '' === pointer ? [] : pointer.slice(1).split('/')) {
+        const k = seg.replace(/~1/g, '/').replace(/~0/g, '~');
+        if (true === node?.isConjunct) {
+            node = node.peg.find((t) => true === t.isMap || true === t.isList);
+        }
+        node = true === node?.isList ||
+            (true === node?.isMap && !node.optionalKeys.includes(k)) ?
+            node.peg[k] : undefined;
+    }
+    return node;
+}
+// The suite's annotations/ (its README): the values each assertion lists
+// for a keyword at an instance location must be what the riders there
+// hold once the instance meets the schema, compared as a set and not by
+// the schema location that gave each (G12 design, section 16).
+function annotationProblems(root, ledger) {
+    const problems = [];
+    const seen = new Set();
+    for (const file of jsonFiles(root)) {
+        const text = Fs.readFileSync(Path.join(root, file), 'utf8');
+        const at = (s, k) => text.slice(s.kv.get(k).s, s.kv.get(k).e);
+        for (const kase of spans(text).kv.get('suite').items) {
+            if (!for2020(kase.kv.has('compatibility') ?
+                JSON.parse(at(kase, 'compatibility')) : undefined)) {
+                continue;
+            }
+            const report = (0, aontu_1.importJsonSchema)(at(kase, 'schema'));
+            const account = 'error' === report.verdict ? report.errors[0].code :
+                [...new Set(report.lossy.map((l) => l.construct))].sort().join(',') ||
+                    '-';
+            kase.kv.get('tests').items.forEach((t, n) => {
+                let node = undefined;
+                try {
+                    node = 'error' === report.verdict ? undefined :
+                        new aontu_1.Aontu({ exactNumbers: true }).unify(report.source +
+                            '\ninstance: $.schema\ninstance: ' + at(t, 'instance') + '\n', { collect: true }).peg.instance;
+                }
+                catch { }
+                for (const a of t.kv.get('assertions').items) {
+                    const location = JSON.parse(at(a, 'location'));
+                    const keyword = JSON.parse(at(a, 'keyword'));
+                    const key = [file, JSON.parse(at(kase, 'description')), n + 1,
+                        location, keyword].join('\t');
+                    Assert.ok(!seen.has(key), 'an assertion named twice: ' + key);
+                    seen.add(key);
+                    const want = [...new Set([...a.kv.get('expected').kv.values()]
+                            .map((e) => (0, aontu_1.exactJSON)(sortKeys(JSON.parse(text.slice(e.s, e.e))))))]
+                        .sort();
+                    const honoured = JSON.stringify(want) ===
+                        JSON.stringify(collected(pointerAt(node, location), keyword));
+                    const listed = ledger.lines.get(key);
+                    if (null == listed && !honoured) {
+                        problems.push('answers against the suite and is not listed: ' +
+                            key + ' (' + account + ')');
+                    }
+                    else if (null != listed && honoured) {
+                        problems.push('listed, but answers as the suite says: ' + key);
+                    }
+                    else if (null != listed && listed[0] !== account) {
+                        problems.push('listed for ' + listed[0] + ', where the import ' +
+                            'says ' + account + ': ' + key);
+                    }
+                }
+            });
+        }
+    }
+    for (const key of ledger.lines.keys()) {
+        if (!seen.has(key)) {
+            problems.push('listed, but names no assertion: ' + key);
+        }
+    }
+    if (ledger.bound < ledger.lines.size) {
+        problems.push(ledger.lines.size + ' lines, past the bound of ' + ledger.bound);
+    }
+    return problems;
+}
 (0, node_test_1.describe)('vectors', () => {
     (0, node_test_1.test)('json-schema-test-suite', () => {
         const dir = Path.join(VECTORS, 'jsonschema');
         const problems = suiteProblems(Path.join(dir, 'tests'), readLedger(Path.join(dir, 'skips.tsv'), 3));
+        Assert.deepStrictEqual(problems, []);
+    });
+    (0, node_test_1.test)('json-schema-test-suite-annotations', () => {
+        const dir = Path.join(VECTORS, 'jsonschema');
+        const problems = annotationProblems(Path.join(dir, 'annotations', 'tests'), readLedger(Path.join(dir, 'annotation-skips.tsv'), 5));
         Assert.deepStrictEqual(problems, []);
     });
     (0, node_test_1.test)('ajv-extras', () => {

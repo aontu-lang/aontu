@@ -730,17 +730,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	findings = append(findings, lintFindings...)
 
 	for _, d := range collectDeprecatedVals(unified) {
-		rec := d.v.deprecRec()
-		msg := "deprecated"
-		if m, ok := rec["msg"]; ok {
-			msg += ": " + m
-		}
-		if u, ok := rec["use"]; ok {
-			msg += " (use " + u + ")"
-		}
-		if sv, ok := rec["since"]; ok {
-			msg += " (since " + sv + ")"
-		}
+		msg := deprecationMessage(d.v.deprecRec())
 		site := siteOf(d.v, prov, sources)
 		findings = append(findings, VetFinding{
 			Code:     "deprecated",

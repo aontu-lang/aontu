@@ -5,6 +5,7 @@ exports.hcanon = hcanon;
 exports.canonHash = canonHash;
 const node_crypto_1 = require("node:crypto");
 const keyorder_1 = require("./keyorder");
+const utility_1 = require("./utility");
 function render(v, inh) {
     if (true !== v?.isVal) {
         return String(v);
@@ -61,16 +62,10 @@ function render(v, inh) {
     if (mhide && !inh.hide) {
         s = 'hide(' + s + ')';
     }
-    // The deprecation record rides outermost, as canonRiders
-    // renders it (the wrappers are all reparseable calls, so order only
-    // has to be FIXED, and this matches the canon the G3 rows pinned).
-    const d = v.deprecation;
-    if (null != d) {
-        const dkeys = Object.keys(d).sort();
-        const rec = dkeys.map((k) => JSON.stringify(k) + ':' + JSON.stringify(d[k])).join(',');
-        s = 'deprecate(' + s + ('' === rec ? '' : ',{' + rec + '}') + ')';
-    }
-    return s;
+    // The riders ride outermost, as canonRiders renders them (the
+    // wrappers are all reparseable calls, so order only has to be FIXED,
+    // and this matches the canon the G3 rows pinned).
+    return (0, utility_1.wrapRiders)(s, v);
 }
 function junctionText(v, sym, inner) {
     return v.peg.map((m) => true === m?.isJunction && 1 < m.peg.length

@@ -57,6 +57,7 @@ const TypeFuncVal_1 = require("./val/TypeFuncVal");
 const HideFuncVal_1 = require("./val/HideFuncVal");
 const AbnfFuncVal_1 = require("./val/AbnfFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
+const MetaFuncVal_1 = require("./val/MetaFuncVal");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
@@ -654,6 +655,8 @@ help isolate the syntax error.`,
         // record rides the result (Val.deprecation) and canon renders the
         // call back (canonRiders).
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
+        // G12 phase 9: the annotation rider, on deprecate()'s precedent.
+        meta: MetaFuncVal_1.MetaFuncVal,
         refer: ReferFuncVal_1.ReferFuncVal,
         rel: ReferFuncVal_1.RelFuncVal,
         // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph

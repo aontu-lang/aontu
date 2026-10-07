@@ -1,0 +1,10 @@
+# 101 (found 2026-10-07 running the annotations suite, G12 phase 9): a
+# rider on a disjunction's member is held, and the hash form shows it,
+# but the canon writes the member without it, so a canon read back
+# loses the annotation. deprecate() has done the same since G3. Both
+# ports agree, so this is not a parity defect.
+#
+# expected: {"a":meta(1,{"title":"T"})|2}
+# actual:   {"a":1|2}
+# run: node ../../ts/bin/aontu.js --canon disjunct-member-canon.aontu
+a: meta(1, {title: "T"}) | 2

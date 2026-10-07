@@ -46,7 +46,8 @@ Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [--exact-numbers] [options]
                         <file>
-       aontu jsonschema import [--strict] [--format text|json] <schema.json>
+       aontu jsonschema import [--strict] [--defaults] [--format text|json]
+                               <schema.json>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1390,8 +1391,12 @@ and one with no `e` whose condition only asks for a key becomes
 `minItems`/`maxItems` on a list and `minProperties`/`maxProperties`
 on a map, with an open or fractional bound moved to the whole count
 inside it and an integer exclusion as `not`; `unique()` becomes
-`uniqueItems`; an optional key is simply absent from `required`; and
-the written `nil` becomes `false`. A spread is
+`uniqueItems`; `meta()`'s records become the annotations they hold,
+each further value of a key in a schema of annotations alone under
+`allOf`, and `x` the keywords it holds, though one 2020-12 defines is
+reported and dropped; `deprecate()` becomes `deprecated: true` with its
+record beside it in `x-aontu-deprecate`; an optional key is simply
+absent from `required`; and the written `nil` becomes `false`. A spread is
 `additionalProperties: <template>`, which is what a spread means, and a
 template held unevaluated exports as the schema its terms meet to. A
 spread that tests each key with `match(key(0), …)` is the keyword
@@ -1506,7 +1511,7 @@ Read a **JSON Schema** (draft 2020-12) into aontu source, and say what
 could not be carried.
 
 ```
-aontu jsonschema import [--strict] [--format text|json] <schema.json>
+aontu jsonschema import [--strict] [--defaults] [--format text|json] <schema.json>
 ```
 
 This is the bridge the other way. A schema someone else publishes
@@ -1639,16 +1644,25 @@ and `80.5` by the `multiple(1)` that `"integer"` became.
   one, and `(a|b)*` the class `[ab]*`. A pattern `re()` still cannot
   carry this way, one with a lookaround or with backreferences, is a
   loss.
-- The import writes no default, but a `const` or `enum` literal
-  generates on its own. `--no-fill` makes `vet` ask whether the data
-  already *is* an instance rather than whether it can be filled into
-  one.
+- **Annotations ride `meta()`** on the schema they sit in, and change
+  nothing admitted: `title`, `description`, `$comment` (as `comment`),
+  `default`, `examples`, `readOnly`, `writeOnly` and `format`.
+  `contentEncoding`, `contentMediaType` and `contentSchema` ride the
+  string branch, `contentSchema` only beside a media type. A keyword
+  2020-12 does not define rides under `x`, and `deprecated: true` is
+  `deprecate()`, with the record the export writes in
+  `x-aontu-deprecate` read back.
+- **A `default` is an annotation, not a preference**, so the import
+  fills nothing in, though a `const` or `enum` literal generates on its
+  own. `--defaults` also makes a property's default its preference,
+  where the schema does not require the property and the property's
+  own schema admits the default. `--no-fill` makes `vet` ask whether
+  the data already *is* an instance rather than whether it can be
+  filled into one.
 - **Losses** are on stderr, one per line. A keyword the import does
   not carry yet (such as `unevaluatedItems`) is dropped, so the import
-  admits instances the schema refuses; an annotation (`title`,
-  `description`, `format`) is dropped and changes nothing admitted; a
-  keyword 2020-12 does not define is ignored, as 2020-12 ignores it.
-  Under `--strict` any loss exits 1.
+  admits instances the schema refuses. Under `--strict` any loss exits
+  1.
 
 Write a `release.schema.json` that uses one of each:
 
@@ -1667,16 +1681,64 @@ Write a `release.schema.json` that uses one of each:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict release.schema.json
-schema: hide({ version?:empty() tags?:list })
+schema: hide(meta({ version?:meta(empty(), { format:"semver" }) tags?:list }, {
+  title: "Release"
+}))
 lossy: #/properties/tags/unevaluatedItems unevaluatedItems: not carried yet, so it is DROPPED and the import admits instances the schema refuses
-lossy: #/properties/version/format format: an annotation; it is dropped, and what the import admits is unchanged
-lossy: #/title title: an annotation; it is dropped, and what the import admits is unchanged
 vet data against it with: aontu vet --at '$.schema' --no-fill --exact-numbers <file.aontu> <data>
 $ echo $?
 1
 ```
 
-Without `--strict` the same import exits 0.
+Without `--strict` the same import exits 0. With `--defaults`, a
+default the schema does not require fills in. Write a
+`server.schema.json`:
+
+<!-- test: file server.schema.json -->
+```json
+{
+  "type": "object",
+  "properties": {
+    "port": {"type": "integer", "default": 8080},
+    "host": {"type": "string", "default": "localhost"}
+  },
+  "required": ["host"]
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --defaults server.schema.json
+schema: hide({
+  port?: (meta(number & multiple(1), { default:8080 })) & (*8080|any)
+  host: meta(empty(), { default:"localhost" })
+})
+```
+
+`host` is required, so its default stays an annotation. Save the source
+as `server.aontu`, with an instance beside it:
+
+<!-- test: file server.aontu -->
+```aontu
+schema: hide({
+  port?: (meta(number & multiple(1), { default:8080 })) & (*8080|any)
+  host: meta(empty(), { default:"localhost" })
+})
+
+server: $.schema
+server: host: "example.org"
+```
+
+<!-- test: run -->
+```sh
+$ aontu server.aontu
+{
+  "server": {
+    "host": "example.org",
+    "port": 8080
+  }
+}
+```
 
 - **A schema the import cannot read is refused** with exit 4 and a
   finding at the JSON Pointer of the fault: `jsonschema_schema` when
@@ -1686,8 +1748,10 @@ Without `--strict` the same import exits 0.
   names two schemas. Nothing is written to stdout on a refusal.
 - `--format json` answers `{aontu, errors, lossy, source, verdict}` on
   stdout, with `errors` only on a refusal.
-- The library form is `importJsonSchema(text)` in TypeScript and
-  `(*Aontu).ImportJSONSchema(text)` in Go, returning the identical
+- The library form is `importJsonSchema(text, {defaults})` in
+  TypeScript and `(*Aontu).ImportJSONSchema(text)` in Go, with
+  `ImportJSONSchemaWith(text, JSONSchemaImportOptions{Defaults})` the
+  same import with its option. Each returns the identical
   `{source, lossy, verdict}` record (plus `errors` on a refusal).
 
 ### `aontu model get`

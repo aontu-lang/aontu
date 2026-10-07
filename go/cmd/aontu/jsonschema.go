@@ -15,7 +15,8 @@ import (
 
 const jsonSchemaHelp = "aontu jsonschema [--at <path>] [--strict] [--exact-numbers] <file> (try --help)"
 
-const jsonSchemaImportHelp = "aontu jsonschema import [--strict] [--format text|json] <schema.json> (try --help)"
+const jsonSchemaImportHelp = "aontu jsonschema import [--strict] [--defaults] [--format text|json] " +
+	"<schema.json> (try --help)"
 
 // runJsonSchemaImport writes the aontu source on stdout, and on stderr
 // what it could not carry and how to vet data against it.
@@ -23,6 +24,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	var files []string
 	format := "text"
 	strict := false
+	defaults := false
 
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
@@ -39,6 +41,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			format = argv[i]
 		case "--strict" == arg:
 			strict = true
+		case "--defaults" == arg:
+			defaults = true
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema import option "+arg+" (try --help)\n")
@@ -61,7 +65,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	report := aontu.New().ImportJSONSchema(string(src))
+	report := aontu.New().ImportJSONSchemaWith(string(src),
+		aontu.JSONSchemaImportOptions{Defaults: defaults})
 	if "json" == format {
 		var buf bytes.Buffer
 		enc := json.NewEncoder(&buf)

@@ -77,6 +77,7 @@ capability decision is the phase rows it governed in
 | [ADR-046](#adr-046--a-band-b-check-asks-whether-the-value-is-already-admitted) | A Band B check asks whether the value is already admitted | Accepted |
 | [ADR-047](#adr-047--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
 | [ADR-048](#adr-048--a-key-still-optional-is-absent-when-its-value-cannot-be-made) | A key still optional is absent when its value cannot be made | Accepted |
+| [ADR-049](#adr-049--an-annotation-rides-its-value-and-two-riders-meet-as-their-union) | An annotation rides its value, and two riders meet as their union | Accepted |
 
 ---
 
@@ -4800,3 +4801,57 @@ data holds.
   and after this landed, and no answer moved.
 - Pinned in both ports by rows in `test/spec/optional.tsv`,
   `test/spec/vet.tsv` and `test/spec/jsonschema-import.tsv`.
+
+## ADR-049 — An annotation rides its value, and two riders meet as their union
+
+**Date:** 2026-10-07
+**Status:** Accepted
+
+### Context
+
+`deprecate()` was the one rider: a record carried beside a value
+through meets, reference copies and spread applications, never
+changing what the value admits. It held one record, and when two met
+the record that arrived first won, so a meet of two deprecations kept
+half of what they said, and which half depended on the order.
+
+JSON Schema's annotations ride the same way and aggregate the other
+way. `title`, `description`, `default`, `examples` and the rest never
+assert, and a location collects every value each applicator that
+passes gives it: `allOf: [{title: "A"}, {title: "B"}]` gives both
+titles. The import has to carry them, and the export has to write them
+back, without losing one to the order of a meet.
+
+### Decision
+
+**A rider is value-transparent, and two riders meet as the key-wise
+union of their value sets.** Each key holds every value either side
+gave it, deduplicated and sorted by canon, so the meet commutes,
+repeats to itself, is monotone and never refuses. `meta(v, ...r)` is a
+second rider on this rule, holding JSON Schema's annotations in a
+fixed vocabulary, and `deprecate()`'s record moves to it. A rider rides
+every meet: one whose result is `any` and one held beside a check on a
+container carry it as any other does. The canon writes the rider
+outside the value, one record for each layer of values, and the hash
+covers it.
+
+### Consequences
+
+- Two deprecations on one value keep every message, replacement and
+  version, and `vet`'s warning names them all.
+- No answer to "is this admitted" depends on a rider, so a rider can
+  never make a document refuse or pass.
+- A rider inside a check's argument, a `nof` or `when` alternative or
+  a `contains` schema, does not reach the value: which alternatives
+  passed is the fact evaluated coverage reads, and the rider of a
+  branch that passed waits for it.
+- A value without a rider pays one null check in a meet; the union
+  costs the keys and values of the riders that meet.
+- Every use case, repro and bundled model, 357 files, was evaluated
+  before and after this landed, generated and in canon, and no answer
+  moved; the repro that does not terminate (`use-cases/BUGS.md` §57)
+  was stopped alike in both.
+- Pinned in both ports by rows in `test/spec/meta.tsv`,
+  `test/spec/deprecate.tsv`, `test/spec/jsonschema-import.tsv` and
+  `test/spec/jsonschema.tsv`, and by the JSON-Schema-Test-Suite's
+  `annotations/` directory.
