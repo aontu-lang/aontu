@@ -519,7 +519,10 @@ func TestVacuitySignals(t *testing.T) {
 // Mirrors bare-command-exact-numbers in ts/test/cli.test.ts.
 func TestRunExactNumbers(t *testing.T) {
 	const src = "x: 12345678901234567890.5\ny: 1.0\nz: 0.1\n"
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), `a\b`)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	file := filepath.Join(dir, "m.aontu")
 	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -551,11 +554,12 @@ func TestRunExactNumbers(t *testing.T) {
 	out.Reset()
 	session := ":canon\ny: 1.0 & integer\n:load " + file + "\n:get $.x\n:why $.z\n:json\n:get $.x\n:quit\n"
 	repl("json", true, trustArg{}, true, strings.NewReader(session), &out)
+	why, _ := json.Marshal(map[string]any{"ok": true, "out": "$.z = 0d0.1\n  1. 0d0.1  " + file + ":3:4"})
 	for _, want := range []string{
 		`{"ok":true,"out":"{\"y\":1}"}`,
 		`{\"x\":0d12345678901234567890.5,\"y\":1,\"z\":0d0.1}"}`,
 		`{"ok":true,"out":"0d12345678901234567890.5"}`,
-		`{"ok":true,"out":"$.z = 0d0.1\n  1. 0d0.1  ` + file + `:3:4"}`,
+		string(why),
 		`{"ok":true,"out":"12345678901234567890.5"}`,
 	} {
 		if !strings.Contains(out.String(), want) {
