@@ -12,6 +12,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const provenance_1 = require("../provenance");
+const rider_1 = require("../rider");
 class ListVal extends BagVal_1.BagVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -97,7 +98,8 @@ class ListVal extends BagVal_1.BagVal {
                     oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
                 else {
-                    const key_spread_cj = spread_cj.spreadClone(keyctx);
+                    // No spread: the shared top, which nothing writes on.
+                    const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx);
                     // The spread mark the provenance recorder reads (G7 phase 3),
                     // as in MapVal: this is where a template becomes a per-element
                     // contribution. Instrumented runs only.
@@ -108,9 +110,9 @@ class ListVal extends BagVal_1.BagVal {
                     oval =
                         child.isNil ? child :
                             key_spread_cj.isNil ? key_spread_cj :
-                                key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                                    ? child :
-                                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                                key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
+                                    && undefined === keyctx.prov ? child :
+                                    child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
                                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, key_spread_cj, 'list-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
@@ -140,7 +142,7 @@ class ListVal extends BagVal_1.BagVal {
                     }
                     let oval = out.peg[peerkey] =
                         undefined === child ? peerchild :
-                            child.isTop && peerchild.done ? peerchild :
+                            child.isTop && !(0, rider_1.rides)(child) && peerchild.done ? peerchild :
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'list-peer');

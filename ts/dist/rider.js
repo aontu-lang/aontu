@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.unionRecords = unionRecords;
 exports.recordLayers = recordLayers;
 exports.riderText = riderText;
+exports.rides = rides;
 const keyorder_1 = require("./keyorder");
 function unionRecords(records, key) {
     const sets = {};
@@ -26,6 +27,9 @@ function unionRecords(records, key) {
         out[k] = [...set.keys()].sort(keyorder_1.cmpCodePoint).map((s) => set.get(s));
     }
     return out;
+}
+function rides(v) {
+    return null != v?.deprecation || null != v?.meta;
 }
 // The records a rider is written as: the first holds each key's first
 // value, the second each key's second, so a reparse unions them back.
@@ -59,5 +63,5 @@ function riderText(s, v) {
         s = 'meta(' + [s, ...recordLayers(m).map((l) => layerText(l, (x) => x.canon))].join(',') + ')';
     }
     return s;
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 //# sourceMappingURL=rider.js.map

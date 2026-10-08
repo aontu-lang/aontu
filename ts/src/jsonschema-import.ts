@@ -677,8 +677,11 @@ const DRAFT = 'https://json-schema.org/draft/2020-12/schema'
 
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array']
 
+// The content keywords annotate a string only, so they ride its branch.
+const CONTENT = ['contentEncoding', 'contentMediaType', 'contentSchema']
+
 const SCOPED: Record<string, string[]> = {
-  string: ['minLength', 'maxLength', 'pattern'],
+  string: ['minLength', 'maxLength', 'pattern', 'contentEncoding', 'contentMediaType'],
   number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
   object: ['properties', 'required', 'additionalProperties', 'patternProperties',
     'propertyNames', 'minProperties', 'maxProperties'],
@@ -1363,7 +1366,8 @@ function annotate(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr)
       wrongType(ctx, at, en.key, KIND_TEXT[ann[1]], en.val)
       continue
     }
-    if (undefined === ann && (CARRIED.includes(en.key) || undefined !== LATER[en.key])) {
+    if ((undefined === ann && (CARRIED.includes(en.key) || undefined !== LATER[en.key])) ||
+      CONTENT.includes(en.key)) {
       continue
     }
     const val = data(ctx, at, en.key, en.val)
@@ -1377,6 +1381,23 @@ function annotate(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr)
   const dep = deprecation(ctx, node, ptr, e)
   return 0 === entries.length ? dep : call('meta', dep, { k: 'map', spreads: [],
     entries: entries.sort((a, b) => cmpCodePoint(a.key, b.key)) })
+}
+
+
+// The content keywords' record on a string branch: `contentSchema` says
+// nothing without `contentMediaType`.
+function content(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr): Expr {
+  const media = entry(node, 'contentMediaType')
+  const entries: MapEntry[] = []
+  for (const key of CONTENT) {
+    const v = entry(node, key)
+    const val = null == v || ('contentSchema' === key && null == media) ? undefined :
+      data(ctx, child(ptr, key), key, v)
+    if (undefined !== val) {
+      entries.push({ key, optional: false, val })
+    }
+  }
+  return 0 === entries.length ? e : call('meta', e, { k: 'map', spreads: [], entries })
 }
 
 
@@ -1535,7 +1556,7 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
         }
       }
     }
-    return and(exclude(parts))
+    return content(ctx, node, ptr, and(exclude(parts)))
   }
 
   if ('object' === kind) {

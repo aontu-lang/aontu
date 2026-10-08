@@ -15,6 +15,7 @@ const NilVal_1 = require("./NilVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const keyorder_1 = require("../keyorder");
+const rider_1 = require("../rider");
 const aliasname_1 = require("../aliasname");
 const provenance_1 = require("../provenance");
 function spreadSnapKey(cj) {
@@ -187,7 +188,8 @@ class MapVal extends BagVal_1.BagVal {
                     oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
                 else {
-                    const key_spread_cj = spread_cj.spreadClone(keyctx);
+                    // No spread: the shared top, which nothing writes on.
+                    const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx);
                     // The one place a spread is APPLIED, so the one place that
                     // knows a contribution came from a template rather than
                     // from the key itself (G7 phase 3). Only when someone is
@@ -199,9 +201,9 @@ class MapVal extends BagVal_1.BagVal {
                     oval =
                         child.isNil ? child :
                             key_spread_cj.isNil ? key_spread_cj :
-                                key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                                    ? child :
-                                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                                key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
+                                    && undefined === keyctx.prov ? child :
+                                    child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
                                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
@@ -249,7 +251,7 @@ class MapVal extends BagVal_1.BagVal {
                             ? (undefined !== peerctx.prov && peerchild.isGenable
                                 ? (0, unify_1.unite)(peerctx, peerchild, TOP, 'map-peer-only')
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-                            child.isTop && peerchild.done ? peerchild :
+                            child.isTop && !(0, rider_1.rides)(child) && peerchild.done ? peerchild :
                                 child.isNil ? (literalNilRefuses(child, peerchild) ?
                                     (0, err_1.makeNilErr)(peerctx, 'literal_nil', child, peerchild) : child) :
                                     peerchild.isNil ? (literalNilRefuses(peerchild, child) ?

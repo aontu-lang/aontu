@@ -532,8 +532,10 @@ const CARRIED = [
 ];
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
+// The content keywords annotate a string only, so they ride its branch.
+const CONTENT = ['contentEncoding', 'contentMediaType', 'contentSchema'];
 const SCOPED = {
-    string: ['minLength', 'maxLength', 'pattern'],
+    string: ['minLength', 'maxLength', 'pattern', 'contentEncoding', 'contentMediaType'],
     number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
     object: ['properties', 'required', 'additionalProperties', 'patternProperties',
         'propertyNames', 'minProperties', 'maxProperties'],
@@ -1129,7 +1131,8 @@ function annotate(ctx, node, ptr, e) {
             wrongType(ctx, at, en.key, KIND_TEXT[ann[1]], en.val);
             continue;
         }
-        if (undefined === ann && (CARRIED.includes(en.key) || undefined !== LATER[en.key])) {
+        if ((undefined === ann && (CARRIED.includes(en.key) || undefined !== LATER[en.key])) ||
+            CONTENT.includes(en.key)) {
             continue;
         }
         const val = data(ctx, at, en.key, en.val);
@@ -1143,6 +1146,21 @@ function annotate(ctx, node, ptr, e) {
     const dep = deprecation(ctx, node, ptr, e);
     return 0 === entries.length ? dep : call('meta', dep, { k: 'map', spreads: [],
         entries: entries.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.key, b.key)) });
+}
+// The content keywords' record on a string branch: `contentSchema` says
+// nothing without `contentMediaType`.
+function content(ctx, node, ptr, e) {
+    const media = entry(node, 'contentMediaType');
+    const entries = [];
+    for (const key of CONTENT) {
+        const v = entry(node, key);
+        const val = null == v || ('contentSchema' === key && null == media) ? undefined :
+            data(ctx, child(ptr, key), key, v);
+        if (undefined !== val) {
+            entries.push({ key, optional: false, val });
+        }
+    }
+    return 0 === entries.length ? e : call('meta', e, { k: 'map', spreads: [], entries });
 }
 // `deprecated: true`, with x-aontu-deprecate's fields as its record; a
 // field holding several values is a deprecate() for each.
@@ -1278,7 +1296,7 @@ function branch(ctx, node, ptr, kind, integral, excluded) {
                 }
             }
         }
-        return and(exclude(parts));
+        return content(ctx, node, ptr, and(exclude(parts)));
     }
     if ('object' === kind) {
         const map = objectBranch(ctx, node, ptr);

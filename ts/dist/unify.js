@@ -38,6 +38,39 @@ function ride(out, a, b) {
         out.meta = (0, rider_1.unionRecords)([out.meta, a?.meta, b?.meta], (v) => v.canon);
     }
 }
+// The meet's riders go to its result, a top's on a fresh top where they
+// add to its own, since an operand top may be a value written elsewhere.
+function rideOn(ctx, out, a, b) {
+    if (!out.isTop) {
+        ride(out, a, b);
+        return out;
+    }
+    if (!(0, rider_1.rides)(a) && !(0, rider_1.rides)(b)) {
+        return out;
+    }
+    const t = out.clone(ctx);
+    ride(t, a, b);
+    return (0, rider_1.riderText)('', t) === (0, rider_1.riderText)('', out) ? out : t;
+}
+function drives(v) {
+    return v.isConjunct
+        || v.isDisjunct
+        || v.isRef
+        || v.isPref
+        || v.isVar
+        || v.isFunc
+        || v.isExpect
+        || v.isRefer
+        // An op DRIVES while an operand has not decided (ADR-037).
+        || (v.isOp && ((0, PlaceVal_1.hasPlace)(v) || v.holdsStaged))
+        // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
+        // beside -- a container, a rel, a scalar -- and none of them know
+        // the atom; the atom knows to residuate.
+        || v.isGraphAtom
+        // The recursive residual DRIVES for the same reason: its peer is the
+        // concrete structure it expands against.
+        || v.isRecurse;
+}
 const unite = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
@@ -48,8 +81,7 @@ const unite = (ctx, a, b, whence) => {
             if (a.done && b.done) {
                 if (a.id === b.id) {
                     // The riders survive the fast path (G3, G12).
-                    ride(a, a, b);
-                    return a;
+                    return rideOn(ctx, a, a, b);
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
                     && a.emptyOk === b.emptyOk
@@ -127,31 +159,15 @@ const unite = (ctx, a, b, whence) => {
                 unified = true;
                 why = 'a*';
             }
-            else if (b.isConjunct
-                || b.isDisjunct
-                || b.isRef
-                || b.isPref
-                || b.isVar
-                || b.isFunc
-                || b.isExpect
-                || b.isRefer
-                // An op DRIVES while an operand has not decided (ADR-037).
-                || (b.isOp && ((0, PlaceVal_1.hasPlace)(b) || b.holdsStaged))
-                // A graph atom DRIVES (RELATIONS P2): its peer is the value
-                // it rides beside -- a container, a rel, a scalar -- and none
-                // of them know the atom; the atom knows to residuate.
-                || b.isGraphAtom
-                // The recursive residual DRIVES for the same reason: its peer
-                // is the concrete structure it expands against.
-                || b.isRecurse) {
+            else if (drives(b)) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BW') }) : ctx);
                 unified = true;
                 why = 'bv';
             }
             // These do not know their peers, so they answer from either side.
-            else if (true === b.isConstraintKind
+            else if ((true === b.isConstraintKind
                 || true === b.isEmptyConstraint
-                || true === b.isSeal) {
+                || true === b.isSeal) && !drives(a)) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BK') }) : ctx);
                 unified = true;
                 why = 'bk';
@@ -202,8 +218,8 @@ const unite = (ctx, a, b, whence) => {
     if (undefined !== ctx.prov) {
         ctx.prov.record(ctx.path, a, b, out);
     }
-    if (null != out && true === out.isVal && !out.isTop && !out.isNil) {
-        ride(out, a, b);
+    if (null != out && true === out.isVal && !out.isNil) {
+        out = rideOn(ctx, out, a, b);
     }
     if (undefined !== ctx.reads &&
         null != out && true === out.isVal && !out.isTop && !out.isNil) {

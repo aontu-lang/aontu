@@ -833,8 +833,12 @@ const importDraft = "https://json-schema.org/draft/2020-12/schema"
 
 var importKinds = []string{"null", "boolean", "number", "string", "object", "array"}
 
+// importContent is the content keywords: they annotate a string only, so
+// they ride its branch.
+var importContent = []string{"contentEncoding", "contentMediaType", "contentSchema"}
+
 var importScoped = map[string][]string{
-	"string": {"minLength", "maxLength", "pattern"},
+	"string": {"minLength", "maxLength", "pattern", "contentEncoding", "contentMediaType"},
 	"number": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"object": {"properties", "required", "additionalProperties", "patternProperties",
 		"propertyNames", "minProperties", "maxProperties"},
@@ -1708,7 +1712,8 @@ func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 			ctx.wrongType(at, en.key, importKindText[ann[1]], en.val)
 			continue
 		}
-		if !annotated && (inList(importCarried, en.key) || "" != importLater[en.key]) {
+		if (!annotated && (inList(importCarried, en.key) || "" != importLater[en.key])) ||
+			inList(importContent, en.key) {
 			continue
 		}
 		val, ok := ctx.data(at, en.key, en.val)
@@ -1730,6 +1735,26 @@ func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 	}
 	sort.SliceStable(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
 	return icall("meta", dep, &ixpr{k: "map", entries: entries})
+}
+
+// content is the content keywords' record on a string branch:
+// contentSchema says nothing without contentMediaType.
+func (ctx *importCtx) content(node *jnode, ptr string, e *ixpr) *ixpr {
+	media := jentryOf(node, "contentMediaType")
+	entries := []ientry{}
+	for _, key := range importContent {
+		v := jentryOf(node, key)
+		if nil == v || ("contentSchema" == key && nil == media) {
+			continue
+		}
+		if val, ok := ctx.data(ptrChild(ptr, key), key, v); ok {
+			entries = append(entries, ientry{key: key, val: val})
+		}
+	}
+	if 0 == len(entries) {
+		return e
+	}
+	return icall("meta", e, &ixpr{k: "map", entries: entries})
 }
 
 // deprecation reads `deprecated: true`, with x-aontu-deprecate's fields
@@ -1922,7 +1947,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 				parts = append(parts, re)
 			}
 		}
-		return iand(exclude(parts))
+		return ctx.content(node, ptr, iand(exclude(parts)))
 	case "object":
 		m := ctx.objectBranch(node, ptr)
 		l := counted("minProperties", "maxProperties")

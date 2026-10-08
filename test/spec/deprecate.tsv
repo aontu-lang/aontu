@@ -59,3 +59,9 @@ dep-vet-two-records	vet	p: deprecate(integer, {msg: "a"}) & deprecate(integer, {
 # A conflict on a deprecated value reports the CONFLICT: the nil
 # replaced the value, so there is no deprecated survivor to warn about.
 dep-vet-still-invalid	vet	p:deprecate(integer,{msg:"m"})	p:hello	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.p","severity":"error","sites":[{"col":3,"file":"data","len":5,"role":"data","row":1,"src":"hello","value":"\\"hello\\""},{"col":3,"file":"schema","len":9,"role":"schema","row":1,"src":"deprecate","value":"integer"}]}],"truncated":false,"verdict":"invalid"}
+#
+# Top carries a deprecation as any value does.
+deprecate-canon-top-meet-left	canon	a: any & deprecate(any, {msg: "m"})	{"a":deprecate(any,{"msg":"m"})}
+deprecate-canon-top-meet-two	canon	a: deprecate(any, {msg: "m"}) & deprecate(any, {msg: "n"})	{"a":deprecate(deprecate(any,{"msg":"m"}),{"msg":"n"})}
+deprecate-canon-top-copy-source-unchanged	canon	x: any, y: deprecate($.x, {msg: "m"})	{"x":any,"y":deprecate(any,{"msg":"m"})}
+deprecate-canon-top-member	canon	a: {b: deprecate(any, {msg: "m"})} & {b: 1}	{"a":{"b":deprecate(1,{"msg":"m"})}}

@@ -134,6 +134,29 @@ func ride(out, a, b Val) {
 	}
 }
 
+// rideOn gives the meet's riders to its result. A top takes them on a
+// fresh top, and only where they add to its own, because an operand
+// top may be a value written elsewhere.
+func rideOn(out, a, b Val) Val {
+	if !isTop(out) {
+		ride(out, a, b)
+		return out
+	}
+	if !rides(a) && !rides(b) {
+		return out
+	}
+	t := clonePath(out, out.vpath())
+	ride(t, a, b)
+	if riderText("", t) == riderText("", out) {
+		return out
+	}
+	return t
+}
+
+func rides(v Val) bool {
+	return nil != v && (nil != v.deprecRec() || nil != v.metaRec())
+}
+
 // deprecationMessage is the one-line prose for a deprecation record;
 // records met on one value read as one, each field's values joined.
 func deprecationMessage(rec map[string][]string) string {

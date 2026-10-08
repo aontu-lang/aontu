@@ -188,7 +188,7 @@ function runCorpus(name: string, bound: number, groups: Group[]): void {
 
 // Each ledger may not grow past its bound; the register tightens them.
 test('the-json-schema-test-suite-runs-under-import-and-vet', () =>
-  runCorpus('jsonschema', 180,
+  runCorpus('jsonschema', 178,
     suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12'))))
 
 test('ajvs-extra-tests-run-under-import-and-vet', () =>

@@ -36,6 +36,11 @@ function unionRecords<T>(
 }
 
 
+function rides(v: any): boolean {
+  return null != v?.deprecation || null != v?.meta
+}
+
+
 // The records a rider is written as: the first holds each key's first
 // value, the second each key's second, so a reparse unions them back.
 function recordLayers<T>(rec: RiderRecord<T>): Record<string, T>[] {
@@ -74,11 +79,12 @@ function riderText(s: string, v: any): string {
       layerText(l, (x: any) => x.canon))].join(',') + ')'
   }
   return s
-} /* node:coverage ignore next 7 */
+} /* node:coverage ignore next 8 */
 
 
 export {
   unionRecords,
   recordLayers,
   riderText,
+  rides,
 }

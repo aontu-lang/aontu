@@ -8,6 +8,47 @@ each change affects.
 
 ## Unreleased
 
+### The suite's annotation tests run, and the suite comes from upstream
+
+Both ports, G12 phases 3 and 8. The official JSON-Schema-Test-Suite is
+re-vendored from its repository at commit `5b0ee16`, where it came from
+the copy inside a PyPI package, and its `annotations/` directory runs in
+a harness of its own: each schema is imported, met with its instance,
+and the riders at each asserted location are read. Of the 84 assertions
+42 pass, and the ledger lists the other 42, which ask for a passing
+`anyOf` or `if` branch's annotations, dynamic references or evaluated
+coverage. The re-vendored suite runs 2,337 tests, 1,713 of them passing,
+and its ledger holds 178 rows, each naming the phase it waits on.
+
+The importer writes `contentEncoding`, `contentMediaType` and
+`contentSchema` on the string branch of the kind split, as JSON Schema
+annotates only a string with them, and drops a `contentSchema` written
+without `contentMediaType`, which says nothing alone.
+
+### A titled or deprecated `any` keeps its record in every meet
+
+Both ports, G12 phase 8 (ADR-052).
+
+- Go dropped the record of a top that met another top, so
+  `any & meta(any, {title: "t"})` lost the title, and two records on
+  `any` kept one.
+- TypeScript shared one instance between a top and every copy of it, so
+  `meta`, `deprecate` and `hide` on a copy wrote into the source: after
+  `y: hide($.x)` with `x: any`, `x` was hidden too. A copy of `any` is
+  now its own value, as it is in Go.
+- TypeScript's map and list meets skipped a top member's record when the
+  peer's member had settled, so `{b: meta(any, {title: "t"})} & {b: 1}`
+  lost the title.
+
+### A disjunction keeps the drive against `empty()`, a container kind or a seal
+
+Both ports. `empty()`, `map`, `list` and a seal answer a meet from either
+side, but they cannot distribute over a disjunction or a preference, and
+now they let one drive. A spread's terms meet its peer one at a time, so
+a spread holding a disjunction refused an `empty()` member, and a schema
+with a string property beside two pattern properties, or beside one and
+`additionalProperties`, imported as `nil`.
+
 ### `must` asks the admission trial
 
 Both ports, G12 phase 5, ADR-055. **Breaking for a document that relies

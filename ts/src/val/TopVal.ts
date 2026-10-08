@@ -19,7 +19,8 @@ import {
 } from './Val'
 
 
-// There can be only one.
+// Every top means the same, but each is its own value: a clone is a
+// fresh one, so a mark or rider written on a copy stays on the copy.
 class TopVal extends Val {
   isTop = true
 
@@ -49,10 +50,6 @@ class TopVal extends Val {
   get canon() { return 'any' }
 
   superior(): Val {
-    return this
-  }
-
-  clone(_ctx: AontuContext, _spec?: ValSpec): Val {
     return this
   }
 

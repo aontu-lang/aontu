@@ -213,7 +213,15 @@ import-any-of-a-contains-is-a-count	jsonschema-import	{"anyOf": [{"type": "array
 import-any-of-unique-items-is-a-count	jsonschema-import	{"anyOf": [{"type": "array", "uniqueItems": true}, {"type": "string"}]}	{"aontu":"nof(min(1), [&: any] & unique(), empty())\\n","lossy":[],"verdict":"ok"}
 # Annotations ride the value in a meta() record, deprecated as deprecate(); a default is no preference unless asked.
 import-title-and-description	jsonschema-import	{"type": "string", "title": "T", "description": "D"}	{"aontu":"meta(empty(), { description:\\"D\\" title:\\"T\\" })\\n","lossy":[],"verdict":"ok"}
-import-annotations-all	jsonschema-import	{"$comment": "c", "readOnly": true, "writeOnly": false, "format": "email", "contentMediaType": "text/plain", "contentEncoding": "base64", "contentSchema": {"type": "string"}, "examples": ["a"], "default": "a"}	{"aontu":"meta(any, {\\n  comment: \\"c\\"\\n  contentEncoding: \\"base64\\"\\n  contentMediaType: \\"text/plain\\"\\n  contentSchema: type: \\"string\\"\\n  default: \\"a\\"\\n  examples: [\\"a\\"]\\n  format: \\"email\\"\\n  readOnly: true\\n  writeOnly: false\\n})\\n","lossy":[],"verdict":"ok"}
+import-annotations-all	jsonschema-import	{"$comment": "c", "readOnly": true, "writeOnly": false, "format": "email", "contentMediaType": "text/plain", "contentEncoding": "base64", "contentSchema": {"type": "string"}, "examples": ["a"], "default": "a"}	{"aontu":"meta(\\n  null|boolean|number|meta(empty(), {\\n    contentEncoding: \\"base64\\"\\n    contentMediaType: \\"text/plain\\"\\n    contentSchema: type: \\"string\\"\\n  })|map|list,\\n  {\\n    comment: \\"c\\"\\n    default: \\"a\\"\\n    examples: [\\"a\\"]\\n    format: \\"email\\"\\n    readOnly: true\\n    writeOnly: false\\n  }\\n)\\n","lossy":[],"verdict":"ok"}
+#
+# The content keywords annotate a string only, so they ride the string
+# branch of the kind split, and `contentSchema` rides only beside
+# `contentMediaType`.
+import-content-media-type-rides-the-string-branch	jsonschema-import	{"contentMediaType": "application/json"}	{"aontu":"null|boolean|number|meta(empty(), { contentMediaType:\\"application/json\\" })|map|list\\n","lossy":[],"verdict":"ok"}
+import-content-beside-a-title	jsonschema-import	{"contentEncoding": "base64", "title": "T"}	{"aontu":"meta(null|boolean|number|meta(empty(), { contentEncoding:\\"base64\\" })|map|list, {\\n  title: \\"T\\"\\n})\\n","lossy":[],"verdict":"ok"}
+import-content-schema-needs-a-media-type	jsonschema-import	{"contentSchema": {"type": "number"}}	{"aontu":"any\\n","lossy":[],"verdict":"ok"}
+import-content-outside-the-type-says-nothing	jsonschema-import	{"type": "number", "contentMediaType": "text/plain"}	{"aontu":"number\\n","lossy":[],"verdict":"ok"}
 import-default-is-an-annotation	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer", "default": 5}}}	{"aontu":"a?: meta(number & multiple(1), { default:5 })\\n","lossy":[],"verdict":"ok"}
 import-default-preferred-under-defaults	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer", "default": 5}}}	{"aontu":"a?: *5|meta(number & multiple(1), { default:5 })\\n","lossy":[],"opts":{"defaults":true},"verdict":"ok"}
 import-default-refused-is-not-preferred	jsonschema-import	{"type": "object", "properties": {"a": {"type": "integer", "default": "x"}}}	{"aontu":"a?: meta(number & multiple(1), { default:\\"x\\" })\\n","lossy":[],"opts":{"defaults":true},"verdict":"ok"}
@@ -298,6 +306,12 @@ import-count-past-int64-keeps-its-digits	jsonschema-import	{"type": "array", "mi
 import-unreferenced-def-is-checked	jsonschema-import	{"$defs": {"bad": {"type": 1}}}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/$defs/bad/type","severity":"error","sites":[{"col":28,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"lossy":[],"verdict":"error"}
 import-unreferenced-nested-def-is-checked	jsonschema-import	{"$defs": {"ok": {"type": "string"}, "bad": {"properties": {"x": {"minLength": "2"}}}}, "type": "number"}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/$defs/bad/properties/x/minLength","severity":"error","sites":[{"col":80,"file":"schema","len":3,"role":"schema","row":1,"src":"\\"2\\"","value":"\\"2\\""}]}],"lossy":[],"verdict":"error"}
 import-unreferenced-def-that-is-sound	jsonschema-import	{"$defs": {"ok": {"type": "string"}}, "type": "number"}	{"aontu":"number\\n","lossy":[],"verdict":"ok"}
+#
+# A string property beside two spreads imports as written: the meet with
+# each spread lets the spread's disjunction drive, where `empty()` once
+# refused it and the whole schema imported as `nil`.
+import-string-property-beside-two-patterns	jsonschema-import	{"type": "object", "properties": {"a": {"type": "string"}}, "patternProperties": {"^x": {"type": "number"}, "^y": {"type": "boolean"}}}	{"aontu":"a?: empty()\\n&: match(key(0), re(\\"^x\\"), number, any)\\n&: match(key(0), re(\\"^y\\"), boolean, any)\\n","lossy":[],"verdict":"ok"}
+import-string-property-beside-a-pattern-and-additional	jsonschema-import	{"type": "object", "properties": {"a": {"type": "string"}}, "patternProperties": {"^x": {"type": "number"}}, "additionalProperties": {"type": "null"}}	{"aontu":"a?: empty()\\n&: match(key(0), re(\\"^x\\"), number, any)\\n&: match(key(0), \\"a\\", any, re(\\"^x\\"), any, null)\\n","lossy":[],"verdict":"ok"}
 #
 # An object root keeps its aliases when it also carries annotations, a
 # deprecation or a count: they ride or meet its map, which declares the

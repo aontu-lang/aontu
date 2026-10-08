@@ -1,14 +1,11 @@
 # The JSON Schema Test Suite, vendored
 
-`tests/draft2020-12/` and `remotes/` are the official
+`tests/draft2020-12/`, `remotes/` and `annotations/` are the official
 [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
-as it ships inside the `json/` directory of the `jsonschema` 4.26.0
-source distribution on PyPI (`jsonschema-4.26.0.tar.gz`, SHA-256
-`0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326`),
-copied byte for byte on 2026-10-01. That distribution pins the suite as
-a submodule, so the files here are one upstream commit; the pin is the
-distribution's digest because the environment the copy was made in
-could reach PyPI and not GitHub. `LICENSE` is the suite's own.
+at commit `5b0ee1613e45fcc2bddac00e07c19cd49b00d8a8`, copied byte for
+byte on 2026-10-08. `LICENSE` is the suite's own. The copy before it
+came from the `json/` directory of the `jsonschema` 4.26.0 source
+distribution on PyPI, which pins an older commit of the same suite.
 
 The runners are `ts/test/jsonschema-suite.test.ts` and
 `go/jsonschema_suite_test.go`. Each imports every schema with the
@@ -25,3 +22,13 @@ the columns `file`, `group`, `test`, `construct`, `reason`. A `*` in
 listed test that passes fails the run, so a fix deletes its own rows,
 and the ledger may not grow past the bound both runners carry, which
 the capability-review register tightens phase by phase.
+
+`annotations/` holds the suite's annotation tests: each assertion names
+a location in an instance, a keyword, and the values the schema
+annotates that location with. `ts/test/jsonschema-annotations.test.ts`
+and `go/jsonschema_annotations_test.go` import each schema, meet it with
+the instance, and read the `meta` and `deprecate` riders at the
+location, as a set of values, since a record holds each value once and
+does not say which schema location wrote it. `annotations/skips.tsv` is
+their ledger, in the same columns, under the same three rules and its
+own bound.

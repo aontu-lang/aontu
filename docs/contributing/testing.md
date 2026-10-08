@@ -257,6 +257,18 @@ implementation, so its
 [`decisions.tsv`](../../test/vectors/jsontestsuite/decisions.tsv) pins
 aontu's answer for each, and both runners require it.
 
+The suite's `annotations/` directory runs through its own pair of
+runners,
+[`ts/test/jsonschema-annotations.test.ts`](../../ts/test/jsonschema-annotations.test.ts)
+and [`go/jsonschema_annotations_test.go`](../../go/jsonschema_annotations_test.go).
+Each imports the schema, meets it with the instance, and reads the
+`meta` and `deprecate` riders at each location an assertion names,
+compared as a set of values. A test whose annotations come from a trial
+branch, such as one of `anyOf`, waits on open question 9 of the G12
+design and is listed in
+[`annotations/skips.tsv`](../../test/vectors/jsonschema/annotations/skips.tsv),
+under the same three rules and its own bound.
+
 The importer's own behaviour is pinned the usual way, by the
 `jsonschema-import` rows of
 [`test/spec/jsonschema-import.tsv`](../../test/spec/jsonschema-import.tsv),

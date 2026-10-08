@@ -27,7 +27,7 @@ its own licence, with a README naming its upstream and the commit it is
 pinned to, and its own skip ledger:
 
 - [`jsonschema/`](jsonschema/README.md), the official
-  JSON-Schema-Test-Suite;
+  JSON-Schema-Test-Suite, with its annotation tests;
 - [`ajv-extras/`](ajv-extras/README.md), Ajv's extra tests in the same
   shape;
 - [`jsontestsuite/`](jsontestsuite/README.md), JSONTestSuite's parsing

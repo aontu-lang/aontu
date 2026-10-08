@@ -22,8 +22,8 @@ func unite(ctx *Ctx, a, b Val) Val {
 	if nil != ctx.prov {
 		ctx.prov.record(provPath, a, b, out)
 	}
-	if nil != out && !isTop(out) && !out.Nil() {
-		ride(out, a, b)
+	if nil != out && !out.Nil() {
+		out = rideOn(out, a, b)
 	}
 	if nil != ctx.reads && nil != out && !isTop(out) && !out.Nil() {
 		if "" == out.readAddr() {
@@ -100,21 +100,22 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	if isConjunct(a) || isExpect(a) {
 		return drive(a, b)
 	}
-	if isConjunct(b) || isDisjunct(b) || isPref(b) || isRef(b) || isVar(b) || isFunc(b) || isExpect(b) || isRefer(b) ||
-		isGraphAtom(b) || isRecurse(b) || isDrivingOp(b) {
+	if drives(b) {
 		return drive(b, a)
 	}
 	// These do not know their peers, so they answer from either side.
-	if _, ok := b.(*ConstraintKindVal); ok {
-		return drive(b, a)
-	}
-	if _, ok := b.(*EmptyVal); ok {
-		return drive(b, a)
-	}
-	if _, ok := b.(*SealVal); ok {
-		return drive(b, a)
+	switch b.(type) {
+	case *ConstraintKindVal, *EmptyVal, *SealVal:
+		if !drives(a) {
+			return drive(b, a)
+		}
 	}
 	return drive(a, b)
+}
+
+func drives(v Val) bool {
+	return isConjunct(v) || isDisjunct(v) || isPref(v) || isRef(v) || isVar(v) || isFunc(v) ||
+		isExpect(v) || isRefer(v) || isGraphAtom(v) || isRecurse(v) || isDrivingOp(v)
 }
 
 const maxUniteDepth = 1000

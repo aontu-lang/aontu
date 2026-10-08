@@ -1571,7 +1571,8 @@ y: number
 | `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
 | `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
-| `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`, `contentEncoding`, `contentMediaType`, `contentSchema` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
+| `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
+| `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
 | a keyword JSON Schema does not name | the same record, under `x` |
 | `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |
 | `$schema` | read and dropped: the dialect is 2020-12 |

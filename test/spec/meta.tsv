@@ -49,6 +49,21 @@ meta-canon-conjunct-member	canon	a: meta($.b, {title: "t"}) & number, b: 1	{"a":
 meta-canon-root	canon	meta({a: 1}, {title: "root"})	meta({"a":1},{"title":"root"})
 meta-canon-root-meet	canon	meta({a: 1}, {title: "r"}) & {b: 2}	meta({"a":1,"b":2},{"title":"r"})
 #
+# Top carries a record as any value does: the meet unions top's records
+# too, a member or element meets its peer's with them, and a copy never
+# writes back into what it copied.
+meta-canon-top-meet-plain-left	canon	a: any & meta(any, {title: "t"})	{"a":meta(any,{"title":"t"})}
+meta-canon-top-meet-plain-right	canon	a: meta(any, {title: "t"}) & any	{"a":meta(any,{"title":"t"})}
+meta-canon-top-meet-two	canon	a: meta(any, {title: "b"}) & meta(any, {title: "a"})	{"a":meta(any,{"title":"a"},{"title":"b"})}
+meta-canon-top-two-declarations	canon	a: meta(any, {title: "b"}), a: meta(any, {title: "a"})	{"a":meta(any,{"title":"a"},{"title":"b"})}
+meta-canon-top-meet-then-value	canon	a: meta(any, {title: "b"}) & meta(any, {title: "a"}) & 1	{"a":meta(1,{"title":"a"},{"title":"b"})}
+meta-canon-top-copy-source-unchanged	canon	x: any, y: meta($.x, {title: "t"})	{"x":any,"y":meta(any,{"title":"t"})}
+meta-canon-top-copies-meet	canon	x: meta(any, {title: "a"}), y: meta(any, {title: "b"}), z: $.x & $.y	{"x":meta(any,{"title":"a"}),"y":meta(any,{"title":"b"}),"z":meta(any,{"title":"a"},{"title":"b"})}
+meta-canon-top-member	canon	a: {b: meta(any, {title: "t"})} & {b: 1}	{"a":{"b":meta(1,{"title":"t"})}}
+meta-canon-top-optional-member	canon	a: {b?: meta(any, {title: "t"})} & {b: 1}	{"a":{"b":meta(1,{"title":"t"})}}
+meta-canon-top-element	canon	a: [meta(any, {title: "t"})] & [1]	{"a":[meta(1,{"title":"t"})]}
+meta-canon-top-spread-copied	canon	x: {&: meta(any, {title: "t"})}, y: $.x & {b: 1}	{"x":{&:meta(any,{"title":"t"})},"y":{&:meta(any,{"title":"t"}),"b":meta(1,{"title":"t"})}}
+#
 # A disjunction renders each member's record. A failing member's record
 # goes with it, and a member dropped as another's duplicate leaves its
 # record on the survivor, at every depth, so the join is order-free too.

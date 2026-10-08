@@ -37,6 +37,7 @@ import { NilVal } from './NilVal'
 import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
+import { rides } from '../rider'
 
 
 class ListVal extends BagVal {
@@ -157,7 +158,8 @@ class ListVal extends BagVal {
           ; (oval as any)._spr = spreadId(spread_cj)
         }
         else {
-          const key_spread_cj = spread_cj.spreadClone(keyctx)
+          // No spread: the shared top, which nothing writes on.
+          const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx)
           // The spread mark the provenance recorder reads (G7 phase 3),
           // as in MapVal: this is where a template becomes a per-element
           // contribution. Instrumented runs only.
@@ -169,9 +171,9 @@ class ListVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                    && undefined === keyctx.prov ? child :
+                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
                       unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
                         child, key_spread_cj, 'list-own')
 
@@ -214,7 +216,7 @@ class ListVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child ? peerchild :
-              child.isTop && peerchild.done ? peerchild :
+              child.isTop && !rides(child) && peerchild.done ? peerchild :
                 child.isNil ? child :
                   peerchild.isNil ? peerchild :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,

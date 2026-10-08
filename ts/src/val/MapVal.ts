@@ -38,6 +38,7 @@ import { NilVal } from './NilVal'
 import { BagVal, keyTable, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
+import { rides } from '../rider'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { markSpread } from '../provenance'
 
@@ -257,7 +258,8 @@ class MapVal extends BagVal {
           ; (oval as any)._spr = spreadId(spread_cj)
         }
         else {
-          const key_spread_cj = spread_cj.spreadClone(keyctx)
+          // No spread: the shared top, which nothing writes on.
+          const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx)
 
           // The one place a spread is APPLIED, so the one place that
           // knows a contribution came from a template rather than
@@ -271,9 +273,9 @@ class MapVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                    && undefined === keyctx.prov ? child :
+                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
                       unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
                         child, key_spread_cj, 'map-own')
 
@@ -337,7 +339,7 @@ class MapVal extends BagVal {
               ? (undefined !== peerctx.prov && peerchild.isGenable
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-              child.isTop && peerchild.done ? peerchild :
+              child.isTop && !rides(child) && peerchild.done ? peerchild :
                 child.isNil ? (literalNilRefuses(child, peerchild) ?
                   makeNilErr(peerctx, 'literal_nil', child, peerchild) : child) :
                   peerchild.isNil ? (literalNilRefuses(peerchild, child) ?

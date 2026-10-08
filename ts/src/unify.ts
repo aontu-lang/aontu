@@ -13,7 +13,7 @@ import { findAt } from './val/ReferFuncVal'
 import { NilVal } from './val/NilVal'
 import { hasPlace } from './val/PlaceVal'
 import { expandAliases } from './alias'
-import { unionRecords } from './rider'
+import { riderText, rides, unionRecords } from './rider'
 
 import {
   Lang
@@ -60,6 +60,43 @@ function ride(out: any, a: any, b: any): void {
 }
 
 
+// The meet's riders go to its result, a top's on a fresh top where they
+// add to its own, since an operand top may be a value written elsewhere.
+function rideOn(ctx: AontuContext, out: any, a: any, b: any): any {
+  if (!out.isTop) {
+    ride(out, a, b)
+    return out
+  }
+  if (!rides(a) && !rides(b)) {
+    return out
+  }
+  const t = out.clone(ctx)
+  ride(t, a, b)
+  return riderText('', t) === riderText('', out) ? out : t
+}
+
+
+function drives(v: any): boolean {
+  return v.isConjunct
+    || v.isDisjunct
+    || v.isRef
+    || v.isPref
+    || v.isVar
+    || v.isFunc
+    || v.isExpect
+    || v.isRefer
+    // An op DRIVES while an operand has not decided (ADR-037).
+    || (v.isOp && (hasPlace(v) || v.holdsStaged))
+    // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
+    // beside -- a container, a rel, a scalar -- and none of them know
+    // the atom; the atom knows to residuate.
+    || v.isGraphAtom
+    // The recursive residual DRIVES for the same reason: its peer is the
+    // concrete structure it expands against.
+    || v.isRecurse
+}
+
+
 const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
   if (a !== undefined && a !== null) {
     if (a === b) {
@@ -69,8 +106,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
       if (a.done && b.done) {
         if (a.id === b.id) {
           // The riders survive the fast path (G3, G12).
-          ride(a, a, b)
-          return a
+          return rideOn(ctx, a, a, b)
         }
         if (a.constructor === b.constructor && a.peg === b.peg
             && (a as any).emptyOk === (b as any).emptyOk
@@ -155,33 +191,15 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         unified = true
         why = 'a*'
       }
-      else if (
-        b.isConjunct
-        || b.isDisjunct
-        || b.isRef
-        || b.isPref
-        || b.isVar
-        || b.isFunc
-        || b.isExpect
-        || b.isRefer
-        // An op DRIVES while an operand has not decided (ADR-037).
-        || (b.isOp && (hasPlace(b) || b.holdsStaged))
-        // A graph atom DRIVES (RELATIONS P2): its peer is the value
-        // it rides beside -- a container, a rel, a scalar -- and none
-        // of them know the atom; the atom knows to residuate.
-        || b.isGraphAtom
-        // The recursive residual DRIVES for the same reason: its peer
-        // is the concrete structure it expands against.
-        || b.isRecurse
-      ) {
+      else if (drives(b)) {
         out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BW') }) : ctx)
         unified = true
         why = 'bv'
       }
       // These do not know their peers, so they answer from either side.
-      else if (true === (b as any).isConstraintKind
+      else if ((true === (b as any).isConstraintKind
         || true === (b as any).isEmptyConstraint
-        || true === (b as any).isSeal) {
+        || true === (b as any).isSeal) && !drives(a)) {
         out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BK') }) : ctx)
         unified = true
         why = 'bk'
@@ -236,8 +254,8 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
     ctx.prov.record(ctx.path, a, b, out)
   }
 
-  if (null != out && true === (out as any).isVal && !out.isTop && !out.isNil) {
-    ride(out, a, b)
+  if (null != out && true === (out as any).isVal && !out.isNil) {
+    out = rideOn(ctx, out, a, b)
   }
 
   if (undefined !== ctx.reads &&
