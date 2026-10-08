@@ -1132,6 +1132,22 @@ describe('cli-subsume', () => {
       '{"type": "object", "properties": {"p": {"type": "integer", "default": 8080}}}')
     const pref = vetCapture(() => Assert.equal(runJsonSchema(['import', '--defaults', file]), 0))
     Assert.match(pref.out, /^p\?: \*8080\|/)
+
+    // --uri is the base a relative reference resolves against, and --doc
+    // adds a document it may reach; a usage fault exits 2.
+    const doc = Path.join(dir, 'n.json')
+    Fs.writeFileSync(doc, '{"type": "integer"}')
+    Fs.writeFileSync(file, '{"type": "object", "properties": {"a": {"$ref": "n.json"}}}')
+    const set = vetCapture(() => Assert.equal(runJsonSchema(['import',
+      '--uri', 'https://example.com/s.json', '--doc', 'https://example.com/n.json', doc, file]), 0))
+    Assert.ok(set.out.includes('id: "https://example.com/n.json"'), set.out)
+    for (const [args, want] of [
+      [['import', '--uri'], '--uri needs a URI'],
+      [['import', '--doc', 'https://example.com/n.json'], '--doc needs a URI and a file'],
+      [['import', '--doc', 'https://example.com/n.json', doc + '.gone', file], 'cannot read'],
+    ] as [string[], string][]) {
+      Assert.ok(vetCapture(() => Assert.equal(runJsonSchema(args), 2)).err.includes(want), want)
+    }
     Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}')
 
     const j = JSON.parse(vetCapture(() => Assert.equal(

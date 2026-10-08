@@ -129,6 +129,7 @@ import { HideFuncVal } from './val/HideFuncVal'
 import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { MetaFuncVal } from './val/MetaFuncVal'
+import { IdentFuncVal } from './val/IdentFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -860,6 +861,7 @@ help isolate the syntax error.`,
     // call back (canonRiders).
     deprecate: DeprecateFuncVal,
     meta: MetaFuncVal,
+    ident: IdentFuncVal,
 
     refer: ReferFuncVal,
     rel: RelFuncVal,
@@ -1496,6 +1498,10 @@ help isolate the syntax error.`,
           }
         }
 
+        for (const k of aliasKeys) {
+          declareIdent(mo[k])
+        }
+
         //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
         const deferred = mo[MERGE_KEY]
         delete mo[MERGE_KEY]
@@ -1981,6 +1987,18 @@ const dataProcessor = (format: string) => (res: any) => {
 const textProcessor = (res: any) => {
   res.val = new StringVal({ peg: res.src })
 }
+
+// ident() is the whole of a declaration's value, or of one declaration
+// of a name declared more than once, whose values meet (ADR-056).
+function declareIdent(v: any): void {
+  if (true === v?.isIdentFunc) {
+    v.declared = true
+  }
+  else if (true === v?.isConjunct) {
+    v.peg.forEach(declareIdent)
+  }
+}
+
 
 function includeProcessors(textExt?: string[]): { [kind: string]: any } {
   const map: { [kind: string]: any } = {

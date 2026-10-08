@@ -472,6 +472,9 @@ alias-root-rider-declares	gens	meta({ %a = 1, "x": %a }, { title: "t" })	{"x":1}
 alias-root-deprecate-declares	gens	deprecate({ %a = 1, "x": %a })	{"x":1}
 alias-root-meet-declares	gens	{ %a = 1, "x": %a } & len(min(1))	{"x":1}
 alias-root-meet-count-reads-no-declaration	errc	{ %a = number, "x"?: %a } & len(min(1))	constraint
+alias-root-reference-meets-its-map-and-another	gens	%a & { %b = 2, %a = { y: %b } } & {}	{"y":2}
+alias-root-reference-declared-last-meets-two-maps	gens	{ %b = 2, %a = { y: %b } } & {} & %a	{"y":2}
+alias-root-reference-meets-its-map-vet-valid	vet	%a & { %b = number, %a = { "x"?: %b } }	{"x": 1}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
 alias-root-rider-recursion-vet-valid	vet	meta({\n  %root = meta({ "next"?: %root, "v"?: number }, { title: "Node" })\n  "next"?: %root\n  "v"?: number\n}, { title: "Node" })	{"next": {"next": {"v": 1}}}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
 alias-root-rider-recursion-vet-invalid	vet	meta({\n  %root = meta({ "next"?: %root, "v"?: number }, { title: "Node" })\n  "next"?: %root\n  "v"?: number\n}, { title: "Node" })	{"next": {"next": {"v": "x"}}}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.next.next.v","severity":"error","sites":[{"col":25,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":40,"file":"schema","len":6,"role":"schema","row":2,"src":"number","value":"number"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
 alias-root-meet-recursion-vet-valid	vet	{ %n = { "next"?: %n, "v"?: number } & len(min(1)), "next"?: %n, "v"?: number } & len(min(1))	{"next": {"v": 2}}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}

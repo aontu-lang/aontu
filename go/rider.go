@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -120,14 +121,19 @@ func CanonRiders(v Val) string {
 func ride(out, a, b Val) {
 	recs := []map[string][]string{out.deprecRec()}
 	metas := []map[string][]Val{out.metaRec()}
+	idents := []map[string][]string{out.identRec()}
 	for _, v := range []Val{a, b} {
 		if nil != v {
 			recs = append(recs, v.deprecRec())
 			metas = append(metas, v.metaRec())
+			idents = append(idents, v.identRec())
 		}
 	}
 	if dep := unionRiders(sameString, recs...); nil != dep {
 		out.setDeprecRec(dep)
+	}
+	if ident := unionRiders(sameString, idents...); nil != ident {
+		out.setIdentRec(ident)
 	}
 	if meta := unionRiders(valCanon, metas...); nil != meta {
 		out.setMetaRec(meta)
@@ -284,4 +290,33 @@ func metaTexts(v Val, key string) []string {
 		}
 	}
 	return out
+}
+
+// identKeys are an identity's keys (ADR-056).
+var identKeys = []string{"id", "anchor", "defs"}
+
+func identRecord(r Val) (map[string][]string, bool) {
+	m, ok := r.(*MapVal)
+	if !ok {
+		return nil, false
+	}
+	out := map[string][]string{}
+	for _, k := range m.keys {
+		sv, ok := m.peg[k].(*ScalarVal)
+		if !ok || KindString != sv.kind || !slices.Contains(identKeys, k) {
+			return nil, false
+		}
+		out[k] = []string{sv.peg.(string)}
+	}
+	return out, true
+}
+
+// undeclared is a copy, which is not the declaration it was taken from
+// and so has no identity.
+func undeclared(v Val) Val {
+	if f, ok := v.(*FuncVal); ok && "ident" == f.name && 0 < len(f.peg) {
+		return f.peg[0]
+	}
+	v.setIdentRec(nil)
+	return v
 }

@@ -22,6 +22,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	format := "text"
 	strict := false
 	defaults := false
+	uri := ""
+	docs := [][2]string{}
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
 		switch {
@@ -39,6 +41,20 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			strict = true
 		case "--defaults" == arg:
 			defaults = true
+		case "--uri" == arg:
+			i++
+			if len(argv) <= i {
+				io.WriteString(stderr, "aontu: --uri needs a URI\n")
+				return 2
+			}
+			uri = argv[i]
+		case "--doc" == arg:
+			if len(argv) < i+3 {
+				io.WriteString(stderr, "aontu: --doc needs a URI and a file\n")
+				return 2
+			}
+			docs = append(docs, [2]string{argv[i+1], argv[i+2]})
+			i += 2
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema import option "+arg+" (try --help)\n")
@@ -58,9 +74,18 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			"aontu: cannot read "+files[0]+": "+err.Error()+"\n")
 		return 2
 	}
+	documents := map[string]string{}
+	for _, d := range docs {
+		text, err := os.ReadFile(d[1])
+		if nil != err {
+			io.WriteString(stderr, "aontu: cannot read "+d[1]+": "+err.Error()+"\n")
+			return 2
+		}
+		documents[d[0]] = string(text)
+	}
 
-	report := aontu.ImportJSONSchema(string(src),
-		&aontu.ImportOptions{Path: files[0], Defaults: defaults})
+	report := aontu.ImportJSONSchema(string(src), &aontu.ImportOptions{
+		Path: files[0], Defaults: defaults, URI: uri, Documents: documents})
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaImportJSON(report)+"\n")

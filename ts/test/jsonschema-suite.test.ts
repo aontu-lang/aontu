@@ -58,6 +58,25 @@ function files(dir: string, rel: string, out: string[]): string[] {
 }
 
 
+// The suite's remotes, served at http://localhost:1234/, and each under
+// its own `$id` where it names another URI.
+function remotes(): Record<string, string> {
+  const out: Record<string, string> = {}
+  const dir = Path.join(VECTORS, 'jsonschema', 'remotes')
+  const all = files(dir, '', []).map((f) => [f, Fs.readFileSync(Path.join(dir, f), 'utf8')])
+  for (const [f, text] of all) {
+    out['http://localhost:1234/' + f] = text
+  }
+  for (const [, text] of all) {
+    const id = (JSON.parse(text) as any)?.$id
+    if ('string' === typeof id && undefined === out[id]) {
+      out[id] = text
+    }
+  }
+  return out
+}
+
+
 // The whole file, the whole group, or the one test, in that order.
 function listed(skips: Skip[], file: string, group: string, name: string): Skip | undefined {
   return skips.find((s) => s.file === file && '*' === s.group) ??
@@ -121,7 +140,8 @@ function parsingGroups(dir: string): Group[] {
 }
 
 
-function runCorpus(name: string, bound: number, groups: Group[]): void {
+function runCorpus(name: string, bound: number, groups: Group[],
+  documents?: Record<string, string>): void {
   const skips = readSkips(Path.join(VECTORS, name))
   Assert.ok(skips.length <= bound,
     `the ${name} skip ledger holds ${skips.length} rows, past its bound of ${bound}`)
@@ -133,7 +153,7 @@ function runCorpus(name: string, bound: number, groups: Group[]): void {
   const aontu = new Aontu()
 
   for (const g of groups) {
-    const report = importJsonSchema(g.schema, { path: g.file })
+    const report = importJsonSchema(g.schema, { path: g.file, documents })
     for (const c of g.cases) {
       total++
       let got = false
@@ -188,8 +208,8 @@ function runCorpus(name: string, bound: number, groups: Group[]): void {
 
 // Each ledger may not grow past its bound; the register tightens them.
 test('the-json-schema-test-suite-runs-under-import-and-vet', () =>
-  runCorpus('jsonschema', 178,
-    suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12'))))
+  runCorpus('jsonschema', 141,
+    suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()))
 
 test('ajvs-extra-tests-run-under-import-and-vet', () =>
   runCorpus('ajv-extras', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))))

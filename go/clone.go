@@ -320,7 +320,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		copyMarks(out, n)
 		return out
 	case *FuncVal:
-		out := &FuncVal{name: n.name, prepared: n.prepared}
+		out := &FuncVal{name: n.name, prepared: n.prepared, declared: n.declared}
 		out.dc = n.dc
 		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)

@@ -96,7 +96,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [--defaults] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3868,6 +3869,8 @@ function runJsonSchemaImport(argv: string[]): number {
   let format: SubsumeFormat = 'text'
   let strict = false
   let defaults = false
+  let uri: string | undefined = undefined
+  const docs: [string, string][] = []
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -3889,6 +3892,21 @@ function runJsonSchemaImport(argv: string[]): number {
     else if ('--defaults' === arg) {
       defaults = true
     }
+    else if ('--uri' === arg) {
+      uri = argv[++i]
+      if (undefined === uri) {
+        process.stderr.write('aontu: --uri needs a URI\n')
+        return 2
+      }
+    }
+    else if ('--doc' === arg) {
+      if (argv.length < i + 3) {
+        process.stderr.write('aontu: --doc needs a URI and a file\n')
+        return 2
+      }
+      docs.push([argv[i + 1], argv[i + 2]])
+      i += 2
+    }
     else if (arg.startsWith('-')) {
       process.stderr.write(
         `aontu: unknown jsonschema import option ${arg} (try --help)\n`)
@@ -3906,15 +3924,19 @@ function runJsonSchemaImport(argv: string[]): number {
   }
 
   let src: string
+  const documents: Record<string, string> = {}
   try {
     src = readFileSync(files[0], 'utf8')
+    for (const [u, f] of docs) {
+      documents[u] = readFileSync(f, 'utf8')
+    }
   }
   catch (err: any) {
     process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
     return 2
   }
 
-  const report = importJsonSchema(src, { path: files[0], defaults })
+  const report = importJsonSchema(src, { path: files[0], defaults, uri, documents })
 
   if ('json' === format) {
     process.stdout.write(exactJSON({

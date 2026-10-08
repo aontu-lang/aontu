@@ -444,7 +444,9 @@ function defOf(ctx, target) {
     }
     const path = target.map(aliasname_1.aliasPathSegment);
     const alias = 1 === target.length && aliasname_1.ALIAS_NAME_RE.test(path[0]);
-    const base = alias ? defName(path[0].slice(1)) : path.join('.');
+    const declared = value.identity?.defs ?? [];
+    const base = 1 === declared.length ? declared[0] :
+        alias ? defName(path[0].slice(1)) : path.join('.');
     let name = base;
     for (let i = 2; refs.names.has(name); i++) {
         name = base + '_' + i;
@@ -477,9 +479,15 @@ function refTo(ctx, target) {
     if (undefined === def) {
         return undefined;
     }
+    const inside = ctx.refs.inside;
+    if (true !== ctx.scratch && 0 < inside.length) {
+        inside[inside.length - 1].refers = true;
+    }
     if (true !== ctx.scratch && !def.used) {
         def.used = true;
+        inside.push(def);
         def.schema = fromVal(ctx, def.path, def.value);
+        inside.pop();
     }
     return { $ref: defRef(def) };
 }
@@ -1065,7 +1073,9 @@ function jsonSchema(src, options) {
         node = found;
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
-    const ctx = { lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map() } };
+    const ctx = {
+        lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map(), inside: [] },
+    };
     const body = fromVal(ctx, anchor, node);
     // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
     const schema = { $schema: DRAFT };
@@ -1090,6 +1100,7 @@ function withDefs(ctx, schema, body) {
     const whole = (0, exactjson_1.exactJSON)(body);
     const folded = used.filter((d) => (0, exactjson_1.exactJSON)(d.schema) === whole);
     const kept = used.filter((d) => !folded.includes(d));
+    const named = identify(schema, folded, kept);
     if (0 < kept.length) {
         schema.$defs = Object.fromEntries(kept.map((d) => [d.name, d.schema]));
     }
@@ -1098,11 +1109,49 @@ function withDefs(ctx, schema, body) {
     const gone = folded.filter((d) => aliasname_1.ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path));
     const seen = new Set();
     const lossy = [];
-    for (const l of ctx.lossy) {
+    for (const l of [...ctx.lossy, ...named]) {
         const key = (0, exactjson_1.exactJSON)(l);
         if (!seen.has(key) && !gone.some((g) => l.path === g || l.path.startsWith(g + '.'))) {
             seen.add(key);
             lossy.push(l);
+        }
+    }
+    return lossy;
+}
+// ADR-056: a definition's identity is written on it, and a folded one's
+// on the schema. An identifier a $ref inside would resolve against is a
+// loss, as is an anchor its resource already holds.
+function identify(schema, folded, kept) {
+    const lossy = [];
+    const one = (defs, key, construct, path) => {
+        const all = [...new Set(defs.flatMap((d) => d.value.identity?.[key] ?? []))];
+        if (1 < all.length) {
+            lossy.push({ construct, path, reason: 'the declaration carries more than one, so none is written' });
+        }
+        return 1 === all.length ? all[0] : undefined;
+    };
+    const keywords = (id, anchor) => ({ ...(undefined === id ? {} : { $id: id }), ...(undefined === anchor ? {} : { $anchor: anchor }) });
+    const top = one(folded, 'anchor', '$anchor', '$');
+    Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top));
+    const anchors = new Set(undefined === top ? [] : [top]);
+    for (const d of kept) {
+        let id = one([d], 'id', '$id', pathText(d.path));
+        if (undefined !== id && true === d.refers) {
+            lossy.push({ construct: '$id', path: pathText(d.path),
+                reason: 'a $ref inside the definition would resolve against it, so it is not written' });
+            id = undefined;
+        }
+        let anchor = one([d], 'anchor', '$anchor', pathText(d.path));
+        if (undefined !== anchor && undefined === id && anchors.has(anchor)) {
+            lossy.push({ construct: '$anchor', path: pathText(d.path),
+                reason: 'another schema in its resource has the anchor, so it is not written' });
+            anchor = undefined;
+        }
+        if (undefined !== anchor && undefined === id) {
+            anchors.add(anchor);
+        }
+        if (undefined !== id || undefined !== anchor) {
+            d.schema = { ...keywords(id, anchor), ...('object' === typeof d.schema ? d.schema : { not: {} }) };
         }
     }
     return lossy;

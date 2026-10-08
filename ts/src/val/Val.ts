@@ -149,6 +149,9 @@ abstract class Val {
   // The aliases this value is a copy of, which the exporter writes as $ref.
   via?: string[]
 
+  // A declaration's identity (ADR-056), which no copy carries.
+  identity?: Record<string, string[]>
+
   link?: string
 
   origin?: string
@@ -268,6 +271,9 @@ abstract class Val {
     }
     if (null != this.via) {
       out.via = this.via
+    }
+    if (null != this.identity) {
+      out.identity = this.identity
     }
 
     if (null != this.origin) {

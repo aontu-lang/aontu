@@ -18,6 +18,7 @@ import { makeNilErr } from '../err'
 import { aliasPathSegment } from '../aliasname'
 
 import { FeatureVal } from './FeatureVal'
+import { undeclared } from './IdentFuncVal'
 import { ConjunctVal } from './ConjunctVal'
 import { unite } from '../unify'
 import { propagateMarks, walk } from '../utility'
@@ -92,9 +93,9 @@ class RecurseVal extends FeatureVal {
         out.path = this.path
         return out
       }
-      const level: any = body.clone(ctx, {
+      const level: any = undeclared(body.clone(ctx, {
         dup: true, path: [...ctx.path],
-      } as any)
+      } as any))
       walk(level, (_key: string | number | undefined, v: Val) => {
         v.mark.type = false
         v.mark.hide = false

@@ -2402,6 +2402,9 @@ func asValDepth(node any, depth int) Val {
 			}
 			mv.set(k, asValDepth(v, depth+1))
 		}
+		for _, k := range mv.aliasKeys {
+			declareIdent(mv.peg[k])
+		}
 		if carried {
 			// A ROOT include whose value is not a map, merged into the
 			// map that holds the directive: the two cannot meet.
@@ -2433,6 +2436,18 @@ func asValDepth(node any, depth int) Val {
 		return newBoolean(n)
 	}
 	return newNil("parse_unknown")
+}
+
+// declareIdent marks ident() as a declaration's (ADR-056).
+func declareIdent(v Val) {
+	switch n := v.(type) {
+	case *FuncVal:
+		n.declared = "ident" == n.name
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			declareIdent(t)
+		}
+	}
 }
 
 // findDeepNesting is the offset of the first opener nesting past bound,

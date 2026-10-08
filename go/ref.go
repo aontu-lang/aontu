@@ -548,6 +548,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
+	out = undeclared(out)
 	if lifted {
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)
@@ -564,6 +565,8 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else if key, ok := rv.aliasKey(); ok {
 		// An alias's copy remembers it; copy() unseals, so may admit more.
 		out.setViaRec(unionVia(out.viaRec(), []string{key}))
+		// A root reference's copy is at the root, not under its name.
+		forceRootPath(out, cp(rv.path))
 	}
 	return out
 }

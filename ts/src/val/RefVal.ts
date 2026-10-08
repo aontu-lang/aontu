@@ -94,6 +94,7 @@ function markedChild(v: any, part: any): Val | undefined {
 
 import { ALIAS_NAME_RE, aliasBareName } from '../aliasname'
 import { unionVia } from '../rider'
+import { undeclared } from './IdentFuncVal'
 
 
 class RefVal extends FeatureVal {
@@ -522,7 +523,7 @@ class RefVal extends FeatureVal {
             || true === out.mark.type || true === out.mark.hide
           const typed = true === out.mark.type
 
-          out = out.clone(ctx, { dup: !out.holdsStaged })
+          out = undeclared(out.clone(ctx, { dup: !out.holdsStaged }))
 
           if (lifted) {
             // The copy carries a held constraint without its type.

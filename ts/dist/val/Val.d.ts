@@ -79,6 +79,7 @@ declare abstract class Val {
     deprecation?: Record<string, string[]>;
     meta?: Record<string, Val[]>;
     via?: string[];
+    identity?: Record<string, string[]>;
     link?: string;
     origin?: string;
     emitted?: EmitOrigin;

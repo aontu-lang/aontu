@@ -24,6 +24,12 @@ type ImportOptions struct {
 	// Defaults makes an optional property's default a preference
 	// (ADR-052).
 	Defaults bool
+	// URI is the schema's retrieval URI, the base of its relative
+	// identifiers.
+	URI string
+	// Documents are the documents a reference may reach, by URI. None is
+	// fetched.
+	Documents map[string]string
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -529,17 +535,29 @@ type importTarget struct {
 	ptr  string
 }
 
+// importDoc is one document of an import: the entry, or one of the set.
+type importDoc struct {
+	uri, src, file string
+	root           *jnode
+}
+
 type importCtx struct {
-	src     string
-	file    string
+	// doc is the document whose text sites point into.
+	doc     *importDoc
 	root    *jnode
 	lossy   []SchemaLoss
 	errors  []VetFinding
 	anchors map[*jnode]map[string]*jnode
-	// Anchors belong to a resource: the document, or a subschema with `$id`.
+	// Anchors belong to a resource: a document, or a subschema with `$id`.
 	resourceOf map[*jnode]*jnode
 	ptrOf      map[*jnode]string
-	targets    map[*jnode]*importTarget
+	docOf      map[*jnode]*importDoc
+	baseOf     map[*jnode]string
+	// Each resource by its canonical URI, and the documents not yet read.
+	resources map[string]*jnode
+	documents map[string]string
+	byText    map[string]*importDoc
+	targets   map[*jnode]*importTarget
 	// A map root declares each target once; any other root copies it in
 	// place and cuts a cycle.
 	mapRoot bool
@@ -554,16 +572,21 @@ type importCtx struct {
 	order []*jnode
 }
 
+// importDefaultBase is the base of a schema that names no retrieval
+// URI: rooted, so a relative identifier resolves as against a real one.
+const importDefaultRoot = "aontu:/"
+const importDefaultBase = importDefaultRoot + "schema"
+
 // importCopyBudget is the copies a root that is not a map may make.
 const importCopyBudget = 4096
 
 func (ctx *importCtx) fail(code, path, message string, off, end int) {
-	row, col := rowCol(ctx.src, off)
-	text := ctx.src[off:end]
+	row, col := rowCol(ctx.doc.src, off)
+	text := ctx.doc.src[off:end]
 	f := VetFinding{
 		Class: codeClass(code), Code: code, Message: message, Path: path,
 		Severity: "error",
-		Sites: []VetSite{{Col: col, File: ctx.file, Len: utf16Len(text),
+		Sites: []VetSite{{Col: col, File: ctx.doc.file, Len: utf16Len(text),
 			Role: VetRoleSchema, Row: row, Src: text, Value: text}},
 	}
 	f.Hint = hintOf(code, nil)
@@ -642,28 +665,46 @@ func subschemas(node *jnode, ptr string, visit func(*jnode, string)) {
 	}
 }
 
-func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode) {
+func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode, base string) {
 	ctx.ptrOf[node] = ptr
+	ctx.docOf[node] = ctx.doc
 	ctx.order = append(ctx.order, node)
 	if "object" != node.t {
 		return
 	}
 	here := resource
-	if id := jentryOf(node, "$id"); node == ctx.root || (nil != id && "string" == id.t) {
+	if node == ctx.doc.root {
 		here = node
 	}
-	ctx.resourceOf[node] = here
-	if anchor := jentryOf(node, "$anchor"); nil != anchor {
-		if "string" != anchor.t {
-			ctx.wrongType(ptrChild(ptr, "$anchor"), "$anchor", "a string", anchor)
+	if id := jentryOf(node, "$id"); nil != id && "string" != id.t {
+		ctx.wrongType(ptrChild(ptr, "$id"), "$id", "a string", id)
+	} else if nil != id {
+		target := resolveURI(base, id.s)
+		hash := strings.Index(target, "#")
+		if 0 <= hash && hash < len(target)-1 {
+			ctx.fail("jsonschema_schema", ptrChild(ptr, "$id"), "The identifier "+
+				importQuote(id.s)+" has a fragment, which an identifier may not.", id.off, id.end)
 		} else {
+			base = strings.TrimSuffix(target, "#")
+			here = node
+			ctx.register(normalizeURI(base), node, ptrChild(ptr, "$id"), id)
+		}
+	}
+	ctx.resourceOf[node] = here
+	ctx.baseOf[node] = base
+	// A dynamic anchor is a plain one as well, in the same namespace.
+	for _, key := range []string{"$anchor", "$dynamicAnchor"} {
+		anchor := jentryOf(node, key)
+		if nil != anchor && "string" != anchor.t {
+			ctx.wrongType(ptrChild(ptr, key), key, "a string", anchor)
+		} else if nil != anchor {
 			names := ctx.anchors[here]
 			if nil == names {
 				names = map[string]*jnode{}
 				ctx.anchors[here] = names
 			}
-			if _, dup := names[anchor.s]; dup {
-				ctx.fail("jsonschema_duplicate", ptrChild(ptr, "$anchor"),
+			if had, dup := names[anchor.s]; dup && had != node {
+				ctx.fail("jsonschema_duplicate", ptrChild(ptr, key),
 					"The anchor "+importQuote(anchor.s)+" is declared twice in one resource.",
 					anchor.off, anchor.end)
 			} else {
@@ -671,7 +712,47 @@ func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode) {
 			}
 		}
 	}
-	subschemas(node, ptr, func(n *jnode, p string) { ctx.index(n, p, here) })
+	subschemas(node, ptr, func(n *jnode, p string) { ctx.index(n, p, here, base) })
+}
+
+// register keeps one schema per identifier, whichever document declares
+// it, so that no entry wins by the order of a walk.
+func (ctx *importCtx) register(key string, node *jnode, path string, id *jnode) {
+	if had, ok := ctx.resources[key]; ok && had != node {
+		ctx.fail("jsonschema_duplicate", path, "The identifier "+importQuote(id.s)+
+			" names a resource declared elsewhere.", id.off, id.end)
+	}
+	ctx.resources[key] = node
+}
+
+// reach reads a document of the set the first time a reference reaches
+// it. URIs that hold one text name one document.
+func (ctx *importCtx) reach(key string) *jnode {
+	known := ctx.resources[key]
+	text, ok := ctx.documents[key]
+	if nil != known || !ok {
+		return known
+	}
+	if same := ctx.byText[text]; nil != same {
+		ctx.resources[key] = same.root
+		return same.root
+	}
+	outer := ctx.doc
+	parsed, _ := parseSchemaJSON(text)
+	doc := &importDoc{uri: key, src: text, file: key, root: parsed}
+	ctx.doc = doc
+	if nil == parsed || ("object" != parsed.t && "true" != parsed.t && "false" != parsed.t) {
+		ctx.fail("jsonschema_schema", key+"#", "The document "+importQuote(key)+
+			" is not a schema.", 0, 0)
+		delete(ctx.documents, key)
+		ctx.doc = outer
+		return nil
+	}
+	ctx.byText[text] = doc
+	ctx.resources[key] = parsed
+	ctx.index(parsed, key+"#", parsed, key)
+	ctx.doc = outer
+	return parsed
 }
 
 func percentDecode(s string) (string, bool) {
@@ -696,28 +777,23 @@ func percentDecode(s string) (string, bool) {
 
 var arrayIndexRe = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
 
-// resolveRef finds a local reference: the referrer's resource, a pointer
-// into it, or one of its anchors. Anything with a URI in front waits on
-// the document set (phase 9).
+// resolveRef resolves a reference against the referrer's base: a
+// resource, then a pointer into it or one of its anchors.
 func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
-	base := ctx.resourceOf[from]
-	if nil == base {
-		base = ctx.root
-	}
-	if !strings.HasPrefix(ref, "#") {
-		return nil
-	}
-	frag, ok := percentDecode(ref[1:])
-	if !ok {
+	target := resolveURI(ctx.baseOf[from], ref)
+	abs, rawFrag, _ := strings.Cut(target, "#")
+	res := ctx.reach(normalizeURI(abs))
+	frag, ok := percentDecode(rawFrag)
+	if nil == res || !ok {
 		return nil
 	}
 	if "" == frag {
-		return base
+		return res
 	}
 	if !strings.HasPrefix(frag, "/") {
-		return ctx.anchors[base][frag]
+		return ctx.anchors[res][frag]
 	}
-	node := base
+	node := res
 	for _, tok := range strings.Split(frag[1:], "/") {
 		key := pointerUnescaper.Replace(tok)
 		switch {
@@ -736,12 +812,23 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 			return nil
 		}
 	}
+	// A pointer may end outside every schema position the walk indexed;
+	// the schema found there is read in the resource the pointer named.
+	if _, indexed := ctx.ptrOf[node]; !indexed {
+		outer := ctx.doc
+		ctx.doc = ctx.docOf[res]
+		ctx.index(node, ctx.ptrOf[res]+frag, res, ctx.baseOf[res])
+		ctx.doc = outer
+	}
 	return node
 }
 
 var defsPtrRe = regexp.MustCompile(`^#/\$defs/([^/]+)$`)
 
 func (ctx *importCtx) targetName(node *jnode, ptr string) string {
+	if ctx.docOf[node].root != ctx.root {
+		return "u_" + encodeAliasName(strings.TrimSuffix(ptr, "#"))
+	}
 	if node == ctx.root {
 		return "root"
 	}
@@ -758,27 +845,62 @@ func (ctx *importCtx) targetName(node *jnode, ptr string) string {
 }
 
 // collectRefs finds every target, including one reached only through
-// another target.
-func (ctx *importCtx) collectRefs(node *jnode, seen map[*jnode]bool) {
+// another target. A reference that names nothing yet waits in misses.
+func (ctx *importCtx) collectRefs(node *jnode, seen map[*jnode]bool, misses *[]*jnode) {
 	if seen[node] {
 		return
 	}
 	seen[node] = true
-	if ref := jentryOf(node, "$ref"); nil != ref && "string" == ref.t {
-		if target := ctx.resolveRef(node, ref.s); nil != target {
-			if _, known := ctx.targets[target]; !known {
-				// A target outside every schema position is named by the reference.
-				ptr, ok := ctx.ptrOf[target]
-				if !ok {
-					ptr = ref.s
-				}
-				ctx.targets[target] = &importTarget{
-					name: ctx.targetName(target, ptr), node: target, ptr: ptr}
+	if ref := jentryOf(node, "$ref"); nil != ref && "string" == ref.t &&
+		!ctx.follow(node, ref.s, seen, misses) {
+		*misses = append(*misses, node)
+	}
+	subschemas(node, "", func(n *jnode, _ string) { ctx.collectRefs(n, seen, misses) })
+}
+
+func (ctx *importCtx) follow(node *jnode, ref string, seen map[*jnode]bool,
+	misses *[]*jnode) bool {
+	outer := ctx.doc
+	ctx.doc = ctx.docOf[node]
+	target := ctx.resolveRef(node, ref)
+	ctx.doc = outer
+	if nil == target {
+		return false
+	}
+	if _, known := ctx.targets[target]; !known {
+		ptr := ctx.ptrOf[target]
+		ctx.targets[target] = &importTarget{
+			name: ctx.targetName(target, ptr), node: target, ptr: ptr}
+	}
+	ctx.collectRefs(target, seen, misses)
+	return true
+}
+
+// settleRefs tries the misses again until a round indexes nothing new,
+// since a document read later may declare what a missed reference
+// names: what resolves is the walk order's no more.
+func (ctx *importCtx) settleRefs(root *jnode) {
+	seen := map[*jnode]bool{}
+	misses := []*jnode{}
+	ctx.collectRefs(root, seen, &misses)
+	for known := -1; known != len(ctx.ptrOf)+len(ctx.resources); {
+		known = len(ctx.ptrOf) + len(ctx.resources)
+		retry := misses
+		misses = []*jnode{}
+		for _, node := range retry {
+			if !ctx.follow(node, jentryOf(node, "$ref").s, seen, &misses) {
+				misses = append(misses, node)
 			}
-			ctx.collectRefs(target, seen)
 		}
 	}
-	subschemas(node, "", func(n *jnode, _ string) { ctx.collectRefs(n, seen) })
+	outer := ctx.doc
+	for _, node := range misses {
+		ref := jentryOf(node, "$ref")
+		ctx.doc = ctx.docOf[node]
+		ctx.fail("jsonschema_ref", ptrChild(ctx.ptrOf[node], "$ref"), "The reference "+
+			importQuote(ref.s)+" names no schema the import can reach.", ref.off, ref.end)
+	}
+	ctx.doc = outer
 }
 
 // What each keyword the importer does not yet carry costs, for its loss.
@@ -793,8 +915,6 @@ const importLegacy = "a keyword of an earlier dialect, which 2020-12 does not de
 var importLater = map[string]string{
 	"$dynamicRef": importNotYet, "$dynamicAnchor": importNotYet,
 	"unevaluatedProperties": importNotYet, "unevaluatedItems": importNotYet,
-	"$id": "a resource identifier, and references resolve within this document " +
-		"only, so it is dropped",
 	"$vocabulary": "a vocabulary declaration, and the 2020-12 vocabularies are read " +
 		"whatever it says, so it is dropped",
 	"dependencies": importLegacy, "additionalItems": importLegacy,
@@ -817,7 +937,7 @@ var importKindText = map[string]string{
 }
 
 var importCarried = []string{
-	"$schema", "$ref", "$defs", "definitions", "$anchor", "type", "deprecated",
+	"$schema", "$id", "$ref", "$defs", "definitions", "$anchor", "type", "deprecated",
 	"x-aontu-deprecate",
 	"enum", "const", "allOf", "anyOf", "oneOf", "not", "if", "then", "else",
 	"dependentSchemas", "dependentRequired", "properties", "required",
@@ -1450,6 +1570,14 @@ func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
 // with the disjunction of the kinds, each met with the keywords scoped to
 // it. `only` restricts the kinds a position can hold at all.
 func (ctx *importCtx) convert(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
+	outer := ctx.doc
+	ctx.doc = ctx.docOf[node]
+	out := ctx.convertNode(node, ptr, asDecl, only)
+	ctx.doc = outer
+	return out
+}
+
+func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
 	ctx.seen[node] = true
 	switch node.t {
 	case "true":
@@ -1493,7 +1621,52 @@ func (ctx *importCtx) declare(target *importTarget) {
 		return
 	}
 	ctx.decls[target.name] = ""
-	ctx.decls[target.name] = iprint(ctx.convert(target.node, target.ptr, true, nil), "")
+	body := ctx.convert(target.node, target.ptr, true, nil)
+	if entries := ctx.identity(target); 0 < len(entries) {
+		body = icall("ident", body, &ixpr{k: "map", entries: entries})
+	}
+	ctx.decls[target.name] = iprint(body, "")
+}
+
+// identity is the identity a declared schema had, which its declaration
+// carries (ADR-056): the entry's own identifier as written, any other
+// resource's as its URI, absolute or under the entry's directory; its
+// anchor; and the $defs key a name that says the anchor does not say.
+func (ctx *importCtx) identity(target *importTarget) []ientry {
+	node := target.node
+	out := []ientry{}
+	if anchor := jentryOf(node, "$anchor"); nil != anchor && "string" == anchor.t {
+		out = append(out, ientry{key: "anchor", val: iraw(importQuote(anchor.s))})
+	}
+	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && strings.HasPrefix(target.name, "a_") {
+		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[1])))})
+	}
+	id := jentryOf(node, "$id")
+	uri := ctx.baseOf[node]
+	root := ctx.baseOf[ctx.root]
+	dir := root[:strings.LastIndex(root, "/")+1]
+	written, ok := "", true
+	switch {
+	case node == ctx.root:
+		ok = nil != id && "string" == id.t
+		if ok {
+			written = strings.TrimSuffix(id.s, "#")
+		}
+	case nil == id && ctx.docOf[node].root != node:
+		ok = false
+	case !strings.HasPrefix(uri, importDefaultRoot):
+		written = uri
+	case strings.HasPrefix(uri, dir) && len(dir) < len(uri):
+		written = uri[len(dir):]
+	default:
+		ok = false
+		ctx.lose(ptrChild(target.ptr, "$id"), "$id", "the identifier resolves outside the "+
+			"document's directory, with no base URI to write it against, so it is dropped")
+	}
+	if ok {
+		out = append(out, ientry{key: "id", val: iraw(importQuote(written))})
+	}
+	return out
 }
 
 func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixpr {
@@ -1515,10 +1688,8 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if ref := get("$ref"); nil != ref {
 		if "string" != ref.t {
 			ctx.wrongType(at("$ref"), "$ref", "a string", ref)
-		} else if target := ctx.resolveRef(node, ref.s); nil == target {
-			ctx.lose(at("$ref"), "$ref", "the reference "+ref.s+" names nothing "+
-				"the importer can reach in this document, so the position admits anything")
 		} else {
+			target := ctx.resolveRef(node, ref.s)
 			parts = append(parts, ctx.convert(target, ctx.targets[target].ptr, false, nil))
 		}
 	}
@@ -2211,16 +2382,49 @@ func (base *importCtx) run(mapRoot bool) (*importCtx, *ixpr) {
 // ImportJSONSchema rewrites a JSON Schema document as aontu text,
 // reporting every keyword it does not yet carry.
 func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
-	file := "schema"
-	if nil != opts && "" != opts.Path {
-		file = opts.Path
+	if nil == opts {
+		opts = &ImportOptions{}
 	}
+	file := opts.Path
+	if "" == file {
+		file = "schema"
+	}
+	retrieval := opts.URI
+	if "" == retrieval {
+		retrieval = importDefaultBase
+	}
+	uri, _, _ := strings.Cut(resolveURI(importDefaultBase, retrieval), "#")
+	uri = normalizeURI(uri)
+	doc := &importDoc{uri: uri, src: text, file: file}
 	base := &importCtx{
-		src: text, file: file, lossy: []SchemaLoss{},
+		doc: doc, lossy: []SchemaLoss{},
 		anchors: map[*jnode]map[string]*jnode{}, resourceOf: map[*jnode]*jnode{},
-		ptrOf: map[*jnode]string{}, targets: map[*jnode]*importTarget{},
-		mapRoot: true, decls: map[string]string{},
-		defaults: nil != opts && opts.Defaults, seen: map[*jnode]bool{},
+		ptrOf: map[*jnode]string{}, docOf: map[*jnode]*importDoc{},
+		baseOf: map[*jnode]string{}, resources: map[string]*jnode{},
+		documents: map[string]string{}, byText: map[string]*importDoc{},
+		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]string{},
+		defaults: opts.Defaults, seen: map[*jnode]bool{},
+	}
+	// Names for one URI must hold one text, or the set's order would
+	// choose between them.
+	names := make([]string, 0, len(opts.Documents))
+	for name := range opts.Documents {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	first := map[string]string{}
+	for _, name := range names {
+		key, _, _ := strings.Cut(resolveURI(uri, name), "#")
+		key = normalizeURI(key)
+		if had, ok := first[key]; !ok {
+			first[key] = name
+			base.documents[key] = opts.Documents[name]
+		} else if opts.Documents[had] != opts.Documents[name] {
+			base.doc = &importDoc{uri: key, src: opts.Documents[name], file: name}
+			base.fail("jsonschema_duplicate", key+"#", "The documents "+importQuote(had)+
+				" and "+importQuote(name)+" share one URI.", 0, 0)
+			base.doc = doc
+		}
 	}
 	errorReport := func(ctx *importCtx) ImportReport {
 		return ImportReport{Verdict: "error", Aontu: "", Lossy: []SchemaLoss{}, Errors: ctx.errors}
@@ -2246,14 +2450,17 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		return errorReport(base)
 	}
 	base.root = parsed
+	doc.root = parsed
 	if "object" != parsed.t && "true" != parsed.t && "false" != parsed.t {
 		base.fail("jsonschema_schema", "#", "A schema is an object or a boolean.",
 			parsed.off, parsed.end)
 		return errorReport(base)
 	}
 
-	base.index(parsed, "#", parsed)
-	base.collectRefs(parsed, map[*jnode]bool{})
+	base.resources[uri] = parsed
+	base.byText[text] = doc
+	base.index(parsed, "#", parsed, uri)
+	base.settleRefs(parsed)
 	if 0 < len(base.errors) {
 		return errorReport(base)
 	}
@@ -2264,6 +2471,20 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	ctx, body := base.run(true)
 	if nil == coreMap(body) {
 		ctx, body = base.run(false)
+	}
+	// An identity rides only a declaration (ADR-056).
+	for _, node := range base.order {
+		declared := false
+		if target := ctx.targets[node]; nil != target {
+			_, declared = ctx.decls[target.name]
+		}
+		for _, key := range []string{"$id", "$anchor"} {
+			v := jentryOf(node, key)
+			if ctx.seen[node] && !(ctx.mapRoot && declared) && nil != v && "string" == v.t {
+				ctx.lose(ptrChild(base.ptrOf[node], key), key, "an identity rides only an "+
+					"alias declaration, and nothing declares this schema, so it is dropped")
+			}
+		}
 	}
 	// A subschema nothing reaches is still a schema, and one written
 	// wrongly fails the import as a reached one does.

@@ -69,6 +69,23 @@ function files(dir, rel, out) {
     }
     return out;
 }
+// The suite's remotes, served at http://localhost:1234/, and each under
+// its own `$id` where it names another URI.
+function remotes() {
+    const out = {};
+    const dir = Path.join(VECTORS, 'jsonschema', 'remotes');
+    const all = files(dir, '', []).map((f) => [f, Fs.readFileSync(Path.join(dir, f), 'utf8')]);
+    for (const [f, text] of all) {
+        out['http://localhost:1234/' + f] = text;
+    }
+    for (const [, text] of all) {
+        const id = JSON.parse(text)?.$id;
+        if ('string' === typeof id && undefined === out[id]) {
+            out[id] = text;
+        }
+    }
+    return out;
+}
 // The whole file, the whole group, or the one test, in that order.
 function listed(skips, file, group, name) {
     return skips.find((s) => s.file === file && '*' === s.group) ??
@@ -123,7 +140,7 @@ function parsingGroups(dir) {
         };
     });
 }
-function runCorpus(name, bound, groups) {
+function runCorpus(name, bound, groups, documents) {
     const skips = readSkips(Path.join(VECTORS, name));
     Assert.ok(skips.length <= bound, `the ${name} skip ledger holds ${skips.length} rows, past its bound of ${bound}`);
     const problems = [];
@@ -132,7 +149,7 @@ function runCorpus(name, bound, groups) {
     let skipped = 0;
     const aontu = new aontu_1.Aontu();
     for (const g of groups) {
-        const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, { path: g.file });
+        const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, { path: g.file, documents });
         for (const c of g.cases) {
             total++;
             let got = false;
@@ -181,7 +198,7 @@ function runCorpus(name, bound, groups) {
     Assert.deepStrictEqual(problems, [], problems.join('\n'));
 }
 // Each ledger may not grow past its bound; the register tightens them.
-(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema', 178, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12'))));
+(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema', 141, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
 (0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => runCorpus('ajv-extras', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))));
 (0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => runCorpus('jsontestsuite', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))));
 //# sourceMappingURL=jsonschema-suite.test.js.map

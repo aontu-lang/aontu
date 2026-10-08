@@ -67,8 +67,12 @@ function pathText(path: string[]): string {
 }
 
 
-// A definition, written once under $defs, its losses reported at `path`.
-type Def = { name: string, target: string[], path: string[], value: any, used: boolean, schema?: any }
+// A definition, written once under $defs, its losses reported at `path`;
+// `refers` once a $ref is written inside it.
+type Def = {
+  name: string, target: string[], path: string[], value: any, used: boolean, schema?: any,
+  refers?: boolean,
+}
 
 type Plain = { schema: any, text: string }
 
@@ -76,7 +80,9 @@ type Plain = { schema: any, text: string }
 // A scratch walk names definitions without writing them or their losses.
 type Ctx = {
   lossy: SchemaLoss[]
-  refs: { root: any, defs: Map<string, Def>, names: Set<string>, plain: Map<any, Plain> }
+  refs: {
+    root: any, defs: Map<string, Def>, names: Set<string>, plain: Map<any, Plain>, inside: Def[],
+  }
   scratch?: boolean
 }
 
@@ -585,7 +591,9 @@ function defOf(ctx: Ctx, target: string[]): Def | undefined {
   }
   const path = target.map(aliasPathSegment)
   const alias = 1 === target.length && ALIAS_NAME_RE.test(path[0])
-  const base = alias ? defName(path[0].slice(1)) : path.join('.')
+  const declared: string[] = value.identity?.defs ?? []
+  const base = 1 === declared.length ? declared[0] :
+    alias ? defName(path[0].slice(1)) : path.join('.')
   let name = base
   for (let i = 2; refs.names.has(name); i++) {
     name = base + '_' + i
@@ -625,9 +633,15 @@ function refTo(ctx: Ctx, target: string[]): any {
   if (undefined === def) {
     return undefined
   }
+  const inside = ctx.refs.inside
+  if (true !== ctx.scratch && 0 < inside.length) {
+    inside[inside.length - 1].refers = true
+  }
   if (true !== ctx.scratch && !def.used) {
     def.used = true
+    inside.push(def)
     def.schema = fromVal(ctx, def.path, def.value)
+    inside.pop()
   }
   return { $ref: defRef(def) }
 }
@@ -1320,7 +1334,9 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
     anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p))
   }
 
-  const ctx: Ctx = { lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map() } }
+  const ctx: Ctx = {
+    lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map(), inside: [] },
+  }
   const body = fromVal(ctx, anchor, node)
 
   // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
@@ -1349,6 +1365,7 @@ function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
   const whole = exactJSON(body)
   const folded = used.filter((d) => exactJSON(d.schema) === whole)
   const kept = used.filter((d) => !folded.includes(d))
+  const named = identify(schema, folded, kept)
   if (0 < kept.length) {
     schema.$defs = Object.fromEntries(kept.map((d) => [d.name, d.schema]))
   }
@@ -1357,11 +1374,54 @@ function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
   const gone = folded.filter((d) => ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path))
   const seen = new Set<string>()
   const lossy: SchemaLoss[] = []
-  for (const l of ctx.lossy) {
+  for (const l of [...ctx.lossy, ...named]) {
     const key = exactJSON(l)
     if (!seen.has(key) && !gone.some((g) => l.path === g || l.path.startsWith(g + '.'))) {
       seen.add(key)
       lossy.push(l)
+    }
+  }
+  return lossy
+}
+
+
+// ADR-056: a definition's identity is written on it, and a folded one's
+// on the schema. An identifier a $ref inside would resolve against is a
+// loss, as is an anchor its resource already holds.
+function identify(schema: any, folded: Def[], kept: Def[]): SchemaLoss[] {
+  const lossy: SchemaLoss[] = []
+  const one = (defs: Def[], key: string, construct: string, path: string): string | undefined => {
+    const all: string[] = [...new Set(defs.flatMap((d) => d.value.identity?.[key] ?? []))]
+    if (1 < all.length) {
+      lossy.push({ construct, path, reason: 'the declaration carries more than one, so none is written' })
+    }
+    return 1 === all.length ? all[0] : undefined
+  }
+  const keywords = (id?: string, anchor?: string): any =>
+    ({ ...(undefined === id ? {} : { $id: id }), ...(undefined === anchor ? {} : { $anchor: anchor }) })
+
+  const top = one(folded, 'anchor', '$anchor', '$')
+  Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top))
+
+  const anchors = new Set<string>(undefined === top ? [] : [top])
+  for (const d of kept) {
+    let id = one([d], 'id', '$id', pathText(d.path))
+    if (undefined !== id && true === d.refers) {
+      lossy.push({ construct: '$id', path: pathText(d.path),
+        reason: 'a $ref inside the definition would resolve against it, so it is not written' })
+      id = undefined
+    }
+    let anchor = one([d], 'anchor', '$anchor', pathText(d.path))
+    if (undefined !== anchor && undefined === id && anchors.has(anchor)) {
+      lossy.push({ construct: '$anchor', path: pathText(d.path),
+        reason: 'another schema in its resource has the anchor, so it is not written' })
+      anchor = undefined
+    }
+    if (undefined !== anchor && undefined === id) {
+      anchors.add(anchor)
+    }
+    if (undefined !== id || undefined !== anchor) {
+      d.schema = { ...keywords(id, anchor), ...('object' === typeof d.schema ? d.schema : { not: {} }) }
     }
   }
   return lossy

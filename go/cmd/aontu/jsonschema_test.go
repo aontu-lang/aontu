@@ -196,6 +196,31 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		!strings.HasPrefix(out, "p?: *8080|") {
 		t.Fatalf("--defaults: %d %q", code, out)
 	}
+
+	// --uri is the base a relative reference resolves against, and --doc
+	// adds a document it may reach; a usage fault exits 2.
+	doc := filepath.Join(filepath.Dir(file), "n.json")
+	if err := os.WriteFile(doc, []byte(`{"type": "integer"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	write(`{"type": "object", "properties": {"a": {"$ref": "n.json"}}}`)
+	if out, _, code := jsonSchemaRun("import", "--uri", "https://example.com/s.json",
+		"--doc", "https://example.com/n.json", doc, file); 0 != code ||
+		!strings.Contains(out, `id: "https://example.com/n.json"`) {
+		t.Fatalf("--uri --doc: %d %q", code, out)
+	}
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"import", "--uri"}, "--uri needs a URI"},
+		{[]string{"import", "--doc", "https://example.com/n.json"}, "--doc needs a URI and a file"},
+		{[]string{"import", "--doc", "https://example.com/n.json", doc + ".gone", file}, "cannot read"},
+	} {
+		if _, errw, code := jsonSchemaRun(c.args...); 2 != code || !strings.Contains(errw, c.want) {
+			t.Fatalf("%v = %d: %s", c.args, code, errw)
+		}
+	}
 	write(`{"type": "string", "$vocabulary": {}}`)
 
 	out, _, code = jsonSchemaRun("import", "--format", "json", file)

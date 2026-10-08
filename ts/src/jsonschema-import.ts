@@ -18,6 +18,7 @@ import { format } from './format'
 import type { FormatReport } from './format'
 import { normaliseRe } from './val/ConstraintVal'
 import { exactNumberText, isExactInBinary64, readExactNumber } from './val/numkind'
+import { normalizeUri, resolveUri } from './uri'
 import type { ExactNumber } from './val/numkind'
 
 
@@ -26,6 +27,10 @@ export type ImportOptions = {
   path?: string
   // An optional property's default becomes a preference (ADR-052).
   defaults?: boolean
+  // The schema's retrieval URI, the base of its relative identifiers.
+  uri?: string
+  // The documents a reference may reach, by URI. None is fetched.
+  documents?: Record<string, string>
 }
 
 export type ImportReport = {
@@ -379,16 +384,24 @@ function encodeName(s: string): string {
 
 type Target = { name: string, node: JNode, ptr: string }
 
+type Doc = { uri: string, src: string, file: string, root: JNode }
+
 type Ctx = {
-  src: string
-  file: string
+  // The document whose text sites point into.
+  doc: Doc
   root: JNode
   lossy: SchemaLoss[]
   errors: VetFinding[]
-  // Anchors belong to a resource: the document, or a subschema with `$id`.
+  // Anchors belong to a resource: a document, or a subschema with `$id`.
   anchors: Map<JNode, Map<string, JNode>>
   resourceOf: Map<JNode, JNode>
   ptrOf: Map<JNode, string>
+  docOf: Map<JNode, Doc>
+  baseOf: Map<JNode, string>
+  // Each resource by its canonical URI, and the documents not yet read.
+  resources: Map<string, JNode>
+  documents: Map<string, string>
+  byText: Map<string, Doc>
   targets: Map<JNode, Target>
   // A map root declares each target once; any other root copies it in
   // place and cuts a cycle.
@@ -400,6 +413,11 @@ type Ctx = {
   // The schema nodes a conversion reached.
   seen: Set<JNode>
 }
+
+// The base of a schema that names no retrieval URI: rooted, so a
+// relative identifier resolves as against a real one.
+const DEFAULT_ROOT = 'aontu:/'
+const DEFAULT_BASE = DEFAULT_ROOT + 'schema'
 
 // The copies a root that is not a map may make before they are cut.
 const COPY_BUDGET = 4096
@@ -423,8 +441,8 @@ function rowCol(src: string, off: number): [number, number] {
 
 function fail(ctx: Ctx, code: string, path: string, message: string,
   off: number, end: number): void {
-  const [row, col] = rowCol(ctx.src, off)
-  const text = ctx.src.slice(off, end)
+  const [row, col] = rowCol(ctx.doc.src, off)
+  const text = ctx.doc.src.slice(off, end)
   ctx.errors.push({
     code,
     class: codeClass(code),
@@ -433,7 +451,7 @@ function fail(ctx: Ctx, code: string, path: string, message: string,
     message,
     hint: (getHint(code, {}) as string).replace(/\s+$/, ''),
     sites: [{
-      file: ctx.file, row, col, len: end - off, role: 'schema', src: text, value: text,
+      file: ctx.doc.file, row, col, len: end - off, role: 'schema', src: text, value: text,
     }],
   })
 }
@@ -492,24 +510,43 @@ function subschemas(node: JNode, ptr: string, visit: (n: JNode, p: string) => vo
 }
 
 
-function index(ctx: Ctx, node: JNode, ptr: string, resource: JNode): void {
+function index(ctx: Ctx, node: JNode, ptr: string, resource: JNode, base: string): void {
   ctx.ptrOf.set(node, ptr)
+  ctx.docOf.set(node, ctx.doc)
   if ('object' !== node.t) {
     return
   }
+  let here = node === ctx.doc.root ? node : resource
   const id = entry(node, '$id')
-  const here = node === ctx.root || (null != id && 'string' === id.t) ? node : resource
-  ctx.resourceOf.set(node, here)
-  const anchor = entry(node, '$anchor')
-  if (null != anchor) {
-    if ('string' !== anchor.t) {
-      wrongType(ctx, child(ptr, '$anchor'), '$anchor', 'a string', anchor)
+  if (null != id && 'string' !== id.t) {
+    wrongType(ctx, child(ptr, '$id'), '$id', 'a string', id)
+  }
+  else if (null != id) {
+    const target = resolveUri(base, id.s)
+    const hash = target.indexOf('#')
+    if (-1 !== hash && hash < target.length - 1) {
+      fail(ctx, 'jsonschema_schema', child(ptr, '$id'), 'The identifier ' +
+        quote(id.s) + ' has a fragment, which an identifier may not.', id.off, id.end)
     }
     else {
+      base = -1 === hash ? target : target.slice(0, hash)
+      here = node
+      register(ctx, normalizeUri(base), node, child(ptr, '$id'), id)
+    }
+  }
+  ctx.resourceOf.set(node, here)
+  ctx.baseOf.set(node, base)
+  // A dynamic anchor is a plain one as well, in the same namespace.
+  for (const key of ['$anchor', '$dynamicAnchor']) {
+    const anchor = entry(node, key)
+    if (null != anchor && 'string' !== anchor.t) {
+      wrongType(ctx, child(ptr, key), key, 'a string', anchor)
+    }
+    else if (null != anchor) {
       const names = ctx.anchors.get(here) ?? new Map<string, JNode>()
       ctx.anchors.set(here, names)
-      if (names.has(anchor.s)) {
-        fail(ctx, 'jsonschema_duplicate', child(ptr, '$anchor'),
+      if (names.has(anchor.s) && names.get(anchor.s) !== node) {
+        fail(ctx, 'jsonschema_duplicate', child(ptr, key),
           'The anchor ' + quote(anchor.s) + ' is declared twice in one resource.',
           anchor.off, anchor.end)
       }
@@ -518,7 +555,52 @@ function index(ctx: Ctx, node: JNode, ptr: string, resource: JNode): void {
       }
     }
   }
-  subschemas(node, ptr, (n, p) => index(ctx, n, p, here))
+  subschemas(node, ptr, (n, p) => index(ctx, n, p, here, base))
+}
+
+
+// One schema per identifier, whichever document declares it, so that no
+// entry wins by the order of a walk.
+function register(ctx: Ctx, key: string, node: JNode, path: string, id: JNode & { t: 'string' }):
+  void {
+  const had = ctx.resources.get(key)
+  if (undefined !== had && had !== node) {
+    fail(ctx, 'jsonschema_duplicate', path, 'The identifier ' + quote(id.s) +
+      ' names a resource declared elsewhere.', id.off, id.end)
+  }
+  ctx.resources.set(key, node)
+}
+
+
+// A document of the set, read the first time a reference reaches it.
+// URIs that hold one text name one document.
+function reach(ctx: Ctx, key: string): JNode | undefined {
+  const known = ctx.resources.get(key)
+  const text = ctx.documents.get(key)
+  if (undefined !== known || undefined === text) {
+    return known
+  }
+  const same = ctx.byText.get(text)
+  if (undefined !== same) {
+    ctx.resources.set(key, same.root)
+    return same.root
+  }
+  const outer = ctx.doc
+  const parsed = parseJson(text)
+  const doc: Doc = { uri: key, src: text, file: key, root: parsed as JNode }
+  ctx.doc = doc
+  if ('why' in parsed || !['object', 'true', 'false'].includes(parsed.t)) {
+    fail(ctx, 'jsonschema_schema', key + '#', 'The document ' + quote(key) +
+      ' is not a schema.', 0, 0)
+    ctx.documents.delete(key)
+    ctx.doc = outer
+    return undefined
+  }
+  ctx.byText.set(text, doc)
+  ctx.resources.set(key, parsed)
+  index(ctx, parsed, key + '#', parsed, key)
+  ctx.doc = outer
+  return parsed
 }
 
 
@@ -549,25 +631,23 @@ function percentDecode(s: string): string | undefined {
 }
 
 
-// A local reference: the referrer's resource, a pointer into it, or one
-// of its anchors. Anything with a URI in front waits on the document
-// set (phase 9).
+// A reference resolved against the referrer's base: a resource, then a
+// pointer into it or one of its anchors.
 function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
-  const base = ctx.resourceOf.get(from) ?? ctx.root
-  if (!ref.startsWith('#')) {
-    return undefined
-  }
-  const frag = percentDecode(ref.slice(1))
-  if (undefined === frag) {
+  const target = resolveUri(ctx.baseOf.get(from) as string, ref)
+  const hash = target.indexOf('#')
+  const res = reach(ctx, normalizeUri(-1 === hash ? target : target.slice(0, hash)))
+  const frag = percentDecode(-1 === hash ? '' : target.slice(hash + 1))
+  if (undefined === res || undefined === frag) {
     return undefined
   }
   if ('' === frag) {
-    return base
+    return res
   }
   if (!frag.startsWith('/')) {
-    return ctx.anchors.get(base)?.get(frag)
+    return ctx.anchors.get(res)?.get(frag)
   }
-  let node: JNode | undefined = base
+  let node: JNode | undefined = res
   for (const tok of frag.slice(1).split('/')) {
     const key = tok.replace(/~1/g, '/').replace(/~0/g, '~')
     if ('object' === node.t) {
@@ -583,11 +663,22 @@ function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
       return undefined
     }
   }
+  // A pointer may end outside every schema position the walk indexed;
+  // the schema found there is read in the resource the pointer named.
+  if (!ctx.ptrOf.has(node)) {
+    const outer = ctx.doc
+    ctx.doc = ctx.docOf.get(res) as Doc
+    index(ctx, node, ctx.ptrOf.get(res) + frag, res, ctx.baseOf.get(res) as string)
+    ctx.doc = outer
+  }
   return node
 }
 
 
 function targetName(ctx: Ctx, node: JNode, ptr: string): string {
+  if ((ctx.docOf.get(node) as Doc).root !== ctx.root) {
+    return 'u_' + encodeName(ptr.replace(/#$/, ''))
+  }
   if (node === ctx.root) {
     return 'root'
   }
@@ -606,25 +697,65 @@ function targetName(ctx: Ctx, node: JNode, ptr: string): string {
 }
 
 
-// Every target, including one reached only through another target.
-function collectRefs(ctx: Ctx, node: JNode, seen: Set<JNode>): void {
+// Every target, including one reached only through another target. A
+// reference that names nothing yet waits in `misses`.
+function collectRefs(ctx: Ctx, node: JNode, seen: Set<JNode>, misses: JNode[]): void {
   if (seen.has(node)) {
     return
   }
   seen.add(node)
   const ref = entry(node, '$ref')
-  if (null != ref && 'string' === ref.t) {
-    const target = resolveRef(ctx, node, ref.s)
-    if (null != target) {
-      if (!ctx.targets.has(target)) {
-        // A target outside every schema position is named by the reference.
-        const ptr = ctx.ptrOf.get(target) ?? ref.s
-        ctx.targets.set(target, { name: targetName(ctx, target, ptr), node: target, ptr })
+  if (null != ref && 'string' === ref.t && !follow(ctx, node, ref.s, seen, misses)) {
+    misses.push(node)
+  }
+  subschemas(node, '', (n) => collectRefs(ctx, n, seen, misses))
+}
+
+
+function follow(ctx: Ctx, node: JNode, ref: string, seen: Set<JNode>, misses: JNode[]):
+  boolean {
+  const outer = ctx.doc
+  ctx.doc = ctx.docOf.get(node) as Doc
+  const target = resolveRef(ctx, node, ref)
+  ctx.doc = outer
+  if (undefined === target) {
+    return false
+  }
+  if (!ctx.targets.has(target)) {
+    const ptr = ctx.ptrOf.get(target) as string
+    ctx.targets.set(target, { name: targetName(ctx, target, ptr), node: target, ptr })
+  }
+  collectRefs(ctx, target, seen, misses)
+  return true
+}
+
+
+// A document read later may declare what a missed reference names, so
+// the misses are tried again until a round indexes nothing new: what
+// resolves is the walk order's no more.
+function settleRefs(ctx: Ctx, root: JNode): void {
+  const seen = new Set<JNode>()
+  let misses: JNode[] = []
+  collectRefs(ctx, root, seen, misses)
+  for (let known = -1; known !== ctx.ptrOf.size + ctx.resources.size;) {
+    known = ctx.ptrOf.size + ctx.resources.size
+    const retry = misses
+    misses = []
+    for (const node of retry) {
+      if (!follow(ctx, node, (entry(node, '$ref') as JNode & { s: string }).s, seen, misses)) {
+        misses.push(node)
       }
-      collectRefs(ctx, target, seen)
     }
   }
-  subschemas(node, '', (n) => collectRefs(ctx, n, seen))
+  const outer = ctx.doc
+  for (const node of misses) {
+    const ref = entry(node, '$ref') as JNode & { s: string }
+    ctx.doc = ctx.docOf.get(node) as Doc
+    fail(ctx, 'jsonschema_ref', child(ctx.ptrOf.get(node) as string, '$ref'),
+      'The reference ' + quote(ref.s) + ' names no schema the import can reach.',
+      ref.off, ref.end)
+  }
+  ctx.doc = outer
 }
 
 
@@ -638,8 +769,6 @@ const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, 
 const LATER: Record<string, string> = {
   $dynamicRef: NOT_YET, $dynamicAnchor: NOT_YET,
   unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
-  $id: 'a resource identifier, and references resolve within this document ' +
-    'only, so it is dropped',
   $vocabulary: 'a vocabulary declaration, and the 2020-12 vocabularies are read ' +
     'whatever it says, so it is dropped',
   dependencies: LEGACY, additionalItems: LEGACY,
@@ -661,7 +790,7 @@ const KIND_TEXT: Record<string, string> = {
 }
 
 const CARRIED = [
-  '$schema', '$ref', '$defs', 'definitions', '$anchor', 'type', 'deprecated',
+  '$schema', '$id', '$ref', '$defs', 'definitions', '$anchor', 'type', 'deprecated',
   'x-aontu-deprecate',
   'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
   'dependentSchemas', 'dependentRequired', 'properties', 'required',
@@ -1157,6 +1286,16 @@ function lenOf(lo?: string, hi?: string): Expr | undefined {
 // disjunction of the kinds, each met with the keywords scoped to it.
 // `only` restricts the kinds a position can hold at all.
 function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: string[]): Expr {
+  const outer = ctx.doc
+  ctx.doc = ctx.docOf.get(node) as Doc
+  const out = convertNode(ctx, node, ptr, asDecl, only)
+  ctx.doc = outer
+  return out
+}
+
+
+function convertNode(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean,
+  only?: string[]): Expr {
   ctx.seen.add(node)
   if ('true' === node.t) {
     return ANY
@@ -1197,8 +1336,45 @@ function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: str
 function declare(ctx: Ctx, target: Target): void {
   if (!ctx.decls.has(target.name)) {
     ctx.decls.set(target.name, '')
-    ctx.decls.set(target.name, print(convert(ctx, target.node, target.ptr, true), ''))
+    const body = convert(ctx, target.node, target.ptr, true)
+    const entries = identity(ctx, target)
+    ctx.decls.set(target.name, print(0 === entries.length ? body :
+      call('ident', body, { k: 'map', spreads: [], entries }), ''))
   }
+}
+
+
+// ADR-056: the identity a declared schema had, which its declaration
+// carries: the entry's own identifier as written, any other resource's
+// as its URI, absolute or under the entry's directory; its anchor; and
+// the $defs key a name that says the anchor does not say.
+function identity(ctx: Ctx, target: Target): MapEntry[] {
+  const node = target.node
+  const out: MapEntry[] = []
+  const anchor = entry(node, '$anchor')
+  if ('string' === anchor?.t) {
+    out.push({ key: 'anchor', optional: false, val: raw(quote(anchor.s)) })
+  }
+  const defs = /^#\/\$defs\/([^/]+)$/.exec(target.ptr)
+  if (null != defs && target.name.startsWith('a_')) {
+    out.push({ key: 'defs', optional: false,
+      val: raw(quote(defs[1].replace(/~1/g, '/').replace(/~0/g, '~'))) })
+  }
+  const id = entry(node, '$id')
+  const uri = ctx.baseOf.get(node) as string
+  const dir = (ctx.baseOf.get(ctx.root) as string).replace(/[^/]*$/, '')
+  const written = node === ctx.root ? ('string' === id?.t ? id.s.replace(/#$/, '') : undefined) :
+    null == id && (ctx.docOf.get(node) as Doc).root !== node ? undefined :
+      !uri.startsWith(DEFAULT_ROOT) ? uri :
+        uri.startsWith(dir) && dir.length < uri.length ? uri.slice(dir.length) : null
+  if (null === written) {
+    lose(ctx, child(target.ptr, '$id'), '$id', 'the identifier resolves outside the ' +
+      'document\'s directory, with no base URI to write it against, so it is dropped')
+  }
+  else if (undefined !== written) {
+    out.push({ key: 'id', optional: false, val: raw(quote(written)) })
+  }
+  return out
 }
 
 
@@ -1226,14 +1402,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       wrongType(ctx, at('$ref'), '$ref', 'a string', ref)
     }
     else {
-      const target = resolveRef(ctx, node, ref.s)
-      if (undefined === target) {
-        lose(ctx, at('$ref'), '$ref', 'the reference ' + ref.s + ' names nothing ' +
-          'the importer can reach in this document, so the position admits anything')
-      }
-      else {
-        parts.push(convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false))
-      }
+      const target = resolveRef(ctx, node, ref.s) as JNode
+      parts.push(convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false))
     }
   }
 
@@ -1781,12 +1951,34 @@ function run(base: Ctx, mapRoot: boolean): [Ctx, Expr] {
 
 
 export function importJsonSchema(text: string, options?: ImportOptions): ImportReport {
+  const anonymous = '' === (options?.uri ?? '')
+  const uri = normalizeUri(resolveUri(DEFAULT_BASE, anonymous ? DEFAULT_BASE : options?.uri as string)
+    .replace(/#.*$/s, ''))
+  const doc: Doc = { uri, src: text, file: options?.path || 'schema', root: { t: 'null', off: 0, end: 0 } }
   const base: Ctx = {
-    src: text, file: options?.path ?? 'schema', root: { t: 'null', off: 0, end: 0 },
-    defaults: true === options?.defaults,
+    doc, root: doc.root, defaults: true === options?.defaults,
     lossy: [], errors: [], anchors: new Map(), resourceOf: new Map(), ptrOf: new Map(),
-    targets: new Map(), mapRoot: true, decls: new Map(), stack: [], copies: 0,
-    seen: new Set(),
+    docOf: new Map(), baseOf: new Map(), resources: new Map(), byText: new Map(),
+    documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
+    copies: 0, seen: new Set(),
+  }
+  // Names for one URI must hold one text, or the set's order would
+  // choose between them.
+  const given = options?.documents ?? {}
+  const first = new Map<string, string>()
+  for (const name of Object.keys(given).sort(cmpCodePoint)) {
+    const key = normalizeUri(resolveUri(uri, name).replace(/#.*$/s, ''))
+    const had = first.get(key)
+    if (undefined === had) {
+      first.set(key, name)
+      base.documents.set(key, given[name])
+    }
+    else if (given[had] !== given[name]) {
+      base.doc = { uri: key, src: given[name], file: name, root: doc.root }
+      fail(base, 'jsonschema_duplicate', key + '#', 'The documents ' + quote(had) +
+        ' and ' + quote(name) + ' share one URI.', 0, 0)
+      base.doc = doc
+    }
   }
   const error = (ctx: Ctx): ImportReport =>
     ({ verdict: 'error', aontu: '', lossy: [], errors: ctx.errors })
@@ -1807,14 +1999,17 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     return error(base)
   }
   base.root = parsed
+  doc.root = parsed
   if (!('object' === parsed.t || 'true' === parsed.t || 'false' === parsed.t)) {
     fail(base, 'jsonschema_schema', '#', 'A schema is an object or a boolean.',
       parsed.off, parsed.end)
     return error(base)
   }
 
-  index(base, parsed, '#', parsed)
-  collectRefs(base, parsed, new Set())
+  base.resources.set(uri, parsed)
+  base.byText.set(text, doc)
+  index(base, parsed, '#', parsed, uri)
+  settleRefs(base, parsed)
   if (0 < base.errors.length) {
     return error(base)
   }
@@ -1825,6 +2020,17 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   let [ctx, body] = run(base, true)
   if (undefined === coreMap(body)) {
     [ctx, body] = run(base, false)
+  }
+  // An identity rides only a declaration (ADR-056).
+  for (const [node, ptr] of base.ptrOf) {
+    const target = ctx.targets.get(node)
+    const declared = ctx.mapRoot && undefined !== target && ctx.decls.has(target.name)
+    for (const key of ['$id', '$anchor']) {
+      if (ctx.seen.has(node) && !declared && 'string' === entry(node, key)?.t) {
+        lose(ctx, child(ptr, key), key, 'an identity rides only an alias declaration, ' +
+          'and nothing declares this schema, so it is dropped')
+      }
+    }
   }
   // A subschema nothing reaches is still a schema, and one written
   // wrongly fails the import as a reached one does.

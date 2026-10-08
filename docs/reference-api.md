@@ -45,7 +45,8 @@ Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [--defaults] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1462,9 +1463,13 @@ use of it that still says what the alias says is its `$ref`; a use the
 meet narrowed is the `$ref` beside the keywords that differ, which is
 how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
-import` read it from. A reference that reaches outside the template
-holding it, by a relative path or into a list, stays residue and is
-reported. Write a recursive `steps.aontu`:
+import` read it from. An alias declared with
+[`ident()`](reference-language.md#identity-ident) writes its `$id` and
+`$anchor` on the definition, or on the schema where the definition is
+the whole schema; an `$id` that a `$ref` inside the definition would
+resolve against is not written, and is reported. A reference that
+reaches outside the template holding it, by a relative path or into a
+list, stays residue and is reported. Write a recursive `steps.aontu`:
 
 <!-- test: file steps.aontu -->
 ```aontu
@@ -1512,7 +1517,8 @@ Import a **JSON Schema** (draft 2020-12) document as aontu, and say
 what could not be carried.
 
 ```
-aontu jsonschema import [--strict] [--defaults] [--format text|json] <file>
+aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
+                        [--format text|json] <file>
 ```
 
 This is the bridge in the other direction. A schema another tool
@@ -1554,6 +1560,14 @@ y: number
 - `--defaults` makes an optional property's `default` a preference,
   `*d | …`, where the property's own assertions admit it; without it a
   `default` is an annotation only, as JSON Schema means it.
+- `--uri <uri>` is the schema's retrieval URI, the base its relative
+  identifiers and references resolve against. `--doc <uri> <file>`,
+  given once per document, adds a document a reference may reach by
+  that URI, a relative one read against the schema's. Nothing is
+  fetched: a reference to a document outside the
+  set, or to a pointer or anchor that names nothing, refuses the import
+  with `jsonschema_ref`, and two documents given one URI with different
+  texts refuse it with `jsonschema_duplicate`.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1588,7 +1602,7 @@ y: number
 | `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |
 | `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
-| `$ref`, `$defs`, `$anchor` | a local reference is an alias when the root is an object schema, and a copy in place otherwise |
+| `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
 | `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
 | a keyword JSON Schema does not name | the same record, under `x` |
@@ -1607,9 +1621,9 @@ costs. A validation keyword such as `unevaluatedProperties` widens the
 position, and the loss says so. So does a keyword of an earlier
 dialect, `dependencies`, `additionalItems`, `$recursiveRef` or
 `$recursiveAnchor`: it asserts in that dialect, though 2020-12 would
-read it as an annotation. A
-`$ref` that names another document is a loss too, and its position
-admits anything: the importer reads one document.
+read it as an annotation. An `$id` or `$anchor` on a schema no
+declaration holds is a loss as well, since only an alias declaration
+carries identity.
 
 **Data is checked against an import with `vet --no-fill
 --exact-numbers`**, which asks the question JSON Schema asks: whether

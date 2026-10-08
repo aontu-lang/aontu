@@ -2297,6 +2297,12 @@ Mark `x` as hidden.
 
 Example: `hide(world) & string`→`"world"`
 
+### `ident(v: any, r: map) : any`
+
+Declare an alias's value `v` with the identity `r`: the identifier, anchor and `$defs` key a JSON Schema gave it. Only an alias declaration carries it, and a reference copies the value without it. See [Identity](#identity-ident).
+
+Example: `%item = ident(integer, {id: "https://example.com/item.json"})`
+
 ### `inject(spec: string|map, children?: list) : map`
 
 An injection node of the [component tree](#generation): a body written
@@ -4025,6 +4031,43 @@ server's hover shows a value's titles in bold, then its descriptions,
 and `aontu jsonschema` writes each key as the JSON Schema keyword of
 the same meaning, which `aontu jsonschema import` reads back as
 `meta()` ([JSON Schema](reference-api.md#aontu-jsonschema)).
+
+## Identity: `ident`
+
+`ident(v, r)` declares an alias's value with the identity a JSON Schema
+gave it, which the importer writes and the exporter reads back:
+
+```aontu
+%item = ident(integer, { id:"https://example.com/item.json" anchor:"item" })
+count: %item & 3
+```
+
+```json
+{"count":3}
+```
+
+The record `r` is a map whose keys are among `id`, the schema's identifier,
+`anchor`, its anchor, and `defs`, the `$defs` key it was declared
+under, each holding a string. Any other key or kind refuses the call
+with `func_arg`.
+
+**Only an alias declaration carries it.** `ident()` is the value of a
+declaration, or one term of the meet that is that value, which is how
+two declarations of one name meet their identities, as a union.
+Anywhere else, a field, an item or the value a value-prefix declaration
+is written on, it refuses with `ident_place`.
+
+**A copy carries no identity.** A reference to the alias copies the
+value without the record, as it copies without `type()` and `hide()`
+marks, so no value in the tree has an identity and two uses never meet
+one. The identity is in no canon and no hash.
+
+`aontu jsonschema` writes the identity on the alias's definition: `$id`
+and `$anchor`, and the `defs` key as the definition's name, or on the
+schema itself where the definition is the whole schema. An identifier
+is not written where a `$ref` inside the definition would resolve
+against it, and that is reported as a loss
+([JSON Schema](reference-api.md#aontu-jsonschema)).
 
 ## Closed values: `close` / `open`
 

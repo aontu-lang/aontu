@@ -63,6 +63,7 @@ function markedChild(v, part) {
 }
 const aliasname_1 = require("../aliasname");
 const rider_1 = require("../rider");
+const IdentFuncVal_1 = require("./IdentFuncVal");
 class RefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -422,7 +423,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const lifted = true !== ctx.argsnap
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
-                    out = out.clone(ctx, { dup: !out.holdsStaged });
+                    out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !out.holdsStaged }));
                     if (lifted) {
                         // The copy carries a held constraint without its type.
                         out = (0, utility_1.walk)(out, (_key, val) => {

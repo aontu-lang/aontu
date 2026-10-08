@@ -84,6 +84,7 @@ capability decision is the phase rows it governed in
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Accepted |
 
 ---
 
@@ -5236,3 +5237,68 @@ unifies changes its answer.
 - Pinned by `test/spec/constraint-must.tsv`, the `js-must` row of
   `test/spec/jsonschema.tsv`, the vet rows over `must` and the
   `budget-trials-must-past-the-budget` row, in both ports.
+
+
+## ADR-056 — Identity rides the alias declaration
+
+**Date:** 2026-10-08
+**Status:** Accepted
+
+### Context
+
+JSON Schema names a schema in three ways that are not its place: `$id`
+gives a resource a URI, `$anchor` a plain name inside a resource, and
+a `$defs` key the entry a reference names. The importer resolves every
+reference to an alias, so validation no longer needs the names, but an
+export meant to come back as the schema it came from does.
+[ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)
+removed `id()`, a second name that unified every node carrying it, so
+that a model carrying one could not be instantiated twice. The
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) review (#311,
+open question 3) put identity on the alias declaration, in a builtin
+only a declaration may carry, rather than in keys of the `meta` record,
+which a copy carries wherever it goes.
+
+### Decision
+
+1. **`ident(v, r)` is `v`, declared with the identity `r`**: a map
+   whose keys are among `id`, `anchor` and `defs`, each a string,
+   holding the schema's identifier, its anchor and the `$defs` key it
+   was declared under. Any other key or kind refuses with `func_arg`.
+2. **Only an alias declaration carries it.** `ident(…)` is the value
+   of `%name = …`, or one term of the meet that is that value, which is
+   also how two declarations of one name meet. Anywhere else it
+   refuses with `ident_place`, class `parse`.
+3. **A copy carries no identity.** A reference copies the value
+   without it, as it copies without `type()` and `hide()` marks, and so
+   does a recursion expanding its definition. No value in the tree has
+   an identity, and two uses never meet one. Two declarations of one
+   name meet their identities as a union, as riders do.
+4. **The identity is in no canon and no hash**, as a declaration is in
+   neither.
+5. **The importer writes it, and the exporter reads it.** A declared
+   schema's `$id`, `$anchor` and a `$defs` key its alias name does not
+   already say go in `ident(…)`; an identifier on a schema nothing
+   declares is reported as a loss. The exporter names the definition
+   by its `defs` key and writes `$id` and `$anchor` on it, or on the
+   schema when the definition is the whole schema.
+
+### Consequences
+
+- Identity neither unifies nor addresses anything, which is what
+  ADR-014 refused, and it cannot ride into a use, so a model that
+  carries it can still be instantiated any number of times.
+- The document's own identity is carried only where a reference names
+  the document and the importer declares `%root`; a root nothing names
+  reports its `$id` as a loss. The importer writes the entry's own
+  identifier as the text gave it, and any other resource's as its URI,
+  absolute, or relative to the entry's directory when the import has no
+  base URI; one outside that directory is a loss.
+- The exporter writes every `$ref` as a pointer from the schema's root,
+  so a definition's `$id` is written only where nothing inside it is a
+  `$ref`, which would resolve against it; elsewhere the identifier is a
+  loss. An anchor whose resource already holds the name is a loss too,
+  and so is a key the declarations gave two values.
+- Pinned by `test/spec/ident.tsv`, the `js-ident-*` rows of
+  `test/spec/jsonschema.tsv` and the `import-identity-*` rows of
+  `test/spec/jsonschema-import.tsv`, in both ports.

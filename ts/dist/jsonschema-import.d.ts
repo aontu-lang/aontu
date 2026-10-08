@@ -4,6 +4,8 @@ import type { FormatReport } from './format';
 export type ImportOptions = {
     path?: string;
     defaults?: boolean;
+    uri?: string;
+    documents?: Record<string, string>;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;

@@ -78,7 +78,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
-       aontu jsonschema import [--strict] [--defaults] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3332,6 +3333,8 @@ function runJsonSchemaImport(argv) {
     let format = 'text';
     let strict = false;
     let defaults = false;
+    let uri = undefined;
+    const docs = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -3352,6 +3355,21 @@ function runJsonSchemaImport(argv) {
         else if ('--defaults' === arg) {
             defaults = true;
         }
+        else if ('--uri' === arg) {
+            uri = argv[++i];
+            if (undefined === uri) {
+                process.stderr.write('aontu: --uri needs a URI\n');
+                return 2;
+            }
+        }
+        else if ('--doc' === arg) {
+            if (argv.length < i + 3) {
+                process.stderr.write('aontu: --doc needs a URI and a file\n');
+                return 2;
+            }
+            docs.push([argv[i + 1], argv[i + 2]]);
+            i += 2;
+        }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown jsonschema import option ${arg} (try --help)\n`);
             return 2;
@@ -3365,14 +3383,18 @@ function runJsonSchemaImport(argv) {
         return 2;
     }
     let src;
+    const documents = {};
     try {
         src = (0, node_fs_1.readFileSync)(files[0], 'utf8');
+        for (const [u, f] of docs) {
+            documents[u] = (0, node_fs_1.readFileSync)(f, 'utf8');
+        }
     }
     catch (err) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults });
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults, uri, documents });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema' },

@@ -26,6 +26,7 @@ var funcSet = map[string]bool{
 	"contains":  true,
 	"deprecate": true,
 	"meta":      true,
+	"ident":     true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -185,6 +186,8 @@ type FuncVal struct {
 	name     string
 	peg      []Val // arguments
 	prepared bool
+	// declared marks ident() as the whole value of an alias declaration.
+	declared bool
 }
 
 func newFunc(name string, args []Val) *FuncVal {
@@ -431,6 +434,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	} else if isTop(peer) {
 		f.notdone()
 		nf := newFunc(f.name, newpeg)
+		nf.declared = f.declared
 		nf.path = cp(f.path)
 		nf.dc = f.dc
 		nf.site.sp = f.site.sp
@@ -675,6 +679,26 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		// A second record on a deprecated value joins the first.
 		out.setDeprecRec(unionRiders(sameString, out.deprecRec(), rec))
+		return out
+	case "ident":
+		if !f.declared {
+			return makeNilErr(ctx, "ident_place", f, nil)
+		}
+		if args[0].Nil() {
+			return args[0]
+		}
+		rec, ok := identRecord(args[1])
+		if !ok {
+			return makeNilErrFull(ctx, "func_arg", f, args[1], "", map[string]string{
+				"func": "ident",
+				"sig":  renderSig(funcSig["ident"]),
+				"arg":  "r",
+				"argn": "2",
+				"got":  args[1].Canon(),
+			})
+		}
+		out := clonePath(args[0], cp(base))
+		out.setIdentRec(unionRiders(sameString, out.identRec(), rec))
 		return out
 	case "meta":
 		if args[0].Nil() {

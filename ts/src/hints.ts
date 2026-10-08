@@ -648,10 +648,26 @@ const hints: Record<string, string> = {
     'Fix the schema text; nothing in the aontu document is at issue.',
 
   'jsonschema_duplicate':
-    'A JSON Schema resource declares one `$anchor` name twice, so a\n' +
-    'reference to it would be answered by whichever declaration the\n' +
-    'walk reached first. Rename one anchor, or give the second subschema\n' +
-    'its own `$id` so that the two names live in different resources.',
+    'A JSON Schema resource declares one `$anchor` name twice, two\n' +
+    'schemas declare one `$id`, or two documents of the set share one\n' +
+    'URI, so a reference to it would be answered by whichever came\n' +
+    'first. Rename one anchor or identifier, give the second subschema\n' +
+    'its own `$id` so that the two anchors live in different resources,\n' +
+    'or give each document its own URI.',
+
+  'ident_place':
+    'ident() records the identity a schema was declared with, so it may\n' +
+    'only be the whole value of an alias declaration, as in\n' +
+    '`%name = ident(value, { id: "https://example.com/s.json" })`. A\n' +
+    'reference copies the value without it; write the identity on the\n' +
+    'declaration, not where the value is used.',
+
+  'jsonschema_ref':
+    'A JSON Schema reference names no schema the import can reach: its\n' +
+    'document is not in the document set, or the pointer or anchor\n' +
+    'after its `#` names nothing in the document it reaches. Add the\n' +
+    'document to the set with --doc <uri> <file>, or correct the\n' +
+    'reference.',
 
   'vet_filled':
     'Under --no-fill a member the schema supplies and the data does not\n' +
@@ -980,6 +996,8 @@ const codeClasses: Record<string, string> = {
   var_name: 'parse',
   jsonschema_schema: 'parse',
   jsonschema_duplicate: 'reference',
+  jsonschema_ref: 'reference',
+  ident_place: 'parse',
   vet_filled: 'incomplete',
   pref_implicit_bag: 'parse',
   alias_not_toplevel: 'parse',

@@ -10,6 +10,7 @@ const type_1 = require("../type");
 const err_1 = require("../err");
 const aliasname_1 = require("../aliasname");
 const FeatureVal_1 = require("./FeatureVal");
+const IdentFuncVal_1 = require("./IdentFuncVal");
 const ConjunctVal_1 = require("./ConjunctVal");
 const unify_1 = require("../unify");
 const utility_1 = require("../utility");
@@ -67,9 +68,9 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
                 out.path = this.path;
                 return out;
             }
-            const level = body.clone(ctx, {
+            const level = (0, IdentFuncVal_1.undeclared)(body.clone(ctx, {
                 dup: true, path: [...ctx.path],
-            });
+            }));
             (0, utility_1.walk)(level, (_key, v) => {
                 v.mark.type = false;
                 v.mark.hide = false;

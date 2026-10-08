@@ -51,6 +51,8 @@ type schemaDef struct {
 	value  Val
 	used   bool
 	schema any
+	// refers once a $ref is written inside the definition.
+	refers bool
 }
 
 type schemaPlain struct {
@@ -59,10 +61,11 @@ type schemaPlain struct {
 }
 
 type schemaRefs struct {
-	root  Val
-	defs  map[string]*schemaDef
-	names map[string]bool
-	plain map[Val]*schemaPlain
+	root   Val
+	defs   map[string]*schemaDef
+	names  map[string]bool
+	plain  map[Val]*schemaPlain
+	inside []*schemaDef
 }
 
 // schemaCtx is the exporter's running state: the losses collected so far,
@@ -703,7 +706,9 @@ func schemaDefOf(sc *schemaCtx, target []string) *schemaDef {
 		path[i] = aliasPathSegment(seg)
 	}
 	base := strings.Join(path, ".")
-	if 1 == len(target) && aliasNameRe.MatchString(path[0]) {
+	if declared := value.identRec()["defs"]; 1 == len(declared) {
+		base = declared[0]
+	} else if 1 == len(target) && aliasNameRe.MatchString(path[0]) {
 		base = schemaDefName(path[0][1:])
 	}
 	name := base
@@ -757,9 +762,15 @@ func schemaRefTo(sc *schemaCtx, target []string) any {
 	if nil == def {
 		return nil
 	}
+	inside := sc.refs.inside
+	if !sc.scratch && 0 < len(inside) {
+		inside[len(inside)-1].refers = true
+	}
 	if !sc.scratch && !def.used {
 		def.used = true
+		sc.refs.inside = append(inside, def)
 		def.schema = schemaFromVal(sc, def.path, def.value)
+		sc.refs.inside = inside
 	}
 	return map[string]any{"$ref": schemaDefRef(def)}
 }
@@ -779,16 +790,22 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 	whole := schemaText(body)
 	to := map[string]string{}
 	gone := []string{}
-	kept := map[string]any{}
+	folded, rest := []*schemaDef{}, []*schemaDef{}
 	for _, d := range used {
 		if schemaText(d.schema) == whole {
+			folded = append(folded, d)
 			to[schemaDefRef(d)] = "#"
 			if 0 < len(d.path) && aliasNameRe.MatchString(d.path[0]) {
 				gone = append(gone, schemaPathText(d.path))
 			}
 		} else {
-			kept[d.name] = d.schema
+			rest = append(rest, d)
 		}
+	}
+	named := schemaIdentify(schema, folded, rest)
+	kept := map[string]any{}
+	for _, d := range rest {
+		kept[d.name] = d.schema
 	}
 	if 0 < len(kept) {
 		schema["$defs"] = kept
@@ -796,7 +813,7 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 	schemaRelink(schema, to)
 	seen := map[string]bool{}
 	lossy := []SchemaLoss{}
-	for _, l := range sc.lossy {
+	for _, l := range append(append([]SchemaLoss{}, sc.lossy...), named...) {
 		key := l.Path + "\x00" + l.Construct + "\x00" + l.Reason
 		under := false
 		for _, g := range gone {
@@ -805,6 +822,75 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 		if !seen[key] && !under {
 			seen[key] = true
 			lossy = append(lossy, l)
+		}
+	}
+	return lossy
+}
+
+// schemaIdentify writes a definition's identity on it, and a folded
+// one's on the schema (ADR-056). An identifier a $ref inside would
+// resolve against is a loss, as is an anchor its resource already holds.
+func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLoss {
+	lossy := []SchemaLoss{}
+	one := func(defs []*schemaDef, key, construct, path string) (string, bool) {
+		all := []string{}
+		for _, d := range defs {
+			for _, v := range d.value.identRec()[key] {
+				if !slices.Contains(all, v) {
+					all = append(all, v)
+				}
+			}
+		}
+		if 1 < len(all) {
+			lossy = append(lossy, SchemaLoss{Construct: construct, Path: path,
+				Reason: "the declaration carries more than one, so none is written"})
+		}
+		if 1 == len(all) {
+			return all[0], true
+		}
+		return "", false
+	}
+	keywords := func(out map[string]any, id string, hasID bool, anchor string, hasAnchor bool) {
+		if hasID {
+			out["$id"] = id
+		}
+		if hasAnchor {
+			out["$anchor"] = anchor
+		}
+	}
+
+	id, hasID := one(folded, "id", "$id", "$")
+	top, hasTop := one(folded, "anchor", "$anchor", "$")
+	keywords(schema, id, hasID, top, hasTop)
+
+	anchors := map[string]bool{}
+	if hasTop {
+		anchors[top] = true
+	}
+	for _, d := range kept {
+		path := schemaPathText(d.path)
+		id, hasID := one([]*schemaDef{d}, "id", "$id", path)
+		if hasID && d.refers {
+			lossy = append(lossy, SchemaLoss{Construct: "$id", Path: path,
+				Reason: "a $ref inside the definition would resolve against it, so it is not written"})
+			hasID = false
+		}
+		anchor, hasAnchor := one([]*schemaDef{d}, "anchor", "$anchor", path)
+		if hasAnchor && !hasID && anchors[anchor] {
+			lossy = append(lossy, SchemaLoss{Construct: "$anchor", Path: path,
+				Reason: "another schema in its resource has the anchor, so it is not written"})
+			hasAnchor = false
+		}
+		if hasAnchor && !hasID {
+			anchors[anchor] = true
+		}
+		if hasID || hasAnchor {
+			out, ok := d.schema.(map[string]any)
+			if !ok {
+				out = map[string]any{"not": map[string]any{}}
+			}
+			keywords(out, id, hasID, anchor, hasAnchor)
+			d.schema = out
 		}
 	}
 	return lossy

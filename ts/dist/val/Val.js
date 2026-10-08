@@ -111,6 +111,9 @@ class Val {
         if (null != this.via) {
             out.via = this.via;
         }
+        if (null != this.identity) {
+            out.identity = this.identity;
+        }
         if (null != this.origin) {
             out.origin = this.origin;
         }

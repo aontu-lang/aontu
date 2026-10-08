@@ -60,6 +60,9 @@ function ride(out: any, a: any, b: any): void {
   if (null != out.via || null != a?.via || null != b?.via) {
     out.via = unionVia(out.via, a?.via, b?.via)
   }
+  if (null != out.identity || null != a?.identity || null != b?.identity) {
+    out.identity = unionRecords([out.identity, a?.identity, b?.identity], (s: string) => s)
+  }
 }
 
 

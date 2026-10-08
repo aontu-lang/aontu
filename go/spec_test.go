@@ -576,6 +576,13 @@ func TestSpec(t *testing.T) {
 					opts := &ImportOptions{}
 					if o, ok := golden["opts"].(map[string]any); ok {
 						opts.Defaults = true == o["defaults"]
+						opts.URI, _ = o["uri"].(string)
+						if docs, ok := o["documents"].(map[string]any); ok {
+							opts.Documents = map[string]string{}
+							for k, v := range docs {
+								opts.Documents[k], _ = v.(string)
+							}
+						}
 					}
 					delete(golden, "opts")
 					r := ImportJSONSchema(src, opts)

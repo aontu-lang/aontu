@@ -228,8 +228,8 @@ unsuffixed
 untrusted
 untyped
 uppercases
-uri
-uri's
+(?:uri|URI)
+(?:uri|URI)'s
 util
 validators
 vendored

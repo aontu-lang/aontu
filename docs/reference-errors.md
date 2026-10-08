@@ -44,15 +44,15 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **182** codes across
+There are seven classes, and the registry holds **184** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 55 | the text is not a document |
+| `parse` | 56 | the text is not a document |
 | `conflict` | 60 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
-| `reference` | 28 | a name or path resolves to nothing |
+| `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 8 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 182 codes have hint text. `aontu explain --list`
+**Hint text.** All 184 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -202,6 +202,7 @@ twenty rows have no such section and carry no link.
 | `filter_data` | 0.53.0 | The first argument to `filter()` is not a bag. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |
 | `form_data` | 0.58.0 | The first argument to the list generator `form` is not a bag; `form` was renamed `each`, which answers `each_data`. |
 | `func_arity` | 0.53.0 | A call whose argument count is not the built-in's arity. ([Errors](reference-language.md#errors)) |
+| `ident_place` | 0.77.0 | `ident()` was written anywhere but as an alias declaration's value. ([Identity: `ident`](reference-language.md#identity-ident)) |
 | `include_denied` | 0.53.0 | An `@"..."` include refused by the active trust profile. ([Clause 1: hermeticity](trust.md#clause-1-hermeticity)) |
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
@@ -329,7 +330,8 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
-| `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, or two schemas declare one `$id`, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_ref` | 0.77.0 | A JSON Schema reference names no schema the import can reach. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |
 | `patch_ambiguous` | 0.53.0 | Two or more statements pin the path, so an in-place edit has no single place to write. ([`aontu model set`](reference-api.md#aontu-model-set)) |

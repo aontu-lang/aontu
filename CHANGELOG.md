@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### Resources, the document set and identity
+
+Both ports, G12 phase 10, from #309's handover and the review's
+identity decision.
+
+- An `$id` names a resource. The importer resolves every `$id` and
+  `$ref` against the base in effect, by RFC 3986, with a resolver
+  written once in meaning for both ports and pinned by a shared corpus,
+  and a reference reaches a schema by URI, pointer or anchor in any
+  resource the import holds.
+- `aontu jsonschema import --uri <uri>` gives the schema's retrieval
+  URI, and `--doc <uri> <file>` adds a document a reference may reach;
+  nothing is fetched. A reference outside the set, or a pointer or
+  anchor that names nothing, refuses the import with the new
+  `jsonschema_ref`, where it was a loss and its position admitted
+  anything. Two schemas declaring one `$id`, two documents given one
+  URI with different texts, and an anchor and a dynamic anchor of one
+  name in one resource refuse with `jsonschema_duplicate`.
+- `ident(v, {id, anchor, defs})` records the identity a schema was
+  declared with (ADR-056). Only an alias declaration carries it, so
+  `ident()` anywhere else refuses with the new `ident_place`, and a
+  reference copies the value without it. The importer writes it on each
+  declaration whose schema has an `$id` or `$anchor`, and reports one on
+  a schema nothing declares; `aontu jsonschema` writes `$id` and
+  `$anchor` back on the definition and names it by its `$defs` key.
+- The vendored suite's ledger shrinks from 178 rows to 141, and 1,750 of
+  its 2,337 tests pass in both ports, where 1,713 did.
+- Fixed in Go: a document root that meets the map declaring it beside
+  another term, `%a & { %b = 2, %a = { y: %b } } & {}`, refused with
+  `alias_not_toplevel`.
+
 ### Aliases and recursion export as `$defs` and `$ref`
 
 Both ports, G12 phase 9, its second part, which lands the phase and the

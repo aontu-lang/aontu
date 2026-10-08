@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,7 +155,36 @@ func parsingGroups(t *testing.T, dir string) []suiteGroup {
 	return out
 }
 
-func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup) {
+// suiteRemotes is the suite's remotes, served at http://localhost:1234/,
+// and each under its own `$id` where it names another URI.
+func suiteRemotes(t *testing.T) map[string]string {
+	dir := filepath.Join(vectorsDir, "jsonschema", "remotes")
+	out := map[string]string{}
+	names := suiteFiles(t, dir)
+	texts := make([]string, len(names))
+	for i, f := range names {
+		raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(f)))
+		if nil != err {
+			t.Fatal(err)
+		}
+		texts[i] = string(raw)
+		out["http://localhost:1234/"+f] = texts[i]
+	}
+	for _, text := range texts {
+		var doc map[string]any
+		if nil == json.Unmarshal([]byte(text), &doc) {
+			if id, ok := doc["$id"].(string); ok {
+				if _, had := out[id]; !had {
+					out[id] = text
+				}
+			}
+		}
+	}
+	return out
+}
+
+func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
+	documents map[string]string) {
 	skips := readSuiteSkips(t, filepath.Join(vectorsDir, name))
 	if bound < len(skips) {
 		t.Fatalf("the %s skip ledger holds %d rows, past its bound of %d", name, len(skips), bound)
@@ -163,7 +193,7 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup) {
 	problems := []string{}
 	total, passed, skipped := 0, 0, 0
 	for _, g := range groups {
-		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file})
+		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents})
 		for _, c := range g.cases {
 			total++
 			got := false
@@ -219,16 +249,16 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup) {
 
 // Each ledger may not grow past its bound; the register tightens them.
 func TestJSONSchemaSuite(t *testing.T) {
-	runCorpus(t, "jsonschema", 178,
-		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12")))
+	runCorpus(t, "jsonschema", 141,
+		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12")), suiteRemotes(t))
 }
 
 func TestAjvExtraTests(t *testing.T) {
-	runCorpus(t, "ajv-extras", 0, suiteGroups(t, filepath.Join(vectorsDir, "ajv-extras", "tests")))
+	runCorpus(t, "ajv-extras", 0, suiteGroups(t, filepath.Join(vectorsDir, "ajv-extras", "tests")), nil)
 }
 
 func TestJSONTestSuiteAsInstances(t *testing.T) {
-	runCorpus(t, "jsontestsuite", 87, parsingGroups(t, filepath.Join(vectorsDir, "jsontestsuite")))
+	runCorpus(t, "jsontestsuite", 87, parsingGroups(t, filepath.Join(vectorsDir, "jsontestsuite")), nil)
 }
 
 // suiteMember is a suite object's member, read with the importer's own

@@ -189,8 +189,10 @@ port?: *8080|meta(number & multiple(1), {
 
 - Each loss names a pointer into the schema, `#/properties/a/format`,
   and the keyword it dropped.
-- A `$ref` that names another document is reported, and the position
-  admits anything: the importer reads one document.
+- A `$ref` that names another document needs that document in the
+  set: pass it with `--doc <uri> <file>`, and the schema's own URI with
+  `--uri` where its references are relative. Nothing is fetched, and a
+  reference the import cannot reach refuses it with `jsonschema_ref`.
 - `anyOf` imports as a disjunction only where its branches cannot both
   hold for one value; otherwise it is `nof(min(1), …)`, which counts the
   branches that admit the data rather than choosing one. `oneOf` is

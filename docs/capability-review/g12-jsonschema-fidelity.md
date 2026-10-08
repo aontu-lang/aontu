@@ -870,8 +870,8 @@ that reaches itself through such a root is cut and reported
 
 **Identity lives on the declaration, not on the value.** The alias
 declaration carries the resource's `$id`, `$anchor` and original
-`$defs` key in a declaration-only identity builtin, which only an alias
-declaration may carry and whose name phase 10 settles, and a reference
+`$defs` key in a declaration-only identity builtin, `ident(v, r)` as
+phase 10 settled it, which only an alias declaration may carry, and a reference
 copy strips it as it already clears `type()` and `hide()` marks: the
 strip rule is a property of the construct, and the `meta` rider's union
 meet carries no special keys. Two copies of
@@ -1336,7 +1336,7 @@ shared corpus; the resource table; the declaration-only identity
 builtin on alias declarations and its stripping on copy; `$id` and
 `$anchor` on export; the document set, remote references and
 `jsonschema_ref`; the duplicate rule extended to `$id` across the
-document set.
+document set. Landed 2026-10-08; the register records the departures.
 
 **Phase 11: dynamic references (M).** The specialisation walk, its
 budget and `jsonschema_budget`, the use-site `dynamicRef` provenance

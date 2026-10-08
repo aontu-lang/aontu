@@ -59,6 +59,7 @@ const HideFuncVal_1 = require("./val/HideFuncVal");
 const AbnfFuncVal_1 = require("./val/AbnfFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
 const MetaFuncVal_1 = require("./val/MetaFuncVal");
+const IdentFuncVal_1 = require("./val/IdentFuncVal");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
@@ -637,6 +638,7 @@ help isolate the syntax error.`,
         // call back (canonRiders).
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
         meta: MetaFuncVal_1.MetaFuncVal,
+        ident: IdentFuncVal_1.IdentFuncVal,
         refer: ReferFuncVal_1.ReferFuncVal,
         rel: ReferFuncVal_1.RelFuncVal,
         // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
@@ -1179,6 +1181,9 @@ help isolate the syntax error.`,
                     }
                 }
             }
+            for (const k of aliasKeys) {
+                declareIdent(mo[k]);
+            }
             //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
             const deferred = mo[MERGE_KEY];
             delete mo[MERGE_KEY];
@@ -1586,6 +1591,16 @@ const dataProcessor = (format) => (res) => {
 const textProcessor = (res) => {
     res.val = new StringVal_1.StringVal({ peg: res.src });
 };
+// ident() is the whole of a declaration's value, or of one declaration
+// of a name declared more than once, whose values meet (ADR-056).
+function declareIdent(v) {
+    if (true === v?.isIdentFunc) {
+        v.declared = true;
+    }
+    else if (true === v?.isConjunct) {
+        v.peg.forEach(declareIdent);
+    }
+}
 function includeProcessors(textExt) {
     const map = {
         // multisource's fallback for an extension no entry names, so it is
