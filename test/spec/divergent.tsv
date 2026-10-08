@@ -103,6 +103,27 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- a frame around a source line longer than 333 characters.
+#   issue: none filed yet; found 2026-10-08 while probing JSONTestSuite
+#   for G12 phase 3, on a refusal sited inside a long line. NOT
+#   introduced by that work: any refusal beside such a line shows it.
+#
+#   Divergent input:  a: 1\na: 2\nb: "xxx...x"   (the third line
+#                     holds 1,500 characters; under 333 the two agree)
+#   TypeScript: the frame shows at most 333 characters either side of
+#               the site, and numbers the lines of that window from
+#               the window's start, so a long line is cut and the
+#               excerpt can carry the wrong line numbers
+#   Go:         the frame shows whole lines, numbered from the source
+#
+#   Not simply fixed because the TypeScript frame is drawn by the
+#   pinned @tabnas/parser's errsite, which takes that window, while Go
+#   draws its own (NilVal.frame in go/val.go). Copying the window into
+#   Go would copy its numbering too; drawing the frame in aontu's own
+#   TypeScript is the fix, and it moves every refusal's text.
+#
+# ---------------------------------------------------------------------
+#
 # OPEN -- a long flat operator chain overflows the TypeScript parser.
 #   issue: none filed yet; found 2026-10-01 while landing G12 phase 3,
 #   whose importer writes a JSON Schema `enum` as one disjunction. NOT
@@ -110,6 +131,9 @@
 #
 #   Divergent input:  a: 0|1|2|...|1999   (one disjunction of 2,000
 #                     integers; 1,000 members agree)
+#                     k0.k1.k2. ... .k4999: 1   (a dotted path of 5,000
+#                     segments, the same fold; found 2026-10-08, where
+#                     Go answers [aontu/no_path] at $, exit 1)
 #   TypeScript: `aontu: unexpected error: Maximum call stack size
 #               exceeded`, exit 1, thrown while parsing
 #   Go:         [aontu/disjunct_no_gen] at $.a, exit 1: the chain

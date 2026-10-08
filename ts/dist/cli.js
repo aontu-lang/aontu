@@ -152,6 +152,9 @@ Options:
   -c, --canon     Print the canonical form instead of generated JSON
                   (the bare command's, as --jsonl is; model get has
                   its own)
+  --exact-numbers Read every number the document writes by its value:
+                  1.0 is the integer 1, and 0.1 keeps its digits (the
+                  bare command's; vet has its own)
   --format <f>    text (default) or json, on every verb that answers a
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
@@ -709,9 +712,12 @@ function parseTextExt(arg) {
     }
     return out;
 }
-// The evaluator options a REPL session's capability means.
+// The evaluator options a REPL session's capability and reading mean.
 function replTrust(state, entryRoot) {
-    return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot);
+    return {
+        ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot),
+        ...exactOpts(state.exact),
+    };
 }
 // The capability a verb's engine runs under. `system` and the staged
 // warning default both mean today's behaviour (no option); the warning
@@ -744,10 +750,13 @@ function verbOpts(trust, entryRoot) {
 function entryRootOf(file) {
     return null == file ? process.cwd() : (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
 }
+function exactOpts(exact) {
+    return true === exact ? { exactNumbers: true } : {};
+}
 function withdrawnMsg(file) {
     return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`;
 }
-function runFile(file, mode, format, trust) {
+function runFile(file, mode, format, trust, exact) {
     let src;
     try {
         src = (0, node_fs_1.readFileSync)(file, 'utf8');
@@ -770,16 +779,17 @@ function runFile(file, mode, format, trust) {
         path,
         errfs: { existsSync: node_fs_1.existsSync, readFileSync: node_fs_1.readFileSync },
         ...trustOpts(trust, (0, node_path_1.dirname)(path)),
+        ...exactOpts(exact),
     });
     return emitEval(evalSource(aontu, src, mode), format);
 }
-function runStdin(mode, format, trust) {
+function runStdin(mode, format, trust, exact) {
     return new Promise((resolve) => {
         let src = '';
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', (d) => (src += d));
         process.stdin.on('end', () => {
-            const res = evalSource(new aontu_1.Aontu(trustOpts(trust, process.cwd())), src, mode);
+            const res = evalSource(new aontu_1.Aontu({ ...trustOpts(trust, process.cwd()), ...exactOpts(exact) }), src, mode);
             resolve(emitEval(res, format));
         });
     });
@@ -860,7 +870,7 @@ function replCommand(state, line, read) {
             if (':why' === cmd) {
                 const report = (0, aontu_1.why)(src, path, {
                     path: state.name,
-                    ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
+                    ...replTrust(state, entryRootOf(state.name)),
                 });
                 return report.ok
                     ? answer(renderWhyText(report.record))
@@ -870,7 +880,7 @@ function replCommand(state, line, read) {
                 ? 'keys' : 'canon' === state.mode ? 'canon' : 'json';
             const report = (0, aontu_1.get)(src, path, {
                 view, path: state.name,
-                ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
+                ...replTrust(state, entryRootOf(state.name)),
             });
             return report.ok
                 ? answer(report.out)
@@ -880,8 +890,8 @@ function replCommand(state, line, read) {
             return refuse(`unknown command: ${s} (try :help)`);
     }
 }
-function runRepl(initialMode, jsonl, trust) {
-    let state = { mode: initialMode, jsonl, trust };
+function runRepl(initialMode, jsonl, trust, exact) {
+    let state = { mode: initialMode, jsonl, trust, exact };
     const rl = (0, node_readline_1.createInterface)({
         input: process.stdin,
         output: process.stdout,
@@ -3312,6 +3322,9 @@ function renderRelationsJson(report) {
     }, 2);
 }
 const JSONSCHEMA_HELP = 'aontu jsonschema [import] [--at <path>] [--strict] <file> (try --help)';
+function vetWith(flags) {
+    return 'vet with: aontu vet ' + flags.join(' ') + ' <document> <data>\n';
+}
 // The import mode: JSON Schema text in, an aontu document out, the
 // losses on stderr, exactly as the export reads the other way.
 function runJsonSchemaImport(argv) {
@@ -3366,6 +3379,7 @@ function runJsonSchemaImport(argv) {
             verdict: report.verdict,
             text: report.aontu,
             lossy: report.lossy,
+            ...(null == report.vet ? {} : { vet: report.vet }),
             ...(null == report.errors ? {} : { errors: report.errors }),
         }, 2) + '\n');
     }
@@ -3377,6 +3391,7 @@ function runJsonSchemaImport(argv) {
         for (const l of report.lossy) {
             process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`);
         }
+        process.stderr.write(vetWith(report.vet));
     }
     return 'error' === report.verdict ? 4 :
         strict && 'lossy' === report.verdict ? 1 : 0;
@@ -4739,6 +4754,7 @@ function main(argv, servers = SERVERS) {
     // than the design's --json, which would read as the `:json` output
     // mode the REPL already has.
     let jsonl = false;
+    let exact = false;
     // One spelling throughout the tools (ADR-042): every verb, one gate.
     const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a));
     if (undefined !== withdrawn) {
@@ -4824,6 +4840,9 @@ function main(argv, servers = SERVERS) {
         if ('-c' === arg || '--canon' === arg) {
             mode = 'canon';
         }
+        else if ('--exact-numbers' === arg) {
+            exact = true;
+        }
         else if ('-h' === arg || '--help' === arg) {
             process.stdout.write(HELP);
             return finish(0);
@@ -4891,17 +4910,17 @@ function main(argv, servers = SERVERS) {
     trust = { ...trust, textExt };
     const file = files[0];
     if (null != file) {
-        finish(runFile(file, mode, format, trust));
+        finish(runFile(file, mode, format, trust, exact));
     }
     // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
     // a harness over a pipe, so gating it on an interactive terminal
     // made it reachable only through a pty -- which is to say, not
     // reachable by the thing it was built for. Mirrors go/cmd/aontu.
     else if (jsonl || process.stdin.isTTY) {
-        runRepl(mode, jsonl, trust);
+        runRepl(mode, jsonl, trust, exact);
     }
     else {
-        runStdin(mode, format, trust).then((code) => finish(code));
+        runStdin(mode, format, trust, exact).then((code) => finish(code));
     }
 } /* node:coverage ignore next 22 */
 //# sourceMappingURL=cli.js.map

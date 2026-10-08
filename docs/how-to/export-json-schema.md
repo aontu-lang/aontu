@@ -198,7 +198,7 @@ a schema admitting more than the model does:
 ```sh
 $ aontu jsonschema --strict --at report report.aontu
 ...
-lossy: $.report.amountEur bigdecimal: JSON has one number type and it is binary64, so the EXACTNESS this leaf exists for cannot be carried; the schema says "number" and a consumer may round
+lossy: $.report.amountEur bigdecimal: JSON Schema has no type for one leaf of a number: the schema says "number", which admits the other leaves too, where this kind refuses them
 lossy: $.report.attempts.& integer: JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & multiple(1) is the integer it means
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
 lossy: $.report.retries len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container

@@ -19,3 +19,16 @@ the port disagrees with the file. Nothing yet checks this copy against
 
 The pin, and the reason it is v0.32.0 rather than the latest, is in
 [`UPSTREAM_GO_MOD.md`](https://github.com/aontu-lang/mod/blob/main/UPSTREAM_GO_MOD.md).
+
+## The JSON Schema corpora
+
+Three directories hold public corpora the G12 runners read, each under
+its own licence, with a README naming its upstream and the commit it is
+pinned to, and its own skip ledger:
+
+- [`jsonschema/`](jsonschema/README.md), the official
+  JSON-Schema-Test-Suite;
+- [`ajv-extras/`](ajv-extras/README.md), Ajv's extra tests in the same
+  shape;
+- [`jsontestsuite/`](jsontestsuite/README.md), JSONTestSuite's parsing
+  cases, read as instances.

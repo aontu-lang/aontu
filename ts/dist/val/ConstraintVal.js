@@ -693,9 +693,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return undefined;
         }
         for (const w of this.whens) {
-            const holds = (0, admission_1.admitsSettled)(ctx, w.c, peer, own);
+            const holds = (0, admission_1.admitsSettled)(ctx, w.c, peer, own, this.path);
             const branch = holds ? w.t : w.e;
-            if (undefined !== branch && !(0, admission_1.admitsSettled)(ctx, branch, peer, own)) {
+            const taken = undefined === holds ? undefined : undefined === branch ? true :
+                (0, admission_1.admitsSettled)(ctx, branch, peer, own, this.path);
+            if (undefined === taken) {
+                return this.overBudget(ctx, peer);
+            }
+            if (!taken) {
                 return (0, err_1.makeNilErr)(ctx, 'when', this, peer, undefined, {
                     expected: whenCanon(w),
                     actual: peer.canon,
@@ -706,22 +711,33 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return undefined;
     }
-    // Every branch is tried; the number that admit must be one the count admits.
+    // A branch is tried while the rest can still change the verdict; the
+    // number that admit must be one the count admits.
     checkNofs(peer, ctx) {
         const own = 0 === this.nofs.length ? undefined : (0, admission_1.ownJson)(peer, ctx);
         if (undefined === own) {
             return undefined;
         }
         for (const n of this.nofs) {
-            const verdicts = n.cs.map((c) => (0, admission_1.admitsSettled)(ctx, c, peer, own));
-            const k = verdicts.filter((v) => v).length;
-            if (!stateAdmits(n.count, countVal(k))) {
+            const verdicts = [];
+            let k = 0;
+            while ('some' === countSpan(n.count, k, k + n.cs.length - verdicts.length)) {
+                const v = (0, admission_1.admitsSettled)(ctx, n.cs[verdicts.length], peer, own, this.path);
+                if (undefined === v) {
+                    return this.overBudget(ctx, peer);
+                }
+                verdicts.push(v);
+                k += v ? 1 : 0;
+            }
+            const open = n.cs.length - verdicts.length;
+            if ('none' === countSpan(n.count, k, k + open)) {
                 return (0, err_1.makeNilErr)(ctx, 'nof', this, peer, undefined, {
                     expected: nofCanon(n),
                     actual: peer.canon,
                     count: countCanon(n.count),
-                    admitted: String(k),
-                    branches: n.cs.map((c, i) => c.canon + (verdicts[i] ? ' admits' : ' refuses')).join('; '),
+                    admitted: 0 === open ? String(k) : k + ' to ' + (k + open),
+                    branches: n.cs.map((c, i) => c.canon + (verdicts.length <= i ?
+                        ' untried' : verdicts[i] ? ' admits' : ' refuses')).join('; '),
                 });
             }
         }
@@ -791,7 +807,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
         }
         for (const k of this.contains) {
-            const matched = countVal(containsMatches(ctx, k, members).length);
+            const matches = containsMatches(ctx, k, members, this.path);
+            if (undefined === matches) {
+                return this.overBudget(ctx, peer);
+            }
+            const matched = countVal(matches.length);
             if ((null != k.count.hi && !stateAdmits({ ...k.count, lo: undefined }, matched)) ||
                 (0 < k.count.neqs.length + multsOf(k.count).length &&
                     !stateAdmits({ ...k.count, lo: undefined, hi: undefined }, matched)) ||
@@ -961,6 +981,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             actual: peer?.canon,
         });
     }
+    overBudget(ctx, peer) {
+        return (0, err_1.makeNilErr)(ctx, 'trial_budget', this, peer, undefined, {
+            budget: String(ctx.budget.trials),
+        });
+    }
     cloneState() {
         return {
             domain: this.domain,
@@ -1120,12 +1145,29 @@ function atLeastOne() {
         neqs: [], res: [], musts: [], uniq: false, uniqBy: [],
     };
 }
-// The members the trial schema admits, each settled member tried alone.
-function containsMatches(ctx, k, members) {
-    return members.filter((m) => {
+// The members the trial schema admits, each settled member tried alone,
+// or undefined once the trial budget is spent.
+function containsMatches(ctx, k, members, path) {
+    const out = [];
+    for (const m of members) {
         const own = (0, admission_1.ownJson)(m, ctx);
-        return undefined !== own && (0, admission_1.admitsSettled)(ctx, k.c, m, own);
-    });
+        const v = undefined !== own && (0, admission_1.admitsSettled)(ctx, k.c, m, own, path);
+        if (undefined === v) {
+            return undefined;
+        }
+        if (v) {
+            out.push(m);
+        }
+    }
+    return out;
+}
+// Whether the count admits every number from lo to hi, none, or some.
+function countSpan(count, lo, hi) {
+    let yes = 0;
+    for (let c = lo; c <= hi; c++) {
+        yes += stateAdmits(count, countVal(c)) ? 1 : 0;
+    }
+    return hi - lo + 1 === yes ? 'all' : 0 === yes ? 'none' : 'some';
 }
 function whenCanon(w) {
     return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]

@@ -148,11 +148,17 @@ function noPathFinding(root, path) {
     const near = nearestKey(want, have);
     return finding('no_path', pathText(path), `The path ${path} names nothing in this document.`, null == near ? undefined : `did you mean ${near}?`);
 }
+function queryOpts(options) {
+    return {
+        ...(0, utility_1.includeOpts)(options),
+        ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+    };
+}
 // Evaluate the document, select the node at `path`, and render it.
 function get(src, path, opts) {
     const options = opts ?? {};
     const view = options.view ?? 'json';
-    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+    const aontu = new aontu_1.Aontu(queryOpts(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);
@@ -187,7 +193,7 @@ function get(src, path, opts) {
 }
 function why(src, path, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+    const aontu = new aontu_1.Aontu(queryOpts(options));
     const prov = new provenance_1.Provenance();
     const ctx = aontu.ctx({ collect: true, prov });
     const parseOpts = null == options.path ? undefined : { path: options.path };

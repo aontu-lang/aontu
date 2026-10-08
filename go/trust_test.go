@@ -305,6 +305,25 @@ func TestTrustPassesBudgetExhaustsLoudly(t *testing.T) {
 	}
 }
 
+// Mirrors trial-budget-refuses-every-trial-atom in ts/test/trust.test.ts.
+func TestTrustTrialBudgetRefusesEveryTrialAtom(t *testing.T) {
+	for _, c := range []struct {
+		src    string
+		trials int
+	}{
+		{"a: nof(1, 1, 2, 3) & 2", 2},
+		{"a: when(1, number) & 1", 1},
+		{"a: [1, 2] & contains(1)", 1},
+	} {
+		if code := trustCode(t, &TrustOptions{Budget: TrustBudget{Trials: c.trials}}, c.src); "trial_budget" != code {
+			t.Fatalf("%s: code %q", c.src, code)
+		}
+		if code := trustCode(t, nil, c.src); "" != code {
+			t.Fatalf("%s under the default budget: code %q", c.src, code)
+		}
+	}
+}
+
 func TestTrustDepthBudgetTripsUnifyCycle(t *testing.T) {
 	code := trustCode(t,
 		&TrustOptions{Budget: TrustBudget{Depth: 3}}, "a:{b:{c:{d:{e:1}}}}")

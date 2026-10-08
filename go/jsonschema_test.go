@@ -66,14 +66,14 @@ func TestJSONSchemaUnparseableSource(t *testing.T) {
 func TestJSONSchemaRootPathInALoss(t *testing.T) {
 	// A loss at the document ROOT prints `$`, not `$.` -- the path
 	// spelling every other report uses.
-	r := New().JSONSchema("0d1.5", "")
+	r := New().JSONSchema("bigdecimal", "")
 	if 1 != len(r.Lossy) {
 		t.Fatalf("lossy %+v", r.Lossy)
 	}
 	if "$" != r.Lossy[0].Path {
 		t.Fatalf("root path rendered as %q", r.Lossy[0].Path)
 	}
-	if !strings.Contains(r.Lossy[0].Reason, "binary64") {
+	if !strings.Contains(r.Lossy[0].Reason, "one leaf of a number") {
 		t.Fatalf("reason %q", r.Lossy[0].Reason)
 	}
 }

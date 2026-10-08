@@ -105,11 +105,12 @@ const hints: Record<string, string> = {
     'This value is admitted by {admitted} of the trial schemas of a nof(),\n' +
     'and the count must be {count}. Branch by branch: {branches}.' +
     '\n \n' +
-    'nof(n, ...c) is Band B of the constraint algebra: every branch is\n' +
-    'tried against the settled value, and a branch admits it when their\n' +
-    'meet adds nothing and generates the value itself. The count n is an\n' +
-    'integer or a count constraint, as len() takes, and a branch that\n' +
-    'conflicts admits nothing. It carries anyOf, oneOf and not.' +
+    'nof(n, ...c) is Band B of the constraint algebra: a branch is tried\n' +
+    'against the settled value while the rest can still change the\n' +
+    'verdict, and a branch admits it when their meet adds nothing and\n' +
+    'generates the value itself. The count n is an integer or a count\n' +
+    'constraint, as len() takes, and a branch that conflicts admits\n' +
+    'nothing. It carries anyOf, oneOf and not.' +
     '\n \nExamples:\n' +
     '  nof(1, string, number) & "a" -> "a"  # One branch admits;\n' +
     '  nof(1, number, min(0)) & 5   -> nil  # Two admit;\n' +
@@ -227,6 +228,13 @@ const hints: Record<string, string> = {
 
 
   recursion_unexpanded: 'A schema refers to itself here, and no data reached this position\nto expand it against. Guard the recursion -- an optional key\n(next?:) drops when nothing arrives, and a preferred alternative\n(*null | $.Node) generates -- or supply the data.\n \nExamples:\n  Node: {v: integer, next?: $.Node}\n  t: $.Node & {v: 1}            -> {..}  # next? drops;\n  Node: {v: integer, next: $.Node}\n  t: $.Node & {v: 1}            -> nil   # ... required refuses.',
+  trial_budget:
+    'The admission trials of this evaluation reached their budget of\n' +
+    '{budget}. Each nof(), when() and contains() tries its trial schemas\n' +
+    'against a settled value, once for each position, schema and value,\n' +
+    'and a document that needs more trials is refused rather than\n' +
+    'evaluated without bound. Restructure the trial schemas, or raise\n' +
+    'trust.budget.trials (docs/trust.md).',
   recursion_budget: 'A recursive schema expanded past the evaluation depth budget\nwithout meeting concrete data. Expansion is driven by the data --\nfinite data always terminates -- so a chain this deep means two\ndefinitions feeding each other, or data deeper than the budget\n(docs/trust.md raises it deliberately).',
   list_length: 'A literal list alternative in a disjunction admits only a list of\nits own length -- a spread (&:) makes it variadic. Outside a\ndisjunction two statements of one list still merge elementwise.\n \nExamples:\n  x: [] | [&: integer]\n  x: [1, 2]      -> [1,2]  # The variadic arm;\n  x: []          -> []     # ... or exactly empty;\n  y: [a] | [b]\n  y: [a, extra]  -> nil    # ... a literal arm is its length.',
   relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the nodes it runs\nthrough, closing back on the first.\n \nExamples:\n  dependsOn: rel() & acyclic()\n  a: {dependsOn: ["$.b"]}\n  b: {dependsOn: ["$.a"]}   -> nil   # $.a -> $.b -> $.a;\n  b: {dependsOn: []}        -> {..}  # ... one edge fewer passes.',
@@ -963,6 +971,7 @@ const codeClasses: Record<string, string> = {
   list_length: 'conflict',
   recursion_unexpanded: 'incomplete',
   recursion_budget: 'budget',
+  trial_budget: 'budget',
   func_arity: 'parse',
   elided_value: 'parse',
   unify_no_src: 'parse',

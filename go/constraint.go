@@ -837,6 +837,7 @@ func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 	for _, m := range c.musts {
 		trial := &Ctx{}
 		if nil != ctx {
+			ctx.trialsOf()
 			t := *ctx
 			t.err = nil
 			trial = &t
@@ -914,12 +915,19 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx) Val {
 		return nil
 	}
 	for _, w := range c.whens {
-		holds := admitsSettled(ctx, w.c, peer, own, c.path)
+		holds, ok := admitsSettled(ctx, w.c, peer, own, c.path)
 		branch, taken, said := w.e, "else", "does not admit"
 		if holds {
 			branch, taken, said = w.t, "then", "admits"
 		}
-		if nil != branch && !admitsSettled(ctx, branch, peer, own, c.path) {
+		admitted := true
+		if ok && nil != branch {
+			admitted, ok = admitsSettled(ctx, branch, peer, own, c.path)
+		}
+		if !ok {
+			return c.overBudget(ctx, peer)
+		}
+		if !admitted {
 			return makeNilErrFull(ctx, "when", c, peer, "", map[string]string{
 				"expected":  whenCanon(w),
 				"actual":    peer.Canon(),
@@ -942,21 +950,35 @@ func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx) Val {
 		return nil
 	}
 	for _, n := range c.nofs {
-		k := 0
+		k, tried := 0, 0
 		said := make([]string, len(n.cs))
 		for i, b := range n.cs {
-			said[i] = b.Canon() + " refuses"
-			if admitsSettled(ctx, b, peer, own, c.path) {
-				k++
-				said[i] = b.Canon() + " admits"
-			}
+			said[i] = b.Canon() + " untried"
 		}
-		if !stateAdmits(n.count, countVal(k)) {
+		for "some" == countSpan(n.count, k, k+len(n.cs)-tried) {
+			b := n.cs[tried]
+			admits, ok := admitsSettled(ctx, b, peer, own, c.path)
+			if !ok {
+				return c.overBudget(ctx, peer)
+			}
+			said[tried] = b.Canon() + " refuses"
+			if admits {
+				k++
+				said[tried] = b.Canon() + " admits"
+			}
+			tried++
+		}
+		open := len(n.cs) - tried
+		if "none" == countSpan(n.count, k, k+open) {
+			admitted := strconv.Itoa(k)
+			if 0 < open {
+				admitted += " to " + strconv.Itoa(k+open)
+			}
 			return makeNilErrFull(ctx, "nof", c, peer, "", map[string]string{
 				"expected": nofCanon(n),
 				"actual":   peer.Canon(),
 				"count":    countCanon(n.count),
-				"admitted": strconv.Itoa(k),
+				"admitted": admitted,
 				"branches": strings.Join(said, "; "),
 			})
 		}
@@ -1056,7 +1078,11 @@ func (c *ConstraintVal) admitContainerFinal(
 	}
 
 	for _, k := range c.contains {
-		matched := countVal(len(containsMatches(ctx, k, members, c.path)))
+		matches, ok := containsMatches(ctx, k, members, c.path)
+		if !ok {
+			return c.overBudget(ctx, peer)
+		}
+		matched := countVal(len(matches))
 		noLo := *k.count
 		noLo.lo = nil
 		only := noLo
@@ -1252,6 +1278,16 @@ func (c *ConstraintVal) finish(state *ConstraintVal, ctx *Ctx, peer Val) Val {
 	state.site.url = c.site.url
 	state.site.src = c.site.src
 	return state
+}
+
+func (c *ConstraintVal) overBudget(ctx *Ctx, peer Val) Val {
+	budget := trialBudget
+	if nil != ctx && 0 != ctx.budgetTrials {
+		budget = ctx.budgetTrials
+	}
+	return makeNilErrFull(ctx, "trial_budget", c, peer, "", map[string]string{
+		"budget": strconv.Itoa(budget),
+	})
 }
 
 func (c *ConstraintVal) fail(ctx *Ctx, peer Val) Val {
@@ -1481,15 +1517,41 @@ func atLeastOne() *ConstraintVal {
 }
 
 // containsMatches lists the members the trial schema admits, each
-// settled member tried alone.
-func containsMatches(ctx *Ctx, k constraintContains, members []Val, path []string) []Val {
+// settled member tried alone; ok is false once the trial budget is spent.
+func containsMatches(ctx *Ctx, k constraintContains, members []Val, path []string) ([]Val, bool) {
 	out := []Val{}
 	for _, m := range members {
-		if own, ok := ownJSON(m, ctx, path); ok && admitsSettled(ctx, k.c, m, own, path) {
+		own, settled := ownJSON(m, ctx, path)
+		admits, ok := false, true
+		if settled {
+			admits, ok = admitsSettled(ctx, k.c, m, own, path)
+		}
+		if !ok {
+			return nil, false
+		}
+		if admits {
 			out = append(out, m)
 		}
 	}
-	return out
+	return out, true
+}
+
+// countSpan says whether the count admits every number from lo to hi,
+// none of them, or some.
+func countSpan(count *ConstraintVal, lo, hi int) string {
+	yes := 0
+	for n := lo; n <= hi; n++ {
+		if stateAdmits(count, countVal(n)) {
+			yes++
+		}
+	}
+	if hi-lo+1 == yes {
+		return "all"
+	}
+	if 0 == yes {
+		return "none"
+	}
+	return "some"
 }
 
 // mergeWhens keeps each canon once, as mergeNofs does.
@@ -2038,6 +2100,7 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 		// optional child.
 		gctx := &Ctx{}
 		if nil != ctx {
+			ctx.trialsOf()
 			c2 := *ctx
 			c2.err = nil
 			gctx = &c2

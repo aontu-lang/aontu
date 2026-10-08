@@ -76,6 +76,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			io.WriteString(stderr,
 				"lossy: "+l.Path+" "+l.Construct+": "+l.Reason+"\n")
 		}
+		io.WriteString(stderr, "vet with: aontu vet "+
+			strings.Join(report.Vet, " ")+" <document> <data>\n")
 	}
 
 	if "error" == report.Verdict {
@@ -197,6 +199,7 @@ type jsonSchemaImportJSON struct {
 	Lossy   []aontu.SchemaLoss  `json:"lossy"`
 	Text    string              `json:"text"`
 	Verdict string              `json:"verdict"`
+	Vet     []string            `json:"vet,omitempty"`
 }
 
 func renderJsonSchemaImportJSON(report aontu.ImportReport) string {
@@ -210,6 +213,7 @@ func renderJsonSchemaImportJSON(report aontu.ImportReport) string {
 		Lossy:   report.Lossy,
 		Text:    report.Aontu,
 		Verdict: report.Verdict,
+		Vet:     report.Vet,
 	})
 	return strings.TrimSuffix(buf.String(), "\n")
 }

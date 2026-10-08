@@ -31,8 +31,14 @@ type ImportReport struct {
 	Verdict string       `json:"verdict"`
 	Aontu   string       `json:"aontu"`
 	Lossy   []SchemaLoss `json:"lossy"`
-	Errors  []VetFinding `json:"errors,omitempty"`
+	// Vet holds the `vet` flags that ask JSON Schema's question of data
+	// against the document. Nil on "error".
+	Vet    []string     `json:"vet,omitempty"`
+	Errors []VetFinding `json:"errors,omitempty"`
 }
+
+// ImportVetFlags is ImportReport.Vet on every import that stands.
+var ImportVetFlags = []string{"--no-fill", "--exact-numbers"}
 
 // jnode is the schema as a tree that keeps every number's own spelling,
 // every key's order, and every node's span.
@@ -2241,5 +2247,6 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	if agreed := New().Format(out); "formatted" == agreed.Verdict {
 		out = agreed.Text
 	}
-	return ImportReport{Verdict: verdict, Aontu: out, Lossy: ctx.lossy}
+	return ImportReport{Verdict: verdict, Aontu: out, Lossy: ctx.lossy,
+		Vet: append([]string{}, ImportVetFlags...)}
 }

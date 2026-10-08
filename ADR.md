@@ -77,11 +77,12 @@ capability decision is the phase rows it governed in
 | [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
 | [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
-| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
+| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) |
 | [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
 | [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
 | [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
+| [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 
 ---
 
@@ -4826,7 +4827,10 @@ number by its value.
 ## ADR-049 — Logic counts the trial schemas that admit a value
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Superseded in part, 2026-10-08, by
+[ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided). Decision 2's "every branch is tried, with no
+short-circuit" is reversed: a count now stops when the branches left
+cannot change its verdict.
 
 ### Context
 
@@ -5126,3 +5130,50 @@ the template's `deny?`, a limit its design note recorded.
   literal rows of `test/spec/constraint-nof.tsv` and
   `test/spec/jsonschema-import.tsv`, and the `allow` tests, in both
   ports.
+
+
+## ADR-054 — The admission trial is asked once, counted, and stopped when its count is decided
+
+**Date:** 2026-10-08
+**Status:** Accepted
+
+### Context
+
+[ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value)
+put the admission trial inside the engine, and had `nof` try every
+branch. The review of the
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) plan (#311)
+found three costs in that. A fixpoint pass re-wraps an atom, and tries
+its branches again; two atoms over one branch try it twice; and a count
+whose verdict is already decided keeps trying. Nothing bounded the total
+either, so a document of many members, each holding many branches, could
+trial without limit, where the trust contract's clause 2 promises that
+every evaluation halts within budgets counted in engine events. Charging
+trials to the revisit budget would have moved the verdicts that
+`test/spec/budget.tsv` pins for large instances.
+
+### Decision
+
+1. **A trial is asked once.** Its verdict is kept for the length of one
+   evaluation, keyed by the position, the trial schema's canon and the
+   value's canon, and a later ask of the same three reads it.
+2. **Trials are counted.** Each trial run, not each read, counts against
+   a budget of its own, `trials`, 100000 by default and set by the trust
+   profile as `trust.budget.trials` (`TrustBudget.Trials` in Go). Past it
+   the atom that asked is refused with `trial_budget`, class `budget`.
+3. **A count stops when it is decided.** `nof` tries a branch only while
+   the branches left can change its verdict: `nof(min(1), …)` stops at
+   the first that admits, `nof(0, …)` refuses at it, and `nof(1, …)`
+   refuses at the second. A refusal names a branch it stopped before as
+   `untried`, and gives the count as the range it can still be.
+
+### Consequences
+
+- A fixpoint pass, a second atom over one branch and a later reader of
+  the same verdict trial nothing twice.
+- An evaluation's trials are bounded; an instance large enough to need
+  more raises `trust.budget.trials`.
+- Pinned by the `budget-trials-*` rows of `test/spec/budget.tsv`,
+  from both sides of the default and at a `when` condition past it, by
+  the trust-budget tests of both ports, and by every `nof`, `when` and
+  `contains` row, whose verdicts did not move.

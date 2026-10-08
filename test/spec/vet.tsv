@@ -483,3 +483,10 @@ vet-no-fill-untyped-count-and-not-object	vet	nof(0, null|boolean|number|empty()|
 vet-no-fill-data-holding-a-reference	vet	a: integer\nb: integer	a: 1\nb: $.a	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 vet-no-fill-data-holding-a-call	vet	[integer, integer]	[1, add(1, 1)]	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 vet-no-fill-data-that-needs-the-schema	vet	b: 1	a: $.b	{"findings":[{"class":"reference","code":"no_path","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":1,"role":"data","row":1,"src":"$","value":"$.b"}]}],"opts":{"noFill":true},"truncated":false,"verdict":"invalid"}
+
+# A finding raised as the meet generates is reported whatever its class:
+# a reference in the data that names nothing is a `reference` finding,
+# where vet kept only `incomplete` and `conflict` and called the data
+# valid that evaluation refuses. JSONTestSuite's `[0.1.2]`, a dotted
+# spelling read as a relative reference, found it.
+vet-data-reference-that-names-nothing	vet	any	[0.1.2]	{"findings":[{"class":"reference","code":"ref","path":"$.0","severity":"error","sites":[{"col":2,"file":"data","len":3,"role":"data","row":1,"src":"0.1","value":".0.1.2"}]}],"truncated":false,"verdict":"invalid"}

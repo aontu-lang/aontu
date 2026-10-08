@@ -2,6 +2,11 @@
 # data-driven test suite parses identically on Windows checkouts.
 *.tsv text eol=lf
 test/spec/files/** text eol=lf
+# The vendored corpora are upstream's bytes. JSONTestSuite's parsing
+# cases hold invalid UTF-8, NUL bytes and exact whitespace, and a
+# checkout that converted their line endings would test other inputs.
+test/vectors/*/tests/** -text
+test/vectors/jsontestsuite/test_parsing/** -text
 # The embedded copy of test/spec/signature.tsv (docs/design/
 # SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
 # keeps the same line endings on every platform.

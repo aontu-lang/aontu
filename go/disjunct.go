@@ -322,6 +322,7 @@ func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
 	for i, m := range d.peg {
 		gctx := &Ctx{}
 		if nil != ctx {
+			ctx.trialsOf()
 			c := *ctx
 			gctx = &c
 		}

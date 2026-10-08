@@ -5899,10 +5899,20 @@ value when their meet adds nothing and generates the value itself, so a
 branch with a member the value lacks, required or filled by a default,
 does not: `nof(1, {x?: number}, {y?: string}) & {x: 1}` counts both
 branches and is refused, where `nof(1, {x: number}, {y: string})` counts
-one. Every branch is tried, a scalar at the meet and a container at
-generation, when no member can still arrive. A branch that conflicts on
-its own admits nothing, as `nil` does, and a reference that names
-nothing is the document's error.
+one. A scalar is tried at the meet and a container at generation, when
+no member can still arrive. A branch is tried while the branches left
+can still change the verdict, in canon order: `nof(min(1), …)` stops at
+the first that admits, `nof(0, …)` refuses at the first that admits,
+and `nof(1, …)` refuses at the second. A branch that conflicts on its
+own admits nothing, as `nil` does, and a reference that names nothing
+is the document's error.
+
+Each trial is asked once for each position, trial schema and value in
+an evaluation, and every later ask reads that first verdict. The trials
+an evaluation runs are counted, and past the budget of 100000 the atom
+that asked is refused with `trial_budget`, class `budget`; the trust
+profile sets the budget as `trust.budget.trials` (see
+[the trust contract](trust.md#clause-2-termination)).
 
 The branches are sorted by canon and never deduplicated, since a count
 counts duplicates: `nof(1, string, string)` admits no string. Two equal
@@ -5910,7 +5920,8 @@ counts duplicates: `nof(1, string, string)` admits no string. Two equal
 idempotent by canon. Like `must`, `nof` is opaque to emptiness and
 subsumption, and a value it refuses is reported as `nof`, class
 `conflict`, with the count, the number of branches that admitted it and
-each branch's verdict.
+each branch's verdict, `untried` for a branch the count stopped
+before.
 
 It is how the applicators of JSON Schema cross into aontu: `anyOf` is
 `nof(min(1), …)`, `oneOf` is `nof(1, …)` and `not` is `nof(0, …)`, and

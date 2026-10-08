@@ -104,7 +104,8 @@ Every evaluation halts within deterministic budgets counted in
 |------------|------------------------------------------|-----------------|
 | `passes`   | fixpoint passes over the whole model     | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
 | `revisits` | same-pair re-unifications within a pass  | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
-| `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`), plus Go's parse-depth guard (`max_depth`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
+| `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. Before parsing, an entry source whose brackets nest past twice this budget is refused with `max_depth` in both engines (`findDeepNesting`), because the parser's path tracking grows with the square of the depth; a bracket in a string or a comment does not count, and an included source is not scanned. A parsed tree deeper than the same bound, such as a chain of keys that nests with no bracket, is refused with `max_depth` too, before anything recurses into it. |
+| `trials`   | admission trials, once for each position, trial schema and value | 100000 (`ctx.budget.trials`, `ts/src/ctx.ts`; `trialBudget`, `go/admit.go`). A repeated trial reads its first verdict and is not counted again. Shared: both engines report `trial_budget` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
 
 (The shared 1000 sits above every real document and below both hosts'
 stack limits, so the budget, not the host, decides the verdict.)
@@ -127,6 +128,7 @@ the taxonomy rows: [test/spec/budget.tsv](../test/spec/budget.tsv)):
 | `unify_cycle`   | `budget`    | the revisit bound tripped: **suspected** non-convergence | inspect; may be a cycle or a very large model |
 | `recursion_unexpanded` | `incomplete` | a required recursive-schema position that no data ever expanded: refused at generation, at the instance | supply the data, or guard the field (`next?:` drops, a `*null` preference generates) |
 | `recursion_budget` | `budget` | a recursive schema expanded past the depth budget without meeting concrete data: two definitions feeding each other, or data deeper than the budget | restructure the definitions, or raise `trust.budget.depth` for genuinely deep data |
+| `trial_budget` | `budget` | the `nof`, `when` and `contains` atoms of one evaluation asked for more admission trials than the budget allows | restructure the trial schemas, or raise `trust.budget.trials` for a large instance |
 
 A *stable* residue (a stuck `1+true`, an unresolved kind) is none of
 these: it is ordinary incompleteness, silent at unify time and a
@@ -258,9 +260,10 @@ Denied resolution is a located, deterministic parse-stage error
 raised, not injected as a value, so a bare-member include
 (`@"./denied.aontu"` at the top of a file) cannot vanish in the merge.
 
-Budgets are part of the same profile: `trust.budget.passes` and
-`trust.budget.depth` (TypeScript) / `TrustOptions.Budget` (Go), integer
-counts of engine events defaulting to the spec constants of clause 2.
+Budgets are part of the same profile: `trust.budget.passes`,
+`trust.budget.depth` and `trust.budget.trials` (TypeScript) /
+`TrustOptions.Budget` (Go), integer counts of engine events defaulting
+to the spec constants of clause 2.
 The per-pair revisit bound is NOT profile surface: the Go dispatcher
 has no revisit counter to configure, and a knob one port cannot honour
 would break the parity contract by construction.

@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -170,16 +171,19 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		}
 	}
 
-	// THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
+	// THE TEXT GOES TO STDOUT and the losses to stderr, as the export's
+	// do, followed by the vet invocation that checks data against it.
+	const vetWith = "vet with: aontu vet --no-fill --exact-numbers <document> <data>\n"
 	write(`{"type": "object", "properties": {"n": {"type": "integer"}}}`)
 	out, errw, code := jsonSchemaRun("import", file)
-	if 0 != code || "n?: number & multiple(1)\n" != out || "" != errw {
+	if 0 != code || "n?: number & multiple(1)\n" != out || vetWith != errw {
 		t.Fatalf("clean import: %d %q %q", code, out, errw)
 	}
 
 	write(`{"type": "string", "$vocabulary": {}}`)
 	out, errw, code = jsonSchemaRun("import", file)
-	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/$vocabulary $vocabulary:") {
+	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/$vocabulary $vocabulary:") ||
+		!strings.HasSuffix(errw, "\n"+vetWith) {
 		t.Fatalf("lossy import: %d %q %q", code, out, errw)
 	}
 	if _, _, code = jsonSchemaRun("import", "--strict", file); 1 != code {
@@ -200,7 +204,8 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		t.Fatalf("json: %d %v\n%s", code, err, out)
 	}
 	producer, _ := j["aontu"].(map[string]any)
-	if "jsonschema" != producer["verb"] || "empty()\n" != j["text"] || "lossy" != j["verdict"] {
+	if "jsonschema" != producer["verb"] || "empty()\n" != j["text"] || "lossy" != j["verdict"] ||
+		"[--no-fill --exact-numbers]" != fmt.Sprint(j["vet"]) {
 		t.Fatalf("json envelope: %v", j)
 	}
 	if _, has := j["errors"]; has {
@@ -210,7 +215,8 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 	// Text that is not a schema refuses, in vet's finding shape.
 	write(`{"type": 5`)
 	out, errw, code = jsonSchemaRun("import", file)
-	if 4 != code || "" != out || !strings.Contains(errw, "jsonschema_schema") {
+	if 4 != code || "" != out || !strings.Contains(errw, "jsonschema_schema") ||
+		strings.Contains(errw, "vet with") {
 		t.Fatalf("refusal: %d %q %q", code, out, errw)
 	}
 	out, _, code = jsonSchemaRun("import", "--format", "json", file)
@@ -219,9 +225,10 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		Errors  []struct {
 			Code string `json:"code"`
 		} `json:"errors"`
+		Vet []string `json:"vet"`
 	}
 	if err := json.Unmarshal([]byte(out), &je); nil != err || 4 != code ||
-		"error" != je.Verdict || "jsonschema_schema" != je.Errors[0].Code {
+		"error" != je.Verdict || "jsonschema_schema" != je.Errors[0].Code || nil != je.Vet {
 		t.Fatalf("json refusal: %d %v\n%s", code, err, out)
 	}
 }

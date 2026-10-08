@@ -135,6 +135,13 @@ the package cache they write.
   [marshalling types](#exact-numbers-in-go), with HTML escaping **off**
   in both, so `<`, `>` and `&` stay literal and the two CLIs print the
   same bytes.
+- **`--exact-numbers` reads every number the document writes by its
+  value**, as [`vet --exact-numbers`](#aontu-vet) reads data: `1.0` is
+  the integer `1`, `0.1` keeps its digits, and `1.0 & integer`
+  evaluates where it is otherwise refused. It reaches an included
+  `.aontu` file and a package, and `:load`, `:get` and `:why` in the
+  REPL. A data include, such as `@"./data.json"`, keeps its own
+  format's reader.
 - Results go to **stdout**; errors go to **stderr** with a non-zero exit
   status (`1` for an evaluation error, `2` for a bad option).
 - **`--format json` makes the answer an object**, so the default entry
@@ -1405,13 +1412,12 @@ The losses, and why each is one:
 |---|---|
 | `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
-| `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| `biginteger`, `bigdecimal` | no JSON Schema type admits one leaf of a number, so the schema says `number` or `integer` and admits the other leaves |
 | `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
 | `len(multiple(n))` | no keyword constrains a count's divisor |
 | `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
 | `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
 | `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
-| an exact `0d` endpoint binary64 cannot hold | the bound crosses as the nearest double, which draws a different boundary; one beyond binary64 altogether is omitted |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
@@ -1419,7 +1425,12 @@ The losses, and why each is one:
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | residue: an unresolved reference, a waiting call, a nil the engine minted | not a property constraint at all; guessing one would be inventing a promise |
 
-The exact-leaf loss is the one with a way around it. Money carried as a
+An exact value is not a loss. A `0d` literal, `enum` member, endpoint
+or divisor is written as its own digits, because 2020-12 compares
+numbers by their value: `min(0d9007199254740993)` exports
+`"minimum": 9007199254740993`, and a consumer that reads the schema
+with binary64 rounds on its own side. The exact-leaf kind loss is the
+one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss (the
 pattern and the mark both cross) and stays exact on the aontu side:
 see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
@@ -1472,6 +1483,9 @@ Without `--strict` the same export exits 0.
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
+  A number in `schema` that binary64 cannot hold is a `JSON.rawJSON`
+  value in TypeScript and a `json.Number` in Go, so `exactJSON` and
+  `encoding/json` both write its digits.
 
 ### `aontu jsonschema import`
 
@@ -1512,9 +1526,12 @@ y: number
 &: match(key(0), "x", any, "y", any, nil)
 ```
 
+- After the losses, stderr names the `vet` invocation that asks the
+  question JSON Schema asks of data against the document, `vet with:
+  aontu vet --no-fill --exact-numbers <document> <data>`.
 - `--format json` prints the whole report (`text`, `lossy`, `verdict`,
-  and `errors` when the text is refused) under the usual
-  `aontu: {version, verb}` envelope.
+  `vet`, the flags of that invocation, and `errors` when the text is
+  refused) under the usual `aontu: {version, verb}` envelope.
 - `--defaults` makes an optional property's `default` a preference,
   `*d | …`, where the property's own assertions admit it; without it a
   `default` is an annotation only, as JSON Schema means it.
@@ -1524,8 +1541,8 @@ y: number
   and exits 0.
 - The library form is `importJsonSchema(text, options?)` in TypeScript
   and `ImportJSONSchema(text, opts)` in Go, returning the identical
-  `{verdict, aontu, lossy}` record (plus `errors` when the text is
-  refused). The CLI's JSON names the document `text`, because its
+  `{verdict, aontu, lossy, vet}` record (`errors` in place of `vet`
+  when the text is refused). The CLI's JSON names the document `text`, because its
   `aontu` key is the envelope.
 
 **What crosses.** Each keyword becomes the construct that means it:
@@ -3302,6 +3319,7 @@ into a context.
 | `debug` / `trace` | `boolean` | Enable parser debug / parse tracing. |
 | `deps`     | `object`    | Dependency record populated by `@"…"` loads. |
 | `log`      | `number`    | Parser log verbosity. |
+| `exactNumbers` | `boolean` | Read every number the document writes by its value, as `--exact-numbers` does: `1.0` is the integer `1` and `0.1` the bigdecimal `0d0.1`. Go sets `Aontu.ExactNumbers`. |
 
 `@"…"` resolution tries an **in-memory** resolver, then the
 **filesystem**, then **package** resolution, in that order. The chain
@@ -3517,6 +3535,9 @@ JSON.stringify(out) // TypeError: Do not know how to serialize a BigInt
   (`1000.0`, `0.1`, `-1.5`): no `0d` marker, since that belongs to
   canon and is not JSON, but an integral bigdecimal keeps its `.0` so
   the JSON still shows a decimal.
+- A raw JSON value made by `JSON.rawJSON(text)` writes its text, as
+  `JSON.stringify` does. `jsonSchema()` uses it for an exact number in
+  a schema, which is plain JSON and has no `0d`.
 - Object keys are emitted in **lexicographic order** (by UTF-16 code
   unit), matching Go's `encoding/json`, which sorts map keys. This is
   done at emit time and not by `generate()`, because a JavaScript object
@@ -3643,10 +3664,12 @@ hcanon         // the HASH FORM of an evaluated Val (see `aontu hash`
 canonHash      // the canon-hash pin over that form,
                // "aon1-"+base64url(SHA-256(...)); Go: aontu.CanonHash
 get            // the query surface (see `aontu model get` above):
-               // get(src, path, {view?, depth?, path?, trust?}) ->
-               // {ok, out, findings}; Go: aontu.New().Get(src, path, opts)
+               // get(src, path, {view?, depth?, path?, trust?,
+               // exactNumbers?}) -> {ok, out, findings};
+               // Go: aontu.New().Get(src, path, opts)
 why            // provenance (see `aontu model why` above):
-               // why(src, path, {path?, trust?}) -> {ok, record, findings},
+               // why(src, path, {path?, trust?, exactNumbers?}) ->
+               // {ok, record, findings},
                // record = {path, value, conjuncts}; Go: (*Aontu).Why
 patch          // the overlay patch (see `aontu model set` above):
                // patch(entry, overlay, ["$.a.b=1"], opts?) ->
@@ -3753,6 +3776,11 @@ a := aontu.NewWithBase(filepath.Dir(abs))
 
 Absolute `@"file"` paths are unaffected by the base. (The `aontu` CLI
 does exactly this for a file argument.)
+
+Setting `a.ExactNumbers = true` reads every number the document writes
+by its value, as `--exact-numbers` does. It holds for every method
+that parses, `Get` and `Why` among them, and is the twin of the
+TypeScript option `exactNumbers`.
 
 | Method | Signature | Notes |
 |--------|-----------|-------|

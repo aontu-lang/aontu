@@ -88,7 +88,9 @@ note?: empty() & len(max(200))
 
 Then check an order with `--no-fill --exact-numbers`, which asks the
 question JSON Schema asks: whether the data is an instance as written,
-with its numbers read by value. Write the order as `good.json`:
+with its numbers read by value. The import prints that invocation on
+stderr after its losses, as `vet with: aontu vet --no-fill
+--exact-numbers <document> <data>`. Write the order as `good.json`:
 
 <!-- test: file good.json -->
 ```json
@@ -145,6 +147,7 @@ accept a widened schema. Write `email.json`:
 $ aontu jsonschema import --strict email.json
 email?: meta(empty(), { format:"email" title:"Email" })
 lossy: #/unevaluatedProperties unevaluatedProperties: the importer does not carry this keyword yet, so it is dropped and the position admits more than the schema does
+vet with: aontu vet --no-fill --exact-numbers <document> <data>
 $ echo $?
 1
 ```

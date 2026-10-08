@@ -170,6 +170,9 @@ Options:
   -c, --canon     Print the canonical form instead of generated JSON
                   (the bare command's, as --jsonl is; model get has
                   its own)
+  --exact-numbers Read every number the document writes by its value:
+                  1.0 is the integer 1, and 0.1 keeps its digits (the
+                  bare command's; vet has its own)
   --format <f>    text (default) or json, on every verb that answers a
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
@@ -765,9 +768,12 @@ function parseTextExt(arg: string): string[] | undefined {
 }
 
 
-// The evaluator options a REPL session's capability means.
+// The evaluator options a REPL session's capability and reading mean.
 function replTrust(state: ReplState, entryRoot: string): any {
-  return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot)
+  return {
+    ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot),
+    ...exactOpts(state.exact),
+  }
 }
 
 
@@ -808,13 +814,19 @@ function entryRootOf(file: string | undefined): string {
 }
 
 
+function exactOpts(exact: boolean | undefined): { exactNumbers?: true } {
+  return true === exact ? { exactNumbers: true } : {}
+}
+
+
 function withdrawnMsg(file: string): string {
   return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`
 }
 
 
 function runFile(
-  file: string, mode: Mode, format: EvalFormat, trust: TrustArg): number {
+  file: string, mode: Mode, format: EvalFormat, trust: TrustArg,
+  exact: boolean): number {
   let src: string
   try {
     src = readFileSync(file, 'utf8')
@@ -840,20 +852,23 @@ function runFile(
     path,
     errfs: { existsSync, readFileSync },
     ...trustOpts(trust, dirname(path)),
+    ...exactOpts(exact),
   })
   return emitEval(evalSource(aontu, src, mode), format)
 }
 
 
 function runStdin(
-  mode: Mode, format: EvalFormat, trust: TrustArg): Promise<number> {
+  mode: Mode, format: EvalFormat, trust: TrustArg,
+  exact: boolean): Promise<number> {
   return new Promise((resolve) => {
     let src = ''
     process.stdin.setEncoding('utf8')
     process.stdin.on('data', (d) => (src += d))
     process.stdin.on('end', () => {
       const res = evalSource(
-        new Aontu(trustOpts(trust, process.cwd())), src, mode)
+        new Aontu({ ...trustOpts(trust, process.cwd()), ...exactOpts(exact) }),
+        src, mode)
       resolve(emitEval(res, format))
     })
   })
@@ -869,6 +884,7 @@ export type ReplState = {
   name?: string
   src?: string
   trust?: TrustArg
+  exact?: boolean
 }
 
 export type ReplAnswer = {
@@ -972,8 +988,7 @@ export function replCommand(
       if (':why' === cmd) {
         const report = why(src, path, {
           path: state.name,
-          ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
-            entryRootOf(state.name)),
+          ...replTrust(state, entryRootOf(state.name)),
         })
         return report.ok
           ? answer(renderWhyText(report.record as WhyRecord))
@@ -983,8 +998,7 @@ export function replCommand(
         ? 'keys' : 'canon' === state.mode ? 'canon' : 'json'
       const report = get(src, path, {
         view, path: state.name,
-        ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
-          entryRootOf(state.name)),
+        ...replTrust(state, entryRootOf(state.name)),
       })
       return report.ok
         ? answer(report.out)
@@ -997,8 +1011,9 @@ export function replCommand(
 }
 
 
-function runRepl(initialMode: Mode, jsonl: boolean, trust: TrustArg): void {
-  let state: ReplState = { mode: initialMode, jsonl, trust }
+function runRepl(
+  initialMode: Mode, jsonl: boolean, trust: TrustArg, exact: boolean): void {
+  let state: ReplState = { mode: initialMode, jsonl, trust, exact }
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -3842,6 +3857,10 @@ function renderRelationsJson(report: RelationReport): string {
 const JSONSCHEMA_HELP =
   'aontu jsonschema [import] [--at <path>] [--strict] <file> (try --help)'
 
+function vetWith(flags: string[]): string {
+  return 'vet with: aontu vet ' + flags.join(' ') + ' <document> <data>\n'
+}
+
 // The import mode: JSON Schema text in, an aontu document out, the
 // losses on stderr, exactly as the export reads the other way.
 function runJsonSchemaImport(argv: string[]): number {
@@ -3903,6 +3922,7 @@ function runJsonSchemaImport(argv: string[]): number {
       verdict: report.verdict,
       text: report.aontu,
       lossy: report.lossy,
+      ...(null == report.vet ? {} : { vet: report.vet }),
       ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2) + '\n')
   }
@@ -3915,6 +3935,7 @@ function runJsonSchemaImport(argv: string[]): number {
     for (const l of report.lossy) {
       process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`)
     }
+    process.stderr.write(vetWith(report.vet as string[]))
   }
 
   return 'error' === report.verdict ? 4 :
@@ -5497,6 +5518,7 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   // than the design's --json, which would read as the `:json` output
   // mode the REPL already has.
   let jsonl = false
+  let exact = false
 
   // One spelling throughout the tools (ADR-042): every verb, one gate.
   const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a))
@@ -5603,6 +5625,9 @@ function main(argv: string[], servers: Servers = SERVERS): void {
     if ('-c' === arg || '--canon' === arg) {
       mode = 'canon'
     }
+    else if ('--exact-numbers' === arg) {
+      exact = true
+    }
     else if ('-h' === arg || '--help' === arg) {
       process.stdout.write(HELP)
       return finish(0)
@@ -5676,17 +5701,17 @@ function main(argv: string[], servers: Servers = SERVERS): void {
 
   const file = files[0]
   if (null != file) {
-    finish(runFile(file, mode, format, trust))
+    finish(runFile(file, mode, format, trust, exact))
   }
   // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
   // a harness over a pipe, so gating it on an interactive terminal
   // made it reachable only through a pty -- which is to say, not
   // reachable by the thing it was built for. Mirrors go/cmd/aontu.
   else if (jsonl || process.stdin.isTTY) {
-    runRepl(mode, jsonl, trust)
+    runRepl(mode, jsonl, trust, exact)
   }
   else {
-    runStdin(mode, format, trust).then((code) => finish(code))
+    runStdin(mode, format, trust, exact).then((code) => finish(code))
   }
 } /* node:coverage ignore next 22 */
 

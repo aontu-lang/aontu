@@ -194,6 +194,17 @@ function firstCode(fn) {
         Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { budget: { depth: 3 } } })
             .generate('a:{b:{c:{d:{e:1}}}}')), 'unify_cycle');
     });
+    // Mirrors TestTrustTrialBudgetRefusesEveryTrialAtom in go/trust_test.go.
+    (0, node_test_1.test)('trial-budget-refuses-every-trial-atom', () => {
+        for (const [src, trials] of [
+            ['a: nof(1, 1, 2, 3) & 2', 2],
+            ['a: when(1, number) & 1', 1],
+            ['a: [1, 2] & contains(1)', 1],
+        ]) {
+            Assert.equal(firstCode(() => new aontu_1.Aontu({ trust: { budget: { trials } } }).generate(src)), 'trial_budget', src);
+            Assert.equal(firstCode(() => new aontu_1.Aontu().generate(src)), undefined, src);
+        }
+    });
 });
 (0, node_test_1.describe)('trust-lsp', () => {
     const init = (params) => {

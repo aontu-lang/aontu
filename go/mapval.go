@@ -349,6 +349,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		// inner failures drop parts of the subtree rather than raising.
 		gctx := ctx
 		if optional && ctx != nil {
+			ctx.trialsOf()
 			c2 := *ctx
 			c2.err = nil
 			c2.collect = true

@@ -266,8 +266,10 @@ function runRow(row) {
         }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
     }
     else if ('jsonschema' === row.mode) {
-        // `opts` rides the expect object, as in the vet and subsume rows.
-        const golden = JSON.parse(row.expect);
+        // `opts` rides the expect object, as in the vet and subsume rows. A
+        // number a double cannot hold keeps its digits, as the export does.
+        const golden = JSON.parse(row.expect, (_k, v, at) => 'number' === typeof v && null != at?.source && String(v) !== at.source ?
+            JSON.rawJSON(at.source) : v);
         const opts = golden.opts;
         delete golden.opts;
         const report = (0, jsonschema_1.jsonSchema)(row.src, opts);
@@ -283,6 +285,9 @@ function runRow(row) {
         const golden = JSON.parse(row.expect);
         const report = (0, jsonschema_import_1.importJsonSchema)(row.src, golden.opts);
         delete golden.opts;
+        // Every import that stands is paired with JSON Schema's question.
+        Assert.deepStrictEqual(report.vet, 'error' === report.verdict ?
+            undefined : ['--no-fill', '--exact-numbers'], `jsonschema-import vet flags: ${row.name}`);
         Assert.strictEqual((0, aontu_1.exactJSON)({
             aontu: report.aontu,
             lossy: report.lossy,

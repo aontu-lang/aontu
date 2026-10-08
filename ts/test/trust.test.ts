@@ -224,6 +224,20 @@ describe('trust-budget', () => {
         .generate('a:{b:{c:{d:{e:1}}}}')),
       'unify_cycle')
   })
+
+  // Mirrors TestTrustTrialBudgetRefusesEveryTrialAtom in go/trust_test.go.
+  test('trial-budget-refuses-every-trial-atom', () => {
+    for (const [src, trials] of [
+      ['a: nof(1, 1, 2, 3) & 2', 2],
+      ['a: when(1, number) & 1', 1],
+      ['a: [1, 2] & contains(1)', 1],
+    ] as [string, number][]) {
+      Assert.equal(
+        firstCode(() => new Aontu({ trust: { budget: { trials } } }).generate(src)),
+        'trial_budget', src)
+      Assert.equal(firstCode(() => new Aontu().generate(src)), undefined, src)
+    }
+  })
 })
 
 

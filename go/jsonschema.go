@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -76,54 +77,38 @@ var schemaCountKeys = map[string][2]string{
 	"list":   {"minItems", "maxItems"},
 }
 
-// schemaEndpoint: the nearest float64, whether it is exact, and whether one is finite.
-func schemaEndpoint(sv *ScalarVal) (f float64, exact bool, finite bool) {
-	switch sv.kind {
-	case KindBigInteger:
-		f, acc := new(big.Float).SetInt(sv.peg.(*big.Int)).Float64()
-		return f, big.Exact == acc, !math.IsInf(f, 0)
-	case KindBigDecimal:
-		d := sv.peg.(*Decimal)
-		f, exact := new(big.Rat).SetFrac(d.coeff, pow10(int64(d.scale))).Float64()
-		return f, exact, !math.IsInf(f, 0)
-	}
-	return 0, true, true
-}
-
-// scalarSchemaJSON is the JSON value of a concrete scalar, for const,
-// enum and default.
+// scalarSchemaJSON is the JSON value of a concrete scalar. An exact
+// leaf's digits are written directly rather than through a float64:
+// JSON Schema compares numbers by their value.
 func scalarSchemaJSON(sv *ScalarVal) any {
 	switch sv.kind {
-	case KindBigInteger, KindBigDecimal:
-		f, _, _ := schemaEndpoint(sv)
-		return f
+	case KindBigInteger:
+		return json.Number(bigIntDigits(sv.peg.(*big.Int)))
+	case KindBigDecimal:
+		return json.Number(sv.peg.(*Decimal).digits())
 	}
 	return sv.peg
 }
 
-func schemaConstJSON(sc *schemaCtx, path []string, sv *ScalarVal) (any, bool) {
-	if KindBigInteger == sv.kind || KindBigDecimal == sv.kind {
-		if _, _, finite := schemaEndpoint(sv); !finite {
-			sc.lose(path, "exact literal",
-				"this exact value lies beyond binary64, and JSON has no number "+
-					"for it, so the schema cannot carry it")
-			return nil, false
+// schemaValueKey is one JSON value by its meaning: 1 and 1.0 are one number.
+func schemaValueKey(v any) string {
+	raw, _ := json.Marshal(v)
+	if n, ok := readExactNumber(string(raw)); ok {
+		if text, ok := exactNumberText(n); ok {
+			return text
 		}
-		sc.lose(path, "exact literal",
-			"JSON has one number type and it is binary64, so this exact "+
-				"value is emitted as the nearest JSON number")
 	}
-	return scalarSchemaJSON(sv), true
+	return string(raw)
 }
 
-// schemaDedupeJSON: 1 and 1.0 are one JSON number, so an enum carries it once.
+// schemaDedupeJSON carries one value once, however its members are spelt.
 func schemaDedupeJSON(vals []any) []any {
 	seen := map[string]bool{}
 	out := []any{}
 	for _, v := range vals {
-		key, _ := json.Marshal(v)
-		if !seen[string(key)] {
-			seen[string(key)] = true
+		key := schemaValueKey(v)
+		if !seen[key] {
+			seen[key] = true
 			out = append(out, v)
 		}
 	}
@@ -156,30 +141,10 @@ func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
 	}
 }
 
-// schemaDivisorJSON is a divisor as a JSON number, by the exact-endpoint
-// rule.
-func schemaDivisorJSON(sc *schemaCtx, path []string, m *ScalarVal) (any, bool) {
-	_, exact, finite := schemaEndpoint(m)
-	switch {
-	case !finite:
-		sc.lose(path, "multiple",
-			"this divisor lies beyond binary64, and JSON has no number for it, "+
-				"so it is OMITTED and the schema admits values the model refuses")
-		return nil, false
-	case !exact:
-		sc.lose(path, "multiple",
-			"JSON has one number type and it is binary64, which cannot hold "+
-				"this divisor; the schema carries the nearest number, so the "+
-				"multiples it admits are not the model's")
-	}
-	return scalarSchemaJSON(m), true
-}
-
 func schemaLoseExactKind(sc *schemaCtx, path []string, leaf, t string) {
 	sc.lose(path, leaf,
-		"JSON has one number type and it is binary64, so the EXACTNESS "+
-			"this leaf exists for cannot be carried; the schema says "+
-			"\""+t+"\" and a consumer may round")
+		"JSON Schema has no type for one leaf of a number: the schema says \""+t+
+			"\", which admits the other leaves too, where this kind refuses them")
 }
 
 // schemaAtLeastOne reports whether an exported length bound is already
@@ -231,31 +196,22 @@ func schemaBoundOut(sc *schemaCtx, path []string, out map[string]any,
 				"schema admits strings outside it")
 		return
 	}
-	_, exact, finite := schemaEndpoint(b.v)
-	if !finite {
-		sc.lose(path, atom,
-			"this exact endpoint lies beyond binary64, and JSON has no number "+
-				"for it, so the bound is OMITTED and the schema admits values the "+
-				"model refuses")
-		return
-	}
-	if !exact {
-		sc.lose(path, atom,
-			"JSON has one number type and it is binary64, which cannot hold "+
-				"this exact endpoint; the schema carries the nearest number, so "+
-				"the boundary it draws is not the model's")
-	}
 	out[key] = scalarSchemaJSON(b.v)
 }
 
+// schemaNumber is a count's bound as a plain number.
 func schemaNumber(sv *ScalarVal) float64 {
-	switch n := scalarSchemaJSON(sv).(type) {
+	switch p := sv.peg.(type) {
 	case int64:
-		return float64(n)
-	case float64:
-		return n
+		return float64(p)
+	case *big.Int:
+		f, _ := new(big.Float).SetInt(p).Float64()
+		return f
+	case *Decimal:
+		f, _ := strconv.ParseFloat(p.digits(), 64)
+		return f
 	}
-	return 0 //coverage:ignore a count is always numeric
+	return sv.peg.(float64)
 }
 
 // schemaCountEndpoint: the whole number a count keyword takes; above(2) is at least 3.
@@ -325,9 +281,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	}
 	divisors := []any{}
 	for _, m := range mults {
-		if n, ok := schemaDivisorJSON(sc, path, m); ok {
-			divisors = append(divisors, n)
-		}
+		divisors = append(divisors, scalarSchemaJSON(m))
 	}
 	if 1 == len(divisors) {
 		out["multipleOf"] = divisors[0]
@@ -723,9 +677,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		// so const: x would refuse what the model admits.
 		if sv, ok := t.peg.(*ScalarVal); ok {
 			inner := schemaKindOfLiteral(sc, path, sv)
-			if d, ok := schemaConstJSON(sc, path, sv); ok {
-				inner["default"] = d
-			}
+			inner["default"] = scalarSchemaJSON(sv)
 			return inner
 		}
 		inner := schemaFromVal(sc, path, t.peg)
@@ -797,11 +749,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		if KindNull == t.kind {
 			return map[string]any{"type": "null"}
 		}
-		out := map[string]any{"type": scalarSchemaType(t)}
-		if c, ok := schemaConstJSON(sc, path, t); ok {
-			out["const"] = c
-		}
-		return out
+		return map[string]any{"type": scalarSchemaType(t), "const": scalarSchemaJSON(t)}
 
 	case *NilVal:
 		// A written nil is bottom and admits nothing; a minted one is a refusal nobody collected.
@@ -890,12 +838,9 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 
 	var out map[string]any
 	if allConst {
-		// A member no finite double holds is reported and left out.
 		consts := make([]any, 0, len(bare))
 		for _, m := range bare {
-			if c, ok := schemaConstJSON(sc, path, m.(*ScalarVal)); ok {
-				consts = append(consts, c)
-			}
+			consts = append(consts, scalarSchemaJSON(m.(*ScalarVal)))
 		}
 		out = map[string]any{"enum": schemaDedupeJSON(consts)}
 	} else {

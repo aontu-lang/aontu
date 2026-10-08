@@ -192,6 +192,19 @@ describe('bignum-literal', () => {
       '{"x":0d' + '9'.repeat(5000) + '}')
   })
 
+
+  // As Go's Aontu.ExactNumbers; a module is read as written, as Go's
+  // fresh instance for one reads it.
+  test('exact-numbers-on-the-instance', () => {
+    const exact = new Aontu({ exactNumbers: true })
+    Assert.equal(exact.unify('x: 0.1 y: 1.0').canon, '{"x":0d0.1,"y":1}')
+    Assert.equal(new Aontu().unify('x: 0.1 y: 1.0').canon, '{"x":0.1,"y":1.0}')
+    Assert.equal(
+      new Aontu().unify('x: 0.1', { exactNumbers: true }).canon, '{"x":0d0.1}')
+    const mod = (a: Aontu) => (a.opts as any).mod.eval('x: 0.1', 'p.aontu').hash
+    Assert.equal(mod(exact), mod(new Aontu()))
+  })
+
 })
 
 

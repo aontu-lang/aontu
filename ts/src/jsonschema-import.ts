@@ -33,8 +33,14 @@ export type ImportReport = {
   // The aontu document. Empty on `error`.
   aontu: string
   lossy: SchemaLoss[]
+  // The `vet` flags that ask JSON Schema's question of data against the
+  // document. Absent on `error`.
+  vet?: string[]
   errors?: VetFinding[]
 }
+
+
+export const IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers']
 
 
 // The schema as a tree that keeps every number's own spelling, every
@@ -1802,6 +1808,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
     aontu: agreedForm(emit(ctx, body)),
     lossy: ctx.lossy,
+    vet: [...IMPORT_VET_FLAGS],
   }
 }
 

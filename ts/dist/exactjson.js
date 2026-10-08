@@ -56,6 +56,9 @@ function emit(v, unit, pad, seen) {
     if (v instanceof Decimal_1.Decimal) {
         return v.toString();
     }
+    if (JSON.isRawJSON(v)) {
+        return v.rawJSON;
+    }
     if ('object' === t && 'function' === typeof v.toJSON) {
         return emit(v.toJSON(), unit, pad, seen);
     }

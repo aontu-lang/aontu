@@ -8,6 +8,70 @@ each change affects.
 
 ## Unreleased
 
+### `--exact-numbers` on evaluation
+
+Both ports, G12 phase 3. The bare command takes `--exact-numbers`, as
+`vet` does, and reads every number the document writes by its value,
+in the file, stdin and REPL forms alike: `0.1` keeps its digits and
+`1.0 & integer` evaluates. It reaches an included `.aontu` file and a
+package; a data include keeps its own format's reader. The TypeScript
+option `exactNumbers` now holds when it is given to the constructor,
+as Go's `Aontu.ExactNumbers` does, where only a per-call option was
+read, and `get` and `why` take it too.
+
+### Ajv's extra tests and JSONTestSuite run beside the official suite
+
+Both ports, G12 phase 3. Two more public corpora are vendored under
+`test/vectors/`, each with its upstream LICENSE, the commit it is
+pinned to and its own skip ledger: four files of Ajv's `spec/extras`,
+40 tests that all pass, and JSONTestSuite's 318 parsing cases, each
+read as an instance of the schema `true`. One runner path in each port
+reads all three corpora. JSONTestSuite's 87 ledger rows are inputs
+aontu's reader accepts because aontu source is a superset of JSON, and
+its 35 implementation-defined cases take the answers pinned in
+`decisions.tsv`, which both ports must give.
+
+`vet` reports every failure that generation raises, whatever its class.
+It kept only `incomplete` and `conflict`, so data holding a reference
+that names nothing, such as `[0.1.2]`, vetted `valid` where evaluation
+refused it.
+
+### A document nested past twice the depth budget is refused before parsing
+
+Both ports. An entry source whose brackets nest deeper than twice the
+`depth` budget, 2000 by default, is refused with `max_depth` before it
+is parsed: the parser's path tracking grows with the square of the
+depth, and JSONTestSuite's 100000 unclosed openers ran both ports out
+of memory. A bracket in a string or a comment does not count. A
+document that holds only a Unicode space or a byte-order mark is now
+refused with `bare_punct` in TypeScript as in Go, where TypeScript read
+it as `{}`, and a relative reference with a signed segment, `[.-1]`, is
+`no_path` in Go as in TypeScript, where Go answered `path_cycle`.
+
+### The admission trial answers once, and is counted
+
+Both ports, G12 phases 3 and 5, ADR-054. A trial of `nof`, `when` or
+`contains` is asked once for each position, trial schema and value in
+an evaluation, and a later ask reads the first verdict, so a fixpoint
+pass and a second atom over one branch trial nothing twice. The trials
+an evaluation runs are counted against a new budget, `trials`, 100000
+by default and set by the trust profile as `trust.budget.trials`
+(`TrustBudget.Trials` in Go); past it the atom that asked is refused
+with the new code `trial_budget`, class `budget`, and
+`test/spec/budget.tsv` pins the boundary from both sides. `nof` tries a
+branch only while the branches left can change its verdict:
+`nof(min(1), …)` stops at the first that admits and `nof(0, …)` refuses
+at it, and its refusal reads `untried` for a branch it stopped before.
+
+### The import names the `vet` that checks data against it
+
+Both ports, G12 phase 3. `aontu jsonschema import` prints `vet with:
+aontu vet --no-fill --exact-numbers <document> <data>` on stderr after
+its losses, and the report carries those flags as `vet`, in the library
+and under `--format json`. The document is not stamped with them: the
+flags stay explicit, and the spec runners assert the pairing on every
+import row.
+
 ### A root that rides or meets a map keeps its aliases
 
 Both ports. A document whose whole value is `meta({…}, {…})`,
@@ -258,10 +322,12 @@ than an invalid `minimum` (#295). A `neq` whose arguments span two
 domains is invalid at construction in both ports and refuses every
 peer, so it exports as `false` in both, where TypeScript wrote `{}` and
 Go `{"type":"number"}`, and its canon agrees (#297). An exact `0d`
-endpoint crosses only as a double that holds it, otherwise as the
-nearest double with a loss, or is omitted with a loss when no finite
-one exists, which Go could not serialise before; the same rule reaches
-an exact literal in `const`, `default` and `enum`. A written `nil` is
+endpoint, divisor or literal in `const`, `default` and `enum` is
+written as its own digits, which Go could not serialise before: the
+report holds a `JSON.rawJSON` value in TypeScript and a `json.Number`
+in Go, and `exactJSON` writes a raw value's text. An `enum` drops a
+member only when another has the same value, so `0d0.1 | 0.1` is one
+member. A written `nil` is
 the schema `false`; `map` and `list` are `object` and `array`; a
 disjunction of bare kinds is a `type` array; and a member a second map
 literal expects reads through instead of exporting `{}`. Forty-two rows in

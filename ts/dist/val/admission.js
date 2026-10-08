@@ -110,11 +110,27 @@ function trialMeet(tctx, trial, value) {
     return met;
 }
 // The trial inside the engine: `trial` admits the settled `value`, whose
-// JSON is `own`. A failed meet is reported to a throwaway list.
-function admitsSettled(ctx, trial, value, own) {
+// JSON is `own`, at `path`. One verdict per position, trial and value in
+// an evaluation, and undefined once the trial budget is spent.
+function admitsSettled(ctx, trial, value, own, path) {
     if (true === trial.isNil) {
         return false;
     }
+    const trials = ctx._trials;
+    const key = JSON.stringify([path, trial.canon, value.canon]);
+    const known = trials.memo.get(key);
+    if (undefined !== known) {
+        return known;
+    }
+    if (ctx.budget.trials <= trials.n) {
+        return undefined;
+    }
+    trials.n++;
+    const verdict = trialVerdict(ctx, trial, value, own);
+    trials.memo.set(key, verdict);
+    return verdict;
+}
+function trialVerdict(ctx, trial, value, own) {
     const tctx = ctx.clone({ err: [], collect: true });
     const met = trialMeet(tctx, trial, value);
     if (true === met.isNil || 0 < tctx.err.length) {

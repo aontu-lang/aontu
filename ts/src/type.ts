@@ -21,6 +21,7 @@ type TrustInclude =
 type TrustBudget = {
   passes?: number    // fixpoint passes (default 9)
   depth?: number     // structural recursion depth (default 1000)
+  trials?: number    // admission trials (default 100000)
 }
 
 type TrustOptions = {
@@ -48,7 +49,6 @@ type AontuOptions = {
 
   textExt?: string[]
 
-  // Read every data number by its exact value (G12).
   exactNumbers?: boolean
 
   trustWarn?: (kind: 'escape' | 'pkg', path: string) => void

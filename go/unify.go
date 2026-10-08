@@ -153,6 +153,7 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if root.Nil() {
 		return root
 	}
+	ctx.trialsOf()
 	if over := aliasBudget(ctx, root); nil != over {
 		return over
 	}

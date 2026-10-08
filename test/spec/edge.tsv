@@ -480,3 +480,13 @@ edge-optional-key-still-optional	gens	x?: 1\ny: 2	{"x":1,"y":2}
 var-name-map	errc	a: ${b: 1}	var_name
 var-name-number	errc	a: $1	var_name
 var-name-swallows-the-next-line	errc	a: $\nv?: integer	var_name
+
+# A document is empty only when it holds nothing but the space, tab,
+# carriage return and newline the lexer skips. Any other Unicode space,
+# and a byte-order mark, is a character the grammar refuses: TypeScript
+# trimmed with the host's wider whitespace and read them as {}, where
+# Go refused them. JSONTestSuite's document of a lone BOM found it.
+edge-empty-is-the-lexer-whitespace	gens	 \t\n \n	{}
+edge-nbsp-alone-is-refused	errc	 	bare_punct
+edge-bom-alone-is-refused	errc	﻿	bare_punct
+edge-ideographic-space-alone-is-refused	errc	　	bare_punct

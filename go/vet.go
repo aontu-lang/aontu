@@ -704,9 +704,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		probe: "" != options.At}
 	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
-		if "incomplete" == e.Class() || "conflict" == e.Class() {
-			findings = append(findings, findingOf(e, prov, sources))
-		}
+		findings = append(findings, findingOf(e, prov, sources))
 	}
 	if options.NoFill && nil != generated {
 		findings = append(findings,

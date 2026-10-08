@@ -2022,7 +2022,7 @@ class Lang {
             // child-meta spread carries the same array to nested includes.
             aontu: {
                 manifest: opts?.manifest,
-                exactNumbers: true === opts?.exactNumbers,
+                exactNumbers: true === (opts?.exactNumbers ?? this.opts.exactNumbers),
             },
         };
         if (null != opts?.idcount) {

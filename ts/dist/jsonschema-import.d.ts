@@ -9,8 +9,10 @@ export type ImportReport = {
     verdict: SchemaVerdict;
     aontu: string;
     lossy: SchemaLoss[];
+    vet?: string[];
     errors?: VetFinding[];
 };
+export declare const IMPORT_VET_FLAGS: string[];
 export type JEntry = {
     key: string;
     val: JNode;

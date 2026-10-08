@@ -6,6 +6,8 @@ import { Aontu } from './aontu'
 import { makeNilErr } from './err'
 import { sizingResidue } from './val/BagVal'
 import { Decimal } from './val/Decimal'
+import { exactNumberText, readExactNumber } from './val/numkind'
+import type { ExactNumber } from './val/numkind'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
 import { nofCounts } from './val/ConstraintVal'
 import { recordLayers } from './rider'
@@ -118,94 +120,62 @@ function loseLeafKind(ctx: Ctx, path: string[], name: string, t: string) {
 }
 
 
-// A divisor as a JSON number, by the exact-endpoint rule.
-function divisorJson(ctx: Ctx, path: string[], m: any): number | undefined {
-  const [n, exact] = endpointJson(m)
-  if (undefined === n) {
-    lose(ctx, path, 'multiple',
-      'this divisor lies beyond binary64, and JSON has no number for it, ' +
-      'so it is OMITTED and the schema admits values the model refuses')
-  }
-  else if (!exact) {
-    lose(ctx, path, 'multiple',
-      'JSON has one number type and it is binary64, which cannot hold ' +
-      'this divisor; the schema carries the nearest number, so the ' +
-      'multiples it admits are not the model\'s')
-  }
-  return n
-}
 
 
 function loseExactKind(ctx: Ctx, path: string[], leaf: string, t: string) {
   lose(ctx, path, leaf,
-    'JSON has one number type and it is binary64, so the EXACTNESS ' +
-    'this leaf exists for cannot be carried; the schema says ' +
-    '"' + t + '" and a consumer may round')
+    'JSON Schema has no type for one leaf of a number: the schema says "' + t +
+    '", which admits the other leaves too, where this kind refuses them')
+}
+
+
+// An exact leaf's digits as a JSON number, written directly rather than
+// through a double: JSON Schema compares numbers by their value.
+function exactJson(v: any): any {
+  if ('bigint' === typeof v || v instanceof Decimal) {
+    return (JSON as any).rawJSON(v.toString())
+  }
+  if (Array.isArray(v)) {
+    return v.map(exactJson)
+  }
+  if (null != v && 'object' === typeof v && !(JSON as any).isRawJSON(v)) {
+    const out: any = {}
+    for (const k of Object.keys(v)) {
+      out[k] = exactJson(v[k])
+    }
+    return out
+  }
+  return v
 }
 
 
 function scalarJson(v: any): any {
-  if (v.isBigInteger) {
-    return Number(v.peg)
-  }
-  if (v.isBigDecimal) {
-    return Number(v.peg.toString())
-  }
-  return v.peg
+  return exactJson(v.peg)
 }
 
 
-function constJson(ctx: Ctx, path: string[], v: any): any {
-  if (v.isBigInteger || v.isBigDecimal) {
-    const n = scalarJson(v)
-    if (!Number.isFinite(n)) {
-      lose(ctx, path, 'exact literal',
-        'this exact value lies beyond binary64, and JSON has no number ' +
-        'for it, so the schema cannot carry it')
-      return undefined
-    }
-    lose(ctx, path, 'exact literal',
-      'JSON has one number type and it is binary64, so this exact ' +
-      'value is emitted as the nearest JSON number')
-  }
-  return scalarJson(v)
+// A count is a whole number of members, read as a plain number.
+function countNumber(v: any): number {
+  return Number(v.peg)
 }
 
 
-// m / 2^e is m * 5^e / 10^e, and doubling a double never rounds.
-function decimalOfDouble(f: number): Decimal {
-  let m = Math.abs(f)
-  let e = 0
-  while (!Number.isInteger(m)) {
-    m *= 2
-    e++
+// One JSON value by its meaning: `1` and `1.0` are one number.
+function valueKey(v: any): string {
+  if ('number' === typeof v || (JSON as any).isRawJSON(v)) {
+    const text = 'number' === typeof v ? String(v) : v.rawJSON
+    return exactNumberText(readExactNumber(text) as ExactNumber) ?? text
   }
-  const unscaled = BigInt(m) * (5n ** BigInt(e))
-  return new Decimal(f < 0 ? -unscaled : unscaled, e)
+  return JSON.stringify(v)
 }
 
 
-// The nearest double, whether it is exact, and undefined when none is finite.
-function endpointJson(v: any): [number | undefined, boolean] {
-  if (v.isBigInteger) {
-    const f = Number(v.peg)
-    return Number.isFinite(f) ? [f, BigInt(f) === v.peg] : [undefined, false]
-  }
-  if (v.isBigDecimal) {
-    const f = Number(v.peg.toString())
-    return Number.isFinite(f) ?
-      [f, decimalOfDouble(f).equals(v.peg)] : [undefined, false]
-  }
-  return [v.peg, true]
-}
-
-
-// `1` and `1.0` are one JSON number, so an enum carries it once.
+// One value is carried once, however its members are spelt.
 function dedupeJson(vals: any[]): any[] {
   const seen = new Set<string>()
   const out: any[] = []
   for (const v of vals) {
-    const key = JSON.stringify(v)
+    const key = valueKey(v)
     if (!seen.has(key)) {
       seen.add(key)
       out.push(v)
@@ -238,22 +208,8 @@ function boundOut(ctx: Ctx, path: string[], out: any, b: any, isLo: boolean) {
       'schema admits strings outside it')
     return
   }
-  const [n, exact] = endpointJson(v)
-  if (undefined === n) {
-    lose(ctx, path, atom,
-      'this exact endpoint lies beyond binary64, and JSON has no number ' +
-      'for it, so the bound is OMITTED and the schema admits values the ' +
-      'model refuses')
-    return
-  }
-  if (!exact) {
-    lose(ctx, path, atom,
-      'JSON has one number type and it is binary64, which cannot hold ' +
-      'this exact endpoint; the schema carries the nearest number, so ' +
-      'the boundary it draws is not the model\'s')
-  }
   out[isLo ? (b.open ? 'exclusiveMinimum' : 'minimum') :
-    (b.open ? 'exclusiveMaximum' : 'maximum')] = n
+    (b.open ? 'exclusiveMaximum' : 'maximum')] = scalarJson(v)
 }
 
 
@@ -262,7 +218,7 @@ function countEndpoint(b: any, isLo: boolean): number | undefined {
   if (null == b) {
     return undefined
   }
-  const n = scalarJson(b.v)
+  const n = countNumber(b.v)
   return isLo ? (b.open ? Math.floor(n) + 1 : Math.ceil(n)) :
     (b.open ? Math.ceil(n) - 1 : Math.floor(n))
 }
@@ -304,8 +260,7 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     out.type = 'integer'
     mults = mults.filter((m: any) => !one(m))
   }
-  const divisors = mults.map((m: any) => divisorJson(ctx, path, m))
-    .filter((n: any) => undefined !== n)
+  const divisors = mults.map(scalarJson)
   if (1 === divisors.length) {
     out.multipleOf = divisors[0]
   }
@@ -335,7 +290,7 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     }
     // An excluded length is exactly `not` both bounds at it.
     for (const n of c.count.neqs) {
-      const k = scalarJson(n)
+      const k = countNumber(n)
       if (Number.isInteger(k)) {
         nots.push({ [lokey]: k, [hikey]: k })
       }
@@ -625,9 +580,7 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
     // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
     // so `const: x` would refuse what the model admits.
     if (true === v.peg?.isScalar) {
-      const kind = kindOfLiteral(ctx, path, v.peg)
-      const d = constJson(ctx, path, v.peg)
-      return undefined === d ? kind : { ...kind, default: d }
+      return { ...kindOfLiteral(ctx, path, v.peg), default: scalarJson(v.peg) }
     }
     const inner = fromVal(ctx, path, v.peg)
     const gen = generated(v.peg)
@@ -699,9 +652,7 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
   }
 
   if (true === v.isScalar) {
-    const c = constJson(ctx, path, v)
-    const t = scalarType(v)
-    return undefined === c ? { type: t } : { const: c, type: t }
+    return { const: scalarJson(v), type: scalarType(v) }
   }
 
   // A written `nil` is bottom and admits nothing; a minted one is a refusal nobody collected.
@@ -731,7 +682,7 @@ function generated(v: any): any {
   const a0 = new Aontu()
   const ctx = a0.ctx({ collect: true })
   const out = v.gen(ctx)
-  return 0 === ctx.err.length ? out : undefined
+  return 0 === ctx.err.length ? exactJson(out) : undefined
 }
 
 
@@ -759,10 +710,8 @@ function fromDisjunct(ctx: Ctx, path: string[], v: any): any {
   const consts = bare.map((m: any) =>
     true === m?.isScalar && true !== m?.isNil ? scalarJson(m) : undefined)
 
-  // A member no finite double holds is reported and left out.
   const out: any = consts.every((c: any) => undefined !== c) ?
-    { enum: dedupeJson(bare.map((m: any) => constJson(ctx, path, m))
-      .filter((c: any) => undefined !== c)) } :
+    { enum: dedupeJson(consts) } :
     typeFold(bare.map((m: any) => fromVal(ctx, path, m)))
 
   return undefined === def ? out : { ...out, default: def }

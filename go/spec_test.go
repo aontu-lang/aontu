@@ -539,8 +539,12 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "jsonschema":
+					// A number a float64 cannot hold keeps its digits, as the
+					// export does.
 					var golden map[string]any
-					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					at := ""
@@ -575,6 +579,15 @@ func TestSpec(t *testing.T) {
 					}
 					delete(golden, "opts")
 					r := ImportJSONSchema(src, opts)
+					// Every import that stands is paired with JSON Schema's
+					// question.
+					wantVet := "[--no-fill --exact-numbers]"
+					if "error" == r.Verdict {
+						wantVet = "[]"
+					}
+					if got := "[" + strings.Join(r.Vet, " ") + "]"; wantVet != got {
+						t.Fatalf("jsonschema-import vet flags %s, want %s", got, wantVet)
+					}
 					out := map[string]any{
 						"aontu":   r.Aontu,
 						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],

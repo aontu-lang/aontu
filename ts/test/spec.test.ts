@@ -326,8 +326,11 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `trim report mismatch: ${row.name}`)
   }
   else if ('jsonschema' === row.mode) {
-    // `opts` rides the expect object, as in the vet and subsume rows.
-    const golden = JSON.parse(row.expect)
+    // `opts` rides the expect object, as in the vet and subsume rows. A
+    // number a double cannot hold keeps its digits, as the export does.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, at?: any) =>
+      'number' === typeof v && null != at?.source && String(v) !== at.source ?
+        (JSON as any).rawJSON(at.source) : v)
     const opts = golden.opts
     delete golden.opts
     const report = jsonSchema(row.src, opts)
@@ -346,6 +349,10 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
     const golden = JSON.parse(row.expect)
     const report = importJsonSchema(row.src, golden.opts)
     delete golden.opts
+    // Every import that stands is paired with JSON Schema's question.
+    Assert.deepStrictEqual(report.vet, 'error' === report.verdict ?
+      undefined : ['--no-fill', '--exact-numbers'],
+      `jsonschema-import vet flags: ${row.name}`)
     Assert.strictEqual(
       exactJSON({
         aontu: report.aontu,

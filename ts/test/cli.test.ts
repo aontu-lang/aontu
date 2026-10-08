@@ -145,6 +145,45 @@ describe('cli', () => {
     Assert.equal(r.out.trim(), '{"a":1|2}')
   })
 
+  // Mirrors TestRunExactNumbers in go/cmd/aontu/run_test.go.
+  test('bare-command-exact-numbers', () => {
+    const src = 'x: 12345678901234567890.5\ny: 1.0\nz: 0.1\n'
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-exact-'))
+    const file = Path.join(dir, 'm.aontu')
+    Fs.writeFileSync(file, src)
+    try {
+      const r = vetCapture(() => cliMainVet(['node', 'cli', '--exact-numbers', file]))
+      Assert.equal(r.out, '{\n  "x": 12345678901234567890.5,\n  "y": 1,\n  "z": 0.1\n}\n')
+
+      Assert.equal(run(['--exact-numbers', '-c'], src).out.trim(),
+        '{"x":0d12345678901234567890.5,"y":1,"z":0d0.1}')
+      Assert.equal(run(['-c'], src).out.trim(),
+        '{"x":12345678901234567000.0,"y":1.0,"z":0.1}')
+      Assert.equal(run([], 'y: 1.0 & integer').code, 1)
+
+      let state: any = { mode: 'json', jsonl: true, exact: true }
+      const outs: string[] = []
+      for (const line of [':canon', 'y: 1.0 & integer', ':load ' + file,
+        ':get $.x', ':why $.z', ':json', ':get $.x']) {
+        const a = replCommand(state, line, (f: string) => Fs.readFileSync(f, 'utf8'))
+        state = a.state
+        outs.push(a.out)
+      }
+      Assert.deepEqual(outs.slice(1), [
+        '{"ok":true,"out":"{\\"y\\":1}"}',
+        JSON.stringify({ ok: true, out: 'loaded: ' + file +
+          '\n{"x":0d12345678901234567890.5,"y":1,"z":0d0.1}' }),
+        '{"ok":true,"out":"0d12345678901234567890.5"}',
+        JSON.stringify({ ok: true, out: '$.z = 0d0.1\n  1. 0d0.1  ' + file + ':3:4' }),
+        '{"ok":true,"out":"json output"}',
+        '{"ok":true,"out":"12345678901234567890.5"}',
+      ])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test('cli-error-exit-code', () => {
     const r = run([], 'a:1 a:2')
     Assert.equal(r.code, 1)
@@ -1073,16 +1112,19 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsi-'))
     const file = Path.join(dir, 'schema.json')
 
-    // THE TEXT GOES TO STDOUT and the losses to stderr, as the export's do.
+    // THE TEXT GOES TO STDOUT and the losses to stderr, as the export's
+    // do, followed by the vet invocation that checks data against it.
+    const vetWith = 'vet with: aontu vet --no-fill --exact-numbers <document> <data>\n'
     Fs.writeFileSync(file, '{"type": "object", "properties": {"n": {"type": "integer"}}}')
     const ok = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
     Assert.equal(ok.out, 'n?: number & multiple(1)\n')
-    Assert.equal(ok.err, '')
+    Assert.equal(ok.err, vetWith)
 
     Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}')
     const lossy = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
     Assert.equal(lossy.out, 'empty()\n')
     Assert.match(lossy.err, /^lossy: #\/\$vocabulary \$vocabulary:/)
+    Assert.ok(lossy.err.endsWith('\n' + vetWith), lossy.err)
     vetCapture(() => Assert.equal(runJsonSchema(['import', '--strict', file]), 1))
 
     // --defaults makes an optional property's default a preference.
@@ -1097,6 +1139,7 @@ describe('cli-subsume', () => {
     Assert.equal(j.aontu.verb, 'jsonschema')
     Assert.equal(j.text, 'empty()\n')
     Assert.equal(j.verdict, 'lossy')
+    Assert.deepEqual(j.vet, ['--no-fill', '--exact-numbers'])
     Assert.equal('errors' in j, false)
 
     // Text that is not a schema refuses, in vet's finding shape.
@@ -1104,10 +1147,12 @@ describe('cli-subsume', () => {
     const bad = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 4))
     Assert.equal(bad.out, '')
     Assert.match(bad.err, /jsonschema_schema/)
+    Assert.equal(bad.err.includes('vet with'), false)
     const je = JSON.parse(vetCapture(() => Assert.equal(
       runJsonSchema(['import', '--format', 'json', file]), 4)).out)
     Assert.equal(je.verdict, 'error')
     Assert.equal(je.errors[0].code, 'jsonschema_schema')
+    Assert.equal('vet' in je, false)
   })
 
   test('jsonschema-import-usage-errors-exit-2', () => {

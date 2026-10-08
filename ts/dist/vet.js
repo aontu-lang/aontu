@@ -574,10 +574,8 @@ function vet(schemaSrc, dataSrc, opts) {
     genCtx.probe = null != options.at;
     const generated = unified.gen(genCtx);
     for (const err of genCtx.err) {
-        if ('incomplete' === err.class || 'conflict' === err.class) {
-            materialise(err, genCtx);
-            findings.push(findingOf(err, prov));
-        }
+        materialise(err, genCtx);
+        findings.push(findingOf(err, prov));
     }
     if (true === options.noFill && undefined !== generated) {
         const ownCtx = aontu.ctx({ collect: true });

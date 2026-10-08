@@ -79,6 +79,7 @@ class Aontu {
             eval: this.opts.mod?.eval ?? ((src, path) => {
                 const inner = new Aontu({
                     ...this.opts,
+                    exactNumbers: undefined,
                     mod: {
                         // Never absent: the assignment this closure is part of has
                         // already run by the time it is called.
@@ -121,10 +122,12 @@ class Aontu {
         }
         else {
             const marker = findConflictMarker(src);
-            if (-1 !== marker.offset) {
-                const nil = (0, err_1.makeNilErr)(ac, 'merge_conflict');
-                nil.site.row = marker.row;
-                nil.site.col = marker.col;
+            const deep = findDeepNesting(src, 2 * ac.budget.depth);
+            if (-1 !== marker.offset || -1 !== deep) {
+                const nil = (0, err_1.makeNilErr)(ac, -1 !== marker.offset ? 'merge_conflict' : 'max_depth');
+                const before = src.slice(0, deep);
+                nil.site.row = -1 !== marker.offset ? marker.row : before.split('\n').length;
+                nil.site.col = -1 !== marker.offset ? marker.col : deep - before.lastIndexOf('\n');
                 nil.site.url = ac.opts.path ?? this.opts.path;
                 out = nil;
                 errs.push(nil);
@@ -132,6 +135,10 @@ class Aontu {
         }
         if (0 === errs.length) {
             out = runparse(src, this.lang, ac);
+            if (2 * ac.budget.depth < treeDepth(out, 2 * ac.budget.depth)) {
+                out = (0, err_1.makeNilErr)(ac, 'max_depth');
+                errs.push(out);
+            }
             out.deps = manifestOf(ac.manifest);
             ac.root = out;
         }
@@ -253,6 +260,59 @@ function handleErrors(errs, out, ac) {
         }
     }
 }
+// The depth of a parsed tree, read without recursion and stopping past
+// `bound`, so nothing recurses into a tree too deep to evaluate.
+// Mirrors valTreeDepth in go/lang.go.
+function treeDepth(root, bound) {
+    const stack = [[root, 1]];
+    let max = 0;
+    while (0 < stack.length && max <= bound) {
+        const [v, d] = stack.pop();
+        max = Math.max(max, d);
+        for (const kid of treeKids(v)) {
+            stack.push([kid, d + 1]);
+        }
+    }
+    return max;
+}
+function treeKids(v) {
+    if (true === v.isMap || true === v.isList) {
+        return [...Object.values(v.peg), ...(null == v.spread?.cj ? [] : [v.spread.cj])];
+    }
+    if (true === v.isConjunct || true === v.isDisjunct || true === v.isPlusOp ||
+        true === v.isFunc) {
+        return v.peg;
+    }
+    return true === v.isPref ? [v.peg] : [];
+}
+// The first opener that nests past `bound`, or -1. A string or a comment
+// holds no structure, so its brackets are not counted.
+function findDeepNesting(src, bound) {
+    let depth = 0;
+    for (let i = 0; i < src.length; i++) {
+        const c = src[i];
+        if ('#' === c) {
+            while (i < src.length && '\n' !== src[i]) {
+                i++;
+            }
+        }
+        else if ('"' === c || "'" === c || '`' === c) {
+            for (i++; i < src.length && c !== src[i] && ('`' === c || '\n' !== src[i]); i++) {
+                i += '\\' === src[i] ? 1 : 0;
+            }
+        }
+        else if ('[' === c || '{' === c || '(' === c) {
+            depth++;
+            if (bound < depth) {
+                return i;
+            }
+        }
+        else if ((']' === c || '}' === c || ')' === c) && 0 < depth) {
+            depth--;
+        }
+    }
+    return -1;
+}
 function findConflictMarker(src) {
     const miss = { offset: -1, row: -1, col: -1 };
     let offset = 0;
@@ -306,7 +366,7 @@ function runparse(src, lang, ctx) {
         exactNumbers: ctx.opts.exactNumbers,
     };
     let val;
-    const tsrc = src.trim().replace(/^(\n\s*)+/, '');
+    const tsrc = src.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
     if ('string' === typeof src && '' !== tsrc) {
         val = lang.parse(src, popts);
     }

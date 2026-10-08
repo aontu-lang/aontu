@@ -1,6 +1,7 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.IMPORT_VET_FLAGS = void 0;
 exports.parseJson = parseJson;
 exports.importJsonSchema = importJsonSchema;
 exports.agreedForm = agreedForm;
@@ -12,6 +13,7 @@ const err_1 = require("./err");
 const format_1 = require("./format");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const numkind_1 = require("./val/numkind");
+exports.IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers'];
 const JSON_DEPTH = 256;
 const JSON_ESCAPES = {
     '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t',
@@ -1518,6 +1520,7 @@ function importJsonSchema(text, options) {
         verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
         aontu: agreedForm(emit(ctx, body)),
         lossy: ctx.lossy,
+        vet: [...exports.IMPORT_VET_FLAGS],
     };
 }
 // The agreed form, as `aontu fmt` writes it, or the text as written

@@ -2209,7 +2209,8 @@ func toVals(terms []interface{}) []Val {
 
 const maxNodeDepth = 10000
 
-func valTreeDepth(v Val) int {
+// valTreeDepth stops past bound. Mirrors treeDepth in ts/src/aontu.ts.
+func valTreeDepth(v Val, bound int) int {
 	type item struct {
 		v Val
 		d int
@@ -2221,7 +2222,7 @@ func valTreeDepth(v Val) int {
 		stack = stack[:len(stack)-1]
 		if it.d > maxd {
 			maxd = it.d
-			if maxd > maxNodeDepth {
+			if maxd > bound {
 				return maxd
 			}
 		}
@@ -2434,6 +2435,36 @@ func asValDepth(node any, depth int) Val {
 	return newNil("parse_unknown")
 }
 
+// findDeepNesting is the offset of the first opener nesting past bound,
+// or -1; strings and comments do not count. Mirrors ts/src/aontu.ts.
+func findDeepNesting(src string, bound int) int {
+	depth := 0
+	for i := 0; i < len(src); i++ {
+		switch c := src[i]; c {
+		case '#':
+			for i < len(src) && '\n' != src[i] {
+				i++
+			}
+		case '"', '\'', '`':
+			for i++; i < len(src) && c != src[i] && ('`' == c || '\n' != src[i]); i++ {
+				if '\\' == src[i] {
+					i++
+				}
+			}
+		case '[', '{', '(':
+			depth++
+			if bound < depth {
+				return i
+			}
+		case ']', '}', ')':
+			if 0 < depth {
+				depth--
+			}
+		}
+	}
+	return -1
+}
+
 func findConflictMarker(src string) int {
 	offset := 0
 	for _, rawline := range strings.Split(src, "\n") {
@@ -2532,11 +2563,14 @@ func placeAliasHoists(out any, sink *aliasHoistSink) {
 	m[aliasKeysKey] = ak
 }
 
-func parseWithTrust(src, base, file string, trust *trustSink, exact bool) (Val, error) {
+func parseWithTrust(src, base, file string, trust *trustSink, exact bool, depth int) (Val, error) {
 	src = toValidSource(src)
 
 	if off := findConflictMarker(src); off >= 0 {
 		return newMap(), conflictError(src, file, off)
+	}
+	if off := findDeepNesting(src, 2*depth); off >= 0 {
+		return newMap(), refusalAt("max_depth", src, file, off)
 	}
 
 	lang, err := langForBase(base)
@@ -2588,7 +2622,7 @@ func parseWithTrust(src, base, file string, trust *trustSink, exact bool) (Val, 
 	}
 	placeAliasHoists(out, hoists)
 	root := asVal(out)
-	if valTreeDepth(root) > maxNodeDepth {
+	if valTreeDepth(root, 2*depth) > 2*depth {
 		n := newNil("max_depth")
 		return newMap(), &AontuError{Msg: n.FullMessage(src, file, nil), Code: "max_depth"}
 	}
@@ -2601,12 +2635,17 @@ func parseWithTrust(src, base, file string, trust *trustSink, exact bool) (Val, 
 // canonical port puts them on the refusal's site, and the validation
 // verb reports them (vet.go).
 func conflictError(src, file string, off int) *AontuError {
-	n := newNil("merge_conflict")
+	return refusalAt("merge_conflict", src, file, off)
+}
+
+// refusalAt is a refusal of the whole source, sited at byte offset off.
+func refusalAt(code, src, file string, off int) *AontuError {
+	n := newNil(code)
 	n.site.sp = off
 	row, col := rowCol(src, off)
 	return &AontuError{
 		Msg:  n.FullMessage(src, file, nil),
-		Code: "merge_conflict",
+		Code: code,
 		Row:  row,
 		Col:  col,
 	}

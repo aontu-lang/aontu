@@ -95,6 +95,7 @@ declare class ConstraintVal extends FeatureVal {
     private meetConstraint;
     private finish;
     private fail;
+    private overBudget;
     private cloneState;
     allowEmpty(ctx: AontuContext, peer: Val): Val;
     clone(ctx: AontuContext, spec?: ValSpec): Val;

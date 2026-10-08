@@ -3,9 +3,13 @@
 package aontu
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 )
+
+// trialBudget is the admission trials one evaluation may run.
+const trialBudget = 100000
 
 // The admission trial (G12): whether a settled value IS an instance of a
 // trial schema, rather than whether the two can be made consistent. The
@@ -134,6 +138,7 @@ func sameJSON(a, b any) bool {
 func trialCtx(ctx *Ctx) *Ctx {
 	trial := &Ctx{}
 	if nil != ctx {
+		ctx.trialsOf()
 		t := *ctx
 		t.err = nil
 		trial = &t
@@ -171,11 +176,32 @@ func trialMeet(tctx *Ctx, trial, value Val) Val {
 }
 
 // admitsSettled is the trial inside the engine: `trial` admits the
-// settled `value`, whose JSON is `own`.
-func admitsSettled(ctx *Ctx, trial, value Val, own any, path []string) bool {
+// settled `value`, whose JSON is `own`, at `path`. One verdict per
+// position, trial and value in an evaluation; ok is false once the
+// trial budget is spent.
+func admitsSettled(ctx *Ctx, trial, value Val, own any, path []string) (admits, ok bool) {
 	if trial.Nil() {
-		return false
+		return false, true
 	}
+	trials := ctx.trialsOf()
+	key := fmt.Sprintf("%q %q %q", path, trial.Canon(), value.Canon())
+	if known, seen := trials.memo[key]; seen {
+		return known, true
+	}
+	budget := ctx.budgetTrials
+	if 0 == budget {
+		budget = trialBudget
+	}
+	if budget <= trials.n {
+		return false, false
+	}
+	trials.n++
+	verdict := trialVerdict(ctx, trial, value, own, path)
+	trials.memo[key] = verdict
+	return verdict, true
+}
+
+func trialVerdict(ctx *Ctx, trial, value Val, own any, path []string) bool {
 	tctx := trialCtx(ctx)
 	met := trialMeet(tctx, clonePath(trial, path), clonePath(value, path))
 	if met.Nil() || 0 < len(tctx.err) {

@@ -44,6 +44,7 @@ func filledMember(v Val, ctx *Ctx) bool {
 	if !genable(v) {
 		return false
 	}
+	ctx.trialsOf()
 	c2 := *ctx
 	c2.err = nil
 	c2.collect = true

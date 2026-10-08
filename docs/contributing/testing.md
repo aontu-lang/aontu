@@ -244,6 +244,19 @@ it:
   which the [register](../capability-review/progress.md) tightens as
   each phase lands.
 
+Two more corpora run through the same runners, each with its own
+ledger and bound. Ajv's extra tests, vendored under
+[`test/vectors/ajv-extras/`](../../test/vectors/ajv-extras/README.md),
+are triples in the official suite's shape and are read the same way.
+JSONTestSuite, vendored under
+[`test/vectors/jsontestsuite/`](../../test/vectors/jsontestsuite/README.md),
+grades the instance reader: each of its files is one JSON text, vetted
+as an instance of the schema `true`, so a `y_` file must vet `valid`
+and an `n_` file must not. RFC 8259 leaves each `i_` file to the
+implementation, so its
+[`decisions.tsv`](../../test/vectors/jsontestsuite/decisions.tsv) pins
+aontu's answer for each, and both runners require it.
+
 The importer's own behaviour is pinned the usual way, by the
 `jsonschema-import` rows of
 [`test/spec/jsonschema-import.tsv`](../../test/spec/jsonschema-import.tsv),

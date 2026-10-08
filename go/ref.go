@@ -654,7 +654,7 @@ func (rv *RefVal) plainRefPath() []string {
 // isPrefixPath reports whether the reference path is a prefix of this
 // node's own path (a self/ancestor cycle).
 func (rv *RefVal) isPrefixPath() bool {
-	if len(rv.peg) > 0 {
+	if len(rv.peg) > 0 && 0 == len(rv.path) {
 		allEmpty := true
 		for _, p := range rv.peg {
 			if s, ok := p.(string); !ok || s != "" {
