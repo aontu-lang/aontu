@@ -399,7 +399,7 @@ A branch with no scoped keywords is the bare kind, and when all six are
 bare and `type` is absent the disjunction is `any` and is not written.
 A container literal from `enum` or `const` is closed, and still meets
 the optional keys a branch writes, because a closed map drops an
-optional key it does not declare (ADR-052).
+optional key it does not declare (ADR-053).
 
 The branches are pairwise kind-disjoint, so exactly one survives any
 concrete instance, and the disjunction is decided at the meet. ADR-007's
@@ -878,7 +878,7 @@ how JSON Schema aggregates annotations from every applicator that
 passes. `deprecate()`'s record moves to the same rule; today two
 different records on one value keep whichever arrived first. A trial
 schema's rider stays with its atom: `nof`, `when` and `contains` try a
-value and add nothing to it (ADR-048), so the annotations a passing
+value and add nothing to it (ADR-049), so the annotations a passing
 branch would contribute for one instance are an evaluation result, not
 part of the value ([open question 9](#open-questions)). Canon renders
 `meta(…)` in a fixed position after `type`, `hide` and `deprecate`,

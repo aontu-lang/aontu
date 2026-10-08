@@ -15,7 +15,7 @@ dep-canon-bare	canon	a:deprecate(8080)	{"a":deprecate(8080)}
 # The meet keeps the record whichever side carries it -- order-free.
 dep-canon-meet	canon	a:deprecate(integer,{msg:"old"}) a:5	{"a":deprecate(5,{"msg":"old"})}
 dep-canon-meet-rev	canon	a:5 a:deprecate(integer,{msg:"old"})	{"a":deprecate(5,{"msg":"old"})}
-# Two records meet as their key-wise union (G12 phase 8, ADR-051),
+# Two records meet as their key-wise union (G12 phase 8, ADR-052),
 # rendered as nested calls, one record per layer of values.
 dep-canon-meet-unions	canon	a: deprecate(integer, {msg: "old"}) & deprecate(5, {msg: "older"})	{"a":deprecate(deprecate(5,{"msg":"old"}),{"msg":"older"})}
 dep-canon-meet-unions-rev	canon	a: deprecate(5, {msg: "older"}) & deprecate(integer, {msg: "old"})	{"a":deprecate(deprecate(5,{"msg":"old"}),{"msg":"older"})}

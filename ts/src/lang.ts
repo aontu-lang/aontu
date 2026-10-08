@@ -234,7 +234,7 @@ let SCOPE_SEQ = 0
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
-// Keys a merged statement declared REQUIRED, so required wins (ADR-044).
+// Keys a merged statement declared REQUIRED, so required wins (ADR-045).
 const REQUIRED_MARK_KEY = RESERVED_KEY_PREFIX + 'required'
 
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
@@ -1296,7 +1296,7 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
-        // REQUIRED WINS (ADR-044) between the statements of one map.
+        // REQUIRED WINS (ADR-045) between the statements of one map.
         const requiredKeys: string[] = r.u.aontu_required_keys ?? []
         for (const k of requiredKeys) {
           const oi = optionalKeys.indexOf(k)

@@ -121,7 +121,7 @@
 #   change. Turning the RangeError into `max_depth` here would give a
 #   registered code but still not Go's answer. The importer bounds
 #   what it writes instead: a disjunction or meet of more than 32
-#   members is nested in groups of at most 32 (ADR-046), so an
+#   members is nested in groups of at most 32 (ADR-047), so an
 #   imported schema never reaches the limit, while a hand-written chain
 #   of that length still does.
 #
@@ -173,8 +173,8 @@
 #   JSON Schema leaves such recursion to the implementation. Each engine
 #   cuts the cycle where its evaluation order meets it: TypeScript
 #   settles a reference lazily, inside the admission trial whose
-#   failures ADR-048 discards, and Go settles a trial argument eagerly,
-#   where ADR-048 makes a failure other than a conflict the document's.
+#   failures ADR-049 discards, and Go settles a trial argument eagerly,
+#   where ADR-049 makes a failure other than a conflict the document's.
 #   No row pins either answer.
 #
 # ---------------------------------------------------------------------

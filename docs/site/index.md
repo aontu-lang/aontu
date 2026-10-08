@@ -1,7 +1,9 @@
 # aontu.dev — the project site
 
-*Status: plan. Nothing here is built yet. This document decides what the
-site is and where every piece of its content comes from; the maintainer
+*Status: live at [aontu.dev](https://aontu.dev). What has landed, and
+what is still open, is recorded under [Phases](#phases). This document
+decides what the site is and where every piece of its content comes
+from; the maintainer
 steps that have to happen outside a session — Cloudflare, GitHub, npm,
 DNS — are broken out in [`manual-tasks.md`](manual-tasks.md).*
 
@@ -521,9 +523,9 @@ absence looks like an oversight.
 
 ## Recording the decision
 
-When the site is built, D2 — *the site renders, it does not author* —
-belongs in [`ADR.md`](../../ADR.md) as a new entry at the next free
-number. It is exactly the kind of decision that file exists for: cheap
+D2, *the site renders, it does not author*, is recorded as
+[ADR-044](../../ADR.md#adr-044--the-site-renders-the-documentation-it-does-not-author-it),
+because it is exactly the kind of decision that file exists for: cheap
 to reverse by accident, expensive to have reversed, and invisible in the
 diff that reverses it. The other decisions here are implementation
 choices and stay in this document.

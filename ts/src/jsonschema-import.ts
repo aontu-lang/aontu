@@ -24,7 +24,7 @@ import type { ExactNumber } from './val/numkind'
 export type ImportOptions = {
   // Where the schema came from, named in the report's sites.
   path?: string
-  // An optional property's default becomes a preference (ADR-051).
+  // An optional property's default becomes a preference (ADR-052).
   defaults?: boolean
 }
 

@@ -22,7 +22,7 @@ import (
 type ImportOptions struct {
 	Path string
 	// Defaults makes an optional property's default a preference
-	// (ADR-051).
+	// (ADR-052).
 	Defaults bool
 }
 

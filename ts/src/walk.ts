@@ -85,7 +85,7 @@ export function collectNils(root: any, seen: Set<any>): any[] {
       walked.add(c)
     }
     // A written `nil` under an optional key nobody supplied is no
-    // finding (ADR-045).
+    // finding (ADR-046).
     if (true === v.isMap) {
       for (const k of v.optionalKeys) {
         if (true === v.peg[k]?.isNil && 'literal_nil' === v.peg[k].why) {

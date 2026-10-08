@@ -6,7 +6,7 @@
 # text, the `lossy` list of keywords a later phase carries, the
 # `verdict`, and `errors` (code, class, path and sites; the message and
 # hint are prose) when the text is not a schema. The importer owns the
-# meaning of every keyword it carries (ADR-046): a schema object splits
+# meaning of every keyword it carries (ADR-047): a schema object splits
 # by kind, numbers are written by value in the leaf that value selects,
 # objects take optional keys and guarded spreads, arrays one list
 # spread guarded by index, and a local `$ref` an alias where the root

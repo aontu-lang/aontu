@@ -103,9 +103,9 @@ carries a qualification the registry alone does not show.
 surface that reports one. A finding that mints its own code takes the
 class that code is registered with; a finding that repeats a code the
 engine raised takes the class from the same row, never one of its own.
-`message` is the code's one-line headline throughout; the wording of
-that line is each implementation's own, since the shared suite holds
-codes and classes rather than prose.
+`message` is the code's one-line headline throughout. The shared suite
+pins codes and classes rather than prose, so match on `code`, not on
+`message`.
 
 **Hint text.** All 181 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code

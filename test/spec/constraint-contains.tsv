@@ -1,4 +1,4 @@
-# CONTAINS -- `contains(c, n?)` (G12 phase 7, ADR-050): the number of a
+# CONTAINS -- `contains(c, n?)` (G12 phase 7, ADR-051): the number of a
 # container's members that the trial schema c admits must be one the
 # count n admits, at least one where n is not written. A member is tried
 # as a nof() branch tries a value: their meet adds nothing and generates

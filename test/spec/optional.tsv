@@ -60,7 +60,7 @@ list-elem-then-optional-gap-gens	gens	a:[5, 1?:9]	{"a":[5,{"1":9}]}
 map-optional-still-works-gens	gens	a:{x?:1}	{"a":{"x":1}}
 top-optional-still-works-gens	gens	x?:1	{"x":1}
 
-# REQUIRED WINS (ADR-044, #298): a key is optional in a meet only where
+# REQUIRED WINS (ADR-045, #298): a key is optional in a meet only where
 # every side that declares it says so, and a side that does not declare
 # it does not vote. Two statements merge by the same rule.
 required-wins-canon	canon	a:{x?:integer}&{x:integer}	{"a":{"x":integer}}
@@ -84,7 +84,7 @@ required-wins-statement-beside-include	canon	x?:integer @"__FIXTURES__/required_
 required-wins-include-twice	canon	@"__FIXTURES__/optional_x.aontu" @"__FIXTURES__/optional_x.aontu"	{"x"?:integer}
 required-wins-two-includes	canon	@"__FIXTURES__/optional_x.aontu" @"__FIXTURES__/required_x.aontu"	{"x":integer}
 required-wins-nested-include	canon	q:@"__FIXTURES__/optional_xy.aontu" q:{x:1}	{"q":{"x":1,"y"?:integer}}
-# A WRITTEN NIL UNDER AN OPTIONAL KEY FORBIDS THE KEY (ADR-045, #299):
+# A WRITTEN NIL UNDER AN OPTIONAL KEY FORBIDS THE KEY (ADR-046, #299):
 # a supplied value is refused at the meet, an absent one passes, and a
 # kind is not a value.
 optional-nil-refuses-a-value	errc	a:{k?:nil} a:{k:1}	literal_nil

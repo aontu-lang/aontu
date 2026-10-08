@@ -13,7 +13,7 @@ each change affects.
 Both ports. A closed map met with an optional key it does not declare
 now drops the key, where it used to refuse the meet as `closed`: no
 instance of the closed map can hold the key, so it adds nothing
-(ADR-052). A required key it does not declare is refused as before, and
+(ADR-053). A required key it does not declare is refused as before, and
 two closed maps each hold the other to its own keys, so
 `close({ a?:1 }) & close({ b?:2 })` is the empty closed map while
 `close({ a:1 }) & close({ b?:2 })` is still refused. An imported JSON
@@ -32,7 +32,7 @@ rider: the value unifies exactly as `v`, and each record, a map of
 annotation keys such as `title`, `description`, `default` and
 `examples`, with `x` for keywords JSON Schema does not name, rides the
 result through meets, reference copies and spread applications
-(ADR-051). Two records on one value meet as their key-wise union, in
+(ADR-052). Two records on one value meet as their key-wise union, in
 either order, and `deprecate()` records now meet the same way, where the
 first used to win; a deprecation message joins a field's values with
 `; `. A disjunction member dropped as another's duplicate, or as a
@@ -85,7 +85,7 @@ vendored JSON Schema suite passes 24 more tests, 1,506 of 1,906.
 Both ports, G12 phase 5. `nof(n, ...c)` is a new Band B atom: the
 number of trial schemas `c` that admit the settled value must be one
 the count `n` admits, an integer or a count constraint as `len` takes
-(ADR-048). A branch admits a value when their meet adds nothing and
+(ADR-049). A branch admits a value when their meet adds nothing and
 generates the value itself, every branch is tried, a branch that
 conflicts on its own admits nothing, and a value it refuses is the new
 code `nof`, class `conflict`. The importer carries `anyOf`, as a
@@ -107,7 +107,7 @@ an open divergence.
 Both ports, G12 phase 4. `multiple(n)` is a new constraint atom: a
 number that is a whole multiple of `n`, a positive number, read by the
 value it shows, so a float divides as it is written (`multiple(0.1) &
-0.3` is `0.3`) and `multiple(1) & 1.0` is `1.0` (ADR-047). Divisors
+0.3` is `0.3`) and `multiple(1) & 1.0` is `1.0` (ADR-048). Divisors
 accumulate, a whole divisor makes the integral gap apply, a count takes
 one (`len(multiple(2))` admits even lengths), and `multiple(2)`
 subsumes `multiple(4)`. JSON Schema's `multipleOf` imports as
@@ -127,7 +127,7 @@ Both ports, G12 phase 3. `aontu jsonschema import <file>` rewrites a
 JSON Schema 2020-12 document as an aontu document, in the agreed form,
 with every keyword it cannot carry yet named on stderr; `--strict`
 turns a loss into exit 1, and a text that is not a schema is refused
-with `jsonschema_schema` (class `parse`) and exit 4 (ADR-046). The
+with `jsonschema_schema` (class `parse`) and exit 4 (ADR-047). The
 library form is `importJsonSchema` in TypeScript and `ImportJSONSchema`
 in Go. The importer reads the schema with its own JSON reader, so a
 number keeps its digits and a key written twice is refused, and writes
@@ -169,7 +169,7 @@ property onto the host's object prototype.
 ### Required wins in the meet, and three more engine rules (#298, #299, #301, #302)
 
 Both ports, G12 phase 2. A key is optional in a meet only where every
-side that declares it says so (ADR-044): `{x?: integer} & {x: integer}`
+side that declares it says so (ADR-045): `{x?: integer} & {x: integer}`
 is `{x: integer}`, where it was `{x?: integer}` and admitted a map
 without `x`; a side that does not declare the key does not vote, and
 two statements, two pairs of one map, or an included module and the map
@@ -177,7 +177,7 @@ around it merge by the same rule. A value supplied for an optional
 key now makes it required in the result, so the canon, and the `aon1-`
 hash, of such documents moves once; the bundled `aontu:lang/markdown`
 model is one. A written `nil` under an optional key forbids the key
-(ADR-045): `{k?: nil}` refuses a supplied `k` with `literal_nil` in
+(ADR-046): `{k?: nil}` refuses a supplied `k` with `literal_nil` in
 evaluation and under `vet`, where evaluation dropped the value and
 `vet` refused an absent key. An alias declaration is not a key: `%T =
 {...}` and a quoted `"%T": 5` in one file keep both, where they met and

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// unionRiders is the meet of rider records (ADR-051): each key holds a
+// unionRiders is the meet of rider records (ADR-052): each key holds a
 // sorted set of distinct values, keyed by `key`, so the meet is
 // commutative, idempotent, and never refuses.
 func unionRiders[T any](key func(T) string, recs ...map[string][]T) map[string][]T {

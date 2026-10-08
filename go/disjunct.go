@@ -370,7 +370,7 @@ func dedup(vals []Val) []Val {
 }
 
 // keepRiders gives a dedup's survivor the dropped member's riders, at
-// every depth, so the join is as order-free as the meet (ADR-051).
+// every depth, so the join is as order-free as the meet (ADR-052).
 func keepRiders(keep, drop Val) Val {
 	if !ridden(drop) {
 		return keep

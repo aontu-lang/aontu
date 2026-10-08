@@ -207,7 +207,7 @@ index e1e0d303..5b825fdd 100644
 +++ b/go/jsonschema_import.go
 @@ -24,6 +24,12 @@ type ImportOptions struct {
  	// Defaults makes an optional property's default a preference
- 	// (ADR-051).
+ 	// (ADR-052).
  	Defaults bool
 +	// URI is the schema's retrieval URI, the base of its relative
 +	// identifiers.
@@ -1660,7 +1660,7 @@ index b10a0655..e5428421 100644
  # text, the `lossy` list of keywords a later phase carries, the
  # `verdict`, and `errors` (code, class, path and sites; the message and
 -# hint are prose) when the text is not a schema. The importer owns the
--# meaning of every keyword it carries (ADR-046): a schema object splits
+-# meaning of every keyword it carries (ADR-047): a schema object splits
 -# by kind, numbers are written by value in the leaf that value selects,
 -# objects take optional keys and guarded spreads, arrays one list
 -# spread guarded by index, and a local `$ref` an alias where the root
@@ -1668,7 +1668,7 @@ index b10a0655..e5428421 100644
 +# hint are prose) when the text is not a schema. An `opts` key holds the
 +# run's options: `defaults`, the entry's retrieval `uri`, and the
 +# `documents` a reference may reach, by URI, whose sites name that URI.
-+# The importer owns the meaning of every keyword it carries (ADR-046): a
++# The importer owns the meaning of every keyword it carries (ADR-047): a
 +# schema object splits by kind, numbers are written by value in the leaf
 +# that value selects, objects take optional keys and guarded spreads,
 +# arrays one list spread guarded by index, and a `$ref` an alias where
@@ -2065,7 +2065,7 @@ index cd9117e1..a2d19f7c 100644
  
 @@ -26,6 +27,10 @@ export type ImportOptions = {
    path?: string
-   // An optional property's default becomes a preference (ADR-051).
+   // An optional property's default becomes a preference (ADR-052).
    defaults?: boolean
 +  // The schema's retrieval URI, the base of its relative identifiers.
 +  uri?: string

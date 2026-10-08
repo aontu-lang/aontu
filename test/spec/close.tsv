@@ -9,7 +9,7 @@ open-reopen	gen	open(close({x:1})) & {y:2}	{"x":1,"y":2}
 close-extra	err	close({x:1}) & {y:2}	closed
 close-list-extra	err	close([1,2]) & [3,4,5]	closed
 # An optional key a closed map does not declare is dropped: no
-# instance can hold it (ADR-052). A required one is still refused,
+# instance can hold it (ADR-053). A required one is still refused,
 # and two closed maps each hold the other to its own keys.
 close-drops-an-optional-key	gens	a: close({ b:1 }) & { a?: number }	{"a":{"b":1}}
 close-drops-an-optional-key-either-side	gens	a: { a?: number } & close({ b:1 })	{"a":{"b":1}}

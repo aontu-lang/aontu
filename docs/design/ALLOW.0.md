@@ -210,7 +210,7 @@ nothing.
 ## Known limitations
 
 - **A closed role vocabulary had to declare `deny?`**, until
-  [ADR-052](../../ADR.md#adr-052--a-closed-map-drops-an-optional-key-it-does-not-declare)
+  [ADR-053](../../ADR.md#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare)
   lifted the limit. The template carries `deny?: [&: string]`, and a
   `Role` written as `close({ desc: string allow: [&: string] })`
   refused it as `[aontu/closed]` for every role, so the verb answered
@@ -258,7 +258,7 @@ messages as `vet` compares them. Rows for every rule above: covered
 below, uncovered above, deny at, deny above, deny below, `*` matching
 one segment and not two, root allowed only by `$`, undeclared role,
 a role with no `allow`, a closed vocabulary without `deny?` (which
-ADR-052 turned from a refusal into a role that denies nothing), a
+ADR-053 turned from a refusal into a role that denies nothing), a
 malformed role, `--at` off the default. `ts/test/spec.test.ts` learns
 the mode; the TypeScript rows are the ones `ts/test/allow.test.ts`
 already asserts, moved rather than duplicated.

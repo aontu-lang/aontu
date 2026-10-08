@@ -1,4 +1,4 @@
-# WHEN -- `when(c, t, e?)` (G12 phase 6, ADR-049): where the trial schema
+# WHEN -- `when(c, t, e?)` (G12 phase 6, ADR-050): where the trial schema
 # c admits the settled value, t must admit it, and where it does not, e
 # must; an absent e passes. Each branch is tried as a nof() branch is:
 # its meet with the value adds nothing and generates the value itself,

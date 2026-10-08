@@ -72,15 +72,16 @@ capability decision is the phase rows it governed in
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
-| [ADR-044](#adr-044--required-wins-in-the-meet) | Required wins in the meet | Accepted |
-| [ADR-045](#adr-045--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
-| [ADR-046](#adr-046--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
-| [ADR-047](#adr-047--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
-| [ADR-048](#adr-048--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
-| [ADR-049](#adr-049--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
-| [ADR-050](#adr-050--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
-| [ADR-051](#adr-051--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
-| [ADR-052](#adr-052--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
+| [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
+| [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Accepted |
+| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
+| [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
+| [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
+| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Accepted |
+| [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
+| [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
+| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
+| [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
 
 ---
 
@@ -4516,9 +4517,57 @@ document declines to supply a key the schema requires.
 - Pinned by the `maybe-template-*` rows in `test/spec/maybe.tsv`, in
   both ports.
 
+## ADR-044 — The site renders the documentation; it does not author it
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+aontu.dev publishes the documentation from a repository of its own,
+`aontu-lang/web`. The documentation set is already held to the engine
+where the engine lives: `ts/test/docs.test.ts` requires every
+`aontu`-fenced block in the published pages to parse, and every one
+followed by a `json` fence to evaluate to exactly that, and
+`ts/test/skill.test.ts` does the same for `docs/skill/`.
+
+The site's template, tabnas/web, authors its documentation in the site
+repository and executes its examples there. Copying that model would
+mean a second, hand-written copy of the tutorial, the how-to guides and
+the reference. This project has already recorded what happens to a
+second copy: `DIVERGENCE.md` keeps one description of each divergence
+because three descriptions of one drifted apart, and the progress
+register exists for the same reason. A hand-written second copy of the
+documentation on a website is that failure with a public URL on it.
+
+The decision was taken as D2 in `docs/site/index.md`, which asked for it
+to be recorded here once the site was built. aontu.dev is live.
+
+### Decision
+
+**`docs/*.md` is synced into the site repository, generated and
+committed, and rendered.** Site-only pages (the landing page, "why
+aontu", the community and comparison pages) are authored in the site
+repository, because they have no counterpart here to drift from.
+
+**If a page states what the engine does, this repository is where it is
+written.** The site may frame it, link it and set it in type; it may not
+restate it.
+
+### Consequences
+
+- A documentation change lands here, under the gates every `make test`
+  already runs, and reaches the site through the sync.
+- A site-authored page that starts stating engine behaviour breaks this
+  entry, however small the statement; the repair is to move the
+  statement here and link to it.
+- The decision is cheap to reverse by accident, expensive to have
+  reversed, and invisible in the diff that reverses it, which is why it
+  is recorded here rather than left in the site plan.
+
 ---
 
-## ADR-044 — Required wins in the meet
+## ADR-045 — Required wins in the meet
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4578,7 +4627,7 @@ it.
 
 ---
 
-## ADR-045 — A written `nil` under an optional key forbids the key
+## ADR-046 — A written `nil` under an optional key forbids the key
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4618,7 +4667,7 @@ carries another code, is a refusal already recorded and is unchanged.
 
 ---
 
-## ADR-046 — The JSON Schema importer owns the meaning
+## ADR-047 — The JSON Schema importer owns the meaning
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4723,7 +4772,7 @@ two values, and the conformance harness requires it to agree with
   `test/spec/containerkind.tsv` and `test/spec/disjunct.tsv`, in both
   ports.
 
-## ADR-047 — Divisibility reads the number a value shows
+## ADR-048 — Divisibility reads the number a value shows
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4774,7 +4823,7 @@ number by its value.
 - Pinned by `test/spec/constraint-multiple.tsv` in both ports, with the
   `integer` and `float` kind losses in `test/spec/jsonschema.tsv`.
 
-## ADR-048 — Logic counts the trial schemas that admit a value
+## ADR-049 — Logic counts the trial schemas that admit a value
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4846,7 +4895,7 @@ on values still being evaluated.
 - Pinned by `test/spec/constraint-nof.tsv` and the logic rows of
   `test/spec/jsonschema-import.tsv` in both ports.
 
-## ADR-049 — A conditional holds a value to the branch its condition picks
+## ADR-050 — A conditional holds a value to the branch its condition picks
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4865,7 +4914,7 @@ exporter would have to recognise the pattern to write it back.
 ### Decision
 
 1. **`when(c, t, e?)` is a Band B atom.** Where the trial schema `c`
-   admits the settled value, by the admission trial of ADR-048, `t` must
+   admits the settled value, by the admission trial of ADR-049, `t` must
    admit it, and where `c` does not, `e` must; an `e` not written
    passes. A value the taken branch refuses is the new code `when`,
    class `conflict`, whose hint names the branch and the condition's
@@ -4898,7 +4947,7 @@ exporter would have to recognise the pattern to write it back.
 - Pinned by `test/spec/constraint-when.tsv` and the conditional rows of
   `test/spec/jsonschema-import.tsv` in both ports.
 
-## ADR-050 — A container counts the members a trial schema admits
+## ADR-051 — A container counts the members a trial schema admits
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4916,7 +4965,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 ### Decision
 
 1. **`contains(c, n?)` counts the members `c` admits.** Each member of
-   a list or map is tried alone by the admission trial of ADR-048, and
+   a list or map is tried alone by the admission trial of ADR-049, and
    the number admitted must be one the count `n` admits: an integer or
    a count constraint, as `len` takes, and at least one where `n` is
    not written. A scalar has no members and is refused.
@@ -4951,7 +5000,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 - Pinned by `test/spec/constraint-contains.tsv` and the array rows of
   `test/spec/jsonschema-import.tsv` in both ports.
 
-## ADR-051 — Annotations ride a value and meet as a union
+## ADR-052 — Annotations ride a value and meet as a union
 
 **Date:** 2026-10-01
 **Status:** Accepted
@@ -4987,7 +5036,7 @@ every annotation as a loss.
    every depth, and so does a preference dropped for its twin of a lower
    rank; a member that fails takes its riders with it.
 4. **A trial schema keeps its riders.** `nof`, `when`, `contains` and
-   `must` try a value and add nothing to it (ADR-048), so a record
+   `must` try a value and add nothing to it (ADR-049), so a record
    inside a trial never reaches the value. JSON Schema collects a
    passing branch's annotations for each instance; whether they should
    reach the value is G12's open question 9.
@@ -5026,7 +5075,7 @@ every annotation as a loss.
   `test/spec/deprecate.tsv`, and rows in `hcanon.tsv`, `query.tsv`,
   `jsonschema.tsv` and `jsonschema-import.tsv`, in both ports.
 
-## ADR-052 — A closed map drops an optional key it does not declare
+## ADR-053 — A closed map drops an optional key it does not declare
 
 **Date:** 2026-10-01
 **Status:** Accepted

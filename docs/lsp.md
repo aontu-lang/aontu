@@ -80,11 +80,11 @@ descriptions, under the kind.
 
 **Completion** offers a context-free list (clients filter by the typed
 prefix): the built-in functions (the engine's full roster, 68 today, the
-constraint atoms (`min`, `re`, `length`, …) and the entity and relation
-atoms (`id`, `refer`, `rel`, `acyclic`, `inverse`) included) the
-scalar-kind keywords (`string`, `number`, `integer`, `float`,
-`biginteger`, `bigdecimal`, `boolean`) and the literals (`_`, `true`,
-`false`, `null`, `top`).
+constraint atoms (`min`, `re`, `len`, …) and the relation atoms
+(`refer`, `rel`, `acyclic`, `inverse`) included), the kind keywords
+(`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,
+`boolean`, `map`, `list`, `constraint`) and the literals (`_`, `true`,
+`false`, `null`, `any`).
 
 
 ## Architecture: library vs. server

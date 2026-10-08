@@ -406,9 +406,6 @@ $ echo $?
 1
 ```
 
-(That is the TypeScript wording; Go phrases the same refusal
-differently. Both name the `0d` escape.)
-
 Take the escape and the document works again, exactly: in generated
 output and in canonical form:
 

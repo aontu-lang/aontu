@@ -48,7 +48,7 @@ const withDepth = (
 
 // Vals should only have to unify downwards (in .unify) over Vals they understand.
 // and for complex Vals, TOP, which means self unify if not yet done
-// The meet's riders are the union of its operands' (ADR-051).
+// The meet's riders are the union of its operands' (ADR-052).
 function ride(out: any, a: any, b: any): void {
   if (null != out.deprecation || null != a?.deprecation || null != b?.deprecation) {
     out.deprecation = unionRecords([out.deprecation, a?.deprecation, b?.deprecation],

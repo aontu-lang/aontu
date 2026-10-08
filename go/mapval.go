@@ -394,7 +394,7 @@ func withoutKey(keys []string, k string) []string {
 	return keys
 }
 
-// A written nil refuses a supplied value (ADR-045); a minted nil is a
+// A written nil refuses a supplied value (ADR-046); a minted nil is a
 // refusal already recorded.
 func literalNilRefuses(n *NilVal, v Val) bool {
 	return "literal_nil" == n.why && genable(v) && !isTop(v)
@@ -529,7 +529,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	done := true
 
-	// Combine spreads. REQUIRED WINS (ADR-044): a key is optional only
+	// Combine spreads. REQUIRED WINS (ADR-045): a key is optional only
 	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
 		if out.spread == nil {

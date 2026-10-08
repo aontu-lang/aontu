@@ -1,4 +1,4 @@
-# META -- `meta(v, ...r)` (G12 phase 8, ADR-051): a value-transparent
+# META -- `meta(v, ...r)` (G12 phase 8, ADR-052): a value-transparent
 # rider. The value unifies exactly as v, and each record r rides the
 # result through meets, reference copies and spread applications. A
 # record's keys are the annotation keys -- title, description, comment,

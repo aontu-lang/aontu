@@ -59,7 +59,7 @@ function snapshotRefSpread(cj, ctx) {
     }
     return snap;
 }
-// A written `nil` refuses a supplied value (ADR-045); a minted nil is a
+// A written `nil` refuses a supplied value (ADR-046); a minted nil is a
 // refusal already recorded.
 function literalNilRefuses(n, v) {
     return 'literal_nil' === n.why && true === v.isGenable && !v.isTop;
@@ -225,7 +225,7 @@ class MapVal extends BagVal_1.BagVal {
                         }
                         bad = (0, err_1.makeNilErr)(ctx, 'closed', peerchild, undefined);
                     }
-                    // REQUIRED WINS (ADR-044): a key is optional only where every
+                    // REQUIRED WINS (ADR-045): a key is optional only where every
                     // side that declares it says so.
                     const oi = out.optionalKeys.indexOf(peerkey);
                     if (upeer.optionalKeys.includes(peerkey)) {
