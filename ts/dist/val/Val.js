@@ -108,6 +108,9 @@ class Val {
         if (null != this.meta) {
             out.meta = this.meta;
         }
+        if (null != this.via) {
+            out.via = this.via;
+        }
         if (null != this.origin) {
             out.origin = this.origin;
         }

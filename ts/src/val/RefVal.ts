@@ -93,6 +93,7 @@ function markedChild(v: any, part: any): Val | undefined {
 
 
 import { ALIAS_NAME_RE, aliasBareName } from '../aliasname'
+import { unionVia } from '../rider'
 
 
 class RefVal extends FeatureVal {
@@ -539,6 +540,10 @@ class RefVal extends FeatureVal {
           }
           if (this.copyFound) {
             unsealTree(out)
+          }
+          // An alias's copy remembers it; copy() unseals, so may admit more.
+          else if (undefined !== this.aliasKey) {
+            out.via = unionVia(out.via, [this.aliasKey])
           }
 
         }

@@ -132,6 +132,31 @@ func ride(out, a, b Val) {
 	if meta := unionRiders(valCanon, metas...); nil != meta {
 		out.setMetaRec(meta)
 	}
+	if nil != out.viaRec() || (nil != a && nil != a.viaRec()) || (nil != b && nil != b.viaRec()) {
+		vias := [][]string{out.viaRec()}
+		for _, v := range []Val{a, b} {
+			if nil != v {
+				vias = append(vias, v.viaRec())
+			}
+		}
+		out.setViaRec(unionVia(vias...))
+	}
+}
+
+// unionVia: a meet came through every alias either operand did.
+func unionVia(lists ...[]string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, l := range lists {
+		for _, k := range l {
+			if !seen[k] {
+				seen[k] = true
+				out = append(out, k)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // rideOn gives the meet's riders to its result. A top takes them on a

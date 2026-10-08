@@ -13,7 +13,7 @@ import { findAt } from './val/ReferFuncVal'
 import { NilVal } from './val/NilVal'
 import { hasPlace } from './val/PlaceVal'
 import { expandAliases } from './alias'
-import { riderText, rides, unionRecords } from './rider'
+import { riderText, rides, unionRecords, unionVia } from './rider'
 
 import {
   Lang
@@ -56,6 +56,9 @@ function ride(out: any, a: any, b: any): void {
   }
   if (null != out.meta || null != a?.meta || null != b?.meta) {
     out.meta = unionRecords([out.meta, a?.meta, b?.meta], (v: any) => v.canon)
+  }
+  if (null != out.via || null != a?.via || null != b?.via) {
+    out.via = unionVia(out.via, a?.via, b?.via)
   }
 }
 

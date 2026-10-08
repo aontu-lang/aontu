@@ -527,9 +527,8 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		}
 	}
 
-	// A ref carrying marks transfers them onto the found node in place
-	// (mirrors the mark assignment on `out` before the clone in TS
-	// RefVal.find).
+	// A ref carrying marks transfers them onto the found node in place,
+	// as TS RefVal.find assigns them to `out` before the clone.
 	if rv.mtype || rv.mhide {
 		node.setMarkType(rv.mtype)
 		node.setMarkHide(rv.mhide)
@@ -562,6 +561,9 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	if rv.copyFound {
 		unsealTree(out)
 		forceRootPath(out, cp(rv.path))
+	} else if key, ok := rv.aliasKey(); ok {
+		// An alias's copy remembers it; copy() unseals, so may admit more.
+		out.setViaRec(unionVia(out.viaRec(), []string{key}))
 	}
 	return out
 }

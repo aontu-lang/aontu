@@ -37,6 +37,9 @@ function ride(out, a, b) {
     if (null != out.meta || null != a?.meta || null != b?.meta) {
         out.meta = (0, rider_1.unionRecords)([out.meta, a?.meta, b?.meta], (v) => v.canon);
     }
+    if (null != out.via || null != a?.via || null != b?.via) {
+        out.via = (0, rider_1.unionVia)(out.via, a?.via, b?.via);
+    }
 }
 // The meet's riders go to its result, a top's on a fresh top where they
 // add to its own, since an operand top may be a value written elsewhere.

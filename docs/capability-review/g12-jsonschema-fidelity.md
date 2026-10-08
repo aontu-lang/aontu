@@ -1317,15 +1317,19 @@ and its option, the LSP hover in both servers, and the suite's
 `annotations/` directory in the harness.
 
 **Phase 9: the exporter's carriers (M).** The exporter reads a residual
-template by its structure: a conjunct of a kind and constraint atoms
-exports as one schema object, and the four guarded-spread shapes of
+template: a conjunct of a kind and constraint atoms exports as one
+schema object, a template that reaches no key or path outside itself
+is read by meeting it alone, and the four guarded-spread shapes of
 sections 6 and 7 export as the keywords they came from. A reference
 copy gains the origin mark, and an alias exports once under `$defs`
-with each use as `$ref`, for local references; `$id` and `$anchor`
-wait for phase 10. This phase takes over the `$defs`/`$ref` export the
-recursion design left as its P2. `jsonschema` rows for each shape,
-probed from both engines; `ts/src/jsonschema.ts`, then
-`go/jsonschema.go`.
+with each use as `$ref`, a use the meet narrowed as `$ref` beside the
+keywords that differ, for local references; a recursive path
+reference is a `$defs` entry too, named by its path, and a definition
+that is the whole schema is `#`. `$id` and `$anchor` wait for phase
+10. This phase takes over the `$defs`/`$ref` export the recursion
+design left as its P2. `jsonschema` rows for each shape, probed from
+both engines; `ts/src/jsonschema.ts`, then `go/jsonschema.go`.
+Landed 2026-10-08; the register records the departures.
 
 **Phase 10: resources and identity (M).** The RFC 3986 resolver and its
 shared corpus; the resource table; the declaration-only identity

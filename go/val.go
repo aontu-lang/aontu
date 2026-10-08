@@ -86,6 +86,8 @@ type Val interface {
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
 	setMetaRec(rec map[string][]Val)
+	viaRec() []string
+	setViaRec(via []string)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -130,6 +132,8 @@ type base struct {
 	finner  Val
 	deprec  map[string][]string
 	meta    map[string][]Val
+	// vias: the aliases this value is a copy of, written back as $ref.
+	vias    []string
 	origin  string
 	emitted *emitOrigin
 	link    string
@@ -214,6 +218,8 @@ func (b *base) deprecRec() map[string][]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
 func (b *base) metaRec() map[string][]Val            { return b.meta }
 func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
+func (b *base) viaRec() []string                     { return b.vias }
+func (b *base) setViaRec(via []string)               { b.vias = via }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }

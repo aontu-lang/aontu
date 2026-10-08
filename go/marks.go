@@ -70,6 +70,7 @@ func copyMarks(to, from Val) {
 	to.setMarkHide(from.markedHide())
 	to.setDeprecRec(from.deprecRec())
 	to.setMetaRec(from.metaRec())
+	to.setViaRec(from.viaRec())
 	to.setLinkAddr(from.linkAddr())
 	// THE RENDER RIDERS TRAVEL WITH THE CLONE (P7), for the reason the
 	// deprecation record does: a clone of a value read at `$.schema`

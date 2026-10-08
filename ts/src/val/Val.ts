@@ -146,6 +146,9 @@ abstract class Val {
 
   meta?: Record<string, Val[]>
 
+  // The aliases this value is a copy of, which the exporter writes as $ref.
+  via?: string[]
+
   link?: string
 
   origin?: string
@@ -262,6 +265,9 @@ abstract class Val {
     }
     if (null != this.meta) {
       out.meta = this.meta
+    }
+    if (null != this.via) {
+      out.via = this.via
     }
 
     if (null != this.origin) {

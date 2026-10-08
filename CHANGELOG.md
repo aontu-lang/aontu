@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### Aliases and recursion export as `$defs` and `$ref`
+
+Both ports, G12 phase 9, its second part, which lands the phase and the
+recursion design's P2. A copy an alias reference makes now remembers the
+alias, through every meet; the record is not part of the value, its
+canon or its hash. `aontu jsonschema` reads it.
+
+- A use of an alias that still says what the alias says is
+  `{"$ref": "#/$defs/<name>"}`, and a use the meet narrowed is that
+  `$ref` beside the keywords that differ, as JSON Schema reads `$ref`
+  with siblings. The alias is written once under `$defs`, by its own
+  name or by the `$defs` key `aontu jsonschema import` read it from.
+- A recursive position is the `$ref` of its definition, where it was
+  `{}` with an `unresolved` loss, and so is an absolute reference held
+  in a spread template.
+- A definition that says what the whole schema says is `#`: a
+  recursion at the `--at` anchor, and the importer's `%root`. So
+  `{"type": "object", "properties": {"next": {"$ref": "#"}}}` and a
+  linked list under `$defs` cross into aontu and back unchanged.
+- A loss reached through a definition and again in place is reported
+  once.
+
 ### The exporter folds the kind split and reads templates and guarded spreads
 
 Both ports, G12 phase 9, its first part. `aontu jsonschema` wrote a

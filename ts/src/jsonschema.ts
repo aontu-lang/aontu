@@ -12,8 +12,11 @@ import { cmpScaled, scaledOfShown } from './val/numcmp'
 import { nofCounts } from './val/ConstraintVal'
 import { recordLayers } from './rider'
 import { cmpCodePoint } from './keyorder'
+import { exactJSON } from './exactjson'
+import { ALIAS_NAME_RE, aliasPathSegment } from './aliasname'
 import { settledTrials } from './walk'
 import { top } from './val/top'
+import { declaration, throughRider } from './val/RecurseVal'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
@@ -64,9 +67,18 @@ function pathText(path: string[]): string {
 }
 
 
-// The exporter's running state: the losses collected so far, in the
-// order the walk meets them.
-type Ctx = { lossy: SchemaLoss[] }
+// A definition, written once under $defs, its losses reported at `path`.
+type Def = { name: string, target: string[], path: string[], value: any, used: boolean, schema?: any }
+
+type Plain = { schema: any, text: string }
+
+// The losses so far, in walk order, and the definitions references name.
+// A scratch walk names definitions without writing them or their losses.
+type Ctx = {
+  lossy: SchemaLoss[]
+  refs: { root: any, defs: Map<string, Def>, names: Set<string>, plain: Map<any, Plain> }
+  scratch?: boolean
+}
 
 
 function lose(ctx: Ctx, path: string[], construct: string, reason: string) {
@@ -512,7 +524,112 @@ function keyword(out: any, extra: any[], key: string, val: any): void {
 
 
 function fromVal(ctx: Ctx, path: string[], v: any): any {
-  return withRiders(ctx, path, fromValInner(ctx, path, v), v)
+  if (null == v.via) {
+    return withRiders(ctx, path, fromValInner(ctx, path, v), v)
+  }
+  const defs: Def[] = v.via.map((key: string) => defOf(ctx, [key]))
+  const own = plainOf(ctx, path, v)
+  const same = defs.find((def) => own.text === plainOf(ctx, def.path, def.value).text)
+  return undefined !== same ? refTo(ctx, same.target) : beside(ctx, defs,
+    true === ctx.scratch ? own.schema : withRiders(ctx, path, fromValInner(ctx, path, v), v))
+}
+
+
+// A value's schema as a scratch walk writes it, short of its own $ref: the
+// same wherever it sits, so written once, or nested copies cost exponential time.
+function plainOf(ctx: Ctx, path: string[], v: any): Plain {
+  let plain = ctx.refs.plain.get(v)
+  if (undefined === plain) {
+    const scratch: Ctx = { ...ctx, lossy: [], scratch: true }
+    const schema = withRiders(scratch, path, fromValInner(scratch, path, v), v)
+    plain = { schema, text: exactJSON(schema) }
+    ctx.refs.plain.set(v, plain)
+  }
+  return plain
+}
+
+
+// A narrowed copy is its alias's $ref beside the keywords that differ, as
+// `$ref` with siblings reads: exact, since it admits nothing the alias refuses.
+function beside(ctx: Ctx, defs: Def[], out: any): any {
+  const differ = (def: Def) => {
+    const plain = Object(plainOf(ctx, def.path, def.value).schema)
+    return Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
+      exactJSON(out[k]) !== exactJSON(plain[k]))
+  }
+  const best = defs.reduce((a, b) => differ(b).length < differ(a).length ? b : a)
+  return {
+    ...Object.fromEntries(differ(best).map((k) => [k, out[k]])),
+    ...refTo(ctx, best.target),
+  }
+}
+
+
+// The definition a target names, found as a recursion's walk finds it: an
+// alias by its name, any other target by its path; a taken name gains a number.
+function defOf(ctx: Ctx, target: string[]): Def | undefined {
+  const refs = ctx.refs
+  const key = target.join('\u0000')
+  const known = refs.defs.get(key)
+  if (undefined !== known) {
+    return known
+  }
+  let value: any = refs.root
+  for (const seg of target) {
+    const node: any = throughRider(value)
+    value = true === node?.isMap ? node.peg[seg] :
+      true === node?.isConjunct ? declaration(node, seg) : undefined
+  }
+  if (undefined === value) {
+    return undefined
+  }
+  const path = target.map(aliasPathSegment)
+  const alias = 1 === target.length && ALIAS_NAME_RE.test(path[0])
+  const base = alias ? defName(path[0].slice(1)) : path.join('.')
+  let name = base
+  for (let i = 2; refs.names.has(name); i++) {
+    name = base + '_' + i
+  }
+  refs.names.add(name)
+  const def: Def = { name, target, path, value, used: false }
+  refs.defs.set(key, def)
+  return def
+}
+
+
+// The importer's alias of #/$defs/k is d_ and k, a character outside
+// [A-Za-z0-9] as its hex code point between underscores: read back to k.
+function defName(alias: string): string {
+  const m = /^d_((?:[A-Za-z0-9]|_[0-9a-f]+_)+)$/.exec(alias)
+  return null == m ? alias : m[1].replace(/_([0-9a-f]+)_/g,
+    (_all: string, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+}
+
+
+// A definition's $ref: a JSON pointer, its tokens escaped, as a URI fragment.
+function defRef(def: Def): string {
+  const token = def.name.replace(/~/g, '~0').replace(/\//g, '~1')
+  let out = '#/$defs/'
+  for (const byte of new TextEncoder().encode(token)) {
+    const ch = String.fromCharCode(byte)
+    out += /[A-Za-z0-9\-._~!$&'()*+,;=:@/?]/.test(ch) && byte < 128 ? ch :
+      '%' + byte.toString(16).toUpperCase().padStart(2, '0')
+  }
+  return out
+}
+
+
+// A target's $ref, its definition written the first time a real walk uses it.
+function refTo(ctx: Ctx, target: string[]): any {
+  const def = defOf(ctx, target)
+  if (undefined === def) {
+    return undefined
+  }
+  if (true !== ctx.scratch && !def.used) {
+    def.used = true
+    def.schema = fromVal(ctx, def.path, def.value)
+  }
+  return { $ref: defRef(def) }
 }
 
 
@@ -713,9 +830,16 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
     return false
   }
 
-  // A rider over a value the meet holds residual has not attached yet;
-  // what it would attach rides the value's schema, as the engine
-  // attaches it.
+  // A held reference, in a template or at a recursion, names its definition.
+  const target = true === v.isRecurse ? v.target : true === v.isRef && true === v.absolute ?
+    v.peg : undefined
+  const ref = undefined !== target && target.every((t: any) => 'string' === typeof t) ?
+    refTo(ctx, target) : undefined
+  if (undefined !== ref) {
+    return ref
+  }
+
+  // A rider held over a residual value carries what its resolve would attach.
   if (true === v.isMetaFunc || true === v.isDeprecateFunc) {
     const carrier: any = v.resolve(new Aontu().ctx({ collect: true }), [top(), ...v.peg.slice(1)])
     if (true !== carrier.isNil) {
@@ -839,8 +963,7 @@ function spreadTerms(v: any): any[] {
 }
 
 
-// The functions whose meaning does not depend on where they sit, given
-// arguments that do not either.
+// The functions whose meaning does not depend on where they sit.
 const ISOLABLE_FUNCS = [
   'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'len',
   'lower', 'match', 'max', 'meta', 'min', 'multiple', 'must', 'neq', 'nof',
@@ -848,8 +971,7 @@ const ISOLABLE_FUNCS = [
 ]
 
 
-// The level key() looks up, read as key() reads it; undefined where its
-// argument is not a level.
+// The level key() reads; undefined where its argument is not one.
 function keyLevel(f: any): number | undefined {
   const a = f.peg[0]
   return undefined === a ? 1 : true === a.isInteger ? a.peg :
@@ -862,6 +984,9 @@ function keyLevel(f: any): number | undefined {
 // containers between the template's own node and v.
 function isolable(v: any, level: number): boolean {
   const all = (vs: any[], at: number) => vs.every((x) => isolable(x, at))
+  if (true === v.isRef || true === v.isRecurse) {
+    return false
+  }
   if (true === v.isFunc) {
     const name = v.funcname()
     if ('key' === name) {
@@ -888,9 +1013,8 @@ function isolable(v: any, level: number): boolean {
 }
 
 
-// A spread holds its templates unevaluated. One that can be read alone
-// is read as the value it is, riders and all; one that cannot keeps its
-// residue, which reports itself.
+// A held template that can be read alone is read as the value it is, riders
+// and all; one that cannot keeps its residue, which reports itself.
 function armOut(ctx: Ctx, path: string[], r: any): any {
   if (true === r.done || !isolable(r, 0)) {
     return fromVal(ctx, path, r)
@@ -919,11 +1043,11 @@ function keyArms(v: any): { arms: any[][], def: any } | undefined {
 
 
 // An arm's key test: a name, or a pattern's normalised source.
-function armTest(path: string[], test: any): { name?: string, re?: string } {
+function armTest(ctx: Ctx, path: string[], test: any): { name?: string, re?: string } {
   if (true === test.isScalar && 'string' === typeof test.peg) {
     return { name: test.peg }
   }
-  const s = armOut({ lossy: [] }, path, test)
+  const s = armOut({ ...ctx, lossy: [], scratch: true }, path, test)
   return 'string' === s.type && 'string' === typeof s.pattern && 2 === Object.keys(s).length ?
     { re: s.pattern } : {}
 }
@@ -936,8 +1060,7 @@ function restOut(ctx: Ctx, path: string[], def: any): any {
 }
 
 
-// A key test as propertyNames: its `type: string` is dropped, which
-// every key already is.
+// A key test as propertyNames, its `type: string` dropped: every key is one.
 function asNames(s: any): any {
   if ('string' !== s.type) {
     return s
@@ -983,7 +1106,7 @@ function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any):
       extra.push({ additionalProperties: armOut(ctx, at, t) })
       return
     }
-    const tests = g.arms.map(([test]: any[]) => armTest(at, test))
+    const tests = g.arms.map(([test]: any[]) => armTest(ctx, at, test))
     const [arm] = g.arms
     const re = tests[0]?.re
     if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
@@ -1197,7 +1320,7 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
     anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p))
   }
 
-  const ctx: Ctx = { lossy: [] }
+  const ctx: Ctx = { lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map() } }
   const body = fromVal(ctx, anchor, node)
 
   // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
@@ -1209,9 +1332,53 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
     schema.not = {}
   }
 
+  const lossy = withDefs(ctx, schema, body)
   return {
-    verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
+    verdict: 0 < lossy.length ? 'lossy' : 'ok',
     schema,
-    lossy: ctx.lossy,
+    lossy,
+  }
+}
+
+
+// The definitions used go under $defs, but one that says what the whole
+// schema says is `#`, an alias's losses the schema's. A loss met twice is one.
+function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
+  const used = [...ctx.refs.defs.values()].filter((d) => d.used)
+    .sort((a, b) => cmpCodePoint(a.name, b.name))
+  const whole = exactJSON(body)
+  const folded = used.filter((d) => exactJSON(d.schema) === whole)
+  const kept = used.filter((d) => !folded.includes(d))
+  if (0 < kept.length) {
+    schema.$defs = Object.fromEntries(kept.map((d) => [d.name, d.schema]))
+  }
+  const to = new Map(folded.map((d) => [defRef(d), '#']))
+  relink(schema, to)
+  const gone = folded.filter((d) => ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path))
+  const seen = new Set<string>()
+  const lossy: SchemaLoss[] = []
+  for (const l of ctx.lossy) {
+    const key = exactJSON(l)
+    if (!seen.has(key) && !gone.some((g) => l.path === g || l.path.startsWith(g + '.'))) {
+      seen.add(key)
+      lossy.push(l)
+    }
+  }
+  return lossy
+}
+
+
+// Every $ref a folded definition had, pointed at the schema itself.
+function relink(v: any, to: Map<string, string>): void {
+  if (null == v || 'object' !== typeof v) {
+    return
+  }
+  for (const k of Object.keys(v)) {
+    if ('$ref' === k && to.has(v[k])) {
+      v[k] = to.get(v[k])
+    }
+    else {
+      relink(v[k], to)
+    }
   }
 }

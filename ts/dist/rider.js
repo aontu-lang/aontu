@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.unionRecords = unionRecords;
+exports.unionVia = unionVia;
 exports.recordLayers = recordLayers;
 exports.riderText = riderText;
 exports.rides = rides;
@@ -27,6 +28,10 @@ function unionRecords(records, key) {
         out[k] = [...set.keys()].sort(keyorder_1.cmpCodePoint).map((s) => set.get(s));
     }
     return out;
+}
+// A meet came through every alias either operand did.
+function unionVia(...lists) {
+    return [...new Set(lists.flatMap((l) => l ?? []))].sort(keyorder_1.cmpCodePoint);
 }
 function rides(v) {
     return null != v?.deprecation || null != v?.meta;
@@ -63,5 +68,5 @@ function riderText(s, v) {
         s = 'meta(' + [s, ...recordLayers(m).map((l) => layerText(l, (x) => x.canon))].join(',') + ')';
     }
     return s;
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 //# sourceMappingURL=rider.js.map

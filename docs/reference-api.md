@@ -1441,7 +1441,7 @@ The losses, and why each is one:
 | `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
 | `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
 | a list's `match(key(0), …)` whose arms are not its positions in order | JSON Schema places a member by its position from the first, so the spread is dropped |
-| residue: an unresolved reference, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
+| residue: a reference by a relative path or into a list, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
 
 An exact value is not a loss. A `0d` literal, `enum` member, endpoint
 or divisor is written as its own digits, because 2020-12 compares
@@ -1453,19 +1453,18 @@ one with a way around it. Money carried as a
 pattern and the mark both cross) and stays exact on the aontu side:
 see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
 
-**A recursive position is residue, and exports as residue.** JSON
-Schema can spell recursion (`$defs` plus `$ref`), but this exporter
-does not mint it: a
+**A reference crosses as `$ref`.** A
 [recursive reference](reference-language.md#recursive-references-fixpoints)
-that has met no data is unresolved, so it crosses as the empty schema
-`{}` (a position that admits *anything*) and is reported under
-`lossy` as `unresolved`, like any other residue. Two consequences
-follow. Anchor the export at a definition kept **un-hidden**, because
-a `hide()` mark propagates and a hidden entry is omitted from the
-export entirely; and treat the exported schema as wider than the
-model at the recursive position: [`vet`](#aontu-vet) the produced
-value against the model, which does check every depth. `--strict`
-turns the loss into exit 1. Write a recursive `steps.aontu`:
+is written the way JSON Schema spells recursion: a `$ref` to a `$defs`
+entry that holds the definition once, or to `#` where the definition
+is the whole schema being exported. An alias crosses the same way. A
+use of it that still says what the alias says is its `$ref`; a use the
+meet narrowed is the `$ref` beside the keywords that differ, which is
+how JSON Schema reads `$ref` with siblings; and the alias sits under
+`$defs` by its own name, or by the `$defs` key `aontu jsonschema
+import` read it from. A reference that reaches outside the template
+holding it, by a relative path or into a list, stays residue and is
+reported. Write a recursive `steps.aontu`:
 
 <!-- test: file steps.aontu -->
 ```aontu
@@ -1483,20 +1482,22 @@ $ aontu jsonschema --strict --at Step steps.aontu
       "pattern": "^[a-z]+@acme[.]example$",
       "type": "string"
     },
-    "then": {}
+    "then": {
+      "$ref": "#"
+    }
   },
   "required": [
     "approver"
   ],
   "type": "object"
 }
-lossy: $.Step.then unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
-1
+0
 ```
 
-Everything above `then` crosses intact; the tail is the gap it reports.
-Without `--strict` the same export exits 0.
+Anchored at `Step`, the definition is the schema itself, so `then` is
+`#`. Without `--at`, `Step` is a property and a `$defs` entry, and both
+reference the entry.
 
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical

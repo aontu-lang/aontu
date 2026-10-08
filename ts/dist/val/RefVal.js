@@ -62,6 +62,7 @@ function markedChild(v, part) {
     return undefined;
 }
 const aliasname_1 = require("../aliasname");
+const rider_1 = require("../rider");
 class RefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -438,6 +439,10 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     }
                     if (this.copyFound) {
                         (0, SealVal_1.unsealTree)(out);
+                    }
+                    // An alias's copy remembers it; copy() unseals, so may admit more.
+                    else if (undefined !== this.aliasKey) {
+                        out.via = (0, rider_1.unionVia)(out.via, [this.aliasKey]);
                     }
                 }
             }

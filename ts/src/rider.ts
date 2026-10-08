@@ -36,6 +36,12 @@ function unionRecords<T>(
 }
 
 
+// A meet came through every alias either operand did.
+function unionVia(...lists: (string[] | undefined)[]): string[] {
+  return [...new Set(lists.flatMap((l) => l ?? []))].sort(cmpCodePoint)
+}
+
+
 function rides(v: any): boolean {
   return null != v?.deprecation || null != v?.meta
 }
@@ -79,11 +85,12 @@ function riderText(s: string, v: any): string {
       layerText(l, (x: any) => x.canon))].join(',') + ')'
   }
   return s
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 
 
 export {
   unionRecords,
+  unionVia,
   recordLayers,
   riderText,
   rides,

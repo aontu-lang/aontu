@@ -4,10 +4,13 @@ package aontu
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
+	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -39,9 +42,36 @@ type SchemaReport struct {
 	Verdict string `json:"verdict"`
 }
 
-// schemaCtx is the exporter's running state.
+// schemaDef is a definition a reference names, written once under $defs,
+// its losses reported at path.
+type schemaDef struct {
+	name   string
+	target []string
+	path   []string
+	value  Val
+	used   bool
+	schema any
+}
+
+type schemaPlain struct {
+	schema any
+	text   string
+}
+
+type schemaRefs struct {
+	root  Val
+	defs  map[string]*schemaDef
+	names map[string]bool
+	plain map[Val]*schemaPlain
+}
+
+// schemaCtx is the exporter's running state: the losses collected so far,
+// in the order the walk meets them, and the definitions references name.
+// A scratch walk names definitions without writing them or their losses.
 type schemaCtx struct {
-	lossy []SchemaLoss
+	lossy   []SchemaLoss
+	refs    *schemaRefs
+	scratch bool
 }
 
 func (sc *schemaCtx) lose(path []string, construct, reason string) {
@@ -574,12 +604,229 @@ var schemaDeprecationText = []string{"msg", "use", "since"}
 
 // schemaFromVal is a schema object, or false where a value admits nothing.
 func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
-	out := schemaFromValInner(sc, path, v)
+	if nil == v || nil == v.viaRec() {
+		return schemaWithRiders(sc, path, schemaFromValInner(sc, path, v), v)
+	}
+	defs := []*schemaDef{}
+	for _, key := range v.viaRec() {
+		defs = append(defs, schemaDefOf(sc, []string{key}))
+	}
+	own := schemaPlainOf(sc, path, v)
+	for _, def := range defs {
+		if own.text == schemaPlainOf(sc, def.path, def.value).text {
+			return schemaRefTo(sc, def.target)
+		}
+	}
+	if sc.scratch {
+		return schemaBeside(sc, defs, own.schema)
+	}
+	return schemaBeside(sc, defs, schemaWithRiders(sc, path, schemaFromValInner(sc, path, v), v))
+}
+
+// schemaPlainOf is a value's schema as a scratch walk writes it, short of
+// its own $ref: the same wherever it sits, so written once, or nested
+// copies cost exponential time.
+func schemaPlainOf(sc *schemaCtx, path []string, v Val) *schemaPlain {
+	plain, ok := sc.refs.plain[v]
+	if !ok {
+		scratch := &schemaCtx{refs: sc.refs, scratch: true}
+		schema := schemaWithRiders(scratch, path, schemaFromValInner(scratch, path, v), v)
+		plain = &schemaPlain{schema: schema, text: schemaText(schema)}
+		sc.refs.plain[v] = plain
+	}
+	return plain
+}
+
+// schemaBeside: a copy of an alias the meet has narrowed is the alias's
+// $ref beside the keywords the copy says otherwise, as the importer reads
+// $ref with siblings: exact, since the copy admits nothing the alias
+// refuses. The alias it says least beside is the one written.
+func schemaBeside(sc *schemaCtx, defs []*schemaDef, out any) any {
+	obj, _ := out.(map[string]any)
+	differ := func(def *schemaDef) []string {
+		plain, _ := schemaPlainOf(sc, def.path, def.value).schema.(map[string]any)
+		keys := []string{}
+		for k, x := range obj {
+			if px, has := plain[k]; !has || schemaText(x) != schemaText(px) {
+				keys = append(keys, k)
+			}
+		}
+		return keys
+	}
+	best := defs[0]
+	for _, def := range defs[1:] {
+		if len(differ(def)) < len(differ(best)) {
+			best = def
+		}
+	}
+	res := map[string]any{}
+	for _, k := range differ(best) {
+		res[k] = obj[k]
+	}
+	for k, x := range schemaRefTo(sc, best.target).(map[string]any) {
+		res[k] = x
+	}
+	return res
+}
+
+func schemaWithRiders(sc *schemaCtx, path []string, out any, v Val) any {
 	if obj, ok := out.(map[string]any); ok && nil != v &&
 		(nil != v.deprecRec() || nil != v.metaRec()) {
 		schemaAnnotate(sc, path, obj, v)
 	}
 	return out
+}
+
+// schemaText is a schema as one comparable text, its keys in order.
+func schemaText(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// schemaDefOf is the definition a reference names, by the path it reaches
+// from the root, through a rider or into the map term of a meet as a
+// recursion's walk does: an alias by its name, as the importer spelled
+// the $defs key it came from, and any other target by its path. A name
+// another target took gains a number.
+func schemaDefOf(sc *schemaCtx, target []string) *schemaDef {
+	refs := sc.refs
+	key := strings.Join(target, "\x00")
+	if def, ok := refs.defs[key]; ok {
+		return def
+	}
+	value := walkTarget(refs.root, target)
+	if nil == value {
+		return nil
+	}
+	path := make([]string, len(target))
+	for i, seg := range target {
+		path[i] = aliasPathSegment(seg)
+	}
+	base := strings.Join(path, ".")
+	if 1 == len(target) && aliasNameRe.MatchString(path[0]) {
+		base = schemaDefName(path[0][1:])
+	}
+	name := base
+	for i := 2; refs.names[name]; i++ {
+		name = base + "_" + itoa(i)
+	}
+	refs.names[name] = true
+	def := &schemaDef{name: name, target: target, path: path, value: value}
+	refs.defs[key] = def
+	return def
+}
+
+var schemaDefNameRe = regexp.MustCompile(`^d_((?:[A-Za-z0-9]|_[0-9a-f]+_)+)$`)
+var schemaDefCharRe = regexp.MustCompile(`_([0-9a-f]+)_`)
+
+// schemaDefName: the importer names the alias of #/$defs/k d_ and k, each
+// character outside [A-Za-z0-9] as its code point between underscores;
+// that is read back to k, and any other alias name is its own.
+func schemaDefName(alias string) string {
+	m := schemaDefNameRe.FindStringSubmatch(alias)
+	if nil == m {
+		return alias
+	}
+	return schemaDefCharRe.ReplaceAllStringFunc(m[1], func(code string) string {
+		n, _ := strconv.ParseInt(code[1:len(code)-1], 16, 32)
+		return string(rune(n))
+	})
+}
+
+// schemaDefRef is a definition's $ref: a JSON pointer, its tokens
+// escaped, then written as a URI fragment.
+func schemaDefRef(def *schemaDef) string {
+	token := strings.ReplaceAll(strings.ReplaceAll(def.name, "~", "~0"), "/", "~1")
+	out := "#/$defs/"
+	for _, b := range []byte(token) {
+		if b < 128 && strings.IndexByte(
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@/?", b) >= 0 {
+			out += string(rune(b))
+		} else {
+			out += fmt.Sprintf("%%%02X", b)
+		}
+	}
+	return out
+}
+
+// schemaRefTo is a reference's $ref, its definition written out the
+// first time a walk that is not scratch uses it; nil where it reaches
+// nothing.
+func schemaRefTo(sc *schemaCtx, target []string) any {
+	def := schemaDefOf(sc, target)
+	if nil == def {
+		return nil
+	}
+	if !sc.scratch && !def.used {
+		def.used = true
+		def.schema = schemaFromVal(sc, def.path, def.value)
+	}
+	return map[string]any{"$ref": schemaDefRef(def)}
+}
+
+// schemaWithDefs: the definitions the schema uses go under $defs, but one
+// that says what the whole schema says is #, an alias's losses the
+// schema's. A loss reached twice, through a definition and in place, is
+// one loss.
+func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss {
+	used := []*schemaDef{}
+	for _, d := range sc.refs.defs {
+		if d.used {
+			used = append(used, d)
+		}
+	}
+	sort.Slice(used, func(i, j int) bool { return used[i].name < used[j].name })
+	whole := schemaText(body)
+	to := map[string]string{}
+	gone := []string{}
+	kept := map[string]any{}
+	for _, d := range used {
+		if schemaText(d.schema) == whole {
+			to[schemaDefRef(d)] = "#"
+			if 0 < len(d.path) && aliasNameRe.MatchString(d.path[0]) {
+				gone = append(gone, schemaPathText(d.path))
+			}
+		} else {
+			kept[d.name] = d.schema
+		}
+	}
+	if 0 < len(kept) {
+		schema["$defs"] = kept
+	}
+	schemaRelink(schema, to)
+	seen := map[string]bool{}
+	lossy := []SchemaLoss{}
+	for _, l := range sc.lossy {
+		key := l.Path + "\x00" + l.Construct + "\x00" + l.Reason
+		under := false
+		for _, g := range gone {
+			under = under || l.Path == g || strings.HasPrefix(l.Path, g+".")
+		}
+		if !seen[key] && !under {
+			seen[key] = true
+			lossy = append(lossy, l)
+		}
+	}
+	return lossy
+}
+
+// schemaRelink points every $ref a folded definition had at the schema
+// itself.
+func schemaRelink(v any, to map[string]string) {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, x := range t {
+			if s, ok := x.(string); ok && "$ref" == k && "" != to[s] {
+				t[k] = to[s]
+			} else {
+				schemaRelink(x, to)
+			}
+		}
+	case []any:
+		for _, x := range t {
+			schemaRelink(x, to)
+		}
+	}
 }
 
 var schemaMetaKeyword = map[string]string{
@@ -771,12 +1018,27 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		if "meta" == t.name || "deprecate" == t.name {
 			carrier := t.resolve(&Ctx{collect: true}, nil, append([]Val{top()}, t.peg[1:]...))
 			if !carrier.Nil() {
-				out := schemaFromVal(sc, path, t.peg[0])
-				if obj, ok := out.(map[string]any); ok &&
-					(nil != carrier.deprecRec() || nil != carrier.metaRec()) {
-					schemaAnnotate(sc, path, obj, carrier)
-				}
-				return out
+				return schemaWithRiders(sc, path, schemaFromVal(sc, path, t.peg[0]), carrier)
+			}
+		}
+
+	// A reference the meet holds, in a template or at a recursion, is the
+	// definition it names.
+	case *RecurseVal:
+		if ref := schemaRefTo(sc, t.target); nil != ref {
+			return ref
+		}
+
+	case *RefVal:
+		target := []string{}
+		for _, p := range t.peg {
+			if s, ok := p.(string); ok {
+				target = append(target, s)
+			}
+		}
+		if t.absolute && len(target) == len(t.peg) {
+			if ref := schemaRefTo(sc, target); nil != ref {
+				return ref
 			}
 		}
 
@@ -1042,6 +1304,8 @@ func schemaIsolable(v Val, level int64) bool {
 		return true
 	}
 	switch t := v.(type) {
+	case *RefVal, *RecurseVal:
+		return false
 	case *FuncVal:
 		if "key" == t.name {
 			n, ok := schemaKeyLevel(t)
@@ -1135,11 +1399,11 @@ func schemaKeyArms(v Val) *schemaGuard {
 
 // schemaArmTestOf is an arm's key test: a name, or a pattern's normalised
 // source.
-func schemaArmTestOf(path []string, test Val) schemaArmTest {
+func schemaArmTestOf(sc *schemaCtx, path []string, test Val) schemaArmTest {
 	if sv, ok := test.(*ScalarVal); ok && KindString == sv.kind {
 		return schemaArmTest{name: sv.peg.(string), isName: true}
 	}
-	s, _ := schemaArmOut(&schemaCtx{}, path, test).(map[string]any)
+	s, _ := schemaArmOut(&schemaCtx{refs: sc.refs, scratch: true}, path, test).(map[string]any)
 	if p, ok := s["pattern"].(string); ok && "string" == s["type"] && 2 == len(s) {
 		return schemaArmTest{re: p, isRe: true}
 	}
@@ -1219,7 +1483,7 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 			continue
 		}
 		for _, arm := range g.arms {
-			g.tests = append(g.tests, schemaArmTestOf(at, arm[0]))
+			g.tests = append(g.tests, schemaArmTestOf(sc, at, arm[0]))
 		}
 		if 1 == len(g.arms) && g.tests[0].isRe && nil != g.def && isTop(g.def) {
 			s := schemaArmOut(sc, at, g.arms[0][1])
@@ -1502,7 +1766,9 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 		}
 	}
 
-	sc := &schemaCtx{lossy: []SchemaLoss{}}
+	sc := &schemaCtx{lossy: []SchemaLoss{},
+		refs: &schemaRefs{root: root, defs: map[string]*schemaDef{}, names: map[string]bool{},
+			plain: map[Val]*schemaPlain{}}}
 	body := schemaFromVal(sc, anchor, node)
 
 	schema := map[string]any{"$schema": jsonSchemaDraft}
@@ -1515,9 +1781,10 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 		schema["not"] = map[string]any{}
 	}
 
+	lossy := schemaWithDefs(sc, schema, body)
 	verdict := "ok"
-	if 0 < len(sc.lossy) {
+	if 0 < len(lossy) {
 		verdict = "lossy"
 	}
-	return SchemaReport{Verdict: verdict, Schema: schema, Lossy: sc.lossy}
+	return SchemaReport{Verdict: verdict, Schema: schema, Lossy: lossy}
 }

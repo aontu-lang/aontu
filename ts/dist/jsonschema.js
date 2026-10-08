@@ -12,8 +12,11 @@ const numcmp_1 = require("./val/numcmp");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const rider_1 = require("./rider");
 const keyorder_1 = require("./keyorder");
+const exactjson_1 = require("./exactjson");
+const aliasname_1 = require("./aliasname");
 const walk_1 = require("./walk");
 const top_1 = require("./val/top");
+const RecurseVal_1 = require("./val/RecurseVal");
 const vet_1 = require("./vet");
 const vet_2 = require("./vet");
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
@@ -387,7 +390,98 @@ function keyword(out, extra, key, val) {
     }
 }
 function fromVal(ctx, path, v) {
-    return withRiders(ctx, path, fromValInner(ctx, path, v), v);
+    if (null == v.via) {
+        return withRiders(ctx, path, fromValInner(ctx, path, v), v);
+    }
+    const defs = v.via.map((key) => defOf(ctx, [key]));
+    const own = plainOf(ctx, path, v);
+    const same = defs.find((def) => own.text === plainOf(ctx, def.path, def.value).text);
+    return undefined !== same ? refTo(ctx, same.target) : beside(ctx, defs, true === ctx.scratch ? own.schema : withRiders(ctx, path, fromValInner(ctx, path, v), v));
+}
+// A value's schema as a scratch walk writes it, short of its own $ref: the
+// same wherever it sits, so written once, or nested copies cost exponential time.
+function plainOf(ctx, path, v) {
+    let plain = ctx.refs.plain.get(v);
+    if (undefined === plain) {
+        const scratch = { ...ctx, lossy: [], scratch: true };
+        const schema = withRiders(scratch, path, fromValInner(scratch, path, v), v);
+        plain = { schema, text: (0, exactjson_1.exactJSON)(schema) };
+        ctx.refs.plain.set(v, plain);
+    }
+    return plain;
+}
+// A narrowed copy is its alias's $ref beside the keywords that differ, as
+// `$ref` with siblings reads: exact, since it admits nothing the alias refuses.
+function beside(ctx, defs, out) {
+    const differ = (def) => {
+        const plain = Object(plainOf(ctx, def.path, def.value).schema);
+        return Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
+            (0, exactjson_1.exactJSON)(out[k]) !== (0, exactjson_1.exactJSON)(plain[k]));
+    };
+    const best = defs.reduce((a, b) => differ(b).length < differ(a).length ? b : a);
+    return {
+        ...Object.fromEntries(differ(best).map((k) => [k, out[k]])),
+        ...refTo(ctx, best.target),
+    };
+}
+// The definition a target names, found as a recursion's walk finds it: an
+// alias by its name, any other target by its path; a taken name gains a number.
+function defOf(ctx, target) {
+    const refs = ctx.refs;
+    const key = target.join('\u0000');
+    const known = refs.defs.get(key);
+    if (undefined !== known) {
+        return known;
+    }
+    let value = refs.root;
+    for (const seg of target) {
+        const node = (0, RecurseVal_1.throughRider)(value);
+        value = true === node?.isMap ? node.peg[seg] :
+            true === node?.isConjunct ? (0, RecurseVal_1.declaration)(node, seg) : undefined;
+    }
+    if (undefined === value) {
+        return undefined;
+    }
+    const path = target.map(aliasname_1.aliasPathSegment);
+    const alias = 1 === target.length && aliasname_1.ALIAS_NAME_RE.test(path[0]);
+    const base = alias ? defName(path[0].slice(1)) : path.join('.');
+    let name = base;
+    for (let i = 2; refs.names.has(name); i++) {
+        name = base + '_' + i;
+    }
+    refs.names.add(name);
+    const def = { name, target, path, value, used: false };
+    refs.defs.set(key, def);
+    return def;
+}
+// The importer's alias of #/$defs/k is d_ and k, a character outside
+// [A-Za-z0-9] as its hex code point between underscores: read back to k.
+function defName(alias) {
+    const m = /^d_((?:[A-Za-z0-9]|_[0-9a-f]+_)+)$/.exec(alias);
+    return null == m ? alias : m[1].replace(/_([0-9a-f]+)_/g, (_all, hex) => String.fromCodePoint(parseInt(hex, 16)));
+}
+// A definition's $ref: a JSON pointer, its tokens escaped, as a URI fragment.
+function defRef(def) {
+    const token = def.name.replace(/~/g, '~0').replace(/\//g, '~1');
+    let out = '#/$defs/';
+    for (const byte of new TextEncoder().encode(token)) {
+        const ch = String.fromCharCode(byte);
+        out += /[A-Za-z0-9\-._~!$&'()*+,;=:@/?]/.test(ch) && byte < 128 ? ch :
+            '%' + byte.toString(16).toUpperCase().padStart(2, '0');
+    }
+    return out;
+}
+// A target's $ref, its definition written the first time a real walk uses it.
+function refTo(ctx, target) {
+    const def = defOf(ctx, target);
+    if (undefined === def) {
+        return undefined;
+    }
+    if (true !== ctx.scratch && !def.used) {
+        def.used = true;
+        def.schema = fromVal(ctx, def.path, def.value);
+    }
+    return { $ref: defRef(def) };
 }
 function withRiders(ctx, path, out, v) {
     return null == out || 'object' !== typeof out ||
@@ -555,9 +649,15 @@ function fromValInner(ctx, path, v) {
     if (true === v.isNil && 'literal_nil' === v.why) {
         return false;
     }
-    // A rider over a value the meet holds residual has not attached yet;
-    // what it would attach rides the value's schema, as the engine
-    // attaches it.
+    // A held reference, in a template or at a recursion, names its definition.
+    const target = true === v.isRecurse ? v.target : true === v.isRef && true === v.absolute ?
+        v.peg : undefined;
+    const ref = undefined !== target && target.every((t) => 'string' === typeof t) ?
+        refTo(ctx, target) : undefined;
+    if (undefined !== ref) {
+        return ref;
+    }
+    // A rider held over a residual value carries what its resolve would attach.
     if (true === v.isMetaFunc || true === v.isDeprecateFunc) {
         const carrier = v.resolve(new aontu_1.Aontu().ctx({ collect: true }), [(0, top_1.top)(), ...v.peg.slice(1)]);
         if (true !== carrier.isNil) {
@@ -654,15 +754,13 @@ function skipMarked(ctx, path, bag, child) {
 function spreadTerms(v) {
     return true === v.isConjunct ? v.peg.flatMap(spreadTerms) : [v];
 }
-// The functions whose meaning does not depend on where they sit, given
-// arguments that do not either.
+// The functions whose meaning does not depend on where they sit.
 const ISOLABLE_FUNCS = [
     'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'len',
     'lower', 'match', 'max', 'meta', 'min', 'multiple', 'must', 'neq', 'nof',
     'open', 'pref', 're', 'unique', 'upper', 'when',
 ];
-// The level key() looks up, read as key() reads it; undefined where its
-// argument is not a level.
+// The level key() reads; undefined where its argument is not one.
 function keyLevel(f) {
     const a = f.peg[0];
     return undefined === a ? 1 : true === a.isInteger ? a.peg :
@@ -673,6 +771,9 @@ function keyLevel(f) {
 // containers between the template's own node and v.
 function isolable(v, level) {
     const all = (vs, at) => vs.every((x) => isolable(x, at));
+    if (true === v.isRef || true === v.isRecurse) {
+        return false;
+    }
     if (true === v.isFunc) {
         const name = v.funcname();
         if ('key' === name) {
@@ -697,9 +798,8 @@ function isolable(v, level) {
     }
     return true === v.done;
 }
-// A spread holds its templates unevaluated. One that can be read alone
-// is read as the value it is, riders and all; one that cannot keeps its
-// residue, which reports itself.
+// A held template that can be read alone is read as the value it is, riders
+// and all; one that cannot keeps its residue, which reports itself.
 function armOut(ctx, path, r) {
     if (true === r.done || !isolable(r, 0)) {
         return fromVal(ctx, path, r);
@@ -724,11 +824,11 @@ function keyArms(v) {
     return { arms, def };
 }
 // An arm's key test: a name, or a pattern's normalised source.
-function armTest(path, test) {
+function armTest(ctx, path, test) {
     if (true === test.isScalar && 'string' === typeof test.peg) {
         return { name: test.peg };
     }
-    const s = armOut({ lossy: [] }, path, test);
+    const s = armOut({ ...ctx, lossy: [], scratch: true }, path, test);
     return 'string' === s.type && 'string' === typeof s.pattern && 2 === Object.keys(s).length ?
         { re: s.pattern } : {};
 }
@@ -737,8 +837,7 @@ function restOut(ctx, path, def) {
     return undefined === def || true === def.isNil ? false :
         true === def.isTop ? undefined : armOut(ctx, path, def);
 }
-// A key test as propertyNames: its `type: string` is dropped, which
-// every key already is.
+// A key test as propertyNames, its `type: string` dropped: every key is one.
 function asNames(s) {
     if ('string' !== s.type) {
         return s;
@@ -780,7 +879,7 @@ function spreadKeywords(ctx, path, declared, spr) {
             extra.push({ additionalProperties: armOut(ctx, at, t) });
             return;
         }
-        const tests = g.arms.map(([test]) => armTest(at, test));
+        const tests = g.arms.map(([test]) => armTest(ctx, at, test));
         const [arm] = g.arms;
         const re = tests[0]?.re;
         if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
@@ -966,7 +1065,7 @@ function jsonSchema(src, options) {
         node = found;
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
-    const ctx = { lossy: [] };
+    const ctx = { lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map() } };
     const body = fromVal(ctx, anchor, node);
     // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
     const schema = { $schema: DRAFT };
@@ -976,10 +1075,50 @@ function jsonSchema(src, options) {
     else {
         schema.not = {};
     }
+    const lossy = withDefs(ctx, schema, body);
     return {
-        verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
+        verdict: 0 < lossy.length ? 'lossy' : 'ok',
         schema,
-        lossy: ctx.lossy,
+        lossy,
     };
+}
+// The definitions used go under $defs, but one that says what the whole
+// schema says is `#`, an alias's losses the schema's. A loss met twice is one.
+function withDefs(ctx, schema, body) {
+    const used = [...ctx.refs.defs.values()].filter((d) => d.used)
+        .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name));
+    const whole = (0, exactjson_1.exactJSON)(body);
+    const folded = used.filter((d) => (0, exactjson_1.exactJSON)(d.schema) === whole);
+    const kept = used.filter((d) => !folded.includes(d));
+    if (0 < kept.length) {
+        schema.$defs = Object.fromEntries(kept.map((d) => [d.name, d.schema]));
+    }
+    const to = new Map(folded.map((d) => [defRef(d), '#']));
+    relink(schema, to);
+    const gone = folded.filter((d) => aliasname_1.ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path));
+    const seen = new Set();
+    const lossy = [];
+    for (const l of ctx.lossy) {
+        const key = (0, exactjson_1.exactJSON)(l);
+        if (!seen.has(key) && !gone.some((g) => l.path === g || l.path.startsWith(g + '.'))) {
+            seen.add(key);
+            lossy.push(l);
+        }
+    }
+    return lossy;
+}
+// Every $ref a folded definition had, pointed at the schema itself.
+function relink(v, to) {
+    if (null == v || 'object' !== typeof v) {
+        return;
+    }
+    for (const k of Object.keys(v)) {
+        if ('$ref' === k && to.has(v[k])) {
+            v[k] = to.get(v[k]);
+        }
+        else {
+            relink(v[k], to);
+        }
+    }
 }
 //# sourceMappingURL=jsonschema.js.map
