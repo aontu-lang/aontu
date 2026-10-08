@@ -1,5 +1,5 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
-import { includeOpts } from './utility'
+import { canonRiders, includeOpts } from './utility'
 
 
 import { Aontu } from './aontu'
@@ -12,6 +12,8 @@ import { cmpScaled, scaledOfShown } from './val/numcmp'
 import { nofCounts } from './val/ConstraintVal'
 import { recordLayers } from './rider'
 import { cmpCodePoint } from './keyorder'
+import { settledTrials } from './walk'
+import { top } from './val/top'
 import { failureFinding } from './vet'
 import type { VetFinding } from './vet'
 import type { TrustOptions } from './type'
@@ -238,8 +240,17 @@ function countEndpoint(b: any, isLo: boolean): bigint | undefined {
 }
 
 
+const NOT_YET = 'this is not a value yet, so there is nothing to constrain a ' +
+  'consumer to; the schema admits anything here'
+
+
 function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'): any {
   const out: any = {}
+  // An atom whose arguments have not settled: a template's, read where
+  // it cannot be read alone.
+  if (null != c.pending) {
+    lose(ctx, path, c.pending.atom, NOT_YET)
+  }
   // `allOf` members: a second pattern or exclusion has no keyword of its own.
   const extra: any[] = []
   const nots: any[] = []
@@ -501,7 +512,11 @@ function keyword(out: any, extra: any[], key: string, val: any): void {
 
 
 function fromVal(ctx: Ctx, path: string[], v: any): any {
-  const out = fromValInner(ctx, path, v)
+  return withRiders(ctx, path, fromValInner(ctx, path, v), v)
+}
+
+
+function withRiders(ctx: Ctx, path: string[], out: any, v: any): any {
   return null == out || 'object' !== typeof out ||
     (null == v?.deprecation && null == v?.meta) ? out : annotate(ctx, path, out, v)
 }
@@ -592,6 +607,18 @@ function kindOfLiteral(ctx: Ctx, path: string[], v: any): any {
 }
 
 
+// A kind beside a constraint the meet holds until an instance arrives
+// (`boolean & nof(...)`, `map & len(min(1))`), read as one schema object.
+function kindResidue(v: any): { kind: any, con: any } | undefined {
+  const terms: any[] = true === v.isConjunct ? v.peg : []
+  const kind = terms.find((t) =>
+    true === t.isScalarKind || true === t.isMapKind || true === t.isListKind)
+  const con = terms.find((t) => true === t.isConstraint)
+  return 2 === terms.length && undefined !== kind && undefined !== con ?
+    { kind, con } : undefined
+}
+
+
 function fromValInner(ctx: Ctx, path: string[], v: any): any {
   if (true === v.isPref) {
     // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
@@ -620,6 +647,15 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
       ...fromVal(ctx, path, residue.bag),
       ...fromConstraint(ctx, path, residue.con,
         true === residue.bag.isMap ? 'map' : 'list'),
+    }
+  }
+
+  const held = kindResidue(v)
+  if (undefined !== held) {
+    return {
+      ...fromVal(ctx, path, held.kind),
+      ...fromConstraint(ctx, path, held.con, true === held.kind.isMapKind ? 'map' :
+        true === held.kind.isListKind ? 'list' : undefined),
     }
   }
 
@@ -677,9 +713,17 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
     return false
   }
 
-  lose(ctx, path, residueName(v),
-    'this is not a value yet, so there is nothing to constrain a ' +
-    'consumer to; the schema admits anything here')
+  // A rider over a value the meet holds residual has not attached yet;
+  // what it would attach rides the value's schema, as the engine
+  // attaches it.
+  if (true === v.isMetaFunc || true === v.isDeprecateFunc) {
+    const carrier: any = v.resolve(new Aontu().ctx({ collect: true }), [top(), ...v.peg.slice(1)])
+    if (true !== carrier.isNil) {
+      return withRiders(ctx, path, fromVal(ctx, path, v.peg[0]), carrier)
+    }
+  }
+
+  lose(ctx, path, residueName(v), NOT_YET)
   return {}
 }
 
@@ -703,13 +747,48 @@ function generated(v: any): any {
 }
 
 
-// Bare kinds fold to a `type` array; anything more keeps the `anyOf`.
+// The keywords each JSON type's instances answer to; any other instance
+// passes them, so a schema of one type's keywords constrains it alone.
+const NUMBER_SCOPE = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
+  'multipleOf']
+const KIND_SCOPE: Record<string, string[]> = {
+  null: [], boolean: [], number: NUMBER_SCOPE, integer: NUMBER_SCOPE,
+  string: ['minLength', 'maxLength', 'pattern', 'contentEncoding', 'contentMediaType',
+    'contentSchema'],
+  object: ['properties', 'required', 'additionalProperties', 'patternProperties',
+    'propertyNames', 'minProperties', 'maxProperties', 'dependentRequired',
+    'dependentSchemas'],
+  array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
+    'maxContains', 'uniqueItems'],
+}
+
+
+// A member's own `type` may name its type; an `allOf` entry's may not, as
+// a folded `allOf` applies to every instance.
+function scoped(m: any, t: string, top: boolean): boolean {
+  return null != m && 'object' === typeof m && Object.keys(m).every((k) =>
+    'type' === k ? top && t === m.type : KIND_SCOPE[t].includes(k) ||
+      ('allOf' === k && m.allOf.every((x: any) => scoped(x, t, false))))
+}
+
+
+// The kind split read back: members of distinct types, each holding only
+// its own type's keywords, are one schema object, typed unless every type
+// is there. Anything else keeps the `anyOf`.
 function typeFold(members: any[]): any {
-  const types = members.map((m: any) =>
-    1 === Object.keys(m).length && 'string' === typeof m.type ?
-      m.type : undefined)
-  return types.every((t: any) => undefined !== t) ?
-    { type: types } : { anyOf: members }
+  const types = members.map((m: any) => m.type)
+  const kinds = types.map((t: any) => 'integer' === t ? 'number' : t)
+  if (!members.every((m: any, i: number) => undefined !== KIND_SCOPE[types[i]] &&
+    scoped(m, types[i], true)) || new Set(kinds).size !== kinds.length) {
+    return { anyOf: members }
+  }
+  const out: any = {}
+  for (const m of members) {
+    for (const k of Object.keys(m).filter((k) => 'type' !== k)) {
+      out[k] = 'allOf' === k ? [...(out.allOf ?? []), ...m.allOf] : m[k]
+    }
+  }
+  return 6 === kinds.length && !types.includes('integer') ? out : { ...out, type: types }
 }
 
 
@@ -755,6 +834,249 @@ function skipMarked(ctx: Ctx, path: string[], bag: any, child: any): boolean {
 }
 
 
+function spreadTerms(v: any): any[] {
+  return true === v.isConjunct ? v.peg.flatMap(spreadTerms) : [v]
+}
+
+
+// The functions whose meaning does not depend on where they sit, given
+// arguments that do not either.
+const ISOLABLE_FUNCS = [
+  'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'len',
+  'lower', 'match', 'max', 'meta', 'min', 'multiple', 'must', 'neq', 'nof',
+  'open', 'pref', 're', 'unique', 'upper', 'when',
+]
+
+
+// The level key() looks up, read as key() reads it; undefined where its
+// argument is not a level.
+function keyLevel(f: any): number | undefined {
+  const a = f.peg[0]
+  return undefined === a ? 1 : true === a.isInteger ? a.peg :
+    true === a.isBigInteger ? Number(a.peg) : undefined
+}
+
+
+// A template that reaches no key or path outside itself means the same
+// wherever it sits, so it can be read alone. `level` counts the
+// containers between the template's own node and v.
+function isolable(v: any, level: number): boolean {
+  const all = (vs: any[], at: number) => vs.every((x) => isolable(x, at))
+  if (true === v.isFunc) {
+    const name = v.funcname()
+    if ('key' === name) {
+      const n = keyLevel(v)
+      return undefined !== n && n < level
+    }
+    return ISOLABLE_FUNCS.includes(name) && all(v.peg, level)
+  }
+  if (true === v.isMap || true === v.isList) {
+    const spread = v.spread?.cj
+    return all([...Object.values(v.peg), ...(null == spread ? [] : [spread])], level + 1)
+  }
+  if (true === v.isConjunct || true === v.isDisjunct) {
+    return all(v.peg, level)
+  }
+  if (true === v.isPref) {
+    return isolable(v.peg, level)
+  }
+  if (true === v.isConstraint) {
+    return all([...(v.pending?.args ?? []), ...v.musts.map((m: any) => m.v),
+      ...settledTrials(v)], level)
+  }
+  return true === v.done
+}
+
+
+// A spread holds its templates unevaluated. One that can be read alone
+// is read as the value it is, riders and all; one that cannot keeps its
+// residue, which reports itself.
+function armOut(ctx: Ctx, path: string[], r: any): any {
+  if (true === r.done || !isolable(r, 0)) {
+    return fromVal(ctx, path, r)
+  }
+  const a0 = new Aontu()
+  const actx = a0.ctx({ collect: true })
+  const met: any = a0.unify(canonRiders(r), undefined, actx)
+  return 0 < actx.err.length ? false : fromVal(ctx, path, met)
+}
+
+
+// A spread guarded by its key, match(key(0), test, result, ..., default),
+// as its arms and default; undefined for any other spread.
+function keyArms(v: any): { arms: any[][], def: any } | undefined {
+  const key = v.peg?.[0]
+  if (true !== v.isMatchFunc || true !== key?.isKeyFunc || 0 !== keyLevel(key)) {
+    return undefined
+  }
+  const def = 0 === v.peg.length % 2 ? v.peg[v.peg.length - 1] : undefined
+  const arms: any[][] = []
+  for (let i = 1; i < v.peg.length - (undefined === def ? 0 : 1); i += 2) {
+    arms.push([v.peg[i], v.peg[i + 1]])
+  }
+  return { arms, def }
+}
+
+
+// An arm's key test: a name, or a pattern's normalised source.
+function armTest(path: string[], test: any): { name?: string, re?: string } {
+  if (true === test.isScalar && 'string' === typeof test.peg) {
+    return { name: test.peg }
+  }
+  const s = armOut({ lossy: [] }, path, test)
+  return 'string' === s.type && 'string' === typeof s.pattern && 2 === Object.keys(s).length ?
+    { re: s.pattern } : {}
+}
+
+
+// What a key the arms leave unmatched may hold: nothing without a default.
+function restOut(ctx: Ctx, path: string[], def: any): any {
+  return undefined === def || true === def.isNil ? false :
+    true === def.isTop ? undefined : armOut(ctx, path, def)
+}
+
+
+// A key test as propertyNames: its `type: string` is dropped, which
+// every key already is.
+function asNames(s: any): any {
+  if ('string' !== s.type) {
+    return s
+  }
+  const { type: _string, ...names } = s
+  return names
+}
+
+
+// The arms of one guarded spread as one schema object. Where arms repeat
+// a key, the first takes it, as match does.
+function armsPart(ctx: Ctx, path: string[], g: any, def: any): any {
+  const part: any = {}
+  g.arms.forEach(([, r]: any[], i: number) => {
+    const t = g.tests[i]
+    const key = undefined === t.name ? 'patternProperties' : 'properties'
+    const name = t.name ?? t.re
+    if (undefined === part[key]?.[name]) {
+      part[key] = { ...part[key], [name]: armOut(ctx, path, r) }
+    }
+  })
+  return undefined === def ? part : { ...part, additionalProperties: def }
+}
+
+
+// A map's spreads guarded by their key, as the keywords they came from
+// (the design's section 6); undefined when no term of the spread is one.
+// `declared` is the map's own properties.
+function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any): any {
+  const terms = spreadTerms(spr)
+  const guarded = terms.map(keyArms)
+  if (guarded.every((g) => undefined === g)) {
+    return undefined
+  }
+  const at = [...path, '&']
+  const out: any = {}
+  const extra: any[] = []
+  const patterns: Record<string, any> = {}
+  const rest: { arms: any[][], def: any, tests: any[] }[] = []
+  terms.forEach((t: any, i: number) => {
+    const g = guarded[i]
+    if (undefined === g) {
+      extra.push({ additionalProperties: armOut(ctx, at, t) })
+      return
+    }
+    const tests = g.arms.map(([test]: any[]) => armTest(at, test))
+    const [arm] = g.arms
+    const re = tests[0]?.re
+    if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
+      const s = armOut(ctx, at, arm[1])
+      if (undefined === patterns[re]) {
+        patterns[re] = s
+      }
+      else {
+        extra.push({ patternProperties: { [re]: s } })
+      }
+    }
+    else if (1 === g.arms.length && undefined === tests[0].name && undefined === re &&
+      true === arm[1].isTop && true === g.def?.isNil) {
+      const names = asNames(armOut(ctx, at, arm[0]))
+      if (undefined === out.propertyNames) {
+        out.propertyNames = names
+      }
+      else {
+        extra.push({ propertyNames: names })
+      }
+    }
+    else {
+      rest.push({ ...g, tests })
+    }
+  })
+  if (0 < Object.keys(patterns).length) {
+    out.patternProperties = patterns
+  }
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
+  const own = [...declared].sort(cmpCodePoint)
+  const patternKeys = Object.keys(patterns).sort(cmpCodePoint)
+  for (const g of rest) {
+    const names = g.tests.filter((t) => undefined !== t.name).map((t) => t.name).sort(cmpCodePoint)
+    const res = g.tests.filter((t) => undefined !== t.re).map((t) => t.re).sort(cmpCodePoint)
+    const def = restOut(ctx, at, g.def)
+    const anyArm = g.arms.every(([, r]) => true === r.isTop)
+    if (names.length + res.length < g.arms.length) {
+      lose(ctx, at, 'match',
+        'JSON Schema chooses a member\'s schema by its name or a pattern, so an ' +
+        'arm testing its key any other way has no spelling, and this spread is DROPPED')
+    }
+    else if (anyArm && undefined === out.additionalProperties &&
+      same(names, own) && same(res, patternKeys)) {
+      if (undefined !== def) {
+        out.additionalProperties = def
+      }
+    }
+    else if (anyArm || 0 === res.length || 1 === g.arms.length) {
+      extra.push(armsPart(ctx, at, g, def))
+    }
+    else {
+      lose(ctx, at, 'match',
+        'arms whose keys can overlap have no JSON Schema spelling, since every ' +
+        'matching keyword applies where match takes the first arm, so this ' +
+        'spread is DROPPED')
+    }
+  }
+  if (0 < extra.length) {
+    out.allOf = extra
+  }
+  return out
+}
+
+
+// A list's spreads, each guarded by the index with its arms "0" to "n-1"
+// in order, as prefixItems and items; undefined when no term is one.
+function listKeywords(ctx: Ctx, path: string[], spr: any): any[] | undefined {
+  const terms = spreadTerms(spr)
+  const guarded = terms.map(keyArms)
+  if (guarded.every((g) => undefined === g)) {
+    return undefined
+  }
+  const at = [...path, '&']
+  return terms.flatMap((t: any, i: number) => {
+    const g = guarded[i]
+    if (undefined === g) {
+      return [{ items: armOut(ctx, at, t) }]
+    }
+    if (!g.arms.every(([test]: any[], j: number) =>
+      true === test.isScalar && String(j) === test.peg)) {
+      lose(ctx, at, 'match',
+        'JSON Schema places a list member by its position from the first, so ' +
+        'arms that are not the positions in order have no spelling, and this ' +
+        'spread is DROPPED')
+      return []
+    }
+    const out: any = { prefixItems: g.arms.map(([, r]: any[]) => armOut(ctx, at, r)) }
+    const items = restOut(ctx, at, g.def)
+    return [undefined === items ? out : { ...out, items }]
+  })
+}
+
+
 function fromMap(ctx: Ctx, path: string[], v: any): any {
   const props: Record<string, any> = {}
   const required: string[] = []
@@ -783,8 +1105,9 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
   }
 
   const spr: any = v.spread?.cj
-  if (null != spr) {
-    spread = fromVal(ctx, [...path, '&'], spr)
+  const shaped = null == spr ? undefined : spreadKeywords(ctx, path, Object.keys(props), spr)
+  if (null != spr && undefined === shaped) {
+    spread = armOut(ctx, [...path, '&'], spr)
   }
 
   const out: any = { type: 'object', properties: props }
@@ -797,6 +1120,9 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
   // the keyword off, since JSON Schema's default is already open.
   if (true === v.closed) {
     out.additionalProperties = false
+  }
+  else if (undefined !== shaped) {
+    Object.assign(out, shaped)
   }
   else if (null != spread) {
     out.additionalProperties = spread
@@ -819,8 +1145,13 @@ function fromList(ctx: Ctx, path: string[], v: any): any {
   }
 
   // An open list admits anything after its positions, as the meet does.
-  if (null != spr) {
-    out.items = fromVal(ctx, [...path, '&'], spr)
+  const shaped = null == spr ? undefined : listKeywords(ctx, path, spr)
+  if (undefined !== shaped) {
+    Object.assign(out, 0 === els.length && 1 === shaped.length ? shaped[0] :
+      0 === shaped.length ? {} : { allOf: shaped })
+  }
+  else if (null != spr) {
+    out.items = armOut(ctx, [...path, '&'], spr)
   }
   else if (true === v.closed) {
     out.items = false

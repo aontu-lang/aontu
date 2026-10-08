@@ -230,14 +230,16 @@ list, map or string beside it, so its domain is undecided, the export
 writes `minItems`/`maxItems` as the convention, and the report says so.
 
 Third, a spread template crosses as `additionalProperties` (or
-`items`) only when it is a bare kind. A template carrying a
-constraint call stays residual and exports `{}`, reported as
-`unresolved`. Put both in `spreads.aontu`:
+`items`) when it means the same wherever it sits, which is when
+nothing in it reaches its own key or a path outside it. A template
+that does stays residual and exports `{}`, reported under the name of
+the call that reaches out. Put three in `spreads.aontu`:
 
 <!-- test: file spreads.aontu -->
 ```aontu
 labels: { &: string }
 annotations: { &: string & len(max(63)) }
+ids: { &: key(0) }
 ```
 
 <!-- test: run -->
@@ -247,6 +249,15 @@ $ aontu jsonschema --strict spreads.aontu
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "annotations": {
+      "additionalProperties": {
+        "maxLength": 63,
+        "minLength": 1,
+        "type": "string"
+      },
+      "properties": {},
+      "type": "object"
+    },
+    "ids": {
       "additionalProperties": {},
       "properties": {},
       "type": "object"
@@ -262,18 +273,22 @@ $ aontu jsonschema --strict spreads.aontu
   },
   "required": [
     "annotations",
+    "ids",
     "labels"
   ],
   "type": "object"
 }
-lossy: $.annotations.& unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
+lossy: $.ids.& key: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
 1
 ```
 
-`labels` admits string values; `annotations` admits anything, and
-says so. The same split decides list templates: `[&: string]`
-crosses as `items`, a constrained element template does not.
+`labels` and `annotations` admit what their templates admit; `ids`,
+whose every value must equal its own key, admits anything, and says
+so. A spread guarded by its key, as `aontu jsonschema import` writes
+`patternProperties`, `additionalProperties` and `propertyNames`,
+crosses back as those keywords, and a list spread guarded by its
+positions in order crosses back as `prefixItems` and `items`.
 
 Fourth, `deprecate()` crosses as the annotation 2020-12 has for it,
 `deprecated: true`, and what the deprecation says crosses beside it in

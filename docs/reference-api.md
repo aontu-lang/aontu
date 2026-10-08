@@ -1384,10 +1384,24 @@ becomes a `type` array; a bare
 `*x` becomes the kind of x, with x as `default`, because `*1` admits
 every integer; and a written `nil` becomes the schema `false`, because it
 admits nothing. A spread is `additionalProperties: <template>`, which
-is what a spread means. A written list is `prefixItems` for its
-positions and `minItems` for their count, and it stays **open**, as
-the meet does: `[integer, string]` admits `[1, "x", true]`, so only
-`close()` adds `items: false`.
+is what a spread means, and a template that reaches no key or path
+outside itself is read as the value it is: `{&: number & min(3)}`
+exports `additionalProperties: {type: number, minimum: 3}`. A spread
+guarded by its own key crosses as the keyword it spells:
+`&: match(key(0), re(p), S, any)` is `patternProperties`, a guard
+whose arms let the map's own names and patterns through is
+`additionalProperties` (its default, with `nil` as `false`), and
+`&: match(key(0), c, any, nil)` is `propertyNames: c`. Any other guard
+whose arms name keys, or test one pattern, is an `allOf` member of its
+own. A written list is `prefixItems` for its positions and `minItems`
+for their count, and it stays **open**, as the meet does:
+`[integer, string]` admits `[1, "x", true]`, so only `close()` adds
+`items: false`. A list spread guarded by its positions in order,
+`[&: match(key(0), "0", P0, "1", P1, T)]`, is `prefixItems` with
+`items: T`, and `items: false` where `T` is `nil` or absent. A kind
+beside a constraint that waits for an instance, as in
+`boolean & nof(1, …)` or `map & len(min(1))`, is one schema object,
+and a `meta()` or `deprecate()` over one carries its record.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1424,7 +1438,10 @@ The losses, and why each is one:
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
-| residue: an unresolved reference, a waiting call, a nil the engine minted | not a property constraint at all; guessing one would be inventing a promise |
+| `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
+| `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
+| a list's `match(key(0), …)` whose arms are not its positions in order | JSON Schema places a member by its position from the first, so the spread is dropped |
+| residue: an unresolved reference, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
 
 An exact value is not a loss. A `0d` literal, `enum` member, endpoint
 or divisor is written as its own digits, because 2020-12 compares

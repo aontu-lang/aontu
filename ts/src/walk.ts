@@ -48,7 +48,7 @@ export function walkVals(
 }
 
 
-function settledTrials(v: any): any[] {
+export function settledTrials(v: any): any[] {
   return [
     ...(v.nofs ?? []).flatMap((n: any) => n.cs),
     ...(v.whens ?? []).flatMap((w: any) =>

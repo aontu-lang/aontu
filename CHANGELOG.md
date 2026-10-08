@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### The exporter folds the kind split and reads templates and guarded spreads
+
+Both ports, G12 phase 9, its first part. `aontu jsonschema` wrote a
+spread's constrained template, a spread guarded by `match(key(0), …)`
+and a kind beside a constraint that waits for an instance as `{}` with
+an `unresolved` loss, so a schema `aontu jsonschema import` wrote
+exported as little more than its property names. Of the official
+suite's 378 schemas that export, 64 came back with a loss; 2 do now,
+and both are reported.
+
+- A disjunction whose members are of distinct JSON types, each holding
+  only its own type's keywords, is one schema object with a `type`
+  array, where it was an `anyOf`: `number & min(3) | empty()` exports
+  `{type: ["number", "string"], minimum: 3}`.
+- A template that reaches no key or path outside itself is read as the
+  value it is: `{&: number & min(3)}` exports
+  `additionalProperties: {type: number, minimum: 3}`. One that does,
+  as `{&: key(0)}` does, stays a reported residue.
+- `&: match(key(0), re(p), S, any)` exports `patternProperties`; a guard
+  whose arms let the map's own names and patterns through exports
+  `additionalProperties`; `&: match(key(0), c, any, nil)` exports
+  `propertyNames`. Any other guard whose arms name keys, or test one
+  pattern, is an `allOf` member, and one whose arms test a key any
+  other way, or can overlap, is reported.
+- `[&: match(key(0), "0", P0, …, T)]` exports `prefixItems` and `items`.
+- `boolean & nof(…)`, `map & len(min(1))`, `list & contains(c)` and
+  `map & when(…)` export as one schema object, and a `meta()` or
+  `deprecate()` over one keeps its record.
+- A constraint whose arguments never settled, as `min(key(0))` in a
+  template, exported `{}` with no loss; it is reported.
+
 ### The suite's annotation tests run, and the suite comes from upstream
 
 Both ports, G12 phases 3 and 8. The official JSON-Schema-Test-Suite is

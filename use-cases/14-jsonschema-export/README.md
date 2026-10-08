@@ -31,18 +31,19 @@ Four documents, one per mood plus the money convention:
   `required`, so a consumer reading only the JSON Schema learns the
   exact leaf and the scale.
 - **residue.aontu**: one instance of each loss class: `must()`,
-  `bigdecimal`, `hide()`, a constrained spread template. The export
-  still happens; every loss is named. Its `len()` beside a list is
-  the counter-example: a count crosses as `maxItems` with nothing to
-  report.
+  `bigdecimal`, `hide()`, a spread template that reads its own key.
+  The export still happens; every loss is named. Its constrained
+  spread template and its `len()` beside a list are the
+  counter-examples: each crosses with nothing to report.
 - **bad/dangling.aontu**: a reference that resolves nowhere. Not a
   loss: no unified value, no export, exit 4.
 
 The line between registry.aontu and residue.aontu runs through two
-constructs. A bare-kind template (`[&: string]`, `{ &: string }`)
-crosses as `items` or `additionalProperties`; a template carrying a
-constraint call (`{ &: string & len(max(63)) }`) is held residual,
-exports as `{}` in that position, and is reported as `unresolved`.
+constructs. A spread template that reaches nothing outside itself
+(`[&: string]`, `{ &: string & len(max(63)) }`) crosses as `items` or
+`additionalProperties`; a template that reads its own key
+(`{ &: key(0) }`) means a different value at every key, so it exports
+as `{}` in that position and is reported under `key`.
 `len()` beside a list exports as `minItems`/`maxItems` and beside a
 map as `minProperties`/`maxProperties`; only a bare count with nothing
 to count is reported, because its domain is undecided. One more
@@ -56,16 +57,17 @@ Every golden in `expected/` is captured engine output.
 
 `residue.aontu` is deliberately small and deliberately awkward: every
 field of `report` is a construct the JSON Schema export must either
-carry or drop, and the loss report says which. A `bigdecimal`, a
-spread template, a list template, a concrete string and a `nil`.
+carry or drop, and the loss report says which. A `bigdecimal`, two
+spread templates, a list template, a concrete string and a `nil`.
 
 ```
 $
 └── report
     ├── amountEur bigdecimal
-    ├── annotations {&:string&len(integer&min(...
+    ├── annotations {&:string&len(integer&min(0)&...
     ├── attempts [&:multiple(1)]
     ├── audit "kept-off-the-wire"
+    ├── slugs {&:key(0)}
     └── total nil
 ```
 
@@ -87,7 +89,7 @@ than its value.
    preference as `default`, optional keys out of `required`.
 4. The money convention crosses intact: `pattern` for `Dec2`, `const`
    for the mark, and `required` stays `["amount", "currency"]`.
-5. residue.aontu exports at exit 0 while stderr names all five losses,
+5. residue.aontu exports at exit 0 while stderr names all four losses,
    each with its path and construct.
 6. `--strict` flips the same run to exit 1.
 7. `--format json` carries the same report as data: `verdict: lossy`,

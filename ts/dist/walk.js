@@ -2,6 +2,7 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.walkVals = walkVals;
+exports.settledTrials = settledTrials;
 exports.collectNils = collectNils;
 function walkVals(v, visit, seen) {
     if (null == v || 'object' !== typeof v || true !== v.isVal) {

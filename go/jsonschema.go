@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math"
 	"math/big"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -244,9 +245,17 @@ func schemaCountEndpoint(b *constraintBound, isLo bool) (*big.Int, bool) {
 
 // schemaFromConstraint maps the residual's atoms onto keywords; `bag`
 // names what a count counted ("map", "list" or "").
+const schemaNotYet = "this is not a value yet, so there is nothing to constrain a " +
+	"consumer to; the schema admits anything here"
+
 func schemaFromConstraint(sc *schemaCtx, path []string,
 	c *ConstraintVal, bag string) map[string]any {
 	out := map[string]any{}
+	// An atom whose arguments have not settled: a template's, read where
+	// it cannot be read alone.
+	if nil != c.pending {
+		sc.lose(path, c.pending.atom, schemaNotYet)
+	}
 	// allOf members: a second pattern or exclusion has no keyword of its own.
 	extra := []any{}
 	nots := []any{}
@@ -677,6 +686,28 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 	}
 }
 
+// schemaKindResidue is a kind beside a constraint the meet holds until an
+// instance arrives (boolean & nof(...), map & len(min(1))), read as one
+// schema object.
+func schemaKindResidue(cj *ConjunctVal) (Val, *ConstraintVal, string, bool) {
+	var kind Val
+	var con *ConstraintVal
+	counted := ""
+	for _, t := range cj.peg {
+		switch k := t.(type) {
+		case *ScalarKindVal:
+			kind = k
+		case *MapKindVal:
+			kind, counted = k, "map"
+		case *ListKindVal:
+			kind, counted = k, "list"
+		case *ConstraintVal:
+			con = k
+		}
+	}
+	return kind, con, counted, 2 == len(cj.peg) && nil != kind && nil != con
+}
+
 func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 	if nil == v { //coverage:ignore a bag never holds a nil child
 		// Defensive. Every caller walks a bag's own children, and a bag
@@ -724,6 +755,29 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 				out[k] = val
 			}
 			return out
+		}
+		if kind, con, counted, ok := schemaKindResidue(t); ok {
+			out := schemaFromVal(sc, path, kind).(map[string]any)
+			for k, val := range schemaFromConstraint(sc, path, con, counted) {
+				out[k] = val
+			}
+			return out
+		}
+
+	case *FuncVal:
+		// A rider over a value the meet holds residual has not attached
+		// yet; what it would attach rides the value's schema, as the
+		// engine attaches it.
+		if "meta" == t.name || "deprecate" == t.name {
+			carrier := t.resolve(&Ctx{collect: true}, nil, append([]Val{top()}, t.peg[1:]...))
+			if !carrier.Nil() {
+				out := schemaFromVal(sc, path, t.peg[0])
+				if obj, ok := out.(map[string]any); ok &&
+					(nil != carrier.deprecRec() || nil != carrier.metaRec()) {
+					schemaAnnotate(sc, path, obj, carrier)
+				}
+				return out
+			}
 		}
 
 	case *ExpectVal:
@@ -781,9 +835,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return map[string]any{"type": "string"}
 	}
 
-	sc.lose(path, schemaResidueName(v),
-		"this is not a value yet, so there is nothing to constrain a "+
-			"consumer to; the schema admits anything here")
+	sc.lose(path, schemaResidueName(v), schemaNotYet)
 	return map[string]any{}
 }
 
@@ -812,17 +864,88 @@ func schemaGenerated(v Val) (any, bool) {
 }
 
 // schemaTypeFold: bare kinds fold to a type array; anything more keeps the anyOf.
+// schemaKindScope is the keywords each JSON type's instances answer to;
+// any other instance passes them, so a schema of one type's keywords
+// constrains it alone.
+var schemaNumberScope = []string{"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
+	"multipleOf"}
+var schemaKindScope = map[string][]string{
+	"null": {}, "boolean": {}, "number": schemaNumberScope, "integer": schemaNumberScope,
+	"string": {"minLength", "maxLength", "pattern", "contentEncoding", "contentMediaType",
+		"contentSchema"},
+	"object": {"properties", "required", "additionalProperties", "patternProperties",
+		"propertyNames", "minProperties", "maxProperties", "dependentRequired",
+		"dependentSchemas"},
+	"array": {"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
+		"maxContains", "uniqueItems"},
+}
+
+// schemaScoped: a member's own type may name its type; an allOf entry's may
+// not, as a folded allOf applies to every instance.
+func schemaScoped(m any, t string, top bool) bool {
+	obj, ok := m.(map[string]any)
+	if !ok {
+		return false
+	}
+	for k, v := range obj {
+		switch {
+		case "type" == k:
+			if s, isStr := v.(string); !top || !isStr || s != t {
+				return false
+			}
+		case "allOf" == k:
+			for _, x := range v.([]any) {
+				if !schemaScoped(x, t, false) {
+					return false
+				}
+			}
+		case !inList(schemaKindScope[t], k):
+			return false
+		}
+	}
+	return true
+}
+
+// schemaTypeFold reads the kind split back: members of distinct types, each
+// holding only its own type's keywords, are one schema object, typed unless
+// every type is there. Anything else keeps the anyOf.
 func schemaTypeFold(members []any) map[string]any {
 	types := make([]any, 0, len(members))
+	kinds := map[string]bool{}
+	integral := false
 	for _, m := range members {
-		obj, isObj := m.(map[string]any)
-		t, isType := obj["type"].(string)
-		if !isObj || 1 != len(obj) || !isType {
+		obj, _ := m.(map[string]any)
+		t, isStr := obj["type"].(string)
+		if _, known := schemaKindScope[t]; !isStr || !known || !schemaScoped(m, t, true) {
 			return map[string]any{"anyOf": members}
 		}
+		kind := t
+		if "integer" == t {
+			kind, integral = "number", true
+		}
+		if kinds[kind] {
+			return map[string]any{"anyOf": members}
+		}
+		kinds[kind] = true
 		types = append(types, t)
 	}
-	return map[string]any{"type": types}
+	out := map[string]any{}
+	for _, m := range members {
+		for k, v := range m.(map[string]any) {
+			switch k {
+			case "type":
+			case "allOf":
+				prev, _ := out["allOf"].([]any)
+				out["allOf"] = append(prev, v.([]any)...)
+			default:
+				out[k] = v
+			}
+		}
+	}
+	if 6 != len(kinds) || integral {
+		out["type"] = types
+	}
+	return out
 }
 
 func schemaFromDisjunct(sc *schemaCtx, path []string,
@@ -870,6 +993,351 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 	return out
 }
 
+func schemaSpreadTerms(v Val) []Val {
+	if cj, ok := v.(*ConjunctVal); ok {
+		out := []Val{}
+		for _, t := range cj.peg {
+			out = append(out, schemaSpreadTerms(t)...)
+		}
+		return out
+	}
+	return []Val{v}
+}
+
+// schemaIsolableFuncs are the functions whose meaning does not depend on
+// where they sit, given arguments that do not either.
+var schemaIsolableFuncs = map[string]bool{
+	"above": true, "below": true, "close": true, "contains": true, "deprecate": true,
+	"empty": true, "len": true, "lower": true, "match": true, "max": true, "meta": true,
+	"min": true, "multiple": true, "must": true, "neq": true, "nof": true, "open": true,
+	"pref": true, "re": true, "unique": true, "upper": true, "when": true,
+}
+
+// schemaKeyLevel is the level key() looks up, read as keyFunc reads it;
+// false where its argument is not a level.
+func schemaKeyLevel(f *FuncVal) (int64, bool) {
+	if 0 == len(f.peg) {
+		return 1, true
+	}
+	sv, ok := f.peg[0].(*ScalarVal)
+	switch {
+	case ok && KindInteger == sv.kind:
+		return sv.peg.(int64), true
+	case ok && KindBigInteger == sv.kind && sv.peg.(*big.Int).IsInt64():
+		return sv.peg.(*big.Int).Int64(), true
+	}
+	return 0, false
+}
+
+// schemaIsolable: a template that reaches no key or path outside itself
+// means the same wherever it sits, so it can be read alone. level counts
+// the containers between the template's own node and v.
+func schemaIsolable(v Val, level int64) bool {
+	all := func(vs []Val, at int64) bool {
+		for _, x := range vs {
+			if !schemaIsolable(x, at) {
+				return false
+			}
+		}
+		return true
+	}
+	switch t := v.(type) {
+	case *FuncVal:
+		if "key" == t.name {
+			n, ok := schemaKeyLevel(t)
+			return ok && n < level
+		}
+		return schemaIsolableFuncs[t.name] && all(t.peg, level)
+	case *MapVal:
+		kids := []Val{}
+		for _, k := range t.keys {
+			kids = append(kids, t.peg[k])
+		}
+		if nil != t.spread {
+			kids = append(kids, t.spread)
+		}
+		return all(kids, level+1)
+	case *ListVal:
+		kids := append([]Val{}, t.peg...)
+		if nil != t.spread {
+			kids = append(kids, t.spread)
+		}
+		return all(kids, level+1)
+	case *ConjunctVal:
+		return all(t.peg, level)
+	case *DisjunctVal:
+		return all(t.peg, level)
+	case *PrefVal:
+		return schemaIsolable(t.peg, level)
+	case *ConstraintVal:
+		args := t.settledTrials()
+		if nil != t.pending {
+			args = append(args, t.pending.args...)
+		}
+		for _, m := range t.musts {
+			args = append(args, m.v)
+		}
+		return all(args, level)
+	}
+	return DONE == v.Dc()
+}
+
+// schemaArmOut: a spread holds its templates unevaluated. One that can be
+// read alone is read as the value it is, riders and all; one that cannot
+// keeps its residue, which reports itself.
+func schemaArmOut(sc *schemaCtx, path []string, r Val) any {
+	if DONE == r.Dc() || !schemaIsolable(r, 0) {
+		return schemaFromVal(sc, path, r)
+	}
+	met, err := New().Unify(CanonRiders(r))
+	if nil != err {
+		return false
+	}
+	return schemaFromVal(sc, path, met)
+}
+
+type schemaArmTest struct {
+	name, re     string
+	isName, isRe bool
+}
+
+type schemaGuard struct {
+	arms  [][2]Val
+	def   Val
+	tests []schemaArmTest
+}
+
+// schemaKeyArms reads a spread guarded by its key, match(key(0), test,
+// result, ..., default), as its arms and default; nil for any other spread.
+func schemaKeyArms(v Val) *schemaGuard {
+	f, ok := v.(*FuncVal)
+	if !ok || "match" != f.name {
+		return nil
+	}
+	k, ok := f.peg[0].(*FuncVal)
+	if !ok || "key" != k.name {
+		return nil
+	}
+	if n, ok := schemaKeyLevel(k); !ok || 0 != n {
+		return nil
+	}
+	g := &schemaGuard{}
+	end := len(f.peg)
+	if 0 == len(f.peg)%2 {
+		g.def = f.peg[len(f.peg)-1]
+		end--
+	}
+	for i := 1; i < end; i += 2 {
+		g.arms = append(g.arms, [2]Val{f.peg[i], f.peg[i+1]})
+	}
+	return g
+}
+
+// schemaArmTestOf is an arm's key test: a name, or a pattern's normalised
+// source.
+func schemaArmTestOf(path []string, test Val) schemaArmTest {
+	if sv, ok := test.(*ScalarVal); ok && KindString == sv.kind {
+		return schemaArmTest{name: sv.peg.(string), isName: true}
+	}
+	s, _ := schemaArmOut(&schemaCtx{}, path, test).(map[string]any)
+	if p, ok := s["pattern"].(string); ok && "string" == s["type"] && 2 == len(s) {
+		return schemaArmTest{re: p, isRe: true}
+	}
+	return schemaArmTest{}
+}
+
+// schemaRestOut is what a key the arms leave unmatched may hold: nothing
+// without a default, and no keyword where anything goes.
+func schemaRestOut(sc *schemaCtx, path []string, def Val) (any, bool) {
+	switch {
+	case nil == def || def.Nil():
+		return false, true
+	case isTop(def):
+		return nil, false
+	}
+	return schemaArmOut(sc, path, def), true
+}
+
+// schemaAsNames is a key test as propertyNames: its type: string is
+// dropped, which every key already is.
+func schemaAsNames(s any) any {
+	m, ok := s.(map[string]any)
+	if !ok || "string" != m["type"] {
+		return s
+	}
+	delete(m, "type")
+	return m
+}
+
+// schemaArmsPart is the arms of one guarded spread as one schema object.
+// Where arms repeat a key, the first takes it, as match does.
+func schemaArmsPart(sc *schemaCtx, path []string, g *schemaGuard, def any, hasDef bool) map[string]any {
+	part := map[string]any{}
+	for i, arm := range g.arms {
+		key, name := "properties", g.tests[i].name
+		if !g.tests[i].isName {
+			key, name = "patternProperties", g.tests[i].re
+		}
+		m, _ := part[key].(map[string]any)
+		if nil == m {
+			m = map[string]any{}
+			part[key] = m
+		}
+		if _, taken := m[name]; !taken {
+			m[name] = schemaArmOut(sc, path, arm[1])
+		}
+	}
+	if hasDef {
+		part["additionalProperties"] = def
+	}
+	return part
+}
+
+// schemaSpreadKeywords writes a map's spreads guarded by their key as the
+// keywords they came from (the design's section 6); nil when no term of
+// the spread is one. declared is the map's own properties.
+func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr Val) map[string]any {
+	terms := schemaSpreadTerms(spr)
+	guarded := make([]*schemaGuard, len(terms))
+	anyGuarded := false
+	for i, t := range terms {
+		guarded[i] = schemaKeyArms(t)
+		anyGuarded = anyGuarded || nil != guarded[i]
+	}
+	if !anyGuarded {
+		return nil
+	}
+	at := append(append([]string{}, path...), "&")
+	out := map[string]any{}
+	extra := []any{}
+	patterns := map[string]any{}
+	rest := []*schemaGuard{}
+	for i, t := range terms {
+		g := guarded[i]
+		if nil == g {
+			extra = append(extra, map[string]any{"additionalProperties": schemaArmOut(sc, at, t)})
+			continue
+		}
+		for _, arm := range g.arms {
+			g.tests = append(g.tests, schemaArmTestOf(at, arm[0]))
+		}
+		if 1 == len(g.arms) && g.tests[0].isRe && nil != g.def && isTop(g.def) {
+			s := schemaArmOut(sc, at, g.arms[0][1])
+			if _, taken := patterns[g.tests[0].re]; taken {
+				extra = append(extra, map[string]any{"patternProperties": map[string]any{g.tests[0].re: s}})
+			} else {
+				patterns[g.tests[0].re] = s
+			}
+			continue
+		}
+		if 1 == len(g.arms) && !g.tests[0].isName && !g.tests[0].isRe && isTop(g.arms[0][1]) &&
+			nil != g.def && g.def.Nil() {
+			names := schemaAsNames(schemaArmOut(sc, at, g.arms[0][0]))
+			if _, taken := out["propertyNames"]; taken {
+				extra = append(extra, map[string]any{"propertyNames": names})
+			} else {
+				out["propertyNames"] = names
+			}
+			continue
+		}
+		rest = append(rest, g)
+	}
+	if 0 < len(patterns) {
+		out["patternProperties"] = patterns
+	}
+	own := append([]string{}, declared...)
+	sort.Strings(own)
+	patternKeys := make([]string, 0, len(patterns))
+	for p := range patterns {
+		patternKeys = append(patternKeys, p)
+	}
+	sort.Strings(patternKeys)
+	for _, g := range rest {
+		names, res := []string{}, []string{}
+		anyArm := true
+		for i, t := range g.tests {
+			if t.isName {
+				names = append(names, t.name)
+			} else if t.isRe {
+				res = append(res, t.re)
+			}
+			anyArm = anyArm && isTop(g.arms[i][1])
+		}
+		sort.Strings(names)
+		sort.Strings(res)
+		def, hasDef := schemaRestOut(sc, at, g.def)
+		_, addl := out["additionalProperties"]
+		switch {
+		case len(names)+len(res) < len(g.arms):
+			sc.lose(at, "match",
+				"JSON Schema chooses a member's schema by its name or a pattern, so an "+
+					"arm testing its key any other way has no spelling, and this spread is DROPPED")
+		case anyArm && !addl && slices.Equal(names, own) && slices.Equal(res, patternKeys):
+			if hasDef {
+				out["additionalProperties"] = def
+			}
+		case anyArm || 0 == len(res) || 1 == len(g.arms):
+			extra = append(extra, schemaArmsPart(sc, at, g, def, hasDef))
+		default:
+			sc.lose(at, "match",
+				"arms whose keys can overlap have no JSON Schema spelling, since every "+
+					"matching keyword applies where match takes the first arm, so this "+
+					"spread is DROPPED")
+		}
+	}
+	if 0 < len(extra) {
+		out["allOf"] = extra
+	}
+	return out
+}
+
+// schemaListKeywords writes a list's spreads, each guarded by the index
+// with its arms "0" to "n-1" in order, as prefixItems and items; nil when
+// no term is one.
+func schemaListKeywords(sc *schemaCtx, path []string, spr Val) []any {
+	terms := schemaSpreadTerms(spr)
+	guarded := make([]*schemaGuard, len(terms))
+	anyGuarded := false
+	for i, t := range terms {
+		guarded[i] = schemaKeyArms(t)
+		anyGuarded = anyGuarded || nil != guarded[i]
+	}
+	if !anyGuarded {
+		return nil
+	}
+	at := append(append([]string{}, path...), "&")
+	parts := []any{}
+	for i, t := range terms {
+		g := guarded[i]
+		if nil == g {
+			parts = append(parts, map[string]any{"items": schemaArmOut(sc, at, t)})
+			continue
+		}
+		inOrder := true
+		for j, arm := range g.arms {
+			sv, ok := arm[0].(*ScalarVal)
+			inOrder = inOrder && ok && KindString == sv.kind && itoa(j) == sv.peg
+		}
+		if !inOrder {
+			sc.lose(at, "match",
+				"JSON Schema places a list member by its position from the first, so "+
+					"arms that are not the positions in order have no spelling, and this "+
+					"spread is DROPPED")
+			continue
+		}
+		prefix := make([]any, 0, len(g.arms))
+		for _, arm := range g.arms {
+			prefix = append(prefix, schemaArmOut(sc, at, arm[1]))
+		}
+		part := map[string]any{"prefixItems": prefix}
+		if items, ok := schemaRestOut(sc, at, g.def); ok {
+			part["items"] = items
+		}
+		parts = append(parts, part)
+	}
+	return parts
+}
+
 func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 	props := map[string]any{}
 	required := []string{}
@@ -909,14 +1377,26 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 	}
 
 	var spread any
+	var shaped map[string]any
 	if nil != v.spread {
-		spread = schemaFromVal(sc,
-			append(append([]string{}, path...), "&"), v.spread)
+		declared := make([]string, 0, len(props))
+		for k := range props {
+			declared = append(declared, k)
+		}
+		shaped = schemaSpreadKeywords(sc, path, declared, v.spread)
+	}
+	if nil != v.spread && nil == shaped {
+		spread = schemaArmOut(sc, append(append([]string{}, path...), "&"), v.spread)
 	}
 
-	if v.closed {
+	switch {
+	case v.closed:
 		out["additionalProperties"] = false
-	} else if nil != spread {
+	case nil != shaped:
+		for k, x := range shaped {
+			out[k] = x
+		}
+	case nil != spread:
 		out["additionalProperties"] = spread
 	}
 
@@ -943,10 +1423,21 @@ func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
 	}
 
 	// An open list admits anything after its positions, as the meet does.
+	var shaped []any
 	if nil != v.spread {
-		out["items"] = schemaFromVal(sc,
-			append(append([]string{}, path...), "&"), v.spread)
-	} else if v.closed {
+		shaped = schemaListKeywords(sc, path, v.spread)
+	}
+	switch {
+	case nil != shaped && 0 == len(idx) && 1 == len(shaped):
+		for k, x := range shaped[0].(map[string]any) {
+			out[k] = x
+		}
+	case 0 < len(shaped):
+		out["allOf"] = shaped
+	case nil != shaped:
+	case nil != v.spread:
+		out["items"] = schemaArmOut(sc, append(append([]string{}, path...), "&"), v.spread)
+	case v.closed:
 		out["items"] = false
 	}
 	return out

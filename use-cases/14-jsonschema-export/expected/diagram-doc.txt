@@ -4,4 +4,5 @@ $
     ├── annotations {&:string&len(integer&min(0)&...
     ├── attempts [&:multiple(1)]
     ├── audit "kept-off-the-wire"
+    ├── slugs {&:key(0)}
     └── total nil
