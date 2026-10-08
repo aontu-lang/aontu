@@ -405,6 +405,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		extra = schemaContains(sc, path, out, extra, k, bag)
 	}
 
+	for _, m := range c.musts {
+		extra = append(extra, schemaFromVal(sc, path, m.v))
+	}
+
 	if 1 == len(nots) {
 		out["not"] = nots[0]
 	} else if 1 < len(nots) {
@@ -436,9 +440,8 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 
 	if 0 < len(c.musts) {
 		sc.lose(path, "must",
-			"an evaluate-only check is opaque by construction -- it carries "+
-				"the author's own message and the algebra never reasons about "+
-				"it -- so it is DROPPED and the schema admits values `vet` refuses")
+			"JSON Schema has no keyword for a check's message, so the check "+
+				"crosses as allOf of its trial schema and its message is DROPPED")
 	}
 
 	return out

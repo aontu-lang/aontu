@@ -25,17 +25,18 @@ var hints = map[string]string{
 	"must": "This value fails an evaluate-only check written with must().\n" +
 		"The author's message is: {message}" +
 		"\n \n" +
-		"must(c, msg) is Band B of the constraint algebra: the value must\n" +
-		"unify with c, but the check itself is OPAQUE to the algebra -- it\n" +
-		"never participates in emptiness or subsumption, and it never\n" +
-		"contributes to the value. It is the honest channel for a domain\n" +
-		"rule the algebra cannot reason about, which is why it carries a\n" +
-		"message of its own." +
+		"must(c, msg) is Band B of the constraint algebra: c must admit the\n" +
+		"settled value, their meet adding nothing it lacks, but the check\n" +
+		"itself is OPAQUE to the algebra -- it never participates in\n" +
+		"emptiness or subsumption, and it never contributes to the value.\n" +
+		"It is the honest channel for a domain rule the algebra cannot\n" +
+		"reason about, which is why it carries a message of its own." +
 		"\n \nExamples:\n" +
 		"  must(\"gold\"|\"silver\",\"tier\") & \"gold\" -> \"gold\"  # Admitted;\n" +
 		"  must(\"gold\"|\"silver\",\"tier\") & \"lead\" -> nil    # ... reported\n" +
 		"                                                   #     with \"tier\";\n" +
-		"  min(0) & must(integer,\"whole\") & 3    -> 3      # Bands compose.",
+		"  min(0) & must(integer,\"whole\") & 3    -> 3      # Bands compose;\n" +
+		"  must({a:1},\"has a\") & {}             -> nil    # the meet adds a.",
 
 	"nof": "This value is admitted by {admitted} of the trial schemas of a nof(),\n" +
 		"and the count must be {count}. Branch by branch: {branches}." +

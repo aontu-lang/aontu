@@ -86,6 +86,7 @@ declare class ConstraintVal extends FeatureVal {
     private settle;
     private admit;
     private checkMusts;
+    private mustFails;
     private checkWhens;
     private checkNofs;
     settleContainer(peer: any, ctx: AontuContext): Val;

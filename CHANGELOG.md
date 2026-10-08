@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### `must` asks the admission trial
+
+Both ports, G12 phase 5, ADR-055. **Breaking for a document that relies
+on `must` admitting a value that only unifies with its argument.**
+`must(c, msg)` now holds the settled value to the admission trial of
+`c`, as `nof(1, c)` does: their meet must add nothing the value lacks,
+but an optional member, and generate the value itself. So
+`must({a: 1}, "m") & {}` is refused where it passed, and
+`must({a?: number}, "m") & {}` still passes. A conflict still refuses
+at the meet. The JSON Schema export writes `must`'s trial schema into
+`allOf`, and reports only its message as a loss.
+
 ### Exact count endpoints, code-point key order, and two checks that were missing
 
 Both ports unless noted, G12. From the automated review of the G12

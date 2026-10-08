@@ -2415,7 +2415,7 @@ Example: `multiple(0.01) & 19.99` → `19.99`
 
 ### `must(trial c: any, text msg: string) : constraint`
 
-Apply an evaluation-time condition with an author-supplied failure message. See [must](#band-b-must).
+Hold the settled value to the admission trial of `c`, with an author-supplied failure message. See [must](#band-b-must).
 
 Example: `must(min(1), "must be positive")`
 
@@ -5883,12 +5883,16 @@ contract](trust.md), clause 2).
 ### Band B: `must`
 
 `must(c, msg)` wraps any aontu value as an evaluate-only check: it
-residuates until its peer is concrete, then requires the peer to
-unify with `c`; on failure the author's message is attached to the
-nil (`NilVal.details`). `must` never participates in emptiness or
+residuates until its peer is settled, then holds the peer to the
+admission trial of `c`, as [`nof`](#band-b-nof) holds each branch, so
+`must(c, msg)` asks what `nof(1, c)` asks. Their meet must add nothing
+the peer lacks, but an optional member, and generate the peer itself:
+`must({a: 1}, "m") & {}` is refused, where `must({a?: number}, "m") &
+{}` passes. A conflict still refuses at the meet, since no later member
+can retract it. On failure the author's message is attached to the nil
+(`NilVal.details`). `must` never participates in emptiness or
 subsumption, and any report including one states that the check was
-evaluate-only: the channel for domain rules beyond the
-algebra.
+evaluate-only: the channel for domain rules beyond the algebra.
 
 ### Band B: `nof`
 

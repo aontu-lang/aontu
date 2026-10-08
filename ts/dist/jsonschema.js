@@ -261,6 +261,9 @@ function fromConstraint(ctx, path, c, bag) {
     for (const k of c.contains) {
         containsOut(ctx, path, out, extra, k, bag);
     }
+    for (const m of c.musts) {
+        extra.push(fromVal(ctx, path, m.v));
+    }
     if (1 === nots.length) {
         out.not = nots[0];
     }
@@ -285,9 +288,8 @@ function fromConstraint(ctx, path, c, bag) {
             'schema admits records sharing a `' + key + '`');
     }
     if (0 < c.musts.length) {
-        lose(ctx, path, 'must', 'an evaluate-only check is opaque by construction -- it carries ' +
-            'the author\'s own message and the algebra never reasons about ' +
-            'it -- so it is DROPPED and the schema admits values `vet` refuses');
+        lose(ctx, path, 'must', 'JSON Schema has no keyword for a check\'s message, so the check ' +
+            'crosses as allOf of its trial schema and its message is DROPPED');
     }
     return out;
 }

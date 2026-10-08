@@ -77,12 +77,13 @@ capability decision is the phase rows it governed in
 | [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
 | [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
-| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) |
+| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
 | [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
 | [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
 | [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
+| [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
 
 ---
 
@@ -4830,7 +4831,10 @@ number by its value.
 **Status:** Superseded in part, 2026-10-08, by
 [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided). Decision 2's "every branch is tried, with no
 short-circuit" is reversed: a count now stops when the branches left
-cannot change its verdict.
+cannot change its verdict. Superseded in part, 2026-10-08, by
+[ADR-055](#adr-055--must-asks-the-admission-trial): decision 3's
+`must` no longer asks whether the value can unify, but whether `c`
+admits it.
 
 ### Context
 
@@ -5177,3 +5181,58 @@ trials to the revisit budget would have moved the verdicts that
   from both sides of the default and at a `when` condition past it, by
   the trust-budget tests of both ports, and by every `nof`, `when` and
   `contains` row, whose verdicts did not move.
+
+
+
+## ADR-055 — `must` asks the admission trial
+
+**Date:** 2026-10-08
+**Status:** Accepted
+
+### Context
+
+[ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value)
+made Band B a family of two questions: `must(c, m)` asked whether the
+value can unify with `c`, and `nof` asked how many trial schemas admit
+it. The two differ wherever the meet would add to the value: a member
+the value lacks, written as a literal or filled by a default. So
+`must({a: 1}, "m") & {}` passed, while `nof(1, {a: 1}) & {}` refused,
+and the exporter could not write `must` as JSON Schema's `allOf`,
+which refuses what `must` admitted, and reported it as a loss instead.
+The [G12](docs/capability-review/g12-jsonschema-fidelity.md) review
+(#311) decided that `must` moves to the admission trial under its own
+decision, with a run over every use case and bundled model before it,
+because a document that relies on `must` admitting a value that only
+unifies changes its answer.
+
+### Decision
+
+1. **`must(c, m)` holds the settled value to the admission trial of
+   `c`**: the meet adds nothing the value lacks, but an optional member,
+   and generates the value's own JSON. A scalar is tried at the meet and
+   a container at generation, as `nof` and `when` are, and the verdict
+   is asked once and counted as
+   [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided)
+   says.
+2. **A conflict still refuses at the meet.** Unifying is necessary for
+   admission, and a conflict no later member can retract, so the early
+   refusal stands, and so do the sites it reports.
+3. **`must(c)` and `nof(1, c)` ask one question.** The exporter writes
+   `must`'s trial schema into `allOf`; its message has no JSON Schema
+   keyword and is reported as the loss.
+
+### Consequences
+
+- A document that relied on `must` admitting a value that only unifies
+  is refused: `must({a: 1}, "m") & {}` is `must`, where it passed. A
+  member the trial schema makes optional is still the schema's to
+  supply, so `must({a?: number}, "m") & {}` passes.
+- The run before landing: every row of the shared suite, which holds
+  the bundled models' own rows, every use case, and the three vendored
+  corpora were run with the new `must` in both ports. No answer moved;
+  only the export of `must` changed, as decision 3 says.
+- Decision 3 of ADR-049, that `must` asks whether the value can unify,
+  no longer holds.
+- Pinned by `test/spec/constraint-must.tsv`, the `js-must` row of
+  `test/spec/jsonschema.tsv`, the vet rows over `must` and the
+  `budget-trials-must-past-the-budget` row, in both ports.

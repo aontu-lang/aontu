@@ -74,3 +74,20 @@ must-move-arg-in-disjunct	errc	b:1 a:must(move($.b)|1,"m") a:1	invalid-arg
 # hide() marks the value it wraps rather than reaching out to another
 # node, so it is not effectful in this sense and stays admissible.
 must-hide-arg	gen	b:1 a:must(hide($.b),"m") a:1	{"a":1,"b":1}
+#
+# must asks the admission trial (ADR-055): the meet with c must add
+# nothing the value lacks, but an optional member, and generate the value
+# itself, so must(c, m) asks what nof(1, c) asks, and a filled default is
+# no more admitted than a filled literal. A conflict still refuses with
+# `must`, at the meet.
+must-trial-refuses-a-member-the-meet-adds	errc	a:must({x:1},"m") a:{}	must
+must-trial-reports-its-message-on-an-added-member	err	a:must({x:1},"has x") a:{}	has x
+must-trial-optional-member-passes	gen	a:must({x?:number},"m") a:{}	{"a":{}}
+must-trial-default-is-not-supplied	errc	a:must({x:*1|number},"m") a:{}	must
+must-trial-conflict-still-refuses	errc	a:must({x:1},"m") a:{x:2}	must
+must-and-nof-one-admit-alike	gen	a:must({x:number},"m") a:{x:1} b:nof(1,{x:number}) b:{x:1}	{"a":{"x":1},"b":{"x":1}}
+must-and-nof-one-refuse-alike-must	errc	a:must({x:number},"m") a:{}	must
+must-and-nof-one-refuse-alike-nof	errc	a:nof(1,{x:number}) a:{}	nof
+# A container is tried at generation, and one that does not generate is
+# reported by generation, not by the check.
+must-trial-leaves-a-value-that-does-not-generate	errc	a:must({},"m") a:{x:integer}	mapval_no_gen

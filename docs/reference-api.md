@@ -1402,16 +1402,16 @@ construct's own name, and one sentence saying what the schema says
 instead:
 
 ```
-lossy: $.spec.total must: an evaluate-only check is opaque by
-  construction … so it is DROPPED and the schema admits values `vet`
-  refuses
+lossy: $.spec.items unique(id): JSON Schema has no
+  uniqueness-by-property keyword … so this constraint is DROPPED and
+  the schema admits records sharing a `id`
 ```
 
 The losses, and why each is one:
 
 | Construct | Why JSON Schema cannot say it |
 |---|---|
-| `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
+| `must(c, m)` | the check crosses as `allOf` of its trial schema, but JSON Schema has no keyword for its message, which is dropped |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal` | no JSON Schema type admits one leaf of a number, so the schema says `number` or `integer` and admits the other leaves |
 | `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |

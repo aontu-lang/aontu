@@ -833,6 +833,8 @@ func (c *ConstraintVal) checkMusts(peer Val, ctx *Ctx) Val {
 	return c.checkMustsFinal(peer, ctx, true)
 }
 
+// checkMustsFinal refuses at the meet only on a conflict, which no later
+// member can retract, and holds the settled value to the admission trial.
 func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 	for _, m := range c.musts {
 		trial := &Ctx{}
@@ -844,25 +846,38 @@ func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 		}
 		trial.collect = true
 		got := unite(trial, clonePath(m.v, c.path), clonePath(peer, c.path))
-		if con, bag, ok := sizingResidue(got); ok {
-			if !final {
-				continue
-			}
-			got = con.settleContainer(bag, trial)
+		if _, _, ok := sizingResidue(got); ok && !final {
+			continue
 		}
 		if (nil != got && got.Nil()) || 0 < len(trial.err) {
-			pcanon := ""
-			if nil != peer {
-				pcanon = peer.Canon()
-			}
-			return makeNilErrFull(ctx, "must", c, peer, "", map[string]string{
-				"message":  m.msg.peg.(string),
-				"expected": m.v.Canon(),
-				"actual":   pcanon,
-			})
+			return c.mustFails(ctx, peer, m)
+		}
+	}
+	if 0 == len(c.musts) || !final {
+		return nil
+	}
+	own, settled := ownJSON(peer, ctx, c.path)
+	if !settled {
+		return nil
+	}
+	for _, m := range c.musts {
+		admits, ok := admitsSettled(ctx, m.v, peer, own, c.path)
+		if !ok {
+			return c.overBudget(ctx, peer)
+		}
+		if !admits {
+			return c.mustFails(ctx, peer, m)
 		}
 	}
 	return nil
+}
+
+func (c *ConstraintVal) mustFails(ctx *Ctx, peer Val, m constraintMust) Val {
+	return makeNilErrFull(ctx, "must", c, peer, "", map[string]string{
+		"message":  m.msg.peg.(string),
+		"expected": m.v.Canon(),
+		"actual":   peer.Canon(),
+	})
 }
 
 // admit checks membership: the peer scalar passes every part of the

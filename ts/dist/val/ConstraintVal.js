@@ -665,26 +665,40 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         return this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) ?? peer;
     }
+    // A conflict refuses at the meet, since no later member retracts it;
+    // the settled value is held to the admission trial.
     checkMusts(peer, ctx, final) {
         for (const m of this.musts) {
             const trial = ctx.clone({ err: [], collect: true });
-            let got = (0, unify_1.unite)(trial, m.v.clone(trial), peer.clone(trial), 'must');
-            const residue = (0, BagVal_1.sizingResidue)(got);
-            if (undefined !== residue) {
-                if (true !== final) {
-                    continue;
-                }
-                got = residue.con.settleContainer(residue.bag, trial);
+            const got = (0, unify_1.unite)(trial, m.v.clone(trial), peer.clone(trial), 'must');
+            if (undefined !== (0, BagVal_1.sizingResidue)(got) && true !== final) {
+                continue;
             }
             if (true === got?.isNil || 0 < trial.err.length) {
-                return (0, err_1.makeNilErr)(ctx, 'must', this, peer, undefined, {
-                    message: m.msg.peg,
-                    expected: m.v.canon,
-                    actual: peer.canon,
-                });
+                return this.mustFails(ctx, peer, m);
+            }
+        }
+        const own = 0 === this.musts.length || true !== final ? undefined : (0, admission_1.ownJson)(peer, ctx);
+        if (undefined === own) {
+            return undefined;
+        }
+        for (const m of this.musts) {
+            const admitted = (0, admission_1.admitsSettled)(ctx, m.v, peer, own, this.path);
+            if (undefined === admitted) {
+                return this.overBudget(ctx, peer);
+            }
+            if (!admitted) {
+                return this.mustFails(ctx, peer, m);
             }
         }
         return undefined;
+    }
+    mustFails(ctx, peer, m) {
+        return (0, err_1.makeNilErr)(ctx, 'must', this, peer, undefined, {
+            message: m.msg.peg,
+            expected: m.v.canon,
+            actual: peer.canon,
+        });
     }
     // The branch the condition picks must admit the peer; no else passes.
     checkWhens(peer, ctx) {

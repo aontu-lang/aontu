@@ -867,27 +867,43 @@ class ConstraintVal extends FeatureVal {
   }
 
 
+  // A conflict refuses at the meet, since no later member retracts it;
+  // the settled value is held to the admission trial.
   private checkMusts(
     peer: any, ctx: AontuContext, final?: boolean): Val | undefined {
     for (const m of this.musts) {
       const trial = ctx.clone({ err: [], collect: true })
-      let got: any = unite(trial, m.v.clone(trial), peer.clone(trial), 'must')
-      const residue = sizingResidue(got)
-      if (undefined !== residue) {
-        if (true !== final) {
-          continue
-        }
-        got = residue.con.settleContainer(residue.bag, trial)
+      const got: any = unite(trial, m.v.clone(trial), peer.clone(trial), 'must')
+      if (undefined !== sizingResidue(got) && true !== final) {
+        continue
       }
-      if (true === (got as any)?.isNil || 0 < trial.err.length) {
-        return makeNilErr(ctx, 'must', this, peer, undefined, {
-          message: m.msg.peg,
-          expected: m.v.canon,
-          actual: peer.canon,
-        })
+      if (true === got?.isNil || 0 < trial.err.length) {
+        return this.mustFails(ctx, peer, m)
+      }
+    }
+    const own = 0 === this.musts.length || true !== final ? undefined : ownJson(peer, ctx)
+    if (undefined === own) {
+      return undefined
+    }
+    for (const m of this.musts) {
+      const admitted = admitsSettled(ctx, m.v, peer, own, this.path)
+      if (undefined === admitted) {
+        return this.overBudget(ctx, peer)
+      }
+      if (!admitted) {
+        return this.mustFails(ctx, peer, m)
       }
     }
     return undefined
+  }
+
+
+  private mustFails(ctx: AontuContext, peer: any, m: MustAtom): Val {
+    return makeNilErr(ctx, 'must', this, peer, undefined, {
+      message: m.msg.peg,
+      expected: m.v.canon,
+      actual: peer.canon,
+    })
   }
 
 
