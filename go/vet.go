@@ -361,10 +361,16 @@ func filledFindings(generated any, unified Val, dataSrc string,
 		}
 		return out
 	}
-	ownGen, _ := own.Gen(&Ctx{root: own, src: dataSrc, collect: true})
+	gctx := &Ctx{root: own, src: dataSrc, collect: true}
+	ownGen, _ := own.Gen(gctx)
 	out := []VetFinding{}
 	prefix := anchorSegs(options.At)
-	for _, p := range fillDiff(generated, ownGen, unified, nil, nil) {
+	filled := fillDiff(generated, ownGen, unified, nil, nil)
+	// Data the schema must complete at its root is filled there.
+	if nil == ownGen && 0 < len(gctx.err) {
+		filled = [][]string{{}}
+	}
+	for _, p := range filled {
 		sites := []VetSite{}
 		if s := siteOf(valAt(unified, p), prov, sources); nil != s {
 			sites = append(sites, *s)

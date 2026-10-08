@@ -457,6 +457,10 @@ vet-optional-nil-supplied-refused	vet	a:{k?:nil}	a:{k:1}	{"findings":[{"class":"
 vet-no-fill-refuses-a-filled-member	vet	x: 1\ny?: *2\nz: integer	{"z": 5}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.x","severity":"error","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"opts":{"noFill":true},"truncated":false,"verdict":"incomplete"}
 vet-no-fill-passes-the-data-as-written	vet	x: 1\nz: integer	{"x": 1, "z": 5}	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 vet-no-fill-at-an-anchor	vet	svc: {x: 1, z: integer}	{"z": 5}	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$.svc.x","severity":"error","sites":[{"col":10,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"opts":{"at":"svc","noFill":true},"truncated":false,"verdict":"incomplete"}
+#
+# Data the schema must complete at its root is filled there, as a member
+# the data holds as a non-value is.
+vet-no-fill-refuses-data-the-schema-completes	vet	1	integer	{"findings":[{"class":"incomplete","code":"vet_filled","path":"$","severity":"error","sites":[{"col":1,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"opts":{"noFill":true},"truncated":false,"verdict":"incomplete"}
 vet-without-no-fill-accepts-the-fill	vet	x: 1\nz: integer	{"z": 5}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-exact-numbers-one-integer	vet	a: 1	{"a": 1.0}	{"findings":[],"opts":{"exactNumbers":true},"truncated":false,"verdict":"valid"}
 vet-exact-numbers-keeps-digits	vet	a: 0d0.1	{"a": 0.1}	{"findings":[],"opts":{"exactNumbers":true},"truncated":false,"verdict":"valid"}

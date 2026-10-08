@@ -98,15 +98,23 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **121 `.tsv` files, 119 row-bearing, 6,391 rows**, in thirty modes
+   **121 `.tsv` files, 119 row-bearing, 6,403 rows**, in thirty modes
    — `errc` 1,233, `gens` 1,209, `canon` 1,131, `gen` 629, `err` 349,
-   `jsonschema-import` 261, `fmt` 194, `vet` 194, `errcode` 182,
-   `view` 175, `jsonschema` 166, `subsume` 144, `query` 98, `why` 53,
+   `jsonschema-import` 265, `vet` 195, `fmt` 194, `errcode` 182,
+   `view` 175, `jsonschema` 173, `subsume` 144, `query` 98, `why` 53,
    `hcanon` 46, `patch` 41, `hash` 39, `graph` 38, `views` 37,
    `template` 34, `diff` 28, `fmt-lint` 28, `relation` 25, `reaches`
    19, `trim` 11, `trace` 9, `agentsmd` 7, `fmt-template` 7,
    `fmt-template-lint` 3, `fmt-refuse` 1.
-   (Re-derived 2026-10-08 with the two commands below, when the four
+   (Re-derived 2026-10-08 with the two commands below, when the fixes
+   for the automated review of #314 added twelve rows across three
+   files: seven `jsonschema.tsv` rows for exact count endpoints and
+   code-point key order, four `jsonschema-import.tsv` rows for a count
+   past int64 and subschemas nothing references, and one `vet.tsv` row
+   for data the schema completes at its root; three
+   `jsonschema-import.tsv` rows moved the arrays they point into from
+   `$defs` to `prefixItems`, since `$defs` holds schemas.
+   Re-derived 2026-10-08 with the two commands below, when the four
    defects JSONTestSuite found added twelve rows, five in `budget.tsv`
    for the parse-depth guard, four in `edge.tsv`, two in `ref.tsv` and
    one in `vet.tsv`, and the coverage gates added three: a

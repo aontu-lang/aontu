@@ -154,9 +154,24 @@ function scalarJson(v: any): any {
 }
 
 
-// A count is a whole number of members, read as a plain number.
-function countNumber(v: any): number {
-  return Number(v.peg)
+// The whole number at or above a count's bound (`up`), or at or below
+// it, exactly: a count a double would round keeps its digits.
+function wholeCount(v: any, up: boolean): bigint {
+  const p = v.peg
+  if ('bigint' === typeof p) {
+    return p
+  }
+  if (p instanceof Decimal) {
+    const w = up ? p.ceil() : p.floor()
+    return w.unscaled / 10n ** BigInt(w.scale)
+  }
+  return BigInt(up ? Math.ceil(p) : Math.floor(p))
+}
+
+
+function countJson(n: bigint): any {
+  return BigInt(Number.MIN_SAFE_INTEGER) <= n && n <= BigInt(Number.MAX_SAFE_INTEGER) ?
+    Number(n) : (JSON as any).rawJSON(n.toString())
 }
 
 
@@ -214,13 +229,12 @@ function boundOut(ctx: Ctx, path: string[], out: any, b: any, isLo: boolean) {
 
 
 // The whole number a count keyword takes: `above(2)` is at least 3.
-function countEndpoint(b: any, isLo: boolean): number | undefined {
+function countEndpoint(b: any, isLo: boolean): bigint | undefined {
   if (null == b) {
     return undefined
   }
-  const n = countNumber(b.v)
-  return isLo ? (b.open ? Math.floor(n) + 1 : Math.ceil(n)) :
-    (b.open ? Math.ceil(n) - 1 : Math.floor(n))
+  return isLo ? (b.open ? wholeCount(b.v, false) + 1n : wholeCount(b.v, true)) :
+    (b.open ? wholeCount(b.v, true) - 1n : wholeCount(b.v, false))
 }
 
 
@@ -282,17 +296,17 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     const lo = countEndpoint(c.count.lo, true)
     const hi = countEndpoint(c.count.hi, false)
     // A whole-number count's zero lower bound says nothing.
-    if (null != lo && 0 < lo) {
-      out[lokey] = lo
+    if (null != lo && 0n < lo) {
+      out[lokey] = countJson(lo)
     }
     if (null != hi) {
-      out[hikey] = hi
+      out[hikey] = countJson(hi)
     }
     // An excluded length is exactly `not` both bounds at it.
     for (const n of c.count.neqs) {
-      const k = countNumber(n)
-      if (Number.isInteger(k)) {
-        nots.push({ [lokey]: k, [hikey]: k })
+      const k = wholeCount(n, true)
+      if (k === wholeCount(n, false)) {
+        nots.push({ [lokey]: countJson(k), [hikey]: countJson(k) })
       }
     }
     if (undefined === domain) {
@@ -411,11 +425,11 @@ function containsOut(ctx: Ctx, path: string[], out: any, extra: any[], k: any,
   const part: any = { contains: true === k.c.isNil ? false : fromVal(ctx, path, k.c) }
   const lo = countEndpoint(k.count.lo, true)
   const hi = countEndpoint(k.count.hi, false)
-  if (1 !== lo) {
-    part.minContains = lo
+  if (1n !== lo) {
+    part.minContains = countJson(lo as bigint)
   }
   if (undefined !== hi) {
-    part.maxContains = hi
+    part.maxContains = countJson(hi)
   }
   if (undefined === out.contains) {
     Object.assign(out, part)
@@ -467,7 +481,7 @@ function presentKeys(v: any): string[] | undefined {
   if (true !== v.isMap || null != v.spread?.cj || true === v.closed) {
     return undefined
   }
-  const keys = Object.keys(v.peg).sort()
+  const keys = Object.keys(v.peg).sort(cmpCodePoint)
   return 0 < keys.length && keys.every((k) => true === v.peg[k]?.isTop &&
     !v.optionalKeys.includes(k)) ? keys : undefined
 }
@@ -744,7 +758,7 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
   const optional: string[] = v.optionalKeys
   let spread: any = undefined
 
-  for (const key of Object.keys(v.peg).sort()) {
+  for (const key of Object.keys(v.peg).sort(cmpCodePoint)) {
     const child: any = v.peg[key]
 
     if (v.aliasKeys.includes(key)) {

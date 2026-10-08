@@ -344,9 +344,8 @@ export function failureFinding(
 }
 
 
-// Walk the evaluated schema to the anchor path. `$` and `$.a.b` are
-// both accepted, as is the bare `a.b` a shell is likely to hand over
-// unquoted.
+// Walk the evaluated schema to the anchor path: `$`, `$.a.b`, or the
+// bare `a.b` a shell is likely to hand over unquoted.
 export function anchorAt(root: any, at: string): Val | undefined {
   const trimmed = at.startsWith('$') ? at.slice(1) : at
   const parts = trimmed.split('.').filter((p) => '' !== p)
@@ -791,7 +790,10 @@ export function vet(
     const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
     // Under --at the paths are the anchor's, as every other finding's are.
     const anchorPath: string[] = (ctx as any).path ?? []
-    for (const path of fillDiff(generated, ownGen, unified)) {
+    // Data the schema must complete at its root is filled there.
+    const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
+      fillDiff(generated, ownGen, unified)
+    for (const path of filled) {
       findings.push(fromRegistry({
         code: 'vet_filled',
         class: codeClass('vet_filled'),

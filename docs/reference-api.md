@@ -200,8 +200,9 @@ says so with `truncated`.
 Without it, `vet` asks whether the data can be made to hold, and a
 member the schema supplies, from a default or a literal, fills in
 silently. Under `--no-fill` each such member is a `vet_filled` finding,
-class `incomplete`, at the member's path. An optional member is the
-schema's to supply and is not a finding. This is the question JSON
+class `incomplete`, at the member's path, and so is data the schema must
+complete before it generates, such as `integer` against `1`, at `$`. An
+optional member is the schema's to supply and is not a finding. This is the question JSON
 Schema asks, and the one a schema imported by `aontu jsonschema import`
 is checked with.
 

@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -199,36 +198,48 @@ func schemaBoundOut(sc *schemaCtx, path []string, out map[string]any,
 	out[key] = scalarSchemaJSON(b.v)
 }
 
-// schemaNumber is a count's bound as a plain number.
-func schemaNumber(sv *ScalarVal) float64 {
+// schemaWholeCount is the whole number at or above a count's bound (up),
+// or at or below it, exactly: a count past int64 keeps its digits.
+func schemaWholeCount(sv *ScalarVal, up bool) *big.Int {
 	switch p := sv.peg.(type) {
 	case int64:
-		return float64(p)
+		return big.NewInt(p)
 	case *big.Int:
-		f, _ := new(big.Float).SetInt(p).Float64()
-		return f
+		return p
 	case *Decimal:
-		f, _ := strconv.ParseFloat(p.digits(), 64)
-		return f
+		w := p.ceilFloor(up)
+		return new(big.Int).Quo(w.coeff, pow10(int64(w.scale)))
 	}
-	return sv.peg.(float64)
+	f := math.Floor(sv.peg.(float64))
+	if up {
+		f = math.Ceil(sv.peg.(float64))
+	}
+	n, _ := new(big.Float).SetFloat64(f).Int(nil)
+	return n
+}
+
+func schemaCountJSON(n *big.Int) any {
+	if n.IsInt64() && -(1<<53)+1 <= n.Int64() && n.Int64() <= (1<<53)-1 {
+		return n.Int64()
+	}
+	return json.Number(n.String())
 }
 
 // schemaCountEndpoint: the whole number a count keyword takes; above(2) is at least 3.
-func schemaCountEndpoint(b *constraintBound, isLo bool) (int64, bool) {
+func schemaCountEndpoint(b *constraintBound, isLo bool) (*big.Int, bool) {
 	if nil == b {
-		return 0, false
+		return nil, false
 	}
-	n := schemaNumber(b.v)
+	one := big.NewInt(1)
 	switch {
 	case isLo && b.open:
-		return int64(math.Floor(n)) + 1, true
+		return new(big.Int).Add(schemaWholeCount(b.v, false), one), true
 	case isLo:
-		return int64(math.Ceil(n)), true
+		return schemaWholeCount(b.v, true), true
 	case b.open:
-		return int64(math.Ceil(n)) - 1, true
+		return new(big.Int).Sub(schemaWholeCount(b.v, true), one), true
 	}
-	return int64(math.Floor(n)), true
+	return schemaWholeCount(b.v, false), true
 }
 
 // schemaFromConstraint maps the residual's atoms onto keywords; `bag`
@@ -309,17 +320,17 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 			keys = schemaCountKeys[domain]
 		}
 		// A whole-number count's zero lower bound says nothing.
-		if lo, ok := schemaCountEndpoint(c.count.lo, true); ok && 0 < lo {
-			out[keys[0]] = lo
+		if lo, ok := schemaCountEndpoint(c.count.lo, true); ok && 0 < lo.Sign() {
+			out[keys[0]] = schemaCountJSON(lo)
 		}
 		if hi, ok := schemaCountEndpoint(c.count.hi, false); ok {
-			out[keys[1]] = hi
+			out[keys[1]] = schemaCountJSON(hi)
 		}
 		// An excluded length is exactly not both bounds at it.
 		for _, n := range c.count.neqs {
-			k := schemaNumber(n)
-			if k == math.Trunc(k) {
-				nots = append(nots, map[string]any{keys[0]: int64(k), keys[1]: int64(k)})
+			k := schemaWholeCount(n, true)
+			if 0 == k.Cmp(schemaWholeCount(n, false)) {
+				nots = append(nots, map[string]any{keys[0]: schemaCountJSON(k), keys[1]: schemaCountJSON(k)})
 			}
 		}
 		if "" == domain {
@@ -460,11 +471,11 @@ func schemaContains(sc *schemaCtx, path []string, out map[string]any, extra []an
 	if !k.c.Nil() {
 		part["contains"] = schemaFromVal(sc, path, k.c)
 	}
-	if lo, _ := schemaCountEndpoint(k.count.lo, true); 1 != lo {
-		part["minContains"] = lo
+	if lo, _ := schemaCountEndpoint(k.count.lo, true); 0 != lo.Cmp(big.NewInt(1)) {
+		part["minContains"] = schemaCountJSON(lo)
 	}
 	if hi, ok := schemaCountEndpoint(k.count.hi, false); ok {
-		part["maxContains"] = hi
+		part["maxContains"] = schemaCountJSON(hi)
 	}
 	if _, has := out["contains"]; has {
 		return append(extra, part)

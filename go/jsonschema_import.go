@@ -548,6 +548,10 @@ type importCtx struct {
 	copies  int
 	// defaults is ImportOptions.Defaults.
 	defaults bool
+	// The schema nodes a conversion reached, and every node in the order
+	// the index met it.
+	seen  map[*jnode]bool
+	order []*jnode
 }
 
 // importCopyBudget is the copies a root that is not a map may make.
@@ -640,6 +644,7 @@ func subschemas(node *jnode, ptr string, visit func(*jnode, string)) {
 
 func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode) {
 	ctx.ptrOf[node] = ptr
+	ctx.order = append(ctx.order, node)
 	if "object" != node.t {
 		return
 	}
@@ -1441,6 +1446,7 @@ func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
 // with the disjunction of the kinds, each met with the keywords scoped to
 // it. `only` restricts the kinds a position can hold at all.
 func (ctx *importCtx) convert(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
+	ctx.seen[node] = true
 	switch node.t {
 	case "true":
 		return iAny
@@ -2189,7 +2195,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		anchors: map[*jnode]map[string]*jnode{}, resourceOf: map[*jnode]*jnode{},
 		ptrOf: map[*jnode]string{}, targets: map[*jnode]*importTarget{},
 		mapRoot: true, decls: map[string]string{},
-		defaults: nil != opts && opts.Defaults,
+		defaults: nil != opts && opts.Defaults, seen: map[*jnode]bool{},
 	}
 	errorReport := func(ctx *importCtx) ImportReport {
 		return ImportReport{Verdict: "error", Aontu: "", Lossy: []SchemaLoss{}, Errors: ctx.errors}
@@ -2233,6 +2239,16 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	ctx, body := base.run(true)
 	if nil == coreMap(body) {
 		ctx, body = base.run(false)
+	}
+	// A subschema nothing reaches is still a schema, and one written
+	// wrongly fails the import as a reached one does.
+	for _, node := range base.order {
+		if !ctx.seen[node] {
+			v := *ctx
+			v.lossy, v.decls, v.stack, v.copies = []SchemaLoss{}, map[string]string{}, nil, 0
+			v.convert(node, base.ptrOf[node], false, nil)
+			ctx.errors = v.errors
+		}
 	}
 	if 0 < len(ctx.errors) {
 		return errorReport(ctx)

@@ -397,6 +397,8 @@ type Ctx = {
   stack: JNode[]
   copies: number
   defaults: boolean
+  // The schema nodes a conversion reached.
+  seen: Set<JNode>
 }
 
 // The copies a root that is not a map may make before they are cut.
@@ -1152,6 +1154,7 @@ function lenOf(lo?: string, hi?: string): Expr | undefined {
 // disjunction of the kinds, each met with the keywords scoped to it.
 // `only` restricts the kinds a position can hold at all.
 function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: string[]): Expr {
+  ctx.seen.add(node)
   if ('true' === node.t) {
     return ANY
   }
@@ -1733,7 +1736,7 @@ function coreMap(e: Expr): (Expr & { k: 'map' }) | undefined {
 
 
 function emit(ctx: Ctx, root: Expr): string {
-  const decls = [...ctx.decls.keys()].sort()
+  const decls = [...ctx.decls.keys()].sort(cmpCodePoint)
     .map((name) => '%' + name + ' = ' + ctx.decls.get(name))
   if (!ctx.mapRoot) {
     return print(root, '') + '\n'
@@ -1762,6 +1765,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     defaults: true === options?.defaults,
     lossy: [], errors: [], anchors: new Map(), resourceOf: new Map(), ptrOf: new Map(),
     targets: new Map(), mapRoot: true, decls: new Map(), stack: [], copies: 0,
+    seen: new Set(),
   }
   const error = (ctx: Ctx): ImportReport =>
     ({ verdict: 'error', aontu: '', lossy: [], errors: ctx.errors })
@@ -1800,6 +1804,13 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   let [ctx, body] = run(base, true)
   if (undefined === coreMap(body)) {
     [ctx, body] = run(base, false)
+  }
+  // A subschema nothing reaches is still a schema, and one written
+  // wrongly fails the import as a reached one does.
+  for (const [node, ptr] of base.ptrOf) {
+    if (!ctx.seen.has(node)) {
+      convert({ ...ctx, lossy: [], decls: new Map(), stack: [], copies: 0 }, node, ptr, false)
+    }
   }
   if (0 < ctx.errors.length) {
     return error(ctx)

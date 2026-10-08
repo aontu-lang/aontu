@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### Exact count endpoints, code-point key order, and two checks that were missing
+
+Both ports unless noted, G12. From the automated review of the G12
+branch:
+
+- A count keyword takes the whole number its bound reads exactly, and
+  writes its digits where a double would round them. Go overflowed
+  `int64` and dropped the keyword, and TypeScript rounded through a
+  double, so a count one past 10^30 was written as 10^30.
+- TypeScript writes an object's members, its `required` list and a
+  `dependentRequired` list in code-point order, as Go does. A key past
+  U+FFFF beside one from U+E000 to U+FFFF came out in another order.
+- The importer checks a subschema nothing references, so an invalid
+  `$defs` entry fails the import where it passed unread.
+- `vet --no-fill` reports data the schema must complete at its root,
+  such as `integer` against `1`, as `vet_filled` at `$`.
+
 ### `--exact-numbers` on evaluation
 
 Both ports, G12 phase 3. The bare command takes `--exact-numbers`, as
