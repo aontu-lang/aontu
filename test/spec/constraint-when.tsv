@@ -76,3 +76,11 @@ js-when-two-dependents-on-a-key	jsonschema	a: when({k: any}, {m: any}) & when({k
 js-when-both-dependent-keywords	jsonschema	a: when({k: any}, {m: any}) & when({k: any}, {n: number})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"dependentRequired":{"k":["m"]},"dependentSchemas":{"k":{"properties":{"n":{"type":"number"}},"required":["n"],"type":"object"}}}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-when-a-presence-with-an-else	jsonschema	a: when({k: any}, {n: any}, {m: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"else":{"properties":{"m":{}},"required":["m"],"type":"object"},"if":{"properties":{"k":{}},"required":["k"],"type":"object"},"then":{"properties":{"n":{}},"required":["n"],"type":"object"}}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-when-two-keys-is-a-conditional	jsonschema	a: when({k: any, j: any}, {n: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"if":{"properties":{"j":{},"k":{}},"required":["j","k"],"type":"object"},"then":{"properties":{"n":{}},"required":["n"],"type":"object"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+#
+# The boolean kind beside a residual of Band B atoms, and a number domain
+# no bound implies, as in test/spec/constraint-nof.tsv.
+when-beside-the-boolean-kind	canon	a: boolean & when({k: any}, {n: any})	{"a":boolean&when({"k":any},{"n":any})}
+when-beside-the-boolean-kind-admits	gens	a: boolean & when({k: any}, {n: any}) & false	{"a":false}
+must-beside-the-boolean-kind-refuses	errc	a: boolean & must(true, "m") & false	must
+count-beside-the-boolean-kind-refuses	errc	a: boolean & len(min(1))	constraint
+must-number-domain-is-written	canon	a: number & must(1, "m")	{"a":number&must(1,"m")}

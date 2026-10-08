@@ -114,3 +114,9 @@ canon-of-instance-reparses	canon	{"payments_policy":{"chain":{"approver":"lead@a
 # schema namespace.
 vet-at-recursion-through-list-spread-valid	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":"b"}]}	{"findings":[],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"valid"}
 vet-at-recursion-through-list-spread-refuses	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":42}]}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Comment.replies.0.author","severity":"error","sites":[{"col":36,"file":"data","len":2,"role":"data","row":1,"src":"42","value":"42"},{"col":31,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"invalid"}
+#
+# --- A recursive alias whose body carries a count --------------------
+# One level of expansion is the count's held residue, which is progress
+# for the meet that holds it, and the count decides at generation.
+recursion-count-meets-an-empty-level	errc	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": {}	constraint
+recursion-count-meets-a-filled-level	gens	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": { "v": 1, "next": { "v": 2 } }	{"next":{"next":{"v":2},"v":1}}

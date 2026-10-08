@@ -98,15 +98,19 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **121 `.tsv` files, 119 row-bearing, 6,330 rows**, in thirty
-   modes — `errc` 1,216, `gens` 1,196, `canon` 1,127, `gen` 629,
-   `err` 349, `jsonschema-import` 255, `fmt` 194, `errcode` 181,
-   `vet` 176, `view` 175, `jsonschema` 164, `subsume` 144, `query` 98,
-   `why` 53, `hcanon` 46, `patch` 41, `hash` 39, `graph` 38, `views` 37,
-   `template` 34, `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19,
-   `trim` 11, `trace` 9, `agentsmd` 7, `fmt-template` 7,
+   **121 `.tsv` files, 119 row-bearing, 6,373 rows**, in thirty modes
+   — `errc` 1,223, `gens` 1,205, `canon` 1,131, `gen` 629, `err` 349,
+   `jsonschema-import` 261, `fmt` 194, `vet` 193, `errcode` 181,
+   `view` 175, `jsonschema` 164, `subsume` 144, `query` 98, `why` 53,
+   `hcanon` 46, `patch` 41, `hash` 39, `graph` 38, `views` 37,
+   `template` 34, `diff` 28, `fmt-lint` 28, `relation` 25, `reaches`
+   19, `trim` 11, `trace` 9, `agentsmd` 7, `fmt-template` 7,
    `fmt-template-lint` 3, `fmt-refuse` 1.
-   (Re-derived 2026-10-08 with the two commands below, when `main`,
+   (Re-derived 2026-10-08 with the two commands below, when the fixes
+   for the automated review of #309 added forty-three rows across six
+   files and re-pinned one `subsume` row the number-domain canon
+   moved.
+   Re-derived 2026-10-08 with the two commands below, when `main`,
    carrying the fix for #304 and its one `gen` row, was merged into the
    G12 branch. The branch's own line read 6,309 and was stale by
    twenty: the closed-map fix (ADR-053) added fourteen `close.tsv`
@@ -2830,6 +2834,30 @@ the `$defs`/`$ref` export the recursion design's P2 left open, and
 phases 10 to 18 are the review's. Its decisions widened the pins of
 four landed phases, 1, 3, 5 and 8, which read PARTIAL until the work
 they add lands, and #310 joined phase 1, which had already fixed it.
+
+The automated review of #309 found four defects in the landed phases,
+fixed on 2026-10-08 in both ports with rows from both engines. An object
+root carrying annotations, a deprecation or a count lost its `%root`
+alias and cut its recursion to `any` (phase 3): the declarations now sit
+in the map the root rides or meets, which also fixed a stack overflow
+in both ports on any root meet that declares an alias, and a recursive
+alias with a count that answered `incomplete` at an empty level
+(`alias-root-*` in `test/spec/alias.tsv`, `recursion-count-*` in
+`test/spec/recursion.tsv`, `jsi-ref-root-*` in
+`test/spec/jsonschema-import.tsv`). A Band B atom refused the `boolean`
+kind (phase 5), and the same probe found a residual in the number
+domain canonicalising as one that admits a string, a shared `aon1-`
+hash for two meanings (the `*-boolean-kind*` and `*-number-domain-*`
+rows of `test/spec/constraint-nof.tsv` and
+`test/spec/constraint-when.tsv`). A logic atom beside an untyped
+schema's counted object branch answered `incomplete`, fixed by the same
+progress rule (the `vet-no-fill-untyped-*` rows of
+`test/spec/vet.tsv`), and the TypeScript admission trial generated its
+value before evaluating it, where Go's evaluated first
+(`vet-no-fill-data-holding-*`). Covering that fix found `vet --no-fill`
+answering `valid` for data that does not evaluate on its own, which the
+admission trial refuses, in both ports; the data's own failure is now
+the finding (`vet-no-fill-data-that-needs-the-schema`).
 
 | Phase | Size | Status | Pin |
 |-------|------|--------|-----|

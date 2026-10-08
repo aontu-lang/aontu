@@ -1653,6 +1653,21 @@ declaration would be erased from the output (it *is* a declaration) and
 still unreachable by any reference (it is *not* at the root): a name
 that exists nowhere.
 
+**A root that rides or meets a map is that map's root.** A document
+whose whole value is `meta({…}, {…})`, `deprecate({…})` or
+`{…} & len(min(1))` declares its aliases inside that map, and a
+reference reads through the rider, or into the map term of the meet,
+to find them. A declaration is not a member, so a count beside the map
+does not count it.
+
+```aontu
+meta({ %port = integer & min(1) listen:%port & 8080 }, { title:"server" })
+```
+
+```json
+{ "listen": 8080 }
+```
+
 Where the declaration *lands* is what decides this, not where it was
 written, which is what makes the two include shapes differ:
 

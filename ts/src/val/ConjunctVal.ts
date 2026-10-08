@@ -145,10 +145,12 @@ class ConjunctVal extends JunctionVal {
         newtype = this.mark.type || val.mark.type
         newhide = this.mark.hide || val.mark.hide
 
-        // A conjunct answer is no progress, unless a disjunction was
-        // decided and settled to a conjunct of other terms: the sizing
-        // residue of the one branch that survived is the meet so far.
-        if (val.isConjunct && (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
+        // A conjunct answer is no progress, unless it is a sizing residue
+        // of other terms: a decided disjunction or one level of an
+        // expanded recursion is the meet so far.
+        const moved = undefined !== sizingResidue(val) && !sameTerms(val, t0, t1)
+        if (val.isConjunct && !moved &&
+          (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
           outvals.push(t0)
           t0 = t1
         }

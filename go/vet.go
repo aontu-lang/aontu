@@ -351,10 +351,15 @@ func filledFindings(generated any, unified Val, dataSrc string,
 	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt)
 	ownA.ExactNumbers = options.ExactNumbers
 	parsed, _ := ownA.Parse(dataSrc)
+	stampURL(parsed, prov.dataURL)
 	ownCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
 	own := unifyRoot(parsed, ownCtx)
 	if 0 < len(ownCtx.err) {
-		return nil
+		out := []VetFinding{}
+		for _, e := range ownCtx.err {
+			out = append(out, findingOf(e, prov, sources))
+		}
+		return out
 	}
 	ownGen, _ := own.Gen(&Ctx{root: own, src: dataSrc, collect: true})
 	out := []VetFinding{}

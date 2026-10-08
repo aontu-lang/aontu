@@ -860,9 +860,12 @@ anchors and `$defs` keys admit characters alias names do not.
 does: [#302](https://github.com/aontu-lang/aontu/issues/302) settled the
 bare `$` without making it one. The importer hoists the root body into
 an alias, `%root`, which is exact for validation. Like every alias it
-needs a map to be declared in, so a root that is not an object schema
-copies each referenced schema in place instead, and a reference that
-reaches itself through such a root is cut and reported
+needs a map to be declared in. An object root that also carries
+annotations, a deprecation or a count rides or meets its map, and the
+declarations sit in that map, where an alias reference reads through
+the rider or into the meet to find them. A root that is not an object
+schema copies each referenced schema in place instead, and a reference
+that reaches itself through such a root is cut and reported
 ([open question 8](#open-questions)).
 
 **Identity lives on the declaration, not on the value.** The alias
@@ -1435,7 +1438,10 @@ answer lives.
    and `format` adds only the committed names. Adopting them changes
    the answer for documents that parse today, so it is a decision of
    its own.
-8. **Where does an alias live when the root is not a map?** An alias
+8. **Where does an alias live when the root is not a map?** An object
+   root that rides or meets its map declares its aliases in that map
+   (section 10), so this question is about a root that is not an
+   object schema at all. An alias
    is declared in a map, so an import whose root schema is not an
    object schema copies each referenced schema in place, and a
    reference that reaches itself through that root is cut, with a

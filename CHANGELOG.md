@@ -8,6 +8,60 @@ each change affects.
 
 ## Unreleased
 
+### A root that rides or meets a map keeps its aliases
+
+Both ports. A document whose whole value is `meta({…}, {…})`,
+`deprecate({…})` or a map met with a count or a logic atom declares its
+aliases inside that map, and an alias reference reads through the
+rider, or into the map term of the meet, to find them; the recursion
+residual's walk reads the same way. `aontu jsonschema import` relies on
+it: an object root with `"$ref": "#"` keeps its `%root` alias when it
+also carries a `title`, `deprecated` or `minProperties`, where the
+reference was cut to `any` and the import reported a loss. A
+declaration is not a member, so a count beside the map no longer counts
+the declaration's slot.
+
+A root meet whose map declares an alias, such as
+`{ %a = number, x?: %a } & len(min(1))`, overflowed the stack in both
+ports; it now evaluates. A count that never settled is read as it stands
+at generation instead of holding forever, one level of a recursion
+expanded into the count's held residue is progress for the meet that
+holds it, and a required member that fails is a member, so the count
+leaves the finding to it: `%r = { next?: %r } & len(min(1))` refuses
+`next: {}` at `$.next`, where it answered `incomplete`.
+
+### The boolean kind meets `nof`, `when` and `must`
+
+Both ports. A residual that holds only Band B atoms stays beside the
+`boolean` kind, `boolean & nof(0, integer)`, where the meet was refused.
+JSON Schema's `{"type": "boolean", "not": {...}}` and
+`dependentRequired` beside `type: "boolean"` imported as `nil`, which
+refused both booleans; they now import as the atom beside `boolean`.
+
+### A number-domain residual writes `number` in canon
+
+Both ports. `number & must(1, "m")` canonicalised as `must(1,"m")`, the
+canon of a residual that admits a string, so two documents with
+different meanings shared a canon and an `aon1-` hash. A residual in the
+number domain that no bound, exclusion or divisor implies now writes
+`number`, as a string-domain one writes `string`, and the canon and hash
+of such a document move once.
+
+### TypeScript `admits` settles the value it is asked about
+
+TypeScript. `admits(aontu, trial, value)` generated the value before
+evaluating it, so a value holding a reference or a call (`a: 1, b: $.a`)
+was refused where its evaluated data is admitted; it is evaluated first,
+as Go's `Admits` already did.
+
+### `vet --no-fill` refuses data that does not stand on its own
+
+Both ports. `--no-fill` compares the data's own value with what the
+schema generates, and data that does not evaluate alone, such as
+`a: $.b` against a schema that supplies `b`, has no value of its own:
+it was answered `valid`, and now the failure that stops it is the
+finding, sited in the data.
+
 ### A closed map drops an optional key it does not declare
 
 Both ports. A closed map met with an optional key it does not declare

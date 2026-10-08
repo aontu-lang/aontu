@@ -288,6 +288,7 @@ type ixpr struct {
 	spread  *ixpr
 	entries []ientry
 	spreads []*ixpr
+	decls   []string
 }
 
 type ientry struct {
@@ -432,7 +433,7 @@ func iwrite(b *strings.Builder, e *ixpr, indent string) {
 		iwrite(b, e.spread, indent)
 		b.WriteString("]")
 	case "map":
-		if 0 == len(e.entries) && 0 == len(e.spreads) {
+		if 0 == len(e.entries) && 0 == len(e.spreads) && 0 == len(e.decls) {
 			b.WriteString("{}")
 			return
 		}
@@ -446,6 +447,9 @@ func iwrite(b *strings.Builder, e *ixpr, indent string) {
 
 // iwriteLines writes a map's members, each on a line of its own.
 func iwriteLines(b *strings.Builder, e *ixpr, in string) {
+	for _, d := range e.decls {
+		b.WriteString(in + d + "\n")
+	}
 	for _, en := range e.entries {
 		opt := ""
 		if en.optional {
@@ -2110,13 +2114,39 @@ func (ctx *importCtx) arraySpread(node *jnode, ptr string) *ixpr {
 	return rest
 }
 
+// coreMap is the map at the heart of a root that only rides or meets
+// it: its declarations go there, which is where an alias reference looks.
+func coreMap(e *ixpr) *ixpr {
+	switch {
+	case "map" == e.k:
+		return e
+	case isRider(e):
+		return coreMap(e.items[0])
+	case "and" == e.k:
+		for _, it := range e.items {
+			if m := coreMap(it); nil != m {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
 func (ctx *importCtx) emit(root *ixpr) string {
 	names := make([]string, 0, len(ctx.decls))
 	for name := range ctx.decls {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if !ctx.mapRoot || "map" != root.k {
+	if !ctx.mapRoot {
+		return iprint(root, "") + "\n"
+	}
+	if "map" != root.k {
+		core := coreMap(root)
+		core.decls = nil
+		for _, name := range names {
+			core.decls = append(core.decls, "%"+name+" = "+ctx.decls[name])
+		}
 		return iprint(root, "") + "\n"
 	}
 	var b strings.Builder
@@ -2191,10 +2221,11 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		return errorReport(base)
 	}
 
-	// A map root declares its aliases at the top. An alias lives on a map
-	// root, so any other root copies each reference in place.
+	// A map root declares its aliases at the top, and a root that rides or
+	// meets a map declares them in that map. An alias lives on a map root,
+	// so any other root copies each reference in place.
 	ctx, body := base.run(true)
-	if "map" != body.k {
+	if nil == coreMap(body) {
 		ctx, body = base.run(false)
 	}
 	if 0 < len(ctx.errors) {

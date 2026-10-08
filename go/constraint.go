@@ -986,7 +986,9 @@ func (c *ConstraintVal) admitContainerFinal(
 	// Not yet settled: the container, or an optional child, may still
 	// resolve, so the member set is not final. Defer rather than decide
 	// — the same discipline OpBaseVal follows for a non-concrete operand.
-	if !containerSettled(bag) {
+	// At generation nothing more arrives, and what never settled is
+	// read as it stands.
+	if !containerSettled(bag) && !final {
 		c.dc = 0
 		return newConjunct([]Val{c, peer})
 	}
@@ -1143,6 +1145,13 @@ func (c *ConstraintVal) meetKind(peer *ScalarKindVal, ctx *Ctx) Val {
 		merged.nonEmpty = nonEmpty
 		merged.emptyOk = emptyOk
 		return c.finish(merged, ctx, peer)
+	case KindBoolean:
+		// A Band B atom asserts nothing about a kind it does not test, so
+		// the boolean kind stays beside a residual that holds only those.
+		if "" == c.domain && nil == c.count && !c.uniq &&
+			0 == len(c.uniqBy)+len(c.contains) {
+			return newConjunct([]Val{c, peer})
+		}
 	case KindInteger, KindFloat, KindBigInteger, KindBigDecimal:
 		if "string" == c.domain {
 			return c.fail(ctx, peer)
@@ -1329,6 +1338,9 @@ func (c *ConstraintVal) Canon() string {
 	} else if "string" == c.domain && (c.nonEmpty ||
 		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) && !c.emptyOk)) {
 		parts = append(parts, "string")
+	} else if "number" == c.domain && nil == c.lo && nil == c.hi &&
+		0 == len(c.neqs)+len(c.mults) {
+		parts = append(parts, "number")
 	}
 	if nil != c.lo {
 		a := "min("
@@ -1999,8 +2011,9 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 	keys := bagKeys(bag)
 	out := []Val{}
 
+	m, _ := bag.(*MapVal)
 	for i, child := range children {
-		if child.markedType() || child.markedHide() {
+		if child.markedType() || child.markedHide() || (nil != m && m.isAliasKey(keys[i])) {
 			continue
 		}
 
@@ -2032,6 +2045,12 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 		gctx.collect = true
 
 		cv, err := child.Gen(gctx)
+		// A required member that fails is a member: its own failure is
+		// the finding, so the count does not decide on the members that
+		// remain.
+		if nil == cv && !opt && (nil != err || 0 < len(gctx.err)) {
+			return nil
+		}
 		if nil != err || nil == cv {
 			// A child that generates nothing contributes nothing --
 			// except a JSON null, which is a member like any other.

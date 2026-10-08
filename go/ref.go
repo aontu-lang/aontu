@@ -36,9 +36,46 @@ const (
 	walkDefer
 )
 
+// throughRider reads through a value-transparent rider still being resolved,
+// as the walk reads through a pending mark. Mirrors throughRider in
+// ts/src/val/RecurseVal.ts.
+func throughRider(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || DONE == fv.dc || ("meta" != fv.name && "deprecate" != fv.name) ||
+			0 == len(fv.peg) || nil == fv.peg[0] {
+			return v
+		}
+		v = fv.peg[0]
+	}
+}
+
+// declaration finds the value an alias names in the map term of a meet
+// that is still folding. A declaration is not a field, so no other term
+// contributes to it. Mirrors declaration in ts/src/val/RecurseVal.ts.
+func declaration(cj *ConjunctVal, key string) Val {
+	for _, t := range cj.peg {
+		switch term := throughRider(t).(type) {
+		case *ConjunctVal:
+			if decl := declaration(term, key); nil != decl {
+				return decl
+			}
+		case *MapVal:
+			for _, ak := range term.aliasKeys {
+				if ak == key {
+					return term.peg[key]
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 	var node Val = root
+	_, isAlias := rv.aliasKey()
 	for _, part := range refpath {
+		node = throughRider(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
 			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 			switch inner := fv.peg[0].(type) {
@@ -47,6 +84,15 @@ func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 			case *ListVal:
 				node = inner
 			}
+		}
+
+		if cj, ok := node.(*ConjunctVal); ok && isAlias && !pendingMarkWrapper(cj) {
+			decl := declaration(cj, part)
+			if nil == decl {
+				return nil, walkDefer
+			}
+			node = decl
+			continue
 		}
 
 		if cj, ok := node.(*ConjunctVal); ok && pendingMarkWrapper(cj) {
@@ -252,6 +298,7 @@ func listIndex(part string) (int, bool) {
 }
 
 func markedChild(v Val, part string) Val {
+	v = throughRider(v)
 	if fv, ok := v.(*FuncVal); ok && DONE != fv.dc &&
 		("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 		v = fv.peg[0]

@@ -21,7 +21,9 @@ function admits(aontu, trial, value) {
         return false;
     }
     const out = generated(aontu, met);
-    const own = generated(aontu, value.clone(aontu.ctx({ collect: true })));
+    const ownCtx = aontu.ctx({ collect: true });
+    const settled = aontu.unify(value.clone(ownCtx), undefined, ownCtx);
+    const own = 0 === ownCtx.err.length ? generated(aontu, settled) : undefined;
     return undefined !== out && undefined !== own && (0, admission_1.admitsJson)(met, out, own);
 }
 //# sourceMappingURL=admit.js.map

@@ -581,9 +581,16 @@ function vet(schemaSrc, dataSrc, opts) {
     }
     if (true === options.noFill && undefined !== generated) {
         const ownCtx = aontu.ctx({ collect: true });
-        const own = aontu.unify(dataSrc, dataOpts, ownCtx);
+        const ownVal = aontu.parse(dataSrc, dataOpts, ownCtx);
+        stampUrl(ownVal, dataUrl);
+        const own = aontu.unify(ownVal, undefined, ownCtx);
         const genOwn = aontu.ctx({ collect: true });
         genOwn.root = own;
+        // Data that does not stand on its own: what stops it is the finding.
+        for (const err of ownCtx.err) {
+            materialise(err, ownCtx);
+            findings.push(findingOf(err, prov));
+        }
         const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined;
         // Under --at the paths are the anchor's, as every other finding's are.
         const anchorPath = ctx.path ?? [];

@@ -44,10 +44,15 @@ func (r *RecurseVal) body(ctx *Ctx) Val {
 func walkTarget(root Val, target []string) Val {
 	node := root
 	for _, seg := range target {
-		switch n := node.(type) {
+		switch n := throughRider(node).(type) {
 		case *MapVal:
 			node = n.peg[seg]
+		case *ConjunctVal:
+			node = declaration(n, seg)
 		default:
+			return nil
+		}
+		if nil == node {
 			return nil
 		}
 	}

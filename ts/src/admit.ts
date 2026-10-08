@@ -32,6 +32,8 @@ export function admits(aontu: Aontu, trial: Val, value: Val): boolean {
     return false
   }
   const out = generated(aontu, met)
-  const own = generated(aontu, value.clone(aontu.ctx({ collect: true })))
+  const ownCtx: any = aontu.ctx({ collect: true })
+  const settled: any = aontu.unify(value.clone(ownCtx), undefined, ownCtx)
+  const own = 0 === ownCtx.err.length ? generated(aontu, settled) : undefined
   return undefined !== out && undefined !== own && admitsJson(met, out, own)
 }

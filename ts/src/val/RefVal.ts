@@ -21,7 +21,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { RecurseVal, containsRecurseOf } from './RecurseVal'
+import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
 import { sealTree, unsealTree } from './SealVal'
 import { unite } from '../unify'
 
@@ -79,6 +79,7 @@ function pendingMarkWrapper(v: any): boolean {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v: any, part: any): Val | undefined {
+  v = throughRider(v)
   if (true === v?.isMap || true === v?.isList) {
     return v.peg[part]
   }
@@ -368,6 +369,7 @@ class RefVal extends FeatureVal {
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
+          node = throughRider(node)
 
           if (node.isMap) {
             node = node.peg[part]
@@ -382,6 +384,14 @@ class RefVal extends FeatureVal {
             node = (node as any).peg[0].peg[part]
           }
 
+          else if (true === (node as any).isConjunct && undefined !== this.aliasKey
+            && Array.isArray((node as any).peg) && !pendingMarkWrapper(node)) {
+            const decl = declaration(node, part)
+            if (undefined === decl) {
+              break
+            }
+            node = decl
+          }
           else if (true === (node as any).isConjunct
             && Array.isArray((node as any).peg)
             && pendingMarkWrapper(node)) {
@@ -424,8 +434,12 @@ class RefVal extends FeatureVal {
         let fnode: any = fixroot
         for (; pI < refpath.length; pI++) {
           const part = refpath[pI]
+          fnode = throughRider(fnode)
           if (true === fnode.isMap || true === fnode.isList) {
             fnode = fnode.peg[part]
+          }
+          else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
+            fnode = declaration(fnode, part)
           }
           else {
             break

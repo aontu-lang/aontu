@@ -118,10 +118,13 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		_, t0dj := t0.(*DisjunctVal)
 		_, t1dj := t1.(*DisjunctVal)
-		if cj, ok := val.(*ConjunctVal); ok && (!t0dj && !t1dj || sameTerms(cj, t0, t1)) {
-			// A conjunct answer is no progress, unless a disjunction was
-			// decided and settled to a conjunct of other terms: the sizing
-			// residue of the one branch that survived is the meet so far.
+		_, _, residue := sizingResidue(val)
+		cj, ok := val.(*ConjunctVal)
+		moved := residue && !sameTerms(cj, t0, t1)
+		if ok && !moved && (!t0dj && !t1dj || sameTerms(cj, t0, t1)) {
+			// A conjunct answer is no progress, unless it is a sizing
+			// residue of other terms: a decided disjunction or one level
+			// of an expanded recursion is the meet so far.
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {

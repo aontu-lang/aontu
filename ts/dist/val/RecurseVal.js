@@ -2,6 +2,8 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecurseVal = void 0;
+exports.throughRider = throughRider;
+exports.declaration = declaration;
 exports.bumpRecurse = bumpRecurse;
 exports.containsRecurseOf = containsRecurseOf;
 const type_1 = require("../type");
@@ -100,9 +102,33 @@ exports.RecurseVal = RecurseVal;
 function walkTarget(root, target) {
     let node = root;
     for (const seg of target) {
-        node = node?.peg?.[seg];
+        node = throughRider(node);
+        node = true === node?.isConjunct ? declaration(node, seg) : node?.peg?.[seg];
     }
     return null != node && true === node.isVal ? node : undefined;
+}
+// A value-transparent rider still being resolved stands for its value:
+// the walk reads through it as it reads through a pending mark.
+function throughRider(v) {
+    while (true === v?.isFunc && (true === v.isMetaFunc || true === v.isDeprecateFunc)
+        && !v.done && null != v.peg?.[0]) {
+        v = v.peg[0];
+    }
+    return v;
+}
+// The declaration an alias names, held by the map term of a meet that
+// is still folding. A declaration is not a field, so no other term
+// contributes to it and the map term's slot is the whole of it.
+function declaration(cj, key) {
+    for (const t of cj.peg) {
+        const term = throughRider(t);
+        const decl = true === term?.isConjunct ? declaration(term, key) :
+            true === term?.isMap && term.aliasKeys.includes(key) ? term.peg[key] : undefined;
+        if (undefined !== decl) {
+            return decl;
+        }
+    }
+    return undefined;
 }
 // bumpRecurse stamps the expansion depth onto every residual inside a
 // freshly cloned level, so descent is charged along the chain.

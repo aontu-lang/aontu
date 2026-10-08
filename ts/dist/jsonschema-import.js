@@ -263,7 +263,7 @@ function print(e, indent) {
                 '[' + e.items.map((it) => print(it, indent)).join(', ') + ']' :
                 '[&: ' + print(e.spread, indent) + ']';
         case 'map':
-            if (0 === e.entries.length && 0 === e.spreads.length) {
+            if (0 === e.entries.length && 0 === e.spreads.length && null == e.decls) {
                 return '{}';
             }
             return '{\n' + mapLines(e, indent + '  ').map((l) => indent + '  ' + l + '\n').join('') +
@@ -271,7 +271,7 @@ function print(e, indent) {
     }
 }
 function mapLines(e, indent) {
-    const lines = [];
+    const lines = [...(e.decls ?? [])];
     for (const en of e.entries) {
         lines.push(quote(en.key) + (en.optional ? '?' : '') + ': ' + print(en.val, indent));
     }
@@ -1446,10 +1446,21 @@ function arraySpread(ctx, node, ptr) {
     }
     return isRaw(rest, 'any') ? undefined : rest;
 }
+// The map at the heart of a root that only rides or meets it: its
+// declarations go there, which is where an alias reference looks.
+function coreMap(e) {
+    return 'map' === e.k ? e : rider(e) ? coreMap(ridden(e)) :
+        'and' === e.k ? e.items.map(coreMap).find((m) => undefined !== m) : undefined;
+}
 function emit(ctx, root) {
     const decls = [...ctx.decls.keys()].sort()
         .map((name) => '%' + name + ' = ' + ctx.decls.get(name));
-    if (!ctx.mapRoot || 'map' !== root.k) {
+    if (!ctx.mapRoot) {
+        return print(root, '') + '\n';
+    }
+    if ('map' !== root.k) {
+        const core = coreMap(root);
+        core.decls = 0 === decls.length ? undefined : decls;
         return print(root, '') + '\n';
     }
     return (0 === decls.length ? '' : decls.join('\n') + '\n\n') +
@@ -1493,10 +1504,11 @@ function importJsonSchema(text, options) {
     if (0 < base.errors.length) {
         return error(base);
     }
-    // A map root declares its aliases at the top. An alias lives on a map
-    // root, so any other root copies each reference in place.
+    // A map root declares its aliases at the top, and a root that rides or
+    // meets a map declares them in that map. An alias lives on a map root,
+    // so any other root copies each reference in place.
     let [ctx, body] = run(base, true);
-    if ('map' !== body.k) {
+    if (undefined === coreMap(body)) {
         [ctx, body] = run(base, false);
     }
     if (0 < ctx.errors.length) {

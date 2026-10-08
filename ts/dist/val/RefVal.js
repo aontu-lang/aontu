@@ -50,6 +50,7 @@ function pendingMarkWrapper(v) {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v, part) {
+    v = (0, RecurseVal_1.throughRider)(v);
     if (true === v?.isMap || true === v?.isList) {
         return v.peg[part];
     }
@@ -283,6 +284,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             if (!offtop && null != node) {
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
+                    node = (0, RecurseVal_1.throughRider)(node);
                     if (node.isMap) {
                         node = node.peg[part];
                     }
@@ -294,6 +296,14 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         && (true === node.peg?.[0]?.isMap
                             || true === node.peg?.[0]?.isList)) {
                         node = node.peg[0].peg[part];
+                    }
+                    else if (true === node.isConjunct && undefined !== this.aliasKey
+                        && Array.isArray(node.peg) && !pendingMarkWrapper(node)) {
+                        const decl = (0, RecurseVal_1.declaration)(node, part);
+                        if (undefined === decl) {
+                            break;
+                        }
+                        node = decl;
                     }
                     else if (true === node.isConjunct
                         && Array.isArray(node.peg)
@@ -334,8 +344,12 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 let fnode = fixroot;
                 for (; pI < refpath.length; pI++) {
                     const part = refpath[pI];
+                    fnode = (0, RecurseVal_1.throughRider)(fnode);
                     if (true === fnode.isMap || true === fnode.isList) {
                         fnode = fnode.peg[part];
+                    }
+                    else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
+                        fnode = (0, RecurseVal_1.declaration)(fnode, part);
                     }
                     else {
                         break;

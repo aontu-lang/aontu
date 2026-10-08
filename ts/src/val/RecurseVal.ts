@@ -133,9 +133,37 @@ class RecurseVal extends FeatureVal {
 function walkTarget(root: any, target: string[]): Val | undefined {
   let node: any = root
   for (const seg of target) {
-    node = node?.peg?.[seg]
+    node = throughRider(node)
+    node = true === node?.isConjunct ? declaration(node, seg) : node?.peg?.[seg]
   }
   return null != node && true === node.isVal ? node : undefined
+}
+
+
+// A value-transparent rider still being resolved stands for its value:
+// the walk reads through it as it reads through a pending mark.
+export function throughRider(v: any): any {
+  while (true === v?.isFunc && (true === v.isMetaFunc || true === v.isDeprecateFunc)
+    && !v.done && null != v.peg?.[0]) {
+    v = v.peg[0]
+  }
+  return v
+}
+
+
+// The declaration an alias names, held by the map term of a meet that
+// is still folding. A declaration is not a field, so no other term
+// contributes to it and the map term's slot is the whole of it.
+export function declaration(cj: any, key: string): Val | undefined {
+  for (const t of cj.peg) {
+    const term = throughRider(t)
+    const decl = true === term?.isConjunct ? declaration(term, key) :
+      true === term?.isMap && term.aliasKeys.includes(key) ? term.peg[key] : undefined
+    if (undefined !== decl) {
+      return decl
+    }
+  }
+  return undefined
 }
 
 

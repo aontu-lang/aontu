@@ -85,3 +85,14 @@ nof-a-closed-literal-branch-refuses-a-held-key	vet	a: nof(min(1), close({ b:1 })
 # A met container keeps its source site in both ports: the finding
 # frames a map at its brace and a list at its bracket.
 nof-a-met-list-is-sited-at-its-bracket	vet	a: nof(min(1), [1]) & [&: number]	{"a": [2]}	{"findings":[{"actual":"[&:number,2]","class":"conflict","code":"nof","expected":"nof(min(1),[1])","path":"$.a","severity":"error","sites":[{"col":23,"file":"schema","len":1,"role":"schema","row":1,"src":"[","value":"[&:number,2]"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nof(min(1),[1])"}]}],"truncated":false,"verdict":"invalid"}
+#
+# A Band B atom asserts nothing about a kind it does not test, so the
+# boolean kind stays beside a residual of them. A residual in the number
+# domain that no bound implies writes `number`, or its canon would be one
+# with the residual that admits a string.
+nof-beside-the-boolean-kind	canon	a: boolean & nof(0, integer)	{"a":boolean&nof(0,integer)}
+nof-beside-the-boolean-kind-admits	gens	a: boolean & nof(0, integer) & true	{"a":true}
+nof-beside-the-boolean-kind-refuses	errc	a: boolean & nof(0, true) & true	nof
+nof-number-domain-is-written	canon	a: number & nof(0, 5)	{"a":number&nof(0,5)}
+nof-number-domain-is-kept-on-reread	errc	a: number & nof(0, 5) & "x"	no_scalar_unify
+nof-without-a-domain-reads-any-scalar	gens	a: nof(0, 5) & "x"	{"a":"x"}

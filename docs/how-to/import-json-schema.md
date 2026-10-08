@@ -200,9 +200,10 @@ port?: *8080|meta(number & multiple(1), {
   and `maxContains` as its count, and `uniqueItems` as `unique()`, which
   compares numbers by value under `vet --exact-numbers`.
 - A reference is an alias only where the schema's root is an object
-  schema with `type: "object"`. Any other root copies each referenced
-  schema in place, and a reference that reaches itself through such a
-  root is cut, with a loss.
+  schema with `type: "object"`, whatever annotations, deprecation or
+  counts it carries beside its properties. Any other root copies each
+  referenced schema in place, and a reference that reaches itself
+  through such a root is cut, with a loss.
 
 The constructs the import writes are in the
 [language reference](../reference-language.md); the verb and its

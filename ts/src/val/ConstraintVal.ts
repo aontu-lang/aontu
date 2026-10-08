@@ -951,7 +951,9 @@ class ConstraintVal extends FeatureVal {
     // Not yet settled: the container, or an optional child, may still
     // resolve, so the member set is not final. Defer rather than decide
     // — the same discipline OpBaseVal follows for a non-concrete operand.
-    if (!containerSettled(peer)) {
+    // At generation nothing more arrives, and what never settled is
+    // read as it stands.
+    if (!containerSettled(peer) && true !== final) {
       this.dc = 0
       return new ConjunctVal({ peg: [this, peer] }, ctx)
     }
@@ -1100,6 +1102,13 @@ class ConstraintVal extends FeatureVal {
       merged.nonEmpty = nonEmpty || undefined
       merged.emptyOk = emptyOk || undefined
       return this.finish(merged, ctx, peer)
+    }
+
+    // A Band B atom asserts nothing about a kind it does not test, so
+    // the boolean kind stays beside a residual that holds only those.
+    if (Boolean === marker && null == this.domain && null == this.count &&
+      !this.uniq && 0 === this.uniqBy.length + this.contains.length) {
+      return new ConjunctVal({ peg: [this, peer] }, ctx)
     }
 
     const isLeaf = Integer === marker || Float === marker ||
@@ -1482,6 +1491,10 @@ function canonState(s: ConstraintState): string {
     (null == s.lo && null == s.hi && 0 === s.neqs.length &&
       0 === s.res.length && true !== s.emptyOk))) {
     parts.push('string')
+  }
+  else if ('number' === s.domain && null == s.lo && null == s.hi &&
+    0 === s.neqs.length + multsOf(s).length) {
+    parts.push('number')
   }
   if (null != s.lo) {
     parts.push((s.lo.open ? 'above(' : 'min(') + s.lo.v.canon + ')')
@@ -1930,7 +1943,7 @@ function emittedMembers(bag: any, ctx: AontuContext): any[] | undefined {
     const key = item[0]
     const child: any = item[1]
 
-    if (child.mark.type || child.mark.hide) {
+    if (child.mark.type || child.mark.hide || bag.aliasKeys?.includes('' + key)) {
       continue
     }
 
@@ -1943,8 +1956,14 @@ function emittedMembers(bag: any, ctx: AontuContext): any[] | undefined {
       return undefined
     }
 
-    const cval = child.gen(ctx.clone({ err: [], collect: true }))
+    const gctx = ctx.clone({ err: [], collect: true })
+    const cval = child.gen(gctx)
 
+    // A required member that fails is a member: its own failure is the
+    // finding, so the count does not decide on the members that remain.
+    if (undefined === cval && !optional && 0 < gctx.err.length) {
+      return undefined
+    }
     if (undefined === cval || (optional && empty(cval))) {
       continue
     }
