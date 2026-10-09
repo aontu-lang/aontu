@@ -59,10 +59,12 @@ import type { TrimReport, TrimVerdict } from './trim'
 import type { RelationReport, RelationVerdict } from './relation'
 import { reachCheck } from './reach'
 import type { ReachReport, ReachVerdict } from './reach'
-import { view, viewSet, viewDefaultProfile } from './view'
+import {
+  view, viewSet, viewDefaultProfile, viewSplits, viewPartFile, PART_TOKEN,
+} from './view'
 import type {
-  ViewEdges, ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewProfile,
-  ViewReport, ViewSetReport, ViewStyle, ViewVerdict,
+  ViewEdges, ViewFigure, ViewKind, ViewLoss, ViewOptions, ViewPart,
+  ViewProfile, ViewReport, ViewSetReport, ViewStyle, ViewVerdict,
 } from './view'
 import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
@@ -337,8 +339,11 @@ Model why exit codes mirror get's: 0 explained, 1 the path names
 nothing, 2 usage, 4 the document does not stand up on its own.
 
 View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
-ladder, poset (the poset takes several files). The figure goes to stdout, the loss
-report to stderr. With --views it draws every figure a document
+ladder, poset (the poset takes several files), state, sequence, lane,
+treemap. The figure goes to stdout, the loss report to stderr. A split
+figure (--split-by, --split-roots, --budget) is one figure per part:
+on stdout each under a comment naming it, and with --out one file
+each, the name's {part} replaced by the part's. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
@@ -348,7 +353,9 @@ View options:
                     lattice, tree, matrix, sets and layers draw text
                     (default) or svg; graph draws mermaid (default),
                     dot or er; layer draws text (default), mermaid or
-                    svg; ladder and poset draw mermaid (default) or dot
+                    svg; ladder and poset draw mermaid (default) or dot;
+                    state, sequence, lane and treemap draw mermaid
+                    (default) or text
   --at <path>       Restrict the figure to nodes under this path; the
                     subtree doc draws; the subtree the lattice counts;
                     the path the ladder draws; where the poset compares
@@ -360,7 +367,8 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
-  --depth <n>       doc: how many levels of key to draw (default 3)
+  --depth <n>       doc, treemap: how many levels of key to draw
+                    (default 3)
   --max-rows <n>    Refuse a figure above this many rows (default 60)
   --style <s>       auto (default), none, ansi or css. A figure's
                     marks carry their meaning -- a direct cell, a
@@ -376,21 +384,48 @@ View options:
                     written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
-                    graph: keep this predicate (repeatable)
+                    graph, state, lane: keep this predicate
+                    (repeatable)
   --root <path>     tree: draw only the subtree under this node;
                     repeatable
   --order <o>       matrix: canon (default) or partition
   --closure         matrix: mark transitively reachable cells +
   --group-by <k>    graph: one subgraph per distinct value of field k;
-                    layer: one band per value (required)
+                    layer, lane: one band or lane per value
+                    (required); treemap: one tile per value
   --layers <a,b>    layer: the bands in this order, top first; without
-                    it the order is derived from the relation
+                    it the order is derived from the relation; lane:
+                    these lanes first
   --edges <e>       layer: which of the relation's edges to draw over
                     the bands -- upward (the violations, the default
                     for text and svg), all (mermaid's default) or none
-  --label <k>       graph: label each node with field k
+  --label <k>       graph, state, lane: label each node with field k;
+                    sequence: the message field of each step
+  --of <path>       Draw only the members of this node: what its
+                    links point at (with --member, only those under
+                    that key)
+  --ghosts          With --of: keep the edges that leave the
+                    selection, the far end drawn as a ghost
+  --columns <k>     graph --as er: field k of each node is a map of
+                    columns, drawn typed, a link marked FK
+  --counts          graph, layer, lane: each group's title carries
+                    its member count
+  --count-by <k>    ... and its members counted by field k
+  --collapse        graph: one node per --group-by value, edges
+                    between groups counted (the surface map)
+  --split-by <k>    graph, state, lane: one part per value of field k
+  --split-roots     graph, state, lane: one part per root, holding
+                    what it reaches first
+  --budget <n>      graph, state, lane: parts of at most n nodes; an
+                    edge leaving a part draws its far end as a ghost
+  --steps <path>    sequence: the list of steps, in order
+  --from <k>        sequence: the field naming a step's sender
+  --to <k>          sequence: the field naming a step's receiver
+  --size <k>        treemap: weigh each item by its numeric field k
+                    (default: the scalar leaves under it)
   --sets <path>     sets: the map whose keys are the sets
-  --member <k>      sets: the field holding each set's members
+  --member <k>      sets: the field holding each set's members; with
+                    --of, the link key naming the members
   --universe <p>    sets: the full element domain, so the empty
                     column exists
   --min-degree <n>  sets: drop intersections below this degree
@@ -2112,7 +2147,7 @@ const VIEW_HELP =
 
 const VIEW_KINDS: ViewKind[] =
   ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers',
-    'ladder', 'poset']
+    'ladder', 'poset', 'state', 'sequence', 'lane', 'treemap']
 
 const VIEW_PROFILES: ViewProfile[] = ['text', 'mermaid', 'dot', 'er', 'svg']
 
@@ -2151,6 +2186,7 @@ const VIEW_USAGE_CODES = [
   'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
   'view_at_required', 'view_sets_required', 'view_group_required',
   'view_document_shape', 'view_style_profile', 'view_style_unknown',
+  'view_steps_required', 'view_split_kind',
 ]
 
 const PKG_HELP =
@@ -3420,12 +3456,18 @@ function runView(argv: string[]): number {
     '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
     '--label': 'label', '--sets': 'sets', '--member': 'member',
     '--universe': 'universe', '--profile': 'profile', '--views': 'views',
-    '--edges': 'edges',
+    '--edges': 'edges', '--of': 'of', '--columns': 'columns',
+    '--count-by': 'countBy', '--split-by': 'splitBy', '--steps': 'steps',
+    '--from': 'from', '--to': 'to', '--size': 'size',
+  }
+  const flagged: Record<string, keyof ViewOptions> = {
+    '--closure': 'closure', '--ghosts': 'ghosts', '--counts': 'counts',
+    '--collapse': 'collapse', '--split-roots': 'splitRoots',
   }
   const counted: Record<string, keyof ViewOptions> = {
     '--max-rows': 'maxRows', '--max-cols': 'maxCols',
     '--min-degree': 'minDegree', '--min-size': 'minSize',
-    '--depth': 'depth',
+    '--depth': 'depth', '--budget': 'budget',
   }
 
   for (let i = 0; i < argv.length; i++) {
@@ -3479,8 +3521,8 @@ function runView(argv: string[]): number {
     else if ('--strict' === arg) {
       strict = true
     }
-    else if ('--closure' === arg) {
-      opts.closure = true
+    else if (undefined !== flagged[arg]) {
+      (opts as any)[flagged[arg]] = true
     }
     else if ('--layers' === arg) {
       const v = argv[++i]
@@ -3562,7 +3604,7 @@ function runView(argv: string[]): number {
     process.stderr.write(`aontu: view ${kind} takes one file\n`)
     return 2
   }
-  if ('graph' === kind) {
+  if ('graph' === kind || 'state' === kind || 'lane' === kind) {
     opts.relations = relations
   }
   else if (1 < relations.length) {
@@ -3574,6 +3616,11 @@ function runView(argv: string[]): number {
   }
   if (check && undefined === out) {
     process.stderr.write('aontu: --check needs --out\n')
+    return 2
+  }
+  if (undefined !== out && viewSplits(opts) && !out.includes(PART_TOKEN)) {
+    process.stderr.write(
+      `aontu: a split figure writes one file per part; --out needs ${PART_TOKEN}\n`)
     return 2
   }
 
@@ -3621,25 +3668,15 @@ function runView(argv: string[]): number {
     // what a golden diff reads, and a verdict line would be part of
     // every drawing. The loss report goes to stderr, so a figure
     // written to a file still tells the reader what it could not draw.
-    const text = report.text + '\n'
     if (undefined === out) {
-      process.stdout.write(text)
-    }
-    else if (check) {
-      let have: string | undefined = undefined
-      try {
-        have = readFileSync(out, 'utf8')
-      }
-      catch (_err: any) {
-        // Absent is a mismatch.
-      }
-      if (have !== text) {
-        process.stderr.write(`aontu: ${out} differs from the ${kind} figure\n`)
-        return 1
-      }
+      process.stdout.write(report.text + '\n')
     }
     else {
-      writeFileSync(out, text, 'utf8')
+      const differ = writeFigure(out, report, check,
+        (file) => `aontu: ${file} differs from the ${kind} figure\n`)
+      if (0 < differ) {
+        return 1
+      }
     }
     if (0 < report.loss.length) {
       process.stderr.write(renderViewLoss(report.loss) + '\n')
@@ -3707,32 +3744,33 @@ function runViewSet(
   const dir = dirname(resolve(file))
   let differ = 0
   for (const fig of report.views) {
-    const path = resolve(dir, fig.out)
-    const text = fig.text + '\n'
-    if (how.check) {
-      let have: string | undefined = undefined
-      try {
-        have = readFileSync(path, 'utf8')
+    for (const one of figureFiles(fig.out, fig)) {
+      const path = resolve(dir, one.file)
+      if (how.check) {
+        let have: string | undefined = undefined
+        try {
+          have = readFileSync(path, 'utf8')
+        }
+        catch (_err: any) {
+          // Absent is a mismatch.
+        }
+        if (have !== one.text) {
+          differ++
+          process.stderr.write(
+            `aontu: ${one.file} differs from the ${fig.name} figure\n`)
+        }
       }
-      catch (_err: any) {
-        // Absent is a mismatch.
-      }
-      if (have !== text) {
-        differ++
-        process.stderr.write(
-          `aontu: ${fig.out} differs from the ${fig.name} figure\n`)
-      }
-    }
-    else {
-      try {
-        writeFileSync(path, text, 'utf8')
-      }
-      catch (err: any) {
-        process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`)
-        return 2
-      }
-      if ('json' !== how.format) {
-        process.stderr.write(`wrote ${fig.out}  ${fig.name} (${fig.kind})\n`)
+      else {
+        try {
+          writeFileSync(path, one.text, 'utf8')
+        }
+        catch (err: any) {
+          process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`)
+          return 2
+        }
+        if ('json' !== how.format) {
+          process.stderr.write(`wrote ${one.file}  ${fig.name} (${fig.kind})\n`)
+        }
       }
     }
   }
@@ -3740,6 +3778,46 @@ function runViewSet(
     return 1
   }
   return how.strict && 'lossy' === report.verdict ? 1 : VIEW_EXIT[report.verdict]
+}
+
+
+// The files one figure is written to: one, or one per part, the
+// part's name standing for the token in the file name.
+function figureFiles(
+  out: string, fig: { text?: string, parts?: ViewPart[] }
+): { file: string, text: string }[] {
+  return undefined === fig.parts
+    ? [{ file: out, text: fig.text + '\n' }]
+    : fig.parts.map((p) => ({ file: viewPartFile(out, p.name), text: p.text + '\n' }))
+}
+
+
+// Writes, or under --check compares, every file of one figure, and
+// answers how many differ.
+function writeFigure(
+  out: string, fig: { text?: string, parts?: ViewPart[] }, check: boolean,
+  differs: (file: string) => string
+): number {
+  let differ = 0
+  for (const one of figureFiles(out, fig)) {
+    if (check) {
+      let have: string | undefined = undefined
+      try {
+        have = readFileSync(one.file, 'utf8')
+      }
+      catch (_err: any) {
+        // Absent is a mismatch.
+      }
+      if (have !== one.text) {
+        differ++
+        process.stderr.write(differs(one.file))
+      }
+    }
+    else {
+      writeFileSync(one.file, one.text, 'utf8')
+    }
+  }
+  return differ
 }
 
 
@@ -3766,6 +3844,7 @@ function renderViewSetJson(report: ViewSetReport): string {
       verdict: v.verdict,
       ...(null == v.text ? {} : { text: v.text }),
       loss: v.loss,
+      ...(null == v.parts ? {} : { parts: v.parts }),
       ...(null == v.errors ? {} : { errors: v.errors }),
     })),
     ...(null == report.errors ? {} : { errors: report.errors }),
@@ -3787,6 +3866,7 @@ function renderViewJson(report: ViewReport): string {
     verdict: report.verdict,
     ...(null == report.text ? {} : { text: report.text }),
     loss: report.loss,
+    ...(null == report.parts ? {} : { parts: report.parts }),
     ...(null == report.errors ? {} : { errors: report.errors }),
   }, 2)
 }

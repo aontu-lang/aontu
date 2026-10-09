@@ -20,7 +20,8 @@ import (
 
 const viewHelp = "aontu view <kind> [options] <file>... (try --help)"
 
-var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset",
+	"state", "sequence", "lane", "treemap"}
 
 var viewProfiles = []string{"text", "mermaid", "dot", "er", "svg"}
 
@@ -60,6 +61,7 @@ var viewUsageCodes = map[string]bool{
 	"view_sets_required": true, "view_group_required": true,
 	"view_document_shape": true,
 	"view_style_profile":  true, "view_style_unknown": true,
+	"view_steps_required": true, "view_split_kind": true,
 }
 
 func hasString(list []string, s string) bool {
@@ -91,6 +93,15 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		"--sets": &opts.Sets, "--member": &opts.Member,
 		"--universe": &opts.Universe, "--profile": &opts.Profile,
 		"--views": &opts.Views, "--edges": &opts.Edges,
+		"--of": &opts.Of, "--columns": &opts.Columns,
+		"--count-by": &opts.CountBy, "--split-by": &opts.SplitBy,
+		"--steps": &opts.Steps, "--from": &opts.From, "--to": &opts.To,
+		"--size": &opts.Size,
+	}
+	flagged := map[string]*bool{
+		"--closure": &opts.Closure, "--ghosts": &opts.Ghosts,
+		"--counts": &opts.Counts, "--collapse": &opts.Collapse,
+		"--split-roots": &opts.SplitRoots,
 	}
 	// The style ASKED FOR, which may be `auto` -- a word ViewOptions
 	// does not carry, because resolving it is the command's job.
@@ -98,7 +109,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	counted := map[string]*int{
 		"--max-rows": &opts.MaxRows, "--max-cols": &opts.MaxCols,
 		"--min-degree": &opts.MinDegree, "--min-size": &opts.MinSize,
-		"--depth": &opts.Depth,
+		"--depth": &opts.Depth, "--budget": &opts.Budget,
 	}
 
 	for i := 0; i < len(argv); i++ {
@@ -147,8 +158,8 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 			check = true
 		case "--strict" == arg:
 			strict = true
-		case "--closure" == arg:
-			opts.Closure = true
+		case nil != flagged[arg]:
+			*flagged[arg] = true
 		case "--layers" == arg:
 			i++
 			if len(argv) <= i || "" == argv[i] {
@@ -227,7 +238,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		io.WriteString(stderr, "aontu: view "+kind+" takes one file\n")
 		return 2
 	}
-	if "graph" == kind {
+	if "graph" == kind || "state" == kind || "lane" == kind {
 		opts.Relations = relations
 	} else if 1 < len(relations) {
 		io.WriteString(stderr, "aontu: view "+kind+" takes one --relation\n")
@@ -237,6 +248,11 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	}
 	if check && "" == out {
 		io.WriteString(stderr, "aontu: --check needs --out\n")
+		return 2
+	}
+	if "" != out && aontu.ViewSplits(&opts) && !strings.Contains(out, aontu.ViewPartToken) {
+		io.WriteString(stderr,
+			"aontu: a split figure writes one file per part; --out needs "+aontu.ViewPartToken+"\n")
 		return 2
 	}
 	opts.Kind = kind
@@ -286,18 +302,25 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 		// THE FIGURE AND NOTHING ELSE on stdout (or in the file): stdout
 		// is what a golden diff reads, and a verdict line would be part
 		// of every drawing. The loss report goes to stderr.
-		text := *report.Text + "\n"
 		if "" == out {
-			io.WriteString(stdout, text)
-		} else if check {
-			have, err := os.ReadFile(out)
-			if nil != err || string(have) != text {
-				io.WriteString(stderr, "aontu: "+out+" differs from the "+kind+" figure\n")
+			io.WriteString(stdout, *report.Text+"\n")
+		} else {
+			differ := 0
+			for _, one := range viewFigureFiles(out, report.Text, report.Parts) {
+				if check {
+					have, err := os.ReadFile(one.file)
+					if nil != err || string(have) != one.text {
+						differ++
+						io.WriteString(stderr, "aontu: "+one.file+" differs from the "+kind+" figure\n")
+					}
+				} else if err := os.WriteFile(one.file, []byte(one.text), 0o644); nil != err {
+					io.WriteString(stderr, "aontu: cannot write "+one.file+": "+err.Error()+"\n")
+					return 2
+				}
+			}
+			if 0 < differ {
 				return 1
 			}
-		} else if err := os.WriteFile(out, []byte(text), 0o644); nil != err {
-			io.WriteString(stderr, "aontu: cannot write "+out+": "+err.Error()+"\n")
-			return 2
 		}
 		if 0 < len(report.Loss) {
 			io.WriteString(stderr, renderViewLoss(report.Loss)+"\n")
@@ -376,26 +399,27 @@ func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
 	dir := filepath.Dir(abs)
 	differ := 0
 	for _, fig := range report.Views {
-		path := fig.Out
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(dir, path)
-		}
-		text := *fig.Text + "\n"
-		if check {
-			have, rerr := os.ReadFile(path)
-			if nil != rerr || string(have) != text {
-				differ++
-				io.WriteString(stderr,
-					"aontu: "+fig.Out+" differs from the "+fig.Name+" figure\n")
+		for _, one := range viewFigureFiles(fig.Out, fig.Text, fig.Parts) {
+			path := one.file
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(dir, path)
 			}
-			continue
-		}
-		if werr := os.WriteFile(path, []byte(text), 0o644); nil != werr {
-			io.WriteString(stderr, "aontu: cannot write "+fig.Out+": "+werr.Error()+"\n")
-			return 2
-		}
-		if "json" != format {
-			io.WriteString(stderr, "wrote "+fig.Out+"  "+fig.Name+" ("+fig.Kind+")\n")
+			if check {
+				have, rerr := os.ReadFile(path)
+				if nil != rerr || string(have) != one.text {
+					differ++
+					io.WriteString(stderr,
+						"aontu: "+one.file+" differs from the "+fig.Name+" figure\n")
+				}
+				continue
+			}
+			if werr := os.WriteFile(path, []byte(one.text), 0o644); nil != werr {
+				io.WriteString(stderr, "aontu: cannot write "+one.file+": "+werr.Error()+"\n")
+				return 2
+			}
+			if "json" != format {
+				io.WriteString(stderr, "wrote "+one.file+"  "+fig.Name+" ("+fig.Kind+")\n")
+			}
 		}
 	}
 	if 0 < differ {
@@ -405,6 +429,24 @@ func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
 		return 1
 	}
 	return viewExit[report.Verdict]
+}
+
+// viewFile is one file a figure is written to.
+type viewFile struct {
+	file, text string
+}
+
+// viewFigureFiles is the files one figure is written to: one, or one
+// per part, the part's name standing for the token in the file name.
+func viewFigureFiles(out string, text *string, parts []aontu.ViewPart) []viewFile {
+	if 0 == len(parts) {
+		return []viewFile{{file: out, text: *text + "\n"}}
+	}
+	files := []viewFile{}
+	for _, p := range parts {
+		files = append(files, viewFile{file: aontu.ViewPartFile(out, p.Name), text: p.Text + "\n"})
+	}
+	return files
 }
 
 // A set's exit code is the worst of its figures': a usage refusal
@@ -465,6 +507,7 @@ type viewReportJSON struct {
 	Errors  []aontu.VetFinding  `json:"errors,omitempty"`
 	Kind    string              `json:"kind"`
 	Loss    []aontu.ViewLoss    `json:"loss"`
+	Parts   []aontu.ViewPart    `json:"parts,omitempty"`
 	Text    *string             `json:"text,omitempty"`
 	Verdict string              `json:"verdict"`
 }
@@ -479,6 +522,7 @@ func renderViewJSON(report aontu.ViewReport) string {
 		Errors:  report.Errors,
 		Kind:    report.Kind,
 		Loss:    report.Loss,
+		Parts:   report.Parts,
 		Text:    report.Text,
 		Verdict: report.Verdict,
 	})

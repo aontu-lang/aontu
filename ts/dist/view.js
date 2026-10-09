@@ -1,7 +1,10 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.PART_TOKEN = void 0;
 exports.viewDefaultProfile = viewDefaultProfile;
+exports.viewSplits = viewSplits;
+exports.viewPartFile = viewPartFile;
 exports.view = view;
 exports.viewTree = viewTree;
 exports.viewSet = viewSet;
@@ -37,6 +40,10 @@ const PROFILES = {
     layers: ['text', 'svg'],
     ladder: ['mermaid', 'dot'],
     poset: ['mermaid', 'dot'],
+    state: ['mermaid', 'text'],
+    sequence: ['mermaid', 'text'],
+    lane: ['mermaid', 'text'],
+    treemap: ['mermaid', 'text'],
 };
 // The profile a kind draws into when none is asked for. The CLI needs
 // it to resolve `--style auto` BEFORE the library runs, since the
@@ -45,7 +52,10 @@ function viewDefaultProfile(kind) {
     return PROFILES[kind]?.[0];
 }
 // Loss codes that describe the drawing rather than a gap in it.
-const INFORMATIONAL = ['edges_deduped', 'inverse_suppressed', 'crossings'];
+const INFORMATIONAL = [
+    'edges_deduped', 'inverse_suppressed', 'crossings', 'edges_outside',
+    'edges_internal', 'treemap_empty',
+];
 const DEFAULT_MAX_ROWS = 60;
 // The separator inside a composite map key: a character no path holds.
 const SEP = '\u0000';
@@ -949,6 +959,167 @@ function fieldOf(root, path, field) {
     }
     return true === v.isScalar ? v.canon : undefined;
 }
+function unresolvedLoss(unresolved, loss) {
+    if (0 < unresolved.length) {
+        loss.push({
+            code: 'unresolved_field', count: unresolved.length,
+            detail: unresolved.sort(keyorder_1.cmpCodePoint),
+        });
+    }
+}
+function ghostLabel(label, where) {
+    return '' === where ? label + ' (outside)' : `${label} (in ${where})`;
+}
+// The drawn nodes: what the edges connect and the members asked for.
+function graphPaths(edges, members) {
+    return [...new Set([...nodesOf(edges), ...members])].sort(keyorder_1.cmpCodePoint);
+}
+function graphNodes(paths, root, o, ghosts, unresolved) {
+    const lab = labelsOf(paths);
+    const nodes = paths.map((p) => {
+        const short = lab.get(p);
+        const where = ghosts.get(p);
+        const node = { path: p, label: short, id: ident(short) };
+        if (undefined !== o.groupBy) {
+            const g = fieldOf(root, p, o.groupBy);
+            if (undefined === g) {
+                unresolved.push(p + '.' + o.groupBy);
+            }
+            else {
+                node.group = g;
+            }
+        }
+        if (undefined !== o.label) {
+            const l = fieldOf(root, p, o.label);
+            if (undefined === l) {
+                unresolved.push(p + '.' + o.label);
+            }
+            else {
+                node.label = l;
+            }
+        }
+        if (undefined !== where) {
+            node.ghost = true;
+            node.id = 'x' + node.id;
+            node.label = ghostLabel(node.label, where);
+        }
+        return node;
+    });
+    for (const n of nodes) {
+        if (hasLineBreak(n.label) || hasLineBreak(n.group ?? '')) {
+            return { error: lineBreakFinding(n.path) };
+        }
+    }
+    return { nodes };
+}
+// A group's title: its name, and with `counts` its member count, and
+// with `countBy` its members counted by that field's value. A ghost is
+// not a member.
+function groupTitle(name, members, root, o, unresolved) {
+    const real = members.filter((n) => true !== n.ghost);
+    if (undefined !== o.countBy) {
+        const by = new Map();
+        for (const n of real) {
+            const v = fieldOf(root, n.path, o.countBy);
+            if (undefined === v) {
+                unresolved.push(n.path + '.' + o.countBy);
+            }
+            by.set(v ?? '-', (by.get(v ?? '-') ?? 0) + 1);
+        }
+        const parts = [...by.keys()].sort(keyorder_1.cmpCodePoint)
+            .map((k) => `${k} ${by.get(k)}`);
+        return `${name} (${real.length}: ${parts.join(', ')})`;
+    }
+    return true === o.counts ? `${name} (${real.length})` : name;
+}
+function emitGraph(as, e) {
+    const out = [];
+    if ('mermaid' === as) {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        out.push('flowchart LR');
+        for (const g of e.groups) {
+            out.push(`  subgraph ${g.id}["${esc(g.title)}"]`);
+            for (const n of g.nodes) {
+                out.push(`    ${n.id}["${esc(n.label)}"]`);
+            }
+            out.push('  end');
+        }
+        for (const n of e.loose) {
+            out.push(`  ${n.id}["${esc(n.label)}"]`);
+        }
+        for (const d of e.edges) {
+            out.push(`  ${d.from} -->|"${esc(d.label)}"| ${d.to}`);
+        }
+    }
+    else if ('dot' === as) {
+        const esc = (s) => escape(s, DOT_ESC);
+        out.push('digraph G {', '  rankdir=LR;', '  node [shape=box];');
+        for (const g of e.groups) {
+            out.push(`  subgraph cluster_${g.id} {`, `    label="${esc(g.title)}";`);
+            for (const n of g.nodes) {
+                out.push(`    ${n.id} [label="${esc(n.label)}"];`);
+            }
+            out.push('  }');
+        }
+        for (const n of e.loose) {
+            out.push(`  ${n.id} [label="${esc(n.label)}"];`);
+        }
+        for (const d of e.edges) {
+            out.push(`  ${d.from} -> ${d.to} [label="${esc(d.label)}"];`);
+        }
+        out.push('}');
+    }
+    else {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        out.push('erDiagram');
+        if (undefined !== e.columns) {
+            const cols = e.columns;
+            for (const n of [...e.groups.flatMap((g) => g.nodes), ...e.loose]) {
+                const attrs = cols.get(n.id);
+                if (undefined === attrs) {
+                    out.push(`  ${n.id}["${esc(n.label)}"]`);
+                }
+                else {
+                    out.push(`  ${n.id}["${esc(n.label)}"] {`, ...attrs.map((a) => '    ' + a), '  }');
+                }
+            }
+        }
+        for (const d of e.edges) {
+            out.push(`  ${d.from} }o--o{ ${d.to} : "${esc(d.label)}"`);
+        }
+    }
+    return out.join('\n');
+}
+const ATTR_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+// One ER attribute line per column, typed by the lattice: the value's
+// own point, else the kind its canon starts with, else `any` and the
+// column is counted as unplaced.
+function erColumns(root, node, field, unplaced) {
+    const at = node.path + '.' + field;
+    const holder = (0, vet_1.anchorAt)(root, at);
+    if (null == holder || true !== throughDoc(holder).isMap) {
+        return undefined;
+    }
+    const esc = (s) => escape(s, MERMAID_ESC);
+    return docKids(holder).map((key) => {
+        const v = throughDoc(throughDoc(holder).peg[key]);
+        const canon = v.canon;
+        const head = (/^[a-z]+/.exec(canon) ?? [''])[0];
+        const fk = 'string' === typeof v.link;
+        const type = true === v.isMap ? 'map'
+            : true === v.isList ? 'list'
+                : latticePoint(v) ?? (LATTICE_NODES.includes(head) ? head : 'any');
+        if ('any' === type && true !== v.isTop) {
+            unplaced.push(at + '.' + key);
+        }
+        const name = ATTR_NAME.test(key) ? key : ident(key).replace(/^nq_/, 'q_');
+        const note = name !== key ? key
+            : fk || type === canon || true === v.isMap || true === v.isList
+                ? '' : 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
+        return `${type} ${name}` + (fk ? ' FK' : '') +
+            ('' === note ? '' : ` "${esc(note)}"`);
+    });
+}
 function drawGraph(triples, decls, root, o, max, loss) {
     const keys = keysOf(triples);
     for (const r of o.relations) {
@@ -976,63 +1147,41 @@ function drawGraph(triples, decls, root, o, max, loss) {
     if (0 < suppressed) {
         loss.push({ code: 'inverse_suppressed', count: suppressed });
     }
-    const paths = nodesOf(edges);
+    const paths = graphPaths(edges, o.members);
     if (max < paths.length) {
         return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
     }
-    const lab = labelsOf(paths);
     // `--group-by` and `--label` read a field of each node; a node
     // without a value there is counted, and drawn ungrouped or under
     // its path.
     const unresolved = [];
-    const nodes = paths.map((p) => {
-        const short = lab.get(p);
-        const node = { path: p, label: short, id: ident(short) };
-        if (undefined !== o.groupBy) {
-            const g = fieldOf(root, p, o.groupBy);
-            if (undefined === g) {
-                unresolved.push(p + '.' + o.groupBy);
-            }
-            else {
-                node.group = g;
-            }
-        }
-        if (undefined !== o.label) {
-            const l = fieldOf(root, p, o.label);
-            if (undefined === l) {
-                unresolved.push(p + '.' + o.label);
-            }
-            else {
-                node.label = l;
-            }
-        }
-        return node;
-    });
-    if (0 < unresolved.length) {
-        loss.push({
-            code: 'unresolved_field', count: unresolved.length,
-            detail: unresolved.sort(keyorder_1.cmpCodePoint),
-        });
+    const built = graphNodes(paths, root, o, o.ghosts, unresolved);
+    if (undefined !== built.error) {
+        return { errors: [built.error] };
     }
-    for (const n of nodes) {
-        if (hasLineBreak(n.label) || hasLineBreak(n.group ?? '')) {
-            return { errors: [lineBreakFinding(n.path)] };
-        }
-    }
+    const nodes = built.nodes;
     // Groups in label order, ids ordinal; nodes within a group, and the
     // ungrouped after them, in label order. That order is the emitted
     // order, and the crossing count is a property of it.
-    const groups = [...new Set(nodes.filter((n) => undefined !== n.group)
+    const names = [...new Set(nodes.filter((n) => undefined !== n.group)
             .map((n) => n.group))].sort(keyorder_1.cmpCodePoint);
     const byLabel = (a, b) => (0, keyorder_1.cmpCodePoint)(a.label, b.label) || (0, keyorder_1.cmpCodePoint)(a.path, b.path);
-    const emitted = [];
-    for (const g of groups) {
-        emitted.push(...nodes.filter((n) => n.group === g).sort(byLabel));
-    }
+    const groups = names.map((g, gi) => {
+        const members = nodes.filter((n) => n.group === g).sort(byLabel);
+        return {
+            id: `g${gi}`,
+            title: groupTitle(g, members, root, { counts: o.counts || o.collapse, countBy: o.countBy }, unresolved),
+            nodes: members,
+        };
+    });
     const loose = nodes.filter((n) => undefined === n.group).sort(byLabel);
-    emitted.push(...loose);
+    const emitted = [...groups.flatMap((g) => g.nodes), ...loose];
     const byPath = new Map(nodes.map((n) => [n.path, n]));
     const node = (p) => byPath.get(p);
+    if (true === o.collapse) {
+        unresolvedLoss(unresolved, loss);
+        return collapseGraph(groups, loose, edges, node, o.as, loss);
+    }
     const at = new Map(emitted.map((n, i) => [n.path, i]));
     const drawn = edges.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(node(a.from).label, node(b.from).label)
         || (0, keyorder_1.cmpCodePoint)(node(a.to).label, node(b.to).label)
@@ -1055,51 +1204,80 @@ function drawGraph(triples, decls, root, o, max, loss) {
     if (0 < crossings) {
         loss.push({ code: 'crossings', count: crossings });
     }
-    const id = (p) => node(p).id;
-    const out = [];
-    if ('mermaid' === o.as) {
-        const esc = (s) => escape(s, MERMAID_ESC);
-        out.push('flowchart LR');
-        groups.forEach((g, gi) => {
-            out.push(`  subgraph g${gi}["${esc(g)}"]`);
-            for (const n of emitted.filter((n) => n.group === g)) {
-                out.push(`    ${n.id}["${esc(n.label)}"]`);
+    let columns;
+    if ('er' === o.as && undefined !== o.columns) {
+        columns = new Map();
+        const unplaced = [];
+        for (const n of emitted.filter((n) => true !== n.ghost)) {
+            const attrs = erColumns(root, n, o.columns, unplaced);
+            if (undefined === attrs) {
+                unresolved.push(n.path + '.' + o.columns);
             }
-            out.push('  end');
-        });
-        for (const n of loose) {
-            out.push(`  ${n.id}["${esc(n.label)}"]`);
-        }
-        for (const e of drawn) {
-            out.push(`  ${id(e.from)} -->|"${esc(e.key)}"| ${id(e.to)}`);
-        }
-    }
-    else if ('dot' === o.as) {
-        const esc = (s) => escape(s, DOT_ESC);
-        out.push('digraph G {', '  rankdir=LR;', '  node [shape=box];');
-        groups.forEach((g, gi) => {
-            out.push(`  subgraph cluster_g${gi} {`, `    label="${esc(g)}";`);
-            for (const n of emitted.filter((n) => n.group === g)) {
-                out.push(`    ${n.id} [label="${esc(n.label)}"];`);
+            else {
+                columns.set(n.id, attrs);
             }
-            out.push('  }');
-        });
-        for (const n of loose) {
-            out.push(`  ${n.id} [label="${esc(n.label)}"];`);
         }
-        for (const e of drawn) {
-            out.push(`  ${id(e.from)} -> ${id(e.to)} [label="${esc(e.key)}"];`);
-        }
-        out.push('}');
-    }
-    else {
-        const esc = (s) => escape(s, MERMAID_ESC);
-        out.push('erDiagram');
-        for (const e of drawn) {
-            out.push(`  ${id(e.from)} }o--o{ ${id(e.to)} : "${esc(e.key)}"`);
+        if (0 < unplaced.length) {
+            loss.push({ code: 'column_unplaced', count: unplaced.length, detail: unplaced });
         }
     }
-    return { text: out.join('\n') };
+    unresolvedLoss(unresolved, loss);
+    return {
+        text: emitGraph(o.as, {
+            groups, loose, columns,
+            edges: drawn.map((e) => ({
+                from: node(e.from).id, to: node(e.to).id, label: e.key,
+            })),
+        }),
+    };
+}
+// THE SURFACE MAP: one node per group, titled with its count, and one
+// edge per (group, relation, group) labelled with how many edges it
+// stands for. An edge inside one group is not drawn, and is counted.
+function collapseGraph(groups, loose, edges, node, as, loss) {
+    const home = new Map();
+    for (const g of groups) {
+        for (const n of g.nodes) {
+            home.set(n.path, { id: g.id, label: g.title });
+        }
+    }
+    const of = (p) => home.get(p) ?? { id: node(p).id, label: node(p).label };
+    const tally = new Map();
+    let internal = 0;
+    for (const e of edges) {
+        const a = of(e.from);
+        const b = of(e.to);
+        if (a.id === b.id && home.has(e.from)) {
+            internal++;
+            continue;
+        }
+        const k = a.id + SEP + e.key + SEP + b.id;
+        const t = tally.get(k);
+        if (undefined === t) {
+            tally.set(k, {
+                from: a.id, to: b.id, key: e.key, n: 1,
+                order: a.label + SEP + b.label + SEP + e.key,
+            });
+        }
+        else {
+            t.n++;
+        }
+    }
+    if (0 < internal) {
+        loss.push({ code: 'edges_internal', count: internal });
+    }
+    const shown = [
+        ...groups.map((g) => ({ path: g.id, id: g.id, label: g.title })),
+        ...loose,
+    ];
+    return {
+        text: emitGraph(as, {
+            groups: [], loose: shown,
+            edges: [...tally.values()]
+                .sort((x, y) => (0, keyorder_1.cmpCodePoint)(x.order, y.order))
+                .map((t) => ({ from: t.from, to: t.to, label: `${t.key} (${t.n})` })),
+        }),
+    };
 }
 function drawLayer(triples, root, o, max, loss) {
     if (undefined === o.groupBy) {
@@ -1130,12 +1308,6 @@ function drawLayer(triples, root, o, max, loss) {
         }
         return { path: p, label: short, id: ident(short), group: g ?? '-' };
     });
-    if (0 < unresolved.length) {
-        loss.push({
-            code: 'unresolved_field', count: unresolved.length,
-            detail: unresolved.sort(keyorder_1.cmpCodePoint),
-        });
-    }
     for (const n of nodes) {
         if (hasLineBreak(n.group)) {
             return { errors: [lineBreakFinding(n.path)] };
@@ -1166,10 +1338,11 @@ function drawLayer(triples, root, o, max, loss) {
         order.push('-');
     }
     // Labels are unique in a drawing, so they order a band on their own.
-    const bands = order.map((name) => ({
-        name,
-        nodes: nodes.filter((n) => n.group === name).sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.label, b.label)),
-    }));
+    const bands = order.map((name) => {
+        const members = nodes.filter((n) => n.group === name).sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.label, b.label));
+        return { name: groupTitle(name, members, root, o, unresolved), nodes: members };
+    });
+    unresolvedLoss(unresolved, loss);
     const level = new Map(order.map((g, i) => [g, i]));
     // Every edge is downward, sideways or upward by the bands it joins.
     const drawn = rel.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(node(a.from).label, node(b.from).label)
@@ -1800,6 +1973,625 @@ function drawPoset(docs, options, as, max, loss, compare) {
 // Why a poset could not be drawn: the documents that do not stand up
 // on their own, each with its own finding, or the anchor a document
 // lacks.
+// ---------------------------------------------------------------------
+// The lifecycle: states and the events between them
+function drawState(triples, root, o, max, loss) {
+    const keys = keysOf(triples);
+    for (const r of o.relations) {
+        if (!keys.includes(r)) {
+            return { errors: [relationFinding(r, keys)] };
+        }
+    }
+    const edges = 0 === o.relations.length
+        ? triples : triples.filter((e) => o.relations.includes(e.key));
+    const paths = graphPaths(edges, o.members);
+    if (max < paths.length) {
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+    }
+    const unresolved = [];
+    const built = graphNodes(paths, root, { label: o.label }, o.ghosts, unresolved);
+    if (undefined !== built.error) {
+        return { errors: [built.error] };
+    }
+    unresolvedLoss(unresolved, loss);
+    const nodes = built.nodes.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.label, b.label) || (0, keyorder_1.cmpCodePoint)(a.path, b.path));
+    const byPath = new Map(nodes.map((n) => [n.path, n]));
+    const node = (p) => byPath.get(p);
+    // An initial state is one no other state enters; a final state one
+    // that leaves to no other. A ghost is neither: its own edges are
+    // drawn where it lives.
+    const real = nodes.filter((n) => true !== n.ghost);
+    const initial = real.filter((n) => !edges.some((e) => e.to === n.path && e.from !== n.path));
+    const final = real.filter((n) => !edges.some((e) => e.from === n.path && e.to !== n.path));
+    const drawn = edges.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(node(a.from).label, node(b.from).label)
+        || (0, keyorder_1.cmpCodePoint)(a.key, b.key)
+        || (0, keyorder_1.cmpCodePoint)(node(a.to).label, node(b.to).label));
+    const out = [];
+    if ('mermaid' === o.as) {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        out.push('stateDiagram-v2');
+        for (const n of nodes) {
+            out.push(`  state "${esc(n.label)}" as ${n.id}`);
+        }
+        for (const n of initial) {
+            out.push(`  [*] --> ${n.id}`);
+        }
+        for (const e of drawn) {
+            out.push(`  ${node(e.from).id} --> ${node(e.to).id} : ${esc(e.key)}`);
+        }
+        for (const n of final) {
+            out.push(`  ${n.id} --> [*]`);
+        }
+    }
+    else {
+        for (const n of initial) {
+            out.push(`[*] --> ${n.label}`);
+        }
+        for (const e of drawn) {
+            out.push(`${node(e.from).label} --${e.key}--> ${node(e.to).label}`);
+        }
+        for (const n of final) {
+            out.push(`${n.label} --> [*]`);
+        }
+    }
+    return { text: out.join('\n') };
+}
+// ---------------------------------------------------------------------
+// The swim lanes: a flow's steps, one lane per actor
+function drawLane(triples, root, o, max, loss) {
+    if (undefined === o.groupBy) {
+        return {
+            errors: [finding('view_group_required', 'reference', '$', 'The swim lanes need the field that names each step\'s lane; ' +
+                    'name it with --group-by.')],
+        };
+    }
+    const keys = keysOf(triples);
+    for (const r of o.relations) {
+        if (!keys.includes(r)) {
+            return { errors: [relationFinding(r, keys)] };
+        }
+    }
+    const edges = 0 === o.relations.length
+        ? triples : triples.filter((e) => o.relations.includes(e.key));
+    const paths = graphPaths(edges, o.members);
+    if (max < paths.length) {
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+    }
+    const unresolved = [];
+    const built = graphNodes(paths, root, o, o.ghosts, unresolved);
+    if (undefined !== built.error) {
+        return { errors: [built.error] };
+    }
+    const nodes = built.nodes;
+    const byPath = new Map(nodes.map((n) => [n.path, n]));
+    const node = (p) => byPath.get(p);
+    // The steps in flow order: a step is placed once every step leading
+    // to it is, least label first; a loop is entered at its least label,
+    // and the edge that closes it runs back.
+    const label = (p) => node(p).label;
+    const byLabel = (a, b) => (0, keyorder_1.cmpCodePoint)(label(a), label(b)) || (0, keyorder_1.cmpCodePoint)(a, b);
+    const steps = [];
+    const placed = new Set();
+    const waiting = paths.slice().sort(byLabel);
+    while (steps.length < paths.length) {
+        const free = waiting.find((p) => !placed.has(p) && edges.every((e) => e.to !== p || e.from === p || placed.has(e.from))) ??
+            waiting.find((p) => !placed.has(p));
+        placed.add(free);
+        steps.push(free);
+    }
+    const lane = (n) => n.group ?? '-';
+    const seen = [...new Set(steps.map((p) => lane(node(p))))];
+    const named = o.layers.filter((g, i) => seen.includes(g) && i === o.layers.indexOf(g));
+    const order = [
+        ...named,
+        ...seen.filter((g) => !named.includes(g) && '-' !== g),
+        ...seen.filter((g) => '-' === g && !named.includes(g)),
+    ];
+    const lanes = order.map((g, gi) => {
+        const members = steps.map(node).filter((n) => lane(n) === g);
+        return {
+            id: `g${gi}`, name: g,
+            title: groupTitle(g, members, root, o, unresolved), nodes: members,
+        };
+    });
+    unresolvedLoss(unresolved, loss);
+    const across = edges.filter((e) => lane(node(e.from)) !== lane(node(e.to)));
+    const at = new Map(steps.map((p, i) => [p, i]));
+    const drawn = edges.slice().sort((a, b) => at.get(a.from) - at.get(b.from)
+        || at.get(a.to) - at.get(b.to)
+        || (0, keyorder_1.cmpCodePoint)(a.key, b.key));
+    if ('mermaid' === o.as) {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        const out = ['flowchart LR'];
+        for (const l of lanes) {
+            out.push(`  subgraph ${l.id}["${esc(l.title)}"]`, '    direction LR');
+            for (const n of l.nodes) {
+                out.push(`    ${n.id}["${esc(n.label)}"]`);
+            }
+            out.push('  end');
+        }
+        for (const e of drawn) {
+            out.push(`  ${node(e.from).id} -->|"${esc(e.key)}"| ${node(e.to).id}`);
+        }
+        return { text: out.join('\n') };
+    }
+    // One row per lane and one column per step, so each step is alone in
+    // its column and the grid needs no placement beyond the flow order.
+    const w = widest(lanes.map((l) => l.title));
+    const cols = steps.map((p, i) => Math.max(node(p).label.length, String(i + 1).length));
+    const cell = (s, i) => pad(s, cols[i]);
+    const trim = (s) => s.replace(/ +$/, '');
+    const out = [trim(pad('', w) + '  ' +
+            steps.map((_p, i) => cell(String(i + 1), i)).join('  '))];
+    for (const l of lanes) {
+        out.push(trim(pad(l.title, w) + '  ' + steps.map((p, i) => cell(lane(node(p)) === l.name ? node(p).label : '.', i)).join('  ')));
+    }
+    const back = drawn.filter((e) => at.get(e.to) <= at.get(e.from));
+    out.push(`# ${drawn.length} edges, ${across.length} across lanes, ` +
+        `${back.length} back`);
+    for (const e of drawn.filter((d) => across.includes(d) || back.includes(d))) {
+        out.push(`# ${back.includes(e) ? 'back' : 'across'}: ` +
+            `${node(e.from).label} -> ${node(e.to).label} (${e.key})`);
+    }
+    return { text: out.join('\n') };
+}
+// ---------------------------------------------------------------------
+// The sequence: who sends what to whom, in the order the steps list it
+function drawSequence(list, o, max, loss) {
+    if (!Array.isArray(list)) {
+        return {
+            errors: [finding('view_steps_shape', 'reference', o.at, `${o.at} is not a list of steps.`)],
+        };
+    }
+    if (max < list.length) {
+        return { errors: [rowsFinding(list.length, max, '--steps')] };
+    }
+    const unresolved = [];
+    const msgs = [];
+    for (let i = 0; i < list.length; i++) {
+        const step = list[i];
+        const at = `${o.at}.${i}`;
+        const a = step?.[o.from];
+        const b = step?.[o.to];
+        if ('string' !== typeof a || 'string' !== typeof b) {
+            return {
+                errors: [finding('view_steps_shape', 'reference', at, `A step needs a string at ${o.from} and at ${o.to}.`)],
+            };
+        }
+        let text = '';
+        if (undefined !== o.label) {
+            const t = step[o.label];
+            if ('string' === typeof t) {
+                text = t;
+            }
+            else {
+                unresolved.push(at + '.' + o.label);
+            }
+        }
+        if (hasLineBreak(a) || hasLineBreak(b) || hasLineBreak(text)) {
+            return { errors: [lineBreakFinding(at)] };
+        }
+        msgs.push({ a, b, text });
+    }
+    unresolvedLoss(unresolved, loss);
+    // Participants in order of first appearance; an address is shown by
+    // its shortest unique suffix, as every other figure shows a node.
+    const who = [...new Set(msgs.flatMap((m) => [m.a, m.b]))];
+    const lab = labelsOf(who.filter((p) => p.startsWith('$')));
+    const name = (p) => lab.get(p) ?? p;
+    const ix = new Map(who.map((p, i) => [p, i]));
+    if ('mermaid' === o.as) {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        const out = ['sequenceDiagram'];
+        who.forEach((p, i) => out.push(`  participant p${i} as ${esc(name(p))}`));
+        for (const m of msgs) {
+            out.push(`  p${ix.get(m.a)}->>p${ix.get(m.b)}:` +
+                ('' === m.text ? '' : ' ' + esc(m.text)));
+        }
+        return { text: out.join('\n') };
+    }
+    return { text: sequenceText(who.map(name), msgs.map((m) => ({
+            a: ix.get(m.a), b: ix.get(m.b), text: m.text,
+        }))) };
+}
+// THE LIFELINE GRID. Lifeline i sits at column x[i]; each gap is wide
+// enough for the name above it and for every message spanning it, the
+// shortfall of a span going to its last gap, so the columns are fixed
+// by the counts alone.
+function sequenceText(names, msgs) {
+    const n = names.length;
+    if (0 === n) {
+        return '';
+    }
+    const gap = names.map((s) => Math.max(s.length + 2, 3));
+    const x = () => {
+        const xs = [0];
+        for (let i = 1; i < n; i++) {
+            xs.push(xs[i - 1] + gap[i - 1]);
+        }
+        return xs;
+    };
+    const spans = msgs.map((m) => m.a === m.b
+        ? { lo: m.a, hi: m.a + 1, need: m.text.length + 6 }
+        : {
+            lo: Math.min(m.a, m.b), hi: Math.max(m.a, m.b),
+            need: m.text.length + 5,
+        })
+        .filter((s) => s.hi < n)
+        .sort((p, q) => p.hi - q.hi || p.lo - q.lo);
+    for (const s of spans) {
+        const xs = x();
+        const short = s.need - (xs[s.hi] - xs[s.lo]);
+        if (0 < short) {
+            gap[s.hi - 1] += short;
+        }
+    }
+    const xs = x();
+    const width = xs[n - 1] + Math.max(names[n - 1].length, 1 + msgs.reduce((w, m) => m.a === m.b && m.a === n - 1
+        ? Math.max(w, m.text.length + 5) : w, 0));
+    const blank = () => {
+        const row = Array(width).fill(' ');
+        for (const c of xs) {
+            row[c] = '│';
+        }
+        return row;
+    };
+    const put = (row, at, s) => {
+        [...s].forEach((ch, i) => { row[at + i] = ch; });
+    };
+    const line = (row) => row.join('').replace(/ +$/, '');
+    const head = Array(width).fill(' ');
+    names.forEach((s, i) => put(head, xs[i], s));
+    const out = [line(head), line(blank())];
+    for (const m of msgs) {
+        const label = '' === m.text ? '' : ` ${m.text} `;
+        if (m.a === m.b) {
+            const top = blank();
+            const back = blank();
+            put(top, xs[m.a], '├─' + label + '─┐');
+            put(back, xs[m.a], '│◄' + '─'.repeat(label.length + 1) + '┘');
+            out.push(line(top), line(back));
+            continue;
+        }
+        const row = blank();
+        const lo = Math.min(m.a, m.b);
+        const hi = Math.max(m.a, m.b);
+        const len = xs[hi] - xs[lo] - 1;
+        if (m.a < m.b) {
+            const body = '─' + label;
+            put(row, xs[lo], '├' + body + '─'.repeat(len - body.length - 1) + '►');
+        }
+        else {
+            const body = '◄─' + label;
+            put(row, xs[lo] + 1, body + '─'.repeat(len - body.length));
+            row[xs[hi]] = '┤';
+        }
+        out.push(line(row));
+    }
+    out.push(line(blank()));
+    return out.join('\n');
+}
+const TREEMAP_BAR = 40;
+// A container weighs the scalar leaves under it, however deep.
+function leafWeight(v) {
+    const kids = docKids(v);
+    if (0 === kids.length) {
+        const node = throughDoc(v);
+        return true === node.isMap || true === node.isList ? 0 : 1;
+    }
+    return kids.reduce((w, k) => w + leafWeight(throughDoc(throughDoc(v).peg[k])), 0);
+}
+function drawTreemap(root, o, max, loss) {
+    const at = o.at ?? '$';
+    const anchor = (0, vet_1.anchorAt)(root, at);
+    if (null == anchor) {
+        return {
+            errors: [finding('no_path', 'reference', at, `The path ${at} names nothing in this document.`)],
+        };
+    }
+    const unresolved = [];
+    const weigh = (path, v) => {
+        if (undefined === o.size) {
+            return leafWeight(v);
+        }
+        const s = throughDoc((0, vet_1.anchorAt)(root, path + '.' + o.size) ?? v);
+        if ((0, vet_1.anchorAt)(root, path + '.' + o.size) == null ||
+            'number' !== typeof s.peg || !Number.isInteger(s.peg) || 0 > s.peg) {
+            unresolved.push(path + '.' + o.size);
+            return 0;
+        }
+        return s.peg;
+    };
+    // With --size, a node holding the field is a tile weighed by it.
+    const holds = (path) => undefined !== o.size && null != (0, vet_1.anchorAt)(root, path + '.' + o.size);
+    const tile = (path, v, depth) => {
+        const kids = docKids(v);
+        const name = path.slice(path.lastIndexOf('.') + 1);
+        if (0 === depth || 0 === kids.length || holds(path)) {
+            return { name, weight: weigh(path, v), kids: [] };
+        }
+        const inner = kids.map((k) => tile(path + '.' + k, throughDoc(throughDoc(v).peg[k]), depth - 1));
+        return {
+            name, kids: inner, weight: inner.reduce((w, t) => w + t.weight, 0),
+        };
+    };
+    // The items: the members asked for, or the anchor's children.
+    const items = o.members ??
+        docKids(anchor).map((k) => at + '.' + k);
+    let top;
+    if (undefined === o.groupBy && undefined === o.members) {
+        top = tile(at, anchor, o.depth || DEFAULT_DOC_DEPTH);
+        top.name = at;
+    }
+    else {
+        const lab = labelsOf(items);
+        const leaves = items.map((p) => ({
+            name: lab.get(p), kids: [],
+            weight: weigh(p, (0, vet_1.anchorAt)(root, p)),
+            group: undefined === o.groupBy ? undefined : fieldOf(root, p, o.groupBy),
+            path: p,
+        }));
+        let kids = leaves;
+        if (undefined !== o.groupBy) {
+            for (const l of leaves.filter((l) => undefined === l.group)) {
+                unresolved.push(l.path + '.' + o.groupBy);
+            }
+            const names = [...new Set(leaves.map((l) => l.group ?? '-'))]
+                .sort(keyorder_1.cmpCodePoint);
+            kids = names.map((g) => {
+                const inner = leaves.filter((l) => (l.group ?? '-') === g);
+                return {
+                    name: g, kids: inner, weight: inner.reduce((w, t) => w + t.weight, 0),
+                };
+            });
+        }
+        top = { name: at, kids, weight: kids.reduce((w, t) => w + t.weight, 0) };
+    }
+    unresolvedLoss(unresolved, loss);
+    // A tile that weighs nothing has no area to draw, and is counted.
+    let empty = 0;
+    const prune = (t) => {
+        const kids = t.kids.filter((k) => {
+            if (0 === k.weight) {
+                empty++;
+            }
+            return 0 < k.weight;
+        }).map(prune);
+        return { ...t, kids };
+    };
+    top = prune(top);
+    if (0 < empty) {
+        loss.push({ code: 'treemap_empty', count: empty });
+    }
+    const rows = [];
+    const walk = (t, prefix, kidPrefix, depth) => {
+        rows.push({ prefix, name: t.name, weight: t.weight, depth });
+        t.kids.forEach((k, i) => {
+            const last = i === t.kids.length - 1;
+            walk(k, kidPrefix + (last ? '└── ' : '├── '), kidPrefix + (last ? '    ' : '│   '), depth + 1);
+        });
+    };
+    walk(top, '', '', 0);
+    if (max < rows.length) {
+        return { errors: [rowsFinding(rows.length, max, '--at or --depth')] };
+    }
+    for (const r of rows) {
+        if (hasLineBreak(r.name)) {
+            return { errors: [lineBreakFinding(at)] };
+        }
+    }
+    if ('mermaid' === o.as) {
+        const esc = (s) => escape(s, MERMAID_ESC);
+        const out = ['treemap-beta'];
+        const emit = (t, depth) => {
+            const ind = '    '.repeat(depth);
+            out.push(0 === t.kids.length
+                ? `${ind}"${esc(t.name)}": ${t.weight}`
+                : `${ind}"${esc(t.name)}"`);
+            for (const k of t.kids) {
+                emit(k, depth + 1);
+            }
+        };
+        for (const k of top.kids) {
+            emit(k, 0);
+        }
+        return { text: out.join('\n') };
+    }
+    const paint = painter(o.style);
+    const total = top.weight;
+    const w = widest(rows.map((r) => r.prefix + r.name));
+    const nw = widest(rows.map((r) => String(r.weight)));
+    return {
+        text: rows.map((r) => {
+            const bar = 0 === total ? 0
+                : Math.max(1, Math.floor(r.weight * TREEMAP_BAR / total));
+            return paint('rule', r.prefix) + r.name +
+                ' '.repeat(w - (r.prefix + r.name).length) + '  ' +
+                lpad(String(r.weight), nw) + '  ' + paint('bar', '█'.repeat(bar));
+        }).join('\n'),
+    };
+}
+function selectMembers(triples, of, member, ghosts, loss) {
+    const out = triples.filter((e) => e.from === of);
+    const links = undefined === member ? out : out.filter((e) => e.key === member);
+    if (0 === links.length) {
+        const have = keysOf(out);
+        return {
+            error: finding('view_members_none', 'reference', of, undefined === member
+                ? `${of} links to nothing, so it has no members to draw.`
+                : `${of} has no links under ${member}.`, 0 === have.length ? undefined : 'its links: ' + have.join(', ')),
+        };
+    }
+    const members = [...new Set(links.map((e) => e.to))].sort(keyorder_1.cmpCodePoint);
+    const inside = new Set(members);
+    const kept = [];
+    const away = new Map();
+    let outside = 0;
+    for (const e of triples) {
+        if (e.from === of) {
+            continue;
+        }
+        const a = inside.has(e.from);
+        const b = inside.has(e.to);
+        if (a && b) {
+            kept.push(e);
+        }
+        else if (a || b) {
+            outside++;
+            if (ghosts) {
+                kept.push(e);
+                away.set(a ? e.to : e.from, '');
+            }
+        }
+    }
+    if (0 < outside && !ghosts) {
+        loss.push({ code: 'edges_outside', count: outside });
+    }
+    return { selection: { triples: kept, members, ghosts: away } };
+}
+const SPLIT_KINDS = ['graph', 'state', 'lane'];
+function splitParts(sel, root, o, loss) {
+    const all = graphPaths(sel.triples, sel.members ?? [])
+        .filter((p) => !sel.ghosts.has(p));
+    const inner = new Set(all);
+    const lab = labelsOf(all);
+    const byLabel = (a, b) => (0, keyorder_1.cmpCodePoint)(lab.get(a), lab.get(b));
+    const sorted = all.slice().sort(byLabel);
+    let parts;
+    if (undefined !== o.splitBy) {
+        const field = o.splitBy;
+        const unresolved = [];
+        const of = new Map();
+        for (const p of sorted) {
+            const v = fieldOf(root, p, field);
+            if (undefined === v) {
+                unresolved.push(p + '.' + field);
+                continue;
+            }
+            of.set(v, [...(of.get(v) ?? []), p]);
+        }
+        // The split field may be a field the figure already read, so its
+        // unresolved paths join the row the figure wrote.
+        const row = loss.find((l) => 'unresolved_field' === l.code);
+        if (undefined === row) {
+            unresolvedLoss(unresolved, loss);
+        }
+        else {
+            row.detail = [...new Set([...row.detail, ...unresolved])]
+                .sort(keyorder_1.cmpCodePoint);
+            row.count = row.detail.length;
+        }
+        parts = [...of.keys()].sort(keyorder_1.cmpCodePoint)
+            .map((name) => ({ name, nodes: of.get(name) }));
+    }
+    else {
+        // Each root takes what it reaches that no earlier root took, in
+        // breadth-first order; what no root reaches (a cycle with no way
+        // in) is taken from its least label in the same way.
+        const succ = new Map(sorted.map((p) => [p, []]));
+        const entered = new Set();
+        for (const e of sel.triples) {
+            if (inner.has(e.from) && inner.has(e.to) && e.from !== e.to) {
+                succ.get(e.from).push(e.to);
+                entered.add(e.to);
+            }
+        }
+        for (const list of succ.values()) {
+            list.sort(byLabel);
+        }
+        const taken = new Set();
+        parts = [];
+        const claim = (start) => {
+            const nodes = [];
+            const queue = [start];
+            taken.add(start);
+            while (0 < queue.length) {
+                const p = queue.shift();
+                nodes.push(p);
+                for (const q of succ.get(p)) {
+                    if (!taken.has(q)) {
+                        taken.add(q);
+                        queue.push(q);
+                    }
+                }
+            }
+            parts.push({ name: lab.get(start), nodes });
+        };
+        for (const p of sorted.filter((p) => !entered.has(p))) {
+            claim(p);
+        }
+        for (const p of sorted) {
+            if (!taken.has(p)) {
+                claim(p);
+            }
+        }
+        // A budget alone cuts the walk itself, so a part holds nodes that
+        // reach each other wherever the budget allows.
+        if (true !== o.splitRoots) {
+            parts = [{ name: '', nodes: parts.flatMap((p) => p.nodes) }];
+        }
+    }
+    const budget = o.budget ?? 0;
+    if (0 === budget) {
+        return parts;
+    }
+    const cut = [];
+    for (const part of parts) {
+        const n = Math.ceil(part.nodes.length / budget);
+        for (let i = 0; i < n; i++) {
+            cut.push({
+                name: '' === part.name ? String(i + 1)
+                    : 1 === n ? part.name : `${part.name}.${i + 1}`,
+                nodes: part.nodes.slice(i * budget, (i + 1) * budget),
+            });
+        }
+    }
+    return cut;
+}
+// One part's own selection: its nodes, every edge touching one of
+// them, and the far end of an edge that leaves the part drawn as a
+// ghost naming the part it lives in.
+function partSelection(sel, parts, part) {
+    const home = new Map();
+    for (const p of parts) {
+        for (const n of p.nodes) {
+            home.set(n, p.name);
+        }
+    }
+    const mine = new Set(part.nodes);
+    const ghosts = new Map();
+    const triples = sel.triples.filter((e) => mine.has(e.from) || mine.has(e.to));
+    for (const e of triples) {
+        for (const end of [e.from, e.to]) {
+            if (!mine.has(end)) {
+                ghosts.set(end, home.get(end) ?? '');
+            }
+        }
+    }
+    return { triples, members: part.nodes, ghosts };
+}
+// The token a split figure's file name carries, replaced by each
+// part's name made safe for a file system.
+exports.PART_TOKEN = '{part}';
+function viewSplits(o) {
+    return undefined !== o.splitBy || true === o.splitRoots || 0 < (o.budget ?? 0);
+}
+// Letters, digits, `.`, `-` and `_` stand; every other code point is
+// `_` and its hex, so two part names never share a file.
+function viewPartFile(out, name) {
+    let safe = '';
+    for (const ch of name) {
+        const c = ch.codePointAt(0);
+        safe += /[A-Za-z0-9.-]/.test(ch) ? ch : '_' + lpad(c.toString(16), 2);
+    }
+    if (/^\.*$/.test(safe)) {
+        safe = safe.replace(/\./g, '_2e');
+    }
+    return out.split(exports.PART_TOKEN).join(safe);
+}
+const PART_COMMENT = {
+    mermaid: '%%', er: '%%', dot: '//', text: '#',
+};
 function docFailure(d, options) {
     const loaded = load(d.src, d.path, options, undefined);
     if (undefined !== loaded.errors) {
@@ -1844,7 +2636,10 @@ function view(src, opts, hooks) {
         }
         loss.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.code, b.code));
         const lossy = loss.some((l) => !INFORMATIONAL.includes(l.code));
-        return { verdict: lossy ? 'lossy' : 'rendered', kind, text: fig.text, loss };
+        return {
+            verdict: lossy ? 'lossy' : 'rendered', kind, text: fig.text, loss,
+            ...(0 === (fig.parts ?? []).length ? {} : { parts: fig.parts }),
+        };
     };
     const profiles = PROFILES[kind];
     if (undefined === profiles) {
@@ -1890,9 +2685,9 @@ function view(src, opts, hooks) {
     if (undefined !== loaded.errors) {
         return done({ errors: loaded.errors });
     }
-    return done(drawLoaded(loaded.root, loaded.ctx, undefined, prov, kind, as, options, max, loss));
+    return done(drawLoaded(loaded.root, loaded.ctx, prov, kind, as, options, max, loss));
 }
-function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
+function drawLoaded(root, ctx, prov, kind, as, options, max, loss) {
     const style = styleOf(options.style, as);
     if ('doc' === kind) {
         return drawDoc(root, { ...options, as, style }, max, loss);
@@ -1903,51 +2698,149 @@ function drawLoaded(root, ctx, gen, prov, kind, as, options, max, loss) {
     if ('layers' === kind) {
         return drawLayers(prov, root, options.path, { ...options, as, style }, max, loss);
     }
-    if ('sets' === kind) {
-        if (undefined === options.sets || undefined === options.member) {
+    if ('sets' === kind || 'sequence' === kind) {
+        const missing = 'sets' === kind
+            ? undefined === options.sets || undefined === options.member
+            : undefined === options.steps || undefined === options.from ||
+                undefined === options.to;
+        if (missing) {
             return {
-                errors: [finding('view_sets_required', 'reference', '$', 'The set panel needs --sets and --member.')],
+                errors: 'sets' === kind
+                    ? [finding('view_sets_required', 'reference', '$', 'The set panel needs --sets and --member.')]
+                    : [finding('view_steps_required', 'reference', '$', 'The sequence needs --steps, --from and --to.')],
             };
         }
-        let value = gen?.value;
-        if (undefined === gen) {
-            // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
-            // generated values, so a document that is not concrete is an
-            // error here, exactly as `aontu file.aontu` on it is.
-            const before = ctx.err.length;
-            value = root.gen(ctx);
-            if (before < ctx.err.length) {
+        if ('sequence' === kind) {
+            // The steps are generated alone: a model whose schema half is
+            // not concrete can still list its sequences.
+            const steps = (0, vet_1.anchorAt)(root, options.steps);
+            if (null == steps) {
                 return {
-                    errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
+                    errors: [finding('no_path', 'reference', options.steps, `The path ${options.steps} names nothing in this document.`)],
                 };
             }
+            const before = ctx.err.length;
+            const listed = steps.gen(ctx);
+            if (before < ctx.err.length) {
+                return { errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')] };
+            }
+            return drawSequence(listed, {
+                from: options.from, to: options.to,
+                label: options.label, at: options.steps, as,
+            }, max, loss);
+        }
+        // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
+        // generated values, so a document that is not concrete is an
+        // error here, exactly as `aontu file.aontu` on it is.
+        const before = ctx.err.length;
+        const value = root.gen(ctx);
+        if (before < ctx.err.length) {
+            return {
+                errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
+            };
         }
         return drawSets(value, {
-            sets: options.sets, member: options.member, universe: options.universe,
-            minDegree: options.minDegree, maxCols: options.maxCols, as, style,
+            sets: options.sets, member: options.member,
+            universe: options.universe, minDegree: options.minDegree,
+            maxCols: options.maxCols, as, style,
         }, max, loss);
     }
-    const triples = triplesOf((0, graph_1.graphOf)(root), options.at, loss);
+    const splitting = viewSplits(options);
+    if (splitting && !SPLIT_KINDS.includes(kind)) {
+        return {
+            errors: [finding('view_split_kind', 'reference', '$', `The ${kind} figure cannot be split into parts.`, 'kinds that split: ' + SPLIT_KINDS.join(', '))],
+        };
+    }
+    let sel = {
+        triples: triplesOf((0, graph_1.graphOf)(root), options.at, loss), ghosts: new Map(),
+    };
+    if ('graph' === kind && 'er' === as && undefined !== options.columns) {
+        // A link written as a column is the entity's own relationship,
+        // named by the column.
+        const tail = '.' + options.columns;
+        sel.triples = sel.triples.map((e) => e.from.endsWith(tail)
+            ? { ...e, from: e.from.slice(0, -tail.length) } : e);
+    }
+    if (undefined !== options.of) {
+        const picked = selectMembers(sel.triples, options.of, options.member, true === options.ghosts && SPLIT_KINDS.includes(kind), 'treemap' === kind ? [] : loss);
+        if (undefined !== picked.error) {
+            return { errors: [picked.error] };
+        }
+        sel = picked.selection;
+    }
+    if ('treemap' === kind) {
+        return drawTreemap(root, {
+            at: options.at, depth: options.depth, groupBy: options.groupBy,
+            size: options.size, members: sel.members, as, style,
+        }, max, loss);
+    }
     const decls = ctx._reldecls;
     // An empty relation name is no relation, so both ports read it as
     // "every relation" rather than one that names nothing.
     const relation = options.relation || undefined;
+    const relations = options.relations ?? [];
+    const draw = (s, rows, into, relations) => {
+        const members = s.members ?? [];
+        if ('graph' === kind) {
+            return drawGraph(s.triples, decls, root, {
+                relations, groupBy: options.groupBy, label: options.label, as,
+                members, ghosts: s.ghosts, columns: options.columns,
+                counts: options.counts, countBy: options.countBy,
+                collapse: options.collapse,
+            }, rows, into);
+        }
+        if ('state' === kind) {
+            return drawState(s.triples, root, {
+                relations, label: options.label, as, members, ghosts: s.ghosts,
+            }, rows, into);
+        }
+        return drawLane(s.triples, root, {
+            relations, groupBy: options.groupBy, label: options.label,
+            layers: options.layers ?? [], as, members, ghosts: s.ghosts,
+            counts: options.counts, countBy: options.countBy,
+        }, rows, into);
+    };
+    if (SPLIT_KINDS.includes(kind)) {
+        if (!splitting) {
+            return draw(sel, max, loss, relations);
+        }
+        // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
+        // report; each part is then drawn on its own, under the row cap
+        // the whole figure was spared.
+        const whole = draw(sel, Infinity, loss, relations);
+        if (undefined !== whole.errors) {
+            return whole;
+        }
+        const scoped = 0 === relations.length ? sel : {
+            ...sel, triples: sel.triples.filter((e) => relations.includes(e.key)),
+        };
+        const parts = [];
+        const cut = splitParts(scoped, root, options, loss);
+        for (const part of cut) {
+            const fig = draw(partSelection(scoped, cut, part), max, [], []);
+            if (undefined !== fig.errors) {
+                return fig;
+            }
+            parts.push({ name: part.name, text: fig.text });
+        }
+        const mark = PART_COMMENT[as];
+        return {
+            parts,
+            text: parts.map((p) => `${mark} part: ${p.name}\n${p.text}`).join('\n\n'),
+        };
+    }
+    const triples = sel.triples;
     if ('matrix' === kind) {
         return drawMatrix(triples, decls, {
             relation, order: options.order ?? 'canon', closure: true === options.closure,
             as, style,
         }, max, loss);
     }
-    if ('graph' === kind) {
-        return drawGraph(triples, decls, root, {
-            relations: options.relations ?? [], groupBy: options.groupBy,
-            label: options.label, as,
-        }, max, loss);
-    }
     if ('layer' === kind) {
         return drawLayer(triples, root, {
             relation, groupBy: options.groupBy, layers: options.layers ?? [],
-            edges: options.edges, as, style,
+            edges: options.edges, as, style, counts: options.counts,
+            countBy: options.countBy,
         }, max, loss);
     }
     return drawTree(collapse(triples, relation), relation, options.roots ?? [], max, as, style);
@@ -1958,7 +2851,8 @@ function viewTree(src, opts) {
 }
 const DECL_TEXT = [
     'kind', 'as', 'out', 'at', 'relation', 'order', 'groupBy', 'label',
-    'sets', 'member', 'universe', 'edges',
+    'sets', 'member', 'universe', 'edges', 'of', 'columns', 'countBy',
+    'splitBy', 'steps', 'from', 'to', 'size',
 ];
 // The options whose values are a closed set. A view document is the
 // artifact CI reads, so a typo here is a refusal rather than a silent
@@ -1967,8 +2861,10 @@ const DECL_ENUM = {
     order: ['canon', 'partition'],
     edges: ['upward', 'all', 'none'],
 };
-const DECL_COUNT = ['maxRows', 'maxCols', 'minDegree', 'minSize', 'depth'];
-const DECL_FLAG = ['closure'];
+const DECL_COUNT = [
+    'maxRows', 'maxCols', 'minDegree', 'minSize', 'depth', 'budget',
+];
+const DECL_FLAG = ['closure', 'ghosts', 'counts', 'collapse', 'splitRoots'];
 const DECL_LIST = ['roots', 'relations', 'layers'];
 const DECL_KEYS = [...DECL_TEXT, ...DECL_COUNT, ...DECL_FLAG, ...DECL_LIST]
     .sort(keyorder_1.cmpCodePoint);
@@ -2045,6 +2941,9 @@ function planOf(name, decl, at) {
     else if (hasLineBreak(out)) {
         errors.push(documentFinding(`${where}.out`, 'A file name cannot hold a line terminator.'));
     }
+    else if (viewSplits(opts) && !out.includes(exports.PART_TOKEN)) {
+        errors.push(documentFinding(`${where}.out`, `A split figure writes one file per part, so out must hold ${exports.PART_TOKEN}.`));
+    }
     if (0 < errors.length) {
         return { errors };
     }
@@ -2073,18 +2972,21 @@ function viewSet(src, opts, hooks) {
     }
     const root = loaded.root;
     const ctx = loaded.ctx;
-    // The declarations are part of the document, so reading them
-    // generates it -- and a view document that does not generate has no
-    // figures, exactly as `aontu file.aontu` on it has no output.
-    const before = ctx.err.length;
-    const value = root.gen(ctx);
-    if (before < ctx.err.length) {
-        return {
-            verdict: 'error', views: [],
-            errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
-        };
+    // THE DECLARATIONS GENERATE ALONE: a model whose schema half is not
+    // concrete still has figures, and a figure that reads generated
+    // values generates what it reads.
+    const node = (0, vet_1.anchorAt)(root, at);
+    let declared = undefined;
+    if (null != node) {
+        const before = ctx.err.length;
+        declared = node.gen(ctx);
+        if (before < ctx.err.length) {
+            return {
+                verdict: 'error', views: [],
+                errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, at)],
+            };
+        }
     }
-    const declared = genAt(value, at);
     if (null == declared || 'object' !== typeof declared || Array.isArray(declared)) {
         return {
             verdict: 'error', views: [],
@@ -2103,7 +3005,6 @@ function viewSet(src, opts, hooks) {
     if (0 < errors.length) {
         return { verdict: 'error', views: [], errors };
     }
-    const gen = { value };
     const views = plans.map((plan) => {
         const loss = [];
         const each = {
@@ -2112,7 +3013,7 @@ function viewSet(src, opts, hooks) {
         };
         const fig = 'ladder' === plan.kind
             ? drawLadder(src, each, plan.as, plan.max)
-            : drawLoaded(root, ctx, gen, prov, plan.kind, plan.as, each, plan.max, loss);
+            : drawLoaded(root, ctx, prov, plan.kind, plan.as, each, plan.max, loss);
         if (undefined !== fig.errors) {
             return {
                 name: plan.name, kind: plan.kind, out: plan.out,
@@ -2125,6 +3026,7 @@ function viewSet(src, opts, hooks) {
             name: plan.name, kind: plan.kind, out: plan.out,
             verdict: (lossy ? 'lossy' : 'rendered'),
             text: fig.text, loss,
+            ...(0 === (fig.parts ?? []).length ? {} : { parts: fig.parts }),
         };
     });
     const verdict = views.some((v) => 'error' === v.verdict)

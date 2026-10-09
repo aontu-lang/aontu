@@ -482,3 +482,7 @@ sort_dir	errcode	parse	0.63.0
 constraint_kind	errcode	conflict	0.77.0
 string_empty	errcode	conflict	0.77.0
 empty_domain	errcode	conflict	0.77.0
+view_members_none	errcode	reference	0.77.0
+view_steps_required	errcode	reference	0.77.0
+view_steps_shape	errcode	reference	0.77.0
+view_split_kind	errcode	reference	0.77.0

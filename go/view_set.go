@@ -21,6 +21,7 @@ type ViewFigure struct {
 	// Out is where the declaration says to write it. The library never
 	// writes: the caller does, and only when every figure rendered.
 	Out     string      `json:"out"`
+	Parts   []ViewPart  `json:"parts,omitempty"`
 	Text    *string     `json:"text,omitempty"`
 	Verdict ViewVerdict `json:"verdict"`
 }
@@ -39,7 +40,8 @@ type ViewSetReport struct {
 
 var declText = []string{
 	"kind", "as", "out", "at", "relation", "order", "groupBy", "label",
-	"sets", "member", "universe", "edges",
+	"sets", "member", "universe", "edges", "of", "columns", "countBy",
+	"splitBy", "steps", "from", "to", "size",
 }
 
 // The options whose values are a closed set. A view document is the
@@ -53,9 +55,9 @@ var declEnum = []struct {
 	{"edges", []string{"upward", "all", "none"}},
 }
 
-var declCount = []string{"maxRows", "maxCols", "minDegree", "minSize", "depth"}
+var declCount = []string{"maxRows", "maxCols", "minDegree", "minSize", "depth", "budget"}
 
-var declFlag = []string{"closure"}
+var declFlag = []string{"closure", "ghosts", "counts", "collapse", "splitRoots"}
 
 var declList = []string{"roots", "relations", "layers"}
 
@@ -149,6 +151,22 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 				opts.Universe = text
 			case "edges":
 				opts.Edges = text
+			case "of":
+				opts.Of = text
+			case "columns":
+				opts.Columns = text
+			case "countBy":
+				opts.CountBy = text
+			case "splitBy":
+				opts.SplitBy = text
+			case "steps":
+				opts.Steps = text
+			case "from":
+				opts.From = text
+			case "to":
+				opts.To = text
+			case "size":
+				opts.Size = text
 			}
 		} else if contains(declCount, key) {
 			n, valid := viewCount(value)
@@ -168,6 +186,8 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 				opts.MinSize = n
 			case "depth":
 				opts.Depth = n
+			case "budget":
+				opts.Budget = n
 			}
 		} else if contains(declFlag, key) {
 			flag, isFlag := value.(bool)
@@ -176,7 +196,18 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 					key+" must be true or false.", ""))
 				continue
 			}
-			opts.Closure = flag
+			switch key {
+			case "closure":
+				opts.Closure = flag
+			case "ghosts":
+				opts.Ghosts = flag
+			case "counts":
+				opts.Counts = flag
+			case "collapse":
+				opts.Collapse = flag
+			case "splitRoots":
+				opts.SplitRoots = flag
+			}
 		} else if contains(declList, key) {
 			raw, isList := value.([]any)
 			list, allText := viewStrings(raw)
@@ -241,6 +272,9 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 	} else if viewHasLineBreak(opts.Out) {
 		errs = append(errs, viewDocumentFinding(where+".out",
 			"A file name cannot hold a line terminator.", ""))
+	} else if viewSplits(&opts) && !strings.Contains(opts.Out, ViewPartToken) {
+		errs = append(errs, viewDocumentFinding(where+".out",
+			"A split figure writes one file per part, so out must hold "+ViewPartToken+".", ""))
 	}
 	if 0 < len(errs) {
 		return nil, errs
@@ -273,15 +307,18 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 	if nil != errs {
 		return ViewSetReport{Verdict: "error", Views: none, Errors: errs}
 	}
-	// The declarations are part of the document, so reading them
-	// generates it -- and a view document that does not generate has no
-	// figures, exactly as `aontu file.aontu` on it has no output.
-	value, gerr := genCollect(ctx, root)
-	if nil != gerr {
-		return ViewSetReport{Verdict: "error", Views: none,
-			Errors: queryFailed(gerr, "$").Findings}
+	// THE DECLARATIONS GENERATE ALONE: a model whose schema half is not
+	// concrete still has figures, and a figure that reads generated
+	// values generates what it reads.
+	var declared any
+	if node := anchorAt(root, options.Views); nil != node {
+		value, gerr := genCollect(ctx, node)
+		if nil != gerr {
+			return ViewSetReport{Verdict: "error", Views: none,
+				Errors: queryFailed(gerr, options.Views).Findings}
+		}
+		declared = value
 	}
-	declared, _ := viewGenAt(value, options.Views)
 	fields, isMap := declared.(map[string]any)
 	if !isMap {
 		return ViewSetReport{Verdict: "error", Views: none,
@@ -307,18 +344,18 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 		return ViewSetReport{Verdict: "error", Views: none, Errors: shape}
 	}
 
-	gen := &viewGen{value: value}
 	views := []ViewFigure{}
 	for _, plan := range plans {
 		loss := []ViewLoss{}
 		each := plan.opts
 		var text string
 		var ferrs []VetFinding
+		parts := []ViewPart{}
 		if "ladder" == plan.kind {
 			text, ferrs = a.drawLadder(src, each.At, plan.as, plan.max)
 		} else {
-			text, ferrs = a.drawLoaded(root, ctx, gen, prov,
-				plan.kind, plan.as, &each, plan.max, &loss)
+			text, ferrs = a.drawLoaded(root, ctx, prov,
+				plan.kind, plan.as, &each, plan.max, &loss, &parts)
 		}
 		if nil != ferrs {
 			views = append(views, ViewFigure{Name: plan.name, Kind: plan.kind,
@@ -334,7 +371,7 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 		}
 		figure := text
 		views = append(views, ViewFigure{Name: plan.name, Kind: plan.kind,
-			Out: plan.out, Verdict: verdict, Text: &figure, Loss: loss})
+			Out: plan.out, Verdict: verdict, Text: &figure, Loss: loss, Parts: parts})
 	}
 
 	verdict := ViewVerdict("rendered")

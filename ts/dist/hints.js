@@ -156,7 +156,7 @@ const hints = {
     rel_unresolved: 'The address names no node in this evaluation. Every position in the\ndocument is addressable; nothing outside it is.\n \nExamples:\n  p: {}\n  q: rel() & "$.p"       -> {..}  # $.p is a node;\n  q: rel() & "$.nosuch"  -> nil   # ... $.nosuch is not.',
     refer_unresolved: 'A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&"$.a"    -> "$.a"    # $.a is a node;\n  a:{p:1} b:refer()&"$.a.p"  -> "$.a.p"  # ... and so is a node inside it;\n  b:refer()&"$.nope"         -> nil      # ... but nothing is here.',
     view_relation_unknown: 'The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.',
-    view_kind_unknown: 'The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.',
+    view_kind_unknown: 'The figure kind is not one the verb draws. The note lists\nthe kinds.',
     // RETIRED with the `render` verb (ADR-038). Registered still,
     // errcodes.tsv being append-only, so a code a released engine raised
     // keeps its meaning.
@@ -178,6 +178,10 @@ const hints = {
     view_at_required: 'The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.',
     view_group_required: 'The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node\'s layer.',
     view_document_shape: 'A view document declares each figure as a map of view options --\nthe flag names without the dashes -- and every declaration must name\nits `kind` and the `out` file it draws into. This one names an option\nthat is not one, gives a value of the wrong shape, or leaves out what\nevery declaration needs. `aontu view --help` lists the options.',
+    view_members_none: '--of names a node whose links are the figure\'s members, and this one\nlinks to nothing (or, with --member, to nothing under that key). The\nnote lists the keys its links are under.',
+    view_steps_required: 'The sequence reads a list of steps: --steps names it, and --from and\n--to name the fields of each step that hold its sender and receiver.',
+    view_steps_shape: 'The sequence reads generated values: --steps must name a list, and\neach step must hold a string at its --from and --to fields. The path\nin the finding is the value that has another shape.',
+    view_split_kind: 'Only the node-link figures split into parts: graph, state and lane.\nA part of any other kind would not stand on its own, so --split-by,\n--split-roots and --budget are refused there.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
     pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
     each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values are taken in sorted-key order.\n \nExamples:\n  each([a,b], upper(_))  -> [..]  # A list, in source order;\n  each({b:2,a:1}, _)     -> [..]  # ... a map, in sorted-key order;\n  each(1, _)             -> nil   # ... but a scalar has no children.',
@@ -650,6 +654,10 @@ const codeClasses = {
     view_at_required: 'reference',
     view_group_required: 'reference',
     view_document_shape: 'reference',
+    view_members_none: 'reference',
+    view_steps_required: 'reference',
+    view_steps_shape: 'reference',
+    view_split_kind: 'reference',
     // First-class paths (docs/design/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
     // class as refer_address, because it is the same mistake.
