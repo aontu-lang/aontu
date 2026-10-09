@@ -1143,6 +1143,7 @@ describe('cli-subsume', () => {
     Assert.ok(set.out.includes('id: "https://example.com/n.json"'), set.out)
     for (const [args, want] of [
       [['import', '--uri'], '--uri needs a URI'],
+      [['import', '--dialect'], '--dialect needs a dialect'],
       [['import', '--doc', 'https://example.com/n.json'], '--doc needs a URI and a file'],
       [['import', '--doc', 'https://example.com/n.json', doc + '.gone', file], 'cannot read'],
       [['import', '--format-grammar', 'zip'], '--format-grammar needs a name and a file'],
@@ -1166,6 +1167,12 @@ describe('cli-subsume', () => {
       '--format-grammar', 'zip', zip, file]), 0))
     Assert.ok(asserted.out.includes('format("date")'), asserted.out)
     Assert.ok(asserted.out.includes('format("zip = 5DIGIT\\n")'), asserted.out)
+
+    // --dialect reads a schema that names none in a legacy dialect.
+    Fs.writeFileSync(file, '{"type": "number", "maximum": 5, "exclusiveMaximum": true}')
+    const legacy = vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--dialect', 'draft-04', file]), 0))
+    Assert.ok(legacy.out.includes('below(5)'), legacy.out)
     Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}')
 
     const j = JSON.parse(vetCapture(() => Assert.equal(

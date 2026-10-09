@@ -370,6 +370,8 @@ class Unify {
     if (!(root as NilVal).isNil) {
       if (ctx instanceof AontuContext) {
         uctx = ctx
+        // The first pass reads references from the root, as below.
+        uctx.root = uctx.root ?? res
       }
       else {
         uctx = new AontuContext({

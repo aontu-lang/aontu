@@ -495,3 +495,4 @@ format_unknown	errcode	conflict	0.77.0
 format_grammar	errcode	parse	0.77.0
 trial_budget	errcode	budget	0.77.0
 ident_place	errcode	parse	0.77.0
+jsonschema_dialect	errcode	reference	0.77.0

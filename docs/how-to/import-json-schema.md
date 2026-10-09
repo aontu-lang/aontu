@@ -1,5 +1,5 @@
 ---
-description: Import a JSON Schema 2020-12 document as aontu, and check data against it the way JSON Schema does.
+description: Import a JSON Schema document, from draft-04 to 2020-12, as aontu, and check data against it the way JSON Schema does.
 group: schemas
 order: 75
 ---
@@ -132,21 +132,23 @@ member the data left out, where JSON Schema reports it missing.
 
 A keyword the importer does not carry is dropped and reported on
 stderr, so `aontu jsonschema import s.json > s.aontu` writes a usable
-document and still says what it left behind. A keyword of an earlier
-dialect, such as `dependencies`, widens the schema, and the report says
-so. `--strict` turns any loss into exit 1, for a pipeline that must not
-accept a widened schema. Write `email.json`:
+document and still says what it left behind. A 2020-12 schema that
+uses a keyword of an earlier dialect, such as `additionalItems`
+beside `prefixItems`, is wider than its author meant, and the report
+says so. `--strict` turns any loss into exit 1, for a pipeline that
+must not accept a widened schema. Write `email.json`:
 
 <!-- test: file email.json -->
 ```json
-{"type": "object", "properties": {"email": {"type": "string", "format": "email", "title": "Email"}}, "dependencies": {"email": ["name"]}}
+{"type": "object", "properties": {"email": {"type": "string", "format": "email", "title": "Email"}, "tags": {"type": "array", "prefixItems": [{"type": "string"}], "additionalItems": false}}}
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict email.json
 email?: meta(empty(), { format:"email" title:"Email" })
-lossy: #/dependencies dependencies: a keyword of an earlier dialect, which 2020-12 does not define, so it is dropped and the position admits more than that dialect does
+tags?: [&: match(key(0), "0", empty(), any)]
+lossy: #/properties/tags/additionalItems additionalItems: a keyword of an earlier dialect, which 2020-12 does not define, so it is dropped and the position admits more than that dialect does
 vet with: aontu vet --no-fill --exact-numbers <document> <data>
 $ echo $?
 1
@@ -156,9 +158,59 @@ Without `--strict` the same import exits 0. Text that is not a schema
 is refused with `jsonschema_schema` and exit 4, naming where the text
 goes wrong.
 
+## Import an earlier dialect
+
+A schema written for draft-04, draft-06, draft-07 or 2019-09 is read
+in its own dialect, which its `$schema` names. The importer rewrites
+it, keyword by keyword, into the 2020-12 schema that means the same
+before reading it: an array `items` and `additionalItems` become
+`prefixItems` and `items`, `dependencies` becomes `dependentSchemas`
+and `dependentRequired`, and so on. Write `shape.json`:
+
+<!-- test: file shape.json -->
+```json
+{"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "properties": {"point": {"type": "array", "items": [{"type": "number"}, {"type": "number"}], "additionalItems": false}, "label": {"$ref": "#/definitions/label", "maxLength": 3}}, "definitions": {"label": {"type": "string"}}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --strict shape.json
+%p_definitions_2f_label = empty()
+
+point?: [&: match(key(0), "0", number, "1", number, nil)]
+label?: %p_definitions_2f_label
+lossy: #/properties/label/maxLength maxLength: draft-07 and earlier read nothing beside $ref, so this keyword asserts nothing and is dropped
+vet with: aontu vet --no-fill --exact-numbers <document> <data>
+$ echo $?
+1
+```
+
+The loss names the keyword where it was written. Draft-07 and earlier
+read nothing beside a `$ref`, so the `maxLength` there asserts nothing,
+and `--strict` says so with exit 1.
+
+A schema that names no dialect is read as 2020-12. `--dialect` reads
+it in another, as in a draft-04 schema whose `exclusiveMinimum` is a
+flag on `minimum`. Write `ratio.json`:
+
+<!-- test: file ratio.json -->
+```json
+{"type": "number", "minimum": 0, "exclusiveMinimum": true}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --dialect draft-04 ratio.json
+number & above(0)
+```
+
+A `$schema` that names no dialect aontu reads refuses the import with
+`jsonschema_dialect`, unless `--doc` supplies the custom meta-schema at
+that URI, whose own `$schema` then names the dialect.
+
 ## Keep the annotations
 
-The `format` and `title` above are not lost. The annotation keywords
+The `format` and `title` in `email.json` are not lost. The annotation keywords
 of JSON Schema assert nothing, so the importer carries them on the value they
 describe, in a `meta()` record: `title`, `description`, `$comment`,
 `default`, `examples`, `readOnly`, `writeOnly`, `format` and the

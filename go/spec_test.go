@@ -573,25 +573,7 @@ func TestSpec(t *testing.T) {
 					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
-					opts := &ImportOptions{}
-					if o, ok := golden["opts"].(map[string]any); ok {
-						opts.Defaults = true == o["defaults"]
-						opts.FormatAssertion = true == o["formatAssertion"]
-						opts.URI, _ = o["uri"].(string)
-						if docs, ok := o["documents"].(map[string]any); ok {
-							opts.Documents = map[string]string{}
-							for k, v := range docs {
-								opts.Documents[k], _ = v.(string)
-							}
-						}
-						if fs, ok := o["formats"].(map[string]any); ok {
-							opts.Formats = map[string]string{}
-							for k, v := range fs {
-								opts.Formats[k], _ = v.(string)
-							}
-						}
-					}
-					delete(golden, "opts")
+					opts := specImportOptions(golden)
 					r := ImportJSONSchema(src, opts)
 					// Every import that stands is paired with JSON Schema's
 					// question.
@@ -615,6 +597,32 @@ func TestSpec(t *testing.T) {
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("jsonschema-import report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
+				case "jsonschema-upgrade":
+					// A number a float64 cannot hold keeps its digits, as
+					// the export does.
+					var golden map[string]any
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					r := UpgradeJSONSchema(src, specImportOptions(golden))
+					out := map[string]any{
+						"dialect":   r.Dialect,
+						"rewritten": r.Rewritten,
+						"schema":    r.Schema,
+						"verdict":   r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(out, "errors")
+					}
+					got := specJSON(t, out)
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("jsonschema-upgrade report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
 				case "reaches":
@@ -818,6 +826,32 @@ func specAsAny(t *testing.T, v any) any {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	return out
+}
+
+// specImportOptions reads the importer's options from a row's `opts`,
+// which it removes from the golden.
+func specImportOptions(golden map[string]any) *ImportOptions {
+	opts := &ImportOptions{}
+	if o, ok := golden["opts"].(map[string]any); ok {
+		opts.Defaults = true == o["defaults"]
+		opts.FormatAssertion = true == o["formatAssertion"]
+		opts.URI, _ = o["uri"].(string)
+		opts.Dialect, _ = o["dialect"].(string)
+		if docs, ok := o["documents"].(map[string]any); ok {
+			opts.Documents = map[string]string{}
+			for k, v := range docs {
+				opts.Documents[k], _ = v.(string)
+			}
+		}
+		if fs, ok := o["formats"].(map[string]any); ok {
+			opts.Formats = map[string]string{}
+			for k, v := range fs {
+				opts.Formats[k], _ = v.(string)
+			}
+		}
+	}
+	delete(golden, "opts")
+	return opts
 }
 
 func specJSON(t *testing.T, v any) string {

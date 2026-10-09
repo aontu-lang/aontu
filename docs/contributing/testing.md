@@ -244,6 +244,14 @@ it:
   which the [register](../capability-review/progress.md) tightens as
   each phase lands.
 
+The suite's directories for the earlier dialects, draft-04 to 2019-09,
+run through the same runners, each read with its dialect as the
+import's default and each with a ledger of its own beside `skips.tsv`,
+`skips-draft7.tsv` and so on, under the same rules. The rewrite that
+reads them is pinned apart from the import, by the `jsonschema-upgrade`
+rows of
+[`test/spec/jsonschema-upgrade.tsv`](../../test/spec/jsonschema-upgrade.tsv).
+
 Two more corpora run through the same runners, each with its own
 ledger and bound. Ajv's extra tests, vendored under
 [`test/vectors/ajv-extras/`](../../test/vectors/ajv-extras/README.md),

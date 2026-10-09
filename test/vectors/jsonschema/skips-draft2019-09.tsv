@@ -1,0 +1,28 @@
+# The skip ledger of tests/draft2019-09/ (README.md), read in its own dialect:
+# one row per upstream test the importer cannot yet honour, the construct
+# it waits on and why. A listed test that passes fails the run.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+# A * in group and test lists a whole file; one in test a whole group.
+defs.json	validate definition against metaschema	valid definition schema	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
+optional/format/hostname.json	validation of A-label (punycode) host names	*	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a Bidi rule violation is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a disallowed code point is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	U-label contains "--" in the 3rd and 4th position	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	a U-label whose A-label form is longer than 63 octets is invalid	format	a U-label is never encoded, so its A-label form is not measured (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	invalid Punycode	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	non-canonical Punycode that does not re-encode to itself is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+recursiveRef.json	$recursiveRef with $recursiveAnchor: false works like $ref	integer does not match as a property value	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef with $recursiveAnchor: false works like $ref	two levels, integer does not match as a property value	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef with no $recursiveAnchor in the initial target schema resource	leaf node does not match: recursion uses the inner schema	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef with no $recursiveAnchor in the outer schema resource	leaf node does not match: recursion only uses inner schema	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef with no $recursiveAnchor works like $ref	integer does not match as a property value	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef with no $recursiveAnchor works like $ref	two levels, integer does not match as a property value	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef without $recursiveAnchor works like $ref	recursive mismatch	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef without using nesting	integer does not match as a property value	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	$recursiveRef without using nesting	two levels, no match	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	dynamic $recursiveRef destination (not predictable at schema compile time)	integer node	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+recursiveRef.json	multiple dynamic paths to the $recursiveRef keyword	recurse to integerNode - floats are not allowed	$recursiveRef	a reference that reaches itself through a root that is not a map has no alias to name it
+ref.json	remote ref, containing refs itself	remote ref valid	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
+ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+vocabulary.json	schema that uses custom metaschema with with no validation vocabulary	no validation: invalid number, but it still validates	$schema	a custom meta-schema waits on vocabularies and the meta-schema (phase 16)

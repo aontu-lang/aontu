@@ -25,7 +25,7 @@ const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors')
 type Skip = { file: string, group: string, test: string, construct: string, used: boolean }
 
 type Group = {
-  file: string, group: string, schema: string,
+  file: string, group: string, schema: string, dialect?: string,
   cases: { test: string, data: string, want: boolean }[]
 }
 
@@ -37,8 +37,8 @@ function rows(file: string): string[][] {
 }
 
 
-function readSkips(dir: string): Skip[] {
-  return rows(Path.join(dir, 'skips.tsv')).map(([file, group, name, construct]) =>
+function readSkips(ledger: string): Skip[] {
+  return rows(ledger).map(([file, group, name, construct]) =>
     ({ file, group, test: name, construct, used: false }))
 }
 
@@ -96,8 +96,9 @@ function text(node: JNode): string {
 }
 
 
-// The official suite's shape: files of groups, each a schema and its tests.
-function suiteGroups(dir: string): Group[] {
+// The official suite's shape: files of groups, each a schema and its
+// tests, read in the dialect the directory is written in (ADR-061).
+function suiteGroups(dir: string, dialect?: string): Group[] {
   const out: Group[] = []
   for (const file of files(dir, '', [])) {
     const src = Fs.readFileSync(Path.join(dir, file), 'utf8')
@@ -106,7 +107,7 @@ function suiteGroups(dir: string): Group[] {
     for (const g of (groups as JNode & { t: 'array' }).items) {
       const schemaNode = member(g, 'schema')
       out.push({
-        file, group: text(member(g, 'description')),
+        file, group: text(member(g, 'description')), dialect,
         schema: src.slice(schemaNode.off, schemaNode.end),
         cases: (member(g, 'tests') as JNode & { t: 'array' }).items.map((t) => {
           const dataNode = member(t, 'data')
@@ -144,7 +145,7 @@ function runCorpus(name: string, bound: number, groups: Group[],
   documents?: Record<string, string>): void {
   const skips = readSkips(Path.join(VECTORS, name))
   Assert.ok(skips.length <= bound,
-    `the ${name} skip ledger holds ${skips.length} rows, past its bound of ${bound}`)
+    `the ${name} ledger holds ${skips.length} rows, past its bound of ${bound}`)
 
   const problems: string[] = []
   let total = 0
@@ -156,6 +157,7 @@ function runCorpus(name: string, bound: number, groups: Group[],
     // The suite's optional/format/ asks for format assertion (ADR-059).
     const report = importJsonSchema(g.schema, {
       path: g.file, documents, formatAssertion: g.file.startsWith('optional/format/'),
+      dialect: g.dialect,
     })
     for (const c of g.cases) {
       total++
@@ -211,11 +213,20 @@ function runCorpus(name: string, bound: number, groups: Group[],
 
 // Each ledger may not grow past its bound; the register tightens them.
 test('the-json-schema-test-suite-runs-under-import-and-vet', () =>
-  runCorpus('jsonschema', 50,
+  runCorpus('jsonschema/skips.tsv', 15,
     suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()))
 
+// The earlier dialects' directories, each the default dialect of its own
+// run and each with its own ledger.
+for (const [dir, dialect, bound] of [['draft2019-09', '2019-09', 23], ['draft7', 'draft-07', 15],
+  ['draft6', 'draft-06', 5], ['draft4', 'draft-04', 5]] as const) {
+  test(`the-json-schema-test-suite-${dir}-runs-under-import-and-vet`, () =>
+    runCorpus(`jsonschema/skips-${dir}.tsv`, bound,
+      suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', dir), dialect), remotes()))
+}
+
 test('ajvs-extra-tests-run-under-import-and-vet', () =>
-  runCorpus('ajv-extras', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))))
+  runCorpus('ajv-extras/skips.tsv', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))))
 
 test('jsontestsuite-runs-as-instances-under-vet', () =>
-  runCorpus('jsontestsuite', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))))
+  runCorpus('jsontestsuite/skips.tsv', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))))

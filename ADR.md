@@ -89,6 +89,7 @@ capability decision is the phase rows it governed in
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 | [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
+| [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Accepted |
 
 ---
 
@@ -5699,3 +5700,114 @@ builtins still read, and the matcher has its own.
   `test/spec/jsonschema-import.tsv`, the `js-pattern-*` rows of
   `test/spec/jsonschema.tsv` and the `rep-pattern-*` rows of
   `test/spec/str.tsv`, in both ports.
+
+## ADR-061 — An earlier dialect is upgraded before it is read
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+The JSON Schema importer read every schema as 2020-12. A `$schema`
+naming another dialect was a loss, and a keyword only an earlier
+dialect defines, `dependencies`, `additionalItems`, `$recursiveRef`,
+was dropped as one, though each asserts in its own dialect. Most
+schemas published for tools and APIs are written for draft-04 to
+draft-07, so an import of one widened it wherever the dialects differ,
+and the suite's draft-04, draft-06, draft-07 and 2019-09 directories
+were never run. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+design, section 13, scheduled the dialect table and an upgrade stage as
+phase 15.
+
+### Decision
+
+1. **The dialect table** names draft-04, draft-06, draft-07, 2019-09
+   and 2020-12 by the URI each meta-schema publishes, `http` or `https`,
+   with or without a trailing `#`. A resource reads the dialect its
+   `$schema` names. A custom meta-schema in the document set names the
+   dialect its own `$schema` names, through at most eight meta-schemas,
+   or the default where it names none. A resource that names no dialect
+   reads the import's `dialect` option, `--dialect` at the CLI, which
+   is 2020-12 unless given. `$schema` is read at a resource root: the
+   document's root, or a subschema whose identifier, `id` in draft-04
+   and `$id` after it, makes a resource, so an embedded resource may
+   name its own dialect. A dialect aontu does not read, by URI or as the
+   option, refuses the import with `jsonschema_dialect`, class
+   `reference`.
+2. **An upgrade stage rewrites each resource of an earlier dialect in
+   place**, keyword by keyword, into the 2020-12 resource that means the
+   same, before the importer indexes it (`upgrade` in
+   `ts/src/jsonschema-import.ts` and `go/jsonschema_import.go`):
+   - `id` in draft-04, and `$id` in draft-06 and draft-07, is `$id`
+     for its URI and `$anchor` for its fragment;
+   - a draft-04 `exclusiveMinimum` or `exclusiveMaximum` of `true`
+     takes the number of its sibling `minimum` or `maximum`, which it
+     replaces; `false`, or `true` with no sibling, is dropped;
+   - an array `items` is `prefixItems`, and `additionalItems` beside it
+     is `items`; beside no array, `additionalItems` is dropped, as the
+     dialect ignores it there;
+   - `dependencies` splits by member, an array into
+     `dependentRequired` and a schema into `dependentSchemas`;
+   - 2019-09's `$recursiveAnchor: true` at a resource root is
+     `$dynamicAnchor: "aontu.recursive"`, and `$recursiveRef: "#"` is
+     `$dynamicRef: "#aontu.recursive"` inside such a resource and
+     `$dynamicRef: "#"` elsewhere, which
+     [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
+     specialises as any dynamic reference;
+   - draft-07 and earlier read nothing beside a `$ref`, so each sibling
+     but `$schema` and `definitions`, which assert nothing, is dropped
+     and reported as a loss, an identifier included, which then
+     changes no base URI;
+   - a keyword the dialect does not define is an annotation, as 2020-12
+     takes an unknown keyword, under `x` in the `meta()` record, so
+     draft-04's `const` asserts nothing, and aontu's own `x-aontu-`
+     keywords are read in every dialect;
+   - a resource root's `$schema` becomes the 2020-12 meta-schema's URI.
+3. **2019-09 and 2020-12 read `dependencies` as well**, split the same
+   way, as the compatibility keyword the suite's optional tests ask for,
+   unless the schema also has `dependentSchemas` or `dependentRequired`;
+   there it stays a loss, since the two could disagree.
+4. **The schema as written stays addressable.** A JSON Pointer reads the
+   schema as written, so `#/items/0` reaches what is now
+   `#/prefixItems/0` and a pointer into a dropped sibling still reaches
+   its schema. A loss, a refusal and an alias name each spell the key
+   where it was written.
+5. **The rewrite is observable on its own.** `upgradeJsonSchema` and
+   `UpgradeJSONSchema` report the dialect the root is read in, the
+   2020-12 schema the rewrite wrote, each number as written, and each
+   pointer it moved; the shared mode `jsonschema-upgrade` pins them.
+6. **The suite's earlier directories run in the harness**, each with its
+   dialect as the import's default and a skip ledger of its own.
+
+**Departures from the design, six.** (1) `jsonschema_dialect` lands
+with the dialect table here, where the design's phase list placed it in
+phase 16. (2) 2019-09 and 2020-12 read `dependencies` as a compatibility
+keyword (decision 3), which the design's upgrade left to the earlier
+dialects. (3) The rewrite keeps each reference's text: a `$ref` whose
+pointer passes through a moved key is not rewritten, since the import
+reads it in the schema as written, so the schema `upgradeJsonSchema`
+reports can need the original to resolve one. (4) A meta-schema is read
+only from the document set; nothing is fetched. (5) Three optional
+behaviours of the earlier dialects are not carried, each a ledger row:
+draft-04's integer by its spelling, so `1.0` is no integer; draft-07's
+content keywords as assertions; and draft-04 and draft-06 reading
+`hostname` by RFC 1034, which aontu's one grammar for it does not.
+(6) The importer names an alias for `definitions` as it names any
+pointer, `p_definitions_2f_…`, and keeps the `d_` names for `$defs`.
+
+### Consequences
+
+- 2,300 of the 2020-12 directory's 2,337 tests pass in both ports,
+  where 2,285 did, and its ledger holds 15 rows under a bound of 15.
+  The earlier directories pass 2,248 of 2,293 tests for 2019-09, 1,803
+  of 1,840 for draft-07, 1,351 of 1,356 for draft-06 and 1,004 of
+  1,009 for draft-04, with ledgers of 23, 15, 5 and 5 rows, each at its
+  bound. Every row but the five optional behaviours above is a limit
+  the 2020-12 ledger names too.
+- A schema written for an earlier dialect imports as what it means
+  there rather than as the wider schema 2020-12 would read, and a
+  2020-12 schema that uses an earlier dialect's keyword by mistake still
+  reports it, as a loss.
+- Pinned by `test/spec/jsonschema-upgrade.tsv`, the `import-dialect-*`
+  rows of `test/spec/jsonschema-import.tsv` and the `jsonschema_dialect`
+  row of `test/spec/errcodes.tsv`, in both ports.

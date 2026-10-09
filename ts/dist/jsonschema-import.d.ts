@@ -8,6 +8,7 @@ export type ImportOptions = {
     documents?: Record<string, string>;
     formatAssertion?: boolean;
     formats?: Record<string, string>;
+    dialect?: string;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;
@@ -17,6 +18,13 @@ export type ImportReport = {
     errors?: VetFinding[];
 };
 export declare const IMPORT_VET_FLAGS: string[];
+export type UpgradeReport = {
+    verdict: 'ok' | 'error';
+    dialect: string;
+    schema: unknown;
+    rewritten: [string, string][];
+    errors?: VetFinding[];
+};
 export type JEntry = {
     key: string;
     val: JNode;
@@ -27,6 +35,9 @@ export type JNode = {
 } & ({
     t: 'object';
     entries: JEntry[];
+    was?: Map<string, JNode>;
+    unknown?: JEntry[];
+    ignored?: string[];
 } | {
     t: 'array';
     items: JNode[];
@@ -46,5 +57,7 @@ export type Fault = {
     deep?: true;
 };
 export declare function parseJson(src: string): JNode | Fault;
+export type Dialect = 'draft-04' | 'draft-06' | 'draft-07' | '2019-09' | '2020-12';
 export declare function importJsonSchema(text: string, options?: ImportOptions): ImportReport;
+export declare function upgradeJsonSchema(text: string, options?: ImportOptions): UpgradeReport;
 export declare function agreedForm(text: string, fmt?: (src: string) => FormatReport): string;

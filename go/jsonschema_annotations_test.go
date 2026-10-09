@@ -159,7 +159,7 @@ func annotationsAt(t *testing.T, met Val, instance any, location, keyword string
 
 func TestJSONSchemaAnnotations(t *testing.T) {
 	dir := filepath.Join(vectorsDir, "jsonschema", "annotations")
-	skips := readSuiteSkips(t, dir)
+	skips := readSuiteSkips(t, filepath.Join(dir, "skips.tsv"))
 	if annotationSkipBound < len(skips) {
 		t.Fatalf("the annotation ledger holds %d rows, past its bound of %d", len(skips), annotationSkipBound)
 	}

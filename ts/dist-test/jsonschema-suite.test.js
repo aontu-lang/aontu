@@ -53,8 +53,8 @@ function rows(file) {
         .filter((line) => '' !== line.trim() && !line.startsWith('#'))
         .map((line) => line.split('\t'));
 }
-function readSkips(dir) {
-    return rows(Path.join(dir, 'skips.tsv')).map(([file, group, name, construct]) => ({ file, group, test: name, construct, used: false }));
+function readSkips(ledger) {
+    return rows(ledger).map(([file, group, name, construct]) => ({ file, group, test: name, construct, used: false }));
 }
 function files(dir, rel, out) {
     for (const f of Fs.readdirSync(dir).sort()) {
@@ -100,8 +100,9 @@ function member(node, key) {
 function text(node) {
     return 'string' === node.t ? node.s : '';
 }
-// The official suite's shape: files of groups, each a schema and its tests.
-function suiteGroups(dir) {
+// The official suite's shape: files of groups, each a schema and its
+// tests, read in the dialect the directory is written in (ADR-061).
+function suiteGroups(dir, dialect) {
     const out = [];
     for (const file of files(dir, '', [])) {
         const src = Fs.readFileSync(Path.join(dir, file), 'utf8');
@@ -110,7 +111,7 @@ function suiteGroups(dir) {
         for (const g of groups.items) {
             const schemaNode = member(g, 'schema');
             out.push({
-                file, group: text(member(g, 'description')),
+                file, group: text(member(g, 'description')), dialect,
                 schema: src.slice(schemaNode.off, schemaNode.end),
                 cases: member(g, 'tests').items.map((t) => {
                     const dataNode = member(t, 'data');
@@ -142,7 +143,7 @@ function parsingGroups(dir) {
 }
 function runCorpus(name, bound, groups, documents) {
     const skips = readSkips(Path.join(VECTORS, name));
-    Assert.ok(skips.length <= bound, `the ${name} skip ledger holds ${skips.length} rows, past its bound of ${bound}`);
+    Assert.ok(skips.length <= bound, `the ${name} ledger holds ${skips.length} rows, past its bound of ${bound}`);
     const problems = [];
     let total = 0;
     let passed = 0;
@@ -152,6 +153,7 @@ function runCorpus(name, bound, groups, documents) {
         // The suite's optional/format/ asks for format assertion (ADR-059).
         const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, {
             path: g.file, documents, formatAssertion: g.file.startsWith('optional/format/'),
+            dialect: g.dialect,
         });
         for (const c of g.cases) {
             total++;
@@ -201,7 +203,13 @@ function runCorpus(name, bound, groups, documents) {
     Assert.deepStrictEqual(problems, [], problems.join('\n'));
 }
 // Each ledger may not grow past its bound; the register tightens them.
-(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema', 50, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
-(0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => runCorpus('ajv-extras', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))));
-(0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => runCorpus('jsontestsuite', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))));
+(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema/skips.tsv', 15, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
+// The earlier dialects' directories, each the default dialect of its own
+// run and each with its own ledger.
+for (const [dir, dialect, bound] of [['draft2019-09', '2019-09', 23], ['draft7', 'draft-07', 15],
+    ['draft6', 'draft-06', 5], ['draft4', 'draft-04', 5]]) {
+    (0, node_test_1.test)(`the-json-schema-test-suite-${dir}-runs-under-import-and-vet`, () => runCorpus(`jsonschema/skips-${dir}.tsv`, bound, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', dir), dialect), remotes()));
+}
+(0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => runCorpus('ajv-extras/skips.tsv', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))));
+(0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => runCorpus('jsontestsuite/skips.tsv', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))));
 //# sourceMappingURL=jsonschema-suite.test.js.map

@@ -1,0 +1,10 @@
+# The skip ledger of tests/draft6/ (README.md), read in its own dialect:
+# one row per upstream test the importer cannot yet honour, the construct
+# it waits on and why. A listed test that passes fails the run.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+# A * in group and test lists a whole file; one in test a whole group.
+definitions.json	validate definition against metaschema	valid definition schema	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
+optional/format/hostname.json	validation of host names	hostname with consecutive hyphens (RFC1123)	format	this dialect reads hostname by RFC 1034, which allows "--" in the third and fourth positions, and aontu reads the one hostname grammar it commits (ADR-059)
+ref.json	remote ref, containing refs itself	remote ref valid	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
+ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it

@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -38,6 +39,9 @@ type ImportOptions struct {
 	// Formats is the grammar of each format JSON Schema does not define,
 	// by name; a format it defines keeps its committed grammar.
 	Formats map[string]string
+	// Dialect is the dialect of a resource that names none, one of
+	// importDialects; absent, the last of them (ADR-061).
+	Dialect string
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -54,6 +58,19 @@ type ImportReport struct {
 // ImportVetFlags is ImportReport.Vet on every import that stands.
 var ImportVetFlags = []string{"--no-fill", "--exact-numbers"}
 
+// UpgradeReport is what the upgrade stage made of a schema (ADR-061): the
+// dialect its root is read in, the schema in the dialect the importer
+// reads that it wrote, each number as it was written, and each pointer
+// it moved, with where to, or "" where that schema holds nothing. Schema
+// is nil on "error".
+type UpgradeReport struct {
+	Verdict   string       `json:"verdict"`
+	Dialect   string       `json:"dialect"`
+	Schema    any          `json:"schema"`
+	Rewritten [][2]string  `json:"rewritten"`
+	Errors    []VetFinding `json:"errors,omitempty"`
+}
+
 // jnode is the schema as a tree that keeps every number's own spelling,
 // every key's order, and every node's span.
 type jnode struct {
@@ -62,6 +79,13 @@ type jnode struct {
 	entries  []jentry
 	items    []*jnode
 	s        string // a string's value, or a number's text
+	// ADR-061: each key the upgrade moved, with its value as written,
+	// which a pointer into the schema as written still reaches; the
+	// keywords the schema's dialect does not define; and those it
+	// ignores beside a $ref.
+	was     map[string]*jnode
+	unknown []jentry
+	ignored []string
 }
 
 type jentry struct {
@@ -592,6 +616,13 @@ type importCtx struct {
 	clones     map[*importTarget][]string
 	uses       map[*jnode]map[string]bool
 	cloned     int
+	// ADR-061: the dialect a resource names none of, the dialect each
+	// schema is read in, and where each pointer the upgrade moved was
+	// written.
+	dialect   string
+	dialects  map[*jnode]string
+	origin    map[string]string
+	rewritten [][2]string
 }
 
 // importDefaultBase is the base of a schema that names no retrieval
@@ -614,7 +645,7 @@ func (ctx *importCtx) failWith(code, path, message string, off, end int, details
 	row, col := rowCol(ctx.doc.src, off)
 	text := ctx.doc.src[off:end]
 	f := VetFinding{
-		Class: codeClass(code), Code: code, Message: message, Path: path,
+		Class: codeClass(code), Code: code, Message: message, Path: ctx.originOf(path),
 		Severity: "error",
 		Sites: []VetSite{{Col: col, File: ctx.doc.file, Len: utf16Len(text),
 			Role: VetRoleSchema, Row: row, Src: text, Value: text}},
@@ -628,7 +659,8 @@ func (ctx *importCtx) wrongType(path, keyword, what string, node *jnode) {
 		node.off, node.end)
 }
 
-func (ctx *importCtx) lose(path, construct, reason string) {
+func (ctx *importCtx) lose(at, construct, reason string) {
+	path := ctx.originOf(at)
 	for _, l := range ctx.lossy {
 		if l.Path == path && l.Construct == construct {
 			return
@@ -786,6 +818,7 @@ func (ctx *importCtx) reach(key string) *jnode {
 	}
 	ctx.byText[text] = doc
 	ctx.resources[key] = parsed
+	ctx.upgrade(parsed, key+"#", key+"#", ctx.dialect, true, false)
 	ctx.index(parsed, key+"#", parsed, key)
 	ctx.doc = outer
 	return parsed
@@ -833,6 +866,9 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 	for _, tok := range strings.Split(frag[1:], "/") {
 		key := pointerUnescaper.Replace(tok)
 		switch {
+		case "object" == node.t && nil != node.was[key]:
+			// A pointer reads the schema as written (ADR-061).
+			node = node.was[key]
 		case "object" == node.t:
 			node = jentryOf(node, key)
 		case "array" == node.t && arrayIndexRe.MatchString(key):
@@ -852,16 +888,340 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 	// the schema found there is read in the resource the pointer named.
 	if _, indexed := ctx.ptrOf[node]; !indexed {
 		outer := ctx.doc
+		at := ctx.ptrOf[res] + frag
 		ctx.doc = ctx.docOf[res]
-		ctx.index(node, ctx.ptrOf[res]+frag, res, ctx.baseOf[res])
+		ctx.upgrade(node, at, at, ctx.dialects[res], false, false)
+		ctx.index(node, at, res, ctx.baseOf[res])
 		ctx.doc = outer
 	}
 	return node
 }
 
+// importDialects are the dialects a schema may name, earliest first
+// (ADR-061).
+var importDialects = []string{"draft-04", "draft-06", "draft-07", "2019-09", "2020-12"}
+
+// importDialectURIs is each dialect by its meta-schema's URI, in every
+// spelling a schema uses.
+var importDialectURIs = func() map[string]string {
+	out := map[string]string{}
+	for _, d := range [][2]string{{"draft-04", "json-schema.org/draft-04/schema"},
+		{"draft-06", "json-schema.org/draft-06/schema"}, {"draft-07", "json-schema.org/draft-07/schema"},
+		{"2019-09", "json-schema.org/draft/2019-09/schema"},
+		{"2020-12", "json-schema.org/draft/2020-12/schema"}} {
+		for _, uri := range []string{"http://" + d[1], "https://" + d[1]} {
+			out[uri] = d[0]
+			out[uri+"#"] = d[0]
+		}
+	}
+	return out
+}()
+
+// importDialectKeys are the keywords each earlier dialect defines, as it
+// spells them.
+var importDialectKeys = func() map[string]map[string]bool {
+	draft4 := []string{"$schema", "id", "$ref", "title", "description", "default", "multipleOf",
+		"maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength",
+		"pattern", "additionalItems", "items", "maxItems", "minItems", "uniqueItems",
+		"maxProperties", "minProperties", "required", "additionalProperties", "definitions",
+		"properties", "patternProperties", "dependencies", "enum", "type", "format", "allOf",
+		"anyOf", "oneOf", "not"}
+	draft6 := []string{"$id", "const", "contains", "propertyNames", "examples"}
+	for _, k := range draft4 {
+		if "id" != k {
+			draft6 = append(draft6, k)
+		}
+	}
+	draft7 := append([]string{"$comment", "if", "then", "else", "readOnly", "writeOnly",
+		"contentMediaType", "contentEncoding"}, draft6...)
+	v201909 := append([]string{"$anchor", "$recursiveRef", "$recursiveAnchor", "$vocabulary",
+		"$defs", "dependentSchemas", "dependentRequired", "unevaluatedItems",
+		"unevaluatedProperties", "maxContains", "minContains", "deprecated", "contentSchema"},
+		draft7...)
+	out := map[string]map[string]bool{}
+	for d, keys := range map[string][]string{"draft-04": draft4, "draft-06": draft6,
+		"draft-07": draft7, "2019-09": v201909} {
+		out[d] = map[string]bool{}
+		for _, k := range keys {
+			out[d][k] = true
+		}
+	}
+	return out
+}()
+
+// importRecursive is the dynamic anchor a resource's $recursiveAnchor
+// becomes.
+const importRecursive = "aontu.recursive"
+
+const importDraft = "https://json-schema.org/draft/2020-12/schema"
+
+func dialectBefore(a, b string) bool {
+	return slices.Index(importDialects, a) < slices.Index(importDialects, b)
+}
+
+// dialectNamed is the dialect a meta-schema URI names: one of the five,
+// or a meta-schema the document set holds, read by the dialect its own
+// $schema names, or by the default where it names none.
+func (ctx *importCtx) dialectNamed(uri string, depth int) string {
+	if known, ok := importDialectURIs[uri]; ok || 8 <= depth {
+		return known
+	}
+	key, _, _ := strings.Cut(resolveURI(ctx.doc.uri, uri), "#")
+	text, ok := ctx.documents[normalizeURI(key)]
+	if !ok {
+		return ""
+	}
+	meta, _ := parseSchemaJSON(text)
+	if nil == meta || "object" != meta.t {
+		return ""
+	}
+	switch named := jentryOf(meta, "$schema"); {
+	case nil == named:
+		return ctx.dialect
+	case "string" == named.t:
+		return ctx.dialectNamed(named.s, depth+1)
+	}
+	return ""
+}
+
+func withString(n *jnode, s string) *jnode {
+	out := *n
+	out.s = s
+	return &out
+}
+
+// upgrade rewrites a schema of a legacy dialect in place, keyword by
+// keyword, into the schema the importer reads that means the same,
+// before it is indexed (ADR-061). ptr is where the walk reads it and was
+// where it was written; root marks a document's root, and recursive
+// whether the resource around it holds a true $recursiveAnchor.
+func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recursive bool) {
+	if "object" != node.t {
+		return
+	}
+	has := func(k string) *jnode { return jentryOf(node, k) }
+	meta := has("$schema")
+	named := ""
+	if nil != meta && "string" == meta.t {
+		named = ctx.dialectNamed(meta.s, 0)
+	}
+	// A resource names itself in its own dialect, and draft-07 and earlier
+	// read nothing beside a $ref, an identifier included.
+	own := dialect
+	if "" != named {
+		own = named
+	}
+	idKey := "$id"
+	if "draft-04" == own {
+		idKey = "id"
+	}
+	id := has(idKey)
+	refOnly := func(d string) bool { return dialectBefore(d, "2019-09") && nil != has("$ref") }
+	isRoot := root || (nil != id && "string" == id.t && !strings.HasPrefix(id.s, "#") && !refOnly(own))
+	d := dialect
+	if isRoot {
+		d = own
+	}
+	if isRoot && nil != meta && "" == named {
+		if "string" == meta.t {
+			ctx.fail("jsonschema_dialect", ptrChild(ptr, "$schema"), "The dialect "+
+				importQuote(meta.s)+" is none aontu reads, and no document of the set is a "+
+				"meta-schema by that URI.", meta.off, meta.end)
+		} else {
+			ctx.wrongType(ptrChild(ptr, "$schema"), "$schema", "a string", meta)
+		}
+	}
+	ctx.dialects[node] = d
+	rec := recursive
+	if isRoot {
+		anchor := has("$recursiveAnchor")
+		rec = "2019-09" == d && nil != anchor && "true" == anchor.t
+	}
+	moved := map[string]*jnode{}
+	unknown := []jentry{}
+	ignored := []string{}
+	out := []jentry{}
+	// Each key the walk reads at a place it was not written, with the key
+	// it was written as.
+	from := [][2]string{}
+	put := func(key string, val *jnode, wrote string) {
+		out = append(out, jentry{key: key, val: val})
+		if key != wrote {
+			from = append(from, [2]string{key, wrote})
+		}
+	}
+	drop := func(e jentry) {
+		moved[e.key] = e.val
+		ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, e.key), ""})
+	}
+	legacy := dialectBefore(d, "2020-12")
+	compat := !dialectBefore(d, "2019-09") && nil == has("dependentSchemas") &&
+		nil == has("dependentRequired")
+
+	for _, e := range node.entries {
+		switch {
+		// Beside a $ref, the dialect and the definitions assert nothing.
+		case refOnly(d) && "$ref" != e.key && "$schema" != e.key && "definitions" != e.key:
+			drop(e)
+			ignored = append(ignored, e.key)
+		case legacy && !importDialectKeys[d][e.key] && !strings.HasPrefix(e.key, "x-aontu-"):
+			moved[e.key] = e.val
+			unknown = append(unknown, e)
+		case ("id" == e.key && "draft-04" == d) ||
+			("$id" == e.key && ("draft-06" == d || "draft-07" == d)):
+			moved[e.key] = e.val
+			if "string" != e.val.t {
+				ctx.wrongType(ptrChild(ptr, e.key), e.key, "a string", e.val)
+				continue
+			}
+			// An identifier's fragment is a plain-name anchor.
+			uri, frag, _ := strings.Cut(e.val.s, "#")
+			if "" != uri {
+				put("$id", withString(e.val, uri), e.key)
+			}
+			if "" != frag {
+				put("$anchor", withString(e.val, frag), e.key)
+			}
+		case "$schema" == e.key && isRoot && legacy && "string" == e.val.t:
+			out = append(out, jentry{key: e.key, val: withString(e.val, importDraft)})
+		case "items" == e.key && legacy && "array" == e.val.t:
+			moved[e.key] = e.val
+			put("prefixItems", e.val, e.key)
+		case "additionalItems" == e.key && legacy:
+			if items := has("items"); nil != items && "array" == items.t {
+				moved[e.key] = e.val
+				put("items", e.val, e.key)
+			} else {
+				drop(e)
+			}
+		case "dependencies" == e.key && (dialectBefore(d, "2019-09") || compat):
+			moved[e.key] = e.val
+			if "object" != e.val.t {
+				ctx.wrongType(ptrChild(ptr, e.key), e.key, "an object", e.val)
+				continue
+			}
+			// An array names the keys its key requires; anything else is the
+			// schema its key's presence applies.
+			schemas, required := []jentry{}, []jentry{}
+			for _, m := range e.val.entries {
+				if "array" == m.val.t {
+					required = append(required, m)
+				} else {
+					schemas = append(schemas, m)
+				}
+			}
+			for _, part := range []struct {
+				key     string
+				entries []jentry
+			}{{"dependentSchemas", schemas}, {"dependentRequired", required}} {
+				if 0 < len(part.entries) {
+					split := *e.val
+					split.entries = part.entries
+					put(part.key, &split, e.key)
+				}
+			}
+		case "$recursiveAnchor" == e.key && "2019-09" == d:
+			moved[e.key] = e.val
+			if "true" != e.val.t && "false" != e.val.t {
+				ctx.wrongType(ptrChild(ptr, e.key), e.key, "a boolean", e.val)
+			} else if isRoot && "true" == e.val.t {
+				put("$dynamicAnchor", &jnode{t: "string", s: importRecursive, off: e.val.off,
+					end: e.val.end}, e.key)
+			} else {
+				ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, e.key), ""})
+			}
+		case "$recursiveRef" == e.key && "2019-09" == d:
+			moved[e.key] = e.val
+			if "string" != e.val.t || "#" != e.val.s {
+				ctx.wrongType(ptrChild(ptr, e.key), e.key, `the string "#"`, e.val)
+			} else if rec {
+				// Recursion reaches the outermost recursive resource only from
+				// within one, as a dynamic reference does; elsewhere it is "#".
+				put("$dynamicRef", withString(e.val, "#"+importRecursive), e.key)
+			} else {
+				put("$dynamicRef", e.val, e.key)
+			}
+		default:
+			out = append(out, e)
+		}
+	}
+
+	// A draft-04 exclusive bound is a flag on its numeric sibling.
+	for _, pair := range [][2]string{{"exclusiveMinimum", "minimum"}, {"exclusiveMaximum", "maximum"}} {
+		flag, bound := pair[0], pair[1]
+		at, value := -1, -1
+		for i := len(out) - 1; 0 <= i && "draft-04" == d; i-- {
+			if flag == out[i].key {
+				at = i
+			} else if bound == out[i].key {
+				value = i
+			}
+		}
+		if -1 == at {
+			continue
+		}
+		set := out[at].val
+		moved[flag] = set
+		switch {
+		case "true" != set.t && "false" != set.t:
+			ctx.wrongType(ptrChild(ptr, flag), flag, "a boolean", set)
+			out = append(out[:at], out[at+1:]...)
+		case "true" == set.t && -1 != value:
+			moved[bound] = out[value].val
+			out[at] = jentry{key: flag, val: out[value].val}
+			from = append(from, [2]string{flag, bound})
+			ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, flag), ""})
+			out = append(out[:value], out[value+1:]...)
+		default:
+			ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, flag), ""})
+			out = append(out[:at], out[at+1:]...)
+		}
+	}
+
+	wrote := map[string]string{}
+	for _, f := range from {
+		wrote[f[0]] = f[1]
+		ctx.origin[ptrChild(ptr, f[0])] = ptrChild(was, f[1])
+		ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, f[1]), ptrChild(ptr, f[0])})
+	}
+	for _, e := range unknown {
+		ctx.rewritten = append(ctx.rewritten, [2]string{ptrChild(was, e.key), ""})
+	}
+	node.entries = out
+	if 0 < len(moved) {
+		node.was = moved
+	}
+	if 0 < len(unknown) {
+		node.unknown = unknown
+	}
+	if 0 < len(ignored) {
+		node.ignored = ignored
+	}
+	subschemas(node, ptr, func(n *jnode, p string) {
+		key, _, _ := strings.Cut(p[len(ptr)+1:], "/")
+		at := was + p[len(ptr):]
+		if w, ok := wrote[pointerUnescaper.Replace(key)]; ok {
+			at = ptrChild(was, w) + p[len(ptr)+1+len(key):]
+		}
+		ctx.upgrade(n, p, at, d, false, rec)
+	})
+}
+
+// originOf is where a pointer the walk reads was written, for a report.
+func (ctx *importCtx) originOf(path string) string {
+	for at := len(path); 0 < at; at = strings.LastIndex(path[:at], "/") {
+		if wrote, ok := ctx.origin[path[:at]]; ok {
+			return wrote + path[at:]
+		}
+	}
+	return path
+}
+
 var defsPtrRe = regexp.MustCompile(`^#/\$defs/([^/]+)$`)
 
-func (ctx *importCtx) targetName(node *jnode, ptr string) string {
+func (ctx *importCtx) targetName(node *jnode, at string) string {
+	// A name spells the schema as written (ADR-061).
+	ptr := ctx.originOf(at)
 	if ctx.docOf[node].root != ctx.root {
 		return "u_" + encodeAliasName(strings.TrimSuffix(ptr, "#"))
 	}
@@ -1106,8 +1466,6 @@ var importCarried = []string{
 	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
 	"pattern", "unevaluatedProperties", "unevaluatedItems", "x-aontu-format",
 }
-
-const importDraft = "https://json-schema.org/draft/2020-12/schema"
 
 var importKinds = []string{"null", "boolean", "number", "string", "object", "array"}
 
@@ -1756,9 +2114,9 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			ctx.lose(at(e.key), e.key, later)
 		}
 	}
-	if dialect := get("$schema"); nil != dialect && !("string" == dialect.t && importDraft == dialect.s) {
-		ctx.lose(at("$schema"), "$schema", "only the 2020-12 dialect is read, so this "+
-			"schema is read as 2020-12")
+	for _, key := range node.ignored {
+		ctx.lose(at(key), key, "draft-07 and earlier read nothing beside $ref, so this "+
+			"keyword asserts nothing and is dropped")
 	}
 
 	parts := []*ixpr{}
@@ -1973,6 +2331,13 @@ func (ctx *importCtx) data(path, keyword string, node *jnode) (*ixpr, bool) {
 func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 	entries := []ientry{}
 	x := []ientry{}
+	// A keyword the schema's dialect does not define is an annotation
+	// (ADR-061).
+	for _, en := range node.unknown {
+		if val, ok := ctx.data(ptrChild(ptr, en.key), en.key, en.val); ok {
+			x = append(x, ientry{key: en.key, val: val})
+		}
+	}
 	for _, en := range node.entries {
 		at := ptrChild(ptr, en.key)
 		ann, annotated := importAnnotated[en.key]
@@ -2661,9 +3026,9 @@ func (base *importCtx) run(mapRoot bool) (*importCtx, *ixpr) {
 	return &ctx, ctx.convert(base.root, "#", true, nil)
 }
 
-// ImportJSONSchema rewrites a JSON Schema document as aontu text,
-// reporting every keyword it does not yet carry.
-func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
+// beginImport is the context an import or an upgrade starts from, with
+// the schema it reads, or nil where the options or the text refuse.
+func beginImport(text string, opts *ImportOptions) (*importCtx, *jnode) {
 	if nil == opts {
 		opts = &ImportOptions{}
 	}
@@ -2686,10 +3051,11 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		documents: map[string]string{}, byText: map[string]*importDoc{},
 		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]string{},
 		defaults: opts.Defaults, seen: map[*jnode]bool{},
-		formats: opts.Formats,
+		formats:    opts.Formats,
 		dynAnchors: map[*jnode]map[string]*jnode{}, dynamic: map[string]bool{},
 		env: map[string]*jnode{}, clones: map[*importTarget][]string{},
-		uses: map[*jnode]map[string]bool{},
+		uses:    map[*jnode]map[string]bool{},
+		dialect: "2020-12", dialects: map[*jnode]string{}, origin: map[string]string{},
 	}
 	// Names for one URI must hold one text, or the set's order would
 	// choose between them.
@@ -2712,8 +3078,8 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 			base.doc = doc
 		}
 	}
-	errorReport := func(ctx *importCtx) ImportReport {
-		return ImportReport{Verdict: "error", Aontu: "", Lossy: []SchemaLoss{}, Errors: ctx.errors}
+	if !base.dialectDefault(opts.Dialect) {
+		return base, nil
 	}
 
 	parsed, p := parseSchemaJSON(text)
@@ -2733,24 +3099,38 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		} else {
 			base.fail("jsonschema_schema", "#", "The text is not JSON: "+p.why+".", p.fault, end)
 		}
-		return errorReport(base)
+		return base, nil
 	}
 	base.root = parsed
 	doc.root = parsed
 	if "object" != parsed.t && "true" != parsed.t && "false" != parsed.t {
 		base.fail("jsonschema_schema", "#", "A schema is an object or a boolean.",
 			parsed.off, parsed.end)
+		return base, nil
+	}
+	return base, parsed
+}
+
+// ImportJSONSchema rewrites a JSON Schema document as aontu text,
+// reporting every keyword it does not yet carry.
+func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
+	errorReport := func(ctx *importCtx) ImportReport {
+		return ImportReport{Verdict: "error", Aontu: "", Lossy: []SchemaLoss{}, Errors: ctx.errors}
+	}
+	base, parsed := beginImport(text, opts)
+	if nil == parsed {
 		return errorReport(base)
 	}
 
 	if base.vocabularyAsserts(parsed) {
 		base.asserts = "vocabulary"
-	} else if opts.FormatAssertion {
+	} else if nil != opts && opts.FormatAssertion {
 		base.asserts = "option"
 	}
-	base.resources[uri] = parsed
-	base.byText[text] = doc
-	base.index(parsed, "#", parsed, uri)
+	base.resources[base.doc.uri] = parsed
+	base.byText[text] = base.doc
+	base.upgrade(parsed, "#", "#", base.dialect, true, false)
+	base.index(parsed, "#", parsed, base.doc.uri)
 	base.settleRefs(parsed)
 	if 0 < len(base.errors) {
 		return errorReport(base)
@@ -2802,4 +3182,70 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	}
 	return ImportReport{Verdict: verdict, Aontu: out, Lossy: ctx.lossy,
 		Vet: append([]string{}, ImportVetFlags...)}
+}
+
+// UpgradeJSONSchema runs the upgrade stage alone: the schema the import
+// reads in place of one in a legacy dialect (ADR-061).
+func UpgradeJSONSchema(text string, opts *ImportOptions) UpgradeReport {
+	ctx, parsed := beginImport(text, opts)
+	if nil != parsed {
+		ctx.upgrade(parsed, "#", "#", ctx.dialect, true, false)
+	}
+	if nil == parsed || 0 < len(ctx.errors) {
+		return UpgradeReport{Verdict: "error", Rewritten: [][2]string{}, Errors: ctx.errors}
+	}
+	dialect, named := ctx.dialects[parsed]
+	if !named {
+		dialect = ctx.dialect
+	}
+	rewritten := append([][2]string{}, ctx.rewritten...)
+	sort.Slice(rewritten, func(i, j int) bool {
+		if rewritten[i][0] != rewritten[j][0] {
+			return rewritten[i][0] < rewritten[j][0]
+		}
+		return rewritten[i][1] < rewritten[j][1]
+	})
+	return UpgradeReport{Verdict: "ok", Dialect: dialect, Schema: jnodeValue(parsed),
+		Rewritten: rewritten}
+}
+
+// jnodeValue is a node as the JSON value it is, each number as it was
+// written.
+func jnodeValue(n *jnode) any {
+	switch n.t {
+	case "object":
+		out := map[string]any{}
+		for _, e := range n.entries {
+			out[e.key] = jnodeValue(e.val)
+		}
+		return out
+	case "array":
+		out := []any{}
+		for _, it := range n.items {
+			out = append(out, jnodeValue(it))
+		}
+		return out
+	case "string":
+		return n.s
+	case "number":
+		return json.Number(n.s)
+	case "null":
+		return nil
+	}
+	return "true" == n.t
+}
+
+// dialectDefault takes the dialect a resource that names none is read in,
+// which the caller may give; one aontu does not read is refused.
+func (ctx *importCtx) dialectDefault(name string) bool {
+	if "" == name {
+		return true
+	}
+	if !inList(importDialects, name) {
+		ctx.fail("jsonschema_dialect", "#", "The dialect "+importQuote(name)+" is none of "+
+			strings.Join(importDialects, ", ")+".", 0, 0)
+		return false
+	}
+	ctx.dialect = name
+	return true
 }

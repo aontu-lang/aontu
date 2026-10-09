@@ -988,8 +988,11 @@ to `$anchor`, boolean `exclusiveMinimum` and `exclusiveMaximum` folded
 into their numeric siblings, array `items` and `additionalItems` to
 `prefixItems` and `items`, `dependencies` split by member shape,
 `$recursiveRef` and `$recursiveAnchor` to the dynamic pair, and
-`$ref` siblings dropped and reported under draft-07 and earlier. Its
-rows are a new shared mode, `jsonschema-upgrade`.
+`$ref` siblings dropped and reported under draft-07 and earlier. 2019-09
+and 2020-12 read `dependencies` the same way, as a compatibility
+keyword, where the schema has neither of the keywords that replace it.
+A reference keeps its text, and a pointer reads the schema as written.
+Its rows are a new shared mode, `jsonschema-upgrade`.
 
 **The vocabulary table** is generated into both ports from one shared
 TSV, as the signature table is, mapping each vocabulary URI to its
@@ -1373,12 +1376,13 @@ records the departures.
 **Phase 15: legacy dialects (M).** The dialect table's legacy entries,
 the upgrade stage, the `jsonschema-upgrade` mode, and the suite's
 draft-04, draft-06, draft-07 and 2019-09 directories in the harness.
+Landed 2026-10-09, with `jsonschema_dialect`; the register records the
+departures.
 
 **Phase 16: vocabularies and the meta-schema (M).** The vocabulary
-TSV generated into both ports; `jsonschema_dialect`,
-`jsonschema_vocabulary` and `jsonschema_schema`; the bundled
-meta-schema models, imported from the published documents; input
-validation before mapping.
+TSV generated into both ports; `jsonschema_vocabulary` and
+`jsonschema_schema`; the bundled meta-schema models, imported from the
+published documents; input validation before mapping.
 
 **Phase 17: output units (M).** `vet --output flag|basic`, the
 pointer field, the importer's source map file with its text hash,

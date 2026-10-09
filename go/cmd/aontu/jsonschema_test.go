@@ -214,6 +214,7 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		want string
 	}{
 		{[]string{"import", "--uri"}, "--uri needs a URI"},
+		{[]string{"import", "--dialect"}, "--dialect needs a dialect"},
 		{[]string{"import", "--doc", "https://example.com/n.json"}, "--doc needs a URI and a file"},
 		{[]string{"import", "--doc", "https://example.com/n.json", doc + ".gone", file}, "cannot read"},
 		{[]string{"import", "--format-grammar", "zip"}, "--format-grammar needs a name and a file"},
@@ -241,6 +242,13 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 	if out, _, code := jsonSchemaRun("import", "--format-assert", "--format-grammar", "zip", zip, file); 0 != code ||
 		!strings.Contains(out, `format("date")`) || !strings.Contains(out, `format("zip = 5DIGIT\n")`) {
 		t.Fatalf("assertion: %d %q", code, out)
+	}
+
+	// --dialect reads a schema that names none in a legacy dialect.
+	write(`{"type": "number", "maximum": 5, "exclusiveMaximum": true}`)
+	if out, _, code := jsonSchemaRun("import", "--dialect", "draft-04", file); 0 != code ||
+		!strings.Contains(out, "below(5)") {
+		t.Fatalf("--dialect: %d %q", code, out)
 	}
 	write(`{"type": "string", "$vocabulary": {}}`)
 

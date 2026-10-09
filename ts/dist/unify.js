@@ -310,6 +310,8 @@ class Unify {
         if (!root.isNil) {
             if (ctx instanceof ctx_1.AontuContext) {
                 uctx = ctx;
+                // The first pass reads references from the root, as below.
+                uctx.root = uctx.root ?? res;
             }
             else {
                 uctx = new ctx_1.AontuContext({

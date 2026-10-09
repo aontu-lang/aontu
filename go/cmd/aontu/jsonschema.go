@@ -26,6 +26,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	docs := [][2]string{}
 	formatAssertion := false
 	grammars := [][2]string{}
+	dialect := ""
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
 		switch {
@@ -59,6 +60,13 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			i += 2
 		case "--format-assert" == arg:
 			formatAssertion = true
+		case "--dialect" == arg:
+			i++
+			if len(argv) <= i {
+				io.WriteString(stderr, "aontu: --dialect needs a dialect\n")
+				return 2
+			}
+			dialect = argv[i]
 		case "--format-grammar" == arg:
 			if len(argv) < i+3 {
 				io.WriteString(stderr, "aontu: --format-grammar needs a name and a file\n")
@@ -118,7 +126,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 
 	report := aontu.ImportJSONSchema(string(src), &aontu.ImportOptions{
 		Path: files[0], Defaults: defaults, URI: uri, Documents: documents,
-		FormatAssertion: formatAssertion, Formats: formats})
+		FormatAssertion: formatAssertion, Formats: formats, Dialect: dialect})
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaImportJSON(report)+"\n")

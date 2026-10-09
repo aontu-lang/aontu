@@ -44,7 +44,7 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **188** codes across
+There are seven classes, and the registry holds **189** codes across
 them.
 
 | class | codes | what went wrong |
@@ -52,7 +52,7 @@ them.
 | `parse` | 57 | the text is not a document |
 | `conflict` | 62 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
-| `reference` | 29 | a name or path resolves to nothing |
+| `reference` | 30 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 188 codes have hint text. `aontu explain --list`
+**Hint text.** All 189 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -333,6 +333,7 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
+| `jsonschema_dialect` | 0.77.0 | The `$schema` of a JSON Schema resource names a dialect aontu does not read, and no document of the set is a meta-schema by that URI. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, or two schemas declare one `$id`, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `jsonschema_ref` | 0.77.0 | A JSON Schema reference names no schema the import can reach. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |

@@ -296,6 +296,21 @@ function runRow(row) {
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
     }
+    else if ('jsonschema-upgrade' === row.mode) {
+        // A number a double cannot hold keeps its digits, as the export does.
+        const golden = JSON.parse(row.expect, (_k, v, at) => 'number' === typeof v && null != at?.source && String(v) !== at.source ?
+            JSON.rawJSON(at.source) : v);
+        const report = (0, jsonschema_import_1.upgradeJsonSchema)(row.src, golden.opts);
+        delete golden.opts;
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            dialect: report.dialect,
+            rewritten: report.rewritten,
+            schema: report.schema,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema-upgrade report mismatch: ${row.name}`);
+    }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);
         const ask = golden.ask;

@@ -12,7 +12,7 @@ import {
   patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
-import { importJsonSchema } from '../dist/jsonschema-import'
+import { importJsonSchema, upgradeJsonSchema } from '../dist/jsonschema-import'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
@@ -363,6 +363,25 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `jsonschema-import report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-upgrade' === row.mode) {
+    // A number a double cannot hold keeps its digits, as the export does.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, at?: any) =>
+      'number' === typeof v && null != at?.source && String(v) !== at.source ?
+        (JSON as any).rawJSON(at.source) : v)
+    const report = upgradeJsonSchema(row.src, golden.opts)
+    delete golden.opts
+    Assert.strictEqual(
+      exactJSON({
+        dialect: report.dialect,
+        rewritten: report.rewritten,
+        schema: report.schema,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+      }),
+      exactJSON(golden),
+      `jsonschema-upgrade report mismatch: ${row.name}`)
   }
   else if ('reaches' === row.mode) {
     const golden = JSON.parse(row.expect)

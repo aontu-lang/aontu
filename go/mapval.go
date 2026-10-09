@@ -504,9 +504,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 	}
+	// Only the root declares an alias, so a map it meets lands there.
+	home := m.path
+	if pm, ok := peer.(*MapVal); ok && 0 < len(pm.aliasKeys) {
+		home = pm.path
+	}
 	dbase := ctx.slot
 	if dbase == nil {
-		dbase = m.path
+		dbase = home
 	}
 
 	var out *MapVal
@@ -516,10 +521,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out = newMap()
 		out.closed = m.closed
 		out.opened = m.opened
-		out.path = cp(m.path)
-		// The site survives unification (TS: `out.site = this.site` in
-		// MapVal.unify copies row, col, length AND url), so a unified bag
-		// still frames at its brace and keeps its clone mark.
+		out.path = cp(home)
+		// The site survives unification, as TS's `out.site = this.site`
+		// keeps it, so a unified bag frames at its brace and keeps its mark.
 		out.site.sp = m.site.sp
 		out.site.spu = m.site.spu
 		out.site.url = m.site.url

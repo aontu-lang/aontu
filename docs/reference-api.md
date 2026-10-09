@@ -48,7 +48,7 @@ Usage: aontu [options] [file]
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
-                               [options] <file>
+                               [--dialect <name>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1528,13 +1528,13 @@ reference the entry.
 
 ### `aontu jsonschema import`
 
-Import a **JSON Schema** (draft 2020-12) document as aontu, and say
-what could not be carried.
+Import a **JSON Schema** document, of draft-04, draft-06, draft-07,
+2019-09 or 2020-12, as aontu, and say what could not be carried.
 
 ```
 aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
                         [--format-assert] [--format-grammar <name> <file>]...
-                        [--format text|json] <file>
+                        [--dialect <name>] [--format text|json] <file>
 ```
 
 This is the bridge in the other direction. A schema another tool
@@ -1595,6 +1595,17 @@ y: number
   it does define is a usage error. A format with no grammar stays an
   annotation under the flag, and refuses the import with
   `format_unknown` under the vocabulary.
+- `--dialect <name>` is the dialect of a resource that names none:
+  `draft-04`, `draft-06`, `draft-07`, `2019-09`, or `2020-12`, the
+  default. A `$schema` names its resource's dialect by the URI that
+  dialect's meta-schema publishes, `http` or `https` and with or
+  without a trailing `#`, or by a custom meta-schema in the document
+  set, whose own `$schema` names it, so an embedded resource may name
+  its own. A resource of an earlier dialect is rewritten, keyword by
+  keyword, into the 2020-12 resource that means the same before it is
+  read, and a loss or a refusal names each key where it was written.
+  A dialect aontu does not read, by name or by URI, refuses the import
+  with `jsonschema_dialect`.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1603,10 +1614,21 @@ y: number
   and `ImportJSONSchema(text, opts)` in Go, returning the identical
   `{verdict, aontu, lossy, vet}` record (`errors` in place of `vet`
   when the text is refused). Its options are the flags':
-  `defaults`, `uri`, `documents`, `formatAssertion` and `formats`, a
+  `defaults`, `uri`, `documents`, `formatAssertion`, `formats`, a
   record of grammars by name in which a defined name keeps its
-  committed grammar (`Defaults`, `URI`, `Documents`, `FormatAssertion`
-  and `Formats` in Go), and `path`, the filename the findings cite. The CLI's JSON names the document `text`, because its
+  committed grammar, and `dialect` (`Defaults`, `URI`, `Documents`,
+  `FormatAssertion`, `Formats` and `Dialect` in Go), and `path`, the
+  filename the findings cite.
+- `upgradeJsonSchema(text, options?)` in TypeScript and
+  `UpgradeJSONSchema(text, opts)` in Go run the rewrite alone, with the
+  same options, and return `{verdict, dialect, schema, rewritten}`:
+  the dialect the root is read in, the 2020-12 schema the rewrite
+  wrote, each number as it was written, and each pointer it moved, as
+  a pair of where it was written and where it went, `""` where the
+  2020-12 schema holds nothing there. A refused schema has `errors` in
+  place of the schema. The rewrite keeps each reference as written: the
+  import reads a pointer through a moved keyword in the schema as
+  written. The CLI's JSON names the document `text`, because its
   `aontu` key is the envelope.
 
 **What crosses.** Each keyword becomes the construct that means it:

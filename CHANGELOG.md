@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### Earlier JSON Schema dialects
+
+Both ports, G12 phase 15 (ADR-061).
+
+- `aontu jsonschema import` reads draft-04, draft-06, draft-07 and
+  2019-09 schemas in their own dialect, which `$schema` names by its
+  meta-schema's URI in any of the spellings schemas use, or which a
+  custom meta-schema in the document set names in its own `$schema`.
+  A schema that names none is read as 2020-12, or in the dialect
+  `--dialect <name>` gives; the library option is `dialect`
+  (`Dialect` in Go). An embedded resource may name its own dialect.
+- Before it is read, a schema of an earlier dialect is rewritten into
+  the 2020-12 schema that means the same: `id` and a fragment `$id` as
+  `$id` and `$anchor`, draft-04's boolean `exclusiveMinimum` and
+  `exclusiveMaximum`, array `items` and `additionalItems`,
+  `dependencies`, and 2019-09's `$recursiveRef` and `$recursiveAnchor`.
+  Under draft-07 and earlier a keyword beside `$ref` asserts nothing
+  and is a loss, and a keyword the dialect does not define is an
+  annotation. A loss or a refusal names the key as it was written.
+- A `$schema` naming a dialect aontu does not read now refuses the
+  import with the new code `jsonschema_dialect`, class `reference`,
+  where it was a loss and the schema was read as 2020-12.
+- 2019-09 and 2020-12 schemas read `dependencies` as
+  `dependentSchemas` and `dependentRequired`, where it was a loss,
+  unless the schema also has one of those.
+- `upgradeJsonSchema` in TypeScript and `UpgradeJSONSchema` in Go run
+  the rewrite alone and report the 2020-12 schema and every key it
+  moved.
+- The suite's draft-04, draft-06, draft-07 and 2019-09 directories run
+  in both ports: 1,004 of 1,009, 1,351 of 1,356, 1,803 of 1,840 and
+  2,248 of 2,293 tests pass. 2,300 of the 2020-12 directory's 2,337
+  pass, where 2,285 did, and its ledger holds 15 rows.
+- Fixed, both found by the new directories: Go refused a root alias
+  reference to a disjunction that met the map declaring it with
+  `alias_not_toplevel`, which TypeScript admitted; and TypeScript's
+  `vet` reported such a reference's failure as `empty` at the alias,
+  where Go and evaluation report the failing member.
+
 ### The owned pattern matcher
 
 Both ports, G12 phase 14 (ADR-060).

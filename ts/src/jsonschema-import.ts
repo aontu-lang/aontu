@@ -38,6 +38,9 @@ export type ImportOptions = {
   // The grammar of each format JSON Schema does not define, by name; a
   // format it defines keeps its committed grammar.
   formats?: Record<string, string>
+  // ADR-061: the dialect of a resource that names none, one of
+  // `DIALECTS`; absent, the last of them.
+  dialect?: string
 }
 
 export type ImportReport = {
@@ -54,12 +57,32 @@ export type ImportReport = {
 
 export const IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers']
 
+// ADR-061: what the upgrade stage made of a schema: the dialect its root
+// is read in, the schema in the dialect the importer reads that it wrote,
+// each number as it was written, and each pointer it moved, with where
+// to, or "" where that schema holds nothing. The schema is null on
+// `error`.
+export type UpgradeReport = {
+  verdict: 'ok' | 'error'
+  dialect: string
+  schema: unknown
+  rewritten: [string, string][]
+  errors?: VetFinding[]
+}
+
 
 // The schema as a tree that keeps every number's own spelling, every
 // key's order, and every node's span.
 export type JEntry = { key: string, val: JNode }
 export type JNode = { off: number, end: number } & (
-  { t: 'object', entries: JEntry[] } |
+  {
+    t: 'object', entries: JEntry[]
+    // ADR-061: each key the upgrade moved, with its value as written,
+    // which a pointer into the schema as written still reaches; the
+    // keywords the schema's dialect does not define; and those it
+    // ignores beside a $ref.
+    was?: Map<string, JNode>, unknown?: JEntry[], ignored?: string[]
+  } |
   { t: 'array', items: JNode[] } |
   { t: 'string', s: string } |
   { t: 'number', text: string } |
@@ -433,6 +456,13 @@ type Ctx = {
   clones: Map<Target, string[]>
   uses: Map<JNode, Set<string>>
   cloned: number
+  // ADR-061: the dialect a resource names none of, the dialect each
+  // schema is read in, and where each pointer the upgrade moved was
+  // written.
+  dialect: Dialect
+  dialects: Map<JNode, Dialect>
+  origin: Map<string, string>
+  rewritten: [string, string][]
 }
 
 // The base of a schema that names no retrieval URI: rooted, so a
@@ -471,7 +501,7 @@ function fail(ctx: Ctx, code: string, path: string, message: string,
     code,
     class: codeClass(code),
     severity: 'error',
-    path,
+    path: originOf(ctx, path),
     message,
     hint: (getHint(code, details) as string).replace(/\s+$/, ''),
     sites: [{
@@ -487,7 +517,8 @@ function wrongType(ctx: Ctx, path: string, keyword: string, what: string, node: 
 }
 
 
-function lose(ctx: Ctx, path: string, construct: string, reason: string): void {
+function lose(ctx: Ctx, at: string, construct: string, reason: string): void {
+  const path = originOf(ctx, at)
   if (!ctx.lossy.some((l) => l.path === path && l.construct === construct)) {
     ctx.lossy.push({ path, construct, reason })
   }
@@ -626,6 +657,7 @@ function reach(ctx: Ctx, key: string): JNode | undefined {
   }
   ctx.byText.set(text, doc)
   ctx.resources.set(key, parsed)
+  upgrade(ctx, parsed, key + '#', key + '#', ctx.dialect, true, false)
   index(ctx, parsed, key + '#', parsed, key)
   ctx.doc = outer
   return parsed
@@ -679,7 +711,8 @@ function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
   for (const tok of frag.slice(1).split('/')) {
     const key = tok.replace(/~1/g, '/').replace(/~0/g, '~')
     if ('object' === node.t) {
-      node = node.entries.find((en) => en.key === key)?.val
+      // A pointer reads the schema as written (ADR-061).
+      node = node.was?.get(key) ?? node.entries.find((en) => en.key === key)?.val
     }
     else if ('array' === node.t && /^(0|[1-9][0-9]*)$/.test(key)) {
       node = node.items[Number(key)]
@@ -695,15 +728,284 @@ function resolveRef(ctx: Ctx, from: JNode, ref: string): JNode | undefined {
   // the schema found there is read in the resource the pointer named.
   if (!ctx.ptrOf.has(node)) {
     const outer = ctx.doc
+    const at = ctx.ptrOf.get(res) + frag
     ctx.doc = ctx.docOf.get(res) as Doc
-    index(ctx, node, ctx.ptrOf.get(res) + frag, res, ctx.baseOf.get(res) as string)
+    upgrade(ctx, node, at, at, ctx.dialects.get(res) as Dialect, false, false)
+    index(ctx, node, at, res, ctx.baseOf.get(res) as string)
     ctx.doc = outer
   }
   return node
 }
 
 
-function targetName(ctx: Ctx, node: JNode, ptr: string): string {
+// ADR-061: the dialects a schema may name, earliest first.
+export type Dialect = 'draft-04' | 'draft-06' | 'draft-07' | '2019-09' | '2020-12'
+const DIALECTS: Dialect[] = ['draft-04', 'draft-06', 'draft-07', '2019-09', '2020-12']
+
+// Each dialect by its meta-schema's URI, in every spelling a schema uses.
+const DIALECT_URIS = new Map<string, Dialect>()
+for (const [dialect, path] of [['draft-04', 'json-schema.org/draft-04/schema'],
+  ['draft-06', 'json-schema.org/draft-06/schema'], ['draft-07', 'json-schema.org/draft-07/schema'],
+  ['2019-09', 'json-schema.org/draft/2019-09/schema'], ['2020-12', 'json-schema.org/draft/2020-12/schema']]) {
+  for (const uri of ['http://' + path, 'https://' + path]) {
+    DIALECT_URIS.set(uri, dialect as Dialect).set(uri + '#', dialect as Dialect)
+  }
+}
+
+// The keywords each earlier dialect defines, as it spells them.
+const DRAFT4_KEYS = ['$schema', 'id', '$ref', 'title', 'description', 'default', 'multipleOf',
+  'maximum', 'exclusiveMaximum', 'minimum', 'exclusiveMinimum', 'maxLength', 'minLength', 'pattern',
+  'additionalItems', 'items', 'maxItems', 'minItems', 'uniqueItems', 'maxProperties',
+  'minProperties', 'required', 'additionalProperties', 'definitions', 'properties',
+  'patternProperties', 'dependencies', 'enum', 'type', 'format', 'allOf', 'anyOf', 'oneOf', 'not']
+const DRAFT6_KEYS = [...DRAFT4_KEYS.filter((k) => 'id' !== k), '$id', 'const', 'contains',
+  'propertyNames', 'examples']
+const DRAFT7_KEYS = [...DRAFT6_KEYS, '$comment', 'if', 'then', 'else', 'readOnly', 'writeOnly',
+  'contentMediaType', 'contentEncoding']
+const DIALECT_KEYS: Record<string, Set<string>> = {
+  'draft-04': new Set(DRAFT4_KEYS),
+  'draft-06': new Set(DRAFT6_KEYS),
+  'draft-07': new Set(DRAFT7_KEYS),
+  '2019-09': new Set([...DRAFT7_KEYS, '$anchor', '$recursiveRef', '$recursiveAnchor',
+    '$vocabulary', '$defs', 'dependentSchemas', 'dependentRequired', 'unevaluatedItems',
+    'unevaluatedProperties', 'maxContains', 'minContains', 'deprecated', 'contentSchema']),
+}
+
+// The dynamic anchor a resource's `$recursiveAnchor` becomes.
+const RECURSIVE = 'aontu.recursive'
+
+const DRAFT = 'https://json-schema.org/draft/2020-12/schema'
+
+const before = (a: Dialect, b: Dialect): boolean => DIALECTS.indexOf(a) < DIALECTS.indexOf(b)
+
+
+// The dialect a meta-schema URI names: one of the five, or a meta-schema
+// the document set holds, read by the dialect its own $schema names, or
+// by the default where it names none.
+function dialectNamed(ctx: Ctx, uri: string, depth = 0): Dialect | undefined {
+  const known = DIALECT_URIS.get(uri)
+  const text = undefined !== known || 8 <= depth ? undefined :
+    ctx.documents.get(normalizeUri(resolveUri(ctx.doc.uri, uri).replace(/#.*$/s, '')))
+  const meta = undefined === text ? undefined : parseJson(text)
+  if (undefined === meta || 'why' in meta || 'object' !== meta.t) {
+    return known
+  }
+  const named = entry(meta, '$schema')
+  return undefined === named ? ctx.dialect :
+    'string' === named.t ? dialectNamed(ctx, named.s, depth + 1) : undefined
+}
+
+
+// ADR-061: a schema of a legacy dialect rewritten in place, keyword by
+// keyword, into the schema the importer reads that means the same,
+// before it is indexed. `ptr` is where the walk reads it and `was` where
+// it was written; `root` marks a document's root, and `recursive` whether
+// the resource around it holds a true `$recursiveAnchor`.
+function upgrade(ctx: Ctx, node: JNode, ptr: string, was: string, dialect: Dialect, root: boolean,
+  recursive: boolean): void {
+  if ('object' !== node.t) {
+    return
+  }
+  const has = (k: string): JNode | undefined => node.entries.find((e) => e.key === k)?.val
+  const meta = has('$schema')
+  const named = 'string' === meta?.t ? dialectNamed(ctx, meta.s) : undefined
+  // A resource names itself in its own dialect, and draft-07 and earlier
+  // read nothing beside a $ref, an identifier included.
+  const own = named ?? dialect
+  const id = has('draft-04' === own ? 'id' : '$id')
+  const refOnly = (d: Dialect): boolean => before(d, '2019-09') && undefined !== has('$ref')
+  const isRoot = root || ('string' === id?.t && !id.s.startsWith('#') && !refOnly(own))
+  const d = isRoot ? own : dialect
+  if (isRoot && undefined !== meta && undefined === named) {
+    if ('string' === meta.t) {
+      fail(ctx, 'jsonschema_dialect', child(ptr, '$schema'), 'The dialect ' + quote(meta.s) +
+        ' is none aontu reads, and no document of the set is a meta-schema by that URI.',
+        meta.off, meta.end)
+    }
+    else {
+      wrongType(ctx, child(ptr, '$schema'), '$schema', 'a string', meta)
+    }
+  }
+  ctx.dialects.set(node, d)
+  const rec = isRoot ? '2019-09' === d && 'true' === has('$recursiveAnchor')?.t : recursive
+  const moved = new Map<string, JNode>()
+  const unknown: JEntry[] = []
+  const ignored: string[] = []
+  const out: JEntry[] = []
+  // Each key the walk reads at a place it was not written, by the key it
+  // was written as.
+  const from = new Map<string, string>()
+  const put = (key: string, val: JNode, wrote: string): void => {
+    out.push({ key, val })
+    if (key !== wrote) {
+      from.set(key, wrote)
+    }
+  }
+  const drop = (e: JEntry): void => {
+    moved.set(e.key, e.val)
+    ctx.rewritten.push([child(was, e.key), ''])
+  }
+  const legacy = before(d, '2020-12')
+  const compat = !before(d, '2019-09') && undefined === has('dependentSchemas') &&
+    undefined === has('dependentRequired')
+
+  for (const e of node.entries) {
+    // Beside a $ref, the dialect and the definitions assert nothing.
+    if (refOnly(d) && !['$ref', '$schema', 'definitions'].includes(e.key)) {
+      drop(e)
+      ignored.push(e.key)
+    }
+    else if (legacy && !DIALECT_KEYS[d].has(e.key) && !e.key.startsWith('x-aontu-')) {
+      moved.set(e.key, e.val)
+      unknown.push(e)
+    }
+    else if (('id' === e.key && 'draft-04' === d) ||
+      ('$id' === e.key && ('draft-06' === d || 'draft-07' === d))) {
+      moved.set(e.key, e.val)
+      if ('string' !== e.val.t) {
+        wrongType(ctx, child(ptr, e.key), e.key, 'a string', e.val)
+        continue
+      }
+      // An identifier's fragment is a plain-name anchor.
+      const hash = e.val.s.indexOf('#')
+      const uri = -1 === hash ? e.val.s : e.val.s.slice(0, hash)
+      const frag = -1 === hash ? '' : e.val.s.slice(hash + 1)
+      if ('' !== uri) {
+        put('$id', { ...e.val, s: uri }, e.key)
+      }
+      if ('' !== frag) {
+        put('$anchor', { ...e.val, s: frag }, e.key)
+      }
+    }
+    else if ('$schema' === e.key && isRoot && legacy && 'string' === e.val.t) {
+      out.push({ key: e.key, val: { ...e.val, s: DRAFT } })
+    }
+    else if ('items' === e.key && legacy && 'array' === e.val.t) {
+      moved.set(e.key, e.val)
+      put('prefixItems', e.val, e.key)
+    }
+    else if ('additionalItems' === e.key && legacy) {
+      if ('array' === has('items')?.t) {
+        moved.set(e.key, e.val)
+        put('items', e.val, e.key)
+      }
+      else {
+        drop(e)
+      }
+    }
+    else if ('dependencies' === e.key && (before(d, '2019-09') || compat)) {
+      moved.set(e.key, e.val)
+      if ('object' !== e.val.t) {
+        wrongType(ctx, child(ptr, e.key), e.key, 'an object', e.val)
+        continue
+      }
+      // An array names the keys its key requires; anything else is the
+      // schema its key's presence applies.
+      const schemas = e.val.entries.filter((m) => 'array' !== m.val.t)
+      const required = e.val.entries.filter((m) => 'array' === m.val.t)
+      if (0 < schemas.length) {
+        put('dependentSchemas', { ...e.val, entries: schemas }, e.key)
+      }
+      if (0 < required.length) {
+        put('dependentRequired', { ...e.val, entries: required }, e.key)
+      }
+    }
+    else if ('$recursiveAnchor' === e.key && '2019-09' === d) {
+      moved.set(e.key, e.val)
+      if ('true' !== e.val.t && 'false' !== e.val.t) {
+        wrongType(ctx, child(ptr, e.key), e.key, 'a boolean', e.val)
+      }
+      else if (isRoot && 'true' === e.val.t) {
+        put('$dynamicAnchor', { t: 'string', s: RECURSIVE, off: e.val.off, end: e.val.end }, e.key)
+      }
+      else {
+        ctx.rewritten.push([child(was, e.key), ''])
+      }
+    }
+    else if ('$recursiveRef' === e.key && '2019-09' === d) {
+      moved.set(e.key, e.val)
+      if ('string' !== e.val.t || '#' !== e.val.s) {
+        wrongType(ctx, child(ptr, e.key), e.key, 'the string "#"', e.val)
+      }
+      else {
+        // Recursion reaches the outermost recursive resource only from
+        // within one, as a dynamic reference does; elsewhere it is "#".
+        put('$dynamicRef', { ...e.val, s: rec ? '#' + RECURSIVE : '#' }, e.key)
+      }
+    }
+    else {
+      out.push(e)
+    }
+  }
+
+  // A draft-04 exclusive bound is a flag on its numeric sibling.
+  for (const [flag, bound] of 'draft-04' === d ?
+    [['exclusiveMinimum', 'minimum'], ['exclusiveMaximum', 'maximum']] : []) {
+    const at = out.findIndex((e) => e.key === flag)
+    const value = out.findIndex((e) => e.key === bound)
+    if (-1 === at) {
+      continue
+    }
+    const set = out[at].val
+    moved.set(flag, set)
+    if ('true' !== set.t && 'false' !== set.t) {
+      wrongType(ctx, child(ptr, flag), flag, 'a boolean', set)
+      out.splice(at, 1)
+    }
+    else if ('true' === set.t && -1 !== value) {
+      moved.set(bound, out[value].val)
+      out[at] = { key: flag, val: out[value].val }
+      from.set(flag, bound)
+      ctx.rewritten.push([child(was, flag), ''])
+      out.splice(value, 1)
+    }
+    else {
+      ctx.rewritten.push([child(was, flag), ''])
+      out.splice(at, 1)
+    }
+  }
+
+  for (const [key, wrote] of from) {
+    ctx.origin.set(child(ptr, key), child(was, wrote))
+    ctx.rewritten.push([child(was, wrote), child(ptr, key)])
+  }
+  for (const e of unknown) {
+    ctx.rewritten.push([child(was, e.key), ''])
+  }
+  node.entries = out
+  if (0 < moved.size) {
+    node.was = moved
+  }
+  if (0 < unknown.length) {
+    node.unknown = unknown
+  }
+  if (0 < ignored.length) {
+    node.ignored = ignored
+  }
+  subschemas(node, ptr, (n, p) => {
+    const key = p.slice(ptr.length + 1).split('/')[0]
+    const wrote = from.get(key.replace(/~1/g, '/').replace(/~0/g, '~'))
+    upgrade(ctx, n, p, undefined === wrote ? was + p.slice(ptr.length) :
+      child(was, wrote) + p.slice(ptr.length + 1 + key.length), d, false, rec)
+  })
+}
+
+
+// Where a pointer the walk reads was written, for a report.
+function originOf(ctx: Ctx, path: string): string {
+  for (let at = path.length; 0 < at; at = path.lastIndexOf('/', at - 1)) {
+    const wrote = ctx.origin.get(path.slice(0, at))
+    if (undefined !== wrote) {
+      return wrote + path.slice(at)
+    }
+  }
+  return path
+}
+
+
+function targetName(ctx: Ctx, node: JNode, at: string): string {
+  // A name spells the schema as written (ADR-061).
+  const ptr = originOf(ctx, at)
   if ((ctx.docOf.get(node) as Doc).root !== ctx.root) {
     return 'u_' + encodeName(ptr.replace(/#$/, ''))
   }
@@ -924,8 +1226,6 @@ const CARRIED = [
   'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
   'pattern', 'unevaluatedProperties', 'unevaluatedItems', 'x-aontu-format',
 ]
-
-const DRAFT = 'https://json-schema.org/draft/2020-12/schema'
 
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array']
 
@@ -1421,10 +1721,9 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       lose(ctx, at(e.key), e.key, LATER[e.key])
     }
   }
-  const dialect = get('$schema')
-  if (null != dialect && !('string' === dialect.t && DRAFT === dialect.s)) {
-    lose(ctx, at('$schema'), '$schema', 'only the 2020-12 dialect is read, so this ' +
-      'schema is read as 2020-12')
+  for (const key of node.ignored ?? []) {
+    lose(ctx, at(key), key, 'draft-07 and earlier read nothing beside $ref, so this ' +
+      'keyword asserts nothing and is dropped')
   }
 
   const parts: Expr[] = []
@@ -1578,6 +1877,14 @@ function data(ctx: Ctx, path: string, keyword: string, node: JNode): Expr | unde
 function annotate(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, e: Expr): Expr {
   const entries: MapEntry[] = []
   const x: MapEntry[] = []
+  // A keyword the schema's dialect does not define is an annotation
+  // (ADR-061).
+  for (const en of node.unknown ?? []) {
+    const val = data(ctx, child(ptr, en.key), en.key, en.val)
+    if (undefined !== val) {
+      x.push({ key: en.key, optional: false, val })
+    }
+  }
   for (const en of node.entries) {
     const at = child(ptr, en.key)
     const ann = ANNOTATED[en.key]
@@ -2133,7 +2440,9 @@ function run(base: Ctx, mapRoot: boolean): [Ctx, Expr] {
 }
 
 
-export function importJsonSchema(text: string, options?: ImportOptions): ImportReport {
+// The context an import or an upgrade starts from, with the schema it
+// reads, or none where the options or the text refuse.
+function begin(text: string, options?: ImportOptions): [Ctx, JNode | undefined] {
   const anonymous = '' === (options?.uri ?? '')
   const uri = normalizeUri(resolveUri(DEFAULT_BASE, anonymous ? DEFAULT_BASE : options?.uri as string)
     .replace(/#.*$/s, ''))
@@ -2147,6 +2456,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
     copies: 0, seen: new Set(), asserts: true === options?.formatAssertion ? 'option' : '',
     formats: new Map(Object.entries(options?.formats ?? {})),
+    dialect: '2020-12', dialects: new Map(), origin: new Map(), rewritten: [],
   }
   // Names for one URI must hold one text, or the set's order would
   // choose between them.
@@ -2166,8 +2476,9 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
       base.doc = doc
     }
   }
-  const error = (ctx: Ctx): ImportReport =>
-    ({ verdict: 'error', aontu: '', lossy: [], errors: ctx.errors })
+  if (!dialectDefault(base, options?.dialect)) {
+    return [base, undefined]
+  }
 
   const parsed = parseJson(text)
   if ('why' in parsed) {
@@ -2182,20 +2493,32 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
       fail(base, 'jsonschema_schema', '#', 'The text is not JSON: ' + parsed.why + '.',
         parsed.off, end)
     }
-    return error(base)
+    return [base, undefined]
   }
   base.root = parsed
   doc.root = parsed
   if (!('object' === parsed.t || 'true' === parsed.t || 'false' === parsed.t)) {
     fail(base, 'jsonschema_schema', '#', 'A schema is an object or a boolean.',
       parsed.off, parsed.end)
+    return [base, undefined]
+  }
+  return [base, parsed]
+}
+
+
+export function importJsonSchema(text: string, options?: ImportOptions): ImportReport {
+  const error = (ctx: Ctx): ImportReport =>
+    ({ verdict: 'error', aontu: '', lossy: [], errors: ctx.errors })
+  const [base, parsed] = begin(text, options)
+  if (undefined === parsed) {
     return error(base)
   }
 
   base.asserts = vocabularyAsserts(base, parsed) ? 'vocabulary' : base.asserts
-  base.resources.set(uri, parsed)
-  base.byText.set(text, doc)
-  index(base, parsed, '#', parsed, uri)
+  base.resources.set(base.doc.uri, parsed)
+  base.byText.set(text, base.doc)
+  upgrade(base, parsed, '#', '#', base.dialect, true, false)
+  index(base, parsed, '#', parsed, base.doc.uri)
   settleRefs(base, parsed)
   if (0 < base.errors.length) {
     return error(base)
@@ -2235,6 +2558,52 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     lossy: ctx.lossy,
     vet: [...IMPORT_VET_FLAGS],
   }
+}
+
+
+// ADR-061: the upgrade stage alone: the schema the import reads in place
+// of one in a legacy dialect.
+export function upgradeJsonSchema(text: string, options?: ImportOptions): UpgradeReport {
+  const [ctx, parsed] = begin(text, options)
+  if (undefined !== parsed) {
+    upgrade(ctx, parsed, '#', '#', ctx.dialect, true, false)
+  }
+  if (undefined === parsed || 0 < ctx.errors.length) {
+    return { verdict: 'error', dialect: '', schema: null, rewritten: [], errors: ctx.errors }
+  }
+  return {
+    verdict: 'ok',
+    dialect: ctx.dialects.get(parsed) ?? ctx.dialect,
+    schema: jsonValue(parsed),
+    rewritten: [...ctx.rewritten].sort((a, b) => cmpCodePoint(a[0], b[0]) || cmpCodePoint(a[1], b[1])),
+  }
+}
+
+
+// A node as the JSON value it is, each number as it was written.
+function jsonValue(node: JNode): unknown {
+  return 'object' === node.t ? Object.fromEntries(node.entries.map((e) => [e.key, jsonValue(e.val)])) :
+    'array' === node.t ? node.items.map(jsonValue) :
+      'string' === node.t ? node.s :
+        'number' === node.t ? (String(Number(node.text)) === node.text ? Number(node.text) :
+          (JSON as any).rawJSON(node.text)) :
+          'null' === node.t ? null : 'true' === node.t
+}
+
+
+// The dialect a resource that names none is read in, which the caller
+// may give; one it names is refused.
+function dialectDefault(ctx: Ctx, name: string | undefined): boolean {
+  if (undefined === name || '' === name) {
+    return true
+  }
+  if (!DIALECTS.includes(name as Dialect)) {
+    fail(ctx, 'jsonschema_dialect', '#', 'The dialect ' + quote(name) + ' is none of ' +
+      DIALECTS.join(', ') + '.', 0, 0)
+    return false
+  }
+  ctx.dialect = name as Dialect
+  return true
 }
 
 

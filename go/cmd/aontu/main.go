@@ -29,7 +29,7 @@ const helpText = `Usage: aontu [options] [file]
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
-                               [options] <file>
+                               [--dialect <name>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]

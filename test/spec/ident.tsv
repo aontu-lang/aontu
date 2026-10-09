@@ -13,6 +13,10 @@ ident-of-a-recursive-declaration	gens	%a = ident({ n?: %a, v: 1 }, { id: "r.json
 ident-redeclared-meets	gens	%a = ident({ y: 1 }, { id: "a.json" })\n%a = ident({ z?: 2 }, { anchor: "x" })\nb: %a	{"b":{"y":1,"z":2}}
 ident-beside-a-meet-in-its-declaration	gens	%a = ident({ y: 1 }, { id: "a.json" }) & { z: 2 }\nb: %a	{"b":{"y":1,"z":2}}
 ident-empty-record	gens	%a = ident(1, {})\nb: %a	{"b":1}
+# An identity whose value waits a pass, on an alias chain or a chained
+# path, is rebuilt as the identity it is and settles with its value.
+ident-over-an-alias-chain	gens	%a = ident(%b, { id: "a" })\n%b = %c\n%c = { x: 1 }\nb: %a	{"b":{"x":1}}
+ident-over-a-chained-path	gens	%a = ident({ x: $.n }, { id: "a" })\nb: %a\nn: $.m\nm: 1	{"b":{"x":1},"m":1,"n":1}
 ident-dynamic-anchor	gens	%a = ident({ y: 1 }, { dynamicAnchor: "n" })\nb: %a	{"b":{"y":1}}
 ident-in-a-value-position-refused	errc	b: ident(1, { id: "x" })	ident_place
 ident-in-a-value-prefix-refused	errc	x: %a = ident(1, { id: "x" })\ny: %a	ident_place

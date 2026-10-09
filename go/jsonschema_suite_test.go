@@ -31,8 +31,8 @@ type suiteCase struct {
 }
 
 type suiteGroup struct {
-	file, group, schema string
-	cases               []suiteCase
+	file, group, schema, dialect string
+	cases                        []suiteCase
 }
 
 func tsvRows(t *testing.T, file string) [][]string {
@@ -49,9 +49,9 @@ func tsvRows(t *testing.T, file string) [][]string {
 	return out
 }
 
-func readSuiteSkips(t *testing.T, dir string) []*suiteSkip {
+func readSuiteSkips(t *testing.T, ledger string) []*suiteSkip {
 	out := []*suiteSkip{}
-	for _, cols := range tsvRows(t, filepath.Join(dir, "skips.tsv")) {
+	for _, cols := range tsvRows(t, ledger) {
 		if len(cols) < 4 {
 			t.Fatalf("a skip row needs five columns: %q", cols)
 		}
@@ -97,8 +97,9 @@ func suiteFiles(t *testing.T, root string) []string {
 }
 
 // suiteGroups reads the official suite's shape: files of groups, each a
-// schema and its tests.
-func suiteGroups(t *testing.T, dir string) []suiteGroup {
+// schema and its tests, read in the dialect the directory is written in
+// (ADR-061).
+func suiteGroups(t *testing.T, dir, dialect string) []suiteGroup {
 	out := []suiteGroup{}
 	for _, file := range suiteFiles(t, dir) {
 		raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(file)))
@@ -113,7 +114,7 @@ func suiteGroups(t *testing.T, dir string) []suiteGroup {
 		for _, g := range groups.items {
 			schemaNode := suiteMember(t, g, "schema")
 			sg := suiteGroup{file: file, group: suiteMember(t, g, "description").s,
-				schema: src[schemaNode.off:schemaNode.end]}
+				schema: src[schemaNode.off:schemaNode.end], dialect: dialect}
 			for _, c := range suiteMember(t, g, "tests").items {
 				dataNode := suiteMember(t, c, "data")
 				sg.cases = append(sg.cases, suiteCase{test: suiteMember(t, c, "description").s,
@@ -185,9 +186,9 @@ func suiteRemotes(t *testing.T) map[string]string {
 
 func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 	documents map[string]string) {
-	skips := readSuiteSkips(t, filepath.Join(vectorsDir, name))
+	skips := readSuiteSkips(t, filepath.Join(vectorsDir, filepath.FromSlash(name)))
 	if bound < len(skips) {
-		t.Fatalf("the %s skip ledger holds %d rows, past its bound of %d", name, len(skips), bound)
+		t.Fatalf("the %s ledger holds %d rows, past its bound of %d", name, len(skips), bound)
 	}
 
 	problems := []string{}
@@ -195,7 +196,7 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 	for _, g := range groups {
 		// The suite's optional/format/ asks for format assertion (ADR-059).
 		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents,
-			FormatAssertion: strings.HasPrefix(g.file, "optional/format/")})
+			FormatAssertion: strings.HasPrefix(g.file, "optional/format/"), Dialect: g.dialect})
 		for _, c := range g.cases {
 			total++
 			got := false
@@ -251,16 +252,36 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 
 // Each ledger may not grow past its bound; the register tightens them.
 func TestJSONSchemaSuite(t *testing.T) {
-	runCorpus(t, "jsonschema", 50,
-		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12")), suiteRemotes(t))
+	runCorpus(t, "jsonschema/skips.tsv", 15,
+		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12"), ""),
+		suiteRemotes(t))
+}
+
+// TestJSONSchemaSuiteEarlierDialects runs the earlier dialects'
+// directories, each the default dialect of its own run and each with its
+// own ledger.
+func TestJSONSchemaSuiteEarlierDialects(t *testing.T) {
+	for _, d := range []struct {
+		dir, dialect string
+		bound        int
+	}{{"draft2019-09", "2019-09", 23}, {"draft7", "draft-07", 15}, {"draft6", "draft-06", 5},
+		{"draft4", "draft-04", 5}} {
+		t.Run(d.dir, func(t *testing.T) {
+			runCorpus(t, "jsonschema/skips-"+d.dir+".tsv", d.bound,
+				suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", d.dir), d.dialect),
+				suiteRemotes(t))
+		})
+	}
 }
 
 func TestAjvExtraTests(t *testing.T) {
-	runCorpus(t, "ajv-extras", 0, suiteGroups(t, filepath.Join(vectorsDir, "ajv-extras", "tests")), nil)
+	runCorpus(t, "ajv-extras/skips.tsv", 0,
+		suiteGroups(t, filepath.Join(vectorsDir, "ajv-extras", "tests"), ""), nil)
 }
 
 func TestJSONTestSuiteAsInstances(t *testing.T) {
-	runCorpus(t, "jsontestsuite", 87, parsingGroups(t, filepath.Join(vectorsDir, "jsontestsuite")), nil)
+	runCorpus(t, "jsontestsuite/skips.tsv", 87,
+		parsingGroups(t, filepath.Join(vectorsDir, "jsontestsuite")), nil)
 }
 
 // suiteMember is a suite object's member, read with the importer's own

@@ -538,6 +538,13 @@ const hints = {
         'than the import declares. Override each `$dynamicAnchor` in fewer\n' +
         'resources, or reference the schema with `$ref` where no outer scope\n' +
         'needs to rebind it.',
+    'jsonschema_dialect': 'A JSON Schema names a dialect in `$schema` that aontu does not read,\n' +
+        'and no document of the set is a meta-schema by that URI. aontu reads\n' +
+        'draft-04, draft-06, draft-07, 2019-09 and 2020-12 by the URIs their\n' +
+        'meta-schemas publish. Add a custom meta-schema to the set with --doc\n' +
+        '<uri> <file>, its own `$schema` naming one of those, or name the\n' +
+        'dialect the schema is written in. A resource that names no dialect is\n' +
+        'read as 2020-12 unless --dialect says otherwise.',
     'jsonschema_ref': 'A JSON Schema reference names no schema the import can reach: its\n' +
         'document is not in the document set, or the pointer or anchor\n' +
         'after its `#` names nothing in the document it reaches. Add the\n' +
@@ -807,6 +814,7 @@ const codeClasses = {
     jsonschema_schema: 'parse',
     jsonschema_duplicate: 'reference',
     jsonschema_ref: 'reference',
+    jsonschema_dialect: 'reference',
     jsonschema_budget: 'budget',
     ident_place: 'parse',
     vet_filled: 'incomplete',
