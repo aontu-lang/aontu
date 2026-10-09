@@ -24,6 +24,8 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	defaults := false
 	uri := ""
 	docs := [][2]string{}
+	formatAssertion := false
+	grammars := [][2]string{}
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
 		switch {
@@ -55,6 +57,27 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			}
 			docs = append(docs, [2]string{argv[i+1], argv[i+2]})
 			i += 2
+		case "--format-assert" == arg:
+			formatAssertion = true
+		case "--format-grammar" == arg:
+			if len(argv) < i+3 {
+				io.WriteString(stderr, "aontu: --format-grammar needs a name and a file\n")
+				return 2
+			}
+			name := argv[i+1]
+			if aontu.IsDefinedFormat(name) {
+				io.WriteString(stderr, "aontu: --format-grammar cannot name "+name+
+					", one of the nineteen formats, whose grammar is fixed\n")
+				return 2
+			}
+			for _, g := range grammars {
+				if g[0] == name {
+					io.WriteString(stderr, "aontu: --format-grammar names "+name+" twice\n")
+					return 2
+				}
+			}
+			grammars = append(grammars, [2]string{name, argv[i+2]})
+			i += 2
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown jsonschema import option "+arg+" (try --help)\n")
@@ -83,9 +106,19 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 		}
 		documents[d[0]] = string(text)
 	}
+	formats := map[string]string{}
+	for _, g := range grammars {
+		text, err := os.ReadFile(g[1])
+		if nil != err {
+			io.WriteString(stderr, "aontu: cannot read "+g[1]+": "+err.Error()+"\n")
+			return 2
+		}
+		formats[g[0]] = string(text)
+	}
 
 	report := aontu.ImportJSONSchema(string(src), &aontu.ImportOptions{
-		Path: files[0], Defaults: defaults, URI: uri, Documents: documents})
+		Path: files[0], Defaults: defaults, URI: uri, Documents: documents,
+		FormatAssertion: formatAssertion, Formats: formats})
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaImportJSON(report)+"\n")

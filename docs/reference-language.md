@@ -2277,6 +2277,13 @@ and holding folders, files, and copies: one directory of the output.
 
 Example: `folder("src", [file("index.ts")])`
 
+### `format(text g: string) : constraint`
+
+Constrain a string to an ABNF grammar, or to a JSON Schema format by
+name. See [formats](#formats-format).
+
+Example: `format("date") & "2024-02-29"`
+
 ### `fragment(spec: string|map, children?: list) : map`
 
 A fragment node of the [component tree](#generation): a file read from
@@ -5935,6 +5942,72 @@ A residual that survives to generation is an error, exactly like an
 unresolved kind today; exhaustion of the pass budget while residuals
 are still refining is `budget_passes` ([the trust
 contract](trust.md), clause 2).
+
+### Formats: `format`
+
+`format(g)` admits a string the grammar `g` reads to its end. Like `re`,
+it is in the string domain, and two of them both hold. `g` is RFC 5234
+ABNF with RFC 7405's `%s` and `%i` strings, the form `abnf()` takes, or
+the name of a format. A string that is one rule name is a name, and
+any other string is a grammar, which holds a rule and so an `=`.
+
+The names are the nineteen JSON Schema formats: `date-time`, `date`,
+`time`, `duration`, `email`, `idn-email`, `hostname`, `idn-hostname`,
+`ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, `iri-reference`, `uuid`,
+`uri-template`, `json-pointer`, `relative-json-pointer` and `regex`.
+Every name but `regex` is committed under `grammar/format/`, and
+`regex` admits a pattern `re()` admits. Any other name refuses with
+`format_unknown`.
+
+A committed format is one grammar or several, and a string meets every
+one: `date-time` holds a leap second to the last minute of a UTC day
+(RFC 3339 section 5.7) in grammars of its own, and `idn-hostname` holds
+IDNA2008's Bidi rule (RFC 5893) and each contextual rule of RFC 5892 in
+one each. Each reads what the grammar in its RFC reads, with these
+limits:
+
+- `hostname` and `idn-hostname` hold an A-label to its ASCII syntax and
+  never decode it, so Punycode that decodes to nothing valid is
+  admitted, and a U-label's A-label form is not measured;
+- `idn-hostname` reads UTS #46's mapping of one code point to one and
+  its ignored code points, from the Unicode Character Database 18.0.0,
+  and refuses a code point mapped to several, one that only
+  normalisation reaches, and a trailing dot;
+- `email` and `idn-email` do not count RFC 5321's size limits;
+- a `uri-template` literal admits `'`, which RFC 6570 excludes and the
+  JSON Schema Test Suite takes as valid.
+
+```aontu
+when: format("date") & "2024-02-29"  # "2024-02-29"
+code: format("v = 2DIGIT") & "1"  # parse_failed: the text ends too soon
+```
+
+aontu reads and runs a format's grammar itself, one character at a time
+and never going back, so it admits only a grammar the next character
+always decides. No two alternatives of a rule may begin with the same
+character. An option or repetition may not begin with a character
+that can follow it. No rule may reach itself before reading a
+character, and no rule may hold a prose value. A grammar that breaks
+one of these refuses with `format_grammar`, naming the rule and the
+character; one that does not compile refuses with `abnf_grammar`. RFC
+3986's `dec-octet` as published begins two alternatives with `1`, and
+reads the same language once the next character decides it:
+
+```aontu
+a: format("v = DIGIT / %x31-39 DIGIT / \"1\" 2DIGIT")  # format_grammar
+b: format("v = \"0\" / %x31-39 [DIGIT [DIGIT]]") & "199"  # "199"
+```
+
+A string the grammar refuses is `parse_failed`, naming the format, or
+the grammar's first rule, and the first character it could not read;
+so is one the recognizer has not read to its end in 1,000,000 steps.
+The empty string is admitted exactly where the grammar's first rule
+matches it. Canon sorts formats by their argument, writes each once,
+and puts them after `re`. Subsumption compares two formats as text,
+as it compares two patterns. `aontu jsonschema import --format-assert`
+writes a JSON Schema `format` as this atom, and `aontu jsonschema`
+writes it back as `format`, or a grammar as `x-aontu-format`: see
+[Import JSON Schema](how-to/import-json-schema.md#assert-formats).
 
 ### Band B: `must`
 

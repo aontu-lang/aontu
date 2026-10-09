@@ -1360,6 +1360,7 @@ outside the nineteen carried on the `meta` rider, and `x-aontu-format`
 on export; `optional/format/` in the harness, with the tests that need
 Punycode or a whole-name length on the skip ledger, and the isemail,
 uritemplate-test and `IdnaTestV2.txt` corpora vendored beside it.
+Landed 2026-10-09; the register records the departures.
 
 **Phase 14: the owned regex matcher (L).** An ECMA-262 `u`-mode parser
 and a Pike VM in both ports, Unicode property tables limited to what

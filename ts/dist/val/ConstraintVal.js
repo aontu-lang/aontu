@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
@@ -20,6 +20,7 @@ const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
 const StringVal_1 = require("./StringVal");
 const err_1 = require("../err");
+const formatgrammar_1 = require("../formatgrammar");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
@@ -158,6 +159,38 @@ function normaliseEscape(n, src, i, inClass) {
     }
     return ['', '\\' + n + ', an escape whose meaning the two engines do not' +
             ' share', 0];
+}
+// The pattern compiled from its portable form, or why it is refused.
+function compileRe(src) {
+    const [norm, why] = normaliseRe(src);
+    if ('' !== why) {
+        return [undefined, norm, why];
+    }
+    try {
+        return [new RegExp(norm, 'u'), norm, ''];
+    }
+    catch (e) {
+        return [undefined, norm, 'not a valid pattern'];
+    }
+}
+// Why the format refuses s, or undefined where it admits it (ADR-059).
+function formatWhy(f, s) {
+    const head = 'format ' + f.name + ': ';
+    if (undefined === f.gs) {
+        const why = compileRe(s)[2];
+        return '' === why ? undefined : head + why;
+    }
+    const cps = [...s];
+    for (const g of f.gs) {
+        const stop = (0, formatgrammar_1.recognise)(g, s);
+        if (-1 !== stop) {
+            return undefined === stop ? head + 'the step bound of ' + formatgrammar_1.FORMAT_STEP_MAX + ' is reached' :
+                stop === cps.length ? head + 'the text ends too soon' :
+                    head + 'character ' + (stop + 1) + ', ' + (0, formatgrammar_1.hex)(cps[stop].codePointAt(0)) +
+                        ', is not admitted';
+        }
+    }
+    return undefined;
 }
 // normaliseRe rewrites a pattern into the engine-neutral subset.
 // Returns [normalised, why]: a non-empty `why` means the pattern is
@@ -347,6 +380,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.neqs = [];
         this.mults = [];
         this.res = [];
+        this.fmts = [];
         this.uniq = false;
         this.uniqBy = [];
         this.musts = [];
@@ -364,6 +398,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             // A state built by an embedder (or by a per-port test) may predate
             // the pattern field; an absent one means "no patterns", not undefined.
             this.res = spec.state.res ?? [];
+            this.fmts = spec.state.fmts ?? [];
             this.count = spec.state.count;
             this.uniq = spec.state.uniq ?? false;
             this.uniqBy = spec.state.uniqBy ?? [];
@@ -511,21 +546,28 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return bad('invalid-arg');
             }
             const src = a.peg;
-            const [norm, why] = normaliseRe(src);
-            if ('' !== why) {
+            const [re, norm, why] = compileRe(src);
+            if (undefined === re) {
                 this.invalidWhy = why;
-                return bad('constraint_pattern');
-            }
-            let re;
-            try {
-                re = new RegExp(norm, 'u');
-            }
-            catch (e) {
-                this.invalidWhy = 'not a valid pattern';
                 return bad('constraint_pattern');
             }
             this.domain = 'string';
             this.res = [{ v: a, src, norm, re }];
+            return;
+        }
+        // A committed name or a grammar, read and checked once (ADR-059).
+        if ('format' === atom) {
+            if (!stringLeaf(a)) {
+                return bad('invalid-arg');
+            }
+            const src = a.peg;
+            const [f, code, why] = (0, formatgrammar_1.formatOf)(src);
+            if (undefined === f) {
+                this.invalidWhy = why;
+                return bad(code);
+            }
+            this.domain = 'string';
+            this.fmts = [{ v: a, src, ...f }];
             return;
         }
         if ('len' === atom) {
@@ -678,6 +720,12 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
             if (!stateAdmits(this.count, countVal([...peer.peg].length))) {
                 return this.fail(ctx, peer);
+            }
+        }
+        for (const f of this.fmts) {
+            const why = formatWhy(f, peer.peg);
+            if (undefined !== why) {
+                return (0, err_1.makeNilErr)(ctx, 'parse_failed', this, peer, 'parse', { reason: why });
             }
         }
         // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
@@ -1033,6 +1081,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs]);
         merged.mults = dedupMults([...this.mults, ...peer.mults]);
         merged.res = dedupSortedRes([...this.res, ...peer.res]);
+        merged.fmts = dedupSortedFormats([...this.fmts, ...peer.fmts]);
         // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
         // numeric algebra recursively, over the counts rather than the
         // values.
@@ -1089,6 +1138,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             neqs: [...this.neqs],
             mults: [...this.mults],
             res: [...this.res],
+            fmts: [...this.fmts],
             count: this.count,
             uniq: this.uniq,
             uniqBy: [...this.uniqBy],
@@ -1129,6 +1179,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.neqs = [...this.neqs];
         out.mults = [...this.mults];
         out.res = [...this.res];
+        out.fmts = [...this.fmts];
         out.count = this.count;
         out.uniq = this.uniq;
         out.uniqBy = [...this.uniqBy];
@@ -1343,7 +1394,7 @@ function canonState(s) {
     }
     else if ('string' === s.domain && (true === s.nonEmpty ||
         (null == s.lo && null == s.hi && 0 === s.neqs.length &&
-            0 === s.res.length && true !== s.emptyOk))) {
+            0 === s.res.length + (s.fmts ?? []).length && true !== s.emptyOk))) {
         parts.push('string');
     }
     else if ('number' === s.domain && null == s.lo && null == s.hi &&
@@ -1364,6 +1415,9 @@ function canonState(s) {
     }
     for (const r of s.res) {
         parts.push('re(' + r.v.canon + ')');
+    }
+    for (const f of s.fmts ?? []) {
+        parts.push('format(' + f.v.canon + ')');
     }
     if (null != s.count) {
         parts.push('len(' + canonState(s.count) + ')');
@@ -1472,6 +1526,11 @@ function constraintStateSubsumes(g, s) {
             return false;
         }
     }
+    for (const f of g.fmts ?? []) {
+        if (!(s.fmts ?? []).some((q) => q.src === f.src)) {
+            return false;
+        }
+    }
     if (g.uniqBy.some((k) => !s.uniqBy.includes(k))) {
         return false;
     }
@@ -1519,7 +1578,8 @@ function constraintAdmitsScalar(g, scalar) {
             true === scalar.isString && '' === scalar.peg)) {
         return false;
     }
-    return stateAdmits(g, scalar);
+    return stateAdmits(g, scalar) &&
+        g.fmts.every((f) => undefined === formatWhy(f, scalar.peg));
 }
 function stateAdmits(s, peer) {
     const domainOf = numericLeaf(peer) ? 'number' :
@@ -1761,6 +1821,10 @@ function emittedEntries(bag, ctx) {
     }
     return out;
 }
+function dedupSortedFormats(fmts) {
+    const sorted = [...fmts].sort((a, b) => (0, numcmp_1.cmpCodePoints)(a.src, b.src));
+    return sorted.filter((f, i) => 0 === i || sorted[i - 1].src !== f.src);
+}
 function dedupSortedRes(res) {
     const sorted = [...res].sort((a, b) => (0, numcmp_1.cmpCodePoints)(a.src, b.src));
     const out = [];
@@ -1813,6 +1877,12 @@ class ReConstraintVal extends ConstraintVal {
     }
 }
 exports.ReConstraintVal = ReConstraintVal;
+class FormatConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'format' }, ctx);
+    }
+}
+exports.FormatConstraintVal = FormatConstraintVal;
 class MustConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'must' }, ctx);
@@ -1857,6 +1927,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 27 */
+} /* node:coverage ignore next 28 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

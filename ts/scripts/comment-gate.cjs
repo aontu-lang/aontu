@@ -21,6 +21,7 @@ const GENERATED = new Set([
   'ts/src/sigdecl.ts',
   'ts/src/helpdoc.ts',
   'ts/src/aontumodel.ts',
+  'ts/src/formatgrammars.ts',
   'go/aontumodel.go',
 ])
 

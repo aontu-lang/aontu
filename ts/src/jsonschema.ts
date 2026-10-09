@@ -264,6 +264,13 @@ function countEndpoint(b: any, isLo: boolean): bigint | undefined {
 const NOT_YET = 'this is not a value yet, so there is nothing to constrain a ' +
   'consumer to; the schema admits anything here'
 
+const FORMAT_ANNOTATES = (name: string) => 'the format "' + name + '" asserts here, and ' +
+  'JSON Schema 2020-12 asserts a format only where a validator is asked to, so the ' +
+  'schema may admit a string it refuses'
+const FORMAT_UNREAD = (name: string) => 'JSON Schema has no keyword for a grammar, so the ' +
+  'format "' + name + '" is written as x-aontu-format, which only aontu reads; the schema ' +
+  'admits any string here'
+
 
 function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'): any {
   const out: any = {}
@@ -320,6 +327,23 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
   }
   else if (1 < c.res.length) {
     extra.push(...c.res.map((r: any) => ({ pattern: r.norm })))
+  }
+
+  // ADR-059: a committed format by its name, a grammar under
+  // x-aontu-format, which only aontu reads.
+  for (const [key, fs, reason] of [
+    ['format', c.fmts.filter((f: any) => f.src === f.name), FORMAT_ANNOTATES],
+    ['x-aontu-format', c.fmts.filter((f: any) => f.src !== f.name), FORMAT_UNREAD],
+  ] as [string, any[], (name: string) => string][]) {
+    if (1 === fs.length) {
+      out[key] = fs[0].src
+    }
+    else {
+      extra.push(...fs.map((f: any) => ({ [key]: f.src })))
+    }
+    for (const f of fs) {
+      lose(ctx, path, 'format', reason(f.name))
+    }
   }
 
   if (null != c.count) {
@@ -847,6 +871,11 @@ function annotate(ctx: Ctx, path: string[], out: any, v: any): any {
           'the value meets more than one dynamic reference, so this one is written as the schema it reached')
         continue
       }
+      // A format the constraint asserts is written already.
+      if ('format' === k && 'string' === typeof json && (res.format === json ||
+        (res.allOf ?? []).some((m: any) => 1 === Object.keys(m).length && m.format === json))) {
+        continue
+      }
       if ('x' !== k) {
         part[META_KEYWORD[k]] = json
         continue
@@ -1039,8 +1068,8 @@ const NUMBER_SCOPE = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximu
   'multipleOf']
 const KIND_SCOPE: Record<string, string[]> = {
   null: [], boolean: [], number: NUMBER_SCOPE, integer: NUMBER_SCOPE,
-  string: ['minLength', 'maxLength', 'pattern', 'contentEncoding', 'contentMediaType',
-    'contentSchema'],
+  string: ['minLength', 'maxLength', 'pattern', 'format', 'x-aontu-format', 'contentEncoding',
+    'contentMediaType', 'contentSchema'],
   object: ['properties', 'required', 'additionalProperties', 'patternProperties',
     'propertyNames', 'minProperties', 'maxProperties', 'dependentRequired',
     'dependentSchemas'],
@@ -1127,7 +1156,7 @@ function spreadTerms(v: any): any[] {
 
 // The functions whose meaning does not depend on where they sit.
 const ISOLABLE_FUNCS = [
-  'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'len',
+  'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'format', 'len',
   'lower', 'match', 'max', 'meta', 'min', 'multiple', 'must', 'neq', 'nof',
   'open', 'pref', 're', 'unique', 'upper', 'when',
 ]

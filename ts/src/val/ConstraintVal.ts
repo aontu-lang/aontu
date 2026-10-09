@@ -39,6 +39,8 @@ import { IntegerVal } from './IntegerVal'
 import { StringVal } from './StringVal'
 
 import { makeNilErr } from '../err'
+import { formatOf, recognise, hex, FORMAT_STEP_MAX } from '../formatgrammar'
+import type { Grammar } from '../formatgrammar'
 import { codeClass } from '../hints'
 
 import { FeatureVal } from './FeatureVal'
@@ -95,6 +97,15 @@ type ContainsAtom = {
   count: ConstraintState  // over the integers, at least one unless written
 }
 
+// A format: the argument as written, the name a refusal gives, and the
+// grammars it is, which regex alone has none of (ADR-059).
+type FormatAtom = {
+  v: any
+  src: string
+  name: string
+  gs?: Grammar[]
+}
+
 type RestAtom = {
   t: any                  // the trial schema a member no cover evaluates must meet
   covers: any[]           // cover records, canon-sorted, each canon once
@@ -108,6 +119,7 @@ type ConstraintState = {
   neqs: any[]     // excluded scalars, identity per leaf+value
   mults?: any[]   // divisors, each a positive number (multiple())
   res: ReAtom[]   // accumulated patterns, sorted by source (never simplified)
+  fmts?: FormatAtom[] // formats, sorted by source, each once
   count?: ConstraintState  // the COUNT residual (len()), itself a residual
                            // over the integer domain -- the count atom reuses
                            // this same algebra recursively
@@ -277,6 +289,42 @@ function normaliseEscape(
   }
   return ['', '\\' + n + ', an escape whose meaning the two engines do not' +
     ' share', 0]
+}
+
+
+// The pattern compiled from its portable form, or why it is refused.
+function compileRe(src: string): [RegExp | undefined, string, string] {
+  const [norm, why] = normaliseRe(src)
+  if ('' !== why) {
+    return [undefined, norm, why]
+  }
+  try {
+    return [new RegExp(norm, 'u'), norm, '']
+  }
+  catch (e: any) {
+    return [undefined, norm, 'not a valid pattern']
+  }
+}
+
+
+// Why the format refuses s, or undefined where it admits it (ADR-059).
+function formatWhy(f: FormatAtom, s: string): string | undefined {
+  const head = 'format ' + f.name + ': '
+  if (undefined === f.gs) {
+    const why = compileRe(s)[2]
+    return '' === why ? undefined : head + why
+  }
+  const cps = [...s]
+  for (const g of f.gs) {
+    const stop = recognise(g, s)
+    if (-1 !== stop) {
+      return undefined === stop ? head + 'the step bound of ' + FORMAT_STEP_MAX + ' is reached' :
+        stop === cps.length ? head + 'the text ends too soon' :
+          head + 'character ' + (stop + 1) + ', ' + hex(cps[stop].codePointAt(0) as number) +
+          ', is not admitted'
+    }
+  }
+  return undefined
 }
 
 
@@ -504,6 +552,7 @@ class ConstraintVal extends FeatureVal {
   neqs: any[] = []
   mults: any[] = []
   res: ReAtom[] = []
+  fmts: FormatAtom[] = []
   count?: ConstraintState
   uniq = false
   uniqBy: string[] = []
@@ -539,6 +588,7 @@ class ConstraintVal extends FeatureVal {
       // A state built by an embedder (or by a per-port test) may predate
       // the pattern field; an absent one means "no patterns", not undefined.
       this.res = spec.state.res ?? []
+      this.fmts = spec.state.fmts ?? []
       this.count = spec.state.count
       this.uniq = spec.state.uniq ?? false
       this.uniqBy = spec.state.uniqBy ?? []
@@ -700,21 +750,29 @@ class ConstraintVal extends FeatureVal {
         return bad('invalid-arg')
       }
       const src = a.peg as string
-      const [norm, why] = normaliseRe(src)
-      if ('' !== why) {
+      const [re, norm, why] = compileRe(src)
+      if (undefined === re) {
         this.invalidWhy = why
-        return bad('constraint_pattern')
-      }
-      let re: RegExp
-      try {
-        re = new RegExp(norm, 'u')
-      }
-      catch (e: any) {
-        this.invalidWhy = 'not a valid pattern'
         return bad('constraint_pattern')
       }
       this.domain = 'string'
       this.res = [{ v: a, src, norm, re }]
+      return
+    }
+
+    // A committed name or a grammar, read and checked once (ADR-059).
+    if ('format' === atom) {
+      if (!stringLeaf(a)) {
+        return bad('invalid-arg')
+      }
+      const src = a.peg as string
+      const [f, code, why] = formatOf(src)
+      if (undefined === f) {
+        this.invalidWhy = why
+        return bad(code)
+      }
+      this.domain = 'string'
+      this.fmts = [{ v: a, src, ...f }]
       return
     }
 
@@ -886,6 +944,12 @@ class ConstraintVal extends FeatureVal {
       }
       if (!stateAdmits(this.count, countVal([...peer.peg].length))) {
         return this.fail(ctx, peer)
+      }
+    }
+    for (const f of this.fmts) {
+      const why = formatWhy(f, peer.peg)
+      if (undefined !== why) {
+        return makeNilErr(ctx, 'parse_failed', this, peer, 'parse', { reason: why })
       }
     }
     // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
@@ -1283,6 +1347,7 @@ class ConstraintVal extends FeatureVal {
     merged.neqs = dedupSorted(d, [...this.neqs, ...peer.neqs])
     merged.mults = dedupMults([...this.mults, ...peer.mults])
     merged.res = dedupSortedRes([...this.res, ...peer.res])
+    merged.fmts = dedupSortedFormats([...this.fmts, ...peer.fmts])
     // `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses
     // numeric algebra recursively, over the counts rather than the
     // values.
@@ -1349,6 +1414,7 @@ class ConstraintVal extends FeatureVal {
       neqs: [...this.neqs],
       mults: [...this.mults],
       res: [...this.res],
+      fmts: [...this.fmts],
       count: this.count,
       uniq: this.uniq,
       uniqBy: [...this.uniqBy],
@@ -1393,6 +1459,7 @@ class ConstraintVal extends FeatureVal {
     out.neqs = [...this.neqs]
     out.mults = [...this.mults]
     out.res = [...this.res]
+    out.fmts = [...this.fmts]
     out.count = this.count
     out.uniq = this.uniq
     out.uniqBy = [...this.uniqBy]
@@ -1665,7 +1732,7 @@ function canonState(s: ConstraintState): string {
   }
   else if ('string' === s.domain && (true === s.nonEmpty ||
     (null == s.lo && null == s.hi && 0 === s.neqs.length &&
-      0 === s.res.length && true !== s.emptyOk))) {
+      0 === s.res.length + (s.fmts ?? []).length && true !== s.emptyOk))) {
     parts.push('string')
   }
   else if ('number' === s.domain && null == s.lo && null == s.hi &&
@@ -1686,6 +1753,9 @@ function canonState(s: ConstraintState): string {
   }
   for (const r of s.res) {
     parts.push('re(' + r.v.canon + ')')
+  }
+  for (const f of s.fmts ?? []) {
+    parts.push('format(' + f.v.canon + ')')
   }
   if (null != s.count) {
     parts.push('len(' + canonState(s.count) + ')')
@@ -1725,7 +1795,7 @@ function canonState(s: ConstraintState): string {
 function constraintStateSubsumes(
   g: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
+    neqs: any[], res: ReAtom[], fmts?: FormatAtom[], count?: ConstraintState, uniq: boolean,
     uniqBy: string[],
     musts: MustAtom[],
     nofs?: NofAtom[],
@@ -1735,7 +1805,7 @@ function constraintStateSubsumes(
   },
   s: {
     domain?: 'number' | 'string', kind?: any, lo?: Bound, hi?: Bound,
-    neqs: any[], res: ReAtom[], count?: ConstraintState, uniq: boolean,
+    neqs: any[], res: ReAtom[], fmts?: FormatAtom[], count?: ConstraintState, uniq: boolean,
     uniqBy: string[],
     musts: MustAtom[],
   },
@@ -1820,6 +1890,11 @@ function constraintStateSubsumes(
       return false
     }
   }
+  for (const f of g.fmts ?? []) {
+    if (!(s.fmts ?? []).some((q: FormatAtom) => q.src === f.src)) {
+      return false
+    }
+  }
 
   if (g.uniqBy.some((k: string) => !s.uniqBy.includes(k))) {
     return false
@@ -1876,7 +1951,8 @@ function constraintAdmitsScalar(
       true === scalar.isString && '' === scalar.peg)) {
     return false
   }
-  return stateAdmits(g as any, scalar)
+  return stateAdmits(g as any, scalar) &&
+    g.fmts.every((f: FormatAtom) => undefined === formatWhy(f, scalar.peg))
 }
 
 
@@ -2161,6 +2237,12 @@ function emittedEntries(bag: any, ctx: AontuContext): [string, any][] | undefine
 }
 
 
+function dedupSortedFormats(fmts: FormatAtom[]): FormatAtom[] {
+  const sorted = [...fmts].sort((a, b) => cmpCodePoints(a.src, b.src))
+  return sorted.filter((f, i) => 0 === i || sorted[i - 1].src !== f.src)
+}
+
+
 function dedupSortedRes(res: ReAtom[]): ReAtom[] {
   const sorted = [...res].sort((a, b) => cmpCodePoints(a.src, b.src))
   const out: ReAtom[] = []
@@ -2215,6 +2297,12 @@ class ReConstraintVal extends ConstraintVal {
   }
 }
 
+class FormatConstraintVal extends ConstraintVal {
+  constructor(spec: ValSpec, ctx?: AontuContext) {
+    super({ ...spec, atom: 'format' }, ctx)
+  }
+}
+
 class MustConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'must' }, ctx)
@@ -2260,7 +2348,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 27 */
+} /* node:coverage ignore next 28 */
 
 
 export {
@@ -2280,6 +2368,7 @@ export {
   NeqConstraintVal,
   MultipleConstraintVal,
   ReConstraintVal,
+  FormatConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,

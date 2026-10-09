@@ -177,6 +177,7 @@ import {
   WhenConstraintVal,
   ContainsConstraintVal,
   RestConstraintVal,
+  FormatConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -854,6 +855,7 @@ help isolate the syntax error.`,
     when: WhenConstraintVal,
     contains: ContainsConstraintVal,
     rest: RestConstraintVal,
+    format: FormatConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,

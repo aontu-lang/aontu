@@ -1,0 +1,2 @@
+; RFC 4122 section 3, the string representation of a UUID.
+uuid = 8HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 4HEXDIG "-" 12HEXDIG

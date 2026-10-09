@@ -49,6 +49,16 @@ type constraintPending struct {
 	args []Val
 }
 
+// constraintFormat is a format: the argument as written, the name a
+// refusal gives, and the grammars it is, which regex alone has none of
+// (ADR-059).
+type constraintFormat struct {
+	v    *ScalarVal
+	src  string
+	name string
+	gs   []*fGrammar
+}
+
 type constraintRe struct {
 	v *ScalarVal
 	// src is the pattern text AS WRITTEN -- Canon and dedup use this,
@@ -258,6 +268,46 @@ type reGroup struct {
 	q, alt bool
 }
 
+// compileRe is the pattern compiled from its portable form, or why it is
+// refused.
+func compileRe(src string) (*regexp.Regexp, string, string) {
+	norm, why := normaliseRe(src)
+	if "" != why {
+		return nil, norm, why
+	}
+	re, err := regexp.Compile(norm)
+	if nil != err {
+		return nil, norm, "not a valid pattern"
+	}
+	return re, norm, ""
+}
+
+// formatWhy is why the format refuses s, or "" where it admits it
+// (ADR-059).
+func formatWhy(f constraintFormat, s string) string {
+	head := "format " + f.name + ": "
+	if nil == f.gs {
+		if _, _, why := compileRe(s); "" != why {
+			return head + why
+		}
+		return ""
+	}
+	cps := []rune(s)
+	for _, g := range f.gs {
+		stop, ok := recogniseFormat(g, s)
+		switch {
+		case !ok:
+			return head + "the step bound of " + strconv.Itoa(formatStepMax) + " is reached"
+		case -1 == stop:
+			continue
+		case len(cps) == stop:
+			return head + "the text ends too soon"
+		}
+		return head + "character " + strconv.Itoa(stop+1) + ", " + fHex(int(cps[stop])) + ", is not admitted"
+	}
+	return ""
+}
+
 // normaliseRe rewrites a pattern into the engine-neutral subset.
 // Returns (normalised, why): a non-empty why means the pattern is
 // outside the subset and names the construct.
@@ -439,6 +489,7 @@ type ConstraintVal struct {
 	neqs   []*ScalarVal
 	mults  []*ScalarVal   // divisors, each a positive number (multiple())
 	res    []constraintRe // accumulated patterns, sorted by source
+	fmts   []constraintFormat // formats, sorted by source, each once
 	// count is the len() residual: itself a residual over the integer
 	// domain, because the count atom reuses this same algebra
 	// recursively. nil when the residual says nothing about length.
@@ -514,7 +565,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "unique": true, "must": true, "multiple": true,
-	"nof": true, "when": true, "contains": true, "rest": true,
+	"nof": true, "when": true, "contains": true, "rest": true, "format": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -738,18 +789,30 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("invalid-arg")
 		}
 		src := psv.peg.(string)
-		norm, why := normaliseRe(src)
-		if "" != why {
+		re, norm, why := compileRe(src)
+		if nil == re {
 			c.invalidWhy = why
-			return bad("constraint_pattern")
-		}
-		re, err := regexp.Compile(norm)
-		if nil != err {
-			c.invalidWhy = "not a valid pattern"
 			return bad("constraint_pattern")
 		}
 		c.domain = "string"
 		c.res = []constraintRe{{v: psv, src: src, norm: norm, re: re}}
+		return c
+	}
+
+	// A committed name or a grammar, read and checked once (ADR-059).
+	if "format" == atom {
+		psv, pd := orderableScalar(args[0])
+		if nil == psv || "string" != pd || KindPath == psv.kind {
+			return bad("invalid-arg")
+		}
+		src := psv.peg.(string)
+		name, gs, code, why := formatOf(src)
+		if "" != code {
+			c.invalidWhy = why
+			return bad(code)
+		}
+		c.domain = "string"
+		c.fmts = []constraintFormat{{v: psv, src: src, name: name, gs: gs}}
 		return c
 	}
 
@@ -960,6 +1023,11 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 		n := utf8.RuneCountInString(peer.peg.(string))
 		if !stateAdmits(c.count, countVal(n)) {
 			return c.fail(ctx, peer)
+		}
+	}
+	for _, f := range c.fmts {
+		if why := formatWhy(f, peer.peg.(string)); "" != why {
+			return makeNilErrFull(ctx, "parse_failed", c, peer, "parse", map[string]string{"reason": why})
 		}
 	}
 	if bad := c.checkMusts(peer, ctx); nil != bad {
@@ -1360,6 +1428,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.neqs = dedupSortedNeqs(merged.domain, append(append([]*ScalarVal{}, c.neqs...), peer.neqs...))
 	merged.mults = dedupMults(append(append([]*ScalarVal{}, c.mults...), peer.mults...))
 	merged.res = dedupSortedRes(append(append([]constraintRe{}, c.res...), peer.res...))
+	merged.fmts = dedupSortedFormats(append(append([]constraintFormat{}, c.fmts...), peer.fmts...))
 	// `len(c1) & len(c2)` is `len(c1 & c2)`: the count atom reuses the
 	// numeric algebra recursively, over the counts rather than the
 	// values.
@@ -1449,6 +1518,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 		neqs:    append([]*ScalarVal{}, c.neqs...),
 		mults:   append([]*ScalarVal{}, c.mults...),
 		res:     append([]constraintRe{}, c.res...),
+		fmts:    append([]constraintFormat{}, c.fmts...),
 		count:   c.count,
 		uniq:    c.uniq,
 		uniqBy:  append([]string{}, c.uniqBy...),
@@ -1475,6 +1545,20 @@ func (c *ConstraintVal) reasonDetails() map[string]string {
 		return nil
 	}
 	return map[string]string{"reason": c.invalidWhy}
+}
+
+func dedupSortedFormats(fmts []constraintFormat) []constraintFormat {
+	sorted := append([]constraintFormat{}, fmts...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].src < sorted[j].src
+	})
+	out := []constraintFormat{}
+	for _, f := range sorted {
+		if 0 == len(out) || out[len(out)-1].src != f.src {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func dedupSortedRes(res []constraintRe) []constraintRe {
@@ -1510,7 +1594,7 @@ func (c *ConstraintVal) Canon() string {
 	} else if c.pathKind {
 		parts = append(parts, "path")
 	} else if "string" == c.domain && (c.nonEmpty ||
-		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res) && !c.emptyOk)) {
+		(nil == c.lo && nil == c.hi && 0 == len(c.neqs) && 0 == len(c.res)+len(c.fmts) && !c.emptyOk)) {
 		parts = append(parts, "string")
 	} else if "number" == c.domain && nil == c.lo && nil == c.hi &&
 		0 == len(c.neqs)+len(c.mults) {
@@ -1542,6 +1626,9 @@ func (c *ConstraintVal) Canon() string {
 	}
 	for _, r := range c.res {
 		parts = append(parts, "re("+r.v.Canon()+")")
+	}
+	for _, f := range c.fmts {
+		parts = append(parts, "format("+f.v.Canon()+")")
 	}
 	if nil != c.count {
 		parts = append(parts, "len("+c.count.Canon()+")")
@@ -2004,6 +2091,15 @@ func constraintStateSubsumes(g, s *ConstraintVal) (bool, bool) {
 			return false, false
 		}
 	}
+	for _, f := range g.fmts {
+		found := false
+		for _, q := range s.fmts {
+			found = found || q.src == f.src
+		}
+		if !found {
+			return false, false
+		}
+	}
 	// ... and a general `unique(k)` needs the same key on the specific
 	// side: distinctness on `port` says nothing about distinctness on
 	// `name`.
@@ -2051,6 +2147,11 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 		(g.nonEmpty && KindPath == scalar.kind) ||
 		(g.nonEmpty && !g.emptyOk && KindString == scalar.kind && "" == scalar.peg.(string)) {
 		return false, false
+	}
+	for _, f := range g.fmts {
+		if "" != formatWhy(f, scalar.peg.(string)) {
+			return false, false
+		}
 	}
 	return stateAdmits(g, scalar), false
 }

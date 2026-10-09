@@ -14,6 +14,7 @@ import { admits } from './admit'
 import { cmpCodePoint } from './keyorder'
 import { Aontu } from './aontu'
 import { getHint } from './err'
+import { formatOf, isDefinedFormat } from './formatgrammar'
 import { format } from './format'
 import type { FormatReport } from './format'
 import { normaliseRe } from './val/ConstraintVal'
@@ -31,6 +32,12 @@ export type ImportOptions = {
   uri?: string
   // The documents a reference may reach, by URI. None is fetched.
   documents?: Record<string, string>
+  // ADR-059: every format with a grammar is also format(g), as a
+  // meta-schema whose $vocabulary lists format-assertion asks.
+  formatAssertion?: boolean
+  // The grammar of each format JSON Schema does not define, by name; a
+  // format it defines keeps its committed grammar.
+  formats?: Record<string, string>
 }
 
 export type ImportReport = {
@@ -410,6 +417,10 @@ type Ctx = {
   stack: JNode[]
   copies: number
   defaults: boolean
+  // Whether a format asserts, by the formatAssertion option or by the
+  // format-assertion vocabulary, and the grammars the format set gives.
+  asserts: '' | 'option' | 'vocabulary'
+  formats: Map<string, string>
   // The schema nodes a conversion reached.
   seen: Set<JNode>
   // ADR-057: each resource's dynamic anchors, the names a $dynamicRef
@@ -453,7 +464,7 @@ function rowCol(src: string, off: number): [number, number] {
 
 
 function fail(ctx: Ctx, code: string, path: string, message: string,
-  off: number, end: number): void {
+  off: number, end: number, details: Record<string, string> = {}): void {
   const [row, col] = rowCol(ctx.doc.src, off)
   const text = ctx.doc.src.slice(off, end)
   ctx.errors.push({
@@ -462,7 +473,7 @@ function fail(ctx: Ctx, code: string, path: string, message: string,
     severity: 'error',
     path,
     message,
-    hint: (getHint(code, {}) as string).replace(/\s+$/, ''),
+    hint: (getHint(code, details) as string).replace(/\s+$/, ''),
     sites: [{
       file: ctx.doc.file, row, col, len: end - off, role: 'schema', src: text, value: text,
     }],
@@ -911,7 +922,7 @@ const CARRIED = [
   'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
   'maxContains', 'uniqueItems', 'minimum', 'maximum',
   'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
-  'pattern', 'unevaluatedProperties', 'unevaluatedItems',
+  'pattern', 'unevaluatedProperties', 'unevaluatedItems', 'x-aontu-format',
 ]
 
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema'
@@ -928,6 +939,50 @@ const SCOPED: Record<string, string[]> = {
     'propertyNames', 'minProperties', 'maxProperties', 'unevaluatedProperties'],
   array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
     'maxContains', 'uniqueItems', 'unevaluatedItems'],
+}
+
+
+// ADR-059: the grammar a format asserts, the committed one of its name
+// or the one the format set gives it.
+function grammarOf(ctx: Ctx, name: JNode | undefined): string | undefined {
+  return '' === ctx.asserts || 'string' !== name?.t ? undefined :
+    isDefinedFormat(name.s) ? name.s : ctx.formats.get(name.s)
+}
+
+// Under format assertion a format is format(g); a name without a grammar
+// is ignored by the option and refuses the schema under the vocabulary,
+// as JSON Schema asks. x-aontu-format carries a grammar in any mode.
+function formats(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr[] {
+  const out: Expr[] = []
+  const name = entry(node, 'format')
+  const g = grammarOf(ctx, name)
+  if (undefined !== g) {
+    out.push(...grammarCall(ctx, child(ptr, 'format'), name as JNode, g))
+  }
+  else if ('vocabulary' === ctx.asserts && 'string' === name?.t) {
+    fail(ctx, 'format_unknown', child(ptr, 'format'), 'The format ' + quote(name.s) +
+      ' is neither one of the nineteen nor in the format set, and under the ' +
+      'format-assertion vocabulary an unknown format refuses the schema.',
+      name.off, name.end, { reason: name.s })
+  }
+  const x = entry(node, 'x-aontu-format')
+  if (undefined !== x && 'string' !== x.t) {
+    wrongType(ctx, child(ptr, 'x-aontu-format'), 'x-aontu-format', 'a string', x)
+  }
+  else if (undefined !== x) {
+    out.push(...grammarCall(ctx, child(ptr, 'x-aontu-format'), x, x.s))
+  }
+  return out
+}
+
+function grammarCall(ctx: Ctx, path: string, node: JNode, g: string): Expr[] {
+  const [f, code, why] = formatOf(g)
+  if (undefined === f) {
+    fail(ctx, code, path, 'The grammar of this format cannot be run: ' + why + '.',
+      node.off, node.end, { reason: why })
+    return []
+  }
+  return [call('format', raw(quote(g)))]
 }
 
 
@@ -1628,7 +1683,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     }
   }
   const scoped = (kind: string): boolean =>
-    undefined !== SCOPED[kind] && SCOPED[kind].some((k) => null != get(k))
+    (undefined !== SCOPED[kind] && SCOPED[kind].some((k) => null != get(k))) ||
+    ('string' === kind && (null != get('x-aontu-format') || undefined !== grammarOf(ctx, get('format'))))
 
   const kinds = KINDS.filter((kind) => (undefined === only || only.includes(kind)) &&
     (undefined === allowed ? KINDS.some(scoped) && (undefined === only || scoped(kind)) :
@@ -1883,6 +1939,7 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
         }
       }
     }
+    parts.push(...formats(ctx, node, ptr))
     return content(ctx, node, ptr, and(exclude(parts)))
   }
 
@@ -2252,7 +2309,8 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     dynAnchors: new Map(), dynamic: new Set(), env: new Map(), clones: new Map(),
     uses: new Map(), cloned: 0,
     documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
-    copies: 0, seen: new Set(),
+    copies: 0, seen: new Set(), asserts: true === options?.formatAssertion ? 'option' : '',
+    formats: new Map(Object.entries(options?.formats ?? {})),
   }
   // Names for one URI must hold one text, or the set's order would
   // choose between them.
@@ -2298,6 +2356,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     return error(base)
   }
 
+  base.asserts = vocabularyAsserts(base, parsed) ? 'vocabulary' : base.asserts
   base.resources.set(uri, parsed)
   base.byText.set(text, doc)
   index(base, parsed, '#', parsed, uri)
@@ -2341,6 +2400,20 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     vet: [...IMPORT_VET_FLAGS],
   }
 }
+
+
+// Whether the meta-schema the root names lists the format-assertion
+// vocabulary, true or false: aontu asserts formats, so either asks it to.
+function vocabularyAsserts(ctx: Ctx, root: JNode): boolean {
+  const named = entry(root, '$schema')
+  const text = 'string' === named?.t ?
+    ctx.documents.get(normalizeUri(resolveUri(ctx.doc.uri, named.s).replace(/#.*$/s, ''))) : undefined
+  const meta = undefined === text ? undefined : parseJson(text)
+  const vocabulary = undefined === meta || 'why' in meta ? undefined : entry(meta, '$vocabulary')
+  return 'object' === vocabulary?.t && vocabulary.entries.some((e) => FORMAT_ASSERTION === e.key)
+}
+
+const FORMAT_ASSERTION = 'https://json-schema.org/draft/2020-12/vocab/format-assertion'
 
 
 // The agreed form, as `aontu fmt` writes it, or the text as written

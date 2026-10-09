@@ -87,6 +87,7 @@ capability decision is the phase rows it governed in
 | [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
+| [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 
 ---
 
@@ -5447,3 +5448,137 @@ members a passing branch reached. The
   `test/spec/jsonschema.tsv`, and rows in `constraint-nof.tsv`,
   `constraint-must.tsv`, `constraint-when.tsv`, `gen-match.tsv`,
   `vet.tsv` and `budget.tsv`, in both ports.
+
+## ADR-059 — A format is a grammar aontu reads and runs itself
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `format` names nineteen string formats, and
+asserts one only where a validator is asked to: by the format-assertion
+vocabulary, or by an option beside the default format-annotation
+vocabulary. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+design (phase 13) chose an atom, `format(g)`, whose `g` is an ABNF
+grammar or the name of a committed one, run by the engine `parse(g)`
+uses after a check that one character of lookahead decides it.
+Measured while building it, that engine misreads grammars the check
+admits: under `a = "a" ("b" / "")` it refuses `"a"`, because it never
+takes the empty alternative at the end of the input. A check that
+admits a grammar the engine then misreads cannot keep the promise that
+an admitted grammar runs as written.
+
+### Decision
+
+1. **`format(g) : constraint` is a Band A atom in the string domain
+   that accumulates like `re`.** A string that is one ABNF rule name
+   names a format, and any other string is a grammar. The names are
+   the nineteen JSON Schema formats; every one but `regex` is
+   committed under `grammar/format/`, and `regex` admits a pattern
+   `re()` admits until the owned pattern parser decides the dialect.
+   Any other name refuses with the new code `format_unknown`, class
+   `conflict`.
+2. **aontu reads a format's grammar itself**: RFC 5234 with RFC 7405's
+   `%s` and `%i` strings, refused with `abnf_grammar` where it does not
+   compile. It then refuses, with the new code `format_grammar`, class
+   `parse`, naming the rule and the character, a grammar one character
+   cannot decide: two alternatives that begin with the same character,
+   two that match the empty string, one that matches it beside another
+   that begins with a character that can follow it, an option or
+   repetition that begins with a character that can follow it, a rule
+   that reaches itself before reading one, and a prose value.
+3. **aontu runs the grammar itself**, one character at a time with a
+   stack and never going back, in both ports, under its own bound of
+   1,000,000 steps. A string it refuses, or the bound stops, is
+   `parse_failed`, naming the format or the grammar's first rule and
+   the first character it could not read. The empty string is admitted
+   exactly where the grammar's first rule matches it.
+4. **A committed format is one or more grammars, and a string meets
+   each.** It is `grammar/format/<name>.abnf`, or a directory
+   `grammar/format/<name>/` whose `<name>.abnf` comes first, and
+   `grammar/format/lib/` holds rules any committed grammar may name and
+   no caller's grammar can. That is how a format says what one grammar
+   of one character's lookahead cannot: the leap second's minute and
+   hour, a whole name's length, the Bidi rule and each context rule of
+   IDNA2008. The large grammars come from one committed generator,
+   `ts/scripts/formatgen.cjs` (`make formatgen`), from the RFCs' own
+   ABNF and the Unicode Character Database 18.0.0, pinned by hash. All
+   are staged into both ports as the signature table is
+   (`ts/src/formatgrammars.ts`, `go/formatgrammars/`), and both suites
+   hold the copies to their sources and every grammar to the check.
+5. **What the committed grammars read, and what they leave out.**
+   `hostname` is RFC 1123's, with RFC 5890's reserved `--` and a name
+   of 253 characters at most; an A-label is held to its ASCII syntax
+   and never decoded. `idn-hostname` is IDNA2008's, RFCs 5891 to 5893,
+   after UTS #46's mapping of one code point to one and its ignored
+   code points: a mapping to several code points and normalisation are
+   not read, so a code point that needs either is refused; a trailing
+   dot is refused; an A-label is not decoded, and a U-label is not
+   encoded, so its A-label form is not measured, and the name's length
+   is counted in mapped characters, which that form only lengthens.
+   `email` and `idn-email` are RFC 5321's Mailbox, the second with RFC
+   6531's, and the size limits of RFC 5321 section 4.5.3.1 are not
+   counted. A `uri-template` literal admits `'`, which RFC 6570
+   excludes and the JSON Schema Test Suite takes as valid. `date-time`
+   and `time` admit a leap second only at 23:59:60 UTC once the offset
+   is applied, as RFC 3339 section 5.7 has it.
+6. **Canon sorts formats by their argument and writes each once**,
+   after `re`; subsumption compares two formats as text, as it compares
+   two patterns.
+7. **The importer asserts a format only where it is asked to.** A
+   format rides the `meta` rider as before, and is also `format(g)`
+   under format assertion: the `formatAssertion` option (`aontu
+   jsonschema import --format-assert`), or a meta-schema in the
+   document set whose `$vocabulary` lists format-assertion, true or
+   false, since aontu supports it. A defined name takes its committed
+   grammar and any other the grammar the format set, `formats`
+   (`--format-grammar <name> <file>`), gives it. A name with no grammar
+   is ignored under the option, as the format-annotation vocabulary
+   asks, and refuses the import with `format_unknown` under the
+   format-assertion vocabulary, as that one asks. `x-aontu-format`,
+   a grammar or a name, asserts in any mode.
+8. **The exporter writes a defined format as `format`, and a grammar as
+   `x-aontu-format`**, several of either in an `allOf`, each with a
+   loss: 2020-12 asserts `format` only where a validator is asked to,
+   and only aontu reads the extension. A `format` the `meta` rider
+   names as well is written once.
+
+**Departures from the design, six.** (1) The engine and its bound are
+aontu's own, not `parse(g)`'s, and the check drops the design's third
+rule, a class overlapping a literal, which belongs to that engine's
+tokenizer. (2) A format may be several grammars and name the shared
+library, where the design had one grammar a format. (3) Under the
+option an unknown format is ignored, where the design refused it in
+either mode; the suite's `optional/format/unknown.json` asks for the
+first. (4) A defined name in the format set is a usage error at the
+CLI, as designed, and the API keeps the committed grammar, having no
+usage channel. (5) Under the format-assertion vocabulary 2020-12 asks a
+validator that cannot validate every defined format fully to refuse the
+schema; aontu asserts with its grammars, whose gaps decision 5 names
+and the suite's ledger lists. (6) Decision 5's departures from the
+RFCs, each found against a corpus.
+
+### Consequences
+
+- `format` holds no checker code for any format: a format is its
+  grammars, and the only code is the reader and the recognizer, the
+  same in both ports.
+- 2,274 of the official suite's 2,337 tests pass in both ports, where
+  1,841 did. Twenty-two rows left the ledger and thirteen joined it:
+  six `regex` tests that wait on phase 14, `hostname.json`'s A-label
+  group, and six `idn-hostname.json` tests that need Punycode; it holds
+  41 rows under a bound of 50.
+- Three corpora are vendored under `test/vectors/`, and both ports
+  require how many cases agree and how many differ for each named
+  reason: uritemplate-test's templates, 148 of 153 (five fail only at
+  expansion); isemail's addresses, 157 of 164 for each email format
+  (seven size limits); and UTS #46's `IdnaTestV2.txt`, 3,840 of the
+  4,010 names compared (102 code points IDNA2008 disallows or UTS #46
+  maps to several, 40 that normalisation composes, 28 A-label forms too
+  long), with 2,384 lines that hold an A-label and two ill-formed ones
+  counted and not read.
+- Pinned by `test/spec/format.tsv`, the `import-format-*` and
+  `import-x-aontu-format-*` rows of `test/spec/jsonschema-import.tsv`
+  and the `export-format-*` rows of `test/spec/jsonschema.tsv`, in both
+  ports.

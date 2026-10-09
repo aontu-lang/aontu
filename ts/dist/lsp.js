@@ -456,7 +456,7 @@ const BUILTIN_FUNCS = [
     'copyfiles', 'deprecate',
     'div',
     'each', 'emit', 'empty', 'esc',
-    'file', 'filter', 'folder', 'fragment', 'greatest',
+    'file', 'filter', 'folder', 'format', 'fragment', 'greatest',
     'hide', 'ident', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
     'listitems', 'lower',
     'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'multiple', 'must', 'neq',

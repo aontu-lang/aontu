@@ -1,0 +1,211 @@
+# FORMAT -- `format(g)` (G12 phase 13, ADR-059): a Band A atom in the
+# string domain that accumulates like `re`. `g` is a grammar, RFC 5234
+# ABNF with RFC 7405's `%s` and `%i`, or a name: a string that is one rule
+# name names one of the nineteen JSON Schema formats, eighteen committed
+# grammars and `regex`, which the pattern dialect decides. aontu reads
+# and runs the grammar itself, and refuses one it cannot decide by one
+# character of lookahead (`format_grammar`). A string the grammar refuses
+# is `parse_failed`, naming the format or the grammar's first rule. The
+# empty string is admitted exactly where the start rule derives it.
+# Every expectation is both engines' agreed answer.
+#
+# Canon: formats sorted by their argument and written once, after `re`.
+format-canon-a-name	canon	a: format("date")	{"a":format("date")}
+format-canon-a-grammar	canon	a: format("v = 1*DIGIT")	{"a":format("v = 1*DIGIT")}
+format-canon-sorted-and-once	canon	a: format("uuid") & format("date") & format("uuid")	{"a":format("date")&format("uuid")}
+format-canon-after-re	canon	a: format("date") & re("x")	{"a":re("x")&format("date")}
+format-canon-with-string	canon	a: string & format("date")	{"a":string&format("date")}
+format-canon-with-len	canon	a: format("date") & len(10)	{"a":format("date")&len(integer&min(10)&max(10))}
+format-canon-with-empty	canon	a: format("json-pointer") & empty()	{"a":format("json-pointer")&empty()}
+format-canon-a-hidden-grammar	canon	G: hide("v = 1*DIGIT")\na: format($.G)	{"G":"v = 1*DIGIT","a":format("v = 1*DIGIT")}
+# A grammar given: the string meets it when the grammar reads all of it.
+format-gens-a-grammar-admits	gens	a: format("v = 1*DIGIT") & "123"	{"a":"123"}
+format-errc-a-grammar-refuses	errc	a: format("v = 1*DIGIT") & "12a"	parse_failed
+format-err-names-the-first-rule	err	a: format("v = 1*DIGIT") & "12a"	format v: character 3, %x61, is not admitted
+format-err-the-text-ends-too-soon	err	a: format("v = 2DIGIT") & "1"	format v: the text ends too soon
+format-errc-a-number	errc	a: format("v = 1*DIGIT") & 12	constraint
+format-errc-a-boolean	errc	a: format("v = 1*DIGIT") & true	constraint
+format-gens-a-string-ignores-case	gens	a: format("v = \\"ab\\"") & "aB"	{"a":"aB"}
+format-errc-a-case-sensitive-string	errc	a: format("v = %s\\"ab\\"") & "aB"	parse_failed
+format-gens-a-case-insensitive-string	gens	a: format("v = %i\\"ab\\"") & "Ab"	{"a":"Ab"}
+format-gens-core-rules	gens	a: format("v = ALPHA *(ALPHA / DIGIT)") & "a1b"	{"a":"a1b"}
+format-gens-numeric-values	gens	a: format("v = %x41-43 %d68 %b1001001") & "BDI"	{"a":"BDI"}
+format-gens-a-dotted-value	gens	a: format("v = %x41.42") & "AB"	{"a":"AB"}
+format-gens-an-incremental-rule	gens	a: format("v = \\"a\\"\\nv =/ \\"b\\"") & "b"	{"a":"b"}
+format-gens-a-continuation-line	gens	a: format("v = \\"a\\"\\n  \\"b\\"") & "ab"	{"a":"ab"}
+format-gens-a-comment	gens	a: format("v = \\"a\\" ; the letter a") & "a"	{"a":"a"}
+format-gens-a-repetition-bound	gens	a: format("v = 2*3DIGIT") & "123"	{"a":"123"}
+format-errc-past-a-repetition-bound	errc	a: format("v = 2*3DIGIT") & "1234"	parse_failed
+format-gens-an-option	gens	a: format("v = \\"a\\" [\\"b\\"]") & "a"	{"a":"a"}
+format-gens-a-later-rule	gens	a: format("v = d \\"-\\" d\\nd = 2DIGIT") & "12-34"	{"a":"12-34"}
+format-gens-past-ascii	gens	a: format("v = 1*%x3B1-3C9") & "αβγ"	{"a":"αβγ"}
+format-gens-past-the-bmp	gens	a: format("v = %x1F600") & "😀"	{"a":"😀"}
+format-errc-past-the-bmp	errc	a: format("v = %x1F600") & "😁"	parse_failed
+format-gens-recursion	gens	a: format("v = \\"(\\" [v] \\")\\"") & "((()))"	{"a":"((()))"}
+format-errc-recursion-unbalanced	errc	a: format("v = \\"(\\" [v] \\")\\"") & "(()"	parse_failed
+# The empty string is the grammar's to decide.
+format-gens-empty-where-the-start-rule-derives-it	gens	a: format("v = *DIGIT") & ""	{"a":""}
+format-errc-empty-where-it-does-not	errc	a: format("v = 1*DIGIT") & ""	parse_failed
+format-gens-empty-beside-empty	gens	a: format("v = *DIGIT") & empty() & ""	{"a":""}
+format-errc-string-refuses-empty-first	errc	a: string & format("v = *DIGIT") & ""	string_empty
+# Refused where declared: an unknown name, a grammar that does not
+# compile, and one that one character of lookahead cannot decide.
+format-errc-an-unknown-name	errc	a: format("dat") & "x"	format_unknown
+format-err-an-unknown-name	err	a: format("dat") & "x"	"dat" is not one of them.
+format-errc-a-name-is-case-sensitive	errc	a: format("Date") & "x"	format_unknown
+format-errc-not-a-string	errc	a: format(1) & "x"	invalid-arg
+format-errc-a-rule-not-defined	errc	a: format("v = x") & "x"	abnf_grammar
+format-err-a-rule-not-defined	err	a: format("v = x") & "x"	rule x is not defined
+format-err-a-rule-defined-twice	err	a: format("v = \\"a\\"\\nv = \\"b\\"") & "a"	rule v is defined twice
+format-err-a-rule-extended-before-it-is-defined	err	a: format("v =/ \\"b\\"") & "a"	rule v is extended before it is defined
+format-err-not-a-rule	err	a: format("v \\"a\\"") & "a"	not a rule: v "a"
+format-err-a-group-not-closed	err	a: format("v = (\\"a\\"") & "a"	rule v: a group is not closed
+format-err-a-string-not-closed	err	a: format("v = \\"a") & "a"	rule v: a string is not closed
+format-err-a-string-past-ascii	err	a: format("v = \\"é\\"") & "é"	rule v: a string holds a character outside %x20-7E
+format-err-a-numeric-value-malformed	err	a: format("v = %xZZ") & "a"	rule v: a numeric value is malformed
+format-err-a-numeric-value-past-the-range	err	a: format("v = %x110000") & "a"	rule v: a numeric value is past %x10FFFF
+format-err-a-percent-that-ends-the-grammar	err	a: format("v = %") & "1"	rule v: a numeric value is malformed
+format-err-a-range-reversed	err	a: format("v = %x39-30") & "a"	rule v: a range has its bounds the wrong way round
+format-err-a-repeat-count-reversed	err	a: format("v = 3*2DIGIT") & "a"	rule v: a repeat count has its bounds the wrong way round
+format-err-a-repeat-count-alone	err	a: format("v = 2*") & "a"	rule v: a repeat count is not followed by an element
+format-err-an-empty-alternative	err	a: format("v = \\"a\\" /") & "a"	rule v: an alternative is empty
+format-err-unexpected	err	a: format("v = @") & "a"	rule v: unexpected @
+format-errc-two-alternatives	errc	a: format("v = \\"a\\" / \\"ab\\"") & "a"	format_grammar
+format-err-two-alternatives	err	a: format("v = \\"a\\" / \\"ab\\"") & "a"	rule v: two alternatives begin with %x41
+format-err-the-published-dec-octet	err	a: format("v = DIGIT / %x31-39 DIGIT / \\"1\\" 2DIGIT / \\"2\\" %x30-34 DIGIT / \\"25\\" %x30-35") & "255"	rule v: two alternatives begin with %x31
+format-gens-dec-octet-rewritten	gens	a: format("v = \\"0\\" / %x31 [DIGIT [DIGIT]] / %x32 [%x30-34 [DIGIT] / %x35 [%x30-35] / %x36-39] / %x33-39 [DIGIT]") & "255"	{"a":"255"}
+format-err-an-option-before-what-follows-it	err	a: format("v = [\\"a\\"] \\"a\\"") & "a"	rule v: an option or repetition begins with %x41, which can follow it
+format-err-a-repetition-before-what-follows-it	err	a: format("v = *DIGIT \\"0\\"") & "0"	rule v: an option or repetition begins with %x30, which can follow it
+format-err-two-empty-alternatives	err	a: format("v = \\"\\" / [\\"a\\"]") & ""	rule v: two alternatives match the empty string
+format-err-an-empty-alternative-before-what-follows-it	err	a: format("v = (\\"\\" / \\"a\\") \\"a\\"") & "a"	rule v: an alternative matches the empty string and another begins with %x41, which can follow it
+format-err-a-later-rule-before-what-follows-it	err	a: format("v = w \\"a\\"\\nw = *\\"a\\"") & "a"	rule w: an option or repetition begins with %x41, which can follow it
+format-err-left-recursion	err	a: format("v = v \\"a\\" / \\"b\\"") & "b"	rule v is left-recursive
+format-err-left-recursion-through-a-rule	err	a: format("v = w \\"a\\"\\nw = [\\"b\\"] v") & "a"	rule v is left-recursive
+format-err-prose	err	a: format("v = <prose>") & "x"	rule v: a prose value cannot be run
+format-err-groups-nest-too-deep	err	a: format("v = (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((\\"a\\")))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))") & "a"	rule v: groups nest deeper than 64
+# regex is the pattern dialect's own check.
+format-gens-regex-admits-a-pattern	gens	a: format("regex") & "^a+$"	{"a":"^a+$"}
+format-errc-regex-refuses	errc	a: format("regex") & "(a"	parse_failed
+format-err-regex-gives-the-reason	err	a: format("regex") & "(a"	format regex: an unclosed group
+format-err-regex-outside-the-portable-subset	err	a: format("regex") & "(?=x)"	format regex: a (?...) group other than the non-capturing (?:
+# A committed grammar by name.
+format-gens-date	gens	a: format("date") & "2024-02-29"	{"a":"2024-02-29"}
+format-errc-date	errc	a: format("date") & "2023-02-29"	parse_failed
+format-err-date-names-the-format	err	a: format("date") & "2023-02-29"	format date: character 10, %x39, is not admitted
+# Formats accumulate, and are reused by reference.
+format-gens-two-formats-both-hold	gens	a: format("v = 1*DIGIT") & format("w = 3VCHAR") & "123"	{"a":"123"}
+format-errc-two-formats-one-refuses	errc	a: format("v = 1*DIGIT") & format("w = 3VCHAR") & "1234"	parse_failed
+format-gens-beside-len	gens	a: format("v = 1*DIGIT") & len(max(3)) & "123"	{"a":"123"}
+format-errc-beside-len	errc	a: format("v = 1*DIGIT") & len(max(2)) & "123"	constraint
+format-gens-a-hidden-grammar	gens	G: hide("v = 1*DIGIT")\na: format($.G) & "12"	{"a":"12"}
+format-errc-a-hidden-grammar	errc	G: hide("v = 1*DIGIT")\na: format($.G) & "1x"	parse_failed
+format-gens-an-alias	gens	D: hide(format("v = 1*DIGIT"))\na: $.D & "12"	{"a":"12"}
+format-gens-a-disjunct	gens	a: (format("v = 1*DIGIT") | format("w = 1*ALPHA")) & "ab"	{"a":"ab"}
+# Subsumption compares formats as text, as re does.
+format-subsume-the-same-format	subsume	a: format("date")	a: format("date") & len(10)	{"findings":[],"verdict":"subsumes"}
+format-subsume-another-format	subsume	a: format("date")	a: format("uuid")	{"findings":[{"actual":"format(\\"uuid\\")","class":"compat","code":"compat_narrowed","expected":"format(\\"date\\")","message":"the general residual does not contain the specific residual","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"format","value":"format(\\"date\\")"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"format","value":"format(\\"uuid\\")"}]}],"verdict":"does_not_subsume"}
+format-subsume-an-admitted-string	subsume	a: format("date")	a: "2024-01-01"	{"findings":[],"verdict":"subsumes"}
+format-subsume-a-refused-string	subsume	a: format("date")	a: "2023-02-29"	{"findings":[{"actual":"\\"2023-02-29\\"","class":"compat","code":"compat_narrowed","expected":"format(\\"date\\")","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"format","value":"format(\\"date\\")"},{"col":4,"file":"specific","len":12,"role":"specific","row":1,"src":"\\"2023-02-29\\"","value":"\\"2023-02-29\\""}]}],"verdict":"does_not_subsume"}
+# The reader's remaining refusals, and the branches of a run.
+format-err-a-continuation-line-first	err	a: format("  v = \\"a\\"") & "a"	a continuation line comes before any rule
+format-err-no-rule	err	a: format("") & "a"	the grammar defines no rule
+format-err-only-a-comment	err	a: format("; nothing") & "a"	the grammar defines no rule
+format-err-a-repeat-count-too-long	err	a: format("v = 1234567890DIGIT") & "1"	rule v: a repeat count is past 999999999
+format-err-a-repeat-count-and-a-space	err	a: format("v = 3 DIGIT") & "1"	rule v: a repeat count is not followed by an element
+format-err-a-repeat-count-and-a-tab	err	a: format("v = 3\\tDIGIT") & "1"	rule v: a repeat count is not followed by an element
+format-err-a-case-sensitive-string-malformed	err	a: format("v = %s5") & "a"	rule v: a string is malformed
+format-err-a-trailing-close	err	a: format("v = \\"a\\" )") & "a"	rule v: unexpected )
+format-err-a-decimal-value-malformed	err	a: format("v = %d1A") & "a"	rule v: a numeric value is malformed
+format-err-a-binary-value-malformed	err	a: format("v = %b102") & "a"	rule v: a numeric value is malformed
+format-gens-a-decimal-range	gens	a: format("v = %d65-70") & "F"	{"a":"F"}
+format-errc-a-literal-cut-short	errc	a: format("v = \\"abc\\"") & "ab"	parse_failed
+format-errc-a-literal-mismatch	errc	a: format("v = \\"abc\\"") & "abd"	parse_failed
+format-errc-a-folded-literal-non-letter	errc	a: format("v = \\"a-b\\"") & "a_b"	parse_failed
+format-errc-a-folded-literal-past-z	errc	a: format("v = \\"a~\\"") & "a}"	parse_failed
+format-gens-a-folded-literal-from-a-digit	gens	a: format("v = \\"1a\\" / \\"2\\"") & "1A"	{"a":"1A"}
+format-gens-a-rule-ending-in-a-rule-with-an-option	gens	a: format("v = \\"a\\" w\\nw = [\\"b\\"]") & "a"	{"a":"a"}
+format-err-a-rule-ending-in-a-rule-with-an-option	err	a: format("v = x \\"b\\"\\nx = \\"a\\" w\\nw = [\\"b\\"]") & "ab"	rule w: an option or repetition begins with %x42, which can follow it
+format-gens-a-repetition-of-nothing	gens	a: format("v = 2*3\\"\\" \\"b\\"") & "b"	{"a":"b"}
+format-gens-an-alternative-at-the-end	gens	a: format("v = \\"a\\" [\\"b\\" / \\"c\\"]") & "a"	{"a":"a"}
+format-errc-an-alternative-nothing-matches	errc	a: format("v = \\"a\\" / \\"b\\"") & "c"	parse_failed
+format-errc-a-string-ends-before-an-alternative	errc	a: format("v = \\"x\\" (\\"a\\" / \\"b\\")") & "x"	parse_failed
+format-err-a-long-line-that-is-not-a-rule	err	a: format("this line is not a rule of the grammar and it is long") & "a"	not a rule: this line is not a rule of the grammar a
+format-err-unexpected-text-is-cut-short	err	a: format("v = @abcdefghijklmnop") & "a"	rule v: unexpected @abcdefg
+format-gens-an-incremental-rule-onto-alternatives	gens	a: format("v = \\"a\\" / \\"b\\"\\nv =/ \\"c\\"") & "c"	{"a":"c"}
+format-gens-a-repetition-of-none	gens	a: format("v = 0\\"x\\" \\"y\\"") & "y"	{"a":"y"}
+format-gens-what-follows-grows	gens	a: format("v = w \\"x\\" / \\"q\\" w \\"y\\"\\nw = [\\"a\\"]") & "qay"	{"a":"qay"}
+format-gens-an-empty-alternative-taken	gens	a: format("v = \\"a\\" (\\"b\\" / \\"\\") \\"c\\"") & "ac"	{"a":"ac"}
+format-errc-no-alternative-and-none-empty	errc	a: format("v = \\"ab\\" / \\"cd\\"") & "x"	parse_failed
+# Each committed format at the longest valid and invalid string the suite
+# gives it, where no listed skip applies.
+format-gens-date-time-the-longest-valid	gens	a: format("date-time") & "1985-04-12T00:59:59.999999999999999Z"	{"a":"1985-04-12T00:59:59.999999999999999Z"}
+format-errc-date-time-the-longest-invalid	errc	a: format("date-time") & "1963-06-19T08:30:06.28123+01:00Z"	parse_failed
+format-gens-date-the-longest-valid	gens	a: format("date") & "1963-06-19"	{"a":"1963-06-19"}
+format-errc-date-the-longest-invalid	errc	a: format("date") & "2020-11-28T23:55:45Z"	parse_failed
+format-gens-time-the-longest-valid	gens	a: format("time") & "00:59:59.999999999999999Z"	{"a":"00:59:59.999999999999999Z"}
+format-errc-time-the-longest-invalid	errc	a: format("time") & "2020-11-28T23:55:45Z"	parse_failed
+format-gens-duration-the-longest-valid	gens	a: format("duration") & "P999999999999999999999999999999999999999999999999999999999999999999999999999999D"	{"a":"P999999999999999999999999999999999999999999999999999999999999999999999999999999D"}
+format-errc-duration-the-longest-invalid	errc	a: format("duration") & "4DT12H30M5S"	parse_failed
+format-gens-email-the-longest-valid	gens	a: format("email") & "\\"joe..bloggs\\"@example.com"	{"a":"\\"joe..bloggs\\"@example.com"}
+format-errc-email-the-longest-invalid	errc	a: format("email") & "\\"Winston Smith\\" <winston.smith@recdep.minitrue> (Records Department)"	parse_failed
+format-gens-idn-email-the-longest-valid	gens	a: format("idn-email") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"	{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"}
+format-errc-idn-email-the-longest-invalid	errc	a: format("idn-email") & "δοκιμή@-example.com"	parse_failed
+format-gens-hostname-the-longest-valid	gens	a: format("hostname") & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk.com"	{"a":"abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijk.com"}
+format-errc-hostname-the-longest-invalid	errc	a: format("hostname") & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl.com"	parse_failed
+format-gens-idn-hostname-the-longest-valid	gens	a: format("idn-hostname") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+format-errc-idn-hostname-the-longest-invalid	errc	a: format("idn-hostname") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	parse_failed
+format-gens-ipv4-the-longest-valid	gens	a: format("ipv4") & "255.255.255.255"	{"a":"255.255.255.255"}
+format-errc-ipv4-the-longest-invalid	errc	a: format("ipv4") & "192.168.0.1\\u0000.evil.com"	parse_failed
+format-gens-ipv6-the-longest-valid	gens	a: format("ipv6") & "1000:1000:1000:1000:1000:1000:255.255.255.255"	{"a":"1000:1000:1000:1000:1000:1000:255.255.255.255"}
+format-errc-ipv6-the-longest-invalid	errc	a: format("ipv6") & "100:100:100:100:100:100:255.255.255.255.255"	parse_failed
+format-gens-uri-the-longest-valid	gens	a: format("uri") & "urn:oasis:names:specification:docbook:dtd:xml:4.1.2"	{"a":"urn:oasis:names:specification:docbook:dtd:xml:4.1.2"}
+format-errc-uri-the-longest-invalid	errc	a: format("uri") & "https://example.org/foobar<>.txt"	parse_failed
+format-gens-uri-reference-the-longest-valid	gens	a: format("uri-reference") & "http://foo.bar/?baz=qux#quux"	{"a":"http://foo.bar/?baz=qux#quux"}
+format-errc-uri-reference-the-longest-invalid	errc	a: format("uri-reference") & "https://example.org/foobar\\\\.txt"	parse_failed
+format-gens-iri-the-longest-valid	gens	a: format("iri") & "http://-.~_!$&'()*+,;=:%40:80%2f::::::@example.com"	{"a":"http://-.~_!$&'()*+,;=:%40:80%2f::::::@example.com"}
+format-errc-iri-the-longest-invalid	errc	a: format("iri") & "http://2001:0db8:85a3:0000:0000:8a2e:0370:7334"	parse_failed
+format-gens-iri-reference-the-longest-valid	gens	a: format("iri-reference") & "http://ƒøø.ßår/?∂éœ=πîx#πîüx"	{"a":"http://ƒøø.ßår/?∂éœ=πîx#πîüx"}
+format-errc-iri-reference-the-longest-invalid	errc	a: format("iri-reference") & "//[::ffff:192.168.0.01]/p"	parse_failed
+format-gens-uuid-the-longest-valid	gens	a: format("uuid") & "2EB8AA08-AA98-11EA-B4AA-73B441D16380"	{"a":"2EB8AA08-AA98-11EA-B4AA-73B441D16380"}
+format-errc-uuid-the-longest-invalid	errc	a: format("uuid") & "urn:uuid:2eb8aa08-aa98-11ea-b4aa-73b441d16380"	parse_failed
+format-gens-uri-template-the-longest-valid	gens	a: format("uri-template") & "http://example.com/dictionary/{term:1}/{term}"	{"a":"http://example.com/dictionary/{term:1}/{term}"}
+format-errc-uri-template-the-longest-invalid	errc	a: format("uri-template") & "http://example.com/dictionary/{term:1}/{term"	parse_failed
+format-gens-json-pointer-the-longest-valid	gens	a: format("json-pointer") & "/foo/bar~0/baz~1/%a"	{"a":"/foo/bar~0/baz~1/%a"}
+format-errc-json-pointer-the-longest-invalid	errc	a: format("json-pointer") & "/foo/bar~"	parse_failed
+format-gens-relative-json-pointer-the-longest-valid	gens	a: format("relative-json-pointer") & "2/0/baz/1/zip"	{"a":"2/0/baz/1/zip"}
+format-errc-relative-json-pointer-the-longest-invalid	errc	a: format("relative-json-pointer") & "-1/foo/bar"	parse_failed
+# What the committed grammars hold that their RFCs say in prose: a leap
+# second only in the minute that is 23:59 in UTC, the days of each month,
+# the IDNA2008 contextual and Bidi rules across a name.
+format-gens-time-a-leap-second-at-23-59-utc	gens	a: format("time") & "23:59:60Z"	{"a":"23:59:60Z"}
+format-err-time-a-leap-second-in-another-minute	err	a: format("time") & "12:00:60Z"	format time: character 9, %x5A, is not admitted
+format-gens-time-a-leap-second-east	gens	a: format("time") & "00:59:60+01:00"	{"a":"00:59:60+01:00"}
+format-errc-time-a-leap-second-an-hour-out	errc	a: format("time") & "00:59:60+02:00"	parse_failed
+format-gens-date-time-a-leap-second-west	gens	a: format("date-time") & "1998-12-31T15:59:60.123-08:00"	{"a":"1998-12-31T15:59:60.123-08:00"}
+format-gens-date-a-leap-day	gens	a: format("date") & "2000-02-29"	{"a":"2000-02-29"}
+format-errc-date-a-century-not-a-leap-year	errc	a: format("date") & "1900-02-29"	parse_failed
+format-errc-date-april-has-thirty-days	errc	a: format("date") & "2021-04-31"	parse_failed
+format-gens-idn-hostname-hangul	gens	a: format("idn-hostname") & "실례.테스트"	{"a":"실례.테스트"}
+format-errc-idn-hostname-a-disallowed-code-point	errc	a: format("idn-hostname") & "실〮례.테스트"	parse_failed
+format-gens-idn-hostname-a-middle-dot-between-l	gens	a: format("idn-hostname") & "l·l"	{"a":"l·l"}
+format-errc-idn-hostname-a-middle-dot-after-a	errc	a: format("idn-hostname") & "a·l"	parse_failed
+format-errc-idn-hostname-a-digit-first-label-in-a-bidi-name	errc	a: format("idn-hostname") & "0a.א"	parse_failed
+format-gens-idn-hostname-a-digit-first-label-in-another-name	gens	a: format("idn-hostname") & "0a.b"	{"a":"0a.b"}
+format-gens-idn-hostname-a-fullwidth-label	gens	a: format("idn-hostname") & "ａｂｃ"	{"a":"ａｂｃ"}
+format-gens-idn-hostname-an-ideographic-full-stop	gens	a: format("idn-hostname") & "a。b"	{"a":"a。b"}
+format-errc-idn-hostname-a-trailing-full-stop	errc	a: format("idn-hostname") & "a。"	parse_failed
+format-gens-hostname-an-a-label-is-not-decoded	gens	a: format("hostname") & "xn--X"	{"a":"xn--X"}
+format-errc-hostname-a-reserved-label	errc	a: format("hostname") & "ab--c"	parse_failed
+format-gens-hostname-253-characters	gens	a: format("hostname") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	{"a":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+format-err-hostname-254-characters	err	a: format("hostname") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	format hostname: character 254, %x61, is not admitted
+format-gens-idn-hostname-an-ignored-code-point-is-not-counted	gens	a: format("idn-hostname") & "aaaaaaaaaa­aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	{"a":"aaaaaaaaaa­aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+format-err-idn-hostname-254-characters	err	a: format("idn-hostname") & "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"	format idn-hostname: character 254, %x61, is not admitted
+format-gens-idn-email-a-hangul-address	gens	a: format("idn-email") & "실례@실례.테스트"	{"a":"실례@실례.테스트"}
+format-gens-email-an-ipv6-literal	gens	a: format("email") & "joe.bloggs@[IPv6:::1]"	{"a":"joe.bloggs@[IPv6:::1]"}
+format-errc-email-an-octet-past-255	errc	a: format("email") & "joe.bloggs@[127.0.0.300]"	parse_failed
+format-gens-json-pointer-the-empty-string	gens	a: format("json-pointer") & ""	{"a":""}
+format-gens-uri-reference-the-empty-string	gens	a: format("uri-reference") & ""	{"a":""}
+format-errc-uri-the-empty-string	errc	a: format("uri") & ""	parse_failed
+format-err-uri-names-the-format	err	a: format("uri") & "//example.org"	format uri: character 1, %x2F, is not admitted
+format-gens-uri-template-the-empty-string	gens	a: format("uri-template") & ""	{"a":""}
+format-gens-uri-template-an-apostrophe	gens	a: format("uri-template") & "'{var}'"	{"a":"'{var}'"}

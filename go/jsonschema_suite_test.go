@@ -193,7 +193,9 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 	problems := []string{}
 	total, passed, skipped := 0, 0, 0
 	for _, g := range groups {
-		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents})
+		// The suite's optional/format/ asks for format assertion (ADR-059).
+		report := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents,
+			FormatAssertion: strings.HasPrefix(g.file, "optional/format/")})
 		for _, c := range g.cases {
 			total++
 			got := false

@@ -6,6 +6,8 @@ export type ImportOptions = {
     defaults?: boolean;
     uri?: string;
     documents?: Record<string, string>;
+    formatAssertion?: boolean;
+    formats?: Record<string, string>;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;

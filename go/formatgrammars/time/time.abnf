@@ -1,0 +1,8 @@
+; RFC 3339 section 5.6, full-time. A second of 60 is read at any minute
+; here; the grammars beside this one hold it to section 5.7's minute.
+full-time = time-hour ":" time-minute ":" time-second [time-secfrac] time-offset
+time-hour = %x30-31 DIGIT / %x32 %x30-33
+time-minute = %x30-35 DIGIT
+time-second = %x30-35 DIGIT / %x36 %x30
+time-secfrac = "." 1*DIGIT
+time-offset = "Z" / ("+" / "-") time-hour ":" time-minute

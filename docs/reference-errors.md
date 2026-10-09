@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **186** codes across
+There are seven classes, and the registry holds **188** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 56 | the text is not a document |
-| `conflict` | 61 | two values cannot both hold |
+| `parse` | 57 | the text is not a document |
+| `conflict` | 62 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 186 codes have hint text. `aontu explain --list`
+**Hint text.** All 188 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -201,6 +201,7 @@ twenty rows have no such section and carry no link.
 | `export_arg` | 0.69.0 | `export()` was given something other than a set of alias names. ([Publishing a name: `export`](reference-language.md#publishing-a-name-export)) |
 | `filter_data` | 0.53.0 | The first argument to `filter()` is not a bag. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |
 | `form_data` | 0.58.0 | The first argument to the list generator `form` is not a bag; `form` was renamed `each`, which answers `each_data`. |
+| `format_grammar` | 0.77.0 | A grammar given to `format()` is ABNF that cannot be run as written: one character of lookahead does not decide it, a rule reaches itself before reading a character, or a rule holds a prose value. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func_arity` | 0.53.0 | A call whose argument count is not the built-in's arity. ([Errors](reference-language.md#errors)) |
 | `ident_place` | 0.77.0 | `ident()` was written anywhere but as an alias declaration's value. ([Identity: `ident`](reference-language.md#identity-ident)) |
 | `include_denied` | 0.53.0 | An `@"..."` include refused by the active trust profile. ([Clause 1: hermeticity](trust.md#clause-1-hermeticity)) |
@@ -263,6 +264,7 @@ twenty rows have no such section and carry no link.
 | `empty_domain` | 0.77.0 | `empty()` met a value that is not a string. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `exact_float_mix` | 0.51.0 | An exact number combined with a binary float. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `float_overflow` | 0.53.0 | A result that is not a finite binary64 number. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
+| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |

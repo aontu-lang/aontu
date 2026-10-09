@@ -216,10 +216,31 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		{[]string{"import", "--uri"}, "--uri needs a URI"},
 		{[]string{"import", "--doc", "https://example.com/n.json"}, "--doc needs a URI and a file"},
 		{[]string{"import", "--doc", "https://example.com/n.json", doc + ".gone", file}, "cannot read"},
+		{[]string{"import", "--format-grammar", "zip"}, "--format-grammar needs a name and a file"},
+		{[]string{"import", "--format-grammar", "date", doc, file}, "cannot name date"},
+		{[]string{"import", "--format-grammar", "zip", doc, "--format-grammar", "zip", doc, file},
+			"names zip twice"},
+		{[]string{"import", "--format-grammar", "zip", doc + ".gone", file}, "cannot read"},
 	} {
 		if _, errw, code := jsonSchemaRun(c.args...); 2 != code || !strings.Contains(errw, c.want) {
 			t.Fatalf("%v = %d: %s", c.args, code, errw)
 		}
+	}
+
+	// --format-assert makes a format format(g), and --format-grammar
+	// gives a name outside the defined ones its grammar.
+	zip := filepath.Join(filepath.Dir(file), "zip.abnf")
+	if err := os.WriteFile(zip, []byte("zip = 5DIGIT\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	write(`{"type": "object", "properties": {"d": {"type": "string", ` +
+		`"format": "date"}, "z": {"type": "string", "format": "zip"}}}`)
+	if out, _, code := jsonSchemaRun("import", file); 0 != code || strings.Contains(out, `format("date")`) {
+		t.Fatalf("annotation: %d %q", code, out)
+	}
+	if out, _, code := jsonSchemaRun("import", "--format-assert", "--format-grammar", "zip", zip, file); 0 != code ||
+		!strings.Contains(out, `format("date")`) || !strings.Contains(out, `format("zip = 5DIGIT\n")`) {
+		t.Fatalf("assertion: %d %q", code, out)
 	}
 	write(`{"type": "string", "$vocabulary": {}}`)
 

@@ -491,5 +491,7 @@ vet_filled	errcode	incomplete	0.77.0
 nof	errcode	conflict	0.77.0
 when	errcode	conflict	0.77.0
 rest	errcode	conflict	0.77.0
+format_unknown	errcode	conflict	0.77.0
+format_grammar	errcode	parse	0.77.0
 trial_budget	errcode	budget	0.77.0
 ident_place	errcode	parse	0.77.0

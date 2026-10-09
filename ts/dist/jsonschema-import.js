@@ -10,6 +10,7 @@ const admit_1 = require("./admit");
 const keyorder_1 = require("./keyorder");
 const aontu_1 = require("./aontu");
 const err_1 = require("./err");
+const formatgrammar_1 = require("./formatgrammar");
 const format_1 = require("./format");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const numkind_1 = require("./val/numkind");
@@ -317,7 +318,7 @@ function rowCol(src, off) {
     }
     return [row, col];
 }
-function fail(ctx, code, path, message, off, end) {
+function fail(ctx, code, path, message, off, end, details = {}) {
     const [row, col] = rowCol(ctx.doc.src, off);
     const text = ctx.doc.src.slice(off, end);
     ctx.errors.push({
@@ -326,7 +327,7 @@ function fail(ctx, code, path, message, off, end) {
         severity: 'error',
         path,
         message,
-        hint: (0, err_1.getHint)(code, {}).replace(/\s+$/, ''),
+        hint: (0, err_1.getHint)(code, details).replace(/\s+$/, ''),
         sites: [{
                 file: ctx.doc.file, row, col, len: end - off, role: 'schema', src: text, value: text,
             }],
@@ -722,7 +723,7 @@ const CARRIED = [
     'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
     'maxContains', 'uniqueItems', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
-    'pattern', 'unevaluatedProperties', 'unevaluatedItems',
+    'pattern', 'unevaluatedProperties', 'unevaluatedItems', 'x-aontu-format',
 ];
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
@@ -736,6 +737,44 @@ const SCOPED = {
     array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
         'maxContains', 'uniqueItems', 'unevaluatedItems'],
 };
+// ADR-059: the grammar a format asserts, the committed one of its name
+// or the one the format set gives it.
+function grammarOf(ctx, name) {
+    return '' === ctx.asserts || 'string' !== name?.t ? undefined :
+        (0, formatgrammar_1.isDefinedFormat)(name.s) ? name.s : ctx.formats.get(name.s);
+}
+// Under format assertion a format is format(g); a name without a grammar
+// is ignored by the option and refuses the schema under the vocabulary,
+// as JSON Schema asks. x-aontu-format carries a grammar in any mode.
+function formats(ctx, node, ptr) {
+    const out = [];
+    const name = entry(node, 'format');
+    const g = grammarOf(ctx, name);
+    if (undefined !== g) {
+        out.push(...grammarCall(ctx, child(ptr, 'format'), name, g));
+    }
+    else if ('vocabulary' === ctx.asserts && 'string' === name?.t) {
+        fail(ctx, 'format_unknown', child(ptr, 'format'), 'The format ' + quote(name.s) +
+            ' is neither one of the nineteen nor in the format set, and under the ' +
+            'format-assertion vocabulary an unknown format refuses the schema.', name.off, name.end, { reason: name.s });
+    }
+    const x = entry(node, 'x-aontu-format');
+    if (undefined !== x && 'string' !== x.t) {
+        wrongType(ctx, child(ptr, 'x-aontu-format'), 'x-aontu-format', 'a string', x);
+    }
+    else if (undefined !== x) {
+        out.push(...grammarCall(ctx, child(ptr, 'x-aontu-format'), x, x.s));
+    }
+    return out;
+}
+function grammarCall(ctx, path, node, g) {
+    const [f, code, why] = (0, formatgrammar_1.formatOf)(g);
+    if (undefined === f) {
+        fail(ctx, code, path, 'The grammar of this format cannot be run: ' + why + '.', node.off, node.end, { reason: why });
+        return [];
+    }
+    return [call('format', raw(quote(g)))];
+}
 // The ECMA-262 whitespace set, what `\s` means in a JSON Schema pattern,
 // as a class body both engines read alike.
 const ECMA_SPACE = '\\t\\n\\v\\f\\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
@@ -1347,7 +1386,8 @@ function convertObject(ctx, node, ptr, only) {
             }
         }
     }
-    const scoped = (kind) => undefined !== SCOPED[kind] && SCOPED[kind].some((k) => null != get(k));
+    const scoped = (kind) => (undefined !== SCOPED[kind] && SCOPED[kind].some((k) => null != get(k))) ||
+        ('string' === kind && (null != get('x-aontu-format') || undefined !== grammarOf(ctx, get('format'))));
     const kinds = KINDS.filter((kind) => (undefined === only || only.includes(kind)) &&
         (undefined === allowed ? KINDS.some(scoped) && (undefined === only || scoped(kind)) :
             allowed.includes(kind) || ('number' === kind && allowed.includes('integer'))));
@@ -1568,6 +1608,7 @@ function branch(ctx, node, ptr, kind, integral, excluded) {
                 }
             }
         }
+        parts.push(...formats(ctx, node, ptr));
         return content(ctx, node, ptr, and(exclude(parts)));
     }
     if ('object' === kind) {
@@ -1898,7 +1939,8 @@ function importJsonSchema(text, options) {
         dynAnchors: new Map(), dynamic: new Set(), env: new Map(), clones: new Map(),
         uses: new Map(), cloned: 0,
         documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
-        copies: 0, seen: new Set(),
+        copies: 0, seen: new Set(), asserts: true === options?.formatAssertion ? 'option' : '',
+        formats: new Map(Object.entries(options?.formats ?? {})),
     };
     // Names for one URI must hold one text, or the set's order would
     // choose between them.
@@ -1939,6 +1981,7 @@ function importJsonSchema(text, options) {
         fail(base, 'jsonschema_schema', '#', 'A schema is an object or a boolean.', parsed.off, parsed.end);
         return error(base);
     }
+    base.asserts = vocabularyAsserts(base, parsed) ? 'vocabulary' : base.asserts;
     base.resources.set(uri, parsed);
     base.byText.set(text, doc);
     index(base, parsed, '#', parsed, uri);
@@ -1981,6 +2024,17 @@ function importJsonSchema(text, options) {
         vet: [...exports.IMPORT_VET_FLAGS],
     };
 }
+// Whether the meta-schema the root names lists the format-assertion
+// vocabulary, true or false: aontu asserts formats, so either asks it to.
+function vocabularyAsserts(ctx, root) {
+    const named = entry(root, '$schema');
+    const text = 'string' === named?.t ?
+        ctx.documents.get((0, uri_1.normalizeUri)((0, uri_1.resolveUri)(ctx.doc.uri, named.s).replace(/#.*$/s, ''))) : undefined;
+    const meta = undefined === text ? undefined : parseJson(text);
+    const vocabulary = undefined === meta || 'why' in meta ? undefined : entry(meta, '$vocabulary');
+    return 'object' === vocabulary?.t && vocabulary.entries.some((e) => FORMAT_ASSERTION === e.key);
+}
+const FORMAT_ASSERTION = 'https://json-schema.org/draft/2020-12/vocab/format-assertion';
 // The agreed form, as `aontu fmt` writes it, or the text as written
 // where the formatter refuses it, which within the nesting bound it
 // does not.

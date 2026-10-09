@@ -7,6 +7,11 @@ test/spec/files/** text eol=lf
 # checkout that converted their line endings would test other inputs.
 test/vectors/*/tests/** -text
 test/vectors/jsontestsuite/test_parsing/** -text
+# The format corpora are upstream's bytes as well, read as they were
+# published (test/vectors/README.md).
+test/vectors/uritemplate-test/** -text
+test/vectors/isemail/** -text
+test/vectors/idna/** -text
 # The embedded copy of test/spec/signature.tsv (docs/design/
 # SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
 # keeps the same line endings on every platform.

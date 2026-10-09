@@ -865,9 +865,26 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             [['import', '--uri'], '--uri needs a URI'],
             [['import', '--doc', 'https://example.com/n.json'], '--doc needs a URI and a file'],
             [['import', '--doc', 'https://example.com/n.json', doc + '.gone', file], 'cannot read'],
+            [['import', '--format-grammar', 'zip'], '--format-grammar needs a name and a file'],
+            [['import', '--format-grammar', 'date', doc, file], 'cannot name date'],
+            [['import', '--format-grammar', 'zip', doc, '--format-grammar', 'zip', doc, file],
+                'names zip twice'],
+            [['import', '--format-grammar', 'zip', doc + '.gone', file], 'cannot read'],
         ]) {
             Assert.ok(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(args), 2)).err.includes(want), want);
         }
+        // --format-assert makes a format format(g), and --format-grammar
+        // gives a name outside the defined ones its grammar.
+        const zip = Path.join(dir, 'zip.abnf');
+        Fs.writeFileSync(zip, 'zip = 5DIGIT\n');
+        Fs.writeFileSync(file, '{"type": "object", "properties": {"d": {"type": "string", ' +
+            '"format": "date"}, "z": {"type": "string", "format": "zip"}}}');
+        const plain = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
+        Assert.equal(plain.out.includes('format("date")'), false, plain.out);
+        const asserted = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format-assert',
+            '--format-grammar', 'zip', zip, file]), 0));
+        Assert.ok(asserted.out.includes('format("date")'), asserted.out);
+        Assert.ok(asserted.out.includes('format("zip = 5DIGIT\\n")'), asserted.out);
         Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}');
         const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'json', file]), 0)).out);
         Assert.equal(j.aontu.verb, 'jsonschema');

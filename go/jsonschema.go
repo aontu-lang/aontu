@@ -292,6 +292,18 @@ func schemaCountEndpoint(b *constraintBound, isLo bool) (*big.Int, bool) {
 const schemaNotYet = "this is not a value yet, so there is nothing to constrain a " +
 	"consumer to; the schema admits anything here"
 
+func schemaFormatAnnotates(name string) string {
+	return "the format \"" + name + "\" asserts here, and " +
+		"JSON Schema 2020-12 asserts a format only where a validator is asked to, so the " +
+		"schema may admit a string it refuses"
+}
+
+func schemaFormatUnread(name string) string {
+	return "JSON Schema has no keyword for a grammar, so the " +
+		"format \"" + name + "\" is written as x-aontu-format, which only aontu reads; the schema " +
+		"admits any string here"
+}
+
 func schemaFromConstraint(sc *schemaCtx, path []string,
 	c *ConstraintVal, bag string) map[string]any {
 	out := map[string]any{}
@@ -360,6 +372,31 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	} else if 1 < len(c.res) {
 		for _, r := range c.res {
 			extra = append(extra, map[string]any{"pattern": r.norm})
+		}
+	}
+
+	// ADR-059: a committed format by its name, a grammar under
+	// x-aontu-format, which only aontu reads.
+	for _, kind := range []struct {
+		key    string
+		named  bool
+		reason func(string) string
+	}{{"format", true, schemaFormatAnnotates}, {"x-aontu-format", false, schemaFormatUnread}} {
+		fs := []constraintFormat{}
+		for _, f := range c.fmts {
+			if (f.src == f.name) == kind.named {
+				fs = append(fs, f)
+			}
+		}
+		if 1 == len(fs) {
+			out[kind.key] = fs[0].src
+		} else {
+			for _, f := range fs {
+				extra = append(extra, map[string]any{kind.key: f.src})
+			}
+		}
+		for _, f := range fs {
+			sc.lose(path, "format", kind.reason(f.name))
 		}
 	}
 
@@ -1348,6 +1385,10 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 					"the value meets more than one dynamic reference, so this one is written as the schema it reached")
 				continue
 			}
+			// A format the constraint asserts is written already.
+			if s, ok := json.(string); ok && "format" == k && schemaWritesFormat(obj, s) {
+				continue
+			}
 			if "x" != k {
 				part[schemaMetaKeyword[k]] = json
 				continue
@@ -1386,6 +1427,21 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 		all, _ := obj["allOf"].([]any)
 		obj["allOf"] = append(append([]any{}, all...), extra...)
 	}
+}
+
+// schemaWritesFormat is whether obj writes the format name, inline or as
+// an allOf member of its own.
+func schemaWritesFormat(obj map[string]any, name string) bool {
+	if f, ok := obj["format"].(string); ok && f == name {
+		return true
+	}
+	all, _ := obj["allOf"].([]any)
+	for _, x := range all {
+		if m, ok := x.(map[string]any); ok && 1 == len(m) && name == m["format"] {
+			return true
+		}
+	}
+	return false
 }
 
 // schemaKindResidue is a kind beside a constraint the meet holds until an
@@ -1588,8 +1644,8 @@ var schemaNumberScope = []string{"minimum", "maximum", "exclusiveMinimum", "excl
 	"multipleOf"}
 var schemaKindScope = map[string][]string{
 	"null": {}, "boolean": {}, "number": schemaNumberScope, "integer": schemaNumberScope,
-	"string": {"minLength", "maxLength", "pattern", "contentEncoding", "contentMediaType",
-		"contentSchema"},
+	"string": {"minLength", "maxLength", "pattern", "format", "x-aontu-format", "contentEncoding",
+		"contentMediaType", "contentSchema"},
 	"object": {"properties", "required", "additionalProperties", "patternProperties",
 		"propertyNames", "minProperties", "maxProperties", "dependentRequired",
 		"dependentSchemas"},
@@ -1725,7 +1781,7 @@ func schemaSpreadTerms(v Val) []Val {
 // where they sit, given arguments that do not either.
 var schemaIsolableFuncs = map[string]bool{
 	"above": true, "below": true, "close": true, "contains": true, "deprecate": true,
-	"empty": true, "len": true, "lower": true, "match": true, "max": true, "meta": true,
+	"empty": true, "format": true, "len": true, "lower": true, "match": true, "max": true, "meta": true,
 	"min": true, "multiple": true, "must": true, "neq": true, "nof": true, "open": true,
 	"pref": true, "re": true, "unique": true, "upper": true, "when": true,
 }

@@ -32,6 +32,7 @@ import { main as lspMain } from './lsp-server'
 import { main as mcpMain } from './mcp-server'
 import { jsonSchema } from './jsonschema'
 import { importJsonSchema } from './jsonschema-import'
+import { isDefinedFormat } from './formatgrammar'
 import {
   pkgTidy, pkgVerify, pkgVendor, pkgManifest, pkgRefreeze, pkgTree,
   versionCompare,
@@ -97,7 +98,9 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
-                               [--doc <uri> <file>]... [options] <file>
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3871,6 +3874,8 @@ function runJsonSchemaImport(argv: string[]): number {
   let defaults = false
   let uri: string | undefined = undefined
   const docs: [string, string][] = []
+  let formatAssertion = false
+  const grammars: [string, string][] = []
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -3907,6 +3912,27 @@ function runJsonSchemaImport(argv: string[]): number {
       docs.push([argv[i + 1], argv[i + 2]])
       i += 2
     }
+    else if ('--format-assert' === arg) {
+      formatAssertion = true
+    }
+    else if ('--format-grammar' === arg) {
+      const name = argv[i + 1]
+      if (argv.length < i + 3) {
+        process.stderr.write('aontu: --format-grammar needs a name and a file\n')
+        return 2
+      }
+      if (isDefinedFormat(name)) {
+        process.stderr.write(`aontu: --format-grammar cannot name ${name}, ` +
+          'one of the nineteen formats, whose grammar is fixed\n')
+        return 2
+      }
+      if (grammars.some(([n]) => n === name)) {
+        process.stderr.write(`aontu: --format-grammar names ${name} twice\n`)
+        return 2
+      }
+      grammars.push([name, argv[i + 2]])
+      i += 2
+    }
     else if (arg.startsWith('-')) {
       process.stderr.write(
         `aontu: unknown jsonschema import option ${arg} (try --help)\n`)
@@ -3925,10 +3951,14 @@ function runJsonSchemaImport(argv: string[]): number {
 
   let src: string
   const documents: Record<string, string> = {}
+  const formats: Record<string, string> = {}
   try {
     src = readFileSync(files[0], 'utf8')
     for (const [u, f] of docs) {
       documents[u] = readFileSync(f, 'utf8')
+    }
+    for (const [n, f] of grammars) {
+      formats[n] = readFileSync(f, 'utf8')
     }
   }
   catch (err: any) {
@@ -3936,7 +3966,8 @@ function runJsonSchemaImport(argv: string[]): number {
     return 2
   }
 
-  const report = importJsonSchema(src, { path: files[0], defaults, uri, documents })
+  const report = importJsonSchema(src,
+    { path: files[0], defaults, uri, documents, formatAssertion, formats })
 
   if ('json' === format) {
     process.stdout.write(exactJSON({

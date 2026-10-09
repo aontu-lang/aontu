@@ -56,6 +56,7 @@ const lsp_server_1 = require("./lsp-server");
 const mcp_server_1 = require("./mcp-server");
 const jsonschema_1 = require("./jsonschema");
 const jsonschema_import_1 = require("./jsonschema-import");
+const formatgrammar_1 = require("./formatgrammar");
 const pkg_1 = require("./pkg");
 const pkg_net_1 = require("./pkg-net");
 const mod_1 = require("./mod");
@@ -79,7 +80,9 @@ const HELP = `Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
-                               [--doc <uri> <file>]... [options] <file>
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3335,6 +3338,8 @@ function runJsonSchemaImport(argv) {
     let defaults = false;
     let uri = undefined;
     const docs = [];
+    let formatAssertion = false;
+    const grammars = [];
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         if ('-h' === arg || '--help' === arg) {
@@ -3370,6 +3375,27 @@ function runJsonSchemaImport(argv) {
             docs.push([argv[i + 1], argv[i + 2]]);
             i += 2;
         }
+        else if ('--format-assert' === arg) {
+            formatAssertion = true;
+        }
+        else if ('--format-grammar' === arg) {
+            const name = argv[i + 1];
+            if (argv.length < i + 3) {
+                process.stderr.write('aontu: --format-grammar needs a name and a file\n');
+                return 2;
+            }
+            if ((0, formatgrammar_1.isDefinedFormat)(name)) {
+                process.stderr.write(`aontu: --format-grammar cannot name ${name}, ` +
+                    'one of the nineteen formats, whose grammar is fixed\n');
+                return 2;
+            }
+            if (grammars.some(([n]) => n === name)) {
+                process.stderr.write(`aontu: --format-grammar names ${name} twice\n`);
+                return 2;
+            }
+            grammars.push([name, argv[i + 2]]);
+            i += 2;
+        }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown jsonschema import option ${arg} (try --help)\n`);
             return 2;
@@ -3384,17 +3410,21 @@ function runJsonSchemaImport(argv) {
     }
     let src;
     const documents = {};
+    const formats = {};
     try {
         src = (0, node_fs_1.readFileSync)(files[0], 'utf8');
         for (const [u, f] of docs) {
             documents[u] = (0, node_fs_1.readFileSync)(f, 'utf8');
+        }
+        for (const [n, f] of grammars) {
+            formats[n] = (0, node_fs_1.readFileSync)(f, 'utf8');
         }
     }
     catch (err) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults, uri, documents });
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults, uri, documents, formatAssertion, formats });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema' },

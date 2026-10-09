@@ -185,10 +185,51 @@ port?: *8080|meta(number & multiple(1), {
 })
 ```
 
+## Assert formats
+
+A `format` is an annotation unless a validator is asked to assert it,
+as JSON Schema 2020-12 has it, so the `"format": "email"` above checks
+nothing. `--format-assert` makes each format an assertion as well,
+`format(g)` with the grammar aontu commits for it, and
+`--format-grammar` gives a format JSON Schema does not define a grammar
+of your own. Write `visit.json`:
+
+<!-- test: file visit.json -->
+```json
+{"type": "object", "properties": {"day": {"type": "string", "format": "date"}, "zip": {"type": "string", "format": "zip"}}}
+```
+
+and `zip.abnf`, the grammar for `zip`:
+
+<!-- test: file zip.abnf -->
+```abnf
+zip = 5DIGIT
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --format-assert --format-grammar zip zip.abnf visit.json
+day?: meta(empty() & format("date"), { format:"date" })
+zip?: meta(empty() & format("zip = 5DIGIT\n"), { format:"zip" })
+```
+
+The grammar is the file's text, its last newline included. The
+`meta()` record still carries each name, so the export writes `format`
+back; it writes a grammar as `x-aontu-format`, which the import reads
+in any mode. Under `--format-assert` a format with no grammar
+stays an annotation. A schema whose meta-schema, in the document set,
+lists the format-assertion vocabulary asserts its formats without the
+flag, and there a format with no grammar refuses the import with
+`format_unknown`, as JSON Schema asks.
+
 ## What to watch for
 
 - Each loss names a pointer into the schema, `#/properties/a/format`,
   and the keyword it dropped.
+- A committed format reads what the grammar in its RFC reads, with a few
+  limits the [language reference](../reference-language.md#formats-format)
+  lists: a `hostname` A-label is never decoded, and the email formats
+  do not count RFC 5321's size limits.
 - A `$ref` that names another document needs that document in the
   set: pass it with `--doc <uri> <file>`, and the schema's own URI with
   `--uri` where its references are relative. Nothing is fetched, and a

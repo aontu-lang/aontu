@@ -1,5 +1,6 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
+import type { Grammar } from '../formatgrammar';
 import { FeatureVal } from './FeatureVal';
 type Bound = {
     v: any;
@@ -28,6 +29,12 @@ type ContainsAtom = {
     c: any;
     count: ConstraintState;
 };
+type FormatAtom = {
+    v: any;
+    src: string;
+    name: string;
+    gs?: Grammar[];
+};
 type RestAtom = {
     t: any;
     covers: any[];
@@ -40,6 +47,7 @@ type ConstraintState = {
     neqs: any[];
     mults?: any[];
     res: ReAtom[];
+    fmts?: FormatAtom[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
@@ -65,6 +73,7 @@ declare class ConstraintVal extends FeatureVal {
     neqs: any[];
     mults: any[];
     res: ReAtom[];
+    fmts: FormatAtom[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
@@ -135,6 +144,9 @@ declare class MultipleConstraintVal extends ConstraintVal {
 declare class ReConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class FormatConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class MustConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
@@ -157,4 +169,4 @@ declare function nofCounts(n: NofAtom): boolean[];
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };
+export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, FormatConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };

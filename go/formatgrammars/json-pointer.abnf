@@ -1,0 +1,5 @@
+; RFC 6901 section 3.
+json-pointer = *("/" reference-token)
+reference-token = *(unescaped / escaped)
+unescaped = %x00-2E / %x30-7D / %x7F-10FFFF
+escaped = "~" (%x30 / %x31)

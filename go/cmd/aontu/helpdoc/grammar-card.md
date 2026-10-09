@@ -51,6 +51,7 @@ highlighting; this is their human twin.
 asks for a whole multiple of n;
 `len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
+`format("date")` holds a string to a format or an ABNF grammar;
 `nof(n, a, b)` asks that n of the branches admit the value;
 `when(c, t, e)` holds the value to t where c admits it, else to e;
 `contains(c, n)` asks that n of a list's members meet c;

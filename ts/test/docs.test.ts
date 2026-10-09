@@ -1134,7 +1134,8 @@ describe('docs-style', () => {
   // only the two that are about the reader's access apply.
   test('the-published-grammars-cite-nothing-internal', () => {
     const dir = Path.join(REPO, 'grammar')
-    const files = Fs.readdirSync(dir).sort()
+    const files = Fs.readdirSync(dir, { recursive: true }).map(String)
+      .filter((name) => Fs.statSync(Path.join(dir, name)).isFile()).sort()
     Assert.ok(0 < files.length, 'no published grammar to check')
     const rules: [RegExp, string][] =
       [...INTERNAL_REFS, [PHASE_WORDS, 'a phase marker']]

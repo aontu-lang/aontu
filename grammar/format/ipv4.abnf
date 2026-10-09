@@ -1,0 +1,3 @@
+; RFC 2673 section 3.2, dotted-quad, each octet with no leading zero.
+ipv4 = dec-octet "." dec-octet "." dec-octet "." dec-octet
+dec-octet = %x30 / %x31 [DIGIT [DIGIT]] / %x32 [%x30-34 [DIGIT] / %x35 [%x30-35] / %x36-39] / %x33-39 [DIGIT]

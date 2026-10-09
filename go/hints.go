@@ -81,6 +81,22 @@ var hints = map[string]string{
 		"  when(string, \"a\", min(0)) & 5   -> 5    # Else admits;\n" +
 		"  when({k: any}, {n: any}) & {}   -> {}   # No k: nothing to hold.",
 
+	"format_unknown": "format() takes a grammar, or the name of one of the nineteen JSON\n" +
+		"Schema formats, and \"{reason}\" is not one of them.\n" +
+		" \n" +
+		"The names: date-time, date, time, duration, email, idn-email,\n" +
+		"hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n" +
+		"iri-reference, uuid, uri-template, json-pointer,\n" +
+		"relative-json-pointer and regex. A string with `=` in it is a\n" +
+		"grammar, read as abnf() reads one.",
+	"format_grammar": "This grammar is ABNF, but format() cannot run it as written:\n" +
+		"{reason}\n" +
+		" \n" +
+		"A format reads its text one character at a time and never goes\n" +
+		"back, so no two alternatives may begin with the same character, an\n" +
+		"option or repetition may not begin with a character that can follow\n" +
+		"it, a rule may not reach itself before reading one, and a prose value\n" +
+		"has nothing to run. Rewrite the rule so the next character decides.",
 	"abnf_grammar":            "This ABNF grammar could not be compiled:\n{reason}\n \nabnf() takes RFC 5234 ABNF -- `=` and `/`, not `::=`. The\ncompiler reports the first thing it could not read; a rule\nreferenced but never defined is the usual cause, after a\nquantifier written the EBNF way.",
 	"parse_arg":               "parse(grammar, text) takes two strings: a grammar, normally the\nanswer of an abnf() call, and the text to parse.\n \nExamples:\n  G: abnf(\"v = 1*DIGIT\")\n  a: parse($.G, \"12\")     # the AST\n  b: parse($.G, 12)       # parse_arg: the text is not a string",
 	"parse_failed":            "The text does not parse under this grammar:\n{reason}\n \nA failure to parse is a failure to unify, so the field is\nrefused rather than set to a value meaning \"no\".",
@@ -573,6 +589,8 @@ var codeClasses = map[string]string{
 	"nof":                   "conflict",
 	"when":                  "conflict",
 	"rest":                  "conflict",
+	"format_unknown":        "conflict",
+	"format_grammar":        "parse",
 	"scalar_value":          "conflict",
 	"scalar_kind":           "conflict",
 	"no_scalar_unify":       "conflict",

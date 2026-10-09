@@ -8,6 +8,50 @@ each change affects.
 
 ## Unreleased
 
+### Format assertion
+
+Both ports, G12 phase 13 (ADR-059).
+
+- `format(g)` is a new Band A atom in the string domain that
+  accumulates like `re`: a string meets it when the grammar `g`
+  accepts it. `g` is an ABNF grammar, RFC 5234 with RFC 7405's `%s`
+  and `%i`, or the name of a JSON Schema format: eighteen are
+  committed under `grammar/format/`, and `regex` admits a pattern
+  `re()` admits. aontu reads and runs the grammar itself, one
+  character at a time and never going back, under a bound of 1,000,000
+  steps. A grammar one character of lookahead cannot decide refuses
+  with the new `format_grammar`, class `parse`, an unknown name with
+  the new `format_unknown`, class `conflict`, and a string the grammar
+  refuses with `parse_failed`, naming the format and the character.
+- A committed format may be several grammars a string meets together,
+  and `ts/scripts/formatgen.cjs` (`make formatgen`) writes the large
+  ones from the RFCs' ABNF and the Unicode Character Database 18.0.0.
+  `hostname` holds an A-label to its ASCII syntax and never decodes
+  it, `idn-hostname` reads UTS #46's mappings of one code point to one
+  and no normalisation, the email formats do not count RFC 5321's size
+  limits, and a `uri-template` literal admits `'`.
+- `aontu jsonschema import` asserts a format under `--format-assert`,
+  or where the schema's meta-schema in the document set lists the
+  format-assertion vocabulary, as `format(g)` beside the `meta()`
+  record it already wrote. `--format-grammar <name> <file>` gives a
+  format JSON Schema does not define its grammar, and refuses a name
+  it does define. An unknown format is ignored under the flag and
+  refuses the import with `format_unknown` under the vocabulary.
+  `x-aontu-format` asserts its grammar or name in any mode. The API
+  options are `formatAssertion` and `formats` (`FormatAssertion` and
+  `Formats` in Go).
+- `aontu jsonschema` writes a defined format as `format` and a grammar
+  as `x-aontu-format`, each with a loss, since JSON Schema asserts
+  `format` only where a validator is asked to and only aontu reads the
+  extension.
+- The vendored suite runs `optional/format/` under format assertion:
+  2,274 of its 2,337 tests pass in both ports, where 1,841 did, and its
+  ledger holds 41 rows, where it held 50. The uritemplate-test, isemail
+  and `IdnaTestV2.txt` corpora are vendored under `test/vectors/`, and
+  both ports hold the count of each kind of difference from them.
+- `IsDefinedFormat` is new in the Go API, `isDefinedFormat` in
+  TypeScript's `formatgrammar` module.
+
 ### Evaluated coverage
 
 Both ports, G12 phase 12 (ADR-058).

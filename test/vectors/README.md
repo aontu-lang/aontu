@@ -32,3 +32,21 @@ pinned to, and its own skip ledger:
   shape;
 - [`jsontestsuite/`](jsontestsuite/README.md), JSONTestSuite's parsing
   cases, read as instances.
+
+## The format corpora
+
+Three more directories hold public corpora the format runners,
+`ts/test/format-corpus.test.ts` and `go/format_corpus_test.go`, read
+against the committed format grammars (ADR-059), each under its own
+licence and with a README naming its upstream and its pin:
+
+- [`uritemplate-test/`](uritemplate-test/README.md), templates for
+  `uri-template`;
+- [`isemail/`](isemail/README.md), addresses for `email` and
+  `idn-email`;
+- [`idna/`](idna/README.md), UTS #46's `IdnaTestV2.txt`, names for
+  `idn-hostname`.
+
+Each runner requires how many cases agree and, for each kind of
+difference the README names, how many there are.
+

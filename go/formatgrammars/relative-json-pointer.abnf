@@ -1,0 +1,8 @@
+; draft-bhutton-relative-json-pointer-00 section 3.
+relative-json-pointer = non-negative-integer [index-manipulation] (json-pointer / "#")
+non-negative-integer = %x30 / %x31-39 *DIGIT
+index-manipulation = ("+" / "-") %x31-39 *DIGIT
+json-pointer = *("/" reference-token)
+reference-token = *(unescaped / escaped)
+unescaped = %x00-2E / %x30-7D / %x7F-10FFFF
+escaped = "~" (%x30 / %x31)

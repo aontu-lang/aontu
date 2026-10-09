@@ -34,6 +34,7 @@ max(n: number|string) : constraint
 above(n: number|string) : constraint
 below(n: number|string) : constraint
 re(text p: string) : constraint
+format(text g: string) : constraint
 len(n: number|constraint) : constraint
 empty() : constraint
 key(up?: integer|biginteger) : string

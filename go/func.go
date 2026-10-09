@@ -25,6 +25,7 @@ var funcSet = map[string]bool{
 	"when":      true,
 	"contains":  true,
 	"rest":      true,
+	"format":    true,
 	"deprecate": true,
 	"meta":      true,
 	"ident":     true,

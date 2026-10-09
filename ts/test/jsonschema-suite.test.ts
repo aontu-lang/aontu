@@ -153,7 +153,10 @@ function runCorpus(name: string, bound: number, groups: Group[],
   const aontu = new Aontu()
 
   for (const g of groups) {
-    const report = importJsonSchema(g.schema, { path: g.file, documents })
+    // The suite's optional/format/ asks for format assertion (ADR-059).
+    const report = importJsonSchema(g.schema, {
+      path: g.file, documents, formatAssertion: g.file.startsWith('optional/format/'),
+    })
     for (const c of g.cases) {
       total++
       let got = false

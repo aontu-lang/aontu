@@ -46,7 +46,9 @@ Usage: aontu [options] [file]
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
-                               [--doc <uri> <file>]... [options] <file>
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1357,6 +1359,9 @@ preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern` (aontu's portable subset is a subset of
 ECMA-262, which is what JSON Schema reads, so no translation happens);
+`format(g)` becomes `format` for a format JSON Schema defines and
+`x-aontu-format` for a grammar, two of either an `allOf` of them, each
+with a loss (below);
 `neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
 `multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
 and `number & multiple(1)` is `type: integer`;
@@ -1439,6 +1444,7 @@ The losses, and why each is one:
 | `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
 | `rest(t, …)` with a cover past what a keyword evaluates | JSON Schema evaluates a member only by its name, a pattern of its name, its index in a prefix or its match of `contains`, so a list key past a prefix, or a `members` cover on a map, drops the check |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
+| `format(g)` | 2020-12 asserts `format` only where a validator is asked to, and only aontu reads `x-aontu-format`, so the schema may admit a string the format refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
 | a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
@@ -1526,6 +1532,7 @@ what could not be carried.
 
 ```
 aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
+                        [--format-assert] [--format-grammar <name> <file>]...
                         [--format text|json] <file>
 ```
 
@@ -1578,6 +1585,15 @@ y: number
   texts refuse it with `jsonschema_duplicate`. Dynamic scopes that
   need more than 1024 further declarations refuse it with
   `jsonschema_budget`.
+- `--format-assert` makes each `format` an assertion as well,
+  [`format(g)`](reference-language.md#formats-format), where JSON Schema
+  only annotates with it unless asked; a schema whose meta-schema in the
+  document set lists the format-assertion vocabulary asks without the
+  flag. `--format-grammar <name> <file>`, given once per format, is the
+  ABNF grammar of a format JSON Schema does not define, and naming one
+  it does define is a usage error. A format with no grammar stays an
+  annotation under the flag, and refuses the import with
+  `format_unknown` under the vocabulary.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1585,7 +1601,11 @@ y: number
 - The library form is `importJsonSchema(text, options?)` in TypeScript
   and `ImportJSONSchema(text, opts)` in Go, returning the identical
   `{verdict, aontu, lossy, vet}` record (`errors` in place of `vet`
-  when the text is refused). The CLI's JSON names the document `text`, because its
+  when the text is refused). Its options are the flags':
+  `defaults`, `uri`, `documents`, `formatAssertion` and `formats`, a
+  record of grammars by name in which a defined name keeps its
+  committed grammar (`Defaults`, `URI`, `Documents`, `FormatAssertion`
+  and `Formats` in Go), and `path`, the filename the findings cite. The CLI's JSON names the document `text`, because its
   `aontu` key is the envelope.
 
 **What crosses.** Each keyword becomes the construct that means it:
@@ -1616,6 +1636,8 @@ y: number
 | `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
 | `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. The use keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
 | `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
+| `format` under format assertion | the same record, and `format(g)` on the string branch, `g` the format's committed grammar or the one `--format-grammar` gives it |
+| `x-aontu-format` | `format(g)` on the string branch in any mode, `g` a grammar or a format's name |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
 | a keyword JSON Schema does not name | the same record, under `x` |
 | `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |

@@ -576,11 +576,18 @@ func TestSpec(t *testing.T) {
 					opts := &ImportOptions{}
 					if o, ok := golden["opts"].(map[string]any); ok {
 						opts.Defaults = true == o["defaults"]
+						opts.FormatAssertion = true == o["formatAssertion"]
 						opts.URI, _ = o["uri"].(string)
 						if docs, ok := o["documents"].(map[string]any); ok {
 							opts.Documents = map[string]string{}
 							for k, v := range docs {
 								opts.Documents[k], _ = v.(string)
+							}
+						}
+						if fs, ok := o["formats"].(map[string]any); ok {
+							opts.Formats = map[string]string{}
+							for k, v := range fs {
+								opts.Formats[k], _ = v.(string)
 							}
 						}
 					}

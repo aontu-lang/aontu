@@ -31,6 +31,13 @@ type ImportOptions struct {
 	// Documents are the documents a reference may reach, by URI. None is
 	// fetched.
 	Documents map[string]string
+	// FormatAssertion makes every format with a grammar also format(g),
+	// as a meta-schema whose $vocabulary lists format-assertion asks
+	// (ADR-059).
+	FormatAssertion bool
+	// Formats is the grammar of each format JSON Schema does not define,
+	// by name; a format it defines keeps its committed grammar.
+	Formats map[string]string
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -567,6 +574,10 @@ type importCtx struct {
 	copies  int
 	// defaults is ImportOptions.Defaults.
 	defaults bool
+	// Whether a format asserts, by the FormatAssertion option or by the
+	// format-assertion vocabulary, and the grammars the format set gives.
+	asserts string
+	formats map[string]string
 	// The schema nodes a conversion reached, and every node in the order
 	// the index met it.
 	seen  map[*jnode]bool
@@ -596,6 +607,10 @@ const importCopyBudget = 4096
 const importScopeBudget = 1024
 
 func (ctx *importCtx) fail(code, path, message string, off, end int) {
+	ctx.failWith(code, path, message, off, end, nil)
+}
+
+func (ctx *importCtx) failWith(code, path, message string, off, end int, details map[string]string) {
 	row, col := rowCol(ctx.doc.src, off)
 	text := ctx.doc.src[off:end]
 	f := VetFinding{
@@ -604,7 +619,7 @@ func (ctx *importCtx) fail(code, path, message string, off, end int) {
 		Sites: []VetSite{{Col: col, File: ctx.doc.file, Len: utf16Len(text),
 			Role: VetRoleSchema, Row: row, Src: text, Value: text}},
 	}
-	f.Hint = hintOf(code, nil)
+	f.Hint = hintOf(code, details)
 	ctx.errors = append(ctx.errors, f)
 }
 
@@ -1089,7 +1104,7 @@ var importCarried = []string{
 	"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
 	"maxContains", "uniqueItems", "minimum", "maximum",
 	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
-	"pattern", "unevaluatedProperties", "unevaluatedItems",
+	"pattern", "unevaluatedProperties", "unevaluatedItems", "x-aontu-format",
 }
 
 const importDraft = "https://json-schema.org/draft/2020-12/schema"
@@ -1303,6 +1318,83 @@ func foldCharGroup(src string, at int) (string, int, bool) {
 	}
 	return "[" + strings.Join(members, "") + "]", i, true
 }
+
+// grammarOf is ADR-059's grammar a format asserts, the committed one of
+// its name or the one the format set gives it.
+func (ctx *importCtx) grammarOf(name *jnode) (string, bool) {
+	if "" == ctx.asserts || nil == name || "string" != name.t {
+		return "", false
+	}
+	if IsDefinedFormat(name.s) {
+		return name.s, true
+	}
+	g, ok := ctx.formats[name.s]
+	return g, ok
+}
+
+// formatCalls is format(g) under format assertion; a name without a
+// grammar is ignored by the option and refuses the schema under the
+// vocabulary, as JSON Schema asks. x-aontu-format carries a grammar in
+// any mode.
+func (ctx *importCtx) formatCalls(node *jnode, ptr string) []*ixpr {
+	out := []*ixpr{}
+	name := jentryOf(node, "format")
+	if g, ok := ctx.grammarOf(name); ok {
+		out = append(out, ctx.grammarCall(ptrChild(ptr, "format"), name, g)...)
+	} else if "vocabulary" == ctx.asserts && nil != name && "string" == name.t {
+		ctx.failWith("format_unknown", ptrChild(ptr, "format"), "The format "+importQuote(name.s)+
+			" is neither one of the nineteen nor in the format set, and under the "+
+			"format-assertion vocabulary an unknown format refuses the schema.",
+			name.off, name.end, map[string]string{"reason": name.s})
+	}
+	x := jentryOf(node, "x-aontu-format")
+	if nil != x && "string" != x.t {
+		ctx.wrongType(ptrChild(ptr, "x-aontu-format"), "x-aontu-format", "a string", x)
+	} else if nil != x {
+		out = append(out, ctx.grammarCall(ptrChild(ptr, "x-aontu-format"), x, x.s)...)
+	}
+	return out
+}
+
+func (ctx *importCtx) grammarCall(path string, node *jnode, g string) []*ixpr {
+	if _, _, code, why := formatOf(g); "" != code {
+		ctx.failWith(code, path, "The grammar of this format cannot be run: "+why+".",
+			node.off, node.end, map[string]string{"reason": why})
+		return nil
+	}
+	return []*ixpr{icall("format", iraw(importQuote(g)))}
+}
+
+// vocabularyAsserts is whether the meta-schema the root names lists the
+// format-assertion vocabulary, true or false: aontu asserts formats, so
+// either asks it to.
+func (ctx *importCtx) vocabularyAsserts(root *jnode) bool {
+	named := jentryOf(root, "$schema")
+	if nil == named || "string" != named.t {
+		return false
+	}
+	key, _, _ := strings.Cut(resolveURI(ctx.doc.uri, named.s), "#")
+	text, ok := ctx.documents[normalizeURI(key)]
+	if !ok {
+		return false
+	}
+	meta, _ := parseSchemaJSON(text)
+	if nil == meta {
+		return false
+	}
+	vocabulary := jentryOf(meta, "$vocabulary")
+	if nil == vocabulary || "object" != vocabulary.t {
+		return false
+	}
+	for _, e := range vocabulary.entries {
+		if importFormatAssertion == e.key {
+			return true
+		}
+	}
+	return false
+}
+
+const importFormatAssertion = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
 
 func (ctx *importCtx) pattern(path, construct, src string) *ixpr {
 	portable, why := ecmaToPortable(src)
@@ -1978,7 +2070,11 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 				return true
 			}
 		}
-		return false
+		if "string" != kind {
+			return false
+		}
+		_, ok := ctx.grammarOf(get("format"))
+		return ok || nil != get("x-aontu-format")
 	}
 	anyScoped := false
 	for _, kind := range importKinds {
@@ -2318,6 +2414,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 				parts = append(parts, re)
 			}
 		}
+		parts = append(parts, ctx.formatCalls(node, ptr)...)
 		return ctx.content(node, ptr, iand(exclude(parts)))
 	case "object":
 		m := ctx.objectBranch(node, ptr)
@@ -2788,6 +2885,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		documents: map[string]string{}, byText: map[string]*importDoc{},
 		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]string{},
 		defaults: opts.Defaults, seen: map[*jnode]bool{},
+		formats: opts.Formats,
 		dynAnchors: map[*jnode]map[string]*jnode{}, dynamic: map[string]bool{},
 		env: map[string]*jnode{}, clones: map[*importTarget][]string{},
 		uses: map[*jnode]map[string]bool{},
@@ -2844,6 +2942,11 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		return errorReport(base)
 	}
 
+	if base.vocabularyAsserts(parsed) {
+		base.asserts = "vocabulary"
+	} else if opts.FormatAssertion {
+		base.asserts = "option"
+	}
 	base.resources[uri] = parsed
 	base.byText[text] = doc
 	base.index(parsed, "#", parsed, uri)

@@ -112,6 +112,22 @@ const hints = {
         '  rest(nil, {keys: "a"}) & {a: 1, b: 2}       -> nil    # b is not;\n' +
         '  rest(number) & {b: 2}                       -> {b:2}  # t admits b;\n' +
         '  rest(nil, {if: {a: 1}, keys: any}) & {a: 2} -> nil    # if refuses.',
+    format_unknown: 'format() takes a grammar, or the name of one of the nineteen JSON\n' +
+        'Schema formats, and "{reason}" is not one of them.\n' +
+        ' \n' +
+        'The names: date-time, date, time, duration, email, idn-email,\n' +
+        'hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n' +
+        'iri-reference, uuid, uri-template, json-pointer,\n' +
+        'relative-json-pointer and regex. A string with `=` in it is a\n' +
+        'grammar, read as abnf() reads one.',
+    format_grammar: 'This grammar is ABNF, but format() cannot run it as written:\n' +
+        '{reason}\n' +
+        ' \n' +
+        'A format reads its text one character at a time and never goes\n' +
+        'back, so no two alternatives may begin with the same character, an\n' +
+        'option or repetition may not begin with a character that can follow\n' +
+        'it, a rule may not reach itself before reading one, and a prose value\n' +
+        'has nothing to run. Rewrite the rule so the next character decides.',
     abnf_grammar: 'This ABNF grammar could not be compiled:\n' +
         '{reason}\n' +
         ' \n' +
@@ -815,6 +831,8 @@ const codeClasses = {
     nof: 'conflict',
     when: 'conflict',
     rest: 'conflict',
+    format_unknown: 'conflict',
+    format_grammar: 'parse',
     constraint_pattern: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',
