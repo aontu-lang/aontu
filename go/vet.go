@@ -170,6 +170,15 @@ func displayFile(url, label, path string) string {
 	return filepath.Join(dir, rel)
 }
 
+// vetPath spells a finding's path as a message does: no alias scope.
+func vetPath(path []string) string {
+	segs := make([]string, len(path))
+	for i, p := range path {
+		segs[i] = aliasPathSegment(p)
+	}
+	return subPathText(segs)
+}
+
 func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
 	if v == nil {
 		return nil
@@ -379,7 +388,7 @@ func filledFindings(generated any, unified Val, dataSrc string,
 			Class:    codeClass("vet_filled"),
 			Code:     "vet_filled",
 			Message:  "The schema supplies this member, and the data does not carry it.",
-			Path:     subPathText(append(cp(prefix), p...)),
+			Path:     vetPath(append(cp(prefix), p...)),
 			Severity: "error",
 			Sites:    sites,
 		}, "vet_filled", nil))
@@ -596,7 +605,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 						Code:     "pref_not_instance",
 						Class:    "compat",
 						Severity: "warning",
-						Path:     subPathText(path),
+						Path:     vetPath(path),
 						Message: "the default " + def.Canon() +
 							" is not an instance of any remaining alternative of " +
 							d.Canon(),
@@ -725,7 +734,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Code:     "deprecated",
 			Class:    "compat",
 			Severity: "warning",
-			Path:     subPathText(d.v.vpath()),
+			Path:     vetPath(d.path),
 			Message:  msg,
 			Sites:    []VetSite{*site},
 		})

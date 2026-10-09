@@ -9,6 +9,6 @@ type AliasBinding = {
 declare function aliasScope(src: string): AliasBinding[];
 declare function aliasErrors(ctx: any, root: Val): void;
 declare function aliasBudget(ctx: any, root: Val): Val | undefined;
-declare function expandAliases(root: Val, snapmap: Map<string, Val>): void;
+declare function expandAliases(root: Val, snapmap: Map<string, Val>, errs: any[]): void;
 export { aliasBudget, aliasErrors, aliasScope, expandAliases, };
 export type { AliasBinding, };

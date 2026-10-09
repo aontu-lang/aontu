@@ -275,6 +275,7 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 		}
 	}
 	out := instanceClone(s, path)
+	setPaths(out, clonePlace(path, s.vpath()))
 	markSpread(out, ctx)
 	return out
 }

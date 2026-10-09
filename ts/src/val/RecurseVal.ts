@@ -15,7 +15,7 @@ import {
 } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { aliasPathSegment } from '../aliasname'
+import { ALIAS_NAME_RE, aliasBareName, aliasPathSegment } from '../aliasname'
 
 import { FeatureVal } from './FeatureVal'
 import { undeclared } from './IdentFuncVal'
@@ -31,8 +31,7 @@ class RecurseVal extends FeatureVal {
   // wants to see the assembled concrete structure it expands against.
   cjo = 47000
 
-  // The target path, absolute from the root, as the reference spelled
-  // it.
+  // The target path, absolute from the root, as the reference spelled it.
   target: string[]
   // Expansion depth so far along this chain, charged against the
   // depth budget (the T-1 backstop).
@@ -67,27 +66,27 @@ class RecurseVal extends FeatureVal {
     }
 
     // The same fixpoint twice is one fixpoint.
-    if (true === p.isRecurse) {
-      if (this.target.length === p.target.length
-        && this.target.every((s, i) => s === p.target[i])) {
-        return this
-      }
-      const out = new ConjunctVal({ peg: [this, peer] }, ctx)
-      propagateMarks(this, out)
-      out.path = this.path
-      return out
+    if (true === p.isRecurse && this.target.length === p.target.length
+      && this.target.every((s, i) => s === p.target[i])) {
+      return this
     }
 
-    // CONCRETE STRUCTURE: expand one level against it.
-    if (true === p.isMap || true === p.isList || true === p.isScalar) {
+    // A disjunction distributes over the residual, branch by branch.
+    if (true === p.isDisjunct) {
+      return peer.unify(this, ctx)
+    }
+
+    // CONCRETE STRUCTURE, or a kind, which picks the body's branch as
+    // structure does: expand one level against it.
+    if (true === p.isMap || true === p.isList || true === p.isScalar ||
+      true === p.isScalarKind || true === p.isMapKind || true === p.isListKind) {
       if (ctx.budget.depth <= this.xc) {
         return makeNilErr(ctx, 'recursion_budget', this, peer, 'recurse',
           { target: this.targetSpelling })
       }
       const body = this.body(ctx)
       if (undefined === body) {
-        // The definition has not assembled yet (an early pass): hold
-        // the peer beside the residual and try again when it has.
+        // The definition has not assembled yet (an early pass): wait.
         const out = new ConjunctVal({ peg: [this, peer] }, ctx)
         propagateMarks(this, out)
         out.path = this.path
@@ -105,16 +104,22 @@ class RecurseVal extends FeatureVal {
       return unite(ctx, level, peer, 'recurse-expand')
     }
 
-    // Anything else -- a func still resolving, a reference, a
-    // constraint -- waits beside the residual.
+    // Anything else waits beside the residual, and beside a settled
+    // peer the meet is settled until data arrives.
     const out = new ConjunctVal({ peg: [this, peer] }, ctx)
     propagateMarks(this, out)
     out.path = this.path
+    if (true === peer.done) {
+      out.dc = DONE
+    }
     return out
   }
 
+  // A residual spells as the reference that made it, an alias by name.
   get targetSpelling(): string {
-    return '$.' + this.target.map(aliasPathSegment).join('.')
+    const path = this.target.map(aliasPathSegment)
+    return 1 === path.length && ALIAS_NAME_RE.test(path[0]) ? path[0] :
+      '$.' + path.join('.')
   }
 
   get canon(): string {
@@ -129,8 +134,7 @@ class RecurseVal extends FeatureVal {
 }
 
 
-// walkTarget descends a tree by the residual's absolute target path,
-// answering the definition node or undefined.
+// walkTarget answers the definition node at the residual's target.
 function walkTarget(root: any, target: string[]): Val | undefined {
   let node: any = root
   for (const seg of target) {
@@ -213,8 +217,18 @@ function containsRecurseOf(v: any, target: string[], d: number, root?: any,
     return false
   }
   if (true === v.isRecurse) {
-    return v.target.length === target.length
-      && v.target.every((s: string, i: number) => s === target[i])
+    if (v.target.length === target.length
+      && v.target.every((s: string, i: number) => s === target[i])) {
+      return true
+    }
+    // Another alias's residual reaches what its declaration reaches.
+    const key: string = v.target[0]
+    if (undefined !== root && 1 === v.target.length &&
+      ALIAS_NAME_RE.test(aliasBareName(key)) && !seen.has(key)) {
+      seen.add(key)
+      return containsRecurseOf(walkTarget(root, [key]), target, d + 1, root, seen)
+    }
+    return false
   }
   if (true === v.isRef && Array.isArray(v.peg)) {
     if (v.peg.length === target.length

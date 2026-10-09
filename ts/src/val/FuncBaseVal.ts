@@ -283,7 +283,9 @@ class FuncBaseVal extends FeatureVal {
           out.site.url = this.site.url
           out.site.len = this.site.len
           out.site.src = this.site.src
-          out.path = this.path
+          // A meet with the root's declaring map lands at the root.
+          out.path = true === peer.isMap && 0 < (peer as any).aliasKeys.length ?
+            peer.path : this.path
 
           why += 'pegdone'
         }

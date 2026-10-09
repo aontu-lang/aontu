@@ -7,8 +7,7 @@ import "strings"
 
 type RecurseVal struct {
 	base
-	// The target path, absolute from the root, as the reference
-	// spelled it.
+	// The target path, absolute from the root, as the reference spelled it.
 	target []string
 	// Expansion depth so far along this chain, charged against the
 	// depth budget (the T-1 backstop).
@@ -72,27 +71,26 @@ func (r *RecurseVal) sameTarget(p *RecurseVal) bool {
 }
 
 func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
-	// The self-drive: nothing to advance -- the residual waits for
-	// structure. (A nil-valued peer never arrives; unite's ladder
-	// absorbs it.)
+	// The self-drive: the residual waits for structure. A nil-valued
+	// peer never arrives; unite's ladder absorbs it.
 	if nil == peer || isTop(peer) {
 		return r
 	}
 
-	if pr, ok := peer.(*RecurseVal); ok {
-		if r.sameTarget(pr) {
-			return r
-		}
-		out := newConjunct([]Val{r, peer})
-		copyMarks(out, r)
-		out.path = cp(r.path)
-		return out
+	if pr, ok := peer.(*RecurseVal); ok && r.sameTarget(pr) {
+		return r
 	}
 
-	// CONCRETE STRUCTURE: expand one level against it.
+	// A disjunction distributes over the residual, branch by branch.
+	if dj, ok := peer.(*DisjunctVal); ok {
+		return dj.Unify(r, ctx)
+	}
+
+	// CONCRETE STRUCTURE, or a kind, which picks the body's branch as
+	// structure does: expand one level against it.
 	concrete := false
 	switch peer.(type) {
-	case *MapVal, *ListVal, *ScalarVal:
+	case *MapVal, *ListVal, *ScalarVal, *ScalarKindVal, *MapKindVal, *ListKindVal:
 		concrete = true
 	}
 	if concrete {
@@ -106,26 +104,27 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		bodyv := r.body(ctx)
 		if nil == bodyv {
-			// The definition has not assembled yet (an early pass):
-			// hold the peer beside the residual and try again when it
-			// has.
+			// The definition has not assembled yet (an early pass): wait.
 			out := newConjunct([]Val{r, peer})
 			copyMarks(out, r)
 			out.path = cp(r.path)
 			return out
 		}
-		level := undeclared(clonePath(bodyv, cp(r.path)))
+		level := undeclared(instanceClone(bodyv, cp(r.path)))
 		forceRootPath(level, cp(r.path))
 		walkMark(level, true, false, true, false)
 		bumpRecurse(level, r.xc+1)
 		return unite(ctx, level, peer)
 	}
 
-	// Anything else -- a func still resolving, a reference, a
-	// constraint -- waits beside the residual.
+	// Anything else waits beside the residual, and beside a settled
+	// peer the meet is settled until data arrives.
 	out := newConjunct([]Val{r, peer})
 	copyMarks(out, r)
 	out.path = cp(r.path)
+	if DONE == peer.Dc() {
+		out.setDc(DONE)
+	}
 	return out
 }
 
@@ -133,6 +132,10 @@ func (r *RecurseVal) targetSpelling() string {
 	segs := make([]string, len(r.target))
 	for i, seg := range r.target {
 		segs[i] = aliasPathSegment(seg)
+	}
+	// A residual spells as the reference that made it, an alias by name.
+	if 1 == len(segs) && aliasNameRe.MatchString(segs[0]) {
+		return segs[0]
 	}
 	return "$." + strings.Join(segs, ".")
 }
@@ -165,15 +168,18 @@ func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string
 	v = throughRider(v)
 	switch n := v.(type) {
 	case *RecurseVal:
-		if len(n.target) != len(target) {
-			return false
+		same := len(n.target) == len(target)
+		for i := 0; same && i < len(target); i++ {
+			same = n.target[i] == target[i]
 		}
-		for i, s := range n.target {
-			if s != target[i] {
-				return false
+		// Another alias's residual reaches what its declaration reaches.
+		if !same && nil != root && 1 == len(n.target) && !seen[n.target[0]] {
+			if name := aliasBareName(n.target[0]); aliasRe.FindString(name) == name {
+				seen[n.target[0]] = true
+				return reachesRecurse(walkTarget(root, n.target), target, depth+1, root, seen)
 			}
 		}
-		return true
+		return same
 	case *RefVal:
 		same := len(n.peg) == len(target)
 		for i, p := range n.peg {

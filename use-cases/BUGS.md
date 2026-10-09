@@ -3714,6 +3714,13 @@ twin), or give the knot a path spelling. `test/spec/alias.tsv` records
 the knot in prose and pins generation only; no canon row can pin it,
 because every canon row must reparse.
 
+Changed 2026-10-09 (ADR-062): every reference to a recursive alias
+keeps its name now, not only the one that closes the cycle, since
+which reference closed it depended on resolution order and the ports
+resolve in different orders. The canon above is now
+`{"payload":{&:%json,"user":{&:%json,"id":1,"tags":[&:%json,"admin",[&:%json,"nested",true]]}}}`
+in both ports. Still open: it does not reparse.
+
 ### 83. An include whose path is not a string is an internal error in TypeScript and a nameless refusal in Go [minor]
 
 Found 2026-09-06 while landing the `aontu:` scheme, whose leg tests the

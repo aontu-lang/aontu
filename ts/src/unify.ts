@@ -443,7 +443,7 @@ class Unify {
       // The settled tree's alias references canon as the values they
       // name (ts/src/alias.ts): attached here, once, after the last
       // pass, from the snapshot store this run kept.
-      expandAliases(res, (uctx as any).snapmap)
+      expandAliases(res, (uctx as any).snapmap, uctx.err)
 
       uctx.explain && explainClose(te, res)
     }

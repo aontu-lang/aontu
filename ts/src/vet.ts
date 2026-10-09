@@ -11,6 +11,7 @@ import {
 
 import { descErr, getHint } from './err'
 import { codeClass } from './hints'
+import { aliasPathSegment } from './aliasname'
 import { ConjunctVal } from './val/ConjunctVal'
 import { walkVals, collectNils } from './walk'
 import { sizingResidue } from './val/BagVal'
@@ -164,7 +165,8 @@ function roleOf(file: string, prov: Prov): VetRole {
 
 
 function pathText(path?: string[]): string {
-  return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '')
+  return '$' + (null != path && 0 < path.length ? '.' + path.map((p: any) =>
+    'string' === typeof p ? aliasPathSegment(p) : p).join('.') : '')
 }
 
 

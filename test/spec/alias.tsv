@@ -115,9 +115,9 @@ alias-in-spread-close-canons-bare	canon	%A = close({n: string})\nbox: [&: %A]	{"
 # reparses to the same document.
 alias-in-spread-key-template-canons-as-the-template	canon	%row = {name: key()}\nt: {&: %row}\nt: {a: {}, b: {}}	{"t":{&:{"name":key()},"a":{"name":"a"},"b":{"name":"b"}}}
 # THE KNOT. A recursive alias names itself inside its own template
-# (recursion.tsv json-alias): the reference that closes the cycle keeps
-# its name, since canon cannot spell the declaration it erased, and
-# such a canon does not reparse on its own (use-cases/BUGS.md §82). It
+# (recursion.tsv json-alias): every reference to it keeps its name,
+# since canon cannot spell the declaration it erased, and such a canon
+# does not reparse on its own (use-cases/BUGS.md §82). It
 # generates, which recursion.tsv pins; no canon row can pin the knot,
 # because every canon row must reparse.
 #
@@ -198,7 +198,7 @@ alias-cycle-direct	errc	%a = %a\nx: %a	recursion_unexpanded
 # key carries the scope of the file that declared it, which is the
 # engine's bookkeeping: a reader who sees it learns nothing, and in
 # a file-backed document it was an absolute path.
-alias-cycle-direct-names-the-alias	err	%a = %a\nx: %a	Cannot recurse value: $.%a
+alias-cycle-direct-names-the-alias	err	%a = %a\nx: %a	Cannot recurse value: %a
 alias-cycle-pair	errc	%a = %b\n%b = %a\nx: %a	path_cycle
 alias-cycle-mixed-through-the-tree	errc	%a = $.x\nx: %a	path_cycle
 #
@@ -493,12 +493,26 @@ alias-root-reference-mutual-recursion-through-riders	gens	%e & {\n  %b = { baz?:
 alias-root-reference-mutual-recursion-vet-valid	vet	%e & { %b = { baz?: %r }, %e = { bar?: %b }, %r = %e & { foo?: "pass" }, foo?: "pass" }	{"bar": {"baz": {"bar": {}, "foo": "pass"}}, "foo": "pass"}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
 alias-root-reference-mutual-recursion-vet-invalid	vet	%e & { %b = { baz?: %r }, %e = { bar?: %b }, %r = %e & { foo?: "pass" }, foo?: "pass" }	{"bar": {"baz": {"foo": "fail"}}, "foo": "pass"}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.bar.baz.foo","severity":"error","sites":[{"col":25,"file":"data","len":6,"role":"data","row":1,"src":"\\"fail\\"","value":"\\"fail\\""},{"col":64,"file":"schema","len":6,"role":"schema","row":1,"src":"\\"pass\\"","value":"\\"pass\\""}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
 alias-root-reference-mutual-recursion-through-riders-vet-invalid	vet	%e & {\n  %b = { baz?: meta(%r, { title: "r" }) }\n  %e = ident({ bar?: %b }, { id: "e" })\n  %r = ident(%e & { foo?: "pass" }, { id: "r" })\n  foo?: "pass"\n}	{"bar": {"baz": {"foo": "fail"}}, "foo": "pass"}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.bar.baz.foo","severity":"error","sites":[{"col":25,"file":"data","len":6,"role":"data","row":1,"src":"\\"fail\\"","value":"\\"fail\\""},{"col":27,"file":"schema","len":6,"role":"schema","row":4,"src":"\\"pass\\"","value":"\\"pass\\""}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
-alias-root-meet-recursion-vet-nested-count	vet	{ %n = { "next"?: %n, "v"?: number } & len(min(1)), "next"?: %n, "v"?: number } & len(min(1))	{"next": {}}	{"findings":[{"actual":"{\\"next\\"?:$.%n,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$.next","severity":"error","sites":[{"col":40,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(1))"},{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"next\\"?:$.%n,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
-alias-root-meet-recursion-vet-root-count	vet	{ %n = { "next"?: %n, "v"?: number } & len(min(1)), "next"?: %n, "v"?: number } & len(min(1))	{}	{"findings":[{"actual":"{\\"next\\"?:$.%n,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$","severity":"error","sites":[{"col":83,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(1))"},{"col":1,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"next\\"?:$.%n,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+alias-root-meet-recursion-vet-nested-count	vet	{ %n = { "next"?: %n, "v"?: number } & len(min(1)), "next"?: %n, "v"?: number } & len(min(1))	{"next": {}}	{"findings":[{"actual":"{\\"next\\"?:%n,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$.next","severity":"error","sites":[{"col":40,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(1))"},{"col":8,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"next\\"?:%n,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+alias-root-meet-recursion-vet-root-count	vet	{ %n = { "next"?: %n, "v"?: number } & len(min(1)), "next"?: %n, "v"?: number } & len(min(1))	{}	{"findings":[{"actual":"{\\"next\\"?:%n,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$","severity":"error","sites":[{"col":83,"file":"schema","len":3,"role":"schema","row":1,"src":"len","value":"len(integer&min(1))"},{"col":1,"file":"schema","len":1,"role":"schema","row":1,"src":"{","value":"{\\"next\\"?:%n,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
 alias-root-rider-over-a-meet-vet-valid	vet	meta({\n  %root = meta({ "next"?: %root, "v"?: number } & len(min(1)), { title: "Node" })\n  "next"?: %root\n  "v"?: number\n} & len(min(1)), { title: "Node" })	{"next": {"v": 1}}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
-alias-root-rider-over-a-meet-vet-nested-count	vet	meta({\n  %root = meta({ "next"?: %root, "v"?: number } & len(min(1)), { title: "Node" })\n  "next"?: %root\n  "v"?: number\n} & len(min(1)), { title: "Node" })	{"next": {}}	{"findings":[{"actual":"{\\"next\\"?:$.%root,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$.next","severity":"error","sites":[{"col":51,"file":"schema","len":3,"role":"schema","row":2,"src":"len","value":"len(integer&min(1))"},{"col":16,"file":"schema","len":1,"role":"schema","row":2,"src":"{","value":"{\\"next\\"?:$.%root,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+alias-root-rider-over-a-meet-vet-nested-count	vet	meta({\n  %root = meta({ "next"?: %root, "v"?: number } & len(min(1)), { title: "Node" })\n  "next"?: %root\n  "v"?: number\n} & len(min(1)), { title: "Node" })	{"next": {}}	{"findings":[{"actual":"{\\"next\\"?:%root,\\"v\\"?:number}","class":"conflict","code":"constraint","expected":"len(integer&min(1))","path":"$.next","severity":"error","sites":[{"col":51,"file":"schema","len":3,"role":"schema","row":2,"src":"len","value":"len(integer&min(1))"},{"col":16,"file":"schema","len":1,"role":"schema","row":2,"src":"{","value":"{\\"next\\"?:%root,\\"v\\"?:number}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
 alias-root-meet-of-a-rider	gens	meta({ %a = 1, "x": %a }, { title: "t" }) & len(min(1))	{"x":1}
 alias-root-meet-of-a-rider-over-a-meet	gens	meta({ %a = 1, "x": %a } & len(min(1)), { title: "t" }) & nof(0, 5)	{"x":1}
 alias-root-meet-undeclared	errc	{ %a = 1, "x": %b } & len(min(1))	ref
 alias-root-meet-vet-at	vet	{ %n = integer & min(1), "t": { "port": %n } } & len(min(1))	port: 8080	{"findings":[],"opts":{"at":"$.t"},"truncated":false,"verdict":"valid"}
 alias-root-meet-vet-at-refuses	vet	{ %n = integer & min(1), "t": { "port": %n } } & len(min(1))	port: 0	{"findings":[{"actual":"0","class":"conflict","code":"constraint","expected":"integer&min(1)","path":"$.t.port","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"0","value":"0"},{"col":18,"file":"schema","len":3,"role":"schema","row":1,"src":"min","value":"integer&min(1)"}]}],"opts":{"at":"$.t"},"truncated":false,"verdict":"invalid"}
+#
+# --- Where a rider lands, and how an alias renders (G12 phase 16) ------
+# A rider resolved against the root's declarations stays at the root.
+# An alias renders as its declaration, inside a constraint as anywhere,
+# unless its declaration reaches it again: THE KNOT above, so a
+# recursive one pins generation.
+alias-rider-meeting-the-root-declarations-lands-at-root	canon	%V & {\n%V = meta({ a?: 1 } & { b?: number }, { title: "T" })\n}	meta({"a"?:1,"b"?:number},{"title":"T"})
+alias-expands-inside-a-constraint	canon	x?: { &: nof(1, %A, number) }\n%A = [&: string]	{"x"?:{&:nof(1,[&:string],number)}}
+alias-expands-inside-when	canon	x?: { &: when(%A, number) }\n%A = [&: string]	{"x"?:{&:when([&:string],number)}}
+alias-expands-inside-must	canon	x?: { &: must(%A, "m") }\n%A = [&: string]	{"x"?:{&:must([&:string],"m")}}
+alias-expands-inside-contains	canon	x?: { &: contains(%A) }\n%A = string	{"x"?:{&:contains(string)}}
+alias-expands-inside-a-bound	canon	x?: { &: min(%A) }\n%A = 3	{"x"?:{&:min(3)}}
+alias-that-reaches-itself-generates	gens	%S & {\n%S = { d?: { &: nof(min(1), %S, %A) } }\n%A = [&: string] & unique()\nd: { x: ["a", "b"], y: { d: { z: ["c"] } } }\n}	{"d":{"x":["a","b"],"y":{"d":{"z":["c"]}}}}
+alias-reached-through-a-recursive-alias-generates	gens	y?: { &: nof(1, %A, number) }\n%A = { p?: { &: nof(1, %B, number) } }\n%B = { q?: { &: nof(1, %B, number) } }\ny: { a: 1, b: { p: { c: 2, e: { q: { f: 3, g: { q: { h: 4 } } } } } } }	{"y":{"a":1,"b":{"p":{"c":2,"e":{"q":{"f":3,"g":{"q":{"h":4}}}}}}}}

@@ -18,9 +18,8 @@ type RefVal struct {
 	prefix    bool
 	hideFound bool // move(): hide the resolution target in place
 	copyFound bool // copy(): clear all marks on the resolved copy
-	// expansion is the value an alias reference canons as, attached by
-	// expandAliases (go/alias.go) after unification (see Canon). Never
-	// read by unification: it is a rendering of the settled tree.
+	// expansion is what an alias reference canons as, attached by
+	// expandAliases (go/alias.go) to render the settled tree, never read.
 	expansion Val
 	rxc       int
 }

@@ -8,6 +8,48 @@ each change affects.
 
 ## Unreleased
 
+### Recursive residuals meet kinds and disjunctions (ADR-062)
+
+Both ports, found while reading the 2020-12 meta-schema (G12 phase 16).
+
+- A recursive residual met with a kind, `map`, `list`, `boolean` or
+  another scalar kind, now expands one level against it, as against
+  data; a disjunction meets it branch by branch; and beside another
+  residual or a settled constraint it settles, waiting for data. It
+  waited for ever beside any of them, so a `meta()` or `ident()` over
+  it never resolved and the meta-schema stopped at `incomplete
+  conjunct@$`. `%V = %A & %B & (boolean|map)`, with `%A` and `%B`
+  recursive, no longer hangs Go or is refused `empty` by TypeScript.
+- A residual of one alias inside another's declaration reaches what
+  that declaration reaches, as a reference to it does.
+- A rider such as `meta()` that resolves against the root's
+  declarations keeps the root's place: TypeScript refused `%V & {%V =
+  meta({a?: 1} & {b?: number}, {...})}` with `alias_not_toplevel`.
+- Go placed a value copied from a spread inside an alias declaration
+  one level too deep, reporting a failure under `{&: meta(%V, {...})}`
+  at `$.p.a.&` where TypeScript reports `$.p.a`; copied a recursion's
+  level shallowly; dropped a waiting call's file and excerpt from the
+  value it later resolved to; and sited a grouped disjunction at its
+  first member rather than at its parenthesis.
+- A reference to an alias whose declaration reaches it again keeps
+  the alias's name wherever it stands, and so does a residual of the
+  alias, which printed `$.%V`, a spelling the language refuses. A
+  recursive alias expanded once at each reference before, naming only
+  the reference that closed the cycle, so `payload: %json` now canons
+  as `{&:%json,...}` rather than the template, and `%a = %a` is refused
+  as `Cannot recurse value: %a`. Any other alias renders as its
+  declaration, which Go did not do inside `nof`, `when`, `must`,
+  `contains` or a bound such as `min(%A)`. The rendering no longer
+  depends on how a port shares values or on whether a reference has
+  resolved yet, and TypeScript no longer overflows its stack rendering
+  a deprecation inside a recursive alias, `%S = {d?: deprecate({&:
+  %S})}`.
+- A `vet` finding's path spells an alias without the file it was read
+  from, `$.%S.d`, as its message does: the CLI spelled it after the
+  file in TypeScript and after a source number in Go. Go names a
+  deprecation by the path the walk reached it by, as TypeScript does,
+  where it read the value's own and could report `$.d.d`.
+
 ### Earlier JSON Schema dialects
 
 Both ports, G12 phase 15 (ADR-061).

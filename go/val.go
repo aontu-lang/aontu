@@ -360,10 +360,7 @@ func (n *NilVal) attemptName() string {
 }
 
 func (n *NilVal) Path() string {
-	if p := n.pathSegments(); 0 < len(p) {
-		return "$." + strings.Join(p, ".")
-	}
-	return "$"
+	return vetPath(n.pathSegments())
 }
 
 // pathSegments is the raw path the failure is reported at.

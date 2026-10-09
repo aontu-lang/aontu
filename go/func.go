@@ -428,7 +428,12 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		if out != Val(f) {
 			propagateMarks(f, out)
-			out.setvpath(cp(f.path))
+			// A meet with the root's declaring map lands at the root.
+			home := f.path
+			if pm, ok := peer.(*MapVal); ok && 0 < len(pm.aliasKeys) {
+				home = pm.path
+			}
+			out.setvpath(cp(home))
 			out.setPos(f.site.sp)
 			out.setPosu(f.site.spu)
 			out.setSrcurl(f.site.url)
@@ -440,7 +445,8 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		nf.declared = f.declared
 		nf.path = cp(f.path)
 		nf.dc = f.dc
-		nf.site.sp = f.site.sp
+		nf.site.sp, nf.site.spu, nf.site.url = f.site.sp, f.site.spu, f.site.url
+		nf.site.src = f.site.src
 		nf.spr = f.spr
 		nf.mtype = newtype
 		nf.mhide = newhide

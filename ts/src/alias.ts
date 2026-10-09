@@ -5,7 +5,6 @@ import type { Val } from './type'
 
 import { makeNilErr } from './err'
 
-import { cmpCodePoint } from './keyorder'
 import { spreadSnapKey } from './val/MapVal'
 import { ALIAS_NAME, aliasSetItems } from './aliasname'
 
@@ -207,14 +206,42 @@ function aliasBudget(ctx: any, root: Val): Val | undefined {
 }
 
 
-function expandAliases(root: Val, snapmap: Map<string, Val>): void {
+function expandAliases(root: Val, snapmap: Map<string, Val>, errs: any[]): void {
   if (true !== (root as any).isMap) {
     return
   }
 
-  const seen = new Set<Val>()
+  const decl: any = (root as any).peg
+  const aliasKeys: string[] = (root as any).aliasKeys
+  const targetOf = (ref: any): Val | undefined =>
+    snapmap.get(spreadSnapKey(ref)) ?? decl[ref.aliasKey]
 
-  const visit = (v: any, stack: string[]): void => {
+  // Whether v holds a reference to the alias, through each reference's
+  // own target in turn. A reference to an alias that reaches itself keeps
+  // its name, as the residual it resolves to does: no rendering loops,
+  // and none depends on whether the reference has resolved yet.
+  const reaches = (v: any, key: string, met: Set<Val>): boolean => {
+    if (null == v || true !== v.isVal || met.has(v)) {
+      return false
+    }
+    met.add(v)
+    if (true === v.isRef) {
+      return undefined !== v.aliasKey &&
+        (key === v.aliasKey || reaches(targetOf(v), key, met))
+    }
+    // A residual of an alias stands for a reference to it.
+    const alias: string | undefined = true === v.isRecurse &&
+      1 === v.target.length && aliasKeys.includes(v.target[0]) ? v.target[0] : undefined
+    if (undefined !== alias) {
+      return key === alias || reaches(decl[alias], key, met)
+    }
+    return kids(v).some((k: Val) => reaches(k, key, met))
+  }
+
+  const seen = new Set<Val>()
+  const looped = new Map<string, boolean>()
+
+  const visit = (v: any): void => {
     if (null == v || true !== v.isVal || seen.has(v)) {
       return
     }
@@ -225,46 +252,36 @@ function expandAliases(root: Val, snapmap: Map<string, Val>): void {
       if (undefined === key) {
         return
       }
-      v.expansion = undefined
-      if (stack.includes(key)) {
-        return
+      const target: Val | undefined = targetOf(v)
+      const memo = key + '\u0000' + target?.id
+      if (null != target && !looped.has(memo)) {
+        looped.set(memo, reaches(target, key, new Set()))
       }
-      const target: Val | undefined =
-        snapmap.get(spreadSnapKey(v)) ?? (root as any).peg[key]
-      if (null == target) {
-        return
-      }
-      v.expansion = target
-      visit(target, [...stack, key])
+      v.expansion = looped.get(memo) ? undefined : target
+      visit(target)
       return
     }
 
-    if (true === v.isMap) {
-      // A declaration is reached through its references, each under
-      // its own name, never as a child: a self-reference inside it
-      // is a knot only from inside.
-      const keys = Object.keys(v.peg)
-        .filter((k: string) => !v.aliasKeys.includes(k))
-        .sort(cmpCodePoint)
-      for (const k of keys) {
-        visit(v.peg[k], stack)
-      }
-    }
-    else if (Array.isArray(v.peg)) {
-      for (const e of v.peg) {
-        visit(e, stack)
-      }
-    }
-    else if (null != v.peg && true === v.peg.isVal) {
-      visit(v.peg, stack)
-    }
-
-    if ((true === v.isMap || true === v.isList) && null != v.spread.cj) {
-      visit(v.spread.cj, stack)
-    }
+    kids(v).forEach(visit)
   }
 
-  visit(root, [])
+  // A refusal's operands render in its sites, wherever they were copied.
+  visit(root)
+  aliasKeys.forEach((k: string) => visit(decl[k]))
+  errs.forEach((e: any) => (visit(e.primary), visit(e.secondary)))
+}
+
+
+// The values a rendering descends into, a map's declarations aside.
+function kids(v: any): Val[] {
+  const out: Val[] = true === v.isMap ?
+    Object.keys(v.peg)
+      .filter((k: string) => !v.aliasKeys.includes(k))
+      .map((k: string) => v.peg[k]) :
+    Array.isArray(v.peg) ? v.peg :
+      null != v.peg && true === v.peg.isVal ? [v.peg] : []
+  return (true === v.isMap || true === v.isList) && null != v.spread.cj ?
+    [...out, v.spread.cj] : out
 } /* node:coverage ignore next 13 */
 
 

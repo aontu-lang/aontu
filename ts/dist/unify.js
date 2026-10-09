@@ -364,7 +364,7 @@ class Unify {
             // The settled tree's alias references canon as the values they
             // name (ts/src/alias.ts): attached here, once, after the last
             // pass, from the snapshot store this run kept.
-            (0, alias_1.expandAliases)(res, uctx.snapmap);
+            (0, alias_1.expandAliases)(res, uctx.snapmap, uctx.err);
             uctx.explain && (0, utility_1.explainClose)(te, res);
         }
         this.res = res;

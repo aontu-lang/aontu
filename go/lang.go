@@ -2152,6 +2152,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			if r.ON > 0 {
 				gv.setPos(r.O0.SI)
 			}
+			stampSrc(gv, r)
 			return gv
 		}
 		// `a:()` — grouping parens with nothing inside.

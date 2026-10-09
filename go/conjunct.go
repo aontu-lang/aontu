@@ -195,15 +195,21 @@ func norm(terms []Val) []Val {
 	sort.SliceStable(expand, func(i, j int) bool {
 		return expand[i].cjo() < expand[j].cjo()
 	})
-	// A repeated waiting match adds nothing, and each list meet doubled it.
+	// A repeated waiting match adds nothing, nor a residual met again.
 	seen := map[string]bool{}
 	out := expand[:0]
 	for _, t := range expand {
+		key := ""
 		if f, ok := t.(*FuncVal); ok && "match" == f.name && DONE != f.Dc() {
-			if seen[f.Canon()] {
+			key = f.Canon()
+		} else if r, ok := t.(*RecurseVal); ok {
+			key = "\x00" + strings.Join(r.target, "\x00")
+		}
+		if "" != key {
+			if seen[key] {
 				continue
 			}
-			seen[f.Canon()] = true
+			seen[key] = true
 		}
 		out = append(out, t)
 	}

@@ -44,25 +44,24 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
             return this;
         }
         // The same fixpoint twice is one fixpoint.
-        if (true === p.isRecurse) {
-            if (this.target.length === p.target.length
-                && this.target.every((s, i) => s === p.target[i])) {
-                return this;
-            }
-            const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
-            (0, utility_1.propagateMarks)(this, out);
-            out.path = this.path;
-            return out;
+        if (true === p.isRecurse && this.target.length === p.target.length
+            && this.target.every((s, i) => s === p.target[i])) {
+            return this;
         }
-        // CONCRETE STRUCTURE: expand one level against it.
-        if (true === p.isMap || true === p.isList || true === p.isScalar) {
+        // A disjunction distributes over the residual, branch by branch.
+        if (true === p.isDisjunct) {
+            return peer.unify(this, ctx);
+        }
+        // CONCRETE STRUCTURE, or a kind, which picks the body's branch as
+        // structure does: expand one level against it.
+        if (true === p.isMap || true === p.isList || true === p.isScalar ||
+            true === p.isScalarKind || true === p.isMapKind || true === p.isListKind) {
             if (ctx.budget.depth <= this.xc) {
                 return (0, err_1.makeNilErr)(ctx, 'recursion_budget', this, peer, 'recurse', { target: this.targetSpelling });
             }
             const body = this.body(ctx);
             if (undefined === body) {
-                // The definition has not assembled yet (an early pass): hold
-                // the peer beside the residual and try again when it has.
+                // The definition has not assembled yet (an early pass): wait.
                 const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
                 (0, utility_1.propagateMarks)(this, out);
                 out.path = this.path;
@@ -79,15 +78,21 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
             bumpRecurse(level, this.xc + 1);
             return (0, unify_1.unite)(ctx, level, peer, 'recurse-expand');
         }
-        // Anything else -- a func still resolving, a reference, a
-        // constraint -- waits beside the residual.
+        // Anything else waits beside the residual, and beside a settled
+        // peer the meet is settled until data arrives.
         const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         (0, utility_1.propagateMarks)(this, out);
         out.path = this.path;
+        if (true === peer.done) {
+            out.dc = type_1.DONE;
+        }
         return out;
     }
+    // A residual spells as the reference that made it, an alias by name.
     get targetSpelling() {
-        return '$.' + this.target.map(aliasname_1.aliasPathSegment).join('.');
+        const path = this.target.map(aliasname_1.aliasPathSegment);
+        return 1 === path.length && aliasname_1.ALIAS_NAME_RE.test(path[0]) ? path[0] :
+            '$.' + path.join('.');
     }
     get canon() {
         return this.targetSpelling;
@@ -98,8 +103,7 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
     }
 }
 exports.RecurseVal = RecurseVal;
-// walkTarget descends a tree by the residual's absolute target path,
-// answering the definition node or undefined.
+// walkTarget answers the definition node at the residual's target.
 function walkTarget(root, target) {
     let node = root;
     for (const seg of target) {
@@ -173,8 +177,18 @@ function containsRecurseOf(v, target, d, root, seen = new Set()) {
         return false;
     }
     if (true === v.isRecurse) {
-        return v.target.length === target.length
-            && v.target.every((s, i) => s === target[i]);
+        if (v.target.length === target.length
+            && v.target.every((s, i) => s === target[i])) {
+            return true;
+        }
+        // Another alias's residual reaches what its declaration reaches.
+        const key = v.target[0];
+        if (undefined !== root && 1 === v.target.length &&
+            aliasname_1.ALIAS_NAME_RE.test((0, aliasname_1.aliasBareName)(key)) && !seen.has(key)) {
+            seen.add(key);
+            return containsRecurseOf(walkTarget(root, [key]), target, d + 1, root, seen);
+        }
+        return false;
     }
     if (true === v.isRef && Array.isArray(v.peg)) {
         if (v.peg.length === target.length

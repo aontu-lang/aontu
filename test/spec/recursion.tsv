@@ -120,3 +120,26 @@ vet-at-recursion-through-list-spread-refuses	vet	spec: hide({Comment: {author: s
 # for the meet that holds it, and the count decides at generation.
 recursion-count-meets-an-empty-level	errc	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": {}	constraint
 recursion-count-meets-a-filled-level	gens	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": { "v": 1, "next": { "v": 2 } }	{"next":{"next":{"v":2},"v":1}}
+#
+# --- A residual meets a kind, a disjunction, another residual (G12 16)
+# A kind picks the body's branch as structure does, so the residual
+# expands one level against it; a disjunction distributes over the
+# residual; another residual leaves nothing to wait for but data, so
+# the meet settles. A rider over any of these resolves, and a residual
+# of another alias reaches what that alias's declaration reaches. The
+# meta-schema is built this way: each vocabulary is a titled
+# `boolean|{...}` recursive through its root. A spread's copy fails at
+# its own key. Each residual prints as the knot no canon row can pin
+# (alias.tsv), so these pin generation.
+gens-recursion-residual-of-another-alias	gens	%V & {\n%V = %APP & map\n%APP = meta({ items?: %V }, { title: "t" })\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-rider-over-kind-settles	gens	%V & {\n%V = meta(%APP & map, { title: "v" })\n%APP = { items?: %V }\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-two-residuals-under-rider-settle	gens	%V & {\n%V = meta(%A & %B, { title: "v" })\n%A = { items?: %V }\n%B = { more?: %V }\nitems: { more: { items: {} } }\n}	{"items":{"more":{"items":{}}}}
+vet-recursion-rider-over-kind-at-depth	vet	%V & {\n%V = meta(%APP & map, { title: "v" })\n%APP = { items?: %V }\n}	{"items": {"items": 5}}	{"findings":[{"class":"conflict","code":"map","path":"$.items.items","severity":"error","sites":[{"col":21,"file":"data","len":1,"role":"data","row":1,"src":"5","value":"5"},{"col":6,"file":"schema","len":4,"role":"schema","row":2,"src":"meta","value":"{\\"items\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-two-residuals-under-rider-at-depth	vet	%V & {\n%V = meta(%A & %B, { title: "v" })\n%A = { items?: %V }\n%B = { more?: %V }\n}	{"items": {"more": {"items": true}}}	{"findings":[{"class":"conflict","code":"map","path":"$.items.more.items","severity":"error","sites":[{"col":30,"file":"data","len":4,"role":"data","row":1,"src":"true","value":"true"},{"col":6,"file":"schema","len":1,"role":"schema","row":3,"src":"{","value":"{\\"items\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-spread-of-rider-fails-at-its-key	vet	%V & {\n%V = %APP & (boolean|map)\n%APP = boolean | { p?: { &: meta(%V, { title: "d" }) } }\n}	{"p": {"a": {"p": 5}}}	{"findings":[{"class":"conflict","code":"empty","path":"$.p.a","severity":"error","sites":[{"col":13,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"p\\":5}"},{"col":13,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"boolean|{\\"p\\"?:{&:meta(%V,{\\"title\\":\\"d\\"})}}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+gens-recursion-residual-met-with-a-kind-expands	gens	%V & {\n%V = %APP & map\n%APP = boolean | { items?: %V }\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-disjunction-distributes-over-a-residual	gens	%V & {\n%V = %A & (boolean|map)\n%A = boolean | { d?: %V }\nd: { d: true }\n}	{"d":{"d":true}}
+gens-recursion-two-vocabularies-under-boolean-or-map	gens	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\nd: { a: { d: false } }\n}	{"d":{"a":{"d":false}}}
+vet-recursion-two-vocabularies-admit	vet	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\n}	{"a": {"d": true}}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
+vet-recursion-two-vocabularies-refuse-at-depth	vet	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\n}	{"a": [{}]}	{"findings":[{"class":"conflict","code":"empty","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[{}]"},{"col":16,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"boolean|{\\"a\\"?:%V,\\"d\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-rider-on-each-distributed-branch	vet	%V & {\n%V = %APP & (boolean|map)\n%APP = meta(boolean | { p?: { &: %V } }, { title: "A" })\n}	{"p": {"a": {"p": 5}}}	{"findings":[{"class":"conflict","code":"empty","path":"$.p.a","severity":"error","sites":[{"col":13,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"p\\":5}"},{"col":13,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"meta(boolean,{\\"title\\":\\"A\\"})|meta({\\"p\\"?:{&:%V}},{\\"title\\":\\"A\\"})"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}

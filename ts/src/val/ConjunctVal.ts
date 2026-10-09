@@ -278,10 +278,14 @@ function norm(terms: Val[]): Val[] {
 
   // console.log('NORM', expand.map(t => t.canon).join(', '))
 
-  // A repeated waiting match adds nothing, and each list meet doubled it.
+  // A repeated waiting match adds nothing, nor a residual met again.
   const seen = new Set<string>()
-  return expand.filter((t: any) => true !== t.isMatchFunc || true === t.done ||
-    seen.size !== seen.add(t.canon).size)
+  return expand.filter((t: any) => {
+    const key: string | undefined = true === t.isRecurse ?
+      '\u0000' + t.target.join('\u0000') :
+      true === t.isMatchFunc && true !== t.done ? t.canon : undefined
+    return undefined === key || seen.size !== seen.add(key).size
+  })
 } /* node:coverage ignore next 7 */
 
 

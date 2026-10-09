@@ -186,7 +186,7 @@
 #   TypeScript: verdict valid. The innermost repetition fails inside an
 #               admission trial, which counts as a refusal, so %B's
 #               `number` branch is the one that admits.
-#   Go:         verdict error, unify_cycle at $.%A@#1.
+#   Go:         verdict error, unify_cycle at $.%A.
 #   The same split shows for `a: nof(1, $.b)` beside `b: nof(1, $.a)`
 #   against {"a": 1, "b": 1}: TypeScript refuses both with `nof`, and
 #   Go reports unify_cycle.
@@ -658,5 +658,35 @@
 #   element of a top-level list a parse refusal belongs to is a
 #   question about every bare_punct row, and op-chars.tsv asserts the
 #   code rather than the path throughout.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the SITE of a refused operand that the 2020-12 meta-schema's
+#   vocabularies met to make: each port names the ident() call of a
+#   different contributing vocabulary.
+#   issue: none filed yet; found 2026-10-09 while landing G12 phase 16.
+#   NOT introduced by that work: before it, both engines stopped at
+#   `incomplete conjunct@$` on the meta-schema, so no operand of it was
+#   ever refused.
+#
+#   Divergent input:  the import of
+#                     {"type": "object", "properties": {"$schema": true},
+#                      "$ref": "https://json-schema.org/draft/2020-12/schema"}
+#                     with the meta-schema and its eight vocabulary
+#                     meta-schemas in the document set, as json-schema.org
+#                     serves them, vetted with --no-fill --exact-numbers
+#                     against {"allOf": [{"type": "strin"}]}
+#   TypeScript: invalid, empty at $.allOf.0, the schema site at the
+#               applicator vocabulary's ident() (row 2, col 92)
+#   Go:         invalid, empty at $.allOf.0, the schema site at the
+#               meta-schema root's ident() (row 238, col 80)
+#
+#   Verdict, code, path and the rendered value agree. The operand is the
+#   meet of seven vocabularies, each an ident() over `boolean|{...}`, and
+#   a distributed meet keeps the site of the disjunction that received
+#   it; the ports fold the vocabularies in a different order on the way
+#   there. Not simply fixed because which of seven declarations a merged
+#   value should name is not settled anywhere: every smaller model of
+#   the shape tried sites alike in both ports.
 #
 # ---------------------------------------------------------------------

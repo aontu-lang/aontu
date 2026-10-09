@@ -5811,3 +5811,78 @@ pointer, `p_definitions_2f_…`, and keeps the `d_` names for `$defs`.
 - Pinned by `test/spec/jsonschema-upgrade.tsv`, the `import-dialect-*`
   rows of `test/spec/jsonschema-import.tsv` and the `jsonschema_dialect`
   row of `test/spec/errcodes.tsv`, in both ports.
+
+## ADR-062 — A recursive residual meets a kind, a disjunction and another residual
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+A reference that reaches its own definition is a recursive residual
+([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)): it expands
+one level against concrete structure and otherwise waits beside
+whatever it meets. Imported, the 2020-12 meta-schema is a dialect alias
+whose value is the meet of its vocabularies' aliases, each a titled
+`boolean|{...}` recursive through `$dynamicRef: "#meta"`, with
+`(boolean|map)` for its `type`. Every residual there met a kind or a
+disjunction, never structure, so each waited for ever: a `meta()` or
+`ident()` over one never resolved, and the meta-schema stopped at
+`incomplete conjunct@$` in both ports, its nested schemas never checked.
+The waiting also cost: residuals beside disjunctions were distributed
+again on every pass, so Go never finished `%V = %A & %B & (boolean|map)`
+with `%A` and `%B` recursive, and TypeScript refused it `empty` when its
+revisit budget fired inside the disjunction's trials.
+
+### Decision
+
+1. **A kind expands a residual one level**, as structure does: `map`,
+   `list`, `boolean` and the other scalar kinds each pick among the
+   definition's branches. The level is charged to the depth budget.
+2. **A disjunction distributes over a residual**, so each branch meets
+   it, and a branch that is a kind or structure expands it.
+3. **A residual beside another residual, or beside any settled peer,
+   is a settled meet.** It still waits for data, and a rider over it
+   resolves.
+4. **A conjunction holds one residual per target**: a fixpoint met
+   again is itself.
+5. **A reference to a recursive alias keeps its name.** An alias
+   renders as its declaration unless that declaration reaches the alias
+   again, through each reference's own target and each alias's
+   residual; then every reference to it prints its name, `%V`, and so
+   does a residual of it, which printed `$.%V`, a spelling the language
+   refuses. The decision is the alias's, whatever values a port shares
+   and whether a reference has resolved yet, and it is made for the
+   declarations and for the operands of each refusal as for the tree.
+   It replaces expanding a recursive alias once and naming only the
+   reference that closed the cycle: which reference that was depended
+   on the order references resolved in, and the ports differ there.
+
+Termination keeps its argument. An expansion at a kind consumes no
+data, but the kind sits at the definition's own top level, so the
+residuals in the level it unrolls sit under fields and meet only what
+reaches them there; a definition meeting itself directly, `%T = %T &
+map`, is the shape the depth budget already catches.
+
+### Consequences
+
+- The 2020-12 meta-schema, imported through a map-rooted wrapper,
+  checks a schema at every depth in both ports: `{"allOf": [{"type":
+  "strin"}]}` is refused at `$.allOf.0`. TypeScript takes about half a
+  second and Go about a tenth.
+- Found on the way, each fixed: a rider resolved against the root's
+  declarations kept its declaration's path in TypeScript and was
+  refused `alias_not_toplevel`; Go placed a spread's copy one level too
+  deep, kept a grouped disjunction's first member as its site, dropped
+  a waiting call's file and excerpt, shallow-copied a recursion level,
+  and named a deprecation by the value's own path. A `vet` path spells
+  an alias without its scope, as a message does.
+- The canon of a recursive alias changes with decision 5: `payload:
+  %json` canons as `{&:%json,...}` where it expanded the template once,
+  and the direct cycle `%a = %a` is refused as `Cannot recurse value:
+  %a`. Such a canon still does not reparse (use-cases/BUGS.md §82).
+- One divergence stays, in the ledger: which vocabulary's `ident()`
+  sites an operand the meta-schema's vocabularies met to make.
+- Pinned by rows in `test/spec/recursion.tsv`, `test/spec/alias.tsv`,
+  `test/spec/deprecate.tsv` and `test/spec/disjunct.tsv`, in both
+  ports.

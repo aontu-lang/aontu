@@ -188,9 +188,13 @@ function norm(terms) {
         expand.sort((a, b) => a.cjo - b.cjo);
     }
     // console.log('NORM', expand.map(t => t.canon).join(', '))
-    // A repeated waiting match adds nothing, and each list meet doubled it.
+    // A repeated waiting match adds nothing, nor a residual met again.
     const seen = new Set();
-    return expand.filter((t) => true !== t.isMatchFunc || true === t.done ||
-        seen.size !== seen.add(t.canon).size);
+    return expand.filter((t) => {
+        const key = true === t.isRecurse ?
+            '\u0000' + t.target.join('\u0000') :
+            true === t.isMatchFunc && true !== t.done ? t.canon : undefined;
+        return undefined === key || seen.size !== seen.add(key).size;
+    });
 } /* node:coverage ignore next 7 */
 //# sourceMappingURL=ConjunctVal.js.map

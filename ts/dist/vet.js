@@ -14,6 +14,7 @@ const aontu_1 = require("./aontu");
 const node_path_1 = require("node:path");
 const err_1 = require("./err");
 const hints_1 = require("./hints");
+const aliasname_1 = require("./aliasname");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const walk_1 = require("./walk");
 const BagVal_1 = require("./val/BagVal");
@@ -57,7 +58,7 @@ function roleOf(file, prov) {
     return prov.data.has(file) ? 'data' : 'schema';
 }
 function pathText(path) {
-    return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '');
+    return '$' + (null != path && 0 < path.length ? '.' + path.map((p) => 'string' === typeof p ? (0, aliasname_1.aliasPathSegment)(p) : p).join('.') : '');
 }
 function siteOf(v, prov) {
     if (null == v) {

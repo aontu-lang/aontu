@@ -4,7 +4,6 @@ package aontu
 
 import (
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -208,98 +207,140 @@ func aliasErrors(ctx *Ctx, root Val) error {
 	return &AontuError{Msg: ctx.errmsg(), Code: "no_path"}
 }
 
-func expandAliases(root Val, snapmap map[string]Val) {
+func expandAliases(root Val, snapmap map[string]Val, errs []*NilVal) {
 	rm, ok := root.(*MapVal)
 	if !ok {
 		return
 	}
+	targetOf := func(ref *RefVal, key string) Val {
+		if target, snapped := snapmap[refSnapKey(ref)]; snapped {
+			return target
+		}
+		return rm.peg[key]
+	}
+
+	// Whether v holds a reference to the alias, through each reference's
+	// own target in turn. A reference to an alias that reaches itself
+	// keeps its name, as the residual it resolves to does: no rendering
+	// loops, and none depends on whether the reference has resolved yet.
+	var reaches func(v Val, key string, met map[Val]bool) bool
+	reaches = func(v Val, key string, met map[Val]bool) bool {
+		if nil == v || met[v] {
+			return false
+		}
+		met[v] = true
+		if ref, isRef := v.(*RefVal); isRef {
+			k, isAlias := ref.aliasKey()
+			return isAlias && (key == k || reaches(targetOf(ref, k), key, met))
+		}
+		// A residual of an alias stands for a reference to it.
+		if rec, isRec := v.(*RecurseVal); isRec && 1 == len(rec.target) &&
+			rm.isAliasKey(rec.target[0]) {
+			return key == rec.target[0] || reaches(rm.peg[rec.target[0]], key, met)
+		}
+		for _, kid := range renderKids(v) {
+			if reaches(kid, key, met) {
+				return true
+			}
+		}
+		return false
+	}
 
 	seen := map[Val]bool{}
-
-	var visit func(v Val, stack []string)
-	visit = func(v Val, stack []string) {
+	looped := map[aliasExpansion]bool{}
+	var visit func(v Val)
+	visit = func(v Val) {
 		if nil == v || seen[v] {
 			return
 		}
 		seen[v] = true
-
-		switch n := v.(type) {
-		case *RefVal:
-			key, isAlias := n.aliasKey()
-			if !isAlias {
-				return
+		ref, isRef := v.(*RefVal)
+		if !isRef {
+			for _, kid := range renderKids(v) {
+				visit(kid)
 			}
-			n.expansion = nil
-			for _, s := range stack {
-				if s == key {
-					return
-				}
-			}
-			target, snapped := snapmap[refSnapKey(n)]
-			if !snapped {
-				target = rm.peg[key]
-			}
-			if nil == target {
-				return
-			}
-			n.expansion = target
-			visit(target, append(append([]string{}, stack...), key))
-
-		case *MapVal:
-			// A declaration is reached through its references, each
-			// under its own name, never as a child: a self-reference
-			// inside it is a knot only from inside.
-			keys := make([]string, 0, len(n.keys))
-			for _, k := range n.keys {
-				if !n.isAliasKey(k) {
-					keys = append(keys, k)
-				}
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				visit(n.peg[k], stack)
-			}
-			if nil != n.spread {
-				visit(n.spread, stack)
-			}
-
-		case *ListVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-			if nil != n.spread {
-				visit(n.spread, stack)
-			}
-
-		case *ConjunctVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *DisjunctVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *FuncVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *PlusOpVal:
-			for _, e := range n.peg {
-				visit(e, stack)
-			}
-
-		case *PrefVal:
-			visit(n.peg, stack)
-
-		case *ExpectVal:
-			visit(n.peg, stack)
+			return
 		}
+		key, isAlias := ref.aliasKey()
+		if !isAlias {
+			return
+		}
+		target := targetOf(ref, key)
+		ref.expansion = target
+		if nil != target {
+			at := aliasExpansion{key, target}
+			loops, known := looped[at]
+			if !known {
+				loops = reaches(target, key, map[Val]bool{})
+				looped[at] = loops
+			}
+			if loops {
+				ref.expansion = nil
+			}
+		}
+		visit(target)
 	}
 
-	visit(root, nil)
+	// A refusal's operands render in its sites, wherever they were copied.
+	visit(root)
+	for _, k := range rm.aliasKeys {
+		visit(rm.peg[k])
+	}
+	for _, e := range errs {
+		visit(e.primary)
+		visit(e.secondary)
+	}
+}
+
+type aliasExpansion struct {
+	key    string
+	target Val
+}
+
+// renderKids are the values a rendering descends into, a map's
+// declarations aside.
+func renderKids(v Val) []Val {
+	switch n := v.(type) {
+	case *MapVal:
+		out := []Val{}
+		for _, k := range n.keys {
+			if !n.isAliasKey(k) {
+				out = append(out, n.peg[k])
+			}
+		}
+		if nil != n.spread {
+			out = append(out, n.spread)
+		}
+		return out
+	case *ListVal:
+		out := append([]Val{}, n.peg...)
+		if nil != n.spread {
+			out = append(out, n.spread)
+		}
+		return out
+	case *ConjunctVal:
+		return n.peg
+	case *DisjunctVal:
+		return n.peg
+	case *FuncVal:
+		return n.peg
+	case *PlusOpVal:
+		return n.peg
+	case *PrefVal:
+		return []Val{n.peg}
+	case *ExpectVal:
+		return []Val{n.peg}
+	case *ConstraintVal:
+		out := []Val{}
+		if nil != n.pending {
+			out = append(out, n.pending.args...)
+		}
+		for _, m := range n.musts {
+			out = append(out, m.v)
+		}
+		return append(out, n.settledTrials()...)
+	}
+	return nil
 }
 
 // AliasBinding is where a file binds a name, and what to show for it.

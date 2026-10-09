@@ -78,6 +78,20 @@ func overlayPath(dest, orig []string) []string {
 	return out
 }
 
+// clonePlace is where TS's Val.clone puts a copy given no destination
+// of its own, as its spreadClone re-paths a whole instance: the tail of
+// the original past a spread marker, or past the destination's depth.
+func clonePlace(dest, orig []string) []string {
+	cut := len(dest)
+	for i, s := range orig {
+		if "&" == s {
+			cut = i + 1
+			break
+		}
+	}
+	return append(cp(dest), orig[min(cut, len(orig)):]...)
+}
+
 func repathArg(v Val, base []string, settle bool) {
 	if fv, ok := v.(*FuncVal); ok && fv.name == "key" && settle {
 		return

@@ -215,7 +215,7 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	// The settled tree's alias references canon as the values they name
 	// (go/alias.go): attached once, after the last pass, from the
 	// snapshot store this run kept.
-	expandAliases(res, ctx.snapmap)
+	expandAliases(res, ctx.snapmap, ctx.err)
 	ctx.root = res
 	return res
 }

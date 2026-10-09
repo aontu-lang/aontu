@@ -1496,8 +1496,11 @@ doc: $.schema.Step & { label:"start" then:label:"finish" }
 
 The recursive position expands **one level per meet with concrete
 data**, so the checks descend exactly as far as the data does and no
-further. Data is finite, so evaluation terminates; the depth budget
-is the backstop (`recursion_budget`).
+further. A kind such as `map` or `boolean` met at the same position
+expands it one level too, since the kind picks among the definition's
+branches, and a disjunction meets it branch by branch. Data is finite,
+so evaluation terminates; the depth budget is the backstop
+(`recursion_budget`).
 
 **Guardedness is emergent: the data decides, never a static
 analysis.** Under an optional key (`then?:`) the chain ends where
@@ -1636,10 +1639,13 @@ spells it as the value it names, at any depth: `%u = integer` with
 same [`aon1-` hash](#canonical-form) as the file with `integer`
 written in the template. A template that reads its own position, such
 as `%row = {name: key()}`, canons as the template (`{"name":key()}`),
-not as what `key()` answered at the declaration. One reference keeps
-its name: a recursive alias's reference to itself inside its own
-template (`%json = null | boolean | number | string | [&: %json] |
-{&: %json}`), which no finite text can write out. Such a document
+not as what `key()` answered at the declaration. A recursive alias
+keeps its name: a reference to an alias whose declaration reaches it
+again, such as `%json = null | boolean | number | string | [&: %json]
+| {&: %json}`, canons as `%json` wherever it stands, since no finite
+text can write the alias out. With `payload: %json` and
+`payload: {user: {id: 1}}` the canon is
+`{"payload":{&:%json,"user":{&:%json,"id":1}}}`. Such a document
 generates and hashes, and its canon is the same in both
 implementations, but the canon does not reparse on its own.
 
