@@ -755,6 +755,9 @@ func opaqueNote(g *ConstraintVal) string {
 	if 0 < len(g.whens) {
 		return "a conditional over trial schemas (when) makes the admitted set opaque"
 	}
-	return "a count of the members a trial schema admits (contains) makes the " +
-		"admitted set opaque"
+	if 0 < len(g.contains) {
+		return "a count of the members a trial schema admits (contains) makes the " +
+			"admitted set opaque"
+	}
+	return "a check of the members no cover evaluates (rest) makes the admitted set opaque"
 }

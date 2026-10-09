@@ -134,10 +134,13 @@ alias-budget-under-the-cap	gens	%b0 = 1\n%b1 = [%b0, %b0]\n%b2 = [%b1, %b1]\n%b3
 budget-trials-boundary-in	gens	x:@"__FIXTURES__/trials-boundary-in.aontu"	{"x":{"done":1}}
 budget-trials-boundary-out	errc	x:@"__FIXTURES__/trials-boundary-out.aontu"	trial_budget
 # A trial asked once the budget is spent is refused wherever it is
-# asked, here at a when()'s condition and at a must(), after the members
-# above spend it.
+# asked, here at a when()'s condition, at a must() and at each trial of a
+# rest(), after the members above spend it.
 budget-trials-when-condition-past-the-budget	errc	x:@"__FIXTURES__/trials-boundary-in.aontu", w: when(number, number) & 1	trial_budget
 budget-trials-must-past-the-budget	errc	x:@"__FIXTURES__/trials-boundary-in.aontu", w: must(number, "m") & 1	trial_budget
+budget-trials-rest-cover-if-past-the-budget	errc	x:@"__FIXTURES__/trials-boundary-in.aontu", r: rest(nil, {if: number}) & {a: 1}	trial_budget
+budget-trials-rest-cover-keys-past-the-budget	errc	x:@"__FIXTURES__/trials-boundary-in.aontu", r: rest(nil, {keys: "a"}) & {a: 1}	trial_budget
+budget-trials-rest-t-past-the-budget	errc	x:@"__FIXTURES__/trials-boundary-in.aontu", r: rest(number) & {a: 1}	trial_budget
 
 # The parse-depth bound: an entry source nested past twice the depth
 # budget, 2000 at the default, is refused with max_depth before it is

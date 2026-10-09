@@ -24,6 +24,7 @@ var funcSet = map[string]bool{
 	"nof":       true,
 	"when":      true,
 	"contains":  true,
+	"rest":      true,
 	"deprecate": true,
 	"meta":      true,
 	"ident":     true,
@@ -93,6 +94,7 @@ func derivePositional() map[string]bool {
 	}
 	// A trial schema may be a list, so the count is read by position.
 	out["contains"] = true
+	out["rest"] = true
 	return out
 }
 
@@ -112,9 +114,9 @@ func deriveArity() map[string][2]int {
 		min, max := 0, 0
 		for _, a := range sig.Args {
 			if a.Rest {
-				if nil == a.Group {
+				if !a.Opt && nil == a.Group {
 					min++
-				} else {
+				} else if !a.Opt {
 					min += len(a.Group)
 				}
 				max = -1

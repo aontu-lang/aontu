@@ -18,7 +18,7 @@ import (
 // ts/test/jsonschema-annotations.test.ts: the schema is imported, met
 // with the instance, and the riders at each asserted location are read.
 
-const annotationSkipBound = 41
+const annotationSkipBound = 28
 
 var annotationKey = map[string]string{
 	"title": "title", "description": "description", "$comment": "comment",

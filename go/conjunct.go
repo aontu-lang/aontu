@@ -195,5 +195,17 @@ func norm(terms []Val) []Val {
 	sort.SliceStable(expand, func(i, j int) bool {
 		return expand[i].cjo() < expand[j].cjo()
 	})
-	return expand
+	// A repeated waiting match adds nothing, and each list meet doubled it.
+	seen := map[string]bool{}
+	out := expand[:0]
+	for _, t := range expand {
+		if f, ok := t.(*FuncVal); ok && "match" == f.name && DONE != f.Dc() {
+			if seen[f.Canon()] {
+				continue
+			}
+			seen[f.Canon()] = true
+		}
+		out = append(out, t)
+	}
+	return out
 }

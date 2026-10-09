@@ -1347,7 +1347,7 @@ Landed 2026-10-09; the register records the departures.
 **Phase 12: evaluated coverage (L).** `rest(t, ...cover)`, the coverage
 records the importer writes, the branch hoisting that shares them with
 `nof` and `when`, and both `unevaluated*` keywords in both directions,
-with its ADR.
+with its ADR. Landed 2026-10-09; the register records the departures.
 
 **Phase 13: format assertion (L).** `format(g)`, taking a grammar or a
 committed name, with `format_unknown` and `format_grammar`; the

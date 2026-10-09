@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 69 built-in functions and no user-defined ones. The name set
+aontu has 70 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,9 +217,9 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 59 of the 69 names, and 49 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 51 of the 69 use no
-mode but `value`, and 18 carry at least one slot in another mode.
+in 59 of the 70 names, and 49 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 51 of the 70 use no
+mode but `value`, and 19 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
@@ -246,9 +246,10 @@ with the slot, and where the semantics are specified:
   [Ordering: `sort`](reference-language.md#ordering-sort),
   [`unique` semantics](reference-language.md#unique-semantics), and
   [Declared relations](reference-language.md#declared-relations).
-- `trial`, eight slots: `must`'s check, `filter`'s condition, the odd
+- `trial`, ten slots: `must`'s check, `filter`'s condition, the odd
   members of `match`'s rest group, `nof`'s rest group of trial
-  schemas, all three of `when`'s, and `contains`'s first. The argument
+  schemas, all three of `when`'s, `contains`'s first, and both of
+  `rest`'s, its schema and its rest group of covers. The argument
   is unified against a
   candidate in a sandbox with an error sink of its own, and the sandbox
   is discarded afterwards, so a failed trial is a false answer rather
@@ -258,7 +259,8 @@ with the slot, and where the semantics are specified:
   [Band B: `must`](reference-language.md#band-b-must),
   [Band B: `nof`](reference-language.md#band-b-nof),
   [Band B: `when`](reference-language.md#band-b-when),
-  [Band B: `contains`](reference-language.md#band-b-contains), and
+  [Band B: `contains`](reference-language.md#band-b-contains),
+  [Band B: `rest`](reference-language.md#band-b-rest), and
   [Sizing atoms fold last](reference-language.md#sizing-atoms-fold-last).
 - `text`, four slots in three names: `re`'s pattern, `must`'s message,
   and `rep`'s pattern and substitution. The slot settles to a string
@@ -363,6 +365,7 @@ documentation page and fails on a difference of one space.
 | `rel(template t?: any) : constraint` | `0..1` | `template` | `constraint` |
 | `rem(a: number, b: number) : number` | `2` | `value` | `number` |
 | `rep(s: string, text p: string, text sub: string) : string` | `3` | `value`, `text` | `string` |
+| `rest(trial t: any, ...c?: (trial map)) : constraint` | `1..n` | `trial` | `constraint` |
 | `slot(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `sort(d: map\|list, projector k?: string\|integer, dir?: string) : list` | `1..3` | `value`, `projector` | `list` |
 | `split(s: string, sep: string\|constraint) : list` | `2` | `value` | `list` |
@@ -384,7 +387,7 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 69 names, cut by result word, by rest slot, and by optional
+The same 70 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -393,7 +396,7 @@ The ten result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 18 | `above`, `acyclic`, `below`, `contains`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `unique`, `when` |
+| `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -403,7 +406,7 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the eighteen that answer `constraint`, including which
+The algebra of the nineteen that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written
@@ -419,21 +422,23 @@ with `split`, which answers `list`:
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Four names take a rest slot, spelled `...` in the declaration. `neq`
+Five names take a rest slot, spelled `...` in the declaration. `neq`
 takes one or more single values and has a floor of one. `nof` takes its
 count and then one or more trial schemas, so its floor is two, and
 `meta` takes its value and then one or more records, so its floor is
-two as well. `match` takes a
+two as well. `rest` takes its trial schema and then any number of cover
+records, the slot marked `?`, so its floor is one. `match` takes a
 repeating pair whose first member is the pattern and whose second is the
 answer, and the pair's length counts toward the floor, which is why the
 floor is three: a scrutinee, a pattern, and an answer. `match` is
 specified at [Selecting: `filter` and
 `match`](reference-language.md#selecting-filter-and-match), `neq` at
 [The constraint algebra](reference-language.md#the-constraint-algebra),
-`nof` at [Band B: `nof`](reference-language.md#band-b-nof), and `meta`
-at [Annotations: `meta`](reference-language.md#annotations-meta).
+`nof` at [Band B: `nof`](reference-language.md#band-b-nof), `rest` at
+[Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
+[Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-seven names have at least one optional slot. `must` is the one
+Twenty-eight names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

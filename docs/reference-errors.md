@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **185** codes across
+There are seven classes, and the registry holds **186** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 56 | the text is not a document |
-| `conflict` | 60 | two values cannot both hold |
+| `conflict` | 61 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 29 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 185 codes have hint text. `aontu explain --list`
+**Hint text.** All 186 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -298,6 +298,7 @@ twenty rows have no such section and carry no link.
 | `render_strict` | 0.58.0 | An opaque escape, which the renderer cannot check, under strict rendering. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `replace_value` | 0.58.0 | A replacement value is not text by the time the dispatch fires. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `resolve` | 0.51.0 | The value could not be resolved. |
+| `rest` | 0.77.0 | A member of the value that no applying cover of a `rest()` evaluates is not one its trial schema admits; the finding names the member's key. ([Band B: `rest`](reference-language.md#band-b-rest)) |
 | `scalar-type` | 0.51.0 | Two scalar kinds where neither contains the other. ([Unification rules](reference-language.md#unification-rules)) |
 | `scalar_kind` | 0.51.0 | Two literal scalars of different kinds. ([Unification rules](reference-language.md#unification-rules)) |
 | `scalar_value` | 0.51.0 | Two literal scalars of the same kind that are not equal. ([Unification rules](reference-language.md#unification-rules)) |

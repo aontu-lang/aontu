@@ -74,8 +74,10 @@ function opaqueNote(g: any): string {
       'a count of trial schemas (nof) makes the admitted set opaque' :
       0 < g.whens.length ?
         'a conditional over trial schemas (when) makes the admitted set opaque' :
-        'a count of the members a trial schema admits (contains) makes the ' +
-        'admitted set opaque'
+        0 < g.contains.length ?
+          'a count of the members a trial schema admits (contains) makes the ' +
+          'admitted set opaque' :
+          'a check of the members no cover evaluates (rest) makes the admitted set opaque'
 }
 
 

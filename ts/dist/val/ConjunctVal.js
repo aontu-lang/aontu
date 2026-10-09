@@ -188,6 +188,9 @@ function norm(terms) {
         expand.sort((a, b) => a.cjo - b.cjo);
     }
     // console.log('NORM', expand.map(t => t.canon).join(', '))
-    return expand;
+    // A repeated waiting match adds nothing, and each list meet doubled it.
+    const seen = new Set();
+    return expand.filter((t) => true !== t.isMatchFunc || true === t.done ||
+        seen.size !== seen.add(t.canon).size);
 } /* node:coverage ignore next 7 */
 //# sourceMappingURL=ConjunctVal.js.map

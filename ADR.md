@@ -86,6 +86,7 @@ capability decision is the phase rows it governed in
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
 | [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
+| [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
 
 ---
 
@@ -5375,3 +5376,74 @@ The [G12](docs/capability-review/g12-jsonschema-fidelity.md) design
   `test/spec/meta.tsv`, the `dynamicAnchor` rows of `test/spec/ident.tsv`
   and the `alias-root-reference-mutual-recursion*` rows of
   `test/spec/alias.tsv`, in both ports.
+
+
+## ADR-058 — Unevaluated members are checked by `rest()`
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `unevaluatedProperties` and `unevaluatedItems`
+apply a schema to the members no other keyword evaluated, and a member
+counts as evaluated by a subschema only where that subschema passed:
+which `anyOf` branch, `then` or `else` holds decides the set. A spread
+covers what `additionalProperties` and `items` say, the members the
+object's own keywords leave over, but nothing in aontu asks which
+members a passing branch reached. The
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+(phase 12) chose a Band B atom for it.
+
+### Decision
+
+1. **`rest(t, ...c?)` holds each member no applying cover evaluates to
+   the trial schema `t`**, `nil` admitting none. It is checked at
+   generation, with the members settled, and a refusal is the new code
+   `rest`, class `conflict`. A scalar has no members.
+2. **A cover is a record of trial schemas**: `if` over the whole
+   container, `keys` over a member's key, a list member's being its
+   index as a string, and `members` over the member, each required and
+   none other. A cover applies where its `if` admits the container, and
+   evaluates a member its `keys` or its `members` admits. Every trial
+   sits at the atom's path, in a spread at each instance's.
+3. **Covers are canon-sorted and written once.** A trial that conflicts
+   is `nil`, so a cover whose `if` conflicts never applies. Two atoms on
+   one value both hold, and the atom is opaque to subsumption, as `nof`
+   is.
+4. **The importer collects the covers a schema's keywords and in-place
+   subschemas give**: `allOf`, `$ref` and `$dynamicRef` under the same
+   condition, an `anyOf` or `oneOf` branch under itself, `then` under
+   `if`, `else` under its negation, a `dependentSchemas` member under
+   its key's presence. `not` gives none. `additionalProperties`, `items`
+   or a nested `unevaluated*` evaluates every member. With no cover that
+   depends on the value, the keyword is the guarded spread
+   `additionalProperties` would be; otherwise it is `rest`.
+5. **The exporter writes `rest` as an `allOf` member whose own keywords
+   evaluate what its covers do**: `properties`, `patternProperties`,
+   `prefixItems`, `items` or `additionalProperties`, and `contains` with
+   `minContains: 0`. A condition rides `not: {not: …}` in an `anyOf` with
+   `true`, which validates as the condition and keeps its annotations
+   out, and the member's `unevaluated*` keyword is `t`. A cover no
+   keyword evaluates exactly drops the check, as a loss.
+
+### Consequences
+
+- 1,841 of the official suite's 2,337 tests pass in both ports, where
+  1,768 did, and its ledger shrinks from 123 rows to 50. The annotation
+  harness passes 56 of 84; under a conditional cover `t` is a trial,
+  whose annotations stay with its atom (open question 9).
+- An optional rest argument now counts zero toward a signature's arity,
+  so `rest(nil)` is a container that admits no member.
+- Five engine defects the suite found are fixed in both ports. A
+  settled atom meeting one still waiting on its arguments dropped the
+  waiting one's checks. A trial beside a kind it does not narrow,
+  `len(min(1)) & list`, was never tried. Two atoms waiting on one trial
+  cycled. `vet` reported a guarded spread's `nil` arm under an absent
+  optional key. A repeated waiting `match` doubled at every list meet,
+  until TypeScript refused the value with `unify_cycle`.
+- Pinned by `test/spec/rest.tsv`, the `import-unevaluated-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-rest-*` rows of
+  `test/spec/jsonschema.tsv`, and rows in `constraint-nof.tsv`,
+  `constraint-must.tsv`, `constraint-when.tsv`, `gen-match.tsv`,
+  `vet.tsv` and `budget.tsv`, in both ports.

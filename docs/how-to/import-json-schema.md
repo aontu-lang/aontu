@@ -130,23 +130,23 @@ member the data left out, where JSON Schema reports it missing.
 
 ## Read the loss report
 
-A keyword the importer does not carry yet is dropped and reported on
+A keyword the importer does not carry is dropped and reported on
 stderr, so `aontu jsonschema import s.json > s.aontu` writes a usable
-document and still says what it left behind. A validation keyword such
-as `unevaluatedProperties` widens the schema, and the report says so.
-`--strict` turns any loss into exit 1, for a pipeline that must not
+document and still says what it left behind. A keyword of an earlier
+dialect, such as `dependencies`, widens the schema, and the report says
+so. `--strict` turns any loss into exit 1, for a pipeline that must not
 accept a widened schema. Write `email.json`:
 
 <!-- test: file email.json -->
 ```json
-{"type": "object", "properties": {"email": {"type": "string", "format": "email", "title": "Email"}}, "unevaluatedProperties": false}
+{"type": "object", "properties": {"email": {"type": "string", "format": "email", "title": "Email"}}, "dependencies": {"email": ["name"]}}
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict email.json
 email?: meta(empty(), { format:"email" title:"Email" })
-lossy: #/unevaluatedProperties unevaluatedProperties: the importer does not carry this keyword yet, so it is dropped and the position admits more than the schema does
+lossy: #/dependencies dependencies: a keyword of an earlier dialect, which 2020-12 does not define, so it is dropped and the position admits more than that dialect does
 vet with: aontu vet --no-fill --exact-numbers <document> <data>
 $ echo $?
 1
@@ -210,6 +210,11 @@ port?: *8080|meta(number & multiple(1), {
 - `contains` imports as `contains(c, n)` on the list, with `minContains`
   and `maxContains` as its count, and `uniqueItems` as `unique()`, which
   compares numbers by value under `vet --exact-numbers`.
+- `unevaluatedProperties` and `unevaluatedItems` import as the spread
+  `additionalProperties` would be where no branch decides what is
+  evaluated. Where an `anyOf`, `oneOf`, `if` or `dependentSchemas`
+  branch does, they are `rest(t, …)`, which holds each member no passing
+  branch evaluates to `t`.
 - A reference is an alias only where the schema's root is an object
   schema with `type: "object"`, whatever annotations, deprecation or
   counts it carries beside its properties. Any other root copies each

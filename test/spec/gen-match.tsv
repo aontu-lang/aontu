@@ -61,3 +61,7 @@ match-list-spread-pattern-hits	gens	x:match([1,2],[&:integer],"hit","miss")	{"x"
 match-absent-key-is-a-miss	gens	m:match({n:"b"},{pk:true},"hit","miss")	{"m":"miss"}
 match-disjunct-whole-still-hits	gens	m:match(free|pro|enterprise,free,1,pro,2,enterprise,3)	{"m":1}
 match-unfilled-optional-is-not-a-member	gens	m:match({},{a?:integer},"hit","miss")	{"m":"hit"}
+# A waiting match is a function of its arguments and its key, so a
+# second of one canon in a meet at one place is written once.
+match-a-repeated-waiting-match-is-one	canon	a: {&: match(key(0), "x", any, any)} & {&: match(key(0), "y", any, any)} & {&: match(key(0), "x", any, any)}	{"a":{&:match(key(0),"x",any,any)&match(key(0),"y",any,any)}}
+match-a-repeated-waiting-list-match-is-one	canon	a: [&: match(key(0), "0", any, any)] & [&: match(key(0), "1", any, any)] & [&: match(key(0), "0", any, any)]	{"a":[&:match(key(0),"0",any,any)&match(key(0),"1",any,any)]}

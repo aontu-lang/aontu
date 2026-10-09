@@ -6,6 +6,7 @@ package aontu
 import (
 	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,6 +37,11 @@ type constraintWhen struct {
 type constraintContains struct {
 	c     Val            // the trial schema a member must meet
 	count *ConstraintVal // over the integers, at least one unless written
+}
+
+type constraintRest struct {
+	t      Val   // the trial schema a member no cover evaluates must meet
+	covers []Val // cover records, canon-sorted, each canon once
 }
 
 type constraintPending struct {
@@ -450,6 +456,8 @@ type ConstraintVal struct {
 	whens []constraintWhen
 	// contains are member counts, canon-sorted, each canon once.
 	contains []constraintContains
+	// rests are evaluated-coverage checks, canon-sorted, each canon once.
+	rests []constraintRest
 	// pending holds an atom whose arguments have not settled yet (G1
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
@@ -473,17 +481,22 @@ type ConstraintVal struct {
 const sizingCjo = 150000
 
 func lateAtom(atom string) bool {
-	return "len" == atom || "unique" == atom || "contains" == atom || bandB[atom]
+	return "len" == atom || "unique" == atom || "contains" == atom || "rest" == atom || bandB[atom]
 }
 
 var bandB = map[string]bool{"must": true, "nof": true, "when": true}
 
 // trialAtoms are the atoms whose arguments are trial schemas, which may
 // not move.
-var trialAtoms = map[string]bool{"must": true, "nof": true, "when": true, "contains": true}
+var trialAtoms = map[string]bool{"must": true, "nof": true, "when": true, "contains": true, "rest": true}
+
+// coverKeys are what a cover record of rest() may hold: the condition on
+// the whole value, and the trial schemas of the keys and members it
+// evaluates.
+var coverKeys = []string{"if", "keys", "members"}
 
 func (c *ConstraintVal) bandBs() int {
-	return len(c.musts) + len(c.nofs) + len(c.whens)
+	return len(c.musts) + len(c.nofs) + len(c.whens) + len(c.rests)
 }
 
 func (c *ConstraintVal) cjo() int {
@@ -501,7 +514,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "unique": true, "must": true, "multiple": true,
-	"nof": true, "when": true, "contains": true,
+	"nof": true, "when": true, "contains": true, "rest": true,
 }
 
 // orderableScalar reports the algebra domain of a scalar: numeric
@@ -651,6 +664,25 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		return c
 	}
 
+	// A cover that conflicts evaluates nothing, as its condition admits
+	// nothing; any other record holds only the cover keys, each a schema.
+	if "rest" == atom {
+		covers := []Val{}
+		for _, r := range args[1:] {
+			if r.Nil() {
+				continue
+			}
+			m, ok := r.(*MapVal)
+			if !ok || nil != m.spread || 0 < len(m.optional) ||
+				slices.ContainsFunc(m.keys, func(k string) bool { return !slices.Contains(coverKeys, k) }) {
+				return bad("invalid-arg")
+			}
+			covers = append(covers, r)
+		}
+		c.rests = []constraintRest{{t: args[0], covers: canonUnique(covers)}}
+		return c
+	}
+
 	if "when" == atom {
 		w := constraintWhen{c: args[0], t: args[1]}
 		if 3 == len(args) {
@@ -765,7 +797,11 @@ func (c *ConstraintVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer.Nil() {
 		return peer
 	}
+	// A waiting peer has no state yet to merge: it settles against c.
 	if pc, ok := peer.(*ConstraintVal); ok {
+		if nil != pc.pending {
+			return pc.settle(c, ctx)
+		}
 		return c.meetConstraint(pc, ctx)
 	}
 	if pk, ok := peer.(*ScalarKindVal); ok {
@@ -785,24 +821,38 @@ func (c *ConstraintVal) Unify(peer Val, ctx *Ctx) Val {
 		if "" != c.domain {
 			return c.fail(ctx, peer)
 		}
-		return newConjunct([]Val{c, peer})
+		return c.beside(peer)
 	}
 	//coverage:ignore-block no Val kind reaches this arm; see above
 	return c.fail(ctx, peer)
 }
 
+// beside is the residual next to a kind it does not narrow: it waits for
+// an instance and moves no further, so it is settled, as a trial argument
+// must be.
+func (c *ConstraintVal) beside(peer Val) Val {
+	out := newConjunct([]Val{c, peer})
+	if DONE == c.Dc() && DONE == peer.Dc() {
+		out.dc = DONE
+	}
+	return out
+}
+
 func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
-	settled := true
+	settled, moved := true, false
 	args := make([]Val, 0, len(c.pending.args))
 	for i, arg := range c.pending.args {
 		next := arg
-		if ("nof" == c.pending.atom && 0 < i) || "when" == c.pending.atom ||
+		if "rest" == c.pending.atom && 0 < i {
+			next = coverArg(ctx, arg, c.path)
+		} else if ("nof" == c.pending.atom && 0 < i) || "when" == c.pending.atom || "rest" == c.pending.atom ||
 			("contains" == c.pending.atom && 0 == i) {
 			next = trialArg(ctx, arg)
 		} else if DONE != arg.Dc() {
 			next = arg.Unify(top(), ctx)
 		}
 		settled = settled && DONE == next.Dc()
+		moved = moved || next.Canon() != arg.Canon()
 		args = append(args, next)
 	}
 
@@ -821,6 +871,11 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 
 	c.notdone()
 
+	// Where nothing moved the atom is still this one, so a meet beside
+	// another waiting atom sees no progress, not a new term.
+	if !moved {
+		built = c
+	}
 	if nil == peer || isTop(peer) {
 		return built
 	}
@@ -954,6 +1009,69 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx) Val {
 	return nil
 }
 
+// checkRests holds every member no cover evaluates to the atom's own
+// schema (ADR-058): a cover whose condition admits the settled peer
+// evaluates each member its keys or members schema admits.
+func (c *ConstraintVal) checkRests(bag Val, optional []string, peer Val, ctx *Ctx) Val {
+	if 0 == len(c.rests) {
+		return nil
+	}
+	own, ok := ownJSON(peer, ctx, c.path)
+	keys, members := emittedEntries(bag, optional, ctx)
+	if !ok || nil == members {
+		return nil
+	}
+	admits := func(trial, v Val, json any) (bool, bool) {
+		if nil == trial {
+			return false, true
+		}
+		return admitsSettled(ctx, trial, v, json, c.path)
+	}
+	for _, r := range c.rests {
+		applying := []*MapVal{}
+		for _, cv := range r.covers {
+			m := cv.(*MapVal)
+			holds, ok := true, true
+			if cond, has := m.peg["if"]; has {
+				holds, ok = admits(cond, peer, own)
+			}
+			if !ok {
+				return c.overBudget(ctx, peer)
+			}
+			if holds {
+				applying = append(applying, m)
+			}
+		}
+		for i, member := range members {
+			mown, _ := ownJSON(member, ctx, c.path)
+			covered, ok := false, true
+			for _, m := range applying {
+				covered, ok = admits(m.peg["keys"], newString(keys[i]), keys[i])
+				if ok && !covered {
+					covered, ok = admits(m.peg["members"], member, mown)
+				}
+				if !ok || covered {
+					break
+				}
+			}
+			if ok && !covered {
+				covered, ok = admits(r.t, member, mown)
+			}
+			if !ok {
+				return c.overBudget(ctx, peer)
+			}
+			if !covered {
+				return makeNilErrFull(ctx, "rest", c, peer, "", map[string]string{
+					"expected": restCanon(r),
+					"actual":   peer.Canon(),
+					"key":      keys[i],
+				})
+			}
+		}
+	}
+	return nil
+}
+
 // checkNofs tries every branch against the settled peer: the number
 // that admit it must be one the count admits.
 func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx) Val {
@@ -1038,6 +1156,9 @@ func (c *ConstraintVal) admitContainerFinal(
 			return bad
 		}
 		if bad := c.checkWhens(peer, ctx); nil != bad {
+			return bad
+		}
+		if bad := c.checkRests(bag, optional, peer, ctx); nil != bad {
 			return bad
 		}
 	}
@@ -1191,7 +1312,7 @@ func (c *ConstraintVal) meetKind(peer *ScalarKindVal, ctx *Ctx) Val {
 		// the boolean kind stays beside a residual that holds only those.
 		if "" == c.domain && nil == c.count && !c.uniq &&
 			0 == len(c.uniqBy)+len(c.contains) {
-			return newConjunct([]Val{c, peer})
+			return c.beside(peer)
 		}
 	case KindInteger, KindFloat, KindBigInteger, KindBigDecimal:
 		if "string" == c.domain {
@@ -1257,6 +1378,7 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.nofs = mergeNofs(append(append([]constraintNof{}, c.nofs...), peer.nofs...))
 	merged.whens = mergeWhens(append(append([]constraintWhen{}, c.whens...), peer.whens...))
 	merged.contains = mergeContains(append(append([]constraintContains{}, c.contains...), peer.contains...))
+	merged.rests = mergeRests(append(append([]constraintRest{}, c.rests...), peer.rests...))
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
@@ -1338,6 +1460,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 	}
 	out.invalidWhy = c.invalidWhy
 	out.contains = append([]constraintContains{}, c.contains...)
+	out.rests = append([]constraintRest{}, c.rests...)
 	out.nonEmpty = c.nonEmpty
 	out.emptyOk = c.emptyOk
 	out.pathKind = c.pathKind
@@ -1441,6 +1564,9 @@ func (c *ConstraintVal) Canon() string {
 	for _, w := range c.whens {
 		parts = append(parts, whenCanon(w))
 	}
+	for _, r := range c.rests {
+		parts = append(parts, restCanon(r))
+	}
 	if c.emptyOk {
 		parts = append(parts, "empty()")
 	}
@@ -1489,7 +1615,48 @@ func (c *ConstraintVal) settledTrials() []Val {
 	for _, k := range c.contains {
 		out = append(out, k.c)
 	}
+	for _, r := range c.rests {
+		out = append(append(out, r.t), r.covers...)
+	}
 	return out
+}
+
+// canonUnique sorts by canon and keeps each canon once.
+func canonUnique(vals []Val) []Val {
+	out := []Val{}
+	for _, v := range canonSorted(vals) {
+		if 0 == len(out) || CanonRiders(out[len(out)-1]) != CanonRiders(v) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// mergeRests keeps each canon once, as mergeNofs does.
+func mergeRests(rests []constraintRest) []constraintRest {
+	byCanon := map[string]constraintRest{}
+	keys := []string{}
+	for _, r := range rests {
+		key := restCanon(r)
+		if _, has := byCanon[key]; !has {
+			keys = append(keys, key)
+		}
+		byCanon[key] = r
+	}
+	sort.Strings(keys)
+	out := make([]constraintRest, len(keys))
+	for i, key := range keys {
+		out[i] = byCanon[key]
+	}
+	return out
+}
+
+func restCanon(r constraintRest) string {
+	parts := []string{CanonRiders(r.t)}
+	for _, cv := range r.covers {
+		parts = append(parts, CanonRiders(cv))
+	}
+	return "rest(" + strings.Join(parts, ",") + ")"
 }
 
 // mergeContains keeps each canon once, as mergeNofs does.
@@ -1642,6 +1809,35 @@ func nofCounts(n constraintNof) []bool {
 	out := make([]bool, len(n.cs)+1)
 	for i := range out {
 		out[i] = stateAdmits(n.count, countVal(i))
+	}
+	return out
+}
+
+// coverArg settles a cover record of rest() member by member, each a
+// trial schema at the atom's path, so the record is never a value.
+func coverArg(ctx *Ctx, arg Val, path []string) Val {
+	m, ok := arg.(*MapVal)
+	if !ok {
+		return trialArg(ctx, arg)
+	}
+	if DONE == m.Dc() {
+		return m
+	}
+	out := &MapVal{keys: append([]string{}, m.keys...), peg: map[string]Val{},
+		spread: m.spread, optional: append([]string{}, m.optional...)}
+	out.site, out.path = m.site, m.path
+	done := true
+	for _, k := range m.keys {
+		at := m.peg[k]
+		if DONE != at.Dc() {
+			at = instanceClone(at, nil)
+			setPaths(at, path)
+		}
+		out.peg[k] = trialArg(ctx, at)
+		done = done && DONE == out.peg[k].Dc()
+	}
+	if done {
+		out.dc = DONE
 	}
 	return out
 }
@@ -2080,13 +2276,25 @@ func bagKeys(bag Val) []string {
 		sort.Strings(keys)
 		return keys
 	}
-	return make([]string, len(bag.(*ListVal).peg))
+	keys := make([]string, len(bag.(*ListVal).peg))
+	for i := range keys {
+		keys[i] = strconv.Itoa(i)
+	}
+	return keys
 }
 
 func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
+	_, out := emittedEntries(bag, optional, ctx)
+	return out
+}
+
+// emittedEntries is the members generation emits, each with its key, a
+// list's as its index.
+func emittedEntries(bag Val, optional []string, ctx *Ctx) ([]string, []Val) {
 	children := bagChildren(bag)
 	keys := bagKeys(bag)
 	out := []Val{}
+	outKeys := []string{}
 
 	m, _ := bag.(*MapVal)
 	for i, child := range children {
@@ -2106,7 +2314,7 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 			if opt {
 				continue
 			}
-			return nil
+			return nil, nil
 		}
 
 		// Generation decides in an isolated collect context, so an
@@ -2127,13 +2335,14 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 		// the finding, so the count does not decide on the members that
 		// remain.
 		if nil == cv && !opt && (nil != err || 0 < len(gctx.err)) {
-			return nil
+			return nil, nil
 		}
 		if nil != err || nil == cv {
 			// A child that generates nothing contributes nothing --
 			// except a JSON null, which is a member like any other.
 			if nil == err && nil == cv && gensNull(ctx, child) {
 				out = append(out, child)
+				outKeys = append(outKeys, keys[i])
 			}
 			continue
 		}
@@ -2142,9 +2351,10 @@ func emittedMembers(bag Val, optional []string, ctx *Ctx) []Val {
 		}
 
 		out = append(out, child)
+		outKeys = append(outKeys, keys[i])
 	}
 
-	return out
+	return outKeys, out
 }
 
 func tighterBound(domain string, a, b *constraintBound, lower bool) *constraintBound {

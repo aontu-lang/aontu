@@ -96,3 +96,14 @@ nof-beside-the-boolean-kind-refuses	errc	a: boolean & nof(0, true) & true	nof
 nof-number-domain-is-written	canon	a: number & nof(0, 5)	{"a":number&nof(0,5)}
 nof-number-domain-is-kept-on-reread	errc	a: number & nof(0, 5) & "x"	no_scalar_unify
 nof-without-a-domain-reads-any-scalar	gens	a: nof(0, 5) & "x"	{"a":"x"}
+#
+# An atom still waiting on its arguments keeps its check when it meets
+# a settled one, and a branch beside a kind it does not narrow is tried.
+nof-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & nof(1, {x: key()}) & {a: 1}	nof
+nof-a-branch-beside-the-list-kind-is-tried	errc	a: nof(0, len(min(1)) & list) & [1]	nof
+nof-a-branch-beside-a-kind-junction-is-tried	errc	a: nof(0, nof(1, any) & (boolean|list)) & [1]	nof
+nof-a-branch-beside-the-boolean-kind-is-tried	errc	a: nof(0, nof(0, 1) & boolean) & true	nof
+# A trial over a list that carries two spreads settles: the waiting
+# matches each meet repeats are kept once, where they doubled until the
+# meet refused with unify_cycle.
+nof-a-branch-beside-a-list-of-two-spreads-settles	gens	a: nof(1, [&: match(key(0), "0", any, any)] & nof(1, any)) & [&: match(key(0), "0", string, any)] & [&: match(key(0), "0", any, any)] & ["foo"]	{"a":["foo"]}

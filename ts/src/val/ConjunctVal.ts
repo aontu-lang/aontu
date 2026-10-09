@@ -278,8 +278,10 @@ function norm(terms: Val[]): Val[] {
 
   // console.log('NORM', expand.map(t => t.canon).join(', '))
 
-
-  return expand
+  // A repeated waiting match adds nothing, and each list meet doubled it.
+  const seen = new Set<string>()
+  return expand.filter((t: any) => true !== t.isMatchFunc || true === t.done ||
+    seen.size !== seen.add(t.canon).size)
 } /* node:coverage ignore next 7 */
 
 

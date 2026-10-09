@@ -631,6 +631,7 @@ help isolate the syntax error.`,
         nof: ConstraintVal_1.NofConstraintVal,
         when: ConstraintVal_1.WhenConstraintVal,
         contains: ConstraintVal_1.ContainsConstraintVal,
+        rest: ConstraintVal_1.RestConstraintVal,
         abnf: AbnfFuncVal_1.AbnfFuncVal,
         parse: AbnfFuncVal_1.ParseFuncVal,
         // G3 phase 4: the deprecation mark. Unification-transparent; the
@@ -1879,13 +1880,14 @@ for (const name of Object.keys(CmpFuncVal_1.CMP_FUNCS)) {
 POSITIONAL_ARG_FUNCS['nom'] = true;
 // A trial schema may itself be a list, so the count is read by position.
 POSITIONAL_ARG_FUNCS['contains'] = true;
+POSITIONAL_ARG_FUNCS['rest'] = true;
 POSITIONAL_ARG_FUNCS['translate'] = true;
 function sigArity(sig) {
     let min = 0;
     let max = 0;
     for (const a of sig.args) {
         if (true === a.rest) {
-            min += undefined === a.group ? 1 : a.group.length;
+            min += true === a.opt ? 0 : undefined === a.group ? 1 : a.group.length;
             max = -1;
         }
         else {

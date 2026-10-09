@@ -91,3 +91,8 @@ must-and-nof-one-refuse-alike-nof	errc	a:nof(1,{x:number}) a:{}	nof
 # A container is tried at generation, and one that does not generate is
 # reported by generation, not by the check.
 must-trial-leaves-a-value-that-does-not-generate	errc	a:must({},"m") a:{x:integer}	mapval_no_gen
+#
+# An atom still waiting on its arguments keeps its check when it meets
+# a settled one, and a trial beside a kind it does not narrow is tried.
+must-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & must({x: key()}, "m") & {a: 1}	must
+must-a-trial-beside-the-list-kind-is-tried	errc	a: must(len(max(0)) & list, "m") & [1]	must

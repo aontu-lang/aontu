@@ -78,7 +78,7 @@ name ::=
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "meta" | "min" | "mod" | "move"
   | "multiple" | "mul" | "must"
   | "neq" | "nof"
-  | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "re"
+  | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "rest" | "re"
   | "sort" | "split" | "super"
   | "sub" | "sum"
   | "type"

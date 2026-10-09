@@ -458,6 +458,10 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		extra = schemaContains(sc, path, out, extra, k, bag)
 	}
 
+	for _, r := range c.rests {
+		extra = schemaRest(sc, path, extra, r, bag)
+	}
+
 	for _, m := range c.musts {
 		extra = append(extra, schemaFromVal(sc, path, m.v))
 	}
@@ -540,6 +544,177 @@ func schemaContains(sc *schemaCtx, path []string, out map[string]any, extra []an
 		out[key] = v
 	}
 	return extra
+}
+
+var schemaIndexName = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
+
+const schemaCoverLost = "JSON Schema evaluates a member only by its name, a pattern of " +
+	"its name, its index in a prefix or its match of contains, so a check whose " +
+	"cover reaches past these is DROPPED and the schema admits members the model refuses"
+
+// schemaRest writes rest() (ADR-058) as an allOf member whose own keywords
+// evaluate what its covers do, so its unevaluated keyword sees those and
+// no more. A condition rides `not: {not: …}`, which keeps its own
+// annotations out.
+func schemaRest(sc *schemaCtx, path []string, extra []any, r constraintRest, bag string) []any {
+	kinds := []string{bag}
+	if "" == bag {
+		kinds = []string{"map", "list"}
+	}
+	part := map[string]any{}
+	var branches []any
+	for _, cv := range r.covers {
+		c := cv.(*MapVal)
+		kw := map[string]any{}
+		for _, kind := range kinds {
+			if !schemaCover(sc, path, c, kind, kw) {
+				sc.lose(path, "rest", schemaCoverLost)
+				return extra
+			}
+		}
+		var cond any = map[string]any{}
+		if v, ok := c.peg["if"]; ok {
+			cond = false
+			if !v.Nil() {
+				cond = schemaFromVal(sc, path, v)
+			}
+		}
+		m, isMap := cond.(map[string]any)
+		always := true == cond || (isMap && 0 == len(m))
+		if false == cond || 0 == len(kw) || (always && schemaMergeCover(part, kw)) {
+			continue
+		}
+		if !always {
+			kw["not"] = map[string]any{"not": cond}
+		}
+		branches = append(branches, kw)
+	}
+	if 0 < len(branches) {
+		part["anyOf"] = append(branches, true)
+	}
+	var t any = false
+	if !r.t.Nil() {
+		t = schemaFromVal(sc, path, r.t)
+	}
+	for _, kind := range kinds {
+		if "map" == kind {
+			part["unevaluatedProperties"] = t
+		} else {
+			part["unevaluatedItems"] = t
+		}
+	}
+	return append(extra, part)
+}
+
+// schemaCover sets the keywords that evaluate what one cover does in a
+// container of this kind; false where none can.
+func schemaCover(sc *schemaCtx, path []string, c *MapVal, kind string, kw map[string]any) bool {
+	all := func() {
+		if "map" == kind {
+			kw["additionalProperties"] = true
+		} else {
+			kw["items"] = true
+		}
+	}
+	if m, ok := c.peg["members"]; ok && !m.Nil() {
+		switch {
+		case isTop(m):
+			all()
+		case "map" == kind:
+			return false
+		default:
+			kw["contains"] = schemaFromVal(sc, path, m)
+			kw["minContains"] = 0
+		}
+	}
+	k, ok := c.peg["keys"]
+	if !ok || k.Nil() {
+		return true
+	}
+	if isTop(k) {
+		all()
+		return true
+	}
+	terms := []Val{k}
+	if d, ok := k.(*DisjunctVal); ok {
+		terms = d.peg
+	}
+	tests := make([]schemaArmTest, len(terms))
+	for i, t := range terms {
+		if tests[i] = schemaArmTestOf(sc, path, t); !tests[i].isName && !tests[i].isRe {
+			return false
+		}
+	}
+	if "map" == kind {
+		for _, t := range tests {
+			key, name := "properties", t.name
+			if t.isRe {
+				key, name = "patternProperties", t.re
+			}
+			named, _ := kw[key].(map[string]any)
+			if nil == named {
+				named = map[string]any{}
+				kw[key] = named
+			}
+			named[name] = true
+		}
+		return true
+	}
+	// A list member's key is its index, so only "0" to "n-1" is a prefix.
+	at := map[int]bool{}
+	for _, t := range tests {
+		if t.isRe {
+			return false
+		}
+		if schemaIndexName.MatchString(t.name) {
+			n, err := strconv.Atoi(t.name)
+			if nil != err {
+				return false
+			}
+			at[n] = true
+		}
+	}
+	prefix := make([]any, len(at))
+	for i := range prefix {
+		if !at[i] {
+			return false
+		}
+		prefix[i] = true
+	}
+	if 0 < len(prefix) {
+		kw["prefixItems"] = prefix
+	}
+	return true
+}
+
+// schemaMergeCover joins one unconditional cover to the member's own
+// keywords, but for a second contains, which takes a branch of its own.
+func schemaMergeCover(part, kw map[string]any) bool {
+	if _, has := kw["contains"]; has {
+		if _, had := part["contains"]; had {
+			return false
+		}
+	}
+	for k, v := range kw {
+		switch k {
+		case "properties", "patternProperties":
+			named, _ := part[k].(map[string]any)
+			if nil == named {
+				named = map[string]any{}
+				part[k] = named
+			}
+			for n, b := range v.(map[string]any) {
+				named[n] = b
+			}
+		case "prefixItems":
+			if old, _ := part[k].([]any); len(old) < len(v.([]any)) {
+				part[k] = v
+			}
+		default:
+			part[k] = v
+		}
+	}
+	return true
 }
 
 // schemaWhen writes a conditional on one key's presence as a dependent

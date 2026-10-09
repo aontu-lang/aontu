@@ -273,6 +273,9 @@ function fromConstraint(ctx, path, c, bag) {
     for (const k of c.contains) {
         containsOut(ctx, path, out, extra, k, bag);
     }
+    for (const r of c.rests) {
+        restCheckOut(ctx, path, extra, r, bag);
+    }
     for (const m of c.musts) {
         extra.push(fromVal(ctx, path, m.v));
     }
@@ -337,6 +340,101 @@ function containsOut(ctx, path, out, extra, k, bag) {
     else {
         extra.push(part);
     }
+}
+const COVER_LOST = 'JSON Schema evaluates a member only by its name, a pattern of ' +
+    'its name, its index in a prefix or its match of contains, so a check whose ' +
+    'cover reaches past these is DROPPED and the schema admits members the model refuses';
+// ADR-058: rest() as an allOf member whose own keywords evaluate what its
+// covers do, so its unevaluated keyword sees those and no more. A
+// condition rides `not: {not: …}`, which keeps its own annotations out.
+function restCheckOut(ctx, path, extra, r, bag) {
+    const kinds = undefined === bag ? ['map', 'list'] : [bag];
+    const part = {};
+    const branches = [];
+    for (const c of r.covers) {
+        const kw = {};
+        if (!kinds.every((kind) => coverOut(ctx, path, c.peg, kind, kw))) {
+            lose(ctx, path, 'rest', COVER_LOST);
+            return;
+        }
+        const cond = undefined === c.peg.if ? {} :
+            true === c.peg.if.isNil ? false : fromVal(ctx, path, c.peg.if);
+        const always = 0 === Object.keys(cond).length;
+        if (false === cond || 0 === Object.keys(kw).length || (always && mergeCover(part, kw))) {
+            continue;
+        }
+        branches.push(always ? kw : { not: { not: cond }, ...kw });
+    }
+    if (0 < branches.length) {
+        part.anyOf = [...branches, true];
+    }
+    const t = true === r.t.isNil ? false : fromVal(ctx, path, r.t);
+    for (const kind of kinds) {
+        part['map' === kind ? 'unevaluatedProperties' : 'unevaluatedItems'] = t;
+    }
+    extra.push(part);
+}
+// The keywords that evaluate what one cover does in a container of this
+// kind; false where none can.
+function coverOut(ctx, path, c, kind, kw) {
+    const all = () => {
+        kw['map' === kind ? 'additionalProperties' : 'items'] = true;
+    };
+    const m = c.members;
+    if (undefined !== m && true !== m.isNil) {
+        if (true === m.isTop) {
+            all();
+        }
+        else if ('map' === kind) {
+            return false;
+        }
+        else {
+            kw.contains = fromVal(ctx, path, m);
+            kw.minContains = 0;
+        }
+    }
+    const k = c.keys;
+    if (undefined === k || true === k.isNil) {
+        return true;
+    }
+    if (true === k.isTop) {
+        all();
+        return true;
+    }
+    const tests = (true === k.isDisjunct ? k.peg : [k]).map((t) => armTest(ctx, path, t));
+    if (tests.some((t) => undefined === t.name && undefined === t.re)) {
+        return false;
+    }
+    if ('map' === kind) {
+        for (const t of tests) {
+            const key = undefined === t.name ? 'patternProperties' : 'properties';
+            kw[key] = { ...kw[key], [t.name ?? t.re]: true };
+        }
+        return true;
+    }
+    // A list member's key is its index, so only "0" to "n-1" is a prefix.
+    const at = [...new Set(tests
+            .filter((t) => /^(0|[1-9][0-9]*)$/.test(t.name ?? 'x'))
+            .map((t) => Number(t.name)))].sort((a, b) => a - b);
+    if (tests.some((t) => undefined !== t.re) || at.some((n, i) => n !== i)) {
+        return false;
+    }
+    if (0 < at.length) {
+        kw.prefixItems = at.map(() => true);
+    }
+    return true;
+}
+// One unconditional cover joins the member's own keywords, but for a
+// second contains, which takes a branch of its own.
+function mergeCover(part, kw) {
+    if (undefined !== kw.contains && undefined !== part.contains) {
+        return false;
+    }
+    for (const [k, v] of Object.entries(kw)) {
+        part[k] = 'properties' === k || 'patternProperties' === k ? { ...part[k], ...v } :
+            'prefixItems' === k && (v.length < (part[k]?.length ?? 0)) ? part[k] : v;
+    }
+    return true;
 }
 // A conditional on one key's presence is a dependent keyword, and one
 // whose branch only asks for keys is dependentRequired.

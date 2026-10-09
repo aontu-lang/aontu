@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
@@ -18,6 +18,7 @@ const admission_1 = require("./admission");
 const top_1 = require("./top");
 const unify_1 = require("../unify");
 const IntegerVal_1 = require("./IntegerVal");
+const StringVal_1 = require("./StringVal");
 const err_1 = require("../err");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
@@ -329,12 +330,15 @@ function leafMarker(v) {
 }
 const LATE_CJO = 150000;
 function lateAtom(atom) {
-    return 'len' === atom || 'unique' === atom || 'contains' === atom ||
+    return 'len' === atom || 'unique' === atom || 'contains' === atom || 'rest' === atom ||
         BAND_B.includes(atom);
 }
 const BAND_B = ['must', 'nof', 'when'];
 // The atoms whose arguments are trial schemas, which may not move.
-const TRIAL_ATOMS = [...BAND_B, 'contains'];
+const TRIAL_ATOMS = [...BAND_B, 'contains', 'rest'];
+// What a cover record of rest() may hold: the condition on the whole
+// value, and the trial schemas of the keys and members it evaluates.
+const COVER_KEYS = ['if', 'keys', 'members'];
 class ConstraintVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super({ ...spec, peg: spec.peg ?? [] }, ctx);
@@ -349,6 +353,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.nofs = [];
         this.whens = [];
         this.contains = [];
+        this.rests = [];
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -366,6 +371,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.nofs = spec.state.nofs ?? [];
             this.whens = spec.state.whens ?? [];
             this.contains = spec.state.contains ?? [];
+            this.rests = spec.state.rests ?? [];
             this.invalid = spec.state.invalid;
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
@@ -385,7 +391,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         if (null != this.count || this.uniq || 0 < this.uniqBy.length ||
             0 < this.musts.length + this.nofs.length + this.whens.length +
-                this.contains.length ||
+                this.contains.length + this.rests.length ||
             (null != this.pending && lateAtom(this.pending.atom))) {
             this.cjo = LATE_CJO;
         }
@@ -456,6 +462,17 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return bad('constraint');
             }
             this.contains = [{ c: args[0], count }];
+            return;
+        }
+        // A cover that conflicts evaluates nothing, as its condition admits
+        // nothing; any other record holds only the cover keys, each a schema.
+        if ('rest' === atom) {
+            const covers = args.slice(1).filter((r) => true !== r?.isNil);
+            if (covers.some((r) => true !== r?.isMap || null != r.spread?.cj ||
+                0 < r.optionalKeys.length || Object.keys(r.peg).some((k) => !COVER_KEYS.includes(k)))) {
+                return bad('invalid-arg');
+            }
+            this.rests = [{ t: args[0], covers: byCanon(covers, utility_1.canonRiders) }];
             return;
         }
         if ('neq' === atom) {
@@ -560,8 +577,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         else if (peer.isNil) {
             out = peer;
         }
+        // A waiting peer has no state yet to merge: it settles against this.
         else if (peer.isConstraint) {
-            out = this.meetConstraint(peer, ctx);
+            out = null != peer.pending ? peer.unify(this, ctx) :
+                this.meetConstraint(peer, ctx);
         }
         else if (peer.isScalarKind) {
             out = this.meetKind(peer, ctx);
@@ -573,8 +592,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             out = this.admitContainer(peer, ctx);
         }
         else if (peer.isContainerKind) {
-            out = null != this.domain ? this.fail(ctx, peer) :
-                new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+            out = null != this.domain ? this.fail(ctx, peer) : this.beside(peer, ctx);
         }
         /* node:coverage ignore next 12 */
         else {
@@ -587,10 +605,14 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const TOP = (0, top_1.top)();
         const pend = this.pending;
         let settled = true;
+        let moved = false;
         const args = [];
         for (const [i, arg] of pend.args.entries()) {
             let next = arg;
-            if (('nof' === pend.atom && 0 < i) || 'when' === pend.atom ||
+            if ('rest' === pend.atom && 0 < i) {
+                next = coverArg(ctx, arg, this.path);
+            }
+            else if (('nof' === pend.atom && 0 < i) || 'when' === pend.atom || 'rest' === pend.atom ||
                 ('contains' === pend.atom && 0 === i)) {
                 next = trialArg(ctx, arg, this.path);
             }
@@ -598,6 +620,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 next = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, ctx));
             }
             settled = settled && true === next?.done;
+            moved = moved || next?.canon !== arg?.canon;
             args.push(next);
         }
         if (settled) {
@@ -614,8 +637,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.notdone();
         // A fresh pending atom carrying the partially-resolved arguments, so
         // the next pass starts from the progress this one made rather than
-        // re-resolving from source.
-        const again = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
+        // re-resolving from source. Where nothing moved it is this atom, so
+        // a meet beside another waiting atom sees no progress, not a new term.
+        const again = moved ? new ConstraintVal({ peg: args, atom: pend.atom }, ctx) : this;
         again.path = this.path;
         again.site.row = this.site.row;
         again.site.col = this.site.col;
@@ -664,6 +688,51 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return bad;
         }
         return this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) ?? peer;
+    }
+    // ADR-058: a member no applying cover evaluates must be admitted by the
+    // atom's own schema.
+    checkRests(peer, ctx) {
+        const own = 0 === this.rests.length ? undefined : (0, admission_1.ownJson)(peer, ctx);
+        const members = undefined === own ? undefined : emittedEntries(peer, ctx);
+        if (undefined === members) {
+            return undefined;
+        }
+        const admits = (trial, v, json) => undefined === trial ? false : (0, admission_1.admitsSettled)(ctx, trial, v, json, this.path);
+        for (const r of this.rests) {
+            const applying = [];
+            for (const c of r.covers) {
+                const holds = undefined === c.peg.if ? true : admits(c.peg.if, peer, own);
+                if (undefined === holds) {
+                    return this.overBudget(ctx, peer);
+                }
+                if (holds) {
+                    applying.push(c);
+                }
+            }
+            for (const [key, m] of members) {
+                const mown = (0, admission_1.ownJson)(m, ctx);
+                let covered = false;
+                for (const c of applying) {
+                    covered = admits(c.peg.keys, new StringVal_1.StringVal({ peg: key }), key);
+                    covered = false === covered ? admits(c.peg.members, m, mown) : covered;
+                    if (false !== covered) {
+                        break;
+                    }
+                }
+                const held = false === covered ? admits(r.t, m, mown) : covered;
+                if (undefined === held) {
+                    return this.overBudget(ctx, peer);
+                }
+                if (!held) {
+                    return (0, err_1.makeNilErr)(ctx, 'rest', this, peer, undefined, {
+                        expected: restCanon(r),
+                        actual: peer.canon,
+                        key,
+                    });
+                }
+            }
+        }
+        return undefined;
     }
     // A conflict refuses at the meet, since no later member retracts it;
     // the settled value is held to the admission trial.
@@ -775,14 +844,15 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         }
         const bad = this.checkMusts(peer, ctx, final) ?? (true === final ?
-            this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) : undefined);
+            this.checkNofs(peer, ctx) ?? this.checkWhens(peer, ctx) ?? this.checkRests(peer, ctx) :
+            undefined);
         if (null != bad) {
             return bad;
         }
         if (!this.uniq && 0 === this.uniqBy.length + this.contains.length &&
             null == this.count) {
             if (true === final ||
-                0 === this.musts.length + this.nofs.length + this.whens.length) {
+                0 === this.musts.length + this.nofs.length + this.whens.length + this.rests.length) {
                 return peer;
             }
             return this.hold(peer, ctx);
@@ -853,7 +923,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // and an atom holding nothing else is spent: that is when it goes.
         const spent = true === final ||
             (0 === this.musts.length + this.nofs.length + this.whens.length +
-                this.contains.length && !this.uniq && 0 === this.uniqBy.length &&
+                this.contains.length + this.rests.length && !this.uniq && 0 === this.uniqBy.length &&
                 (null == count ||
                     (null == count.hi && 0 === count.neqs.length + multsOf(count).length &&
                         stateAdmits(count, countVal(n)))));
@@ -867,6 +937,15 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const held = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
         held.dc = type_1.DONE;
         return held;
+    }
+    // Beside a kind it does not narrow, the residual waits for an instance
+    // and moves no further, so it is settled, as a trial argument must be.
+    beside(peer, ctx) {
+        const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+        if (type_1.DONE === this.dc && type_1.DONE === peer.dc) {
+            out.dc = type_1.DONE;
+        }
+        return out;
     }
     meetKind(peer, ctx) {
         const marker = peer.peg;
@@ -911,7 +990,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         // the boolean kind stays beside a residual that holds only those.
         if (Boolean === marker && null == this.domain && null == this.count &&
             !this.uniq && 0 === this.uniqBy.length + this.contains.length) {
-            return new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
+            return this.beside(peer, ctx);
         }
         const isLeaf = ScalarKindVal_1.Integer === marker || ScalarKindVal_1.Float === marker ||
             ScalarKindVal_1.BigInteger === marker || ScalarKindVal_1.BigDecimal === marker;
@@ -966,6 +1045,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.nofs = mergeNofs([...this.nofs, ...peer.nofs]);
         merged.whens = byCanon([...this.whens, ...peer.whens], whenCanon);
         merged.contains = byCanon([...this.contains, ...peer.contains], containsCanon);
+        merged.rests = byCanon([...this.rests, ...peer.rests], restCanon);
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
@@ -1016,6 +1096,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             nofs: [...this.nofs],
             whens: [...this.whens],
             contains: [...this.contains],
+            rests: [...this.rests],
             invalid: this.invalid,
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
@@ -1055,6 +1136,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.nofs = [...this.nofs];
         out.whens = [...this.whens];
         out.contains = [...this.contains];
+        out.rests = [...this.rests];
         out.pending = this.pending;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
@@ -1183,6 +1265,9 @@ function countSpan(count, lo, hi) {
     }
     return hi - lo + 1 === yes ? 'all' : 0 === yes ? 'none' : 'some';
 }
+function restCanon(r) {
+    return 'rest(' + [r.t, ...r.covers].map((v) => (0, utility_1.canonRiders)(v)).join(',') + ')';
+}
 function whenCanon(w) {
     return 'when(' + [w.c, w.t, ...(undefined === w.e ? [] : [w.e])]
         .map((v) => (0, utility_1.canonRiders)(v)).join(',') + ')';
@@ -1214,6 +1299,18 @@ function trialArg(ctx, arg, path) {
         return next;
     }
     return new NilVal_1.NilVal({ why: 'nof' });
+}
+// A cover record's trials settle at the atom's path; it is never a value.
+function coverArg(ctx, rec, path) {
+    if (true !== rec?.isMap || true === rec.done) {
+        return true === rec?.isMap ? rec : trialArg(ctx, rec, path);
+    }
+    const out = rec.clone(ctx);
+    for (const k of Object.keys(out.peg)) {
+        out.peg[k] = trialArg(ctx, out.peg[k], path);
+    }
+    out.dc = Object.values(out.peg).every((v) => type_1.DONE === v.dc) ? type_1.DONE : 0;
+    return out;
 }
 // The members of a list, map or disjunction; not a wrapper's one Val, as in Go.
 function heldVals(v) {
@@ -1289,6 +1386,9 @@ function canonState(s) {
     for (const w of s.whens ?? []) {
         parts.push(whenCanon(w));
     }
+    for (const r of s.rests ?? []) {
+        parts.push(restCanon(r));
+    }
     if (true === s.emptyOk) {
         parts.push('empty()');
     }
@@ -1303,7 +1403,7 @@ function constraintStateSubsumes(g, s) {
     // admitted set unknowable; an extra `must` on the SPECIFIC side only
     // narrows it and is ignored.
     if (0 < g.musts.length + (g.nofs ?? []).length + (g.whens ?? []).length +
-        (g.contains ?? []).length) {
+        (g.contains ?? []).length + (g.rests ?? []).length) {
         return 'undecided';
     }
     // Domains must agree where both constrain one; a sizing-only residual
@@ -1403,7 +1503,7 @@ function constraintSubsumesKind(g, marker) {
     });
 }
 function constraintAdmitsScalar(g, scalar) {
-    if (0 < g.musts.length + g.nofs.length + g.whens.length) {
+    if (0 < g.musts.length + g.nofs.length + g.whens.length + g.rests.length) {
         return 'undecided';
     }
     if (g.uniq || 0 < g.uniqBy.length + g.contains.length) {
@@ -1623,6 +1723,10 @@ function genable(child) {
         undefined !== (0, BagVal_1.sizingResidue)(child);
 }
 function emittedMembers(bag, ctx) {
+    return emittedEntries(bag, ctx)?.map((e) => e[1]);
+}
+// The members generation emits, each with its key, a list's as its index.
+function emittedEntries(bag, ctx) {
     const out = [];
     let entries = (0, utility_1.items)(bag.peg);
     if (bag.isMap) {
@@ -1653,7 +1757,7 @@ function emittedMembers(bag, ctx) {
         if (undefined === cval || (optional && (0, Val_1.empty)(cval))) {
             continue;
         }
-        out.push(child);
+        out.push(['' + key, child]);
     }
     return out;
 }
@@ -1733,6 +1837,12 @@ class WhenConstraintVal extends ConstraintVal {
     }
 }
 exports.WhenConstraintVal = WhenConstraintVal;
+class RestConstraintVal extends ConstraintVal {
+    constructor(spec, ctx) {
+        super({ ...spec, atom: 'rest' }, ctx);
+    }
+}
+exports.RestConstraintVal = RestConstraintVal;
 class LenConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'len' }, ctx);
@@ -1747,6 +1857,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 26 */
+} /* node:coverage ignore next 27 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

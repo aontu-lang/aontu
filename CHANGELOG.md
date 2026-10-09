@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### Evaluated coverage
+
+Both ports, G12 phase 12 (ADR-058).
+
+- `rest(t, ...c?)` is a new Band B atom: each member of a list or map
+  that no applying cover evaluates must be admitted by the trial schema
+  `t`, `nil` admitting none. A cover is a record of trial schemas, `if`
+  over the value, `keys` over a member's key and `members` over the
+  member, and every trial sits at the atom's path. It is checked at
+  generation and refused with the new `rest`, class `conflict`.
+- `aontu jsonschema import` carries `unevaluatedProperties` and
+  `unevaluatedItems`: as the spread `additionalProperties` would be
+  where no branch decides what is evaluated, and otherwise as `rest`,
+  with a cover for each `anyOf` or `oneOf` branch, `then`, `else` and
+  `dependentSchemas` member under its condition. `aontu jsonschema`
+  writes `rest` back as an `allOf` member whose own keywords evaluate
+  what its covers do, and reports a cover none can.
+- An optional rest argument, `...c?`, counts zero toward a signature's
+  arity.
+- The vendored suite's ledger shrinks from 123 rows to 50, and 1,841 of
+  its 2,337 tests pass in both ports, where 1,768 did; the annotation
+  tests pass 56 of 84, where 43 did.
+- Fixed in both ports: a settled atom that met one still waiting on its
+  arguments dropped the waiting one's checks, so
+  `nof(1, {a: any}) & nof(1, {x: key()}) & {a: 1}` was admitted in
+  TypeScript.
+- Fixed in both ports: a trial beside a kind it does not narrow,
+  `nof(0, len(min(1)) & list) & [1]`, was never tried, and two atoms
+  waiting on one trial cycled until `unify_cycle`.
+- Fixed in both ports: `vet` reported `literal_nil` for a guarded
+  spread's `nil` arm under an optional key the data leaves out.
+- Fixed in both ports: a repeated waiting `match` doubled at every meet
+  of a list carrying its spread, and TypeScript refused such a value
+  with `unify_cycle`; a repeat is now written once.
+
 ### Dynamic references
 
 Both ports, G12 phase 11 (ADR-057).

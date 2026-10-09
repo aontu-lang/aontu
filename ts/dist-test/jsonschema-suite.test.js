@@ -198,7 +198,7 @@ function runCorpus(name, bound, groups, documents) {
     Assert.deepStrictEqual(problems, [], problems.join('\n'));
 }
 // Each ledger may not grow past its bound; the register tightens them.
-(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema', 123, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
+(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema', 50, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
 (0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => runCorpus('ajv-extras', 0, suiteGroups(Path.join(VECTORS, 'ajv-extras', 'tests'))));
 (0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => runCorpus('jsontestsuite', 87, parsingGroups(Path.join(VECTORS, 'jsontestsuite'))));
 //# sourceMappingURL=jsonschema-suite.test.js.map

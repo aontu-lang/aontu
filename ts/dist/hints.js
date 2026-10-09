@@ -98,6 +98,20 @@ const hints = {
         '  when(string, "a") & "b"         -> nil  # ... and then refuses;\n' +
         '  when(string, "a", min(0)) & 5   -> 5    # Else admits;\n' +
         '  when({k: any}, {n: any}) & {}   -> {}   # No k: nothing to hold.',
+    rest: 'A member of this value, {key}, is evaluated by no cover of a rest(),\n' +
+        'and the schema rest() holds for such a member does not admit it.' +
+        '\n \n' +
+        'rest(t, ...cover) is Band B of the constraint algebra: each cover is a\n' +
+        'record {if?, keys?, members?}, and one whose if admits the settled\n' +
+        'value, tried as a nof() branch is, evaluates each member whose key its\n' +
+        'keys schema admits or whose value its members schema admits. Every\n' +
+        'member no such cover evaluates must be admitted by t, and nil admits\n' +
+        'nothing. It carries unevaluatedProperties and unevaluatedItems.' +
+        '\n \nExamples:\n' +
+        '  rest(nil, {keys: "a"}) & {a: 1}             -> {a:1}  # Evaluated;\n' +
+        '  rest(nil, {keys: "a"}) & {a: 1, b: 2}       -> nil    # b is not;\n' +
+        '  rest(number) & {b: 2}                       -> {b:2}  # t admits b;\n' +
+        '  rest(nil, {if: {a: 1}, keys: any}) & {a: 2} -> nil    # if refuses.',
     abnf_grammar: 'This ABNF grammar could not be compiled:\n' +
         '{reason}\n' +
         ' \n' +
@@ -800,6 +814,7 @@ const codeClasses = {
     must: 'conflict',
     nof: 'conflict',
     when: 'conflict',
+    rest: 'conflict',
     constraint_pattern: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',

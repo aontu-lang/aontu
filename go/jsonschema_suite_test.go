@@ -249,7 +249,7 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 
 // Each ledger may not grow past its bound; the register tightens them.
 func TestJSONSchemaSuite(t *testing.T) {
-	runCorpus(t, "jsonschema", 123,
+	runCorpus(t, "jsonschema", 50,
 		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12")), suiteRemotes(t))
 }
 

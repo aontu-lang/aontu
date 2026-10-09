@@ -2522,6 +2522,14 @@ Replace every pattern match in a string. See [replacement syntax](#reps-pattern-
 
 Example: `rep("a1b2", "[0-9]", "_")`
 
+### `rest(trial t: any, ...c?: (trial map)) : constraint`
+
+Hold each member that no applying cover evaluates to the trial schema
+`t`. A cover is a record of trial schemas `if`, `keys` and `members`.
+See [`rest`](#band-b-rest).
+
+Example: `rest(number, {keys: "a"}) & {a: "x", b: 2}` → `{a:"x",b:2}`
+
 ### `slot(spec: string|map, children?: list) : map`
 
 A slot node of the [component tree](#generation), beneath a fragment:
@@ -5396,9 +5404,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Thirteen builtins join the function registry. Nine are **Band A**: full
+Fourteen builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. Four are **Band B**: evaluate-only, and reported
+canonical form. Five are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5416,6 +5424,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of trial schemas c that admit the value is one n admits |
 | `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits the value where c does, and e where c does not |
 | `contains(trial c: any, n?: number\|constraint) : constraint` | B | the number of members c admits is one n admits, at least one unless written |
+| `rest(trial t: any, ...c?: (trial map)) : constraint` | B | t admits each member no applying cover evaluates |
 
 ### Bounds and the number tower
 
@@ -6027,6 +6036,45 @@ count back as those keywords. `uniqueItems` is `unique()`, which
 compares members as aontu values: read through `vet --exact-numbers`,
 `1.0` in the data is `1`, so a list of both is refused as JSON Schema
 refuses it.
+
+### Band B: `rest`
+
+`rest(t, ...c?)` holds each member of a list or map that no applying
+cover evaluates to the trial schema `t`, and `nil` admits none, so
+`rest(nil)` is a container with no member. A cover is a record of trial
+schemas, each one written or left out and no key besides: `if` over
+the whole value, `keys` over a member's key and `members` over the
+member. A cover applies where its `if` admits the value, or always
+where it has none, and evaluates each member its `keys` or its
+`members` admits, so this is refused at `k`, a member no cover
+evaluates:
+
+```aontu
+a: rest(nil, { keys:"x" }, { if:k:1 keys:"y" })
+a: { x:1 k:1 y:2 }
+```
+
+A list member's key is its index as a string, so `rest(nil, {keys: "0"
+| "1"}) & [1, 2, 3]` is refused at its third member. Each trial is
+tried as a `nof` branch is, at the atom's path, so `key()` in a cover
+reads the key of the value `rest` holds. The check runs at generation,
+when no member can still arrive: an optional member never written, or
+a hidden one, is not checked, and a scalar has no members.
+
+Covers are sorted by canon and written once, and a cover whose trial
+conflicts on its own carries `nil` there, so one whose `if` conflicts
+never applies. Two `rest` atoms on one value both hold. Like the other
+Band B atoms, `rest` is opaque to emptiness and subsumption, and a
+value it refuses is reported as `rest`, class `conflict`, naming the
+first member no cover evaluates and `t` refuses.
+
+It is how `unevaluatedProperties` and `unevaluatedItems` cross into
+aontu where a branch decides what is evaluated: the importer gives each
+`anyOf` or `oneOf` branch, `then`, `else` and `dependentSchemas` member
+a cover under its condition, and where no cover depends on the value
+writes the keyword as the guarded spread `additionalProperties` would
+be. The exporter writes `rest` back as an `allOf` member whose own
+keywords evaluate what its covers do.
 
 ### Errors
 

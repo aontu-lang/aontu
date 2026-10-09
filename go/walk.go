@@ -86,7 +86,7 @@ func trialSchemas(c *ConstraintVal) []Val {
 	if nil != c.pending && "nof" == c.pending.atom {
 		return c.pending.args[1:]
 	}
-	if nil != c.pending && "when" == c.pending.atom {
+	if nil != c.pending && ("when" == c.pending.atom || "rest" == c.pending.atom) {
 		return c.pending.args
 	}
 	if nil != c.pending && "contains" == c.pending.atom {
@@ -124,6 +124,14 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 		case *ConstraintVal:
 			for _, b := range trialSchemas(t) {
 				walked[b] = true
+			}
+		// A pending match's arms are what it returns where one is chosen,
+		// and a nil arm is a choice, not yet a value.
+		case *FuncVal:
+			if "match" == t.name {
+				for _, arm := range t.peg[1:] {
+					walked[arm] = true
+				}
 			}
 		}
 		return true

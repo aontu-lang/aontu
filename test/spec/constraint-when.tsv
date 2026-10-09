@@ -84,3 +84,10 @@ when-beside-the-boolean-kind-admits	gens	a: boolean & when({k: any}, {n: any}) &
 must-beside-the-boolean-kind-refuses	errc	a: boolean & must(true, "m") & false	must
 count-beside-the-boolean-kind-refuses	errc	a: boolean & len(min(1))	constraint
 must-number-domain-is-written	canon	a: number & must(1, "m")	{"a":number&must(1,"m")}
+#
+# An atom still waiting on its arguments keeps its check when it meets
+# a settled one, a condition beside a kind it does not narrow is tried,
+# and two atoms waiting on one trial settle rather than cycle.
+when-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & when({a: number}, {x: key()}) & {a: 1}	when
+when-a-condition-beside-the-list-kind-is-tried	errc	a: when(len(min(1)) & list, nil) & [1]	when
+when-and-nof-sharing-a-waiting-trial-settle	gens	a: nof(1, {xx?: any &: match(key(0), re("x"), any, any)}) & when({xx?: any &: match(key(0), re("x"), any, any)}, any) & {xa: 1}	{"a":{"xa":1}}

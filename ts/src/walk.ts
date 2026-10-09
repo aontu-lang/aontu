@@ -54,6 +54,7 @@ export function settledTrials(v: any): any[] {
     ...(v.whens ?? []).flatMap((w: any) =>
       undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
     ...(v.contains ?? []).map((k: any) => k.c),
+    ...(v.rests ?? []).flatMap((r: any) => [r.t, ...r.covers]),
   ]
 }
 
@@ -61,7 +62,7 @@ export function settledTrials(v: any): any[] {
 function trialSchemas(v: any): any[] {
   const atom = v.pending?.atom
   return 'nof' === atom ? v.pending.args.slice(1) :
-    'when' === atom ? v.pending.args :
+    'when' === atom || 'rest' === atom ? v.pending.args :
       'contains' === atom ? v.pending.args.slice(0, 1) : settledTrials(v)
 }
 
@@ -83,6 +84,11 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     // A trial schema is no instance value, and a nil one admits nothing.
     for (const c of trialSchemas(v)) {
       walked.add(c)
+    }
+    // A pending match's arms are what it returns where one is chosen, and
+    // a nil arm is a choice, not yet a value.
+    if (true === v.isMatchFunc) {
+      v.peg.slice(1).forEach((arm: any) => walked.add(arm))
     }
     // A written `nil` under an optional key nobody supplied is no
     // finding (ADR-046).

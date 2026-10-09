@@ -494,3 +494,5 @@ vet-no-fill-data-that-needs-the-schema	vet	b: 1	a: $.b	{"findings":[{"class":"re
 # valid that evaluation refuses. JSONTestSuite's `[0.1.2]`, a dotted
 # spelling read as a relative reference, found it.
 vet-data-reference-that-names-nothing	vet	any	[0.1.2]	{"findings":[{"class":"reference","code":"ref","path":"$.0","severity":"error","sites":[{"col":2,"file":"data","len":3,"role":"data","row":1,"src":"0.1","value":".0.1.2"}]}],"truncated":false,"verdict":"invalid"}
+# An absent optional key does not reach a guarded spread's nil arm.
+vet-an-absent-optional-key-skips-a-match-nil-arm	vet	{ foo?:any &: match(key(0),"foo",any,nil) } & { bar?:any }	{"foo":1}	{"findings":[],"truncated":false,"verdict":"valid"}

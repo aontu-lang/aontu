@@ -1369,6 +1369,9 @@ key being present, `when({k: any}, …)` with no `else`, becomes
 `dependentSchemas` otherwise;
 `contains(c, n)` on a list becomes `contains`, with the count as
 `minContains` and `maxContains`;
+`rest(t, …)` becomes an `allOf` member whose own keywords evaluate what
+its covers do, each condition riding `not: {not: …}` in an `anyOf` with
+`true`, and whose `unevaluatedProperties` or `unevaluatedItems` is `t`;
 `len` becomes `minLength`/`maxLength` on a string,
 `minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
 a list, an open bound rounded inward to the next whole number
@@ -1434,6 +1437,7 @@ The losses, and why each is one:
 | `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
 | `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
 | `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
+| `rest(t, …)` with a cover past what a keyword evaluates | JSON Schema evaluates a member only by its name, a pattern of its name, its index in a prefix or its match of `contains`, so a list key past a prefix, or a `members` cover on a map, drops the check |
 | `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
@@ -1608,6 +1612,7 @@ y: number
 | `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |
 | `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
+| `unevaluatedProperties`, `unevaluatedItems` | where no branch decides what is evaluated, the spread `additionalProperties` or `items` would be, over the names, patterns and prefix that the object and every schema it applies unconditionally evaluate; otherwise [`rest(t, …)`](reference-language.md#band-b-rest), with a cover for each `anyOf` or `oneOf` branch, `then`, `else` and `dependentSchemas` member, under its condition. Beside `additionalProperties` or `items` it asserts nothing |
 | `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
 | `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. The use keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
 | `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
@@ -1624,13 +1629,13 @@ other: `allOf` of a string and a number admits nothing, and imports as
 
 **What does not cross is reported, never dropped in silence.** Each
 loss names a pointer into the schema, the keyword, and what dropping it
-costs. A validation keyword such as `unevaluatedProperties` widens the
-position, and the loss says so. So does a keyword of an earlier
-dialect, `dependencies`, `additionalItems`, `$recursiveRef` or
-`$recursiveAnchor`: it asserts in that dialect, though 2020-12 would
-read it as an annotation. An `$id`, `$anchor` or `$dynamicAnchor` on a
-schema no declaration holds is a loss as well, since only an alias
-declaration carries identity.
+costs. A `$vocabulary` declaration is dropped, since the 2020-12
+vocabularies are read whatever it says, and the loss says so. So is a
+keyword of an earlier dialect, `dependencies`, `additionalItems`,
+`$recursiveRef` or `$recursiveAnchor`: it asserts in that dialect,
+though 2020-12 would read it as an annotation. An `$id`, `$anchor` or
+`$dynamicAnchor` on a schema no declaration holds is a loss as well,
+since only an alias declaration carries identity.
 
 **Data is checked against an import with `vet --no-fill
 --exact-numbers`**, which asks the question JSON Schema asks: whether

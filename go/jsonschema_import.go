@@ -1049,17 +1049,14 @@ func (ctx *importCtx) enter(node *jnode) map[string]*jnode {
 	return out
 }
 
-// What each keyword the importer does not yet carry costs, for its loss.
-const importNotYet = "the importer does not carry this keyword yet, so it is dropped " +
-	"and the position admits more than the schema does"
-
 // importLegacy is a legacy dialect's keyword, which asserts there though
 // the dialect read here takes it as an annotation.
 const importLegacy = "a keyword of an earlier dialect, which 2020-12 does not define, " +
 	"so it is dropped and the position admits more than that dialect does"
 
+// importLater is what each keyword the importer does not carry costs, for
+// its loss.
 var importLater = map[string]string{
-	"unevaluatedProperties": importNotYet, "unevaluatedItems": importNotYet,
 	"$vocabulary": "a vocabulary declaration, and the 2020-12 vocabularies are read " +
 		"whatever it says, so it is dropped",
 	"dependencies": importLegacy, "additionalItems": importLegacy,
@@ -1092,7 +1089,7 @@ var importCarried = []string{
 	"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
 	"maxContains", "uniqueItems", "minimum", "maximum",
 	"exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength",
-	"pattern",
+	"pattern", "unevaluatedProperties", "unevaluatedItems",
 }
 
 const importDraft = "https://json-schema.org/draft/2020-12/schema"
@@ -1107,9 +1104,9 @@ var importScoped = map[string][]string{
 	"string": {"minLength", "maxLength", "pattern", "contentEncoding", "contentMediaType"},
 	"number": {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf"},
 	"object": {"properties", "required", "additionalProperties", "patternProperties",
-		"propertyNames", "minProperties", "maxProperties"},
+		"propertyNames", "minProperties", "maxProperties", "unevaluatedProperties"},
 	"array": {"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
-		"maxContains", "uniqueItems"},
+		"maxContains", "uniqueItems", "unevaluatedItems"},
 }
 
 // ecmaSpace is what `\s` means in a JSON Schema pattern, as a class body
@@ -2324,19 +2321,34 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 		return ctx.content(node, ptr, iand(exclude(parts)))
 	case "object":
 		m := ctx.objectBranch(node, ptr)
-		l := counted("minProperties", "maxProperties")
-		if nil == l {
+		spread, rest := ctx.unevaluated(node, ptr, kind)
+		if nil != spread {
+			m.spreads = append(m.spreads, spread)
+		}
+		sized := []*ixpr{}
+		for _, e := range []*ixpr{counted("minProperties", "maxProperties"), rest} {
+			if nil != e {
+				sized = append(sized, e)
+			}
+		}
+		if 0 == len(sized) {
 			if 0 == len(m.entries) && 0 == len(m.spreads) {
 				return iraw("map")
 			}
 			return m
 		}
-		return iand([]*ixpr{m, l})
+		return iand(append([]*ixpr{m}, sized...))
 	}
+	left, rest := ctx.unevaluated(node, ptr, kind)
 	spread := ctx.arraySpread(node, ptr)
+	if nil != left && nil == spread {
+		spread = left
+	} else if nil != left {
+		spread = iand([]*ixpr{spread, left})
+	}
 	sized := []*ixpr{}
 	for _, e := range []*ixpr{counted("minItems", "maxItems"), ctx.containsOf(node, ptr),
-		ctx.uniqueOf(node, ptr)} {
+		ctx.uniqueOf(node, ptr), rest} {
 		if nil != e {
 			sized = append(sized, e)
 		}
@@ -2352,6 +2364,172 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 		spread = iAny
 	}
 	return iand(append([]*ixpr{{k: "list", spread: spread}}, sized...))
+}
+
+// importCover is what a schema's keywords evaluate, under the trials of
+// the conditional branches that lead to it (ADR-058).
+type importCover struct {
+	cond    []*ixpr
+	keys    []*ixpr
+	all     bool
+	members *ixpr
+	exact   bool
+}
+
+// unevaluated is the unevaluated keyword as the guarded spread where no
+// branch is conditional, and as rest() over the covers where one is;
+// neither where every member is evaluated.
+func (ctx *importCtx) unevaluated(node *jnode, ptr, kind string) (spread, rest *ixpr) {
+	word := "unevaluatedItems"
+	if "object" == kind {
+		word = "unevaluatedProperties"
+	}
+	held := jentryOf(node, word)
+	if nil == held || "true" == held.t {
+		return nil, nil
+	}
+	covers := []*importCover{}
+	ctx.coversOf(node, ptr, kind, nil, map[*jnode]bool{}, &covers, true)
+	static, exact := true, true
+	for _, c := range covers {
+		if 0 == len(c.cond) && c.all {
+			return nil, nil
+		}
+		exact = exact && c.exact
+		static = static && 0 == len(c.cond) && nil == c.members
+	}
+	if !exact {
+		ctx.lose(ptrChild(ptr, word), word, "a pattern it reads was dropped, so the names it "+
+			"evaluates cannot be spelt, and it is dropped too")
+		return nil, nil
+	}
+	t := ctx.convert(held, ptrChild(ptr, word), false, nil)
+	if static {
+		keys := []*ixpr{}
+		for _, c := range covers {
+			keys = append(keys, c.keys...)
+		}
+		keys = distinct(keys)
+		if 0 == len(keys) {
+			return t, nil
+		}
+		args := []*ixpr{icall("key", iraw("0"))}
+		for _, k := range keys {
+			args = append(args, k, iAny)
+		}
+		return icall("match", append(args, t)...), nil
+	}
+	args := []*ixpr{t}
+	for _, c := range covers {
+		rec := &ixpr{k: "map"}
+		if 0 < len(c.cond) {
+			rec.entries = append(rec.entries, ientry{key: "if", val: iand(c.cond)})
+		}
+		if c.all {
+			rec.entries = append(rec.entries, ientry{key: "keys", val: iAny})
+		} else if 0 < len(c.keys) {
+			rec.entries = append(rec.entries, ientry{key: "keys", val: ior(c.keys)})
+		}
+		if nil != c.members {
+			rec.entries = append(rec.entries, ientry{key: "members", val: c.members})
+		}
+		args = append(args, rec)
+	}
+	return nil, icall("rest", args...)
+}
+
+// coversOf adds the covers of a schema object and of every in-place
+// applicator under it; a reference back to a schema on the walk adds
+// only what it added under fewer conditions, so the walk stops there.
+func (ctx *importCtx) coversOf(node *jnode, ptr, kind string, cond []*ixpr,
+	path map[*jnode]bool, out *[]*importCover, root bool) {
+	if "object" != node.t || path[node] {
+		return
+	}
+	path[node] = true
+	outerDoc, outerEnv := ctx.doc, ctx.env
+	ctx.doc = ctx.docOf[node]
+	ctx.env = ctx.enter(node)
+	at := func(k string) string { return ptrChild(ptr, k) }
+	own := &importCover{cond: cond, exact: true}
+	if "object" == kind {
+		if props := jentryOf(node, "properties"); nil != props && "object" == props.t {
+			for _, e := range props.entries {
+				own.keys = append(own.keys, iraw(importQuote(e.key)))
+			}
+		}
+		if pats := jentryOf(node, "patternProperties"); nil != pats && "object" == pats.t {
+			for _, e := range pats.entries {
+				re := ctx.pattern(ptrChild(at("patternProperties"), e.key), "patternProperties", e.key)
+				own.exact = own.exact && nil != re
+				if nil != re {
+					own.keys = append(own.keys, re)
+				}
+			}
+		}
+		own.all = nil != jentryOf(node, "additionalProperties") ||
+			(!root && nil != jentryOf(node, "unevaluatedProperties"))
+	} else {
+		if prefix := jentryOf(node, "prefixItems"); nil != prefix && "array" == prefix.t {
+			for i := range prefix.items {
+				own.keys = append(own.keys, iraw(importQuote(strconv.Itoa(i))))
+			}
+		}
+		own.all = nil != jentryOf(node, "items") || (!root && nil != jentryOf(node, "unevaluatedItems"))
+		if has := jentryOf(node, "contains"); nil != has {
+			own.members = ctx.convert(has, at("contains"), false, nil)
+		}
+	}
+	if own.all || 0 < len(own.keys) || nil != own.members || !own.exact {
+		*out = append(*out, own)
+	}
+
+	into := func(n *jnode, p string, more ...*ixpr) {
+		ctx.coversOf(n, p, kind, append(append([]*ixpr{}, cond...), more...), path, out, false)
+	}
+	list := func(k string) []*jnode {
+		if v := jentryOf(node, k); nil != v && "array" == v.t {
+			return v.items
+		}
+		return nil
+	}
+	for i, it := range list("allOf") {
+		into(it, at("allOf")+"/"+strconv.Itoa(i))
+	}
+	if ref := jentryOf(node, "$ref"); nil != ref && "string" == ref.t {
+		target := ctx.resolveRef(node, ref.s)
+		into(target, ctx.ptrOf[target])
+	}
+	if dref := jentryOf(node, "$dynamicRef"); nil != dref && "string" == dref.t {
+		target := ctx.resolveRef(node, dref.s)
+		if name, ok := ctx.bookend(node, dref.s); ok && nil != ctx.env[name] {
+			target = ctx.env[name]
+		}
+		into(target, ctx.ptrOf[target])
+	}
+	for _, key := range []string{"anyOf", "oneOf"} {
+		for i, it := range list(key) {
+			p := at(key) + "/" + strconv.Itoa(i)
+			into(it, p, ctx.convert(it, p, false, nil))
+		}
+	}
+	if cnd := jentryOf(node, "if"); nil != cnd {
+		c := ctx.convert(cnd, at("if"), false, nil)
+		into(cnd, at("if"), c)
+		if arm := jentryOf(node, "then"); nil != arm {
+			into(arm, at("then"), c)
+		}
+		if arm := jentryOf(node, "else"); nil != arm {
+			into(arm, at("else"), icall("nof", iraw("0"), c))
+		}
+	}
+	if deps := jentryOf(node, "dependentSchemas"); nil != deps && "object" == deps.t {
+		for _, e := range deps.entries {
+			into(e.val, ptrChild(at("dependentSchemas"), e.key), present([]string{e.key}))
+		}
+	}
+	ctx.doc, ctx.env = outerDoc, outerEnv
+	delete(path, node)
 }
 
 // containsOf counts the items its schema admits, at least one unless

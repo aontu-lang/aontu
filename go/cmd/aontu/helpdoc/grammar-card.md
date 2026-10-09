@@ -54,6 +54,7 @@ asks for a whole multiple of n;
 `nof(n, a, b)` asks that n of the branches admit the value;
 `when(c, t, e)` holds the value to t where c admits it, else to e;
 `contains(c, n)` asks that n of a list's members meet c;
+`rest(t, {keys: k})` holds each member no cover evaluates to t;
 `must(cond, "why")` is the escape hatch.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two

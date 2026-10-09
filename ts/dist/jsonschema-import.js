@@ -688,15 +688,12 @@ function enter(ctx, node) {
     return 0 === add.length ? ctx.env :
         new Map([...ctx.env, ...add.map((n) => [n, anchors?.get(n)])]);
 }
-// What each keyword the importer does not yet carry costs, for its loss.
-const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped ' +
-    'and the position admits more than the schema does';
-// A legacy dialect's keyword asserts there, though the dialect read here
+// What each keyword the importer does not carry costs, for its loss. A
+// legacy dialect's keyword asserts there, though the dialect read here
 // takes it as an annotation.
 const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, ' +
     'so it is dropped and the position admits more than that dialect does';
 const LATER = {
-    unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
     $vocabulary: 'a vocabulary declaration, and the 2020-12 vocabularies are read ' +
         'whatever it says, so it is dropped',
     dependencies: LEGACY, additionalItems: LEGACY,
@@ -725,7 +722,7 @@ const CARRIED = [
     'prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
     'maxContains', 'uniqueItems', 'minimum', 'maximum',
     'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf', 'minLength', 'maxLength',
-    'pattern',
+    'pattern', 'unevaluatedProperties', 'unevaluatedItems',
 ];
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
@@ -735,9 +732,9 @@ const SCOPED = {
     string: ['minLength', 'maxLength', 'pattern', 'contentEncoding', 'contentMediaType'],
     number: ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
     object: ['properties', 'required', 'additionalProperties', 'patternProperties',
-        'propertyNames', 'minProperties', 'maxProperties'],
+        'propertyNames', 'minProperties', 'maxProperties', 'unevaluatedProperties'],
     array: ['prefixItems', 'items', 'minItems', 'maxItems', 'contains', 'minContains',
-        'maxContains', 'uniqueItems'],
+        'maxContains', 'uniqueItems', 'unevaluatedItems'],
 };
 // The ECMA-262 whitespace set, what `\s` means in a JSON Schema pattern,
 // as a class body both engines read alike.
@@ -1575,20 +1572,140 @@ function branch(ctx, node, ptr, kind, integral, excluded) {
     }
     if ('object' === kind) {
         const map = objectBranch(ctx, node, ptr);
+        const left = unevaluated(ctx, node, ptr, kind);
+        map.spreads.push(...(undefined === left?.spread ? [] : [left.spread]));
         const len = counted('minProperties', 'maxProperties');
-        if (undefined === len) {
+        const sized = [len, left?.rest].filter((e) => undefined !== e);
+        if (0 === sized.length) {
             return 0 === map.entries.length && 0 === map.spreads.length ? raw('map') : map;
         }
-        return and([map, len]);
+        return and([map, ...sized]);
     }
-    const spread = arraySpread(ctx, node, ptr);
+    const left = unevaluated(ctx, node, ptr, kind);
+    const items = arraySpread(ctx, node, ptr);
+    const spread = undefined === left?.spread ? items :
+        undefined === items ? left.spread : and([items, left.spread]);
     const sized = [counted('minItems', 'maxItems'), containsOf(ctx, node, ptr),
-        uniqueOf(ctx, node, ptr)].filter((e) => undefined !== e);
+        uniqueOf(ctx, node, ptr), left?.rest].filter((e) => undefined !== e);
     if (0 === sized.length) {
         return undefined === spread ? raw('list') : { k: 'list', spread };
     }
     // Open by a spread: a literal list alternative admits only its own length.
     return and([{ k: 'list', spread: spread ?? ANY }, ...sized]);
+}
+// The unevaluated keyword as the guarded spread where no branch is
+// conditional, and as rest() over the covers where one is; nothing where
+// every member is evaluated.
+function unevaluated(ctx, node, ptr, kind) {
+    const word = 'object' === kind ? 'unevaluatedProperties' : 'unevaluatedItems';
+    const held = entry(node, word);
+    if (null == held || 'true' === held.t) {
+        return undefined;
+    }
+    const covers = [];
+    coversOf(ctx, node, ptr, kind, [], new Set(), covers, true);
+    if (covers.some((c) => 0 === c.cond.length && c.all)) {
+        return undefined;
+    }
+    if (covers.some((c) => !c.exact)) {
+        lose(ctx, child(ptr, word), word, 'a pattern it reads was dropped, so the names it ' +
+            'evaluates cannot be spelt, and it is dropped too');
+        return undefined;
+    }
+    const t = convert(ctx, held, child(ptr, word), false);
+    if (covers.every((c) => 0 === c.cond.length && undefined === c.members)) {
+        const keys = distinct(covers.flatMap((c) => c.keys));
+        return {
+            spread: 0 === keys.length ? t :
+                call('match', call('key', raw('0')), ...keys.flatMap((k) => [k, ANY]), t),
+        };
+    }
+    return { rest: call('rest', t, ...covers.map((c) => ({
+            k: 'map', spreads: [], entries: [
+                ...(0 === c.cond.length ? [] : [{ key: 'if', optional: false, val: and(c.cond) }]),
+                ...(c.all ? [{ key: 'keys', optional: false, val: ANY }] :
+                    0 === c.keys.length ? [] : [{ key: 'keys', optional: false, val: or(c.keys) }]),
+                ...(undefined === c.members ? [] : [{ key: 'members', optional: false, val: c.members }]),
+            ],
+        }))) };
+}
+// The covers of a schema object and of every in-place applicator under
+// it; a reference back to a schema on the walk adds only what it added
+// under fewer conditions, so the walk stops there.
+function coversOf(ctx, node, ptr, kind, cond, path, out, root) {
+    if ('object' !== node.t || path.has(node)) {
+        return;
+    }
+    path.add(node);
+    const outerDoc = ctx.doc;
+    const outerEnv = ctx.env;
+    ctx.doc = ctx.docOf.get(node);
+    ctx.env = enter(ctx, node);
+    const get = (k) => entry(node, k);
+    const at = (k) => child(ptr, k);
+    const own = { cond, keys: [], all: false, exact: true };
+    if ('object' === kind) {
+        const props = get('properties');
+        own.keys.push(...('object' === props?.t ? props.entries : []).map((e) => raw(quote(e.key))));
+        const pats = get('patternProperties');
+        for (const e of 'object' === pats?.t ? pats.entries : []) {
+            const re = pattern(ctx, child(at('patternProperties'), e.key), 'patternProperties', e.key);
+            own.exact = own.exact && undefined !== re;
+            own.keys.push(...(undefined === re ? [] : [re]));
+        }
+        own.all = null != get('additionalProperties') || (!root && null != get('unevaluatedProperties'));
+    }
+    else {
+        const prefix = get('prefixItems');
+        own.keys.push(...('array' === prefix?.t ? prefix.items : []).map((_it, i) => raw(quote('' + i))));
+        own.all = null != get('items') || (!root && null != get('unevaluatedItems'));
+        const has = get('contains');
+        own.members = null == has ? undefined : convert(ctx, has, at('contains'), false);
+    }
+    if (own.all || 0 < own.keys.length || undefined !== own.members || !own.exact) {
+        out.push(own);
+    }
+    const into = (n, p, more) => coversOf(ctx, n, p, kind, [...cond, ...more], path, out, false);
+    const list = (k) => {
+        const v = get(k);
+        return 'array' === v?.t ? v.items : [];
+    };
+    list('allOf').forEach((it, i) => into(it, at('allOf') + '/' + i, []));
+    const ref = get('$ref');
+    if ('string' === ref?.t) {
+        const target = resolveRef(ctx, node, ref.s);
+        into(target, ctx.ptrOf.get(target), []);
+    }
+    const dref = get('$dynamicRef');
+    if ('string' === dref?.t) {
+        const target = ctx.env.get(bookend(ctx, node, dref.s)) ??
+            resolveRef(ctx, node, dref.s);
+        into(target, ctx.ptrOf.get(target), []);
+    }
+    for (const key of ['anyOf', 'oneOf']) {
+        list(key).forEach((it, i) => {
+            const p = at(key) + '/' + i;
+            into(it, p, [convert(ctx, it, p, false)]);
+        });
+    }
+    const cnd = get('if');
+    if (null != cnd) {
+        const c = convert(ctx, cnd, at('if'), false);
+        into(cnd, at('if'), [c]);
+        for (const [k, more] of [['then', c], ['else', call('nof', raw('0'), c)]]) {
+            const arm = get(k);
+            if (null != arm) {
+                into(arm, at(k), [more]);
+            }
+        }
+    }
+    const deps = get('dependentSchemas');
+    for (const e of 'object' === deps?.t ? deps.entries : []) {
+        into(e.val, child(at('dependentSchemas'), e.key), [present([e.key])]);
+    }
+    ctx.env = outerEnv;
+    ctx.doc = outerDoc;
+    path.delete(node);
 }
 // contains counts the items its schema admits, at least one unless
 // minContains says otherwise; a count of at least none asserts nothing.

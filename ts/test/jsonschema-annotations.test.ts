@@ -22,7 +22,7 @@ import { ConjunctVal } from '../dist/val/ConjunctVal'
 const DIR = Path.join(__dirname, '..', '..', 'test', 'vectors', 'jsonschema', 'annotations')
 
 // The ledger may not grow past this; the register tightens it per phase.
-const SKIP_BOUND = 41
+const SKIP_BOUND = 28
 
 // The record key an annotation keyword rides under; any other keyword
 // rides `x`, under its own name.
