@@ -349,7 +349,8 @@ View options:
                     edges_deduped, inverse_suppressed and crossings
   --depth <n>       doc, treemap: how many levels of key to draw
                     (default 3)
-  --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --max-rows <n>    Refuse a figure above this many rows (default 60);
+                    a split figure holds each part to it
   --style <s>       auto (default), none, ansi or css. A figure's
                     marks carry their meaning -- a direct cell, a
                     closure cell, an upward edge -- and each profile
@@ -393,11 +394,17 @@ View options:
   --count-by <k>    ... and its members counted by field k
   --collapse        graph: one node per --group-by value, edges
                     between groups counted (the surface map)
-  --split-by <k>    graph, state, lane: one part per value of field k
-  --split-roots     graph, state, lane: one part per root, holding
-                    what it reaches first
-  --budget <n>      graph, state, lane: parts of at most n nodes; an
-                    edge leaving a part draws its far end as a ghost
+  --split-by <k>    One part per value of field k: of each node (graph,
+                    state, lane, tree, matrix, layer), of each child of
+                    the anchor (doc, treemap) or of each step
+                    (sequence)
+  --split-roots     One part per root, holding what it reaches first;
+                    doc, treemap: one part per child of the anchor
+  --budget <n>      Parts of at most n nodes, rows below the anchor
+                    (doc, treemap), steps (sequence) or columns (sets,
+                    layers), alone or after --split-by or
+                    --split-roots; an edge leaving a part draws its far
+                    end as a ghost
   --steps <path>    sequence: the list of steps, in order
   --from <k>        sequence: the field naming a step's sender
   --to <k>          sequence: the field naming a step's receiver

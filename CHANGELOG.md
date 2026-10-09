@@ -8,7 +8,7 @@ each change affects.
 
 ## Unreleased
 
-### `aontu view`: lifecycles, sequences, swim lanes and treemaps; figures by group
+### `aontu view`: lifecycles, sequences, swim lanes and treemaps; figures by group; every large figure divides into parts
 
 Both ports. Four figure kinds: `state` draws a lifecycle from the links
 (each link's key is its event, `--root` names the initial states),
@@ -19,15 +19,17 @@ typed columns, a link marked `FK`; with `--columns` a link written as a
 column is the entity's own relationship in every kind. `--of <path>`
 (with `--member`, `--ghosts`) draws the members of a node, or of every
 node under it, so a group whose tables are top-level entities has a
-figure of its own. `--split-by`, `--split-roots` and `--budget` cut a
-graph, state or lane figure into parts, each a whole figure, the far end
-of an edge leaving a part drawn as a ghost naming the part it lives in;
-`--out` takes `{part}`, and the report carries `parts`. `--counts` and
-`--count-by` title groups with their counts, and `--collapse` draws the
-surface map. New codes `view_members_none`, `view_steps_required`,
-`view_steps_shape` and `view_split_kind`; `aontu:view` types every new
-option. A view document now generates only its declarations, so a model
-whose schema half is not concrete still has figures; the row
+figure of its own. `--split-by`, `--split-roots` and `--budget` divide a
+figure into parts, each a whole figure: a figure of links by node, the
+far end of an edge leaving a part drawn as a ghost naming the part it
+lives in; a `doc` or `treemap` by the keys under its anchor; a
+`sequence` by step; a set panel by column. `--out` takes `{part}`, and
+the report carries `parts`. `--counts` and `--count-by` title groups
+with their counts, and `--collapse` draws the surface map. New codes
+`view_members_none`, `view_steps_required`, `view_steps_shape` and
+`view_split_kind`; `aontu:view` types every new option. A view document
+now generates only its declarations, so a model whose schema half is not
+concrete still has figures; the row
 `views-a-document-that-does-not-generate` becomes three rows saying so.
 
 ### The finding under a template's preferred member names the maybe() (#292)

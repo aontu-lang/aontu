@@ -261,7 +261,7 @@ func panelColumnLine(p viewPanel, i int, c viewColumn) string {
 }
 
 func panelColumnHead(p viewPanel, i int, c viewColumn) string {
-	head := "col " + itoa(i+1)
+	head := "col " + itoa(p.first+i+1)
 	if !p.bars {
 		head += " (" + itoa(len(c.items)) + ")"
 	}

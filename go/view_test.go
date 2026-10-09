@@ -141,7 +141,7 @@ func TestViewLayersSkipsPathsTheDocumentLacks(t *testing.T) {
 	prov.paths["a.ghost"] = &whyPathRecord{conjuncts: []whyContribution{ghost}}
 	prov.paths["a.empty"] = &whyPathRecord{}
 	loss := []ViewLoss{}
-	text, ferrs := drawLayers(prov, root, "", "", 0, 0, "text", "none", 60, &loss)
+	text, ferrs := drawLayers(prov, root, "", "", 0, 0, 0, "text", "none", 60, &loss, nil)
 	if nil != ferrs || strings.Contains(text, "ghost") || strings.Contains(text, "empty") {
 		t.Fatalf("layers = %q %v", text, ferrs)
 	}
@@ -197,7 +197,7 @@ func TestViewDocWalksAList(t *testing.T) {
 		t.Fatal(errs0)
 	}
 	loss := []ViewLoss{}
-	text, errs := drawDoc(root, "$", 3, "text", "none", 60, &loss)
+	text, errs := drawDoc(root, "$", 3, nil, nil, "text", "none", 60, &loss)
 	if nil != errs {
 		t.Fatal(errs)
 	}

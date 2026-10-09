@@ -128,17 +128,47 @@ group refers to is the selection the model already states.
 
 ## Splitting and ghosts
 
-`--split-by <field>`, `--split-roots` and `--budget <n>` cut a `graph`,
-`state` or `lane` figure into parts. A part takes its nodes, every edge
-touching one of them, and the far end of each edge that leaves it as a
-ghost. By root, each root takes what it reaches breadth-first that no
-earlier root took, and what no root reaches (a cycle with no way in) is
-taken from its least label. A budget alone cuts that same walk, so a
-part holds nodes that reach each other.
+`--split-by <field>`, `--split-roots` and `--budget <n>` divide a
+figure into parts, each a whole figure of its own. How a kind divides
+follows from what its figure is drawn from.
+
+A figure of links (`graph`, `state`, `lane`, `tree`, `matrix`,
+`layer`) divides its nodes. A part takes its nodes, every edge touching
+one of them, and the far end of each edge that leaves it as a ghost. By
+root, each root takes what it reaches breadth-first that no earlier
+root took, and what no root reaches (a cycle with no way in) is taken
+from its least label. A budget alone cuts that same walk, so a part
+holds nodes that reach each other. The nodes divided are the ones the
+figure draws: those its relations connect, and for a tree with
+`--root`, only what the roots reach. A matrix part keeps the edges of
+every relation touching its nodes, so an edge under a declared inverse
+is still checked against its mirror.
 
 A ghost is a label (`invoice (in billing)`, or `(outside)` for a node in
 no part), because VIEWS.0 refuses node shapes and styling. Its id is
 prefixed `x`, which no node id can start with.
+
+A document or a treemap is a tree of rows, and divides the children of
+its anchor: by a field of each child, one part per child, or by a
+budget of rows. A budget counts the rows under a part's anchor; a child
+with more rows than the budget is opened and its children packed in
+turn, so that part is anchored at the child and says where it sits. The
+anchor is reached by its chain of keys, walked as keys rather than read
+back as a path, so a key holding a `.` divides like any other. A
+treemap divided by a field is rebuilt from the items holding each value,
+grouped and weighed afresh.
+
+A sequence divides its steps, by a field of each step or `n` steps at a
+time, and each part draws only its own participants, in the order of
+the whole. A set panel divides its columns `n` at a time, each part
+numbering its columns as the whole panel does.
+
+Rejected: dividing the lattice, the ladder and the poset. Each is one
+order drawn whole (the lattice's scaffold is the language's, and the
+ladder and the poset place every node against all the others), so a
+part of one would be a different figure. Asking is `view_split_kind`,
+as is asking a kind to divide in a way it cannot: a sequence or a panel
+has no roots, and a panel has no field to divide by.
 
 The whole figure is drawn first, so the figure's refusals and loss
 report are the whole figure's, and each part is held to `--max-rows`
@@ -149,9 +179,6 @@ digits, `.` and `-` spelled as `_`, its hex and `_` again. The closing
 `_` makes the spelling injective (`" a"` and U+020A no longer meet),
 and an ER column name is spelled the same way behind a `q_` that no
 written name keeps.
-
-Only the node-link kinds split. A part of a matrix, a tree or a set
-panel would not stand on its own, and asking is `view_split_kind`.
 
 ## Counts and summaries
 

@@ -136,6 +136,42 @@ directory it names must already exist, as it must for `--out`. Nothing
 is written unless every figure rendered: N figures of one model are
 only meaningful together.
 
+## Divide a figure that is too big
+
+`--max-rows` refuses a figure too big to read. Rather than narrowing
+it, divide it. `--budget <n>` cuts the figure into parts of at most `n`
+nodes, each a whole figure, and an edge that leaves a part draws its
+far end as a ghost naming the part it lives in:
+
+<!-- test: run -->
+```sh
+$ aontu view tree --relation dependsOn --budget 2 system.aontu
+# part: 1
+web
+└── api
+    └── store (in 2)
+
+# part: 2
+api (in 1)
+└── store
+```
+
+`--split-by <field>` divides by a field's value instead, and
+`--split-roots` by root, and either takes `--budget` after it. A `doc`
+or `treemap` figure divides the keys under its anchor, a `sequence` its
+steps, and a set panel its columns. With `--out`, each part goes to the
+file its `{part}` names:
+
+<!-- test: run -->
+```sh
+$ aontu view tree --relation dependsOn --split-by tier --out 'tree-{part}.txt' system.aontu
+$ echo $?
+0
+```
+
+That writes `tree-core.txt` and `tree-edge.txt`, and the same command
+with `--check` gates them.
+
 ## What the figure could not draw
 
 Every run reports its losses on stderr, so a figure written to a file

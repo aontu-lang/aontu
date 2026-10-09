@@ -501,16 +501,21 @@ const TOOLS: ToolDef[] = [
       splitBy: {
         type: 'string',
         description:
-          'graph, state, lane: one part per value of this field (optional)',
+          'One part per value of this field: of each node (graph, state, ' +
+          'lane, tree, matrix, layer), of each child of the anchor (doc, ' +
+          'treemap) or of each step (sequence) (optional)',
       },
       splitRoots: {
         type: 'boolean',
-        description: 'graph, state, lane: one part per root (optional)',
+        description:
+          'One part per root; doc, treemap: one part per child of the ' +
+          'anchor (optional)',
       },
       budget: {
         type: 'integer',
         description:
-          'graph, state, lane: parts of at most this many nodes (optional)',
+          'Parts of at most this many nodes, rows below the anchor (doc, ' +
+          'treemap), steps (sequence) or columns (sets, layers) (optional)',
       },
       steps: {
         type: 'string',

@@ -363,7 +363,7 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 
 	paths := viewGraphPaths(edges, o.members)
 	if max < len(paths) {
-		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
+		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation", true)}
 	}
 
 	unresolved := []string{}
@@ -569,7 +569,7 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 	}
 	paths := viewGraphPaths(edges, members)
 	if max < len(paths) {
-		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
+		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation", true)}
 	}
 	for _, r := range roots {
 		if _, ghost := ghosts[r]; !contains(paths, r) || ghost {
@@ -679,7 +679,7 @@ func drawLane(triples []viewTriple, root Val, o viewLaneOpts, max int,
 	}
 	paths := viewGraphPaths(edges, o.members)
 	if max < len(paths) {
-		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
+		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation", true)}
 	}
 	unresolved := []string{}
 	nodes, nerr := viewGraphNodes(paths, root, o.groupBy, o.label, o.ghosts, &unresolved)
@@ -866,18 +866,22 @@ type viewMsg struct {
 	text string
 }
 
-func drawSequence(list any, at, from, to, labelField, as string, max int,
-	loss *[]ViewLoss) (string, []VetFinding) {
+func drawSequence(list any, at, from, to, labelField, splitBy string, budget int,
+	as string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
 	steps, isList := list.([]any)
 	if !isList {
 		return "", []VetFinding{viewFinding("view_steps_shape", "reference", at,
 			at+" is not a list of steps.", "")}
 	}
-	if max < len(steps) {
-		return "", []VetFinding{viewRowsFinding(len(steps), max, "--steps")}
+	splitting := "" != splitBy || 0 < budget
+	if !splitting && max < len(steps) {
+		return "", []VetFinding{viewRowsFinding(len(steps), max, "--steps", true)}
 	}
 	unresolved := []string{}
-	type raw struct{ a, b, text string }
+	type raw struct {
+		a, b, text, part string
+		parted           bool
+	}
 	msgs := []raw{}
 	for i, step := range steps {
 		where := at + "." + strconv.Itoa(i)
@@ -896,15 +900,25 @@ func drawSequence(list any, at, from, to, labelField, as string, max int,
 				unresolved = append(unresolved, where+"."+labelField)
 			}
 		}
-		if viewHasLineBreak(a) || viewHasLineBreak(b) || viewHasLineBreak(text) {
+		part, parted := "", false
+		if "" != splitBy {
+			if v, ok := fields[splitBy].(string); ok {
+				part, parted = v, true
+			} else {
+				unresolved = append(unresolved, where+"."+splitBy)
+			}
+		}
+		if viewHasLineBreak(a) || viewHasLineBreak(b) || viewHasLineBreak(text) ||
+			viewHasLineBreak(part) {
 			return "", []VetFinding{viewLineBreakFinding(where)}
 		}
-		msgs = append(msgs, raw{a, b, text})
+		msgs = append(msgs, raw{a, b, text, part, parted})
 	}
 	viewUnresolvedLoss(unresolved, loss)
 
 	// Participants in order of first appearance; an address is shown by
-	// its shortest unique suffix, as every other figure shows a node.
+	// its shortest unique suffix, as every other figure shows a node. A
+	// part draws the participants of its own steps, in the same order.
 	who := []string{}
 	ix := map[string]int{}
 	for _, m := range msgs {
@@ -922,35 +936,81 @@ func drawSequence(list any, at, from, to, labelField, as string, max int,
 		}
 	}
 	lab := shortLabels(addrs)
-	names := []string{}
-	for _, p := range who {
+	name := func(p string) string {
 		if l, ok := lab[p]; ok {
-			names = append(names, l)
-		} else {
-			names = append(names, p)
+			return l
 		}
+		return p
 	}
 
-	if "mermaid" == as {
-		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
-		out := []string{"sequenceDiagram"}
-		for i, n := range names {
-			out = append(out, "  participant p"+strconv.Itoa(i)+" as "+esc(n))
-		}
-		for _, m := range msgs {
-			line := "  p" + strconv.Itoa(ix[m.a]) + "->>p" + strconv.Itoa(ix[m.b]) + ":"
-			if "" != m.text {
-				line += " " + esc(m.text)
+	render := func(steps []raw) string {
+		mine := []string{}
+		for _, p := range who {
+			for _, m := range steps {
+				if m.a == p || m.b == p {
+					mine = append(mine, p)
+					break
+				}
 			}
-			out = append(out, line)
 		}
-		return strings.Join(out, "\n"), nil
+		if "mermaid" == as {
+			esc := func(s string) string { return viewEscape(s, mermaidEsc) }
+			out := []string{"sequenceDiagram"}
+			for _, p := range mine {
+				out = append(out, "  participant p"+strconv.Itoa(ix[p])+" as "+esc(name(p)))
+			}
+			for _, m := range steps {
+				line := "  p" + strconv.Itoa(ix[m.a]) + "->>p" + strconv.Itoa(ix[m.b]) + ":"
+				if "" != m.text {
+					line += " " + esc(m.text)
+				}
+				out = append(out, line)
+			}
+			return strings.Join(out, "\n")
+		}
+		local := map[string]int{}
+		names := []string{}
+		for i, p := range mine {
+			local[p] = i
+			names = append(names, name(p))
+		}
+		drawn := []viewMsg{}
+		for _, m := range steps {
+			drawn = append(drawn, viewMsg{local[m.a], local[m.b], m.text})
+		}
+		return viewSequenceText(names, drawn)
 	}
-	drawn := []viewMsg{}
-	for _, m := range msgs {
-		drawn = append(drawn, viewMsg{ix[m.a], ix[m.b], m.text})
+	if !splitting {
+		return render(msgs), nil
 	}
-	return viewSequenceText(names, drawn), nil
+	base := []viewRun[raw]{{name: "", items: msgs}}
+	if "" != splitBy {
+		names := []string{}
+		for _, m := range msgs {
+			if m.parted && !contains(names, m.part) {
+				names = append(names, m.part)
+			}
+		}
+		sort.Strings(names)
+		base = []viewRun[raw]{}
+		for _, n := range names {
+			mine := []raw{}
+			for _, m := range msgs {
+				if m.parted && n == m.part {
+					mine = append(mine, m)
+				}
+			}
+			base = append(base, viewRun[raw]{name: n, items: mine})
+		}
+	}
+	drawn := []ViewPart{}
+	for _, part := range viewBudgeted(base, budget) {
+		if max < len(part.items) {
+			return "", []VetFinding{viewRowsFinding(len(part.items), max, "--steps", true)}
+		}
+		drawn = append(drawn, ViewPart{Name: part.name, Text: render(part.items)})
+	}
+	return viewJoinParts(as, drawn, parts), nil
 }
 
 // viewSequenceText is THE LIFELINE GRID. Lifeline i sits at column
@@ -1111,63 +1171,93 @@ func viewWhole(v Val) (int, bool) {
 	return 0, false
 }
 
-func drawTreemap(root Val, at string, depth int, groupBy, size string, members []string,
-	selected bool, as, style string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+// viewTreemapOpts is what a treemap's tiles are built from; `only`, when
+// given, keeps the items (the anchor's children, or the members) a part
+// holds.
+type viewTreemapOpts struct {
+	at, groupBy, size string
+	depth             int
+	members           []string
+	selected          bool
+	only              []string
+}
+
+// viewTreemapTop is the tiles of a treemap, pruned of what weighs
+// nothing.
+func viewTreemapTop(root Val, o viewTreemapOpts, loss *[]ViewLoss) (*viewTile, *VetFinding) {
+	at := o.at
 	if "" == at {
 		at = "$"
 	}
 	anchor := anchorAt(root, at)
 	if nil == anchor {
-		return "", []VetFinding{viewFinding("no_path", "reference", at,
-			"The path "+at+" names nothing in this document.", "")}
+		f := viewFinding("no_path", "reference", at,
+			"The path "+at+" names nothing in this document.", "")
+		return nil, &f
 	}
 	unresolved := []string{}
 	weigh := func(path string, v Val) int {
-		if "" == size {
+		if "" == o.size {
 			return viewLeafWeight(v)
 		}
-		field := anchorAt(root, path+"."+size)
+		field := anchorAt(root, path+"."+o.size)
 		if nil != field {
 			if n, ok := viewWhole(field); ok {
 				return n
 			}
 		}
-		unresolved = append(unresolved, path+"."+size)
+		unresolved = append(unresolved, path+"."+o.size)
 		return 0
 	}
 	// With --size, a node holding the field is a tile weighed by it.
 	holds := func(path string) bool {
-		return "" != size && nil != anchorAt(root, path+"."+size)
+		return "" != o.size && nil != anchorAt(root, path+"."+o.size)
 	}
-	var tile func(path string, v Val, depth int) *viewTile
-	tile = func(path string, v Val, depth int) *viewTile {
-		entries := docEntries(v)
+	kept := func(path string) bool {
+		return nil == o.only || contains(o.only, path)
+	}
+	var tile func(path string, v Val, depth int, first bool) *viewTile
+	tile = func(path string, v Val, depth int, first bool) *viewTile {
+		entries := []docEntry{}
+		for _, e := range docEntries(v) {
+			if !first || kept(path+"."+e.key) {
+				entries = append(entries, e)
+			}
+		}
 		name := path[strings.LastIndex(path, ".")+1:]
 		if 0 == depth || 0 == len(entries) || holds(path) {
 			return &viewTile{name: name, weight: weigh(path, v)}
 		}
 		t := &viewTile{name: name}
 		for _, e := range entries {
-			k := tile(path+"."+e.key, throughDoc(e.child), depth-1)
+			k := tile(path+"."+e.key, throughDoc(e.child), depth-1, false)
 			t.kids = append(t.kids, k)
 			t.weight += k.weight
 		}
 		return t
 	}
 
-	items := members
-	if !selected {
-		items = []string{}
+	// The items: the members asked for, or the anchor's children.
+	all := o.members
+	if !o.selected {
+		all = []string{}
 		for _, e := range docEntries(anchor) {
-			items = append(items, at+"."+e.key)
+			all = append(all, at+"."+e.key)
+		}
+	}
+	items := []string{}
+	for _, p := range all {
+		if kept(p) {
+			items = append(items, p)
 		}
 	}
 	var top *viewTile
-	if "" == groupBy && !selected {
+	if "" == o.groupBy && !o.selected {
+		depth := o.depth
 		if 0 == depth {
 			depth = viewDefaultDocDepth
 		}
-		top = tile(at, anchor, depth)
+		top = tile(at, anchor, depth, true)
 		top.name = at
 	} else {
 		labels := shortLabels(items)
@@ -1178,10 +1268,10 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 		leaves := []leaf{}
 		for _, p := range items {
 			l := leaf{tile: &viewTile{name: labels[p], weight: weigh(p, anchorAt(root, p))}}
-			if "" != groupBy {
-				g, ok := viewFieldOf(root, p, groupBy)
+			if "" != o.groupBy {
+				g, ok := viewFieldOf(root, p, o.groupBy)
 				if !ok {
-					unresolved = append(unresolved, p+"."+groupBy)
+					unresolved = append(unresolved, p+"."+o.groupBy)
 					g = "-"
 				}
 				l.group = g
@@ -1189,7 +1279,7 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 			leaves = append(leaves, l)
 		}
 		kids := []*viewTile{}
-		if "" == groupBy {
+		if "" == o.groupBy {
 			for _, l := range leaves {
 				kids = append(kids, l.tile)
 			}
@@ -1240,7 +1330,13 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 	if 0 < empty {
 		*loss = append(*loss, ViewLoss{Code: "treemap_empty", Count: empty})
 	}
+	return top, nil
+}
 
+// viewTreemapFigure is a treemap drawn from its top tile. A part below
+// the top is drawn as one section, so Mermaid shows where it sits.
+func viewTreemapFigure(top *viewTile, at, as, style string, max int,
+	wrap bool) (string, []VetFinding) {
 	type row struct {
 		prefix, name string
 		weight       int
@@ -1259,7 +1355,7 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 	}
 	walk(top, "", "")
 	if max < len(rows) {
-		return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth")}
+		return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth", true)}
 	}
 	for _, r := range rows {
 		if viewHasLineBreak(r.name) {
@@ -1283,7 +1379,7 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 			}
 		}
 		tops := top.kids
-		if 0 == len(tops) && 0 < top.weight {
+		if wrap || (0 == len(top.kids) && 0 < top.weight) {
 			tops = []*viewTile{top}
 		}
 		for _, k := range tops {
@@ -1313,6 +1409,275 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 			viewLpad(strconv.Itoa(r.weight), nw)+"  "+paint.paint("bar", strings.Repeat("█", bar)))
 	}
 	return strings.Join(out, "\n"), nil
+}
+
+func drawTreemap(root Val, at string, depth int, groupBy, size string, members []string,
+	selected bool, as, style string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	top, ferr := viewTreemapTop(root, viewTreemapOpts{at: at, depth: depth, groupBy: groupBy,
+		size: size, members: members, selected: selected}, loss)
+	if nil != ferr {
+		return "", []VetFinding{*ferr}
+	}
+	if "" == at {
+		at = "$"
+	}
+	return viewTreemapFigure(top, at, as, style, max, false)
+}
+
+// ---------------------------------------------------------------------
+// The split of a figure drawn as a tree of rows: the document and the
+// treemap
+
+// viewHBase is a part of a row tree before its budget: the anchor's
+// children it keeps. A viewHPart adds the chain of names below the
+// anchor that the kept children hang from.
+type viewHBase struct {
+	name string
+	top  *viewTile
+	keys []string
+}
+
+type viewHPart struct {
+	viewHBase
+	chain []string
+}
+
+func viewHRows(n *viewTile) int {
+	r := 1
+	for _, k := range n.kids {
+		r += viewHRows(k)
+	}
+	return r
+}
+
+// viewDocTree is the document's own rows as a tree: depth levels of key
+// below v.
+func viewDocTree(v Val, name string, depth int) *viewTile {
+	t := &viewTile{name: name}
+	if 0 == depth {
+		return t
+	}
+	for _, e := range docEntries(v) {
+		t.kids = append(t.kids, viewDocTree(throughDoc(e.child), e.key, depth-1))
+	}
+	return t
+}
+
+// viewHBases is the bases a row tree divides into: one per value of a
+// field of the top's children, one per child, or the whole.
+func viewHBases(top *viewTile, splitBy string, splitRoots bool, path func(string) string,
+	root Val, loss *[]ViewLoss) []viewHBase {
+	keys := []string{}
+	for _, k := range top.kids {
+		keys = append(keys, k.name)
+	}
+	out := []viewHBase{}
+	if "" != splitBy {
+		unresolved := []string{}
+		of := map[string][]string{}
+		names := []string{}
+		for _, k := range keys {
+			v, ok := viewFieldOf(root, path(k), splitBy)
+			if !ok {
+				unresolved = append(unresolved, path(k)+"."+splitBy)
+				continue
+			}
+			if _, seen := of[v]; !seen {
+				names = append(names, v)
+			}
+			of[v] = append(of[v], k)
+		}
+		viewAddUnresolved(loss, unresolved)
+		sort.Strings(names)
+		for _, n := range names {
+			out = append(out, viewHBase{name: n, top: top, keys: of[n]})
+		}
+		return out
+	}
+	if splitRoots {
+		for _, k := range keys {
+			out = append(out, viewHBase{name: k, top: top, keys: []string{k}})
+		}
+		return out
+	}
+	return append(out, viewHBase{name: "", top: top, keys: keys})
+}
+
+// viewPackRows packs each base into parts of at most budget rows below
+// their anchor: whole subtrees side by side, and a subtree too big for
+// one part opened, its children packed under it in turn.
+func viewPackRows(bases []viewHBase, budget int) []viewHPart {
+	out := []viewHPart{}
+	for _, b := range bases {
+		if 0 == budget {
+			out = append(out, viewHPart{viewHBase: b, chain: []string{}})
+			continue
+		}
+		type unit struct {
+			chain []string
+			node  *viewTile
+		}
+		units := []unit{}
+		var add func(chain []string, node *viewTile)
+		add = func(chain []string, node *viewTile) {
+			if viewHRows(node) <= budget {
+				units = append(units, unit{chain, node})
+				return
+			}
+			for _, k := range node.kids {
+				add(append(append([]string{}, chain...), node.name), k)
+			}
+		}
+		for _, k := range b.top.kids {
+			if contains(b.keys, k.name) {
+				add([]string{}, k)
+			}
+		}
+		type pack struct {
+			chain, keys []string
+			used        int
+		}
+		packs := []*pack{}
+		for _, u := range units {
+			r := viewHRows(u.node)
+			if 0 < len(packs) {
+				last := packs[len(packs)-1]
+				if last.used+r <= budget &&
+					strings.Join(last.chain, "\x00") == strings.Join(u.chain, "\x00") {
+					last.keys = append(last.keys, u.node.name)
+					last.used += r
+					continue
+				}
+			}
+			packs = append(packs, &pack{chain: u.chain, keys: []string{u.node.name}, used: r})
+		}
+		for i, p := range packs {
+			name := b.name
+			if "" == b.name {
+				name = strconv.Itoa(i + 1)
+			} else if 1 != len(packs) {
+				name = b.name + "." + strconv.Itoa(i+1)
+			}
+			out = append(out, viewHPart{
+				viewHBase: viewHBase{name: name, top: b.top, keys: p.keys}, chain: p.chain,
+			})
+		}
+	}
+	return out
+}
+
+func drawDocParts(root Val, o *ViewOptions, as, style string, max int,
+	loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
+	if _, werr := drawDoc(root, o.At, o.Depth, nil, nil, as, style, math.MaxInt, loss); nil != werr {
+		return "", werr
+	}
+	at := o.At
+	if "" == at {
+		at = "$"
+	}
+	depth := o.Depth
+	if 0 == depth {
+		depth = viewDefaultDocDepth
+	}
+	top := viewDocTree(anchorAt(root, at), at, depth)
+	cut := viewPackRows(viewHBases(top, o.SplitBy, o.SplitRoots,
+		func(k string) string { return at + "." + k }, root, loss), o.Budget)
+	drawn := []ViewPart{}
+	for _, part := range cut {
+		if viewHasLineBreak(part.name) {
+			return "", []VetFinding{viewLineBreakFinding(at + "." + part.keys[0])}
+		}
+		text, perr := drawDoc(root, at, depth-len(part.chain), part.chain, part.keys,
+			as, style, max, &[]ViewLoss{})
+		if nil != perr {
+			return "", perr
+		}
+		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
+	}
+	return viewJoinParts(as, drawn, parts), nil
+}
+
+func drawTreemapParts(root Val, o *ViewOptions, members []string, selected bool,
+	as, style string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
+	tm := viewTreemapOpts{at: o.At, depth: o.Depth, groupBy: o.GroupBy, size: o.Size,
+		members: members, selected: selected}
+	if _, werr := drawTreemap(root, o.At, o.Depth, o.GroupBy, o.Size, members, selected,
+		as, style, math.MaxInt, loss); nil != werr {
+		return "", werr
+	}
+	at := o.At
+	if "" == at {
+		at = "$"
+	}
+	top, _ := viewTreemapTop(root, tm, &[]ViewLoss{})
+	bases := []viewHBase{}
+	if "" == o.SplitBy {
+		bases = viewHBases(top, "", o.SplitRoots, nil, root, loss)
+	} else {
+		// A part by a field is the treemap of the items holding its
+		// value, grouped and weighed afresh.
+		items := members
+		if !selected {
+			items = []string{}
+			for _, e := range docEntries(anchorAt(root, at)) {
+				items = append(items, at+"."+e.key)
+			}
+		}
+		unresolved := []string{}
+		of := map[string][]string{}
+		names := []string{}
+		for _, p := range items {
+			v, ok := viewFieldOf(root, p, o.SplitBy)
+			if !ok {
+				unresolved = append(unresolved, p+"."+o.SplitBy)
+				continue
+			}
+			if _, seen := of[v]; !seen {
+				names = append(names, v)
+			}
+			of[v] = append(of[v], p)
+		}
+		viewAddUnresolved(loss, unresolved)
+		sort.Strings(names)
+		for _, n := range names {
+			only := tm
+			only.only = of[n]
+			mine, _ := viewTreemapTop(root, only, &[]ViewLoss{})
+			keys := []string{}
+			for _, k := range mine.kids {
+				keys = append(keys, k.name)
+			}
+			bases = append(bases, viewHBase{name: n, top: mine, keys: keys})
+		}
+	}
+	drawn := []ViewPart{}
+	for _, part := range viewPackRows(bases, o.Budget) {
+		if viewHasLineBreak(part.name) {
+			return "", []VetFinding{viewLineBreakFinding(at)}
+		}
+		node := part.top
+		for _, name := range part.chain {
+			for _, k := range node.kids {
+				if k.name == name {
+					node = k
+					break
+				}
+			}
+		}
+		section := &viewTile{name: strings.Join(append([]string{part.top.name}, part.chain...), ".")}
+		for _, k := range node.kids {
+			if contains(part.keys, k.name) {
+				section.kids = append(section.kids, k)
+				section.weight += k.weight
+			}
+		}
+		text, perr := viewTreemapFigure(section, at, as, style, max, 0 < len(part.chain))
+		if nil != perr {
+			return "", perr
+		}
+		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
+	}
+	return viewJoinParts(as, drawn, parts), nil
 }
 
 // ---------------------------------------------------------------------
@@ -1394,7 +1759,72 @@ type viewPartNodes struct {
 	nodes []string
 }
 
-var viewSplitKinds = []string{"graph", "state", "lane"}
+// viewSplitModes is how each kind divides. A kind missing here does not
+// divide at all.
+var viewSplitModes = []struct {
+	kind  string
+	modes []string
+}{
+	{"graph", []string{"by", "roots", "budget"}},
+	{"state", []string{"by", "roots", "budget"}},
+	{"lane", []string{"by", "roots", "budget"}},
+	{"tree", []string{"by", "roots", "budget"}},
+	{"matrix", []string{"by", "roots", "budget"}},
+	{"layer", []string{"by", "roots", "budget"}},
+	{"doc", []string{"by", "roots", "budget"}},
+	{"treemap", []string{"by", "roots", "budget"}},
+	{"sequence", []string{"by", "budget"}},
+	{"sets", []string{"budget"}},
+	{"layers", []string{"budget"}},
+}
+
+var viewSplitFlag = map[string]string{
+	"by": "--split-by", "roots": "--split-roots", "budget": "--budget",
+}
+
+// viewEdgeKinds are the kinds drawn from the links, which divide by
+// node and draw a ghost for what lives elsewhere.
+var viewEdgeKinds = []string{"graph", "state", "lane", "tree", "matrix", "layer"}
+
+func viewSplitRefusal(kind string, o *ViewOptions) *VetFinding {
+	modes := []string{}
+	kinds := []string{}
+	for _, m := range viewSplitModes {
+		kinds = append(kinds, m.kind)
+		if m.kind == kind {
+			modes = m.modes
+		}
+	}
+	asked := []struct {
+		mode string
+		on   bool
+		how  string
+	}{
+		{"by", "" != o.SplitBy, "by a field"},
+		{"roots", o.SplitRoots, "by root"},
+		{"budget", 0 < o.Budget, "by a budget"},
+	}
+	for _, a := range asked {
+		if !a.on || contains(modes, a.mode) {
+			continue
+		}
+		if 0 == len(modes) {
+			f := viewFinding("view_split_kind", "reference", "$",
+				"The "+kind+" figure cannot be split into parts.",
+				"kinds that split: "+strings.Join(kinds, ", "))
+			return &f
+		}
+		flags := []string{}
+		for _, m := range modes {
+			flags = append(flags, viewSplitFlag[m])
+		}
+		f := viewFinding("view_split_kind", "reference", "$",
+			"The "+kind+" figure cannot be split "+a.how+".",
+			"the "+kind+" figure splits with: "+strings.Join(flags, ", "))
+		return &f
+	}
+	return nil
+}
 
 func viewSplits(o *ViewOptions) bool {
 	return "" != o.SplitBy || o.SplitRoots || 0 < o.Budget
@@ -1434,27 +1864,7 @@ func viewSplitParts(sel viewSelection, root Val, o *ViewOptions, loss *[]ViewLos
 			}
 			of[v] = append(of[v], p)
 		}
-		// The split field may be a field the figure already read, so its
-		// unresolved paths join the row the figure wrote.
-		merged := false
-		for i := range *loss {
-			row := &(*loss)[i]
-			if "unresolved_field" == row.Code {
-				seen := map[string]bool{}
-				all := []string{}
-				for _, d := range append(append([]string{}, row.Detail...), unresolved...) {
-					if !seen[d] {
-						seen[d] = true
-						all = append(all, d)
-					}
-				}
-				sort.Strings(all)
-				row.Detail, row.Count, merged = all, len(all), true
-			}
-		}
-		if !merged {
-			viewUnresolvedLoss(unresolved, loss)
-		}
+		viewAddUnresolved(loss, unresolved)
 		sort.Strings(names)
 		for _, name := range names {
 			parts = append(parts, viewPartNodes{name: name, nodes: of[name]})
@@ -1513,25 +1923,13 @@ func viewSplitParts(sel viewSelection, root Val, o *ViewOptions, loss *[]ViewLos
 		}
 	}
 
-	if 0 == o.Budget {
-		return parts
+	runs := []viewRun[string]{}
+	for _, p := range parts {
+		runs = append(runs, viewRun[string]{name: p.name, items: p.nodes})
 	}
 	cut := []viewPartNodes{}
-	for _, part := range parts {
-		n := (len(part.nodes) + o.Budget - 1) / o.Budget
-		for i := 0; i < n; i++ {
-			name := part.name
-			if "" == part.name {
-				name = strconv.Itoa(i + 1)
-			} else if 1 != n {
-				name = part.name + "." + strconv.Itoa(i+1)
-			}
-			end := (i + 1) * o.Budget
-			if end > len(part.nodes) {
-				end = len(part.nodes)
-			}
-			cut = append(cut, viewPartNodes{name: name, nodes: part.nodes[i*o.Budget : end]})
-		}
+	for _, r := range viewBudgeted(runs, o.Budget) {
+		cut = append(cut, viewPartNodes{name: r.name, nodes: r.items})
 	}
 	return cut
 }
@@ -1586,6 +1984,81 @@ func ViewPartFile(out, name string) string {
 // ViewSplits says whether these options cut the figure into parts.
 func ViewSplits(o *ViewOptions) bool { return viewSplits(o) }
 
-var viewPartComment = map[string]string{
-	"mermaid": "%%", "er": "%%", "dot": "//", "text": "#",
+// viewPartHead is the comment a part opens with when every part is
+// printed together.
+func viewPartHead(as, name string) string {
+	switch as {
+	case "svg":
+		return "<!-- part: " + name + " -->"
+	case "dot":
+		return "// part: " + name
+	case "text":
+		return "# part: " + name
+	}
+	return "%% part: " + name
+}
+
+// viewJoinParts hands the parts to the report and answers them printed
+// together.
+func viewJoinParts(as string, parts []ViewPart, into *[]ViewPart) string {
+	texts := []string{}
+	for _, p := range parts {
+		*into = append(*into, p)
+		texts = append(texts, viewPartHead(as, p.Name)+"\n"+p.Text)
+	}
+	return strings.Join(texts, "\n\n")
+}
+
+// viewBudgeted cuts each part into runs of at most budget items: an
+// unnamed part's runs are numbered, and a named one keeps its name while
+// it fits.
+func viewBudgeted[T any](parts []viewRun[T], budget int) []viewRun[T] {
+	if 0 == budget {
+		return parts
+	}
+	out := []viewRun[T]{}
+	for _, part := range parts {
+		n := (len(part.items) + budget - 1) / budget
+		for i := 0; i < n; i++ {
+			name := part.name
+			if "" == part.name {
+				name = strconv.Itoa(i + 1)
+			} else if 1 != n {
+				name = part.name + "." + strconv.Itoa(i+1)
+			}
+			end := (i + 1) * budget
+			if end > len(part.items) {
+				end = len(part.items)
+			}
+			out = append(out, viewRun[T]{name: name, items: part.items[i*budget : end]})
+		}
+	}
+	return out
+}
+
+type viewRun[T any] struct {
+	name  string
+	items []T
+}
+
+// viewAddUnresolved joins the paths a split field leaves unresolved to
+// the row the figure already wrote, so one code is one row.
+func viewAddUnresolved(loss *[]ViewLoss, paths []string) {
+	for i := range *loss {
+		row := &(*loss)[i]
+		if "unresolved_field" == row.Code {
+			seen := map[string]bool{}
+			all := []string{}
+			for _, d := range append(append([]string{}, row.Detail...), paths...) {
+				if !seen[d] {
+					seen[d] = true
+					all = append(all, d)
+				}
+			}
+			sort.Strings(all)
+			row.Detail, row.Count = all, len(all)
+			return
+		}
+	}
+	viewUnresolvedLoss(paths, loss)
 }

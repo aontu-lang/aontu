@@ -81,9 +81,10 @@ function rootFinding(root, relation, nodes) {
 }
 // `--max-rows` is a REFUSAL, and the message names the narrowing
 // options.
-function rowsFinding(rows, max, narrow) {
+function rowsFinding(rows, max, narrow, divide = false) {
     return finding('view_rows_exceeded', 'budget', '$', `The figure has ${rows} rows, above --max-rows ${max}; ` +
-        `narrow it with ${narrow}, or raise the limit.`, `rows: ${rows}, max: ${max}`);
+        `narrow it with ${narrow}, ${divide ? 'divide it with --budget, ' : ''}` +
+        'or raise the limit.', `rows: ${rows}, max: ${max}`);
 }
 // An inline piece may not contain a line terminator: a line is a
 // line, which is what makes every renderer a total fold.
@@ -300,7 +301,7 @@ function collapse(triples, relation) {
     // One winner per pair, so (from, to) is unique and orders the set.
     return out.sort((x, y) => (0, keyorder_1.cmpCodePoint)(x.from, y.from) || (0, keyorder_1.cmpCodePoint)(x.to, y.to));
 }
-function drawTree(all, relation, roots, max, as, style) {
+function drawTree(all, relation, roots, max, as, style, part) {
     const paint = painter(style);
     const kept = undefined === relation
         ? all : all.filter((e) => e.label === relation);
@@ -309,16 +310,20 @@ function drawTree(all, relation, roots, max, as, style) {
             .sort(keyorder_1.cmpCodePoint);
         return { errors: [relationFinding(relation, have)] };
     }
-    // The node set is what the drawn relation CONNECTS. A root naming
-    // anything else is a typo, and it is refused rather than drawn.
-    const nodes = nodesOf(kept);
+    // The node set is what the drawn relation CONNECTS, and a part's own
+    // nodes. A root naming anything else is a typo, and it is refused
+    // rather than drawn.
+    const nodes = [...new Set([...nodesOf(kept), ...part.members])]
+        .sort(keyorder_1.cmpCodePoint);
     if (max < nodes.length) {
         return {
-            errors: [rowsFinding(nodes.length, max, '--at, --relation or --root')],
+            errors: [rowsFinding(nodes.length, max, '--at, --relation or --root', true)],
         };
     }
     const lab = labelsOf(nodes);
-    const label = (n) => lab.get(n);
+    const label = (n) => undefined === part.ghosts.get(n)
+        ? lab.get(n)
+        : ghostLabel(lab.get(n), part.ghosts.get(n));
     const kids = new Map(nodes.map((n) => [n, []]));
     for (const e of kept) {
         kids.get(e.from).push({ to: e.to, label: e.label });
@@ -387,7 +392,8 @@ function drawTree(all, relation, roots, max, as, style) {
     for (const root of named) {
         draw(root);
     }
-    if (0 === roots.length) {
+    // A part draws every node it holds, after the roots named in it.
+    if (0 === roots.length || part.rest) {
         for (const n of nodes) {
             if (!expanded.has(n)) {
                 draw(n);
@@ -732,26 +738,36 @@ function docLeaf(v) {
     const canon = throughDoc(v).canon;
     return 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
 }
+// A part of a divided document is anchored below `at` by its chain of
+// keys, walked as keys rather than re-read as a path, and keeps `only`
+// of that anchor's children.
 function drawDoc(root, o, max, loss) {
     const paint = painter(o.style);
-    const at = o.at ?? '$';
-    const anchor = (0, vet_1.anchorAt)(root, at);
+    const base = o.at ?? '$';
+    let anchor = (0, vet_1.anchorAt)(root, base);
     if (null == anchor) {
         return {
             // The same code and the same sentence `get` answers with: the
             // question is identical, so a caller that already handles one
             // handles the other.
-            errors: [finding('no_path', 'reference', at, `The path ${at} names nothing in this document.`)],
+            errors: [finding('no_path', 'reference', base, `The path ${base} names nothing in this document.`)],
         };
     }
-    const depth = o.depth ?? DEFAULT_DOC_DEPTH;
+    const chain = o.chain ?? [];
+    for (const key of chain) {
+        anchor = throughDoc(throughDoc(anchor).peg[key]);
+    }
+    const at = [base, ...chain].join('.');
+    const depth = o.depth || DEFAULT_DOC_DEPTH;
     const out = [];
     const rows = [];
     let elided = 0;
     out.push(at);
     rows.push({ depth: 0, text: at, mark: '', parent: 0 });
+    const top = docKids(anchor)
+        .filter((k) => undefined === o.only || o.only.includes(k));
     const stack = [
-        { node: anchor, kids: docKids(anchor), at: 0, prefix: '', row: 0 },
+        { node: anchor, kids: top, at: 0, prefix: '', row: 0 },
     ];
     while (0 < stack.length) {
         const frame = stack[stack.length - 1];
@@ -774,7 +790,7 @@ function drawDoc(root, o, max, loss) {
         rows.push({ depth: stack.length, text: key, mark, parent: frame.row });
         if (max < rows.length) {
             return {
-                errors: [rowsFinding(rows.length, max, '--at or --depth')],
+                errors: [rowsFinding(rows.length, max, '--at or --depth', true)],
             };
         }
         if (0 < kids.length && under) {
@@ -841,18 +857,24 @@ function pickRelation(relation, keys) {
 }
 function drawMatrix(triples, decls, o, max, loss) {
     const paint = painter(o.style);
-    const picked = pickRelation(o.relation, keysOf(triples));
+    // A part is drawn over the relation its whole figure picked.
+    const picked = o.picked ? { relation: o.relation }
+        : pickRelation(o.relation, keysOf(triples));
     if (undefined !== picked.error) {
         return { errors: [picked.error] };
     }
     const relation = picked.relation;
     const rel = triples.filter((e) => e.key === relation);
-    const nodes = nodesOf(rel);
+    const nodes = [...new Set([...nodesOf(rel), ...o.members])]
+        .sort(keyorder_1.cmpCodePoint);
     if (max < nodes.length) {
-        return { errors: [rowsFinding(nodes.length, max, '--at or --relation')] };
+        return { errors: [rowsFinding(nodes.length, max, '--at or --relation', true)] };
     }
     const lab = labelsOf(nodes);
-    const label = (n) => lab.get(n);
+    const ghosts = o.ghosts;
+    const label = (n) => undefined === ghosts.get(n)
+        ? lab.get(n)
+        : ghostLabel(lab.get(n), ghosts.get(n));
     const succ = new Map(nodes.map((n) => [n, []]));
     const direct = new Set();
     for (const e of rel) {
@@ -1158,7 +1180,7 @@ function drawGraph(triples, decls, root, o, max, loss) {
     }
     const paths = graphPaths(edges, o.members);
     if (max < paths.length) {
-        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] };
     }
     // `--group-by` and `--label` read a field of each node; a node
     // without a value there is counted, and drawn ungrouped or under
@@ -1310,11 +1332,13 @@ function drawLayer(triples, root, o, max, loss) {
     }
     const relation = picked.relation;
     const rel = triples.filter((e) => e.key === relation);
-    const paths = nodesOf(rel);
+    const paths = [...new Set([...nodesOf(rel), ...o.members])]
+        .sort(keyorder_1.cmpCodePoint);
     if (max < paths.length) {
-        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] };
     }
     const lab = labelsOf(paths);
+    const ghosts = o.ghosts;
     // A node whose layer field is unresolved is counted and drawn in a
     // band of its own at the bottom, named `-`.
     const unresolved = [];
@@ -1324,7 +1348,13 @@ function drawLayer(triples, root, o, max, loss) {
         if (undefined === g) {
             unresolved.push(p + '.' + o.groupBy);
         }
-        return { path: p, label: short, id: ident(short), group: g ?? '-' };
+        const where = ghosts.get(p);
+        return undefined === where
+            ? { path: p, label: short, id: ident(short), group: g ?? '-' }
+            : {
+                path: p, label: ghostLabel(short, where), id: 'x' + ident(short),
+                group: g ?? '-', ghost: true,
+            };
     });
     for (const n of nodes) {
         if (hasLineBreak(n.group)) {
@@ -1579,7 +1609,7 @@ function renderPanel(p, style) {
     p.cols.forEach((c, i) => {
         const shown = 4 < c.items.length && !p.bars
             ? c.items.slice(0, 3).join(' ') + ' ...' : c.items.join(' ');
-        out.push(paint('muted', `  col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}:`) +
+        out.push(paint('muted', `  col ${(p.first ?? 0) + i + 1}${p.bars ? '' : ` (${c.items.length})`}:`) +
             ` ${shown}` + (c.sig.some((b) => b) ? '' : paint('muted', p.none)));
     });
     return out.join('\n');
@@ -1621,7 +1651,7 @@ function panelSvg(p, about, style) {
     p.cols.forEach((c, i) => {
         const shown = 4 < c.items.length && !p.bars
             ? c.items.slice(0, 3).join(' ') + ' ...' : c.items.join(' ');
-        lines.push(`col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}: ${shown}` +
+        lines.push(`col ${(p.first ?? 0) + i + 1}${p.bars ? '' : ` (${c.items.length})`}: ${shown}` +
             (c.sig.some((b) => b) ? '' : p.none));
     });
     lines.forEach((l, i) => {
@@ -1629,6 +1659,21 @@ function panelSvg(p, about, style) {
     });
     const width = Math.max(gx + p.cols.length * 20, gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH, 4 + widest(lines) * CH, 4 + p.header.length * CH) + PAD;
     return svgDoc(width, yI + lines.length * LH + PAD, about, parts, style);
+}
+// The panel, or with a budget its pages of at most that many columns,
+// each numbering its columns as the whole panel does.
+function panelFigure(panel, about, o) {
+    const draw = (p) => 'svg' === o.as
+        ? panelSvg(p, about(p.cols), o.style) : renderPanel(p, o.style);
+    const budget = o.budget ?? 0;
+    if (0 === budget) {
+        return { text: draw(panel) };
+    }
+    const pages = 0 === panel.cols.length ? [{ name: '1', items: [] }]
+        : budgeted([{ name: '', items: panel.cols }], budget);
+    return joinParts(o.as, pages.map((page, i) => ({
+        name: page.name, text: draw({ ...panel, cols: page.items, first: i * budget }),
+    })));
 }
 // Elide the columns beyond `--max-cols`, counted. Zero means no limit,
 // in both ports.
@@ -1724,12 +1769,9 @@ function drawSets(gen, o, max, loss) {
         bars: true,
         none: '   (in no set)',
     };
-    return {
-        text: 'svg' === o.as
-            ? panelSvg(panel, `Set panel over ${o.sets}: ${names.length} sets, ` +
-                `${elements.size} elements, ${cols.length} intersections`, o.style)
-            : renderPanel(panel, o.style),
-    };
+    return panelFigure(panel, (shown) => `Set panel over ${o.sets}: ` +
+        `${names.length} sets, ${elements.size} elements, ` +
+        `${shown.length} intersections`, o);
 }
 // The file a contribution names, as the panel shows it: relative to
 // the entry document's directory, the entry itself by its own name.
@@ -1783,12 +1825,9 @@ function drawLayers(prov, root, entry, o, max, loss) {
         bars: false,
         none: '',
     };
-    return {
-        text: 'svg' === o.as
-            ? panelSvg(panel, `Document layers: ${names.length} documents, ` +
-                `${paths.length} paths, ${cols.length} intersections`, o.style)
-            : renderPanel(panel, o.style),
-    };
+    return panelFigure(panel, (shown) => `Document layers: ` +
+        `${names.length} documents, ${paths.length} paths, ` +
+        `${shown.length} intersections`, o);
 }
 // ---------------------------------------------------------------------
 // The meet ladder (VIEWS-ORDER.0.md)
@@ -2008,7 +2047,7 @@ function drawState(triples, root, o, max, loss) {
         ? triples : triples.filter((e) => o.relations.includes(e.key));
     const paths = graphPaths(edges, o.members);
     if (max < paths.length) {
-        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] };
     }
     for (const r of o.roots) {
         if (!paths.includes(r) || o.ghosts.has(r)) {
@@ -2084,7 +2123,7 @@ function drawLane(triples, root, o, max, loss) {
         ? triples : triples.filter((e) => o.relations.includes(e.key));
     const paths = graphPaths(edges, o.members);
     if (max < paths.length) {
-        return { errors: [rowsFinding(paths.length, max, '--at or --relation')] };
+        return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] };
     }
     const unresolved = [];
     const built = graphNodes(paths, root, o, o.ghosts, unresolved);
@@ -2176,8 +2215,9 @@ function drawSequence(list, o, max, loss) {
             errors: [finding('view_steps_shape', 'reference', o.at, `${o.at} is not a list of steps.`)],
         };
     }
-    if (max < list.length) {
-        return { errors: [rowsFinding(list.length, max, '--steps')] };
+    const splitting = undefined !== o.splitBy || 0 < (o.budget ?? 0);
+    if (!splitting && max < list.length) {
+        return { errors: [rowsFinding(list.length, max, '--steps', true)] };
     }
     const unresolved = [];
     const msgs = [];
@@ -2201,31 +2241,63 @@ function drawSequence(list, o, max, loss) {
                 unresolved.push(at + '.' + o.label);
             }
         }
-        if (hasLineBreak(a) || hasLineBreak(b) || hasLineBreak(text)) {
+        let part;
+        if (undefined !== o.splitBy) {
+            const v = step[o.splitBy];
+            if ('string' === typeof v) {
+                part = v;
+            }
+            else {
+                unresolved.push(at + '.' + o.splitBy);
+            }
+        }
+        if (hasLineBreak(a) || hasLineBreak(b) || hasLineBreak(text) ||
+            hasLineBreak(part ?? '')) {
             return { errors: [lineBreakFinding(at)] };
         }
-        msgs.push({ a, b, text });
+        msgs.push({ a, b, text, part });
     }
     unresolvedLoss(unresolved, loss);
     // Participants in order of first appearance; an address is shown by
-    // its shortest unique suffix, as every other figure shows a node.
+    // its shortest unique suffix, as every other figure shows a node. A
+    // part draws the participants of its own steps, in the same order.
     const who = [...new Set(msgs.flatMap((m) => [m.a, m.b]))];
     const lab = labelsOf(who.filter((p) => p.startsWith('$')));
     const name = (p) => lab.get(p) ?? p;
     const ix = new Map(who.map((p, i) => [p, i]));
-    if ('mermaid' === o.as) {
-        const esc = (s) => escape(s, MERMAID_ESC);
-        const out = ['sequenceDiagram'];
-        who.forEach((p, i) => out.push(`  participant p${i} as ${esc(name(p))}`));
-        for (const m of msgs) {
-            out.push(`  p${ix.get(m.a)}->>p${ix.get(m.b)}:` +
-                ('' === m.text ? '' : ' ' + esc(m.text)));
+    const render = (steps) => {
+        const mine = who.filter((p) => steps.some((m) => m.a === p || m.b === p));
+        if ('mermaid' === o.as) {
+            const esc = (s) => escape(s, MERMAID_ESC);
+            const out = ['sequenceDiagram'];
+            for (const p of mine) {
+                out.push(`  participant p${ix.get(p)} as ${esc(name(p))}`);
+            }
+            for (const m of steps) {
+                out.push(`  p${ix.get(m.a)}->>p${ix.get(m.b)}:` +
+                    ('' === m.text ? '' : ' ' + esc(m.text)));
+            }
+            return out.join('\n');
         }
-        return { text: out.join('\n') };
+        return sequenceText(mine.map(name), steps.map((m) => ({
+            a: mine.indexOf(m.a), b: mine.indexOf(m.b), text: m.text,
+        })));
+    };
+    if (!splitting) {
+        return { text: render(msgs) };
     }
-    return { text: sequenceText(who.map(name), msgs.map((m) => ({
-            a: ix.get(m.a), b: ix.get(m.b), text: m.text,
-        }))) };
+    const names = [...new Set(msgs.filter((m) => undefined !== m.part)
+            .map((m) => m.part))].sort(keyorder_1.cmpCodePoint);
+    const base = undefined === o.splitBy ? [{ name: '', items: msgs }]
+        : names.map((n) => ({ name: n, items: msgs.filter((m) => n === m.part) }));
+    const parts = [];
+    for (const part of budgeted(base, o.budget ?? 0)) {
+        if (max < part.items.length) {
+            return { errors: [rowsFinding(part.items.length, max, '--steps', true)] };
+        }
+        parts.push({ name: part.name, text: render(part.items) });
+    }
+    return joinParts(o.as, parts);
 }
 // THE LIFELINE GRID. Lifeline i sits at column x[i]; each gap is wide
 // enough for the name above it and for every message spanning it, the
@@ -2315,12 +2387,14 @@ function leafWeight(v) {
     }
     return kids.reduce((w, k) => w + leafWeight(throughDoc(throughDoc(v).peg[k])), 0);
 }
-function drawTreemap(root, o, max, loss) {
+// The tiles of a treemap, pruned of what weighs nothing. `only` keeps
+// the items (the anchor's children, or the members) a part holds.
+function treemapTop(root, o, loss) {
     const at = o.at ?? '$';
     const anchor = (0, vet_1.anchorAt)(root, at);
     if (null == anchor) {
         return {
-            errors: [finding('no_path', 'reference', at, `The path ${at} names nothing in this document.`)],
+            error: finding('no_path', 'reference', at, `The path ${at} names nothing in this document.`),
         };
     }
     const unresolved = [];
@@ -2338,23 +2412,24 @@ function drawTreemap(root, o, max, loss) {
     };
     // With --size, a node holding the field is a tile weighed by it.
     const holds = (path) => undefined !== o.size && null != (0, vet_1.anchorAt)(root, path + '.' + o.size);
-    const tile = (path, v, depth) => {
-        const kids = docKids(v);
+    const kept = (path) => undefined === o.only || o.only.includes(path);
+    const tile = (path, v, depth, first) => {
+        const kids = docKids(v).filter((k) => !first || kept(path + '.' + k));
         const name = path.slice(path.lastIndexOf('.') + 1);
         if (0 === depth || 0 === kids.length || holds(path)) {
             return { name, weight: weigh(path, v), kids: [] };
         }
-        const inner = kids.map((k) => tile(path + '.' + k, throughDoc(throughDoc(v).peg[k]), depth - 1));
+        const inner = kids.map((k) => tile(path + '.' + k, throughDoc(throughDoc(v).peg[k]), depth - 1, false));
         return {
             name, kids: inner, weight: inner.reduce((w, t) => w + t.weight, 0),
         };
     };
     // The items: the members asked for, or the anchor's children.
-    const items = o.members ??
-        docKids(anchor).map((k) => at + '.' + k);
+    const items = (o.members ??
+        docKids(anchor).map((k) => at + '.' + k)).filter(kept);
     let top;
     if (undefined === o.groupBy && undefined === o.members) {
-        top = tile(at, anchor, o.depth || DEFAULT_DOC_DEPTH);
+        top = tile(at, anchor, o.depth || DEFAULT_DOC_DEPTH, true);
         top.name = at;
     }
     else {
@@ -2397,17 +2472,22 @@ function drawTreemap(root, o, max, loss) {
     if (0 < empty) {
         loss.push({ code: 'treemap_empty', count: empty });
     }
+    return { top };
+}
+// A treemap drawn from its top tile. A part below the top is drawn as
+// one section, so Mermaid shows where it sits.
+function treemapFigure(top, at, o, max, wrap) {
     const rows = [];
-    const walk = (t, prefix, kidPrefix, depth) => {
-        rows.push({ prefix, name: t.name, weight: t.weight, depth });
+    const walk = (t, prefix, kidPrefix) => {
+        rows.push({ prefix, name: t.name, weight: t.weight });
         t.kids.forEach((k, i) => {
             const last = i === t.kids.length - 1;
-            walk(k, kidPrefix + (last ? '└── ' : '├── '), kidPrefix + (last ? '    ' : '│   '), depth + 1);
+            walk(k, kidPrefix + (last ? '└── ' : '├── '), kidPrefix + (last ? '    ' : '│   '));
         });
     };
-    walk(top, '', '', 0);
+    walk(top, '', '');
     if (max < rows.length) {
-        return { errors: [rowsFinding(rows.length, max, '--at or --depth')] };
+        return { errors: [rowsFinding(rows.length, max, '--at or --depth', true)] };
     }
     for (const r of rows) {
         if (hasLineBreak(r.name)) {
@@ -2426,7 +2506,8 @@ function drawTreemap(root, o, max, loss) {
                 emit(k, depth + 1);
             }
         };
-        for (const k of 0 === top.kids.length && 0 < top.weight ? [top] : top.kids) {
+        for (const k of wrap || (0 === top.kids.length && 0 < top.weight)
+            ? [top] : top.kids) {
             emit(k, 0);
         }
         return { text: out.join('\n') };
@@ -2444,6 +2525,202 @@ function drawTreemap(root, o, max, loss) {
                 lpad(String(r.weight), nw) + '  ' + paint('bar', '█'.repeat(bar));
         }).join('\n'),
     };
+}
+function drawTreemap(root, o, max, loss) {
+    const built = treemapTop(root, o, loss);
+    if (undefined !== built.error) {
+        return { errors: [built.error] };
+    }
+    return treemapFigure(built.top, o.at ?? '$', o, max, false);
+}
+function hRows(n) {
+    return 1 + n.kids.reduce((r, k) => r + hRows(k), 0);
+}
+// The document's own rows as a tree: `depth` levels of key below `v`.
+function docTree(v, name, depth) {
+    return {
+        name,
+        kids: 0 === depth ? [] : docKids(v).map((k) => docTree(throughDoc(throughDoc(v).peg[k]), k, depth - 1)),
+    };
+}
+// The bases a row tree divides into: one per value of a field of the
+// top's children, one per child, or the whole.
+function hBases(top, o, path, root, loss) {
+    const keys = top.kids.map((k) => k.name);
+    if (undefined !== o.splitBy) {
+        const field = o.splitBy;
+        const unresolved = [];
+        const of = new Map();
+        for (const k of keys) {
+            const v = fieldOf(root, path(k), field);
+            if (undefined === v) {
+                unresolved.push(path(k) + '.' + field);
+                continue;
+            }
+            of.set(v, [...(of.get(v) ?? []), k]);
+        }
+        addUnresolved(loss, unresolved);
+        return [...of.keys()].sort(keyorder_1.cmpCodePoint)
+            .map((name) => ({ name, top, keys: of.get(name) }));
+    }
+    return true === o.splitRoots
+        ? keys.map((k) => ({ name: k, top, keys: [k] }))
+        : [{ name: '', top, keys }];
+}
+// Each base packed into parts of at most `budget` rows below their
+// anchor: whole subtrees side by side, and a subtree too big for one
+// part opened, its children packed under it in turn.
+function packRows(bases, budget) {
+    const out = [];
+    for (const b of bases) {
+        if (0 === budget) {
+            out.push({ ...b, chain: [] });
+            continue;
+        }
+        const units = [];
+        const add = (chain, node) => {
+            if (hRows(node) <= budget) {
+                units.push({ chain, node });
+                return;
+            }
+            for (const k of node.kids) {
+                add([...chain, node.name], k);
+            }
+        };
+        for (const k of b.top.kids.filter((k) => b.keys.includes(k.name))) {
+            add([], k);
+        }
+        const packs = [];
+        for (const u of units) {
+            const last = packs[packs.length - 1];
+            const r = hRows(u.node);
+            if (undefined !== last && last.used + r <= budget &&
+                last.chain.join(SEP) === u.chain.join(SEP)) {
+                last.keys.push(u.node.name);
+                last.used += r;
+            }
+            else {
+                packs.push({ chain: u.chain, keys: [u.node.name], used: r });
+            }
+        }
+        packs.forEach((p, i) => out.push({
+            name: '' === b.name ? String(i + 1)
+                : 1 === packs.length ? b.name : `${b.name}.${i + 1}`,
+            top: b.top, keys: p.keys, chain: p.chain,
+        }));
+    }
+    return out;
+}
+function drawDocParts(root, o, max, loss) {
+    const whole = drawDoc(root, o, Infinity, loss);
+    if (undefined !== whole.errors) {
+        return whole;
+    }
+    const at = o.at ?? '$';
+    const depth = o.depth || DEFAULT_DOC_DEPTH;
+    const top = docTree((0, vet_1.anchorAt)(root, at), at, depth);
+    const cut = packRows(hBases(top, o, (k) => at + '.' + k, root, loss), o.budget ?? 0);
+    const parts = [];
+    for (const part of cut) {
+        if (hasLineBreak(part.name)) {
+            return { errors: [lineBreakFinding(at + '.' + part.keys[0])] };
+        }
+        const fig = drawDoc(root, {
+            ...o, chain: part.chain, depth: depth - part.chain.length, only: part.keys,
+        }, max, []);
+        if (undefined !== fig.errors) {
+            return fig;
+        }
+        parts.push({ name: part.name, text: fig.text });
+    }
+    return joinParts(o.as, parts);
+}
+function drawTreemapParts(root, o, max, loss) {
+    const whole = drawTreemap(root, o, Infinity, loss);
+    if (undefined !== whole.errors) {
+        return whole;
+    }
+    const at = o.at ?? '$';
+    const top = treemapTop(root, o, []).top;
+    let bases;
+    if (undefined === o.splitBy) {
+        bases = hBases(top, o, (k) => k, root, loss);
+    }
+    else {
+        // A part by a field is the treemap of the items holding its value,
+        // grouped and weighed afresh.
+        const field = o.splitBy;
+        const items = o.members ??
+            docKids((0, vet_1.anchorAt)(root, at)).map((k) => at + '.' + k);
+        const unresolved = [];
+        const of = new Map();
+        for (const p of items) {
+            const v = fieldOf(root, p, field);
+            if (undefined === v) {
+                unresolved.push(p + '.' + field);
+                continue;
+            }
+            of.set(v, [...(of.get(v) ?? []), p]);
+        }
+        addUnresolved(loss, unresolved);
+        bases = [...of.keys()].sort(keyorder_1.cmpCodePoint).map((name) => {
+            const mine = treemapTop(root, { ...o, only: of.get(name) }, []).top;
+            return { name, top: mine, keys: mine.kids.map((k) => k.name) };
+        });
+    }
+    const parts = [];
+    for (const part of packRows(bases, o.budget ?? 0)) {
+        if (hasLineBreak(part.name)) {
+            return { errors: [lineBreakFinding(at)] };
+        }
+        let node = part.top;
+        for (const name of part.chain) {
+            node = node.kids.find((k) => k.name === name);
+        }
+        const kids = node.kids.filter((k) => part.keys.includes(k.name));
+        const fig = treemapFigure({
+            name: [part.top.name, ...part.chain].join('.'), kids,
+            weight: kids.reduce((w, t) => w + t.weight, 0),
+        }, at, o, max, 0 < part.chain.length);
+        if (undefined !== fig.errors) {
+            return fig;
+        }
+        parts.push({ name: part.name, text: fig.text });
+    }
+    return joinParts(o.as, parts);
+}
+// ---------------------------------------------------------------------
+// Selection by membership, and the split into parts
+// Each part cut into runs of at most `budget` items: an unnamed part's
+// runs are numbered, and a named one keeps its name while it fits.
+function budgeted(parts, budget) {
+    if (0 === budget) {
+        return parts;
+    }
+    const out = [];
+    for (const part of parts) {
+        const n = Math.ceil(part.items.length / budget);
+        for (let i = 0; i < n; i++) {
+            out.push({
+                name: '' === part.name ? String(i + 1)
+                    : 1 === n ? part.name : `${part.name}.${i + 1}`,
+                items: part.items.slice(i * budget, (i + 1) * budget),
+            });
+        }
+    }
+    return out;
+}
+// The paths a split field leaves unresolved join the row the figure
+// already wrote, so one code is one row.
+function addUnresolved(loss, paths) {
+    const row = loss.find((l) => 'unresolved_field' === l.code);
+    if (undefined === row) {
+        unresolvedLoss(paths, loss);
+        return;
+    }
+    row.detail = [...new Set([...row.detail, ...paths])]
+        .sort(keyorder_1.cmpCodePoint);
+    row.count = row.detail.length;
 }
 function selectMembers(triples, of, member, ghosts, loss) {
     // The members of a node are what it, or any node under it, links
@@ -2485,7 +2762,42 @@ function selectMembers(triples, of, member, ghosts, loss) {
     }
     return { selection: { triples: kept, members, ghosts: away } };
 }
-const SPLIT_KINDS = ['graph', 'state', 'lane'];
+// How each kind divides. A kind missing here does not divide at all.
+const SPLIT_MODES = [
+    ['graph', ['by', 'roots', 'budget']],
+    ['state', ['by', 'roots', 'budget']],
+    ['lane', ['by', 'roots', 'budget']],
+    ['tree', ['by', 'roots', 'budget']],
+    ['matrix', ['by', 'roots', 'budget']],
+    ['layer', ['by', 'roots', 'budget']],
+    ['doc', ['by', 'roots', 'budget']],
+    ['treemap', ['by', 'roots', 'budget']],
+    ['sequence', ['by', 'budget']],
+    ['sets', ['budget']],
+    ['layers', ['budget']],
+];
+const SPLIT_FLAG = {
+    by: '--split-by', roots: '--split-roots', budget: '--budget',
+};
+// The kinds whose figures are drawn from the links, and so divide by
+// node, drawing a ghost for what lives elsewhere.
+const EDGE_KINDS = ['graph', 'state', 'lane', 'tree', 'matrix', 'layer'];
+function splitRefusal(kind, o) {
+    const modes = SPLIT_MODES.find(([k]) => k === kind)?.[1] ?? [];
+    const asked = [
+        ['by', '' !== (o.splitBy ?? ''), 'by a field'],
+        ['roots', true === o.splitRoots, 'by root'],
+        ['budget', 0 < (o.budget ?? 0), 'by a budget'],
+    ];
+    const bad = asked.find(([mode, on]) => on && !modes.includes(mode));
+    if (undefined === bad) {
+        return undefined;
+    }
+    return 0 === modes.length
+        ? finding('view_split_kind', 'reference', '$', `The ${kind} figure cannot be split into parts.`, 'kinds that split: ' + SPLIT_MODES.map(([k]) => k).join(', '))
+        : finding('view_split_kind', 'reference', '$', `The ${kind} figure cannot be split ${bad[2]}.`, `the ${kind} figure splits with: ` +
+            modes.map((m) => SPLIT_FLAG[m]).join(', '));
+}
 function splitParts(sel, root, o, loss) {
     const all = graphPaths(sel.triples, sel.members ?? [])
         .filter((p) => !sel.ghosts.has(p));
@@ -2506,17 +2818,7 @@ function splitParts(sel, root, o, loss) {
             }
             of.set(v, [...(of.get(v) ?? []), p]);
         }
-        // The split field may be a field the figure already read, so its
-        // unresolved paths join the row the figure wrote.
-        const row = loss.find((l) => 'unresolved_field' === l.code);
-        if (undefined === row) {
-            unresolvedLoss(unresolved, loss);
-        }
-        else {
-            row.detail = [...new Set([...row.detail, ...unresolved])]
-                .sort(keyorder_1.cmpCodePoint);
-            row.count = row.detail.length;
-        }
+        addUnresolved(loss, unresolved);
         parts = [...of.keys()].sort(keyorder_1.cmpCodePoint)
             .map((name) => ({ name, nodes: of.get(name) }));
     }
@@ -2567,22 +2869,7 @@ function splitParts(sel, root, o, loss) {
             parts = [{ name: '', nodes: parts.flatMap((p) => p.nodes) }];
         }
     }
-    const budget = o.budget ?? 0;
-    if (0 === budget) {
-        return parts;
-    }
-    const cut = [];
-    for (const part of parts) {
-        const n = Math.ceil(part.nodes.length / budget);
-        for (let i = 0; i < n; i++) {
-            cut.push({
-                name: '' === part.name ? String(i + 1)
-                    : 1 === n ? part.name : `${part.name}.${i + 1}`,
-                nodes: part.nodes.slice(i * budget, (i + 1) * budget),
-            });
-        }
-    }
-    return cut;
+    return budgeted(parts.map((p) => ({ name: p.name, items: p.nodes })), o.budget ?? 0).map((p) => ({ name: p.name, nodes: p.items }));
 }
 // One part's own selection: its nodes, every edge touching one of
 // them, and the far end of an edge that leaves the part drawn as a
@@ -2619,9 +2906,17 @@ function viewPartFile(out, name) {
         ? spell(name, /[^.]/) : spell(name, /[A-Za-z0-9.-]/);
     return out.split(exports.PART_TOKEN).join(safe);
 }
-const PART_COMMENT = {
-    mermaid: '%%', er: '%%', dot: '//', text: '#',
-};
+// The comment a part opens with when every part is printed together.
+function partHead(as, name) {
+    return 'svg' === as ? `<!-- part: ${name} -->`
+        : `${'dot' === as ? '//' : 'text' === as ? '#' : '%%'} part: ${name}`;
+}
+function joinParts(as, parts) {
+    return {
+        parts,
+        text: parts.map((p) => `${partHead(as, p.name)}\n${p.text}`).join('\n\n'),
+    };
+}
 function docFailure(d, options) {
     const loaded = load(d.src, d.path, options, undefined);
     if (undefined !== loaded.errors) {
@@ -2695,6 +2990,10 @@ function view(src, opts, hooks) {
             errors: [finding('view_style_unknown', 'reference', '$', `${style} is not a style.`, 'styles: auto, none, ansi, css')],
         });
     }
+    const refused = splitRefusal(kind, options);
+    if (undefined !== refused) {
+        return done({ errors: [refused] });
+    }
     // Zero means the default, in both ports.
     const max = options.maxRows || DEFAULT_MAX_ROWS;
     if ('poset' === kind) {
@@ -2731,8 +3030,11 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         }
     }
     const style = styleOf(options.style, as);
+    const splitting = viewSplits(options);
     if ('doc' === kind) {
-        return drawDoc(root, { ...options, as, style }, max, loss);
+        return splitting
+            ? drawDocParts(root, { ...options, as, style }, max, loss)
+            : drawDoc(root, { ...options, as, style }, max, loss);
     }
     if ('lattice' === kind) {
         return drawLattice(root, { ...options, as, style }, max, loss);
@@ -2769,6 +3071,7 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
             return drawSequence(listed, {
                 from: options.from, to: options.to,
                 label: options.label, at: options.steps, as,
+                splitBy: options.splitBy, budget: options.budget,
             }, max, loss);
         }
         // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
@@ -2784,14 +3087,8 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         return drawSets(value, {
             sets: options.sets, member: options.member,
             universe: options.universe, minDegree: options.minDegree,
-            maxCols: options.maxCols, as, style,
+            maxCols: options.maxCols, as, style, budget: options.budget,
         }, max, loss);
-    }
-    const splitting = viewSplits(options);
-    if (splitting && !SPLIT_KINDS.includes(kind)) {
-        return {
-            errors: [finding('view_split_kind', 'reference', '$', `The ${kind} figure cannot be split into parts.`, 'kinds that split: ' + SPLIT_KINDS.join(', '))],
-        };
     }
     let sel = {
         triples: triplesOf((0, graph_1.graphOf)(root), options.at, loss), ghosts: new Map(),
@@ -2804,28 +3101,37 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
             ? { ...e, from: e.from.slice(0, -tail.length) } : e);
     }
     if (undefined !== options.of) {
-        const picked = selectMembers(sel.triples, options.of, options.member, true === options.ghosts && SPLIT_KINDS.includes(kind), 'treemap' === kind ? [] : loss);
+        const picked = selectMembers(sel.triples, options.of, options.member, true === options.ghosts && EDGE_KINDS.includes(kind), 'treemap' === kind ? [] : loss);
         if (undefined !== picked.error) {
             return { errors: [picked.error] };
         }
         sel = picked.selection;
     }
     if ('treemap' === kind) {
-        return drawTreemap(root, {
+        const o = {
             at: options.at, depth: options.depth, groupBy: options.groupBy,
             size: options.size, members: sel.members, as, style,
-        }, max, loss);
+            splitBy: options.splitBy, splitRoots: options.splitRoots,
+            budget: options.budget,
+        };
+        return splitting
+            ? drawTreemapParts(root, o, max, loss) : drawTreemap(root, o, max, loss);
     }
     const decls = ctx._reldecls;
     // An empty relation name is no relation, so both ports read it as
     // "every relation" rather than one that names nothing.
     const relation = options.relation || undefined;
     const relations = options.relations ?? [];
-    const draw = (s, rows, into, relations, roots) => {
+    const roots = options.roots ?? [];
+    // The relation a matrix or a layer figure is drawn over, as the whole
+    // figure picks it; a part is drawn over the same one.
+    const picked = pickRelation(relation, keysOf(sel.triples)).relation;
+    const draw = (s, rows, into, inPart, partRoots) => {
         const members = s.members ?? [];
+        const rels = inPart ? [] : relations;
         if ('graph' === kind) {
             return drawGraph(s.triples, decls, root, {
-                relations, groupBy: options.groupBy, label: options.label, as,
+                relations: rels, groupBy: options.groupBy, label: options.label, as,
                 members, ghosts: s.ghosts, columns: options.columns,
                 counts: options.counts, countBy: options.countBy,
                 collapse: options.collapse,
@@ -2833,60 +3139,85 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         }
         if ('state' === kind) {
             return drawState(s.triples, root, {
-                relations, label: options.label, as, members, ghosts: s.ghosts,
-                roots, named: 0 < (options.roots ?? []).length,
+                relations: rels, label: options.label, as, members, ghosts: s.ghosts,
+                roots: partRoots, named: 0 < roots.length,
             }, rows, into);
         }
-        return drawLane(s.triples, root, {
-            relations, groupBy: options.groupBy, label: options.label,
-            layers: options.layers ?? [], as, members, ghosts: s.ghosts,
-            counts: options.counts, countBy: options.countBy,
-        }, rows, into);
+        if ('lane' === kind) {
+            return drawLane(s.triples, root, {
+                relations: rels, groupBy: options.groupBy, label: options.label,
+                layers: options.layers ?? [], as, members, ghosts: s.ghosts,
+                counts: options.counts, countBy: options.countBy,
+            }, rows, into);
+        }
+        if ('matrix' === kind) {
+            return drawMatrix(s.triples, decls, {
+                relation: inPart ? picked : relation, order: options.order ?? 'canon',
+                closure: true === options.closure, as, style, ghosts: s.ghosts,
+                members, picked: inPart,
+            }, rows, into);
+        }
+        if ('layer' === kind) {
+            return drawLayer(s.triples, root, {
+                relation, groupBy: options.groupBy, layers: options.layers ?? [],
+                edges: options.edges, as, style, counts: options.counts,
+                countBy: options.countBy, ghosts: s.ghosts, members,
+            }, rows, into);
+        }
+        return drawTree(collapse(s.triples, relation), relation, partRoots, rows, as, style, { ghosts: s.ghosts, members, rest: inPart });
     };
-    if (SPLIT_KINDS.includes(kind)) {
-        if (!splitting) {
-            return draw(sel, max, loss, relations, options.roots ?? []);
-        }
-        // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
-        // report; each part is then drawn on its own, under the row cap
-        // the whole figure was spared.
-        const whole = draw(sel, Infinity, loss, relations, options.roots ?? []);
-        if (undefined !== whole.errors) {
-            return whole;
-        }
-        const scoped = 0 === relations.length ? sel : {
-            ...sel, triples: sel.triples.filter((e) => relations.includes(e.key)),
-        };
-        const parts = [];
-        const cut = splitParts(scoped, root, options, loss);
-        for (const part of cut) {
-            const fig = draw(partSelection(scoped, cut, part), max, [], [], (options.roots ?? []).filter((r) => part.nodes.includes(r)));
-            if (undefined !== fig.errors) {
-                return fig;
+    if (!splitting) {
+        return draw(sel, max, loss, false, roots);
+    }
+    // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
+    // report; each part is then drawn on its own, under the row cap the
+    // whole figure was spared.
+    const whole = draw(sel, Infinity, loss, false, roots);
+    if (undefined !== whole.errors) {
+        return whole;
+    }
+    // The parts divide the edges the figure draws: its relations, and for
+    // a tree with named roots only what those roots reach.
+    const keys = ['graph', 'state', 'lane'].includes(kind) ? relations
+        : 'tree' === kind ? (undefined === relation ? [] : [relation])
+            : [picked];
+    let scoped = 0 === keys.length ? sel : {
+        ...sel, triples: sel.triples.filter((e) => keys.includes(e.key)),
+    };
+    if ('tree' === kind && 0 < roots.length) {
+        const reached = new Set(roots);
+        const drawn = collapse(scoped.triples, relation);
+        for (let grew = true; grew;) {
+            grew = false;
+            for (const e of drawn) {
+                if (reached.has(e.from) && !reached.has(e.to)) {
+                    reached.add(e.to);
+                    grew = true;
+                }
             }
-            parts.push({ name: part.name, text: fig.text });
         }
-        const mark = PART_COMMENT[as];
-        return {
-            parts,
-            text: parts.map((p) => `${mark} part: ${p.name}\n${p.text}`).join('\n\n'),
+        scoped = {
+            ...scoped,
+            triples: scoped.triples.filter((e) => reached.has(e.from) && reached.has(e.to)),
+            members: (scoped.members ?? []).filter((m) => reached.has(m)),
         };
     }
-    const triples = sel.triples;
-    if ('matrix' === kind) {
-        return drawMatrix(triples, decls, {
-            relation, order: options.order ?? 'canon', closure: true === options.closure,
-            as, style,
-        }, max, loss);
+    const cut = splitParts(scoped, root, options, loss);
+    const broken = cut.find((p) => hasLineBreak(p.name));
+    if (undefined !== broken) {
+        return { errors: [lineBreakFinding(broken.nodes[0])] };
     }
-    if ('layer' === kind) {
-        return drawLayer(triples, root, {
-            relation, groupBy: options.groupBy, layers: options.layers ?? [],
-            edges: options.edges, as, style, counts: options.counts,
-            countBy: options.countBy,
-        }, max, loss);
+    const parts = [];
+    for (const part of cut) {
+        // A matrix part keeps every edge touching it, so a mirror under a
+        // declared inverse is still seen.
+        const fig = draw(partSelection('matrix' === kind ? sel : scoped, cut, part), max, [], true, roots.filter((r) => part.nodes.includes(r)));
+        if (undefined !== fig.errors) {
+            return fig;
+        }
+        parts.push({ name: part.name, text: fig.text });
     }
-    return drawTree(collapse(triples, relation), relation, options.roots ?? [], max, as, style);
+    return joinParts(as, parts);
 }
 // The tree view of one document: `view` with the kind fixed.
 function viewTree(src, opts) {
@@ -3061,9 +3392,11 @@ function viewSet(src, opts, hooks) {
         // evaluation of the same source, which stands up as this one did.
         const own = 'sets' === plan.kind || 'sequence' === plan.kind
             ? load(src, options.path, options, undefined) : loaded;
-        const fig = 'ladder' === plan.kind
-            ? drawLadder(src, each, plan.as, plan.max)
-            : drawLoaded(own.root, own.ctx, prov, plan.kind, plan.as, each, plan.max, loss);
+        const refused = splitRefusal(plan.kind, each);
+        const fig = undefined !== refused ? { errors: [refused] }
+            : 'ladder' === plan.kind
+                ? drawLadder(src, each, plan.as, plan.max)
+                : drawLoaded(own.root, own.ctx, prov, plan.kind, plan.as, each, plan.max, loss);
         if (undefined !== fig.errors) {
             return {
                 name: plan.name, kind: plan.kind, out: plan.out,

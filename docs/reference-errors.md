@@ -349,7 +349,7 @@ twenty rows have no such section and carry no link.
 | `view_relation_unknown` | 0.54.0 | The relation named to the view has no edges in this document. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_sets_required` | 0.54.0 | The set panel needs both the sets map and the member field, and one was missing. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_sets_shape` | 0.54.0 | The sets map or the universe does not have the shape the set panel reads. ([`aontu view`](reference-api.md#aontu-view)) |
-| `view_split_kind` | 0.77.0 | A split was asked of a figure kind that does not split; only `graph`, `state` and `lane` do. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_split_kind` | 0.77.0 | A figure was asked to divide in a way its kind does not: a `sequence` divides by field or budget, `sets` and `layers` by budget, and `lattice`, `ladder` and `poset` not at all. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_steps_required` | 0.77.0 | The sequence needs the list of steps and the fields naming each step's ends, and one was missing. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_steps_shape` | 0.77.0 | The steps are not a list, or a step does not hold a string at each of its ends. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_style_profile` | 0.55.0 | The style asked for is not the one that profile carries. ([`aontu view`](reference-api.md#aontu-view)) |

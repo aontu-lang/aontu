@@ -1145,7 +1145,9 @@ the name over it and for each message that spans it.
   `1` when the file differs from what would be drawn, which is the CI
   gate for a committed figure.
 - **`--max-rows <n>`** (default 60) is a refusal, exit `2`, not a
-  truncation; the message names the narrowing options.
+  truncation; the message names the narrowing options and, for a kind
+  that divides by budget, `--budget`. A split figure holds each part to
+  it rather than the whole.
 -  `doc`: the shape of the model, before any of its values mean
   anything. Every other kind here needs the document to HAVE
   something (links, contributions, peers) and draws nothing from one that
@@ -1275,18 +1277,34 @@ the name over it and for each message that spans it.
   2)`). **`--collapse`** draws a `graph` as its surface map: one node
   per `--group-by` value, titled with its counts, and one edge per pair
   of groups and relation, labelled with how many edges it stands for.
-- **Splitting** cuts a `graph`, `state` or `lane` figure into parts,
-  each a whole figure of its own: `--split-by <field>` one part per
-  value, `--split-roots` one part per root (each takes what it reaches
-  that no earlier root took), and `--budget <n>` parts of at most `n`
-  nodes, alone or after either of the other two (`billing.1`,
-  `billing.2`). An edge leaving a part draws its far end as a ghost
-  labelled with the part it lives in (`invoice (in billing)`). The
-  whole figure is drawn first, so its refusals and loss report are the
-  figure's; each part is held to `--max-rows`. On stdout each part
-  follows a comment naming it; `--out` must hold `{part}`, which each
-  part's name replaces (made safe for a filename). Asking it of any
-  other kind is `view_split_kind`.
+- **Splitting** divides a figure into parts, each a whole figure of
+  its own: `--split-by <field>` one part per value, `--split-roots`
+  one part per root, and `--budget <n>` parts of at most `n`, alone or
+  after either of the other two (`billing.1`, `billing.2`). What a part
+  holds follows the kind:
+  - A figure of links (`graph`, `state`, `lane`, `tree`, `matrix`,
+    `layer`) divides its nodes. By root, each root takes what it
+    reaches that no earlier root took, and the budget counts nodes. An
+    edge leaving a part draws its far end as a ghost labelled with the
+    part it lives in (`invoice (in billing)`). A `tree` divides only
+    the relation it draws, and with `--root` only what its roots reach.
+  - A `doc` or a `treemap` divides the children of its anchor: by the
+    field's value on each child, one part per child, or by a budget of
+    rows below the part's anchor. A child with more rows than the
+    budget is opened and its own children packed in turn, so the part
+    is anchored at the child (`$.a`).
+  - A `sequence` divides its steps, by the field's value on each step
+    or `n` steps at a time.
+  - A set panel (`sets`, `layers`) divides its columns, `n` at a time,
+    each part numbering its columns as the whole panel does.
+
+  The `lattice`, `ladder` and `poset` do not divide, and asking a kind
+  to divide in a way it cannot (a `sequence` by root, a panel by field)
+  is `view_split_kind`. The whole figure is drawn first, so its
+  refusals and loss report are the figure's; each part is held to
+  `--max-rows`. On stdout each part follows a comment naming it;
+  `--out` must hold `{part}`, which each part's name replaces (made
+  safe for a filename).
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
   under `--strict`, `2` usage (an unknown kind or profile, a missing
   required option, `--max-rows` exceeded), `4` error (a document that

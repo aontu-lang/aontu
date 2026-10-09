@@ -219,8 +219,9 @@ export type ViewOptions = {
   // graph: one node per group, the surface map.
   collapse?: boolean
 
-  // graph, state, lane: cut the figure into parts by a field's value,
-  // by root, or into parts of at most `budget` nodes.
+  // Divide the figure into parts by a field's value, by root, or into
+  // parts of at most `budget` nodes, rows, steps or columns, as the
+  // kind counts them.
   splitBy?: string
   splitRoots?: boolean
   budget?: number
@@ -316,10 +317,13 @@ function rootFinding(
 
 // `--max-rows` is a REFUSAL, and the message names the narrowing
 // options.
-function rowsFinding(rows: number, max: number, narrow: string): VetFinding {
+function rowsFinding(
+  rows: number, max: number, narrow: string, divide = false
+): VetFinding {
   return finding('view_rows_exceeded', 'budget', '$',
     `The figure has ${rows} rows, above --max-rows ${max}; ` +
-    `narrow it with ${narrow}, or raise the limit.`,
+    `narrow it with ${narrow}, ${divide ? 'divide it with --budget, ' : ''}` +
+    'or raise the limit.',
     `rows: ${rows}, max: ${max}`)
 }
 
@@ -621,7 +625,8 @@ type TreeRow = { depth: number, text: string, mark: string, parent: number }
 
 function drawTree(
   all: Drawn[], relation: string | undefined, roots: string[], max: number,
-  as: ViewProfile, style: ViewStyle
+  as: ViewProfile, style: ViewStyle,
+  part: { ghosts: Ghosts, members: string[], rest: boolean }
 ): Figure {
   const paint = painter(style)
   const kept = undefined === relation
@@ -633,16 +638,20 @@ function drawTree(
     return { errors: [relationFinding(relation, have)] }
   }
 
-  // The node set is what the drawn relation CONNECTS. A root naming
-  // anything else is a typo, and it is refused rather than drawn.
-  const nodes = nodesOf(kept)
+  // The node set is what the drawn relation CONNECTS, and a part's own
+  // nodes. A root naming anything else is a typo, and it is refused
+  // rather than drawn.
+  const nodes = [...new Set([...nodesOf(kept), ...part.members])]
+    .sort(cmpCodePoint)
   if (max < nodes.length) {
     return {
-      errors: [rowsFinding(nodes.length, max, '--at, --relation or --root')],
+      errors: [rowsFinding(nodes.length, max, '--at, --relation or --root', true)],
     }
   }
   const lab = labelsOf(nodes)
-  const label = (n: string): string => lab.get(n) as string
+  const label = (n: string): string => undefined === part.ghosts.get(n)
+    ? lab.get(n) as string
+    : ghostLabel(lab.get(n) as string, part.ghosts.get(n) as string)
 
   const kids = new Map<string, Kid[]>(nodes.map((n) => [n, []]))
   for (const e of kept) {
@@ -722,7 +731,8 @@ function drawTree(
     draw(root)
   }
 
-  if (0 === roots.length) {
+  // A part draws every node it holds, after the roots named in it.
+  if (0 === roots.length || part.rest) {
     for (const n of nodes) {
       if (!expanded.has(n)) {
         draw(n)
@@ -1134,24 +1144,35 @@ function docLeaf(v: any): string {
 }
 
 
+// A part of a divided document is anchored below `at` by its chain of
+// keys, walked as keys rather than re-read as a path, and keeps `only`
+// of that anchor's children.
 function drawDoc(
   root: any,
-  o: { at?: string, depth?: number, as: ViewProfile, style: ViewStyle },
+  o: {
+    at?: string, depth?: number, as: ViewProfile, style: ViewStyle,
+    chain?: string[], only?: string[],
+  },
   max: number, loss: ViewLoss[]
 ): Figure {
   const paint = painter(o.style)
-  const at = o.at ?? '$'
-  const anchor = anchorAt(root, at)
+  const base = o.at ?? '$'
+  let anchor = anchorAt(root, base)
   if (null == anchor) {
     return {
       // The same code and the same sentence `get` answers with: the
       // question is identical, so a caller that already handles one
       // handles the other.
-      errors: [finding('no_path', 'reference', at,
-        `The path ${at} names nothing in this document.`)],
+      errors: [finding('no_path', 'reference', base,
+        `The path ${base} names nothing in this document.`)],
     }
   }
-  const depth = o.depth ?? DEFAULT_DOC_DEPTH
+  const chain = o.chain ?? []
+  for (const key of chain) {
+    anchor = throughDoc(throughDoc(anchor).peg[key])
+  }
+  const at = [base, ...chain].join('.')
+  const depth = o.depth || DEFAULT_DOC_DEPTH
   const out: string[] = []
   const rows: (TreeRow | null)[] = []
   let elided = 0
@@ -1163,8 +1184,10 @@ function drawDoc(
   // reason: a deep model is a real shape, and the drawing of one must
   // not depend on how deep the interpreter lets a recursion go.
   type Frame = { node: any, kids: string[], at: number, prefix: string, row: number }
+  const top = docKids(anchor)
+    .filter((k) => undefined === o.only || o.only.includes(k))
   const stack: Frame[] = [
-    { node: anchor, kids: docKids(anchor), at: 0, prefix: '', row: 0 },
+    { node: anchor, kids: top, at: 0, prefix: '', row: 0 },
   ]
   while (0 < stack.length) {
     const frame = stack[stack.length - 1]
@@ -1187,7 +1210,7 @@ function drawDoc(
     rows.push({ depth: stack.length, text: key, mark, parent: frame.row })
     if (max < rows.length) {
       return {
-        errors: [rowsFinding(rows.length, max, '--at or --depth')],
+        errors: [rowsFinding(rows.length, max, '--at or --depth', true)],
       }
     }
     if (0 < kids.length && under) {
@@ -1272,23 +1295,29 @@ function drawMatrix(
   triples: Triple[], decls: RelDecls,
   o: {
     relation?: string, order: ViewOrder, closure: boolean, as: ViewProfile,
-    style: ViewStyle,
+    style: ViewStyle, ghosts: Ghosts, members: string[], picked: boolean,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
   const paint = painter(o.style)
-  const picked = pickRelation(o.relation, keysOf(triples))
+  // A part is drawn over the relation its whole figure picked.
+  const picked = o.picked ? { relation: o.relation }
+    : pickRelation(o.relation, keysOf(triples))
   if (undefined !== picked.error) {
     return { errors: [picked.error] }
   }
   const relation = picked.relation as string
   const rel = triples.filter((e) => e.key === relation)
-  const nodes = nodesOf(rel)
+  const nodes = [...new Set([...nodesOf(rel), ...o.members])]
+    .sort(cmpCodePoint)
   if (max < nodes.length) {
-    return { errors: [rowsFinding(nodes.length, max, '--at or --relation')] }
+    return { errors: [rowsFinding(nodes.length, max, '--at or --relation', true)] }
   }
   const lab = labelsOf(nodes)
-  const label = (n: string): string => lab.get(n) as string
+  const ghosts = o.ghosts
+  const label = (n: string): string => undefined === ghosts.get(n)
+    ? lab.get(n) as string
+    : ghostLabel(lab.get(n) as string, ghosts.get(n) as string)
 
   const succ = new Map<string, string[]>(nodes.map((n) => [n, []]))
   const direct = new Set<string>()
@@ -1678,7 +1707,7 @@ function drawGraph(
 
   const paths = graphPaths(edges, o.members)
   if (max < paths.length) {
-    return { errors: [rowsFinding(paths.length, max, '--at or --relation')] }
+    return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] }
   }
 
   // `--group-by` and `--label` read a field of each node; a node
@@ -1848,7 +1877,7 @@ function drawLayer(
   o: {
     relation?: string, groupBy?: string, layers: string[],
     edges?: ViewEdges, as: ViewProfile, style: ViewStyle,
-    counts?: boolean, countBy?: string,
+    counts?: boolean, countBy?: string, ghosts: Ghosts, members: string[],
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -1865,11 +1894,13 @@ function drawLayer(
   }
   const relation = picked.relation as string
   const rel = triples.filter((e) => e.key === relation)
-  const paths = nodesOf(rel)
+  const paths = [...new Set([...nodesOf(rel), ...o.members])]
+    .sort(cmpCodePoint)
   if (max < paths.length) {
-    return { errors: [rowsFinding(paths.length, max, '--at or --relation')] }
+    return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] }
   }
   const lab = labelsOf(paths)
+  const ghosts = o.ghosts
 
   // A node whose layer field is unresolved is counted and drawn in a
   // band of its own at the bottom, named `-`.
@@ -1880,7 +1911,13 @@ function drawLayer(
     if (undefined === g) {
       unresolved.push(p + '.' + o.groupBy)
     }
-    return { path: p, label: short, id: ident(short), group: g ?? '-' }
+    const where = ghosts.get(p)
+    return undefined === where
+      ? { path: p, label: short, id: ident(short), group: g ?? '-' }
+      : {
+        path: p, label: ghostLabel(short, where), id: 'x' + ident(short),
+        group: g ?? '-', ghost: true,
+      }
   })
   for (const n of nodes) {
     if (hasLineBreak(n.group as string)) {
@@ -2113,6 +2150,8 @@ type Panel = {
   bars: boolean
   // The label of the degree-zero column, when there is one.
   none: string
+  // How many columns come before these, on a page of a divided panel.
+  first?: number
 }
 
 
@@ -2185,7 +2224,7 @@ function renderPanel(p: Panel, style: ViewStyle): string {
     const shown = 4 < c.items.length && !p.bars
       ? c.items.slice(0, 3).join(' ') + ' ...' : c.items.join(' ')
     out.push(paint('muted',
-      `  col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}:`) +
+      `  col ${(p.first ?? 0) + i + 1}${p.bars ? '' : ` (${c.items.length})`}:`) +
       ` ${shown}` + (c.sig.some((b) => b) ? '' : paint('muted', p.none)))
   })
   return out.join('\n')
@@ -2231,7 +2270,7 @@ function panelSvg(p: Panel, about: string, style: ViewStyle): string {
   p.cols.forEach((c, i) => {
     const shown = 4 < c.items.length && !p.bars
       ? c.items.slice(0, 3).join(' ') + ' ...' : c.items.join(' ')
-    lines.push(`col ${i + 1}${p.bars ? '' : ` (${c.items.length})`}: ${shown}` +
+    lines.push(`col ${(p.first ?? 0) + i + 1}${p.bars ? '' : ` (${c.items.length})`}: ${shown}` +
       (c.sig.some((b) => b) ? '' : p.none))
   })
   lines.forEach((l, i) => {
@@ -2241,6 +2280,26 @@ function panelSvg(p: Panel, about: string, style: ViewStyle): string {
     gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH,
     4 + widest(lines) * CH, 4 + p.header.length * CH) + PAD
   return svgDoc(width, yI + lines.length * LH + PAD, about, parts, style)
+}
+
+
+// The panel, or with a budget its pages of at most that many columns,
+// each numbering its columns as the whole panel does.
+function panelFigure(
+  panel: Panel, about: (cols: Column[]) => string,
+  o: { as: ViewProfile, style: ViewStyle, budget?: number }
+): Figure {
+  const draw = (p: Panel): string => 'svg' === o.as
+    ? panelSvg(p, about(p.cols), o.style) : renderPanel(p, o.style)
+  const budget = o.budget ?? 0
+  if (0 === budget) {
+    return { text: draw(panel) }
+  }
+  const pages = 0 === panel.cols.length ? [{ name: '1', items: [] }]
+    : budgeted([{ name: '', items: panel.cols }], budget)
+  return joinParts(o.as, pages.map((page, i) => ({
+    name: page.name, text: draw({ ...panel, cols: page.items, first: i * budget }),
+  })))
 }
 
 
@@ -2285,6 +2344,7 @@ function drawSets(
   o: {
     sets: string, member: string, universe?: string,
     minDegree?: number, maxCols?: number, as: ViewProfile, style: ViewStyle,
+    budget?: number,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -2358,12 +2418,9 @@ function drawSets(
     bars: true,
     none: '   (in no set)',
   }
-  return {
-    text: 'svg' === o.as
-      ? panelSvg(panel, `Set panel over ${o.sets}: ${names.length} sets, ` +
-        `${elements.size} elements, ${cols.length} intersections`, o.style)
-      : renderPanel(panel, o.style),
-  }
+  return panelFigure(panel, (shown) => `Set panel over ${o.sets}: ` +
+    `${names.length} sets, ${elements.size} elements, ` +
+    `${shown.length} intersections`, o)
 }
 
 
@@ -2382,7 +2439,7 @@ function drawLayers(
   prov: Provenance, root: any, entry: string | undefined,
   o: {
     at?: string, minSize?: number, maxCols?: number, as: ViewProfile,
-    style: ViewStyle,
+    style: ViewStyle, budget?: number,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -2428,12 +2485,9 @@ function drawLayers(
     bars: false,
     none: '',
   }
-  return {
-    text: 'svg' === o.as
-      ? panelSvg(panel, `Document layers: ${names.length} documents, ` +
-        `${paths.length} paths, ${cols.length} intersections`, o.style)
-      : renderPanel(panel, o.style),
-  }
+  return panelFigure(panel, (shown) => `Document layers: ` +
+    `${names.length} documents, ${paths.length} paths, ` +
+    `${shown.length} intersections`, o)
 }
 
 
@@ -2702,7 +2756,7 @@ function drawState(
     ? triples : triples.filter((e) => o.relations.includes(e.key))
   const paths = graphPaths(edges, o.members)
   if (max < paths.length) {
-    return { errors: [rowsFinding(paths.length, max, '--at or --relation')] }
+    return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] }
   }
   for (const r of o.roots) {
     if (!paths.includes(r) || o.ghosts.has(r)) {
@@ -2795,7 +2849,7 @@ function drawLane(
     ? triples : triples.filter((e) => o.relations.includes(e.key))
   const paths = graphPaths(edges, o.members)
   if (max < paths.length) {
-    return { errors: [rowsFinding(paths.length, max, '--at or --relation')] }
+    return { errors: [rowsFinding(paths.length, max, '--at or --relation', true)] }
   }
   const unresolved: Unresolved = []
   const built = graphNodes(paths, root, o, o.ghosts, unresolved)
@@ -2897,7 +2951,10 @@ function drawLane(
 
 function drawSequence(
   list: any,
-  o: { at: string, from: string, to: string, label?: string, as: ViewProfile },
+  o: {
+    at: string, from: string, to: string, label?: string, as: ViewProfile,
+    splitBy?: string, budget?: number,
+  },
   max: number, loss: ViewLoss[]
 ): Figure {
   if (!Array.isArray(list)) {
@@ -2906,11 +2963,13 @@ function drawSequence(
         `${o.at} is not a list of steps.`)],
     }
   }
-  if (max < list.length) {
-    return { errors: [rowsFinding(list.length, max, '--steps')] }
+  const splitting = undefined !== o.splitBy || 0 < (o.budget ?? 0)
+  if (!splitting && max < list.length) {
+    return { errors: [rowsFinding(list.length, max, '--steps', true)] }
   }
   const unresolved: Unresolved = []
-  const msgs: { a: string, b: string, text: string }[] = []
+  type Msg = { a: string, b: string, text: string, part?: string }
+  const msgs: Msg[] = []
   for (let i = 0; i < list.length; i++) {
     const step = list[i]
     const at = `${o.at}.${i}`
@@ -2932,33 +2991,65 @@ function drawSequence(
         unresolved.push(at + '.' + o.label)
       }
     }
-    if (hasLineBreak(a) || hasLineBreak(b) || hasLineBreak(text)) {
+    let part: string | undefined
+    if (undefined !== o.splitBy) {
+      const v = step[o.splitBy]
+      if ('string' === typeof v) {
+        part = v
+      }
+      else {
+        unresolved.push(at + '.' + o.splitBy)
+      }
+    }
+    if (hasLineBreak(a) || hasLineBreak(b) || hasLineBreak(text) ||
+      hasLineBreak(part ?? '')) {
       return { errors: [lineBreakFinding(at)] }
     }
-    msgs.push({ a, b, text })
+    msgs.push({ a, b, text, part })
   }
   unresolvedLoss(unresolved, loss)
 
   // Participants in order of first appearance; an address is shown by
-  // its shortest unique suffix, as every other figure shows a node.
+  // its shortest unique suffix, as every other figure shows a node. A
+  // part draws the participants of its own steps, in the same order.
   const who = [...new Set(msgs.flatMap((m) => [m.a, m.b]))]
   const lab = labelsOf(who.filter((p) => p.startsWith('$')))
   const name = (p: string): string => lab.get(p) ?? p
   const ix = new Map<string, number>(who.map((p, i) => [p, i]))
 
-  if ('mermaid' === o.as) {
-    const esc = (s: string): string => escape(s, MERMAID_ESC)
-    const out = ['sequenceDiagram']
-    who.forEach((p, i) => out.push(`  participant p${i} as ${esc(name(p))}`))
-    for (const m of msgs) {
-      out.push(`  p${ix.get(m.a)}->>p${ix.get(m.b)}:` +
-        ('' === m.text ? '' : ' ' + esc(m.text)))
+  const render = (steps: Msg[]): string => {
+    const mine = who.filter((p) => steps.some((m) => m.a === p || m.b === p))
+    if ('mermaid' === o.as) {
+      const esc = (s: string): string => escape(s, MERMAID_ESC)
+      const out = ['sequenceDiagram']
+      for (const p of mine) {
+        out.push(`  participant p${ix.get(p)} as ${esc(name(p))}`)
+      }
+      for (const m of steps) {
+        out.push(`  p${ix.get(m.a)}->>p${ix.get(m.b)}:` +
+          ('' === m.text ? '' : ' ' + esc(m.text)))
+      }
+      return out.join('\n')
     }
-    return { text: out.join('\n') }
+    return sequenceText(mine.map(name), steps.map((m) => ({
+      a: mine.indexOf(m.a), b: mine.indexOf(m.b), text: m.text,
+    })))
   }
-  return { text: sequenceText(who.map(name), msgs.map((m) => ({
-    a: ix.get(m.a) as number, b: ix.get(m.b) as number, text: m.text,
-  }))) }
+  if (!splitting) {
+    return { text: render(msgs) }
+  }
+  const names = [...new Set(msgs.filter((m) => undefined !== m.part)
+    .map((m) => m.part as string))].sort(cmpCodePoint)
+  const base = undefined === o.splitBy ? [{ name: '', items: msgs }]
+    : names.map((n) => ({ name: n, items: msgs.filter((m) => n === m.part) }))
+  const parts: ViewPart[] = []
+  for (const part of budgeted(base, o.budget ?? 0)) {
+    if (max < part.items.length) {
+      return { errors: [rowsFinding(part.items.length, max, '--steps', true)] }
+    }
+    parts.push({ name: part.name, text: render(part.items) })
+  }
+  return joinParts(o.as, parts)
 }
 
 
@@ -3064,20 +3155,22 @@ function leafWeight(v: any): number {
 }
 
 
-function drawTreemap(
+// The tiles of a treemap, pruned of what weighs nothing. `only` keeps
+// the items (the anchor's children, or the members) a part holds.
+function treemapTop(
   root: any,
   o: {
     at?: string, depth?: number, groupBy?: string, size?: string,
-    members: string[] | undefined, as: ViewProfile, style: ViewStyle,
+    members: string[] | undefined, only?: string[],
   },
-  max: number, loss: ViewLoss[]
-): Figure {
+  loss: ViewLoss[]
+): { top?: Tile, error?: VetFinding } {
   const at = o.at ?? '$'
   const anchor = anchorAt(root, at)
   if (null == anchor) {
     return {
-      errors: [finding('no_path', 'reference', at,
-        `The path ${at} names nothing in this document.`)],
+      error: finding('no_path', 'reference', at,
+        `The path ${at} names nothing in this document.`),
     }
   }
   const unresolved: Unresolved = []
@@ -3096,25 +3189,27 @@ function drawTreemap(
   // With --size, a node holding the field is a tile weighed by it.
   const holds = (path: string): boolean =>
     undefined !== o.size && null != anchorAt(root, path + '.' + o.size)
-  const tile = (path: string, v: any, depth: number): Tile => {
-    const kids = docKids(v)
+  const kept = (path: string): boolean =>
+    undefined === o.only || o.only.includes(path)
+  const tile = (path: string, v: any, depth: number, first: boolean): Tile => {
+    const kids = docKids(v).filter((k) => !first || kept(path + '.' + k))
     const name = path.slice(path.lastIndexOf('.') + 1)
     if (0 === depth || 0 === kids.length || holds(path)) {
       return { name, weight: weigh(path, v), kids: [] }
     }
     const inner = kids.map((k) =>
-      tile(path + '.' + k, throughDoc(throughDoc(v).peg[k]), depth - 1))
+      tile(path + '.' + k, throughDoc(throughDoc(v).peg[k]), depth - 1, false))
     return {
       name, kids: inner, weight: inner.reduce((w, t) => w + t.weight, 0),
     }
   }
 
   // The items: the members asked for, or the anchor's children.
-  const items: string[] = o.members ??
-    docKids(anchor).map((k) => at + '.' + k)
+  const items: string[] = (o.members ??
+    docKids(anchor).map((k) => at + '.' + k)).filter(kept)
   let top: Tile
   if (undefined === o.groupBy && undefined === o.members) {
-    top = tile(at, anchor, o.depth || DEFAULT_DOC_DEPTH)
+    top = tile(at, anchor, o.depth || DEFAULT_DOC_DEPTH, true)
     top.name = at
   }
   else {
@@ -3158,20 +3253,29 @@ function drawTreemap(
   if (0 < empty) {
     loss.push({ code: 'treemap_empty', count: empty })
   }
+  return { top }
+}
 
-  type Row = { prefix: string, name: string, weight: number, depth: number }
+
+// A treemap drawn from its top tile. A part below the top is drawn as
+// one section, so Mermaid shows where it sits.
+function treemapFigure(
+  top: Tile, at: string, o: { as: ViewProfile, style: ViewStyle },
+  max: number, wrap: boolean
+): Figure {
+  type Row = { prefix: string, name: string, weight: number }
   const rows: Row[] = []
-  const walk = (t: Tile, prefix: string, kidPrefix: string, depth: number): void => {
-    rows.push({ prefix, name: t.name, weight: t.weight, depth })
+  const walk = (t: Tile, prefix: string, kidPrefix: string): void => {
+    rows.push({ prefix, name: t.name, weight: t.weight })
     t.kids.forEach((k, i) => {
       const last = i === t.kids.length - 1
       walk(k, kidPrefix + (last ? '└── ' : '├── '),
-        kidPrefix + (last ? '    ' : '│   '), depth + 1)
+        kidPrefix + (last ? '    ' : '│   '))
     })
   }
-  walk(top, '', '', 0)
+  walk(top, '', '')
   if (max < rows.length) {
-    return { errors: [rowsFinding(rows.length, max, '--at or --depth')] }
+    return { errors: [rowsFinding(rows.length, max, '--at or --depth', true)] }
   }
   for (const r of rows) {
     if (hasLineBreak(r.name)) {
@@ -3191,7 +3295,8 @@ function drawTreemap(
         emit(k, depth + 1)
       }
     }
-    for (const k of 0 === top.kids.length && 0 < top.weight ? [top] : top.kids) {
+    for (const k of wrap || (0 === top.kids.length && 0 < top.weight)
+      ? [top] : top.kids) {
       emit(k, 0)
     }
     return { text: out.join('\n') }
@@ -3212,8 +3317,259 @@ function drawTreemap(
 }
 
 
+function drawTreemap(
+  root: any,
+  o: {
+    at?: string, depth?: number, groupBy?: string, size?: string,
+    members: string[] | undefined, as: ViewProfile, style: ViewStyle,
+  },
+  max: number, loss: ViewLoss[]
+): Figure {
+  const built = treemapTop(root, o, loss)
+  if (undefined !== built.error) {
+    return { errors: [built.error] }
+  }
+  return treemapFigure(built.top as Tile, o.at ?? '$', o, max, false)
+}
+
+
+// ---------------------------------------------------------------------
+// The split of a figure drawn as a tree of rows: the document and the
+// treemap
+
+type HNode = { name: string, kids: HNode[] }
+
+// A part of a row tree: below the anchor its chain of names reaches,
+// the anchor's children it keeps.
+type HBase = { name: string, top: HNode, keys: string[] }
+type HPart = HBase & { chain: string[] }
+
+function hRows(n: HNode): number {
+  return 1 + n.kids.reduce((r, k) => r + hRows(k), 0)
+}
+
+
+// The document's own rows as a tree: `depth` levels of key below `v`.
+function docTree(v: any, name: string, depth: number): HNode {
+  return {
+    name,
+    kids: 0 === depth ? [] : docKids(v).map((k) =>
+      docTree(throughDoc(throughDoc(v).peg[k]), k, depth - 1)),
+  }
+}
+
+
+// The bases a row tree divides into: one per value of a field of the
+// top's children, one per child, or the whole.
+function hBases(
+  top: HNode, o: { splitBy?: string, splitRoots?: boolean },
+  path: (key: string) => string, root: any, loss: ViewLoss[]
+): HBase[] {
+  const keys = top.kids.map((k) => k.name)
+  if (undefined !== o.splitBy) {
+    const field = o.splitBy
+    const unresolved: Unresolved = []
+    const of = new Map<string, string[]>()
+    for (const k of keys) {
+      const v = fieldOf(root, path(k), field)
+      if (undefined === v) {
+        unresolved.push(path(k) + '.' + field)
+        continue
+      }
+      of.set(v, [...(of.get(v) ?? []), k])
+    }
+    addUnresolved(loss, unresolved)
+    return [...of.keys()].sort(cmpCodePoint)
+      .map((name) => ({ name, top, keys: of.get(name) as string[] }))
+  }
+  return true === o.splitRoots
+    ? keys.map((k) => ({ name: k, top, keys: [k] }))
+    : [{ name: '', top, keys }]
+}
+
+
+// Each base packed into parts of at most `budget` rows below their
+// anchor: whole subtrees side by side, and a subtree too big for one
+// part opened, its children packed under it in turn.
+function packRows(bases: HBase[], budget: number): HPart[] {
+  const out: HPart[] = []
+  for (const b of bases) {
+    if (0 === budget) {
+      out.push({ ...b, chain: [] })
+      continue
+    }
+    const units: { chain: string[], node: HNode }[] = []
+    const add = (chain: string[], node: HNode): void => {
+      if (hRows(node) <= budget) {
+        units.push({ chain, node })
+        return
+      }
+      for (const k of node.kids) {
+        add([...chain, node.name], k)
+      }
+    }
+    for (const k of b.top.kids.filter((k) => b.keys.includes(k.name))) {
+      add([], k)
+    }
+    const packs: { chain: string[], keys: string[], used: number }[] = []
+    for (const u of units) {
+      const last = packs[packs.length - 1]
+      const r = hRows(u.node)
+      if (undefined !== last && last.used + r <= budget &&
+        last.chain.join(SEP) === u.chain.join(SEP)) {
+        last.keys.push(u.node.name)
+        last.used += r
+      }
+      else {
+        packs.push({ chain: u.chain, keys: [u.node.name], used: r })
+      }
+    }
+    packs.forEach((p, i) => out.push({
+      name: '' === b.name ? String(i + 1)
+        : 1 === packs.length ? b.name : `${b.name}.${i + 1}`,
+      top: b.top, keys: p.keys, chain: p.chain,
+    }))
+  }
+  return out
+}
+
+
+function drawDocParts(
+  root: any,
+  o: {
+    at?: string, depth?: number, as: ViewProfile, style: ViewStyle,
+    splitBy?: string, splitRoots?: boolean, budget?: number,
+  },
+  max: number, loss: ViewLoss[]
+): Figure {
+  const whole = drawDoc(root, o, Infinity, loss)
+  if (undefined !== whole.errors) {
+    return whole
+  }
+  const at = o.at ?? '$'
+  const depth = o.depth || DEFAULT_DOC_DEPTH
+  const top = docTree(anchorAt(root, at), at, depth)
+  const cut = packRows(hBases(top, o, (k) => at + '.' + k, root, loss),
+    o.budget ?? 0)
+  const parts: ViewPart[] = []
+  for (const part of cut) {
+    if (hasLineBreak(part.name)) {
+      return { errors: [lineBreakFinding(at + '.' + part.keys[0])] }
+    }
+    const fig = drawDoc(root, {
+      ...o, chain: part.chain, depth: depth - part.chain.length, only: part.keys,
+    }, max, [])
+    if (undefined !== fig.errors) {
+      return fig
+    }
+    parts.push({ name: part.name, text: fig.text as string })
+  }
+  return joinParts(o.as, parts)
+}
+
+
+function drawTreemapParts(
+  root: any,
+  o: {
+    at?: string, depth?: number, groupBy?: string, size?: string,
+    members: string[] | undefined, as: ViewProfile, style: ViewStyle,
+    splitBy?: string, splitRoots?: boolean, budget?: number,
+  },
+  max: number, loss: ViewLoss[]
+): Figure {
+  const whole = drawTreemap(root, o, Infinity, loss)
+  if (undefined !== whole.errors) {
+    return whole
+  }
+  const at = o.at ?? '$'
+  const top = treemapTop(root, o, []).top as Tile
+  let bases: HBase[]
+  if (undefined === o.splitBy) {
+    bases = hBases(top, o, (k) => k, root, loss)
+  }
+  else {
+    // A part by a field is the treemap of the items holding its value,
+    // grouped and weighed afresh.
+    const field = o.splitBy
+    const items = o.members ??
+      docKids(anchorAt(root, at)).map((k) => at + '.' + k)
+    const unresolved: Unresolved = []
+    const of = new Map<string, string[]>()
+    for (const p of items) {
+      const v = fieldOf(root, p, field)
+      if (undefined === v) {
+        unresolved.push(p + '.' + field)
+        continue
+      }
+      of.set(v, [...(of.get(v) ?? []), p])
+    }
+    addUnresolved(loss, unresolved)
+    bases = [...of.keys()].sort(cmpCodePoint).map((name) => {
+      const mine = treemapTop(root, { ...o, only: of.get(name) }, []).top as Tile
+      return { name, top: mine, keys: mine.kids.map((k) => k.name) }
+    })
+  }
+  const parts: ViewPart[] = []
+  for (const part of packRows(bases, o.budget ?? 0)) {
+    if (hasLineBreak(part.name)) {
+      return { errors: [lineBreakFinding(at)] }
+    }
+    let node = part.top as Tile
+    for (const name of part.chain) {
+      node = node.kids.find((k) => k.name === name) as Tile
+    }
+    const kids = node.kids.filter((k) => part.keys.includes(k.name))
+    const fig = treemapFigure({
+      name: [part.top.name, ...part.chain].join('.'), kids,
+      weight: kids.reduce((w, t) => w + t.weight, 0),
+    }, at, o, max, 0 < part.chain.length)
+    if (undefined !== fig.errors) {
+      return fig
+    }
+    parts.push({ name: part.name, text: fig.text as string })
+  }
+  return joinParts(o.as, parts)
+}
+
+
 // ---------------------------------------------------------------------
 // Selection by membership, and the split into parts
+
+// Each part cut into runs of at most `budget` items: an unnamed part's
+// runs are numbered, and a named one keeps its name while it fits.
+function budgeted<T>(
+  parts: { name: string, items: T[] }[], budget: number
+): { name: string, items: T[] }[] {
+  if (0 === budget) {
+    return parts
+  }
+  const out: { name: string, items: T[] }[] = []
+  for (const part of parts) {
+    const n = Math.ceil(part.items.length / budget)
+    for (let i = 0; i < n; i++) {
+      out.push({
+        name: '' === part.name ? String(i + 1)
+          : 1 === n ? part.name : `${part.name}.${i + 1}`,
+        items: part.items.slice(i * budget, (i + 1) * budget),
+      })
+    }
+  }
+  return out
+}
+
+
+// The paths a split field leaves unresolved join the row the figure
+// already wrote, so one code is one row.
+function addUnresolved(loss: ViewLoss[], paths: string[]): void {
+  const row = loss.find((l) => 'unresolved_field' === l.code)
+  if (undefined === row) {
+    unresolvedLoss(paths, loss)
+    return
+  }
+  row.detail = [...new Set([...(row.detail as string[]), ...paths])]
+    .sort(cmpCodePoint)
+  row.count = row.detail.length
+}
 
 type Selection = { triples: Triple[], members?: string[], ghosts: Ghosts }
 
@@ -3267,7 +3623,52 @@ function selectMembers(
 
 type Part = { name: string, nodes: string[] }
 
-const SPLIT_KINDS: ViewKind[] = ['graph', 'state', 'lane']
+type SplitMode = 'by' | 'roots' | 'budget'
+
+// How each kind divides. A kind missing here does not divide at all.
+const SPLIT_MODES: [ViewKind, SplitMode[]][] = [
+  ['graph', ['by', 'roots', 'budget']],
+  ['state', ['by', 'roots', 'budget']],
+  ['lane', ['by', 'roots', 'budget']],
+  ['tree', ['by', 'roots', 'budget']],
+  ['matrix', ['by', 'roots', 'budget']],
+  ['layer', ['by', 'roots', 'budget']],
+  ['doc', ['by', 'roots', 'budget']],
+  ['treemap', ['by', 'roots', 'budget']],
+  ['sequence', ['by', 'budget']],
+  ['sets', ['budget']],
+  ['layers', ['budget']],
+]
+
+const SPLIT_FLAG: Record<SplitMode, string> = {
+  by: '--split-by', roots: '--split-roots', budget: '--budget',
+}
+
+// The kinds whose figures are drawn from the links, and so divide by
+// node, drawing a ghost for what lives elsewhere.
+const EDGE_KINDS: ViewKind[] = ['graph', 'state', 'lane', 'tree', 'matrix', 'layer']
+
+
+function splitRefusal(kind: ViewKind, o: ViewOptions): VetFinding | undefined {
+  const modes = SPLIT_MODES.find(([k]) => k === kind)?.[1] ?? []
+  const asked: [SplitMode, boolean, string][] = [
+    ['by', '' !== (o.splitBy ?? ''), 'by a field'],
+    ['roots', true === o.splitRoots, 'by root'],
+    ['budget', 0 < (o.budget ?? 0), 'by a budget'],
+  ]
+  const bad = asked.find(([mode, on]) => on && !modes.includes(mode))
+  if (undefined === bad) {
+    return undefined
+  }
+  return 0 === modes.length
+    ? finding('view_split_kind', 'reference', '$',
+      `The ${kind} figure cannot be split into parts.`,
+      'kinds that split: ' + SPLIT_MODES.map(([k]) => k).join(', '))
+    : finding('view_split_kind', 'reference', '$',
+      `The ${kind} figure cannot be split ${bad[2]}.`,
+      `the ${kind} figure splits with: ` +
+      modes.map((m) => SPLIT_FLAG[m]).join(', '))
+}
 
 
 function splitParts(
@@ -3296,17 +3697,7 @@ function splitParts(
       }
       of.set(v, [...(of.get(v) ?? []), p])
     }
-    // The split field may be a field the figure already read, so its
-    // unresolved paths join the row the figure wrote.
-    const row = loss.find((l) => 'unresolved_field' === l.code)
-    if (undefined === row) {
-      unresolvedLoss(unresolved, loss)
-    }
-    else {
-      row.detail = [...new Set([...(row.detail as string[]), ...unresolved])]
-        .sort(cmpCodePoint)
-      row.count = row.detail.length
-    }
+    addUnresolved(loss, unresolved)
     parts = [...of.keys()].sort(cmpCodePoint)
       .map((name) => ({ name, nodes: of.get(name) as string[] }))
   }
@@ -3358,22 +3749,8 @@ function splitParts(
     }
   }
 
-  const budget = o.budget ?? 0
-  if (0 === budget) {
-    return parts
-  }
-  const cut: Part[] = []
-  for (const part of parts) {
-    const n = Math.ceil(part.nodes.length / budget)
-    for (let i = 0; i < n; i++) {
-      cut.push({
-        name: '' === part.name ? String(i + 1)
-          : 1 === n ? part.name : `${part.name}.${i + 1}`,
-        nodes: part.nodes.slice(i * budget, (i + 1) * budget),
-      })
-    }
-  }
-  return cut
+  return budgeted(parts.map((p) => ({ name: p.name, items: p.nodes })),
+    o.budget ?? 0).map((p) => ({ name: p.name, nodes: p.items }))
 }
 
 
@@ -3417,8 +3794,18 @@ export function viewPartFile(out: string, name: string): string {
   return out.split(PART_TOKEN).join(safe)
 }
 
-const PART_COMMENT: Record<string, string> = {
-  mermaid: '%%', er: '%%', dot: '//', text: '#',
+// The comment a part opens with when every part is printed together.
+function partHead(as: ViewProfile, name: string): string {
+  return 'svg' === as ? `<!-- part: ${name} -->`
+    : `${'dot' === as ? '//' : 'text' === as ? '#' : '%%'} part: ${name}`
+}
+
+
+function joinParts(as: ViewProfile, parts: ViewPart[]): Figure {
+  return {
+    parts,
+    text: parts.map((p) => `${partHead(as, p.name)}\n${p.text}`).join('\n\n'),
+  }
 }
 
 
@@ -3530,6 +3917,11 @@ export function view(
     })
   }
 
+  const refused = splitRefusal(kind, options)
+  if (undefined !== refused) {
+    return done({ errors: [refused] })
+  }
+
   // Zero means the default, in both ports.
   const max = options.maxRows || DEFAULT_MAX_ROWS
 
@@ -3577,8 +3969,11 @@ function drawLoaded(
     }
   }
   const style = styleOf(options.style, as)
+  const splitting = viewSplits(options)
   if ('doc' === kind) {
-    return drawDoc(root, { ...options, as, style }, max, loss)
+    return splitting
+      ? drawDocParts(root, { ...options, as, style }, max, loss)
+      : drawDoc(root, { ...options, as, style }, max, loss)
   }
   if ('lattice' === kind) {
     return drawLattice(root, { ...options, as, style }, max, loss)
@@ -3619,6 +4014,7 @@ function drawLoaded(
       return drawSequence(listed, {
         from: options.from as string, to: options.to as string,
         label: options.label, at: options.steps as string, as,
+        splitBy: options.splitBy, budget: options.budget,
       }, max, loss)
     }
     // GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
@@ -3634,17 +4030,8 @@ function drawLoaded(
     return drawSets(value, {
       sets: options.sets as string, member: options.member as string,
       universe: options.universe, minDegree: options.minDegree,
-      maxCols: options.maxCols, as, style,
+      maxCols: options.maxCols, as, style, budget: options.budget,
     }, max, loss)
-  }
-
-  const splitting = viewSplits(options)
-  if (splitting && !SPLIT_KINDS.includes(kind)) {
-    return {
-      errors: [finding('view_split_kind', 'reference', '$',
-        `The ${kind} figure cannot be split into parts.`,
-        'kinds that split: ' + SPLIT_KINDS.join(', '))],
-    }
   }
 
   let sel: Selection = {
@@ -3659,7 +4046,7 @@ function drawLoaded(
   }
   if (undefined !== options.of) {
     const picked = selectMembers(sel.triples, options.of, options.member,
-      true === options.ghosts && SPLIT_KINDS.includes(kind),
+      true === options.ghosts && EDGE_KINDS.includes(kind),
       'treemap' === kind ? [] : loss)
     if (undefined !== picked.error) {
       return { errors: [picked.error] }
@@ -3667,10 +4054,14 @@ function drawLoaded(
     sel = picked.selection as Selection
   }
   if ('treemap' === kind) {
-    return drawTreemap(root, {
+    const o = {
       at: options.at, depth: options.depth, groupBy: options.groupBy,
       size: options.size, members: sel.members, as, style,
-    }, max, loss)
+      splitBy: options.splitBy, splitRoots: options.splitRoots,
+      budget: options.budget,
+    }
+    return splitting
+      ? drawTreemapParts(root, o, max, loss) : drawTreemap(root, o, max, loss)
   }
 
   const decls: RelDecls = ctx._reldecls
@@ -3678,14 +4069,19 @@ function drawLoaded(
   // "every relation" rather than one that names nothing.
   const relation = options.relation || undefined
   const relations = options.relations ?? []
+  const roots = options.roots ?? []
+  // The relation a matrix or a layer figure is drawn over, as the whole
+  // figure picks it; a part is drawn over the same one.
+  const picked = pickRelation(relation, keysOf(sel.triples)).relation
   const draw = (
-    s: Selection, rows: number, into: ViewLoss[], relations: string[],
-    roots: string[]
+    s: Selection, rows: number, into: ViewLoss[], inPart: boolean,
+    partRoots: string[]
   ): Figure => {
     const members = s.members ?? []
+    const rels = inPart ? [] : relations
     if ('graph' === kind) {
       return drawGraph(s.triples, decls, root, {
-        relations, groupBy: options.groupBy, label: options.label, as,
+        relations: rels, groupBy: options.groupBy, label: options.label, as,
         members, ghosts: s.ghosts, columns: options.columns,
         counts: options.counts, countBy: options.countBy,
         collapse: options.collapse,
@@ -3693,63 +4089,87 @@ function drawLoaded(
     }
     if ('state' === kind) {
       return drawState(s.triples, root, {
-        relations, label: options.label, as, members, ghosts: s.ghosts,
-        roots, named: 0 < (options.roots ?? []).length,
+        relations: rels, label: options.label, as, members, ghosts: s.ghosts,
+        roots: partRoots, named: 0 < roots.length,
       }, rows, into)
     }
-    return drawLane(s.triples, root, {
-      relations, groupBy: options.groupBy, label: options.label,
-      layers: options.layers ?? [], as, members, ghosts: s.ghosts,
-      counts: options.counts, countBy: options.countBy,
-    }, rows, into)
+    if ('lane' === kind) {
+      return drawLane(s.triples, root, {
+        relations: rels, groupBy: options.groupBy, label: options.label,
+        layers: options.layers ?? [], as, members, ghosts: s.ghosts,
+        counts: options.counts, countBy: options.countBy,
+      }, rows, into)
+    }
+    if ('matrix' === kind) {
+      return drawMatrix(s.triples, decls, {
+        relation: inPart ? picked : relation, order: options.order ?? 'canon',
+        closure: true === options.closure, as, style, ghosts: s.ghosts,
+        members, picked: inPart,
+      }, rows, into)
+    }
+    if ('layer' === kind) {
+      return drawLayer(s.triples, root, {
+        relation, groupBy: options.groupBy, layers: options.layers ?? [],
+        edges: options.edges, as, style, counts: options.counts,
+        countBy: options.countBy, ghosts: s.ghosts, members,
+      }, rows, into)
+    }
+    return drawTree(collapse(s.triples, relation), relation, partRoots, rows,
+      as, style, { ghosts: s.ghosts, members, rest: inPart })
   }
-  if (SPLIT_KINDS.includes(kind)) {
-    if (!splitting) {
-      return draw(sel, max, loss, relations, options.roots ?? [])
-    }
-    // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
-    // report; each part is then drawn on its own, under the row cap
-    // the whole figure was spared.
-    const whole = draw(sel, Infinity, loss, relations, options.roots ?? [])
-    if (undefined !== whole.errors) {
-      return whole
-    }
-    const scoped: Selection = 0 === relations.length ? sel : {
-      ...sel, triples: sel.triples.filter((e) => relations.includes(e.key)),
-    }
-    const parts: ViewPart[] = []
-    const cut = splitParts(scoped, root, options, loss)
-    for (const part of cut) {
-      const fig = draw(partSelection(scoped, cut, part), max, [], [],
-        (options.roots ?? []).filter((r) => part.nodes.includes(r)))
-      if (undefined !== fig.errors) {
-        return fig
+  if (!splitting) {
+    return draw(sel, max, loss, false, roots)
+  }
+  // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
+  // report; each part is then drawn on its own, under the row cap the
+  // whole figure was spared.
+  const whole = draw(sel, Infinity, loss, false, roots)
+  if (undefined !== whole.errors) {
+    return whole
+  }
+  // The parts divide the edges the figure draws: its relations, and for
+  // a tree with named roots only what those roots reach.
+  const keys = ['graph', 'state', 'lane'].includes(kind) ? relations
+    : 'tree' === kind ? (undefined === relation ? [] : [relation])
+      : [picked as string]
+  let scoped: Selection = 0 === keys.length ? sel : {
+    ...sel, triples: sel.triples.filter((e) => keys.includes(e.key)),
+  }
+  if ('tree' === kind && 0 < roots.length) {
+    const reached = new Set(roots)
+    const drawn = collapse(scoped.triples, relation)
+    for (let grew = true; grew;) {
+      grew = false
+      for (const e of drawn) {
+        if (reached.has(e.from) && !reached.has(e.to)) {
+          reached.add(e.to)
+          grew = true
+        }
       }
-      parts.push({ name: part.name, text: fig.text as string })
     }
-    const mark = PART_COMMENT[as]
-    return {
-      parts,
-      text: parts.map((p) => `${mark} part: ${p.name}\n${p.text}`).join('\n\n'),
+    scoped = {
+      ...scoped,
+      triples: scoped.triples.filter((e) => reached.has(e.from) && reached.has(e.to)),
+      members: (scoped.members ?? []).filter((m) => reached.has(m)),
     }
   }
-
-  const triples = sel.triples
-  if ('matrix' === kind) {
-    return drawMatrix(triples, decls, {
-      relation, order: options.order ?? 'canon', closure: true === options.closure,
-      as, style,
-    }, max, loss)
+  const cut = splitParts(scoped, root, options, loss)
+  const broken = cut.find((p) => hasLineBreak(p.name))
+  if (undefined !== broken) {
+    return { errors: [lineBreakFinding(broken.nodes[0])] }
   }
-  if ('layer' === kind) {
-    return drawLayer(triples, root, {
-      relation, groupBy: options.groupBy, layers: options.layers ?? [],
-      edges: options.edges, as, style, counts: options.counts,
-      countBy: options.countBy,
-    }, max, loss)
+  const parts: ViewPart[] = []
+  for (const part of cut) {
+    // A matrix part keeps every edge touching it, so a mirror under a
+    // declared inverse is still seen.
+    const fig = draw(partSelection('matrix' === kind ? sel : scoped, cut, part),
+      max, [], true, roots.filter((r) => part.nodes.includes(r)))
+    if (undefined !== fig.errors) {
+      return fig
+    }
+    parts.push({ name: part.name, text: fig.text as string })
   }
-  return drawTree(
-    collapse(triples, relation), relation, options.roots ?? [], max, as, style)
+  return joinParts(as, parts)
 }
 
 
@@ -3965,9 +4385,11 @@ export function viewSet(
     // evaluation of the same source, which stands up as this one did.
     const own = 'sets' === plan.kind || 'sequence' === plan.kind
       ? load(src, options.path, options, undefined) : loaded
-    const fig: Figure = 'ladder' === plan.kind
-      ? drawLadder(src, each, plan.as, plan.max)
-      : drawLoaded(own.root, own.ctx, prov, plan.kind, plan.as, each, plan.max, loss)
+    const refused = splitRefusal(plan.kind, each)
+    const fig: Figure = undefined !== refused ? { errors: [refused] }
+      : 'ladder' === plan.kind
+        ? drawLadder(src, each, plan.as, plan.max)
+        : drawLoaded(own.root, own.ctx, prov, plan.kind, plan.as, each, plan.max, loss)
     if (undefined !== fig.errors) {
       return {
         name: plan.name, kind: plan.kind, out: plan.out,

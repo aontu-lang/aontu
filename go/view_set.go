@@ -354,7 +354,9 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 		var text string
 		var ferrs []VetFinding
 		parts := []ViewPart{}
-		if "ladder" == plan.kind {
+		if refused := viewSplitRefusal(plan.kind, &each); nil != refused {
+			ferrs = []VetFinding{*refused}
+		} else if "ladder" == plan.kind {
 			text, ferrs = a.drawLadder(src, each.At, plan.as, plan.max)
 		} else {
 			// A Val tree generates once: the declarations were generated
