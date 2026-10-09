@@ -16,6 +16,7 @@ const format_1 = require("./format");
 const regex_1 = require("./regex");
 const numkind_1 = require("./val/numkind");
 const uri_1 = require("./uri");
+const vocabularies_1 = require("./vocabularies");
 exports.IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers'];
 const JSON_DEPTH = 256;
 const JSON_ESCAPES = {
@@ -530,7 +531,7 @@ function resolveRef(ctx, from, ref) {
         const outer = ctx.doc;
         const at = ctx.ptrOf.get(res) + frag;
         ctx.doc = ctx.docOf.get(res);
-        upgrade(ctx, node, at, at, ctx.dialects.get(res), false, false);
+        upgrade(ctx, node, at, at, ctx.dialects.get(res), false, false, ctx.reads.get(res));
         index(ctx, node, at, res, ctx.baseOf.get(res));
         ctx.doc = outer;
     }
@@ -564,10 +565,21 @@ const DIALECT_KEYS = {
         '$vocabulary', '$defs', 'dependentSchemas', 'dependentRequired', 'unevaluatedItems',
         'unevaluatedProperties', 'maxContains', 'minContains', 'deprecated', 'contentSchema']),
 };
+const VOCABULARIES = new Map();
+for (const line of vocabularies_1.VOCABULARY_TABLE.split('\n')) {
+    const [uri, dialect, reads, format, keys] = line.split('\t');
+    if (undefined !== keys && 'uri' !== uri) {
+        VOCABULARIES.set(uri, { dialect, reads, format, keys: keys.split(' ') });
+    }
+}
+const vocabularyKeys = (d, which) => new Set([...VOCABULARIES.values()].filter((v) => d === v.dialect && which(v)).flatMap((v) => v.keys));
 // The dynamic anchor a resource's `$recursiveAnchor` becomes.
 const RECURSIVE = 'aontu.recursive';
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const before = (a, b) => DIALECTS.indexOf(a) < DIALECTS.indexOf(b);
+// The keywords each dialect's vocabularies define, none for a dialect
+// older than vocabularies.
+const VOCABULARY_KEYS = Object.fromEntries(DIALECTS.map((d) => [d, vocabularyKeys(d, () => true)]));
 // The dialect a meta-schema URI names: one of the five, or a meta-schema
 // the document set holds, read by the dialect its own $schema names, or
 // by the default where it names none.
@@ -588,7 +600,7 @@ function dialectNamed(ctx, uri, depth = 0) {
 // before it is indexed. `ptr` is where the walk reads it and `was` where
 // it was written; `root` marks a document's root, and `recursive` whether
 // the resource around it holds a true `$recursiveAnchor`.
-function upgrade(ctx, node, ptr, was, dialect, root, recursive) {
+function upgrade(ctx, node, ptr, was, dialect, root, recursive, vocab) {
     if ('object' !== node.t) {
         return;
     }
@@ -612,6 +624,8 @@ function upgrade(ctx, node, ptr, was, dialect, root, recursive) {
         }
     }
     ctx.dialects.set(node, d);
+    const reads = isRoot && 'string' === meta?.t ? listedKeys(ctx, meta, ptr, d) : vocab;
+    ctx.reads.set(node, reads);
     const rec = isRoot ? '2019-09' === d && 'true' === has('$recursiveAnchor')?.t : recursive;
     const moved = new Map();
     const unknown = [];
@@ -639,7 +653,8 @@ function upgrade(ctx, node, ptr, was, dialect, root, recursive) {
             drop(e);
             ignored.push(e.key);
         }
-        else if (legacy && !DIALECT_KEYS[d].has(e.key) && !e.key.startsWith('x-aontu-')) {
+        else if ((legacy && !DIALECT_KEYS[d].has(e.key) && !e.key.startsWith('x-aontu-')) ||
+            (undefined !== reads && !reads.has(e.key) && VOCABULARY_KEYS[d].has(e.key))) {
             moved.set(e.key, e.val);
             unknown.push(e);
         }
@@ -768,7 +783,7 @@ function upgrade(ctx, node, ptr, was, dialect, root, recursive) {
         const key = p.slice(ptr.length + 1).split('/')[0];
         const wrote = from.get(key.replace(/~1/g, '/').replace(/~0/g, '~'));
         upgrade(ctx, n, p, undefined === wrote ? was + p.slice(ptr.length) :
-            child(was, wrote) + p.slice(ptr.length + 1 + key.length), d, false, rec);
+            child(was, wrote) + p.slice(ptr.length + 1 + key.length), d, false, rec, reads);
     });
 }
 // Where a pointer the walk reads was written, for a report.
@@ -948,8 +963,6 @@ function enter(ctx, node) {
 const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, ' +
     'so it is dropped and the position admits more than that dialect does';
 const LATER = {
-    $vocabulary: 'a vocabulary declaration, and the 2020-12 vocabularies are read ' +
-        'whatever it says, so it is dropped',
     dependencies: LEGACY, additionalItems: LEGACY,
     $recursiveRef: LEGACY, $recursiveAnchor: LEGACY,
 };
@@ -1485,8 +1498,11 @@ function convertObject(ctx, node, ptr, only) {
             }
         }
     }
+    // A format the vocabulary asserts scopes strings even without a
+    // grammar, which refuses it.
     const scoped = (kind) => (undefined !== SCOPED[kind] && SCOPED[kind].some((k) => null != get(k))) ||
-        ('string' === kind && (null != get('x-aontu-format') || undefined !== grammarOf(ctx, get('format'))));
+        ('string' === kind && (null != get('x-aontu-format') || undefined !== grammarOf(ctx, get('format')) ||
+            ('vocabulary' === ctx.asserts && 'string' === get('format')?.t)));
     const kinds = KINDS.filter((kind) => (undefined === only || only.includes(kind)) &&
         (undefined === allowed ? KINDS.some(scoped) && (undefined === only || scoped(kind)) :
             allowed.includes(kind) || ('number' === kind && allowed.includes('integer'))));
@@ -2050,7 +2066,7 @@ function begin(text, options) {
         documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
         copies: 0, seen: new Set(), asserts: true === options?.formatAssertion ? 'option' : '',
         formats: new Map(Object.entries(options?.formats ?? {})),
-        dialect: '2020-12', dialects: new Map(), origin: new Map(), rewritten: [],
+        dialect: '2020-12', dialects: new Map(), reads: new Map(), origin: new Map(), rewritten: [],
     };
     // Names for one URI must hold one text, or the set's order would
     // choose between them.
@@ -2185,17 +2201,48 @@ function dialectDefault(ctx, name) {
     ctx.dialect = name;
     return true;
 }
-// Whether the meta-schema the root names lists the format-assertion
-// vocabulary, true or false: aontu asserts formats, so either asks it to.
-function vocabularyAsserts(ctx, root) {
-    const named = entry(root, '$schema');
-    const text = 'string' === named?.t ?
-        ctx.documents.get((0, uri_1.normalizeUri)((0, uri_1.resolveUri)(ctx.doc.uri, named.s).replace(/#.*$/s, ''))) : undefined;
+// The `$vocabulary` object of the meta-schema a URI names, where the
+// document set holds one.
+function metaVocabulary(ctx, uri) {
+    const text = ctx.documents.get((0, uri_1.normalizeUri)((0, uri_1.resolveUri)(ctx.doc.uri, uri).replace(/#.*$/s, '')));
     const meta = undefined === text ? undefined : parseJson(text);
     const vocabulary = undefined === meta || 'why' in meta ? undefined : entry(meta, '$vocabulary');
-    return 'object' === vocabulary?.t && vocabulary.entries.some((e) => FORMAT_ASSERTION === e.key);
+    return 'object' === vocabulary?.t ? vocabulary : undefined;
 }
-const FORMAT_ASSERTION = 'https://json-schema.org/draft/2020-12/vocab/format-assertion';
+// ADR-063: the keywords a resource reads under the vocabularies its
+// meta-schema lists, the core vocabulary's always among them, or
+// undefined where it lists none and every vocabulary is read. Only a
+// listed `false` makes a vocabulary aontu does not read optional.
+function listedKeys(ctx, meta, ptr, d) {
+    const listed = metaVocabulary(ctx, meta.s);
+    if (undefined === listed) {
+        return undefined;
+    }
+    const keys = vocabularyKeys(d, (v) => 'always' === v.reads);
+    for (const e of listed.entries) {
+        const v = VOCABULARIES.get(e.key);
+        if (undefined !== v) {
+            v.keys.forEach((k) => keys.add(k));
+        }
+        else if ('false' !== e.val.t) {
+            fail(ctx, 'jsonschema_vocabulary', child(ptr, '$schema'), 'The meta-schema ' +
+                quote(meta.s) + ' requires the vocabulary ' + quote(e.key) +
+                ', which aontu does not read.', meta.off, meta.end);
+        }
+    }
+    return keys;
+}
+// Whether the meta-schema the root names lists a vocabulary whose format
+// asserts: format-assertion, true or false, since aontu reads it, and a
+// format vocabulary that asserts only where it is required.
+function vocabularyAsserts(ctx, root) {
+    const named = entry(root, '$schema');
+    const listed = 'string' === named?.t ? metaVocabulary(ctx, named.s) : undefined;
+    return undefined !== listed && listed.entries.some((e) => {
+        const mode = VOCABULARIES.get(e.key)?.format;
+        return 'assertion' === mode || ('required' === mode && 'false' !== e.val.t);
+    });
+}
 // The agreed form, as `aontu fmt` writes it, or the text as written
 // where the formatter refuses it, which within the nesting bound it
 // does not.

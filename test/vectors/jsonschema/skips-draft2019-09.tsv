@@ -25,4 +25,3 @@ recursiveRef.json	multiple dynamic paths to the $recursiveRef keyword	recurse to
 ref.json	remote ref, containing refs itself	remote ref valid	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
 ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
 ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
-vocabulary.json	schema that uses custom metaschema with with no validation vocabulary	no validation: invalid number, but it still validates	$schema	a custom meta-schema waits on vocabularies and the meta-schema (phase 16)

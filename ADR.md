@@ -5886,3 +5886,70 @@ map`, is the shape the depth budget already catches.
 - Pinned by rows in `test/spec/recursion.tsv`, `test/spec/alias.tsv`,
   `test/spec/deprecate.tsv` and `test/spec/disjunct.tsv`, in both
   ports.
+
+## ADR-063 — The vocabularies a meta-schema lists decide what its schemas read
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2019-09 and 2020-12 group their keywords into vocabularies,
+and a meta-schema's `$vocabulary` lists the vocabularies its schemas
+use, each required (`true`) or optional (`false`). The importer read
+every keyword of a dialect whatever a custom meta-schema listed,
+reported `$vocabulary` as a loss, and decided format assertion by one
+URI, 2020-12's format-assertion vocabulary. The suite's
+`vocabulary.json` holds a schema whose meta-schema lists no validation
+vocabulary, so its `minimum` asserts nothing; it was a ledger row in
+both the 2020-12 and the 2019-09 directories.
+
+### Decision
+
+1. **One table, both ports.** `grammar/jsonschema/vocabularies.tsv`
+   lists each vocabulary aontu reads: its URI, its dialect, whether a
+   schema reads it always (the core vocabularies) or only where its
+   meta-schema lists it, the mode of its `format`, and its keywords.
+   `make vocabularies` stages it into `ts/src/vocabularies.ts` and
+   `go/vocabularies.tsv`, and each suite asserts its copy is identical.
+2. **A meta-schema that declares `$vocabulary` narrows its schemas.** A
+   resource whose `$schema` names a meta-schema in the document set
+   with a `$vocabulary` object reads the keywords of the vocabularies
+   listed there and of its dialect's core vocabulary. Each other keyword
+   of a vocabulary of its dialect is an annotation under `x`, as a
+   keyword the dialect does not define is (ADR-061). A resource naming
+   no meta-schema of its own reads what its parent reads. The upgrade
+   stage applies this to the keywords as written, so a 2019-09 keyword
+   it turns into an annotation is never rewritten.
+3. **A vocabulary aontu does not read refuses the import unless the
+   meta-schema lists it as `false`,** with the new
+   `jsonschema_vocabulary`, class `reference`, at the schema's
+   `$schema`. JSON Schema asks that such a schema be refused rather than
+   read without that vocabulary's keywords, and any value but `false`
+   counts as required.
+4. **The table decides format assertion.** 2020-12's format-assertion
+   vocabulary asserts whether it is listed `true` or `false`, as before;
+   2019-09's format vocabulary asserts where it is listed `true`; the
+   format-annotation vocabulary annotates.
+5. **`$vocabulary` in a schema is an annotation**, under `x`. JSON
+   Schema ignores it outside a meta-schema, and the importer reads a
+   meta-schema through the document set rather than importing it.
+
+Found on the way: under the format-assertion vocabulary an unknown
+format refused only where another keyword scoped the string kind, so
+`{"format": "zip"}` imported as `any`. A format the vocabulary asserts
+now scopes strings itself, in both ports.
+
+### Consequences
+
+- `vocabulary.json` passes in the 2020-12 and 2019-09 directories,
+  whose ledgers hold 14 and 22 rows under bounds tightened from 15 and
+  23.
+- A custom meta-schema listing only the core and format-assertion
+  vocabularies, as four format rows' meta-schemas do, reads `type` as an
+  annotation; those rows are re-pinned, and the one that refuses an
+  unknown format still refuses it.
+- The bundled meta-schemas and the check of an input against its
+  meta-schema remain phase 16's work.
+- Pinned by fifteen `jsonschema-import` rows, four more re-pinned,
+  every expectation from both engines.

@@ -206,7 +206,11 @@ number & above(0)
 
 A `$schema` that names no dialect aontu reads refuses the import with
 `jsonschema_dialect`, unless `--doc` supplies the custom meta-schema at
-that URI, whose own `$schema` then names the dialect.
+that URI, whose own `$schema` then names the dialect. A custom
+meta-schema whose `$vocabulary` lists vocabularies also narrows what
+its schemas read: a keyword of a vocabulary it does not list is carried
+as an annotation, and a vocabulary it requires that aontu does not read
+refuses the import with `jsonschema_vocabulary`.
 
 ## Keep the annotations
 
@@ -270,9 +274,10 @@ The grammar is the file's text, its last newline included. The
 back; it writes a grammar as `x-aontu-format`, which the import reads
 in any mode. Under `--format-assert` a format with no grammar
 stays an annotation. A schema whose meta-schema, in the document set,
-lists the format-assertion vocabulary asserts its formats without the
-flag, and there a format with no grammar refuses the import with
-`format_unknown`, as JSON Schema asks.
+lists the format-assertion vocabulary, or requires 2019-09's format
+vocabulary, asserts its formats without the flag, and there a format
+with no grammar refuses the import with `format_unknown`, as JSON
+Schema asks.
 
 ## What to watch for
 

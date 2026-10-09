@@ -17,4 +17,3 @@ ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed sc
 ref.json	remote ref, containing refs itself	remote ref valid	$ref	the meta-schema is not in the document set until the bundled meta-schemas (phase 16)
 unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 2nd level is invalid	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
 unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 3rd level is invalid	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
-vocabulary.json	schema that uses custom metaschema with with no validation vocabulary	no validation: invalid number, but it still validates	$schema	a custom meta-schema waits on vocabularies and the meta-schema (phase 16)

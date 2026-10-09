@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -619,8 +620,11 @@ type importCtx struct {
 	// ADR-061: the dialect a resource names none of, the dialect each
 	// schema is read in, and where each pointer the upgrade moved was
 	// written.
-	dialect   string
-	dialects  map[*jnode]string
+	dialect  string
+	dialects map[*jnode]string
+	// ADR-063: the keywords each schema reads, where its meta-schema lists
+	// vocabularies.
+	reads     map[*jnode]map[string]bool
 	origin    map[string]string
 	rewritten [][2]string
 }
@@ -818,7 +822,7 @@ func (ctx *importCtx) reach(key string) *jnode {
 	}
 	ctx.byText[text] = doc
 	ctx.resources[key] = parsed
-	ctx.upgrade(parsed, key+"#", key+"#", ctx.dialect, true, false)
+	ctx.upgrade(parsed, key+"#", key+"#", ctx.dialect, true, false, nil)
 	ctx.index(parsed, key+"#", parsed, key)
 	ctx.doc = outer
 	return parsed
@@ -890,7 +894,7 @@ func (ctx *importCtx) resolveRef(from *jnode, ref string) *jnode {
 		outer := ctx.doc
 		at := ctx.ptrOf[res] + frag
 		ctx.doc = ctx.docOf[res]
-		ctx.upgrade(node, at, at, ctx.dialects[res], false, false)
+		ctx.upgrade(node, at, at, ctx.dialects[res], false, false, ctx.reads[res])
 		ctx.index(node, at, res, ctx.baseOf[res])
 		ctx.doc = outer
 	}
@@ -949,6 +953,42 @@ var importDialectKeys = func() map[string]map[string]bool {
 	return out
 }()
 
+// vocabularyTable is grammar/jsonschema/vocabularies.tsv as `make
+// vocabularies` stages it (ADR-063).
+//
+//go:embed vocabularies.tsv
+var vocabularyTable string
+
+type importVocabulary struct {
+	dialect, reads, format string
+	keys                   []string
+}
+
+// importVocabularies are the vocabularies the importer reads, by URI; a
+// line with no keywords is not one.
+var importVocabularies = func() map[string]importVocabulary {
+	out := map[string]importVocabulary{}
+	for _, line := range strings.Split(vocabularyTable, "\n") {
+		f := strings.Split(line, "\t")
+		if 5 <= len(f) && "uri" != f[0] {
+			out[f[0]] = importVocabulary{f[1], f[2], f[3], strings.Split(f[4], " ")}
+		}
+	}
+	return out
+}()
+
+func vocabularyKeys(d string, which func(importVocabulary) bool) map[string]bool {
+	out := map[string]bool{}
+	for _, v := range importVocabularies {
+		if d == v.dialect && which(v) {
+			for _, k := range v.keys {
+				out[k] = true
+			}
+		}
+	}
+	return out
+}
+
 // importRecursive is the dynamic anchor a resource's $recursiveAnchor
 // becomes.
 const importRecursive = "aontu.recursive"
@@ -958,6 +998,16 @@ const importDraft = "https://json-schema.org/draft/2020-12/schema"
 func dialectBefore(a, b string) bool {
 	return slices.Index(importDialects, a) < slices.Index(importDialects, b)
 }
+
+// importVocabularyKeys are the keywords each dialect's vocabularies
+// define, none for a dialect older than vocabularies.
+var importVocabularyKeys = func() map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, d := range importDialects {
+		out[d] = vocabularyKeys(d, func(importVocabulary) bool { return true })
+	}
+	return out
+}()
 
 // dialectNamed is the dialect a meta-schema URI names: one of the five,
 // or a meta-schema the document set holds, read by the dialect its own
@@ -995,7 +1045,8 @@ func withString(n *jnode, s string) *jnode {
 // before it is indexed (ADR-061). ptr is where the walk reads it and was
 // where it was written; root marks a document's root, and recursive
 // whether the resource around it holds a true $recursiveAnchor.
-func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recursive bool) {
+func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recursive bool,
+	vocab map[string]bool) {
 	if "object" != node.t {
 		return
 	}
@@ -1032,6 +1083,11 @@ func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recur
 		}
 	}
 	ctx.dialects[node] = d
+	reads := vocab
+	if isRoot && nil != meta && "string" == meta.t {
+		reads = ctx.listedKeys(meta, ptr, d)
+	}
+	ctx.reads[node] = reads
 	rec := recursive
 	if isRoot {
 		anchor := has("$recursiveAnchor")
@@ -1064,7 +1120,8 @@ func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recur
 		case refOnly(d) && "$ref" != e.key && "$schema" != e.key && "definitions" != e.key:
 			drop(e)
 			ignored = append(ignored, e.key)
-		case legacy && !importDialectKeys[d][e.key] && !strings.HasPrefix(e.key, "x-aontu-"):
+		case (legacy && !importDialectKeys[d][e.key] && !strings.HasPrefix(e.key, "x-aontu-")) ||
+			(nil != reads && !reads[e.key] && importVocabularyKeys[d][e.key]):
 			moved[e.key] = e.val
 			unknown = append(unknown, e)
 		case ("id" == e.key && "draft-04" == d) ||
@@ -1203,7 +1260,7 @@ func (ctx *importCtx) upgrade(node *jnode, ptr, was, dialect string, root, recur
 		if w, ok := wrote[pointerUnescaper.Replace(key)]; ok {
 			at = ptrChild(was, w) + p[len(ptr)+1+len(key):]
 		}
-		ctx.upgrade(n, p, at, d, false, rec)
+		ctx.upgrade(n, p, at, d, false, rec, reads)
 	})
 }
 
@@ -1432,8 +1489,6 @@ const importLegacy = "a keyword of an earlier dialect, which 2020-12 does not de
 // importLater is what each keyword the importer does not carry costs, for
 // its loss.
 var importLater = map[string]string{
-	"$vocabulary": "a vocabulary declaration, and the 2020-12 vocabularies are read " +
-		"whatever it says, so it is dropped",
 	"dependencies": importLegacy, "additionalItems": importLegacy,
 	"$recursiveRef": importLegacy, "$recursiveAnchor": importLegacy,
 }
@@ -1528,36 +1583,69 @@ func (ctx *importCtx) grammarCall(path string, node *jnode, g string) []*ixpr {
 	return []*ixpr{icall("format", iraw(importQuote(g)))}
 }
 
-// vocabularyAsserts is whether the meta-schema the root names lists the
-// format-assertion vocabulary, true or false: aontu asserts formats, so
-// either asks it to.
+// metaVocabulary is the $vocabulary object of the meta-schema a URI
+// names, where the document set holds one.
+func (ctx *importCtx) metaVocabulary(uri string) *jnode {
+	key, _, _ := strings.Cut(resolveURI(ctx.doc.uri, uri), "#")
+	text, ok := ctx.documents[normalizeURI(key)]
+	if !ok {
+		return nil
+	}
+	meta, _ := parseSchemaJSON(text)
+	if nil == meta {
+		return nil
+	}
+	if vocabulary := jentryOf(meta, "$vocabulary"); nil != vocabulary && "object" == vocabulary.t {
+		return vocabulary
+	}
+	return nil
+}
+
+// listedKeys are the keywords a resource reads under the vocabularies its
+// meta-schema lists, the core vocabulary's always among them, or nil
+// where it lists none and every vocabulary is read (ADR-063). Only a
+// listed false makes a vocabulary aontu does not read optional.
+func (ctx *importCtx) listedKeys(meta *jnode, ptr, d string) map[string]bool {
+	listed := ctx.metaVocabulary(meta.s)
+	if nil == listed {
+		return nil
+	}
+	keys := vocabularyKeys(d, func(v importVocabulary) bool { return "always" == v.reads })
+	for _, e := range listed.entries {
+		if v, ok := importVocabularies[e.key]; ok {
+			for _, k := range v.keys {
+				keys[k] = true
+			}
+		} else if "false" != e.val.t {
+			ctx.fail("jsonschema_vocabulary", ptrChild(ptr, "$schema"), "The meta-schema "+
+				importQuote(meta.s)+" requires the vocabulary "+importQuote(e.key)+
+				", which aontu does not read.", meta.off, meta.end)
+		}
+	}
+	return keys
+}
+
+// vocabularyAsserts is whether the meta-schema the root names lists a
+// vocabulary whose format asserts: format-assertion, true or false,
+// since aontu reads it, and a format vocabulary that asserts only where
+// it is required.
 func (ctx *importCtx) vocabularyAsserts(root *jnode) bool {
 	named := jentryOf(root, "$schema")
 	if nil == named || "string" != named.t {
 		return false
 	}
-	key, _, _ := strings.Cut(resolveURI(ctx.doc.uri, named.s), "#")
-	text, ok := ctx.documents[normalizeURI(key)]
-	if !ok {
+	listed := ctx.metaVocabulary(named.s)
+	if nil == listed {
 		return false
 	}
-	meta, _ := parseSchemaJSON(text)
-	if nil == meta {
-		return false
-	}
-	vocabulary := jentryOf(meta, "$vocabulary")
-	if nil == vocabulary || "object" != vocabulary.t {
-		return false
-	}
-	for _, e := range vocabulary.entries {
-		if importFormatAssertion == e.key {
+	for _, e := range listed.entries {
+		mode := importVocabularies[e.key].format
+		if "assertion" == mode || ("required" == mode && "false" != e.val.t) {
 			return true
 		}
 	}
 	return false
 }
-
-const importFormatAssertion = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
 
 func (ctx *importCtx) pattern(path, construct, src string) *ixpr {
 	form, why := importForm(src)
@@ -2232,8 +2320,12 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		if "string" != kind {
 			return false
 		}
+		// A format the vocabulary asserts scopes strings even without a
+		// grammar, which refuses it.
 		_, ok := ctx.grammarOf(get("format"))
-		return ok || nil != get("x-aontu-format")
+		named := get("format")
+		return ok || nil != get("x-aontu-format") ||
+			("vocabulary" == ctx.asserts && nil != named && "string" == named.t)
 	}
 	anyScoped := false
 	for _, kind := range importKinds {
@@ -3055,7 +3147,8 @@ func beginImport(text string, opts *ImportOptions) (*importCtx, *jnode) {
 		dynAnchors: map[*jnode]map[string]*jnode{}, dynamic: map[string]bool{},
 		env: map[string]*jnode{}, clones: map[*importTarget][]string{},
 		uses:    map[*jnode]map[string]bool{},
-		dialect: "2020-12", dialects: map[*jnode]string{}, origin: map[string]string{},
+		dialect: "2020-12", dialects: map[*jnode]string{}, reads: map[*jnode]map[string]bool{},
+		origin: map[string]string{},
 	}
 	// Names for one URI must hold one text, or the set's order would
 	// choose between them.
@@ -3129,7 +3222,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	}
 	base.resources[base.doc.uri] = parsed
 	base.byText[text] = base.doc
-	base.upgrade(parsed, "#", "#", base.dialect, true, false)
+	base.upgrade(parsed, "#", "#", base.dialect, true, false, nil)
 	base.index(parsed, "#", parsed, base.doc.uri)
 	base.settleRefs(parsed)
 	if 0 < len(base.errors) {
@@ -3189,7 +3282,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 func UpgradeJSONSchema(text string, opts *ImportOptions) UpgradeReport {
 	ctx, parsed := beginImport(text, opts)
 	if nil != parsed {
-		ctx.upgrade(parsed, "#", "#", ctx.dialect, true, false)
+		ctx.upgrade(parsed, "#", "#", ctx.dialect, true, false, nil)
 	}
 	if nil == parsed || 0 < len(ctx.errors) {
 		return UpgradeReport{Verdict: "error", Rewritten: [][2]string{}, Errors: ctx.errors}

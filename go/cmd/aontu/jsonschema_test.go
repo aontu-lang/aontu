@@ -180,9 +180,9 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		t.Fatalf("clean import: %d %q %q", code, out, errw)
 	}
 
-	write(`{"type": "string", "$vocabulary": {}}`)
+	write(`{"type": "string", "$dynamicAnchor": "a"}`)
 	out, errw, code = jsonSchemaRun("import", file)
-	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/$vocabulary $vocabulary:") ||
+	if 0 != code || "empty()\n" != out || !strings.HasPrefix(errw, "lossy: #/$dynamicAnchor $dynamicAnchor:") ||
 		!strings.HasSuffix(errw, "\n"+vetWith) {
 		t.Fatalf("lossy import: %d %q %q", code, out, errw)
 	}
@@ -250,7 +250,7 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		!strings.Contains(out, "below(5)") {
 		t.Fatalf("--dialect: %d %q", code, out)
 	}
-	write(`{"type": "string", "$vocabulary": {}}`)
+	write(`{"type": "string", "$dynamicAnchor": "a"}`)
 
 	out, _, code = jsonSchemaRun("import", "--format", "json", file)
 	var j map[string]any

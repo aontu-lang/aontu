@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### JSON Schema vocabularies (ADR-063)
+
+Both ports, G12 phase 16.
+
+- A custom meta-schema whose `$vocabulary` lists vocabularies narrows
+  the schemas that name it: they read the keywords of the listed
+  vocabularies and of the core vocabulary, and each other keyword of
+  their dialect is carried as an annotation under `x`. A vocabulary
+  listed with any value but `false` that aontu does not read refuses
+  the import with the new `jsonschema_vocabulary`. The table of the
+  2019-09 and 2020-12 vocabularies is
+  `grammar/jsonschema/vocabularies.tsv`, staged into both ports by
+  `make vocabularies`.
+- 2019-09's format vocabulary, listed as required, asserts formats, as
+  2020-12's format-assertion vocabulary does.
+- `$vocabulary` in a schema is an annotation under `x`, where it was
+  reported as a loss.
+- Under the format-assertion vocabulary an unknown format refuses the
+  import whatever else the schema says: `{"format": "zip"}` imported as
+  `any` because nothing else in it scoped the string kind.
+- The suite's `vocabulary.json` passes in the 2020-12 and 2019-09
+  directories; their ledgers hold 14 and 22 rows.
+
 ### Recursive residuals meet kinds and disjunctions (ADR-062)
 
 Both ports, found while reading the 2020-12 meta-schema (G12 phase 16).

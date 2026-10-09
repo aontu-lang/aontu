@@ -1589,8 +1589,8 @@ y: number
 - `--format-assert` makes each `format` an assertion as well,
   [`format(g)`](reference-language.md#formats-format), where JSON Schema
   only annotates with it unless asked; a schema whose meta-schema in the
-  document set lists the format-assertion vocabulary asks without the
-  flag. `--format-grammar <name> <file>`, given once per format, is the
+  document set lists the format-assertion vocabulary, or requires
+  2019-09's format vocabulary, asks without the flag. `--format-grammar <name> <file>`, given once per format, is the
   ABNF grammar of a format JSON Schema does not define, and naming one
   it does define is a usage error. A format with no grammar stays an
   annotation under the flag, and refuses the import with
@@ -1606,6 +1606,14 @@ y: number
   read, and a loss or a refusal names each key where it was written.
   A dialect aontu does not read, by name or by URI, refuses the import
   with `jsonschema_dialect`.
+- A custom meta-schema whose `$vocabulary` lists vocabularies narrows
+  the schemas that name it to the keywords of those vocabularies and of
+  the core vocabulary; each other keyword of the dialect is carried as
+  an annotation under `x`. A vocabulary it lists with any value but
+  `false` that aontu does not read refuses the import with
+  `jsonschema_vocabulary`. aontu reads the vocabularies of 2019-09 and
+  2020-12, which `grammar/jsonschema/vocabularies.tsv` lists with their
+  keywords. `$vocabulary` in a schema is an annotation.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import

@@ -545,6 +545,12 @@ const hints = {
         '<uri> <file>, its own `$schema` naming one of those, or name the\n' +
         'dialect the schema is written in. A resource that names no dialect is\n' +
         'read as 2020-12 unless --dialect says otherwise.',
+    'jsonschema_vocabulary': 'A JSON Schema names a meta-schema in `$schema` whose `$vocabulary`\n' +
+        'requires a vocabulary aontu does not read, and JSON Schema asks that\n' +
+        'such a schema be refused rather than read without the keywords that\n' +
+        'vocabulary defines. aontu reads the vocabularies of 2019-09 and\n' +
+        '2020-12. Mark the vocabulary `false` in the meta-schema where a schema\n' +
+        'may be read without it, or name a meta-schema that does not require it.',
     'jsonschema_ref': 'A JSON Schema reference names no schema the import can reach: its\n' +
         'document is not in the document set, or the pointer or anchor\n' +
         'after its `#` names nothing in the document it reaches. Add the\n' +
@@ -814,6 +820,7 @@ const codeClasses = {
     jsonschema_schema: 'parse',
     jsonschema_duplicate: 'reference',
     jsonschema_ref: 'reference',
+    jsonschema_vocabulary: 'reference',
     jsonschema_dialect: 'reference',
     jsonschema_budget: 'budget',
     ident_place: 'parse',

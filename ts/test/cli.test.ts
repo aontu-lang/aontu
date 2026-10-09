@@ -1120,10 +1120,10 @@ describe('cli-subsume', () => {
     Assert.equal(ok.out, 'n?: number & multiple(1)\n')
     Assert.equal(ok.err, vetWith)
 
-    Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}')
+    Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}')
     const lossy = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
     Assert.equal(lossy.out, 'empty()\n')
-    Assert.match(lossy.err, /^lossy: #\/\$vocabulary \$vocabulary:/)
+    Assert.match(lossy.err, /^lossy: #\/\$dynamicAnchor \$dynamicAnchor:/)
     Assert.ok(lossy.err.endsWith('\n' + vetWith), lossy.err)
     vetCapture(() => Assert.equal(runJsonSchema(['import', '--strict', file]), 1))
 
@@ -1173,7 +1173,7 @@ describe('cli-subsume', () => {
     const legacy = vetCapture(() =>
       Assert.equal(runJsonSchema(['import', '--dialect', 'draft-04', file]), 0))
     Assert.ok(legacy.out.includes('below(5)'), legacy.out)
-    Fs.writeFileSync(file, '{"type": "string", "$vocabulary": {}}')
+    Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}')
 
     const j = JSON.parse(vetCapture(() => Assert.equal(
       runJsonSchema(['import', '--format', 'json', file]), 0)).out)

@@ -203,10 +203,10 @@ function runCorpus(name, bound, groups, documents) {
     Assert.deepStrictEqual(problems, [], problems.join('\n'));
 }
 // Each ledger may not grow past its bound; the register tightens them.
-(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema/skips.tsv', 15, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
+(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema/skips.tsv', 14, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', 'draft2020-12')), remotes()));
 // The earlier dialects' directories, each the default dialect of its own
 // run and each with its own ledger.
-for (const [dir, dialect, bound] of [['draft2019-09', '2019-09', 23], ['draft7', 'draft-07', 15],
+for (const [dir, dialect, bound] of [['draft2019-09', '2019-09', 22], ['draft7', 'draft-07', 15],
     ['draft6', 'draft-06', 5], ['draft4', 'draft-04', 5]]) {
     (0, node_test_1.test)(`the-json-schema-test-suite-${dir}-runs-under-import-and-vet`, () => runCorpus(`jsonschema/skips-${dir}.tsv`, bound, suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', dir), dialect), remotes()));
 }
