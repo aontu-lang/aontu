@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### Dynamic references
+
+Both ports, G12 phase 11 (ADR-057).
+
+- `aontu jsonschema import` specialises each `$dynamicRef` to the
+  dynamic scope it is read in: where its initial target carries the
+  matching `$dynamicAnchor`, it reaches the schema the outermost
+  resource on the path anchors by that name, and otherwise it is a
+  `$ref`. A schema read in scopes that bind its names differently is
+  declared once for each, the later declarations named `_e2` on, and
+  past 1024 of them the import refuses with the new
+  `jsonschema_budget`, where it would have walked without end.
+- The use keeps the reference's text in a new `meta()` key,
+  `dynamicRef`, and a declaration keeps its `$dynamicAnchor` in a new
+  `ident()` key, `dynamicAnchor`.
+- `aontu jsonschema` writes `$dynamicAnchor` on a definition, and a use
+  carrying the record as `$dynamicRef` to its anchor where that anchor,
+  in the export, names the definition the use reached; otherwise it
+  writes the `$ref` and reports the dynamic reference. Declarations of
+  one schema whose readings agree are written once.
+- The vendored suite's ledger shrinks from 141 rows to 123, and 1,768 of
+  its 2,337 tests pass in both ports, where 1,750 did; the annotation
+  tests pass 43 of 84, where 42 did.
+- Fixed in both ports: a root that meets the map declaring a mutual
+  recursion of aliases, `%e & { %b = { baz?: %e }, %e = { bar?: %b } }`,
+  expanded without end and refused with `unify_cycle`.
+- Fixed in both ports: an alias that `aontu jsonschema` writes as the
+  `$ref` of another alias saying the same left its own `$id` or anchor
+  out of the export without a loss; the loss is reported now.
+
 ### Resources, the document set and identity
 
 Both ports, G12 phase 10, from #309's handover and the review's

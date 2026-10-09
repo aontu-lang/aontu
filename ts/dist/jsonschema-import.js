@@ -300,6 +300,9 @@ const DEFAULT_ROOT = 'aontu:/';
 const DEFAULT_BASE = DEFAULT_ROOT + 'schema';
 // The copies a root that is not a map may make before they are cut.
 const COPY_BUDGET = 4096;
+// The declarations dynamic scopes may add beyond each schema's first
+// before the import is refused (ADR-057).
+const SCOPE_BUDGET = 1024;
 function rowCol(src, off) {
     let row = 1;
     let col = 1;
@@ -410,6 +413,10 @@ function index(ctx, node, ptr, resource, base) {
             }
             else {
                 names.set(anchor.s, node);
+            }
+            if ('$dynamicAnchor' === key) {
+                const dyn = ctx.dynAnchors.get(here) ?? new Map();
+                ctx.dynAnchors.set(here, dyn.set(anchor.s, node));
             }
         }
     }
@@ -542,6 +549,9 @@ function targetName(ctx, node, ptr) {
     }
     return 'p_' + encodeName(ptr.slice(2));
 }
+// The keywords that name a schema by URI; a $dynamicRef names its
+// initial target.
+const REF_KEYS = ['$ref', '$dynamicRef'];
 // Every target, including one reached only through another target. A
 // reference that names nothing yet waits in `misses`.
 function collectRefs(ctx, node, seen, misses) {
@@ -549,9 +559,11 @@ function collectRefs(ctx, node, seen, misses) {
         return;
     }
     seen.add(node);
-    const ref = entry(node, '$ref');
-    if (null != ref && 'string' === ref.t && !follow(ctx, node, ref.s, seen, misses)) {
-        misses.push(node);
+    for (const key of REF_KEYS) {
+        const ref = entry(node, key);
+        if (null != ref && 'string' === ref.t && !follow(ctx, node, ref.s, seen, misses)) {
+            misses.push([node, key]);
+        }
     }
     subschemas(node, '', (n) => collectRefs(ctx, n, seen, misses));
 }
@@ -577,23 +589,104 @@ function settleRefs(ctx, root) {
     const seen = new Set();
     let misses = [];
     collectRefs(ctx, root, seen, misses);
-    for (let known = -1; known !== ctx.ptrOf.size + ctx.resources.size;) {
-        known = ctx.ptrOf.size + ctx.resources.size;
+    const size = () => ctx.ptrOf.size + ctx.resources.size + ctx.targets.size;
+    for (let known = -1; known !== size();) {
+        known = size();
         const retry = misses;
         misses = [];
-        for (const node of retry) {
-            if (!follow(ctx, node, entry(node, '$ref').s, seen, misses)) {
-                misses.push(node);
+        for (const [node, key] of retry) {
+            if (!follow(ctx, node, entry(node, key).s, seen, misses)) {
+                misses.push([node, key]);
+            }
+        }
+        bindDynamic(ctx, seen, misses);
+    }
+    const outer = ctx.doc;
+    for (const [node, key] of misses) {
+        const ref = entry(node, key);
+        ctx.doc = ctx.docOf.get(node);
+        fail(ctx, 'jsonschema_ref', child(ctx.ptrOf.get(node), key), 'The reference ' + quote(ref.s) + ' names no schema the import can reach.', ref.off, ref.end);
+    }
+    ctx.doc = outer;
+}
+// ADR-057: the names some $dynamicRef asks the dynamic scope for, and
+// every schema a resource anchors by one, a target as a $ref's is.
+function bindDynamic(ctx, seen, misses) {
+    for (const node of [...ctx.ptrOf.keys()]) {
+        const dref = entry(node, '$dynamicRef');
+        const name = 'string' === dref?.t ? bookend(ctx, node, dref.s) : undefined;
+        if (undefined !== name) {
+            ctx.dynamic.add(name);
+        }
+    }
+    for (const names of ctx.dynAnchors.values()) {
+        for (const [name, node] of names) {
+            if (ctx.dynamic.has(name) && !ctx.targets.has(node)) {
+                const ptr = ctx.ptrOf.get(node);
+                ctx.targets.set(node, { name: targetName(ctx, node, ptr), node, ptr });
+                collectRefs(ctx, node, seen, misses);
             }
         }
     }
+}
+// The name a $dynamicRef asks the dynamic scope for: its fragment, where
+// that is a plain name its initial target carries as a $dynamicAnchor.
+function bookend(ctx, node, ref) {
     const outer = ctx.doc;
-    for (const node of misses) {
-        const ref = entry(node, '$ref');
-        ctx.doc = ctx.docOf.get(node);
-        fail(ctx, 'jsonschema_ref', child(ctx.ptrOf.get(node), '$ref'), 'The reference ' + quote(ref.s) + ' names no schema the import can reach.', ref.off, ref.end);
-    }
+    ctx.doc = ctx.docOf.get(node);
+    const initial = resolveRef(ctx, node, ref);
     ctx.doc = outer;
+    const name = percentDecode(ref.slice(ref.indexOf('#') + 1));
+    const anchor = undefined === initial || -1 === ref.indexOf('#') ? undefined :
+        entry(initial, '$dynamicAnchor');
+    return 'string' === anchor?.t && anchor.s === name ? name : undefined;
+}
+// The names a schema's dynamic references can ask the scope, through
+// every schema it reaches by descent or reference and every binding of a
+// name: its declarations need differ only where these are bound.
+function usesOf(ctx, node) {
+    let out = ctx.uses.get(node);
+    if (undefined === out) {
+        const names = new Set();
+        const seen = new Set();
+        const walk = (n) => {
+            if (seen.has(n)) {
+                return;
+            }
+            seen.add(n);
+            const outer = ctx.doc;
+            ctx.doc = ctx.docOf.get(n);
+            // Every reference resolved when the refs were settled.
+            const reached = REF_KEYS.map((key) => entry(n, key)).filter((ref) => 'string' === ref?.t)
+                .map((ref) => resolveRef(ctx, n, ref.s));
+            ctx.doc = outer;
+            reached.forEach(walk);
+            const dref = entry(n, '$dynamicRef');
+            const name = 'string' === dref?.t ? bookend(ctx, n, dref.s) : undefined;
+            if (undefined !== name) {
+                names.add(name);
+                for (const anchors of ctx.dynAnchors.values()) {
+                    const at = anchors.get(name);
+                    if (undefined !== at) {
+                        walk(at);
+                    }
+                }
+            }
+            subschemas(n, '', walk);
+        };
+        walk(node);
+        out = names;
+        ctx.uses.set(node, out);
+    }
+    return out;
+}
+// The dynamic scope inside a schema: a name its resource anchors and the
+// scope does not yet bind is bound to it, so the outermost binding holds.
+function enter(ctx, node) {
+    const anchors = ctx.dynAnchors.get(ctx.resourceOf.get(node));
+    const add = [...ctx.dynamic].filter((n) => !ctx.env.has(n) && true === anchors?.has(n));
+    return 0 === add.length ? ctx.env :
+        new Map([...ctx.env, ...add.map((n) => [n, anchors?.get(n)])]);
 }
 // What each keyword the importer does not yet carry costs, for its loss.
 const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped ' +
@@ -603,7 +696,6 @@ const NOT_YET = 'the importer does not carry this keyword yet, so it is dropped 
 const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, ' +
     'so it is dropped and the position admits more than that dialect does';
 const LATER = {
-    $dynamicRef: NOT_YET, $dynamicAnchor: NOT_YET,
     unevaluatedProperties: NOT_YET, unevaluatedItems: NOT_YET,
     $vocabulary: 'a vocabulary declaration, and the 2020-12 vocabularies are read ' +
         'whatever it says, so it is dropped',
@@ -623,7 +715,8 @@ const KIND_TEXT = {
     string: 'a string', boolean: 'a boolean', array: 'an array', object: 'an object',
 };
 const CARRIED = [
-    '$schema', '$id', '$ref', '$defs', 'definitions', '$anchor', 'type', 'deprecated',
+    '$schema', '$id', '$ref', '$dynamicRef', '$defs', 'definitions', '$anchor', '$dynamicAnchor',
+    'type', 'deprecated',
     'x-aontu-deprecate',
     'enum', 'const', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
     'dependentSchemas', 'dependentRequired', 'properties', 'required',
@@ -1055,9 +1148,12 @@ function lenOf(lo, hi) {
 // `only` restricts the kinds a position can hold at all.
 function convert(ctx, node, ptr, asDecl, only) {
     const outer = ctx.doc;
+    const scope = ctx.env;
     ctx.doc = ctx.docOf.get(node);
+    ctx.env = enter(ctx, node);
     const out = convertNode(ctx, node, ptr, asDecl, only);
     ctx.doc = outer;
+    ctx.env = scope;
     return out;
 }
 function convertNode(ctx, node, ptr, asDecl, only) {
@@ -1075,8 +1171,7 @@ function convertNode(ctx, node, ptr, asDecl, only) {
     const target = ctx.targets.get(node);
     if (null != target && !asDecl) {
         if (ctx.mapRoot) {
-            declare(ctx, target);
-            return raw('%' + target.name);
+            return raw('%' + declare(ctx, target));
         }
         if (ctx.stack.includes(node)) {
             lose(ctx, ptr, '$ref', 'a reference that reaches itself has no alias to name ' +
@@ -1094,30 +1189,57 @@ function convertNode(ctx, node, ptr, asDecl, only) {
     ctx.stack.pop();
     return out;
 }
+// A target is declared once for each dynamic scope it is read in
+// (ADR-057), each after the first under a name of its own.
 function declare(ctx, target) {
-    if (!ctx.decls.has(target.name)) {
-        ctx.decls.set(target.name, '');
+    const uses = usesOf(ctx, target.node);
+    const key = [...enter(ctx, target.node)].filter(([n]) => uses.has(n))
+        .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a[0], b[0])).map(([n, at]) => n + '=' + ctx.ptrOf.get(at)).join(' ');
+    const scopes = ctx.clones.get(target) ?? [];
+    if (!scopes.includes(key)) {
+        ctx.clones.set(target, [...scopes, key]);
+        if (0 < scopes.length && SCOPE_BUDGET === ctx.cloned++) {
+            const outer = ctx.doc;
+            ctx.doc = ctx.docOf.get(target.node);
+            fail(ctx, 'jsonschema_budget', target.ptr, 'The schemas read in more than one dynamic scope ' +
+                'need more than ' + SCOPE_BUDGET + ' further declarations, past what the import makes.', target.node.off, target.node.off + 1);
+            ctx.doc = outer;
+        }
+    }
+    const clone = ctx.clones.get(target).indexOf(key);
+    const name = 0 === clone ? target.name : target.name + '_e' + (clone + 1);
+    if (!ctx.decls.has(name) && ctx.cloned <= SCOPE_BUDGET) {
+        ctx.decls.set(name, '');
         const body = convert(ctx, target.node, target.ptr, true);
-        const entries = identity(ctx, target);
-        ctx.decls.set(target.name, print(0 === entries.length ? body :
+        const entries = identity(ctx, target, 0 < clone);
+        ctx.decls.set(name, print(0 === entries.length ? body :
             call('ident', body, { k: 'map', spreads: [], entries }), ''));
     }
+    return name;
 }
 // ADR-056: the identity a declared schema had, which its declaration
 // carries: the entry's own identifier as written, any other resource's
 // as its URI, absolute or under the entry's directory; its anchor; and
 // the $defs key a name that says the anchor does not say.
-function identity(ctx, target) {
+function identity(ctx, target, clone) {
     const node = target.node;
     const out = [];
     const anchor = entry(node, '$anchor');
     if ('string' === anchor?.t) {
         out.push({ key: 'anchor', optional: false, val: raw(quote(anchor.s)) });
     }
+    // A clone (ADR-057) names the definition its first declaration is.
     const defs = /^#\/\$defs\/([^/]+)$/.exec(target.ptr);
-    if (null != defs && target.name.startsWith('a_')) {
+    if (null != defs && (clone || target.name.startsWith('a_'))) {
         out.push({ key: 'defs', optional: false,
             val: raw(quote(defs[1].replace(/~1/g, '/').replace(/~0/g, '~'))) });
+    }
+    else if (clone) {
+        out.push({ key: 'defs', optional: false, val: raw(quote(target.name)) });
+    }
+    const dynamic = entry(node, '$dynamicAnchor');
+    if ('string' === dynamic?.t) {
+        out.push({ key: 'dynamicAnchor', optional: false, val: raw(quote(dynamic.s)) });
     }
     const id = entry(node, '$id');
     const uri = ctx.baseOf.get(node);
@@ -1157,6 +1279,19 @@ function convertObject(ctx, node, ptr, only) {
         else {
             const target = resolveRef(ctx, node, ref.s);
             parts.push(convert(ctx, target, ctx.targets.get(target).ptr, false));
+        }
+    }
+    // ADR-057: the binding the dynamic scope gives its name, or the
+    // initial target, read as a $ref; the use keeps the reference's text.
+    const dref = get('$dynamicRef');
+    if (null != dref) {
+        if ('string' !== dref.t) {
+            wrongType(ctx, at('$dynamicRef'), '$dynamicRef', 'a string', dref);
+        }
+        else {
+            const name = bookend(ctx, node, dref.s);
+            const target = ctx.env.get(name) ?? resolveRef(ctx, node, dref.s);
+            parts.push(call('meta', convert(ctx, target, ctx.targets.get(target).ptr, false), { k: 'map', spreads: [], entries: [{ key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }));
         }
     }
     const konst = get('const');
@@ -1630,6 +1765,7 @@ function emit(ctx, root) {
 function run(base, mapRoot) {
     const ctx = {
         ...base, lossy: [], errors: [], mapRoot, decls: new Map(), stack: [], copies: 0,
+        env: new Map(), clones: new Map(), cloned: 0,
     };
     return [ctx, convert(ctx, base.root, '#', true)];
 }
@@ -1642,6 +1778,8 @@ function importJsonSchema(text, options) {
         doc, root: doc.root, defaults: true === options?.defaults,
         lossy: [], errors: [], anchors: new Map(), resourceOf: new Map(), ptrOf: new Map(),
         docOf: new Map(), baseOf: new Map(), resources: new Map(), byText: new Map(),
+        dynAnchors: new Map(), dynamic: new Set(), env: new Map(), clones: new Map(),
+        uses: new Map(), cloned: 0,
         documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
         copies: 0, seen: new Set(),
     };
@@ -1702,7 +1840,7 @@ function importJsonSchema(text, options) {
     for (const [node, ptr] of base.ptrOf) {
         const target = ctx.targets.get(node);
         const declared = ctx.mapRoot && undefined !== target && ctx.decls.has(target.name);
-        for (const key of ['$id', '$anchor']) {
+        for (const key of ['$id', '$anchor', '$dynamicAnchor']) {
             if (ctx.seen.has(node) && !declared && 'string' === entry(node, key)?.t) {
                 lose(ctx, child(ptr, key), key, 'an identity rides only an alias declaration, ' +
                     'and nothing declares this schema, so it is dropped');

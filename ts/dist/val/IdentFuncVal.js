@@ -9,7 +9,7 @@ const sig_1 = require("../sig");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 // ADR-056: the identity a schema was declared with, carried by its alias
 // declaration and by nothing else.
-const IDENT_KEYS = ['id', 'anchor', 'defs'];
+const IDENT_KEYS = ['id', 'anchor', 'defs', 'dynamicAnchor'];
 class IdentFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);

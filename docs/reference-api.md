@@ -1464,10 +1464,14 @@ meet narrowed is the `$ref` beside the keywords that differ, which is
 how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
 import` read it from. An alias declared with
-[`ident()`](reference-language.md#identity-ident) writes its `$id` and
-`$anchor` on the definition, or on the schema where the definition is
-the whole schema; an `$id` that a `$ref` inside the definition would
-resolve against is not written, and is reported. A reference that
+[`ident()`](reference-language.md#identity-ident) writes its `$id`,
+`$anchor` and `$dynamicAnchor` on the definition, or on the schema where
+the definition is the whole schema; an `$id` that a `$ref` inside the
+definition would resolve against is not written, and is reported. A
+use the importer read from a `$dynamicRef`, which carries the `meta`
+record's `dynamicRef`, is written as `$dynamicRef` to its anchor where
+that anchor, in the export, names the definition its `$ref` reached;
+otherwise it stays that `$ref`, and the dynamic reference is reported. A reference that
 reaches outside the template holding it, by a relative path or into a
 list, stays residue and is reported. Write a recursive `steps.aontu`:
 
@@ -1567,7 +1571,9 @@ y: number
   fetched: a reference to a document outside the
   set, or to a pointer or anchor that names nothing, refuses the import
   with `jsonschema_ref`, and two documents given one URI with different
-  texts refuse it with `jsonschema_duplicate`.
+  texts refuse it with `jsonschema_duplicate`. Dynamic scopes that
+  need more than 1024 further declarations refuse it with
+  `jsonschema_budget`.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1603,6 +1609,7 @@ y: number
 | `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
 | `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
+| `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. The use keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
 | `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
 | a keyword JSON Schema does not name | the same record, under `x` |
@@ -1621,9 +1628,9 @@ costs. A validation keyword such as `unevaluatedProperties` widens the
 position, and the loss says so. So does a keyword of an earlier
 dialect, `dependencies`, `additionalItems`, `$recursiveRef` or
 `$recursiveAnchor`: it asserts in that dialect, though 2020-12 would
-read it as an annotation. An `$id` or `$anchor` on a schema no
-declaration holds is a loss as well, since only an alias declaration
-carries identity.
+read it as an annotation. An `$id`, `$anchor` or `$dynamicAnchor` on a
+schema no declaration holds is a loss as well, since only an alias
+declaration carries identity.
 
 **Data is checked against an import with `vet --no-fill
 --exact-numbers`**, which asks the question JSON Schema asks: whether

@@ -390,10 +390,34 @@ function keyword(out, extra, key, val) {
     }
 }
 function fromVal(ctx, path, v) {
+    const out = fromValRef(ctx, path, v);
+    // ADR-057: a use the importer read from a $dynamicRef keeps the $ref of
+    // the binding it reached until the definitions are written, when
+    // dynamicRefs knows which anchors they carry. A fragment that is no
+    // anchor never asked the dynamic scope, and its $ref stands.
+    const text = out?.$dynamicRef;
+    const name = undefined === text || -1 === text.indexOf('#') ? '' : text.slice(text.indexOf('#') + 1);
+    if (undefined !== text && ('' === name || name.startsWith('/'))) {
+        delete out.$dynamicRef;
+    }
+    else if (undefined !== text && undefined !== out.$ref) {
+        out.$dynamicRef = '#' + name;
+        if (true !== ctx.scratch) {
+            ctx.refs.dynamic.push({ path, name, ref: out.$ref });
+        }
+    }
+    else if (undefined !== text) {
+        delete out.$dynamicRef;
+        lose(ctx, path, '$dynamicRef', 'the schema it reached is not a definition, so it is written in place');
+    }
+    return out;
+}
+function fromValRef(ctx, path, v) {
     if (null == v.via) {
         return withRiders(ctx, path, fromValInner(ctx, path, v), v);
     }
     const defs = v.via.map((key) => defOf(ctx, [key]));
+    defs.forEach((def) => def.reached ||= true !== ctx.scratch);
     const own = plainOf(ctx, path, v);
     const same = defs.find((def) => own.text === plainOf(ctx, def.path, def.value).text);
     return undefined !== same ? refTo(ctx, same.target) : beside(ctx, defs, true === ctx.scratch ? own.schema : withRiders(ctx, path, fromValInner(ctx, path, v), v));
@@ -452,7 +476,7 @@ function defOf(ctx, target) {
         name = base + '_' + i;
     }
     refs.names.add(name);
-    const def = { name, target, path, value, used: false };
+    const def = { name, base, target, path, value, used: false };
     refs.defs.set(key, def);
     return def;
 }
@@ -537,6 +561,16 @@ function annotate(ctx, path, out, v) {
         const part = {};
         for (const [k, val] of Object.entries(layer)) {
             const json = generated(val);
+            // A $dynamicRef is no annotation: fromVal reads the first beside the
+            // $ref it rides, and the meet the others reached is written already.
+            if ('dynamicRef' === k && undefined === res.$dynamicRef) {
+                res.$dynamicRef = json;
+                continue;
+            }
+            if ('dynamicRef' === k) {
+                lose(ctx, path, '$dynamicRef', 'the value meets more than one dynamic reference, so this one is written as the schema it reached');
+                continue;
+            }
             if ('x' !== k) {
                 part[META_KEYWORD[k]] = json;
                 continue;
@@ -1074,7 +1108,8 @@ function jsonSchema(src, options) {
         anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
     const ctx = {
-        lossy: [], refs: { root, defs: new Map(), names: new Set(), plain: new Map(), inside: [] },
+        lossy: [],
+        refs: { root, defs: new Map(), names: new Set(), plain: new Map(), inside: [], dynamic: [] },
     };
     const body = fromVal(ctx, anchor, node);
     // A root admitting nothing cannot carry `$schema` as `false`; `not: {}` can.
@@ -1095,6 +1130,8 @@ function jsonSchema(src, options) {
 // The definitions used go under $defs, but one that says what the whole
 // schema says is `#`, an alias's losses the schema's. A loss met twice is one.
 function withDefs(ctx, schema, body) {
+    const moved = new Map();
+    unclone(schema, body, [...ctx.refs.defs.values()].filter((d) => d.used).sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name)), moved);
     const used = [...ctx.refs.defs.values()].filter((d) => d.used)
         .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name));
     const whole = (0, exactjson_1.exactJSON)(body);
@@ -1106,10 +1143,20 @@ function withDefs(ctx, schema, body) {
     }
     const to = new Map(folded.map((d) => [defRef(d), '#']));
     relink(schema, to);
+    to.forEach((ref, from) => moved.set(from, ref));
+    const dynamic = dynamicRefs(ctx, schema, kept, moved);
+    // A use written as the $ref of another definition that says the same
+    // leaves this one unwritten, and with it the identity it was declared with.
+    const unwritten = [...ctx.refs.defs.values()]
+        .filter((d) => true === d.reached && !d.used && !moved.has(defRef(d)))
+        .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name))
+        .flatMap((d) => IDENTITY_KEYWORD.filter(([key]) => 0 < (d.value.identity?.[key]?.length ?? 0))
+        .map(([, construct]) => ({ path: pathText(d.path), construct,
+        reason: 'its uses are written as another definition that says the same, so it is not written' })));
     const gone = folded.filter((d) => aliasname_1.ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path));
     const seen = new Set();
     const lossy = [];
-    for (const l of [...ctx.lossy, ...named]) {
+    for (const l of [...ctx.lossy, ...named, ...unwritten, ...dynamic]) {
         const key = (0, exactjson_1.exactJSON)(l);
         if (!seen.has(key) && !gone.some((g) => l.path === g || l.path.startsWith(g + '.'))) {
             seen.add(key);
@@ -1118,6 +1165,61 @@ function withDefs(ctx, schema, body) {
     }
     return lossy;
 }
+// ADR-057: the declarations of one schema read in several dynamic scopes
+// are one definition where their schemas agree, the $refs of their uses
+// included, so the scopes read the same there; each $ref moved is in `moved`.
+function unclone(schema, body, used, moved) {
+    // Clones share the $defs key a clone's identity names.
+    const twins = (u, d) => u !== d && u.used && u.base === d.base &&
+        (0, keyorder_1.cmpCodePoint)(u.name, d.name) < 0 &&
+        [u, d].some((x) => true === x.value.identity?.defs?.includes(d.base));
+    const drop = (d, into) => {
+        d.used = false;
+        moved.set(defRef(d), defRef(into));
+        const to = new Map([[defRef(d), defRef(into)]]);
+        for (const v of [schema, body, ...used.filter((u) => u.used).map((u) => u.schema)]) {
+            relink(v, to);
+        }
+    };
+    for (let again = true; again;) {
+        again = false;
+        for (const d of used.filter((u) => u.used)) {
+            const twin = used.find((u) => twins(u, d) && (0, exactjson_1.exactJSON)(u.schema) === (0, exactjson_1.exactJSON)(d.schema));
+            if (undefined !== twin) {
+                drop(d, twin);
+                again = true;
+            }
+        }
+    }
+}
+// ADR-057: a use read from a $dynamicRef is written as one where its anchor
+// names, in the export, the schema its $ref reached, in the resource of the
+// schema, so the dynamic scope reads it as the import did; otherwise its
+// $ref stands, and the dynamic reference is a loss.
+function dynamicRefs(ctx, schema, kept, moved) {
+    const at = new Map([['#', schema], ...kept.map((d) => [defRef(d), d.schema])]);
+    const names = (ref, name) => {
+        const s = at.get(ref);
+        return null != s && 'object' === typeof s && ('#' === ref || undefined === s.$id) &&
+            (name === s.$dynamicAnchor || name === s.$anchor);
+    };
+    const walk = (v) => {
+        if (null == v || 'object' !== typeof v) {
+            return;
+        }
+        if (undefined !== v.$dynamicRef && undefined !== v.$ref) {
+            delete v[names(v.$ref, v.$dynamicRef.slice(1)) ? '$ref' : '$dynamicRef'];
+        }
+        Object.values(v).forEach(walk);
+    };
+    walk(schema);
+    const reached = (ref) => moved.has(ref) ? reached(moved.get(ref)) : ref;
+    return ctx.refs.dynamic.filter((u) => !names(reached(u.ref), u.name)).map((u) => ({
+        path: pathText(u.path), construct: '$dynamicRef',
+        reason: 'its anchor does not name the schema it reached in the export, so it is written as a $ref',
+    }));
+}
+const IDENTITY_KEYWORD = [['id', '$id'], ['anchor', '$anchor'], ['dynamicAnchor', '$dynamicAnchor']];
 // ADR-056: a definition's identity is written on it, and a folded one's
 // on the schema. An identifier a $ref inside would resolve against is a
 // loss, as is an anchor its resource already holds.
@@ -1130,28 +1232,41 @@ function identify(schema, folded, kept) {
         }
         return 1 === all.length ? all[0] : undefined;
     };
-    const keywords = (id, anchor) => ({ ...(undefined === id ? {} : { $id: id }), ...(undefined === anchor ? {} : { $anchor: anchor }) });
+    const keywords = (id, anchor, dynamic) => ({
+        ...(undefined === id ? {} : { $id: id }), ...(undefined === anchor ? {} : { $anchor: anchor }),
+        ...(undefined === dynamic ? {} : { $dynamicAnchor: dynamic }),
+    });
     const top = one(folded, 'anchor', '$anchor', '$');
-    Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top));
-    const anchors = new Set(undefined === top ? [] : [top]);
+    const topDynamic = one(folded, 'dynamicAnchor', '$dynamicAnchor', '$');
+    Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top, topDynamic));
+    // An anchor and a dynamic anchor share one namespace in a resource.
+    const anchors = new Set([top, topDynamic].filter((a) => undefined !== a));
     for (const d of kept) {
-        let id = one([d], 'id', '$id', pathText(d.path));
+        const path = pathText(d.path);
+        let id = one([d], 'id', '$id', path);
         if (undefined !== id && true === d.refers) {
-            lossy.push({ construct: '$id', path: pathText(d.path),
+            lossy.push({ construct: '$id', path,
                 reason: 'a $ref inside the definition would resolve against it, so it is not written' });
             id = undefined;
         }
-        let anchor = one([d], 'anchor', '$anchor', pathText(d.path));
-        if (undefined !== anchor && undefined === id && anchors.has(anchor)) {
-            lossy.push({ construct: '$anchor', path: pathText(d.path),
-                reason: 'another schema in its resource has the anchor, so it is not written' });
-            anchor = undefined;
+        const own = new Set();
+        const named = (key, construct) => {
+            const name = one([d], key, construct, path);
+            if (undefined !== name && undefined === id && anchors.has(name) && !own.has(name)) {
+                lossy.push({ construct, path,
+                    reason: 'another schema in its resource has the anchor, so it is not written' });
+                return undefined;
+            }
+            return undefined === name ? name : (own.add(name), name);
+        };
+        const anchor = named('anchor', '$anchor');
+        const dynamic = named('dynamicAnchor', '$dynamicAnchor');
+        if (undefined === id) {
+            own.forEach((a) => anchors.add(a));
         }
-        if (undefined !== anchor && undefined === id) {
-            anchors.add(anchor);
-        }
-        if (undefined !== id || undefined !== anchor) {
-            d.schema = { ...keywords(id, anchor), ...('object' === typeof d.schema ? d.schema : { not: {} }) };
+        if (undefined !== id || 0 < own.size) {
+            d.schema = { ...keywords(id, anchor, dynamic),
+                ...('object' === typeof d.schema ? d.schema : { not: {} }) };
         }
     }
     return lossy;

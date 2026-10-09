@@ -42,7 +42,7 @@ const (
 func throughRider(v Val) Val {
 	for {
 		fv, ok := v.(*FuncVal)
-		if !ok || DONE == fv.dc || ("meta" != fv.name && "deprecate" != fv.name) ||
+		if !ok || DONE == fv.dc || ("meta" != fv.name && "deprecate" != fv.name && "ident" != fv.name) ||
 			0 == len(fv.peg) || nil == fv.peg[0] {
 			return v
 		}
@@ -516,7 +516,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			}
 			target = append(target, seg)
 		}
-		if alls && containsRecurseOf(node, target, 0) {
+		if alls && reachesRecurse(node, target, 0, ctx.root, map[string]bool{}) {
 			rec := newRecurse(target, rv.rxc)
 			rec.site.sp, rec.site.spu, rec.site.url = rv.site.sp, rv.site.spu, rv.site.url
 			// The source excerpt travels too, so reports frame the `$`

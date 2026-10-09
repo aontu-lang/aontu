@@ -504,6 +504,11 @@ const hints = {
         '`%name = ident(value, { id: "https://example.com/s.json" })`. A\n' +
         'reference copies the value without it; write the identity on the\n' +
         'declaration, not where the value is used.',
+    'jsonschema_budget': 'The importer declares a schema once for each scope its dynamic\n' +
+        'references are read in, and these schemas are read in more scopes\n' +
+        'than the import declares. Override each `$dynamicAnchor` in fewer\n' +
+        'resources, or reference the schema with `$ref` where no outer scope\n' +
+        'needs to rebind it.',
     'jsonschema_ref': 'A JSON Schema reference names no schema the import can reach: its\n' +
         'document is not in the document set, or the pointer or anchor\n' +
         'after its `#` names nothing in the document it reaches. Add the\n' +
@@ -773,6 +778,7 @@ const codeClasses = {
     jsonschema_schema: 'parse',
     jsonschema_duplicate: 'reference',
     jsonschema_ref: 'reference',
+    jsonschema_budget: 'budget',
     ident_place: 'parse',
     vet_filled: 'incomplete',
     pref_implicit_bag: 'parse',

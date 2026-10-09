@@ -49,7 +49,7 @@ const jsonschema_import_1 = require("../dist/jsonschema-import");
 const ConjunctVal_1 = require("../dist/val/ConjunctVal");
 const DIR = Path.join(__dirname, '..', '..', 'test', 'vectors', 'jsonschema', 'annotations');
 // The ledger may not grow past this; the register tightens it per phase.
-const SKIP_BOUND = 42;
+const SKIP_BOUND = 41;
 // The record key an annotation keyword rides under; any other keyword
 // rides `x`, under its own name.
 const ANNOTATION_KEY = {

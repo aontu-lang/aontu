@@ -1342,6 +1342,7 @@ document set. Landed 2026-10-08; the register records the departures.
 budget and `jsonschema_budget`, the use-site `dynamicRef` provenance
 record, and the exporter's fold of clones back into `$dynamicRef` and
 `$dynamicAnchor`, with a reported loss where clones cannot fold.
+Landed 2026-10-09; the register records the departures.
 
 **Phase 12: evaluated coverage (L).** `rest(t, ...cover)`, the coverage
 records the importer writes, the branch hoisting that shares them with

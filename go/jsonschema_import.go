@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -570,6 +571,16 @@ type importCtx struct {
 	// the index met it.
 	seen  map[*jnode]bool
 	order []*jnode
+	// ADR-057: each resource's dynamic anchors, the names a $dynamicRef
+	// asks the dynamic scope for, the scope a conversion is in, the scopes
+	// each target was declared in, the names each target's declarations
+	// differ by, and the declarations the scopes added.
+	dynAnchors map[*jnode]map[string]*jnode
+	dynamic    map[string]bool
+	env        map[string]*jnode
+	clones     map[*importTarget][]string
+	uses       map[*jnode]map[string]bool
+	cloned     int
 }
 
 // importDefaultBase is the base of a schema that names no retrieval
@@ -579,6 +590,10 @@ const importDefaultBase = importDefaultRoot + "schema"
 
 // importCopyBudget is the copies a root that is not a map may make.
 const importCopyBudget = 4096
+
+// importScopeBudget is the declarations dynamic scopes may add beyond
+// each schema's first before the import is refused (ADR-057).
+const importScopeBudget = 1024
 
 func (ctx *importCtx) fail(code, path, message string, off, end int) {
 	row, col := rowCol(ctx.doc.src, off)
@@ -709,6 +724,12 @@ func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode, base strin
 					anchor.off, anchor.end)
 			} else {
 				names[anchor.s] = node
+			}
+			if "$dynamicAnchor" == key {
+				if nil == ctx.dynAnchors[here] {
+					ctx.dynAnchors[here] = map[string]*jnode{}
+				}
+				ctx.dynAnchors[here][anchor.s] = node
 			}
 		}
 	}
@@ -844,22 +865,33 @@ func (ctx *importCtx) targetName(node *jnode, ptr string) string {
 	return "p_" + encodeAliasName(strings.TrimPrefix(ptr, "#/"))
 }
 
+// importRefKeys are the keywords that name a schema by URI; a
+// $dynamicRef names its initial target.
+var importRefKeys = []string{"$ref", "$dynamicRef"}
+
+type importMiss struct {
+	node *jnode
+	key  string
+}
+
 // collectRefs finds every target, including one reached only through
 // another target. A reference that names nothing yet waits in misses.
-func (ctx *importCtx) collectRefs(node *jnode, seen map[*jnode]bool, misses *[]*jnode) {
+func (ctx *importCtx) collectRefs(node *jnode, seen map[*jnode]bool, misses *[]importMiss) {
 	if seen[node] {
 		return
 	}
 	seen[node] = true
-	if ref := jentryOf(node, "$ref"); nil != ref && "string" == ref.t &&
-		!ctx.follow(node, ref.s, seen, misses) {
-		*misses = append(*misses, node)
+	for _, key := range importRefKeys {
+		if ref := jentryOf(node, key); nil != ref && "string" == ref.t &&
+			!ctx.follow(node, ref.s, seen, misses) {
+			*misses = append(*misses, importMiss{node, key})
+		}
 	}
 	subschemas(node, "", func(n *jnode, _ string) { ctx.collectRefs(n, seen, misses) })
 }
 
 func (ctx *importCtx) follow(node *jnode, ref string, seen map[*jnode]bool,
-	misses *[]*jnode) bool {
+	misses *[]importMiss) bool {
 	outer := ctx.doc
 	ctx.doc = ctx.docOf[node]
 	target := ctx.resolveRef(node, ref)
@@ -881,26 +913,140 @@ func (ctx *importCtx) follow(node *jnode, ref string, seen map[*jnode]bool,
 // names: what resolves is the walk order's no more.
 func (ctx *importCtx) settleRefs(root *jnode) {
 	seen := map[*jnode]bool{}
-	misses := []*jnode{}
+	misses := []importMiss{}
 	ctx.collectRefs(root, seen, &misses)
-	for known := -1; known != len(ctx.ptrOf)+len(ctx.resources); {
-		known = len(ctx.ptrOf) + len(ctx.resources)
+	size := func() int { return len(ctx.ptrOf) + len(ctx.resources) + len(ctx.targets) }
+	for known := -1; known != size(); {
+		known = size()
 		retry := misses
-		misses = []*jnode{}
-		for _, node := range retry {
-			if !ctx.follow(node, jentryOf(node, "$ref").s, seen, &misses) {
-				misses = append(misses, node)
+		misses = []importMiss{}
+		for _, m := range retry {
+			if !ctx.follow(m.node, jentryOf(m.node, m.key).s, seen, &misses) {
+				misses = append(misses, m)
 			}
 		}
+		ctx.bindDynamic(seen, &misses)
 	}
 	outer := ctx.doc
-	for _, node := range misses {
-		ref := jentryOf(node, "$ref")
-		ctx.doc = ctx.docOf[node]
-		ctx.fail("jsonschema_ref", ptrChild(ctx.ptrOf[node], "$ref"), "The reference "+
+	for _, m := range misses {
+		ref := jentryOf(m.node, m.key)
+		ctx.doc = ctx.docOf[m.node]
+		ctx.fail("jsonschema_ref", ptrChild(ctx.ptrOf[m.node], m.key), "The reference "+
 			importQuote(ref.s)+" names no schema the import can reach.", ref.off, ref.end)
 	}
 	ctx.doc = outer
+}
+
+// bindDynamic finds the names some $dynamicRef asks the dynamic scope
+// for, and makes every schema a resource anchors by one a target as a
+// $ref's is (ADR-057).
+func (ctx *importCtx) bindDynamic(seen map[*jnode]bool, misses *[]importMiss) {
+	for _, node := range append([]*jnode{}, ctx.order...) {
+		if dref := jentryOf(node, "$dynamicRef"); nil != dref && "string" == dref.t {
+			if name, ok := ctx.bookend(node, dref.s); ok {
+				ctx.dynamic[name] = true
+			}
+		}
+	}
+	for _, resource := range append([]*jnode{}, ctx.order...) {
+		names := ctx.dynAnchors[resource]
+		keys := make([]string, 0, len(names))
+		for name := range names {
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		for _, name := range keys {
+			node := names[name]
+			if _, known := ctx.targets[node]; ctx.dynamic[name] && !known {
+				ptr := ctx.ptrOf[node]
+				ctx.targets[node] = &importTarget{name: ctx.targetName(node, ptr), node: node, ptr: ptr}
+				ctx.collectRefs(node, seen, misses)
+			}
+		}
+	}
+}
+
+// bookend is the name a $dynamicRef asks the dynamic scope for: its
+// fragment, where that is a plain name its initial target carries as a
+// $dynamicAnchor.
+func (ctx *importCtx) bookend(node *jnode, ref string) (string, bool) {
+	outer := ctx.doc
+	ctx.doc = ctx.docOf[node]
+	initial := ctx.resolveRef(node, ref)
+	ctx.doc = outer
+	hash := strings.Index(ref, "#")
+	name, ok := percentDecode(ref[hash+1:])
+	if nil == initial || -1 == hash || !ok {
+		return "", false
+	}
+	anchor := jentryOf(initial, "$dynamicAnchor")
+	return name, nil != anchor && "string" == anchor.t && anchor.s == name
+}
+
+// usesOf is the names a schema's dynamic references can ask the scope,
+// through every schema it reaches by descent or reference and every
+// binding of a name: its declarations need differ only where these are
+// bound.
+func (ctx *importCtx) usesOf(node *jnode) map[string]bool {
+	if out, ok := ctx.uses[node]; ok {
+		return out
+	}
+	names := map[string]bool{}
+	seen := map[*jnode]bool{}
+	var walk func(n *jnode)
+	walk = func(n *jnode) {
+		if seen[n] {
+			return
+		}
+		seen[n] = true
+		// Every reference resolved when the refs were settled.
+		for _, key := range importRefKeys {
+			if ref := jentryOf(n, key); nil != ref && "string" == ref.t {
+				outer := ctx.doc
+				ctx.doc = ctx.docOf[n]
+				reached := ctx.resolveRef(n, ref.s)
+				ctx.doc = outer
+				walk(reached)
+			}
+		}
+		if dref := jentryOf(n, "$dynamicRef"); nil != dref && "string" == dref.t {
+			if name, ok := ctx.bookend(n, dref.s); ok {
+				names[name] = true
+				for _, anchors := range ctx.dynAnchors {
+					if at, has := anchors[name]; has {
+						walk(at)
+					}
+				}
+			}
+		}
+		subschemas(n, "", func(c *jnode, _ string) { walk(c) })
+	}
+	walk(node)
+	ctx.uses[node] = names
+	return names
+}
+
+// enter is the dynamic scope inside a schema: a name its resource anchors
+// and the scope does not yet bind is bound to it, so the outermost
+// binding holds.
+func (ctx *importCtx) enter(node *jnode) map[string]*jnode {
+	anchors := ctx.dynAnchors[ctx.resourceOf[node]]
+	var out map[string]*jnode
+	for name := range ctx.dynamic {
+		if at, ok := anchors[name]; ok && nil == ctx.env[name] {
+			if nil == out {
+				out = map[string]*jnode{}
+				for k, v := range ctx.env {
+					out[k] = v
+				}
+			}
+			out[name] = at
+		}
+	}
+	if nil == out {
+		return ctx.env
+	}
+	return out
 }
 
 // What each keyword the importer does not yet carry costs, for its loss.
@@ -913,7 +1059,6 @@ const importLegacy = "a keyword of an earlier dialect, which 2020-12 does not de
 	"so it is dropped and the position admits more than that dialect does"
 
 var importLater = map[string]string{
-	"$dynamicRef": importNotYet, "$dynamicAnchor": importNotYet,
 	"unevaluatedProperties": importNotYet, "unevaluatedItems": importNotYet,
 	"$vocabulary": "a vocabulary declaration, and the 2020-12 vocabularies are read " +
 		"whatever it says, so it is dropped",
@@ -937,7 +1082,8 @@ var importKindText = map[string]string{
 }
 
 var importCarried = []string{
-	"$schema", "$id", "$ref", "$defs", "definitions", "$anchor", "type", "deprecated",
+	"$schema", "$id", "$ref", "$dynamicRef", "$defs", "definitions", "$anchor", "$dynamicAnchor",
+	"type", "deprecated",
 	"x-aontu-deprecate",
 	"enum", "const", "allOf", "anyOf", "oneOf", "not", "if", "then", "else",
 	"dependentSchemas", "dependentRequired", "properties", "required",
@@ -1570,10 +1716,11 @@ func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
 // with the disjunction of the kinds, each met with the keywords scoped to
 // it. `only` restricts the kinds a position can hold at all.
 func (ctx *importCtx) convert(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
-	outer := ctx.doc
+	outer, scope := ctx.doc, ctx.env
 	ctx.doc = ctx.docOf[node]
+	ctx.env = ctx.enter(node)
 	out := ctx.convertNode(node, ptr, asDecl, only)
-	ctx.doc = outer
+	ctx.doc, ctx.env = outer, scope
 	return out
 }
 
@@ -1593,8 +1740,7 @@ func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []s
 
 	if target := ctx.targets[node]; nil != target && !asDecl {
 		if ctx.mapRoot {
-			ctx.declare(target)
-			return iraw("%" + target.name)
+			return iraw("%" + ctx.declare(target))
 		}
 		for _, s := range ctx.stack {
 			if s == node {
@@ -1616,30 +1762,72 @@ func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []s
 	return out
 }
 
-func (ctx *importCtx) declare(target *importTarget) {
-	if _, seen := ctx.decls[target.name]; seen {
-		return
+// declare declares a target once for each dynamic scope it is read in
+// (ADR-057), each after the first under a name of its own.
+func (ctx *importCtx) declare(target *importTarget) string {
+	env := ctx.enter(target.node)
+	uses := ctx.usesOf(target.node)
+	names := make([]string, 0, len(env))
+	for n := range env {
+		if uses[n] {
+			names = append(names, n)
+		}
 	}
-	ctx.decls[target.name] = ""
+	sort.Strings(names)
+	for i, n := range names {
+		names[i] = n + "=" + ctx.ptrOf[env[n]]
+	}
+	key := strings.Join(names, " ")
+	clone := slices.Index(ctx.clones[target], key)
+	if -1 == clone {
+		clone = len(ctx.clones[target])
+		ctx.clones[target] = append(ctx.clones[target], key)
+		if 0 < clone {
+			if importScopeBudget == ctx.cloned {
+				outer := ctx.doc
+				ctx.doc = ctx.docOf[target.node]
+				ctx.fail("jsonschema_budget", target.ptr, "The schemas read in more than one dynamic scope "+
+					"need more than "+strconv.Itoa(importScopeBudget)+" further declarations, past what the import makes.",
+					target.node.off, target.node.off+1)
+				ctx.doc = outer
+			}
+			ctx.cloned++
+		}
+	}
+	name := target.name
+	if 0 < clone {
+		name += "_e" + strconv.Itoa(clone+1)
+	}
+	if _, seen := ctx.decls[name]; seen || importScopeBudget < ctx.cloned {
+		return name
+	}
+	ctx.decls[name] = ""
 	body := ctx.convert(target.node, target.ptr, true, nil)
-	if entries := ctx.identity(target); 0 < len(entries) {
+	if entries := ctx.identity(target, 0 < clone); 0 < len(entries) {
 		body = icall("ident", body, &ixpr{k: "map", entries: entries})
 	}
-	ctx.decls[target.name] = iprint(body, "")
+	ctx.decls[name] = iprint(body, "")
+	return name
 }
 
 // identity is the identity a declared schema had, which its declaration
 // carries (ADR-056): the entry's own identifier as written, any other
 // resource's as its URI, absolute or under the entry's directory; its
 // anchor; and the $defs key a name that says the anchor does not say.
-func (ctx *importCtx) identity(target *importTarget) []ientry {
+func (ctx *importCtx) identity(target *importTarget, clone bool) []ientry {
 	node := target.node
 	out := []ientry{}
 	if anchor := jentryOf(node, "$anchor"); nil != anchor && "string" == anchor.t {
 		out = append(out, ientry{key: "anchor", val: iraw(importQuote(anchor.s))})
 	}
-	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && strings.HasPrefix(target.name, "a_") {
+	// A clone (ADR-057) names the definition its first declaration is.
+	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && (clone || strings.HasPrefix(target.name, "a_")) {
 		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[1])))})
+	} else if clone {
+		out = append(out, ientry{key: "defs", val: iraw(importQuote(target.name))})
+	}
+	if dynamic := jentryOf(node, "$dynamicAnchor"); nil != dynamic && "string" == dynamic.t {
+		out = append(out, ientry{key: "dynamicAnchor", val: iraw(importQuote(dynamic.s))})
 	}
 	id := jentryOf(node, "$id")
 	uri := ctx.baseOf[node]
@@ -1691,6 +1879,21 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		} else {
 			target := ctx.resolveRef(node, ref.s)
 			parts = append(parts, ctx.convert(target, ctx.targets[target].ptr, false, nil))
+		}
+	}
+
+	// ADR-057: the binding the dynamic scope gives its name, or the
+	// initial target, read as a $ref; the use keeps the reference's text.
+	if dref := get("$dynamicRef"); nil != dref {
+		if "string" != dref.t {
+			ctx.wrongType(at("$dynamicRef"), "$dynamicRef", "a string", dref)
+		} else {
+			target := ctx.resolveRef(node, dref.s)
+			if name, ok := ctx.bookend(node, dref.s); ok && nil != ctx.env[name] {
+				target = ctx.env[name]
+			}
+			parts = append(parts, icall("meta", ctx.convert(target, ctx.targets[target].ptr, false, nil),
+				&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}}))
 		}
 	}
 
@@ -2376,6 +2579,9 @@ func (base *importCtx) run(mapRoot bool) (*importCtx, *ixpr) {
 	ctx.decls = map[string]string{}
 	ctx.stack = nil
 	ctx.copies = 0
+	ctx.env = map[string]*jnode{}
+	ctx.clones = map[*importTarget][]string{}
+	ctx.cloned = 0
 	return &ctx, ctx.convert(base.root, "#", true, nil)
 }
 
@@ -2404,6 +2610,9 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		documents: map[string]string{}, byText: map[string]*importDoc{},
 		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]string{},
 		defaults: opts.Defaults, seen: map[*jnode]bool{},
+		dynAnchors: map[*jnode]map[string]*jnode{}, dynamic: map[string]bool{},
+		env: map[string]*jnode{}, clones: map[*importTarget][]string{},
+		uses: map[*jnode]map[string]bool{},
 	}
 	// Names for one URI must hold one text, or the set's order would
 	// choose between them.
@@ -2478,7 +2687,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		if target := ctx.targets[node]; nil != target {
 			_, declared = ctx.decls[target.name]
 		}
-		for _, key := range []string{"$id", "$anchor"} {
+		for _, key := range []string{"$id", "$anchor", "$dynamicAnchor"} {
 			v := jentryOf(node, key)
 			if ctx.seen[node] && !(ctx.mapRoot && declared) && nil != v && "string" == v.t {
 				ctx.lose(ptrChild(base.ptrOf[node], key), key, "an identity rides only an "+

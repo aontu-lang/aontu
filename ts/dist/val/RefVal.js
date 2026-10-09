@@ -405,7 +405,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     !out.done) {
                     out = undefined;
                 }
-                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg)) {
+                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg, 0, ctx.root)) {
                     const rec = new RecurseVal_1.RecurseVal({ target: [...this.peg], xc: this.rxc }, ctx);
                     rec.site = this.site;
                     rec.path = [...this.path];

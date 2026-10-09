@@ -18,5 +18,5 @@ declare class RecurseVal extends FeatureVal {
 export declare function throughRider(v: any): any;
 export declare function declaration(cj: any, key: string): Val | undefined;
 declare function bumpRecurse(v: any, xc: number): void;
-declare function containsRecurseOf(v: any, target: string[], depth?: number): boolean;
+declare function containsRecurseOf(v: any, target: string[], d: number, root?: any, seen?: Set<string>): boolean;
 export { RecurseVal, bumpRecurse, containsRecurseOf, };

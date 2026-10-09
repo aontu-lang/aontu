@@ -115,6 +115,7 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 			return out
 		}
 		level := undeclared(clonePath(bodyv, cp(r.path)))
+		forceRootPath(level, cp(r.path))
 		walkMark(level, true, false, true, false)
 		bumpRecurse(level, r.xc+1)
 		return unite(ctx, level, peer)
@@ -153,9 +154,15 @@ func (r *RecurseVal) Gen(ctx *Ctx) (any, error) {
 }
 
 func containsRecurseOf(v Val, target []string, depth int) bool {
+	return reachesRecurse(v, target, depth, nil, map[string]bool{})
+}
+
+// reachesRecurse follows each alias v names too, given the root.
+func reachesRecurse(v Val, target []string, depth int, root Val, seen map[string]bool) bool {
 	if nil == v || 8 < depth {
 		return false
 	}
+	v = throughRider(v)
 	switch n := v.(type) {
 	case *RecurseVal:
 		if len(n.target) != len(target) {
@@ -168,43 +175,43 @@ func containsRecurseOf(v Val, target []string, depth int) bool {
 		}
 		return true
 	case *RefVal:
-		if len(n.peg) != len(target) {
-			return false
-		}
+		same := len(n.peg) == len(target)
 		for i, p := range n.peg {
 			seg, ok := p.(string)
-			if !ok || seg != target[i] {
-				return false
-			}
+			same = same && ok && seg == target[i]
 		}
-		return true
+		if key, ok := n.aliasKey(); !same && ok && nil != root && !seen[key] {
+			seen[key] = true
+			return reachesRecurse(walkTarget(root, []string{key}), target, depth+1, root, seen)
+		}
+		return same
 	case *MapVal:
 		for _, k := range n.keys {
-			if containsRecurseOf(n.peg[k], target, depth+1) {
+			if reachesRecurse(n.peg[k], target, depth+1, root, seen) {
 				return true
 			}
 		}
-		if nil != n.spread && containsRecurseOf(n.spread, target, depth+1) {
+		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen) {
 			return true
 		}
 	case *ListVal:
 		for _, e := range n.peg {
-			if containsRecurseOf(e, target, depth+1) {
+			if reachesRecurse(e, target, depth+1, root, seen) {
 				return true
 			}
 		}
-		if nil != n.spread && containsRecurseOf(n.spread, target, depth+1) {
+		if nil != n.spread && reachesRecurse(n.spread, target, depth+1, root, seen) {
 			return true
 		}
 	case *ConjunctVal:
 		for _, e := range n.peg {
-			if containsRecurseOf(e, target, depth+1) {
+			if reachesRecurse(e, target, depth+1, root, seen) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, e := range n.peg {
-			if containsRecurseOf(e, target, depth+1) {
+			if reachesRecurse(e, target, depth+1, root, seen) {
 				return true
 			}
 		}

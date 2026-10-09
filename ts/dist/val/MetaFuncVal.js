@@ -7,10 +7,11 @@ const rider_1 = require("../rider");
 const sig_1 = require("../sig");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 // What each annotation key holds. `x` carries the keywords JSON Schema
-// does not name, as a map of their values.
+// does not name, as a map of their values, and `dynamicRef` the text of
+// the $dynamicRef a use was read from (ADR-057).
 const META_KEYS = {
     title: 'string', description: 'string', comment: 'string', format: 'string',
-    contentEncoding: 'string', contentMediaType: 'string',
+    contentEncoding: 'string', contentMediaType: 'string', dynamicRef: 'string',
     readOnly: 'boolean', writeOnly: 'boolean',
     examples: 'list', x: 'map',
     default: 'data', contentSchema: 'data',

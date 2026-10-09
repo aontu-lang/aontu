@@ -1,23 +1,25 @@
 # IDENT -- `ident(v, r)` (G12 phase 10, ADR-056): the identity a schema
 # was declared with, carried by its alias declaration and by nothing
-# else. The value is v; r is a map whose keys are among id, anchor and
-# defs, each a string, and anything else refuses with func_arg. ident()
-# is a declaration's value, or one term of the meet that is its value;
-# anywhere else it refuses with ident_place. A reference copies the
-# value without the identity, and the identity is in no canon and no
-# hash: the two hash rows below pin one value. The exporter reads it
-# (jsonschema.tsv, js-ident-*). Every expectation is both engines'
-# agreed answer.
+# else. The value is v; r is a map whose keys are among id, anchor,
+# dynamicAnchor (phase 11, ADR-057) and defs, each a string, and
+# anything else refuses with func_arg. ident() is a declaration's value,
+# or one term of the meet that is its value; anywhere else it refuses
+# with ident_place. A reference copies the value without the identity,
+# and the identity is in no canon and no hash: the two hash rows below
+# pin one value. The exporter reads it (jsonschema.tsv, js-ident-*).
+# Every expectation is both engines' agreed answer.
 ident-is-its-value	gens	%a = ident({ y: 1 }, { id: "a.json" })\nb: %a	{"b":{"y":1}}
 ident-of-a-recursive-declaration	gens	%a = ident({ n?: %a, v: 1 }, { id: "r.json" })\nb: %a & { n: { v: 1 } }	{"b":{"n":{"v":1},"v":1}}
 ident-redeclared-meets	gens	%a = ident({ y: 1 }, { id: "a.json" })\n%a = ident({ z?: 2 }, { anchor: "x" })\nb: %a	{"b":{"y":1,"z":2}}
 ident-beside-a-meet-in-its-declaration	gens	%a = ident({ y: 1 }, { id: "a.json" }) & { z: 2 }\nb: %a	{"b":{"y":1,"z":2}}
 ident-empty-record	gens	%a = ident(1, {})\nb: %a	{"b":1}
+ident-dynamic-anchor	gens	%a = ident({ y: 1 }, { dynamicAnchor: "n" })\nb: %a	{"b":{"y":1}}
 ident-in-a-value-position-refused	errc	b: ident(1, { id: "x" })	ident_place
 ident-in-a-value-prefix-refused	errc	x: %a = ident(1, { id: "x" })\ny: %a	ident_place
 ident-in-a-list-refused	errc	x: [ident(1, { id: "x" })]	ident_place
 ident-unknown-key-refused	errc	%a = ident(1, { nope: "x" })\nb: %a	func_arg
 ident-key-not-a-string-refused	errc	%a = ident(1, { id: 2 })\nb: %a	func_arg
+ident-dynamic-anchor-not-a-string-refused	errc	%a = ident(1, { dynamicAnchor: 2 })\nb: %a	func_arg
 ident-record-not-a-map-refused	errc	%a = ident(1, 2)\nb: %a	func_arg
 ident-without-a-record-refused	errc	%a = ident(1)\nb: %a	func_arity
 ident-without-arguments-refused	errc	%a = ident()\nb: %a	func_arity

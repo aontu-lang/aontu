@@ -205,10 +205,11 @@ func deprecationMessage(rec map[string][]string) string {
 }
 
 // metaKeys is what each annotation key holds; `x` carries the keywords
-// JSON Schema does not name, as a map of their values.
+// JSON Schema does not name, as a map of their values, and `dynamicRef`
+// the text of the $dynamicRef a use was read from (ADR-057).
 var metaKeys = map[string]string{
 	"title": "string", "description": "string", "comment": "string", "format": "string",
-	"contentEncoding": "string", "contentMediaType": "string",
+	"contentEncoding": "string", "contentMediaType": "string", "dynamicRef": "string",
 	"readOnly": "boolean", "writeOnly": "boolean",
 	"examples": "list", "x": "map",
 	"default": "data", "contentSchema": "data",
@@ -293,7 +294,7 @@ func metaTexts(v Val, key string) []string {
 }
 
 // identKeys are an identity's keys (ADR-056).
-var identKeys = []string{"id", "anchor", "defs"}
+var identKeys = []string{"id", "anchor", "defs", "dynamicAnchor"}
 
 func identRecord(r Val) (map[string][]string, bool) {
 	m, ok := r.(*MapVal)

@@ -111,7 +111,8 @@ function walkTarget(root, target) {
 // A value-transparent rider still being resolved stands for its value:
 // the walk reads through it as it reads through a pending mark.
 function throughRider(v) {
-    while (true === v?.isFunc && (true === v.isMetaFunc || true === v.isDeprecateFunc)
+    while (true === v?.isFunc
+        && (true === v.isMetaFunc || true === v.isDeprecateFunc || true === v.isIdentFunc)
         && !v.done && null != v.peg?.[0]) {
         v = v.peg[0];
     }
@@ -165,8 +166,9 @@ function bumpRecurse(v, xc) {
         bumpRecurse(v.spread.cj, xc);
     }
 }
-function containsRecurseOf(v, target, depth) {
-    const d = depth ?? 0;
+// Each alias v names is followed too, given the root.
+function containsRecurseOf(v, target, d, root, seen = new Set()) {
+    v = throughRider(v);
     if (null == v || true !== v.isVal || 8 < d) {
         return false;
     }
@@ -179,11 +181,16 @@ function containsRecurseOf(v, target, depth) {
             && v.peg.every((s, i) => s === target[i])) {
             return true;
         }
+        const key = v.aliasKey;
+        if (undefined !== root && undefined !== key && !seen.has(key)) {
+            seen.add(key);
+            return containsRecurseOf(walkTarget(root, [key]), target, d + 1, root, seen);
+        }
     }
     const peg = v.peg;
     if (true === v.isMap && null != peg) {
         for (const k of Object.keys(peg)) {
-            if (containsRecurseOf(peg[k], target, d + 1)) {
+            if (containsRecurseOf(peg[k], target, d + 1, root, seen)) {
                 return true;
             }
         }
@@ -191,12 +198,12 @@ function containsRecurseOf(v, target, depth) {
     else if ((true === v.isList || true === v.isConjunct || true === v.isDisjunct)
         && Array.isArray(peg)) {
         for (const e of peg) {
-            if (containsRecurseOf(e, target, d + 1)) {
+            if (containsRecurseOf(e, target, d + 1, root, seen)) {
                 return true;
             }
         }
     }
-    if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1)) {
+    if (null != v.spread?.cj && containsRecurseOf(v.spread.cj, target, d + 1, root, seen)) {
         return true;
     }
     return false;

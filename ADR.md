@@ -84,7 +84,8 @@ capability decision is the phase rows it governed in
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
-| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Accepted |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
+| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 
 ---
 
@@ -5242,7 +5243,7 @@ unifies changes its answer.
 ## ADR-056 — Identity rides the alias declaration
 
 **Date:** 2026-10-08
-**Status:** Accepted
+**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
 
 ### Context
 
@@ -5265,6 +5266,9 @@ which a copy carries wherever it goes.
    whose keys are among `id`, `anchor` and `defs`, each a string,
    holding the schema's identifier, its anchor and the `$defs` key it
    was declared under. Any other key or kind refuses with `func_arg`.
+   *(Amended 2026-10-09 by
+   [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import):
+   a fourth key, `dynamicAnchor`, holds the schema's `$dynamicAnchor`.)*
 2. **Only an alias declaration carries it.** `ident(…)` is the value
    of `%name = …`, or one term of the meet that is that value, which is
    also how two declarations of one name meet. Anywhere else it
@@ -5302,3 +5306,72 @@ which a copy carries wherever it goes.
 - Pinned by `test/spec/ident.tsv`, the `js-ident-*` rows of
   `test/spec/jsonschema.tsv` and the `import-identity-*` rows of
   `test/spec/jsonschema-import.tsv`, in both ports.
+
+## ADR-057 — A dynamic reference is specialised at import
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `$dynamicRef` resolves against the dynamic scope,
+the resources the evaluation passed through to reach it. Where its
+initial target carries a `$dynamicAnchor` of the name its fragment
+gives, it lands on the outermost resource in that scope declaring the
+name; otherwise it is a `$ref`. aontu has no dynamic scope: a reference
+denotes one value wherever it is used, and a term that denoted
+different values at different sites would break canon and the hash.
+The [G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+(phase 11) chose to specialise the reference away at import.
+
+### Decision
+
+1. **The importer walks with an environment**, from each anchor name a
+   bookended `$dynamicRef` asks about to the schema that name anchors in
+   the outermost resource on the path. Entering a schema, by reference
+   or by descent, binds the names its resource declares that the
+   environment has not; leaving it restores the environment, so a scope
+   left behind binds nothing.
+2. **A schema is declared once for each binding of the names its
+   dynamic references can ask**, through every schema it reaches by
+   descent or reference, so a schema no binding reaches is declared
+   once. The later declarations are named with an `_e2`, `_e3` suffix,
+   and each clone's identity names the `$defs` key they share. An
+   environment only grows along a path and its names are finite, so the
+   clones are too; past 1024 of them the import is refused with
+   `jsonschema_budget`, class `budget`, rather than walked without end.
+3. **A `$dynamicRef` whose initial target carries the matching
+   `$dynamicAnchor` is a reference to the environment's binding**, or to
+   the initial target where nothing binds the name; any other is a
+   `$ref`. The use keeps its text in the `meta` record's `dynamicRef`
+   key, and a declaration keeps its `$dynamicAnchor` in its identity
+   ([ADR-056](#adr-056--identity-rides-the-alias-declaration)).
+4. **The exporter writes the use back as `$dynamicRef` where it reads
+   the same.** Once the definitions carry their anchors, a use whose
+   `$ref` reaches a definition holding, in the schema's resource, the
+   anchor its text names is `$dynamicRef` to that anchor; any other
+   keeps its `$ref`, and the dynamic reference is a loss. Clones whose
+   schemas, `$ref`s included, are the same are one definition.
+
+### Consequences
+
+- The import is exact for the entry point imported. An aontu document
+  that references an imported alias from a new outer scope does not
+  re-bind it: the reference is static, as every aontu reference is.
+- The export is one resource, so an anchor name holds one schema in
+  it. Of two clones whose bindings differ, one keeps its `$dynamicRef`
+  and the other's use is its `$ref`, reported with the anchor the
+  resource could not hold twice. The export validates as the import
+  does; what it loses is the re-binding an outer scope would do.
+- A value that meets two dynamic references writes the first, and the
+  meet the others reached is already in its schema, so they are losses.
+- A root meet over a mutual recursion of aliases, which the importer
+  writes for a document whose root a dynamic reference reaches, is
+  found as a recursion through every alias the walk follows and through
+  an `ident()` or `meta()` rider; before, it expanded without end.
+- Pinned by the `import-dynamic-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-dynamic-*` and `js-clones-*`
+  rows of `test/spec/jsonschema.tsv`, the `dynamicRef` rows of
+  `test/spec/meta.tsv`, the `dynamicAnchor` rows of `test/spec/ident.tsv`
+  and the `alias-root-reference-mutual-recursion*` rows of
+  `test/spec/alias.tsv`, in both ports.

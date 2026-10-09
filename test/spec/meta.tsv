@@ -3,11 +3,13 @@
 # result through meets, reference copies and spread applications. A
 # record's keys are the annotation keys -- title, description, comment,
 # default, examples, readOnly, writeOnly, format, contentEncoding,
-# contentMediaType and contentSchema, and x for the keywords JSON Schema
-# does not name -- each holding concrete data of its kind; anything else
-# refuses with func_arg. Two records meet as their key-wise union of
-# canon-sorted value sets, so the meet is commutative and idempotent and
-# never refuses. Every expectation is both engines' agreed answer.
+# contentMediaType and contentSchema, x for the keywords JSON Schema
+# does not name, and dynamicRef for the text of the $dynamicRef a use
+# was read from (G12 phase 11, ADR-057) -- each holding concrete data of
+# its kind; anything else refuses with func_arg. Two records meet as
+# their key-wise union of canon-sorted value sets, so the meet is
+# commutative and idempotent and never refuses. Every expectation is
+# both engines' agreed answer.
 #
 # Canon renders the call back reparseably and outermost, after
 # deprecate(); each record holds every key's next value.
@@ -40,6 +42,9 @@ meta-canon-meet-idempotent	canon	a: meta(1, {title: "a"}) & meta(1, {title: "a"}
 meta-canon-two-records-one-call	canon	a: meta(1, {title: "a"}, {title: "b", description: "d"})	{"a":meta(1,{"description":"d","title":"a"},{"title":"b"})}
 meta-canon-nested-call	canon	a: meta(meta(1, {title: "a"}), {description: "d"})	{"a":meta(1,{"description":"d","title":"a"})}
 meta-canon-many-layers	canon	a: meta(1, {title: "c"}) & meta(1, {title: "a", description: "x"}) & meta(1, {title: "b"})	{"a":meta(1,{"description":"x","title":"a"},{"title":"b"},{"title":"c"})}
+meta-canon-dynamic-ref	canon	a: meta(number, {dynamicRef: "#n"})	{"a":meta(number,{"dynamicRef":"#n"})}
+meta-canon-dynamic-ref-two-values	canon	a: meta(number, {dynamicRef: "#n"}) & meta(1, {dynamicRef: "#m"})	{"a":meta(1,{"dynamicRef":"#m"},{"dynamicRef":"#n"})}
+meta-gens-dynamic-ref-is-the-value	gens	a: meta(1, {dynamicRef: "#n", title: "t"})	{"a":1}
 #
 # A record rides a reference copy, a spread application and a conjunct,
 # and the document renders its root's.
@@ -106,6 +111,7 @@ meta-errc-arity-none	errc	a: meta()	func_arity
 meta-errc-value-alone	errc	a: meta(1)	func_arity
 meta-errc-record-not-a-map	errc	a: meta(1, "t")	func_arg
 meta-errc-unknown-key	errc	a: meta(1, {nope: "x"})	func_arg
+meta-errc-dynamic-ref-not-a-string	errc	a: meta(1, {dynamicRef: 1})	func_arg
 meta-errc-title-not-a-string	errc	a: meta(1, {title: 1})	func_arg
 meta-errc-readonly-not-a-boolean	errc	a: meta(1, {readOnly: "yes"})	func_arg
 meta-errc-examples-not-a-list	errc	a: meta(1, {examples: 1})	func_arg

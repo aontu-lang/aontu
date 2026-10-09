@@ -497,7 +497,7 @@ class RefVal extends FeatureVal {
           !out.done) {
           out = undefined
         }
-        else if (null != out && !snap && containsRecurseOf(out, this.peg as any)) {
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root)) {
           const rec: any = new RecurseVal(
             { target: [...this.peg], xc: this.rxc } as any, ctx)
           rec.site = this.site
