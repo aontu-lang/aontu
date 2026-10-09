@@ -174,11 +174,8 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 }
 
 func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
-	if 2 != len(cj.peg) {
-		return false
-	}
 	has := func(t Val) bool { return cj.peg[0] == t || cj.peg[1] == t }
-	return has(t0) && has(t1)
+	return 2 == len(cj.peg) && has(t0) && has(t1)
 }
 
 // norm flattens nested conjuncts and orders terms by cjo so that

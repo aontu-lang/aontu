@@ -72,8 +72,9 @@ class ListVal extends BagVal_1.BagVal {
             }
             else {
                 out.closed = out.closed || peer.closed;
-                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj : (out.spread.cj =
-                    (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer')));
+                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
+                    out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+                        (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer'));
             }
         }
         if (!exit) {
@@ -96,6 +97,10 @@ class ListVal extends BagVal_1.BagVal {
                     oval = child.done ? child :
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, TOP, 'list-own');
                     oval._spr = (0, Val_1.spreadId)(spread_cj);
+                }
+                else if (!spread_cj.isTop && peer instanceof ListVal
+                    && peer.peg[key]?._spr === (0, Val_1.spreadId)(spread_cj)) {
+                    oval = child;
                 }
                 else {
                     // No spread: the shared top, which nothing writes on.
@@ -146,7 +151,17 @@ class ListVal extends BagVal_1.BagVal {
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'list-peer');
-                    if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
+                    // The spread meets an element once, and a meet with a marked element
+                    // keeps the mark: met again, a recursive spread expanded at every meet.
+                    if (undefined !== child) {
+                        if (!spread_cj.isTop && !oval.isNil &&
+                            (child._spr === (0, Val_1.spreadId)(spread_cj) ||
+                                peerchild._spr === (0, Val_1.spreadId)(spread_cj))) {
+                            ;
+                            oval._spr = (0, Val_1.spreadId)(spread_cj);
+                        }
+                    }
+                    else if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;
                     }
                     else if (this.spread.cj && !oval.isAbsent) {
@@ -156,6 +171,10 @@ class ListVal extends BagVal_1.BagVal {
                         }
                         oval = out.peg[peerkey] =
                             (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, out.peg[peerkey], key_spread_cj, 'list-spread');
+                        if (!spread_cj.isTop && !oval.isNil) {
+                            ;
+                            oval._spr = (0, Val_1.spreadId)(spread_cj);
+                        }
                     }
                     (0, utility_1.propagateMarks)(this, oval);
                     done = (done && type_1.DONE === oval.dc);

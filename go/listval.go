@@ -143,7 +143,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if pl, ok := peer.(*ListVal); ok {
 		if out.spread == nil {
 			out.spread = pl.spread
-		} else if pl.spread != nil {
+		} else if pl.spread != nil && out.spread.Canon() != pl.spread.Canon() {
 			out.spread = unite(ctx, out.spread, pl.spread)
 		}
 	}
@@ -188,6 +188,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 				ev = unite(ctx, e, top())
 			}
 			setSprOn(ev, spreadCj)
+		} else if pl, ok := peer.(*ListVal); ok && !isTop(spreadCj) && i < len(pl.peg) &&
+			sprOf(pl.peg[i]) == spreadCj {
+			ev = e
 		} else {
 			sc := spreadCloneFor(spreadCj, islot, ctx)
 			ctx.slot = islot
@@ -229,6 +232,11 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 					out.peg[i] = sealChild(out.peg[i])
 				}
 				uv = unite(ctx, out.peg[i], pe)
+				// The spread meets an element once, and meeting a marked one
+				// keeps the mark: met again, a recursive spread re-expanded.
+				if !isTop(spreadCj) && !uv.Nil() && (sprOf(out.peg[i]) == spreadCj || sprOf(pe) == spreadCj) {
+					setSprOn(uv, spreadCj)
+				}
 				out.peg[i] = uv
 			} else {
 				ctx.slot = islot
@@ -239,6 +247,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 					sc := spreadCloneFor(spreadCj, islot, ctx)
 					ctx.slot = islot
 					uv = unite(ctx, uv, sc)
+					if !isTop(spreadCj) && !uv.Nil() {
+						setSprOn(uv, spreadCj)
+					}
 				}
 				out.peg = append(out.peg, uv)
 			}

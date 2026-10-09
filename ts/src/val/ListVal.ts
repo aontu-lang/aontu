@@ -120,11 +120,10 @@ class ListVal extends BagVal {
       else {
         out.closed = out.closed || peer.closed
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
-          null == peer.spread.cj ? out.spread.cj : (
-            out.spread.cj =
-            unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
-              out.spread.cj, peer.spread.cj, 'list-peer')
-          )
+          null == peer.spread.cj ? out.spread.cj :
+            out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+              unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
+                out.spread.cj, peer.spread.cj, 'list-peer')
         )
       }
     }
@@ -156,6 +155,10 @@ class ListVal extends BagVal {
             unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
               child, TOP, 'list-own')
           ; (oval as any)._spr = spreadId(spread_cj)
+        }
+        else if (!spread_cj.isTop && peer instanceof ListVal
+          && (peer.peg[key] as any)?._spr === spreadId(spread_cj)) {
+          oval = child
         }
         else {
           // No spread: the shared top, which nothing writes on.
@@ -222,7 +225,16 @@ class ListVal extends BagVal {
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'list-peer')
 
-          if (this.spread.cj && undecided(oval)) {
+          // The spread meets an element once, and a meet with a marked element
+          // keeps the mark: met again, a recursive spread expanded at every meet.
+          if (undefined !== child) {
+            if (!spread_cj.isTop && !oval.isNil &&
+              ((child as any)._spr === spreadId(spread_cj) ||
+                (peerchild as any)._spr === spreadId(spread_cj))) {
+              ; (oval as any)._spr = spreadId(spread_cj)
+            }
+          }
+          else if (this.spread.cj && undecided(oval)) {
             done = false
           }
           else if (this.spread.cj && !oval.isAbsent) {
@@ -234,6 +246,9 @@ class ListVal extends BagVal {
             oval = out.peg[peerkey] =
               unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                 out.peg[peerkey], key_spread_cj, 'list-spread')
+            if (!spread_cj.isTop && !oval.isNil) {
+              ; (oval as any)._spr = spreadId(spread_cj)
+            }
           }
 
           propagateMarks(this, oval)

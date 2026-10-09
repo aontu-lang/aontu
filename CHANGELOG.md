@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### A list's spread meets each element once
+
+Both ports, found while checking a schema against the 2020-12
+meta-schema (G12 phase 16). Closes use-cases/BUGS.md §57.
+
+- A recursive spread conjoined with a map, `kids?: [&: %T & {}]`, never
+  finished at depth two in either port. It answers at once, and
+  `& {tag: 1}` reaches every recursive node.
+- A recursive alias meeting several `boolean|{...}` alternatives beside
+  a count, as the meta-schema writes `allOf`, `anyOf` and `oneOf`, took
+  time exponential in its depth, and from three alternatives at depth
+  two TypeScript refused it `empty` once its revisit budget fired.
+  `allOf` nested twenty deep now checks against the meta-schema in a
+  fifth of a second in Go and under a second in TypeScript.
+- Two lists whose spreads print alike keep one spread, as two maps
+  already did; an element a list takes from its peer is marked once it
+  meets the spread, and keeps the mark when it meets an element that
+  carried it; and in TypeScript an element both lists hold no longer
+  meets the spread again, as in Go.
+- A value only one side of a map declares, held until data gives it,
+  meets another such value as one value, where it nested inside it and
+  cost twice as much at each later meet.
+
 ### The published meta-schemas ship with the importer (ADR-064)
 
 Both ports, G12 phase 16.

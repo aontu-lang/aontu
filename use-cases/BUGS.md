@@ -12,11 +12,11 @@ or spec rows.
 
 Minimal reproductions live under [`repros/`](repros/), one directory
 per family; each `.aontu` carries an `# expected:` / `# actual:` header.
-The nontermination repros (§57 and
-`refer-cycles/refer-in-type-hang.aontu`) are marked in-file to be run
-under `timeout`. (`identity/id-names-own-descendant-crashes.aontu` used
-to belong beside them, overflowing the host stack; §58 is fixed and it
-now refuses.) Severity: **critical** = silent wrong output, unsound vet
+The nontermination repro, `refer-cycles/refer-in-type-hang.aontu`, is
+marked in-file to be run under `timeout`. (§57's and
+`identity/id-names-own-descendant-crashes.aontu` used to belong beside
+it, one running away and one overflowing the host stack; both are
+fixed, and they answer and refuse.) Severity: **critical** = silent wrong output, unsound vet
 verdict, or nontermination; **major** = a documented capability fails;
 **minor** = papercut.
 
@@ -1990,7 +1990,7 @@ untouched. They were already REPORTED, so they are not the contract
 breach; changing them is a design question about the export surface
 rather than a defect.
 
-### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [critical]
+### 57. A recursive spread conjoined with a map does not terminate at depth two, in both ports [FIXED 2026-10-09]
 
 Found 2026-08-30 while surveying what a declarative code-generation
 layer could be built on. Recursion through a **list spread** works,
@@ -2204,9 +2204,42 @@ both are no-ops unless `ctx.prov` holds a recorder, and only `why`
 sets one (`ts/src/query.ts`). Gating expansion on it as written would
 make evaluation depend on whether provenance is being recorded.
 
+Status: FIXED 2026-10-09, both ports, found again from the other side:
+checking a schema against the 2020-12 meta-schema (G12 phase 16), whose
+`allOf`, `anyOf` and `oneOf` are each a list spread of the recursive
+meta-schema beside a count. The cause was a list's spread meeting the
+same element more than once, so each meet of a list expanded every
+recursive element under it again:
+
+- Two lists whose spreads print alike met the spreads themselves, and
+  `%T & {}` met as a spread is a residual meeting the `{}` beside it:
+  the expansion at a path no data reaches that this entry diagnosed, a
+  new `kids` level each time. They now keep one spread, as two maps
+  already did.
+- An element a list took from its peer was not marked once it met the
+  spread, so the next meet of the list met it again; an element both
+  lists held met it again in TypeScript, where Go did not; and a list
+  met its own elements with its peer's spread where the peer's element
+  had already met it. The spread now meets each element once, and the
+  mark survives the meet of two elements when either side carried it.
+- Separately, a value only one side of a map declares, held until the
+  data gives it, met another such value by nesting inside it, so a
+  value many spreads met cost twice as much at each meet. Two now meet
+  as one.
+
+Maps keep meeting a merged member with their spread again: a
+preference in a map's spread re-enters at each meet, which the
+`include-in-place-*` rows in `test/spec/file.tsv` pin.
+
+Every spelling in the table above now answers at once in both ports,
+`& {tag: X}` reaches every recursive node, and a violation at depth
+refuses where it stands. Pinned by the rows under "A spread meets an
+element once" in `test/spec/recursion.tsv`. The second, milder defect,
+computation inside a recursive definition evaluated at the definition,
+is unchanged.
+
 Repro:
-[`repros/recursion/recursive-spread-conjunct-hangs.aontu`](repros/recursion/recursive-spread-conjunct-hangs.aontu)
--- run it under `timeout`, as its header says.
+[`repros/recursion/recursive-spread-conjunct-hangs.aontu`](repros/recursion/recursive-spread-conjunct-hangs.aontu).
 
 ## identity — id() at its own boundary
 
