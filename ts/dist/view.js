@@ -2543,27 +2543,11 @@ function docTree(v, name, depth) {
         kids: 0 === depth ? [] : docKids(v).map((k) => docTree(throughDoc(throughDoc(v).peg[k]), k, depth - 1)),
     };
 }
-// The bases a row tree divides into: one per value of a field of the
-// top's children, one per child, or the whole.
-function hBases(top, o, path, root, loss) {
+// The bases a row tree divides into without a field: one per child, or
+// the whole.
+function hBases(top, splitRoots) {
     const keys = top.kids.map((k) => k.name);
-    if (undefined !== o.splitBy) {
-        const field = o.splitBy;
-        const unresolved = [];
-        const of = new Map();
-        for (const k of keys) {
-            const v = fieldOf(root, path(k), field);
-            if (undefined === v) {
-                unresolved.push(path(k) + '.' + field);
-                continue;
-            }
-            of.set(v, [...(of.get(v) ?? []), k]);
-        }
-        addUnresolved(loss, unresolved);
-        return [...of.keys()].sort(keyorder_1.cmpCodePoint)
-            .map((name) => ({ name, top, keys: of.get(name) }));
-    }
-    return true === o.splitRoots
+    return true === splitRoots
         ? keys.map((k) => ({ name: k, top, keys: [k] }))
         : [{ top, keys }];
 }
@@ -2619,7 +2603,9 @@ function drawDocParts(root, o, max, loss) {
     const at = o.at ?? '$';
     const depth = o.depth || DEFAULT_DOC_DEPTH;
     const top = docTree((0, vet_1.anchorAt)(root, at), at, depth);
-    const cut = packRows(hBases(top, o, (k) => at + '.' + k, root, loss), o.budget ?? 0);
+    const bases = undefined === o.splitBy ? hBases(top, o.splitRoots)
+        : groupedBy(top.kids.map((k) => k.name), (k) => at + '.' + k, o.splitBy, root, loss).map(([name, keys]) => ({ name, top, keys }));
+    const cut = packRows(bases, o.budget ?? 0);
     const parts = [];
     for (const part of cut) {
         if (hasLineBreak(part.name)) {
@@ -2642,32 +2628,13 @@ function drawTreemapParts(root, o, max, loss) {
     }
     const at = o.at ?? '$';
     const top = treemapTop(root, o, []).top;
-    let bases;
-    if (undefined === o.splitBy) {
-        bases = hBases(top, o, (k) => k, root, loss);
-    }
-    else {
-        // A part by a field is the treemap of the items holding its value,
-        // grouped and weighed afresh.
-        const field = o.splitBy;
-        const items = o.members ??
-            docKids((0, vet_1.anchorAt)(root, at)).map((k) => at + '.' + k);
-        const unresolved = [];
-        const of = new Map();
-        for (const p of items) {
-            const v = fieldOf(root, p, field);
-            if (undefined === v) {
-                unresolved.push(p + '.' + field);
-                continue;
-            }
-            of.set(v, [...(of.get(v) ?? []), p]);
-        }
-        addUnresolved(loss, unresolved);
-        bases = [...of.keys()].sort(keyorder_1.cmpCodePoint).map((name) => {
-            const mine = treemapTop(root, { ...o, only: of.get(name) }, []).top;
+    // A part by a field is the treemap of the items holding its value,
+    // grouped and weighed afresh.
+    const bases = undefined === o.splitBy ? hBases(top, o.splitRoots)
+        : groupedBy(o.members ?? docKids((0, vet_1.anchorAt)(root, at)).map((k) => at + '.' + k), (p) => p, o.splitBy, root, loss).map(([name, items]) => {
+            const mine = treemapTop(root, { ...o, only: items }, []).top;
             return { name, top: mine, keys: mine.kids.map((k) => k.name) };
         });
-    }
     const parts = [];
     for (const part of packRows(bases, o.budget ?? 0)) {
         if (hasLineBreak(part.name)) {
@@ -2711,6 +2678,22 @@ function budgeted(parts, budget) {
         }
     }
     return out;
+}
+// Items grouped by the value of a field each holds, the values in
+// code-point order; an item without it is counted, and in no group.
+function groupedBy(items, path, field, root, loss) {
+    const unresolved = [];
+    const of = new Map();
+    for (const item of items) {
+        const v = fieldOf(root, path(item), field);
+        if (undefined === v) {
+            unresolved.push(path(item) + '.' + field);
+            continue;
+        }
+        of.set(v, [...(of.get(v) ?? []), item]);
+    }
+    addUnresolved(loss, unresolved);
+    return [...of].sort(([a], [b]) => (0, keyorder_1.cmpCodePoint)(a, b));
 }
 // The paths a split field leaves unresolved join the row the figure
 // already wrote, so one code is one row.
@@ -2809,20 +2792,8 @@ function splitParts(sel, root, o, loss) {
     const sorted = all.slice().sort(byLabel);
     let parts;
     if (undefined !== o.splitBy) {
-        const field = o.splitBy;
-        const unresolved = [];
-        const of = new Map();
-        for (const p of sorted) {
-            const v = fieldOf(root, p, field);
-            if (undefined === v) {
-                unresolved.push(p + '.' + field);
-                continue;
-            }
-            of.set(v, [...(of.get(v) ?? []), p]);
-        }
-        addUnresolved(loss, unresolved);
-        parts = [...of.keys()].sort(keyorder_1.cmpCodePoint)
-            .map((name) => ({ name, nodes: of.get(name) }));
+        parts = groupedBy(sorted, (p) => p, o.splitBy, root, loss)
+            .map(([name, nodes]) => ({ name, nodes }));
     }
     else {
         // Each root takes what it reaches that no earlier root took, in

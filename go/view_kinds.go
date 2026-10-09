@@ -1464,37 +1464,14 @@ func viewDocTree(v Val, name string, depth int) *viewTile {
 	return t
 }
 
-// viewHBases is the bases a row tree divides into: one per value of a
-// field of the top's children, one per child, or the whole.
-func viewHBases(top *viewTile, splitBy string, splitRoots bool, path func(string) string,
-	root Val, loss *[]ViewLoss) []viewHBase {
+// viewHBases is the bases a row tree divides into without a field: one
+// per child, or the whole.
+func viewHBases(top *viewTile, splitRoots bool) []viewHBase {
 	keys := []string{}
 	for _, k := range top.kids {
 		keys = append(keys, k.name)
 	}
 	out := []viewHBase{}
-	if "" != splitBy {
-		unresolved := []string{}
-		of := map[string][]string{}
-		names := []string{}
-		for _, k := range keys {
-			v, ok := viewFieldOf(root, path(k), splitBy)
-			if !ok {
-				unresolved = append(unresolved, path(k)+"."+splitBy)
-				continue
-			}
-			if _, seen := of[v]; !seen {
-				names = append(names, v)
-			}
-			of[v] = append(of[v], k)
-		}
-		viewAddUnresolved(loss, unresolved)
-		sort.Strings(names)
-		for _, n := range names {
-			out = append(out, viewHBase{name: n, top: top, keys: of[n]})
-		}
-		return out
-	}
 	if splitRoots {
 		for _, k := range keys {
 			out = append(out, viewHBase{name: k, top: top, keys: []string{k}})
@@ -1581,8 +1558,20 @@ func drawDocParts(root Val, o *ViewOptions, as, style string, max int,
 		depth = viewDefaultDocDepth
 	}
 	top := viewDocTree(anchorAt(root, at), at, depth)
-	cut := viewPackRows(viewHBases(top, o.SplitBy, o.SplitRoots,
-		func(k string) string { return at + "." + k }, root, loss), o.Budget)
+	bases := viewHBases(top, o.SplitRoots)
+	if "" != o.SplitBy {
+		keys := []string{}
+		for _, k := range top.kids {
+			keys = append(keys, k.name)
+		}
+		names, of := viewGroupedBy(keys, func(k string) string { return at + "." + k },
+			o.SplitBy, root, loss)
+		bases = []viewHBase{}
+		for _, n := range names {
+			bases = append(bases, viewHBase{name: n, top: top, keys: of[n]})
+		}
+	}
+	cut := viewPackRows(bases, o.Budget)
 	drawn := []ViewPart{}
 	for _, part := range cut {
 		if viewHasLineBreak(part.name) {
@@ -1611,10 +1600,8 @@ func drawTreemapParts(root Val, o *ViewOptions, members []string, selected bool,
 		at = "$"
 	}
 	top, _ := viewTreemapTop(root, tm, &[]ViewLoss{})
-	bases := []viewHBase{}
-	if "" == o.SplitBy {
-		bases = viewHBases(top, "", o.SplitRoots, nil, root, loss)
-	} else {
+	bases := viewHBases(top, o.SplitRoots)
+	if "" != o.SplitBy {
 		// A part by a field is the treemap of the items holding its
 		// value, grouped and weighed afresh.
 		items := members
@@ -1624,22 +1611,8 @@ func drawTreemapParts(root Val, o *ViewOptions, members []string, selected bool,
 				items = append(items, at+"."+e.key)
 			}
 		}
-		unresolved := []string{}
-		of := map[string][]string{}
-		names := []string{}
-		for _, p := range items {
-			v, ok := viewFieldOf(root, p, o.SplitBy)
-			if !ok {
-				unresolved = append(unresolved, p+"."+o.SplitBy)
-				continue
-			}
-			if _, seen := of[v]; !seen {
-				names = append(names, v)
-			}
-			of[v] = append(of[v], p)
-		}
-		viewAddUnresolved(loss, unresolved)
-		sort.Strings(names)
+		names, of := viewGroupedBy(items, func(p string) string { return p }, o.SplitBy, root, loss)
+		bases = []viewHBase{}
 		for _, n := range names {
 			only := tm
 			only.only = of[n]
@@ -1852,22 +1825,7 @@ func viewSplitParts(sel viewSelection, root Val, o *ViewOptions, loss *[]ViewLos
 	numbered := false
 
 	if "" != o.SplitBy {
-		unresolved := []string{}
-		of := map[string][]string{}
-		names := []string{}
-		for _, p := range sorted {
-			v, ok := viewFieldOf(root, p, o.SplitBy)
-			if !ok {
-				unresolved = append(unresolved, p+"."+o.SplitBy)
-				continue
-			}
-			if _, seen := of[v]; !seen {
-				names = append(names, v)
-			}
-			of[v] = append(of[v], p)
-		}
-		viewAddUnresolved(loss, unresolved)
-		sort.Strings(names)
+		names, of := viewGroupedBy(sorted, func(p string) string { return p }, o.SplitBy, root, loss)
 		for _, name := range names {
 			parts = append(parts, viewPartNodes{name: name, nodes: of[name]})
 		}
@@ -2056,6 +2014,30 @@ type viewRun[T any] struct {
 	name     string
 	numbered bool
 	items    []T
+}
+
+// viewGroupedBy is items grouped by the value of a field each holds, the
+// values in code-point order; an item without it is counted, and in no
+// group.
+func viewGroupedBy(items []string, path func(string) string, field string,
+	root Val, loss *[]ViewLoss) ([]string, map[string][]string) {
+	unresolved := []string{}
+	of := map[string][]string{}
+	names := []string{}
+	for _, item := range items {
+		v, ok := viewFieldOf(root, path(item), field)
+		if !ok {
+			unresolved = append(unresolved, path(item)+"."+field)
+			continue
+		}
+		if _, seen := of[v]; !seen {
+			names = append(names, v)
+		}
+		of[v] = append(of[v], item)
+	}
+	viewAddUnresolved(loss, unresolved)
+	sort.Strings(names)
+	return names, of
 }
 
 // viewAddUnresolved joins the paths a split field leaves unresolved to

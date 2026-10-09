@@ -3359,30 +3359,11 @@ function docTree(v: any, name: string, depth: number): HNode {
 }
 
 
-// The bases a row tree divides into: one per value of a field of the
-// top's children, one per child, or the whole.
-function hBases(
-  top: HNode, o: { splitBy?: string, splitRoots?: boolean },
-  path: (key: string) => string, root: any, loss: ViewLoss[]
-): HBase[] {
+// The bases a row tree divides into without a field: one per child, or
+// the whole.
+function hBases(top: HNode, splitRoots: boolean | undefined): HBase[] {
   const keys = top.kids.map((k) => k.name)
-  if (undefined !== o.splitBy) {
-    const field = o.splitBy
-    const unresolved: Unresolved = []
-    const of = new Map<string, string[]>()
-    for (const k of keys) {
-      const v = fieldOf(root, path(k), field)
-      if (undefined === v) {
-        unresolved.push(path(k) + '.' + field)
-        continue
-      }
-      of.set(v, [...(of.get(v) ?? []), k])
-    }
-    addUnresolved(loss, unresolved)
-    return [...of.keys()].sort(cmpCodePoint)
-      .map((name) => ({ name, top, keys: of.get(name) as string[] }))
-  }
-  return true === o.splitRoots
+  return true === splitRoots
     ? keys.map((k) => ({ name: k, top, keys: [k] }))
     : [{ top, keys }]
 }
@@ -3449,8 +3430,10 @@ function drawDocParts(
   const at = o.at ?? '$'
   const depth = o.depth || DEFAULT_DOC_DEPTH
   const top = docTree(anchorAt(root, at), at, depth)
-  const cut = packRows(hBases(top, o, (k) => at + '.' + k, root, loss),
-    o.budget ?? 0)
+  const bases: HBase[] = undefined === o.splitBy ? hBases(top, o.splitRoots)
+    : groupedBy(top.kids.map((k) => k.name), (k) => at + '.' + k, o.splitBy,
+      root, loss).map(([name, keys]) => ({ name, top, keys }))
+  const cut = packRows(bases, o.budget ?? 0)
   const parts: ViewPart[] = []
   for (const part of cut) {
     if (hasLineBreak(part.name)) {
@@ -3483,32 +3466,14 @@ function drawTreemapParts(
   }
   const at = o.at ?? '$'
   const top = treemapTop(root, o, []).top as Tile
-  let bases: HBase[]
-  if (undefined === o.splitBy) {
-    bases = hBases(top, o, (k) => k, root, loss)
-  }
-  else {
-    // A part by a field is the treemap of the items holding its value,
-    // grouped and weighed afresh.
-    const field = o.splitBy
-    const items = o.members ??
-      docKids(anchorAt(root, at)).map((k) => at + '.' + k)
-    const unresolved: Unresolved = []
-    const of = new Map<string, string[]>()
-    for (const p of items) {
-      const v = fieldOf(root, p, field)
-      if (undefined === v) {
-        unresolved.push(p + '.' + field)
-        continue
-      }
-      of.set(v, [...(of.get(v) ?? []), p])
-    }
-    addUnresolved(loss, unresolved)
-    bases = [...of.keys()].sort(cmpCodePoint).map((name) => {
-      const mine = treemapTop(root, { ...o, only: of.get(name) }, []).top as Tile
-      return { name, top: mine, keys: mine.kids.map((k) => k.name) }
-    })
-  }
+  // A part by a field is the treemap of the items holding its value,
+  // grouped and weighed afresh.
+  const bases: HBase[] = undefined === o.splitBy ? hBases(top, o.splitRoots)
+    : groupedBy(o.members ?? docKids(anchorAt(root, at)).map((k) => at + '.' + k),
+      (p) => p, o.splitBy, root, loss).map(([name, items]) => {
+        const mine = treemapTop(root, { ...o, only: items }, []).top as Tile
+        return { name, top: mine, keys: mine.kids.map((k) => k.name) }
+      })
   const parts: ViewPart[] = []
   for (const part of packRows(bases, o.budget ?? 0)) {
     if (hasLineBreak(part.name)) {
@@ -3557,6 +3522,27 @@ function budgeted<T>(
     }
   }
   return out
+}
+
+
+// Items grouped by the value of a field each holds, the values in
+// code-point order; an item without it is counted, and in no group.
+function groupedBy(
+  items: string[], path: (item: string) => string, field: string,
+  root: any, loss: ViewLoss[]
+): [string, string[]][] {
+  const unresolved: Unresolved = []
+  const of = new Map<string, string[]>()
+  for (const item of items) {
+    const v = fieldOf(root, path(item), field)
+    if (undefined === v) {
+      unresolved.push(path(item) + '.' + field)
+      continue
+    }
+    of.set(v, [...(of.get(v) ?? []), item])
+  }
+  addUnresolved(loss, unresolved)
+  return [...of].sort(([a], [b]) => cmpCodePoint(a, b))
 }
 
 
@@ -3688,20 +3674,8 @@ function splitParts(
   let parts: { name?: string, nodes: string[] }[]
 
   if (undefined !== o.splitBy) {
-    const field = o.splitBy
-    const unresolved: Unresolved = []
-    const of = new Map<string, string[]>()
-    for (const p of sorted) {
-      const v = fieldOf(root, p, field)
-      if (undefined === v) {
-        unresolved.push(p + '.' + field)
-        continue
-      }
-      of.set(v, [...(of.get(v) ?? []), p])
-    }
-    addUnresolved(loss, unresolved)
-    parts = [...of.keys()].sort(cmpCodePoint)
-      .map((name) => ({ name, nodes: of.get(name) as string[] }))
+    parts = groupedBy(sorted, (p) => p, o.splitBy, root, loss)
+      .map(([name, nodes]) => ({ name, nodes }))
   }
   else {
     // Each root takes what it reaches that no earlier root took, in
