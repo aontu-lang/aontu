@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The published meta-schemas ship with the importer (ADR-064)
+
+Both ports, G12 phase 16.
+
+- The meta-schemas of draft-04, draft-06, draft-07, 2019-09 and
+  2020-12, with the 2019-09 and 2020-12 vocabulary meta-schemas, are in
+  every import's document set at their own URIs, so a `$ref` to
+  `https://json-schema.org/draft/2020-12/schema` or into
+  `http://json-schema.org/draft-07/schema#` resolves without `--doc`.
+  A document the caller gives at one of those URIs is read instead.
+  They are vendored, as json-schema.org serves them, in
+  `test/vectors/json-schema-spec/` under their BSD 3-Clause licence,
+  and `make metaschemas` stages them into both ports.
+- Another document is read only where a reference reaches it: both
+  ports crashed on a pointer into a document that referred to itself
+  elsewhere, as the draft-07 meta-schema does, while checking its
+  unreached subschemas.
+- The suite's `ref.json` "remote ref, containing refs itself" passes in
+  every directory, as does the valid case of "validate definition
+  against metaschema"; its invalid case joins the ledger, since a root
+  that is only a `$ref` to the meta-schema is not a map and its
+  recursion is cut. The ledgers hold 13, 21, 14, 4 and 4 rows.
+
 ### JSON Schema vocabularies (ADR-063)
 
 Both ports, G12 phase 16.

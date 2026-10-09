@@ -21,6 +21,7 @@ import { importForm } from './regex'
 import { exactNumberText, isExactInBinary64, readExactNumber } from './val/numkind'
 import { normalizeUri, resolveUri } from './uri'
 import { VOCABULARY_TABLE } from './vocabularies'
+import { META_SCHEMAS } from './metaschemas'
 import type { ExactNumber } from './val/numkind'
 
 
@@ -2502,6 +2503,13 @@ function begin(text: string, options?: ImportOptions): [Ctx, JNode | undefined] 
       base.doc = doc
     }
   }
+  // ADR-064: the published meta-schemas, each at its own URI where the
+  // set gives none there.
+  for (const [key, meta] of Object.entries(META_SCHEMAS)) {
+    if (!base.documents.has(key)) {
+      base.documents.set(key, meta)
+    }
+  }
   if (!dialectDefault(base, options?.dialect)) {
     return [base, undefined]
   }
@@ -2569,9 +2577,10 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
     }
   }
   // A subschema nothing reaches is still a schema, and one written
-  // wrongly fails the import as a reached one does.
+  // wrongly fails the import as a reached one does. Another document is
+  // read only where a reference reaches it.
   for (const [node, ptr] of base.ptrOf) {
-    if (!ctx.seen.has(node)) {
+    if (!ctx.seen.has(node) && base.doc === base.docOf.get(node)) {
       convert({ ...ctx, lossy: [], decls: new Map(), stack: [], copies: 0 }, node, ptr, false)
     }
   }

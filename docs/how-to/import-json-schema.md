@@ -291,6 +291,8 @@ Schema asks.
   set: pass it with `--doc <uri> <file>`, and the schema's own URI with
   `--uri` where its references are relative. Nothing is fetched, and a
   reference the import cannot reach refuses it with `jsonschema_ref`.
+  The published meta-schemas of the five dialects, and of their
+  vocabularies, are in the set without `--doc`.
 - A `$dynamicRef` is specialised to the dynamic scope it is read in, so
   a schema reached through scopes that bind its dynamic anchors
   differently is declared once for each, its later declarations named

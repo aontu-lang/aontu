@@ -33,6 +33,11 @@ pinned to, and its own skip ledger:
 - [`jsontestsuite/`](jsontestsuite/README.md), JSONTestSuite's parsing
   cases, read as instances.
 
+A fourth, [`json-schema-spec/`](json-schema-spec/README.md), holds the
+published meta-schemas of the five dialects the importer reads, which
+it ships: `make metaschemas` stages them into both ports, where every
+import finds them at their own URIs.
+
 ## The format corpora
 
 Three more directories hold public corpora the format runners,

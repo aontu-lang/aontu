@@ -3171,6 +3171,13 @@ func beginImport(text string, opts *ImportOptions) (*importCtx, *jnode) {
 			base.doc = doc
 		}
 	}
+	// ADR-064: the published meta-schemas, each at its own URI where the
+	// set gives none there.
+	for key, meta := range importMetaSchemas {
+		if _, given := base.documents[key]; !given {
+			base.documents[key] = meta
+		}
+	}
 	if !base.dialectDefault(opts.Dialect) {
 		return base, nil
 	}
@@ -3251,9 +3258,10 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 		}
 	}
 	// A subschema nothing reaches is still a schema, and one written
-	// wrongly fails the import as a reached one does.
+	// wrongly fails the import as a reached one does. Another document is
+	// read only where a reference reaches it.
 	for _, node := range base.order {
-		if !ctx.seen[node] {
+		if !ctx.seen[node] && base.doc == base.docOf[node] {
 			v := *ctx
 			v.lossy, v.decls, v.stack, v.copies = []SchemaLoss{}, map[string]string{}, nil, 0
 			v.convert(node, base.ptrOf[node], false, nil)

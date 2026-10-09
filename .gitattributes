@@ -48,6 +48,13 @@ docs/skill/init/** text eol=lf
 aontu/** text eol=lf
 go/aontumodel/** text eol=lf
 
+# The published JSON Schema meta-schemas are upstream's bytes, and
+# go/metaschemas/ is their embedded mirror (`make metaschemas`): a CRLF
+# checkout of the mirror would embed bytes the identity tests do not
+# compare equal.
+test/vectors/json-schema-spec/** -text
+go/metaschemas/** text eol=lf
+
 # The same rule, for the same reason, over every other file the suite
 # READS AS DATA rather than compiles: the documentation is executed
 # (ts/test/docs.test.ts extracts fenced examples and runs them), and the

@@ -17,6 +17,7 @@ const regex_1 = require("./regex");
 const numkind_1 = require("./val/numkind");
 const uri_1 = require("./uri");
 const vocabularies_1 = require("./vocabularies");
+const metaschemas_1 = require("./metaschemas");
 exports.IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers'];
 const JSON_DEPTH = 256;
 const JSON_ESCAPES = {
@@ -2086,6 +2087,13 @@ function begin(text, options) {
             base.doc = doc;
         }
     }
+    // ADR-064: the published meta-schemas, each at its own URI where the
+    // set gives none there.
+    for (const [key, meta] of Object.entries(metaschemas_1.META_SCHEMAS)) {
+        if (!base.documents.has(key)) {
+            base.documents.set(key, meta);
+        }
+    }
     if (!dialectDefault(base, options?.dialect)) {
         return [base, undefined];
     }
@@ -2145,9 +2153,10 @@ function importJsonSchema(text, options) {
         }
     }
     // A subschema nothing reaches is still a schema, and one written
-    // wrongly fails the import as a reached one does.
+    // wrongly fails the import as a reached one does. Another document is
+    // read only where a reference reaches it.
     for (const [node, ptr] of base.ptrOf) {
-        if (!ctx.seen.has(node)) {
+        if (!ctx.seen.has(node) && base.doc === base.docOf.get(node)) {
             convert({ ...ctx, lossy: [], decls: new Map(), stack: [], copies: 0 }, node, ptr, false);
         }
     }

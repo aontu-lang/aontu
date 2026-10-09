@@ -1,8 +1,8 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
-        helpdoc aontu formats formatgen unicodegen vocabularies prose prose-counts \
-        comments hooks
+        helpdoc aontu formats formatgen unicodegen vocabularies metaschemas prose \
+        prose-counts comments hooks
 
 all: build test
 
@@ -114,7 +114,7 @@ cov-go:
 	cd go && rm -rf covdata bin coverage-unit.out coverage-main.out
 
 # TypeScript (canonical implementation, package lives in ts/)
-build-ts: sig helpdoc aontu formats vocabularies
+build-ts: sig helpdoc aontu formats vocabularies metaschemas
 	cd ts && npm run build
 	node ts/scripts/figures.cjs
 
@@ -152,6 +152,15 @@ formatgen:
 unicodegen:
 	node ts/scripts/unicodegen.cjs
 	node ts/scripts/unicodegen.cjs --delta
+
+# Stage the published JSON Schema meta-schemas the importer ships
+# (ADR-064) from test/vectors/json-schema-spec/ into ts/src/metaschemas.ts
+# and go/metaschemas/, with their licence. The Go half must be a
+# committed copy: //go:embed cannot read above its own package directory.
+# Both suites assert byte identity with the vendored documents, so a
+# stale copy fails rather than ships.
+metaschemas:
+	node ts/scripts/metaschemas.cjs
 
 # Stage the JSON Schema vocabulary table the importer reads (ADR-063)
 # from grammar/jsonschema/vocabularies.tsv into ts/src/vocabularies.ts and

@@ -1579,7 +1579,11 @@ y: number
 - `--uri <uri>` is the schema's retrieval URI, the base its relative
   identifiers and references resolve against. `--doc <uri> <file>`,
   given once per document, adds a document a reference may reach by
-  that URI, a relative one read against the schema's. Nothing is
+  that URI, a relative one read against the schema's. The published
+  meta-schemas of the five dialects and of their vocabularies are in
+  the set already, each at its own URI unless `--doc` gives a document
+  there, so a reference reaches them without one. Another document is
+  read only where a reference reaches it. Nothing is
   fetched: a reference to a document outside the
   set, or to a pointer or anchor that names nothing, refuses the import
   with `jsonschema_ref`, and two documents given one URI with different

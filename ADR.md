@@ -5953,3 +5953,55 @@ now scopes strings itself, in both ports.
   meta-schema remain phase 16's work.
 - Pinned by fifteen `jsonschema-import` rows, four more re-pinned,
   every expectation from both engines.
+
+## ADR-064 — The published meta-schemas ship with the importer
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+A schema reaches its dialect's meta-schema by URI, `$ref:
+"https://json-schema.org/draft/2020-12/schema"` or the draft-07
+meta-schema's `#/definitions/...`, and the importer fetches nothing, so
+every such reference refused with `jsonschema_ref` unless the caller
+supplied the document with `--doc`. The design ships the meta-schemas as
+bundled models; the vocabulary table (ADR-063) and the check of an input
+against its meta-schema both need them in the document set.
+
+### Decision
+
+1. **The documents ship, as json-schema.org serves them.** The
+   meta-schemas of the five dialects and the 2019-09 and 2020-12
+   vocabulary meta-schemas are vendored in
+   `test/vectors/json-schema-spec/`, with json-schema-spec's licence at
+   a pinned commit, the BSD 3-Clause one taken, and a README naming each
+   URI and hash. `make metaschemas` stages them into
+   `ts/src/metaschemas.ts` and `go/metaschemas/`, with the licence, and
+   each suite asserts its copy is identical. The served copies are taken
+   over the spec repository's tags because they are what each
+   identifier reaches; they differ only in the `$vocabulary` a tagged
+   vocabulary meta-schema declared.
+2. **They are in every import's document set,** each at the URI its own
+   identifier gives, wherever the caller gives no document there; a
+   caller's document at one of those URIs is read instead.
+3. **Another document is read only where a reference reaches it.** The
+   pass that checks a subschema nothing reached checks the input's own,
+   not those of each document a reference opened: both ports crashed on
+   a pointer into a document that referred to itself elsewhere, since
+   that reference was never collected, and an unrelated fault elsewhere
+   in a referenced document refused the import.
+
+### Consequences
+
+- `ref.json`'s "remote ref, containing refs itself" passes in all five
+  directories, as does the valid case of "validate definition against
+  metaschema". Its invalid case is a ledger row: a root that is only a
+  `$ref` to the meta-schema is not a map, so the importer copies the
+  recursion in place and cuts it, and an invalid nested definition
+  passes. The ledgers hold 13, 21, 14, 4 and 4 rows, under bounds
+  tightened by one each.
+- The standard meta-schemas' `$vocabulary` is now read, and lists every
+  vocabulary of its dialect, so no schema naming one reads differently.
+- Pinned by eight `jsonschema-import` rows, every expectation from both
+  engines.

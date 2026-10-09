@@ -252,7 +252,7 @@ func runCorpus(t *testing.T, name string, bound int, groups []suiteGroup,
 
 // Each ledger may not grow past its bound; the register tightens them.
 func TestJSONSchemaSuite(t *testing.T) {
-	runCorpus(t, "jsonschema/skips.tsv", 14,
+	runCorpus(t, "jsonschema/skips.tsv", 13,
 		suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", "draft2020-12"), ""),
 		suiteRemotes(t))
 }
@@ -264,8 +264,8 @@ func TestJSONSchemaSuiteEarlierDialects(t *testing.T) {
 	for _, d := range []struct {
 		dir, dialect string
 		bound        int
-	}{{"draft2019-09", "2019-09", 22}, {"draft7", "draft-07", 15}, {"draft6", "draft-06", 5},
-		{"draft4", "draft-04", 5}} {
+	}{{"draft2019-09", "2019-09", 21}, {"draft7", "draft-07", 14}, {"draft6", "draft-06", 4},
+		{"draft4", "draft-04", 4}} {
 		t.Run(d.dir, func(t *testing.T) {
 			runCorpus(t, "jsonschema/skips-"+d.dir+".tsv", d.bound,
 				suiteGroups(t, filepath.Join(vectorsDir, "jsonschema", "tests", d.dir), d.dialect),
