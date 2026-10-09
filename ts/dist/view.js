@@ -1028,7 +1028,8 @@ function groupTitle(name, members, root, o, unresolved) {
         }
         const parts = [...by.keys()].sort(keyorder_1.cmpCodePoint)
             .map((k) => `${k} ${by.get(k)}`);
-        return `${name} (${real.length}: ${parts.join(', ')})`;
+        return 0 === parts.length ? `${name} (0)`
+            : `${name} (${real.length}: ${parts.join(', ')})`;
     }
     return true === o.counts ? `${name} (${real.length})` : name;
 }
@@ -1160,6 +1161,10 @@ function drawGraph(triples, decls, root, o, max, loss) {
         return { errors: [built.error] };
     }
     const nodes = built.nodes;
+    // A ghost lives in another part, so no group of this one holds it.
+    for (const n of nodes.filter((n) => true === n.ghost)) {
+        delete n.group;
+    }
     // Groups in label order, ids ordinal; nodes within a group, and the
     // ungrouped after them, in label order. That order is the emitted
     // order, and the crossing count is a property of it.
@@ -2302,13 +2307,13 @@ function drawTreemap(root, o, max, loss) {
         if (undefined === o.size) {
             return leafWeight(v);
         }
-        const s = throughDoc((0, vet_1.anchorAt)(root, path + '.' + o.size) ?? v);
-        if ((0, vet_1.anchorAt)(root, path + '.' + o.size) == null ||
-            'number' !== typeof s.peg || !Number.isInteger(s.peg) || 0 > s.peg) {
+        const field = (0, vet_1.anchorAt)(root, path + '.' + o.size);
+        const n = null == field ? undefined : throughDoc(field).peg;
+        if ('number' !== typeof n || !Number.isInteger(n) || 0 > n) {
             unresolved.push(path + '.' + o.size);
             return 0;
         }
-        return s.peg;
+        return n;
     };
     // With --size, a node holding the field is a tile weighed by it.
     const holds = (path) => undefined !== o.size && null != (0, vet_1.anchorAt)(root, path + '.' + o.size);

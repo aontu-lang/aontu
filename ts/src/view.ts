@@ -1514,7 +1514,8 @@ function groupTitle(
     }
     const parts = [...by.keys()].sort(cmpCodePoint)
       .map((k) => `${k} ${by.get(k)}`)
-    return `${name} (${real.length}: ${parts.join(', ')})`
+    return 0 === parts.length ? `${name} (0)`
+      : `${name} (${real.length}: ${parts.join(', ')})`
   }
   return true === o.counts ? `${name} (${real.length})` : name
 }
@@ -1679,6 +1680,10 @@ function drawGraph(
     return { errors: [built.error] }
   }
   const nodes = built.nodes as GNode[]
+  // A ghost lives in another part, so no group of this one holds it.
+  for (const n of nodes.filter((n) => true === n.ghost)) {
+    delete n.group
+  }
 
   // Groups in label order, ids ordinal; nodes within a group, and the
   // ungrouped after them, in label order. That order is the emitted
@@ -3057,13 +3062,13 @@ function drawTreemap(
     if (undefined === o.size) {
       return leafWeight(v)
     }
-    const s: any = throughDoc(anchorAt(root, path + '.' + o.size) ?? v)
-    if (anchorAt(root, path + '.' + o.size) == null ||
-      'number' !== typeof s.peg || !Number.isInteger(s.peg) || 0 > s.peg) {
+    const field: any = anchorAt(root, path + '.' + o.size)
+    const n = null == field ? undefined : throughDoc(field).peg
+    if ('number' !== typeof n || !Number.isInteger(n) || 0 > n) {
       unresolved.push(path + '.' + o.size)
       return 0
     }
-    return s.peg
+    return n
   }
   // With --size, a node holding the field is a tile weighed by it.
   const holds = (path: string): boolean =>

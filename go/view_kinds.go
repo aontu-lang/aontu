@@ -107,7 +107,7 @@ func viewGroupTitle(name string, members []*graphNode, root Val, counts bool,
 			by[v]++
 		}
 	}
-	if "" != countBy {
+	if "" != countBy && 0 < real {
 		keys := []string{}
 		for k := range by {
 			keys = append(keys, k)
@@ -119,7 +119,7 @@ func viewGroupTitle(name string, members []*graphNode, root Val, counts bool,
 		}
 		return name + " (" + strconv.Itoa(real) + ": " + strings.Join(parts, ", ") + ")"
 	}
-	if counts {
+	if counts || "" != countBy {
 		return name + " (" + strconv.Itoa(real) + ")"
 	}
 	return name
@@ -344,6 +344,12 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 	nodes, nerr := viewGraphNodes(paths, root, o.groupBy, o.label, o.ghosts, &unresolved)
 	if nil != nerr {
 		return "", []VetFinding{*nerr}
+	}
+	// A ghost lives in another part, so no group of this one holds it.
+	for _, n := range nodes {
+		if n.ghost {
+			n.group, n.grouped = "", false
+		}
 	}
 
 	groupSeen := map[string]bool{}

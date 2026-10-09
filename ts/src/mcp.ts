@@ -564,7 +564,7 @@ const TOOLS: ToolDef[] = [
     docs: ['source'],
     check: (a) => {
       const kinds = ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer',
-        'sets', 'layers', 'ladder']
+        'sets', 'layers', 'ladder', 'state', 'sequence', 'lane', 'treemap']
       if (null != a.kind && !kinds.includes(a.kind)) {
         return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`
       }
