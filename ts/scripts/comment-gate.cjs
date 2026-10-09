@@ -22,6 +22,7 @@ const GENERATED = new Set([
   'ts/src/helpdoc.ts',
   'ts/src/aontumodel.ts',
   'ts/src/formatgrammars.ts',
+  'ts/src/unicodeprops.ts',
   'go/aontumodel.go',
 ])
 

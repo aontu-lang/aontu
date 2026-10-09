@@ -1367,7 +1367,8 @@ and a Pike VM in both ports, Unicode property tables limited to what
 `u` mode requires and sized in the register, the regenerated
 regex corpus (ADR-003 rule 6), the test262 property-escape tests and
 the regex test data vendored, and `pattern` stage three. ADR-003's
-recorded direction becomes a decision.
+recorded direction becomes a decision. Landed 2026-10-09; the register
+records the departures.
 
 **Phase 15: legacy dialects (M).** The dialect table's legacy entries,
 the upgrade stage, the `jsonschema-upgrade` mode, and the suite's

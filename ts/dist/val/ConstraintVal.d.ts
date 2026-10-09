@@ -1,6 +1,7 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import type { Grammar } from '../formatgrammar';
+import type { Inst } from '../regex';
 import { FeatureVal } from './FeatureVal';
 type Bound = {
     v: any;
@@ -10,7 +11,7 @@ type ReAtom = {
     v: any;
     src: string;
     norm: string;
-    re: RegExp;
+    prog: Inst[];
 };
 type MustAtom = {
     v: any;

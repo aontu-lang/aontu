@@ -21,6 +21,7 @@ const IntegerVal_1 = require("./IntegerVal");
 const StringVal_1 = require("./StringVal");
 const err_1 = require("../err");
 const formatgrammar_1 = require("../formatgrammar");
+const regex_1 = require("../regex");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
 const ScalarKindVal_1 = require("./ScalarKindVal");
@@ -160,24 +161,11 @@ function normaliseEscape(n, src, i, inClass) {
     return ['', '\\' + n + ', an escape whose meaning the two engines do not' +
             ' share', 0];
 }
-// The pattern compiled from its portable form, or why it is refused.
-function compileRe(src) {
-    const [norm, why] = normaliseRe(src);
-    if ('' !== why) {
-        return [undefined, norm, why];
-    }
-    try {
-        return [new RegExp(norm, 'u'), norm, ''];
-    }
-    catch (e) {
-        return [undefined, norm, 'not a valid pattern'];
-    }
-}
 // Why the format refuses s, or undefined where it admits it (ADR-059).
 function formatWhy(f, s) {
     const head = 'format ' + f.name + ': ';
     if (undefined === f.gs) {
-        const why = compileRe(s)[2];
+        const why = (0, regex_1.ecmaWhy)(s);
         return '' === why ? undefined : head + why;
     }
     const cps = [...s];
@@ -546,13 +534,13 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return bad('invalid-arg');
             }
             const src = a.peg;
-            const [re, norm, why] = compileRe(src);
-            if (undefined === re) {
+            const [prog, why] = (0, regex_1.compilePattern)(src, 'aontu');
+            if (undefined === prog) {
                 this.invalidWhy = why;
                 return bad('constraint_pattern');
             }
             this.domain = 'string';
-            this.res = [{ v: a, src, norm, re }];
+            this.res = [{ v: a, src, norm: (0, regex_1.exportForm)(src)[0], prog }];
             return;
         }
         // A committed name or a grammar, read and checked once (ADR-059).
@@ -1623,7 +1611,7 @@ function stateAdmits(s, peer) {
         }
     }
     for (const r of s.res) {
-        if (!r.re.test(peer.peg)) {
+        if (!(0, regex_1.patternMatches)(r.prog, peer.peg)) {
             return false;
         }
     }

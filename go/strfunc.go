@@ -200,7 +200,12 @@ func splitFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 			fields = strings.Split(src, lit)
 		}
 	} else if cv, isC := sep.(*ConstraintVal); isC && 1 == len(cv.res) {
-		fields = cv.res[0].re.Split(src, -1)
+		// The host engine splits, so only a pattern of the portable subset.
+		host, code := compileSubsetRe(cv.res[0].src)
+		if "" != code {
+			return makeNilErr(ctx, code, f, nil)
+		}
+		fields = host.Split(src, -1)
 	} else {
 		return makeNilErr(ctx, "split_sep", f, nil)
 	}

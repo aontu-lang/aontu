@@ -5,7 +5,6 @@ package aontu
 
 import (
 	"math"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -63,9 +62,10 @@ type constraintRe struct {
 	v *ScalarVal
 	// src is the pattern text AS WRITTEN -- Canon and dedup use this,
 	// never the normalised form, because canon round-trips source.
-	src  string
+	src string
+	// norm is the export's pattern, in ECMA-262's syntax, meaning the same.
 	norm string
-	re   *regexp.Regexp // compiled by the host engine, from norm
+	prog []rxInst // compiled by aontu's own matcher (ADR-060)
 }
 
 
@@ -268,26 +268,12 @@ type reGroup struct {
 	q, alt bool
 }
 
-// compileRe is the pattern compiled from its portable form, or why it is
-// refused.
-func compileRe(src string) (*regexp.Regexp, string, string) {
-	norm, why := normaliseRe(src)
-	if "" != why {
-		return nil, norm, why
-	}
-	re, err := regexp.Compile(norm)
-	if nil != err {
-		return nil, norm, "not a valid pattern"
-	}
-	return re, norm, ""
-}
-
 // formatWhy is why the format refuses s, or "" where it admits it
 // (ADR-059).
 func formatWhy(f constraintFormat, s string) string {
 	head := "format " + f.name + ": "
 	if nil == f.gs {
-		if _, _, why := compileRe(s); "" != why {
+		if why := ecmaWhy(s); "" != why {
 			return head + why
 		}
 		return ""
@@ -523,9 +509,9 @@ type ConstraintVal struct {
 	emptyOk  bool
 	// pathKind met `path`, which shares string's domain but not its kind.
 	pathKind bool
-	// invalidWhy is the human half of a constraint_pattern refusal: which
-	// construct put the pattern outside the portable subset. Injected
-	// into the hint as {reason}; the TS twin carries the same string.
+	// invalidWhy is the human half of a constraint_pattern refusal: why
+	// the pattern is refused. Injected into the hint as {reason}; the TS
+	// twin carries the same string.
 	invalidWhy string
 }
 
@@ -789,13 +775,14 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			return bad("invalid-arg")
 		}
 		src := psv.peg.(string)
-		re, norm, why := compileRe(src)
-		if nil == re {
+		prog, why := compilePattern(src, "aontu")
+		if nil == prog {
 			c.invalidWhy = why
 			return bad("constraint_pattern")
 		}
+		norm, _ := exportForm(src)
 		c.domain = "string"
-		c.res = []constraintRe{{v: psv, src: src, norm: norm, re: re}}
+		c.res = []constraintRe{{v: psv, src: src, norm: norm, prog: prog}}
 		return c
 	}
 
@@ -2196,7 +2183,7 @@ func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
 		}
 	}
 	for _, r := range s.res {
-		if !r.re.MatchString(peer.peg.(string)) {
+		if !patternMatches(r.prog, peer.peg.(string)) {
 			return false
 		}
 	}

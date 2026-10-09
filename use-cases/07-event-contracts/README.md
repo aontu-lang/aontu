@@ -74,7 +74,7 @@ than its value.
 | `orders-v1.aontu` | the v1 contract: three closed event shapes, the `Event` union, the dispatch `registry` |
 | `orders-v1-1.aontu` | additive minor revision (optional field + new event type) |
 | `orders-v2.aontu` | deliberately breaking revision (required field added, enum narrowed) |
-| `probes/*.aontu` | small documents, one question each: the two spellings of an enum with a default, a regex outside the portable subset, a `match()` dispatcher; `data/probe-*.json` are their instances |
+| `probes/*.aontu` | small documents, one question each: the two spellings of an enum with a default, a regex with a quantified group inside a quantified group, a `match()` dispatcher; `data/probe-*.json` are their instances |
 | `data/stream/` | a valid three-event stream sample |
 | `data/bad/`, `data/ids/` | invalid events and id edge cases |
 | `expected/` | canon and inventory goldens |
@@ -152,23 +152,15 @@ $.registry."order.placed": no_path [reference]
   The path $.registry."order.placed" names nothing in this document.
 ```
 
-`re()` takes a portable pattern subset, and a quantifier applied to
-a group containing another quantifier is outside it, so the natural
-optional-fraction spelling `(\.\d+)?(Z|[+-]\d{2}:\d{2})`
-(`probes/frac-group.aontu`) is refused:
-
-```
-[aontu/constraint_pattern]: Cannot constrain value at path $.BadTime.time
-
-This re() pattern is outside the supported subset. It uses
-a quantifier applied to a group containing another quantifier, which backtracks exponentially in JavaScript.
-```
-
-The refusal goes on to print the accepted subset in full. The
-envelope writes the optionality as one unquantified alternation
-group, `(Z|\.\d+Z|[+-]\d{2}:\d{2}|\.\d+[+-]\d{2}:\d{2})`. A pattern
-checks shape, not the calendar: `2026-13-41T25:61:61Z` matches it and
-vets valid.
+The natural optional-fraction spelling, `(\.\d+)?(Z|[+-]\d{2}:\d{2})`
+(`probes/frac-group.aontu`), applies a quantifier to a group holding
+another quantifier. `re()` matches with aontu's own engine, whose cost
+is linear in the text for every pattern, so the spelling is accepted
+and `check.sh` pins that. The envelope writes the optionality as one
+unquantified alternation group instead,
+`(Z|\.\d+Z|[+-]\d{2}:\d{2}|\.\d+[+-]\d{2}:\d{2})`, which means the
+same. A pattern checks shape, not the calendar: `2026-13-41T25:61:61Z`
+matches it and vets valid.
 
 A 19-digit id written as a plain JSON literal is refused rather than
 rounded, because binary64 cannot hold it exactly:

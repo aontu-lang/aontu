@@ -1,12 +1,12 @@
-# The constraint algebra: pattern membership (G1 phase 2).
-# Promoted from test/spec/draft/constraint-re.tsv; every expectation
-# below was re-probed through BOTH engines at promotion time, per the
-# parity-probe rule in AGENTS.md. Normative design:
-# docs/reference-language.md, "The constraint algebra".
+# The constraint algebra: pattern membership (G1 phase 2), matched by
+# aontu's own engine (ADR-060). Promoted from
+# test/spec/draft/constraint-re.tsv; every expectation below was probed
+# through BOTH engines, per the parity-probe rule in AGENTS.md. Normative
+# design: docs/reference-language.md, "The constraint algebra".
 #
-# re(p) admits a string matching p. Matching is UNANCHORED in both
-# engines (JS RegExp.test, Go MatchString) -- anchor with ^ and $ to
-# mean the whole string.
+# re(p) admits a string matching p. Matching is UNANCHORED -- a match
+# anywhere in the string admits it -- so anchor with ^ and $ to mean the
+# whole string.
 re-match	gen	a:re("^[a-z]+$") a:hello	{"a":"hello"}
 re-match-gens	gens	a:re("^[a-z]+$") a:hello	{"a":"hello"}
 re-unanchored	gen	a:re("el") a:hello	{"a":"hello"}
@@ -51,122 +51,213 @@ re-peer-list	errc	a:re("x")&[1]	constraint
 re-peer-map	errc	a:re("x")&{b:1}	constraint
 re-peer-numeric-kind	errc	a:re("x")&integer	constraint
 #
-# THE PORTABLE SUBSET. A pattern must mean the same thing in both
-# engines, so it is checked against one shared syntactic subset
-# (nonPortableRe, mirrored in ts/src/val/ConstraintVal.ts and
-# go/constraint.go) BEFORE either host engine compiles it. Refusal is
-# the registered `constraint_pattern` code. As with every other invalid
-# atom (errc-invalid-atom-residual), the code is raised when the
-# residual is DRIVEN in a meet; on its own it is merely non-generable.
-re-nonportable-lookahead	errc	a:re("(?=x)y")&"y"	constraint_pattern
-re-nonportable-lookbehind	errc	a:re("(?<=x)y")&"y"	constraint_pattern
-re-nonportable-backref	errc	a:re("(x)\\\\1")&"xx"	constraint_pattern
-re-nonportable-named-backref	errc	a:re("\\\\k<n>")&"x"	constraint_pattern
-re-nonportable-named-group	errc	a:re("(?<n>x)")&"x"	constraint_pattern
-re-nonportable-posix-class	errc	a:re("[[:alpha:]]")&"x"	constraint_pattern
-re-nonportable-empty-class	errc	a:re("[]")&"x"	constraint_pattern
-re-nonportable-negated-empty-class	errc	a:re("[^]")&"x"	constraint_pattern
-re-nonportable-u-escape	errc	a:re("a\\\\u0041")&"x"	constraint_pattern
-re-nonportable-unicode-class	errc	a:re("\\\\p{L}")&"x"	constraint_pattern
-re-nonportable-hex-brace-escape	errc	a:re("a\\\\x{41}")&"x"	constraint_pattern
-re-nonportable-unterminated-class	errc	a:re("[abc")&"x"	constraint_pattern
-re-nonportable-trailing-backslash	errc	a:re("\\\\")&"x"	constraint_pattern
-re-nonportable-trailing-backslash-msg	err	a:re("\\\\")&"x"	a trailing backslash
-# ABBREVIATIONS ARE NORMALISED, NOT REFUSED (ADR-003). aontu DEFINES
-# what each abbreviation means and rewrites both hosts to it, so neither
-# host's reading is inherited:
+# WHAT re() READS: ECMA-262's pattern syntax in u mode, parsed and run
+# by aontu's own matcher (ts/src/regex.ts, go/regex.go). No host regex
+# engine reads a pattern, so a pattern means one thing in both ports by
+# construction rather than by a subset both hosts happen to share.
+#
+# Refusal is the registered `constraint_pattern` code: for a syntax
+# error u mode defines, and for the constructs no regular language
+# holds. As with every other invalid atom (errc-invalid-atom-residual),
+# the code is raised when the residual is DRIVEN in a meet; on its own
+# it is merely non-generable.
+re-refused-lookahead	errc	a:re("(?=x)y")&"y"	constraint_pattern
+re-refused-negative-lookahead	errc	a:re("(?!x)y")&"y"	constraint_pattern
+re-refused-lookbehind	errc	a:re("(?<=x)y")&"y"	constraint_pattern
+re-refused-negative-lookbehind	errc	a:re("(?<!x)y")&"y"	constraint_pattern
+re-refused-lookaround-msg	err	a:re("(?=x)y")&"y"	a lookaround, which no regular language holds
+re-refused-backref	errc	a:re("(x)\\\\1")&"xx"	constraint_pattern
+re-refused-named-backref	errc	a:re("(?<n>x)\\\\k<n>")&"xx"	constraint_pattern
+re-refused-backref-msg	err	a:re("(x)\\\\1")&"xx"	a backreference, which no regular language holds
+re-refused-backref-to-no-group	errc	a:re("\\\\k<n>")&"x"	constraint_pattern
+re-refused-backref-to-no-group-msg	err	a:re("\\\\k<n>")&"x"	a backreference names no group
+re-refused-k-without-a-name	errc	a:re("\\\\k")&"x"	constraint_pattern
+re-refused-k-without-a-name-msg	err	a:re("\\\\k")&"x"	\\k is not followed by a group name
+# A modifier group, ES2025's (?i:...), is syntax u mode reads, but its
+# flags change what a character matches -- case folding is a table the
+# matcher does not carry -- so it is refused rather than misread. A
+# malformed one is a syntax error.
+re-refused-modifier	errc	a:re("(?i:a)")&"A"	constraint_pattern
+re-refused-modifier-msg	err	a:re("(?i:a)")&"A"	a modifier group, whose flags aontu does not apply
+re-refused-modifier-malformed	errc	a:re("(?ii:a)")&"a"	constraint_pattern
+re-refused-modifier-malformed-msg	err	a:re("(?ii:a)")&"a"	a (? group is not one ECMA-262 defines
+# Syntax errors.
+re-refused-posix-class	errc	a:re("[[:alpha:]]")&"x"	constraint_pattern
+re-refused-hex-brace-escape	errc	a:re("a\\\\x{41}")&"x"	constraint_pattern
+re-refused-unterminated-class	errc	a:re("[abc")&"x"	constraint_pattern
+re-refused-trailing-backslash	errc	a:re("\\\\")&"x"	constraint_pattern
+re-refused-trailing-backslash-msg	err	a:re("\\\\")&"x"	the pattern ends in a backslash
+re-refused-lone-quantifier	errc	a:re("*")&"x"	constraint_pattern
+re-refused-lone-quantifier-msg	err	a:re("*")&"x"	a quantifier has nothing to repeat
+#
+# What u mode reads that a portable subset of two host engines could
+# not: named groups (a name is an identifier, and names nothing a
+# pattern can refer back to), the empty class and its complement, and
+# the \u and \c escapes.
+re-named-group-is-a-group	gens	a:re("(?<n>x)")&"x"	{"a":"x"}
+re-unicode-group-name	gen	a:re("^(?<ж>x)$")&"x"	{"a":"x"}
+re-escaped-group-name	gen	a:re("^(?<\\\\u0061b>x)$")&"x"	{"a":"x"}
+re-group-name-not-an-identifier	errc	a:re("(?<1a>x)")&"x"	constraint_pattern
+# ES2025: one name in two alternatives of one disjunction, where the two
+# groups can never both match; anywhere else, twice is an error.
+re-duplicate-name-in-alternatives	gen	a:re("^(?:(?<y>a)|(?<y>b))$")&"b"	{"a":"b"}
+re-duplicate-name-refused	errc	a:re("(?<y>a)(?<y>b)")&"ab"	constraint_pattern
+re-duplicate-name-msg	err	a:re("(?<y>a)(?<y>b)")&"ab"	a group name is used twice
+# [] matches no character and [^] any one, a newline included.
+re-empty-class-admits-nothing	errc	a:re("[]")&"x"	constraint
+re-negated-empty-class-admits-any	gens	a:re("[^]")&"x"	{"a":"x"}
+re-negated-empty-class-admits-a-newline	gen	a:re("^[^]$")&"\\n"	{"a":"\\n"}
+re-escape-u	gen	a:re("^a\\\\u0041$")&"aA"	{"a":"aA"}
+re-escape-u-mismatch	errc	a:re("a\\\\u0041")&"x"	constraint
+re-escape-u-brace	gen	a:re("^\\\\u{1D11E}$")&"𝄞"	{"a":"𝄞"}
+re-escape-u-surrogate-pair	gen	a:re("^\\\\uD834\\\\uDD1E$")&"𝄞"	{"a":"𝄞"}
+re-escape-high-surrogate-alone	errc	a:re("\\\\uD83D\\\\u0041")&"x"	constraint
+re-escape-u-brace-past-unicode	errc	a:re("\\\\u{110000}")&"x"	constraint_pattern
+re-escape-u-brace-past-unicode-msg	err	a:re("\\\\u{110000}")&"x"	a \\u{...} escape is past U+10FFFF
+re-escape-control	gen	a:re("^\\\\cJ$")&"\\n"	{"a":"\\n"}
+re-escape-control-not-a-letter	errc	a:re("\\\\c1")&"x"	constraint_pattern
+re-escape-null-before-digit	errc	a:re("\\\\01")&"x"	constraint_pattern
+#
+# UNICODE PROPERTIES. \p{...} and its complement \P{...} name a
+# General_Category value or group, a Script or Script_Extensions value,
+# or a binary property, by any name ECMA-262 lists, spelled exactly. The
+# tables are the Unicode Character Database release ts/scripts/ucd.cjs
+# pins, generated once for both ports (ts/scripts/unicodegen.cjs).
+re-property-letter	gen	a:re("^\\\\p{L}+$")&"aÀж"	{"a":"aÀж"}
+re-property-letter-refuses-a-digit	errc	a:re("^\\\\p{L}+$")&"a1"	constraint
+re-property-long-name	gen	a:re("^\\\\p{Uppercase_Letter}$")&"Ж"	{"a":"Ж"}
+re-property-gc-key	gen	a:re("^\\\\p{gc=Lu}$")&"Ж"	{"a":"Ж"}
+re-property-general-category-key	gen	a:re("^\\\\p{General_Category=Lu}$")&"Ж"	{"a":"Ж"}
+re-property-category-refuses	errc	a:re("^\\\\p{Lu}$")&"ж"	constraint
+re-property-negated	gen	a:re("^\\\\P{L}$")&"1"	{"a":"1"}
+re-property-negated-refuses	errc	a:re("^\\\\P{L}$")&"ж"	constraint
+re-property-in-class	gen	a:re("^[\\\\p{L}\\\\d]+$")&"ж1"	{"a":"ж1"}
+re-property-in-negated-class	gen	a:re("^[^\\\\p{L}]$")&"1"	{"a":"1"}
+re-property-script	gen	a:re("^\\\\p{Script=Greek}+$")&"αβ"	{"a":"αβ"}
+re-property-script-short	gen	a:re("^\\\\p{sc=Grek}+$")&"αβ"	{"a":"αβ"}
+re-property-script-refuses	errc	a:re("^\\\\p{sc=Greek}$")&"a"	constraint
+# U+3001, the ideographic comma, is Common by Script and Hiragana (with
+# five others) by Script_Extensions.
+re-property-script-extensions	gen	a:re("^\\\\p{scx=Hira}$")&"、"	{"a":"、"}
+re-property-script-extensions-long	gen	a:re("^\\\\p{Script_Extensions=Hiragana}$")&"、"	{"a":"、"}
+re-property-script-not-its-extensions	errc	a:re("^\\\\p{sc=Hira}$")&"、"	constraint
+re-property-binary	gen	a:re("^\\\\p{Alphabetic}+$")&"aж"	{"a":"aж"}
+re-property-binary-alias	gen	a:re("^\\\\p{Alpha}+$")&"aж"	{"a":"aж"}
+re-property-ascii	errc	a:re("^\\\\p{ASCII}+$")&"aж"	constraint
+re-property-any	gen	a:re("^\\\\p{Any}$")&"𝄞"	{"a":"𝄞"}
+# U+0378 is unassigned: not Assigned, and Unknown by Script.
+re-property-assigned	errc	a:re("^\\\\p{Assigned}$")&"\\u0378"	constraint
+re-property-unknown-script	gen	a:re("^\\\\p{sc=Zzzz}$")&"\\u0378"	{"a":"\\u0378"}
+re-property-unknown-refused	errc	a:re("\\\\p{Letter2}")&"x"	constraint_pattern
+re-property-unknown-msg	err	a:re("\\\\p{Letter2}")&"x"	\\p{Letter2} names no property ECMA-262 reads
+re-property-unknown-script-extensions	errc	a:re("\\\\p{scx=Bogus}")&"x"	constraint_pattern
+re-property-names-are-exact	errc	a:re("\\\\p{lu}")&"x"	constraint_pattern
+re-property-value-on-a-binary	errc	a:re("\\\\p{Alphabetic=Yes}")&"x"	constraint_pattern
+re-property-unclosed	errc	a:re("\\\\p{L")&"x"	constraint_pattern
+re-property-without-braces	errc	a:re("\\\\pL")&"x"	constraint_pattern
+re-property-class-in-a-range-refused	errc	a:re("[\\\\p{L}-z]")&"x"	constraint_pattern
+#
+# THE ABBREVIATIONS ARE aontu's (ADR-003). aontu DEFINES what each one
+# means, and its matcher applies the definitions, so no host's reading
+# is inherited:
 #   \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]
 #   \\A ^       \\z $
-# Before this, `\\A` was an anchor in RE2 and a literal "A" in JavaScript
-# (so `re("\\A") & "x"` held in Go and failed in TypeScript), and `\\s`
-# matched U+00A0 in JavaScript but not in Go. Both are now single-valued.
+# \\A and \\z are re()'s own: u mode reads neither, and inside a class
+# neither is an escape at all.
 re-normalise-anchors	gen	a:re("\\\\Aabc\\\\z") a:abc	{"a":"abc"}
 re-normalise-space	gen	a:re("^\\\\s+$") a:" "	{"a":" "}
 re-normalise-space-negated	gen	a:re("^\\\\S+$") a:abc	{"a":"abc"}
 re-normalise-word	gen	a:re("^\\\\w+$") a:a_1	{"a":"a_1"}
 re-normalise-digit-in-class	gen	a:re("^[\\\\dx]+$") a:"1x"	{"a":"1x"}
-# The definition BITES: U+00A0 is whitespace to JavaScript and not to
-# RE2, and aontu's \\s excludes it in both. A non-breaking space in a
-# config value is a mistake to catch, not a space to accept silently.
+re-anchor-A-in-a-class-refused	errc	a:re("[\\\\A]")&"A"	constraint_pattern
+re-anchor-A-in-a-class-msg	err	a:re("[\\\\A]")&"A"	\\A is not an escape u mode reads
+# The definitions BITE where ECMA-262's differ. U+00A0 is whitespace to
+# ECMA-262 and not to aontu: a non-breaking space in a config value is a
+# mistake to catch, not a space to accept silently. U+2028 is a line
+# terminator to ECMA-262, outside its `.`; to aontu it is a character
+# like any other, and only \\n ends a line.
 re-normalise-space-excludes-nbsp	errc	a:re("^\\\\s$") a:" "	constraint
-# Canon renders the pattern AS WRITTEN, never the normalised form: canon
-# round-trips source, and G6's hash will be taken over canon.
+re-negated-space-in-class-admits-nbsp	gen	a:re("^[\\\\S]$")&"\\u00a0"	{"a":"\\u00a0"}
+re-negated-space-in-class	errc	a:re("^[\\\\S]$")&" "	constraint
+re-space-refuses-a-line-separator	errc	a:re("^\\\\s$")&"\\u2028"	constraint
+re-dot-admits-a-line-separator	gen	a:re("^.$")&"\\u2028"	{"a":"\\u2028"}
+re-dot-admits-a-carriage-return	gen	a:re("^.$")&"\\r"	{"a":"\\r"}
+re-dot-refuses-a-newline	errc	a:re("^.$")&"\\n"	constraint
+# \\b and \\B divide the ASCII word characters from the rest, as u mode
+# does without case folding: no boundary falls around a Cyrillic letter.
+re-boundary-is-ascii	errc	a:re("\\\\bж")&"ж"	constraint
+# Canon renders the pattern AS WRITTEN: canon round-trips source, and
+# G6's hash is taken over canon.
 re-canon-keeps-source	canon	a:re("^\\\\d+$")	{"a":re("^\\\\d+$")}
 #
-# What normalisation cannot reach, and why refusal is still right there:
-# a construct one engine simply lacks (there is nothing to rewrite it
-# to), a spelling difference that changes meaning wholesale, or a
-# difference of COST rather than meaning.
-re-nonportable-anchor-Z	errc	a:re("\\\\Z")&"x"	constraint_pattern
-re-nonportable-negated-abbrev-in-class	errc	a:re("[\\\\D]")&"x"	constraint_pattern
-re-nonportable-wordbreak-in-class	errc	a:re("[\\\\b]")&"x"	constraint_pattern
-re-nonportable-unknown-escape	errc	a:re("\\\\q")&"x"	constraint_pattern
-re-nonportable-unknown-escape-msg	err	a:re("\\\\q")&"x"	the two engines do not share
-re-nonportable-hex-short	errc	a:re("\\\\xZZ")&"x"	constraint_pattern
-# The escapes that ARE shared, each probed through both engines.
+# ESCAPES. u mode reads an escape only where ECMA-262 defines one; any
+# other is a syntax error, never the literal character it might be taken
+# for.
+re-refused-anchor-Z	errc	a:re("\\\\Z")&"x"	constraint_pattern
+re-refused-unknown-escape	errc	a:re("\\\\q")&"x"	constraint_pattern
+re-refused-unknown-escape-msg	err	a:re("\\\\q")&"x"	\\q is not an escape u mode reads
+re-refused-hex-short	errc	a:re("\\\\xZZ")&"x"	constraint_pattern
 re-escape-hex	gen	a:re("^\\\\x41$") a:A	{"a":"A"}
 re-escape-hex-lower	gen	a:re("^\\\\x4a$") a:J	{"a":"J"}
 re-escape-hex-upper	gen	a:re("^\\\\x4A$") a:J	{"a":"J"}
-re-nonportable-hex-second-digit	errc	a:re("\\\\x4Z")&"x"	constraint_pattern
+re-refused-hex-second-digit	errc	a:re("\\\\x4Z")&"x"	constraint_pattern
 re-escape-word	gen	a:re("^\\\\w+$") a:abc	{"a":"abc"}
 re-escape-not-digit	gen	a:re("^\\\\D$") a:x	{"a":"x"}
 re-escape-tab-class	gen	a:re("^[ \\\\t]$") a:" "	{"a":" "}
 re-escape-literal-dot	gen	a:re("^a\\\\.b$") a:"a.b"	{"a":"a.b"}
+# Inside a class \\b is a backspace, and \\D and \\S are complements of
+# aontu's sets. A class escape cannot end a range, and a range runs low
+# to high.
+re-backspace-in-class	errc	a:re("[\\\\b]")&"x"	constraint
+re-negated-abbrev-in-class	gens	a:re("[\\\\D]")&"x"	{"a":"x"}
+re-range-out-of-order	errc	a:re("[z-a]")&"x"	constraint_pattern
+re-range-out-of-order-msg	err	a:re("[z-a]")&"x"	a class range is out of order
 #
-# CODE POINTS, NOT CODE UNITS. JavaScript matches UTF-16 code units by
-# default and RE2 matches code points, so `^.$` accepted U+1D11E (one
-# code point, TWO UTF-16 units) in Go and refused it in TypeScript --
-# and `^..$` did the exact reverse. The TypeScript port therefore
-# compiles with the `u` flag, which makes `.` and every quantifier count
-# code points in both engines. These rows are the ones that would have
-# caught it.
+# CODE POINTS, NOT CODE UNITS. The matcher reads a string as code
+# points, so `.` and every quantifier count U+1D11E once, where a
+# JavaScript RegExp without the `u` flag counts its two UTF-16 units.
+# These rows are the ones that would catch a port reading code units.
 re-astral-dot-one	gen	a:re("^.$") a:"𝄞"	{"a":"𝄞"}
 re-astral-dot-two-fails	errc	a:re("^..$") a:"𝄞"	constraint
 re-astral-counted-quantifier	gen	a:re("^.{1}$") a:"𝄞"	{"a":"𝄞"}
 re-astral-class	gen	a:re("^[𝄞x]+$") a:"𝄞"	{"a":"𝄞"}
 #
-# `\-` is a range separator inside a character class and a syntax error
-# outside one under the `u` flag -- while RE2 accepts it in both
-# positions. Refused outside a class so the two ports agree.
+# `\-` is an escape only inside a class, where it is a hyphen rather
+# than a range separator; outside one, u mode refuses it.
 re-escape-hyphen-in-class	gen	a:re("^[a\\\\-z]+$") a:"a-z"	{"a":"a-z"}
-re-nonportable-hyphen-outside-class	errc	a:re("a\\\\-b")&"x"	constraint_pattern
-re-nonportable-hyphen-msg	err	a:re("a\\\\-b")&"x"	a range separator inside
+re-refused-hyphen-outside-class	errc	a:re("a\\\\-b")&"x"	constraint_pattern
+re-refused-hyphen-msg	err	a:re("a\\\\-b")&"x"	\\- is not an escape u mode reads
 re-bare-hyphen	gen	a:re("^a-b$") a:"a-b"	{"a":"a-b"}
 #
-# QUANTIFIER NESTING is refused, and this rule is about TIME rather than
-# meaning. `(a+)+$` against 29 a-characters and a `!` took 45 SECONDS in
-# TypeScript and 0.065s under RE2, growing exponentially: a regex match
-# is counted by no evaluator budget (docs/trust.md clause 2), so an
-# untrusted schema could stall the evaluator indefinitely. Refusing the
-# shape keeps the termination clause true in the port that has the
-# problem. `(?:a|b)+` is refused too, though safe -- deciding that two
-# branches cannot both match is real work; write `[ab]+`.
-re-nested-quantifier	errc	a:re("(a+)+$")&"x"	constraint_pattern
-re-nested-quantifier-msg	err	a:re("(a+)+$")&"x"	backtracks exponentially
-re-nested-quantifier-star	errc	a:re("(a*)*")&"x"	constraint_pattern
-re-nested-quantifier-deep	errc	a:re("((a+))+")&"x"	constraint_pattern
-re-alternation-quantified	errc	a:re("(a|a)*")&"x"	constraint_pattern
-re-alternation-quantified-group	errc	a:re("(?:a|b)+")&"x"	constraint_pattern
+# NESTED QUANTIFIERS COST LINEAR TIME. `(a+)+$` against 29 a-characters
+# and a `!` takes 45 SECONDS in a backtracking engine and doubles with
+# each a-character more. The matcher never backtracks: it steps every
+# live thread over each code point once, so a match costs at most the
+# text's length times the program's, and the first row runs the shape
+# over a hundred a-characters at once (docs/trust.md clause 2).
+re-nested-quantifier-linear	errc	a:re("^(a+)+$")&"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"	constraint
+re-nested-quantifier-matches	gen	a:re("^(a+)+$")&"aaaa"	{"a":"aaaa"}
+re-nested-quantifier-mismatch	errc	a:re("(a+)+$")&"x"	constraint
+re-nested-star-admits	gens	a:re("(a*)*")&"x"	{"a":"x"}
+re-nested-quantifier-deep	errc	a:re("((a+))+")&"x"	constraint
+re-alternation-quantified	gens	a:re("(a|a)*")&"x"	{"a":"x"}
+re-alternation-quantified-group	errc	a:re("(?:a|b)+")&"x"	constraint
+re-alternation-quantified-group-matches	gen	a:re("^(?:a|b)+$")&"abba"	{"a":"abba"}
 re-unclosed-group	errc	a:re("(ab")&"x"	constraint_pattern
 re-unbalanced-group	errc	a:re("ab)")&"x"	constraint_pattern
-# What the rule does NOT refuse: an unquantified group of any shape, a
-# quantified group with no inner quantifier or alternation, top-level
-# alternation, and quantifiers inside a character class (where they are
-# literal characters, not quantifiers).
 re-group-unquantified-alternation	gen	a:re("^(a|b)$") a:a	{"a":"a"}
 re-group-quantified-plain	gen	a:re("(?:ab)+") a:abab	{"a":"abab"}
 re-group-sequence	gen	a:re("(a)(b)") a:ab	{"a":"ab"}
 re-toplevel-alternation	gen	a:re("^a|b$") a:a	{"a":"a"}
 re-quantifier-in-class	gen	a:re("^[a+]+$") a:"++"	{"a":"++"}
 re-capture-group-quantified	gen	a:re("^(a)+$") a:a	{"a":"a"}
-re-nonportable-msg	err	a:re("(?=x)y")&"y"	outside the supported subset
-re-nonportable-msg-reason	err	a:re("(x)\\\\1")&"xx"	a backreference
-#
-# A pattern the subset scanner passes but the host engine refuses is the
-# same refusal under the same code: one rule for the author, not two.
-# The reason text is fixed rather than the host's message, so the whole
-# frame stays byte-identical across ports.
-re-host-refuses	errc	a:re("*")&"x"	constraint_pattern
+re-lazy-quantifier	gen	a:re("^a+?$")&"aaa"	{"a":"aaa"}
+# Groups nest at most 256 deep, so the parser's recursion stays inside
+# either port's stack: a deeper group is refused rather than exhausting it.
+re-groups-nest-256-deep	gen	a:re("^((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))$")&"a"	{"a":"a"}
+re-groups-nest-deeper-refused	errc	a:re("(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))")&"a"	constraint_pattern
+re-groups-nest-deeper-msg	err	a:re("(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))")&"a"	groups nest deeper than 256
+re-noncapturing-groups-nest-deeper-refused	errc	a:re("(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:(?:a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))")&"a"	constraint_pattern
 #
 # Argument shape. Arity is a parse-time check (all eighteen built-ins);
 # a non-string argument is the atom's own invalid-arg.
@@ -174,49 +265,47 @@ re-invalid-arg	errc	a:re(1)&"x"	invalid-arg
 re-arity	errc	a:re("a","b")&"x"	func_arity
 re-invalid-atom-residual	errc	a:re("(?=x)y")	mapval_no_gen
 #
-# The REPEAT CAP, and the braces that are not repeats at all
-# (status-2026-08-21.md §4). RE2 refuses a repeat above 1000 where
-# JavaScript accepts any count, so `re("^a{1001}$")` was VALID in
-# TypeScript and an `error` verdict in Go -- the host's own compile
-# failure reaching the user, which is exactly what ADR-003 exists to
-# prevent. The bound is aontu's now, checked before either engine
-# compiles. 1000 is still accepted, so the cap is a boundary, not a
-# retreat.
-# At the cap the pattern COMPILES, so a mismatch is an ordinary
-# `constraint` failure. Above it the PATTERN is refused
-# (`constraint_pattern`). The two codes are what make the boundary
-# observable in a row.
-re-repeat-at-cap	errc	a:re("^a{1000}$")&"x"	constraint
-re-repeat-over-cap	errc	a:re("^a{1001}$")&"x"	constraint_pattern
-re-repeat-over-cap-max	errc	a:re("^a{2,1001}$")&"x"	constraint_pattern
-re-repeat-over-cap-open	errc	a:re("^a{1001,}$")&"x"	constraint_pattern
-# A brace that opens no counted quantifier is a SYNTAX ERROR in
-# JavaScript under the `u` flag and a literal brace in RE2 -- the same
-# class of flip, found by sweeping around the cap rather than by the
-# report that named it.
+# THE PROGRAM BOUND. Counted repetition copies its operand, so the bound
+# is on the compiled program: past 100000 instructions the pattern is
+# refused. The program is the pattern's size, never the text's, so the
+# cost of every match is bounded before any text arrives. A single count
+# has no cap of its own: `a{1001}`, which RE2 refuses, compiles.
+# At the bound the pattern COMPILES, so a mismatch is an ordinary
+# `constraint` failure; past it the PATTERN is refused
+# (`constraint_pattern`). The two codes make the boundary observable.
+# `^a{99997}$` is the anchor, 99997 copies, the anchor and the match:
+# 100000 instructions.
+re-repeat-1000	errc	a:re("^a{1000}$")&"x"	constraint
+re-repeat-1001	errc	a:re("^a{1001}$")&"x"	constraint
+re-repeat-1001-max	errc	a:re("^a{2,1001}$")&"x"	constraint
+re-repeat-1001-open	errc	a:re("^a{1001,}$")&"x"	constraint
+re-program-at-the-bound	errc	a:re("^a{99997}$")&"x"	constraint
+re-program-past-the-bound	errc	a:re("^a{99998}$")&"x"	constraint_pattern
+re-program-past-the-bound-msg	err	a:re("^a{99998}$")&"x"	the pattern compiles past 100000 instructions
+re-program-nested-repeat	errc	a:re("(?:a{1000}){1000}")&"x"	constraint_pattern
+# A brace that opens no counted quantifier is a SYNTAX ERROR in u mode,
+# and so is a counted quantifier whose bounds are out of order.
 re-brace-not-a-repeat	errc	a:re("^x{y}$")&"x"	constraint_pattern
 re-brace-unterminated	errc	a:re("^a{$")&"x"	constraint_pattern
 re-brace-empty	errc	a:re("^a{}$")&"x"	constraint_pattern
 re-brace-no-low	errc	a:re("^a{,5}$")&"x"	constraint_pattern
 re-brace-three-bounds	errc	a:re("^a{1,2,3}$")&"x"	constraint_pattern
-# A count with more digits than an integer holds is certainly above the
-# cap, and says so rather than calling a well-formed quantifier
-# malformed: Go's Atoi overflows where JavaScript's parseInt yields a
-# float far above the bound, and both must refuse for the same reason.
+re-counted-out-of-order-msg	err	a:re("a{2,1}")&"x"	a counted quantifier is out of order
+# A count with more digits than an integer holds is past the bound, and
+# says so rather than calling a well-formed quantifier malformed; bounds
+# are ordered as written, so the same count before a smaller one is out
+# of order.
 re-repeat-overflow	errc	a:re("^a{99999999999999999999}$")&"x"	constraint_pattern
 re-repeat-overflow-max	errc	a:re("^a{2,99999999999999999999}$")&"x"	constraint_pattern
 re-repeat-overflow-low	errc	a:re("^a{99999999999999999999,5}$")&"x"	constraint_pattern
+re-repeat-overflow-msg	err	a:re("^a{99999999999999999999}$")&"x"	the pattern compiles past 100000 instructions
 # A pattern that ENDS in the brace: the scan runs off the end rather
 # than meeting a closing `}`.
 re-brace-at-end	errc	a:re("a{")&"x"	constraint_pattern
-# A quantifier applied to an ASSERTION has nothing to repeat:
-# JavaScript under the `u` flag makes it a syntax error, RE2 quantifies
-# the assertion and matches, so Go accepted a schema TypeScript
-# refused. ALL FOUR assertions behave this way -- `^`, `$`, `\b` and
-# `\B`. The rule shipped covering the first two only, on a comment that
-# said the boundaries "quantify identically in both": measured, they do
-# not, and `re("\\b{1}x")` was `constraint_pattern` in TypeScript and an
-# accepted schema in Go until the normaliser reached them.
+# A quantifier applied to an ASSERTION has nothing to repeat, a syntax
+# error in u mode for all four -- `^`, `$`, `\b` and `\B`. RE2
+# quantifies the assertion and matches, which is how a schema one port
+# refused was once accepted by the other.
 #
 # MIND THE ESCAPING: in the source cell `\\b` is the two characters a
 # regex reads as a word boundary, while a bare `\b` is the string
@@ -235,15 +324,14 @@ re-quantified-boundary-star	errc	a:re("\\\\b*x")&"y"	constraint_pattern
 re-boundary-unquantified	gen	a:re("\\\\bx") a:"x"	{"a":"x"}
 # And the escape that only LOOKS like one: a backspace is a character.
 re-quantified-backspace-ok	errc	a:re("\\b{1}x")&"y"	constraint
-# A `}` closing no counted quantifier is a lone quantifier bracket in
-# JavaScript and a literal in RE2. Inside a class it is a literal in
-# both, which is the spelling that survives.
+# A `}` closing no counted quantifier stands alone, a syntax error in u
+# mode. Inside a class it is a literal.
 re-stray-close-brace	errc	a:re("x}")&"x"	constraint_pattern
 re-stray-close-brace-lead	errc	a:re("}x")&"x"	constraint_pattern
 re-stray-close-after-repeat	errc	a:re("a{2}}")&"x"	constraint_pattern
 re-close-brace-in-class	errc	a:re("[}]x")&"y"	constraint
 # Anchors and quantifiers that DO compose stay accepted, so the two
-# rules above are boundaries rather than a retreat from the subset.
+# rules above are boundaries rather than a retreat.
 re-anchored-class-star	errc	a:re("^[a]*$")&"b"	constraint
 re-anchored-group-star	errc	a:re("^(a)*$")&"b"	constraint
 re-anchored-repeat	errc	a:re("^a{2}$")&"b"	constraint

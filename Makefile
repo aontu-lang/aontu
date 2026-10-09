@@ -1,7 +1,7 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
-        helpdoc aontu formats formatgen prose prose-counts comments hooks
+        helpdoc aontu formats formatgen unicodegen prose prose-counts comments hooks
 
 all: build test
 
@@ -138,11 +138,19 @@ formats:
 
 # Regenerate the committed format grammars too large or too regular to
 # write by hand, then stage them. The IDNA2008 tables come from the
-# Unicode Character Database at the version ts/scripts/formatgen.cjs
-# pins, fetched once into a cache and held to its recorded hashes.
+# Unicode Character Database at the version ts/scripts/ucd.cjs pins,
+# fetched once into a cache and held to its recorded hashes.
 formatgen:
 	node ts/scripts/formatgen.cjs
 	node ts/scripts/formats.cjs
+
+# Regenerate the Unicode property tables a pattern's \p{...} reads
+# (ADR-060) into ts/src/unicodeprops.ts and go/unicodeprops.txt, from
+# the same pinned Unicode Character Database, and the delta that holds
+# the vendored test262 property escapes to them.
+unicodegen:
+	node ts/scripts/unicodegen.cjs
+	node ts/scripts/unicodegen.cjs --delta
 
 # Regenerate the build-time-inlined copies of the signature
 # declaration (ts/src/sigdecl.ts, go/sigdecl.txt) from the shared

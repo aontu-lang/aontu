@@ -12,7 +12,7 @@ const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const formatgrammar_1 = require("./formatgrammar");
 const format_1 = require("./format");
-const ConstraintVal_1 = require("./val/ConstraintVal");
+const regex_1 = require("./regex");
 const numkind_1 = require("./val/numkind");
 const uri_1 = require("./uri");
 exports.IMPORT_VET_FLAGS = ['--no-fill', '--exact-numbers'];
@@ -775,165 +775,13 @@ function grammarCall(ctx, path, node, g) {
     }
     return [call('format', raw(quote(g)))];
 }
-// The ECMA-262 whitespace set, what `\s` means in a JSON Schema pattern,
-// as a class body both engines read alike.
-const ECMA_SPACE = '\\t\\n\\v\\f\\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
-// The line terminators of ECMA-262, which `.` does not match.
-const ECMA_DOT = '[^\\n\\r\u2028\u2029]';
-const RE_META = '\\.+*?()[]{}|^$/-';
-function escapeReChar(cp) {
-    const ch = String.fromCodePoint(cp);
-    return RE_META.includes(ch) ? '\\' + ch :
-        cp < 0x20 || 0x7f === cp ? '\\x' + cp.toString(16).padStart(2, '0') : ch;
-}
-// Stage two of the pattern crossing: ECMA constructs the portable subset
-// does not spell are rewritten to what they mean.
-function ecmaToPortable(src) {
-    let out = '';
-    let inClass = false;
-    for (let i = 0; i < src.length; i++) {
-        const c = src[i];
-        if ('\\' === c) {
-            const n = src[i + 1];
-            if ('s' === n || 'S' === n) {
-                if (inClass && 'S' === n) {
-                    return ['', 'a negated \\S inside a character class'];
-                }
-                out += inClass ? ECMA_SPACE : ('s' === n ? '[' : '[^') + ECMA_SPACE + ']';
-                i++;
-                continue;
-            }
-            if ('u' === n) {
-                const [cp, len] = unicodeEscape(src, i);
-                if (cp < 0) {
-                    return ['', 'a \\u escape that names no code point'];
-                }
-                out += escapeReChar(cp);
-                i += len - 1;
-                continue;
-            }
-            if ('c' === n && /^[A-Za-z]$/.test(src[i + 2] ?? '')) {
-                out += escapeReChar(src.charCodeAt(i + 2) % 32);
-                i += 2;
-                continue;
-            }
-            if ('0' === n && !/^[0-9]$/.test(src[i + 2] ?? '')) {
-                out += '\\x00';
-                i++;
-                continue;
-            }
-            out += c + (n ?? '');
-            i++;
-            continue;
-        }
-        if (inClass) {
-            inClass = ']' !== c;
-            out += c;
-            continue;
-        }
-        if ('[' === c) {
-            inClass = true;
-            out += c;
-            continue;
-        }
-        if ('.' === c) {
-            out += ECMA_DOT;
-            continue;
-        }
-        if ('(' === c && src.startsWith('(?<', i) && '=' !== src[i + 3] && '!' !== src[i + 3]) {
-            const close = src.indexOf('>', i + 3);
-            if (-1 === close) {
-                return ['', 'an unterminated group name'];
-            }
-            out += '(?:';
-            i = close;
-            continue;
-        }
-        if ('(' === c) {
-            const folded = foldCharGroup(src, i);
-            if (undefined !== folded) {
-                out += folded[0];
-                i = folded[1];
-                continue;
-            }
-        }
-        out += c;
-    }
-    return [out, ''];
-}
-// `\uHHHH`, a surrogate pair of them, or `\u{H...}`: the code point and
-// the source length, or -1.
-function unicodeEscape(src, i) {
-    if ('{' === src[i + 2]) {
-        const close = src.indexOf('}', i + 3);
-        const hex = -1 === close ? '' : src.slice(i + 3, close);
-        const cp = /^[0-9a-fA-F]{1,6}$/.test(hex) ? parseInt(hex, 16) : -1;
-        return cp <= 0x10ffff ? [cp, close + 1 - i] : [-1, 0];
-    }
-    const hex = src.slice(i + 2, i + 6);
-    if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
-        return [-1, 0];
-    }
-    const hi = parseInt(hex, 16);
-    const low = /^\\u([dD][c-fC-F][0-9a-fA-F]{2})/.exec(src.slice(i + 6));
-    if (0xd800 <= hi && hi < 0xdc00 && null != low) {
-        return [0x10000 + ((hi - 0xd800) << 10) + (parseInt(low[1], 16) - 0xdc00), 12];
-    }
-    return [hi, 6];
-}
-// A `(a|b|c)` before a quantifier, every alternative one character, is
-// written as `[abc]`, which has the same language: the subset refuses a
-// quantified alternation and takes a quantified class.
-function foldCharGroup(src, at) {
-    let i = at + 1;
-    if (src.startsWith('?:', i)) {
-        i += 2;
-    }
-    const members = [];
-    for (;;) {
-        let one;
-        if ('\\' === src[i]) {
-            const n = src[i + 1];
-            if (undefined === n || /^[dDwWsSuxcpPbBk0-9]$/.test(n)) {
-                return undefined;
-            }
-            one = '\\' + n;
-            i += 2;
-        }
-        else if (undefined === src[i] || '()[]|*+?{}^$.'.includes(src[i])) {
-            return undefined;
-        }
-        else {
-            one = String.fromCodePoint(src.codePointAt(i));
-            i += one.length;
-        }
-        members.push('-' === one ? '\\-' : one);
-        if ('|' === src[i]) {
-            i++;
-            continue;
-        }
-        if (')' !== src[i]) {
-            return undefined;
-        }
-        break;
-    }
-    const q = src[i + 1];
-    if (members.length < 2 || !('*' === q || '+' === q || '?' === q || '{' === q)) {
-        return undefined;
-    }
-    return ['[' + members.join('') + ']', i];
-}
 function pattern(ctx, path, construct, src) {
-    let [portable, why] = ecmaToPortable(src);
-    if ('' === why) {
-        why = (0, ConstraintVal_1.normaliseRe)(portable)[1];
-    }
+    const [form, why] = (0, regex_1.importForm)(src);
     if ('' !== why) {
-        lose(ctx, path, construct, 'the pattern is outside the portable regex subset, ' +
-            'so it is dropped: it holds ' + why);
+        lose(ctx, path, construct, 're() cannot read the pattern, so it is dropped: ' + why);
         return undefined;
     }
-    return call('re', raw(quote(portable)));
+    return call('re', raw(quote(form)));
 }
 // A JSON number's text, which the reader has already matched, as the
 // aontu literal of its exact value.

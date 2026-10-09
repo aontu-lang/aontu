@@ -19,8 +19,8 @@
 # WHAT CROSSES EXACTLY: kinds to types, concrete scalars to `const`, a
 # disjunction of scalars to `enum` (and its preference to `default`),
 # bounds to minimum/maximum with the OPEN endpoints as the exclusive
-# keywords, `re` to `pattern` (aontu's portable subset is a subset of
-# ECMA-262, which is what JSON Schema reads), `neq` to `not: {enum}`
+# keywords, `re` to `pattern` (as ECMA-262 text that means what re()
+# means, ADR-060), `neq` to `not: {enum}`
 # with `1` and `1.0` carried once, `len` to minLength/maxLength on a
 # string, minProperties/maxProperties on a map and minItems/maxItems on
 # a list (an open count bound as the next whole number, an excluded
@@ -105,6 +105,13 @@ js-const-float	jsonschema	a: 1.5	{"lossy":[],"schema":{"$schema":"https://json-s
 js-domain-number	jsonschema	a: min(1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minimum":1,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-domain-string	jsonschema	a: re("^x")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^x","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-two-patterns	jsonschema	a: string & re("^x") & re("y$")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"pattern":"^x"},{"pattern":"y$"}],"minLength":1,"type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+# A pattern is written as ECMA-262 text that means what re() means (ADR-060): a token the two dialects read alike is copied as written, and one re() defines otherwise is written as aontu's set.
+js-pattern-a-property-is-kept	jsonschema	a: re("^\\\\p{L}+$")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^\\\\p{L}+$","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern-escapes-and-names-are-kept	jsonschema	a: re("^(?<y>\\\\u{1F600}\\\\u0041\\\\cJ)$")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^(?<y>\\\\u{1F600}\\\\u0041\\\\cJ)$","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern-abbreviations-written-out	jsonschema	a: re("\\\\Aa\\\\s\\\\d\\\\w.\\\\z")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"^a[ \\\\t\\\\n\\\\r\\\\f\\\\v][0-9][0-9A-Za-z_][^\\\\n]$","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern-negated-abbreviations-written-out	jsonschema	a: re("\\\\S\\\\D\\\\W")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"[^ \\\\t\\\\n\\\\r\\\\f\\\\v][^0-9][^0-9A-Za-z_]","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern-abbreviations-in-a-class-written-out	jsonschema	a: re("[\\\\s\\\\d_]")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"[ \\\\t\\\\n\\\\r\\\\f\\\\v0-9_]","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-pattern-negated-space-in-a-class-spelt-out	jsonschema	a: re("[\\\\S]")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"pattern":"[\\\\u{0}-\\\\u{8}\\\\u{E}-\\\\u{1F}\\\\u{21}-\\\\u{10FFFF}]","type":"string"}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-length-no-domain	jsonschema	a: len(min(2))	{"lossy":[{"construct":"len","path":"$.a","reason":"a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minItems":2}},"required":["a"],"type":"object"},"verdict":"lossy"}
 js-unique-by-key	jsonschema	a: unique(k)	{"lossy":[{"construct":"unique(k)","path":"$.a","reason":"JSON Schema has no uniqueness-by-property keyword; uniqueItems compares whole items, so this constraint is DROPPED and the schema admits records sharing a `k`"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"lossy"}
 js-unique-bare	jsonschema	a: unique()	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"uniqueItems":true}},"required":["a"],"type":"object"},"verdict":"ok"}

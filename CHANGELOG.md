@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### The owned pattern matcher
+
+Both ports, G12 phase 14 (ADR-060).
+
+- `re()` reads ECMA-262's pattern syntax under the `u` flag, as
+  ECMA-262 2025 writes it, and matches with aontu's own engine: a Pike
+  VM over code points, the same in both ports, whose cost is linear in
+  the length of the string for every pattern. No host regex engine
+  sees the pattern. The abbreviations keep aontu's ASCII meanings, and
+  `\A` and `\z` stay `re()`'s own.
+- `re()` now admits `\p{…}` and `\P{…}` over the Unicode Character
+  Database 18.0.0 (General_Category, Script, Script_Extensions and
+  ECMA-262's binary properties, by every alias), named groups, `[]` and
+  `[^]`, `\u` and `\c` escapes, counts above 1000, and a quantified
+  group that holds a quantifier or an alternation, such as `(a+)+$`.
+  It refuses, with `constraint_pattern`, a syntax error, a lookaround,
+  a backreference, a modifier group such as `(?i:a)`, a pattern that
+  compiles past 100,000 instructions and groups nested deeper than
+  256; the reason the message gives changed with the rules.
+- `format("regex")` is ECMA-262's verdict: a lookaround, a
+  backreference and a modifier group are valid patterns.
+- `aontu jsonschema import` carries a pattern `re()` reads, rewriting
+  only `.`, `\s` and `\S` to what ECMA-262 means by them, so `\p{…}`
+  and named groups cross; a lookaround, a backreference or a modifier
+  group is a loss naming it. `aontu jsonschema` writes `re()`'s
+  abbreviations as the sets aontu defines.
+- `rep()` and `split()` run on each port's host engine over the
+  portable subset as before. `split()` with an `re()` separator outside
+  it now refuses with `rep_pattern` in both ports, and the hint says
+  which patterns the subset holds.
+- 2,285 of the vendored suite's 2,337 tests pass in both ports, where
+  2,274 did, and its ledger holds 30 rows. test262's generated property
+  escapes and RE2's search tests are vendored under `test/vectors/`,
+  and `test/spec/files/match-corpus.tsv` holds the matcher to one
+  answer in both ports.
+
 ### Format assertion
 
 Both ports, G12 phase 13 (ADR-059).

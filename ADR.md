@@ -31,7 +31,7 @@ capability decision is the phase rows it governed in
 |-----|----------|--------|
 | [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec) | TypeScript and Go stay at full parity, driven by a shared spec | Accepted |
 | [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations) | Test coverage stays at 100 % in both implementations | Accepted |
-| [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Accepted |
+| [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Amended by [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) |
 | [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
 | [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
 | [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
@@ -88,6 +88,7 @@ capability decision is the phase rows it governed in
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
+| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
 
 ---
 
@@ -285,7 +286,7 @@ Concretely:
 
 ## ADR-003 — Host-provided semantics are normalised, not trusted
 
-**Status:** Accepted
+**Status:** Amended by [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine)
 
 ### Context
 
@@ -397,7 +398,7 @@ Concretely, for `re()`:
   inherits this decision: define it here, rewrite the input, and give
   the host only what it cannot misread.
 
-See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-portable-pattern-subset)
+See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-pattern-language)
 for the author-facing subset, and
 [`docs/trust.md`](docs/trust.md#clause-2-termination) for the
 termination consequence.
@@ -5582,3 +5583,119 @@ RFCs, each found against a corpus.
   `import-x-aontu-format-*` rows of `test/spec/jsonschema-import.tsv`
   and the `export-format-*` rows of `test/spec/jsonschema.tsv`, in both
   ports.
+
+---
+
+## ADR-060 — aontu matches a pattern with its own engine
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+[ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted)
+gave `re()` one meaning in both ports by defining its abbreviations and
+handing each host engine, `RegExp` and RE2, only a subset both read
+alike. Two things stayed out of reach. Cost: a backtracking `RegExp` is
+exponential on a quantified group that holds a quantifier, so the
+subset refused the shape, and the termination clause of
+[`docs/trust.md`](docs/trust.md#clause-2-termination) held by that
+restriction. Reach: the subset had no `\p{…}`, no named group, no empty
+class and no `\u` escape, and JSON Schema's `pattern` is ECMA-262's
+syntax, so the importer dropped any pattern holding one. ADR-003
+recorded owning the matcher as the accepted direction, and the
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+scheduled it as phase 14.
+
+### Decision
+
+1. **`re()` reads ECMA-262's pattern syntax in `u` mode, as ECMA-262
+   2025 writes it, early errors included**, parsed by aontu in both
+   ports (`ts/src/regex.ts`, `go/regex.go`). No host engine reads the
+   pattern. ADR-003's definitions stand: `re()`'s dialect adds `\A` and
+   `\z` and gives `.`, `\s` and `\S` aontu's ASCII meanings. One group
+   name may stand in two alternatives of one disjunction, as ES2025
+   allows.
+2. **The engine is a Pike VM over code points.** A pattern compiles to
+   a program of set, split, jump and assertion instructions, and a match
+   steps every live thread over each code point of the text once: it
+   costs at most the text's length times the program's, for every
+   pattern. Matching stays an unanchored search for whether the pattern
+   matches. ADR-003's refusal of a quantified group holding a
+   quantifier or an alternation is lifted, and the termination clause
+   holds by construction.
+3. **What `re()` refuses**, with `constraint_pattern` and a reason the
+   same in both ports: a syntax error `u` mode defines; a lookaround or
+   a backreference, which no regular language holds; a modifier group,
+   ES2025's `(?i:…)`, whose flags change what a character matches and
+   which the engine does not apply; a program past 100,000
+   instructions, since counted repetition copies its operand; and
+   groups nested deeper than 256, where the parser's recursion stops.
+   RE2's cap of 1,000 on one count is not aontu's.
+4. **`\p{…}` and `\P{…}` read the Unicode Character Database 18.0.0**:
+   General_Category values and groups, Script and Script_Extensions
+   values and ECMA-262's binary properties, by every alias it lists,
+   spelt exactly. One generator, `ts/scripts/unicodegen.cjs` (`make
+   unicodegen`), writes the tables from files pinned by hash, staged
+   byte for byte into both ports (`ts/src/unicodeprops.ts`,
+   `go/unicodeprops.txt`, 50,705 bytes) and decoded when first read.
+   Assigned, ASCII, Any, the Unknown script and each Script_Extensions
+   set are derived where they are read.
+5. **`format("regex")` is the parser's verdict on an ECMA-262 pattern**:
+   a lookaround, a backreference and a modifier group are valid, as
+   ECMA-262 has them, though `re()` refuses to run them.
+6. **`pattern` crosses in stage three.** The importer reads a `pattern`
+   and a `patternProperties` key as ECMA-262 and writes `re()` source
+   that means the same: `.`, `\s` and `\S`, which `re()` defines
+   otherwise, are rewritten where the parser found them to the sets
+   ECMA-262 means, and the rest is copied as written. A pattern `re()`
+   refuses is a loss naming why. The exporter writes the reverse:
+   `re()`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z` as
+   the ECMA-262 text of aontu's sets.
+7. **The string builtins stay on the host engines.** `rep()` and
+   `split()` need where a match falls, which the engine does not say,
+   so each port's host engine runs them over ADR-003's subset as before,
+   refused with `rep_pattern`. The subset keeps its refusal of a
+   quantified group holding a quantifier, since a backtracking host is
+   still exponential on it.
+8. **The claim is checked, not asserted**, as ADR-003 rule 6 has it.
+   `test/spec/files/match-corpus.tsv` holds 700 seeded patterns with
+   three texts each and what the matcher, the export, the import and
+   `format("regex")` say of them; `ts/scripts/matchcorpus.cjs` writes it
+   and both ports reproduce every column. test262's generated property
+   escapes and RE2's search tests are vendored under `test/vectors/`
+   and read by both ports.
+
+**Departures from the design, seven.** (1) The string builtins stay on
+the host engines (decision 7). (2) `re()` refuses a modifier group,
+which the design did not name. (3) The edition is ECMA-262 2025, the
+first with duplicate group names and modifier groups, where Node 22's
+`RegExp` reads neither. (4) Groups nest at most 256 deep, so
+`format("regex")` refuses a deeper pattern ECMA-262 admits. (5) The
+test262 property escapes are Unicode 17.0.0's, held to 18.0.0 by a
+committed delta both releases' files give,
+`test/vectors/test262/unicode-17-to-18.tsv`. (6) The regex test data
+is RE2's search tests as Go ships them; rust-lang/regex's is not
+vendored, since its cases read `\d`, `\w`, `\s` and `\b` as Unicode by
+default and write Rust's own syntax. (7) The regex corpus of ADR-003
+rule 6 is not regenerated: it stays the subset's, which the string
+builtins still read, and the matcher has its own.
+
+### Consequences
+
+- A pattern's match costs linear time in the text for every pattern,
+  and `re()` admits what the subset refused: `\p{…}`, named groups,
+  `[]` and `[^]`, `\u` and `\c` escapes, a quantified group holding a
+  quantifier, and counts above 1,000. A pattern written for the subset
+  means what it meant, since the abbreviations kept their definitions.
+- 2,285 of the official suite's 2,337 tests pass in both ports, where
+  2,274 did; eleven rows left the ledger, which holds 30 under its
+  bound of 50.
+- test262's 441 files and their 3,492 escapes agree with the tables
+  code point for code point once the delta is applied, and 1,568 of
+  RE2's search verdicts agree, with 320 passed over for RE2's own syntax.
+- Pinned by `test/spec/constraint-re.tsv`, the `regex` rows of
+  `test/spec/format.tsv`, the `import-pattern-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-pattern-*` rows of
+  `test/spec/jsonschema.tsv` and the `rep-pattern-*` rows of
+  `test/spec/str.tsv`, in both ports.

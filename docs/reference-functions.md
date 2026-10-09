@@ -266,8 +266,8 @@ with the slot, and where the semantics are specified:
   `must`'s message, and `rep`'s pattern and substitution. The slot
   settles to a string like any other, and the settled string is then
   read as text in another notation rather than compared as a value.
-  [`re` and the portable pattern
-  subset](reference-language.md#re-and-the-portable-pattern-subset),
+  [`re` and the pattern
+  language](reference-language.md#re-and-the-pattern-language),
   [Formats: `format`](reference-language.md#formats-format), and
   [`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub).
 - `capture`, one slot, `path`'s. The slot is read for its spelling and

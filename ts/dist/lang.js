@@ -621,8 +621,8 @@ help isolate the syntax error.`,
         below: ConstraintVal_1.BelowConstraintVal,
         neq: ConstraintVal_1.NeqConstraintVal,
         multiple: ConstraintVal_1.MultipleConstraintVal,
-        // G1 phase 2: pattern membership, over the portable subset both
-        // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
+        // G1 phase 2: pattern membership, read and matched by aontu's own
+        // engine (ADR-060).
         re: ConstraintVal_1.ReConstraintVal,
         len: ConstraintVal_1.LenConstraintVal,
         empty: EmptyVal_1.EmptyVal,

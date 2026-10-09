@@ -103,12 +103,12 @@ than its value.
   document, which contains only `deploy` and `service`; hidden inputs
   still feed the generators.
 - Org bounds live in `guardrails.aontu` and are enforced by `vet` over
-  the rendered manifests, where every value is concrete. `re()` accepts
-  a portable subset of regular-expression syntax and refuses a
-  quantifier applied to a group that contains another quantifier
-  (`[aontu/constraint_pattern]`), so the DNS-1123 name pattern is
-  written as the alternation `^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$` in
-  both `guardrails.aontu` and `request-schema.aontu`.
+  the rendered manifests, where every value is concrete. The DNS-1123
+  name pattern is written as the alternation
+  `^([a-z]|[a-z][a-z0-9-]*[a-z0-9])$` in both `guardrails.aontu` and
+  `request-schema.aontu`; the natural `^[a-z]([a-z0-9-]*[a-z0-9])?$`
+  means the same, and `re()` accepts it too, since it matches with
+  aontu's own engine, linear in the text for every pattern.
 - Kebab-case names and dotted hostnames are quoted: bare `web-api`
   parses as a negation (`[aontu/negative]`) and bare
   `otel.acme.internal` as a path reference.

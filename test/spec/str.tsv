@@ -38,7 +38,8 @@ esc-non-ascii-untouched	gens	o: esc("café")\n	{"o":"café"}
 # literal escapes differently in each quote, and SQL spells a literal
 # one way and an identifier another. `esc(s, regex)` is the one whose
 # output is itself checked by another part of the language: it always
-# answers a pattern the portable subset accepts.
+# answers a pattern that re() and the portable subset rep() reads both
+# accept.
 esc-sq	gens	o: esc('it\\'s', sq)\n	{"o":"it\\\\'s"}
 esc-sq-leaves-double-quote	gens	o: esc("say \\"hi\\"", sq)\n	{"o":"say \\"hi\\""}
 esc-sql	gens	o: esc('o\\'brien', sql)\n	{"o":"o''brien"}
@@ -104,9 +105,8 @@ usc-regex-undefined-escape	errc	o: usc("a\\\\zb", regex)\n	usc_malformed
 usc-variant-unknown	errc	o: usc("a", pascal)\n	esc_variant
 # `rep` REPLACES EVERY MATCH. A replace-the-first default is a footgun
 # in a generator that normalises separators, and anchoring is how a
-# document asks for one. The pattern is the portable subset `re()`
-# takes, so one document has one regexp language; the substitution is
-# `$1`..`$9`, `$&` and `$$`, and nothing else.
+# document asks for one. The substitution is `$1`..`$9`, `$&` and `$$`,
+# and nothing else.
 rep-literal	gens	o: rep("a-b-c", "-", "+")\n	{"o":"a+b+c"}
 rep-class	gens	o: rep("aim:ingest,process:episode", "[,:]", " ")\n	{"o":"aim ingest process episode"}
 rep-groups	gens	o: rep("2026-09-04", "([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1")\n	{"o":"04/09/2026"}
@@ -124,8 +124,42 @@ rep-unmatched-group-is-empty	gens	o: rep("b", "(a)|(b)", "[$1$2]")\n	{"o":"[b]"}
 # empty string: a generator that writes a file with a hole in it and
 # says nothing is the failure this refusal exists to close. `$0` names
 # nothing -- the whole match is `$&`.
+# THE PATTERN IS THE PORTABLE SUBSET. rep() and split() need where a
+# match falls, which aontu's own matcher does not say (it answers only
+# whether a pattern matches, ADR-060), so each port's host engine runs
+# them, over the syntax both hosts read alike: no Unicode property, no
+# named group, no repeat count above 1000, and no quantifier over a
+# group holding a quantifier or an alternation, which a backtracking
+# host runs in exponential time. The abbreviations are aontu's, as in
+# re(). A pattern outside the subset is `rep_pattern`.
 rep-pattern-outside-subset	errc	o: rep("a", "(?=a)", "x")\n	rep_pattern
 rep-pattern-host-refuses	errc	o: rep("a", "a**", "x")\n	rep_pattern
+rep-pattern-abbreviations-are-aontus	gen	o: rep("a 1\\u00a0", "\\\\s|\\\\d", "_")\n	{"o":"a__\\u00a0"}
+rep-pattern-unicode-property	errc	o: rep("a", "\\\\p{L}", "x")\n	rep_pattern
+rep-pattern-nested-quantifier	errc	o: rep("a", "(a+)+$", "x")\n	rep_pattern
+rep-pattern-quantified-alternation	errc	o: rep("a", "(?:a|b)+", "x")\n	rep_pattern
+rep-pattern-unbalanced-group	errc	o: rep("a", "ab)", "x")\n	rep_pattern
+rep-pattern-unclosed-group	errc	o: rep("a", "(ab", "x")\n	rep_pattern
+rep-pattern-unterminated-class	errc	o: rep("a", "[abc", "x")\n	rep_pattern
+rep-pattern-trailing-backslash	errc	o: rep("a", "\\\\", "x")\n	rep_pattern
+rep-pattern-hex-short	errc	o: rep("a", "\\\\xZZ", "x")\n	rep_pattern
+rep-pattern-hex-at-the-end	errc	o: rep("a", "\\\\x4", "y")\n	rep_pattern
+rep-pattern-hex-alone-at-the-end	errc	o: rep("a", "\\\\x", "y")\n	rep_pattern
+rep-pattern-negated-abbrev-in-class	errc	o: rep("a", "[\\\\D]", "x")\n	rep_pattern
+rep-pattern-wordbreak-in-class	errc	o: rep("a", "[\\\\b]", "x")\n	rep_pattern
+rep-pattern-hyphen-outside-class	errc	o: rep("a", "a\\\\-b", "x")\n	rep_pattern
+rep-pattern-quantified-anchor	errc	o: rep("a", "^*", "x")\n	rep_pattern
+rep-pattern-stray-close-brace	errc	o: rep("a", "x}", "x")\n	rep_pattern
+rep-pattern-repeat-at-cap	gens	o: rep("a", "b{1000}", "x")\n	{"o":"a"}
+rep-pattern-repeat-over-cap	errc	o: rep("a", "a{1001}", "x")\n	rep_pattern
+rep-pattern-repeat-overflow	errc	o: rep("a", "a{99999999999999999999}", "x")\n	rep_pattern
+rep-pattern-repeat-overflow-low	errc	o: rep("a", "a{99999999999999999999,5}", "x")\n	rep_pattern
+rep-pattern-brace-not-a-repeat	errc	o: rep("a", "x{y}", "x")\n	rep_pattern
+rep-pattern-brace-empty	errc	o: rep("a", "a{}", "x")\n	rep_pattern
+rep-pattern-brace-three-bounds	errc	o: rep("a", "a{1,2,3}", "x")\n	rep_pattern
+rep-pattern-brace-no-low	errc	o: rep("a", "a{,5}", "x")\n	rep_pattern
+rep-pattern-brace-at-end	errc	o: rep("a", "a{", "x")\n	rep_pattern
+rep-pattern-brace-unterminated	errc	o: rep("a", "a{2", "x")\n	rep_pattern
 rep-sub-missing-group	errc	o: rep("a", "a", "$1")\n	rep_sub
 rep-sub-dangling-dollar	errc	o: rep("a", "a", "x$")\n	rep_sub
 rep-sub-zero-group	errc	o: rep("a", "(a)", "$0")\n	rep_sub
@@ -147,6 +181,11 @@ split-empty-separator-is-characters	gens	o: split("abc", "")\n	{"o":["a","b","c"
 split-empty-separator-code-points	gens	o: split("aé", "")\n	{"o":["a","é"]}
 split-pattern	gens	o: split("a1b22c", re("[0-9]+"))\n	{"o":["a","b","c"]}
 split-pattern-empty-match	gens	o: split("abc", re("x*"))\n	{"o":["a","b","c"]}
+# A pattern separator is the same portable subset rep() reads, refused
+# with the same code, though re() itself reads it.
+split-pattern-outside-subset	errc	o: split("a1b", re("\\\\p{Nd}"))\n	rep_pattern
+split-pattern-named-group	errc	o: split("a1b", re("(?<n>1)"))\n	rep_pattern
+split-pattern-nested-quantifier	errc	o: split("aab", re("(a+)+"))\n	rep_pattern
 split-join-round-trip	gens	o: join(split("a,,b,", ","), ",")\n	{"o":"a,,b,"}
 split-sep-number	errc	o: split("a,b", 1)\n	split_sep
 split-sep-list	errc	o: split("a", [1])\n	split_sep

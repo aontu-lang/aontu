@@ -195,38 +195,37 @@ const hints: Record<string, string> = {
     'refused rather than set to a value meaning "no".',
 
   constraint_pattern:
-    'This re() pattern is outside the supported subset. It uses\n' +
+    'This re() pattern is refused:\n' +
     '{reason}.\n' +
     ' \n' +
-    're() accepts classical regular expressions over Unicode code\n' +
-    'points, with one meaning in both implementations:\n' +
+    're() reads ECMA-262\'s pattern syntax in u mode and matches it with\n' +
+    'aontu\'s own engine, the same in both implementations, in time linear\n' +
+    'in the text:\n' +
     ' \n' +
-    '  literals     a  \\.  \\*  \\xHH        (escape . \\ + * ? ( ) [ ] { } | ^ $ /)\n' +
-    '  classes      [abc]  [^abc]  [a-z]\n' +
+    '  literals     a  \\.  \\*  \\xHH  \\uHHHH  \\u{H...}  \\cX  \\0\n' +
+    '  classes      [abc]  [^abc]  [a-z]  []  [^]\n' +
+    '  properties   \\p{L}  \\P{Lu}  \\p{Script=Greek}  \\p{scx=Arab}\n' +
     '  abbreviations \\d \\D \\w \\W \\s \\S  and  .\n' +
     '  repetition   *  +  ?  {n}  {n,}  {n,m}   (lazy: *? +? ??)\n' +
-    '  grouping     (...)  (?:...)      alternation  a|b\n' +
+    '  grouping     (...)  (?:...)  (?<name>...)   alternation  a|b\n' +
     '  anchors      ^  $  \\A  \\z  \\b  \\B\n' +
     ' \n' +
-    'aontu DEFINES the abbreviations rather than inheriting either\n' +
-    'host regex engine, so they mean the same in both ports:\n' +
+    'aontu DEFINES the abbreviations rather than inheriting a host\n' +
+    'engine\'s, so they mean the same in both ports:\n' +
     '  \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]\n' +
     'Note \\s is these six ASCII characters only -- not U+00A0.\n' +
     ' \n' +
-    'NOT accepted, because no rewriting can make the two engines\n' +
-    'agree:\n' +
-    '  backreferences (\\1, \\k<n>) and lookaround ((?=) (?!) (?<=))\n' +
-    '  named groups, inline flags, and any (?...) but (?:\n' +
-    '  POSIX classes [[:alpha:]], \\p{...}, \\x{...}, \\u\n' +
-    '  a quantifier on a group containing a quantifier or an\n' +
-    '    alternation -- (a+)+ backtracks exponentially in one port,\n' +
-    '    so write [ab]+ rather than (?:a|b)+' +
-    '\n \nExamples:\n' +
+    'NOT accepted:\n' +
+    '  backreferences (\\1, \\k<n>) and lookaround ((?=) (?!) (?<=) (?<!)),\n' +
+    '    which no regular language holds\n' +
+    '  modifier groups ((?i:...)), whose flags aontu does not apply\n' +
+    '  a pattern that compiles past 100000 instructions\n' +
+    ' \n' +
+    'Examples:\n' +
     '  re("^[a-z][a-z0-9-]*$")  # Fine;\n' +
-    '  re("^\\d{3}-\\d{4}$")      # Fine;\n' +
-    '  re("(?:ab)+")            # Fine (non-capturing group);\n' +
-    '  re("(?=x)y")             # Refused (lookahead);\n' +
-    '  re("(a+)+")              # Refused (nested quantifier).',
+    '  re("^\\p{Lu}\\p{Ll}+$")    # Fine (Unicode properties);\n' +
+    '  re("^(a+)+$")            # Fine (no backtracking to blow up);\n' +
+    '  re("(?=x)y")             # Refused (lookahead).',
 
   budget_passes:
     'The evaluation budget of {limit} fixpoint passes was spent before\n' +
@@ -356,7 +355,7 @@ const hints: Record<string, string> = {
 
   usc_malformed: 'usc() was given text the convention could not have produced,\nso there is nothing to read back out: a truncated code-point escape, an\nescape the convention does not define, or an escape character standing\nalone where the convention doubles it. `usc` is the LEFT inverse of\n`esc` and it is partial — every escaped value has an original, but not\nevery string is an escaped value.\n \nExamples:\n  usc(esc(text))     -> ...   # Whatever esc() wrote;\n  usc(text, sql)     -> ...   # ... in the same convention;\n  usc(text, shell)   -> nil   # ... but not in another one.',
 
-  rep_pattern: 'The pattern given to rep() is outside the portable subset. It is\nthe same subset re() takes — RE2-compatible, no backreferences, no\nlookaround — so one document has one regexp language rather than two,\nand so a generator running a pattern over model data cannot take\nexponential time doing it.\n \nExamples:\n  rep(s, "[:,]", " ")     -> ...   # A class;\n  rep(s, "(a)(b)", "$2$1") -> ...   # ... a group;\n  rep(s, "(?=a)", "x")    -> nil   # ... but not a lookahead.',
+  rep_pattern: 'The pattern given to rep() or split() is outside the portable subset.\nThese two run on each implementation\'s host regex engine, since they\nneed where a match falls and aontu\'s own matcher answers only whether\none does, so the pattern must mean the same to both hosts. That rules\nout a Unicode property, a named group, a backreference, a lookaround,\na repeat count above 1000, and a quantifier over a group holding a\nquantifier or an alternation, which a backtracking host runs in\nexponential time. re() itself reads all but the backreference and the\nlookaround.\n \nExamples:\n  rep(s, "[:,]", " ")     -> ...   # A class;\n  rep(s, "(a)(b)", "$2$1") -> ...   # ... a group;\n  rep(s, "(?=a)", "x")    -> nil   # ... but not a lookahead.',
 
   rep_sub: 'The substitution given to rep() names something the pattern has\nnot got. `$1` to `$9` are the numbered groups, `$&` is the whole match\nand `$$` is a literal `$`; a `$` naming anything else, or a group\nnumber the pattern does not have, is refused rather than expanded to\nnothing — a generator that writes a file with a hole in it and says\nnothing is the failure this refusal exists to close.\n \nExamples:\n  rep(s, "(a)", "[$1]")  -> ...   # A group the pattern has;\n  rep(s, "a", "$$")      -> ...   # ... a literal dollar;\n  rep(s, "a", "$1")      -> nil   # ... but not a group it has not.',
 

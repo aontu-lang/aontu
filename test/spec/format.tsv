@@ -83,11 +83,27 @@ format-err-left-recursion	err	a: format("v = v \\"a\\" / \\"b\\"") & "b"	rule v 
 format-err-left-recursion-through-a-rule	err	a: format("v = w \\"a\\"\\nw = [\\"b\\"] v") & "a"	rule v is left-recursive
 format-err-prose	err	a: format("v = <prose>") & "x"	rule v: a prose value cannot be run
 format-err-groups-nest-too-deep	err	a: format("v = (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((\\"a\\")))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))") & "a"	rule v: groups nest deeper than 64
-# regex is the pattern dialect's own check.
+# regex is ECMA-262's pattern syntax in u mode, its early errors
+# included, read by aontu's own parser (ADR-060). It is syntax only: a
+# lookaround, a backreference and a modifier group are valid patterns,
+# though re() cannot run them, and re()'s own \\A is not u mode's.
+# Groups nest at most 256 deep: that bound is aontu's, not ECMA-262's.
 format-gens-regex-admits-a-pattern	gens	a: format("regex") & "^a+$"	{"a":"^a+$"}
 format-errc-regex-refuses	errc	a: format("regex") & "(a"	parse_failed
-format-err-regex-gives-the-reason	err	a: format("regex") & "(a"	format regex: an unclosed group
-format-err-regex-outside-the-portable-subset	err	a: format("regex") & "(?=x)"	format regex: a (?...) group other than the non-capturing (?:
+format-err-regex-gives-the-reason	err	a: format("regex") & "(a"	format regex: a group is not closed
+format-gens-regex-a-lookahead-is-valid	gens	a: format("regex") & "(?=x)"	{"a":"(?=x)"}
+format-gens-regex-a-backreference-is-valid	gens	a: format("regex") & "(a)\\\\1"	{"a":"(a)\\\\1"}
+format-gens-regex-a-modifier-is-valid	gens	a: format("regex") & "(?i:a)"	{"a":"(?i:a)"}
+format-gens-regex-a-property-is-valid	gens	a: format("regex") & "\\\\p{Lu}"	{"a":"\\\\p{Lu}"}
+format-gens-regex-a-name-twice-in-alternatives	gens	a: format("regex") & "(?<a>x)|(?<a>y)"	{"a":"(?<a>x)|(?<a>y)"}
+format-gens-regex-a-large-repeat-is-valid	gens	a: format("regex") & "a{100000}"	{"a":"a{100000}"}
+format-err-regex-an-unknown-property	err	a: format("regex") & "\\\\p{Lx}"	format regex: \\p{Lx} names no property ECMA-262 reads
+format-err-regex-an-escape-u-mode-refuses	err	a: format("regex") & "\\\\a"	format regex: \\a is not an escape u mode reads
+format-err-regex-reads-ecma-not-re	err	a: format("regex") & "\\\\Aa"	format regex: \\A is not an escape u mode reads
+format-err-regex-a-name-twice	err	a: format("regex") & "(?<a>x)(?<a>y)"	format regex: a group name is used twice
+format-err-regex-a-backreference-to-no-group	err	a: format("regex") & "\\\\2(a)"	format regex: a backreference names no group
+format-gens-regex-groups-nest-256-deep	gens	a: format("regex") & "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"	{"a":"((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"}
+format-err-regex-groups-nest-deeper	err	a: format("regex") & "(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"	format regex: groups nest deeper than 256
 # A committed grammar by name.
 format-gens-date	gens	a: format("date") & "2024-02-29"	{"a":"2024-02-29"}
 format-errc-date	errc	a: format("date") & "2023-02-29"	parse_failed

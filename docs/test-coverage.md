@@ -304,10 +304,11 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go: 124 marked sites
+### Go: 128 marked sites
 
 | Site | Why it cannot be reached, as the marker says |
 |------|--------------------------|
+| `allow.go` × 1 | `the shape has met the anchor as a map` |
 | `aontu.go` × 1 | `Abs fails only on an unreadable cwd` |
 | `cmd/aontu-lsp/main.go` × 1 | `run under GOCOVERDIR by make cov-go` |
 | `cmd/aontu/help.go` × 3 | `the file is embedded; absence fails the build`; `the generator writes four columns`; `every indexed file is embedded beside the index` |
@@ -324,6 +325,7 @@ marker stopped working.
 | `constraint.go` × 2 | `parse-time arity guarantees two; see above`; `no Val kind reaches this arm; see above` |
 | `disjunct.go` × 2 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `the meet returns the preference itself; see above` |
 | `format.go` × 1 | `a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first` |
+| `formatgrammar.go` × 1 | `only a refusal is raised above; anything else is a fault` |
 | `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
 | `generate.go` × 1 | `hasNodeRef true implies a case above` |
 | `graphatom.go` × 1 | `a string-kind scalar always holds a string` |
@@ -342,6 +344,7 @@ marker stopped working.
 | `profile.go` × 1 | `vet passed, so the meet generates` |
 | `query.go` × 3 | `a generated value is always encodable` (× 2); `the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is nil != uerr \|\| nil == root \|\| root.Nil(), and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)` |
 | `refer.go` × 1 | `pegs are pre-validated by the capture` |
+| `regex.go` × 2 | `only a refusal is raised above; anything else is a fault` (× 2) |
 | `scalar.go` × 1 | `no caller: superOf answers for a kind peg (ADR-011 R4)` |
 | `sig.go` × 2 | `the grammar is static; registration failure is a build defect`; `the embedded text is suite-gated; a parse failure is a build defect` |
 | `source.go` × 8 | `a plugin that cannot install is a broken dependency, not an input`; `Abs fails only on an unreadable cwd`; `an include's string always follows its @`; `parseBase always seats the sink`; `a resolution always carries its full path`; `jsonic hands back a Val or a map, never a raw`; `the readers cannot nest deeper than their own parser allows`; `a JSON-shaped value has no other kind` |
@@ -370,11 +373,18 @@ executed code; and a file it cannot find or parse simply has no markers,
 so the merge degrades to a plain union rather than silently dropping
 everything.
 
-### TypeScript: export blocks only
+### TypeScript: export blocks, and four guarded sites
 
-`ts/src` carries one directive per file, on the trailing
-`export { … }` block, because V8 reports those lines as unexecuted in
-every run. Nothing else is excluded.
+`ts/src` carries a directive on each file's trailing `export { … }`
+block, because V8 reports those lines as unexecuted in every run, and
+on the tail of a few top-level blocks V8 misreports the same way. Four
+more sites are excluded, each with its ruling in the source:
+
+| Site | Why it cannot be reached, as the comment says |
+|------|--------------------------|
+| `cli.ts` × 1 | the real pair of servers takes the process stdio, so `ts/test/cli.test.ts` drives each through a child process instead |
+| `formatgrammar.ts` × 1 | only a refusal is raised above; anything else is a fault |
+| `regex.ts` × 2 | only a refusal is raised above; anything else is a fault (× 2) |
 
 Everything else that was unreachable is **gone rather than excused**,
 per ADR-002 rule 4. The round deleted: a `null == resolved` branch that

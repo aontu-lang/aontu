@@ -17,12 +17,12 @@ Envelope: {
   type: string
 
   # RFC 3339 timestamp. There is no date-time type, so the format is
-  # a regex. The natural spelling of optional fractional seconds,
-  # (\.\d+)?, is OUTSIDE re()'s portable subset (a quantifier on a
-  # group containing a quantifier -- see probes/frac-group.aontu), so
-  # the optionality is folded into one unquantified alternation
-  # group instead. The pattern cannot check calendar semantics:
-  # month 13 passes (pinned in check.sh).
+  # a regex. The optionality of fractional seconds is folded into one
+  # unquantified alternation group; the natural spelling, (\.\d+)?,
+  # means the same and is accepted too (probes/frac-group.aontu),
+  # since aontu's matcher costs linear time for every pattern. The
+  # pattern cannot check calendar semantics: month 13 passes (pinned
+  # in check.sh).
   time: re("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(Z|\\.\\d+Z|[+-]\\d{2}:\\d{2}|\\.\\d+[+-]\\d{2}:\\d{2})$")
 
   # Path-style producer identity, e.g. /orders/eu-1.

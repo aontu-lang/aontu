@@ -1357,8 +1357,9 @@ $ aontu jsonschema --at spec contract.aontu
 `float` leaves are reported (below); a concrete scalar becomes `const`; a disjunction of scalars becomes `enum`, and its
 preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
-`re` becomes `pattern` (aontu's portable subset is a subset of
-ECMA-262, which is what JSON Schema reads, so no translation happens);
+`re` becomes `pattern`, written as ECMA-262 text that means what `re`
+means: `re`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z`
+become the sets aontu defines, and the rest is copied as written;
 `format(g)` becomes `format` for a format JSON Schema defines and
 `x-aontu-format` for a grammar, two of either an `allOf` of them, each
 with a loss (below);
@@ -1617,7 +1618,7 @@ y: number
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
 | `multipleOf` | `multiple`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
-| `pattern` | `re`, rewritten from ECMA-262 into the portable subset, so `\s`, `.`, `\u` escapes and named groups keep their JSON Schema meaning |
+| `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
 | `properties`, `required` | keys, optional unless required |
 | `patternProperties` | one spread per pattern, which applies its schema to the keys the pattern matches |
 | `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil` |

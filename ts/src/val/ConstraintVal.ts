@@ -41,6 +41,8 @@ import { StringVal } from './StringVal'
 import { makeNilErr } from '../err'
 import { formatOf, recognise, hex, FORMAT_STEP_MAX } from '../formatgrammar'
 import type { Grammar } from '../formatgrammar'
+import { compilePattern, patternMatches, exportForm, ecmaWhy } from '../regex'
+import type { Inst } from '../regex'
 import { codeClass } from '../hints'
 
 import { FeatureVal } from './FeatureVal'
@@ -76,8 +78,8 @@ type ReAtom = {
   src: string     // the pattern text AS WRITTEN — canon and dedup use this,
                   // never the normalised form, because canon round-trips
                   // source and G6's hash will be taken over canon
-  norm: string    // the engine-neutral rewrite actually compiled (ADR-003)
-  re: RegExp      // compiled by the host engine, from `norm`
+  norm: string    // the export's pattern, in ECMA-262's syntax, meaning the same
+  prog: Inst[]    // compiled by aontu's own matcher (ADR-060)
 }
 
 type MustAtom = {
@@ -292,26 +294,11 @@ function normaliseEscape(
 }
 
 
-// The pattern compiled from its portable form, or why it is refused.
-function compileRe(src: string): [RegExp | undefined, string, string] {
-  const [norm, why] = normaliseRe(src)
-  if ('' !== why) {
-    return [undefined, norm, why]
-  }
-  try {
-    return [new RegExp(norm, 'u'), norm, '']
-  }
-  catch (e: any) {
-    return [undefined, norm, 'not a valid pattern']
-  }
-}
-
-
 // Why the format refuses s, or undefined where it admits it (ADR-059).
 function formatWhy(f: FormatAtom, s: string): string | undefined {
   const head = 'format ' + f.name + ': '
   if (undefined === f.gs) {
-    const why = compileRe(s)[2]
+    const why = ecmaWhy(s)
     return '' === why ? undefined : head + why
   }
   const cps = [...s]
@@ -750,13 +737,13 @@ class ConstraintVal extends FeatureVal {
         return bad('invalid-arg')
       }
       const src = a.peg as string
-      const [re, norm, why] = compileRe(src)
-      if (undefined === re) {
+      const [prog, why] = compilePattern(src, 'aontu')
+      if (undefined === prog) {
         this.invalidWhy = why
         return bad('constraint_pattern')
       }
       this.domain = 'string'
-      this.res = [{ v: a, src, norm, re }]
+      this.res = [{ v: a, src, norm: exportForm(src)[0], prog }]
       return
     }
 
@@ -1999,7 +1986,7 @@ function stateAdmits(s: ConstraintState, peer: any): boolean {
     }
   }
   for (const r of s.res) {
-    if (!r.re.test(peer.peg)) {
+    if (!patternMatches(r.prog, peer.peg)) {
       return false
     }
   }

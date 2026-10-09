@@ -17,7 +17,7 @@ import { getHint } from './err'
 import { formatOf, isDefinedFormat } from './formatgrammar'
 import { format } from './format'
 import type { FormatReport } from './format'
-import { normaliseRe } from './val/ConstraintVal'
+import { importForm } from './regex'
 import { exactNumberText, isExactInBinary64, readExactNumber } from './val/numkind'
 import { normalizeUri, resolveUri } from './uri'
 import type { ExactNumber } from './val/numkind'
@@ -986,177 +986,13 @@ function grammarCall(ctx: Ctx, path: string, node: JNode, g: string): Expr[] {
 }
 
 
-// The ECMA-262 whitespace set, what `\s` means in a JSON Schema pattern,
-// as a class body both engines read alike.
-const ECMA_SPACE = '\\t\\n\\v\\f\\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
-
-// The line terminators of ECMA-262, which `.` does not match.
-const ECMA_DOT = '[^\\n\\r\u2028\u2029]'
-
-const RE_META = '\\.+*?()[]{}|^$/-'
-
-
-function escapeReChar(cp: number): string {
-  const ch = String.fromCodePoint(cp)
-  return RE_META.includes(ch) ? '\\' + ch :
-    cp < 0x20 || 0x7f === cp ? '\\x' + cp.toString(16).padStart(2, '0') : ch
-}
-
-
-// Stage two of the pattern crossing: ECMA constructs the portable subset
-// does not spell are rewritten to what they mean.
-function ecmaToPortable(src: string): [string, string] {
-  let out = ''
-  let inClass = false
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i]
-    if ('\\' === c) {
-      const n = src[i + 1]
-      if ('s' === n || 'S' === n) {
-        if (inClass && 'S' === n) {
-          return ['', 'a negated \\S inside a character class']
-        }
-        out += inClass ? ECMA_SPACE : ('s' === n ? '[' : '[^') + ECMA_SPACE + ']'
-        i++
-        continue
-      }
-      if ('u' === n) {
-        const [cp, len] = unicodeEscape(src, i)
-        if (cp < 0) {
-          return ['', 'a \\u escape that names no code point']
-        }
-        out += escapeReChar(cp)
-        i += len - 1
-        continue
-      }
-      if ('c' === n && /^[A-Za-z]$/.test(src[i + 2] ?? '')) {
-        out += escapeReChar(src.charCodeAt(i + 2) % 32)
-        i += 2
-        continue
-      }
-      if ('0' === n && !/^[0-9]$/.test(src[i + 2] ?? '')) {
-        out += '\\x00'
-        i++
-        continue
-      }
-      out += c + (n ?? '')
-      i++
-      continue
-    }
-    if (inClass) {
-      inClass = ']' !== c
-      out += c
-      continue
-    }
-    if ('[' === c) {
-      inClass = true
-      out += c
-      continue
-    }
-    if ('.' === c) {
-      out += ECMA_DOT
-      continue
-    }
-    if ('(' === c && src.startsWith('(?<', i) && '=' !== src[i + 3] && '!' !== src[i + 3]) {
-      const close = src.indexOf('>', i + 3)
-      if (-1 === close) {
-        return ['', 'an unterminated group name']
-      }
-      out += '(?:'
-      i = close
-      continue
-    }
-    if ('(' === c) {
-      const folded = foldCharGroup(src, i)
-      if (undefined !== folded) {
-        out += folded[0]
-        i = folded[1]
-        continue
-      }
-    }
-    out += c
-  }
-  return [out, '']
-}
-
-
-// `\uHHHH`, a surrogate pair of them, or `\u{H...}`: the code point and
-// the source length, or -1.
-function unicodeEscape(src: string, i: number): [number, number] {
-  if ('{' === src[i + 2]) {
-    const close = src.indexOf('}', i + 3)
-    const hex = -1 === close ? '' : src.slice(i + 3, close)
-    const cp = /^[0-9a-fA-F]{1,6}$/.test(hex) ? parseInt(hex, 16) : -1
-    return cp <= 0x10ffff ? [cp, close + 1 - i] : [-1, 0]
-  }
-  const hex = src.slice(i + 2, i + 6)
-  if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
-    return [-1, 0]
-  }
-  const hi = parseInt(hex, 16)
-  const low = /^\\u([dD][c-fC-F][0-9a-fA-F]{2})/.exec(src.slice(i + 6))
-  if (0xd800 <= hi && hi < 0xdc00 && null != low) {
-    return [0x10000 + ((hi - 0xd800) << 10) + (parseInt(low[1], 16) - 0xdc00), 12]
-  }
-  return [hi, 6]
-}
-
-
-// A `(a|b|c)` before a quantifier, every alternative one character, is
-// written as `[abc]`, which has the same language: the subset refuses a
-// quantified alternation and takes a quantified class.
-function foldCharGroup(src: string, at: number): [string, number] | undefined {
-  let i = at + 1
-  if (src.startsWith('?:', i)) {
-    i += 2
-  }
-  const members: string[] = []
-  for (; ;) {
-    let one: string
-    if ('\\' === src[i]) {
-      const n = src[i + 1]
-      if (undefined === n || /^[dDwWsSuxcpPbBk0-9]$/.test(n)) {
-        return undefined
-      }
-      one = '\\' + n
-      i += 2
-    }
-    else if (undefined === src[i] || '()[]|*+?{}^$.'.includes(src[i])) {
-      return undefined
-    }
-    else {
-      one = String.fromCodePoint(src.codePointAt(i) as number)
-      i += one.length
-    }
-    members.push('-' === one ? '\\-' : one)
-    if ('|' === src[i]) {
-      i++
-      continue
-    }
-    if (')' !== src[i]) {
-      return undefined
-    }
-    break
-  }
-  const q = src[i + 1]
-  if (members.length < 2 || !('*' === q || '+' === q || '?' === q || '{' === q)) {
-    return undefined
-  }
-  return ['[' + members.join('') + ']', i]
-}
-
-
 function pattern(ctx: Ctx, path: string, construct: string, src: string): Expr | undefined {
-  let [portable, why] = ecmaToPortable(src)
-  if ('' === why) {
-    why = normaliseRe(portable)[1]
-  }
+  const [form, why] = importForm(src)
   if ('' !== why) {
-    lose(ctx, path, construct, 'the pattern is outside the portable regex subset, ' +
-      'so it is dropped: it holds ' + why)
+    lose(ctx, path, construct, 're() cannot read the pattern, so it is dropped: ' + why)
     return undefined
   }
-  return call('re', raw(quote(portable)))
+  return call('re', raw(quote(form)))
 }
 
 

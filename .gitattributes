@@ -7,15 +7,20 @@ test/spec/files/** text eol=lf
 # checkout that converted their line endings would test other inputs.
 test/vectors/*/tests/** -text
 test/vectors/jsontestsuite/test_parsing/** -text
-# The format corpora are upstream's bytes as well, read as they were
-# published (test/vectors/README.md).
+# The format and pattern corpora are upstream's bytes as well, read as
+# they were published (test/vectors/README.md).
 test/vectors/uritemplate-test/** -text
 test/vectors/isemail/** -text
 test/vectors/idna/** -text
+test/vectors/test262/** -text
+test/vectors/re2/** -text
 # The embedded copy of test/spec/signature.tsv (docs/design/
 # SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
 # keeps the same line endings on every platform.
 go/sigdecl.txt text eol=lf
+# The Unicode property tables (ADR-060), embedded verbatim by
+# go/uniprop.go and held identical with ts/src/unicodeprops.ts.
+go/unicodeprops.txt text eol=lf
 # The embedded teaching pack (G11 phase 1): copies of docs/skill/*.md
 # and grammar/aontu.abnf staged into the Go command's own package,
 # because //go:embed cannot read above its own directory. Both suites

@@ -50,3 +50,14 @@ licence and with a README naming its upstream and its pin:
 Each runner requires how many cases agree and, for each kind of
 difference the README names, how many there are.
 
+## The pattern corpora
+
+Two more directories hold public corpora the pattern runners,
+`ts/test/regex-vectors.test.ts` and `go/regex_vectors_test.go`, read
+against aontu's own pattern matcher (ADR-060), each under its own
+licence and with a README naming its upstream and its pin:
+
+- [`test262/`](test262/README.md), test262's generated property
+  escapes, for the Unicode property tables;
+- [`re2/`](re2/README.md), RE2's search tests, for the matcher.
+

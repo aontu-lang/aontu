@@ -253,11 +253,12 @@ run month13 0 -- vet --at '$.Event' "$V1" "$DIR/data/bad/placed-month-13.json"
 has month13 out 'verdict: valid'
 ok "vet: 2026-13-41T25:61:61Z accepted -- no date-time type (pinned gap)"
 
-# The natural optional-fraction spelling is refused outright.
-run frac 1 -- "$DIR/probes/frac-group.aontu"
-has frac err '[aontu/constraint_pattern]'
-has frac err 'quantifier applied to a group containing another quantifier'
-ok "re(): (\\.\\d+)? outside the portable subset (pinned gap; workaround in envelope)"
+# The natural optional-fraction spelling is accepted: the matcher is
+# linear in the text for every pattern.
+run frac 0 -- "$DIR/probes/frac-group.aontu"
+has frac out '2026-08-26T12:00:00Z'
+lacks frac err '[aontu/constraint_pattern]'
+ok "re(): (\\.\\d+)? accepted (aontu's own matcher)"
 
 # --- 5. Event ids: 19 digits, with and without 0d. ---
 

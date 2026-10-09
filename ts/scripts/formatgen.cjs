@@ -10,16 +10,13 @@
 // the string must meet together. Run via `make formatgen`, then `make
 // formats`; never edit the output. The IDNA2008 tables come from the
 // Unicode Character Database at the pinned version, fetched once into a
-// cache ($AONTU_UCD, or the system's temporary directory) and held to
-// their recorded hashes.
+// cache by ts/scripts/ucd.cjs and held to their recorded hashes.
 
 'use strict'
 
 const fs = require('fs')
-const os = require('os')
 const path = require('path')
-const https = require('https')
-const crypto = require('crypto')
+const { VERSION, fetchUcd, lines, span } = require('./ucd.cjs')
 
 const ROOT = path.join(__dirname, '..', '..')
 const OUT = path.join(ROOT, 'grammar', 'format')
@@ -567,55 +564,6 @@ const LDH = new Map([
 function hostname() {
   const part = syntax({ max: 63, reserved: true })
   return minimise(stepped(LDH, part.start, part.step, part.end))
-}
-
-const VERSION = '18.0.0'
-const FILES = {
-  'UnicodeData.txt': ['ucd/UnicodeData.txt', '0736451de439ae7baf1425136617da495e09ee5afbe6e394374db7009ea08950'],
-  'Scripts.txt': ['ucd/Scripts.txt', '0071fd81b6aeae25f6e8bce8efec3066a6476a91b49bdb2f52dc76e817862a6a'],
-  'PropList.txt': ['ucd/PropList.txt', 'f438f532e8737bb8a2702126cdf9c4af5e357c58c7acf9d9eb2fc7c1a1d955d6'],
-  'DerivedCoreProperties.txt': ['ucd/DerivedCoreProperties.txt', '09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9'],
-  'HangulSyllableType.txt': ['ucd/HangulSyllableType.txt', '0468ce5e735a6e3f0e9d12ec006410e86cedc515c34706704c756808a6cf740e'],
-  'DerivedNormalizationProps.txt': ['ucd/DerivedNormalizationProps.txt', '98ac7f67d985fe781e317f6182e885e94cabb0c314769e6dd73e48b226931ccd'],
-  'DerivedJoiningType.txt': ['ucd/extracted/DerivedJoiningType.txt', 'e2408ff2c92b175b0f7bf62c989bbb54c7b077528fe31f8d69b96fa09e7d61ed'],
-  'IdnaMappingTable.txt': ['idna/IdnaMappingTable.txt', 'a03b1eb38032268c696406a83f0972d6a815acd2c8d4151d42ec0fda70ffced1'],
-}
-
-function get(url) {
-  return new Promise((done, fail) => https.get(url, (res) => {
-    if (200 !== res.statusCode) {
-      return fail(new Error(url + ': ' + res.statusCode))
-    }
-    const parts = []
-    res.on('data', (d) => parts.push(d)).on('end', () => done(Buffer.concat(parts))).on('error', fail)
-  }).on('error', fail))
-}
-
-// The files, fetched once into a cache and held to their pinned hashes.
-async function fetchUcd() {
-  const dir = process.env.AONTU_UCD ?? path.join(os.tmpdir(), 'aontu-ucd-' + VERSION)
-  fs.mkdirSync(dir, { recursive: true })
-  for (const [name, [rel, sha]] of Object.entries(FILES)) {
-    const at = path.join(dir, name)
-    if (!fs.existsSync(at)) {
-      fs.writeFileSync(at, await get('https://www.unicode.org/Public/' + VERSION + '/' + rel))
-    }
-    const got = crypto.createHash('sha256').update(fs.readFileSync(at)).digest('hex')
-    if (got !== sha) {
-      throw new Error(name + ' is not the pinned Unicode ' + VERSION + ' file: ' + got)
-    }
-  }
-  return dir
-}
-
-function lines(dir, f) {
-  return fs.readFileSync(path.join(dir, f), 'utf8').split('\n')
-    .map((l) => l.replace(/#.*/, '').trim()).filter((l) => '' !== l)
-}
-
-function span(s) {
-  const [a, b] = s.trim().split('..')
-  return [parseInt(a, 16), parseInt(b ?? a, 16)]
 }
 
 function prop(dir, f, only) {

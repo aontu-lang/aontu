@@ -261,7 +261,12 @@ class SplitFuncVal extends FuncBaseVal_1.FuncBaseVal {
             fields = splitLiteral(src, lit);
         }
         else if (true === sep?.isConstraint && 1 === sep.res?.length) {
-            fields = splitRe(src, new RegExp(sep.res[0].re.source, 'gu'));
+            // The host engine splits, so only a pattern of the portable subset.
+            const host = compileRe(sep.res[0].src);
+            if ('string' === typeof host) {
+                return (0, err_1.makeNilErr)(ctx, host, this);
+            }
+            fields = splitRe(src, host);
         }
         else {
             return (0, err_1.makeNilErr)(ctx, 'split_sep', this);

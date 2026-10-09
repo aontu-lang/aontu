@@ -842,8 +842,8 @@ help isolate the syntax error.`,
     neq: NeqConstraintVal,
     multiple: MultipleConstraintVal,
 
-    // G1 phase 2: pattern membership, over the portable subset both
-    // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
+    // G1 phase 2: pattern membership, read and matched by aontu's own
+    // engine (ADR-060).
     re: ReConstraintVal,
 
     len: LenConstraintVal,

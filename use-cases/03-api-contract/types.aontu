@@ -14,11 +14,11 @@ types: hide({
   Email: re("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 
   # RFC 3339, UTC only: the API never emits a numeric offset.
-  # The natural spelling of optional fractional seconds, (\.\d+)?Z,
-  # is refused by the portable-regex subset -- a quantified group may
-  # not contain a quantifier (README, gap 5). Workaround: an
-  # UNQUANTIFIED alternation group, at the price of fixing fractional
-  # seconds to exactly three digits (milliseconds or nothing).
+  # Fractional seconds are an UNQUANTIFIED alternation group, fixed at
+  # exactly three digits: milliseconds or nothing. The natural
+  # (\.\d+)?Z admits any number of digits, and re() accepts it too:
+  # a quantified group holding a quantifier costs aontu's matcher
+  # linear time like any other pattern.
   Timestamp: re("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(Z|\\.\\d{3}Z)$")
 
   # URL-safe project slugs; the regex also bounds the length (3-40).

@@ -2501,7 +2501,7 @@ Example: `project("./build", [folder("src")])`
 
 ### `re(text p: string) : constraint`
 
-Constrain a string to match a portable regular expression. See [patterns](#re-and-the-portable-pattern-subset).
+Constrain a string to match a pattern, written in ECMA-262's syntax under the `u` flag and matched by aontu's own engine. See [patterns](#re-and-the-pattern-language).
 
 Example: `string & re("^[a-z]+$")`
 
@@ -3251,7 +3251,7 @@ way and an identifier another.
 | `shell` | POSIX single-quote |
 | `xml` | the five entities; covers HTML |
 | `uri` | percent-encoding, RFC 3986 |
-| `regex` | the metacharacters the pattern subset admits |
+| `regex` | the metacharacters of a pattern, so `re` and `rep` read each literally |
 
 ```aontu
 plain: esc("plain text")
@@ -3283,9 +3283,15 @@ with a different string.
 
 ### `rep(s, pattern, sub)`
 
-Every match of `pattern` in `s` replaced by `sub`. The pattern is the
-**same portable subset [`re`](#re-and-the-portable-pattern-subset)
-takes**, so a document has one regexp language rather than two. The
+Every match of `pattern` in `s` replaced by `sub`. The pattern is a
+**portable subset of the language [`re`](#re-and-the-pattern-language)
+reads**. Each implementation's host regex engine runs `rep`, since
+aontu's own engine says whether a pattern matches and not where, so the
+pattern must be one both hosts read alike: no Unicode property, named
+group, backreference or lookaround, no count above 1000, and no
+quantifier on a group that holds a quantifier or an alternation, which
+a backtracking host runs in exponential time. Anything else is
+`rep_pattern`. The abbreviations mean what they mean in `re`. The
 substitution is `$1` to `$9` for the numbered groups, `$&` for the whole
 match and `$$` for a literal `$`.
 
@@ -5050,9 +5056,8 @@ distinguishable.
 
 ## Grammars: `abnf()` and `parse()`
 
-`re()` is deliberately small: the portable pattern subset both engines
-agree on. Real formats are published as **grammars** rather than as
-regexes, and transcribing one into that subset is at best lossy. `abnf()`
+Real formats are published as **grammars** rather than as regexes, and
+transcribing one into a pattern for `re()` is at best lossy. `abnf()`
 takes the grammar as written.
 
 **`abnf(g)` compiles an RFC 5234 grammar and answers its source**, so a
@@ -5156,8 +5161,7 @@ Four things govern a grammar:
   an empty tree for empty input, which would make `parse(g, "")` succeed
   everywhere; it is refused instead.
 - **The parse is bounded** at 100 000 steps. A grammar needing more is
-  refused rather than run, for the reason `re()` refuses a pattern that
-  backtracks exponentially.
+  refused rather than run, so no input can stall the evaluator.
 - **`src` is the text the rule matched**, assembled from what the
   grammar consumed rather than sliced out of the input.
 - **A character class must not contain a literal used elsewhere.**
@@ -5401,8 +5405,8 @@ spelling, and nothing turns it into `30`.
 > are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
-> raise the registered `constraint` code, and a pattern outside the
-> portable subset raises `constraint_pattern`. A preference meeting a
+> raise the registered `constraint` code, and a pattern `re` refuses
+> raises `constraint_pattern`. A preference meeting a
 > constraint in a conjunct (`min(1024) & *8080`) resolves to the
 > default, and the disjunct form (`*8080 | (integer & min(1024))`)
 > also ENFORCES on override under the admission gate: an out-of-bound
@@ -5424,7 +5428,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `below(n: number\|string) : constraint` | A | value < x |
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
 | `multiple(n: number) : constraint` | A | value is a whole multiple of n, a positive number (by the value each shows) |
-| `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
+| `re(text p: string) : constraint` | A | string matches pattern p (unanchored, ECMA-262 syntax under `u`) |
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
@@ -5629,39 +5633,36 @@ Two renderings follow from that round trip rather than from taste:
   renders as `string&len(...)`: drop the `string` and the reparse would
   admit lists and maps of three members too.
 
-### `re` and the portable pattern subset
+### `re` and the pattern language
 
-`re(p)` admits a string matching `p`. Matching is **unanchored** in
-both implementations, so `re("el")` admits `"hello"`; anchor with `^`
-and `$` to constrain the whole string. The string kind is implied, so
-`string & re("x")` canonicalises to `re("x")`: the same rule that
-makes `number & min(0)` canonicalise to `min(0)`.
+`re(p)` admits a string matching `p`. Matching is **unanchored**, so
+`re("el")` admits `"hello"`; anchor with `^` and `$` to constrain the
+whole string. The string kind is implied, so `string & re("x")`
+canonicalises to `re("x")`: the same rule that makes `number & min(0)`
+canonicalise to `min(0)`.
 
-A pattern must mean the same thing in both implementations **and cost
-about the same to evaluate**, and the two host regex engines guarantee
-neither: TypeScript compiles with JavaScript's backtracking `RegExp`, Go
-with RE2: a different language, in a different complexity class, over a
-different alphabet.
-
-aontu therefore **defines** the pattern language and rewrites your
-pattern into a form neither engine can read two ways. Only the rewritten
-form reaches a host engine.
+**The pattern is ECMA-262's**, as JavaScript writes one under the `u`
+flag in ECMA-262 2025, and aontu reads and matches it itself, the same
+in both implementations. No host regex engine sees it, so a pattern means one thing everywhere,
+and a match costs time in proportion to the length of the string for
+every pattern: the engine steps through the string once and never goes
+back.
 
 **What `re` accepts**
 
 | | |
 |---|---|
-| literals | `a`, and `\` before any of `. \ + * ? ( ) [ ] { } \| ^ $ /` to mean it literally; `\xHH` |
-| classes | `[abc]`, `[^abc]`, `[a-z]`; `\-` inside a class for a literal hyphen |
+| literals | `a`; `\` before any of `^ $ \ . * + ? ( ) [ ] { } \| /` to mean it literally; `\xHH`, `\uHHHH` (a surrogate pair of them is one code point), `\u{H…}`, `\cX`, `\0`, `\t \n \r \f \v` |
+| classes | `[abc]`, `[^abc]`, `[a-z]`, `[]` for no character and `[^]` for any; `\-` and `\b`, a backspace, inside a class |
+| properties | `\p{…}` and `\P{…}`: a `General_Category` value or group (`\p{L}`, `\p{Lu}`, `\p{gc=Lu}`, `\p{General_Category=Letter}`), a script (`\p{sc=Greek}`, `\p{Script=Grek}`), `Script_Extensions` (`\p{scx=Hira}`), or a binary property (`\p{Alphabetic}`, `\p{ASCII}`, `\p{Any}`, `\p{Assigned}`), each name spelled exactly as ECMA-262 lists it |
 | abbreviations | `\d \D \w \W \s \S` and `.` |
-| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}` with every count **1000 or less**, and the lazy forms `*?` `+?` `??` |
-| grouping | `(…)`, `(?:…)`, alternation `a|b` |
+| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}`, and the lazy forms `*?` `+?` `??` `{n,m}?` |
+| grouping | `(…)`, `(?:…)`, `(?<name>…)`, alternation `a\|b` |
 | anchors | `^` `$` `\A` `\z` `\b` `\B` |
-| control | `\t \n \r \f \v` |
 
-**aontu defines the abbreviations**, and inherits neither host's:
+**aontu defines the abbreviations**, and they are not ECMA-262's:
 
-| written | means | 
+| written | means |
 |---|---|
 | `\d` / `\D` | `[0-9]` / `[^0-9]` |
 | `\w` / `\W` | `[0-9A-Za-z_]` / `[^0-9A-Za-z_]` |
@@ -5671,40 +5672,35 @@ form reaches a host engine.
 
 These are the small ASCII sets deliberately. **`\s` is those six
 characters only**: it does *not* match U+00A0 or the other Unicode
-spaces, though JavaScript's `\s` does, because a non-breaking space in
-a config value is a mistake worth catching rather than a space worth
-accepting in silence. Matching counts **code points**, not UTF-16 code
-units, in both implementations.
+spaces, though ECMA-262's `\s` does, because a non-breaking space in a
+config value is a mistake worth catching rather than a space worth
+accepting in silence. `.` excludes only the newline, where ECMA-262's
+also excludes the carriage return, U+2028 and U+2029. `\A` and `\z` are
+`re`'s own, and ECMA-262 has neither. `\b` and `\B` divide the ASCII
+word characters from the rest, as ECMA-262 does. Matching counts **code
+points**, not UTF-16 code units.
 
-**What `re` refuses**, and why rewriting cannot help:
+The Unicode properties are those of the Unicode Character Database
+18.0.0, generated into both implementations from one pinned source.
+
+**What `re` refuses**, with `constraint_pattern` and the reason:
 
 | Construct | Why |
 |-----------|-----|
-| backreferences `\1`–`\9`, `\k<name>` | RE2 has no equivalent, and a pattern using one is not a regular expression at all |
-| lookaround `(?=)` `(?!)` `(?<=)` `(?<!)` | same: not in RE2 |
-| any `(?…)` but `(?:` | named groups are spelled `(?P<n>` in RE2 and `(?<n>` in JavaScript; inline flags change the meaning of everything after them |
-| `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
-| POSIX classes `[[:alpha:]]` | RE2 only |
-| empty classes `[]`, `[^]` | a never-matching class in JavaScript, a parse error in RE2 |
-| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
-| a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
-| a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
-| a quantifier on a group containing a quantifier or an alternation | **cost, not meaning**: see below |
+| a syntax error, as ECMA-262 defines one under `u`: an escape it does not read (`\q`, `\Z`, `\x{41}`, `\-` outside a class), a lone `{`, `}`, `]` or `)`, a quantifier with nothing to repeat (`*a`, `^{1}`, `\b*`), bounds out of order (`a{2,1}`, `[z-a]`), a class escape ending a range (`[\d-z]`), a property ECMA-262 does not name (`\p{lu}`), one group name twice outside separate alternatives | the pattern means nothing |
+| backreferences `\1`, `\k<name>` | not a regular language: an engine that never goes back cannot match one |
+| lookaround `(?=…)` `(?!…)` `(?<=…)` `(?<!…)` | the same |
+| a modifier group, `(?i:…)` or `(?-i:…)` | its flags change what a character matches, and aontu applies none |
+| a pattern that compiles past **100,000 instructions** | counted repetition copies what it repeats, so `(?:a{1000}){1000}` is a million copies; the bound fixes the most a match can cost before any string arrives |
+| groups nested deeper than **256** | the depth the parser reads to |
 
-The last one is different in kind. `(a+)+$` against twenty-nine `a`s and
-a `!` takes **45 seconds** in JavaScript and 0.065s under RE2, growing
-exponentially; a regex match is counted by no evaluator budget ([the
-trust contract](trust.md), clause 2), so without this rule an untrusted
-schema could stall the TypeScript evaluator indefinitely. Rewriting
-cannot fix a complexity difference, so this one is refused rather than
-normalised. `(?:a|b)+` is caught by it too, though it is safe: deciding
-that two alternation branches cannot both match is real work. Write
-`[ab]+`. Unquantified groups, top-level alternation, `(?:ab)+`, `(a)(b)`
-and `(a)+` all pass, and a quantifier inside a character class is a
-literal character (`[a+]+` is fine).
+A quantified group that holds a quantifier or an alternation, which a
+backtracking engine runs in exponential time (`(a+)+$` against
+twenty-nine `a`s and a `!` takes 45 seconds in JavaScript), costs aontu
+the same linear time as any other pattern, and is accepted.
 
-The refusal message names the offending construct *and* restates this
-whole table, so an author never has to find this page to recover.
+The refusal message names the reason *and* restates what `re` accepts,
+so an author never has to find this page to recover.
 
 Patterns **accumulate** and are never simplified: `re("x") & re("a")`
 keeps both (sorted by pattern text in canon), and a value must match
@@ -5714,9 +5710,11 @@ containment, which this algebra deliberately does not do. A contradiction
 between patterns therefore surfaces against data, not against the
 schema.
 
-Canon renders the pattern **as written**, never the rewritten form:
-canon round-trips source, and the semantic hash
-([`aontu hash`](reference-api.md#aontu-hash)) is taken over canon.
+Canon renders the pattern **as written**: canon round-trips source,
+and the semantic hash ([`aontu hash`](reference-api.md#aontu-hash)) is
+taken over canon. The JSON Schema exporter writes it as ECMA-262 text
+that means the same, with `\s` as its six characters and `.` as
+`[^\n]`.
 
 ### `len` semantics
 

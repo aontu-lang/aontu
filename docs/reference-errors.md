@@ -230,7 +230,7 @@ twenty rows have no such section and carry no link.
 | `rel_address` | 0.53.0 | A `rel()` field holds something other than path values. ([Declared relations](reference-language.md#declared-relations)) |
 | `render_path` | 0.58.0 | A unit path that is not relative, below the output directory, and distinct from every other unit's. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `render_profile` | 0.58.0 | A declaration needing a lowering, under a profile whose language has none. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
-| `rep_pattern` | 0.57.0 | The pattern given to `rep()` is outside the portable subset `re()` takes. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
+| `rep_pattern` | 0.57.0 | The pattern given to `rep()` or `split()` is outside the portable subset the host engines run. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `rep_sub` | 0.57.0 | The substitution given to `rep()` names a group the pattern does not have. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `replace_overlap` | 0.58.0 | Two keys of a template's `replace` map overlap, one inside the other. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `replace_unused` | 0.58.0 | A key of a template's `replace` map appears in none of the body's literal lines. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
@@ -254,7 +254,7 @@ twenty rows have no such section and carry no link.
 | `closed` | 0.51.0 | A key or element added to a closed map or list. ([Errors](reference-language.md#errors)) |
 | `constraint` | 0.52.0 | The value does not satisfy the normalised residual the constraint reduced to. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
 | `constraint_kind` | 0.77.0 | The type `constraint` met a value that is not a constraint. ([The type of constraints: `constraint`](reference-language.md#the-type-of-constraints-constraint)) |
-| `constraint_pattern` | 0.53.0 | An `re()` pattern outside the supported subset. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
+| `constraint_pattern` | 0.53.0 | An `re()` pattern aontu refuses: a syntax error, a lookaround or backreference, a modifier group, or one past the size bounds. ([`re` and the pattern language](reference-language.md#re-and-the-pattern-language)) |
 | `decimal_budget` | 0.51.0 | An exact decimal past 4096 coefficient digits or an absolute scale of 4096. ([The exactness budget](reference-language.md#the-exactness-budget)) |
 | `divide_by_zero` | 0.53.0 | `div`, `mod`, or `rem` given a zero divisor. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `emit_none` | 0.57.0 | No template matched a node, and the table has no catch-all. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
