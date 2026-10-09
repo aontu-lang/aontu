@@ -100,7 +100,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
-                               [--dialect <name>] [options] <file>
+                               [--dialect <name>] [--no-meta-check]
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3875,6 +3876,7 @@ function runJsonSchemaImport(argv: string[]): number {
   let uri: string | undefined = undefined
   const docs: [string, string][] = []
   let formatAssertion = false
+  let noMetaCheck = false
   const grammars: [string, string][] = []
   let dialect: string | undefined = undefined
 
@@ -3915,6 +3917,9 @@ function runJsonSchemaImport(argv: string[]): number {
     }
     else if ('--format-assert' === arg) {
       formatAssertion = true
+    }
+    else if ('--no-meta-check' === arg) {
+      noMetaCheck = true
     }
     else if ('--dialect' === arg) {
       dialect = argv[++i]
@@ -3975,7 +3980,7 @@ function runJsonSchemaImport(argv: string[]): number {
   }
 
   const report = importJsonSchema(src,
-    { path: files[0], defaults, uri, documents, formatAssertion, formats, dialect })
+    { path: files[0], defaults, uri, documents, formatAssertion, formats, dialect, noMetaCheck })
 
   if ('json' === format) {
     process.stdout.write(exactJSON({

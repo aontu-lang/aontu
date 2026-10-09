@@ -48,7 +48,8 @@ Usage: aontu [options] [file]
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
-                               [--dialect <name>] [options] <file>
+                               [--dialect <name>] [--no-meta-check]
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -1534,7 +1535,8 @@ Import a **JSON Schema** document, of draft-04, draft-06, draft-07,
 ```
 aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
                         [--format-assert] [--format-grammar <name> <file>]...
-                        [--dialect <name>] [--format text|json] <file>
+                        [--dialect <name>] [--no-meta-check]
+                        [--format text|json] <file>
 ```
 
 This is the bridge in the other direction. A schema another tool
@@ -1618,6 +1620,17 @@ y: number
   `jsonschema_vocabulary`. aontu reads the vocabularies of 2019-09 and
   2020-12, which `grammar/jsonschema/vocabularies.tsv` lists with their
   keywords. `$vocabulary` in a schema is an annotation.
+- A schema that imports is checked against its meta-schema: the one its
+  root `$schema` names, read in the document set, so a custom
+  meta-schema checks the schemas that name it, or its dialect's. What
+  the schema breaks or lacks refuses the import with
+  `jsonschema_schema`, once at each place, at the innermost schema
+  object where it was written: `{"required": ["a", "a"]}` repeats a name the
+  meta-schema says is unique. Nothing inside an embedded resource of
+  another dialect is refused, and a meta-schema aontu cannot read as a
+  model checks nothing and is reported as a loss at `$schema`. The
+  check is the import's one costly step for a large schema, and
+  `--no-meta-check` skips it for a schema already known to be valid.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1628,9 +1641,9 @@ y: number
   when the text is refused). Its options are the flags':
   `defaults`, `uri`, `documents`, `formatAssertion`, `formats`, a
   record of grammars by name in which a defined name keeps its
-  committed grammar, and `dialect` (`Defaults`, `URI`, `Documents`,
-  `FormatAssertion`, `Formats` and `Dialect` in Go), and `path`, the
-  filename the findings cite.
+  committed grammar, `dialect` and `noMetaCheck` (`Defaults`, `URI`,
+  `Documents`, `FormatAssertion`, `Formats`, `Dialect` and
+  `NoMetaCheck` in Go), and `path`, the filename the findings cite.
 - `upgradeJsonSchema(text, options?)` in TypeScript and
   `UpgradeJSONSchema(text, opts)` in Go run the rewrite alone, with the
   same options, and return `{verdict, dialect, schema, rewritten}`:

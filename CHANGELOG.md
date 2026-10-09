@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A schema is checked against its meta-schema (ADR-065)
+
+Both ports, G12 phase 16.
+
+- A schema that imports is checked against its meta-schema, the one its
+  `$schema` names or its dialect's, so `{"required": ["a", "a"]}`, a
+  draft-04 `"required": []` or a title longer than a custom
+  meta-schema allows is refused with `jsonschema_schema`, once at each
+  place, at the schema object where it was written. Nothing inside an
+  embedded resource of another dialect is refused, and a meta-schema
+  aontu cannot read as a model is a loss at `$schema`.
+- `aontu jsonschema import --no-meta-check`, and the `noMetaCheck`
+  option (`NoMetaCheck` in Go), skips the check for a schema already
+  known to be valid.
+- The suite's counts are unchanged: its meta-schemas refuse none of its
+  schemas.
+
 ### A list's spread meets each element once
 
 Both ports, found while checking a schema against the 2020-12

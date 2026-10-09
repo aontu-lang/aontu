@@ -835,6 +835,7 @@ func specImportOptions(golden map[string]any) *ImportOptions {
 	if o, ok := golden["opts"].(map[string]any); ok {
 		opts.Defaults = true == o["defaults"]
 		opts.FormatAssertion = true == o["formatAssertion"]
+		opts.NoMetaCheck = true == o["noMetaCheck"]
 		opts.URI, _ = o["uri"].(string)
 		opts.Dialect, _ = o["dialect"].(string)
 		if docs, ok := o["documents"].(map[string]any); ok {

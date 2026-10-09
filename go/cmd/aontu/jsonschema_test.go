@@ -250,6 +250,15 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 		!strings.Contains(out, "below(5)") {
 		t.Fatalf("--dialect: %d %q", code, out)
 	}
+
+	// A schema its meta-schema refuses imports under --no-meta-check.
+	write(`{"type": "object", "required": ["a", "a"]}`)
+	if _, errw, code := jsonSchemaRun("import", file); 4 != code || !strings.Contains(errw, "jsonschema_schema") {
+		t.Fatalf("meta-schema: %d %q", code, errw)
+	}
+	if out, _, code := jsonSchemaRun("import", "--no-meta-check", file); 0 != code || !strings.Contains(out, "a: any") {
+		t.Fatalf("--no-meta-check: %d %q", code, out)
+	}
 	write(`{"type": "string", "$dynamicAnchor": "a"}`)
 
 	out, _, code = jsonSchemaRun("import", "--format", "json", file)

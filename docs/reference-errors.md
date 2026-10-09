@@ -208,7 +208,7 @@ twenty rows have no such section and carry no link.
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
 | `inverse_name` | 0.53.0 | The argument to `inverse()` is not a relation name. ([Declared relations](reference-language.md#declared-relations)) |
-| `jsonschema_schema` | 0.77.0 | The text handed to the JSON Schema importer is not a schema: not JSON, a root that is neither an object nor a boolean, or a keyword holding a value of the wrong type. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_schema` | 0.77.0 | The text handed to the JSON Schema importer is not a schema: not JSON, a root that is neither an object nor a boolean, a keyword holding a value of the wrong type, or a schema its meta-schema refuses. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `merge_conflict` | 0.53.0 | A version-control conflict marker left in the source. ([Errors](reference-language.md#errors)) |
 | `module_integrity` | 0.53.0 | A module resolved locally does not carry the meaning its canon-hash pin recorded. ([Modules](reference-language.md#modules)) |
 | `module_local` | 0.65.0 | A bare module reference whose last segment carries an extension the include table knows. ([Modules](reference-language.md#modules)) |

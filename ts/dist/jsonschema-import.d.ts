@@ -9,6 +9,7 @@ export type ImportOptions = {
     formatAssertion?: boolean;
     formats?: Record<string, string>;
     dialect?: string;
+    noMetaCheck?: boolean;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;

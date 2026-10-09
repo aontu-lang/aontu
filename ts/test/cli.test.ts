@@ -1173,6 +1173,14 @@ describe('cli-subsume', () => {
     const legacy = vetCapture(() =>
       Assert.equal(runJsonSchema(['import', '--dialect', 'draft-04', file]), 0))
     Assert.ok(legacy.out.includes('below(5)'), legacy.out)
+
+    // A schema its meta-schema refuses imports under --no-meta-check.
+    Fs.writeFileSync(file, '{"type": "object", "required": ["a", "a"]}')
+    Assert.match(vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 4)).err,
+      /jsonschema_schema/)
+    const unchecked = vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--no-meta-check', file]), 0))
+    Assert.ok(unchecked.out.includes('a: any'), unchecked.out)
     Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}')
 
     const j = JSON.parse(vetCapture(() => Assert.equal(

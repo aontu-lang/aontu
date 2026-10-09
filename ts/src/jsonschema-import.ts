@@ -19,6 +19,8 @@ import { format } from './format'
 import type { FormatReport } from './format'
 import { importForm } from './regex'
 import { exactNumberText, isExactInBinary64, readExactNumber } from './val/numkind'
+import { vet } from './vet'
+import { createHash } from 'node:crypto'
 import { normalizeUri, resolveUri } from './uri'
 import { VOCABULARY_TABLE } from './vocabularies'
 import { META_SCHEMAS } from './metaschemas'
@@ -43,6 +45,9 @@ export type ImportOptions = {
   // ADR-061: the dialect of a resource that names none, one of
   // `DIALECTS`; absent, the last of them.
   dialect?: string
+  // ADR-065: skips the check of the input against its meta-schema, for
+  // an input the caller trusts.
+  noMetaCheck?: boolean
 }
 
 export type ImportReport = {
@@ -500,13 +505,20 @@ function rowCol(src: string, off: number): [number, number] {
 
 function fail(ctx: Ctx, code: string, path: string, message: string,
   off: number, end: number, details: Record<string, string> = {}): void {
+  refuse(ctx, code, originOf(ctx, path), message, off, end, details)
+}
+
+
+// A refusal at a pointer into the schema as written.
+function refuse(ctx: Ctx, code: string, path: string, message: string,
+  off: number, end: number, details: Record<string, string>): void {
   const [row, col] = rowCol(ctx.doc.src, off)
   const text = ctx.doc.src.slice(off, end)
   ctx.errors.push({
     code,
     class: codeClass(code),
     severity: 'error',
-    path: originOf(ctx, path),
+    path,
     message,
     hint: (getHint(code, details) as string).replace(/\s+$/, ''),
     sites: [{
@@ -2549,6 +2561,7 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   }
 
   base.asserts = vocabularyAsserts(base, parsed) ? 'vocabulary' : base.asserts
+  const meta = metaOf(base, parsed)
   base.resources.set(base.doc.uri, parsed)
   base.byText.set(text, base.doc)
   upgrade(base, parsed, '#', '#', base.dialect, true, false)
@@ -2587,12 +2600,117 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   if (0 < ctx.errors.length) {
     return error(ctx)
   }
+  metaCheck(ctx, text, parsed, meta, options)
+  if (0 < ctx.errors.length) {
+    return error(ctx)
+  }
   return {
     verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
     aontu: agreedForm(emit(ctx, body)),
     lossy: ctx.lossy,
     vet: [...IMPORT_VET_FLAGS],
   }
+}
+
+
+// ADR-065: the meta-schema each dialect's schemas are checked against.
+const META_URIS: Record<string, string> = {
+  'draft-04': 'http://json-schema.org/draft-04/schema#',
+  'draft-06': 'http://json-schema.org/draft-06/schema#',
+  'draft-07': 'http://json-schema.org/draft-07/schema#',
+  '2019-09': 'https://json-schema.org/draft/2019-09/schema',
+  '2020-12': DRAFT,
+}
+
+// Each meta-schema's model, by its URI and the document set it was read
+// in, and each check's findings, by the model and the input's text.
+const META_MODELS = new Map<string, string>()
+const META_CHECKS = new Map<string, VetFinding[] | undefined>()
+const META_CACHE = 256
+
+const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
+
+
+// The meta-schema an input's $schema names as written, before the
+// upgrade stage rewrites a legacy root's, or its dialect's.
+function metaOf(ctx: Ctx, root: JNode): string {
+  const named = entry(root, '$schema')
+  return 'string' === named?.t ? resolveUri(ctx.doc.uri, named.s) : META_URIS[ctx.dialect]
+}
+
+
+// ADR-065: an input that stands is read against its meta-schema through a
+// wrapper whose map root declares the meta-schema's recursion. A number past
+// the exactness budget, or anything inside a resource of another dialect,
+// refuses nothing; a meta-schema whose model does not stand, or that vet
+// cannot finish, checks nothing, and the import says so.
+function metaCheck(ctx: Ctx, text: string, root: JNode, uri: string, options?: ImportOptions):
+  void {
+  if (true === options?.noMetaCheck || 'object' !== root.t) {
+    return
+  }
+  const key = sha(uri + '\u0000' + JSON.stringify(options?.documents ?? {}))
+  if (!META_MODELS.has(key)) {
+    const wrapper = JSON.stringify({ $schema: DRAFT, type: 'object', properties: { $schema: true }, $ref: uri })
+    const model = importJsonSchema(wrapper, { documents: options?.documents, noMetaCheck: true })
+    clamp(META_MODELS).set(key, model.aontu)
+  }
+  const model = META_MODELS.get(key) as string
+  const check = sha(model + '\u0000' + text)
+  if (!META_CHECKS.has(check)) {
+    const report = '' === model ? undefined : vet(model, text, { noFill: true, exactNumbers: true })
+    const faults = report?.findings.filter((f) => 'error' === f.severity && 'decimal_budget' !== f.code)
+    clamp(META_CHECKS).set(check, undefined === faults || 'error' === report?.verdict ||
+      faults.some((f) => 'conflict' !== f.class && 'incomplete' !== f.class) ? undefined : faults)
+  }
+  const faults = META_CHECKS.get(check)
+  if (undefined === faults) {
+    lose(ctx, undefined === entry(root, '$schema') ? '#' : '#/$schema', '$schema', 'the meta-schema ' +
+      quote(uri) + ' does not import as a model the check can run, so the schema is not checked against it')
+    return
+  }
+  // One refusal a place: what follows from the first there adds nothing.
+  const dialect = ctx.dialects.get(root)
+  const placed = new Set<string>()
+  for (const f of faults) {
+    const at = written(root, f.path.split('.').slice(1), '#')
+    const node = at.nodes[at.nodes.length - 1]
+    if (!placed.has(at.ptr) && at.nodes.every((n) => dialect === (ctx.dialects.get(n) ?? dialect))) {
+      placed.add(at.ptr)
+      refuse(ctx, 'jsonschema_schema', at.ptr, 'The meta-schema ' + quote(uri) +
+        ' refuses the schema here (' + f.code + ').', node.off, node.end, {})
+    }
+  }
+}
+
+
+function clamp<T>(cache: Map<string, T>): Map<string, T> {
+  if (META_CACHE <= cache.size) {
+    cache.clear()
+  }
+  return cache
+}
+
+
+// Where a vet path lies in the schema as written: the nodes it passes and
+// the pointer of the last, which is the deepest the schema holds when the
+// path names a member it lacks or a place in the model. A key holding a
+// dot spans several of the path's segments, so each reading is tried,
+// longest key first, and one that reaches the end wins.
+type Written = { ptr: string, nodes: JNode[], left: number }
+
+const INDEX_RE = /^(0|[1-9][0-9]*)$/
+
+function written(node: JNode, segs: string[], ptr: string): Written {
+  let best: Written = { ptr, nodes: [node], left: segs.length }
+  for (let n = segs.length; 0 < n && 0 < best.left; n--) {
+    const key = segs.slice(0, n).join('.')
+    const next = 'array' === node.t ? (INDEX_RE.test(key) ? node.items[Number(key)] : undefined) :
+      (node as JNode & { t: 'object' }).was?.get(key) ?? entry(node, key)
+    const found = undefined === next ? best : written(next, segs.slice(n), child(ptr, key))
+    best = found.left < best.left ? { ...found, nodes: [node, ...found.nodes] } : best
+  }
+  return best
 }
 
 

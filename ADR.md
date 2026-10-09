@@ -90,6 +90,10 @@ capability decision is the phase rows it governed in
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 | [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
 | [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Accepted |
+| [ADR-062](#adr-062--a-recursive-residual-meets-a-kind-a-disjunction-and-another-residual) | A recursive residual meets a kind, a disjunction and another residual | Accepted |
+| [ADR-063](#adr-063--the-vocabularies-a-meta-schema-lists-decide-what-its-schemas-read) | The vocabularies a meta-schema lists decide what its schemas read | Accepted |
+| [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
+| [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
 
 ---
 
@@ -6005,3 +6009,77 @@ against its meta-schema both need them in the document set.
   vocabulary of its dialect, so no schema naming one reads differently.
 - Pinned by eight `jsonschema-import` rows, every expectation from both
   engines.
+
+## ADR-065 — An input that imports is checked against its meta-schema
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+The importer refused a schema only where a keyword it maps held a value
+of the wrong type, so a schema its meta-schema refuses imported whenever
+the importer could read it: `"required": ["a", "a"]`, a draft-04
+`"required": []`, a boolean `$recursiveAnchor`, a title longer than a
+custom meta-schema allows. The design validates the input against its
+meta-schema before mapping, with the meta-schemas as bundled models
+produced by the importer from the published documents, which ADR-064
+ships; a violation refuses with `jsonschema_schema`, located by the
+meta-schema's keyword; and the check is on by default, switchable for a
+trusted input, and cached by the input's text within a run.
+
+### Decision
+
+1. **The meta-schema is the one the input names as written**: its root
+   `$schema` resolved against the input's URI, read before the upgrade
+   stage rewrites a legacy root's, or its dialect's where it names
+   none, the `dialect` option's or 2020-12.
+2. **It is read through a wrapper**, `{"$schema": <2020-12>, "type":
+   "object", "properties": {"$schema": true}, "$ref": <meta-schema>}`,
+   imported in the input's document set. Its map root declares the
+   meta-schema's recursion, so the check reaches every depth (ADR-062),
+   where a root that is only the `$ref` copies the recursion in place
+   and cuts it (ADR-064).
+3. **The input's text is vetted against that model** under `--no-fill`
+   and `--exact-numbers`, JSON Schema's question (ADR-054). Each
+   conflict, and each member the meta-schema requires that the input
+   lacks, refuses the import with `jsonschema_schema`, once at each
+   place, at the pointer where the input was written: the innermost
+   subschema the finding's path reaches, since each position the
+   meta-schema governs is a `boolean|{...}` that fails as a whole. A
+   number past the exactness budget refuses nothing here; the importer
+   reports its own loss for it.
+4. **The check runs once the import stands**, not before mapping as the
+   design has it: a schema the importer refuses keeps the refusal that
+   names its keyword and why.
+5. **Inside an embedded resource of another dialect nothing is
+   refused**: the root's meta-schema does not read that dialect, and a
+   draft-04 `exclusiveMinimum: true` is no fault of a 2020-12 document.
+6. **A meta-schema whose model does not stand checks nothing, and says
+   so**: where the wrapper does not import, or vet cannot finish, as for
+   a document set in which the meta-schema admits no schema, the import
+   carries a loss at `#/$schema`, or at `#` where no `$schema` is
+   written.
+7. **`noMetaCheck`, `--no-meta-check`, turns it off.** Each meta-schema's
+   model is kept by its URI and the document set, and each check's
+   findings by the model and the input's text, so a harness that
+   imports one schema for many instances checks it once. The models are
+   made at run time from the bundled documents rather than committed: a
+   custom meta-schema in the document set needs that road anyway, and a
+   committed model would be a second copy of what ADR-064 ships.
+
+### Consequences
+
+- The location is the subschema as written, not the meta-schema's
+  keyword the design named; the keyword location is phase 17's, through
+  the importer's source map.
+- Three rows that test something else set `noMetaCheck`: a repeated
+  name in `required` and in `dependentRequired`, and a boolean
+  `$recursiveAnchor`.
+- The check made a defect in the engine reachable from any schema with
+  nested `allOf`, `anyOf` or `oneOf`, a list spread met again at every
+  meet of its list; it was fixed first, with use-cases/BUGS.md §57.
+- The official suite's counts are unchanged in all five directories:
+  its meta-schemas refuse none of its schemas.
+- Pinned by fourteen `jsonschema-import` rows and one re-pinned, every
+  expectation from both engines.

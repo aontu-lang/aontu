@@ -15,6 +15,8 @@ const formatgrammar_1 = require("./formatgrammar");
 const format_1 = require("./format");
 const regex_1 = require("./regex");
 const numkind_1 = require("./val/numkind");
+const vet_1 = require("./vet");
+const node_crypto_1 = require("node:crypto");
 const uri_1 = require("./uri");
 const vocabularies_1 = require("./vocabularies");
 const metaschemas_1 = require("./metaschemas");
@@ -322,13 +324,17 @@ function rowCol(src, off) {
     return [row, col];
 }
 function fail(ctx, code, path, message, off, end, details = {}) {
+    refuse(ctx, code, originOf(ctx, path), message, off, end, details);
+}
+// A refusal at a pointer into the schema as written.
+function refuse(ctx, code, path, message, off, end, details) {
     const [row, col] = rowCol(ctx.doc.src, off);
     const text = ctx.doc.src.slice(off, end);
     ctx.errors.push({
         code,
         class: (0, hints_1.codeClass)(code),
         severity: 'error',
-        path: originOf(ctx, path),
+        path,
         message,
         hint: (0, err_1.getHint)(code, details).replace(/\s+$/, ''),
         sites: [{
@@ -2126,6 +2132,7 @@ function importJsonSchema(text, options) {
         return error(base);
     }
     base.asserts = vocabularyAsserts(base, parsed) ? 'vocabulary' : base.asserts;
+    const meta = metaOf(base, parsed);
     base.resources.set(base.doc.uri, parsed);
     base.byText.set(text, base.doc);
     upgrade(base, parsed, '#', '#', base.dialect, true, false);
@@ -2163,12 +2170,96 @@ function importJsonSchema(text, options) {
     if (0 < ctx.errors.length) {
         return error(ctx);
     }
+    metaCheck(ctx, text, parsed, meta, options);
+    if (0 < ctx.errors.length) {
+        return error(ctx);
+    }
     return {
         verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
         aontu: agreedForm(emit(ctx, body)),
         lossy: ctx.lossy,
         vet: [...exports.IMPORT_VET_FLAGS],
     };
+}
+// ADR-065: the meta-schema each dialect's schemas are checked against.
+const META_URIS = {
+    'draft-04': 'http://json-schema.org/draft-04/schema#',
+    'draft-06': 'http://json-schema.org/draft-06/schema#',
+    'draft-07': 'http://json-schema.org/draft-07/schema#',
+    '2019-09': 'https://json-schema.org/draft/2019-09/schema',
+    '2020-12': DRAFT,
+};
+// Each meta-schema's model, by its URI and the document set it was read
+// in, and each check's findings, by the model and the input's text.
+const META_MODELS = new Map();
+const META_CHECKS = new Map();
+const META_CACHE = 256;
+const sha = (s) => (0, node_crypto_1.createHash)('sha256').update(s).digest('hex');
+// The meta-schema an input's $schema names as written, before the
+// upgrade stage rewrites a legacy root's, or its dialect's.
+function metaOf(ctx, root) {
+    const named = entry(root, '$schema');
+    return 'string' === named?.t ? (0, uri_1.resolveUri)(ctx.doc.uri, named.s) : META_URIS[ctx.dialect];
+}
+// ADR-065: an input that stands is read against its meta-schema through a
+// wrapper whose map root declares the meta-schema's recursion. A number past
+// the exactness budget, or anything inside a resource of another dialect,
+// refuses nothing; a meta-schema whose model does not stand, or that vet
+// cannot finish, checks nothing, and the import says so.
+function metaCheck(ctx, text, root, uri, options) {
+    if (true === options?.noMetaCheck || 'object' !== root.t) {
+        return;
+    }
+    const key = sha(uri + '\u0000' + JSON.stringify(options?.documents ?? {}));
+    if (!META_MODELS.has(key)) {
+        const wrapper = JSON.stringify({ $schema: DRAFT, type: 'object', properties: { $schema: true }, $ref: uri });
+        const model = importJsonSchema(wrapper, { documents: options?.documents, noMetaCheck: true });
+        clamp(META_MODELS).set(key, model.aontu);
+    }
+    const model = META_MODELS.get(key);
+    const check = sha(model + '\u0000' + text);
+    if (!META_CHECKS.has(check)) {
+        const report = '' === model ? undefined : (0, vet_1.vet)(model, text, { noFill: true, exactNumbers: true });
+        const faults = report?.findings.filter((f) => 'error' === f.severity && 'decimal_budget' !== f.code);
+        clamp(META_CHECKS).set(check, undefined === faults || 'error' === report?.verdict ||
+            faults.some((f) => 'conflict' !== f.class && 'incomplete' !== f.class) ? undefined : faults);
+    }
+    const faults = META_CHECKS.get(check);
+    if (undefined === faults) {
+        lose(ctx, undefined === entry(root, '$schema') ? '#' : '#/$schema', '$schema', 'the meta-schema ' +
+            quote(uri) + ' does not import as a model the check can run, so the schema is not checked against it');
+        return;
+    }
+    // One refusal a place: what follows from the first there adds nothing.
+    const dialect = ctx.dialects.get(root);
+    const placed = new Set();
+    for (const f of faults) {
+        const at = written(root, f.path.split('.').slice(1), '#');
+        const node = at.nodes[at.nodes.length - 1];
+        if (!placed.has(at.ptr) && at.nodes.every((n) => dialect === (ctx.dialects.get(n) ?? dialect))) {
+            placed.add(at.ptr);
+            refuse(ctx, 'jsonschema_schema', at.ptr, 'The meta-schema ' + quote(uri) +
+                ' refuses the schema here (' + f.code + ').', node.off, node.end, {});
+        }
+    }
+}
+function clamp(cache) {
+    if (META_CACHE <= cache.size) {
+        cache.clear();
+    }
+    return cache;
+}
+const INDEX_RE = /^(0|[1-9][0-9]*)$/;
+function written(node, segs, ptr) {
+    let best = { ptr, nodes: [node], left: segs.length };
+    for (let n = segs.length; 0 < n && 0 < best.left; n--) {
+        const key = segs.slice(0, n).join('.');
+        const next = 'array' === node.t ? (INDEX_RE.test(key) ? node.items[Number(key)] : undefined) :
+            node.was?.get(key) ?? entry(node, key);
+        const found = undefined === next ? best : written(next, segs.slice(n), child(ptr, key));
+        best = found.left < best.left ? { ...found, nodes: [node, ...found.nodes] } : best;
+    }
+    return best;
 }
 // ADR-061: the upgrade stage alone: the schema the import reads in place
 // of one in a legacy dialect.

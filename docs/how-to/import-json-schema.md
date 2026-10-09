@@ -293,6 +293,11 @@ Schema asks.
   reference the import cannot reach refuses it with `jsonschema_ref`.
   The published meta-schemas of the five dialects, and of their
   vocabularies, are in the set without `--doc`.
+- A schema that imports is checked against its meta-schema, so one that
+  repeats a name in `required`, or that its custom meta-schema refuses,
+  is refused with `jsonschema_schema` at the schema object where it was
+  written. Pass `--no-meta-check` to skip the check for a large schema
+  you already know is valid.
 - A `$dynamicRef` is specialised to the dynamic scope it is read in, so
   a schema reached through scopes that bind its dynamic anchors
   differently is declared once for each, its later declarations named

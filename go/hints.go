@@ -270,9 +270,10 @@ var hints = map[string]string{
 		"  listen: %port    -> the alias, reached by its own name;\n" +
 		"  listen: $.%port  -> nil  # Not a path segment.",
 	"jsonschema_schema": "The text handed to the JSON Schema importer is not a schema: it is\n" +
-		"not JSON, its root is neither an object nor a boolean, or a keyword\n" +
-		"holds a value of the wrong type. The site names the first fault.\n" +
-		"Fix the schema text; nothing in the aontu document is at issue.",
+		"not JSON, its root is neither an object nor a boolean, a keyword\n" +
+		"holds a value of the wrong type, or its meta-schema refuses it. The\n" +
+		"site names the fault. Fix the schema text; nothing in the aontu\n" +
+		"document is at issue. --no-meta-check skips the meta-schema.",
 	"jsonschema_duplicate": "A JSON Schema resource declares one `$anchor` name twice, two\n" +
 		"schemas declare one `$id`, or two documents of the set share one\n" +
 		"URI, so a reference to it would be answered by whichever came\n" +

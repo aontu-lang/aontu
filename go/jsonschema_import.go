@@ -3,7 +3,9 @@
 package aontu
 
 import (
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -12,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -43,6 +46,9 @@ type ImportOptions struct {
 	// Dialect is the dialect of a resource that names none, one of
 	// importDialects; absent, the last of them (ADR-061).
 	Dialect string
+	// NoMetaCheck skips checking the input against its meta-schema,
+	// which a trusted input does without (ADR-065).
+	NoMetaCheck bool
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -646,10 +652,15 @@ func (ctx *importCtx) fail(code, path, message string, off, end int) {
 }
 
 func (ctx *importCtx) failWith(code, path, message string, off, end int, details map[string]string) {
+	ctx.refuse(code, ctx.originOf(path), message, off, end, details)
+}
+
+// refuse is a refusal at a pointer into the schema as written.
+func (ctx *importCtx) refuse(code, path, message string, off, end int, details map[string]string) {
 	row, col := rowCol(ctx.doc.src, off)
 	text := ctx.doc.src[off:end]
 	f := VetFinding{
-		Class: codeClass(code), Code: code, Message: message, Path: ctx.originOf(path),
+		Class: codeClass(code), Code: code, Message: message, Path: path,
 		Severity: "error",
 		Sites: []VetSite{{Col: col, File: ctx.doc.file, Len: utf16Len(text),
 			Role: VetRoleSchema, Row: row, Src: text, Value: text}},
@@ -3227,6 +3238,7 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	} else if nil != opts && opts.FormatAssertion {
 		base.asserts = "option"
 	}
+	meta := base.metaOf(parsed)
 	base.resources[base.doc.uri] = parsed
 	base.byText[text] = base.doc
 	base.upgrade(parsed, "#", "#", base.dialect, true, false, nil)
@@ -3271,6 +3283,10 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	if 0 < len(ctx.errors) {
 		return errorReport(ctx)
 	}
+	ctx.metaCheck(text, parsed, meta, opts)
+	if 0 < len(ctx.errors) {
+		return errorReport(ctx)
+	}
 	verdict := "ok"
 	if 0 < len(ctx.lossy) {
 		verdict = "lossy"
@@ -3283,6 +3299,174 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	}
 	return ImportReport{Verdict: verdict, Aontu: out, Lossy: ctx.lossy,
 		Vet: append([]string{}, ImportVetFlags...)}
+}
+
+// importMetaURIs is the meta-schema each dialect's schemas are checked
+// against (ADR-065).
+var importMetaURIs = map[string]string{
+	"draft-04": "http://json-schema.org/draft-04/schema#",
+	"draft-06": "http://json-schema.org/draft-06/schema#",
+	"draft-07": "http://json-schema.org/draft-07/schema#",
+	"2019-09":  "https://json-schema.org/draft/2019-09/schema",
+	"2020-12":  importDraft,
+}
+
+// importMetaModels and importMetaChecks are each meta-schema's model, by
+// its URI and the document set it was read in, and each check's
+// findings, by the model and the input's text, nil where it cannot run.
+var (
+	importMetaMu     sync.Mutex
+	importMetaModels = map[string]string{}
+	importMetaChecks = map[string][]VetFinding{}
+)
+
+const importMetaCache = 256
+
+func importSha(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
+}
+
+// metaOf is the meta-schema an input's $schema names as written, before
+// the upgrade stage rewrites a legacy root's, or its dialect's.
+func (ctx *importCtx) metaOf(root *jnode) string {
+	if named := jentryOf(root, "$schema"); nil != named && "string" == named.t {
+		return resolveURI(ctx.doc.uri, named.s)
+	}
+	return importMetaURIs[ctx.dialect]
+}
+
+// metaCheck reads an input that stands against its meta-schema through a
+// wrapper whose map root declares the meta-schema's recursion (ADR-065).
+// A number past the exactness budget, or anything inside a resource of
+// another dialect, refuses nothing; a meta-schema whose model does not
+// stand, or that vet cannot finish, checks nothing, and the import says so.
+func (ctx *importCtx) metaCheck(text string, root *jnode, uri string, opts *ImportOptions) {
+	if (nil != opts && opts.NoMetaCheck) || "object" != root.t {
+		return
+	}
+	var documents map[string]string
+	if nil != opts {
+		documents = opts.Documents
+	}
+	set, _ := json.Marshal(documents)
+	key := importSha(uri + "\x00" + string(set))
+	importMetaMu.Lock()
+	model, known := importMetaModels[key]
+	importMetaMu.Unlock()
+	if !known {
+		at, _ := json.Marshal(uri)
+		wrapper := `{"$schema": "` + importDraft + `", "type": "object", "properties": {"$schema": true}, "$ref": ` +
+			string(at) + `}`
+		model = ImportJSONSchema(wrapper, &ImportOptions{Documents: documents, NoMetaCheck: true}).Aontu
+		importMetaMu.Lock()
+		importMetaModels = clampMeta(importMetaModels)
+		importMetaModels[key] = model
+		importMetaMu.Unlock()
+	}
+	check := importSha(model + "\x00" + text)
+	importMetaMu.Lock()
+	faults, known := importMetaChecks[check]
+	importMetaMu.Unlock()
+	if !known {
+		faults = metaFaults(model, text)
+		importMetaMu.Lock()
+		importMetaChecks = clampMeta(importMetaChecks)
+		importMetaChecks[check] = faults
+		importMetaMu.Unlock()
+	}
+	if nil == faults {
+		at := "#"
+		if nil != jentryOf(root, "$schema") {
+			at = "#/$schema"
+		}
+		ctx.lose(at, "$schema", "the meta-schema "+importQuote(uri)+
+			" does not import as a model the check can run, so the schema is not checked against it")
+		return
+	}
+	// One refusal a place: what follows from the first there adds nothing.
+	dialect := ctx.dialects[root]
+	placed := map[string]bool{}
+	for _, f := range faults {
+		at := writtenAt(root, strings.Split(f.Path, ".")[1:], "#")
+		foreign := false
+		for _, n := range at.nodes {
+			if d, ok := ctx.dialects[n]; ok && d != dialect {
+				foreign = true
+			}
+		}
+		if !foreign && !placed[at.ptr] {
+			placed[at.ptr] = true
+			node := at.nodes[len(at.nodes)-1]
+			ctx.refuse("jsonschema_schema", at.ptr, "The meta-schema "+importQuote(uri)+
+				" refuses the schema here ("+f.Code+").", node.off, node.end, nil)
+		}
+	}
+}
+
+// metaFaults is what the input breaks or lacks by the model, or nil where
+// the check cannot run.
+func metaFaults(model, text string) []VetFinding {
+	if "" == model {
+		return nil
+	}
+	report := Vet(model, text, &VetOptions{NoFill: true, ExactNumbers: true})
+	unsure := "error" == report.Verdict
+	faults := []VetFinding{}
+	for _, f := range report.Findings {
+		keep := "error" == f.Severity && "decimal_budget" != f.Code
+		unsure = unsure || (keep && "conflict" != f.Class && "incomplete" != f.Class)
+		if keep {
+			faults = append(faults, f)
+		}
+	}
+	if unsure {
+		return nil
+	}
+	return faults
+}
+
+func clampMeta[T any](cache map[string]T) map[string]T {
+	if importMetaCache <= len(cache) {
+		return map[string]T{}
+	}
+	return cache
+}
+
+// metaWritten is where a vet path lies in the schema as written: the
+// nodes it passes and the last one's pointer, the deepest the schema
+// holds when the path names a member it lacks or a place in the model. A
+// key holding a dot spans several segments, so each reading is tried,
+// longest key first, and one that reaches the end wins.
+type metaWritten struct {
+	ptr   string
+	nodes []*jnode
+	left  int
+}
+
+var metaIndexRe = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
+
+func writtenAt(node *jnode, segs []string, ptr string) metaWritten {
+	best := metaWritten{ptr, []*jnode{node}, len(segs)}
+	for n := len(segs); 0 < n && 0 < best.left; n-- {
+		key := strings.Join(segs[:n], ".")
+		var next *jnode
+		if "array" == node.t {
+			if i, err := strconv.Atoi(key); metaIndexRe.MatchString(key) && nil == err && i < len(node.items) {
+				next = node.items[i]
+			}
+		} else if w, ok := node.was[key]; ok {
+			next = w
+		} else {
+			next = jentryOf(node, key)
+		}
+		if nil != next {
+			if found := writtenAt(next, segs[n:], ptrChild(ptr, key)); found.left < best.left {
+				best = metaWritten{found.ptr, append([]*jnode{node}, found.nodes...), found.left}
+			}
+		}
+	}
+	return best
 }
 
 // UpgradeJSONSchema runs the upgrade stage alone: the schema the import

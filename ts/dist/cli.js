@@ -82,7 +82,8 @@ const HELP = `Usage: aontu [options] [file]
        aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
-                               [--dialect <name>] [options] <file>
+                               [--dialect <name>] [--no-meta-check]
+                               [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -3339,6 +3340,7 @@ function runJsonSchemaImport(argv) {
     let uri = undefined;
     const docs = [];
     let formatAssertion = false;
+    let noMetaCheck = false;
     const grammars = [];
     let dialect = undefined;
     for (let i = 0; i < argv.length; i++) {
@@ -3378,6 +3380,9 @@ function runJsonSchemaImport(argv) {
         }
         else if ('--format-assert' === arg) {
             formatAssertion = true;
+        }
+        else if ('--no-meta-check' === arg) {
+            noMetaCheck = true;
         }
         else if ('--dialect' === arg) {
             dialect = argv[++i];
@@ -3432,7 +3437,7 @@ function runJsonSchemaImport(argv) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
         return 2;
     }
-    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults, uri, documents, formatAssertion, formats, dialect });
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, { path: files[0], defaults, uri, documents, formatAssertion, formats, dialect, noMetaCheck });
     if ('json' === format) {
         process.stdout.write((0, aontu_1.exactJSON)({
             aontu: { version: version(), verb: 'jsonschema' },
