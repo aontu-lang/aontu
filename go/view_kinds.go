@@ -520,7 +520,8 @@ func viewCollapseGraph(groups []viewGroup, loose []*graphNode, edges []viewTripl
 // The lifecycle: states and the events between them
 
 func drawState(triples []viewTriple, root Val, relations []string, labelField, as string,
-	members []string, ghosts viewGhosts, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	members []string, ghosts viewGhosts, roots []string, named bool, max int,
+	loss *[]ViewLoss) (string, []VetFinding) {
 	edges, kerr := viewKeep(triples, relations)
 	if nil != kerr {
 		return "", kerr
@@ -528,6 +529,11 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 	paths := viewGraphPaths(edges, members)
 	if max < len(paths) {
 		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
+	}
+	for _, r := range roots {
+		if _, ghost := ghosts[r]; !contains(paths, r) || ghost {
+			return "", []VetFinding{viewRootFinding(r, "", paths)}
+		}
 	}
 	unresolved := []string{}
 	nodes, nerr := viewGraphNodes(paths, root, "", labelField, ghosts, &unresolved)
@@ -541,9 +547,9 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 		byPath[n.path] = n
 	}
 
-	// An initial state is one no other state enters; a final state one
-	// that leaves to no other. A ghost is neither: its own edges are
-	// drawn where it lives.
+	// An initial state is one named as a root, or else one no other
+	// state enters; a final state one that leaves to no other. A ghost is
+	// neither: its own edges are drawn where it lives.
 	initial, final := []*graphNode{}, []*graphNode{}
 	for _, n := range nodes {
 		if n.ghost {
@@ -558,7 +564,7 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 				left = true
 			}
 		}
-		if !entered {
+		if (named && contains(roots, n.path)) || (!named && !entered) {
 			initial = append(initial, n)
 		}
 		if !left {
@@ -906,7 +912,7 @@ func drawSequence(list any, at, from, to, labelField, as string, max int,
 // viewSequenceText is THE LIFELINE GRID. Lifeline i sits at column
 // x[i]; each gap is wide enough for the name above it and for every
 // message spanning it, the shortfall of a span going to its last gap,
-// so the columns are fixed by the counts alone.
+// so the counts alone set the columns.
 func viewSequenceText(names []string, msgs []viewMsg) string {
 	n := len(names)
 	if 0 == n {
@@ -1514,8 +1520,8 @@ const ViewPartToken = "{part}"
 var viewOnlyDots = regexp.MustCompile(`^\.*$`)
 
 // ViewPartFile is the file one part is written to. Letters, digits,
-// `.` and `-` stand; every other code point is `_` and its hex, so two
-// part names never share a file.
+// `.` and `-` stand; every other code point is `_` and its hex, so
+// distinct part names never share a file.
 func ViewPartFile(out, name string) string {
 	safe := ""
 	for _, c := range name {

@@ -387,7 +387,7 @@ View options:
                     graph, state, lane: keep this predicate
                     (repeatable)
   --root <path>     tree: draw only the subtree under this node;
-                    repeatable
+                    state: this is an initial state; repeatable
   --order <o>       matrix: canon (default) or partition
   --closure         matrix: mark transitively reachable cells +
   --group-by <k>    graph: one subgraph per distinct value of field k;

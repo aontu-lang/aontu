@@ -3,18 +3,17 @@
 
 aontu: View: Figure: type({
   kind: doc|lattice|tree|matrix|graph|layer|sets|layers
-    | ladder
+    | ladder|state|sequence|lane|treemap
   out: string
 
   # Every kind.
   as?: text|mermaid|dot|er|svg
   at?: string
   maxRows?: integer & min(0)
+  of?: string
+  ghosts?: boolean
 
-  # doc.
-  depth?: integer & min(0)
-
-  # tree, matrix, layer, graph.
+  # tree, matrix, layer, graph, state, lane.
   relation?: string
   relations?: [&: string]
   roots?: [&: string]
@@ -23,11 +22,26 @@ aontu: View: Figure: type({
   order?: canon|partition
   closure?: boolean
 
-  # graph, layer.
+  # graph, layer, state, lane, treemap.
   groupBy?: string
   label?: string
   layers?: [&: string]
   edges?: upward|all|none
+  counts?: boolean
+  countBy?: string
+  collapse?: boolean
+  columns?: string
+
+  splitBy?: string
+  splitRoots?: boolean
+  budget?: integer & min(0)
+
+  # doc, sequence, treemap.
+  depth?: integer & min(0)
+  steps?: string
+  from?: string
+  to?: string
+  size?: string
 
   # sets, layers.
   sets?: string

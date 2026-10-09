@@ -2664,7 +2664,7 @@ function drawState(
   triples: Triple[], root: any,
   o: {
     relations: string[], label?: string, as: ViewProfile,
-    members: string[], ghosts: Ghosts,
+    members: string[], ghosts: Ghosts, roots: string[], named: boolean,
   },
   max: number, loss: ViewLoss[]
 ): Figure {
@@ -2680,6 +2680,11 @@ function drawState(
   if (max < paths.length) {
     return { errors: [rowsFinding(paths.length, max, '--at or --relation')] }
   }
+  for (const r of o.roots) {
+    if (!paths.includes(r) || o.ghosts.has(r)) {
+      return { errors: [rootFinding(r, undefined, paths)] }
+    }
+  }
   const unresolved: Unresolved = []
   const built = graphNodes(paths, root, { label: o.label }, o.ghosts, unresolved)
   if (undefined !== built.error) {
@@ -2691,12 +2696,13 @@ function drawState(
   const byPath = new Map<string, GNode>(nodes.map((n) => [n.path, n]))
   const node = (p: string): GNode => byPath.get(p) as GNode
 
-  // An initial state is one no other state enters; a final state one
-  // that leaves to no other. A ghost is neither: its own edges are
-  // drawn where it lives.
+  // An initial state is one named as a root, or else one no other
+  // state enters; a final state one that leaves to no other. A ghost is
+  // neither: its own edges are drawn where it lives.
   const real = nodes.filter((n) => true !== n.ghost)
-  const initial = real.filter((n) =>
-    !edges.some((e) => e.to === n.path && e.from !== n.path))
+  const initial = real.filter((n) => o.named
+    ? o.roots.includes(n.path)
+    : !edges.some((e) => e.to === n.path && e.from !== n.path))
   const final = real.filter((n) =>
     !edges.some((e) => e.from === n.path && e.to !== n.path))
   const drawn = edges.slice().sort((a, b) =>
@@ -2930,8 +2936,8 @@ function drawSequence(
 
 // THE LIFELINE GRID. Lifeline i sits at column x[i]; each gap is wide
 // enough for the name above it and for every message spanning it, the
-// shortfall of a span going to its last gap, so the columns are fixed
-// by the counts alone.
+// shortfall of a span going to its last gap, so the counts alone set
+// the columns.
 function sequenceText(
   names: string[], msgs: { a: number, b: number, text: string }[]
 ): string {
@@ -3372,8 +3378,8 @@ export function viewSplits(o: ViewOptions): boolean {
   return undefined !== o.splitBy || true === o.splitRoots || 0 < (o.budget ?? 0)
 }
 
-// Letters, digits, `.`, `-` and `_` stand; every other code point is
-// `_` and its hex, so two part names never share a file.
+// Letters, digits, `.` and `-` stand; every other code point is `_`
+// and its hex, so distinct part names never share a file.
 export function viewPartFile(out: string, name: string): string {
   let safe = ''
   for (const ch of name) {
@@ -3634,7 +3640,8 @@ function drawLoaded(
   const relation = options.relation || undefined
   const relations = options.relations ?? []
   const draw = (
-    s: Selection, rows: number, into: ViewLoss[], relations: string[]
+    s: Selection, rows: number, into: ViewLoss[], relations: string[],
+    roots: string[]
   ): Figure => {
     const members = s.members ?? []
     if ('graph' === kind) {
@@ -3648,6 +3655,7 @@ function drawLoaded(
     if ('state' === kind) {
       return drawState(s.triples, root, {
         relations, label: options.label, as, members, ghosts: s.ghosts,
+        roots, named: 0 < (options.roots ?? []).length,
       }, rows, into)
     }
     return drawLane(s.triples, root, {
@@ -3658,12 +3666,12 @@ function drawLoaded(
   }
   if (SPLIT_KINDS.includes(kind)) {
     if (!splitting) {
-      return draw(sel, max, loss, relations)
+      return draw(sel, max, loss, relations, options.roots ?? [])
     }
     // THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
     // report; each part is then drawn on its own, under the row cap
     // the whole figure was spared.
-    const whole = draw(sel, Infinity, loss, relations)
+    const whole = draw(sel, Infinity, loss, relations, options.roots ?? [])
     if (undefined !== whole.errors) {
       return whole
     }
@@ -3673,7 +3681,8 @@ function drawLoaded(
     const parts: ViewPart[] = []
     const cut = splitParts(scoped, root, options, loss)
     for (const part of cut) {
-      const fig = draw(partSelection(scoped, cut, part), max, [], [])
+      const fig = draw(partSelection(scoped, cut, part), max, [], [],
+        (options.roots ?? []).filter((r) => part.nodes.includes(r)))
       if (undefined !== fig.errors) {
         return fig
       }

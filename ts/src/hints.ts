@@ -241,7 +241,7 @@ const hints: Record<string, string> = {
 
   view_at_required: 'The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.',
 
-  view_group_required: 'The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node\'s layer.',
+  view_group_required: 'The layer diagram puts each node in the band its --group-by field\nnames, and the swim lanes each step in the lane it names; no field was\nnamed. Pass --group-by with the field that holds each node\'s layer.',
   view_document_shape: 'A view document declares each figure as a map of view options --\nthe flag names without the dashes -- and every declaration must name\nits `kind` and the `out` file it draws into. This one names an option\nthat is not one, gives a value of the wrong shape, or leaves out what\nevery declaration needs. `aontu view --help` lists the options.',
 
   view_members_none: '--of names a node whose links are the figure\'s members, and this one\nlinks to nothing (or, with --member, to nothing under that key). The\nnote lists the keys its links are under.',

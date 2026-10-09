@@ -2152,7 +2152,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 	}
 
 	decls := ctx.reldecls
-	draw := func(s viewSelection, rows int, into *[]ViewLoss, relations []string) (string, []VetFinding) {
+	draw := func(s viewSelection, rows int, into *[]ViewLoss, relations, roots []string) (string, []VetFinding) {
 		if "graph" == kind {
 			return drawGraph(s.triples, decls, root, viewGraphOpts{
 				relations: relations, groupBy: options.GroupBy, label: options.Label, as: as,
@@ -2162,7 +2162,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 		}
 		if "state" == kind {
 			return drawState(s.triples, root, relations, options.Label, as,
-				s.members, s.ghosts, rows, into)
+				s.members, s.ghosts, roots, 0 < len(options.Roots), rows, into)
 		}
 		return drawLane(s.triples, root, viewLaneOpts{
 			relations: relations, groupBy: options.GroupBy, label: options.Label,
@@ -2172,12 +2172,12 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 	}
 	if contains(viewSplitKinds, kind) {
 		if !splitting {
-			return draw(sel, max, loss, options.Relations)
+			return draw(sel, max, loss, options.Relations, options.Roots)
 		}
 		// THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
 		// report; each part is then drawn on its own, under the row cap
 		// the whole figure was spared.
-		if _, werr := draw(sel, math.MaxInt, loss, options.Relations); nil != werr {
+		if _, werr := draw(sel, math.MaxInt, loss, options.Relations, options.Roots); nil != werr {
 			return "", werr
 		}
 		scoped := sel
@@ -2193,7 +2193,13 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 		mark := viewPartComment[as]
 		texts := []string{}
 		for _, part := range cut {
-			text, perr := draw(viewPartSelection(scoped, cut, part), max, &[]ViewLoss{}, nil)
+			roots := []string{}
+			for _, r := range options.Roots {
+				if contains(part.nodes, r) {
+					roots = append(roots, r)
+				}
+			}
+			text, perr := draw(viewPartSelection(scoped, cut, part), max, &[]ViewLoss{}, nil, roots)
 			if nil != perr {
 				return "", perr
 			}

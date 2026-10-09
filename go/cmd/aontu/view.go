@@ -431,20 +431,20 @@ func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
 	return viewExit[report.Verdict]
 }
 
-// viewFile is one file a figure is written to.
-type viewFile struct {
+// viewOutFile is one file a figure is written to.
+type viewOutFile struct {
 	file, text string
 }
 
 // viewFigureFiles is the files one figure is written to: one, or one
 // per part, the part's name standing for the token in the file name.
-func viewFigureFiles(out string, text *string, parts []aontu.ViewPart) []viewFile {
+func viewFigureFiles(out string, text *string, parts []aontu.ViewPart) []viewOutFile {
 	if 0 == len(parts) {
-		return []viewFile{{file: out, text: *text + "\n"}}
+		return []viewOutFile{{file: out, text: *text + "\n"}}
 	}
-	files := []viewFile{}
+	files := []viewOutFile{}
 	for _, p := range parts {
-		files = append(files, viewFile{file: aontu.ViewPartFile(out, p.Name), text: p.Text + "\n"})
+		files = append(files, viewOutFile{file: aontu.ViewPartFile(out, p.Name), text: p.Text + "\n"})
 	}
 	return files
 }

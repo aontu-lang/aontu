@@ -427,7 +427,8 @@ const TOOLS: ToolDef[] = [
         type: 'array',
         items: { type: 'string' },
         description:
-          'Draw only the subtrees under these node paths (optional)',
+          'tree: draw only the subtrees under these node paths; state: ' +
+          'these are the initial states (optional)',
       },
       order: {
         type: 'string',
