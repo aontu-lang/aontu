@@ -486,3 +486,4 @@ view_members_none	errcode	reference	0.77.0
 view_steps_required	errcode	reference	0.77.0
 view_steps_shape	errcode	reference	0.77.0
 view_split_kind	errcode	reference	0.77.0
+view_part_names	errcode	reference	0.77.0

@@ -1439,7 +1439,7 @@ func viewStrings(xs []any) ([]string, bool) {
 // viewPanelFigure is the panel, or with a budget its pages of at most
 // that many columns, each numbering its columns as the whole panel does.
 func viewPanelFigure(panel viewPanel, about func(cols []viewColumn) string,
-	as, style string, budget int, parts *[]ViewPart) string {
+	as, style string, budget int, parts *[]ViewPart) (string, []VetFinding) {
 	draw := func(p viewPanel) string {
 		if "svg" == as {
 			return panelSvg(p, about(p.cols), style)
@@ -1447,11 +1447,11 @@ func viewPanelFigure(panel viewPanel, about func(cols []viewColumn) string,
 		return renderPanel(p, style)
 	}
 	if 0 == budget {
-		return draw(panel)
+		return draw(panel), nil
 	}
 	pages := []viewRun[viewColumn]{{name: "1", items: []viewColumn{}}}
 	if 0 < len(panel.cols) {
-		pages = viewBudgeted([]viewRun[viewColumn]{{name: "", items: panel.cols}}, budget)
+		pages = viewBudgeted([]viewRun[viewColumn]{{numbered: true, items: panel.cols}}, budget)
 	}
 	drawn := []ViewPart{}
 	for i, page := range pages {
@@ -1577,7 +1577,7 @@ func drawSets(gen any, sets, member, universe string, minDegree, maxCols, budget
 	return viewPanelFigure(panel, func(shown []viewColumn) string {
 		return "Set panel over " + sets + ": " + strconv.Itoa(len(names)) + " sets, " +
 			strconv.Itoa(len(elements)) + " elements, " + strconv.Itoa(len(shown)) + " intersections"
-	}, as, style, budget, parts), nil
+	}, as, style, budget, parts)
 }
 
 // viewDocName is the file a contribution names, as the panel shows it:
@@ -1684,7 +1684,7 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols, 
 	return viewPanelFigure(panel, func(shown []viewColumn) string {
 		return "Document layers: " + strconv.Itoa(len(names)) + " documents, " +
 			strconv.Itoa(len(paths)) + " paths, " + strconv.Itoa(len(shown)) + " intersections"
-	}, as, style, budget, parts), nil
+	}, as, style, budget, parts)
 }
 
 // ---------------------------------------------------------------------
@@ -2340,7 +2340,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 		}
 		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
 	}
-	return viewJoinParts(as, drawn, parts), nil
+	return viewJoinParts(as, drawn, parts)
 }
 
 // ViewTree is the tree view of one document: View with the kind fixed.

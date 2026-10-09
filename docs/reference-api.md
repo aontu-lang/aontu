@@ -1300,11 +1300,14 @@ the name over it and for each message that spans it.
 
   The `lattice`, `ladder` and `poset` do not divide, and asking a kind
   to divide in a way it cannot (a `sequence` by root, a panel by field)
-  is `view_split_kind`. The whole figure is drawn first, so its
-  refusals and loss report are the figure's; each part is held to
-  `--max-rows`. On stdout each part follows a comment naming it;
-  `--out` must hold `{part}`, which each part's name replaces (made
-  safe for a filename).
+  is `view_split_kind`. A part is named after its value, key or root,
+  and a run of one divided by a budget after its run as well
+  (`billing.1`); a split whose parts would share a name, as a value
+  `billing.1` beside a divided `billing` would, is `view_part_names`.
+  The whole figure is drawn first, so its refusals and loss report are
+  the figure's; each part is held to `--max-rows`. On stdout each part
+  follows a comment naming it; `--out` must hold `{part}`, which each
+  part's name replaces (made safe for a filename).
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
   under `--strict`, `2` usage (an unknown kind or profile, a missing
   required option, `--max-rows` exceeded), `4` error (a document that

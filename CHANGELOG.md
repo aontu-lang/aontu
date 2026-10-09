@@ -26,10 +26,10 @@ lives in; a `doc` or `treemap` by the keys under its anchor; a
 `sequence` by step; a set panel by column. `--out` takes `{part}`, and
 the report carries `parts`. `--counts` and `--count-by` title groups
 with their counts, and `--collapse` draws the surface map. New codes
-`view_members_none`, `view_steps_required`, `view_steps_shape` and
-`view_split_kind`; `aontu:view` types every new option. A view document
-now generates only its declarations, so a model whose schema half is not
-concrete still has figures; the row
+`view_members_none`, `view_steps_required`, `view_steps_shape`,
+`view_split_kind` and `view_part_names`; `aontu:view` types every new
+option. A view document now generates only its declarations, so a model
+whose schema half is not concrete still has figures; the row
 `views-a-document-that-does-not-generate` becomes three rows saying so.
 
 ### The finding under a template's preferred member names the maybe() (#292)

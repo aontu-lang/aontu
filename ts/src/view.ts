@@ -2296,7 +2296,7 @@ function panelFigure(
     return { text: draw(panel) }
   }
   const pages = 0 === panel.cols.length ? [{ name: '1', items: [] }]
-    : budgeted([{ name: '', items: panel.cols }], budget)
+    : budgeted([{ items: panel.cols }], budget)
   return joinParts(o.as, pages.map((page, i) => ({
     name: page.name, text: draw({ ...panel, cols: page.items, first: i * budget }),
   })))
@@ -3040,7 +3040,7 @@ function drawSequence(
   }
   const names = [...new Set(msgs.filter((m) => undefined !== m.part)
     .map((m) => m.part as string))].sort(cmpCodePoint)
-  const base = undefined === o.splitBy ? [{ name: '', items: msgs }]
+  const base = undefined === o.splitBy ? [{ items: msgs }]
     : names.map((n) => ({ name: n, items: msgs.filter((m) => n === m.part) }))
   const parts: ViewPart[] = []
   for (const part of budgeted(base, o.budget ?? 0)) {
@@ -3341,8 +3341,8 @@ type HNode = { name: string, kids: HNode[] }
 
 // A part of a row tree: below the anchor its chain of names reaches,
 // the anchor's children it keeps.
-type HBase = { name: string, top: HNode, keys: string[] }
-type HPart = HBase & { chain: string[] }
+type HBase = { name?: string, top: HNode, keys: string[] }
+type HPart = { name: string, top: HNode, keys: string[], chain: string[] }
 
 function hRows(n: HNode): number {
   return 1 + n.kids.reduce((r, k) => r + hRows(k), 0)
@@ -3384,7 +3384,7 @@ function hBases(
   }
   return true === o.splitRoots
     ? keys.map((k) => ({ name: k, top, keys: [k] }))
-    : [{ name: '', top, keys }]
+    : [{ top, keys }]
 }
 
 
@@ -3395,7 +3395,7 @@ function packRows(bases: HBase[], budget: number): HPart[] {
   const out: HPart[] = []
   for (const b of bases) {
     if (0 === budget) {
-      out.push({ ...b, chain: [] })
+      out.push({ ...b, name: b.name as string, chain: [] })
       continue
     }
     const units: { chain: string[], node: HNode }[] = []
@@ -3425,7 +3425,7 @@ function packRows(bases: HBase[], budget: number): HPart[] {
       }
     }
     packs.forEach((p, i) => out.push({
-      name: '' === b.name ? String(i + 1)
+      name: undefined === b.name ? String(i + 1)
         : 1 === packs.length ? b.name : `${b.name}.${i + 1}`,
       top: b.top, keys: p.keys, chain: p.chain,
     }))
@@ -3535,20 +3535,22 @@ function drawTreemapParts(
 // ---------------------------------------------------------------------
 // Selection by membership, and the split into parts
 
-// Each part cut into runs of at most `budget` items: an unnamed part's
-// runs are numbered, and a named one keeps its name while it fits.
+// Each part cut into runs of at most `budget` items: a part with no
+// name (the whole figure, divided by budget alone) numbers its runs, and
+// a named one, even one named by an empty value, keeps its name while
+// it fits.
 function budgeted<T>(
-  parts: { name: string, items: T[] }[], budget: number
+  parts: { name?: string, items: T[] }[], budget: number
 ): { name: string, items: T[] }[] {
   if (0 === budget) {
-    return parts
+    return parts as { name: string, items: T[] }[]
   }
   const out: { name: string, items: T[] }[] = []
   for (const part of parts) {
     const n = Math.ceil(part.items.length / budget)
     for (let i = 0; i < n; i++) {
       out.push({
-        name: '' === part.name ? String(i + 1)
+        name: undefined === part.name ? String(i + 1)
           : 1 === n ? part.name : `${part.name}.${i + 1}`,
         items: part.items.slice(i * budget, (i + 1) * budget),
       })
@@ -3683,7 +3685,7 @@ function splitParts(
   const byLabel = (a: string, b: string): number =>
     cmpCodePoint(lab.get(a) as string, lab.get(b) as string)
   const sorted = all.slice().sort(byLabel)
-  let parts: Part[]
+  let parts: { name?: string, nodes: string[] }[]
 
   if (undefined !== o.splitBy) {
     const field = o.splitBy
@@ -3745,7 +3747,7 @@ function splitParts(
     // A budget alone cuts the walk itself, so a part holds nodes that
     // reach each other wherever the budget allows.
     if (true !== o.splitRoots) {
-      parts = [{ name: '', nodes: parts.flatMap((p) => p.nodes) }]
+      parts = [{ nodes: parts.flatMap((p) => p.nodes) }]
     }
   }
 
@@ -3801,7 +3803,19 @@ function partHead(as: ViewProfile, name: string): string {
 }
 
 
+// Parts sharing a name would be written to one file, so the split is
+// refused: a run of a part divided by --budget is named `name.n`, which
+// another part's value may already be.
 function joinParts(as: ViewProfile, parts: ViewPart[]): Figure {
+  const names = parts.map((p) => p.name)
+  const twice = names.find((n, i) => i !== names.indexOf(n))
+  if (undefined !== twice) {
+    return {
+      errors: [finding('view_part_names', 'reference', '$',
+        `Two parts of the figure are both named ${twice}.`,
+        'parts: ' + names.join(', '))],
+    }
+  }
   return {
     parts,
     text: parts.map((p) => `${partHead(as, p.name)}\n${p.text}`).join('\n\n'),

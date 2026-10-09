@@ -62,6 +62,7 @@ var viewUsageCodes = map[string]bool{
 	"view_document_shape": true,
 	"view_style_profile":  true, "view_style_unknown": true,
 	"view_steps_required": true, "view_split_kind": true,
+	"view_part_names": true,
 }
 
 func hasString(list []string, s string) bool {

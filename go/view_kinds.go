@@ -983,7 +983,7 @@ func drawSequence(list any, at, from, to, labelField, splitBy string, budget int
 	if !splitting {
 		return render(msgs), nil
 	}
-	base := []viewRun[raw]{{name: "", items: msgs}}
+	base := []viewRun[raw]{{numbered: true, items: msgs}}
 	if "" != splitBy {
 		names := []string{}
 		for _, m := range msgs {
@@ -1010,7 +1010,7 @@ func drawSequence(list any, at, from, to, labelField, splitBy string, budget int
 		}
 		drawn = append(drawn, ViewPart{Name: part.name, Text: render(part.items)})
 	}
-	return viewJoinParts(as, drawn, parts), nil
+	return viewJoinParts(as, drawn, parts)
 }
 
 // viewSequenceText is THE LIFELINE GRID. Lifeline i sits at column
@@ -1432,9 +1432,10 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 // children it keeps. A viewHPart adds the chain of names below the
 // anchor that the kept children hang from.
 type viewHBase struct {
-	name string
-	top  *viewTile
-	keys []string
+	name     string
+	numbered bool
+	top      *viewTile
+	keys     []string
 }
 
 type viewHPart struct {
@@ -1500,7 +1501,7 @@ func viewHBases(top *viewTile, splitBy string, splitRoots bool, path func(string
 		}
 		return out
 	}
-	return append(out, viewHBase{name: "", top: top, keys: keys})
+	return append(out, viewHBase{numbered: true, top: top, keys: keys})
 }
 
 // viewPackRows packs each base into parts of at most budget rows below
@@ -1553,7 +1554,7 @@ func viewPackRows(bases []viewHBase, budget int) []viewHPart {
 		}
 		for i, p := range packs {
 			name := b.name
-			if "" == b.name {
+			if b.numbered {
 				name = strconv.Itoa(i + 1)
 			} else if 1 != len(packs) {
 				name = b.name + "." + strconv.Itoa(i+1)
@@ -1594,7 +1595,7 @@ func drawDocParts(root Val, o *ViewOptions, as, style string, max int,
 		}
 		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
 	}
-	return viewJoinParts(as, drawn, parts), nil
+	return viewJoinParts(as, drawn, parts)
 }
 
 func drawTreemapParts(root Val, o *ViewOptions, members []string, selected bool,
@@ -1677,7 +1678,7 @@ func drawTreemapParts(root Val, o *ViewOptions, members []string, selected bool,
 		}
 		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
 	}
-	return viewJoinParts(as, drawn, parts), nil
+	return viewJoinParts(as, drawn, parts)
 }
 
 // ---------------------------------------------------------------------
@@ -1848,6 +1849,7 @@ func viewSplitParts(sel viewSelection, root Val, o *ViewOptions, loss *[]ViewLos
 	sorted := append([]string{}, all...)
 	byLabel(sorted)
 	parts := []viewPartNodes{}
+	numbered := false
 
 	if "" != o.SplitBy {
 		unresolved := []string{}
@@ -1919,13 +1921,13 @@ func viewSplitParts(sel viewSelection, root Val, o *ViewOptions, loss *[]ViewLos
 			for _, p := range parts {
 				flat = append(flat, p.nodes...)
 			}
-			parts = []viewPartNodes{{name: "", nodes: flat}}
+			parts, numbered = []viewPartNodes{{nodes: flat}}, true
 		}
 	}
 
 	runs := []viewRun[string]{}
 	for _, p := range parts {
-		runs = append(runs, viewRun[string]{name: p.name, items: p.nodes})
+		runs = append(runs, viewRun[string]{name: p.name, numbered: numbered, items: p.nodes})
 	}
 	cut := []viewPartNodes{}
 	for _, r := range viewBudgeted(runs, o.Budget) {
@@ -1999,19 +2001,33 @@ func viewPartHead(as, name string) string {
 }
 
 // viewJoinParts hands the parts to the report and answers them printed
-// together.
-func viewJoinParts(as string, parts []ViewPart, into *[]ViewPart) string {
+// together. Parts sharing a name would be written to one file, so the
+// split is refused: a run of a part divided by --budget is named
+// `name.n`, which another part's value may already be.
+func viewJoinParts(as string, parts []ViewPart, into *[]ViewPart) (string, []VetFinding) {
+	names := []string{}
+	for _, p := range parts {
+		names = append(names, p.Name)
+	}
+	for i, n := range names {
+		if contains(names[:i], n) {
+			return "", []VetFinding{viewFinding("view_part_names", "reference", "$",
+				"Two parts of the figure are both named "+n+".",
+				"parts: "+strings.Join(names, ", "))}
+		}
+	}
 	texts := []string{}
 	for _, p := range parts {
 		*into = append(*into, p)
 		texts = append(texts, viewPartHead(as, p.Name)+"\n"+p.Text)
 	}
-	return strings.Join(texts, "\n\n")
+	return strings.Join(texts, "\n\n"), nil
 }
 
-// viewBudgeted cuts each part into runs of at most budget items: an
-// unnamed part's runs are numbered, and a named one keeps its name while
-// it fits.
+// viewBudgeted cuts each part into runs of at most budget items: a
+// numbered part (the whole figure, divided by budget alone) numbers its
+// runs, and a named one, even one named by an empty value, keeps its
+// name while it fits.
 func viewBudgeted[T any](parts []viewRun[T], budget int) []viewRun[T] {
 	if 0 == budget {
 		return parts
@@ -2021,7 +2037,7 @@ func viewBudgeted[T any](parts []viewRun[T], budget int) []viewRun[T] {
 		n := (len(part.items) + budget - 1) / budget
 		for i := 0; i < n; i++ {
 			name := part.name
-			if "" == part.name {
+			if part.numbered {
 				name = strconv.Itoa(i + 1)
 			} else if 1 != n {
 				name = part.name + "." + strconv.Itoa(i+1)
@@ -2037,8 +2053,9 @@ func viewBudgeted[T any](parts []viewRun[T], budget int) []viewRun[T] {
 }
 
 type viewRun[T any] struct {
-	name  string
-	items []T
+	name     string
+	numbered bool
+	items    []T
 }
 
 // viewAddUnresolved joins the paths a split field leaves unresolved to

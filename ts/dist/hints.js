@@ -182,6 +182,7 @@ const hints = {
     view_steps_required: 'The sequence reads a list of steps: --steps names it, and --from and\n--to name the fields of each step that hold its sender and receiver.',
     view_steps_shape: 'The sequence reads generated values: --steps must name a list, and\neach step must hold a string at its --from and --to fields. The path\nin the finding is the value that has another shape.',
     view_split_kind: 'A figure divides only where each part stands as a figure of its own:\nthe link figures, the document and the treemap by --split-by,\n--split-roots and --budget; a sequence by --split-by and --budget; a\nset panel by --budget. The lattice, ladder and poset do not divide.',
+    view_part_names: 'A split names each part after its value, key or root, and a run of a\npart divided by --budget after its run too (billing.1, billing.2). Two\nparts of one name would be written to one file, so the split is\nrefused: divide by another field, or without --budget.',
     pack_data: 'The first argument to pack() is not a bag. `pack` makes one child\nper child of its DATA, so the data has to have children: a list of\nnames, or a map whose keys are the names.\n \nExamples:\n  pack([a,b], {x:1})     -> {..}  # A list of names;\n  pack({a:1,b:2}, {x:1}) -> {..}  # ... or a map, keyed by its keys;\n  pack(1, {x:1})         -> nil   # ... but a scalar has no children.',
     pack_key: 'A list packed by pack() holds something that is not a string. The\nelements of a packed list ARE the generated keys, and only a string\nis a key — an element keyed by its position would churn every\ngenerated child the moment the list was reordered.\n \nExamples:\n  pack([a,b], {x:1})   -> {..}  # Names;\n  pack(["a b"], {x:1}) -> {..}  # ... a quoted name is still a name;\n  pack([1,2], {x:1})   -> nil   # ... but a number is not one.',
     each_data: 'The first argument to each() is not a bag. `each` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values are taken in sorted-key order.\n \nExamples:\n  each([a,b], upper(_))  -> [..]  # A list, in source order;\n  each({b:2,a:1}, _)     -> [..]  # ... a map, in sorted-key order;\n  each(1, _)             -> nil   # ... but a scalar has no children.',
@@ -658,6 +659,7 @@ const codeClasses = {
     view_steps_required: 'reference',
     view_steps_shape: 'reference',
     view_split_kind: 'reference',
+    view_part_names: 'reference',
     // First-class paths (docs/design/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
     // class as refer_address, because it is the same mistake.

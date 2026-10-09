@@ -1873,7 +1873,7 @@ const VIEW_USAGE_CODES = [
     'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
     'view_at_required', 'view_sets_required', 'view_group_required',
     'view_document_shape', 'view_style_profile', 'view_style_unknown',
-    'view_steps_required', 'view_split_kind',
+    'view_steps_required', 'view_split_kind', 'view_part_names',
 ];
 const PKG_HELP = 'aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve [dir] | keygen <file> (try --help)';
 const PKG_SUBS = [

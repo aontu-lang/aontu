@@ -170,6 +170,13 @@ part of one would be a different figure. Asking is `view_split_kind`,
 as is asking a kind to divide in a way it cannot: a sequence or a panel
 has no roots, and a panel has no field to divide by.
 
+A part is named after its value, key or root, and a run of a part
+divided by a budget after its run as well (`billing.1`). Only the whole
+figure divided by a budget alone numbers its parts outright, so a value
+of `""` keeps its own name. A run's name can still be another part's
+value, and since two parts of one name would be written to one file,
+such a split is refused as `view_part_names` rather than renamed.
+
 The whole figure is drawn first, so the figure's refusals and loss
 report are the whole figure's, and each part is held to `--max-rows`
 on its own. The report carries `parts` as `{name, text}`; on stdout each

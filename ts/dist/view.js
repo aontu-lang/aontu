@@ -1670,7 +1670,7 @@ function panelFigure(panel, about, o) {
         return { text: draw(panel) };
     }
     const pages = 0 === panel.cols.length ? [{ name: '1', items: [] }]
-        : budgeted([{ name: '', items: panel.cols }], budget);
+        : budgeted([{ items: panel.cols }], budget);
     return joinParts(o.as, pages.map((page, i) => ({
         name: page.name, text: draw({ ...panel, cols: page.items, first: i * budget }),
     })));
@@ -2288,7 +2288,7 @@ function drawSequence(list, o, max, loss) {
     }
     const names = [...new Set(msgs.filter((m) => undefined !== m.part)
             .map((m) => m.part))].sort(keyorder_1.cmpCodePoint);
-    const base = undefined === o.splitBy ? [{ name: '', items: msgs }]
+    const base = undefined === o.splitBy ? [{ items: msgs }]
         : names.map((n) => ({ name: n, items: msgs.filter((m) => n === m.part) }));
     const parts = [];
     for (const part of budgeted(base, o.budget ?? 0)) {
@@ -2565,7 +2565,7 @@ function hBases(top, o, path, root, loss) {
     }
     return true === o.splitRoots
         ? keys.map((k) => ({ name: k, top, keys: [k] }))
-        : [{ name: '', top, keys }];
+        : [{ top, keys }];
 }
 // Each base packed into parts of at most `budget` rows below their
 // anchor: whole subtrees side by side, and a subtree too big for one
@@ -2574,7 +2574,7 @@ function packRows(bases, budget) {
     const out = [];
     for (const b of bases) {
         if (0 === budget) {
-            out.push({ ...b, chain: [] });
+            out.push({ ...b, name: b.name, chain: [] });
             continue;
         }
         const units = [];
@@ -2604,7 +2604,7 @@ function packRows(bases, budget) {
             }
         }
         packs.forEach((p, i) => out.push({
-            name: '' === b.name ? String(i + 1)
+            name: undefined === b.name ? String(i + 1)
                 : 1 === packs.length ? b.name : `${b.name}.${i + 1}`,
             top: b.top, keys: p.keys, chain: p.chain,
         }));
@@ -2691,8 +2691,10 @@ function drawTreemapParts(root, o, max, loss) {
 }
 // ---------------------------------------------------------------------
 // Selection by membership, and the split into parts
-// Each part cut into runs of at most `budget` items: an unnamed part's
-// runs are numbered, and a named one keeps its name while it fits.
+// Each part cut into runs of at most `budget` items: a part with no
+// name (the whole figure, divided by budget alone) numbers its runs, and
+// a named one, even one named by an empty value, keeps its name while
+// it fits.
 function budgeted(parts, budget) {
     if (0 === budget) {
         return parts;
@@ -2702,7 +2704,7 @@ function budgeted(parts, budget) {
         const n = Math.ceil(part.items.length / budget);
         for (let i = 0; i < n; i++) {
             out.push({
-                name: '' === part.name ? String(i + 1)
+                name: undefined === part.name ? String(i + 1)
                     : 1 === n ? part.name : `${part.name}.${i + 1}`,
                 items: part.items.slice(i * budget, (i + 1) * budget),
             });
@@ -2866,7 +2868,7 @@ function splitParts(sel, root, o, loss) {
         // A budget alone cuts the walk itself, so a part holds nodes that
         // reach each other wherever the budget allows.
         if (true !== o.splitRoots) {
-            parts = [{ name: '', nodes: parts.flatMap((p) => p.nodes) }];
+            parts = [{ nodes: parts.flatMap((p) => p.nodes) }];
         }
     }
     return budgeted(parts.map((p) => ({ name: p.name, items: p.nodes })), o.budget ?? 0).map((p) => ({ name: p.name, nodes: p.items }));
@@ -2911,7 +2913,17 @@ function partHead(as, name) {
     return 'svg' === as ? `<!-- part: ${name} -->`
         : `${'dot' === as ? '//' : 'text' === as ? '#' : '%%'} part: ${name}`;
 }
+// Parts sharing a name would be written to one file, so the split is
+// refused: a run of a part divided by --budget is named `name.n`, which
+// another part's value may already be.
 function joinParts(as, parts) {
+    const names = parts.map((p) => p.name);
+    const twice = names.find((n, i) => i !== names.indexOf(n));
+    if (undefined !== twice) {
+        return {
+            errors: [finding('view_part_names', 'reference', '$', `Two parts of the figure are both named ${twice}.`, 'parts: ' + names.join(', '))],
+        };
+    }
     return {
         parts,
         text: parts.map((p) => `${partHead(as, p.name)}\n${p.text}`).join('\n\n'),

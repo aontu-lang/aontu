@@ -112,6 +112,7 @@ var hints = map[string]string{
 	"view_steps_required":      "The sequence reads a list of steps: --steps names it, and --from and\n--to name the fields of each step that hold its sender and receiver.",
 	"view_steps_shape":         "The sequence reads generated values: --steps must name a list, and\neach step must hold a string at its --from and --to fields. The path\nin the finding is the value that has another shape.",
 	"view_split_kind":          "A figure divides only where each part stands as a figure of its own:\nthe link figures, the document and the treemap by --split-by,\n--split-roots and --budget; a sequence by --split-by and --budget; a\nset panel by --budget. The lattice, ladder and poset do not divide.",
+	"view_part_names":          "A split names each part after its value, key or root, and a run of a\npart divided by --budget after its run too (billing.1, billing.2). Two\nparts of one name would be written to one file, so the split is\nrefused: divide by another field, or without --budget.",
 	"func_arity":               "This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.",
 	"elided_value":             "A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.",
 	"alias_budget":             "Alias expansion is bounded but not small: a name that names names\nexpands to the product of what they hold, so twenty shallow\ndeclarations reach a million nodes. The expanded size is counted\nbefore evaluation and refused over the budget ({budget} nodes), so\nthe document is turned away rather than run until memory is gone.\n \nExpansion terminates whatever the budget: an alias takes no\nparameters, a cycle is refused, and a file declares finitely many\nnames. The budget is about SIZE, not about termination.\n \nRaise it with trust.budget.alias where the document is trusted and\nthe machine can hold the result.",
@@ -439,6 +440,7 @@ var codeClasses = map[string]string{
 	"view_steps_required":     "reference",
 	"view_steps_shape":        "reference",
 	"view_split_kind":         "reference",
+	"view_part_names":         "reference",
 
 	// The formatter's self-check (docs/design/FMT.0.md): a report-layer
 	// code, class internal -- the formatter, not the document, is wrong.
