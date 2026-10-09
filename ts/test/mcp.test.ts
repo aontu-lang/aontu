@@ -501,6 +501,8 @@ describe('mcp', () => {
       source: doc, kind: 'treemap', of: '$.g', size: 'size',
     }))
     Assert.match(tm.text, /"b": 3/)
+    Assert.equal(callTool('view', { source: doc, budget: 0.5 }).isError, true)
+    Assert.equal(callTool('view', { source: doc, budget: -1 }).isError, true)
   })
 
 

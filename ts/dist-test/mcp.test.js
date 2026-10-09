@@ -413,6 +413,8 @@ function hostileModule(dir) {
             source: doc, kind: 'treemap', of: '$.g', size: 'size',
         }));
         Assert.match(tm.text, /"b": 3/);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, budget: 0.5 }).isError, true);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, budget: -1 }).isError, true);
     });
     (0, node_test_1.test)('reaches-tool-answers-the-closure-question', () => {
         const doc = 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
