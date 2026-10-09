@@ -62,6 +62,18 @@ class Ghostly extends provenance_1.Provenance {
     }
 }
 (0, node_test_1.describe)('view', () => {
+    (0, node_test_1.test)('view-part-file-names', () => {
+        for (const [out, name, file] of [
+            ['g-{part}.mmd', 'billing', 'g-billing.mmd'],
+            ['g-{part}.mmd', 'a b/c_d', 'g-a_20b_2fc_5fd.mmd'],
+            ['{part}', '..', '_2e_2e'],
+            ['{part}.{part}', 'x.1', 'x.1.x.1'],
+        ]) {
+            Assert.equal((0, view_1.viewPartFile)(out, name), file);
+        }
+        Assert.equal((0, view_1.viewSplits)({}), false);
+        Assert.equal((0, view_1.viewSplits)({ budget: 1 }), true);
+    });
     (0, node_test_1.test)('view-over-included-files', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-'));
         write(dir, 'lib/base.aontu', 'a: {x: **1 & integer, y: 2}\n');

@@ -890,13 +890,15 @@ by code point, and both ports emit the same bytes.
 
 ```
 aontu view <kind> [--as <profile>] [--at <path>] [--out <file> [--check]]
+           [--of <path> [--member <k>] [--ghosts]]
+           [--split-by <k> | --split-roots] [--budget <n>]
            [--strict] [--max-rows <n>] [--depth <n>] [--style <s>]
            [--format text|json] [options] <file>...
 ```
 
-Ten kinds. Eight read a report the engine already produces; `doc` and
-`lattice` read the document itself, which is the one thing no report
-holds:
+Fourteen kinds. Eleven read a report the engine already produces;
+`doc`, `lattice` and `treemap` read the document itself, which is the
+one thing no report holds:
 
 | kind | draws | reads | profiles |
 |---|---|---|---|
@@ -910,6 +912,10 @@ holds:
 | `layers` | which document contributed which path | the provenance record | `text`, `svg` |
 | `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-model-why) record | `mermaid`, `dot` |
 | `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot` |
+| `state` | a lifecycle: states, and the events that move between them | the edge set | `mermaid`, `text` |
+| `lane` | a flow in swim lanes: one lane per value of `--group-by`, one column per step | the edge set and the node values | `mermaid`, `text` |
+| `sequence` | who sends what to whom, in the order a list of steps gives | the generated steps | `mermaid`, `text` |
+| `treemap` | the model's bulk, nested: each part weighed by what it holds | the anchor walk | `mermaid`, `text` |
 
 The first profile listed is the kind's default; asking for another is
 a refusal (`view_profile_unknown`), because there is no text form of a
@@ -1016,6 +1022,80 @@ An unresolved disjunction is unplaced for the same reason: `*8080 |
 9090` is two places at once, and a node that claimed either would be
 claiming something the document does not say.
 
+Four kinds draw what a model says about behaviour. Write
+`order.aontu`, a lifecycle whose states name their lanes, and a
+checkout written as a list of steps:
+
+<!-- test: file order.aontu -->
+```aontu
+order: draft: { lane:customer submit:refer() & path($.order.review) }
+order: review: {
+  lane: shop
+  approve: refer() & path($.order.shipped)
+  reject: refer() & path($.order.draft)
+}
+order: shipped: lane: courier
+
+checkout: [
+  { from:web to:billing msg:charge }
+  { from:billing to:ledger msg:post }
+  { from:billing to:web msg:ok }
+]
+```
+
+The links are the transitions and each link's key is its event.
+`review` sends work back to `draft`, so every state is entered from
+another and none is initial on its own; `--root` names it:
+
+<!-- test: run -->
+```sh
+$ aontu view state --root '$.order.draft' order.aontu
+stateDiagram-v2
+  state "draft" as n_draft
+  state "review" as n_review
+  state "shipped" as n_shipped
+  [*] --> n_draft
+  n_draft --> n_review : submit
+  n_review --> n_shipped : approve
+  n_review --> n_draft : reject
+  n_shipped --> [*]
+```
+
+The same links in swim lanes, one lane per value of `lane`:
+
+<!-- test: run -->
+```sh
+$ aontu view lane --group-by lane --as text order.aontu
+          1      2       3
+customer  draft  .       .
+shop      .      review  .
+courier   .      .       shipped
+# 3 edges, 3 across lanes, 1 back
+# across: draft -> review (submit)
+# back: review -> draft (reject)
+# across: review -> shipped (approve)
+```
+
+Each step has a column of its own, in flow order, so the grid needs no
+placement beyond that order. The loop is entered at its least label,
+and the edge that closes it is named as running back.
+
+The checkout as a sequence:
+
+<!-- test: run -->
+```sh
+$ aontu view sequence --steps '$.checkout' --from from --to to --label msg --as text order.aontu
+web        billing  ledger
+│          │        │
+├─ charge ►│        │
+│          ├─ post ►│
+│◄─ ok ────┤        │
+│          │        │
+```
+
+Every lifeline column is a whole number of characters, wide enough for
+the name over it and for each message that spans it.
+
 - **The loss report.** Every run prints, on stderr, what the figure
   could not draw or drew differently from the model, one line per
   code with a count: `hidden_contribution` (an edge inside a `hide()`
@@ -1025,14 +1105,18 @@ claiming something the document does not say.
   picking an arm), `unresolved_field` (a node without a value for
   `--group-by` or `--label`), `lattice_unplaced` (a value at no single
   point of the lattice, named rather than drawn), `cycle_block`,
-  `cols_elided`, and for the poset
+  `cols_elided`, `column_unplaced` (an ER column whose value is at no
+  single point of the lattice, drawn as `any`), and for the poset
   `order_undecided`, `order_maybe_equal` and `order_intransitive`. Any
   of these makes the verdict `lossy`, which `--strict` turns into exit
-  `1`. Three codes are informational and leave the verdict `rendered`:
+  `1`. Six codes are informational and leave the verdict `rendered`:
   `edges_deduped` (a model declaring each entity at two positions
   writes each edge twice), `inverse_suppressed` (a declared mirror,
-  implied by the edge drawn) and `crossings` (a property of the emitted
-  order).
+  implied by the edge drawn), `crossings` (a property of the emitted
+  order), `edges_outside` (an edge leaving an `--of` selection, not
+  drawn because the selection was asked for), `edges_internal` (an edge
+  inside one group of the surface map) and `treemap_empty` (a tile that
+  weighs nothing, and so has no area).
 - **`--style <s>`** says how a figure carries the MEANING of its
   marks. Every mark has a reason the extractor established (a direct
   cell, a closure cell, an unmirrored edge, an upward edge, a repeated
@@ -1141,6 +1225,67 @@ claiming something the document does not say.
   general document; an undecided pair with no proven order is a dashed
   edge labelled with the `sub_*` reason. Labels are the filenames
   without `.aontu`.
+- `state`: the nodes are states and each edge a transition labelled by
+  its key, the event. `--relation` (repeatable) keeps only those
+  events. An initial state is one no other state enters, or with
+  `--root <path>` (repeatable) exactly the states named; a final state
+  is one that leaves to no other. `--label <field>` names each state.
+- `lane`: `--group-by <field>` (required, `view_group_required`) names
+  each step's lane. A step is placed once every step leading to it is,
+  least label first; a loop is entered at its least label. Lanes are in
+  order of their first step, `--layers a,b` names the first ones, and a
+  step without the field is in the lane `-`, last. The text footer
+  counts the edges, those across lanes and those running back, and
+  names each one that does either.
+- `sequence`: `--steps <path>` names a list, and `--from <k>` and
+  `--to <k>` the fields of each step naming its sender and receiver
+  (all three required, `view_steps_required`); `--label <k>` is the
+  message. Only the steps are generated, so a model whose schema half
+  is not concrete still draws its sequences. A step without a string
+  at either end is `view_steps_shape`. Participants are in order of
+  first appearance, and an address (`path($.svc.web)`) is shown by its
+  shortest unique suffix.
+- `treemap`: the document under `--at`, to `--depth` (default 3), each
+  tile weighed by the scalar leaves under it. `--group-by <field>`
+  instead groups the children of `--at` (or the members of `--of`) by
+  that field, one level of tiles. `--size <field>` weighs a node that
+  holds that numeric field by its value. A tile that weighs nothing is
+  not drawn and is counted (`treemap_empty`). Mermaid's `treemap-beta`
+  lays the tiles out; the text form is the nested list with a bar of
+  whole cells beside each weight.
+- **`--of <path>`** draws only the members of a node: the nodes its
+  links point at, or with `--member <key>` only those under that key.
+  It is how one group's tables are drawn when the tables are top-level
+  entities a group refers to. An edge with one end outside is not drawn
+  and is counted (`edges_outside`); with `--ghosts` (graph, state and
+  lane) it is drawn, its far end labelled `(outside)`. A node with no
+  links there is `view_members_none`.
+- **`--columns <field>`** (`graph --as er`) draws each entity with its
+  columns: the field is a map from column name to value, and each
+  column is typed by the lattice (`integer`, `string`, `path`, `map`,
+  `list`, or the kind a constraint's canon starts with) with the canon
+  as a comment where it says more. A column holding a link is marked
+  `FK`, and the relationship it makes is drawn from the entity, named
+  by the column. A column name Mermaid cannot carry is spelled with
+  `q_` and its code points, the name kept in the comment.
+- **`--counts`** titles each group (a `graph` subgraph, a `layer` band,
+  a lane) with its member count; **`--count-by <field>`** also counts
+  the members by that field's value (`billing (3: process 1, table
+  2)`). **`--collapse`** draws a `graph` as its surface map: one node
+  per `--group-by` value, titled with its counts, and one edge per pair
+  of groups and relation, labelled with how many edges it stands for.
+- **Splitting** cuts a `graph`, `state` or `lane` figure into parts,
+  each a whole figure of its own: `--split-by <field>` one part per
+  value, `--split-roots` one part per root (each takes what it reaches
+  that no earlier root took), and `--budget <n>` parts of at most `n`
+  nodes, alone or after either of the other two (`billing.1`,
+  `billing.2`). An edge leaving a part draws its far end as a ghost
+  labelled with the part it lives in (`invoice (in billing)`). The
+  whole figure is drawn first, so its refusals and loss report are the
+  figure's; each part is held to `--max-rows`. On stdout each part
+  follows a comment naming it; `--out` must hold `{part}`, which each
+  part's name replaces (made safe for a filename). Asking it of any
+  other kind is `view_split_kind`.
 - Exit codes: `0` rendered or lossy, `1` a `--check` mismatch or lossy
   under `--strict`, `2` usage (an unknown kind or profile, a missing
   required option, `--max-rows` exceeded), `4` error (a document that
@@ -1152,8 +1297,9 @@ claiming something the document does not say.
   a refusal carries `errors` in place of `text`.
 - The library form is `view(src, options)` in TypeScript (`viewTree`
   remains for the tree) and `Aontu.View(src, options)` in Go, returning
-  the identical `{verdict, kind, text?, loss, errors?}` record; the
-  poset's further documents ride `options.docs` as `{src, path?, name?}`.
+  the identical `{verdict, kind, text?, loss, parts?, errors?}` record,
+  `parts` being a split figure's `{name, text}` list; the poset's
+  further documents ride `options.docs` as `{src, path?, name?}`.
 
 **The view document.** A projection that runs in CI belongs in a file.
 `--views <path>` names a map, in an ordinary document that includes the
@@ -1203,11 +1349,15 @@ option that is not one, gives a value of the wrong shape, or leaves out
 `kind` or `out` is `view_document_shape`, reported for every faulty
 declaration at once and before anything is drawn. The `poset` is
 refused there: it compares several documents and a view document
-declares figures of the one it includes. The library form is
+declares figures of the one it includes. A split figure's `out` holds
+`{part}`, and each part is written to its own file. Only the
+declarations are generated to read them, so a model whose schema half
+is not concrete still has figures; a figure that reads generated
+values (`sets`, `sequence`) generates what it reads. The library form is
 `viewSet(src, options)` in TypeScript and `Aontu.ViewSet(src, options)`
 in Go, returning `{verdict, views, errors?}` where each view is
-`{name, kind, out, verdict, text?, loss, errors?}`: the caller writes
-the files.
+`{name, kind, out, verdict, text?, loss, parts?, errors?}`: the caller
+writes the files.
 
 `@"aontu:view"` is the bundled schema for a declaration, so the same
 mistakes are refused when the document is EVALUATED rather than when

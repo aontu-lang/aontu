@@ -1010,6 +1010,35 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             'views: {a: {kind: tree, relation: nope, out: "out/a.txt"}}\n');
         Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--trust', 'root', unknown]), 4)).err, /view_relation_unknown/);
     });
+    (0, node_test_1.test)('view-split-writes-one-file-per-part', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vs-'));
+        const file = Path.join(dir, 'doc.aontu');
+        Fs.writeFileSync(file, 'a: {team: x, dependsOn: [&: refer(), path($.b)]}\n' +
+            'b: {team: y}\n' +
+            'views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}\n');
+        const out = Path.join(dir, 'p-{part}.mmd');
+        // Without the token there is nowhere to put the second part.
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--split-by',
+            'team', '--out', Path.join(dir, 'p.mmd'), file]), 2)).err, /--out needs \{part\}/);
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--split-by', 'team', '--out', out, file]), 0)).err, '');
+        Assert.match(Fs.readFileSync(Path.join(dir, 'p-x.mmd'), 'utf8'), /xn_b\["b \(in y\)"\]/);
+        Assert.match(Fs.readFileSync(Path.join(dir, 'p-y.mmd'), 'utf8'), /xn_a\["a \(in x\)"\]/);
+        // --check compares every part, and names each one that differs.
+        Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--split-by', 'team', '--out', out, '--check', file]), 0)).err, '');
+        Fs.writeFileSync(Path.join(dir, 'p-y.mmd'), 'stale\n');
+        const stale = vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--split-by', 'team', '--out', out, '--check', file]), 1)).err;
+        Assert.match(stale, /p-y\.mmd differs from the graph figure/);
+        Assert.doesNotMatch(stale, /p-x\.mmd/);
+        // The JSON report carries the parts.
+        const json = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['graph', '--split-by', 'team', '--format', 'json', file]), 0)).out);
+        Assert.deepEqual(json.parts.map((p) => p.name), ['x', 'y']);
+        // A view document writes each part beside itself.
+        const set = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', file]), 0)).err;
+        Assert.match(set, /wrote g-x\.mmd {2}g \(graph\)/);
+        Assert.match(set, /wrote g-y\.mmd {2}g \(graph\)/);
+        const setJson = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', '--format', 'json', '--check', file]), 0)).out);
+        Assert.equal(setJson.views[0].parts.length, 2);
+    });
     (0, node_test_1.test)('view-document-usage-errors', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vdu-'));
         const file = Path.join(dir, 'views.aontu');

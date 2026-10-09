@@ -521,3 +521,59 @@ func TestViewStyleAutoReadsStdout(t *testing.T) {
 		t.Fatalf("auto on mermaid = %q", got)
 	}
 }
+
+const viewTeams = `a: {team: x, dependsOn: [&: refer(), path($.b)]}
+b: {team: y}
+views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}
+`
+
+func TestViewSplitWritesOneFilePerPart(t *testing.T) {
+	file := viewFile(t, viewTeams)
+	dir := filepath.Dir(file)
+	out := filepath.Join(dir, "p-{part}.mmd")
+
+	// Without the token there is nowhere to put the second part.
+	_, errw, code := viewRun("graph", "--split-by", "team", "--out", filepath.Join(dir, "p.mmd"), file)
+	if 2 != code || !strings.Contains(errw, "--out needs {part}") {
+		t.Fatalf("no token = %d: %q", code, errw)
+	}
+
+	_, errw, code = viewRun("graph", "--split-by", "team", "--out", out, file)
+	x, xerr := os.ReadFile(filepath.Join(dir, "p-x.mmd"))
+	y, yerr := os.ReadFile(filepath.Join(dir, "p-y.mmd"))
+	if 0 != code || "" != errw || nil != xerr || nil != yerr ||
+		!strings.Contains(string(x), "xn_b[\"b (in y)\"]") ||
+		!strings.Contains(string(y), "xn_a[\"a (in x)\"]") {
+		t.Fatalf("split = %d %q: %q %q", code, errw, x, y)
+	}
+
+	// --check compares every part, and names each one that differs.
+	_, errw, code = viewRun("graph", "--split-by", "team", "--out", out, "--check", file)
+	if 0 != code || "" != errw {
+		t.Fatalf("check = %d: %q", code, errw)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "p-y.mmd"), []byte("stale\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, errw, code = viewRun("graph", "--split-by", "team", "--out", out, "--check", file)
+	if 1 != code || !strings.Contains(errw, "p-y.mmd differs from the graph figure") ||
+		strings.Contains(errw, "p-x.mmd") {
+		t.Fatalf("stale check = %d: %q", code, errw)
+	}
+
+	// The JSON report carries the parts.
+	stdout, _, code := viewRun("graph", "--split-by", "team", "--format", "json", file)
+	var report struct {
+		Parts []struct{ Name, Text string }
+	}
+	if 0 != code || nil != json.Unmarshal([]byte(stdout), &report) || 2 != len(report.Parts) {
+		t.Fatalf("json = %d: %s", code, stdout)
+	}
+
+	// A view document writes each part beside itself.
+	_, errw, code = viewRun("--views", "$.views", file)
+	if 0 != code || !strings.Contains(errw, "wrote g-x.mmd  g (graph)") ||
+		!strings.Contains(errw, "wrote g-y.mmd  g (graph)") {
+		t.Fatalf("views = %d: %q", code, errw)
+	}
+}

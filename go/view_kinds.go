@@ -513,7 +513,11 @@ func viewCollapseGraph(groups []viewGroup, loose []*graphNode, edges []viewTripl
 		t := tallies[k]
 		out = append(out, viewEmitEdge{from: t.from, to: t.to, label: t.key + " (" + strconv.Itoa(t.n) + ")"})
 	}
-	return emitGraph(as, nil, shown, out, nil)
+	var columns map[string][]string
+	if "er" == as {
+		columns = map[string][]string{}
+	}
+	return emitGraph(as, nil, shown, out, columns)
 }
 
 // ---------------------------------------------------------------------
@@ -1276,10 +1280,12 @@ type viewSelection struct {
 
 func viewSelectMembers(triples []viewTriple, of, member string, ghosts bool,
 	loss *[]ViewLoss) (viewSelection, *VetFinding) {
+	// The members of a node are what it, or any node under it, links
+	// to: a map of groups selects every group's members.
 	out := []viewTriple{}
 	links := []viewTriple{}
 	for _, e := range triples {
-		if e.from == of {
+		if viewUnder(e.from, of) {
 			out = append(out, e)
 			if "" == member || e.key == member {
 				links = append(links, e)
@@ -1312,7 +1318,7 @@ func viewSelectMembers(triples []viewTriple, of, member string, ghosts bool,
 	away := viewGhosts{}
 	outside := 0
 	for _, e := range triples {
-		if e.from == of {
+		if viewUnder(e.from, of) {
 			continue
 		}
 		a, b := inside[e.from], inside[e.to]

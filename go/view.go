@@ -2124,7 +2124,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 	}
 
 	sel := viewSelection{triples: viewTriples(GraphOf(root), options.At, loss), ghosts: viewGhosts{}}
-	if "graph" == kind && "er" == as && "" != options.Columns {
+	if "" != options.Columns {
 		// A link written as a column is the entity's own relationship,
 		// named by the column.
 		tail := "." + options.Columns

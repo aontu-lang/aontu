@@ -1273,6 +1273,7 @@ function collapseGraph(groups, loose, edges, node, as, loss) {
     return {
         text: emitGraph(as, {
             groups: [], loose: shown,
+            columns: 'er' === as ? new Map() : undefined,
             edges: [...tally.values()]
                 .sort((x, y) => (0, keyorder_1.cmpCodePoint)(x.order, y.order))
                 .map((t) => ({ from: t.from, to: t.to, label: `${t.key} (${t.n})` })),
@@ -2419,7 +2420,9 @@ function drawTreemap(root, o, max, loss) {
     };
 }
 function selectMembers(triples, of, member, ghosts, loss) {
-    const out = triples.filter((e) => e.from === of);
+    // The members of a node are what it, or any node under it, links
+    // to: a map of groups selects every group's members.
+    const out = triples.filter((e) => under(e.from, of));
     const links = undefined === member ? out : out.filter((e) => e.key === member);
     if (0 === links.length) {
         const have = keysOf(out);
@@ -2435,7 +2438,7 @@ function selectMembers(triples, of, member, ghosts, loss) {
     const away = new Map();
     let outside = 0;
     for (const e of triples) {
-        if (e.from === of) {
+        if (under(e.from, of)) {
             continue;
         }
         const a = inside.has(e.from);
@@ -2581,7 +2584,7 @@ function partSelection(sel, parts, part) {
 // part's name made safe for a file system.
 exports.PART_TOKEN = '{part}';
 function viewSplits(o) {
-    return undefined !== o.splitBy || true === o.splitRoots || 0 < (o.budget ?? 0);
+    return '' !== (o.splitBy ?? '') || true === o.splitRoots || 0 < (o.budget ?? 0);
 }
 // Letters, digits, `.` and `-` stand; every other code point is `_`
 // and its hex, so distinct part names never share a file.
@@ -2694,7 +2697,19 @@ function view(src, opts, hooks) {
     }
     return done(drawLoaded(loaded.root, loaded.ctx, prov, kind, as, options, max, loss));
 }
-function drawLoaded(root, ctx, prov, kind, as, options, max, loss) {
+// The options naming a field or a path. An empty name is no name, as
+// the Go port's zero value is.
+const NAMES = [
+    'groupBy', 'label', 'member', 'of', 'columns', 'countBy', 'splitBy',
+    'steps', 'from', 'to', 'size',
+];
+function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
+    const options = { ...given };
+    for (const k of NAMES) {
+        if ('' === options[k]) {
+            delete options[k];
+        }
+    }
     const style = styleOf(options.style, as);
     if ('doc' === kind) {
         return drawDoc(root, { ...options, as, style }, max, loss);
@@ -2761,7 +2776,7 @@ function drawLoaded(root, ctx, prov, kind, as, options, max, loss) {
     let sel = {
         triples: triplesOf((0, graph_1.graphOf)(root), options.at, loss), ghosts: new Map(),
     };
-    if ('graph' === kind && 'er' === as && undefined !== options.columns) {
+    if (undefined !== options.columns) {
         // A link written as a column is the entity's own relationship,
         // named by the column.
         const tail = '.' + options.columns;

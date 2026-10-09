@@ -206,3 +206,19 @@ func TestViewDocWalksAList(t *testing.T) {
 		t.Fatalf("list walk =\n%q\nwant\n%q", text, want)
 	}
 }
+
+func TestViewPartFileNames(t *testing.T) {
+	for _, c := range [][3]string{
+		{"g-{part}.mmd", "billing", "g-billing.mmd"},
+		{"g-{part}.mmd", "a b/c_d", "g-a_20b_2fc_5fd.mmd"},
+		{"{part}", "..", "_2e_2e"},
+		{"{part}.{part}", "x.1", "x.1.x.1"},
+	} {
+		if got := ViewPartFile(c[0], c[1]); c[2] != got {
+			t.Fatalf("%q %q = %q", c[0], c[1], got)
+		}
+	}
+	if ViewSplits(&ViewOptions{}) || !ViewSplits(&ViewOptions{Budget: 1}) {
+		t.Fatal("ViewSplits")
+	}
+}

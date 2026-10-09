@@ -1809,6 +1809,7 @@ function collapseGraph(
   return {
     text: emitGraph(as, {
       groups: [], loose: shown,
+      columns: 'er' === as ? new Map() : undefined,
       edges: [...tally.values()]
         .sort((x, y) => cmpCodePoint(x.order, y.order))
         .map((t) => ({ from: t.from, to: t.to, label: `${t.key} (${t.n})` })),
@@ -3193,7 +3194,9 @@ function selectMembers(
   triples: Triple[], of: string, member: string | undefined,
   ghosts: boolean, loss: ViewLoss[]
 ): { selection?: Selection, error?: VetFinding } {
-  const out = triples.filter((e) => e.from === of)
+  // The members of a node are what it, or any node under it, links
+  // to: a map of groups selects every group's members.
+  const out = triples.filter((e) => under(e.from, of))
   const links = undefined === member ? out : out.filter((e) => e.key === member)
   if (0 === links.length) {
     const have = keysOf(out)
@@ -3211,7 +3214,7 @@ function selectMembers(
   const away = new Map<string, string>()
   let outside = 0
   for (const e of triples) {
-    if (e.from === of) {
+    if (under(e.from, of)) {
       continue
     }
     const a = inside.has(e.from)
@@ -3375,7 +3378,7 @@ function partSelection(sel: Selection, parts: Part[], part: Part): Selection {
 export const PART_TOKEN = '{part}'
 
 export function viewSplits(o: ViewOptions): boolean {
-  return undefined !== o.splitBy || true === o.splitRoots || 0 < (o.budget ?? 0)
+  return '' !== (o.splitBy ?? '') || true === o.splitRoots || 0 < (o.budget ?? 0)
 }
 
 // Letters, digits, `.` and `-` stand; every other code point is `_`
@@ -3532,11 +3535,25 @@ export function view(
 }
 
 
+// The options naming a field or a path. An empty name is no name, as
+// the Go port's zero value is.
+const NAMES = [
+  'groupBy', 'label', 'member', 'of', 'columns', 'countBy', 'splitBy',
+  'steps', 'from', 'to', 'size',
+]
+
+
 function drawLoaded(
   root: any, ctx: any, prov: Provenance | undefined,
-  kind: ViewKind, as: ViewProfile, options: ViewOptions,
+  kind: ViewKind, as: ViewProfile, given: ViewOptions,
   max: number, loss: ViewLoss[]
 ): Figure {
+  const options: ViewOptions = { ...given }
+  for (const k of NAMES) {
+    if ('' === (options as any)[k]) {
+      delete (options as any)[k]
+    }
+  }
   const style = styleOf(options.style, as)
   if ('doc' === kind) {
     return drawDoc(root, { ...options, as, style }, max, loss)
@@ -3611,7 +3628,7 @@ function drawLoaded(
   let sel: Selection = {
     triples: triplesOf(graphOf(root), options.at, loss), ghosts: new Map(),
   }
-  if ('graph' === kind && 'er' === as && undefined !== options.columns) {
+  if (undefined !== options.columns) {
     // A link written as a column is the entity's own relationship,
     // named by the column.
     const tail = '.' + options.columns
