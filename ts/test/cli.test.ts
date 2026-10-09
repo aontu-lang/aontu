@@ -1413,6 +1413,17 @@ describe('cli-subsume', () => {
     const setJson = JSON.parse(vetCapture(() => Assert.equal(runView(
       ['--views', '$.views', '--format', 'json', '--check', file]), 0)).out)
     Assert.equal(setJson.views[0].parts.length, 2)
+
+    // A part that cannot be written is a usage error, not a crash.
+    Assert.match(vetCapture(() => Assert.equal(runView(['graph', '--split-by',
+      'team', '--out', Path.join(dir, 'nope', 'p-{part}.mmd'), file]), 2)).err,
+      /cannot write/)
+
+    // A split with no parts writes no file at all.
+    const none = Path.join(dir, 'n-{part}.mmd')
+    vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'nofield', '--out', none, file]), 0))
+    Assert.equal(Fs.readdirSync(dir).some((f) => f.startsWith('n-')), false)
   })
 
 

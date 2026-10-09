@@ -3166,7 +3166,10 @@ function runView(argv) {
             process.stdout.write(report.text + '\n');
         }
         else {
-            const differ = writeFigure(out, report, check, (file) => `aontu: ${file} differs from the ${kind} figure\n`);
+            const differ = writeFigure(out, report, (0, view_1.viewSplits)(opts), check, (file) => `aontu: ${file} differs from the ${kind} figure\n`);
+            if (0 > differ) {
+                return 2;
+            }
             if (0 < differ) {
                 return 1;
             }
@@ -3228,7 +3231,9 @@ function runViewSet(rest, opts, trust, how) {
     const dir = (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
     let differ = 0;
     for (const fig of report.views) {
-        for (const one of figureFiles(fig.out, fig)) {
+        // A declaration's out holds the token exactly when it splits.
+        const split = fig.out.includes(view_1.PART_TOKEN);
+        for (const one of figureFiles(fig.out, fig, split)) {
             const path = (0, node_path_1.resolve)(dir, one.file);
             if (how.check) {
                 let have = undefined;
@@ -3264,16 +3269,16 @@ function runViewSet(rest, opts, trust, how) {
 }
 // The files one figure is written to: one, or one per part, the
 // part's name standing for the token in the file name.
-function figureFiles(out, fig) {
-    return undefined === fig.parts
-        ? [{ file: out, text: fig.text + '\n' }]
-        : fig.parts.map((p) => ({ file: (0, view_1.viewPartFile)(out, p.name), text: p.text + '\n' }));
+function figureFiles(out, fig, split) {
+    return split
+        ? (fig.parts ?? []).map((p) => ({ file: (0, view_1.viewPartFile)(out, p.name), text: p.text + '\n' }))
+        : [{ file: out, text: fig.text + '\n' }];
 }
 // Writes, or under --check compares, every file of one figure, and
-// answers how many differ.
-function writeFigure(out, fig, check, differs) {
+// answers how many differ, or -1 when one cannot be written.
+function writeFigure(out, fig, split, check, differs) {
     let differ = 0;
-    for (const one of figureFiles(out, fig)) {
+    for (const one of figureFiles(out, fig, split)) {
         if (check) {
             let have = undefined;
             try {
@@ -3288,7 +3293,13 @@ function writeFigure(out, fig, check, differs) {
             }
         }
         else {
-            (0, node_fs_1.writeFileSync)(one.file, one.text, 'utf8');
+            try {
+                (0, node_fs_1.writeFileSync)(one.file, one.text, 'utf8');
+            }
+            catch (err) {
+                process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`);
+                return -1;
+            }
         }
     }
     return differ;

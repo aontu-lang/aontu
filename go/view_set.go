@@ -272,9 +272,12 @@ func viewPlanOf(name string, decl any, at string) (*viewPlan, []VetFinding) {
 	} else if viewHasLineBreak(opts.Out) {
 		errs = append(errs, viewDocumentFinding(where+".out",
 			"A file name cannot hold a line terminator.", ""))
-	} else if viewSplits(&opts) && !strings.Contains(opts.Out, ViewPartToken) {
-		errs = append(errs, viewDocumentFinding(where+".out",
-			"A split figure writes one file per part, so out must hold "+ViewPartToken+".", ""))
+	} else if viewSplits(&opts) != strings.Contains(opts.Out, ViewPartToken) {
+		msg := "Only a split figure's out holds " + ViewPartToken + "."
+		if viewSplits(&opts) {
+			msg = "A split figure writes one file per part, so out must hold " + ViewPartToken + "."
+		}
+		errs = append(errs, viewDocumentFinding(where+".out", msg, ""))
 	}
 	if 0 < len(errs) {
 		return nil, errs
@@ -354,7 +357,14 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 		if "ladder" == plan.kind {
 			text, ferrs = a.drawLadder(src, each.At, plan.as, plan.max)
 		} else {
-			text, ferrs = a.drawLoaded(root, ctx, prov,
+			// A Val tree generates once: the declarations were generated
+			// from this one, so a figure that generates draws from a fresh
+			// evaluation of the same source, which stands up as this one did.
+			ownRoot, ownCtx := root, ctx
+			if "sets" == plan.kind || "sequence" == plan.kind {
+				ownRoot, ownCtx, _ = a.viewLoad(src, nil)
+			}
+			text, ferrs = a.drawLoaded(ownRoot, ownCtx, prov,
 				plan.kind, plan.as, &each, plan.max, &loss, &parts)
 		}
 		if nil != ferrs {

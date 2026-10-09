@@ -22,10 +22,36 @@ type ViewPart struct {
 type viewGhosts map[string]string
 
 func viewUnresolvedLoss(unresolved []string, loss *[]ViewLoss) {
-	if 0 < len(unresolved) {
-		sort.Strings(unresolved)
-		*loss = append(*loss, ViewLoss{Code: "unresolved_field", Count: len(unresolved), Detail: unresolved})
+	seen := map[string]bool{}
+	detail := []string{}
+	for _, u := range unresolved {
+		if !seen[u] {
+			seen[u] = true
+			detail = append(detail, u)
+		}
 	}
+	if 0 < len(detail) {
+		sort.Strings(detail)
+		*loss = append(*loss, ViewLoss{Code: "unresolved_field", Count: len(detail), Detail: detail})
+	}
+}
+
+// viewSpell spells every code point keep refuses as `_`, its hex and
+// `_` again, so the spelling is injective: `_` itself is never kept.
+func viewSpell(name string, keep func(rune) bool) string {
+	out := ""
+	for _, c := range name {
+		if keep(c) {
+			out += string(c)
+		} else {
+			out += "_" + strconv.FormatInt(int64(c), 16) + "_"
+		}
+	}
+	return out
+}
+
+func viewAlnum(c rune) bool {
+	return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9')
 }
 
 func viewGhostLabel(label, where string) string {
@@ -240,8 +266,8 @@ func viewErColumns(root Val, node *graphNode, field string, unplaced *[]string) 
 			*unplaced = append(*unplaced, at+"."+key)
 		}
 		name := key
-		if !viewAttrName.MatchString(key) {
-			name = "q_" + strings.TrimPrefix(viewIdent(key), "nq_")
+		if !viewAttrName.MatchString(key) || strings.HasPrefix(key, "q_") {
+			name = "q_" + viewSpell(key, viewAlnum)
 		}
 		note := ""
 		if name != key {
@@ -375,6 +401,11 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 			title: viewGroupTitle(g, members, root, o.counts || o.collapse, o.countBy, &unresolved),
 			nodes: members,
 		})
+	}
+	for _, g := range groups {
+		if viewHasLineBreak(g.title) {
+			return "", []VetFinding{viewLineBreakFinding(g.nodes[0].path)}
+		}
 	}
 	loose := []*graphNode{}
 	for _, n := range nodes {
@@ -733,6 +764,9 @@ func drawLane(triples []viewTriple, root Val, o viewLaneOpts, max int,
 		}
 		lanes = append(lanes, viewGroup{id: "g" + strconv.Itoa(gi), name: g,
 			title: viewGroupTitle(g, members, root, o.counts, o.countBy, &unresolved), nodes: members})
+		if viewHasLineBreak(lanes[gi].title) {
+			return "", []VetFinding{viewLineBreakFinding(members[0].path)}
+		}
 	}
 	viewUnresolvedLoss(unresolved, loss)
 	at := map[string]int{}
@@ -1059,6 +1093,9 @@ func viewLeafWeight(v Val) int {
 	return w
 }
 
+// viewSafeMax is the largest whole number both ports hold exactly.
+const viewSafeMax = 1<<53 - 1
+
 // viewWhole is a value's non-negative whole number, if it is one.
 func viewWhole(v Val) (int, bool) {
 	sv, ok := throughDoc(v).(*ScalarVal)
@@ -1067,9 +1104,9 @@ func viewWhole(v Val) (int, bool) {
 	}
 	switch n := sv.peg.(type) {
 	case int64:
-		return int(n), 0 <= n
+		return int(n), 0 <= n && n <= viewSafeMax
 	case float64:
-		return int(n), 0 <= n && n == math.Trunc(n)
+		return int(n), 0 <= n && n <= viewSafeMax && n == math.Trunc(n)
 	}
 	return 0, false
 }
@@ -1245,7 +1282,11 @@ func drawTreemap(root Val, at string, depth int, groupBy, size string, members [
 				emit(k, depth+1)
 			}
 		}
-		for _, k := range top.kids {
+		tops := top.kids
+		if 0 == len(tops) && 0 < top.weight {
+			tops = []*viewTile{top}
+		}
+		for _, k := range tops {
 			emit(k, 0)
 		}
 		return strings.Join(out, "\n"), nil
@@ -1532,20 +1573,12 @@ const ViewPartToken = "{part}"
 var viewOnlyDots = regexp.MustCompile(`^\.*$`)
 
 // ViewPartFile is the file one part is written to. Letters, digits,
-// `.` and `-` stand; every other code point is `_` and its hex, so
+// `.` and `-` stand, and a name of dots alone is spelled in full, so
 // distinct part names never share a file.
 func ViewPartFile(out, name string) string {
-	safe := ""
-	for _, c := range name {
-		if ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') || ('0' <= c && c <= '9') ||
-			'.' == c || '-' == c {
-			safe += string(c)
-		} else {
-			safe += "_" + viewLpad(strconv.FormatInt(int64(c), 16), 2)
-		}
-	}
-	if viewOnlyDots.MatchString(safe) {
-		safe = strings.ReplaceAll(safe, ".", "_2e")
+	safe := viewSpell(name, func(c rune) bool { return viewAlnum(c) || '.' == c || '-' == c })
+	if viewOnlyDots.MatchString(name) {
+		safe = viewSpell(name, func(c rune) bool { return '.' != c })
 	}
 	return strings.ReplaceAll(out, ViewPartToken, safe)
 }

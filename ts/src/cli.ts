@@ -3672,8 +3672,11 @@ function runView(argv: string[]): number {
       process.stdout.write(report.text + '\n')
     }
     else {
-      const differ = writeFigure(out, report, check,
+      const differ = writeFigure(out, report, viewSplits(opts), check,
         (file) => `aontu: ${file} differs from the ${kind} figure\n`)
+      if (0 > differ) {
+        return 2
+      }
       if (0 < differ) {
         return 1
       }
@@ -3744,7 +3747,9 @@ function runViewSet(
   const dir = dirname(resolve(file))
   let differ = 0
   for (const fig of report.views) {
-    for (const one of figureFiles(fig.out, fig)) {
+    // A declaration's out holds the token exactly when it splits.
+    const split = fig.out.includes(PART_TOKEN)
+    for (const one of figureFiles(fig.out, fig, split)) {
       const path = resolve(dir, one.file)
       if (how.check) {
         let have: string | undefined = undefined
@@ -3784,22 +3789,23 @@ function runViewSet(
 // The files one figure is written to: one, or one per part, the
 // part's name standing for the token in the file name.
 function figureFiles(
-  out: string, fig: { text?: string, parts?: ViewPart[] }
+  out: string, fig: { text?: string, parts?: ViewPart[] }, split: boolean
 ): { file: string, text: string }[] {
-  return undefined === fig.parts
-    ? [{ file: out, text: fig.text + '\n' }]
-    : fig.parts.map((p) => ({ file: viewPartFile(out, p.name), text: p.text + '\n' }))
+  return split
+    ? (fig.parts ?? []).map((p) =>
+      ({ file: viewPartFile(out, p.name), text: p.text + '\n' }))
+    : [{ file: out, text: fig.text + '\n' }]
 }
 
 
 // Writes, or under --check compares, every file of one figure, and
-// answers how many differ.
+// answers how many differ, or -1 when one cannot be written.
 function writeFigure(
-  out: string, fig: { text?: string, parts?: ViewPart[] }, check: boolean,
-  differs: (file: string) => string
+  out: string, fig: { text?: string, parts?: ViewPart[] }, split: boolean,
+  check: boolean, differs: (file: string) => string
 ): number {
   let differ = 0
-  for (const one of figureFiles(out, fig)) {
+  for (const one of figureFiles(out, fig, split)) {
     if (check) {
       let have: string | undefined = undefined
       try {
@@ -3814,7 +3820,13 @@ function writeFigure(
       }
     }
     else {
-      writeFileSync(one.file, one.text, 'utf8')
+      try {
+        writeFileSync(one.file, one.text, 'utf8')
+      }
+      catch (err: any) {
+        process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`)
+        return -1
+      }
     }
   }
   return differ

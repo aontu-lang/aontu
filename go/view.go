@@ -1061,6 +1061,9 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		sort.SliceStable(ns, func(x, y int) bool { return ns[x].label < ns[y].label })
 		bands = append(bands, viewBand{
 			name: viewGroupTitle(name, ns, root, counts, countBy, &unresolved), nodes: ns})
+		if viewHasLineBreak(bands[len(bands)-1].name) {
+			return "", []VetFinding{viewLineBreakFinding(ns[0].path)}
+		}
 	}
 	viewUnresolvedLoss(unresolved, loss)
 

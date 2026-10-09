@@ -145,7 +145,10 @@ report are the whole figure's, and each part is held to `--max-rows`
 on its own. The report carries `parts` as `{name, text}`; on stdout each
 part follows a comment naming it, and a file name takes `{part}`,
 replaced by the part's name with every code point outside letters,
-digits, `.` and `-` spelled as `_` and its hex.
+digits, `.` and `-` spelled as `_`, its hex and `_` again. The closing
+`_` makes the spelling injective (`" a"` and U+020A no longer meet),
+and an ER column name is spelled the same way behind a `q_` that no
+written name keeps.
 
 Only the node-link kinds split. A part of a matrix, a tree or a set
 panel would not stand on its own, and asking is `view_split_kind`.

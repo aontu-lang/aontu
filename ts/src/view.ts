@@ -1432,12 +1432,21 @@ function fieldOf(root: any, path: string, field: string): string | undefined {
 
 
 function unresolvedLoss(unresolved: Unresolved, loss: ViewLoss[]): void {
-  if (0 < unresolved.length) {
-    loss.push({
-      code: 'unresolved_field', count: unresolved.length,
-      detail: unresolved.sort(cmpCodePoint),
-    })
+  const detail = [...new Set(unresolved)].sort(cmpCodePoint)
+  if (0 < detail.length) {
+    loss.push({ code: 'unresolved_field', count: detail.length, detail })
   }
+}
+
+
+// Every code point outside `keep` is `_`, its hex and `_` again, so the
+// spelling is injective: `_` itself is never kept.
+function spell(name: string, keep: RegExp): string {
+  let out = ''
+  for (const ch of name) {
+    out += keep.test(ch) ? ch : `_${(ch.codePointAt(0) as number).toString(16)}_`
+  }
+  return out
 }
 
 
@@ -1615,7 +1624,8 @@ function erColumns(
     if ('any' === type && true !== v.isTop) {
       unplaced.push(at + '.' + key)
     }
-    const name = ATTR_NAME.test(key) ? key : ident(key).replace(/^nq_/, 'q_')
+    const name = ATTR_NAME.test(key) && !key.startsWith('q_')
+      ? key : 'q_' + spell(key, /[A-Za-z0-9]/)
     const note = name !== key ? key
       : fk || type === canon || true === v.isMap || true === v.isList
         ? '' : 32 < canon.length ? canon.slice(0, 29) + '...' : canon
@@ -1701,6 +1711,10 @@ function drawGraph(
       nodes: members,
     }
   })
+  const broken = groups.find((g) => hasLineBreak(g.title))
+  if (undefined !== broken) {
+    return { errors: [lineBreakFinding(broken.nodes[0].path)] }
+  }
   const loose = nodes.filter((n) => undefined === n.group).sort(byLabel)
   const emitted: GNode[] = [...groups.flatMap((g) => g.nodes), ...loose]
 
@@ -1905,6 +1919,10 @@ function drawLayer(
       cmpCodePoint(a.label, b.label))
     return { name: groupTitle(name, members, root, o, unresolved), nodes: members }
   })
+  const broken = bands.find((b) => hasLineBreak(b.name))
+  if (undefined !== broken) {
+    return { errors: [lineBreakFinding(broken.nodes[0].path)] }
+  }
   unresolvedLoss(unresolved, loss)
   const level = new Map<string, number>(order.map((g, i) => [g, i]))
 
@@ -2821,6 +2839,10 @@ function drawLane(
       title: groupTitle(g, members, root, o, unresolved), nodes: members,
     }
   })
+  const broken = lanes.find((l) => hasLineBreak(l.title))
+  if (undefined !== broken) {
+    return { errors: [lineBreakFinding(broken.nodes[0].path)] }
+  }
   unresolvedLoss(unresolved, loss)
   const across = edges.filter((e) => lane(node(e.from)) !== lane(node(e.to)))
   const at = new Map<string, number>(steps.map((p, i) => [p, i]))
@@ -2951,7 +2973,8 @@ function sequenceText(
   if (0 === n) {
     return ''
   }
-  const gap = names.map((s) => Math.max(s.length + 2, 3))
+  const len = (s: string): number => [...s].length
+  const gap = names.map((s) => Math.max(len(s) + 2, 3))
   const x = (): number[] => {
     const xs = [0]
     for (let i = 1; i < n; i++) {
@@ -2960,10 +2983,10 @@ function sequenceText(
     return xs
   }
   const spans = msgs.map((m) => m.a === m.b
-    ? { lo: m.a, hi: m.a + 1, need: m.text.length + 6 }
+    ? { lo: m.a, hi: m.a + 1, need: len(m.text) + 6 }
     : {
       lo: Math.min(m.a, m.b), hi: Math.max(m.a, m.b),
-      need: m.text.length + 5,
+      need: len(m.text) + 5,
     })
     .filter((s) => s.hi < n)
     .sort((p, q) => p.hi - q.hi || p.lo - q.lo)
@@ -2975,9 +2998,9 @@ function sequenceText(
     }
   }
   const xs = x()
-  const width = xs[n - 1] + Math.max(names[n - 1].length,
+  const width = xs[n - 1] + Math.max(len(names[n - 1]),
     1 + msgs.reduce((w, m) => m.a === m.b && m.a === n - 1
-      ? Math.max(w, m.text.length + 5) : w, 0))
+      ? Math.max(w, len(m.text) + 5) : w, 0))
   const blank = (): string[] => {
     const row = Array(width).fill(' ')
     for (const c of xs) {
@@ -2998,21 +3021,21 @@ function sequenceText(
       const top = blank()
       const back = blank()
       put(top, xs[m.a], '├─' + label + '─┐')
-      put(back, xs[m.a], '│◄' + '─'.repeat(label.length + 1) + '┘')
+      put(back, xs[m.a], '│◄' + '─'.repeat(len(label) + 1) + '┘')
       out.push(line(top), line(back))
       continue
     }
     const row = blank()
     const lo = Math.min(m.a, m.b)
     const hi = Math.max(m.a, m.b)
-    const len = xs[hi] - xs[lo] - 1
+    const span = xs[hi] - xs[lo] - 1
     if (m.a < m.b) {
       const body = '─' + label
-      put(row, xs[lo], '├' + body + '─'.repeat(len - body.length - 1) + '►')
+      put(row, xs[lo], '├' + body + '─'.repeat(span - len(body) - 1) + '►')
     }
     else {
       const body = '◄─' + label
-      put(row, xs[lo] + 1, body + '─'.repeat(len - body.length))
+      put(row, xs[lo] + 1, body + '─'.repeat(span - len(body)))
       row[xs[hi]] = '┤'
     }
     out.push(line(row))
@@ -3064,7 +3087,7 @@ function drawTreemap(
     }
     const field: any = anchorAt(root, path + '.' + o.size)
     const n = null == field ? undefined : throughDoc(field).peg
-    if ('number' !== typeof n || !Number.isInteger(n) || 0 > n) {
+    if (!Number.isSafeInteger(n) || 0 > (n as number)) {
       unresolved.push(path + '.' + o.size)
       return 0
     }
@@ -3168,7 +3191,7 @@ function drawTreemap(
         emit(k, depth + 1)
       }
     }
-    for (const k of top.kids) {
+    for (const k of 0 === top.kids.length && 0 < top.weight ? [top] : top.kids) {
       emit(k, 0)
     }
     return { text: out.join('\n') }
@@ -3386,17 +3409,11 @@ export function viewSplits(o: ViewOptions): boolean {
   return '' !== (o.splitBy ?? '') || true === o.splitRoots || 0 < (o.budget ?? 0)
 }
 
-// Letters, digits, `.` and `-` stand; every other code point is `_`
-// and its hex, so distinct part names never share a file.
+// Letters, digits, `.` and `-` stand, and a name of dots alone is
+// spelled in full, so distinct part names never share a file.
 export function viewPartFile(out: string, name: string): string {
-  let safe = ''
-  for (const ch of name) {
-    const c = ch.codePointAt(0) as number
-    safe += /[A-Za-z0-9.-]/.test(ch) ? ch : '_' + lpad(c.toString(16), 2)
-  }
-  if (/^\.*$/.test(safe)) {
-    safe = safe.replace(/\./g, '_2e')
-  }
+  const safe = /^\.*$/.test(name)
+    ? spell(name, /[^.]/) : spell(name, /[A-Za-z0-9.-]/)
   return out.split(PART_TOKEN).join(safe)
 }
 
@@ -3865,9 +3882,10 @@ function planOf(name: string, decl: any, at: string): {
     errors.push(documentFinding(`${where}.out`,
       'A file name cannot hold a line terminator.'))
   }
-  else if (viewSplits(opts) && !out.includes(PART_TOKEN)) {
-    errors.push(documentFinding(`${where}.out`,
-      `A split figure writes one file per part, so out must hold ${PART_TOKEN}.`))
+  else if (viewSplits(opts) !== out.includes(PART_TOKEN)) {
+    errors.push(documentFinding(`${where}.out`, viewSplits(opts)
+      ? `A split figure writes one file per part, so out must hold ${PART_TOKEN}.`
+      : `Only a split figure's out holds ${PART_TOKEN}.`))
   }
   if (0 < errors.length) {
     return { errors }
@@ -3942,9 +3960,14 @@ export function viewSet(
       ...plan.opts, path: options.path, trust: options.trust,
       textExt: options.textExt,
     }
+    // A Val tree generates once: the declarations were generated from
+    // this one, so a figure that generates draws from a fresh
+    // evaluation of the same source, which stands up as this one did.
+    const own = 'sets' === plan.kind || 'sequence' === plan.kind
+      ? load(src, options.path, options, undefined) : loaded
     const fig: Figure = 'ladder' === plan.kind
       ? drawLadder(src, each, plan.as, plan.max)
-      : drawLoaded(root, ctx, prov, plan.kind, plan.as, each, plan.max, loss)
+      : drawLoaded(own.root, own.ctx, prov, plan.kind, plan.as, each, plan.max, loss)
     if (undefined !== fig.errors) {
       return {
         name: plan.name, kind: plan.kind, out: plan.out,

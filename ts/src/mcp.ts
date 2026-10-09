@@ -508,7 +508,7 @@ const TOOLS: ToolDef[] = [
         description: 'graph, state, lane: one part per root (optional)',
       },
       budget: {
-        type: 'number',
+        type: 'integer',
         description:
           'graph, state, lane: parts of at most this many nodes (optional)',
       },
@@ -575,6 +575,9 @@ const TOOLS: ToolDef[] = [
       const edges = ['upward', 'all', 'none']
       if (null != a.edges && !edges.includes(a.edges)) {
         return `edges must be one of ${edges.join(', ')}, not ${JSON.stringify(a.edges)}`
+      }
+      if (null != a.budget && !(Number.isSafeInteger(a.budget) && 0 <= a.budget)) {
+        return `budget must be a whole number, zero or more, not ${JSON.stringify(a.budget)}`
       }
       const styles = ['none', 'ansi', 'css']
       if (null != a.style && !styles.includes(a.style)) {

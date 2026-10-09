@@ -570,6 +570,23 @@ func TestViewSplitWritesOneFilePerPart(t *testing.T) {
 		t.Fatalf("json = %d: %s", code, stdout)
 	}
 
+	// A part that cannot be written is a usage error.
+	_, errw, code = viewRun("graph", "--split-by", "team", "--out",
+		filepath.Join(dir, "nope", "p-{part}.mmd"), file)
+	if 2 != code || !strings.Contains(errw, "cannot write") {
+		t.Fatalf("unwritable = %d: %q", code, errw)
+	}
+
+	// A split with no parts writes no file at all.
+	_, _, code = viewRun("graph", "--split-by", "nofield", "--out",
+		filepath.Join(dir, "n-{part}.mmd"), file)
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "n-") || 0 != code {
+			t.Fatalf("no parts = %d: %s", code, e.Name())
+		}
+	}
+
 	// A view document writes each part beside itself.
 	_, errw, code = viewRun("--views", "$.views", file)
 	if 0 != code || !strings.Contains(errw, "wrote g-x.mmd  g (graph)") ||

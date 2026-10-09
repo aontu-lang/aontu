@@ -306,7 +306,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 			io.WriteString(stdout, *report.Text+"\n")
 		} else {
 			differ := 0
-			for _, one := range viewFigureFiles(out, report.Text, report.Parts) {
+			for _, one := range viewFigureFiles(out, report.Text, report.Parts, aontu.ViewSplits(&opts)) {
 				if check {
 					have, err := os.ReadFile(one.file)
 					if nil != err || string(have) != one.text {
@@ -399,7 +399,9 @@ func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
 	dir := filepath.Dir(abs)
 	differ := 0
 	for _, fig := range report.Views {
-		for _, one := range viewFigureFiles(fig.Out, fig.Text, fig.Parts) {
+		// A declaration's out holds the token exactly when it splits.
+		for _, one := range viewFigureFiles(fig.Out, fig.Text, fig.Parts,
+			strings.Contains(fig.Out, aontu.ViewPartToken)) {
 			path := one.file
 			if !filepath.IsAbs(path) {
 				path = filepath.Join(dir, path)
@@ -438,8 +440,8 @@ type viewOutFile struct {
 
 // viewFigureFiles is the files one figure is written to: one, or one
 // per part, the part's name standing for the token in the file name.
-func viewFigureFiles(out string, text *string, parts []aontu.ViewPart) []viewOutFile {
-	if 0 == len(parts) {
+func viewFigureFiles(out string, text *string, parts []aontu.ViewPart, split bool) []viewOutFile {
+	if !split {
 		return []viewOutFile{{file: out, text: *text + "\n"}}
 	}
 	files := []viewOutFile{}

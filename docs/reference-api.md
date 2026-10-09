@@ -1266,8 +1266,9 @@ the name over it and for each message that spans it.
   `list`, or the kind a constraint's canon starts with) with the canon
   as a comment where it says more. A column holding a link is marked
   `FK`, and the relationship it makes is drawn from the entity, named
-  by the column. A column name Mermaid cannot carry is spelled with
-  `q_` and its code points, the name kept in the comment.
+  by the column. A column name Mermaid cannot carry, or one starting
+  `q_`, is spelled with `q_` and its code points, the name kept in the
+  comment, so a spelled name never meets a written one.
 - **`--counts`** titles each group (a `graph` subgraph, a `layer` band,
   a lane) with its member count; **`--count-by <field>`** also counts
   the members by that field's value (`billing (3: process 1, table

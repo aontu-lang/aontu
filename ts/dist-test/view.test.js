@@ -65,8 +65,8 @@ class Ghostly extends provenance_1.Provenance {
     (0, node_test_1.test)('view-part-file-names', () => {
         for (const [out, name, file] of [
             ['g-{part}.mmd', 'billing', 'g-billing.mmd'],
-            ['g-{part}.mmd', 'a b/c_d', 'g-a_20b_2fc_5fd.mmd'],
-            ['{part}', '..', '_2e_2e'],
+            ['g-{part}.mmd', 'a b/c_d', 'g-a_20_b_2f_c_5f_d.mmd'],
+            ['{part}', '..', '_2e__2e_'],
             ['{part}.{part}', 'x.1', 'x.1.x.1'],
         ]) {
             Assert.equal((0, view_1.viewPartFile)(out, name), file);
