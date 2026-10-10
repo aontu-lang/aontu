@@ -318,16 +318,20 @@ const TOOLS = [
             'layers as stacked bands, groupBy naming the layer field), sets ' +
             '(the set-intersection ' +
             'panel over a set family), layers (which document contributed ' +
-            'which path), ladder (the meet ladder at a path). Returns ' +
-            'verdict (rendered | lossy | error), kind, the text, and the ' +
-            'loss report. The poset kind compares several files and is CLI ' +
-            'only.',
+            'which path), ladder (the meet ladder at a path), state (a ' +
+            'lifecycle: states and the events between them), sequence (who ' +
+            'sends what to whom, from a list of steps), lane (a flow in swim ' +
+            'lanes, groupBy naming the lane field), treemap (the model\'s ' +
+            'bulk, nested). Returns verdict (rendered | lossy | error), kind, ' +
+            'the text, the loss report, and for a split figure its parts. The ' +
+            'poset kind compares several files and is CLI only.',
         properties: {
             source: { type: 'string', description: 'The document' },
             kind: {
                 type: 'string',
                 description: 'The figure to draw: tree (the default), doc, lattice, matrix, ' +
-                    'graph, layer, sets, layers or ladder',
+                    'graph, layer, sets, layers, ladder, state, sequence, lane or ' +
+                    'treemap',
             },
             as: {
                 type: 'string',
@@ -347,7 +351,8 @@ const TOOLS = [
             root: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Draw only the subtrees under these node paths (optional)',
+                description: 'tree: draw only the subtrees under these node paths; state: ' +
+                    'these are the initial states (optional)',
             },
             order: {
                 type: 'string',
@@ -364,7 +369,8 @@ const TOOLS = [
             },
             label: {
                 type: 'string',
-                description: 'graph: label each node with this field (optional)',
+                description: 'graph, state, lane: label each node with this field; sequence: ' +
+                    'the message field of each step (optional)',
             },
             edges: {
                 type: 'string',
@@ -376,6 +382,68 @@ const TOOLS = [
                 type: 'array',
                 items: { type: 'string' },
                 description: 'layer: the bands in this order, top first (optional)',
+            },
+            of: {
+                type: 'string',
+                description: 'Draw only the members of this node: what its links point at, ' +
+                    'or with member only those under that key (optional)',
+            },
+            ghosts: {
+                type: 'boolean',
+                description: 'With of: keep the edges that leave the selection, the far end ' +
+                    'drawn as a ghost (optional)',
+            },
+            columns: {
+                type: 'string',
+                description: 'graph as er: the field of each node holding its columns ' +
+                    '(optional)',
+            },
+            counts: {
+                type: 'boolean',
+                description: 'graph, layer, lane: each group\'s title carries its member ' +
+                    'count (optional)',
+            },
+            countBy: {
+                type: 'string',
+                description: 'graph, layer, lane: each group\'s members counted by this ' +
+                    'field (optional)',
+            },
+            collapse: {
+                type: 'boolean',
+                description: 'graph: one node per groupBy value, edges between groups ' +
+                    'counted (optional)',
+            },
+            splitBy: {
+                type: 'string',
+                description: 'One part per value of this field: of each node (graph, state, ' +
+                    'lane, tree, matrix, layer), of each child of the anchor (doc, ' +
+                    'treemap) or of each step (sequence) (optional)',
+            },
+            splitRoots: {
+                type: 'boolean',
+                description: 'One part per root; doc, treemap: one part per child of the ' +
+                    'anchor (optional)',
+            },
+            budget: {
+                type: 'integer',
+                description: 'Parts of at most this many nodes, rows below the anchor (doc, ' +
+                    'treemap), steps (sequence) or columns (sets, layers) (optional)',
+            },
+            steps: {
+                type: 'string',
+                description: 'sequence: the list of steps, in order',
+            },
+            from: {
+                type: 'string',
+                description: 'sequence: the field naming a step\'s sender',
+            },
+            to: {
+                type: 'string',
+                description: 'sequence: the field naming a step\'s receiver',
+            },
+            size: {
+                type: 'string',
+                description: 'treemap: weigh each item by this numeric field (optional)',
             },
             sets: {
                 type: 'string',
@@ -411,7 +479,7 @@ const TOOLS = [
         docs: ['source'],
         check: (a) => {
             const kinds = ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer',
-                'sets', 'layers', 'ladder'];
+                'sets', 'layers', 'ladder', 'state', 'sequence', 'lane', 'treemap'];
             if (null != a.kind && !kinds.includes(a.kind)) {
                 return `kind must be one of ${kinds.join(', ')}, not ${JSON.stringify(a.kind)}`;
             }
@@ -422,6 +490,9 @@ const TOOLS = [
             const edges = ['upward', 'all', 'none'];
             if (null != a.edges && !edges.includes(a.edges)) {
                 return `edges must be one of ${edges.join(', ')}, not ${JSON.stringify(a.edges)}`;
+            }
+            if (null != a.budget && !(Number.isSafeInteger(a.budget) && 0 <= a.budget)) {
+                return `budget must be a whole number, zero or more, not ${JSON.stringify(a.budget)}`;
             }
             const styles = ['none', 'ansi', 'css'];
             if (null != a.style && !styles.includes(a.style)) {
@@ -451,6 +522,19 @@ const TOOLS = [
             depth: 'number' === typeof a.depth ? a.depth : undefined,
             maxRows: 'number' === typeof a.maxRows ? a.maxRows : undefined,
             style: null == a.style ? undefined : a.style,
+            of: null == a.of ? undefined : str(a.of),
+            ghosts: true === a.ghosts,
+            columns: null == a.columns ? undefined : str(a.columns),
+            counts: true === a.counts,
+            countBy: null == a.countBy ? undefined : str(a.countBy),
+            collapse: true === a.collapse,
+            splitBy: null == a.splitBy ? undefined : str(a.splitBy),
+            splitRoots: true === a.splitRoots,
+            budget: 'number' === typeof a.budget ? a.budget : undefined,
+            steps: null == a.steps ? undefined : str(a.steps),
+            from: null == a.from ? undefined : str(a.from),
+            to: null == a.to ? undefined : str(a.to),
+            size: null == a.size ? undefined : str(a.size),
         }),
     },
     {

@@ -44,7 +44,7 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **190** codes across
+There are seven classes, and the registry holds **195** codes across
 them.
 
 | class | codes | what went wrong |
@@ -52,7 +52,7 @@ them.
 | `parse` | 57 | the text is not a document |
 | `conflict` | 62 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
-| `reference` | 31 | a name or path resolves to nothing |
+| `reference` | 36 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
 | `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 190 codes have hint text. `aontu explain --list`
+**Hint text.** All 195 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -158,10 +158,12 @@ verb's option list. [`aontu vet`](reference-api.md#aontu-vet),
 [`aontu fmt`](reference-api.md#aontu-fmt) each state their own table.
 
 `aontu view` is the one verb whose refusals split across two exits.
-Nine `view_*` codes are usage rather than the document's fault and exit
-2: `view_kind_unknown`, `view_profile_unknown`, `view_rows_exceeded`,
-`view_at_required`, `view_sets_required`, `view_group_required`,
-`view_document_shape`, `view_style_profile`, and `view_style_unknown`.
+Twelve `view_*` codes are usage rather than the document's fault and
+exit 2: `view_kind_unknown`, `view_profile_unknown`,
+`view_rows_exceeded`, `view_at_required`, `view_sets_required`,
+`view_group_required`, `view_document_shape`, `view_style_profile`,
+`view_style_unknown`, `view_steps_required`, `view_split_kind`, and
+`view_part_names`.
 A view kind that names no kind at all is caught while the arguments are
 being read, so it exits 2 with no report at all.
 
@@ -353,13 +355,18 @@ twenty rows have no such section and carry no link.
 | `var[` | 0.51.0 | Dynamic-prefix family: a variable failure carrying the name (`var[$x]`). ([Variables `$name`](reference-language.md#variables-name)) |
 | `view_at_required` | 0.54.0 | The meet ladder draws the contributions at one path, and none was named. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_document_shape` | 0.54.0 | A figure in a view document does not name both its `kind` and its `out` file. ([`aontu view`](reference-api.md#aontu-view)) |
-| `view_group_required` | 0.54.0 | The layer diagram bands nodes by a field, and none was named. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_group_required` | 0.54.0 | The layer diagram bands nodes, and the swim lanes lay steps out, by a field, and none was named. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_kind_unknown` | 0.54.0 | The figure kind is not one the verb draws; the note lists the kinds. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_members_none` | 0.77.0 | The node named with `--of` links to nothing, or to nothing under `--member`; the note lists the keys its links are under. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_profile_unknown` | 0.54.0 | The figure kind does not render into the profile asked for. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_relation_ambiguous` | 0.54.0 | The document has edges under several relations, and the figure draws one. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_relation_unknown` | 0.54.0 | The relation named to the view has no edges in this document. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_sets_required` | 0.54.0 | The set panel needs both the sets map and the member field, and one was missing. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_sets_shape` | 0.54.0 | The sets map or the universe does not have the shape the set panel reads. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_split_kind` | 0.77.0 | A figure was asked to divide in a way its kind does not: a `sequence` divides by field or budget, `sets` and `layers` by budget, and `lattice`, `ladder` and `poset` not at all. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_part_names` | 0.77.0 | Two parts of a split figure would share a name, and so a file: a run of a part divided by `--budget` is named `name.n`, which another part's value, key or root may already be. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_steps_required` | 0.77.0 | The sequence needs the list of steps and the fields naming each step's ends, and one was missing. ([`aontu view`](reference-api.md#aontu-view)) |
+| `view_steps_shape` | 0.77.0 | The steps are not a list, or a step does not hold a string at each of its ends. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_style_profile` | 0.55.0 | The style asked for is not the one that profile carries. ([`aontu view`](reference-api.md#aontu-view)) |
 | `view_style_unknown` | 0.55.0 | A style other than `none`, `ansi`, `css`, or the command line's `auto`. ([`aontu view`](reference-api.md#aontu-view)) |
 

@@ -59,6 +59,7 @@ The model get, model why, model set and trim loop over a live document.
 - [Change a pinned value](change-a-pinned-value.md). Rewrite a pinned literal where the author wrote it with aontu model set --in-place, and know the cases where the verb appends instead.
 - [Find dead entries](find-dead-entries.md). Report map entries whose removal changes nothing, so layered files do not silt up with lines a template already implies.
 - [Draw a model](draw-a-model.md). Draw a model as a dependency tree, matrix or architecture layers with `aontu view`, and gate the committed figures in CI.
+- [Draw one figure per group](draw-one-figure-per-group.md). Draw each group of a model as its own ER figure, the groups themselves as a surface map, and commit one file per group with `aontu view`.
 
 ## Validate and evolve
 

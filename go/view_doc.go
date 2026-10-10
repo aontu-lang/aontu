@@ -73,7 +73,9 @@ type docFrame struct {
 	row    int
 }
 
-func drawDoc(root Val, at string, depth int, as, style string, max int,
+// drawDoc draws the keys under at, or a part's below its chain of keys
+// (walked as keys, not re-read as a path), keeping `only` when given.
+func drawDoc(root Val, at string, depth int, chain, only []string, as, style string, max int,
 	loss *[]ViewLoss) (string, []VetFinding) {
 	paint := newPainter(style)
 	if "" == at {
@@ -87,6 +89,15 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 		return "", []VetFinding{viewFinding("no_path", "reference", at,
 			"The path "+at+" names nothing in this document.", "")}
 	}
+	for _, key := range chain {
+		for _, e := range docEntries(anchor) {
+			if e.key == key {
+				anchor = e.child
+				break
+			}
+		}
+	}
+	at = strings.Join(append([]string{at}, chain...), ".")
 	if 0 == depth {
 		depth = viewDefaultDocDepth
 	}
@@ -97,7 +108,13 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 	// ITERATIVE, like the dependency tree's walk and for the same
 	// reason: a deep model is a real shape, and the drawing of one must
 	// not depend on how deep the interpreter lets a recursion go.
-	stack := []*docFrame{{kids: docEntries(anchor), at: 0, prefix: "", row: 0}}
+	top := []docEntry{}
+	for _, e := range docEntries(anchor) {
+		if nil == only || contains(only, e.key) {
+			top = append(top, e)
+		}
+	}
+	stack := []*docFrame{{kids: top, at: 0, prefix: "", row: 0}}
 	for 0 < len(stack) {
 		frame := stack[len(stack)-1]
 		if frame.at >= len(frame.kids) {
@@ -127,7 +144,7 @@ func drawDoc(root Val, at string, depth int, as, style string, max int,
 			paint.paint(roleMuted, mark))
 		rows = append(rows, &treeRow{depth: len(stack), text: entry.key, mark: mark, parent: frame.row})
 		if max < len(rows) {
-			return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth")}
+			return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth", true)}
 		}
 		if 0 < len(kids) && under {
 			stack = append(stack, &docFrame{

@@ -1222,7 +1222,8 @@ func specViewOptions(ask map[string]any) *ViewOptions {
 		}
 		return out
 	}
-	closure, _ := ask["closure"].(bool)
+	flag := func(k string) bool { b, _ := ask[k].(bool); return b }
+	closure := flag("closure")
 	var docs []ViewDoc
 	if ds, ok := ask["docs"].([]any); ok {
 		for _, d := range ds {
@@ -1244,5 +1245,9 @@ func specViewOptions(ask map[string]any) *ViewOptions {
 		Profile: str("profile"), Docs: docs,
 		Out: str("out"), Views: str("views"), Style: str("style"),
 		Depth: num("depth"),
+		Of: str("of"), Ghosts: flag("ghosts"), Columns: str("columns"),
+		Counts: flag("counts"), CountBy: str("countBy"), Collapse: flag("collapse"),
+		SplitBy: str("splitBy"), SplitRoots: flag("splitRoots"), Budget: num("budget"),
+		Steps: str("steps"), From: str("from"), To: str("to"), Size: str("size"),
 	}
 }

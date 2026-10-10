@@ -392,6 +392,30 @@ function hostileModule(dir) {
         Assert.equal(denied.kind, 'tree');
         Assert.equal(denied.errors[0].code, 'include_denied');
     });
+    (0, node_test_1.test)('view-tool-takes-the-further-options', () => {
+        const doc = 'g: {all: [&: refer(), path($.a), path($.b)]}\n' +
+            'a: {team: x, cols: {id: integer}, next: refer() & path($.b)}\n' +
+            'b: {team: y, cols: {id: integer}, size: 3}\n' +
+            'flow: [{from: "a", to: "b", m: "go"}]\n';
+        const split = payload((0, mcp_1.callTool)('view', {
+            source: doc, kind: 'graph', of: '$.g', member: 'all', ghosts: true,
+            columns: 'cols', splitBy: 'team', splitRoots: false, budget: 1,
+            counts: true, countBy: 'team', collapse: false, groupBy: 'team',
+        }));
+        Assert.equal(split.verdict, 'rendered');
+        Assert.deepEqual(split.parts.map((p) => p.name), ['x', 'y']);
+        const seq = payload((0, mcp_1.callTool)('view', {
+            source: doc, kind: 'sequence', steps: '$.flow', from: 'from', to: 'to',
+            label: 'm',
+        }));
+        Assert.match(seq.text, /p0->>p1: go/);
+        const tm = payload((0, mcp_1.callTool)('view', {
+            source: doc, kind: 'treemap', of: '$.g', size: 'size',
+        }));
+        Assert.match(tm.text, /"b": 3/);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, budget: 0.5 }).isError, true);
+        Assert.equal((0, mcp_1.callTool)('view', { source: doc, budget: -1 }).isError, true);
+    });
     (0, node_test_1.test)('reaches-tool-answers-the-closure-question', () => {
         const doc = 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
             'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +

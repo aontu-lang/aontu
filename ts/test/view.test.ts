@@ -7,7 +7,7 @@ import * as Fs from 'node:fs'
 import * as Os from 'node:os'
 import * as Path from 'node:path'
 
-import { view, viewSet } from '../dist/view'
+import { view, viewSet, viewPartFile, viewSplits } from '../dist/view'
 import type { ViewCompare, ViewPosetDoc } from '../dist/view'
 import { Provenance } from '../dist/provenance'
 
@@ -37,6 +37,19 @@ class Ghostly extends Provenance {
 
 
 describe('view', () => {
+
+  test('view-part-file-names', () => {
+    for (const [out, name, file] of [
+      ['g-{part}.mmd', 'billing', 'g-billing.mmd'],
+      ['g-{part}.mmd', 'a b/c_d', 'g-a_20_b_2f_c_5f_d.mmd'],
+      ['{part}', '..', '_2e__2e_'],
+      ['{part}.{part}', 'x.1', 'x.1.x.1'],
+    ]) {
+      Assert.equal(viewPartFile(out, name), file)
+    }
+    Assert.equal(viewSplits({}), false)
+    Assert.equal(viewSplits({ budget: 1 }), true)
+  })
 
   test('view-over-included-files', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-view-'))

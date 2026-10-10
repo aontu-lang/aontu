@@ -286,8 +286,11 @@ Model why exit codes mirror get's: 0 explained, 1 the path names
 nothing, 2 usage, 4 the document does not stand up on its own.
 
 View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
-ladder, poset (the poset takes several files). The figure goes to stdout, the loss
-report to stderr. With --views it draws every figure a document
+ladder, poset (the poset takes several files), state, sequence, lane,
+treemap. The figure goes to stdout, the loss report to stderr. A split
+figure (--split-by, --split-roots, --budget) is one figure per part:
+on stdout each under a comment naming it, and with --out one file
+each, the name's {part} replaced by the part's. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
@@ -297,7 +300,9 @@ View options:
                     lattice, tree, matrix, sets and layers draw text
                     (default) or svg; graph draws mermaid (default),
                     dot or er; layer draws text (default), mermaid or
-                    svg; ladder and poset draw mermaid (default) or dot
+                    svg; ladder and poset draw mermaid (default) or dot;
+                    state, sequence, lane and treemap draw mermaid
+                    (default) or text
   --at <path>       Restrict the figure to nodes under this path; the
                     subtree doc draws; the subtree the lattice counts;
                     the path the ladder draws; where the poset compares
@@ -309,8 +314,10 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
-  --depth <n>       doc: how many levels of key to draw (default 3)
-  --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --depth <n>       doc, treemap: how many levels of key to draw
+                    (default 3)
+  --max-rows <n>    Refuse a figure above this many rows (default 60);
+                    a split figure holds each part to it
   --style <s>       auto (default), none, ansi or css. A figure's
                     marks carry their meaning -- a direct cell, a
                     closure cell, an upward edge -- and each profile
@@ -325,21 +332,54 @@ View options:
                     written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
-                    graph: keep this predicate (repeatable)
+                    graph, state, lane: keep this predicate
+                    (repeatable)
   --root <path>     tree: draw only the subtree under this node;
-                    repeatable
+                    state: this is an initial state; repeatable
   --order <o>       matrix: canon (default) or partition
   --closure         matrix: mark transitively reachable cells +
   --group-by <k>    graph: one subgraph per distinct value of field k;
-                    layer: one band per value (required)
+                    layer, lane: one band or lane per value
+                    (required); treemap: one tile per value
   --layers <a,b>    layer: the bands in this order, top first; without
-                    it the order is derived from the relation
+                    it the order is derived from the relation; lane:
+                    these lanes first
   --edges <e>       layer: which of the relation's edges to draw over
                     the bands -- upward (the violations, the default
                     for text and svg), all (mermaid's default) or none
-  --label <k>       graph: label each node with field k
+  --label <k>       graph, state, lane: label each node with field k;
+                    sequence: the message field of each step
+  --of <path>       Draw only the members of this node: what its
+                    links point at (with --member, only those under
+                    that key)
+  --ghosts          With --of: keep the edges that leave the
+                    selection, the far end drawn as a ghost
+  --columns <k>     graph --as er: field k of each node is a map of
+                    columns, drawn typed, a link marked FK
+  --counts          graph, layer, lane: each group's title carries
+                    its member count
+  --count-by <k>    ... and its members counted by field k
+  --collapse        graph: one node per --group-by value, edges
+                    between groups counted (the surface map)
+  --split-by <k>    One part per value of field k: of each node (graph,
+                    state, lane, tree, matrix, layer), of each child of
+                    the anchor (doc, treemap) or of each step
+                    (sequence)
+  --split-roots     One part per root, holding what it reaches first;
+                    doc, treemap: one part per child of the anchor
+  --budget <n>      Parts of at most n nodes, rows below the anchor
+                    (doc, treemap), steps (sequence) or columns (sets,
+                    layers), alone or after --split-by or
+                    --split-roots; an edge leaving a part draws its far
+                    end as a ghost
+  --steps <path>    sequence: the list of steps, in order
+  --from <k>        sequence: the field naming a step's sender
+  --to <k>          sequence: the field naming a step's receiver
+  --size <k>        treemap: weigh each item by its numeric field k
+                    (default: the scalar leaves under it)
   --sets <path>     sets: the map whose keys are the sets
-  --member <k>      sets: the field holding each set's members
+  --member <k>      sets: the field holding each set's members; with
+                    --of, the link key naming the members
   --universe <p>    sets: the full element domain, so the empty
                     column exists
   --min-degree <n>  sets: drop intersections below this degree

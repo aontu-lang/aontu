@@ -98,16 +98,19 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **125 `.tsv` files, 123 row-bearing, 7,364 rows**, in thirty-two
+   **125 `.tsv` files, 123 row-bearing, 7,523 rows**, in thirty-two
    modes — `errc` 1,404, `gens` 1,344, `canon` 1,180, `gen` 662,
-   `jsonschema-import` 465, `err` 417, `jsonschema` 330, `vet` 213,
-   `fmt` 194, `errcode` 190, `view` 175, `subsume` 150, `query` 98,
-   `jsonschema-upgrade` 75, `why` 53, `hcanon` 46, `hash` 41, `patch`
-   41, `jsonschema-output` 39, `graph` 38, `views` 37, `template` 34,
+   `jsonschema-import` 465, `err` 417, `jsonschema` 330, `view` 319,
+   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 150, `query` 98,
+   `jsonschema-upgrade` 75, `why` 53, `views` 47, `hcanon` 46, `hash`
+   41, `patch` 41, `jsonschema-output` 39, `graph` 38, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-10-10 with the two commands below, when G12 phase
+   (Re-derived 2026-10-10 with the two commands below, when `main`,
+   carrying #315's 144 `view` rows, ten `views` rows and five
+   `errcodes.tsv` rows, was merged into the G12 branch.
+   Re-derived 2026-10-10 with the two commands below, when G12 phase
    17 added the `jsonschema-output` mode with thirty-nine rows and
    seven `jsonschema-import` rows to `jsonschema-import.tsv`, and two
    `vet.tsv` rows, and re-pinned the 138 `vet` rows with findings for
