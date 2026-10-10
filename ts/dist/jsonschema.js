@@ -79,7 +79,7 @@ function exactJson(v) {
     if (null != v && 'object' === typeof v && !JSON.isRawJSON(v)) {
         const out = {};
         for (const k of Object.keys(v)) {
-            out[k] = exactJson(v[k]);
+            put(out, k, exactJson(v[k]));
         }
         return out;
     }
@@ -102,12 +102,16 @@ function literalJson(v) {
     const keys = true === v.isMap ? Object.keys(v.peg) : v.peg.map((_, i) => i);
     const out = true === v.isMap ? {} : [];
     for (const k of keys) {
-        out[k] = of(v.peg[k]);
+        put(out, k, of(v.peg[k]));
         if (undefined === out[k]) {
             return undefined;
         }
     }
     return out;
+}
+// A key set as data: assignment reads `__proto__` as the prototype.
+function put(o, k, v) {
+    Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
 }
 // The whole number at or above a count's bound (`up`), or at or below
 // it, exactly: a count a double would round keeps its digits.
@@ -728,12 +732,12 @@ function annotate(ctx, path, out, v) {
                         'would assert where the record only annotates, so it is DROPPED');
                 }
                 else {
-                    part[xk] = xv;
+                    put(part, xk, xv);
                 }
             }
         }
-        if (0 === extra.length && Object.keys(part).every((k) => undefined === res[k])) {
-            Object.assign(res, part);
+        if (0 === extra.length && Object.keys(part).every((k) => !Object.prototype.hasOwnProperty.call(res, k) || undefined === res[k])) {
+            Object.keys(part).forEach((k) => put(res, k, part[k]));
         }
         else if (0 < Object.keys(part).length) {
             extra.push(part);
@@ -1082,8 +1086,8 @@ function spreadKeywords(ctx, path, declared, spr) {
         const re = tests[0]?.re;
         if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
             const s = armOut(ctx, at, arm[1]);
-            if (undefined === patterns[re]) {
-                patterns[re] = s;
+            if (!Object.prototype.hasOwnProperty.call(patterns, re)) {
+                put(patterns, re, s);
             }
             else {
                 extra.push({ patternProperties: { [re]: s } });
@@ -1192,7 +1196,7 @@ function fromMap(ctx, path, v) {
         if (skipMarked(ctx, [...path, key], v, child)) {
             continue;
         }
-        props[key] = fromVal(ctx, [...path, key], child);
+        put(props, key, fromVal(ctx, [...path, key], child));
         if (!optional.includes(key)) {
             required.push(key);
         }

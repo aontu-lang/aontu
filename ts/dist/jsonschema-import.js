@@ -1528,7 +1528,14 @@ function convertObject(ctx, node, ptr, only) {
         else {
             const name = bookend(ctx, node, dref.s);
             const target = ctx.env.get(name) ?? resolveRef(ctx, node, dref.s);
-            parts.push(call('meta', convert(ctx, target, ctx.targets.get(target).ptr, false, undefined, { ptr: at('$dynamicRef'), node }), { k: 'map', spreads: [], entries: [{ key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }));
+            const val = convert(ctx, target, ctx.targets.get(target).ptr, false, undefined, { ptr: at('$dynamicRef'), node });
+            // The text rides only a use the export can write back: a definition
+            // the reference names by an anchor.
+            const frag = -1 === dref.s.indexOf('#') ? '' : dref.s.slice(dref.s.indexOf('#') + 1);
+            parts.push('' !== frag && !frag.startsWith('/') && 'raw' === val.k && val.text.startsWith('%') ?
+                call('meta', val, { k: 'map', spreads: [], entries: [
+                        { key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }
+                    ] }) : val);
         }
     }
     const konst = get('const');

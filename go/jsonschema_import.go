@@ -2381,9 +2381,19 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			if name, ok := ctx.bookend(node, dref.s); ok && nil != ctx.env[name] {
 				target = ctx.env[name]
 			}
-			parts = append(parts, icall("meta", ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
-				&importVia{ptr: at("$dynamicRef"), node: node}),
-				&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}}))
+			val := ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
+				&importVia{ptr: at("$dynamicRef"), node: node})
+			// The text rides only a use the export can write back: a
+			// definition the reference names by an anchor.
+			frag := ""
+			if i := strings.Index(dref.s, "#"); -1 != i {
+				frag = dref.s[i+1:]
+			}
+			if "" != frag && !strings.HasPrefix(frag, "/") && "raw" == val.k && strings.HasPrefix(val.text, "%") {
+				val = icall("meta", val,
+					&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}})
+			}
+			parts = append(parts, val)
 		}
 	}
 

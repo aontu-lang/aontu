@@ -360,9 +360,9 @@ Schema asks.
 - A `$dynamicRef` is specialised to the dynamic scope it is read in, so
   a schema reached through scopes that bind its dynamic anchors
   differently is declared once for each, its later declarations named
-  with an `_e2` suffix and on. The use keeps the reference's text in
-  its `meta` record, and the export writes it back as a `$dynamicRef`
-  where it reads the same.
+  with an `_e2` suffix and on. A use that reaches a definition by an
+  anchor's name keeps the reference's text in its `meta` record, and
+  the export writes it back as a `$dynamicRef` where it reads the same.
 - `anyOf` imports as a disjunction only where its branches cannot both
   hold for one value; otherwise it is `nof(min(1), …)`, which counts the
   branches that admit the data rather than choosing one. `oneOf` is

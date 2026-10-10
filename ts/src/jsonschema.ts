@@ -164,7 +164,7 @@ function exactJson(v: any): any {
   if (null != v && 'object' === typeof v && !(JSON as any).isRawJSON(v)) {
     const out: any = {}
     for (const k of Object.keys(v)) {
-      out[k] = exactJson(v[k])
+      put(out, k, exactJson(v[k]))
     }
     return out
   }
@@ -191,12 +191,18 @@ function literalJson(v: any): any {
   const keys = true === v.isMap ? Object.keys(v.peg) : v.peg.map((_: any, i: number) => i)
   const out: any = true === v.isMap ? {} : []
   for (const k of keys) {
-    out[k] = of(v.peg[k])
+    put(out, k, of(v.peg[k]))
     if (undefined === out[k]) {
       return undefined
     }
   }
   return out
+}
+
+
+// A key set as data: assignment reads `__proto__` as the prototype.
+function put(o: any, k: string | number, v: any): void {
+  Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true })
 }
 
 
@@ -911,12 +917,13 @@ function annotate(ctx: Ctx, path: string[], out: any, v: any): any {
             'would assert where the record only annotates, so it is DROPPED')
         }
         else {
-          part[xk] = xv
+          put(part, xk, xv)
         }
       }
     }
-    if (0 === extra.length && Object.keys(part).every((k) => undefined === res[k])) {
-      Object.assign(res, part)
+    if (0 === extra.length && Object.keys(part).every((k) =>
+      !Object.prototype.hasOwnProperty.call(res, k) || undefined === res[k])) {
+      Object.keys(part).forEach((k) => put(res, k, part[k]))
     }
     else if (0 < Object.keys(part).length) {
       extra.push(part)
@@ -1337,8 +1344,8 @@ function spreadKeywords(ctx: Ctx, path: string[], declared: string[], spr: any):
     const re = tests[0]?.re
     if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
       const s = armOut(ctx, at, arm[1])
-      if (undefined === patterns[re]) {
-        patterns[re] = s
+      if (!Object.prototype.hasOwnProperty.call(patterns, re)) {
+        put(patterns, re, s)
       }
       else {
         extra.push({ patternProperties: { [re]: s } })
@@ -1459,7 +1466,7 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
       continue
     }
 
-    props[key] = fromVal(ctx, [...path, key], child)
+    put(props, key, fromVal(ctx, [...path, key], child))
     if (!optional.includes(key)) {
       required.push(key)
     }

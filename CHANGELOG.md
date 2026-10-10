@@ -50,6 +50,14 @@ Both ports.
   name the map does not declare, is `propertyNames`, and a plain
   spread beside no pattern is `additionalProperties`, as the import
   reads each.
+- TypeScript's export dropped a property named `__proto__`, and wrote
+  a `const` or an unknown keyword holding one without it, since
+  assignment reads that key as the prototype; Go kept it. It is set as
+  data.
+- The import keeps a `$dynamicRef`'s text in a `meta` record only on a
+  use the export can write back, a definition the reference names by an
+  anchor. A use copied in place, or one naming a JSON Pointer, was
+  carried on a record the export could only drop, and reported lost.
 - The names `unevaluatedProperties` lets through are written in
   code-point order, as `additionalProperties`'s are, and `nof`'s canon
   sorts its branches as it renders them, so a branch that settles late,
