@@ -36,6 +36,7 @@ func TestSubsumeRecursionWithoutItsDefinition(t *testing.T) {
 		specificURL: "specific",
 		groot:       newMap(),
 		sroot:       newMap(),
+		pairs:       newSubPairs(),
 	}
 	if out := subsumeNode(st, []string{"x"}, rec, rec); subUndecided != out {
 		t.Fatalf("expected undecided, got %q", out)

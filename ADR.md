@@ -6250,12 +6250,21 @@ and the design note scoped it as its P3.
    the finding. An answer reached while a disjunction tries its
    alternatives is not settled, since a trial records no finding and
    reads no marks, and under the `gen` profile a pair is also told
-   apart by the marks its sides read (decision 4).
+   apart by the marks its sides read (decision 4). A recursion met
+   again before the walk enters a bag has unfolded to no structure, as
+   `a: $.a` or `a: $.a | 1` do, and is compared as residue, as every
+   recursion was before: identical ones subsume and any other pair is
+   `undecided`.
 4. **An unfolded definition carries the marks of the place it stands
    in.** An expansion clears a definition's `type` and `hide` marks at
    every depth, so under the `gen` profile the walk reads the
    recursion's own marks for the definition and everything below it,
    on the side that unfolded.
+5. **The `defaults` profile unfolds as the walk does.** Its pass over
+   effective defaults reads a recursion as its definition and walks each
+   pair of maps once, so a default changed inside an unrolling is
+   `compat_default_changed` where the structural walk alone would let
+   the recursion subsume it.
 
 ### Consequences
 
@@ -6274,7 +6283,7 @@ and the design note scoped it as its P3.
   alternative admits a default, unfolds against the schema on both
   sides.
 - `subsume-different-recursions-are-undecided` is re-pinned as
-  `subsume-recursions-of-one-shape-subsume`, and eighteen rows are
+  `subsume-recursions-of-one-shape-subsume`, and twenty-six rows are
   added to `test/spec/recursion.tsv`, every expectation from both
   engines. The executed `aontu subsume` scenario in
   [docs/reference-api.md](docs/reference-api.md) shows a recursion that

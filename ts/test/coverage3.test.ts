@@ -23,7 +23,7 @@ import { Unify, applyFlows } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
-import { subsumeNode } from '../dist/subsume'
+import { subsumeNode, newPairs } from '../dist/subsume'
 import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
 import { MetaFuncVal } from '../dist/val/MetaFuncVal'
 import { collectDeprecations } from '../dist/utility'
@@ -1232,7 +1232,7 @@ describe('coverage3-subsume', () => {
     const rec: any = (new Aontu().unify('T: {next?: $.T}') as any).peg.T.peg.next
     Assert.equal(rec.isRecurse, true)
     const state: any = {
-      profile: 'values', findings: [],
+      profile: 'values', findings: [], pairs: newPairs(),
       generalUrl: 'general', specificUrl: 'specific',
       groot: new MapVal({ peg: {} }), sroot: new MapVal({ peg: {} }),
     }

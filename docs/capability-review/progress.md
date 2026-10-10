@@ -98,10 +98,10 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **125 `.tsv` files, 123 row-bearing, 7,541 rows**, in thirty-two
+   **125 `.tsv` files, 123 row-bearing, 7,549 rows**, in thirty-two
    modes — `errc` 1,404, `gens` 1,344, `canon` 1,180, `gen` 662,
    `jsonschema-import` 465, `err` 417, `jsonschema` 330, `view` 319,
-   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 168, `query` 98,
+   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 176, `query` 98,
    `jsonschema-upgrade` 75, `why` 53, `views` 47, `hcanon` 46, `hash`
    41, `patch` 41, `jsonschema-output` 39, `graph` 38, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
@@ -109,7 +109,7 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    `fmt-refuse` 1.
    (Re-derived 2026-10-10 with the two commands below, when the
    recursion design's P3 replaced the two `subsume` rows of
-   `recursion.tsv` with twenty.
+   `recursion.tsv` with twenty-eight.
    Re-derived 2026-10-10 with the two commands below, when `main`,
    carrying #315's 144 `view` rows, ten `views` rows and five
    `errcodes.tsv` rows, was merged into the G12 branch.
@@ -655,9 +655,10 @@ recursion and its unrolling subsume each other in both directions, and
 a definition that disagrees is refused once, where the walk first meets
 it. Under the `gen` profile an unfolded definition reads the marks of
 the place it stands in, since an expansion clears the definition's
-own. Pinned by the subsume section of `test/spec/recursion.tsv`:
+own; the `defaults` profile unfolds as well; and a recursion with no
+structure to unfold, `a: $.a`, is residue as before. Pinned by the subsume section of `test/spec/recursion.tsv`:
 `subsume-different-recursions-are-undecided` re-pinned as
-`subsume-recursions-of-one-shape-subsume`, and eighteen rows added,
+`subsume-recursions-of-one-shape-subsume`, and twenty-six rows added,
 every expectation from both engines; a recursion whose definition its
 document does not hold, which no evaluated pair produces, is
 `sub_unresolved` in a unit test in each port. Documented in

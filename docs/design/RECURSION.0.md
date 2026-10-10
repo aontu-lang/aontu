@@ -366,6 +366,16 @@ admits only a peer list of its own length — which is what makes
   (`subsume-recursions-of-one-shape-subsume`, which pinned `undecided`
   as `subsume-different-recursions-are-undecided`). Identity still
   decides other residue.
+- **A recursion with no structure to unfold is residue.** One met
+  again before the walk enters a bag, as `a: $.a`, `a: $.a | 1` and
+  `a: {b: $.a.b}` are, is compared as every recursion was before P3:
+  identical ones subsume and any other pair is `undecided`
+  (`subsume-a-recursion-that-is-only-itself-is-residue` and the rows
+  after it).
+- **The `defaults` profile unfolds too.** Its pass over effective
+  defaults reads a recursion as its definition and walks each pair of
+  maps once, so a default changed inside an unrolling is refused
+  (`subsume-a-default-changed-inside-an-unrolling-is-refused`).
 - **A recursion whose definition its document does not hold** is
   `sub_unresolved`, undecided. No evaluated document produces one, so
   a unit test in each port pins it.

@@ -39,6 +39,7 @@ export type Pairs = {
     running: Map<string, number>;
     settled: Map<string, Tri>;
     pending: Map<string, number>;
+    unfolding: Set<string>;
 };
 export declare function newPairs(): Pairs;
 export declare function pathText(path: string[]): string;

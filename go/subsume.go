@@ -257,7 +257,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	_, gRec := g.(*RecurseVal)
 	_, sRec := s.(*RecurseVal)
 	if gRec || sRec {
-		return subsumeRecursion(st, path, g0, s0, g, s)
+		if out := subsumeRecursion(st, path, g0, s0, g, s); "" != out {
+			return out
+		}
 	}
 
 	if subUnresolvedVal(g) || subUnresolvedVal(s) {
@@ -476,8 +478,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 }
 
 // subsumeRecursion reads a recursion as the definition it names,
-// unfolded against its own document (docs/design/RECURSION.0.md, P3).
+// unfolded against its own document (docs/design/RECURSION.0.md, P3). One
+// met again before the walk enters a bag unfolds to no structure, and
+// answers "" to be compared as residue.
 func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
+	key := [2]Val{g0, s0}
+	if st.pairs.unfolding[key] {
+		return ""
+	}
 	gb, sb := g0, s0
 	gRec, sRec := st.gRec, st.sRec
 	if r, ok := g.(*RecurseVal); ok {
@@ -499,19 +507,32 @@ func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
 	}
 	outerG, outerS := st.gRec, st.sRec
 	st.gRec, st.sRec = gRec, sRec
+	st.pairs.unfolding[key] = true
 	out := subsumeNode(st, path, gb, sb)
+	delete(st.pairs.unfolding, key)
 	st.gRec, st.sRec = outerG, outerS
 	return out
 }
 
+// subUnfold answers a recursion's definition in its own document, or the
+// value itself.
+func subUnfold(root, v Val) Val {
+	if r, ok := v.(*RecurseVal); ok {
+		return walkTarget(root, r.target)
+	}
+	return v
+}
+
 // subPairs holds the pairs of bags the walk has met: those it is
 // comparing, the answers it has settled, and the yes-answers waiting on a
-// pair still compared.
+// pair still compared; and the recursions it has unfolded since it last
+// entered a bag.
 type subPairs struct {
-	frames  []*subFrame
-	running map[subPair]int
-	settled map[subPair]string
-	pending map[subPair]int
+	frames    []*subFrame
+	running   map[subPair]int
+	settled   map[subPair]string
+	pending   map[subPair]int
+	unfolding map[[2]Val]bool
 }
 
 type subPair struct {
@@ -526,7 +547,7 @@ type subFrame struct {
 
 func newSubPairs() *subPairs {
 	return &subPairs{running: map[subPair]int{}, settled: map[subPair]string{},
-		pending: map[subPair]int{}}
+		pending: map[subPair]int{}, unfolding: map[[2]Val]bool{}}
 }
 
 // subAssume answers yes for a pair of bags already under comparison, so
@@ -552,9 +573,12 @@ func subAssume(st *subState, g0, s0 Val, compare func() string) string {
 		return subYes
 	}
 	frame := &subFrame{depth: len(p.frames), low: len(p.frames)}
+	unfolding := p.unfolding
 	p.frames = append(p.frames, frame)
 	p.running[key] = frame.depth
+	p.unfolding = map[[2]Val]bool{}
 	out := compare()
+	p.unfolding = unfolding
 	p.frames = p.frames[:len(p.frames)-1]
 	delete(p.running, key)
 	subSettle(st, key, frame, out)
@@ -766,15 +790,19 @@ func subsumeDefaults(st *subState, path []string, g, s Val) string {
 	return subYes
 }
 
-func subsumeDefaultsWalk(st *subState, path []string, g, s Val) string {
+func subsumeDefaultsWalk(st *subState, path []string, g0, s0 Val,
+	seen map[[2]Val]bool) string {
+	g := subUnfold(st.groot, g0)
+	s := subUnfold(st.sroot, s0)
 	out := subsumeDefaults(st, path, g, s)
 	gm, gok := g.(*MapVal)
 	sm, sok := s.(*MapVal)
-	if gok && sok {
+	if gok && sok && !seen[[2]Val{g, s}] {
+		seen[[2]Val{g, s}] = true
 		for _, k := range sm.keys {
 			if gc, ok := gm.peg[k]; ok {
 				kp := append(append([]string{}, path...), k)
-				out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sm.peg[k]))
+				out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sm.peg[k], seen))
 			}
 		}
 	}
@@ -884,7 +912,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 
 	out := subsumeNode(st, nil, g, s)
 	if "values" != profile {
-		out = subWorse(out, subsumeDefaultsWalk(st, nil, g, s))
+		out = subWorse(out, subsumeDefaultsWalk(st, nil, g, s, map[[2]Val]bool{}))
 	}
 
 	verdict := SubsumeYes

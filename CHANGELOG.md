@@ -19,7 +19,8 @@ Both ports, the recursion design's P3.
   recursive schemas of one shape now subsume each other whatever their
   definitions are called, where any pair but two identical ones was
   `undecided`, and a recursion and its unrolling subsume each other in
-  both directions.
+  both directions, with the defaults inside them compared under the
+  `defaults` profile.
 - Each pair of definitions is compared once, so a definition that
   disagrees is refused once, where the walk first meets it, and a
   cluster of definitions that refer to one another compares in time

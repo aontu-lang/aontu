@@ -1024,7 +1024,7 @@ function capture(fn) {
         const rec = new aontu_1.Aontu().unify('T: {next?: $.T}').peg.T.peg.next;
         Assert.equal(rec.isRecurse, true);
         const state = {
-            profile: 'values', findings: [],
+            profile: 'values', findings: [], pairs: (0, subsume_1.newPairs)(),
             generalUrl: 'general', specificUrl: 'specific',
             groot: new MapVal_1.MapVal({ peg: {} }), sroot: new MapVal_1.MapVal({ peg: {} }),
         };

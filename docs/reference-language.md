@@ -5003,6 +5003,10 @@ reports the finding once, where it first meets the pair. Under the
 stands in, as an expansion clears the definition's own: a hidden
 definition compared with a hidden unrolling agrees, and a member the
 specific side hides inside the recursion is `compat_marks_changed`.
+Under `defaults` the walk compares the defaults inside an unfolding as
+it does anywhere else. It compares a recursion with no structure to
+unfold, as `a: $.a` has none, as residue: identical ones subsume, and
+any other pair is `undecided`.
 
 ### Default validity
 

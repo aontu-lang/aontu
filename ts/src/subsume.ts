@@ -76,17 +76,22 @@ type SubState = {
 type Tri = 'yes' | 'no' | 'undecided'
 
 // The pairs of bags the walk has met: those it is comparing, the answers
-// it has settled, and the yes-answers waiting on a pair still compared.
+// it has settled, and the yes-answers waiting on a pair still compared;
+// and the recursions it has unfolded since it last entered a bag.
 type Frame = { depth: number, low: number, held: string[] }
 export type Pairs = {
   frames: Frame[]
   running: Map<string, number>
   settled: Map<string, Tri>
   pending: Map<string, number>
+  unfolding: Set<string>
 }
 
 export function newPairs(): Pairs {
-  return { frames: [], running: new Map(), settled: new Map(), pending: new Map() }
+  return {
+    frames: [], running: new Map(), settled: new Map(), pending: new Map(),
+    unfolding: new Set(),
+  }
 }
 
 
@@ -227,7 +232,10 @@ export function subsumeNode(
   }
 
   if (true === g?.isRecurse || true === s?.isRecurse) {
-    return subsumeRecursion(state, path, g0, s0, g, s)
+    const out = subsumeRecursion(state, path, g0, s0, g, s)
+    if (undefined !== out) {
+      return out
+    }
   }
 
   if (unresolved(g) || unresolved(s)) {
@@ -431,9 +439,15 @@ export function subsumeNode(
 
 
 // A recursion is the definition it names, unfolded against its own
-// document (docs/design/RECURSION.0.md, P3).
+// document (docs/design/RECURSION.0.md, P3). One met again before the
+// walk enters a bag unfolds to no structure, and is compared as residue.
 function subsumeRecursion(
-  state: SubState, path: string[], g0: any, s0: any, g: any, s: any): Tri {
+  state: SubState, path: string[], g0: any, s0: any, g: any, s: any): Tri | undefined {
+  const key = g0?.id + ' ' + s0?.id
+  const unfolding = state.pairs.unfolding
+  if (unfolding.has(key)) {
+    return undefined
+  }
   const gr = true === g?.isRecurse ? g : undefined
   const sr = true === s?.isRecurse ? s : undefined
   const gb = undefined === gr ? g0 : walkTarget(state.groot, gr.target)
@@ -443,8 +457,17 @@ function subsumeRecursion(
       'a recursion whose definition its document does not hold')
     return 'undecided'
   }
-  return subsumeNode({ ...state, gRec: state.gRec ?? gr, sRec: state.sRec ?? sr },
+  unfolding.add(key)
+  const out = subsumeNode({ ...state, gRec: state.gRec ?? gr, sRec: state.sRec ?? sr },
     path, gb, sb)
+  unfolding.delete(key)
+  return out
+}
+
+
+// A recursion's definition in its own document, or the value itself.
+function unfold(root: any, v: any): any {
+  return true === v?.isRecurse ? walkTarget(root, v.target) : v
 }
 
 
@@ -467,9 +490,12 @@ function assume(state: SubState, g0: any, s0: any, compare: () => Tri): Tri {
     return 'yes'
   }
   const frame: Frame = { depth: p.frames.length, low: p.frames.length, held: [] }
+  const unfolding = p.unfolding
   p.frames.push(frame)
   p.running.set(key, frame.depth)
+  p.unfolding = new Set()
   const out = compare()
+  p.unfolding = unfolding
   p.frames.pop()
   p.running.delete(key)
   settle(state, key, frame, out)
@@ -644,17 +670,22 @@ function subsumeDefaults(
 
 
 // Walk both trees for default agreement wherever the specific side has
-// one: at the node itself and inside every corresponding bag child.
+// one: at the node itself and inside every corresponding bag child, a
+// recursion unfolded and each pair of maps walked once.
 function subsumeDefaultsWalk(
-  state: SubState, path: string[], g: any, s: any): Tri {
+  state: SubState, path: string[], g0: any, s0: any, seen: Set<string>): Tri {
+  const g = unfold(state.groot, g0)
+  const s = unfold(state.sroot, s0)
   let out: Tri = subsumeDefaults(state, path, g, s)
 
   const gm = true === g?.isMap ? g.peg : undefined
   const sm = true === s?.isMap ? s.peg : undefined
-  if (null != gm && null != sm) {
+  const pair = g?.id + ' ' + s?.id
+  if (null != gm && null != sm && !seen.has(pair)) {
+    seen.add(pair)
     for (const k of Object.keys(sm)) {
       if (null != gm[k]) {
-        const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k])
+        const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k], seen)
         if ('no' === r || ('undecided' === r && 'no' !== out)) {
           out = 'no' === r ? 'no' : 'undecided'
         }
@@ -707,7 +738,7 @@ export function subsume(
 
   let out: Tri = subsumeNode(state, [], g, s)
   if ('values' !== profile) {
-    const d = subsumeDefaultsWalk(state, [], g, s)
+    const d = subsumeDefaultsWalk(state, [], g, s, new Set())
     if ('no' === d || ('undecided' === d && 'no' !== out)) {
       out = 'no' === d ? 'no' : 'undecided'
     }
