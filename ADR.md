@@ -88,7 +88,7 @@ capability decision is the phase rows it governed in
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
-| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
+| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
 | [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Accepted |
 | [ADR-062](#adr-062--a-recursive-residual-meets-a-kind-a-disjunction-and-another-residual) | A recursive residual meets a kind, a disjunction and another residual | Accepted |
 | [ADR-063](#adr-063--the-vocabularies-a-meta-schema-lists-decide-what-its-schemas-read) | The vocabularies a meta-schema lists decide what its schemas read | Accepted |
@@ -96,6 +96,7 @@ capability decision is the phase rows it governed in
 | [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
 | [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
 | [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Accepted |
+| [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 
 ---
 
@@ -5596,7 +5597,7 @@ RFCs, each found against a corpus.
 ## ADR-060 — aontu matches a pattern with its own engine
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export)
 
 ### Context
 
@@ -6288,3 +6289,103 @@ and the design note scoped it as its P3.
   engines. The executed `aontu subsume` scenario in
   [docs/reference-api.md](docs/reference-api.md) shows a recursion that
   subsumes and one that is refused.
+
+## ADR-068 — An import comes back from its own export
+
+**Date:** 2026-10-10
+**Status:** Accepted
+
+### Context
+
+G12's last phase asks that a schema which crosses into aontu can cross
+back: the import of a schema's export should be the import it started
+from (phase 18 of
+[g12-jsonschema-fidelity.md](docs/capability-review/g12-jsonschema-fidelity.md)).
+A probe over the official suite found 990 of its 1,709 groups coming
+back canon-equal and subsuming both ways. Three kinds of failure held
+the rest. `subsume` could not decide values it should: `nil`, and two
+identical atoms. The import and the export each wrote one meaning in
+more than one spelling, chosen by the order a schema listed its
+members or a conjunction met its terms. And some constructs have no
+spelling the import reads back as the same value.
+
+### Decision
+
+1. **The round trip is a gate in both harnesses.** For each group of
+   the official suite, in each of its dialect directories,
+   `import(export(import(S)))` must be `import(S)`: the same hash form,
+   or the same canon with `subsume` holding both ways. The import reads
+   without the meta-schema check, which admits or refuses an input but
+   never changes what it imports as. A group that does not come back is
+   a row of `test/vectors/jsonschema/roundtrip.tsv`, naming the
+   construct and why; a listed group that comes back fails the run, and
+   so does a ledger past its bound of 50 rows.
+2. **A value has one canon whatever order its terms were met in.** A
+   conjunction's canon and hash form write its terms by the rank the
+   engine sorts terms by, and terms of one rank in code-point order of
+   their text. `nof` sorts its branches as it renders them, and a count
+   still waiting on its branches writes them after the count, sorted.
+3. **`nil` is the bottom of subsumption, and identical values subsume
+   each other.** Every value subsumes `nil`, which subsumes only `nil`.
+   Two values of one hash form subsume each other where no other rule
+   decides them, unless the form names a definition, which is compared
+   through the definition it names (ADR-067).
+4. **The import writes one spelling for each meaning.** A guarded
+   spread lists its names and patterns in code-point order, and the
+   pattern spreads follow the same order. A kind split no keyword
+   narrows is `any`. A member whose schema is written as
+   `additionalProperties`'s is held to it and not let through. A
+   `oneOf` of one branch is read as `anyOf` reads it, the `not` of a
+   schema that admits everything is `nil`, and a `type` beside a
+   `const` of its own kind is not written. A `$dynamicRef`'s text rides
+   a `meta` record only on a use the export can write back.
+5. **The export writes what the import reads back as the same value.**
+   A bag closed at every level whose members are values is `const`, and
+   a disjunction of them `enum`. A key test that is a bare `re()` is a
+   `patternProperties` key, and any other, or a lone name the map does
+   not declare, is `propertyNames`; a plain spread beside no pattern is
+   `additionalProperties`. A key named `__proto__` is data. The atoms a
+   disjunction was met with are written once, beside the fold of its
+   members. A written `nil` at the root is `not: {}`, since the schema
+   `false` cannot name its dialect. `re()`'s `\d`, `\w`, `\D` and `\W`
+   are copied as written, since ECMA-262 reads each as aontu does: this
+   amends ADR-060 decision 6, which wrote out their sets.
+6. **The ledger holds only the boundary**: a construct the export
+   cannot write, or writes in a form the import reads as another value
+   of the same meaning. `rest()` over a cover a branch conditions is an
+   `allOf` member of its own, its condition repeated in place, and
+   imports as a cover of that member (ADR-058, the register's phase 12
+   departures 3 and 5). A keyword the schema's vocabularies leave unread
+   is an annotation that would assert if written back, and a `format`
+   asserted through a custom vocabulary has no spelling the default
+   vocabularies assert, so the export drops each with a loss. It also
+   drops an `$id` that a `$ref` inside would resolve against, and writes
+   a positional guard distributed over a kind split, and a recursion cut
+   through a root that is not a map, as a schema that admits anything,
+   each with a loss. An
+   `unevaluatedProperties` guard over names no map beside it declares is
+   written as `properties` beside `additionalProperties: false`, and
+   imports with those names declared.
+
+### Consequences
+
+- 1,659 of the suite's 1,709 groups come back in both ports, and the
+  ledger holds the other 50: 36 for `rest()`, 6 for vocabularies, 2 for
+  the format vocabulary, 3 for `$id`, and one each for the positional
+  guard, the cut recursion and the undeclared names. A `oneOf` of one
+  branch now applies in place, so the annotation harness passes 58 of
+  its 84 assertions and its ledger shrinks from 28 rows to 26.
+- A document whose conjunctions held terms of one rank out of that
+  order renders and hashes differently: the bundled `aontu:profile`
+  model's pinned hashes, and three use cases' pinned canon and model
+  tree, are re-derived.
+- Engine defects the round trip found are fixed in both ports. Go
+  shared one `empty()`, `open()`, `close()`, `acyclic()`, `inverse()`
+  or `rel()` value among the uses of an alias holding it, so the export
+  wrote that definition as a `$ref` to itself. TypeScript's export
+  crashed on a map with keys `$ref` and `$dynamicRef`, and dropped a
+  key named `__proto__`.
+- Pinned by the harness and its ledger in both ports, and by rows in
+  `test/spec/subsume.tsv`, `jsonschema.tsv`, `jsonschema-import.tsv`,
+  `alias.tsv`, `hcanon.tsv` and the residual files, every expectation
+  from both engines.

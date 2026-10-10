@@ -68,6 +68,25 @@ Both ports.
   code-point order, as `additionalProperties`'s are, and `nof`'s canon
   sorts its branches as it renders them, so a branch that settles late,
   or a count still waiting on its branches, renders in one order.
+- The import reads a `oneOf` of one branch as `anyOf` reads it, the
+  `not` of a schema that admits everything as `nil`, and a `const`
+  beside a `type` of its own kind as the literal alone, where each was a
+  count or a meet that the export wrote back as another keyword. The
+  export writes a `nil` written at the root as `not: {}` under the
+  dialect's `$schema`, where it refused it. A `oneOf` of one branch
+  applies in place, so its annotations are kept: the suite's annotation
+  tests pass 58 of 84, and their ledger shrinks from 28 rows to 26.
+- Go's engine shared one `empty()`, `open()`, `close()`, `acyclic()`,
+  `inverse()` or `rel()` value among every use of an alias that held
+  it, where TypeScript copies it to each, so the export wrote such a
+  definition as a `$ref` to itself, an `ident()` record on one was
+  lost, and an error under the alias named its last use, not its first.
+- The round trip runs in both harnesses: a schema of the official
+  suite, in any dialect, imports, exports and imports back as the value
+  it first imported, canon for canon and subsuming both ways, for 1,659
+  of the 1,709 groups; each of the other 50 is a row of the ledger
+  `test/vectors/jsonschema/roundtrip.tsv`, naming the construct that
+  does not come back and why.
 
 ### subsume compares recursive schemas (ADR-067)
 

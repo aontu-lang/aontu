@@ -4,7 +4,7 @@
 <path d="M8 20V30H26" class="av-line"/>
 <text x="28" y="34"><tspan class="av-t">Entitlement</tspan><tspan class="av-m"> {&quot;auditLog&quot;:false,&quot;plan&quot;:&quot;fre...</tspan></text>
 <path d="M8 20V50H26" class="av-line"/>
-<text x="28" y="54"><tspan class="av-t">Role</tspan><tspan class="av-m"> {&quot;desc&quot;:string,&quot;grants&quot;:[&amp;:re...</tspan></text>
+<text x="28" y="54"><tspan class="av-t">Role</tspan><tspan class="av-m"> {&quot;desc&quot;:string,&quot;grants&quot;:[&amp;:pa...</tspan></text>
 <path d="M8 20V70H26" class="av-line"/>
 <text x="28" y="74" class="av-t">permissions</text>
 <path d="M32 80V90H50" class="av-line"/>

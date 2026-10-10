@@ -1616,8 +1616,12 @@ function anyOf(branches: Expr[]): Expr {
 
 
 // oneOf is a count of exactly one, or `|` over scalar literals that are
-// pairwise distinct, since a scalar equals at most one of them.
+// pairwise distinct, since a scalar equals at most one of them. One branch
+// held exactly once is one held at least once, as anyOf reads it.
 function oneOf(branches: Expr[]): Expr {
+  if (1 === branches.length) {
+    return anyOf(branches)
+  }
   const texts = branches.map(literalTexts)
   const flat = texts.flat()
   return !texts.includes(undefined) && new Set(flat).size === flat.length ?
@@ -1953,8 +1957,9 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   const neg = get('not')
   const excluded = null == neg ? undefined : typedExclusion(node, neg)
   if (null != neg && undefined === excluded) {
-    parts.push(mark(ctx, call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)),
-      at('not'), node))
+    // Nothing escapes a schema that admits everything.
+    const branch = convert(ctx, neg, at('not'), false, only)
+    parts.push(mark(ctx, isRaw(branch, 'any') ? NIL : call('nof', raw('0'), branch), at('not'), node))
   }
 
   parts.push(...conditional(ctx, node, ptr, only), ...dependents(ctx, node, ptr, only))
@@ -1993,7 +1998,13 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     const bare = KINDS.length === kinds.length &&
       branches.every((b, i) => BARE[kinds[i]] === print(b, ''))
     const split = bare ? ANY : 0 === branches.length ? NIL : or(branches)
-    parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split)
+    // A const says its kind, which a type that adds nothing to it repeats.
+    const said = null != konst && 1 === kinds.length && jsonKind(konst) === kinds[0] &&
+      (BARE[kinds[0]] === print(branches[0], '') || ('number' === konst.t &&
+        /^-?[0-9]+$/.test(konst.text) && 'number & multiple(1)' === print(branches[0], '')))
+    if (!said) {
+      parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split)
+    }
   }
 
   const met = and(parts)

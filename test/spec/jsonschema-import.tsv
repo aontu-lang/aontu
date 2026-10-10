@@ -152,6 +152,12 @@ import-all-of-not-an-array-refused	jsonschema-import	{"allOf": {}}	{"aontu":"","
 # A position whose meet is bottom admits nothing, and is nil.
 import-all-of-bottom-is-nil	jsonschema-import	{"properties": {"a": {"allOf": [{"type": "string"}, {"type": "number"}]}}}	{"aontu":"null|boolean|number|empty()|{ a?:nil }|list\\n","lossy":[],"verdict":"ok"}
 import-const-against-a-sibling-is-nil	jsonschema-import	{"properties": {"a": {"const": 1, "minimum": 5}}}	{"aontu":"null|boolean|number|empty()|{ a?:nil }|list\\n","lossy":[],"verdict":"ok"}
+# A const says its kind, so a type that adds nothing to it is not
+# written beside it (ADR-068).
+import-const-beside-its-own-type-is-the-literal	jsonschema-import	{"const":"bar","type":"string"}	{"aontu":"\\"bar\\"\\n","lossy":[],"verdict":"ok"}
+import-const-beside-integer-is-the-literal	jsonschema-import	{"const":1,"type":"integer"}	{"aontu":"1\\n","lossy":[],"verdict":"ok"}
+import-const-a-fraction-beside-integer-is-nil	jsonschema-import	{"const":1.5,"type":"integer"}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
+import-const-beside-another-type-is-nil	jsonschema-import	{"const":"x","type":"number"}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-empty-string-count-is-nil	jsonschema-import	{"type": "string", "minLength": 5, "maxLength": 3}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-bottom-at-the-root-is-nil	jsonschema-import	{"allOf": [{"const": "a"}, {"const": "b"}]}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-bottom-beside-an-alias-is-kept	jsonschema-import	{"type": "object", "properties": {"a": {"$ref": "#/$defs/s", "type": "number"}}, "$defs": {"s": {"type": "string"}}}	{"aontu":"%d_s = empty()\\n\\na?: %d_s & number\\n","lossy":[],"verdict":"ok"}
@@ -184,8 +190,13 @@ import-one-of-a-repeated-literal-is-a-count	jsonschema-import	{"oneOf": [{"const
 import-one-of-kinds-is-a-count	jsonschema-import	{"oneOf": [{"type": "string"}, {"type": "number"}]}	{"aontu":"nof(1, empty(), number)\\n","lossy":[],"verdict":"ok"}
 import-one-of-a-false-branch	jsonschema-import	{"oneOf": [false, {"type": "string"}]}	{"aontu":"nof(1, nil, empty())\\n","lossy":[],"verdict":"ok"}
 import-one-of-empty-refused	jsonschema-import	{"oneOf": []}	{"aontu":"","errors":[{"class":"parse","code":"jsonschema_schema","path":"#/oneOf","severity":"error","sites":[{"col":11,"file":"schema","len":2,"role":"schema","row":1,"src":"[]","value":"[]"}]}],"lossy":[],"verdict":"error"}
+# One branch held exactly once is one held at least once (ADR-068).
+import-one-of-one-branch-is-any-of-one	jsonschema-import	{"oneOf":[{"multipleOf":5}]}	{"aontu":"null|boolean|number & multiple(5)|empty()|map|list\\n","lossy":[],"verdict":"ok"}
 # not is a count of none; beside one string or integer type, an excluded enum is neq.
 import-not	jsonschema-import	{"not": {"type": "integer"}}	{"aontu":"nof(0, number & multiple(1))\\n","lossy":[],"verdict":"ok"}
+# Nothing escapes a schema that admits everything, so its not is nil.
+import-not-of-anything-is-nil	jsonschema-import	{"not":{}}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
+import-not-true-is-nil	jsonschema-import	{"not":true}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-not-false-admits-anything	jsonschema-import	{"not": false}	{"aontu":"nof(0, nil)\\n","lossy":[],"verdict":"ok"}
 import-not-enum-beside-string-is-neq	jsonschema-import	{"type": "string", "not": {"enum": ["a", 1]}}	{"aontu":"empty() & neq(\\"a\\")\\n","lossy":[],"verdict":"ok"}
 import-not-enum-beside-integer-is-neq-in-every-leaf	jsonschema-import	{"type": "integer", "not": {"enum": [-1, 2, 1.5, "x", 12345678901234567890]}}	{"aontu":"number & multiple(1) & neq((-1), -1.0, -0d1, -0d1.0, 2, 2.0, 0d2, 0d2.0, 0d12345678901234567890, 0d12345678901234567890.0)\\n","lossy":[],"verdict":"ok"}
@@ -448,6 +459,7 @@ import-unevaluated-properties-alone	jsonschema-import	{"type": "object", "uneval
 import-unevaluated-properties-beside-properties	jsonschema-import	{"type": "object", "properties": {"a": {"type": "string"}}, "unevaluatedProperties": false}	{"aontu":"a?: empty()\\n&: match(key(0), \\"a\\", any, nil)\\n","lossy":[],"verdict":"ok"}
 import-unevaluated-properties-as-a-schema	jsonschema-import	{"type": "object", "properties": {"a": true}, "unevaluatedProperties": {"type": "number"}}	{"aontu":"a?: any\\n&: match(key(0), \\"a\\", any, number)\\n","lossy":[],"verdict":"ok"}
 import-unevaluated-properties-beside-patternProperties	jsonschema-import	{"type": "object", "patternProperties": {"^x": true}, "unevaluatedProperties": false}	{"aontu":"&: match(key(0), re(\\"^x\\"), any, any)\\n&: match(key(0), re(\\"^x\\"), any, nil)\\n","lossy":[],"verdict":"ok"}
+import-unevaluated-properties-beside-patterns-guards-them-in-code-point-order	jsonschema-import	{"type": "object", "patternProperties": {"^y": true, "^x": true}, "unevaluatedProperties": false}	{"aontu":"&: match(key(0), re(\\"^x\\"), any, any)\\n&: match(key(0), re(\\"^y\\"), any, any)\\n&: match(key(0), re(\\"^x\\"), any, re(\\"^y\\"), any, nil)\\n","lossy":[],"verdict":"ok"}
 import-unevaluated-properties-through-allOf	jsonschema-import	{"type": "object", "allOf": [{"properties": {"a": true}}], "unevaluatedProperties": false}	{"aontu":"(null|boolean|number|empty()|{ a?:any }|list) & {\\n  &: match(key(0), \\"a\\", any, nil)\\n}\\n","lossy":[],"verdict":"ok"}
 import-unevaluated-properties-through-ref	jsonschema-import	{"type": "object", "$ref": "#/$defs/a", "$defs": {"a": {"properties": {"a": true}}}, "unevaluatedProperties": false}	{"aontu":"%d_a & {\\n  %d_a = null|boolean|number|empty()|{ a?:any }|list\\n  &: match(key(0), \\"a\\", any, nil)\\n}\\n","lossy":[],"verdict":"ok"}
 import-unevaluated-properties-beside-additionalProperties	jsonschema-import	{"type": "object", "additionalProperties": true, "unevaluatedProperties": false}	{"aontu":"map\\n","lossy":[],"verdict":"ok"}

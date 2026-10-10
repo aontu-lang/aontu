@@ -1654,8 +1654,10 @@ $ aontu jsonschema --at spec contract.aontu
   lossy export is still an export and exits 0.
 
 **What crosses exactly.** Kinds become `type`, and the `integer` and
-`float` leaves are reported (below); a concrete scalar becomes `const`, and so does a bag closed at every level whose members are values, as the import of a `const` is; a disjunction of them becomes `enum`, and its
-preference becomes `default`; bounds become `minimum`/`maximum`, with
+`float` leaves are reported (below); a concrete scalar becomes `const`,
+and so does a bag closed at every level whose members are values, as
+the import of a `const` is; a disjunction of them becomes `enum`, and
+its preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern`, written as ECMA-262 text that means what `re`
 means: `re`'s `.`, `\s`, `\S`, `\A` and `\z`, which ECMA-262 reads
@@ -1694,7 +1696,8 @@ field holding several values as a list; a disjunction of bare kinds
 becomes a `type` array; a bare
 `*x` becomes the kind of x, with x as `default`, because `*1` admits
 every integer; and a written `nil` becomes the schema `false`, because it
-admits nothing. A spread is `additionalProperties: <template>`, which
+admits nothing, and at the root, where the schema names its dialect,
+`not: {}`, which says the same. A spread is `additionalProperties: <template>`, which
 is what a spread means, and a template that reaches no key or path
 outside itself is read as the value it is: `{&: number & min(3)}`
 exports `additionalProperties: {type: number, minimum: 3}`. A spread
@@ -1983,7 +1986,7 @@ y: number
 | Keyword | Becomes |
 |---|---|
 | `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)`; every kind narrowed by nothing is `any` |
-| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
+| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value; a `type` beside a `const` of its kind adds nothing and is not written |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
 | `multipleOf` | `multiple`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
@@ -1995,8 +1998,8 @@ y: number
 | `prefixItems`, `items` | one list spread, guarded by each element's index |
 | `allOf` | the meet: every member unified in place |
 | `anyOf` | a disjunction where at most one branch can hold for any instance, because the branches are scalar literals or have disjoint kinds and none needs more than its kind; otherwise `nof(min(1), …)`, at least one branch admitting the value |
-| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals |
-| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer |
+| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals; a lone branch read as `anyOf` reads it |
+| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer; the `not` of a schema that admits everything is `nil` |
 | `if`, `then`, `else` | `when(c, t, e)`, paired within one schema object; a `then` or `else` without an `if`, and an `if` with neither, assert nothing |
 | `dependentSchemas` | `when({k: any}, S)` for each key `k`: the schema applies where the object holds `k` |
 | `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |

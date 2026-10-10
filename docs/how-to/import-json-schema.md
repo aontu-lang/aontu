@@ -366,7 +366,9 @@ Schema asks.
 - `anyOf` imports as a disjunction only where its branches cannot both
   hold for one value; otherwise it is `nof(min(1), …)`, which counts the
   branches that admit the data rather than choosing one. `oneOf` is
-  `nof(1, …)` and `not` is `nof(0, …)`.
+  `nof(1, …)` and `not` is `nof(0, …)`, except that a `oneOf` of one
+  branch is read as `anyOf` reads it, and the `not` of a schema that
+  admits everything is `nil`.
 - `if`, `then` and `else` import as `when(c, t, e)`, and only within
   one schema object: an `if` in one `allOf` branch never pairs with a
   `then` in another. `dependentSchemas` and `dependentRequired` are a

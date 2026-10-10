@@ -33,6 +33,11 @@ alias-use-before-declare	gens	a: %foo\n%foo = 1	{"a":1}
 alias-constraint-admits	gens	%u8 = integer & min(0) & max(255)\na: %u8\na: 200	{"a":200}
 alias-constraint-refuses	errc	%u8 = integer & min(0) & max(255)\na: %u8\na: 300	constraint
 alias-constraint-refuses-path	err	%u8 = integer & min(0) & max(255)\na: %u8\na: 300	at path $.a
+# Each use of an alias is its own value, whatever the value is: an
+# error under the first use names that use.
+alias-of-empty-names-its-first-use	err	%a = empty()\np: %a\nq: %a	at path $.p
+alias-of-close-names-its-first-use	err	%a = close()\np: %a\nq: %a	at path $.p
+alias-of-rel-names-its-first-use	err	%a = rel()\np: %a\nq: %a	at path $.p
 # ALIAS OF ALIAS, which is the useful case and the one that makes
 # cycles possible at all.
 alias-of-alias	gens	%a = %b\n%b = 2\nx: %a	{"x":2}

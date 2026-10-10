@@ -1647,6 +1647,8 @@ var importCarried = []string{
 
 var importKinds = []string{"null", "boolean", "number", "string", "object", "array"}
 
+var importIntegerText = regexp.MustCompile(`^-?[0-9]+$`)
+
 var importBare = map[string]string{
 	"null": "null", "boolean": "boolean", "number": "number", "string": "empty()",
 	"object": "map", "array": "list",
@@ -2044,8 +2046,12 @@ func importAnyOf(branches []*ixpr) *ixpr {
 }
 
 // importOneOf is a count of exactly one, or `|` over scalar literals that
-// are pairwise distinct, since a scalar equals at most one of them.
+// are pairwise distinct, since a scalar equals at most one of them. One
+// branch held exactly once is one held at least once, as anyOf reads it.
 func importOneOf(branches []*ixpr) *ixpr {
+	if 1 == len(branches) {
+		return importAnyOf(branches)
+	}
 	seen := map[string]bool{}
 	distinct := true
 	for _, b := range branches {
@@ -2451,8 +2457,14 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if neg := get("not"); nil != neg {
 		excluded = typedExclusion(node, neg)
 		if nil == excluded {
-			parts = append(parts, ctx.mark(icall("nof", iraw("0"), ctx.convert(neg, at("not"), false, only)),
-				at("not"), node, imark{}))
+			// Nothing escapes a schema that admits everything.
+			branch := ctx.convert(neg, at("not"), false, only)
+			if !isRawText(branch, "any") {
+				branch = icall("nof", iraw("0"), branch)
+			} else {
+				branch = iNil
+			}
+			parts = append(parts, ctx.mark(branch, at("not"), node, imark{}))
 		}
 	}
 
@@ -2533,7 +2545,14 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		if nil != allowed && "or" == split.k {
 			split = ctx.mark(split, at("type"), node, imark{})
 		}
-		parts = append(parts, split)
+		// A const says its kind, which a type that adds nothing to it repeats.
+		konst := get("const")
+		said := nil != konst && 1 == len(kinds) && jsonKindOf(konst) == kinds[0] &&
+			(importBare[kinds[0]] == iprint(branches[0], "") || ("number" == konst.t &&
+				importIntegerText.MatchString(konst.s) && "number & multiple(1)" == iprint(branches[0], "")))
+		if !said {
+			parts = append(parts, split)
+		}
 	}
 
 	met := iand(parts)

@@ -186,8 +186,7 @@ function literalJson(v: any): any {
     return undefined
   }
   const of = (m: any): any => null != m.meta || null != m.deprecation || true === m.mark?.hide ||
-    true === m.mark?.type ? undefined : true === m.isScalar ?
-    (true === m.isNil ? undefined : scalarJson(m)) : literalJson(m)
+    true === m.mark?.type ? undefined : true === m.isScalar ? scalarJson(m) : literalJson(m)
   const keys = true === v.isMap ? Object.keys(v.peg) : v.peg.map((_: any, i: number) => i)
   const out: any = true === v.isMap ? {} : []
   for (const k of keys) {
@@ -1155,7 +1154,7 @@ function fromDisjunct(ctx: Ctx, path: string[], v: any): any {
 
   const bare = members.map((m: any) => true === m?.isPref ? m.peg : m)
   const consts = bare.map((m: any) =>
-    true === m?.isScalar ? (true !== m?.isNil ? scalarJson(m) : undefined) :
+    true === m?.isScalar ? scalarJson(m) :
       null == m?.meta && null == m?.deprecation ? literalJson(m) : undefined)
 
   let out: any = undefined
@@ -1609,6 +1608,12 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
 
   const actx = aontu.ctx({ collect: true })
   const root: any = aontu.unify(src, { path: opts.path, collect: true }, actx)
+
+  // A written nil admits nothing, which is what `not: {}` says.
+  if (true === root?.isNil && 'literal_nil' === root.why && 0 === actx.err.length &&
+    (null == opts.at || '' === opts.at)) {
+    return { verdict: 'ok', schema: { $schema: DRAFT, not: {} }, lossy: [] }
+  }
 
   // A nil root always arrives with its reason collected beside it, which
   // is failureFinding's stated precondition (ts/src/vet.ts: "ctx.err is

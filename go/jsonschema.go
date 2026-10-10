@@ -142,7 +142,7 @@ func schemaLiteral(v Val) (any, bool) {
 			return nil, false
 		}
 		if sv, ok := m.(*ScalarVal); ok {
-			return scalarSchemaJSON(sv), KindNil != sv.kind
+			return scalarSchemaJSON(sv), true
 		}
 		return schemaLiteral(m)
 	}
@@ -1800,7 +1800,7 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 	for _, m := range bare {
 		lit, ok := any(nil), false
 		if sv, isScalar := m.(*ScalarVal); isScalar {
-			lit, ok = scalarSchemaJSON(sv), KindNil != sv.kind
+			lit, ok = scalarSchemaJSON(sv), true
 		} else if nil == m.deprecRec() && nil == m.metaRec() {
 			lit, ok = schemaLiteral(m)
 		}
@@ -2447,6 +2447,11 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 	}
 
 	root, ctx, _ := a.unifyCtx(parsed, nil, src)
+	// A written nil admits nothing, which is what `not: {}` says.
+	if nv, ok := root.(*NilVal); ok && "literal_nil" == nv.why && 0 == len(ctx.err) && "" == at {
+		return SchemaReport{Verdict: "ok", Lossy: []SchemaLoss{},
+			Schema: map[string]any{"$schema": jsonSchemaDraft, "not": map[string]any{}}}
+	}
 	if nil == root || root.Nil() || 0 < len(ctx.err) {
 		return SchemaReport{Verdict: "error", Schema: empty,
 			Lossy:  []SchemaLoss{},
