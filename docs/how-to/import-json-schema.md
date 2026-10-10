@@ -54,14 +54,14 @@ id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
-&: match(key(0), "id", any, "total", any, "lines", any, "note", any, nil)
+&: match(key(0), "id", any, "lines", any, "note", any, "total", any, nil)
 ```
 
 Each keyword lands on the construct that means it:
 
 - A property is an optional key, and `required` drops the `?`.
 - `additionalProperties: false` is a spread that admits the declared
-  names and refuses every other key with `nil`.
+  names, in code-point order, and refuses every other key with `nil`.
 - `items` is a list spread, and `minItems` a count with `len`.
 - `type: "string"` is `empty()`, because the strings of JSON Schema
   include `""` and aontu's `string` does not.
@@ -83,7 +83,7 @@ id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
-&: match(key(0), "id", any, "total", any, "lines", any, "note", any, nil)
+&: match(key(0), "id", any, "lines", any, "note", any, "total", any, nil)
 ```
 
 Then check an order with `--no-fill --exact-numbers`, which asks the
