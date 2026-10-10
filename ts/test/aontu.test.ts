@@ -41,7 +41,7 @@ describe('aontu', function() {
     let a0 = new Aontu()
 
     expect(() => a0.parse('a::number')).throws(/unexpected char/)
-    expect((a0 as any).parse('a:number a:A').canon).equal('{"a":number&"A"}')
+    expect((a0 as any).parse('a:number a:A').canon).equal('{"a":"A"&number}')
 
     expect(() => a0.unify('a::1')).throws(/unexpected char/)
     expect(() => a0.unify('a:1 a:2')).throws(/Cannot unify value: 2 with value: 1/)

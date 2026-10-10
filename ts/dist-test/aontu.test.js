@@ -27,7 +27,7 @@ const srcpath_1 = require("./srcpath");
     (0, node_test_1.test)('error-api', async () => {
         let a0 = new aontu_1.Aontu();
         (0, expect_1.expect)(() => a0.parse('a::number')).throws(/unexpected char/);
-        (0, expect_1.expect)(a0.parse('a:number a:A').canon).equal('{"a":number&"A"}');
+        (0, expect_1.expect)(a0.parse('a:number a:A').canon).equal('{"a":"A"&number}');
         (0, expect_1.expect)(() => a0.unify('a::1')).throws(/unexpected char/);
         (0, expect_1.expect)(() => a0.unify('a:1 a:2')).throws(/Cannot unify value: 2 with value: 1/);
         (0, expect_1.expect)(() => a0.generate('a::A')).throws(/unexpected char/);
