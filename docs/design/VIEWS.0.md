@@ -1715,6 +1715,11 @@ Each refusal names the measurement or the rule that decided it.
   the evidence that bit-identical layout is achievable at a price this
   repository will not pay.
 
+  *Status: unamended. The treemap of
+  [VIEWS-FIGURES.0.md](VIEWS-FIGURES.0.md) places nothing: Mermaid's
+  `treemap-beta` lays its tiles out, and its text form is a nested list
+  with bars of whole cells.*
+
 - **No formatter, renderer or layout subprocess.** Not `dot -Tsvg`,
   not `mmdc`, not Kroki, not behind a flag, not "if available". G5
   hermeticity, ADR-001 and ADR-002 each refuse it independently, and

@@ -141,7 +141,7 @@ func TestViewLayersSkipsPathsTheDocumentLacks(t *testing.T) {
 	prov.paths["a.ghost"] = &whyPathRecord{conjuncts: []whyContribution{ghost}}
 	prov.paths["a.empty"] = &whyPathRecord{}
 	loss := []ViewLoss{}
-	text, ferrs := drawLayers(prov, root, "", "", 0, 0, "text", "none", 60, &loss)
+	text, ferrs := drawLayers(prov, root, "", "", 0, 0, 0, "text", "none", 60, &loss, nil)
 	if nil != ferrs || strings.Contains(text, "ghost") || strings.Contains(text, "empty") {
 		t.Fatalf("layers = %q %v", text, ferrs)
 	}
@@ -197,12 +197,28 @@ func TestViewDocWalksAList(t *testing.T) {
 		t.Fatal(errs0)
 	}
 	loss := []ViewLoss{}
-	text, errs := drawDoc(root, "$", 3, "text", "none", 60, &loss)
+	text, errs := drawDoc(root, "$", 3, nil, nil, "text", "none", 60, &loss)
 	if nil != errs {
 		t.Fatal(errs)
 	}
 	want := "$\n└── a\n    ├── 0 1\n    └── 1\n        └── b \"x\""
 	if want != text {
 		t.Fatalf("list walk =\n%q\nwant\n%q", text, want)
+	}
+}
+
+func TestViewPartFileNames(t *testing.T) {
+	for _, c := range [][3]string{
+		{"g-{part}.mmd", "billing", "g-billing.mmd"},
+		{"g-{part}.mmd", "a b/c_d", "g-a_20_b_2f_c_5f_d.mmd"},
+		{"{part}", "..", "_2e__2e_"},
+		{"{part}.{part}", "x.1", "x.1.x.1"},
+	} {
+		if got := ViewPartFile(c[0], c[1]); c[2] != got {
+			t.Fatalf("%q %q = %q", c[0], c[1], got)
+		}
+	}
+	if ViewSplits(&ViewOptions{}) || !ViewSplits(&ViewOptions{Budget: 1}) {
+		t.Fatal("ViewSplits")
 	}
 }

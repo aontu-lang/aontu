@@ -3,7 +3,7 @@ import type { TrustOptions } from './type';
 import { Provenance } from './provenance';
 import type { SubsumeProfile } from './subsume';
 export type ViewVerdict = 'rendered' | 'lossy' | 'error';
-export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset' | 'doc' | 'lattice';
+export type ViewKind = 'tree' | 'matrix' | 'graph' | 'layer' | 'sets' | 'layers' | 'ladder' | 'poset' | 'doc' | 'lattice' | 'state' | 'sequence' | 'lane' | 'treemap';
 export type ViewProfile = 'text' | 'mermaid' | 'dot' | 'er' | 'svg';
 export type ViewOrder = 'canon' | 'partition';
 export type ViewEdges = 'upward' | 'all' | 'none';
@@ -24,7 +24,12 @@ export type ViewReport = {
     kind: ViewKind;
     text?: string;
     loss: ViewLoss[];
+    parts?: ViewPart[];
     errors?: VetFinding[];
+};
+export type ViewPart = {
+    name: string;
+    text: string;
 };
 export type ViewFigure = {
     name: string;
@@ -33,6 +38,7 @@ export type ViewFigure = {
     verdict: ViewVerdict;
     text?: string;
     loss: ViewLoss[];
+    parts?: ViewPart[];
     errors?: VetFinding[];
 };
 export type ViewSetReport = {
@@ -68,6 +74,19 @@ export type ViewOptions = {
     docs?: ViewDoc[];
     out?: string;
     style?: ViewStyle;
+    of?: string;
+    ghosts?: boolean;
+    columns?: string;
+    counts?: boolean;
+    countBy?: string;
+    collapse?: boolean;
+    splitBy?: string;
+    splitRoots?: boolean;
+    budget?: number;
+    steps?: string;
+    from?: string;
+    to?: string;
+    size?: string;
     views?: string;
 };
 export declare function viewDefaultProfile(kind: ViewKind): ViewProfile | undefined;
@@ -81,6 +100,9 @@ export type ViewCompare = (general: Doc, specific: Doc, options: ViewOptions) =>
     verdict: string;
     code: string;
 };
+export declare const PART_TOKEN = "{part}";
+export declare function viewSplits(o: ViewOptions): boolean;
+export declare function viewPartFile(out: string, name: string): string;
 export type ViewHooks = {
     compare?: ViewCompare;
     provenance?: () => Provenance;

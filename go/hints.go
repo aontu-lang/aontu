@@ -89,7 +89,7 @@ var hints = map[string]string{
 	"refer_address":            "A refer() was given something that is not a tree address. An address\nis a PATH VALUE — `path($.a.b)` from the document root, `path(.b)`\nfrom the link's own sibling scope — and only a path value can be one:\na bare string never is, and `path(\"...\")` is the one conversion.\n \nExamples:\n  refer() & path($.services.auth)  -> ...   # From the root;\n  refer() & path(.auth)            -> ...   # ... or beside the link;\n  refer() & \"$.services.auth\"      -> nil   # ... a string is not a path;\n  refer() & 1                      -> nil   # ... and neither is a number.",
 	"refer_unresolved":         "A refer() address names no node in this evaluation. Within one\nevaluation the document-set is fixed, so a link to nothing is an error\nrather than something to resolve later: check the spelling, or add the\nnode it was meant to reach. A relative address that climbs off the top\nof the tree lands here too.\n \nExamples:\n  a:{p:1} b:refer()&\"$.a\"    -> \"$.a\"    # $.a is a node;\n  a:{p:1} b:refer()&\"$.a.p\"  -> \"$.a.p\"  # ... and so is a node inside it;\n  b:refer()&\"$.nope\"         -> nil      # ... but nothing is here.",
 	"view_relation_unknown":    "The relation named to the view has no edges in this document, so\nthe figure would be empty -- and an empty figure and a misspelled name are\nthe same file on disk. Check the spelling against the relations the\nnote lists, or drop the relation to draw every relation at once.",
-	"view_kind_unknown":        "The figure kind is not one the verb draws. The kinds are tree, matrix,\ngraph, layer, sets, layers, ladder and poset; the note lists them.",
+	"view_kind_unknown":        "The figure kind is not one the verb draws. The note lists\nthe kinds.",
 	// RETIRED with the render verb (ADR-038), registered still: a code a
 	// released engine raised keeps its meaning (errcodes.tsv is append-only).
 	"render_path":              "A unit path is written below the output directory: relative, with no\n`..` segment, and no two units the same. Rename the unit.",
@@ -106,8 +106,13 @@ var hints = map[string]string{
 	"view_sets_shape":          "The set panel reads generated values: --sets must name a map whose\nvalues each hold the --member field as a list of strings, and\n--universe a map or a list of strings. The path in the finding is the\nvalue that has another shape.",
 	"view_sets_required":       "The set panel needs both --sets (the map whose keys are the sets) and\n--member (the field holding each set's members).",
 	"view_at_required":         "The meet ladder draws the contributions at ONE path, and none was\nnamed. Pass --at with the path, as `aontu why` takes it.",
-	"view_group_required":      "The layer diagram puts each node in the band its --group-by field\nnames, and no field was named. Pass --group-by with the field that\nholds each node's layer.",
+	"view_group_required":      "The layer diagram puts each node in the band its --group-by field\nnames, and the swim lanes each step in the lane it names; no field was\nnamed. Pass --group-by with the field that holds each node's layer.",
 	"view_document_shape":      "A view document declares each figure as a map of view options --\nthe flag names without the dashes -- and every declaration must name\nits `kind` and the `out` file it draws into. This one names an option\nthat is not one, gives a value of the wrong shape, or leaves out what\nevery declaration needs. `aontu view --help` lists the options.",
+	"view_members_none":        "--of names a node whose links are the figure's members, and this one\nlinks to nothing (or, with --member, to nothing under that key). The\nnote lists the keys its links are under.",
+	"view_steps_required":      "The sequence reads a list of steps: --steps names it, and --from and\n--to name the fields of each step that hold its sender and receiver.",
+	"view_steps_shape":         "The sequence reads generated values: --steps must name a list, and\neach step must hold a string at its --from and --to fields. The path\nin the finding is the value that has another shape.",
+	"view_split_kind":          "A figure divides only where each part stands as a figure of its own:\nthe link figures, the document and the treemap by --split-by,\n--split-roots and --budget; a sequence by --split-by and --budget; a\nset panel by --budget. The lattice, ladder and poset do not divide.",
+	"view_part_names":          "A split names each part after its value, key or root, and a run of a\npart divided by --budget after its run too (billing.1, billing.2). Two\nparts of one name would be written to one file, so the split is\nrefused: divide by another field, or without --budget.",
 	"func_arity":               "This function was called with the wrong number of arguments:\n{func} takes {want}, but was given {got}.\n \nExamples:\n  upper(\"a\")     -> \"A\"  # One argument, which is what upper takes;\n  upper(\"a\",\"b\") -> nil  # ... so two is a mistake in the source;\n  key()          -> \"\"   # key takes none, or one level count;\n  neq(1,2,3)     -> neq  # ... and neq takes one or more exclusions.",
 	"elided_value":             "A key or element was written with no value after the colon. An\nelided value is a mistake in the source rather than a null: write\n`null` if that is what was meant, or supply the value.\n \nExamples:\n  a:null  -> null  # An explicit null, which is a value;\n  a:      -> nil   # ... but nothing at all is not;\n  a: b:1  -> {..}  # A colon chain is not an elision;\n  [1,]    -> [1]   # ... nor is a trailing comma.",
 	"alias_budget":             "Alias expansion is bounded but not small: a name that names names\nexpands to the product of what they hold, so twenty shallow\ndeclarations reach a million nodes. The expanded size is counted\nbefore evaluation and refused over the budget ({budget} nodes), so\nthe document is turned away rather than run until memory is gone.\n \nExpansion terminates whatever the budget: an alias takes no\nparameters, a cycle is refused, and a file declares finitely many\nnames. The budget is about SIZE, not about termination.\n \nRaise it with trust.budget.alias where the document is trusted and\nthe machine can hold the result.",
@@ -431,6 +436,11 @@ var codeClasses = map[string]string{
 	"view_at_required":        "reference",
 	"view_group_required":     "reference",
 	"view_document_shape":     "reference",
+	"view_members_none":       "reference",
+	"view_steps_required":     "reference",
+	"view_steps_shape":        "reference",
+	"view_split_kind":         "reference",
+	"view_part_names":         "reference",
 
 	// The formatter's self-check (docs/design/FMT.0.md): a report-layer
 	// code, class internal -- the formatter, not the document, is wrong.

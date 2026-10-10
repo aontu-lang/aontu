@@ -1370,6 +1370,63 @@ describe('cli-subsume', () => {
   })
 
 
+  test('view-split-writes-one-file-per-part', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vs-'))
+    const file = Path.join(dir, 'doc.aontu')
+    Fs.writeFileSync(file,
+      'a: {team: x, dependsOn: [&: refer(), path($.b)]}\n' +
+      'b: {team: y}\n' +
+      'views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}\n')
+    const out = Path.join(dir, 'p-{part}.mmd')
+
+    // Without the token there is nowhere to put the second part.
+    Assert.match(vetCapture(() => Assert.equal(runView(['graph', '--split-by',
+      'team', '--out', Path.join(dir, 'p.mmd'), file]), 2)).err,
+      /--out needs \{part\}/)
+
+    Assert.equal(vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'team', '--out', out, file]), 0)).err, '')
+    Assert.match(Fs.readFileSync(Path.join(dir, 'p-x.mmd'), 'utf8'),
+      /xn_b\["b \(in y\)"\]/)
+    Assert.match(Fs.readFileSync(Path.join(dir, 'p-y.mmd'), 'utf8'),
+      /xn_a\["a \(in x\)"\]/)
+
+    // --check compares every part, and names each one that differs.
+    Assert.equal(vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'team', '--out', out, '--check', file]), 0)).err, '')
+    Fs.writeFileSync(Path.join(dir, 'p-y.mmd'), 'stale\n')
+    const stale = vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'team', '--out', out, '--check', file]), 1)).err
+    Assert.match(stale, /p-y\.mmd differs from the graph figure/)
+    Assert.doesNotMatch(stale, /p-x\.mmd/)
+
+    // The JSON report carries the parts.
+    const json = JSON.parse(vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'team', '--format', 'json', file]), 0)).out)
+    Assert.deepEqual(json.parts.map((p: any) => p.name), ['x', 'y'])
+
+    // A view document writes each part beside itself.
+    const set = vetCapture(() => Assert.equal(
+      runView(['--views', '$.views', file]), 0)).err
+    Assert.match(set, /wrote g-x\.mmd {2}g \(graph\)/)
+    Assert.match(set, /wrote g-y\.mmd {2}g \(graph\)/)
+    const setJson = JSON.parse(vetCapture(() => Assert.equal(runView(
+      ['--views', '$.views', '--format', 'json', '--check', file]), 0)).out)
+    Assert.equal(setJson.views[0].parts.length, 2)
+
+    // A part that cannot be written is a usage error, not a crash.
+    Assert.match(vetCapture(() => Assert.equal(runView(['graph', '--split-by',
+      'team', '--out', Path.join(dir, 'nope', 'p-{part}.mmd'), file]), 2)).err,
+      /cannot write/)
+
+    // A split with no parts writes no file at all.
+    const none = Path.join(dir, 'n-{part}.mmd')
+    vetCapture(() => Assert.equal(runView(
+      ['graph', '--split-by', 'nofield', '--out', none, file]), 0))
+    Assert.equal(Fs.readdirSync(dir).some((f) => f.startsWith('n-')), false)
+  })
+
+
   test('view-document-usage-errors', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vdu-'))
     const file = Path.join(dir, 'views.aontu')

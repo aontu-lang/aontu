@@ -4,6 +4,7 @@ package aontu
 
 
 import (
+	"math"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -45,6 +46,10 @@ type ViewReport struct {
 
 	// Loss is the loss report, in code order. Empty on `error`.
 	Loss []ViewLoss `json:"loss"`
+
+	// Parts is a split figure's parts, each a whole figure of its own;
+	// Text is then all of them, each under a comment naming it.
+	Parts []ViewPart `json:"parts,omitempty"`
 
 	// Errors is WHY the figure could not be drawn, in vet's finding
 	// shape. Present ONLY on `error`.
@@ -103,6 +108,40 @@ type ViewOptions struct {
 	// figure draws. Zero means the default, three, in both ports.
 	Depth int
 
+	// Of draws only the members of this node: what its links point
+	// at, or with Member only the links under that key. Ghosts keeps
+	// the edges that leave the selection, drawing their far end as a
+	// ghost.
+	Of     string
+	Ghosts bool
+
+	// Columns is the field of each node holding its columns (graph as
+	// er).
+	Columns string
+
+	// Counts titles each group with its member count, and CountBy with
+	// its members counted by that field's value; Collapse draws one
+	// node per group, the surface map.
+	Counts   bool
+	CountBy  string
+	Collapse bool
+
+	// SplitBy, SplitRoots and Budget divide the figure into parts: by a
+	// field's value, by root, or into parts of at most Budget nodes,
+	// rows, steps or columns, as the kind counts them.
+	SplitBy    string
+	SplitRoots bool
+	Budget     int
+
+	// Steps is the sequence's list of steps, and From and To the fields
+	// naming each step's ends.
+	Steps string
+	From  string
+	To    string
+
+	// Size is the numeric field weighing each treemap item.
+	Size string
+
 	// Views is the VIEW DOCUMENT's declarations (VIEWS.0.md, "6. The
 	// view document"): the path of a map whose values declare figures.
 	// ViewSet reads it; View ignores it, because one call draws one
@@ -111,7 +150,8 @@ type ViewOptions struct {
 }
 
 // viewKinds lists each kind's profiles, the first being its default.
-var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset"}
+var viewKinds = []string{"doc", "lattice", "tree", "matrix", "graph", "layer", "sets", "layers", "ladder", "poset",
+	"state", "sequence", "lane", "treemap"}
 
 var viewProfiles = map[string][]string{
 	"doc":     {"text", "svg"},
@@ -124,11 +164,16 @@ var viewProfiles = map[string][]string{
 	"layers":  {"text", "svg"},
 	"ladder":  {"mermaid", "dot"},
 	"poset":   {"mermaid", "dot"},
+	"state":    {"mermaid", "text"},
+	"sequence": {"mermaid", "text"},
+	"lane":     {"mermaid", "text"},
+	"treemap":  {"mermaid", "text"},
 }
 
 // Loss codes that describe the drawing rather than a gap in it.
 var viewInformational = map[string]bool{
 	"edges_deduped": true, "inverse_suppressed": true, "crossings": true,
+	"edges_outside": true, "edges_internal": true, "treemap_empty": true,
 }
 
 const viewDefaultMaxRows = 60
@@ -173,10 +218,14 @@ func viewRootFinding(root, relation string, nodes []string) VetFinding {
 		root+" is not a node of the "+rel+"graph.", note)
 }
 
-func viewRowsFinding(rows, max int, narrow string) VetFinding {
+func viewRowsFinding(rows, max int, narrow string, divide bool) VetFinding {
+	hint := ""
+	if divide {
+		hint = "divide it with --budget, "
+	}
 	return viewFinding("view_rows_exceeded", "budget", "$",
 		"The figure has "+strconv.Itoa(rows)+" rows, above --max-rows "+
-			strconv.Itoa(max)+"; narrow it with "+narrow+", or raise the limit.",
+			strconv.Itoa(max)+"; narrow it with "+narrow+", "+hint+"or raise the limit.",
 		"rows: "+strconv.Itoa(rows)+", max: "+strconv.Itoa(max))
 }
 
@@ -503,7 +552,8 @@ type treeFrame struct {
 	at, row      int
 }
 
-func drawTree(all []drawnEdge, relation string, roots []string, max int, as, style string) (string, []VetFinding) {
+func drawTree(all []drawnEdge, relation string, roots []string, max int, as, style string,
+	ghosts viewGhosts, members []string, rest bool) (string, []VetFinding) {
 	paint := newPainter(style)
 	kept := all
 	if "" != relation {
@@ -530,17 +580,24 @@ func drawTree(all []drawnEdge, relation string, roots []string, max int, as, sty
 		return "", []VetFinding{viewRelationFinding(relation, have)}
 	}
 
-	from, to := []string{}, []string{}
+	// The node set is what the drawn relation CONNECTS, and a part's
+	// own nodes.
+	from, to := append([]string{}, members...), append([]string{}, members...)
 	for _, e := range kept {
 		from = append(from, e.from)
 		to = append(to, e.to)
 	}
 	nodes := viewNodes(from, to)
 	if max < len(nodes) {
-		return "", []VetFinding{viewRowsFinding(len(nodes), max, "--at, --relation or --root")}
+		return "", []VetFinding{viewRowsFinding(len(nodes), max, "--at, --relation or --root", true)}
 	}
 	labels := shortLabels(nodes)
-	label := func(n string) string { return labels[n] }
+	label := func(n string) string {
+		if where, ghost := ghosts[n]; ghost {
+			return viewGhostLabel(labels[n], where)
+		}
+		return labels[n]
+	}
 
 	kids := map[string][]treeKid{}
 	for _, n := range nodes {
@@ -664,7 +721,8 @@ func drawTree(all []drawnEdge, relation string, roots []string, max int, as, sty
 		draw(root)
 	}
 
-	if 0 == len(roots) {
+	// A part draws every node it holds, after the roots named in it.
+	if 0 == len(roots) || rest {
 		for _, n := range nodes {
 			if !expanded[n] {
 				draw(n)
@@ -762,12 +820,17 @@ func viewPickRelation(relation string, keys []string) (string, *VetFinding) {
 }
 
 func drawMatrix(triples []viewTriple, decls map[string]*relDecl,
-	relation, order string, closure bool, as, style string, max int,
+	relation, order string, closure bool, as, style string,
+	ghosts viewGhosts, members []string, picked bool, max int,
 	loss *[]ViewLoss) (string, []VetFinding) {
 	paint := newPainter(style)
-	relation, perr := viewPickRelation(relation, viewKeys(triples))
-	if nil != perr {
-		return "", []VetFinding{*perr}
+	// A part is drawn over the relation its whole figure picked.
+	if !picked {
+		var perr *VetFinding
+		relation, perr = viewPickRelation(relation, viewKeys(triples))
+		if nil != perr {
+			return "", []VetFinding{*perr}
+		}
 	}
 	rel := []viewTriple{}
 	for _, e := range triples {
@@ -775,12 +838,17 @@ func drawMatrix(triples []viewTriple, decls map[string]*relDecl,
 			rel = append(rel, e)
 		}
 	}
-	nodes := viewTripleNodes(rel)
+	nodes := viewGraphPaths(rel, members)
 	if max < len(nodes) {
-		return "", []VetFinding{viewRowsFinding(len(nodes), max, "--at or --relation")}
+		return "", []VetFinding{viewRowsFinding(len(nodes), max, "--at or --relation", true)}
 	}
 	labels := shortLabels(nodes)
-	label := func(n string) string { return labels[n] }
+	label := func(n string) string {
+		if where, ghost := ghosts[n]; ghost {
+			return viewGhostLabel(labels[n], where)
+		}
+		return labels[n]
+	}
 
 	succ := map[string][]string{}
 	for _, n := range nodes {
@@ -885,6 +953,7 @@ type graphNode struct {
 	path, label, id string
 	group           string
 	grouped         bool
+	ghost           bool
 }
 
 // viewFieldOf is a node's field, as label text: the value of a scalar
@@ -901,211 +970,6 @@ func viewFieldOf(root Val, path, field string) (string, bool) {
 	return sv.Canon(), true
 }
 
-func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
-	relations []string, groupBy, labelField, as string, max int,
-	loss *[]ViewLoss) (string, []VetFinding) {
-	keys := viewKeys(triples)
-	for _, r := range relations {
-		if !contains(keys, r) {
-			return "", []VetFinding{viewRelationFinding(r, keys)}
-		}
-	}
-	kept := triples
-	if 0 < len(relations) {
-		kept = []viewTriple{}
-		for _, e := range triples {
-			if contains(relations, e.key) {
-				kept = append(kept, e)
-			}
-		}
-	}
-
-	declared := func(key, mirror string) bool {
-		d, ok := decls[key]
-		return ok && d.inverses[mirror]
-	}
-	edges := []viewTriple{}
-	suppressed := 0
-	for _, e := range kept {
-		mirror := false
-		for _, m := range kept {
-			if m.from == e.to && m.to == e.from && declared(m.key, e.key) {
-				mirror = true
-				break
-			}
-		}
-		if mirror {
-			suppressed++
-		} else {
-			edges = append(edges, e)
-		}
-	}
-	if 0 < suppressed {
-		*loss = append(*loss, ViewLoss{Code: "inverse_suppressed", Count: suppressed})
-	}
-
-	paths := viewTripleNodes(edges)
-	if max < len(paths) {
-		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
-	}
-	labels := shortLabels(paths)
-
-	unresolved := []string{}
-	nodes := []*graphNode{}
-	byPath := map[string]*graphNode{}
-	for _, p := range paths {
-		n := &graphNode{path: p, label: labels[p], id: viewIdent(labels[p])}
-		if "" != groupBy {
-			if g, ok := viewFieldOf(root, p, groupBy); ok {
-				n.group, n.grouped = g, true
-			} else {
-				unresolved = append(unresolved, p+"."+groupBy)
-			}
-		}
-		if "" != labelField {
-			if l, ok := viewFieldOf(root, p, labelField); ok {
-				n.label = l
-			} else {
-				unresolved = append(unresolved, p+"."+labelField)
-			}
-		}
-		nodes = append(nodes, n)
-		byPath[p] = n
-	}
-	if 0 < len(unresolved) {
-		sort.Strings(unresolved)
-		*loss = append(*loss, ViewLoss{Code: "unresolved_field", Count: len(unresolved), Detail: unresolved})
-	}
-
-	for _, n := range nodes {
-		if viewHasLineBreak(n.label) || viewHasLineBreak(n.group) {
-			return "", []VetFinding{viewLineBreakFinding(n.path)}
-		}
-	}
-
-	groupSeen := map[string]bool{}
-	groups := []string{}
-	for _, n := range nodes {
-		if n.grouped && !groupSeen[n.group] {
-			groupSeen[n.group] = true
-			groups = append(groups, n.group)
-		}
-	}
-	sort.Strings(groups)
-	byLabel := func(ns []*graphNode) []*graphNode {
-		sort.SliceStable(ns, func(i, j int) bool {
-			if ns[i].label != ns[j].label {
-				return ns[i].label < ns[j].label
-			}
-			return ns[i].path < ns[j].path
-		})
-		return ns
-	}
-	inGroup := func(g string) []*graphNode {
-		ns := []*graphNode{}
-		for _, n := range nodes {
-			if n.grouped && n.group == g {
-				ns = append(ns, n)
-			}
-		}
-		return byLabel(ns)
-	}
-	emitted := []*graphNode{}
-	for _, g := range groups {
-		emitted = append(emitted, inGroup(g)...)
-	}
-	loose := []*graphNode{}
-	for _, n := range nodes {
-		if !n.grouped {
-			loose = append(loose, n)
-		}
-	}
-	loose = byLabel(loose)
-	emitted = append(emitted, loose...)
-
-	at := map[string]int{}
-	for i, n := range emitted {
-		at[n.path] = i
-	}
-	drawn := append([]viewTriple{}, edges...)
-	sort.SliceStable(drawn, func(i, j int) bool {
-		a, b := drawn[i], drawn[j]
-		if byPath[a.from].label != byPath[b.from].label {
-			return byPath[a.from].label < byPath[b.from].label
-		}
-		if byPath[a.to].label != byPath[b.to].label {
-			return byPath[a.to].label < byPath[b.to].label
-		}
-		return a.key < b.key
-	})
-
-	crossings := 0
-	span := func(e viewTriple) (int, int) {
-		a, b := at[e.from], at[e.to]
-		if a < b {
-			return a, b
-		}
-		return b, a
-	}
-	for i := 0; i < len(drawn); i++ {
-		for j := i + 1; j < len(drawn); j++ {
-			a1, b1 := span(drawn[i])
-			a2, b2 := span(drawn[j])
-			if (a1 < a2 && a2 < b1 && b1 < b2) || (a2 < a1 && a1 < b2 && b2 < b1) {
-				crossings++
-			}
-		}
-	}
-	if 0 < crossings {
-		*loss = append(*loss, ViewLoss{Code: "crossings", Count: crossings})
-	}
-
-	id := func(p string) string { return byPath[p].id }
-	out := []string{}
-	switch as {
-	case "mermaid":
-		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
-		out = append(out, "flowchart LR")
-		for gi, g := range groups {
-			out = append(out, "  subgraph g"+strconv.Itoa(gi)+"[\""+esc(g)+"\"]")
-			for _, n := range inGroup(g) {
-				out = append(out, "    "+n.id+"[\""+esc(n.label)+"\"]")
-			}
-			out = append(out, "  end")
-		}
-		for _, n := range loose {
-			out = append(out, "  "+n.id+"[\""+esc(n.label)+"\"]")
-		}
-		for _, e := range drawn {
-			out = append(out, "  "+id(e.from)+" -->|\""+esc(e.key)+"\"| "+id(e.to))
-		}
-	case "dot":
-		esc := func(s string) string { return viewEscape(s, dotEsc) }
-		out = append(out, "digraph G {", "  rankdir=LR;", "  node [shape=box];")
-		for gi, g := range groups {
-			out = append(out, "  subgraph cluster_g"+strconv.Itoa(gi)+" {", "    label=\""+esc(g)+"\";")
-			for _, n := range inGroup(g) {
-				out = append(out, "    "+n.id+" [label=\""+esc(n.label)+"\"];")
-			}
-			out = append(out, "  }")
-		}
-		for _, n := range loose {
-			out = append(out, "  "+n.id+" [label=\""+esc(n.label)+"\"];")
-		}
-		for _, e := range drawn {
-			out = append(out, "  "+id(e.from)+" -> "+id(e.to)+" [label=\""+esc(e.key)+"\"];")
-		}
-		out = append(out, "}")
-	default:
-		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
-		out = append(out, "erDiagram")
-		for _, e := range drawn {
-			out = append(out, "  "+id(e.from)+" }o--o{ "+id(e.to)+" : \""+esc(e.key)+"\"")
-		}
-	}
-	return strings.Join(out, "\n"), nil
-}
-
 // ---------------------------------------------------------------------
 // The architecture layers
 
@@ -1120,7 +984,8 @@ type viewBand struct {
 // relation's upward edges named under the figure. See drawLayer in
 // ts/src/view.ts.
 func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers []string,
-	edges, as, style string, max int, loss *[]ViewLoss) (string, []VetFinding) {
+	edges, as, style string, counts bool, countBy string, ghosts viewGhosts, members []string,
+	max int, loss *[]ViewLoss) (string, []VetFinding) {
 	if "" == groupBy {
 		return "", []VetFinding{viewFinding("view_group_required", "reference", "$",
 			"The layer diagram needs the field that names each node's layer; name it with --group-by.", "")}
@@ -1135,9 +1000,9 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 			rel = append(rel, e)
 		}
 	}
-	paths := viewTripleNodes(rel)
+	paths := viewGraphPaths(rel, members)
 	if max < len(paths) {
-		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation")}
+		return "", []VetFinding{viewRowsFinding(len(paths), max, "--at or --relation", true)}
 	}
 	labels := shortLabels(paths)
 
@@ -1151,12 +1016,12 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		} else {
 			unresolved = append(unresolved, p+"."+groupBy)
 		}
+		if where, ghost := ghosts[p]; ghost {
+			n.ghost, n.id = true, "x"+n.id
+			n.label = viewGhostLabel(n.label, where)
+		}
 		nodes = append(nodes, n)
 		byPath[p] = n
-	}
-	if 0 < len(unresolved) {
-		sort.Strings(unresolved)
-		*loss = append(*loss, ViewLoss{Code: "unresolved_field", Count: len(unresolved), Detail: unresolved})
 	}
 	for _, n := range nodes {
 		if viewHasLineBreak(n.group) {
@@ -1222,8 +1087,13 @@ func drawLayer(triples []viewTriple, root Val, relation, groupBy string, layers 
 		// Labels are unique in a drawing, so they order a band on their
 		// own.
 		sort.SliceStable(ns, func(x, y int) bool { return ns[x].label < ns[y].label })
-		bands = append(bands, viewBand{name: name, nodes: ns})
+		bands = append(bands, viewBand{
+			name: viewGroupTitle(name, ns, root, counts, countBy, &unresolved), nodes: ns})
+		if viewHasLineBreak(bands[len(bands)-1].name) {
+			return "", []VetFinding{viewLineBreakFinding(ns[0].path)}
+		}
 	}
+	viewUnresolvedLoss(unresolved, loss)
 
 	drawn := append([]viewTriple{}, rel...)
 	sort.SliceStable(drawn, func(i, j int) bool {
@@ -1373,6 +1243,8 @@ type viewPanel struct {
 	cols   []viewColumn
 	bars   bool
 	none   string
+	// How many columns come before these, on a page of a divided panel.
+	first int
 }
 
 // viewColumns groups elements by their exact membership signature;
@@ -1564,8 +1436,34 @@ func viewStrings(xs []any) ([]string, bool) {
 	return out, true
 }
 
-func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as, style string, max int,
-	loss *[]ViewLoss) (string, []VetFinding) {
+// viewPanelFigure is the panel, or with a budget its pages of at most
+// that many columns, each numbering its columns as the whole panel does.
+func viewPanelFigure(panel viewPanel, about func(cols []viewColumn) string,
+	as, style string, budget int, parts *[]ViewPart) (string, []VetFinding) {
+	draw := func(p viewPanel) string {
+		if "svg" == as {
+			return panelSvg(p, about(p.cols), style)
+		}
+		return renderPanel(p, style)
+	}
+	if 0 == budget {
+		return draw(panel), nil
+	}
+	pages := []viewRun[viewColumn]{{name: "1", items: []viewColumn{}}}
+	if 0 < len(panel.cols) {
+		pages = viewBudgeted([]viewRun[viewColumn]{{numbered: true, items: panel.cols}}, budget)
+	}
+	drawn := []ViewPart{}
+	for i, page := range pages {
+		p := panel
+		p.cols, p.first = page.items, i*budget
+		drawn = append(drawn, ViewPart{Name: page.name, Text: draw(p)})
+	}
+	return viewJoinParts(as, drawn, parts)
+}
+
+func drawSets(gen any, sets, member, universe string, minDegree, maxCols, budget int,
+	as, style string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
 	fam, _ := viewGenAt(gen, sets)
 	family, ok := fam.(map[string]any)
 	if !ok {
@@ -1577,7 +1475,7 @@ func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as
 	}
 	sort.Strings(names)
 	if max < len(names) {
-		return "", []VetFinding{viewRowsFinding(len(names), max, "--sets")}
+		return "", []VetFinding{viewRowsFinding(len(names), max, "--sets", false)}
 	}
 	members := map[string]map[string]bool{}
 	elemSeen := map[string]bool{}
@@ -1676,12 +1574,10 @@ func drawSets(gen any, sets, member, universe string, minDegree, maxCols int, as
 		header: header, names: names, sizes: sizes, cols: cols,
 		bars: true, none: "   (in no set)",
 	}
-	if "svg" == as {
-		return panelSvg(panel, "Set panel over "+sets+": "+strconv.Itoa(len(names))+" sets, "+
-			strconv.Itoa(len(elements))+" elements, "+strconv.Itoa(len(cols))+" intersections",
-			style), nil
-	}
-	return renderPanel(panel, style), nil
+	return viewPanelFigure(panel, func(shown []viewColumn) string {
+		return "Set panel over " + sets + ": " + strconv.Itoa(len(names)) + " sets, " +
+			strconv.Itoa(len(elements)) + " elements, " + strconv.Itoa(len(shown)) + " intersections"
+	}, as, style, budget, parts)
 }
 
 // viewDocName is the file a contribution names, as the panel shows it:
@@ -1711,8 +1607,8 @@ func viewDocName(file, entry string) string {
 // drawLayers is the set panel over the provenance record: every path
 // something met at AND THE DOCUMENT HAS A VALUE AT, by the documents
 // that met there. See drawLayers in ts/src/view.ts.
-func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols int, as, style string, max int,
-	loss *[]ViewLoss) (string, []VetFinding) {
+func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols, budget int,
+	as, style string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
 	members := map[string]map[string]bool{}
 	paths := []string{}
 	atParts := queryPathParts(at)
@@ -1759,7 +1655,7 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols i
 	}
 	sort.Strings(names)
 	if max < len(names) {
-		return "", []VetFinding{viewRowsFinding(len(names), max, "--at")}
+		return "", []VetFinding{viewRowsFinding(len(names), max, "--at", false)}
 	}
 	cols := viewColumns(names, members, paths, func(p string) string { return p })
 	if 0 < minSize {
@@ -1785,12 +1681,10 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols i
 			"  paths=" + strconv.Itoa(len(paths)),
 		names: names, sizes: sizes, cols: cols, bars: false, none: "",
 	}
-	if "svg" == as {
-		return panelSvg(panel, "Document layers: "+strconv.Itoa(len(names))+" documents, "+
-			strconv.Itoa(len(paths))+" paths, "+strconv.Itoa(len(cols))+" intersections",
-			style), nil
-	}
-	return renderPanel(panel, style), nil
+	return viewPanelFigure(panel, func(shown []viewColumn) string {
+		return "Document layers: " + strconv.Itoa(len(names)) + " documents, " +
+			strconv.Itoa(len(paths)) + " paths, " + strconv.Itoa(len(shown)) + " intersections"
+	}, as, style, budget, parts)
 }
 
 // ---------------------------------------------------------------------
@@ -1826,7 +1720,7 @@ func (a *Aontu) drawLadder(src, at, as string, max int) (string, []VetFinding) {
 		return x.Site.Col < y.Site.Col
 	})
 	if max < len(rungs) {
-		return "", []VetFinding{viewRowsFinding(len(rungs), max, "a narrower --at")}
+		return "", []VetFinding{viewRowsFinding(len(rungs), max, "a narrower --at", false)}
 	}
 	// An unnamed source is shown as nothing, not as `.` -- the base of
 	// an empty path is empty in the canonical port.
@@ -1955,7 +1849,7 @@ func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as string, max int,
 	}
 	sort.SliceStable(classes, func(x, y int) bool { return classes[x].label < classes[y].label })
 	if max < len(classes) {
-		return "", []VetFinding{viewRowsFinding(len(classes), max, "fewer documents")}
+		return "", []VetFinding{viewRowsFinding(len(classes), max, "fewer documents", false)}
 	}
 	for _, c := range classes {
 		if viewHasLineBreak(c.label) {
@@ -2185,6 +2079,10 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			style+" is not a style.", "styles: auto, none, ansi, css")})
 	}
 
+	if refused := viewSplitRefusal(kind, &options); nil != refused {
+		return done("", []VetFinding{*refused})
+	}
+
 	max := options.MaxRows
 	if 0 == max {
 		max = viewDefaultMaxRows
@@ -2218,73 +2116,231 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 	if nil != errs {
 		return done("", errs)
 	}
-	return done(a.drawLoaded(root, ctx, nil, prov, kind, as, &options, max, &loss))
-}
-
-// viewGen boxes a generated value, so a caller that already holds one
-// (a view document reads its declarations out of one) hands it over
-// rather than generating again. See drawLoaded in ts/src/view.ts.
-type viewGen struct {
-	value any
+	parts := []ViewPart{}
+	report := done(a.drawLoaded(root, ctx, prov, kind, as, &options, max, &loss, &parts))
+	if viewSplits(&options) && "error" != report.Verdict {
+		report.Parts = parts
+	}
+	return report
 }
 
 // drawLoaded is THE KINDS THAT DRAW FROM A LOADED MODEL, so a view
 // document can load once and draw N figures from the one evaluation.
-func (a *Aontu) drawLoaded(root Val, ctx *Ctx, gen *viewGen, prov *Provenance,
-	kind, as string, options *ViewOptions, max int, loss *[]ViewLoss) (string, []VetFinding) {
+func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
+	kind, as string, options *ViewOptions, max int, loss *[]ViewLoss,
+	parts *[]ViewPart) (string, []VetFinding) {
 	style := viewStyleOf(options.Style, as)
+	splitting := viewSplits(options)
 	if "doc" == kind {
-		return drawDoc(root, options.At, options.Depth, as, style, max, loss)
+		if splitting {
+			return drawDocParts(root, options, as, style, max, loss, parts)
+		}
+		return drawDoc(root, options.At, options.Depth, nil, nil, as, style, max, loss)
 	}
 	if "lattice" == kind {
 		return drawLattice(root, options.At, as, style, max, loss)
 	}
 	if "layers" == kind {
 		return drawLayers(prov, root, a.File, options.At, options.MinSize, options.MaxCols,
-			as, style, max, loss)
+			options.Budget, as, style, max, loss, parts)
 	}
-	if "sets" == kind {
-		if "" == options.Sets || "" == options.Member {
+	if "sets" == kind || "sequence" == kind {
+		if "sets" == kind && ("" == options.Sets || "" == options.Member) {
 			return "", []VetFinding{viewFinding("view_sets_required", "reference", "$",
 				"The set panel needs --sets and --member.", "")}
 		}
-		var value any
-		if nil == gen {
-			// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel
-			// reads generated values, so a document that is not concrete
-			// is an error here, exactly as `aontu file.aontu` on it is.
-			v, gerr := genCollect(ctx, root)
+		if "sequence" == kind && ("" == options.Steps || "" == options.From || "" == options.To) {
+			return "", []VetFinding{viewFinding("view_steps_required", "reference", "$",
+				"The sequence needs --steps, --from and --to.", "")}
+		}
+		if "sequence" == kind {
+			// The steps are generated alone: a model whose schema half is
+			// not concrete can still list its sequences.
+			steps := anchorAt(root, options.Steps)
+			if nil == steps {
+				return "", []VetFinding{viewFinding("no_path", "reference", options.Steps,
+					"The path "+options.Steps+" names nothing in this document.", "")}
+			}
+			listed, gerr := genCollect(ctx, steps)
 			if nil != gerr {
 				return "", queryFailed(gerr, "$").Findings
 			}
-			value = v
-		} else {
-			value = gen.value
+			return drawSequence(listed, options.Steps, options.From, options.To,
+				options.Label, options.SplitBy, options.Budget, as, max, loss, parts)
+		}
+		// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
+		// generated values, so a document that is not concrete is an
+		// error here, exactly as `aontu file.aontu` on it is.
+		value, gerr := genCollect(ctx, root)
+		if nil != gerr {
+			return "", queryFailed(gerr, "$").Findings
 		}
 		return drawSets(value, options.Sets, options.Member, options.Universe,
-			options.MinDegree, options.MaxCols, as, style, max, loss)
+			options.MinDegree, options.MaxCols, options.Budget, as, style, max, loss, parts)
 	}
 
-	triples := viewTriples(GraphOf(root), options.At, loss)
-	decls := ctx.reldecls
-	if "matrix" == kind {
-		order := options.Order
-		if "" == order {
-			order = "canon"
+	sel := viewSelection{triples: viewTriples(GraphOf(root), options.At, loss), ghosts: viewGhosts{}}
+	if "" != options.Columns {
+		// A link written as a column is the entity's own relationship,
+		// named by the column.
+		tail := "." + options.Columns
+		for i, e := range sel.triples {
+			if strings.HasSuffix(e.from, tail) {
+				sel.triples[i].from = strings.TrimSuffix(e.from, tail)
+			}
 		}
-		return drawMatrix(triples, decls, options.Relation, order, options.Closure,
-			as, style, max, loss)
 	}
-	if "graph" == kind {
-		return drawGraph(triples, decls, root, options.Relations,
-			options.GroupBy, options.Label, as, max, loss)
+	if "" != options.Of {
+		into := loss
+		if "treemap" == kind {
+			into = &[]ViewLoss{}
+		}
+		picked, perr := viewSelectMembers(sel.triples, options.Of, options.Member,
+			options.Ghosts && contains(viewEdgeKinds, kind), into)
+		if nil != perr {
+			return "", []VetFinding{*perr}
+		}
+		sel = picked
 	}
-	if "layer" == kind {
-		return drawLayer(triples, root, options.Relation, options.GroupBy, options.Layers,
-			options.Edges, as, style, max, loss)
+	if "treemap" == kind {
+		if splitting {
+			return drawTreemapParts(root, options, sel.members, sel.selected, as, style,
+				max, loss, parts)
+		}
+		return drawTreemap(root, options.At, options.Depth, options.GroupBy, options.Size,
+			sel.members, sel.selected, as, style, max, loss)
 	}
-	return drawTree(collapseEdges(triples, options.Relation), options.Relation, options.Roots,
-		max, as, style)
+
+	decls := ctx.reldecls
+	// The relation a matrix or a layer figure is drawn over, as the whole
+	// figure picks it; a part is drawn over the same one.
+	picked, _ := viewPickRelation(options.Relation, viewKeys(sel.triples))
+	draw := func(s viewSelection, rows int, into *[]ViewLoss, inPart bool,
+		partRoots []string) (string, []VetFinding) {
+		relations := options.Relations
+		if inPart {
+			relations = nil
+		}
+		switch kind {
+		case "graph":
+			return drawGraph(s.triples, decls, root, viewGraphOpts{
+				relations: relations, groupBy: options.GroupBy, label: options.Label, as: as,
+				members: s.members, ghosts: s.ghosts, columns: options.Columns,
+				counts: options.Counts, countBy: options.CountBy, collapse: options.Collapse,
+			}, rows, into)
+		case "state":
+			return drawState(s.triples, root, relations, options.Label, as,
+				s.members, s.ghosts, partRoots, 0 < len(options.Roots), rows, into)
+		case "lane":
+			return drawLane(s.triples, root, viewLaneOpts{
+				relations: relations, groupBy: options.GroupBy, label: options.Label,
+				layers: options.Layers, as: as, members: s.members, ghosts: s.ghosts,
+				counts: options.Counts, countBy: options.CountBy,
+			}, rows, into)
+		case "matrix":
+			order := options.Order
+			if "" == order {
+				order = "canon"
+			}
+			relation := options.Relation
+			if inPart {
+				relation = picked
+			}
+			return drawMatrix(s.triples, decls, relation, order, options.Closure,
+				as, style, s.ghosts, s.members, inPart, rows, into)
+		case "layer":
+			return drawLayer(s.triples, root, options.Relation, options.GroupBy, options.Layers,
+				options.Edges, as, style, options.Counts, options.CountBy, s.ghosts, s.members,
+				rows, into)
+		}
+		return drawTree(collapseEdges(s.triples, options.Relation), options.Relation, partRoots,
+			rows, as, style, s.ghosts, s.members, inPart)
+	}
+	if !splitting {
+		return draw(sel, max, loss, false, options.Roots)
+	}
+	// THE WHOLE FIGURE IS DRAWN FIRST, for its refusals and its loss
+	// report; each part is then drawn on its own, under the row cap the
+	// whole figure was spared.
+	if _, werr := draw(sel, math.MaxInt, loss, false, options.Roots); nil != werr {
+		return "", werr
+	}
+	// The parts divide the edges the figure draws: its relations, and for
+	// a tree with named roots only what those roots reach.
+	keys := options.Relations
+	if "tree" == kind {
+		keys = nil
+		if "" != options.Relation {
+			keys = []string{options.Relation}
+		}
+	} else if "matrix" == kind || "layer" == kind {
+		keys = []string{picked}
+	}
+	scoped := sel
+	if 0 < len(keys) {
+		scoped.triples = []viewTriple{}
+		for _, e := range sel.triples {
+			if contains(keys, e.key) {
+				scoped.triples = append(scoped.triples, e)
+			}
+		}
+	}
+	if "tree" == kind && 0 < len(options.Roots) {
+		reached := map[string]bool{}
+		for _, r := range options.Roots {
+			reached[r] = true
+		}
+		drawn := collapseEdges(scoped.triples, options.Relation)
+		for grew := true; grew; {
+			grew = false
+			for _, e := range drawn {
+				if reached[e.from] && !reached[e.to] {
+					reached[e.to] = true
+					grew = true
+				}
+			}
+		}
+		kept := []viewTriple{}
+		for _, e := range scoped.triples {
+			if reached[e.from] && reached[e.to] {
+				kept = append(kept, e)
+			}
+		}
+		members := []string{}
+		for _, m := range scoped.members {
+			if reached[m] {
+				members = append(members, m)
+			}
+		}
+		scoped.triples, scoped.members = kept, members
+	}
+	cut := viewSplitParts(scoped, root, options, loss)
+	for _, part := range cut {
+		if viewHasLineBreak(part.name) {
+			return "", []VetFinding{viewLineBreakFinding(part.nodes[0])}
+		}
+	}
+	drawn := []ViewPart{}
+	for _, part := range cut {
+		roots := []string{}
+		for _, r := range options.Roots {
+			if contains(part.nodes, r) {
+				roots = append(roots, r)
+			}
+		}
+		// A matrix part keeps every edge touching it, so a mirror under a
+		// declared inverse is still seen.
+		from := scoped
+		if "matrix" == kind {
+			from = sel
+		}
+		text, perr := draw(viewPartSelection(from, cut, part), max, &[]ViewLoss{}, true, roots)
+		if nil != perr {
+			return "", perr
+		}
+		drawn = append(drawn, ViewPart{Name: part.name, Text: text})
+	}
+	return viewJoinParts(as, drawn, parts)
 }
 
 // ViewTree is the tree view of one document: View with the kind fixed.

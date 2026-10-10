@@ -319,8 +319,11 @@ Model why exit codes mirror get's: 0 explained, 1 the path names
 nothing, 2 usage, 4 the document does not stand up on its own.
 
 View kinds: doc, lattice, tree, matrix, graph, layer, sets, layers,
-ladder, poset (the poset takes several files). The figure goes to stdout, the loss
-report to stderr. With --views it draws every figure a document
+ladder, poset (the poset takes several files), state, sequence, lane,
+treemap. The figure goes to stdout, the loss report to stderr. A split
+figure (--split-by, --split-roots, --budget) is one figure per part:
+on stdout each under a comment naming it, and with --out one file
+each, the name's {part} replaced by the part's. With --views it draws every figure a document
 declares as data, from one evaluation: each declaration names its own
 kind and out file, nothing is written unless every figure rendered,
 and --check gates the committed set.
@@ -330,7 +333,9 @@ View options:
                     lattice, tree, matrix, sets and layers draw text
                     (default) or svg; graph draws mermaid (default),
                     dot or er; layer draws text (default), mermaid or
-                    svg; ladder and poset draw mermaid (default) or dot
+                    svg; ladder and poset draw mermaid (default) or dot;
+                    state, sequence, lane and treemap draw mermaid
+                    (default) or text
   --at <path>       Restrict the figure to nodes under this path; the
                     subtree doc draws; the subtree the lattice counts;
                     the path the ladder draws; where the poset compares
@@ -342,8 +347,10 @@ View options:
                     nothing is written
   --strict          Exit 1 when the loss report holds anything beyond
                     edges_deduped, inverse_suppressed and crossings
-  --depth <n>       doc: how many levels of key to draw (default 3)
-  --max-rows <n>    Refuse a figure above this many rows (default 60)
+  --depth <n>       doc, treemap: how many levels of key to draw
+                    (default 3)
+  --max-rows <n>    Refuse a figure above this many rows (default 60);
+                    a split figure holds each part to it
   --style <s>       auto (default), none, ansi or css. A figure's
                     marks carry their meaning -- a direct cell, a
                     closure cell, an upward edge -- and each profile
@@ -358,21 +365,54 @@ View options:
                     written to a file
   --format <f>      text (default) or json, the whole report
   --relation <n>    tree, matrix, layer: draw over this relation only;
-                    graph: keep this predicate (repeatable)
+                    graph, state, lane: keep this predicate
+                    (repeatable)
   --root <path>     tree: draw only the subtree under this node;
-                    repeatable
+                    state: this is an initial state; repeatable
   --order <o>       matrix: canon (default) or partition
   --closure         matrix: mark transitively reachable cells +
   --group-by <k>    graph: one subgraph per distinct value of field k;
-                    layer: one band per value (required)
+                    layer, lane: one band or lane per value
+                    (required); treemap: one tile per value
   --layers <a,b>    layer: the bands in this order, top first; without
-                    it the order is derived from the relation
+                    it the order is derived from the relation; lane:
+                    these lanes first
   --edges <e>       layer: which of the relation's edges to draw over
                     the bands -- upward (the violations, the default
                     for text and svg), all (mermaid's default) or none
-  --label <k>       graph: label each node with field k
+  --label <k>       graph, state, lane: label each node with field k;
+                    sequence: the message field of each step
+  --of <path>       Draw only the members of this node: what its
+                    links point at (with --member, only those under
+                    that key)
+  --ghosts          With --of: keep the edges that leave the
+                    selection, the far end drawn as a ghost
+  --columns <k>     graph --as er: field k of each node is a map of
+                    columns, drawn typed, a link marked FK
+  --counts          graph, layer, lane: each group's title carries
+                    its member count
+  --count-by <k>    ... and its members counted by field k
+  --collapse        graph: one node per --group-by value, edges
+                    between groups counted (the surface map)
+  --split-by <k>    One part per value of field k: of each node (graph,
+                    state, lane, tree, matrix, layer), of each child of
+                    the anchor (doc, treemap) or of each step
+                    (sequence)
+  --split-roots     One part per root, holding what it reaches first;
+                    doc, treemap: one part per child of the anchor
+  --budget <n>      Parts of at most n nodes, rows below the anchor
+                    (doc, treemap), steps (sequence) or columns (sets,
+                    layers), alone or after --split-by or
+                    --split-roots; an edge leaving a part draws its far
+                    end as a ghost
+  --steps <path>    sequence: the list of steps, in order
+  --from <k>        sequence: the field naming a step's sender
+  --to <k>          sequence: the field naming a step's receiver
+  --size <k>        treemap: weigh each item by its numeric field k
+                    (default: the scalar leaves under it)
   --sets <path>     sets: the map whose keys are the sets
-  --member <k>      sets: the field holding each set's members
+  --member <k>      sets: the field holding each set's members; with
+                    --of, the link key naming the members
   --universe <p>    sets: the full element domain, so the empty
                     column exists
   --min-degree <n>  sets: drop intersections below this degree
@@ -1802,7 +1842,7 @@ const REACHES_EXIT = {
 };
 const VIEW_HELP = 'aontu view <kind> [options] <file>... (try --help)';
 const VIEW_KINDS = ['doc', 'lattice', 'tree', 'matrix', 'graph', 'layer', 'sets', 'layers',
-    'ladder', 'poset'];
+    'ladder', 'poset', 'state', 'sequence', 'lane', 'treemap'];
 const VIEW_PROFILES = ['text', 'mermaid', 'dot', 'er', 'svg'];
 const VIEW_EDGES = ['upward', 'all', 'none'];
 // The styles the CLI accepts (VIEWS.0.md, "7. Styling"). `auto` is
@@ -1833,6 +1873,7 @@ const VIEW_USAGE_CODES = [
     'view_kind_unknown', 'view_profile_unknown', 'view_rows_exceeded',
     'view_at_required', 'view_sets_required', 'view_group_required',
     'view_document_shape', 'view_style_profile', 'view_style_unknown',
+    'view_steps_required', 'view_split_kind', 'view_part_names',
 ];
 const PKG_HELP = 'aontu pkg tidy|verify|vendor|manifest|refreeze|tree|outdated|serve [dir] | keygen <file> (try --help)';
 const PKG_SUBS = [
@@ -2934,12 +2975,18 @@ function runView(argv) {
         '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
         '--label': 'label', '--sets': 'sets', '--member': 'member',
         '--universe': 'universe', '--profile': 'profile', '--views': 'views',
-        '--edges': 'edges',
+        '--edges': 'edges', '--of': 'of', '--columns': 'columns',
+        '--count-by': 'countBy', '--split-by': 'splitBy', '--steps': 'steps',
+        '--from': 'from', '--to': 'to', '--size': 'size',
+    };
+    const flagged = {
+        '--closure': 'closure', '--ghosts': 'ghosts', '--counts': 'counts',
+        '--collapse': 'collapse', '--split-roots': 'splitRoots',
     };
     const counted = {
         '--max-rows': 'maxRows', '--max-cols': 'maxCols',
         '--min-degree': 'minDegree', '--min-size': 'minSize',
-        '--depth': 'depth',
+        '--depth': 'depth', '--budget': 'budget',
     };
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -2991,8 +3038,8 @@ function runView(argv) {
         else if ('--strict' === arg) {
             strict = true;
         }
-        else if ('--closure' === arg) {
-            opts.closure = true;
+        else if (undefined !== flagged[arg]) {
+            opts[flagged[arg]] = true;
         }
         else if ('--layers' === arg) {
             const v = argv[++i];
@@ -3065,7 +3112,7 @@ function runView(argv) {
         process.stderr.write(`aontu: view ${kind} takes one file\n`);
         return 2;
     }
-    if ('graph' === kind) {
+    if ('graph' === kind || 'state' === kind || 'lane' === kind) {
         opts.relations = relations;
     }
     else if (1 < relations.length) {
@@ -3077,6 +3124,10 @@ function runView(argv) {
     }
     if (check && undefined === out) {
         process.stderr.write('aontu: --check needs --out\n');
+        return 2;
+    }
+    if (undefined !== out && (0, view_1.viewSplits)(opts) && !out.includes(view_1.PART_TOKEN)) {
+        process.stderr.write(`aontu: a split figure writes one file per part; --out needs ${view_1.PART_TOKEN}\n`);
         return 2;
     }
     const files = rest.slice(1);
@@ -3118,25 +3169,17 @@ function runView(argv) {
         // what a golden diff reads, and a verdict line would be part of
         // every drawing. The loss report goes to stderr, so a figure
         // written to a file still tells the reader what it could not draw.
-        const text = report.text + '\n';
         if (undefined === out) {
-            process.stdout.write(text);
-        }
-        else if (check) {
-            let have = undefined;
-            try {
-                have = (0, node_fs_1.readFileSync)(out, 'utf8');
-            }
-            catch (_err) {
-                // Absent is a mismatch.
-            }
-            if (have !== text) {
-                process.stderr.write(`aontu: ${out} differs from the ${kind} figure\n`);
-                return 1;
-            }
+            process.stdout.write(report.text + '\n');
         }
         else {
-            (0, node_fs_1.writeFileSync)(out, text, 'utf8');
+            const differ = writeFigure(out, report, (0, view_1.viewSplits)(opts), check, (file) => `aontu: ${file} differs from the ${kind} figure\n`);
+            if (0 > differ) {
+                return 2;
+            }
+            if (0 < differ) {
+                return 1;
+            }
         }
         if (0 < report.loss.length) {
             process.stderr.write(renderViewLoss(report.loss) + '\n');
@@ -3195,31 +3238,34 @@ function runViewSet(rest, opts, trust, how) {
     const dir = (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
     let differ = 0;
     for (const fig of report.views) {
-        const path = (0, node_path_1.resolve)(dir, fig.out);
-        const text = fig.text + '\n';
-        if (how.check) {
-            let have = undefined;
-            try {
-                have = (0, node_fs_1.readFileSync)(path, 'utf8');
+        // A declaration's out holds the token exactly when it splits.
+        const split = fig.out.includes(view_1.PART_TOKEN);
+        for (const one of figureFiles(fig.out, fig, split)) {
+            const path = (0, node_path_1.resolve)(dir, one.file);
+            if (how.check) {
+                let have = undefined;
+                try {
+                    have = (0, node_fs_1.readFileSync)(path, 'utf8');
+                }
+                catch (_err) {
+                    // Absent is a mismatch.
+                }
+                if (have !== one.text) {
+                    differ++;
+                    process.stderr.write(`aontu: ${one.file} differs from the ${fig.name} figure\n`);
+                }
             }
-            catch (_err) {
-                // Absent is a mismatch.
-            }
-            if (have !== text) {
-                differ++;
-                process.stderr.write(`aontu: ${fig.out} differs from the ${fig.name} figure\n`);
-            }
-        }
-        else {
-            try {
-                (0, node_fs_1.writeFileSync)(path, text, 'utf8');
-            }
-            catch (err) {
-                process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`);
-                return 2;
-            }
-            if ('json' !== how.format) {
-                process.stderr.write(`wrote ${fig.out}  ${fig.name} (${fig.kind})\n`);
+            else {
+                try {
+                    (0, node_fs_1.writeFileSync)(path, one.text, 'utf8');
+                }
+                catch (err) {
+                    process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`);
+                    return 2;
+                }
+                if ('json' !== how.format) {
+                    process.stderr.write(`wrote ${one.file}  ${fig.name} (${fig.kind})\n`);
+                }
             }
         }
     }
@@ -3227,6 +3273,43 @@ function runViewSet(rest, opts, trust, how) {
         return 1;
     }
     return how.strict && 'lossy' === report.verdict ? 1 : VIEW_EXIT[report.verdict];
+}
+// The files one figure is written to: one, or one per part, the
+// part's name standing for the token in the file name.
+function figureFiles(out, fig, split) {
+    return split
+        ? (fig.parts ?? []).map((p) => ({ file: (0, view_1.viewPartFile)(out, p.name), text: p.text + '\n' }))
+        : [{ file: out, text: fig.text + '\n' }];
+}
+// Writes, or under --check compares, every file of one figure, and
+// answers how many differ, or -1 when one cannot be written.
+function writeFigure(out, fig, split, check, differs) {
+    let differ = 0;
+    for (const one of figureFiles(out, fig, split)) {
+        if (check) {
+            let have = undefined;
+            try {
+                have = (0, node_fs_1.readFileSync)(one.file, 'utf8');
+            }
+            catch (_err) {
+                // Absent is a mismatch.
+            }
+            if (have !== one.text) {
+                differ++;
+                process.stderr.write(differs(one.file));
+            }
+        }
+        else {
+            try {
+                (0, node_fs_1.writeFileSync)(one.file, one.text, 'utf8');
+            }
+            catch (err) {
+                process.stderr.write(`aontu: cannot write ${err.path}: ${err.message}\n`);
+                return -1;
+            }
+        }
+    }
+    return differ;
 }
 // A set's exit code is the worst of its figures': a usage refusal
 // anywhere is usage, and any other refusal is the document's fault.
@@ -3249,6 +3332,7 @@ function renderViewSetJson(report) {
             verdict: v.verdict,
             ...(null == v.text ? {} : { text: v.text }),
             loss: v.loss,
+            ...(null == v.parts ? {} : { parts: v.parts }),
             ...(null == v.errors ? {} : { errors: v.errors }),
         })),
         ...(null == report.errors ? {} : { errors: report.errors }),
@@ -3266,6 +3350,7 @@ function renderViewJson(report) {
         verdict: report.verdict,
         ...(null == report.text ? {} : { text: report.text }),
         loss: report.loss,
+        ...(null == report.parts ? {} : { parts: report.parts }),
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
