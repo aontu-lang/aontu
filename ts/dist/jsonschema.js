@@ -88,6 +88,27 @@ function exactJson(v) {
 function scalarJson(v) {
     return exactJson(v.peg);
 }
+// A bag closed at every level whose members are values, each with
+// nothing riding it, as the importer writes a `const`: its JSON, or
+// undefined.
+function literalJson(v) {
+    if (true !== v?.closed || null != v.spread?.cj || 0 < v.optionalKeys.length ||
+        0 < v.aliasKeys.length) {
+        return undefined;
+    }
+    const of = (m) => null != m.meta || null != m.deprecation || true === m.mark?.hide ||
+        true === m.mark?.type ? undefined : true === m.isScalar ?
+        (true === m.isNil ? undefined : scalarJson(m)) : literalJson(m);
+    const keys = true === v.isMap ? Object.keys(v.peg) : v.peg.map((_, i) => i);
+    const out = true === v.isMap ? {} : [];
+    for (const k of keys) {
+        out[k] = of(v.peg[k]);
+        if (undefined === out[k]) {
+            return undefined;
+        }
+    }
+    return out;
+}
 // The whole number at or above a count's bound (`up`), or at or below
 // it, exactly: a count a double would round keeps its digits.
 function wholeCount(v, up) {
@@ -777,6 +798,11 @@ function fromValInner(ctx, path, v) {
     if (true === v.isExpect) {
         return fromVal(ctx, path, v.peg);
     }
+    // A closed bag of values all the way down is the one value a `const` is.
+    const lit = true === v.isMap || true === v.isList ? literalJson(v) : undefined;
+    if (undefined !== lit) {
+        return { const: lit, type: true === v.isMap ? 'object' : 'array' };
+    }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);
     }
@@ -896,7 +922,8 @@ function fromDisjunct(ctx, path, v) {
         }
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
-    const consts = bare.map((m) => true === m?.isScalar && true !== m?.isNil ? scalarJson(m) : undefined);
+    const consts = bare.map((m) => true === m?.isScalar ? (true !== m?.isNil ? scalarJson(m) : undefined) :
+        null == m?.meta && null == m?.deprecation ? literalJson(m) : undefined);
     const out = consts.every((c) => undefined !== c) ?
         { enum: dedupeJson(consts) } :
         typeFold(bare.map((m) => fromVal(ctx, path, m)));
@@ -990,6 +1017,9 @@ function keyArms(v) {
     }
     return { arms, def };
 }
+// A key test that is a pattern alone, as the importer writes a
+// patternProperties key; a propertyNames schema is a string's.
+const BARE_RE = /^re\("(?:[^"\\]|\\.)*"\)$/;
 // An arm's key test: a name, or a pattern's normalised source.
 function armTest(ctx, path, test) {
     if (true === test.isScalar && 'string' === typeof test.peg) {
@@ -1040,10 +1070,11 @@ function spreadKeywords(ctx, path, declared, spr) {
     const extra = [];
     const patterns = {};
     const rest = [];
+    const plain = [];
     terms.forEach((t, i) => {
         const g = guarded[i];
         if (undefined === g) {
-            extra.push({ additionalProperties: armOut(ctx, at, t) });
+            plain.push(armOut(ctx, at, t));
             return;
         }
         const tests = g.arms.map(([test]) => armTest(ctx, at, test));
@@ -1058,8 +1089,9 @@ function spreadKeywords(ctx, path, declared, spr) {
                 extra.push({ patternProperties: { [re]: s } });
             }
         }
-        else if (1 === g.arms.length && undefined === tests[0].name && undefined === re &&
-            true === arm[1].isTop && true === g.def?.isNil) {
+        else if (1 === g.arms.length && undefined === tests[0].name &&
+            (undefined === re || !BARE_RE.test(arm[0].canon)) && true === arm[1].isTop &&
+            true === g.def?.isNil) {
             const names = asNames(armOut(ctx, at, arm[0]));
             if (undefined === out.propertyNames) {
                 out.propertyNames = names;
@@ -1075,6 +1107,17 @@ function spreadKeywords(ctx, path, declared, spr) {
     if (0 < Object.keys(patterns).length) {
         out.patternProperties = patterns;
     }
+    // A plain spread holds every member, and a declared member's value
+    // already holds it, so beside no pattern it is additionalProperties,
+    // as the importer reads one.
+    plain.forEach((s, i) => {
+        if (0 === i && undefined === out.patternProperties) {
+            out.additionalProperties = s;
+        }
+        else {
+            extra.push({ additionalProperties: s });
+        }
+    });
     const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     const own = [...declared].sort(keyorder_1.cmpCodePoint);
     const patternKeys = Object.keys(patterns).sort(keyorder_1.cmpCodePoint);

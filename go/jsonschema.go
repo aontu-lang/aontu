@@ -134,6 +134,49 @@ func scalarSchemaJSON(sv *ScalarVal) any {
 	return sv.peg
 }
 
+// schemaLiteral is a bag closed at every level whose members are values,
+// each with nothing riding it, as the importer writes a `const`: its JSON.
+func schemaLiteral(v Val) (any, bool) {
+	of := func(m Val) (any, bool) {
+		if nil != m.deprecRec() || nil != m.metaRec() || m.markedHide() || m.markedType() {
+			return nil, false
+		}
+		if sv, ok := m.(*ScalarVal); ok {
+			return scalarSchemaJSON(sv), KindNil != sv.kind
+		}
+		return schemaLiteral(m)
+	}
+	switch t := v.(type) {
+	case *MapVal:
+		if !t.closed || nil != t.spread || 0 < len(t.optional) || 0 < len(t.aliasKeys) {
+			return nil, false
+		}
+		out := map[string]any{}
+		for _, k := range t.keys {
+			lit, ok := of(t.peg[k])
+			if !ok {
+				return nil, false
+			}
+			out[k] = lit
+		}
+		return out, true
+	case *ListVal:
+		if !t.closed || nil != t.spread {
+			return nil, false
+		}
+		out := make([]any, 0, len(t.peg))
+		for _, el := range t.peg {
+			lit, ok := of(el)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, lit)
+		}
+		return out, true
+	}
+	return nil, false
+}
+
 // schemaValueKey is one JSON value by its meaning: 1 and 1.0 are one number.
 func schemaValueKey(v any) string {
 	raw, _ := json.Marshal(v)
@@ -1564,10 +1607,17 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		// The member a second map literal expects reads through to its constraint.
 		return schemaFromVal(sc, path, t.peg)
 
+	// A closed bag of values all the way down is the one value a `const` is.
 	case *MapVal:
+		if lit, ok := schemaLiteral(t); ok {
+			return map[string]any{"type": "object", "const": lit}
+		}
 		return schemaFromMap(sc, path, t)
 
 	case *ListVal:
+		if lit, ok := schemaLiteral(t); ok {
+			return map[string]any{"type": "array", "const": lit}
+		}
 		return schemaFromList(sc, path, t)
 
 	case *MapKindVal:
@@ -1746,19 +1796,23 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 	}
 
 	allConst := true
+	consts := make([]any, 0, len(bare))
 	for _, m := range bare {
-		if sv, ok := m.(*ScalarVal); !ok || KindNil == sv.kind {
+		lit, ok := any(nil), false
+		if sv, isScalar := m.(*ScalarVal); isScalar {
+			lit, ok = scalarSchemaJSON(sv), KindNil != sv.kind
+		} else if nil == m.deprecRec() && nil == m.metaRec() {
+			lit, ok = schemaLiteral(m)
+		}
+		if !ok {
 			allConst = false
 			break
 		}
+		consts = append(consts, lit)
 	}
 
 	var out map[string]any
 	if allConst {
-		consts := make([]any, 0, len(bare))
-		for _, m := range bare {
-			consts = append(consts, scalarSchemaJSON(m.(*ScalarVal)))
-		}
 		out = map[string]any{"enum": schemaDedupeJSON(consts)}
 	} else {
 		members := make([]any, 0, len(bare))
@@ -1917,6 +1971,10 @@ func schemaKeyArms(v Val) *schemaGuard {
 
 // schemaArmTestOf is an arm's key test: a name, or a pattern's normalised
 // source.
+// schemaBareRe is a key test that is a pattern alone, as the importer
+// writes a patternProperties key; a propertyNames schema is a string's.
+var schemaBareRe = regexp.MustCompile(`^re\("(?:[^"\\]|\\.)*"\)$`)
+
 func schemaArmTestOf(sc *schemaCtx, path []string, test Val) schemaArmTest {
 	if sv, ok := test.(*ScalarVal); ok && KindString == sv.kind {
 		return schemaArmTest{name: sv.peg.(string), isName: true}
@@ -1994,10 +2052,11 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 	extra := []any{}
 	patterns := map[string]any{}
 	rest := []*schemaGuard{}
+	plain := []any{}
 	for i, t := range terms {
 		g := guarded[i]
 		if nil == g {
-			extra = append(extra, map[string]any{"additionalProperties": schemaArmOut(sc, at, t)})
+			plain = append(plain, schemaArmOut(sc, at, t))
 			continue
 		}
 		for _, arm := range g.arms {
@@ -2012,8 +2071,9 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 			}
 			continue
 		}
-		if 1 == len(g.arms) && !g.tests[0].isName && !g.tests[0].isRe && isTop(g.arms[0][1]) &&
-			nil != g.def && g.def.Nil() {
+		if 1 == len(g.arms) && !g.tests[0].isName &&
+			(!g.tests[0].isRe || !schemaBareRe.MatchString(g.arms[0][0].Canon())) &&
+			isTop(g.arms[0][1]) && nil != g.def && g.def.Nil() {
 			names := schemaAsNames(schemaArmOut(sc, at, g.arms[0][0]))
 			if _, taken := out["propertyNames"]; taken {
 				extra = append(extra, map[string]any{"propertyNames": names})
@@ -2026,6 +2086,16 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 	}
 	if 0 < len(patterns) {
 		out["patternProperties"] = patterns
+	}
+	// A plain spread holds every member, and a declared member's value
+	// already holds it, so beside no pattern it is additionalProperties,
+	// as the importer reads one.
+	for i, s := range plain {
+		if 0 == i && 0 == len(patterns) {
+			out["additionalProperties"] = s
+		} else {
+			extra = append(extra, map[string]any{"additionalProperties": s})
+		}
 	}
 	own := append([]string{}, declared...)
 	sort.Strings(own)

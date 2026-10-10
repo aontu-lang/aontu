@@ -413,6 +413,23 @@ function lose(ctx, at, construct, reason) {
 function entry(node, key) {
     return 'object' === node.t ? node.entries.find((e) => e.key === key)?.val : undefined;
 }
+// A schema written as another is, whatever order the members of each are in.
+function sameNode(a, b) {
+    switch (a.t) {
+        case 'object':
+            return 'object' === b.t && a.entries.length === b.entries.length &&
+                a.entries.every((e) => { const o = entry(b, e.key); return undefined !== o && sameNode(e.val, o); });
+        case 'array':
+            return 'array' === b.t && a.items.length === b.items.length &&
+                a.items.every((x, i) => sameNode(x, b.items[i]));
+        case 'string':
+            return 'string' === b.t && a.s === b.s;
+        case 'number':
+            return 'number' === b.t && a.text === b.text;
+        default:
+            return a.t === b.t;
+    }
+}
 function child(ptr, key) {
     return ptr + '/' + key.replace(/~/g, '~0').replace(/\//g, '~1');
 }
@@ -1060,6 +1077,9 @@ const CARRIED = [
     'pattern', 'unevaluatedProperties', 'unevaluatedItems', 'x-aontu-format',
 ];
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array'];
+const BARE = {
+    null: 'null', boolean: 'boolean', number: 'number', string: 'empty()', object: 'map', array: 'list',
+};
 // The content keywords annotate a string only, so they ride its branch.
 const CONTENT = ['contentEncoding', 'contentMediaType', 'contentSchema'];
 const SCOPED = {
@@ -1579,7 +1599,10 @@ function convertObject(ctx, node, ptr, only) {
         const integral = undefined !== allowed && allowed.includes('integer') &&
             !allowed.includes('number');
         const branches = kinds.map((kind) => branch(ctx, node, ptr, kind, integral, undefined !== allowed, excluded));
-        const split = 0 === branches.length ? NIL : or(branches);
+        // Every kind, each narrowed by nothing, is what `any` admits.
+        const bare = KINDS.length === kinds.length &&
+            branches.every((b, i) => BARE[kinds[i]] === print(b, ''));
+        const split = bare ? ANY : 0 === branches.length ? NIL : or(branches);
         parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split);
     }
     const met = and(parts);
@@ -2032,6 +2055,7 @@ function objectBranch(ctx, node, ptr) {
             wrongType(ctx, at('patternProperties'), 'patternProperties', 'an object', pats);
         }
         else {
+            const found = [];
             for (const e of pats.entries) {
                 const p = child(at('patternProperties'), e.key);
                 const re = pattern(ctx, p, 'patternProperties', e.key);
@@ -2039,9 +2063,14 @@ function objectBranch(ctx, node, ptr) {
                     patternsExact = false;
                 }
                 else {
-                    patterns.push(re);
-                    spreads.push(mark(ctx, call('match', call('key', raw('0')), re, convert(ctx, e.val, p, false), ANY), at('patternProperties'), node));
+                    found.push([print(re, ''), re, e.val, mark(ctx, call('match', call('key', raw('0')), re, convert(ctx, e.val, p, false), ANY), at('patternProperties'), node)]);
                 }
+            }
+            // The order a schema lists its members in means nothing, so an
+            // import is written in one order whatever it was.
+            for (const [, re, schema, spread] of found.sort((a, b) => (0, keyorder_1.cmpCodePoint)(a[0], b[0]))) {
+                patterns.push([re, schema]);
+                spreads.push(spread);
             }
         }
     }
@@ -2053,15 +2082,19 @@ function objectBranch(ctx, node, ptr) {
         }
         else {
             const rest = convert(ctx, addl, at('additionalProperties'), false);
-            if (0 === declared.length && 0 === patterns.length) {
+            // A member whose schema is written as the additional one's is held
+            // to it all the same, so only the others are excluded from it.
+            const names = declared.filter((k) => !sameNode(entry(props, k), addl));
+            const res = patterns.filter(([, schema]) => !sameNode(schema, addl));
+            if (0 === names.length && 0 === res.length) {
                 spreads.push(rest);
             }
             else {
                 const args = [call('key', raw('0'))];
-                for (const k of declared) {
+                for (const k of names.sort(keyorder_1.cmpCodePoint)) {
                     args.push(raw(quote(k)), ANY);
                 }
-                for (const re of patterns) {
+                for (const [re] of res) {
                     args.push(re, ANY);
                 }
                 args.push(rest);

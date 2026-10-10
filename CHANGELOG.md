@@ -26,6 +26,20 @@ Both ports.
   schema it wrote as a schema, so a map with keys `$ref` and
   `$dynamicRef` was taken for a reference and crashed the export. Both
   ports now walk only the keywords that hold a schema.
+- The export writes `re()`'s `\d`, `\w`, `\D` and `\W` as written, since
+  ECMA-262 reads each as aontu does, where it wrote out their sets, so
+  a pattern imports back as it was.
+- `aontu jsonschema import` writes the names and patterns a guarded
+  spread excludes, and the pattern spreads, in code-point order, so an
+  import no longer depends on the order a schema lists its members in.
+  A member whose schema is written as `additionalProperties`'s is held
+  to it all the same and no longer excluded from it, and a schema whose
+  keywords narrow no kind, as `{"items": true}`, imports as `any`.
+- The export writes a bag closed at every level whose members are
+  values, as the import of a `const` is, as `const`, and a disjunction
+  of them as `enum`. A key test other than a bare `re()` is
+  `propertyNames`, and a plain spread beside no pattern is
+  `additionalProperties`, as the import reads each.
 
 ### subsume compares recursive schemas (ADR-067)
 

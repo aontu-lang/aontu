@@ -710,11 +710,11 @@ function rewrite(src: string, subs: Sub[], to: (tok: string, inClass: boolean) =
 
 const AONTU_TO_ECMA: Record<string, [string, string]> = {
   '.': ['[^\\n]', ''],
-  '\\d': ['[0-9]', '0-9'],
-  '\\w': ['[0-9A-Za-z_]', '0-9A-Za-z_'],
+  '\\d': ['\\d', '\\d'],
+  '\\w': ['\\w', '\\w'],
   '\\s': ['[ \\t\\n\\r\\f\\v]', ' \\t\\n\\r\\f\\v'],
-  '\\D': ['[^0-9]', '\\D'],
-  '\\W': ['[^0-9A-Za-z_]', '\\W'],
+  '\\D': ['\\D', '\\D'],
+  '\\W': ['\\W', '\\W'],
   '\\S': ['[^ \\t\\n\\r\\f\\v]', classBody(complement(ASCII_SPACE))],
   '\\A': ['^', ''],
   '\\z': ['$', ''],

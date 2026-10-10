@@ -765,6 +765,35 @@ func (ctx *importCtx) lose(at, construct, reason string) {
 	ctx.lossy = append(ctx.lossy, SchemaLoss{Path: path, Construct: construct, Reason: reason})
 }
 
+// sameJnode: a schema written as another is, whatever order the
+// members of each are in.
+func sameJnode(a, b *jnode) bool {
+	if a.t != b.t {
+		return false
+	}
+	switch a.t {
+	case "object":
+		if len(a.entries) != len(b.entries) {
+			return false
+		}
+		for _, e := range a.entries {
+			if o := jentryOf(b, e.key); nil == o || !sameJnode(e.val, o) {
+				return false
+			}
+		}
+	case "array":
+		if len(a.items) != len(b.items) {
+			return false
+		}
+		for i, x := range a.items {
+			if !sameJnode(x, b.items[i]) {
+				return false
+			}
+		}
+	}
+	return a.s == b.s
+}
+
 func jentryOf(node *jnode, key string) *jnode {
 	if "object" != node.t {
 		return nil
@@ -1617,6 +1646,11 @@ var importCarried = []string{
 }
 
 var importKinds = []string{"null", "boolean", "number", "string", "object", "array"}
+
+var importBare = map[string]string{
+	"null": "null", "boolean": "boolean", "number": "number", "string": "empty()",
+	"object": "map", "array": "list",
+}
 
 // importContent is the content keywords: they annotate a string only, so
 // they ride its branch.
@@ -2474,11 +2508,16 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if nil != allowed || someScoped {
 		integral := nil != allowed && inList(allowed, "integer") && !inList(allowed, "number")
 		branches := []*ixpr{}
-		for _, kind := range kinds {
+		// Every kind, each narrowed by nothing, is what `any` admits.
+		bare := len(importKinds) == len(kinds)
+		for i, kind := range kinds {
 			branches = append(branches, ctx.branch(node, ptr, kind, integral, nil != allowed, excluded))
+			bare = bare && importBare[kind] == iprint(branches[i], "")
 		}
 		split := iNil
-		if 0 < len(branches) {
+		if bare {
+			split = iAny
+		} else if 0 < len(branches) {
 			split = ior(branches)
 		}
 		if nil != allowed && "or" == split.k {
@@ -3135,22 +3174,39 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 	}
 
 	spreads := []*ixpr{}
-	patterns := []*ixpr{}
+	type ipattern struct {
+		re     *ixpr
+		schema *jnode
+	}
+	patterns := []ipattern{}
 	patternsExact := true
 	if pats := get("patternProperties"); nil != pats {
 		if "object" != pats.t {
 			ctx.wrongType(at("patternProperties"), "patternProperties", "an object", pats)
 		} else {
+			type found struct {
+				text       string
+				re         *ixpr
+				schema     *jnode
+				spread     *ixpr
+			}
+			all := []found{}
 			for _, e := range pats.entries {
 				p := ptrChild(at("patternProperties"), e.key)
 				re := ctx.pattern(p, "patternProperties", e.key)
 				if nil == re {
 					patternsExact = false
 				} else {
-					patterns = append(patterns, re)
-					spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), re,
-						ctx.convert(e.val, p, false, nil), iAny), at("patternProperties"), node, imark{}))
+					all = append(all, found{iprint(re, ""), re, e.val, ctx.mark(icall("match", icall("key", iraw("0")), re,
+						ctx.convert(e.val, p, false, nil), iAny), at("patternProperties"), node, imark{})})
 				}
+			}
+			// The order a schema lists its members in means nothing, so
+			// an import is written in one order whatever it was.
+			sort.SliceStable(all, func(i, j int) bool { return all[i].text < all[j].text })
+			for _, f := range all {
+				patterns = append(patterns, ipattern{f.re, f.schema})
+				spreads = append(spreads, f.spread)
 			}
 		}
 	}
@@ -3161,14 +3217,30 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 				"it was dropped, so the names it excludes cannot be spelt, and it is dropped too")
 		} else {
 			rest := ctx.convert(addl, at("additionalProperties"), false, nil)
-			if 0 == len(declared) && 0 == len(patterns) {
+			// A member whose schema is written as the additional one's is
+			// held to it all the same, so only the others are excluded
+			// from it.
+			names := []string{}
+			for _, k := range declared {
+				if !sameJnode(jentryOf(get("properties"), k), addl) {
+					names = append(names, k)
+				}
+			}
+			res := []*ixpr{}
+			for _, p := range patterns {
+				if !sameJnode(p.schema, addl) {
+					res = append(res, p.re)
+				}
+			}
+			if 0 == len(names) && 0 == len(res) {
 				spreads = append(spreads, rest)
 			} else {
 				args := []*ixpr{icall("key", iraw("0"))}
-				for _, k := range declared {
+				sort.Strings(names)
+				for _, k := range names {
 					args = append(args, iraw(importQuote(k)), iAny)
 				}
-				for _, re := range patterns {
+				for _, re := range res {
 					args = append(args, re, iAny)
 				}
 				args = append(args, rest)

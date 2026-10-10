@@ -1654,12 +1654,13 @@ $ aontu jsonschema --at spec contract.aontu
   lossy export is still an export and exits 0.
 
 **What crosses exactly.** Kinds become `type`, and the `integer` and
-`float` leaves are reported (below); a concrete scalar becomes `const`; a disjunction of scalars becomes `enum`, and its
+`float` leaves are reported (below); a concrete scalar becomes `const`, and so does a bag closed at every level whose members are values, as the import of a `const` is; a disjunction of them becomes `enum`, and its
 preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern`, written as ECMA-262 text that means what `re`
-means: `re`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z`
-become the sets aontu defines, and the rest is copied as written;
+means: `re`'s `.`, `\s`, `\S`, `\A` and `\z`, which ECMA-262 reads
+otherwise, become the sets aontu defines, and the rest is copied as
+written, `\d`, `\w`, `\D` and `\W` among it;
 `format(g)` becomes `format` for a format JSON Schema defines and
 `x-aontu-format` for a grammar, two of either an `allOf` of them, each
 with a loss (below);
@@ -1701,7 +1702,9 @@ guarded by its own key crosses as the keyword it spells:
 `&: match(key(0), re(p), S, any)` is `patternProperties`, a guard
 whose arms let the map's own names and patterns through is
 `additionalProperties` (its default, with `nil` as `false`), and
-`&: match(key(0), c, any, nil)` is `propertyNames: c`. Any other guard
+`&: match(key(0), c, any, nil)` is `propertyNames: c` where `c` is not
+a bare `re()`. A plain spread beside such a guard is
+`additionalProperties` too, unless a pattern stands beside it. Any other guard
 whose arms name keys, or test one pattern, is an `allOf` member of its
 own. A written list is `prefixItems` for its positions and `minItems`
 for their count, and it stays **open**, as the meet does:
@@ -1976,7 +1979,7 @@ y: number
 
 | Keyword | Becomes |
 |---|---|
-| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)` |
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)`; every kind narrowed by nothing is `any` |
 | `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
 | `multipleOf` | `multiple`, its divisor written by value |
@@ -1984,7 +1987,7 @@ y: number
 | `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
 | `properties`, `required` | keys, optional unless required |
 | `patternProperties` | one spread per pattern, which applies its schema to the keys the pattern matches |
-| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil` |
+| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil`; a name or pattern whose schema is written as this one's is held to it all the same and not let through, and the names and patterns are written in code-point order |
 | `propertyNames` | a spread that refuses a key whose name the schema does not admit |
 | `prefixItems`, `items` | one list spread, guarded by each element's index |
 | `allOf` | the meet: every member unified in place |
