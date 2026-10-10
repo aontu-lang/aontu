@@ -128,6 +128,65 @@ bound and is refused.
 Without `--no-fill`, a default or a literal in the schema fills a
 member the data left out, where JSON Schema reports it missing.
 
+## Locate a failure in the schema
+
+`vet` names where a failure is in the data and in the aontu document.
+To name the JSON Schema keyword instead, in the output format JSON
+Schema defines, import with a source map, which records where each
+keyword landed in the document:
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --uri https://example.com/order.json --source-map order.map.json order.json
+...
+```
+
+The document is the one saved as `order.aontu`, and the map names it by
+its SHA-256. Write an order with a quantity of nought and a key the
+schema does not declare, as `short.json`:
+
+<!-- test: file short.json -->
+```json
+{"id": 7, "total": 19.90, "lines": [{"sku": "ABC-1234", "qty": 0}], "extra": true}
+```
+
+Then vet it with `--output basic` and the map:
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill --exact-numbers --output basic --source-map order.map.json order.aontu short.json
+{
+  "absoluteKeywordLocation": "https://example.com/order.json#",
+  "errors": [
+    {
+      "absoluteKeywordLocation": "https://example.com/order.json#/additionalProperties",
+      "error": "[aontu/literal_nil]: Cannot resolve value at path $.extra",
+      "instanceLocation": "/extra",
+      "keywordLocation": "/additionalProperties",
+      "valid": false
+    },
+    {
+      "absoluteKeywordLocation": "https://example.com/order.json#/$defs/line/properties/qty/minimum",
+      "error": "[aontu/constraint]: Cannot unify values at path $.lines.0.qty",
+      "instanceLocation": "/lines/0/qty",
+      "keywordLocation": "/properties/lines/items/$ref/properties/qty/minimum",
+      "valid": false
+    }
+  ],
+  "instanceLocation": "",
+  "keywordLocation": "",
+  "valid": false
+}
+$ echo $?
+1
+```
+
+Each error names the keyword as the evaluation reached it, through the
+`$ref` of `items`, and as it is written under `$defs`. Edit the
+document, or reformat it, and `vet` refuses the map rather than point
+at the wrong text, so import again for a fresh one. `--output flag`
+prints the verdict alone, `{"valid": false}`, and needs no map.
+
 ## Read the loss report
 
 A keyword the importer does not carry is dropped and reported on

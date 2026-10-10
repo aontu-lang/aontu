@@ -22,6 +22,7 @@ import { subsumeNode, effectiveDefault } from './subsume'
 import { noPathFinding } from './query'
 import { fillDiff } from './admit'
 import { cmpCodePoint } from './keyorder'
+import { pointerOf } from './sourcemap'
 
 
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error'
@@ -51,6 +52,8 @@ export type VetFinding = {
   expected?: string
   actual?: string
   note?: string
+  // The path as an RFC 6901 pointer, unambiguous where a key holds a dot.
+  pointer?: string
 }
 
 export type VetCoverage = {
@@ -167,6 +170,16 @@ function roleOf(file: string, prov: Prov): VetRole {
 function pathText(path?: string[]): string {
   return '$' + (null != path && 0 < path.length ? '.' + path.map((p: any) =>
     'string' === typeof p ? aliasPathSegment(p) : p).join('.') : '')
+}
+
+
+function atPath(at: string): string[] {
+  return at.replace(/^\$\.?/, '').split('.').filter((s: string) => '' !== s)
+}
+
+
+function pointed(f: VetFinding, path: any[]): VetFinding {
+  return { ...f, pointer: pointerOf(path.map((p: any) => aliasPathSegment(String(p)))) }
 }
 
 
@@ -636,7 +649,7 @@ export function vet(
       truncated: false,
       // A schema that does not stand up: nothing here is data, so the
       // data-url set is empty and every site reads `schema`.
-      findings: [findingOf(failure, { data: new Set<string>() })],
+      findings: [pointed(findingOf(failure, { data: new Set<string>() }), failure.path)],
     }
   }
 
@@ -648,7 +661,7 @@ export function vet(
       return {
         verdict: 'error',
         truncated: false,
-        findings: [noPathFinding(schemaVal, options.at)],
+        findings: [pointed(noPathFinding(schemaVal, options.at), atPath(options.at))],
       }
     }
   }
@@ -667,7 +680,7 @@ export function vet(
     return {
       verdict: 'invalid',
       truncated: false,
-      findings: [findingOf(failure, { data: new Set([dataUrl]) })],
+      findings: [pointed(findingOf(failure, { data: new Set([dataUrl]) }), failure.path)],
     }
   }
   stampUrl(schemaVal, schemaUrl)
@@ -705,7 +718,7 @@ export function vet(
         const admitted = rest.some(
           (m: any) => 'yes' === subsumeNode(state, path, m, d))
         if (!admitted && 0 < rest.length) {
-          lintFindings.push({
+          lintFindings.push(pointed({
             code: 'pref_not_instance',
             class: 'compat',
             severity: 'warning',
@@ -722,7 +735,7 @@ export function vet(
               src: d.site?.src ?? '',
               value: d.canon,
             }],
-          })
+          }, path))
         }
       }
     }
@@ -748,8 +761,7 @@ export function vet(
   }
   else {
     ; (ctx as any)._fixroot = schemaVal
-    ; (ctx as any).path = options.at.replace(/^\$\.?/, '')
-      .split('.').filter((s: string) => '' !== s)
+    ; (ctx as any).path = atPath(options.at)
   }
   const pair = new ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx)
   const unified: any = aontu.unify(pair, undefined, ctx)
@@ -765,7 +777,7 @@ export function vet(
 
   const findings: VetFinding[] = nils.map((n) => {
     materialise(n, ctx)
-    return findingOf(n, prov)
+    return pointed(findingOf(n, prov), n.path)
   })
 
   const genCtx: any = aontu.ctx({ collect: true })
@@ -774,7 +786,7 @@ export function vet(
   const generated = unified.gen(genCtx)
   for (const err of genCtx.err) {
     materialise(err, genCtx)
-    findings.push(findingOf(err, prov))
+    findings.push(pointed(findingOf(err, prov), err.path))
   }
 
   if (true === options.noFill && undefined !== generated) {
@@ -787,7 +799,7 @@ export function vet(
     // Data that does not stand on its own: what stops it is the finding.
     for (const err of ownCtx.err) {
       materialise(err, ownCtx)
-      findings.push(findingOf(err, prov))
+      findings.push(pointed(findingOf(err, prov), err.path))
     }
     const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
     // Under --at the paths are the anchor's, as every other finding's are.
@@ -796,14 +808,14 @@ export function vet(
     const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
       fillDiff(generated, ownGen, unified)
     for (const path of filled) {
-      findings.push(fromRegistry({
+      findings.push(pointed(fromRegistry({
         code: 'vet_filled',
         class: codeClass('vet_filled'),
         severity: 'error',
         path: pathText([...anchorPath, ...path]),
         message: 'The schema supplies this member, and the data does not carry it.',
         sites: [siteOf(valAt(unified, path), prov) as VetSite],
-      }, { why: 'vet_filled' }))
+      }, { why: 'vet_filled' }), [...anchorPath, ...path]))
     }
   }
 
@@ -814,7 +826,7 @@ export function vet(
     // (empty when the value belongs to neither document), the role by
     // comparing it to the data document's.
     const file = v.site.url
-    findings.push({
+    findings.push(pointed({
       code: 'deprecated',
       class: 'compat',
       severity: 'warning',
@@ -829,7 +841,7 @@ export function vet(
         src: v.site.src ?? '',
         value: v.canon,
       }],
-    })
+    }, path))
   }
 
   const keyed = findings.map((f, i) => ({ key: orderKey(f, i), finding: f }))

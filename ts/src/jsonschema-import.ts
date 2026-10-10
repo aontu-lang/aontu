@@ -24,7 +24,9 @@ import { createHash } from 'node:crypto'
 import { normalizeUri, resolveUri } from './uri'
 import { VOCABULARY_TABLE } from './vocabularies'
 import { META_SCHEMAS } from './metaschemas'
+import { carry, fragmentOf, textSha } from './sourcemap'
 import type { ExactNumber } from './val/numkind'
+import type { SourceMap, SourceSpan } from './sourcemap'
 
 
 export type ImportOptions = {
@@ -48,6 +50,8 @@ export type ImportOptions = {
   // ADR-065: skips the check of the input against its meta-schema, for
   // an input the caller trusts.
   noMetaCheck?: boolean
+  // ADR-066: the report carries the source map of the aontu text.
+  sourceMap?: boolean
 }
 
 export type ImportReport = {
@@ -59,6 +63,7 @@ export type ImportReport = {
   // document. Absent on `error`.
   vet?: string[]
   errors?: VetFinding[]
+  map?: SourceMap
 }
 
 
@@ -281,15 +286,20 @@ export function parseJson(src: string): JNode | Fault {
 
 
 // The expression tree the importer writes, printed by one rule so both
-// ports produce the same bytes.
-type MapEntry = { key: string, optional: boolean, val: Expr }
-type Expr =
-  { k: 'raw', text: string } |
+// ports produce the same bytes. A mark is the keyword an expression or
+// entry was written for (ADR-066): a frame is the schema a reference
+// reached, whose keywords are located against it, and a reference
+// enters the frame of its target.
+type Frame = { ptr: string, node: JNode }
+type Mark = { ptr: string, node: JNode, frame: Frame, enters?: Frame, required?: true }
+type MapEntry = { key: string, optional: boolean, val: Expr, marks?: Mark[] }
+type Expr = ({ k: 'raw', text: string } |
   { k: 'and', items: Expr[] } |
   { k: 'or', items: Expr[] } |
   { k: 'call', name: string, args: Expr[] } |
   { k: 'list', spread?: Expr, items?: Expr[] } |
-  { k: 'map', entries: MapEntry[], spreads: Expr[], decls?: string[] }
+  { k: 'map', entries: MapEntry[], spreads: Expr[], decls?: [string, Expr][] }) &
+  { marks?: Mark[] }
 
 const raw = (text: string): Expr => ({ k: 'raw', text })
 const ANY = raw('any')
@@ -312,19 +322,22 @@ function distinct(items: Expr[]): Expr[] {
   })
 }
 
-// `any` adds nothing to a meet and `nil` is all of it.
+// `any` adds nothing to a meet and `nil` is all of it. A meet folded
+// into another leaves its marks on each of its members.
 function and(items: Expr[]): Expr {
   const flat: Expr[] = []
   for (const it of items) {
     if ('and' === it.k) {
-      flat.push(...it.items)
+      flat.push(...it.items.map((x) => undefined === it.marks ? x :
+        { ...x, marks: [...it.marks, ...(x.marks ?? [])] }))
     }
     else if (!isRaw(it, 'any')) {
       flat.push(it)
     }
   }
-  if (flat.some((it) => isRaw(it, 'nil'))) {
-    return NIL
+  const nil = flat.find((it) => isRaw(it, 'nil'))
+  if (undefined !== nil) {
+    return nil
   }
   const uniq = distinct(flat)
   return 0 === uniq.length ? ANY : 1 === uniq.length ? uniq[0] : { k: 'and', items: uniq }
@@ -339,18 +352,6 @@ function or(items: Expr[]): Expr {
 // A long chain is written as nested groups, so that a parser reading it
 // recurses as deep as the groups are, not as long as the chain is.
 const GROUP = 32
-
-function chain(parts: string[], sep: string): string {
-  if (parts.length <= GROUP) {
-    return parts.join(sep)
-  }
-  const groups: string[] = []
-  for (let i = 0; i < parts.length; i += GROUP) {
-    groups.push('(' + parts.slice(i, i + GROUP).join(sep) + ')')
-  }
-  return chain(groups, sep)
-}
-
 
 // The quote, the backslash, the controls and the line separators are
 // escaped; every other character is written as itself.
@@ -367,42 +368,116 @@ function quote(s: string): string {
 }
 
 
+// The text being written, and where each marked expression or entry
+// sits in it, as offsets into the string.
+type Placed = { start: number, end: number, depth: number, mark: Mark }
+type Out = { text: string, placed: Placed[], depth: number }
+
 function print(e: Expr, indent: string): string {
-  switch (e.k) {
-    case 'raw':
-      return e.text
-    case 'call':
-      // The TypeScript parser cannot read a call of three or more whose
-      // first argument and a later one are negative (test/spec/divergent.tsv).
-      return e.name + '(' + e.args.map((a, i) => 0 === i && 3 <= e.args.length &&
-        'raw' === a.k && '-' === a.text[0] ? '(' + a.text + ')' : print(a, indent)).join(', ') + ')'
-    case 'and':
-      return chain(e.items.map((it) =>
-        'or' === it.k ? '(' + print(it, indent) + ')' : print(it, indent)), ' & ')
-    case 'or':
-      return chain(e.items.map((it) => print(it, indent)), ' | ')
-    case 'list':
-      return null != e.items ?
-        '[' + e.items.map((it) => print(it, indent)).join(', ') + ']' :
-        '[&: ' + print(e.spread as Expr, indent) + ']'
-    case 'map':
-      if (0 === e.entries.length && 0 === e.spreads.length && null == e.decls) {
-        return '{}'
-      }
-      return '{\n' + mapLines(e, indent + '  ').map((l) => indent + '  ' + l + '\n').join('') +
-        indent + '}'
+  const w: Out = { text: '', placed: [], depth: 0 }
+  write(w, e, indent)
+  return w.text
+}
+
+function place(w: Out, start: number, marks?: Mark[]): void {
+  for (const mark of marks ?? []) {
+    w.placed.push({ start, end: w.text.length, depth: w.depth, mark })
   }
 }
 
-function mapLines(e: Expr & { k: 'map' }, indent: string): string[] {
-  const lines: string[] = [...(e.decls ?? [])]
+function write(w: Out, e: Expr, indent: string): void {
+  const start = w.text.length
+  w.depth++
+  switch (e.k) {
+    case 'raw':
+      w.text += e.text
+      break
+    case 'call':
+      w.text += e.name + '('
+      e.args.forEach((a, i) => {
+        // The TypeScript parser cannot read a call of three or more whose
+        // first argument and a later one are negative (test/spec/divergent.tsv).
+        const wrap = 0 === i && 3 <= e.args.length && 'raw' === a.k && '-' === a.text[0]
+        w.text += (0 === i ? '' : ', ') + (wrap ? '(' : '')
+        write(w, a, indent)
+        w.text += wrap ? ')' : ''
+      })
+      w.text += ')'
+      break
+    case 'and':
+    case 'or':
+      writeChain(w, e.items, 'and' === e.k, indent, chainLevel(e.items.length))
+      break
+    case 'list':
+      w.text += null != e.items ? '[' : '[&: '
+      for (const [i, it] of (e.items ?? [e.spread as Expr]).entries()) {
+        w.text += 0 === i ? '' : ', '
+        write(w, it, indent)
+      }
+      w.text += ']'
+      break
+    case 'map':
+      if (0 === e.entries.length && 0 === e.spreads.length && null == e.decls) {
+        w.text += '{}'
+        break
+      }
+      w.text += '{\n'
+      writeLines(w, e, indent + '  ')
+      w.text += indent + '}'
+  }
+  w.depth--
+  place(w, start, e.marks)
+}
+
+function writeLines(w: Out, e: Expr & { k: 'map' }, indent: string): void {
+  for (const [name, body] of e.decls ?? []) {
+    w.text += indent
+    writeDecl(w, name, body)
+    w.text += '\n'
+  }
   for (const en of e.entries) {
-    lines.push(quote(en.key) + (en.optional ? '?' : '') + ': ' + print(en.val, indent))
+    w.text += indent
+    const start = w.text.length
+    w.text += quote(en.key) + (en.optional ? '?' : '') + ': '
+    write(w, en.val, indent)
+    place(w, start, en.marks)
+    w.text += '\n'
   }
   for (const sp of e.spreads) {
-    lines.push('&: ' + print(sp, indent))
+    w.text += indent + '&: '
+    write(w, sp, indent)
+    w.text += '\n'
   }
-  return lines
+}
+
+function writeDecl(w: Out, name: string, body: Expr): void {
+  w.text += '%' + name + ' = '
+  write(w, body, '')
+}
+
+// The grouping level of a chain's top: its parts each cover GROUP to
+// that power of members, and there are at most GROUP.
+function chainLevel(n: number): number {
+  let level = 0
+  for (let span = GROUP; span < n; span *= GROUP) {
+    level++
+  }
+  return level
+}
+
+function writeChain(w: Out, items: Expr[], and: boolean, indent: string, level: number): void {
+  const span = GROUP ** level
+  for (let i = 0; i < items.length; i += span) {
+    const group = 0 < level || (and && 'or' === items[i].k)
+    w.text += (0 === i ? '' : and ? ' & ' : ' | ') + (group ? '(' : '')
+    if (0 < level) {
+      writeChain(w, items.slice(i, i + span), and, indent, level - 1)
+    }
+    else {
+      write(w, items[i], indent)
+    }
+    w.text += group ? ')' : ''
+  }
 }
 
 
@@ -443,7 +518,10 @@ type Ctx = {
   // A map root declares each target once; any other root copies it in
   // place and cuts a cycle.
   mapRoot: boolean
-  decls: Map<string, string>
+  decls: Map<string, Expr>
+  // The frame being written, and each declaration's.
+  frame: Frame
+  frames: Map<string, Frame>
   stack: JNode[]
   copies: number
   defaults: boolean
@@ -583,12 +661,14 @@ function subschemas(node: JNode, ptr: string, visit: (n: JNode, p: string) => vo
 
 
 function index(ctx: Ctx, node: JNode, ptr: string, resource: JNode, base: string): void {
+  let here = node === ctx.doc.root ? node : resource
   ctx.ptrOf.set(node, ptr)
   ctx.docOf.set(node, ctx.doc)
+  ctx.resourceOf.set(node, here)
+  ctx.baseOf.set(node, base)
   if ('object' !== node.t) {
     return
   }
-  let here = node === ctx.doc.root ? node : resource
   const id = entry(node, '$id')
   if (null != id && 'string' !== id.t) {
     wrongType(ctx, child(ptr, '$id'), '$id', 'a string', id)
@@ -1293,7 +1373,8 @@ function formats(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr[] {
   const name = entry(node, 'format')
   const g = grammarOf(ctx, name)
   if (undefined !== g) {
-    out.push(...grammarCall(ctx, child(ptr, 'format'), name as JNode, g))
+    out.push(...grammarCall(ctx, child(ptr, 'format'), name as JNode, g)
+      .map((e) => mark(ctx, e, child(ptr, 'format'), node)))
   }
   else if ('vocabulary' === ctx.asserts && 'string' === name?.t) {
     fail(ctx, 'format_unknown', child(ptr, 'format'), 'The format ' + quote(name.s) +
@@ -1306,7 +1387,8 @@ function formats(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr[] {
     wrongType(ctx, child(ptr, 'x-aontu-format'), 'x-aontu-format', 'a string', x)
   }
   else if (undefined !== x) {
-    out.push(...grammarCall(ctx, child(ptr, 'x-aontu-format'), x, x.s))
+    out.push(...grammarCall(ctx, child(ptr, 'x-aontu-format'), x, x.s)
+      .map((e) => mark(ctx, e, child(ptr, 'x-aontu-format'), node)))
   }
   return out
 }
@@ -1609,27 +1691,28 @@ function preferDefault(ctx: Ctx, node: JNode, e: Expr): Expr {
 }
 
 
-function lenOf(lo?: string, hi?: string): Expr | undefined {
-  const parts: Expr[] = []
-  if (undefined !== lo && '0' !== lo) {
-    parts.push(call('min', raw(lo)))
-  }
-  if (undefined !== hi) {
-    parts.push(call('max', raw(hi)))
-  }
-  return 0 === parts.length ? undefined : call('len', and(parts))
+
+
+// An expression with the keyword it was written for outermost: a copy,
+// since one expression may stand for several.
+function mark(ctx: Ctx, e: Expr, ptr: string, node: JNode, more?: Partial<Mark>): Expr {
+  return { ...e, marks: [{ ptr, node, frame: ctx.frame, ...more }, ...(e.marks ?? [])] }
 }
 
 
 // A schema as `A & (B...)`: the kind-agnostic keywords met with the
 // disjunction of the kinds, each met with the keywords scoped to it.
 // `only` restricts the kinds a position can hold at all.
-function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: string[]): Expr {
+// A reference reached its target from `via`, the keyword that names it.
+type Via = { ptr: string, node: JNode }
+
+function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: string[],
+  via?: Via): Expr {
   const outer = ctx.doc
   const scope = ctx.env
   ctx.doc = ctx.docOf.get(node) as Doc
   ctx.env = enter(ctx, node)
-  const out = convertNode(ctx, node, ptr, asDecl, only)
+  const out = convertNode(ctx, node, ptr, asDecl, only, via)
   ctx.doc = outer
   ctx.env = scope
   return out
@@ -1637,13 +1720,10 @@ function convert(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean, only?: str
 
 
 function convertNode(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean,
-  only?: string[]): Expr {
+  only?: string[], via?: Via): Expr {
   ctx.seen.add(node)
-  if ('true' === node.t) {
-    return ANY
-  }
-  if ('false' === node.t) {
-    return NIL
+  if ('true' === node.t || 'false' === node.t) {
+    return mark(ctx, 'true' === node.t ? ANY : NIL, ptr, node)
   }
   if ('object' !== node.t) {
     fail(ctx, 'jsonschema_schema', ptr, 'A schema is an object or a boolean.',
@@ -1654,7 +1734,9 @@ function convertNode(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean,
   const target = ctx.targets.get(node)
   if (null != target && !asDecl) {
     if (ctx.mapRoot) {
-      return raw('%' + declare(ctx, target))
+      const name = declare(ctx, target)
+      return mark(ctx, raw('%' + name), via?.ptr ?? ptr, via?.node ?? node,
+        { enters: ctx.frames.get(name) })
     }
     if (ctx.stack.includes(node)) {
       lose(ctx, ptr, '$ref', 'a reference that reaches itself has no alias to name ' +
@@ -1667,10 +1749,15 @@ function convertNode(ctx: Ctx, node: JNode, ptr: string, asDecl: boolean,
       return ANY
     }
   }
+  // A reference copied in place is a frame of its own.
+  const outer = ctx.frame
+  ctx.frame = undefined === via ? outer : { ptr, node }
   ctx.stack.push(node)
   const out = convertObject(ctx, node, ptr, only)
   ctx.stack.pop()
-  return out
+  const frame = ctx.frame
+  ctx.frame = outer
+  return undefined === via ? out : mark(ctx, out, via.ptr, via.node, { enters: frame })
 }
 
 
@@ -1695,11 +1782,15 @@ function declare(ctx: Ctx, target: Target): string {
   const clone = (ctx.clones.get(target) as string[]).indexOf(key)
   const name = 0 === clone ? target.name : target.name + '_e' + (clone + 1)
   if (!ctx.decls.has(name) && ctx.cloned <= SCOPE_BUDGET) {
-    ctx.decls.set(name, '')
+    ctx.decls.set(name, ANY)
+    const outer = ctx.frame
+    ctx.frame = { ptr: target.ptr, node: target.node }
+    ctx.frames.set(name, ctx.frame)
     const body = convert(ctx, target.node, target.ptr, true)
+    ctx.frame = outer
     const entries = identity(ctx, target, 0 < clone)
-    ctx.decls.set(name, print(0 === entries.length ? body :
-      call('ident', body, { k: 'map', spreads: [], entries }), ''))
+    ctx.decls.set(name, 0 === entries.length ? body :
+      call('ident', body, { k: 'map', spreads: [], entries }))
   }
   return name
 }
@@ -1771,7 +1862,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     }
     else {
       const target = resolveRef(ctx, node, ref.s) as JNode
-      parts.push(convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false))
+      parts.push(convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false, undefined,
+        { ptr: at('$ref'), node }))
     }
   }
 
@@ -1785,14 +1877,15 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     else {
       const name = bookend(ctx, node, dref.s)
       const target = ctx.env.get(name as string) ?? resolveRef(ctx, node, dref.s) as JNode
-      parts.push(call('meta', convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false),
-        { k: 'map', spreads: [], entries: [{ key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }))
+      parts.push(call('meta', convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false,
+        undefined, { ptr: at('$dynamicRef'), node }),
+      { k: 'map', spreads: [], entries: [{ key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }))
     }
   }
 
   const konst = get('const')
   if (null != konst) {
-    parts.push(literal(ctx, at('const'), 'const', konst))
+    parts.push(mark(ctx, literal(ctx, at('const'), 'const', konst), at('const'), node))
   }
 
   const enm = get('enum')
@@ -1804,7 +1897,7 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       const members = enm.items
         .map((it, i) => literal(ctx, at('enum') + '/' + i, 'enum', it))
         .filter((m) => !isRaw(m, 'nil'))
-      parts.push(0 === members.length ? NIL : or(members))
+      parts.push(mark(ctx, 0 === members.length ? NIL : or(members), at('enum'), node))
     }
   }
 
@@ -1825,8 +1918,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
         wrongType(ctx, at(key), key, 'a non-empty array', list)
       }
       else {
-        parts.push(carry(list.items.map((it, i) =>
-          convert(ctx, it, at(key) + '/' + i, false, only))))
+        parts.push(mark(ctx, carry(list.items.map((it, i) =>
+          convert(ctx, it, at(key) + '/' + i, false, only))), at(key), node))
       }
     }
   }
@@ -1834,7 +1927,8 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   const neg = get('not')
   const excluded = null == neg ? undefined : typedExclusion(node, neg)
   if (null != neg && undefined === excluded) {
-    parts.push(call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)))
+    parts.push(mark(ctx, call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)),
+      at('not'), node))
   }
 
   parts.push(...conditional(ctx, node, ptr, only), ...dependents(ctx, node, ptr, only))
@@ -1867,12 +1961,14 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   if (undefined !== allowed || kinds.some(scoped)) {
     const integral = undefined !== allowed && allowed.includes('integer') &&
       !allowed.includes('number')
-    const branches = kinds.map((kind) => branch(ctx, node, ptr, kind, integral, excluded))
-    parts.push(0 === branches.length ? NIL : or(branches))
+    const branches = kinds.map((kind) =>
+      branch(ctx, node, ptr, kind, integral, undefined !== allowed, excluded))
+    const split = 0 === branches.length ? NIL : or(branches)
+    parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split)
   }
 
   const met = and(parts)
-  return bottom(met) ? NIL : annotate(ctx, node, ptr, met)
+  return mark(ctx, bottom(met) ? NIL : annotate(ctx, node, ptr, met), ptr, node)
 }
 
 
@@ -2018,8 +2114,8 @@ function conditional(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     return []
   }
   const arm = (n: JNode, k: string): Expr => convert(ctx, n, child(ptr, k), false, only)
-  return [call('when', arm(cond, 'if'), null == then ? ANY : arm(then, 'then'),
-    ...(null == els ? [] : [arm(els, 'else')]))]
+  return [mark(ctx, call('when', arm(cond, 'if'), null == then ? ANY : arm(then, 'then'),
+    ...(null == els ? [] : [arm(els, 'else')])), child(ptr, 'if'), node)]
 }
 
 
@@ -2040,8 +2136,8 @@ function dependents(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   const at = (k: string): string => child(ptr, k)
   if ('object' === schemas?.t) {
     for (const e of schemas.entries) {
-      out.push(call('when', present([e.key]),
-        convert(ctx, e.val, child(at('dependentSchemas'), e.key), false, only)))
+      const p = child(at('dependentSchemas'), e.key)
+      out.push(mark(ctx, call('when', present([e.key]), convert(ctx, e.val, p, false, only)), p, node))
     }
   }
   else if (null != schemas) {
@@ -2056,8 +2152,9 @@ function dependents(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
           'an array of strings', e.val)
       }
       else if (0 < names.length) {
-        out.push(call('when', present([e.key]),
-          present(names.map((n) => (n as JNode & { t: 'string' }).s))))
+        out.push(mark(ctx, call('when', present([e.key]),
+          present(names.map((n) => (n as JNode & { t: 'string' }).s))),
+        child(at('dependentRequired'), e.key), node))
       }
     }
   }
@@ -2069,26 +2166,34 @@ function dependents(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
 
 
 function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: string,
-  integral: boolean, excluded?: Record<string, string[]>): Expr {
-  const exclude = (parts: Expr[]): Expr[] =>
-    0 < (excluded?.[kind] ?? []).length ?
-      [...parts, call('neq', ...(excluded as Record<string, string[]>)[kind].map(raw))] : parts
+  integral: boolean, typed: boolean, excluded?: Record<string, string[]>): Expr {
   const get = (k: string): JNode | undefined => entry(node, k)
   const at = (k: string): string => child(ptr, k)
-  const counted = (lo: string, hi: string): Expr | undefined => {
-    const l = get(lo)
-    const h = get(hi)
-    return lenOf(null == l ? undefined : count(ctx, at(lo), lo, l),
-      null == h ? undefined : count(ctx, at(hi), hi, h))
+  const exclude = (parts: Expr[]): Expr[] =>
+    0 < (excluded?.[kind] ?? []).length ? [...parts, mark(ctx,
+      call('neq', ...(excluded as Record<string, string[]>)[kind].map(raw)), at('not'), node)] : parts
+  const bound = (k: string, fn: string): Expr | undefined => {
+    const v = get(k)
+    const text = null == v ? undefined : count(ctx, at(k), k, v)
+    return undefined === text || ('min' === fn && '0' === text) ? undefined :
+      mark(ctx, call(fn, raw(text)), at(k), node)
   }
+  // A length with one bound breaks that bound's keyword.
+  const counted = (lo: string, hi: string): Expr | undefined => {
+    const parts = [bound(lo, 'min'), bound(hi, 'max')].filter((e) => undefined !== e) as Expr[]
+    return 0 === parts.length ? undefined :
+      { ...call('len', and(parts)), marks: 1 === parts.length ? parts[0].marks : undefined }
+  }
+  const kindOf = (e: Expr): Expr => typed ? mark(ctx, e, at('type'), node) : e
 
   if ('null' === kind || 'boolean' === kind) {
-    return raw(kind)
+    return kindOf(raw(kind))
   }
 
   if ('number' === kind) {
     // An integer is a number with no fraction, whatever its spelling.
-    const parts: Expr[] = [raw('number'), ...(integral ? [call('multiple', raw('1'))] : [])]
+    const parts: Expr[] = [kindOf(raw('number')),
+      ...(integral ? [mark(ctx, call('multiple', raw('1')), at('type'), node)] : [])]
     for (const [k, fn] of [['minimum', 'min'], ['maximum', 'max'],
     ['exclusiveMinimum', 'above'], ['exclusiveMaximum', 'below'], ['multipleOf', 'multiple']]) {
       const v = get(k)
@@ -2097,14 +2202,14 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
         wrongType(ctx, at(k), k, 'a number greater than 0', v as JNode)
       }
       else if (undefined !== text) {
-        parts.push(call(fn, raw(text)))
+        parts.push(mark(ctx, call(fn, raw(text)), at(k), node))
       }
     }
     return and(exclude(parts))
   }
 
   if ('string' === kind) {
-    const parts: Expr[] = [call('empty')]
+    const parts: Expr[] = [kindOf(call('empty'))]
     const len = counted('minLength', 'maxLength')
     if (undefined !== len) {
       parts.push(len)
@@ -2117,7 +2222,7 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
       else {
         const re = pattern(ctx, at('pattern'), 'pattern', pat.s)
         if (undefined !== re) {
-          parts.push(re)
+          parts.push(mark(ctx, re, at('pattern'), node))
         }
       }
     }
@@ -2131,10 +2236,9 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
     map.spreads.push(...(undefined === left?.spread ? [] : [left.spread]))
     const len = counted('minProperties', 'maxProperties')
     const sized = [len, left?.rest].filter((e) => undefined !== e) as Expr[]
-    if (0 === sized.length) {
-      return 0 === map.entries.length && 0 === map.spreads.length ? raw('map') : map
-    }
-    return and([map, ...sized])
+    const held = kindOf(0 === sized.length && 0 === map.entries.length && 0 === map.spreads.length ?
+      raw('map') : map)
+    return 0 === sized.length ? held : and([held, ...sized])
   }
 
   const left = unevaluated(ctx, node, ptr, kind)
@@ -2144,10 +2248,10 @@ function branch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string, kind: stri
   const sized = [counted('minItems', 'maxItems'), containsOf(ctx, node, ptr),
     uniqueOf(ctx, node, ptr), left?.rest].filter((e) => undefined !== e) as Expr[]
   if (0 === sized.length) {
-    return undefined === spread ? raw('list') : { k: 'list', spread }
+    return kindOf(undefined === spread ? raw('list') : { k: 'list', spread })
   }
   // Open by a spread: a literal list alternative admits only its own length.
-  return and([{ k: 'list', spread: spread ?? ANY }, ...sized])
+  return and([kindOf({ k: 'list', spread: spread ?? ANY }), ...sized])
 }
 
 
@@ -2179,18 +2283,18 @@ function unevaluated(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   if (covers.every((c) => 0 === c.cond.length && undefined === c.members)) {
     const keys = distinct(covers.flatMap((c) => c.keys))
     return {
-      spread: 0 === keys.length ? t :
-        call('match', call('key', raw('0')), ...keys.flatMap((k) => [k, ANY]), t),
+      spread: 0 === keys.length ? t : mark(ctx,
+        call('match', call('key', raw('0')), ...keys.flatMap((k) => [k, ANY]), t), child(ptr, word), node),
     }
   }
-  return { rest: call('rest', t, ...covers.map((c) => ({
+  return { rest: mark(ctx, call('rest', t, ...covers.map((c) => ({
     k: 'map' as const, spreads: [], entries: [
       ...(0 === c.cond.length ? [] : [{ key: 'if', optional: false, val: and(c.cond) }]),
       ...(c.all ? [{ key: 'keys', optional: false, val: ANY }] :
         0 === c.keys.length ? [] : [{ key: 'keys', optional: false, val: or(c.keys) }]),
       ...(undefined === c.members ? [] : [{ key: 'members', optional: false, val: c.members }]),
     ],
-  }))) }
+  }))), child(ptr, word), node) }
 }
 
 
@@ -2294,14 +2398,10 @@ function containsOf(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr 
     return undefined
   }
   const c = convert(ctx, has, child(ptr, 'contains'), false)
-  if ('1' === lo && undefined === hi) {
-    return call('contains', c)
-  }
-  if (lo === hi) {
-    return call('contains', c, raw(lo))
-  }
-  return call('contains', c, and([...('0' === lo ? [] : [call('min', raw(lo))]),
-    ...(undefined === hi ? [] : [call('max', raw(hi))])]))
+  return mark(ctx, '1' === lo && undefined === hi ? call('contains', c) :
+    lo === hi ? call('contains', c, raw(lo)) :
+      call('contains', c, and([...('0' === lo ? [] : [call('min', raw(lo))]),
+        ...(undefined === hi ? [] : [call('max', raw(hi))])])), child(ptr, 'contains'), node)
 }
 
 
@@ -2310,7 +2410,7 @@ function uniqueOf(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr | 
   if (null != uniq && 'true' !== uniq.t && 'false' !== uniq.t) {
     wrongType(ctx, child(ptr, 'uniqueItems'), 'uniqueItems', 'a boolean', uniq)
   }
-  return 'true' === uniq?.t ? call('unique') : undefined
+  return 'true' === uniq?.t ? mark(ctx, call('unique'), child(ptr, 'uniqueItems'), node) : undefined
 }
 
 
@@ -2337,6 +2437,8 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
     }
   }
 
+  // A member the data lacks is the `required` that asked for it.
+  const asked: Mark[] = [{ ptr: at('required'), node, frame: ctx.frame, required: true }]
   const entries: MapEntry[] = []
   const declared: string[] = []
   const props = get('properties')
@@ -2351,13 +2453,14 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
         const val = convert(ctx, e.val, child(at('properties'), e.key), false)
         entries.push({
           key: e.key, optional, val: optional && ctx.defaults ? preferDefault(ctx, e.val, val) : val,
+          ...(optional ? {} : { marks: asked }),
         })
       }
     }
   }
   for (const k of required) {
     if (!declared.includes(k)) {
-      entries.push({ key: k, optional: false, val: ANY })
+      entries.push({ key: k, optional: false, val: ANY, marks: asked })
     }
   }
 
@@ -2378,7 +2481,8 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
         }
         else {
           patterns.push(re)
-          spreads.push(call('match', call('key', raw('0')), re, convert(ctx, e.val, p, false), ANY))
+          spreads.push(mark(ctx, call('match', call('key', raw('0')), re, convert(ctx, e.val, p, false), ANY),
+            at('patternProperties'), node))
         }
       }
     }
@@ -2404,7 +2508,7 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
           args.push(re, ANY)
         }
         args.push(rest)
-        spreads.push({ k: 'call', name: 'match', args })
+        spreads.push(mark(ctx, { k: 'call', name: 'match', args }, at('additionalProperties'), node))
       }
     }
   }
@@ -2413,7 +2517,7 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
   if (null != names && 'true' !== names.t) {
     const guard = convert(ctx, names, at('propertyNames'), false, ['string'])
     if (!isRaw(guard, 'any')) {
-      spreads.push(call('match', call('key', raw('0')), guard, ANY, NIL))
+      spreads.push(mark(ctx, call('match', call('key', raw('0')), guard, ANY, NIL), at('propertyNames'), node))
     }
   }
 
@@ -2439,7 +2543,7 @@ function arraySpread(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string): Expr
         args.push(raw(quote(String(i))), convert(ctx, it, at('prefixItems') + '/' + i, false))
       })
       args.push(rest)
-      return { k: 'call', name: 'match', args }
+      return mark(ctx, { k: 'call', name: 'match', args }, at('prefixItems'), node)
     }
   }
   return isRaw(rest, 'any') ? undefined : rest
@@ -2454,26 +2558,66 @@ function coreMap(e: Expr): (Expr & { k: 'map' }) | undefined {
 }
 
 
-function emit(ctx: Ctx, root: Expr): string {
+function emit(ctx: Ctx, root: Expr): Out {
+  const w: Out = { text: '', placed: [], depth: 0 }
   const decls = [...ctx.decls.keys()].sort(cmpCodePoint)
-    .map((name) => '%' + name + ' = ' + ctx.decls.get(name))
-  if (!ctx.mapRoot) {
-    return print(root, '') + '\n'
+    .map((name): [string, Expr] => [name, ctx.decls.get(name) as Expr])
+  if (!ctx.mapRoot || 'map' !== root.k) {
+    const core = coreMap(root)
+    if (ctx.mapRoot) {
+      (core as Expr & { k: 'map' }).decls = 0 === decls.length ? undefined : decls
+    }
+    write(w, root, '')
+    w.text += '\n'
+    return w
   }
-  if ('map' !== root.k) {
-    const core = coreMap(root) as Expr & { k: 'map' }
-    core.decls = 0 === decls.length ? undefined : decls
-    return print(root, '') + '\n'
+  decls.forEach(([name, body], i) => {
+    w.text += 0 === i ? '' : '\n'
+    writeDecl(w, name, body)
+  })
+  w.text += 0 === decls.length ? '' : '\n\n'
+  const start = w.text.length
+  writeLines(w, root, '')
+  place(w, start, root.marks)
+  return w
+}
+
+
+// ADR-066: the spans the import wrote, carried to the agreed form, each
+// frame numbered by where its own text first appears, the root 0.
+function sourceMapOf(ctx: Ctx, out: Out, text: string): SourceMap {
+  const placed = [...out.placed].sort((a, b) =>
+    a.start - b.start || b.end - a.end || a.depth - b.depth)
+  const moved = carry(out.text, text, placed)
+  const kept = placed.map((p, i) => ({ mark: p.mark, at: moved[i] }))
+    .filter((k) => undefined !== k.at)
+  const ids = new Map<Frame, number>([[ctx.frame, 0]])
+  for (const k of kept) {
+    ids.set(k.mark.frame, ids.get(k.mark.frame) ?? ids.size)
   }
-  return (0 === decls.length ? '' : decls.join('\n') + '\n\n') +
-    mapLines(root, '').join('\n') + '\n'
+  const spans = kept.map(({ mark, at }): SourceSpan => {
+    const resource = ctx.resourceOf.get(mark.node) as JNode
+    const within = originOf(ctx, ctx.ptrOf.get(resource) as string).length
+    const enters = undefined === mark.enters ? undefined : ids.get(mark.enters)
+    return {
+      ...(at as { start: number, end: number }),
+      frame: ids.get(mark.frame) as number,
+      keyword: originOf(ctx, mark.ptr).slice(originOf(ctx, mark.frame.ptr).length),
+      absolute: normalizeUri(ctx.baseOf.get(resource) as string) + '#' +
+        fragmentOf(originOf(ctx, mark.ptr).slice(within)),
+      ...(undefined === enters ? {} : { enters }),
+      ...(true === mark.required ? { required: true } : {}),
+    }
+  })
+  return { sha256: textSha(text), spans }
 }
 
 
 function run(base: Ctx, mapRoot: boolean): [Ctx, Expr] {
   const ctx: Ctx = {
     ...base, lossy: [], errors: [], mapRoot, decls: new Map(), stack: [], copies: 0,
-    env: new Map(), clones: new Map(), cloned: 0,
+    env: new Map(), clones: new Map(), cloned: 0, frame: { ptr: '#', node: base.root },
+    frames: new Map(),
   }
   return [ctx, convert(ctx, base.root, '#', true)]
 }
@@ -2493,6 +2637,7 @@ function begin(text: string, options?: ImportOptions): [Ctx, JNode | undefined] 
     dynAnchors: new Map(), dynamic: new Set(), env: new Map(), clones: new Map(),
     uses: new Map(), cloned: 0,
     documents: new Map(), targets: new Map(), mapRoot: true, decls: new Map(), stack: [],
+    frame: { ptr: '#', node: doc.root }, frames: new Map(),
     copies: 0, seen: new Set(), asserts: true === options?.formatAssertion ? 'option' : '',
     formats: new Map(Object.entries(options?.formats ?? {})),
     dialect: '2020-12', dialects: new Map(), reads: new Map(), origin: new Map(), rewritten: [],
@@ -2594,7 +2739,8 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   // read only where a reference reaches it.
   for (const [node, ptr] of base.ptrOf) {
     if (!ctx.seen.has(node) && base.doc === base.docOf.get(node)) {
-      convert({ ...ctx, lossy: [], decls: new Map(), stack: [], copies: 0 }, node, ptr, false)
+      convert({ ...ctx, lossy: [], decls: new Map(), stack: [], copies: 0, frames: new Map() },
+        node, ptr, false)
     }
   }
   if (0 < ctx.errors.length) {
@@ -2604,11 +2750,14 @@ export function importJsonSchema(text: string, options?: ImportOptions): ImportR
   if (0 < ctx.errors.length) {
     return error(ctx)
   }
+  const out = emit(ctx, body)
+  const agreed = agreedForm(out.text)
   return {
     verdict: 0 < ctx.lossy.length ? 'lossy' : 'ok',
-    aontu: agreedForm(emit(ctx, body)),
+    aontu: agreed,
     lossy: ctx.lossy,
     vet: [...IMPORT_VET_FLAGS],
+    ...(true === options?.sourceMap ? { map: sourceMapOf(ctx, out, agreed) } : {}),
   }
 }
 

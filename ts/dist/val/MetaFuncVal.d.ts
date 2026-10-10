@@ -6,6 +6,7 @@ declare class MetaFuncVal extends FuncBaseVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
+    rides(): boolean;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
 export { MetaFuncVal, };

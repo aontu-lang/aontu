@@ -278,11 +278,14 @@ class FuncBaseVal extends FeatureVal {
               resolved, peer, 'func-' + this.funcname() + '/' + this.id)
           propagateMarks(this, out)
 
-          out.site.row = this.site.row
-          out.site.col = this.site.col
-          out.site.url = this.site.url
-          out.site.len = this.site.len
-          out.site.src = this.site.src
+          // A rider's value is its argument, written where it is (ADR-066).
+          if (!this.rides() || out.site.row < 0) {
+            out.site.row = this.site.row
+            out.site.col = this.site.col
+            out.site.url = this.site.url
+            out.site.len = this.site.len
+            out.site.src = this.site.src
+          }
           // A meet with the root's declaring map lands at the root.
           out.path = true === peer.isMap && 0 < (peer as any).aliasKeys.length ?
             peer.path : this.path
@@ -344,6 +347,11 @@ class FuncBaseVal extends FeatureVal {
 
   funcname() {
     return 'func'
+  }
+
+
+  rides(): boolean {
+    return false
   }
 
 

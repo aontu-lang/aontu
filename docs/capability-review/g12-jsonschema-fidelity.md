@@ -1021,11 +1021,15 @@ check of section 13 and `--strict`.
 
 **`vet --output flag|basic`** projects a `vet` report onto 2020-12's
 output units. `flag` is `{valid}`, where `incomplete` is `false`.
-`basic` lists one unit per finding, with `instanceLocation` as an RFC
-6901 pointer built from the finding's path and, for an imported schema,
-`keywordLocation` and `absoluteKeywordLocation` read from a source map
-the importer writes beside the aontu text: each span it wrote, with the
-keyword pointer and resource URI it came from and the `$ref` it crossed.
+`basic` lists one unit per error finding, a warning being no failure,
+with `instanceLocation` as an RFC 6901 pointer built from the finding's
+path and, for an imported schema, `keywordLocation` and
+`absoluteKeywordLocation` read from a source map the importer writes
+beside the aontu text: each span it wrote, with the keyword pointer and
+resource URI it came from and the `$ref` it crossed. A unit is as
+precise as its finding's site: a value a `match()` selects is located
+at the keyword that wrote the match, and a value its own kind's branch
+refuses, in a schema with no `type`, at the schema object.
 Every existing report field keeps its spelling; the pointer is additive.
 `detailed` and `verbose` are outside the boundary unless the coverage
 channel of section 9 grows into a full evaluation trace.

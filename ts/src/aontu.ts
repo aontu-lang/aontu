@@ -31,6 +31,8 @@ import { relationCheck, relationErrors } from './relation'
 import { reachCheck } from './reach'
 import { jsonSchema } from './jsonschema'
 import { importJsonSchema } from './jsonschema-import'
+import { readSourceMap, vetOutput } from './sourcemap'
+export type { OutputUnit, SourceMap, SourceSpan, VetOutput } from './sourcemap'
 import { aliasBudget, aliasErrors } from './alias'
 import { view, viewSet, viewTree } from './view'
 import { loadProfile } from './profile'
@@ -477,6 +479,10 @@ export {
   reachCheck,
   jsonSchema,
   importJsonSchema,
+  // ADR-066: a vet report as JSON Schema's output units, located through
+  // the importer's source map, and a map read back from its file.
+  vetOutput,
+  readSourceMap,
   view,
   viewSet,
   viewTree,

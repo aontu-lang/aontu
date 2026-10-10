@@ -21,6 +21,7 @@ export type VetFinding = {
     expected?: string;
     actual?: string;
     note?: string;
+    pointer?: string;
 };
 export type VetCoverage = {
     checked: number;

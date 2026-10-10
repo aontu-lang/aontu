@@ -49,7 +49,7 @@ Usage: aontu [options] [file]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
                                [--dialect <name>] [--no-meta-check]
-                               [options] <file>
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -180,6 +180,8 @@ aontu vet [options] <schema> <data> [more-data...]
   --strict-coverage --coverage, and exit 1 when the run was vacuous
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: JSON Schema's output units
+  --source-map <f>  The map jsonschema import wrote for the schema
   --watch           Re-run whenever a watched file changes
 ```
 
@@ -429,7 +431,10 @@ refuses `prot`, only a `close()` that never declared it) and the
 stanza naming the producer, so a report read from a pipe says which
 version and verb made it. Where the constraint algebra knows what would
 have unified, the finding carries it as `expected`/`actual`, and a
-`must()` check's author message rides along as `note`.
+`must()` check's author message rides along as `note`. Beside `path`,
+each finding carries `pointer`, the same place as an RFC 6901 JSON
+Pointer: `$.a.b` is the path of both the key `a.b` and the key `b`
+inside `a`, and the pointers `/a.b` and `/a/b` tell them apart.
 
 **A finding carries the repair beside the diagnosis.** `message` is
 the headline and stays one line (that is what makes it comparable and
@@ -476,6 +481,106 @@ any data file) changes, streaming one report per run: non-incremental
 by design: parsed trees are single-use, so every run is a full
 re-parse and re-unify, bounded by the fixpoint's pass budget. A file
 that is briefly unreadable mid-save reports and keeps watching.
+
+#### Output units
+
+`--output flag|basic` answers in the output format JSON Schema defines,
+in place of `--format`, for one data file. `flag` is the verdict alone,
+`{"valid": false}`, an `incomplete` verdict counting as not valid.
+`basic` lists one unit for each error the report keeps, a warning being
+none, and locates it as JSON Schema does: `keywordLocation` is the
+keyword's pointer as the evaluation reached it, through each `$ref` it
+crossed; `absoluteKeywordLocation` is the keyword in its own resource,
+by URI; and `instanceLocation` is the finding's `pointer`.
+
+A finding names a place in the aontu text, so `basic` needs the map
+that [`jsonschema import --source-map`](#aontu-jsonschema-import)
+writes of where in that text each keyword landed. Import a schema with
+its map, giving the retrieval URI its absolute locations read against.
+Write `order.json`:
+
+<!-- test: scenario vet-output -->
+<!-- test: file order.json -->
+```json
+{"type": "object", "required": ["sku"],
+ "properties": {"qty": {"$ref": "#/$defs/count"}},
+ "$defs": {"count": {"type": "integer", "minimum": 1}}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --uri https://example.com/order --source-map order.map.json order.json
+%d_count = number & multiple(1) & min(1)
+
+qty?: %d_count
+sku: any
+```
+
+Save the text as `order.aontu`:
+
+<!-- test: file order.aontu -->
+```aontu
+%d_count = number & multiple(1) & min(1)
+
+qty?: %d_count
+sku: any
+```
+
+and vet an order with no `sku` and a quantity below the minimum,
+written as `data.json`:
+
+<!-- test: file data.json -->
+```json
+{"qty": 0}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill --exact-numbers --output basic --source-map order.map.json order.aontu data.json
+{
+  "absoluteKeywordLocation": "https://example.com/order#",
+  "errors": [
+    {
+      "absoluteKeywordLocation": "https://example.com/order#/$defs/count/minimum",
+      "error": "[aontu/constraint]: Cannot unify values at path $.qty",
+      "instanceLocation": "/qty",
+      "keywordLocation": "/properties/qty/$ref/minimum",
+      "valid": false
+    },
+    {
+      "absoluteKeywordLocation": "https://example.com/order#/required",
+      "error": "[aontu/mapval_no_gen]: Cannot resolve value at path $.sku",
+      "instanceLocation": "",
+      "keywordLocation": "/required",
+      "valid": false
+    }
+  ],
+  "instanceLocation": "",
+  "keywordLocation": "",
+  "valid": false
+}
+$ echo $?
+1
+```
+
+The evaluation reaches the bound through the `$ref` of `qty`, so its
+keyword location crosses that `$ref`, and its absolute location is the
+bound where `$defs` writes it. A missing member is its object's
+`required`, at the object.
+
+**The map names its text.** It records the SHA-256 of the document it
+describes, and `vet` refuses with exit 2 a file that is not a source
+map or that no longer matches the schema's text, so a document edited
+or reformatted after the import needs a fresh one. `vet` never looks
+for a map it was not given.
+
+**A unit is as precise as the finding's site.** Where the site is a
+function's call, the unit names the keyword that wrote the call, so a
+value that `prefixItems`, `patternProperties`, `additionalProperties`
+or a legacy tuple selects fails at that keyword rather than inside the
+schema it applies. A schema with no `type` imports as a disjunction of
+the kinds, and a value its own kind's branch refuses fails at the
+schema object.
 
 #### Vetting a recursive schema
 
@@ -1536,7 +1641,7 @@ Import a **JSON Schema** document, of draft-04, draft-06, draft-07,
 aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
                         [--format-assert] [--format-grammar <name> <file>]...
                         [--dialect <name>] [--no-meta-check]
-                        [--format text|json] <file>
+                        [--source-map <file>] [--format text|json] <file>
 ```
 
 This is the bridge in the other direction. A schema another tool
@@ -1631,6 +1736,18 @@ y: number
   model checks nothing and is reported as a loss at `$schema`. The
   check is the import's one costly step for a large schema, and
   `--no-meta-check` skips it for a schema already known to be valid.
+- `--source-map <file>` writes a map of where each keyword landed in
+  the document, `{sha256, spans}`: the SHA-256 of the document's text,
+  and one span for each place a keyword was written, as UTF-8 byte
+  offsets `start` and `end`, the end exclusive. A span's `keyword` is
+  the keyword's pointer in the schema object it belongs to, its
+  `absolute` the keyword's URI, and its `frame` that schema object:
+  `0` the root, each other number a definition or a reference's copy.
+  A reference's span names the frame it reaches in `enters`, and the
+  span of a required member carries `required: true`. Pointers name the
+  keywords as written, before any rewrite of an earlier dialect.
+  `--format json` carries the map in the report as `map`.
+  [`vet --output basic`](#output-units) reads it back.
 - Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
   `4` the text is not a schema, or nests deeper than 256 levels
   (`max_depth`). Without `--strict` a lossy import is still an import
@@ -1641,9 +1758,14 @@ y: number
   when the text is refused). Its options are the flags':
   `defaults`, `uri`, `documents`, `formatAssertion`, `formats`, a
   record of grammars by name in which a defined name keeps its
-  committed grammar, `dialect` and `noMetaCheck` (`Defaults`, `URI`,
-  `Documents`, `FormatAssertion`, `Formats`, `Dialect` and
-  `NoMetaCheck` in Go), and `path`, the filename the findings cite.
+  committed grammar, `dialect`, `noMetaCheck` and `sourceMap`, which
+  adds the map to the record as `map` (`Defaults`, `URI`, `Documents`,
+  `FormatAssertion`, `Formats`, `Dialect`, `NoMetaCheck`, `SourceMap`
+  and `Map` in Go), and `path`, the filename the findings cite.
+  `vetOutput(report, form, {text, map}?)` and `readSourceMap(text)` in
+  TypeScript, `VetOutput(report, form, text, sourceMap)` and
+  `ReadSourceMap(text)` in Go, answer a vet report's output units and
+  read a map back, `undefined` or `false` where the text is not one.
 - `upgradeJsonSchema(text, options?)` in TypeScript and
   `UpgradeJSONSchema(text, opts)` in Go run the rewrite alone, with the
   same options, and return `{verdict, dialect, schema, rewritten}`:

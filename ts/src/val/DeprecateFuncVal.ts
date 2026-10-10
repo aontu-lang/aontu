@@ -41,6 +41,10 @@ class DeprecateFuncVal extends FuncBaseVal {
     return 'deprecate'
   }
 
+  rides() {
+    return true
+  }
+
   resolve(ctx: AontuContext, args: Val[]) {
     let out = args[0] ?? makeNilErr(ctx, 'arg', this)
 

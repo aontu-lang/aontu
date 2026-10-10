@@ -41,6 +41,7 @@ const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
 const jsonschema_import_1 = require("../dist/jsonschema-import");
+const sourcemap_1 = require("../dist/sourcemap");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
@@ -95,7 +96,8 @@ function loadRows() {
             const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
                 'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
-                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1];
+                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+                'jsonschema-output' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -294,7 +296,16 @@ function runRow(row) {
             verdict: report.verdict,
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
+            ...(null == report.map ? {} : { map: report.map }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-output' === row.mode) {
+        // ADR-066: the schema imported with its source map, the data vetted
+        // as JSON Schema asks, and the report as basic output units.
+        const golden = JSON.parse(row.expect);
+        const imported = (0, jsonschema_import_1.importJsonSchema)(row.src, { ...golden.opts, sourceMap: true });
+        const report = (0, aontu_1.vet)(imported.aontu, row.data, { noFill: true, exactNumbers: true });
+        Assert.strictEqual((0, aontu_1.exactJSON)((0, sourcemap_1.vetOutput)(report, 'basic', { text: imported.aontu, map: imported.map })), (0, aontu_1.exactJSON)(golden.output), `jsonschema-output mismatch: ${row.name}`);
     }
     else if ('jsonschema-upgrade' === row.mode) {
         // A number a double cannot hold keeps its digits, as the export does.

@@ -8,6 +8,40 @@ each change affects.
 
 ## Unreleased
 
+### vet answers JSON Schema's output units (ADR-066)
+
+Both ports, G12 phase 17.
+
+- Every `vet` finding carries `pointer`, its path as an RFC 6901 JSON
+  Pointer, which tells the key `a.b` from the key `b` inside `a` where
+  `path` reads `$.a.b` for both. The SARIF report carries it in each
+  result's properties.
+- `aontu jsonschema import --source-map <file>` writes a map of where
+  each keyword landed in the imported document, tied to the document by
+  its SHA-256; `--format json` carries it as `map`, and the library's
+  `sourceMap` option (`SourceMap` in Go) adds it to the report.
+- `aontu vet --output flag|basic` answers in JSON Schema's own output
+  format for one data file: `flag` is the verdict alone, and `basic`,
+  given the map with `--source-map <file>`, locates each error at the
+  JSON Schema keyword, through each `$ref` it crossed, and at its
+  absolute URI. A map that is not one, or no longer matches the
+  schema's text, is refused with exit 2. `vetOutput` and
+  `readSourceMap` (`VetOutput` and `ReadSourceMap` in Go) are the
+  library form.
+- A refusal by a constraint met from several atoms is sited at the atom
+  that refused: `integer & min(1) & max(65535)` refuses `70000` at
+  `max`, where it named `min`.
+- `meta()` and `deprecate()` keep their value's own site, so a refusal
+  inside an annotated or deprecated schema is sited at the atom that
+  refused, and the deprecation warning, the language servers'
+  Deprecated tag and their hover sit on the value rather than on the
+  word `meta` or `deprecate`.
+- Go refused only the first element past a closed list's end; it
+  refuses each, as TypeScript does.
+- The suite's `output-tests/` run in both harnesses: four of their
+  eight tests pass, and four wait on a disjunction of the kinds being
+  located inside a branch and on annotations, under a ledger of four.
+
 ### A schema is checked against its meta-schema (ADR-065)
 
 Both ports, G12 phase 16.

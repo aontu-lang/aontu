@@ -201,11 +201,14 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     out = resolved.done && peer.isTop ? resolved :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEG') }) : ctx, resolved, peer, 'func-' + this.funcname() + '/' + this.id);
                     (0, utility_1.propagateMarks)(this, out);
-                    out.site.row = this.site.row;
-                    out.site.col = this.site.col;
-                    out.site.url = this.site.url;
-                    out.site.len = this.site.len;
-                    out.site.src = this.site.src;
+                    // A rider's value is its argument, written where it is (ADR-066).
+                    if (!this.rides() || out.site.row < 0) {
+                        out.site.row = this.site.row;
+                        out.site.col = this.site.col;
+                        out.site.url = this.site.url;
+                        out.site.len = this.site.len;
+                        out.site.src = this.site.src;
+                    }
                     // A meet with the root's declaring map lands at the root.
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
@@ -255,6 +258,9 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     funcname() {
         return 'func';
+    }
+    rides() {
+        return false;
     }
     prepare(_ctx, args) {
         return args;

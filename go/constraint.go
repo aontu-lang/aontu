@@ -513,6 +513,11 @@ type ConstraintVal struct {
 	// the pattern is refused. Injected into the hint as {reason}; the TS
 	// twin carries the same string.
 	invalidWhy string
+	// sites is the call each part of a residual met from several was
+	// written as (ADR-066), so a refusal is sited at the atom that
+	// refused: bounds, excluded values and divisors by pointer, every
+	// other part by its key.
+	sites map[any]site
 }
 
 const sizingCjo = 150000
@@ -810,6 +815,10 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		}
 		inner := meetCount(countBase(), arg)
 		c.count = inner
+		// Its bounds were written as calls of their own.
+		if cv, ok := args[0].(*ConstraintVal); ok {
+			c.sites = cv.sites
+		}
 		// `len(min(5)&max(3))` is unsatisfiable with no peer in sight,
 		// so it is refused at composition time like any other empty meet.
 		if stateEmpty(inner) {
@@ -978,7 +987,7 @@ func (c *ConstraintVal) checkMustsFinal(peer Val, ctx *Ctx, final bool) Val {
 }
 
 func (c *ConstraintVal) mustFails(ctx *Ctx, peer Val, m constraintMust) Val {
-	return makeNilErrFull(ctx, "must", c, peer, "", map[string]string{
+	return makeNilErrFull(ctx, "must", c.at(mustKey(m)), peer, "", map[string]string{
 		"message":  m.msg.peg.(string),
 		"expected": m.v.Canon(),
 		"actual":   peer.Canon(),
@@ -993,9 +1002,9 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 	if c.uniq || 0 < len(c.uniqBy)+len(c.contains) {
 		return c.fail(ctx, peer)
 	}
-	if !stateAdmits(c, peer) ||
-		(c.nonEmpty && KindPath == peer.kind) || (c.pathKind && KindPath != peer.kind) {
-		return c.fail(ctx, peer)
+	by, refused := stateRefuser(c, peer)
+	if refused || (c.nonEmpty && KindPath == peer.kind) || (c.pathKind && KindPath != peer.kind) {
+		return c.fail(ctx, peer, by)
 	}
 	if c.nonEmpty {
 		peer = peer.withNonEmpty()
@@ -1008,13 +1017,14 @@ func (c *ConstraintVal) admit(peer *ScalarVal, ctx *Ctx) Val {
 			return c.fail(ctx, peer)
 		}
 		n := utf8.RuneCountInString(peer.peg.(string))
-		if !stateAdmits(c.count, countVal(n)) {
-			return c.fail(ctx, peer)
+		if short, refused := stateRefuser(c.count, countVal(n)); refused {
+			return c.fail(ctx, peer, short)
 		}
 	}
 	for _, f := range c.fmts {
 		if why := formatWhy(f, peer.peg.(string)); "" != why {
-			return makeNilErrFull(ctx, "parse_failed", c, peer, "parse", map[string]string{"reason": why})
+			return makeNilErrFull(ctx, "parse_failed", c.at("fmt:"+f.src), peer, "parse",
+				map[string]string{"reason": why})
 		}
 	}
 	if bad := c.checkMusts(peer, ctx); nil != bad {
@@ -1053,7 +1063,7 @@ func (c *ConstraintVal) checkWhens(peer Val, ctx *Ctx) Val {
 			return c.overBudget(ctx, peer)
 		}
 		if !admitted {
-			return makeNilErrFull(ctx, "when", c, peer, "", map[string]string{
+			return makeNilErrFull(ctx, "when", c.at("when:"+whenCanon(w)), peer, "", map[string]string{
 				"expected":  whenCanon(w),
 				"actual":    peer.Canon(),
 				"branch":    taken,
@@ -1116,7 +1126,7 @@ func (c *ConstraintVal) checkRests(bag Val, optional []string, peer Val, ctx *Ct
 				return c.overBudget(ctx, peer)
 			}
 			if !covered {
-				return makeNilErrFull(ctx, "rest", c, peer, "", map[string]string{
+				return makeNilErrFull(ctx, "rest", c.at("rest:"+restCanon(r)), peer, "", map[string]string{
 					"expected": restCanon(r),
 					"actual":   peer.Canon(),
 					"key":      keys[i],
@@ -1162,7 +1172,7 @@ func (c *ConstraintVal) checkNofs(peer Val, ctx *Ctx) Val {
 			if 0 < open {
 				admitted += " to " + strconv.Itoa(k+open)
 			}
-			return makeNilErrFull(ctx, "nof", c, peer, "", map[string]string{
+			return makeNilErrFull(ctx, "nof", c.at("nof:"+nofCanon(n)), peer, "", map[string]string{
 				"expected": nofCanon(n),
 				"actual":   peer.Canon(),
 				"count":    countCanon(n.count),
@@ -1235,25 +1245,11 @@ func (c *ConstraintVal) admitContainerFinal(
 
 	n := len(members)
 	if nil != c.count {
-		if nil != c.count.hi {
-			noLo := *c.count
-			noLo.lo = nil
-			if !stateAdmits(&noLo, countVal(n)) {
-				return c.fail(ctx, peer)
-			}
-		}
-		if 0 < len(c.count.neqs)+len(c.count.mults) {
-			only := *c.count
-			only.lo = nil
-			only.hi = nil
-			if !stateAdmits(&only, countVal(n)) {
-				return c.fail(ctx, peer)
-			}
-		}
-		// The provisional half, decided only when nothing more can
-		// arrive.
-		if final && !stateAdmits(c.count, countVal(n)) {
-			return c.fail(ctx, peer)
+		// The provisional half, a lower bound still short, is decided
+		// only when nothing more can arrive: a refusal at generation and
+		// a residue before it.
+		if by, refused := stateRefuser(provisional(c.count, final), countVal(n)); refused {
+			return c.fail(ctx, peer, by)
 		}
 	}
 
@@ -1262,7 +1258,7 @@ func (c *ConstraintVal) admitContainerFinal(
 		for _, m := range members {
 			key := m.Canon()
 			if seen[key] {
-				return c.fail(ctx, peer)
+				return c.fail(ctx, peer, "uniq")
 			}
 			seen[key] = true
 		}
@@ -1273,15 +1269,8 @@ func (c *ConstraintVal) admitContainerFinal(
 		if !ok {
 			return c.overBudget(ctx, peer)
 		}
-		matched := countVal(len(matches))
-		noLo := *k.count
-		noLo.lo = nil
-		only := noLo
-		only.hi = nil
-		if (nil != k.count.hi && !stateAdmits(&noLo, matched)) ||
-			(0 < len(k.count.neqs)+len(k.count.mults) && !stateAdmits(&only, matched)) ||
-			(final && !stateAdmits(k.count, matched)) {
-			return c.fail(ctx, peer)
+		if !stateAdmits(provisional(k.count, final), countVal(len(matches))) {
+			return c.fail(ctx, peer, "contains:"+containsCanon(k))
 		}
 	}
 
@@ -1290,15 +1279,15 @@ func (c *ConstraintVal) admitContainerFinal(
 		for _, m := range members {
 			mv, ok := m.(*MapVal)
 			if !ok {
-				return c.fail(ctx, peer)
+				return c.fail(ctx, peer, "by:"+field)
 			}
 			at, has := mv.peg[field]
 			if !has {
-				return c.fail(ctx, peer)
+				return c.fail(ctx, peer, "by:"+field)
 			}
 			key := at.Canon()
 			if seen[key] {
-				return c.fail(ctx, peer)
+				return c.fail(ctx, peer, "by:"+field)
 			}
 			seen[key] = true
 		}
@@ -1438,6 +1427,12 @@ func (c *ConstraintVal) meetConstraint(peer *ConstraintVal, ctx *Ctx) Val {
 	merged.nonEmpty = c.nonEmpty || peer.nonEmpty
 	merged.emptyOk = c.emptyOk || peer.emptyOk
 	merged.pathKind = c.pathKind || peer.pathKind
+	merged.sites = map[any]site{}
+	for _, side := range []*ConstraintVal{peer, c} {
+		for k, s := range side.partSites() {
+			merged.sites[k] = s
+		}
+	}
 
 	return c.finish(merged, ctx, peer)
 }
@@ -1483,15 +1478,105 @@ func (c *ConstraintVal) overBudget(ctx *Ctx, peer Val) Val {
 	})
 }
 
-func (c *ConstraintVal) fail(ctx *Ctx, peer Val) Val {
+func (c *ConstraintVal) fail(ctx *Ctx, peer Val, part ...any) Val {
 	pcanon := ""
 	if nil != peer {
 		pcanon = peer.Canon()
 	}
-	return makeNilErrFull(ctx, "constraint", c, peer, "", map[string]string{
+	var at Val = c
+	if 0 < len(part) {
+		at = c.at(part[0])
+	}
+	return makeNilErrFull(ctx, "constraint", at, peer, "", map[string]string{
 		"expected": c.Canon(),
 		"actual":   pcanon,
 	})
+}
+
+// at is the residual, sited where the part that refused was written.
+func (c *ConstraintVal) at(part any) Val {
+	s, ok := c.sites[part]
+	if !ok {
+		return c
+	}
+	out := *c
+	out.site = s
+	return &out
+}
+
+// partSites is each part of a residual with the call it came from: its
+// own record where it has met another, else the residual's own site.
+func (c *ConstraintVal) partSites() map[any]site {
+	parts := []any{}
+	for _, b := range []*constraintBound{c.lo, c.hi} {
+		if nil != b {
+			parts = append(parts, b)
+		}
+	}
+	for _, v := range append(append([]*ScalarVal{}, c.neqs...), c.mults...) {
+		parts = append(parts, v)
+	}
+	for _, r := range c.res {
+		parts = append(parts, "re:"+r.src)
+	}
+	for _, f := range c.fmts {
+		parts = append(parts, "fmt:"+f.src)
+	}
+	if nil != c.count {
+		for _, b := range []*constraintBound{c.count.lo, c.count.hi} {
+			if nil != b {
+				parts = append(parts, b)
+			}
+		}
+		for _, v := range append(append([]*ScalarVal{}, c.count.neqs...), c.count.mults...) {
+			parts = append(parts, v)
+		}
+	}
+	if c.uniq {
+		parts = append(parts, "uniq")
+	}
+	for _, f := range c.uniqBy {
+		parts = append(parts, "by:"+f)
+	}
+	for _, m := range c.musts {
+		parts = append(parts, mustKey(m))
+	}
+	for _, n := range c.nofs {
+		parts = append(parts, "nof:"+nofCanon(n))
+	}
+	for _, w := range c.whens {
+		parts = append(parts, "when:"+whenCanon(w))
+	}
+	for _, k := range c.contains {
+		parts = append(parts, "contains:"+containsCanon(k))
+	}
+	for _, r := range c.rests {
+		parts = append(parts, "rest:"+restCanon(r))
+	}
+	out := map[any]site{}
+	for _, p := range parts {
+		s, ok := c.sites[p]
+		if !ok {
+			s = c.site
+		}
+		out[p] = s
+	}
+	return out
+}
+
+func mustKey(m constraintMust) string {
+	return "must:" + m.v.Canon() + "\x00" + m.msg.Canon()
+}
+
+// provisional is a count with its lower bound dropped until nothing more
+// can arrive.
+func provisional(count *ConstraintVal, final bool) *ConstraintVal {
+	if final {
+		return count
+	}
+	noLo := *count
+	noLo.lo = nil
+	return &noLo
 }
 
 // cloneState is a fresh residual carrying this one's fields (bounds
@@ -1521,6 +1606,7 @@ func (c *ConstraintVal) cloneState() *ConstraintVal {
 	out.nonEmpty = c.nonEmpty
 	out.emptyOk = c.emptyOk
 	out.pathKind = c.pathKind
+	out.sites = c.sites
 	out.dc = DONE
 	return out
 }
@@ -2144,50 +2230,55 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 }
 
 func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {
+	_, refused := stateRefuser(s, peer)
+	return !refused
+}
+
+// stateRefuser is the part of a state that refuses a scalar: a bound,
+// an excluded value, a divisor or a pattern's key; nil with true where
+// its domain or kind does; false where nothing does.
+func stateRefuser(s *ConstraintVal, peer *ScalarVal) (any, bool) {
 	sv, d := orderableScalar(peer)
 	if nil == sv {
 		// A sizing atom reads no boolean or null, which have no order,
 		// length or members; a Band B check reads anything.
-		return "" == s.domain && nil == s.count && !s.uniq && 0 == len(s.uniqBy)
+		return nil, !("" == s.domain && nil == s.count && !s.uniq && 0 == len(s.uniqBy))
 	}
 	if "" == s.domain {
 		// A residual with no domain admits any scalar its atoms can rule on.
-		return true
+		return nil, false
 	}
-	if d != s.domain {
-		return false
-	}
-	if KindTop != s.kind && peer.kind != s.kind {
-		return false
+	if d != s.domain || (KindTop != s.kind && peer.kind != s.kind) {
+		return nil, true
 	}
 	if nil != s.lo {
 		cv := cmpConstraintVal(s.domain, peer, s.lo.v)
 		if cv < 0 || (0 == cv && s.lo.open) {
-			return false
+			return s.lo, true
 		}
 	}
 	if nil != s.hi {
 		cv := cmpConstraintVal(s.domain, peer, s.hi.v)
 		if cv > 0 || (0 == cv && s.hi.open) {
-			return false
+			return s.hi, true
 		}
 	}
 	for _, n := range s.neqs {
 		if sameConstraintScalar(peer, n) {
-			return false
+			return n, true
 		}
 	}
 	for _, m := range s.mults {
 		if !isMultiple(peer, m) {
-			return false
+			return m, true
 		}
 	}
 	for _, r := range s.res {
 		if !patternMatches(r.prog, peer.peg.(string)) {
-			return false
+			return "re:" + r.src, true
 		}
 	}
-	return true
+	return nil, false
 }
 
 func stateEmpty(s *ConstraintVal) bool {

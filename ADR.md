@@ -94,6 +94,7 @@ capability decision is the phase rows it governed in
 | [ADR-063](#adr-063--the-vocabularies-a-meta-schema-lists-decide-what-its-schemas-read) | The vocabularies a meta-schema lists decide what its schemas read | Accepted |
 | [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
 | [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
+| [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
 
 ---
 
@@ -6083,3 +6084,127 @@ trusted input, and cached by the input's text within a run.
   its meta-schemas refuse none of its schemas.
 - Pinned by fourteen `jsonschema-import` rows and one re-pinned, every
   expectation from both engines.
+
+---
+
+## ADR-066 — A vet report answers JSON Schema's output units through the importer's source map
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12 reports a validation as output units: `flag` is the
+verdict alone, and `basic` lists each failing keyword by its location in
+the schema as the evaluation reached it, `keywordLocation`, with the
+`$ref` it crossed; by its location in its own resource,
+`absoluteKeywordLocation`; and by the location in the instance,
+`instanceLocation`. A `vet` finding names a path in the data and the
+sites in the aontu text, which says nothing of the JSON Schema keyword
+an import wrote there. The design (G12 section 14) asks for a pointer
+on each finding, `vet --output flag|basic`, and a source map the
+importer writes beside its text, named on both sides and tied to the
+text by its hash.
+
+### Decision
+
+1. **Every finding `vet` reports carries `pointer`**, the RFC 6901 form
+   of its path, built from the path's segments, so a key holding a dot
+   is not ambiguous. Every other field keeps its spelling.
+2. **The importer marks each expression it writes** with the keyword
+   it was written for, and records where each landed as it prints. A
+   reference copied in place, and each alias declaration, is a frame of
+   its own, whose keywords are located against the schema it reached;
+   the expression a reference writes enters its target's frame. An
+   entry the object requires carries a mark of its own, at that
+   object's `required`.
+3. **The spans are carried to the agreed form by the tokens the two
+   share.** The formatter adds or drops only brackets, commas, colons
+   and whitespace, writes a quoted key bare, and lays a map too wide
+   for its line out one member to a line, repeating the statement's
+   head before each, so every other token keeps its order. A run of
+   tokens that starts a line, copies the start of the line before it
+   at that column and is followed by the token the printed text has
+   next is such a head, and is passed over; where the token also
+   matches in place, the run is passed over only if the token after
+   it then lines up and does not otherwise. A span covers the first
+   through the last of its tokens that survive. Offsets are UTF-8
+   bytes, and the map records the text's SHA-256: `{sha256, spans}`,
+   each span `{start, end, frame, keyword, absolute, enters?,
+   required?}`, outermost first.
+4. **A keyword is located in the schema as written**: its pointer runs
+   through the upgrade's record of what it moved (ADR-061), from the
+   frame's schema for `keyword`, and from its resource's canonical URI,
+   with the pointer percent-encoded as a URI fragment, for `absolute`.
+5. **The map is a file named on both sides.** `jsonschema import
+   --source-map <file>` writes it, and `--format json` carries it as
+   `map`. `vet --source-map <file>` reads it back and refuses with exit
+   2 where it is not a source map or the schema's text no longer
+   hashes to it. `vet` never looks for a map it was not given.
+6. **`vet --output flag|basic`** answers one data file in place of
+   `--format`. `flag` is `{valid}`, an incomplete verdict `false`.
+   `basic` is one unit for each error the report keeps, a warning
+   being none: the innermost span at its schema site gives
+   `absoluteKeywordLocation`, and `keywordLocation` follows the
+   references back to the root, each chosen so the instance steps their
+   keywords take spell the finding's pointer, or the first into each
+   frame where none does. A member the data lacks is placed at its
+   object's `required`, and its instance location is the object's.
+   `basic` needs the map, since every unit carries a keyword location.
+7. **The suite's `output-tests/` run in both harnesses**, the 2019-09
+   and 2020-12 directories, each test's basic output checked against
+   the schema the test gives for it by the importer and `vet`
+   themselves, under a ledger of its own.
+8. **A refusal is sited at the part of a residual that refused.** A
+   constraint met from several atoms keeps, for each part (a bound, an
+   excluded value, a divisor, a pattern, a format, a count's bound,
+   uniqueness, a `must`, `nof`, `when`, `contains` or `rest`), the site
+   of the call it came from, and a refusal by that part is sited there,
+   so `integer & min(1) & max(65535)` refuses `70000` at `max`. A
+   `len()` keeps its argument's sites.
+9. **A rider keeps its value's site.** `meta()` and `deprecate()`
+   answer their argument with a record beside it, and the argument
+   keeps where it was written; only a value with no site of its own
+   takes the call's. A refusal inside an annotated or deprecated
+   schema is sited at the atom that refused, and the deprecation
+   warning, the language servers' Deprecated tag and their hover sit on
+   the value, not on the word `meta` or `deprecate`.
+
+### Consequences
+
+- A finding is located at the schema text its site names, which is
+  coarser than the keyword in one place: a value a function selects is
+  sited at the call, so a failure under `prefixItems`,
+  `patternProperties`, `additionalProperties` or a legacy tuple is
+  located at that keyword.
+- A schema with no `type` imports as a disjunction of the kinds
+  (ADR-047), and a value its own kind's alternative refuses is refused
+  at that disjunction, so located at the schema rather than at the
+  keyword inside it. The suite's `escape` tests wait on this, and its
+  `readOnly` tests on annotations, which ride the value and are not
+  units: four ledger rows, four of eight tests passing.
+- The ports were compared over every import row and every schema of the
+  vendored suite with up to three of its instances: 4,358 imports, the
+  4,147 maps they wrote and the 3,951 `basic` outputs agreed byte for
+  byte. The comparison found a Go defect: a closed list refused only
+  its first surplus element where the TypeScript engine refused each,
+  which Go now does, the last refusal being the meet's.
+- The suite's schemas are narrow, so the head the formatter repeats
+  was found in a wider corpus: the bundled meta-schemas, the suite's
+  remotes, the schemas of the documentation and the export of every
+  use case's model, 291 distinct imports. A carry that stopped at the
+  first token to differ lost 11,182 of their 37,556 spans; this one
+  loses none, and the ports agree on each import's text and map.
+- Six `vet` rows move their schema site: one to the bound that refused
+  (decision 8), and five, in `deprecate.tsv`, `meta.tsv` and
+  `recursion.tsv`, from the rider's call to its value (decision 9).
+  Both language servers' hover tests now hover the annotated value, and
+  use case 04's `breaking` golden sites its deprecated field at the
+  value as well.
+- `detailed` and `verbose` stay outside, as the design has them.
+- Pinned by 39 `jsonschema-output` rows, a new mode, and 7
+  `jsonschema-import` rows under `sourceMap`; the 138 `vet` rows with
+  findings carry each finding's pointer, the SARIF golden carries it
+  in each result's properties, and two more rows pin each surplus
+  element of a closed list and the site of a merged count.
+

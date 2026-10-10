@@ -21,6 +21,8 @@ import { relationCheck } from './relation';
 import { reachCheck } from './reach';
 import { jsonSchema } from './jsonschema';
 import { importJsonSchema } from './jsonschema-import';
+import { readSourceMap, vetOutput } from './sourcemap';
+export type { OutputUnit, SourceMap, SourceSpan, VetOutput } from './sourcemap';
 import { view, viewSet, viewTree } from './view';
 import { loadProfile } from './profile';
 import { desugarTemplate, resugarTemplate, markerFor } from './template';
@@ -40,5 +42,5 @@ declare function runparse(src: string, lang: Lang, ctx: AontuContext): Val;
 declare const util: {
     runparse: typeof runparse;
 };
-export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, setColor, colorActive, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, canonRiders, get, why, patch, diff, agentsMd, allow, graphOf, relationCheck, reachCheck, jsonSchema, importJsonSchema, view, viewSet, viewTree, loadProfile, desugarTemplate, resugarTemplate, markerFor, format, unifiedDiff, };
+export { VERSION, Aontu, AontuOptions, AontuContext, AontuError, setColor, colorActive, Val, Lang, runparse, util, formatExplain, exactJSON, Decimal, vet, sarifReport, subsume, trimCheck, hcanon, canonHash, canonRiders, get, why, patch, diff, agentsMd, allow, graphOf, relationCheck, reachCheck, jsonSchema, importJsonSchema, vetOutput, readSourceMap, view, viewSet, viewTree, loadProfile, desugarTemplate, resugarTemplate, markerFor, format, unifiedDiff, };
 export default Aontu;

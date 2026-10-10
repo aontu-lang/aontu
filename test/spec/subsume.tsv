@@ -177,10 +177,10 @@ disj-list-nonconcrete	subsume	a:[1]|[2]	a:[integer]	{"findings":[{"actual":"[int
 # (`*warn|warn|...`) both silences it and (unlike pre-gate) enforces
 # the same admitted set. See the decision note in ts/src/vet.ts.
 # Parity-probed like every row above.
-pref-lint-fires	vet	a:*5|string	a:ok	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.a","severity":"warning","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"5","value":"5"}]}],"truncated":false,"verdict":"valid"}
+pref-lint-fires	vet	a:*5|string	a:ok	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.a","pointer":"/a","severity":"warning","sites":[{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"5","value":"5"}]}],"truncated":false,"verdict":"valid"}
 pref-lint-clean	vet	a:*8080|integer	a:1	{"findings":[],"truncated":false,"verdict":"valid"}
-pref-lint-typo-default	vet	level:*wran|info|warn|debug	level:info	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.level","severity":"warning","sites":[{"col":8,"file":"schema","len":4,"role":"schema","row":1,"src":"wran","value":"\\"wran\\""}]}],"truncated":false,"verdict":"valid"}
-pref-lint-nested	vet	b:{p:*x|integer}	b:{p:1}	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.b.p","severity":"warning","sites":[{"col":7,"file":"schema","len":1,"role":"schema","row":1,"src":"x","value":"\\"x\\""}]}],"truncated":false,"verdict":"valid"}
+pref-lint-typo-default	vet	level:*wran|info|warn|debug	level:info	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.level","pointer":"/level","severity":"warning","sites":[{"col":8,"file":"schema","len":4,"role":"schema","row":1,"src":"wran","value":"\\"wran\\""}]}],"truncated":false,"verdict":"valid"}
+pref-lint-nested	vet	b:{p:*x|integer}	b:{p:1}	{"findings":[{"class":"compat","code":"pref_not_instance","path":"$.b.p","pointer":"/b/p","severity":"warning","sites":[{"col":7,"file":"schema","len":1,"role":"schema","row":1,"src":"x","value":"\\"x\\""}]}],"truncated":false,"verdict":"valid"}
 # A RANKED default is unwrapped fully (`**member` -> "member", an
 # instance of the repeated plain branch): the one-layer unwrap left a
 # `*`-wrapper no plain member subsumes, and the lint fired on its own

@@ -166,7 +166,7 @@ verdict: valid
 
 $.phone: deprecated [compat]
   deprecated: free-form phone is unvalidated; write E.164 to contact.phone (use $.profile.contact.phone) (since 2.0.0)
-  schema: profile-v2.aontu:20:11 (string)
+  schema: profile-v2.aontu:20:21 (string)
 ```
 
 When the instance uses the field, the site is the data's:

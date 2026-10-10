@@ -147,9 +147,9 @@ const lsp_server_1 = require("../dist/lsp-server");
     // G12 phase 8: a value's meta() titles and descriptions close its
     // hover, byte-identical to go/lsp/hover_test.go (TestHoverAnnotations).
     (0, node_test_1.test)('hover-shows-titles-and-descriptions', () => {
-        const one = (0, lsp_1.computeHover)('port: meta(8080, {title: "Port", description: "The listen port"})', { line: 0, character: 6 });
+        const one = (0, lsp_1.computeHover)('port: meta(8080, {title: "Port", description: "The listen port"})', { line: 0, character: 11 });
         Assert.equal(one.contents.value, '```aontu\n8080\n```\n\n*integer*\n\n**Port**\n\nThe listen port');
-        const two = (0, lsp_1.computeHover)('port: meta(8080, {title: "A"}) & meta(8080, {title: "B"})', { line: 0, character: 6 });
+        const two = (0, lsp_1.computeHover)('port: meta(8080, {title: "A"}) & meta(8080, {title: "B"})', { line: 0, character: 11 });
         Assert.equal(two.contents.value, '```aontu\n8080\n```\n\n*integer*\n\n**A**\n\n**B**');
     });
     (0, node_test_1.test)('hover-miss-returns-null', () => {

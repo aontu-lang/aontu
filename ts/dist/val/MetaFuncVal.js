@@ -27,6 +27,9 @@ class MetaFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'meta';
     }
+    rides() {
+        return true;
+    }
     resolve(ctx, args) {
         let out = args[0] ?? (0, err_1.makeNilErr)(ctx, 'arg', this);
         // A nil argument is returned unchanged, as deprecate() returns one.

@@ -74,7 +74,7 @@ func TestSpec(t *testing.T) {
 			vetRow := "vet" == mode || "subsume" == mode || "query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
-				"fmt-template-lint" == mode
+				"fmt-template-lint" == mode || "jsonschema-output" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -593,11 +593,33 @@ func TestSpec(t *testing.T) {
 							map[string]any{"e": r.Errors})["e"]
 						specStripProse(out, "errors")
 					}
+					if nil != r.Map {
+						out["map"] = specAsMap(t, map[string]any{"m": r.Map})["m"]
+					}
 					got := specJSON(t, out)
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("jsonschema-import report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
+					}
+				case "jsonschema-output":
+					// ADR-066: the schema imported with its source map, the
+					// data vetted as JSON Schema asks, and the report as
+					// basic output units.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					opts := specImportOptions(golden)
+					opts.SourceMap = true
+					r := ImportJSONSchema(src, opts)
+					report := Vet(r.Aontu, data, &VetOptions{NoFill: true, ExactNumbers: true})
+					got := specJSON(t, specAsMap(t, map[string]any{
+						"o": VetOutput(report, "basic", r.Aontu, r.Map)})["o"])
+					want := specJSON(t, golden["output"])
+					if got != want {
+						t.Fatalf("jsonschema-output mismatch\n src: %q\n data: %q\n want: %s\n got:  %s",
+							src, data, want, got)
 					}
 				case "jsonschema-upgrade":
 					// A number a float64 cannot hold keeps its digits, as
@@ -836,6 +858,7 @@ func specImportOptions(golden map[string]any) *ImportOptions {
 		opts.Defaults = true == o["defaults"]
 		opts.FormatAssertion = true == o["formatAssertion"]
 		opts.NoMetaCheck = true == o["noMetaCheck"]
+		opts.SourceMap = true == o["sourceMap"]
 		opts.URI, _ = o["uri"].(string)
 		opts.Dialect, _ = o["dialect"].(string)
 		if docs, ok := o["documents"].(map[string]any); ok {

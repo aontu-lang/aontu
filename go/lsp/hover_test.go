@@ -62,7 +62,7 @@ func TestHoverAnnotations(t *testing.T) {
 			"```aontu\n8080\n```\n\n*integer*\n\n**A**\n\n**B**"},
 	}
 	for _, c := range cases {
-		if h := Hover(c[0], 0, 6, false); nil == h || c[1] != h.Contents.Value {
+		if h := Hover(c[0], 0, 11, false); nil == h || c[1] != h.Contents.Value {
 			t.Errorf("%s: hover = %+v", c[0], h)
 		}
 	}

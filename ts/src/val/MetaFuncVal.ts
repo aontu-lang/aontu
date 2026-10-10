@@ -47,6 +47,10 @@ class MetaFuncVal extends FuncBaseVal {
     return 'meta'
   }
 
+  rides() {
+    return true
+  }
+
   resolve(ctx: AontuContext, args: Val[]) {
     let out = args[0] ?? makeNilErr(ctx, 'arg', this)
 

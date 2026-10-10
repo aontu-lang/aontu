@@ -128,7 +128,7 @@ meta-errc-nil-stays-nil	errc	a: meta(nil, {title: "t"})	literal_nil
 #
 # vet and subsume read through the record.
 meta-vet-annotation-decides-nothing	vet	a: meta(number, {title: "n"})	a: 1	{"findings":[],"truncated":false,"verdict":"valid"}
-meta-vet-refusal-unchanged	vet	a: meta(number, {title: "n"})	a: "x"	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a","severity":"error","sites":[{"col":4,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":4,"file":"schema","len":4,"role":"schema","row":1,"src":"meta","value":"number"}]}],"truncated":false,"verdict":"invalid"}
+meta-vet-refusal-unchanged	vet	a: meta(number, {title: "n"})	a: "x"	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":4,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":9,"file":"schema","len":6,"role":"schema","row":1,"src":"number","value":"number"}]}],"truncated":false,"verdict":"invalid"}
 meta-subsume-general-record-ignored	subsume	a: meta(number, {title: "n"})	a: 1	{"findings":[],"verdict":"subsumes"}
 meta-subsume-specific-record-ignored	subsume	a: number	a: meta(1, {title: "t"})	{"findings":[],"verdict":"subsumes"}
 #

@@ -1,6 +1,6 @@
 # The JSON Schema Test Suite, vendored
 
-`tests/draft2020-12/`, `remotes/` and `annotations/` are the official
+`tests/draft2020-12/`, `remotes/`, `annotations/` and `output-tests/` are the official
 [JSON-Schema-Test-Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
 at commit `5b0ee1613e45fcc2bddac00e07c19cd49b00d8a8`, copied byte for
 byte on 2026-10-08. `tests/draft2019-09/`, `tests/draft7/`,
@@ -41,3 +41,14 @@ location, as a set of values, since a record holds each value once and
 does not say which schema location wrote it. `annotations/skips.tsv` is
 their ledger, in the same columns, under the same three rules and its
 own bound.
+
+`output-tests/` holds the suite's output tests for 2019-09 and 2020-12,
+copied byte for byte on 2026-10-09; its `v1/` directory, the format of
+the release after 2020-12, is not copied. Each test gives a schema the
+basic output of an instance must satisfy. `ts/test/jsonschema-output.test.ts`
+and `go/jsonschema_output_test.go` import each schema with its source
+map, vet the instance with `--no-fill --exact-numbers`, and check the
+basic output units against the test's schema with the importer and `vet`
+themselves, each release's schemas read in its own dialect.
+`output-tests/skips.tsv` is their ledger, in the same columns, under the
+same three rules and its own bound.

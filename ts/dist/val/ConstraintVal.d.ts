@@ -3,6 +3,7 @@ import { AontuContext } from '../ctx';
 import type { Grammar } from '../formatgrammar';
 import type { Inst } from '../regex';
 import { FeatureVal } from './FeatureVal';
+import { Site } from '../site';
 type Bound = {
     v: any;
     open: boolean;
@@ -62,6 +63,7 @@ type ConstraintState = {
     nonEmpty?: boolean;
     emptyOk?: boolean;
     pathKind?: boolean;
+    sites?: Map<any, Site>;
 };
 declare function normaliseRe(src: string): [string, string];
 declare class ConstraintVal extends FeatureVal {
@@ -93,6 +95,7 @@ declare class ConstraintVal extends FeatureVal {
     nonEmpty?: boolean;
     emptyOk?: boolean;
     pathKind?: boolean;
+    sites: Map<any, Site>;
     constructor(spec: ValSpec & {
         atom?: string;
         state?: ConstraintState;
@@ -114,6 +117,7 @@ declare class ConstraintVal extends FeatureVal {
     private meetConstraint;
     private finish;
     private fail;
+    private at;
     private overBudget;
     private cloneState;
     allowEmpty(ctx: AontuContext, peer: Val): Val;

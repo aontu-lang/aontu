@@ -118,4 +118,4 @@ disjunct-count-refuses-every-branch	errc	a: [1, 2, 3] & ([&: any] & len(max(2)) 
 disjunct-decided-reference-bound	gens	s: {lo: 2, hi: 10, t: (integer & min($.s.lo) & max($.s.hi) | null)} s: t: 7	{"s":{"hi":10,"lo":2,"t":7}}
 #
 # A grouped disjunction is sited at its parenthesis, as written.
-vet-site-of-a-grouped-disjunction	vet	x: (boolean|map)	{"x": 5}	{"findings":[{"class":"conflict","code":"empty","path":"$.x","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"5","value":"5"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"(","value":"boolean|map"}]}],"truncated":false,"verdict":"invalid"}
+vet-site-of-a-grouped-disjunction	vet	x: (boolean|map)	{"x": 5}	{"findings":[{"class":"conflict","code":"empty","path":"$.x","pointer":"/x","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"5","value":"5"},{"col":4,"file":"schema","len":1,"role":"schema","row":1,"src":"(","value":"boolean|map"}]}],"truncated":false,"verdict":"invalid"}

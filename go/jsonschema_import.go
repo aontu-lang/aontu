@@ -49,6 +49,9 @@ type ImportOptions struct {
 	// NoMetaCheck skips checking the input against its meta-schema,
 	// which a trusted input does without (ADR-065).
 	NoMetaCheck bool
+	// SourceMap makes the report carry the source map of the aontu text
+	// (ADR-066).
+	SourceMap bool
 }
 
 // ImportReport is the import's answer, shaped like the export's.
@@ -60,6 +63,7 @@ type ImportReport struct {
 	// against the document. Nil on "error".
 	Vet    []string     `json:"vet,omitempty"`
 	Errors []VetFinding `json:"errors,omitempty"`
+	Map    *SourceMap   `json:"map,omitempty"`
 }
 
 // ImportVetFlags is ImportReport.Vet on every import that stands.
@@ -339,13 +343,43 @@ type ixpr struct {
 	spread  *ixpr
 	entries []ientry
 	spreads []*ixpr
-	decls   []string
+	decls   []idecl
+	marks   []*imark
 }
 
 type ientry struct {
 	key      string
 	optional bool
 	val      *ixpr
+	marks    []*imark
+}
+
+type idecl struct {
+	name string
+	body *ixpr
+}
+
+// A mark is the keyword an expression or entry was written for
+// (ADR-066): a frame is the schema a reference reached, whose keywords
+// are located against it, and a reference enters the frame of its
+// target.
+type iframe struct {
+	ptr  string
+	node *jnode
+}
+
+type imark struct {
+	ptr      string
+	node     *jnode
+	frame    *iframe
+	enters   *iframe
+	required bool
+}
+
+// importVia is the keyword a reference reached its target from.
+type importVia struct {
+	ptr  string
+	node *jnode
 }
 
 func iraw(text string) *ixpr { return &ixpr{k: "raw", text: text} }
@@ -375,19 +409,27 @@ func distinct(items []*ixpr) []*ixpr {
 	return out
 }
 
-// iand: `any` adds nothing to a meet and `nil` is all of it.
+// iand: `any` adds nothing to a meet and `nil` is all of it. A meet
+// folded into another leaves its marks on each of its members.
 func iand(items []*ixpr) *ixpr {
 	flat := []*ixpr{}
 	for _, it := range items {
 		if "and" == it.k {
-			flat = append(flat, it.items...)
+			for _, x := range it.items {
+				if 0 < len(it.marks) {
+					cp := *x
+					cp.marks = append(append([]*imark{}, it.marks...), x.marks...)
+					x = &cp
+				}
+				flat = append(flat, x)
+			}
 		} else if !isRawText(it, "any") {
 			flat = append(flat, it)
 		}
 	}
 	for _, it := range flat {
 		if isRawText(it, "nil") {
-			return iNil
+			return it
 		}
 	}
 	uniq := distinct(flat)
@@ -439,82 +481,118 @@ func importQuote(s string) string {
 	return b.String()
 }
 
+// iout is the text being written, and where each marked expression or
+// entry sits in it.
+type iout struct {
+	b      strings.Builder
+	placed []iplaced
+	depth  int
+}
+
+type iplaced struct {
+	start, end, depth int
+	mark              *imark
+}
+
 func iprint(e *ixpr, indent string) string {
-	var b strings.Builder
-	iwrite(&b, e, indent)
-	return b.String()
+	w := &iout{}
+	iwrite(w, e, indent)
+	return w.b.String()
+}
+
+func (w *iout) place(start int, marks []*imark) {
+	for _, m := range marks {
+		w.placed = append(w.placed, iplaced{start: start, end: w.b.Len(), depth: w.depth, mark: m})
+	}
 }
 
 // iwrite writes a node into one builder, so a deep schema's text is
 // copied once rather than once per level that holds it.
-func iwrite(b *strings.Builder, e *ixpr, indent string) {
+func iwrite(w *iout, e *ixpr, indent string) {
+	start := w.b.Len()
+	w.depth++
 	switch e.k {
 	case "call":
-		b.WriteString(e.name + "(")
+		w.b.WriteString(e.name + "(")
 		for i, a := range e.items {
 			if 0 < i {
-				b.WriteString(", ")
+				w.b.WriteString(", ")
 			}
 			// The TypeScript parser cannot read a call of three or more whose
 			// first argument and a later one are negative (test/spec/divergent.tsv).
-			if 0 == i && 3 <= len(e.items) && "raw" == a.k && strings.HasPrefix(a.text, "-") {
-				b.WriteString("(" + a.text + ")")
-				continue
+			wrap := 0 == i && 3 <= len(e.items) && "raw" == a.k && strings.HasPrefix(a.text, "-")
+			if wrap {
+				w.b.WriteString("(")
 			}
-			iwrite(b, a, indent)
+			iwrite(w, a, indent)
+			if wrap {
+				w.b.WriteString(")")
+			}
 		}
-		b.WriteString(")")
+		w.b.WriteString(")")
 	case "and":
-		iwriteChain(b, e.items, " & ", indent, iwriteLevel(len(e.items)), true)
+		iwriteChain(w, e.items, " & ", indent, iwriteLevel(len(e.items)), true)
 	case "or":
-		iwriteChain(b, e.items, " | ", indent, iwriteLevel(len(e.items)), false)
+		iwriteChain(w, e.items, " | ", indent, iwriteLevel(len(e.items)), false)
 	case "list":
 		if e.lit {
-			b.WriteString("[")
+			w.b.WriteString("[")
 			for i, it := range e.items {
 				if 0 < i {
-					b.WriteString(", ")
+					w.b.WriteString(", ")
 				}
-				iwrite(b, it, indent)
+				iwrite(w, it, indent)
 			}
-			b.WriteString("]")
-			return
+			w.b.WriteString("]")
+		} else {
+			w.b.WriteString("[&: ")
+			iwrite(w, e.spread, indent)
+			w.b.WriteString("]")
 		}
-		b.WriteString("[&: ")
-		iwrite(b, e.spread, indent)
-		b.WriteString("]")
 	case "map":
 		if 0 == len(e.entries) && 0 == len(e.spreads) && 0 == len(e.decls) {
-			b.WriteString("{}")
-			return
+			w.b.WriteString("{}")
+		} else {
+			w.b.WriteString("{\n")
+			iwriteLines(w, e, indent+"  ")
+			w.b.WriteString(indent + "}")
 		}
-		b.WriteString("{\n")
-		iwriteLines(b, e, indent+"  ")
-		b.WriteString(indent + "}")
 	default:
-		b.WriteString(e.text)
+		w.b.WriteString(e.text)
 	}
+	w.depth--
+	w.place(start, e.marks)
 }
 
 // iwriteLines writes a map's members, each on a line of its own.
-func iwriteLines(b *strings.Builder, e *ixpr, in string) {
+func iwriteLines(w *iout, e *ixpr, in string) {
 	for _, d := range e.decls {
-		b.WriteString(in + d + "\n")
+		w.b.WriteString(in)
+		iwriteDecl(w, d)
+		w.b.WriteString("\n")
 	}
 	for _, en := range e.entries {
 		opt := ""
 		if en.optional {
 			opt = "?"
 		}
-		b.WriteString(in + importQuote(en.key) + opt + ": ")
-		iwrite(b, en.val, in)
-		b.WriteString("\n")
+		w.b.WriteString(in)
+		start := w.b.Len()
+		w.b.WriteString(importQuote(en.key) + opt + ": ")
+		iwrite(w, en.val, in)
+		w.place(start, en.marks)
+		w.b.WriteString("\n")
 	}
 	for _, sp := range e.spreads {
-		b.WriteString(in + "&: ")
-		iwrite(b, sp, in)
-		b.WriteString("\n")
+		w.b.WriteString(in + "&: ")
+		iwrite(w, sp, in)
+		w.b.WriteString("\n")
 	}
+}
+
+func iwriteDecl(w *iout, d idecl) {
+	w.b.WriteString("%" + d.name + " = ")
+	iwrite(w, d.body, "")
 }
 
 // iwriteLevel is the grouping level of a chain's top: its parts each
@@ -530,26 +608,26 @@ func iwriteLevel(n int) int {
 
 // iwriteChain writes members as ichain would join their texts: past
 // importGroup of them, nested groups of at most importGroup each.
-func iwriteChain(b *strings.Builder, items []*ixpr, sep, indent string, level int, and bool) {
+func iwriteChain(w *iout, items []*ixpr, sep, indent string, level int, and bool) {
 	span := 1
 	for i := 0; i < level; i++ {
 		span *= importGroup
 	}
 	for i := 0; i < len(items); i += span {
 		if 0 < i {
-			b.WriteString(sep)
+			w.b.WriteString(sep)
 		}
 		end := min(i+span, len(items))
 		if 0 < level {
-			b.WriteString("(")
-			iwriteChain(b, items[i:end], sep, indent, level-1, and)
-			b.WriteString(")")
+			w.b.WriteString("(")
+			iwriteChain(w, items[i:end], sep, indent, level-1, and)
+			w.b.WriteString(")")
 		} else if and && "or" == items[i].k {
-			b.WriteString("(")
-			iwrite(b, items[i], indent)
-			b.WriteString(")")
+			w.b.WriteString("(")
+			iwrite(w, items[i], indent)
+			w.b.WriteString(")")
 		} else {
-			iwrite(b, items[i], indent)
+			iwrite(w, items[i], indent)
 		}
 	}
 }
@@ -600,9 +678,12 @@ type importCtx struct {
 	// A map root declares each target once; any other root copies it in
 	// place and cuts a cycle.
 	mapRoot bool
-	decls   map[string]string
+	decls   map[string]*ixpr
 	stack   []*jnode
 	copies  int
+	// The frame being written, and each declaration's.
+	frame  *iframe
+	frames map[string]*iframe
 	// defaults is ImportOptions.Defaults.
 	defaults bool
 	// Whether a format asserts, by the FormatAssertion option or by the
@@ -743,15 +824,17 @@ func subschemas(node *jnode, ptr string, visit func(*jnode, string)) {
 }
 
 func (ctx *importCtx) index(node *jnode, ptr string, resource *jnode, base string) {
-	ctx.ptrOf[node] = ptr
-	ctx.docOf[node] = ctx.doc
-	ctx.order = append(ctx.order, node)
-	if "object" != node.t {
-		return
-	}
 	here := resource
 	if node == ctx.doc.root {
 		here = node
+	}
+	ctx.ptrOf[node] = ptr
+	ctx.docOf[node] = ctx.doc
+	ctx.order = append(ctx.order, node)
+	ctx.resourceOf[node] = here
+	ctx.baseOf[node] = base
+	if "object" != node.t {
+		return
 	}
 	if id := jentryOf(node, "$id"); nil != id && "string" != id.t {
 		ctx.wrongType(ptrChild(ptr, "$id"), "$id", "a string", id)
@@ -1569,7 +1652,9 @@ func (ctx *importCtx) formatCalls(node *jnode, ptr string) []*ixpr {
 	out := []*ixpr{}
 	name := jentryOf(node, "format")
 	if g, ok := ctx.grammarOf(name); ok {
-		out = append(out, ctx.grammarCall(ptrChild(ptr, "format"), name, g)...)
+		for _, e := range ctx.grammarCall(ptrChild(ptr, "format"), name, g) {
+			out = append(out, ctx.mark(e, ptrChild(ptr, "format"), node, imark{}))
+		}
 	} else if "vocabulary" == ctx.asserts && nil != name && "string" == name.t {
 		ctx.failWith("format_unknown", ptrChild(ptr, "format"), "The format "+importQuote(name.s)+
 			" is neither one of the nineteen nor in the format set, and under the "+
@@ -1580,7 +1665,9 @@ func (ctx *importCtx) formatCalls(node *jnode, ptr string) []*ixpr {
 	if nil != x && "string" != x.t {
 		ctx.wrongType(ptrChild(ptr, "x-aontu-format"), "x-aontu-format", "a string", x)
 	} else if nil != x {
-		out = append(out, ctx.grammarCall(ptrChild(ptr, "x-aontu-format"), x, x.s)...)
+		for _, e := range ctx.grammarCall(ptrChild(ptr, "x-aontu-format"), x, x.s) {
+			out = append(out, ctx.mark(e, ptrChild(ptr, "x-aontu-format"), node, imark{}))
+		}
 	}
 	return out
 }
@@ -2045,39 +2132,40 @@ func (ctx *importCtx) preferDefault(node *jnode, e *ixpr) *ixpr {
 	return ior([]*ixpr{iraw("*" + text), e})
 }
 
-func lenOf(lo, hi string, hasLo, hasHi bool) *ixpr {
-	parts := []*ixpr{}
-	if hasLo && "0" != lo {
-		parts = append(parts, icall("min", iraw(lo)))
-	}
-	if hasHi {
-		parts = append(parts, icall("max", iraw(hi)))
-	}
-	if 0 == len(parts) {
-		return nil
-	}
-	return icall("len", iand(parts))
+// mark is an expression with the keyword it was written for outermost:
+// a copy, since one expression may stand for several.
+func (ctx *importCtx) mark(e *ixpr, ptr string, node *jnode, m imark) *ixpr {
+	m.ptr, m.node, m.frame = ptr, node, ctx.frame
+	cp := *e
+	cp.marks = append([]*imark{&m}, e.marks...)
+	return &cp
 }
 
 // convert writes a schema as `A & (B...)`: the kind-agnostic keywords met
 // with the disjunction of the kinds, each met with the keywords scoped to
 // it. `only` restricts the kinds a position can hold at all.
 func (ctx *importCtx) convert(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
+	return ctx.convertVia(node, ptr, asDecl, only, nil)
+}
+
+func (ctx *importCtx) convertVia(node *jnode, ptr string, asDecl bool, only []string,
+	via *importVia) *ixpr {
 	outer, scope := ctx.doc, ctx.env
 	ctx.doc = ctx.docOf[node]
 	ctx.env = ctx.enter(node)
-	out := ctx.convertNode(node, ptr, asDecl, only)
+	out := ctx.convertNode(node, ptr, asDecl, only, via)
 	ctx.doc, ctx.env = outer, scope
 	return out
 }
 
-func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []string) *ixpr {
+func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []string,
+	via *importVia) *ixpr {
 	ctx.seen[node] = true
 	switch node.t {
 	case "true":
-		return iAny
+		return ctx.mark(iAny, ptr, node, imark{})
 	case "false":
-		return iNil
+		return ctx.mark(iNil, ptr, node, imark{})
 	case "object":
 	default:
 		ctx.fail("jsonschema_schema", ptr, "A schema is an object or a boolean.",
@@ -2087,7 +2175,12 @@ func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []s
 
 	if target := ctx.targets[node]; nil != target && !asDecl {
 		if ctx.mapRoot {
-			return iraw("%" + ctx.declare(target))
+			name := ctx.declare(target)
+			at, from := ptr, node
+			if nil != via {
+				at, from = via.ptr, via.node
+			}
+			return ctx.mark(iraw("%"+name), at, from, imark{enters: ctx.frames[name]})
 		}
 		for _, s := range ctx.stack {
 			if s == node {
@@ -2103,9 +2196,19 @@ func (ctx *importCtx) convertNode(node *jnode, ptr string, asDecl bool, only []s
 			return iAny
 		}
 	}
+	// A reference copied in place is a frame of its own.
+	outer := ctx.frame
+	if nil != via {
+		ctx.frame = &iframe{ptr: ptr, node: node}
+	}
 	ctx.stack = append(ctx.stack, node)
 	out := ctx.convertObject(node, ptr, only)
 	ctx.stack = ctx.stack[:len(ctx.stack)-1]
+	frame := ctx.frame
+	ctx.frame = outer
+	if nil != via {
+		out = ctx.mark(out, via.ptr, via.node, imark{enters: frame})
+	}
 	return out
 }
 
@@ -2148,12 +2251,16 @@ func (ctx *importCtx) declare(target *importTarget) string {
 	if _, seen := ctx.decls[name]; seen || importScopeBudget < ctx.cloned {
 		return name
 	}
-	ctx.decls[name] = ""
+	ctx.decls[name] = iAny
+	outer := ctx.frame
+	ctx.frame = &iframe{ptr: target.ptr, node: target.node}
+	ctx.frames[name] = ctx.frame
 	body := ctx.convert(target.node, target.ptr, true, nil)
+	ctx.frame = outer
 	if entries := ctx.identity(target, 0 < clone); 0 < len(entries) {
 		body = icall("ident", body, &ixpr{k: "map", entries: entries})
 	}
-	ctx.decls[name] = iprint(body, "")
+	ctx.decls[name] = body
 	return name
 }
 
@@ -2225,7 +2332,8 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			ctx.wrongType(at("$ref"), "$ref", "a string", ref)
 		} else {
 			target := ctx.resolveRef(node, ref.s)
-			parts = append(parts, ctx.convert(target, ctx.targets[target].ptr, false, nil))
+			parts = append(parts, ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
+				&importVia{ptr: at("$ref"), node: node}))
 		}
 	}
 
@@ -2239,13 +2347,14 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			if name, ok := ctx.bookend(node, dref.s); ok && nil != ctx.env[name] {
 				target = ctx.env[name]
 			}
-			parts = append(parts, icall("meta", ctx.convert(target, ctx.targets[target].ptr, false, nil),
+			parts = append(parts, icall("meta", ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
+				&importVia{ptr: at("$dynamicRef"), node: node}),
 				&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}}))
 		}
 	}
 
 	if konst := get("const"); nil != konst {
-		parts = append(parts, ctx.literal(at("const"), "const", konst))
+		parts = append(parts, ctx.mark(ctx.literal(at("const"), "const", konst), at("const"), node, imark{}))
 	}
 
 	if enm := get("enum"); nil != enm {
@@ -2259,9 +2368,9 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 				}
 			}
 			if 0 == len(members) {
-				parts = append(parts, iNil)
+				parts = append(parts, ctx.mark(iNil, at("enum"), node, imark{}))
 			} else {
-				parts = append(parts, ior(members))
+				parts = append(parts, ctx.mark(ior(members), at("enum"), node, imark{}))
 			}
 		}
 	}
@@ -2289,7 +2398,7 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 					branches = append(branches,
 						ctx.convert(it, at(carrier.key)+"/"+strconv.Itoa(i), false, only))
 				}
-				parts = append(parts, carrier.carry(branches))
+				parts = append(parts, ctx.mark(carrier.carry(branches), at(carrier.key), node, imark{}))
 			}
 		}
 	}
@@ -2298,7 +2407,8 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if neg := get("not"); nil != neg {
 		excluded = typedExclusion(node, neg)
 		if nil == excluded {
-			parts = append(parts, icall("nof", iraw("0"), ctx.convert(neg, at("not"), false, only)))
+			parts = append(parts, ctx.mark(icall("nof", iraw("0"), ctx.convert(neg, at("not"), false, only)),
+				at("not"), node, imark{}))
 		}
 	}
 
@@ -2365,20 +2475,23 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		integral := nil != allowed && inList(allowed, "integer") && !inList(allowed, "number")
 		branches := []*ixpr{}
 		for _, kind := range kinds {
-			branches = append(branches, ctx.branch(node, ptr, kind, integral, excluded))
+			branches = append(branches, ctx.branch(node, ptr, kind, integral, nil != allowed, excluded))
 		}
-		if 0 == len(branches) {
-			parts = append(parts, iNil)
-		} else {
-			parts = append(parts, ior(branches))
+		split := iNil
+		if 0 < len(branches) {
+			split = ior(branches)
 		}
+		if nil != allowed && "or" == split.k {
+			split = ctx.mark(split, at("type"), node, imark{})
+		}
+		parts = append(parts, split)
 	}
 
 	met := iand(parts)
 	if importBottom(met) {
-		return iNil
+		return ctx.mark(iNil, ptr, node, imark{})
 	}
-	return ctx.annotate(node, ptr, met)
+	return ctx.mark(ctx.annotate(node, ptr, met), ptr, node, imark{})
 }
 
 func jsonKindOf(n *jnode) string {
@@ -2569,7 +2682,7 @@ func (ctx *importCtx) conditional(node *jnode, ptr string, only []string) []*ixp
 	if nil != els {
 		args = append(args, arm(els, "else"))
 	}
-	return []*ixpr{icall("when", args...)}
+	return []*ixpr{ctx.mark(icall("when", args...), ptrChild(ptr, "if"), node, imark{})}
 }
 
 // present is the map that holds each of these keys, whatever it holds
@@ -2593,8 +2706,9 @@ func (ctx *importCtx) dependents(node *jnode, ptr string, only []string) []*ixpr
 	at := func(k string) string { return ptrChild(ptr, k) }
 	if schemas := jentryOf(node, "dependentSchemas"); nil != schemas && "object" == schemas.t {
 		for _, e := range schemas.entries {
-			out = append(out, icall("when", present([]string{e.key}),
-				ctx.convert(e.val, ptrChild(at("dependentSchemas"), e.key), false, only)))
+			p := ptrChild(at("dependentSchemas"), e.key)
+			out = append(out, ctx.mark(icall("when", present([]string{e.key}),
+				ctx.convert(e.val, p, false, only)), p, node, imark{}))
 		}
 	} else if nil != schemas {
 		ctx.wrongType(at("dependentSchemas"), "dependentSchemas", "an object", schemas)
@@ -2613,7 +2727,8 @@ func (ctx *importCtx) dependents(node *jnode, ptr string, only []string) []*ixpr
 				ctx.wrongType(ptrChild(at("dependentRequired"), e.key), "dependentRequired",
 					"an array of strings", e.val)
 			} else if 0 < len(names) {
-				out = append(out, icall("when", present([]string{e.key}), present(names)))
+				out = append(out, ctx.mark(icall("when", present([]string{e.key}), present(names)),
+					ptrChild(at("dependentRequired"), e.key), node, imark{}))
 			}
 		}
 	} else if nil != required {
@@ -2622,8 +2737,10 @@ func (ctx *importCtx) dependents(node *jnode, ptr string, only []string) []*ixpr
 	return out
 }
 
-func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
+func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral, typed bool,
 	excluded map[string][]string) *ixpr {
+	get := func(k string) *jnode { return jentryOf(node, k) }
+	at := func(k string) string { return ptrChild(ptr, k) }
 	exclude := func(parts []*ixpr) []*ixpr {
 		if 0 == len(excluded[kind]) {
 			return parts
@@ -2632,30 +2749,51 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 		for _, t := range excluded[kind] {
 			args = append(args, iraw(t))
 		}
-		return append(parts, icall("neq", args...))
+		return append(parts, ctx.mark(icall("neq", args...), at("not"), node, imark{}))
 	}
-	get := func(k string) *jnode { return jentryOf(node, k) }
-	at := func(k string) string { return ptrChild(ptr, k) }
+	bound := func(k, fn string) *ixpr {
+		v := get(k)
+		if nil == v {
+			return nil
+		}
+		text, ok := ctx.count(at(k), k, v)
+		if !ok || ("min" == fn && "0" == text) {
+			return nil
+		}
+		return ctx.mark(icall(fn, iraw(text)), at(k), node, imark{})
+	}
+	// A length with one bound breaks that bound's keyword.
 	counted := func(lo, hi string) *ixpr {
-		var lt, ht string
-		var hasLo, hasHi bool
-		if l := get(lo); nil != l {
-			lt, hasLo = ctx.count(at(lo), lo, l)
+		parts := []*ixpr{}
+		for _, e := range []*ixpr{bound(lo, "min"), bound(hi, "max")} {
+			if nil != e {
+				parts = append(parts, e)
+			}
 		}
-		if h := get(hi); nil != h {
-			ht, hasHi = ctx.count(at(hi), hi, h)
+		if 0 == len(parts) {
+			return nil
 		}
-		return lenOf(lt, ht, hasLo, hasHi)
+		out := icall("len", iand(parts))
+		if 1 == len(parts) {
+			out.marks = parts[0].marks
+		}
+		return out
+	}
+	kindOf := func(e *ixpr) *ixpr {
+		if typed {
+			return ctx.mark(e, at("type"), node, imark{})
+		}
+		return e
 	}
 
 	switch kind {
 	case "null", "boolean":
-		return iraw(kind)
+		return kindOf(iraw(kind))
 	case "number":
 		// An integer is a number with no fraction, whatever its spelling.
-		parts := []*ixpr{iraw("number")}
+		parts := []*ixpr{kindOf(iraw("number"))}
 		if integral {
-			parts = append(parts, icall("multiple", iraw("1")))
+			parts = append(parts, ctx.mark(icall("multiple", iraw("1")), at("type"), node, imark{}))
 		}
 		for _, kf := range [][2]string{{"minimum", "min"}, {"maximum", "max"},
 			{"exclusiveMinimum", "above"}, {"exclusiveMaximum", "below"},
@@ -2666,13 +2804,13 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 				case ok && "multiple" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
 					ctx.wrongType(at(kf[0]), kf[0], "a number greater than 0", v)
 				case ok:
-					parts = append(parts, icall(kf[1], iraw(text)))
+					parts = append(parts, ctx.mark(icall(kf[1], iraw(text)), at(kf[0]), node, imark{}))
 				}
 			}
 		}
 		return iand(exclude(parts))
 	case "string":
-		parts := []*ixpr{icall("empty")}
+		parts := []*ixpr{kindOf(icall("empty"))}
 		if l := counted("minLength", "maxLength"); nil != l {
 			parts = append(parts, l)
 		}
@@ -2680,7 +2818,7 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 			if "string" != pat.t {
 				ctx.wrongType(at("pattern"), "pattern", "a string", pat)
 			} else if re := ctx.pattern(at("pattern"), "pattern", pat.s); nil != re {
-				parts = append(parts, re)
+				parts = append(parts, ctx.mark(re, at("pattern"), node, imark{}))
 			}
 		}
 		parts = append(parts, ctx.formatCalls(node, ptr)...)
@@ -2697,13 +2835,14 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 				sized = append(sized, e)
 			}
 		}
-		if 0 == len(sized) {
-			if 0 == len(m.entries) && 0 == len(m.spreads) {
-				return iraw("map")
-			}
-			return m
+		held := m
+		if 0 == len(sized) && 0 == len(m.entries) && 0 == len(m.spreads) {
+			held = iraw("map")
 		}
-		return iand(append([]*ixpr{m}, sized...))
+		if 0 == len(sized) {
+			return kindOf(held)
+		}
+		return iand(append([]*ixpr{kindOf(held)}, sized...))
 	}
 	left, rest := ctx.unevaluated(node, ptr, kind)
 	spread := ctx.arraySpread(node, ptr)
@@ -2721,15 +2860,15 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral bool,
 	}
 	if 0 == len(sized) {
 		if nil == spread {
-			return iraw("list")
+			return kindOf(iraw("list"))
 		}
-		return &ixpr{k: "list", spread: spread}
+		return kindOf(&ixpr{k: "list", spread: spread})
 	}
 	// Open by a spread: a literal list alternative admits only its own length.
 	if nil == spread {
 		spread = iAny
 	}
-	return iand(append([]*ixpr{{k: "list", spread: spread}}, sized...))
+	return iand(append([]*ixpr{kindOf(&ixpr{k: "list", spread: spread})}, sized...))
 }
 
 // importCover is what a schema's keywords evaluate, under the trials of
@@ -2783,7 +2922,7 @@ func (ctx *importCtx) unevaluated(node *jnode, ptr, kind string) (spread, rest *
 		for _, k := range keys {
 			args = append(args, k, iAny)
 		}
-		return icall("match", append(args, t)...), nil
+		return ctx.mark(icall("match", append(args, t)...), ptrChild(ptr, word), node, imark{}), nil
 	}
 	args := []*ixpr{t}
 	for _, c := range covers {
@@ -2801,7 +2940,7 @@ func (ctx *importCtx) unevaluated(node *jnode, ptr, kind string) (spread, rest *
 		}
 		args = append(args, rec)
 	}
-	return nil, icall("rest", args...)
+	return nil, ctx.mark(icall("rest", args...), ptrChild(ptr, word), node, imark{})
 }
 
 // coversOf adds the covers of a schema object and of every in-place
@@ -2920,20 +3059,20 @@ func (ctx *importCtx) containsOf(node *jnode, ptr string) *ixpr {
 		return nil
 	}
 	c := ctx.convert(has, ptrChild(ptr, "contains"), false, nil)
-	if "1" == lo && !hasHi {
-		return icall("contains", c)
-	}
+	out := icall("contains", c)
 	if hasHi && lo == hi {
-		return icall("contains", c, iraw(lo))
+		out = icall("contains", c, iraw(lo))
+	} else if "1" != lo || hasHi {
+		parts := []*ixpr{}
+		if "0" != lo {
+			parts = append(parts, icall("min", iraw(lo)))
+		}
+		if hasHi {
+			parts = append(parts, icall("max", iraw(hi)))
+		}
+		out = icall("contains", c, iand(parts))
 	}
-	parts := []*ixpr{}
-	if "0" != lo {
-		parts = append(parts, icall("min", iraw(lo)))
-	}
-	if hasHi {
-		parts = append(parts, icall("max", iraw(hi)))
-	}
-	return icall("contains", c, iand(parts))
+	return ctx.mark(out, ptrChild(ptr, "contains"), node, imark{})
 }
 
 func (ctx *importCtx) uniqueOf(node *jnode, ptr string) *ixpr {
@@ -2942,7 +3081,7 @@ func (ctx *importCtx) uniqueOf(node *jnode, ptr string) *ixpr {
 		ctx.wrongType(ptrChild(ptr, "uniqueItems"), "uniqueItems", "a boolean", uniq)
 	}
 	if nil != uniq && "true" == uniq.t {
-		return icall("unique")
+		return ctx.mark(icall("unique"), ptrChild(ptr, "uniqueItems"), node, imark{})
 	}
 	return nil
 }
@@ -2966,6 +3105,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 		}
 	}
 
+	// A member the data lacks is the `required` that asked for it.
+	asked := []*imark{{ptr: at("required"), node: node, frame: ctx.frame, required: true}}
 	entries := []ientry{}
 	declared := []string{}
 	if props := get("properties"); nil != props {
@@ -2976,16 +3117,20 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 				declared = append(declared, e.key)
 				optional := !inList(required, e.key)
 				val := ctx.convert(e.val, ptrChild(at("properties"), e.key), false, nil)
-				if optional && ctx.defaults {
-					val = ctx.preferDefault(e.val, val)
+				en := ientry{key: e.key, optional: optional, val: val, marks: asked}
+				if optional {
+					en.marks = nil
+					if ctx.defaults {
+						en.val = ctx.preferDefault(e.val, val)
+					}
 				}
-				entries = append(entries, ientry{key: e.key, optional: optional, val: val})
+				entries = append(entries, en)
 			}
 		}
 	}
 	for _, k := range required {
 		if !inList(declared, k) {
-			entries = append(entries, ientry{key: k, val: iAny})
+			entries = append(entries, ientry{key: k, val: iAny, marks: asked})
 		}
 	}
 
@@ -3003,8 +3148,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 					patternsExact = false
 				} else {
 					patterns = append(patterns, re)
-					spreads = append(spreads, icall("match", icall("key", iraw("0")), re,
-						ctx.convert(e.val, p, false, nil), iAny))
+					spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), re,
+						ctx.convert(e.val, p, false, nil), iAny), at("patternProperties"), node, imark{}))
 				}
 			}
 		}
@@ -3027,7 +3172,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 					args = append(args, re, iAny)
 				}
 				args = append(args, rest)
-				spreads = append(spreads, &ixpr{k: "call", name: "match", items: args})
+				spreads = append(spreads, ctx.mark(&ixpr{k: "call", name: "match", items: args},
+					at("additionalProperties"), node, imark{}))
 			}
 		}
 	}
@@ -3035,7 +3181,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 	if names := get("propertyNames"); nil != names && "true" != names.t {
 		guard := ctx.convert(names, at("propertyNames"), false, []string{"string"})
 		if !isRawText(guard, "any") {
-			spreads = append(spreads, icall("match", icall("key", iraw("0")), guard, iAny, iNil))
+			spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), guard, iAny, iNil),
+				at("propertyNames"), node, imark{}))
 		}
 	}
 
@@ -3060,7 +3207,7 @@ func (ctx *importCtx) arraySpread(node *jnode, ptr string) *ixpr {
 					ctx.convert(it, at("prefixItems")+"/"+strconv.Itoa(i), false, nil))
 			}
 			args = append(args, rest)
-			return &ixpr{k: "call", name: "match", items: args}
+			return ctx.mark(&ixpr{k: "call", name: "match", items: args}, at("prefixItems"), node, imark{})
 		}
 	}
 	if isRawText(rest, "any") {
@@ -3087,32 +3234,89 @@ func coreMap(e *ixpr) *ixpr {
 	return nil
 }
 
-func (ctx *importCtx) emit(root *ixpr) string {
+func (ctx *importCtx) emit(root *ixpr) *iout {
 	names := make([]string, 0, len(ctx.decls))
 	for name := range ctx.decls {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	if !ctx.mapRoot {
-		return iprint(root, "") + "\n"
-	}
-	if "map" != root.k {
-		core := coreMap(root)
-		core.decls = nil
-		for _, name := range names {
-			core.decls = append(core.decls, "%"+name+" = "+ctx.decls[name])
-		}
-		return iprint(root, "") + "\n"
-	}
-	var b strings.Builder
+	decls := []idecl{}
 	for _, name := range names {
-		b.WriteString("%" + name + " = " + ctx.decls[name] + "\n")
+		decls = append(decls, idecl{name: name, body: ctx.decls[name]})
 	}
-	if 0 < len(names) {
-		b.WriteString("\n")
+	w := &iout{}
+	if !ctx.mapRoot || "map" != root.k {
+		if ctx.mapRoot {
+			coreMap(root).decls = decls
+		}
+		iwrite(w, root, "")
+		w.b.WriteString("\n")
+		return w
 	}
-	iwriteLines(&b, root, "")
-	return b.String()
+	for _, d := range decls {
+		iwriteDecl(w, d)
+		w.b.WriteString("\n")
+	}
+	if 0 < len(decls) {
+		w.b.WriteString("\n")
+	}
+	start := w.b.Len()
+	iwriteLines(w, root, "")
+	w.place(start, root.marks)
+	return w
+}
+
+// sourceMapOf is the spans the import wrote, carried to the agreed form,
+// each frame numbered by where its own text first appears, the root 0
+// (ADR-066).
+func (ctx *importCtx) sourceMapOf(out *iout, text string) *SourceMap {
+	placed := append([]iplaced{}, out.placed...)
+	sort.SliceStable(placed, func(a, b int) bool {
+		pa, pb := placed[a], placed[b]
+		if pa.start != pb.start {
+			return pa.start < pb.start
+		}
+		if pa.end != pb.end {
+			return pa.end > pb.end
+		}
+		return pa.depth < pb.depth
+	})
+	ranges := make([][2]int, len(placed))
+	for i, p := range placed {
+		ranges[i] = [2]int{p.start, p.end}
+	}
+	moved, ok := carrySpans(out.b.String(), text, ranges)
+	kept := []int{}
+	for i := range placed {
+		if ok[i] {
+			kept = append(kept, i)
+		}
+	}
+	ids := map[*iframe]int{ctx.frame: 0}
+	for _, i := range kept {
+		if _, seen := ids[placed[i].mark.frame]; !seen {
+			ids[placed[i].mark.frame] = len(ids)
+		}
+	}
+	m := &SourceMap{Sha256: TextSha(text), Spans: []SourceSpan{}}
+	for _, i := range kept {
+		mark := placed[i].mark
+		resource := ctx.resourceOf[mark.node]
+		within := len(ctx.originOf(ctx.ptrOf[resource]))
+		span := SourceSpan{
+			Start:    moved[i][0],
+			End:      moved[i][1],
+			Frame:    ids[mark.frame],
+			Keyword:  ctx.originOf(mark.ptr)[len(ctx.originOf(mark.frame.ptr)):],
+			Absolute: normalizeURI(ctx.baseOf[resource]) + "#" + fragmentOf(ctx.originOf(mark.ptr)[within:]),
+			Required: mark.required,
+		}
+		if id, has := ids[mark.enters]; has {
+			span.Enters = &id
+		}
+		m.Spans = append(m.Spans, span)
+	}
+	return m
 }
 
 func (base *importCtx) run(mapRoot bool) (*importCtx, *ixpr) {
@@ -3120,12 +3324,14 @@ func (base *importCtx) run(mapRoot bool) (*importCtx, *ixpr) {
 	ctx.lossy = []SchemaLoss{}
 	ctx.errors = nil
 	ctx.mapRoot = mapRoot
-	ctx.decls = map[string]string{}
+	ctx.decls = map[string]*ixpr{}
 	ctx.stack = nil
 	ctx.copies = 0
 	ctx.env = map[string]*jnode{}
 	ctx.clones = map[*importTarget][]string{}
 	ctx.cloned = 0
+	ctx.frame = &iframe{ptr: "#", node: base.root}
+	ctx.frames = map[string]*iframe{}
 	return &ctx, ctx.convert(base.root, "#", true, nil)
 }
 
@@ -3152,7 +3358,8 @@ func beginImport(text string, opts *ImportOptions) (*importCtx, *jnode) {
 		ptrOf: map[*jnode]string{}, docOf: map[*jnode]*importDoc{},
 		baseOf: map[*jnode]string{}, resources: map[string]*jnode{},
 		documents: map[string]string{}, byText: map[string]*importDoc{},
-		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]string{},
+		targets: map[*jnode]*importTarget{}, mapRoot: true, decls: map[string]*ixpr{},
+		frames:   map[string]*iframe{},
 		defaults: opts.Defaults, seen: map[*jnode]bool{},
 		formats:    opts.Formats,
 		dynAnchors: map[*jnode]map[string]*jnode{}, dynamic: map[string]bool{},
@@ -3275,7 +3482,8 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	for _, node := range base.order {
 		if !ctx.seen[node] && base.doc == base.docOf[node] {
 			v := *ctx
-			v.lossy, v.decls, v.stack, v.copies = []SchemaLoss{}, map[string]string{}, nil, 0
+			v.lossy, v.decls, v.stack, v.copies = []SchemaLoss{}, map[string]*ixpr{}, nil, 0
+			v.frames = map[string]*iframe{}
 			v.convert(node, base.ptrOf[node], false, nil)
 			ctx.errors = v.errors
 		}
@@ -3294,11 +3502,16 @@ func ImportJSONSchema(text string, opts *ImportOptions) ImportReport {
 	// The agreed form, as `aontu fmt` writes it; the importer's own text
 	// where the formatter refuses, which is the formatter's defect.
 	out := ctx.emit(body)
-	if agreed := New().Format(out); "formatted" == agreed.Verdict {
-		out = agreed.Text
+	written := out.b.String()
+	if agreed := New().Format(written); "formatted" == agreed.Verdict {
+		written = agreed.Text
 	}
-	return ImportReport{Verdict: verdict, Aontu: out, Lossy: ctx.lossy,
+	report := ImportReport{Verdict: verdict, Aontu: written, Lossy: ctx.lossy,
 		Vet: append([]string{}, ImportVetFlags...)}
+	if nil != opts && opts.SourceMap {
+		report.Map = ctx.sourceMapOf(out, written)
+	}
+	return report
 }
 
 // importMetaURIs is the meta-schema each dialect's schemas are checked

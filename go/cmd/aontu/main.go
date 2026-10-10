@@ -30,7 +30,7 @@ const helpText = `Usage: aontu [options] [file]
                                [--doc <uri> <file>]... [--format-assert]
                                [--format-grammar <name> <file>]...
                                [--dialect <name>] [--no-meta-check]
-                               [options] <file>
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -202,6 +202,11 @@ Vet options:
                     today starts failing without this flag
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: the report as JSON Schema's output
+                    units, for one data file, in place of --format.
+                    basic locates each error through --source-map
+  --source-map <f>  The map jsonschema import --source-map wrote for
+                    the schema, refused once the schema's text changes
   --watch           Re-run whenever a watched file changes
 
 A check that examined NOTHING and a check that passed answer the same

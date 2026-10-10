@@ -13,6 +13,7 @@ import {
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
 import { importJsonSchema, upgradeJsonSchema } from '../dist/jsonschema-import'
+import { vetOutput } from '../dist/sourcemap'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
@@ -87,7 +88,8 @@ function loadRows(): Row[] {
       const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
         'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
-        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1]
+        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+        'jsonschema-output' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -360,9 +362,21 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
         verdict: report.verdict,
         ...(null == report.errors
           ? {} : { errors: stripProse(report.errors) }),
+        ...(null == report.map ? {} : { map: report.map }),
       }),
       exactJSON(golden),
       `jsonschema-import report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-output' === row.mode) {
+    // ADR-066: the schema imported with its source map, the data vetted
+    // as JSON Schema asks, and the report as basic output units.
+    const golden = JSON.parse(row.expect)
+    const imported = importJsonSchema(row.src, { ...golden.opts, sourceMap: true })
+    const report = vet(imported.aontu, row.data as string, { noFill: true, exactNumbers: true })
+    Assert.strictEqual(
+      exactJSON(vetOutput(report, 'basic', { text: imported.aontu, map: imported.map as any })),
+      exactJSON(golden.output),
+      `jsonschema-output mismatch: ${row.name}`)
   }
   else if ('jsonschema-upgrade' === row.mode) {
     // A number a double cannot hold keeps its digits, as the export does.

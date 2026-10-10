@@ -41,6 +41,7 @@ const Fs = __importStar(require("node:fs"));
 const Os = __importStar(require("node:os"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
+const sourcemap_1 = require("../dist/sourcemap");
 const lang_1 = require("../dist/lang");
 const cli_1 = require("../dist/cli");
 const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js');
@@ -921,6 +922,44 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'yaml', f.general]), 2));
         vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', Path.join(f.dir, 'missing.json')]), 2));
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--help']), 0)).out.includes('aontu jsonschema import'), true);
+    });
+    (0, node_test_1.test)('jsonschema-import-source-map-and-vet-output-units', () => {
+        const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsm-'));
+        const file = Path.join(dir, 'schema.json');
+        const map = Path.join(dir, 'schema.map.json');
+        const aontu = Path.join(dir, 'schema.aontu');
+        const data = Path.join(dir, 'data.json');
+        Fs.writeFileSync(file, '{"$id": "https://x.test/s", "type": "object", ' +
+            '"properties": {"a": {"type": "number", "minimum": 1}}}');
+        Fs.writeFileSync(data, '{"a": 0}');
+        // ADR-066: the map is written beside the text, and the JSON form
+        // carries it too, its hash the text's.
+        Fs.writeFileSync(aontu, vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--source-map', map, file]), 0)).out);
+        const written = JSON.parse(Fs.readFileSync(map, 'utf8'));
+        Assert.equal(written.sha256, (0, sourcemap_1.textSha)(Fs.readFileSync(aontu, 'utf8')));
+        const j = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--format', 'json', file]), 0)).out);
+        Assert.deepEqual(j.map, written);
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--source-map']), 2));
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--source-map', Path.join(dir, 'no', 'such.json'), file]), 2));
+        // A schema that does not import writes no map.
+        const bad = Path.join(dir, 'bad.json');
+        Fs.writeFileSync(bad, '{"type": 5');
+        vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', '--source-map', Path.join(dir, 'bad.map.json'), bad]), 4));
+        Assert.equal(Fs.existsSync(Path.join(dir, 'bad.map.json')), false);
+        const basic = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runVet)(['--output', 'basic', '--source-map', map, aontu, data]), 1)).out);
+        Assert.deepEqual(basic.errors.map((u) => [u.keywordLocation, u.absoluteKeywordLocation, u.instanceLocation]), [['/properties/a/minimum', 'https://x.test/s#/properties/a/minimum', '/a']]);
+        Assert.deepEqual(JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runVet)(['--output', 'flag', aontu, data]), 1)).out), { valid: false });
+        // A map given without --output is checked all the same.
+        vetCapture(() => Assert.equal((0, cli_1.runVet)(['--source-map', map, aontu, data]), 1));
+        for (const args of [['--output', 'basic', aontu, data], ['--output', 'xml', aontu, data],
+            ['--output', 'flag', '--format', 'json', aontu, data],
+            ['--output', 'flag', aontu, data, data], ['--source-map'],
+            ['--source-map', Path.join(dir, 'missing.json'), aontu, data],
+            ['--source-map', data, aontu, data]]) {
+            vetCapture(() => Assert.equal((0, cli_1.runVet)(args), 2));
+        }
+        Fs.appendFileSync(aontu, '\n');
+        Assert.match(vetCapture(() => Assert.equal((0, cli_1.runVet)(['--output', 'basic', '--source-map', map, aontu, data]), 2)).err, /its text has changed since the import/);
     });
     (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));

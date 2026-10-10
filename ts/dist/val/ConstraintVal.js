@@ -24,6 +24,7 @@ const formatgrammar_1 = require("../formatgrammar");
 const regex_1 = require("../regex");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
+const site_1 = require("../site");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
 const RE_REPEAT_MAX = 1000;
@@ -376,6 +377,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         this.whens = [];
         this.contains = [];
         this.rests = [];
+        // The call each part of a merged residual was written as (ADR-066).
+        this.sites = new Map();
         if (spec.state) {
             this.domain = spec.state.domain;
             this.kind = spec.state.kind;
@@ -399,6 +402,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             this.nonEmpty = spec.state.nonEmpty;
             this.emptyOk = spec.state.emptyOk;
             this.pathKind = spec.state.pathKind;
+            this.sites = spec.state.sites ?? this.sites;
         }
         else if (spec.atom) {
             const args = atomArgs(spec.atom, spec.peg ?? []);
@@ -565,6 +569,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
             const inner = meetCount(countBase(), arg);
             this.count = inner;
+            this.sites = true === a.isConstraint ? a.sites : this.sites;
             // `len(min(5)&max(3))` is unsatisfiable with no peer in sight, so
             // it is refused at composition time like any other empty meet.
             if (stateEmpty(inner)) {
@@ -691,10 +696,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         if (this.uniq || 0 < this.uniqBy.length + this.contains.length) {
             return this.fail(ctx, peer);
         }
-        if (!stateAdmits(this, peer) ||
+        const by = stateRefuser(this, peer);
+        if (undefined !== by ||
             (true === this.nonEmpty && true === peer.isPath) ||
             (true === this.pathKind && true !== peer.isPath)) {
-            return this.fail(ctx, peer);
+            return this.fail(ctx, peer, by);
         }
         if (this.nonEmpty && true === peer.isString) {
             peer = peer.withNonEmpty(ctx);
@@ -706,14 +712,15 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             if (!stringishLeaf(peer)) {
                 return this.fail(ctx, peer);
             }
-            if (!stateAdmits(this.count, countVal([...peer.peg].length))) {
-                return this.fail(ctx, peer);
+            const short = stateRefuser(this.count, countVal([...peer.peg].length));
+            if (undefined !== short) {
+                return this.fail(ctx, peer, short);
             }
         }
         for (const f of this.fmts) {
             const why = formatWhy(f, peer.peg);
             if (undefined !== why) {
-                return (0, err_1.makeNilErr)(ctx, 'parse_failed', this, peer, 'parse', { reason: why });
+                return (0, err_1.makeNilErr)(ctx, 'parse_failed', this.at(ctx, 'fmt:' + f.src), peer, 'parse', { reason: why });
             }
         }
         // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
@@ -760,7 +767,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                     return this.overBudget(ctx, peer);
                 }
                 if (!held) {
-                    return (0, err_1.makeNilErr)(ctx, 'rest', this, peer, undefined, {
+                    return (0, err_1.makeNilErr)(ctx, 'rest', this.at(ctx, 'rest:' + restCanon(r)), peer, undefined, {
                         expected: restCanon(r),
                         actual: peer.canon,
                         key,
@@ -799,7 +806,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         return undefined;
     }
     mustFails(ctx, peer, m) {
-        return (0, err_1.makeNilErr)(ctx, 'must', this, peer, undefined, {
+        return (0, err_1.makeNilErr)(ctx, 'must', this.at(ctx, mustKey(m)), peer, undefined, {
             message: m.msg.peg,
             expected: m.v.canon,
             actual: peer.canon,
@@ -820,7 +827,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return this.overBudget(ctx, peer);
             }
             if (!taken) {
-                return (0, err_1.makeNilErr)(ctx, 'when', this, peer, undefined, {
+                return (0, err_1.makeNilErr)(ctx, 'when', this.at(ctx, 'when:' + whenCanon(w)), peer, undefined, {
                     expected: whenCanon(w),
                     actual: peer.canon,
                     branch: holds ? 'then' : 'else',
@@ -850,7 +857,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             }
             const open = n.cs.length - verdicts.length;
             if ('none' === countSpan(n.count, k, k + open)) {
-                return (0, err_1.makeNilErr)(ctx, 'nof', this, peer, undefined, {
+                return (0, err_1.makeNilErr)(ctx, 'nof', this.at(ctx, 'nof:' + nofCanon(n)), peer, undefined, {
                     expected: nofCanon(n),
                     actual: peer.canon,
                     count: countCanon(n.count),
@@ -903,17 +910,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         const count = null == this.count ? undefined : this.count;
         const n = members.length;
         if (null != count) {
-            if (null != count.hi && !stateAdmits({ ...count, lo: undefined }, countVal(n))) {
-                return this.fail(ctx, peer);
-            }
-            if (0 < count.neqs.length + multsOf(count).length && !stateAdmits({ ...count, lo: undefined, hi: undefined }, countVal(n))) {
-                return this.fail(ctx, peer);
-            }
-            // The provisional half, decided only when nothing more can
-            // arrive: a lower bound still short is a refusal at generation
-            // and a residue before it.
-            if (true === final && !stateAdmits(count, countVal(n))) {
-                return this.fail(ctx, peer);
+            // The provisional half, a lower bound still short, waits until nothing
+            // more can arrive: a refusal at generation, a residue before it.
+            const by = stateRefuser(true === final ? count : { ...count, lo: undefined }, countVal(n));
+            if (undefined !== by) {
+                return this.fail(ctx, peer, by);
             }
         }
         if (this.uniq) {
@@ -921,7 +922,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             for (const m of members) {
                 const key = m.canon;
                 if (seen.has(key)) {
-                    return this.fail(ctx, peer);
+                    return this.fail(ctx, peer, 'uniq');
                 }
                 seen.add(key);
             }
@@ -932,11 +933,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 return this.overBudget(ctx, peer);
             }
             const matched = countVal(matches.length);
-            if ((null != k.count.hi && !stateAdmits({ ...k.count, lo: undefined }, matched)) ||
-                (0 < k.count.neqs.length + multsOf(k.count).length &&
-                    !stateAdmits({ ...k.count, lo: undefined, hi: undefined }, matched)) ||
-                (true === final && !stateAdmits(k.count, matched))) {
-                return this.fail(ctx, peer);
+            if (!stateAdmits(true === final ? k.count : { ...k.count, lo: undefined }, matched)) {
+                return this.fail(ctx, peer, 'contains:' + containsCanon(k));
             }
         }
         for (const field of this.uniqBy) {
@@ -945,11 +943,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
                 const at = true === m.isMap ?
                     m.peg[field] : undefined;
                 if (null == at) {
-                    return this.fail(ctx, peer);
+                    return this.fail(ctx, peer, 'by:' + field);
                 }
                 const key = at.canon;
                 if (seen.has(key)) {
-                    return this.fail(ctx, peer);
+                    return this.fail(ctx, peer, 'by:' + field);
                 }
                 seen.add(key);
             }
@@ -1086,6 +1084,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined;
         merged.emptyOk = this.emptyOk || peer.emptyOk || undefined;
         merged.pathKind = this.pathKind || peer.pathKind || undefined;
+        merged.sites = new Map([...partSites(peer), ...partSites(this)]);
         return this.finish(merged, ctx, peer);
     }
     // Build the merged residual, applying the eager emptiness rules.
@@ -1106,11 +1105,21 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         (0, utility_1.propagateMarks)(peer, out);
         return out;
     }
-    fail(ctx, peer) {
-        return (0, err_1.makeNilErr)(ctx, 'constraint', this, peer, undefined, {
+    fail(ctx, peer, part) {
+        return (0, err_1.makeNilErr)(ctx, 'constraint', this.at(ctx, part), peer, undefined, {
             expected: this.canon,
             actual: peer?.canon,
         });
+    }
+    // The residual, sited where the part that refused was written.
+    at(ctx, part) {
+        const site = this.sites.get(part);
+        if (undefined === site) {
+            return this;
+        }
+        const out = this.clone(ctx);
+        out.site = new site_1.Site(site);
+        return out;
     }
     overBudget(ctx, peer) {
         return (0, err_1.makeNilErr)(ctx, 'trial_budget', this, peer, undefined, {
@@ -1139,6 +1148,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             nonEmpty: this.nonEmpty,
             emptyOk: this.emptyOk,
             pathKind: this.pathKind,
+            sites: this.sites,
         };
     }
     // Meet with `empty()`: the residual becomes a string one that also
@@ -1183,6 +1193,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.nonEmpty = this.nonEmpty;
         out.emptyOk = this.emptyOk;
         out.pathKind = this.pathKind;
+        out.sites = this.sites;
         return out;
     }
     // The fixed canonical atom order: kind, lower, upper, neq (arguments
@@ -1570,52 +1581,57 @@ function constraintAdmitsScalar(g, scalar) {
         g.fmts.every((f) => undefined === formatWhy(f, scalar.peg));
 }
 function stateAdmits(s, peer) {
+    return undefined === stateRefuser(s, peer);
+}
+// The part of a state refusing a scalar (a bound, excluded value, divisor or
+// pattern); null where its domain or kind does; undefined where none does.
+function stateRefuser(s, peer) {
     const domainOf = numericLeaf(peer) ? 'number' :
         stringishLeaf(peer) ? 'string' : undefined;
     if (null == s.domain) {
         // A residual with no domain admits any scalar its atoms can rule on.
         // A sizing atom reads no boolean or null, which have no order, length
         // or members; a Band B check reads anything.
-        if (null == domainOf) {
-            return null == s.count && !s.uniq && 0 === s.uniqBy.length;
-        }
-        return true;
+        return null != domainOf || (null == s.count && !s.uniq && 0 === s.uniqBy.length) ?
+            undefined : null;
     }
-    if (domainOf !== s.domain) {
-        return false;
-    }
-    if (null != s.kind && leafMarker(peer) !== s.kind) {
-        return false;
+    if (domainOf !== s.domain || (null != s.kind && leafMarker(peer) !== s.kind)) {
+        return null;
     }
     const d = s.domain;
     if (null != s.lo) {
         const c = cmpVal(d, peer, s.lo.v);
         if (c < 0 || (0 === c && s.lo.open)) {
-            return false;
+            return s.lo;
         }
     }
     if (null != s.hi) {
         const c = cmpVal(d, peer, s.hi.v);
         if (c > 0 || (0 === c && s.hi.open)) {
-            return false;
+            return s.hi;
         }
     }
-    for (const n of s.neqs) {
-        if (sameScalar(peer, n)) {
-            return false;
-        }
-    }
-    for (const m of multsOf(s)) {
-        if (!isMultiple(peer, m)) {
-            return false;
-        }
-    }
-    for (const r of s.res) {
-        if (!(0, regex_1.patternMatches)(r.prog, peer.peg)) {
-            return false;
-        }
-    }
-    return true;
+    const pattern = s.res.find((r) => !(0, regex_1.patternMatches)(r.prog, peer.peg));
+    return s.neqs.find((n) => sameScalar(peer, n)) ??
+        multsOf(s).find((m) => !isMultiple(peer, m)) ??
+        (undefined === pattern ? undefined : 're:' + pattern.src);
+}
+// Each part of a residual with the call it came from, else the residual's
+// site; bounds, excluded values and divisors are keyed by themselves.
+function partSites(c) {
+    const count = c.count;
+    const parts = [c.lo, c.hi, ...c.neqs, ...c.mults,
+        ...c.res.map((r) => 're:' + r.src), ...c.fmts.map((f) => 'fmt:' + f.src),
+        ...(null == count ? [] : [count.lo, count.hi, ...count.neqs, ...multsOf(count)]),
+        ...(c.uniq ? ['uniq'] : []), ...c.uniqBy.map((f) => 'by:' + f),
+        ...c.musts.map(mustKey), ...c.nofs.map((n) => 'nof:' + nofCanon(n)),
+        ...c.whens.map((w) => 'when:' + whenCanon(w)),
+        ...c.contains.map((k) => 'contains:' + containsCanon(k)),
+        ...c.rests.map((r) => 'rest:' + restCanon(r))];
+    return parts.filter((p) => undefined !== p).map((p) => [p, c.sites.get(p) ?? new site_1.Site(c)]);
+}
+function mustKey(m) {
+    return 'must:' + m.v.canon + '\u0000' + m.msg.canon;
 }
 function stateEmpty(s) {
     if (s.clash) {

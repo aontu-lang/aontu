@@ -46,6 +46,7 @@ import type { Inst } from '../regex'
 import { codeClass } from '../hints'
 
 import { FeatureVal } from './FeatureVal'
+import { Site } from '../site'
 
 import {
   BigDecimal,
@@ -140,6 +141,7 @@ type ConstraintState = {
   nonEmpty?: boolean  // met the `string` kind, which refuses ""
   emptyOk?: boolean   // met `empty()`, which waives nonEmpty
   pathKind?: boolean  // met the `path` kind: the spelling of a path
+  sites?: Map<any, Site>
 }
 
 
@@ -558,6 +560,8 @@ class ConstraintVal extends FeatureVal {
   nonEmpty?: boolean
   emptyOk?: boolean
   pathKind?: boolean
+  // The call each part of a merged residual was written as (ADR-066).
+  sites: Map<any, Site> = new Map()
 
   constructor(
     spec: ValSpec & { atom?: string, state?: ConstraintState },
@@ -588,6 +592,7 @@ class ConstraintVal extends FeatureVal {
       this.nonEmpty = spec.state.nonEmpty
       this.emptyOk = spec.state.emptyOk
       this.pathKind = spec.state.pathKind
+      this.sites = spec.state.sites ?? this.sites
     }
     else if (spec.atom) {
       const args = atomArgs(spec.atom, (spec.peg as any[]) ?? [])
@@ -770,6 +775,7 @@ class ConstraintVal extends FeatureVal {
       }
       const inner = meetCount(countBase(), arg)
       this.count = inner
+      this.sites = true === a.isConstraint ? a.sites : this.sites
       // `len(min(5)&max(3))` is unsatisfiable with no peer in sight, so
       // it is refused at composition time like any other empty meet.
       if (stateEmpty(inner)) {
@@ -914,10 +920,11 @@ class ConstraintVal extends FeatureVal {
     if (this.uniq || 0 < this.uniqBy.length + this.contains.length) {
       return this.fail(ctx, peer)
     }
-    if (!stateAdmits(this, peer) ||
+    const by = stateRefuser(this, peer)
+    if (undefined !== by ||
       (true === this.nonEmpty && true === peer.isPath) ||
       (true === this.pathKind && true !== peer.isPath)) {
-      return this.fail(ctx, peer)
+      return this.fail(ctx, peer, by)
     }
     if (this.nonEmpty && true === peer.isString) {
       peer = peer.withNonEmpty(ctx)
@@ -929,14 +936,16 @@ class ConstraintVal extends FeatureVal {
       if (!stringishLeaf(peer)) {
         return this.fail(ctx, peer)
       }
-      if (!stateAdmits(this.count, countVal([...peer.peg].length))) {
-        return this.fail(ctx, peer)
+      const short = stateRefuser(this.count, countVal([...peer.peg].length))
+      if (undefined !== short) {
+        return this.fail(ctx, peer, short)
       }
     }
     for (const f of this.fmts) {
       const why = formatWhy(f, peer.peg)
       if (undefined !== why) {
-        return makeNilErr(ctx, 'parse_failed', this, peer, 'parse', { reason: why })
+        return makeNilErr(ctx, 'parse_failed', this.at(ctx, 'fmt:' + f.src), peer, 'parse',
+          { reason: why })
       }
     }
     // A SCALAR HAS NO MEMBERS to accumulate, so its musts are decided
@@ -986,7 +995,7 @@ class ConstraintVal extends FeatureVal {
           return this.overBudget(ctx, peer)
         }
         if (!held) {
-          return makeNilErr(ctx, 'rest', this, peer, undefined, {
+          return makeNilErr(ctx, 'rest', this.at(ctx, 'rest:' + restCanon(r)), peer, undefined, {
             expected: restCanon(r),
             actual: peer.canon,
             key,
@@ -1030,7 +1039,7 @@ class ConstraintVal extends FeatureVal {
 
 
   private mustFails(ctx: AontuContext, peer: any, m: MustAtom): Val {
-    return makeNilErr(ctx, 'must', this, peer, undefined, {
+    return makeNilErr(ctx, 'must', this.at(ctx, mustKey(m)), peer, undefined, {
       message: m.msg.peg,
       expected: m.v.canon,
       actual: peer.canon,
@@ -1053,7 +1062,7 @@ class ConstraintVal extends FeatureVal {
         return this.overBudget(ctx, peer)
       }
       if (!taken) {
-        return makeNilErr(ctx, 'when', this, peer, undefined, {
+        return makeNilErr(ctx, 'when', this.at(ctx, 'when:' + whenCanon(w)), peer, undefined, {
           expected: whenCanon(w),
           actual: peer.canon,
           branch: holds ? 'then' : 'else',
@@ -1085,7 +1094,7 @@ class ConstraintVal extends FeatureVal {
       }
       const open = n.cs.length - verdicts.length
       if ('none' === countSpan(n.count, k, k + open)) {
-        return makeNilErr(ctx, 'nof', this, peer, undefined, {
+        return makeNilErr(ctx, 'nof', this.at(ctx, 'nof:' + nofCanon(n)), peer, undefined, {
           expected: nofCanon(n),
           actual: peer.canon,
           count: countCanon(n.count),
@@ -1147,19 +1156,11 @@ class ConstraintVal extends FeatureVal {
     const count = null == this.count ? undefined : this.count
     const n = members.length
     if (null != count) {
-      if (null != count.hi && !stateAdmits({ ...count, lo: undefined },
-        countVal(n))) {
-        return this.fail(ctx, peer)
-      }
-      if (0 < count.neqs.length + multsOf(count).length && !stateAdmits(
-        { ...count, lo: undefined, hi: undefined }, countVal(n))) {
-        return this.fail(ctx, peer)
-      }
-      // The provisional half, decided only when nothing more can
-      // arrive: a lower bound still short is a refusal at generation
-      // and a residue before it.
-      if (true === final && !stateAdmits(count, countVal(n))) {
-        return this.fail(ctx, peer)
+      // The provisional half, a lower bound still short, waits until nothing
+      // more can arrive: a refusal at generation, a residue before it.
+      const by = stateRefuser(true === final ? count : { ...count, lo: undefined }, countVal(n))
+      if (undefined !== by) {
+        return this.fail(ctx, peer, by)
       }
     }
 
@@ -1168,7 +1169,7 @@ class ConstraintVal extends FeatureVal {
       for (const m of members) {
         const key = m.canon
         if (seen.has(key)) {
-          return this.fail(ctx, peer)
+          return this.fail(ctx, peer, 'uniq')
         }
         seen.add(key)
       }
@@ -1180,11 +1181,8 @@ class ConstraintVal extends FeatureVal {
         return this.overBudget(ctx, peer)
       }
       const matched = countVal(matches.length)
-      if ((null != k.count.hi && !stateAdmits({ ...k.count, lo: undefined }, matched)) ||
-        (0 < k.count.neqs.length + multsOf(k.count).length &&
-          !stateAdmits({ ...k.count, lo: undefined, hi: undefined }, matched)) ||
-        (true === final && !stateAdmits(k.count, matched))) {
-        return this.fail(ctx, peer)
+      if (!stateAdmits(true === final ? k.count : { ...k.count, lo: undefined }, matched)) {
+        return this.fail(ctx, peer, 'contains:' + containsCanon(k))
       }
     }
 
@@ -1194,11 +1192,11 @@ class ConstraintVal extends FeatureVal {
         const at: any = true === (m as any).isMap ?
           (m as any).peg[field] : undefined
         if (null == at) {
-          return this.fail(ctx, peer)
+          return this.fail(ctx, peer, 'by:' + field)
         }
         const key = at.canon
         if (seen.has(key)) {
-          return this.fail(ctx, peer)
+          return this.fail(ctx, peer, 'by:' + field)
         }
         seen.add(key)
       }
@@ -1351,6 +1349,7 @@ class ConstraintVal extends FeatureVal {
     merged.nonEmpty = this.nonEmpty || peer.nonEmpty || undefined
     merged.emptyOk = this.emptyOk || peer.emptyOk || undefined
     merged.pathKind = this.pathKind || peer.pathKind || undefined
+    merged.sites = new Map([...partSites(peer), ...partSites(this)])
 
     return this.finish(merged, ctx, peer)
   }
@@ -1377,11 +1376,23 @@ class ConstraintVal extends FeatureVal {
   }
 
 
-  private fail(ctx: AontuContext, peer: Val): Val {
-    return makeNilErr(ctx, 'constraint', this, peer, undefined, {
+  private fail(ctx: AontuContext, peer: Val, part?: any): Val {
+    return makeNilErr(ctx, 'constraint', this.at(ctx, part), peer, undefined, {
       expected: this.canon,
       actual: (peer as any)?.canon,
     })
+  }
+
+
+  // The residual, sited where the part that refused was written.
+  private at(ctx: AontuContext, part: any): Val {
+    const site = this.sites.get(part)
+    if (undefined === site) {
+      return this
+    }
+    const out = this.clone(ctx)
+    out.site = new Site(site)
+    return out
   }
 
 
@@ -1414,6 +1425,7 @@ class ConstraintVal extends FeatureVal {
       nonEmpty: this.nonEmpty,
       emptyOk: this.emptyOk,
       pathKind: this.pathKind,
+      sites: this.sites,
     }
   }
 
@@ -1462,6 +1474,7 @@ class ConstraintVal extends FeatureVal {
     out.nonEmpty = this.nonEmpty
     out.emptyOk = this.emptyOk
     out.pathKind = this.pathKind
+    out.sites = this.sites
     return out
   }
 
@@ -1944,6 +1957,13 @@ function constraintAdmitsScalar(
 
 
 function stateAdmits(s: ConstraintState, peer: any): boolean {
+  return undefined === stateRefuser(s, peer)
+}
+
+
+// The part of a state refusing a scalar (a bound, excluded value, divisor or
+// pattern); null where its domain or kind does; undefined where none does.
+function stateRefuser(s: ConstraintState, peer: any): any {
   const domainOf = numericLeaf(peer) ? 'number' :
     stringishLeaf(peer) ? 'string' : undefined
 
@@ -1951,46 +1971,50 @@ function stateAdmits(s: ConstraintState, peer: any): boolean {
     // A residual with no domain admits any scalar its atoms can rule on.
     // A sizing atom reads no boolean or null, which have no order, length
     // or members; a Band B check reads anything.
-    if (null == domainOf) {
-      return null == s.count && !s.uniq && 0 === s.uniqBy.length
-    }
-    return true
+    return null != domainOf || (null == s.count && !s.uniq && 0 === s.uniqBy.length) ?
+      undefined : null
   }
-  if (domainOf !== s.domain) {
-    return false
-  }
-  if (null != s.kind && leafMarker(peer) !== s.kind) {
-    return false
+  if (domainOf !== s.domain || (null != s.kind && leafMarker(peer) !== s.kind)) {
+    return null
   }
   const d = s.domain
   if (null != s.lo) {
     const c = cmpVal(d, peer, s.lo.v)
     if (c < 0 || (0 === c && s.lo.open)) {
-      return false
+      return s.lo
     }
   }
   if (null != s.hi) {
     const c = cmpVal(d, peer, s.hi.v)
     if (c > 0 || (0 === c && s.hi.open)) {
-      return false
+      return s.hi
     }
   }
-  for (const n of s.neqs) {
-    if (sameScalar(peer, n)) {
-      return false
-    }
-  }
-  for (const m of multsOf(s)) {
-    if (!isMultiple(peer, m)) {
-      return false
-    }
-  }
-  for (const r of s.res) {
-    if (!patternMatches(r.prog, peer.peg)) {
-      return false
-    }
-  }
-  return true
+  const pattern = s.res.find((r) => !patternMatches(r.prog, peer.peg))
+  return s.neqs.find((n) => sameScalar(peer, n)) ??
+    multsOf(s).find((m) => !isMultiple(peer, m)) ??
+    (undefined === pattern ? undefined : 're:' + pattern.src)
+}
+
+
+// Each part of a residual with the call it came from, else the residual's
+// site; bounds, excluded values and divisors are keyed by themselves.
+function partSites(c: ConstraintVal): [any, Site][] {
+  const count = c.count
+  const parts = [c.lo, c.hi, ...c.neqs, ...c.mults,
+    ...c.res.map((r) => 're:' + r.src), ...c.fmts.map((f) => 'fmt:' + f.src),
+    ...(null == count ? [] : [count.lo, count.hi, ...count.neqs, ...multsOf(count)]),
+    ...(c.uniq ? ['uniq'] : []), ...c.uniqBy.map((f) => 'by:' + f),
+    ...c.musts.map(mustKey), ...c.nofs.map((n) => 'nof:' + nofCanon(n)),
+    ...c.whens.map((w) => 'when:' + whenCanon(w)),
+    ...c.contains.map((k) => 'contains:' + containsCanon(k)),
+    ...c.rests.map((r) => 'rest:' + restCanon(r))]
+  return parts.filter((p) => undefined !== p).map((p) => [p, c.sites.get(p) ?? new Site(c)])
+}
+
+
+function mustKey(m: MustAtom): string {
+  return 'must:' + m.v.canon + '\u0000' + m.msg.canon
 }
 
 

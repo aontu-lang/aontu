@@ -12,6 +12,10 @@ import (
 	"golang.org/x/text/language"
 )
 
+// riderFuncs are the riders: each one's value is its own argument, with a
+// record beside it.
+var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
+
 var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
@@ -434,10 +438,13 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				home = pm.path
 			}
 			out.setvpath(cp(home))
-			out.setPos(f.site.sp)
-			out.setPosu(f.site.spu)
-			out.setSrcurl(f.site.url)
-			out.setSrctext(f.srctext())
+			// A rider's value is its argument, written where it is (ADR-066).
+			if !riderFuncs[f.name] || out.pos() < 0 {
+				out.setPos(f.site.sp)
+				out.setPosu(f.site.spu)
+				out.setSrcurl(f.site.url)
+				out.setSrctext(f.srctext())
+			}
 		}
 	} else if isTop(peer) {
 		f.notdone()

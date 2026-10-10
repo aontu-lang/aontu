@@ -55,9 +55,11 @@ type VetFinding struct {
 	Expected *string `json:"expected,omitempty"`
 	Hint *string `json:"hint,omitempty"`
 
-	Message  string    `json:"message"`
-	Note     *string   `json:"note,omitempty"`
-	Path     string    `json:"path"`
+	Message string  `json:"message"`
+	Note    *string `json:"note,omitempty"`
+	Path    string  `json:"path"`
+	// Pointer is the path as an RFC 6901 pointer, unambiguous where a key holds a dot.
+	Pointer  *string   `json:"pointer,omitempty"`
 	Severity string    `json:"severity"`
 	Sites    []VetSite `json:"sites"`
 }
@@ -177,6 +179,16 @@ func vetPath(path []string) string {
 		segs[i] = aliasPathSegment(p)
 	}
 	return subPathText(segs)
+}
+
+func pointed(f VetFinding, path []string) VetFinding {
+	segs := make([]string, len(path))
+	for i, p := range path {
+		segs[i] = aliasPathSegment(p)
+	}
+	ptr := pointerOf(segs)
+	f.Pointer = &ptr
+	return f
 }
 
 func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
@@ -366,7 +378,7 @@ func filledFindings(generated any, unified Val, dataSrc string,
 	if 0 < len(ownCtx.err) {
 		out := []VetFinding{}
 		for _, e := range ownCtx.err {
-			out = append(out, findingOf(e, prov, sources))
+			out = append(out, pointed(findingOf(e, prov, sources), e.pathSegments()))
 		}
 		return out
 	}
@@ -384,14 +396,14 @@ func filledFindings(generated any, unified Val, dataSrc string,
 		if s := siteOf(valAt(unified, p), prov, sources); nil != s {
 			sites = append(sites, *s)
 		}
-		out = append(out, fromRegistry(VetFinding{
+		out = append(out, pointed(fromRegistry(VetFinding{
 			Class:    codeClass("vet_filled"),
 			Code:     "vet_filled",
 			Message:  "The schema supplies this member, and the data does not carry it.",
 			Path:     vetPath(append(cp(prefix), p...)),
 			Severity: "error",
 			Sites:    sites,
-		}, "vet_filled", nil))
+		}, "vet_filled", nil), append(cp(prefix), p...)))
 	}
 	return out
 }
@@ -532,7 +544,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetError,
 			Truncated: false,
-			Findings:  []VetFinding{parseFinding(schemaURL, VetRoleSchema, perr)},
+			Findings:  []VetFinding{pointed(parseFinding(schemaURL, VetRoleSchema, perr), nil)},
 		}
 	}
 	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
@@ -550,8 +562,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Truncated: false,
 			// A schema that does not stand up: nothing here is data, so
 			// the data-url set is empty and every site reads `schema`.
-			Findings: []VetFinding{findingOf(failure, vetProv{},
-				vetSources{schemaURL: schemaSrc, dataURL: dataSrc})},
+			Findings: []VetFinding{pointed(findingOf(failure, vetProv{},
+				vetSources{schemaURL: schemaSrc, dataURL: dataSrc}), failure.pathSegments())},
 		}
 	}
 
@@ -563,7 +575,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			return VetReport{
 				Verdict:   VetError,
 				Truncated: false,
-				Findings:  []VetFinding{noPathFinding(schemaVal, options.At)},
+				Findings:  []VetFinding{pointed(noPathFinding(schemaVal, options.At), anchorSegs(options.At))},
 			}
 		}
 	}
@@ -601,7 +613,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 					site := &VetSite{Col: col, File: schemaURL,
 						Len: def.srclen(), Role: VetRoleSchema, Row: row,
 						Src: def.srctext(), Value: def.Canon()}
-					lintFindings = append(lintFindings, VetFinding{
+					lintFindings = append(lintFindings, pointed(VetFinding{
 						Code:     "pref_not_instance",
 						Class:    "compat",
 						Severity: "warning",
@@ -610,7 +622,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 							" is not an instance of any remaining alternative of " +
 							d.Canon(),
 						Sites: []VetSite{*site},
-					})
+					}, path))
 				}
 			}
 		}
@@ -623,7 +635,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetInvalid,
 			Truncated: false,
-			Findings:  []VetFinding{parseFinding(dataURL, VetRoleData, derr)},
+			Findings:  []VetFinding{pointed(parseFinding(dataURL, VetRoleData, derr), nil)},
 		}
 	}
 	stampURL(schemaVal, schemaURL)
@@ -712,14 +724,14 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	findings := []VetFinding{}
 	for _, n := range nils {
-		findings = append(findings, findingOf(n, prov, sources))
+		findings = append(findings, pointed(findingOf(n, prov, sources), n.pathSegments()))
 	}
 
 	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
 		probe: "" != options.At}
 	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
-		findings = append(findings, findingOf(e, prov, sources))
+		findings = append(findings, pointed(findingOf(e, prov, sources), e.pathSegments()))
 	}
 	if options.NoFill && nil != generated {
 		findings = append(findings,
@@ -730,14 +742,14 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	for _, d := range collectDeprecatedVals(unified) {
 		msg := deprecationMessage(d.v.deprecRec())
 		site := siteOf(d.v, prov, sources)
-		findings = append(findings, VetFinding{
+		findings = append(findings, pointed(VetFinding{
 			Code:     "deprecated",
 			Class:    "compat",
 			Severity: "warning",
 			Path:     vetPath(d.path),
 			Message:  msg,
 			Sites:    []VetSite{*site},
-		})
+		}, d.path))
 	}
 
 	keys := make([]string, len(findings))

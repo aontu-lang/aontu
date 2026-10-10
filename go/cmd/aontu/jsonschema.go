@@ -28,6 +28,7 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 	noMetaCheck := false
 	grammars := [][2]string{}
 	dialect := ""
+	mapFile := ""
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
 		switch {
@@ -63,6 +64,13 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 			formatAssertion = true
 		case "--no-meta-check" == arg:
 			noMetaCheck = true
+		case "--source-map" == arg:
+			i++
+			if len(argv) <= i {
+				io.WriteString(stderr, "aontu: --source-map needs a file\n")
+				return 2
+			}
+			mapFile = argv[i]
 		case "--dialect" == arg:
 			i++
 			if len(argv) <= i {
@@ -129,7 +137,14 @@ func runJsonSchemaImport(argv []string, stdout, stderr io.Writer) int {
 
 	report := aontu.ImportJSONSchema(string(src), &aontu.ImportOptions{
 		Path: files[0], Defaults: defaults, URI: uri, Documents: documents,
-		FormatAssertion: formatAssertion, Formats: formats, Dialect: dialect, NoMetaCheck: noMetaCheck})
+		FormatAssertion: formatAssertion, Formats: formats, Dialect: dialect, NoMetaCheck: noMetaCheck,
+		SourceMap: "json" == format || "" != mapFile})
+	if "" != mapFile && nil != report.Map {
+		if err := os.WriteFile(mapFile, []byte(encodeJSON(report.Map)+"\n"), 0o644); nil != err {
+			io.WriteString(stderr, "aontu: cannot write "+mapFile+": "+err.Error()+"\n")
+			return 2
+		}
+	}
 
 	if "json" == format {
 		io.WriteString(stdout, renderJsonSchemaImportJSON(report)+"\n")
@@ -266,9 +281,21 @@ type jsonSchemaImportJSON struct {
 	Aontu   subsumeProducerJSON `json:"aontu"`
 	Errors  []aontu.VetFinding  `json:"errors,omitempty"`
 	Lossy   []aontu.SchemaLoss  `json:"lossy"`
+	Map     *aontu.SourceMap    `json:"map,omitempty"`
 	Text    string              `json:"text"`
 	Verdict string              `json:"verdict"`
 	Vet     []string            `json:"vet,omitempty"`
+}
+
+// encodeJSON is a value in the canonical emitter's settings: two-space
+// indent, and <, > and & left literal.
+func encodeJSON(v any) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(v)
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 func renderJsonSchemaImportJSON(report aontu.ImportReport) string {
@@ -280,6 +307,7 @@ func renderJsonSchemaImportJSON(report aontu.ImportReport) string {
 		Aontu:   subsumeProducerJSON{Verb: "jsonschema", Version: aontu.VERSION},
 		Errors:  report.Errors,
 		Lossy:   report.Lossy,
+		Map:     report.Map,
 		Text:    report.Aontu,
 		Verdict: report.Verdict,
 		Vet:     report.Vet,

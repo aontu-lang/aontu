@@ -5,6 +5,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -316,4 +318,92 @@ func TestJsonSchemaImportUsageErrorsExit2(t *testing.T) {
 		!strings.Contains(out, "aontu jsonschema import") {
 		t.Fatalf("--help: %d", code)
 	}
+}
+
+// ADR-066: the map is written beside the text, and the JSON form carries
+// it too; vet reads it back for output units, and refuses one whose text
+// has changed. Mirrors the TypeScript CLI test.
+func TestJsonSchemaImportSourceMapAndVetOutputUnits(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "schema.json")
+	sourceMap := filepath.Join(dir, "schema.map.json")
+	doc := filepath.Join(dir, "schema.aontu")
+	data := filepath.Join(dir, "data.json")
+	write := func(path, text string) {
+		if err := os.WriteFile(path, []byte(text), 0o600); nil != err {
+			t.Fatal(err)
+		}
+	}
+	write(file, `{"$id": "https://x.test/s", "type": "object", "properties": {"a": {"type": "number", "minimum": 1}}}`)
+	write(data, `{"a": 0}`)
+
+	out, _, code := jsonSchemaRun("import", "--source-map", sourceMap, file)
+	if 0 != code {
+		t.Fatalf("import: %d", code)
+	}
+	write(doc, out)
+	written, err := os.ReadFile(sourceMap)
+	if nil != err {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(written, &m); nil != err || m["sha256"] != importShaOf(out) {
+		t.Fatalf("map: %v %v", err, m["sha256"])
+	}
+	jout, _, _ := jsonSchemaRun("import", "--format", "json", file)
+	var j map[string]any
+	if err := json.Unmarshal([]byte(jout), &j); nil != err || fmt.Sprint(j["map"]) != fmt.Sprint(m) {
+		t.Fatalf("json map: %v\n%v", j["map"], m)
+	}
+	if _, _, code := jsonSchemaRun("import", "--source-map"); 2 != code {
+		t.Fatalf("--source-map alone: %d", code)
+	}
+	if _, _, code := jsonSchemaRun("import", "--source-map", filepath.Join(dir, "no", "such.json"), file); 2 != code {
+		t.Fatalf("unwritable map: %d", code)
+	}
+	// A schema that does not import writes no map.
+	bad := filepath.Join(dir, "bad.json")
+	write(bad, `{"type": 5`)
+	if _, _, code := jsonSchemaRun("import", "--source-map", filepath.Join(dir, "bad.map.json"), bad); 4 != code {
+		t.Fatalf("bad: %d", code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "bad.map.json")); nil == err {
+		t.Fatal("a refused import wrote a map")
+	}
+
+	basic, _, code := vetRun("--output", "basic", "--source-map", sourceMap, doc, data)
+	var b struct {
+		Errors []map[string]any `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(basic), &b); nil != err || 1 != code || 1 != len(b.Errors) ||
+		"/properties/a/minimum" != b.Errors[0]["keywordLocation"] ||
+		"https://x.test/s#/properties/a/minimum" != b.Errors[0]["absoluteKeywordLocation"] ||
+		"/a" != b.Errors[0]["instanceLocation"] {
+		t.Fatalf("basic: %d %s", code, basic)
+	}
+	if flag, _, code := vetRun("--output", "flag", doc, data); 1 != code || "{\n  \"valid\": false\n}\n" != flag {
+		t.Fatalf("flag: %d %q", code, flag)
+	}
+	// A map given without --output is checked all the same.
+	if _, _, code := vetRun("--source-map", sourceMap, doc, data); 1 != code {
+		t.Fatalf("map alone: %d", code)
+	}
+	for _, args := range [][]string{{"--output", "basic", doc, data}, {"--output", "xml", doc, data},
+		{"--output", "flag", "--format", "json", doc, data}, {"--output", "flag", doc, data, data},
+		{"--source-map"}, {"--source-map", filepath.Join(dir, "missing.json"), doc, data},
+		{"--source-map", data, doc, data}} {
+		if _, _, code := vetRun(args...); 2 != code {
+			t.Fatalf("%v: %d", args, code)
+		}
+	}
+	write(doc, out+"\n")
+	if _, errw, code := vetRun("--output", "basic", "--source-map", sourceMap, doc, data); 2 != code ||
+		!strings.Contains(errw, "its text has changed since the import") {
+		t.Fatalf("changed: %d %q", code, errw)
+	}
+}
+
+func importShaOf(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:])
 }

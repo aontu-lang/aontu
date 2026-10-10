@@ -58,7 +58,7 @@ multiple-does-not-subsume-another-literal	subsume	a: multiple(2)	a: 3	{"findings
 #
 # --- vet ----------------------------------------------------------------
 vet-multiple-cents	vet	a: multiple(0.01)	{"a": 19.99}	{"findings":[],"truncated":false,"verdict":"valid"}
-vet-multiple-not-cents	vet	a: multiple(0.01)	{"a": 19.999}	{"findings":[{"actual":"19.999","class":"conflict","code":"constraint","expected":"multiple(0.01)","path":"$.a","severity":"error","sites":[{"col":7,"file":"data","len":6,"role":"data","row":1,"src":"19.999","value":"19.999"},{"col":4,"file":"schema","len":8,"role":"schema","row":1,"src":"multiple","value":"multiple(0.01)"}]}],"truncated":false,"verdict":"invalid"}
+vet-multiple-not-cents	vet	a: multiple(0.01)	{"a": 19.999}	{"findings":[{"actual":"19.999","class":"conflict","code":"constraint","expected":"multiple(0.01)","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":6,"role":"data","row":1,"src":"19.999","value":"19.999"},{"col":4,"file":"schema","len":8,"role":"schema","row":1,"src":"multiple","value":"multiple(0.01)"}]}],"truncated":false,"verdict":"invalid"}
 vet-multiple-one-admits-a-whole-float	vet	a: number & multiple(1)	{"a": 1.0}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-multiple-one-exact-numbers	vet	a: number & multiple(1)	{"a": 1.0}	{"findings":[],"opts":{"exactNumbers":true},"truncated":false,"verdict":"valid"}
 #

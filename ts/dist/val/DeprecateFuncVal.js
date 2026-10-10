@@ -21,6 +21,9 @@ class DeprecateFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'deprecate';
     }
+    rides() {
+        return true;
+    }
     resolve(ctx, args) {
         let out = args[0] ?? (0, err_1.makeNilErr)(ctx, 'arg', this);
         // A nil ARGUMENT is returned unchanged, never marked: marking it

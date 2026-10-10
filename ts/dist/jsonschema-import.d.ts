@@ -1,6 +1,7 @@
 import type { VetFinding } from './vet';
 import type { SchemaLoss, SchemaVerdict } from './jsonschema';
 import type { FormatReport } from './format';
+import type { SourceMap } from './sourcemap';
 export type ImportOptions = {
     path?: string;
     defaults?: boolean;
@@ -10,6 +11,7 @@ export type ImportOptions = {
     formats?: Record<string, string>;
     dialect?: string;
     noMetaCheck?: boolean;
+    sourceMap?: boolean;
 };
 export type ImportReport = {
     verdict: SchemaVerdict;
@@ -17,6 +19,7 @@ export type ImportReport = {
     lossy: SchemaLoss[];
     vet?: string[];
     errors?: VetFinding[];
+    map?: SourceMap;
 };
 export declare const IMPORT_VET_FLAGS: string[];
 export type UpgradeReport = {

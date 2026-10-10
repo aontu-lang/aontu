@@ -155,12 +155,12 @@ describe('lsp-hover', () => {
   test('hover-shows-titles-and-descriptions', () => {
     const one = computeHover(
       'port: meta(8080, {title: "Port", description: "The listen port"})',
-      { line: 0, character: 6 })
+      { line: 0, character: 11 })
     Assert.equal(one!.contents.value,
       '```aontu\n8080\n```\n\n*integer*\n\n**Port**\n\nThe listen port')
     const two = computeHover(
       'port: meta(8080, {title: "A"}) & meta(8080, {title: "B"})',
-      { line: 0, character: 6 })
+      { line: 0, character: 11 })
     Assert.equal(two!.contents.value,
       '```aontu\n8080\n```\n\n*integer*\n\n**A**\n\n**B**')
   })
