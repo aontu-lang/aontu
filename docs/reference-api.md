@@ -1714,7 +1714,10 @@ for their count, and it stays **open**, as the meet does:
 `items: T`, and `items: false` where `T` is `nil` or absent. A kind
 beside a constraint that waits for an instance, as in
 `boolean & nof(1, …)` or `map & len(min(1))`, is one schema object,
-and a `meta()` or `deprecate()` over one carries its record.
+and a `meta()` or `deprecate()` over one carries its record. A
+disjunction met with a count or a condition holds it in each member it
+did not settle on; where every value it settled on is one it admits, it
+is written once, beside the fold of the members.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth

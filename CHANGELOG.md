@@ -58,6 +58,12 @@ Both ports.
   use the export can write back, a definition the reference names by an
   anchor. A use copied in place, or one naming a JSON Pointer, was
   carried on a record the export could only drop, and reported lost.
+- The export writes the atoms a disjunction was met with once, beside
+  the fold of its members, where every member holds them but those they
+  settled on, which they admit. The import of `not`, `anyOf`, `oneOf`,
+  `if` or `dependentSchemas` beside `type` keywords is such a
+  disjunction, and the export wrote an `anyOf` with the atoms repeated
+  in each member, which imported back as `nof(min(1), …)`.
 - The names `unevaluatedProperties` lets through are written in
   code-point order, as `additionalProperties`'s are, and `nof`'s canon
   sorts its branches as it renders them, so a branch that settles late,

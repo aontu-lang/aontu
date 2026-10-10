@@ -1819,12 +1819,131 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 		for _, m := range bare {
 			members = append(members, schemaFromVal(sc, path, m))
 		}
-		out = schemaTypeFold(members)
+		if out = schemaUnshare(sc, path, bare, members); nil == out {
+			out = schemaTypeFold(members)
+		}
 	}
 	if haveDef {
 		out["default"] = def
 	}
 	return out
+}
+
+// schemaShared is the applicators an atom writes, which apply to every
+// kind.
+var schemaShared = []string{"not", "anyOf", "oneOf", "if", "then", "else", "dependentSchemas",
+	"dependentRequired"}
+
+var schemaAtomTerm = regexp.MustCompile(`^(nof|when|must)\(`)
+
+// schemaUnshare: atoms a disjunction was met with, held by each member
+// they did not settle on and admitting those they did, are written once
+// beside the members' fold, as the import read them.
+func schemaUnshare(sc *schemaCtx, path []string, members []Val, schemas []any) map[string]any {
+	terms := make([][]string, len(members))
+	var atoms []string
+	for i, m := range members {
+		if _, ok := m.(*ScalarVal); ok {
+			continue
+		}
+		for _, x := range schemaTopTerms(m.Canon()) {
+			if schemaAtomTerm.MatchString(x) {
+				terms[i] = append(terms[i], x)
+			}
+		}
+		if nil == atoms && 0 < len(terms[i]) {
+			atoms = terms[i]
+		}
+	}
+	text := strings.Join(atoms, "&")
+	v, settled := schemaSettle(text)
+	if 0 == len(atoms) || !settled || text != v.Canon() {
+		return nil
+	}
+	own, _ := schemaFromVal(&schemaCtx{refs: sc.refs, scratch: true}, path, v).(map[string]any)
+	keys := []string{}
+	for _, k := range schemaShared {
+		if _, has := own[k]; has {
+			keys = append(keys, k)
+		}
+	}
+	holds := make([]bool, len(members))
+	count := 0
+	for i := range members {
+		holds[i] = true
+		for _, x := range atoms {
+			holds[i] = holds[i] && inList(terms[i], x)
+		}
+		if holds[i] {
+			count++
+		}
+	}
+	if 0 == len(keys) || len(keys) != len(own) || count < 2 {
+		return nil
+	}
+	rest := make([]any, len(schemas))
+	for i, s := range schemas {
+		rest[i] = s
+		obj, _ := s.(map[string]any)
+		if !holds[i] {
+			met, ok := schemaSettle("(" + members[i].Canon() + ")&" + text)
+			if !ok || members[i].Canon() != met.Canon() {
+				return nil
+			}
+			continue
+		}
+		kept := map[string]any{}
+		for k, val := range obj {
+			kept[k] = val
+		}
+		for _, k := range keys {
+			if schemaText(obj[k]) != schemaText(own[k]) {
+				return nil
+			}
+			delete(kept, k)
+		}
+		rest[i] = kept
+	}
+	out := schemaTypeFold(rest)
+	extra := []any{}
+	for _, k := range keys {
+		extra = schemaKeyword(out, extra, k, own[k])
+	}
+	if 0 < len(extra) {
+		prev, _ := out["allOf"].([]any)
+		out["allOf"] = append(prev, extra...)
+	}
+	return out
+}
+
+// schemaSettle is what a text evaluates to, where it does.
+func schemaSettle(text string) (Val, bool) {
+	v, err := New().Unify(text)
+	return v, nil == err && nil != v && !v.Nil()
+}
+
+// schemaTopTerms is a canon's terms of its top-level meet.
+func schemaTopTerms(text string) []string {
+	out := []string{}
+	depth, from := 0, 0
+	for i := 0; i < len(text); i++ {
+		switch c := text[i]; {
+		case '"' == c:
+			for i++; i < len(text) && '"' != text[i]; i++ {
+				if '\\' == text[i] {
+					i++
+				}
+			}
+		case '(' == c || '[' == c || '{' == c:
+			depth++
+		case ')' == c || ']' == c || '}' == c:
+			depth--
+		case '&' == c && 0 == depth:
+			out = append(out, text[from:i])
+			from = i + 1
+		}
+	}
+	return append(out, text[from:])
 }
 
 func schemaSpreadTerms(v Val) []Val {

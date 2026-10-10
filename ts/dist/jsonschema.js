@@ -928,10 +928,77 @@ function fromDisjunct(ctx, path, v) {
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
     const consts = bare.map((m) => true === m?.isScalar ? (true !== m?.isNil ? scalarJson(m) : undefined) :
         null == m?.meta && null == m?.deprecation ? literalJson(m) : undefined);
-    const out = consts.every((c) => undefined !== c) ?
-        { enum: dedupeJson(consts) } :
-        typeFold(bare.map((m) => fromVal(ctx, path, m)));
+    let out = undefined;
+    if (consts.every((c) => undefined !== c)) {
+        out = { enum: dedupeJson(consts) };
+    }
+    else {
+        const schemas = bare.map((m) => fromVal(ctx, path, m));
+        out = unshare(ctx, path, bare, schemas) ?? typeFold(schemas);
+    }
     return undefined === def ? out : { ...out, default: def };
+}
+// The applicators an atom writes, which apply to every kind.
+const SHARED = ['not', 'anyOf', 'oneOf', 'if', 'then', 'else', 'dependentSchemas',
+    'dependentRequired'];
+// Atoms a disjunction was met with, held by each member they did not
+// settle on and admitting those they did, are written once beside the
+// members' fold, as the import read them.
+function unshare(ctx, path, members, schemas) {
+    const terms = members.map((m) => true === m?.isScalar ? [] :
+        topTerms(m.canon).filter((x) => /^(nof|when|must)\(/.test(x)));
+    const atoms = terms.find((ts) => 0 < ts.length) ?? [];
+    const text = atoms.join('&');
+    const v = 0 === atoms.length ? undefined : settle(text);
+    const own = text === v?.canon ? fromVal({ ...ctx, lossy: [], scratch: true }, path, v) : {};
+    const keys = SHARED.filter((k) => undefined !== own[k]);
+    const holds = terms.map((ts) => atoms.every((x) => ts.includes(x)));
+    const fits = (s, i) => holds[i] ?
+        keys.every((k) => (0, exactjson_1.exactJSON)(s[k]) === (0, exactjson_1.exactJSON)(own[k])) :
+        members[i].canon === settle('(' + members[i].canon + ')&' + text)?.canon;
+    if (0 === keys.length || keys.length !== Object.keys(own).length ||
+        holds.filter(Boolean).length < 2 || !schemas.every(fits)) {
+        return undefined;
+    }
+    const out = typeFold(schemas.map((s, i) => holds[i] ?
+        Object.fromEntries(Object.entries(s).filter(([k]) => !keys.includes(k))) : s));
+    const extra = [];
+    keys.forEach((k) => keyword(out, extra, k, own[k]));
+    return 0 === extra.length ? out : { ...out, allOf: [...(out.allOf ?? []), ...extra] };
+}
+// What a text evaluates to, or undefined where it fails.
+function settle(text) {
+    try {
+        return new aontu_1.Aontu().unify(text);
+    }
+    catch (_e) {
+        return undefined;
+    }
+}
+// A canon's terms of its top-level meet.
+function topTerms(text) {
+    const out = [];
+    let depth = 0;
+    let from = 0;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if ('"' === c) {
+            for (i++; i < text.length && '"' !== text[i]; i++) {
+                i += '\\' === text[i] ? 1 : 0;
+            }
+        }
+        else if ('([{'.includes(c)) {
+            depth++;
+        }
+        else if (')]}'.includes(c)) {
+            depth--;
+        }
+        else if ('&' === c && 0 === depth) {
+            out.push(text.slice(from, i));
+            from = i + 1;
+        }
+    }
+    return [...out, text.slice(from)];
 }
 function skipMarked(ctx, path, bag, child) {
     // A mark the container carries too is read through (an export
