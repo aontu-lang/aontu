@@ -514,6 +514,7 @@ function vet(schemaSrc, dataSrc, opts) {
                 const state = {
                     profile: 'values', findings: [],
                     generalUrl: schemaUrl, specificUrl: schemaUrl,
+                    groot: schemaVal, sroot: schemaVal, pairs: (0, subsume_1.newPairs)(),
                 };
                 const admitted = rest.some((m) => 'yes' === (0, subsume_1.subsumeNode)(state, path, m, d));
                 if (!admitted && 0 < rest.length) {

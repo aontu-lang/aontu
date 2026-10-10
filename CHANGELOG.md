@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### subsume compares recursive schemas (ADR-067)
+
+Both ports, the recursion design's P3.
+
+- `aontu subsume` and `aontu breaking` read a recursive position as the
+  definition it names, unfolded against the document it was written
+  in, and assume a pair of maps or lists already under comparison
+  subsumes, so the walk ends where a pair comes round again. Two
+  recursive schemas of one shape now subsume each other whatever their
+  definitions are called, where any pair but two identical ones was
+  `undecided`, and a recursion and its unrolling subsume each other in
+  both directions.
+- Each pair of definitions is compared once, so a definition that
+  disagrees is refused once, where the walk first meets it, and a
+  cluster of definitions that refer to one another compares in time
+  that grows with the pairs rather than the paths through them.
+- Under the `gen` profile an unfolded definition carries the marks of
+  the place it stands in, so a hidden definition compared with its own
+  hidden unrolling agrees.
+
 ### vet answers JSON Schema's output units (ADR-066)
 
 Both ports, G12 phase 17.

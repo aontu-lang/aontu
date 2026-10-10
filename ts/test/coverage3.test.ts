@@ -1225,6 +1225,22 @@ describe('coverage3-subsume', () => {
     Assert.equal(state.findings[0].code, 'sub_unresolved')
   })
 
+  // A recursion unfolds into the definition its own document holds
+  // (docs/design/RECURSION.0.md, P3); one whose document does not hold
+  // it, which no evaluated pair produces, is undecided.
+  test('subsume-recursion-without-its-definition', () => {
+    const rec: any = (new Aontu().unify('T: {next?: $.T}') as any).peg.T.peg.next
+    Assert.equal(rec.isRecurse, true)
+    const state: any = {
+      profile: 'values', findings: [],
+      generalUrl: 'general', specificUrl: 'specific',
+      groot: new MapVal({ peg: {} }), sroot: new MapVal({ peg: {} }),
+    }
+    Assert.equal(subsumeNode(state, ['x'], rec, rec), 'undecided')
+    Assert.equal(state.findings.length, 1)
+    Assert.equal(state.findings[0].code, 'sub_unresolved')
+  })
+
 })
 
 

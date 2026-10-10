@@ -6,6 +6,7 @@ exports.throughRider = throughRider;
 exports.declaration = declaration;
 exports.bumpRecurse = bumpRecurse;
 exports.containsRecurseOf = containsRecurseOf;
+exports.walkTarget = walkTarget;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const aliasname_1 = require("../aliasname");

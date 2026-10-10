@@ -24,6 +24,27 @@ func TestSubsumeNoRuleFold(t *testing.T) {
 	}
 }
 
+// TestSubsumeRecursionWithoutItsDefinition: a recursion unfolds into the
+// definition its own document holds (docs/design/RECURSION.0.md, P3); one
+// whose document does not hold it, which no evaluated pair produces, is
+// undecided.
+func TestSubsumeRecursionWithoutItsDefinition(t *testing.T) {
+	rec := newRecurse([]string{"T"}, 0)
+	st := &subState{
+		profile:     "values",
+		generalURL:  "general",
+		specificURL: "specific",
+		groot:       newMap(),
+		sroot:       newMap(),
+	}
+	if out := subsumeNode(st, []string{"x"}, rec, rec); subUndecided != out {
+		t.Fatalf("expected undecided, got %q", out)
+	}
+	if 1 != len(st.findings) || "sub_unresolved" != st.findings[0].Code {
+		t.Fatalf("expected one sub_unresolved finding, got %+v", st.findings)
+	}
+}
+
 func TestSubsumeUnresolvedVal(t *testing.T) {
 	for _, tc := range []struct {
 		name string

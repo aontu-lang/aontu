@@ -268,4 +268,5 @@ export {
   RecurseVal,
   bumpRecurse,
   containsRecurseOf,
+  walkTarget,
 }

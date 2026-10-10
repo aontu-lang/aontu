@@ -98,16 +98,19 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **125 `.tsv` files, 123 row-bearing, 7,523 rows**, in thirty-two
+   **125 `.tsv` files, 123 row-bearing, 7,541 rows**, in thirty-two
    modes — `errc` 1,404, `gens` 1,344, `canon` 1,180, `gen` 662,
    `jsonschema-import` 465, `err` 417, `jsonschema` 330, `view` 319,
-   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 150, `query` 98,
+   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 168, `query` 98,
    `jsonschema-upgrade` 75, `why` 53, `views` 47, `hcanon` 46, `hash`
    41, `patch` 41, `jsonschema-output` 39, `graph` 38, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-10-10 with the two commands below, when `main`,
+   (Re-derived 2026-10-10 with the two commands below, when the
+   recursion design's P3 replaced the two `subsume` rows of
+   `recursion.tsv` with twenty.
+   Re-derived 2026-10-10 with the two commands below, when `main`,
    carrying #315's 144 `view` rows, ten `views` rows and five
    `errcodes.tsv` rows, was merged into the G12 branch.
    Re-derived 2026-10-10 with the two commands below, when G12 phase
@@ -639,6 +642,37 @@ where it is used. Verified in both ports and pinned by
 `docs/how-to/name-a-reusable-constraint.md`, both executed by
 `ts/test/docs.test.ts`. This phase set never scoped either item.
 
+**RECURSION P3 LANDED 2026-10-10** (docs/design/RECURSION.0.md,
+[ADR-067](../../ADR.md#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names)),
+in both ports: subsumption reads a recursive position as the
+definition it names, unfolded against the document it was written in,
+and assumes a pair of bags already under comparison subsumes while its
+own comparison runs, comparing each pair once (`subsumeRecursion`,
+`assume` and `settle` in `ts/src/subsume.ts`, `subsumeRecursion`,
+`subAssume` and `subSettle` in `go/subsume.go`). Two recursions of one
+shape subsume each other whatever their definitions are called, a
+recursion and its unrolling subsume each other in both directions, and
+a definition that disagrees is refused once, where the walk first meets
+it. Under the `gen` profile an unfolded definition reads the marks of
+the place it stands in, since an expansion clears the definition's
+own. Pinned by the subsume section of `test/spec/recursion.tsv`:
+`subsume-different-recursions-are-undecided` re-pinned as
+`subsume-recursions-of-one-shape-subsume`, and eighteen rows added,
+every expectation from both engines; a recursion whose definition its
+document does not hold, which no evaluated pair produces, is
+`sub_unresolved` in a unit test in each port. Documented in
+`docs/reference-language.md` ("Recursive positions") and in the
+executed `aontu subsume` scenario of `docs/reference-api.md`. G12
+phase 18, which needed it, can start. **Departures:** two. The
+identity rule that decided two recursions with the same hash form
+(use-cases/BUGS.md 64) no longer decides them; both unfold, and
+identity still decides other residue. And the seen-pair memo settles
+each pair once, where the plain reading of it, an assumption dropped
+when its comparison returns, walks every path through a cluster of
+definitions that refer to one another: ten that each refer to every
+other took 42 seconds. A yes that assumed a pair still running waits
+on that pair, and sixteen take under a second.
+
 **RECURSION P0+P1 LANDED 2026-08-29** (docs/design/RECURSION.0.md,
 plus its P2 vet flows, pulled forward because the anchored meet needed
 the schema root), in both ports: where `RefVal`'s prefix test answered
@@ -658,8 +692,8 @@ reference to it — the answer is order-independent) itself answers the
 residual. Mutual pairs, `*null |` guards, tree spreads and recursive
 `%aliases` all work (`%json =
 null|boolean|number|string|[&: %json]|{&: %json}` is the JSON value
-space in one line); subsume over an unexpanded residual answers
-`undecided`. P0 is the §52 regime-4 fix: `same()`/`valSame` compare
+space in one line); subsume over an unexpanded residual answered
+`undecided` until P3 (above). P0 is the §52 regime-4 fix: `same()`/`valSame` compare
 spreads and X-C3 landed as the `list_length` trial gate, so
 `[] | [&: T]` selects by shape. Two engine rules fell out: reference
 walks descend through a PENDING `hide()`/`type()` wrapper onto a bag
@@ -673,8 +707,8 @@ TSVs, and paired anchored-vet unit tests; documented in
 `docs/how-to/define-a-recursive-schema.md`, both executed;
 exercised end to end by `use-cases/13-recursive-schema` (and BUGS §52
 is FIXED per regime). `jsonschema` `$defs`/`$ref` export remains (the
-rest of P2, now owned by G12 phase 4), and P3
-subsumption-through-expansion stays future.
+rest of P2, now owned by G12 phase 4), and P3,
+subsumption through expansion, landed on 2026-10-10 (above).
 
 **RELATIONS P2 LANDED 2026-08-29** (docs/design/RELATIONS.0.md), in
 both ports: the graph atoms — `acyclic()` and `inverse(name)`,

@@ -1017,6 +1017,21 @@ function capture(fn) {
         Assert.equal(state.findings.length, 1);
         Assert.equal(state.findings[0].code, 'sub_unresolved');
     });
+    // A recursion unfolds into the definition its own document holds
+    // (docs/design/RECURSION.0.md, P3); one whose document does not hold
+    // it, which no evaluated pair produces, is undecided.
+    (0, node_test_1.test)('subsume-recursion-without-its-definition', () => {
+        const rec = new aontu_1.Aontu().unify('T: {next?: $.T}').peg.T.peg.next;
+        Assert.equal(rec.isRecurse, true);
+        const state = {
+            profile: 'values', findings: [],
+            generalUrl: 'general', specificUrl: 'specific',
+            groot: new MapVal_1.MapVal({ peg: {} }), sroot: new MapVal_1.MapVal({ peg: {} }),
+        };
+        Assert.equal((0, subsume_1.subsumeNode)(state, ['x'], rec, rec), 'undecided');
+        Assert.equal(state.findings.length, 1);
+        Assert.equal(state.findings[0].code, 'sub_unresolved');
+    });
 });
 (0, node_test_1.describe)('coverage3-trim', () => {
     // The trim internals no source reaches (G3 phase 6): the candidate
