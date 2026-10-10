@@ -6,7 +6,7 @@ declare abstract class JunctionVal extends FeatureVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     append(peer: Val): JunctionVal;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    get canon(): any;
+    get canon(): string;
     abstract getJunctionSymbol(): string;
 }
 export { JunctionVal, };

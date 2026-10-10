@@ -4582,6 +4582,11 @@ constraints, defaults, and open disjunctions. Rules:
   `bigdecimal`, `string`, `boolean`.
 - Conjunction: `a&b` (for example `number&"A"`). Disjunction: `a|b`
   (for example `1|2`, `string|number`). Preference: `*x` (for example `*1|number`).
+- **A conjunction's terms render in one order whatever order they were
+  met in**: by the rank the engine gives each kind of term, and terms of
+  one rank in code-point order of their rendering. `number & match(…)`
+  and `match(…) & number` are one value, with one canon and one hash.
+  A disjunction keeps its members' order, which preference reads.
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
 - A `deprecate()` or `meta()` record renders as the call that carries
   it, wherever its value is held: a field, an item, a disjunction

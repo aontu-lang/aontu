@@ -133,6 +133,10 @@ func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
 			parts[i] = hcanonRender(m, inner)
 		}
 	}
+	// As canon writes a meet: terms of one rank in code-point order.
+	if "&" == sym {
+		parts = meetOrder(members, parts)
+	}
 	return strings.Join(parts, sym)
 }
 

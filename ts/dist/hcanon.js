@@ -67,10 +67,15 @@ function render(v, inh) {
     return (0, rider_1.riderText)(s, v);
 }
 function junctionText(v, sym, inner) {
-    return v.peg.map((m) => true === m?.isJunction && 1 < m.peg.length
-        ? '(' + render(m, inner) + ')'
-        : render(m, inner))
-        .join(sym);
+    const parts = v.peg.map((m) => [m.cjo,
+        true === m?.isJunction && 1 < m.peg.length
+            ? '(' + render(m, inner) + ')'
+            : render(m, inner)]);
+    // As canon writes a meet: terms of one rank in code-point order.
+    if ('&' === sym) {
+        parts.sort((a, b) => a[0] - b[0] || (0, keyorder_1.cmpCodePoint)(a[1], b[1]));
+    }
+    return parts.map((p) => p[1]).join(sym);
 }
 // The hash form of an EVALUATED Val (unify first; parse-level canon
 // parenthesisation differs between the ports and is excluded by

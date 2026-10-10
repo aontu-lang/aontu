@@ -12,6 +12,15 @@ each change affects.
 
 Both ports.
 
+- **Canon writes a conjunction's terms in one order whatever order they
+  were met in**: by the rank the engine already sorts terms by, and
+  terms of one rank in code-point order. `number & match(…)` and
+  `match(…) & number`, one value, had two canons and two hashes, and
+  `subsume` could not tell them apart from two different values; they
+  now have one of each.
+  The hash form orders them alike. A document whose conjunctions held
+  terms of one rank out of that order hashes differently: the bundled
+  `aontu:profile` model's three pinned hashes move.
 - `aontu subsume` and `aontu breaking` read `nil` as the value that
   admits nothing: every value subsumes it, and it subsumes only another
   `nil`. A forbidden key (`a?: nil`) or a closed spread (`&: nil`) on
