@@ -671,7 +671,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 					uv = unite(ctx, ex, pc)
 				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
-				!m.markedType() && !m.markedHide() {
+				!m.markedType() && !m.markedHide() && !pm.isAliasKey(pk) {
 				peg := pc
 				if ev, isex := pc.(*ExpectVal); isex {
 					peg = ev.peg

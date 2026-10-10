@@ -1467,7 +1467,9 @@ class ConstraintVal extends FeatureVal {
     out.whens = [...this.whens]
     out.contains = [...this.contains]
     out.rests = [...this.rests]
+    // A copy of a waiting atom waits too; the constructor called it done.
     out.pending = this.pending
+    out.dc = this.dc
     out.cjo = this.cjo
     out.invalid = this.invalid
     out.invalidWhy = this.invalidWhy
@@ -2357,6 +2359,13 @@ function nofCounts(n: NofAtom): boolean[] {
   return [...n.cs, undefined].map((_c: any, i: number) => stateAdmits(n.count, countVal(i)))
 }
 
+function pendingNof(pending?: { atom: string, args: any[] }): NofAtom | undefined {
+  const arg = 'nof' === pending?.atom && true === pending.args[0]?.done ?
+    countArgState(pending.args[0]) : undefined
+  return undefined === arg ? undefined :
+    { count: meetCount(countBase(), arg), cs: canonSorted((pending as any).args.slice(1)) }
+}
+
 class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
@@ -2367,6 +2376,7 @@ class UniqueConstraintVal extends ConstraintVal {
 export {
   normaliseRe,
   nofCounts,
+  pendingNof,
   // Exported for the subsumption query (G3, ts/src/subsume.ts): the
   // residual-vs-residual and residual-vs-scalar rules live here beside
   // the compare machinery they reuse.

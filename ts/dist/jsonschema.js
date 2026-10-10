@@ -192,8 +192,9 @@ const FORMAT_UNREAD = (name) => 'JSON Schema has no keyword for a grammar, so th
 function fromConstraint(ctx, path, c, bag) {
     const out = {};
     // An atom whose arguments have not settled: a template's, read where
-    // it cannot be read alone.
-    if (null != c.pending) {
+    // it cannot be read alone; a count is written from its branches.
+    const waiting = (0, ConstraintVal_1.pendingNof)(c.pending);
+    if (null != c.pending && undefined === waiting) {
         lose(ctx, path, c.pending.atom, NOT_YET);
     }
     // `allOf` members: a second pattern or exclusion has no keyword of its own.
@@ -284,7 +285,7 @@ function fromConstraint(ctx, path, c, bag) {
                 'DROPPED and the schema admits lengths the model refuses');
         }
     }
-    for (const n of c.nofs) {
+    for (const n of undefined === waiting ? c.nofs : [...c.nofs, waiting]) {
         const branches = () => n.cs.map((b) => true === b.isNil ? false : fromVal(ctx, path, b));
         const counts = (0, ConstraintVal_1.nofCounts)(n);
         const only = (...at) => counts.every((ok, i) => ok === at.includes(i));
@@ -754,6 +755,12 @@ function kindOfLiteral(ctx, path, v) {
         v.isInteger ? 'Integer' : 'number' === typeof v.peg ? 'Float' : '', t);
     return 'string' === t ? { type: t, minLength: 1 } : { type: t };
 }
+// A held constraint carrying riders keeps them on an allOf member of its own.
+function heldBeside(ctx, path, out, con, bag) {
+    const own = fromConstraint(ctx, path, con, bag);
+    return null == con.meta && null == con.deprecation ? { ...out, ...own } :
+        { ...out, allOf: [...(out.allOf ?? []), withRiders(ctx, path, own, con)] };
+}
 // A kind beside a constraint the meet holds until an instance arrives
 // (`boolean & nof(...)`, `map & len(min(1))`), read as one schema object.
 function kindResidue(v) {
@@ -775,7 +782,8 @@ function fromValInner(ctx, path, v) {
         return undefined === gen ? inner : { ...inner, default: gen };
     }
     if (true === v.isDisjunct && Array.isArray(v.peg)) {
-        return fromDisjunct(ctx, path, v);
+        const alone = settledAlone(v);
+        return undefined === alone ? fromDisjunct(ctx, path, v) : fromVal(ctx, path, alone);
     }
     if (true === v.isConstraint) {
         // Arguments the constructor refused (`neq(1, "a")` spans domains)
@@ -784,18 +792,11 @@ function fromValInner(ctx, path, v) {
     }
     const residue = (0, BagVal_1.sizingResidue)(v);
     if (undefined !== residue) {
-        return {
-            ...fromVal(ctx, path, residue.bag),
-            ...fromConstraint(ctx, path, residue.con, true === residue.bag.isMap ? 'map' : 'list'),
-        };
+        return heldBeside(ctx, path, fromVal(ctx, path, residue.bag), residue.con, true === residue.bag.isMap ? 'map' : 'list');
     }
     const held = kindResidue(v);
     if (undefined !== held) {
-        return {
-            ...fromVal(ctx, path, held.kind),
-            ...fromConstraint(ctx, path, held.con, true === held.kind.isMapKind ? 'map' :
-                true === held.kind.isListKind ? 'list' : undefined),
-        };
+        return heldBeside(ctx, path, fromVal(ctx, path, held.kind), held.con, true === held.kind.isMapKind ? 'map' : true === held.kind.isListKind ? 'list' : undefined);
     }
     // The member a second map literal expects reads through to its constraint.
     if (true === v.isExpect) {
@@ -860,8 +861,26 @@ function fromValInner(ctx, path, v) {
             return withRiders(ctx, path, fromVal(ctx, path, v.peg[0]), carrier);
         }
     }
+    const alone = settledAlone(v);
+    if (undefined !== alone) {
+        return fromVal(ctx, path, alone);
+    }
+    // A meet still waiting is each of its terms at once, as allOf is.
+    if (true === v.isConjunct && Array.isArray(v.peg)) {
+        return { allOf: v.peg.map((t) => fromVal(ctx, path, t)) };
+    }
     lose(ctx, path, residueName(v), NOT_YET);
     return {};
+}
+// What a waiting value that reaches nothing outside itself settles to alone.
+function settledAlone(v) {
+    if (true === v.done || !isolable(v, 0)) {
+        return undefined;
+    }
+    const a0 = new aontu_1.Aontu();
+    const actx = a0.ctx({ collect: true });
+    const met = a0.unify((0, utility_1.canonRiders)(v), undefined, actx);
+    return 0 === actx.err.length && true === met.done ? met : undefined;
 }
 function residueName(v) {
     return true === v.isNil ? 'nil' :
@@ -925,8 +944,8 @@ function fromDisjunct(ctx, path, v) {
         }
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
-    const consts = bare.map((m) => true === m?.isScalar ? scalarJson(m) :
-        null == m?.meta && null == m?.deprecation ? literalJson(m) : undefined);
+    const consts = bare.map((m) => null != m?.meta || null != m?.deprecation ? undefined :
+        true === m?.isScalar ? scalarJson(m) : literalJson(m));
     let out = undefined;
     if (consts.every((c) => undefined !== c)) {
         out = { enum: dedupeJson(consts) };

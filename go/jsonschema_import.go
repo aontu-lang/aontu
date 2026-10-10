@@ -1397,7 +1397,7 @@ func (ctx *importCtx) originOf(path string) string {
 	return path
 }
 
-var defsPtrRe = regexp.MustCompile(`^#/\$defs/([^/]+)$`)
+var defsPtrRe = regexp.MustCompile(`^#/(\$defs|definitions)/([^/]+)$`)
 
 func (ctx *importCtx) targetName(node *jnode, at string) string {
 	// A name spells the schema as written (ADR-061).
@@ -1414,8 +1414,13 @@ func (ctx *importCtx) targetName(node *jnode, at string) string {
 		ctx.resourceOf[node] == ctx.root && ctx.anchors[ctx.root][anchor.s] == node {
 		return "a_" + encodeAliasName(anchor.s)
 	}
+	// A definitions member is named as a $defs member, unless $defs holds its key.
 	if m := defsPtrRe.FindStringSubmatch(ptr); nil != m {
-		return "d_" + encodeAliasName(pointerUnescaper.Replace(m[1]))
+		key := pointerUnescaper.Replace(m[2])
+		held := jentryOf(ctx.root, "$defs")
+		if "$defs" == m[1] || nil == held || nil == jentryOf(held, key) {
+			return "d_" + encodeAliasName(key)
+		}
 	}
 	return "p_" + encodeAliasName(strings.TrimPrefix(ptr, "#/"))
 }
@@ -2015,6 +2020,27 @@ func blocker(e *ixpr) bool {
 		someExpr(e, blocker)
 }
 
+// importApart is whether no one value meets both branches: distinct
+// literals, or kinds apart.
+func importApart(b, c *ixpr) bool {
+	bt, bok := literalTexts(b)
+	ct, cok := literalTexts(c)
+	if bok && cok {
+		for _, t := range bt {
+			if inList(ct, t) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, k := range kindsOf(b) {
+		if inList(kindsOf(c), k) {
+			return false
+		}
+	}
+	return true
+}
+
 // importAnyOf is `|` where at most one branch can survive a meet with any
 // instance, and a count of at least one otherwise.
 func importAnyOf(branches []*ixpr) *ixpr {
@@ -2031,16 +2057,33 @@ func importAnyOf(branches []*ixpr) *ixpr {
 		}
 		disjoint = disjoint && !blocker(b)
 		for _, c := range live[i+1:] {
-			for _, k := range kindsOf(b) {
-				disjoint = disjoint && !inList(kindsOf(c), k)
-			}
+			disjoint = disjoint && importApart(b, c)
 		}
+	}
+	// Branches of distinct kinds are written in the order `type` writes them.
+	rank := func(b *ixpr) int {
+		kinds, i := kindsOf(b), 0
+		for i < len(importKinds) && !inList(kinds, importKinds[i]) {
+			i++
+		}
+		return i
 	}
 	switch {
 	case 0 == len(live):
 		return iNil
-	case literal || disjoint:
+	case literal:
 		return ior(live)
+	case disjoint:
+		flat := []*ixpr{}
+		for _, b := range live {
+			if "or" == b.k {
+				flat = append(flat, b.items...)
+			} else {
+				flat = append(flat, b)
+			}
+		}
+		sort.SliceStable(flat, func(i, j int) bool { return rank(flat[i]) < rank(flat[j]) })
+		return ior(flat)
 	}
 	return icall("nof", append([]*ixpr{icall("min", iraw("1"))}, branches...)...)
 }
@@ -2315,8 +2358,9 @@ func (ctx *importCtx) identity(target *importTarget, clone bool) []ientry {
 		out = append(out, ientry{key: "anchor", val: iraw(importQuote(anchor.s))})
 	}
 	// A clone (ADR-057) names the definition its first declaration is.
-	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && (clone || strings.HasPrefix(target.name, "a_")) {
-		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[1])))})
+	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && "$defs" == m[1] &&
+		(clone || strings.HasPrefix(target.name, "a_")) {
+		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[2])))})
 	} else if clone {
 		out = append(out, ientry{key: "defs", val: iraw(importQuote(target.name))})
 	}
@@ -2545,11 +2589,16 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 		if nil != allowed && "or" == split.k {
 			split = ctx.mark(split, at("type"), node, imark{})
 		}
-		// A const says its kind, which a type that adds nothing to it repeats.
-		konst := get("const")
-		said := nil != konst && 1 == len(kinds) && jsonKindOf(konst) == kinds[0] &&
-			(importBare[kinds[0]] == iprint(branches[0], "") || ("number" == konst.t &&
-				importIntegerText.MatchString(konst.s) && "number & multiple(1)" == iprint(branches[0], "")))
+		lits := []*jnode{}
+		if konst := get("const"); nil != konst {
+			lits = append(lits, konst)
+		} else if enm := get("enum"); nil != enm && "array" == enm.t {
+			lits = enm.items
+		}
+		said := 1 == len(kinds) && 0 < len(lits)
+		for _, it := range lits {
+			said = said && importSays(it, kinds[0], branches[0])
+		}
 		if !said {
 			parts = append(parts, split)
 		}
@@ -2567,6 +2616,14 @@ func jsonKindOf(n *jnode) string {
 		return "boolean"
 	}
 	return n.t
+}
+
+// importSays is whether a literal says its kind, which a type that adds
+// nothing to it repeats.
+func importSays(lit *jnode, kind string, branch *ixpr) bool {
+	return jsonKindOf(lit) == kind && (importBare[kind] == iprint(branch, "") ||
+		("number" == lit.t && importIntegerText.MatchString(lit.s) &&
+			"number & multiple(1)" == iprint(branch, "")))
 }
 
 // data writes a JSON value as aontu data; ok is false where a number in
@@ -3308,7 +3365,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 
 	if names := get("propertyNames"); nil != names && "true" != names.t {
 		guard := ctx.convert(names, at("propertyNames"), false, []string{"string"})
-		if !isRawText(guard, "any") {
+		// Every key is a string, so a test every string passes asserts nothing.
+		if !isRawText(guard, "any") && importBare["string"] != iprint(guard, "") {
 			spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), guard, iAny, iNil),
 				at("propertyNames"), node, imark{}))
 		}

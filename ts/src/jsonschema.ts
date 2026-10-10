@@ -9,7 +9,7 @@ import { Decimal } from './val/Decimal'
 import { exactNumberText, readExactNumber } from './val/numkind'
 import type { ExactNumber } from './val/numkind'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
-import { nofCounts } from './val/ConstraintVal'
+import { nofCounts, pendingNof } from './val/ConstraintVal'
 import { recordLayers } from './rider'
 import { cmpCodePoint } from './keyorder'
 import { exactJSON } from './exactjson'
@@ -303,8 +303,9 @@ const FORMAT_UNREAD = (name: string) => 'JSON Schema has no keyword for a gramma
 function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'): any {
   const out: any = {}
   // An atom whose arguments have not settled: a template's, read where
-  // it cannot be read alone.
-  if (null != c.pending) {
+  // it cannot be read alone; a count is written from its branches.
+  const waiting = pendingNof(c.pending)
+  if (null != c.pending && undefined === waiting) {
     lose(ctx, path, c.pending.atom, NOT_YET)
   }
   // `allOf` members: a second pattern or exclusion has no keyword of its own.
@@ -405,7 +406,7 @@ function fromConstraint(ctx: Ctx, path: string[], c: any, bag?: 'map' | 'list'):
     }
   }
 
-  for (const n of c.nofs) {
+  for (const n of undefined === waiting ? c.nofs : [...c.nofs, waiting]) {
     const branches = (): any[] => n.cs.map((b: any) =>
       true === b.isNil ? false : fromVal(ctx, path, b))
     const counts: boolean[] = nofCounts(n)
@@ -944,6 +945,14 @@ function kindOfLiteral(ctx: Ctx, path: string[], v: any): any {
 }
 
 
+// A held constraint carrying riders keeps them on an allOf member of its own.
+function heldBeside(ctx: Ctx, path: string[], out: any, con: any, bag?: 'map' | 'list'): any {
+  const own = fromConstraint(ctx, path, con, bag)
+  return null == con.meta && null == con.deprecation ? { ...out, ...own } :
+    { ...out, allOf: [...(out.allOf ?? []), withRiders(ctx, path, own, con)] }
+}
+
+
 // A kind beside a constraint the meet holds until an instance arrives
 // (`boolean & nof(...)`, `map & len(min(1))`), read as one schema object.
 function kindResidue(v: any): { kind: any, con: any } | undefined {
@@ -969,7 +978,8 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
   }
 
   if (true === v.isDisjunct && Array.isArray(v.peg)) {
-    return fromDisjunct(ctx, path, v)
+    const alone = settledAlone(v)
+    return undefined === alone ? fromDisjunct(ctx, path, v) : fromVal(ctx, path, alone)
   }
 
   if (true === v.isConstraint) {
@@ -980,20 +990,14 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
 
   const residue = sizingResidue(v)
   if (undefined !== residue) {
-    return {
-      ...fromVal(ctx, path, residue.bag),
-      ...fromConstraint(ctx, path, residue.con,
-        true === residue.bag.isMap ? 'map' : 'list'),
-    }
+    return heldBeside(ctx, path, fromVal(ctx, path, residue.bag), residue.con,
+      true === residue.bag.isMap ? 'map' : 'list')
   }
 
   const held = kindResidue(v)
   if (undefined !== held) {
-    return {
-      ...fromVal(ctx, path, held.kind),
-      ...fromConstraint(ctx, path, held.con, true === held.kind.isMapKind ? 'map' :
-        true === held.kind.isListKind ? 'list' : undefined),
-    }
+    return heldBeside(ctx, path, fromVal(ctx, path, held.kind), held.con,
+      true === held.kind.isMapKind ? 'map' : true === held.kind.isListKind ? 'list' : undefined)
   }
 
   // The member a second map literal expects reads through to its constraint.
@@ -1073,8 +1077,30 @@ function fromValInner(ctx: Ctx, path: string[], v: any): any {
     }
   }
 
+  const alone = settledAlone(v)
+  if (undefined !== alone) {
+    return fromVal(ctx, path, alone)
+  }
+
+  // A meet still waiting is each of its terms at once, as allOf is.
+  if (true === v.isConjunct && Array.isArray(v.peg)) {
+    return { allOf: v.peg.map((t: any) => fromVal(ctx, path, t)) }
+  }
+
   lose(ctx, path, residueName(v), NOT_YET)
   return {}
+}
+
+
+// What a waiting value that reaches nothing outside itself settles to alone.
+function settledAlone(v: any): any {
+  if (true === v.done || !isolable(v, 0)) {
+    return undefined
+  }
+  const a0 = new Aontu()
+  const actx = a0.ctx({ collect: true })
+  const met: any = a0.unify(canonRiders(v), undefined, actx)
+  return 0 === actx.err.length && true === met.done ? met : undefined
 }
 
 
@@ -1153,9 +1179,8 @@ function fromDisjunct(ctx: Ctx, path: string[], v: any): any {
   }
 
   const bare = members.map((m: any) => true === m?.isPref ? m.peg : m)
-  const consts = bare.map((m: any) =>
-    true === m?.isScalar ? scalarJson(m) :
-      null == m?.meta && null == m?.deprecation ? literalJson(m) : undefined)
+  const consts = bare.map((m: any) => null != m?.meta || null != m?.deprecation ? undefined :
+    true === m?.isScalar ? scalarJson(m) : literalJson(m))
 
   let out: any = undefined
   if (consts.every((c: any) => undefined !== c)) {

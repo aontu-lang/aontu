@@ -351,8 +351,12 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 	c *ConstraintVal, bag string) map[string]any {
 	out := map[string]any{}
 	// An atom whose arguments have not settled: a template's, read where
-	// it cannot be read alone.
-	if nil != c.pending {
+	// it cannot be read alone. A count is written from its branches as
+	// they stand.
+	nofs := c.nofs
+	if waiting, ok := pendingNof(c.pending); ok {
+		nofs = append(append([]constraintNof{}, c.nofs...), waiting)
+	} else if nil != c.pending {
 		sc.lose(path, c.pending.atom, schemaNotYet)
 	}
 	// allOf members: a second pattern or exclusion has no keyword of its own.
@@ -478,7 +482,7 @@ func schemaFromConstraint(sc *schemaCtx, path []string,
 		}
 	}
 
-	for _, n := range c.nofs {
+	for _, n := range nofs {
 		branches := func() []any {
 			out := make([]any, len(n.cs))
 			for i, b := range n.cs {
@@ -969,6 +973,23 @@ func schemaBeside(sc *schemaCtx, defs []*schemaDef, out any) any {
 		res[k] = x
 	}
 	return res
+}
+
+// schemaHeldBeside writes a constraint held beside a bag or a kind into
+// that schema; one carrying riders keeps them on an allOf member of its
+// own, where they annotate what it asserts, as the import read them.
+func schemaHeldBeside(sc *schemaCtx, path []string, out map[string]any, con *ConstraintVal,
+	counted string) map[string]any {
+	own := schemaFromConstraint(sc, path, con, counted)
+	if nil == con.deprecRec() && nil == con.metaRec() {
+		for k, val := range own {
+			out[k] = val
+		}
+		return out
+	}
+	prior, _ := out["allOf"].([]any)
+	out["allOf"] = append(append([]any{}, prior...), schemaWithRiders(sc, path, own, con))
+	return out
 }
 
 func schemaWithRiders(sc *schemaCtx, path []string, out any, v Val) any {
@@ -1542,6 +1563,9 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return inner
 
 	case *DisjunctVal:
+		if alone, ok := schemaSettledAlone(t); ok {
+			return schemaFromVal(sc, path, alone)
+		}
 		return schemaFromDisjunct(sc, path, t)
 
 	case *ConstraintVal:
@@ -1554,22 +1578,14 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 
 	case *ConjunctVal:
 		if con, bag, ok := sizingResidue(t); ok {
-			out := schemaFromVal(sc, path, bag).(map[string]any)
 			counted := "list"
 			if _, isMap := bag.(*MapVal); isMap {
 				counted = "map"
 			}
-			for k, val := range schemaFromConstraint(sc, path, con, counted) {
-				out[k] = val
-			}
-			return out
+			return schemaHeldBeside(sc, path, schemaFromVal(sc, path, bag).(map[string]any), con, counted)
 		}
 		if kind, con, counted, ok := schemaKindResidue(t); ok {
-			out := schemaFromVal(sc, path, kind).(map[string]any)
-			for k, val := range schemaFromConstraint(sc, path, con, counted) {
-				out[k] = val
-			}
-			return out
+			return schemaHeldBeside(sc, path, schemaFromVal(sc, path, kind).(map[string]any), con, counted)
 		}
 
 	case *FuncVal:
@@ -1665,8 +1681,31 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		return map[string]any{"type": "string"}
 	}
 
+	if alone, ok := schemaSettledAlone(v); ok {
+		return schemaFromVal(sc, path, alone)
+	}
+
+	// A meet still waiting is each of its terms at once, as allOf is.
+	if cj, ok := v.(*ConjunctVal); ok {
+		all := make([]any, 0, len(cj.peg))
+		for _, t := range cj.peg {
+			all = append(all, schemaFromVal(sc, path, t))
+		}
+		return map[string]any{"allOf": all}
+	}
+
 	sc.lose(path, schemaResidueName(v), schemaNotYet)
 	return map[string]any{}
+}
+
+// schemaSettledAlone is the value a value still waiting settles to where
+// it reaches nothing outside itself, which means the same alone.
+func schemaSettledAlone(v Val) (Val, bool) {
+	if DONE == v.Dc() || !schemaIsolable(v, 0) {
+		return nil, false
+	}
+	met, err := New().Unify(CanonRiders(v))
+	return met, nil == err && DONE == met.Dc()
 }
 
 func schemaResidueName(v Val) string {
@@ -1799,9 +1838,12 @@ func schemaFromDisjunct(sc *schemaCtx, path []string,
 	consts := make([]any, 0, len(bare))
 	for _, m := range bare {
 		lit, ok := any(nil), false
-		if sv, isScalar := m.(*ScalarVal); isScalar {
+		sv, isScalar := m.(*ScalarVal)
+		switch {
+		case nil != m.deprecRec() || nil != m.metaRec():
+		case isScalar:
 			lit, ok = scalarSchemaJSON(sv), true
-		} else if nil == m.deprecRec() && nil == m.metaRec() {
+		default:
 			lit, ok = schemaLiteral(m)
 		}
 		if !ok {

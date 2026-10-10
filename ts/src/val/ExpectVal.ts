@@ -19,6 +19,7 @@ import {
   explainOpen,
   ec,
   explainClose,
+  canonRiders,
 } from '../utility'
 
 import { makeNilErr } from '../err'
@@ -34,7 +35,8 @@ class ExpectVal extends FeatureVal {
   parent?: Val
   key?: string
 
-  get canon() { return this.peg.canon }
+  // The value expected keeps its riders: the meet's order must not drop them.
+  get canon() { return canonRiders(this.peg) }
 
   constructor(
     spec: ValSpec,

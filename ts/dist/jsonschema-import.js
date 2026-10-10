@@ -897,9 +897,12 @@ function targetName(ctx, node, at) {
         ctx.anchors.get(ctx.root)?.get(anchor.s) === node) {
         return 'a_' + encodeName(anchor.s);
     }
-    const defs = /^#\/\$defs\/([^/]+)$/.exec(ptr);
-    if (null != defs) {
-        return 'd_' + encodeName(defs[1].replace(/~1/g, '/').replace(/~0/g, '~'));
+    // A definitions member is named as a $defs member, unless $defs holds its key.
+    const defs = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ptr);
+    const key = null == defs ? '' : defs[2].replace(/~1/g, '/').replace(/~0/g, '~');
+    const held = entry(ctx.root, '$defs');
+    if (null != defs && ('$defs' === defs[1] || undefined === held || undefined === entry(held, key))) {
+        return 'd_' + encodeName(key);
     }
     return 'p_' + encodeName(ptr.slice(2));
 }
@@ -1280,15 +1283,25 @@ function blocker(e) {
     return ('raw' === e.k && '%' === e.text[0]) || counted || closed ||
         children(e).some(blocker);
 }
+// No one value meets both branches: distinct literals, or kinds apart.
+function apart(b, c) {
+    const bt = literalTexts(b);
+    const ct = literalTexts(c);
+    return undefined !== bt && undefined !== ct ? !bt.some((t) => ct.includes(t)) :
+        !kindsOf(b).some((k) => kindsOf(c).includes(k));
+}
 // anyOf is `|` where at most one branch can survive a meet with any
 // instance, and a count of at least one otherwise.
 function anyOf(branches) {
     const live = branches.filter((b) => !isRaw(b, 'nil'));
     const literal = live.every((b) => undefined !== literalTexts(b));
-    const disjoint = live.every((b, i) => !blocker(b) &&
-        live.every((c, j) => j <= i || !kindsOf(b).some((k) => kindsOf(c).includes(k))));
-    return 0 === live.length ? NIL : literal || disjoint ? or(live) :
-        call('nof', call('min', raw('1')), ...branches);
+    const disjoint = live.every((b, i) => !blocker(b) && live.every((c, j) => j <= i || apart(b, c)));
+    // Branches of distinct kinds are written in the order `type` writes them.
+    const rank = (b) => [...ALL_KINDS, ''].findIndex((k) => '' === k || kindsOf(b).includes(k));
+    const flat = live.flatMap((b) => 'or' === b.k ? b.items : [b]);
+    return 0 === live.length ? NIL : literal ? or(live) :
+        disjoint ? or(flat.sort((a, b) => rank(a) - rank(b))) :
+            call('nof', call('min', raw('1')), ...branches);
 }
 // oneOf is a count of exactly one, or `|` over scalar literals that are
 // pairwise distinct, since a scalar equals at most one of them. One branch
@@ -1616,10 +1629,9 @@ function convertObject(ctx, node, ptr, only) {
         const bare = KINDS.length === kinds.length &&
             branches.every((b, i) => BARE[kinds[i]] === print(b, ''));
         const split = bare ? ANY : 0 === branches.length ? NIL : or(branches);
-        // A const says its kind, which a type that adds nothing to it repeats.
-        const said = null != konst && 1 === kinds.length && jsonKind(konst) === kinds[0] &&
-            (BARE[kinds[0]] === print(branches[0], '') || ('number' === konst.t &&
-                /^-?[0-9]+$/.test(konst.text) && 'number & multiple(1)' === print(branches[0], '')));
+        const lits = null != konst ? [konst] : 'array' === enm?.t ? enm.items : [];
+        const said = 1 === kinds.length && 0 < lits.length &&
+            lits.every((it) => says(it, kinds[0], branches[0]));
         if (!said) {
             parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split);
         }
@@ -1629,6 +1641,11 @@ function convertObject(ctx, node, ptr, only) {
 }
 function jsonKind(n) {
     return 'true' === n.t || 'false' === n.t ? 'boolean' : n.t;
+}
+// A literal says its kind, which a type that adds nothing to it repeats.
+function says(lit, kind, branch) {
+    return jsonKind(lit) === kind && (BARE[kind] === print(branch, '') || ('number' === lit.t &&
+        /^-?[0-9]+$/.test(lit.text) && 'number & multiple(1)' === print(branch, '')));
 }
 // A JSON value as aontu data, or undefined where a number in it is past
 // the exactness budget, which drops the annotation with a loss.
@@ -2134,7 +2151,8 @@ function objectBranch(ctx, node, ptr) {
     const names = get('propertyNames');
     if (null != names && 'true' !== names.t) {
         const guard = convert(ctx, names, at('propertyNames'), false, ['string']);
-        if (!isRaw(guard, 'any')) {
+        // Every key is a string, so a test every string passes asserts nothing.
+        if (!isRaw(guard, 'any') && BARE.string !== print(guard, '')) {
             spreads.push(mark(ctx, call('match', call('key', raw('0')), guard, ANY, NIL), at('propertyNames'), node));
         }
     }

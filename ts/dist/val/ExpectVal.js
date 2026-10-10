@@ -8,7 +8,8 @@ const utility_1 = require("../utility");
 const err_1 = require("../err");
 const FeatureVal_1 = require("./FeatureVal");
 class ExpectVal extends FeatureVal_1.FeatureVal {
-    get canon() { return this.peg.canon; }
+    // The value expected keeps its riders: the meet's order must not drop them.
+    get canon() { return (0, utility_1.canonRiders)(this.peg); }
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isExpect = true;

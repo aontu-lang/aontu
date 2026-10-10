@@ -80,6 +80,15 @@ class DisjunctVal extends JunctionVal {
 
     let oval: Val[] = []
 
+    // The peer's annotations ride the result once, not each member, so a
+    // disjunction met with itself is itself.
+    const annotated = null != (peer as any).meta || null != (peer as any).deprecation
+    const member: any = annotated ? peer.clone(ctx, { path: peer.path }) : peer
+    if (annotated) {
+      member.meta = undefined
+      member.deprecation = undefined
+    }
+
     const savedErr = ctx.err
     const savedTrialMode = ctx._trialMode
     const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err')
@@ -99,7 +108,7 @@ class DisjunctVal extends JunctionVal {
           ;(ctx as any).referflows = staged[vI]
         }
 
-        oval[vI] = unite(te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx, v, peer, 'dj-peer')
+        oval[vI] = unite(te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer')
 
         if (0 < trialErr.length) {
           oval[vI] = TRIAL_NIL
@@ -248,6 +257,9 @@ class DisjunctVal extends JunctionVal {
     }
 
     out.dc = done ? DONE : this.dc + 1
+    if (annotated) {
+      ride(out, undefined, peer)
+    }
 
     // // // console.log('DISJUNCT-unify',
     //   this.id, sc, pc, '->', out.canon, 'D=' + out.dc, 'E=', this.err)

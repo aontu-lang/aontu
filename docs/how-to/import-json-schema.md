@@ -234,10 +234,10 @@ and `dependentRequired`, and so on. Write `shape.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict shape.json
-%p_definitions_2f_label = empty()
+%d_label = empty()
 
 point?: [&: match(key(0), "0", number, "1", number, nil)]
-label?: %p_definitions_2f_label
+label?: %d_label
 lossy: #/properties/label/maxLength maxLength: draft-07 and earlier read nothing beside $ref, so this keyword asserts nothing and is dropped
 vet with: aontu vet --no-fill --exact-numbers <document> <data>
 $ echo $?

@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
+exports.pendingNof = pendingNof;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -1186,7 +1187,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.whens = [...this.whens];
         out.contains = [...this.contains];
         out.rests = [...this.rests];
+        // A copy of a waiting atom waits too; the constructor called it done.
         out.pending = this.pending;
+        out.dc = this.dc;
         out.cjo = this.cjo;
         out.invalid = this.invalid;
         out.invalidWhy = this.invalidWhy;
@@ -1928,6 +1931,12 @@ exports.LenConstraintVal = LenConstraintVal;
 // Which counts from none to every branch a nof atom admits.
 function nofCounts(n) {
     return [...n.cs, undefined].map((_c, i) => stateAdmits(n.count, countVal(i)));
+}
+function pendingNof(pending) {
+    const arg = 'nof' === pending?.atom && true === pending.args[0]?.done ?
+        countArgState(pending.args[0]) : undefined;
+    return undefined === arg ? undefined :
+        { count: meetCount(countBase(), arg), cs: canonSorted(pending.args.slice(1)) };
 }
 class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {

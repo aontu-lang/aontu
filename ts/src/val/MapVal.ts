@@ -336,7 +336,8 @@ class MapVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child
-              ? (undefined !== peerctx.prov && peerchild.isGenable
+              ? ((undefined !== peerctx.prov && peerchild.isGenable) ||
+                upeer.aliasKeys.includes(peerkey)
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
               child.isTop && !rides(child) && peerchild.done ? peerchild :

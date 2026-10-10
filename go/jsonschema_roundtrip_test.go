@@ -58,7 +58,7 @@ func roundTrip(g suiteGroup, documents map[string]string) string {
 func TestJSONSchemaSuiteRoundTrip(t *testing.T) {
 	t.Parallel()
 	ledger := tsvRows(t, filepath.Join(vectorsDir, "jsonschema", "roundtrip.tsv"))
-	if 50 < len(ledger) {
+	if 47 < len(ledger) {
 		t.Fatalf("the round-trip ledger holds %d rows, past its bound", len(ledger))
 	}
 	listed := map[string]string{}

@@ -86,7 +86,7 @@ function roundTrip(g, documents) {
 // The ledger may not grow past its bound; the register tightens it.
 (0, node_test_1.test)('the-json-schema-test-suite-round-trips', () => {
     const ledger = (0, suite_1.rows)(Path.join(suite_1.VECTORS, 'jsonschema', 'roundtrip.tsv'));
-    Assert.ok(ledger.length <= 50, `the round-trip ledger holds ${ledger.length} rows, past its bound`);
+    Assert.ok(ledger.length <= 47, `the round-trip ledger holds ${ledger.length} rows, past its bound`);
     const listed = new Map(ledger.map(([dir, file, group, construct]) => [dir + ' | ' + file + ' | ' + group, construct]));
     const documents = (0, suite_1.remotes)();
     const problems = [];

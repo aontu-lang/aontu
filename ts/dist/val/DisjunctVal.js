@@ -38,6 +38,14 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         let done = true;
         let oval = [];
+        // The peer's annotations ride the result once, not each member, so a
+        // disjunction met with itself is itself.
+        const annotated = null != peer.meta || null != peer.deprecation;
+        const member = annotated ? peer.clone(ctx, { path: peer.path }) : peer;
+        if (annotated) {
+            member.meta = undefined;
+            member.deprecation = undefined;
+        }
         const savedErr = ctx.err;
         const savedTrialMode = ctx._trialMode;
         const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err');
@@ -55,7 +63,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     staged[vI] = new Map();
                     ctx.referflows = staged[vI];
                 }
-                oval[vI] = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx, v, peer, 'dj-peer');
+                oval[vI] = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer');
                 if (0 < trialErr.length) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }
@@ -189,6 +197,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             this.place(out);
         }
         out.dc = done ? type_1.DONE : this.dc + 1;
+        if (annotated) {
+            (0, unify_1.ride)(out, undefined, peer);
+        }
         // // // console.log('DISJUNCT-unify',
         //   this.id, sc, pc, '->', out.canon, 'D=' + out.dc, 'E=', this.err)
         (0, utility_1.explainClose)(te, out);

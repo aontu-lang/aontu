@@ -1977,6 +1977,19 @@ func nofCounts(n constraintNof) []bool {
 	return out
 }
 
+// pendingNof is a count still waiting on its branches, as the count it
+// will be, where the count itself has settled.
+func pendingNof(p *constraintPending) (constraintNof, bool) {
+	if nil == p || "nof" != p.atom || DONE != p.args[0].Dc() {
+		return constraintNof{}, false
+	}
+	arg := countArgState(p.args[0])
+	if nil == arg {
+		return constraintNof{}, false
+	}
+	return constraintNof{count: meetCount(countBase(), arg), cs: canonSorted(p.args[1:])}, true
+}
+
 // coverArg settles a cover record of rest() member by member, each a
 // trial schema at the atom's path, so the record is never a value.
 func coverArg(ctx *Ctx, arg Val, path []string) Val {

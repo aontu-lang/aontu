@@ -56,6 +56,18 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	done := true
 	var gate []int
 	_, peerIsPref := peer.(*PrefVal)
+
+	// The peer's annotations ride the result once, not each member, so a
+	// disjunction met with itself is itself.
+	member := peer
+	annotated := nil != peer.metaRec() || nil != peer.deprecRec()
+	if annotated {
+		if c := clonePath(peer, peer.vpath()); c != peer {
+			c.setMetaRec(nil)
+			c.setDeprecRec(nil)
+			member = c
+		}
+	}
 	oval := make([]Val, len(d.peg))
 	if nil == ctx.referflows {
 		ctx.referflows = map[string]Val{}
@@ -76,7 +88,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			staged[i] = map[string]Val{}
 			ctx.referflows = staged[i]
 		}
-		r := unite(ctx, m, peer)
+		r := unite(ctx, m, member)
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
 		ctx.trial = savedTrial
@@ -184,12 +196,18 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	switch len(res) {
 	case 1:
+		if annotated {
+			ride(res[0], nil, peer)
+		}
 		return res[0]
 	case 0:
 		ctx.slot = slot
 		return makeNilErr(ctx, "empty", d, peer)
 	}
 	out := newDisjunct(res)
+	if annotated {
+		ride(out, nil, peer)
+	}
 	out.path = cp(d.path)
 	out.site.sp = d.site.sp
 	out.site.spu = d.site.spu

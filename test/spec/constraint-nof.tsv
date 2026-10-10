@@ -110,3 +110,7 @@ nof-a-branch-beside-the-boolean-kind-is-tried	errc	a: nof(0, nof(0, 1) & boolean
 # matches each meet repeats are kept once, where they doubled until the
 # meet refused with unify_cycle.
 nof-a-branch-beside-a-list-of-two-spreads-settles	gens	a: nof(1, [&: match(key(0), "0", any, any)] & nof(1, any)) & [&: match(key(0), "0", string, any)] & [&: match(key(0), "0", any, any)] & ["foo"]	{"a":["foo"]}
+# A copy of a count still waiting waits too, and settles where it is
+# used: a branch guarding its own key reads that key there.
+nof-canon-a-definition-of-a-waiting-count-settles-at-each-use	canon	%d_p = nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\na?: %d_p\nb?: %d_p	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
+nof-canon-a-reference-to-a-waiting-count-settles-where-it-is-used	canon	a?: nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\nb?: $.a	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
