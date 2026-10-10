@@ -1548,8 +1548,9 @@ x: %json & { a: [1 "two" b:true] }
 {"x": {"a": [1, "two", {"b": true}]}}
 ```
 
-[Subsumption](#subsumption) over an unexpanded recursive position
-answers `undecided` rather than guessing. The degenerate
+[Subsumption](#recursive-positions) reads a recursive position as the
+definition it names, so two recursive schemas compare with no data on
+either side. The degenerate
 self-reference with no structure at all (`a: $.a`) is a residual that
 can never expand: its canon is exactly `{"a":$.a}` and generation
 refuses with `recursion_unexpanded`. A cycle THROUGH other values
@@ -4942,6 +4943,7 @@ generable documents materialise differently or become incomplete.
 |-------------|--------------|-------|
 | `top` | anything | yes |
 | preference `*x` |: | compares as what it admits (its superior type); its default value is the profiles' business, not the value set's |
+| recursive position on either side |: | the definition it names, unfolded against its own document ([Recursive positions](#recursive-positions)) |
 | unresolved residue (reference, variable, unreduced conjunct or function) on either side |: | `undecided` (`sub_unresolved`): there is no admitted set to compare |
 | anything | disjunction | every specific alternative must be admitted by A; a concrete failing alternative is a witness (`compat_narrowed`), a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
 | disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`): member-wise failure is not proof, the distribution case |
@@ -4984,6 +4986,27 @@ before the walk begins.
 The `at` option anchors both documents at one path before comparing
 (the validation verb's `--at`); a path missing from either side is an
 `error` verdict.
+
+### Recursive positions
+
+A [recursive position](#recursive-references-fixpoints) is the
+definition it names, unfolded against its own document, so two
+documents compare with no data on either side. The walk assumes that a
+pair of bags it is already comparing subsumes while that comparison
+runs, the standard rule for comparing recursive types, so it ends
+where a pair comes round again. Two recursions of one shape subsume
+each other whatever names their definitions carry, a recursion and its
+unrolling subsume each other in both directions, and the walk
+compares each pair of bags once, so where two definitions disagree it
+reports the finding once, where it first meets the pair. Under the
+`gen` profile an unfolded definition carries the marks of the place it
+stands in, as an expansion clears the definition's own: a hidden
+definition compared with a hidden unrolling agrees, and a member the
+specific side hides inside the recursion is `compat_marks_changed`.
+Under `defaults` the walk compares the defaults inside an unfolding as
+it does anywhere else. It compares a recursion with no structure to
+unfold, as `a: $.a` has none, as residue: identical ones subsume, and
+any other pair is `undecided`.
 
 ### Default validity
 

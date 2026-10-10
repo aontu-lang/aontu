@@ -57,6 +57,14 @@ type subState struct {
 	specificSrc string
 	// distributing is set inside a distribution trial: see subTrial.
 	distributing bool
+	// groot and sroot are the documents each side's recursions unfold
+	// against.
+	groot, sroot Val
+	pairs        *subPairs
+	// gRec and sRec are the recursion a side's definition is unfolded in
+	// place of: its marks are the side's, as an expansion clears the
+	// definition's own.
+	gRec, sRec Val
 }
 
 func subPathText(path []string) string {
@@ -227,16 +235,31 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Marks change the OUTPUT shape, not the admitted set: only the
 	// `gen` profile reports them.
+	gm, sm := g, s
+	if nil != st.gRec {
+		gm = st.gRec
+	}
+	if nil != st.sRec {
+		sm = st.sRec
+	}
 	if "gen" == st.profile && !st.distributing && nil != g && nil != s &&
-		(g.markedType() != s.markedType() || g.markedHide() != s.markedHide()) {
+		(gm.markedType() != sm.markedType() || gm.markedHide() != sm.markedHide()) {
 		st.record("compat_marks_changed", path, g, s,
 			fmt.Sprintf("marks differ: general {\"type\":%t,\"hide\":%t}, specific {\"type\":%t,\"hide\":%t}",
-				g.markedType(), g.markedHide(), s.markedType(), s.markedHide()))
+				gm.markedType(), gm.markedHide(), sm.markedType(), sm.markedHide()))
 		return subNo
 	}
 
 	if isTop(g) {
 		return subYes
+	}
+
+	_, gRec := g.(*RecurseVal)
+	_, sRec := s.(*RecurseVal)
+	if gRec || sRec {
+		if out := subsumeRecursion(st, path, g0, s0, g, s); "" != out {
+			return out
+		}
 	}
 
 	if subUnresolvedVal(g) || subUnresolvedVal(s) {
@@ -419,14 +442,16 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		}
 		// A DECLARATION IS NOT A FIELD: an alias key is erased before the
 		// document exists, so neither side compares one.
-		return subsumeBag(st, path, bagView{
-			val: gm, keys: fieldKeys(gm), closed: gm.closed,
-			optional: gm.optional, spread: gm.spread,
-			child: func(k string) Val { return gm.peg[k] },
-		}, bagView{
-			val: sm, keys: fieldKeys(sm), closed: sm.closed,
-			optional: sm.optional, spread: sm.spread,
-			child: func(k string) Val { return sm.peg[k] },
+		return subAssume(st, g0, s0, func() string {
+			return subsumeBag(st, path, bagView{
+				val: gm, keys: fieldKeys(gm), closed: gm.closed,
+				optional: gm.optional, spread: gm.spread,
+				child: func(k string) Val { return gm.peg[k] },
+			}, bagView{
+				val: sm, keys: fieldKeys(sm), closed: sm.closed,
+				optional: sm.optional, spread: sm.spread,
+				child: func(k string) Val { return sm.peg[k] },
+			})
 		})
 	}
 
@@ -438,7 +463,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				"the general value is a list and the specific value is not")
 			return subNo
 		}
-		return subsumeBag(st, path, listView(gl), listView(sl))
+		return subAssume(st, g0, s0, func() string {
+			return subsumeBag(st, path, listView(gl), listView(sl))
+		})
 	}
 
 	if nil != g && nil != s && !g.Nil() && !s.Nil() &&
@@ -448,6 +475,147 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	st.record("sub_unresolved", path, g, s,
 		"no subsumption rule covers this pair of value formers")
 	return subUndecided
+}
+
+// subsumeRecursion reads a recursion as the definition it names,
+// unfolded against its own document (docs/design/RECURSION.0.md, P3). One
+// met again before the walk enters a bag unfolds to no structure, and
+// answers "" to be compared as residue.
+func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
+	key := [2]Val{g0, s0}
+	if st.pairs.unfolding[key] {
+		return ""
+	}
+	gb, sb := g0, s0
+	gRec, sRec := st.gRec, st.sRec
+	if r, ok := g.(*RecurseVal); ok {
+		gb = walkTarget(st.groot, r.target)
+		if nil == gRec {
+			gRec = r
+		}
+	}
+	if r, ok := s.(*RecurseVal); ok {
+		sb = walkTarget(st.sroot, r.target)
+		if nil == sRec {
+			sRec = r
+		}
+	}
+	if nil == gb || nil == sb {
+		st.record("sub_unresolved", path, g, s,
+			"a recursion whose definition its document does not hold")
+		return subUndecided
+	}
+	outerG, outerS := st.gRec, st.sRec
+	st.gRec, st.sRec = gRec, sRec
+	st.pairs.unfolding[key] = true
+	out := subsumeNode(st, path, gb, sb)
+	delete(st.pairs.unfolding, key)
+	st.gRec, st.sRec = outerG, outerS
+	return out
+}
+
+// subUnfold answers a recursion's definition in its own document, or the
+// value itself.
+func subUnfold(root, v Val) Val {
+	if r, ok := v.(*RecurseVal); ok {
+		return walkTarget(root, r.target)
+	}
+	return v
+}
+
+// subPairs holds the pairs of bags the walk has met: those it is
+// comparing, the answers it has settled, and the yes-answers waiting on a
+// pair still compared; and the recursions it has unfolded since it last
+// entered a bag.
+type subPairs struct {
+	frames    []*subFrame
+	running   map[subPair]int
+	settled   map[subPair]string
+	pending   map[subPair]int
+	unfolding map[[2]Val]bool
+}
+
+type subPair struct {
+	g, s  Val
+	marks string
+}
+
+type subFrame struct {
+	depth, low int
+	held       []subPair
+}
+
+func newSubPairs() *subPairs {
+	return &subPairs{running: map[subPair]int{}, settled: map[subPair]string{},
+		pending: map[subPair]int{}, unfolding: map[[2]Val]bool{}}
+}
+
+// subAssume answers yes for a pair of bags already under comparison, so
+// a recursion ends on the first pair it meets again (Amadio and Cardelli),
+// and compares each pair once (Tarjan's lowlink keeps a yes that assumed
+// a pair still running from settling before that pair does).
+func subAssume(st *subState, g0, s0 Val, compare func() string) string {
+	p := st.pairs
+	key := subPair{g: g0, s: s0}
+	if "gen" == st.profile {
+		key.marks = subMarkOf(st.gRec) + subMarkOf(st.sRec)
+	}
+	if out, ok := p.settled[key]; ok {
+		return out
+	}
+	low, ok := p.running[key]
+	if !ok {
+		low, ok = p.pending[key]
+	}
+	if ok {
+		top := p.frames[len(p.frames)-1]
+		top.low = min(top.low, low)
+		return subYes
+	}
+	frame := &subFrame{depth: len(p.frames), low: len(p.frames)}
+	unfolding := p.unfolding
+	p.frames = append(p.frames, frame)
+	p.running[key] = frame.depth
+	p.unfolding = map[[2]Val]bool{}
+	out := compare()
+	p.unfolding = unfolding
+	p.frames = p.frames[:len(p.frames)-1]
+	delete(p.running, key)
+	subSettle(st, key, frame, out)
+	return out
+}
+
+func subSettle(st *subState, key subPair, frame *subFrame, out string) {
+	p := st.pairs
+	var parent *subFrame
+	if 0 < len(p.frames) {
+		parent = p.frames[len(p.frames)-1]
+	}
+	main := !st.distributing
+	if main && subYes == out && frame.low < frame.depth {
+		p.pending[key] = frame.low
+		parent.held = append(append(parent.held, key), frame.held...)
+	} else {
+		for _, k := range frame.held {
+			delete(p.pending, k)
+			if main && subYes == out {
+				p.settled[k] = out
+			}
+		}
+		if main {
+			p.settled[key] = out
+		}
+	}
+	if nil != parent {
+		parent.low = min(parent.low, frame.low)
+	}
+}
+
+func subMarkOf(v Val) string {
+	if nil == v {
+		return "x"
+	}
+	return fmt.Sprintf("%t%t", v.markedType(), v.markedHide())
 }
 
 type bagView struct {
@@ -589,6 +757,11 @@ func subTrial(st *subState, path []string, g, s Val) string {
 		generalSrc:   st.generalSrc,
 		specificSrc:  st.specificSrc,
 		distributing: true,
+		groot:        st.groot,
+		sroot:        st.sroot,
+		pairs:        st.pairs,
+		gRec:         st.gRec,
+		sRec:         st.sRec,
 	}
 	return subsumeNode(trial, path, g, s)
 }
@@ -617,15 +790,19 @@ func subsumeDefaults(st *subState, path []string, g, s Val) string {
 	return subYes
 }
 
-func subsumeDefaultsWalk(st *subState, path []string, g, s Val) string {
+func subsumeDefaultsWalk(st *subState, path []string, g0, s0 Val,
+	seen map[[2]Val]bool) string {
+	g := subUnfold(st.groot, g0)
+	s := subUnfold(st.sroot, s0)
 	out := subsumeDefaults(st, path, g, s)
 	gm, gok := g.(*MapVal)
 	sm, sok := s.(*MapVal)
-	if gok && sok {
+	if gok && sok && !seen[[2]Val{g, s}] {
+		seen[[2]Val{g, s}] = true
 		for _, k := range sm.keys {
 			if gc, ok := gm.peg[k]; ok {
 				kp := append(append([]string{}, path...), k)
-				out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sm.peg[k]))
+				out = subWorse(out, subsumeDefaultsWalk(st, kp, gc, sm.peg[k], seen))
 			}
 		}
 	}
@@ -704,6 +881,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 		specificURL: specificURL,
 		generalSrc:  generalSrc,
 		specificSrc: specificSrc,
+		pairs:       newSubPairs(),
 	}
 
 	broken := SubsumeReport{Verdict: SubsumeError, Findings: []VetFinding{}}
@@ -722,6 +900,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 	if nil == g || nil == s {
 		return broken
 	}
+	st.groot, st.sroot = g, s
 
 	if "" != options.At {
 		g = anchorAt(g, options.At)
@@ -733,7 +912,7 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 
 	out := subsumeNode(st, nil, g, s)
 	if "values" != profile {
-		out = subWorse(out, subsumeDefaultsWalk(st, nil, g, s))
+		out = subWorse(out, subsumeDefaultsWalk(st, nil, g, s, map[[2]Val]bool{}))
 	}
 
 	verdict := SubsumeYes

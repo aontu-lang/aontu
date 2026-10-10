@@ -22,8 +22,26 @@ type SubState = {
     findings: VetFinding[];
     generalUrl: string;
     specificUrl: string;
+    groot?: any;
+    sroot?: any;
+    pairs: Pairs;
+    gRec?: any;
+    sRec?: any;
 };
 type Tri = 'yes' | 'no' | 'undecided';
+type Frame = {
+    depth: number;
+    low: number;
+    held: string[];
+};
+export type Pairs = {
+    frames: Frame[];
+    running: Map<string, number>;
+    settled: Map<string, Tri>;
+    pending: Map<string, number>;
+    unfolding: Set<string>;
+};
+export declare function newPairs(): Pairs;
 export declare function pathText(path: string[]): string;
 export declare function siteOf(v: any, role: string, url: string): VetSite;
 export declare function effectiveDefault(v: any): any;

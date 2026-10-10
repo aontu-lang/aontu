@@ -1,6 +1,6 @@
 # Recursive schemas — design note
 
-Status: PROPOSAL (nothing here is built)
+Status: LANDED, every phase (§10)
 Date: 2026-08-28
 Prompted by: use-cases/BUGS.md §52 (a recursive schema has no working
 spelling), and the question that filed it.
@@ -181,10 +181,10 @@ $ aontu vet menu-schema.aontu menu.json
   evaluator's own `path_cycle`). The export is the symbolic form, so
   it is exact, not lossy; it landed with G12 phase 9.
 - **`subsume` / `breaking` (G3)**: recursive-vs-recursive comparison
-  without data needs the standard seen-pair memo (Amadio–Cardelli);
-  scoped to its own phase. Until it lands, `subsume` on a recursive
-  schema refuses with a clear "not yet comparable" rather than
-  looping.
+  without data needs the standard seen-pair memo (Amadio–Cardelli),
+  and it landed as P3: each side's recursion unfolds against its own
+  document, and a pair of bags already under comparison is assumed to
+  subsume.
 - **Graph/relations, modules, trust**: untouched. A residual is a
   value like any other; the include closure and the hash pin it
   symbolically.
@@ -267,7 +267,7 @@ currently evaluates, so no existing model can be relying on one.
 | P0 | ~~Fix §52 regime 4 (disjunct-selected list spread applies)~~ **LANDED 2026-08-29** | its repro row, plus edge-spread-disjunct-key re-adjudicated |
 | P1 | ~~The residual: prefix-test response, expansion at meet, `recursion_*` codes, canon/hash symbolic; single-file~~ **LANDED 2026-08-29** | the §3 examples as rows; both gates |
 | P2 | ~~`jsonschema` `$defs`/`$ref`~~ **LANDED 2026-10-08** as G12 phase 9 in [g12-jsonschema-fidelity.md](../capability-review/g12-jsonschema-fidelity.md): a recursive position is a `$ref` to its definition under `$defs`, or `#` where the definition is the exported schema (~~vet flows~~ **LANDED 2026-08-29** with P1 — the anchored meet needed the schema root, see below) | export rows |
-| P3 | G3: seen-pair subsumption of recursive schemas; G12 phase 18 needs it | subsume rows |
+| P3 | ~~G3: seen-pair subsumption of recursive schemas; G12 phase 18 needs it~~ **LANDED 2026-10-10** ([ADR-067](../../ADR.md#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names)) | subsume rows |
 
 **P0 landed as two rules, not one fix.** Regime 4's root cause was
 `same()`/`valSame` ignoring spreads, so the disjunct DEDUPLICATED
@@ -328,6 +328,57 @@ admits only a peer list of its own length — which is what makes
   exhaustion is `recursion_budget`. X-C1 stays declined — guardedness
   is emergent, `bad/required-tail.aontu` in use-case 13 is the shape of
   the refusal.
+
+**P3 landed with these boundaries, each pinned in
+`test/spec/recursion.tsv`:**
+
+- **Each side unfolds against its own document.** A recursion names a
+  path in the document it was written in, so the general side's reads
+  the general document and the specific side's the specific one,
+  however the two name their definitions. `--at` anchors the
+  comparison and not the unfolding, so a definition outside the anchor
+  is still read (`subsume-at-an-anchor-unfolds-against-the-whole-document`).
+- **The assumption is a pair of bags, and each pair is compared
+  once.** A map or list pair is assumed to subsume while its own
+  comparison runs, keyed by the two nodes, and the walk ends because a
+  document is finite and an unfolding reads one of its nodes. An
+  answer settles when its comparison returns, except a yes that
+  assumed a pair still running, which waits on that pair (Tarjan's
+  lowlink) and settles with it or is dropped. Dropping each assumption
+  on return instead walked every path through a cluster of
+  definitions that refer to one another, factorial in their number. A
+  definition that disagrees is refused once, where the walk first
+  meets it (`subsume-a-narrower-recursion-is-refused-once`,
+  `subsume-mutual-recursion-is-refused-where-the-walk-first-meets-it`,
+  `subsume-a-cluster-of-recursions-compares-each-pair-once`).
+- **An unfolding carries the marks of its place.** An expansion
+  clears the definition's marks (P1), so under the `gen` profile an
+  unfolded definition reads the recursion's own marks at every depth
+  below it. Reading the definition's would refuse a hidden definition
+  against its own hidden unrolling; reading none would refuse it
+  against a specific side under the same `hide`
+  (`subsume-an-unfolding-keeps-the-marks-of-its-place`,
+  `subsume-a-recursion-does-not-hide-what-the-specific-hides`).
+- **Identity no longer decides a recursion.** Before P3, two
+  recursions with the same hash form were the same value and any
+  other pair was `undecided`; both now unfold, so two recursions of
+  one shape subsume whatever their definitions are called
+  (`subsume-recursions-of-one-shape-subsume`, which pinned `undecided`
+  as `subsume-different-recursions-are-undecided`). Identity still
+  decides other residue.
+- **A recursion with no structure to unfold is residue.** One met
+  again before the walk enters a bag, as `a: $.a`, `a: $.a | 1` and
+  `a: {b: $.a.b}` are, is compared as every recursion was before P3:
+  identical ones subsume and any other pair is `undecided`
+  (`subsume-a-recursion-that-is-only-itself-is-residue` and the rows
+  after it).
+- **The `defaults` profile unfolds too.** Its pass over effective
+  defaults reads a recursion as its definition and walks each pair of
+  maps once, so a default changed inside an unrolling is refused
+  (`subsume-a-default-changed-inside-an-unrolling-is-refused`).
+- **A recursion whose definition its document does not hold** is
+  `sub_unresolved`, undecided. No evaluated document produces one, so
+  a unit test in each port pins it.
 
 ## 11. Open questions
 

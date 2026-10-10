@@ -597,6 +597,9 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 					specificURL: schemaURL,
 					generalSrc:  schemaSrc,
 					specificSrc: schemaSrc,
+					groot:       schemaVal,
+					sroot:       schemaVal,
+					pairs:       newSubPairs(),
 				}
 				admitted := false
 				for _, m := range rest {

@@ -18,7 +18,7 @@ import { sizingResidue } from './val/BagVal'
 import { collectDeprecations, walkBagVals, deprecationMessage,
   includeOpts,
 } from './utility'
-import { subsumeNode, effectiveDefault } from './subsume'
+import { subsumeNode, effectiveDefault, newPairs } from './subsume'
 import { noPathFinding } from './query'
 import { fillDiff } from './admit'
 import { cmpCodePoint } from './keyorder'
@@ -714,6 +714,7 @@ export function vet(
         const state: any = {
           profile: 'values', findings: [],
           generalUrl: schemaUrl, specificUrl: schemaUrl,
+          groot: schemaVal, sroot: schemaVal, pairs: newPairs(),
         }
         const admitted = rest.some(
           (m: any) => 'yes' === subsumeNode(state, path, m, d))

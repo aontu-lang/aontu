@@ -670,12 +670,15 @@ undecided (always with a `sub_*` reason), `4` a document that does not
 stand up on its own, `2` usage. The report reuses vet's finding object
 and renderers, class `compat`.
 
-**An unexpanded recursive position is `undecided`, never guessed.**
+**A recursive position is the definition it names.**
 A [recursive reference](reference-language.md#recursive-references-fixpoints)
 expands only against concrete data, and subsumption compares two
-documents with no data on either side, so at the recursive position
-there is no rule to apply, and the query says so rather than
-answering from hope. Write a `general.aontu`:
+documents with no data on either side, so the query unfolds each
+recursive position into its definition, read from its own document.
+It assumes that a pair of positions it is already comparing subsumes,
+so the walk ends where a pair comes round again
+([Recursive positions](reference-language.md#recursive-positions)).
+Write a `general.aontu`:
 
 <!-- test: scenario subsume-recursive -->
 <!-- test: file general.aontu -->
@@ -684,47 +687,66 @@ spec: hide({ Step: { label:string then?:$.spec.Step } })
 doc: $.spec.Step
 ```
 
-and a `specific.aontu` whose step recurses into a DIFFERENT definition:
+and a `specific.aontu` whose step recurses through a definition of its
+own:
 
 <!-- test: file specific.aontu -->
 ```aontu
-spec: hide({ Step: { label:"start" then?:$.spec.Other } Other:label:string })
+spec: hide({
+  Step: { label:"start" then?:$.spec.Next }
+  Next: { label:string then?:$.spec.Next }
+})
+
 doc: $.spec.Step
 ```
 
 <!-- test: run -->
 ```sh
 $ aontu subsume general.aontu specific.aontu
-verdict: undecided
-
-$.spec.Step.then: sub_unresolved [compat]
-  no subsumption rule covers this pair of value formers
-  expected: $.spec.Step
-  actual:   {"label":string}
-  general: general.aontu:1:41 ($.spec.Step)
-  specific: specific.aontu:1:63 ({"label":string})
-$.doc: sub_unresolved [compat]
-  no subsumption rule covers this pair of value formers
-  expected: $.spec.Step
-  actual:   {"label":"start","then"?:{"label":string}}
-  general: general.aontu:2:6 ($.spec.Step)
-  specific: specific.aontu:1:20 ({"label":"start","then"?:{"label":string}})
+verdict: subsumes
 $ echo $?
-3
+0
 ```
 
-**The same recursion on both sides is decided**, and decided by
-identity: a document that recurses, declares a relation or shares a
+The names differ and the shapes agree, so every chain the specific
+document admits, the general one admits too. The query compares each
+pair of definitions once, so where two disagree it reports the finding
+once, where the walk first meets the pair, and not again at each place
+that uses the recursion or at each level below it. Write a
+`narrower.aontu` whose label is a number:
+
+<!-- test: file narrower.aontu -->
+```aontu
+spec: hide({ Step: { label:number then?:$.spec.Step } })
+doc: $.spec.Step
+```
+
+<!-- test: run -->
+```sh
+$ aontu subsume general.aontu narrower.aontu
+verdict: does_not_subsume
+
+$.spec.Step.label: compat_narrowed [compat]
+  the general kind does not admit the specific kind
+  expected: string
+  actual:   number
+  general: general.aontu:1:28 (string)
+  specific: narrower.aontu:1:28 (number)
+$ echo $?
+1
+```
+
+**A document admits itself**, and where no rule applies, identity
+decides it: a document that declares a relation or shares a
 template by reference admits itself, because two values with the same
 **hash form** are the same value. The rule runs only where the answer
 would otherwise be `undecided`, so it narrows nothing else, and
 without it a contract could not be gated against its own earlier
 version at all.
 
-This is the verdict [`breaking`](#aontu-breaking) fails on by
-default: a gate that cannot decide a recursive contract reports
-`undecided` and stops, and `--allow-undecided` is the deliberate
-downgrade.
+`undecided` is the verdict [`breaking`](#aontu-breaking) fails on by
+default: a gate that cannot decide a contract reports `undecided` and
+stops, and `--allow-undecided` is the deliberate downgrade.
 
 ### `aontu breaking`
 

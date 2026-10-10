@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.newPairs = newPairs;
 exports.pathText = pathText;
 exports.siteOf = siteOf;
 exports.effectiveDefault = effectiveDefault;
@@ -14,8 +15,15 @@ const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
 const PathVal_1 = require("./val/PathVal");
 const PrefVal_1 = require("./val/PrefVal");
+const RecurseVal_1 = require("./val/RecurseVal");
 const DEFAULT_GENERAL_URL = 'general';
 const DEFAULT_SPECIFIC_URL = 'specific';
+function newPairs() {
+    return {
+        frames: [], running: new Map(), settled: new Map(), pending: new Map(),
+        unfolding: new Set(),
+    };
+}
 function opaqueNote(g) {
     return 0 < g.musts.length ?
         'an evaluate-only check (must) makes the admitted set opaque' :
@@ -114,15 +122,22 @@ function subsumeNode(state, path, g0, s0) {
     // Marks change the OUTPUT shape, not the admitted set: only the `gen`
     // profile reports them, and only when they differ on corresponding
     // nodes.
+    const gMark = (state.gRec ?? g)?.mark;
+    const sMark = (state.sRec ?? s)?.mark;
     if ('gen' === state.profile && true !== state.distributing &&
-        (!!g?.mark?.type !== !!s?.mark?.type ||
-            !!g?.mark?.hide !== !!s?.mark?.hide)) {
-        record(state, 'compat_marks_changed', path, g, s, 'marks differ: general ' + JSON.stringify(g?.mark) +
-            ', specific ' + JSON.stringify(s?.mark));
+        (!!gMark?.type !== !!sMark?.type || !!gMark?.hide !== !!sMark?.hide)) {
+        record(state, 'compat_marks_changed', path, g, s, 'marks differ: general ' + JSON.stringify(gMark) +
+            ', specific ' + JSON.stringify(sMark));
         return 'no';
     }
     if (true === g?.isTop) {
         return 'yes';
+    }
+    if (true === g?.isRecurse || true === s?.isRecurse) {
+        const out = subsumeRecursion(state, path, g0, s0, g, s);
+        if (undefined !== out) {
+            return out;
+        }
     }
     if (unresolved(g) || unresolved(s)) {
         if ((0, hcanon_1.hcanon)(g) === (0, hcanon_1.hcanon)(s)) {
@@ -276,7 +291,7 @@ function subsumeNode(state, path, g0, s0) {
         }
         // A DECLARATION IS NOT A FIELD: an alias key is erased before the
         // document exists, so neither side compares one.
-        return subsumeBag(state, path, g, s, fieldKeys(g), fieldKeys(s), (v, k) => v.peg[k]);
+        return assume(state, g0, s0, () => subsumeBag(state, path, g, s, fieldKeys(g), fieldKeys(s), (v, k) => v.peg[k]));
     }
     // Lists: element-wise by position; the same required/optional shape
     // as maps, with positions as keys.
@@ -287,13 +302,92 @@ function subsumeNode(state, path, g0, s0) {
         }
         const gk = g.peg.map((_, i) => '' + i);
         const sk = s.peg.map((_, i) => '' + i);
-        return subsumeBag(state, path, g, s, gk, sk, (v, k) => v.peg[Number(k)]);
+        return assume(state, g0, s0, () => subsumeBag(state, path, g, s, gk, sk, (v, k) => v.peg[Number(k)]));
     }
     if (true !== g?.isNil && true !== s?.isNil && (0, hcanon_1.hcanon)(g) === (0, hcanon_1.hcanon)(s)) {
         return 'yes';
     }
     record(state, 'sub_unresolved', path, g, s, 'no subsumption rule covers this pair of value formers');
     return 'undecided';
+}
+// A recursion is the definition it names, unfolded against its own
+// document (docs/design/RECURSION.0.md, P3). One met again before the
+// walk enters a bag unfolds to no structure, and is compared as residue.
+function subsumeRecursion(state, path, g0, s0, g, s) {
+    const key = g0?.id + ' ' + s0?.id;
+    const unfolding = state.pairs.unfolding;
+    if (unfolding.has(key)) {
+        return undefined;
+    }
+    const gr = true === g?.isRecurse ? g : undefined;
+    const sr = true === s?.isRecurse ? s : undefined;
+    const gb = undefined === gr ? g0 : (0, RecurseVal_1.walkTarget)(state.groot, gr.target);
+    const sb = undefined === sr ? s0 : (0, RecurseVal_1.walkTarget)(state.sroot, sr.target);
+    if (undefined === gb || undefined === sb) {
+        record(state, 'sub_unresolved', path, g, s, 'a recursion whose definition its document does not hold');
+        return 'undecided';
+    }
+    unfolding.add(key);
+    const out = subsumeNode({ ...state, gRec: state.gRec ?? gr, sRec: state.sRec ?? sr }, path, gb, sb);
+    unfolding.delete(key);
+    return out;
+}
+// A recursion's definition in its own document, or the value itself.
+function unfold(root, v) {
+    return true === v?.isRecurse ? (0, RecurseVal_1.walkTarget)(root, v.target) : v;
+}
+// A pair of bags already under comparison is assumed to subsume, so a
+// recursion ends on the first pair it meets again (Amadio and Cardelli),
+// and each pair is compared once (Tarjan's lowlink keeps a yes that
+// assumed a pair still running from settling before that pair does).
+function assume(state, g0, s0, compare) {
+    const p = state.pairs;
+    const key = g0.id + ' ' + s0.id + ' ' +
+        ('gen' === state.profile ? JSON.stringify([state.gRec?.mark, state.sRec?.mark]) : '');
+    const settled = p.settled.get(key);
+    if (undefined !== settled) {
+        return settled;
+    }
+    const low = p.running.get(key) ?? p.pending.get(key);
+    if (undefined !== low) {
+        const top = p.frames[p.frames.length - 1];
+        top.low = Math.min(top.low, low);
+        return 'yes';
+    }
+    const frame = { depth: p.frames.length, low: p.frames.length, held: [] };
+    const unfolding = p.unfolding;
+    p.frames.push(frame);
+    p.running.set(key, frame.depth);
+    p.unfolding = new Set();
+    const out = compare();
+    p.unfolding = unfolding;
+    p.frames.pop();
+    p.running.delete(key);
+    settle(state, key, frame, out);
+    return out;
+}
+function settle(state, key, frame, out) {
+    const p = state.pairs;
+    const parent = p.frames[p.frames.length - 1];
+    const main = true !== state.distributing;
+    if (main && 'yes' === out && frame.low < frame.depth) {
+        p.pending.set(key, frame.low);
+        parent.held.push(key, ...frame.held);
+    }
+    else {
+        for (const k of frame.held) {
+            p.pending.delete(k);
+            if (main && 'yes' === out) {
+                p.settled.set(k, out);
+            }
+        }
+        if (main) {
+            p.settled.set(key, out);
+        }
+    }
+    if (undefined !== parent) {
+        parent.low = Math.min(parent.low, frame.low);
+    }
 }
 // Maps and lists share one shape: required keys of the general side
 // must be required in the specific side and subsume; optional keys
@@ -408,15 +502,20 @@ function subsumeDefaults(state, path, g, s) {
     return 'yes';
 }
 // Walk both trees for default agreement wherever the specific side has
-// one: at the node itself and inside every corresponding bag child.
-function subsumeDefaultsWalk(state, path, g, s) {
+// one: at the node itself and inside every corresponding bag child, a
+// recursion unfolded and each pair of maps walked once.
+function subsumeDefaultsWalk(state, path, g0, s0, seen) {
+    const g = unfold(state.groot, g0);
+    const s = unfold(state.sroot, s0);
     let out = subsumeDefaults(state, path, g, s);
     const gm = true === g?.isMap ? g.peg : undefined;
     const sm = true === s?.isMap ? s.peg : undefined;
-    if (null != gm && null != sm) {
+    const pair = g?.id + ' ' + s?.id;
+    if (null != gm && null != sm && !seen.has(pair)) {
+        seen.add(pair);
         for (const k of Object.keys(sm)) {
             if (null != gm[k]) {
-                const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k]);
+                const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k], seen);
                 if ('no' === r || ('undecided' === r && 'no' !== out)) {
                     out = 'no' === r ? 'no' : 'undecided';
                 }
@@ -433,6 +532,7 @@ function subsume(generalSrc, specificSrc, opts) {
         findings: [],
         generalUrl: options.generalUrl ?? DEFAULT_GENERAL_URL,
         specificUrl: options.specificUrl ?? DEFAULT_SPECIFIC_URL,
+        pairs: newPairs(),
     };
     const load = (src, path) => {
         const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
@@ -448,6 +548,8 @@ function subsume(generalSrc, specificSrc, opts) {
     if (null == g || null == s) {
         return { verdict: 'error', findings: [] };
     }
+    state.groot = g;
+    state.sroot = s;
     if (null != options.at) {
         g = (0, vet_1.anchorAt)(g, options.at);
         s = (0, vet_1.anchorAt)(s, options.at);
@@ -457,7 +559,7 @@ function subsume(generalSrc, specificSrc, opts) {
     }
     let out = subsumeNode(state, [], g, s);
     if ('values' !== profile) {
-        const d = subsumeDefaultsWalk(state, [], g, s);
+        const d = subsumeDefaultsWalk(state, [], g, s, new Set());
         if ('no' === d || ('undecided' === d && 'no' !== out)) {
             out = 'no' === d ? 'no' : 'undecided';
         }

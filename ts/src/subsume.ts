@@ -15,6 +15,7 @@ import {
 import { Path, kindSubsumes } from './val/ScalarKindVal'
 import { prefixMeet } from './val/PathVal'
 import { prefInnerPeg } from './val/PrefVal'
+import { walkTarget } from './val/RecurseVal'
 
 
 export type SubsumeVerdict =
@@ -60,11 +61,38 @@ type SubState = {
   findings: VetFinding[]
   generalUrl: string
   specificUrl: string
+  // The documents each side's recursions unfold against.
+  groot?: any
+  sroot?: any
+  pairs: Pairs
+  // The recursion a side's definition is unfolded in place of: its marks
+  // are the side's, as an expansion clears the definition's own.
+  gRec?: any
+  sRec?: any
 }
 
 // The per-node answer. Aggregation: any `no` makes the verdict
 // does_not_subsume; otherwise any `undecided` makes it undecided.
 type Tri = 'yes' | 'no' | 'undecided'
+
+// The pairs of bags the walk has met: those it is comparing, the answers
+// it has settled, and the yes-answers waiting on a pair still compared;
+// and the recursions it has unfolded since it last entered a bag.
+type Frame = { depth: number, low: number, held: string[] }
+export type Pairs = {
+  frames: Frame[]
+  running: Map<string, number>
+  settled: Map<string, Tri>
+  pending: Map<string, number>
+  unfolding: Set<string>
+}
+
+export function newPairs(): Pairs {
+  return {
+    frames: [], running: new Map(), settled: new Map(), pending: new Map(),
+    unfolding: new Set(),
+  }
+}
 
 
 function opaqueNote(g: any): string {
@@ -189,17 +217,25 @@ export function subsumeNode(
   // Marks change the OUTPUT shape, not the admitted set: only the `gen`
   // profile reports them, and only when they differ on corresponding
   // nodes.
+  const gMark = (state.gRec ?? g)?.mark
+  const sMark = (state.sRec ?? s)?.mark
   if ('gen' === state.profile && true !== state.distributing &&
-    (!!g?.mark?.type !== !!s?.mark?.type ||
-      !!g?.mark?.hide !== !!s?.mark?.hide)) {
+    (!!gMark?.type !== !!sMark?.type || !!gMark?.hide !== !!sMark?.hide)) {
     record(state, 'compat_marks_changed', path, g, s,
-      'marks differ: general ' + JSON.stringify(g?.mark) +
-      ', specific ' + JSON.stringify(s?.mark))
+      'marks differ: general ' + JSON.stringify(gMark) +
+      ', specific ' + JSON.stringify(sMark))
     return 'no'
   }
 
   if (true === g?.isTop) {
     return 'yes'
+  }
+
+  if (true === g?.isRecurse || true === s?.isRecurse) {
+    const out = subsumeRecursion(state, path, g0, s0, g, s)
+    if (undefined !== out) {
+      return out
+    }
   }
 
   if (unresolved(g) || unresolved(s)) {
@@ -375,8 +411,8 @@ export function subsumeNode(
     }
     // A DECLARATION IS NOT A FIELD: an alias key is erased before the
     // document exists, so neither side compares one.
-    return subsumeBag(state, path, g, s, fieldKeys(g), fieldKeys(s),
-      (v: any, k: string) => v.peg[k])
+    return assume(state, g0, s0, () => subsumeBag(state, path, g, s,
+      fieldKeys(g), fieldKeys(s), (v: any, k: string) => v.peg[k]))
   }
 
   // Lists: element-wise by position; the same required/optional shape
@@ -389,8 +425,8 @@ export function subsumeNode(
     }
     const gk = (g.peg as any[]).map((_: any, i: number) => '' + i)
     const sk = (s.peg as any[]).map((_: any, i: number) => '' + i)
-    return subsumeBag(state, path, g, s, gk, sk,
-      (v: any, k: string) => v.peg[Number(k)])
+    return assume(state, g0, s0, () => subsumeBag(state, path, g, s, gk, sk,
+      (v: any, k: string) => v.peg[Number(k)]))
   }
 
   if (true !== g?.isNil && true !== s?.isNil && hcanon(g) === hcanon(s)) {
@@ -399,6 +435,96 @@ export function subsumeNode(
   record(state, 'sub_unresolved', path, g, s,
     'no subsumption rule covers this pair of value formers')
   return 'undecided'
+}
+
+
+// A recursion is the definition it names, unfolded against its own
+// document (docs/design/RECURSION.0.md, P3). One met again before the
+// walk enters a bag unfolds to no structure, and is compared as residue.
+function subsumeRecursion(
+  state: SubState, path: string[], g0: any, s0: any, g: any, s: any): Tri | undefined {
+  const key = g0?.id + ' ' + s0?.id
+  const unfolding = state.pairs.unfolding
+  if (unfolding.has(key)) {
+    return undefined
+  }
+  const gr = true === g?.isRecurse ? g : undefined
+  const sr = true === s?.isRecurse ? s : undefined
+  const gb = undefined === gr ? g0 : walkTarget(state.groot, gr.target)
+  const sb = undefined === sr ? s0 : walkTarget(state.sroot, sr.target)
+  if (undefined === gb || undefined === sb) {
+    record(state, 'sub_unresolved', path, g, s,
+      'a recursion whose definition its document does not hold')
+    return 'undecided'
+  }
+  unfolding.add(key)
+  const out = subsumeNode({ ...state, gRec: state.gRec ?? gr, sRec: state.sRec ?? sr },
+    path, gb, sb)
+  unfolding.delete(key)
+  return out
+}
+
+
+// A recursion's definition in its own document, or the value itself.
+function unfold(root: any, v: any): any {
+  return true === v?.isRecurse ? walkTarget(root, v.target) : v
+}
+
+
+// A pair of bags already under comparison is assumed to subsume, so a
+// recursion ends on the first pair it meets again (Amadio and Cardelli),
+// and each pair is compared once (Tarjan's lowlink keeps a yes that
+// assumed a pair still running from settling before that pair does).
+function assume(state: SubState, g0: any, s0: any, compare: () => Tri): Tri {
+  const p = state.pairs
+  const key = g0.id + ' ' + s0.id + ' ' +
+    ('gen' === state.profile ? JSON.stringify([state.gRec?.mark, state.sRec?.mark]) : '')
+  const settled = p.settled.get(key)
+  if (undefined !== settled) {
+    return settled
+  }
+  const low = p.running.get(key) ?? p.pending.get(key)
+  if (undefined !== low) {
+    const top = p.frames[p.frames.length - 1]
+    top.low = Math.min(top.low, low)
+    return 'yes'
+  }
+  const frame: Frame = { depth: p.frames.length, low: p.frames.length, held: [] }
+  const unfolding = p.unfolding
+  p.frames.push(frame)
+  p.running.set(key, frame.depth)
+  p.unfolding = new Set()
+  const out = compare()
+  p.unfolding = unfolding
+  p.frames.pop()
+  p.running.delete(key)
+  settle(state, key, frame, out)
+  return out
+}
+
+
+function settle(state: SubState, key: string, frame: Frame, out: Tri): void {
+  const p = state.pairs
+  const parent = p.frames[p.frames.length - 1]
+  const main = true !== state.distributing
+  if (main && 'yes' === out && frame.low < frame.depth) {
+    p.pending.set(key, frame.low)
+    parent.held.push(key, ...frame.held)
+  }
+  else {
+    for (const k of frame.held) {
+      p.pending.delete(k)
+      if (main && 'yes' === out) {
+        p.settled.set(k, out)
+      }
+    }
+    if (main) {
+      p.settled.set(key, out)
+    }
+  }
+  if (undefined !== parent) {
+    parent.low = Math.min(parent.low, frame.low)
+  }
 }
 
 
@@ -544,17 +670,22 @@ function subsumeDefaults(
 
 
 // Walk both trees for default agreement wherever the specific side has
-// one: at the node itself and inside every corresponding bag child.
+// one: at the node itself and inside every corresponding bag child, a
+// recursion unfolded and each pair of maps walked once.
 function subsumeDefaultsWalk(
-  state: SubState, path: string[], g: any, s: any): Tri {
+  state: SubState, path: string[], g0: any, s0: any, seen: Set<string>): Tri {
+  const g = unfold(state.groot, g0)
+  const s = unfold(state.sroot, s0)
   let out: Tri = subsumeDefaults(state, path, g, s)
 
   const gm = true === g?.isMap ? g.peg : undefined
   const sm = true === s?.isMap ? s.peg : undefined
-  if (null != gm && null != sm) {
+  const pair = g?.id + ' ' + s?.id
+  if (null != gm && null != sm && !seen.has(pair)) {
+    seen.add(pair)
     for (const k of Object.keys(sm)) {
       if (null != gm[k]) {
-        const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k])
+        const r = subsumeDefaultsWalk(state, [...path, k], gm[k], sm[k], seen)
         if ('no' === r || ('undecided' === r && 'no' !== out)) {
           out = 'no' === r ? 'no' : 'undecided'
         }
@@ -575,6 +706,7 @@ export function subsume(
     findings: [],
     generalUrl: options.generalUrl ?? DEFAULT_GENERAL_URL,
     specificUrl: options.specificUrl ?? DEFAULT_SPECIFIC_URL,
+    pairs: newPairs(),
   }
 
   const load = (src: string, path?: string): any => {
@@ -593,6 +725,8 @@ export function subsume(
   if (null == g || null == s) {
     return { verdict: 'error', findings: [] }
   }
+  state.groot = g
+  state.sroot = s
 
   if (null != options.at) {
     g = anchorAt(g, options.at)
@@ -604,7 +738,7 @@ export function subsume(
 
   let out: Tri = subsumeNode(state, [], g, s)
   if ('values' !== profile) {
-    const d = subsumeDefaultsWalk(state, [], g, s)
+    const d = subsumeDefaultsWalk(state, [], g, s, new Set())
     if ('no' === d || ('undecided' === d && 'no' !== out)) {
       out = 'no' === d ? 'no' : 'undecided'
     }

@@ -95,6 +95,7 @@ capability decision is the phase rows it governed in
 | [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
 | [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
 | [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
+| [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Accepted |
 
 ---
 
@@ -6208,3 +6209,82 @@ text by its hash.
   in each result's properties, and two more rows pin each surplus
   element of a closed list and the site of a merged count.
 
+## ADR-067 — Subsumption reads a recursion as the definition it names
+
+**Date:** 2026-10-10
+**Status:** Accepted
+
+### Context
+
+A recursive residual expands only against concrete data
+([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)), and
+subsumption compares two evaluated documents with no data on either
+side. The walk took the residual for unresolved residue: two recursions
+with the same hash form were the same value, and any other pair was
+`undecided`. Two schemas of one shape whose definitions had different
+names could not be compared, nor a recursive schema with its own
+unrolling. G12's round trip compares an import with the import of its
+export, whose definitions the exporter names afresh, so its gate needs
+the comparison (phase 18 of
+[g12-jsonschema-fidelity.md](docs/capability-review/g12-jsonschema-fidelity.md)),
+and the design note scoped it as its P3.
+
+### Decision
+
+1. **A recursive position is the definition it names**, read from the
+   document it was written in: the general side's from the general
+   document and the specific side's from the specific one, whatever
+   `--at` anchors. The walk compares that definition where the residual
+   stood. A definition its document does not hold is `undecided`
+   (`sub_unresolved`).
+2. **A pair of bags already under comparison is assumed to subsume**
+   while its own comparison runs, the rule Amadio and Cardelli give for
+   recursive types. The pair is the two map or list nodes themselves,
+   so the walk ends where a pair comes round again.
+3. **Each pair is compared once.** Its answer settles when its
+   comparison returns, except a yes that assumed a pair still under
+   comparison: that yes waits on the pair it assumed, as Tarjan's
+   lowlink tracks it, settling with it or dropped if it fails. A
+   disagreement is reported where the walk first meets the pair, and
+   every other place that meets it answers the same without repeating
+   the finding. An answer reached while a disjunction tries its
+   alternatives is not settled, since a trial records no finding and
+   reads no marks, and under the `gen` profile a pair is also told
+   apart by the marks its sides read (decision 4). A recursion met
+   again before the walk enters a bag has unfolded to no structure, as
+   `a: $.a` or `a: $.a | 1` do, and is compared as residue, as every
+   recursion was before: identical ones subsume and any other pair is
+   `undecided`.
+4. **An unfolded definition carries the marks of the place it stands
+   in.** An expansion clears a definition's `type` and `hide` marks at
+   every depth, so under the `gen` profile the walk reads the
+   recursion's own marks for the definition and everything below it,
+   on the side that unfolded.
+5. **The `defaults` profile unfolds as the walk does.** Its pass over
+   effective defaults reads a recursion as its definition and walks each
+   pair of maps once, so a default changed inside an unrolling is
+   `compat_default_changed` where the structural walk alone would let
+   the recursion subsume it.
+
+### Consequences
+
+- Two recursions of one shape subsume each other whatever their
+  definitions are called, a recursion and its unrolling subsume each
+  other in both directions, and a definition that disagrees is refused
+  once.
+- The walk ends, and its cost grows with the pairs of bag nodes rather
+  than the paths through them. Dropping each assumption when its
+  comparison returned walked every path: ten definitions that each
+  refer to every other took 42 seconds in TypeScript. With each pair
+  compared once, sixteen take well under a second in either port.
+- Identity no longer decides a recursion. It still decides other
+  residue where the answer would otherwise be `undecided`.
+- `vet`'s default lint, which asks the same walk whether a remaining
+  alternative admits a default, unfolds against the schema on both
+  sides.
+- `subsume-different-recursions-are-undecided` is re-pinned as
+  `subsume-recursions-of-one-shape-subsume`, and twenty-six rows are
+  added to `test/spec/recursion.tsv`, every expectation from both
+  engines. The executed `aontu subsume` scenario in
+  [docs/reference-api.md](docs/reference-api.md) shows a recursion that
+  subsumes and one that is refused.

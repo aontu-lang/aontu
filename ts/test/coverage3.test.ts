@@ -23,7 +23,7 @@ import { Unify, applyFlows } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
-import { subsumeNode } from '../dist/subsume'
+import { subsumeNode, newPairs } from '../dist/subsume'
 import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
 import { MetaFuncVal } from '../dist/val/MetaFuncVal'
 import { collectDeprecations } from '../dist/utility'
@@ -1221,6 +1221,22 @@ describe('coverage3-subsume', () => {
     const r = subsumeNode(
       state, [], new NilVal({ why: 'test' }), new NilVal({ why: 'test' }))
     Assert.equal(r, 'undecided')
+    Assert.equal(state.findings.length, 1)
+    Assert.equal(state.findings[0].code, 'sub_unresolved')
+  })
+
+  // A recursion unfolds into the definition its own document holds
+  // (docs/design/RECURSION.0.md, P3); one whose document does not hold
+  // it, which no evaluated pair produces, is undecided.
+  test('subsume-recursion-without-its-definition', () => {
+    const rec: any = (new Aontu().unify('T: {next?: $.T}') as any).peg.T.peg.next
+    Assert.equal(rec.isRecurse, true)
+    const state: any = {
+      profile: 'values', findings: [], pairs: newPairs(),
+      generalUrl: 'general', specificUrl: 'specific',
+      groot: new MapVal({ peg: {} }), sroot: new MapVal({ peg: {} }),
+    }
+    Assert.equal(subsumeNode(state, ['x'], rec, rec), 'undecided')
     Assert.equal(state.findings.length, 1)
     Assert.equal(state.findings[0].code, 'sub_unresolved')
   })
