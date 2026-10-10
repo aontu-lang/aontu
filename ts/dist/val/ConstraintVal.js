@@ -1201,10 +1201,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // normalises back to this exact residual.
     get canon() {
         if (null != this.pending) {
-            // A pending atom has no residual yet, so canon renders the call as
-            // written — the same shape FuncBaseVal renders while deferring.
-            return this.pending.atom +
-                '(' + this.pending.args.map((a) => (0, utility_1.canonRiders)(a)).join(',') + ')';
+            // A pending atom renders its call, a count's branches sorted.
+            const args = this.pending.args.map((a) => (0, utility_1.canonRiders)(a));
+            return this.pending.atom + '(' + ('nof' === this.pending.atom ?
+                [...args.slice(0, 1), ...args.slice(1).sort(keyorder_1.cmpCodePoint)] : args).join(',') + ')';
         }
         return canonState(this);
     }
@@ -1328,8 +1328,10 @@ function countCanon(c) {
         0 === cmpVal('number', c.lo.v, c.hi.v);
     return point ? c.lo.v.canon : canonState({ ...c, kind: undefined });
 }
+// Sorted as rendered: a branch can settle after the atom sorted it.
 function nofCanon(n) {
-    return 'nof(' + [countCanon(n.count), ...n.cs.map((c) => (0, utility_1.canonRiders)(c))].join(',') + ')';
+    return 'nof(' + [countCanon(n.count),
+        ...n.cs.map((c) => (0, utility_1.canonRiders)(c)).sort(keyorder_1.cmpCodePoint)].join(',') + ')';
 }
 // A trial schema settles apart from the document: one that conflicts
 // admits nothing, while any other failure is the document's own.

@@ -12,6 +12,8 @@
 nof-canon-sorts-branches	canon	a: nof(1, string, number)	{"a":nof(1,number,string)}
 nof-canon-keeps-a-repeated-branch	canon	a: nof(1, string, string)	{"a":nof(1,string,string)}
 nof-canon-writes-a-point-count-bare	canon	a: nof(min(1) & max(1), string, number)	{"a":nof(1,number,string)}
+# A count still waiting on a branch renders its branches in one order too.
+nof-canon-sorts-a-waiting-count	canon	a: {&: nof(min(1), any, [&: string])}	{"a":{&:nof(min(1),[&:string],any)}}
 nof-canon-writes-a-count-constraint	canon	a: nof(min(1), string, number)	{"a":nof(min(1),number,string)}
 nof-canon-one-atom-once	canon	a: nof(1, string, number) & nof(1, number, string)	{"a":nof(1,number,string)}
 nof-canon-atoms-sort	canon	a: nof(1, string) & nof(0, number)	{"a":nof(0,number)&nof(1,string)}

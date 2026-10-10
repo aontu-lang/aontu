@@ -1653,11 +1653,13 @@ func dedupSortedRes(res []constraintRe) []constraintRe {
 // conjunct of atoms that normalises back to this exact residual.
 func (c *ConstraintVal) Canon() string {
 	if nil != c.pending {
-		// A pending atom has no residual yet, so Canon renders the call
-		// as written -- the same shape FuncVal renders while deferring.
+		// A pending atom renders its call, a count's branches sorted.
 		as := make([]string, len(c.pending.args))
 		for i, a := range c.pending.args {
 			as[i] = CanonRiders(a)
+		}
+		if "nof" == c.pending.atom && 1 < len(as) {
+			sort.Strings(as[1:])
 		}
 		return c.pending.atom + "(" + strings.Join(as, ",") + ")"
 	}
@@ -1955,12 +1957,14 @@ func countCanon(c *ConstraintVal) string {
 	return k.Canon()
 }
 
+// nofCanon sorts: a branch can settle after the atom sorted it.
 func nofCanon(n constraintNof) string {
-	parts := []string{countCanon(n.count)}
+	branches := []string{}
 	for _, b := range n.cs {
-		parts = append(parts, CanonRiders(b))
+		branches = append(branches, CanonRiders(b))
 	}
-	return "nof(" + strings.Join(parts, ",") + ")"
+	sort.Strings(branches)
+	return "nof(" + strings.Join(append([]string{countCanon(n.count)}, branches...), ",") + ")"
 }
 
 // nofCounts reports which counts, from none to every branch, a nof atom

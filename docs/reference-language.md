@@ -6092,7 +6092,10 @@ profile sets the budget as `trust.budget.trials` (see
 [the trust contract](trust.md#clause-2-termination)).
 
 The branches are sorted by canon and never deduplicated, since a count
-counts duplicates: `nof(1, string, string)` admits no string. Two equal
+counts duplicates: `nof(1, string, string)` admits no string. The canon
+sorts them as it renders them, so a branch that settles after the atom
+was made, or a count still waiting on its branches, renders in that
+order too. Two equal
 `nof` atoms on one value are one check, so `&` stays commutative and
 idempotent by canon. Like `must`, `nof` is opaque to emptiness and
 subsumption, and a value it refuses is reported as `nof`, class

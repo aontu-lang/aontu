@@ -2305,7 +2305,7 @@ function unevaluated(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   }
   const t = convert(ctx, held, child(ptr, word), false)
   if (covers.every((c) => 0 === c.cond.length && undefined === c.members)) {
-    const keys = distinct(covers.flatMap((c) => c.keys))
+    const keys = keyOrder(kind, distinct(covers.flatMap((c) => c.keys)))
     return {
       spread: 0 === keys.length ? t : mark(ctx,
         call('match', call('key', raw('0')), ...keys.flatMap((k) => [k, ANY]), t), child(ptr, word), node),
@@ -2319,6 +2319,18 @@ function unevaluated(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       ...(undefined === c.members ? [] : [{ key: 'members', optional: false, val: c.members }]),
     ],
   }))), child(ptr, word), node) }
+}
+
+
+// The keys a guard lets through in the order additionalProperties and
+// items write them: names in code-point order, then patterns, and
+// positions in their own order.
+function keyOrder(kind: string, keys: Expr[]): Expr[] {
+  const text = (e: Expr): string => print(e, '')
+  const named = keys.filter((k) => 'raw' === k.k)
+  return 'object' === kind ? [...named.sort((a, b) => cmpCodePoint(text(a), text(b))),
+    ...keys.filter((k) => 'raw' !== k.k).sort((a, b) => cmpCodePoint(text(a), text(b)))] :
+    named.sort((a, b) => +JSON.parse(text(a)) - +JSON.parse(text(b)))
 }
 
 

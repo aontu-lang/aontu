@@ -2920,6 +2920,33 @@ type importCover struct {
 	exact   bool
 }
 
+// importKeyOrder is the keys a guard lets through in the order
+// additionalProperties and items write them: names in code-point order,
+// then patterns, and positions in their own order.
+func importKeyOrder(kind string, keys []*ixpr) []*ixpr {
+	named, res := []*ixpr{}, []*ixpr{}
+	for _, k := range keys {
+		if "raw" == k.k {
+			named = append(named, k)
+		} else {
+			res = append(res, k)
+		}
+	}
+	text := func(e *ixpr) string { return iprint(e, "") }
+	if "object" != kind {
+		at := func(e *ixpr) int {
+			n, _ := strconv.Atoi(strings.Trim(text(e), `"`))
+			return n
+		}
+		sort.SliceStable(named, func(i, j int) bool { return at(named[i]) < at(named[j]) })
+		return named
+	}
+	sort.SliceStable(named, func(i, j int) bool { return text(named[i]) < text(named[j]) })
+	sort.SliceStable(res, func(i, j int) bool { return text(res[i]) < text(res[j]) })
+	return append(named, res...)
+}
+
+
 // unevaluated is the unevaluated keyword as the guarded spread where no
 // branch is conditional, and as rest() over the covers where one is;
 // neither where every member is evaluated.
@@ -2953,7 +2980,7 @@ func (ctx *importCtx) unevaluated(node *jnode, ptr, kind string) (spread, rest *
 		for _, c := range covers {
 			keys = append(keys, c.keys...)
 		}
-		keys = distinct(keys)
+		keys = importKeyOrder(kind, distinct(keys))
 		if 0 == len(keys) {
 			return t, nil
 		}

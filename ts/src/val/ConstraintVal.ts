@@ -1484,10 +1484,10 @@ class ConstraintVal extends FeatureVal {
   // normalises back to this exact residual.
   get canon() {
     if (null != this.pending) {
-      // A pending atom has no residual yet, so canon renders the call as
-      // written — the same shape FuncBaseVal renders while deferring.
-      return this.pending.atom +
-        '(' + this.pending.args.map((a: any) => canonRiders(a)).join(',') + ')'
+      // A pending atom renders its call, a count's branches sorted.
+      const args = this.pending.args.map((a: any) => canonRiders(a))
+      return this.pending.atom + '(' + ('nof' === this.pending.atom ?
+        [...args.slice(0, 1), ...args.slice(1).sort(cmpCodePoint)] : args).join(',') + ')'
     }
     return canonState(this)
   }
@@ -1652,8 +1652,10 @@ function countCanon(c: ConstraintState): string {
 }
 
 
+// Sorted as rendered: a branch can settle after the atom sorted it.
 function nofCanon(n: NofAtom): string {
-  return 'nof(' + [countCanon(n.count), ...n.cs.map((c: any) => canonRiders(c))].join(',') + ')'
+  return 'nof(' + [countCanon(n.count),
+    ...n.cs.map((c: any) => canonRiders(c)).sort(cmpCodePoint)].join(',') + ')'
 }
 
 

@@ -1089,9 +1089,9 @@ function spreadKeywords(ctx, path, declared, spr) {
                 extra.push({ patternProperties: { [re]: s } });
             }
         }
-        else if (1 === g.arms.length && undefined === tests[0].name &&
-            (undefined === re || !BARE_RE.test(arm[0].canon)) && true === arm[1].isTop &&
-            true === g.def?.isNil) {
+        else if (1 === g.arms.length && (undefined === tests[0].name ?
+            undefined === re || !BARE_RE.test(arm[0].canon) : !declared.includes(tests[0].name)) &&
+            true === arm[1].isTop && true === g.def?.isNil) {
             const names = asNames(armOut(ctx, at, arm[0]));
             if (undefined === out.propertyNames) {
                 out.propertyNames = names;

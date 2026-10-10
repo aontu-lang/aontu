@@ -46,9 +46,14 @@ Both ports.
   keywords narrow no kind, as `{"items": true}`, imports as `any`.
 - The export writes a bag closed at every level whose members are
   values, as the import of a `const` is, as `const`, and a disjunction
-  of them as `enum`. A key test other than a bare `re()` is
-  `propertyNames`, and a plain spread beside no pattern is
-  `additionalProperties`, as the import reads each.
+  of them as `enum`. A key test other than a bare `re()`, or a lone
+  name the map does not declare, is `propertyNames`, and a plain
+  spread beside no pattern is `additionalProperties`, as the import
+  reads each.
+- The names `unevaluatedProperties` lets through are written in
+  code-point order, as `additionalProperties`'s are, and `nof`'s canon
+  sorts its branches as it renders them, so a branch that settles late,
+  or a count still waiting on its branches, renders in one order.
 
 ### subsume compares recursive schemas (ADR-067)
 

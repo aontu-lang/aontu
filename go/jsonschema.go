@@ -2071,9 +2071,9 @@ func schemaSpreadKeywords(sc *schemaCtx, path []string, declared []string, spr V
 			}
 			continue
 		}
-		if 1 == len(g.arms) && !g.tests[0].isName &&
-			(!g.tests[0].isRe || !schemaBareRe.MatchString(g.arms[0][0].Canon())) &&
-			isTop(g.arms[0][1]) && nil != g.def && g.def.Nil() {
+		if 1 == len(g.arms) && isTop(g.arms[0][1]) && nil != g.def && g.def.Nil() &&
+			((g.tests[0].isName && !inList(declared, g.tests[0].name)) || (!g.tests[0].isName &&
+				(!g.tests[0].isRe || !schemaBareRe.MatchString(g.arms[0][0].Canon())))) {
 			names := schemaAsNames(schemaArmOut(sc, at, g.arms[0][0]))
 			if _, taken := out["propertyNames"]; taken {
 				extra = append(extra, map[string]any{"propertyNames": names})
