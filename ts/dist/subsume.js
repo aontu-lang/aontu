@@ -133,6 +133,15 @@ function subsumeNode(state, path, g0, s0) {
     if (true === g?.isTop) {
         return 'yes';
     }
+    // A nil admits nothing (ADR-052's forbidden key and closed spread), so
+    // every value subsumes one, and one subsumes no other value.
+    if (true === s?.isNil) {
+        return 'yes';
+    }
+    if (true === g?.isNil) {
+        record(state, 'compat_narrowed', path, g, s, 'the general value admits nothing');
+        return 'no';
+    }
     if (true === g?.isRecurse || true === s?.isRecurse) {
         const out = subsumeRecursion(state, path, g0, s0, g, s);
         if (undefined !== out) {
@@ -147,6 +156,9 @@ function subsumeNode(state, path, g0, s0) {
         return 'undecided';
     }
     if (true === s?.isDisjunct) {
+        if (identical(g, s)) {
+            return 'yes';
+        }
         let out = 'yes';
         for (const raw of s.peg) {
             const member = memberAdmission(raw);
@@ -244,6 +256,9 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('undecided' === r) {
+                if (identical(g, s)) {
+                    return 'yes';
+                }
                 record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g));
                 return 'undecided';
             }
@@ -331,6 +346,12 @@ function subsumeRecursion(state, path, g0, s0, g, s) {
     const out = subsumeNode({ ...state, gRec: state.gRec ?? gr, sRec: state.sRec ?? sr }, path, gb, sb);
     unfolding.delete(key);
     return out;
+}
+// Values of one hash form are one value (use-cases/BUGS.md 64), unless a
+// recursion inside names a definition its own document holds.
+function identical(g, s) {
+    const h = (0, hcanon_1.hcanon)(g);
+    return h === (0, hcanon_1.hcanon)(s) && !/\$\.|%/.test(h);
 }
 // A recursion's definition in its own document, or the value itself.
 function unfold(root, v) {

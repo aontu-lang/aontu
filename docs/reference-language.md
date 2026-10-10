@@ -4942,23 +4942,35 @@ generable documents materialise differently or become incomplete.
 | A (general) | B (specific) | A ⊒ B |
 |-------------|--------------|-------|
 | `top` | anything | yes |
+| anything | `nil` | yes: a `nil` admits nothing |
+| `nil` | anything else | `compat_narrowed`: the general value admits nothing |
 | preference `*x` |: | compares as what it admits (its superior type); its default value is the profiles' business, not the value set's |
 | recursive position on either side |: | the definition it names, unfolded against its own document ([Recursive positions](#recursive-positions)) |
-| unresolved residue (reference, variable, unreduced conjunct or function) on either side |: | `undecided` (`sub_unresolved`): there is no admitted set to compare |
-| anything | disjunction | every specific alternative must be admitted by A; a concrete failing alternative is a witness (`compat_narrowed`), a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
+| unresolved residue (reference, variable, unreduced conjunct or function) on either side |: | `undecided` (`sub_unresolved`): there is no admitted set to compare, unless the two are identical |
+| anything | disjunction | yes where the two are identical; otherwise every specific alternative must be admitted by A, a concrete failing alternative is a witness (`compat_narrowed`), and a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
 | disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`): member-wise failure is not proof, the distribution case |
 | scalar kind | scalar kind or scalar | the general kind admits the specific kind (`number ⊒ integer`) or the scalar's kind; distinct leaves are disjoint |
 | scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, `string` admits any pattern residual |
-| constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) |
+| constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) unless the two are identical |
 | constraint residual | scalar | membership, with `must` again `undecided`; `unique()` and `length` demands admit no scalar |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |
 | map | map | see below; anything else is `compat_narrowed` |
 | list | list | element-wise by position, with the same required/optional shape as maps |
 
-There is no nil rule: an error-free evaluated document carries no nil
-(failing disjunct members are discarded and every other nil collects
-an error), and a source that does not stand alone answers `error`
-before the walk begins.
+**A `nil` admits nothing.** An error-free evaluated document holds a
+`nil` only where it forbids: an optional key holding `nil` forbids the
+key, and a spread of `nil` closes its bag. Every value subsumes a `nil`,
+and a `nil` subsumes only another, so a key the general side forbids
+and the specific side allows narrows it. A source that does not stand alone
+answers `error` before the walk begins.
+
+**Identical values are one value.** Two values with the same hash form
+admit the same instances, so where no rule above decides them, as with
+two `nof` atoms or two disjunctions of them, identity does. A value
+holding a recursion is the exception: its recursion names a definition
+in its own document, which the other document may define differently,
+so the walk compares the definitions instead
+([Recursive positions](#recursive-positions)).
 
 ### Maps, lists, closedness, optionality, spreads
 

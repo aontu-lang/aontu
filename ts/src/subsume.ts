@@ -231,6 +231,16 @@ export function subsumeNode(
     return 'yes'
   }
 
+  // A nil admits nothing (ADR-052's forbidden key and closed spread), so
+  // every value subsumes one, and one subsumes no other value.
+  if (true === s?.isNil) {
+    return 'yes'
+  }
+  if (true === g?.isNil) {
+    record(state, 'compat_narrowed', path, g, s, 'the general value admits nothing')
+    return 'no'
+  }
+
   if (true === g?.isRecurse || true === s?.isRecurse) {
     const out = subsumeRecursion(state, path, g0, s0, g, s)
     if (undefined !== out) {
@@ -248,6 +258,9 @@ export function subsumeNode(
   }
 
   if (true === s?.isDisjunct) {
+    if (identical(g, s)) {
+      return 'yes'
+    }
     let out: Tri = 'yes'
     for (const raw of s.peg as any[]) {
       const member = memberAdmission(raw)
@@ -357,6 +370,9 @@ export function subsumeNode(
         return 'yes'
       }
       if ('undecided' === r) {
+        if (identical(g, s)) {
+          return 'yes'
+        }
         record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g))
         return 'undecided'
       }
@@ -462,6 +478,14 @@ function subsumeRecursion(
     path, gb, sb)
   unfolding.delete(key)
   return out
+}
+
+
+// Values of one hash form are one value (use-cases/BUGS.md 64), unless a
+// recursion inside names a definition its own document holds.
+function identical(g: any, s: any): boolean {
+  const h = hcanon(g)
+  return h === hcanon(s) && !/\$\.|%/.test(h)
 }
 
 

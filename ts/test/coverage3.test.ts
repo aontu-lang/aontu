@@ -1213,16 +1213,19 @@ describe('coverage3-deprecate', () => {
 
 describe('coverage3-subsume', () => {
 
-  test('subsume-no-rule-fold', () => {
+  // A nil admits nothing, so every value subsumes one and one subsumes
+  // no other value.
+  test('subsume-nil-rule', () => {
     const state: any = {
       profile: 'values', findings: [],
       generalUrl: 'general', specificUrl: 'specific',
     }
-    const r = subsumeNode(
-      state, [], new NilVal({ why: 'test' }), new NilVal({ why: 'test' }))
-    Assert.equal(r, 'undecided')
+    Assert.equal(subsumeNode(
+      state, [], new NilVal({ why: 'test' }), new NilVal({ why: 'test' })), 'yes')
+    Assert.equal(subsumeNode(
+      state, [], new NilVal({ why: 'test' }), new IntegerVal({ peg: 1 })), 'no')
     Assert.equal(state.findings.length, 1)
-    Assert.equal(state.findings[0].code, 'sub_unresolved')
+    Assert.equal(state.findings[0].code, 'compat_narrowed')
   })
 
   // A recursion unfolds into the definition its own document holds

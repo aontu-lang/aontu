@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### the round trip through JSON Schema (G12 phase 18)
+
+Both ports.
+
+- `aontu subsume` and `aontu breaking` read `nil` as the value that
+  admits nothing: every value subsumes it, and it subsumes only another
+  `nil`. A forbidden key (`a?: nil`) or a closed spread (`&: nil`) on
+  the general side was `undecided`, and is now `compat_narrowed` where
+  the specific side allows what it forbids; a key the specific side
+  forbids was refused, and is now admitted.
+- Two identical values subsume each other wherever no other rule
+  decides them, as with two `rest(nil)` atoms or two disjunctions of
+  `contains` atoms, which were `undecided`. A value holding a recursion
+  is still compared through the definitions it names.
+- TypeScript's `aontu jsonschema` export read every object in the
+  schema it wrote as a schema, so a map with keys `$ref` and
+  `$dynamicRef` was taken for a reference and crashed the export. Both
+  ports now walk only the keywords that hold a schema.
+
 ### subsume compares recursive schemas (ADR-067)
 
 Both ports, the recursion design's P3.

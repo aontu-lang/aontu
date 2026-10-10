@@ -1617,16 +1617,11 @@ function dynamicRefs(ctx: Ctx, schema: any, kept: Def[], moved: Map<string, stri
     return null != s && 'object' === typeof s && ('#' === ref || undefined === s.$id) &&
       (name === s.$dynamicAnchor || name === s.$anchor)
   }
-  const walk = (v: any): void => {
-    if (null == v || 'object' !== typeof v) {
-      return
-    }
+  eachSchema(schema, (v: any) => {
     if (undefined !== v.$dynamicRef && undefined !== v.$ref) {
       delete v[names(v.$ref, v.$dynamicRef.slice(1)) ? '$ref' : '$dynamicRef']
     }
-    Object.values(v).forEach(walk)
-  }
-  walk(schema)
+  })
   const reached = (ref: string): string => moved.has(ref) ? reached(moved.get(ref) as string) : ref
   return ctx.refs.dynamic.filter((u) => !names(reached(u.ref), u.name)).map((u) => ({
     path: pathText(u.path), construct: '$dynamicRef',
@@ -1693,15 +1688,28 @@ function identify(schema: any, folded: Def[], kept: Def[]): SchemaLoss[] {
 
 // Every $ref a folded definition had, pointed at the schema itself.
 function relink(v: any, to: Map<string, string>): void {
+  eachSchema(v, (s: any) => {
+    if (to.has(s.$ref)) {
+      s.$ref = to.get(s.$ref)
+    }
+  })
+}
+
+
+// A schema the export writes and each schema inside it, by the keywords
+// that hold one, so a walk over schemas never reads a value as one.
+const ONE_SCHEMA = ['items', 'additionalProperties', 'unevaluatedProperties',
+  'unevaluatedItems', 'contains', 'propertyNames', 'if', 'then', 'else', 'not',
+  'contentSchema']
+const SCHEMA_LIST = ['prefixItems', 'allOf', 'anyOf', 'oneOf']
+const SCHEMA_MAP = ['properties', 'patternProperties', '$defs', 'dependentSchemas']
+
+function eachSchema(v: any, fn: (s: any) => void): void {
   if (null == v || 'object' !== typeof v) {
     return
   }
-  for (const k of Object.keys(v)) {
-    if ('$ref' === k && to.has(v[k])) {
-      v[k] = to.get(v[k])
-    }
-    else {
-      relink(v[k], to)
-    }
-  }
+  fn(v)
+  ONE_SCHEMA.forEach((k) => eachSchema(v[k], fn))
+  SCHEMA_LIST.forEach((k) => (v[k] ?? []).forEach((s: any) => eachSchema(s, fn)))
+  SCHEMA_MAP.forEach((k) => Object.values(v[k] ?? {}).forEach((s: any) => eachSchema(s, fn)))
 }

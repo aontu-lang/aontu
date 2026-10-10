@@ -2,7 +2,10 @@
 
 package aontu
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Subsume verdicts.
 const (
@@ -254,6 +257,16 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subYes
 	}
 
+	// A nil admits nothing (ADR-052's forbidden key and closed spread), so
+	// every value subsumes one, and one subsumes no other value.
+	if nil != s && s.Nil() {
+		return subYes
+	}
+	if nil != g && g.Nil() {
+		st.record("compat_narrowed", path, g, s, "the general value admits nothing")
+		return subNo
+	}
+
 	_, gRec := g.(*RecurseVal)
 	_, sRec := s.(*RecurseVal)
 	if gRec || sRec {
@@ -275,6 +288,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	// member as the witness and honest undecided for the distribution
 	// case.
 	if sd, ok := s.(*DisjunctVal); ok {
+		if nil != g && subIdentical(g, s) {
+			return subYes
+		}
 		out := subYes
 		for _, raw := range sd.peg {
 			member := subMemberAdmission(raw)
@@ -384,6 +400,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if und {
+				if subIdentical(g, s) {
+					return subYes
+				}
 				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
@@ -512,6 +531,13 @@ func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {
 	delete(st.pairs.unfolding, key)
 	st.gRec, st.sRec = outerG, outerS
 	return out
+}
+
+// subIdentical: values of one hash form are one value (use-cases/BUGS.md
+// 64), unless a recursion inside names a definition its own document holds.
+func subIdentical(g, s Val) bool {
+	h := Hcanon(g)
+	return h == Hcanon(s) && !strings.Contains(h, "$.") && !strings.Contains(h, "%")
 }
 
 // subUnfold answers a recursion's definition in its own document, or the

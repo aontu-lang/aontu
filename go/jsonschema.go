@@ -1251,29 +1251,17 @@ func schemaDynamicRefs(sc *schemaCtx, schema map[string]any, kept []*schemaDef,
 		_, hasID := s["$id"]
 		return ok && ("#" == ref || !hasID) && (name == s["$dynamicAnchor"] || name == s["$anchor"])
 	}
-	var walk func(v any)
-	walk = func(v any) {
-		switch t := v.(type) {
-		case map[string]any:
-			text, isDynamic := t["$dynamicRef"].(string)
-			ref, isRef := t["$ref"].(string)
-			if isDynamic && isRef {
-				if names(ref, text[1:]) {
-					delete(t, "$ref")
-				} else {
-					delete(t, "$dynamicRef")
-				}
-			}
-			for _, x := range t {
-				walk(x)
-			}
-		case []any:
-			for _, x := range t {
-				walk(x)
+	schemaEach(schema, func(t map[string]any) {
+		text, isDynamic := t["$dynamicRef"].(string)
+		ref, isRef := t["$ref"].(string)
+		if isDynamic && isRef {
+			if names(ref, text[1:]) {
+				delete(t, "$ref")
+			} else {
+				delete(t, "$dynamicRef")
 			}
 		}
-	}
-	walk(schema)
+	})
 	reached := func(ref string) string {
 		for "" != moved[ref] {
 			ref = moved[ref]
@@ -1293,18 +1281,37 @@ func schemaDynamicRefs(sc *schemaCtx, schema map[string]any, kept []*schemaDef,
 // schemaRelink points every $ref a folded definition had at the schema
 // itself.
 func schemaRelink(v any, to map[string]string) {
-	switch t := v.(type) {
-	case map[string]any:
-		for k, x := range t {
-			if s, ok := x.(string); ok && "$ref" == k && "" != to[s] {
-				t[k] = to[s]
-			} else {
-				schemaRelink(x, to)
-			}
+	schemaEach(v, func(t map[string]any) {
+		if s, ok := t["$ref"].(string); ok && "" != to[s] {
+			t["$ref"] = to[s]
 		}
-	case []any:
-		for _, x := range t {
-			schemaRelink(x, to)
+	})
+}
+
+// schemaEach visits a schema the export writes and each schema inside it,
+// by the keywords that hold one, so a walk over schemas never reads a
+// value as one.
+func schemaEach(v any, fn func(map[string]any)) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return
+	}
+	fn(m)
+	for _, k := range []string{"items", "additionalProperties", "unevaluatedProperties",
+		"unevaluatedItems", "contains", "propertyNames", "if", "then", "else", "not",
+		"contentSchema"} {
+		schemaEach(m[k], fn)
+	}
+	for _, k := range []string{"prefixItems", "allOf", "anyOf", "oneOf"} {
+		list, _ := m[k].([]any)
+		for _, s := range list {
+			schemaEach(s, fn)
+		}
+	}
+	for _, k := range []string{"properties", "patternProperties", "$defs", "dependentSchemas"} {
+		named, _ := m[k].(map[string]any)
+		for _, s := range named {
+			schemaEach(s, fn)
 		}
 	}
 }

@@ -6,28 +6,27 @@ import (
 	"testing"
 )
 
-func TestSubsumeNoRuleFold(t *testing.T) {
+// TestSubsumeNilRule: a nil admits nothing, so every value subsumes one
+// and one subsumes no other value.
+func TestSubsumeNilRule(t *testing.T) {
 	st := &subState{
 		profile:     "values",
 		generalURL:  "general",
 		specificURL: "specific",
 	}
-	out := subsumeNode(st, nil, newNil("test"), newNil("test"))
-	if subUndecided != out {
-		t.Fatalf("expected undecided, got %q", out)
+	if out := subsumeNode(st, nil, newNil("test"), newNil("test")); subYes != out {
+		t.Fatalf("expected a nil to subsume a nil, got %q", out)
 	}
-	if 1 != len(st.findings) {
-		t.Fatalf("expected one finding, got %d", len(st.findings))
+	if out := subsumeNode(st, nil, newNil("test"), newInteger(1)); subNo != out {
+		t.Fatalf("expected a nil to refuse 1, got %q", out)
 	}
-	if "sub_unresolved" != st.findings[0].Code {
-		t.Fatalf("expected sub_unresolved, got %q", st.findings[0].Code)
+	if 1 != len(st.findings) || "compat_narrowed" != st.findings[0].Code {
+		t.Fatalf("expected one compat_narrowed finding, got %+v", st.findings)
 	}
 }
 
-// TestSubsumeRecursionWithoutItsDefinition: a recursion unfolds into the
-// definition its own document holds (docs/design/RECURSION.0.md, P3); one
-// whose document does not hold it, which no evaluated pair produces, is
-// undecided.
+// TestSubsumeRecursionWithoutItsDefinition: a recursion whose definition its
+// document does not hold, which no evaluated pair produces, is undecided.
 func TestSubsumeRecursionWithoutItsDefinition(t *testing.T) {
 	rec := newRecurse([]string{"T"}, 0)
 	st := &subState{
