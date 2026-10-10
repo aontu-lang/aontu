@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeprecateFuncVal = void 0;
 const err_1 = require("../err");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const rider_1 = require("../rider");
 // The record's whole vocabulary. Other keys are DROPPED, not carried:
 // the record is a contract the tooling reads (vet, the LSP tag, the
 // breaking downgrade), and a bag of free-form keys would be a second,
@@ -20,6 +21,9 @@ class DeprecateFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'deprecate';
     }
+    rides() {
+        return true;
+    }
     resolve(ctx, args) {
         let out = args[0] ?? (0, err_1.makeNilErr)(ctx, 'arg', this);
         // A nil ARGUMENT is returned unchanged, never marked: marking it
@@ -35,11 +39,12 @@ class DeprecateFuncVal extends FuncBaseVal_1.FuncBaseVal {
             for (const key of DEPRECATION_KEYS) {
                 const v = m.peg[key];
                 if (true === v?.isScalar && 'string' === typeof v.peg) {
-                    record[key] = v.peg;
+                    record[key] = [v.peg];
                 }
             }
         }
-        out.deprecation = record;
+        // A second record on a deprecated value joins the first.
+        out.deprecation = (0, rider_1.unionRecords)([out.deprecation, record], (s) => s);
         return out;
     }
 } /* node:coverage ignore next 6 */

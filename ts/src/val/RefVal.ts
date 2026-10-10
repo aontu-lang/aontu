@@ -21,7 +21,7 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { RecurseVal, containsRecurseOf } from './RecurseVal'
+import { RecurseVal, containsRecurseOf, declaration, throughRider } from './RecurseVal'
 import { sealTree, unsealTree } from './SealVal'
 import { unite } from '../unify'
 
@@ -79,6 +79,7 @@ function pendingMarkWrapper(v: any): boolean {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v: any, part: any): Val | undefined {
+  v = throughRider(v)
   if (true === v?.isMap || true === v?.isList) {
     return v.peg[part]
   }
@@ -92,6 +93,8 @@ function markedChild(v: any, part: any): Val | undefined {
 
 
 import { ALIAS_NAME_RE, aliasBareName } from '../aliasname'
+import { unionVia } from '../rider'
+import { undeclared } from './IdentFuncVal'
 
 
 class RefVal extends FeatureVal {
@@ -321,6 +324,9 @@ class RefVal extends FeatureVal {
             if (part.isNil) {
               return
             }
+            else if (true !== part.isScalar) {
+              return makeNilErr(ctx, 'no_path', this)
+            }
             else {
               parts.push(part.isInteger ?
                 integerDigits(part.peg as number) : '' + part.peg)
@@ -365,6 +371,7 @@ class RefVal extends FeatureVal {
         for (; pI < refpath.length; pI++) {
           let part = refpath[pI]
 
+          node = throughRider(node)
 
           if (node.isMap) {
             node = node.peg[part]
@@ -379,6 +386,14 @@ class RefVal extends FeatureVal {
             node = (node as any).peg[0].peg[part]
           }
 
+          else if (true === (node as any).isConjunct && undefined !== this.aliasKey
+            && Array.isArray((node as any).peg) && !pendingMarkWrapper(node)) {
+            const decl = declaration(node, part)
+            if (undefined === decl) {
+              break
+            }
+            node = decl
+          }
           else if (true === (node as any).isConjunct
             && Array.isArray((node as any).peg)
             && pendingMarkWrapper(node)) {
@@ -421,8 +436,12 @@ class RefVal extends FeatureVal {
         let fnode: any = fixroot
         for (; pI < refpath.length; pI++) {
           const part = refpath[pI]
+          fnode = throughRider(fnode)
           if (true === fnode.isMap || true === fnode.isList) {
             fnode = fnode.peg[part]
+          }
+          else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
+            fnode = declaration(fnode, part)
           }
           else {
             break
@@ -478,7 +497,7 @@ class RefVal extends FeatureVal {
           !out.done) {
           out = undefined
         }
-        else if (null != out && !snap && containsRecurseOf(out, this.peg as any)) {
+        else if (null != out && !snap && containsRecurseOf(out, this.peg as any, 0, ctx.root)) {
           const rec: any = new RecurseVal(
             { target: [...this.peg], xc: this.rxc } as any, ctx)
           rec.site = this.site
@@ -504,7 +523,7 @@ class RefVal extends FeatureVal {
             || true === out.mark.type || true === out.mark.hide
           const typed = true === out.mark.type
 
-          out = out.clone(ctx, { dup: !out.holdsStaged })
+          out = undeclared(out.clone(ctx, { dup: !out.holdsStaged }))
 
           if (lifted) {
             // The copy carries a held constraint without its type.
@@ -522,6 +541,10 @@ class RefVal extends FeatureVal {
           }
           if (this.copyFound) {
             unsealTree(out)
+          }
+          // An alias's copy remembers it; copy() unseals, so may admit more.
+          else if (undefined !== this.aliasKey) {
+            out.via = unionVia(out.via, [this.aliasKey])
           }
 
         }

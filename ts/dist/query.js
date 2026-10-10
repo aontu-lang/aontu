@@ -9,6 +9,7 @@ exports.get = get;
 exports.why = why;
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 const utility_1 = require("./utility");
+const rider_1 = require("./rider");
 const aontu_1 = require("./aontu");
 const exactjson_1 = require("./exactjson");
 const vet_1 = require("./vet");
@@ -62,6 +63,10 @@ function project(v, view, depth) {
     if (depth <= 0) {
         return TOP;
     }
+    const s = projectNode(v, view, depth);
+    return 'canon' === view ? (0, rider_1.riderText)(s, v) : s;
+}
+function projectNode(v, view, depth) {
     if (true === v?.isMap) {
         const keys = Object.keys(v.peg).sort(keyorder_1.cmpCodePoint);
         return '{' +
@@ -143,11 +148,17 @@ function noPathFinding(root, path) {
     const near = nearestKey(want, have);
     return finding('no_path', pathText(path), `The path ${path} names nothing in this document.`, null == near ? undefined : `did you mean ${near}?`);
 }
+function queryOpts(options) {
+    return {
+        ...(0, utility_1.includeOpts)(options),
+        ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+    };
+}
 // Evaluate the document, select the node at `path`, and render it.
 function get(src, path, opts) {
     const options = opts ?? {};
     const view = options.view ?? 'json';
-    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+    const aontu = new aontu_1.Aontu(queryOpts(options));
     const ctx = aontu.ctx({ collect: true });
     const parseOpts = null == options.path ? undefined : { path: options.path };
     const root = aontu.unify(src, parseOpts, ctx);
@@ -182,7 +193,7 @@ function get(src, path, opts) {
 }
 function why(src, path, opts) {
     const options = opts ?? {};
-    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+    const aontu = new aontu_1.Aontu(queryOpts(options));
     const prov = new provenance_1.Provenance();
     const ctx = aontu.ctx({ collect: true, prov });
     const parseOpts = null == options.path ? undefined : { path: options.path };

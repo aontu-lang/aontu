@@ -12,6 +12,7 @@ import {
 
 import { makeNilErr } from '../err'
 import { MapVal } from './MapVal'
+import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { FuncBaseVal, trialUnify, sameMembers } from './FuncBaseVal'
 import { repathInstance } from './Val'
@@ -72,7 +73,7 @@ class FilterFuncVal extends FuncBaseVal {
     // emit (./members.ts, BUGS.md §79) -- so a hidden child is never
     // selected into the result.
     if (true === data?.isMap) {
-      const peg: Record<string, Val> = {}
+      const peg: Record<string, Val> = keyTable()
       for (const { key, val } of bagMembers(data, ctx) as Member[]) {
         const kctx = ctx.descend(key)
         if (keeps(val, kctx)) {

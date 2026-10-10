@@ -13,6 +13,7 @@ import {
 import { makeNilErr } from '../err'
 
 import { FuncBaseVal } from './FuncBaseVal'
+import { unionRecords } from '../rider'
 
 
 // The record's whole vocabulary. Other keys are DROPPED, not carried:
@@ -40,6 +41,10 @@ class DeprecateFuncVal extends FuncBaseVal {
     return 'deprecate'
   }
 
+  rides() {
+    return true
+  }
+
   resolve(ctx: AontuContext, args: Val[]) {
     let out = args[0] ?? makeNilErr(ctx, 'arg', this)
 
@@ -52,17 +57,18 @@ class DeprecateFuncVal extends FuncBaseVal {
 
     out = out.clone(ctx)
 
-    const record: Record<string, string> = {}
+    const record: Record<string, string[]> = {}
     const m: any = args[1]
     if (true === m?.isMap && null != m.peg) {
       for (const key of DEPRECATION_KEYS) {
         const v = m.peg[key]
         if (true === v?.isScalar && 'string' === typeof v.peg) {
-          record[key] = v.peg
+          record[key] = [v.peg]
         }
       }
     }
-    out.deprecation = record
+    // A second record on a deprecated value joins the first.
+    out.deprecation = unionRecords([out.deprecation, record], (s: string) => s)
 
     return out
   }

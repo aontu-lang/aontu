@@ -14,7 +14,7 @@ import { AontuContext } from '../ctx'
 
 import { AontuError, descErr, makeNilErr } from '../err'
 import { exactJSON } from '../exactjson'
-import { unite } from '../unify'
+import { ride, unite } from '../unify'
 
 import {
   explainOpen,
@@ -189,6 +189,7 @@ class DisjunctVal extends JunctionVal {
       for (let vI = 0; vI < oval.length; vI++) {
         for (let kI = vI + 1; kI < oval.length; kI++) {
           if (oval[kI].same(oval[vI])) {
+            oval[vI] = keepRiders(ctx, oval[vI], oval[kI])
             oval[kI] = TRIAL_NIL
             continue
           }
@@ -198,9 +199,11 @@ class DisjunctVal extends JunctionVal {
           if (true === a.isPref && true === b.isPref
             && prefInnerPeg(a).same(prefInnerPeg(b))) {
             if ((a as PrefVal).rank <= (b as PrefVal).rank) {
+              oval[vI] = keepRiders(ctx, a, b)
               oval[kI] = TRIAL_NIL
             }
             else {
+              oval[kI] = keepRiders(ctx, b, a)
               oval[vI] = TRIAL_NIL
               break
             }
@@ -383,6 +386,37 @@ class DisjunctVal extends JunctionVal {
 
 // Generated output with the number KINDS the JSON loses: `1` and
 // `1.0` generate the same digits, and are still different values.
+// A member dropped as a duplicate leaves its riders on the survivor, at
+// every depth, so the join is as order-free as the meet (ADR-052).
+function keepRiders(ctx: AontuContext, keep: Val, drop: any): Val {
+  if (!ridden(drop)) {
+    return keep
+  }
+  const out: any = keep.clone(ctx)
+  ride(out, keep, drop)
+  if (true === drop.isPref && true !== out.isPref) {
+    // A twin of a higher rank holds one more preference layer.
+    return keepRiders(ctx, out, drop.peg)
+  }
+  if (true === out.isBag) {
+    for (const k of Object.keys(out.peg)) {
+      out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k])
+    }
+  }
+  else if (true === out.isPref) {
+    out.peg = keepRiders(ctx, out.peg, drop.peg)
+  }
+  return out
+}
+
+
+function ridden(v: any): boolean {
+  return null != v.deprecation || null != v.meta ||
+    (true === v.isBag && Object.values(v.peg).some(ridden)) ||
+    (true === v.isPref && ridden(v.peg))
+}
+
+
 function genShape(v: any, out: any): string {
   if ('number' === typeof out && true === v?.isScalar) {
     return (true === v.isInteger ? 'i' : true === v.isNumber ? 'f' : 'n') + exactJSON(out)

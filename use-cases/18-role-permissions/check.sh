@@ -325,7 +325,7 @@ ok "the served view after the loop matches expected/system.json; four overlay li
 # error, exit 4, the engine's own code and site. A key the vocabulary
 # does not declare and a fifth role are [aontu/closed]; an allow list
 # written as a string is [aontu/list]; a close()d vocabulary that
-# forgets deny? refuses the shape itself.
+# leaves out deny? drops the shape's optional key and denies nothing.
 run badkey 4 -- allow --include-root "$DIR" --role dev \
   "$DIR/proposals/role-unknown-key.aontu" '$.services.auth.replicas'
 has badkey out 'verdict: error'
@@ -344,10 +344,9 @@ has badrole out '[aontu/closed]'
 has badrole out '$.roles.ops'
 printf 'Role: type(close({ desc: string allow: [&: string] }))\nroles: close({ &: $.Role dev: { desc: "x" allow: ["$.services"] } })\n' \
   > "$WORK/nodeny.aontu"
-run nodeny 4 -- allow --role dev "$WORK/nodeny.aontu" '$.services.auth'
-has nodeny out 'verdict: error'
-has nodeny out '[aontu/closed]'
-has nodeny out 'deny'
+run nodeny 0 -- allow --role dev "$WORK/nodeny.aontu" '$.services.auth'
+has nodeny out 'verdict: allowed'
+has nodeny out '$.services.auth: allowed by $.roles.dev.allow.0 ($.services)'
 ok "a broken role model is exit 4 with the engine's own finding; no path is decided"
 
 # 19. The deciding entry is a path into the role model, so why names

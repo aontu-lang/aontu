@@ -1,0 +1,93 @@
+# WHEN -- `when(c, t, e?)` (G12 phase 6, ADR-050): where the trial schema
+# c admits the settled value, t must admit it, and where it does not, e
+# must; an absent e passes. Each branch is tried as a nof() branch is:
+# its meet with the value adds nothing and generates the value itself,
+# a scalar at the meet and a container at generation. nil is the false
+# schema in every position, and `when` is opaque to emptiness and
+# subsumption, as `must` and `nof` are. Every expectation is both
+# engines' agreed answer.
+#
+# Canon: the arguments as written; the atom once, atoms canon-sorted.
+when-canon-a-then	canon	a: when(string, "a")	{"a":when(string,"a")}
+when-canon-an-else	canon	a: when(string, "a", min(0))	{"a":when(string,"a",min(0))}
+when-canon-one-atom-once	canon	a: when(string, "a") & when(string, "a")	{"a":when(string,"a")}
+when-canon-atoms-sort	canon	a: when(string, "b") & when(number, 1)	{"a":when(number,1)&when(string,"b")}
+when-canon-beside-a-bound	canon	a: min(0) & when(integer, max(5))	{"a":min(0)&when(integer,max(5))}
+when-canon-held-on-a-map	canon	a: when({k: any}, {n: any}) & {k: 1, n: 2}	{"a":{"k":1,"n":2}&when({"k":any},{"n":any})}
+when-canon-a-conflicting-branch-is-nil	canon	a: when(1 & 2, string)	{"a":when(nil,string)}
+when-canon-beside-nof	canon	a: nof(1, string, number) & when(string, "a")	{"a":nof(1,number,string)&when(string,"a")}
+# The trial: the condition picks the branch that must admit the value.
+when-the-condition-holds	gens	a: when(string, "a") & "a"	{"a":"a"}
+when-no-else-passes	gens	a: when(string, "a") & 5	{"a":5}
+when-else-admits	gens	a: when(string, "a", min(0)) & 5	{"a":5}
+when-a-boolean	gens	a: when(boolean, true, null) & true	{"a":true}
+when-null-takes-else	gens	a: when(boolean, true, null) & null	{"a":null}
+when-any-always-holds	gens	a: when(any, number) & 5	{"a":5}
+when-a-nil-condition-takes-else	gens	a: when(nil, string, number) & 5	{"a":5}
+when-a-conflicting-condition-takes-else	gens	a: when(1 & 2, string, number) & 5	{"a":5}
+when-a-present-key-holds	gens	a: when({k: any}, {n: any}) & {k: 1, n: 2}	{"a":{"k":1,"n":2}}
+when-an-absent-key-passes	gens	a: when({k: any}, {n: any}) & {x: 1}	{"a":{"x":1}}
+when-a-null-member-is-present	gens	a: when({k: any}, {n: any}) & {k: null, n: null}	{"a":{"k":null,"n":null}}
+when-a-dependent-schema	gens	a: when({k: any}, {n: number}) & {k: 1, n: 2}	{"a":{"k":1,"n":2}}
+when-a-filled-default-is-not-the-condition	gens	a: when({x: *1 | number}, string) & {}	{"a":{}}
+when-an-optional-member-in-the-condition	gens	a: when({x?: number}, {x?: max(5)}) & {x: 3}	{"a":{"x":3}}
+when-over-a-list	gens	a: when([&: number], len(max(2))) & [1, 2]	{"a":[1,2]}
+when-in-a-spread	gens	a: {&: when(string, "x")} & {p: "x", q: 2}	{"a":{"p":"x","q":2}}
+when-nested	gens	a: when({b: string}, {b: when(string, "s")}) & {b: "s"}	{"a":{"b":"s"}}
+when-a-reference-branch	gens	x: type(string)\na: when($.x, "s") & "s"	{"a":"s"}
+when-beside-nof	gens	a: nof(1, string, number) & when(string, "a") & "a"	{"a":"a"}
+when-a-guarded-spread-condition	gens	a: when([&: match(key(0), "0", "x", any)], len(1)) & ["x"]	{"a":["x"]}
+# Refusals: the branch the condition picks does not admit the value.
+when-then-refuses	errc	a: when(string, "a") & "b"	when
+when-else-refuses	errc	a: when(string, "a", min(0)) & -1	when
+when-a-nil-then-refuses	errc	a: when(string, nil) & "s"	when
+when-a-nil-else-refuses	errc	a: when(string, any, nil) & 5	when
+when-a-missing-key-refuses	errc	a: when({k: any}, {n: any}) & {k: 1}	when
+when-a-dependent-schema-refuses	errc	a: when({k: any}, {n: number}) & {k: 1, n: "s"}	when
+when-a-list-refuses	errc	a: when([&: number], len(max(2))) & [1, 2, 3]	when
+when-an-optional-member-refuses	errc	a: when({x?: number}, {x?: max(5)}) & {x: 7}	when
+when-a-guarded-spread-condition-refuses	errc	a: when([&: match(key(0), "0", "x", any)], len(1)) & ["x", "y"]	when
+when-a-nested-refusal	errc	a: when({b: string}, {b: when(string, "s")}) & {b: "t"}	when
+when-needs-a-then	errc	a: when(string)	func_arity
+when-takes-at-most-an-else	errc	a: when(string, 1, 2, 3)	func_arity
+when-refuses-a-move	errc	b: 1\na: when(move($.b), 1) & 1	invalid-arg
+when-a-reference-error-is-the-documents	errc	a: when($.t, number) & "s"	no_path
+when-leaves-an-incomplete-value-to-generation	errc	a: when({x?: number}, any) & {x: string}	mapval_no_gen
+# vet reports the atom, the branch taken and the value it refuses.
+vet-when-finding	vet	a: when(string, "a")	{"a": "b"}	{"findings":[{"actual":"\\"b\\"","class":"conflict","code":"when","expected":"when(string,\\"a\\")","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":3,"role":"data","row":1,"src":"\\"b\\"","value":"\\"b\\""},{"col":4,"file":"schema","len":4,"role":"schema","row":1,"src":"when","value":"when(string,\\"a\\")"}]}],"truncated":false,"verdict":"invalid"}
+vet-when-admits	vet	a: when({k: any}, {n: any})	{"a": {"k": 1, "n": 2}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-when-an-absent-key	vet	a: when({k: any}, {n: any})	{"a": {}}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-when-over-a-container	vet	a: when({k: any}, {n: any})	{"a": {"k": 1}}	{"findings":[{"actual":"{\\"k\\":1}","class":"conflict","code":"when","expected":"when({\\"k\\":any},{\\"n\\":any})","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"k\\":1}"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"when({\\"k\\":any},{\\"n\\":any})"}]}],"truncated":false,"verdict":"invalid"}
+vet-when-the-else-branch	vet	a: when(string, any, min(0))	{"a": -1}	{"findings":[{"actual":"-1","class":"conflict","code":"when","expected":"when(string,any,min(0))","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"-","value":"-1"},{"col":4,"file":"schema","len":4,"role":"schema","row":1,"src":"when","value":"when(string,any,min(0))"}]}],"truncated":false,"verdict":"invalid"}
+vet-when-a-pending-atom	vet	a: when(string, $.t)	{"a": "s"}	{"findings":[{"class":"reference","code":"no_path","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":4,"file":"schema","len":4,"role":"schema","row":1,"src":"when","value":"$.t"}]}],"truncated":false,"verdict":"error"}
+# Opaque to subsumption, as must and nof are.
+when-general-is-undecided	subsume	a: when(string, "a")	a: "a"	{"findings":[{"actual":"\\"a\\"","class":"compat","code":"sub_evaluate_only","expected":"when(string,\\"a\\")","message":"a conditional over trial schemas (when) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"when","value":"when(string,\\"a\\")"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"\\"a\\"","value":"\\"a\\""}]}],"verdict":"undecided"}
+when-general-residual-is-undecided	subsume	a: when(string, "a")	a: when(string, "a")	{"findings":[{"actual":"when(string,\\"a\\")","class":"compat","code":"sub_evaluate_only","expected":"when(string,\\"a\\")","message":"a conditional over trial schemas (when) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"when","value":"when(string,\\"a\\")"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"when","value":"when(string,\\"a\\")"}]}],"verdict":"undecided"}
+# The exporter: if, then and else, or a dependent keyword on one key.
+js-when-if-then	jsonschema	a: when(string, "a")	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"if":{"minLength":1,"type":"string"},"then":{"const":"a","type":"string"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-if-then-else	jsonschema	a: when(string, "a", number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"else":{"type":"number"},"if":{"minLength":1,"type":"string"},"then":{"const":"a","type":"string"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-if-else	jsonschema	a: when(string, any, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"else":{"type":"number"},"if":{"minLength":1,"type":"string"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-a-lone-condition-says-nothing	jsonschema	a: when(string, any)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-a-nil-branch-is-false	jsonschema	a: when(string, nil)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"if":{"minLength":1,"type":"string"},"then":false}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-a-second-conditional	jsonschema	a: when(string, "a") & when(number, 1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"if":{"minLength":1,"type":"string"},"then":{"const":"a","type":"string"}}],"if":{"type":"number"},"then":{"const":1,"type":"integer"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-dependent-required	jsonschema	a: when({k: any}, {n: any, m: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"dependentRequired":{"k":["m","n"]}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-dependent-schemas	jsonschema	a: when({k: any}, {n: number})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"dependentSchemas":{"k":{"properties":{"n":{"type":"number"}},"required":["n"],"type":"object"}}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-two-dependents-on-a-key	jsonschema	a: when({k: any}, {m: any}) & when({k: any}, {n: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"dependentRequired":{"k":["n"]}}],"dependentRequired":{"k":["m"]}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-both-dependent-keywords	jsonschema	a: when({k: any}, {m: any}) & when({k: any}, {n: number})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"dependentRequired":{"k":["m"]},"dependentSchemas":{"k":{"properties":{"n":{"type":"number"}},"required":["n"],"type":"object"}}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-a-presence-with-an-else	jsonschema	a: when({k: any}, {n: any}, {m: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"else":{"properties":{"m":{}},"required":["m"],"type":"object"},"if":{"properties":{"k":{}},"required":["k"],"type":"object"},"then":{"properties":{"n":{}},"required":["n"],"type":"object"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-when-two-keys-is-a-conditional	jsonschema	a: when({k: any, j: any}, {n: any})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"if":{"properties":{"j":{},"k":{}},"required":["j","k"],"type":"object"},"then":{"properties":{"n":{}},"required":["n"],"type":"object"}}},"required":["a"],"type":"object"},"verdict":"ok"}
+#
+# The boolean kind beside a residual of Band B atoms, and a number domain
+# no bound implies, as in test/spec/constraint-nof.tsv.
+when-beside-the-boolean-kind	canon	a: boolean & when({k: any}, {n: any})	{"a":boolean&when({"k":any},{"n":any})}
+when-beside-the-boolean-kind-admits	gens	a: boolean & when({k: any}, {n: any}) & false	{"a":false}
+must-beside-the-boolean-kind-refuses	errc	a: boolean & must(true, "m") & false	must
+count-beside-the-boolean-kind-refuses	errc	a: boolean & len(min(1))	constraint
+must-number-domain-is-written	canon	a: number & must(1, "m")	{"a":number&must(1,"m")}
+#
+# An atom still waiting on its arguments keeps its check when it meets
+# a settled one, a condition beside a kind it does not narrow is tried,
+# and two atoms waiting on one trial settle rather than cycle.
+when-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & when({a: number}, {x: key()}) & {a: 1}	when
+when-a-condition-beside-the-list-kind-is-tried	errc	a: when(len(min(1)) & list, nil) & [1]	when
+when-and-nof-sharing-a-waiting-trial-settle	gens	a: nof(1, {xx?: any &: match(key(0), re("x"), any, any)}) & when({xx?: any &: match(key(0), re("x"), any, any)}, any) & {xa: 1}	{"a":{"xa":1}}

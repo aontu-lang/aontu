@@ -1,7 +1,8 @@
 .PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
-        helpdoc aontu prose prose-counts comments hooks
+        helpdoc aontu formats formatgen unicodegen vocabularies metaschemas prose \
+        prose-counts comments hooks
 
 all: build test
 
@@ -113,7 +114,7 @@ cov-go:
 	cd go && rm -rf covdata bin coverage-unit.out coverage-main.out
 
 # TypeScript (canonical implementation, package lives in ts/)
-build-ts: sig helpdoc aontu
+build-ts: sig helpdoc aontu formats vocabularies metaschemas
 	cd ts && npm run build
 	node ts/scripts/figures.cjs
 
@@ -126,6 +127,48 @@ build-ts: sig helpdoc aontu
 # rather than ships.
 aontu:
 	node ts/scripts/aontu.cjs
+
+# Regenerate the build-time-inlined copies of the committed format
+# grammars (ADR-059) from grammar/format/ into ts/src/formatgrammars.ts
+# and go/formatgrammars/. The Go half must be a committed copy:
+# //go:embed cannot read above its own package directory. Both suites
+# assert byte identity with the sources, so a stale copy fails rather
+# than ships.
+formats:
+	node ts/scripts/formats.cjs
+
+# Regenerate the committed format grammars too large or too regular to
+# write by hand, then stage them. The IDNA2008 tables come from the
+# Unicode Character Database at the version ts/scripts/ucd.cjs pins,
+# fetched once into a cache and held to its recorded hashes.
+formatgen:
+	node ts/scripts/formatgen.cjs
+	node ts/scripts/formats.cjs
+
+# Regenerate the Unicode property tables a pattern's \p{...} reads
+# (ADR-060) into ts/src/unicodeprops.ts and go/unicodeprops.txt, from
+# the same pinned Unicode Character Database, and the delta that holds
+# the vendored test262 property escapes to them.
+unicodegen:
+	node ts/scripts/unicodegen.cjs
+	node ts/scripts/unicodegen.cjs --delta
+
+# Stage the published JSON Schema meta-schemas the importer ships
+# (ADR-064) from test/vectors/json-schema-spec/ into ts/src/metaschemas.ts
+# and go/metaschemas/, with their licence. The Go half must be a
+# committed copy: //go:embed cannot read above its own package directory.
+# Both suites assert byte identity with the vendored documents, so a
+# stale copy fails rather than ships.
+metaschemas:
+	node ts/scripts/metaschemas.cjs
+
+# Stage the JSON Schema vocabulary table the importer reads (ADR-063)
+# from grammar/jsonschema/vocabularies.tsv into ts/src/vocabularies.ts and
+# go/vocabularies.tsv. The Go half must be a committed copy: //go:embed
+# cannot read above its own package directory. Both suites assert byte
+# identity with the table, so a stale copy fails rather than ships.
+vocabularies:
+	node ts/scripts/vocabularies.cjs
 
 # Regenerate the build-time-inlined copies of the signature
 # declaration (ts/src/sigdecl.ts, go/sigdecl.txt) from the shared

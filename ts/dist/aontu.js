@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unifiedDiff = exports.format = exports.markerFor = exports.resugarTemplate = exports.desugarTemplate = exports.loadProfile = exports.viewTree = exports.viewSet = exports.view = exports.jsonSchema = exports.reachCheck = exports.relationCheck = exports.graphOf = exports.allow = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
+exports.unifiedDiff = exports.format = exports.markerFor = exports.resugarTemplate = exports.desugarTemplate = exports.loadProfile = exports.viewTree = exports.viewSet = exports.view = exports.readSourceMap = exports.vetOutput = exports.importJsonSchema = exports.jsonSchema = exports.reachCheck = exports.relationCheck = exports.graphOf = exports.allow = exports.agentsMd = exports.diff = exports.patch = exports.why = exports.get = exports.canonRiders = exports.canonHash = exports.hcanon = exports.trimCheck = exports.subsume = exports.sarifReport = exports.vet = exports.Decimal = exports.exactJSON = exports.formatExplain = exports.util = exports.Lang = exports.colorActive = exports.setColor = exports.AontuError = exports.AontuContext = exports.Aontu = exports.VERSION = void 0;
 exports.runparse = runparse;
 const lang_1 = require("./lang");
 Object.defineProperty(exports, "Lang", { enumerable: true, get: function () { return lang_1.Lang; } });
@@ -14,6 +14,7 @@ Object.defineProperty(exports, "Decimal", { enumerable: true, get: function () {
 const exactjson_1 = require("./exactjson");
 Object.defineProperty(exports, "exactJSON", { enumerable: true, get: function () { return exactjson_1.exactJSON; } });
 const utility_1 = require("./utility");
+Object.defineProperty(exports, "canonRiders", { enumerable: true, get: function () { return utility_1.canonRiders; } });
 Object.defineProperty(exports, "formatExplain", { enumerable: true, get: function () { return utility_1.formatExplain; } });
 const err_1 = require("./err");
 Object.defineProperty(exports, "AontuError", { enumerable: true, get: function () { return err_1.AontuError; } });
@@ -49,6 +50,11 @@ const reach_1 = require("./reach");
 Object.defineProperty(exports, "reachCheck", { enumerable: true, get: function () { return reach_1.reachCheck; } });
 const jsonschema_1 = require("./jsonschema");
 Object.defineProperty(exports, "jsonSchema", { enumerable: true, get: function () { return jsonschema_1.jsonSchema; } });
+const jsonschema_import_1 = require("./jsonschema-import");
+Object.defineProperty(exports, "importJsonSchema", { enumerable: true, get: function () { return jsonschema_import_1.importJsonSchema; } });
+const sourcemap_1 = require("./sourcemap");
+Object.defineProperty(exports, "readSourceMap", { enumerable: true, get: function () { return sourcemap_1.readSourceMap; } });
+Object.defineProperty(exports, "vetOutput", { enumerable: true, get: function () { return sourcemap_1.vetOutput; } });
 const alias_1 = require("./alias");
 const view_1 = require("./view");
 Object.defineProperty(exports, "view", { enumerable: true, get: function () { return view_1.view; } });
@@ -76,6 +82,7 @@ class Aontu {
             eval: this.opts.mod?.eval ?? ((src, path) => {
                 const inner = new Aontu({
                     ...this.opts,
+                    exactNumbers: undefined,
                     mod: {
                         // Never absent: the assignment this closure is part of has
                         // already run by the time it is called.
@@ -118,10 +125,12 @@ class Aontu {
         }
         else {
             const marker = findConflictMarker(src);
-            if (-1 !== marker.offset) {
-                const nil = (0, err_1.makeNilErr)(ac, 'merge_conflict');
-                nil.site.row = marker.row;
-                nil.site.col = marker.col;
+            const deep = findDeepNesting(src, 2 * ac.budget.depth);
+            if (-1 !== marker.offset || -1 !== deep) {
+                const nil = (0, err_1.makeNilErr)(ac, -1 !== marker.offset ? 'merge_conflict' : 'max_depth');
+                const before = src.slice(0, deep);
+                nil.site.row = -1 !== marker.offset ? marker.row : before.split('\n').length;
+                nil.site.col = -1 !== marker.offset ? marker.col : deep - before.lastIndexOf('\n');
                 nil.site.url = ac.opts.path ?? this.opts.path;
                 out = nil;
                 errs.push(nil);
@@ -129,6 +138,10 @@ class Aontu {
         }
         if (0 === errs.length) {
             out = runparse(src, this.lang, ac);
+            if (2 * ac.budget.depth < treeDepth(out, 2 * ac.budget.depth)) {
+                out = (0, err_1.makeNilErr)(ac, 'max_depth');
+                errs.push(out);
+            }
             out.deps = manifestOf(ac.manifest);
             ac.root = out;
         }
@@ -250,6 +263,59 @@ function handleErrors(errs, out, ac) {
         }
     }
 }
+// The depth of a parsed tree, read without recursion and stopping past
+// `bound`, so nothing recurses into a tree too deep to evaluate.
+// Mirrors valTreeDepth in go/lang.go.
+function treeDepth(root, bound) {
+    const stack = [[root, 1]];
+    let max = 0;
+    while (0 < stack.length && max <= bound) {
+        const [v, d] = stack.pop();
+        max = Math.max(max, d);
+        for (const kid of treeKids(v)) {
+            stack.push([kid, d + 1]);
+        }
+    }
+    return max;
+}
+function treeKids(v) {
+    if (true === v.isMap || true === v.isList) {
+        return [...Object.values(v.peg), ...(null == v.spread?.cj ? [] : [v.spread.cj])];
+    }
+    if (true === v.isConjunct || true === v.isDisjunct || true === v.isPlusOp ||
+        true === v.isFunc) {
+        return v.peg;
+    }
+    return true === v.isPref ? [v.peg] : [];
+}
+// The first opener that nests past `bound`, or -1. A string or a comment
+// holds no structure, so its brackets are not counted.
+function findDeepNesting(src, bound) {
+    let depth = 0;
+    for (let i = 0; i < src.length; i++) {
+        const c = src[i];
+        if ('#' === c) {
+            while (i < src.length && '\n' !== src[i]) {
+                i++;
+            }
+        }
+        else if ('"' === c || "'" === c || '`' === c) {
+            for (i++; i < src.length && c !== src[i] && ('`' === c || '\n' !== src[i]); i++) {
+                i += '\\' === src[i] ? 1 : 0;
+            }
+        }
+        else if ('[' === c || '{' === c || '(' === c) {
+            depth++;
+            if (bound < depth) {
+                return i;
+            }
+        }
+        else if ((']' === c || '}' === c || ')' === c) && 0 < depth) {
+            depth--;
+        }
+    }
+    return -1;
+}
 function findConflictMarker(src) {
     const miss = { offset: -1, row: -1, col: -1 };
     let offset = 0;
@@ -300,9 +366,10 @@ function runparse(src, lang, ctx) {
         fs: ctx.fs,
         path: ctx.opts.path,
         manifest: ctx.manifest,
+        exactNumbers: ctx.opts.exactNumbers,
     };
     let val;
-    const tsrc = src.trim().replace(/^(\n\s*)+/, '');
+    const tsrc = src.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
     if ('string' === typeof src && '' !== tsrc) {
         val = lang.parse(src, popts);
     }

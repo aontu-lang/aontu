@@ -150,6 +150,21 @@ describe('lsp-hover', () => {
     Assert.match(h!.contents.value, /\*constraint\*/)
   })
 
+  // G12 phase 8: a value's meta() titles and descriptions close its
+  // hover, byte-identical to go/lsp/hover_test.go (TestHoverAnnotations).
+  test('hover-shows-titles-and-descriptions', () => {
+    const one = computeHover(
+      'port: meta(8080, {title: "Port", description: "The listen port"})',
+      { line: 0, character: 11 })
+    Assert.equal(one!.contents.value,
+      '```aontu\n8080\n```\n\n*integer*\n\n**Port**\n\nThe listen port')
+    const two = computeHover(
+      'port: meta(8080, {title: "A"}) & meta(8080, {title: "B"})',
+      { line: 0, character: 11 })
+    Assert.equal(two!.contents.value,
+      '```aontu\n8080\n```\n\n*integer*\n\n**A**\n\n**B**')
+  })
+
   test('hover-miss-returns-null', () => {
     Assert.equal(computeHover('port: 8080', { line: 5, character: 0 }), null)
   })
@@ -287,7 +302,7 @@ describe('lsp-completion', () => {
 
   test('completion-list', () => {
     const c = computeCompletions('')
-    Assert.equal(c.length, 78)
+    Assert.equal(c.length, 86)
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.kind, COMPLETION_FUNCTION)
     Assert.equal(byLabel.get('string')?.kind, COMPLETION_KEYWORD)
@@ -413,7 +428,7 @@ describe('lsp-completion', () => {
   test('builtin-funcs-match-engine', () => {
     // Drift guard: every BUILTIN_FUNCS name must be recognised by the
     // parser, and a bogus name must not be.
-    Assert.equal(BUILTIN_FUNCS.length, 63)
+    Assert.equal(BUILTIN_FUNCS.length, 71)
     for (const name of BUILTIN_FUNCS) {
       const errs = computeDiagnostics('x:' + name + '(1)')
         .filter(d => d.code === 'unknown_function')
@@ -488,7 +503,7 @@ describe('lsp-handler', () => {
     Assert.match(hov[0].result.contents.value, /8080/)
 
     const comp = h.handle({ id: 6, method: 'textDocument/completion', params: {} })
-    Assert.equal(comp[0].result.length, 78)
+    Assert.equal(comp[0].result.length, 86)
   })
 
 
@@ -680,6 +695,13 @@ describe('lsp-deprecated', () => {
       Assert.match(t.message, /use \$\.listen/)
       Assert.match(t.message, /since 2\.0\.0/)
     }
+  })
+
+  test('met-records-read-as-one-message', () => {
+    const d = computeDiagnostics('p: deprecate(integer, {msg: "a"}) & ' +
+      'deprecate(1, {msg: "b", use: "$.q"})\nq: 1')
+    Assert.deepEqual(d.filter((x: any) => 'deprecated' === x.code)
+      .map((x: any) => x.message), ['deprecated: a; b (use $.q)'])
   })
 
   test('undeprecated-documents-carry-no-tag', () => {

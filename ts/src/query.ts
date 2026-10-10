@@ -1,9 +1,10 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 import { includeOpts } from './utility'
+import { riderText } from './rider'
 
 
 import { Aontu } from './aontu'
-import type { TrustOptions } from './type'
+import type { AontuOptions, TrustOptions } from './type'
 import { exactJSON } from './exactjson'
 import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
@@ -29,6 +30,8 @@ export type QueryOptions = {
   // Rides beside `trust` because it is the other half of what an
   // include may read.
   textExt?: string[]
+
+  exactNumbers?: boolean
 }
 
 export type QueryReport = {
@@ -103,6 +106,12 @@ function project(v: any, view: QueryView, depth: number): string {
   if (depth <= 0) {
     return TOP
   }
+  const s = projectNode(v, view, depth)
+  return 'canon' === view ? riderText(s, v) : s
+}
+
+
+function projectNode(v: any, view: QueryView, depth: number): string {
   if (true === v?.isMap) {
     const keys = Object.keys(v.peg).sort(cmpCodePoint)
     return '{' +
@@ -202,13 +211,21 @@ export function noPathFinding(root: any, path: string): VetFinding {
 }
 
 
+function queryOpts(options: QueryOptions): Partial<AontuOptions> {
+  return {
+    ...includeOpts(options),
+    ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+  }
+}
+
+
 // Evaluate the document, select the node at `path`, and render it.
 export function get(
   src: string, path: string, opts?: QueryOptions): QueryReport {
   const options = opts ?? {}
   const view: QueryView = options.view ?? 'json'
 
-  const aontu = new Aontu(includeOpts(options))
+  const aontu = new Aontu(queryOpts(options))
   const ctx = aontu.ctx({ collect: true })
   const parseOpts = null == options.path ? undefined : { path: options.path }
   const root: any = aontu.unify(src, parseOpts, ctx)
@@ -256,7 +273,7 @@ export type WhyReport = {
 export function why(
   src: string, path: string, opts?: QueryOptions): WhyReport {
   const options = opts ?? {}
-  const aontu = new Aontu(includeOpts(options))
+  const aontu = new Aontu(queryOpts(options))
   const prov = new Provenance()
   const ctx = aontu.ctx({ collect: true, prov })
   const parseOpts = null == options.path ? undefined : { path: options.path }

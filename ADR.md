@@ -31,7 +31,7 @@ capability decision is the phase rows it governed in
 |-----|----------|--------|
 | [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec) | TypeScript and Go stay at full parity, driven by a shared spec | Accepted |
 | [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations) | Test coverage stays at 100 % in both implementations | Accepted |
-| [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Accepted |
+| [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Amended by [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) |
 | [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
 | [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
 | [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
@@ -73,6 +73,28 @@ capability decision is the phase rows it governed in
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
+| [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Accepted |
+| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
+| [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
+| [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
+| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
+| [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
+| [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
+| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
+| [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
+| [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
+| [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
+| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
+| [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
+| [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
+| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
+| [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Accepted |
+| [ADR-062](#adr-062--a-recursive-residual-meets-a-kind-a-disjunction-and-another-residual) | A recursive residual meets a kind, a disjunction and another residual | Accepted |
+| [ADR-063](#adr-063--the-vocabularies-a-meta-schema-lists-decide-what-its-schemas-read) | The vocabularies a meta-schema lists decide what its schemas read | Accepted |
+| [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
+| [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
+| [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
 
 ---
 
@@ -270,7 +292,7 @@ Concretely:
 
 ## ADR-003 — Host-provided semantics are normalised, not trusted
 
-**Status:** Accepted
+**Status:** Amended by [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine)
 
 ### Context
 
@@ -382,7 +404,7 @@ Concretely, for `re()`:
   inherits this decision: define it here, rewrite the input, and give
   the host only what it cannot misread.
 
-See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-portable-pattern-subset)
+See [`docs/reference-language.md`](docs/reference-language.md#re-and-the-pattern-language)
 for the author-facing subset, and
 [`docs/trust.md`](docs/trust.md#clause-2-termination) for the
 termination consequence.
@@ -4555,3 +4577,1634 @@ restate it.
 - The decision is cheap to reverse by accident, expensive to have
   reversed, and invisible in the diff that reverses it, which is why it
   is recorded here rather than left in the site plan.
+
+---
+
+## ADR-045 — Required wins in the meet
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+`{x: T}` lies strictly below `{x?: T}`: the subsumption table says so
+(`optional-weakened` in `test/spec/subsume.tsv`, where the general
+`{x: integer}` does not subsume the specific `{x?: integer}`, code
+`compat_required_added`). The meet of two values is their greatest
+lower bound, so `{x?: T} & {x: T}` has to be `{x: T}`.
+
+Both ports answered `{x?: T}`. The map meet took optionality to be
+additive ("key optionality is additive", in `MapVal.unify` and its Go
+twin), so a required key met with an optional one lost its
+requirement: `a: {x?: integer}` beside `a: {x: integer}` admitted
+`a: {}`, and the meet was not below its left operand, which the
+lattice laws forbid. #298 found it while measuring for
+[G12](docs/capability-review/g12-jsonschema-fidelity.md), whose
+importer writes `required` and `properties` as separate statements the
+way JSON Schema's `allOf` and `$ref` split them; without this rule a
+key required in one object and declared in another validated when
+missing.
+
+### Decision
+
+A key is optional in a meet only where every side that declares it
+says so. A side that does not declare the key does not vote:
+`{x?: integer} & {y: integer}` keeps `x` optional. The parse-time merge
+of statements follows the same rule, so `a: {x?: integer}` and
+`a: {x: integer}` written as two statements are the document
+`a: {x: integer}`, and `x?: integer` beside `x: integer` in one map is
+`x: integer`. An included module votes with the keys it declares and
+no others: `@"m"` beside `x: integer` requires `x` whether `m` wrote it
+optional or not, and a key only `m` declares keeps the mark `m` gave
+it.
+
+### Consequences
+
+- The meet is below both operands, and the meet and the subsumption
+  table agree.
+- A value supplied for an optional key makes the key required in the
+  result: `{x?: number} & {x: 11}` canons as `{"x":11}`, where it
+  canonicalised as `{"x"?:11}`. Generation does not change, since the
+  value was there either way, and `vet` does not change for data that
+  supplies the key; the canon, and so the `aon1-` hash, of every
+  document where an optional key received a value moves once. The
+  bundled `aontu:lang/markdown` model is one, through its `comment`
+  block, and `test/spec/aontu-profile.tsv` re-pins its hash.
+- A document that weakened a required key by writing it optional in a
+  later statement now refuses the missing key (`mapval_no_gen`).
+- Pinned by the `required-wins-*` rows of `test/spec/optional.tsv` and
+  `test/spec/vet.tsv`, in both ports; the moved rows are
+  `optional-merge-canon`, `canon-symbolic` in `test/spec/recursion.tsv`
+  and the `refer-conjunct-behind-a-spread` trio in
+  `test/spec/hcanon.tsv`.
+
+---
+
+## ADR-046 — A written `nil` under an optional key forbids the key
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+A literal `nil` is the lattice's bottom: it admits nothing, and a value
+met with it is refused (`literal_nil`). Under an optional key it had no
+settled meaning (#299). Evaluation of `a: {k?: nil}` with `a: {k: 1}`
+answered `{"a": {}}`, dropping the supplied value without a finding,
+because the meet returned the nil and generation drops an optional key
+whose value does not generate. `vet` refused `a: {}` against the same
+schema with `literal_nil` at `$.a.k`, where nothing had been supplied.
+JSON Schema's `properties: {k: false}` needs the opposite of both, and
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) imports it as
+`k?: nil`.
+
+### Decision
+
+A written `nil` under an optional key forbids the key. A value supplied
+for it is refused at the meet, with `literal_nil` naming both sites,
+in evaluation and under `vet` alike; a map that does not supply the
+key passes, and the nil is no finding. A nil the engine minted, which
+carries another code, is a refusal already recorded and is unchanged.
+
+### Consequences
+
+- `{k?: nil}` is the schema `false` at `k`, which is what the JSON
+  Schema export writes for it (G12 phase 1) and what the importer
+  reads back.
+- The meet refuses a nil against a supplied value in either order:
+  `{k?: 1} & {k?: nil}` is refused as `{k?: nil} & {k?: 1}` is. A kind
+  or a constraint is not a value, so `{k?: nil} & {k?: integer}` stays
+  `{k?: nil}`.
+- Pinned by the `optional-nil-*` rows of `test/spec/optional.tsv` and
+  `test/spec/vet.tsv`, in both ports.
+
+---
+
+## ADR-047 — The JSON Schema importer owns the meaning
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 3 brings
+JSON Schema 2020-12 into aontu. The two languages differ at the
+construct: a JSON Schema keyword applies to one instance kind and passes
+every other, its numbers compare by value, its `properties` never imply
+presence, its closure is per object, and its question is whether an
+instance *is* valid, where aontu's meet asks whether two values can be
+made consistent and generation fills what the schema supplies. Handing
+a schema to a host validator, or reading it with a host JSON reader
+that rounds `12345678901234567890`, would let the host decide those
+meanings, which ADR-003 refuses.
+
+### Decision
+
+**Import is a rewrite into aontu text, in both ports, that the importer
+owns.** `importJsonSchema` in TypeScript, `ImportJSONSchema` in Go and
+`aontu jsonschema import` answer the aontu text and a report shaped like
+the export's, `{aontu, lossy, verdict, errors}`; the CLI's JSON names the
+text `text`, since its `aontu` key is the envelope. The text is in the
+agreed form `aontu fmt` writes, so an import is a source a person edits.
+
+1. **Its own JSON reader.** The schema is read by a reader that keeps
+   every number's text, every key's order and every node's span, and
+   refuses a duplicate key, so no host decides what the text says.
+2. **The kind split.** A schema object imports as its kind-agnostic
+   keywords met with a disjunction of the kinds, each met with the
+   keywords scoped to it: `null`, `boolean`, `number` (`integer` under
+   `type: integer`), `empty()` for strings, a map and a list.
+3. **Numbers by value.** Every schema number is written in the leaf its
+   exact value selects: an integral value in `integer` where that leaf
+   holds it, a `biginteger` beyond, a `bigdecimal` otherwise. The leaf
+   is chosen by magnitude, so a sign, which aontu writes as an operator,
+   never moves a value between leaves.
+4. **Objects and arrays as guarded spreads.** `properties` are optional
+   keys and `required` removes the `?`; `patternProperties`,
+   `additionalProperties` and `propertyNames` are `match` spreads over
+   `key(0)`; `prefixItems` and `items` are one list spread guarded by
+   index. `enum` and `const` are literals, containers closed, and
+   `allOf` is the meet.
+5. **References.** A local `$ref` is an alias where the root is a map,
+   declared once; anywhere else it is copied in place, and a cycle there
+   is cut and reported, because an alias lives on a map root. Anchors
+   belong to a resource, and one name twice in one resource refuses
+   with `jsonschema_duplicate`.
+6. **Nothing is dropped in silence.** A keyword the importer does not
+   carry yet is a loss saying what dropping it costs, an annotation's
+   loss says it asserts nothing, a pattern outside the portable subset
+   is a loss naming the construct, and text that is not a schema
+   refuses with `jsonschema_schema`.
+7. **Bounded text.** A disjunction or meet repeats no member, and one of
+   more than 32 members is written as nested groups of at most 32, so a
+   schema's `enum` of thousands of values imports as text both ports'
+   parsers read without exhausting their depth. A schema nested deeper
+   than 256 levels is refused with `max_depth`, class `budget`, at the
+   bracket that crosses the bound, where the TypeScript importer would
+   exhaust its stack and the Go one spend seconds.
+
+**Two `vet` options and one primitive** carry JSON Schema's question.
+`--no-fill` reports a member the schema supplies and the data does not
+carry as `vet_filled`, class `incomplete`; an optional member is the
+schema's to supply and is not a finding. `--exact-numbers` reads every
+data number by its exact value, by the rule of decision 3. The
+admission trial, `admits` and `Admits`, is the same question asked of
+two values, and the conformance harness requires it to agree with
+`vet --no-fill --exact-numbers` on every instance of the vendored suite.
+
+### Consequences
+
+- The official test suite runs in both ports through the importer and
+  `vet`, against one skip ledger whose every row names the phase that
+  carries it (`test/vectors/jsonschema/README.md`).
+- The suite found five engine defects, fixed here in both ports where
+  either was affected. A key spelt like a member every JavaScript object
+  inherits (`toString`, `__proto__`) broke the TypeScript meet and
+  generation, and the parser wrote a marker onto the host's object
+  prototype, so a map's key table and every node the parser builds has
+  no prototype. A disjunction decided to a container count's residue
+  was discarded as no progress. A container kind refused every
+  constraint, a count included. A map's spread reached the alias
+  declarations beside it, so an alias referenced from a list template
+  met the spread's `nil`; a declaration is not a field, and no spread
+  or template of its map applies to it. An optional key could not be a
+  value keyword, so the formatter quoted `"list"?:` and could not
+  reread it; the grammar takes one wherever it takes a plain key. A
+  non-scalar variable used as a path segment now answers `no_path` in
+  TypeScript without coercing the value to a string, as Go did.
+- The exporter writes each pattern's normalised form, which is valid
+  ECMA-262 in `u` mode and means what aontu means: stage one of G12
+  section 5.
+- A recursive reference through a root that is not a map has no
+  spelling today, and is a listed skip; G12 records it as an open
+  question.
+- Pinned by `test/spec/jsonschema-import.tsv`, the `vet-no-fill-*` and
+  `vet-exact-numbers-*` rows of `test/spec/vet.tsv`, the `key-*` rows of
+  `test/spec/map.tsv`, the G12 rows of `test/spec/alias.tsv`, the
+  `fmt-optional-*` rows of `test/spec/fmt.tsv`, and rows in
+  `test/spec/containerkind.tsv` and `test/spec/disjunct.tsv`, in both
+  ports.
+
+## ADR-048 — Divisibility reads the number a value shows
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 4 brings
+JSON Schema's `multipleOf` and its `integer` type into aontu. Both are
+statements about a number's value. aontu's numbers live in four leaves,
+two of them binary: the double nearest 0.3 is not a multiple of the
+double nearest 0.1, yet every JSON document that carries `0.3` against
+`"multipleOf": 0.1` means a multiple. A divisibility test over binary
+values would refuse what every schema author wrote, and one over the
+written text would depend on the spelling, so neither is the meaning.
+The exporter has the converse problem: aontu's `integer` and `float`
+kinds each admit one leaf of a number, where JSON Schema's types read a
+number by its value.
+
+### Decision
+
+1. **`multiple(n)` is a Band A atom in the number domain.** It admits a
+   number that is a whole multiple of `n`, which must be a positive
+   number; anything else is `invalid-arg`.
+2. **It reads the value a number shows.** An integer, `biginteger` or
+   `bigdecimal` leaf is read exactly, and a `float`, divisor or value,
+   through its shortest round-trip rendering, the text both ports write
+   for it. So `multiple(0.1) & 0.3` is `0.3` and `multiple(1) & 1.0` is
+   `1.0`.
+3. **Divisors accumulate.** Several `multiple` atoms keep every divisor,
+   sorted by value and each value once; no least common multiple is
+   synthesised, as `re` keeps every pattern. A whole divisor makes the
+   residual integral, so the integral gap applies to it.
+4. **`type: "integer"` imports as `number & multiple(1)`,** and the
+   exporter folds that back to `type: integer`. The `integer` and
+   `float` kinds export with a reported loss, since JSON Schema's
+   types admit values those kinds refuse. A literal does not: `1`
+   exports as `const: 1`, and `vet --exact-numbers` reads data the way
+   the schema does.
+
+### Consequences
+
+- `number & multiple(1)` is the spelling of an integer that crosses
+  JSON Schema in both directions without loss.
+- A count is a number, so `len(multiple(2))` admits even lengths; no
+  JSON Schema keyword says so, and the exporter reports it.
+- A residual meets the subsumption query against a numeric kind as the
+  residual that kind is, so `multiple(0.5) ⊒ integer` holds.
+- Pinned by `test/spec/constraint-multiple.tsv` in both ports, with the
+  `integer` and `float` kind losses in `test/spec/jsonschema.tsv`.
+
+## ADR-049 — Logic counts the trial schemas that admit a value
+
+**Date:** 2026-10-01
+**Status:** Superseded in part, 2026-10-08, by
+[ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided). Decision 2's "every branch is tried, with no
+short-circuit" is reversed: a count now stops when the branches left
+cannot change its verdict. Superseded in part, 2026-10-08, by
+[ADR-055](#adr-055--must-asks-the-admission-trial): decision 3's
+`must` no longer asks whether the value can unify, but whether `c`
+admits it.
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 5 brings
+JSON Schema's `anyOf`, `oneOf` and `not` into aontu. Each asks how many
+subschemas an instance *is* valid against. aontu has two near
+neighbours, and neither asks that. A disjunction meets every branch
+with the value and keeps the survivors, so a branch may add a member
+the value lacks, and two survivors are a choice rather than a count.
+`must` asks whether the value *can* unify with its argument, which a
+schema with a required key the value lacks still answers yes. Phase 3
+shipped the question JSON Schema asks as the admission trial, `admits`
+and `Admits`, for `vet`; the logic keywords need it inside the engine,
+on values still being evaluated.
+
+### Decision
+
+1. **The admission trial runs inside the engine.** A trial schema
+   admits a settled value when their meet, run to a fixpoint in a
+   sandbox whose failures are thrown away, is not bottom and generates
+   the value's own JSON, with nothing added but an optional member: the
+   question G12 section 3 defines. Both sides have settled, so the calls
+   that wait for a settled tree, `match` among them, resolve at once. A
+   scalar is tried at the meet, and a container at generation, when no
+   member can still arrive.
+2. **`nof(n, ...c)` counts.** It requires the number of trial schemas
+   `c` that admit the value to be one `n` admits: an integer, or a count
+   constraint over the integers, as `len` takes. Every branch is tried,
+   with no short-circuit, and a value it refuses is `nof`, class
+   `conflict`, whose hint carries the count, the number that admitted
+   it and each branch's verdict.
+3. **Band B is a family.** An atom whose admitted set depends on the
+   value as data rather than on the algebra is Band B: `must` asks
+   whether the value can unify, and `nof` how many schemas admit it.
+   Both are opaque to emptiness and subsumption, and both fold last.
+   `nof`'s branches are sorted by canon and never deduplicated, since a
+   count counts duplicates; two canon-equal atoms on one value are one
+   check, so `&` stays commutative and idempotent by canon.
+4. **A branch settles apart from the document.** A branch that
+   conflicts on its own admits nothing, as `nil`, the false schema,
+   does; any other failure, such as a reference that names nothing, is
+   the document's error.
+5. **A Band B residual reads any scalar.** A residual of Band B atoms
+   alone admits a boolean or null for its atoms to rule on, where a
+   sizing atom has nothing to read in one: `must(true, "m") & true` is
+   `true`, where it was refused.
+6. **The importer carries the logic keywords.** `anyOf` is `|` where at
+   most one branch can survive a meet with any instance, and
+   `nof(min(1), …)` otherwise; `oneOf` is `nof(1, …)`, or `|` over scalar
+   literals that are pairwise distinct; `not` is `nof(0, …)`, and beside
+   one `string` or `integer` type an excluded `enum` is that kind's
+   `neq`, in every leaf for a number. A schema position whose meet
+   conflicts when evaluated alone admits nothing, and imports as `nil`.
+   The exporter writes the counts back: at least one is `anyOf`,
+   exactly one `oneOf`, none `not` and every one `allOf`, and any other
+   count is a reported loss.
+
+### Consequences
+
+- `|` and ADR-007 are untouched: the importer reaches for `nof` only
+  where a disjunction would choose where JSON Schema counts.
+- A branch's trial costs a meet and a generation, so a `nof` with many
+  branches over a large value is slower than a disjunction of them.
+- `must` admits booleans and null, which it refused for want of a
+  domain rather than by design.
+- Pinned by `test/spec/constraint-nof.tsv` and the logic rows of
+  `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-050 — A conditional holds a value to the branch its condition picks
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 6 brings
+JSON Schema's `if`, `then` and `else` into aontu, with
+`dependentSchemas` and `dependentRequired`, which are conditionals on a
+key being present. Each asks whether an instance *is* valid against
+one subschema and, by the answer, which other subschema it must also be
+valid against. `nof` could spell the case split as two counts, but the
+canon would then hide a conditional inside nested counts, and the
+exporter would have to recognise the pattern to write it back.
+
+### Decision
+
+1. **`when(c, t, e?)` is a Band B atom.** Where the trial schema `c`
+   admits the settled value, by the admission trial of ADR-049, `t` must
+   admit it, and where `c` does not, `e` must; an `e` not written
+   passes. A value the taken branch refuses is the new code `when`,
+   class `conflict`, whose hint names the branch and the condition's
+   verdict.
+2. **Every argument is a trial schema.** No argument is evaluated
+   against the call site, so `nil` is the false schema in each position:
+   `when(c, nil)` refuses every value `c` admits, and a branch that
+   conflicts on its own is `nil`. This settles G12's first open question
+   for `when` as phase 5 settled it for `nof`.
+3. **`when` is checked as `nof` is.** A scalar is tried at the meet and
+   a container at generation; two canon-equal atoms on one value are one
+   check; it is opaque to emptiness and subsumption.
+4. **The importer pairs within one schema object.** An `if` takes the
+   `then` and `else` of its own object, never those of a sibling in an
+   `allOf`; a `then` or `else` without an `if`, and an `if` with
+   neither, assert nothing and import as nothing. `dependentSchemas:
+   {k: S}` is `when({k: any}, S)` and `dependentRequired: {k: [a, b]}`
+   is `when({k: any}, {a: any, b: any})`.
+5. **The exporter writes both shapes back.** A `when` whose condition
+   holds one key as `any` and nothing else, with no `else`, is a
+   dependent keyword: `dependentRequired` where its branch holds only
+   keys as `any`, `dependentSchemas` otherwise. Any other `when` is
+   `if`, `then` and `else`, with `then` left off where it is `any`.
+
+### Consequences
+
+- G8's refusal of boolean guards in `match` is untouched: `when` checks
+  a value, and never selects one.
+- A conditional costs one or two trials, a meet and a generation each.
+- Pinned by `test/spec/constraint-when.tsv` and the conditional rows of
+  `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-051 — A container counts the members a trial schema admits
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 7 brings
+JSON Schema's `contains`, `minContains`, `maxContains` and `uniqueItems`
+into aontu. `contains` asks how many of an array's items are valid
+against a subschema, a question no aontu atom answered: a list spread
+holds every member to one schema, and `len` counts members without
+looking at them. `uniqueItems` asks whether the items are pairwise
+distinct as JSON values, which `unique()` already asks of aontu values.
+
+### Decision
+
+1. **`contains(c, n?)` counts the members `c` admits.** Each member of
+   a list or map is tried alone by the admission trial of ADR-049, and
+   the number admitted must be one the count `n` admits: an integer or
+   a count constraint, as `len` takes, and at least one where `n` is
+   not written. A scalar has no members and is refused.
+2. **It folds late with the sizing atoms.** An exceeded upper bound
+   refuses as soon as the members have settled, and a lower bound is
+   decided at generation, as `len`'s is; a refusal is the registered
+   `constraint` code. Two canon-equal atoms on one value are one check,
+   and the canon leaves out a count of at least one.
+3. **It is Band B.** Whether a member is admitted depends on the member
+   as data, so the atom is opaque to emptiness and subsumption, as
+   `must`, `nof` and `when` are, and its trial schema may not move.
+4. **The trial schema is read by position.** A constraint atom's
+   arguments arrive as one list where the call has several, so a list
+   written as the one argument would read as an argument list;
+   `contains` takes its arguments positionally, as a function of two or
+   more arguments that answers a value does.
+5. **The importer and exporter carry the array keywords.** `contains`
+   imports as `contains(c, n)` on the list the array branch builds, with
+   `minContains` and `maxContains` as the count's endpoints; a count of
+   at least none asserts nothing, and so does either bound without
+   `contains`. `uniqueItems: true` is `unique()`, exact under `vet
+   --exact-numbers`, where `1.0` in the data reads as `1`. The exporter
+   writes `contains` back on a list, and reports a count over a map, a
+   count with no container, and an excluded count or divisor.
+
+### Consequences
+
+- A count over a map's members has no JSON Schema keyword; aontu says
+  it, and the exporter reports it.
+- Each member's trial costs a meet and a generation, so a `contains`
+  over a long list is slower than a spread.
+- Pinned by `test/spec/constraint-contains.tsv` and the array rows of
+  `test/spec/jsonschema-import.tsv` in both ports.
+
+## ADR-052 — Annotations ride a value and meet as a union
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 8 brings
+JSON Schema's annotation keywords into aontu: `title`, `description`,
+`$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`
+and the content keywords, which assert nothing, and every keyword the
+specification does not name. JSON Schema collects them from each
+subschema a value passes. aontu had one rider, `deprecate()`, whose
+record kept whichever arrived first when two met on one value, so the
+answer depended on the order of the meet, and the importer reported
+every annotation as a loss.
+
+### Decision
+
+1. **`meta(v, ...r)` is a value-transparent rider.** The value unifies
+   exactly as `v`, generation is unchanged, and each record `r` rides
+   the result through meets, reference copies and spread applications,
+   as a `deprecate()` record does. The record keys are fixed: the
+   annotation keywords, `comment` for `$comment`, and `x` for the
+   keywords JSON Schema does not name. Each holds concrete data of its
+   kind, and anything else refuses the call with `func_arg`.
+2. **Records meet as their key-wise union.** Each key holds the
+   canon-sorted set of every value either record holds, so the meet is
+   commutative and idempotent and never refuses. `deprecate()` records
+   move to the same meet, and a deprecation field holding several
+   values reads as them joined with `; `.
+3. **The join is as order-free.** A disjunction member dropped as
+   another's duplicate leaves its riders on the member that stays, at
+   every depth, and so does a preference dropped for its twin of a lower
+   rank; a member that fails takes its riders with it.
+4. **A trial schema keeps its riders.** `nof`, `when`, `contains` and
+   `must` try a value and add nothing to it (ADR-049), so a record
+   inside a trial never reaches the value. JSON Schema collects a
+   passing branch's annotations for each instance; whether they should
+   reach the value is G12's open question 9.
+5. **Canon renders a rider wherever its value is held.** A map field, a
+   list item, a junction member, a preference, a spread template, a
+   trial argument, and the document's root, which the CLI renders as
+   `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) does. The riders go
+   outermost, `meta` around `deprecate`, one record per layer, so a
+   reparse unions them back, and the hash form includes them.
+6. **The importer and exporter carry annotations.** The importer writes
+   each schema object's annotations as one `meta()` record, unknown
+   keywords under `x`, and `deprecated` with `x-aontu-deprecate` as
+   `deprecate()`. A `default` is not a preference unless `--defaults`
+   asks, and then only on an optional property whose own assertions
+   admit it. An earlier dialect's keyword, `dependencies`,
+   `additionalItems`, `$recursiveRef` or `$recursiveAnchor`, is a
+   reported loss, since it asserts in that dialect. The exporter writes
+   the first record inline and any other in an `allOf` of
+   annotation-only subschemas, the members of `x` as keywords of their
+   own names, where one naming a JSON Schema keyword is a reported loss,
+   and a deprecation as `deprecated: true` with its record under
+   `x-aontu-deprecate`.
+
+### Consequences
+
+- An imported schema keeps its documentation, the language server's
+  hover shows a value's titles and descriptions, and a deprecation
+  message crosses to JSON Schema without loss.
+- The canon changes wherever a rider sat on a junction member, a
+  preference, a spread template, a trial argument or the root, which it
+  used to drop, and the hash where one sat in a trial argument; both
+  change wherever two deprecation records met.
+- A count's or a conditional's trial schemas keep their annotations
+  rather than lend them to the value.
+- Pinned by `test/spec/meta.tsv`, the union rows of
+  `test/spec/deprecate.tsv`, and rows in `hcanon.tsv`, `query.tsv`,
+  `jsonschema.tsv` and `jsonschema-import.tsv`, in both ports.
+
+## ADR-053 — A closed map drops an optional key it does not declare
+
+**Date:** 2026-10-01
+**Status:** Accepted
+
+### Context
+
+A closed map refused every key it did not declare, an optional one
+included, so `close({ b:1 }) & { a?:number }` was the error `closed`.
+No instance of either side can be refused by the other there: the
+closed map's instances hold no `a`, and the optional key asserts
+nothing about a value that holds none. The refusal surfaced in
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 9, where
+an imported `const` or `enum` object, which the importer writes as a
+closed literal, met the optional keys the same schema's `properties`
+writes: the position answered `nil`, admitting nothing where the schema
+admits the literal, and a `nof` branch that was such a literal refused
+a value beside any optional key. The same rule made `aontu allow` refuse
+every role of a model that closes its role vocabulary without declaring
+the template's `deny?`, a limit its design note recorded.
+
+### Decision
+
+1. **An optional key a closed map does not declare is dropped from the
+   meet.** It adds nothing, since no instance can hold it, and the meet
+   does not refuse. A required key the closed map does not declare is
+   refused as `closed`, as before, and so is the key once a later meet
+   makes it required.
+2. **Two closed maps each hold the other to its own keys.** The
+   driving side's own keys are checked against the other too: an
+   optional key either side does not declare is dropped, and a required
+   one is refused, so the meet keeps only the optional keys both
+   declare, in either order.
+3. **The dropped key's own value is still evaluated.** A conflict inside
+   it is reported, as it is in the map that wrote it.
+4. **Lists are unchanged.** A closed list still fixes its length, and
+   its map elements follow the rule above wherever a seal reaches them.
+
+### Consequences
+
+- An imported object literal beside `properties`, in `allOf` or as a
+  `nof` branch, admits what the schema admits.
+- A role model may close its role vocabulary without declaring `deny?`,
+  and such a role denies nothing.
+- A document that relied on the refusal to catch a misspelt optional key
+  meeting a closed map no longer sees it; a misspelt required key is
+  still refused.
+- Pinned by the closure rows of `test/spec/close.tsv`, the closed
+  literal rows of `test/spec/constraint-nof.tsv` and
+  `test/spec/jsonschema-import.tsv`, and the `allow` tests, in both
+  ports.
+
+
+## ADR-054 — The admission trial is asked once, counted, and stopped when its count is decided
+
+**Date:** 2026-10-08
+**Status:** Accepted
+
+### Context
+
+[ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value)
+put the admission trial inside the engine, and had `nof` try every
+branch. The review of the
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) plan (#311)
+found three costs in that. A fixpoint pass re-wraps an atom, and tries
+its branches again; two atoms over one branch try it twice; and a count
+whose verdict is already decided keeps trying. Nothing bounded the total
+either, so a document of many members, each holding many branches, could
+trial without limit, where the trust contract's clause 2 promises that
+every evaluation halts within budgets counted in engine events. Charging
+trials to the revisit budget would have moved the verdicts that
+`test/spec/budget.tsv` pins for large instances.
+
+### Decision
+
+1. **A trial is asked once.** Its verdict is kept for the length of one
+   evaluation, keyed by the position, the trial schema's canon and the
+   value's canon, and a later ask of the same three reads it.
+2. **Trials are counted.** Each trial run, not each read, counts against
+   a budget of its own, `trials`, 100000 by default and set by the trust
+   profile as `trust.budget.trials` (`TrustBudget.Trials` in Go). Past it
+   the atom that asked is refused with `trial_budget`, class `budget`.
+3. **A count stops when it is decided.** `nof` tries a branch only while
+   the branches left can change its verdict: `nof(min(1), …)` stops at
+   the first that admits, `nof(0, …)` refuses at it, and `nof(1, …)`
+   refuses at the second. A refusal names a branch it stopped before as
+   `untried`, and gives the count as the range it can still be.
+
+### Consequences
+
+- A fixpoint pass, a second atom over one branch and a later reader of
+  the same verdict trial nothing twice.
+- An evaluation's trials are bounded; an instance large enough to need
+  more raises `trust.budget.trials`.
+- Pinned by the `budget-trials-*` rows of `test/spec/budget.tsv`,
+  from both sides of the default and at a `when` condition past it, by
+  the trust-budget tests of both ports, and by every `nof`, `when` and
+  `contains` row, whose verdicts did not move.
+
+
+
+## ADR-055 — `must` asks the admission trial
+
+**Date:** 2026-10-08
+**Status:** Accepted
+
+### Context
+
+[ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value)
+made Band B a family of two questions: `must(c, m)` asked whether the
+value can unify with `c`, and `nof` asked how many trial schemas admit
+it. The two differ wherever the meet would add to the value: a member
+the value lacks, written as a literal or filled by a default. So
+`must({a: 1}, "m") & {}` passed, while `nof(1, {a: 1}) & {}` refused,
+and the exporter could not write `must` as JSON Schema's `allOf`,
+which refuses what `must` admitted, and reported it as a loss instead.
+The [G12](docs/capability-review/g12-jsonschema-fidelity.md) review
+(#311) decided that `must` moves to the admission trial under its own
+decision, with a run over every use case and bundled model before it,
+because a document that relies on `must` admitting a value that only
+unifies changes its answer.
+
+### Decision
+
+1. **`must(c, m)` holds the settled value to the admission trial of
+   `c`**: the meet adds nothing the value lacks, but an optional member,
+   and generates the value's own JSON. A scalar is tried at the meet and
+   a container at generation, as `nof` and `when` are, and the verdict
+   is asked once and counted as
+   [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided)
+   says.
+2. **A conflict still refuses at the meet.** Unifying is necessary for
+   admission, and a conflict no later member can retract, so the early
+   refusal stands, and so do the sites it reports.
+3. **`must(c)` and `nof(1, c)` ask one question.** The exporter writes
+   `must`'s trial schema into `allOf`; its message has no JSON Schema
+   keyword and is reported as the loss.
+
+### Consequences
+
+- A document that relied on `must` admitting a value that only unifies
+  is refused: `must({a: 1}, "m") & {}` is `must`, where it passed. A
+  member the trial schema makes optional is still the schema's to
+  supply, so `must({a?: number}, "m") & {}` passes.
+- The run before landing: every row of the shared suite, which holds
+  the bundled models' own rows, every use case, and the three vendored
+  corpora were run with the new `must` in both ports. No answer moved;
+  only the export of `must` changed, as decision 3 says.
+- Decision 3 of ADR-049, that `must` asks whether the value can unify,
+  no longer holds.
+- Pinned by `test/spec/constraint-must.tsv`, the `js-must` row of
+  `test/spec/jsonschema.tsv`, the vet rows over `must` and the
+  `budget-trials-must-past-the-budget` row, in both ports.
+
+
+## ADR-056 — Identity rides the alias declaration
+
+**Date:** 2026-10-08
+**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
+
+### Context
+
+JSON Schema names a schema in three ways that are not its place: `$id`
+gives a resource a URI, `$anchor` a plain name inside a resource, and
+a `$defs` key the entry a reference names. The importer resolves every
+reference to an alias, so validation no longer needs the names, but an
+export meant to come back as the schema it came from does.
+[ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)
+removed `id()`, a second name that unified every node carrying it, so
+that a model carrying one could not be instantiated twice. The
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) review (#311,
+open question 3) put identity on the alias declaration, in a builtin
+only a declaration may carry, rather than in keys of the `meta` record,
+which a copy carries wherever it goes.
+
+### Decision
+
+1. **`ident(v, r)` is `v`, declared with the identity `r`**: a map
+   whose keys are among `id`, `anchor` and `defs`, each a string,
+   holding the schema's identifier, its anchor and the `$defs` key it
+   was declared under. Any other key or kind refuses with `func_arg`.
+   *(Amended 2026-10-09 by
+   [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import):
+   a fourth key, `dynamicAnchor`, holds the schema's `$dynamicAnchor`.)*
+2. **Only an alias declaration carries it.** `ident(…)` is the value
+   of `%name = …`, or one term of the meet that is that value, which is
+   also how two declarations of one name meet. Anywhere else it
+   refuses with `ident_place`, class `parse`.
+3. **A copy carries no identity.** A reference copies the value
+   without it, as it copies without `type()` and `hide()` marks, and so
+   does a recursion expanding its definition. No value in the tree has
+   an identity, and two uses never meet one. Two declarations of one
+   name meet their identities as a union, as riders do.
+4. **The identity is in no canon and no hash**, as a declaration is in
+   neither.
+5. **The importer writes it, and the exporter reads it.** A declared
+   schema's `$id`, `$anchor` and a `$defs` key its alias name does not
+   already say go in `ident(…)`; an identifier on a schema nothing
+   declares is reported as a loss. The exporter names the definition
+   by its `defs` key and writes `$id` and `$anchor` on it, or on the
+   schema when the definition is the whole schema.
+
+### Consequences
+
+- Identity neither unifies nor addresses anything, which is what
+  ADR-014 refused, and it cannot ride into a use, so a model that
+  carries it can still be instantiated any number of times.
+- The document's own identity is carried only where a reference names
+  the document and the importer declares `%root`; a root nothing names
+  reports its `$id` as a loss. The importer writes the entry's own
+  identifier as the text gave it, and any other resource's as its URI,
+  absolute, or relative to the entry's directory when the import has no
+  base URI; one outside that directory is a loss.
+- The exporter writes every `$ref` as a pointer from the schema's root,
+  so a definition's `$id` is written only where nothing inside it is a
+  `$ref`, which would resolve against it; elsewhere the identifier is a
+  loss. An anchor whose resource already holds the name is a loss too,
+  and so is a key the declarations gave two values.
+- Pinned by `test/spec/ident.tsv`, the `js-ident-*` rows of
+  `test/spec/jsonschema.tsv` and the `import-identity-*` rows of
+  `test/spec/jsonschema-import.tsv`, in both ports.
+
+## ADR-057 — A dynamic reference is specialised at import
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `$dynamicRef` resolves against the dynamic scope,
+the resources the evaluation passed through to reach it. Where its
+initial target carries a `$dynamicAnchor` of the name its fragment
+gives, it lands on the outermost resource in that scope declaring the
+name; otherwise it is a `$ref`. aontu has no dynamic scope: a reference
+denotes one value wherever it is used, and a term that denoted
+different values at different sites would break canon and the hash.
+The [G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+(phase 11) chose to specialise the reference away at import.
+
+### Decision
+
+1. **The importer walks with an environment**, from each anchor name a
+   bookended `$dynamicRef` asks about to the schema that name anchors in
+   the outermost resource on the path. Entering a schema, by reference
+   or by descent, binds the names its resource declares that the
+   environment has not; leaving it restores the environment, so a scope
+   left behind binds nothing.
+2. **A schema is declared once for each binding of the names its
+   dynamic references can ask**, through every schema it reaches by
+   descent or reference, so a schema no binding reaches is declared
+   once. The later declarations are named with an `_e2`, `_e3` suffix,
+   and each clone's identity names the `$defs` key they share. An
+   environment only grows along a path and its names are finite, so the
+   clones are too; past 1024 of them the import is refused with
+   `jsonschema_budget`, class `budget`, rather than walked without end.
+3. **A `$dynamicRef` whose initial target carries the matching
+   `$dynamicAnchor` is a reference to the environment's binding**, or to
+   the initial target where nothing binds the name; any other is a
+   `$ref`. The use keeps its text in the `meta` record's `dynamicRef`
+   key, and a declaration keeps its `$dynamicAnchor` in its identity
+   ([ADR-056](#adr-056--identity-rides-the-alias-declaration)).
+4. **The exporter writes the use back as `$dynamicRef` where it reads
+   the same.** Once the definitions carry their anchors, a use whose
+   `$ref` reaches a definition holding, in the schema's resource, the
+   anchor its text names is `$dynamicRef` to that anchor; any other
+   keeps its `$ref`, and the dynamic reference is a loss. Clones whose
+   schemas, `$ref`s included, are the same are one definition.
+
+### Consequences
+
+- The import is exact for the entry point imported. An aontu document
+  that references an imported alias from a new outer scope does not
+  re-bind it: the reference is static, as every aontu reference is.
+- The export is one resource, so an anchor name holds one schema in
+  it. Of two clones whose bindings differ, one keeps its `$dynamicRef`
+  and the other's use is its `$ref`, reported with the anchor the
+  resource could not hold twice. The export validates as the import
+  does; what it loses is the re-binding an outer scope would do.
+- A value that meets two dynamic references writes the first, and the
+  meet the others reached is already in its schema, so they are losses.
+- A root meet over a mutual recursion of aliases, which the importer
+  writes for a document whose root a dynamic reference reaches, is
+  found as a recursion through every alias the walk follows and through
+  an `ident()` or `meta()` rider; before, it expanded without end.
+- Pinned by the `import-dynamic-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-dynamic-*` and `js-clones-*`
+  rows of `test/spec/jsonschema.tsv`, the `dynamicRef` rows of
+  `test/spec/meta.tsv`, the `dynamicAnchor` rows of `test/spec/ident.tsv`
+  and the `alias-root-reference-mutual-recursion*` rows of
+  `test/spec/alias.tsv`, in both ports.
+
+
+## ADR-058 — Unevaluated members are checked by `rest()`
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `unevaluatedProperties` and `unevaluatedItems`
+apply a schema to the members no other keyword evaluated, and a member
+counts as evaluated by a subschema only where that subschema passed:
+which `anyOf` branch, `then` or `else` holds decides the set. A spread
+covers what `additionalProperties` and `items` say, the members the
+object's own keywords leave over, but nothing in aontu asks which
+members a passing branch reached. The
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+(phase 12) chose a Band B atom for it.
+
+### Decision
+
+1. **`rest(t, ...c?)` holds each member no applying cover evaluates to
+   the trial schema `t`**, `nil` admitting none. It is checked at
+   generation, with the members settled, and a refusal is the new code
+   `rest`, class `conflict`. A scalar has no members.
+2. **A cover is a record of trial schemas**: `if` over the whole
+   container, `keys` over a member's key, a list member's being its
+   index as a string, and `members` over the member, each required and
+   none other. A cover applies where its `if` admits the container, and
+   evaluates a member its `keys` or its `members` admits. Every trial
+   sits at the atom's path, in a spread at each instance's.
+3. **Covers are canon-sorted and written once.** A trial that conflicts
+   is `nil`, so a cover whose `if` conflicts never applies. Two atoms on
+   one value both hold, and the atom is opaque to subsumption, as `nof`
+   is.
+4. **The importer collects the covers a schema's keywords and in-place
+   subschemas give**: `allOf`, `$ref` and `$dynamicRef` under the same
+   condition, an `anyOf` or `oneOf` branch under itself, `then` under
+   `if`, `else` under its negation, a `dependentSchemas` member under
+   its key's presence. `not` gives none. `additionalProperties`, `items`
+   or a nested `unevaluated*` evaluates every member. With no cover that
+   depends on the value, the keyword is the guarded spread
+   `additionalProperties` would be; otherwise it is `rest`.
+5. **The exporter writes `rest` as an `allOf` member whose own keywords
+   evaluate what its covers do**: `properties`, `patternProperties`,
+   `prefixItems`, `items` or `additionalProperties`, and `contains` with
+   `minContains: 0`. A condition rides `not: {not: …}` in an `anyOf` with
+   `true`, which validates as the condition and keeps its annotations
+   out, and the member's `unevaluated*` keyword is `t`. A cover no
+   keyword evaluates exactly drops the check, as a loss.
+
+### Consequences
+
+- 1,841 of the official suite's 2,337 tests pass in both ports, where
+  1,768 did, and its ledger shrinks from 123 rows to 50. The annotation
+  harness passes 56 of 84; under a conditional cover `t` is a trial,
+  whose annotations stay with its atom (open question 9).
+- An optional rest argument now counts zero toward a signature's arity,
+  so `rest(nil)` is a container that admits no member.
+- Five engine defects the suite found are fixed in both ports. A
+  settled atom meeting one still waiting on its arguments dropped the
+  waiting one's checks. A trial beside a kind it does not narrow,
+  `len(min(1)) & list`, was never tried. Two atoms waiting on one trial
+  cycled. `vet` reported a guarded spread's `nil` arm under an absent
+  optional key. A repeated waiting `match` doubled at every list meet,
+  until TypeScript refused the value with `unify_cycle`.
+- Pinned by `test/spec/rest.tsv`, the `import-unevaluated-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-rest-*` rows of
+  `test/spec/jsonschema.tsv`, and rows in `constraint-nof.tsv`,
+  `constraint-must.tsv`, `constraint-when.tsv`, `gen-match.tsv`,
+  `vet.tsv` and `budget.tsv`, in both ports.
+
+## ADR-059 — A format is a grammar aontu reads and runs itself
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12's `format` names nineteen string formats, and
+asserts one only where a validator is asked to: by the format-assertion
+vocabulary, or by an option beside the default format-annotation
+vocabulary. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+design (phase 13) chose an atom, `format(g)`, whose `g` is an ABNF
+grammar or the name of a committed one, run by the engine `parse(g)`
+uses after a check that one character of lookahead decides it.
+Measured while building it, that engine misreads grammars the check
+admits: under `a = "a" ("b" / "")` it refuses `"a"`, because it never
+takes the empty alternative at the end of the input. A check that
+admits a grammar the engine then misreads cannot keep the promise that
+an admitted grammar runs as written.
+
+### Decision
+
+1. **`format(g) : constraint` is a Band A atom in the string domain
+   that accumulates like `re`.** A string that is one ABNF rule name
+   names a format, and any other string is a grammar. The names are
+   the nineteen JSON Schema formats; every one but `regex` is
+   committed under `grammar/format/`, and `regex` admits a pattern
+   `re()` admits until the owned pattern parser decides the dialect.
+   Any other name refuses with the new code `format_unknown`, class
+   `conflict`.
+2. **aontu reads a format's grammar itself**: RFC 5234 with RFC 7405's
+   `%s` and `%i` strings, refused with `abnf_grammar` where it does not
+   compile. It then refuses, with the new code `format_grammar`, class
+   `parse`, naming the rule and the character, a grammar one character
+   cannot decide: two alternatives that begin with the same character,
+   two that match the empty string, one that matches it beside another
+   that begins with a character that can follow it, an option or
+   repetition that begins with a character that can follow it, a rule
+   that reaches itself before reading one, and a prose value.
+3. **aontu runs the grammar itself**, one character at a time with a
+   stack and never going back, in both ports, under its own bound of
+   1,000,000 steps. A string it refuses, or the bound stops, is
+   `parse_failed`, naming the format or the grammar's first rule and
+   the first character it could not read. The empty string is admitted
+   exactly where the grammar's first rule matches it.
+4. **A committed format is one or more grammars, and a string meets
+   each.** It is `grammar/format/<name>.abnf`, or a directory
+   `grammar/format/<name>/` whose `<name>.abnf` comes first, and
+   `grammar/format/lib/` holds rules any committed grammar may name and
+   no caller's grammar can. That is how a format says what one grammar
+   of one character's lookahead cannot: the leap second's minute and
+   hour, a whole name's length, the Bidi rule and each context rule of
+   IDNA2008. The large grammars come from one committed generator,
+   `ts/scripts/formatgen.cjs` (`make formatgen`), from the RFCs' own
+   ABNF and the Unicode Character Database 18.0.0, pinned by hash. All
+   are staged into both ports as the signature table is
+   (`ts/src/formatgrammars.ts`, `go/formatgrammars/`), and both suites
+   hold the copies to their sources and every grammar to the check.
+5. **What the committed grammars read, and what they leave out.**
+   `hostname` is RFC 1123's, with RFC 5890's reserved `--` and a name
+   of 253 characters at most; an A-label is held to its ASCII syntax
+   and never decoded. `idn-hostname` is IDNA2008's, RFCs 5891 to 5893,
+   after UTS #46's mapping of one code point to one and its ignored
+   code points: a mapping to several code points and normalisation are
+   not read, so a code point that needs either is refused; a trailing
+   dot is refused; an A-label is not decoded, and a U-label is not
+   encoded, so its A-label form is not measured, and the name's length
+   is counted in mapped characters, which that form only lengthens.
+   `email` and `idn-email` are RFC 5321's Mailbox, the second with RFC
+   6531's, and the size limits of RFC 5321 section 4.5.3.1 are not
+   counted. A `uri-template` literal admits `'`, which RFC 6570
+   excludes and the JSON Schema Test Suite takes as valid. `date-time`
+   and `time` admit a leap second only at 23:59:60 UTC once the offset
+   is applied, as RFC 3339 section 5.7 has it.
+6. **Canon sorts formats by their argument and writes each once**,
+   after `re`; subsumption compares two formats as text, as it compares
+   two patterns.
+7. **The importer asserts a format only where it is asked to.** A
+   format rides the `meta` rider as before, and is also `format(g)`
+   under format assertion: the `formatAssertion` option (`aontu
+   jsonschema import --format-assert`), or a meta-schema in the
+   document set whose `$vocabulary` lists format-assertion, true or
+   false, since aontu supports it. A defined name takes its committed
+   grammar and any other the grammar the format set, `formats`
+   (`--format-grammar <name> <file>`), gives it. A name with no grammar
+   is ignored under the option, as the format-annotation vocabulary
+   asks, and refuses the import with `format_unknown` under the
+   format-assertion vocabulary, as that one asks. `x-aontu-format`,
+   a grammar or a name, asserts in any mode.
+8. **The exporter writes a defined format as `format`, and a grammar as
+   `x-aontu-format`**, several of either in an `allOf`, each with a
+   loss: 2020-12 asserts `format` only where a validator is asked to,
+   and only aontu reads the extension. A `format` the `meta` rider
+   names as well is written once.
+
+**Departures from the design, six.** (1) The engine and its bound are
+aontu's own, not `parse(g)`'s, and the check drops the design's third
+rule, a class overlapping a literal, which belongs to that engine's
+tokenizer. (2) A format may be several grammars and name the shared
+library, where the design had one grammar a format. (3) Under the
+option an unknown format is ignored, where the design refused it in
+either mode; the suite's `optional/format/unknown.json` asks for the
+first. (4) A defined name in the format set is a usage error at the
+CLI, as designed, and the API keeps the committed grammar, having no
+usage channel. (5) Under the format-assertion vocabulary 2020-12 asks a
+validator that cannot validate every defined format fully to refuse the
+schema; aontu asserts with its grammars, whose gaps decision 5 names
+and the suite's ledger lists. (6) Decision 5's departures from the
+RFCs, each found against a corpus.
+
+### Consequences
+
+- `format` holds no checker code for any format: a format is its
+  grammars, and the only code is the reader and the recognizer, the
+  same in both ports.
+- 2,274 of the official suite's 2,337 tests pass in both ports, where
+  1,841 did. Twenty-two rows left the ledger and thirteen joined it:
+  six `regex` tests that wait on phase 14, `hostname.json`'s A-label
+  group, and six `idn-hostname.json` tests that need Punycode; it holds
+  41 rows under a bound of 50.
+- Three corpora are vendored under `test/vectors/`, and both ports
+  require how many cases agree and how many differ for each named
+  reason: uritemplate-test's templates, 148 of 153 (five fail only at
+  expansion); isemail's addresses, 157 of 164 for each email format
+  (seven size limits); and UTS #46's `IdnaTestV2.txt`, 3,840 of the
+  4,010 names compared (102 code points IDNA2008 disallows or UTS #46
+  maps to several, 40 that normalisation composes, 28 A-label forms too
+  long), with 2,384 lines that hold an A-label and two ill-formed ones
+  counted and not read.
+- Pinned by `test/spec/format.tsv`, the `import-format-*` and
+  `import-x-aontu-format-*` rows of `test/spec/jsonschema-import.tsv`
+  and the `export-format-*` rows of `test/spec/jsonschema.tsv`, in both
+  ports.
+
+---
+
+## ADR-060 — aontu matches a pattern with its own engine
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+[ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted)
+gave `re()` one meaning in both ports by defining its abbreviations and
+handing each host engine, `RegExp` and RE2, only a subset both read
+alike. Two things stayed out of reach. Cost: a backtracking `RegExp` is
+exponential on a quantified group that holds a quantifier, so the
+subset refused the shape, and the termination clause of
+[`docs/trust.md`](docs/trust.md#clause-2-termination) held by that
+restriction. Reach: the subset had no `\p{…}`, no named group, no empty
+class and no `\u` escape, and JSON Schema's `pattern` is ECMA-262's
+syntax, so the importer dropped any pattern holding one. ADR-003
+recorded owning the matcher as the accepted direction, and the
+[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+scheduled it as phase 14.
+
+### Decision
+
+1. **`re()` reads ECMA-262's pattern syntax in `u` mode, as ECMA-262
+   2025 writes it, early errors included**, parsed by aontu in both
+   ports (`ts/src/regex.ts`, `go/regex.go`). No host engine reads the
+   pattern. ADR-003's definitions stand: `re()`'s dialect adds `\A` and
+   `\z` and gives `.`, `\s` and `\S` aontu's ASCII meanings. One group
+   name may stand in two alternatives of one disjunction, as ES2025
+   allows.
+2. **The engine is a Pike VM over code points.** A pattern compiles to
+   a program of set, split, jump and assertion instructions, and a match
+   steps every live thread over each code point of the text once: it
+   costs at most the text's length times the program's, for every
+   pattern. Matching stays an unanchored search for whether the pattern
+   matches. ADR-003's refusal of a quantified group holding a
+   quantifier or an alternation is lifted, and the termination clause
+   holds by construction.
+3. **What `re()` refuses**, with `constraint_pattern` and a reason the
+   same in both ports: a syntax error `u` mode defines; a lookaround or
+   a backreference, which no regular language holds; a modifier group,
+   ES2025's `(?i:…)`, whose flags change what a character matches and
+   which the engine does not apply; a program past 100,000
+   instructions, since counted repetition copies its operand; and
+   groups nested deeper than 256, where the parser's recursion stops.
+   RE2's cap of 1,000 on one count is not aontu's.
+4. **`\p{…}` and `\P{…}` read the Unicode Character Database 18.0.0**:
+   General_Category values and groups, Script and Script_Extensions
+   values and ECMA-262's binary properties, by every alias it lists,
+   spelt exactly. One generator, `ts/scripts/unicodegen.cjs` (`make
+   unicodegen`), writes the tables from files pinned by hash, staged
+   byte for byte into both ports (`ts/src/unicodeprops.ts`,
+   `go/unicodeprops.txt`, 50,705 bytes) and decoded when first read.
+   Assigned, ASCII, Any, the Unknown script and each Script_Extensions
+   set are derived where they are read.
+5. **`format("regex")` is the parser's verdict on an ECMA-262 pattern**:
+   a lookaround, a backreference and a modifier group are valid, as
+   ECMA-262 has them, though `re()` refuses to run them.
+6. **`pattern` crosses in stage three.** The importer reads a `pattern`
+   and a `patternProperties` key as ECMA-262 and writes `re()` source
+   that means the same: `.`, `\s` and `\S`, which `re()` defines
+   otherwise, are rewritten where the parser found them to the sets
+   ECMA-262 means, and the rest is copied as written. A pattern `re()`
+   refuses is a loss naming why. The exporter writes the reverse:
+   `re()`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z` as
+   the ECMA-262 text of aontu's sets.
+7. **The string builtins stay on the host engines.** `rep()` and
+   `split()` need where a match falls, which the engine does not say,
+   so each port's host engine runs them over ADR-003's subset as before,
+   refused with `rep_pattern`. The subset keeps its refusal of a
+   quantified group holding a quantifier, since a backtracking host is
+   still exponential on it.
+8. **The claim is checked, not asserted**, as ADR-003 rule 6 has it.
+   `test/spec/files/match-corpus.tsv` holds 700 seeded patterns with
+   three texts each and what the matcher, the export, the import and
+   `format("regex")` say of them; `ts/scripts/matchcorpus.cjs` writes it
+   and both ports reproduce every column. test262's generated property
+   escapes and RE2's search tests are vendored under `test/vectors/`
+   and read by both ports.
+
+**Departures from the design, seven.** (1) The string builtins stay on
+the host engines (decision 7). (2) `re()` refuses a modifier group,
+which the design did not name. (3) The edition is ECMA-262 2025, the
+first with duplicate group names and modifier groups, where Node 22's
+`RegExp` reads neither. (4) Groups nest at most 256 deep, so
+`format("regex")` refuses a deeper pattern ECMA-262 admits. (5) The
+test262 property escapes are Unicode 17.0.0's, held to 18.0.0 by a
+committed delta both releases' files give,
+`test/vectors/test262/unicode-17-to-18.tsv`. (6) The regex test data
+is RE2's search tests as Go ships them; rust-lang/regex's is not
+vendored, since its cases read `\d`, `\w`, `\s` and `\b` as Unicode by
+default and write Rust's own syntax. (7) The regex corpus of ADR-003
+rule 6 is not regenerated: it stays the subset's, which the string
+builtins still read, and the matcher has its own.
+
+### Consequences
+
+- A pattern's match costs linear time in the text for every pattern,
+  and `re()` admits what the subset refused: `\p{…}`, named groups,
+  `[]` and `[^]`, `\u` and `\c` escapes, a quantified group holding a
+  quantifier, and counts above 1,000. A pattern written for the subset
+  means what it meant, since the abbreviations kept their definitions.
+- 2,285 of the official suite's 2,337 tests pass in both ports, where
+  2,274 did; eleven rows left the ledger, which holds 30 under its
+  bound of 50.
+- test262's 441 files and their 3,492 escapes agree with the tables
+  code point for code point once the delta is applied, and 1,568 of
+  RE2's search verdicts agree, with 320 passed over for RE2's own syntax.
+- Pinned by `test/spec/constraint-re.tsv`, the `regex` rows of
+  `test/spec/format.tsv`, the `import-pattern-*` rows of
+  `test/spec/jsonschema-import.tsv`, the `js-pattern-*` rows of
+  `test/spec/jsonschema.tsv` and the `rep-pattern-*` rows of
+  `test/spec/str.tsv`, in both ports.
+
+## ADR-061 — An earlier dialect is upgraded before it is read
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+The JSON Schema importer read every schema as 2020-12. A `$schema`
+naming another dialect was a loss, and a keyword only an earlier
+dialect defines, `dependencies`, `additionalItems`, `$recursiveRef`,
+was dropped as one, though each asserts in its own dialect. Most
+schemas published for tools and APIs are written for draft-04 to
+draft-07, so an import of one widened it wherever the dialects differ,
+and the suite's draft-04, draft-06, draft-07 and 2019-09 directories
+were never run. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+design, section 13, scheduled the dialect table and an upgrade stage as
+phase 15.
+
+### Decision
+
+1. **The dialect table** names draft-04, draft-06, draft-07, 2019-09
+   and 2020-12 by the URI each meta-schema publishes, `http` or `https`,
+   with or without a trailing `#`. A resource reads the dialect its
+   `$schema` names. A custom meta-schema in the document set names the
+   dialect its own `$schema` names, through at most eight meta-schemas,
+   or the default where it names none. A resource that names no dialect
+   reads the import's `dialect` option, `--dialect` at the CLI, which
+   is 2020-12 unless given. `$schema` is read at a resource root: the
+   document's root, or a subschema whose identifier, `id` in draft-04
+   and `$id` after it, makes a resource, so an embedded resource may
+   name its own dialect. A dialect aontu does not read, by URI or as the
+   option, refuses the import with `jsonschema_dialect`, class
+   `reference`.
+2. **An upgrade stage rewrites each resource of an earlier dialect in
+   place**, keyword by keyword, into the 2020-12 resource that means the
+   same, before the importer indexes it (`upgrade` in
+   `ts/src/jsonschema-import.ts` and `go/jsonschema_import.go`):
+   - `id` in draft-04, and `$id` in draft-06 and draft-07, is `$id`
+     for its URI and `$anchor` for its fragment;
+   - a draft-04 `exclusiveMinimum` or `exclusiveMaximum` of `true`
+     takes the number of its sibling `minimum` or `maximum`, which it
+     replaces; `false`, or `true` with no sibling, is dropped;
+   - an array `items` is `prefixItems`, and `additionalItems` beside it
+     is `items`; beside no array, `additionalItems` is dropped, as the
+     dialect ignores it there;
+   - `dependencies` splits by member, an array into
+     `dependentRequired` and a schema into `dependentSchemas`;
+   - 2019-09's `$recursiveAnchor: true` at a resource root is
+     `$dynamicAnchor: "aontu.recursive"`, and `$recursiveRef: "#"` is
+     `$dynamicRef: "#aontu.recursive"` inside such a resource and
+     `$dynamicRef: "#"` elsewhere, which
+     [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
+     specialises as any dynamic reference;
+   - draft-07 and earlier read nothing beside a `$ref`, so each sibling
+     but `$schema` and `definitions`, which assert nothing, is dropped
+     and reported as a loss, an identifier included, which then
+     changes no base URI;
+   - a keyword the dialect does not define is an annotation, as 2020-12
+     takes an unknown keyword, under `x` in the `meta()` record, so
+     draft-04's `const` asserts nothing, and aontu's own `x-aontu-`
+     keywords are read in every dialect;
+   - a resource root's `$schema` becomes the 2020-12 meta-schema's URI.
+3. **2019-09 and 2020-12 read `dependencies` as well**, split the same
+   way, as the compatibility keyword the suite's optional tests ask for,
+   unless the schema also has `dependentSchemas` or `dependentRequired`;
+   there it stays a loss, since the two could disagree.
+4. **The schema as written stays addressable.** A JSON Pointer reads the
+   schema as written, so `#/items/0` reaches what is now
+   `#/prefixItems/0` and a pointer into a dropped sibling still reaches
+   its schema. A loss, a refusal and an alias name each spell the key
+   where it was written.
+5. **The rewrite is observable on its own.** `upgradeJsonSchema` and
+   `UpgradeJSONSchema` report the dialect the root is read in, the
+   2020-12 schema the rewrite wrote, each number as written, and each
+   pointer it moved; the shared mode `jsonschema-upgrade` pins them.
+6. **The suite's earlier directories run in the harness**, each with its
+   dialect as the import's default and a skip ledger of its own.
+
+**Departures from the design, six.** (1) `jsonschema_dialect` lands
+with the dialect table here, where the design's phase list placed it in
+phase 16. (2) 2019-09 and 2020-12 read `dependencies` as a compatibility
+keyword (decision 3), which the design's upgrade left to the earlier
+dialects. (3) The rewrite keeps each reference's text: a `$ref` whose
+pointer passes through a moved key is not rewritten, since the import
+reads it in the schema as written, so the schema `upgradeJsonSchema`
+reports can need the original to resolve one. (4) A meta-schema is read
+only from the document set; nothing is fetched. (5) Three optional
+behaviours of the earlier dialects are not carried, each a ledger row:
+draft-04's integer by its spelling, so `1.0` is no integer; draft-07's
+content keywords as assertions; and draft-04 and draft-06 reading
+`hostname` by RFC 1034, which aontu's one grammar for it does not.
+(6) The importer names an alias for `definitions` as it names any
+pointer, `p_definitions_2f_…`, and keeps the `d_` names for `$defs`.
+
+### Consequences
+
+- 2,300 of the 2020-12 directory's 2,337 tests pass in both ports,
+  where 2,285 did, and its ledger holds 15 rows under a bound of 15.
+  The earlier directories pass 2,248 of 2,293 tests for 2019-09, 1,803
+  of 1,840 for draft-07, 1,351 of 1,356 for draft-06 and 1,004 of
+  1,009 for draft-04, with ledgers of 23, 15, 5 and 5 rows, each at its
+  bound. Every row but the five optional behaviours above is a limit
+  the 2020-12 ledger names too.
+- A schema written for an earlier dialect imports as what it means
+  there rather than as the wider schema 2020-12 would read, and a
+  2020-12 schema that uses an earlier dialect's keyword by mistake still
+  reports it, as a loss.
+- Pinned by `test/spec/jsonschema-upgrade.tsv`, the `import-dialect-*`
+  rows of `test/spec/jsonschema-import.tsv` and the `jsonschema_dialect`
+  row of `test/spec/errcodes.tsv`, in both ports.
+
+## ADR-062 — A recursive residual meets a kind, a disjunction and another residual
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+A reference that reaches its own definition is a recursive residual
+([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)): it expands
+one level against concrete structure and otherwise waits beside
+whatever it meets. Imported, the 2020-12 meta-schema is a dialect alias
+whose value is the meet of its vocabularies' aliases, each a titled
+`boolean|{...}` recursive through `$dynamicRef: "#meta"`, with
+`(boolean|map)` for its `type`. Every residual there met a kind or a
+disjunction, never structure, so each waited for ever: a `meta()` or
+`ident()` over one never resolved, and the meta-schema stopped at
+`incomplete conjunct@$` in both ports, its nested schemas never checked.
+The waiting also cost: residuals beside disjunctions were distributed
+again on every pass, so Go never finished `%V = %A & %B & (boolean|map)`
+with `%A` and `%B` recursive, and TypeScript refused it `empty` when its
+revisit budget fired inside the disjunction's trials.
+
+### Decision
+
+1. **A kind expands a residual one level**, as structure does: `map`,
+   `list`, `boolean` and the other scalar kinds each pick among the
+   definition's branches. The level is charged to the depth budget.
+2. **A disjunction distributes over a residual**, so each branch meets
+   it, and a branch that is a kind or structure expands it.
+3. **A residual beside another residual, or beside any settled peer,
+   is a settled meet.** It still waits for data, and a rider over it
+   resolves.
+4. **A conjunction holds one residual per target**: a fixpoint met
+   again is itself.
+5. **A reference to a recursive alias keeps its name.** An alias
+   renders as its declaration unless that declaration reaches the alias
+   again, through each reference's own target and each alias's
+   residual; then every reference to it prints its name, `%V`, and so
+   does a residual of it, which printed `$.%V`, a spelling the language
+   refuses. The decision is the alias's, whatever values a port shares
+   and whether a reference has resolved yet, and it is made for the
+   declarations and for the operands of each refusal as for the tree.
+   It replaces expanding a recursive alias once and naming only the
+   reference that closed the cycle: which reference that was depended
+   on the order references resolved in, and the ports differ there.
+
+Termination keeps its argument. An expansion at a kind consumes no
+data, but the kind sits at the definition's own top level, so the
+residuals in the level it unrolls sit under fields and meet only what
+reaches them there; a definition meeting itself directly, `%T = %T &
+map`, is the shape the depth budget already catches.
+
+### Consequences
+
+- The 2020-12 meta-schema, imported through a map-rooted wrapper,
+  checks a schema at every depth in both ports: `{"allOf": [{"type":
+  "strin"}]}` is refused at `$.allOf.0`. TypeScript takes about half a
+  second and Go about a tenth.
+- Found on the way, each fixed: a rider resolved against the root's
+  declarations kept its declaration's path in TypeScript and was
+  refused `alias_not_toplevel`; Go placed a spread's copy one level too
+  deep, kept a grouped disjunction's first member as its site, dropped
+  a waiting call's file and excerpt, shallow-copied a recursion level,
+  and named a deprecation by the value's own path. A `vet` path spells
+  an alias without its scope, as a message does.
+- The canon of a recursive alias changes with decision 5: `payload:
+  %json` canons as `{&:%json,...}` where it expanded the template once,
+  and the direct cycle `%a = %a` is refused as `Cannot recurse value:
+  %a`. Such a canon still does not reparse (use-cases/BUGS.md §82).
+- One divergence stays, in the ledger: which vocabulary's `ident()`
+  sites an operand the meta-schema's vocabularies met to make.
+- Pinned by rows in `test/spec/recursion.tsv`, `test/spec/alias.tsv`,
+  `test/spec/deprecate.tsv` and `test/spec/disjunct.tsv`, in both
+  ports.
+
+## ADR-063 — The vocabularies a meta-schema lists decide what its schemas read
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2019-09 and 2020-12 group their keywords into vocabularies,
+and a meta-schema's `$vocabulary` lists the vocabularies its schemas
+use, each required (`true`) or optional (`false`). The importer read
+every keyword of a dialect whatever a custom meta-schema listed,
+reported `$vocabulary` as a loss, and decided format assertion by one
+URI, 2020-12's format-assertion vocabulary. The suite's
+`vocabulary.json` holds a schema whose meta-schema lists no validation
+vocabulary, so its `minimum` asserts nothing; it was a ledger row in
+both the 2020-12 and the 2019-09 directories.
+
+### Decision
+
+1. **One table, both ports.** `grammar/jsonschema/vocabularies.tsv`
+   lists each vocabulary aontu reads: its URI, its dialect, whether a
+   schema reads it always (the core vocabularies) or only where its
+   meta-schema lists it, the mode of its `format`, and its keywords.
+   `make vocabularies` stages it into `ts/src/vocabularies.ts` and
+   `go/vocabularies.tsv`, and each suite asserts its copy is identical.
+2. **A meta-schema that declares `$vocabulary` narrows its schemas.** A
+   resource whose `$schema` names a meta-schema in the document set
+   with a `$vocabulary` object reads the keywords of the vocabularies
+   listed there and of its dialect's core vocabulary. Each other keyword
+   of a vocabulary of its dialect is an annotation under `x`, as a
+   keyword the dialect does not define is (ADR-061). A resource naming
+   no meta-schema of its own reads what its parent reads. The upgrade
+   stage applies this to the keywords as written, so a 2019-09 keyword
+   it turns into an annotation is never rewritten.
+3. **A vocabulary aontu does not read refuses the import unless the
+   meta-schema lists it as `false`,** with the new
+   `jsonschema_vocabulary`, class `reference`, at the schema's
+   `$schema`. JSON Schema asks that such a schema be refused rather than
+   read without that vocabulary's keywords, and any value but `false`
+   counts as required.
+4. **The table decides format assertion.** 2020-12's format-assertion
+   vocabulary asserts whether it is listed `true` or `false`, as before;
+   2019-09's format vocabulary asserts where it is listed `true`; the
+   format-annotation vocabulary annotates.
+5. **`$vocabulary` in a schema is an annotation**, under `x`. JSON
+   Schema ignores it outside a meta-schema, and the importer reads a
+   meta-schema through the document set rather than importing it.
+
+Found on the way: under the format-assertion vocabulary an unknown
+format refused only where another keyword scoped the string kind, so
+`{"format": "zip"}` imported as `any`. A format the vocabulary asserts
+now scopes strings itself, in both ports.
+
+### Consequences
+
+- `vocabulary.json` passes in the 2020-12 and 2019-09 directories,
+  whose ledgers hold 14 and 22 rows under bounds tightened from 15 and
+  23.
+- A custom meta-schema listing only the core and format-assertion
+  vocabularies, as four format rows' meta-schemas do, reads `type` as an
+  annotation; those rows are re-pinned, and the one that refuses an
+  unknown format still refuses it.
+- The bundled meta-schemas and the check of an input against its
+  meta-schema remain phase 16's work.
+- Pinned by fifteen `jsonschema-import` rows, four more re-pinned,
+  every expectation from both engines.
+
+## ADR-064 — The published meta-schemas ship with the importer
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+A schema reaches its dialect's meta-schema by URI, `$ref:
+"https://json-schema.org/draft/2020-12/schema"` or the draft-07
+meta-schema's `#/definitions/...`, and the importer fetches nothing, so
+every such reference refused with `jsonschema_ref` unless the caller
+supplied the document with `--doc`. The design ships the meta-schemas as
+bundled models; the vocabulary table (ADR-063) and the check of an input
+against its meta-schema both need them in the document set.
+
+### Decision
+
+1. **The documents ship, as json-schema.org serves them.** The
+   meta-schemas of the five dialects and the 2019-09 and 2020-12
+   vocabulary meta-schemas are vendored in
+   `test/vectors/json-schema-spec/`, with json-schema-spec's licence at
+   a pinned commit, the BSD 3-Clause one taken, and a README naming each
+   URI and hash. `make metaschemas` stages them into
+   `ts/src/metaschemas.ts` and `go/metaschemas/`, with the licence, and
+   each suite asserts its copy is identical. The served copies are taken
+   over the spec repository's tags because they are what each
+   identifier reaches; they differ only in the `$vocabulary` a tagged
+   vocabulary meta-schema declared.
+2. **They are in every import's document set,** each at the URI its own
+   identifier gives, wherever the caller gives no document there; a
+   caller's document at one of those URIs is read instead.
+3. **Another document is read only where a reference reaches it.** The
+   pass that checks a subschema nothing reached checks the input's own,
+   not those of each document a reference opened: both ports crashed on
+   a pointer into a document that referred to itself elsewhere, since
+   that reference was never collected, and an unrelated fault elsewhere
+   in a referenced document refused the import.
+
+### Consequences
+
+- `ref.json`'s "remote ref, containing refs itself" passes in all five
+  directories, as does the valid case of "validate definition against
+  metaschema". Its invalid case is a ledger row: a root that is only a
+  `$ref` to the meta-schema is not a map, so the importer copies the
+  recursion in place and cuts it, and an invalid nested definition
+  passes. The ledgers hold 13, 21, 14, 4 and 4 rows, under bounds
+  tightened by one each.
+- The standard meta-schemas' `$vocabulary` is now read, and lists every
+  vocabulary of its dialect, so no schema naming one reads differently.
+- Pinned by eight `jsonschema-import` rows, every expectation from both
+  engines.
+
+## ADR-065 — An input that imports is checked against its meta-schema
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+The importer refused a schema only where a keyword it maps held a value
+of the wrong type, so a schema its meta-schema refuses imported whenever
+the importer could read it: `"required": ["a", "a"]`, a draft-04
+`"required": []`, a boolean `$recursiveAnchor`, a title longer than a
+custom meta-schema allows. The design validates the input against its
+meta-schema before mapping, with the meta-schemas as bundled models
+produced by the importer from the published documents, which ADR-064
+ships; a violation refuses with `jsonschema_schema`, located by the
+meta-schema's keyword; and the check is on by default, switchable for a
+trusted input, and cached by the input's text within a run.
+
+### Decision
+
+1. **The meta-schema is the one the input names as written**: its root
+   `$schema` resolved against the input's URI, read before the upgrade
+   stage rewrites a legacy root's, or its dialect's where it names
+   none, the `dialect` option's or 2020-12.
+2. **It is read through a wrapper**, `{"$schema": <2020-12>, "type":
+   "object", "properties": {"$schema": true}, "$ref": <meta-schema>}`,
+   imported in the input's document set. Its map root declares the
+   meta-schema's recursion, so the check reaches every depth (ADR-062),
+   where a root that is only the `$ref` copies the recursion in place
+   and cuts it (ADR-064).
+3. **The input's text is vetted against that model** under `--no-fill`
+   and `--exact-numbers`, JSON Schema's question (ADR-054). Each
+   conflict, and each member the meta-schema requires that the input
+   lacks, refuses the import with `jsonschema_schema`, once at each
+   place, at the pointer where the input was written: the innermost
+   subschema the finding's path reaches, since each position the
+   meta-schema governs is a `boolean|{...}` that fails as a whole. A
+   number past the exactness budget refuses nothing here; the importer
+   reports its own loss for it.
+4. **The check runs once the import stands**, not before mapping as the
+   design has it: a schema the importer refuses keeps the refusal that
+   names its keyword and why.
+5. **Inside an embedded resource of another dialect nothing is
+   refused**: the root's meta-schema does not read that dialect, and a
+   draft-04 `exclusiveMinimum: true` is no fault of a 2020-12 document.
+6. **A meta-schema whose model does not stand checks nothing, and says
+   so**: where the wrapper does not import, or vet cannot finish, as for
+   a document set in which the meta-schema admits no schema, the import
+   carries a loss at `#/$schema`, or at `#` where no `$schema` is
+   written.
+7. **`noMetaCheck`, `--no-meta-check`, turns it off.** Each meta-schema's
+   model is kept by its URI and the document set, and each check's
+   findings by the model and the input's text, so a harness that
+   imports one schema for many instances checks it once. The models are
+   made at run time from the bundled documents rather than committed: a
+   custom meta-schema in the document set needs that road anyway, and a
+   committed model would be a second copy of what ADR-064 ships.
+
+### Consequences
+
+- The location is the subschema as written, not the meta-schema's
+  keyword the design named; the keyword location is phase 17's, through
+  the importer's source map.
+- Three rows that test something else set `noMetaCheck`: a repeated
+  name in `required` and in `dependentRequired`, and a boolean
+  `$recursiveAnchor`.
+- The check made a defect in the engine reachable from any schema with
+  nested `allOf`, `anyOf` or `oneOf`, a list spread met again at every
+  meet of its list; it was fixed first, with use-cases/BUGS.md §57.
+- The official suite's counts are unchanged in all five directories:
+  its meta-schemas refuse none of its schemas.
+- Pinned by fourteen `jsonschema-import` rows and one re-pinned, every
+  expectation from both engines.
+
+---
+
+## ADR-066 — A vet report answers JSON Schema's output units through the importer's source map
+
+**Date:** 2026-10-09
+**Status:** Accepted
+
+### Context
+
+JSON Schema 2020-12 reports a validation as output units: `flag` is the
+verdict alone, and `basic` lists each failing keyword by its location in
+the schema as the evaluation reached it, `keywordLocation`, with the
+`$ref` it crossed; by its location in its own resource,
+`absoluteKeywordLocation`; and by the location in the instance,
+`instanceLocation`. A `vet` finding names a path in the data and the
+sites in the aontu text, which says nothing of the JSON Schema keyword
+an import wrote there. The design (G12 section 14) asks for a pointer
+on each finding, `vet --output flag|basic`, and a source map the
+importer writes beside its text, named on both sides and tied to the
+text by its hash.
+
+### Decision
+
+1. **Every finding `vet` reports carries `pointer`**, the RFC 6901 form
+   of its path, built from the path's segments, so a key holding a dot
+   is not ambiguous. Every other field keeps its spelling.
+2. **The importer marks each expression it writes** with the keyword
+   it was written for, and records where each landed as it prints. A
+   reference copied in place, and each alias declaration, is a frame of
+   its own, whose keywords are located against the schema it reached;
+   the expression a reference writes enters its target's frame. An
+   entry the object requires carries a mark of its own, at that
+   object's `required`.
+3. **The spans are carried to the agreed form by the tokens the two
+   share.** The formatter adds or drops only brackets, commas, colons
+   and whitespace, writes a quoted key bare, and lays a map too wide
+   for its line out one member to a line, repeating the statement's
+   head before each, so every other token keeps its order. A run of
+   tokens that starts a line, copies the start of the line before it
+   at that column and is followed by the token the printed text has
+   next is such a head, and is passed over; where the token also
+   matches in place, the run is passed over only if the token after
+   it then lines up and does not otherwise. A span covers the first
+   through the last of its tokens that survive. Offsets are UTF-8
+   bytes, and the map records the text's SHA-256: `{sha256, spans}`,
+   each span `{start, end, frame, keyword, absolute, enters?,
+   required?}`, outermost first.
+4. **A keyword is located in the schema as written**: its pointer runs
+   through the upgrade's record of what it moved (ADR-061), from the
+   frame's schema for `keyword`, and from its resource's canonical URI,
+   with the pointer percent-encoded as a URI fragment, for `absolute`.
+5. **The map is a file named on both sides.** `jsonschema import
+   --source-map <file>` writes it, and `--format json` carries it as
+   `map`. `vet --source-map <file>` reads it back and refuses with exit
+   2 where it is not a source map or the schema's text no longer
+   hashes to it. `vet` never looks for a map it was not given.
+6. **`vet --output flag|basic`** answers one data file in place of
+   `--format`. `flag` is `{valid}`, an incomplete verdict `false`.
+   `basic` is one unit for each error the report keeps, a warning
+   being none: the innermost span at its schema site gives
+   `absoluteKeywordLocation`, and `keywordLocation` follows the
+   references back to the root, each chosen so the instance steps their
+   keywords take spell the finding's pointer, or the first into each
+   frame where none does. A member the data lacks is placed at its
+   object's `required`, and its instance location is the object's.
+   `basic` needs the map, since every unit carries a keyword location.
+7. **The suite's `output-tests/` run in both harnesses**, the 2019-09
+   and 2020-12 directories, each test's basic output checked against
+   the schema the test gives for it by the importer and `vet`
+   themselves, under a ledger of its own.
+8. **A refusal is sited at the part of a residual that refused.** A
+   constraint met from several atoms keeps, for each part (a bound, an
+   excluded value, a divisor, a pattern, a format, a count's bound,
+   uniqueness, a `must`, `nof`, `when`, `contains` or `rest`), the site
+   of the call it came from, and a refusal by that part is sited there,
+   so `integer & min(1) & max(65535)` refuses `70000` at `max`. A
+   `len()` keeps its argument's sites.
+9. **A rider keeps its value's site.** `meta()` and `deprecate()`
+   answer their argument with a record beside it, and the argument
+   keeps where it was written; only a value with no site of its own
+   takes the call's. A refusal inside an annotated or deprecated
+   schema is sited at the atom that refused, and the deprecation
+   warning, the language servers' Deprecated tag and their hover sit on
+   the value, not on the word `meta` or `deprecate`.
+
+### Consequences
+
+- A finding is located at the schema text its site names, which is
+  coarser than the keyword in one place: a value a function selects is
+  sited at the call, so a failure under `prefixItems`,
+  `patternProperties`, `additionalProperties` or a legacy tuple is
+  located at that keyword.
+- A schema with no `type` imports as a disjunction of the kinds
+  (ADR-047), and a value its own kind's alternative refuses is refused
+  at that disjunction, so located at the schema rather than at the
+  keyword inside it. The suite's `escape` tests wait on this, and its
+  `readOnly` tests on annotations, which ride the value and are not
+  units: four ledger rows, four of eight tests passing.
+- The ports were compared over every import row and every schema of the
+  vendored suite with up to three of its instances: 4,358 imports, the
+  4,147 maps they wrote and the 3,951 `basic` outputs agreed byte for
+  byte. The comparison found a Go defect: a closed list refused only
+  its first surplus element where the TypeScript engine refused each,
+  which Go now does, the last refusal being the meet's.
+- The suite's schemas are narrow, so the head the formatter repeats
+  was found in a wider corpus: the bundled meta-schemas, the suite's
+  remotes, the schemas of the documentation and the export of every
+  use case's model, 291 distinct imports. A carry that stopped at the
+  first token to differ lost 11,182 of their 37,556 spans; this one
+  loses none, and the ports agree on each import's text and map.
+- Six `vet` rows move their schema site: one to the bound that refused
+  (decision 8), and five, in `deprecate.tsv`, `meta.tsv` and
+  `recursion.tsv`, from the rider's call to its value (decision 9).
+  Both language servers' hover tests now hover the annotated value, and
+  use case 04's `breaking` golden sites its deprecated field at the
+  value as well.
+- `detailed` and `verbose` stay outside, as the design has them.
+- Pinned by 39 `jsonschema-output` rows, a new mode, and 7
+  `jsonschema-import` rows under `sourceMap`; the 138 `vet` rows with
+  findings carry each finding's pointer, the SARIF golden carries it
+  in each result's properties, and two more rows pin each surplus
+  element of a closed list and the site of a merged count.
+

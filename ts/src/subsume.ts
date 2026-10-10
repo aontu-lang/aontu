@@ -9,6 +9,7 @@ import { hcanon } from './hcanon'
 import type { VetFinding, VetSite } from './vet'
 import {
   constraintSubsumesConstraint,
+  constraintSubsumesKind,
   constraintAdmitsScalar,
 } from './val/ConstraintVal'
 import { Path, kindSubsumes } from './val/ScalarKindVal'
@@ -64,6 +65,20 @@ type SubState = {
 // The per-node answer. Aggregation: any `no` makes the verdict
 // does_not_subsume; otherwise any `undecided` makes it undecided.
 type Tri = 'yes' | 'no' | 'undecided'
+
+
+function opaqueNote(g: any): string {
+  return 0 < g.musts.length ?
+    'an evaluate-only check (must) makes the admitted set opaque' :
+    0 < g.nofs.length ?
+      'a count of trial schemas (nof) makes the admitted set opaque' :
+      0 < g.whens.length ?
+        'a conditional over trial schemas (when) makes the admitted set opaque' :
+        0 < g.contains.length ?
+          'a count of the members a trial schema admits (contains) makes the ' +
+          'admitted set opaque' :
+          'a check of the members no cover evaluates (rest) makes the admitted set opaque'
+}
 
 
 export function pathText(path: string[]): string {
@@ -306,8 +321,7 @@ export function subsumeNode(
         return 'yes'
       }
       if ('undecided' === r) {
-        record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+        record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g))
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,
@@ -320,13 +334,15 @@ export function subsumeNode(
         return 'yes'
       }
       if ('undecided' === r) {
-        record(state, 'sub_evaluate_only', path, g, s,
-          'an evaluate-only check (must) makes the admitted set opaque')
+        record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g))
         return 'undecided'
       }
       record(state, 'compat_narrowed', path, g, s,
         'the general residual does not admit the specific scalar')
       return 'no'
+    }
+    if (true === s?.isScalarKind && constraintSubsumesKind(g, s.peg)) {
+      return 'yes'
     }
     record(state, 'compat_narrowed', path, g, s,
       'the general residual constrains a domain the specific value is not in')

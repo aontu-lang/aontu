@@ -16,17 +16,21 @@
 #               reported; money.aontu is the convention that avoids this.
 #   audit       hide() is omitted entirely, and reported: a consumer
 #               is neither asked for it nor allowed to know about it.
-#   annotations a spread template carrying a constraint call stays
-#               residual, so additionalProperties is {} and the `&`
-#               entry is reported `unresolved`. (A bare-kind template,
-#               registry.aontu's labels, crosses without loss.)
-#   attempts    len() on a list has no domain until data arrives:
-#               exported as minItems/maxItems, and still reported.
+#   annotations a spread template that reaches nothing outside itself
+#               is read as the value it is, so its constraint crosses
+#               as additionalProperties with nothing to report.
+#   slugs       a template that reads its own key means a different
+#               value at every key, so additionalProperties is {} and
+#               the `&` entry is reported under `key`.
+#   attempts    len() beside a list counts its items, so the bound
+#               crosses as maxItems with nothing to report; a bare
+#               len() with no bag or string beside it is the loss.
 
 report: {
   total: number & must((v) => 0 <= v, "total must not be negative")
   amountEur: bigdecimal
   audit: hide("kept-off-the-wire")
   annotations: { &: string & len(max(63)) }
-  attempts: [&: integer] & len(max(3))
+  slugs: { &: key(0) }
+  attempts: [&: multiple(1)] & len(max(3))
 }

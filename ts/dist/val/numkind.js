@@ -1,11 +1,13 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.exactNumberText = exactNumberText;
 exports.integerDigits = integerDigits;
 exports.isExactInBinary64 = isExactInBinary64;
 exports.isIntegerKind = isIntegerKind;
 exports.isIntegerStorable = isIntegerStorable;
 exports.isLossyIntegerLiteral = isLossyIntegerLiteral;
+exports.readExactNumber = readExactNumber;
 const INT64_MIN = -9223372036854775808.0;
 const INT64_LIMIT = 9223372036854775808.0;
 function isIntegerKind(n, src) {
@@ -75,5 +77,64 @@ function stripSep(s) {
 }
 function integerDigits(peg) {
     return BigInt(peg).toString();
-} /* node:coverage ignore next 13 */
+}
+const JSON_NUMBER_RE = /^(-?)([0-9]+)(?:\.([0-9]+))?(?:[eE]([-+]?[0-9]+))?$/;
+const EXACT_BUDGET = 4096n;
+// The integer leaf by MAGNITUDE, so that a sign, which aontu writes as an
+// operator, never moves a value between leaves: -2^63 is a biginteger,
+// because 2^63 is one.
+function inIntegerLeaf(n) {
+    const mag = n < 0n ? -n : n;
+    return mag < INT64_LIMIT_EXACT && isExactInBinary64(mag);
+}
+function readExactNumber(src) {
+    const m = JSON_NUMBER_RE.exec(src);
+    if (null == m) {
+        return undefined;
+    }
+    const frac = m[3] ?? '';
+    let unscaled = BigInt(m[2] + frac);
+    let scale = BigInt(frac.length) - BigInt(m[4] ?? '0');
+    if (0n === unscaled) {
+        return { leaf: 'integer', int: 0 };
+    }
+    while (0n < scale && 0n === unscaled % 10n) {
+        unscaled /= 10n;
+        scale--;
+    }
+    const neg = '-' === m[1];
+    if (scale <= 0n) {
+        if (EXACT_BUDGET < -scale) {
+            return { leaf: 'error', code: 'decimal_budget' };
+        }
+        const whole = unscaled * 10n ** -scale;
+        const n = neg ? -whole : whole;
+        return inIntegerLeaf(n) ? { leaf: 'integer', int: Number(n) } :
+            { leaf: 'biginteger', int: n };
+    }
+    if (EXACT_BUDGET < scale || EXACT_BUDGET < BigInt(unscaled.toString().length)) {
+        return { leaf: 'error', code: 'decimal_budget' };
+    }
+    return { leaf: 'bigdecimal', scale: Number(scale), unscaled: neg ? -unscaled : unscaled };
+}
+// The aontu literal for an exact number: plain digits in the integer
+// leaf, `0d` digits beyond and a `0d` decimal otherwise, sign first.
+function exactNumberText(n) {
+    if ('integer' === n.leaf) {
+        return integerDigits(n.int);
+    }
+    if ('biginteger' === n.leaf) {
+        return n.int < 0n ? '-0d' + (-n.int).toString() : '0d' + n.int.toString();
+    }
+    if ('bigdecimal' === n.leaf) {
+        const neg = n.unscaled < 0n;
+        const digits = (neg ? -n.unscaled : n.unscaled).toString();
+        const whole = digits.length <= n.scale ?
+            '0.' + '0'.repeat(n.scale - digits.length) + digits :
+            digits.slice(0, digits.length - n.scale) + '.' +
+                digits.slice(digits.length - n.scale);
+        return (neg ? '-0d' : '0d') + whole;
+    }
+    return undefined;
+} /* node:coverage ignore next 16 */
 //# sourceMappingURL=numkind.js.map

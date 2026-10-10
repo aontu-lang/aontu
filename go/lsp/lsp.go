@@ -82,7 +82,7 @@ func DiagnosticsTrust(src string, vars map[string]aontu.Val, trust *aontu.TrustO
 		start := idx.position(d.Pos)
 		end := idx.position(d.Pos + d.Len)
 		msg := "deprecated"
-		if m, ok := d.Record["msg"]; ok {
+		if m := d.Record["msg"]; "" != m {
 			msg += ": " + m
 		}
 		if u, ok := d.Record["use"]; ok {
@@ -179,7 +179,14 @@ func provenanceOf(
 }
 
 func hoverMarkdown(s aontu.ValueSpan) string {
-	return "```aontu\n" + s.Canon + "\n```\n\n*" + s.Kind + "*"
+	out := "```aontu\n" + s.Canon + "\n```\n\n*" + s.Kind + "*"
+	for _, t := range s.Titles {
+		out += "\n\n**" + t + "**"
+	}
+	for _, d := range s.Descriptions {
+		out += "\n\n" + d
+	}
+	return out
 }
 
 func provenanceMarkdown(

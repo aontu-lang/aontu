@@ -10,6 +10,8 @@ import {
   AontuContext,
 } from '../ctx'
 
+import { canonRiders } from '../utility'
+
 import { FeatureVal } from './FeatureVal'
 
 
@@ -43,7 +45,7 @@ abstract class JunctionVal extends FeatureVal {
   get canon() {
     return this.peg.map((v: Val) => {
       return (v as any).isJunction && Array.isArray(v.peg) && 1 < v.peg.length ?
-        '(' + v.canon + ')' : v.canon // v.id + '=' + v.canon
+        '(' + canonRiders(v) + ')' : canonRiders(v)
     }).join(this.getJunctionSymbol()) // + '<' + (this.mark.hide ? 'H' : '') + '>'
   }
 

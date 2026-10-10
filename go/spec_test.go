@@ -74,7 +74,7 @@ func TestSpec(t *testing.T) {
 			vetRow := "vet" == mode || "subsume" == mode || "query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
-				"fmt-template-lint" == mode
+				"fmt-template-lint" == mode || "jsonschema-output" == mode
 			want := 4
 			if vetRow {
 				want = 5
@@ -106,7 +106,7 @@ func TestSpec(t *testing.T) {
 					if err != nil {
 						t.Fatalf("unify error: %v\n src: %q", err, src)
 					}
-					if got := v.Canon(); got != expect {
+					if got := CanonRiders(v); got != expect {
 						t.Fatalf("canon mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
 					}
 					assertCanonConverges(t, name, expect, vars)
@@ -539,8 +539,12 @@ func TestSpec(t *testing.T) {
 							src, want, got)
 					}
 				case "jsonschema":
+					// A number a float64 cannot hold keeps its digits, as the
+					// export does.
 					var golden map[string]any
-					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
 						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
 					}
 					at := ""
@@ -562,6 +566,85 @@ func TestSpec(t *testing.T) {
 					want := specJSON(t, golden)
 					if got != want {
 						t.Fatalf("jsonschema report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
+				case "jsonschema-import":
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					opts := specImportOptions(golden)
+					r := ImportJSONSchema(src, opts)
+					// Every import that stands is paired with JSON Schema's
+					// question.
+					wantVet := "[--no-fill --exact-numbers]"
+					if "error" == r.Verdict {
+						wantVet = "[]"
+					}
+					if got := "[" + strings.Join(r.Vet, " ") + "]"; wantVet != got {
+						t.Fatalf("jsonschema-import vet flags %s, want %s", got, wantVet)
+					}
+					out := map[string]any{
+						"aontu":   r.Aontu,
+						"lossy":   specAsMap(t, map[string]any{"l": r.Lossy})["l"],
+						"verdict": r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(out, "errors")
+					}
+					if nil != r.Map {
+						out["map"] = specAsMap(t, map[string]any{"m": r.Map})["m"]
+					}
+					got := specJSON(t, out)
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("jsonschema-import report mismatch\n src: %q\n want: %s\n got:  %s",
+							src, want, got)
+					}
+				case "jsonschema-output":
+					// ADR-066: the schema imported with its source map, the
+					// data vetted as JSON Schema asks, and the report as
+					// basic output units.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					opts := specImportOptions(golden)
+					opts.SourceMap = true
+					r := ImportJSONSchema(src, opts)
+					report := Vet(r.Aontu, data, &VetOptions{NoFill: true, ExactNumbers: true})
+					got := specJSON(t, specAsMap(t, map[string]any{
+						"o": VetOutput(report, "basic", r.Aontu, r.Map)})["o"])
+					want := specJSON(t, golden["output"])
+					if got != want {
+						t.Fatalf("jsonschema-output mismatch\n src: %q\n data: %q\n want: %s\n got:  %s",
+							src, data, want, got)
+					}
+				case "jsonschema-upgrade":
+					// A number a float64 cannot hold keeps its digits, as
+					// the export does.
+					var golden map[string]any
+					dec := json.NewDecoder(strings.NewReader(expect))
+					dec.UseNumber()
+					if err := dec.Decode(&golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					r := UpgradeJSONSchema(src, specImportOptions(golden))
+					out := map[string]any{
+						"dialect":   r.Dialect,
+						"rewritten": r.Rewritten,
+						"schema":    r.Schema,
+						"verdict":   r.Verdict}
+					if 0 < len(r.Errors) {
+						out["errors"] = specAsMap(t,
+							map[string]any{"e": r.Errors})["e"]
+						specStripProse(out, "errors")
+					}
+					got := specJSON(t, out)
+					want := specJSON(t, golden)
+					if got != want {
+						t.Fatalf("jsonschema-upgrade report mismatch\n src: %q\n want: %s\n got:  %s",
 							src, want, got)
 					}
 				case "reaches":
@@ -767,6 +850,34 @@ func specAsAny(t *testing.T, v any) any {
 	return out
 }
 
+// specImportOptions reads the importer's options from a row's `opts`,
+// which it removes from the golden.
+func specImportOptions(golden map[string]any) *ImportOptions {
+	opts := &ImportOptions{}
+	if o, ok := golden["opts"].(map[string]any); ok {
+		opts.Defaults = true == o["defaults"]
+		opts.FormatAssertion = true == o["formatAssertion"]
+		opts.NoMetaCheck = true == o["noMetaCheck"]
+		opts.SourceMap = true == o["sourceMap"]
+		opts.URI, _ = o["uri"].(string)
+		opts.Dialect, _ = o["dialect"].(string)
+		if docs, ok := o["documents"].(map[string]any); ok {
+			opts.Documents = map[string]string{}
+			for k, v := range docs {
+				opts.Documents[k], _ = v.(string)
+			}
+		}
+		if fs, ok := o["formats"].(map[string]any); ok {
+			opts.Formats = map[string]string{}
+			for k, v := range fs {
+				opts.Formats[k], _ = v.(string)
+			}
+		}
+	}
+	delete(golden, "opts")
+	return opts
+}
+
 func specJSON(t *testing.T, v any) string {
 	t.Helper()
 	var buf bytes.Buffer
@@ -824,6 +935,10 @@ func specVetOpts(t *testing.T, raw any) *VetOptions {
 			opts.Coverage, _ = v.(bool)
 		case "coverageAt":
 			opts.CoverageAt, _ = v.(string)
+		case "noFill":
+			opts.NoFill, _ = v.(bool)
+		case "exactNumbers":
+			opts.ExactNumbers, _ = v.(bool)
 		default:
 			t.Fatalf("unknown vet opt %q", k)
 		}
@@ -889,12 +1004,12 @@ func assertCanonConverges(t *testing.T, name, expect string, vars map[string]Val
 	if err != nil {
 		t.Fatalf("canon does not reparse: %s\n canon: %s\n err:   %v", name, expect, err)
 	}
-	c2 := v2.Canon()
+	c2 := CanonRiders(v2)
 	v3, err := New().UnifyVars(c2, vars)
 	if err != nil {
 		t.Fatalf("re-canon does not reparse: %s\n canon: %s\n err:   %v", name, c2, err)
 	}
-	if c3 := v3.Canon(); c3 != c2 {
+	if c3 := CanonRiders(v3); c3 != c2 {
 		t.Fatalf("canon does not converge: %s\n c2: %s\n c3: %s", name, c2, c3)
 	}
 }

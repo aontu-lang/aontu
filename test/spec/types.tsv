@@ -204,3 +204,16 @@ any-in-a-list-does-not-generate	errc	a: [any]	listval_no_gen
 type-instance-missing-key-is-required	errc	x: type({})\nx: {y: number}\na: $.x\na: {}	mapval_required
 type-instance-by-reference-missing-key-is-required	errc	x: type({})\nx: {y: number}\na: $.x	mapval_required
 untyped-peer-declared-key-is-spread-required	errc	x: {}\nx: {y: number}\na: $.x	mapval_spread_required
+#
+# A value that drives the meet keeps the drive against a peer that does
+# not know it: `empty()`, a container kind or a seal meets a disjunction
+# or a preference by letting it distribute, from either side. A spread
+# conjunct meets each term with its peer, so it reached `empty()` with the
+# disjunction on the left.
+empty-meets-a-spread-disjunction	canon	{a: empty(), &: (1|any) & any}	{&:(1|any)&any,"a":empty()}
+empty-meets-two-spread-disjunctions	canon	{a: empty(), &: (1|any) & (2|any)}	{&:(1|any)&(2|any),"a":empty()}
+empty-meets-a-spread-preference	canon	{a: empty(), &: *"s" & any}	{&:*"s"&any,"a":*"s"}
+map-kind-meets-a-spread-disjunction	canon	{a: map, &: (1|{}) & any}	{&:(1|{})&any,"a":{}}
+list-kind-meets-a-spread-disjunction	canon	{a: list, &: (1|[]) & any}	{&:(1|[])&any,"a":[]}
+empty-meets-a-preferred-disjunction	canon	a: (*"s"|1) & empty()	{"a":*"s"}
+empty-meets-two-match-spreads	canon	{a?: empty(), &: match(key(0), re("^x"), number, any), &: match(key(0), re("^y"), boolean, any)}	{&:match(key(0),re("^x"),number,any)&match(key(0),re("^y"),boolean,any),"a"?:empty()}

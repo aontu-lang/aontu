@@ -475,7 +475,17 @@ function hoverMarkdown(val: any): string {
   // No try needed: a Val only becomes a hover candidate after
   // collectHoverCandidates read this same getter successfully.
   const canon = val.canon
-  return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*'
+  return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
+    annotationMarkdown(val)
+}
+
+
+// A value's titles, in bold, and its descriptions, from its annotations.
+function annotationMarkdown(val: any): string {
+  const meta = val.meta ?? {}
+  return [...(meta.title ?? []).map((t: any) => '**' + t.peg + '**'),
+    ...(meta.description ?? []).map((d: any) => d.peg)]
+    .map((said: string) => '\n\n' + said).join('')
 }
 
 
@@ -516,19 +526,19 @@ const COMPLETION_VARIABLE = 6
 const COMPLETION_KEYWORD = 14
 
 const BUILTIN_FUNCS = [
-  'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'content', 'copy',
+  'abnf', 'above', 'acyclic', 'add', 'below', 'close', 'contains', 'content', 'copy',
   'copyfiles', 'deprecate',
   'div',
   'each', 'emit', 'empty', 'esc',
-  'file', 'filter', 'folder', 'fragment', 'greatest',
-  'hide', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
+  'file', 'filter', 'folder', 'format', 'fragment', 'greatest',
+  'hide', 'ident', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
   'listitems', 'lower',
-  'match', 'max', 'maybe', 'min', 'mod', 'move', 'mul', 'must', 'neq',
-  'nom', 'open',
+  'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'multiple', 'must', 'neq',
+  'nof', 'nom', 'open',
   'pack', 'parse', 'path', 'pick',
-  'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'slot', 'sort',
+  'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'rest', 'slot', 'sort',
   'split', 'sub', 'sum',
-  'super', 'translate', 'type', 'unique', 'upper', 'usc',
+  'super', 'translate', 'type', 'unique', 'upper', 'usc', 'when',
 ]
 
 // Scalar-kind and literal keywords.

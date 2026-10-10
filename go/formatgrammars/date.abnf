@@ -1,0 +1,25 @@
+; RFC 3339 section 5.6, full-date, with the day ranges of section 5.7:
+; February has 29 days in a leap year, a year divisible by 4 but not by
+; 100 unless also by 400. The year is read a digit at a time, so the
+; grammar knows the year's kind before the month.
+full-date = y-even y2-after-even / y-odd y2-after-odd
+y2-after-even = (%x30 / %x34 / %x38) c4-y34 / (%x31-33 / %x35-37 / %x39) cn-y34
+y2-after-odd = (%x32 / %x36) c4-y34 / (%x30-31 / %x33-35 / %x37-39) cn-y34
+y-even = %x30 / %x32 / %x34 / %x36 / %x38
+y-odd = %x31 / %x33 / %x35 / %x37 / %x39
+; the century a multiple of 4: its "00" year is a leap year
+c4-y34 = y-even y4-after-even / y-odd y4-after-odd
+; any other century: its "00" year is not
+cn-y34 = %x30 y4-after-0 / (%x32 / %x34 / %x36 / %x38) y4-after-even / y-odd y4-after-odd
+y4-after-0 = (%x34 / %x38) leap-md / (%x30-33 / %x35-37 / %x39) common-md
+y4-after-even = (%x30 / %x34 / %x38) leap-md / (%x31-33 / %x35-37 / %x39) common-md
+y4-after-odd = (%x32 / %x36) leap-md / (%x30-31 / %x33-35 / %x37-39) common-md
+leap-md = "-" (%x30 m0-leap / %x31 m1)
+common-md = "-" (%x30 m0-common / %x31 m1)
+m0-leap = (%x31 / %x33 / %x35 / %x37 / %x38) "-" d31 / (%x34 / %x36 / %x39) "-" d30 / %x32 "-" d29
+m0-common = (%x31 / %x33 / %x35 / %x37 / %x38) "-" d31 / (%x34 / %x36 / %x39) "-" d30 / %x32 "-" d28
+m1 = (%x30 / %x32) "-" d31 / %x31 "-" d30
+d31 = %x30 %x31-39 / %x31-32 DIGIT / %x33 %x30-31
+d30 = %x30 %x31-39 / %x31-32 DIGIT / %x33 %x30
+d29 = %x30 %x31-39 / %x31-32 DIGIT
+d28 = %x30 %x31-39 / %x31 DIGIT / %x32 %x30-38

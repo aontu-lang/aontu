@@ -25,6 +25,7 @@ import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
 import { subsumeNode } from '../dist/subsume'
 import { DeprecateFuncVal } from '../dist/val/DeprecateFuncVal'
+import { MetaFuncVal } from '../dist/val/MetaFuncVal'
 import { collectDeprecations } from '../dist/utility'
 import { hcanon, canonHash } from '../dist/hcanon'
 import { projectFor } from '../dist/query'
@@ -76,6 +77,7 @@ import { UpperFuncVal } from '../dist/val/UpperFuncVal'
 import { LowerFuncVal } from '../dist/val/LowerFuncVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
 import { ConstraintVal, MinConstraintVal } from '../dist/val/ConstraintVal'
+import { collectNils } from '../dist/walk'
 import { ConstraintKindVal } from '../dist/val/ConstraintKindVal'
 import { Decimal, decimalOverBudget } from '../dist/val/Decimal'
 import { BigIntegerVal } from '../dist/val/BigIntegerVal'
@@ -229,6 +231,29 @@ describe('coverage3-constraint', () => {
     const cv: any = new MinConstraintVal({} as any, ctx)
     Assert.equal(cv.invalid, 'arg')
     Assert.equal(cv.unify(new IntegerVal({ peg: 1 }), ctx).isNil, true)
+  })
+
+  test('pending-trial-schemas-are-not-collected', () => {
+    const ctx = CTX()
+    const nof: any = new ConstraintVal({
+      peg: [new IntegerVal({ peg: 1 }), new NilVal({ why: 'g' }),
+        new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'nof',
+    } as any, ctx)
+    Assert.equal(nof.pending.atom, 'nof')
+    Assert.deepEqual(collectNils(nof, new Set()), [])
+    const when: any = new ConstraintVal({
+      peg: [new NilVal({ why: 'h' }), new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'when',
+    } as any, ctx)
+    Assert.equal(when.pending.atom, 'when')
+    Assert.deepEqual(collectNils(when, new Set()), [])
+    const contains: any = new ConstraintVal({
+      peg: [new NilVal({ why: 'i' }), new RefVal({ peg: ['b'] }, ctx)],
+      atom: 'contains',
+    } as any, ctx)
+    Assert.equal(contains.pending.atom, 'contains')
+    Assert.deepEqual(collectNils(contains, new Set()), [])
   })
 
   test('domain-adopted-from-peer', () => {
@@ -1157,13 +1182,22 @@ describe('coverage3-deprecate', () => {
     Assert.equal(d.resolve(ctx, [nil]), nil)
   })
 
+  test('meta-func-internals', () => {
+    const ctx = new AontuContext({ root: top() } as any)
+    const m = new MetaFuncVal({ peg: [] })
+    Assert.equal((m.make(ctx, { peg: [] }) as any).isMetaFunc, true)
+    const argless: any = m.resolve(ctx, [])
+    Assert.equal(argless.isNil, true)
+    Assert.equal(argless.why, 'arg')
+  })
+
   // The shared walk behind vet's warnings and the LSP tags: the
   // non-Val guard is for a bag's raw peg entries, which degenerate
   // parses can leave behind — pinned directly, with one.
   test('collect-deprecations-walk', () => {
     const m = new MapVal({ peg: {} })
     const dep = new IntegerVal({ peg: 1 })
-    ;(dep as any).deprecation = { msg: 'm' }
+    ;(dep as any).deprecation = { msg: ['m'] }
     const plain = new IntegerVal({ peg: 2 })
     const inner = new ListVal({ peg: [dep] })
     m.peg.a = inner

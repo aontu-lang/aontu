@@ -90,6 +90,16 @@ hash-refer-keeps-its-conjunct	hash	a: [&: refer() & path]  a: [&: refer() & path
 # The same, through a spread template applied behind another atom:
 # the instantiated element type must equal the declared one, and a
 # residual must not hold an unresolved call (a doubled refer()).
-hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:refer()&path]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r"?:[&:refer()&path,path($.e.c)]&unique()})]&unique("n")})}
-canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:refer()&path]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r"?:[&:refer()&path,path($.e.c)]&unique()}]&unique("n")}}
-hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-0XaCfSTQTwe4jZdvjaDPwum1VsDHpHaHRVJYK0Vgm8Q
+hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:refer()&path]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r":[&:refer()&path,path($.e.c)]&unique()})]&unique("n")})}
+canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:refer()&path]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r":[&:refer()&path,path($.e.c)]&unique()}]&unique("n")}}
+hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-S5jGV84QjZ7G1pfu4aJ0YW91oI3ZWz20iMmh1bjFbUE
+#
+# G12 phase 8: meta() records render outermost, after type() and
+# deprecate(), at the root, on disjunction members and in trial
+# arguments, and the hash moves with any record.
+hcanon-meta-record	hcanon	a: meta(1, {title: "t"})	{"a":meta(1,{"title":"t"})}
+hcanon-meta-root	hcanon	meta({a: 1}, {title: "r"})	meta({"a":1},{"title":"r"})
+hcanon-meta-outside-type-and-deprecate	hcanon	a: meta(deprecate(type(number), {msg: "m"}), {title: "t"})	{"a":meta(deprecate(type(number),{"msg":"m"}),{"title":"t"})}
+hcanon-meta-members-and-trials	hcanon	a: meta(1, {title: "t"}) | meta(2, {title: "u"})\nb: nof(1, meta(number, {title: "n"}), string)	{"a":meta(1,{"title":"t"})|meta(2,{"title":"u"}),"b":nof(1,meta(number,{"title":"n"}),string)}
+hash-meta-record	hash	a: meta(1, {title: "t"})	aon1-UPtFjrxwDl8b2kbNZPftFeLHbE_mTdKI2MZaPlXc_H8
+hash-meta-differs-by-record	hash	a: meta(1, {title: "u"})	aon1-ZXoTr6Atqh8FKL4SbFT5BQKBHhcf2Rzqc0liKB198ow

@@ -11,6 +11,7 @@ type TrustInclude = 'none' | 'system' | {
 type TrustBudget = {
     passes?: number;
     depth?: number;
+    trials?: number;
 };
 type TrustOptions = {
     include?: TrustInclude;
@@ -34,6 +35,7 @@ type AontuOptions = {
     explain?: any[];
     trust?: TrustOptions;
     textExt?: string[];
+    exactNumbers?: boolean;
     trustWarn?: (kind: 'escape' | 'pkg', path: string) => void;
     trustWarnRoot?: string;
 };

@@ -361,8 +361,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if und {
-				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
@@ -375,13 +374,15 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if und {
-				st.record("sub_evaluate_only", path, g, s,
-					"an evaluate-only check (must) makes the admitted set opaque")
+				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
 			st.record("compat_narrowed", path, g, s,
 				"the general residual does not admit the specific scalar")
 			return subNo
+		}
+		if kv, ok := s.(*ScalarKindVal); ok && constraintSubsumesKind(gc, kv.kind) {
+			return subYes
 		}
 		st.record("compat_narrowed", path, g, s,
 			"the general residual constrains a domain the specific value is not in")
@@ -742,4 +743,21 @@ func Subsume(generalSrc, specificSrc string, opts *SubsumeOptions) SubsumeReport
 		verdict = SubsumeUndecided
 	}
 	return SubsumeReport{Verdict: verdict, Findings: st.findings}
+}
+
+func opaqueNote(g *ConstraintVal) string {
+	if 0 < len(g.musts) {
+		return "an evaluate-only check (must) makes the admitted set opaque"
+	}
+	if 0 < len(g.nofs) {
+		return "a count of trial schemas (nof) makes the admitted set opaque"
+	}
+	if 0 < len(g.whens) {
+		return "a conditional over trial schemas (when) makes the admitted set opaque"
+	}
+	if 0 < len(g.contains) {
+		return "a count of the members a trial schema admits (contains) makes the " +
+			"admitted set opaque"
+	}
+	return "a check of the members no cover evaluates (rest) makes the admitted set opaque"
 }

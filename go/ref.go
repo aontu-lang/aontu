@@ -18,9 +18,8 @@ type RefVal struct {
 	prefix    bool
 	hideFound bool // move(): hide the resolution target in place
 	copyFound bool // copy(): clear all marks on the resolved copy
-	// expansion is the value an alias reference canons as, attached by
-	// expandAliases (go/alias.go) after unification (see Canon). Never
-	// read by unification: it is a rendering of the settled tree.
+	// expansion is what an alias reference canons as, attached by
+	// expandAliases (go/alias.go) to render the settled tree, never read.
 	expansion Val
 	rxc       int
 }
@@ -36,9 +35,46 @@ const (
 	walkDefer
 )
 
+// throughRider reads through a value-transparent rider still being resolved,
+// as the walk reads through a pending mark. Mirrors throughRider in
+// ts/src/val/RecurseVal.ts.
+func throughRider(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || DONE == fv.dc || ("meta" != fv.name && "deprecate" != fv.name && "ident" != fv.name) ||
+			0 == len(fv.peg) || nil == fv.peg[0] {
+			return v
+		}
+		v = fv.peg[0]
+	}
+}
+
+// declaration finds the value an alias names in the map term of a meet
+// that is still folding. A declaration is not a field, so no other term
+// contributes to it. Mirrors declaration in ts/src/val/RecurseVal.ts.
+func declaration(cj *ConjunctVal, key string) Val {
+	for _, t := range cj.peg {
+		switch term := throughRider(t).(type) {
+		case *ConjunctVal:
+			if decl := declaration(term, key); nil != decl {
+				return decl
+			}
+		case *MapVal:
+			for _, ak := range term.aliasKeys {
+				if ak == key {
+					return term.peg[key]
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 	var node Val = root
+	_, isAlias := rv.aliasKey()
 	for _, part := range refpath {
+		node = throughRider(node)
 		if fv, ok := node.(*FuncVal); ok && DONE != fv.dc &&
 			("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 			switch inner := fv.peg[0].(type) {
@@ -47,6 +83,15 @@ func (rv *RefVal) walkFrom(root Val, refpath []string) (Val, walkOutcome) {
 			case *ListVal:
 				node = inner
 			}
+		}
+
+		if cj, ok := node.(*ConjunctVal); ok && isAlias && !pendingMarkWrapper(cj) {
+			decl := declaration(cj, part)
+			if nil == decl {
+				return nil, walkDefer
+			}
+			node = decl
+			continue
 		}
 
 		if cj, ok := node.(*ConjunctVal); ok && pendingMarkWrapper(cj) {
@@ -252,6 +297,7 @@ func listIndex(part string) (int, bool) {
 }
 
 func markedChild(v Val, part string) Val {
+	v = throughRider(v)
 	if fv, ok := v.(*FuncVal); ok && DONE != fv.dc &&
 		("hide" == fv.name || "type" == fv.name) && 0 < len(fv.peg) {
 		v = fv.peg[0]
@@ -469,7 +515,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 			}
 			target = append(target, seg)
 		}
-		if alls && containsRecurseOf(node, target, 0) {
+		if alls && reachesRecurse(node, target, 0, ctx.root, map[string]bool{}) {
 			rec := newRecurse(target, rv.rxc)
 			rec.site.sp, rec.site.spu, rec.site.url = rv.site.sp, rv.site.spu, rv.site.url
 			// The source excerpt travels too, so reports frame the `$`
@@ -480,9 +526,8 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		}
 	}
 
-	// A ref carrying marks transfers them onto the found node in place
-	// (mirrors the mark assignment on `out` before the clone in TS
-	// RefVal.find).
+	// A ref carrying marks transfers them onto the found node in place,
+	// as TS RefVal.find assigns them to `out` before the clone.
 	if rv.mtype || rv.mhide {
 		node.setMarkType(rv.mtype)
 		node.setMarkHide(rv.mhide)
@@ -502,6 +547,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
+	out = undeclared(out)
 	if lifted {
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)
@@ -514,6 +560,11 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	}
 	if rv.copyFound {
 		unsealTree(out)
+		forceRootPath(out, cp(rv.path))
+	} else if key, ok := rv.aliasKey(); ok {
+		// An alias's copy remembers it; copy() unseals, so may admit more.
+		out.setViaRec(unionVia(out.viaRec(), []string{key}))
+		// A root reference's copy is at the root, not under its name.
 		forceRootPath(out, cp(rv.path))
 	}
 	return out
@@ -607,7 +658,7 @@ func (rv *RefVal) plainRefPath() []string {
 // isPrefixPath reports whether the reference path is a prefix of this
 // node's own path (a self/ancestor cycle).
 func (rv *RefVal) isPrefixPath() bool {
-	if len(rv.peg) > 0 {
+	if len(rv.peg) > 0 && 0 == len(rv.path) {
 		allEmpty := true
 		for _, p := range rv.peg {
 			if s, ok := p.(string); !ok || s != "" {

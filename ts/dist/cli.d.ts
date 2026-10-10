@@ -27,6 +27,7 @@ export type ReplState = {
     name?: string;
     src?: string;
     trust?: TrustArg;
+    exact?: boolean;
 };
 export type ReplAnswer = {
     close: boolean;

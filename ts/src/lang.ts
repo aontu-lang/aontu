@@ -99,20 +99,22 @@ import {
 
 import { BigDecimalVal } from './val/BigDecimalVal'
 import { BigIntegerVal } from './val/BigIntegerVal'
-import { BIG_LITERAL_RE, readBigLiteral } from './val/Decimal'
+import { BIG_LITERAL_RE, Decimal, readBigLiteral } from './val/Decimal'
 import { BooleanVal } from './val/BooleanVal'
 import { ConjunctVal } from './val/ConjunctVal'
 import { DisjunctVal } from './val/DisjunctVal'
 import { IntegerVal } from './val/IntegerVal'
 import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
+import { keyTable } from './val/BagVal'
 import { repathInstance } from './val/Val'
 import { AontuContext } from './ctx'
 import { descErr } from './err'
 import { NilVal } from './val/NilVal'
 import { NullVal } from './val/NullVal'
 import { NumberVal } from './val/NumberVal'
-import { isIntegerKind, isLossyIntegerLiteral } from './val/numkind'
+import { isIntegerKind, isLossyIntegerLiteral, readExactNumber } from './val/numkind'
+import type { ExactNumber } from './val/numkind'
 import { PrefVal } from './val/PrefVal'
 import { RefVal } from './val/RefVal'
 import { StringVal } from './val/StringVal'
@@ -126,6 +128,8 @@ import { TypeFuncVal } from './val/TypeFuncVal'
 import { HideFuncVal } from './val/HideFuncVal'
 import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
+import { MetaFuncVal } from './val/MetaFuncVal'
+import { IdentFuncVal } from './val/IdentFuncVal'
 import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -164,10 +168,16 @@ import {
   AboveConstraintVal,
   BelowConstraintVal,
   NeqConstraintVal,
+  MultipleConstraintVal,
   ReConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
   MustConstraintVal,
+  NofConstraintVal,
+  WhenConstraintVal,
+  ContainsConstraintVal,
+  RestConstraintVal,
+  FormatConstraintVal,
 } from './val/ConstraintVal'
 
 
@@ -176,6 +186,16 @@ const asPlugin = (p: unknown): Plugin => p as Plugin
 
 function negsrc(src: string): string {
   return src.startsWith('-') ? src.slice(1) : '-' + src
+}
+
+
+// A data number under exactNumbers: the leaf its value selects.
+function exactNumberVal(n: ExactNumber, src: string): Val {
+  return 'integer' === n.leaf ? new IntegerVal({ peg: n.int, src }) :
+    'biginteger' === n.leaf ? new BigIntegerVal({ peg: n.int, src }) :
+      'bigdecimal' === n.leaf ?
+        new BigDecimalVal({ peg: new Decimal(n.unscaled, n.scale), src }) :
+        new NilVal({ why: n.code })
 }
 
 
@@ -217,6 +237,8 @@ let SCOPE_SEQ = 0
 const MERGE_KEY = RESERVED_KEY_PREFIX + 'merge'
 const ALIAS_MARK_KEY = RESERVED_KEY_PREFIX + 'alias'
 const OPTIONAL_MARK_KEY = RESERVED_KEY_PREFIX + 'optional'
+// Keys a merged statement declared REQUIRED, so required wins (ADR-045).
+const REQUIRED_MARK_KEY = RESERVED_KEY_PREFIX + 'required'
 
 // `{ %a } = @"f.aontu"` is the pair `<head>: <include>`, so the head is
 // one token and the grammar needs nothing new.
@@ -721,7 +743,29 @@ help isolate the syntax error.`,
     },
 
     map: {
-      merge: (prev: any, curr: any, _r: Rule, ctx: JsonicContext) => {
+      merge: (prev: any, curr: any, r: Rule, ctx: JsonicContext) => {
+        // A DECLARATION IS NOT A FIELD: it waits until the map is built.
+        const holder: any = r.parent
+        const kname = keyName(r.o0)
+        const declared = true ===
+          holder?.u?.aontu_alias_keys?.some((d: any) => d.name === kname)
+        const aside: any = (holder.u.aontu_alias_vals ||= {})
+        if (isAliasDecl(r.o0, r.o1)) {
+          if (undefined !== aside[kname]) {
+            aside[kname] = addsite(
+              new ConjunctVal({ peg: [aside[kname], curr] }), aside[kname], ctx)
+            return prev
+          }
+          if (!declared) {
+            aside[kname] = curr
+            return prev
+          }
+        }
+        else if (declared && undefined === aside[kname]) {
+          aside[kname] = prev
+          return curr
+        }
+
         let pval = (prev as Val)
         let cval = (curr as Val)
 
@@ -745,12 +789,16 @@ help isolate the syntax error.`,
         else {
           if (true === (cval as any)?.isMap) {
             const lm: any = cval
+            const required: string[] = (prev[REQUIRED_MARK_KEY] ||= [])
             for (const k of Object.keys(lm.peg)) {
               const own = (prev as any)[k]
               ;(prev as any)[k] = (null == own) ? lm.peg[k] :
                 (own?.isVal
                   ? new ConjunctVal({ peg: [own, lm.peg[k]] })
                   : lm.peg[k])
+              if (!lm.optionalKeys.includes(k) && !required.includes(k)) {
+                required.push(k)
+              }
             }
             if (null != lm.spread?.cj) {
               ;(prev as any)[SPREAD] =
@@ -792,9 +840,10 @@ help isolate the syntax error.`,
     above: AboveConstraintVal,
     below: BelowConstraintVal,
     neq: NeqConstraintVal,
+    multiple: MultipleConstraintVal,
 
-    // G1 phase 2: pattern membership, over the portable subset both
-    // host regex engines agree on (nonPortableRe in ConstraintVal.ts).
+    // G1 phase 2: pattern membership, read and matched by aontu's own
+    // engine (ADR-060).
     re: ReConstraintVal,
 
     len: LenConstraintVal,
@@ -802,6 +851,11 @@ help isolate the syntax error.`,
     unique: UniqueConstraintVal,
 
     must: MustConstraintVal,
+    nof: NofConstraintVal,
+    when: WhenConstraintVal,
+    contains: ContainsConstraintVal,
+    rest: RestConstraintVal,
+    format: FormatConstraintVal,
 
     abnf: AbnfFuncVal,
     parse: ParseFuncVal,
@@ -810,6 +864,8 @@ help isolate the syntax error.`,
     // record rides the result (Val.deprecation) and canon renders the
     // call back (canonRiders).
     deprecate: DeprecateFuncVal,
+    meta: MetaFuncVal,
+    ident: IdentFuncVal,
 
     refer: ReferFuncVal,
     rel: RelFuncVal,
@@ -947,6 +1003,10 @@ help isolate the syntax error.`,
       if (terms[0] instanceof RefVal) {
         terms[0].absolute = true
         return terms[0]
+      }
+      // `$` takes a name or a path; anything else is refused where written.
+      if (!('string' === typeof terms[0] || true === terms[0]?.isString)) {
+        return addsite(new NilVal({ why: 'var_name' }), r, ctx)
       }
       return addsite(new VarVal({ peg: terms[0] }), r, ctx)
     },
@@ -1109,7 +1169,8 @@ help isolate the syntax error.`,
 
   const VL = jsonic.token.VL
 
-  const OPTKEY = [TX, ST, NR]
+  // A value keyword is a key wherever a key is written, optional or not.
+  const OPTKEY = [TX, ST, NR, VL]
 
 
   jsonic.rule('expr', (rs: RuleSpec) => {
@@ -1139,7 +1200,7 @@ help isolate the syntax error.`,
           // @tabnas seeds a descended rule's node from its parent; without
           // a fresh node here the nested spread map (`a:&:{x:1}`) would
           // share the parent map's node object and self-reference.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'spread'
         },
 
@@ -1150,7 +1211,7 @@ help isolate the syntax error.`,
           b: 2,
           // Fresh node (see spread alt above): the optional dive descends
           // to a map and must not share the parent's node object.
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'pair,jsonic,top,aontu-optional',
         },
 
@@ -1159,7 +1220,7 @@ help isolate the syntax error.`,
           p: 'map',
           b: 2,
           n: { pk: 1 },
-          a: (r: Rule) => { r.node = {} },
+          a: (r: Rule) => { r.node = keyTable() },
           g: 'pair,jsonic,top,dive,aontu-optional',
         },
 
@@ -1174,9 +1235,14 @@ help isolate the syntax error.`,
           valnode = addsite(new StringVal({ peg: r.node }), r, ctx)
         }
         else if ('number' === valtype) {
+          const exact = true === ctx.meta.aontu?.exactNumbers ?
+            readExactNumber(r.o0.src) : undefined
           // An overflowing literal (1e999) lexes to Infinity; that is an
           // error value, not a number (mirrors not_number in go/lang.go).
-          if (!Number.isFinite(r.node)) {
+          if (undefined !== exact) {
+            valnode = addsite(exactNumberVal(exact, r.o0.src), r, ctx)
+          }
+          else if (!Number.isFinite(r.node)) {
             valnode = addsite(new NilVal({ why: 'not_number' }), r, ctx)
           }
           else if (isLossyIntegerLiteral(r.node, r.o0.src)) {
@@ -1236,6 +1302,12 @@ help isolate the syntax error.`,
 
       .bc((r: Rule, ctx: JsonicContext) => {
         const optionalKeys = r.u.aontu_optional_keys ?? []
+        // REQUIRED WINS (ADR-045) between the statements of one map.
+        const requiredKeys: string[] = r.u.aontu_required_keys ?? []
+        for (const k of requiredKeys) {
+          const oi = optionalKeys.indexOf(k)
+          if (-1 !== oi) { optionalKeys.splice(oi, 1) }
+        }
         const aliasDecls = r.u.aontu_alias_keys ?? []
         const aliasKeys: string[] = []
         const exportKeys: string[] = []
@@ -1255,7 +1327,7 @@ help isolate the syntax error.`,
         }
 
         for (const k in mo) {
-          if (null == mo[k] && MERGE_KEY !== k &&
+          if (null == mo[k] && MERGE_KEY !== k && REQUIRED_MARK_KEY !== k &&
             OPTIONAL_MARK_KEY !== k && ALIAS_MARK_KEY !== k) {
             // Pathed at the KEY, not at the enclosing map. addsite takes
             // the rule's path, which here is the map's, so the error
@@ -1312,18 +1384,26 @@ help isolate the syntax error.`,
           }
         }
         if (0 < renamed.size) {
+          // A declaration set aside lands under its scoped key.
+          const aside: Record<string, any> = r.u.aontu_alias_vals ?? {}
           const entries = Object.entries(mo)
           for (const [k] of entries) {
             delete mo[k]
           }
           for (const [k, v] of entries) {
             const key = renamed.get(k)
-            if (undefined === key) {
+            if (undefined === key || undefined !== aside[k]) {
               mo[k] = v
             }
             else {
               mo[key] = v
               repathInstance(v, [...(r.k?.path ?? []), key])
+            }
+          }
+          for (const [name, key] of renamed) {
+            if (undefined !== aside[name]) {
+              mo[key] = aside[name]
+              repathInstance(aside[name], [...(r.k?.path ?? []), key])
             }
           }
         }
@@ -1390,10 +1470,18 @@ help isolate the syntax error.`,
 
         // Marks carried over from a map include folded in the merge
         // hook above, applied here where the MapVal is built.
-        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY]) {
-          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
-            if (!optionalKeys.includes(k)) { optionalKeys.push(k) }
+        if (mo[OPTIONAL_MARK_KEY] || mo[ALIAS_MARK_KEY] || mo[REQUIRED_MARK_KEY]) {
+          const required = [...requiredKeys, ...(mo[REQUIRED_MARK_KEY] || [])]
+          for (const k of required) {
+            const oi = optionalKeys.indexOf(k)
+            if (-1 !== oi) { optionalKeys.splice(oi, 1) }
           }
+          for (const k of (mo[OPTIONAL_MARK_KEY] || [])) {
+            if (!optionalKeys.includes(k) && !required.includes(k)) {
+              optionalKeys.push(k)
+            }
+          }
+          delete mo[REQUIRED_MARK_KEY]
           for (const k of (mo[ALIAS_MARK_KEY] || [])) {
             if (!aliasKeys.includes(k)) { aliasKeys.push(k) }
           }
@@ -1412,6 +1500,10 @@ help isolate the syntax error.`,
               addsite(new ConjunctVal({ peg: [mo[name], copy] }), r, ctx)
             if (!aliasKeys.includes(name)) { aliasKeys.push(name) }
           }
+        }
+
+        for (const k of aliasKeys) {
+          declareIdent(mo[k])
         }
 
         //  Handle defered conjuncts, e.g. `{x:1 @"foo"}`
@@ -1608,6 +1700,11 @@ help isolate the syntax error.`,
             url: srcUrl(ctx),
             tkn: ktkn,
           })
+        }
+        else if (!rule.u.spread && true !== rule.prev?.u?.aontu_optional &&
+          'multisource' !== rule.child?.name) {
+          holder.u.aontu_required_keys = (holder.u.aontu_required_keys || [])
+          holder.u.aontu_required_keys.push(keyName(ktkn))
         }
 
         if (rule.u.spread) {
@@ -1894,6 +1991,18 @@ const dataProcessor = (format: string) => (res: any) => {
 const textProcessor = (res: any) => {
   res.val = new StringVal({ peg: res.src })
 }
+
+// ident() is the whole of a declaration's value, or of one declaration
+// of a name declared more than once, whose values meet (ADR-056).
+function declareIdent(v: any): void {
+  if (true === v?.isIdentFunc) {
+    v.declared = true
+  }
+  else if (true === v?.isConjunct) {
+    v.peg.forEach(declareIdent)
+  }
+}
+
 
 function includeProcessors(textExt?: string[]): { [kind: string]: any } {
   const map: { [kind: string]: any } = {
@@ -2214,6 +2323,9 @@ for (const name of Object.keys(CMP_FUNCS)) {
   POSITIONAL_ARG_FUNCS[name] = true
 }
 POSITIONAL_ARG_FUNCS['nom'] = true
+// A trial schema may itself be a list, so the count is read by position.
+POSITIONAL_ARG_FUNCS['contains'] = true
+POSITIONAL_ARG_FUNCS['rest'] = true
 POSITIONAL_ARG_FUNCS['translate'] = true
 
 
@@ -2222,7 +2334,7 @@ function sigArity(sig: FuncSig): [number, number] {
   let max = 0
   for (const a of sig.args) {
     if (true === a.rest) {
-      min += undefined === a.group ? 1 : a.group.length
+      min += true === a.opt ? 0 : undefined === a.group ? 1 : a.group.length
       max = -1
     }
     else {
@@ -2349,7 +2461,7 @@ function rawToVal(n: any): Val {
   if ('boolean' === t) {
     return new BooleanVal({ peg: n })
   }
-  const peg: Record<string, Val> = {}
+  const peg: Record<string, Val> = keyTable()
   for (const k in n) {
     peg[k] = rawToVal(n[k])
   }
@@ -2402,6 +2514,7 @@ class Lang {
       // child-meta spread carries the same array to nested includes.
       aontu: {
         manifest: (opts as any)?.manifest,
+        exactNumbers: true === (opts?.exactNumbers ?? this.opts.exactNumbers),
       },
     }
 

@@ -29,10 +29,10 @@ profile: close({
     verified: *false | boolean
   })
 
-  # Preferred locale, e.g. "en" or "pt-BR".
-  # The natural pattern ^[a-z]{2}(-[A-Z]{2})?$ is refused by re()'s
-  # portable subset (quantifier on a group containing a quantifier),
-  # so the inner {2} is written out by hand.  See README "Gaps".
+  # Preferred locale, e.g. "en" or "pt-BR". The inner {2} is written
+  # out by hand; the natural ^[a-z]{2}(-[A-Z]{2})?$ means the same and
+  # re() accepts it too, since a quantified group holding a quantifier
+  # costs aontu's matcher linear time like any other pattern.
   locale?: string & re("^[a-z][a-z](?:-[A-Z][A-Z])?$")
 
   tier: "standard" | "premium" | "enterprise"

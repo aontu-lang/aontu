@@ -6,6 +6,7 @@ exports.dataKeys = dataKeys;
 const unify_1 = require("../unify");
 const err_1 = require("../err");
 const MapVal_1 = require("./MapVal");
+const BagVal_1 = require("./BagVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const Val_1 = require("./Val");
 const PlaceVal_1 = require("./PlaceVal");
@@ -59,7 +60,7 @@ class PackFuncVal extends FuncBaseVal_1.FuncBaseVal {
         }
         // Arity is checked at parse (funcArity), so both arguments are here.
         const tmpl = args[1];
-        const peg = {};
+        const peg = (0, BagVal_1.keyTable)();
         const src = args[0];
         for (const key of keys) {
             const keyctx = ctx.descend(key);

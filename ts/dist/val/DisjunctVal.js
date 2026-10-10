@@ -137,6 +137,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             for (let vI = 0; vI < oval.length; vI++) {
                 for (let kI = vI + 1; kI < oval.length; kI++) {
                     if (oval[kI].same(oval[vI])) {
+                        oval[vI] = keepRiders(ctx, oval[vI], oval[kI]);
                         oval[kI] = NilVal_1.TRIAL_NIL;
                         continue;
                     }
@@ -145,9 +146,11 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     if (true === a.isPref && true === b.isPref
                         && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b))) {
                         if (a.rank <= b.rank) {
+                            oval[vI] = keepRiders(ctx, a, b);
                             oval[kI] = NilVal_1.TRIAL_NIL;
                         }
                         else {
+                            oval[kI] = keepRiders(ctx, b, a);
                             oval[vI] = NilVal_1.TRIAL_NIL;
                             break;
                         }
@@ -297,6 +300,33 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
 exports.DisjunctVal = DisjunctVal;
 // Generated output with the number KINDS the JSON loses: `1` and
 // `1.0` generate the same digits, and are still different values.
+// A member dropped as a duplicate leaves its riders on the survivor, at
+// every depth, so the join is as order-free as the meet (ADR-052).
+function keepRiders(ctx, keep, drop) {
+    if (!ridden(drop)) {
+        return keep;
+    }
+    const out = keep.clone(ctx);
+    (0, unify_1.ride)(out, keep, drop);
+    if (true === drop.isPref && true !== out.isPref) {
+        // A twin of a higher rank holds one more preference layer.
+        return keepRiders(ctx, out, drop.peg);
+    }
+    if (true === out.isBag) {
+        for (const k of Object.keys(out.peg)) {
+            out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k]);
+        }
+    }
+    else if (true === out.isPref) {
+        out.peg = keepRiders(ctx, out.peg, drop.peg);
+    }
+    return out;
+}
+function ridden(v) {
+    return null != v.deprecation || null != v.meta ||
+        (true === v.isBag && Object.values(v.peg).some(ridden)) ||
+        (true === v.isPref && ridden(v.peg));
+}
 function genShape(v, out) {
     if ('number' === typeof out && true === v?.isScalar) {
         return (true === v.isInteger ? 'i' : true === v.isNumber ? 'f' : 'n') + (0, exactjson_1.exactJSON)(out);

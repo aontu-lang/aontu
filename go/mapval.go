@@ -96,7 +96,7 @@ func (m *MapVal) Canon() string {
 	b.WriteByte('{')
 	if m.spread != nil {
 		b.WriteString("&:")
-		b.WriteString(m.spread.Canon())
+		b.WriteString(CanonRiders(m.spread))
 		if len(m.keys) > 0 {
 			b.WriteByte(',')
 		}
@@ -119,9 +119,9 @@ func (m *MapVal) Canon() string {
 			b.WriteByte('?')
 		}
 		b.WriteByte(':')
-		// canonRiders, not Canon: a deprecated field renders back
+		// CanonRiders, not Canon: a deprecated field renders back
 		// as its `deprecate(x, m)` call, reparseably (G3).
-		b.WriteString(canonRiders(m.peg[k]))
+		b.WriteString(CanonRiders(m.peg[k]))
 	}
 	b.WriteByte('}')
 	return b.String()
@@ -219,6 +219,11 @@ func computePathFunc(v Val) bool {
 				return true
 			}
 		}
+		for _, b := range n.settledTrials() {
+			if hasPathFunc(b) {
+				return true
+			}
+		}
 		if nil != n.count && hasPathFunc(n.count) {
 			return true
 		}
@@ -270,6 +275,7 @@ func spreadCloneFor(s Val, path []string, ctx *Ctx) Val {
 		}
 	}
 	out := instanceClone(s, path)
+	setPaths(out, clonePlace(path, s.vpath()))
 	markSpread(out, ctx)
 	return out
 }
@@ -344,6 +350,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		// inner failures drop parts of the subtree rather than raising.
 		gctx := ctx
 		if optional && ctx != nil {
+			ctx.trialsOf()
 			c2 := *ctx
 			c2.err = nil
 			c2.collect = true
@@ -378,6 +385,21 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		out[k] = cv
 	}
 	return out, nil
+}
+
+func withoutKey(keys []string, k string) []string {
+	for i, ok := range keys {
+		if ok == k {
+			return append(keys[:i], keys[i+1:]...)
+		}
+	}
+	return keys
+}
+
+// A written nil refuses a supplied value (ADR-046); a minted nil is a
+// refusal already recorded.
+func literalNilRefuses(n *NilVal, v Val) bool {
+	return "literal_nil" == n.why && genable(v) && !isTop(v)
 }
 
 func genable(v Val) bool {
@@ -483,9 +505,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 	}
+	// Only the root declares an alias, so a map it meets lands there.
+	home := m.path
+	if pm, ok := peer.(*MapVal); ok && 0 < len(pm.aliasKeys) {
+		home = pm.path
+	}
 	dbase := ctx.slot
 	if dbase == nil {
-		dbase = m.path
+		dbase = home
 	}
 
 	var out *MapVal
@@ -495,20 +522,21 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out = newMap()
 		out.closed = m.closed
 		out.opened = m.opened
-		out.path = cp(m.path)
-		// The site survives unification (TS: `out.site = this.site` in
-		// MapVal.unify copies row, col AND url), so a unified bag still
-		// frames at its brace and keeps its clone mark.
+		out.path = cp(home)
+		// The site survives unification, as TS's `out.site = this.site`
+		// keeps it, so a unified bag frames at its brace and keeps its mark.
 		out.site.sp = m.site.sp
 		out.site.spu = m.site.spu
 		out.site.url = m.site.url
+		out.site.src = m.site.src
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)
 	}
 	done := true
 
-	// Combine spreads and optional keys (additive) from both sides.
+	// Combine spreads. REQUIRED WINS (ADR-045): a key is optional only
+	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
 		if out.spread == nil {
 			out.spread = pm.spread
@@ -520,9 +548,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				out.aliasKeys = append(out.aliasKeys, ak)
 			}
 		}
-		for _, ok := range pm.optional {
-			if !out.isOptional(ok) {
-				out.optional = append(out.optional, ok)
+		for _, k := range pm.keys {
+			if pm.isOptional(k) {
+				if _, declared := m.peg[k]; !declared && !out.isOptional(k) &&
+					(!m.closed || pm.isAliasKey(k)) {
+					out.optional = append(out.optional, k)
+				}
+			} else {
+				out.optional = withoutKey(out.optional, k)
 			}
 		}
 	}
@@ -559,7 +592,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		kslot := append(cp(dbase), k)
 		var cv Val
-		if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
+		if m.isAliasKey(k) {
+			// A DECLARATION IS NOT A CHILD: no template reaches it.
+			cv = child
+			if DONE != child.Dc() {
+				ctx.slot = kslot
+				cv = unite(ctx, child, top())
+			}
+		} else if !isTop(spreadCj) && (isAbsent(child) || undecided(child)) {
 			cv = child
 			if !isAbsent(child) {
 				ctx.slot = kslot
@@ -605,9 +645,14 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		for _, pk := range pm.keys {
 			pc := pm.peg[pk]
-			// A DECLARATION IS NOT A FIELD: `close` never counts one.
+			// A DECLARATION IS NOT A FIELD: `close` never counts one. No
+			// instance can hold an optional key the closed side does not
+			// declare, so it adds nothing rather than refusing.
 			if _, allowed := m.peg[pk]; m.closed && !allowed &&
 				!pm.isAliasKey(pk) {
+				if pm.isOptional(pk) {
+					continue
+				}
 				bad = makeNilErr(ctx, "closed", pc, nil)
 			}
 			pkslot := append(cp(dbase), pk)
@@ -618,7 +663,13 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				if m.closed {
 					ex = sealChild(ex)
 				}
-				uv = unite(ctx, ex, pc)
+				if nv, isNil := ex.(*NilVal); isNil && literalNilRefuses(nv, pc) {
+					uv = makeNilErr(ctx, "literal_nil", ex, pc)
+				} else if nv, isNil := pc.(*NilVal); isNil && literalNilRefuses(nv, ex) {
+					uv = makeNilErr(ctx, "literal_nil", pc, ex)
+				} else {
+					uv = unite(ctx, ex, pc)
+				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
 				!m.markedType() && !m.markedHide() {
 				peg := pc
@@ -635,7 +686,8 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			// loop (the peer-loop `_spr` stamp in TS MapVal.unify).
 			if m.spread != nil && undecided(uv) {
 				done = false
-			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj {
+			} else if m.spread != nil && !isAbsent(uv) && sprOf(uv) != spreadCj &&
+				!out.isAliasKey(pk) {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
 				uv = unite(ctx, uv, sc)
@@ -659,6 +711,22 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 			return ck.Unify(m, ctx)
 		}
 		return makeNilErr(ctx, "map", m, peer)
+	}
+
+	// Both sides closed: each must declare the other's keys too.
+	if pm, ok := peer.(*MapVal); ok && nil == bad && m.closed && pm.closed {
+		own := append([]string{}, m.keys...)
+		sort.Strings(own)
+		for _, k := range own {
+			if _, declared := pm.peg[k]; !declared && !m.isAliasKey(k) {
+				if out.isOptional(k) {
+					out.remove(k)
+					out.optional = withoutKey(out.optional, k)
+				} else if nil == bad {
+					bad = makeNilErr(ctx, "closed", m.peg[k], nil)
+				}
+			}
+		}
 	}
 
 	if nil != bad {

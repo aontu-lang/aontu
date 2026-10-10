@@ -19,3 +19,50 @@ the port disagrees with the file. Nothing yet checks this copy against
 
 The pin, and the reason it is v0.32.0 rather than the latest, is in
 [`UPSTREAM_GO_MOD.md`](https://github.com/aontu-lang/mod/blob/main/UPSTREAM_GO_MOD.md).
+
+## The JSON Schema corpora
+
+Three directories hold public corpora the G12 runners read, each under
+its own licence, with a README naming its upstream and the commit it is
+pinned to, and its own skip ledger:
+
+- [`jsonschema/`](jsonschema/README.md), the official
+  JSON-Schema-Test-Suite, with its annotation tests;
+- [`ajv-extras/`](ajv-extras/README.md), Ajv's extra tests in the same
+  shape;
+- [`jsontestsuite/`](jsontestsuite/README.md), JSONTestSuite's parsing
+  cases, read as instances.
+
+A fourth, [`json-schema-spec/`](json-schema-spec/README.md), holds the
+published meta-schemas of the five dialects the importer reads, which
+it ships: `make metaschemas` stages them into both ports, where every
+import finds them at their own URIs.
+
+## The format corpora
+
+Three more directories hold public corpora the format runners,
+`ts/test/format-corpus.test.ts` and `go/format_corpus_test.go`, read
+against the committed format grammars (ADR-059), each under its own
+licence and with a README naming its upstream and its pin:
+
+- [`uritemplate-test/`](uritemplate-test/README.md), templates for
+  `uri-template`;
+- [`isemail/`](isemail/README.md), addresses for `email` and
+  `idn-email`;
+- [`idna/`](idna/README.md), UTS #46's `IdnaTestV2.txt`, names for
+  `idn-hostname`.
+
+Each runner requires how many cases agree and, for each kind of
+difference the README names, how many there are.
+
+## The pattern corpora
+
+Two more directories hold public corpora the pattern runners,
+`ts/test/regex-vectors.test.ts` and `go/regex_vectors_test.go`, read
+against aontu's own pattern matcher (ADR-060), each under its own
+licence and with a README naming its upstream and its pin:
+
+- [`test262/`](test262/README.md), test262's generated property
+  escapes, for the Unicode property tables;
+- [`re2/`](re2/README.md), RE2's search tests, for the matcher.
+

@@ -1,0 +1,19 @@
+# The skip ledger of tests/draft7/ (README.md), read in its own dialect:
+# one row per upstream test the importer cannot yet honour, the construct
+# it waits on and why. A listed test that passes fails the run.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+# A * in group and test lists a whole file; one in test a whole group.
+definitions.json	validate definition against metaschema	invalid definition schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+optional/content.json	validation of binary string-encoding	an invalid base64 string (% is not a valid character)	contentEncoding	draft-07 lets an implementation assert with the content keywords, and aontu annotates with them, as 2019-09 and later require
+optional/content.json	validation of binary-encoded media type documents	a validly-encoded invalid JSON document	contentMediaType	draft-07 lets an implementation assert with the content keywords, and aontu annotates with them, as 2019-09 and later require
+optional/content.json	validation of binary-encoded media type documents	an invalid base64 string that is valid JSON	contentEncoding	draft-07 lets an implementation assert with the content keywords, and aontu annotates with them, as 2019-09 and later require
+optional/content.json	validation of string-encoded content based on media type	an invalid JSON document	contentMediaType	draft-07 lets an implementation assert with the content keywords, and aontu annotates with them, as 2019-09 and later require
+optional/format/hostname.json	validation of A-label (punycode) host names	*	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a Bidi rule violation is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a disallowed code point is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	U-label contains "--" in the 3rd and 4th position	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	a U-label whose A-label form is longer than 63 octets is invalid	format	a U-label is never encoded, so its A-label form is not measured (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	invalid Punycode	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	non-canonical Punycode that does not re-encode to itself is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it

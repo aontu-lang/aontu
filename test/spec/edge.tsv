@@ -474,3 +474,19 @@ edge-reserved-key-optional-mark	errc	"\\u0000aontu_merge"?: 1	reserved_key
 edge-reserved-key-optional-in-a-list	errc	a:[ "\\u0000aontu_order"?:1 ]	reserved_key
 # ... and an ordinary optional key is untouched by any of it.
 edge-optional-key-still-optional	gens	x?: 1\ny: 2	{"x":1,"y":2}
+
+# A `$` takes a name or a path; anything else is refused where it is
+# written, with one code in both ports (#302).
+var-name-map	errc	a: ${b: 1}	var_name
+var-name-number	errc	a: $1	var_name
+var-name-swallows-the-next-line	errc	a: $\nv?: integer	var_name
+
+# A document is empty only when it holds nothing but the space, tab,
+# carriage return and newline the lexer skips. Any other Unicode space,
+# and a byte-order mark, is a character the grammar refuses: TypeScript
+# trimmed with the host's wider whitespace and read them as {}, where
+# Go refused them. JSONTestSuite's document of a lone BOM found it.
+edge-empty-is-the-lexer-whitespace	gens	 \t\n \n	{}
+edge-nbsp-alone-is-refused	errc	 	bare_punct
+edge-bom-alone-is-refused	errc	﻿	bare_punct
+edge-ideographic-space-alone-is-refused	errc	　	bare_punct

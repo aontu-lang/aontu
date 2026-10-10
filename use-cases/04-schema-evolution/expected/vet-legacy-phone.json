@@ -8,6 +8,7 @@
       "code": "deprecated",
       "message": "deprecated: free-form phone is unvalidated; write E.164 to contact.phone (use $.profile.contact.phone) (since 2.0.0)",
       "path": "$.phone",
+      "pointer": "/phone",
       "severity": "warning",
       "sites": [
         {

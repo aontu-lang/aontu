@@ -11,6 +11,7 @@ import {
 
 import { descErr, getHint } from './err'
 import { codeClass } from './hints'
+import { aliasPathSegment } from './aliasname'
 import { ConjunctVal } from './val/ConjunctVal'
 import { walkVals, collectNils } from './walk'
 import { sizingResidue } from './val/BagVal'
@@ -19,7 +20,9 @@ import { collectDeprecations, walkBagVals, deprecationMessage,
 } from './utility'
 import { subsumeNode, effectiveDefault } from './subsume'
 import { noPathFinding } from './query'
+import { fillDiff } from './admit'
 import { cmpCodePoint } from './keyorder'
+import { pointerOf } from './sourcemap'
 
 
 export type VetVerdict = 'valid' | 'invalid' | 'incomplete' | 'error'
@@ -49,6 +52,8 @@ export type VetFinding = {
   expected?: string
   actual?: string
   note?: string
+  // The path as an RFC 6901 pointer, unambiguous where a key holds a dot.
+  pointer?: string
 }
 
 export type VetCoverage = {
@@ -90,6 +95,11 @@ export type VetOptions = {
 
   schemaPath?: string
   dataPath?: string
+
+  // G12: a member the schema supplies and the data lacks is vet_filled.
+  noFill?: boolean
+  // G12: every data number read by its exact value.
+  exactNumbers?: boolean
 
   trust?: TrustOptions
 
@@ -158,7 +168,18 @@ function roleOf(file: string, prov: Prov): VetRole {
 
 
 function pathText(path?: string[]): string {
-  return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '')
+  return '$' + (null != path && 0 < path.length ? '.' + path.map((p: any) =>
+    'string' === typeof p ? aliasPathSegment(p) : p).join('.') : '')
+}
+
+
+function atPath(at: string): string[] {
+  return at.replace(/^\$\.?/, '').split('.').filter((s: string) => '' !== s)
+}
+
+
+function pointed(f: VetFinding, path: any[]): VetFinding {
+  return { ...f, pointer: pointerOf(path.map((p: any) => aliasPathSegment(String(p)))) }
 }
 
 
@@ -195,6 +216,20 @@ function sitesOf(nil: any, prov: Prov): VetSite[] {
     ...sites.filter((s) => 'data' === s.role),
     ...sites.filter((s) => 'schema' === s.role),
   ]
+}
+
+
+// The value at a generated path, for the site a filled member is blamed on.
+function valAt(root: any, path: string[]): any {
+  let v = root
+  for (const seg of path) {
+    const next = Array.isArray(v?.peg) ? v.peg[Number(seg)] : v?.peg?.[seg]
+    if (null == next) {
+      return v
+    }
+    v = next
+  }
+  return v
 }
 
 
@@ -324,9 +359,8 @@ export function failureFinding(
 }
 
 
-// Walk the evaluated schema to the anchor path. `$` and `$.a.b` are
-// both accepted, as is the bare `a.b` a shell is likely to hand over
-// unquoted.
+// Walk the evaluated schema to the anchor path: `$`, `$.a.b`, or the
+// bare `a.b` a shell is likely to hand over unquoted.
 export function anchorAt(root: any, at: string): Val | undefined {
   const trimmed = at.startsWith('$') ? at.slice(1) : at
   const parts = trimmed.split('.').filter((p) => '' !== p)
@@ -595,8 +629,10 @@ export function vet(
   const aontu = new Aontu(includeOpts(options))
   const schemaOpts = null == options.schemaPath ?
     undefined : { path: options.schemaPath }
-  const dataOpts = null == options.dataPath ?
-    undefined : { path: options.dataPath }
+  const dataOpts = {
+    ...(null == options.dataPath ? {} : { path: options.dataPath }),
+    ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+  }
 
   // 1. The schema alone. If it does not stand up on its own, the data
   //    is never blamed for it.
@@ -613,7 +649,7 @@ export function vet(
       truncated: false,
       // A schema that does not stand up: nothing here is data, so the
       // data-url set is empty and every site reads `schema`.
-      findings: [findingOf(failure, { data: new Set<string>() })],
+      findings: [pointed(findingOf(failure, { data: new Set<string>() }), failure.path)],
     }
   }
 
@@ -625,7 +661,7 @@ export function vet(
       return {
         verdict: 'error',
         truncated: false,
-        findings: [noPathFinding(schemaVal, options.at)],
+        findings: [pointed(noPathFinding(schemaVal, options.at), atPath(options.at))],
       }
     }
   }
@@ -644,7 +680,7 @@ export function vet(
     return {
       verdict: 'invalid',
       truncated: false,
-      findings: [findingOf(failure, { data: new Set([dataUrl]) })],
+      findings: [pointed(findingOf(failure, { data: new Set([dataUrl]) }), failure.path)],
     }
   }
   stampUrl(schemaVal, schemaUrl)
@@ -682,7 +718,7 @@ export function vet(
         const admitted = rest.some(
           (m: any) => 'yes' === subsumeNode(state, path, m, d))
         if (!admitted && 0 < rest.length) {
-          lintFindings.push({
+          lintFindings.push(pointed({
             code: 'pref_not_instance',
             class: 'compat',
             severity: 'warning',
@@ -699,7 +735,7 @@ export function vet(
               src: d.site?.src ?? '',
               value: d.canon,
             }],
-          })
+          }, path))
         }
       }
     }
@@ -725,8 +761,7 @@ export function vet(
   }
   else {
     ; (ctx as any)._fixroot = schemaVal
-    ; (ctx as any).path = options.at.replace(/^\$\.?/, '')
-      .split('.').filter((s: string) => '' !== s)
+    ; (ctx as any).path = atPath(options.at)
   }
   const pair = new ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx)
   const unified: any = aontu.unify(pair, undefined, ctx)
@@ -742,17 +777,45 @@ export function vet(
 
   const findings: VetFinding[] = nils.map((n) => {
     materialise(n, ctx)
-    return findingOf(n, prov)
+    return pointed(findingOf(n, prov), n.path)
   })
 
   const genCtx: any = aontu.ctx({ collect: true })
   genCtx.root = unified
   genCtx.probe = null != options.at
-  unified.gen(genCtx)
+  const generated = unified.gen(genCtx)
   for (const err of genCtx.err) {
-    if ('incomplete' === err.class || 'conflict' === err.class) {
-      materialise(err, genCtx)
-      findings.push(findingOf(err, prov))
+    materialise(err, genCtx)
+    findings.push(pointed(findingOf(err, prov), err.path))
+  }
+
+  if (true === options.noFill && undefined !== generated) {
+    const ownCtx: any = aontu.ctx({ collect: true })
+    const ownVal: any = aontu.parse(dataSrc, dataOpts, ownCtx)
+    stampUrl(ownVal, dataUrl)
+    const own: any = aontu.unify(ownVal, undefined, ownCtx)
+    const genOwn: any = aontu.ctx({ collect: true })
+    genOwn.root = own
+    // Data that does not stand on its own: what stops it is the finding.
+    for (const err of ownCtx.err) {
+      materialise(err, ownCtx)
+      findings.push(pointed(findingOf(err, prov), err.path))
+    }
+    const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
+    // Under --at the paths are the anchor's, as every other finding's are.
+    const anchorPath: string[] = (ctx as any).path ?? []
+    // Data the schema must complete at its root is filled there.
+    const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
+      fillDiff(generated, ownGen, unified)
+    for (const path of filled) {
+      findings.push(pointed(fromRegistry({
+        code: 'vet_filled',
+        class: codeClass('vet_filled'),
+        severity: 'error',
+        path: pathText([...anchorPath, ...path]),
+        message: 'The schema supplies this member, and the data does not carry it.',
+        sites: [siteOf(valAt(unified, path), prov) as VetSite],
+      }, { why: 'vet_filled' }), [...anchorPath, ...path]))
     }
   }
 
@@ -763,7 +826,7 @@ export function vet(
     // (empty when the value belongs to neither document), the role by
     // comparing it to the data document's.
     const file = v.site.url
-    findings.push({
+    findings.push(pointed({
       code: 'deprecated',
       class: 'compat',
       severity: 'warning',
@@ -778,7 +841,7 @@ export function vet(
         src: v.site.src ?? '',
         value: v.canon,
       }],
-    })
+    }, path))
   }
 
   const keyed = findings.map((f, i) => ({ key: orderKey(f, i), finding: f }))

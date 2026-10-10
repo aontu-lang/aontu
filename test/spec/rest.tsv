@@ -1,0 +1,76 @@
+# REST -- `rest(t, ...c?)` (G12 phase 12, ADR-058): each member of the
+# settled container that no applying cover evaluates must be admitted by
+# the trial schema t, `nil` admitting none. A cover is a record of trial
+# schemas: `if` over the whole container, `keys` over a member's key (a
+# list member's is its index, as a string) and `members` over the member.
+# A cover applies when its `if` admits the container, and evaluates a
+# member its `keys` or `members` admits. Every trial sits at the atom's
+# path. The check runs at generation, and a scalar has no members.
+# Every expectation is both engines' agreed answer.
+#
+# Canon: covers sorted by canon and written once; a conflicting trial is nil.
+rest-canon-closes	canon	a: rest(nil)	{"a":rest(nil)}
+rest-canon-covers-sort	canon	a: rest(nil, {keys: "b"}, {keys: "a"})	{"a":rest(nil,{"keys":"a"},{"keys":"b"})}
+rest-canon-one-cover-once	canon	a: rest(nil, {keys: "a"}, {keys: "a"})	{"a":rest(nil,{"keys":"a"})}
+rest-canon-a-conflicting-cover-evaluates-nothing	canon	a: rest(nil, {if: 1 & 2, keys: any})	{"a":rest(nil,{"if":nil,"keys":any})}
+rest-canon-two-atoms-both-hold	canon	a: rest(nil, {keys: "a"}) & rest(number)	{"a":rest(nil,{"keys":"a"})&rest(number)}
+rest-canon-one-atom-twice	canon	a: rest(nil) & rest(nil)	{"a":rest(nil)}
+rest-canon-beside-a-map	canon	a: rest(nil, {keys: "a"}) & {a?: number}	{"a":{"a"?:number}&rest(nil,{"keys":"a"})}
+rest-canon-all-keys	canon	a: rest(nil, {if: {k: string}, keys: any, members: number})	{"a":rest(nil,{"if":{"k":string},"keys":any,"members":number})}
+rest-canon-a-nil-cover-is-dropped	canon	a: rest(nil, nil)	{"a":rest(nil)}
+# The check: a member no cover evaluates is tried by t.
+rest-gens-an-evaluated-key	gens	a: rest(nil, {keys: "a"}) & {a: 1}	{"a":{"a":1}}
+rest-errc-an-unevaluated-key	errc	a: rest(nil, {keys: "a"}) & {a: 1, b: 2}	rest
+rest-gens-t-admits-the-rest	gens	a: rest(number, {keys: "a"}) & {a: "x", b: 2}	{"a":{"a":"x","b":2}}
+rest-errc-t-refuses-the-rest	errc	a: rest(string, {keys: "a"}) & {a: "x", b: 2}	rest
+rest-gens-no-cover	gens	a: rest(number) & {b: 2}	{"a":{"b":2}}
+rest-errc-no-cover-closes	errc	a: rest(nil) & {b: 2}	rest
+rest-gens-no-member	gens	a: rest(nil) & {}	{"a":{}}
+rest-gens-a-pattern-cover	gens	a: rest(nil, {keys: re("^x")}) & {xa: 1, xb: 2}	{"a":{"xa":1,"xb":2}}
+rest-errc-a-pattern-cover	errc	a: rest(nil, {keys: re("^x")}) & {xa: 1, y: 2}	rest
+rest-gens-members-cover	gens	a: rest(nil, {members: number}) & {p: 1, q: 2}	{"a":{"p":1,"q":2}}
+rest-errc-members-cover	errc	a: rest(nil, {members: number}) & {p: 1, q: "x"}	rest
+rest-errc-a-conflicting-cover-evaluates-nothing	errc	a: rest(nil, {if: 1 & 2, keys: any}) & {b: 1}	rest
+rest-errc-two-atoms-both-hold	errc	a: rest(nil, {keys: "a"}) & rest(nil, {keys: "b"}) & {a: 1}	rest
+# A cover applies when its `if` admits the settled container.
+rest-gens-if-admits	gens	a: rest(nil, {if: {a: 1}, keys: any}) & {a: 1, z: true}	{"a":{"a":1,"z":true}}
+rest-errc-if-refuses	errc	a: rest(nil, {if: {a: 1}, keys: any}) & {a: 2}	rest
+rest-gens-if-refuses-t-admits	gens	a: rest(number, {if: {a: 1}, keys: any}) & {a: 2}	{"a":{"a":2}}
+rest-gens-covers-union	gens	a: rest(nil, {keys: "a"}, {if: {b: 1}, keys: "b"}) & {a: 1, b: 1}	{"a":{"a":1,"b":1}}
+rest-errc-a-cover-that-does-not-apply	errc	a: rest(nil, {keys: "a"}, {if: {b: 1}, keys: "b"}) & {a: 1, b: 2}	rest
+rest-gens-decided-at-generation	gens	a: rest(nil, {if: {k: "x"}, keys: any}) & {k: $.v, z: 1}\nv: "x"	{"a":{"k":"x","z":1},"v":"x"}
+# A list member's key is its index.
+rest-gens-list-prefix	gens	a: rest(nil, {keys: "0" | "1"}) & ["p", "q"]	{"a":["p","q"]}
+rest-errc-list-past-the-prefix	errc	a: rest(nil, {keys: "0"}) & ["p", "q"]	rest
+rest-gens-list-members	gens	a: rest(nil, {members: number}) & [1, 2]	{"a":[1,2]}
+rest-errc-list-members	errc	a: rest(nil, {members: number}) & [1, "x"]	rest
+rest-gens-list-t	gens	a: rest(string, {keys: "0"}) & [1, "x"]	{"a":[1,"x"]}
+rest-gens-a-scalar-has-no-members	gens	a: rest(nil) & 5	{"a":5}
+# Only an emitted member is checked: an absent optional or hidden one is not.
+rest-gens-an-absent-optional-member	gens	a: rest(nil, {keys: "a"}) & {a: 1, b?: number}	{"a":{"a":1}}
+rest-errc-a-present-optional-member	errc	a: rest(nil, {keys: "a"}) & {a: 1, b?: 2}	rest
+rest-gens-a-hidden-member	gens	a: rest(nil, {keys: "a"}) & {a: 1, b: hide(2)}	{"a":{"a":1}}
+rest-errc-a-member-that-does-not-generate	errc	a: rest(nil) & {b: string}	mapval_no_gen
+# Every trial of a cover sits at the atom's path, in a spread at each instance's.
+rest-gens-in-a-spread	gens	a: {&: rest(nil, {keys: "n"})} & {x: {n: 1}, y: {n: 2}}	{"a":{"x":{"n":1},"y":{"n":2}}}
+rest-errc-in-a-spread	errc	a: {&: rest(nil, {keys: "n"})} & {x: {n: 1}, y: {m: 2}}	rest
+rest-gens-cover-keys-sit-at-the-atom	gens	a: rest(nil, {keys: key(0)}) & {a: 1}	{"a":{"a":1}}
+rest-gens-cover-if-sits-at-the-atom	gens	a: rest(nil, {if: {q: key()}, keys: string}) & {q: "a"}	{"a":{"q":"a"}}
+rest-errc-cover-if-sits-at-the-atom	errc	a: rest(nil, {if: {q: key()}, keys: string}) & {q: "if"}	rest
+rest-gens-cover-in-a-spread-sits-at-each-instance	gens	s: {&: rest(nil, {if: {q: key()}, keys: string})} & {b: {q: "b"}}	{"s":{"b":{"q":"b"}}}
+rest-errc-cover-in-a-spread-sits-at-each-instance	errc	s: {&: rest(nil, {if: {q: key()}, keys: string})} & {b: {q: "if"}}	rest
+rest-gens-cover-keys-in-a-spread	gens	s: {&: rest(nil, {keys: key(0)})} & {b: {b: 1}}	{"s":{"b":{"b":1}}}
+# An atom still waiting on its arguments keeps its check when it meets a
+# settled one.
+rest-errc-a-waiting-atom-meets-a-built-one	errc	a: nof(1, {a: any}) & rest(nil, {if: {x: key()}, keys: any}) & {a: 1}	rest
+# A cover is a map of `if`, `keys` and `members`, each required.
+rest-errc-a-cover-not-a-map	errc	a: rest(nil, 1) & {}	invalid-arg
+rest-errc-a-cover-key-unknown	errc	a: rest(nil, {nope: 1}) & {}	invalid-arg
+rest-errc-a-cover-key-optional	errc	a: rest(nil, {keys?: "a"}) & {}	invalid-arg
+rest-errc-a-cover-spread	errc	a: rest(nil, {&: any}) & {}	invalid-arg
+rest-errc-no-arguments	errc	a: rest()	func_arity
+rest-errc-a-move-refused	errc	a: rest(nil, {keys: move($.b)}) & {}\nb: "x"	invalid-arg
+rest-errc-a-waiting-cover-not-a-map	errc	a: rest(nil, $.b) & {}\nb: 1	invalid-arg
+# Like the other Band B atoms, rest is opaque to subsumption.
+rest-general-is-undecided	subsume	a: rest(nil)	a: 5	{"findings":[{"actual":"5","class":"compat","code":"sub_evaluate_only","expected":"rest(nil)","message":"a check of the members no cover evaluates (rest) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"rest","value":"rest(nil)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"5","value":"5"}]}],"verdict":"undecided"}
+rest-general-residual-is-undecided	subsume	a: rest(nil)	a: rest(nil)	{"findings":[{"actual":"rest(nil)","class":"compat","code":"sub_evaluate_only","expected":"rest(nil)","message":"a check of the members no cover evaluates (rest) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"rest","value":"rest(nil)"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"rest","value":"rest(nil)"}]}],"verdict":"undecided"}

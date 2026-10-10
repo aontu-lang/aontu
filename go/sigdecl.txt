@@ -10,7 +10,8 @@
 # The syntax (rendered TypeScript-ish, honest about argument MODES):
 #   line = name '(' [ arg {',' arg} ] ')' ':' type
 #   arg  = [mode] name ['?'] ':' type
-#        | '...' name ':' '(' [mode] type {',' [mode] type} ')'
+#        | '...' name ['?'] ':' '(' [mode] type {',' [mode] type} ')'
+# A rest argument is given one or more times, or, marked `?`, any number.
 #   type = word {'|' word}
 #   mode = 'capture' | 'template' | 'trial' | 'projector' | 'text'
 # `value` mode is unmarked. `constraint` is the result word for
@@ -33,13 +34,21 @@ max(n: number|string) : constraint
 above(n: number|string) : constraint
 below(n: number|string) : constraint
 re(text p: string) : constraint
+format(text g: string) : constraint
 len(n: number|constraint) : constraint
 empty() : constraint
 key(up?: integer|biginteger) : string
 unique(projector k?: string) : constraint
 neq(...vals: number|string) : constraint
+multiple(n: number) : constraint
 must(trial c: any, text msg: string) : constraint
+nof(n: number|constraint, ...c: (trial any)) : constraint
+when(trial c: any, trial t: any, trial e?: any) : constraint
+contains(trial c: any, n?: number|constraint) : constraint
+rest(trial t: any, ...c?: (trial map)) : constraint
 deprecate(v: any, r?: map) : any
+meta(v: any, ...r: map) : any
+ident(v: any, r: map) : any
 acyclic() : constraint
 inverse(projector k: string) : constraint
 refer(template t?: any) : constraint

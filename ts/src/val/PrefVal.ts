@@ -16,7 +16,8 @@ import { AontuError, makeNilErr } from '../err'
 import {
   explainOpen,
   ec,
-  explainClose
+  explainClose,
+  canonRiders,
 } from '../utility'
 
 
@@ -223,7 +224,7 @@ class PrefVal extends FeatureVal {
 
   get canon() {
     // return this.pref instanceof Nil ? this.peg.canon : '*' + this.pref.canon
-    return '*' + this.peg.canon
+    return '*' + canonRiders(this.peg)
   }
 
 

@@ -64,6 +64,9 @@ func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 		for _, m := range n.musts {
 			walkVals(m.v, visit, seen)
 		}
+		for _, b := range n.settledTrials() {
+			walkVals(b, visit, seen)
+		}
 	}
 }
 
@@ -77,6 +80,19 @@ func stampURL(v Val, url string) map[string]bool {
 		return true
 	}, map[Val]bool{})
 	return urls
+}
+
+func trialSchemas(c *ConstraintVal) []Val {
+	if nil != c.pending && "nof" == c.pending.atom {
+		return c.pending.args[1:]
+	}
+	if nil != c.pending && ("when" == c.pending.atom || "rest" == c.pending.atom) {
+		return c.pending.args
+	}
+	if nil != c.pending && "contains" == c.pending.atom {
+		return c.pending.args[:1]
+	}
+	return c.settledTrials()
 }
 
 func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
@@ -93,9 +109,29 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 			if t.spread != nil {
 				walked[t.spread] = true
 			}
+			// A written nil under an optional key nobody supplied is no
+			// finding (ADR-046).
+			for _, k := range t.optional {
+				if nv, isNil := t.peg[k].(*NilVal); isNil && "literal_nil" == nv.why {
+					walked[nv] = true
+				}
+			}
 		case *ListVal:
 			if t.spread != nil {
 				walked[t.spread] = true
+			}
+		// A trial schema is no instance value, and a nil one admits nothing.
+		case *ConstraintVal:
+			for _, b := range trialSchemas(t) {
+				walked[b] = true
+			}
+		// A pending match's arms are what it returns where one is chosen,
+		// and a nil arm is a choice, not yet a value.
+		case *FuncVal:
+			if "match" == t.name {
+				for _, arm := range t.peg[1:] {
+					walked[arm] = true
+				}
 			}
 		}
 		return true

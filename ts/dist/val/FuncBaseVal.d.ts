@@ -18,6 +18,7 @@ declare class FuncBaseVal extends FeatureVal {
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
     funcname(): string;
+    rides(): boolean;
     prepare(_ctx: AontuContext, args: Val[]): Val[] | null;
     resolve(ctx: AontuContext, _args: Val[]): Val;
     deferResolve(_ctx: AontuContext, _args?: Val[]): boolean;

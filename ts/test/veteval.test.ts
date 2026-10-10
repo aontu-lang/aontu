@@ -8,6 +8,8 @@ import * as Path from 'node:path'
 
 import { Aontu } from '../dist/aontu'
 import { vet } from '../dist/vet'
+import { admits } from '../dist/admit'
+import { ConjunctVal } from '../dist/val/ConjunctVal'
 
 
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec')
@@ -83,6 +85,31 @@ function evalAccepts(src: string): boolean {
     return false
   }
   return 0 === ctx.err.length && undefined !== out
+}
+
+
+// Under --no-fill or --exact-numbers the data is a value read its own
+// way, so the one-document form is the meet of the schema's parse and the
+// data's, and --no-fill asks the admission trial.
+function evalByValue(row: VetRow): boolean {
+  const aontu = new Aontu()
+  const sctx: any = aontu.ctx({ collect: true })
+  const sval: any = aontu.parse(row.schema, {}, sctx)
+  const dctx: any = aontu.ctx({ collect: true })
+  const dval: any = aontu.parse(row.data,
+    { exactNumbers: true === row.opts.exactNumbers }, dctx)
+  if (0 < sctx.err.length || 0 < dctx.err.length) {
+    return false
+  }
+  if (true === row.opts.noFill) {
+    return admits(aontu, sval, dval)
+  }
+  const ctx: any = aontu.ctx({ collect: true })
+  const met: any = aontu.unify(new ConjunctVal({ peg: [sval, dval] }, ctx), undefined, ctx)
+  const gctx: any = aontu.ctx({ collect: true })
+  gctx.root = met
+  const out = 0 === ctx.err.length ? met.gen(gctx) : undefined
+  return undefined !== out && 0 === gctx.err.length
 }
 
 
@@ -191,12 +218,18 @@ describe('vet-equals-eval', () => {
         { ...row.opts, schemaUrl: 'schema', dataUrl: 'data' } as any)
       const vetAccepts = 'valid' === report.verdict
 
-      const one = union(row.schema, row.data)
-      if (null == one) {
-        skipped++
-        continue
+      let evalOk: boolean
+      if (true === row.opts.noFill || true === row.opts.exactNumbers) {
+        evalOk = evalByValue(row)
       }
-      const evalOk = evalAccepts(one)
+      else {
+        const one = union(row.schema, row.data)
+        if (null == one) {
+          skipped++
+          continue
+        }
+        evalOk = evalAccepts(one)
+      }
 
       if (vetAccepts !== evalOk) {
         disagree.push(

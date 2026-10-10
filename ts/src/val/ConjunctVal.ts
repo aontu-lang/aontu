@@ -145,8 +145,12 @@ class ConjunctVal extends JunctionVal {
         newtype = this.mark.type || val.mark.type
         newhide = this.mark.hide || val.mark.hide
 
-        // Unite was just a conjunt anyway, so discard.
-        if (val.isConjunct) {
+        // A conjunct answer is no progress, unless it is a sizing residue
+        // of other terms: a decided disjunction or one level of an
+        // expanded recursion is the meet so far.
+        const moved = undefined !== sizingResidue(val) && !sameTerms(val, t0, t1)
+        if (val.isConjunct && !moved &&
+          (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
           outvals.push(t0)
           t0 = t1
         }
@@ -233,6 +237,11 @@ class ConjunctVal extends JunctionVal {
 }
 
 
+function sameTerms(cj: any, t0: Val, t1: Val): boolean {
+  return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1)
+}
+
+
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
@@ -269,8 +278,14 @@ function norm(terms: Val[]): Val[] {
 
   // console.log('NORM', expand.map(t => t.canon).join(', '))
 
-
-  return expand
+  // A repeated waiting match adds nothing, nor a residual met again.
+  const seen = new Set<string>()
+  return expand.filter((t: any) => {
+    const key: string | undefined = true === t.isRecurse ?
+      '\u0000' + t.target.join('\u0000') :
+      true === t.isMatchFunc && true !== t.done ? t.canon : undefined
+    return undefined === key || seen.size !== seen.add(key).size
+  })
 } /* node:coverage ignore next 7 */
 
 

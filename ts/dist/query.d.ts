@@ -8,6 +8,7 @@ export type QueryOptions = {
     path?: string;
     trust?: TrustOptions;
     textExt?: string[];
+    exactNumbers?: boolean;
 };
 export type QueryReport = {
     ok: boolean;

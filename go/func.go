@@ -12,6 +12,10 @@ import (
 	"golang.org/x/text/language"
 )
 
+// riderFuncs are the riders: each one's value is its own argument, with a
+// record beside it.
+var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
+
 var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
@@ -20,7 +24,15 @@ var funcSet = map[string]bool{
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "empty": true, "unique": true, "must": true,
+	"multiple":  true,
+	"nof":       true,
+	"when":      true,
+	"contains":  true,
+	"rest":      true,
+	"format":    true,
 	"deprecate": true,
+	"meta":      true,
+	"ident":     true,
 	"rel":       true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -85,6 +97,9 @@ func derivePositional() map[string]bool {
 			out[name] = true
 		}
 	}
+	// A trial schema may be a list, so the count is read by position.
+	out["contains"] = true
+	out["rest"] = true
 	return out
 }
 
@@ -104,9 +119,9 @@ func deriveArity() map[string][2]int {
 		min, max := 0, 0
 		for _, a := range sig.Args {
 			if a.Rest {
-				if nil == a.Group {
+				if !a.Opt && nil == a.Group {
 					min++
-				} else {
+				} else if !a.Opt {
 					min += len(a.Group)
 				}
 				max = -1
@@ -178,6 +193,8 @@ type FuncVal struct {
 	name     string
 	peg      []Val // arguments
 	prepared bool
+	// declared marks ident() as the whole value of an alias declaration.
+	declared bool
 }
 
 func newFunc(name string, args []Val) *FuncVal {
@@ -415,18 +432,28 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		if out != Val(f) {
 			propagateMarks(f, out)
-			out.setvpath(cp(f.path))
-			out.setPos(f.site.sp)
-			out.setPosu(f.site.spu)
-			out.setSrcurl(f.site.url)
-			out.setSrctext(f.srctext())
+			// A meet with the root's declaring map lands at the root.
+			home := f.path
+			if pm, ok := peer.(*MapVal); ok && 0 < len(pm.aliasKeys) {
+				home = pm.path
+			}
+			out.setvpath(cp(home))
+			// A rider's value is its argument, written where it is (ADR-066).
+			if !riderFuncs[f.name] || out.pos() < 0 {
+				out.setPos(f.site.sp)
+				out.setPosu(f.site.spu)
+				out.setSrcurl(f.site.url)
+				out.setSrctext(f.srctext())
+			}
 		}
 	} else if isTop(peer) {
 		f.notdone()
 		nf := newFunc(f.name, newpeg)
+		nf.declared = f.declared
 		nf.path = cp(f.path)
 		nf.dc = f.dc
-		nf.site.sp = f.site.sp
+		nf.site.sp, nf.site.spu, nf.site.url = f.site.sp, f.site.spu, f.site.url
+		nf.site.src = f.site.src
 		nf.spr = f.spr
 		nf.mtype = newtype
 		nf.mhide = newhide
@@ -652,7 +679,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			return args[0]
 		}
 		out := clonePath(args[0], cp(base))
-		rec := map[string]string{}
+		rec := map[string][]string{}
 		if len(args) > 1 {
 			if m, ok := args[1].(*MapVal); ok {
 				// The record's whole vocabulary; other keys are DROPPED
@@ -660,13 +687,57 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 				for _, key := range []string{"msg", "use", "since"} {
 					if sv, ok := m.peg[key].(*ScalarVal); ok && KindString == sv.kind {
 						if str, ok := sv.peg.(string); ok {
-							rec[key] = str
+							rec[key] = []string{str}
 						}
 					}
 				}
 			}
 		}
-		out.setDeprecRec(rec)
+		// A second record on a deprecated value joins the first.
+		out.setDeprecRec(unionRiders(sameString, out.deprecRec(), rec))
+		return out
+	case "ident":
+		if !f.declared {
+			return makeNilErr(ctx, "ident_place", f, nil)
+		}
+		if args[0].Nil() {
+			return args[0]
+		}
+		rec, ok := identRecord(args[1])
+		if !ok {
+			return makeNilErrFull(ctx, "func_arg", f, args[1], "", map[string]string{
+				"func": "ident",
+				"sig":  renderSig(funcSig["ident"]),
+				"arg":  "r",
+				"argn": "2",
+				"got":  args[1].Canon(),
+			})
+		}
+		out := clonePath(args[0], cp(base))
+		out.setIdentRec(unionRiders(sameString, out.identRec(), rec))
+		return out
+	case "meta":
+		if args[0].Nil() {
+			return args[0]
+		}
+		recs := []map[string][]Val{}
+		for i, r := range args[1:] {
+			rec, ok := metaRecord(r)
+			if !ok {
+				return makeNilErrFull(ctx, "func_arg", f, r, "", map[string]string{
+					"func": "meta",
+					"sig":  renderSig(funcSig["meta"]),
+					"arg":  "r",
+					"argn": itoa(i + 2),
+					"got":  r.Canon(),
+				})
+			}
+			recs = append(recs, rec)
+		}
+		out := clonePath(args[0], cp(base))
+		if meta := unionRiders(valCanon, append([]map[string][]Val{out.metaRec()}, recs...)...); 0 < len(meta) {
+			out.setMetaRec(meta)
+		}
 		return out
 	case "acyclic", "inverse":
 		invname := ""

@@ -22,7 +22,7 @@ belongs in the pages below; add it there, not here.
 
 | Page | What it carries |
 |------|-----------------|
-| [contributing/testing.md](docs/contributing/testing.md) | the shared `test/spec/*.tsv` suite and its modes, the generated-copy generators (`sig`, `helpdoc`, `aontu`), adding a behaviour, the parity probe, the vet ≡ eval differential, the divergence ledger |
+| [contributing/testing.md](docs/contributing/testing.md) | the shared `test/spec/*.tsv` suite and its modes, the generated-copy generators (`sig`, `helpdoc`, `aontu`), adding a behaviour, the parity probe, the vet ≡ eval differential, the JSON Schema suite, the divergence ledger |
 | [contributing/parity.md](docs/contributing/parity.md) | what the Go port covers, why the `@tabnas` pins are exact, the numeric tower |
 | [contributing/conventions.md](docs/contributing/conventions.md) | comments, what a document is for, module vs package, site attribution, provenance, colour, the mutation caveat |
 | [contributing/capability-review.md](docs/contributing/capability-review.md) | the progress register and its same-commit rule |

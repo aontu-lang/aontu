@@ -134,57 +134,61 @@ disagree, and read a TypeScript line count as evidence that the
 
 ### Shared, cross-language spec
 
-`test/spec/*.tsv` (**5567 cases across 115 files**) is run by *both*
+`test/spec/*.tsv` (**6329 cases across 121 files**) is run by *both*
 implementations and is the contract that defines shared behaviour
 ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)):
 
 | File | Cases | File | Cases |
 |------|------:|------|------:|
-| `number-tower.tsv`          | 395 | `aontu-system.tsv` | 37 |
-| `edge.tsv`                  | 337 | `optional.tsv` | 37 |
-| `constraint-product.tsv`    | 256 | `views.tsv` | 37 |
-| `fmt.tsv`                   | 230 | `graph.tsv` | 36 |
-| `errcodes.tsv`              | 175 | `defaults.tsv` | 35 |
-| `view.tsv`                  | 175 | `constraint-must.tsv` | 34 |
-| `alias.tsv`                 | 164 | `gen-pack.tsv` | 34 |
-| `types.tsv`                 | 164 | `seal.tsv` | 34 |
-| `func.tsv`                  | 148 | `template.tsv` | 34 |
-| `subsume.tsv`               | 121 | `constraint-cross.tsv` | 33 |
-| `number-model.tsv`          | 120 | `containerkind.tsv` | 32 |
-| `constraint-re.tsv`         | 118 | `super.tsv` | 29 |
-| `vet.tsv`                   | 111 | `budget.tsv` | 28 |
-| `constraint-length.tsv`     | 102 | `diff.tsv` | 28 |
-| `str.tsv`                   |  99 | `gen-match.tsv` | 28 |
-| `cmp.tsv`                   |  93 | `recursion.tsv` | 28 |
-| `query.tsv`                 |  93 | `gen-filter.tsv` | 25 |
-| `refer.tsv`                 |  87 | `engine-parity.tsv` | 23 |
-| `gen-emit.tsv`              |  86 | `var.tsv` | 23 |
-| `maybe.tsv`                 |  75 | `constraint-alias.tsv` | 21 |
-| `pref.tsv`                  |  75 | `deprecate.tsv` | 21 |
+| `number-tower.tsv`          | 395 | `rel.tsv` | 42 |
+| `jsonschema-import.tsv`     | 364 | `patch.tsv` | 41 |
+| `edge.tsv`                  | 344 | `place.tsv` | 41 |
+| `jsonschema.tsv`            | 260 | `budget.tsv` | 40 |
+| `constraint-product.tsv`    | 256 | `scalar.tsv` | 40 |
+| `fmt.tsv`                   | 233 | `sort.tsv` | 39 |
+| `alias.tsv`                 | 198 | `containerkind.tsv` | 38 |
+| `errcodes.tsv`              | 186 | `aontu-system.tsv` | 37 |
+| `view.tsv`                  | 175 | `views.tsv` | 37 |
+| `types.tsv`                 | 171 | `graph.tsv` | 36 |
+| `func.tsv`                  | 148 | `defaults.tsv` | 35 |
+| `vet.tsv`                   | 145 | `map.tsv` | 35 |
+| `subsume.tsv`               | 123 | `gen-pack.tsv` | 34 |
+| `number-model.tsv`          | 120 | `seal.tsv` | 34 |
+| `constraint-re.tsv`         | 118 | `template.tsv` | 34 |
+| `meta.tsv`                  | 104 | `constraint-cross.tsv` | 33 |
+| `constraint-length.tsv`     | 102 | `deprecate.tsv` | 33 |
+| `str.tsv`                   |  99 | `gen-match.tsv` | 30 |
+| `query.tsv`                 |  98 | `recursion.tsv` | 30 |
+| `cmp.tsv`                   |  93 | `super.tsv` | 29 |
+| `refer.tsv`                 |  87 | `diff.tsv` | 28 |
+| `gen-emit.tsv`              |  86 | `gen-filter.tsv` | 25 |
+| `maybe.tsv`                 |  78 | `close.tsv` | 23 |
+| `constraint-nof.tsv`        |  76 | `engine-parity.tsv` | 23 |
+| `ref.tsv`                   |  76 | `var.tsv` | 23 |
+| `pref.tsv`                  |  75 | `constraint-alias.tsv` | 21 |
 | `constraint-bound.tsv`      |  74 | `elision.tsv` | 21 |
-| `ref.tsv`                   |  74 | `map.tsv` | 20 |
-| `file.tsv`                  |  70 | `reach.tsv` | 19 |
-| `jsonschema.tsv`            |  67 | `list.tsv` | 18 |
-| `path.tsv`                  |  66 | `aontu-view.tsv` | 16 |
-| `marks.tsv`                 |  62 | `plus.tsv` | 16 |
-| `number-cross-product.tsv`  |  59 | `aontu-profile.tsv` | 14 |
-| `gen-join.tsv`              |  58 | `gen-key.tsv` | 14 |
-| `hcanon.tsv`                |  58 | `conjunct.tsv` | 13 |
-| `arith.tsv`                 |  57 | `merge-conflict.tsv` | 13 |
-| `relation.tsv`              |  56 | `gen-close.tsv` | 11 |
-| `gen-each.tsv`              |  55 | `trim.tsv` | 11 |
-| `why.tsv`                   |  53 | `close.tsv` |  9 |
-| `abnf.tsv`                  |  52 | `gen-spread.tsv` |  9 |
-| `agg.tsv`                   |  50 | `incomplete.tsv` |  9 |
-| `mod.tsv`                   |  46 | `trace.tsv` |  9 |
-| `op-chars.tsv`              |  46 | `agentsmd.tsv` |  7 |
-| `error.tsv`                 |  45 | `container-path.tsv` |  7 |
-| `rel.tsv`                   |  42 | `comment.tsv` |  6 |
-| `patch.tsv`                 |  41 | `aontu-scheme.tsv` |  4 |
-| `place.tsv`                 |  41 | `include-trust.tsv` |  4 |
-| `scalar.tsv`                |  40 | `divergent.tsv` |  0 |
-| `sort.tsv`                  |  39 | `signature.tsv` |  0 |
-| `disjunct.tsv`              |  38 | | |
+| `constraint-when.tsv`       |  71 | `reach.tsv` | 19 |
+| `file.tsv`                  |  71 | `ident.tsv` | 18 |
+| `path.tsv`                  |  66 | `list.tsv` | 18 |
+| `hcanon.tsv`                |  64 | `aontu-view.tsv` | 16 |
+| `marks.tsv`                 |  64 | `plus.tsv` | 16 |
+| `constraint-contains.tsv`   |  62 | `aontu-profile.tsv` | 14 |
+| `number-cross-product.tsv`  |  59 | `gen-key.tsv` | 14 |
+| `optional.tsv`              |  59 | `conjunct.tsv` | 13 |
+| `gen-join.tsv`              |  58 | `merge-conflict.tsv` | 13 |
+| `arith.tsv`                 |  57 | `gen-close.tsv` | 11 |
+| `relation.tsv`              |  56 | `trim.tsv` | 11 |
+| `rest.tsv`                  |  56 | `gen-spread.tsv` |  9 |
+| `gen-each.tsv`              |  55 | `incomplete.tsv` |  9 |
+| `constraint-multiple.tsv`   |  54 | `trace.tsv` |  9 |
+| `why.tsv`                   |  53 | `agentsmd.tsv` |  7 |
+| `abnf.tsv`                  |  52 | `container-path.tsv` |  7 |
+| `agg.tsv`                   |  50 | `comment.tsv` |  6 |
+| `mod.tsv`                   |  46 | `aontu-scheme.tsv` |  4 |
+| `op-chars.tsv`              |  46 | `include-trust.tsv` |  4 |
+| `constraint-must.tsv`       |  45 | `divergent.tsv` |  0 |
+| `error.tsv`                 |  45 | `signature.tsv` |  0 |
+| `disjunct.tsv`              |  42 | | |
 
 plus the `spread*.tsv` family: **26 files, 167 cases**, one spread
 topic per file. `divergent.tsv` is the parity ledger: commentary only,
@@ -300,10 +304,11 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go: 124 marked sites
+### Go: 128 marked sites
 
 | Site | Why it cannot be reached, as the marker says |
 |------|--------------------------|
+| `allow.go` × 1 | `the shape has met the anchor as a map` |
 | `aontu.go` × 1 | `Abs fails only on an unreadable cwd` |
 | `cmd/aontu-lsp/main.go` × 1 | `run under GOCOVERDIR by make cov-go` |
 | `cmd/aontu/help.go` × 3 | `the file is embedded; absence fails the build`; `the generator writes four columns`; `every indexed file is embedded beside the index` |
@@ -320,6 +325,7 @@ marker stopped working.
 | `constraint.go` × 2 | `parse-time arity guarantees two; see above`; `no Val kind reaches this arm; see above` |
 | `disjunct.go` × 2 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `the meet returns the preference itself; see above` |
 | `format.go` × 1 | `a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first` |
+| `formatgrammar.go` × 1 | `only a refusal is raised above; anything else is a fault` |
 | `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
 | `generate.go` × 1 | `hasNodeRef true implies a case above` |
 | `graphatom.go` × 1 | `a string-kind scalar always holds a string` |
@@ -338,6 +344,7 @@ marker stopped working.
 | `profile.go` × 1 | `vet passed, so the meet generates` |
 | `query.go` × 3 | `a generated value is always encodable` (× 2); `the arm for a root that is nil-the-INTERFACE rather than nil-the-value, which unifyRoot cannot return: every caller's guard is nil != uerr \|\| nil == root \|\| root.Nil(), and Nil() is true of *NilVal alone, so a root reaching here carries no code and the caller's generic one stands (the same last resort failureFinding keeps in go/vet.go)` |
 | `refer.go` × 1 | `pegs are pre-validated by the capture` |
+| `regex.go` × 2 | `only a refusal is raised above; anything else is a fault` (× 2) |
 | `scalar.go` × 1 | `no caller: superOf answers for a kind peg (ADR-011 R4)` |
 | `sig.go` × 2 | `the grammar is static; registration failure is a build defect`; `the embedded text is suite-gated; a parse failure is a build defect` |
 | `source.go` × 8 | `a plugin that cannot install is a broken dependency, not an input`; `Abs fails only on an unreadable cwd`; `an include's string always follows its @`; `parseBase always seats the sink`; `a resolution always carries its full path`; `jsonic hands back a Val or a map, never a raw`; `the readers cannot nest deeper than their own parser allows`; `a JSON-shaped value has no other kind` |
@@ -366,11 +373,18 @@ executed code; and a file it cannot find or parse simply has no markers,
 so the merge degrades to a plain union rather than silently dropping
 everything.
 
-### TypeScript: export blocks only
+### TypeScript: export blocks, and four guarded sites
 
-`ts/src` carries one directive per file, on the trailing
-`export { … }` block, because V8 reports those lines as unexecuted in
-every run. Nothing else is excluded.
+`ts/src` carries a directive on each file's trailing `export { … }`
+block, because V8 reports those lines as unexecuted in every run, and
+on the tail of a few top-level blocks V8 misreports the same way. Four
+more sites are excluded, each with its ruling in the source:
+
+| Site | Why it cannot be reached, as the comment says |
+|------|--------------------------|
+| `cli.ts` × 1 | the real pair of servers takes the process stdio, so `ts/test/cli.test.ts` drives each through a child process instead |
+| `formatgrammar.ts` × 1 | only a refusal is raised above; anything else is a fault |
+| `regex.ts` × 2 | only a refusal is raised above; anything else is a fault (× 2) |
 
 Everything else that was unreachable is **gone rather than excused**,
 per ADR-002 rule 4. The round deleted: a `null == resolved` branch that

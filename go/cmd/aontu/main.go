@@ -26,6 +26,11 @@ const helpText = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [--dialect <name>] [--no-meta-check]
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -99,6 +104,9 @@ Options:
   -c, --canon     Print the canonical form instead of generated JSON
                   (the bare command's, as --jsonl is; model get has
                   its own)
+  --exact-numbers Read every number the document writes by its value:
+                  1.0 is the integer 1, and 0.1 keeps its digits (the
+                  bare command's; vet has its own)
   --format <f>    text (default) or json, on every verb that answers a
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
@@ -178,6 +186,11 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies and the data
+                    does not carry (vet_filled): the data must be an
+                    instance as written, not as filled
+  --exact-numbers   Read every data number by its exact value, so 1,
+                    1.0 and 1e0 are one integer and 0.1 keeps its digits
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -189,6 +202,11 @@ Vet options:
                     today starts failing without this flag
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: the report as JSON Schema's output
+                    units, for one data file, in place of --format.
+                    basic locates each error through --source-map
+  --source-map <f>  The map jsonschema import --source-map wrote for
+                    the schema, refused once the schema's text changes
   --watch           Re-run whenever a watched file changes
 
 A check that examined NOTHING and a check that passed answer the same
@@ -551,7 +569,7 @@ func render(a *aontu.Aontu, src, mode string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return v.Canon(), nil
+		return aontu.CanonRiders(v), nil
 	}
 	out, err := a.Generate(src)
 	if err != nil {
@@ -850,7 +868,7 @@ func stdinIsPipe() bool {
 // repl reads source lines from in, evaluating each and writing results
 // to out, until EOF or a :quit/:exit command.
 func repl(
-	mode string, jsonl bool, trust trustArg, in io.Reader, out io.Writer,
+	mode string, jsonl bool, trust trustArg, exact bool, in io.Reader, out io.Writer,
 ) {
 	prompt := "aontu> "
 	if jsonl {
@@ -864,7 +882,7 @@ func repl(
 			fmt.Fprintln(out)
 		}
 	}
-	state := replState{Mode: mode, JSONL: jsonl, Trust: trust}
+	state := replState{Mode: mode, JSONL: jsonl, Trust: trust, Exact: exact}
 	sc := bufio.NewScanner(in)
 	// Raise the line cap well above bufio's 64KB default so a long
 	// pasted source line is not silently truncated.
@@ -998,6 +1016,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 	// reports.
 	format := "text"
 	jsonl := false
+	exact := false
 	var files []string
 	trust := trustArg{kind: "system-warn"}
 	textExt := []string{}
@@ -1007,6 +1026,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		switch arg {
 		case "-c", "--canon":
 			mode = "canon"
+		case "--exact-numbers":
+			exact = true
 		case "--format":
 			i++
 			if len(args) <= i || ("text" != args[i] && "json" != args[i]) {
@@ -1103,10 +1124,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 			abs = file
 		}
 		applyTrust(a, trust, filepath.Dir(abs), stderr)
+		a.ExactNumbers = exact
 		return emit(a, string(src), mode, format, stdout, stderr)
 	}
 
 	a := aontu.New()
+	a.ExactNumbers = exact
 	cwd, cwdErr := os.Getwd()
 	if cwdErr != nil { //coverage:ignore Getwd fails only on a deleted cwd
 		cwd = "."
@@ -1126,7 +1149,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, tty bool) int
 		return emit(a, string(src), mode, format, stdout, stderr)
 	}
 
-	repl(mode, jsonl, trust, stdin, stdout)
+	repl(mode, jsonl, trust, exact, stdin, stdout)
 	return 0
 }
 

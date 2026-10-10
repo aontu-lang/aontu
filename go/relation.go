@@ -240,6 +240,7 @@ func (a *Aontu) RelationCheckOpts(
 			Findings: []RelationFinding{}}
 	}
 
+	ctx.trialsOf()
 	gcopy := *ctx
 	gctx := &gcopy
 	gctx.err = nil

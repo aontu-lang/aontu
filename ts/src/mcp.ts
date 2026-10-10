@@ -17,6 +17,7 @@ import type { VetFinding } from './vet'
 import { get, why, evalFailure } from './query'
 import { diff } from './diff'
 import { canonHash, hcanon } from './hcanon'
+import { canonRiders } from './utility'
 import { cmpCodePoint } from './keyorder'
 import { subsume } from './subsume'
 import type { SubsumeVerdict } from './subsume'
@@ -710,7 +711,7 @@ function canonOf(src: string, trust: TrustOptions, path?: string): any {
   if (0 < ctx.err.length) {
     return { ok: false, canon: '', findings: [evalFailure(ctx)] }
   }
-  return { ok: true, canon: v.canon, findings: [] }
+  return { ok: true, canon: canonRiders(v), findings: [] }
 }
 
 

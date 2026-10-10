@@ -119,3 +119,11 @@ query-list-spread-types	query	l:[&:integer,1,2]	$.l	{"opts": {"view": "types"}, 
 query-list-spread-keys	query	l:[&:integer,1,2]	$.l	{"opts": {"view": "keys"}, "out": "0\\n1"}
 query-list-spread-json	query	l:[&:integer,1,2]	$.l	{"out": "[\\n  1,\\n  2\\n]"}
 query-list-spread-root-canon-d2	query	l:[&:integer,1,2]	$	{"opts": {"depth": 2, "view": "canon"}, "out": "{\\"l\\":[&:any,any,any]}"}
+#
+# G12 phase 8: a meta() record renders in the canon view wherever its
+# value sits, the root included; the types and keys views show none.
+query-meta-member-canon	query	a: meta(1, {title: "t"}) | meta(2, {title: "u"})	$.a	{"opts": {"view": "canon"}, "out": "meta(1,{\\"title\\":\\"t\\"})|meta(2,{\\"title\\":\\"u\\"})"}
+query-meta-member-types	query	a: meta(1, {title: "t"}) | meta(2, {title: "u"})	$.a	{"opts": {"view": "types"}, "out": "integer|integer"}
+query-meta-root-canon	query	meta({a: 1}, {title: "r"})	$	{"opts": {"view": "canon"}, "out": "meta({\\"a\\":1},{\\"title\\":\\"r\\"})"}
+query-meta-root-canon-d1	query	meta({a: meta({b: 1}, {title: "t"})}, {title: "r"})	$	{"opts": {"depth": 1, "view": "canon"}, "out": "meta({\\"a\\":any},{\\"title\\":\\"r\\"})"}
+query-meta-root-canon-d2	query	meta({a: meta({b: 1}, {title: "t"})}, {title: "r"})	$	{"opts": {"depth": 2, "view": "canon"}, "out": "meta({\\"a\\":meta({\\"b\\":any},{\\"title\\":\\"t\\"})},{\\"title\\":\\"r\\"})"}

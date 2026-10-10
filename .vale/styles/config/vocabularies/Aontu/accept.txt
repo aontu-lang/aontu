@@ -228,8 +228,8 @@ unsuffixed
 untrusted
 untyped
 uppercases
-uri
-uri's
+(?:uri|URI)
+(?:uri|URI)'s
 util
 validators
 vendored
@@ -258,3 +258,11 @@ Sigstore
 # The alias surface: a pattern on the left of an include, which binds
 # the names the other file publishes.
 destructure
+
+# The format grammars: Unicode's name for text direction, the encoding
+# of a domain label, and the one character a recognizer reads ahead.
+Bidi
+Punycode
+lookahead
+# The pattern matcher: a reference back to what a group matched.
+backreferences?

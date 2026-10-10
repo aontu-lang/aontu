@@ -68,15 +68,18 @@ refusals, so `computeDiagnostics` publishes nothing for either.
 One diagnostic is not an error: a value carrying `deprecate()` is
 published with code `deprecated` at Hint severity (4), tagged with the
 native Deprecated tag (2), so editors strike it through without
-shouting.
+shouting. Two records met on one value are one diagnostic, each field's
+values joined with `; `.
 
 **Hover** reads the *unified* tree, so hovering a value shows what it
 resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
 *integer*; hovering `string` in a schema shows kind *type*. Hover targets
-concrete values (scalars, kinds, references), not containers.
+concrete values (scalars, kinds, references), not containers. A value
+annotated with `meta()` adds its titles, each in bold, then its
+descriptions, under the kind.
 
 **Completion** offers a context-free list (clients filter by the typed
-prefix): the built-in functions (the engine's full roster, 63 today, the
+prefix): the built-in functions (the engine's full roster, 68 today, the
 constraint atoms (`min`, `re`, `len`, …) and the relation atoms
 (`refer`, `rel`, `acyclic`, `inverse`) included), the kind keywords
 (`string`, `number`, `integer`, `float`, `biginteger`, `bigdecimal`,

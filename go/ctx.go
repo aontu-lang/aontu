@@ -34,10 +34,28 @@ type Ctx struct {
 	budgetPasses int
 	budgetDepth  int
 	budgetAlias  int
+	budgetTrials int
+
+	trials *trialState
 
 	prov *Provenance
 
 	reads map[string]bool
+}
+
+// trialState is one evaluation's admission trials and their verdicts.
+type trialState struct {
+	n    int
+	memo map[string]bool
+}
+
+// trialsOf makes the state on first use; a copy shares it only once it
+// exists, so every copy site asks for it before copying.
+func (c *Ctx) trialsOf() *trialState {
+	if nil == c.trials {
+		c.trials = &trialState{memo: map[string]bool{}}
+	}
+	return c.trials
 }
 
 func (c *Ctx) adderr(n *NilVal) {

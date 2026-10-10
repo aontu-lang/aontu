@@ -9,6 +9,8 @@ exports.cmpCodePoints = cmpCodePoints;
 exports.towerRank = towerRank;
 exports.scaledIsIntegral = scaledIsIntegral;
 exports.scaledFloor = scaledFloor;
+exports.scaledOfShown = scaledOfShown;
+exports.scaledIsMultiple = scaledIsMultiple;
 const F64 = new DataView(new ArrayBuffer(8));
 // The exact scaled-decimal value of a finite or infinite binary64.
 function scaledOfFloat(f) {
@@ -78,6 +80,23 @@ function cmpScaled(a, b) {
 function cmpNumeric(a, b) {
     return cmpScaled(scaledOfNumeric(a), scaledOfNumeric(b));
 }
+// The value a number shows, a float read through its shortest round-trip
+// rendering: rounding moves a multiple off its divisor (0.3 off 0.1).
+function scaledOfShown(v) {
+    if (1 !== towerRank(v)) {
+        return scaledOfNumeric(v);
+    }
+    const m = /^(-?\d+)(?:\.(\d+))?(?:e([-+]\d+))?$/.exec(String(v.peg));
+    const frac = m[2] ?? '';
+    const unscaled = BigInt(m[1] + frac);
+    const scale = frac.length - Number(m[3] ?? 0);
+    return scale < 0 ? { unscaled: unscaled * pow10(-scale), scale: 0 } : { unscaled, scale };
+}
+// Whether `p` is a whole multiple of `d`, both exact and finite.
+function scaledIsMultiple(p, d) {
+    const s = Math.max(p.scale, d.scale);
+    return 0n === (p.unscaled * pow10(s - p.scale)) % (d.unscaled * pow10(s - d.scale));
+}
 function cmpCodePoints(a, b) {
     let ai = 0;
     let bi = 0;
@@ -119,5 +138,5 @@ function scaledFloor(s) {
     const q = s.unscaled / p;
     // BigInt division truncates toward zero; floor rounds down.
     return (s.unscaled < 0n && 0n !== s.unscaled % p) ? q - 1n : q;
-} /* node:coverage ignore next 14 */
+} /* node:coverage ignore next 16 */
 //# sourceMappingURL=numcmp.js.map

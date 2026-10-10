@@ -1,0 +1,8 @@
+# The skip ledger of the suite's output tests (../README.md): one row per
+# test whose basic output the test's own schema refuses, the construct it
+# waits on and why. A listed test that passes fails the run.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+draft2019-09/content/escape.json	tilde and forward slash in json-pointer	incorrect type must be reported, but a message is not required	properties	a schema with no type imports as a disjunction of the kinds, and a value of none of them is refused at that disjunction, on the schema, not at the keyword inside it
+draft2020-12/content/escape.json	tilde and forward slash in json-pointer	incorrect type must be reported, but a message is not required	properties	a schema with no type imports as a disjunction of the kinds, and a value of none of them is refused at that disjunction, on the schema, not at the keyword inside it
+draft2019-09/content/readOnly.json	readOnly generates its value as an annotation	readOnly is true	readOnly	basic output lists the report's errors; annotations ride the value as riders and are not output units
+draft2020-12/content/readOnly.json	readOnly generates its value as an annotation	readOnly is true	readOnly	basic output lists the report's errors; annotations ride the value as riders and are not output units

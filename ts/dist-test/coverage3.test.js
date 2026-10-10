@@ -57,6 +57,7 @@ const lsp_server_1 = require("../dist/lsp-server");
 const lsp_1 = require("../dist/lsp");
 const subsume_1 = require("../dist/subsume");
 const DeprecateFuncVal_1 = require("../dist/val/DeprecateFuncVal");
+const MetaFuncVal_1 = require("../dist/val/MetaFuncVal");
 const utility_1 = require("../dist/utility");
 const hcanon_1 = require("../dist/hcanon");
 const query_1 = require("../dist/query");
@@ -96,6 +97,7 @@ const UpperFuncVal_1 = require("../dist/val/UpperFuncVal");
 const LowerFuncVal_1 = require("../dist/val/LowerFuncVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
 const ConstraintVal_1 = require("../dist/val/ConstraintVal");
+const walk_1 = require("../dist/walk");
 const ConstraintKindVal_1 = require("../dist/val/ConstraintKindVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
@@ -218,6 +220,28 @@ function capture(fn) {
         const cv = new ConstraintVal_1.MinConstraintVal({}, ctx);
         Assert.equal(cv.invalid, 'arg');
         Assert.equal(cv.unify(new IntegerVal_1.IntegerVal({ peg: 1 }), ctx).isNil, true);
+    });
+    (0, node_test_1.test)('pending-trial-schemas-are-not-collected', () => {
+        const ctx = CTX();
+        const nof = new ConstraintVal_1.ConstraintVal({
+            peg: [new IntegerVal_1.IntegerVal({ peg: 1 }), new NilVal_1.NilVal({ why: 'g' }),
+                new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'nof',
+        }, ctx);
+        Assert.equal(nof.pending.atom, 'nof');
+        Assert.deepEqual((0, walk_1.collectNils)(nof, new Set()), []);
+        const when = new ConstraintVal_1.ConstraintVal({
+            peg: [new NilVal_1.NilVal({ why: 'h' }), new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'when',
+        }, ctx);
+        Assert.equal(when.pending.atom, 'when');
+        Assert.deepEqual((0, walk_1.collectNils)(when, new Set()), []);
+        const contains = new ConstraintVal_1.ConstraintVal({
+            peg: [new NilVal_1.NilVal({ why: 'i' }), new RefVal_1.RefVal({ peg: ['b'] }, ctx)],
+            atom: 'contains',
+        }, ctx);
+        Assert.equal(contains.pending.atom, 'contains');
+        Assert.deepEqual((0, walk_1.collectNils)(contains, new Set()), []);
     });
     (0, node_test_1.test)('domain-adopted-from-peer', () => {
         const ctx = CTX();
@@ -957,13 +981,21 @@ function capture(fn) {
         const nil = new NilVal_1.NilVal({ why: 'test' });
         Assert.equal(d.resolve(ctx, [nil]), nil);
     });
+    (0, node_test_1.test)('meta-func-internals', () => {
+        const ctx = new ctx_1.AontuContext({ root: (0, top_1.top)() });
+        const m = new MetaFuncVal_1.MetaFuncVal({ peg: [] });
+        Assert.equal(m.make(ctx, { peg: [] }).isMetaFunc, true);
+        const argless = m.resolve(ctx, []);
+        Assert.equal(argless.isNil, true);
+        Assert.equal(argless.why, 'arg');
+    });
     // The shared walk behind vet's warnings and the LSP tags: the
     // non-Val guard is for a bag's raw peg entries, which degenerate
     // parses can leave behind — pinned directly, with one.
     (0, node_test_1.test)('collect-deprecations-walk', () => {
         const m = new MapVal_1.MapVal({ peg: {} });
         const dep = new IntegerVal_1.IntegerVal({ peg: 1 });
-        dep.deprecation = { msg: 'm' };
+        dep.deprecation = { msg: ['m'] };
         const plain = new IntegerVal_1.IntegerVal({ peg: 2 });
         const inner = new ListVal_1.ListVal({ peg: [dep] });
         m.peg.a = inner;

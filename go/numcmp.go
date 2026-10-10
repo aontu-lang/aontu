@@ -6,6 +6,8 @@ package aontu
 import (
 	"math"
 	"math/big"
+	"regexp"
+	"strconv"
 )
 
 // scaled is a comparison-internal exact rational with a power-of-ten
@@ -103,6 +105,35 @@ func cmpScaled(a, b scaled) int {
 
 func cmpNumeric(a, b *ScalarVal) int {
 	return cmpScaled(scaledOfNumeric(a), scaledOfNumeric(b))
+}
+
+var shownNumberRe = regexp.MustCompile(`^(-?\d+)(?:\.(\d+))?(?:e([-+]\d+))?$`)
+
+// scaledOfShown is the value a number shows: a binary float through its
+// shortest round-trip rendering, which is what divisibility reads, since
+// rounding moves a multiple off its divisor (0.3 is no multiple of 0.1 in
+// binary).
+func scaledOfShown(v *ScalarVal) scaled {
+	if 1 != towerRank(v) {
+		return scaledOfNumeric(v)
+	}
+	m := shownNumberRe.FindStringSubmatch(formatNumber(v.peg.(float64)))
+	u, _ := new(big.Int).SetString(m[1]+m[2], 10)
+	exp, _ := strconv.Atoi(m[3])
+	sc := len(m[2]) - exp
+	if sc < 0 {
+		return scaled{unscaled: u.Mul(u, pow10big(-sc))}
+	}
+	return scaled{unscaled: u, scale: sc}
+}
+
+// scaledIsMultiple reports whether p is a whole multiple of d, both exact
+// and finite.
+func scaledIsMultiple(p, d scaled) bool {
+	s := max(p.scale, d.scale)
+	pu := new(big.Int).Mul(p.unscaled, pow10big(s-p.scale))
+	du := new(big.Int).Mul(d.unscaled, pow10big(s-d.scale))
+	return 0 == new(big.Int).Rem(pu, du).Sign()
 }
 
 func towerRank(v *ScalarVal) int {

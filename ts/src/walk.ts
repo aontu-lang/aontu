@@ -39,9 +39,31 @@ export function walkVals(
   for (const must of (v.musts ?? [])) {
     walkVals(must?.v, visit, seen)
   }
+  for (const c of settledTrials(v)) {
+    walkVals(c, visit, seen)
+  }
 
   walkVals(v.primary, visit, seen)
   walkVals(v.secondary, visit, seen)
+}
+
+
+export function settledTrials(v: any): any[] {
+  return [
+    ...(v.nofs ?? []).flatMap((n: any) => n.cs),
+    ...(v.whens ?? []).flatMap((w: any) =>
+      undefined === w.e ? [w.c, w.t] : [w.c, w.t, w.e]),
+    ...(v.contains ?? []).map((k: any) => k.c),
+    ...(v.rests ?? []).flatMap((r: any) => [r.t, ...r.covers]),
+  ]
+}
+
+
+function trialSchemas(v: any): any[] {
+  const atom = v.pending?.atom
+  return 'nof' === atom ? v.pending.args.slice(1) :
+    'when' === atom || 'rest' === atom ? v.pending.args :
+      'contains' === atom ? v.pending.args.slice(0, 1) : settledTrials(v)
 }
 
 
@@ -58,6 +80,24 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     // it, and each child it applies to carries its own copy.
     if (null != v.spread?.cj) {
       walked.add(v.spread.cj)
+    }
+    // A trial schema is no instance value, and a nil one admits nothing.
+    for (const c of trialSchemas(v)) {
+      walked.add(c)
+    }
+    // A pending match's arms are what it returns where one is chosen, and
+    // a nil arm is a choice, not yet a value.
+    if (true === v.isMatchFunc) {
+      v.peg.slice(1).forEach((arm: any) => walked.add(arm))
+    }
+    // A written `nil` under an optional key nobody supplied is no
+    // finding (ADR-046).
+    if (true === v.isMap) {
+      for (const k of v.optionalKeys) {
+        if (true === v.peg[k]?.isNil && 'literal_nil' === v.peg[k].why) {
+          walked.add(v.peg[k])
+        }
+      }
     }
     return true
   }, walked)

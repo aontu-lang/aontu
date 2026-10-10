@@ -69,6 +69,28 @@ func TestVetReportsConflictsWithBothSites(t *testing.T) {
 // A parent that collapses to a nil takes its subtree with it, so the
 // sibling conflict is reported on the CONTEXT rather than standing in
 // the tree. Both belong in the report.
+func TestVetNoFillAndExactNumbers(t *testing.T) {
+	// --no-fill: a member the schema supplies is a finding, exit 3.
+	_, s, d := vetFiles(t, "x: 1\nz: integer", `{"z": 5}`)
+	out, _, code := vetRun("--no-fill", s, d)
+	if 3 != code {
+		t.Fatalf("--no-fill: exit %d\n%s", code, out)
+	}
+	vetMatch(t, out, `\$\.x: vet_filled \[incomplete\]`)
+	if _, _, code := vetRun(s, d); 0 != code {
+		t.Fatalf("without --no-fill: exit %d", code)
+	}
+
+	// --exact-numbers: 1.0 is the integer 1.
+	_, s, d = vetFiles(t, "a: 1", `{"a": 1.0}`)
+	if _, _, code := vetRun("--exact-numbers", s, d); 0 != code {
+		t.Fatalf("--exact-numbers: exit %d", code)
+	}
+	if _, _, code := vetRun(s, d); 1 != code {
+		t.Fatalf("without --exact-numbers: exit %d", code)
+	}
+}
+
 func TestVetReportsFindingsThatNeverReachedTheTree(t *testing.T) {
 	_, s, d := vetFiles(t,
 		"service: close({ name: string, port: integer, replicas: integer })",

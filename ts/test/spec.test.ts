@@ -12,11 +12,14 @@ import {
   patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
+import { importJsonSchema, upgradeJsonSchema } from '../dist/jsonschema-import'
+import { vetOutput } from '../dist/sourcemap'
 import { reachCheck } from '../dist/reach'
 import { view, viewSet } from '../dist/aontu'
 import { desugarTemplate, resugarTemplate } from '../dist/template'
 import { traceRun } from '../dist/trace'
 import { codeClasses } from '../dist/hints'
+import { canonRiders } from '../dist/utility'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -85,7 +88,8 @@ function loadRows(): Row[] {
       const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
         'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
-        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1]
+        'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+        'jsonschema-output' === parts[1]
       const want = vetRow ? 5 : 4
       if (parts.length < want) {
         throw new Error(
@@ -131,9 +135,9 @@ function assertCanonConverges(row: Omit<Row, 'file'> & { file?: string }): void 
     return
   }
   const a1 = rowAontu(row)
-  const c2 = a1.unify(row.expect, undefined, makeVarsCtx(a1)).canon
+  const c2 = canonRiders(a1.unify(row.expect, undefined, makeVarsCtx(a1)))
   const a2 = rowAontu(row)
-  const c3 = a2.unify(c2, undefined, makeVarsCtx(a2)).canon
+  const c3 = canonRiders(a2.unify(c2, undefined, makeVarsCtx(a2)))
   Assert.strictEqual(c3, c2, `canon does not converge: ${row.name}`)
 }
 
@@ -238,7 +242,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   const ctx = makeVarsCtx(a0)
 
   if ('canon' === row.mode) {
-    Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect)
+    Assert.strictEqual(canonRiders(a0.unify(row.src, undefined, ctx)), row.expect)
     assertCanonConverges(row)
   }
   else if ('gen' === row.mode) {
@@ -324,8 +328,11 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       `trim report mismatch: ${row.name}`)
   }
   else if ('jsonschema' === row.mode) {
-    // `opts` rides the expect object, as in the vet and subsume rows.
-    const golden = JSON.parse(row.expect)
+    // `opts` rides the expect object, as in the vet and subsume rows. A
+    // number a double cannot hold keeps its digits, as the export does.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, at?: any) =>
+      'number' === typeof v && null != at?.source && String(v) !== at.source ?
+        (JSON as any).rawJSON(at.source) : v)
     const opts = golden.opts
     delete golden.opts
     const report = jsonSchema(row.src, opts)
@@ -339,6 +346,56 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
       }),
       exactJSON(golden),
       `jsonschema report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-import' === row.mode) {
+    const golden = JSON.parse(row.expect)
+    const report = importJsonSchema(row.src, golden.opts)
+    delete golden.opts
+    // Every import that stands is paired with JSON Schema's question.
+    Assert.deepStrictEqual(report.vet, 'error' === report.verdict ?
+      undefined : ['--no-fill', '--exact-numbers'],
+      `jsonschema-import vet flags: ${row.name}`)
+    Assert.strictEqual(
+      exactJSON({
+        aontu: report.aontu,
+        lossy: report.lossy,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+        ...(null == report.map ? {} : { map: report.map }),
+      }),
+      exactJSON(golden),
+      `jsonschema-import report mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-output' === row.mode) {
+    // ADR-066: the schema imported with its source map, the data vetted
+    // as JSON Schema asks, and the report as basic output units.
+    const golden = JSON.parse(row.expect)
+    const imported = importJsonSchema(row.src, { ...golden.opts, sourceMap: true })
+    const report = vet(imported.aontu, row.data as string, { noFill: true, exactNumbers: true })
+    Assert.strictEqual(
+      exactJSON(vetOutput(report, 'basic', { text: imported.aontu, map: imported.map as any })),
+      exactJSON(golden.output),
+      `jsonschema-output mismatch: ${row.name}`)
+  }
+  else if ('jsonschema-upgrade' === row.mode) {
+    // A number a double cannot hold keeps its digits, as the export does.
+    const golden = JSON.parse(row.expect, (_k: string, v: any, at?: any) =>
+      'number' === typeof v && null != at?.source && String(v) !== at.source ?
+        (JSON as any).rawJSON(at.source) : v)
+    const report = upgradeJsonSchema(row.src, golden.opts)
+    delete golden.opts
+    Assert.strictEqual(
+      exactJSON({
+        dialect: report.dialect,
+        rewritten: report.rewritten,
+        schema: report.schema,
+        verdict: report.verdict,
+        ...(null == report.errors
+          ? {} : { errors: stripProse(report.errors) }),
+      }),
+      exactJSON(golden),
+      `jsonschema-upgrade report mismatch: ${row.name}`)
   }
   else if ('reaches' === row.mode) {
     const golden = JSON.parse(row.expect)

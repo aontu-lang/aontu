@@ -92,6 +92,9 @@ type ValueSpan struct {
 	Canon string
 	Kind  string
 	Path []string
+	// Titles and Descriptions are the value's annotations (meta()).
+	Titles       []string
+	Descriptions []string
 }
 
 // Spans parses and unifies src and returns a ValueSpan for every
@@ -149,7 +152,8 @@ func collectSpans(v Val, out *[]ValueSpan, seen map[Val]bool) {
 		if len(c) > 0 {
 			*out = append(*out, ValueSpan{
 				Pos: p, Len: srcSpanLen(v), Canon: c, Kind: valKind(v),
-				Path: v.vpath(),
+				Path:   v.vpath(),
+				Titles: metaTexts(v, "title"), Descriptions: metaTexts(v, "description"),
 			})
 		}
 	}
@@ -192,6 +196,16 @@ type Deprecation struct {
 	Pos    int
 	Len    int
 	Record map[string]string
+}
+
+// joinedRecord reads a deprecation record as one, each field's values
+// joined, as the message joins them.
+func joinedRecord(rec map[string][]string) map[string]string {
+	out := map[string]string{}
+	for k, vs := range rec {
+		out[k] = strings.Join(vs, "; ")
+	}
+	return out
 }
 
 // deprecatedVal is one record-carrying value found by the shared walk.
@@ -243,7 +257,7 @@ func (a *Aontu) DeprecationsVars(src string, vars map[string]Val) []Deprecation 
 	for _, d := range collectDeprecatedVals(res) {
 		if 0 <= d.v.pos() {
 			out = append(out, Deprecation{
-				Pos: d.v.pos(), Len: srcSpanLen(d.v), Record: d.v.deprecRec(),
+				Pos: d.v.pos(), Len: srcSpanLen(d.v), Record: joinedRecord(d.v.deprecRec()),
 			})
 		}
 	}

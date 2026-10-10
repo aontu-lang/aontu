@@ -59,17 +59,75 @@ const hints = {
     must: 'This value fails an evaluate-only check written with must().\n' +
         'The author\'s message is: {message}' +
         '\n \n' +
-        'must(c, msg) is Band B of the constraint algebra: the value must\n' +
-        'unify with c, but the check itself is OPAQUE to the algebra -- it\n' +
-        'never participates in emptiness or subsumption, and it never\n' +
-        'contributes to the value. It is the honest channel for a domain\n' +
-        'rule the algebra cannot reason about, which is why it carries a\n' +
-        'message of its own.' +
+        'must(c, msg) is Band B of the constraint algebra: c must admit the\n' +
+        'settled value, their meet adding nothing it lacks, but the check\n' +
+        'itself is OPAQUE to the algebra -- it never participates in\n' +
+        'emptiness or subsumption, and it never contributes to the value.\n' +
+        'It is the honest channel for a domain rule the algebra cannot\n' +
+        'reason about, which is why it carries a message of its own.' +
         '\n \nExamples:\n' +
         '  must("gold"|"silver","tier") & "gold" -> "gold"  # Admitted;\n' +
         '  must("gold"|"silver","tier") & "lead" -> nil    # ... reported\n' +
         '                                                   #     with "tier";\n' +
-        '  min(0) & must(integer,"whole") & 3    -> 3      # Bands compose.',
+        '  min(0) & must(integer,"whole") & 3    -> 3      # Bands compose;\n' +
+        '  must({a:1},"has a") & {}             -> nil    # the meet adds a.',
+    nof: 'This value is admitted by {admitted} of the trial schemas of a nof(),\n' +
+        'and the count must be {count}. Branch by branch: {branches}.' +
+        '\n \n' +
+        'nof(n, ...c) is Band B of the constraint algebra: a branch is tried\n' +
+        'against the settled value while the rest can still change the\n' +
+        'verdict, and a branch admits it when their meet adds nothing and\n' +
+        'generates the value itself. The count n is an integer or a count\n' +
+        'constraint, as len() takes, and a branch that conflicts admits\n' +
+        'nothing. It carries anyOf, oneOf and not.' +
+        '\n \nExamples:\n' +
+        '  nof(1, string, number) & "a" -> "a"  # One branch admits;\n' +
+        '  nof(1, number, min(0)) & 5   -> nil  # Two admit;\n' +
+        '  nof(min(1), number, nil) & 5 -> 5    # At least one;\n' +
+        '  nof(0, string) & 5           -> 5    # None may admit.',
+    when: 'This value fails the {branch} branch of a when(): the condition\n' +
+        '{condition} the value, so that branch must admit it, and it does not.' +
+        '\n \n' +
+        'when(c, t, e?) is Band B of the constraint algebra: the condition c\n' +
+        'is tried against the settled value as a nof() branch is, and the\n' +
+        'value must then be admitted by t where c admits it and by e where\n' +
+        'it does not. An absent e passes, and nil in any position admits\n' +
+        'nothing. It carries if, then and else, and the dependent keywords.' +
+        '\n \nExamples:\n' +
+        '  when(string, "a") & "a"         -> "a"  # The condition holds;\n' +
+        '  when(string, "a") & "b"         -> nil  # ... and then refuses;\n' +
+        '  when(string, "a", min(0)) & 5   -> 5    # Else admits;\n' +
+        '  when({k: any}, {n: any}) & {}   -> {}   # No k: nothing to hold.',
+    rest: 'A member of this value, {key}, is evaluated by no cover of a rest(),\n' +
+        'and the schema rest() holds for such a member does not admit it.' +
+        '\n \n' +
+        'rest(t, ...cover) is Band B of the constraint algebra: each cover is a\n' +
+        'record {if?, keys?, members?}, and one whose if admits the settled\n' +
+        'value, tried as a nof() branch is, evaluates each member whose key its\n' +
+        'keys schema admits or whose value its members schema admits. Every\n' +
+        'member no such cover evaluates must be admitted by t, and nil admits\n' +
+        'nothing. It carries unevaluatedProperties and unevaluatedItems.' +
+        '\n \nExamples:\n' +
+        '  rest(nil, {keys: "a"}) & {a: 1}             -> {a:1}  # Evaluated;\n' +
+        '  rest(nil, {keys: "a"}) & {a: 1, b: 2}       -> nil    # b is not;\n' +
+        '  rest(number) & {b: 2}                       -> {b:2}  # t admits b;\n' +
+        '  rest(nil, {if: {a: 1}, keys: any}) & {a: 2} -> nil    # if refuses.',
+    format_unknown: 'format() takes a grammar, or the name of one of the nineteen JSON\n' +
+        'Schema formats, and "{reason}" is not one of them.\n' +
+        ' \n' +
+        'The names: date-time, date, time, duration, email, idn-email,\n' +
+        'hostname, idn-hostname, ipv4, ipv6, uri, uri-reference, iri,\n' +
+        'iri-reference, uuid, uri-template, json-pointer,\n' +
+        'relative-json-pointer and regex. A string with `=` in it is a\n' +
+        'grammar, read as abnf() reads one.',
+    format_grammar: 'This grammar is ABNF, but format() cannot run it as written:\n' +
+        '{reason}\n' +
+        ' \n' +
+        'A format reads its text one character at a time and never goes\n' +
+        'back, so no two alternatives may begin with the same character, an\n' +
+        'option or repetition may not begin with a character that can follow\n' +
+        'it, a rule may not reach itself before reading one, and a prose value\n' +
+        'has nothing to run. Rewrite the rule so the next character decides.',
     abnf_grammar: 'This ABNF grammar could not be compiled:\n' +
         '{reason}\n' +
         ' \n' +
@@ -89,38 +147,37 @@ const hints = {
         ' \n' +
         'A failure to parse is a failure to unify, so the field is\n' +
         'refused rather than set to a value meaning "no".',
-    constraint_pattern: 'This re() pattern is outside the supported subset. It uses\n' +
+    constraint_pattern: 'This re() pattern is refused:\n' +
         '{reason}.\n' +
         ' \n' +
-        're() accepts classical regular expressions over Unicode code\n' +
-        'points, with one meaning in both implementations:\n' +
+        're() reads ECMA-262\'s pattern syntax in u mode and matches it with\n' +
+        'aontu\'s own engine, the same in both implementations, in time linear\n' +
+        'in the text:\n' +
         ' \n' +
-        '  literals     a  \\.  \\*  \\xHH        (escape . \\ + * ? ( ) [ ] { } | ^ $ /)\n' +
-        '  classes      [abc]  [^abc]  [a-z]\n' +
+        '  literals     a  \\.  \\*  \\xHH  \\uHHHH  \\u{H...}  \\cX  \\0\n' +
+        '  classes      [abc]  [^abc]  [a-z]  []  [^]\n' +
+        '  properties   \\p{L}  \\P{Lu}  \\p{Script=Greek}  \\p{scx=Arab}\n' +
         '  abbreviations \\d \\D \\w \\W \\s \\S  and  .\n' +
         '  repetition   *  +  ?  {n}  {n,}  {n,m}   (lazy: *? +? ??)\n' +
-        '  grouping     (...)  (?:...)      alternation  a|b\n' +
+        '  grouping     (...)  (?:...)  (?<name>...)   alternation  a|b\n' +
         '  anchors      ^  $  \\A  \\z  \\b  \\B\n' +
         ' \n' +
-        'aontu DEFINES the abbreviations rather than inheriting either\n' +
-        'host regex engine, so they mean the same in both ports:\n' +
+        'aontu DEFINES the abbreviations rather than inheriting a host\n' +
+        'engine\'s, so they mean the same in both ports:\n' +
         '  \\d [0-9]   \\w [0-9A-Za-z_]   \\s [ \\t\\n\\r\\f\\v]   . [^\\n]\n' +
         'Note \\s is these six ASCII characters only -- not U+00A0.\n' +
         ' \n' +
-        'NOT accepted, because no rewriting can make the two engines\n' +
-        'agree:\n' +
-        '  backreferences (\\1, \\k<n>) and lookaround ((?=) (?!) (?<=))\n' +
-        '  named groups, inline flags, and any (?...) but (?:\n' +
-        '  POSIX classes [[:alpha:]], \\p{...}, \\x{...}, \\u\n' +
-        '  a quantifier on a group containing a quantifier or an\n' +
-        '    alternation -- (a+)+ backtracks exponentially in one port,\n' +
-        '    so write [ab]+ rather than (?:a|b)+' +
-        '\n \nExamples:\n' +
+        'NOT accepted:\n' +
+        '  backreferences (\\1, \\k<n>) and lookaround ((?=) (?!) (?<=) (?<!)),\n' +
+        '    which no regular language holds\n' +
+        '  modifier groups ((?i:...)), whose flags aontu does not apply\n' +
+        '  a pattern that compiles past 100000 instructions\n' +
+        ' \n' +
+        'Examples:\n' +
         '  re("^[a-z][a-z0-9-]*$")  # Fine;\n' +
-        '  re("^\\d{3}-\\d{4}$")      # Fine;\n' +
-        '  re("(?:ab)+")            # Fine (non-capturing group);\n' +
-        '  re("(?=x)y")             # Refused (lookahead);\n' +
-        '  re("(a+)+")              # Refused (nested quantifier).',
+        '  re("^\\p{Lu}\\p{Ll}+$")    # Fine (Unicode properties);\n' +
+        '  re("^(a+)+$")            # Fine (no backtracking to blow up);\n' +
+        '  re("(?=x)y")             # Refused (lookahead).',
     budget_passes: 'The evaluation budget of {limit} fixpoint passes was spent before\n' +
         'the model converged; still refining: {paths}.\n' +
         'This is the evaluator giving up, not a contradiction in the model:\n' +
@@ -145,6 +202,12 @@ const hints = {
     alias_colon: "Reserved error code for the former rejection of alias keys. Write `%name: value` to create a key and declare an alias, or `%name = value` to declare only the alias.",
     bare_punct: 'A bare string holds letters, digits, `-` and `_`, and nothing else.\nThis one holds `{char}`, in `{text}`. Every other punctuation\ncharacter is either syntax or an error, never silently part of a\nstring: a value that needs one is written quoted, and a `>` or `<`\nthat was meant as a bound is written as min(x), max(x), above(x) or\nbelow(x).\n \nExamples:\n  a: team-payments  -> "team-payments"  # `-` and `_` are text;\n  a: 2026-09-05     -> "2026-09-05"     # ... digits included;\n  a: x=y            -> nil              # `=` is not;\n  a: "x=y"          -> "x=y"            # ... so quote it;\n  a: >10            -> nil              # Not an operator: write above(10).',
     recursion_unexpanded: 'A schema refers to itself here, and no data reached this position\nto expand it against. Guard the recursion -- an optional key\n(next?:) drops when nothing arrives, and a preferred alternative\n(*null | $.Node) generates -- or supply the data.\n \nExamples:\n  Node: {v: integer, next?: $.Node}\n  t: $.Node & {v: 1}            -> {..}  # next? drops;\n  Node: {v: integer, next: $.Node}\n  t: $.Node & {v: 1}            -> nil   # ... required refuses.',
+    trial_budget: 'The admission trials of this evaluation reached their budget of\n' +
+        '{budget}. Each nof(), when() and contains() tries its trial schemas\n' +
+        'against a settled value, once for each position, schema and value,\n' +
+        'and a document that needs more trials is refused rather than\n' +
+        'evaluated without bound. Restructure the trial schemas, or raise\n' +
+        'trust.budget.trials (docs/trust.md).',
     recursion_budget: 'A recursive schema expanded past the evaluation depth budget\nwithout meeting concrete data. Expansion is driven by the data --\nfinite data always terminates -- so a chain this deep means two\ndefinitions feeding each other, or data deeper than the budget\n(docs/trust.md raises it deliberately).',
     list_length: 'A literal list alternative in a disjunction admits only a list of\nits own length -- a spread (&:) makes it variadic. Outside a\ndisjunction two statements of one list still merge elementwise.\n \nExamples:\n  x: [] | [&: integer]\n  x: [1, 2]      -> [1,2]  # The variadic arm;\n  x: []          -> []     # ... or exactly empty;\n  y: [a] | [b]\n  y: [a, extra]  -> nil    # ... a literal arm is its length.',
     relation_cycle: 'This relation declared acyclic(), and its edges form a cycle. The\nverdict lands at generation, where every edge is known; the error\npoints at an edge on the cycle and names the nodes it runs\nthrough, closing back on the first.\n \nExamples:\n  dependsOn: rel() & acyclic()\n  a: {dependsOn: ["$.b"]}\n  b: {dependsOn: ["$.a"]}   -> nil   # $.a -> $.b -> $.a;\n  b: {dependsOn: []}        -> {..}  # ... one edge fewer passes.',
@@ -203,7 +266,7 @@ const hints = {
     form_data: 'The first argument to form() is not a bag. `form` makes one list\nelement per child of its DATA, so the data has to have children: a\nlist, or a map whose values are taken in sorted-key order.\n \nExamples:\n  form([a,b], upper(_))  -> [..]  # A list, in source order;\n  form({b:2,a:1}, _)     -> [..]  # ... a map, in sorted-key order;\n  form(1, _)             -> nil   # ... but a scalar has no children.',
     esc_variant: 'esc(), usc() or a template\'s `esc:` key were given a variant that\nnames no convention.\nA variant names a CONVENTION rather than a language, because several\nlanguages share one and one language has several. The names are `sq`,\n`sql`, `shell`, `xml`, `uri` and `regex`; written with no variant at\nall it is the C escape, JSON canonical, which covers the double-quoted\nliteral of every C-family language.\n \nExamples:\n  esc(text)          -> ...   # C / JSON, the default;\n  esc(text, sq)      -> ...   # ... single-quoted C-family;\n  esc(text, pascal)  -> nil   # ... but that is not a convention.',
     usc_malformed: 'usc() was given text the convention could not have produced,\nso there is nothing to read back out: a truncated code-point escape, an\nescape the convention does not define, or an escape character standing\nalone where the convention doubles it. `usc` is the LEFT inverse of\n`esc` and it is partial — every escaped value has an original, but not\nevery string is an escaped value.\n \nExamples:\n  usc(esc(text))     -> ...   # Whatever esc() wrote;\n  usc(text, sql)     -> ...   # ... in the same convention;\n  usc(text, shell)   -> nil   # ... but not in another one.',
-    rep_pattern: 'The pattern given to rep() is outside the portable subset. It is\nthe same subset re() takes — RE2-compatible, no backreferences, no\nlookaround — so one document has one regexp language rather than two,\nand so a generator running a pattern over model data cannot take\nexponential time doing it.\n \nExamples:\n  rep(s, "[:,]", " ")     -> ...   # A class;\n  rep(s, "(a)(b)", "$2$1") -> ...   # ... a group;\n  rep(s, "(?=a)", "x")    -> nil   # ... but not a lookahead.',
+    rep_pattern: 'The pattern given to rep() or split() is outside the portable subset.\nThese two run on each implementation\'s host regex engine, since they\nneed where a match falls and aontu\'s own matcher answers only whether\none does, so the pattern must mean the same to both hosts. That rules\nout a Unicode property, a named group, a backreference, a lookaround,\na repeat count above 1000, and a quantifier over a group holding a\nquantifier or an alternation, which a backtracking host runs in\nexponential time. re() itself reads all but the backreference and the\nlookaround.\n \nExamples:\n  rep(s, "[:,]", " ")     -> ...   # A class;\n  rep(s, "(a)(b)", "$2$1") -> ...   # ... a group;\n  rep(s, "(?=a)", "x")    -> nil   # ... but not a lookahead.',
     rep_sub: 'The substitution given to rep() names something the pattern has\nnot got. `$1` to `$9` are the numbered groups, `$&` is the whole match\nand `$$` is a literal `$`; a `$` naming anything else, or a group\nnumber the pattern does not have, is refused rather than expanded to\nnothing — a generator that writes a file with a hole in it and says\nnothing is the failure this refusal exists to close.\n \nExamples:\n  rep(s, "(a)", "[$1]")  -> ...   # A group the pattern has;\n  rep(s, "a", "$$")      -> ...   # ... a literal dollar;\n  rep(s, "a", "$1")      -> nil   # ... but not a group it has not.',
     split_sep: 'The separator given to split() is neither a string nor a pattern.\nA plain string is a LITERAL and an `re(…)` argument is a pattern — the\nasymmetry with rep() is deliberate, since splitting is usually on a\nliteral, and it removes the trap where `split(v, ".")` silently cuts\nbetween every character.\n \nExamples:\n  split("a,b", ",")        -> [..]  # A literal separator;\n  split("a1b", re("[0-9]")) -> [..]  # ... or a pattern;\n  split("a,b", 1)          -> nil   # ... but not a number.',
     place_pair: 'Two placeholders met, and neither has a value to fill the other.\n`_` is a HOLE: it is filled by whatever the call is unified with, so\na call holding one needs a peer that does not. Give one side a\nvalue.\n \nExamples:\n  upper(_) & hello        -> "HELLO"  # The peer fills the hole;\n  _ + 2 & 1               -> 3        # ... whatever the call is;\n  upper(_) & lower(_)     -> nil      # ... but two holes fill nothing.',
@@ -448,6 +511,11 @@ const hints = {
     'incomplete_expression': 'The expression has no terms. An operator or a pair of parentheses\n' +
         'was written with nothing for it to work on -- `a:()` is the bare\n' +
         'case. Supply the operand, or delete the construct.',
+    'var_name': 'A `$` is followed by a variable name or a path: `$name` reads a\n' +
+        'value the caller bound, and `$.a.b` reads one from the document.\n' +
+        'What follows this `$` is neither, so there is nothing for it to\n' +
+        'read. A `$` that ends a line takes the next line as its operand,\n' +
+        'which is the usual way this arises.',
     'alias_in_path': 'An alias is not a path segment. The alias namespace and the path\n' +
         'namespace are disjoint, so `$.%foo` is refused at any depth: an\n' +
         'alias is reached by writing `%foo` and only that.' +
@@ -455,6 +523,50 @@ const hints = {
         '  %port = min(1)   -> declared;\n' +
         '  listen: %port    -> the alias, reached by its own name;\n' +
         '  listen: $.%port  -> nil  # Not a path segment.',
+    'jsonschema_schema': 'The text handed to the JSON Schema importer is not a schema: it is\n' +
+        'not JSON, its root is neither an object nor a boolean, a keyword\n' +
+        'holds a value of the wrong type, or its meta-schema refuses it. The\n' +
+        'site names the fault. Fix the schema text; nothing in the aontu\n' +
+        'document is at issue. --no-meta-check skips the meta-schema.',
+    'jsonschema_duplicate': 'A JSON Schema resource declares one `$anchor` name twice, two\n' +
+        'schemas declare one `$id`, or two documents of the set share one\n' +
+        'URI, so a reference to it would be answered by whichever came\n' +
+        'first. Rename one anchor or identifier, give the second subschema\n' +
+        'its own `$id` so that the two anchors live in different resources,\n' +
+        'or give each document its own URI.',
+    'ident_place': 'ident() records the identity a schema was declared with, so it may\n' +
+        'only be the whole value of an alias declaration, as in\n' +
+        '`%name = ident(value, { id: "https://example.com/s.json" })`. A\n' +
+        'reference copies the value without it; write the identity on the\n' +
+        'declaration, not where the value is used.',
+    'jsonschema_budget': 'The importer declares a schema once for each scope its dynamic\n' +
+        'references are read in, and these schemas are read in more scopes\n' +
+        'than the import declares. Override each `$dynamicAnchor` in fewer\n' +
+        'resources, or reference the schema with `$ref` where no outer scope\n' +
+        'needs to rebind it.',
+    'jsonschema_dialect': 'A JSON Schema names a dialect in `$schema` that aontu does not read,\n' +
+        'and no document of the set is a meta-schema by that URI. aontu reads\n' +
+        'draft-04, draft-06, draft-07, 2019-09 and 2020-12 by the URIs their\n' +
+        'meta-schemas publish. Add a custom meta-schema to the set with --doc\n' +
+        '<uri> <file>, its own `$schema` naming one of those, or name the\n' +
+        'dialect the schema is written in. A resource that names no dialect is\n' +
+        'read as 2020-12 unless --dialect says otherwise.',
+    'jsonschema_vocabulary': 'A JSON Schema names a meta-schema in `$schema` whose `$vocabulary`\n' +
+        'requires a vocabulary aontu does not read, and JSON Schema asks that\n' +
+        'such a schema be refused rather than read without the keywords that\n' +
+        'vocabulary defines. aontu reads the vocabularies of 2019-09 and\n' +
+        '2020-12. Mark the vocabulary `false` in the meta-schema where a schema\n' +
+        'may be read without it, or name a meta-schema that does not require it.',
+    'jsonschema_ref': 'A JSON Schema reference names no schema the import can reach: its\n' +
+        'document is not in the document set, or the pointer or anchor\n' +
+        'after its `#` names nothing in the document it reaches. Add the\n' +
+        'document to the set with --doc <uri> <file>, or correct the\n' +
+        'reference.',
+    'vet_filled': 'Under --no-fill a member the schema supplies and the data does not\n' +
+        'carry is a finding: the data is not an instance of the schema as\n' +
+        'written, even though evaluation would fill the member from a\n' +
+        'default or a literal. Supply the member in the data, or run without\n' +
+        '--no-fill to accept the fill.',
     'alias_not_toplevel': 'An alias declaration written as a KEY sits at the root of the\n' +
         'document. A nested `x: { %a = 1 }` is refused because `%a` resolves\n' +
         'from the root: the declaration would be erased from the output,\n' +
@@ -710,10 +822,20 @@ const codeClasses = {
     list_length: 'conflict',
     recursion_unexpanded: 'incomplete',
     recursion_budget: 'budget',
+    trial_budget: 'budget',
     func_arity: 'parse',
     elided_value: 'parse',
     unify_no_src: 'parse',
     incomplete_expression: 'parse',
+    var_name: 'parse',
+    jsonschema_schema: 'parse',
+    jsonschema_duplicate: 'reference',
+    jsonschema_ref: 'reference',
+    jsonschema_vocabulary: 'reference',
+    jsonschema_dialect: 'reference',
+    jsonschema_budget: 'budget',
+    ident_place: 'parse',
+    vet_filled: 'incomplete',
     pref_implicit_bag: 'parse',
     alias_not_toplevel: 'parse',
     alias_in_path: 'parse',
@@ -731,6 +853,11 @@ const codeClasses = {
     // empty meets at composition time, and domain/kind mixing.)
     constraint: 'conflict',
     must: 'conflict',
+    nof: 'conflict',
+    when: 'conflict',
+    rest: 'conflict',
+    format_unknown: 'conflict',
+    format_grammar: 'parse',
     constraint_pattern: 'conflict',
     abnf_grammar: 'parse',
     parse_arg: 'parse',

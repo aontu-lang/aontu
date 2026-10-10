@@ -56,7 +56,7 @@ func prefInnerPeg(v Val) Val {
 func (p *PrefVal) cjo() int { return 30000 }
 
 func (p *PrefVal) superior() Val { return top() }
-func (p *PrefVal) Canon() string { return "*" + p.peg.Canon() }
+func (p *PrefVal) Canon() string { return "*" + CanonRiders(p.peg) }
 
 func (p *PrefVal) Gen(ctx *Ctx) (any, error) {
 	return p.peg.Gen(ctx)

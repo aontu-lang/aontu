@@ -36,6 +36,9 @@ class MapKindVal extends FeatureVal {
     if (true === p.isMapKind) {
       return this
     }
+    if (true === p.isConstraint) {
+      return peer.unify(this, ctx)
+    }
     return makeNilErr(ctx, 'map', this, peer)
   }
 
@@ -66,6 +69,9 @@ class ListKindVal extends FeatureVal {
     }
     if (true === p.isListKind) {
       return this
+    }
+    if (true === p.isConstraint) {
+      return peer.unify(this, ctx)
     }
     return makeNilErr(ctx, 'list', this, peer)
   }

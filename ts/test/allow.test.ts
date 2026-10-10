@@ -303,13 +303,15 @@ describe('allow', () => {
   })
 
 
-  test('a-closed-vocabulary-declares-deny-or-is-refused', () => {
-    // close() on the role shape must admit the optional deny the
-    // template carries, or the meet is refused with the engine's code.
+  test('a-closed-vocabulary-need-not-declare-deny', () => {
+    // A closed role drops the template's optional deny it does not
+    // declare, and so denies nothing.
     const closed = 'roles: dev: close({ allow: ["$"] })'
-    Assert.equal(failure(closed).code, 'closed')
+    Assert.equal(decision('dev', '$.x', closed).reason, 'allow')
     const declared = 'roles: dev: close({ allow: ["$"] deny?: [&: string] })'
     Assert.equal(decision('dev', '$.x', declared).reason, 'allow')
+    const denied = 'roles: dev: close({ allow: ["$"] deny: ["$.x"] })'
+    Assert.equal(decision('dev', '$.x', denied).reason, 'deny')
   })
 
 

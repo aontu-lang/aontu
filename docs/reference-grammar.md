@@ -115,10 +115,12 @@ first. Every such place in the file, and what a swap would do:
 |---|---|---|
 | `exact` | `number` | `0d5` begins with a digit, so `number` would match `0` and leave `d5` unread |
 | `copyfiles` | `copy` | a call to `copyfiles` would be read as `copy` |
+| `multiple` | `mul` | a call to `multiple` would be read as `mul` |
 | `refer` | `re` | a call to `refer` would be read as `re` |
 | `rel` | `re` | a call to `rel` would be read as `re` |
 | `rem` | `re` | a call to `rem` would be read as `re` |
 | `rep` | `re` | a call to `rep` would be read as `re` |
+| `rest` | `re` | a call to `rest` would be read as `re` |
 
 The first row is an ordering between two rules, in `scalar`. The rest
 are built-in names inside the `name` rule, and are every prefix pair

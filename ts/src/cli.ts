@@ -31,6 +31,9 @@ import { sarifReport } from './report-sarif'
 import { main as lspMain } from './lsp-server'
 import { main as mcpMain } from './mcp-server'
 import { jsonSchema } from './jsonschema'
+import { importJsonSchema } from './jsonschema-import'
+import { readSourceMap, textSha, vetOutput } from './sourcemap'
+import { isDefinedFormat } from './formatgrammar'
 import {
   pkgTidy, pkgVerify, pkgVendor, pkgManifest, pkgRefreeze, pkgTree,
   versionCompare,
@@ -70,7 +73,7 @@ import type { QueryView } from './query'
 import type { WhyRecord } from './provenance'
 import { agentsMdSplice } from './agentsmd'
 import { format, unifiedDiff } from './format'
-import { includeOpts } from './utility'
+import { canonRiders, includeOpts } from './utility'
 import { HELPDOC, INITDOC } from './helpdoc'
 import type { HelpTopic } from './helpdoc'
 import { hints, codeClasses, codeClass } from './hints'
@@ -97,6 +100,11 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [--dialect <name>] [--no-meta-check]
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -170,6 +178,9 @@ Options:
   -c, --canon     Print the canonical form instead of generated JSON
                   (the bare command's, as --jsonl is; model get has
                   its own)
+  --exact-numbers Read every number the document writes by its value:
+                  1.0 is the integer 1, and 0.1 keeps its digits (the
+                  bare command's; vet has its own)
   --format <f>    text (default) or json, on every verb that answers a
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
@@ -249,6 +260,11 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies and the data
+                    does not carry (vet_filled): the data must be an
+                    instance as written, not as filled
+  --exact-numbers   Read every data number by its exact value, so 1,
+                    1.0 and 1e0 are one integer and 0.1 keeps its digits
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -260,6 +276,11 @@ Vet options:
                     today starts failing without this flag
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: the report as JSON Schema's output
+                    units, for one data file, in place of --format.
+                    basic locates each error through --source-map
+  --source-map <f>  The map jsonschema import --source-map wrote for
+                    the schema, refused once the schema's text changes
   --watch           Re-run whenever a watched file changes
 
 A check that examined NOTHING and a check that passed answer the same
@@ -649,7 +670,7 @@ function evalSource(
 ): { ok: boolean; text: string; findings: VetFinding[] } {
   try {
     const text = 'canon' === mode
-      ? aontu.unify(src).canon
+      ? canonRiders(aontu.unify(src))
       : exactJSON(aontu.generate(src), 2)
     return { ok: true, text, findings: [] }
   }
@@ -800,9 +821,12 @@ function parseTextExt(arg: string): string[] | undefined {
 }
 
 
-// The evaluator options a REPL session's capability means.
+// The evaluator options a REPL session's capability and reading mean.
 function replTrust(state: ReplState, entryRoot: string): any {
-  return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot)
+  return {
+    ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot),
+    ...exactOpts(state.exact),
+  }
 }
 
 
@@ -843,13 +867,19 @@ function entryRootOf(file: string | undefined): string {
 }
 
 
+function exactOpts(exact: boolean | undefined): { exactNumbers?: true } {
+  return true === exact ? { exactNumbers: true } : {}
+}
+
+
 function withdrawnMsg(file: string): string {
   return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`
 }
 
 
 function runFile(
-  file: string, mode: Mode, format: EvalFormat, trust: TrustArg): number {
+  file: string, mode: Mode, format: EvalFormat, trust: TrustArg,
+  exact: boolean): number {
   let src: string
   try {
     src = readFileSync(file, 'utf8')
@@ -875,20 +905,23 @@ function runFile(
     path,
     errfs: { existsSync, readFileSync },
     ...trustOpts(trust, dirname(path)),
+    ...exactOpts(exact),
   })
   return emitEval(evalSource(aontu, src, mode), format)
 }
 
 
 function runStdin(
-  mode: Mode, format: EvalFormat, trust: TrustArg): Promise<number> {
+  mode: Mode, format: EvalFormat, trust: TrustArg,
+  exact: boolean): Promise<number> {
   return new Promise((resolve) => {
     let src = ''
     process.stdin.setEncoding('utf8')
     process.stdin.on('data', (d) => (src += d))
     process.stdin.on('end', () => {
       const res = evalSource(
-        new Aontu(trustOpts(trust, process.cwd())), src, mode)
+        new Aontu({ ...trustOpts(trust, process.cwd()), ...exactOpts(exact) }),
+        src, mode)
       resolve(emitEval(res, format))
     })
   })
@@ -904,6 +937,7 @@ export type ReplState = {
   name?: string
   src?: string
   trust?: TrustArg
+  exact?: boolean
 }
 
 export type ReplAnswer = {
@@ -1007,8 +1041,7 @@ export function replCommand(
       if (':why' === cmd) {
         const report = why(src, path, {
           path: state.name,
-          ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
-            entryRootOf(state.name)),
+          ...replTrust(state, entryRootOf(state.name)),
         })
         return report.ok
           ? answer(renderWhyText(report.record as WhyRecord))
@@ -1018,8 +1051,7 @@ export function replCommand(
         ? 'keys' : 'canon' === state.mode ? 'canon' : 'json'
       const report = get(src, path, {
         view, path: state.name,
-        ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] },
-          entryRootOf(state.name)),
+        ...replTrust(state, entryRootOf(state.name)),
       })
       return report.ok
         ? answer(report.out)
@@ -1032,8 +1064,9 @@ export function replCommand(
 }
 
 
-function runRepl(initialMode: Mode, jsonl: boolean, trust: TrustArg): void {
-  let state: ReplState = { mode: initialMode, jsonl, trust }
+function runRepl(
+  initialMode: Mode, jsonl: boolean, trust: TrustArg, exact: boolean): void {
+  let state: ReplState = { mode: initialMode, jsonl, trust, exact }
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -1091,6 +1124,8 @@ type VetArgs = {
   at?: string
   closed?: boolean
   partial?: boolean
+  noFill?: boolean
+  exactNumbers?: boolean
   maxErrors?: number
   watch?: boolean
   // G11 phase 5. `strictCoverage` implies `coverage`; `coverageAt`
@@ -1098,6 +1133,10 @@ type VetArgs = {
   coverage?: boolean
   strictCoverage?: boolean
   coverageAt?: string
+  // ADR-066: the report as output units, and the importer's source map
+  // of the schema they are located through.
+  output?: 'flag' | 'basic'
+  sourceMap?: string
 }
 
 
@@ -1109,11 +1148,16 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
   let at: string | undefined
   let closed = false
   let partial = false
+  let noFill = false
+  let exactNumbers = false
   let maxErrors: number | undefined
   let watch = false
   let coverage = false
   let strictCoverage = false
   let coverageAt: string | undefined
+  let formatted = false
+  let output: 'flag' | 'basic' | undefined
+  let sourceMap: string | undefined
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -1138,6 +1182,20 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
         return { err: `aontu: --format needs text, json or sarif` }
       }
       format = f
+      formatted = true
+    }
+    else if ('--output' === arg) {
+      const o = argv[++i]
+      if ('flag' !== o && 'basic' !== o) {
+        return { err: 'aontu: --output needs flag or basic' }
+      }
+      output = o
+    }
+    else if ('--source-map' === arg) {
+      sourceMap = argv[++i]
+      if (null == sourceMap) {
+        return { err: 'aontu: --source-map needs a file' }
+      }
     }
     else if ('--max-errors' === arg) {
       const raw = argv[++i]
@@ -1151,6 +1209,12 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
     }
     else if ('--partial' === arg) {
       partial = true
+    }
+    else if ('--no-fill' === arg) {
+      noFill = true
+    }
+    else if ('--exact-numbers' === arg) {
+      exactNumbers = true
     }
     else if ('--coverage' === arg) {
       coverage = true
@@ -1184,6 +1248,12 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
   if (files.length < 2) {
     return { err: `aontu: vet needs a schema and at least one data file\n${VET_HELP}` }
   }
+  if (undefined !== output && (formatted || 2 < files.length)) {
+    return { err: 'aontu: --output answers for one data file, in place of --format' }
+  }
+  if ('basic' === output && undefined === sourceMap) {
+    return { err: 'aontu: --output basic needs --source-map <file>' }
+  }
 
   return {
     args: {
@@ -1193,11 +1263,15 @@ function parseVetArgs(argv: string[]): { args?: VetArgs; err?: string } {
       at,
       closed,
       partial,
+      noFill,
+      exactNumbers,
       maxErrors,
       watch,
       coverage,
       strictCoverage,
       coverageAt,
+      output,
+      sourceMap,
     },
   }
 }
@@ -1319,15 +1393,29 @@ const VET_RANK: Record<VetVerdict, number> = {
 // watching them.
 function vetOnce(args: VetArgs, trust: TrustArg): number {
   let schemaSrc: string
+  let mapSrc: string | undefined
   const sources: { file: string; src: string }[] = []
   try {
     schemaSrc = readFileSync(args.schema, 'utf8')
     for (const file of args.data) {
       sources.push({ file, src: readFileSync(file, 'utf8') })
     }
+    mapSrc = undefined === args.sourceMap ? undefined : readFileSync(args.sourceMap, 'utf8')
   }
   catch (err: any) {
     process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+  // ADR-066: a map whose text has changed would place a finding at the
+  // wrong keyword.
+  const map = undefined === mapSrc ? undefined : readSourceMap(mapSrc)
+  if (undefined !== mapSrc && undefined === map) {
+    process.stderr.write(`aontu: ${args.sourceMap} is not a source map\n`)
+    return 2
+  }
+  if (undefined !== map && textSha(schemaSrc) !== map.sha256) {
+    process.stderr.write(`aontu: the source map ${args.sourceMap} does not describe ` +
+      `${args.schema}: its text has changed since the import\n`)
     return 2
   }
 
@@ -1349,6 +1437,8 @@ function vetOnce(args: VetArgs, trust: TrustArg): number {
       at: args.at,
       closed: args.closed,
       partial: args.partial,
+      noFill: args.noFill,
+      exactNumbers: args.exactNumbers,
       maxErrors: args.maxErrors,
       schemaUrl: args.schema,
       dataUrl: source.file,
@@ -1403,9 +1493,11 @@ function vetOnce(args: VetArgs, trust: TrustArg): number {
     findings: kept,
     ...(null == cov ? {} : { coverage: cov }),
   }
-  const text = 'json' === args.format ? renderVetJson(report) :
-    'sarif' === args.format ? renderVetSarif(report) :
-      renderVetText(report)
+  const text = undefined !== args.output ? exactJSON(vetOutput(report, args.output,
+    undefined === map ? undefined : { text: schemaSrc, map }), 2) :
+    'json' === args.format ? renderVetJson(report) :
+      'sarif' === args.format ? renderVetSarif(report) :
+        renderVetText(report)
 
   process.stdout.write(text + '\n')
 
@@ -3918,7 +4010,174 @@ function renderRelationsJson(report: RelationReport): string {
 
 
 const JSONSCHEMA_HELP =
-  'aontu jsonschema [--at <path>] [--strict] <file> (try --help)'
+  'aontu jsonschema [import] [--at <path>] [--strict] <file> (try --help)'
+
+function vetWith(flags: string[]): string {
+  return 'vet with: aontu vet ' + flags.join(' ') + ' <document> <data>\n'
+}
+
+// The import mode: JSON Schema text in, an aontu document out, the
+// losses on stderr, exactly as the export reads the other way.
+function runJsonSchemaImport(argv: string[]): number {
+  const files: string[] = []
+  let format: SubsumeFormat = 'text'
+  let strict = false
+  let defaults = false
+  let uri: string | undefined = undefined
+  const docs: [string, string][] = []
+  let formatAssertion = false
+  let noMetaCheck = false
+  const grammars: [string, string][] = []
+  let dialect: string | undefined = undefined
+  let mapFile: string | undefined = undefined
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if ('-h' === arg || '--help' === arg) {
+      process.stdout.write(HELP)
+      return 0
+    }
+    if ('--format' === arg) {
+      const f = argv[++i]
+      if ('text' !== f && 'json' !== f) {
+        process.stderr.write('aontu: --format needs text or json\n')
+        return 2
+      }
+      format = f
+    }
+    else if ('--strict' === arg) {
+      strict = true
+    }
+    else if ('--defaults' === arg) {
+      defaults = true
+    }
+    else if ('--uri' === arg) {
+      uri = argv[++i]
+      if (undefined === uri) {
+        process.stderr.write('aontu: --uri needs a URI\n')
+        return 2
+      }
+    }
+    else if ('--doc' === arg) {
+      if (argv.length < i + 3) {
+        process.stderr.write('aontu: --doc needs a URI and a file\n')
+        return 2
+      }
+      docs.push([argv[i + 1], argv[i + 2]])
+      i += 2
+    }
+    else if ('--format-assert' === arg) {
+      formatAssertion = true
+    }
+    else if ('--no-meta-check' === arg) {
+      noMetaCheck = true
+    }
+    else if ('--source-map' === arg) {
+      mapFile = argv[++i]
+      if (undefined === mapFile) {
+        process.stderr.write('aontu: --source-map needs a file\n')
+        return 2
+      }
+    }
+    else if ('--dialect' === arg) {
+      dialect = argv[++i]
+      if (undefined === dialect) {
+        process.stderr.write('aontu: --dialect needs a dialect\n')
+        return 2
+      }
+    }
+    else if ('--format-grammar' === arg) {
+      const name = argv[i + 1]
+      if (argv.length < i + 3) {
+        process.stderr.write('aontu: --format-grammar needs a name and a file\n')
+        return 2
+      }
+      if (isDefinedFormat(name)) {
+        process.stderr.write(`aontu: --format-grammar cannot name ${name}, ` +
+          'one of the nineteen formats, whose grammar is fixed\n')
+        return 2
+      }
+      if (grammars.some(([n]) => n === name)) {
+        process.stderr.write(`aontu: --format-grammar names ${name} twice\n`)
+        return 2
+      }
+      grammars.push([name, argv[i + 2]])
+      i += 2
+    }
+    else if (arg.startsWith('-')) {
+      process.stderr.write(
+        `aontu: unknown jsonschema import option ${arg} (try --help)\n`)
+      return 2
+    }
+    else {
+      files.push(arg)
+    }
+  }
+
+  if (1 !== files.length) {
+    process.stderr.write(
+      `aontu: jsonschema import needs one file\n${JSONSCHEMA_HELP}\n`)
+    return 2
+  }
+
+  let src: string
+  const documents: Record<string, string> = {}
+  const formats: Record<string, string> = {}
+  try {
+    src = readFileSync(files[0], 'utf8')
+    for (const [u, f] of docs) {
+      documents[u] = readFileSync(f, 'utf8')
+    }
+    for (const [n, f] of grammars) {
+      formats[n] = readFileSync(f, 'utf8')
+    }
+  }
+  catch (err: any) {
+    process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`)
+    return 2
+  }
+
+  const report = importJsonSchema(src, {
+    path: files[0], defaults, uri, documents, formatAssertion, formats, dialect, noMetaCheck,
+    sourceMap: 'json' === format || undefined !== mapFile,
+  })
+  if (undefined !== mapFile && undefined !== report.map) {
+    try {
+      writeFileSync(mapFile, exactJSON(report.map, 2) + '\n')
+    }
+    catch (err: any) {
+      process.stderr.write(`aontu: cannot write ${mapFile}: ${err.message}\n`)
+      return 2
+    }
+  }
+
+  if ('json' === format) {
+    process.stdout.write(exactJSON({
+      aontu: { version: version(), verb: 'jsonschema' },
+      verdict: report.verdict,
+      text: report.aontu,
+      lossy: report.lossy,
+      ...(null == report.vet ? {} : { vet: report.vet }),
+      ...(null == report.errors ? {} : { errors: report.errors }),
+      ...(null == report.map ? {} : { map: report.map }),
+    }, 2) + '\n')
+  }
+  else if ('error' === report.verdict) {
+    process.stderr.write(
+      (report.errors as VetFinding[]).map(renderFinding).join('\n') + '\n')
+  }
+  else {
+    process.stdout.write(report.aontu)
+    for (const l of report.lossy) {
+      process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`)
+    }
+    process.stderr.write(vetWith(report.vet as string[]))
+  }
+
+  return 'error' === report.verdict ? 4 :
+    strict && 'lossy' === report.verdict ? 1 : 0
+}
+
 
 function runJsonSchema(argv: string[]): number {
   const trusted = takeTrust(argv)
@@ -3926,6 +4185,9 @@ function runJsonSchema(argv: string[]): number {
     return 2
   }
   argv = trusted.argv
+  if ('import' === argv[0]) {
+    return runJsonSchemaImport(argv.slice(1))
+  }
   const trust = trusted.trust
   const files: string[] = []
   let format: SubsumeFormat = 'text'
@@ -5492,6 +5754,7 @@ function main(argv: string[], servers: Servers = SERVERS): void {
   // than the design's --json, which would read as the `:json` output
   // mode the REPL already has.
   let jsonl = false
+  let exact = false
 
   // One spelling throughout the tools (ADR-042): every verb, one gate.
   const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a))
@@ -5598,6 +5861,9 @@ function main(argv: string[], servers: Servers = SERVERS): void {
     if ('-c' === arg || '--canon' === arg) {
       mode = 'canon'
     }
+    else if ('--exact-numbers' === arg) {
+      exact = true
+    }
     else if ('-h' === arg || '--help' === arg) {
       process.stdout.write(HELP)
       return finish(0)
@@ -5671,17 +5937,17 @@ function main(argv: string[], servers: Servers = SERVERS): void {
 
   const file = files[0]
   if (null != file) {
-    finish(runFile(file, mode, format, trust))
+    finish(runFile(file, mode, format, trust, exact))
   }
   // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
   // a harness over a pipe, so gating it on an interactive terminal
   // made it reachable only through a pty -- which is to say, not
   // reachable by the thing it was built for. Mirrors go/cmd/aontu.
   else if (jsonl || process.stdin.isTTY) {
-    runRepl(mode, jsonl, trust)
+    runRepl(mode, jsonl, trust, exact)
   }
   else {
-    runStdin(mode, format, trust).then((code) => finish(code))
+    runStdin(mode, format, trust, exact).then((code) => finish(code))
   }
 } /* node:coverage ignore next 22 */
 

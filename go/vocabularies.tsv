@@ -1,0 +1,36 @@
+# THE JSON SCHEMA VOCABULARIES the importer reads, one per line: the
+# vocabulary's URI, the dialect that defines it, whether a schema reads
+# it always or only where its meta-schema lists it, the mode its
+# `format` keyword takes, and the keywords it defines, space-separated.
+#
+# A schema whose meta-schema declares `$vocabulary` reads the keywords
+# of the vocabularies listed there, and of the core vocabulary always,
+# and takes each other keyword of its dialect as an annotation. A
+# vocabulary the meta-schema lists with any value but `false` and this
+# table does not hold refuses the schema with `jsonschema_vocabulary`;
+# one it lists as `false` is skipped. A meta-schema that declares no
+# `$vocabulary` reads every vocabulary of its dialect.
+#
+# The format modes: `annotation`, a record on the meta rider;
+# `assertion`, a format(g) as well, whether the vocabulary is listed
+# as `true` or `false`; `required`, an assertion where the vocabulary is
+# listed as `true` and an annotation where it is listed as `false`; `-`,
+# no `format` keyword.
+#
+# `make vocabularies` stages this table into ts/src/vocabularies.ts and
+# go/vocabularies.tsv, and both suites assert each copy is identical.
+uri	dialect	reads	format	keywords
+https://json-schema.org/draft/2020-12/vocab/core	2020-12	always	-	$id $schema $ref $anchor $dynamicRef $dynamicAnchor $vocabulary $comment $defs
+https://json-schema.org/draft/2020-12/vocab/applicator	2020-12	listed	-	prefixItems items contains additionalProperties properties patternProperties dependentSchemas propertyNames if then else allOf anyOf oneOf not
+https://json-schema.org/draft/2020-12/vocab/unevaluated	2020-12	listed	-	unevaluatedItems unevaluatedProperties
+https://json-schema.org/draft/2020-12/vocab/validation	2020-12	listed	-	type const enum multipleOf maximum exclusiveMaximum minimum exclusiveMinimum maxLength minLength pattern maxItems minItems uniqueItems maxContains minContains maxProperties minProperties required dependentRequired
+https://json-schema.org/draft/2020-12/vocab/meta-data	2020-12	listed	-	title description default deprecated readOnly writeOnly examples
+https://json-schema.org/draft/2020-12/vocab/format-annotation	2020-12	listed	annotation	format
+https://json-schema.org/draft/2020-12/vocab/format-assertion	2020-12	listed	assertion	format
+https://json-schema.org/draft/2020-12/vocab/content	2020-12	listed	-	contentEncoding contentMediaType contentSchema
+https://json-schema.org/draft/2019-09/vocab/core	2019-09	always	-	$id $schema $anchor $ref $recursiveRef $recursiveAnchor $vocabulary $comment $defs
+https://json-schema.org/draft/2019-09/vocab/applicator	2019-09	listed	-	additionalItems unevaluatedItems items contains additionalProperties unevaluatedProperties properties patternProperties dependentSchemas propertyNames if then else allOf anyOf oneOf not
+https://json-schema.org/draft/2019-09/vocab/validation	2019-09	listed	-	multipleOf maximum exclusiveMaximum minimum exclusiveMinimum maxLength minLength pattern maxItems minItems uniqueItems maxContains minContains maxProperties minProperties required dependentRequired const enum type
+https://json-schema.org/draft/2019-09/vocab/meta-data	2019-09	listed	-	title description default deprecated readOnly writeOnly examples
+https://json-schema.org/draft/2019-09/vocab/format	2019-09	listed	required	format
+https://json-schema.org/draft/2019-09/vocab/content	2019-09	listed	-	contentMediaType contentEncoding contentSchema

@@ -13,6 +13,7 @@ import {
 import { unite } from '../unify'
 import { makeNilErr } from '../err'
 import { MapVal } from './MapVal'
+import { keyTable } from './BagVal'
 import { FuncBaseVal } from './FuncBaseVal'
 import { repathInstance } from './Val'
 import { fillPlace } from './PlaceVal'
@@ -88,7 +89,7 @@ class PackFuncVal extends FuncBaseVal {
 
     // Arity is checked at parse (funcArity), so both arguments are here.
     const tmpl: Val = args[1]
-    const peg: Record<string, Val> = {}
+    const peg: Record<string, Val> = keyTable()
 
     const src: any = args[0]
 

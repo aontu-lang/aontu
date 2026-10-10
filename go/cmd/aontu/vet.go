@@ -48,6 +48,8 @@ type vetArgs struct {
 	at        string
 	closed    bool
 	partial   bool
+	noFill    bool
+	exact     bool
 	maxErrors int
 	watch     bool
 	// G11 phase 5. strictCoverage implies coverage; coverageAt narrows
@@ -55,6 +57,10 @@ type vetArgs struct {
 	coverage       bool
 	strictCoverage bool
 	coverageAt     string
+	// ADR-066: the report as output units, and the importer's source map
+	// of the schema they are located through.
+	output    string
+	sourceMap string
 }
 
 // parseVetArgs reads the verb's argument tail. It returns the error
@@ -62,6 +68,7 @@ type vetArgs struct {
 func parseVetArgs(argv []string) (*vetArgs, string) {
 	args := &vetArgs{format: "text"}
 	var files []string
+	formatted := false
 
 	for i := 0; i < len(argv); i++ {
 		arg := argv[i]
@@ -81,6 +88,19 @@ func parseVetArgs(argv []string) (*vetArgs, string) {
 				return nil, "aontu: --format needs text, json or sarif"
 			}
 			args.format = argv[i]
+			formatted = true
+		case "--output" == arg:
+			i++
+			if len(argv) <= i || ("flag" != argv[i] && "basic" != argv[i]) {
+				return nil, "aontu: --output needs flag or basic"
+			}
+			args.output = argv[i]
+		case "--source-map" == arg:
+			i++
+			if len(argv) <= i {
+				return nil, "aontu: --source-map needs a file"
+			}
+			args.sourceMap = argv[i]
 		case "--max-errors" == arg:
 			i++
 			raw := ""
@@ -99,6 +119,10 @@ func parseVetArgs(argv []string) (*vetArgs, string) {
 			args.closed = true
 		case "--partial" == arg:
 			args.partial = true
+		case "--no-fill" == arg:
+			args.noFill = true
+		case "--exact-numbers" == arg:
+			args.exact = true
 		case "--coverage" == arg:
 			args.coverage = true
 		case "--strict-coverage" == arg:
@@ -126,6 +150,12 @@ func parseVetArgs(argv []string) (*vetArgs, string) {
 
 	if len(files) < 2 {
 		return nil, "aontu: vet needs a schema and at least one data file\n" + vetHelp
+	}
+	if "" != args.output && (formatted || 2 < len(files)) {
+		return nil, "aontu: --output answers for one data file, in place of --format"
+	}
+	if "basic" == args.output && "" == args.sourceMap {
+		return nil, "aontu: --output basic needs --source-map <file>"
 	}
 
 	args.schema = files[0]
@@ -339,6 +369,27 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 		}
 		sources = append(sources, source{file: file, src: string(src)})
 	}
+	// ADR-066: a map whose text has changed would place a finding at the
+	// wrong keyword.
+	var sourceMap *aontu.SourceMap
+	if "" != args.sourceMap {
+		mapSrc, err := os.ReadFile(args.sourceMap)
+		if err != nil {
+			fmt.Fprintf(stderr, "aontu: cannot read %s: %v\n", args.sourceMap, err)
+			return 2
+		}
+		m, ok := aontu.ReadSourceMap(string(mapSrc))
+		if !ok {
+			fmt.Fprintf(stderr, "aontu: %s is not a source map\n", args.sourceMap)
+			return 2
+		}
+		if aontu.TextSha(string(schemaSrc)) != m.Sha256 {
+			fmt.Fprintf(stderr, "aontu: the source map %s does not describe %s: "+
+				"its text has changed since the import\n", args.sourceMap, args.schema)
+			return 2
+		}
+		sourceMap = m
+	}
 
 	verdict := aontu.VetValid
 	truncated := false
@@ -354,6 +405,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 			At:        args.at,
 			Closed:    args.closed,
 			Partial:   args.partial,
+			NoFill:    args.noFill,
 			MaxErrors: args.maxErrors,
 			SchemaURL: args.schema,
 			DataURL:   source.file,
@@ -361,6 +413,7 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 			DataPath:   source.file,
 			Coverage:   args.coverage,
 			CoverageAt: args.coverageAt,
+			ExactNumbers: args.exact,
 		})
 
 		if vetRank[verdict] < vetRank[report.Verdict] {
@@ -422,10 +475,12 @@ func vetOnce(args *vetArgs, trust trustArg, stdout, stderr io.Writer) int {
 		Truncated: truncated, Findings: findings,
 	}
 	text := renderVetText(report)
-	switch args.format {
-	case "json":
+	switch {
+	case "" != args.output:
+		text = encodeJSON(aontu.VetOutput(report, args.output, string(schemaSrc), sourceMap))
+	case "json" == args.format:
 		text = renderVetJSON(report)
-	case "sarif":
+	case "sarif" == args.format:
 		// Rendered by the library (report_sarif.go) so an embedder gets
 		// the same bytes the CLI prints.
 		text = aontu.SarifReport(report, aontu.VERSION)

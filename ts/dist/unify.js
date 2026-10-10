@@ -3,12 +3,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.unite = exports.Unify = void 0;
 exports.applyFlows = applyFlows;
+exports.ride = ride;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
+const rider_1 = require("./rider");
 const lang_1 = require("./lang");
 const utility_1 = require("./utility");
 const top_1 = require("./val/top");
@@ -27,6 +29,54 @@ const withDepth = (ctx, a, b, run) => {
 exports.withDepth = withDepth;
 // Vals should only have to unify downwards (in .unify) over Vals they understand.
 // and for complex Vals, TOP, which means self unify if not yet done
+// The meet's riders are the union of its operands' (ADR-052).
+function ride(out, a, b) {
+    if (null != out.deprecation || null != a?.deprecation || null != b?.deprecation) {
+        out.deprecation = (0, rider_1.unionRecords)([out.deprecation, a?.deprecation, b?.deprecation], (s) => s);
+    }
+    if (null != out.meta || null != a?.meta || null != b?.meta) {
+        out.meta = (0, rider_1.unionRecords)([out.meta, a?.meta, b?.meta], (v) => v.canon);
+    }
+    if (null != out.via || null != a?.via || null != b?.via) {
+        out.via = (0, rider_1.unionVia)(out.via, a?.via, b?.via);
+    }
+    if (null != out.identity || null != a?.identity || null != b?.identity) {
+        out.identity = (0, rider_1.unionRecords)([out.identity, a?.identity, b?.identity], (s) => s);
+    }
+}
+// The meet's riders go to its result, a top's on a fresh top where they
+// add to its own, since an operand top may be a value written elsewhere.
+function rideOn(ctx, out, a, b) {
+    if (!out.isTop) {
+        ride(out, a, b);
+        return out;
+    }
+    if (!(0, rider_1.rides)(a) && !(0, rider_1.rides)(b)) {
+        return out;
+    }
+    const t = out.clone(ctx);
+    ride(t, a, b);
+    return (0, rider_1.riderText)('', t) === (0, rider_1.riderText)('', out) ? out : t;
+}
+function drives(v) {
+    return v.isConjunct
+        || v.isDisjunct
+        || v.isRef
+        || v.isPref
+        || v.isVar
+        || v.isFunc
+        || v.isExpect
+        || v.isRefer
+        // An op DRIVES while an operand has not decided (ADR-037).
+        || (v.isOp && ((0, PlaceVal_1.hasPlace)(v) || v.holdsStaged))
+        // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
+        // beside -- a container, a rel, a scalar -- and none of them know
+        // the atom; the atom knows to residuate.
+        || v.isGraphAtom
+        // The recursive residual DRIVES for the same reason: its peer is the
+        // concrete structure it expands against.
+        || v.isRecurse;
+}
 const unite = (ctx, a, b, whence) => {
     if (a !== undefined && a !== null) {
         if (a === b) {
@@ -36,11 +86,8 @@ const unite = (ctx, a, b, whence) => {
         else if (b !== undefined && b !== null && undefined === ctx.prov) {
             if (a.done && b.done) {
                 if (a.id === b.id) {
-                    // The deprecation record survives the fast path (G3).
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
-                    return a;
+                    // The riders survive the fast path (G3, G12).
+                    return rideOn(ctx, a, a, b);
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
                     && a.emptyOk === b.emptyOk
@@ -52,11 +99,8 @@ const unite = (ctx, a, b, whence) => {
                     && !a.isTop && !b.isTop
                     && !a.isRefer
                     && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
-                    // The deprecation record survives the fast path too (G3):
-                    // `deprecate(5) & 5` short-circuits here.
-                    if (null == a.deprecation && null != b.deprecation) {
-                        a.deprecation = b.deprecation;
-                    }
+                    // The riders survive this fast path too: `deprecate(5) & 5`.
+                    ride(a, a, b);
                     return a;
                 }
             }
@@ -121,31 +165,15 @@ const unite = (ctx, a, b, whence) => {
                 unified = true;
                 why = 'a*';
             }
-            else if (b.isConjunct
-                || b.isDisjunct
-                || b.isRef
-                || b.isPref
-                || b.isVar
-                || b.isFunc
-                || b.isExpect
-                || b.isRefer
-                // An op DRIVES while an operand has not decided (ADR-037).
-                || (b.isOp && ((0, PlaceVal_1.hasPlace)(b) || b.holdsStaged))
-                // A graph atom DRIVES (RELATIONS P2): its peer is the value
-                // it rides beside -- a container, a rel, a scalar -- and none
-                // of them know the atom; the atom knows to residuate.
-                || b.isGraphAtom
-                // The recursive residual DRIVES for the same reason: its peer
-                // is the concrete structure it expands against.
-                || b.isRecurse) {
+            else if (drives(b)) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BW') }) : ctx);
                 unified = true;
                 why = 'bv';
             }
             // These do not know their peers, so they answer from either side.
-            else if (true === b.isConstraintKind
+            else if ((true === b.isConstraintKind
                 || true === b.isEmptyConstraint
-                || true === b.isSeal) {
+                || true === b.isSeal) && !drives(a)) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BK') }) : ctx);
                 unified = true;
                 why = 'bk';
@@ -196,13 +224,8 @@ const unite = (ctx, a, b, whence) => {
     if (undefined !== ctx.prov) {
         ctx.prov.record(ctx.path, a, b, out);
     }
-    if (null != out && true === out.isVal &&
-        !out.isTop && !out.isNil && null == out.deprecation) {
-        const dep = (null != a ? a.deprecation : undefined) ??
-            (null != b ? b.deprecation : undefined);
-        if (null != dep) {
-            out.deprecation = dep;
-        }
+    if (null != out && true === out.isVal && !out.isNil) {
+        out = rideOn(ctx, out, a, b);
     }
     if (undefined !== ctx.reads &&
         null != out && true === out.isVal && !out.isTop && !out.isNil) {
@@ -287,6 +310,8 @@ class Unify {
         if (!root.isNil) {
             if (ctx instanceof ctx_1.AontuContext) {
                 uctx = ctx;
+                // The first pass reads references from the root, as below.
+                uctx.root = uctx.root ?? res;
             }
             else {
                 uctx = new ctx_1.AontuContext({
@@ -339,7 +364,7 @@ class Unify {
             // The settled tree's alias references canon as the values they
             // name (ts/src/alias.ts): attached here, once, after the last
             // pass, from the snapshot store this run kept.
-            (0, alias_1.expandAliases)(res, uctx.snapmap);
+            (0, alias_1.expandAliases)(res, uctx.snapmap, uctx.err);
             uctx.explain && (0, utility_1.explainClose)(te, res);
         }
         this.res = res;

@@ -1,6 +1,9 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
+import type { Grammar } from '../formatgrammar';
+import type { Inst } from '../regex';
 import { FeatureVal } from './FeatureVal';
+import { Site } from '../site';
 type Bound = {
     v: any;
     open: boolean;
@@ -9,11 +12,34 @@ type ReAtom = {
     v: any;
     src: string;
     norm: string;
-    re: RegExp;
+    prog: Inst[];
 };
 type MustAtom = {
     v: any;
     msg: any;
+};
+type NofAtom = {
+    count: ConstraintState;
+    cs: any[];
+};
+type WhenAtom = {
+    c: any;
+    t: any;
+    e?: any;
+};
+type ContainsAtom = {
+    c: any;
+    count: ConstraintState;
+};
+type FormatAtom = {
+    v: any;
+    src: string;
+    name: string;
+    gs?: Grammar[];
+};
+type RestAtom = {
+    t: any;
+    covers: any[];
 };
 type ConstraintState = {
     domain?: 'number' | 'string';
@@ -21,16 +47,23 @@ type ConstraintState = {
     lo?: Bound;
     hi?: Bound;
     neqs: any[];
+    mults?: any[];
     res: ReAtom[];
+    fmts?: FormatAtom[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs?: NofAtom[];
+    whens?: WhenAtom[];
+    contains?: ContainsAtom[];
+    rests?: RestAtom[];
     clash?: boolean;
     invalid?: string;
     nonEmpty?: boolean;
     emptyOk?: boolean;
     pathKind?: boolean;
+    sites?: Map<any, Site>;
 };
 declare function normaliseRe(src: string): [string, string];
 declare class ConstraintVal extends FeatureVal {
@@ -41,11 +74,17 @@ declare class ConstraintVal extends FeatureVal {
     lo?: Bound;
     hi?: Bound;
     neqs: any[];
+    mults: any[];
     res: ReAtom[];
+    fmts: FormatAtom[];
     count?: ConstraintState;
     uniq: boolean;
     uniqBy: string[];
     musts: MustAtom[];
+    nofs: NofAtom[];
+    whens: WhenAtom[];
+    contains: ContainsAtom[];
+    rests: RestAtom[];
     pending?: {
         atom: string;
         args: any[];
@@ -56,6 +95,7 @@ declare class ConstraintVal extends FeatureVal {
     nonEmpty?: boolean;
     emptyOk?: boolean;
     pathKind?: boolean;
+    sites: Map<any, Site>;
     constructor(spec: ValSpec & {
         atom?: string;
         state?: ConstraintState;
@@ -64,14 +104,21 @@ declare class ConstraintVal extends FeatureVal {
     unify(peer: Val, ctx: AontuContext): Val;
     private settle;
     private admit;
+    private checkRests;
     private checkMusts;
+    private mustFails;
+    private checkWhens;
+    private checkNofs;
     settleContainer(peer: any, ctx: AontuContext): Val;
     private admitContainer;
     private hold;
+    private beside;
     private meetKind;
     private meetConstraint;
     private finish;
     private fail;
+    private at;
+    private overBudget;
     private cloneState;
     allowEmpty(ctx: AontuContext, peer: Val): Val;
     clone(ctx: AontuContext, spec?: ValSpec): Val;
@@ -79,6 +126,7 @@ declare class ConstraintVal extends FeatureVal {
     same(peer: any): boolean;
 }
 declare function constraintSubsumesConstraint(g: ConstraintVal, s: ConstraintVal): boolean | 'undecided';
+declare function constraintSubsumesKind(g: ConstraintVal, marker: any): boolean;
 declare function constraintAdmitsScalar(g: ConstraintVal, scalar: any): boolean | 'undecided';
 declare class MinConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
@@ -95,16 +143,35 @@ declare class BelowConstraintVal extends ConstraintVal {
 declare class NeqConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class MultipleConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class ReConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+declare class FormatConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
 declare class MustConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare class NofConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+declare class ContainsConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+declare class WhenConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
+declare class RestConstraintVal extends ConstraintVal {
+    constructor(spec: ValSpec, ctx?: AontuContext);
+}
 declare class LenConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
+declare function nofCounts(n: NofAtom): boolean[];
 declare class UniqueConstraintVal extends ConstraintVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
 }
-export { normaliseRe, constraintSubsumesConstraint, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, ReConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, };
+export { normaliseRe, nofCounts, constraintSubsumesConstraint, constraintSubsumesKind, constraintAdmitsScalar, ConstraintVal, MinConstraintVal, MaxConstraintVal, AboveConstraintVal, BelowConstraintVal, NeqConstraintVal, MultipleConstraintVal, ReConstraintVal, FormatConstraintVal, LenConstraintVal, UniqueConstraintVal, MustConstraintVal, NofConstraintVal, WhenConstraintVal, ContainsConstraintVal, RestConstraintVal, };

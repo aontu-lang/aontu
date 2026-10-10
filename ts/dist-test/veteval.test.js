@@ -40,6 +40,8 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const vet_1 = require("../dist/vet");
+const admit_1 = require("../dist/admit");
+const ConjunctVal_1 = require("../dist/val/ConjunctVal");
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 function unescape(s) {
     let out = '';
@@ -101,6 +103,28 @@ function evalAccepts(src) {
         return false;
     }
     return 0 === ctx.err.length && undefined !== out;
+}
+// Under --no-fill or --exact-numbers the data is a value read its own
+// way, so the one-document form is the meet of the schema's parse and the
+// data's, and --no-fill asks the admission trial.
+function evalByValue(row) {
+    const aontu = new aontu_1.Aontu();
+    const sctx = aontu.ctx({ collect: true });
+    const sval = aontu.parse(row.schema, {}, sctx);
+    const dctx = aontu.ctx({ collect: true });
+    const dval = aontu.parse(row.data, { exactNumbers: true === row.opts.exactNumbers }, dctx);
+    if (0 < sctx.err.length || 0 < dctx.err.length) {
+        return false;
+    }
+    if (true === row.opts.noFill) {
+        return (0, admit_1.admits)(aontu, sval, dval);
+    }
+    const ctx = aontu.ctx({ collect: true });
+    const met = aontu.unify(new ConjunctVal_1.ConjunctVal({ peg: [sval, dval] }, ctx), undefined, ctx);
+    const gctx = aontu.ctx({ collect: true });
+    gctx.root = met;
+    const out = 0 === ctx.err.length ? met.gen(gctx) : undefined;
+    return undefined !== out && 0 === gctx.err.length;
 }
 // A document that USES a name it does not DECLARE has no single-document
 // spelling: concatenation would hand it the other document's declaration,
@@ -188,12 +212,18 @@ function wrap(src) {
         for (const row of rows) {
             const report = (0, vet_1.vet)(row.schema, row.data, { ...row.opts, schemaUrl: 'schema', dataUrl: 'data' });
             const vetAccepts = 'valid' === report.verdict;
-            const one = union(row.schema, row.data);
-            if (null == one) {
-                skipped++;
-                continue;
+            let evalOk;
+            if (true === row.opts.noFill || true === row.opts.exactNumbers) {
+                evalOk = evalByValue(row);
             }
-            const evalOk = evalAccepts(one);
+            else {
+                const one = union(row.schema, row.data);
+                if (null == one) {
+                    skipped++;
+                    continue;
+                }
+                evalOk = evalAccepts(one);
+            }
             if (vetAccepts !== evalOk) {
                 disagree.push(`${row.file}:${row.name}` +
                     ` vet=${report.verdict}` +

@@ -82,8 +82,14 @@ type Val interface {
 	setWritten()
 	innerOf() Val
 	setInnerOf(v Val)
-	deprecRec() map[string]string
-	setDeprecRec(rec map[string]string)
+	deprecRec() map[string][]string
+	setDeprecRec(rec map[string][]string)
+	metaRec() map[string][]Val
+	setMetaRec(rec map[string][]Val)
+	viaRec() []string
+	setViaRec(via []string)
+	identRec() map[string][]string
+	setIdentRec(rec map[string][]string)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -126,7 +132,12 @@ type base struct {
 	fspr    bool
 	fwrt    bool
 	finner  Val
-	deprec  map[string]string
+	deprec  map[string][]string
+	meta    map[string][]Val
+	// vias: the aliases this value is a copy of, written back as $ref.
+	vias []string
+	// ident: a declaration's identity (ADR-056), which no copy carries.
+	ident map[string][]string
 	origin  string
 	emitted *emitOrigin
 	link    string
@@ -207,8 +218,14 @@ func (b *base) vpath() []string     { return b.path }
 func (b *base) setvpath(p []string) { b.path = p }
 
 func (b *base) markedType() bool                   { return b.mtype }
-func (b *base) deprecRec() map[string]string       { return b.deprec }
-func (b *base) setDeprecRec(rec map[string]string) { b.deprec = rec }
+func (b *base) deprecRec() map[string][]string       { return b.deprec }
+func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
+func (b *base) metaRec() map[string][]Val            { return b.meta }
+func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
+func (b *base) viaRec() []string                     { return b.vias }
+func (b *base) setViaRec(via []string)               { b.vias = via }
+func (b *base) identRec() map[string][]string        { return b.ident }
+func (b *base) setIdentRec(rec map[string][]string)  { b.ident = rec }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }
@@ -343,10 +360,7 @@ func (n *NilVal) attemptName() string {
 }
 
 func (n *NilVal) Path() string {
-	if p := n.pathSegments(); 0 < len(p) {
-		return "$." + strings.Join(p, ".")
-	}
-	return "$"
+	return vetPath(n.pathSegments())
 }
 
 // pathSegments is the raw path the failure is reported at.

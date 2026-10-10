@@ -142,7 +142,7 @@ func TestRunReplPath(t *testing.T) {
 func TestReplCommandsAndErrors(t *testing.T) {
 	var out bytes.Buffer
 	in := strings.NewReader(":help\n:json\na:1 a:2\n:quit\n")
-	repl("canon", false, trustArg{}, in, &out)
+	repl("canon", false, trustArg{}, false, in, &out)
 	s := out.String()
 	for _, want := range []string{"Usage: aontu", "json output", "Cannot"} {
 		if !strings.Contains(s, want) {
@@ -151,7 +151,7 @@ func TestReplCommandsAndErrors(t *testing.T) {
 	}
 
 	out.Reset()
-	repl("json", false, trustArg{}, errReader{}, &out)
+	repl("json", false, trustArg{}, false, errReader{}, &out)
 	if !strings.Contains(out.String(), "input error") {
 		t.Fatalf("scanner error must be reported: %q", out.String())
 	}
@@ -513,5 +513,57 @@ func TestVacuitySignals(t *testing.T) {
 	if _, errs, _ = say("relations", graph); strings.Contains(
 		errs, "declares no relations") {
 		t.Errorf("a declaring document was called vacuous: %q", errs)
+	}
+}
+
+// Mirrors bare-command-exact-numbers in ts/test/cli.test.ts.
+func TestRunExactNumbers(t *testing.T) {
+	const src = "x: 12345678901234567890.5\ny: 1.0\nz: 0.1\n"
+	dir := filepath.Join(t.TempDir(), `a\b`)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "m.aontu")
+	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errw bytes.Buffer
+	want := "{\n  \"x\": 12345678901234567890.5,\n  \"y\": 1,\n  \"z\": 0.1\n}\n"
+	if code := run([]string{"--exact-numbers", file}, nil, &out, &errw, true); code != 0 ||
+		out.String() != want {
+		t.Fatalf("file: %d %q %q", code, out.String(), errw.String())
+	}
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--exact-numbers", "-c"}, `{"x":0d12345678901234567890.5,"y":1,"z":0d0.1}`},
+		{[]string{"-c"}, `{"x":12345678901234567000.0,"y":1.0,"z":0.1}`},
+	} {
+		out.Reset()
+		if code := run(c.args, strings.NewReader(src), &out, &errw, false); code != 0 ||
+			strings.TrimSpace(out.String()) != c.want {
+			t.Fatalf("stdin %v: %d %q", c.args, code, out.String())
+		}
+	}
+	out.Reset()
+	if code := run(nil, strings.NewReader("y: 1.0 & integer"), &out, &errw, false); code != 1 {
+		t.Fatalf("1.0 is a float without the flag: %d %q", code, out.String())
+	}
+
+	out.Reset()
+	session := ":canon\ny: 1.0 & integer\n:load " + file + "\n:get $.x\n:why $.z\n:json\n:get $.x\n:quit\n"
+	repl("json", true, trustArg{}, true, strings.NewReader(session), &out)
+	why, _ := json.Marshal(map[string]any{"ok": true, "out": "$.z = 0d0.1\n  1. 0d0.1  " + file + ":3:4"})
+	for _, want := range []string{
+		`{"ok":true,"out":"{\"y\":1}"}`,
+		`{\"x\":0d12345678901234567890.5,\"y\":1,\"z\":0d0.1}"}`,
+		`{"ok":true,"out":"0d12345678901234567890.5"}`,
+		string(why),
+		`{"ok":true,"out":"12345678901234567890.5"}`,
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("repl output missing %s:\n%s", want, out.String())
+		}
 	}
 }

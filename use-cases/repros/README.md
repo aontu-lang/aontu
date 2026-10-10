@@ -12,13 +12,14 @@ node ../../ts/bin/aontu.js <file>       # or the command in # run:
 Two cautions:
 
 - `refer-cycles/refer-in-type-hang.aontu` (with its `-schema` companion)
-  and `recursion/recursive-spread-conjunct-hangs.aontu` do not terminate
-  in any practical time — run them under `timeout` as their headers
-  say. `identity/id-names-own-descendant-crashes.aontu` used to belong
-  beside them, terminating only by overflowing the host stack (in Go a
-  `fatal error` the embedding program cannot recover from); §58 is
-  fixed and it now refuses as `id_ancestor`. `run-all.sh` never
-  executes anything in this tree.
+  does not terminate in any practical time — run it under `timeout` as
+  its header says. Two used to belong beside it:
+  `identity/id-names-own-descendant-crashes.aontu`, terminating only by
+  overflowing the host stack (in Go a `fatal error` the embedding
+  program cannot recover from), which refuses as `id_ancestor` since
+  §58 was fixed; and `recursion/recursive-spread-conjunct-hangs.aontu`,
+  which answers at once since §57 was. `run-all.sh` never executes
+  anything in this tree.
 - Some entries reproduce **by-design** behaviour whose consequence is
   the finding (marked in their headers and in BUGS.md), and
   `enum-default/match-helper-workaround.aontu` is deliberately the

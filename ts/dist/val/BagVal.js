@@ -2,6 +2,8 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
+exports.keyTable = keyTable;
+exports.putKey = putKey;
 exports.sizingResidue = sizingResidue;
 exports.bagGenable = bagGenable;
 exports.undecided = undecided;
@@ -113,7 +115,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             // Go port, which also drops skipped elements).
             const put = (v) => {
                 if (this.isMap) {
-                    out[p] = v;
+                    putKey(out, String(p), v);
                 }
                 else {
                     out.push(v);
@@ -171,6 +173,21 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
 } /* node:coverage ignore next 6 */
 exports.BagVal = BagVal;
+// A key is data, never a property lookup: a key table has no prototype.
+function keyTable() {
+    return Object.create(null);
+}
+// A generated object keeps its prototype, so `__proto__` is defined.
+function putKey(out, key, val) {
+    if ('__proto__' === key) {
+        Object.defineProperty(out, key, {
+            value: val, writable: true, enumerable: true, configurable: true,
+        });
+    }
+    else {
+        out[key] = val;
+    }
+}
 // A conjunct of exactly one sizing constraint and one container: the
 // shape ConstraintVal.admitContainer leaves when its reading is still
 // provisional, and the one ConjunctVal.gen knows how to finish. Kept

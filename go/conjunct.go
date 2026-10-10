@@ -34,14 +34,14 @@ func junctChildCanon(v Val) string {
 	switch t := v.(type) {
 	case *ConjunctVal:
 		if len(t.peg) > 1 {
-			return "(" + t.Canon() + ")"
+			return "(" + CanonRiders(t) + ")"
 		}
 	case *DisjunctVal:
 		if len(t.peg) > 1 {
-			return "(" + t.Canon() + ")"
+			return "(" + CanonRiders(t) + ")"
 		}
 	}
-	return v.Canon()
+	return CanonRiders(v)
 }
 
 func (c *ConjunctVal) Gen(ctx *Ctx) (any, error) {
@@ -116,8 +116,15 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		if val.Dc() != DONE {
 			done = false
 		}
-		if _, ok := val.(*ConjunctVal); ok {
-			// Could not merge t0 and t1; keep t0, advance.
+		_, t0dj := t0.(*DisjunctVal)
+		_, t1dj := t1.(*DisjunctVal)
+		_, _, residue := sizingResidue(val)
+		cj, ok := val.(*ConjunctVal)
+		moved := residue && !sameTerms(cj, t0, t1)
+		if ok && !moved && (!t0dj && !t1dj || sameTerms(cj, t0, t1)) {
+			// A conjunct answer is no progress, unless it is a sizing
+			// residue of other terms: a decided disjunction or one level
+			// of an expanded recursion is the meet so far.
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {
@@ -166,6 +173,11 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	return out
 }
 
+func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
+	has := func(t Val) bool { return cj.peg[0] == t || cj.peg[1] == t }
+	return 2 == len(cj.peg) && has(t0) && has(t1)
+}
+
 // norm flattens nested conjuncts and orders terms by cjo so that
 // unification is order-independent (lower cjo sorts first).
 func norm(terms []Val) []Val {
@@ -180,5 +192,23 @@ func norm(terms []Val) []Val {
 	sort.SliceStable(expand, func(i, j int) bool {
 		return expand[i].cjo() < expand[j].cjo()
 	})
-	return expand
+	// A repeated waiting match adds nothing, nor a residual met again.
+	seen := map[string]bool{}
+	out := expand[:0]
+	for _, t := range expand {
+		key := ""
+		if f, ok := t.(*FuncVal); ok && "match" == f.name && DONE != f.Dc() {
+			key = f.Canon()
+		} else if r, ok := t.(*RecurseVal); ok {
+			key = "\x00" + strings.Join(r.target, "\x00")
+		}
+		if "" != key {
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+		}
+		out = append(out, t)
+	}
+	return out
 }

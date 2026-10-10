@@ -8,3 +8,20 @@ close-path	gen	x:{a:1} y:close($.x)	{"x":{"a":1},"y":{"a":1}}
 open-reopen	gen	open(close({x:1})) & {y:2}	{"x":1,"y":2}
 close-extra	err	close({x:1}) & {y:2}	closed
 close-list-extra	err	close([1,2]) & [3,4,5]	closed
+# An optional key a closed map does not declare is dropped: no
+# instance can hold it (ADR-053). A required one is still refused,
+# and two closed maps each hold the other to its own keys.
+close-drops-an-optional-key	gens	a: close({ b:1 }) & { a?: number }	{"a":{"b":1}}
+close-drops-an-optional-key-either-side	gens	a: { a?: number } & close({ b:1 })	{"a":{"b":1}}
+close-drops-an-optional-key-canon	canon	a: close({ b:1 }) & { a?: number }	{"a":{"b":1}}
+close-keeps-an-optional-key-it-declares	canon	a: close({ a?: number, b:1 }) & { a?: 1 }	{"a":{"a"?:1,"b":1}}
+close-drops-then-refuses-the-key-required	errc	a: close({ b:1 }) & { a?: number } & { a:1 }	closed
+close-refuses-a-required-key-beside-an-optional	errc	a: close({ b:1 }) & { a?: number, c:2 }	closed
+close-both-drop-each-others-optional-keys	canon	a: close({ a?:1 }) & close({ b?:2 })	{"a":{}}
+close-both-drop-the-wider-sides-optional-key	canon	a: close({ b:1, c?:3 }) & close({ b:1 })\nz: close({ b:1 }) & close({ b:1, c?:3 })	{"a":{"b":1},"z":{"b":1}}
+close-both-refuse-a-required-key-the-other-lacks	errc	a: close({ a:1 }) & close({ b?:2 })	closed
+close-both-refuse-a-required-key-either-order	errc	a: close({ b?:2 }) & close({ a:1 })	closed
+close-drops-an-optional-key-at-depth	gens	a: close({ x:{ b:1 } }) & { x?:{ a?:2 } }	{"a":{"x":{"b":1}}}
+close-list-element-drops-an-optional-key	gens	a: close([{ b:1 }]) & [&: { a?: number }]	{"a":[{"b":1}]}
+close-type-instance-drops-an-optional-key	gens	T: type({ b:number })\nx: $.T & { a?: string } & { b:1 }	{"x":{"b":1}}
+close-a-dropped-key-keeps-its-own-conflict	errc	a: close({ b:1 }) & { a?: 1 & 2 }	scalar_value

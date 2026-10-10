@@ -40,11 +40,14 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
+const jsonschema_import_1 = require("../dist/jsonschema-import");
+const sourcemap_1 = require("../dist/sourcemap");
 const reach_1 = require("../dist/reach");
 const aontu_2 = require("../dist/aontu");
 const template_1 = require("../dist/template");
 const trace_1 = require("../dist/trace");
 const hints_1 = require("../dist/hints");
+const utility_1 = require("../dist/utility");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
@@ -93,7 +96,8 @@ function loadRows() {
             const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
                 'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
-                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1];
+                'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
+                'jsonschema-output' === parts[1];
             const want = vetRow ? 5 : 4;
             if (parts.length < want) {
                 throw new Error(`malformed spec row: ${file} line ${lineno}: ${want} columns` +
@@ -129,9 +133,9 @@ function assertCanonConverges(row) {
         return;
     }
     const a1 = rowAontu(row);
-    const c2 = a1.unify(row.expect, undefined, makeVarsCtx(a1)).canon;
+    const c2 = (0, utility_1.canonRiders)(a1.unify(row.expect, undefined, makeVarsCtx(a1)));
     const a2 = rowAontu(row);
-    const c3 = a2.unify(c2, undefined, makeVarsCtx(a2)).canon;
+    const c3 = (0, utility_1.canonRiders)(a2.unify(c2, undefined, makeVarsCtx(a2)));
     Assert.strictEqual(c3, c2, `canon does not converge: ${row.name}`);
 }
 function assertFormatSameDocument(row) {
@@ -207,7 +211,7 @@ function runRow(row) {
     // Fresh context per row carrying the shared $var test variables.
     const ctx = makeVarsCtx(a0);
     if ('canon' === row.mode) {
-        Assert.strictEqual(a0.unify(row.src, undefined, ctx).canon, row.expect);
+        Assert.strictEqual((0, utility_1.canonRiders)(a0.unify(row.src, undefined, ctx)), row.expect);
         assertCanonConverges(row);
     }
     else if ('gen' === row.mode) {
@@ -264,8 +268,10 @@ function runRow(row) {
         }), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `trim report mismatch: ${row.name}`);
     }
     else if ('jsonschema' === row.mode) {
-        // `opts` rides the expect object, as in the vet and subsume rows.
-        const golden = JSON.parse(row.expect);
+        // `opts` rides the expect object, as in the vet and subsume rows. A
+        // number a double cannot hold keeps its digits, as the export does.
+        const golden = JSON.parse(row.expect, (_k, v, at) => 'number' === typeof v && null != at?.source && String(v) !== at.source ?
+            JSON.rawJSON(at.source) : v);
         const opts = golden.opts;
         delete golden.opts;
         const report = (0, jsonschema_1.jsonSchema)(row.src, opts);
@@ -276,6 +282,45 @@ function runRow(row) {
             ...(null == report.errors
                 ? {} : { errors: stripProse(report.errors) }),
         }), (0, aontu_1.exactJSON)(golden), `jsonschema report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-import' === row.mode) {
+        const golden = JSON.parse(row.expect);
+        const report = (0, jsonschema_import_1.importJsonSchema)(row.src, golden.opts);
+        delete golden.opts;
+        // Every import that stands is paired with JSON Schema's question.
+        Assert.deepStrictEqual(report.vet, 'error' === report.verdict ?
+            undefined : ['--no-fill', '--exact-numbers'], `jsonschema-import vet flags: ${row.name}`);
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            aontu: report.aontu,
+            lossy: report.lossy,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+            ...(null == report.map ? {} : { map: report.map }),
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema-import report mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-output' === row.mode) {
+        // ADR-066: the schema imported with its source map, the data vetted
+        // as JSON Schema asks, and the report as basic output units.
+        const golden = JSON.parse(row.expect);
+        const imported = (0, jsonschema_import_1.importJsonSchema)(row.src, { ...golden.opts, sourceMap: true });
+        const report = (0, aontu_1.vet)(imported.aontu, row.data, { noFill: true, exactNumbers: true });
+        Assert.strictEqual((0, aontu_1.exactJSON)((0, sourcemap_1.vetOutput)(report, 'basic', { text: imported.aontu, map: imported.map })), (0, aontu_1.exactJSON)(golden.output), `jsonschema-output mismatch: ${row.name}`);
+    }
+    else if ('jsonschema-upgrade' === row.mode) {
+        // A number a double cannot hold keeps its digits, as the export does.
+        const golden = JSON.parse(row.expect, (_k, v, at) => 'number' === typeof v && null != at?.source && String(v) !== at.source ?
+            JSON.rawJSON(at.source) : v);
+        const report = (0, jsonschema_import_1.upgradeJsonSchema)(row.src, golden.opts);
+        delete golden.opts;
+        Assert.strictEqual((0, aontu_1.exactJSON)({
+            dialect: report.dialect,
+            rewritten: report.rewritten,
+            schema: report.schema,
+            verdict: report.verdict,
+            ...(null == report.errors
+                ? {} : { errors: stripProse(report.errors) }),
+        }), (0, aontu_1.exactJSON)(golden), `jsonschema-upgrade report mismatch: ${row.name}`);
     }
     else if ('reaches' === row.mode) {
         const golden = JSON.parse(row.expect);

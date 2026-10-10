@@ -8,6 +8,7 @@ import * as Os from 'node:os'
 import * as Path from 'node:path'
 
 import { Aontu, viewTree } from '../dist/aontu'
+import { textSha } from '../dist/sourcemap'
 import { Lang } from '../dist/lang'
 import {
   evalSource, runVet, runSubsume, runBreaking, runTrim, runRelations,
@@ -145,6 +146,45 @@ describe('cli', () => {
     Assert.equal(r.out.trim(), '{"a":1|2}')
   })
 
+  // Mirrors TestRunExactNumbers in go/cmd/aontu/run_test.go.
+  test('bare-command-exact-numbers', () => {
+    const src = 'x: 12345678901234567890.5\ny: 1.0\nz: 0.1\n'
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-exact-'))
+    const file = Path.join(dir, 'm.aontu')
+    Fs.writeFileSync(file, src)
+    try {
+      const r = vetCapture(() => cliMainVet(['node', 'cli', '--exact-numbers', file]))
+      Assert.equal(r.out, '{\n  "x": 12345678901234567890.5,\n  "y": 1,\n  "z": 0.1\n}\n')
+
+      Assert.equal(run(['--exact-numbers', '-c'], src).out.trim(),
+        '{"x":0d12345678901234567890.5,"y":1,"z":0d0.1}')
+      Assert.equal(run(['-c'], src).out.trim(),
+        '{"x":12345678901234567000.0,"y":1.0,"z":0.1}')
+      Assert.equal(run([], 'y: 1.0 & integer').code, 1)
+
+      let state: any = { mode: 'json', jsonl: true, exact: true }
+      const outs: string[] = []
+      for (const line of [':canon', 'y: 1.0 & integer', ':load ' + file,
+        ':get $.x', ':why $.z', ':json', ':get $.x']) {
+        const a = replCommand(state, line, (f: string) => Fs.readFileSync(f, 'utf8'))
+        state = a.state
+        outs.push(a.out)
+      }
+      Assert.deepEqual(outs.slice(1), [
+        '{"ok":true,"out":"{\\"y\\":1}"}',
+        JSON.stringify({ ok: true, out: 'loaded: ' + file +
+          '\n{"x":0d12345678901234567890.5,"y":1,"z":0d0.1}' }),
+        '{"ok":true,"out":"0d12345678901234567890.5"}',
+        JSON.stringify({ ok: true, out: '$.z = 0d0.1\n  1. 0d0.1  ' + file + ':3:4' }),
+        '{"ok":true,"out":"json output"}',
+        '{"ok":true,"out":"12345678901234567890.5"}',
+      ])
+    }
+    finally {
+      Fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test('cli-error-exit-code', () => {
     const r = run([], 'a:1 a:2')
     Assert.equal(r.code, 1)
@@ -217,6 +257,20 @@ describe('cli-vet', () => {
     Assert.match(r.out, /\$\.service\.port: no_scalar_unify \[conflict\]/)
     Assert.match(r.out, /data: .*data\.json:1:\d+ \("8080"\)/)
     Assert.match(r.out, /schema: .*schema\.aontu:1:\d+ \(integer\)/)
+  })
+
+
+  test('vet-no-fill-and-exact-numbers', () => {
+    // --no-fill: a member the schema supplies is a finding, exit 3.
+    const filled = vetFiles('x: 1\nz: integer', '{"z": 5}')
+    const r = vetCapture(() => Assert.equal(runVet(['--no-fill', filled.schema, filled.data]), 3))
+    Assert.match(r.out, /\$\.x: vet_filled \[incomplete\]/)
+    vetCapture(() => Assert.equal(runVet([filled.schema, filled.data]), 0))
+
+    // --exact-numbers: 1.0 is the integer 1.
+    const exact = vetFiles('a: 1', '{"a": 1.0}')
+    vetCapture(() => Assert.equal(runVet(['--exact-numbers', exact.schema, exact.data]), 0))
+    vetCapture(() => Assert.equal(runVet([exact.schema, exact.data]), 1))
   })
 
 
@@ -975,7 +1029,7 @@ describe('cli-subsume', () => {
       'spec: {\n' +
       '  name: string & re("^[a-z]+$")\n' +
       '  tier: *"internal" | "critical"\n' +
-      '  port?: integer & min(1024)\n' +
+      '  port?: number & multiple(1) & min(1024)\n' +
       '}\n')
 
     // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
@@ -995,7 +1049,7 @@ describe('cli-subsume', () => {
 
     // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
     // redirect keeps the schema clean and the warning visible.
-    Fs.writeFileSync(file, 'a: integer & must(min(2), "two")\n')
+    Fs.writeFileSync(file, 'a: number & multiple(1) & must(min(2), "two")\n')
     const lossy = vetCapture(() => Assert.equal(runJsonSchema([file]), 0))
     Assert.match(lossy.out, /"type": "integer"/)
     Assert.match(lossy.err, /^lossy: \$\.a must:/)
@@ -1053,6 +1107,167 @@ describe('cli-subsume', () => {
     Assert.equal(vetCapture(() =>
       Assert.equal(runJsonSchema(['--help']), 0)
     ).out.includes('aontu jsonschema'), true)
+  })
+
+  test('jsonschema-import-writes-aontu-and-names-what-it-cannot-carry', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsi-'))
+    const file = Path.join(dir, 'schema.json')
+
+    // THE TEXT GOES TO STDOUT and the losses to stderr, as the export's
+    // do, followed by the vet invocation that checks data against it.
+    const vetWith = 'vet with: aontu vet --no-fill --exact-numbers <document> <data>\n'
+    Fs.writeFileSync(file, '{"type": "object", "properties": {"n": {"type": "integer"}}}')
+    const ok = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
+    Assert.equal(ok.out, 'n?: number & multiple(1)\n')
+    Assert.equal(ok.err, vetWith)
+
+    Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}')
+    const lossy = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
+    Assert.equal(lossy.out, 'empty()\n')
+    Assert.match(lossy.err, /^lossy: #\/\$dynamicAnchor \$dynamicAnchor:/)
+    Assert.ok(lossy.err.endsWith('\n' + vetWith), lossy.err)
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--strict', file]), 1))
+
+    // --defaults makes an optional property's default a preference.
+    Fs.writeFileSync(file,
+      '{"type": "object", "properties": {"p": {"type": "integer", "default": 8080}}}')
+    const pref = vetCapture(() => Assert.equal(runJsonSchema(['import', '--defaults', file]), 0))
+    Assert.match(pref.out, /^p\?: \*8080\|/)
+
+    // --uri is the base a relative reference resolves against, and --doc
+    // adds a document it may reach; a usage fault exits 2.
+    const doc = Path.join(dir, 'n.json')
+    Fs.writeFileSync(doc, '{"type": "integer"}')
+    Fs.writeFileSync(file, '{"type": "object", "properties": {"a": {"$ref": "n.json"}}}')
+    const set = vetCapture(() => Assert.equal(runJsonSchema(['import',
+      '--uri', 'https://example.com/s.json', '--doc', 'https://example.com/n.json', doc, file]), 0))
+    Assert.ok(set.out.includes('id: "https://example.com/n.json"'), set.out)
+    for (const [args, want] of [
+      [['import', '--uri'], '--uri needs a URI'],
+      [['import', '--dialect'], '--dialect needs a dialect'],
+      [['import', '--doc', 'https://example.com/n.json'], '--doc needs a URI and a file'],
+      [['import', '--doc', 'https://example.com/n.json', doc + '.gone', file], 'cannot read'],
+      [['import', '--format-grammar', 'zip'], '--format-grammar needs a name and a file'],
+      [['import', '--format-grammar', 'date', doc, file], 'cannot name date'],
+      [['import', '--format-grammar', 'zip', doc, '--format-grammar', 'zip', doc, file],
+        'names zip twice'],
+      [['import', '--format-grammar', 'zip', doc + '.gone', file], 'cannot read'],
+    ] as [string[], string][]) {
+      Assert.ok(vetCapture(() => Assert.equal(runJsonSchema(args), 2)).err.includes(want), want)
+    }
+
+    // --format-assert makes a format format(g), and --format-grammar
+    // gives a name outside the defined ones its grammar.
+    const zip = Path.join(dir, 'zip.abnf')
+    Fs.writeFileSync(zip, 'zip = 5DIGIT\n')
+    Fs.writeFileSync(file, '{"type": "object", "properties": {"d": {"type": "string", ' +
+      '"format": "date"}, "z": {"type": "string", "format": "zip"}}}')
+    const plain = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 0))
+    Assert.equal(plain.out.includes('format("date")'), false, plain.out)
+    const asserted = vetCapture(() => Assert.equal(runJsonSchema(['import', '--format-assert',
+      '--format-grammar', 'zip', zip, file]), 0))
+    Assert.ok(asserted.out.includes('format("date")'), asserted.out)
+    Assert.ok(asserted.out.includes('format("zip = 5DIGIT\\n")'), asserted.out)
+
+    // --dialect reads a schema that names none in a legacy dialect.
+    Fs.writeFileSync(file, '{"type": "number", "maximum": 5, "exclusiveMaximum": true}')
+    const legacy = vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--dialect', 'draft-04', file]), 0))
+    Assert.ok(legacy.out.includes('below(5)'), legacy.out)
+
+    // A schema its meta-schema refuses imports under --no-meta-check.
+    Fs.writeFileSync(file, '{"type": "object", "required": ["a", "a"]}')
+    Assert.match(vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 4)).err,
+      /jsonschema_schema/)
+    const unchecked = vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--no-meta-check', file]), 0))
+    Assert.ok(unchecked.out.includes('a: any'), unchecked.out)
+    Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}')
+
+    const j = JSON.parse(vetCapture(() => Assert.equal(
+      runJsonSchema(['import', '--format', 'json', file]), 0)).out)
+    Assert.equal(j.aontu.verb, 'jsonschema')
+    Assert.equal(j.text, 'empty()\n')
+    Assert.equal(j.verdict, 'lossy')
+    Assert.deepEqual(j.vet, ['--no-fill', '--exact-numbers'])
+    Assert.equal('errors' in j, false)
+
+    // Text that is not a schema refuses, in vet's finding shape.
+    Fs.writeFileSync(file, '{"type": 5')
+    const bad = vetCapture(() => Assert.equal(runJsonSchema(['import', file]), 4))
+    Assert.equal(bad.out, '')
+    Assert.match(bad.err, /jsonschema_schema/)
+    Assert.equal(bad.err.includes('vet with'), false)
+    const je = JSON.parse(vetCapture(() => Assert.equal(
+      runJsonSchema(['import', '--format', 'json', file]), 4)).out)
+    Assert.equal(je.verdict, 'error')
+    Assert.equal(je.errors[0].code, 'jsonschema_schema')
+    Assert.equal('vet' in je, false)
+  })
+
+  test('jsonschema-import-usage-errors-exit-2', () => {
+    const f = subFiles('{}', '{}')
+    vetCapture(() => Assert.equal(runJsonSchema(['import']), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', f.general, f.specific]), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--bogus', f.general]), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--format', 'yaml', f.general]), 2))
+    vetCapture(() => Assert.equal(
+      runJsonSchema(['import', Path.join(f.dir, 'missing.json')]), 2))
+    Assert.equal(vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--help']), 0)
+    ).out.includes('aontu jsonschema import'), true)
+  })
+
+  test('jsonschema-import-source-map-and-vet-output-units', () => {
+    const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-jsm-'))
+    const file = Path.join(dir, 'schema.json')
+    const map = Path.join(dir, 'schema.map.json')
+    const aontu = Path.join(dir, 'schema.aontu')
+    const data = Path.join(dir, 'data.json')
+    Fs.writeFileSync(file, '{"$id": "https://x.test/s", "type": "object", ' +
+      '"properties": {"a": {"type": "number", "minimum": 1}}}')
+    Fs.writeFileSync(data, '{"a": 0}')
+
+    // ADR-066: the map is written beside the text, and the JSON form
+    // carries it too, its hash the text's.
+    Fs.writeFileSync(aontu, vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--source-map', map, file]), 0)).out)
+    const written = JSON.parse(Fs.readFileSync(map, 'utf8'))
+    Assert.equal(written.sha256, textSha(Fs.readFileSync(aontu, 'utf8')))
+    const j = JSON.parse(vetCapture(() =>
+      Assert.equal(runJsonSchema(['import', '--format', 'json', file]), 0)).out)
+    Assert.deepEqual(j.map, written)
+    vetCapture(() => Assert.equal(runJsonSchema(['import', '--source-map']), 2))
+    vetCapture(() => Assert.equal(runJsonSchema(
+      ['import', '--source-map', Path.join(dir, 'no', 'such.json'), file]), 2))
+    // A schema that does not import writes no map.
+    const bad = Path.join(dir, 'bad.json')
+    Fs.writeFileSync(bad, '{"type": 5')
+    vetCapture(() => Assert.equal(runJsonSchema(
+      ['import', '--source-map', Path.join(dir, 'bad.map.json'), bad]), 4))
+    Assert.equal(Fs.existsSync(Path.join(dir, 'bad.map.json')), false)
+
+    const basic = JSON.parse(vetCapture(() => Assert.equal(
+      runVet(['--output', 'basic', '--source-map', map, aontu, data]), 1)).out)
+    Assert.deepEqual(basic.errors.map((u: any) =>
+      [u.keywordLocation, u.absoluteKeywordLocation, u.instanceLocation]),
+    [['/properties/a/minimum', 'https://x.test/s#/properties/a/minimum', '/a']])
+    Assert.deepEqual(JSON.parse(vetCapture(() =>
+      Assert.equal(runVet(['--output', 'flag', aontu, data]), 1)).out), { valid: false })
+    // A map given without --output is checked all the same.
+    vetCapture(() => Assert.equal(runVet(['--source-map', map, aontu, data]), 1))
+
+    for (const args of [['--output', 'basic', aontu, data], ['--output', 'xml', aontu, data],
+      ['--output', 'flag', '--format', 'json', aontu, data],
+      ['--output', 'flag', aontu, data, data], ['--source-map'],
+      ['--source-map', Path.join(dir, 'missing.json'), aontu, data],
+      ['--source-map', data, aontu, data]]) {
+      vetCapture(() => Assert.equal(runVet(args), 2))
+    }
+    Fs.appendFileSync(aontu, '\n')
+    Assert.match(vetCapture(() => Assert.equal(
+      runVet(['--output', 'basic', '--source-map', map, aontu, data]), 2)).err,
+    /its text has changed since the import/)
   })
 
   test('reaches-answers-with-the-path-and-its-exit-code', () => {

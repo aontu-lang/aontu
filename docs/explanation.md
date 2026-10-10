@@ -184,9 +184,12 @@ is undecidable: admitting one would demote "every aontu program
 terminates" to "most do", and
 [Termination is part of the offer](#termination-is-part-of-the-offer)
 says what that demotion costs. A recursive *schema* is structural
-descent on the data: an expansion happens only at a meet with concrete
-structure and consumes one level of it, and data is finite, so the
-expansions along any path are bounded by the data's depth. The one
+descent on the data: an expansion happens at a meet with concrete
+structure, which consumes one level of it, or at a meet with a kind
+the definition supplies at its own top level, which consumes nothing
+and unrolls no residual that meets it again without data between. Data
+is finite, so the expansions along any path are bounded by the data's
+depth. The one
 shape that escapes the bound (two recursive definitions unified
 directly, with no concrete layer between them to consume) is caught by
 the depth budget, and exhausting it refuses with

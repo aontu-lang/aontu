@@ -1,0 +1,73 @@
+# MULTIPLE -- `multiple(n)` (G12 phase 4): a number whose value is a whole
+# multiple of n, which must be a positive number. Divisibility reads the
+# value a number shows: an exact leaf as it is, and a float through its
+# shortest round-trip rendering, since binary rounding moves a multiple
+# off its divisor. Several divisors accumulate; no least common multiple
+# is synthesised. A whole divisor makes the residual integral, so the
+# integral gap applies. Every expectation is both engines' agreed answer.
+#
+# --- canon: the residual -----------------------------------------------
+multiple-canon	canon	a: multiple(2)	{"a":multiple(2)}
+multiple-canon-divisors-sort	canon	a: multiple(3) & multiple(2)	{"a":multiple(2)&multiple(3)}
+multiple-canon-one-value-once	canon	a: multiple(2) & multiple(2.0) & multiple(0d2)	{"a":multiple(2)}
+multiple-canon-beside-bounds	canon	a: multiple(2) & above(2) & below(10)	{"a":above(2)&below(10)&multiple(2)}
+multiple-canon-number-kind-says-nothing	canon	a: number & multiple(1)	{"a":multiple(1)}
+multiple-canon-keeps-a-leaf-kind	canon	a: integer & multiple(5)	{"a":integer&multiple(5)}
+multiple-canon-in-a-count	canon	a: [1, 2] & len(multiple(2))	{"a":[1,2]&len(integer&min(0)&multiple(2))}
+#
+# --- gens: what it admits ----------------------------------------------
+multiple-admits-a-multiple	gens	a: multiple(2) & 4	{"a":4}
+multiple-float-reads-its-shown-value	gens	a: multiple(0.1) & 0.3	{"a":0.3}
+multiple-exact-decimal	gens	a: multiple(0d0.1) & 0d0.3	{"a":0.3}
+multiple-float-divisor-exact-peer	gens	a: multiple(0.1) & 0d0.3	{"a":0.3}
+multiple-one-admits-a-whole-float	gens	a: multiple(1) & 1.0	{"a":1}
+multiple-half-admits-an-integer	gens	a: multiple(0.5) & 2	{"a":2}
+multiple-large-float	gens	a: multiple(2) & 1e21	{"a":1e+21}
+multiple-big-integer	gens	a: multiple(3) & 0d123456789012345678901234567890	{"a":123456789012345678901234567890}
+multiple-beside-a-leaf-kind	gens	a: integer & multiple(2) & 6	{"a":6}
+multiple-count-even-list	gens	a: [1, 2] & len(multiple(2))	{"a":[1,2]}
+multiple-count-even-string	gens	a: "abcd" & len(multiple(2))	{"a":"abcd"}
+#
+# --- errc: what it refuses ---------------------------------------------
+multiple-refuses-a-non-multiple	errc	a: multiple(2) & 3	constraint
+multiple-refuses-a-fraction	errc	a: multiple(1) & 1.5	constraint
+multiple-refuses-a-big-non-multiple	errc	a: multiple(4) & 0d123456789012345678901234567890	constraint
+multiple-refuses-a-string	errc	a: multiple(2) & "x"	constraint
+multiple-refuses-the-string-kind	errc	a: multiple(2) & string	constraint
+multiple-zero-is-invalid	errc	a: multiple(0) & 4	invalid-arg
+multiple-negative-is-invalid	errc	a: multiple(-2) & 4	invalid-arg
+multiple-string-argument-is-invalid	errc	a: multiple("x") & 4	invalid-arg
+multiple-two-arguments	errc	a: multiple(2, 3)	func_arity
+multiple-no-argument	errc	a: multiple()	func_arity
+multiple-alone-does-not-generate	errc	a: multiple(2)	mapval_no_gen
+multiple-whole-gap-is-empty	errc	a: multiple(1) & above(1) & below(2)	constraint
+multiple-whole-divisor-gap-is-empty	errc	a: multiple(2) & above(4) & below(5)	constraint
+multiple-count-odd-list	errc	a: [1, 2, 3] & len(multiple(2))	constraint
+multiple-count-odd-string	errc	a: "abc" & len(multiple(2))	constraint
+#
+# --- subsume: a divisor is more general than its multiples --------------
+multiple-subsumes-its-multiple	subsume	a: multiple(2)	a: multiple(4)	{"findings":[],"verdict":"subsumes"}
+multiple-does-not-subsume-another-divisor	subsume	a: multiple(2)	a: multiple(3)	{"findings":[{"actual":"multiple(3)","class":"compat","code":"compat_narrowed","expected":"multiple(2)","message":"the general residual does not contain the specific residual","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"multiple","value":"multiple(2)"},{"col":4,"file":"specific","len":8,"role":"specific","row":1,"src":"multiple","value":"multiple(3)"}]}],"verdict":"does_not_subsume"}
+multiple-one-subsumes-a-whole-divisor	subsume	a: multiple(1)	a: multiple(3)	{"findings":[],"verdict":"subsumes"}
+multiple-half-subsumes-the-integer-kind	subsume	a: multiple(0.5)	a: integer	{"findings":[],"verdict":"subsumes"}
+multiple-two-does-not-subsume-the-integer-kind	subsume	a: multiple(2)	a: integer	{"findings":[{"actual":"integer","class":"compat","code":"compat_narrowed","expected":"multiple(2)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"multiple","value":"multiple(2)"},{"col":4,"file":"specific","len":7,"role":"specific","row":1,"src":"integer","value":"integer"}]}],"verdict":"does_not_subsume"}
+multiple-does-not-subsume-the-string-kind	subsume	a: multiple(2)	a: string	{"findings":[{"actual":"string","class":"compat","code":"compat_narrowed","expected":"multiple(2)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"multiple","value":"multiple(2)"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"string","value":"string"}]}],"verdict":"does_not_subsume"}
+multiple-does-not-subsume-the-number-kind	subsume	a: multiple(1)	a: number	{"findings":[{"actual":"number","class":"compat","code":"compat_narrowed","expected":"multiple(1)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"multiple","value":"multiple(1)"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"number","value":"number"}]}],"verdict":"does_not_subsume"}
+multiple-subsumes-a-literal-multiple	subsume	a: multiple(2)	a: 4	{"findings":[],"verdict":"subsumes"}
+multiple-does-not-subsume-another-literal	subsume	a: multiple(2)	a: 3	{"findings":[{"actual":"3","class":"compat","code":"compat_narrowed","expected":"multiple(2)","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":8,"role":"general","row":1,"src":"multiple","value":"multiple(2)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"3","value":"3"}]}],"verdict":"does_not_subsume"}
+#
+# --- vet ----------------------------------------------------------------
+vet-multiple-cents	vet	a: multiple(0.01)	{"a": 19.99}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-multiple-not-cents	vet	a: multiple(0.01)	{"a": 19.999}	{"findings":[{"actual":"19.999","class":"conflict","code":"constraint","expected":"multiple(0.01)","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":6,"role":"data","row":1,"src":"19.999","value":"19.999"},{"col":4,"file":"schema","len":8,"role":"schema","row":1,"src":"multiple","value":"multiple(0.01)"}]}],"truncated":false,"verdict":"invalid"}
+vet-multiple-one-admits-a-whole-float	vet	a: number & multiple(1)	{"a": 1.0}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-multiple-one-exact-numbers	vet	a: number & multiple(1)	{"a": 1.0}	{"findings":[],"opts":{"exactNumbers":true},"truncated":false,"verdict":"valid"}
+#
+# --- jsonschema: multipleOf, and the integer it means --------------------
+js-multiple	jsonschema	a: multiple(2)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-two-divisors	jsonschema	a: multiple(2) & multiple(3)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"multipleOf":2},{"multipleOf":3}],"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-one-is-the-integer	jsonschema	a: number & multiple(1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-one-beside-a-divisor	jsonschema	a: number & multiple(1) & multiple(3)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":3,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-beside-the-integer-kind	jsonschema	a: integer & multiple(2)	{"lossy":[{"construct":"integer","path":"$.a","reason":"JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & multiple(1) is the integer it means"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-multiple-exact-divisor-keeps-its-digits	jsonschema	a: multiple(0d0.1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":0.1,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-divisor-past-binary64-keeps-its-digits	jsonschema	a: multiple(0d1e400)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-multiple-in-a-count-is-lost	jsonschema	a: [1, 2] & len(multiple(2))	{"lossy":[{"construct":"len","path":"$.a","reason":"JSON Schema has no keyword for a divisor of a count, so it is DROPPED and the schema admits lengths the model refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minItems":2,"prefixItems":[{"const":1,"type":"integer"},{"const":2,"type":"integer"}],"type":"array"}},"required":["a"],"type":"object"},"verdict":"lossy"}

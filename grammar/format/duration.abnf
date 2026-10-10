@@ -1,0 +1,4 @@
+; RFC 3339 appendix A, read a unit at a time.
+duration = "P" (dur-time / 1*DIGIT after-p-number)
+after-p-number = "Y" [1*DIGIT "M" [1*DIGIT "D"]] [dur-time] / "M" [1*DIGIT "D"] [dur-time] / "D" [dur-time] / "W"
+dur-time = "T" 1*DIGIT ("H" [1*DIGIT "M" [1*DIGIT "S"]] / "M" [1*DIGIT "S"] / "S")

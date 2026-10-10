@@ -981,6 +981,20 @@ lesson is that "nothing" includes what only the hash form says:
 use-cases/BUGS.md §60, pinned by `alias.tsv`'s
 `alias-in-spread-hash-keeps-*` rows and their longhand twins.
 
+**2026-10-09: the knot is every reference to a recursive alias.** The
+2026-09-06 rule expanded a recursive alias once at each standing
+reference and kept the name only at the reference that closed the
+cycle. Which reference closed it was a fact about the walk, not the
+tree: a reference the engine had already resolved into a recursion
+residual printed as the residual, one it had not printed the template,
+and the two ports resolve in different orders, so one document canoned
+two ways. A reference now keeps its name exactly when its declaration
+reaches it again, through the declarations its references name and the
+residuals they resolved to, and a residual of an alias spells as that
+name (`%json`, never `$.%json`, which is refused syntax). The §82
+document canons as `{"payload":{&:%json,"user":{&:%json,...}}}`, the
+same in both ports and still not reparseable on its own. ADR-062.
+
 X-1 and T-1 both gated P1 when this note was written, and both were
 answered rather than deferred: X-1 by taking the third option, which
 removed the lexing break the compatibility section was written about,

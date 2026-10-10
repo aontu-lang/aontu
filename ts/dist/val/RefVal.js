@@ -50,6 +50,7 @@ function pendingMarkWrapper(v) {
 // the wrapper only marks and its argument is the structure the path
 // names (see the call sites in `find`).
 function markedChild(v, part) {
+    v = (0, RecurseVal_1.throughRider)(v);
     if (true === v?.isMap || true === v?.isList) {
         return v.peg[part];
     }
@@ -61,6 +62,8 @@ function markedChild(v, part) {
     return undefined;
 }
 const aliasname_1 = require("../aliasname");
+const rider_1 = require("../rider");
+const IdentFuncVal_1 = require("./IdentFuncVal");
 class RefVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -242,6 +245,9 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         if (part.isNil) {
                             return;
                         }
+                        else if (true !== part.isScalar) {
+                            return (0, err_1.makeNilErr)(ctx, 'no_path', this);
+                        }
                         else {
                             parts.push(part.isInteger ?
                                 (0, numkind_1.integerDigits)(part.peg) : '' + part.peg);
@@ -280,6 +286,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
             if (!offtop && null != node) {
                 for (; pI < refpath.length; pI++) {
                     let part = refpath[pI];
+                    node = (0, RecurseVal_1.throughRider)(node);
                     if (node.isMap) {
                         node = node.peg[part];
                     }
@@ -291,6 +298,14 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         && (true === node.peg?.[0]?.isMap
                             || true === node.peg?.[0]?.isList)) {
                         node = node.peg[0].peg[part];
+                    }
+                    else if (true === node.isConjunct && undefined !== this.aliasKey
+                        && Array.isArray(node.peg) && !pendingMarkWrapper(node)) {
+                        const decl = (0, RecurseVal_1.declaration)(node, part);
+                        if (undefined === decl) {
+                            break;
+                        }
+                        node = decl;
                     }
                     else if (true === node.isConjunct
                         && Array.isArray(node.peg)
@@ -331,8 +346,12 @@ class RefVal extends FeatureVal_1.FeatureVal {
                 let fnode = fixroot;
                 for (; pI < refpath.length; pI++) {
                     const part = refpath[pI];
+                    fnode = (0, RecurseVal_1.throughRider)(fnode);
                     if (true === fnode.isMap || true === fnode.isList) {
                         fnode = fnode.peg[part];
+                    }
+                    else if (true === fnode.isConjunct && undefined !== this.aliasKey) {
+                        fnode = (0, RecurseVal_1.declaration)(fnode, part);
                     }
                     else {
                         break;
@@ -386,7 +405,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     !out.done) {
                     out = undefined;
                 }
-                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg)) {
+                else if (null != out && !snap && (0, RecurseVal_1.containsRecurseOf)(out, this.peg, 0, ctx.root)) {
                     const rec = new RecurseVal_1.RecurseVal({ target: [...this.peg], xc: this.rxc }, ctx);
                     rec.site = this.site;
                     rec.path = [...this.path];
@@ -404,7 +423,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const lifted = true !== ctx.argsnap
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
-                    out = out.clone(ctx, { dup: !out.holdsStaged });
+                    out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !out.holdsStaged }));
                     if (lifted) {
                         // The copy carries a held constraint without its type.
                         out = (0, utility_1.walk)(out, (_key, val) => {
@@ -421,6 +440,10 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     }
                     if (this.copyFound) {
                         (0, SealVal_1.unsealTree)(out);
+                    }
+                    // An alias's copy remembers it; copy() unseals, so may admit more.
+                    else if (undefined !== this.aliasKey) {
+                        out.via = (0, rider_1.unionVia)(out.via, [this.aliasKey]);
                     }
                 }
             }

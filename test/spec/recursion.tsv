@@ -54,7 +54,7 @@ mutual-pair	gens	Person: hide({name: string, employer?: $.Company})\nCompany: hi
 json-alias	gens	%json = null | boolean | number | string | [&: %json] | {&: %json}\npayload: %json\npayload: {user: {id: 1, tags: [admin, [nested, true]]}}	{"payload":{"user":{"id":1,"tags":["admin",["nested",true]]}}}
 #
 # --- Canon and the hash: symbolic, never expanded --------------------
-canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next"?:{"next"?:$.Node,"v":2},"v":1}}
+canon-symbolic	canon	Node: hide({v: integer, next?: $.Node})\nt: $.Node & {v: 1, next: {v: 2}}	{"Node":{"next"?:$.Node,"v":integer},"t":{"next":{"next"?:$.Node,"v":2},"v":1}}
 hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h8iheHHF6KqorbFfM9BG5oWYLpIO6KldjKOL4
 #
 # --- Subsume: a recursion is residue, and reflexivity is a law -----
@@ -93,7 +93,7 @@ expansion-path-through-copied-body	err	spec: hide({S: {v: integer, then?: $.spec
 # the finding sits in the schema's own namespace, as every anchored
 # finding does. Before, the residual held its peer forever and bad
 # data at depth vetted VALID unchecked.
-vet-at-expands-recursion-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.spec.Node } })	{"v":1,"next":{"v":"x"}}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Node.next.v","severity":"error","sites":[{"col":20,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":25,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.spec.Node"},"truncated":false,"verdict":"invalid"}
+vet-at-expands-recursion-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.spec.Node } })	{"v":1,"next":{"v":"x"}}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Node.next.v","pointer":"/spec/Node/next/v","severity":"error","sites":[{"col":20,"file":"data","len":3,"role":"data","row":1,"src":"\\"x\\"","value":"\\"x\\""},{"col":25,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"opts":{"at":"$.spec.Node"},"truncated":false,"verdict":"invalid"}
 vet-at-recursion-valid-at-depth	vet	spec: hide({ Node: { v: integer, next?: $.spec.Node } })	{"v":1,"next":{"v":2,"next":{"v":3}}}	{"findings":[],"opts":{"at":"$.spec.Node"},"truncated":false,"verdict":"valid"}
 
 # The canon of an INSTANCE reparses to itself: the unrolled-to-data
@@ -113,4 +113,52 @@ canon-of-instance-reparses	canon	{"payments_policy":{"chain":{"approver":"lead@a
 # also drives AT the anchor's path, so both ports locate findings in the
 # schema namespace.
 vet-at-recursion-through-list-spread-valid	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":"b"}]}	{"findings":[],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"valid"}
-vet-at-recursion-through-list-spread-refuses	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":42}]}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Comment.replies.0.author","severity":"error","sites":[{"col":36,"file":"data","len":2,"role":"data","row":1,"src":"42","value":"42"},{"col":31,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"invalid"}
+vet-at-recursion-through-list-spread-refuses	vet	spec: hide({Comment: {author: string, replies?: [&: $.spec.Comment]}})	{"author":"a","replies":[{"author":42}]}	{"findings":[{"class":"conflict","code":"no_scalar_unify","path":"$.spec.Comment.replies.0.author","pointer":"/spec/Comment/replies/0/author","severity":"error","sites":[{"col":36,"file":"data","len":2,"role":"data","row":1,"src":"42","value":"42"},{"col":31,"file":"schema","len":6,"role":"schema","row":1,"src":"string","value":"string"}]}],"opts":{"at":"$.spec.Comment"},"truncated":false,"verdict":"invalid"}
+#
+# --- A recursive alias whose body carries a count --------------------
+# One level of expansion is the count's held residue, which is progress
+# for the meet that holds it, and the count decides at generation.
+recursion-count-meets-an-empty-level	errc	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": {}	constraint
+recursion-count-meets-a-filled-level	gens	%root = { "next"?: %root, "v"?: number } & len(min(1))\n"next"?: %root\n"v"?: number\n"next": { "v": 1, "next": { "v": 2 } }	{"next":{"next":{"v":2},"v":1}}
+#
+# --- A residual meets a kind, a disjunction, another residual (G12 16)
+# A kind picks the body's branch as structure does, so the residual
+# expands one level against it; a disjunction distributes over the
+# residual; another residual leaves nothing to wait for but data, so
+# the meet settles. A rider over any of these resolves, and a residual
+# of another alias reaches what that alias's declaration reaches. The
+# meta-schema is built this way: each vocabulary is a titled
+# `boolean|{...}` recursive through its root. A spread's copy fails at
+# its own key. Each residual prints as the knot no canon row can pin
+# (alias.tsv), so these pin generation.
+gens-recursion-residual-of-another-alias	gens	%V & {\n%V = %APP & map\n%APP = meta({ items?: %V }, { title: "t" })\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-rider-over-kind-settles	gens	%V & {\n%V = meta(%APP & map, { title: "v" })\n%APP = { items?: %V }\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-two-residuals-under-rider-settle	gens	%V & {\n%V = meta(%A & %B, { title: "v" })\n%A = { items?: %V }\n%B = { more?: %V }\nitems: { more: { items: {} } }\n}	{"items":{"more":{"items":{}}}}
+vet-recursion-rider-over-kind-at-depth	vet	%V & {\n%V = meta(%APP & map, { title: "v" })\n%APP = { items?: %V }\n}	{"items": {"items": 5}}	{"findings":[{"class":"conflict","code":"map","path":"$.items.items","pointer":"/items/items","severity":"error","sites":[{"col":21,"file":"data","len":1,"role":"data","row":1,"src":"5","value":"5"},{"col":8,"file":"schema","len":1,"role":"schema","row":3,"src":"{","value":"{\\"items\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-two-residuals-under-rider-at-depth	vet	%V & {\n%V = meta(%A & %B, { title: "v" })\n%A = { items?: %V }\n%B = { more?: %V }\n}	{"items": {"more": {"items": true}}}	{"findings":[{"class":"conflict","code":"map","path":"$.items.more.items","pointer":"/items/more/items","severity":"error","sites":[{"col":30,"file":"data","len":4,"role":"data","row":1,"src":"true","value":"true"},{"col":6,"file":"schema","len":1,"role":"schema","row":3,"src":"{","value":"{\\"items\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-spread-of-rider-fails-at-its-key	vet	%V & {\n%V = %APP & (boolean|map)\n%APP = boolean | { p?: { &: meta(%V, { title: "d" }) } }\n}	{"p": {"a": {"p": 5}}}	{"findings":[{"class":"conflict","code":"empty","path":"$.p.a","pointer":"/p/a","severity":"error","sites":[{"col":13,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"p\\":5}"},{"col":13,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"boolean|{\\"p\\"?:{&:meta(%V,{\\"title\\":\\"d\\"})}}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+gens-recursion-residual-met-with-a-kind-expands	gens	%V & {\n%V = %APP & map\n%APP = boolean | { items?: %V }\nitems: { items: {} }\n}	{"items":{"items":{}}}
+gens-recursion-disjunction-distributes-over-a-residual	gens	%V & {\n%V = %A & (boolean|map)\n%A = boolean | { d?: %V }\nd: { d: true }\n}	{"d":{"d":true}}
+gens-recursion-two-vocabularies-under-boolean-or-map	gens	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\nd: { a: { d: false } }\n}	{"d":{"a":{"d":false}}}
+vet-recursion-two-vocabularies-admit	vet	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\n}	{"a": {"d": true}}	{"findings":[],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"valid"}
+vet-recursion-two-vocabularies-refuse-at-depth	vet	%V & {\n%V = %A & %B & (boolean|map)\n%A = boolean | { d?: %V }\n%B = boolean | { a?: %V }\n}	{"a": [{}]}	{"findings":[{"class":"conflict","code":"empty","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"[","value":"[{}]"},{"col":16,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"boolean|{\\"a\\"?:%V,\\"d\\"?:%V}"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-recursion-rider-on-each-distributed-branch	vet	%V & {\n%V = %APP & (boolean|map)\n%APP = meta(boolean | { p?: { &: %V } }, { title: "A" })\n}	{"p": {"a": {"p": 5}}}	{"findings":[{"class":"conflict","code":"empty","path":"$.p.a","pointer":"/p/a","severity":"error","sites":[{"col":13,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"p\\":5}"},{"col":13,"file":"schema","len":1,"role":"schema","row":2,"src":"(","value":"meta(boolean,{\\"title\\":\\"A\\"})|meta({\\"p\\"?:{&:%V}},{\\"title\\":\\"A\\"})"}]}],"opts":{"exactNumbers":true,"noFill":true},"truncated":false,"verdict":"invalid"}
+#
+# --- A spread meets an element once (use-cases/BUGS.md §57) ----------
+# An element both lists hold met the spread already, one a peer adds is
+# marked when it meets it, and two spreads that print alike are one
+# spread. Met again, a recursive spread expanded once more at every meet
+# of its list, and as often again a level down: a conjunct inside one
+# never finished at depth two, and a recursive alias meeting several
+# `boolean|{...}` vocabularies beside a count, as the meta-schema does,
+# took time exponential in its depth, until TypeScript's revisit budget
+# refused it `empty`.
+gens-recursion-spread-conjoined-with-a-map	gens	%T = {name: string, kids?: [&: %T & {}]}\nd: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}	{"d":{"kids":[{"kids":[{"name":"c"}],"name":"b"}],"name":"a"}}
+gens-recursion-spread-conjoined-reaches-every-level	gens	%T = {name: string, kids?: [&: %T & {tag: 1}]}\nd: %T & {name: a, kids: [{name: b, kids: [{name: c}]}]}	{"d":{"kids":[{"kids":[{"name":"c","tag":1}],"name":"b","tag":1}],"name":"a"}}
+gens-recursion-spread-conjoined-by-path	gens	schema: hide({T: {name: string, kids?: [&: $.schema.T & {tag: 1}]}})\nd: $.schema.T & {name: a, kids: [{name: b, kids: [{name: c}]}]}	{"d":{"kids":[{"kids":[{"name":"c","tag":1}],"name":"b","tag":1}],"name":"a"}}
+errc-recursion-spread-conjoined-refuses-at-depth	errc	%T = {name: string, kids?: [&: %T & {}]}\nd: %T & {name: a, kids: [{name: b, kids: [{name: 5}]}]}	no_scalar_unify
+gens-recursion-count-beside-a-spread-of-three-vocabularies	gens	%V0 = boolean|{ anyOf?: %A }\n%V1 = boolean|{ u1?: string }\n%V2 = boolean|{ u2?: string }\n%A = [&: %S] & len(min(1))\n%S = %V0 & %V1 & %V2\nx: %S & { anyOf: [{ anyOf: [{ u1: "x" }] }] }	{"x":{"anyOf":[{"anyOf":[{"u1":"x"}]}]}}
+gens-recursion-upper-count-beside-a-spread-of-three-vocabularies	gens	%V0 = boolean|{ anyOf?: %A }\n%V1 = boolean|{ u1?: string }\n%V2 = boolean|{ u2?: string }\n%A = [&: %S] & len(max(5))\n%S = %V0 & %V1 & %V2\nx: %S & { anyOf: [{ anyOf: [{ u1: "x" }] }] }	{"x":{"anyOf":[{"anyOf":[{"u1":"x"}]}]}}
+gens-recursion-count-beside-a-spread-of-eight-vocabularies-six-deep	gens	%V0 = boolean|{ anyOf?: %A }\n%V1 = boolean|{ u1?: string }\n%V2 = boolean|{ u2?: string }\n%V3 = boolean|{ u3?: string }\n%V4 = boolean|{ u4?: string }\n%V5 = boolean|{ u5?: string }\n%V6 = boolean|{ u6?: string }\n%V7 = boolean|{ u7?: string }\n%A = [&: %S] & len(min(1))\n%S = %V0 & %V1 & %V2 & %V3 & %V4 & %V5 & %V6 & %V7\nx: %S & { anyOf: [{ anyOf: [{ anyOf: [{ anyOf: [{ anyOf: [{ anyOf: [{ u7: "x" }] }] }] }] }] }] }	{"x":{"anyOf":[{"anyOf":[{"anyOf":[{"anyOf":[{"anyOf":[{"anyOf":[{"u7":"x"}]}]}]}]}]}]}}
+errc-recursion-count-beside-a-spread-refuses-at-depth	errc	%V0 = boolean|{ anyOf?: %A }\n%V1 = boolean|{ u1?: string }\n%V2 = boolean|{ u2?: string }\n%A = [&: %S] & len(min(1))\n%S = %V0 & %V1 & %V2\nx: %S & { anyOf: [{ anyOf: [{ u2: 1 }] }] }	empty
+errc-recursion-count-beside-a-spread-of-nothing-refuses	errc	%V0 = boolean|{ anyOf?: %A }\n%V1 = boolean|{ u1?: string }\n%V2 = boolean|{ u2?: string }\n%A = [&: %S] & len(min(1))\n%S = %V0 & %V1 & %V2\nx: %S & { anyOf: [{ anyOf: [] }] }	constraint

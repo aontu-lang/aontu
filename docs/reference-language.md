@@ -48,6 +48,7 @@ the [Explanation](explanation.md).
 - [Checked links: `refer(t?)`](#checked-links-refert)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
+- [Annotations: `meta`](#annotations-meta)
 - [Closed values: `close` / `open`](#closed-values-close--open)
 - [Source loading `@"…"`](#source-loading-)
   - [Text: `.txt` and `--text-ext`](#text-txt-and---text-ext)
@@ -840,6 +841,33 @@ default still applies beside the filled key.
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
 
+**Required wins.** A key is optional in a meet only where every side
+that declares it says so: `{x?: integer} & {x: integer}` is
+`{x: integer}`, and a value supplied for an optional key makes the key
+required in the result, so `{x?: number} & {x: 11}` is `{x: 11}`. A
+side that does not declare the key does not vote, so
+`{x?: integer} & {y: integer}` keeps `x` optional. Two statements merge
+by the same rule: `a: {x?: integer}` beside `a: {x: integer}` requires
+`x`, and so does `x?: integer` beside `x: integer` in one map. A module
+brought in with `@"..."` votes with the keys it declares: an included
+`x?: integer` beside a written `x: integer` requires `x`, and an
+included `y?: integer` that nothing else declares stays optional.
+
+**A written `nil` under an optional key forbids it.** `{k?: nil}`
+admits a map without `k` and refuses one that supplies it, in
+evaluation and under `vet` alike:
+
+```aontu
+a: { k?:nil z:1 }
+```
+
+```json
+{"a":{"z":1}}
+```
+
+With `a: { k: 1 }` beside it the document is refused with
+`[aontu/literal_nil]`, naming both sites.
+
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map
@@ -1468,8 +1496,11 @@ doc: $.schema.Step & { label:"start" then:label:"finish" }
 
 The recursive position expands **one level per meet with concrete
 data**, so the checks descend exactly as far as the data does and no
-further. Data is finite, so evaluation terminates; the depth budget
-is the backstop (`recursion_budget`).
+further. A kind such as `map` or `boolean` met at the same position
+expands it one level too, since the kind picks among the definition's
+branches, and a disjunction meets it branch by branch. Data is finite,
+so evaluation terminates; the depth budget is the backstop
+(`recursion_budget`).
 
 **Guardedness is emergent: the data decides, never a static
 analysis.** Under an optional key (`then?:`) the chain ends where
@@ -1544,7 +1575,10 @@ a:$obj               → {"a":{"x":1}}
 a:$foo & number      → {"a":11}            (variables unify like values)
 ```
 
-An unknown variable is a `Cannot resolve` error.
+An unknown variable is a `Cannot resolve` error. A `$` followed by
+anything but a name or a path (`${b: 1}`, `$1`) is refused where it is
+written, with `[aontu/var_name]`; a `$` that ends a line takes the
+next line as its operand, which is the usual way this arises.
 
 ## Aliases `%`
 
@@ -1584,7 +1618,9 @@ written position, and the alias belongs to the file. This form works
 at the root, inside nested maps, and in list elements. Alias declarations
 require a map-root document; a root list with declarations is refused
 with `alias_not_toplevel`. Wrap that list in a field. Quoting the key,
-`"%name": value`, creates an ordinary key with the sigil in its name.
+`"%name": value`, creates an ordinary key with the sigil in its name,
+beside a declaration of that name too: `%T = {x?: integer}` and
+`"%T": 5` in one file keep both, since a declaration is not a key.
 
 ```aontu
 schema: type({ %row:name:string })
@@ -1603,10 +1639,13 @@ spells it as the value it names, at any depth: `%u = integer` with
 same [`aon1-` hash](#canonical-form) as the file with `integer`
 written in the template. A template that reads its own position, such
 as `%row = {name: key()}`, canons as the template (`{"name":key()}`),
-not as what `key()` answered at the declaration. One reference keeps
-its name: a recursive alias's reference to itself inside its own
-template (`%json = null | boolean | number | string | [&: %json] |
-{&: %json}`), which no finite text can write out. Such a document
+not as what `key()` answered at the declaration. A recursive alias
+keeps its name: a reference to an alias whose declaration reaches it
+again, such as `%json = null | boolean | number | string | [&: %json]
+| {&: %json}`, canons as `%json` wherever it stands, since no finite
+text can write the alias out. With `payload: %json` and
+`payload: {user: {id: 1}}` the canon is
+`{"payload":{&:%json,"user":{&:%json,"id":1}}}`. Such a document
 generates and hashes, and its canon is the same in both
 implementations, but the canon does not reparse on its own.
 
@@ -1619,6 +1658,21 @@ is reached by writing `%foo` and only that.
 declaration would be erased from the output (it *is* a declaration) and
 still unreachable by any reference (it is *not* at the root): a name
 that exists nowhere.
+
+**A root that rides or meets a map is that map's root.** A document
+whose whole value is `meta({…}, {…})`, `deprecate({…})` or
+`{…} & len(min(1))` declares its aliases inside that map, and a
+reference reads through the rider, or into the map term of the meet,
+to find them. A declaration is not a member, so a count beside the map
+does not count it.
+
+```aontu
+meta({ %port = integer & min(1) listen:%port & 8080 }, { title:"server" })
+```
+
+```json
+{ "listen": 8080 }
+```
 
 Where the declaration *lands* is what decides this, not where it was
 written, which is what makes the two include shapes differ:
@@ -2138,6 +2192,14 @@ closed empty map.
 
 Example: see [closed values](#closed-values-close--open)
 
+### `contains(trial c: any, n?: number|constraint) : constraint`
+
+Admit a list or map whose members the trial schema `c` admits a number
+of times the count `n` admits, at least one where `n` is not written.
+See [`contains`](#band-b-contains).
+
+Example: `contains(number, 2) & [1, "x", 2]` → `[1, "x", 2]`
+
 ### `content(spec: string|map) : map`
 
 A text node of the [component tree](#generation): a span of target
@@ -2163,7 +2225,7 @@ Example: `copyfiles("assets")`
 
 ### `deprecate(v: any, r?: map) : any`
 
-Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
+Mark `x` deprecated; unifies exactly as `x`, and the record `m` (`{msg?, use?, since?}`, all strings; `use` is a path spelled as a string) rides the result through meets, reference clones and spread applications. Two records on one value meet as their union, as [`meta()`](#annotations-meta)'s do, and a field holding several values reads as them joined with `; `. Canon renders the call back; generation is unchanged. The point-of-use surfaces: a vet `deprecated` warning, the LSP Deprecated tag, and `aontu breaking --allow-deprecated-removal`.
 
 Example: `port: deprecate(*8080|integer, {msg:"renamed", use:"$.listen", since:"2.0.0"})`
 
@@ -2221,6 +2283,13 @@ and holding folders, files, and copies: one directory of the output.
 
 Example: `folder("src", [file("index.ts")])`
 
+### `format(text g: string) : constraint`
+
+Constrain a string to an ABNF grammar, or to a JSON Schema format by
+name. See [formats](#formats-format).
+
+Example: `format("date") & "2024-02-29"`
+
 ### `fragment(spec: string|map, children?: list) : map`
 
 A fragment node of the [component tree](#generation): a file read from
@@ -2240,6 +2309,12 @@ Example: `greatest([2, 7, 4])` → `7`
 Mark `x` as hidden.
 
 Example: `hide(world) & string`→`"world"`
+
+### `ident(v: any, r: map) : any`
+
+Declare an alias's value `v` with the identity `r`: the identifier, anchor, dynamic anchor and `$defs` key a JSON Schema gave it. Only an alias declaration carries it, and a reference copies the value without it. See [Identity](#identity-ident).
+
+Example: `%item = ident(integer, {id: "https://example.com/item.json"})`
 
 ### `inject(spec: string|map, children?: list) : map`
 
@@ -2319,6 +2394,12 @@ The value when it resolves, and **absence** when the only thing wrong is that it
 
 Example: `maybe($.gone)` generates nothing; `maybe($.here)` is `$.here`
 
+### `meta(v: any, ...r: map) : any`
+
+Annotate `v` with the records `r`; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
+
+Example: `port: meta(*8080|integer, {title: "Port"})`
+
 ### `min(n: number|string) : constraint`
 
 Constrain a numeric or string value to be at least the bound. See [bounds](#the-constraint-algebra).
@@ -2343,9 +2424,17 @@ Multiply two numbers under the [number-tower rules](#arithmetic-add-sub-mul-div-
 
 Example: `mul(2, 3)` → `6`
 
+### `multiple(n: number) : constraint`
+
+Admit a number that is a whole multiple of `n`, which must be a
+positive number. A float is read by the value it shows. See
+[constraint atoms](#the-constraint-algebra).
+
+Example: `multiple(0.01) & 19.99` → `19.99`
+
 ### `must(trial c: any, text msg: string) : constraint`
 
-Apply an evaluation-time condition with an author-supplied failure message. See [must](#band-b-must).
+Hold the settled value to the admission trial of `c`, with an author-supplied failure message. See [must](#band-b-must).
 
 Example: `must(min(1), "must be positive")`
 
@@ -2354,6 +2443,13 @@ Example: `must(min(1), "must be positive")`
 Exclude the listed numeric or string values. See [constraint atoms](#the-constraint-algebra).
 
 Example: `string & neq("reserved")`
+
+### `nof(n: number|constraint, ...c: (trial any)) : constraint`
+
+Admit a value that a number of the trial schemas `c` admit, a number
+the count `n` admits. See [`nof`](#band-b-nof).
+
+Example: `nof(1, string, number) & "x"` → `"x"`
 
 ### `nom(name: string, style?: string|list, acronyms?: list) : string|map`
 
@@ -2411,7 +2507,7 @@ Example: `project("./build", [folder("src")])`
 
 ### `re(text p: string) : constraint`
 
-Constrain a string to match a portable regular expression. See [patterns](#re-and-the-portable-pattern-subset).
+Constrain a string to match a pattern, written in ECMA-262's syntax under the `u` flag and matched by aontu's own engine. See [patterns](#re-and-the-pattern-language).
 
 Example: `string & re("^[a-z]+$")`
 
@@ -2438,6 +2534,14 @@ Example: `rem(-7, 3)` → `-1`
 Replace every pattern match in a string. See [replacement syntax](#reps-pattern-sub).
 
 Example: `rep("a1b2", "[0-9]", "_")`
+
+### `rest(trial t: any, ...c?: (trial map)) : constraint`
+
+Hold each member that no applying cover evaluates to the trial schema
+`t`. A cover is a record of trial schemas `if`, `keys` and `members`.
+See [`rest`](#band-b-rest).
+
+Example: `rest(number, {keys: "a"}) & {a: "x", b: 2}` → `{a:"x",b:2}`
 
 ### `slot(spec: string|map, children?: list) : map`
 
@@ -2511,6 +2615,13 @@ Example: `upper(abc)`→`"ABC"`, `upper("foo",0,1)`→`"Foo"`, `upper("foo",1)`�
 Decode text escaped with the named convention, refusing malformed input. See [escaping](#escs-variant-and-uscs-variant).
 
 Example: `usc(esc("<a>", xml), xml)` → `"<a>"`
+
+### `when(trial c: any, trial t: any, trial e?: any) : constraint`
+
+Hold a value to `t` where the trial schema `c` admits it, and to `e`
+where it does not; an `e` not written passes. See [`when`](#band-b-when).
+
+Example: `when(string, "a", min(0)) & 5` → `5`
 
 
 ### Parent types
@@ -3146,7 +3257,7 @@ way and an identifier another.
 | `shell` | POSIX single-quote |
 | `xml` | the five entities; covers HTML |
 | `uri` | percent-encoding, RFC 3986 |
-| `regex` | the metacharacters the pattern subset admits |
+| `regex` | the metacharacters of a pattern, so `re` and `rep` read each literally |
 
 ```aontu
 plain: esc("plain text")
@@ -3178,9 +3289,15 @@ with a different string.
 
 ### `rep(s, pattern, sub)`
 
-Every match of `pattern` in `s` replaced by `sub`. The pattern is the
-**same portable subset [`re`](#re-and-the-portable-pattern-subset)
-takes**, so a document has one regexp language rather than two. The
+Every match of `pattern` in `s` replaced by `sub`. The pattern is a
+**portable subset of the language [`re`](#re-and-the-pattern-language)
+reads**. Each implementation's host regex engine runs `rep`, since
+aontu's own engine says whether a pattern matches and not where, so the
+pattern must be one both hosts read alike: no Unicode property, named
+group, backreference or lookaround, no count above 1000, and no
+quantifier on a group that holds a quantifier or an alternation, which
+a backtracking host runs in exponential time. Anything else is
+`rep_pattern`. The abbreviations mean what they mean in `re`. The
 substitution is `$1` to `$9` for the numbered groups, `$&` for the whole
 match and `$$` for a literal `$`.
 
@@ -3877,6 +3994,112 @@ does (the generated children stay usable downstream (`out: pack($.m,
 inside another `type()` body constrains the referring field without
 suppressing its emission.
 
+## Annotations: `meta`
+
+`meta(v, ...r)` annotates a value without changing it. The value
+unifies exactly as `v` does, generation is unchanged, and each record
+`r` rides the result through meets, reference copies and spread
+applications, as a `deprecate()` record does:
+
+```aontu
+port: meta(*8080|integer, { title:"Port" description:"The listen port" })
+```
+
+```json
+{"port":8080}
+```
+
+A record is a map of annotation keys, and each key holds concrete data
+of one kind:
+
+| key | holds |
+|---|---|
+| `title`, `description`, `comment`, `format`, `contentEncoding`, `contentMediaType` | a string |
+| `readOnly`, `writeOnly` | a boolean |
+| `examples` | a list |
+| `default`, `contentSchema` | any concrete data |
+| `x` | a map of the keywords JSON Schema does not name |
+| `dynamicRef` | a string: the text of the `$dynamicRef` a use was read from |
+
+A key outside the table, a value of the wrong kind, and a value that is
+not concrete data, such as a kind, a spread, an optional key or a
+preference, refuse the call with `func_arg`. A call needs at least one
+record.
+
+**Records meet as their union.** Where two records reach one value,
+each key holds every value either record holds, in canon order. The
+meet never refuses, gives one answer in either order, and changes
+nothing when the same record arrives twice: `meta(number, {title:
+"b"}) & meta(1, {title: "a"})` has the canon
+`meta(1,{"title":"a"},{"title":"b"})`. `deprecate()` records meet the
+same way.
+
+**A disjunction keeps each member's record.** A member that fails
+takes its record with it, and a member dropped as a duplicate of
+another leaves its record on the one that stays, at every depth, so `1 |
+meta(1, {title: "a"})` and `meta(1, {title: "a"}) | 1` both have the
+canon `meta(1,{"title":"a"})`. A preference dropped for a twin of a
+lower rank does the same: `*meta(1, {title: "a"}) | **meta(1, {title:
+"b"})` keeps both titles on `*1`.
+
+**A trial schema keeps its record.** The arguments of `nof`, `when`,
+`contains` and `must` are tried against a value and add nothing to it,
+so a record inside one stays with the atom: `nof(1, meta(number,
+{title: "n"})) & 1` is `1`.
+
+**Canon writes the call back**, outermost and after `deprecate()`, one
+record per layer, the first holding each key's first value, so that a
+reparse unions them back. It renders a record wherever its value sits:
+a field, an item, a disjunction member, a preference, a spread, a trial
+schema, and the document's root. The hash form includes every record,
+so changing one changes the canon-hash.
+
+`vet`, `subsume` and `breaking` read through a record. The language
+server's hover shows a value's titles in bold, then its descriptions,
+and `aontu jsonschema` writes each key as the JSON Schema keyword of
+the same meaning, which `aontu jsonschema import` reads back as
+`meta()` ([JSON Schema](reference-api.md#aontu-jsonschema)).
+`dynamicRef` annotates nothing: the importer writes it on a reference
+it read from a `$dynamicRef`, and the exporter writes that reference
+back as one where the export reads it the same.
+
+## Identity: `ident`
+
+`ident(v, r)` declares an alias's value with the identity a JSON Schema
+gave it, which the importer writes and the exporter reads back:
+
+```aontu
+%item = ident(integer, { id:"https://example.com/item.json" anchor:"item" })
+count: %item & 3
+```
+
+```json
+{"count":3}
+```
+
+The record `r` is a map whose keys are among `id`, the schema's identifier,
+`anchor`, its anchor, `dynamicAnchor`, its dynamic anchor, and `defs`,
+the `$defs` key it was declared under, each holding a string. Any other
+key or kind refuses the call with `func_arg`.
+
+**Only an alias declaration carries it.** `ident()` is the value of a
+declaration, or one term of the meet that is that value, which is how
+two declarations of one name meet their identities, as a union.
+Anywhere else, a field, an item or the value a value-prefix declaration
+is written on, it refuses with `ident_place`.
+
+**A copy carries no identity.** A reference to the alias copies the
+value without the record, as it copies without `type()` and `hide()`
+marks, so no value in the tree has an identity and two uses never meet
+one. The identity is in no canon and no hash.
+
+`aontu jsonschema` writes the identity on the alias's definition: `$id`,
+`$anchor` and `$dynamicAnchor`, and the `defs` key as the definition's
+name, or on the schema itself where the definition is the whole schema. An identifier
+is not written where a `$ref` inside the definition would resolve
+against it, and that is reported as a loss
+([JSON Schema](reference-api.md#aontu-jsonschema)).
+
 ## Closed values: `close` / `open`
 
 A **closed** map or list refuses any key/element not already present,
@@ -3902,6 +4125,22 @@ a key or extending a list is refused, at any depth:
 close({x:1}) & {y:2}            → error: closed
 close([1,2]) & [1,2,3]          → error: closed
 close({x:{y:1}}) & {x:{z:2}}    → error: closed
+close({x:1}) & close({y?:2})    → error: closed
+```
+
+An **optional** key the closed map does not declare is dropped rather
+than refused: no instance of the closed map can hold it, so it adds
+nothing. A required key is still refused, as the last line above shows,
+and where both sides are closed each holds the other to its own keys,
+so two closed maps keep only the optional keys both declare:
+
+```aontu
+a: close({ b:1 }) & { a?:number }
+b: close({ a?:1 }) & close({ b?:2 })
+```
+
+```json
+{"a":{"b":1},"b":{}}
 ```
 
 An `open()` written inside a closed value holds its subtree open: the
@@ -4343,6 +4582,12 @@ constraints, defaults, and open disjunctions. Rules:
 - Conjunction: `a&b` (for example `number&"A"`). Disjunction: `a|b`
   (for example `1|2`, `string|number`). Preference: `*x` (for example `*1|number`).
 - Spreads keep the `&:` entry: `{&:{"x":2},"y":{…}}`.
+- A `deprecate()` or `meta()` record renders as the call that carries
+  it, wherever its value is held: a field, an item, a disjunction
+  member, a preference, a spread, and a trial argument. A value's own
+  `canon` leaves out its own records, which its holder renders;
+  `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) renders them, as
+  `aontu --canon` does for the document's root.
 
 ## The formatted form
 
@@ -4817,9 +5062,8 @@ distinguishable.
 
 ## Grammars: `abnf()` and `parse()`
 
-`re()` is deliberately small: the portable pattern subset both engines
-agree on. Real formats are published as **grammars** rather than as
-regexes, and transcribing one into that subset is at best lossy. `abnf()`
+Real formats are published as **grammars** rather than as regexes, and
+transcribing one into a pattern for `re()` is at best lossy. `abnf()`
 takes the grammar as written.
 
 **`abnf(g)` compiles an RFC 5234 grammar and answers its source**, so a
@@ -4923,8 +5167,7 @@ Four things govern a grammar:
   an empty tree for empty input, which would make `parse(g, "")` succeed
   everywhere; it is refused instead.
 - **The parse is bounded** at 100 000 steps. A grammar needing more is
-  refused rather than run, for the reason `re()` refuses a pattern that
-  backtracks exponentially.
+  refused rather than run, so no input can stall the evaluator.
 - **`src` is the text the rule matched**, assembled from what the
   grammar consumed rather than sliced out of the input.
 - **A character class must not contain a literal used elsewhere.**
@@ -5161,13 +5404,15 @@ spelling, and nothing turns it into `30`.
 
 ## The constraint algebra
 
-> All nine atoms (the bounds `min`/`max`/`above`/`below`, the
-> exclusion `neq`, the pattern `re`, the sizing atoms `length` and
-> `unique`, and the evaluate-only `must`) are implemented in both
+> All thirteen atoms (the bounds `min`/`max`/`above`/`below`, the
+> exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
+> atoms `length` and `unique`, and the evaluate-only `must`, `nof`,
+> `when` and `contains`)
+> are implemented in both
 > engines over the four-leaf number tower, pinned by the
 > [`test/spec/constraint-*.tsv`](../test/spec/) suites. Violations
-> raise the registered `constraint` code, and a pattern outside the
-> portable subset raises `constraint_pattern`. A preference meeting a
+> raise the registered `constraint` code, and a pattern `re` refuses
+> raises `constraint_pattern`. A preference meeting a
 > constraint in a conjunct (`min(1024) & *8080`) resolves to the
 > default, and the disjunct form (`*8080 | (integer & min(1024))`)
 > also ENFORCES on override under the admission gate: an out-of-bound
@@ -5176,9 +5421,9 @@ spelling, and nothing turns it into `30`.
 
 ### Vocabulary
 
-Nine builtins join the function registry. Eight are **Band A**: full
+Fourteen builtins join the function registry. Nine are **Band A**: full
 lattice citizens with defined meet, emptiness, subsumption, and
-canonical form. One is **Band B**: evaluate-only, and reported
+canonical form. Five are **Band B**: evaluate-only, and reported
 as such. There is no new grammar: atoms are ordinary functions.
 
 | Atom | Band | Meaning |
@@ -5188,10 +5433,15 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `above(n: number\|string) : constraint` | A | value > x |
 | `below(n: number\|string) : constraint` | A | value < x |
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
-| `re(text p: string) : constraint` | A | string matches pattern p (unanchored, portable subset) |
+| `multiple(n: number) : constraint` | A | value is a whole multiple of n, a positive number (by the value each shows) |
+| `re(text p: string) : constraint` | A | string matches pattern p (unanchored, ECMA-262 syntax under `u`) |
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
 | `must(trial c: any, text msg: string) : constraint` | B | evaluate-only check with an author message |
+| `nof(n: number\|constraint, ...c: (trial any)) : constraint` | B | the number of trial schemas c that admit the value is one n admits |
+| `when(trial c: any, trial t: any, trial e?: any) : constraint` | B | t admits the value where c does, and e where c does not |
+| `contains(trial c: any, n?: number\|constraint) : constraint` | B | the number of members c admits is one n admits, at least one unless written |
+| `rest(trial t: any, ...c?: (trial map)) : constraint` | B | t admits each member no applying cover evaluates |
 
 ### Bounds and the number tower
 
@@ -5220,6 +5470,15 @@ supertype `number`):
    integer `1` and admits the float `1.0`. To exclude a point on the
    whole number line, list its leaves: `neq(1, 1.0)` (the exact
    leaves are opt-in, so `0d`-free documents need only these two).
+4. **`multiple` reads the value a number shows.** Divisibility does
+   not survive binary rounding: the double nearest 0.3 is no multiple
+   of the double nearest 0.1, though `0.3` is written as a multiple
+   of `0.1` in every JSON document that carries it. So a `float`,
+   divisor or value alike, is read through its shortest round-trip
+   rendering, the text both implementations write for it, and the
+   exact leaves as they are: `multiple(0.1) & 0.3` is `0.3`, and
+   `multiple(1) & 1.0` is `1.0`. Like a bound, `multiple` implies
+   `number` and never narrows the leaf.
 
 String bounds (`min("a")`) use lexical code-point order and imply
 `string`. Mixing domains in one meet (`min(0) & min("a")`) is empty
@@ -5235,10 +5494,12 @@ schema-composition time, before any data arrives:
 | interval & interval | intersection: `min(0) & min(5)` → `min(5)`; `min(2) & max(10) & max(7)` → `min(2)&max(7)` |
 | `neq` & `neq` | exclusion-set union, arguments sorted |
 | `re` & `re` | regex-set accumulation (patterns sorted; never simplified) |
+| `multiple` & `multiple` | divisor accumulation, sorted by value, one value kept once; no least common multiple is synthesised |
 | `len(c1)` & `len(c2)` | `len(c1 & c2)`: the count atom reuses the numeric algebra recursively |
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
 | bound & `must` | both kept; `must` stays opaque |
+| `nof` & `nof` | both kept, sorted by canon, with one canon once; their branches are never deduplicated |
 
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
@@ -5252,7 +5513,9 @@ guessed where it is not:
 - Empty interval: `min(5) & max(3)` → nil, both sites reported.
 - Integral gap: an integral-domain interval containing no integral
   value: `integer & above(1) & below(2)` → nil. (Applies when the
-  domain is narrowed by `integer` or `biginteger`.)
+  domain is narrowed by `integer` or `biginteger`, or by a whole
+  divisor, whose multiples are all whole: `multiple(1) & above(1) &
+  below(2)` → nil.)
 - Point deletion **requires a narrowed leaf**: `min(3) & max(3)`
   admits the point 3 in any numeric leaf, so `neq(3)` (which excludes
   only the integer `3`) does NOT empty it, but
@@ -5264,6 +5527,9 @@ guessed where it is not:
   accumulate and are never declared empty: sound (no false
   conflicts), incomplete (some contradictions surface only against
   data).
+- A Band B atom is never declared empty: `must`, `nof`, `when` and
+  `contains` are decided against data, where `nof(3, string, number)`
+  refuses every value.
 
 ### Subsumption
 
@@ -5271,7 +5537,8 @@ guessed where it is not:
 per-former rules are in [Subsumption](#subsumption) above). One
 mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
-`sub_evaluate_only`: the admitted set is opaque, which is
+`sub_evaluate_only`, and a `nof`, a `when` or a `contains` on the
+general side the same way: the admitted set is opaque, which is
 undecided rather than refused.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
@@ -5298,6 +5565,7 @@ in this sense and are marked; the rest are exact.
 | no bound on a side | any    | an absent endpoint is ±∞ and contains everything |
 | `neq(S)`    | `neq(T)`     | `S ⊆ T`: excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
 | `neq(S)`    | concrete scalar | the scalar is in neither S nor excluded by A's other atoms |
+| `multiple(a)` | `multiple(b)` | **approximate**: some divisor of B is a multiple of a, or B is integral and 1 is a multiple of a. `multiple(2) ⊒ multiple(4)`, `multiple(0.5) ⊒ integer` |
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |
@@ -5371,39 +5639,36 @@ Two renderings follow from that round trip rather than from taste:
   renders as `string&len(...)`: drop the `string` and the reparse would
   admit lists and maps of three members too.
 
-### `re` and the portable pattern subset
+### `re` and the pattern language
 
-`re(p)` admits a string matching `p`. Matching is **unanchored** in
-both implementations, so `re("el")` admits `"hello"`; anchor with `^`
-and `$` to constrain the whole string. The string kind is implied, so
-`string & re("x")` canonicalises to `re("x")`: the same rule that
-makes `number & min(0)` canonicalise to `min(0)`.
+`re(p)` admits a string matching `p`. Matching is **unanchored**, so
+`re("el")` admits `"hello"`; anchor with `^` and `$` to constrain the
+whole string. The string kind is implied, so `string & re("x")`
+canonicalises to `re("x")`: the same rule that makes `number & min(0)`
+canonicalise to `min(0)`.
 
-A pattern must mean the same thing in both implementations **and cost
-about the same to evaluate**, and the two host regex engines guarantee
-neither: TypeScript compiles with JavaScript's backtracking `RegExp`, Go
-with RE2: a different language, in a different complexity class, over a
-different alphabet.
-
-aontu therefore **defines** the pattern language and rewrites your
-pattern into a form neither engine can read two ways. Only the rewritten
-form reaches a host engine.
+**The pattern is ECMA-262's**, as JavaScript writes one under the `u`
+flag in ECMA-262 2025, and aontu reads and matches it itself, the same
+in both implementations. No host regex engine sees it, so a pattern means one thing everywhere,
+and a match costs time in proportion to the length of the string for
+every pattern: the engine steps through the string once and never goes
+back.
 
 **What `re` accepts**
 
 | | |
 |---|---|
-| literals | `a`, and `\` before any of `. \ + * ? ( ) [ ] { } \| ^ $ /` to mean it literally; `\xHH` |
-| classes | `[abc]`, `[^abc]`, `[a-z]`; `\-` inside a class for a literal hyphen |
+| literals | `a`; `\` before any of `^ $ \ . * + ? ( ) [ ] { } \| /` to mean it literally; `\xHH`, `\uHHHH` (a surrogate pair of them is one code point), `\u{H…}`, `\cX`, `\0`, `\t \n \r \f \v` |
+| classes | `[abc]`, `[^abc]`, `[a-z]`, `[]` for no character and `[^]` for any; `\-` and `\b`, a backspace, inside a class |
+| properties | `\p{…}` and `\P{…}`: a `General_Category` value or group (`\p{L}`, `\p{Lu}`, `\p{gc=Lu}`, `\p{General_Category=Letter}`), a script (`\p{sc=Greek}`, `\p{Script=Grek}`), `Script_Extensions` (`\p{scx=Hira}`), or a binary property (`\p{Alphabetic}`, `\p{ASCII}`, `\p{Any}`, `\p{Assigned}`), each name spelled exactly as ECMA-262 lists it |
 | abbreviations | `\d \D \w \W \s \S` and `.` |
-| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}` with every count **1000 or less**, and the lazy forms `*?` `+?` `??` |
-| grouping | `(…)`, `(?:…)`, alternation `a|b` |
+| repetition | `*` `+` `?` `{n}` `{n,}` `{n,m}`, and the lazy forms `*?` `+?` `??` `{n,m}?` |
+| grouping | `(…)`, `(?:…)`, `(?<name>…)`, alternation `a\|b` |
 | anchors | `^` `$` `\A` `\z` `\b` `\B` |
-| control | `\t \n \r \f \v` |
 
-**aontu defines the abbreviations**, and inherits neither host's:
+**aontu defines the abbreviations**, and they are not ECMA-262's:
 
-| written | means | 
+| written | means |
 |---|---|
 | `\d` / `\D` | `[0-9]` / `[^0-9]` |
 | `\w` / `\W` | `[0-9A-Za-z_]` / `[^0-9A-Za-z_]` |
@@ -5413,40 +5678,35 @@ form reaches a host engine.
 
 These are the small ASCII sets deliberately. **`\s` is those six
 characters only**: it does *not* match U+00A0 or the other Unicode
-spaces, though JavaScript's `\s` does, because a non-breaking space in
-a config value is a mistake worth catching rather than a space worth
-accepting in silence. Matching counts **code points**, not UTF-16 code
-units, in both implementations.
+spaces, though ECMA-262's `\s` does, because a non-breaking space in a
+config value is a mistake worth catching rather than a space worth
+accepting in silence. `.` excludes only the newline, where ECMA-262's
+also excludes the carriage return, U+2028 and U+2029. `\A` and `\z` are
+`re`'s own, and ECMA-262 has neither. `\b` and `\B` divide the ASCII
+word characters from the rest, as ECMA-262 does. Matching counts **code
+points**, not UTF-16 code units.
 
-**What `re` refuses**, and why rewriting cannot help:
+The Unicode properties are those of the Unicode Character Database
+18.0.0, generated into both implementations from one pinned source.
+
+**What `re` refuses**, with `constraint_pattern` and the reason:
 
 | Construct | Why |
 |-----------|-----|
-| backreferences `\1`–`\9`, `\k<name>` | RE2 has no equivalent, and a pattern using one is not a regular expression at all |
-| lookaround `(?=)` `(?!)` `(?<=)` `(?<!)` | same: not in RE2 |
-| any `(?…)` but `(?:` | named groups are spelled `(?P<n>` in RE2 and `(?<n>` in JavaScript; inline flags change the meaning of everything after them |
-| `\p{…}`, `\x{…}`, `\u`, `\Z` | spelled differently, or read as a literal by one engine |
-| POSIX classes `[[:alpha:]]` | RE2 only |
-| empty classes `[]`, `[^]` | a never-matching class in JavaScript, a parse error in RE2 |
-| a repeat count above **1000** (`a{1001}`, `a{2,1001}`) | RE2 refuses to compile it and JavaScript accepts it, so the same schema was valid in one implementation and not the other. The bound is **aontu's**, checked in the normaliser before either engine sees the pattern, which is why the refusal is the same in both |
-| a quantifier applied to `^`, `$`, `\b` or `\B` | there is nothing to repeat: JavaScript under the `u` flag calls it a syntax error, RE2 quantifies the assertion and matches |
-| a `{` that opens no counted quantifier (`x{y}`), or a `}` that closes none | JavaScript reads each as a lone quantifier bracket and refuses; RE2 reads both as literals |
-| a quantifier on a group containing a quantifier or an alternation | **cost, not meaning**: see below |
+| a syntax error, as ECMA-262 defines one under `u`: an escape it does not read (`\q`, `\Z`, `\x{41}`, `\-` outside a class), a lone `{`, `}`, `]` or `)`, a quantifier with nothing to repeat (`*a`, `^{1}`, `\b*`), bounds out of order (`a{2,1}`, `[z-a]`), a class escape ending a range (`[\d-z]`), a property ECMA-262 does not name (`\p{lu}`), one group name twice outside separate alternatives | the pattern means nothing |
+| backreferences `\1`, `\k<name>` | not a regular language: an engine that never goes back cannot match one |
+| lookaround `(?=…)` `(?!…)` `(?<=…)` `(?<!…)` | the same |
+| a modifier group, `(?i:…)` or `(?-i:…)` | its flags change what a character matches, and aontu applies none |
+| a pattern that compiles past **100,000 instructions** | counted repetition copies what it repeats, so `(?:a{1000}){1000}` is a million copies; the bound fixes the most a match can cost before any string arrives |
+| groups nested deeper than **256** | the depth the parser reads to |
 
-The last one is different in kind. `(a+)+$` against twenty-nine `a`s and
-a `!` takes **45 seconds** in JavaScript and 0.065s under RE2, growing
-exponentially; a regex match is counted by no evaluator budget ([the
-trust contract](trust.md), clause 2), so without this rule an untrusted
-schema could stall the TypeScript evaluator indefinitely. Rewriting
-cannot fix a complexity difference, so this one is refused rather than
-normalised. `(?:a|b)+` is caught by it too, though it is safe: deciding
-that two alternation branches cannot both match is real work. Write
-`[ab]+`. Unquantified groups, top-level alternation, `(?:ab)+`, `(a)(b)`
-and `(a)+` all pass, and a quantifier inside a character class is a
-literal character (`[a+]+` is fine).
+A quantified group that holds a quantifier or an alternation, which a
+backtracking engine runs in exponential time (`(a+)+$` against
+twenty-nine `a`s and a `!` takes 45 seconds in JavaScript), costs aontu
+the same linear time as any other pattern, and is accepted.
 
-The refusal message names the offending construct *and* restates this
-whole table, so an author never has to find this page to recover.
+The refusal message names the reason *and* restates what `re` accepts,
+so an author never has to find this page to recover.
 
 Patterns **accumulate** and are never simplified: `re("x") & re("a")`
 keeps both (sorted by pattern text in canon), and a value must match
@@ -5456,9 +5716,11 @@ containment, which this algebra deliberately does not do. A contradiction
 between patterns therefore surfaces against data, not against the
 schema.
 
-Canon renders the pattern **as written**, never the rewritten form:
-canon round-trips source, and the semantic hash
-([`aontu hash`](reference-api.md#aontu-hash)) is taken over canon.
+Canon renders the pattern **as written**: canon round-trips source,
+and the semantic hash ([`aontu hash`](reference-api.md#aontu-hash)) is
+taken over canon. The JSON Schema exporter writes it as ECMA-262 text
+that means the same, with `\s` as its six characters and `.` as
+`[^\n]`.
 
 ### `len` semantics
 
@@ -5685,15 +5947,211 @@ unresolved kind today; exhaustion of the pass budget while residuals
 are still refining is `budget_passes` ([the trust
 contract](trust.md), clause 2).
 
+### Formats: `format`
+
+`format(g)` admits a string the grammar `g` reads to its end. Like `re`,
+it is in the string domain, and two of them both hold. `g` is RFC 5234
+ABNF with RFC 7405's `%s` and `%i` strings, the form `abnf()` takes, or
+the name of a format. A string that is one rule name is a name, and
+any other string is a grammar, which holds a rule and so an `=`.
+
+The names are the nineteen JSON Schema formats: `date-time`, `date`,
+`time`, `duration`, `email`, `idn-email`, `hostname`, `idn-hostname`,
+`ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, `iri-reference`, `uuid`,
+`uri-template`, `json-pointer`, `relative-json-pointer` and `regex`.
+Every name but `regex` is committed under `grammar/format/`, and
+`regex` admits a pattern `re()` admits. Any other name refuses with
+`format_unknown`.
+
+A committed format is one grammar or several, and a string meets every
+one: `date-time` holds a leap second to the last minute of a UTC day
+(RFC 3339 section 5.7) in grammars of its own, and `idn-hostname` holds
+IDNA2008's Bidi rule (RFC 5893) and each contextual rule of RFC 5892 in
+one each. Each reads what the grammar in its RFC reads, with these
+limits:
+
+- `hostname` and `idn-hostname` hold an A-label to its ASCII syntax and
+  never decode it, so Punycode that decodes to nothing valid is
+  admitted, and a U-label's A-label form is not measured;
+- `idn-hostname` reads UTS #46's mapping of one code point to one and
+  its ignored code points, from the Unicode Character Database 18.0.0,
+  and refuses a code point mapped to several, one that only
+  normalisation reaches, and a trailing dot;
+- `email` and `idn-email` do not count RFC 5321's size limits;
+- a `uri-template` literal admits `'`, which RFC 6570 excludes and the
+  JSON Schema Test Suite takes as valid.
+
+```aontu
+when: format("date") & "2024-02-29"  # "2024-02-29"
+code: format("v = 2DIGIT") & "1"  # parse_failed: the text ends too soon
+```
+
+aontu reads and runs a format's grammar itself, one character at a time
+and never going back, so it admits only a grammar the next character
+always decides. No two alternatives of a rule may begin with the same
+character. An option or repetition may not begin with a character
+that can follow it. No rule may reach itself before reading a
+character, and no rule may hold a prose value. A grammar that breaks
+one of these refuses with `format_grammar`, naming the rule and the
+character; one that does not compile refuses with `abnf_grammar`. RFC
+3986's `dec-octet` as published begins two alternatives with `1`, and
+reads the same language once the next character decides it:
+
+```aontu
+a: format("v = DIGIT / %x31-39 DIGIT / \"1\" 2DIGIT")  # format_grammar
+b: format("v = \"0\" / %x31-39 [DIGIT [DIGIT]]") & "199"  # "199"
+```
+
+A string the grammar refuses is `parse_failed`, naming the format, or
+the grammar's first rule, and the first character it could not read;
+so is one the recognizer has not read to its end in 1,000,000 steps.
+The empty string is admitted exactly where the grammar's first rule
+matches it. Canon sorts formats by their argument, writes each once,
+and puts them after `re`. Subsumption compares two formats as text,
+as it compares two patterns. `aontu jsonschema import --format-assert`
+writes a JSON Schema `format` as this atom, and `aontu jsonschema`
+writes it back as `format`, or a grammar as `x-aontu-format`: see
+[Import JSON Schema](how-to/import-json-schema.md#assert-formats).
+
 ### Band B: `must`
 
 `must(c, msg)` wraps any aontu value as an evaluate-only check: it
-residuates until its peer is concrete, then requires the peer to
-unify with `c`; on failure the author's message is attached to the
-nil (`NilVal.details`). `must` never participates in emptiness or
+residuates until its peer is settled, then holds the peer to the
+admission trial of `c`, as [`nof`](#band-b-nof) holds each branch, so
+`must(c, msg)` asks what `nof(1, c)` asks. Their meet must add nothing
+the peer lacks, but an optional member, and generate the peer itself:
+`must({a: 1}, "m") & {}` is refused, where `must({a?: number}, "m") &
+{}` passes. A conflict still refuses at the meet, since no later member
+can retract it. On failure the author's message is attached to the nil
+(`NilVal.details`). `must` never participates in emptiness or
 subsumption, and any report including one states that the check was
-evaluate-only: the channel for domain rules beyond the
-algebra.
+evaluate-only: the channel for domain rules beyond the algebra.
+
+### Band B: `nof`
+
+`nof(n, ...c)` counts the trial schemas `c` that admit the settled
+value, and requires the count to be one `n` admits: an integer, or a
+count constraint over the integers, as `len` takes. A branch admits the
+value when their meet adds nothing and generates the value itself, so a
+branch with a member the value lacks, required or filled by a default,
+does not: `nof(1, {x?: number}, {y?: string}) & {x: 1}` counts both
+branches and is refused, where `nof(1, {x: number}, {y: string})` counts
+one. A scalar is tried at the meet and a container at generation, when
+no member can still arrive. A branch is tried while the branches left
+can still change the verdict, in canon order: `nof(min(1), …)` stops at
+the first that admits, `nof(0, …)` refuses at the first that admits,
+and `nof(1, …)` refuses at the second. A branch that conflicts on its
+own admits nothing, as `nil` does, and a reference that names nothing
+is the document's error.
+
+Each trial is asked once for each position, trial schema and value in
+an evaluation, and every later ask reads that first verdict. The trials
+an evaluation runs are counted, and past the budget of 100000 the atom
+that asked is refused with `trial_budget`, class `budget`; the trust
+profile sets the budget as `trust.budget.trials` (see
+[the trust contract](trust.md#clause-2-termination)).
+
+The branches are sorted by canon and never deduplicated, since a count
+counts duplicates: `nof(1, string, string)` admits no string. Two equal
+`nof` atoms on one value are one check, so `&` stays commutative and
+idempotent by canon. Like `must`, `nof` is opaque to emptiness and
+subsumption, and a value it refuses is reported as `nof`, class
+`conflict`, with the count, the number of branches that admitted it and
+each branch's verdict, `untried` for a branch the count stopped
+before.
+
+It is how the applicators of JSON Schema cross into aontu: `anyOf` is
+`nof(min(1), …)`, `oneOf` is `nof(1, …)` and `not` is `nof(0, …)`, and
+the exporter writes those counts back as those keywords, with `allOf`
+for a count of every branch.
+
+### Band B: `when`
+
+`when(c, t, e?)` holds the settled value to the branch its condition
+picks: where the trial schema `c` admits the value, `t` must admit it,
+and where `c` does not, `e` must. An `e` not written passes, so
+`when(c, t)` says nothing about a value `c` refuses. Each argument is
+tried as a `nof` branch is, a scalar at the meet and a container at
+generation, and `nil` in any position admits nothing: `when(string,
+nil)` refuses every string, and `when(nil, t, e)` holds every value to
+`e`.
+
+A condition on a key being present reads as the key held as `any`:
+`when({k: any}, {n: any}) & {k: 1}` is refused, since the value holds
+`k` and not `n`, and `& {x: 1}` passes, since `{k: any}` does not
+admit a value without `k`. Two equal `when` atoms on one value are one
+check. Like `must` and `nof`, `when` is opaque to emptiness and
+subsumption, and a value it refuses is reported as `when`, class
+`conflict`, naming the branch taken.
+
+It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
+`else` are `when(c, t, e)`, `dependentSchemas: {k: S}` is
+`when({k: any}, S)` and `dependentRequired: {k: [a, b]}` is
+`when({k: any}, {a: any, b: any})`, and the exporter writes each shape
+back.
+
+### Band B: `contains`
+
+`contains(c, n?)` counts the members of a list or map that the trial
+schema `c` admits, and requires the count to be one `n` admits: an
+integer or a count constraint, as `len` takes, and at least one where
+`n` is not written. Each member is tried alone, as a `nof` branch is,
+so `contains({k: number}) & [{k: 1}, {j: 2}]` counts one member. A
+scalar has no members and is refused.
+
+It folds late with `len` and `unique`. An exceeded upper bound refuses
+as soon as the members have settled, `contains(number, max(1)) & [1,
+2]`, and a lower bound is decided at generation, when no member can
+still arrive. A refusal is reported as `constraint`, as a sizing atom's
+is. Two equal `contains` atoms on one value are one check, and the canon
+leaves out a count of at least one. Like the other Band B atoms, it is
+opaque to emptiness and subsumption.
+
+It is how `contains`, `minContains` and `maxContains` cross into aontu,
+on the list the array branch imports as, and the exporter writes the
+count back as those keywords. `uniqueItems` is `unique()`, which
+compares members as aontu values: read through `vet --exact-numbers`,
+`1.0` in the data is `1`, so a list of both is refused as JSON Schema
+refuses it.
+
+### Band B: `rest`
+
+`rest(t, ...c?)` holds each member of a list or map that no applying
+cover evaluates to the trial schema `t`, and `nil` admits none, so
+`rest(nil)` is a container with no member. A cover is a record of trial
+schemas, each one written or left out and no key besides: `if` over
+the whole value, `keys` over a member's key and `members` over the
+member. A cover applies where its `if` admits the value, or always
+where it has none, and evaluates each member its `keys` or its
+`members` admits, so this is refused at `k`, a member no cover
+evaluates:
+
+```aontu
+a: rest(nil, { keys:"x" }, { if:k:1 keys:"y" })
+a: { x:1 k:1 y:2 }
+```
+
+A list member's key is its index as a string, so `rest(nil, {keys: "0"
+| "1"}) & [1, 2, 3]` is refused at its third member. Each trial is
+tried as a `nof` branch is, at the atom's path, so `key()` in a cover
+reads the key of the value `rest` holds. The check runs at generation,
+when no member can still arrive: an optional member never written, or
+a hidden one, is not checked, and a scalar has no members.
+
+Covers are sorted by canon and written once, and a cover whose trial
+conflicts on its own carries `nil` there, so one whose `if` conflicts
+never applies. Two `rest` atoms on one value both hold. Like the other
+Band B atoms, `rest` is opaque to emptiness and subsumption, and a
+value it refuses is reported as `rest`, class `conflict`, naming the
+first member no cover evaluates and `t` refuses.
+
+It is how `unevaluatedProperties` and `unevaluatedItems` cross into
+aontu where a branch decides what is evaluated: the importer gives each
+`anyOf` or `oneOf` branch, `then`, `else` and `dependentSchemas` member
+a cover under its condition, and where no cover depends on the value
+writes the keyword as the guarded spread `additionalProperties` would
+be. The exporter writes `rest` back as an `allOf` member whose own
+keywords evaluate what its covers do.
 
 ### Errors
 

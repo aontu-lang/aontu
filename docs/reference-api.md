@@ -45,6 +45,11 @@ Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [--dialect <name>] [--no-meta-check]
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -134,6 +139,13 @@ the package cache they write.
   [marshalling types](#exact-numbers-in-go), with HTML escaping **off**
   in both, so `<`, `>` and `&` stay literal and the two CLIs print the
   same bytes.
+- **`--exact-numbers` reads every number the document writes by its
+  value**, as [`vet --exact-numbers`](#aontu-vet) reads data: `1.0` is
+  the integer `1`, `0.1` keeps its digits, and `1.0 & integer`
+  evaluates where it is otherwise refused. It reaches an included
+  `.aontu` file and a package, and `:load`, `:get` and `:why` in the
+  REPL. A data include, such as `@"./data.json"`, keeps its own
+  format's reader.
 - Results go to **stdout**; errors go to **stderr** with a non-zero exit
   status (`1` for an evaluation error, `2` for a bad option).
 - **`--format json` makes the answer an object**, so the default entry
@@ -161,11 +173,15 @@ aontu vet [options] <schema> <data> [more-data...]
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies (vet_filled)
+  --exact-numbers   Read every data number by its exact value
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check examined
   --strict-coverage --coverage, and exit 1 when the run was vacuous
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: JSON Schema's output units
+  --source-map <f>  The map jsonschema import wrote for the schema
   --watch           Re-run whenever a watched file changes
 ```
 
@@ -185,6 +201,24 @@ Each data file is vetted separately, and the worst verdict wins: two
 data files are two candidates for the same truth, not one merged
 candidate. `--max-errors` caps the whole report, not each file, and
 says so with `truncated`.
+
+**`--no-fill` asks whether the data is an instance as written.**
+Without it, `vet` asks whether the data can be made to hold, and a
+member the schema supplies, from a default or a literal, fills in
+silently. Under `--no-fill` each such member is a `vet_filled` finding,
+class `incomplete`, at the member's path, and so is data the schema must
+complete before it generates, such as `integer` against `1`, at `$`. An
+optional member is the schema's to supply and is not a finding. This is the question JSON
+Schema asks, and the one a schema imported by `aontu jsonschema import`
+is checked with.
+
+**`--exact-numbers` reads every data number by its value.** An integral
+value lands in `integer` where that leaf holds it exactly and in
+`biginteger` beyond, and every other value in `bigdecimal`, within the
+[exactness budget](reference-language.md#the-exactness-budget). So
+`1.0`, `1` and `1e0` are one integer, `0.1` keeps its digits, and a
+twenty-digit identifier is not rounded. Without it a data number reads
+exactly as it does in a document.
 
 **A data file that will not parse is the data's fault**, and is
 reported as one `parse`-class finding with a site in that file: not as
@@ -397,7 +431,10 @@ refuses `prot`, only a `close()` that never declared it) and the
 stanza naming the producer, so a report read from a pipe says which
 version and verb made it. Where the constraint algebra knows what would
 have unified, the finding carries it as `expected`/`actual`, and a
-`must()` check's author message rides along as `note`.
+`must()` check's author message rides along as `note`. Beside `path`,
+each finding carries `pointer`, the same place as an RFC 6901 JSON
+Pointer: `$.a.b` is the path of both the key `a.b` and the key `b`
+inside `a`, and the pointers `/a.b` and `/a/b` tell them apart.
 
 **A finding carries the repair beside the diagnosis.** `message` is
 the headline and stays one line (that is what makes it comparable and
@@ -444,6 +481,106 @@ any data file) changes, streaming one report per run: non-incremental
 by design: parsed trees are single-use, so every run is a full
 re-parse and re-unify, bounded by the fixpoint's pass budget. A file
 that is briefly unreadable mid-save reports and keeps watching.
+
+#### Output units
+
+`--output flag|basic` answers in the output format JSON Schema defines,
+in place of `--format`, for one data file. `flag` is the verdict alone,
+`{"valid": false}`, an `incomplete` verdict counting as not valid.
+`basic` lists one unit for each error the report keeps, a warning being
+none, and locates it as JSON Schema does: `keywordLocation` is the
+keyword's pointer as the evaluation reached it, through each `$ref` it
+crossed; `absoluteKeywordLocation` is the keyword in its own resource,
+by URI; and `instanceLocation` is the finding's `pointer`.
+
+A finding names a place in the aontu text, so `basic` needs the map
+that [`jsonschema import --source-map`](#aontu-jsonschema-import)
+writes of where in that text each keyword landed. Import a schema with
+its map, giving the retrieval URI its absolute locations read against.
+Write `order.json`:
+
+<!-- test: scenario vet-output -->
+<!-- test: file order.json -->
+```json
+{"type": "object", "required": ["sku"],
+ "properties": {"qty": {"$ref": "#/$defs/count"}},
+ "$defs": {"count": {"type": "integer", "minimum": 1}}}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import --uri https://example.com/order --source-map order.map.json order.json
+%d_count = number & multiple(1) & min(1)
+
+qty?: %d_count
+sku: any
+```
+
+Save the text as `order.aontu`:
+
+<!-- test: file order.aontu -->
+```aontu
+%d_count = number & multiple(1) & min(1)
+
+qty?: %d_count
+sku: any
+```
+
+and vet an order with no `sku` and a quantity below the minimum,
+written as `data.json`:
+
+<!-- test: file data.json -->
+```json
+{"qty": 0}
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill --exact-numbers --output basic --source-map order.map.json order.aontu data.json
+{
+  "absoluteKeywordLocation": "https://example.com/order#",
+  "errors": [
+    {
+      "absoluteKeywordLocation": "https://example.com/order#/$defs/count/minimum",
+      "error": "[aontu/constraint]: Cannot unify values at path $.qty",
+      "instanceLocation": "/qty",
+      "keywordLocation": "/properties/qty/$ref/minimum",
+      "valid": false
+    },
+    {
+      "absoluteKeywordLocation": "https://example.com/order#/required",
+      "error": "[aontu/mapval_no_gen]: Cannot resolve value at path $.sku",
+      "instanceLocation": "",
+      "keywordLocation": "/required",
+      "valid": false
+    }
+  ],
+  "instanceLocation": "",
+  "keywordLocation": "",
+  "valid": false
+}
+$ echo $?
+1
+```
+
+The evaluation reaches the bound through the `$ref` of `qty`, so its
+keyword location crosses that `$ref`, and its absolute location is the
+bound where `$defs` writes it. A missing member is its object's
+`required`, at the object.
+
+**The map names its text.** It records the SHA-256 of the document it
+describes, and `vet` refuses with exit 2 a file that is not a source
+map or that no longer matches the schema's text, so a document edited
+or reformatted after the import needs a fresh one. `vet` never looks
+for a map it was not given.
+
+**A unit is as precise as the finding's site.** Where the site is a
+function's call, the unit names the keyword that wrote the call, so a
+value that `prefixItems`, `patternProperties`, `additionalProperties`
+or a legacy tuple selects fails at that keyword rather than inside the
+schema it applies. A schema with no `type` imports as a disjunction of
+the kinds, and a value its own kind's branch refuses fails at the
+schema object.
 
 #### Vetting a recursive schema
 
@@ -1494,18 +1631,65 @@ $ aontu jsonschema --at spec contract.aontu
   `4` the document does not stand up on its own. Without `--strict` a
   lossy export is still an export and exits 0.
 
-**What crosses exactly.** Kinds become `type`; a concrete scalar
-becomes `const`; a disjunction of scalars becomes `enum`, and its
+**What crosses exactly.** Kinds become `type`, and the `integer` and
+`float` leaves are reported (below); a concrete scalar becomes `const`; a disjunction of scalars becomes `enum`, and its
 preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
-`re` becomes `pattern` (aontu's portable subset is a subset of
-ECMA-262, which is what JSON Schema reads, so no translation happens);
-`neq` becomes `not: {enum: …}`; `length` becomes
-`minLength`/`maxLength` on a string and `minItems`/`maxItems`
-otherwise; `unique()` becomes `uniqueItems`; an optional key is simply
-absent from `required`. A spread is `additionalProperties: <template>`,
-which is what a spread means. A written list is a **tuple**, so
-`prefixItems` plus `items: false`.
+`re` becomes `pattern`, written as ECMA-262 text that means what `re`
+means: `re`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z`
+become the sets aontu defines, and the rest is copied as written;
+`format(g)` becomes `format` for a format JSON Schema defines and
+`x-aontu-format` for a grammar, two of either an `allOf` of them, each
+with a loss (below);
+`neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
+`multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
+and `number & multiple(1)` is `type: integer`;
+`nof(n, …)` becomes `anyOf` for a count of at least one, `oneOf` for
+exactly one, `not` for none and an `allOf` of the branches for every
+one;
+`when(c, t, e)` becomes `if`, `then` and `else`, and a `when` on one
+key being present, `when({k: any}, …)` with no `else`, becomes
+`dependentRequired` where its branch only asks for keys and
+`dependentSchemas` otherwise;
+`contains(c, n)` on a list becomes `contains`, with the count as
+`minContains` and `maxContains`;
+`rest(t, …)` becomes an `allOf` member whose own keywords evaluate what
+its covers do, each condition riding `not: {not: …}` in an `anyOf` with
+`true`, and whose `unevaluatedProperties` or `unevaluatedItems` is `t`;
+`len` becomes `minLength`/`maxLength` on a string,
+`minProperties`/`maxProperties` on a map and `minItems`/`maxItems` on
+a list, an open bound rounded inward to the next whole number
+(`len(above(2))` is `minLength: 3`) and an excluded count as `not`
+both bounds at it; `unique()` becomes `uniqueItems`; an optional key is
+simply absent from `required`; `map` and `list` become `object` and
+`array`; a `meta()` record becomes the annotation keywords of the same
+meaning, `comment` as `$comment` and each member of `x` as itself, with
+a second record in an `allOf` of schemas that only annotate;
+`deprecate()` becomes `deprecated: true`, with its record's `msg`,
+`use` and `since` under the extension keyword `x-aontu-deprecate`, a
+field holding several values as a list; a disjunction of bare kinds
+becomes a `type` array; a bare
+`*x` becomes the kind of x, with x as `default`, because `*1` admits
+every integer; and a written `nil` becomes the schema `false`, because it
+admits nothing. A spread is `additionalProperties: <template>`, which
+is what a spread means, and a template that reaches no key or path
+outside itself is read as the value it is: `{&: number & min(3)}`
+exports `additionalProperties: {type: number, minimum: 3}`. A spread
+guarded by its own key crosses as the keyword it spells:
+`&: match(key(0), re(p), S, any)` is `patternProperties`, a guard
+whose arms let the map's own names and patterns through is
+`additionalProperties` (its default, with `nil` as `false`), and
+`&: match(key(0), c, any, nil)` is `propertyNames: c`. Any other guard
+whose arms name keys, or test one pattern, is an `allOf` member of its
+own. A written list is `prefixItems` for its positions and `minItems`
+for their count, and it stays **open**, as the meet does:
+`[integer, string]` admits `[1, "x", true]`, so only `close()` adds
+`items: false`. A list spread guarded by its positions in order,
+`[&: match(key(0), "0", P0, "1", P1, T)]`, is `prefixItems` with
+`items: T`, and `items: false` where `T` is `nil` or absent. A kind
+beside a constraint that waits for an instance, as in
+`boolean & nof(1, …)` or `map & len(min(1))`, is one schema object,
+and a `meta()` or `deprecate()` over one carries its record.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1520,41 +1704,65 @@ construct's own name, and one sentence saying what the schema says
 instead:
 
 ```
-lossy: $.spec.total must: an evaluate-only check is opaque by
-  construction … so it is DROPPED and the schema admits values `vet`
-  refuses
+lossy: $.spec.items unique(id): JSON Schema has no
+  uniqueness-by-property keyword … so this constraint is DROPPED and
+  the schema admits records sharing a `id`
 ```
 
 The losses, and why each is one:
 
 | Construct | Why JSON Schema cannot say it |
 |---|---|
-| `must(c, m)` | Band B is opaque by construction: it carries the author's own message and the algebra never reasons about it |
+| `must(c, m)` | the check crosses as `allOf` of its trial schema, but JSON Schema has no keyword for its message, which is dropped |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
-| `biginteger`, `bigdecimal`, and exact literals | JSON has one number type and it is binary64, so the exactness these leaves exist for has no receiver |
+| `biginteger`, `bigdecimal` | no JSON Schema type admits one leaf of a number, so the schema says `number` or `integer` and admits the other leaves |
+| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
+| `len(multiple(n))` | no keyword constrains a count's divisor |
+| `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
+| `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
+| `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
+| `rest(t, …)` with a cover past what a keyword evaluates | JSON Schema evaluates a member only by its name, a pattern of its name, its index in a prefix or its match of `contains`, so a list key past a prefix, or a `members` cover on a map, drops the check |
+| `min`, `max`, `above`, `below` on a string | `minimum` and `maximum` take numbers only, so a lexicographic bound is dropped |
+| `format(g)` | 2020-12 asserts `format` only where a validator is asked to, and only aontu reads `x-aontu-format`, so the schema may admit a string the format refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
+| a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
-| residue: an unresolved reference, a waiting call | not a property constraint at all; guessing one would be inventing a promise |
+| `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
+| `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
+| a list's `match(key(0), …)` whose arms are not its positions in order | JSON Schema places a member by its position from the first, so the spread is dropped |
+| residue: a reference by a relative path or into a list, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
 
-The exact-leaf loss is the one with a way around it. Money carried as a
+An exact value is not a loss. A `0d` literal, `enum` member, endpoint
+or divisor is written as its own digits, because 2020-12 compares
+numbers by their value: `min(0d9007199254740993)` exports
+`"minimum": 9007199254740993`, and a consumer that reads the schema
+with binary64 rounds on its own side. The exact-leaf kind loss is the
+one with a way around it. Money carried as a
 **decimal string** with a conversion mark exports without loss (the
 pattern and the mark both cross) and stays exact on the aontu side:
 see [Carry exact money over JSON](how-to/carry-exact-money-over-json.md).
 
-**A recursive position is residue, and exports as residue.** JSON
-Schema can spell recursion (`$defs` plus `$ref`), but this exporter
-does not mint it: a
+**A reference crosses as `$ref`.** A
 [recursive reference](reference-language.md#recursive-references-fixpoints)
-that has met no data is unresolved, so it crosses as the empty schema
-`{}` (a position that admits *anything*) and is reported under
-`lossy` as `unresolved`, like any other residue. Two consequences
-follow. Anchor the export at a definition kept **un-hidden**, because
-a `hide()` mark propagates and a hidden entry is omitted from the
-export entirely; and treat the exported schema as wider than the
-model at the recursive position: [`vet`](#aontu-vet) the produced
-value against the model, which does check every depth. `--strict`
-turns the loss into exit 1. Write a recursive `steps.aontu`:
+is written the way JSON Schema spells recursion: a `$ref` to a `$defs`
+entry that holds the definition once, or to `#` where the definition
+is the whole schema being exported. An alias crosses the same way. A
+use of it that still says what the alias says is its `$ref`; a use the
+meet narrowed is the `$ref` beside the keywords that differ, which is
+how JSON Schema reads `$ref` with siblings; and the alias sits under
+`$defs` by its own name, or by the `$defs` key `aontu jsonschema
+import` read it from. An alias declared with
+[`ident()`](reference-language.md#identity-ident) writes its `$id`,
+`$anchor` and `$dynamicAnchor` on the definition, or on the schema where
+the definition is the whole schema; an `$id` that a `$ref` inside the
+definition would resolve against is not written, and is reported. A
+use the importer read from a `$dynamicRef`, which carries the `meta`
+record's `dynamicRef`, is written as `$dynamicRef` to its anchor where
+that anchor, in the export, names the definition its `$ref` reached;
+otherwise it stays that `$ref`, and the dynamic reference is reported. A reference that
+reaches outside the template holding it, by a relative path or into a
+list, stays residue and is reported. Write a recursive `steps.aontu`:
 
 <!-- test: file steps.aontu -->
 ```aontu
@@ -1572,24 +1780,231 @@ $ aontu jsonschema --strict --at Step steps.aontu
       "pattern": "^[a-z]+@acme[.]example$",
       "type": "string"
     },
-    "then": {}
+    "then": {
+      "$ref": "#"
+    }
   },
   "required": [
     "approver"
   ],
   "type": "object"
 }
-lossy: $.Step.then unresolved: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
 $ echo $?
-1
+0
 ```
 
-Everything above `then` crosses intact; the tail is the gap it reports.
-Without `--strict` the same export exits 0.
+Anchored at `Step`, the definition is the schema itself, so `then` is
+`#`. Without `--at`, `Step` is a property and a `$defs` entry, and both
+reference the entry.
 
 - The library form is `jsonSchema(src, options?)` in TypeScript and
   `Aontu.JSONSchema(src, at)` in Go, returning the identical
   `{verdict, schema, lossy}` record (plus `errors` on a failed run).
+  A number in `schema` that binary64 cannot hold is a `JSON.rawJSON`
+  value in TypeScript and a `json.Number` in Go, so `exactJSON` and
+  `encoding/json` both write its digits.
+
+### `aontu jsonschema import`
+
+Import a **JSON Schema** document, of draft-04, draft-06, draft-07,
+2019-09 or 2020-12, as aontu, and say what could not be carried.
+
+```
+aontu jsonschema import [--strict] [--defaults] [--uri <uri>] [--doc <uri> <file>]...
+                        [--format-assert] [--format-grammar <name> <file>]...
+                        [--dialect <name>] [--no-meta-check]
+                        [--source-map <file>] [--format text|json] <file>
+```
+
+This is the bridge in the other direction. A schema another tool
+publishes, an OpenAPI component or an MCP tool's `inputSchema`,
+becomes a document aontu can unify with a model, compare with
+[`subsume`](#aontu-subsume), and check data against with
+[`vet`](#aontu-vet).
+
+**aontu reads the schema itself and decides what each keyword means.**
+Its JSON reader keeps every number as it was written, so `0.1` and a
+twenty-digit bound keep their digits, and it refuses an object that
+writes one key twice rather than keeping either value. Each keyword it
+carries is rewritten as the aontu construct that means it, and nothing
+is handed to a host validator to interpret.
+
+**The document goes to stdout and the losses to stderr**, in the agreed
+form [`aontu fmt`](#aontu-fmt) writes. Write a `point.json`:
+
+<!-- test: scenario jsonschema-import -->
+<!-- test: file point.json -->
+```json
+{"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}}, "required": ["x", "y"], "additionalProperties": false}
+```
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import point.json
+x: number
+y: number
+&: match(key(0), "x", any, "y", any, nil)
+```
+
+- After the losses, stderr names the `vet` invocation that asks the
+  question JSON Schema asks of data against the document, `vet with:
+  aontu vet --no-fill --exact-numbers <document> <data>`.
+- `--format json` prints the whole report (`text`, `lossy`, `verdict`,
+  `vet`, the flags of that invocation, and `errors` when the text is
+  refused) under the usual `aontu: {version, verb}` envelope.
+- `--defaults` makes an optional property's `default` a preference,
+  `*d | …`, where the property's own assertions admit it; without it a
+  `default` is an annotation only, as JSON Schema means it.
+- `--uri <uri>` is the schema's retrieval URI, the base its relative
+  identifiers and references resolve against. `--doc <uri> <file>`,
+  given once per document, adds a document a reference may reach by
+  that URI, a relative one read against the schema's. The published
+  meta-schemas of the five dialects and of their vocabularies are in
+  the set already, each at its own URI unless `--doc` gives a document
+  there, so a reference reaches them without one. Another document is
+  read only where a reference reaches it. Nothing is
+  fetched: a reference to a document outside the
+  set, or to a pointer or anchor that names nothing, refuses the import
+  with `jsonschema_ref`, and two documents given one URI with different
+  texts refuse it with `jsonschema_duplicate`. Dynamic scopes that
+  need more than 1024 further declarations refuse it with
+  `jsonschema_budget`.
+- `--format-assert` makes each `format` an assertion as well,
+  [`format(g)`](reference-language.md#formats-format), where JSON Schema
+  only annotates with it unless asked; a schema whose meta-schema in the
+  document set lists the format-assertion vocabulary, or requires
+  2019-09's format vocabulary, asks without the flag. `--format-grammar <name> <file>`, given once per format, is the
+  ABNF grammar of a format JSON Schema does not define, and naming one
+  it does define is a usage error. A format with no grammar stays an
+  annotation under the flag, and refuses the import with
+  `format_unknown` under the vocabulary.
+- `--dialect <name>` is the dialect of a resource that names none:
+  `draft-04`, `draft-06`, `draft-07`, `2019-09`, or `2020-12`, the
+  default. A `$schema` names its resource's dialect by the URI that
+  dialect's meta-schema publishes, `http` or `https` and with or
+  without a trailing `#`, or by a custom meta-schema in the document
+  set, whose own `$schema` names it, so an embedded resource may name
+  its own. A resource of an earlier dialect is rewritten, keyword by
+  keyword, into the 2020-12 resource that means the same before it is
+  read, and a loss or a refusal names each key where it was written.
+  A dialect aontu does not read, by name or by URI, refuses the import
+  with `jsonschema_dialect`.
+- A custom meta-schema whose `$vocabulary` lists vocabularies narrows
+  the schemas that name it to the keywords of those vocabularies and of
+  the core vocabulary; each other keyword of the dialect is carried as
+  an annotation under `x`. A vocabulary it lists with any value but
+  `false` that aontu does not read refuses the import with
+  `jsonschema_vocabulary`. aontu reads the vocabularies of 2019-09 and
+  2020-12, which `grammar/jsonschema/vocabularies.tsv` lists with their
+  keywords. `$vocabulary` in a schema is an annotation.
+- A schema that imports is checked against its meta-schema: the one its
+  root `$schema` names, read in the document set, so a custom
+  meta-schema checks the schemas that name it, or its dialect's. What
+  the schema breaks or lacks refuses the import with
+  `jsonschema_schema`, once at each place, at the innermost schema
+  object where it was written: `{"required": ["a", "a"]}` repeats a name the
+  meta-schema says is unique. Nothing inside an embedded resource of
+  another dialect is refused, and a meta-schema aontu cannot read as a
+  model checks nothing and is reported as a loss at `$schema`. The
+  check is the import's one costly step for a large schema, and
+  `--no-meta-check` skips it for a schema already known to be valid.
+- `--source-map <file>` writes a map of where each keyword landed in
+  the document, `{sha256, spans}`: the SHA-256 of the document's text,
+  and one span for each place a keyword was written, as UTF-8 byte
+  offsets `start` and `end`, the end exclusive. A span's `keyword` is
+  the keyword's pointer in the schema object it belongs to, its
+  `absolute` the keyword's URI, and its `frame` that schema object:
+  `0` the root, each other number a definition or a reference's copy.
+  A reference's span names the frame it reaches in `enters`, and the
+  span of a required member carries `required: true`. Pointers name the
+  keywords as written, before any rewrite of an earlier dialect.
+  `--format json` carries the map in the report as `map`.
+  [`vet --output basic`](#output-units) reads it back.
+- Exit codes: `0` imported, `1` lossy **under `--strict`**, `2` usage,
+  `4` the text is not a schema, or nests deeper than 256 levels
+  (`max_depth`). Without `--strict` a lossy import is still an import
+  and exits 0.
+- The library form is `importJsonSchema(text, options?)` in TypeScript
+  and `ImportJSONSchema(text, opts)` in Go, returning the identical
+  `{verdict, aontu, lossy, vet}` record (`errors` in place of `vet`
+  when the text is refused). Its options are the flags':
+  `defaults`, `uri`, `documents`, `formatAssertion`, `formats`, a
+  record of grammars by name in which a defined name keeps its
+  committed grammar, `dialect`, `noMetaCheck` and `sourceMap`, which
+  adds the map to the record as `map` (`Defaults`, `URI`, `Documents`,
+  `FormatAssertion`, `Formats`, `Dialect`, `NoMetaCheck`, `SourceMap`
+  and `Map` in Go), and `path`, the filename the findings cite.
+  `vetOutput(report, form, {text, map}?)` and `readSourceMap(text)` in
+  TypeScript, `VetOutput(report, form, text, sourceMap)` and
+  `ReadSourceMap(text)` in Go, answer a vet report's output units and
+  read a map back, `undefined` or `false` where the text is not one.
+- `upgradeJsonSchema(text, options?)` in TypeScript and
+  `UpgradeJSONSchema(text, opts)` in Go run the rewrite alone, with the
+  same options, and return `{verdict, dialect, schema, rewritten}`:
+  the dialect the root is read in, the 2020-12 schema the rewrite
+  wrote, each number as it was written, and each pointer it moved, as
+  a pair of where it was written and where it went, `""` where the
+  2020-12 schema holds nothing there. A refused schema has `errors` in
+  place of the schema. The rewrite keeps each reference as written: the
+  import reads a pointer through a moved keyword in the schema as
+  written. The CLI's JSON names the document `text`, because its
+  `aontu` key is the envelope.
+
+**What crosses.** Each keyword becomes the construct that means it:
+
+| Keyword | Becomes |
+|---|---|
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)` |
+| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
+| `multipleOf` | `multiple`, its divisor written by value |
+| `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
+| `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
+| `properties`, `required` | keys, optional unless required |
+| `patternProperties` | one spread per pattern, which applies its schema to the keys the pattern matches |
+| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil` |
+| `propertyNames` | a spread that refuses a key whose name the schema does not admit |
+| `prefixItems`, `items` | one list spread, guarded by each element's index |
+| `allOf` | the meet: every member unified in place |
+| `anyOf` | a disjunction where at most one branch can hold for any instance, because the branches are scalar literals or have disjoint kinds and none needs more than its kind; otherwise `nof(min(1), …)`, at least one branch admitting the value |
+| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals |
+| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer |
+| `if`, `then`, `else` | `when(c, t, e)`, paired within one schema object; a `then` or `else` without an `if`, and an `if` with neither, assert nothing |
+| `dependentSchemas` | `when({k: any}, S)` for each key `k`: the schema applies where the object holds `k` |
+| `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |
+| `contains`, `minContains`, `maxContains` | `contains(c, n)` on the list, the count `n` from the two bounds; a count of at least none asserts nothing, and neither bound does alone |
+| `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
+| `unevaluatedProperties`, `unevaluatedItems` | where no branch decides what is evaluated, the spread `additionalProperties` or `items` would be, over the names, patterns and prefix that the object and every schema it applies unconditionally evaluate; otherwise [`rest(t, …)`](reference-language.md#band-b-rest), with a cover for each `anyOf` or `oneOf` branch, `then`, `else` and `dependentSchemas` member, under its condition. Beside `additionalProperties` or `items` it asserts nothing |
+| `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
+| `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. The use keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
+| `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
+| `format` under format assertion | the same record, and `format(g)` on the string branch, `g` the format's committed grammar or the one `--format-grammar` gives it |
+| `x-aontu-format` | `format(g)` on the string branch in any mode, `g` a grammar or a format's name |
+| `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
+| a keyword JSON Schema does not name | the same record, under `x` |
+| `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |
+| `$schema` | read and dropped: the dialect is 2020-12 |
+
+A string is `empty()` rather than `string`, because the strings of
+JSON Schema include `""` and aontu's `string` does not. A boolean schema
+is `any` or `nil`, and so is a position whose keywords contradict each
+other: `allOf` of a string and a number admits nothing, and imports as
+`nil`.
+
+**What does not cross is reported, never dropped in silence.** Each
+loss names a pointer into the schema, the keyword, and what dropping it
+costs. A `$vocabulary` declaration is dropped, since the 2020-12
+vocabularies are read whatever it says, and the loss says so. So is a
+keyword of an earlier dialect, `dependencies`, `additionalItems`,
+`$recursiveRef` or `$recursiveAnchor`: it asserts in that dialect,
+though 2020-12 would read it as an annotation. An `$id`, `$anchor` or
+`$dynamicAnchor` on a schema no declaration holds is a loss as well,
+since only an alias declaration carries identity.
+
+**Data is checked against an import with `vet --no-fill
+--exact-numbers`**, which asks the question JSON Schema asks: whether
+the data is an instance as written, with its numbers read by value. See
+[Import JSON Schema](how-to/import-json-schema.md).
 
 ### `aontu model get`
 
@@ -1921,9 +2336,9 @@ Entry] } }` where `Entry` is `string & re("^[$]") & re("[^.]$")`, so
 a malformed role (`allow: "$.a"`, `deny: [1]`, an entry that is empty
 or does not start at `$` or ends in a dot, a roles map that is a
 number) is refused with the engine's own code and site, exit 4. A
-role model that `close()`s its role vocabulary must declare `deny?`
-in it, or the template's optional key is refused as `[aontu/closed]`
-and no role can be asked about. The lists are read from the written
+role model that `close()`s its role vocabulary need not declare
+`deny?`: the closed role drops the template's optional key, and a role
+that declares no `deny` denies nothing. The lists are read from the written
 tree rather than the generated document, so a `hide()`d `deny` still
 denies; each entry must be one concrete string, and a kind (`string`)
 in an entry's place is refused as `no_gen`.
@@ -3314,6 +3729,7 @@ into a context.
 | `debug` / `trace` | `boolean` | Enable parser debug / parse tracing. |
 | `deps`     | `object`    | Dependency record populated by `@"…"` loads. |
 | `log`      | `number`    | Parser log verbosity. |
+| `exactNumbers` | `boolean` | Read every number the document writes by its value, as `--exact-numbers` does: `1.0` is the integer `1` and `0.1` the bigdecimal `0d0.1`. Go sets `Aontu.ExactNumbers`. |
 
 `@"…"` resolution tries an **in-memory** resolver, then the
 **filesystem**, then **package** resolution, in that order. The chain
@@ -3529,6 +3945,9 @@ JSON.stringify(out) // TypeError: Do not know how to serialize a BigInt
   (`1000.0`, `0.1`, `-1.5`): no `0d` marker, since that belongs to
   canon and is not JSON, but an integral bigdecimal keeps its `.0` so
   the JSON still shows a decimal.
+- A raw JSON value made by `JSON.rawJSON(text)` writes its text, as
+  `JSON.stringify` does. `jsonSchema()` uses it for an exact number in
+  a schema, which is plain JSON and has no `0d`.
 - Object keys are emitted in **lexicographic order** (by UTF-16 code
   unit), matching Go's `encoding/json`, which sorts map keys. This is
   done at emit time and not by `generate()`, because a JavaScript object
@@ -3655,10 +4074,12 @@ hcanon         // the HASH FORM of an evaluated Val (see `aontu hash`
 canonHash      // the canon-hash pin over that form,
                // "aon1-"+base64url(SHA-256(...)); Go: aontu.CanonHash
 get            // the query surface (see `aontu model get` above):
-               // get(src, path, {view?, depth?, path?, trust?}) ->
-               // {ok, out, findings}; Go: aontu.New().Get(src, path, opts)
+               // get(src, path, {view?, depth?, path?, trust?,
+               // exactNumbers?}) -> {ok, out, findings};
+               // Go: aontu.New().Get(src, path, opts)
 why            // provenance (see `aontu model why` above):
-               // why(src, path, {path?, trust?}) -> {ok, record, findings},
+               // why(src, path, {path?, trust?, exactNumbers?}) ->
+               // {ok, record, findings},
                // record = {path, value, conjuncts}; Go: (*Aontu).Why
 patch          // the overlay patch (see `aontu model set` above):
                // patch(entry, overlay, ["$.a.b=1"], opts?) ->
@@ -3765,6 +4186,11 @@ a := aontu.NewWithBase(filepath.Dir(abs))
 
 Absolute `@"file"` paths are unaffected by the base. (The `aontu` CLI
 does exactly this for a file argument.)
+
+Setting `a.ExactNumbers = true` reads every number the document writes
+by its value, as `--exact-numbers` does. It holds for every method
+that parses, `Get` and `Why` among them, and is the twin of the
+TypeScript option `exactNumbers`.
 
 | Method | Signature | Notes |
 |--------|-----------|-------|

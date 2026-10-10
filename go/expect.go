@@ -25,10 +25,17 @@ func (e *ExpectVal) Gen(ctx *Ctx) (any, error) {
 
 func (e *ExpectVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer != nil && !isTop(peer) {
-		peeru := unite(ctx, peer, e.peg)
-		acc := peer
+		in, theirs := peer, peer
+		if other, ok := peer.(*ExpectVal); ok {
+			in, theirs = other.peg, other.peer
+		}
+		peeru := unite(ctx, in, e.peg)
+		acc := theirs
 		if e.peer != nil {
-			acc = unite(ctx, e.peer, peer)
+			acc = e.peer
+			if theirs != nil {
+				acc = unite(ctx, e.peer, theirs)
+			}
 		}
 		if expectGenable(peeru) {
 			peeru.setDc(DONE)

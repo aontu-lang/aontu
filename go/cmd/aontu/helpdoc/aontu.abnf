@@ -79,24 +79,28 @@ element   = spread / value
 func      = name %s"(" ws [ value *( ws %s"," ws value ) ws ] %s")"
 
 ; ORDER MATTERS where one name is a prefix of another: `refer` is
-; listed before `re`, and `rem` before `re` as well.
+; listed before `re`, `rem` before `re` as well, and `multiple` before
+; `mul`.
 name      = %s"abnf" / %s"above" / %s"acyclic" / %s"add" / %s"below" / %s"close"
+          / %s"contains"
           / %s"copyfiles" / %s"copy" / %s"deprecate" / %s"div"
           / %s"each" / %s"emit" / %s"empty" / %s"esc" / %s"filter" / %s"greatest"
-          / %s"hide"
+          / %s"hide" / %s"ident"
           / %s"inverse" / %s"join" / %s"key" / %s"least"
           / %s"len" / %s"listitems" / %s"lower" / %s"match"
-          / %s"maybe" / %s"max" / %s"min" / %s"mod" / %s"move"
-          / %s"mul" / %s"must"
-          / %s"neq"
+          / %s"maybe" / %s"max" / %s"meta" / %s"min" / %s"mod" / %s"move"
+          / %s"multiple" / %s"mul" / %s"must"
+          / %s"neq" / %s"nof"
           / %s"open" / %s"pack" / %s"parse" / %s"path" / %s"pick" / %s"pref"
-          / %s"refer" / %s"rel" / %s"rem" / %s"rep" / %s"re" / %s"sort" / %s"split"
+          / %s"refer" / %s"rel" / %s"rem" / %s"rep" / %s"rest" / %s"re"
+          / %s"sort" / %s"split"
           / %s"super"
-          / %s"content" / %s"file" / %s"folder" / %s"fragment" / %s"inject"
+          / %s"content" / %s"file" / %s"folder" / %s"format" / %s"fragment"
+          / %s"inject"
           / %s"line" / %s"nom" / %s"project" / %s"slot" / %s"translate"
           / %s"sub" / %s"sum"
           / %s"type"
-          / %s"unique" / %s"upper" / %s"usc"
+          / %s"unique" / %s"upper" / %s"usc" / %s"when"
 
 ; A path reference, absolute from the document root. At least one
 ; segment: a bare `$` is an incomplete expression, not a reference.

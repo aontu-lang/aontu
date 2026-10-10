@@ -30,7 +30,7 @@ func (l *ListVal) Canon() string {
 	b.WriteByte('[')
 	if l.spread != nil {
 		b.WriteString("&:")
-		b.WriteString(l.spread.Canon())
+		b.WriteString(CanonRiders(l.spread))
 		if len(l.peg) > 0 {
 			b.WriteByte(',')
 		}
@@ -39,9 +39,9 @@ func (l *ListVal) Canon() string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		// canonRiders, not Canon: a deprecated element renders back
+		// CanonRiders, not Canon: a deprecated element renders back
 		// as its `deprecate(x, m)` call, reparseably (G3).
-		b.WriteString(canonRiders(e))
+		b.WriteString(CanonRiders(e))
 	}
 	b.WriteByte(']')
 	return b.String()
@@ -135,6 +135,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		out.site.sp = l.site.sp
 		out.site.spu = l.site.spu
 		out.site.url = l.site.url
+		out.site.src = l.site.src
 		out.spread = l.spread
 	}
 	done := true
@@ -142,7 +143,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	if pl, ok := peer.(*ListVal); ok {
 		if out.spread == nil {
 			out.spread = pl.spread
-		} else if pl.spread != nil {
+		} else if pl.spread != nil && out.spread.Canon() != pl.spread.Canon() {
 			out.spread = unite(ctx, out.spread, pl.spread)
 		}
 	}
@@ -187,6 +188,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 				ev = unite(ctx, e, top())
 			}
 			setSprOn(ev, spreadCj)
+		} else if pl, ok := peer.(*ListVal); ok && !isTop(spreadCj) && i < len(pl.peg) &&
+			sprOf(pl.peg[i]) == spreadCj {
+			ev = e
 		} else {
 			sc := spreadCloneFor(spreadCj, islot, ctx)
 			ctx.slot = islot
@@ -205,6 +209,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
+	var bad Val
 	if pl, ok := peer.(*ListVal); ok {
 		out.closed = l.closed || pl.closed
 		// Self-unify the peer against TOP first (the `upeer` step in TS
@@ -216,9 +221,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 		for i, pe := range pl.peg {
-			// A spread declares every element.
+			// A spread declares every element; each past a closed list's end is refused.
 			if l.closed && l.spread == nil && i >= len(l.peg) {
-				return makeNilErr(ctx, "closed", pe, nil)
+				bad = makeNilErr(ctx, "closed", pe, nil)
 			}
 			islot := append(cp(dbase), itoa(i))
 			var uv Val
@@ -228,6 +233,11 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 					out.peg[i] = sealChild(out.peg[i])
 				}
 				uv = unite(ctx, out.peg[i], pe)
+				// The spread meets an element once, and meeting a marked one
+				// keeps the mark: met again, a recursive spread re-expanded.
+				if !isTop(spreadCj) && !uv.Nil() && (sprOf(out.peg[i]) == spreadCj || sprOf(pe) == spreadCj) {
+					setSprOn(uv, spreadCj)
+				}
 				out.peg[i] = uv
 			} else {
 				ctx.slot = islot
@@ -238,6 +248,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 					sc := spreadCloneFor(spreadCj, islot, ctx)
 					ctx.slot = islot
 					uv = unite(ctx, uv, sc)
+					if !isTop(spreadCj) && !uv.Nil() {
+						setSprOn(uv, spreadCj)
+					}
 				}
 				out.peg = append(out.peg, uv)
 			}
@@ -256,6 +269,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			return ck.Unify(l, ctx)
 		}
 		return makeNilErr(ctx, "list", l, peer)
+	}
+	if nil != bad {
+		return bad
 	}
 
 	if out.closed {

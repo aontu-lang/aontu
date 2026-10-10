@@ -42,13 +42,20 @@ highlighting; this is their human twin.
 | `hide(x)` | evaluated, then dropped from the output |
 | `type(x)` | a definition, not a value: it generates nothing, and an instance adds nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
+| `meta(x, {title:"…"})` | the same value, annotated |
 | `refer(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
 ## Constraints
 
-`min(n) max(n) above(n) below(n)` bound a number;
+`min(n) max(n) above(n) below(n)` bound a number, and `multiple(n)`
+asks for a whole multiple of n;
 `len(n)` and `unique()` bound a list or string;
 `re("^…$")` matches a string; `neq(v)` refuses one value;
+`format("date")` holds a string to a format or an ABNF grammar;
+`nof(n, a, b)` asks that n of the branches admit the value;
+`when(c, t, e)` holds the value to t where c admits it, else to e;
+`contains(c, n)` asks that n of a list's members meet c;
+`rest(t, {keys: k})` holds each member no cover evaluates to t;
 `must(cond, "why")` is the escape hatch.
 
 Bounds compose: `integer & min(1) & max(10)` is a range, and two

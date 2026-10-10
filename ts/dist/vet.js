@@ -14,13 +14,16 @@ const aontu_1 = require("./aontu");
 const node_path_1 = require("node:path");
 const err_1 = require("./err");
 const hints_1 = require("./hints");
+const aliasname_1 = require("./aliasname");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const walk_1 = require("./walk");
 const BagVal_1 = require("./val/BagVal");
 const utility_1 = require("./utility");
 const subsume_1 = require("./subsume");
 const query_1 = require("./query");
+const admit_1 = require("./admit");
 const keyorder_1 = require("./keyorder");
+const sourcemap_1 = require("./sourcemap");
 // The default cap, exported because the CLI applies it to the WHOLE
 // report across several data files and must not carry a second copy of
 // the number (ts/src/cli.ts).
@@ -56,7 +59,13 @@ function roleOf(file, prov) {
     return prov.data.has(file) ? 'data' : 'schema';
 }
 function pathText(path) {
-    return '$' + (null != path && 0 < path.length ? '.' + path.join('.') : '');
+    return '$' + (null != path && 0 < path.length ? '.' + path.map((p) => 'string' === typeof p ? (0, aliasname_1.aliasPathSegment)(p) : p).join('.') : '');
+}
+function atPath(at) {
+    return at.replace(/^\$\.?/, '').split('.').filter((s) => '' !== s);
+}
+function pointed(f, path) {
+    return { ...f, pointer: (0, sourcemap_1.pointerOf)(path.map((p) => (0, aliasname_1.aliasPathSegment)(String(p)))) };
 }
 function siteOf(v, prov) {
     if (null == v) {
@@ -87,6 +96,18 @@ function sitesOf(nil, prov) {
         ...sites.filter((s) => 'data' === s.role),
         ...sites.filter((s) => 'schema' === s.role),
     ];
+}
+// The value at a generated path, for the site a filled member is blamed on.
+function valAt(root, path) {
+    let v = root;
+    for (const seg of path) {
+        const next = Array.isArray(v?.peg) ? v.peg[Number(seg)] : v?.peg?.[seg];
+        if (null == next) {
+            return v;
+        }
+        v = next;
+    }
+    return v;
 }
 function materialise(nil, ctx) {
     if (null == nil.msg || '' === nil.msg) {
@@ -184,9 +205,8 @@ function failureFinding(ctx, url, failed) {
     }
     return findingOf(nil, { data: urls });
 }
-// Walk the evaluated schema to the anchor path. `$` and `$.a.b` are
-// both accepted, as is the bare `a.b` a shell is likely to hand over
-// unquoted.
+// Walk the evaluated schema to the anchor path: `$`, `$.a.b`, or the
+// bare `a.b` a shell is likely to hand over unquoted.
 function anchorAt(root, at) {
     const trimmed = at.startsWith('$') ? at.slice(1) : at;
     const parts = trimmed.split('.').filter((p) => '' !== p);
@@ -415,8 +435,10 @@ function vet(schemaSrc, dataSrc, opts) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
     const schemaOpts = null == options.schemaPath ?
         undefined : { path: options.schemaPath };
-    const dataOpts = null == options.dataPath ?
-        undefined : { path: options.dataPath };
+    const dataOpts = {
+        ...(null == options.dataPath ? {} : { path: options.dataPath }),
+        ...(true === options.exactNumbers ? { exactNumbers: true } : {}),
+    };
     // 1. The schema alone. If it does not stand up on its own, the data
     //    is never blamed for it.
     const schemaCtx = aontu.ctx({ collect: true });
@@ -431,7 +453,7 @@ function vet(schemaSrc, dataSrc, opts) {
             truncated: false,
             // A schema that does not stand up: nothing here is data, so the
             // data-url set is empty and every site reads `schema`.
-            findings: [findingOf(failure, { data: new Set() })],
+            findings: [pointed(findingOf(failure, { data: new Set() }), failure.path)],
         };
     }
     // 2. The anchor: the whole schema, or the value at `--at`.
@@ -442,7 +464,7 @@ function vet(schemaSrc, dataSrc, opts) {
             return {
                 verdict: 'error',
                 truncated: false,
-                findings: [(0, query_1.noPathFinding)(schemaVal, options.at)],
+                findings: [pointed((0, query_1.noPathFinding)(schemaVal, options.at), atPath(options.at))],
             };
         }
     }
@@ -460,7 +482,7 @@ function vet(schemaSrc, dataSrc, opts) {
         return {
             verdict: 'invalid',
             truncated: false,
-            findings: [findingOf(failure, { data: new Set([dataUrl]) })],
+            findings: [pointed(findingOf(failure, { data: new Set([dataUrl]) }), failure.path)],
         };
     }
     stampUrl(schemaVal, schemaUrl);
@@ -495,7 +517,7 @@ function vet(schemaSrc, dataSrc, opts) {
                 };
                 const admitted = rest.some((m) => 'yes' === (0, subsume_1.subsumeNode)(state, path, m, d));
                 if (!admitted && 0 < rest.length) {
-                    lintFindings.push({
+                    lintFindings.push(pointed({
                         code: 'pref_not_instance',
                         class: 'compat',
                         severity: 'warning',
@@ -512,7 +534,7 @@ function vet(schemaSrc, dataSrc, opts) {
                                 src: d.site?.src ?? '',
                                 value: d.canon,
                             }],
-                    });
+                    }, path));
                 }
             }
         }
@@ -537,8 +559,7 @@ function vet(schemaSrc, dataSrc, opts) {
     else {
         ;
         ctx._fixroot = schemaVal;
-        ctx.path = options.at.replace(/^\$\.?/, '')
-            .split('.').filter((s) => '' !== s);
+        ctx.path = atPath(options.at);
     }
     const pair = new ConjunctVal_1.ConjunctVal({ peg: [meetAnchor, dataVal] }, ctx);
     const unified = aontu.unify(pair, undefined, ctx);
@@ -552,16 +573,43 @@ function vet(schemaSrc, dataSrc, opts) {
     }
     const findings = nils.map((n) => {
         materialise(n, ctx);
-        return findingOf(n, prov);
+        return pointed(findingOf(n, prov), n.path);
     });
     const genCtx = aontu.ctx({ collect: true });
     genCtx.root = unified;
     genCtx.probe = null != options.at;
-    unified.gen(genCtx);
+    const generated = unified.gen(genCtx);
     for (const err of genCtx.err) {
-        if ('incomplete' === err.class || 'conflict' === err.class) {
-            materialise(err, genCtx);
-            findings.push(findingOf(err, prov));
+        materialise(err, genCtx);
+        findings.push(pointed(findingOf(err, prov), err.path));
+    }
+    if (true === options.noFill && undefined !== generated) {
+        const ownCtx = aontu.ctx({ collect: true });
+        const ownVal = aontu.parse(dataSrc, dataOpts, ownCtx);
+        stampUrl(ownVal, dataUrl);
+        const own = aontu.unify(ownVal, undefined, ownCtx);
+        const genOwn = aontu.ctx({ collect: true });
+        genOwn.root = own;
+        // Data that does not stand on its own: what stops it is the finding.
+        for (const err of ownCtx.err) {
+            materialise(err, ownCtx);
+            findings.push(pointed(findingOf(err, prov), err.path));
+        }
+        const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined;
+        // Under --at the paths are the anchor's, as every other finding's are.
+        const anchorPath = ctx.path ?? [];
+        // Data the schema must complete at its root is filled there.
+        const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
+            (0, admit_1.fillDiff)(generated, ownGen, unified);
+        for (const path of filled) {
+            findings.push(pointed(fromRegistry({
+                code: 'vet_filled',
+                class: (0, hints_1.codeClass)('vet_filled'),
+                severity: 'error',
+                path: pathText([...anchorPath, ...path]),
+                message: 'The schema supplies this member, and the data does not carry it.',
+                sites: [siteOf(valAt(unified, path), prov)],
+            }, { why: 'vet_filled' }), [...anchorPath, ...path]));
         }
     }
     findings.push(...lintFindings);
@@ -571,7 +619,7 @@ function vet(schemaSrc, dataSrc, opts) {
         // (empty when the value belongs to neither document), the role by
         // comparing it to the data document's.
         const file = v.site.url;
-        findings.push({
+        findings.push(pointed({
             code: 'deprecated',
             class: 'compat',
             severity: 'warning',
@@ -586,7 +634,7 @@ function vet(schemaSrc, dataSrc, opts) {
                     src: v.site.src ?? '',
                     value: v.canon,
                 }],
-        });
+        }, path));
     }
     const keyed = findings.map((f, i) => ({ key: orderKey(f, i), finding: f }));
     keyed.sort((a, b) => a.key < b.key ? -1 : 1);

@@ -8,6 +8,7 @@ import { AontuContext } from '../ctx'
 import { FuncBaseVal } from './FuncBaseVal'
 import { StringVal } from './StringVal'
 import { MapVal } from './MapVal'
+import { keyTable } from './BagVal'
 import { ListVal } from './ListVal'
 import { ConjunctVal } from './ConjunctVal'
 import { makeNilErr } from '../err'
@@ -60,7 +61,7 @@ function astVal(node: any, ctx: AontuContext): Val {
     }, ctx)
   }
 
-  const peg: Record<string, Val> = {}
+  const peg: Record<string, Val> = keyTable()
   for (const k of Object.keys(node).sort()) {
     peg[k] = astVal(node[k], ctx.descend(k))
   }

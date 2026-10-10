@@ -21,6 +21,7 @@ type TrustInclude =
 type TrustBudget = {
   passes?: number    // fixpoint passes (default 9)
   depth?: number     // structural recursion depth (default 1000)
+  trials?: number    // admission trials (default 100000)
 }
 
 type TrustOptions = {
@@ -47,6 +48,8 @@ type AontuOptions = {
   trust?: TrustOptions // Trust profile (G5, docs/trust.md)
 
   textExt?: string[]
+
+  exactNumbers?: boolean
 
   trustWarn?: (kind: 'escape' | 'pkg', path: string) => void
   trustWarnRoot?: string

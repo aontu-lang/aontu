@@ -1,0 +1,91 @@
+# The skip ledger for JSONTestSuite, in the columns of
+# test/vectors/jsonschema/skips.tsv: file, group (y, n), test, construct
+# and reason. Each row is a case whose verdict aontu's reader does not
+# give, because aontu source is a superset of JSON. See README.md.
+n_array_1_true_without_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_array_colon_instead_of_comma.json	n	parse	pair-in-list	a pair in a list is a map member
+n_array_comma_after_close.json	n	parse	trailing-value	a value after the first is read too
+n_array_extra_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_array_incomplete.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_incomplete_invalid_value.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_inner_array_no_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_array_items_separated_by_semicolon.json	n	parse	pair-in-list	a pair in a list is a map member
+n_array_newlines_unclosed.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_number_and_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_array_unclosed.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_unclosed_trailing_comma.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_unclosed_with_new_lines.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_array_unclosed_with_object_inside.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_incomplete_false.json	n	parse	bare-word	an unquoted word is a string
+n_incomplete_null.json	n	parse	bare-word	an unquoted word is a string
+n_incomplete_true.json	n	parse	bare-word	an unquoted word is a string
+n_number_++.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_+1.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_+Inf.json	n	parse	bare-word	an unquoted word is a string
+n_number_-01.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_-2..json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_0.e1.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_0_capital_E.json	n	parse	bare-word	an unquoted word is a string
+n_number_0e.json	n	parse	bare-word	an unquoted word is a string
+n_number_1_000.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_number_1eE2.json	n	parse	bare-word	an unquoted word is a string
+n_number_2.e+3.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_2.e-3.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_2.e3.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_Inf.json	n	parse	bare-word	an unquoted word is a string
+n_number_NaN.json	n	parse	bare-word	an unquoted word is a string
+n_number_U+FF11_fullwidth_digit_one.json	n	parse	bare-word	an unquoted word is a string
+n_number_expression.json	n	parse	expression	an arithmetic expression is read and evaluated
+n_number_hex_1_digit.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_hex_2_digits.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_infinity.json	n	parse	bare-word	an unquoted word is a string
+n_number_invalid+-.json	n	parse	bare-word	an unquoted word is a string
+n_number_minus_space_1.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_neg_int_starting_with_zero.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_real_garbage_after_e.json	n	parse	bare-word	an unquoted word is a string
+n_number_real_without_fractional_part.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_number_with_leading_zero.json	n	parse	number-form	the reader takes number spellings JSON refuses: a sign, a leading zero, a bare point, hex
+n_object_bad_value.json	n	parse	bare-word	an unquoted word is a string
+n_object_key_with_single_quotes.json	n	parse	single-quote	a single quote delimits a string
+n_object_lone_continuation_byte_in_key_and_trailing_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_object_non_string_key.json	n	parse	key	a key may be unquoted, a number or a keyword, and a repeated one meets its values
+n_object_non_string_key_but_huge_number_instead.json	n	parse	key	a key may be unquoted, a number or a keyword, and a repeated one meets its values
+n_object_repeated_null_null.json	n	parse	key	a key may be unquoted, a number or a keyword, and a repeated one meets its values
+n_object_several_trailing_commas.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_object_single_quote.json	n	parse	single-quote	a single quote delimits a string
+n_object_trailing_comma.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_object_two_commas_in_a_row.json	n	parse	comma	commas between members are optional, and may trail or repeat
+n_object_unquoted_key.json	n	parse	key	a key may be unquoted, a number or a keyword, and a repeated one meets its values
+n_object_with_trailing_garbage.json	n	parse	comment	# starts a comment
+n_single_space.json	n	parse	empty-document	an empty document is {}
+n_string_accentuated_char_no_quotes.json	n	parse	bare-word	an unquoted word is a string
+n_string_backslash_00.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_escape_x.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_escaped_ctrl_char_tab.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_escaped_emoji.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_invalid_backslash_esc.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_invalid_utf8_after_escape.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_single_quote.json	n	parse	single-quote	a single quote delimits a string
+n_string_single_string_no_double_quotes.json	n	parse	bare-word	an unquoted word is a string
+n_string_unicode_CapitalU.json	n	parse	escape	an escape JSON does not define is read rather than refused
+n_string_with_trailing_garbage.json	n	parse	trailing-value	a value after the first is read too
+n_structure_array_trailing_garbage.json	n	parse	trailing-value	a value after the first is read too
+n_structure_ascii-unicode-identifier.json	n	parse	bare-word	an unquoted word is a string
+n_structure_capitalized_True.json	n	parse	bare-word	an unquoted word is a string
+n_structure_comma_instead_of_closing_brace.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_double_array.json	n	parse	trailing-value	a value after the first is read too
+n_structure_lone-open-bracket.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_no_data.json	n	parse	empty-document	an empty document is {}
+n_structure_object_with_trailing_garbage.json	n	parse	trailing-value	a value after the first is read too
+n_structure_open_array_open_object.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_open_array_string.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_open_object.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_open_object_comma.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_trailing_#.json	n	parse	comment	# starts a comment
+n_structure_unclosed_array.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_unclosed_array_partial_null.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_unclosed_array_unfinished_false.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_unclosed_array_unfinished_true.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_unclosed_object.json	n	parse	unclosed	the reader closes a list or map the input leaves open
+n_structure_unicode-identifier.json	n	parse	bare-word	an unquoted word is a string
+y_object_duplicated_key.json	y	parse	duplicate-key	a repeated key meets its values, and "b" and "c" do not meet

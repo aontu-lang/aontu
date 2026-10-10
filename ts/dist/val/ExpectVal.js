@@ -17,9 +17,13 @@ class ExpectVal extends FeatureVal_1.FeatureVal {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Expect', this, peer);
         let out = this;
         if (!peer.isTop) {
-            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, peer, this.peg, 'expect-self');
-            const acc = undefined === this.peer ? peer :
-                (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, peer, 'expect-peer');
+            // Expectations meet as one: nested, each later meet walked both
+            // halves again, twice the work for every spread that met the value.
+            const other = true === peer.isExpect ? peer : undefined;
+            const peeru = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'EXPECT') }) : ctx, undefined === other ? peer : other.peg, this.peg, 'expect-self');
+            const theirs = undefined === other ? peer : other.peer;
+            const acc = undefined === this.peer || undefined === theirs ? this.peer ?? theirs :
+                (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PEER') }) : ctx, this.peer, theirs, 'expect-peer');
             if (peeru.isGenable) {
                 out = peeru;
             }

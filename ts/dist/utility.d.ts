@@ -10,7 +10,7 @@ declare function collectDeprecations(root: Val): Array<{
     path: string[];
 }>;
 declare function walkBagVals(root: Val, fn: (v: Val, path: string[]) => void): void;
-declare function deprecationMessage(d: Record<string, string>): string;
+declare function deprecationMessage(d: Record<string, string[]>): string;
 declare function canonRiders(v: Val): string;
 declare function formatPath(path: Val | string[], absolute?: boolean): string;
 type WalkApply = (key: string | number | undefined, val: Val, parent: Val | undefined, path: (string | number)[]) => Val;

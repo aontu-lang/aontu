@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 63 built-in functions and no user-defined ones. The name set
+aontu has 71 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,9 +217,9 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 54 of the 63 names, and 46 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 48 of the 63 use no
-mode but `value`, and 15 carry at least one slot in another mode.
+in 59 of the 71 names, and 49 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 51 of the 71 use no
+mode but `value`, and 20 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
 with the slot, and where the semantics are specified:
@@ -246,32 +246,41 @@ with the slot, and where the semantics are specified:
   [Ordering: `sort`](reference-language.md#ordering-sort),
   [`unique` semantics](reference-language.md#unique-semantics), and
   [Declared relations](reference-language.md#declared-relations).
-- `trial`, three slots: `must`'s check, `filter`'s condition, and the
-  odd members of `match`'s rest group. The argument is unified against a
+- `trial`, ten slots: `must`'s check, `filter`'s condition, the odd
+  members of `match`'s rest group, `nof`'s rest group of trial
+  schemas, all three of `when`'s, `contains`'s first, and both of
+  `rest`'s, its schema and its rest group of covers. The argument
+  is unified against a
   candidate in a sandbox with an error sink of its own, and the sandbox
   is discarded afterwards, so a failed trial is a false answer rather
   than an error in the document.
   [Selecting: `filter` and
   `match`](reference-language.md#selecting-filter-and-match),
-  [Band B: `must`](reference-language.md#band-b-must), and
+  [Band B: `must`](reference-language.md#band-b-must),
+  [Band B: `nof`](reference-language.md#band-b-nof),
+  [Band B: `when`](reference-language.md#band-b-when),
+  [Band B: `contains`](reference-language.md#band-b-contains),
+  [Band B: `rest`](reference-language.md#band-b-rest), and
   [Sizing atoms fold last](reference-language.md#sizing-atoms-fold-last).
-- `text`, four slots in three names: `re`'s pattern, `must`'s message,
-  and `rep`'s pattern and substitution. The slot settles to a string
-  like any other, and the settled string is then read as text in another
-  notation rather than compared as a value.
-  [`re` and the portable pattern
-  subset](reference-language.md#re-and-the-portable-pattern-subset) and
+- `text`, five slots in four names: `re`'s pattern, `format`'s grammar,
+  `must`'s message, and `rep`'s pattern and substitution. The slot
+  settles to a string like any other, and the settled string is then
+  read as text in another notation rather than compared as a value.
+  [`re` and the pattern
+  language](reference-language.md#re-and-the-pattern-language),
+  [Formats: `format`](reference-language.md#formats-format), and
   [`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub).
 - `capture`, one slot, `path`'s. The slot is read for its spelling and
   its value is never asked for, which is the one argument position the
   evaluator does not drive.
   [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Five non-value slots answer a code of their own rather than
+Six non-value slots answer a code of their own rather than
 `invalid-arg`:
 
 | name | slot | mode | code |
 |---|---|---|---|
+| `format` | `g` | `text` | `format_unknown`, `format_grammar`, `abnf_grammar` |
 | `inverse` | `k` | `projector` | `inverse_name` |
 | `path` | `p` | `capture` | `path_address` |
 | `re` | `p` | `text` | `constraint_pattern` |
@@ -307,6 +316,7 @@ documentation page and fails on a difference of one space.
 | `add(a: number, b: number) : number` | `2` | `value` | `number` |
 | `below(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `close(m?: any) : any` | `0..1` | `value` | `any` |
+| `contains(trial c: any, n?: number\|constraint) : constraint` | `1..2` | `trial`, `value` | `constraint` |
 | `content(spec: string\|map) : map` | `1` | `value` | `map` |
 | `copy(v: any) : any` | `1` | `value` | `any` |
 | `copyfiles(spec: string\|map) : map` | `1` | `value` | `map` |
@@ -319,9 +329,11 @@ documentation page and fails on a difference of one space.
 | `file(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `filter(d: map\|list, trial c: any) : map\|list` | `2` | `value`, `trial` | `map\|list` |
 | `folder(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
+| `format(text g: string) : constraint` | `1` | `text` | `constraint` |
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
+| `ident(v: any, r: map) : any` | `2` | `value` | `any` |
 | `inject(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `inverse(projector k: string) : constraint` | `1` | `projector` | `constraint` |
 | `join(d: map\|list, sep?: string) : string` | `1..2` | `value` | `string` |
@@ -334,12 +346,15 @@ documentation page and fails on a difference of one space.
 | `match(s: any, ...pr: (trial any, any), dflt?: any) : any` | `3..n` | `value`, `trial` | `any` |
 | `max(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `maybe(v: any) : any` | `1` | `value` | `any` |
+| `meta(v: any, ...r: map) : any` | `2..n` | `value` | `any` |
 | `min(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `mod(a: number, b: number) : number` | `2` | `value` | `number` |
 | `move(v: any) : any` | `1` | `value` | `any` |
 | `mul(a: number, b: number) : number` | `2` | `value` | `number` |
+| `multiple(n: number) : constraint` | `1` | `value` | `constraint` |
 | `must(trial c: any, text msg: string) : constraint` | `2` | `trial`, `text` | `constraint` |
 | `neq(...vals: number\|string) : constraint` | `1..n` | `value` | `constraint` |
+| `nof(n: number\|constraint, ...c: (trial any)) : constraint` | `2..n` | `value`, `trial` | `constraint` |
 | `nom(name: string, style?: string\|list, acronyms?: list) : string\|map` | `1..3` | `value` | `string\|map` |
 | `open(m?: any) : any` | `0..1` | `value` | `any` |
 | `pack(d: map\|list, template t: any) : map` | `2` | `value`, `template` | `map` |
@@ -353,6 +368,7 @@ documentation page and fails on a difference of one space.
 | `rel(template t?: any) : constraint` | `0..1` | `template` | `constraint` |
 | `rem(a: number, b: number) : number` | `2` | `value` | `number` |
 | `rep(s: string, text p: string, text sub: string) : string` | `3` | `value`, `text` | `string` |
+| `rest(trial t: any, ...c?: (trial map)) : constraint` | `1..n` | `trial` | `constraint` |
 | `slot(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `sort(d: map\|list, projector k?: string\|integer, dir?: string) : list` | `1..3` | `value`, `projector` | `list` |
 | `split(s: string, sep: string\|constraint) : list` | `2` | `value` | `list` |
@@ -364,6 +380,7 @@ documentation page and fails on a difference of one space.
 | `unique(projector k?: string) : constraint` | `0..1` | `projector` | `constraint` |
 | `upper(s: string\|number, start?: integer\|biginteger, len?: integer\|biginteger) : string` | `1..3` | `value` | `string` |
 | `usc(s: string, variant?: string) : string` | `1..2` | `value` | `string` |
+| `when(trial c: any, trial t: any, trial e?: any) : constraint` | `2..3` | `trial` | `constraint` |
 
 A result word of `constraint` marks a residual whose meet depends on the
 peer it lands beside. `any` is the result word where the declaration
@@ -373,7 +390,7 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 63 names, cut by result word, by rest slot, and by optional
+The same 71 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
@@ -381,8 +398,8 @@ The ten result words, and the names under each:
 
 | result | count | names |
 |---|---|---|
-| `any` | 12 | `close`, `copy`, `deprecate`, `hide`, `match`, `maybe`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 14 | `above`, `acyclic`, `below`, `empty`, `inverse`, `len`, `max`, `min`, `must`, `neq`, `re`, `refer`, `rel`, `unique` |
+| `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
+| `constraint` | 20 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |
@@ -392,7 +409,7 @@ The ten result words, and the names under each:
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
 
-The algebra of the fourteen that answer `constraint`, including which
+The algebra of the twenty that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is
 [The constraint algebra](reference-language.md#the-constraint-algebra).
 Ten of the eleven that answer `map` are the component functions, written
@@ -408,16 +425,23 @@ with `split`, which answers `list`:
 that answers `path` is `path` itself:
 [First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp).
 
-Two names take a rest slot, spelled `...` in the declaration. `neq`
-takes one or more single values and has a floor of one. `match` takes a
+Five names take a rest slot, spelled `...` in the declaration. `neq`
+takes one or more single values and has a floor of one. `nof` takes its
+count and then one or more trial schemas, so its floor is two, and
+`meta` takes its value and then one or more records, so its floor is
+two as well. `rest` takes its trial schema and then any number of cover
+records, the slot marked `?`, so its floor is one. `match` takes a
 repeating pair whose first member is the pattern and whose second is the
 answer, and the pair's length counts toward the floor, which is why the
 floor is three: a scrutinee, a pattern, and an answer. `match` is
 specified at [Selecting: `filter` and
 `match`](reference-language.md#selecting-filter-and-match), `neq` at
-[The constraint algebra](reference-language.md#the-constraint-algebra).
+[The constraint algebra](reference-language.md#the-constraint-algebra),
+`nof` at [Band B: `nof`](reference-language.md#band-b-nof), `rest` at
+[Band B: `rest`](reference-language.md#band-b-rest), and `meta` at
+[Annotations: `meta`](reference-language.md#annotations-meta).
 
-Twenty-five names have at least one optional slot. `must` is the one
+Twenty-eight names have at least one optional slot. `must` is the one
 name that carries two non-value modes, its check `trial` and its message
 `text`. `match` is the one name whose rest group pairs a `trial` member
 with a `value` one.

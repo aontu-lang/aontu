@@ -37,6 +37,7 @@ import { NilVal } from './NilVal'
 import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
+import { rides } from '../rider'
 
 
 class ListVal extends BagVal {
@@ -119,11 +120,10 @@ class ListVal extends BagVal {
       else {
         out.closed = out.closed || peer.closed
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
-          null == peer.spread.cj ? out.spread.cj : (
-            out.spread.cj =
-            unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
-              out.spread.cj, peer.spread.cj, 'list-peer')
-          )
+          null == peer.spread.cj ? out.spread.cj :
+            out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+              unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
+                out.spread.cj, peer.spread.cj, 'list-peer')
         )
       }
     }
@@ -156,8 +156,13 @@ class ListVal extends BagVal {
               child, TOP, 'list-own')
           ; (oval as any)._spr = spreadId(spread_cj)
         }
+        else if (!spread_cj.isTop && peer instanceof ListVal
+          && (peer.peg[key] as any)?._spr === spreadId(spread_cj)) {
+          oval = child
+        }
         else {
-          const key_spread_cj = spread_cj.spreadClone(keyctx)
+          // No spread: the shared top, which nothing writes on.
+          const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx)
           // The spread mark the provenance recorder reads (G7 phase 3),
           // as in MapVal: this is where a template becomes a per-element
           // contribution. Instrumented runs only.
@@ -169,9 +174,9 @@ class ListVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                    && undefined === keyctx.prov ? child :
+                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
                       unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
                         child, key_spread_cj, 'list-own')
 
@@ -214,13 +219,22 @@ class ListVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child ? peerchild :
-              child.isTop && peerchild.done ? peerchild :
+              child.isTop && !rides(child) && peerchild.done ? peerchild :
                 child.isNil ? child :
                   peerchild.isNil ? peerchild :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'list-peer')
 
-          if (this.spread.cj && undecided(oval)) {
+          // The spread meets an element once, and a meet with a marked element
+          // keeps the mark: met again, a recursive spread expanded at every meet.
+          if (undefined !== child) {
+            if (!spread_cj.isTop && !oval.isNil &&
+              ((child as any)._spr === spreadId(spread_cj) ||
+                (peerchild as any)._spr === spreadId(spread_cj))) {
+              ; (oval as any)._spr = spreadId(spread_cj)
+            }
+          }
+          else if (this.spread.cj && undecided(oval)) {
             done = false
           }
           else if (this.spread.cj && !oval.isAbsent) {
@@ -232,6 +246,9 @@ class ListVal extends BagVal {
             oval = out.peg[peerkey] =
               unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                 out.peg[peerkey], key_spread_cj, 'list-spread')
+            if (!spread_cj.isTop && !oval.isNil) {
+              ; (oval as any)._spr = spreadId(spread_cj)
+            }
           }
 
           propagateMarks(this, oval)
@@ -343,7 +360,7 @@ class ListVal extends BagVal {
     let keys = Object.keys(this.peg)
     return '' +
       '[' +
-      (this.spread.cj ? '&:' + this.spread.cj.canon +
+      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
         (0 < keys.length ? ',' : '') : '') +
       keys.map(k => canonRiders(this.peg[k])).join(',') +
       ']'

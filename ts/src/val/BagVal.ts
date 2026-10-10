@@ -150,7 +150,7 @@ abstract class BagVal extends FeatureVal {
       // Go port, which also drops skipped elements).
       const put = (v: any) => {
         if (this.isMap) {
-          out[p] = v
+          putKey(out, String(p), v)
         }
         else {
           out.push(v)
@@ -227,6 +227,25 @@ abstract class BagVal extends FeatureVal {
 
 export {
   BagVal,
+}
+
+
+// A key is data, never a property lookup: a key table has no prototype.
+export function keyTable<T = any>(): Record<string, T> {
+  return Object.create(null)
+}
+
+
+// A generated object keeps its prototype, so `__proto__` is defined.
+export function putKey(out: any, key: string, val: any): void {
+  if ('__proto__' === key) {
+    Object.defineProperty(out, key, {
+      value: val, writable: true, enumerable: true, configurable: true,
+    })
+  }
+  else {
+    out[key] = val
+  }
 }
 
 

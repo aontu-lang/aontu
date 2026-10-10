@@ -73,17 +73,19 @@ func TestContainerKindApiOnlyArms(t *testing.T) {
 	}
 }
 
+// Only a root reference of empty segments names its own scope.
 func TestRefDegenerateEmptySegments(t *testing.T) {
-	ctx := &Ctx{root: newMap()}
-	rv := newRef([]any{""}, false)
-	rv.path = []string{"y"}
-	out := rv.Unify(top(), ctx)
-	n, ok := out.(*NilVal)
-	if !ok {
-		t.Fatalf("want nil, got %T", out)
-	}
-	if "path_cycle" != n.why {
-		t.Fatalf("why = %q, want path_cycle", n.why)
+	for _, c := range []struct {
+		path []string
+		why  string
+	}{{[]string{}, "path_cycle"}, {[]string{"y"}, "no_path"}} {
+		ctx := &Ctx{root: newMap()}
+		rv := newRef([]any{""}, false)
+		rv.path = c.path
+		n, ok := rv.Unify(top(), ctx).(*NilVal)
+		if !ok || c.why != n.why {
+			t.Fatalf("path %v: want %s, got %v", c.path, c.why, n)
+		}
 	}
 }
 

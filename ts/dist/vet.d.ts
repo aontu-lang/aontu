@@ -21,6 +21,7 @@ export type VetFinding = {
     expected?: string;
     actual?: string;
     note?: string;
+    pointer?: string;
 };
 export type VetCoverage = {
     checked: number;
@@ -47,6 +48,8 @@ export type VetOptions = {
     dataUrl?: string;
     schemaPath?: string;
     dataPath?: string;
+    noFill?: boolean;
+    exactNumbers?: boolean;
     trust?: TrustOptions;
     textExt?: string[];
 };

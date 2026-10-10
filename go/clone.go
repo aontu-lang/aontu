@@ -62,6 +62,9 @@ func setPaths(v Val, path []string) {
 		for _, m := range n.musts {
 			setPaths(m.v, path)
 		}
+		for _, b := range n.settledTrials() {
+			setPaths(b, path)
+		}
 	}
 }
 
@@ -73,6 +76,20 @@ func overlayPath(dest, orig []string) []string {
 	copy(out, dest)
 	copy(out[len(dest):], orig[len(dest):])
 	return out
+}
+
+// clonePlace is where TS's Val.clone puts a copy given no destination
+// of its own, as its spreadClone re-paths a whole instance: the tail of
+// the original past a spread marker, or past the destination's depth.
+func clonePlace(dest, orig []string) []string {
+	cut := len(dest)
+	for i, s := range orig {
+		if "&" == s {
+			cut = i + 1
+			break
+		}
+	}
+	return append(cp(dest), orig[min(cut, len(orig)):]...)
 }
 
 func repathArg(v Val, base []string, settle bool) {
@@ -317,7 +334,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		copyMarks(out, n)
 		return out
 	case *FuncVal:
-		out := &FuncVal{name: n.name, prepared: n.prepared}
+		out := &FuncVal{name: n.name, prepared: n.prepared, declared: n.declared}
 		out.dc = n.dc
 		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)

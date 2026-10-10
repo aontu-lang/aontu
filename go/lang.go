@@ -26,6 +26,10 @@ const orderKey = reservedKeyPrefix + "order"
 const spreadKey = reservedKeyPrefix + "spread"
 const optionalKey = reservedKeyPrefix + "optional"
 
+// exactNumbersMetaKey asks the parse to read numbers by exact value (G12).
+const exactNumbersMetaKey = reservedKeyPrefix + "exactnumbers"
+const requiredKey = reservedKeyPrefix + "required"
+
 // aliasKeysKey is the sentinel holding this map's ALIAS DECLARATIONS
 // -- `%name = value` pairs, which bind a file-local name and are not fields
 // of the document. Twin of aontu_alias_keys in ts/src/lang.ts.
@@ -35,6 +39,9 @@ const keyRefusalsKey = reservedKeyPrefix + "keyrefusals"
 
 // The declarations before scoping, the names published and the heads.
 const aliasDeclsKey = reservedKeyPrefix + "aliasdecls"
+
+// aliasValsKey: a declaration set aside because a data key spelled its name.
+const aliasValsKey = reservedKeyPrefix + "aliasvals"
 const exportDeclsKey = reservedKeyPrefix + "exportdecls"
 const exportKeysKey = reservedKeyPrefix + "exportkeys"
 const importDeclsKey = reservedKeyPrefix + "importdecls"
@@ -274,6 +281,32 @@ help isolate the syntax error.`,
 			// Duplicate keys combine into a conjunct (mirrors the jsonic
 			// merge in ts/src/lang.ts), e.g. `a:1 a:2` -> `a:1&2`.
 			Merge: func(prev, val any, r *jsonic.Rule, ctx *jsonic.Context) any {
+				// A DECLARATION IS NOT A FIELD: a data key spelling its name
+				// shares no slot with it, so it waits until the map is built.
+				if m, ok := r.Node.(map[string]any); ok && r.ON > 0 {
+					key := keyOf(r.O0)
+					aside, _ := m[aliasValsKey].(map[string]any)
+					if aside == nil {
+						aside = map[string]any{}
+						m[aliasValsKey] = aside
+					}
+					held, set := aside[key]
+					declared := aliasDeclared(m, key)
+					if isAliasDecl(r.O0, r.O1, key) {
+						// A second declaration meets the first wherever it is.
+						if set {
+							aside[key] = mergeVals(asVal(held), asVal(val))
+							return prev
+						}
+						if !declared {
+							aside[key] = val
+							return prev
+						}
+					} else if declared && !set {
+						aside[key] = prev
+						return val
+					}
+				}
 				if prev == nil {
 					return val
 				}
@@ -345,7 +378,8 @@ help isolate the syntax error.`,
 		)
 	})
 	qm := j.Token("#QM", "?")
-	optkey := []jsonic.Tin{jsonic.TinTX, jsonic.TinST, jsonic.TinNR}
+	// A value keyword is a key wherever a key is written, optional or not.
+	optkey := []jsonic.Tin{jsonic.TinTX, jsonic.TinST, jsonic.TinNR, jsonic.TinVL}
 
 	freshMapNode := func(r *jsonic.Rule, _ *jsonic.Context) { r.Node = map[string]any{} }
 
@@ -555,8 +589,13 @@ func scopeAliasKeys(m map[string]any) {
 	decls, _ := m[aliasDeclsKey].([]aliasDecl)
 	ord, _ := m[orderKey].([]string)
 	ak, _ := m[aliasKeysKey].([]string)
+	aside, _ := m[aliasValsKey].(map[string]any)
 	for _, d := range decls {
-		if v, seen := m[d.name]; seen {
+		if v, set := aside[d.name]; set {
+			// A data key spelled the name: the data keeps its slot.
+			m[d.key] = v
+			ord = appendNew(ord, d.key)
+		} else if v, seen := m[d.name]; seen {
 			delete(m, d.name)
 			m[d.key] = v
 			for i, k := range ord {
@@ -801,7 +840,7 @@ func valDef(mk func(sp int) Val) *jsonic.ValueDef {
 
 // wrapLeaf converts a plain scalar leaf (number/string/bool) produced by
 // jsonic into the matching Val, recording the source byte offset.
-func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
+func wrapLeaf(r *jsonic.Rule, ctx *jsonic.Context) {
 	// Leave the @"path" argument of the multisource directive as a raw
 	// string so the directive can read it (it extracts the path itself,
 	// unlike the TS resolver which reads StringVal.peg).
@@ -813,6 +852,17 @@ func wrapLeaf(r *jsonic.Rule, _ *jsonic.Context) {
 	if r.ON > 0 {
 		sp = r.O0.SI
 		src = r.O0.Src
+	}
+	if exact := nil != ctx && true == ctx.Meta[exactNumbersMetaKey]; exact {
+		_, num := r.Node.(float64)
+		txt, isText := r.Node.(string)
+		num = num || (isText && r.ON > 0 && r.O0.Tin == jsonic.TinTX && txt == src)
+		if en, ok := readExactNumber(src); num && ok {
+			v := exactNumberVal(en, src, sp)
+			stampSrc(v, r)
+			r.Node = v
+			return
+		}
 	}
 	switch n := r.Node.(type) {
 	case float64:
@@ -1290,6 +1340,11 @@ func trackOrder(r *jsonic.Rule, ctx *jsonic.Context) {
 		m[importDeclsKey] = append(ims, importDecl{
 			key: key, binds: binds, url: srcURL(ctx),
 			sp: r.O0.SI, src: r.O0.Src})
+	} else if r.U["optional"] != true &&
+		(r.Child == nil || r.Child.Name != "multisource") {
+		// REQUIRED WINS (ADR-045): a plain pair votes for its key.
+		req, _ := m[requiredKey].([]string)
+		m[requiredKey] = appendNew(req, key)
 	}
 
 	// An optional pair (key?:value) bypasses jsonic's value storage,
@@ -1341,6 +1396,18 @@ func keyOf(t *jsonic.Token) string {
 		}
 	}
 	return t.Src
+}
+
+// aliasDeclared reports whether the map has declared an alias of this
+// bare name so far.
+func aliasDeclared(m map[string]any, name string) bool {
+	decls, _ := m[aliasDeclsKey].([]aliasDecl)
+	for _, d := range decls {
+		if d.name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func isAliasDecl(ktkn, sep *jsonic.Token, key string) bool {
@@ -2024,6 +2091,15 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			stampSrc(r0, r)
 			return r0
 		}
+		// `$` takes a name or a path; anything else is refused where written.
+		if sv, ok := asVal(terms[0]).(*ScalarVal); !ok || KindString != sv.kind {
+			nv := newNil("var_name")
+			if r.ON > 0 {
+				nv.site.sp = r.O0.SI
+			}
+			stampSrc(nv, r)
+			return nv
+		}
 		vv := newVar(asVal(terms[0]))
 		if r.ON > 0 {
 			vv.site.sp = r.O0.SI
@@ -2076,6 +2152,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 			if r.ON > 0 {
 				gv.setPos(r.O0.SI)
 			}
+			stampSrc(gv, r)
 			return gv
 		}
 		// `a:()` — grouping parens with nothing inside.
@@ -2133,7 +2210,8 @@ func toVals(terms []interface{}) []Val {
 
 const maxNodeDepth = 10000
 
-func valTreeDepth(v Val) int {
+// valTreeDepth stops past bound. Mirrors treeDepth in ts/src/aontu.ts.
+func valTreeDepth(v Val, bound int) int {
 	type item struct {
 		v Val
 		d int
@@ -2145,7 +2223,7 @@ func valTreeDepth(v Val) int {
 		stack = stack[:len(stack)-1]
 		if it.d > maxd {
 			maxd = it.d
-			if maxd > maxNodeDepth {
+			if maxd > bound {
 				return maxd
 			}
 		}
@@ -2255,7 +2333,12 @@ func asValDepth(node any, depth int) Val {
 			mv.spread = sp.(Val)
 		}
 		if opt, ok := n[optionalKey].([]string); ok {
-			mv.optional = opt
+			mv.optional = append([]string{}, opt...)
+		}
+		if req, ok := n[requiredKey].([]string); ok {
+			for _, k := range req {
+				mv.optional = withoutKey(mv.optional, k)
+			}
 		}
 		if ak, ok := n[aliasKeysKey].([]string); ok {
 			mv.aliasKeys = ak
@@ -2320,6 +2403,9 @@ func asValDepth(node any, depth int) Val {
 			}
 			mv.set(k, asValDepth(v, depth+1))
 		}
+		for _, k := range mv.aliasKeys {
+			declareIdent(mv.peg[k])
+		}
 		if carried {
 			// A ROOT include whose value is not a map, merged into the
 			// map that holds the directive: the two cannot meet.
@@ -2351,6 +2437,48 @@ func asValDepth(node any, depth int) Val {
 		return newBoolean(n)
 	}
 	return newNil("parse_unknown")
+}
+
+// declareIdent marks ident() as a declaration's (ADR-056).
+func declareIdent(v Val) {
+	switch n := v.(type) {
+	case *FuncVal:
+		n.declared = "ident" == n.name
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			declareIdent(t)
+		}
+	}
+}
+
+// findDeepNesting is the offset of the first opener nesting past bound,
+// or -1; strings and comments do not count. Mirrors ts/src/aontu.ts.
+func findDeepNesting(src string, bound int) int {
+	depth := 0
+	for i := 0; i < len(src); i++ {
+		switch c := src[i]; c {
+		case '#':
+			for i < len(src) && '\n' != src[i] {
+				i++
+			}
+		case '"', '\'', '`':
+			for i++; i < len(src) && c != src[i] && ('`' == c || '\n' != src[i]); i++ {
+				if '\\' == src[i] {
+					i++
+				}
+			}
+		case '[', '{', '(':
+			depth++
+			if bound < depth {
+				return i
+			}
+		case ']', '}', ')':
+			if 0 < depth {
+				depth--
+			}
+		}
+	}
+	return -1
 }
 
 func findConflictMarker(src string) int {
@@ -2451,11 +2579,14 @@ func placeAliasHoists(out any, sink *aliasHoistSink) {
 	m[aliasKeysKey] = ak
 }
 
-func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
+func parseWithTrust(src, base, file string, trust *trustSink, exact bool, depth int) (Val, error) {
 	src = toValidSource(src)
 
 	if off := findConflictMarker(src); off >= 0 {
 		return newMap(), conflictError(src, file, off)
+	}
+	if off := findDeepNesting(src, 2*depth); off >= 0 {
+		return newMap(), refusalAt("max_depth", src, file, off)
 	}
 
 	lang, err := langForBase(base)
@@ -2465,6 +2596,9 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	sink := &notFoundSink{}
 	hoists := &aliasHoistSink{}
 	meta := map[string]any{notFoundMetaKey: sink, aliasHoistMetaKey: hoists}
+	if exact {
+		meta[exactNumbersMetaKey] = true
+	}
 	if nil != trust {
 		meta[trustMetaKey] = trust
 	}
@@ -2504,7 +2638,7 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 	}
 	placeAliasHoists(out, hoists)
 	root := asVal(out)
-	if valTreeDepth(root) > maxNodeDepth {
+	if valTreeDepth(root, 2*depth) > 2*depth {
 		n := newNil("max_depth")
 		return newMap(), &AontuError{Msg: n.FullMessage(src, file, nil), Code: "max_depth"}
 	}
@@ -2517,12 +2651,17 @@ func parseWithTrust(src, base, file string, trust *trustSink) (Val, error) {
 // canonical port puts them on the refusal's site, and the validation
 // verb reports them (vet.go).
 func conflictError(src, file string, off int) *AontuError {
-	n := newNil("merge_conflict")
+	return refusalAt("merge_conflict", src, file, off)
+}
+
+// refusalAt is a refusal of the whole source, sited at byte offset off.
+func refusalAt(code, src, file string, off int) *AontuError {
+	n := newNil(code)
 	n.site.sp = off
 	row, col := rowCol(src, off)
 	return &AontuError{
 		Msg:  n.FullMessage(src, file, nil),
-		Code: "merge_conflict",
+		Code: code,
 		Row:  row,
 		Col:  col,
 	}

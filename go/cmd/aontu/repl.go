@@ -24,7 +24,8 @@ type replState struct {
 	// Loaded is false until a `:load` succeeds — an empty document is
 	// still a document.
 	Loaded bool
-	Trust trustArg
+	Trust  trustArg
+	Exact  bool
 }
 
 // replSnippet is the engine a bare (unnamed) snippet evaluates in. A
@@ -41,6 +42,14 @@ func replSnippet(state replState) *aontu.Aontu {
 	if capability := verbTrust(state.Trust, cwd); nil != capability {
 		a.Trust = capability
 	}
+	a.ExactNumbers = state.Exact
+	return a
+}
+
+// replFile is the engine a named document evaluates in.
+func replFile(state replState, file string) *aontu.Aontu {
+	a := aontuForFileTrust(file, state.Trust)
+	a.ExactNumbers = state.Exact
 	return a
 }
 
@@ -130,7 +139,7 @@ func replCommand(
 		// Evaluated ONCE, and what is held is the source: parsed trees
 		// are single-use, so every later question re-evaluates from
 		// the text.
-		text, rerr := render(aontuForFileTrust(arg, state.Trust), src, state.Mode)
+		text, rerr := render(replFile(state, arg), src, state.Mode)
 		if nil != rerr {
 			return refuse(rerr.Error())
 		}
@@ -146,7 +155,7 @@ func replCommand(
 		if "" == path {
 			path = "$"
 		}
-		a := aontuForFileTrust(state.Name, state.Trust)
+		a := replFile(state, state.Name)
 		if ":why" == cmd {
 			report := a.Why(state.Src, path)
 			if !report.OK {

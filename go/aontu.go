@@ -15,6 +15,7 @@ type TrustBudget struct {
 	Passes int // fixpoint passes (default 9)
 	Depth  int // structural recursion depth (default 1000)
 	Alias  int // expanded alias nodes (default 1000000)
+	Trials int // admission trials (default 100000)
 }
 
 type TrustOptions struct {
@@ -34,8 +35,7 @@ type Aontu struct {
 
 	File string
 
-	// Trust is the evaluation's trust profile (G5, docs/trust.md).
-	// Nil means the 'system' posture, today's default.
+	// Trust is the trust profile (docs/trust.md); nil is the 'system' posture.
 	Trust *TrustOptions
 
 	IncludeText map[string]string
@@ -52,6 +52,8 @@ type Aontu struct {
 	TrustWarnRoot string
 
 	TextExt []string
+
+	ExactNumbers bool
 }
 
 // New creates a new Aontu instance. Relative @"file" loads resolve from
@@ -68,7 +70,11 @@ func (a *Aontu) Parse(src string) (Val, error) {
 // and leaves the include manifest on IncludeDeps.
 func (a *Aontu) parseEntry(src string) (Val, error) {
 	sink := a.newTrustSink()
-	v, err := parseWithTrust(src, a.base, a.File, sink)
+	depth := maxUniteDepth
+	if nil != a.Trust && 0 < a.Trust.Budget.Depth {
+		depth = a.Trust.Budget.Depth
+	}
+	v, err := parseWithTrust(src, a.base, a.File, sink, a.ExactNumbers, depth)
 	a.IncludeDeps = manifestOf(*sink.deps)
 	a.IncludeText = sink.texts
 	return v, err
@@ -141,6 +147,7 @@ func (a *Aontu) unifyCtxReads(v Val, vars map[string]Val, src string,
 		ctx.budgetPasses = a.Trust.Budget.Passes
 		ctx.budgetDepth = a.Trust.Budget.Depth
 		ctx.budgetAlias = a.Trust.Budget.Alias
+		ctx.budgetTrials = a.Trust.Budget.Trials
 	}
 	res := unifyRoot(v, ctx)
 	ctx.root = res

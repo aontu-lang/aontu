@@ -4,7 +4,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TopVal = void 0;
 const type_1 = require("../type");
 const Val_1 = require("./Val");
-// There can be only one.
+// Every top means the same, but each is its own value: a clone is a
+// fresh one, so a mark or rider written on a copy stays on the copy.
 class TopVal extends Val_1.Val {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -24,9 +25,6 @@ class TopVal extends Val_1.Val {
     }
     get canon() { return 'any'; }
     superior() {
-        return this;
-    }
-    clone(_ctx, _spec) {
         return this;
     }
     gen(_ctx) {

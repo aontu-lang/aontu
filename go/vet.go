@@ -55,9 +55,11 @@ type VetFinding struct {
 	Expected *string `json:"expected,omitempty"`
 	Hint *string `json:"hint,omitempty"`
 
-	Message  string    `json:"message"`
-	Note     *string   `json:"note,omitempty"`
-	Path     string    `json:"path"`
+	Message string  `json:"message"`
+	Note    *string `json:"note,omitempty"`
+	Path    string  `json:"path"`
+	// Pointer is the path as an RFC 6901 pointer, unambiguous where a key holds a dot.
+	Pointer  *string   `json:"pointer,omitempty"`
 	Severity string    `json:"severity"`
 	Sites    []VetSite `json:"sites"`
 }
@@ -102,6 +104,12 @@ type VetOptions struct {
 
 	SchemaPath string
 	DataPath   string
+
+	// NoFill requires the data to be an instance as written (G12): a member
+	// the schema supplies and the data lacks is a vet_filled finding.
+	NoFill bool
+	// ExactNumbers reads every data number by its exact value (G12).
+	ExactNumbers bool
 }
 
 func aontuForPathTrust(
@@ -164,6 +172,25 @@ func displayFile(url, label, path string) string {
 	return filepath.Join(dir, rel)
 }
 
+// vetPath spells a finding's path as a message does: no alias scope.
+func vetPath(path []string) string {
+	segs := make([]string, len(path))
+	for i, p := range path {
+		segs[i] = aliasPathSegment(p)
+	}
+	return subPathText(segs)
+}
+
+func pointed(f VetFinding, path []string) VetFinding {
+	segs := make([]string, len(path))
+	for i, p := range path {
+		segs[i] = aliasPathSegment(p)
+	}
+	ptr := pointerOf(segs)
+	f.Pointer = &ptr
+	return f
+}
+
 func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
 	if v == nil {
 		return nil
@@ -184,10 +211,9 @@ func siteOf(v Val, prov vetProv, sources vetSources) *VetSite {
 	}
 }
 
-// sitesOf lists the data site first — it is the thing to fix — then the
-// schema site. The underlying NilVal fields are untouched: this is a
-// report-layer projection, so the existing error.tsv assertions do not
-// move.
+// sitesOf lists the data site first, the thing to fix, then the schema
+// site: a report-layer projection, so the NilVal fields it reads and the
+// error.tsv assertions on them do not move.
 func sitesOf(n *NilVal, prov vetProv, sources vetSources) []VetSite {
 	sites := []VetSite{}
 	// The nil ITSELF when it has no operands: a failure raised about a
@@ -339,6 +365,62 @@ func anchorAt(root Val, at string) Val {
 	return node
 }
 
+// filledFindings reports each member the schema supplied and the data
+// does not carry, at the anchor's own paths.
+func filledFindings(generated any, unified Val, dataSrc string,
+	options VetOptions, prov vetProv, sources vetSources) []VetFinding {
+	ownA := aontuForPathTrust(options.DataPath, options.Trust, options.TextExt)
+	ownA.ExactNumbers = options.ExactNumbers
+	parsed, _ := ownA.Parse(dataSrc)
+	stampURL(parsed, prov.dataURL)
+	ownCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
+	own := unifyRoot(parsed, ownCtx)
+	if 0 < len(ownCtx.err) {
+		out := []VetFinding{}
+		for _, e := range ownCtx.err {
+			out = append(out, pointed(findingOf(e, prov, sources), e.pathSegments()))
+		}
+		return out
+	}
+	gctx := &Ctx{root: own, src: dataSrc, collect: true}
+	ownGen, _ := own.Gen(gctx)
+	out := []VetFinding{}
+	prefix := anchorSegs(options.At)
+	filled := fillDiff(generated, ownGen, unified, nil, nil)
+	// Data the schema must complete at its root is filled there.
+	if nil == ownGen && 0 < len(gctx.err) {
+		filled = [][]string{{}}
+	}
+	for _, p := range filled {
+		sites := []VetSite{}
+		if s := siteOf(valAt(unified, p), prov, sources); nil != s {
+			sites = append(sites, *s)
+		}
+		out = append(out, pointed(fromRegistry(VetFinding{
+			Class:    codeClass("vet_filled"),
+			Code:     "vet_filled",
+			Message:  "The schema supplies this member, and the data does not carry it.",
+			Path:     vetPath(append(cp(prefix), p...)),
+			Severity: "error",
+			Sites:    sites,
+		}, "vet_filled", nil), append(cp(prefix), p...)))
+	}
+	return out
+}
+
+// valAt is the value a filled member is blamed on, at a generated path.
+func valAt(root Val, path []string) Val {
+	v := root
+	for _, seg := range path {
+		next := admitMember(v, seg)
+		if nil == next {
+			return v
+		}
+		v = next
+	}
+	return v
+}
+
 func anchorSegs(at string) []string {
 	out := []string{}
 	for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
@@ -453,6 +535,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		options.SchemaPath, options.Trust, options.TextExt)
 	dataA := aontuForPathTrust(
 		options.DataPath, options.Trust, options.TextExt)
+	dataA.ExactNumbers = options.ExactNumbers
 
 	// 1. The schema alone. If it does not stand up on its own, the data
 	//    is never blamed for it.
@@ -461,7 +544,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetError,
 			Truncated: false,
-			Findings:  []VetFinding{parseFinding(schemaURL, VetRoleSchema, perr)},
+			Findings:  []VetFinding{pointed(parseFinding(schemaURL, VetRoleSchema, perr), nil)},
 		}
 	}
 	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
@@ -479,8 +562,8 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			Truncated: false,
 			// A schema that does not stand up: nothing here is data, so
 			// the data-url set is empty and every site reads `schema`.
-			Findings: []VetFinding{findingOf(failure, vetProv{},
-				vetSources{schemaURL: schemaSrc, dataURL: dataSrc})},
+			Findings: []VetFinding{pointed(findingOf(failure, vetProv{},
+				vetSources{schemaURL: schemaSrc, dataURL: dataSrc}), failure.pathSegments())},
 		}
 	}
 
@@ -492,7 +575,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 			return VetReport{
 				Verdict:   VetError,
 				Truncated: false,
-				Findings:  []VetFinding{noPathFinding(schemaVal, options.At)},
+				Findings:  []VetFinding{pointed(noPathFinding(schemaVal, options.At), anchorSegs(options.At))},
 			}
 		}
 	}
@@ -530,16 +613,16 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 					site := &VetSite{Col: col, File: schemaURL,
 						Len: def.srclen(), Role: VetRoleSchema, Row: row,
 						Src: def.srctext(), Value: def.Canon()}
-					lintFindings = append(lintFindings, VetFinding{
+					lintFindings = append(lintFindings, pointed(VetFinding{
 						Code:     "pref_not_instance",
 						Class:    "compat",
 						Severity: "warning",
-						Path:     subPathText(path),
+						Path:     vetPath(path),
 						Message: "the default " + def.Canon() +
 							" is not an instance of any remaining alternative of " +
 							d.Canon(),
 						Sites: []VetSite{*site},
-					})
+					}, path))
 				}
 			}
 		}
@@ -552,7 +635,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		return VetReport{
 			Verdict:   VetInvalid,
 			Truncated: false,
-			Findings:  []VetFinding{parseFinding(dataURL, VetRoleData, derr)},
+			Findings:  []VetFinding{pointed(parseFinding(dataURL, VetRoleData, derr), nil)},
 		}
 	}
 	stampURL(schemaVal, schemaURL)
@@ -572,6 +655,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		measured := dataVal
 		coverA := aontuForPathTrust(
 			options.DataPath, options.Trust, options.TextExt)
+		coverA.ExactNumbers = options.ExactNumbers
 		if parsed, cerr := coverA.Parse(dataSrc); nil == cerr {
 			coverCtx := &Ctx{root: parsed, src: dataSrc, collect: true}
 			settled := unifyRoot(parsed, coverCtx)
@@ -640,40 +724,32 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 
 	findings := []VetFinding{}
 	for _, n := range nils {
-		findings = append(findings, findingOf(n, prov, sources))
+		findings = append(findings, pointed(findingOf(n, prov, sources), n.pathSegments()))
 	}
 
 	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
 		probe: "" != options.At}
-	_, _ = unified.Gen(genCtx)
+	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
-		if "incomplete" == e.Class() || "conflict" == e.Class() {
-			findings = append(findings, findingOf(e, prov, sources))
-		}
+		findings = append(findings, pointed(findingOf(e, prov, sources), e.pathSegments()))
+	}
+	if options.NoFill && nil != generated {
+		findings = append(findings,
+			filledFindings(generated, unified, dataSrc, options, prov, sources)...)
 	}
 	findings = append(findings, lintFindings...)
 
 	for _, d := range collectDeprecatedVals(unified) {
-		rec := d.v.deprecRec()
-		msg := "deprecated"
-		if m, ok := rec["msg"]; ok {
-			msg += ": " + m
-		}
-		if u, ok := rec["use"]; ok {
-			msg += " (use " + u + ")"
-		}
-		if sv, ok := rec["since"]; ok {
-			msg += " (since " + sv + ")"
-		}
+		msg := deprecationMessage(d.v.deprecRec())
 		site := siteOf(d.v, prov, sources)
-		findings = append(findings, VetFinding{
+		findings = append(findings, pointed(VetFinding{
 			Code:     "deprecated",
 			Class:    "compat",
 			Severity: "warning",
-			Path:     subPathText(d.v.vpath()),
+			Path:     vetPath(d.path),
 			Message:  msg,
 			Sites:    []VetSite{*site},
-		})
+		}, d.path))
 	}
 
 	keys := make([]string, len(findings))

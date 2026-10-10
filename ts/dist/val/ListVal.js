@@ -12,6 +12,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const provenance_1 = require("../provenance");
+const rider_1 = require("../rider");
 class ListVal extends BagVal_1.BagVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -71,8 +72,9 @@ class ListVal extends BagVal_1.BagVal {
             }
             else {
                 out.closed = out.closed || peer.closed;
-                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj : (out.spread.cj =
-                    (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer')));
+                out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
+                    out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+                        (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer'));
             }
         }
         if (!exit) {
@@ -96,8 +98,13 @@ class ListVal extends BagVal_1.BagVal {
                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, TOP, 'list-own');
                     oval._spr = (0, Val_1.spreadId)(spread_cj);
                 }
+                else if (!spread_cj.isTop && peer instanceof ListVal
+                    && peer.peg[key]?._spr === (0, Val_1.spreadId)(spread_cj)) {
+                    oval = child;
+                }
                 else {
-                    const key_spread_cj = spread_cj.spreadClone(keyctx);
+                    // No spread: the shared top, which nothing writes on.
+                    const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx);
                     // The spread mark the provenance recorder reads (G7 phase 3),
                     // as in MapVal: this is where a template becomes a per-element
                     // contribution. Instrumented runs only.
@@ -108,9 +115,9 @@ class ListVal extends BagVal_1.BagVal {
                     oval =
                         child.isNil ? child :
                             key_spread_cj.isNil ? key_spread_cj :
-                                key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                                    ? child :
-                                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                                key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
+                                    && undefined === keyctx.prov ? child :
+                                    child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
                                         (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'PEG:' + key) }) : keyctx, child, key_spread_cj, 'list-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
@@ -140,11 +147,21 @@ class ListVal extends BagVal_1.BagVal {
                     }
                     let oval = out.peg[peerkey] =
                         undefined === child ? peerchild :
-                            child.isTop && peerchild.done ? peerchild :
+                            child.isTop && !(0, rider_1.rides)(child) && peerchild.done ? peerchild :
                                 child.isNil ? child :
                                     peerchild.isNil ? peerchild :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'list-peer');
-                    if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
+                    // The spread meets an element once, and a meet with a marked element
+                    // keeps the mark: met again, a recursive spread expanded at every meet.
+                    if (undefined !== child) {
+                        if (!spread_cj.isTop && !oval.isNil &&
+                            (child._spr === (0, Val_1.spreadId)(spread_cj) ||
+                                peerchild._spr === (0, Val_1.spreadId)(spread_cj))) {
+                            ;
+                            oval._spr = (0, Val_1.spreadId)(spread_cj);
+                        }
+                    }
+                    else if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;
                     }
                     else if (this.spread.cj && !oval.isAbsent) {
@@ -154,6 +171,10 @@ class ListVal extends BagVal_1.BagVal {
                         }
                         oval = out.peg[peerkey] =
                             (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, out.peg[peerkey], key_spread_cj, 'list-spread');
+                        if (!spread_cj.isTop && !oval.isNil) {
+                            ;
+                            oval._spr = (0, Val_1.spreadId)(spread_cj);
+                        }
                     }
                     (0, utility_1.propagateMarks)(this, oval);
                     done = (done && type_1.DONE === oval.dc);
@@ -244,7 +265,7 @@ class ListVal extends BagVal_1.BagVal {
         let keys = Object.keys(this.peg);
         return '' +
             '[' +
-            (this.spread.cj ? '&:' + this.spread.cj.canon +
+            (this.spread.cj ? '&:' + (0, utility_1.canonRiders)(this.spread.cj) +
                 (0 < keys.length ? ',' : '') : '') +
             keys.map(k => (0, utility_1.canonRiders)(this.peg[k])).join(',') +
             ']';

@@ -392,15 +392,19 @@ func TestAllowAtMovesTheRolesMap(t *testing.T) {
 	}
 }
 
-func TestAllowAClosedVocabularyDeclaresDenyOrIsRefused(t *testing.T) {
-	// close() on the role shape must admit the optional deny the
-	// template carries, or the meet is refused with the engine's code.
-	if "closed" != allowFailure(t, `roles: dev: close({ allow: ["$"] })`).Code {
+func TestAllowAClosedVocabularyNeedNotDeclareDeny(t *testing.T) {
+	// A closed role drops the template's optional deny it does not
+	// declare, and so denies nothing.
+	if "allow" != allowDecision(t, "dev", "$.x", `roles: dev: close({ allow: ["$"] })`).Reason {
 		t.Fatal("closed without deny")
 	}
 	declared := `roles: dev: close({ allow: ["$"] deny?: [&: string] })`
 	if "allow" != allowDecision(t, "dev", "$.x", declared).Reason {
 		t.Fatal("closed with deny declared")
+	}
+	denied := `roles: dev: close({ allow: ["$"] deny: ["$.x"] })`
+	if "deny" != allowDecision(t, "dev", "$.x", denied).Reason {
+		t.Fatal("closed with deny written")
 	}
 }
 

@@ -5,7 +5,11 @@
       "type": "number"
     },
     "annotations": {
-      "additionalProperties": {},
+      "additionalProperties": {
+        "maxLength": 63,
+        "minLength": 1,
+        "type": "string"
+      },
       "properties": {},
       "type": "object"
     },
@@ -14,8 +18,12 @@
         "type": "integer"
       },
       "maxItems": 3,
-      "minItems": 0,
       "type": "array"
+    },
+    "slugs": {
+      "additionalProperties": {},
+      "properties": {},
+      "type": "object"
     },
     "total": {}
   },
@@ -23,6 +31,7 @@
     "amountEur",
     "annotations",
     "attempts",
+    "slugs",
     "total"
   ],
   "type": "object"

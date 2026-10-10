@@ -142,7 +142,15 @@ abstract class Val {
     hide: false,
   }
 
-  deprecation?: Record<string, string>
+  deprecation?: Record<string, string[]>
+
+  meta?: Record<string, Val[]>
+
+  // The aliases this value is a copy of, which the exporter writes as $ref.
+  via?: string[]
+
+  // A declaration's identity (ADR-056), which no copy carries.
+  identity?: Record<string, string[]>
 
   link?: string
 
@@ -257,6 +265,15 @@ abstract class Val {
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation
+    }
+    if (null != this.meta) {
+      out.meta = this.meta
+    }
+    if (null != this.via) {
+      out.via = this.via
+    }
+    if (null != this.identity) {
+      out.identity = this.identity
     }
 
     if (null != this.origin) {

@@ -35,9 +35,10 @@ import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 import { ConjunctVal } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, undecided } from './BagVal'
+import { BagVal, keyTable, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
+import { rides } from '../rider'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { markSpread } from '../provenance'
 
@@ -86,6 +87,13 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
 }
 
 
+// A written `nil` refuses a supplied value (ADR-046); a minted nil is a
+// refusal already recorded.
+function literalNilRefuses(n: any, v: any): boolean {
+  return 'literal_nil' === n.why && true === v.isGenable && !v.isTop
+}
+
+
 class MapVal extends BagVal {
   isMap = true
 
@@ -97,6 +105,9 @@ class MapVal extends BagVal {
 
     if (null == this.peg) {
       throw new AontuError('MapVal spec.peg undefined')
+    }
+    if (null !== Object.getPrototypeOf(this.peg)) {
+      Object.setPrototypeOf(this.peg, null)
     }
 
     this.mark.type = !!spec.mark?.type
@@ -152,7 +163,7 @@ class MapVal extends BagVal {
     let exit = false
 
     // NOTE: not a clone! needs to be constructed.
-    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: {} }, ctx))
+    let out: MapVal | NilVal = (peer.isTop ? this : new MapVal({ peg: keyTable() }, ctx))
 
     out.closed = this.closed
     out.opened = this.opened
@@ -224,9 +235,15 @@ class MapVal extends BagVal {
         propagateMarks(this, child)
 
         let oval: Val
+        // A DECLARATION IS NOT A CHILD: no template reaches it.
+        if (this.aliasKeys.includes(key)) {
+          oval = child.done ? child :
+            unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
+              child, TOP, 'map-own')
+        }
         // No `undefined !== child` here: propagateMarks above already
         // dereferenced it, so a missing child would have thrown there.
-        if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
+        else if (!spread_cj.isTop && (child.isAbsent || undecided(child))) {
           oval = child.isAbsent ? child :
             unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
               child, TOP, 'map-own')
@@ -241,7 +258,8 @@ class MapVal extends BagVal {
           ; (oval as any)._spr = spreadId(spread_cj)
         }
         else {
-          const key_spread_cj = spread_cj.spreadClone(keyctx)
+          // No spread: the shared top, which nothing writes on.
+          const key_spread_cj = TOP === spread_cj ? TOP : spread_cj.spreadClone(keyctx)
 
           // The one place a spread is APPLIED, so the one place that
           // knows a contribution came from a template rather than
@@ -255,9 +273,9 @@ class MapVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && child.done && undefined === keyctx.prov
-                    ? child :
-                    child.isTop && key_spread_cj.done ? key_spread_cj :
+                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                    && undefined === keyctx.prov ? child :
+                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
                       unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
                         child, key_spread_cj, 'map-own')
 
@@ -283,14 +301,25 @@ class MapVal extends BagVal {
         for (let peerkey in upeer.peg) {
           let peerchild = upeer.peg[peerkey]
 
+          // An optional key the closed side lacks is one no instance holds.
           if (this.closed && !allowedKeys.includes(peerkey) &&
             !upeer.aliasKeys.includes(peerkey)) {
+            if (upeer.optionalKeys.includes(peerkey)) {
+              continue
+            }
             bad = makeNilErr(ctx, 'closed', peerchild, undefined)
           }
 
-          // key optionality is additive
-          if (upeer.optionalKeys.includes(peerkey) && !out.optionalKeys.includes(peerkey)) {
-            out.optionalKeys.push(peerkey)
+          // REQUIRED WINS (ADR-045): a key is optional only where every
+          // side that declares it says so.
+          const oi = out.optionalKeys.indexOf(peerkey)
+          if (upeer.optionalKeys.includes(peerkey)) {
+            if (!(peerkey in this.peg) && -1 === oi) {
+              out.optionalKeys.push(peerkey)
+            }
+          }
+          else if (-1 !== oi) {
+            out.optionalKeys.splice(oi, 1)
           }
 
           if (upeer.aliasKeys.includes(peerkey) && !out.aliasKeys.includes(peerkey)) {
@@ -310,16 +339,18 @@ class MapVal extends BagVal {
               ? (undefined !== peerctx.prov && peerchild.isGenable
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-              child.isTop && peerchild.done ? peerchild :
-                child.isNil ? child :
-                  peerchild.isNil ? peerchild :
+              child.isTop && !rides(child) && peerchild.done ? peerchild :
+                child.isNil ? (literalNilRefuses(child, peerchild) ?
+                  makeNilErr(peerctx, 'literal_nil', child, peerchild) : child) :
+                  peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
+                    makeNilErr(peerctx, 'literal_nil', peerchild, child) : peerchild) :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'map-peer')
 
           if (this.spread.cj && undecided(oval)) {
             done = false
           }
-          else if (this.spread.cj && !oval.isAbsent) {
+          else if (this.spread.cj && !oval.isAbsent && !out.aliasKeys.includes(peerkey)) {
             // Same apply-once discipline as the own-key loop: once the
             // constraint is merged into the value (marked with the
             // constraint's id), later passes only self-unify.
@@ -353,6 +384,23 @@ class MapVal extends BagVal {
       }
       else if (!peer.isTop) {
         out = makeNilErr(ctx, 'map', this, peer)
+      }
+
+      // Both sides closed: each must declare the other's keys too.
+      if (null == bad && this.closed && peer instanceof MapVal && peer.closed &&
+        !out.isNil) {
+        for (const key of [...allowedKeys].sort(cmpCodePoint)) {
+          if (!(key in peer.peg) && !this.aliasKeys.includes(key)) {
+            if ((out as MapVal).optionalKeys.includes(key)) {
+              delete out.peg[key]
+              ;(out as MapVal).optionalKeys =
+                (out as MapVal).optionalKeys.filter((k) => k !== key)
+            }
+            else if (null == bad) {
+              bad = makeNilErr(ctx, 'closed', this.peg[key], undefined)
+            }
+          }
+        }
       }
 
       if (null != bad) {
@@ -401,7 +449,7 @@ class MapVal extends BagVal {
     }
 
     let out = (super.clone(ctx) as MapVal)
-    out.peg = {}
+    out.peg = keyTable()
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] = entry[1]
@@ -423,7 +471,7 @@ class MapVal extends BagVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     let out = (super.clone(ctx, spec) as MapVal)
-    out.peg = {}
+    out.peg = keyTable()
 
     for (let entry of Object.entries(this.peg)) {
       out.peg[entry[0]] =
@@ -462,7 +510,7 @@ class MapVal extends BagVal {
       // (this.mark.type ? '<type>' : '') +
       // (this.id + '=') +
       '{' +
-      (this.spread.cj ? '&:' + this.spread.cj.canon +
+      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
         (0 < keys.length ? ',' : '') : '') +
       keys
         .map(k => [

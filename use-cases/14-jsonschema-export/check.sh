@@ -107,9 +107,12 @@ diff -u "$DIR/expected/residue.json" "$WORK/res.out" \
 has res err 'lossy: $.report.total nil:'
 has res err 'lossy: $.report.amountEur bigdecimal:'
 has res err 'lossy: $.report.audit hide:'
-has res err 'lossy: $.report.annotations.& unresolved:'
-has res err 'lossy: $.report.attempts len:'
-ok "residue: lossy export still exports, five losses each named"
+has res err 'lossy: $.report.slugs.& key:'
+grep -qF -- 'annotations' "$WORK/res.err" \
+  && fail "res: a template that reaches nothing outside itself crosses without loss"
+grep -qF -- 'attempts' "$WORK/res.err" \
+  && fail "res: a count beside a list crosses as maxItems and is not a loss"
+ok "residue: lossy export still exports, four losses each named"
 
 # 6. --strict makes lossiness an error: same document, same report,
 # exit 1 -- the mode for a pipeline that must not ship a schema
@@ -128,7 +131,7 @@ r = json.load(open(sys.argv[1]))
 assert r["aontu"]["verb"] == "jsonschema"
 assert r["verdict"] == "lossy", r["verdict"]
 assert {l["construct"] for l in r["lossy"]} \
-    == {"nil", "bigdecimal", "hide", "unresolved", "len"}
+    == {"nil", "bigdecimal", "hide", "key"}
 assert all({"path", "construct", "reason"} <= set(l) for l in r["lossy"])
 assert r["schema"]["properties"]["total"] == {}
 EOF

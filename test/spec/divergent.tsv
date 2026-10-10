@@ -103,6 +103,127 @@
 #
 # ---------------------------------------------------------------------
 #
+# OPEN -- a frame around a source line longer than 333 characters.
+#   issue: none filed yet; found 2026-10-08 while probing JSONTestSuite
+#   for G12 phase 3, on a refusal sited inside a long line. NOT
+#   introduced by that work: any refusal beside such a line shows it.
+#
+#   Divergent input:  a: 1\na: 2\nb: "xxx...x"   (the third line
+#                     holds 1,500 characters; under 333 the two agree)
+#   TypeScript: the frame shows at most 333 characters either side of
+#               the site, and numbers the lines of that window from
+#               the window's start, so a long line is cut and the
+#               excerpt can carry the wrong line numbers
+#   Go:         the frame shows whole lines, numbered from the source
+#
+#   Not simply fixed because the TypeScript frame is drawn by the
+#   pinned @tabnas/parser's errsite, which takes that window, while Go
+#   draws its own (NilVal.frame in go/val.go). Copying the window into
+#   Go would copy its numbering too; drawing the frame in aontu's own
+#   TypeScript is the fix, and it moves every refusal's text.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a long flat operator chain overflows the TypeScript parser.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 3,
+#   whose importer writes a JSON Schema `enum` as one disjunction. NOT
+#   introduced by that work: it reproduces on a plain document.
+#
+#   Divergent input:  a: 0|1|2|...|1999   (one disjunction of 2,000
+#                     integers; 1,000 members agree)
+#                     k0.k1.k2. ... .k4999: 1   (a dotted path of 5,000
+#                     segments, the same fold; found 2026-10-08, where
+#                     Go answers [aontu/no_path] at $, exit 1)
+#   TypeScript: `aontu: unexpected error: Maximum call stack size
+#               exceeded`, exit 1, thrown while parsing
+#   Go:         [aontu/disjunct_no_gen] at $.a, exit 1: the chain
+#               parses and evaluates, and has no default to generate
+#
+#   Not simply fixed because the recursion is in the pinned
+#   @tabnas/expr (TypeScript), whose `evaluation` folds an operator
+#   chain by recursing once per member; flattening it is an upstream
+#   change. Turning the RangeError into `max_depth` here would give a
+#   registered code but still not Go's answer. The importer bounds
+#   what it writes instead: a disjunction or meet of more than 32
+#   members is nested in groups of at most 32 (ADR-047), so an
+#   imported schema never reaches the limit, while a hand-written chain
+#   of that length still does.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a call whose first argument and a later one are negative
+#   overflows the TypeScript parser.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 5,
+#   whose importer writes an excluded negative integer as a `neq` over
+#   every leaf. NOT introduced by that work: it reproduces on a plain
+#   document.
+#
+#   Divergent input:  a: neq(-1, -2, -3)   (three arguments or more,
+#                     the first and another negative; two agree, and
+#                     so does a positive first argument)
+#   TypeScript: `aontu: unexpected error: Maximum call stack size
+#               exceeded`, exit 1, thrown while parsing
+#   Go:         {"a":neq(-3,-2,-1)}: the call parses and evaluates
+#
+#   Not simply fixed because the recursion is in the pinned
+#   @tabnas/expr, whose `evaluation` meets a cyclic term for this
+#   argument list. The importer writes a negative first argument in
+#   parentheses, `neq((-1), -2, -3)`, which both parsers read, so an
+#   imported schema never reaches the defect.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- a reference cycle through trial schemas that never reaches a
+#   value is cut at a different point, so the two engines answer it
+#   differently.
+#   issue: none filed yet; found 2026-10-01 by the parity probe while
+#   landing G12 phase 5.
+#
+#   Divergent input:  %A = nof(1, null, %B)
+#                     %B = nof(1, number, %A)
+#                     a: %A
+#                     vetted against {"a": 5}
+#   TypeScript: verdict valid. The innermost repetition fails inside an
+#               admission trial, which counts as a refusal, so %B's
+#               `number` branch is the one that admits.
+#   Go:         verdict error, unify_cycle at $.%A.
+#   The same split shows for `a: nof(1, $.b)` beside `b: nof(1, $.a)`
+#   against {"a": 1, "b": 1}: TypeScript refuses both with `nof`, and
+#   Go reports unify_cycle.
+#
+#   Not simply fixed because the right reading is an open design
+#   question: whether a trial that cannot decide, the schemas recursing
+#   without consuming the value, refuses it or is the document's error.
+#   JSON Schema leaves such recursion to the implementation. Each engine
+#   cuts the cycle where its evaluation order meets it: TypeScript
+#   settles a reference lazily, inside the admission trial whose
+#   failures ADR-049 discards, and Go settles a trial argument eagerly,
+#   where ADR-049 makes a failure other than a conflict the document's.
+#   No row pins either answer.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the SITE of a reference that names nothing, in the first
+#   argument of a call of two or more arguments.
+#   issue: none filed yet; found 2026-10-01 while landing G12 phase 6.
+#   NOT introduced by that work: `must` has always shown it.
+#
+#   Divergent input:  a: must($.t, "m")   vetted against {"a": "s"}
+#                     (also `nof($.t, number)` and `when($.t, number)`;
+#                     a reference in a later argument, or the one
+#                     argument of `min($.t)`, is sited alike)
+#   TypeScript: no_path sited at col 10, len 1, src ".": the `.` inside
+#               the reference.
+#   Go:         no_path sited at col 4, len 4, src "must": the call.
+#
+#   Not simply fixed because neither site is the one a reader wants,
+#   the reference's own span from its `$`, and moving either changes
+#   the site rule for every argument position, which rows in several
+#   files pin. The rows of test/spec/constraint-when.tsv put a pending
+#   reference in a later argument.
+#
+# ---------------------------------------------------------------------
+#
 #
 # CLOSED 2026-08-27 -- a finding's site names the WRONG FILE under an
 #   `@"..."` include, in Go.
@@ -305,39 +426,6 @@
 # storage, not chosen. It is pinned per-port instead: ts/test/
 # exactjson.test.ts and go/generate_test.go.
 #
-#
-# ---------------------------------------------------------------------
-#
-# OPEN -- `jsonschema` exports a MIXED-DOMAIN neq() differently, and
-#   both ports call the export ok.
-#   issue: #297; found 2026-09-29 while answering what the export can
-#   carry. Present on main.
-#
-#   Divergent input:  a: neq(1,"a")
-#   TypeScript: properties.a = {}               verdict ok, lossy []
-#   Go:         properties.a = {"type":"number"} verdict ok, lossy []
-#
-#   The value itself is mapval_no_gen in both ports; only the exporter's
-#   reading of the exclusions differs, and neither reports a loss. Not
-#   fixed here because which answer is right is a decision: the
-#   exclusions as `not: {enum: [1, "a"]}` with no type is the likely
-#   one, and the row that pins it must be probed in both engines.
-#
-# ---------------------------------------------------------------------
-#
-# OPEN -- `$` followed by a map refuses with a different code in each
-#   port.
-#   issue: #302; found 2026-09-30 while probing a root reference for
-#   `"$ref": "#"` for the JSON Schema gap document (G12). Present on main.
-#
-#   Divergent input:  a: ${b: 1}
-#   TypeScript: [aontu/var[object]], no hint text
-#   Go:         [aontu/var], the `$name` variable hint
-#
-#   Both prefixes are registered in errcodes.tsv, so no row can see which
-#   one a port picks. Not fixed here because what a bare `$` at value
-#   position should mean is a language decision the issue asks for; the
-#   code both ports raise follows from it.
 #
 # ---------------------------------------------------------------------
 #
@@ -570,5 +658,35 @@
 #   element of a top-level list a parse refusal belongs to is a
 #   question about every bare_punct row, and op-chars.tsv asserts the
 #   code rather than the path throughout.
+#
+# ---------------------------------------------------------------------
+#
+# OPEN -- the SITE of a refused operand that the 2020-12 meta-schema's
+#   vocabularies met to make: each port names the ident() call of a
+#   different contributing vocabulary.
+#   issue: none filed yet; found 2026-10-09 while landing G12 phase 16.
+#   NOT introduced by that work: before it, both engines stopped at
+#   `incomplete conjunct@$` on the meta-schema, so no operand of it was
+#   ever refused.
+#
+#   Divergent input:  the import of
+#                     {"type": "object", "properties": {"$schema": true},
+#                      "$ref": "https://json-schema.org/draft/2020-12/schema"}
+#                     with the meta-schema and its eight vocabulary
+#                     meta-schemas in the document set, as json-schema.org
+#                     serves them, vetted with --no-fill --exact-numbers
+#                     against {"allOf": [{"type": "strin"}]}
+#   TypeScript: invalid, empty at $.allOf.0, the schema site at the
+#               applicator vocabulary's ident() (row 2, col 92)
+#   Go:         invalid, empty at $.allOf.0, the schema site at the
+#               meta-schema root's ident() (row 238, col 80)
+#
+#   Verdict, code, path and the rendered value agree. The operand is the
+#   meet of seven vocabularies, each an ident() over `boolean|{...}`, and
+#   a distributed meet keeps the site of the disjunction that received
+#   it; the ports fold the vocabularies in a different order on the way
+#   there. Not simply fixed because which of seven declarations a merged
+#   value should name is not settled anywhere: every smaller model of
+#   the shape tried sites alike in both ports.
 #
 # ---------------------------------------------------------------------

@@ -68,11 +68,11 @@ than its value.
   (an open map would silently admit stragglers).
 - **Constraint atoms** carry the field contracts: `re()` for id,
   email, phone (E.164), locale; `len(min(1))` for name;
-  `integer & min(0)` for the proposed loyalty balance. `re()` takes a
-  portable pattern subset that excludes a quantifier applied to a
-  group containing another quantifier, so the locale pattern is
-  written `^[a-z][a-z](?:-[A-Z][A-Z])?$`, with the two-letter repeat
-  spelled out.
+  `integer & min(0)` for the proposed loyalty balance. The locale
+  pattern is written `^[a-z][a-z](?:-[A-Z][A-Z])?$`, with the
+  two-letter repeat spelled out; the natural `^[a-z]{2}(-[A-Z]{2})?$`
+  means the same, and `re()` accepts it too, since it matches with
+  aontu's own engine, linear in the text for every pattern.
 - **`*false | boolean`** for consent flags: a boolean default is only
   overridable by a boolean, so absent flags default to refused and
   anything that is not a boolean is refused.
@@ -166,7 +166,7 @@ verdict: valid
 
 $.phone: deprecated [compat]
   deprecated: free-form phone is unvalidated; write E.164 to contact.phone (use $.profile.contact.phone) (since 2.0.0)
-  schema: profile-v2.aontu:20:11 (string)
+  schema: profile-v2.aontu:20:21 (string)
 ```
 
 When the instance uses the field, the site is the data's:

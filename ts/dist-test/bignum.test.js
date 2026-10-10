@@ -163,6 +163,16 @@ const canon = (src) => new aontu_1.Aontu().unify(src).canon;
         Assert.equal(canon('x:0d1e-' + (Decimal_1.DECIMAL_SCALE_BUDGET + 1)), '{"x":nil}');
         Assert.equal(canon('x:0d' + '9'.repeat(5000)), '{"x":0d' + '9'.repeat(5000) + '}');
     });
+    // As Go's Aontu.ExactNumbers; a module is read as written, as Go's
+    // fresh instance for one reads it.
+    (0, node_test_1.test)('exact-numbers-on-the-instance', () => {
+        const exact = new aontu_1.Aontu({ exactNumbers: true });
+        Assert.equal(exact.unify('x: 0.1 y: 1.0').canon, '{"x":0d0.1,"y":1}');
+        Assert.equal(new aontu_1.Aontu().unify('x: 0.1 y: 1.0').canon, '{"x":0.1,"y":1.0}');
+        Assert.equal(new aontu_1.Aontu().unify('x: 0.1', { exactNumbers: true }).canon, '{"x":0d0.1}');
+        const mod = (a) => a.opts.mod.eval('x: 0.1', 'p.aontu').hash;
+        Assert.equal(mod(exact), mod(new aontu_1.Aontu()));
+    });
 });
 (0, node_test_1.describe)('bignum-arithmetic', () => {
     (0, node_test_1.test)('adds-exactly-aligning-scales', () => {

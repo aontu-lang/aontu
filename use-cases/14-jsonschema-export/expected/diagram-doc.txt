@@ -2,6 +2,7 @@ $
 └── report
     ├── amountEur bigdecimal
     ├── annotations {&:string&len(integer&min(0)&...
-    ├── attempts [&:integer]
+    ├── attempts [&:multiple(1)]
     ├── audit "kept-off-the-wire"
+    ├── slugs {&:key(0)}
     └── total nil

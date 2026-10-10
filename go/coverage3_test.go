@@ -90,12 +90,21 @@ func TestCheckWalkersDirect(t *testing.T) {
 	collectNils(l2, &nils, map[Val]bool{})
 	collectNils(newConjunct([]Val{newNil("e")}), &nils, map[Val]bool{})
 	collectNils(newDisjunct([]Val{newNil("f")}), &nils, map[Val]bool{})
+	pend := &ConstraintVal{pending: &constraintPending{atom: "nof",
+		args: []Val{newInteger(1), newNil("g")}}}
+	collectNils(pend, &nils, map[Val]bool{})
+	pendWhen := &ConstraintVal{pending: &constraintPending{atom: "when",
+		args: []Val{newNil("h"), newInteger(1)}}}
+	collectNils(pendWhen, &nils, map[Val]bool{})
+	pendContains := &ConstraintVal{pending: &constraintPending{atom: "contains",
+		args: []Val{newNil("i")}}}
+	collectNils(pendContains, &nils, map[Val]bool{})
 	if len(nils) != 4 {
 		t.Fatalf("expected 4 nils, got %d", len(nils))
 	}
 	for _, n := range nils {
-		if "b" == n.why || "d" == n.why {
-			t.Fatalf("a spread template's nil %q was collected", n.why)
+		if "b" == n.why || "d" == n.why || "g" == n.why || "h" == n.why || "i" == n.why {
+			t.Fatalf("a template's or trial schema's nil %q was collected", n.why)
 		}
 	}
 }
@@ -819,4 +828,19 @@ func TestListIndexIsCanonicalDecimal(t *testing.T) {
 			t.Fatalf("listIndex(%q) = %d, accepted", bad, i)
 		}
 	}
+}
+
+// G12 phase 8: a span carries its value's titles and descriptions, which
+// the language server's hover shows.
+func TestSpansCarryAnnotations(t *testing.T) {
+	for _, s := range New().Spans(`a: meta(1, {title: "t", description: "d"})`) {
+		if "1" == s.Canon {
+			if 1 != len(s.Titles) || "t" != s.Titles[0] ||
+				1 != len(s.Descriptions) || "d" != s.Descriptions[0] {
+				t.Fatalf("span: %+v", s)
+			}
+			return
+		}
+	}
+	t.Fatal("no span for the annotated value")
 }

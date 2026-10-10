@@ -1,0 +1,9 @@
+# The skip ledger of tests/draft4/ (README.md), read in its own dialect:
+# one row per upstream test the importer cannot yet honour, the construct
+# it waits on and why. A listed test that passes fails the run.
+# Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+# A * in group and test lists a whole file; one in test a whole group.
+definitions.json	validate definition against metaschema	invalid definition schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+optional/format/hostname.json	validation of host names	hostname with consecutive hyphens (RFC1123)	format	this dialect reads hostname by RFC 1034, which allows "--" in the third and fourth positions, and aontu reads the one hostname grammar it commits (ADR-059)
+optional/zeroTerminatedFloats.json	some languages do not distinguish between different types of numeric value	a float is not an integer even without fractional part	type	draft-04 reads 1.0 as no integer by its spelling, and aontu reads a number by its value, as draft-06 and later do
+ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it

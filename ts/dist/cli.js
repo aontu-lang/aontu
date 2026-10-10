@@ -55,6 +55,9 @@ const report_sarif_1 = require("./report-sarif");
 const lsp_server_1 = require("./lsp-server");
 const mcp_server_1 = require("./mcp-server");
 const jsonschema_1 = require("./jsonschema");
+const jsonschema_import_1 = require("./jsonschema-import");
+const sourcemap_1 = require("./sourcemap");
+const formatgrammar_1 = require("./formatgrammar");
 const pkg_1 = require("./pkg");
 const pkg_net_1 = require("./pkg-net");
 const mod_1 = require("./mod");
@@ -77,6 +80,11 @@ const HELP = `Usage: aontu [options] [file]
        aontu view <kind> [options] <file>...
        aontu view --views <path> [--check] [options] <file>
        aontu jsonschema [--at <path>] [--strict] [options] <file>
+       aontu jsonschema import [--strict] [--defaults] [--uri <uri>]
+                               [--doc <uri> <file>]... [--format-assert]
+                               [--format-grammar <name> <file>]...
+                               [--dialect <name>] [--no-meta-check]
+                               [--source-map <file>] [options] <file>
        aontu template [--resugar] [--check] [--marker <token>]
                       [--profile <file>] <file>
        aontu trace [--at <path>] [--format json] [--marker <token>]
@@ -150,6 +158,9 @@ Options:
   -c, --canon     Print the canonical form instead of generated JSON
                   (the bare command's, as --jsonl is; model get has
                   its own)
+  --exact-numbers Read every number the document writes by its value:
+                  1.0 is the integer 1, and 0.1 keeps its digits (the
+                  bare command's; vet has its own)
   --format <f>    text (default) or json, on every verb that answers a
                   report. The json form is one object opening with an
                   aontu block; the bare command's carries findings, ok
@@ -229,6 +240,11 @@ Vet options:
   --at <path>       Validate against this path of the schema ($.a.b)
   --closed          Refuse keys the anchor does not declare
   --partial         Residue is reported but does not fail the run
+  --no-fill         Refuse a member the schema supplies and the data
+                    does not carry (vet_filled): the data must be an
+                    instance as written, not as filled
+  --exact-numbers   Read every data number by its exact value, so 1,
+                    1.0 and 1e0 are one integer and 0.1 keeps its digits
   --max-errors <n>  Cap the finding list (default 20)
   --coverage        Report what the check EXAMINED: how many data
                     leaves a schema declaration constrained, the
@@ -240,6 +256,11 @@ Vet options:
                     today starts failing without this flag
   --coverage-at <p> Measure coverage under this path of the data only
   --format <f>      text (default), json or sarif
+  --output <o>      flag or basic: the report as JSON Schema's output
+                    units, for one data file, in place of --format.
+                    basic locates each error through --source-map
+  --source-map <f>  The map jsonschema import --source-map wrote for
+                    the schema, refused once the schema's text changes
   --watch           Re-run whenever a watched file changes
 
 A check that examined NOTHING and a check that passed answer the same
@@ -617,7 +638,7 @@ function evalFinding(code, text) {
 function evalSource(aontu, src, mode) {
     try {
         const text = 'canon' === mode
-            ? aontu.unify(src).canon
+            ? (0, utility_1.canonRiders)(aontu.unify(src))
             : (0, aontu_1.exactJSON)(aontu.generate(src), 2);
         return { ok: true, text, findings: [] };
     }
@@ -742,9 +763,12 @@ function parseTextExt(arg) {
     }
     return out;
 }
-// The evaluator options a REPL session's capability means.
+// The evaluator options a REPL session's capability and reading mean.
 function replTrust(state, entryRoot) {
-    return verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot);
+    return {
+        ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRoot),
+        ...exactOpts(state.exact),
+    };
 }
 // The capability a verb's engine runs under. `system` and the staged
 // warning default both mean today's behaviour (no option); the warning
@@ -777,10 +801,13 @@ function verbOpts(trust, entryRoot) {
 function entryRootOf(file) {
     return null == file ? process.cwd() : (0, node_path_1.dirname)((0, node_path_1.resolve)(file));
 }
+function exactOpts(exact) {
+    return true === exact ? { exactNumbers: true } : {};
+}
 function withdrawnMsg(file) {
     return `aontu: ${file} carries the withdrawn .aon extension; the extension is .aontu`;
 }
-function runFile(file, mode, format, trust) {
+function runFile(file, mode, format, trust, exact) {
     let src;
     try {
         src = (0, node_fs_1.readFileSync)(file, 'utf8');
@@ -803,16 +830,17 @@ function runFile(file, mode, format, trust) {
         path,
         errfs: { existsSync: node_fs_1.existsSync, readFileSync: node_fs_1.readFileSync },
         ...trustOpts(trust, (0, node_path_1.dirname)(path)),
+        ...exactOpts(exact),
     });
     return emitEval(evalSource(aontu, src, mode), format);
 }
-function runStdin(mode, format, trust) {
+function runStdin(mode, format, trust, exact) {
     return new Promise((resolve) => {
         let src = '';
         process.stdin.setEncoding('utf8');
         process.stdin.on('data', (d) => (src += d));
         process.stdin.on('end', () => {
-            const res = evalSource(new aontu_1.Aontu(trustOpts(trust, process.cwd())), src, mode);
+            const res = evalSource(new aontu_1.Aontu({ ...trustOpts(trust, process.cwd()), ...exactOpts(exact) }), src, mode);
             resolve(emitEval(res, format));
         });
     });
@@ -893,7 +921,7 @@ function replCommand(state, line, read) {
             if (':why' === cmd) {
                 const report = (0, aontu_1.why)(src, path, {
                     path: state.name,
-                    ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
+                    ...replTrust(state, entryRootOf(state.name)),
                 });
                 return report.ok
                     ? answer(renderWhyText(report.record))
@@ -903,7 +931,7 @@ function replCommand(state, line, read) {
                 ? 'keys' : 'canon' === state.mode ? 'canon' : 'json';
             const report = (0, aontu_1.get)(src, path, {
                 view, path: state.name,
-                ...verbOpts(state.trust ?? { kind: 'system-warn', textExt: [] }, entryRootOf(state.name)),
+                ...replTrust(state, entryRootOf(state.name)),
             });
             return report.ok
                 ? answer(report.out)
@@ -913,8 +941,8 @@ function replCommand(state, line, read) {
             return refuse(`unknown command: ${s} (try :help)`);
     }
 }
-function runRepl(initialMode, jsonl, trust) {
-    let state = { mode: initialMode, jsonl, trust };
+function runRepl(initialMode, jsonl, trust, exact) {
+    let state = { mode: initialMode, jsonl, trust, exact };
     const rl = (0, node_readline_1.createInterface)({
         input: process.stdin,
         output: process.stdout,
@@ -961,11 +989,16 @@ function parseVetArgs(argv) {
     let at;
     let closed = false;
     let partial = false;
+    let noFill = false;
+    let exactNumbers = false;
     let maxErrors;
     let watch = false;
     let coverage = false;
     let strictCoverage = false;
     let coverageAt;
+    let formatted = false;
+    let output;
+    let sourceMap;
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
         // `-h`/`--help` before anything else, INCLUDING the file count:
@@ -987,6 +1020,20 @@ function parseVetArgs(argv) {
                 return { err: `aontu: --format needs text, json or sarif` };
             }
             format = f;
+            formatted = true;
+        }
+        else if ('--output' === arg) {
+            const o = argv[++i];
+            if ('flag' !== o && 'basic' !== o) {
+                return { err: 'aontu: --output needs flag or basic' };
+            }
+            output = o;
+        }
+        else if ('--source-map' === arg) {
+            sourceMap = argv[++i];
+            if (null == sourceMap) {
+                return { err: 'aontu: --source-map needs a file' };
+            }
         }
         else if ('--max-errors' === arg) {
             const raw = argv[++i];
@@ -1000,6 +1047,12 @@ function parseVetArgs(argv) {
         }
         else if ('--partial' === arg) {
             partial = true;
+        }
+        else if ('--no-fill' === arg) {
+            noFill = true;
+        }
+        else if ('--exact-numbers' === arg) {
+            exactNumbers = true;
         }
         else if ('--coverage' === arg) {
             coverage = true;
@@ -1032,6 +1085,12 @@ function parseVetArgs(argv) {
     if (files.length < 2) {
         return { err: `aontu: vet needs a schema and at least one data file\n${VET_HELP}` };
     }
+    if (undefined !== output && (formatted || 2 < files.length)) {
+        return { err: 'aontu: --output answers for one data file, in place of --format' };
+    }
+    if ('basic' === output && undefined === sourceMap) {
+        return { err: 'aontu: --output basic needs --source-map <file>' };
+    }
     return {
         args: {
             schema: files[0],
@@ -1040,11 +1099,15 @@ function parseVetArgs(argv) {
             at,
             closed,
             partial,
+            noFill,
+            exactNumbers,
             maxErrors,
             watch,
             coverage,
             strictCoverage,
             coverageAt,
+            output,
+            sourceMap,
         },
     };
 }
@@ -1146,15 +1209,29 @@ const VET_RANK = {
 // watching them.
 function vetOnce(args, trust) {
     let schemaSrc;
+    let mapSrc;
     const sources = [];
     try {
         schemaSrc = (0, node_fs_1.readFileSync)(args.schema, 'utf8');
         for (const file of args.data) {
             sources.push({ file, src: (0, node_fs_1.readFileSync)(file, 'utf8') });
         }
+        mapSrc = undefined === args.sourceMap ? undefined : (0, node_fs_1.readFileSync)(args.sourceMap, 'utf8');
     }
     catch (err) {
         process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    // ADR-066: a map whose text has changed would place a finding at the
+    // wrong keyword.
+    const map = undefined === mapSrc ? undefined : (0, sourcemap_1.readSourceMap)(mapSrc);
+    if (undefined !== mapSrc && undefined === map) {
+        process.stderr.write(`aontu: ${args.sourceMap} is not a source map\n`);
+        return 2;
+    }
+    if (undefined !== map && (0, sourcemap_1.textSha)(schemaSrc) !== map.sha256) {
+        process.stderr.write(`aontu: the source map ${args.sourceMap} does not describe ` +
+            `${args.schema}: its text has changed since the import\n`);
         return 2;
     }
     let verdict = 'valid';
@@ -1174,6 +1251,8 @@ function vetOnce(args, trust) {
             at: args.at,
             closed: args.closed,
             partial: args.partial,
+            noFill: args.noFill,
+            exactNumbers: args.exactNumbers,
             maxErrors: args.maxErrors,
             schemaUrl: args.schema,
             dataUrl: source.file,
@@ -1222,9 +1301,10 @@ function vetOnce(args, trust) {
         findings: kept,
         ...(null == cov ? {} : { coverage: cov }),
     };
-    const text = 'json' === args.format ? renderVetJson(report) :
-        'sarif' === args.format ? renderVetSarif(report) :
-            renderVetText(report);
+    const text = undefined !== args.output ? (0, aontu_1.exactJSON)((0, sourcemap_1.vetOutput)(report, args.output, undefined === map ? undefined : { text: schemaSrc, map }), 2) :
+        'json' === args.format ? renderVetJson(report) :
+            'sarif' === args.format ? renderVetSarif(report) :
+                renderVetText(report);
     process.stdout.write(text + '\n');
     if (true === args.strictCoverage && true === report.coverage?.vacuous) {
         process.stderr.write('aontu: no data leaf was constrained by the schema:' +
@@ -3377,13 +3457,171 @@ function renderRelationsJson(report) {
         ...(null == report.errors ? {} : { errors: report.errors }),
     }, 2);
 }
-const JSONSCHEMA_HELP = 'aontu jsonschema [--at <path>] [--strict] <file> (try --help)';
+const JSONSCHEMA_HELP = 'aontu jsonschema [import] [--at <path>] [--strict] <file> (try --help)';
+function vetWith(flags) {
+    return 'vet with: aontu vet ' + flags.join(' ') + ' <document> <data>\n';
+}
+// The import mode: JSON Schema text in, an aontu document out, the
+// losses on stderr, exactly as the export reads the other way.
+function runJsonSchemaImport(argv) {
+    const files = [];
+    let format = 'text';
+    let strict = false;
+    let defaults = false;
+    let uri = undefined;
+    const docs = [];
+    let formatAssertion = false;
+    let noMetaCheck = false;
+    const grammars = [];
+    let dialect = undefined;
+    let mapFile = undefined;
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i];
+        if ('-h' === arg || '--help' === arg) {
+            process.stdout.write(HELP);
+            return 0;
+        }
+        if ('--format' === arg) {
+            const f = argv[++i];
+            if ('text' !== f && 'json' !== f) {
+                process.stderr.write('aontu: --format needs text or json\n');
+                return 2;
+            }
+            format = f;
+        }
+        else if ('--strict' === arg) {
+            strict = true;
+        }
+        else if ('--defaults' === arg) {
+            defaults = true;
+        }
+        else if ('--uri' === arg) {
+            uri = argv[++i];
+            if (undefined === uri) {
+                process.stderr.write('aontu: --uri needs a URI\n');
+                return 2;
+            }
+        }
+        else if ('--doc' === arg) {
+            if (argv.length < i + 3) {
+                process.stderr.write('aontu: --doc needs a URI and a file\n');
+                return 2;
+            }
+            docs.push([argv[i + 1], argv[i + 2]]);
+            i += 2;
+        }
+        else if ('--format-assert' === arg) {
+            formatAssertion = true;
+        }
+        else if ('--no-meta-check' === arg) {
+            noMetaCheck = true;
+        }
+        else if ('--source-map' === arg) {
+            mapFile = argv[++i];
+            if (undefined === mapFile) {
+                process.stderr.write('aontu: --source-map needs a file\n');
+                return 2;
+            }
+        }
+        else if ('--dialect' === arg) {
+            dialect = argv[++i];
+            if (undefined === dialect) {
+                process.stderr.write('aontu: --dialect needs a dialect\n');
+                return 2;
+            }
+        }
+        else if ('--format-grammar' === arg) {
+            const name = argv[i + 1];
+            if (argv.length < i + 3) {
+                process.stderr.write('aontu: --format-grammar needs a name and a file\n');
+                return 2;
+            }
+            if ((0, formatgrammar_1.isDefinedFormat)(name)) {
+                process.stderr.write(`aontu: --format-grammar cannot name ${name}, ` +
+                    'one of the nineteen formats, whose grammar is fixed\n');
+                return 2;
+            }
+            if (grammars.some(([n]) => n === name)) {
+                process.stderr.write(`aontu: --format-grammar names ${name} twice\n`);
+                return 2;
+            }
+            grammars.push([name, argv[i + 2]]);
+            i += 2;
+        }
+        else if (arg.startsWith('-')) {
+            process.stderr.write(`aontu: unknown jsonschema import option ${arg} (try --help)\n`);
+            return 2;
+        }
+        else {
+            files.push(arg);
+        }
+    }
+    if (1 !== files.length) {
+        process.stderr.write(`aontu: jsonschema import needs one file\n${JSONSCHEMA_HELP}\n`);
+        return 2;
+    }
+    let src;
+    const documents = {};
+    const formats = {};
+    try {
+        src = (0, node_fs_1.readFileSync)(files[0], 'utf8');
+        for (const [u, f] of docs) {
+            documents[u] = (0, node_fs_1.readFileSync)(f, 'utf8');
+        }
+        for (const [n, f] of grammars) {
+            formats[n] = (0, node_fs_1.readFileSync)(f, 'utf8');
+        }
+    }
+    catch (err) {
+        process.stderr.write(`aontu: cannot read ${err.path}: ${err.message}\n`);
+        return 2;
+    }
+    const report = (0, jsonschema_import_1.importJsonSchema)(src, {
+        path: files[0], defaults, uri, documents, formatAssertion, formats, dialect, noMetaCheck,
+        sourceMap: 'json' === format || undefined !== mapFile,
+    });
+    if (undefined !== mapFile && undefined !== report.map) {
+        try {
+            (0, node_fs_1.writeFileSync)(mapFile, (0, aontu_1.exactJSON)(report.map, 2) + '\n');
+        }
+        catch (err) {
+            process.stderr.write(`aontu: cannot write ${mapFile}: ${err.message}\n`);
+            return 2;
+        }
+    }
+    if ('json' === format) {
+        process.stdout.write((0, aontu_1.exactJSON)({
+            aontu: { version: version(), verb: 'jsonschema' },
+            verdict: report.verdict,
+            text: report.aontu,
+            lossy: report.lossy,
+            ...(null == report.vet ? {} : { vet: report.vet }),
+            ...(null == report.errors ? {} : { errors: report.errors }),
+            ...(null == report.map ? {} : { map: report.map }),
+        }, 2) + '\n');
+    }
+    else if ('error' === report.verdict) {
+        process.stderr.write(report.errors.map(renderFinding).join('\n') + '\n');
+    }
+    else {
+        process.stdout.write(report.aontu);
+        for (const l of report.lossy) {
+            process.stderr.write(`lossy: ${l.path} ${l.construct}: ${l.reason}\n`);
+        }
+        process.stderr.write(vetWith(report.vet));
+    }
+    return 'error' === report.verdict ? 4 :
+        strict && 'lossy' === report.verdict ? 1 : 0;
+}
 function runJsonSchema(argv) {
     const trusted = takeTrust(argv);
     if (null == trusted) {
         return 2;
     }
     argv = trusted.argv;
+    if ('import' === argv[0]) {
+        return runJsonSchemaImport(argv.slice(1));
+    }
     const trust = trusted.trust;
     const files = [];
     let format = 'text';
@@ -4733,6 +4971,7 @@ function main(argv, servers = SERVERS) {
     // than the design's --json, which would read as the `:json` output
     // mode the REPL already has.
     let jsonl = false;
+    let exact = false;
     // One spelling throughout the tools (ADR-042): every verb, one gate.
     const withdrawn = argv.slice(2).find((a) => !a.startsWith('-') && /\.aon$/i.test(a));
     if (undefined !== withdrawn) {
@@ -4818,6 +5057,9 @@ function main(argv, servers = SERVERS) {
         if ('-c' === arg || '--canon' === arg) {
             mode = 'canon';
         }
+        else if ('--exact-numbers' === arg) {
+            exact = true;
+        }
         else if ('-h' === arg || '--help' === arg) {
             process.stdout.write(HELP);
             return finish(0);
@@ -4885,17 +5127,17 @@ function main(argv, servers = SERVERS) {
     trust = { ...trust, textExt };
     const file = files[0];
     if (null != file) {
-        finish(runFile(file, mode, format, trust));
+        finish(runFile(file, mode, format, trust, exact));
     }
     // `--jsonl` overrides the TTY gate: the mode exists to be DRIVEN by
     // a harness over a pipe, so gating it on an interactive terminal
     // made it reachable only through a pty -- which is to say, not
     // reachable by the thing it was built for. Mirrors go/cmd/aontu.
     else if (jsonl || process.stdin.isTTY) {
-        runRepl(mode, jsonl, trust);
+        runRepl(mode, jsonl, trust, exact);
     }
     else {
-        runStdin(mode, format, trust).then((code) => finish(code));
+        runStdin(mode, format, trust, exact).then((code) => finish(code));
     }
 } /* node:coverage ignore next 22 */
 //# sourceMappingURL=cli.js.map

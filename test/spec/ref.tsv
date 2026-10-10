@@ -105,6 +105,13 @@ path-seg-neg-zero-quoted-is-key	gens	a:{"-0":1} b:$.a."-0"	{"a":{"-0":1},"b":1}
 path-seg-neg-zero-double-err	err	a:[1,2] b:$.a.-00	Cannot resolve value
 path-seg-neg-float-err	err	a:[1,2] b:$.a.-0.5	Cannot resolve value
 path-seg-neg-one-not-own-key-err	err	a:{"-1":1} b:$.a.-1	Cannot resolve value
+# A relative reference with a signed segment misses too, wherever it
+# sits: `.-1` is the sibling scope and an empty segment, and only a
+# reference at the root whose segments are all empty names itself. Go
+# read any all-empty path as its own scope, so a list holding `.-1`
+# answered path_cycle (JSONTestSuite's n_number_.-1.json found it).
+path-seg-neg-one-relative-in-list-code	errc	x: [.-1]	no_path
+path-seg-neg-one-relative-in-map-code	errc	x: {a: .-1}	no_path
 # A PLUS is not a sign in this sense: it leaves a plain decimal behind,
 # and both ports have always indexed with it.
 path-seg-plus-is-decimal	gens	a:[10,20,30] b:$.a.+1	{"a":[10,20,30],"b":20}

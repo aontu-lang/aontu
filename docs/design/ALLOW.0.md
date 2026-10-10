@@ -209,14 +209,15 @@ nothing.
 
 ## Known limitations
 
-- **A closed role vocabulary must declare `deny?`.** The template
-  carries `deny?: [&: string]`, and a `Role` written as
-  `close({ desc: string allow: [&: string] })` refuses it as
-  `[aontu/closed]` for every role, so the verb answers exit 4. The
-  reference and the use case say so; the fix is one key in the
-  vocabulary, and the alternative (a template that adapts to a closed
-  role) would have the engine read the model before deciding what to
-  append to it.
+- **A closed role vocabulary had to declare `deny?`**, until
+  [ADR-053](../../ADR.md#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare)
+  lifted the limit. The template carries `deny?: [&: string]`, and a
+  `Role` written as `close({ desc: string allow: [&: string] })`
+  refused it as `[aontu/closed]` for every role, so the verb answered
+  exit 4. A closed map now drops an optional key it does not declare,
+  so such a role holds no `deny` and denies nothing, and neither the
+  extra key in the vocabulary nor a template that adapts to a closed
+  role is needed.
 - **A key containing a dot is unreachable**, as it is for `get`.
   `pathParts` splits at every dot, quotes included, so
   `$.services."a.b"` is the three segments `services`, `"a`, `b"` and
@@ -256,7 +257,8 @@ is the report as JSON (`verdict`, `role`, `paths` with `path`,
 messages as `vet` compares them. Rows for every rule above: covered
 below, uncovered above, deny at, deny above, deny below, `*` matching
 one segment and not two, root allowed only by `$`, undeclared role,
-a role with no `allow`, a closed vocabulary without `deny?`, a
+a role with no `allow`, a closed vocabulary without `deny?` (which
+ADR-053 turned from a refusal into a role that denies nothing), a
 malformed role, `--at` off the default. `ts/test/spec.test.ts` learns
 the mode; the TypeScript rows are the ones `ts/test/allow.test.ts`
 already asserts, moved rather than duplicated.

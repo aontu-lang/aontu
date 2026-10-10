@@ -44,17 +44,17 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **180** codes across
+There are seven classes, and the registry holds **195** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
-| `parse` | 53 | the text is not a document |
-| `conflict` | 58 | two values cannot both hold |
-| `incomplete` | 11 | nothing contradicts, but the value is not concrete |
-| `reference` | 32 | a name or path resolves to nothing |
+| `parse` | 57 | the text is not a document |
+| `conflict` | 62 | two values cannot both hold |
+| `incomplete` | 12 | nothing contradicts, but the value is not concrete |
+| `reference` | 36 | a name or path resolves to nothing |
 | `compat` | 13 | a change breaks an earlier version |
-| `budget` | 7 | evaluation hit a deterministic limit |
+| `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
 A class states which repair applies rather than where in the engine the
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 180 codes have hint text. `aontu explain --list`
+**Hint text.** All 195 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -203,11 +203,14 @@ twenty rows have no such section and carry no link.
 | `export_arg` | 0.69.0 | `export()` was given something other than a set of alias names. ([Publishing a name: `export`](reference-language.md#publishing-a-name-export)) |
 | `filter_data` | 0.53.0 | The first argument to `filter()` is not a bag. ([Selecting: `filter` and `match`](reference-language.md#selecting-filter-and-match)) |
 | `form_data` | 0.58.0 | The first argument to the list generator `form` is not a bag; `form` was renamed `each`, which answers `each_data`. |
+| `format_grammar` | 0.77.0 | A grammar given to `format()` is ABNF that cannot be run as written: one character of lookahead does not decide it, a rule reaches itself before reading a character, or a rule holds a prose value. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func_arity` | 0.53.0 | A call whose argument count is not the built-in's arity. ([Errors](reference-language.md#errors)) |
+| `ident_place` | 0.77.0 | `ident()` was written anywhere but as an alias declaration's value. ([Identity: `ident`](reference-language.md#identity-ident)) |
 | `include_denied` | 0.53.0 | An `@"..."` include refused by the active trust profile. ([Clause 1: hermeticity](trust.md#clause-1-hermeticity)) |
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
 | `incomplete_expression` | 0.51.0 | An expression missing a term, grouping parentheses with nothing inside included. ([The `+` operator and grouping](reference-language.md#the--operator-and-grouping)) |
 | `inverse_name` | 0.53.0 | The argument to `inverse()` is not a relation name. ([Declared relations](reference-language.md#declared-relations)) |
+| `jsonschema_schema` | 0.77.0 | The text handed to the JSON Schema importer is not a schema: not JSON, a root that is neither an object nor a boolean, a keyword holding a value of the wrong type, or a schema its meta-schema refuses. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `merge_conflict` | 0.53.0 | A version-control conflict marker left in the source. ([Errors](reference-language.md#errors)) |
 | `module_integrity` | 0.53.0 | A module resolved locally does not carry the meaning its canon-hash pin recorded. ([Modules](reference-language.md#modules)) |
 | `module_local` | 0.65.0 | A bare module reference whose last segment carries an extension the include table knows. ([Modules](reference-language.md#modules)) |
@@ -229,7 +232,7 @@ twenty rows have no such section and carry no link.
 | `rel_address` | 0.53.0 | A `rel()` field holds something other than path values. ([Declared relations](reference-language.md#declared-relations)) |
 | `render_path` | 0.58.0 | A unit path that is not relative, below the output directory, and distinct from every other unit's. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `render_profile` | 0.58.0 | A declaration needing a lowering, under a profile whose language has none. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
-| `rep_pattern` | 0.57.0 | The pattern given to `rep()` is outside the portable subset `re()` takes. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
+| `rep_pattern` | 0.57.0 | The pattern given to `rep()` or `split()` is outside the portable subset the host engines run. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `rep_sub` | 0.57.0 | The substitution given to `rep()` names a group the pattern does not have. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
 | `replace_overlap` | 0.58.0 | Two keys of a template's `replace` map overlap, one inside the other. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `replace_unused` | 0.58.0 | A key of a template's `replace` map appears in none of the body's literal lines. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
@@ -239,6 +242,7 @@ twenty rows have no such section and carry no link.
 | `syntax` | 0.51.0 | The parser refused the source text; the message is the parser's own, with the operator-character hint appended. ([Lexical structure](reference-language.md#lexical-structure)) |
 | `unify_no_src` | 0.51.0 | No source was handed in for unification. |
 | `usc_malformed` | 0.57.0 | `usc()` was given text the named convention could not have produced. ([`esc(s, variant?)` and `usc(s, variant?)`](reference-language.md#escs-variant-and-uscs-variant)) |
+| `var_name` | 0.77.0 | A `$` is followed by something other than a variable name or a path. ([Variables `$name`](reference-language.md#variables-name)) |
 | `view_line_break` | 0.54.0 | A label the figure would draw holds a line terminator. ([`aontu view`](reference-api.md#aontu-view)) |
 
 ### Class `conflict`
@@ -252,7 +256,7 @@ twenty rows have no such section and carry no link.
 | `closed` | 0.51.0 | A key or element added to a closed map or list. ([Errors](reference-language.md#errors)) |
 | `constraint` | 0.52.0 | The value does not satisfy the normalised residual the constraint reduced to. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
 | `constraint_kind` | 0.77.0 | The type `constraint` met a value that is not a constraint. ([The type of constraints: `constraint`](reference-language.md#the-type-of-constraints-constraint)) |
-| `constraint_pattern` | 0.53.0 | An `re()` pattern outside the supported subset. ([The constraint algebra](reference-language.md#the-constraint-algebra)) |
+| `constraint_pattern` | 0.53.0 | An `re()` pattern aontu refuses: a syntax error, a lookaround or backreference, a modifier group, or one past the size bounds. ([`re` and the pattern language](reference-language.md#re-and-the-pattern-language)) |
 | `decimal_budget` | 0.51.0 | An exact decimal past 4096 coefficient digits or an absolute scale of 4096. ([The exactness budget](reference-language.md#the-exactness-budget)) |
 | `divide_by_zero` | 0.53.0 | `div`, `mod`, or `rem` given a zero divisor. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `emit_none` | 0.57.0 | No template matched a node, and the table has no catch-all. ([Transforming: `emit`](reference-language.md#transforming-emit)) |
@@ -262,6 +266,7 @@ twenty rows have no such section and carry no link.
 | `empty_domain` | 0.77.0 | `empty()` met a value that is not a string. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `exact_float_mix` | 0.51.0 | An exact number combined with a binary float. ([The four numeric leaves](reference-language.md#the-four-numeric-leaves)) |
 | `float_overflow` | 0.53.0 | A result that is not a finite binary64 number. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
+| `format_unknown` | 0.77.0 | `format()` names a format that is neither one of the nineteen JSON Schema formats nor a grammar. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
@@ -281,6 +286,7 @@ twenty rows have no such section and carry no link.
 | `nil_gen` | 0.51.0 | A nil survived unification, and nil is not a literal value to generate. ([Generation](reference-language.md#generation)) |
 | `no_first_arg` | 0.51.0 | The function's first argument is missing. |
 | `no_scalar_unify` | 0.51.0 | Two scalar values of incompatible types. ([Unification rules](reference-language.md#unification-rules)) |
+| `nof` | 0.77.0 | The number of a `nof()`'s trial schemas that admit the value is not one its count admits; the hint names the count and each branch's verdict. ([Band B: `nof`](reference-language.md#band-b-nof)) |
 | `not-scalar-type` | 0.51.0 | A scalar type was expected and the value is not one. ([Unification rules](reference-language.md#unification-rules)) |
 | `op` | 0.51.0 | An operator operation failed; the named operator carries the detail. |
 | `op:` | 0.51.0 | Dynamic-prefix family: a named operator's own failure, the name appended (`op:add`). |
@@ -296,6 +302,7 @@ twenty rows have no such section and carry no link.
 | `render_strict` | 0.58.0 | An opaque escape, which the renderer cannot check, under strict rendering. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `replace_value` | 0.58.0 | A replacement value is not text by the time the dispatch fires. ([Replacing text in a body: `replace` and `esc`](reference-language.md#replacing-text-in-a-body-replace-and-esc)) |
 | `resolve` | 0.51.0 | The value could not be resolved. |
+| `rest` | 0.77.0 | A member of the value that no applying cover of a `rest()` evaluates is not one its trial schema admits; the finding names the member's key. ([Band B: `rest`](reference-language.md#band-b-rest)) |
 | `scalar-type` | 0.51.0 | Two scalar kinds where neither contains the other. ([Unification rules](reference-language.md#unification-rules)) |
 | `scalar_kind` | 0.51.0 | Two literal scalars of different kinds. ([Unification rules](reference-language.md#unification-rules)) |
 | `scalar_value` | 0.51.0 | Two literal scalars of the same kind that are not equal. ([Unification rules](reference-language.md#unification-rules)) |
@@ -303,6 +310,7 @@ twenty rows have no such section and carry no link.
 | `sort_key` | 0.63.0 | A child of the bag has no key to order by. ([Ordering: `sort`](reference-language.md#ordering-sort)) |
 | `string_empty` | 0.77.0 | `string` met `""`, which only `string & empty()` admits. ([The empty string: `empty()`](reference-language.md#the-empty-string-empty)) |
 | `unite` | 0.51.0 | Two values could not be united. |
+| `when` | 0.77.0 | The branch a `when()`'s condition picks does not admit the value; the hint names the branch and the condition's verdict. ([Band B: `when`](reference-language.md#band-b-when)) |
 
 ### Class `incomplete`
 
@@ -319,6 +327,7 @@ twenty rows have no such section and carry no link.
 | `no_gen` | 0.51.0 | A value survived unification as something other than a literal value. ([Generation](reference-language.md#generation)) |
 | `recursion_unexpanded` | 0.53.0 | A schema refers to itself, and no data reached the position to expand it against. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
 | `required_listelem` | 0.51.0 | A non-optional list element has no value. ([Optional keys `?`](reference-language.md#optional-keys-)) |
+| `vet_filled` | 0.77.0 | Under `vet --no-fill`, the schema supplies a member the data does not carry: the data is not an instance as written. ([`aontu vet`](reference-api.md#aontu-vet)) |
 
 ### Class `reference`
 
@@ -326,6 +335,10 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `import_not_exported` | 0.69.0 | A destructure asked for a name the other file does not publish. ([Taking a name: the destructure](reference-language.md#taking-a-name-the-destructure)) |
 | `invalid_var_kind` | 0.51.0 | A variable's kind is not the kind the use expects. ([Variables `$name`](reference-language.md#variables-name)) |
+| `jsonschema_dialect` | 0.77.0 | The `$schema` of a JSON Schema resource names a dialect aontu does not read, and no document of the set is a meta-schema by that URI. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_duplicate` | 0.77.0 | A JSON Schema resource declares one `$anchor` name twice, or two schemas declare one `$id`, so no reference to it could be answered by walk order alone. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_ref` | 0.77.0 | A JSON Schema reference names no schema the import can reach. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
+| `jsonschema_vocabulary` | 0.77.0 | The meta-schema a JSON Schema names in `$schema` requires, in its `$vocabulary`, a vocabulary aontu does not read. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `multisource_not_found` | 0.51.0 | An `aontu:` name that is not one of the language-supplied models; the message names the set. ([The `aontu:` models](reference-language.md#the-aontu-models)) |
 | `no_path` | 0.51.0 | A path reference resolves to nothing. ([Optional input: `maybe`](reference-language.md#optional-input-maybe)) |
 | `patch_ambiguous` | 0.53.0 | Two or more statements pin the path, so an in-place edit has no single place to write. ([`aontu model set`](reference-api.md#aontu-model-set)) |
@@ -381,9 +394,11 @@ twenty rows have no such section and carry no link.
 |---|---|---|
 | `alias_budget` | 0.69.0 | Alias expansion counted past the size budget before evaluation; expansion terminates whatever the budget, so this is about size. ([Aliases `%`](reference-language.md#aliases-)) |
 | `budget_passes` | 0.52.0 | The fixpoint pass budget was spent before the model converged; the hint names what was still refining. ([Cross-field bounds and residuation](reference-language.md#cross-field-bounds-and-residuation)) |
+| `jsonschema_budget` | 0.77.0 | A JSON Schema import declares its schemas once for each dynamic scope they are read in, and the scopes need more than 1024 further declarations. ([`aontu jsonschema`](reference-api.md#aontu-jsonschema)) |
 | `max_depth` | 0.51.0 | Input nested deeper than the engine processes. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `module_depth` | 0.53.0 | Module verification nested past its depth, usually a vendor tree leading back to itself. ([Modules](reference-language.md#modules)) |
 | `recursion_budget` | 0.53.0 | A recursive schema expanded past the depth budget without meeting concrete data. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
+| `trial_budget` | 0.77.0 | The admission trials of one evaluation reached their budget; a trial counts once for each position, trial schema and value. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `unify_cycle` | 0.51.0 | A circular reference reached during unification. ([Clause 2: termination](trust.md#clause-2-termination)) |
 | `view_rows_exceeded` | 0.54.0 | The figure has more rows than the row cap allows; the figure is refused rather than trimmed. ([`aontu view`](reference-api.md#aontu-view)) |
 

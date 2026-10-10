@@ -176,10 +176,10 @@ $ aontu vet menu-schema.aontu menu.json
   per-destination template instantiation, sharing ADR-005's clone
   discipline and its snapshot rules.
 - **`jsonschema`**: recursive schemas export as `$defs` +
-  `$ref` — the one JSON Schema feature everyone uses that the
-  exporter currently cannot reach (today it dies with the evaluator's
-  own `path_cycle`). The export is the symbolic form, so it is exact,
-  not lossy.
+  `$ref`, the one JSON Schema feature everyone uses, which the
+  exporter could not reach when this was written (it died with the
+  evaluator's own `path_cycle`). The export is the symbolic form, so
+  it is exact, not lossy; it landed with G12 phase 9.
 - **`subsume` / `breaking` (G3)**: recursive-vs-recursive comparison
   without data needs the standard seen-pair memo (Amadio–Cardelli);
   scoped to its own phase. Until it lands, `subsume` on a recursive
@@ -266,8 +266,8 @@ currently evaluates, so no existing model can be relying on one.
 |---|---|---|
 | P0 | ~~Fix §52 regime 4 (disjunct-selected list spread applies)~~ **LANDED 2026-08-29** | its repro row, plus edge-spread-disjunct-key re-adjudicated |
 | P1 | ~~The residual: prefix-test response, expansion at meet, `recursion_*` codes, canon/hash symbolic; single-file~~ **LANDED 2026-08-29** | the §3 examples as rows; both gates |
-| P2 | `jsonschema` `$defs`/`$ref` (~~vet flows~~ **LANDED 2026-08-29** with P1 — the anchored meet needed the schema root, see below) | export rows |
-| P3 | G3: seen-pair subsumption of recursive schemas | subsume rows |
+| P2 | ~~`jsonschema` `$defs`/`$ref`~~ **LANDED 2026-10-08** as G12 phase 9 in [g12-jsonschema-fidelity.md](../capability-review/g12-jsonschema-fidelity.md): a recursive position is a `$ref` to its definition under `$defs`, or `#` where the definition is the exported schema (~~vet flows~~ **LANDED 2026-08-29** with P1 — the anchored meet needed the schema root, see below) | export rows |
+| P3 | G3: seen-pair subsumption of recursive schemas; G12 phase 18 needs it | subsume rows |
 
 **P0 landed as two rules, not one fix.** Regime 4's root cause was
 `same()`/`valSame` ignoring spreads, so the disjunct DEDUPLICATED

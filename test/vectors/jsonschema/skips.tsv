@@ -1,0 +1,18 @@
+# The skip ledger of the vendored JSON Schema Test Suite (README.md):
+# one row per upstream test the importer cannot yet honour, the construct
+# it waits on and the phase that carries it. A listed test that passes
+# fails the run. Columns: file<TAB>group<TAB>test<TAB>construct<TAB>reason
+# A * in group and test lists a whole file; one in test a whole group.
+defs.json	validate definition against metaschema	invalid definition schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+dynamicRef.json	strict-tree schema, guards against misspelled properties	instance with misspelled field	$dynamicRef	a reference that reaches itself through a root that is not a map has no alias to name it
+optional/format/hostname.json	validation of A-label (punycode) host names	*	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a Bidi rule violation is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	A-label that decodes to a disallowed code point is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	U-label contains "--" in the 3rd and 4th position	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	invalid Punycode	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	non-canonical Punycode that does not re-encode to itself is invalid	format	an A-label is held to its ASCII syntax and never decoded (ADR-059)
+optional/format/idn-hostname.json	validation of internationalized host names	a U-label whose A-label form is longer than 63 octets is invalid	format	a U-label is never encoded, so its A-label form is not measured (ADR-059)
+ref.json	root pointer ref	recursive mismatch	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+ref.json	simple URN base URI with $ref via the URN	invalid under the URN IDed schema	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 2nd level is invalid	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
+unevaluatedProperties.json	unevaluatedProperties + single cyclic ref	Unevaluated on 3rd level is invalid	$ref	a reference that reaches itself through a root that is not a map has no alias to name it
