@@ -1944,6 +1944,6 @@ class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 29 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map
