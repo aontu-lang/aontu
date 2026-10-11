@@ -9,8 +9,13 @@ import * as Assert from 'node:assert'
 import * as Fs from 'node:fs'
 import * as Path from 'node:path'
 
-import { parseJson } from '../dist/jsonschema-import'
+import { Aontu } from '../dist/aontu'
+import { importJsonSchema, parseJson } from '../dist/jsonschema-import'
 import type { JNode } from '../dist/jsonschema-import'
+import { jsonSchema } from '../dist/jsonschema'
+import { subsume } from '../dist/subsume'
+import { hcanon } from '../dist/hcanon'
+import { exactJSON } from '../dist/exactjson'
 
 
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors')
@@ -102,6 +107,46 @@ function suiteGroups(dir: string, dialect?: string): Group[] {
 }
 
 
+function settle(text: string): any {
+  try {
+    return new Aontu().unify(text)
+  }
+  catch (_e) {
+    return undefined
+  }
+}
+
+
+// Why a schema does not come back from import(export(import(S))) as its
+// first import (ADR-068), or undefined where it does.
+function roundTrip(schema: string, opts: {
+  documents: Record<string, string>, path?: string, dialect?: string, formatAssertion?: boolean
+}): string | undefined {
+  const again = { documents: opts.documents, formatAssertion: opts.formatAssertion, noMetaCheck: true }
+  const first = importJsonSchema(schema, { ...again, path: opts.path, dialect: opts.dialect })
+  const v1 = 'error' === first.verdict ? undefined : settle(first.aontu)
+  if (undefined === v1) {
+    return 'error' === first.verdict ? undefined : 'the import does not stand'
+  }
+  const out = jsonSchema(first.aontu)
+  if ('error' === out.verdict) {
+    return 'the export refuses it'
+  }
+  const second = importJsonSchema(exactJSON(out.schema), again)
+  const v2 = 'error' === second.verdict ? undefined : settle(second.aontu)
+  if (undefined === v2) {
+    return 'the export does not import back'
+  }
+  if (hcanon(v1) === hcanon(v2)) {
+    return undefined
+  }
+  const there = subsume(first.aontu, second.aontu).verdict
+  const back = subsume(second.aontu, first.aontu).verdict
+  return v1.canon !== v2.canon ? 'the canon differs' :
+    'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`
+}
+
+
 export type { Group }
 
 export {
@@ -110,4 +155,5 @@ export {
   files,
   remotes,
   suiteGroups,
+  roundTrip,
 }

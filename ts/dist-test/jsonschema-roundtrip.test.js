@@ -41,48 +41,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Path = __importStar(require("node:path"));
-const aontu_1 = require("../dist/aontu");
-const jsonschema_import_1 = require("../dist/jsonschema-import");
-const jsonschema_1 = require("../dist/jsonschema");
-const subsume_1 = require("../dist/subsume");
-const hcanon_1 = require("../dist/hcanon");
-const exactjson_1 = require("../dist/exactjson");
 const suite_1 = require("./suite");
 const DIALECTS = [['draft2020-12', undefined],
     ['draft2019-09', '2019-09'], ['draft7', 'draft-07'], ['draft6', 'draft-06'], ['draft4', 'draft-04']];
-function settle(text) {
-    try {
-        return new aontu_1.Aontu().unify(text);
-    }
-    catch (_e) {
-        return undefined;
-    }
-}
-// Why a group's schema does not come back, or undefined where it does.
-function roundTrip(g, documents) {
-    const opts = { documents, formatAssertion: g.file.startsWith('optional/format/'), noMetaCheck: true };
-    const first = (0, jsonschema_import_1.importJsonSchema)(g.schema, { ...opts, path: g.file, dialect: g.dialect });
-    const v1 = 'error' === first.verdict ? undefined : settle(first.aontu);
-    if (undefined === v1) {
-        return 'error' === first.verdict ? undefined : 'the import does not stand';
-    }
-    const out = (0, jsonschema_1.jsonSchema)(first.aontu);
-    if ('error' === out.verdict) {
-        return 'the export refuses it';
-    }
-    const second = (0, jsonschema_import_1.importJsonSchema)((0, exactjson_1.exactJSON)(out.schema), opts);
-    const v2 = 'error' === second.verdict ? undefined : settle(second.aontu);
-    if (undefined === v2) {
-        return 'the export does not import back';
-    }
-    if ((0, hcanon_1.hcanon)(v1) === (0, hcanon_1.hcanon)(v2)) {
-        return undefined;
-    }
-    const there = (0, subsume_1.subsume)(first.aontu, second.aontu).verdict;
-    const back = (0, subsume_1.subsume)(second.aontu, first.aontu).verdict;
-    return v1.canon !== v2.canon ? 'the canon differs' :
-        'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`;
-}
 // The ledger may not grow past its bound; the register tightens it.
 (0, node_test_1.test)('the-json-schema-test-suite-round-trips', () => {
     const ledger = (0, suite_1.rows)(Path.join(suite_1.VECTORS, 'jsonschema', 'roundtrip.tsv'));
@@ -94,7 +55,8 @@ function roundTrip(g, documents) {
     for (const [dir, dialect] of DIALECTS) {
         for (const g of (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'jsonschema', 'tests', dir), dialect)) {
             const key = dir + ' | ' + g.file + ' | ' + g.group;
-            const why = roundTrip(g, documents);
+            const why = (0, suite_1.roundTrip)(g.schema, { documents, path: g.file, dialect: g.dialect,
+                formatAssertion: g.file.startsWith('optional/format/') });
             total++;
             if (undefined === why && listed.has(key)) {
                 problems.push(`${key}: listed (${listed.get(key)}) and round-trips; delete its row`);

@@ -10,55 +10,11 @@ import { test } from 'node:test'
 import * as Assert from 'node:assert'
 import * as Path from 'node:path'
 
-import { Aontu } from '../dist/aontu'
-import { importJsonSchema } from '../dist/jsonschema-import'
-import { jsonSchema } from '../dist/jsonschema'
-import { subsume } from '../dist/subsume'
-import { hcanon } from '../dist/hcanon'
-import { exactJSON } from '../dist/exactjson'
-import { VECTORS, rows, remotes, suiteGroups } from './suite'
-import type { Group } from './suite'
+import { VECTORS, rows, remotes, suiteGroups, roundTrip } from './suite'
 
 
 const DIALECTS: [string, string | undefined][] = [['draft2020-12', undefined],
   ['draft2019-09', '2019-09'], ['draft7', 'draft-07'], ['draft6', 'draft-06'], ['draft4', 'draft-04']]
-
-
-function settle(text: string): any {
-  try {
-    return new Aontu().unify(text)
-  }
-  catch (_e) {
-    return undefined
-  }
-}
-
-
-// Why a group's schema does not come back, or undefined where it does.
-function roundTrip(g: Group, documents: Record<string, string>): string | undefined {
-  const opts = { documents, formatAssertion: g.file.startsWith('optional/format/'), noMetaCheck: true }
-  const first = importJsonSchema(g.schema, { ...opts, path: g.file, dialect: g.dialect })
-  const v1 = 'error' === first.verdict ? undefined : settle(first.aontu)
-  if (undefined === v1) {
-    return 'error' === first.verdict ? undefined : 'the import does not stand'
-  }
-  const out = jsonSchema(first.aontu)
-  if ('error' === out.verdict) {
-    return 'the export refuses it'
-  }
-  const second = importJsonSchema(exactJSON(out.schema), opts)
-  const v2 = 'error' === second.verdict ? undefined : settle(second.aontu)
-  if (undefined === v2) {
-    return 'the export does not import back'
-  }
-  if (hcanon(v1) === hcanon(v2)) {
-    return undefined
-  }
-  const there = subsume(first.aontu, second.aontu).verdict
-  const back = subsume(second.aontu, first.aontu).verdict
-  return v1.canon !== v2.canon ? 'the canon differs' :
-    'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`
-}
 
 
 // The ledger may not grow past its bound; the register tightens it.
@@ -73,7 +29,8 @@ test('the-json-schema-test-suite-round-trips', () => {
   for (const [dir, dialect] of DIALECTS) {
     for (const g of suiteGroups(Path.join(VECTORS, 'jsonschema', 'tests', dir), dialect)) {
       const key = dir + ' | ' + g.file + ' | ' + g.group
-      const why = roundTrip(g, documents)
+      const why = roundTrip(g.schema, { documents, path: g.file, dialect: g.dialect,
+        formatAssertion: g.file.startsWith('optional/format/') })
       total++
       if (undefined === why && listed.has(key)) {
         problems.push(`${key}: listed (${listed.get(key)}) and round-trips; delete its row`)

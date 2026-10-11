@@ -39,13 +39,19 @@ exports.rows = rows;
 exports.files = files;
 exports.remotes = remotes;
 exports.suiteGroups = suiteGroups;
+exports.roundTrip = roundTrip;
 // The vendored JSON Schema corpora as the harnesses read them: each
 // schema and instance is the corpus's own text, since a JSON reader
 // that rounds numbers would test something else.
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
+const aontu_1 = require("../dist/aontu");
 const jsonschema_import_1 = require("../dist/jsonschema-import");
+const jsonschema_1 = require("../dist/jsonschema");
+const subsume_1 = require("../dist/subsume");
+const hcanon_1 = require("../dist/hcanon");
+const exactjson_1 = require("../dist/exactjson");
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors');
 exports.VECTORS = VECTORS;
 function rows(file) {
@@ -116,5 +122,39 @@ function suiteGroups(dir, dialect) {
         }
     }
     return out;
+}
+function settle(text) {
+    try {
+        return new aontu_1.Aontu().unify(text);
+    }
+    catch (_e) {
+        return undefined;
+    }
+}
+// Why a schema does not come back from import(export(import(S))) as its
+// first import (ADR-068), or undefined where it does.
+function roundTrip(schema, opts) {
+    const again = { documents: opts.documents, formatAssertion: opts.formatAssertion, noMetaCheck: true };
+    const first = (0, jsonschema_import_1.importJsonSchema)(schema, { ...again, path: opts.path, dialect: opts.dialect });
+    const v1 = 'error' === first.verdict ? undefined : settle(first.aontu);
+    if (undefined === v1) {
+        return 'error' === first.verdict ? undefined : 'the import does not stand';
+    }
+    const out = (0, jsonschema_1.jsonSchema)(first.aontu);
+    if ('error' === out.verdict) {
+        return 'the export refuses it';
+    }
+    const second = (0, jsonschema_import_1.importJsonSchema)((0, exactjson_1.exactJSON)(out.schema), again);
+    const v2 = 'error' === second.verdict ? undefined : settle(second.aontu);
+    if (undefined === v2) {
+        return 'the export does not import back';
+    }
+    if ((0, hcanon_1.hcanon)(v1) === (0, hcanon_1.hcanon)(v2)) {
+        return undefined;
+    }
+    const there = (0, subsume_1.subsume)(first.aontu, second.aontu).verdict;
+    const back = (0, subsume_1.subsume)(second.aontu, first.aontu).verdict;
+    return v1.canon !== v2.canon ? 'the canon differs' :
+        'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`;
 }
 //# sourceMappingURL=suite.js.map

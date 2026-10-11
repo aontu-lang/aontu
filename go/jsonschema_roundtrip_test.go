@@ -19,10 +19,16 @@ import (
 // roundTrip is why a group's schema does not come back, or "" where it
 // does.
 func roundTrip(g suiteGroup, documents map[string]string) string {
-	opts := &ImportOptions{Documents: documents, NoMetaCheck: true,
-		FormatAssertion: strings.HasPrefix(g.file, "optional/format/")}
-	first := ImportJSONSchema(g.schema, &ImportOptions{Path: g.file, Documents: documents,
-		NoMetaCheck: true, FormatAssertion: opts.FormatAssertion, Dialect: g.dialect})
+	return schemaRoundTrip(g.schema, g.file, g.dialect, strings.HasPrefix(g.file, "optional/format/"),
+		documents)
+}
+
+// schemaRoundTrip is why a schema does not come back from the round trip
+// of ADR-068 as its first import, or "" where it does.
+func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documents map[string]string) string {
+	opts := &ImportOptions{Documents: documents, NoMetaCheck: true, FormatAssertion: formatAssertion}
+	first := ImportJSONSchema(schema, &ImportOptions{Path: path, Documents: documents,
+		NoMetaCheck: true, FormatAssertion: formatAssertion, Dialect: dialect})
 	if "error" == first.Verdict {
 		return ""
 	}
