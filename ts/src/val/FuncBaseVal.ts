@@ -11,7 +11,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { unite, withDepth } from '../unify'
+import { rideOn, unite, withDepth } from '../unify'
 
 
 import {
@@ -248,6 +248,8 @@ class FuncBaseVal extends FeatureVal {
             if (!arg.done) {
               const argctx = te ? ctx.clone({ explain: ec(te, 'ARG') }) : ctx
               newarg = withDepth(ctx, arg, TOP, () => arg.unify(TOP, argctx))
+              // The argument's riders ride its value, as a meet's do (ADR-052).
+              newarg = newarg.isNil ? newarg : rideOn(argctx, newarg, arg, undefined)
               newtype = newtype || newarg.mark.type
               newhide = newhide || newarg.mark.hide
             }
@@ -256,8 +258,6 @@ class FuncBaseVal extends FeatureVal {
             newpeg.push(newarg)
           }
         }
-
-        // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
 
         // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
         const gone = this.forgives ? undefined :
@@ -327,8 +327,6 @@ class FuncBaseVal extends FeatureVal {
         }
       }
     }
-
-    // console.log('FUNC-UNIFY-OUT', ctx.cc, this.funcname(), this.id, this.canon, 'D=', pegdone, 'W=', why, peer.id, peer.canon, 'O=', out.dc, out.id, out.canon)
 
     explainClose(te, out)
 

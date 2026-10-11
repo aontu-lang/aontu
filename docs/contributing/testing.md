@@ -277,6 +277,26 @@ design and is listed in
 [`annotations/skips.tsv`](../../test/vectors/jsonschema/annotations/skips.tsv),
 under the same three rules and its own bound.
 
+The round trip of [ADR-068](../../ADR.md#adr-068--an-import-comes-back-from-its-own-export)
+runs in two more pairs of runners:
+[`ts/test/jsonschema-roundtrip.test.ts`](../../ts/test/jsonschema-roundtrip.test.ts)
+and [`go/jsonschema_roundtrip_test.go`](../../go/jsonschema_roundtrip_test.go)
+over every group of the suite, in every dialect, and
+[`ts/test/jsonschema-schemastore.test.ts`](../../ts/test/jsonschema-schemastore.test.ts)
+and [`go/jsonschema_schemastore_test.go`](../../go/jsonschema_schemastore_test.go)
+over the SchemaStore schemas vendored under
+[`test/vectors/jsonschema/schemastore/`](../../test/vectors/jsonschema/schemastore/README.md).
+Each imports a schema, exports the import and imports the export, and
+requires the two imports to be one value: the same hash form, or the
+same canon, the root's annotations included, with `subsume` holding
+both ways. A schema the import refuses does not come back, and one that
+does not come back is a row of
+[`roundtrip.tsv`](../../test/vectors/jsonschema/roundtrip.tsv) or of
+[`schemastore/roundtrip.tsv`](../../test/vectors/jsonschema/schemastore/roundtrip.tsv),
+under the same three rules and its own bound, and a row names a
+construct the export cannot write in a form the import reads back as
+the same value.
+
 The importer's own behaviour is pinned the usual way, by the
 `jsonschema-import` rows of
 [`test/spec/jsonschema-import.tsv`](../../test/spec/jsonschema-import.tsv),

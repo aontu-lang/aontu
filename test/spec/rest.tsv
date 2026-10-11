@@ -71,6 +71,7 @@ rest-errc-a-cover-spread	errc	a: rest(nil, {&: any}) & {}	invalid-arg
 rest-errc-no-arguments	errc	a: rest()	func_arity
 rest-errc-a-move-refused	errc	a: rest(nil, {keys: move($.b)}) & {}\nb: "x"	invalid-arg
 rest-errc-a-waiting-cover-not-a-map	errc	a: rest(nil, $.b) & {}\nb: 1	invalid-arg
-# Like the other Band B atoms, rest is opaque to subsumption.
+# Like the other Band B atoms, rest is opaque to subsumption, except to
+# itself: two values of one hash form are one value.
 rest-general-is-undecided	subsume	a: rest(nil)	a: 5	{"findings":[{"actual":"5","class":"compat","code":"sub_evaluate_only","expected":"rest(nil)","message":"a check of the members no cover evaluates (rest) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"rest","value":"rest(nil)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"5","value":"5"}]}],"verdict":"undecided"}
-rest-general-residual-is-undecided	subsume	a: rest(nil)	a: rest(nil)	{"findings":[{"actual":"rest(nil)","class":"compat","code":"sub_evaluate_only","expected":"rest(nil)","message":"a check of the members no cover evaluates (rest) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":4,"role":"general","row":1,"src":"rest","value":"rest(nil)"},{"col":4,"file":"specific","len":4,"role":"specific","row":1,"src":"rest","value":"rest(nil)"}]}],"verdict":"undecided"}
+rest-residual-admits-itself	subsume	a: rest(nil)	a: rest(nil)	{"findings":[],"verdict":"subsumes"}

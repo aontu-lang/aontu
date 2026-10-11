@@ -1007,15 +1007,17 @@ function capture(fn) {
     });
 });
 (0, node_test_1.describe)('coverage3-subsume', () => {
-    (0, node_test_1.test)('subsume-no-rule-fold', () => {
+    // A nil admits nothing, so every value subsumes one and one subsumes
+    // no other value.
+    (0, node_test_1.test)('subsume-nil-rule', () => {
         const state = {
             profile: 'values', findings: [],
             generalUrl: 'general', specificUrl: 'specific',
         };
-        const r = (0, subsume_1.subsumeNode)(state, [], new NilVal_1.NilVal({ why: 'test' }), new NilVal_1.NilVal({ why: 'test' }));
-        Assert.equal(r, 'undecided');
+        Assert.equal((0, subsume_1.subsumeNode)(state, [], new NilVal_1.NilVal({ why: 'test' }), new NilVal_1.NilVal({ why: 'test' })), 'yes');
+        Assert.equal((0, subsume_1.subsumeNode)(state, [], new NilVal_1.NilVal({ why: 'test' }), new IntegerVal_1.IntegerVal({ peg: 1 })), 'no');
         Assert.equal(state.findings.length, 1);
-        Assert.equal(state.findings[0].code, 'sub_unresolved');
+        Assert.equal(state.findings[0].code, 'compat_narrowed');
     });
     // A recursion unfolds into the definition its own document holds
     // (docs/design/RECURSION.0.md, P3); one whose document does not hold

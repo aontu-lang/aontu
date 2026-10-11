@@ -74,7 +74,7 @@ capability decision is the phase rows it governed in
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
 | [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Accepted |
-| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Accepted |
+| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
 | [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
 | [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
@@ -88,14 +88,15 @@ capability decision is the phase rows it governed in
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
-| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Accepted |
-| [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Accepted |
+| [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
+| [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
 | [ADR-062](#adr-062--a-recursive-residual-meets-a-kind-a-disjunction-and-another-residual) | A recursive residual meets a kind, a disjunction and another residual | Accepted |
 | [ADR-063](#adr-063--the-vocabularies-a-meta-schema-lists-decide-what-its-schemas-read) | The vocabularies a meta-schema lists decide what its schemas read | Accepted |
 | [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
 | [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
 | [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
 | [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Accepted |
+| [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 
 ---
 
@@ -4644,7 +4645,7 @@ it.
 ## ADR-046 — A written `nil` under an optional key forbids the key
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export)
 
 ### Context
 
@@ -5596,7 +5597,7 @@ RFCs, each found against a corpus.
 ## ADR-060 — aontu matches a pattern with its own engine
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export)
 
 ### Context
 
@@ -5710,7 +5711,7 @@ builtins still read, and the matcher has its own.
 ## ADR-061 — An earlier dialect is upgraded before it is read
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export)
 
 ### Context
 
@@ -6288,3 +6289,182 @@ and the design note scoped it as its P3.
   engines. The executed `aontu subsume` scenario in
   [docs/reference-api.md](docs/reference-api.md) shows a recursion that
   subsumes and one that is refused.
+
+## ADR-068 — An import comes back from its own export
+
+**Date:** 2026-10-10
+**Status:** Accepted
+
+### Context
+
+G12's last phase asks that a schema which crosses into aontu can cross
+back: the import of a schema's export should be the import it started
+from (phase 18 of
+[g12-jsonschema-fidelity.md](docs/capability-review/g12-jsonschema-fidelity.md)),
+for the official suite and for a pinned subset of the configuration
+schemas SchemaStore publishes. A probe over the official suite found 990
+of its 1,709 groups coming back canon-equal and subsuming both ways.
+Three kinds of failure held the rest. `subsume` could not decide values
+it should: `nil`, and two identical atoms. The import and the export
+each wrote one meaning in more than one spelling, chosen by the order a
+schema listed its members or a conjunction met its terms. And some
+constructs have no spelling the import reads back as the same value.
+The suite's groups are small, and SchemaStore's schemas are not: a probe
+over thirty of them, up to half a megabyte, found definitions naming one
+another, rules met through a shared definition and annotations on
+almost every member, and with them spellings and engine defects the
+suite never reached.
+
+### Decision
+
+1. **The round trip is a gate in both harnesses.** For each group of
+   the official suite, in each of its dialect directories, and each
+   schema of the SchemaStore subset vendored under
+   `test/vectors/jsonschema/schemastore/`, `import(export(import(S)))`
+   must be `import(S)`: the same hash form, or the same canon, the
+   root's riders included, with `subsume` holding both ways. The import
+   reads without the meta-schema check, which admits or refuses an
+   input but never changes what it imports as, and a schema whose first
+   import is refused does not come back. A group that does not come
+   back is a row of `test/vectors/jsonschema/roundtrip.tsv`, and a
+   SchemaStore schema one of
+   `test/vectors/jsonschema/schemastore/roundtrip.tsv`, naming the
+   construct and why; a listed entry that comes back fails the run, and
+   so does a ledger past its bound, 61 rows and 6.
+2. **A value has one canon whatever order its terms were met in.** A
+   conjunction's canon and hash form write its terms by the rank the
+   engine sorts terms by, and terms of one rank in code-point order of
+   their text. `nof` sorts its branches as it renders them, and a count
+   still waiting on its branches writes them after the count, sorted.
+3. **`nil` is the bottom of subsumption, and identical values subsume
+   each other.** Every value subsumes `nil`, which subsumes only `nil`.
+   Two values of one hash form subsume each other where no other rule
+   decides them, unless the form names a definition, which is compared
+   through the definition it names (ADR-067).
+4. **The import writes one spelling for each meaning.** A guarded
+   spread lists its names and patterns in code-point order, and the
+   pattern spreads follow the same order. A kind split no keyword
+   narrows is `any`. A member whose schema is written as
+   `additionalProperties`'s is held to it and not let through. A
+   `oneOf` of one branch is read as `anyOf` reads it, the `not` of a
+   schema that admits everything is `nil`, and a `type` beside a
+   `const` or an `enum` of its own kind is not written, nor is a
+   `propertyNames` that every string passes. A schema object whose
+   assertions come to a written `nil` keeps no annotations, as one that
+   conflicts never did, since JSON Schema collects none from a schema
+   that admits nothing. An `anyOf` of distinct
+   literals, or of branches of kinds apart none of which holds a
+   required key, a container's count, closure, an alias or a Band B
+   atom, is `|` over its branches, a branch that is itself such a
+   disjunction flattened in and the kinds in the order `type` writes
+   them. A `definitions` member is named as
+   a `$defs` member, `d_` and its key, unless `$defs` holds the same
+   key, so it keeps its name through the export's `$defs`: this amends
+   ADR-061's departure 6, which named it by its pointer. A
+   `$dynamicRef`'s text rides a `meta` record only on a use the export
+   can write back.
+5. **The export writes what the import reads back as the same value.**
+   A bag closed at every level whose members are values is `const`, and
+   a disjunction of them `enum`, unless a member carries a `meta()` or
+   `deprecate()` record, which an `enum` member cannot hold, and then
+   `anyOf`. A key test that is a bare `re()` is a `patternProperties`
+   key, and any other, or a lone name the map does not declare, is
+   `propertyNames`; a plain spread beside no pattern is
+   `additionalProperties`. A key named `__proto__` is data. The atoms a
+   disjunction was met with are written once, beside the fold of its
+   members. A use of an alias the meet narrowed is its `$ref` beside the
+   keywords that differ and the keywords they read, `properties` beside
+   `additionalProperties`, `prefixItems` beside `items`, the counts
+   beside `contains` and `if` beside `then` and `else`, with its `type`
+   where a keyword of one kind differs, so the copy reads back as one
+   kind. A value still waiting that reaches nothing outside itself is
+   settled on its own and written as what it settles to; a meet still
+   waiting is an `allOf` of its terms; a count still waiting in a
+   template is written from its branches; and the riders of a
+   constraint held beside a map or a kind ride an `allOf` member of
+   their own. A written `nil` at the root, or under an anchor that
+   names the root, as `$` does, is `not: {}`, since the schema `false`
+   cannot name its dialect. `re()`'s `\d`, `\w`, `\D`
+   and `\W` are copied as written, since ECMA-262 reads each as aontu
+   does: this amends ADR-060 decision 6, which wrote out their sets.
+6. **A written `nil` under an optional key refuses a value supplied, and
+   only that.** A kind, another `nil`, or a disjunction no member of
+   which is preferred supplies no value, so beside `k?: nil` it is
+   forbidden with the key, where it was refused. A preferred member is
+   a value supplied, and is refused. This amends ADR-046, whose rule
+   named a kind and a constraint and refused a `nil` and a disjunction,
+   so a schema that forbids a key in one `allOf` member and lists its
+   values in another stands, as a map without the key, where it was
+   refused.
+7. **The ledger holds only the boundary**: a construct the export
+   cannot write, or writes in a form the import reads as another value
+   of the same meaning. `rest()` over a cover a branch conditions is an
+   `allOf` member of its own, its condition repeated in place, and
+   imports as a cover of that member (ADR-058, the register's phase 12
+   departures 3 and 5). A keyword the schema's vocabularies leave unread
+   is an annotation that would assert if written back, and a `format`
+   asserted through a custom vocabulary has no spelling the default
+   vocabularies assert, so the export drops each with a loss. It writes
+   a positional guard distributed over a kind split, and a recursion
+   cut through a root that is not a map, as a schema that admits
+   anything, each with a loss. An `unevaluatedProperties` guard over
+   names no map beside it declares is written as `properties` beside
+   `additionalProperties: false`, and imports with those names
+   declared. A keyword the schema's own dialect does not name, as
+   draft-07's `deprecated` and `$defs`, draft-04's and draft-06's
+   `$comment`, or a 2020-12 keyword in a resource of an earlier dialect,
+   is kept under `x`, where 2020-12 names it, and the export drops it
+   with a loss. A disjunction the meet distributed over a waiting count
+   is an `anyOf`, which the import reads back as a count of at least
+   one, and a `when` waiting in a template is not yet a value, so the
+   export writes it as a schema that admits anything, with a loss.
+
+### Consequences
+
+- 1,648 of the suite's 1,709 groups come back in both ports, and the
+  ledger holds the other 61: 36 for `rest()`, 14 for keywords their
+  dialect does not name, 6 for vocabularies, 2 for the format
+  vocabulary, and one each for the positional guard, the cut recursion
+  and the undeclared names. A `oneOf` of one branch now
+  applies in place, so the annotation harness passes 58 of its 84
+  assertions and its ledger shrinks from 28 rows to 26.
+- 24 of the 30 SchemaStore schemas come back in both ports, and the
+  ledger holds the other 6: `codecov`, `jest`, `ruff` and `uv` for
+  draft-07's `deprecated` alone, `claude-code-settings` for its
+  `$defs`, and `stylelintrc` for `deprecated`, the waiting count and
+  the waiting `when`. Each port's time and peak memory over
+  the subset are in the register.
+- The gate compares values, so an identity riding a definition that the
+  value names and does not hold is outside it: the export drops an
+  `$id` that a `$ref` inside the definition would resolve against, and
+  reports that as a loss, and the import comes back all the same.
+- A document whose conjunctions held terms of one rank out of that
+  order renders and hashes differently: the bundled `aontu:profile`
+  model's pinned hashes, and three use cases' pinned canon and model
+  tree, are re-derived.
+- Engine defects the round trip found are fixed in both ports. Go
+  shared one `empty()`, `open()`, `close()`, `acyclic()`, `inverse()`
+  or `rel()` value among the uses of an alias holding it, so the export
+  wrote that definition as a `$ref` to itself. TypeScript's export
+  crashed on a map with keys `$ref` and `$dynamicRef`, and dropped a
+  key named `__proto__`. Riders were lost on paths ADR-052 decision 1
+  says they ride: a meet flattened into a wider one, an argument a
+  TypeScript function drove, and a count's branch settled over several
+  passes. A disjunction met each member with its peer's riders, so an
+  annotated disjunction met with itself was not itself, each member
+  carrying the record; the members now meet the peer without them, and
+  the result carries them once. A key only the peer declares lost its
+  riders in canon and hash form, and an alias declaration only the peer
+  held was wrapped as an expected value, so a count it held did not
+  settle; it is met with top. A copy of a waiting count did not settle where it
+  was used: TypeScript's copy stopped waiting, and Go's shared its
+  arguments with the declaration a trial settles in place. And Go kept
+  a reference's snapshot per trial, where TypeScript keeps one store per
+  run, so an alias in a trial rendered as its use.
+- TypeScript's export settled each value it reads apart on an engine of
+  its own, and building one builds a parser; it now shares one, so
+  `stylelintrc` exports in seconds where it took two minutes.
+- Pinned by both harnesses and their ledgers in both ports, and by rows
+  in `test/spec/subsume.tsv`, `jsonschema.tsv`, `jsonschema-import.tsv`,
+  `alias.tsv`, `meta.tsv`, `optional.tsv`, `hcanon.tsv` and the
+  residual files, every expectation from both engines.

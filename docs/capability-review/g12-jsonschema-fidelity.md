@@ -1397,8 +1397,9 @@ fields; the suite's `output-tests/` in the harness.
 `import(export(import(S)))` to be canon-equal to `import(S)` and
 `subsume` to hold both ways for every schema it imports, the suite and
 a pinned SchemaStore subset alike, with each port's timing over the
-subset recorded in the register, and the skip ledger holds only the
-boundary's cases. It needs the recursion design's P3, seen-pair
+subset recorded in the register, and the round trip's own ledgers, one
+beside the suite and one beside the subset, hold only the boundary's
+cases. It needs the recursion design's P3, seen-pair
 subsumption of recursive schemas, which is not a phase of this
 document: without it `subsume` over a recursive import has no
 termination argument.

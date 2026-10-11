@@ -27,7 +27,28 @@ func (c *ConjunctVal) Canon() string {
 	for i, t := range c.peg {
 		parts[i] = junctChildCanon(t)
 	}
-	return strings.Join(parts, "&")
+	return strings.Join(meetOrder(c.peg, parts), "&")
+}
+
+// meetOrder: a meet is one value whatever order its terms were met in, so
+// terms of one rank are written in code-point order.
+func meetOrder(terms []Val, parts []string) []string {
+	idx := make([]int, len(terms))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool {
+		ca, cb := terms[idx[a]].cjo(), terms[idx[b]].cjo()
+		if ca != cb {
+			return ca < cb
+		}
+		return parts[idx[a]] < parts[idx[b]]
+	})
+	out := make([]string, len(parts))
+	for i, j := range idx {
+		out[i] = parts[j]
+	}
+	return out
 }
 
 func junctChildCanon(v Val) string {
@@ -74,7 +95,8 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// (TS folds with the same undescended ctx).
 	slot := ctx.slot
 
-	terms := norm(c.peg)
+	var carried []Val
+	terms := norm(c.peg, &carried)
 	done := true
 
 	// Unify each term against the peer.
@@ -94,7 +116,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	upeer = norm(upeer)
+	upeer = norm(upeer, &carried)
 
 	// Fold the terms together left to right.
 	var outvals []Val
@@ -170,6 +192,10 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	if mh {
 		out.setMarkHide(true)
 	}
+	// A meet flattened in leaves its riders on the whole (ADR-052).
+	for _, cv := range carried {
+		out = rideOn(out, cv, nil)
+	}
 	return out
 }
 
@@ -180,10 +206,13 @@ func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
 
 // norm flattens nested conjuncts and orders terms by cjo so that
 // unification is order-independent (lower cjo sorts first).
-func norm(terms []Val) []Val {
+func norm(terms []Val, carried *[]Val) []Val {
 	var expand []Val
 	for _, t := range terms {
 		if cj, ok := t.(*ConjunctVal); ok {
+			if rides(cj) {
+				*carried = append(*carried, cj)
+			}
 			expand = append(expand, cj.peg...)
 		} else {
 			expand = append(expand, t)

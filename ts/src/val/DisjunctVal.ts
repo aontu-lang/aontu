@@ -80,6 +80,25 @@ class DisjunctVal extends JunctionVal {
 
     let oval: Val[] = []
 
+    // A rider still a call resolves first: met member by member it would
+    // write its record on each. Only TypeScript gets here, through the
+    // `_tcc` shortcut in unite, which leaves a peer met with top this pass
+    // undriven.
+    if (true === (peer as any).isFunc && !peer.done && (peer as any).rides()) {
+      peer = peer.unify(top(), ctx)
+    }
+
+    // The peer's annotations ride the result once, not each member, so a
+    // disjunction met with itself is itself.
+    const annotated = null != (peer as any).meta || null != (peer as any).deprecation ||
+      null != (peer as any).via
+    const member: any = annotated ? peer.clone(ctx, { path: peer.path }) : peer
+    if (annotated) {
+      member.meta = undefined
+      member.deprecation = undefined
+      member.via = undefined
+    }
+
     const savedErr = ctx.err
     const savedTrialMode = ctx._trialMode
     const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err')
@@ -99,7 +118,7 @@ class DisjunctVal extends JunctionVal {
           ;(ctx as any).referflows = staged[vI]
         }
 
-        oval[vI] = unite(te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx, v, peer, 'dj-peer')
+        oval[vI] = unite(te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer')
 
         if (0 < trialErr.length) {
           oval[vI] = TRIAL_NIL
@@ -158,8 +177,6 @@ class DisjunctVal extends JunctionVal {
       ;(ctx as any).referflows = savedFlows
     }
 
-    // // // console.log('DISJUNCT-unify-B', this.id, oval.map(v => v.canon))
-
     if (true === (peer as any).isPref) {
       const want: any = prefInnerPeg(peer as PrefVal)
       for (let vI = 0; vI < oval.length; vI++) {
@@ -180,8 +197,6 @@ class DisjunctVal extends JunctionVal {
           oval.splice(vI, 1, ...oval[vI].peg)
         }
       }
-
-      // // // console.log('DISJUNCT-unify-C', this.id, oval.map(v => v.id + '=' + v.canon))
 
       // Dedup: duplicate Vals in the disjunct are replaced with the
       // trial sentinel, which is filtered out a few lines below.
@@ -210,8 +225,6 @@ class DisjunctVal extends JunctionVal {
           }
         }
       }
-
-      // // // console.log('DISJUNCT-unify-D', this.id, oval.map(v => v.canon))
     }
 
     if (undefined !== savedFlows) {
@@ -248,9 +261,9 @@ class DisjunctVal extends JunctionVal {
     }
 
     out.dc = done ? DONE : this.dc + 1
-
-    // // // console.log('DISJUNCT-unify',
-    //   this.id, sc, pc, '->', out.canon, 'D=' + out.dc, 'E=', this.err)
+    if (annotated) {
+      ride(out, undefined, peer)
+    }
 
     explainClose(te, out)
 
@@ -262,8 +275,6 @@ class DisjunctVal extends JunctionVal {
     // The kept index per rank, so an equal-rank twin folds into the
     // arm already standing for that rank.
     const atRank: Record<number, number> = {}
-
-    // // // console.log('RP-A', this.peg.map((p: Val) => p.canon))
 
     for (let vI = 0; vI < this.peg.length; vI++) {
       const v = this.peg[vI]
@@ -301,8 +312,6 @@ class DisjunctVal extends JunctionVal {
 
     this.peg = this.peg.filter((p: any) => null != p)
     this.prefsRanked = true
-
-    // // // console.log('RP-Z', this.peg.map((p: Val) => p.canon))
 
     if (1 === this.peg.length && this.peg[0] instanceof PrefVal) {
       return this.peg[0]

@@ -396,10 +396,13 @@ func withoutKey(keys []string, k string) []string {
 	return keys
 }
 
-// A written nil refuses a supplied value (ADR-046); a minted nil is a
-// refusal already recorded.
+// A written nil refuses a supplied value (ADR-046), which a nil or a
+// disjunction with no preference is not; a minted nil is already recorded.
 func literalNilRefuses(n *NilVal, v Val) bool {
-	return "literal_nil" == n.why && genable(v) && !isTop(v)
+	if d, ok := v.(*DisjunctVal); ok && !slices.ContainsFunc(d.peg, isPref) {
+		return false
+	}
+	return "literal_nil" == n.why && genable(v) && !isTop(v) && !v.Nil()
 }
 
 func genable(v Val) bool {
@@ -671,7 +674,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 					uv = unite(ctx, ex, pc)
 				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
-				!m.markedType() && !m.markedHide() {
+				!m.markedType() && !m.markedHide() && !pm.isAliasKey(pk) {
 				peg := pc
 				if ev, isex := pc.(*ExpectVal); isex {
 					peg = ev.peg

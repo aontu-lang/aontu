@@ -835,11 +835,11 @@ func rxRewrite(src string, subs []rxSub, to map[string][2]string) string {
 
 var rxAontuToECMA = map[string][2]string{
 	".":   {"[^\\n]", ""},
-	"\\d": {"[0-9]", "0-9"},
-	"\\w": {"[0-9A-Za-z_]", "0-9A-Za-z_"},
+	"\\d": {"\\d", "\\d"},
+	"\\w": {"\\w", "\\w"},
 	"\\s": {"[ \\t\\n\\r\\f\\v]", " \\t\\n\\r\\f\\v"},
-	"\\D": {"[^0-9]", "\\D"},
-	"\\W": {"[^0-9A-Za-z_]", "\\W"},
+	"\\D": {"\\D", "\\D"},
+	"\\W": {"\\W", "\\W"},
 	"\\S": {"[^ \\t\\n\\r\\f\\v]", rxClassBody(uComplement(rxASCIISpace))},
 	"\\A": {"^", ""},
 	"\\z": {"$", ""},

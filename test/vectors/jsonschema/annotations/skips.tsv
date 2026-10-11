@@ -19,7 +19,6 @@ unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	test 0: /
 unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	test 1: /foo title	unevaluatedProperties	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedProperties` with `if`, `then`, and `else`	test 1: /bar title	unevaluatedProperties	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedProperties` with `anyOf`	test 0: /bar title	unevaluatedProperties	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
-unevaluated.json	`unevaluatedProperties` with `oneOf`	test 0: /foo title	unevaluatedProperties	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedProperties` with `oneOf`	test 0: /bar title	unevaluatedProperties	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedItems` with `contains`	test 0: /0 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedItems` with `contains`	test 0: /1 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
@@ -28,5 +27,4 @@ unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	test 0: /1 tit
 unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	test 1: /0 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedItems` with `if`, `then`, and `else`	test 1: /1 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedItems` with `anyOf`	test 0: /1 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
-unevaluated.json	`unevaluatedItems` with `oneOf`	test 0: /0 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)
 unevaluated.json	`unevaluatedItems` with `oneOf`	test 0: /1 title	unevaluatedItems	the schema rest() tries an unevaluated member with is a trial, whose annotations stay with its atom (open question 9)

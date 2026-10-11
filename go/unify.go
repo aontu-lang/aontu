@@ -158,6 +158,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if over := aliasBudget(ctx, root); nil != over {
 		return over
 	}
+	if nil == ctx.snapmap {
+		ctx.snapmap = map[string]Val{}
+	}
 	res := root
 	// The pass budget: the spec constant unless the trust profile set
 	// one (ctx.budgetPasses, zero = default).

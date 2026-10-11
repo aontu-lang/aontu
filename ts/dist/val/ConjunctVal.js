@@ -6,6 +6,7 @@ exports.norm = norm;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const unify_1 = require("../unify");
+const rider_1 = require("../rider");
 const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
 const BagVal_1 = require("./BagVal");
@@ -37,7 +38,8 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         peer = peer ?? (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         let done = true;
-        this.peg = norm(this.peg);
+        const carried = [];
+        this.peg = norm(this.peg, carried);
         // Unify each term of conjunct against peer
         let upeer = [];
         let newtype = this.mark.type || peer.mark.type;
@@ -58,7 +60,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 return upeer[vI];
             }
         }
-        upeer = norm(upeer);
+        upeer = norm(upeer, carried);
         // console.log('CONJUNCT-UPEER', this.id, upeer.map((v: Val) => v.canon))
         // Unify terms against each other
         let outvals = [];
@@ -125,6 +127,10 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             out.site.src = this.site.src;
         }
         out.dc = done ? type_1.DONE : this.dc + 1;
+        // A meet flattened in leaves its riders on the whole (ADR-052).
+        for (const c of carried) {
+            out = (0, unify_1.rideOn)(ctx, out, c, undefined);
+        }
         (0, utility_1.explainClose)(te, out);
         return out;
     }
@@ -161,10 +167,13 @@ function sameTerms(cj, t0, t1) {
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
-function norm(terms) {
+function norm(terms, carried) {
     let expand = [];
     for (let tI = 0, pI = 0; tI < terms.length; tI++, pI++) {
         if (terms[tI].isConjunct) {
+            if ((0, rider_1.rides)(terms[tI])) {
+                carried.push(terms[tI]);
+            }
             const cterms = terms[tI].peg;
             for (let cI = 0; cI < cterms.length; cI++) {
                 expand[pI + cI] = cterms[cI];

@@ -177,6 +177,8 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                         if (!arg.done) {
                             const argctx = te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'ARG') }) : ctx;
                             newarg = (0, unify_1.withDepth)(ctx, arg, TOP, () => arg.unify(TOP, argctx));
+                            // The argument's riders ride its value, as a meet's do (ADR-052).
+                            newarg = newarg.isNil ? newarg : (0, unify_1.rideOn)(argctx, newarg, arg, undefined);
                             newtype = newtype || newarg.mark.type;
                             newhide = newhide || newarg.mark.hide;
                         }
@@ -185,7 +187,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                         newpeg.push(newarg);
                     }
                 }
-                // console.log('FUNCBASE-PEG', this.id, pegdone, this.peg.map((p: any) => p?.canon))
                 // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
                 const gone = this.forgives ? undefined :
                     newpeg.find((a) => true === a.isAbsent);
@@ -245,7 +246,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 }
             }
         }
-        // console.log('FUNC-UNIFY-OUT', ctx.cc, this.funcname(), this.id, this.canon, 'D=', pegdone, 'W=', why, peer.id, peer.canon, 'O=', out.dc, out.id, out.canon)
         (0, utility_1.explainClose)(te, out);
         return out;
     }

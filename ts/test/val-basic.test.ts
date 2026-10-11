@@ -624,7 +624,7 @@ describe('val-basic', function() {
     expect(d1.canon).equal('1&1')
     expect(d2.canon).equal('1&2')
     expect(d3.canon).equal('1&number')
-    expect(d4.canon).equal('1&number&integer')
+    expect(d4.canon).equal('1&integer&number')
     expect(d5.canon).equal('{"a":1}')
     expect(d6.canon).equal('{"a":1}&{"b":2}')
 
@@ -657,7 +657,7 @@ describe('val-basic', function() {
 
     expect(tu(ctx, new ConjunctVal({ peg: [] }), TOP).canon).equal('any')
 
-    expect(A.parse('1 & .a')?.canon).equal('1&.a')
+    expect(A.parse('1 & .a')?.canon).equal('.a&1')
     expect(A.unify('1 & .a')?.canon).equal('.a&1') // canonical sorting
     expect(() => A.generate('1 & .a')).throws(/conjunct/)
 
@@ -665,15 +665,15 @@ describe('val-basic', function() {
     expect(A.unify('.a & 1')?.canon).equal('.a&1')
     expect(() => A.generate('.a & 1')).throws(/conjunct/)
 
-    expect(A.parse('1 & 1 & .a')?.canon).equal('(1&1)&.a')
+    expect(A.parse('1 & 1 & .a')?.canon).equal('.a&(1&1)')
 
     expect(A.parse('1 & 2')?.canon).equal('1&2')
     expect(A.parse('1 & 1 & 2')?.canon).equal('(1&1)&2')
-    expect(A.parse('1 & 1 & .a & 2')?.canon).equal('((1&1)&.a)&2')
+    expect(A.parse('1 & 1 & .a & 2')?.canon).equal('(.a&(1&1))&2')
 
-    expect(A.parse('1 & 1 & .a & .b')?.canon).equal('((1&1)&.a)&.b')
+    expect(A.parse('1 & 1 & .a & .b')?.canon).equal('.b&(.a&(1&1))')
 
-    expect(A.parse('1 & 1 & .a & 1 & .b & 1')?.canon).equal('((((1&1)&.a)&1)&.b)&1')
+    expect(A.parse('1 & 1 & .a & 1 & .b & 1')?.canon).equal('(.b&((.a&(1&1))&1))&1')
 
 
     expect(A.parse('1 & 2 | 3')?.canon).equal('(1&2)|3')
@@ -792,7 +792,7 @@ b: c2: {n:2}
       ,) as MapVal)
 
     expect(m2.canon)
-      .equal('{"a":{"x":1},"b":{&:$.a}&{"c0":{"n":0}}&{"c1":{"n":1}}&{"c2":{"n":2}}}')
+      .equal('{"a":{"x":1},"b":{"c0":{"n":0}}&{"c1":{"n":1}}&{"c2":{"n":2}}&{&:$.a}}')
 
     expect(m2.peg.b.constructor.name).equal('ConjunctVal')
     expect(m2.peg.b.peg.length).equal(4)

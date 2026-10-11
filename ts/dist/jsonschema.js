@@ -79,7 +79,7 @@ function exactJson(v) {
     if (null != v && 'object' === typeof v && !JSON.isRawJSON(v)) {
         const out = {};
         for (const k of Object.keys(v)) {
-            out[k] = exactJson(v[k]);
+            put(out, k, exactJson(v[k]));
         }
         return out;
     }
@@ -87,6 +87,30 @@ function exactJson(v) {
 }
 function scalarJson(v) {
     return exactJson(v.peg);
+}
+// A bag closed at every level whose members are values, each with
+// nothing riding it, as the importer writes a `const`: its JSON, or
+// undefined.
+function literalJson(v) {
+    if (true !== v?.closed || null != v.spread?.cj || 0 < v.optionalKeys.length ||
+        0 < v.aliasKeys.length) {
+        return undefined;
+    }
+    const of = (m) => null != m.meta || null != m.deprecation || true === m.mark?.hide ||
+        true === m.mark?.type ? undefined : true === m.isScalar ? scalarJson(m) : literalJson(m);
+    const keys = true === v.isMap ? Object.keys(v.peg) : v.peg.map((_, i) => i);
+    const out = true === v.isMap ? {} : [];
+    for (const k of keys) {
+        put(out, k, of(v.peg[k]));
+        if (undefined === out[k]) {
+            return undefined;
+        }
+    }
+    return out;
+}
+// A key set as data: assignment reads `__proto__` as the prototype.
+function put(o, k, v) {
+    Object.defineProperty(o, k, { value: v, enumerable: true, writable: true, configurable: true });
 }
 // The whole number at or above a count's bound (`up`), or at or below
 // it, exactly: a count a double would round keeps its digits.
@@ -168,8 +192,9 @@ const FORMAT_UNREAD = (name) => 'JSON Schema has no keyword for a grammar, so th
 function fromConstraint(ctx, path, c, bag) {
     const out = {};
     // An atom whose arguments have not settled: a template's, read where
-    // it cannot be read alone.
-    if (null != c.pending) {
+    // it cannot be read alone; a count is written from its branches.
+    const waiting = (0, ConstraintVal_1.pendingNof)(c.pending);
+    if (null != c.pending && undefined === waiting) {
         lose(ctx, path, c.pending.atom, NOT_YET);
     }
     // `allOf` members: a second pattern or exclusion has no keyword of its own.
@@ -260,7 +285,7 @@ function fromConstraint(ctx, path, c, bag) {
                 'DROPPED and the schema admits lengths the model refuses');
         }
     }
-    for (const n of c.nofs) {
+    for (const n of undefined === waiting ? c.nofs : [...c.nofs, waiting]) {
         const branches = () => n.cs.map((b) => true === b.isNil ? false : fromVal(ctx, path, b));
         const counts = (0, ConstraintVal_1.nofCounts)(n);
         const only = (...at) => counts.every((ok, i) => ok === at.includes(i));
@@ -554,13 +579,17 @@ function plainOf(ctx, path, v) {
     }
     return plain;
 }
-// A narrowed copy is its alias's $ref beside the keywords that differ, as
-// `$ref` with siblings reads: exact, since it admits nothing the alias refuses.
+// A narrowed copy is its alias's $ref beside the keywords that differ and those
+// they read, its type kept beside a kind's keyword so it reads back as one kind.
 function beside(ctx, defs, out) {
     const differ = (def) => {
         const plain = Object(plainOf(ctx, def.path, def.value).schema);
-        return Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
+        const keys = Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
             (0, exactjson_1.exactJSON)(out[k]) !== (0, exactjson_1.exactJSON)(plain[k]));
+        const read = TOGETHER.filter((g) => g.some((k) => keys.includes(k))).flat();
+        const scoped = keys.some((k) => Object.values(KIND_SCOPE).some((ks) => ks.includes(k)));
+        return Object.keys(out).filter((k) => keys.includes(k) || read.includes(k) ||
+            ('type' === k && scoped));
     };
     const best = defs.reduce((a, b) => differ(b).length < differ(a).length ? b : a);
     return {
@@ -707,12 +736,12 @@ function annotate(ctx, path, out, v) {
                         'would assert where the record only annotates, so it is DROPPED');
                 }
                 else {
-                    part[xk] = xv;
+                    put(part, xk, xv);
                 }
             }
         }
-        if (0 === extra.length && Object.keys(part).every((k) => undefined === res[k])) {
-            Object.assign(res, part);
+        if (0 === extra.length && Object.keys(part).every((k) => !Object.prototype.hasOwnProperty.call(res, k) || undefined === res[k])) {
+            Object.keys(part).forEach((k) => put(res, k, part[k]));
         }
         else if (0 < Object.keys(part).length) {
             extra.push(part);
@@ -729,6 +758,12 @@ function kindOfLiteral(ctx, path, v) {
     loseLeafKind(ctx, path, v.isBigDecimal ? 'BigDecimal' : v.isBigInteger ? 'BigInteger' :
         v.isInteger ? 'Integer' : 'number' === typeof v.peg ? 'Float' : '', t);
     return 'string' === t ? { type: t, minLength: 1 } : { type: t };
+}
+// A held constraint carrying riders keeps them on an allOf member of its own.
+function heldBeside(ctx, path, out, con, bag) {
+    const own = fromConstraint(ctx, path, con, bag);
+    return null == con.meta && null == con.deprecation ? { ...out, ...own } :
+        { ...out, allOf: [...(out.allOf ?? []), withRiders(ctx, path, own, con)] };
 }
 // A kind beside a constraint the meet holds until an instance arrives
 // (`boolean & nof(...)`, `map & len(min(1))`), read as one schema object.
@@ -751,7 +786,8 @@ function fromValInner(ctx, path, v) {
         return undefined === gen ? inner : { ...inner, default: gen };
     }
     if (true === v.isDisjunct && Array.isArray(v.peg)) {
-        return fromDisjunct(ctx, path, v);
+        const alone = settledAlone(v);
+        return undefined === alone ? fromDisjunct(ctx, path, v) : fromVal(ctx, path, alone);
     }
     if (true === v.isConstraint) {
         // Arguments the constructor refused (`neq(1, "a")` spans domains)
@@ -760,22 +796,20 @@ function fromValInner(ctx, path, v) {
     }
     const residue = (0, BagVal_1.sizingResidue)(v);
     if (undefined !== residue) {
-        return {
-            ...fromVal(ctx, path, residue.bag),
-            ...fromConstraint(ctx, path, residue.con, true === residue.bag.isMap ? 'map' : 'list'),
-        };
+        return heldBeside(ctx, path, fromVal(ctx, path, residue.bag), residue.con, true === residue.bag.isMap ? 'map' : 'list');
     }
     const held = kindResidue(v);
     if (undefined !== held) {
-        return {
-            ...fromVal(ctx, path, held.kind),
-            ...fromConstraint(ctx, path, held.con, true === held.kind.isMapKind ? 'map' :
-                true === held.kind.isListKind ? 'list' : undefined),
-        };
+        return heldBeside(ctx, path, fromVal(ctx, path, held.kind), held.con, true === held.kind.isMapKind ? 'map' : true === held.kind.isListKind ? 'list' : undefined);
     }
     // The member a second map literal expects reads through to its constraint.
     if (true === v.isExpect) {
         return fromVal(ctx, path, v.peg);
+    }
+    // A closed bag of values all the way down is the one value a `const` is.
+    const lit = true === v.isMap || true === v.isList ? literalJson(v) : undefined;
+    if (undefined !== lit) {
+        return { const: lit, type: true === v.isMap ? 'object' : 'array' };
     }
     if (true === v.isMap) {
         return fromMap(ctx, path, v);
@@ -826,13 +860,36 @@ function fromValInner(ctx, path, v) {
     }
     // A rider held over a residual value carries what its resolve would attach.
     if (true === v.isMetaFunc || true === v.isDeprecateFunc) {
-        const carrier = v.resolve(new aontu_1.Aontu().ctx({ collect: true }), [(0, top_1.top)(), ...v.peg.slice(1)]);
+        const carrier = v.resolve(scratch().ctx({ collect: true }), [(0, top_1.top)(), ...v.peg.slice(1)]);
         if (true !== carrier.isNil) {
             return withRiders(ctx, path, fromVal(ctx, path, v.peg[0]), carrier);
         }
     }
+    const alone = settledAlone(v);
+    if (undefined !== alone) {
+        return fromVal(ctx, path, alone);
+    }
+    // A meet still waiting is each of its terms at once, as allOf is.
+    if (true === v.isConjunct && Array.isArray(v.peg)) {
+        return { allOf: v.peg.map((t) => fromVal(ctx, path, t)) };
+    }
     lose(ctx, path, residueName(v), NOT_YET);
     return {};
+}
+// One engine for every value settled apart, since building one builds a parser.
+let SCRATCH;
+function scratch() {
+    return SCRATCH = SCRATCH ?? new aontu_1.Aontu();
+}
+// What a waiting value that reaches nothing outside itself settles to alone.
+function settledAlone(v) {
+    if (true === v.done || !isolable(v, 0)) {
+        return undefined;
+    }
+    const a0 = scratch();
+    const actx = a0.ctx({ collect: true });
+    const met = a0.unify((0, utility_1.canonRiders)(v), undefined, actx);
+    return 0 === actx.err.length && true === met.done ? met : undefined;
 }
 function residueName(v) {
     return true === v.isNil ? 'nil' :
@@ -844,7 +901,7 @@ function residueName(v) {
 // generate. Used for `default` and for `enum` members: both are VALUES
 // in the schema, so a member that is itself a shape has none to give.
 function generated(v) {
-    const a0 = new aontu_1.Aontu();
+    const a0 = scratch();
     const ctx = a0.ctx({ collect: true });
     const out = v.gen(ctx);
     return 0 === ctx.err.length ? exactJson(out) : undefined;
@@ -853,6 +910,13 @@ function generated(v) {
 // passes them, so a schema of one type's keywords constrains it alone.
 const NUMBER_SCOPE = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
     'multipleOf'];
+// Keywords that read one another, so one written beside a $ref brings the rest.
+const TOGETHER = [
+    ['properties', 'patternProperties', 'additionalProperties', 'unevaluatedProperties'],
+    ['prefixItems', 'items', 'unevaluatedItems'],
+    ['contains', 'minContains', 'maxContains'],
+    ['if', 'then', 'else'],
+];
 const KIND_SCOPE = {
     null: [], boolean: [], number: NUMBER_SCOPE, integer: NUMBER_SCOPE,
     string: ['minLength', 'maxLength', 'pattern', 'format', 'x-aontu-format', 'contentEncoding',
@@ -896,11 +960,79 @@ function fromDisjunct(ctx, path, v) {
         }
     }
     const bare = members.map((m) => true === m?.isPref ? m.peg : m);
-    const consts = bare.map((m) => true === m?.isScalar && true !== m?.isNil ? scalarJson(m) : undefined);
-    const out = consts.every((c) => undefined !== c) ?
-        { enum: dedupeJson(consts) } :
-        typeFold(bare.map((m) => fromVal(ctx, path, m)));
+    const consts = bare.map((m) => null != m?.meta || null != m?.deprecation ? undefined :
+        true === m?.isScalar ? scalarJson(m) : literalJson(m));
+    let out = undefined;
+    if (consts.every((c) => undefined !== c)) {
+        out = { enum: dedupeJson(consts) };
+    }
+    else {
+        const schemas = bare.map((m) => fromVal(ctx, path, m));
+        out = unshare(ctx, path, bare, schemas) ?? typeFold(schemas);
+    }
     return undefined === def ? out : { ...out, default: def };
+}
+// The applicators an atom writes, which apply to every kind.
+const SHARED = ['not', 'anyOf', 'oneOf', 'if', 'then', 'else', 'dependentSchemas',
+    'dependentRequired'];
+// Atoms a disjunction was met with, held by each member they did not
+// settle on and admitting those they did, are written once beside the
+// members' fold, as the import read them.
+function unshare(ctx, path, members, schemas) {
+    const terms = members.map((m) => true === m?.isScalar ? [] :
+        topTerms(m.canon).filter((x) => /^(nof|when|must)\(/.test(x)));
+    const atoms = terms.find((ts) => 0 < ts.length) ?? [];
+    const text = atoms.join('&');
+    const v = 0 === atoms.length ? undefined : settle(text);
+    const own = text === v?.canon ? fromVal({ ...ctx, lossy: [], scratch: true }, path, v) : {};
+    const keys = SHARED.filter((k) => undefined !== own[k]);
+    const holds = terms.map((ts) => atoms.every((x) => ts.includes(x)));
+    const fits = (s, i) => holds[i] ?
+        keys.every((k) => (0, exactjson_1.exactJSON)(s[k]) === (0, exactjson_1.exactJSON)(own[k])) :
+        members[i].canon === settle('(' + members[i].canon + ')&' + text)?.canon;
+    if (0 === keys.length || keys.length !== Object.keys(own).length ||
+        holds.filter(Boolean).length < 2 || !schemas.every(fits)) {
+        return undefined;
+    }
+    const out = typeFold(schemas.map((s, i) => holds[i] ?
+        Object.fromEntries(Object.entries(s).filter(([k]) => !keys.includes(k))) : s));
+    const extra = [];
+    keys.forEach((k) => keyword(out, extra, k, own[k]));
+    return 0 === extra.length ? out : { ...out, allOf: [...(out.allOf ?? []), ...extra] };
+}
+// What a text evaluates to, or undefined where it fails.
+function settle(text) {
+    try {
+        return scratch().unify(text);
+    }
+    catch (_e) {
+        return undefined;
+    }
+}
+// A canon's terms of its top-level meet.
+function topTerms(text) {
+    const out = [];
+    let depth = 0;
+    let from = 0;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if ('"' === c) {
+            for (i++; i < text.length && '"' !== text[i]; i++) {
+                i += '\\' === text[i] ? 1 : 0;
+            }
+        }
+        else if ('([{'.includes(c)) {
+            depth++;
+        }
+        else if (')]}'.includes(c)) {
+            depth--;
+        }
+        else if ('&' === c && 0 === depth) {
+            out.push(text.slice(from, i));
+            from = i + 1;
+        }
+    }
+    return [...out, text.slice(from)];
 }
 function skipMarked(ctx, path, bag, child) {
     // A mark the container carries too is read through (an export
@@ -971,7 +1103,7 @@ function armOut(ctx, path, r) {
     if (true === r.done || !isolable(r, 0)) {
         return fromVal(ctx, path, r);
     }
-    const a0 = new aontu_1.Aontu();
+    const a0 = scratch();
     const actx = a0.ctx({ collect: true });
     const met = a0.unify((0, utility_1.canonRiders)(r), undefined, actx);
     return 0 < actx.err.length ? false : fromVal(ctx, path, met);
@@ -990,6 +1122,9 @@ function keyArms(v) {
     }
     return { arms, def };
 }
+// A key test that is a pattern alone, as the importer writes a
+// patternProperties key; a propertyNames schema is a string's.
+const BARE_RE = /^re\("(?:[^"\\]|\\.)*"\)$/;
 // An arm's key test: a name, or a pattern's normalised source.
 function armTest(ctx, path, test) {
     if (true === test.isScalar && 'string' === typeof test.peg) {
@@ -1040,10 +1175,11 @@ function spreadKeywords(ctx, path, declared, spr) {
     const extra = [];
     const patterns = {};
     const rest = [];
+    const plain = [];
     terms.forEach((t, i) => {
         const g = guarded[i];
         if (undefined === g) {
-            extra.push({ additionalProperties: armOut(ctx, at, t) });
+            plain.push(armOut(ctx, at, t));
             return;
         }
         const tests = g.arms.map(([test]) => armTest(ctx, at, test));
@@ -1051,14 +1187,15 @@ function spreadKeywords(ctx, path, declared, spr) {
         const re = tests[0]?.re;
         if (1 === g.arms.length && undefined !== re && true === g.def?.isTop) {
             const s = armOut(ctx, at, arm[1]);
-            if (undefined === patterns[re]) {
-                patterns[re] = s;
+            if (!Object.prototype.hasOwnProperty.call(patterns, re)) {
+                put(patterns, re, s);
             }
             else {
                 extra.push({ patternProperties: { [re]: s } });
             }
         }
-        else if (1 === g.arms.length && undefined === tests[0].name && undefined === re &&
+        else if (1 === g.arms.length && (undefined === tests[0].name ?
+            undefined === re || !BARE_RE.test(arm[0].canon) : !declared.includes(tests[0].name)) &&
             true === arm[1].isTop && true === g.def?.isNil) {
             const names = asNames(armOut(ctx, at, arm[0]));
             if (undefined === out.propertyNames) {
@@ -1075,6 +1212,17 @@ function spreadKeywords(ctx, path, declared, spr) {
     if (0 < Object.keys(patterns).length) {
         out.patternProperties = patterns;
     }
+    // A plain spread holds every member, and a declared member's value
+    // already holds it, so beside no pattern it is additionalProperties,
+    // as the importer reads one.
+    plain.forEach((s, i) => {
+        if (0 === i && undefined === out.patternProperties) {
+            out.additionalProperties = s;
+        }
+        else {
+            extra.push({ additionalProperties: s });
+        }
+    });
     const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
     const own = [...declared].sort(keyorder_1.cmpCodePoint);
     const patternKeys = Object.keys(patterns).sort(keyorder_1.cmpCodePoint);
@@ -1149,7 +1297,7 @@ function fromMap(ctx, path, v) {
         if (skipMarked(ctx, [...path, key], v, child)) {
             continue;
         }
-        props[key] = fromVal(ctx, [...path, key], child);
+        put(props, key, fromVal(ctx, [...path, key], child));
         if (!optional.includes(key)) {
             required.push(key);
         }
@@ -1205,6 +1353,12 @@ function jsonSchema(src, options) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts));
     const actx = aontu.ctx({ collect: true });
     const root = aontu.unify(src, { path: opts.path, collect: true }, actx);
+    const anchor = (opts.at ?? '').replace(/^\$/, '').split('.').filter((p) => '' !== p);
+    // A written nil admits nothing, `not: {}`, under any anchor naming the root.
+    if (true === root?.isNil && 'literal_nil' === root.why && 0 === actx.err.length &&
+        0 === anchor.length) {
+        return { verdict: 'ok', schema: { $schema: DRAFT, not: {} }, lossy: [] };
+    }
     // A nil root always arrives with its reason collected beside it, which
     // is failureFinding's stated precondition (ts/src/vet.ts: "ctx.err is
     // never empty at a call site").
@@ -1215,7 +1369,6 @@ function jsonSchema(src, options) {
         };
     }
     let node = root;
-    const anchor = [];
     if (null != opts.at && '' !== opts.at) {
         const found = (0, vet_2.anchorAt)(root, opts.at);
         if (null == found) {
@@ -1230,7 +1383,6 @@ function jsonSchema(src, options) {
             };
         }
         node = found;
-        anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
     const ctx = {
         lossy: [],
@@ -1328,16 +1480,11 @@ function dynamicRefs(ctx, schema, kept, moved) {
         return null != s && 'object' === typeof s && ('#' === ref || undefined === s.$id) &&
             (name === s.$dynamicAnchor || name === s.$anchor);
     };
-    const walk = (v) => {
-        if (null == v || 'object' !== typeof v) {
-            return;
-        }
+    eachSchema(schema, (v) => {
         if (undefined !== v.$dynamicRef && undefined !== v.$ref) {
             delete v[names(v.$ref, v.$dynamicRef.slice(1)) ? '$ref' : '$dynamicRef'];
         }
-        Object.values(v).forEach(walk);
-    };
-    walk(schema);
+    });
     const reached = (ref) => moved.has(ref) ? reached(moved.get(ref)) : ref;
     return ctx.refs.dynamic.filter((u) => !names(reached(u.ref), u.name)).map((u) => ({
         path: pathText(u.path), construct: '$dynamicRef',
@@ -1398,16 +1545,26 @@ function identify(schema, folded, kept) {
 }
 // Every $ref a folded definition had, pointed at the schema itself.
 function relink(v, to) {
+    eachSchema(v, (s) => {
+        if (to.has(s.$ref)) {
+            s.$ref = to.get(s.$ref);
+        }
+    });
+}
+// A schema the export writes and each schema inside it, by the keywords
+// that hold one, so a walk over schemas never reads a value as one.
+const ONE_SCHEMA = ['items', 'additionalProperties', 'unevaluatedProperties',
+    'unevaluatedItems', 'contains', 'propertyNames', 'if', 'then', 'else', 'not',
+    'contentSchema'];
+const SCHEMA_LIST = ['prefixItems', 'allOf', 'anyOf', 'oneOf'];
+const SCHEMA_MAP = ['properties', 'patternProperties', '$defs', 'dependentSchemas'];
+function eachSchema(v, fn) {
     if (null == v || 'object' !== typeof v) {
         return;
     }
-    for (const k of Object.keys(v)) {
-        if ('$ref' === k && to.has(v[k])) {
-            v[k] = to.get(v[k]);
-        }
-        else {
-            relink(v[k], to);
-        }
-    }
+    fn(v);
+    ONE_SCHEMA.forEach((k) => eachSchema(v[k], fn));
+    SCHEMA_LIST.forEach((k) => (v[k] ?? []).forEach((s) => eachSchema(s, fn)));
+    SCHEMA_MAP.forEach((k) => Object.values(v[k] ?? {}).forEach((s) => eachSchema(s, fn)));
 }
 //# sourceMappingURL=jsonschema.js.map

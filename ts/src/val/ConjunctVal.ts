@@ -13,7 +13,8 @@ import {
 import { AontuContext } from '../ctx'
 
 import { makeNilErr } from '../err'
-import { unite } from '../unify'
+import { rideOn, unite } from '../unify'
+import { rides } from '../rider'
 
 import {
   AontuError
@@ -72,7 +73,8 @@ class ConjunctVal extends JunctionVal {
 
     let done = true
 
-    this.peg = norm(this.peg)
+    const carried: Val[] = []
+    this.peg = norm(this.peg, carried)
 
 
     // Unify each term of conjunct against peer
@@ -103,7 +105,7 @@ class ConjunctVal extends JunctionVal {
       }
     }
 
-    upeer = norm(upeer)
+    upeer = norm(upeer, carried)
     // console.log('CONJUNCT-UPEER', this.id, upeer.map((v: Val) => v.canon))
 
     // Unify terms against each other
@@ -189,6 +191,10 @@ class ConjunctVal extends JunctionVal {
 
     out.dc = done ? DONE : this.dc + 1
 
+    // A meet flattened in leaves its riders on the whole (ADR-052).
+    for (const c of carried) {
+      out = rideOn(ctx, out, c, undefined)
+    }
 
     explainClose(te, out)
 
@@ -245,11 +251,14 @@ function sameTerms(cj: any, t0: Val, t1: Val): boolean {
 // Normalize Conjunct:
 // - flatten child conjuncts
 // - consistent sorting of terms
-function norm(terms: Val[]): Val[] {
+function norm(terms: Val[], carried: Val[]): Val[] {
 
   let expand: Val[] = []
   for (let tI = 0, pI = 0; tI < terms.length; tI++, pI++) {
     if (terms[tI].isConjunct) {
+      if (rides(terms[tI])) {
+        carried.push(terms[tI])
+      }
       const cterms = terms[tI].peg
       for (let cI = 0; cI < cterms.length; cI++) {
         expand[pI + cI] = cterms[cI]

@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
+exports.pendingNof = pendingNof;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
@@ -1186,7 +1187,11 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.whens = [...this.whens];
         out.contains = [...this.contains];
         out.rests = [...this.rests];
+        // A copy of a waiting atom waits too; the constructor called it done.
         out.pending = this.pending;
+        if (null != this.pending) {
+            out.dc = this.dc;
+        }
         out.cjo = this.cjo;
         out.invalid = this.invalid;
         out.invalidWhy = this.invalidWhy;
@@ -1201,10 +1206,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
     // normalises back to this exact residual.
     get canon() {
         if (null != this.pending) {
-            // A pending atom has no residual yet, so canon renders the call as
-            // written — the same shape FuncBaseVal renders while deferring.
-            return this.pending.atom +
-                '(' + this.pending.args.map((a) => (0, utility_1.canonRiders)(a)).join(',') + ')';
+            // A pending atom renders its call, a count's branches sorted.
+            const args = this.pending.args.map((a) => (0, utility_1.canonRiders)(a));
+            return this.pending.atom + '(' + ('nof' === this.pending.atom ?
+                [...args.slice(0, 1), ...args.slice(1).sort(keyorder_1.cmpCodePoint)] : args).join(',') + ')';
         }
         return canonState(this);
     }
@@ -1328,8 +1333,10 @@ function countCanon(c) {
         0 === cmpVal('number', c.lo.v, c.hi.v);
     return point ? c.lo.v.canon : canonState({ ...c, kind: undefined });
 }
+// Sorted as rendered: a branch can settle after the atom sorted it.
 function nofCanon(n) {
-    return 'nof(' + [countCanon(n.count), ...n.cs.map((c) => (0, utility_1.canonRiders)(c))].join(',') + ')';
+    return 'nof(' + [countCanon(n.count),
+        ...n.cs.map((c) => (0, utility_1.canonRiders)(c)).sort(keyorder_1.cmpCodePoint)].join(',') + ')';
 }
 // A trial schema settles apart from the document: one that conflicts
 // admits nothing, while any other failure is the document's own.
@@ -1346,7 +1353,7 @@ function trialArg(ctx, arg, path) {
         for (const e of tctx.err) {
             ctx.adderr(e);
         }
-        return next;
+        return true === next.isNil ? next : (0, unify_1.rideOn)(ctx, next, arg, undefined);
     }
     return new NilVal_1.NilVal({ why: 'nof' });
 }
@@ -1927,10 +1934,16 @@ exports.LenConstraintVal = LenConstraintVal;
 function nofCounts(n) {
     return [...n.cs, undefined].map((_c, i) => stateAdmits(n.count, countVal(i)));
 }
+function pendingNof(pending) {
+    const arg = 'nof' === pending?.atom && true === pending.args[0]?.done ?
+        countArgState(pending.args[0]) : undefined;
+    return undefined === arg ? undefined :
+        { count: meetCount(countBase(), arg), cs: canonSorted(pending.args.slice(1)) };
+}
 class UniqueConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 'unique' }, ctx);
     }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 29 */
 exports.UniqueConstraintVal = UniqueConstraintVal;
 //# sourceMappingURL=ConstraintVal.js.map

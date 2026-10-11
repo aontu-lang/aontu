@@ -12,6 +12,8 @@
 nof-canon-sorts-branches	canon	a: nof(1, string, number)	{"a":nof(1,number,string)}
 nof-canon-keeps-a-repeated-branch	canon	a: nof(1, string, string)	{"a":nof(1,string,string)}
 nof-canon-writes-a-point-count-bare	canon	a: nof(min(1) & max(1), string, number)	{"a":nof(1,number,string)}
+# A count still waiting on a branch renders its branches in one order too.
+nof-canon-sorts-a-waiting-count	canon	a: {&: nof(min(1), any, [&: string])}	{"a":{&:nof(min(1),[&:string],any)}}
 nof-canon-writes-a-count-constraint	canon	a: nof(min(1), string, number)	{"a":nof(min(1),number,string)}
 nof-canon-one-atom-once	canon	a: nof(1, string, number) & nof(1, number, string)	{"a":nof(1,number,string)}
 nof-canon-atoms-sort	canon	a: nof(1, string) & nof(0, number)	{"a":nof(0,number)&nof(1,string)}
@@ -61,9 +63,10 @@ vet-nof-finding	vet	a: nof(1, string, number)	{"a": true}	{"findings":[{"actual"
 vet-nof-admits	vet	a: nof(min(1), {x: number}, {y: string})	{"a": {"x": 1}}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-nof-over-a-container	vet	a: nof(min(1), {x: number}, {y: string})	{"a": {"z": 1}}	{"findings":[{"actual":"{\\"z\\":1}","class":"conflict","code":"nof","expected":"nof(min(1),{\\"x\\":number},{\\"y\\":string})","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":1,"role":"data","row":1,"src":"{","value":"{\\"z\\":1}"},{"col":4,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"nof(min(1),{\\"x\\":number},{\\"y\\":string})"}]}],"truncated":false,"verdict":"invalid"}
 vet-nof-a-pending-atom	vet	a: nof(1, $.t, number)	{"a": "s"}	{"findings":[{"class":"reference","code":"no_path","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":11,"file":"schema","len":1,"role":"schema","row":1,"src":"$","value":"$.t"}]}],"truncated":false,"verdict":"error"}
-# Opaque to subsumption, as must is.
+# Opaque to subsumption, as must is, except to itself: two values of
+# one hash form are one value.
 nof-general-is-undecided	subsume	a: nof(1, string, number)	a: "s"	{"findings":[{"actual":"\\"s\\"","class":"compat","code":"sub_evaluate_only","expected":"nof(1,number,string)","message":"a count of trial schemas (nof) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":3,"role":"general","row":1,"src":"nof","value":"nof(1,number,string)"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"\\"s\\"","value":"\\"s\\""}]}],"verdict":"undecided"}
-nof-general-residual-is-undecided	subsume	a: nof(1, string, number)	a: nof(1, string, number)	{"findings":[{"actual":"nof(1,number,string)","class":"compat","code":"sub_evaluate_only","expected":"nof(1,number,string)","message":"a count of trial schemas (nof) makes the admitted set opaque","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":3,"role":"general","row":1,"src":"nof","value":"nof(1,number,string)"},{"col":4,"file":"specific","len":3,"role":"specific","row":1,"src":"nof","value":"nof(1,number,string)"}]}],"verdict":"undecided"}
+nof-residual-admits-itself	subsume	a: nof(1, string, number)	a: nof(1, string, number)	{"findings":[],"verdict":"subsumes"}
 # The exporter: at least one is anyOf, exactly one oneOf, none not, every one allOf.
 js-nof-any-of	jsonschema	a: nof(min(1), string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"anyOf":[{"type":"number"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
 js-nof-one-of	jsonschema	a: nof(1, string, number)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"oneOf":[{"type":"number"},{"minLength":1,"type":"string"}]}},"required":["a"],"type":"object"},"verdict":"ok"}
@@ -107,3 +110,10 @@ nof-a-branch-beside-the-boolean-kind-is-tried	errc	a: nof(0, nof(0, 1) & boolean
 # matches each meet repeats are kept once, where they doubled until the
 # meet refused with unify_cycle.
 nof-a-branch-beside-a-list-of-two-spreads-settles	gens	a: nof(1, [&: match(key(0), "0", any, any)] & nof(1, any)) & [&: match(key(0), "0", string, any)] & [&: match(key(0), "0", any, any)] & ["foo"]	{"a":["foo"]}
+# A copy of a count still waiting waits too, and settles where it is
+# used: a branch guarding its own key reads that key there.
+nof-canon-a-definition-of-a-waiting-count-settles-at-each-use	canon	%d_p = nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\na?: %d_p\nb?: %d_p	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
+nof-canon-a-reference-to-a-waiting-count-settles-where-it-is-used	canon	a?: nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\nb?: $.a	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
+# A settled count copied into a trial stays settled: only an atom still
+# waiting waits in its copy.
+nof-a-settled-count-beside-a-guarded-map-settles-under-a-root-rider	gen	meta({ p?: nof(1, null, nof(0, { b: any }) & { b?: [&: empty()] & len(min(1)), &: match(key(0), "b", any, nil) }) }, { comment: "r" })	{}

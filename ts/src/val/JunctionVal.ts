@@ -11,6 +11,7 @@ import {
 } from '../ctx'
 
 import { canonRiders } from '../utility'
+import { cmpCodePoint } from '../keyorder'
 
 import { FeatureVal } from './FeatureVal'
 
@@ -43,10 +44,15 @@ abstract class JunctionVal extends FeatureVal {
   }
 
   get canon() {
-    return this.peg.map((v: Val) => {
-      return (v as any).isJunction && Array.isArray(v.peg) && 1 < v.peg.length ?
-        '(' + canonRiders(v) + ')' : canonRiders(v)
-    }).join(this.getJunctionSymbol()) // + '<' + (this.mark.hide ? 'H' : '') + '>'
+    const parts: [number, string][] = this.peg.map((v: Val) =>
+      [v.cjo, (v as any).isJunction && Array.isArray(v.peg) && 1 < v.peg.length ?
+        '(' + canonRiders(v) + ')' : canonRiders(v)])
+    // A meet is one value whatever order its terms were met in, so terms
+    // of one rank are written in code-point order.
+    if ('&' === this.getJunctionSymbol()) {
+      parts.sort((a, b) => a[0] - b[0] || cmpCodePoint(a[1], b[1]))
+    }
+    return parts.map((p) => p[1]).join(this.getJunctionSymbol())
   }
 
   // Abstract method to be implemented by subclasses to define their junction symbol

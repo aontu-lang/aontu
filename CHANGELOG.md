@@ -8,6 +8,136 @@ each change affects.
 
 ## Unreleased
 
+### the round trip through JSON Schema (G12 phase 18)
+
+Both ports.
+
+- **Canon writes a conjunction's terms in one order whatever order they
+  were met in**: by the rank the engine already sorts terms by, and
+  terms of one rank in code-point order. `number & match(…)` and
+  `match(…) & number`, one value, had two canons and two hashes, and
+  `subsume` could not tell them apart from two different values; they
+  now have one of each.
+  The hash form orders them alike. A document whose conjunctions held
+  terms of one rank out of that order hashes differently: the bundled
+  `aontu:profile` model's three pinned hashes move.
+- `aontu subsume` and `aontu breaking` read `nil` as the value that
+  admits nothing: every value subsumes it, and it subsumes only another
+  `nil`. A forbidden key (`a?: nil`) or a closed spread (`&: nil`) on
+  the general side was `undecided`, and is now `compat_narrowed` where
+  the specific side allows what it forbids; a key the specific side
+  forbids was refused, and is now admitted.
+- Two identical values subsume each other wherever no other rule
+  decides them, as with two `rest(nil)` atoms or two disjunctions of
+  `contains` atoms, which were `undecided`. A value holding a recursion
+  is still compared through the definitions it names.
+- TypeScript's `aontu jsonschema` export read every object in the
+  schema it wrote as a schema, so a map with keys `$ref` and
+  `$dynamicRef` was taken for a reference and crashed the export. Both
+  ports now walk only the keywords that hold a schema.
+- The export writes `re()`'s `\d`, `\w`, `\D` and `\W` as written, since
+  ECMA-262 reads each as aontu does, where it wrote out their sets, so
+  a pattern imports back as it was.
+- `aontu jsonschema import` writes the names and patterns a guarded
+  spread excludes, and the pattern spreads, in code-point order, so an
+  import no longer depends on the order a schema lists its members in.
+  A member whose schema is written as `additionalProperties`'s is held
+  to it all the same and no longer excluded from it, and a schema whose
+  keywords narrow no kind, as `{"items": true}`, imports as `any`.
+- The export writes a bag closed at every level whose members are
+  values, as the import of a `const` is, as `const`, and a disjunction
+  of them as `enum`. A key test other than a bare `re()`, or a lone
+  name the map does not declare, is `propertyNames`, and a plain
+  spread beside no pattern is `additionalProperties`, as the import
+  reads each.
+- TypeScript's export dropped a property named `__proto__`, and wrote
+  a `const` or an unknown keyword holding one without it, since
+  assignment reads that key as the prototype; Go kept it. It is set as
+  data.
+- The import keeps a `$dynamicRef`'s text in a `meta` record only on a
+  use the export can write back, a definition the reference names by an
+  anchor. A use copied in place, or one naming a JSON Pointer, was
+  carried on a record the export could only drop, and reported lost.
+- The export writes the atoms a disjunction was met with once, beside
+  the fold of its members, where every member holds them but those they
+  settled on, which they admit. The import of `not`, `anyOf`, `oneOf`,
+  `if` or `dependentSchemas` beside `type` keywords is such a
+  disjunction, and the export wrote an `anyOf` with the atoms repeated
+  in each member, which imported back as `nof(min(1), …)`.
+- The names `unevaluatedProperties` lets through are written in
+  code-point order, as `additionalProperties`'s are, and `nof`'s canon
+  sorts its branches as it renders them, so a branch that settles late,
+  or a count still waiting on its branches, renders in one order.
+- The import reads a `oneOf` of one branch as `anyOf` reads it, the
+  `not` of a schema that admits everything as `nil`, and a `const`
+  beside a `type` of its own kind as the literal alone, where each was a
+  count or a meet that the export wrote back as another keyword. The
+  export writes a `nil` written at the root as `not: {}` under the
+  dialect's `$schema`, where it refused it. A `oneOf` of one branch
+  applies in place, so its annotations are kept: the suite's annotation
+  tests pass 58 of 84, and their ledger shrinks from 28 rows to 26.
+- Go's engine shared one `empty()`, `open()`, `close()`, `acyclic()`,
+  `inverse()` or `rel()` value among every use of an alias that held
+  it, where TypeScript copies it to each, so the export wrote such a
+  definition as a `$ref` to itself, an `ident()` record on one was
+  lost, and an error under the alias named its last use, not its first.
+- `aontu jsonschema import` names a `definitions` member as it names a
+  `$defs` member, `%d_` and its key, unless `$defs` holds the same key,
+  where it used the member's pointer, so a draft-07 definition keeps its
+  name through the export's `$defs`. An `anyOf` of distinct literals
+  beside branches of other kinds is a disjunction, where it was a
+  count, and a disjunction of kinds is written in the order `type`
+  writes kinds, a branch that is itself one flattened in. No `type` is
+  written beside an `enum` of its own kind, nor a `propertyNames` that
+  every string passes.
+- The export writes a disjunction of values as `enum` only where no
+  member carries a `meta()` or `deprecate()` record, and an `anyOf`
+  where one does, so a member's annotations are kept. A use of an alias
+  the meet narrowed is its `$ref` beside the keywords that differ and
+  the keywords they read, as `properties` beside
+  `additionalProperties`, with its `type` where a keyword of one kind
+  differs, so the copy means what it did. A value still waiting that
+  reaches nothing outside itself is settled on its own and written as
+  what it settles to, a meet still waiting is an `allOf` of its terms,
+  and a count still waiting in a template is written from its
+  branches, where each was a loss.
+- A written `nil` under an optional key refuses a value supplied, and
+  only that: a kind, another `nil`, or a disjunction with no preferred
+  member supplies none, so `{k?: nil} & {k?: "x" | "y"}` forbids `k`
+  where it was refused with `literal_nil`. A preferred member is still
+  refused.
+- Riders are kept where they were lost: on a meet flattened into a
+  wider one, on an argument a TypeScript function drives, and on a
+  count's branch settled over several passes. A disjunction met with an
+  annotated peer carries the peer's records once, on the whole, so an
+  annotated disjunction met with itself is itself, and a key only the
+  peer declares keeps its records in canon and hash form.
+- A copy of a count still waiting settles where it is used: TypeScript's
+  copy stopped waiting, and Go's shared its arguments with the
+  declaration it was copied from. Go keeps one store of reference
+  snapshots for the run, as TypeScript does, so an alias in a trial
+  renders as TypeScript renders it.
+- TypeScript's export settles every value it reads apart on one engine,
+  where it built one for each, and building one builds a parser: the
+  import of SchemaStore's 115 KB `stylelintrc` schema exports in 6
+  seconds, where it took nearly two minutes.
+- `aontu jsonschema import` writes a schema object whose assertions
+  come to a written `nil`, as `{"not": {}, "title": "never"}` does, as
+  `nil` without its annotations, which JSON Schema never collects from
+  a schema that admits nothing. It wrote a `meta()` over the `nil`,
+  which does not stand.
+- `aontu jsonschema --at '$'` exports a written `nil` as `not: {}`, as
+  it does without `--at`, where it refused it.
+- The round trip runs in both harnesses: a schema of the official
+  suite, in any dialect, imports, exports and imports back as the value
+  it first imported, canon for canon with the root's annotations, and
+  subsuming both ways, for 1,648 of the 1,709 groups; each of the other
+  61 is a row of the ledger `test/vectors/jsonschema/roundtrip.tsv`,
+  naming the construct that does not come back and why. Thirty
+  draft-07 schemas from SchemaStore, pinned under
+  `test/vectors/jsonschema/schemastore/`, run the same round trip: 24
+  come back, and the other 6 are rows of that directory's own ledger.
+
 ### subsume compares recursive schemas (ADR-067)
 
 Both ports, the recursion design's P3.

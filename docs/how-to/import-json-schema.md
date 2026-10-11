@@ -54,21 +54,23 @@ id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
-&: match(key(0), "id", any, "total", any, "lines", any, "note", any, nil)
+&: match(key(0), "id", any, "lines", any, "note", any, "total", any, nil)
 ```
 
 Each keyword lands on the construct that means it:
 
 - A property is an optional key, and `required` drops the `?`.
 - `additionalProperties: false` is a spread that admits the declared
-  names and refuses every other key with `nil`.
+  names, in code-point order, and refuses every other key with `nil`.
 - `items` is a list spread, and `minItems` a count with `len`.
 - `type: "string"` is `empty()`, because the strings of JSON Schema
   include `""` and aontu's `string` does not.
 - `type: "integer"` is `number & multiple(1)`: a number with no
   fraction, however it is written, so `2.0` is one.
 - A `$defs` entry that something references is an alias, here
-  `%d_line`, declared one member to a line.
+  `%d_line`, declared one member to a line. The import names a
+  `definitions` entry, the earlier dialects' spelling, the same way
+  unless `$defs` holds its key.
 
 ## Check data against it
 
@@ -83,7 +85,7 @@ id: number & multiple(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
-&: match(key(0), "id", any, "total", any, "lines", any, "note", any, nil)
+&: match(key(0), "id", any, "lines", any, "note", any, "total", any, nil)
 ```
 
 Then check an order with `--no-fill --exact-numbers`, which asks the
@@ -234,10 +236,10 @@ and `dependentRequired`, and so on. Write `shape.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --strict shape.json
-%p_definitions_2f_label = empty()
+%d_label = empty()
 
 point?: [&: match(key(0), "0", number, "1", number, nil)]
-label?: %p_definitions_2f_label
+label?: %d_label
 lossy: #/properties/label/maxLength maxLength: draft-07 and earlier read nothing beside $ref, so this keyword asserts nothing and is dropped
 vet with: aontu vet --no-fill --exact-numbers <document> <data>
 $ echo $?
@@ -360,13 +362,19 @@ Schema asks.
 - A `$dynamicRef` is specialised to the dynamic scope it is read in, so
   a schema reached through scopes that bind its dynamic anchors
   differently is declared once for each, its later declarations named
-  with an `_e2` suffix and on. The use keeps the reference's text in
-  its `meta` record, and the export writes it back as a `$dynamicRef`
-  where it reads the same.
+  with an `_e2` suffix and on. A use that reaches a definition by an
+  anchor's name keeps the reference's text in its `meta` record, and
+  the export writes it back as a `$dynamicRef` where it reads the same.
 - `anyOf` imports as a disjunction only where its branches cannot both
   hold for one value; otherwise it is `nof(min(1), …)`, which counts the
   branches that admit the data rather than choosing one. `oneOf` is
-  `nof(1, …)` and `not` is `nof(0, …)`.
+  `nof(1, …)` and `not` is `nof(0, …)`, except that a `oneOf` of one
+  branch is read as `anyOf` reads it, and the `not` of a schema that
+  admits everything is `nil`. A disjunction of kinds lists them in the
+  order `type` writes kinds, whatever order the branches came in, and a
+  `type` beside a `const` or `enum` of its own kind, or a
+  `propertyNames` every string passes, adds nothing, and the import
+  drops it.
 - `if`, `then` and `else` import as `when(c, t, e)`, and only within
   one schema object: an `if` in one `allOf` branch never pairs with a
   `then` in another. `dependentSchemas` and `dependentRequired` are a

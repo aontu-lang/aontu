@@ -12,5 +12,5 @@ declare class ConjunctVal extends JunctionVal {
     getJunctionSymbol(): string;
     gen(ctx?: AontuContext): any;
 }
-declare function norm(terms: Val[]): Val[];
+declare function norm(terms: Val[], carried: Val[]): Val[];
 export { norm, ConjunctVal, };

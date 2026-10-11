@@ -624,6 +624,24 @@ function entry(node: JNode, key: string): JNode | undefined {
   return 'object' === node.t ? node.entries.find((e) => e.key === key)?.val : undefined
 }
 
+// A schema written as another is, whatever order the members of each are in.
+function sameNode(a: JNode, b: JNode): boolean {
+  switch (a.t) {
+    case 'object':
+      return 'object' === b.t && a.entries.length === b.entries.length &&
+        a.entries.every((e) => { const o = entry(b, e.key); return undefined !== o && sameNode(e.val, o) })
+    case 'array':
+      return 'array' === b.t && a.items.length === b.items.length &&
+        a.items.every((x, i) => sameNode(x, b.items[i]))
+    case 'string':
+      return 'string' === b.t && a.s === b.s
+    case 'number':
+      return 'number' === b.t && a.text === b.text
+    default:
+      return a.t === b.t
+  }
+}
+
 function child(ptr: string, key: string): string {
   return ptr + '/' + key.replace(/~/g, '~0').replace(/\//g, '~1')
 }
@@ -1137,9 +1155,12 @@ function targetName(ctx: Ctx, node: JNode, at: string): string {
     ctx.anchors.get(ctx.root)?.get(anchor.s) === node) {
     return 'a_' + encodeName(anchor.s)
   }
-  const defs = /^#\/\$defs\/([^/]+)$/.exec(ptr)
-  if (null != defs) {
-    return 'd_' + encodeName(defs[1].replace(/~1/g, '/').replace(/~0/g, '~'))
+  // A definitions member is named as a $defs member, unless $defs holds its key.
+  const defs = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ptr)
+  const key = null == defs ? '' : defs[2].replace(/~1/g, '/').replace(/~0/g, '~')
+  const held = entry(ctx.root, '$defs')
+  if (null != defs && ('$defs' === defs[1] || undefined === held || undefined === entry(held, key))) {
+    return 'd_' + encodeName(key)
   }
   return 'p_' + encodeName(ptr.slice(2))
 }
@@ -1344,6 +1365,9 @@ const CARRIED = [
 ]
 
 const KINDS = ['null', 'boolean', 'number', 'string', 'object', 'array']
+const BARE: Record<string, string> = {
+  null: 'null', boolean: 'boolean', number: 'number', string: 'empty()', object: 'map', array: 'list',
+}
 
 // The content keywords annotate a string only, so they ride its branch.
 const CONTENT = ['contentEncoding', 'contentMediaType', 'contentSchema']
@@ -1582,21 +1606,37 @@ function blocker(e: Expr): boolean {
 }
 
 
+// No one value meets both branches: distinct literals, or kinds apart.
+function apart(b: Expr, c: Expr): boolean {
+  const bt = literalTexts(b)
+  const ct = literalTexts(c)
+  return undefined !== bt && undefined !== ct ? !bt.some((t) => ct.includes(t)) :
+    !kindsOf(b).some((k) => kindsOf(c).includes(k))
+}
+
+
 // anyOf is `|` where at most one branch can survive a meet with any
 // instance, and a count of at least one otherwise.
 function anyOf(branches: Expr[]): Expr {
   const live = branches.filter((b) => !isRaw(b, 'nil'))
   const literal = live.every((b) => undefined !== literalTexts(b))
-  const disjoint = live.every((b, i) => !blocker(b) &&
-    live.every((c, j) => j <= i || !kindsOf(b).some((k) => kindsOf(c).includes(k))))
-  return 0 === live.length ? NIL : literal || disjoint ? or(live) :
-    call('nof', call('min', raw('1')), ...branches)
+  const disjoint = live.every((b, i) => !blocker(b) && live.every((c, j) => j <= i || apart(b, c)))
+  // Branches of distinct kinds are written in the order `type` writes them.
+  const rank = (b: Expr): number => [...ALL_KINDS, ''].findIndex((k) => '' === k || kindsOf(b).includes(k))
+  const flat = live.flatMap((b) => 'or' === b.k ? b.items : [b])
+  return 0 === live.length ? NIL : literal ? or(live) :
+    disjoint ? or(flat.sort((a, b) => rank(a) - rank(b))) :
+      call('nof', call('min', raw('1')), ...branches)
 }
 
 
 // oneOf is a count of exactly one, or `|` over scalar literals that are
-// pairwise distinct, since a scalar equals at most one of them.
+// pairwise distinct, since a scalar equals at most one of them. One branch
+// held exactly once is one held at least once, as anyOf reads it.
 function oneOf(branches: Expr[]): Expr {
+  if (1 === branches.length) {
+    return anyOf(branches)
+  }
   const texts = branches.map(literalTexts)
   const flat = texts.flat()
   return !texts.includes(undefined) && new Set(flat).size === flat.length ?
@@ -1659,11 +1699,11 @@ function trialEngine(): Aontu {
 }
 
 // Whether a position admits nothing: its meet conflicts when evaluated
-// alone. One naming an alias is left as written, as the declaration may
-// be being written itself.
+// alone, or it is a written nil. One naming an alias is left as written,
+// as the declaration may be being written itself.
 function bottom(e: Expr): boolean {
   if ('raw' === e.k || holdsAlias(e)) {
-    return false
+    return isRaw(e, 'nil')
   }
   const engine = trialEngine()
   const ctx: any = engine.ctx({ collect: true })
@@ -1877,9 +1917,14 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
     else {
       const name = bookend(ctx, node, dref.s)
       const target = ctx.env.get(name as string) ?? resolveRef(ctx, node, dref.s) as JNode
-      parts.push(call('meta', convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false,
-        undefined, { ptr: at('$dynamicRef'), node }),
-      { k: 'map', spreads: [], entries: [{ key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }))
+      const val = convert(ctx, target, (ctx.targets.get(target) as Target).ptr, false,
+        undefined, { ptr: at('$dynamicRef'), node })
+      // The text rides only a use the export can write back: a definition
+      // the reference names by an anchor.
+      const frag = -1 === dref.s.indexOf('#') ? '' : dref.s.slice(dref.s.indexOf('#') + 1)
+      parts.push('' !== frag && !frag.startsWith('/') && 'raw' === val.k && val.text.startsWith('%') ?
+        call('meta', val, { k: 'map', spreads: [], entries: [
+          { key: 'dynamicRef', optional: false, val: raw(quote(dref.s)) }] }) : val)
     }
   }
 
@@ -1927,8 +1972,9 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   const neg = get('not')
   const excluded = null == neg ? undefined : typedExclusion(node, neg)
   if (null != neg && undefined === excluded) {
-    parts.push(mark(ctx, call('nof', raw('0'), convert(ctx, neg, at('not'), false, only)),
-      at('not'), node))
+    // Nothing escapes a schema that admits everything.
+    const branch = convert(ctx, neg, at('not'), false, only)
+    parts.push(mark(ctx, isRaw(branch, 'any') ? NIL : call('nof', raw('0'), branch), at('not'), node))
   }
 
   parts.push(...conditional(ctx, node, ptr, only), ...dependents(ctx, node, ptr, only))
@@ -1963,8 +2009,16 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       !allowed.includes('number')
     const branches = kinds.map((kind) =>
       branch(ctx, node, ptr, kind, integral, undefined !== allowed, excluded))
-    const split = 0 === branches.length ? NIL : or(branches)
-    parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split)
+    // Every kind, each narrowed by nothing, is what `any` admits.
+    const bare = KINDS.length === kinds.length &&
+      branches.every((b, i) => BARE[kinds[i]] === print(b, ''))
+    const split = bare ? ANY : 0 === branches.length ? NIL : or(branches)
+    const lits = null != konst ? [konst] : 'array' === enm?.t ? enm.items : []
+    const said = 1 === kinds.length && 0 < lits.length &&
+      lits.every((it) => says(it, kinds[0], branches[0]))
+    if (!said) {
+      parts.push(undefined !== allowed && 'or' === split.k ? mark(ctx, split, at('type'), node) : split)
+    }
   }
 
   const met = and(parts)
@@ -1974,6 +2028,13 @@ function convertObject(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
 
 function jsonKind(n: JNode): string {
   return 'true' === n.t || 'false' === n.t ? 'boolean' : n.t
+}
+
+
+// A literal says its kind, which a type that adds nothing to it repeats.
+function says(lit: JNode, kind: string, branch: Expr): boolean {
+  return jsonKind(lit) === kind && (BARE[kind] === print(branch, '') || ('number' === lit.t &&
+    /^-?[0-9]+$/.test(lit.text) && 'number & multiple(1)' === print(branch, '')))
 }
 
 
@@ -2281,7 +2342,7 @@ function unevaluated(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
   }
   const t = convert(ctx, held, child(ptr, word), false)
   if (covers.every((c) => 0 === c.cond.length && undefined === c.members)) {
-    const keys = distinct(covers.flatMap((c) => c.keys))
+    const keys = keyOrder(kind, distinct(covers.flatMap((c) => c.keys)))
     return {
       spread: 0 === keys.length ? t : mark(ctx,
         call('match', call('key', raw('0')), ...keys.flatMap((k) => [k, ANY]), t), child(ptr, word), node),
@@ -2295,6 +2356,18 @@ function unevaluated(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string,
       ...(undefined === c.members ? [] : [{ key: 'members', optional: false, val: c.members }]),
     ],
   }))), child(ptr, word), node) }
+}
+
+
+// The keys a guard lets through in the order additionalProperties and
+// items write them: names in code-point order, then patterns, and
+// positions in their own order.
+function keyOrder(kind: string, keys: Expr[]): Expr[] {
+  const text = (e: Expr): string => print(e, '')
+  const named = keys.filter((k) => 'raw' === k.k)
+  return 'object' === kind ? [...named.sort((a, b) => cmpCodePoint(text(a), text(b))),
+    ...keys.filter((k) => 'raw' !== k.k).sort((a, b) => cmpCodePoint(text(a), text(b)))] :
+    named.sort((a, b) => +JSON.parse(text(a)) - +JSON.parse(text(b)))
 }
 
 
@@ -2465,7 +2538,7 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
   }
 
   const spreads: Expr[] = []
-  const patterns: Expr[] = []
+  const patterns: [Expr, JNode][] = []
   let patternsExact = true
   const pats = get('patternProperties')
   if (null != pats) {
@@ -2473,6 +2546,7 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
       wrongType(ctx, at('patternProperties'), 'patternProperties', 'an object', pats)
     }
     else {
+      const found: [string, Expr, JNode, Expr][] = []
       for (const e of pats.entries) {
         const p = child(at('patternProperties'), e.key)
         const re = pattern(ctx, p, 'patternProperties', e.key)
@@ -2480,10 +2554,15 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
           patternsExact = false
         }
         else {
-          patterns.push(re)
-          spreads.push(mark(ctx, call('match', call('key', raw('0')), re, convert(ctx, e.val, p, false), ANY),
-            at('patternProperties'), node))
+          found.push([print(re, ''), re, e.val, mark(ctx, call('match', call('key', raw('0')), re,
+            convert(ctx, e.val, p, false), ANY), at('patternProperties'), node)])
         }
+      }
+      // The order a schema lists its members in means nothing, so an
+      // import is written in one order whatever it was.
+      for (const [, re, schema, spread] of found.sort((a, b) => cmpCodePoint(a[0], b[0]))) {
+        patterns.push([re, schema])
+        spreads.push(spread)
       }
     }
   }
@@ -2496,15 +2575,19 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
     }
     else {
       const rest = convert(ctx, addl, at('additionalProperties'), false)
-      if (0 === declared.length && 0 === patterns.length) {
+      // A member whose schema is written as the additional one's is held
+      // to it all the same, so only the others are excluded from it.
+      const names = declared.filter((k) => !sameNode(entry(props as JNode, k) as JNode, addl))
+      const res = patterns.filter(([, schema]) => !sameNode(schema, addl))
+      if (0 === names.length && 0 === res.length) {
         spreads.push(rest)
       }
       else {
         const args: Expr[] = [call('key', raw('0'))]
-        for (const k of declared) {
+        for (const k of names.sort(cmpCodePoint)) {
           args.push(raw(quote(k)), ANY)
         }
-        for (const re of patterns) {
+        for (const [re] of res) {
           args.push(re, ANY)
         }
         args.push(rest)
@@ -2516,7 +2599,8 @@ function objectBranch(ctx: Ctx, node: JNode & { t: 'object' }, ptr: string):
   const names = get('propertyNames')
   if (null != names && 'true' !== names.t) {
     const guard = convert(ctx, names, at('propertyNames'), false, ['string'])
-    if (!isRaw(guard, 'any')) {
+    // Every key is a string, so a test every string passes asserts nothing.
+    if (!isRaw(guard, 'any') && BARE.string !== print(guard, '')) {
       spreads.push(mark(ctx, call('match', call('key', raw('0')), guard, ANY, NIL), at('propertyNames'), node))
     }
   }

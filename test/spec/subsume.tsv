@@ -204,21 +204,21 @@ unique-by-key-does-not-subsume	subsume	a:unique(p)	a:unique(q)	{"findings":[{"ac
 # template by reference or alias, or declares a relation, did not
 # subsume ITSELF, and `breaking` on the idiom the language exists for
 # hard-failed.
-#
-# REFLEXIVITY IS A LAW, AT THE WALK'S TAIL TOO (use-cases/BUGS.md 64,
-# and 28 before it). The formers the evaluator MEANS to leave standing
-# -- a recursion, a relation and its graph atom, a refer() target
-# constraint, a path-dependent spread template -- describe no set a
-# structural walk can compare, so two DIFFERENT ones are undecided. Two
-# IDENTICAL ones are the same value: identity is the HASH FORM, and
-# every value admits itself. Without this a document that shares a
-# template by reference or alias, or declares a relation, did not
-# subsume ITSELF, and `breaking` on the idiom the language exists for
-# hard-failed.
 reflexive-reference-valued-spread-template	subsume	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	{"findings":[],"verdict":"subsumes"}
 reflexive-alias-valued-spread-template	subsume	%F = {n: string}\ncode: {fs: {&: %F}}	%F = {n: string}\ncode: {fs: {&: %F}}	{"findings":[],"verdict":"subsumes"}
 reflexive-relation-declaration	subsume	spec: hide({Mod: {kind: "mod", dependsOn?: rel($.spec.Mod) & acyclic() & inverse(usedBy), usedBy?: rel($.spec.Mod)}})\na: $.spec.Mod & {dependsOn: [&: refer($.spec.Mod), path($.b)]}\nb: $.spec.Mod	spec: hide({Mod: {kind: "mod", dependsOn?: rel($.spec.Mod) & acyclic() & inverse(usedBy), usedBy?: rel($.spec.Mod)}})\na: $.spec.Mod & {dependsOn: [&: refer($.spec.Mod), path($.b)]}\nb: $.spec.Mod	{"findings":[],"verdict":"subsumes"}
 different-reference-valued-templates-are-undecided	subsume	defs: hide({F: {n: string}})\ncode: {fs: {&: $.defs.F}}	defs: hide({F: {n: integer}})\ncode: {fs: {&: $.defs.F}}	{"findings":[{"actual":"integer","class":"compat","code":"compat_narrowed","expected":"string","message":"the general kind does not admit the specific kind","path":"$.defs.F.n","severity":"error","sites":[{"col":20,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":20,"file":"specific","len":7,"role":"specific","row":1,"src":"integer","value":"integer"}]}],"verdict":"does_not_subsume"}
+# A NIL ADMITS NOTHING (ADR-052: a forbidden key, a closed spread), so
+# every value subsumes one and one subsumes no other value. And identity
+# decides the residue the walk cannot otherwise compare, an atom or a
+# disjunction of them, where no recursion inside names a definition.
+subsume-a-forbidden-key-admits-itself	subsume	a?: nil	a?: nil	{"findings":[],"verdict":"subsumes"}
+subsume-a-key-the-general-forbids-narrows-one-allowed	subsume	a?: nil	a?: number	{"findings":[{"actual":"number","class":"compat","code":"compat_narrowed","expected":"nil","message":"the general value admits nothing","path":"$.a","severity":"error","sites":[{"col":5,"file":"general","len":3,"role":"general","row":1,"src":"nil","value":"nil"},{"col":5,"file":"specific","len":6,"role":"specific","row":1,"src":"number","value":"number"}]}],"verdict":"does_not_subsume"}
+subsume-a-key-the-specific-forbids-is-admitted	subsume	a?: number	a?: nil	{"findings":[],"verdict":"subsumes"}
+subsume-a-closed-spread-admits-itself	subsume	a: {&: nil}	a: {&: nil}	{"findings":[],"verdict":"subsumes"}
+subsume-a-closed-spread-narrows-an-open-one	subsume	a: {&: nil}	a: {&: number}	{"findings":[{"actual":"number","class":"compat","code":"compat_narrowed","expected":"nil","message":"the general value admits nothing","path":"$.a.&","severity":"error","sites":[{"col":8,"file":"general","len":3,"role":"general","row":1,"src":"nil","value":"nil"},{"col":8,"file":"specific","len":6,"role":"specific","row":1,"src":"number","value":"number"}]}],"verdict":"does_not_subsume"}
+subsume-a-list-of-nothing-admits-itself	subsume	a: [&: nil]	a: [&: nil]	{"findings":[],"verdict":"subsumes"}
+subsume-a-disjunction-of-atoms-admits-itself	subsume	a: contains(number) | string	a: contains(number) | string	{"findings":[],"verdict":"subsumes"}
 subsume-string-does-not-cover-empty	subsume	a: string	a: string & empty()	{"findings":[{"actual":"string&empty()","class":"compat","code":"compat_narrowed","expected":"string","message":"the general kind does not admit the specific kind","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"string","value":"string&empty()"}]}],"verdict":"does_not_subsume"}
 subsume-string-does-not-cover-the-empty-string	subsume	a: string	a: ""	{"findings":[{"actual":"\\"\\"","class":"compat","code":"compat_narrowed","expected":"string","message":"the general kind does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":6,"role":"general","row":1,"src":"string","value":"string"},{"col":4,"file":"specific","len":2,"role":"specific","row":1,"src":"\\"\\"","value":"\\"\\""}]}],"verdict":"does_not_subsume"}
 subsume-empty-covers-string	subsume	a: string & empty()	a: string	{"findings":[],"verdict":"subsumes"}

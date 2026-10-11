@@ -69,12 +69,12 @@ describe('lang', function() {
     expect(P('1&2').canon).equal('1&2')
     expect(P('(1&2)').canon).equal('1&2')
     expect(P('(1&2)&3').canon).equal('(1&2)&3')
-    expect(P('1&(2&3)').canon).equal('1&(2&3)')
-    expect(P('1&(2&3)&4').canon).equal('(1&(2&3))&4')
-    expect(P('1&((2&3)&4)').canon).equal('1&((2&3)&4)')
+    expect(P('1&(2&3)').canon).equal('(2&3)&1')
+    expect(P('1&(2&3)&4').canon).equal('((2&3)&1)&4')
+    expect(P('1&((2&3)&4)').canon).equal('((2&3)&4)&1')
     expect(P('1&2|3').canon).equal('(1&2)|3')
     expect(P('1|2&3').canon).equal('1|(2&3)')
-    expect(P('1&(2|3)').canon).equal('1&(2|3)')
+    expect(P('1&(2|3)').canon).equal('(2|3)&1')
     expect(P('(1|2)&3').canon).equal('(1|2)&3')
   })
 
@@ -240,7 +240,7 @@ describe('lang', function() {
 
   it('conjunct', () => {
     expect(P('1&number').canon).equal('1&number')
-    expect(P('number&1').canon).equal('number&1')
+    expect(P('number&1').canon).equal('1&number')
 
     // FIX
     // expect(() => P('*1&number')).throws()
@@ -298,17 +298,17 @@ describe('lang', function() {
 
 
     let v2 = P('a:{&:number},a:{x:1},a:{y:2}')
-    expect(v2.canon).equal('{"a":{&:number}&{"x":1}&{"y":2}}')
+    expect(v2.canon).equal('{"a":{"x":1}&{"y":2}&{&:number}}')
     let u2 = v2.unify(TOP, ctx)
     expect(u2.canon).equal('{"a":{&:number,"x":1,"y":2}}')
 
     let v3 = P('a:{&:number,z:3},a:{x:1},a:{y:2}')
-    expect(v3.canon).equal('{"a":{&:number,"z":3}&{"x":1}&{"y":2}}')
+    expect(v3.canon).equal('{"a":{"x":1}&{"y":2}&{&:number,"z":3}}')
     let u3 = v3.unify(TOP, ctx)
     expect(u3.canon).equal('{"a":{&:number,"x":1,"y":2,"z":3}}')
 
     let v4 = P('b:{a:{&:number,z:3},a:{x:1},a:{y:2}}')
-    expect(v4.canon).equal('{"b":{"a":{&:number,"z":3}&{"x":1}&{"y":2}}}')
+    expect(v4.canon).equal('{"b":{"a":{"x":1}&{"y":2}&{&:number,"z":3}}}')
     let u4 = v4.unify(TOP, ctx)
     expect(u4.canon).equal('{"b":{"a":{&:number,"x":1,"y":2,"z":3}}}')
 
@@ -325,7 +325,7 @@ describe('lang', function() {
 
     let v6 = P('b:{a:{&:{K:0},z:{Z:3}},a:{x:{X:1}},a:{y:{Y:2}}}')
     expect(v6.canon)
-      .equal('{"b":{"a":{&:{"K":0},"z":{"Z":3}}&{"x":{"X":1}}&{"y":{"Y":2}}}}')
+      .equal('{"b":{"a":{"x":{"X":1}}&{"y":{"Y":2}}&{&:{"K":0},"z":{"Z":3}}}}')
     let u6 = v6.unify(TOP, ctx)
     expect(u6.canon)
       .equal('{"b":{"a":{&:{"K":0},' +
@@ -428,7 +428,7 @@ describe('lang', function() {
     expect(v7.unify(TOP, makeCtx()).gen(ctx)).equal({ a: {} })
 
     let v8 = P('a:&:c a:&:string a:b:c')
-    expect(v8.canon).equal('{"a":{&:"c"}&{&:string}&{"b":"c"}}')
+    expect(v8.canon).equal('{"a":{"b":"c"}&{&:"c"}&{&:string}}')
     expect(v8.unify(TOP, makeCtx()).gen(ctx)).equal({ a: { b: 'c' } })
 
     let v9 = P('&:c &:string')
@@ -480,7 +480,7 @@ describe('lang', function() {
       ['a:1|2|3', '{"a":(1|2)|3}'],
       ['a:1&2&3', '{"a":(1&2)&3}'],
       ['a:(1|2)&(3|4)', '{"a":(1|2)&(3|4)}'],
-      ['a:1&(2|3)&4', '{"a":(1&(2|3))&4}'],
+      ['a:1&(2|3)&4', '{"a":((2|3)&1)&4}'],
     ]
     for (const [src, canon] of rows) {
       expect(P(src).canon).equal(canon)

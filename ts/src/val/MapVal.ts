@@ -87,10 +87,11 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
 }
 
 
-// A written `nil` refuses a supplied value (ADR-046); a minted nil is a
-// refusal already recorded.
+// A written `nil` refuses a supplied value (ADR-046), which a nil or a
+// disjunction with no preference is not; a minted nil is already recorded.
 function literalNilRefuses(n: any, v: any): boolean {
-  return 'literal_nil' === n.why && true === v.isGenable && !v.isTop
+  return 'literal_nil' === n.why && true === v.isGenable && !v.isTop && !v.isNil &&
+    !(true === v.isDisjunct && !v.peg.some((m: any) => true === m.isPref))
 }
 
 
@@ -336,7 +337,8 @@ class MapVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child
-              ? (undefined !== peerctx.prov && peerchild.isGenable
+              ? ((undefined !== peerctx.prov && peerchild.isGenable) ||
+                upeer.aliasKeys.includes(peerkey)
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
               child.isTop && !rides(child) && peerchild.done ? peerchild :

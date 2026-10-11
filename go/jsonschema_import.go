@@ -765,6 +765,35 @@ func (ctx *importCtx) lose(at, construct, reason string) {
 	ctx.lossy = append(ctx.lossy, SchemaLoss{Path: path, Construct: construct, Reason: reason})
 }
 
+// sameJnode: a schema written as another is, whatever order the
+// members of each are in.
+func sameJnode(a, b *jnode) bool {
+	if a.t != b.t {
+		return false
+	}
+	switch a.t {
+	case "object":
+		if len(a.entries) != len(b.entries) {
+			return false
+		}
+		for _, e := range a.entries {
+			if o := jentryOf(b, e.key); nil == o || !sameJnode(e.val, o) {
+				return false
+			}
+		}
+	case "array":
+		if len(a.items) != len(b.items) {
+			return false
+		}
+		for i, x := range a.items {
+			if !sameJnode(x, b.items[i]) {
+				return false
+			}
+		}
+	}
+	return a.s == b.s
+}
+
 func jentryOf(node *jnode, key string) *jnode {
 	if "object" != node.t {
 		return nil
@@ -1368,7 +1397,7 @@ func (ctx *importCtx) originOf(path string) string {
 	return path
 }
 
-var defsPtrRe = regexp.MustCompile(`^#/\$defs/([^/]+)$`)
+var defsPtrRe = regexp.MustCompile(`^#/(\$defs|definitions)/([^/]+)$`)
 
 func (ctx *importCtx) targetName(node *jnode, at string) string {
 	// A name spells the schema as written (ADR-061).
@@ -1385,8 +1414,13 @@ func (ctx *importCtx) targetName(node *jnode, at string) string {
 		ctx.resourceOf[node] == ctx.root && ctx.anchors[ctx.root][anchor.s] == node {
 		return "a_" + encodeAliasName(anchor.s)
 	}
+	// A definitions member is named as a $defs member, unless $defs holds its key.
 	if m := defsPtrRe.FindStringSubmatch(ptr); nil != m {
-		return "d_" + encodeAliasName(pointerUnescaper.Replace(m[1]))
+		key := pointerUnescaper.Replace(m[2])
+		held := jentryOf(ctx.root, "$defs")
+		if "$defs" == m[1] || nil == held || nil == jentryOf(held, key) {
+			return "d_" + encodeAliasName(key)
+		}
 	}
 	return "p_" + encodeAliasName(strings.TrimPrefix(ptr, "#/"))
 }
@@ -1617,6 +1651,13 @@ var importCarried = []string{
 }
 
 var importKinds = []string{"null", "boolean", "number", "string", "object", "array"}
+
+var importIntegerText = regexp.MustCompile(`^-?[0-9]+$`)
+
+var importBare = map[string]string{
+	"null": "null", "boolean": "boolean", "number": "number", "string": "empty()",
+	"object": "map", "array": "list",
+}
 
 // importContent is the content keywords: they annotate a string only, so
 // they ride its branch.
@@ -1979,6 +2020,27 @@ func blocker(e *ixpr) bool {
 		someExpr(e, blocker)
 }
 
+// importApart is whether no one value meets both branches: distinct
+// literals, or kinds apart.
+func importApart(b, c *ixpr) bool {
+	bt, bok := literalTexts(b)
+	ct, cok := literalTexts(c)
+	if bok && cok {
+		for _, t := range bt {
+			if inList(ct, t) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, k := range kindsOf(b) {
+		if inList(kindsOf(c), k) {
+			return false
+		}
+	}
+	return true
+}
+
 // importAnyOf is `|` where at most one branch can survive a meet with any
 // instance, and a count of at least one otherwise.
 func importAnyOf(branches []*ixpr) *ixpr {
@@ -1995,23 +2057,44 @@ func importAnyOf(branches []*ixpr) *ixpr {
 		}
 		disjoint = disjoint && !blocker(b)
 		for _, c := range live[i+1:] {
-			for _, k := range kindsOf(b) {
-				disjoint = disjoint && !inList(kindsOf(c), k)
-			}
+			disjoint = disjoint && importApart(b, c)
 		}
+	}
+	// Branches of distinct kinds are written in the order `type` writes them.
+	rank := func(b *ixpr) int {
+		kinds, i := kindsOf(b), 0
+		for i < len(importKinds) && !inList(kinds, importKinds[i]) {
+			i++
+		}
+		return i
 	}
 	switch {
 	case 0 == len(live):
 		return iNil
-	case literal || disjoint:
+	case literal:
 		return ior(live)
+	case disjoint:
+		flat := []*ixpr{}
+		for _, b := range live {
+			if "or" == b.k {
+				flat = append(flat, b.items...)
+			} else {
+				flat = append(flat, b)
+			}
+		}
+		sort.SliceStable(flat, func(i, j int) bool { return rank(flat[i]) < rank(flat[j]) })
+		return ior(flat)
 	}
 	return icall("nof", append([]*ixpr{icall("min", iraw("1"))}, branches...)...)
 }
 
 // importOneOf is a count of exactly one, or `|` over scalar literals that
-// are pairwise distinct, since a scalar equals at most one of them.
+// are pairwise distinct, since a scalar equals at most one of them. One
+// branch held exactly once is one held at least once, as anyOf reads it.
 func importOneOf(branches []*ixpr) *ixpr {
+	if 1 == len(branches) {
+		return importAnyOf(branches)
+	}
 	seen := map[string]bool{}
 	distinct := true
 	for _, b := range branches {
@@ -2090,11 +2173,11 @@ func typedExclusion(node, neg *jnode) map[string][]string {
 }
 
 // importBottom reports whether a position admits nothing: its meet
-// conflicts when evaluated alone. One naming an alias is left as written,
-// as the declaration may be being written itself.
+// conflicts when evaluated alone, or it is a written nil. One naming an
+// alias is left as written, as the declaration may be being written itself.
 func importBottom(e *ixpr) bool {
 	if "raw" == e.k || holdsAlias(e) {
-		return false
+		return isRawText(e, "nil")
 	}
 	text := "x: " + iprint(e, "")
 	a := New()
@@ -2275,8 +2358,9 @@ func (ctx *importCtx) identity(target *importTarget, clone bool) []ientry {
 		out = append(out, ientry{key: "anchor", val: iraw(importQuote(anchor.s))})
 	}
 	// A clone (ADR-057) names the definition its first declaration is.
-	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && (clone || strings.HasPrefix(target.name, "a_")) {
-		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[1])))})
+	if m := defsPtrRe.FindStringSubmatch(target.ptr); nil != m && "$defs" == m[1] &&
+		(clone || strings.HasPrefix(target.name, "a_")) {
+		out = append(out, ientry{key: "defs", val: iraw(importQuote(pointerUnescaper.Replace(m[2])))})
 	} else if clone {
 		out = append(out, ientry{key: "defs", val: iraw(importQuote(target.name))})
 	}
@@ -2347,9 +2431,19 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			if name, ok := ctx.bookend(node, dref.s); ok && nil != ctx.env[name] {
 				target = ctx.env[name]
 			}
-			parts = append(parts, icall("meta", ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
-				&importVia{ptr: at("$dynamicRef"), node: node}),
-				&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}}))
+			val := ctx.convertVia(target, ctx.targets[target].ptr, false, nil,
+				&importVia{ptr: at("$dynamicRef"), node: node})
+			// The text rides only a use the export can write back: a
+			// definition the reference names by an anchor.
+			frag := ""
+			if i := strings.Index(dref.s, "#"); -1 != i {
+				frag = dref.s[i+1:]
+			}
+			if "" != frag && !strings.HasPrefix(frag, "/") && "raw" == val.k && strings.HasPrefix(val.text, "%") {
+				val = icall("meta", val,
+					&ixpr{k: "map", entries: []ientry{{key: "dynamicRef", val: iraw(importQuote(dref.s))}}})
+			}
+			parts = append(parts, val)
 		}
 	}
 
@@ -2407,8 +2501,14 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if neg := get("not"); nil != neg {
 		excluded = typedExclusion(node, neg)
 		if nil == excluded {
-			parts = append(parts, ctx.mark(icall("nof", iraw("0"), ctx.convert(neg, at("not"), false, only)),
-				at("not"), node, imark{}))
+			// Nothing escapes a schema that admits everything.
+			branch := ctx.convert(neg, at("not"), false, only)
+			if !isRawText(branch, "any") {
+				branch = icall("nof", iraw("0"), branch)
+			} else {
+				branch = iNil
+			}
+			parts = append(parts, ctx.mark(branch, at("not"), node, imark{}))
 		}
 	}
 
@@ -2474,17 +2574,34 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 	if nil != allowed || someScoped {
 		integral := nil != allowed && inList(allowed, "integer") && !inList(allowed, "number")
 		branches := []*ixpr{}
-		for _, kind := range kinds {
+		// Every kind, each narrowed by nothing, is what `any` admits.
+		bare := len(importKinds) == len(kinds)
+		for i, kind := range kinds {
 			branches = append(branches, ctx.branch(node, ptr, kind, integral, nil != allowed, excluded))
+			bare = bare && importBare[kind] == iprint(branches[i], "")
 		}
 		split := iNil
-		if 0 < len(branches) {
+		if bare {
+			split = iAny
+		} else if 0 < len(branches) {
 			split = ior(branches)
 		}
 		if nil != allowed && "or" == split.k {
 			split = ctx.mark(split, at("type"), node, imark{})
 		}
-		parts = append(parts, split)
+		lits := []*jnode{}
+		if konst := get("const"); nil != konst {
+			lits = append(lits, konst)
+		} else if enm := get("enum"); nil != enm && "array" == enm.t {
+			lits = enm.items
+		}
+		said := 1 == len(kinds) && 0 < len(lits)
+		for _, it := range lits {
+			said = said && importSays(it, kinds[0], branches[0])
+		}
+		if !said {
+			parts = append(parts, split)
+		}
 	}
 
 	met := iand(parts)
@@ -2499,6 +2616,14 @@ func jsonKindOf(n *jnode) string {
 		return "boolean"
 	}
 	return n.t
+}
+
+// importSays is whether a literal says its kind, which a type that adds
+// nothing to it repeats.
+func importSays(lit *jnode, kind string, branch *ixpr) bool {
+	return jsonKindOf(lit) == kind && (importBare[kind] == iprint(branch, "") ||
+		("number" == lit.t && importIntegerText.MatchString(lit.s) &&
+			"number & multiple(1)" == iprint(branch, "")))
 }
 
 // data writes a JSON value as aontu data; ok is false where a number in
@@ -2881,6 +3006,32 @@ type importCover struct {
 	exact   bool
 }
 
+// importKeyOrder is the keys a guard lets through in the order
+// additionalProperties and items write them: names in code-point order,
+// then patterns, and positions in their own order.
+func importKeyOrder(kind string, keys []*ixpr) []*ixpr {
+	named, res := []*ixpr{}, []*ixpr{}
+	for _, k := range keys {
+		if "raw" == k.k {
+			named = append(named, k)
+		} else {
+			res = append(res, k)
+		}
+	}
+	text := func(e *ixpr) string { return iprint(e, "") }
+	if "object" != kind {
+		at := func(e *ixpr) int {
+			n, _ := strconv.Atoi(strings.Trim(text(e), `"`))
+			return n
+		}
+		sort.SliceStable(named, func(i, j int) bool { return at(named[i]) < at(named[j]) })
+		return named
+	}
+	sort.SliceStable(named, func(i, j int) bool { return text(named[i]) < text(named[j]) })
+	sort.SliceStable(res, func(i, j int) bool { return text(res[i]) < text(res[j]) })
+	return append(named, res...)
+}
+
 // unevaluated is the unevaluated keyword as the guarded spread where no
 // branch is conditional, and as rest() over the covers where one is;
 // neither where every member is evaluated.
@@ -2914,7 +3065,7 @@ func (ctx *importCtx) unevaluated(node *jnode, ptr, kind string) (spread, rest *
 		for _, c := range covers {
 			keys = append(keys, c.keys...)
 		}
-		keys = distinct(keys)
+		keys = importKeyOrder(kind, distinct(keys))
 		if 0 == len(keys) {
 			return t, nil
 		}
@@ -3135,22 +3286,39 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 	}
 
 	spreads := []*ixpr{}
-	patterns := []*ixpr{}
+	type ipattern struct {
+		re     *ixpr
+		schema *jnode
+	}
+	patterns := []ipattern{}
 	patternsExact := true
 	if pats := get("patternProperties"); nil != pats {
 		if "object" != pats.t {
 			ctx.wrongType(at("patternProperties"), "patternProperties", "an object", pats)
 		} else {
+			type found struct {
+				text   string
+				re     *ixpr
+				schema *jnode
+				spread *ixpr
+			}
+			all := []found{}
 			for _, e := range pats.entries {
 				p := ptrChild(at("patternProperties"), e.key)
 				re := ctx.pattern(p, "patternProperties", e.key)
 				if nil == re {
 					patternsExact = false
 				} else {
-					patterns = append(patterns, re)
-					spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), re,
-						ctx.convert(e.val, p, false, nil), iAny), at("patternProperties"), node, imark{}))
+					all = append(all, found{iprint(re, ""), re, e.val, ctx.mark(icall("match", icall("key", iraw("0")), re,
+						ctx.convert(e.val, p, false, nil), iAny), at("patternProperties"), node, imark{})})
 				}
+			}
+			// The order a schema lists its members in means nothing, so
+			// an import is written in one order whatever it was.
+			sort.SliceStable(all, func(i, j int) bool { return all[i].text < all[j].text })
+			for _, f := range all {
+				patterns = append(patterns, ipattern{f.re, f.schema})
+				spreads = append(spreads, f.spread)
 			}
 		}
 	}
@@ -3161,14 +3329,30 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 				"it was dropped, so the names it excludes cannot be spelt, and it is dropped too")
 		} else {
 			rest := ctx.convert(addl, at("additionalProperties"), false, nil)
-			if 0 == len(declared) && 0 == len(patterns) {
+			// A member whose schema is written as the additional one's is
+			// held to it all the same, so only the others are excluded
+			// from it.
+			names := []string{}
+			for _, k := range declared {
+				if !sameJnode(jentryOf(get("properties"), k), addl) {
+					names = append(names, k)
+				}
+			}
+			res := []*ixpr{}
+			for _, p := range patterns {
+				if !sameJnode(p.schema, addl) {
+					res = append(res, p.re)
+				}
+			}
+			if 0 == len(names) && 0 == len(res) {
 				spreads = append(spreads, rest)
 			} else {
 				args := []*ixpr{icall("key", iraw("0"))}
-				for _, k := range declared {
+				sort.Strings(names)
+				for _, k := range names {
 					args = append(args, iraw(importQuote(k)), iAny)
 				}
-				for _, re := range patterns {
+				for _, re := range res {
 					args = append(args, re, iAny)
 				}
 				args = append(args, rest)
@@ -3180,7 +3364,8 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 
 	if names := get("propertyNames"); nil != names && "true" != names.t {
 		guard := ctx.convert(names, at("propertyNames"), false, []string{"string"})
-		if !isRawText(guard, "any") {
+		// Every key is a string, so a test every string passes asserts nothing.
+		if !isRawText(guard, "any") && importBare["string"] != iprint(guard, "") {
 			spreads = append(spreads, ctx.mark(icall("match", icall("key", iraw("0")), guard, iAny, iNil),
 				at("propertyNames"), node, imark{}))
 		}

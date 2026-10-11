@@ -86,8 +86,12 @@ required-wins-two-includes	canon	@"__FIXTURES__/optional_x.aontu" @"__FIXTURES__
 required-wins-nested-include	canon	q:@"__FIXTURES__/optional_xy.aontu" q:{x:1}	{"q":{"x":1,"y"?:integer}}
 # A WRITTEN NIL UNDER AN OPTIONAL KEY FORBIDS THE KEY (ADR-046, #299):
 # a supplied value is refused at the meet, an absent one passes, and a
-# kind is not a value.
+# kind, a nil or a disjunction with no preference is not a value.
 optional-nil-refuses-a-value	errc	a:{k?:nil} a:{k:1}	literal_nil
 optional-nil-passes-absent	gens	a:{k?:nil,z:1} a:{}	{"a":{"z":1}}
 optional-nil-meets-a-kind	gens	a:{k?:nil}&{k?:integer} a:{}	{"a":{}}
 optional-value-meets-a-nil	errc	a:{k?:1} a:{k?:nil}	literal_nil
+optional-nil-meets-a-disjunction-it-forbids	gens	a:{k?:nil}&{k?:"x"|"y"} a:{}	{"a":{}}
+optional-nil-meets-a-nil	gens	a:{k?:nil}&{k?:nil} a:{}	{"a":{}}
+optional-nil-refuses-a-preferred-disjunction	errc	a:{k?:*"x"|"y"} a:{k?:nil}	literal_nil
+optional-nil-refuses-a-member-of-a-disjunction-supplied	errc	a:{k?:nil}&{k?:"x"|"y"} a:{k:"x"}	literal_nil

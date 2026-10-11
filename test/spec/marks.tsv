@@ -114,8 +114,8 @@ split-type-ref-term	gens	U: {A: 1}\nT: type({ A: 1  A2: $.T.A })\nT: $.U\nout: $
 # which is the wrong-value failure ref.tsv's numeric-segment rules
 # exist to refuse; the reference simply never resolves, and the
 # conjunct stands unfolded to say so.
-split-type-list-term-past-end	canon	T: type([$.T.5 5])\nT: [5 5]\n	{"T":type([$.T.5,5])&[5,5]}
-split-type-list-term-not-an-index	canon	T: type([$.T.k 5])\nT: [5 5]\n	{"T":type([$.T.k,5])&[5,5]}
+split-type-list-term-past-end	canon	T: type([$.T.5 5])\nT: [5 5]\n	{"T":[5,5]&type([$.T.5,5])}
+split-type-list-term-not-an-index	canon	T: type([$.T.k 5])\nT: [5 5]\n	{"T":[5,5]&type([$.T.k,5])}
 
 # --- A LIST ARGUMENT IS TRANSPARENT TO THE WALK TOO ------------------
 #

@@ -8,6 +8,7 @@ exports.expandAliases = expandAliases;
 const err_1 = require("./err");
 const MapVal_1 = require("./val/MapVal");
 const aliasname_1 = require("./aliasname");
+const walk_1 = require("./walk");
 const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + aliasname_1.ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g');
 const NON_CODE_RE = /"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|`(?:\\[\s\S]|[^`\\])*(?:`|$)|\/\/[^\n]*|#[^\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
 // Whether the head IS a set is aliasSetItems's answer, not the shape's.
@@ -238,6 +239,10 @@ function kids(v) {
             .map((k) => v.peg[k]) :
         Array.isArray(v.peg) ? v.peg :
             null != v.peg && true === v.peg.isVal ? [v.peg] : [];
+    if (true === v.isConstraint) {
+        return [...out, ...(v.pending?.args ?? []),
+            ...v.musts.map((m) => m.v), ...(0, walk_1.settledTrials)(v)];
+    }
     return (true === v.isMap || true === v.isList) && null != v.spread.cj ?
         [...out, v.spread.cj] : out;
 } /* node:coverage ignore next 13 */

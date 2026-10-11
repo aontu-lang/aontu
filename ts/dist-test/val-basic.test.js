@@ -444,7 +444,7 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(d1.canon).equal('1&1');
         (0, expect_1.expect)(d2.canon).equal('1&2');
         (0, expect_1.expect)(d3.canon).equal('1&number');
-        (0, expect_1.expect)(d4.canon).equal('1&number&integer');
+        (0, expect_1.expect)(d4.canon).equal('1&integer&number');
         (0, expect_1.expect)(d5.canon).equal('{"a":1}');
         (0, expect_1.expect)(d6.canon).equal('{"a":1}&{"b":2}');
         (0, expect_1.expect)(tu(ctx, d0, P('1')).canon).equal('1');
@@ -466,18 +466,18 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(tu(ctx, d100, TOP).canon).equal('1');
         (0, expect_1.expect)(tu(ctx, TOP, d100).canon).equal('1');
         (0, expect_1.expect)(tu(ctx, new ConjunctVal_1.ConjunctVal({ peg: [] }), TOP).canon).equal('any');
-        (0, expect_1.expect)(A.parse('1 & .a')?.canon).equal('1&.a');
+        (0, expect_1.expect)(A.parse('1 & .a')?.canon).equal('.a&1');
         (0, expect_1.expect)(A.unify('1 & .a')?.canon).equal('.a&1'); // canonical sorting
         (0, expect_1.expect)(() => A.generate('1 & .a')).throws(/conjunct/);
         (0, expect_1.expect)(A.parse('.a & 1')?.canon).equal('.a&1');
         (0, expect_1.expect)(A.unify('.a & 1')?.canon).equal('.a&1');
         (0, expect_1.expect)(() => A.generate('.a & 1')).throws(/conjunct/);
-        (0, expect_1.expect)(A.parse('1 & 1 & .a')?.canon).equal('(1&1)&.a');
+        (0, expect_1.expect)(A.parse('1 & 1 & .a')?.canon).equal('.a&(1&1)');
         (0, expect_1.expect)(A.parse('1 & 2')?.canon).equal('1&2');
         (0, expect_1.expect)(A.parse('1 & 1 & 2')?.canon).equal('(1&1)&2');
-        (0, expect_1.expect)(A.parse('1 & 1 & .a & 2')?.canon).equal('((1&1)&.a)&2');
-        (0, expect_1.expect)(A.parse('1 & 1 & .a & .b')?.canon).equal('((1&1)&.a)&.b');
-        (0, expect_1.expect)(A.parse('1 & 1 & .a & 1 & .b & 1')?.canon).equal('((((1&1)&.a)&1)&.b)&1');
+        (0, expect_1.expect)(A.parse('1 & 1 & .a & 2')?.canon).equal('(.a&(1&1))&2');
+        (0, expect_1.expect)(A.parse('1 & 1 & .a & .b')?.canon).equal('.b&(.a&(1&1))');
+        (0, expect_1.expect)(A.parse('1 & 1 & .a & 1 & .b & 1')?.canon).equal('(.b&((.a&(1&1))&1))&1');
         (0, expect_1.expect)(A.parse('1 & 2 | 3')?.canon).equal('(1&2)|3');
         (0, expect_1.expect)(A.parse('1 | 2 & 3')?.canon).equal('1|(2&3)');
     });
@@ -558,7 +558,7 @@ b: c1: {n:1}
 b: c2: {n:2}
 `);
         (0, expect_1.expect)(m2.canon)
-            .equal('{"a":{"x":1},"b":{&:$.a}&{"c0":{"n":0}}&{"c1":{"n":1}}&{"c2":{"n":2}}}');
+            .equal('{"a":{"x":1},"b":{"c0":{"n":0}}&{"c1":{"n":1}}&{"c2":{"n":2}}&{&:$.a}}');
         (0, expect_1.expect)(m2.peg.b.constructor.name).equal('ConjunctVal');
         (0, expect_1.expect)(m2.peg.b.peg.length).equal(4);
         let c2 = new ctx_1.AontuContext({

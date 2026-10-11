@@ -33,7 +33,7 @@ import { admitsSettled, ownJson } from './admission'
 
 import { top } from './top'
 
-import { unite, withDepth } from '../unify'
+import { rideOn, unite, withDepth } from '../unify'
 
 import { IntegerVal } from './IntegerVal'
 import { StringVal } from './StringVal'
@@ -1467,7 +1467,11 @@ class ConstraintVal extends FeatureVal {
     out.whens = [...this.whens]
     out.contains = [...this.contains]
     out.rests = [...this.rests]
+    // A copy of a waiting atom waits too; the constructor called it done.
     out.pending = this.pending
+    if (null != this.pending) {
+      out.dc = this.dc
+    }
     out.cjo = this.cjo
     out.invalid = this.invalid
     out.invalidWhy = this.invalidWhy
@@ -1484,10 +1488,10 @@ class ConstraintVal extends FeatureVal {
   // normalises back to this exact residual.
   get canon() {
     if (null != this.pending) {
-      // A pending atom has no residual yet, so canon renders the call as
-      // written — the same shape FuncBaseVal renders while deferring.
-      return this.pending.atom +
-        '(' + this.pending.args.map((a: any) => canonRiders(a)).join(',') + ')'
+      // A pending atom renders its call, a count's branches sorted.
+      const args = this.pending.args.map((a: any) => canonRiders(a))
+      return this.pending.atom + '(' + ('nof' === this.pending.atom ?
+        [...args.slice(0, 1), ...args.slice(1).sort(cmpCodePoint)] : args).join(',') + ')'
     }
     return canonState(this)
   }
@@ -1652,8 +1656,10 @@ function countCanon(c: ConstraintState): string {
 }
 
 
+// Sorted as rendered: a branch can settle after the atom sorted it.
 function nofCanon(n: NofAtom): string {
-  return 'nof(' + [countCanon(n.count), ...n.cs.map((c: any) => canonRiders(c))].join(',') + ')'
+  return 'nof(' + [countCanon(n.count),
+    ...n.cs.map((c: any) => canonRiders(c)).sort(cmpCodePoint)].join(',') + ')'
 }
 
 
@@ -1673,7 +1679,7 @@ function trialArg(ctx: AontuContext, arg: any, path: string[]): any {
     for (const e of tctx.err) {
       ctx.adderr(e)
     }
-    return next
+    return true === next.isNil ? next : rideOn(ctx, next, arg, undefined)
   }
   return new NilVal({ why: 'nof' })
 }
@@ -2355,16 +2361,24 @@ function nofCounts(n: NofAtom): boolean[] {
   return [...n.cs, undefined].map((_c: any, i: number) => stateAdmits(n.count, countVal(i)))
 }
 
+function pendingNof(pending?: { atom: string, args: any[] }): NofAtom | undefined {
+  const arg = 'nof' === pending?.atom && true === pending.args[0]?.done ?
+    countArgState(pending.args[0]) : undefined
+  return undefined === arg ? undefined :
+    { count: meetCount(countBase(), arg), cs: canonSorted((pending as any).args.slice(1)) }
+}
+
 class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 28 */
+} /* node:coverage ignore next 29 */
 
 
 export {
   normaliseRe,
   nofCounts,
+  pendingNof,
   // Exported for the subsumption query (G3, ts/src/subsume.ts): the
   // residual-vs-residual and residual-vs-scalar rules live here beside
   // the compare machinery they reuse.

@@ -12,7 +12,7 @@ type ExpectVal struct {
 
 func (e *ExpectVal) superior() Val { return top() }
 
-func (e *ExpectVal) Canon() string { return e.peg.Canon() }
+func (e *ExpectVal) Canon() string { return CanonRiders(e.peg) }
 
 // Gen is unreachable: BagVal-level Gen intercepts an expect child (the
 // *_spread_required branch) before ever calling child.Gen, for

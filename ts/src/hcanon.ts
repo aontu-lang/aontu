@@ -83,11 +83,15 @@ function render(v: any, inh: HMarks): string {
 
 
 function junctionText(v: any, sym: string, inner: HMarks): string {
-  return v.peg.map((m: any) =>
+  const parts: [number, string][] = v.peg.map((m: any) => [m.cjo,
     true === m?.isJunction && 1 < m.peg.length
       ? '(' + render(m, inner) + ')'
-      : render(m, inner))
-    .join(sym)
+      : render(m, inner)])
+  // As canon writes a meet: terms of one rank in code-point order.
+  if ('&' === sym) {
+    parts.sort((a, b) => a[0] - b[0] || cmpCodePoint(a[1], b[1]))
+  }
+  return parts.map((p) => p[1]).join(sym)
 }
 
 

@@ -1654,12 +1654,16 @@ $ aontu jsonschema --at spec contract.aontu
   lossy export is still an export and exits 0.
 
 **What crosses exactly.** Kinds become `type`, and the `integer` and
-`float` leaves are reported (below); a concrete scalar becomes `const`; a disjunction of scalars becomes `enum`, and its
-preference becomes `default`; bounds become `minimum`/`maximum`, with
+`float` leaves are reported (below); a concrete scalar becomes `const`,
+and so does a bag closed at every level whose members are values, as
+the import of a `const` is; a disjunction of them becomes `enum`, or an
+`anyOf` where a member carries a `meta()` or `deprecate()` record, which
+an `enum` member has no place for, and its preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern`, written as ECMA-262 text that means what `re`
-means: `re`'s `.`, `\s`, `\S`, `\d`, `\w`, `\D`, `\W`, `\A` and `\z`
-become the sets aontu defines, and the rest is copied as written;
+means: `re`'s `.`, `\s`, `\S`, `\A` and `\z`, which ECMA-262 reads
+otherwise, become the sets aontu defines, and the rest is copied as
+written, `\d`, `\w`, `\D` and `\W` among it;
 `format(g)` becomes `format` for a format JSON Schema defines and
 `x-aontu-format` for a grammar, two of either an `allOf` of them, each
 with a loss (below);
@@ -1693,15 +1697,22 @@ field holding several values as a list; a disjunction of bare kinds
 becomes a `type` array; a bare
 `*x` becomes the kind of x, with x as `default`, because `*1` admits
 every integer; and a written `nil` becomes the schema `false`, because it
-admits nothing. A spread is `additionalProperties: <template>`, which
+admits nothing, and at the root, where the schema names its dialect,
+`not: {}`, which says the same. A spread is `additionalProperties: <template>`, which
 is what a spread means, and a template that reaches no key or path
 outside itself is read as the value it is: `{&: number & min(3)}`
-exports `additionalProperties: {type: number, minimum: 3}`. A spread
+exports `additionalProperties: {type: number, minimum: 3}`. So is any
+value still waiting that reaches nothing outside itself, settled on its
+own; a meet still waiting is an `allOf` of its terms, and the export
+writes a count still waiting on its branches from those branches. A
+spread
 guarded by its own key crosses as the keyword it spells:
 `&: match(key(0), re(p), S, any)` is `patternProperties`, a guard
 whose arms let the map's own names and patterns through is
 `additionalProperties` (its default, with `nil` as `false`), and
-`&: match(key(0), c, any, nil)` is `propertyNames: c`. Any other guard
+`&: match(key(0), c, any, nil)` is `propertyNames: c` where `c` is not
+a bare `re()`. A plain spread beside such a guard is
+`additionalProperties` too, unless a pattern stands beside it. Any other guard
 whose arms name keys, or test one pattern, is an `allOf` member of its
 own. A written list is `prefixItems` for its positions and `minItems`
 for their count, and it stays **open**, as the meet does:
@@ -1711,7 +1722,10 @@ for their count, and it stays **open**, as the meet does:
 `items: T`, and `items: false` where `T` is `nil` or absent. A kind
 beside a constraint that waits for an instance, as in
 `boolean & nof(1, …)` or `map & len(min(1))`, is one schema object,
-and a `meta()` or `deprecate()` over one carries its record.
+and a `meta()` or `deprecate()` over one carries its record. A
+disjunction met with a count or a condition holds it in each member it
+did not settle on; where every value it settled on is one it admits, it
+is written once, beside the fold of the members.
 
 **And `close()` is `additionalProperties: false`**: the one thing the
 two languages say identically, and the reason the export is worth
@@ -1771,8 +1785,10 @@ is written the way JSON Schema spells recursion: a `$ref` to a `$defs`
 entry that holds the definition once, or to `#` where the definition
 is the whole schema being exported. An alias crosses the same way. A
 use of it that still says what the alias says is its `$ref`; a use the
-meet narrowed is the `$ref` beside the keywords that differ, which is
-how JSON Schema reads `$ref` with siblings; and the alias sits under
+meet narrowed is the `$ref` beside the keywords that differ and those
+they read, as `properties` beside `additionalProperties` and `if`
+beside `then`, with its `type` where a keyword of one kind differs,
+which is how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
 import` read it from. An alias declared with
 [`ident()`](reference-language.md#identity-ident) writes its `$id`,
@@ -1976,21 +1992,21 @@ y: number
 
 | Keyword | Becomes |
 |---|---|
-| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)` |
-| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value |
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)`; every kind narrowed by nothing is `any` |
+| `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value; a `type` beside a `const` of its kind adds nothing and is not written |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
 | `multipleOf` | `multiple`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
 | `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
 | `properties`, `required` | keys, optional unless required |
 | `patternProperties` | one spread per pattern, which applies its schema to the keys the pattern matches |
-| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil` |
+| `additionalProperties` | a spread that lets the declared names and patterns through and applies its schema to every other key, `false` being `nil`; a name or pattern whose schema is written as this one's is held to it all the same and not let through, and the names and patterns are written in code-point order |
 | `propertyNames` | a spread that refuses a key whose name the schema does not admit |
 | `prefixItems`, `items` | one list spread, guarded by each element's index |
 | `allOf` | the meet: every member unified in place |
 | `anyOf` | a disjunction where at most one branch can hold for any instance, because the branches are scalar literals or have disjoint kinds and none needs more than its kind; otherwise `nof(min(1), …)`, at least one branch admitting the value |
-| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals |
-| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer |
+| `oneOf` | `nof(1, …)`, exactly one branch admitting the value; a disjunction where the branches are distinct scalar literals; a lone branch read as `anyOf` reads it |
+| `not` | `nof(0, …)`, no branch admitting the value; beside a single `string` or `integer` type, an excluded `enum` is that kind's `neq`, in every numeric leaf for an integer; the `not` of a schema that admits everything is `nil` |
 | `if`, `then`, `else` | `when(c, t, e)`, paired within one schema object; a `then` or `else` without an `if`, and an `if` with neither, assert nothing |
 | `dependentSchemas` | `when({k: any}, S)` for each key `k`: the schema applies where the object holds `k` |
 | `dependentRequired` | `when({k: any}, {a: any, b: any})` for each key `k`: the names are required where the object holds `k` |
@@ -1998,7 +2014,7 @@ y: number
 | `uniqueItems` | `unique()` on the list, comparing members by value under `vet --exact-numbers` |
 | `unevaluatedProperties`, `unevaluatedItems` | where no branch decides what is evaluated, the spread `additionalProperties` or `items` would be, over the names, patterns and prefix that the object and every schema it applies unconditionally evaluate; otherwise [`rest(t, …)`](reference-language.md#band-b-rest), with a cover for each `anyOf` or `oneOf` branch, `then`, `else` and `dependentSchemas` member, under its condition. Beside `additionalProperties` or `items` it asserts nothing |
 | `$ref`, `$defs`, `$id`, `$anchor` | a reference is an alias when the root is an object schema, and a copy in place otherwise; it resolves against the base its `$id`s set, by RFC 3986, into this document or one the set holds, and the declaration keeps the schema's `$id` and `$anchor` in [`ident()`](reference-language.md#identity-ident) |
-| `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. The use keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
+| `$dynamicRef`, `$dynamicAnchor` | a reference specialised to the dynamic scope it is read in: where its initial target carries the matching `$dynamicAnchor`, it reaches the schema the outermost resource on the path anchors by that name, and otherwise it is a `$ref`. A schema read in scopes that bind its names differently is declared once for each. A use that reaches a definition by an anchor's name keeps its text in the `meta` record's `dynamicRef`, and the declaration keeps its `$dynamicAnchor` in `ident()` |
 | `title`, `description`, `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format` | a `meta(v, {…})` record riding the value, never an assertion: `default` is not a preference unless `--defaults` asks for one |
 | `format` under format assertion | the same record, and `format(g)` on the string branch, `g` the format's committed grammar or the one `--format-grammar` gives it |
 | `x-aontu-format` | `format(g)` on the string branch in any mode, `g` a grammar or a format's name |

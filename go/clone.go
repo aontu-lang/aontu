@@ -198,6 +198,24 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
+	case *EmptyVal:
+		c := *n
+		c.path = cp(path)
+		return &c
+	case *SealVal:
+		c := *n
+		c.path = cp(path)
+		return &c
+	case *GraphAtomVal:
+		// The held value is shared, as TS GraphAtomVal.clone shares it;
+		// the path is not, since register() reads the predicate from it.
+		c := *n
+		c.path = cp(path)
+		return &c
+	case *RelVal:
+		c := *n
+		c.path = cp(path)
+		return &c
 	case *ConstraintKindVal:
 		c := *n
 		c.path = cp(path)
@@ -215,8 +233,16 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 	case *ConstraintVal:
 		// Residuals are immutable after construction (constraint.go), so
 		// bounds and exclusions are shared, like a ScalarKindVal's marker.
+		// A waiting atom's arguments are not: a trial settles them in place.
 		c := *n
 		c.path = cp(path)
+		if nil != n.pending {
+			args := make([]Val, len(n.pending.args))
+			for i, a := range n.pending.args {
+				args[i] = clonePath(a, a.vpath())
+			}
+			c.pending = &constraintPending{atom: n.pending.atom, args: args}
+		}
 		return &c
 	case *ExpectVal:
 		out := &ExpectVal{peg: n.peg}
