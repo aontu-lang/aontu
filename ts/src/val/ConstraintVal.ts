@@ -33,7 +33,7 @@ import { admitsSettled, ownJson } from './admission'
 
 import { top } from './top'
 
-import { unite, withDepth } from '../unify'
+import { rideOn, unite, withDepth } from '../unify'
 
 import { IntegerVal } from './IntegerVal'
 import { StringVal } from './StringVal'
@@ -1469,7 +1469,9 @@ class ConstraintVal extends FeatureVal {
     out.rests = [...this.rests]
     // A copy of a waiting atom waits too; the constructor called it done.
     out.pending = this.pending
-    out.dc = this.dc
+    if (null != this.pending) {
+      out.dc = this.dc
+    }
     out.cjo = this.cjo
     out.invalid = this.invalid
     out.invalidWhy = this.invalidWhy
@@ -1677,7 +1679,7 @@ function trialArg(ctx: AontuContext, arg: any, path: string[]): any {
     for (const e of tctx.err) {
       ctx.adderr(e)
     }
-    return next
+    return true === next.isNil ? next : rideOn(ctx, next, arg, undefined)
   }
   return new NilVal({ why: 'nof' })
 }

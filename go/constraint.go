@@ -2019,14 +2019,14 @@ func coverArg(ctx *Ctx, arg Val, path []string) Val {
 	return out
 }
 
-// trialArg settles a trial schema apart from the document: one that
-// conflicts admits nothing, while any other failure is the document's.
+// trialArg settles a copy of a trial schema apart from the document, as TS
+// does: one that conflicts admits nothing, any other failure is the document's.
 func trialArg(ctx *Ctx, arg Val) Val {
 	if DONE == arg.Dc() {
 		return arg
 	}
 	tctx := trialCtx(ctx)
-	next := arg.Unify(top(), tctx)
+	next := clonePath(arg, arg.vpath()).Unify(top(), tctx)
 	conflicts := 0 < len(tctx.err)
 	for _, e := range tctx.err {
 		conflicts = conflicts && "conflict" == codeClass(e.why)
@@ -2035,7 +2035,10 @@ func trialArg(ctx *Ctx, arg Val) Val {
 		for _, e := range tctx.err {
 			ctx.adderr(e)
 		}
-		return next
+		if next.Nil() {
+			return next
+		}
+		return rideOn(next, arg, nil)
 	}
 	return newNil("nof")
 }

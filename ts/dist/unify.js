@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.unite = exports.Unify = void 0;
 exports.applyFlows = applyFlows;
 exports.ride = ride;
+exports.rideOn = rideOn;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");

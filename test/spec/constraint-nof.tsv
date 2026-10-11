@@ -114,3 +114,6 @@ nof-a-branch-beside-a-list-of-two-spreads-settles	gens	a: nof(1, [&: match(key(0
 # used: a branch guarding its own key reads that key there.
 nof-canon-a-definition-of-a-waiting-count-settles-at-each-use	canon	%d_p = nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\na?: %d_p\nb?: %d_p	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
 nof-canon-a-reference-to-a-waiting-count-settles-where-it-is-used	canon	a?: nof(1, empty(), { secure?: empty(), &: match(key(0), "secure", any, nil) })\nb?: $.a	{"a"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()}),"b"?:nof(1,empty(),{&:match(key(0),"secure",any,nil),"secure"?:empty()})}
+# A settled count copied into a trial stays settled: only an atom still
+# waiting waits in its copy.
+nof-a-settled-count-beside-a-guarded-map-settles-under-a-root-rider	gen	meta({ p?: nof(1, null, nof(0, { b: any }) & { b?: [&: empty()] & len(min(1)), &: match(key(0), "b", any, nil) }) }, { comment: "r" })	{}

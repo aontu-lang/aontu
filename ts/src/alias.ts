@@ -7,6 +7,7 @@ import { makeNilErr } from './err'
 
 import { spreadSnapKey } from './val/MapVal'
 import { ALIAS_NAME, aliasSetItems } from './aliasname'
+import { settledTrials } from './walk'
 
 
 const ALIAS_DECL_RE = new RegExp('(?:^|[\\s{[:,(])(' + ALIAS_NAME + ')[ \\t]*(?::|=(?!=))', 'g')
@@ -280,6 +281,10 @@ function kids(v: any): Val[] {
       .map((k: string) => v.peg[k]) :
     Array.isArray(v.peg) ? v.peg :
       null != v.peg && true === v.peg.isVal ? [v.peg] : []
+  if (true === v.isConstraint) {
+    return [...out, ...(v.pending?.args ?? []),
+      ...v.musts.map((m: any) => m.v), ...settledTrials(v)]
+  }
   return (true === v.isMap || true === v.isList) && null != v.spread.cj ?
     [...out, v.spread.cj] : out
 } /* node:coverage ignore next 13 */

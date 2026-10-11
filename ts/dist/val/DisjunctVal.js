@@ -38,6 +38,13 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         let done = true;
         let oval = [];
+        // A rider still a call resolves first: met member by member it would
+        // write its record on each. Only TypeScript gets here, through the
+        // `_tcc` shortcut in unite, which leaves a peer met with top this pass
+        // undriven.
+        if (true === peer.isFunc && !peer.done && peer.rides()) {
+            peer = peer.unify((0, top_1.top)(), ctx);
+        }
         // The peer's annotations ride the result once, not each member, so a
         // disjunction met with itself is itself.
         const annotated = null != peer.meta || null != peer.deprecation;
@@ -118,7 +125,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             ;
             ctx.referflows = savedFlows;
         }
-        // // // console.log('DISJUNCT-unify-B', this.id, oval.map(v => v.canon))
         if (true === peer.isPref) {
             const want = (0, PrefVal_1.prefInnerPeg)(peer);
             for (let vI = 0; vI < oval.length; vI++) {
@@ -138,7 +144,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     oval.splice(vI, 1, ...oval[vI].peg);
                 }
             }
-            // // // console.log('DISJUNCT-unify-C', this.id, oval.map(v => v.id + '=' + v.canon))
             // Dedup: duplicate Vals in the disjunct are replaced with the
             // trial sentinel, which is filtered out a few lines below.
             // (No need for a fresh NilVal — any isNil value gets filtered.)
@@ -165,7 +170,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     }
                 }
             }
-            // // // console.log('DISJUNCT-unify-D', this.id, oval.map(v => v.canon))
         }
         if (undefined !== savedFlows) {
             for (let vI = 0; vI < staged.length; vI++) {
@@ -200,8 +204,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         if (annotated) {
             (0, unify_1.ride)(out, undefined, peer);
         }
-        // // // console.log('DISJUNCT-unify',
-        //   this.id, sc, pc, '->', out.canon, 'D=' + out.dc, 'E=', this.err)
         (0, utility_1.explainClose)(te, out);
         return out;
     }
@@ -209,7 +211,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         // The kept index per rank, so an equal-rank twin folds into the
         // arm already standing for that rank.
         const atRank = {};
-        // // // console.log('RP-A', this.peg.map((p: Val) => p.canon))
         for (let vI = 0; vI < this.peg.length; vI++) {
             const v = this.peg[vI];
             let pref = undefined;
@@ -243,7 +244,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         }
         this.peg = this.peg.filter((p) => null != p);
         this.prefsRanked = true;
-        // // // console.log('RP-Z', this.peg.map((p: Val) => p.canon))
         if (1 === this.peg.length && this.peg[0] instanceof PrefVal_1.PrefVal) {
             return this.peg[0];
         }

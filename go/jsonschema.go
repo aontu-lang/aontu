@@ -944,16 +944,24 @@ func schemaPlainOf(sc *schemaCtx, path []string, v Val) *schemaPlain {
 }
 
 // schemaBeside: a copy of an alias the meet has narrowed is the alias's
-// $ref beside the keywords the copy says otherwise, as the importer reads
-// $ref with siblings: exact, since the copy admits nothing the alias
-// refuses. The alias it says least beside is the one written.
+// $ref beside the keywords the copy says otherwise, exact as $ref with
+// siblings reads, and its type beside a kind's keyword, which the import
+// would read as a kind split. The alias it says least beside is written.
 func schemaBeside(sc *schemaCtx, defs []*schemaDef, out any) any {
 	obj, _ := out.(map[string]any)
 	differ := func(def *schemaDef) []string {
 		plain, _ := schemaPlainOf(sc, def.path, def.value).schema.(map[string]any)
+		differs := func(k string) bool {
+			px, has := plain[k]
+			return !has || schemaText(obj[k]) != schemaText(px)
+		}
+		scoped := false
+		for k := range obj {
+			scoped = scoped || differs(k) && schemaKindScoped(k)
+		}
 		keys := []string{}
-		for k, x := range obj {
-			if px, has := plain[k]; !has || schemaText(x) != schemaText(px) {
+		for k := range obj {
+			if differs(k) || "type" == k && scoped {
 				keys = append(keys, k)
 			}
 		}
@@ -1747,6 +1755,18 @@ var schemaKindScope = map[string][]string{
 		"dependentSchemas"},
 	"array": {"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
 		"maxContains", "uniqueItems"},
+}
+
+// schemaKindScoped: a keyword one JSON type's instances answer to.
+func schemaKindScoped(k string) bool {
+	for _, ks := range schemaKindScope {
+		for _, x := range ks {
+			if x == k {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // schemaScoped: a member's own type may name its type; an allOf entry's may

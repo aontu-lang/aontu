@@ -459,4 +459,5 @@ export {
   withDepth,
   applyFlows,
   ride,
+  rideOn,
 }

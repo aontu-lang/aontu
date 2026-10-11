@@ -50,6 +50,7 @@ meta-hash-a-key-the-peer-declares-is-the-meet-in-either-order-reversed	hash	a: {
 meta-canon-an-annotated-disjunction-met-with-itself-is-itself	canon	a?: meta("stable" | "beta", { description: "C" }) & meta("stable" | "beta", { description: "C" })	{"a"?:meta("stable"|"beta",{"description":"C"})}
 meta-canon-a-disjunction-met-with-an-annotated-kind-carries-it-once	canon	a?: (5 | 6) & meta(number, { title: "n" })	{"a"?:meta(5|6,{"title":"n"})}
 meta-canon-a-disjunction-met-with-a-deprecated-kind-carries-it-once	canon	a?: (5 | 6) & deprecate(number, {})	{"a"?:deprecate(5|6)}
+meta-canon-an-annotated-disjunction-met-through-a-waiting-template-is-itself	canon	a?: { c?: meta("s" | "b", { description: "C" }) } & { c?: meta("s" | "b", { description: "C" }), &: match(key(0), "c", any) }	{"a"?:{&:match(key(0),"c",any),"c"?:meta("s"|"b",{"description":"C"})}}
 meta-canon-meet-idempotent	canon	a: meta(1, {title: "a"}) & meta(1, {title: "a"})	{"a":meta(1,{"title":"a"})}
 meta-canon-two-records-one-call	canon	a: meta(1, {title: "a"}, {title: "b", description: "d"})	{"a":meta(1,{"description":"d","title":"a"},{"title":"b"})}
 meta-canon-nested-call	canon	a: meta(meta(1, {title: "a"}), {description: "d"})	{"a":meta(1,{"description":"d","title":"a"})}

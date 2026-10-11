@@ -745,13 +745,16 @@ function plainOf(ctx: Ctx, path: string[], v: any): Plain {
 }
 
 
-// A narrowed copy is its alias's $ref beside the keywords that differ, as
-// `$ref` with siblings reads: exact, since it admits nothing the alias refuses.
+// A narrowed copy is its alias's $ref beside the keywords that differ, its type
+// kept beside a kind's keyword, which the import would read as a kind split.
 function beside(ctx: Ctx, defs: Def[], out: any): any {
   const differ = (def: Def) => {
     const plain = Object(plainOf(ctx, def.path, def.value).schema)
-    return Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
-      exactJSON(out[k]) !== exactJSON(plain[k]))
+    const differs = (k: string) => !Object.prototype.hasOwnProperty.call(plain, k) ||
+      exactJSON(out[k]) !== exactJSON(plain[k])
+    const scoped = Object.keys(out).some((k) => differs(k) &&
+      Object.values(KIND_SCOPE).some((ks) => ks.includes(k)))
+    return Object.keys(out).filter((k) => differs(k) || ('type' === k && scoped))
   }
   const best = defs.reduce((a, b) => differ(b).length < differ(a).length ? b : a)
   return {

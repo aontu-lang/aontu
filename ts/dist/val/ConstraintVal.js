@@ -1189,7 +1189,9 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.rests = [...this.rests];
         // A copy of a waiting atom waits too; the constructor called it done.
         out.pending = this.pending;
-        out.dc = this.dc;
+        if (null != this.pending) {
+            out.dc = this.dc;
+        }
         out.cjo = this.cjo;
         out.invalid = this.invalid;
         out.invalidWhy = this.invalidWhy;
@@ -1351,7 +1353,7 @@ function trialArg(ctx, arg, path) {
         for (const e of tctx.err) {
             ctx.adderr(e);
         }
-        return next;
+        return true === next.isNil ? next : (0, unify_1.rideOn)(ctx, next, arg, undefined);
     }
     return new NilVal_1.NilVal({ why: 'nof' });
 }

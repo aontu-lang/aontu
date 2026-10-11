@@ -519,5 +519,8 @@ alias-expands-inside-when	canon	x?: { &: when(%A, number) }\n%A = [&: string]	{"
 alias-expands-inside-must	canon	x?: { &: must(%A, "m") }\n%A = [&: string]	{"x"?:{&:must([&:string],"m")}}
 alias-expands-inside-contains	canon	x?: { &: contains(%A) }\n%A = string	{"x"?:{&:contains(string)}}
 alias-expands-inside-a-bound	canon	x?: { &: min(%A) }\n%A = 3	{"x"?:{&:min(3)}}
+alias-expands-inside-a-met-constraint	canon	x?: nof(1, [&: %A], 1) & nof(1, [&: %A], 1)\n%A = "a" | "b"	{"x"?:nof(1,1,[&:"a"|"b"])}
+alias-a-waiting-atom-renders-as-its-snapshot	canon	%P = nof(1, empty(), { s?: empty(), &: match(key(0), "s", any, nil) })\nd?: { &: %P }	{"d"?:{&:nof(1,empty(),{&:match(key(0),"s",any,nil),"s"?:empty()&match(key(0),"s",any,nil)})}}
+alias-a-snapshot-taken-in-a-trial-renders-alike	canon	%P = nof(1, empty(), { s?: empty(), &: match(key(0), "s", any, nil) })\nd?: nof(min(1), %P, { &: %P }) & nof(min(1), %P, { &: %P })	{"d"?:nof(min(1),nof(1,empty(),{&:match(key(0),"s",any,nil),"s"?:empty()}),{&:nof(1,empty(),{&:match(key(0),"s",any,nil),"s"?:empty()&match(key(0),"s",any,nil)})})}
 alias-that-reaches-itself-generates	gens	%S & {\n%S = { d?: { &: nof(min(1), %S, %A) } }\n%A = [&: string] & unique()\nd: { x: ["a", "b"], y: { d: { z: ["c"] } } }\n}	{"d":{"x":["a","b"],"y":{"d":{"z":["c"]}}}}
 alias-reached-through-a-recursive-alias-generates	gens	y?: { &: nof(1, %A, number) }\n%A = { p?: { &: nof(1, %B, number) } }\n%B = { q?: { &: nof(1, %B, number) } }\ny: { a: 1, b: { p: { c: 2, e: { q: { f: 3, g: { q: { h: 4 } } } } } } }	{"y":{"a":1,"b":{"p":{"c":2,"e":{"q":{"f":3,"g":{"q":{"h":4}}}}}}}}
