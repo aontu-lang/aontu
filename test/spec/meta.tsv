@@ -51,6 +51,8 @@ meta-canon-an-annotated-disjunction-met-with-itself-is-itself	canon	a?: meta("st
 meta-canon-a-disjunction-met-with-an-annotated-kind-carries-it-once	canon	a?: (5 | 6) & meta(number, { title: "n" })	{"a"?:meta(5|6,{"title":"n"})}
 meta-canon-a-disjunction-met-with-a-deprecated-kind-carries-it-once	canon	a?: (5 | 6) & deprecate(number, {})	{"a"?:deprecate(5|6)}
 meta-canon-an-annotated-disjunction-met-through-a-waiting-template-is-itself	canon	a?: { c?: meta("s" | "b", { description: "C" }) } & { c?: meta("s" | "b", { description: "C" }), &: match(key(0), "c", any) }	{"a"?:{&:match(key(0),"c",any),"c"?:meta("s"|"b",{"description":"C"})}}
+meta-canon-an-annotated-residue-met-with-top-keeps-its-record	canon	p?: meta([&: number] & len(min(1)), { description: "P" }) & any	{"p"?:meta([&:number]&len(integer&min(1)),{"description":"P"})}
+meta-canon-an-annotated-residue-beside-a-key-guard-keeps-its-record	canon	s?: { p?: meta([&: number] & len(min(1)), { description: "P" }), &: match(key(0), "p", any, nil) }	{"s"?:{&:match(key(0),"p",any,nil),"p"?:meta([&:number]&len(integer&min(1)),{"description":"P"})}}
 meta-canon-meet-idempotent	canon	a: meta(1, {title: "a"}) & meta(1, {title: "a"})	{"a":meta(1,{"title":"a"})}
 meta-canon-two-records-one-call	canon	a: meta(1, {title: "a"}, {title: "b", description: "d"})	{"a":meta(1,{"description":"d","title":"a"},{"title":"b"})}
 meta-canon-nested-call	canon	a: meta(meta(1, {title: "a"}), {description: "d"})	{"a":meta(1,{"description":"d","title":"a"})}

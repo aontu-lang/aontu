@@ -90,11 +90,13 @@ class DisjunctVal extends JunctionVal {
 
     // The peer's annotations ride the result once, not each member, so a
     // disjunction met with itself is itself.
-    const annotated = null != (peer as any).meta || null != (peer as any).deprecation
+    const annotated = null != (peer as any).meta || null != (peer as any).deprecation ||
+      null != (peer as any).via
     const member: any = annotated ? peer.clone(ctx, { path: peer.path }) : peer
     if (annotated) {
       member.meta = undefined
       member.deprecation = undefined
+      member.via = undefined
     }
 
     const savedErr = ctx.err

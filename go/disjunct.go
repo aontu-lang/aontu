@@ -60,11 +60,12 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// The peer's annotations ride the result once, not each member, so a
 	// disjunction met with itself is itself.
 	member := peer
-	annotated := nil != peer.metaRec() || nil != peer.deprecRec()
+	annotated := nil != peer.metaRec() || nil != peer.deprecRec() || nil != peer.viaRec()
 	if annotated {
 		if c := clonePath(peer, peer.vpath()); c != peer {
 			c.setMetaRec(nil)
 			c.setDeprecRec(nil)
+			c.setViaRec(nil)
 			member = c
 		}
 	}
