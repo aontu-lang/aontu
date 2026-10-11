@@ -860,7 +860,7 @@ function fromValInner(ctx, path, v) {
     }
     // A rider held over a residual value carries what its resolve would attach.
     if (true === v.isMetaFunc || true === v.isDeprecateFunc) {
-        const carrier = v.resolve(new aontu_1.Aontu().ctx({ collect: true }), [(0, top_1.top)(), ...v.peg.slice(1)]);
+        const carrier = v.resolve(scratch().ctx({ collect: true }), [(0, top_1.top)(), ...v.peg.slice(1)]);
         if (true !== carrier.isNil) {
             return withRiders(ctx, path, fromVal(ctx, path, v.peg[0]), carrier);
         }
@@ -876,12 +876,17 @@ function fromValInner(ctx, path, v) {
     lose(ctx, path, residueName(v), NOT_YET);
     return {};
 }
+// One engine for every value settled apart, since building one builds a parser.
+let SCRATCH;
+function scratch() {
+    return SCRATCH = SCRATCH ?? new aontu_1.Aontu();
+}
 // What a waiting value that reaches nothing outside itself settles to alone.
 function settledAlone(v) {
     if (true === v.done || !isolable(v, 0)) {
         return undefined;
     }
-    const a0 = new aontu_1.Aontu();
+    const a0 = scratch();
     const actx = a0.ctx({ collect: true });
     const met = a0.unify((0, utility_1.canonRiders)(v), undefined, actx);
     return 0 === actx.err.length && true === met.done ? met : undefined;
@@ -896,7 +901,7 @@ function residueName(v) {
 // generate. Used for `default` and for `enum` members: both are VALUES
 // in the schema, so a member that is itself a shape has none to give.
 function generated(v) {
-    const a0 = new aontu_1.Aontu();
+    const a0 = scratch();
     const ctx = a0.ctx({ collect: true });
     const out = v.gen(ctx);
     return 0 === ctx.err.length ? exactJson(out) : undefined;
@@ -998,7 +1003,7 @@ function unshare(ctx, path, members, schemas) {
 // What a text evaluates to, or undefined where it fails.
 function settle(text) {
     try {
-        return new aontu_1.Aontu().unify(text);
+        return scratch().unify(text);
     }
     catch (_e) {
         return undefined;
@@ -1098,7 +1103,7 @@ function armOut(ctx, path, r) {
     if (true === r.done || !isolable(r, 0)) {
         return fromVal(ctx, path, r);
     }
-    const a0 = new aontu_1.Aontu();
+    const a0 = scratch();
     const actx = a0.ctx({ collect: true });
     const met = a0.unify((0, utility_1.canonRiders)(r), undefined, actx);
     return 0 < actx.err.length ? false : fromVal(ctx, path, met);
