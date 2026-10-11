@@ -1656,8 +1656,9 @@ $ aontu jsonschema --at spec contract.aontu
 **What crosses exactly.** Kinds become `type`, and the `integer` and
 `float` leaves are reported (below); a concrete scalar becomes `const`,
 and so does a bag closed at every level whose members are values, as
-the import of a `const` is; a disjunction of them becomes `enum`, and
-its preference becomes `default`; bounds become `minimum`/`maximum`, with
+the import of a `const` is; a disjunction of them becomes `enum`, or an
+`anyOf` where a member carries a `meta()` or `deprecate()` record, which
+an `enum` member has no place for, and its preference becomes `default`; bounds become `minimum`/`maximum`, with
 the open endpoints as 2020-12's `exclusiveMinimum`/`exclusiveMaximum`;
 `re` becomes `pattern`, written as ECMA-262 text that means what `re`
 means: `re`'s `.`, `\s`, `\S`, `\A` and `\z`, which ECMA-262 reads
@@ -1700,7 +1701,11 @@ admits nothing, and at the root, where the schema names its dialect,
 `not: {}`, which says the same. A spread is `additionalProperties: <template>`, which
 is what a spread means, and a template that reaches no key or path
 outside itself is read as the value it is: `{&: number & min(3)}`
-exports `additionalProperties: {type: number, minimum: 3}`. A spread
+exports `additionalProperties: {type: number, minimum: 3}`. So is any
+value still waiting that reaches nothing outside itself, settled on its
+own; a meet still waiting is an `allOf` of its terms, and the export
+writes a count still waiting on its branches from those branches. A
+spread
 guarded by its own key crosses as the keyword it spells:
 `&: match(key(0), re(p), S, any)` is `patternProperties`, a guard
 whose arms let the map's own names and patterns through is
@@ -1780,8 +1785,10 @@ is written the way JSON Schema spells recursion: a `$ref` to a `$defs`
 entry that holds the definition once, or to `#` where the definition
 is the whole schema being exported. An alias crosses the same way. A
 use of it that still says what the alias says is its `$ref`; a use the
-meet narrowed is the `$ref` beside the keywords that differ, which is
-how JSON Schema reads `$ref` with siblings; and the alias sits under
+meet narrowed is the `$ref` beside the keywords that differ and those
+they read, as `properties` beside `additionalProperties` and `if`
+beside `then`, with its `type` where a keyword of one kind differs,
+which is how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
 import` read it from. An alias declared with
 [`ident()`](reference-language.md#identity-ident) writes its `$id`,

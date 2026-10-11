@@ -81,12 +81,55 @@ Both ports.
   it, where TypeScript copies it to each, so the export wrote such a
   definition as a `$ref` to itself, an `ident()` record on one was
   lost, and an error under the alias named its last use, not its first.
+- `aontu jsonschema import` names a `definitions` member as it names a
+  `$defs` member, `%d_` and its key, unless `$defs` holds the same key,
+  where it used the member's pointer, so a draft-07 definition keeps its
+  name through the export's `$defs`. An `anyOf` of distinct literals
+  beside branches of other kinds is a disjunction, where it was a
+  count, and a disjunction of kinds is written in the order `type`
+  writes kinds, a branch that is itself one flattened in. No `type` is
+  written beside an `enum` of its own kind, nor a `propertyNames` that
+  every string passes.
+- The export writes a disjunction of values as `enum` only where no
+  member carries a `meta()` or `deprecate()` record, and an `anyOf`
+  where one does, so a member's annotations are kept. A use of an alias
+  the meet narrowed is its `$ref` beside the keywords that differ and
+  the keywords they read, as `properties` beside
+  `additionalProperties`, with its `type` where a keyword of one kind
+  differs, so the copy means what it did. A value still waiting that
+  reaches nothing outside itself is settled on its own and written as
+  what it settles to, a meet still waiting is an `allOf` of its terms,
+  and a count still waiting in a template is written from its
+  branches, where each was a loss.
+- A written `nil` under an optional key refuses a value supplied, and
+  only that: a kind, another `nil`, or a disjunction with no preferred
+  member supplies none, so `{k?: nil} & {k?: "x" | "y"}` forbids `k`
+  where it was refused with `literal_nil`. A preferred member is still
+  refused.
+- Riders are kept where they were lost: on a meet flattened into a
+  wider one, on an argument a TypeScript function drives, and on a
+  count's branch settled over several passes. A disjunction met with an
+  annotated peer carries the peer's records once, on the whole, so an
+  annotated disjunction met with itself is itself, and a key only the
+  peer declares keeps its records in canon and hash form.
+- A copy of a count still waiting settles where it is used: TypeScript's
+  copy stopped waiting, and Go's shared its arguments with the
+  declaration it was copied from. Go keeps one store of reference
+  snapshots for the run, as TypeScript does, so an alias in a trial
+  renders as TypeScript renders it.
+- TypeScript's export settles every value it reads apart on one engine,
+  where it built one for each, and building one builds a parser: the
+  import of SchemaStore's 115 KB `stylelintrc` schema exports in 6
+  seconds, where it took nearly two minutes.
 - The round trip runs in both harnesses: a schema of the official
   suite, in any dialect, imports, exports and imports back as the value
-  it first imported, canon for canon and subsuming both ways, for 1,659
-  of the 1,709 groups; each of the other 50 is a row of the ledger
+  it first imported, canon for canon and subsuming both ways, for 1,662
+  of the 1,709 groups; each of the other 47 is a row of the ledger
   `test/vectors/jsonschema/roundtrip.tsv`, naming the construct that
-  does not come back and why.
+  does not come back and why. Thirty draft-07 schemas from SchemaStore,
+  pinned under `test/vectors/jsonschema/schemastore/`, run the same
+  round trip: 25 come back, and the other 5 are rows of that
+  directory's own ledger.
 
 ### subsume compares recursive schemas (ADR-067)
 

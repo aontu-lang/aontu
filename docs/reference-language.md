@@ -868,6 +868,11 @@ a: { k?:nil z:1 }
 With `a: { k: 1 }` beside it the document is refused with
 `[aontu/literal_nil]`, naming both sites.
 
+A kind, another `nil`, or a disjunction with no preferred member
+supplies no value, so `{k?: nil} & {k?: "x" | "y"}` forbids `k` as
+`{k?: nil}` does. A preferred member is a value supplied: the written
+`nil` refuses `{k?: *"x" | "y"}` as it refuses `{k?: 1}`.
+
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map

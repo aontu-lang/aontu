@@ -68,7 +68,9 @@ Each keyword lands on the construct that means it:
 - `type: "integer"` is `number & multiple(1)`: a number with no
   fraction, however it is written, so `2.0` is one.
 - A `$defs` entry that something references is an alias, here
-  `%d_line`, declared one member to a line.
+  `%d_line`, declared one member to a line. The import names a
+  `definitions` entry, the earlier dialects' spelling, the same way
+  unless `$defs` holds its key.
 
 ## Check data against it
 
@@ -368,7 +370,11 @@ Schema asks.
   branches that admit the data rather than choosing one. `oneOf` is
   `nof(1, …)` and `not` is `nof(0, …)`, except that a `oneOf` of one
   branch is read as `anyOf` reads it, and the `not` of a schema that
-  admits everything is `nil`.
+  admits everything is `nil`. A disjunction of kinds lists them in the
+  order `type` writes kinds, whatever order the branches came in, and a
+  `type` beside a `const` or `enum` of its own kind, or a
+  `propertyNames` every string passes, adds nothing, and the import
+  drops it.
 - `if`, `then` and `else` import as `when(c, t, e)`, and only within
   one schema object: an `if` in one `allOf` branch never pairs with a
   `then` in another. `dependentSchemas` and `dependentRequired` are a
