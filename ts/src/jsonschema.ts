@@ -745,16 +745,17 @@ function plainOf(ctx: Ctx, path: string[], v: any): Plain {
 }
 
 
-// A narrowed copy is its alias's $ref beside the keywords that differ, its type
-// kept beside a kind's keyword, which the import would read as a kind split.
+// A narrowed copy is its alias's $ref beside the keywords that differ and those
+// they read, its type kept beside a kind's keyword so it reads back as one kind.
 function beside(ctx: Ctx, defs: Def[], out: any): any {
   const differ = (def: Def) => {
     const plain = Object(plainOf(ctx, def.path, def.value).schema)
-    const differs = (k: string) => !Object.prototype.hasOwnProperty.call(plain, k) ||
-      exactJSON(out[k]) !== exactJSON(plain[k])
-    const scoped = Object.keys(out).some((k) => differs(k) &&
-      Object.values(KIND_SCOPE).some((ks) => ks.includes(k)))
-    return Object.keys(out).filter((k) => differs(k) || ('type' === k && scoped))
+    const keys = Object.keys(out).filter((k) => !Object.prototype.hasOwnProperty.call(plain, k) ||
+      exactJSON(out[k]) !== exactJSON(plain[k]))
+    const read = TOGETHER.filter((g) => g.some((k) => keys.includes(k))).flat()
+    const scoped = keys.some((k) => Object.values(KIND_SCOPE).some((ks) => ks.includes(k)))
+    return Object.keys(out).filter((k) => keys.includes(k) || read.includes(k) ||
+      ('type' === k && scoped))
   }
   const best = defs.reduce((a, b) => differ(b).length < differ(a).length ? b : a)
   return {
@@ -1130,6 +1131,15 @@ function generated(v: any): any {
 // passes them, so a schema of one type's keywords constrains it alone.
 const NUMBER_SCOPE = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum',
   'multipleOf']
+// Keywords that read one another, so one written beside a $ref brings the rest.
+const TOGETHER = [
+  ['properties', 'patternProperties', 'additionalProperties', 'unevaluatedProperties'],
+  ['prefixItems', 'items', 'unevaluatedItems'],
+  ['contains', 'minContains', 'maxContains'],
+  ['if', 'then', 'else'],
+]
+
+
 const KIND_SCOPE: Record<string, string[]> = {
   null: [], boolean: [], number: NUMBER_SCOPE, integer: NUMBER_SCOPE,
   string: ['minLength', 'maxLength', 'pattern', 'format', 'x-aontu-format', 'contentEncoding',

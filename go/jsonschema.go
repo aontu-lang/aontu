@@ -956,12 +956,20 @@ func schemaBeside(sc *schemaCtx, defs []*schemaDef, out any) any {
 			return !has || schemaText(obj[k]) != schemaText(px)
 		}
 		scoped := false
+		read := map[string]bool{}
 		for k := range obj {
 			scoped = scoped || differs(k) && schemaKindScoped(k)
+			for _, g := range schemaTogether {
+				if differs(k) && slices.Contains(g, k) {
+					for _, r := range g {
+						read[r] = true
+					}
+				}
+			}
 		}
 		keys := []string{}
 		for k := range obj {
-			if differs(k) || "type" == k && scoped {
+			if differs(k) || read[k] || "type" == k && scoped {
 				keys = append(keys, k)
 			}
 		}
@@ -1755,6 +1763,15 @@ var schemaKindScope = map[string][]string{
 		"dependentSchemas"},
 	"array": {"prefixItems", "items", "minItems", "maxItems", "contains", "minContains",
 		"maxContains", "uniqueItems"},
+}
+
+// schemaTogether: keywords that read one another, so one written beside a
+// $ref brings the rest.
+var schemaTogether = [][]string{
+	{"properties", "patternProperties", "additionalProperties", "unevaluatedProperties"},
+	{"prefixItems", "items", "unevaluatedItems"},
+	{"contains", "minContains", "maxContains"},
+	{"if", "then", "else"},
 }
 
 // schemaKindScoped: a keyword one JSON type's instances answer to.
