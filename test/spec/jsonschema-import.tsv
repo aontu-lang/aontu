@@ -205,6 +205,8 @@ import-one-of-one-branch-is-any-of-one	jsonschema-import	{"oneOf":[{"multipleOf"
 import-not	jsonschema-import	{"not": {"type": "integer"}}	{"aontu":"nof(0, number & multiple(1))\\n","lossy":[],"verdict":"ok"}
 # Nothing escapes a schema that admits everything, so its not is nil.
 import-not-of-anything-is-nil	jsonschema-import	{"not":{}}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
+import-not-of-anything-keeps-no-annotations	jsonschema-import	{"not":{},"title":"never"}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
+import-any-of-a-branch-admitting-nothing-keeps-no-annotations	jsonschema-import	{"anyOf":[{"not":{},"title":"x"},{"type":"string"}]}	{"aontu":"empty()\\n","lossy":[],"verdict":"ok"}
 import-not-true-is-nil	jsonschema-import	{"not":true}	{"aontu":"nil\\n","lossy":[],"verdict":"ok"}
 import-not-false-admits-anything	jsonschema-import	{"not": false}	{"aontu":"nof(0, nil)\\n","lossy":[],"verdict":"ok"}
 import-not-enum-beside-string-is-neq	jsonschema-import	{"type": "string", "not": {"enum": ["a", 1]}}	{"aontu":"empty() & neq(\\"a\\")\\n","lossy":[],"verdict":"ok"}

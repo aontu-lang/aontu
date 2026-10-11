@@ -57,8 +57,8 @@ same three rules and its own bound.
 `ts/test/jsonschema-roundtrip.test.ts` and `go/jsonschema_roundtrip_test.go`
 import every group's schema in each dialect's directory, export the
 import, import the export, and require the two imports to be one value:
-canon for canon, and subsuming each other both ways where their hashes
-differ. A group that does not come back is a row, in the columns `dir`,
+canon for canon, the root's annotations included, and subsuming each
+other both ways where their hashes differ. A group that does not come back is a row, in the columns `dir`,
 `file`, `group`, `construct`, `reason`, under the same three rules and
 its own bound.
 

@@ -1361,11 +1361,11 @@ function trialEngine() {
     return TRIAL = TRIAL ?? new aontu_1.Aontu();
 }
 // Whether a position admits nothing: its meet conflicts when evaluated
-// alone. One naming an alias is left as written, as the declaration may
-// be being written itself.
+// alone, or it is a written nil. One naming an alias is left as written,
+// as the declaration may be being written itself.
 function bottom(e) {
     if ('raw' === e.k || holdsAlias(e)) {
-        return false;
+        return isRaw(e, 'nil');
     }
     const engine = trialEngine();
     const ctx = engine.ctx({ collect: true });

@@ -3,6 +3,7 @@
 # canon-equal to import(S) and subsuming both ways, the construct it waits
 # on and why. A listed schema that round-trips fails the run.
 # Columns: file<TAB>construct<TAB>reason
+claude-code-settings.json	$defs	draft-07 names no $defs keyword, so the import keeps it as an unknown keyword under x, where 2020-12 names it one; the export cannot write it there and drops it with a loss
 codecov.json	deprecated	draft-07 names no deprecated keyword, so the import keeps it as an unknown keyword under x, where 2020-12 names it one; the export cannot write it there and drops it with a loss
 jest.json	deprecated	draft-07 names no deprecated keyword, so the import keeps it as an unknown keyword under x, where 2020-12 names it one; the export cannot write it there and drops it with a loss
 ruff.json	deprecated	draft-07 names no deprecated keyword, so the import keeps it as an unknown keyword under x, where 2020-12 names it one; the export cannot write it there and drops it with a loss

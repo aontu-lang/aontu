@@ -6321,14 +6321,16 @@ suite never reached.
    the official suite, in each of its dialect directories, and each
    schema of the SchemaStore subset vendored under
    `test/vectors/jsonschema/schemastore/`, `import(export(import(S)))`
-   must be `import(S)`: the same hash form, or the same canon with
-   `subsume` holding both ways. The import reads without the
-   meta-schema check, which admits or refuses an input but never
-   changes what it imports as. A group that does not come back is a row
-   of `test/vectors/jsonschema/roundtrip.tsv`, and a SchemaStore schema
-   one of `test/vectors/jsonschema/schemastore/roundtrip.tsv`, naming
-   the construct and why; a listed entry that comes back fails the run,
-   and so does a ledger past its bound, 47 rows and 5.
+   must be `import(S)`: the same hash form, or the same canon, the
+   root's riders included, with `subsume` holding both ways. The import
+   reads without the meta-schema check, which admits or refuses an
+   input but never changes what it imports as, and a schema whose first
+   import is refused does not come back. A group that does not come
+   back is a row of `test/vectors/jsonschema/roundtrip.tsv`, and a
+   SchemaStore schema one of
+   `test/vectors/jsonschema/schemastore/roundtrip.tsv`, naming the
+   construct and why; a listed entry that comes back fails the run, and
+   so does a ledger past its bound, 61 rows and 6.
 2. **A value has one canon whatever order its terms were met in.** A
    conjunction's canon and hash form write its terms by the rank the
    engine sorts terms by, and terms of one rank in code-point order of
@@ -6347,7 +6349,10 @@ suite never reached.
    `oneOf` of one branch is read as `anyOf` reads it, the `not` of a
    schema that admits everything is `nil`, and a `type` beside a
    `const` or an `enum` of its own kind is not written, nor is a
-   `propertyNames` that every string passes. An `anyOf` of distinct
+   `propertyNames` that every string passes. A schema object whose
+   assertions come to a written `nil` keeps no annotations, as one that
+   conflicts never did, since JSON Schema collects none from a schema
+   that admits nothing. An `anyOf` of distinct
    literals, or of branches of kinds apart none of which holds a
    required key, a container's count, closure, an alias or a Band B
    atom, is `|` over its branches, a branch that is itself such a
@@ -6377,8 +6382,9 @@ suite never reached.
    waiting is an `allOf` of its terms; a count still waiting in a
    template is written from its branches; and the riders of a
    constraint held beside a map or a kind ride an `allOf` member of
-   their own. A written `nil` at the root is `not: {}`, since the
-   schema `false` cannot name its dialect. `re()`'s `\d`, `\w`, `\D`
+   their own. A written `nil` at the root, or under an anchor that
+   names the root, as `$` does, is `not: {}`, since the schema `false`
+   cannot name its dialect. `re()`'s `\d`, `\w`, `\D`
    and `\W` are copied as written, since ECMA-262 reads each as aontu
    does: this amends ADR-060 decision 6, which wrote out their sets.
 6. **A written `nil` under an optional key refuses a value supplied, and
@@ -6404,8 +6410,10 @@ suite never reached.
    anything, each with a loss. An `unevaluatedProperties` guard over
    names no map beside it declares is written as `properties` beside
    `additionalProperties: false`, and imports with those names
-   declared. Draft-07 names no `deprecated` keyword, so its import
-   keeps one under `x`, where 2020-12 names it, and the export drops it
+   declared. A keyword the schema's own dialect does not name, as
+   draft-07's `deprecated` and `$defs`, draft-04's and draft-06's
+   `$comment`, or a 2020-12 keyword in a resource of an earlier dialect,
+   is kept under `x`, where 2020-12 names it, and the export drops it
    with a loss. A disjunction the meet distributed over a waiting count
    is an `anyOf`, which the import reads back as a count of at least
    one, and a `when` waiting in a template is not yet a value, so the
@@ -6413,16 +6421,18 @@ suite never reached.
 
 ### Consequences
 
-- 1,662 of the suite's 1,709 groups come back in both ports, and the
-  ledger holds the other 47: 36 for `rest()`, 6 for vocabularies, 2 for
-  the format vocabulary, and one each for the positional guard, the cut
-  recursion and the undeclared names. A `oneOf` of one branch now
+- 1,648 of the suite's 1,709 groups come back in both ports, and the
+  ledger holds the other 61: 36 for `rest()`, 14 for keywords their
+  dialect does not name, 6 for vocabularies, 2 for the format
+  vocabulary, and one each for the positional guard, the cut recursion
+  and the undeclared names. A `oneOf` of one branch now
   applies in place, so the annotation harness passes 58 of its 84
   assertions and its ledger shrinks from 28 rows to 26.
-- 25 of the 30 SchemaStore schemas come back in both ports, and the
-  ledger holds the other 5: `codecov`, `jest`, `ruff` and `uv` for
-  draft-07's `deprecated` alone, and `stylelintrc` for it, the waiting
-  count and the waiting `when`. Each port's time and peak memory over
+- 24 of the 30 SchemaStore schemas come back in both ports, and the
+  ledger holds the other 6: `codecov`, `jest`, `ruff` and `uv` for
+  draft-07's `deprecated` alone, `claude-code-settings` for its
+  `$defs`, and `stylelintrc` for `deprecated`, the waiting count and
+  the waiting `when`. Each port's time and peak memory over
   the subset are in the register.
 - The gate compares values, so an identity riding a definition that the
   value names and does not hold is outside it: the export drops an

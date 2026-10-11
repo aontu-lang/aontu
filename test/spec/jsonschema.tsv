@@ -95,6 +95,7 @@ js-map	jsonschema	a: {x: 1}	{"lossy":[],"schema":{"$schema":"https://json-schema
 # A document that is a written nil admits nothing, which not: {} says
 # beside $schema (ADR-068).
 js-a-written-nil-is-not-anything	jsonschema	nil	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","not":{}},"verdict":"ok"}
+js-a-written-nil-anchored-at-the-root-is-not-anything	jsonschema	nil	{"lossy":[],"opts":{"at":"$"},"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","not":{}},"verdict":"ok"}
 js-map-closed	jsonschema	a: close({x: 1})	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"const":{"x":1},"type":"object"}},"required":["a"],"type":"object"},"verdict":"ok"}
 # A bag closed at every level whose members are values, nothing riding
 # them, is the one value a const is, as the importer writes one (ADR-068),

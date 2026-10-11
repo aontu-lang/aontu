@@ -16,6 +16,7 @@ import { jsonSchema } from '../dist/jsonschema'
 import { subsume } from '../dist/subsume'
 import { hcanon } from '../dist/hcanon'
 import { exactJSON } from '../dist/exactjson'
+import { canonRiders } from '../dist/utility'
 
 
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors')
@@ -127,9 +128,12 @@ function roundTrip(schema: string, opts: {
 }): string | undefined {
   const again = { documents: opts.documents, formatAssertion: opts.formatAssertion, noMetaCheck: true }
   const first = importJsonSchema(schema, { ...again, path: opts.path, dialect: opts.dialect })
-  const v1 = 'error' === first.verdict ? undefined : settle(first.aontu)
+  if ('error' === first.verdict) {
+    return 'the import refuses it'
+  }
+  const v1 = settle(first.aontu)
   if (undefined === v1) {
-    return 'error' === first.verdict ? undefined : 'the import does not stand'
+    return 'the import does not stand'
   }
   const out = jsonSchema(first.aontu)
   if ('error' === out.verdict) {
@@ -143,7 +147,8 @@ function roundTrip(schema: string, opts: {
   if (hcanon(v1) === hcanon(v2)) {
     return undefined
   }
-  if (v1.canon !== v2.canon) {
+  // The root's riders are part of the value, as a nested value's are.
+  if (canonRiders(v1) !== canonRiders(v2)) {
     return 'the canon differs'
   }
   const there = subsume(first.aontu, second.aontu).verdict

@@ -1353,9 +1353,10 @@ function jsonSchema(src, options) {
     const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(opts));
     const actx = aontu.ctx({ collect: true });
     const root = aontu.unify(src, { path: opts.path, collect: true }, actx);
-    // A written nil admits nothing, which is what `not: {}` says.
+    const anchor = (opts.at ?? '').replace(/^\$/, '').split('.').filter((p) => '' !== p);
+    // A written nil admits nothing, `not: {}`, under any anchor naming the root.
     if (true === root?.isNil && 'literal_nil' === root.why && 0 === actx.err.length &&
-        (null == opts.at || '' === opts.at)) {
+        0 === anchor.length) {
         return { verdict: 'ok', schema: { $schema: DRAFT, not: {} }, lossy: [] };
     }
     // A nil root always arrives with its reason collected beside it, which
@@ -1368,7 +1369,6 @@ function jsonSchema(src, options) {
         };
     }
     let node = root;
-    const anchor = [];
     if (null != opts.at && '' !== opts.at) {
         const found = (0, vet_2.anchorAt)(root, opts.at);
         if (null == found) {
@@ -1383,7 +1383,6 @@ function jsonSchema(src, options) {
             };
         }
         node = found;
-        anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p));
     }
     const ctx = {
         lossy: [],

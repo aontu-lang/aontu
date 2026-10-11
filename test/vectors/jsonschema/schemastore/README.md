@@ -16,8 +16,9 @@ declares draft-07, and none refers to a document outside itself.
 The runners are `ts/test/jsonschema-schemastore.test.ts` and
 `go/jsonschema_schemastore_test.go`. Each imports every schema in its
 declared dialect, exports the import, imports the export, and requires
-the two imports to be one value: canon for canon, and subsuming each
-other both ways where their hashes differ. This is the round trip the
+the two imports to be one value: canon for canon, the root's
+annotations included, and subsuming each other both ways where their
+hashes differ. This is the round trip the
 official suite's groups pass in `ts/test/jsonschema-roundtrip.test.ts`
 and `go/jsonschema_roundtrip_test.go` (ADR-068).
 

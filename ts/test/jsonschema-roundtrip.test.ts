@@ -20,7 +20,7 @@ const DIALECTS: [string, string | undefined][] = [['draft2020-12', undefined],
 // The ledger may not grow past its bound; the register tightens it.
 test('the-json-schema-test-suite-round-trips', () => {
   const ledger = rows(Path.join(VECTORS, 'jsonschema', 'roundtrip.tsv'))
-  Assert.ok(ledger.length <= 47, `the round-trip ledger holds ${ledger.length} rows, past its bound`)
+  Assert.ok(ledger.length <= 61, `the round-trip ledger holds ${ledger.length} rows, past its bound`)
   const listed = new Map(ledger.map(([dir, file, group, construct]) =>
     [dir + ' | ' + file + ' | ' + group, construct]))
   const documents = remotes()

@@ -52,6 +52,7 @@ const jsonschema_1 = require("../dist/jsonschema");
 const subsume_1 = require("../dist/subsume");
 const hcanon_1 = require("../dist/hcanon");
 const exactjson_1 = require("../dist/exactjson");
+const utility_1 = require("../dist/utility");
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors');
 exports.VECTORS = VECTORS;
 function rows(file) {
@@ -138,9 +139,12 @@ function settle(text) {
 function roundTrip(schema, opts) {
     const again = { documents: opts.documents, formatAssertion: opts.formatAssertion, noMetaCheck: true };
     const first = (0, jsonschema_import_1.importJsonSchema)(schema, { ...again, path: opts.path, dialect: opts.dialect });
-    const v1 = 'error' === first.verdict ? undefined : settle(first.aontu);
+    if ('error' === first.verdict) {
+        return 'the import refuses it';
+    }
+    const v1 = settle(first.aontu);
     if (undefined === v1) {
-        return 'error' === first.verdict ? undefined : 'the import does not stand';
+        return 'the import does not stand';
     }
     const out = (0, jsonschema_1.jsonSchema)(first.aontu);
     if ('error' === out.verdict) {
@@ -154,7 +158,8 @@ function roundTrip(schema, opts) {
     if ((0, hcanon_1.hcanon)(v1) === (0, hcanon_1.hcanon)(v2)) {
         return undefined;
     }
-    if (v1.canon !== v2.canon) {
+    // The root's riders are part of the value, as a nested value's are.
+    if ((0, utility_1.canonRiders)(v1) !== (0, utility_1.canonRiders)(v2)) {
         return 'the canon differs';
     }
     const there = (0, subsume_1.subsume)(first.aontu, second.aontu).verdict;

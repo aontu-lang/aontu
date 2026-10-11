@@ -288,8 +288,9 @@ over the SchemaStore schemas vendored under
 [`test/vectors/jsonschema/schemastore/`](../../test/vectors/jsonschema/schemastore/README.md).
 Each imports a schema, exports the import and imports the export, and
 requires the two imports to be one value: the same hash form, or the
-same canon with `subsume` holding both ways. A schema that does not
-come back is a row of
+same canon, the root's annotations included, with `subsume` holding
+both ways. A schema the import refuses does not come back, and one that
+does not come back is a row of
 [`roundtrip.tsv`](../../test/vectors/jsonschema/roundtrip.tsv) or of
 [`schemastore/roundtrip.tsv`](../../test/vectors/jsonschema/schemastore/roundtrip.tsv),
 under the same three rules and its own bound, and a row names a

@@ -121,15 +121,22 @@ Both ports.
   where it built one for each, and building one builds a parser: the
   import of SchemaStore's 115 KB `stylelintrc` schema exports in 6
   seconds, where it took nearly two minutes.
+- `aontu jsonschema import` writes a schema object whose assertions
+  come to a written `nil`, as `{"not": {}, "title": "never"}` does, as
+  `nil` without its annotations, which JSON Schema never collects from
+  a schema that admits nothing. It wrote a `meta()` over the `nil`,
+  which does not stand.
+- `aontu jsonschema --at '$'` exports a written `nil` as `not: {}`, as
+  it does without `--at`, where it refused it.
 - The round trip runs in both harnesses: a schema of the official
   suite, in any dialect, imports, exports and imports back as the value
-  it first imported, canon for canon and subsuming both ways, for 1,662
-  of the 1,709 groups; each of the other 47 is a row of the ledger
-  `test/vectors/jsonschema/roundtrip.tsv`, naming the construct that
-  does not come back and why. Thirty draft-07 schemas from SchemaStore,
-  pinned under `test/vectors/jsonschema/schemastore/`, run the same
-  round trip: 25 come back, and the other 5 are rows of that
-  directory's own ledger.
+  it first imported, canon for canon with the root's annotations, and
+  subsuming both ways, for 1,648 of the 1,709 groups; each of the other
+  61 is a row of the ledger `test/vectors/jsonschema/roundtrip.tsv`,
+  naming the construct that does not come back and why. Thirty
+  draft-07 schemas from SchemaStore, pinned under
+  `test/vectors/jsonschema/schemastore/`, run the same round trip: 24
+  come back, and the other 6 are rows of that directory's own ledger.
 
 ### subsume compares recursive schemas (ADR-067)
 

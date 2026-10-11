@@ -30,7 +30,7 @@ func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documen
 	first := ImportJSONSchema(schema, &ImportOptions{Path: path, Documents: documents,
 		NoMetaCheck: true, FormatAssertion: formatAssertion, Dialect: dialect})
 	if "error" == first.Verdict {
-		return ""
+		return "the import refuses it"
 	}
 	v1, err := New().Unify(first.Aontu)
 	if nil != err {
@@ -49,7 +49,7 @@ func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documen
 	if Hcanon(v1) == Hcanon(v2) {
 		return ""
 	}
-	if v1.Canon() != v2.Canon() {
+	if CanonRiders(v1) != CanonRiders(v2) {
 		return "the canon differs"
 	}
 	there := Subsume(first.Aontu, second.Aontu, nil).Verdict
@@ -64,7 +64,7 @@ func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documen
 func TestJSONSchemaSuiteRoundTrip(t *testing.T) {
 	t.Parallel()
 	ledger := tsvRows(t, filepath.Join(vectorsDir, "jsonschema", "roundtrip.tsv"))
-	if 47 < len(ledger) {
+	if 61 < len(ledger) {
 		t.Fatalf("the round-trip ledger holds %d rows, past its bound", len(ledger))
 	}
 	listed := map[string]string{}

@@ -48,7 +48,7 @@ func storeDocuments(t *testing.T, names []string) map[string]string {
 func TestJSONSchemaStoreRoundTrip(t *testing.T) {
 	t.Parallel()
 	ledger := tsvRows(t, filepath.Join(storeDir, "roundtrip.tsv"))
-	if 5 < len(ledger) {
+	if 6 < len(ledger) {
 		t.Fatalf("the SchemaStore ledger holds %d rows, past its bound", len(ledger))
 	}
 	listed := map[string]string{}

@@ -1654,10 +1654,11 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
 
   const actx = aontu.ctx({ collect: true })
   const root: any = aontu.unify(src, { path: opts.path, collect: true }, actx)
+  const anchor = (opts.at ?? '').replace(/^\$/, '').split('.').filter((p) => '' !== p)
 
-  // A written nil admits nothing, which is what `not: {}` says.
+  // A written nil admits nothing, `not: {}`, under any anchor naming the root.
   if (true === root?.isNil && 'literal_nil' === root.why && 0 === actx.err.length &&
-    (null == opts.at || '' === opts.at)) {
+    0 === anchor.length) {
     return { verdict: 'ok', schema: { $schema: DRAFT, not: {} }, lossy: [] }
   }
 
@@ -1672,7 +1673,6 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
   }
 
   let node: any = root
-  const anchor: string[] = []
   if (null != opts.at && '' !== opts.at) {
     const found: any = anchorAt(root, opts.at)
     if (null == found) {
@@ -1687,7 +1687,6 @@ export function jsonSchema(src: string, options?: SchemaOptions): SchemaReport {
       }
     }
     node = found
-    anchor.push(...opts.at.replace(/^\$/, '').split('.').filter((p) => '' !== p))
   }
 
   const ctx: Ctx = {

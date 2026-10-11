@@ -2173,11 +2173,11 @@ func typedExclusion(node, neg *jnode) map[string][]string {
 }
 
 // importBottom reports whether a position admits nothing: its meet
-// conflicts when evaluated alone. One naming an alias is left as written,
-// as the declaration may be being written itself.
+// conflicts when evaluated alone, or it is a written nil. One naming an
+// alias is left as written, as the declaration may be being written itself.
 func importBottom(e *ixpr) bool {
 	if "raw" == e.k || holdsAlias(e) {
-		return false
+		return isRawText(e, "nil")
 	}
 	text := "x: " + iprint(e, "")
 	a := New()
@@ -3032,7 +3032,6 @@ func importKeyOrder(kind string, keys []*ixpr) []*ixpr {
 	return append(named, res...)
 }
 
-
 // unevaluated is the unevaluated keyword as the guarded spread where no
 // branch is conditional, and as rest() over the covers where one is;
 // neither where every member is evaluated.
@@ -3298,10 +3297,10 @@ func (ctx *importCtx) objectBranch(node *jnode, ptr string) *ixpr {
 			ctx.wrongType(at("patternProperties"), "patternProperties", "an object", pats)
 		} else {
 			type found struct {
-				text       string
-				re         *ixpr
-				schema     *jnode
-				spread     *ixpr
+				text   string
+				re     *ixpr
+				schema *jnode
+				spread *ixpr
 			}
 			all := []found{}
 			for _, e := range pats.entries {

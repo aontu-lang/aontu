@@ -2526,8 +2526,14 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 	}
 
 	root, ctx, _ := a.unifyCtx(parsed, nil, src)
-	// A written nil admits nothing, which is what `not: {}` says.
-	if nv, ok := root.(*NilVal); ok && "literal_nil" == nv.why && 0 == len(ctx.err) && "" == at {
+	anchor := []string{}
+	for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
+		if "" != part {
+			anchor = append(anchor, part)
+		}
+	}
+	// A written nil admits nothing, `not: {}`, under any anchor naming the root.
+	if nv, ok := root.(*NilVal); ok && "literal_nil" == nv.why && 0 == len(ctx.err) && 0 == len(anchor) {
 		return SchemaReport{Verdict: "ok", Lossy: []SchemaLoss{},
 			Schema: map[string]any{"$schema": jsonSchemaDraft, "not": map[string]any{}}}
 	}
@@ -2538,7 +2544,6 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 	}
 
 	node := root
-	anchor := []string{}
 	if "" != at {
 		node = anchorAt(root, at)
 		if nil == node {
@@ -2549,11 +2554,6 @@ func (a *Aontu) JSONSchema(src, at string) SchemaReport {
 			return SchemaReport{Verdict: "error", Schema: empty,
 				Lossy:  []SchemaLoss{},
 				Errors: []VetFinding{failureFinding(ctx, a.File, src, root)}}
-		}
-		for _, part := range strings.Split(strings.TrimPrefix(at, "$"), ".") {
-			if "" != part {
-				anchor = append(anchor, part)
-			}
 		}
 	}
 
