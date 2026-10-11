@@ -55,6 +55,12 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	done := true
 	var gate []int
+
+	// A rider still a call resolves first: met member by member it would
+	// write its record on each (the arm mirrors TypeScript's).
+	if f, ok := peer.(*FuncVal); ok && riderFuncs[f.name] && DONE != f.Dc() { //coverage:ignore unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven
+		peer = f.Unify(top(), ctx)
+	}
 	_, peerIsPref := peer.(*PrefVal)
 
 	// The peer's annotations ride the result once, not each member, so a

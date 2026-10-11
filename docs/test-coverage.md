@@ -263,7 +263,7 @@ engine never builds.
 
 ## The exclusions, in full
 
-100 % is only meaningful if what was excluded is visible. One hundred and twenty-four
+100 % is only meaningful if what was excluded is visible. One hundred and twenty-nine
 Go sites carry a `//coverage:ignore` marker (five of them
 `ignore-block` markers over a block) and TypeScript carries none at all
 beyond the export blocks (see below). TypeScript's markers drop LINES
@@ -304,7 +304,7 @@ the original incident announced itself only as forty-two unrelated
 coverage failures, when what had actually happened was that every
 marker stopped working.
 
-### Go: 128 marked sites
+### Go: 129 marked sites
 
 | Site | Why it cannot be reached, as the marker says |
 |------|--------------------------|
@@ -323,7 +323,7 @@ marker stopped working.
 | `cmp.go` × 1 | `each component declares its arity; a bad count is refused at parse` |
 | `conjunct.go` × 1 | `a fold over >=1 term always appends` |
 | `constraint.go` × 2 | `parse-time arity guarantees two; see above`; `no Val kind reaches this arm; see above` |
-| `disjunct.go` × 2 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `the meet returns the preference itself; see above` |
+| `disjunct.go` × 3 | `no caller: the preference gate asks superOf (ADR-011 R4)`; `unite drives a rider call before a disjunction meets it, where TypeScript's pass shortcut can leave it undriven`; `the meet returns the preference itself; see above` |
 | `format.go` × 1 | `a spelling the formatter wrote that does not parse is its defect, and the syntactic check catches those first` |
 | `formatgrammar.go` × 1 | `only a refusal is raised above; anything else is a fault` |
 | `func.go` × 10 | `no resolve arm returns nil`; `resolve never returns the func itself`; `arity {2,2} is refused at parse` (× 2); `arity {1,1} is refused at parse` (× 2); `arity {1,3} is refused at parse`; `arity is refused at parse`; `the 1-arg form returns from Unify`; `arity {1,2} is refused at parse` |
