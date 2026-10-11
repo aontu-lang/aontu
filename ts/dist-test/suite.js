@@ -123,9 +123,11 @@ function suiteGroups(dir, dialect) {
     }
     return out;
 }
+// One engine settles every import, since building one builds a parser.
+let ENGINE;
 function settle(text) {
     try {
-        return new aontu_1.Aontu().unify(text);
+        return (ENGINE = ENGINE ?? new aontu_1.Aontu()).unify(text);
     }
     catch (_e) {
         return undefined;
@@ -152,9 +154,11 @@ function roundTrip(schema, opts) {
     if ((0, hcanon_1.hcanon)(v1) === (0, hcanon_1.hcanon)(v2)) {
         return undefined;
     }
+    if (v1.canon !== v2.canon) {
+        return 'the canon differs';
+    }
     const there = (0, subsume_1.subsume)(first.aontu, second.aontu).verdict;
     const back = (0, subsume_1.subsume)(second.aontu, first.aontu).verdict;
-    return v1.canon !== v2.canon ? 'the canon differs' :
-        'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`;
+    return 'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`;
 }
 //# sourceMappingURL=suite.js.map

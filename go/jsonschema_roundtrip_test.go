@@ -49,12 +49,12 @@ func schemaRoundTrip(schema, path, dialect string, formatAssertion bool, documen
 	if Hcanon(v1) == Hcanon(v2) {
 		return ""
 	}
+	if v1.Canon() != v2.Canon() {
+		return "the canon differs"
+	}
 	there := Subsume(first.Aontu, second.Aontu, nil).Verdict
 	back := Subsume(second.Aontu, first.Aontu, nil).Verdict
-	switch {
-	case v1.Canon() != v2.Canon():
-		return "the canon differs"
-	case SubsumeYes != there || SubsumeYes != back:
+	if SubsumeYes != there || SubsumeYes != back {
 		return fmt.Sprintf("subsume answers %s, %s", there, back)
 	}
 	return ""

@@ -107,9 +107,12 @@ function suiteGroups(dir: string, dialect?: string): Group[] {
 }
 
 
+// One engine settles every import, since building one builds a parser.
+let ENGINE: Aontu | undefined
+
 function settle(text: string): any {
   try {
-    return new Aontu().unify(text)
+    return (ENGINE = ENGINE ?? new Aontu()).unify(text)
   }
   catch (_e) {
     return undefined
@@ -140,10 +143,12 @@ function roundTrip(schema: string, opts: {
   if (hcanon(v1) === hcanon(v2)) {
     return undefined
   }
+  if (v1.canon !== v2.canon) {
+    return 'the canon differs'
+  }
   const there = subsume(first.aontu, second.aontu).verdict
   const back = subsume(second.aontu, first.aontu).verdict
-  return v1.canon !== v2.canon ? 'the canon differs' :
-    'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`
+  return 'subsumes' === there && 'subsumes' === back ? undefined : `subsume answers ${there}, ${back}`
 }
 
 
