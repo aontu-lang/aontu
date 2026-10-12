@@ -95,3 +95,17 @@ optional-nil-meets-a-disjunction-it-forbids	gens	a:{k?:nil}&{k?:"x"|"y"} a:{}	{"
 optional-nil-meets-a-nil	gens	a:{k?:nil}&{k?:nil} a:{}	{"a":{}}
 optional-nil-refuses-a-preferred-disjunction	errc	a:{k?:*"x"|"y"} a:{k?:nil}	literal_nil
 optional-nil-refuses-a-member-of-a-disjunction-supplied	errc	a:{k?:nil}&{k?:"x"|"y"} a:{k:"x"}	literal_nil
+# A REFUSAL THE PARSER MADE IS NOT DROPPED AT AN OPTIONAL KEY (#312): the
+# key still drops a value that does not resolve, and raises the
+# parse-class refusal vet reports beneath it, the least by path where
+# there are several, at any depth.
+optional-parse-refusal-raised	errc	x?: *b: 1	pref_implicit_bag
+optional-parse-refusal-alias-in-path	errc	x?: $%a	alias_in_path
+optional-parse-refusal-var-name	errc	x?: ${b: 1}	var_name
+optional-parse-refusal-nested	errc	x?: {y: 1, z: *b: 1}	pref_implicit_bag
+optional-parse-refusal-beside-unresolved	errc	x?: {a: string, z: *b: 1}	pref_implicit_bag
+optional-parse-refusal-in-list	errc	x?: [1, *b: 1]	pref_implicit_bag
+optional-parse-refusal-under-optionals	errc	a:{x?: {y?: {z: *b: 1}}}	pref_implicit_bag
+optional-parse-refusal-least-path	errc	x?: {z: *b: 1, w: $%a}	alias_in_path
+optional-parse-refusal-least-path-either-order	errc	x?: {w: $%a, z: *b: 1}	alias_in_path
+optional-parse-refusal-in-a-member	errc	x?: {a: *b: 1} | {c: 1}	pref_implicit_bag

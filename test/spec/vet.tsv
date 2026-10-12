@@ -453,6 +453,11 @@ vet-nil-in-list-template-selected	vet	a:[&:match(key(0),"0",integer,nil)]	a:[1,2
 vet-required-wins	vet	a:{x?:integer}&{x:integer}	a:{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.a.x","pointer":"/a/x","severity":"error","sites":[{"col":7,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"integer"}]}],"truncated":false,"verdict":"incomplete"}
 vet-optional-nil-absent-passes	vet	a:{k?:nil}	a:{}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-optional-nil-supplied-refused	vet	a:{k?:nil}	a:{k:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","pointer":"/a/k","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":7,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+# A refusal the parser made beneath an optional key is a finding, and the
+# evaluator raises it too, so the two surfaces agree (#312).
+vet-optional-parse-refusal	vet	x?: *b: 1	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x","pointer":"/x","severity":"error","sites":[{"col":5,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+vet-optional-parse-refusal-nested	vet	x?: {y: 1, z: *b: 1}	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x.z","pointer":"/x/z","severity":"error","sites":[{"col":15,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+vet-optional-conflict-beneath	vet	x?: {a: 1 & 2}	{}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.x.a","pointer":"/x/a","severity":"error","sites":[{"col":13,"file":"schema","len":1,"role":"schema","row":1,"src":"2","value":"2"},{"col":9,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"error"}
 # --no-fill and --exact-numbers (G12): the data must be an instance as
 # written, and its numbers are read by value. A filled optional member
 # is the schema's to supply, and is not a finding.

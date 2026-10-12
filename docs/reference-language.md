@@ -873,6 +873,15 @@ supplies no value, so `{k?: nil} & {k?: "x" | "y"}` forbids `k` as
 `{k?: nil}` does. A preferred member is a value supplied: the written
 `nil` refuses `{k?: *"x" | "y"}` as it refuses `{k?: 1}`.
 
+**An optional key never drops a refusal the parser made.** It drops a
+value that fails to resolve, and raises a parse refusal from anywhere
+beneath it, the same one `vet` reports:
+
+```
+x?: *b: 1                → [aontu/pref_implicit_bag] at $.x
+x?: {y: 1, z: *b: 1}     → [aontu/pref_implicit_bag] at $.x.z
+```
+
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map

@@ -9,6 +9,7 @@ exports.bagGenable = bagGenable;
 exports.undecided = undecided;
 const utility_1 = require("../utility");
 const err_1 = require("../err");
+const walk_1 = require("../walk");
 const Val_1 = require("./Val");
 const NilVal_1 = require("./NilVal");
 const FeatureVal_1 = require("./FeatureVal");
@@ -125,7 +126,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             if (child.isDisjunct && optional) {
                 const dctx = ctx.clone({ err: [], collect: true });
                 let cval = child.gen(dctx);
-                if (undefined === cval) {
+                if (raiseParse(dctx, child, ctx) || undefined === cval) {
                     continue;
                 }
                 put(cval);
@@ -133,7 +134,8 @@ class BagVal extends FeatureVal_1.FeatureVal {
             else if (bagGenable(child)) {
                 const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx;
                 let cval = child.gen(cctx);
-                if (optional && (undefined === cval || (0, Val_1.empty)(cval))) {
+                if (optional &&
+                    (raiseParse(cctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval))) {
                     continue;
                 }
                 // A child that generates nothing contributes nothing: setting
@@ -173,6 +175,15 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
 } /* node:coverage ignore next 6 */
 exports.BagVal = BagVal;
+// An optional key drops what does not resolve, never a parse refusal.
+function raiseParse(gctx, child, ctx) {
+    const refusal = 0 < gctx.err.length ? (0, walk_1.parseNilIn)(child) : undefined;
+    if (undefined === refusal) {
+        return false;
+    }
+    refusal.gen(ctx);
+    return true;
+}
 // A key is data, never a property lookup: a key table has no prototype.
 function keyTable() {
     return Object.create(null);

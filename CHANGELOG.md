@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### A parse refusal beneath an optional key is raised
+
+Both ports.
+
+- An optional key still drops a value that does not resolve, and no
+  longer drops one the parser refused (#312). `x?: *b: 1` evaluated to
+  `{}` while `vet` called the same document invalid; evaluation now
+  refuses it with `pref_implicit_bag`, as `vet` does. The same holds
+  for every parse-class refusal at any depth beneath the key, so
+  `x?: {y: 1, z: *b: 1}`, which evaluated to `{"x":{"y":1}}`, is
+  refused at `$.x.z`. Where several sit beneath one key, the one with
+  the least path is raised, in whatever order they were written.
+
 ### the round trip through JSON Schema (G12 phase 18)
 
 Both ports.
