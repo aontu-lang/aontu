@@ -1169,6 +1169,14 @@ re-resolves at the destination and the mark stays where it was written:
 `t: { n: key(), h: hide(key()) }` with `c: $.t` gives `c` as
 `{"h":"c","n":"c"}`. Pinned in `test/spec/marks.tsv`.
 
+### Go reads YAML as TypeScript does (#304)
+
+Go. The YAML reader moves to `tabnas/yaml/go` v0.5.9, the release
+TypeScript has read with since 0.76.0, so a flow collection on the line
+after its key loads in both ports, where Go refused it. Every `@tabnas`
+package pinned in both ports now carries one version, and a Go test
+fails when the two pins part.
+
 ### Four parity fixes (#281, #282, #283, #286)
 
 Both ports now answer these identically:
@@ -1276,6 +1284,14 @@ Both ports. `close() & {x:1} & {y:2}` closes the whole meet
 {y:2}` lifts the seal first. On a list, closing fixes the length: the
 elements can still be narrowed, none can be added. A seal that meets
 no map or list leaves the value as it is; unmet, it does not generate.
+
+## 0.76.0 — 2026-09-24
+
+### `@tabnas/yaml` moves to 0.5.9
+
+TypeScript. The YAML reader moves from 0.5.8 to 0.5.9, which reads a
+flow collection written on the line after its key, as in `required:`
+followed by `[a, b, c]`: valid YAML 1.2 that 0.5.8 refused.
 
 ### A nameless `file` is refused wherever it sits in the tree
 
