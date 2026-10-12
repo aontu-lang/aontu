@@ -130,20 +130,28 @@
 #   introduced by that work: it reproduces on a plain document.
 #
 #   Divergent input:  a: 0|1|2|...|1999   (one disjunction of 2,000
-#                     integers; 1,000 members agree)
+#                     integers; 1,900 members agree)
 #                     k0.k1.k2. ... .k4999: 1   (a dotted path of 5,000
 #                     segments, the same fold; found 2026-10-08, where
 #                     Go answers [aontu/no_path] at $, exit 1)
 #   TypeScript: `aontu: unexpected error: Maximum call stack size
-#               exceeded`, exit 1, thrown while parsing
-#   Go:         [aontu/disjunct_no_gen] at $.a, exit 1: the chain
-#               parses and evaluates, and has no default to generate
+#               exceeded`, exit 1, thrown while parsing, from about
+#               1,950 members under Node 24
+#   Go:         [aontu/max_depth] at $, exit 1, from 2,000 members: the
+#               parsed chain is deeper than twice the depth budget. Below
+#               that it parses, evaluates and answers disjunct_no_gen at
+#               $.a, which is what this entry recorded for 2,000 members
+#               until the bound landed on 2026-10-08 (re-probed
+#               2026-10-12).
 #
 #   Not simply fixed because the recursion is in the pinned
 #   @tabnas/expr (TypeScript), whose `evaluation` folds an operator
 #   chain by recursing once per member; flattening it is an upstream
-#   change. Turning the RangeError into `max_depth` here would give a
-#   registered code but still not Go's answer. The importer bounds
+#   change, and @tabnas/expr 0.5.18 still overflows here (2026-10-12).
+#   Turning the RangeError into `max_depth` would now give Go's answer
+#   from 2,000 members, but not between TypeScript's stack limit and
+#   Go's bound, a band whose lower edge moves with the host's stack
+#   size. The importer bounds
 #   what it writes instead: a disjunction or meet of more than 32
 #   members is nested in groups of at most 32 (ADR-047), so an
 #   imported schema never reaches the limit, while a hand-written chain
@@ -167,9 +175,10 @@
 #
 #   Not simply fixed because the recursion is in the pinned
 #   @tabnas/expr, whose `evaluation` meets a cyclic term for this
-#   argument list. The importer writes a negative first argument in
-#   parentheses, `neq((-1), -2, -3)`, which both parsers read, so an
-#   imported schema never reaches the defect.
+#   argument list, and 0.5.18 still overflows (2026-10-12). The importer
+#   writes a negative first argument in parentheses, `neq((-1), -2, -3)`,
+#   which both parsers read, so an imported schema never reaches the
+#   defect.
 #
 # ---------------------------------------------------------------------
 #
@@ -215,6 +224,10 @@
 #   TypeScript: no_path sited at col 10, len 1, src ".": the `.` inside
 #               the reference.
 #   Go:         no_path sited at col 4, len 4, src "must": the call.
+#   The shape of the first argument moves both sites, found 2026-10-12:
+#   `a: must($.t & string, "m")` is sited at the `$` (col 9) in
+#   TypeScript and at the `(` (col 8) in Go, while `must(($.t), "m")`
+#   and `must(min($.t), "m")` are sited alike in both.
 #
 #   Not simply fixed because neither site is the one a reader wants,
 #   the reference's own span from its `$`, and moving either changes
