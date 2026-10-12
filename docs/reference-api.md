@@ -3577,7 +3577,7 @@ tools and the protocol are a transport-free library
 
 | Tool | Answers |
 |------|---------|
-| `vet` | the [vet](#aontu-vet) report for a schema and a data document |
+| `vet` | the [vet](#aontu-vet) report for a schema and a data document; `noFill` and `exactNumbers` are the verb's `--no-fill` and `--exact-numbers` |
 | `get` | the [query](#aontu-model-get) surface: a path, and a view of it |
 | `why` | the [provenance](#aontu-model-why) record for a path |
 | `diff` | what changed at which paths between two documents |
@@ -3592,6 +3592,7 @@ tools and the protocol are a transport-free library
 | `reaches` | the [reachability check](#aontu-reaches): the verdict and, when it reaches, a shortest path: the closure question `relations` cannot ask one edge at a time |
 | `view` | a [figure](#aontu-view) of the document as text: the tree, matrix, graph (mermaid, dot, er), layer, sets, layers, ladder, doc or lattice kind, with the loss report; the poset takes several files and is CLI only |
 | `jsonschema` | the [JSON Schema export](#aontu-jsonschema): the schema, and the `lossy` list naming what it could not say: the bridge to a structured-output API, and to an MCP tool's own `inputSchema` |
+| `jsonschema_import` | the [JSON Schema import](#aontu-jsonschema-import) as `--format json` answers it: the aontu `text`, the `lossy` list, the `vet` flags that check data against the result, and the source `map`. A schema a reference reaches arrives in `documents`, and the server fetches nothing |
 
 Every tool returns **the same JSON contract the CLI prints**, so a
 report read from one is the report read from the other. A tool that

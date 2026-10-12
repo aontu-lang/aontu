@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### The MCP server imports JSON Schema
+
+TypeScript, whose build alone serves MCP.
+
+- A `jsonschema_import` tool answers what `aontu jsonschema import
+  --format json` answers: the aontu `text`, the `lossy` list, the `vet`
+  flags that check data against the result, and the source `map`. Its
+  options are the verb's: `uri`, `documents` (the schemas a reference
+  may reach, by URI), `dialect`, `formatAssert`, `formats`, `defaults`
+  and `noMetaCheck`, and a `formats` entry naming one of the nineteen
+  defined formats is refused as the verb refuses it.
+- The `vet` tool takes `noFill` and `exactNumbers`, the verb's
+  `--no-fill` and `--exact-numbers`, so data is checked against an
+  imported schema as JSON Schema checks it.
+
 ### A parse refusal beneath an optional key is raised
 
 Both ports.

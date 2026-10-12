@@ -22,6 +22,8 @@ const keyorder_1 = require("./keyorder");
 const subsume_1 = require("./subsume");
 const trim_1 = require("./trim");
 const jsonschema_1 = require("./jsonschema");
+const jsonschema_import_1 = require("./jsonschema-import");
+const formatgrammar_1 = require("./formatgrammar");
 const relation_1 = require("./relation");
 const reach_1 = require("./reach");
 const view_1 = require("./view");
@@ -73,11 +75,21 @@ const TOOLS = [
             schema: { type: 'string', description: 'The schema document' },
             data: { type: 'string', description: 'The data document' },
             at: { type: 'string', description: 'Validate at this path ($.a.b)' },
+            noFill: {
+                type: 'boolean',
+                description: 'The schema may not supply a member the data lacks',
+            },
+            exactNumbers: {
+                type: 'boolean',
+                description: 'Read each number in the data by its exact value',
+            },
         },
         required: ['schema', 'data'],
         docs: ['schema', 'data'],
         run: (a, trust, paths) => (0, vet_1.vet)(str(a.schema), str(a.data), {
             ...(null == a.at ? {} : { at: str(a.at) }),
+            noFill: true === a.noFill,
+            exactNumbers: true === a.exactNumbers,
             schemaPath: paths.schema,
             dataPath: paths.data,
             schemaUrl: paths.schema,
@@ -594,7 +606,95 @@ const TOOLS = [
             at: null == a.at ? undefined : str(a.at), path: paths.source,
         }),
     },
+    {
+        name: 'jsonschema_import',
+        description: 'Import a JSON Schema (draft-04 to 2020-12) as an aontu document, ' +
+            'and say what could not be carried: the inbound twin of ' +
+            'jsonschema. Returns verdict (ok | lossy | error), the aontu ' +
+            '`text`, a `lossy` list naming each keyword the import could not ' +
+            'carry, the `vet` flags that ask JSON Schema\'s question of data ' +
+            'against the result (pass them to the vet tool as noFill and ' +
+            'exactNumbers), and the source `map`. Nothing is fetched: a ' +
+            'schema a reference reaches arrives in `documents`.',
+        properties: {
+            source: { type: 'string', description: 'The schema, as JSON text' },
+            uri: {
+                type: 'string',
+                description: 'The schema\'s own URI, the base of its references',
+            },
+            documents: {
+                type: 'object',
+                additionalProperties: { type: 'string' },
+                description: 'The schemas a reference may reach: URI to JSON text',
+            },
+            dialect: {
+                type: 'string',
+                description: 'The dialect of a schema that names none: ' +
+                    'draft-04, draft-06, draft-07, 2019-09 or 2020-12',
+            },
+            formatAssert: {
+                type: 'boolean',
+                description: 'Assert each format that has a grammar, not only ' +
+                    'record it',
+            },
+            formats: {
+                type: 'object',
+                additionalProperties: { type: 'string' },
+                description: 'The ABNF grammar of each format JSON Schema does ' +
+                    'not define: name to grammar text',
+            },
+            defaults: {
+                type: 'boolean',
+                description: 'An optional property\'s default becomes a preference',
+            },
+            noMetaCheck: {
+                type: 'boolean',
+                description: 'Skip the check of the schema against its meta-schema',
+            },
+        },
+        required: ['source'],
+        docs: ['source'],
+        check: (a) => textTable(a, 'documents') ?? textTable(a, 'formats') ??
+            definedFormat(a.formats),
+        run: (a, _trust, paths) => importedReport((0, jsonschema_import_1.importJsonSchema)(str(a.source), {
+            path: paths.source,
+            uri: strOr(a.uri),
+            documents: a.documents,
+            dialect: strOr(a.dialect),
+            formatAssertion: true === a.formatAssert,
+            formats: a.formats,
+            defaults: true === a.defaults,
+            noMetaCheck: true === a.noMetaCheck,
+            sourceMap: true,
+        })),
+    },
 ];
+function strOr(v) {
+    return 'string' === typeof v ? v : undefined;
+}
+function textTable(a, name) {
+    const t = a[name];
+    return null == t || ('object' === typeof t && !Array.isArray(t) &&
+        Object.values(t).every((v) => 'string' === typeof v)) ? undefined :
+        `${name} needs an object of text values`;
+}
+function definedFormat(formats) {
+    const name = Object.keys(formats ?? {}).find(formatgrammar_1.isDefinedFormat);
+    return undefined === name ? undefined :
+        `formats cannot name ${name}, one of the nineteen formats, ` +
+            'whose grammar is fixed';
+}
+// The CLI's --format json object, without the envelope every tool drops.
+function importedReport(r) {
+    return {
+        verdict: r.verdict,
+        text: r.aontu,
+        lossy: r.lossy,
+        ...(null == r.vet ? {} : { vet: r.vet }),
+        ...(null == r.errors ? {} : { errors: r.errors }),
+        ...(null == r.map ? {} : { map: r.map }),
+    };
+}
 function str(v) {
     return 'string' === typeof v ? v : '';
 }
