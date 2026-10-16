@@ -1,7 +1,8 @@
 # The formal definition — design note
 
-Status: PROPOSED. Nothing is in the repository yet; the prototype
-named in §3 lives in a session scratchpad and is lost with it.
+Status: PROPOSED; P0 in progress. The prototype named in §3 is
+committed under `spec/` as P0's seed, with its cases and its ledger;
+nothing else is built.
 Date: 2026-10-16
 Prompted by: the G12 walkthrough of 2026-10-15. The owner ruled that
 an ADR records a software architecture decision and not a language
@@ -76,10 +77,12 @@ the definition encodes them rather than restating them in prose.
 
 ## 3. The shape of the definition
 
-A Lake project under `lean/`, in the layout `ts/` and `go/` use, with
-the toolchain pinned by a `lean-toolchain` file. Core Lean only to
-begin with: the prototype needs no library, and every library is a
-network dependency the build would then carry. One module per layer:
+A Lake project under `spec/`. Not beside `ts/` and `go/` as a third
+implementation, which it is not, and not under `test/spec/`, which
+holds the rows it feeds. The toolchain is pinned by a `lean-toolchain`
+file. Core Lean only to begin with: the prototype needs no library,
+and every library is a network dependency the build would then carry.
+One module per layer:
 
 | Module | Holds |
 |---|---|
@@ -95,14 +98,15 @@ network dependency the build would then carry. One module per layer:
 | `Aontu/Print.lean` | the printer from abstract syntax to aontu text, the one trusted bridge to the ports |
 | `Oracle.lean` | the executable that enumerates values and instances and prints each case with the definition's verdict |
 
-The prototype that seeds it is four files: `AontuCore.lean` (the meet
-laws, ADR-045's merge proved exact, the two import modes and their
-contracts, the checker), `WhatNotHow.lean` (admission as inference
-rules with aliases, recursion as one rule, `%U = %U`, the `subsume`
-contract and a wrong implementation refuted from it), `Structures.lean`
-(maps with optional keys, spreads and `close()`, lists, `&`, `|`, `*`,
-paths, output, and the trial layer, each example checked against both
-CLIs), and `Oracle.lean` with the differential runner. All compile on
+The prototype that seeds it is under `spec/` as it was run:
+`Aontu/Core.lean` (the meet laws, ADR-045's merge proved exact, the two
+import modes and their contracts, the checker), `Aontu/WhatNotHow.lean`
+(admission as inference rules with aliases, recursion as one rule,
+`%U = %U`, the `subsume` contract and a wrong implementation refuted
+from it), `Aontu/Structures.lean` (maps with optional keys, spreads and
+`close()`, lists, `&`, `|`, `*`, paths, output, and the trial layer,
+each example checked against both CLIs), `Oracle.lean`, the cases it
+printed, the ledger of §5 and the differential runner. All compile on
 Lean 4.15.0 with no `sorry`, on at most the `propext` axiom.
 
 ## 4. How a language decision is made, and recorded
@@ -122,7 +126,7 @@ decision, a law `subsume` leans on for every string, was named before
 any code moved. Choosing the lattice instead changed nothing in the
 definition and gave the ports ten cases to fix.
 
-**The record.** The decision's text is the diff under `lean/`: the rule
+**The record.** The decision's text is the diff under `spec/`: the rule
 that changed, the theorems added, the theorems given up and why, in
 docstrings beside them. The CHANGELOG entry names the rule and the
 theorems. No numbered log runs beside the ADRs; the question of whether
@@ -140,36 +144,71 @@ explains.
 
 ## 5. How the implementations are held to it
 
-- **The oracle.** Exhaustive enumeration of small values over a small
-  instance set, as the sketch did (600 values, 16 instances), plus
-  random generation of larger ones. Both CLIs run every case under
-  `vet --no-fill --exact-numbers --max-errors` high enough to see every
-  finding, and the verdict class is compared as well as admission. A
-  disagreement fails the build. The sketch's run took 109 s for 9,600
-  cases on four cores, so the exhaustive set is bounded and the random
-  set is seeded.
-- **The shared spec.** Where the definition covers a row's construct,
-  the checker's answer is a third voice in the parity probe: a `vet`,
-  `gen` or `gens` expectation the ports agree on but the definition
-  refuses is a defect in both, and the row is corrected with the fix.
-  Today that voice is the one the probe lacks, since two engines that
-  share a wrong answer pass every row.
+**Where the expected answers are.** The oracle derives them: it
+enumerates values and instances and prints each case with the verdict
+the proved checker gives, so an expected answer is never written by
+hand and never copied out of an engine. They are stored as rows in the
+shared format, five columns under a new mode, `verdict`, which
+compares the verdict of `vet(schema, data)` and nothing else, since
+the definition gives verdicts and not the codes, sites and messages
+the `vet` mode also compares; an `Output` case is a `gens` row, which
+the runners already have. The rows are committed, in files of their
+own under `test/spec/` named for the generator (`def-*.tsv`), each
+with a header naming the generator and the fragment, so a change in
+what the definition expects is a diff a reviewer reads. They are
+generated copies in the sense `ts/dist`, `sigdecl` and the help corpus
+already are: `make spec` regenerates them, and CI fails when the
+committed file differs from a fresh one. Until the `verdict` mode
+exists in both runners, the prototype's cases sit in
+`spec/cases/fragment.tsv` in the oracle's own four columns.
+
+**How they are compared.** By the spec runners both ports already
+have, which read every `.tsv` under `test/spec/`: a generated row runs
+like a hand-written one, in both ports, with no Lean installed at test
+time. Lean is needed only to regenerate. A case the ports do not yet
+answer as the definition does goes in `spec/ledger.tsv`, one row per
+case naming the cause and which side moves, read by both runners by
+name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
+passes fails the run, the ledger is bounded, and the bound tightens as
+causes are fixed. The prototype's ledger holds 42 rows under two
+causes, decisions 3 and 4 of §2; under the first the ports move, under
+the second the definition does. Exhaustive enumeration of small values
+over a small instance set is bounded per phase (600 values and 16
+instances in the prototype: 9,600 cases, 109 s through both CLIs on
+four cores), and random generation of larger ones is seeded, so a
+failure reproduces.
+
+**The shared rows.** The hand-written rows of `test/spec/` stay, and
+keep covering what the definition does not: codes, sites, canon, the
+hash form, formatting. Where the definition covers a row's construct,
+the row's expected value must agree with it as well as with both
+engines: the rule that an expectation is obtained by running both
+engines and requiring them to agree gains a third voice, and a `vet`,
+`gens` or `subsume` expectation the ports agree on but the definition
+refuses is a defect in both ports, corrected with the fix. The check
+needs the definition to read a row's source, so P1 adds a reader for
+the fragment's concrete syntax beside the printer; it is trusted the
+same way, and the two are checked against each other by round trip.
+Today that third voice is the one the probe lacks: two engines that
+share a wrong answer pass every row, which is how #319 passed 2,302
+suite tests.
+
 - **The subsumption table.** The rules `subsume` applies are a finite
   list in the reference; each becomes a theorem against `Le`, so the
   table is sound by construction and a new rule lands with its proof.
 - **`vet` asks what evaluation asks** (ADR-007) becomes the theorem
   `output_admits`: an output is an instance.
-- **CI.** A `lean` job beside the TypeScript and Go jobs: fetch the
+- **CI.** A `spec` job beside the TypeScript and Go jobs: fetch the
   pinned release archive by hash (elan's self-update check does not
-  pass the build proxy), `lake build`, run the oracle, run the
-  differential against both built CLIs. `make lean` runs the same
-  locally and joins `make test`.
+  pass the build proxy), `lake build`, regenerate the rows and diff
+  them against the committed copies. The ports' own jobs run the rows.
+  `make spec` runs the same locally.
 
-The one trusted piece is the printer, `Print.lean`: it is the only
-place the abstract syntax meets aontu text, and a wrong printer makes
-the differential compare the wrong things. It stays small, is reviewed
-as the definition is, and is checked by printing each oracle value and
-asking both ports for its canon.
+The one trusted piece is the printer, and from P1 the reader beside
+it: it is the only place the abstract syntax meets aontu text, and a
+wrong printer makes the rows say the wrong thing. It stays small, is
+reviewed as the definition is, and is checked by printing each oracle
+value and asking both ports for its canon.
 
 ## 6. Phases
 
@@ -178,7 +217,7 @@ phase when P0 lands, under its same-commit rule.
 
 | Phase | Lands | Exit |
 |---|---|---|
-| **P0**: the seed (S) | `lean/` as a Lake project holding the four prototype files; `make lean`; the CI job; the ADR of §1 | the build runs in CI and the 9,600-case differential is green except for the cases #319 and decision 3 own, which are listed |
+| **P0**: the seed (S) | `spec/` as a Lake project holding the prototype, its cases and its ledger (done); the `verdict` mode and the ledger read in both runners; the cases as `test/spec/def-*.tsv` rows; `make spec`; the CI job; the ADR of §1 | the build runs in CI and every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own |
 | **P1**: data and scalars (M) | the data model with shown numbers and the two read modes; the four numeric leaves as predicates; `string` and `string & empty()`; literals; the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique`; `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers; `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
