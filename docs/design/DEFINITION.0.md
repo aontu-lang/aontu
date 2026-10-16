@@ -22,11 +22,22 @@ them:
 
 | Relation | The question it answers | The verb that asks it |
 |---|---|---|
-| `Admits env root v j` | is the JSON `j` an instance of the value `v` | `vet` |
-| `Output env v j` | is `j` the one output `v` singles out | evaluation, `gen` |
-| `Le env a b` | is every instance of `a` an instance of `b` | `subsume`, `breaking` |
+| `Admits env root v j` | is the JSON `j`, inside the instance `root`, an instance of the value `v` | `vet` |
+| `Output env root v j` | is `j` the one output `v` singles out, inside the output `root` | evaluation, `gen` |
+| `Le env (ra, a) (rb, b)` | is every instance of `a` under its root `ra` an instance of `b` under its root `rb` | `subsume` under the `values` profile, `breaking` |
 
-Each is a `Prop`: a statement that is true or false and is established
+A root rides every relation because a path reference reads the whole
+document: evaluation keeps one (`ctx.root`), and `subsume` unfolds
+each side against its own (`groot` and `sroot` in `ts/src/subsume.ts`),
+anchored by `--at` or not. `subsume`'s other profiles ask more than
+`Le`: the default profile also holds the effective default, which is
+`Output`'s question (`pref-default-changed` in `test/spec/subsume.tsv`
+refuses `*2|number` against `*1|number`, which admit the same numbers),
+and the `gen` profile the marks as well. Each profile gets a contract
+of its own, built from these relations; `Le` alone is the `values`
+profile's.
+
+Each relation is a `Prop`: a statement that is true or false and is established
 by proof, never by running anything. Lean refuses to execute one
 (`decide (Admits …)` fails to synthesise `Decidable`), which is the line
 between a definition and a fourth implementation. Executable code is
@@ -48,9 +59,14 @@ which finding a refusal reports and at which sites, messages and hints,
 performance, the CLI, the language server, the MCP server, packages,
 the transparency log, rendering, and `fmt`. These are architecture or
 implementation, and ADRs and the shared spec keep governing them.
-`hash` and `canon` are syntactic normal forms; the definition owes them
-one obligation, that canon-equal values admit the same instances, and
-nothing more.
+`canon` and the hash form are syntactic normal forms, and the
+definition owes each one obligation. The hash form's is the strong
+one, since the pin is documented to move on any semantic change, a
+flipped default or a changed mark included: two values with one hash
+form admit the same instances, single out the same outputs and carry
+the same marks. Canon drops the `close()`, `type()` and `hide()` marks
+the hash form keeps, so canon-equal values agree on everything but
+what those marks decide, and the definition says exactly what that is.
 
 ## 2. The decisions it rests on
 
@@ -89,8 +105,8 @@ One module per layer:
 | `Aontu/Data.lean` | JSON as the data model: numbers as exact decimals carrying their shown form, since `integer` reads the number a value shows (ADR-048) and `--exact-numbers` is a read mode |
 | `Aontu/Syntax.lean` | the abstract value forms, one constructor per construct; the concrete grammar stays where it is, and a parser is an implementation |
 | `Aontu/Admits.lean` | the admission rules, one per form |
-| `Aontu/Output.lean` | `Gen` and `Output`: what evaluation singles out, and that it is unique |
-| `Aontu/Order.lean` | `Le`, the meet as a greatest lower bound, `SubsumeCorrect` as the contract any `subsume` must meet |
+| `Aontu/Output.lean` | `Gen` and `Output` under a document root: what evaluation singles out, and that it is unique |
+| `Aontu/Order.lean` | `Le` with one root per side, the meet as a greatest lower bound, and one contract per `subsume` profile: `values` against `Le`, the default also against `Output` for the effective default, `gen` also against the marks |
 | `Aontu/Trial.lean` | the trial-schema layer: `nof`, `when`, `contains`, `must`, `rest`, where negation lives (§4, P4) |
 | `Aontu/Verdict.lean` | ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
@@ -194,8 +210,9 @@ share a wrong answer pass every row, which is how #319 passed 2,302
 suite tests.
 
 - **The subsumption table.** The rules `subsume` applies are a finite
-  list in the reference; each becomes a theorem against `Le`, so the
-  table is sound by construction and a new rule lands with its proof.
+  list in the reference; each becomes a theorem against its profile's
+  contract, so the table is sound by construction and a new rule lands
+  with its proof.
 - **`vet` asks what evaluation asks** (ADR-007) becomes the theorem
   `output_admits`: an output is an instance.
 - **CI.** A `spec` job beside the TypeScript and Go jobs: fetch the
@@ -222,7 +239,7 @@ phase when P0 lands, under its same-commit rule.
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers; `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
-| **P5**: order and verdicts (M) | `SubsumeCorrect`, the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | `subsume.tsv`'s 237 rows agree with `Le` where decidable; a verdict class disagreement fails the differential |
+| **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the JSON Schema boundary (M) | `valid` for the 2020-12 keywords the importer carries; the two modes and their contracts; every natural-mode departure as a theorem; the round trip of ADR-068 as a statement the exporter is held to | the suite's schemas in the fragment round-trip under both modes in the definition as in the ports |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
 
