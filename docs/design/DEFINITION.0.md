@@ -129,8 +129,7 @@ definition and gave the ports ten cases to fix.
 **The record.** The decision's text is the diff under `spec/`: the rule
 that changed, the theorems added, the theorems given up and why, in
 docstrings beside them. The CHANGELOG entry names the rule and the
-theorems. No numbered log runs beside the ADRs; the question of whether
-one should is open (§7).
+theorems. No numbered log runs beside the ADRs (ruled 2026-10-16, §7).
 
 **The migration.** About forty of the sixty-eight ADRs define the
 language by their titles (ADR-004, 007, 011, 034, 037, 045 to 053, 055
@@ -147,8 +146,9 @@ explains.
 **Where the expected answers are.** The oracle derives them: it
 enumerates values and instances and prints each case with the verdict
 the proved checker gives, so an expected answer is never written by
-hand and never copied out of an engine. They are stored as rows in the
-shared format, five columns under a new mode, `verdict`, which
+hand and never copied out of an engine. They are stored (ruled
+2026-10-16) as rows in the shared format, five columns under a new
+mode, `verdict`, which
 compares the verdict of `vet(schema, data)` and nothing else, since
 the definition gives verdicts and not the codes, sites and messages
 the `vet` mode also compares; an `Output` case is a `gens` row, which
@@ -234,19 +234,25 @@ riders and marks (`meta`, `deprecate`, `hide`, `type`), which do not
 change admission; relations (`acyclic`, `inverse`, `rel`); and the
 canon and hash obligation of §1.
 
-## 7. Open decisions
+## 7. Decisions: ruled and open
 
-Each needs the owner's ruling and changes a rule, so none is taken here.
+Each changes a rule. Three were ruled on 2026-10-16 and stand here
+until the phase that encodes them lands; the other two need the
+owner's ruling.
 
-1. **The meaning of `%U = %U`.** An alias admitted only through itself
+1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
+   `error`. An alias admitted only through itself
    has no finite derivation under the least fixpoint, so it admits
    nothing; the greatest fixpoint would admit everything. Both ports
    answer `unify_cycle`, class `budget`: the least-fixpoint verdict,
-   reached by running out of steps. Under decision 4 it may instead be
-   ill-formed, an `error`. Proposed: ill-formed, since a document that
-   names nothing but itself is a contradiction of the same kind as
-   `integer & string`.
-2. **The alias-cycle rule, and the go/no-go.** Lean's kernel refuses a
+   reached by running out of steps. The ruling follows decision 4 of
+   §2: a document that names nothing but itself is a contradiction of
+   the same kind as `integer & string`, and it follows from the cycle
+   rule below.
+2. **The alias-cycle rule, and the go/no-go.** Ruled 2026-10-16: the
+   rule is adopted; P3 encodes it and proves it before P4 starts, and
+   the measure of what it refuses among the bundled models, the use
+   cases and the suite is P3's to report. Lean's kernel refuses a
    rule that mentions its own negation, so a trial schema cannot sit
    inside `Admits` as written; the layer above handles `not`, `when`
    and `nof`, and a map holding `nof(…)`, which the importer writes
@@ -254,16 +260,16 @@ Each needs the owner's ruling and changes a rule, so none is taken here.
    as "every alias cycle passes through a key or an element, so a
    recursion consumes data": it makes `%T = not(%T)` ill-formed and
    lets the trial layer nest. If the rule fits aontu, Lean fits all of
-   aontu; if it does not, the definition stops at P3 and the trial
-   layer stays a layer. P3 settles it.
+   aontu; if P3 finds a document it must refuse that the language
+   cannot do without, the ruling is reopened there.
 3. **Error codes.** The codes are append-only and the ports agree on
    them row by row. In the definition they would be a function from a
    refusal's shape to a code, which is a large table to prove anything
    about. Proposed: out, with the verdict classes in.
-4. **The record of a language change.** The Lean diff and the
-   CHANGELOG, as §4 proposes, or a numbered log beside the ADRs in the
-   manner of RFCs. The lighter form is proposed; the heavier one is
-   cheap to add later and expensive to backfill.
+4. **The record of a language change.** Ruled 2026-10-16: the Lean
+   diff and the CHANGELOG, as §4 says, and no numbered log beside the
+   ADRs; one is cheap to add later and expensive to backfill, so the
+   ruling can be revisited without cost.
 5. **The vet modes.** `--no-fill` and `--exact-numbers` change what
    `valid` means, so they are parameters of the definition rather than
    options of a CLI; the definition then states what the default mode
