@@ -66,7 +66,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `errc`  | `generate(src)` must raise an error whose FIRST failure's why-code **equals** `expect` |
 | `errcode` | registry row: `name` is an error code, `src` its class, `expect` its since-version: asserted against the engine's code→class table |
 | `vet`   | five columns: `vet(schema, data)` must produce the report `expect` describes, MINUS each finding's message |
-| `verdict` | five columns: `vet(schema, data)` must produce the verdict `expect` names under `verdict`, one name or a list of the names it may be; options ride `opts`; nothing else in the report is compared. The rows of `def-fragment.tsv` are generated from the definition under `spec/`, and a row that `spec/ledger.tsv` names must fail, so a case the engine comes to answer leaves the ledger |
+| `verdict` | five columns: `vet(schema, data)` must produce the verdict `expect` names under `verdict`, one name or a list of the names it may be; options ride `opts`; the runner compares nothing else in the report. The definition under `spec/` generates the rows of `def-fragment.tsv`, and a row that `spec/ledger.tsv` names must fail, so a case the engine comes to answer leaves the ledger |
 | `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), message included |
 | `query` | five columns: `get(src, path)` must produce the report `expect` describes (`out`, or `code`/`note`; options ride `opts`), and a canon-shaped VIEW must additionally SUBSUME the truth it summarises |
 | `why`   | five columns: `why(src, path)` must produce the record `expect` describes (`value` and the ordered `conjuncts`, or `code`/`note`) |
