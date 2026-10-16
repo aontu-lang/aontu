@@ -102,7 +102,7 @@ capability decision is the phase rows it governed in
 
 ## ADR-001 — TypeScript and Go stay at full parity, driven by a shared spec
 
-**Status:** Accepted
+**Status:** Amended by [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it)
 
 ### Context
 
