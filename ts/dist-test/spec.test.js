@@ -240,9 +240,32 @@ function rowAontu(row) {
         ? { trust: { include: { root: FIXTURES_DIR } } }
         : {});
 }
+// The definition's rows (docs/design/DEFINITION.0.md): the golden names
+// the verdict, or the verdicts it may be, and nothing else in the
+// report is compared.
+function runVerdict(row) {
+    const golden = JSON.parse(row.expect);
+    const want = Array.isArray(golden.verdict) ? golden.verdict : [golden.verdict];
+    const got = (0, aontu_1.vet)(row.src, row.data, golden.opts).verdict;
+    const agrees = want.includes(got);
+    if (row.ledgered) {
+        Assert.ok(!agrees, `ledgered case now agrees with the definition (${got});` +
+            ` remove it from spec/ledger.tsv: ${row.name}`);
+    }
+    else {
+        Assert.ok(agrees, `verdict mismatch: ${row.name}: want ${want.join('|')}, got ${got}`);
+    }
+}
 // Execute one spec row. Shared by the TSV-driven tests above and the
 // gens-mode self-test below, so both go through the same comparison.
 function runRow(row) {
+    // A verdict row needs no engine of its own: vet builds what it runs,
+    // and the rows of the definition would pay 11 ms each for one they
+    // never use.
+    if ('verdict' === row.mode) {
+        runVerdict(row);
+        return;
+    }
     const a0 = rowAontu(row);
     // Fresh context per row carrying the shared $var test variables.
     const ctx = makeVarsCtx(a0);
@@ -281,22 +304,6 @@ function runRow(row) {
         const opts = golden.opts;
         delete golden.opts;
         Assert.strictEqual(vetGolden((0, aontu_1.vet)(row.src, row.data, opts)), (0, aontu_1.exactJSON)(golden), `vet report mismatch: ${row.name}`);
-    }
-    else if ('verdict' === row.mode) {
-        // The definition's rows (docs/design/DEFINITION.0.md): the golden
-        // names the verdict, or the verdicts it may be, and nothing else in
-        // the report is compared.
-        const golden = JSON.parse(row.expect);
-        const want = Array.isArray(golden.verdict) ? golden.verdict : [golden.verdict];
-        const got = (0, aontu_1.vet)(row.src, row.data, golden.opts).verdict;
-        const agrees = want.includes(got);
-        if (row.ledgered) {
-            Assert.ok(!agrees, `ledgered case now agrees with the definition (${got});` +
-                ` remove it from spec/ledger.tsv: ${row.name}`);
-        }
-        else {
-            Assert.ok(agrees, `verdict mismatch: ${row.name}: want ${want.join('|')}, got ${got}`);
-        }
     }
     else if ('subsume' === row.mode) {
         // Same golden discipline as vet: `opts` rides the expect object.

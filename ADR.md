@@ -6542,7 +6542,7 @@ answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
   CI job that fetches it by hash is `spec/ci.patch`, applied by an
   account with the `workflow` scope, which a push from an agent
   session may lack.
-- The TypeScript runner spends about four minutes on the first 9,600
+- The TypeScript runner spends about two minutes on the first 9,600
   rows and the Go runner three seconds; the exhaustive set is bounded
   per phase, and that cost is the first figure the design note's
   phases record.
