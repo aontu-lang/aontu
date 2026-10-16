@@ -1,8 +1,8 @@
 # The formal definition — design note
 
-Status: PROPOSED; P0 in progress. The prototype named in §3 is
-committed under `spec/` as P0's seed, with its cases and its ledger;
-nothing else is built.
+Status: P0 LANDED 2026-10-16 (ADR-069); P1 to P7 not started. The
+prototype of §3 is under `spec/`, its rows under `test/spec/`, and both
+ports' runners hold the engines to them.
 Date: 2026-10-16
 Prompted by: the G12 walkthrough of 2026-10-15. The owner ruled that
 an ADR records a software architecture decision and not a language
@@ -174,9 +174,8 @@ with a header naming the generator and the fragment, so a change in
 what the definition expects is a diff a reviewer reads. They are
 generated copies in the sense `ts/dist`, `sigdecl` and the help corpus
 already are: `make spec` regenerates them, and CI fails when the
-committed file differs from a fresh one. Until the `verdict` mode
-exists in both runners, the prototype's cases sit in
-`spec/cases/fragment.tsv` in the oracle's own four columns.
+committed file differs from a fresh one. The mode is in both runners
+since P0, and the first file is `test/spec/def-fragment.tsv`.
 
 **How they are compared.** By the spec runners both ports already
 have, which read every `.tsv` under `test/spec/`: a generated row runs
@@ -219,7 +218,9 @@ suite tests.
   pinned release archive by hash (elan's self-update check does not
   pass the build proxy), `lake build`, regenerate the rows and diff
   them against the committed copies. The ports' own jobs run the rows.
-  `make spec` runs the same locally.
+  `make spec` runs the same locally. The job is `spec/ci.patch`,
+  applied by hand (ruled 2026-10-16), since a workflow edit needs the
+  `workflow` scope a push from an agent session may lack.
 
 The one trusted piece is the printer, and from P1 the reader beside
 it: it is the only place the abstract syntax meets aontu text, and a
@@ -229,12 +230,13 @@ value and asking both ports for its canon.
 
 ## 6. Phases
 
-Sizes follow the register's S, M and L. The register gets a row per
-phase when P0 lands, under its same-commit rule.
+Sizes follow the register's S, M and L. This note's status line tracks
+the phases, as the other design notes do; the register holds the gap
+documents only.
 
 | Phase | Lands | Exit |
 |---|---|---|
-| **P0**: the seed (S) | `spec/` as a Lake project holding the prototype, its cases and its ledger (done); the `verdict` mode and the ledger read in both runners; the cases as `test/spec/def-*.tsv` rows; `make spec`; the CI job; the ADR of §1 | the build runs in CI and every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own |
+| **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job as `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about four minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
 | **P1**: data and scalars (M) | the data model with shown numbers and the two read modes; the four numeric leaves as predicates; `string` and `string & empty()`; literals; the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique`; `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers; `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
@@ -253,9 +255,8 @@ canon and hash obligation of §1.
 
 ## 7. Decisions: ruled and open
 
-Each changes a rule. Three were ruled on 2026-10-16 and stand here
-until the phase that encodes them lands; the other two need the
-owner's ruling.
+Each changes a rule. All five were ruled on 2026-10-16 and stand here
+until the phase that encodes each lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
    `error`. An alias admitted only through itself
@@ -282,7 +283,7 @@ owner's ruling.
 3. **Error codes.** The codes are append-only and the ports agree on
    them row by row. In the definition they would be a function from a
    refusal's shape to a code, which is a large table to prove anything
-   about. Proposed: out, with the verdict classes in.
+   about. Ruled 2026-10-16: out, with the verdict classes in.
 4. **The record of a language change.** Ruled 2026-10-16: the Lean
    diff and the CHANGELOG, as §4 says, and no numbered log beside the
    ADRs; one is cheap to add later and expensive to backfill, so the
@@ -290,7 +291,8 @@ owner's ruling.
 5. **The vet modes.** `--no-fill` and `--exact-numbers` change what
    `valid` means, so they are parameters of the definition rather than
    options of a CLI; the definition then states what the default mode
-   admits that the JSON Schema mode refuses. Proposed: parameters.
+   admits that the JSON Schema mode refuses. Ruled 2026-10-16:
+   parameters.
 
 ## 8. Risks
 
@@ -300,6 +302,6 @@ owner's ruling.
 | The printer is wrong and the differential compares the wrong thing | the canon check of §5; the printer is under a hundred lines |
 | Exact decimals and the shown form make the data model heavy | P1 models the number the reference describes, and takes `Rat` from a library only if the owned representation proves slower to reason about |
 | Positivity blocks trial schemas inside values | decision 2 of §7, settled at P3 before P4 is started |
-| The exhaustive oracle grows past what CI can run | the exhaustive set is bounded per phase and the random set is seeded; the sketch's 9,600 cases run in under two minutes |
+| The exhaustive oracle grows past what CI can run | the exhaustive set is bounded per phase and the random set is seeded; the first 9,600 rows cost the TypeScript runner about four minutes and the Go runner three seconds, so the bound is set with that figure in view |
 | The definition and the reference drift | each reference section cites its rule from P7 on, and the link check already reads every tracked page |
 | A library dependency brings the network into the build | core Lean until a phase proves the need, and the release archive pinned by hash either way |

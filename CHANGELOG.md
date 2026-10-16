@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### The language is defined in Lean, and the ports implement it (ADR-069)
+
+Both ports.
+
+- A new shared mode, `verdict`: five columns, `vet(schema, data)` must
+  produce the verdict the expectation names, or one of the names it
+  may be, and nothing else in the report is compared. The 9,600 rows of
+  `test/spec/def-fragment.tsv` are generated from the formal definition
+  under `spec/` by `make spec`, never written by hand, and both spec
+  runners read `spec/ledger.tsv`, the 42 cases the engines do not yet
+  answer as the definition does, each with its cause and which side
+  moves: a listed case that comes to agree fails the run. The design is
+  `docs/design/DEFINITION.0.md`.
+- `spec/`: a Lake project on Lean 4.15.0, core only, holding the
+  definition's first fragment, with every proof checked by `lake
+  build`. The CI job that runs it is `spec/ci.patch`, to apply by hand.
+
 ### the round trip through JSON Schema (G12 phase 18)
 
 Both ports.
