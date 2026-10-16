@@ -1,0 +1,9 @@
+name = "aontu-spec"
+defaultTargets = ["Aontu", "oracle"]
+
+[[lean_lib]]
+name = "Aontu"
+
+[[lean_exe]]
+name = "oracle"
+root = "Oracle"
