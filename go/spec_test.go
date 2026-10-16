@@ -48,6 +48,7 @@ func TestSpec(t *testing.T) {
 	if len(files) == 0 {
 		t.Fatalf("no .tsv spec files found in %s", specDir)
 	}
+	ledger := specLedger(t, specDir)
 
 	total := 0
 	for _, file := range files {
@@ -71,7 +72,8 @@ func TestSpec(t *testing.T) {
 			if 1 < len(parts) {
 				mode = parts[1]
 			}
-			vetRow := "vet" == mode || "subsume" == mode || "query" == mode ||
+			vetRow := "vet" == mode || "verdict" == mode || "subsume" == mode ||
+				"query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode
@@ -84,6 +86,7 @@ func TestSpec(t *testing.T) {
 					file, lineno+1, want, mode, len(parts))
 			}
 			name := parts[0]
+			ledgered := strings.HasPrefix(file, "def-") && ledger[name]
 			src := strings.ReplaceAll(unescapeSpec(parts[2]), "__FIXTURES__", fixturesDir)
 			data := ""
 			expect := unescapeSpec(parts[3])
@@ -192,6 +195,30 @@ func TestSpec(t *testing.T) {
 					if got != want {
 						t.Fatalf("vet report mismatch\n schema: %q\n data:   %q\n want: %s\n got:  %s",
 							src, data, want, got)
+					}
+				case "verdict":
+					// The definition's rows (docs/design/DEFINITION.0.md):
+					// the golden names the verdict, or the verdicts it may
+					// be, and nothing else in the report is compared.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					opts := specVetOpts(t, golden["opts"])
+					want := specVerdicts(t, golden["verdict"])
+					got := Vet(src, data, opts).Verdict
+					agrees := false
+					for _, w := range want {
+						if w == got {
+							agrees = true
+						}
+					}
+					if ledgered && agrees {
+						t.Fatalf("ledgered case now agrees with the definition (%s); remove it from spec/ledger.tsv", got)
+					}
+					if !ledgered && !agrees {
+						t.Fatalf("verdict mismatch\n schema: %q\n data:   %q\n want: %s\n got:  %s",
+							src, data, strings.Join(want, "|"), got)
 					}
 				case "hcanon":
 					v, err := a.UnifyVars(src, vars)
@@ -910,6 +937,77 @@ func specVetGolden(t *testing.T, report VetReport) string {
 }
 
 // specVetOpts reads the run's options out of the golden's `opts` key.
+// The cases the definition's rows (test/spec/def-fragment.tsv) expect and
+// the engine does not yet answer, spec/ledger.tsv: each must keep failing
+// until its cause is fixed, and a name the rows do not carry is stale.
+const specLedgerBound = 42
+
+func specLedger(t *testing.T, specDir string) map[string]bool {
+	t.Helper()
+	names := map[string]bool{}
+	data, err := os.ReadFile(filepath.Join(specDir, "..", "..", "spec", "ledger.tsv"))
+	if err != nil {
+		return names
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		names[strings.SplitN(line, "\t", 2)[0]] = true
+	}
+	if specLedgerBound < len(names) {
+		t.Fatalf("spec/ledger.tsv holds %d rows, above its bound of %d", len(names), specLedgerBound)
+	}
+	defined := map[string]bool{}
+	entries, err := os.ReadDir(specDir)
+	if err != nil {
+		t.Fatalf("cannot read spec dir %s: %v", specDir, err)
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), "def-") || !strings.HasSuffix(e.Name(), ".tsv") {
+			continue
+		}
+		rows, err := os.ReadFile(filepath.Join(specDir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		for _, line := range strings.Split(string(rows), "\n") {
+			line = strings.TrimSuffix(line, "\r")
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			defined[strings.SplitN(line, "\t", 2)[0]] = true
+		}
+	}
+	for name := range names {
+		if !defined[name] {
+			t.Fatalf("spec/ledger.tsv names %s, which no row of the definition carries", name)
+		}
+	}
+	return names
+}
+
+func specVerdicts(t *testing.T, raw any) []string {
+	t.Helper()
+	switch v := raw.(type) {
+	case string:
+		return []string{v}
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, x := range v {
+			s, ok := x.(string)
+			if !ok {
+				t.Fatalf("verdict is not a string: %v", x)
+			}
+			out = append(out, s)
+		}
+		return out
+	}
+	t.Fatalf("verdict is not a string or a list: %v", raw)
+	return nil
+}
+
 func specVetOpts(t *testing.T, raw any) *VetOptions {
 	t.Helper()
 	if nil == raw {

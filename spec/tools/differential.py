@@ -1,11 +1,13 @@
-"""Run the oracle's cases through both aontu CLIs and compare verdicts.
+"""Run the definition's rows through both aontu CLIs and compare verdicts.
 
-One document per value, its data cases as keys, so a value whose schema
-alone refuses (verdict `error`) stops only its own run. Every case the
-ports answer differently from the definition is written to
-<workdir>/disagreements.tsv, one row per case, for the ledger.
+Reads the five-column `verdict` rows the oracle writes
+(test/spec/def-fragment.tsv), batches the instances of each schema into
+one document per port, so a schema that alone refuses (verdict `error`)
+stops only its own run, and writes every case the ports answer
+differently from the definition to <workdir>/disagreements.tsv, one row
+per case, for spec/ledger.tsv.
 
-Usage: python3 -I differential.py <cases.tsv> <workdir> <go-cli> <ts-cli-js>
+Usage: python3 -I differential.py <def-rows.tsv> <workdir> <go-cli> <ts-cli-js>
 """
 import json
 import os
@@ -16,17 +18,21 @@ import time
 from collections import Counter, OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
-cases_path, work, go_cli, ts_js = sys.argv[1:5]
+rows_path, work, go_cli, ts_js = sys.argv[1:5]
 os.makedirs(work, exist_ok=True)
 ports = {"go": [go_cli], "ts": ["node", ts_js]}
+KEY = "v: "
 
 groups = OrderedDict()
-with open(cases_path) as f:
+with open(rows_path) as f:
     for line in f:
         if line.startswith("#") or not line.strip():
             continue
-        cid, src, data, verdict = line.rstrip("\n").split("\t")
-        groups.setdefault(src, []).append((cid, data, verdict))
+        name, mode, schema, data, expect = line.rstrip("\n").split("\t")
+        assert mode == "verdict" and schema.startswith(KEY) and data.startswith(KEY), name
+        want = json.loads(expect)["verdict"]
+        verdict = "admit" if want == "valid" else "refuse"
+        groups.setdefault(schema[len(KEY):], []).append((name, data[len(KEY):], verdict))
 
 
 def run(item):

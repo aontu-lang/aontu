@@ -1,5 +1,5 @@
 # The ledger of spec/ (docs/design/DEFINITION.0.md, section 5): one row per
-# case of cases/fragment.tsv the ports do not answer as the definition does,
+# row of test/spec/def-fragment.tsv the ports do not answer as the definition does,
 # the answer each side gives, which side moves, and the cause. Both ports
 # answer every listed case alike. A listed case that comes to agree fails
 # the run. Bounded at 42.

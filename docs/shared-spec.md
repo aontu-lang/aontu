@@ -24,12 +24,13 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
-Nine modes take a FIFTH column. `vet` validates a data document
-against a schema document, `subsume` compares two documents, `query`
+Ten modes take a FIFTH column. `vet` validates a data document
+against a schema document, `verdict` does the same and compares the
+verdict alone, `subsume` compares two documents, `query`
 and `why` each select a path within one, and `patch` carries the
 overlay and the assignments as a JSON object, `diff` carries the
 second document, `agentsmd` carries the name to call the document, and
@@ -43,6 +44,7 @@ rather than a format change:
 
 ```
 name <TAB> vet <TAB> schema <TAB> data <TAB> expect
+name <TAB> verdict <TAB> schema <TAB> data <TAB> expect
 name <TAB> subsume <TAB> general <TAB> specific <TAB> expect
 name <TAB> query <TAB> src <TAB> path <TAB> expect
 name <TAB> why <TAB> src <TAB> path <TAB> expect
@@ -64,6 +66,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `errc`  | `generate(src)` must raise an error whose FIRST failure's why-code **equals** `expect` |
 | `errcode` | registry row: `name` is an error code, `src` its class, `expect` its since-version: asserted against the engine's code→class table |
 | `vet`   | five columns: `vet(schema, data)` must produce the report `expect` describes, MINUS each finding's message |
+| `verdict` | five columns: `vet(schema, data)` must produce the verdict `expect` names under `verdict`, one name or a list of the names it may be; options ride `opts`; nothing else in the report is compared. The rows of `def-fragment.tsv` are generated from the definition under `spec/`, and a row that `spec/ledger.tsv` names must fail, so a case the engine comes to answer leaves the ledger |
 | `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), message included |
 | `query` | five columns: `get(src, path)` must produce the report `expect` describes (`out`, or `code`/`note`; options ride `opts`), and a canon-shaped VIEW must additionally SUBSUME the truth it summarises |
 | `why`   | five columns: `why(src, path)` must produce the record `expect` describes (`value` and the ordered `conjuncts`, or `code`/`note`) |

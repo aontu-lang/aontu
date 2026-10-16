@@ -1,4 +1,4 @@
-.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go \
+.PHONY: all build test clean build-ts build-go test-ts test-go clean-ts clean-go spec \
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
         helpdoc aontu formats formatgen unicodegen vocabularies metaschemas prose \
@@ -199,6 +199,16 @@ build-go:
 
 test-go:
 	cd go && go test -v ./...
+
+# THE DEFINITION (spec/, docs/design/DEFINITION.0.md): check every proof,
+# regenerate the rows the definition writes into test/spec/, and fail if
+# the committed copy differs, as the coverage job does for ts/dist. Needs
+# lean and lake from the release spec/lean-toolchain names on PATH; the
+# CI job that installs them is spec/ci.patch, applied by hand.
+spec:
+	cd spec && lake build
+	cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
+	git diff --exit-code --stat -- test/spec/def-fragment.tsv
 
 clean-go:
 	cd go && go clean

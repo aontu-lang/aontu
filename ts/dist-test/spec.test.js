@@ -62,6 +62,39 @@ const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 // source as a quoted @"..." load target, where backslashes would be parsed
 // as string escapes (\t -> tab, \a -> a, ...) and corrupt the path.
 const FIXTURES_DIR = Path.join(SPEC_DIR, 'files').replaceAll('\\', '/');
+const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv');
+const LEDGER_BOUND = 42;
+function loadLedger() {
+    const names = new Set();
+    if (!Fs.existsSync(LEDGER)) {
+        return names;
+    }
+    for (const line of Fs.readFileSync(LEDGER, 'utf8').split('\n')) {
+        const row = line.replace(/\r$/, '');
+        if ('' !== row && !row.startsWith('#')) {
+            names.add(row.split('\t')[0]);
+        }
+    }
+    if (LEDGER_BOUND < names.size) {
+        throw new Error(`spec/ledger.tsv holds ${names.size} rows, above its bound of ${LEDGER_BOUND}`);
+    }
+    const defined = new Set();
+    for (const file of Fs.readdirSync(SPEC_DIR)
+        .filter((f) => f.startsWith('def-') && f.endsWith('.tsv'))) {
+        for (const line of Fs.readFileSync(Path.join(SPEC_DIR, file), 'utf8').split('\n')) {
+            const row = line.replace(/\r$/, '');
+            if ('' !== row && !row.startsWith('#')) {
+                defined.add(row.split('\t')[0]);
+            }
+        }
+    }
+    for (const name of names) {
+        if (!defined.has(name)) {
+            throw new Error(`spec/ledger.tsv names ${name}, which no row of the definition carries`);
+        }
+    }
+    return names;
+}
 function unescape(s) {
     let out = '';
     for (let i = 0; i < s.length; i++) {
@@ -78,6 +111,7 @@ function unescape(s) {
 }
 function loadRows() {
     const rows = [];
+    const ledger = loadLedger();
     const files = Fs.readdirSync(SPEC_DIR)
         .filter((f) => f.endsWith('.tsv'))
         .filter((f) => 'signature.tsv' !== f)
@@ -93,7 +127,8 @@ function loadRows() {
                 continue;
             }
             const parts = line.split('\t');
-            const vetRow = 'vet' === parts[1] || 'subsume' === parts[1] ||
+            const vetRow = 'vet' === parts[1] || 'verdict' === parts[1] ||
+                'subsume' === parts[1] ||
                 'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
                 'diff' === parts[1] || 'agentsmd' === parts[1] ||
                 'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
@@ -112,6 +147,7 @@ function loadRows() {
                 src: unescape(parts[2]).replaceAll('__FIXTURES__', FIXTURES_DIR),
                 data: vetRow ? unescape(parts[3]) : undefined,
                 expect: unescape(parts[vetRow ? 4 : 3]),
+                ledgered: file.startsWith('def-') && ledger.has(parts[0]),
             });
         }
     }
@@ -245,6 +281,22 @@ function runRow(row) {
         const opts = golden.opts;
         delete golden.opts;
         Assert.strictEqual(vetGolden((0, aontu_1.vet)(row.src, row.data, opts)), (0, aontu_1.exactJSON)(golden), `vet report mismatch: ${row.name}`);
+    }
+    else if ('verdict' === row.mode) {
+        // The definition's rows (docs/design/DEFINITION.0.md): the golden
+        // names the verdict, or the verdicts it may be, and nothing else in
+        // the report is compared.
+        const golden = JSON.parse(row.expect);
+        const want = Array.isArray(golden.verdict) ? golden.verdict : [golden.verdict];
+        const got = (0, aontu_1.vet)(row.src, row.data, golden.opts).verdict;
+        const agrees = want.includes(got);
+        if (row.ledgered) {
+            Assert.ok(!agrees, `ledgered case now agrees with the definition (${got});` +
+                ` remove it from spec/ledger.tsv: ${row.name}`);
+        }
+        else {
+            Assert.ok(agrees, `verdict mismatch: ${row.name}: want ${want.join('|')}, got ${got}`);
+        }
     }
     else if ('subsume' === row.mode) {
         // Same golden discipline as vet: `opts` rides the expect object.
