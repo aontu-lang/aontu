@@ -89,6 +89,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 		ev, err := e.Gen(ctx)
 		if err != nil {
 			if ctx != nil && ctx.collect {
+				ctx.dropped = true
 				continue
 			}
 			return nil, err

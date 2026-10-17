@@ -23,6 +23,7 @@ type Ctx struct {
 	settle bool
 	vars   map[string]Val // user-provided variables, resolved by $name
 	collect bool
+	dropped bool
 	probe bool
 	snapmap map[string]Val
 	referflows map[string]Val

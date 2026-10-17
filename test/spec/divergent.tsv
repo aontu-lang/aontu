@@ -68,52 +68,18 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- an include CYCLE is reported at a different site, with a
-#   different path spelling, and with the chain rendered in TS only.
-#   issue: none filed yet; found 2026-08-27 while landing the module
-#   distribution fixes (use-cases/REVIEW.md finding H). NOT introduced
-#   by that work -- it reproduces on a plain two-file include cycle with
-#   no modules involved, and is recorded here because the modself
-#   fixture now reaches the guard that exposes it.
-#
-#   Divergent input:  a.aontu `x: @"b.aontu"`, b.aontu `y: @"b.aontu"` `z: @"a.aontu"`
-#   TypeScript: [aontu/multisource_cycle] at b.aontu:1:4, naming the
-#               RESOLVED path (/tmp/cyc/b.aontu), hint chain rendered
-#               `/tmp/cyc/b.aontu -> /tmp/cyc/b.aontu`
-#   Go:         [aontu/multisource_cycle] at a.aontu:1:4, naming the
-#               SPELLING (b.aontu), hint chain rendered as the literal
-#               `{loop}` -- the placeholder is never filled
-#   Both refuse, with the same code and the same exit class, so the
-#   disagreement is in the diagnostic and not in the verdict.
-#
-#   Not simply fixed because all three differences originate in the
-#   pinned @tabnas/multisource (0.5.2, both ports): the code, the
-#   message, the blamed site and the `{loop}` hint placeholder are the
-#   dependency's, not this repository's. Two of the three are arguably
-#   upstream BUGS rather than choices -- an unfilled `{loop}` says
-#   nothing to the reader it was written for, and naming the resolved
-#   absolute path contradicts the site rule finding F established for
-#   every finding this repo does own (a site prints the file as the
-#   entry's own spelling reaches it, so a SARIF upload stays
-#   repo-relative). Fixing it means an upstream change in both ports of
-#   multisource, released together.
-#
-#   No spec row asserts any of it: `mod-nested-has-its-own-root` pins
-#   the CLASS (errc -> syntax), which both ports agree on.
-#
-# ---------------------------------------------------------------------
-#
 # OPEN -- a frame around a source line longer than 333 characters.
-#   issue: none filed yet; found 2026-10-08 while probing JSONTestSuite
+#   issue: #324; found 2026-10-08 while probing JSONTestSuite
 #   for G12 phase 3, on a refusal sited inside a long line. NOT
 #   introduced by that work: any refusal beside such a line shows it.
 #
 #   Divergent input:  a: 1\na: 2\nb: "xxx...x"   (the third line
 #                     holds 1,500 characters; under 333 the two agree)
 #   TypeScript: the frame shows at most 333 characters either side of
-#               the site, and numbers the lines of that window from
-#               the window's start, so a long line is cut and the
-#               excerpt can carry the wrong line numbers
+#               the site, so a long line is cut at either end. The
+#               line numbers were right in every shape re-probed on
+#               2026-10-16, where this entry had said the window can
+#               number them from its own start.
 #   Go:         the frame shows whole lines, numbered from the source
 #
 #   Not simply fixed because the TypeScript frame is drawn by the
@@ -125,25 +91,33 @@
 # ---------------------------------------------------------------------
 #
 # OPEN -- a long flat operator chain overflows the TypeScript parser.
-#   issue: none filed yet; found 2026-10-01 while landing G12 phase 3,
+#   issue: #325; found 2026-10-01 while landing G12 phase 3,
 #   whose importer writes a JSON Schema `enum` as one disjunction. NOT
 #   introduced by that work: it reproduces on a plain document.
 #
 #   Divergent input:  a: 0|1|2|...|1999   (one disjunction of 2,000
-#                     integers; 1,000 members agree)
+#                     integers; 1,900 members agree)
 #                     k0.k1.k2. ... .k4999: 1   (a dotted path of 5,000
 #                     segments, the same fold; found 2026-10-08, where
 #                     Go answers [aontu/no_path] at $, exit 1)
 #   TypeScript: `aontu: unexpected error: Maximum call stack size
-#               exceeded`, exit 1, thrown while parsing
-#   Go:         [aontu/disjunct_no_gen] at $.a, exit 1: the chain
-#               parses and evaluates, and has no default to generate
+#               exceeded`, exit 1, thrown while parsing, from about
+#               1,950 members under Node 24
+#   Go:         [aontu/max_depth] at $, exit 1, from 2,000 members: the
+#               parsed chain is deeper than twice the depth budget. Below
+#               that it parses, evaluates and answers disjunct_no_gen at
+#               $.a, which is what this entry recorded for 2,000 members
+#               until the bound landed on 2026-10-08 (re-probed
+#               2026-10-12).
 #
 #   Not simply fixed because the recursion is in the pinned
 #   @tabnas/expr (TypeScript), whose `evaluation` folds an operator
 #   chain by recursing once per member; flattening it is an upstream
-#   change. Turning the RangeError into `max_depth` here would give a
-#   registered code but still not Go's answer. The importer bounds
+#   change, and @tabnas/expr 0.5.18 still overflows here (2026-10-12).
+#   Turning the RangeError into `max_depth` would now give Go's answer
+#   from 2,000 members, but not between TypeScript's stack limit and
+#   Go's bound, a band whose lower edge moves with the host's stack
+#   size. The importer bounds
 #   what it writes instead: a disjunction or meet of more than 32
 #   members is nested in groups of at most 32 (ADR-047), so an
 #   imported schema never reaches the limit, while a hand-written chain
@@ -153,7 +127,7 @@
 #
 # OPEN -- a call whose first argument and a later one are negative
 #   overflows the TypeScript parser.
-#   issue: none filed yet; found 2026-10-01 while landing G12 phase 5,
+#   issue: #326; found 2026-10-01 while landing G12 phase 5,
 #   whose importer writes an excluded negative integer as a `neq` over
 #   every leaf. NOT introduced by that work: it reproduces on a plain
 #   document.
@@ -167,29 +141,31 @@
 #
 #   Not simply fixed because the recursion is in the pinned
 #   @tabnas/expr, whose `evaluation` meets a cyclic term for this
-#   argument list. The importer writes a negative first argument in
-#   parentheses, `neq((-1), -2, -3)`, which both parsers read, so an
-#   imported schema never reaches the defect.
+#   argument list, and 0.5.18 still overflows (2026-10-12). The importer
+#   writes a negative first argument in parentheses, `neq((-1), -2, -3)`,
+#   which both parsers read, so an imported schema never reaches the
+#   defect.
 #
 # ---------------------------------------------------------------------
 #
 # OPEN -- a reference cycle through trial schemas that never reaches a
 #   value is cut at a different point, so the two engines answer it
 #   differently.
-#   issue: none filed yet; found 2026-10-01 by the parity probe while
-#   landing G12 phase 5.
+#   issue: #329; found 2026-10-01 by the parity probe while landing
+#   G12 phase 5.
 #
 #   Divergent input:  %A = nof(1, null, %B)
 #                     %B = nof(1, number, %A)
 #                     a: %A
 #                     vetted against {"a": 5}
-#   TypeScript: verdict valid. The innermost repetition fails inside an
-#               admission trial, which counts as a refusal, so %B's
-#               `number` branch is the one that admits.
+#   TypeScript: verdict invalid, nof at $.a, expected
+#               nof(1,nof(1,%A,number),null). This entry recorded
+#               `valid` until it was re-probed on 2026-10-16.
 #   Go:         verdict error, unify_cycle at $.%A.
 #   The same split shows for `a: nof(1, $.b)` beside `b: nof(1, $.a)`
-#   against {"a": 1, "b": 1}: TypeScript refuses both with `nof`, and
-#   Go reports unify_cycle.
+#   against {"a": 1, "b": 1}: TypeScript refuses $.a and $.b with
+#   `nof`, and Go reports unify_cycle at $.a. Neither port accepts the
+#   data, but TypeScript blames the data and Go the schema.
 #
 #   Not simply fixed because the right reading is an open design
 #   question: whether a trial that cannot decide, the schemas recursing
@@ -205,7 +181,7 @@
 #
 # OPEN -- the SITE of a reference that names nothing, in the first
 #   argument of a call of two or more arguments.
-#   issue: none filed yet; found 2026-10-01 while landing G12 phase 6.
+#   issue: #327; found 2026-10-01 while landing G12 phase 6.
 #   NOT introduced by that work: `must` has always shown it.
 #
 #   Divergent input:  a: must($.t, "m")   vetted against {"a": "s"}
@@ -215,6 +191,10 @@
 #   TypeScript: no_path sited at col 10, len 1, src ".": the `.` inside
 #               the reference.
 #   Go:         no_path sited at col 4, len 4, src "must": the call.
+#   The shape of the first argument moves both sites, found 2026-10-12:
+#   `a: must($.t & string, "m")` is sited at the `$` (col 9) in
+#   TypeScript and at the `(` (col 8) in Go, while `must(($.t), "m")`
+#   and `must(min($.t), "m")` are sited alike in both.
 #
 #   Not simply fixed because neither site is the one a reader wants,
 #   the reference's own span from its `$`, and moving either changes
@@ -429,22 +409,22 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- a finding inside a value that arrived by a reference to a
+# OPEN -- a key MISSING under a value that arrived by a reference to a
 #   DEEPER target is reported at a path that does not exist, in
 #   TypeScript only.
-#   issue: none filed yet; found 2026-08-27 while landing the money wire
+#   issue: #330; found 2026-08-27 while landing the money wire
 #   convention (use-cases/REVIEW.md finding I), by running both engines
 #   on the same document and diffing.
 #
 #   The trigger is a DEPTH MISMATCH between the reference and its
-#   target, not the kind of finding: TypeScript's clone overlays the
-#   referring path onto the target's, so a target one level deeper than
-#   the referring field leaves exactly one stale segment behind. At
-#   EQUAL depth the two ports agree, which is what the two rows
+#   target: TypeScript's clone overlays the referring path onto the
+#   target's, so a target one level deeper than the referring field
+#   leaves exactly one stale segment behind. At EQUAL depth the two
+#   ports agree, which is what the two rows
 #   vet-ref-clone-names-the-key-not-the-record and
 #   vet-type-alias-names-the-key-not-the-record in vet.tsv pin, and why
-#   use-cases/10-data-model/money-wire.aontu declares its types at the any
-#   level rather than under a `schema:` namespace.
+#   use-cases/10-data-model/money-wire.aontu declares its types at the
+#   top level rather than under a `schema:` namespace.
 #
 #   Divergent input:  schema `schema:{M:type(close({a:string&re("^x$")}))}`
 #                     `quote: $.schema.M`
@@ -452,9 +432,10 @@
 #     TypeScript: mapval_required at $.quote.M.a   (no such path in
 #                 either document -- the alias's own key is in the tail)
 #     Go:         mapval_required at $.quote.a     (correct)
-#     with data `{"quote":{"a":"y"}}`  -- a conflict, same shape
-#     TypeScript: constraint at $.quote.M.a
-#     Go:         constraint at $.quote.a
+#   A conflict in the same shape, data `{"quote":{"a":"y"}}`, was
+#   recorded here at $.quote.M.a in TypeScript. Both ports now answer
+#   constraint at $.quote.a (re-probed 2026-10-16), so only the missing
+#   key still keeps the stale segment.
 #
 #   The nil's own path is already taken from the driving context where
 #   that EXTENDS the operand's path (use-cases/BUGS.md §41), which fixes
@@ -559,50 +540,10 @@
 #
 # ---------------------------------------------------------------------
 #
-# OPEN -- the SITE of a MERGED CONTAINER that the meet minted: sited by
-#   TypeScript at the schema's own brace, unsited by Go.
-#   issue: none filed yet; found 2026-08-27 while pinning the sizing
-#   soundness fix (use-cases/BUGS.md 16), by probing a row through both
-#   library forms and diffing.
-#
-#   Divergent input:  schema `x: len(min(2)) & { &: {r: integer} }`,
-#                     data `{"x": {"a": {"r": 1}}}`
-#   TypeScript: the finding's schema site is len 1, src "{"
-#   Go:         the same site is len -1, src "" (unsited)
-#   Everything else agrees: verdict `incomplete`, code `constraint`,
-#   path `$.x`, expected and actual, and the OTHER site.
-#
-#   Not simply fixed because it is the same question the existing
-#   `vet-minted-arith-operand-unsited` row settles the other way for a
-#   minted SCALAR -- a value the meet built has no source text of its
-#   own, and Go says so while TypeScript lends it the brace of the
-#   fragment it grew from. Which is right is a finding-F decision about
-#   what a site MEANS for a value nobody wrote, and it wants answering
-#   once for every minted value rather than per shape.
-#
-#   The SAME divergence shows in a finding's PATH, not just its site,
-#   and reaches `--at`: anchoring ON a residuated container
-#   (`x: len(min(2)) & {a: 1}` with `--at $.x`) has TypeScript report
-#   the conflict at `$` and Go at `$.x`, because the path is taken from
-#   whichever operand's location wins and TypeScript has re-pathed the
-#   merged container to the meet position. Both ports still answer
-#   `invalid`, so the SOUNDNESS agrees; only where they say it is
-#   differs. Anchoring THROUGH a residue to a child (`--at $.x.a`)
-#   agrees byte for byte, and is pinned by
-#   `vet-at-steps-through-a-sizing-residue`.
-#
-#   The soundness this shape was probed for is pinned instead by
-#   `vet-sizing-min-still-short-in-the-data`,
-#   `vet-sizing-min-met-by-the-data` and
-#   `vet-sizing-min-survives-beside-a-container` in vet.tsv, whose
-#   containers the meet does not mint and which both ports agree on byte
-#   for byte.
-
-#
 # OPEN -- the SITE an alias refusal points at, for a value the parse
 #   HOISTED or a map an include placed: TypeScript names the position
 #   the name was written at, Go the position the value was written at.
-#   issue: none filed yet; found 2026-09-19 while auditing alias parity,
+#   issue: #331; found 2026-09-19 while auditing alias parity,
 #   by running every alias.tsv row through both CLIs and diffing the
 #   whole message rather than the substring the row asserts.
 #
@@ -628,7 +569,7 @@
 #
 # OPEN -- the PATH an alias reference inside an UNINSTANTIATED NESTED
 #   template is refused at: TypeScript names both spread levels, Go one.
-#   issue: none filed yet; found 2026-09-19 in the same audit.
+#   issue: #332; found 2026-09-19 in the same audit.
 #
 #   Divergent input:  `x: { &: [ &: %nosuch ] }`
 #   TypeScript: no_path at $.x.&.&
@@ -645,7 +586,7 @@
 #
 # OPEN -- the PATH a bare-punctuation refusal names in a top-level list:
 #   TypeScript the first element, Go the punctuation itself.
-#   issue: none filed yet; found 2026-09-19 in the same audit. NOT an
+#   issue: #333; found 2026-09-19 in the same audit. NOT an
 #   alias divergence -- it is recorded here because alias.tsv is where
 #   it was found, `=` being the alias declaration operator.
 #
@@ -664,7 +605,7 @@
 # OPEN -- the SITE of a refused operand that the 2020-12 meta-schema's
 #   vocabularies met to make: each port names the ident() call of a
 #   different contributing vocabulary.
-#   issue: none filed yet; found 2026-10-09 while landing G12 phase 16.
+#   issue: #328; found 2026-10-09 while landing G12 phase 16.
 #   NOT introduced by that work: before it, both engines stopped at
 #   `incomplete conjunct@$` on the meta-schema, so no operand of it was
 #   ever refused.

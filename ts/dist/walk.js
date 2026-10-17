@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.walkVals = walkVals;
 exports.settledTrials = settledTrials;
 exports.collectNils = collectNils;
+exports.parseNilIn = parseNilIn;
+const keyorder_1 = require("./keyorder");
 function walkVals(v, visit, seen) {
     if (null == v || 'object' !== typeof v || true !== v.isVal) {
         return;
@@ -89,5 +91,17 @@ function collectNils(root, seen) {
         return true;
     }, walked);
     return out;
+}
+// The parse refusal vet would report inside v, the least by path where
+// there are several, so both ports raise the same one.
+function parseNilIn(v) {
+    let first = undefined;
+    for (const n of collectNils(v, new Set())) {
+        if ('parse' === n.class && (undefined === first ||
+            (0, keyorder_1.cmpCodePoint)(n.path.join('\u0000'), first.path.join('\u0000')) < 0)) {
+            first = n;
+        }
+    }
+    return first;
 }
 //# sourceMappingURL=walk.js.map

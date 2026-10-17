@@ -23,6 +23,7 @@ export type ToolDef = {
         type: string;
         description: string;
         items?: any;
+        additionalProperties?: any;
     }>;
     required: string[];
     docs?: string[];

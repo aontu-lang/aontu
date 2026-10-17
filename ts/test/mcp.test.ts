@@ -20,7 +20,7 @@ import { srcPath } from './srcpath'
 
 const ALL_TOOLS = [
   'breaking', 'canon', 'diff', 'get', 'hash', 'jsonschema',
-  'reaches', 'relations',
+  'jsonschema_import', 'reaches', 'relations',
   'set', 'subsume', 'summary', 'trim', 'vet', 'view', 'why',
 ]
 
@@ -586,6 +586,86 @@ describe('mcp', () => {
       callTool('jsonschema', { source: 'a: @"/etc/passwd"' }))
     Assert.equal(denied.verdict, 'error')
     Assert.equal(denied.errors[0].code, 'include_denied')
+  })
+
+
+  test('jsonschema-import-tool-imports-and-refuses', () => {
+    const ok = payload(callTool('jsonschema_import', {
+      source: '{"properties": {"a": {"const": 1}, "n": {"const": 1}},' +
+        ' "required": ["a"]}',
+    }))
+    Assert.equal(ok.verdict, 'ok')
+    Assert.deepEqual(ok.lossy, [])
+    Assert.deepEqual(ok.vet, ['--no-fill', '--exact-numbers'])
+    Assert.equal(ok.errors, undefined)
+    Assert.equal('object', typeof ok.map)
+
+    // The flags the import names are options of the vet tool, and each
+    // one changes the answer: a member the schema supplies is no
+    // instance, and 1.0 is the number 1.
+    const vetIt = (data: string, flags: any) =>
+      payload(callTool('vet', { schema: ok.text, data, ...flags })).verdict
+    Assert.equal(vetIt('{"n": 1}', {}), 'valid')
+    Assert.equal(vetIt('{"n": 1}', { noFill: true }), 'incomplete')
+    Assert.equal(vetIt('{"a": 1, "n": 1.0}', {}), 'invalid')
+    Assert.equal(vetIt('{"a": 1, "n": 1.0}', { exactNumbers: true }), 'valid')
+
+    const lossy = payload(callTool('jsonschema_import', {
+      source: '{"type": "string", "pattern": "(?=a)"}',
+    }))
+    Assert.equal(lossy.verdict, 'lossy')
+    Assert.equal(lossy.lossy[0].construct, 'pattern')
+
+    const broken = payload(callTool('jsonschema_import', { source: '{' }))
+    Assert.equal(broken.verdict, 'error')
+    Assert.equal(broken.text, '')
+    Assert.equal(broken.errors[0].code, 'jsonschema_schema')
+    Assert.equal(broken.vet, undefined)
+    Assert.equal(broken.map, undefined)
+
+    // Nothing is fetched: a reference reaches what `documents` holds.
+    const ref = { source: '{"$ref": "other.json"}', uri: 'https://x.test/s.json' }
+    Assert.equal(
+      payload(callTool('jsonschema_import', ref)).errors[0].code,
+      'jsonschema_ref')
+    const reached = payload(callTool('jsonschema_import', {
+      ...ref, documents: { 'https://x.test/other.json': '{"type": "string"}' },
+    }))
+    Assert.equal(reached.verdict, 'ok')
+
+    Assert.equal(payload(callTool('jsonschema_import', {
+      source: '{"type": "integer", "minimum": 0, "exclusiveMinimum": true}',
+      dialect: 'draft-04',
+    })).verdict, 'ok')
+    Assert.match(payload(callTool('jsonschema_import', {
+      source: '{"properties": {"p": {"type": "integer", "default": 8080}}}',
+      defaults: true,
+    })).text, /\*8080/)
+    Assert.match(payload(callTool('jsonschema_import', {
+      source: '{"type": "string", "format": "zip"}',
+      formatAssert: true,
+      formats: { zip: 'zip = 5DIGIT\nDIGIT = %x30-39\n' },
+    })).text, /format\(/)
+    // The meta-schema refuses a repeated required name, which the
+    // import alone reads.
+    const twice = { source: '{"required": ["a", "a"]}' }
+    Assert.equal(
+      payload(callTool('jsonschema_import', twice)).verdict, 'error')
+    Assert.equal(payload(callTool('jsonschema_import',
+      { ...twice, noMetaCheck: true })).verdict, 'ok')
+
+    // A table argument that is not text by name, and a defined format,
+    // are calls that could not be made.
+    for (const [args, msg] of [
+      [{ documents: 'x' }, /documents needs an object of text values/],
+      [{ documents: ['x'] }, /documents needs an object of text values/],
+      [{ formats: { zip: 1 } }, /formats needs an object of text values/],
+      [{ formats: { email: 'x = "x"' } }, /formats cannot name email/],
+    ] as [any, RegExp][]) {
+      const r = callTool('jsonschema_import', { source: '{}', ...args })
+      Assert.equal(r.isError, true)
+      Assert.match(r.content[0].text, msg)
+    }
   })
 
 

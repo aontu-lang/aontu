@@ -230,3 +230,8 @@ include-in-place-interleaved	gen	x:11 @"__FIXTURES__/foo.aontu" y:22 @"__FIXTURE
 # another file's coordinates, which docs/reference-api.md forbids in
 # the same words it uses to require the name.
 include-frame-names-its-own-file	err	@"__FIXTURES__/conflict_twelve.aontu"\n@"__FIXTURES__/conflict_six.aontu"	conflict_six.aontu:1:4
+# A source that includes itself is refused at the include that closes
+# the cycle, in the file that writes it, with one message in both ports.
+include-cycle-refused	errc	x: @"__FIXTURES__/cycle_a.aontu"	syntax
+include-cycle-sited-at-the-include-that-closes-it	err	x: @"__FIXTURES__/cycle_a.aontu"	cycle_b.aontu:1:4
+include-cycle-says-the-source-includes-itself	err	x: @"__FIXTURES__/cycle_a.aontu"	source includes itself

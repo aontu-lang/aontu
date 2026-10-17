@@ -1,6 +1,9 @@
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 
 
+import { cmpCodePoint } from './keyorder'
+
+
 export function walkVals(
   v: any,
   visit: (v: any) => boolean,
@@ -102,4 +105,18 @@ export function collectNils(root: any, seen: Set<any>): any[] {
     return true
   }, walked)
   return out
+}
+
+
+// The parse refusal vet would report inside v, the least by path where
+// there are several, so both ports raise the same one.
+export function parseNilIn(v: any): any {
+  let first: any = undefined
+  for (const n of collectNils(v, new Set())) {
+    if ('parse' === n.class && (undefined === first ||
+      cmpCodePoint(n.path.join('\u0000'), first.path.join('\u0000')) < 0)) {
+      first = n
+    }
+  }
+  return first
 }
