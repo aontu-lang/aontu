@@ -12,7 +12,7 @@ namespace Aontu
 
 /-- A literal scalar. A number literal is an integer written without a
 point and without `0d`: `1.5` and `0d5` are literals of the float,
-biginteger and bigdecimal leaves, which the definition does not yet
+biginteger, and bigdecimal leaves, which the definition does not yet
 hold. -/
 inductive Scalar where
   | null

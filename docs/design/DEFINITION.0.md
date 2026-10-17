@@ -1,9 +1,11 @@
 # The formal definition — design note
 
 Status: P0 LANDED 2026-10-16 (ADR-069); P1 PARTIAL: the data model,
-`Aontu/Data.lean`, landed 2026-10-17, read by every module; P2 to P7
-not started. The prototype of §3 is under `spec/`, its rows under
-`test/spec/`, and both ports' runners hold the engines to them.
+the integer leaf, `string` and `string & empty()`, scalar literals, and
+`min`, `max`, and `multiple` landed 2026-10-17, with the prototype
+folded into the one definition §3 lays out; P2 to P7 not started. The
+definition is under `spec/`, its rows under `test/spec/`, and both
+ports' runners hold the engines to them.
 Date: 2026-10-16
 Prompted by: the G12 walkthrough of 2026-10-15. The owner ruled that
 an ADR records a software architecture decision and not a language
@@ -43,8 +45,9 @@ by proof, never by running anything. Lean refuses to execute one
 (`decide (Admits …)` fails to synthesise `Decidable`), which is the line
 between a definition and a fourth implementation. Executable code is
 admitted into the definition only beside a theorem that it agrees with
-the relation it computes, as `check_iff : check v j = true ↔ admits v j`
-does in the sketch. Without that theorem a Lean program is a third port
+the relation it computes, as
+`check_iff : check v j = true ↔ Admits env root v j` does for every
+value that reads no reference. Without that theorem a Lean program is a third port
 with no more authority than the other two.
 
 **Authority.** The definition is normative: the TypeScript and Go
@@ -103,29 +106,35 @@ One module per layer:
 
 | Module | Holds |
 |---|---|
-| `Aontu/Data.lean` | JSON as the data model: numbers as exact decimals carrying their shown form, since `integer` reads the number a value shows (ADR-048) and `--exact-numbers` is a read mode |
+| `Aontu/Data.lean` | JSON as the data model: numbers as exact decimals carrying their shown form, since `integer` reads the number a value shows (ADR-048) and `--exact-numbers` is a read mode; the numeric leaves as predicates |
 | `Aontu/Syntax.lean` | the abstract value forms, one constructor per construct; the concrete grammar stays where it is, and a parser is an implementation |
-| `Aontu/Admits.lean` | the admission rules, one per form |
-| `Aontu/Output.lean` | `Gen` and `Output` under a document root: what evaluation singles out, and that it is unique |
+| `Aontu/Admits.lean` | the admission rules, one per form, and `Instance`, admission of a whole document |
+| `Aontu/Output.lean` | from P2: `Gen` and `Output` under a document root, what evaluation singles out, and that it is unique |
 | `Aontu/Order.lean` | `Le` with one root per side, the meet as a greatest lower bound, and one contract per `subsume` profile: `values` against `Le`, the default also against `Output` for the effective default, `gen` also against the marks |
 | `Aontu/Trial.lean` | the trial-schema layer: `nof`, `when`, `contains`, `must`, `rest`, where negation lives (§4, P4) |
-| `Aontu/Verdict.lean` | ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
+| `Aontu/Verdict.lean` | from P5: ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
 | `Aontu/JsonSchema.lean` | `valid` for the 2020-12 fragment, `importNatural`, `importFaithful`, and the export's round-trip contract |
 | `Aontu/Print.lean` | the printer from abstract syntax to aontu text, the one trusted bridge to the ports |
+| `Aontu/Tour.lean` | the examples of [the tutorial](../tutorial-definition.md), each proved |
 | `Oracle.lean` | the executable that enumerates values and instances and prints each case with the definition's verdict |
 
-The prototype that seeds it is under `spec/` as it was run:
-`Aontu/Core.lean` (the meet laws, ADR-045's merge proved exact, the two
-import modes and their contracts, the checker), `Aontu/WhatNotHow.lean`
-(admission as inference rules with aliases, recursion as one rule,
-`%U = %U`, the `subsume` contract and a wrong implementation refuted
-from it), `Aontu/Structures.lean` (maps with optional keys, spreads and
-`close()`, lists, `&`, `|`, `*`, paths, output, and the trial layer,
-each example checked against both CLIs), `Oracle.lean`, the cases it
-printed, the ledger of §5 and the differential runner. All compile on
-Lean 4.15.0 with no `sorry`; no named theorem rests on an axiom beyond
-`propext` and `Quot.sound`, and none on `Classical.choice`.
+Every module but `Output` and `Verdict` is under `spec/`, and they
+are one definition: one model of JSON, one syntax of values, and one
+admission relation, which every other module reads. The prototype of
+2026-10-15 came as three files that each declared their own values and
+their own admission, with integer ranges, literals, and aliases that
+disagreed. On 2026-10-17 it was folded into this layout, each rule
+probed against both CLIs first. What the probes refuted was corrected:
+`integer` is the leaf the number model states, not `|n| ≤ 2^53`; a
+literal is a scalar; an undeclared alias admits nothing. What the
+language reads otherwise than the prototype's rules said was left for
+its phase: `|` and `*`, which P2 must read by position, and with them
+`Output`. The prototype's rule for `%U = %U` was dropped too: §7 rules
+it ill-formed, and the definition has no ill-formed values until P5.
+Everything compiles on Lean 4.15.0 with no `sorry`; no named theorem
+rests on an axiom beyond `propext` and `Quot.sound`, and none on
+`Classical.choice`.
 
 ## 4. How a language decision is made, and recorded
 
@@ -239,8 +248,8 @@ documents only.
 | Phase | Lands | Exit |
 |---|---|---|
 | **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job as `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
-| **P1**: data and scalars (M) | the data model with shown numbers (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`: exact decimals keeping the point, strings, arrays, objects with unique names, paths), and the two read modes; the four numeric leaves as predicates; `string` and `string & empty()`; literals; the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique`; `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states |
-| **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers; `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
+| **P1**: data and scalars (M) | the data model with shown numbers (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`: exact decimals keeping the point, strings, arrays, objects with unique names, paths), and the two read modes; the four numeric leaves as predicates (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, a number literal an integer of that leaf; a point or `0d` waits on the other leaves); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
+| **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |

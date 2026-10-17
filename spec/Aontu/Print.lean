@@ -9,7 +9,7 @@ is the one part of the definition trusted without proof: what the
 engines read a text as is outside Lean, so that it reads this text as
 this value is a claim the rows test rather than a theorem. It prints
 the forms the oracle writes, and answers `none` for a sealed map, a
-list, an alias and a path.
+list, an alias, and a path.
 -/
 
 namespace Aontu

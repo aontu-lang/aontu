@@ -71,6 +71,15 @@ example : ¬ Instance .empty .integer (.int 9007199254740993) := by
     subst hx
     exact absurd hl (by decide)
 
+/-- `integer` refuses `9223372036854775808`, outside the window. -/
+example : ¬ Instance .empty .integer (.int 9223372036854775808) := by
+  intro h
+  cases h with
+  | integer hx hl =>
+    simp [Num.ofInt, Num.int?] at hx
+    subst hx
+    exact absurd hl (by decide)
+
 /-- `integer` refuses `1.5`. -/
 example : ¬ Instance .empty .integer (.dec 15 1) := by
   intro h
@@ -106,6 +115,13 @@ example : Instance .empty .anyString (.str "") := .anyString
 /-- `3` admits `3.0`, whose value is `3`. -/
 example : Instance .empty (.lit (.int 3)) (.dec 3 0) := .int rfl (by decide)
 
+/-- `9223372036854775808` refuses itself: a literal outside the leaf is
+a float, and no number read by value is one. -/
+example : ¬ Instance .empty (.lit (.int 9223372036854775808)) (.int 9223372036854775808) := by
+  intro h
+  cases h with
+  | int _ hl => exact absurd hl (by decide)
+
 /-- `"a"` refuses `"b"`. -/
 example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun h =>
   absurd ((check_iff .lit _).mpr h) (by decide)
@@ -123,6 +139,15 @@ example : ¬ Instance .empty (.min (.ofInt 3)) (.int 2) := by
 
 /-- `min(3)` admits `3.5`. -/
 example : Instance .empty (.min (.ofInt 3)) (.dec 35 1) := .min (by decide)
+
+/-- `max(2.5)` admits `2.5`. -/
+example : Instance .empty (.max ⟨25, 1, true⟩) (.dec 25 1) := .max (by decide)
+
+/-- `max(2.5)` refuses `2.6`. -/
+example : ¬ Instance .empty (.max ⟨25, 1, true⟩) (.dec 26 1) := by
+  intro h
+  cases h with
+  | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits `1.5`. -/
 example : Instance .empty (.multiple ⟨5, 1, true⟩) (.dec 15 1) := .multiple (by decide) (by decide)

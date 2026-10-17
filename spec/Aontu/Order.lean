@@ -12,6 +12,7 @@ order by a contract, which names no algorithm.
 
 namespace Aontu
 
+/-- Every document `a` admits, `b` admits, each read as a whole. -/
 def Le (env : Env) (a b : Val) : Prop := ∀ j, Instance env a j → Instance env b j
 
 notation:50 a:51 " ⊑[" env "] " b:51 => Le env a b
