@@ -1,33 +1,15 @@
+import Aontu.Data
+
 /-!
 # A sketch of a formal aontu definition
 
-A fragment, to show the shape the definition would take: JSON data, a few
-value forms, what a value admits, the order and the meet, one engine rule
-(ADR-045) proved against the definition, and the JSON Schema import in its
-two modes. Core Lean 4 only, no Mathlib.
+A fragment, to show the shape the definition would take: a few value
+forms over the data of `Aontu.Data`, what a value admits, the order and
+the meet, one engine rule (ADR-045) proved against the definition, and
+the JSON Schema import in its two modes. Core Lean 4 only, no Mathlib.
 -/
 
 namespace Aontu
-
-/-- JSON data. Numbers are integers only in this fragment. -/
-inductive Json where
-  | null
-  | bool (b : Bool)
-  | int (n : Int)
-  | str (s : String)
-  | obj (fs : List (String × Json))
-
-def lookup (k : String) : List (String × Json) → Option Json
-  | [] => none
-  | (k', v) :: fs => if k = k' then some v else lookup k fs
-
-def Json.get? : Json → String → Option Json
-  | .obj fs, k => lookup k fs
-  | _, _ => none
-
-def Json.isObj : Json → Bool
-  | .obj _ => true
-  | _ => false
 
 /-- The value forms of the fragment. -/
 inductive Val where
@@ -50,16 +32,17 @@ def keyOk (opt : Bool) (p : Json → Prop) : Option Json → Prop
   | none => opt = true
   | some x => p x
 
-/-- `admits v j`: the JSON `j` is an instance of the value `v`. This is the
-definition every engine answer is held to. -/
+/-- `admits v j`: the JSON `j` is an instance of the value `v`, its numbers
+read by value, as `--exact-numbers` reads them. This is the definition
+every engine answer is held to. -/
 def admits : Val → Json → Prop
   | .top, _ => True
   | .nil, _ => False
-  | .int, j => ∃ n, j = .int n ∧ intRange n
-  | .wholeNum, j => ∃ n, j = .int n
+  | .int, j => ∃ n, j.int? = some n ∧ intRange n
+  | .wholeNum, j => ∃ n, j.int? = some n
   | .str, j => ∃ s, j = .str s ∧ s ≠ ""
   | .anyStr, j => ∃ s, j = .str s
-  | .min m, j => ∃ n, j = .int n ∧ m ≤ n
+  | .min m, j => ∃ x, j = .num x ∧ x.atLeast m
   | .field k opt v, j => j.isObj = true ∧ keyOk opt (admits v) (j.get? k)
   | .meet a b, j => admits a j ∧ admits b j
 
@@ -126,10 +109,11 @@ inductive Schema where
   | typeInteger
   | allOf (a b : Schema)
 
-/-- What a 2020-12 validator answers for the fragment. -/
+/-- What a 2020-12 validator answers for the fragment, where an integer is
+a number whose value is whole, `1.0` included. -/
 def valid : Schema → Json → Prop
   | .typeString, j => ∃ s, j = .str s
-  | .typeInteger, j => ∃ n, j = .int n
+  | .typeInteger, j => ∃ n, j.int? = some n
   | .allOf a b, j => valid a j ∧ valid b j
 
 /-- `--faithful`. -/
@@ -162,7 +146,7 @@ theorem natural_sound (s : Schema) (j : Json) :
     rintro ⟨s, rfl, -⟩; exact ⟨s, rfl⟩
   | typeInteger =>
     simp only [importNatural, admits, valid]
-    rintro ⟨n, rfl, -⟩; exact ⟨n, rfl⟩
+    rintro ⟨n, h, -⟩; exact ⟨n, h⟩
   | allOf a b iha ihb =>
     simp only [importNatural, admits, valid]
     exact fun ⟨ha, hb⟩ => ⟨iha j ha, ihb j hb⟩
@@ -178,7 +162,8 @@ theorem natural_refuses_beyond_float64 :
   refine ⟨⟨_, rfl⟩, ?_⟩
   simp only [importNatural, admits, intRange]
   rintro ⟨n, h, hr⟩
-  cases h
+  simp [Json.int, Json.int?, Num.int?] at h
+  subst h
   revert hr; decide
 
 /-! ## A checker is admitted only with a proof
@@ -191,15 +176,15 @@ for the definition's. Without that theorem it would be a third port. -/
 def check : Val → Json → Bool
   | .top, _ => true
   | .nil, _ => false
-  | .int, .int n => decide (n.natAbs ≤ 9007199254740992)
-  | .int, _ => false
-  | .wholeNum, .int _ => true
-  | .wholeNum, _ => false
+  | .int, j => match j.int? with
+    | some n => decide (n.natAbs ≤ 9007199254740992)
+    | none => false
+  | .wholeNum, j => j.int?.isSome
   | .str, .str s => s != ""
   | .str, _ => false
   | .anyStr, .str _ => true
   | .anyStr, _ => false
-  | .min m, .int n => decide (m ≤ n)
+  | .min m, .num x => decide (x.atLeast m)
   | .min _, _ => false
   | .field k opt v, j =>
     j.isObj && (match j.get? k with
@@ -211,8 +196,12 @@ theorem check_iff (v : Val) (j : Json) : check v j = true ↔ admits v j := by
   induction v generalizing j with
   | top => simp [check, admits]
   | nil => simp [check, admits]
-  | int => cases j <;> simp [check, admits, intRange]
-  | wholeNum => cases j <;> simp [check, admits]
+  | int =>
+    simp only [check, admits]
+    cases j.int? <;> simp [intRange]
+  | wholeNum =>
+    simp only [check, admits]
+    cases j.int? <;> simp
   | str => cases j <;> simp [check, admits]
   | anyStr => cases j <;> simp [check, admits]
   | min m => cases j <;> simp [check, admits]

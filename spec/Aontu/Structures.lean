@@ -1,3 +1,5 @@
+import Aontu.Data
+
 /-!
 # aontu's structures, defined
 
@@ -8,33 +10,7 @@ written. Core Lean 4 only.
 
 namespace Spec
 
-/-! ## Data -/
-
-inductive Json where
-  | null
-  | bool (b : Bool)
-  | num (n : Int)                 -- integers in this sketch; decimals need `Rat`
-  | str (s : String)
-  | arr (xs : List Json)
-  | obj (fs : List (String × Json))
-
-def lookup (k : String) : List (String × Json) → Option Json
-  | [] => none
-  | (k', v) :: fs => if k = k' then some v else lookup k fs
-
-inductive Seg where
-  | key (k : String)
-  | idx (i : Nat)
-
-/-- The part of a document a path names. -/
-def Json.at (j : Json) : List Seg → Option Json
-  | [] => some j
-  | .key k :: p => match j with
-    | .obj fs => (lookup k fs).bind (·.at p)
-    | _ => none
-  | .idx i :: p => match j with
-    | .arr xs => xs[i]?.bind (·.at p)
-    | _ => none
+open Aontu
 
 /-! ## The value forms -/
 
@@ -70,13 +46,13 @@ inductive Admits (env : String → Val) (root : Json) : Val → Json → Prop
   | any {j : Json} : Admits env root .any j
   | null : Admits env root .null .null
   | boolean {b : Bool} : Admits env root .boolean (.bool b)
-  | number {n : Int} : Admits env root .number (.num n)
-  | integer {n : Int} : Admits env root .integer (.num n)
+  | number {x : Num} : Admits env root .number (.num x)
+  | integer {j : Json} {n : Int} : j.int? = some n → Admits env root .integer j
   | string {s : String} : s ≠ "" → Admits env root .string (.str s)
   | anyString {s : String} : Admits env root .anyString (.str s)
   | lit {j : Json} : Admits env root (.lit j) j
-  | min {m n : Int} : m ≤ n → Admits env root (.min m) (.num n)
-  | max {m n : Int} : n ≤ m → Admits env root (.max m) (.num n)
+  | min {m : Int} {x : Num} : x.atLeast m → Admits env root (.min m) (.num x)
+  | max {m : Int} {x : Num} : x.atMost m → Admits env root (.max m) (.num x)
   | len {lo : Nat} {xs : List Json} : lo ≤ xs.length → Admits env root (.len lo) (.arr xs)
   /-- A map: every declared key that is present holds its value; a key that
   is absent is optional; the spread holds every member, declared or not;
@@ -112,17 +88,17 @@ def noAlias : String → Val := fun _ => .any
 
 /-- `[integer, string]` admits `[1, "a", true]`. -/
 example : Admits noAlias .null (.list [.integer, .string] none)
-    (.arr [.num 1, .str "a", .bool true]) := by
+    (.arr [.int 1, .str "a", .bool true]) := by
   refine .list (by decide) ?_ ?_
   · intro i v x hv hx
     rcases i with _ | _ | i
-    · simp at hv hx; subst hv; subst hx; exact .integer
+    · simp at hv hx; subst hv; subst hx; exact .integer rfl
     · simp at hv hx; subst hv; subst hx; exact .string (by decide)
     · simp at hv
   · intro s hs; cases hs
 
 /-- `[integer, string]` refuses `[1]`. -/
-example : ¬ Admits noAlias .null (.list [.integer, .string] none) (.arr [.num 1]) := by
+example : ¬ Admits noAlias .null (.list [.integer, .string] none) (.arr [.int 1]) := by
   intro h
   cases h with
   | list hlen _ _ => simp at hlen
@@ -131,11 +107,11 @@ example : ¬ Admits noAlias .null (.list [.integer, .string] none) (.arr [.num 1
 
 /-- `close({a: integer})` refuses `{"a": 1, "b": 2}`. -/
 example : ¬ Admits noAlias .null (.map [("a", false, .integer)] none true)
-    (.obj [("a", .num 1), ("b", .num 2)]) := by
+    (.obj [("a", .int 1), ("b", .int 2)]) := by
   intro h
   cases h with
   | map _ _ _ hc =>
-    obtain ⟨o, v, hm⟩ := hc rfl "b" (.num 2) (by simp)
+    obtain ⟨o, v, hm⟩ := hc rfl "b" (.int 2) (by simp)
     simp at hm
 
 /-- `close({a?: integer})` admits `{}`. -/
@@ -148,14 +124,14 @@ example : Admits noAlias .null (.map [("a", true, .integer)] none true) (.obj []
 
 /-! ### Disjunction and preference: `*1 | integer` admits 5 -/
 
-example : Admits noAlias .null (.join (.pref (.lit (.num 1))) .integer) (.num 5) :=
-  .joinR .integer
+example : Admits noAlias .null (.join (.pref (.lit (.int 1))) .integer) (.int 5) :=
+  .joinR (.integer rfl)
 
 /-! ### Path references: `{x: $.y, y: integer}` -/
 
 abbrev refDoc : Val := .map [("x", false, .path [.key "y"]), ("y", false, .integer)] none false
 
-abbrev inst (x y : Int) : Json := .obj [("x", .num x), ("y", .num y)]
+abbrev inst (x y : Int) : Json := .obj [("x", .int x), ("y", .int y)]
 
 /-- It admits `{"x": 1, "y": 1}`. -/
 example : Admits noAlias (inst 1 1) refDoc (inst 1 1) := by
@@ -164,7 +140,7 @@ example : Admits noAlias (inst 1 1) refDoc (inst 1 1) := by
     simp at hm
     rcases hm with ⟨rfl, -, rfl⟩ | ⟨rfl, -, rfl⟩
     · simp [lookup] at hx; subst hx; exact .path (by simp [Json.at, lookup])
-    · simp [lookup] at hx; subst hx; exact .integer
+    · simp [lookup] at hx; subst hx; exact .integer rfl
   · intro k o v hm hx
     simp at hm
     rcases hm with ⟨rfl, -, -⟩ | ⟨rfl, -, -⟩ <;> simp [lookup] at hx
@@ -176,9 +152,9 @@ example : ¬ Admits noAlias (inst 1 2) refDoc (inst 1 2) := by
   intro h
   cases h with
   | map hp _ _ _ =>
-    have hx := hp "x" false (.path [.key "y"]) (.num 1) (by simp) (by simp [lookup])
+    have hx := hp "x" false (.path [.key "y"]) (.int 1) (by simp) (by simp [lookup])
     cases hx with
-    | path hat => simp [Json.at, lookup] at hat
+    | path hat => simp [Json.at, lookup, Json.int] at hat
 
 /-! ## What evaluation outputs
 
@@ -196,22 +172,22 @@ def Output (env : String → Val) (v : Val) (j : Json) : Prop :=
   Gen env v j ∧ ∀ j', Gen env v j' → j' = j
 
 /-- `*1 | integer` evaluates to `1`. -/
-example : Output noAlias (.join (.pref (.lit (.num 1))) .integer) (.num 1) := by
+example : Output noAlias (.join (.pref (.lit (.int 1))) .integer) (.int 1) := by
   refine ⟨.prefer .lit, ?_⟩
   intro j' h
   cases h with
   | prefer h' => cases h'; rfl
 
 /-- `integer & 1` evaluates to `1`. -/
-example : Output noAlias (.meet .integer (.lit (.num 1))) (.num 1) := by
-  refine ⟨.meetR .integer .lit, ?_⟩
+example : Output noAlias (.meet .integer (.lit (.int 1))) (.int 1) := by
+  refine ⟨.meetR (.integer rfl) .lit, ?_⟩
   intro j' h
   cases h with
   | meetL h' _ => cases h'
   | meetR _ h' => cases h'; rfl
 
 /-- `1 | 2` evaluates to nothing. -/
-example : ¬ ∃ j, Output noAlias (.join (.lit (.num 1)) (.lit (.num 2))) j := by
+example : ¬ ∃ j, Output noAlias (.join (.lit (.int 1)) (.lit (.int 2))) j := by
   rintro ⟨j, h, -⟩
   cases h
 
@@ -246,18 +222,18 @@ end
 
 /-- `oneOf: [integer, minimum 0]` is `nof(1, 1, …)`: it admits `-1`, which
 one branch admits. -/
-example : holds noAlias .null (.nof 1 1 [.is .integer, .is (.min 0)]) (.num (-1)) := by
-  have h₁ : Admits noAlias .null .integer (.num (-1)) := .integer
-  have h₂ : ¬ Admits noAlias .null (.min 0) (.num (-1)) := by
-    intro h; cases h with | min hle => omega
+example : holds noAlias .null (.nof 1 1 [.is .integer, .is (.min 0)]) (.int (-1)) := by
+  have h₁ : Admits noAlias .null .integer (.int (-1)) := .integer rfl
+  have h₂ : ¬ Admits noAlias .null (.min 0) (.int (-1)) := by
+    intro h; cases h with | min hle => revert hle; decide
   simp only [holds, count]
   rw [if_pos h₁, if_neg h₂]
   decide
 
 /-- …and refuses `3`, which both admit. -/
-example : ¬ holds noAlias .null (.nof 1 1 [.is .integer, .is (.min 0)]) (.num 3) := by
-  have h₁ : Admits noAlias .null .integer (.num 3) := .integer
-  have h₂ : Admits noAlias .null (.min 0) (.num 3) := .min (by omega)
+example : ¬ holds noAlias .null (.nof 1 1 [.is .integer, .is (.min 0)]) (.int 3) := by
+  have h₁ : Admits noAlias .null .integer (.int 3) := .integer rfl
+  have h₂ : Admits noAlias .null (.min 0) (.int 3) := .min (by decide)
   simp only [holds, count]
   rw [if_pos h₁, if_pos h₂]
   decide

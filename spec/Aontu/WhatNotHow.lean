@@ -1,3 +1,5 @@
+import Aontu.Data
+
 /-!
 # What, not how
 
@@ -8,24 +10,7 @@ must answer, and what an alias that names only itself means.
 
 namespace WhatNotHow
 
-inductive Json where
-  | null
-  | bool (b : Bool)
-  | int (n : Int)
-  | str (s : String)
-  | obj (fs : List (String × Json))
-
-def lookup (k : String) : List (String × Json) → Option Json
-  | [] => none
-  | (k', v) :: fs => if k = k' then some v else lookup k fs
-
-def Json.get? : Json → String → Option Json
-  | .obj fs, k => lookup k fs
-  | _, _ => none
-
-def Json.isObj : Json → Bool
-  | .obj _ => true
-  | _ => false
+open Aontu
 
 inductive Val where
   | top                                       -- `any`
@@ -46,8 +31,8 @@ when to expand an alias, or how deep to go. -/
 inductive Admits (env : String → Val) : Val → Json → Prop
   | top {j : Json} :
       Admits env .top j
-  | int {n : Int} :
-      n.natAbs ≤ 9007199254740992 → Admits env .int (.int n)
+  | int {j : Json} {n : Int} :
+      j.int? = some n → n.natAbs ≤ 9007199254740992 → Admits env .int j
   | str {s : String} :
       s ≠ "" → Admits env .str (.str s)
   | anyStr {s : String} :
@@ -76,7 +61,7 @@ def env : String → Val := fun _ => T
 example : Admits env T (.obj [("n", .obj [("v", .int 1)])]) :=
   .meet
     (.present rfl rfl
-      (.ref (.meet (.absent rfl rfl) (.present rfl rfl (.int (by decide))))))
+      (.ref (.meet (.absent rfl rfl) (.present rfl rfl (.int rfl (by decide))))))
     (.absent rfl rfl)
 
 /-- `{"v": "x"}` is not: no derivation exists. -/
@@ -89,7 +74,8 @@ example : ¬ Admits env T (.obj [("v", .str "x")]) := by
     | present _ hk hx =>
       simp [Json.get?, lookup] at hk
       subst hk
-      cases hx
+      cases hx with
+      | int h _ => simp [Json.int?] at h
 
 /-! ## 3. A meaning the definition decides: `%U = %U`
 
@@ -107,7 +93,7 @@ theorem loop_admits_nothing (j : Json) : ¬ Admits envU (.ref "U") j := by
   induction h with
   | ref _ ih => exact ih rfl
   | top => cases hv
-  | int _ => cases hv
+  | int _ _ => cases hv
   | str _ => cases hv
   | anyStr => cases hv
   | absent _ _ => cases hv

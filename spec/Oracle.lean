@@ -22,11 +22,24 @@ def Val.src : Val → String
   | .field k opt v => s!"\{{k}{if opt then "?" else ""}: {v.src}}"
   | .meet a b => s!"({a.src}) & ({b.src})"
 
+/-- A number as JSON text: the digits alone for an integer written without
+a point, and otherwise the digits with the point `scale` places from the
+end, `1.0` for the integer written with one. -/
+def Num.render (x : Num) : String :=
+  if x.scale = 0 && !x.point then toString x.coef
+  else
+    let digits := toString x.coef.natAbs
+    let padded := String.mk (List.replicate (x.scale + 1 - digits.length) '0') ++ digits
+    let cut := padded.length - x.scale
+    let frac := padded.drop cut
+    (if x.coef < 0 then "-" else "") ++ padded.take cut ++ "." ++ (if frac.isEmpty then "0" else frac)
+
 partial def Json.render : Json → String
   | .null => "null"
   | .bool b => if b then "true" else "false"
-  | .int n => toString n
+  | .num x => x.render
   | .str s => "\"" ++ s ++ "\""
+  | .arr xs => "[" ++ ", ".intercalate (xs.map Json.render) ++ "]"
   | .obj fs => "{" ++ ", ".intercalate (fs.map fun (k, v) => "\"" ++ k ++ "\": " ++ v.render) ++ "}"
 
 def bases : List Val :=
