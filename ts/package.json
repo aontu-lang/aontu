@@ -31,7 +31,7 @@
     "url": "git+https://github.com/aontu-lang/aontu.git"
   },
   "scripts": {
-    "test": "node --enable-source-maps --test \"dist-test/**/*.test.js\"",
+    "test": "node scripts/test.cjs",
     "test-cov": "node --enable-source-maps --experimental-test-coverage --test-coverage-exclude=\"dist-test/**\" --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"bin/**\" --test \"dist-test/**/*.test.js\"",
     "test-cov-check": "node test/covrun.js",
     "test-some": "node --enable-source-maps --test-name-pattern=\"$TEST_PATTERN\" --test \"dist-test/**/*.test.js\"",

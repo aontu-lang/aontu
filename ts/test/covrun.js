@@ -26,9 +26,15 @@
 // process: several cases depend on a fresh module registry, and
 // coverage drops to ~99.6 % because those cases stop exercising what
 // they were written to exercise.
+//
+// ONE FILE PER CORE, as `npm test` runs them (scripts/test.cjs). The
+// driver ran one file at a time, and once the shared rows grew a pass
+// took 25 of the coverage job's 30 minutes on the hosted runner, which
+// left no time for the retry above.
 
 const { spawnSync } = require('node:child_process')
 const Fs = require('node:fs')
+const Os = require('node:os')
 const Path = require('node:path')
 
 const MAX_RUNS = 3
@@ -45,7 +51,7 @@ function runSuite(n) {
     '--test-coverage-exclude=dist-test/**',
     '--test-coverage-exclude=test/**',
     '--test-coverage-exclude=bin/**',
-    '--test-concurrency=1',
+    `--test-concurrency=${Os.availableParallelism()}`,
     '--test-reporter=lcov',
     `--test-reporter-destination=${out}`,
     '--test',

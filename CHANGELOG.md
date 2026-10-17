@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The TypeScript suite runs its rows in three files, a file per core
+
+Test infrastructure; no engine changes.
+
+- The shared rows ran in one test file, which outlasted every other:
+  on macOS, whose runner has three cores, the Node 24 job reached its
+  twelve-minute limit and was cancelled. `ts/test/spec.test.ts` now
+  runs every third row, and `spec-share-2.test.ts` and
+  `spec-share-3.test.ts` run the others; a test fails if a share has
+  no file. Locally the one file took 417 s before the 4,800 new rows,
+  and each share takes about 170 s with them.
+- `npm test` is `ts/scripts/test.cjs`, which runs a test file per core.
+  The runner's own default leaves a core idle, which on three cores
+  ran two files at a time. Locally the suite took 567 s at the default
+  and takes 419 s.
+- The coverage driver runs a test file per core too, where it ran one
+  at a time: a pass in CI took 25 of the job's 30 minutes, which left
+  no time for the retry the driver exists to make.
+
 ### The formal definition is one definition, and its JSON is defined in full
 
 Definition and documentation; no engine changes.

@@ -34,6 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.SHARES = void 0;
+exports.specShare = specShare;
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
@@ -153,16 +155,44 @@ function loadRows() {
     }
     return rows;
 }
-(0, node_test_1.describe)('spec', () => {
-    const rows = loadRows();
-    // Sanity: ensure the shared spec files were actually found.
-    (0, node_test_1.test)('spec-files-present', () => {
-        Assert.ok(0 < rows.length, 'no spec rows loaded from ' + SPEC_DIR);
-    });
-    for (const row of rows) {
-        (0, node_test_1.test)(`${row.file}:${row.name}`, () => runRow(row));
+// SHARES shares of the rows, one per test file, run side by side: this file
+// runs the first, and spec-share-2.test.ts and spec-share-3.test.ts, which
+// import it, take theirs from their names. ENTRY keeps the rest to this file.
+exports.SHARES = 3;
+const SHARE_FILE = /^spec(?:-share-(\d+))?\.test\.js$/;
+function specShare(file) {
+    const m = SHARE_FILE.exec(Path.basename(file));
+    if (null == m) {
+        throw new Error(`not a spec share file: ${file}`);
     }
-});
+    const share = null == m[1] ? 0 : Number(m[1]) - 1;
+    (0, node_test_1.describe)('spec', () => {
+        const rows = loadRows();
+        if (0 === share) {
+            // Sanity: ensure the shared spec files were actually found.
+            (0, node_test_1.test)('spec-files-present', () => {
+                Assert.ok(0 < rows.length, 'no spec rows loaded from ' + SPEC_DIR);
+            });
+            (0, node_test_1.test)('every-share-has-its-file', () => {
+                const files = Fs.readdirSync(__dirname).filter((f) => SHARE_FILE.test(f)).sort();
+                const want = ['spec.test.js'];
+                for (let k = 2; k <= exports.SHARES; k++) {
+                    want.push(`spec-share-${k}.test.js`);
+                }
+                Assert.deepStrictEqual(files, want.sort());
+            });
+        }
+        rows.forEach((row, i) => {
+            if (share === i % exports.SHARES) {
+                (0, node_test_1.test)(`${row.file}:${row.name}`, () => runRow(row));
+            }
+        });
+    });
+}
+const ENTRY = require.main === module;
+if (ENTRY) {
+    specShare(__filename);
+}
 const CANON_NO_REPARSE = {};
 function assertCanonConverges(row) {
     if (row.name in CANON_NO_REPARSE) {
@@ -585,42 +615,44 @@ function runRow(row) {
 // yet (it exists so Phase 2's exact leaves CAN be asserted). Prove the
 // mode itself here, against the same runRow path the TSV rows take, so
 // it is known-good before anything depends on it.
-(0, node_test_1.describe)('spec-gens-mode', () => {
-    (0, node_test_1.test)('gens-compares-bytes', () => {
-        runRow({ name: 'g1', mode: 'gens', src: 'a:1', expect: '{"a":1}' });
-        // Compact: no spaces, no indentation, keys in the engine's generated
-        // order -- which is sorted, and matches Go's encoding/json for a map.
-        runRow({
-            name: 'g2', mode: 'gens',
-            src: 'b:2\na:1\nc:[1,{d:x}]',
-            expect: '{"a":1,"b":2,"c":[1,{"d":"x"}]}',
+if (ENTRY) {
+    (0, node_test_1.describe)('spec-gens-mode', () => {
+        (0, node_test_1.test)('gens-compares-bytes', () => {
+            runRow({ name: 'g1', mode: 'gens', src: 'a:1', expect: '{"a":1}' });
+            // Compact: no spaces, no indentation, keys in the engine's generated
+            // order -- which is sorted, and matches Go's encoding/json for a map.
+            runRow({
+                name: 'g2', mode: 'gens',
+                src: 'b:2\na:1\nc:[1,{d:x}]',
+                expect: '{"a":1,"b":2,"c":[1,{"d":"x"}]}',
+            });
+            // Byte-exact, so integer 1 and float 1.0 both serialise as `1` --
+            // gens pins the BYTES, canon pins the kind. Neither replaces the other.
+            runRow({ name: 'g3', mode: 'gens', src: 'a:1.0', expect: '{"a":1}' });
+            runRow({ name: 'g4', mode: 'gens', src: 'a:1.5', expect: '{"a":1.5}' });
+            runRow({ name: 'g5', mode: 'gens', src: 'a:x', expect: '{"a":"x"}' });
         });
-        // Byte-exact, so integer 1 and float 1.0 both serialise as `1` --
-        // gens pins the BYTES, canon pins the kind. Neither replaces the other.
-        runRow({ name: 'g3', mode: 'gens', src: 'a:1.0', expect: '{"a":1}' });
-        runRow({ name: 'g4', mode: 'gens', src: 'a:1.5', expect: '{"a":1.5}' });
-        runRow({ name: 'g5', mode: 'gens', src: 'a:x', expect: '{"a":"x"}' });
+        (0, node_test_1.test)('gens-fails-on-any-byte-difference', () => {
+            // A whitespace or ordering difference must fail: the point of the
+            // mode is that it does not decode before comparing.
+            Assert.throws(() => runRow({ name: 'g6', mode: 'gens', src: 'a:1', expect: '{"a": 1}' }));
+            Assert.throws(() => runRow({ name: 'g7', mode: 'gens', src: 'b:2\na:1', expect: '{"b":2,"a":1}' }));
+        });
+        (0, node_test_1.test)('unknown-mode-still-fails-loudly', () => {
+            Assert.throws(() => runRow({ name: 'g8', mode: 'genz', src: 'a:1', expect: '{"a":1}' }), /unknown spec mode: genz/);
+        });
     });
-    (0, node_test_1.test)('gens-fails-on-any-byte-difference', () => {
-        // A whitespace or ordering difference must fail: the point of the
-        // mode is that it does not decode before comparing.
-        Assert.throws(() => runRow({ name: 'g6', mode: 'gens', src: 'a:1', expect: '{"a": 1}' }));
-        Assert.throws(() => runRow({ name: 'g7', mode: 'gens', src: 'b:2\na:1', expect: '{"b":2,"a":1}' }));
+    (0, node_test_1.describe)('spec-errcodes-registry', () => {
+        (0, node_test_1.test)('registry-and-engine-agree', () => {
+            const registered = loadRows()
+                .filter((r) => 'errcode' === r.mode)
+                .map((r) => r.name)
+                .sort();
+            const engine = Object.keys(hints_1.codeClasses).sort();
+            Assert.deepStrictEqual(engine, registered, 'engine codeClasses table and test/spec/errcodes.tsv disagree');
+        });
     });
-    (0, node_test_1.test)('unknown-mode-still-fails-loudly', () => {
-        Assert.throws(() => runRow({ name: 'g8', mode: 'genz', src: 'a:1', expect: '{"a":1}' }), /unknown spec mode: genz/);
-    });
-});
-(0, node_test_1.describe)('spec-errcodes-registry', () => {
-    (0, node_test_1.test)('registry-and-engine-agree', () => {
-        const registered = loadRows()
-            .filter((r) => 'errcode' === r.mode)
-            .map((r) => r.name)
-            .sort();
-        const engine = Object.keys(hints_1.codeClasses).sort();
-        Assert.deepStrictEqual(engine, registered, 'engine codeClasses table and test/spec/errcodes.tsv disagree');
-    });
-});
+}
 function genJSON(v) {
     return (0, aontu_1.exactJSON)(v);
 }
