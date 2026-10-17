@@ -1,78 +1,101 @@
-import Aontu.Core
+import Aontu.Check
+import Aontu.Print
 
 /-!
 # The oracle
 
-Enumerates every value of the fragment up to one meet, against a set of
-JSON documents, and prints each case with the definition's verdict. The
-verdict comes from `check`, whose answers are the definition's by
-`check_iff`.
+Enumerates every value of the fragment up to one meet against a set of
+documents, and prints each case with the definition's verdict. The
+verdict comes from `check`, which `check_iff` makes the definition's on
+every value that reads no reference, and `vals_refFree` proves every
+value here is one; `jsons_wellFormed` proves every instance a document.
 -/
 
 namespace Aontu
 
-def Val.src : Val → String
-  | .top => "any"
-  | .nil => "nil"
-  | .int => "integer"
-  | .wholeNum => "number & multiple(1)"
-  | .str => "string"
-  | .anyStr => "string & empty()"
-  | .min m => s!"min({m})"
-  | .field k opt v => s!"\{{k}{if opt then "?" else ""}: {v.src}}"
-  | .meet a b => s!"({a.src}) & ({b.src})"
-
-/-- A number as JSON text: the digits alone for an integer written without
-a point, and otherwise the digits with the point `scale` places from the
-end, `1.0` for the integer written with one. -/
-def Num.render (x : Num) : String :=
-  if x.scale = 0 && !x.point then toString x.coef
-  else
-    let digits := toString x.coef.natAbs
-    let padded := String.mk (List.replicate (x.scale + 1 - digits.length) '0') ++ digits
-    let cut := padded.length - x.scale
-    let frac := padded.drop cut
-    (if x.coef < 0 then "-" else "") ++ padded.take cut ++ "." ++ (if frac.isEmpty then "0" else frac)
-
-partial def Json.render : Json → String
-  | .null => "null"
-  | .bool b => if b then "true" else "false"
-  | .num x => x.render
-  | .str s => "\"" ++ s ++ "\""
-  | .arr xs => "[" ++ ", ".intercalate (xs.map Json.render) ++ "]"
-  | .obj fs => "{" ++ ", ".intercalate (fs.map fun (k, v) => "\"" ++ k ++ "\": " ++ v.render) ++ "}"
-
 def bases : List Val :=
-  [.top, .nil, .int, .wholeNum, .str, .anyStr, .min 0, .min 3]
+  [.any, .nil, .integer, .meet .number (.multiple (.ofInt 1)), .string, .anyString,
+    .min (.ofInt 0), .min (.ofInt 3)]
 
-def level1 : List Val :=
-  bases ++ bases.foldr (fun v acc => .field "x" true v :: .field "x" false v :: acc) []
+/-- `{"x": v}`, or `{"x"?: v}`. -/
+def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
 
-def vals : List Val :=
-  level1 ++ level1.foldr (fun a acc => level1.map (Val.meet a) ++ acc) []
+def level1 : List Val := bases ++ bases.flatMap fun v => [field true v, field false v]
 
-def scalars : List Json :=
-  [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
+def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
+
+def scalars : List Json := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
 
 def jsons : List Json :=
   scalars ++ [.obj []] ++ scalars.map (fun j => .obj [("x", j)]) ++ [.obj [("y", .int 1)]]
+
+theorem bases_refFree : ∀ v ∈ bases, v.RefFree := by
+  intro v hv
+  simp only [bases, List.mem_cons, List.mem_nil_iff, or_false] at hv
+  rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> repeat constructor
+
+theorem level1_refFree : ∀ v ∈ level1, v.RefFree := by
+  intro v hv
+  simp only [level1, List.mem_append, List.mem_flatMap, List.mem_cons, List.mem_nil_iff,
+    or_false] at hv
+  rcases hv with hb | ⟨b, hb, rfl | rfl⟩
+  · exact bases_refFree v hb
+  all_goals
+    refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
+    cases List.mem_singleton.mp hm
+    exact bases_refFree b hb
+
+theorem vals_refFree : ∀ v ∈ vals, v.RefFree := by
+  intro v hv
+  simp only [vals, List.mem_append, List.mem_flatMap, List.mem_map] at hv
+  rcases hv with hl | ⟨a, ha, b, hb, rfl⟩
+  · exact level1_refFree v hl
+  · exact .meet (level1_refFree a ha) (level1_refFree b hb)
+
+theorem scalars_wellFormed : ∀ j ∈ scalars, j.WellFormed := by
+  intro j hj
+  simp only [scalars, List.mem_cons, List.mem_nil_iff, or_false] at hj
+  rcases hj with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact .null
+  · exact .bool
+  all_goals first | exact .num (by decide) | exact .str
+
+theorem jsons_wellFormed : ∀ j ∈ jsons, j.WellFormed := by
+  intro j hj
+  simp only [jsons, List.mem_append, List.mem_map, List.mem_singleton] at hj
+  rcases hj with ((hs | rfl) | ⟨s, hs, rfl⟩) | rfl
+  · exact scalars_wellFormed j hs
+  · exact .obj (by decide) (fun _ _ h => nomatch h)
+  · refine .obj (by show List.Nodup ["x"]; decide) (fun k x h => ?_)
+    cases List.mem_singleton.mp h
+    exact scalars_wellFormed s hs
+  · refine .obj (by decide) (fun k x h => ?_)
+    cases List.mem_singleton.mp h
+    exact .num (by decide)
+
+/-- Every row's verdict is the definition's: `v` admits `j`, read as a
+whole document that declares no alias. -/
+theorem verdict_exact {v : Val} (hv : v ∈ vals) (j : Json) :
+    check v j = true ↔ Instance Env.empty v j :=
+  check_iff (vals_refFree v hv) j
 
 end Aontu
 
 open Aontu in
 def main : IO Unit := do
-  IO.println "# Generated by `lake exe oracle` (spec/Oracle.lean) from spec/Aontu/Core.lean:"
-  IO.println "# every value of the fragment up to one meet (600) against 16 instances, as"
-  IO.println "# `verdict` rows whose expectation is the verdict `check` gives, which"
-  IO.println "# `check_iff` makes the definition's own. Until P5 the definition gives"
-  IO.println "# admission only, so a refusal is written as the three classes it may be."
-  IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
-  IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+  IO.println "# Generated by `lake exe oracle` (spec/Oracle.lean) from the definition in"
+  IO.println "# spec/Aontu: every value of the fragment up to one meet (600) against 16"
+  IO.println "# instances, as `verdict` rows whose expectation is the verdict `check`"
+  IO.println "# gives, which `check_iff` makes the definition's own. Until P5 the"
+  IO.println "# definition gives admission only, so a refusal is written as the three"
+  IO.println "# classes it may be. Regenerate with `make spec`; never edit by hand. The"
+  IO.println "# cases the ports do not yet answer this way are listed in spec/ledger.tsv."
   let opts := "{\"opts\":{\"noFill\":true,\"exactNumbers\":true},\"verdict\":"
   let mut i := 0
   for v in vals do
+    let some src := v.src | throw (IO.userError "a value of the fragment has no text")
     for j in jsons do
       let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
-      IO.println ("c" ++ toString i ++ "\tverdict\tv: " ++ v.src ++ "\tv: " ++ j.render
+      IO.println ("c" ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ j.src
         ++ "\t" ++ opts ++ want ++ "}")
       i := i + 1
