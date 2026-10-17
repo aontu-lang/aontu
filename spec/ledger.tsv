@@ -1,0 +1,48 @@
+# The ledger of spec/ (docs/design/DEFINITION.0.md, section 5): one row per
+# row of test/spec/def-fragment.tsv the ports do not answer as the definition does,
+# the answer each side gives, which side moves, and the cause. Both ports
+# answer every listed case alike. A listed case that comes to agree fails
+# the run. Bounded at 42.
+# name	src	instance	definition	ports	moves	cause
+c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c5255	({x?: integer}) & ({x?: string})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c5263	({x?: integer}) & ({x?: string})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c5287	({x?: integer}) & ({x?: string & empty()})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c5295	({x?: integer}) & ({x?: string & empty()})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6023	({x?: number & multiple(1)}) & ({x?: string})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6031	({x?: number & multiple(1)}) & ({x?: string})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6055	({x?: number & multiple(1)}) & ({x?: string & empty()})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6063	({x?: number & multiple(1)}) & ({x?: string & empty()})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6727	({x?: string}) & ({x?: integer})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6735	({x?: string}) & ({x?: integer})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6759	({x?: string}) & ({x?: number & multiple(1)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6767	({x?: string}) & ({x?: number & multiple(1)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6829	({x?: string}) & ({x?: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c6845	({x?: string}) & ({x: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c6855	({x?: string}) & ({x?: min(0)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6863	({x?: string}) & ({x?: min(0)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6887	({x?: string}) & ({x?: min(3)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c6895	({x?: string}) & ({x?: min(3)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7213	({x: string}) & ({x?: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c7229	({x: string}) & ({x: string & empty()})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c7495	({x?: string & empty()}) & ({x?: integer})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7503	({x?: string & empty()}) & ({x?: integer})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7527	({x?: string & empty()}) & ({x?: number & multiple(1)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7535	({x?: string & empty()}) & ({x?: number & multiple(1)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7565	({x?: string & empty()}) & ({x?: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c7581	({x?: string & empty()}) & ({x: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c7623	({x?: string & empty()}) & ({x?: min(0)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7631	({x?: string & empty()}) & ({x?: min(0)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7655	({x?: string & empty()}) & ({x?: min(3)})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7663	({x?: string & empty()}) & ({x?: min(3)})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c7949	({x: string & empty()}) & ({x?: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c7965	({x: string & empty()}) & ({x: string})	{"x": ""}	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
+c8327	({x?: min(0)}) & ({x?: string})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c8335	({x?: min(0)}) & ({x?: string})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c8359	({x?: min(0)}) & ({x?: string & empty()})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c8367	({x?: min(0)}) & ({x?: string & empty()})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c9095	({x?: min(3)}) & ({x?: string})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c9103	({x?: min(3)}) & ({x?: string})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c9127	({x?: min(3)}) & ({x?: string & empty()})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+c9135	({x?: min(3)}) & ({x?: string & empty()})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
