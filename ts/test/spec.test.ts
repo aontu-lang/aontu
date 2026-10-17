@@ -172,6 +172,11 @@ export function specShare(file: string): void {
     throw new Error(`not a spec share file: ${file}`)
   }
   const share = null == m[1] ? 0 : Number(m[1]) - 1
+  // test/covrun.js asks for one share, and then spec.test.ts runs every row.
+  const shares = '1' === process.env.AONTU_SPEC_SHARES ? 1 : SHARES
+  if (shares <= share) {
+    return
+  }
 
   describe('spec', () => {
     const rows = loadRows()
@@ -193,7 +198,7 @@ export function specShare(file: string): void {
     }
 
     rows.forEach((row, i) => {
-      if (share === i % SHARES) {
+      if (share === i % shares) {
         test(`${row.file}:${row.name}`, () => runRow(row))
       }
     })

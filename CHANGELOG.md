@@ -14,8 +14,8 @@ Test infrastructure; no engine changes.
 
 - The shared rows ran in one test file, which outlasted every other:
   on macOS, whose runner has three cores, the Node 24 job reached its
-  twelve-minute limit and was cancelled. `ts/test/spec.test.ts` now
-  runs every third row, and `spec-share-2.test.ts` and
+  twelve-minute limit and GitHub cancelled it. `ts/test/spec.test.ts`
+  now runs every third row, and `spec-share-2.test.ts` and
   `spec-share-3.test.ts` run the others; a test fails if a share has
   no file. Locally the one file took 417 s before the 4,800 new rows,
   and each share takes about 170 s with them.
@@ -25,7 +25,11 @@ Test infrastructure; no engine changes.
   and takes 419 s.
 - The coverage driver runs a test file per core too, where it ran one
   at a time: a pass in CI took 25 of the job's 30 minutes, which left
-  no time for the retry the driver exists to make.
+  no time for the retry the driver exists to make. It keeps the rows in
+  one file, by `AONTU_SPEC_SHARES=1`: split, rows written together to
+  cover one function's arms run in separate processes, and the runner's
+  merge of their coverage reported an arm as never taken, which the
+  gate can't clear.
 
 ### The formal definition is one definition, and its JSON is defined in full
 
