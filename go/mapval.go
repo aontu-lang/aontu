@@ -354,16 +354,30 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			c2 := *ctx
 			c2.err = nil
 			c2.collect = true
+			c2.dropped = false
 			gctx = &c2
 		}
 
 		cv, err := child.Gen(gctx)
+		// An optional key drops what does not resolve, never a refusal
+		// the parser made: the one vet reports there is raised instead.
+		if gctx != ctx && (nil != err || 0 < len(gctx.err) || gctx.dropped) {
+			if n := parseNilIn(child); nil != n {
+				if ctx.collect {
+					ctx.adderr(n)
+					continue
+				}
+				_, perr := n.Gen(ctx)
+				return nil, perr
+			}
+		}
 		if err != nil {
 			// An optional key that does not resolve is dropped, not an error.
 			if optional {
 				continue
 			}
 			if ctx != nil && ctx.collect {
+				ctx.dropped = true
 				continue
 			}
 			return nil, err

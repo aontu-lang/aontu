@@ -2,6 +2,8 @@
 
 package aontu
 
+import "strings"
+
 func walkVals(v Val, visit func(Val) bool, seen map[Val]bool) {
 	if v == nil || seen[v] {
 		return
@@ -136,4 +138,20 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 		}
 		return true
 	}, walked)
+}
+
+// The parse refusal vet would report inside v, the least by path where
+// there are several, so both ports raise the same one.
+func parseNilIn(v Val) *NilVal {
+	var nils []*NilVal
+	collectNils(v, &nils, map[Val]bool{})
+	var first *NilVal
+	for _, n := range nils {
+		if "parse" == n.Class() && (nil == first ||
+			strings.Join(n.pathSegments(), "\x00") <
+				strings.Join(first.pathSegments(), "\x00")) {
+			first = n
+		}
+	}
+	return first
 }

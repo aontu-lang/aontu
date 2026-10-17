@@ -98,16 +98,21 @@ the divergence ledger, `Accepted`/`Superseded` in the ADR register).
    **Applied:** all twelve gap documents now link this line or name no
    count, and the one that still shows figures marks them as
    at-drafting. As of this register's last update the suite is
-   **125 `.tsv` files, 123 row-bearing, 7,655 rows**, in thirty-two
-   modes — `errc` 1,406, `gens` 1,346, `canon` 1,195, `gen` 663,
-   `jsonschema-import` 496, `err` 420, `jsonschema` 372, `view` 319,
-   `vet` 213, `errcode` 195, `fmt` 194, `subsume` 184, `query` 98,
+   **125 `.tsv` files, 123 row-bearing, 7,673 rows**, in thirty-two
+   modes — `errc` 1,417, `gens` 1,346, `canon` 1,195, `gen` 663,
+   `jsonschema-import` 496, `err` 422, `jsonschema` 372, `view` 319,
+   `vet` 218, `errcode` 195, `fmt` 194, `subsume` 184, `query` 98,
    `jsonschema-upgrade` 75, `why` 53, `views` 47, `hcanon` 46, `hash`
    43, `patch` 41, `jsonschema-output` 39, `graph` 38, `template` 34,
    `diff` 28, `fmt-lint` 28, `relation` 25, `reaches` 19, `trim` 11,
    `trace` 9, `agentsmd` 7, `fmt-template` 7, `fmt-template-lint` 3,
    `fmt-refuse` 1.
-   (Re-derived 2026-10-11 with the two commands below, when the review
+   (Re-derived 2026-10-16 with the two commands below, when two
+   `divergent.tsv` entries closed with three `file.tsv` rows and two
+   `vet.tsv` rows. The count takes in the ten `optional.tsv` rows and
+   three `vet.tsv` rows of the fix for #312, which landed without this
+   line being re-derived.
+   Re-derived 2026-10-11 with the two commands below, when the review
    of G12 phase 18 added a `jsonschema.tsv` row and two
    `jsonschema-import.tsv` rows.
    Re-derived 2026-10-11 with the two commands below, when G12 phase

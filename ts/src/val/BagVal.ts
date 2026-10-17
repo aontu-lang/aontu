@@ -14,6 +14,7 @@ import {
 } from '../utility'
 
 import { makeNilErr } from '../err'
+import { parseNilIn } from '../walk'
 import { empty, repathInstance } from './Val'
 
 import { Val } from './Val'
@@ -163,7 +164,7 @@ abstract class BagVal extends FeatureVal {
 
         let cval = child.gen(dctx)
 
-        if (undefined === cval) {
+        if (raiseParse(dctx, child, ctx) || undefined === cval) {
           continue
         }
 
@@ -175,7 +176,8 @@ abstract class BagVal extends FeatureVal {
 
         let cval = child.gen(cctx)
 
-        if (optional && (undefined === cval || empty(cval))) {
+        if (optional &&
+          (raiseParse(cctx, child, ctx) || undefined === cval || empty(cval))) {
           continue
         }
 
@@ -227,6 +229,17 @@ abstract class BagVal extends FeatureVal {
 
 export {
   BagVal,
+}
+
+
+// An optional key drops what does not resolve, never a parse refusal.
+function raiseParse(gctx: AontuContext, child: Val, ctx: AontuContext): boolean {
+  const refusal = 0 < gctx.err.length ? parseNilIn(child) : undefined
+  if (undefined === refusal) {
+    return false
+  }
+  refusal.gen(ctx)
+  return true
 }
 
 
