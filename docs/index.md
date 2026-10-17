@@ -33,11 +33,12 @@ open it. Reach for the part that matches your need:
 | **Understand** how and why the engine works the way it does   | [Explanation](explanation.md) |
 | **See whole systems defined**, each with its checks runnable  | [Use cases](use-cases.md) |
 
-There are four tutorials, each building one thing and showing the
-output of every step: a config that is schema, defaults, and data at
-once; the graph layer of identity, relations, and reachability; sharing
-a model as a versioned package; and computing source files from a
-model. The [index](tutorial.md) says what each one assumes.
+There are five tutorials, each showing the output of every step: a
+config that is schema, defaults, and data at once; the graph layer of
+identity, relations, and reachability; sharing a model as a versioned
+package; computing source files from a model; and reading the
+language's formal definition, one rule at a time. The
+[index](tutorial.md) says what each one assumes.
 
 The how-to guides are one page per task, grouped six ways: run, embed
 and integrate; templates, defaults and composition; schemas and
@@ -210,4 +211,4 @@ $ echo 'port: *8080 | integer' | aontu
 ```
 
 Start with [build a config that checks itself](tutorial-config.md),
-the first of four [tutorials](tutorial.md).
+the first of five [tutorials](tutorial.md).

@@ -19,6 +19,7 @@ language, `test/spec/` holds the shared rows they are held to, and
 | `Aontu/Core.lean` | the meet laws; ADR-045's merge proved exact against the definition, and the rule before it proved to admit too much; the JSON Schema import in its two modes with their contracts; the checker `check` beside `check_iff`, the theorem that lets its answers stand in for the definition's |
 | `Aontu/WhatNotHow.lean` | admission as inference rules, aliases included; recursion as the one `ref` rule; `%U = %U` admitting nothing under the least fixpoint; `SubsumeCorrect`, the contract any `subsume` must meet, with two implementations proved correct and a wrong one refuted |
 | `Aontu/Structures.lean` | the value forms with one rule each: kinds, literals, bounds, maps with optional keys, spreads and `close()`, lists with required positions and an open tail, `&`, `\|`, `*`, aliases, path references; `Gen` and `Output`; the trial layer for `not`, `when` and `nof`. Every example matches both CLIs at `9aa985c` |
+| `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) shows that the three modules above do not hold, each proved, and each a transcript on that page too |
 | `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 16 instances, each written as a `verdict` row with the verdict `check` gives |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
 | `ci.patch` | the CI job, to apply by hand with `git apply spec/ci.patch` from an account with the `workflow` scope |
@@ -27,9 +28,10 @@ language, `test/spec/` holds the shared rows they are held to, and
 The rows live in `test/spec/def-fragment.tsv`, under the `verdict` mode
 of the shared format, where both ports' spec runners run them as they
 run every row; nothing here is needed at test time. Core Lean only: no
-library, no network. The three modules are the prototype's three files
-under their original namespaces (`Aontu`, `WhatNotHow`, `Spec`); P1
-folds them into the layout the plan's §3 names.
+library, no network. `Core`, `WhatNotHow` and `Structures` are the
+prototype's three files under their original namespaces (`Aontu`,
+`WhatNotHow`, `Spec`), and `Tour` adds its examples to the first and
+the last; P1 folds them into the layout the plan's §3 names.
 
 ## Build and run
 
@@ -43,7 +45,9 @@ cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
 python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli> <ts-cli-js>
 ```
 
-`lake build` ends with no `sorry` and no axiom beyond `propext`. The
+`lake build` ends with no `sorry`, and no named theorem rests on an
+axiom beyond `propext` and `Quot.sound`: none uses `Classical.choice`.
+`check_iff` is one that uses `Quot.sound`. The
 rows are a committed generated copy: `make spec` fails when the
 committed file differs from a fresh one, as the coverage job does for
 `ts/dist`.

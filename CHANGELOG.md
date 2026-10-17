@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### A tutorial reads the formal definition
+
+Documentation, both ports' transcripts.
+
+- `docs/tutorial-definition.md`, the fifth tutorial, reads the Lean
+  definition under `spec/` one rule at a time: the data, the value
+  forms, what each admits, the order and the meet, the merge of two
+  declarations of one key, the checker and the oracle, the JSON Schema
+  translations, then the sketch's lists, closed maps, disjunction,
+  preference, path references, recursion, evaluation output, trial
+  schemas and the contract any `subsume` must meet. Each rule comes
+  with a document it admits and one it refuses, as a Lean example the
+  build proves (the new `spec/Aontu/Tour.lean` holds the ones the other
+  modules do not) and as a transcript the documentation test runs. Two
+  steps show the cases where both engines answer otherwise than the
+  definition, as `spec/ledger.tsv` lists them.
+- A new snippet directive, `<!-- test: quote <path> -->`: the next
+  fence must be a run of lines of that repository file, unchanged, so a
+  quoted rule cannot drift from the definition it quotes.
+- `spec/README.md` said no axiom beyond `propext`; the named theorems
+  rest on `propext` and `Quot.sound` (`check_iff` among them), and none
+  on `Classical.choice`.
+
 ### The language is defined in Lean, and the ports implement it (ADR-069)
 
 Both ports.

@@ -1,7 +1,7 @@
 # Tutorials
 
-Four tutorials, each building one thing from an empty directory and
-showing the engine's output at every step. Read them in this order if
+Five tutorials, each starting from an empty directory and showing the
+engine's output at every step. Read them in this order if
 you are new; take one on its own if its subject is what you need.
 
 - [Build a config that checks itself](tutorial-config.md). A service
@@ -20,6 +20,10 @@ you are new; take one on its own if its subject is what you need.
   client computed from a model of its routes, as a tree of folders,
   files, and lines, written to disk with `aontu render` and held
   against the model by its check. Assumes the first tutorial.
+- [Read the formal definition](tutorial-definition.md). The Lean
+  definition under `spec/`, one rule at a time, each with a document it
+  admits and one it refuses, proved in Lean and vetted by the engine.
+  Assumes the first tutorial, and no Lean.
 
 Every transcript on these pages is run by `ts/test/docs.test.ts`, so
 the output beside a command is what the engine printed.

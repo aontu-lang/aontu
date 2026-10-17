@@ -11,6 +11,7 @@ const DOC_PAGES = [
   'tutorial-graph.md',
   'tutorial-package.md',
   'tutorial-generate.md',
+  'tutorial-definition.md',
   'unification.md',
   'reference-language.md',
   'reference-generation.md',
