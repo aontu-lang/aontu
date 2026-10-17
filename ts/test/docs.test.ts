@@ -32,6 +32,7 @@ function execPages(): string[] {
     'tutorial-graph.md',
     'tutorial-package.md',
     'tutorial-generate.md',
+    'tutorial-definition.md',
     'unification.md',
     'reference-language.md',
     'reference-generation.md',
@@ -94,7 +95,7 @@ type Block = {
 }
 
 type Directive = {
-  verb: 'file' | 'run' | 'skip'
+  verb: 'file' | 'run' | 'skip' | 'quote'
   arg: string
   line: number
 }
@@ -133,7 +134,7 @@ function extract(file: string, md: string): Item[] {
     const dm = lines[i].match(/^<!--\s*test:\s*([a-z]+)\s*(.*?)\s*-->\s*$/)
     if (dm) {
       const verb = dm[1]
-      Assert.ok(['scenario', 'file', 'run', 'skip'].includes(verb),
+      Assert.ok(['scenario', 'file', 'run', 'skip', 'quote'].includes(verb),
         `${file}:${i + 1} unknown test directive verb: ${verb}`)
       if ('scenario' === verb) {
         Assert.ok('' !== dm[2],
@@ -463,6 +464,36 @@ describe('docs', () => {
   })
 
 
+  // A quote is checked for being the file's text and nothing more: the
+  // Lean it quotes is proved by `lake build`, which this suite does not
+  // run.
+  test('every-quote-is-a-run-of-its-files-lines', () => {
+    let quotes = 0
+    for (const page of pages()) {
+      for (const b of page.blocks) {
+        const d = b.directive
+        if ('quote' !== d?.verb) {
+          continue
+        }
+        Assert.ok('' !== d.arg && !d.arg.includes('..') && !Path.isAbsolute(d.arg),
+          `${page.file}:${d.line} a quote names a file in the repository`)
+        const abs = Path.join(REPO, d.arg)
+        Assert.ok(Fs.existsSync(abs), `${page.file}:${d.line} quotes a missing file: ${d.arg}`)
+        const want = b.body.replace(/\n$/, '').split('\n')
+        Assert.ok('' !== want.join(''), `${page.file}:${b.line} an empty quote`)
+        const have = lf(Fs.readFileSync(abs, 'utf8')).split('\n')
+        const found = have.some((_, at) => want.every((ln, i) => have[at + i] === ln))
+        Assert.ok(found,
+          `${page.file}:${b.line} is not a run of lines of ${d.arg}:\n${b.body}`)
+        quotes++
+      }
+    }
+    if (undefined === narrowed()) {
+      Assert.ok(0 < quotes, 'no quotes extracted')
+    }
+  })
+
+
   // The accounting layer: every tagged fence is covered or skipped.
   // Untagged fences make no language claim and are exempt.
   test('every-snippet-is-tested-or-owns-its-skip', () => {
@@ -477,8 +508,8 @@ describe('docs', () => {
         }
         const d = b.directive
         if (d && ('file' === d.verb || 'run' === d.verb
-          || 'skip' === d.verb)) {
-          return          // scenario member, transcript, or owned skip
+          || 'skip' === d.verb || 'quote' === d.verb)) {
+          return          // scenario member, transcript, owned skip, or quote
         }
         if (selfContained(b)) {
           return          // parse-checked; possibly also a pair
@@ -909,6 +940,7 @@ describe('docs-style', () => {
   const TUTORIAL_PAGES = [
     'docs/tutorial-config.md', 'docs/tutorial-graph.md',
     'docs/tutorial-package.md', 'docs/tutorial-generate.md',
+    'docs/tutorial-definition.md',
   ]
 
   test('we-appears-only-in-tutorials', () => {
