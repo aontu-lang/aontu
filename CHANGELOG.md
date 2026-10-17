@@ -19,8 +19,15 @@ Definition and documentation; no engine changes.
   prototype's `Core.lean`, `WhatNotHow.lean` and `Structures.lean` each
   declared their own values, admission, and partial JSON, with integer
   ranges, literals, and aliases that disagreed; they are folded in and
-  removed, and the order, the trial layer, the checker, the JSON
-  Schema import, and the printer each have a module of their own.
+  removed, and the order, the trial layer, the checker, and the
+  printer each have a module of their own.
+- JSON Schema is not a concept of the language, and the definition no
+  longer mentions it: the prototype's JSON Schema validator and the
+  import's two modes as contracts are gone. What the language owes JSON
+  Schema is the power to represent it, so a value the importer writes,
+  such as `number & multiple(1)`, is a form the definition defines on
+  its own terms, and a law states that it admits exactly the whole
+  numbers.
 - A number is an exact decimal with a flag for a decimal point in its
   text, the one part of its spelling the language reads: by default
   `1.0` is a float, and under `--exact-numbers` the integer `1`. A
@@ -36,8 +43,7 @@ Definition and documentation; no engine changes.
   nothing, as both engines refuse it.
 - Numbers are read by value, as `--exact-numbers` reads them: `integer`
   admits `1.0`, `min(3)` admits `3.5`, `multiple(0.5)` admits `1.5`
-  and refuses `1.25`, a path reference compares by value, and JSON
-  Schema's `integer` holds `1.0`, as 2020-12 says.
+  and refuses `1.25`, and a path reference compares by value.
 - Left for later, because the language reads them otherwise than the
   prototype's rules said: `|` and `*`, which the language reads by
   where they stand (`*1` alone admits `2`, and an arm `[integer]` of a
@@ -58,14 +64,19 @@ Definition and documentation; no engine changes.
   definition's. The 9,600 rows keep every name and verdict; their text
   now quotes every key, as the published grammar does, and writes
   `number & multiple(1)` as a meet. The ledger's text column follows.
+- 4,800 more rows, numbered after the first so that none is renamed,
+  try every value against a fraction, a whole number written with a
+  point, a whole number no double holds, and an array, each also under
+  a key: 14,400 in all. Both engines answer every new row as the
+  definition does, and the whole number outside the integer leaf is the
+  first instance to tell `integer` from `number & multiple(1)`.
 - `docs/tutorial-definition.md` walks the new modules in order: the
   data and the integer leaf, the values, every admission rule with a
   document it admits and one it refuses (literals, `max`, `multiple`,
   spreads, list spreads, an undeclared alias and a path compared by
   value are new), the order, the merge, the cases where the engines
-  differ, `nof` and `when`, the checker and the oracle, the JSON
-  Schema translations, the `subsume` contract, and why `|` and `*`
-  wait.
+  differ, `nof` and `when`, the checker and the oracle, the `subsume`
+  contract, and why `|` and `*` wait.
 
 ### A tutorial reads the formal definition
 
@@ -92,7 +103,7 @@ Both ports.
 
 - A new shared mode, `verdict`: five columns, `vet(schema, data)` must
   produce the verdict the expectation names, or one of the names it
-  may be, and nothing else in the report is compared. The 9,600 rows of
+  may be, and nothing else in the report is compared. The rows of
   `test/spec/def-fragment.tsv` are generated from the formal definition
   under `spec/` by `make spec`, never written by hand, and both spec
   runners read `spec/ledger.tsv`, the 42 cases the engines do not yet

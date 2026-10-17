@@ -80,11 +80,18 @@ the definition encodes them rather than restating them in prose.
 1. ADRs record architecture. A language decision is a change to the
    definition, and its record is the Lean diff with the theorems it
    adds or gives up.
-2. JSON Schema translates to the natural aontu equivalent by default
-   (`type: integer` is `integer`), and `--faithful` asks for the
-   spellings that admit exactly what a 2020-12 validator admits. The
-   two modes are two functions in the definition with two contracts:
-   `faithful_exact` and `natural_sound`.
+2. JSON Schema is not a concept of the language, and the definition
+   does not mention it. What the language owes JSON Schema is power:
+   what the importer writes for each keyword it carries is an aontu
+   value, which the definition defines on its own terms, as
+   `number & multiple(1)` holds every whole number and
+   `string & empty()` every string. The importer is a tool outside the
+   definition, held to the JSON Schema suite. Ruled 2026-10-17,
+   replacing the ruling of 2026-10-15 that put the import's two modes
+   into the definition as two functions with two contracts; that the
+   import writes the natural spelling by default (`type: integer` is
+   `integer`) and `--faithful` the exact one stays a ruling about the
+   tool.
 3. The meet is a greatest lower bound. `string & empty()` is a kind of
    its own, and `string` met with it is `string`; the ports change, the
    definition does not.
@@ -114,7 +121,6 @@ One module per layer:
 | `Aontu/Trial.lean` | the trial-schema layer: `nof`, `when`, `contains`, `must`, `rest`, where negation lives (§4, P4) |
 | `Aontu/Verdict.lean` | from P5: ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
-| `Aontu/JsonSchema.lean` | `valid` for the 2020-12 fragment, `importNatural`, `importFaithful`, and the export's round-trip contract |
 | `Aontu/Print.lean` | the printer from abstract syntax to aontu text, the one trusted bridge to the ports |
 | `Aontu/Tour.lean` | the examples of [the tutorial](../tutorial-definition.md), each proved |
 | `Oracle.lean` | the executable that enumerates values and instances and prints each case with the definition's verdict |
@@ -202,7 +208,11 @@ the second the definition does. Exhaustive enumeration of small values
 over a small instance set is bounded per phase (600 values and 16
 instances in the prototype: 9,600 cases, 109 s through both CLIs on
 four cores), and random generation of larger ones is seeded, so a
-failure reproduces.
+failure reproduces. On 2026-10-17 the instances grew to 24, a
+fraction, a whole number written with a point, a whole number no double
+holds and an array, each also under a key, numbered after the first
+9,600 rows so that none was renamed: 14,400 cases, every new one
+answered by both ports as the definition answers it.
 
 **The shared rows.** The hand-written rows of `test/spec/` stay, and
 keep covering what the definition does not: codes, sites, canon, the
@@ -253,7 +263,7 @@ documents only.
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
-| **P6**: the JSON Schema boundary (M) | `valid` for the 2020-12 keywords the importer carries; the two modes and their contracts; every natural-mode departure as a theorem; the round trip of ADR-068 as a statement the exporter is held to | the suite's schemas in the fragment round-trip under both modes in the definition as in the ports |
+| **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
 
 Deferred, each with a reason: the generation verbs `each`, `pack` and
@@ -302,7 +312,7 @@ until the phase that encodes each lands.
 5. **The vet modes.** `--no-fill` and `--exact-numbers` change what
    `valid` means, so they are parameters of the definition rather than
    options of a CLI; the definition then states what the default mode
-   admits that the JSON Schema mode refuses. Ruled 2026-10-16:
+   admits that `--no-fill --exact-numbers` refuses. Ruled 2026-10-16:
    parameters.
 
 ## 8. Risks

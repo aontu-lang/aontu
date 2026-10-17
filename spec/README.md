@@ -14,6 +14,13 @@ implementation: `ts/` and `go/` implement the language, `test/spec/`
 holds the shared rows they are held to, and `spec/` says what those
 rows should expect.
 
+JSON Schema is not a concept of the language, and nothing here
+mentions it. The language's part is power: what the importer writes
+for a JSON Schema keyword is an aontu value, such as
+`number & multiple(1)` for the whole numbers, and the definition says
+what that value means on its own terms. The importer is a tool, held
+to the JSON Schema suite.
+
 ## Layout
 
 | Path | Holds |
@@ -24,10 +31,9 @@ rows should expect.
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
 | `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; and `Json.wf`, which decides that a document is data, beside `Json.wf_iff` |
-| `Aontu/JsonSchema.lean` | what a 2020-12 validator admits for a fragment of the keywords, and the import's two modes with their contracts |
 | `Aontu/Print.lean` | the printer from values and documents to the text both CLIs read |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
-| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 16 instances, each written as a `verdict` row with the verdict `check` gives, which `verdict_exact` makes the definition's |
+| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
 | `ci.patch` | the CI job, to apply by hand with `git apply spec/ci.patch` from an account with the `workflow` scope |
 | `tools/differential.py` | runs the rows through both CLIs and writes every disagreement by name, the material of the ledger |

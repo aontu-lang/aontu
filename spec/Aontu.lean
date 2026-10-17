@@ -4,6 +4,5 @@ import Aontu.Admits
 import Aontu.Order
 import Aontu.Trial
 import Aontu.Check
-import Aontu.JsonSchema
 import Aontu.Print
 import Aontu.Tour

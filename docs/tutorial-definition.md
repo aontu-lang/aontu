@@ -15,7 +15,7 @@ its notation means where it first appears. The page assumes the
 
 ## 1. Set up
 
-The definition is nine Lean modules and one program, which make one
+The definition is eight Lean modules and one program, which make one
 definition: every module reads the same data, the same values, and the
 same rule for what a value admits, and none declares its own.
 
@@ -27,7 +27,6 @@ same rule for what a value admits, and none declares its own.
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between values, the meet, two declarations of one key, and the contract any `subsume` must meet |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
-| [`spec/Aontu/JsonSchema.lean`](../spec/Aontu/JsonSchema.lean) | a piece of JSON Schema, and the import's two translations |
 | [`spec/Aontu/Print.lean`](../spec/Aontu/Print.lean) | the printer that writes a value as aontu text |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
 | [`spec/Oracle.lean`](../spec/Oracle.lean) | the program that writes the engines' test rows |
@@ -494,7 +493,10 @@ example : ¬ Instance .empty .integer (.dec 15 1) := by
 /-- `number & multiple(1)` admits `9007199254740993`. -/
 example : Instance .empty (.meet .number (.multiple (.ofInt 1))) (.int 9007199254740993) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
+```
 
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
 /-- `boolean` admits `true`. -/
 example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
@@ -551,7 +553,27 @@ $ echo $?
 `integer` admits `9007199254740994`, which a double holds, and refuses
 `9007199254740993`, which none does, and `9223372036854775808`, which
 one does outside the window. `number & multiple(1)` holds every whole
-number, so `wide` admits the number `beyond` refused.
+number, so `wide` admits the number `beyond` refused. That's a law of
+the definition, not only an example, and the tour proves it for every
+document:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `number & multiple(1)` admits exactly the numbers whose value is
+whole, of any size. -/
+example (env : Env) (root j : Json) :
+    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔
+      ∃ x n, j = .num x ∧ x.int? = some n := by
+```
+
+The proof reads `multiple(1)` through a fact about the data, that the
+multiples of one are the integers:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- The multiples of one are the integers. -/
+theorem Num.multipleOf_one (x : Num) : x.multipleOf (.ofInt 1) ↔ ∃ n, x.int? = some n := by
+```
 
 ### Strings are never empty
 
@@ -1831,7 +1853,7 @@ example : check (.map [("x", false, .integer)] none false) (.obj []) = false := 
 ```
 
 `spec/Oracle.lean` uses `check` to write the engines' test rows. It
-builds every value of the fragment up to one `&`, and a set of
+builds every value of the fragment up to one `&`, and two sets of
 documents to try each against:
 
 <!-- test: quote spec/Oracle.lean -->
@@ -1849,9 +1871,22 @@ def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
 def scalars : List Json := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
 
+/-- The documents of the first 9,600 rows. -/
 def jsons : List Json :=
   scalars ++ [.obj []] ++ scalars.map (fun j => .obj [("x", j)]) ++ [.obj [("y", .int 1)]]
+
+/-- The documents of the rows after them, numbered on so that no earlier
+row is renamed: a fraction, a whole number written with a point, a
+whole number no double holds, and an array, each also under a key. -/
+def more : List Json :=
+  let xs : List Json := [.dec 15 1, .dec 1 0, .int 9007199254740993, .arr [.int 1]]
+  xs ++ xs.map (fun j => .obj [("x", j)])
+
+def instances : List Json := jsons ++ more
 ```
+
+The oracle numbers the second set's rows after the first's, so adding
+it renamed no row.
 
 The file proves that every value it builds reads no reference, and
 every document is data, so each answer is the definition's:
@@ -1860,14 +1895,14 @@ every document is data, so each answer is the definition's:
 ```lean
 /-- Every row's verdict is the definition's: `v` admits `j`, read as a
 whole document that declares no alias. -/
-theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ jsons) :
+theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ instances) :
     check v j = true ↔ Instance Env.empty v j :=
-  ⟨fun h => ⟨jsons_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
+  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
     fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
 ```
 
-It writes one row for each value and document, and both engines' test
-suites run every row. Two of them, from
+It writes one row for each value and document, 14,400 in all, and both
+engines' test suites run every row. Two of them, from
 [`test/spec/def-fragment.tsv`](../test/spec/def-fragment.tsv):
 
 <!-- test: quote test/spec/def-fragment.tsv -->
@@ -1878,7 +1913,19 @@ c70	verdict	v: string	v: "a"	{"opts":{"noFill":true,"exactNumbers":true},"verdic
 
 A row holds a schema, a document, the two `vet` modes and the verdict
 `check` gives. The oracle writes a refusal as the three verdicts it
-may be, since the definition answers admit or refuse and no more.
+may be, since the definition answers admit or refuse and no more. The
+second set's whole number outside the integer leaf is the first
+document to tell `integer` from `number & multiple(1)`:
+
+<!-- test: quote test/spec/def-fragment.tsv -->
+```tsv
+c9618	verdict	v: integer	v: 9007199254740993	{"opts":{"noFill":true,"exactNumbers":true},"verdict":["invalid","incomplete","error"]}
+```
+
+<!-- test: quote test/spec/def-fragment.tsv -->
+```tsv
+c9626	verdict	v: (number) & (multiple(1))	v: 9007199254740993	{"opts":{"noFill":true,"exactNumbers":true},"verdict":"valid"}
+```
 
 The schema is aontu text, written by `spec/Aontu/Print.lean`:
 
@@ -1899,100 +1946,7 @@ definition no proof checks, since what an engine reads a text as is
 outside Lean, so it prints only what the oracle needs, and answers
 `none` for a sealed map, a list, an alias, and a path.
 
-## 10. The JSON Schema translations
-
-`spec/Aontu/JsonSchema.lean` holds a small piece of JSON Schema, and
-what a 2020-12 validator answers for it:
-
-<!-- test: quote spec/Aontu/JsonSchema.lean -->
-```lean
-/-- A JSON Schema fragment. -/
-inductive Schema where
-  | typeString               -- `{"type": "string"}`
-  | typeInteger              -- `{"type": "integer"}`
-  | allOf (a b : Schema)     -- `{"allOf": [a, b]}`
-
-/-- What a 2020-12 validator answers, where an integer is a number
-whose value is whole, `1.0` included. -/
-def Schema.valid : Schema → Json → Prop
-  | .typeString, j => ∃ s, j = .str s
-  | .typeInteger, j => ∃ n, j.int? = some n
-  | .allOf a b, j => a.valid j ∧ b.valid j
-```
-
-and two translations into aontu values:
-
-<!-- test: quote spec/Aontu/JsonSchema.lean -->
-```lean
-/-- `--faithful`: the spellings that admit what a validator admits. -/
-def importFaithful : Schema → Val
-  | .typeString => .anyString
-  | .typeInteger => .meet .number (.multiple (.ofInt 1))
-  | .allOf a b => .meet (importFaithful a) (importFaithful b)
-
-/-- The default: the natural aontu equivalent of each keyword. -/
-def importNatural : Schema → Val
-  | .typeString => .string
-  | .typeInteger => .integer
-  | .allOf a b => .meet (importNatural a) (importNatural b)
-```
-
-The first spells each keyword by what a validator admits, so
-`type: string` holds `""` and `type: integer` holds every whole number,
-`1.0` among them. The second uses the aontu kind of the same name. A
-theorem states what each gives:
-
-<!-- test: quote spec/Aontu/JsonSchema.lean -->
-```lean
-theorem faithful_exact (s : Schema) (env : Env) (root j : Json) :
-    Admits env root (importFaithful s) j ↔ s.valid j := by
-```
-
-<!-- test: quote spec/Aontu/JsonSchema.lean -->
-```lean
-theorem natural_sound (s : Schema) (env : Env) (root j : Json) :
-    Admits env root (importNatural s) j → s.valid j := by
-```
-
-The first admits exactly what a validator admits. The second never
-admits what a validator refuses and may refuse more, and two theorems
-name what it refuses:
-
-<!-- test: quote spec/Aontu/JsonSchema.lean -->
-```lean
-/-- A validator admits `""` as a string; `string` refuses it. -/
-theorem natural_refuses_empty_string (env : Env) (root : Json) :
-    Schema.typeString.valid (.str "") ∧ ¬ Admits env root (importNatural .typeString) (.str "") :=
-  ⟨⟨_, rfl⟩, fun h => by cases h with | string h => exact h rfl⟩
-
-/-- A validator admits `9007199254740993` as an integer; `integer`
-refuses it, since no double holds it. -/
-theorem natural_refuses_outside_integer_leaf (env : Env) (root : Json) :
-    Schema.typeInteger.valid (.int 9007199254740993) ∧
-      ¬ Admits env root (importNatural .typeInteger) (.int 9007199254740993) := by
-```
-
-`aontu jsonschema import` writes the first translation, and no option
-writes the second. Write `count.json`:
-
-<!-- test: scenario import -->
-<!-- test: file count.json -->
-```json
-{"type": "integer"}
-```
-
-Now import it:
-
-<!-- test: run -->
-```sh
-$ aontu jsonschema import count.json
-number & multiple(1)
-```
-
-The import is `number & multiple(1)`, which admitted `9007199254740993`
-in step 4 where `integer` refused it.
-
-## 11. What any `subsume` must answer
+## 10. What any `subsume` must answer
 
 `⊑` quantifies over every document, of which there are infinitely
 many, so no program computes it in general. The definition states
@@ -2079,10 +2033,14 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
-## 12. What the definition doesn't say yet
+## 11. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
-for the rest of the language, so it says nothing about it. The
+for the rest of the language, so it says nothing about it. Nor does it
+name JSON Schema, which isn't a concept of the language. The language
+needs only the power to represent a JSON Schema: what
+`aontu jsonschema import` writes is aontu values, such as
+`number & multiple(1)`, and the definition says what those mean. The
 [language reference](reference-language.md) states the rest: the
 default read mode and the numeric kinds beyond `integer`, the bounds
 beyond `min`, `max` and `multiple`, most built-in functions,

@@ -98,6 +98,23 @@ example : ¬ Instance .empty .integer (.dec 15 1) := by
 example : Instance .empty (.meet .number (.multiple (.ofInt 1))) (.int 9007199254740993) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
+/-- `number & multiple(1)` admits exactly the numbers whose value is
+whole, of any size. -/
+example (env : Env) (root j : Json) :
+    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔
+      ∃ x n, j = .num x ∧ x.int? = some n := by
+  constructor
+  · intro h
+    cases h with
+    | meet hn hm =>
+      cases hn
+      cases hm with
+      | multiple _ hd =>
+        obtain ⟨n, hx⟩ := (Num.multipleOf_one _).mp hd
+        exact ⟨_, n, rfl, hx⟩
+  · rintro ⟨x, n, rfl, hx⟩
+    exact .meet .number (.multiple (by decide) ((Num.multipleOf_one x).mpr ⟨n, hx⟩))
+
 /-- `boolean` admits `true`. -/
 example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
