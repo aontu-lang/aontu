@@ -159,18 +159,58 @@ function loadRows(): Row[] {
 }
 
 
-describe('spec', () => {
-  const rows = loadRows()
+// SHARES shares of the rows, one per test file, run side by side: this file
+// runs the first, and spec-share-2.test.ts and spec-share-3.test.ts, which
+// import it, take theirs from their names. ENTRY keeps the rest to this file.
+export const SHARES = 3
 
-  // Sanity: ensure the shared spec files were actually found.
-  test('spec-files-present', () => {
-    Assert.ok(0 < rows.length, 'no spec rows loaded from ' + SPEC_DIR)
-  })
+const SHARE_FILE = /^spec(?:-share-(\d+))?\.test\.js$/
 
-  for (const row of rows) {
-    test(`${row.file}:${row.name}`, () => runRow(row))
+export function specShare(file: string): void {
+  const m = SHARE_FILE.exec(Path.basename(file))
+  if (null == m) {
+    throw new Error(`not a spec share file: ${file}`)
   }
-})
+  const share = null == m[1] ? 0 : Number(m[1]) - 1
+  // test/covrun.js asks for one share, and then spec.test.ts runs every row.
+  const shares = '1' === process.env.AONTU_SPEC_SHARES ? 1 : SHARES
+  if (shares <= share) {
+    return
+  }
+
+  describe('spec', () => {
+    const rows = loadRows()
+
+    if (0 === share) {
+      // Sanity: ensure the shared spec files were actually found.
+      test('spec-files-present', () => {
+        Assert.ok(0 < rows.length, 'no spec rows loaded from ' + SPEC_DIR)
+      })
+
+      test('every-share-has-its-file', () => {
+        const files = Fs.readdirSync(__dirname).filter((f) => SHARE_FILE.test(f)).sort()
+        const want = ['spec.test.js']
+        for (let k = 2; k <= SHARES; k++) {
+          want.push(`spec-share-${k}.test.js`)
+        }
+        Assert.deepStrictEqual(files, want.sort())
+      })
+    }
+
+    rows.forEach((row, i) => {
+      if (share === i % shares) {
+        test(`${row.file}:${row.name}`, () => runRow(row))
+      }
+    })
+  })
+}
+
+
+const ENTRY = require.main === module
+
+if (ENTRY) {
+  specShare(__filename)
+}
 
 
 const CANON_NO_REPARSE: Record<string, string> = {}
@@ -775,58 +815,60 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
 // yet (it exists so Phase 2's exact leaves CAN be asserted). Prove the
 // mode itself here, against the same runRow path the TSV rows take, so
 // it is known-good before anything depends on it.
-describe('spec-gens-mode', () => {
+if (ENTRY) {
+  describe('spec-gens-mode', () => {
 
-  test('gens-compares-bytes', () => {
-    runRow({ name: 'g1', mode: 'gens', src: 'a:1', expect: '{"a":1}' })
-    // Compact: no spaces, no indentation, keys in the engine's generated
-    // order -- which is sorted, and matches Go's encoding/json for a map.
-    runRow({
-      name: 'g2', mode: 'gens',
-      src: 'b:2\na:1\nc:[1,{d:x}]',
-      expect: '{"a":1,"b":2,"c":[1,{"d":"x"}]}',
+    test('gens-compares-bytes', () => {
+      runRow({ name: 'g1', mode: 'gens', src: 'a:1', expect: '{"a":1}' })
+      // Compact: no spaces, no indentation, keys in the engine's generated
+      // order -- which is sorted, and matches Go's encoding/json for a map.
+      runRow({
+        name: 'g2', mode: 'gens',
+        src: 'b:2\na:1\nc:[1,{d:x}]',
+        expect: '{"a":1,"b":2,"c":[1,{"d":"x"}]}',
+      })
+      // Byte-exact, so integer 1 and float 1.0 both serialise as `1` --
+      // gens pins the BYTES, canon pins the kind. Neither replaces the other.
+      runRow({ name: 'g3', mode: 'gens', src: 'a:1.0', expect: '{"a":1}' })
+      runRow({ name: 'g4', mode: 'gens', src: 'a:1.5', expect: '{"a":1.5}' })
+      runRow({ name: 'g5', mode: 'gens', src: 'a:x', expect: '{"a":"x"}' })
     })
-    // Byte-exact, so integer 1 and float 1.0 both serialise as `1` --
-    // gens pins the BYTES, canon pins the kind. Neither replaces the other.
-    runRow({ name: 'g3', mode: 'gens', src: 'a:1.0', expect: '{"a":1}' })
-    runRow({ name: 'g4', mode: 'gens', src: 'a:1.5', expect: '{"a":1.5}' })
-    runRow({ name: 'g5', mode: 'gens', src: 'a:x', expect: '{"a":"x"}' })
+
+    test('gens-fails-on-any-byte-difference', () => {
+      // A whitespace or ordering difference must fail: the point of the
+      // mode is that it does not decode before comparing.
+      Assert.throws(() => runRow(
+        { name: 'g6', mode: 'gens', src: 'a:1', expect: '{"a": 1}' }))
+      Assert.throws(() => runRow(
+        { name: 'g7', mode: 'gens', src: 'b:2\na:1', expect: '{"b":2,"a":1}' }))
+    })
+
+    test('unknown-mode-still-fails-loudly', () => {
+      Assert.throws(
+        () => runRow({ name: 'g8', mode: 'genz', src: 'a:1', expect: '{"a":1}' }),
+        /unknown spec mode: genz/)
+    })
+
   })
 
-  test('gens-fails-on-any-byte-difference', () => {
-    // A whitespace or ordering difference must fail: the point of the
-    // mode is that it does not decode before comparing.
-    Assert.throws(() => runRow(
-      { name: 'g6', mode: 'gens', src: 'a:1', expect: '{"a": 1}' }))
-    Assert.throws(() => runRow(
-      { name: 'g7', mode: 'gens', src: 'b:2\na:1', expect: '{"b":2,"a":1}' }))
+
+  describe('spec-errcodes-registry', () => {
+
+    test('registry-and-engine-agree', () => {
+      const registered = loadRows()
+        .filter((r) => 'errcode' === r.mode)
+        .map((r) => r.name)
+        .sort()
+      const engine = Object.keys(codeClasses).sort()
+      Assert.deepStrictEqual(
+        engine,
+        registered,
+        'engine codeClasses table and test/spec/errcodes.tsv disagree'
+      )
+    })
+
   })
-
-  test('unknown-mode-still-fails-loudly', () => {
-    Assert.throws(
-      () => runRow({ name: 'g8', mode: 'genz', src: 'a:1', expect: '{"a":1}' }),
-      /unknown spec mode: genz/)
-  })
-
-})
-
-
-describe('spec-errcodes-registry', () => {
-
-  test('registry-and-engine-agree', () => {
-    const registered = loadRows()
-      .filter((r) => 'errcode' === r.mode)
-      .map((r) => r.name)
-      .sort()
-    const engine = Object.keys(codeClasses).sort()
-    Assert.deepStrictEqual(
-      engine,
-      registered,
-      'engine codeClasses table and test/spec/errcodes.tsv disagree'
-    )
-  })
-
-})
+}
 
 
 function genJSON(v: any): string {

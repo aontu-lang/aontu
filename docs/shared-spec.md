@@ -7,7 +7,11 @@ be parsed trivially and identically from any language.
 
 Both runners load the same files:
 
-- TypeScript: `ts/test/spec.test.ts`
+- TypeScript: `ts/test/spec.test.ts`, which splits the rows into three
+  shares and runs the first; `spec-share-2.test.ts` and
+  `spec-share-3.test.ts` run the other two, so the shares run side by
+  side. The coverage gate sets `AONTU_SPEC_SHARES=1`, which runs every
+  row in `spec.test.ts`
 - Go: `go/spec_test.go`
 
 ## File format

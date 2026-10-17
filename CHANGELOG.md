@@ -8,22 +8,111 @@ each change affects.
 
 ## Unreleased
 
+### The TypeScript suite runs its rows in three files, a file per core
+
+Test infrastructure; no engine changes.
+
+- The shared rows ran in one test file, which outlasted every other:
+  on macOS, whose runner has three cores, the Node 24 job reached its
+  twelve-minute limit and GitHub cancelled it. `ts/test/spec.test.ts`
+  now runs every third row, and `spec-share-2.test.ts` and
+  `spec-share-3.test.ts` run the others; a test fails if a share has
+  no file. Locally the one file took 417 s before the 4,800 new rows,
+  and each share takes about 170 s with them.
+- `npm test` is `ts/scripts/test.cjs`, which runs a test file per core.
+  The runner's own default leaves a core idle, which on three cores
+  ran two files at a time. Locally the suite took 567 s at the default
+  and takes 419 s.
+- The coverage driver runs a test file per core too, where it ran one
+  at a time: a pass in CI took 25 of the job's 30 minutes, which left
+  no time for the retry the driver exists to make. It keeps the rows in
+  one file, by `AONTU_SPEC_SHARES=1`: split, rows written together to
+  cover one function's arms run in separate processes, and the runner's
+  merge of their coverage reported an arm as never taken, which the
+  gate can't clear.
+
+### The formal definition is one definition, and its JSON is defined in full
+
+Definition and documentation; no engine changes.
+
+- The definition under `spec/` is one: every module reads one model of
+  JSON (`spec/Aontu/Data.lean`), one syntax of values (`Syntax.lean`)
+  and one admission relation (`Admits.lean`), in the layout the design
+  note lays out, and no module declares a copy of its own. The
+  prototype's `Core.lean`, `WhatNotHow.lean` and `Structures.lean` each
+  declared their own values, admission, and partial JSON, with integer
+  ranges, literals, and aliases that disagreed; they are folded in and
+  removed, and the order, the trial layer, the checker, and the
+  printer each have a module of their own.
+- JSON Schema is not a concept of the language, and the definition no
+  longer mentions it: the prototype's JSON Schema validator and the
+  import's two modes as contracts are gone. What the language owes JSON
+  Schema is the power to represent it, so a value the importer writes,
+  such as `number & multiple(1)`, is a form the definition defines on
+  its own terms, and a law states that it admits exactly the whole
+  numbers.
+- A number is an exact decimal with a flag for a decimal point in its
+  text, the one part of its spelling the language reads: by default
+  `1.0` is a float, and under `--exact-numbers` the integer `1`. A
+  well-formed document has every number in lowest terms and names each
+  member of an object once; both engines read a repeated name by
+  unifying the repeats, so `{"a": 1, "a": 2}` is refused.
+- Every rule was probed against both CLIs, and three of the
+  prototype's are corrected. `integer` is the integer leaf the number
+  model states, a double of magnitude below `2^63`, so it admits
+  `2^53 + 2` and `10^18` and refuses `2^63`, where the sketch's
+  `|n| ≤ 2^53` refused the first two. A literal is a scalar, and a
+  number literal an integer of that leaf. An undeclared alias admits
+  nothing, as both engines refuse it.
+- Numbers are read by value, as `--exact-numbers` reads them: `integer`
+  admits `1.0`, `min(3)` admits `3.5`, `multiple(0.5)` admits `1.5`
+  and refuses `1.25`, and a path reference compares by value.
+- Left for later, because the language reads them otherwise than the
+  prototype's rules said: `|` and `*`, which the language reads by
+  where they stand (`*1` alone admits `2`, and an arm `[integer]` of a
+  disjunction refuses `[1, 2]`), and with them evaluation output. A
+  `len(min(n))` form, a second spelling of `null`, the merge rule
+  before the current one and a meaning for `%U = %U`, which is ruled
+  ill-formed, are gone.
+- An instance is a document: `Instance`, and so the order, holds only
+  of well-formed JSON, so a Lean term that names a member twice is never
+  a witness. Without it, `close({x: integer})` was not below
+  `close({x: integer}) & {&: integer}`, though it is on every document.
+  `Json.wf` decides that a document is data, beside `Json.wf_iff`.
+- `nof(n, …)` passes where `n` admits the count of its trials that
+  pass, as the reference states, and the trial layer needs no
+  classical logic: no named theorem rests on `Classical.choice`.
+- `check` decides every value that reads no reference, and
+  `verdict_exact` proves each generated row's verdict the
+  definition's. The 9,600 rows keep every name and verdict; their text
+  now quotes every key, as the published grammar does, and writes
+  `number & multiple(1)` as a meet. The ledger's text column follows.
+- 4,800 more rows, numbered after the first so that none is renamed,
+  try every value against a fraction, a whole number written with a
+  point, a whole number no double holds, and an array, each also under
+  a key: 14,400 in all. Both engines answer every new row as the
+  definition does, and the whole number outside the integer leaf is the
+  first instance to tell `integer` from `number & multiple(1)`.
+- `docs/tutorial-definition.md` walks the new modules in order: the
+  data and the integer leaf, the values, every admission rule with a
+  document it admits and one it refuses (literals, `max`, `multiple`,
+  spreads, list spreads, an undeclared alias and a path compared by
+  value are new), the order, the merge, the cases where the engines
+  differ, `nof` and `when`, the checker and the oracle, the `subsume`
+  contract, and why `|` and `*` wait.
+
 ### A tutorial reads the formal definition
 
 Documentation, both ports' transcripts.
 
 - `docs/tutorial-definition.md`, the fifth tutorial, reads the Lean
-  definition under `spec/` one rule at a time: the data, the value
-  forms, what each admits, the order and the meet, the merge of two
-  declarations of one key, the checker and the oracle, the JSON Schema
-  translations, then the sketch's lists, closed maps, disjunction,
-  preference, path references, recursion, evaluation output, trial
-  schemas and the contract any `subsume` must meet. Each rule comes
-  with a document it admits and one it refuses, as a Lean example the
-  build proves (the new `spec/Aontu/Tour.lean` holds the ones the other
-  modules do not) and as a transcript the documentation test runs. Two
-  steps show the cases where both engines answer otherwise than the
-  definition, as `spec/ledger.tsv` lists them.
+  definition under `spec/` one rule at a time, in the order the entry
+  above lists. Each rule comes with a document it admits and one it
+  refuses, as a Lean example the build proves (the new
+  `spec/Aontu/Tour.lean` holds them) and as a transcript the
+  documentation test runs. Two steps show the cases where both engines
+  answer otherwise than the definition, as `spec/ledger.tsv` lists
+  them.
 - A new snippet directive, `<!-- test: quote <path> -->`: the next
   fence must be a run of lines of that repository file, unchanged, so a
   quoted rule cannot drift from the definition it quotes.
@@ -37,7 +126,7 @@ Both ports.
 
 - A new shared mode, `verdict`: five columns, `vet(schema, data)` must
   produce the verdict the expectation names, or one of the names it
-  may be, and nothing else in the report is compared. The 9,600 rows of
+  may be, and nothing else in the report is compared. The rows of
   `test/spec/def-fragment.tsv` are generated from the formal definition
   under `spec/` by `make spec`, never written by hand, and both spec
   runners read `spec/ledger.tsv`, the 42 cases the engines do not yet
