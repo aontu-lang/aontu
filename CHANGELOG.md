@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The formal definition's JSON is defined once, and in full
+
+Definition and documentation; no engine changes.
+
+- `spec/Aontu/Data.lean` defines the data every module of the
+  definition reads, replacing the three partial copies that
+  `Core.lean`, `WhatNotHow.lean` and `Structures.lean` each declared,
+  none of which had numbers beyond integers, and two of which had no
+  arrays. A number is an exact decimal with a flag for a decimal
+  point in its text, the one part of its spelling the language reads:
+  by default `1.0` is a float, and under `--exact-numbers` the integer
+  `1`. A well-formed document has every number in lowest terms and
+  names each member of an object once; both engines read a repeated
+  name by unifying the repeats, so `{"a": 1, "a": 2}` is refused.
+- The relations read numbers by value, as `--exact-numbers` does:
+  `integer` admits `1.0` and refuses `1.5`, `min(3)` admits `3.5`, and
+  JSON Schema's `integer` holds `1.0`, as 2020-12 says. Every proof is
+  re-done on the new data, and the 9,600 generated rows are unchanged
+  byte for byte.
+- `docs/tutorial-definition.md` reads the new module in its step on
+  the data, with transcripts of `1.0` in both read modes and of a
+  repeated name, and the steps on integers, bounds, keys and `any`
+  gain a float or an array each.
+
 ### A tutorial reads the formal definition
 
 Documentation, both ports' transcripts.

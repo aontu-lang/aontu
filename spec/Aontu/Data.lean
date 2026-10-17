@@ -22,8 +22,8 @@ structure Num where
   point : Bool
   deriving DecidableEq, Repr
 
-/-- In lowest terms: no zero digit trails the point, so a value and a
-spelling of the point have one `Num` between them. -/
+/-- In lowest terms: no zero digit trails the point, so each value, written
+with a point or without one, has exactly one `Num`. -/
 def Num.Lowest (x : Num) : Prop := x.scale = 0 ∨ x.coef % 10 ≠ 0
 
 instance (x : Num) : Decidable x.Lowest := inferInstanceAs (Decidable (_ ∨ _))
