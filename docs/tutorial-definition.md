@@ -58,8 +58,10 @@ refused, and the exit code says which kind of refusal it was: `1` for
 
 ## 2. The data
 
-Everything the definition says, it says about JSON, defined once in
-`spec/Aontu/Data.lean`. A number comes first:
+In the definition, an aontu value means the data it admits: the
+documents `aontu vet` passes against it. That data is JSON, and
+`spec/Aontu/Data.lean` defines it once, before the definition says
+anything about values. A number comes first:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
