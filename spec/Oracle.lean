@@ -7,8 +7,9 @@ import Aontu.Print
 Enumerates every value of the fragment up to one meet against a set of
 documents, and prints each case with the definition's verdict. The
 verdict comes from `check`, which `check_iff` makes the definition's on
-every value that reads no reference, and `vals_refFree` proves every
-value here is one; `jsons_wellFormed` proves every instance a document.
+every value that reads no reference: `vals_refFree` proves every value
+here is one, `jsons_wellFormed` proves every instance a document, and
+`verdict_exact` puts the three together.
 -/
 
 namespace Aontu
@@ -75,9 +76,10 @@ theorem jsons_wellFormed : ∀ j ∈ jsons, j.WellFormed := by
 
 /-- Every row's verdict is the definition's: `v` admits `j`, read as a
 whole document that declares no alias. -/
-theorem verdict_exact {v : Val} (hv : v ∈ vals) (j : Json) :
+theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ jsons) :
     check v j = true ↔ Instance Env.empty v j :=
-  check_iff (vals_refFree v hv) j
+  ⟨fun h => ⟨jsons_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
+    fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
 
 end Aontu
 

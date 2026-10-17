@@ -20,10 +20,10 @@ rows should expect.
 |---|---|
 | `Aontu/Data.lean` | JSON: numbers as exact decimals that keep whether their text has a point, strings, arrays, objects, paths into a document, `WellFormed` (every number in lowest terms, no name twice in an object), and `IntegerLeaf`, the integers the `integer` leaf holds |
 | `Aontu/Syntax.lean` | the values, one constructor per construct: the kinds, `string & empty()`, scalar literals, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
-| `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers |
+| `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a well-formed document can satisfy |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
-| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path |
+| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; and `Json.wf`, which decides that a document is data, beside `Json.wf_iff` |
 | `Aontu/JsonSchema.lean` | what a 2020-12 validator admits for a fragment of the keywords, and the import's two modes with their contracts |
 | `Aontu/Print.lean` | the printer from values and documents to the text both CLIs read |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |

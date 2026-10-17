@@ -8,10 +8,69 @@ import Aontu.Admits
 `Decidable` instance). `check` is an algorithm, and `check_iff` is what
 lets its answers stand in for the definition's, on every value that
 reads neither an alias nor a path. Without that theorem it would be a
-third port.
+third port. `Json.wf` decides that a document is data the same way,
+beside `Json.wf_iff`.
 -/
 
 namespace Aontu
+
+mutual
+/-- Whether a document is data, computed. -/
+def Json.wf : Json → Bool
+  | .null => true
+  | .bool _ => true
+  | .num x => decide x.Lowest
+  | .str _ => true
+  | .arr xs => Json.wfAll xs
+  | .obj fs => decide (fs.map Prod.fst).Nodup && Json.wfMembers fs
+
+def Json.wfAll : List Json → Bool
+  | [] => true
+  | x :: xs => x.wf && Json.wfAll xs
+
+def Json.wfMembers : List (String × Json) → Bool
+  | [] => true
+  | (_, x) :: fs => x.wf && Json.wfMembers fs
+end
+
+mutual
+theorem Json.wf_iff : ∀ j : Json, j.wf = true ↔ j.WellFormed
+  | .null => ⟨fun _ => .null, fun _ => rfl⟩
+  | .bool _ => ⟨fun _ => .bool, fun _ => rfl⟩
+  | .num x => by
+    simp only [Json.wf, decide_eq_true_eq]
+    exact ⟨.num, fun h => by cases h; assumption⟩
+  | .str _ => ⟨fun _ => .str, fun _ => rfl⟩
+  | .arr xs => by
+    simp only [Json.wf]
+    rw [Json.wfAll_iff xs]
+    exact ⟨.arr, fun h => by cases h; assumption⟩
+  | .obj fs => by
+    simp only [Json.wf, Bool.and_eq_true, decide_eq_true_eq]
+    rw [Json.wfMembers_iff fs]
+    exact ⟨fun ⟨h1, h2⟩ => .obj h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+
+theorem Json.wfAll_iff : ∀ xs : List Json, Json.wfAll xs = true ↔ ∀ x, x ∈ xs → x.WellFormed
+  | [] => by simp [Json.wfAll]
+  | x :: xs => by
+    simp only [Json.wfAll, Bool.and_eq_true, List.forall_mem_cons]
+    rw [Json.wf_iff x, Json.wfAll_iff xs]
+
+theorem Json.wfMembers_iff :
+    ∀ fs : List (String × Json), Json.wfMembers fs = true ↔ ∀ k x, (k, x) ∈ fs → x.WellFormed
+  | [] => by simp [Json.wfMembers]
+  | (k, x) :: fs => by
+    simp only [Json.wfMembers, Bool.and_eq_true, List.mem_cons, Prod.mk.injEq]
+    rw [Json.wf_iff x, Json.wfMembers_iff fs]
+    constructor
+    · rintro ⟨hx, hfs⟩ k' x' (⟨rfl, rfl⟩ | h)
+      · exact hx
+      · exact hfs k' x' h
+    · intro h
+      exact ⟨h k x (.inl ⟨rfl, rfl⟩), fun k' x' h' => h k' x' (.inr h')⟩
+end
+
+instance (j : Json) : Decidable j.WellFormed := decidable_of_iff _ (Json.wf_iff j)
 
 /-- The values that read neither an alias nor a path, so that what they
 admit depends on no declaration and no document root. -/

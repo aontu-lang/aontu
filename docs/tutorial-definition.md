@@ -348,16 +348,34 @@ The examples ask about a whole document, which is its own root:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-/-- The document `j` is an instance of `v` under the declarations `env`,
-read as a whole: `j` is its own root. This is the question
-`aontu vet` answers. -/
-abbrev Instance (env : Env) (v : Val) (j : Json) : Prop := Admits env j v j
+/-- The document `j` is an instance of `v` under the declarations `env`:
+`j` is data, and read as a whole, so that it is its own root. This is
+the question `aontu vet` answers. A Lean `Json` that is not data, such
+as an object naming a member twice, is no instance of anything, so it
+is never a witness. -/
+abbrev Instance (env : Env) (v : Val) (j : Json) : Prop := j.WellFormed ∧ Admits env j v j
 ```
 
-`example : Instance .empty .any .null` claims that `any` admits `null`
-in a document that declares no alias, and what follows `:=` is the
-proof, which the build checks. A claim that opens with `¬` says the
-value refuses the document.
+Read `∧` as "and" here: an instance is a pair, the document being
+data and the value admitting it. `example : Instance .empty .any .null` claims that
+`any` admits `null` in a document that declares no alias, and what
+follows `:=` is the proof, which the build checks. A claim that opens
+with `¬` says the value refuses the document. Because an instance must
+be data, a Lean `Json` that names a member twice is an instance of
+nothing:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{"a": 1, "a": 2}` is no instance of `{a: any}`, nor of anything: it
+is not data. Both engines refuse it. -/
+example : ¬ Instance .empty (.map [("a", false, .any)] none false)
+    (.obj [("a", .int 1), ("a", .int 2)]) :=
+  fun ⟨hw, _⟩ => absurd hw (by decide)
+```
+
+`by decide` computes whether the document is data, which
+`spec/Aontu/Check.lean` decides beside a theorem that the decision is
+right, as step 9 shows for admission.
 
 ### The two ends: `any` and `nil`
 
@@ -368,18 +386,19 @@ so it admits none. They are the [top](unification.md) and the
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `any` admits `null`. -/
-example : Instance .empty .any .null := .any
+example : Instance .empty .any .null := ⟨by decide, .any⟩
 
 /-- `any` admits `[1, "a"]`. -/
-example : Instance .empty .any (.arr [.int 1, .str "a"]) := .any
+example : Instance .empty .any (.arr [.int 1, .str "a"]) := ⟨by decide, .any⟩
 
 /-- `nil` refuses `null`, and everything else. -/
-example : ¬ Instance .empty .nil .null := fun h => nomatch h
+example : ¬ Instance .empty .nil .null := fun ⟨_, h⟩ => nomatch h
 ```
 
-The first two proofs name the rule, `.any`. For `nil`, `fun h => nomatch h`
-takes a supposed proof that `nil` admits `null` and finds no rule it
-could have come from. Write `ends.aontu`:
+Each of the first two proofs pairs the computation that the document
+is data with the rule, `.any`. For `nil`, `fun ⟨_, h⟩ => nomatch h`
+takes a supposed proof apart and finds no rule its second half could
+have come from. Write `ends.aontu`:
 
 <!-- test: scenario ends -->
 <!-- test: file ends.aontu -->
@@ -440,17 +459,17 @@ when its digits divide by the power of ten its scale names.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := .integer rfl (by decide)
+example : Instance .empty .integer (.int 3) := ⟨by decide, .integer rfl (by decide)⟩
 
 /-- `integer` admits `1.0`, whose value is the integer `1`. -/
-example : Instance .empty .integer (.dec 1 0) := .integer rfl (by decide)
+example : Instance .empty .integer (.dec 1 0) := ⟨by decide, .integer rfl (by decide)⟩
 
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := .integer rfl (by decide)
+example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer rfl (by decide)⟩
 
 /-- `integer` refuses `9007199254740993`, which no double holds. -/
 example : ¬ Instance .empty .integer (.int 9007199254740993) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | integer hx hl =>
     simp [Num.ofInt, Num.int?] at hx
@@ -459,7 +478,7 @@ example : ¬ Instance .empty .integer (.int 9007199254740993) := by
 
 /-- `integer` refuses `9223372036854775808`, outside the window. -/
 example : ¬ Instance .empty .integer (.int 9223372036854775808) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | integer hx hl =>
     simp [Num.ofInt, Num.int?] at hx
@@ -468,19 +487,19 @@ example : ¬ Instance .empty .integer (.int 9223372036854775808) := by
 
 /-- `integer` refuses `1.5`. -/
 example : ¬ Instance .empty .integer (.dec 15 1) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | integer hx _ => simp [Num.int?] at hx
 
 /-- `number & multiple(1)` admits `9007199254740993`. -/
 example : Instance .empty (.meet .number (.multiple (.ofInt 1))) (.int 9007199254740993) :=
-  .meet .number (.multiple (by decide) (by decide))
+  ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
 /-- `boolean` admits `true`. -/
-example : Instance .empty .boolean (.bool true) := .boolean
+example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
 /-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun h => nomatch h
+example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
 ```
 
 `rfl` proves that a computation gives what it claims, and `by decide`
@@ -545,16 +564,16 @@ number, so `wide` admits the number `beyond` refused.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `string` admits `"a"`. -/
-example : Instance .empty .string (.str "a") := .string (by decide)
+example : Instance .empty .string (.str "a") := ⟨by decide, .string (by decide)⟩
 
 /-- `string` refuses `""`. -/
 example : ¬ Instance .empty .string (.str "") := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | string h => exact h rfl
 
 /-- `string & empty()` admits `""`. -/
-example : Instance .empty .anyString (.str "") := .anyString
+example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
 ```
 
 Write `strings.aontu`:
@@ -610,17 +629,17 @@ step 2:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `3` admits `3.0`, whose value is `3`. -/
-example : Instance .empty (.lit (.int 3)) (.dec 3 0) := .int rfl (by decide)
+example : Instance .empty (.lit (.int 3)) (.dec 3 0) := ⟨by decide, .int rfl (by decide)⟩
 
 /-- `9223372036854775808` refuses itself: a literal outside the leaf is
 a float, and no number read by value is one. -/
 example : ¬ Instance .empty (.lit (.int 9223372036854775808)) (.int 9223372036854775808) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | int _ hl => exact absurd hl (by decide)
 
 /-- `"a"` refuses `"b"`. -/
-example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun h =>
+example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ =>
   absurd ((check_iff .lit _).mpr h) (by decide)
 ```
 
@@ -697,32 +716,32 @@ it. The rule for `multiple` asks for a positive divisor, so
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `min(3)` admits `3`. -/
-example : Instance .empty (.min (.ofInt 3)) (.int 3) := .min (by decide)
+example : Instance .empty (.min (.ofInt 3)) (.int 3) := ⟨by decide, .min (by decide)⟩
 
 /-- `min(3)` refuses `2`. -/
 example : ¬ Instance .empty (.min (.ofInt 3)) (.int 2) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits `3.5`. -/
-example : Instance .empty (.min (.ofInt 3)) (.dec 35 1) := .min (by decide)
+example : Instance .empty (.min (.ofInt 3)) (.dec 35 1) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)` admits `2.5`. -/
-example : Instance .empty (.max ⟨25, 1, true⟩) (.dec 25 1) := .max (by decide)
+example : Instance .empty (.max ⟨25, 1, true⟩) (.dec 25 1) := ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
 example : ¬ Instance .empty (.max ⟨25, 1, true⟩) (.dec 26 1) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits `1.5`. -/
-example : Instance .empty (.multiple ⟨5, 1, true⟩) (.dec 15 1) := .multiple (by decide) (by decide)
+example : Instance .empty (.multiple ⟨5, 1, true⟩) (.dec 15 1) := ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
 example : ¬ Instance .empty (.multiple ⟨5, 1, true⟩) (.dec 125 2) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
 
@@ -821,7 +840,7 @@ example : Instance .empty (.map [("x", false, .integer)] none false) (.obj [("x"
 ```lean
 /-- `{x: integer}` refuses `{}`: the key is required. -/
 example : ¬ Instance .empty (.map [("x", false, .integer)] none false) (.obj []) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | map _ ha _ _ => exact absurd (ha "x" false .integer (List.mem_singleton.mpr rfl) rfl) (by decide)
 ```
@@ -830,19 +849,19 @@ example : ¬ Instance .empty (.map [("x", false, .integer)] none false) (.obj []
 ```lean
 /-- `{x?: integer}` admits `{}`. -/
 example : Instance .empty (.map [("x", true, .integer)] none false) (.obj []) :=
-  .map (fun _ _ _ _ _ hx => nomatch hx)
+  ⟨by decide, .map (fun _ _ _ _ _ hx => nomatch hx)
     (fun _ _ _ hm _ => by cases List.mem_singleton.mp hm; rfl)
-    (fun _ h => nomatch h) (fun h => nomatch h)
+    (fun _ h => nomatch h) (fun h => nomatch h)⟩
 
 /-- `{x?: integer}` refuses `{"x": "a"}`. -/
 example : ¬ Instance .empty (.map [("x", true, .integer)] none false) (.obj [("x", .str "a")]) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | map hp _ _ _ => nomatch hp "x" true .integer (.str "a") (List.mem_singleton.mpr rfl) rfl
 
 /-- `{x?: integer}` refuses `[]`: an array is not a map. -/
 example : ¬ Instance .empty (.map [("x", true, .integer)] none false) (.arr []) :=
-  fun h => nomatch h
+  fun ⟨_, h⟩ => nomatch h
 ```
 
 A quote that ends at `:= by` stops before the proof, which follows in
@@ -900,6 +919,7 @@ not:
 ```lean
 /-- `{&: integer}` admits `{"a": 1, "b": 2}`: the spread holds every member. -/
 example : Instance .empty (.map [] (some .integer) false) (.obj [("a", .int 1), ("b", .int 2)]) := by
+  refine ⟨by decide, ?_⟩
   refine .map (fun _ _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h) ?_ (fun h => nomatch h)
   intro s hs k x hm
   cases hs
@@ -953,7 +973,7 @@ declare, and leaves an absent optional key alone:
 /-- `close({a: integer})` refuses `{"a": 1, "b": 2}`: `b` is not declared. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] none true)
     (.obj [("a", .int 1), ("b", .int 2)]) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | map _ _ _ hc =>
     obtain ⟨o, v, hm⟩ := hc rfl "b" (.int 2) (by simp)
@@ -961,9 +981,9 @@ example : ¬ Instance .empty (.map [("a", false, .integer)] none true)
 
 /-- `close({a?: integer})` admits `{}`. -/
 example : Instance .empty (.map [("a", true, .integer)] none true) (.obj []) :=
-  .map (fun _ _ _ _ _ hx => nomatch hx)
+  ⟨by decide, .map (fun _ _ _ _ _ hx => nomatch hx)
     (fun _ _ _ hm _ => by cases List.mem_singleton.mp hm; rfl)
-    (fun _ h => nomatch h) (fun _ _ _ h => nomatch h)
+    (fun _ h => nomatch h) (fun _ _ _ h => nomatch h)⟩
 ```
 
 Write `closed.aontu`:
@@ -1019,6 +1039,7 @@ each map's seal in its own `closed` flag.
 ```lean
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
 example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "a", .bool true]) := by
+  refine ⟨by decide, ?_⟩
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
   rcases i with _ | _ | i
@@ -1028,7 +1049,7 @@ example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "
 
 /-- `[integer, string]` refuses `[1]`: a written position is missing. -/
 example : ¬ Instance .empty (.list [.integer, .string] none) (.arr [.int 1]) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | list hlen _ _ => exact absurd hlen (by decide)
 
@@ -1085,11 +1106,11 @@ required key.
 ```lean
 /-- `integer & min(3)` admits `7`. -/
 example : Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 7) :=
-  .meet (.integer rfl (by decide)) (.min (by decide))
+  ⟨by decide, .meet (.integer rfl (by decide)) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
 example : ¬ Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 2) := by
-  intro h
+  rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 ```
@@ -1377,14 +1398,14 @@ greatest lower bound:
 <!-- test: quote spec/Aontu/Order.lean -->
 ```lean
 theorem meet_le_left (env : Env) (a b : Val) : .meet a b ⊑[env] a := by
-  intro _ h; cases h with | meet h _ => exact h
+  intro _ ⟨hw, h⟩; cases h with | meet h _ => exact ⟨hw, h⟩
 
 theorem meet_le_right (env : Env) (a b : Val) : .meet a b ⊑[env] b := by
-  intro _ h; cases h with | meet _ h => exact h
+  intro _ ⟨hw, h⟩; cases h with | meet _ h => exact ⟨hw, h⟩
 
 theorem le_meet {env : Env} {a b c : Val} (ha : c ⊑[env] a) (hb : c ⊑[env] b) :
     c ⊑[env] .meet a b :=
-  fun j h => .meet (ha j h) (hb j h)
+  fun j h => ⟨h.1, .meet (ha j h).2 (hb j h).2⟩
 ```
 
 The first two put `a & b` below each side, and `le_meet` puts anything
@@ -1401,7 +1422,7 @@ example : .meet .integer (.min (.ofInt 3)) ⊑[.empty] .integer := meet_le_left 
 shows it. -/
 example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.ofInt 3))) := by
   intro h
-  cases h (.int 2) (.integer rfl (by decide)) with
+  cases (h (.int 2) ⟨by decide, .integer rfl (by decide)⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 ```
 
@@ -1524,7 +1545,7 @@ theorem no_meet_with_string_admits_empty (env : Env) (root : Json) (b : Val) :
 ```lean
 /-- `string & (string & empty())` refuses `""`, which both engines admit. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
-  no_meet_with_string_admits_empty _ _ _
+  fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
 ```
 
 Write `waiver.aontu`:
@@ -1839,9 +1860,10 @@ every document is data, so each answer is the definition's:
 ```lean
 /-- Every row's verdict is the definition's: `v` admits `j`, read as a
 whole document that declares no alias. -/
-theorem verdict_exact {v : Val} (hv : v ∈ vals) (j : Json) :
+theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ jsons) :
     check v j = true ↔ Instance Env.empty v j :=
-  check_iff (vals_refFree v hv) j
+  ⟨fun h => ⟨jsons_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
+    fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
 ```
 
 It writes one row for each value and document, and both engines' test

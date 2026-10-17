@@ -63,9 +63,11 @@ inductive Admits (env : Env) (root : Json) : Val → Json → Prop
   | path {p : List Seg} {j' j : Json} :
       root.at p = some j' → j'.Same j → Admits env root (.path p) j
 
-/-- The document `j` is an instance of `v` under the declarations `env`,
-read as a whole: `j` is its own root. This is the question
-`aontu vet` answers. -/
-abbrev Instance (env : Env) (v : Val) (j : Json) : Prop := Admits env j v j
+/-- The document `j` is an instance of `v` under the declarations `env`:
+`j` is data, and read as a whole, so that it is its own root. This is
+the question `aontu vet` answers. A Lean `Json` that is not data, such
+as an object naming a member twice, is no instance of anything, so it
+is never a witness. -/
+abbrev Instance (env : Env) (v : Val) (j : Json) : Prop := j.WellFormed ∧ Admits env j v j
 
 end Aontu

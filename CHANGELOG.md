@@ -45,6 +45,11 @@ Definition and documentation; no engine changes.
   `len(min(n))` form, a second spelling of `null`, the merge rule
   before the current one and a meaning for `%U = %U`, which is ruled
   ill-formed, are gone.
+- An instance is a document: `Instance`, and so the order, holds only
+  of well-formed JSON, so a Lean term that names a member twice is never
+  a witness. Without it, `close({x: integer})` was not below
+  `close({x: integer}) & {&: integer}`, though it is on every document.
+  `Json.wf` decides that a document is data, beside `Json.wf_iff`.
 - `nof(n, …)` passes where `n` admits the count of its trials that
   pass, as the reference states, and the trial layer needs no
   classical logic: no named theorem rests on `Classical.choice`.

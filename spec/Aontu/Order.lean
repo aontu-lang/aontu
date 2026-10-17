@@ -23,21 +23,21 @@ theorem Le.trans {env : Env} {a b c : Val} (h₁ : a ⊑[env] b) (h₂ : b ⊑[e
     a ⊑[env] c :=
   fun j h => h₂ j (h₁ j h)
 
-theorem le_any (env : Env) (a : Val) : a ⊑[env] .any := fun _ _ => .any
+theorem le_any (env : Env) (a : Val) : a ⊑[env] .any := fun _ h => ⟨h.1, .any⟩
 
-theorem nil_le (env : Env) (a : Val) : .nil ⊑[env] a := fun _ h => nomatch h
+theorem nil_le (env : Env) (a : Val) : .nil ⊑[env] a := fun _ h => nomatch h.2
 
 /-! ## The meet is the greatest lower bound -/
 
 theorem meet_le_left (env : Env) (a b : Val) : .meet a b ⊑[env] a := by
-  intro _ h; cases h with | meet h _ => exact h
+  intro _ ⟨hw, h⟩; cases h with | meet h _ => exact ⟨hw, h⟩
 
 theorem meet_le_right (env : Env) (a b : Val) : .meet a b ⊑[env] b := by
-  intro _ h; cases h with | meet _ h => exact h
+  intro _ ⟨hw, h⟩; cases h with | meet _ h => exact ⟨hw, h⟩
 
 theorem le_meet {env : Env} {a b c : Val} (ha : c ⊑[env] a) (hb : c ⊑[env] b) :
     c ⊑[env] .meet a b :=
-  fun j h => .meet (ha j h) (hb j h)
+  fun j h => ⟨h.1, .meet (ha j h).2 (hb j h).2⟩
 
 /-- `string & empty()` admits `""`, which `string` refuses, so it is no
 meet with `string`: no meet with `string` admits `""`. It is a form of
