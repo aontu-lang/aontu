@@ -53,18 +53,15 @@ make spec
 That builds every module, which checks every proof, then regenerates
 the test rows and fails if they differ from the committed copy.
 
-The transcripts run [`aontu vet`](reference-api.md#aontu-vet) with two
-flags. `--exact-numbers` has the engine read each number of the data by
-its value: a whole number the `integer` leaf holds as an integer, any
-other whole number as a big integer, and a fraction as a big decimal.
-Without it the engine reads a number by how it's written, and `1.5` and
-`1.0` are floats. `--no-fill` has it check the data as given rather
-than as the schema could complete it. Each step's schema states its terms at named keys,
-and the data gives each key one value. Each finding names the key the
-engine refused, says why, and points at what it can: where the data
-holds the value, where the schema states the term, or both. The exit code
-says which kind of refusal it was: `1` for `invalid`, `3` for
-`incomplete`, `4` for `error`.
+The transcripts run [`aontu vet`](reference-api.md#aontu-vet), with no
+flags, on two aontu files: a schema, which states its terms at named
+keys, and the data, which gives each key one value. Written in aontu,
+the data says which leaf each number is in: `3` is an integer, `1.5` a
+float, and `0d1.5` a big decimal. Each finding names the key the engine
+refused, says why, and points at what it can: where the data holds the
+value, where the schema states the term, or both. The exit code says
+which kind of refusal it was: `1` for `invalid`, `3` for `incomplete`,
+`4` for `error`.
 
 ## 2. Scalars
 
@@ -242,50 +239,61 @@ could have given its second. Write `integers.aontu`:
 ```aontu
 admitted: integer
 double: integer
+plain: integer
 beyond: integer
 window: integer
 text: integer
 ```
 
-and `integers.json`:
+and `integers-data.aontu`:
 
-<!-- test: file integers.json -->
-```json
-{"admitted": 3, "double": 9007199254740994, "beyond": 9007199254740993, "window": 9223372036854775808, "text": "3"}
+<!-- test: file integers-data.aontu -->
+```aontu
+admitted: 3
+double: 9007199254740994
+plain: 9007199254740993
+beyond: 0d9007199254740993
+window: 9223372036854775808
+text: "3"
 ```
 
 Now vet the data against the schema:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers integers.aontu integers.json
+$ aontu vet integers.aontu integers-data.aontu
 verdict: invalid
 
+$.plain: lossy_integer_literal [conflict]
+  [aontu/lossy_integer_literal]: Cannot resolve value at path $.plain
+  data: integers-data.aontu:3:8 (nil)
 $.beyond: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.beyond
-  data: integers.json:1:55 (0d9007199254740993)
-  schema: integers.aontu:3:9 (integer)
+  data: integers-data.aontu:4:9 (0d9007199254740993)
+  schema: integers.aontu:4:9 (integer)
 $.window: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.window
-  data: integers.json:1:83 (0d9223372036854775808)
-  schema: integers.aontu:4:9 (integer)
+  data: integers-data.aontu:5:9 (9223372036854776000.0)
+  schema: integers.aontu:5:9 (integer)
 $.text: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.text
-  data: integers.json:1:112 ("3")
-  schema: integers.aontu:5:7 (integer)
+  data: integers-data.aontu:6:7 ("3")
+  schema: integers.aontu:6:7 (integer)
 $ echo $?
 1
 ```
 
-`integer` admits `3` and `9007199254740994`, which a double holds. The
-engine reads `9007199254740993`, which no double holds, and
-`9223372036854775808`, outside the window, as big integers, and the
-`data:` lines show them so, in the `0d` notation. `integer` refuses
-both, as it refuses the string `"3"`. The code of each finding,
-`no_scalar_unify`, says no value is both, and its class, `conflict`,
-says no completion of the data could change that. The `data:` and
-`schema:` lines point at the two sides, each with its file, line, and
-column.
+`integer` admits `3` and `9007199254740994`, which a double holds.
+Written plainly, `9007199254740993` is a literal no double holds, and
+the engine refuses it rather than round it: `lossy_integer_literal`.
+Written `0d9007199254740993`, it's a big integer, which `integer`
+refuses. `9223372036854775808`, outside the window, is a double, so the
+engine reads it as a float, which its `data:` line shows as
+`9223372036854776000.0`, and `integer` refuses it, as it refuses the
+string `"3"`. The code of those three findings, `no_scalar_unify`, says
+no value is both, and their class, `conflict`, says no completion of
+the data could change that. The `data:` and `schema:` lines point at
+the two sides, each with its file, line, and column.
 
 ### Floats
 
@@ -375,9 +383,7 @@ for a float, and what `multiple` reads one as. -/
 def Float64.shortest (x : Float64) : Int × Int :=
 ```
 
-The exact reader never reads a float, so this transcript runs once
-without `--exact-numbers`, where the engine reads a number written
-with a point as a float, and once with it. Write `floats.aontu`:
+Write `floats.aontu`:
 
 <!-- test: scenario floats -->
 <!-- test: file floats.aontu -->
@@ -386,18 +392,46 @@ fraction: float
 point: integer
 ```
 
-and `floats.json`:
+and `floats-data.aontu`, the data:
+
+<!-- test: file floats-data.aontu -->
+```aontu
+fraction: 1.5
+point: 1.0
+```
+
+Now vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet floats.aontu floats-data.aontu
+verdict: invalid
+
+$.point: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.point
+  data: floats-data.aontu:2:8 (1.0)
+  schema: floats.aontu:2:8 (integer)
+$ echo $?
+1
+```
+
+`1.5` and `1.0` each have a point, so both are floats: `float` admits
+the first, and `integer` refuses the second, a float though it's
+whole.
+
+A data file can be JSON too, and JSON has no `0d`: its numbers name no
+leaf. Write the same data as `floats.json`:
 
 <!-- test: file floats.json -->
 ```json
 {"fraction": 1.5, "point": 1.0}
 ```
 
-Now vet it both ways:
+and vet it plainly, then with `--exact-numbers`:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill floats.aontu floats.json
+$ aontu vet floats.aontu floats.json
 verdict: invalid
 
 $.point: no_scalar_unify [conflict]
@@ -406,7 +440,7 @@ $.point: no_scalar_unify [conflict]
   schema: floats.aontu:2:8 (integer)
 $ echo $?
 1
-$ aontu vet --no-fill --exact-numbers floats.aontu floats.json
+$ aontu vet --exact-numbers floats.aontu floats.json
 verdict: invalid
 
 $.fraction: no_scalar_unify [conflict]
@@ -417,12 +451,15 @@ $ echo $?
 1
 ```
 
-Read without the flag, `1.5` and `1.0` are floats, so `float` admits
-the first and `integer` refuses the second, a float though it's whole.
-Read with it, `1.5` is a big decimal and `1.0` the integer `1`, and the
-two answers swap. The definition says what each kind admits, and which
-leaf a number of the data lands in is the reader's choice, which the
-flag changes.
+Plainly, the engine reads a JSON number as it reads the same literal in
+aontu, and answers as it did for `floats-data.aontu`. `--exact-numbers`
+reads each number of the data by its value, in a JSON file or an aontu
+one: a whole number the `integer` leaf holds as an integer, any other
+whole number as a big integer, and a fraction as a big decimal. Then
+`1.5` is a big decimal and `1.0` the integer `1`, and the two answers
+swap. The definition says what each kind admits, and which leaf a
+number of the data lands in is the reader's business, which the flag
+changes. No other transcript on this page reads JSON or passes a flag.
 
 ### Big integers and big decimals
 
@@ -471,30 +508,33 @@ half: bigdecimal
 whole: bigdecimal
 ```
 
-and `bigs.json`:
+and `bigs-data.aontu`:
 
-<!-- test: file bigs.json -->
-```json
-{"big": 9007199254740993, "half": 1.5, "whole": 3}
+<!-- test: file bigs-data.aontu -->
+```aontu
+big: 0d9007199254740993
+half: 0d1.5
+whole: 3
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers bigs.aontu bigs.json
+$ aontu vet bigs.aontu bigs-data.aontu
 verdict: invalid
 
 $.whole: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.whole
-  data: bigs.json:1:49 (3)
+  data: bigs-data.aontu:3:8 (3)
   schema: bigs.aontu:3:8 (bigdecimal)
 $ echo $?
 1
 ```
 
-The exact reader takes `9007199254740993` as a big integer and `1.5` as
-a big decimal, and `3` as an integer, which `bigdecimal` refuses.
+`biginteger` admits the big integer, and `bigdecimal` the big decimal.
+`bigdecimal` refuses `3`, an integer, though the big decimal `0d3.0`
+has the same value: each kind admits its own leaf.
 
 ### The `number` kind
 
@@ -529,35 +569,38 @@ text: number
 half: integer
 ```
 
-and `numbers.json`:
+and `numbers-data.aontu`:
 
-<!-- test: file numbers.json -->
-```json
-{"fraction": 1.5, "big": 9007199254740993, "text": "1", "half": 1.5}
+<!-- test: file numbers-data.aontu -->
+```aontu
+fraction: 1.5
+big: 0d9007199254740993
+text: "1"
+half: 1.5
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers numbers.aontu numbers.json
+$ aontu vet numbers.aontu numbers-data.aontu
 verdict: invalid
 
 $.text: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.text
-  data: numbers.json:1:52 ("1")
+  data: numbers-data.aontu:3:7 ("1")
   schema: numbers.aontu:3:7 (number)
 $.half: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.half
-  data: numbers.json:1:65 (0d1.5)
+  data: numbers-data.aontu:4:7 (1.5)
   schema: numbers.aontu:4:7 (integer)
 $ echo $?
 1
 ```
 
-`number` admits the big decimal `1.5` and the big integer
-`9007199254740993`, which `integer` refused, and refuses the string
-`"1"`. `integer` refuses the big decimal.
+`number` admits the float `1.5` and the big integer
+`0d9007199254740993`, which `integer` refused, and refuses the string
+`"1"`. `integer` refuses the float.
 
 The numbers that show a whole number, of every leaf, are
 `number & multiple(1)`, and that's a law of the definition, not only an
@@ -592,25 +635,26 @@ beyond: number & multiple(1)
 half: number & multiple(1)
 ```
 
-and `whole.json`:
+and `whole-data.aontu`:
 
-<!-- test: file whole.json -->
-```json
-{"beyond": 9007199254740993, "half": 1.5}
+<!-- test: file whole-data.aontu -->
+```aontu
+beyond: 0d9007199254740993
+half: 1.5
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers whole.aontu whole.json
+$ aontu vet whole.aontu whole-data.aontu
 verdict: invalid
 
 $.half: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.half
   expected: multiple(1)
-  actual:   0d1.5
-  data: whole.json:1:38 (0d1.5)
+  actual:   1.5
+  data: whole-data.aontu:2:7 (1.5)
   schema: whole.aontu:2:16 (multiple(1))
 $ echo $?
 1
@@ -669,23 +713,25 @@ refused: string
 empty: string & empty()
 ```
 
-and `strings.json`:
+and `strings-data.aontu`:
 
-<!-- test: file strings.json -->
-```json
-{"admitted": "a", "refused": "", "empty": ""}
+<!-- test: file strings-data.aontu -->
+```aontu
+admitted: "a"
+refused: ""
+empty: ""
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers strings.aontu strings.json
+$ aontu vet strings.aontu strings-data.aontu
 verdict: invalid
 
 $.refused: string_empty [conflict]
   [aontu/string_empty]: Cannot resolve value at path $.refused
-  data: strings.json:1:30 (string&"")
+  data: strings-data.aontu:2:10 (string&"")
 $ echo $?
 1
 ```
@@ -720,23 +766,24 @@ admitted: boolean
 refused: boolean
 ```
 
-and `booleans.json`:
+and `booleans-data.aontu`:
 
-<!-- test: file booleans.json -->
-```json
-{"admitted": true, "refused": 1}
+<!-- test: file booleans-data.aontu -->
+```aontu
+admitted: true
+refused: 1
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers booleans.aontu booleans.json
+$ aontu vet booleans.aontu booleans-data.aontu
 verdict: invalid
 
 $.refused: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.refused
-  data: booleans.json:1:31 (1)
+  data: booleans-data.aontu:2:10 (1)
   schema: booleans.aontu:2:10 (boolean)
 $ echo $?
 1
@@ -814,39 +861,47 @@ admitted: null
 refused: null
 ```
 
-and `literals.json`:
+and `literals-data.aontu`:
 
-<!-- test: file literals.json -->
-```json
-{"three": 3, "four": 4, "exact": 3, "same": "a", "other": "b", "yes": true, "no": false, "admitted": null, "refused": false}
+<!-- test: file literals-data.aontu -->
+```aontu
+three: 3
+four: 4
+exact: 3
+same: "a"
+other: "b"
+yes: true
+no: false
+admitted: null
+refused: false
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers literals.aontu literals.json
+$ aontu vet literals.aontu literals-data.aontu
 verdict: invalid
 
 $.four: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.four
-  data: literals.json:1:22 (4)
+  data: literals-data.aontu:2:7 (4)
   schema: literals.aontu:2:7 (3)
 $.exact: scalar_kind [conflict]
   [aontu/scalar_kind]: Cannot unify values at path $.exact
-  data: literals.json:1:34 (3)
+  data: literals-data.aontu:3:8 (3)
   schema: literals.aontu:3:8 (0d3)
 $.other: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.other
-  data: literals.json:1:59 ("b")
+  data: literals-data.aontu:5:8 ("b")
   schema: literals.aontu:5:8 ("a")
 $.no: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.no
-  data: literals.json:1:83 (false)
+  data: literals-data.aontu:7:5 (false)
   schema: literals.aontu:7:5 (true)
 $.refused: scalar_kind [conflict]
   [aontu/scalar_kind]: Cannot unify values at path $.refused
-  data: literals.json:1:119 (false)
+  data: literals-data.aontu:9:10 (false)
   schema: literals.aontu:9:10 (null)
 $ echo $?
 1
@@ -982,55 +1037,61 @@ quarter: multiple(0.5)
 zero: multiple(0)
 ```
 
-and `bounds.json`:
+and `bounds-data.aontu`:
 
-<!-- test: file bounds.json -->
-```json
-{"admitted": 3, "refused": 2, "fraction": 3.5, "ceiling": 2.5, "above": 2.6, "half": 1.5, "quarter": 1.25, "zero": 0}
+<!-- test: file bounds-data.aontu -->
+```aontu
+admitted: 3
+refused: 2
+fraction: 3.5
+ceiling: 0d2.5
+above: 2.6
+half: 1.5
+quarter: 1.25
+zero: 0
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers bounds.aontu bounds.json
+$ aontu vet bounds.aontu bounds-data.aontu
 verdict: invalid
 
-$.zero: invalid-arg [conflict]
-  [aontu/invalid-arg]: Cannot constrain value at path $.zero
-  schema: bounds.aontu:8:7 (constraint())
 $.refused: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.refused
   expected: min(3)
   actual:   2
-  data: bounds.json:1:28 (2)
+  data: bounds-data.aontu:2:10 (2)
   schema: bounds.aontu:2:10 (min(3))
 $.above: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.above
   expected: max(2.5)
-  actual:   0d2.6
-  data: bounds.json:1:73 (0d2.6)
+  actual:   2.6
+  data: bounds-data.aontu:5:8 (2.6)
   schema: bounds.aontu:5:8 (max(2.5))
 $.quarter: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.quarter
   expected: multiple(0.5)
-  actual:   0d1.25
-  data: bounds.json:1:102 (0d1.25)
+  actual:   1.25
+  data: bounds-data.aontu:7:10 (1.25)
   schema: bounds.aontu:7:10 (multiple(0.5))
+$.zero: invalid-arg [conflict]
+  [aontu/invalid-arg]: Cannot constrain value at path $.zero
+  schema: bounds.aontu:8:7 (constraint())
 $ echo $?
 1
 ```
 
-`min(3)` admits `3` itself, and the big decimal three and a half. The
-bound of `max(2.5)` is a float and the data's `2.5` a big decimal, and
-the bound admits it, as their exact values are equal. Each failed bound
+`min(3)` admits `3` itself, and the float three and a half. The bound
+of `max(2.5)` is a float and the data's `0d2.5` a big decimal, and the
+bound admits it, as their exact values are equal. Each failed bound
 is a `constraint` finding that names the bound. The engine reports
 `multiple(0)` as an argument it can't use, where the definition, which
 has no ill-formed terms, has a term that admits nothing.
 
-The two readings part on a float, so this transcript runs without
-`--exact-numbers`, and the data's numbers are floats. Write
-`tenths.aontu`:
+A float's exact value is a binary fraction, and the value it shows its
+shortest decimal, so on a float the two part. Write `tenths.aontu`:
 
 <!-- test: scenario tenths -->
 <!-- test: file tenths.aontu -->
@@ -1039,25 +1100,26 @@ below: max(0d0.1)
 thirds: multiple(0.1)
 ```
 
-and `tenths.json`:
+and `tenths-data.aontu`:
 
-<!-- test: file tenths.json -->
-```json
-{"below": 0.1, "thirds": 0.3}
+<!-- test: file tenths-data.aontu -->
+```aontu
+below: 0.1
+thirds: 0.3
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill tenths.aontu tenths.json
+$ aontu vet tenths.aontu tenths-data.aontu
 verdict: invalid
 
 $.below: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.below
   expected: max(0d0.1)
   actual:   0.1
-  data: tenths.json:1:11 (0.1)
+  data: tenths-data.aontu:1:8 (0.1)
   schema: tenths.aontu:1:8 (max(0d0.1))
 $ echo $?
 1
@@ -1101,23 +1163,25 @@ list: any
 refused: nil
 ```
 
-and `ends.json`:
+and `ends-data.aontu`:
 
-<!-- test: file ends.json -->
-```json
-{"admitted": null, "list": [1, "a"], "refused": null}
+<!-- test: file ends-data.aontu -->
+```aontu
+admitted: null
+list: [1 "a"]
+refused: null
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers ends.aontu ends.json
+$ aontu vet ends.aontu ends-data.aontu
 verdict: invalid
 
 $.refused: literal_nil [conflict]
   [aontu/literal_nil]: Cannot unify values at path $.refused
-  data: ends.json:1:49 (null)
+  data: ends-data.aontu:3:10 (null)
   schema: ends.aontu:3:10 (nil)
 $ echo $?
 1
@@ -1270,31 +1334,35 @@ wrong: x?: integer
 list: x?: integer
 ```
 
-and `keys.json`:
+and `keys-data.aontu`:
 
-<!-- test: file keys.json -->
-```json
-{"admitted": {"x": 1}, "refused": {}, "optional": {}, "wrong": {"x": "a"}, "list": []}
+<!-- test: file keys-data.aontu -->
+```aontu
+admitted: x: 1
+refused: {}
+optional: {}
+wrong: x: "a"
+list: []
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers keys.aontu keys.json
+$ aontu vet keys.aontu keys-data.aontu
 verdict: invalid
 
-$.refused.x: mapval_no_gen [incomplete]
-  [aontu/mapval_no_gen]: Cannot resolve value at path $.refused.x
-  schema: keys.aontu:2:13 (integer)
 $.wrong.x: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.wrong.x
-  data: keys.json:1:70 ("a")
+  data: keys-data.aontu:4:11 ("a")
   schema: keys.aontu:4:12 (integer)
 $.list: map [conflict]
   [aontu/map]: Cannot unify values at path $.list
-  data: keys.json:1:84 ([])
+  data: keys-data.aontu:5:7 ([])
   schema: keys.aontu:5:7 ({"x"?:integer})
+$.refused.x: mapval_no_gen [incomplete]
+  [aontu/mapval_no_gen]: Cannot resolve value at path $.refused.x
+  schema: keys.aontu:2:13 (integer)
 $ echo $?
 1
 ```
@@ -1337,18 +1405,19 @@ admitted: { &: integer }
 refused: { a:integer &: string }
 ```
 
-and `spreads.json`:
+and `spreads-data.aontu`:
 
-<!-- test: file spreads.json -->
-```json
-{"admitted": {"a": 1, "b": 2}, "refused": {"a": 1}}
+<!-- test: file spreads-data.aontu -->
+```aontu
+admitted: { a:1 b:2 }
+refused: a: 1
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers spreads.aontu spreads.json
+$ aontu vet spreads.aontu spreads-data.aontu
 verdict: error
 
 $.refused.a: scalar-type [conflict]
@@ -1394,23 +1463,24 @@ admitted: close({ a?:integer })
 refused: close({ a:integer })
 ```
 
-and `closed.json`:
+and `closed-data.aontu`:
 
-<!-- test: file closed.json -->
-```json
-{"admitted": {}, "refused": {"a": 1, "b": 2}}
+<!-- test: file closed-data.aontu -->
+```aontu
+admitted: {}
+refused: { a:1 b:2 }
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers closed.aontu closed.json
+$ aontu vet closed.aontu closed-data.aontu
 verdict: invalid
 
 $.refused.b: closed [conflict]
   [aontu/closed]: Cannot resolve value at path $.refused.b
-  data: closed.json:1:43 (2)
+  data: closed-data.aontu:2:18 (2)
 $ echo $?
 1
 ```
@@ -1468,27 +1538,29 @@ refused: [integer string]
 spread: [&: integer]
 ```
 
-and `lists.json`:
+and `lists-data.aontu`:
 
-<!-- test: file lists.json -->
-```json
-{"admitted": [1, "a", true], "refused": [1], "spread": [1, "a"]}
+<!-- test: file lists-data.aontu -->
+```aontu
+admitted: [1 "a" true]
+refused: [1]
+spread: [1 "a"]
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers lists.aontu lists.json
+$ aontu vet lists.aontu lists-data.aontu
 verdict: invalid
 
+$.spread.1: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.spread.1
+  data: lists-data.aontu:3:12 ("a")
+  schema: lists.aontu:3:13 (integer)
 $.refused.1: listval_no_gen [incomplete]
   [aontu/listval_no_gen]: Cannot resolve value at path $.refused.1
   schema: lists.aontu:2:19 (string)
-$.spread.1: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.spread.1
-  data: lists.json:1:60 ("a")
-  schema: lists.aontu:3:13 (integer)
 $ echo $?
 1
 ```
@@ -1527,25 +1599,26 @@ admitted: integer & min(3)
 refused: integer & min(3)
 ```
 
-and `meet.json`:
+and `meet-data.aontu`:
 
-<!-- test: file meet.json -->
-```json
-{"admitted": 7, "refused": 2}
+<!-- test: file meet-data.aontu -->
+```aontu
+admitted: 7
+refused: 2
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers meet.aontu meet.json
+$ aontu vet meet.aontu meet-data.aontu
 verdict: invalid
 
 $.refused: constraint [conflict]
   [aontu/constraint]: Cannot unify values at path $.refused
   expected: integer&min(3)
   actual:   2
-  data: meet.json:1:28 (2)
+  data: meet-data.aontu:2:10 (2)
   schema: meet.aontu:2:20 (integer&min(3))
 $ echo $?
 1
@@ -1611,23 +1684,24 @@ admitted: %T
 refused: %T
 ```
 
-and `tree.json`:
+and `tree-data.aontu`:
 
-<!-- test: file tree.json -->
-```json
-{"admitted": {"n": {"v": 1}}, "refused": {"v": "x"}}
+<!-- test: file tree-data.aontu -->
+```aontu
+admitted: n: v: 1
+refused: v: "x"
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers tree.aontu tree.json
+$ aontu vet tree.aontu tree-data.aontu
 verdict: invalid
 
 $.refused.v: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.refused.v
-  data: tree.json:1:48 ("x")
+  data: tree-data.aontu:2:13 ("x")
   schema: tree.aontu:1:17 (integer)
 $ echo $?
 1
@@ -1650,18 +1724,18 @@ Write `undeclared.aontu`:
 x: %U
 ```
 
-and `undeclared.json`:
+and `undeclared-data.aontu`:
 
-<!-- test: file undeclared.json -->
-```json
-{"x": 1}
+<!-- test: file undeclared-data.aontu -->
+```aontu
+x: 1
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers undeclared.aontu undeclared.json
+$ aontu vet undeclared.aontu undeclared-data.aontu
 verdict: error
 
 $.x: no_path [reference]
@@ -1759,33 +1833,35 @@ x: $.y
 y: integer
 ```
 
-then `same.json`:
+then `same.aontu`:
 
-<!-- test: file same.json -->
-```json
-{"x": 1, "y": 1}
+<!-- test: file same.aontu -->
+```aontu
+x: 1
+y: 1
 ```
 
-and `different.json`:
+and `different.aontu`:
 
-<!-- test: file different.json -->
-```json
-{"x": 1, "y": 2}
+<!-- test: file different.aontu -->
+```aontu
+x: 1
+y: 2
 ```
 
 Now vet each:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers refs.aontu same.json
+$ aontu vet refs.aontu same.aontu
 verdict: valid
-$ aontu vet --no-fill --exact-numbers refs.aontu different.json
+$ aontu vet refs.aontu different.aontu
 verdict: invalid
 
 $.x: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.x
-  data: different.json:1:15 (2)
-  data: different.json:1:7 (1)
+  data: different.aontu:2:4 (2)
+  data: different.aontu:1:4 (1)
 $ echo $?
 1
 ```
@@ -1800,18 +1876,19 @@ x: $.y
 y: any
 ```
 
-and `members.json`:
+and `members-data.aontu`:
 
-<!-- test: file members.json -->
-```json
-{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}
+<!-- test: file members-data.aontu -->
+```aontu
+x: { a:1 b:2 }
+y: { b:2 a:1 }
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers members.aontu members.json
+$ aontu vet members.aontu members-data.aontu
 verdict: valid
 ```
 
@@ -1937,18 +2014,19 @@ admitted: { x?:integer } & { x:integer }
 refused: { x?:integer } & { x:integer }
 ```
 
-and `merge.json`:
+and `merge-data.aontu`:
 
-<!-- test: file merge.json -->
-```json
-{"admitted": {"x": 1}, "refused": {}}
+<!-- test: file merge-data.aontu -->
+```aontu
+admitted: x: 1
+refused: {}
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers merge.aontu merge.json
+$ aontu vet merge.aontu merge-data.aontu
 verdict: incomplete
 
 $.refused.x: mapval_no_gen [incomplete]
@@ -1998,18 +2076,18 @@ Write `waiver.aontu`:
 v: string & (string & empty())
 ```
 
-and `waiver.json`:
+and `waiver-data.aontu`:
 
-<!-- test: file waiver.json -->
-```json
-{"v": ""}
+<!-- test: file waiver-data.aontu -->
+```aontu
+v: ""
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers waiver.aontu waiver.json
+$ aontu vet waiver.aontu waiver-data.aontu
 verdict: valid
 ```
 
@@ -2035,18 +2113,18 @@ Write `contradiction.aontu`:
 v: { x?:string } & { x?:integer }
 ```
 
-and `contradiction.json`:
+and `contradiction-data.aontu`:
 
-<!-- test: file contradiction.json -->
-```json
-{"v": {}}
+<!-- test: file contradiction-data.aontu -->
+```aontu
+v: {}
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers contradiction.aontu contradiction.json
+$ aontu vet contradiction.aontu contradiction-data.aontu
 verdict: error
 
 $.v.x: scalar-type [conflict]
@@ -2135,25 +2213,26 @@ admitted: nof(1, integer, min(0))
 refused: nof(1, integer, min(0))
 ```
 
-and `nof.json`:
+and `nof-data.aontu`:
 
-<!-- test: file nof.json -->
-```json
-{"admitted": -1, "refused": 3}
+<!-- test: file nof-data.aontu -->
+```aontu
+admitted: -1
+refused: 3
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers nof.aontu nof.json
+$ aontu vet nof.aontu nof-data.aontu
 verdict: invalid
 
 $.refused: nof [conflict]
   [aontu/nof]: Cannot unify values at path $.refused
   expected: nof(1,integer,min(0))
   actual:   3
-  data: nof.json:1:29 (3)
+  data: nof-data.aontu:2:10 (3)
   schema: nof.aontu:2:10 (nof(1,integer,min(0)))
 $ echo $?
 1
@@ -2184,25 +2263,26 @@ admitted: when(string, "a", min(0))
 refused: when(string, "a", min(0))
 ```
 
-and `when.json`:
+and `when-data.aontu`:
 
-<!-- test: file when.json -->
-```json
-{"admitted": 5, "refused": "b"}
+<!-- test: file when-data.aontu -->
+```aontu
+admitted: 5
+refused: "b"
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers when.aontu when.json
+$ aontu vet when.aontu when-data.aontu
 verdict: invalid
 
 $.refused: when [conflict]
   [aontu/when]: Cannot unify values at path $.refused
   expected: when(string,"a",min(0))
   actual:   "b"
-  data: when.json:1:28 ("b")
+  data: when-data.aontu:2:10 ("b")
   schema: when.aontu:2:10 (when(string,"a",min(0)))
 $ echo $?
 1
@@ -2497,23 +2577,25 @@ arm: [integer]|[string]
 list: [integer]
 ```
 
-and `position.json`:
+and `position-data.aontu`:
 
-<!-- test: file position.json -->
-```json
-{"alone": 2, "arm": [1, 2], "list": [1, 2]}
+<!-- test: file position-data.aontu -->
+```aontu
+alone: 2
+arm: [1 2]
+list: [1 2]
 ```
 
 Now vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet --no-fill --exact-numbers position.aontu position.json
+$ aontu vet position.aontu position-data.aontu
 verdict: invalid
 
 $.arm: empty [conflict]
   [aontu/empty]: Cannot unify values at path $.arm
-  data: position.json:1:21 ([1,2])
+  data: position-data.aontu:2:6 ([1,2])
   schema: position.aontu:2:6 ([integer]|[string])
 $ echo $?
 1
