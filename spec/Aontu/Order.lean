@@ -12,7 +12,7 @@ order by a contract, which names no algorithm.
 
 namespace Aontu
 
-/-- Every document `a` admits, `b` admits, each read as a whole. -/
+/-- Every JSON value `a` admits, `b` admits, each taken whole. -/
 def Le (env : Env) (a b : Val) : Prop := ∀ j, Instance env a j → Instance env b j
 
 notation:50 a:51 " ⊑[" env "] " b:51 => Le env a b
@@ -107,7 +107,7 @@ inductive Subsumption where
 
 /-- The contract on an implementation: `subsumes` only where the order
 holds, `doesNotSubsume` only where it fails, and `undecided` anywhere.
-`Le` quantifies over every document, infinitely many, so the contract
+`Le` quantifies over every JSON value, infinitely many, so the contract
 says what a correct answer is and leaves how to reach one open. -/
 def SubsumeCorrect (env : Env) (subsume : Val → Val → Subsumption) : Prop :=
   ∀ general specific,

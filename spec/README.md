@@ -14,6 +14,17 @@ implementation: `ts/` and `go/` implement the language, `test/spec/`
 holds the shared rows they are held to, and `spec/` says what those
 rows should expect.
 
+It says what values mean and nothing about text. A value of
+`Aontu/Syntax.lean` is a term, not a text, and a JSON value of
+`Aontu/Data.lean` is a value, not a JSON text: a number is its value,
+whatever digits wrote it. How a file becomes either is the business of
+the [grammar](../grammar/aontu.abnf) and of each port's reader. The vet
+modes are not reading: they change what `valid` means, so the plan
+makes them parameters of the definition, which so far holds the exact
+mode's data, in which a number is its value. The oracle writes its cases as text for the ports
+to run, so its printer, `Oracle/Print.lean`, sits beside it, outside
+the definition.
+
 JSON Schema is not a concept of the language, and nothing here
 mentions it. The language's part is power: what the importer writes
 for a JSON Schema keyword is an aontu value, such as
@@ -25,14 +36,14 @@ to the JSON Schema suite.
 
 | Path | Holds |
 |---|---|
-| `Aontu/Data.lean` | JSON: numbers as exact decimals that keep whether their text has a point, strings, arrays, objects, paths into a document, `WellFormed` (every number in lowest terms, no name twice in an object), and `IntegerLeaf`, the integers the `integer` leaf holds |
+| `Aontu/Data.lean` | JSON values: numbers as exact decimals in lowest terms, so that two numbers are equal exactly when their values are, strings, arrays, and objects; `Same`, which compares two values as values; paths into a value; `WellFormed` (no name twice in an object); and `IntegerLeaf`, the integers the `integer` leaf holds |
 | `Aontu/Syntax.lean` | the values, one constructor per construct: the kinds, `string & empty()`, scalar literals, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
-| `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a well-formed document can satisfy |
+| `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a JSON value can satisfy |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
-| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; and `Json.wf`, which decides that a document is data, beside `Json.wf_iff` |
-| `Aontu/Print.lean` | the printer from values and documents to the text both CLIs read |
+| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; and `Json.wf`, which decides that a Lean `Json` is a JSON value, beside `Json.wf_iff` |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
+| `Oracle/Print.lean` | the oracle's printer, from values and JSON values to the text both CLIs read; no part of the definition |
 | `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
 | `ci.patch` | the CI job, to apply by hand with `git apply spec/ci.patch` from an account with the `workflow` scope |
@@ -48,9 +59,9 @@ library, no network.
 Each of these is a later phase of the plan, and none has a rule here,
 so the definition says nothing about it:
 
-- the `float`, `biginteger`, and `bigdecimal` leaves, the default read
-  mode, a number literal with a point or `0d`, and the bounds beyond
-  `min`, `max`, and `multiple` (P1);
+- the `float`, `biginteger`, and `bigdecimal` leaves, as kinds and as
+  literals, the default read mode, and the bounds beyond `min`, `max`,
+  and `multiple` (P1);
 - `|` and `*`, which the language reads by position (an arm of a
   disjunction reads a list as its own length and `*x` as `x`, and
   elsewhere `*x` is `x | super(x)`), what evaluation outputs, and a
@@ -79,8 +90,11 @@ one, as the coverage job does for `ts/dist`.
 ## What is trusted
 
 The relations are the definition and prove nothing about themselves.
-Everything executable is admitted only beside a proof: `check` by
-`check_iff`. The one piece trusted without proof is the printer,
-`Aontu/Print.lean`, which turns the abstract syntax into the text the
-CLIs read. It spells what the published grammar spells, prints only
-the forms the oracle writes, and is reviewed as the definition is.
+Everything executable in it is admitted only beside a proof: `check`
+by `check_iff`, and `Json.wf` by `Json.wf_iff`. The one piece trusted
+without proof is the oracle's printer, `Oracle/Print.lean`, which turns
+the abstract syntax into the text the CLIs read. It is no part of the
+definition: that a port reads the printed text as the value printed is
+a claim about the port's reader, which the rows test and no theorem
+makes. It spells what the published grammar spells, prints only the
+forms the oracle writes, and is reviewed as the definition is.

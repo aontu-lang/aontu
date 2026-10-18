@@ -1,52 +1,53 @@
 /-!
 # The data
 
-JSON, as every relation of the definition reads it, defined once: the
-values RFC 8259 writes, with each number held exactly as its text
-writes it, and the integers the `integer` leaf holds.
+What an aontu value admits or refuses: a JSON value, as RFC 8259
+describes one. A JSON value is null, a boolean, a number, a string, an
+array of values, or an object, whose members each give one name one
+value. The definition says what values mean, and nothing about text:
+how a text is read into a value is a reader's business.
 -/
 
 namespace Aontu
 
-/-- A JSON number. Its value is `coef / 10 ^ scale`, exactly: `1.5` is
-`⟨15, 1, true⟩`, `0.25` is `⟨25, 2, true⟩` and `1e3` is
-`⟨1000, 0, false⟩`. `point` records that the text has a decimal point,
-the one part of a number's spelling the language reads: by default
-`1.0` is a float and `1` an integer, while `--exact-numbers` reads the
-value alone, so that `1.0`, `1` and `1e0` are one integer. An exponent
-changes only the value, and the sign of zero is not kept: `-0.0` is
-`0.0`. -/
+/-- A number: the exact value `coef / 10 ^ scale`, in lowest terms, so
+that each value has one `Num` and two numbers are equal exactly when
+their values are. The numbers JSON describes are the finite decimals:
+one and a half is `⟨15, 1, _⟩`, a quarter `⟨25, 2, _⟩` and a thousand
+`⟨1000, 0, _⟩`. -/
 structure Num where
   coef : Int
   scale : Nat
-  point : Bool
-  deriving DecidableEq, Repr
+  lowest : scale = 0 ∨ coef % 10 ≠ 0
 
-/-- The integer `n`, written without a point. -/
-def Num.ofInt (n : Int) : Num := ⟨n, 0, false⟩
+instance : DecidableEq Num := fun x y =>
+  if h : x.coef = y.coef ∧ x.scale = y.scale then
+    isTrue (by cases x; cases y; obtain ⟨rfl, rfl⟩ := h; rfl)
+  else
+    isFalse (fun e => h (by cases e; exact ⟨rfl, rfl⟩))
 
-/-- In lowest terms: no zero digit trails the point, so each value, written
-with a point or without one, has exactly one `Num`. -/
-def Num.Lowest (x : Num) : Prop := x.scale = 0 ∨ x.coef % 10 ≠ 0
+/-- The integer `n`. -/
+def Num.ofInt (n : Int) : Num := ⟨n, 0, .inl rfl⟩
 
-/-- The value of `x` is at most the value of `y`. -/
+/-- The number `coef / 10 ^ scale`, in lowest terms: `Num.ofDec 15 1`
+is one and a half, as `Num.ofDec 150 2` is. -/
+def Num.ofDec (coef : Int) : Nat → Num
+  | 0 => ⟨coef, 0, .inl rfl⟩
+  | s + 1 => if h : coef % 10 = 0 then Num.ofDec (coef / 10) s else ⟨coef, s + 1, .inr h⟩
+
+/-- `x` is at most `y`. -/
 def Num.le (x y : Num) : Prop := x.coef * 10 ^ y.scale ≤ y.coef * 10 ^ x.scale
 
-/-- `x` and `y` have one value, however each is written. -/
-def Num.eqv (x y : Num) : Prop := x.coef * 10 ^ y.scale = y.coef * 10 ^ x.scale
-
-/-- The value of `x` is a whole multiple of the value of `d`, for a
-positive `d`: `1.5` is a multiple of `0.5`, and every integer of `1`. -/
+/-- `x` is a whole multiple of `d`, for a positive `d`: one and a half
+is a multiple of a half, and every integer of one. -/
 def Num.multipleOf (x d : Num) : Prop := (x.coef * 10 ^ d.scale) % (d.coef * 10 ^ x.scale) = 0
 
-/-- The integer a number's value is, when it is one: `1.0` and `1e3`
-are integers, `1.5` is not. -/
+/-- The integer a number is, when it is one: a thousand is, one and a
+half is not. -/
 def Num.int? (x : Num) : Option Int :=
   if x.coef % 10 ^ x.scale = 0 then some (x.coef / 10 ^ x.scale) else none
 
-instance (x : Num) : Decidable x.Lowest := inferInstanceAs (Decidable (_ ∨ _))
 instance (x y : Num) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
-instance (x y : Num) : Decidable (x.eqv y) := inferInstanceAs (Decidable (_ = _))
 instance (x d : Num) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
 
 /-- The multiples of one are the integers. -/
@@ -88,10 +89,13 @@ theorem integerLeaf_iff (n : Int) :
 
 instance (n : Int) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
 
-/-- A JSON value. A string is a sequence of Unicode scalar values, as a
-Lean `String` is, so a text that escapes an unpaired surrogate
-(`"\ud800"`), which both engines accept, has no value here. An object
-holds its members in the order written. -/
+/-- A JSON value. A string is its sequence of characters, the Unicode
+scalar values a Lean `String` holds, so a string that holds a lone
+surrogate, as `"\ud800"` escapes one, is no value here: both engines
+accept it, and they differ on what it is (`test/spec/divergent.tsv`).
+An object is the set of its members: Lean lists them, the order of the
+list is no part of the value, and a value gives each name once
+(`Json.WellFormed`). -/
 inductive Json where
   | null
   | bool (b : Bool)
@@ -100,31 +104,24 @@ inductive Json where
   | arr (xs : List Json)
   | obj (fs : List (String × Json))
 
-/-- An integer written without a point: `3` is `.int 3`. -/
+/-- The integer `n`: `Json.int 3` is three. -/
 def Json.int (n : Int) : Json := .num (.ofInt n)
 
-/-- A number written with a point: `1.5` is `.dec 15 1`, and `1.0` is
-`.dec 1 0`. -/
-def Json.dec (coef : Int) (scale : Nat) : Json := .num ⟨coef, scale, true⟩
+/-- The number `coef / 10 ^ scale`: `Json.dec 15 1` is one and a half. -/
+def Json.dec (coef : Int) (scale : Nat) : Json := .num (.ofDec coef scale)
 
-/-- The value of the first member named `k`; in a well-formed document,
-the only one. -/
+/-- The value an object gives the name `k`. -/
 def lookup (k : String) : List (String × Json) → Option Json
   | [] => none
   | (k', v) :: fs => if k = k' then some v else lookup k fs
 
-/-- The integer a number is, read by value; anything else is none. -/
-def Json.int? : Json → Option Int
-  | .num x => x.int?
-  | _ => none
-
-/-- Two documents are one value: numbers equal by value, arrays element
-by element, and objects member by member, whatever order each writes
-them in. -/
+/-- `j` and `j'` are one value: the same scalar, arrays alike element by
+element, and objects with the same members, in whatever order Lean
+lists them. -/
 inductive Json.Same : Json → Json → Prop
   | null : Same .null .null
   | bool {b : Bool} : Same (.bool b) (.bool b)
-  | num {x y : Num} : x.eqv y → Same (.num x) (.num y)
+  | num {x : Num} : Same (.num x) (.num x)
   | str {s : String} : Same (.str s) (.str s)
   | arr {xs ys : List Json} :
       xs.length = ys.length →
@@ -135,14 +132,12 @@ inductive Json.Same : Json → Json → Prop
       (∀ k x y, lookup k fs = some x → lookup k gs = some y → Same x y) →
       Same (.obj fs) (.obj gs)
 
-/-- A document as data: every number in lowest terms, and no object
-naming a member twice. Both engines read a text that repeats a name by
-unifying the repeated members, so `{"a": 1, "a": 1}` is the document
-`{"a": 1}`, and `{"a": 1, "a": 2}` is refused before it is data. -/
+/-- A Lean `Json` is a JSON value when each of its objects gives each
+name once. -/
 inductive Json.WellFormed : Json → Prop
   | null : WellFormed .null
   | bool {b : Bool} : WellFormed (.bool b)
-  | num {x : Num} : x.Lowest → WellFormed (.num x)
+  | num {x : Num} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
   | arr {xs : List Json} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.arr xs)
   | obj {fs : List (String × Json)} :
@@ -153,7 +148,7 @@ inductive Seg where
   | key (k : String)
   | idx (i : Nat)
 
-/-- The part of a document a path names. -/
+/-- The part of a value a path names. -/
 def Json.at (j : Json) : List Seg → Option Json
   | [] => some j
   | .key k :: p => match j with

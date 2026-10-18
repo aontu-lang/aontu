@@ -8,18 +8,18 @@ import Aontu.Admits
 `Decidable` instance). `check` is an algorithm, and `check_iff` is what
 lets its answers stand in for the definition's, on every value that
 reads neither an alias nor a path. Without that theorem it would be a
-third port. `Json.wf` decides that a document is data the same way,
-beside `Json.wf_iff`.
+third port. `Json.wf` decides that a Lean `Json` is a JSON value the
+same way, beside `Json.wf_iff`.
 -/
 
 namespace Aontu
 
 mutual
-/-- Whether a document is data, computed. -/
+/-- Whether a Lean `Json` is a JSON value, computed. -/
 def Json.wf : Json → Bool
   | .null => true
   | .bool _ => true
-  | .num x => decide x.Lowest
+  | .num _ => true
   | .str _ => true
   | .arr xs => Json.wfAll xs
   | .obj fs => decide (fs.map Prod.fst).Nodup && Json.wfMembers fs
@@ -37,9 +37,7 @@ mutual
 theorem Json.wf_iff : ∀ j : Json, j.wf = true ↔ j.WellFormed
   | .null => ⟨fun _ => .null, fun _ => rfl⟩
   | .bool _ => ⟨fun _ => .bool, fun _ => rfl⟩
-  | .num x => by
-    simp only [Json.wf, decide_eq_true_eq]
-    exact ⟨.num, fun h => by cases h; assumption⟩
+  | .num _ => ⟨fun _ => .num, fun _ => rfl⟩
   | .str _ => ⟨fun _ => .str, fun _ => rfl⟩
   | .arr xs => by
     simp only [Json.wf]
@@ -73,7 +71,7 @@ end
 instance (j : Json) : Decidable j.WellFormed := decidable_of_iff _ (Json.wf_iff j)
 
 /-- The values that read neither an alias nor a path, so that what they
-admit depends on no declaration and no document root. -/
+admit depends on no declaration and no root. -/
 inductive Val.RefFree : Val → Prop
   | any : RefFree .any
   | nil : RefFree .nil
@@ -154,7 +152,7 @@ def checkFields : List (String × Bool × Val) → List (String × Json) → Boo
       | none => o
       | some x => check v x) && checkFields fs jfs
 
-/-- The written positions of a list that the instance has. -/
+/-- The positions of a list that the instance has. -/
 def checkItems : List Val → List Json → Bool
   | v :: vs, x :: xs => check v x && checkItems vs xs
   | _, _ => true

@@ -1,15 +1,15 @@
 import Aontu.Syntax
 
 /-!
-# The printer
+# The oracle's printer
 
-Values and documents as text, in the spelling of the published grammar
-`grammar/aontu.abnf`, every key quoted as canon writes it. The printer
-is the one part of the definition trusted without proof: what the
-engines read a text as is outside Lean, so that it reads this text as
-this value is a claim the rows test rather than a theorem. It prints
-the forms the oracle writes, and answers `none` for a sealed map, a
-list, an alias, and a path.
+Values and JSON values as text, in the spelling of the published
+grammar `grammar/aontu.abnf`, every key quoted as canon writes it. It
+is no part of the definition, which says nothing about text: that an
+engine reads this text as this value is a claim about its reader, which
+the rows test and no theorem makes. It prints the forms the oracle
+writes, and answers `none` for a sealed map, a list, an alias, and a
+path.
 -/
 
 namespace Aontu
@@ -26,18 +26,15 @@ where
       "\\u" ++ String.mk (List.replicate (4 - ds.length) '0' ++ ds)
     else c.toString
 
-/-- A number as JSON text: the digits alone for an integer written
-without a point, and otherwise the digits with the point `scale` places
-from the end, `1.0` for the integer written with one. -/
+/-- A number as JSON text: its digits, with the point `scale` places from
+the end when it has one. -/
 def Num.src (x : Num) : String :=
-  if x.scale = 0 && !x.point then toString x.coef
+  if x.scale = 0 then toString x.coef
   else
     let digits := toString x.coef.natAbs
     let padded := String.mk (List.replicate (x.scale + 1 - digits.length) '0') ++ digits
     let cut := padded.length - x.scale
-    let frac := padded.drop cut
-    (if x.coef < 0 then "-" else "") ++ padded.take cut ++ "." ++
-      (if frac.isEmpty then "0" else frac)
+    (if x.coef < 0 then "-" else "") ++ padded.take cut ++ "." ++ padded.drop cut
 
 def Scalar.src : Scalar → String
   | .null => "null"
