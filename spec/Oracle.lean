@@ -15,8 +15,8 @@ here is one, `instances_wellFormed` proves every instance a value, and
 namespace Aontu
 
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.multiple (.int 1)), .string, .anyString,
-    .min (.int 0), .min (.int 3)]
+  [.any, .nil, .integer, .meet .number (.multiple (.integer (.of 1))), .string, .anyString,
+    .min (.integer (.of 0)), .min (.integer (.of 3))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
 def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
@@ -25,11 +25,12 @@ def level1 : List Val := bases ++ bases.flatMap fun v => [field true v, field fa
 
 def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
-def scalars : List Data := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
+def scalars : List Data :=
+  [.null, .bool true, .integer 0, .integer 3, .integer (-1), .str "", .str "a"]
 
 /-- The instances of the first 9,600 rows. -/
 def first : List Data :=
-  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .int 1)]]
+  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .integer 1)]]
 
 /-- The instances of the rows after them, numbered on so that no earlier
 row is renamed: two big decimals, one either side of three, a big
@@ -37,8 +38,8 @@ integer no double holds, and a list, each also under a key, written
 `0d1.5`, `0d3.5`, `0d9007199254740993`, and `[1]`. -/
 def more : List Data :=
   let xs : List Data :=
-    [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
-      .list [.int 1]]
+    [.num (.bigdecimal (.of 15 1)), .num (.bigdecimal (.of 35 1)),
+      .num (.biginteger ⟨9007199254740993⟩), .list [.integer 1]]
   xs ++ xs.map (fun j => .map [("x", j)])
 
 def instances : List Data := first ++ more

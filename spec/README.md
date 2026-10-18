@@ -38,7 +38,7 @@ to the JSON Schema suite.
 
 | Path | Holds |
 |---|---|
-| `Aontu/Data.lean` | the data, scalars first: `IntegerLeaf`, the integers the `integer` leaf holds; `Float64`, a float as its binary64 fields, with the decimal it shows; `Decimal`, a big decimal; `Number`, the four leaves; strings; then `Data`, with maps and lists, `Same`, which compares two values as values, paths into a value, and `WellFormed` (each integer one a double holds, no key twice in a map) |
+| `Aontu/Data.lean` | the data, scalars first: the four leaves, each a type named as aontu names it and holding exactly its leaf's numbers: `Integer`, a whole number with the proof that the `integer` leaf holds it (`IntegerLeaf`); `Float`, a float as its binary64 fields, with the decimal it shows; `BigInteger`; `BigDecimal`; then `Number`, the four together; strings; then `Data`, with maps and lists, `Same`, which compares two values as values, paths into a value, and `WellFormed` (no key twice in a map). `ℤ` and `ℕ` are Lean's `Int` and `Nat` |
 | `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
 | `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a value can satisfy |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
@@ -98,7 +98,7 @@ one, as the coverage job does for `ts/dist`.
 The relations are the definition and prove nothing about themselves.
 Everything executable in it is admitted only beside a proof, `check`
 by `check_iff` and `Data.wf` by `Data.wf_iff`, but one function: the
-decimal a float shows, `Float64.shortest`, is part of the definition
+decimal a float shows, `Float.shortest`, is part of the definition
 itself. No theorem states what makes a decimal the shortest; the
 function matches the shortest rendering of JavaScript and of Go on
 6,381 doubles, normal, subnormal, and extreme. The one piece trusted

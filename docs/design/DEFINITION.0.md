@@ -179,7 +179,15 @@ name their leaf, so the oracle writes `0d1.5` where it wrote `1.5`,
 and no term of the fragment holds a literal or a default for the
 schema to supply. The rows and the tutorial run plain `vet`: every
 row's text changed, and no verdict did. Decision 5 of §7 stands, and
-P1 states the modes.
+P1 states the modes. The owner then asked why an integer and a big
+integer were each a Lean `Int`, and for Lean types named as aontu names
+them. The integer leaf's range had been a clause of `Data.WellFormed`,
+carried over from the single number type, so a Lean term could hold an
+integer the language has not. Each leaf now has its own type,
+`Integer`, `Float`, `BigInteger`, and `BigDecimal`, each holding exactly
+its leaf's numbers, `Integer` with the proof of its range; `ℤ` and `ℕ`
+name Lean's `Int` and `Nat`, so that neither reads as an aontu type. No
+row moved.
 
 ## 4. How a language decision is made, and recorded
 

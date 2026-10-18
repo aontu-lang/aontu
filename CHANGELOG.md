@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### The definition's tutorial shows the language working
+
+Documentation; no engine changes.
+
+- `docs/tutorial-definition.md` shows each rule working. Each step
+  meets its terms with values they admit, and `aontu -c` prints the
+  values back, each number in its leaf: `{"big":0d9007199254740993,…}`.
+  Of the page's 33 commands, 30 had printed only findings, since `vet`
+  says nothing of a key it admits.
+- Six refusals remain, each the point of its step, through `aontu vet`:
+  - `string` refuses `""`;
+  - `0d3` refuses `3`;
+  - `max(0d0.1)` refuses the float `0.1`;
+  - a seal refuses a key it doesn't declare;
+  - the engines refuse a contradiction the definition admits;
+  - a list in a disjunction refuses another length.
+- The JSON reading shows through `aontu -c` and `--exact-numbers`, with
+  no finding.
+
+### The definition's number types are named as aontu names them
+
+Definition; no engine changes, and no row moves.
+
+- Each of the four leaves has its own Lean type, named after its kind:
+  `Integer`, `Float` (was `Float64`), `BigInteger`, and `BigDecimal`
+  (was `Decimal`), and `Number`'s constructors are `integer`, `float`,
+  `biginteger`, and `bigdecimal`. An integer and a big integer were
+  each a bare Lean `Int`.
+- An `Integer` carries the proof that the `integer` leaf holds it, as
+  `Float` and `BigDecimal` carry their invariants, so no Lean term holds
+  an integer the language has not. `Data.WellFormed` keeps only its map
+  clause, no key twice, and the checker stops testing the range.
+- The definition writes Lean's `Int` and `Nat` as `ℤ` and `ℕ`, so that
+  neither reads as an aontu type.
+
 ### The definition's rows and tutorial run plain `vet`, with data written in aontu
 
 Generated rows and documentation; no engine changes, and no verdict moves.

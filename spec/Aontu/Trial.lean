@@ -21,15 +21,16 @@ inductive Trial where
 
 mutual
 /-- `Holds env root c j`: the trial `c` passes on `j`. `nof(n, …)`
-passes where `n` admits the number of its trials that pass. -/
+passes where `n` admits the number of its trials that pass, an
+integer. -/
 def Holds (env : Env) (root : Data) : Trial → Data → Prop
   | .is v, j => Admits env root v j
   | .when c t e, j =>
     (Holds env root c j ∧ Holds env root t j) ∨ (¬ Holds env root c j ∧ Holds env root e j)
-  | .nof n cs, j => ∃ k, Count env root cs j k ∧ Admits env root n (.int k)
+  | .nof n cs, j => ∃ k, Count env root cs j k ∧ ∃ h : IntegerLeaf k, Admits env root n (.integer k h)
 
 /-- `Count env root cs j k`: exactly `k` of the trials `cs` pass on `j`. -/
-def Count (env : Env) (root : Data) : List Trial → Data → Nat → Prop
+def Count (env : Env) (root : Data) : List Trial → Data → ℕ → Prop
   | [], _, k => k = 0
   | c :: cs, j, k =>
     (Holds env root c j ∧ ∃ k', k = k' + 1 ∧ Count env root cs j k') ∨
@@ -38,7 +39,7 @@ end
 
 /-- A list of trials has one count at most. -/
 theorem Count.unique {env : Env} {root : Data} :
-    ∀ {cs : List Trial} {j : Data} {k k' : Nat},
+    ∀ {cs : List Trial} {j : Data} {k k' : ℕ},
       Count env root cs j k → Count env root cs j k' → k = k'
   | [], _, _, _, h, h' => by simp only [Count] at h h'; omega
   | _ :: _, _, _, _, h, h' => by

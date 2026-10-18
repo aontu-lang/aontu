@@ -11,22 +11,32 @@ and which leaf a number is read into, is a reader's business.
 
 namespace Aontu
 
-/-! ## Integers
+/-- The integers of mathematics, every whole number with no bound:
+Lean's `Int`, written `ℤ` here so that it never reads as aontu's
+`Integer`. -/
+notation "ℤ" => Int
 
-An `integer` is a Lean `Int`, and so is a `biginteger`: the first a
-double, whole, in the window of a 64-bit integer, the second exact and
-unbounded. -/
+/-- The natural numbers, Lean's `Nat`. -/
+notation "ℕ" => Nat
 
-/-- The integers the `integer` leaf holds: the values a double holds
+/-! ## Numbers
+
+Each of the language's four leaves has its own type, named as aontu
+names it: `Integer`, `Float`, `BigInteger`, and `BigDecimal`. Each
+holds exactly the numbers of its leaf, and no other. -/
+
+/-! ### Integers -/
+
+/-- The whole numbers the `integer` leaf holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
-def IntegerLeaf (n : Int) : Prop :=
-  (∃ m e : Nat, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
+def IntegerLeaf (n : ℤ) : Prop :=
+  (∃ m e : ℕ, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
 
 /-- Inside the window a double's exponent is below 64, which bounds the
 search. -/
-theorem integerLeaf_iff (n : Int) :
+theorem integerLeaf_iff (n : ℤ) :
     IntegerLeaf n ↔
       (∃ e, e < 64 ∧ n.natAbs % 2 ^ e = 0 ∧ n.natAbs / 2 ^ e < 2 ^ 53) ∧ n.natAbs < 2 ^ 63 := by
   unfold IntegerLeaf
@@ -49,21 +59,33 @@ theorem integerLeaf_iff (n : Int) :
   · rintro ⟨⟨e, -, hmod, hdiv⟩, hw⟩
     exact ⟨⟨n.natAbs / 2 ^ e, e, (Nat.div_mul_cancel (Nat.dvd_of_mod_eq_zero hmod)).symm, hdiv⟩, hw⟩
 
-instance (n : Int) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
+instance (n : ℤ) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
 
-/-! ## Floats
+/-- An `integer`: a whole number the `integer` leaf holds, which a
+double holds exactly and whose magnitude is below `2 ^ 63`. -/
+structure Integer where
+  value : ℤ
+  leaf : IntegerLeaf value
+  deriving DecidableEq
+
+/-- The integer `n`, for an `n` the leaf holds: `Integer.of 3` is three. -/
+def Integer.of (n : ℤ) (h : IntegerLeaf n := by decide) : Integer := ⟨n, h⟩
+
+/-! ### Floats
 
 A `float` is an IEEE-754 binary64 double, any double but the infinities,
-NaN, and negative zero, none of which aontu holds. -/
+NaN, and negative zero, none of which aontu holds. It is aontu's `Float`,
+held by its fields, and not Lean's own `Float`, whose operations no proof
+can compute with. -/
 
 /-- A float: a binary64 double, held as its three fields: the sign, the
 11-bit biased exponent, and the 52 bits of the fraction. The exponent
 `2047` would make an infinity or a NaN, and the sign alone a negative
 zero, which aontu takes as zero. -/
-structure Float64 where
+structure Float where
   neg : Bool
-  exp : Nat
-  frac : Nat
+  exp : ℕ
+  frac : ℕ
   exp_lt : exp < 2047
   frac_lt : frac < 2 ^ 52
   no_neg_zero : neg = true → exp ≠ 0 ∨ frac ≠ 0
@@ -71,37 +93,37 @@ structure Float64 where
 
 /-- The significand: the fraction with its leading one, which a
 subnormal, of exponent `0`, lacks. -/
-def Float64.man (x : Float64) : Nat := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
+def Float.man (x : Float) : ℕ := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
 
 /-- The power of two the significand is scaled by: a float is
 `± man * 2 ^ pow`. -/
-def Float64.pow (x : Float64) : Int := if x.exp = 0 then -1074 else (x.exp : Int) - 1075
+def Float.pow (x : Float) : ℤ := if x.exp = 0 then -1074 else (x.exp : ℤ) - 1075
 
 /-- The bits of `n`, at most `fuel` of them. -/
-def bitLen : Nat → Nat → Nat
+def bitLen : ℕ → ℕ → ℕ
   | 0, _ => 0
   | fuel + 1, n => if n = 0 then 0 else 1 + bitLen fuel (n / 2)
 
 /-- The fields of the double `m * 2 ^ e`, for `0 < m < 2 ^ 53`: the
 exponent and fraction of the significand shifted to 53 bits, or below
 the normal range the fraction of a subnormal. -/
-def Float64.fieldsOf (m : Nat) (e : Int) : Nat × Nat :=
+def Float.fieldsOf (m : ℕ) (e : ℤ) : ℕ × ℕ :=
   let s := 53 - bitLen 64 m
   let e' := e - s
   if 1 ≤ e' + 1075 then ((e' + 1075).toNat, m * 2 ^ s - 2 ^ 52)
   else (0, m * 2 ^ (e + 1074).toNat)
 
 /-- The float `m * 2 ^ e`, for a positive `m` the double holds exactly:
-`Float64.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
-def Float64.dyadic (m : Nat) (e : Int)
-    (h₁ : (Float64.fieldsOf m e).1 < 2047 := by decide)
-    (h₂ : (Float64.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float64 :=
-  ⟨false, (Float64.fieldsOf m e).1, (Float64.fieldsOf m e).2, h₁, h₂, fun h => nomatch h⟩
+`Float.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
+def Float.dyadic (m : ℕ) (e : ℤ)
+    (h₁ : (Float.fieldsOf m e).1 < 2047 := by decide)
+    (h₂ : (Float.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float :=
+  ⟨false, (Float.fieldsOf m e).1, (Float.fieldsOf m e).2, h₁, h₂, fun h => nomatch h⟩
 
 /-- The decimal digits of `n`, one for zero. -/
-def ndigits (n : Nat) : Nat := go n n
+def ndigits (n : ℕ) : ℕ := go n n
 where
-  go : Nat → Nat → Nat
+  go : ℕ → ℕ → ℕ
     | 0, _ => 1
     | fuel + 1, n => if n < 10 then 1 else 1 + go fuel (n / 10)
 
@@ -109,25 +131,25 @@ where
 that rounds to the float, the closest to it of those, and of two that
 close the one with the even last digit. It is the text both ports write
 for a float, and what `multiple` reads one as. -/
-def Float64.shortest (x : Float64) : Int × Int :=
+def Float.shortest (x : Float) : ℤ × ℤ :=
   if x.man = 0 then (0, 0) else
   -- The decimals that round to `x` lie between the midpoints to its
   -- neighbours, in units of `2 ^ (pow - 2)`; the lower neighbour is
   -- nearer when the significand is a power of two above the bottom of
   -- the range, and a midpoint rounds to the even significand.
-  let q : Int := x.pow - 2
-  let up : Nat := 2 ^ q.toNat
-  let dn : Nat := 2 ^ (-q).toNat
+  let q : ℤ := x.pow - 2
+  let up : ℕ := 2 ^ q.toNat
+  let dn : ℕ := 2 ^ (-q).toNat
   let v := 4 * x.man * up
   let hi := (4 * x.man + 2) * up
   let lo := (if x.man = 2 ^ 52 ∧ 1 < x.exp then 4 * x.man - 1 else 4 * x.man - 2) * up
-  let (c, k) := go (x.man % 2 = 0) v lo hi dn ((ndigits hi : Int) - ndigits dn + 1) 64
-  (if x.neg then -(c : Int) else c, k)
+  let (c, k) := go (x.man % 2 = 0) v lo hi dn ((ndigits hi : ℤ) - ndigits dn + 1) 64
+  (if x.neg then -(c : ℤ) else c, k)
 where
   /-- From the place `10 ^ k` down, the first place where a multiple of
   it lies between `lo / dn` and `hi / dn`, and the multiple nearest
   `v / dn` there. -/
-  go (closed : Bool) (v lo hi dn : Nat) (k : Int) : Nat → Nat × Int
+  go (closed : Bool) (v lo hi dn : ℕ) (k : ℤ) : ℕ → ℕ × ℤ
     | 0 => (0, k)
     | fuel + 1 =>
       let a := 10 ^ (-k).toNat
@@ -141,49 +163,56 @@ where
         (if c < cmin then cmin else if cmax < c then cmax else c, k)
       else go closed v lo hi dn (k - 1) fuel
 
-/-! ## Big decimals -/
+/-! ### Big integers -/
 
-/-- A big decimal: the exact value `coef * 10 ^ (-scale)`, the
+/-- A `biginteger`: a whole number, exact and unbounded. -/
+structure BigInteger where
+  value : ℤ
+  deriving DecidableEq
+
+/-! ### Big decimals -/
+
+/-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
 coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `Decimal`: `0d0.10` and `0d0.1` are
+identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
 both `⟨1, 1, _⟩`. -/
-structure Decimal where
-  coef : Int
-  scale : Int
+structure BigDecimal where
+  coef : ℤ
+  scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
   deriving DecidableEq
 
-/-- The decimal `coef * 10 ^ (-scale)`, given with no trailing zero:
-`Decimal.of 15 1` is one and a half. -/
-def Decimal.of (coef scale : Int) (h : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0) := by decide) :
-    Decimal := ⟨coef, scale, h⟩
+/-- The big decimal `coef * 10 ^ (-scale)`, given with no trailing zero:
+`BigDecimal.of 15 1` is one and a half. -/
+def BigDecimal.of (coef scale : ℤ) (h : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0) := by decide) :
+    BigDecimal := ⟨coef, scale, h⟩
 
-/-! ## Numbers -/
+/-! ### The four leaves -/
 
 /-- A number, in one of the language's four leaves. The leaves are
 disjoint: two numbers of two leaves are two values, however equal they
 look, so `1`, `1.0`, `0d1`, and `0d1.0` are four. -/
 inductive Number where
-  | int (n : Int)          -- `integer`: a double, whole, in the window
-  | float (x : Float64)    -- `float`: a double
-  | bigint (n : Int)       -- `biginteger`: exact and whole
-  | bigdec (x : Decimal)   -- `bigdecimal`: exact
+  | integer (x : Integer)
+  | float (x : Float)
+  | biginteger (x : BigInteger)
+  | bigdecimal (x : BigDecimal)
   deriving DecidableEq
 
 /-- A number's exact value, as an integer over a positive natural. -/
-def Number.value : Number → Int × Nat
-  | .int n => (n, 1)
+def Number.value : Number → ℤ × ℕ
+  | .integer x => (x.value, 1)
   | .float x =>
-    let m : Int := if x.neg then -(x.man : Int) else x.man
+    let m : ℤ := if x.neg then -(x.man : ℤ) else x.man
     if 0 ≤ x.pow then (m * 2 ^ x.pow.toNat, 1) else (m, 2 ^ (-x.pow).toNat)
-  | .bigint n => (n, 1)
-  | .bigdec x =>
+  | .biginteger x => (x.value, 1)
+  | .bigdecimal x =>
     if 0 ≤ x.scale then (x.coef, 10 ^ x.scale.toNat) else (x.coef * 10 ^ (-x.scale).toNat, 1)
 
 /-- The value a number shows: its exact value, but for a float the
 decimal it shows, so that `0.3` shows three tenths where its exact
 value is a little below. -/
-def Number.shown : Number → Int × Nat
+def Number.shown : Number → ℤ × ℕ
   | .float x =>
     let (c, k) := x.shortest
     if 0 ≤ k then (c * 10 ^ k.toNat, 1) else (c, 10 ^ (-k).toNat)
@@ -209,8 +238,8 @@ instance (x d : Number) : Decidable (x.multipleOf d) := inferInstanceAs (Decidab
 instance (x : Number) : Decidable x.Whole := inferInstanceAs (Decidable (_ = _))
 
 /-- The multiples of one are the numbers that show a whole number. -/
-theorem Number.multipleOf_one (x : Number) : x.multipleOf (.int 1) ↔ x.Whole := by
-  simp [Number.multipleOf, Number.Whole, Number.shown, Number.value]
+theorem Number.multipleOf_one (x : Number) : x.multipleOf (.integer (.of 1)) ↔ x.Whole := by
+  simp [Number.multipleOf, Number.Whole, Number.shown, Number.value, Integer.of]
 
 /-! ## Strings
 
@@ -233,8 +262,9 @@ inductive Data where
   | map (fs : List (String × Data))
   | list (xs : List Data)
 
-/-- The integer `n`: `Data.int 3` is the `integer` three. -/
-def Data.int (n : Int) : Data := .num (.int n)
+/-- The integer `n`, for an `n` the leaf holds: `Data.integer 3` is the
+`integer` three. -/
+def Data.integer (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .num (.integer ⟨n, h⟩)
 
 /-- The value a map gives the key `k`. -/
 def lookup (k : String) : List (String × Data) → Option Data
@@ -255,16 +285,13 @@ inductive Data.Same : Data → Data → Prop
       Same (.map fs) (.map gs)
   | list {xs ys : List Data} :
       xs.length = ys.length →
-      (∀ (i : Nat) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
+      (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
       Same (.list xs) (.list ys)
 
-/-- A Lean `Data` is a value when each of its integers is one the
-`integer` leaf holds and each of its maps gives each key once. -/
+/-- A Lean `Data` is a value when each of its maps gives each key once.
+Every number is one already: each leaf's type holds only its own. -/
 inductive Data.WellFormed : Data → Prop
-  | int {n : Int} : IntegerLeaf n → WellFormed (.num (.int n))
-  | float {x : Float64} : WellFormed (.num (.float x))
-  | bigint {n : Int} : WellFormed (.num (.bigint n))
-  | bigdec {x : Decimal} : WellFormed (.num (.bigdec x))
+  | num {x : Number} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
   | bool {b : Bool} : WellFormed (.bool b)
   | null : WellFormed .null
@@ -275,7 +302,7 @@ inductive Data.WellFormed : Data → Prop
 /-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where
   | key (k : String)
-  | idx (i : Nat)
+  | idx (i : ℕ)
 
 /-- The part of a value a path names. -/
 def Data.at (j : Data) : List Seg → Option Data

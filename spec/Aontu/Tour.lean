@@ -24,14 +24,14 @@ example : ¬ IntegerLeaf 9007199254740993 := by decide
 example : ¬ IntegerLeaf 9223372036854775808 := by decide
 
 /-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 3) := ⟨by decide, .integer⟩
 
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 9007199254740994) := ⟨by decide, .integer⟩
 
-/-- No integer is `9007199254740993`: a Lean `Data` that says so is no
-value, and no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.int 9007199254740993) := fun ⟨hw, _⟩ => absurd hw (by decide)
+/-- No `Integer` is `9007199254740993`: the leaf does not hold it, so
+the type has no such value. -/
+example : ¬ ∃ x : Integer, x.value = 9007199254740993 := fun ⟨⟨_, h⟩, rfl⟩ => absurd h (by decide)
 
 /-- `integer` refuses the string `"3"`. -/
 example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
@@ -40,7 +40,7 @@ example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
 
 /-- The double `1.5` is `3 * 2 ^ -1`: the sign clear, the exponent
 `1023`, and the top bit of the fraction set. -/
-example : Float64.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
+example : Float.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
   rfl
 
 /-- `float` admits the float `1.5`. -/
@@ -53,39 +53,39 @@ example : ¬ Instance .empty .integer (.num (.float (.dyadic 1 0))) := fun ⟨_,
 example : (Number.float (.dyadic 3602879701896397 (-55))).shown = (1, 10) := by decide
 
 /-- …though its exact value is a little above one tenth. -/
-example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdec (.of 1 1)) := by decide
+example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdecimal (.of 1 1)) := by decide
 
 /-! ## Big numbers -/
 
 /-- `biginteger` admits `9007199254740993`, exactly. -/
-example : Instance .empty .biginteger (.num (.bigint 9007199254740993)) := ⟨by decide, .biginteger⟩
+example : Instance .empty .biginteger (.num (.biginteger ⟨9007199254740993⟩)) := ⟨by decide, .biginteger⟩
 
 /-- `bigdecimal` admits one and a half. -/
-example : Instance .empty .bigdecimal (.num (.bigdec (.of 15 1))) := ⟨by decide, .bigdecimal⟩
+example : Instance .empty .bigdecimal (.num (.bigdecimal (.of 15 1))) := ⟨by decide, .bigdecimal⟩
 
 /-- `integer` refuses the biginteger `5`, however equal they look. -/
-example : ¬ Instance .empty .integer (.num (.bigint 5)) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .integer (.num (.biginteger ⟨5⟩)) := fun ⟨_, h⟩ => nomatch h
 
 /-! ## Numbers -/
 
 /-- `number` admits a number of every leaf. -/
-example : Instance .empty .number (.int 3) ∧
+example : Instance .empty .number (.integer 3) ∧
     Instance .empty .number (.num (.float (.dyadic 3 (-1)))) ∧
-    Instance .empty .number (.num (.bigint 9007199254740993)) ∧
-    Instance .empty .number (.num (.bigdec (.of 15 1))) :=
+    Instance .empty .number (.num (.biginteger ⟨9007199254740993⟩)) ∧
+    Instance .empty .number (.num (.bigdecimal (.of 15 1))) :=
   ⟨⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩⟩
 
 /-- `number` refuses the string `"1"`. -/
 example : ¬ Instance .empty .number (.str "1") := fun ⟨_, h⟩ => nomatch h
 
 /-- `number & multiple(1)` admits the biginteger `9007199254740993`. -/
-example : Instance .empty (.meet .number (.multiple (.int 1))) (.num (.bigint 9007199254740993)) :=
+example : Instance .empty (.meet .number (.multiple (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
 /-- `number & multiple(1)` admits exactly the numbers that show a whole
 number, of every leaf. -/
 example (env : Env) (root j : Data) :
-    Admits env root (.meet .number (.multiple (.int 1))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
+    Admits env root (.meet .number (.multiple (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
   constructor
   · intro h
     cases h with
@@ -111,7 +111,7 @@ example : ¬ Instance .empty .string (.str "") := by
 example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
 
 /-- `string` refuses `3`. -/
-example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .string (.integer 3) := fun ⟨_, h⟩ => nomatch h
 
 /-! ## Booleans -/
 
@@ -119,18 +119,18 @@ example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
 example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
 /-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .boolean (.integer 1) := fun ⟨_, h⟩ => nomatch h
 
 /-! ## Literals -/
 
 /-- `3` admits `3`. -/
-example : Instance .empty (.lit (.num (.int 3))) (.int 3) := ⟨by decide, .num⟩
+example : Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 3) := ⟨by decide, .num⟩
 
 /-- `3` refuses `4`. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `3` refuses `0d3`, the biginteger three. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.num (.bigint 3)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.num (.biginteger ⟨3⟩)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `"a"` refuses `"b"`. -/
 example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
@@ -147,42 +147,42 @@ example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nom
 /-! ## Bounds -/
 
 /-- `min(3)` admits `3`. -/
-example : Instance .empty (.min (.int 3)) (.int 3) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.integer 3) := ⟨by decide, .min (by decide)⟩
 
 /-- `min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.min (.int 3)) (.int 2) := by
+example : ¬ Instance .empty (.min (.integer (.of 3))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits the bigdecimal three and a half. -/
-example : Instance .empty (.min (.int 3)) (.num (.bigdec (.of 35 1))) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.num (.bigdecimal (.of 35 1))) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)`, whose bound is a float, admits the bigdecimal `2.5`: a
 bound compares exact values, whatever their leaves. -/
-example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 25 1))) :=
+example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 25 1))) :=
   ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 26 1))) := by
+example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 26 1))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `max(0d0.1)` refuses the float `0.1`, whose exact value is above
 one tenth. -/
-example : ¬ Instance .empty (.max (.bigdec (.of 1 1)))
+example : ¬ Instance .empty (.max (.bigdecimal (.of 1 1)))
     (.num (.float (.dyadic 3602879701896397 (-55)))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 15 1))) :=
+example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 125 2))) := by
+example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
@@ -194,7 +194,7 @@ example : Instance .empty (.multiple (.float (.dyadic 3602879701896397 (-55))))
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0)` refuses `0`, and everything else. -/
-example : ¬ Instance .empty (.multiple (.int 0)) (.int 0) := by
+example : ¬ Instance .empty (.multiple (.integer (.of 0))) (.integer 0) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple h _ => exact absurd h (by decide)
@@ -205,7 +205,7 @@ example : ¬ Instance .empty (.multiple (.int 0)) (.int 0) := by
 example : Instance .empty .any .null := ⟨by decide, .any⟩
 
 /-- `any` admits `[1, "a"]`. -/
-example : Instance .empty .any (.list [.int 1, .str "a"]) := ⟨by decide, .any⟩
+example : Instance .empty .any (.list [.integer 1, .str "a"]) := ⟨by decide, .any⟩
 
 /-- `nil` refuses `null`, and everything else. -/
 example : ¬ Instance .empty .nil .null := fun ⟨_, h⟩ => nomatch h
@@ -213,19 +213,19 @@ example : ¬ Instance .empty .nil .null := fun ⟨_, h⟩ => nomatch h
 /-! ## Maps and lists -/
 
 /-- `{"a": 1}` is a value. -/
-example : Data.WellFormed (.map [("a", .int 1)]) := by decide
+example : Data.WellFormed (.map [("a", .integer 1)]) := by decide
 
 /-- A Lean `Data` that gives `a` twice is no value. -/
-example : ¬ Data.WellFormed (.map [("a", .int 1), ("a", .int 2)]) := by decide
+example : ¬ Data.WellFormed (.map [("a", .integer 1), ("a", .integer 2)]) := by decide
 
 /-- …so it is no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.map [("a", .int 1), ("a", .int 2)]) :=
+example : ¬ Instance .empty .any (.map [("a", .integer 1), ("a", .integer 2)]) :=
   fun ⟨hw, _⟩ => absurd hw (by decide)
 
 /-! ## Maps -/
 
 /-- `{x: integer}` admits `{"x": 1}`. -/
-example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .int 1)]) := by
+example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .integer 1)]) := by
   refine ⟨by decide, ?_⟩
   refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
   · intro k o v x hm hx
@@ -259,7 +259,7 @@ example : ¬ Instance .empty (.map [("x", true, .integer)] none false) (.list []
   fun ⟨_, h⟩ => nomatch h
 
 /-- `{&: integer}` admits `{"a": 1, "b": 2}`: the spread holds every member. -/
-example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), ("b", .int 2)]) := by
+example : Instance .empty (.map [] (some .integer) false) (.map [("a", .integer 1), ("b", .integer 2)]) := by
   refine ⟨by decide, ?_⟩
   refine .map (fun _ _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h) ?_ (fun h => nomatch h)
   intro s hs k x hm
@@ -270,18 +270,18 @@ example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), 
 /-- `{a: integer, &: string}` refuses `{"a": 1}`: the spread holds the
 declared key as well. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] (some .string) false)
-    (.map [("a", .int 1)]) := by
+    (.map [("a", .integer 1)]) := by
   rintro ⟨-, h⟩
   cases h with
-  | map _ _ hs _ => nomatch hs .string rfl "a" (.int 1) (List.mem_singleton.mpr rfl)
+  | map _ _ hs _ => nomatch hs .string rfl "a" _ (List.mem_singleton.mpr rfl)
 
 /-- `close({a: integer})` refuses `{"a": 1, "b": 2}`: `b` is not declared. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] none true)
-    (.map [("a", .int 1), ("b", .int 2)]) := by
+    (.map [("a", .integer 1), ("b", .integer 2)]) := by
   rintro ⟨-, h⟩
   cases h with
   | map _ _ _ hc =>
-    obtain ⟨o, v, hm⟩ := hc rfl "b" (.int 2) (by simp)
+    obtain ⟨o, v, hm⟩ := hc rfl "b" (.integer 2) (by simp)
     simp at hm
 
 /-- `close({a?: integer})` admits `{}`. -/
@@ -293,7 +293,7 @@ example : Instance .empty (.map [("a", true, .integer)] none true) (.map []) :=
 /-! ## Lists -/
 
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
-example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str "a", .bool true]) := by
+example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .str "a", .bool true]) := by
   refine ⟨by decide, ?_⟩
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
@@ -303,13 +303,13 @@ example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str 
   · simp at hv
 
 /-- `[integer, string]` refuses `[1]`: its second position is missing. -/
-example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.int 1]) := by
+example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.integer 1]) := by
   rintro ⟨-, h⟩
   cases h with
   | list hlen _ _ => exact absurd hlen (by decide)
 
 /-- `[&: integer]` refuses `[1, "a"]`: the spread holds every element. -/
-example : ¬ Instance .empty (.list [] (some .integer)) (.list [.int 1, .str "a"]) := by
+example : ¬ Instance .empty (.list [] (some .integer)) (.list [.integer 1, .str "a"]) := by
   rintro ⟨-, h⟩
   cases h with
   | list _ _ hs => nomatch hs .integer rfl (.str "a") (by simp)
@@ -317,11 +317,11 @@ example : ¬ Instance .empty (.list [] (some .integer)) (.list [.int 1, .str "a"
 /-! ## Conjunction -/
 
 /-- `integer & min(3)` admits `7`. -/
-example : Instance .empty (.meet .integer (.min (.int 3))) (.int 7) :=
+example : Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 7) :=
   ⟨by decide, .meet (.integer) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.meet .integer (.min (.int 3))) (.int 2) := by
+example : ¬ Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
@@ -335,7 +335,7 @@ def envT : Env := fun n => if n = "T" then some T else none
 
 /-- `{"n": {"v": 1}}` is a `%T`. The proof is the derivation itself,
 and it follows the data down. -/
-example : Instance envT T (.map [("n", .map [("v", .int 1)])]) := by
+example : Instance envT T (.map [("n", .map [("v", .integer 1)])]) := by
   refine ⟨by decide, ?_⟩
   refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
   · intro k o v x hm hx
@@ -363,11 +363,11 @@ example : ¬ Instance envT T (.map [("v", .str "x")]) := by
   | map hp _ _ _ => nomatch hp "v" true .integer (.str "x") (by simp) rfl
 
 /-- `{x: %U}` refuses `{"x": 1}`: `%U` is declared nowhere. -/
-example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .int 1)]) := by
+example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .integer 1)]) := by
   rintro ⟨-, h⟩
   cases h with
   | map hp _ _ _ =>
-    cases hp "x" false (.alias "U") (.int 1) (List.mem_singleton.mpr rfl) rfl with
+    cases hp "x" false (.alias "U") (.integer 1) (List.mem_singleton.mpr rfl) rfl with
     | alias hn _ => nomatch hn
 
 /-! ## Paths -/
@@ -376,7 +376,7 @@ example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map 
 abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", false, y)] none false
 
 /-- It admits `{"x": 1, "y": 1}`. -/
-example : Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 1)]) := by
+example : Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) := by
   refine ⟨by decide, ?_⟩
   refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
   · intro k o v x hm hx
@@ -389,11 +389,11 @@ example : Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 1)]
     rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> nomatch hx
 
 /-- It refuses `{"x": 1, "y": 2}`. -/
-example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 2)]) := by
+example : ¬ Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) := by
   rintro ⟨-, h⟩
   cases h with
   | map hp _ _ _ =>
-    cases hp "x" false (.path [.key "y"]) (.int 1) (by simp) rfl with
+    cases hp "x" false (.path [.key "y"]) (.integer 1) (by simp) rfl with
     | path hat hs =>
       cases hat
       cases hs
@@ -401,7 +401,7 @@ example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
 the two objects have the same members, so they are one value. -/
 example : Instance .empty (refDoc .any)
-    (.map [("x", .map [("a", .int 1), ("b", .int 2)]), ("y", .map [("b", .int 2), ("a", .int 1)])]) := by
+    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) := by
   refine ⟨by decide, ?_⟩
   refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
   · intro k o v x hm hx
@@ -423,13 +423,13 @@ example : Instance .empty (refDoc .any)
 /-! ## The order -/
 
 /-- `integer` is above `integer & min(3)`. -/
-example : .meet .integer (.min (.int 3)) ⊑[.empty] .integer := meet_le_left _ _ _
+example : .meet .integer (.min (.integer (.of 3))) ⊑[.empty] .integer := meet_le_left _ _ _
 
 /-- `integer & min(3)` is not above `integer`: `2` is the instance that
 shows it. -/
-example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.int 3))) := by
+example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.integer (.of 3)))) := by
   intro h
-  cases (h (.int 2) ⟨by decide, .integer⟩).2 with
+  cases (h (.integer 2) ⟨by decide, .integer⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 
 /-! ## Two declarations of one key -/
@@ -445,7 +445,7 @@ example : ¬ Instance .empty
 /-- It admits `{"x": 1}`. -/
 example : Instance .empty
     (.meet (.map [("x", true, .integer)] none false) (.map [("x", false, .integer)] none false))
-    (.map [("x", .int 1)]) := by
+    (.map [("x", .integer 1)]) := by
   refine ⟨by decide, ?_⟩
   refine (merge_exact _ _ "x" true false .integer .integer _).mp
     (.map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h))
@@ -477,28 +477,29 @@ example : Instance .empty
 /-! ## Trial schemas -/
 
 /-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
-example : Holds .empty (.int (-1)) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int (-1)) := by
-  refine ⟨1, .inl ⟨.integer, 0, rfl, .inr ⟨fun h => ?_, rfl⟩⟩, .num⟩
+example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer (-1)) := by
+  refine ⟨1, .inl ⟨.integer, 0, rfl, .inr ⟨fun h => ?_, rfl⟩⟩, by decide, .num⟩
   cases h with | min h => exact absurd h (by decide)
 
 /-- …and refuses `3`, which both admit. -/
-example : ¬ Holds .empty (.int 3) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int 3) := by
+example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer 3) := by
   rintro ⟨k, hc, hn⟩
-  have h₂ : Count .empty (.int 3) [.is .integer, .is (.min (.int 0))] (.int 3) 2 :=
+  have h₂ : Count .empty (.integer 3) [.is .integer, .is (.min (.integer (.of 0)))] (.integer 3) 2 :=
     .inl ⟨.integer, 1, rfl, .inl ⟨.min (by decide), 0, rfl, rfl⟩⟩
   cases Count.unique hc h₂
+  obtain ⟨_, hn⟩ := hn
   cases hn
 
 /-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
-example : Holds .empty (.int 5)
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.int 5) :=
+example : Holds .empty (.integer 5)
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.integer 5) :=
   .inr ⟨(fun h => nomatch h), .min (by decide)⟩
 
 /-- …and refuses `"b"`: a string, and not `"a"`. -/
 example : ¬ Holds .empty (.str "b")
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.str "b") := by
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.str "b") := by
   rintro (⟨_, h⟩ | ⟨h, _⟩)
   · exact absurd ((check_iff .lit _).mpr h) (by decide)
   · exact h (.string (by decide))
@@ -506,7 +507,7 @@ example : ¬ Holds .empty (.str "b")
 /-! ## A checker, run -/
 
 /-- `check` computes: `integer & min(3)` admits `7`. -/
-example : check (.meet .integer (.min (.int 3))) (.int 7) = true := by decide
+example : check (.meet .integer (.min (.integer (.of 3)))) (.integer 7) = true := by decide
 
 /-- …and `{x: integer}` refuses `{}`. -/
 example : check (.map [("x", false, .integer)] none false) (.map []) = false := by decide

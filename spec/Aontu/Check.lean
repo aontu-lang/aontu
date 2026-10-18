@@ -4,7 +4,7 @@ import Aontu.Admits
 # The checker
 
 `Admits` computes nothing: it is a relation, and Lean will not run it
-(`decide (Admits Env.empty .null .integer (.int 3))` finds no
+(`decide (Admits Env.empty .null .integer (.integer 3))` finds no
 `Decidable` instance). `check` is an algorithm, and `check_iff` is what
 lets its answers stand in for the definition's, on every value that
 reads neither an alias nor a path. Without that theorem it would be a
@@ -17,7 +17,6 @@ namespace Aontu
 mutual
 /-- Whether a Lean `Data` is a value, computed. -/
 def Data.wf : Data → Bool
-  | .num (.int n) => decide (IntegerLeaf n)
   | .num _ => true
   | .str _ => true
   | .bool _ => true
@@ -36,12 +35,7 @@ end
 
 mutual
 theorem Data.wf_iff : ∀ j : Data, j.wf = true ↔ j.WellFormed
-  | .num (.int n) => by
-    simp only [Data.wf, decide_eq_true_eq]
-    exact ⟨.int, fun h => by cases h; assumption⟩
-  | .num (.float _) => ⟨fun _ => .float, fun _ => rfl⟩
-  | .num (.bigint _) => ⟨fun _ => .bigint, fun _ => rfl⟩
-  | .num (.bigdec _) => ⟨fun _ => .bigdec, fun _ => rfl⟩
+  | .num _ => ⟨fun _ => .num, fun _ => rfl⟩
   | .str _ => ⟨fun _ => .str, fun _ => rfl⟩
   | .bool _ => ⟨fun _ => .bool, fun _ => rfl⟩
   | .null => ⟨fun _ => .null, fun _ => rfl⟩
@@ -105,16 +99,16 @@ mutual
 /-- Whether `v` admits `j`, computed. -/
 def check : Val → Data → Bool
   | .integer, j => match j with
-    | .num (.int _) => true
+    | .num (.integer _) => true
     | _ => false
   | .float, j => match j with
     | .num (.float _) => true
     | _ => false
   | .biginteger, j => match j with
-    | .num (.bigint _) => true
+    | .num (.biginteger _) => true
     | _ => false
   | .bigdecimal, j => match j with
-    | .num (.bigdec _) => true
+    | .num (.bigdecimal _) => true
     | _ => false
   | .number, j => match j with
     | .num _ => true
@@ -221,7 +215,7 @@ theorem checkFields_iff {fs : List (String × Bool × Val)}
 theorem checkItems_iff {items : List Val}
     (ih : ∀ v, v ∈ items → ∀ j, check v j = true ↔ Admits env root v j) (xs : List Data) :
     checkItems items xs = true ↔
-      ∀ (i : Nat) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x := by
   induction items generalizing xs with
   | nil => simp [checkItems]
@@ -283,7 +277,7 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
     cases j with
     | num x =>
       cases x with
-      | int n => exact ⟨fun _ => .integer, fun _ => rfl⟩
+      | integer y => exact ⟨fun _ => .integer, fun _ => rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | float =>
@@ -299,7 +293,7 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
     cases j with
     | num x =>
       cases x with
-      | bigint n => exact ⟨fun _ => .biginteger, fun _ => rfl⟩
+      | biginteger y => exact ⟨fun _ => .biginteger, fun _ => rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | bigdecimal =>
@@ -307,7 +301,7 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
     cases j with
     | num x =>
       cases x with
-      | bigdec y => exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
+      | bigdecimal y => exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | string =>

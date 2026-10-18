@@ -6,13 +6,13 @@ prose. Part of the language is also defined in
 [`spec/`](../spec/) directory, as statements a proof checker verifies,
 and the test suites hold both engines to that definition.
 
-The definition says what aontu values mean: which data each one
-admits. It says nothing about text: how to parse an aontu file is the
-grammar's business, and how to read a JSON file is each engine's. This
-page reads the definition one part at a time, starting from the
-scalars. Each rule comes with a value it admits and a value it refuses,
-checked twice: as a Lean example the definition's build proves, and as
-a transcript of the engine. You need no Lean beforehand, because each
+The definition says what aontu values mean: which data each one admits.
+It says nothing about text: how to parse an aontu file is the grammar's
+business, and how to read a JSON file is each engine's. This page reads
+the definition one part at a time, starting from the scalars. Each rule
+comes with Lean examples of values it admits and refuses, which the
+definition's build proves, and with a transcript of the engine giving
+the admitted values back. You need no Lean beforehand, because each
 step says what its notation means where it first appears. The page
 assumes the [first tutorial](tutorial-config.md).
 
@@ -53,15 +53,17 @@ make spec
 That builds every module, which checks every proof, then regenerates
 the test rows and fails if they differ from the committed copy.
 
-The transcripts run [`aontu vet`](reference-api.md#aontu-vet), with no
-flags, on two aontu files: a schema, which states its terms at named
-keys, and the data, which gives each key one value. Written in aontu,
-the data says which leaf each number is in: `3` is an integer, `1.5` a
-float, and `0d1.5` a big decimal. Each finding names the key the engine
-refused, says why, and points at what it can: where the data holds the
-value, where the schema states the term, or both. The exit code says
-which kind of refusal it was: `1` for `invalid`, `3` for `incomplete`,
-`4` for `error`.
+The transcripts run `aontu` on a small aontu file. aontu evaluates a
+document by unifying it and prints the result, and `-c` prints it in
+aontu's own form, which keeps each number's leaf, `0d1.5` apart from
+`1.5`, and shows what's still open. Without `-c` the output is JSON. A
+term admits a value exactly when the term met with the value gives the
+value back, so each step meets its terms with values they admit, and
+the output shows the values. Where a refusal is the point of a step,
+the step runs [`aontu vet`](reference-api.md#aontu-vet), which checks
+data against a schema and names each key it refuses, why, and where.
+Its exit code says which kind of refusal it was: `1` for `invalid`, `3`
+for `incomplete`, `4` for `error`.
 
 ## 2. Scalars
 
@@ -125,16 +127,14 @@ The examples ask about a whole value, which is its own root:
 ```lean
 /-- `j` is an instance of `v` under the declarations `env`: `j` is a
 value, taken whole, so that it is its own root. This is the question
-`aontu vet` answers. A Lean `Data` that is no value, such as a map that
-gives one key twice or an integer no double holds, is no instance of
-anything, so it is never a witness. -/
+`aontu vet` answers. A Lean `Data` that is no value, a map that gives
+one key twice, is no instance of anything, so it is never a witness. -/
 abbrev Instance (env : Env) (v : Val) (j : Data) : Prop := j.WellFormed ∧ Admits env j v j
 ```
 
 Read `∧` as "and": an instance is a pair, `j` being a value and `v`
-admitting it. A Lean `Data` that holds an integer no double holds is no
-value, and neither is a map that gives one key twice, which step 6
-covers.
+admitting it. A Lean `Data` that gives one map key twice is no value,
+which step 6 covers.
 
 ### Numbers, in four leaves
 
@@ -147,15 +147,19 @@ holds a number as the language has it:
 disjoint: two numbers of two leaves are two values, however equal they
 look, so `1`, `1.0`, `0d1`, and `0d1.0` are four. -/
 inductive Number where
-  | int (n : Int)          -- `integer`: a double, whole, in the window
-  | float (x : Float64)    -- `float`: a double
-  | bigint (n : Int)       -- `biginteger`: exact and whole
-  | bigdec (x : Decimal)   -- `bigdecimal`: exact
+  | integer (x : Integer)
+  | float (x : Float)
+  | biginteger (x : BigInteger)
+  | bigdecimal (x : BigDecimal)
 ```
 
-An integer and a big integer are each a Lean `Int`, a float is a
-double, and a big decimal an exact decimal. The leaves are disjoint, so
-the integer `1` and the big integer `0d1` are two values, which no rule
+Each leaf has its own type, named as aontu names it, and each type
+holds exactly the numbers of its leaf: an `Integer` is a whole number
+of one range, a `Float` a double, a `BigInteger` any whole number, and
+a `BigDecimal` an exact decimal. Under them, `ℤ` is the integers of
+mathematics and `ℕ` the natural numbers, Lean's `Int` and `Nat` under
+the names mathematics gives them. The leaves are disjoint, so the
+integer `1` and the big integer `0d1` are two values, which no rule
 makes one: each kind admits its own leaf, and each literal its own
 number.
 
@@ -165,15 +169,15 @@ The `integer` leaf holds the integers of one range:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The integers the `integer` leaf holds: the values a double holds
+/-- The whole numbers the `integer` leaf holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
-def IntegerLeaf (n : Int) : Prop :=
-  (∃ m e : Nat, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
+def IntegerLeaf (n : ℤ) : Prop :=
+  (∃ m e : ℕ, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
 ```
 
-`∃ m e : Nat` reads "there are natural numbers `m` and `e` such that",
+`∃ m e : ℕ` reads "there are natural numbers `m` and `e` such that",
 and `n.natAbs` is the size of `n`, its sign dropped. A double holds an
 integer exactly when the integer is a 53-bit integer times a power of
 two, and the window keeps every one of them below `2^63` in size:
@@ -197,107 +201,83 @@ of the leaf:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | integer {n : Int} : Admits env root .integer (.num (.int n))
+  | integer {x : Integer} : Admits env root .integer (.num (.integer x))
 ```
 
-An argument in braces, such as `{n : Int}`, is one Lean works out for
-itself. The range is the data's to keep: a Lean `Data` that holds an
-integer no double holds is no value, so it's an instance of nothing.
-`Data.int n` builds the integer `n`:
+An argument in braces, such as `{x : Integer}`, is one Lean works out
+for itself. The range is the type's to keep: an `Integer` is a whole
+number with the proof that the leaf holds it, so no `Integer` lies
+outside the leaf. `Integer.of n` builds one, and `decide` finds the
+proof:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The integer `n`: `Data.int 3` is the `integer` three. -/
-def Data.int (n : Int) : Data := .num (.int n)
+/-- An `integer`: a whole number the `integer` leaf holds, which a
+double holds exactly and whose magnitude is below `2 ^ 63`. -/
+structure Integer where
+  value : ℤ
+  leaf : IntegerLeaf value
+  deriving DecidableEq
+
+/-- The integer `n`, for an `n` the leaf holds: `Integer.of 3` is three. -/
+def Integer.of (n : ℤ) (h : IntegerLeaf n := by decide) : Integer := ⟨n, h⟩
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 3) := ⟨by decide, .integer⟩
 
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 9007199254740994) := ⟨by decide, .integer⟩
 
-/-- No integer is `9007199254740993`: a Lean `Data` that says so is no
-value, and no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.int 9007199254740993) := fun ⟨hw, _⟩ => absurd hw (by decide)
+/-- No `Integer` is `9007199254740993`: the leaf does not hold it, so
+the type has no such value. -/
+example : ¬ ∃ x : Integer, x.value = 9007199254740993 := fun ⟨⟨_, h⟩, rfl⟩ => absurd h (by decide)
 
 /-- `integer` refuses the string `"3"`. -/
 example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
 ```
 
-`Instance .empty .integer (.int 3)` claims that `integer` admits `3`
-under no alias declaration. Its proof is a pair: `by decide` shows that
-`3` is a value, and `.integer` names the rule. A refusal takes the
-supposed proof apart: `fun ⟨hw, _⟩ => absurd hw (by decide)` shows its
-first half can't hold, and `fun ⟨_, h⟩ => nomatch h` finds no rule that
-could have given its second. Write `integers.aontu`:
+`Instance .empty .integer (.integer 3)` claims that `integer` admits
+`3` under no alias declaration, where `.integer 3` builds the data
+three through `Data.integer`. Its proof is a pair: `by decide` shows
+that `3` is a value, and `.integer` names the rule. A refusal takes
+the supposed proof apart: `fun ⟨_, h⟩ => nomatch h` finds no rule that
+could have given its second half. Taking an `Integer` apart gives its
+proof, which is how the third example shows that none is `2 ^ 53 + 1`.
+
+Meet `integer` with two integers of the leaf, and `float` with a whole
+number outside it. Write `integers.aontu`:
 
 <!-- test: scenario integers -->
 <!-- test: file integers.aontu -->
 ```aontu
-admitted: integer
-double: integer
-plain: integer
-beyond: integer
-window: integer
-text: integer
+three: integer & 3
+double: integer & 9007199254740994
+window: float & 9223372036854775808
 ```
 
-and `integers-data.aontu`:
-
-<!-- test: file integers-data.aontu -->
-```aontu
-admitted: 3
-double: 9007199254740994
-plain: 9007199254740993
-beyond: 0d9007199254740993
-window: 9223372036854775808
-text: "3"
-```
-
-Now vet the data against the schema:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet integers.aontu integers-data.aontu
-verdict: invalid
-
-$.plain: lossy_integer_literal [conflict]
-  [aontu/lossy_integer_literal]: Cannot resolve value at path $.plain
-  data: integers-data.aontu:3:8 (nil)
-$.beyond: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.beyond
-  data: integers-data.aontu:4:9 (0d9007199254740993)
-  schema: integers.aontu:4:9 (integer)
-$.window: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.window
-  data: integers-data.aontu:5:9 (9223372036854776000.0)
-  schema: integers.aontu:5:9 (integer)
-$.text: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.text
-  data: integers-data.aontu:6:7 ("3")
-  schema: integers.aontu:6:7 (integer)
-$ echo $?
-1
+$ aontu -c integers.aontu
+{"double":9007199254740994,"three":3,"window":9223372036854776000.0}
 ```
 
-`integer` admits `3` and `9007199254740994`, which a double holds.
-Written plainly, `9007199254740993` is a literal no double holds, and
-the engine refuses it rather than round it: `lossy_integer_literal`.
-Written `0d9007199254740993`, it's a big integer, which `integer`
-refuses. `9223372036854775808`, outside the window, is a double, so the
-engine reads it as a float, which its `data:` line shows as
-`9223372036854776000.0`, and `integer` refuses it, as it refuses the
-string `"3"`. The code of those three findings, `no_scalar_unify`, says
-no value is both, and their class, `conflict`, says no completion of
-the data could change that. The `data:` and `schema:` lines point at
-the two sides, each with its file, line, and column.
+Each meet gives its value back. `9223372036854775808` is `2 ^ 63`, just
+outside the window, so aontu reads it as a float, which `-c` writes
+with a point. A whole number no double holds, such as
+`9007199254740993`, is no float either, and aontu won't round it:
+written plainly it's refused, and the big integers below write it
+exactly.
 
 ### Floats
 
-A float is a double, held as the three fields of its binary64 format:
+A float is a double, held as the three fields of its binary64 format.
+The type is aontu's `Float`, not Lean's own, whose operations no proof
+can compute with:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
@@ -305,10 +285,10 @@ A float is a double, held as the three fields of its binary64 format:
 11-bit biased exponent, and the 52 bits of the fraction. The exponent
 `2047` would make an infinity or a NaN, and the sign alone a negative
 zero, which aontu takes as zero. -/
-structure Float64 where
+structure Float where
   neg : Bool
-  exp : Nat
-  frac : Nat
+  exp : ℕ
+  frac : ℕ
   exp_lt : exp < 2047
   frac_lt : frac < 2 ^ 52
   no_neg_zero : neg = true → exp ≠ 0 ∨ frac ≠ 0
@@ -324,36 +304,36 @@ times a power of two, `2 ^ pow`:
 ```lean
 /-- The significand: the fraction with its leading one, which a
 subnormal, of exponent `0`, lacks. -/
-def Float64.man (x : Float64) : Nat := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
+def Float.man (x : Float) : ℕ := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
 
 /-- The power of two the significand is scaled by: a float is
 `± man * 2 ^ pow`. -/
-def Float64.pow (x : Float64) : Int := if x.exp = 0 then -1074 else (x.exp : Int) - 1075
+def Float.pow (x : Float) : ℤ := if x.exp = 0 then -1074 else (x.exp : ℤ) - 1075
 ```
 
-`Float64.dyadic m e` builds the double `m * 2 ^ e`:
+`Float.dyadic m e` builds the double `m * 2 ^ e`:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The float `m * 2 ^ e`, for a positive `m` the double holds exactly:
-`Float64.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
-def Float64.dyadic (m : Nat) (e : Int)
-    (h₁ : (Float64.fieldsOf m e).1 < 2047 := by decide)
-    (h₂ : (Float64.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float64 :=
+`Float.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
+def Float.dyadic (m : ℕ) (e : ℤ)
+    (h₁ : (Float.fieldsOf m e).1 < 2047 := by decide)
+    (h₂ : (Float.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float :=
 ```
 
 `float` admits every float:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | float {x : Float64} : Admits env root .float (.num (.float x))
+  | float {x : Float} : Admits env root .float (.num (.float x))
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- The double `1.5` is `3 * 2 ^ -1`: the sign clear, the exponent
 `1023`, and the top bit of the fraction set. -/
-example : Float64.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
+example : Float.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
   rfl
 
 /-- `float` admits the float `1.5`. -/
@@ -366,7 +346,7 @@ example : ¬ Instance .empty .integer (.num (.float (.dyadic 1 0))) := fun ⟨_,
 example : (Number.float (.dyadic 3602879701896397 (-55))).shown = (1, 10) := by decide
 
 /-- …though its exact value is a little above one tenth. -/
-example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdec (.of 1 1)) := by decide
+example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdecimal (.of 1 1)) := by decide
 ```
 
 `rfl` proves that a computation gives what it claims, here the three
@@ -380,7 +360,7 @@ What a float shows is its shortest decimal, which step 4 needs:
 that rounds to the float, the closest to it of those, and of two that
 close the one with the even last digit. It is the text both ports write
 for a float, and what `multiple` reads one as. -/
-def Float64.shortest (x : Float64) : Int × Int :=
+def Float.shortest (x : Float) : ℤ × ℤ :=
 ```
 
 Write `floats.aontu`:
@@ -388,92 +368,68 @@ Write `floats.aontu`:
 <!-- test: scenario floats -->
 <!-- test: file floats.aontu -->
 ```aontu
-fraction: float
-point: integer
+fraction: float & 1.5
+point: float & 1.0
 ```
 
-and `floats-data.aontu`, the data:
-
-<!-- test: file floats-data.aontu -->
-```aontu
-fraction: 1.5
-point: 1.0
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet floats.aontu floats-data.aontu
-verdict: invalid
-
-$.point: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.point
-  data: floats-data.aontu:2:8 (1.0)
-  schema: floats.aontu:2:8 (integer)
-$ echo $?
-1
+$ aontu -c floats.aontu
+{"fraction":1.5,"point":1.0}
 ```
 
-`1.5` and `1.0` each have a point, so both are floats: `float` admits
-the first, and `integer` refuses the second, a float though it's
-whole.
+A number written with a point is a float, whole or not, so `float`
+admits both, and `-c` keeps the point of `1.0`, which is no integer.
 
 A data file can be JSON too, and JSON has no `0d`: its numbers name no
-leaf. Write the same data as `floats.json`:
+leaf. Write the same numbers as `floats.json`:
 
 <!-- test: file floats.json -->
 ```json
 {"fraction": 1.5, "point": 1.0}
 ```
 
-and vet it plainly, then with `--exact-numbers`:
+and run it plainly, then with `--exact-numbers`:
 
 <!-- test: run -->
 ```sh
-$ aontu vet floats.aontu floats.json
-verdict: invalid
-
-$.point: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.point
-  data: floats.json:1:28 (1.0)
-  schema: floats.aontu:2:8 (integer)
-$ echo $?
-1
-$ aontu vet --exact-numbers floats.aontu floats.json
-verdict: invalid
-
-$.fraction: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.fraction
-  data: floats.json:1:14 (0d1.5)
-  schema: floats.aontu:1:11 (float)
-$ echo $?
-1
+$ aontu -c floats.json
+{"fraction":1.5,"point":1.0}
+$ aontu -c --exact-numbers floats.json
+{"fraction":0d1.5,"point":1}
 ```
 
-Plainly, the engine reads a JSON number as it reads the same literal in
-aontu, and answers as it did for `floats-data.aontu`. `--exact-numbers`
-reads each number of the data by its value, in a JSON file or an aontu
-one: a whole number the `integer` leaf holds as an integer, any other
-whole number as a big integer, and a fraction as a big decimal. Then
-`1.5` is a big decimal and `1.0` the integer `1`, and the two answers
-swap. The definition says what each kind admits, and which leaf a
-number of the data lands in is the reader's business, which the flag
-changes. No other transcript on this page reads JSON or passes a flag.
+Plainly, aontu reads a JSON number as it reads the same literal in an
+aontu file, so both are floats. `--exact-numbers` reads each number by
+its value instead: a whole number the `integer` leaf holds as an
+integer, any other whole number as a big integer, and a fraction as a
+big decimal, so `1.5` is `0d1.5` and `1.0` the integer `1`. The
+definition says what each kind admits, and which leaf a number lands in
+is the reader's business, which the flag changes. No other transcript
+on this page reads JSON.
 
 ### Big integers and big decimals
 
-A big integer is an `Int`, and a big decimal is exact:
+A big integer is any whole number, and a big decimal an exact decimal:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A big decimal: the exact value `coef * 10 ^ (-scale)`, the
+/-- A `biginteger`: a whole number, exact and unbounded. -/
+structure BigInteger where
+  value : ℤ
+  deriving DecidableEq
+
+/-! ### Big decimals -/
+
+/-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
 coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `Decimal`: `0d0.10` and `0d0.1` are
+identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
 both `⟨1, 1, _⟩`. -/
-structure Decimal where
-  coef : Int
-  scale : Int
+structure BigDecimal where
+  coef : ℤ
+  scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
 ```
 
@@ -482,20 +438,20 @@ one value: scale is presentation, not identity. Each leaf has its kind:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | biginteger {n : Int} : Admits env root .biginteger (.num (.bigint n))
-  | bigdecimal {x : Decimal} : Admits env root .bigdecimal (.num (.bigdec x))
+  | biginteger {x : BigInteger} : Admits env root .biginteger (.num (.biginteger x))
+  | bigdecimal {x : BigDecimal} : Admits env root .bigdecimal (.num (.bigdecimal x))
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `biginteger` admits `9007199254740993`, exactly. -/
-example : Instance .empty .biginteger (.num (.bigint 9007199254740993)) := ⟨by decide, .biginteger⟩
+example : Instance .empty .biginteger (.num (.biginteger ⟨9007199254740993⟩)) := ⟨by decide, .biginteger⟩
 
 /-- `bigdecimal` admits one and a half. -/
-example : Instance .empty .bigdecimal (.num (.bigdec (.of 15 1))) := ⟨by decide, .bigdecimal⟩
+example : Instance .empty .bigdecimal (.num (.bigdecimal (.of 15 1))) := ⟨by decide, .bigdecimal⟩
 
 /-- `integer` refuses the biginteger `5`, however equal they look. -/
-example : ¬ Instance .empty .integer (.num (.bigint 5)) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .integer (.num (.biginteger ⟨5⟩)) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `bigs.aontu`:
@@ -503,38 +459,22 @@ Write `bigs.aontu`:
 <!-- test: scenario bigs -->
 <!-- test: file bigs.aontu -->
 ```aontu
-big: biginteger
-half: bigdecimal
-whole: bigdecimal
+big: biginteger & 0d9007199254740993
+half: bigdecimal & 0d1.5
+whole: bigdecimal & 0d3.0
 ```
 
-and `bigs-data.aontu`:
-
-<!-- test: file bigs-data.aontu -->
-```aontu
-big: 0d9007199254740993
-half: 0d1.5
-whole: 3
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet bigs.aontu bigs-data.aontu
-verdict: invalid
-
-$.whole: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.whole
-  data: bigs-data.aontu:3:8 (3)
-  schema: bigs.aontu:3:8 (bigdecimal)
-$ echo $?
-1
+$ aontu -c bigs.aontu
+{"big":0d9007199254740993,"half":0d1.5,"whole":0d3.0}
 ```
 
-`biginteger` admits the big integer, and `bigdecimal` the big decimal.
-`bigdecimal` refuses `3`, an integer, though the big decimal `0d3.0`
-has the same value: each kind admits its own leaf.
+`0d` marks an exact number. `0d9007199254740993` is the big integer no
+double holds, kept to its last digit, and `0d3.0` is a big decimal,
+though whole, where `0d3` would be a big integer.
 
 ### The `number` kind
 
@@ -548,59 +488,36 @@ has the same value: each kind admits its own leaf.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `number` admits a number of every leaf. -/
-example : Instance .empty .number (.int 3) ∧
+example : Instance .empty .number (.integer 3) ∧
     Instance .empty .number (.num (.float (.dyadic 3 (-1)))) ∧
-    Instance .empty .number (.num (.bigint 9007199254740993)) ∧
-    Instance .empty .number (.num (.bigdec (.of 15 1))) :=
+    Instance .empty .number (.num (.biginteger ⟨9007199254740993⟩)) ∧
+    Instance .empty .number (.num (.bigdecimal (.of 15 1))) :=
   ⟨⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩⟩
 
 /-- `number` refuses the string `"1"`. -/
 example : ¬ Instance .empty .number (.str "1") := fun ⟨_, h⟩ => nomatch h
 ```
 
-Write `numbers.aontu`:
+Write `numbers.aontu`, a number of each leaf:
 
 <!-- test: scenario numbers -->
 <!-- test: file numbers.aontu -->
 ```aontu
-fraction: number
-big: number
-text: number
-half: integer
+integer: number & 3
+float: number & 1.5
+biginteger: number & 0d9007199254740993
+bigdecimal: number & 0d1.5
 ```
 
-and `numbers-data.aontu`:
-
-<!-- test: file numbers-data.aontu -->
-```aontu
-fraction: 1.5
-big: 0d9007199254740993
-text: "1"
-half: 1.5
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet numbers.aontu numbers-data.aontu
-verdict: invalid
-
-$.text: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.text
-  data: numbers-data.aontu:3:7 ("1")
-  schema: numbers.aontu:3:7 (number)
-$.half: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.half
-  data: numbers-data.aontu:4:7 (1.5)
-  schema: numbers.aontu:4:7 (integer)
-$ echo $?
-1
+$ aontu -c numbers.aontu
+{"bigdecimal":0d1.5,"biginteger":0d9007199254740993,"float":1.5,"integer":3}
 ```
 
-`number` admits the float `1.5` and the big integer
-`0d9007199254740993`, which `integer` refused, and refuses the string
-`"1"`. `integer` refuses the float.
+`number` admits each, and each keeps its leaf.
 
 The numbers that show a whole number, of every leaf, are
 `number & multiple(1)`, and that's a law of the definition, not only an
@@ -609,13 +526,13 @@ example. The tour proves it for every value:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `number & multiple(1)` admits the biginteger `9007199254740993`. -/
-example : Instance .empty (.meet .number (.multiple (.int 1))) (.num (.bigint 9007199254740993)) :=
+example : Instance .empty (.meet .number (.multiple (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
 /-- `number & multiple(1)` admits exactly the numbers that show a whole
 number, of every leaf. -/
 example (env : Env) (root j : Data) :
-    Admits env root (.meet .number (.multiple (.int 1))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
+    Admits env root (.meet .number (.multiple (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
 ```
 
 The proof reads `multiple(1)` through a fact about the numbers:
@@ -623,46 +540,32 @@ The proof reads `multiple(1)` through a fact about the numbers:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The multiples of one are the numbers that show a whole number. -/
-theorem Number.multipleOf_one (x : Number) : x.multipleOf (.int 1) ↔ x.Whole := by
+theorem Number.multipleOf_one (x : Number) : x.multipleOf (.integer (.of 1)) ↔ x.Whole := by
 ```
 
-`↔` reads as *exactly when*. Write `whole.aontu`:
+`↔` reads as *exactly when*. Meet `number & multiple(1)` with a whole
+number of each leaf. Write `whole.aontu`:
 
 <!-- test: scenario whole -->
 <!-- test: file whole.aontu -->
 ```aontu
-beyond: number & multiple(1)
-half: number & multiple(1)
+integer: number & multiple(1) & 3
+float: number & multiple(1) & 1.0
+biginteger: number & multiple(1) & 0d9007199254740993
+bigdecimal: number & multiple(1) & 0d3.0
 ```
 
-and `whole-data.aontu`:
-
-<!-- test: file whole-data.aontu -->
-```aontu
-beyond: 0d9007199254740993
-half: 1.5
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet whole.aontu whole-data.aontu
-verdict: invalid
-
-$.half: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.half
-  expected: multiple(1)
-  actual:   1.5
-  data: whole-data.aontu:2:7 (1.5)
-  schema: whole.aontu:2:16 (multiple(1))
-$ echo $?
-1
+$ aontu -c whole.aontu
+{"bigdecimal":0d3.0,"biginteger":0d9007199254740993,"float":1.0,"integer":3}
 ```
 
-`number & multiple(1)` admits the big integer `integer` refused, and
-refuses one and a half, which is no whole number. The code `constraint`
-says the number failed a bound, and step 4 covers the bounds.
+`number & multiple(1)` admits all four, the float `1.0` and the big
+decimal `0d3.0` among them, which `integer` refuses: the law reads the
+value a number shows, not its leaf. Step 4 covers `multiple`.
 
 ### Strings
 
@@ -700,7 +603,7 @@ example : ¬ Instance .empty .string (.str "") := by
 example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
 
 /-- `string` refuses `3`. -/
-example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .string (.integer 3) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `strings.aontu`:
@@ -708,36 +611,52 @@ Write `strings.aontu`:
 <!-- test: scenario strings -->
 <!-- test: file strings.aontu -->
 ```aontu
-admitted: string
-refused: string
-empty: string & empty()
+text: string & "a"
+empty: string & empty() & ""
 ```
 
-and `strings-data.aontu`:
-
-<!-- test: file strings-data.aontu -->
-```aontu
-admitted: "a"
-refused: ""
-empty: ""
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet strings.aontu strings-data.aontu
+$ aontu -c strings.aontu
+{"empty":"","text":"a"}
+```
+
+`string` alone refuses the empty string, and that refusal is worth
+seeing. `aontu vet` checks data against a schema, and names each key it
+refuses. Write `nonempty.aontu`, the schema:
+
+<!-- test: file nonempty.aontu -->
+```aontu
+text: string
+```
+
+and `nonempty-data.aontu`:
+
+<!-- test: file nonempty-data.aontu -->
+```aontu
+text: ""
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet nonempty.aontu nonempty-data.aontu
 verdict: invalid
 
-$.refused: string_empty [conflict]
-  [aontu/string_empty]: Cannot resolve value at path $.refused
-  data: strings-data.aontu:2:10 (string&"")
+$.text: string_empty [conflict]
+  [aontu/string_empty]: Cannot resolve value at path $.text
+  data: nonempty-data.aontu:1:7 (string&"")
 $ echo $?
 1
 ```
 
-The engine calls the refusal `string_empty`, and its `data:` line shows
-the meet it formed, `string&""`, which admits nothing.
+The finding names the key, `$.text`, and the reason, `string_empty`.
+Its `data:` line shows the meet that formed, `string&""`, which admits
+nothing, and its class, `conflict`, says no more data could change
+that.
 
 ### Booleans
 
@@ -754,7 +673,7 @@ the meet it formed, `string&""`, which admits nothing.
 example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
 /-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .boolean (.integer 1) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `booleans.aontu`:
@@ -762,35 +681,17 @@ Write `booleans.aontu`:
 <!-- test: scenario booleans -->
 <!-- test: file booleans.aontu -->
 ```aontu
-admitted: boolean
-refused: boolean
+yes: boolean & true
+no: boolean & false
 ```
 
-and `booleans-data.aontu`:
-
-<!-- test: file booleans-data.aontu -->
-```aontu
-admitted: true
-refused: 1
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet booleans.aontu booleans-data.aontu
-verdict: invalid
-
-$.refused: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.refused
-  data: booleans-data.aontu:2:10 (1)
-  schema: booleans.aontu:2:10 (boolean)
-$ echo $?
-1
+$ aontu -c booleans.aontu
+{"no":false,"yes":true}
 ```
-
-The one finding is at `$.refused`: no value is both the number and a
-boolean.
 
 ## 3. Literals
 
@@ -823,13 +724,13 @@ literal `null` admits it.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `3` admits `3`. -/
-example : Instance .empty (.lit (.num (.int 3))) (.int 3) := ⟨by decide, .num⟩
+example : Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 3) := ⟨by decide, .num⟩
 
 /-- `3` refuses `4`. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `3` refuses `0d3`, the biginteger three. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.num (.bigint 3)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.num (.biginteger ⟨3⟩)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `"a"` refuses `"b"`. -/
 example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
@@ -850,66 +751,54 @@ The four refusals after the first example borrow the checker of step
 <!-- test: scenario literals -->
 <!-- test: file literals.aontu -->
 ```aontu
-three: 3
-four: 3
-exact: 0d3
-same: "a"
-other: "a"
-yes: true
-no: true
-admitted: null
-refused: null
+three: 3 & 3
+exact: 0d3 & 0d3
+same: "a" & "a"
+yes: true & true
+nothing: null & null
 ```
 
-and `literals-data.aontu`:
-
-<!-- test: file literals-data.aontu -->
-```aontu
-three: 3
-four: 4
-exact: 3
-same: "a"
-other: "b"
-yes: true
-no: false
-admitted: null
-refused: false
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet literals.aontu literals-data.aontu
+$ aontu -c literals.aontu
+{"exact":0d3,"nothing":null,"same":"a","three":3,"yes":true}
+```
+
+A literal meets its own value and gives it back, leaf and all: `0d3`
+and `3` look alike, but one is a big integer and the other an integer.
+Write `exact.aontu`, the schema:
+
+<!-- test: file exact.aontu -->
+```aontu
+v: 0d3
+```
+
+and `exact-data.aontu`:
+
+<!-- test: file exact-data.aontu -->
+```aontu
+v: 3
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet exact.aontu exact-data.aontu
 verdict: invalid
 
-$.four: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.four
-  data: literals-data.aontu:2:7 (4)
-  schema: literals.aontu:2:7 (3)
-$.exact: scalar_kind [conflict]
-  [aontu/scalar_kind]: Cannot unify values at path $.exact
-  data: literals-data.aontu:3:8 (3)
-  schema: literals.aontu:3:8 (0d3)
-$.other: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.other
-  data: literals-data.aontu:5:8 ("b")
-  schema: literals.aontu:5:8 ("a")
-$.no: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.no
-  data: literals-data.aontu:7:5 (false)
-  schema: literals.aontu:7:5 (true)
-$.refused: scalar_kind [conflict]
-  [aontu/scalar_kind]: Cannot unify values at path $.refused
-  data: literals-data.aontu:9:10 (false)
-  schema: literals.aontu:9:10 (null)
+$.v: scalar_kind [conflict]
+  [aontu/scalar_kind]: Cannot unify values at path $.v
+  data: exact-data.aontu:1:4 (3)
+  schema: exact.aontu:1:4 (0d3)
 $ echo $?
 1
 ```
 
-Each literal admits its own value alone, so `0d3` refuses the integer
-`3`. The engine calls another value of the same kind a `scalar_value`
-refusal, and a value of another kind a `scalar_kind` one.
+The engine calls a value of another leaf than the literal's a
+`scalar_kind` refusal.
 
 ## 4. Bounds
 
@@ -928,13 +817,13 @@ A bound compares numbers of any leaf by their exact values:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A number's exact value, as an integer over a positive natural. -/
-def Number.value : Number → Int × Nat
-  | .int n => (n, 1)
+def Number.value : Number → ℤ × ℕ
+  | .integer x => (x.value, 1)
   | .float x =>
-    let m : Int := if x.neg then -(x.man : Int) else x.man
+    let m : ℤ := if x.neg then -(x.man : ℤ) else x.man
     if 0 ≤ x.pow then (m * 2 ^ x.pow.toNat, 1) else (m, 2 ^ (-x.pow).toNat)
-  | .bigint n => (n, 1)
-  | .bigdec x =>
+  | .biginteger x => (x.value, 1)
+  | .bigdecimal x =>
     if 0 ≤ x.scale then (x.coef, 10 ^ x.scale.toNat) else (x.coef * 10 ^ (-x.scale).toNat, 1)
 ```
 
@@ -946,7 +835,7 @@ exact value only for a float:
 /-- The value a number shows: its exact value, but for a float the
 decimal it shows, so that `0.3` shows three tenths where its exact
 value is a little below. -/
-def Number.shown : Number → Int × Nat
+def Number.shown : Number → ℤ × ℕ
   | .float x =>
     let (c, k) := x.shortest
     if 0 ≤ k then (c * 10 ^ k.toNat, 1) else (c, 10 ^ (-k).toNat)
@@ -972,42 +861,42 @@ asks for a positive divisor, so `multiple(0)` admits nothing:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `min(3)` admits `3`. -/
-example : Instance .empty (.min (.int 3)) (.int 3) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.integer 3) := ⟨by decide, .min (by decide)⟩
 
 /-- `min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.min (.int 3)) (.int 2) := by
+example : ¬ Instance .empty (.min (.integer (.of 3))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits the bigdecimal three and a half. -/
-example : Instance .empty (.min (.int 3)) (.num (.bigdec (.of 35 1))) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.num (.bigdecimal (.of 35 1))) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)`, whose bound is a float, admits the bigdecimal `2.5`: a
 bound compares exact values, whatever their leaves. -/
-example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 25 1))) :=
+example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 25 1))) :=
   ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 26 1))) := by
+example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 26 1))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `max(0d0.1)` refuses the float `0.1`, whose exact value is above
 one tenth. -/
-example : ¬ Instance .empty (.max (.bigdec (.of 1 1)))
+example : ¬ Instance .empty (.max (.bigdecimal (.of 1 1)))
     (.num (.float (.dyadic 3602879701896397 (-55)))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 15 1))) :=
+example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 125 2))) := by
+example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
@@ -1019,7 +908,7 @@ example : Instance .empty (.multiple (.float (.dyadic 3602879701896397 (-55))))
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0)` refuses `0`, and everything else. -/
-example : ¬ Instance .empty (.multiple (.int 0)) (.int 0) := by
+example : ¬ Instance .empty (.multiple (.integer (.of 0))) (.integer 0) := by
 ```
 
 Write `bounds.aontu`:
@@ -1027,68 +916,24 @@ Write `bounds.aontu`:
 <!-- test: scenario bounds -->
 <!-- test: file bounds.aontu -->
 ```aontu
-admitted: min(3)
-refused: min(3)
-fraction: min(3)
-ceiling: max(2.5)
-above: max(2.5)
-half: multiple(0.5)
-quarter: multiple(0.5)
-zero: multiple(0)
+three: min(3) & 3
+fraction: min(3) & 3.5
+ceiling: max(2.5) & 0d2.5
+half: multiple(0.5) & 1.5
 ```
 
-and `bounds-data.aontu`:
-
-<!-- test: file bounds-data.aontu -->
-```aontu
-admitted: 3
-refused: 2
-fraction: 3.5
-ceiling: 0d2.5
-above: 2.6
-half: 1.5
-quarter: 1.25
-zero: 0
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet bounds.aontu bounds-data.aontu
-verdict: invalid
-
-$.refused: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.refused
-  expected: min(3)
-  actual:   2
-  data: bounds-data.aontu:2:10 (2)
-  schema: bounds.aontu:2:10 (min(3))
-$.above: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.above
-  expected: max(2.5)
-  actual:   2.6
-  data: bounds-data.aontu:5:8 (2.6)
-  schema: bounds.aontu:5:8 (max(2.5))
-$.quarter: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.quarter
-  expected: multiple(0.5)
-  actual:   1.25
-  data: bounds-data.aontu:7:10 (1.25)
-  schema: bounds.aontu:7:10 (multiple(0.5))
-$.zero: invalid-arg [conflict]
-  [aontu/invalid-arg]: Cannot constrain value at path $.zero
-  schema: bounds.aontu:8:7 (constraint())
-$ echo $?
-1
+$ aontu -c bounds.aontu
+{"ceiling":0d2.5,"fraction":3.5,"half":1.5,"three":3}
 ```
 
-`min(3)` admits `3` itself, and the float three and a half. The bound
-of `max(2.5)` is a float and the data's `0d2.5` a big decimal, and the
-bound admits it, as their exact values are equal. Each failed bound
-is a `constraint` finding that names the bound. The engine reports
-`multiple(0)` as an argument it can't use, where the definition, which
-has no ill-formed terms, has a term that admits nothing.
+`min(3)` admits `3` itself and the float three and a half. The bound of
+`max(2.5)` is a float and `0d2.5` a big decimal, and the bound admits
+it, as their exact values are equal. `1.5` is three halves, so
+`multiple(0.5)` admits it.
 
 A float's exact value is a binary fraction, and the value it shows its
 shortest decimal, so on a float the two part. Write `tenths.aontu`:
@@ -1096,39 +941,54 @@ shortest decimal, so on a float the two part. Write `tenths.aontu`:
 <!-- test: scenario tenths -->
 <!-- test: file tenths.aontu -->
 ```aontu
-below: max(0d0.1)
-thirds: multiple(0.1)
+tenth: max(0d0.1) & 0d0.1
+thirds: multiple(0.1) & 0.3
 ```
 
-and `tenths-data.aontu`:
-
-<!-- test: file tenths-data.aontu -->
-```aontu
-below: 0.1
-thirds: 0.3
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet tenths.aontu tenths-data.aontu
+$ aontu -c tenths.aontu
+{"tenth":0d0.1,"thirds":0.3}
+```
+
+`multiple(0.1)` admits the float `0.3`, which shows three tenths,
+though no exact multiple of the double nearest one tenth is the double
+nearest three tenths. A bound reads the exact value instead, and the
+float `0.1` is a little more than one tenth. Write `tenth.aontu`:
+
+<!-- test: file tenth.aontu -->
+```aontu
+v: max(0d0.1)
+```
+
+and `tenth-data.aontu`:
+
+<!-- test: file tenth-data.aontu -->
+```aontu
+v: 0.1
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet tenth.aontu tenth-data.aontu
 verdict: invalid
 
-$.below: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.below
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
   expected: max(0d0.1)
   actual:   0.1
-  data: tenths-data.aontu:1:8 (0.1)
-  schema: tenths.aontu:1:8 (max(0d0.1))
+  data: tenth-data.aontu:1:4 (0.1)
+  schema: tenth.aontu:1:4 (max(0d0.1))
 $ echo $?
 1
 ```
 
-`max(0d0.1)` refuses the float `0.1`, whose exact value is more than
-one tenth, and `multiple(0.1)` admits the float `0.3`, which shows three
-tenths, though no exact multiple of the double nearest one tenth is the
-double nearest three tenths.
+`max(0d0.1)` admits the big decimal `0d0.1`, and refuses the float
+`0.1`, whose exact value exceeds it.
 
 ## 5. The two ends: `any` and `nil`
 
@@ -1147,7 +1007,7 @@ admits none. They're the [top](unification.md) and the
 example : Instance .empty .any .null := ⟨by decide, .any⟩
 
 /-- `any` admits `[1, "a"]`. -/
-example : Instance .empty .any (.list [.int 1, .str "a"]) := ⟨by decide, .any⟩
+example : Instance .empty .any (.list [.integer 1, .str "a"]) := ⟨by decide, .any⟩
 
 /-- `nil` refuses `null`, and everything else. -/
 example : ¬ Instance .empty .nil .null := fun ⟨_, h⟩ => nomatch h
@@ -1158,37 +1018,21 @@ Write `ends.aontu`:
 <!-- test: scenario ends -->
 <!-- test: file ends.aontu -->
 ```aontu
-admitted: any
-list: any
-refused: nil
+nothing: any & null
+list: any & [1 "a"]
+map: any & { x:1 }
 ```
 
-and `ends-data.aontu`:
-
-<!-- test: file ends-data.aontu -->
-```aontu
-admitted: null
-list: [1 "a"]
-refused: null
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet ends.aontu ends-data.aontu
-verdict: invalid
-
-$.refused: literal_nil [conflict]
-  [aontu/literal_nil]: Cannot unify values at path $.refused
-  data: ends-data.aontu:3:10 (null)
-  schema: ends.aontu:3:10 (nil)
-$ echo $?
-1
+$ aontu -c ends.aontu
+{"list":[1,"a"],"map":{"x":1},"nothing":null}
 ```
 
-The only finding is at `$.refused`, so `any` admitted its `null` and its
-list.
+`any` gives each value back, whatever its shape. `nil` gives back
+nothing, which is what makes it the bottom.
 
 ## 6. Maps and lists
 
@@ -1211,19 +1055,15 @@ inductive Data where
 
 A map is the set of its members, and a member is a key with the value
 the map gives it: `List (String × Data)` reads as a list of pairs of a
-string and a value. A Lean list can give one key twice, which no map does, and an
-integer can be one no double holds. So the definition says which Lean
-`Data` is a value:
+string and a value. A Lean list can give one key twice, which no map
+does, so the definition says which Lean `Data` is a value:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A Lean `Data` is a value when each of its integers is one the
-`integer` leaf holds and each of its maps gives each key once. -/
+/-- A Lean `Data` is a value when each of its maps gives each key once.
+Every number is one already: each leaf's type holds only its own. -/
 inductive Data.WellFormed : Data → Prop
-  | int {n : Int} : IntegerLeaf n → WellFormed (.num (.int n))
-  | float {x : Float64} : WellFormed (.num (.float x))
-  | bigint {n : Int} : WellFormed (.num (.bigint n))
-  | bigdec {x : Decimal} : WellFormed (.num (.bigdec x))
+  | num {x : Number} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
   | bool {b : Bool} : WellFormed (.bool b)
   | null : WellFormed .null
@@ -1238,15 +1078,19 @@ in `xs` is …", and `decide` checks the whole by computing:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{"a": 1}` is a value. -/
-example : Data.WellFormed (.map [("a", .int 1)]) := by decide
+example : Data.WellFormed (.map [("a", .integer 1)]) := by decide
 
 /-- A Lean `Data` that gives `a` twice is no value. -/
-example : ¬ Data.WellFormed (.map [("a", .int 1), ("a", .int 2)]) := by decide
+example : ¬ Data.WellFormed (.map [("a", .integer 1), ("a", .integer 2)]) := by decide
 
 /-- …so it is no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.map [("a", .int 1), ("a", .int 2)]) :=
+example : ¬ Instance .empty .any (.map [("a", .integer 1), ("a", .integer 2)]) :=
   fun ⟨hw, _⟩ => absurd hw (by decide)
 ```
+
+A refusal can take apart the first half of an instance too:
+`fun ⟨hw, _⟩ => absurd hw (by decide)` shows that the map giving `a`
+twice is no value, so it's an instance of nothing, `any` included.
 
 The order of a map's list is no part of the value. Step 9 compares two
 maps that list one set of members in two orders.
@@ -1290,7 +1134,7 @@ optional. The last two are the spread and the seal, which follow below.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: integer}` admits `{"x": 1}`. -/
-example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .int 1)]) := by
+example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .integer 1)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1321,58 +1165,44 @@ example : ¬ Instance .empty (.map [("x", true, .integer)] none false) (.list []
   fun ⟨_, h⟩ => nomatch h
 ```
 
-The formatter writes a map under a key as a path, so
-`admitted: x: integer` is `admitted: {x: integer}`. Write `keys.aontu`:
+Write `keys.aontu`:
 
 <!-- test: scenario keys -->
 <!-- test: file keys.aontu -->
 ```aontu
-admitted: x: integer
-refused: x: integer
-optional: x?: integer
-wrong: x?: integer
-list: x?: integer
+given: { x:integer } & { x:1 }
+optional: { x?:integer } & {}
 ```
 
-and `keys-data.aontu`:
-
-<!-- test: file keys-data.aontu -->
-```aontu
-admitted: x: 1
-refused: {}
-optional: {}
-wrong: x: "a"
-list: []
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet keys.aontu keys-data.aontu
-verdict: invalid
-
-$.wrong.x: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.wrong.x
-  data: keys-data.aontu:4:11 ("a")
-  schema: keys.aontu:4:12 (integer)
-$.list: map [conflict]
-  [aontu/map]: Cannot unify values at path $.list
-  data: keys-data.aontu:5:7 ([])
-  schema: keys.aontu:5:7 ({"x"?:integer})
-$.refused.x: mapval_no_gen [incomplete]
-  [aontu/mapval_no_gen]: Cannot resolve value at path $.refused.x
-  schema: keys.aontu:2:13 (integer)
-$ echo $?
-1
+$ aontu -c keys.aontu
+{"given":{"x":1},"optional":{"x"?:integer}}
 ```
 
-The refusals are of two classes. At `$.refused.x` nothing contradicts
-the schema, but a required key is missing, so the class is
-`incomplete`. At `$.wrong.x`, `"a"` can never be an integer, and
-`$.list` holds a list, which is no map at all, so both are
-`conflict`. The definition says only that the term refuses each, and
-the class is the engine's.
+The given key holds its integer. The optional key may stay absent, and
+`-c` shows it still declared, with no value: the map is `{}`, and more
+data could still give `x` an integer. A required key can't be absent.
+Write `missing.aontu`:
+
+<!-- test: file missing.aontu -->
+```aontu
+v: { x:integer } & {}
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c missing.aontu
+{"v":{"x":integer}}
+```
+
+The key stays, waiting for an integer, so the result isn't a value yet:
+`aontu vet` calls such data `incomplete`, the class of a refusal that
+more data could still meet.
 
 ### Spreads and seals
 
@@ -1382,7 +1212,7 @@ not:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{&: integer}` admits `{"a": 1, "b": 2}`: the spread holds every member. -/
-example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), ("b", .int 2)]) := by
+example : Instance .empty (.map [] (some .integer) false) (.map [("a", .integer 1), ("b", .integer 2)]) := by
   refine ⟨by decide, ?_⟩
   refine .map (fun _ _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h) ?_ (fun h => nomatch h)
   intro s hs k x hm
@@ -1393,7 +1223,7 @@ example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), 
 /-- `{a: integer, &: string}` refuses `{"a": 1}`: the spread holds the
 declared key as well. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] (some .string) false)
-    (.map [("a", .int 1)]) := by
+    (.map [("a", .integer 1)]) := by
 ```
 
 Write `spreads.aontu`:
@@ -1401,37 +1231,21 @@ Write `spreads.aontu`:
 <!-- test: scenario spreads -->
 <!-- test: file spreads.aontu -->
 ```aontu
-admitted: { &: integer }
-refused: { a:integer &: string }
+every: { &: integer } & { a:1 b:2 }
+declared: { a:number &: integer }
 ```
 
-and `spreads-data.aontu`:
-
-<!-- test: file spreads-data.aontu -->
-```aontu
-admitted: { a:1 b:2 }
-refused: a: 1
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet spreads.aontu spreads-data.aontu
-verdict: error
-
-$.refused.a: scalar-type [conflict]
-  [aontu/scalar-type]: Cannot unify values at path $.refused.a
-  schema: spreads.aontu:2:25 (string)
-  schema: spreads.aontu:2:14 (integer)
-$ echo $?
-4
+$ aontu -c spreads.aontu
+{"declared":{&:integer,"a":integer},"every":{&:integer,"a":1,"b":2}}
 ```
 
-The spread meets the declared `a` as well, and `integer & string`
-admits nothing. The engine answers `error`: the schema contradicts
-itself at `a`, whatever the data, and the two `schema:` lines point at
-the two terms that clash.
+The spread holds every member, `a` and `b` alike, and stays, so a
+member that comes later must be an integer too. It holds a declared key
+as well: at `declared`, `a` is `number & integer`, which is `integer`.
 
 The fourth premise is the seal. A sealed map holds no key it doesn't
 declare, and leaves an absent optional key alone:
@@ -1440,11 +1254,11 @@ declare, and leaves an absent optional key alone:
 ```lean
 /-- `close({a: integer})` refuses `{"a": 1, "b": 2}`: `b` is not declared. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] none true)
-    (.map [("a", .int 1), ("b", .int 2)]) := by
+    (.map [("a", .integer 1), ("b", .integer 2)]) := by
   rintro ⟨-, h⟩
   cases h with
   | map _ _ _ hc =>
-    obtain ⟨o, v, hm⟩ := hc rfl "b" (.int 2) (by simp)
+    obtain ⟨o, v, hm⟩ := hc rfl "b" (.integer 2) (by simp)
     simp at hm
 
 /-- `close({a?: integer})` admits `{}`. -/
@@ -1459,34 +1273,51 @@ Write `closed.aontu`:
 <!-- test: scenario closed -->
 <!-- test: file closed.aontu -->
 ```aontu
-admitted: close({ a?:integer })
-refused: close({ a:integer })
+given: close({ a?:integer }) & { a:1 }
+absent: close({ a?:integer }) & {}
 ```
 
-and `closed-data.aontu`:
-
-<!-- test: file closed-data.aontu -->
-```aontu
-admitted: {}
-refused: { a:1 b:2 }
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet closed.aontu closed-data.aontu
+$ aontu -c closed.aontu
+{"absent":{"a"?:integer},"given":{"a":1}}
+```
+
+A sealed map admits the keys it declares whether the data gives them
+or not. What it refuses is a key it doesn't declare, which is the
+point of a seal. Write `sealed.aontu`:
+
+<!-- test: file sealed.aontu -->
+```aontu
+v: close({ a:integer })
+```
+
+and `sealed-data.aontu`:
+
+<!-- test: file sealed-data.aontu -->
+```aontu
+v: { a:1 b:2 }
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet sealed.aontu sealed-data.aontu
 verdict: invalid
 
-$.refused.b: closed [conflict]
-  [aontu/closed]: Cannot resolve value at path $.refused.b
-  data: closed-data.aontu:2:18 (2)
+$.v.b: closed [conflict]
+  [aontu/closed]: Cannot resolve value at path $.v.b
+  data: sealed-data.aontu:1:12 (2)
 $ echo $?
 1
 ```
 
-`close()` seals the map it wraps and every map beneath it, and the
-definition holds each map's seal in its own `closed` flag.
+The finding is at `$.v.b`, the key the seal doesn't declare. `close()`
+seals the map it wraps and every map beneath it, and the definition
+holds each map's seal in its own `closed` flag.
 
 ### Lists
 
@@ -1496,7 +1327,7 @@ definition holds each map's seal in its own `closed` flag.
   later elements are allowed; the spread holds every element. -/
   | list {items : List Val} {spread : Option Val} {xs : List Data} :
       items.length ≤ xs.length →
-      (∀ (i : Nat) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) →
       (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
       Admits env root (.list items spread) (.list xs)
@@ -1508,7 +1339,7 @@ definition holds each map's seal in its own `closed` flag.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
-example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str "a", .bool true]) := by
+example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .str "a", .bool true]) := by
   refine ⟨by decide, ?_⟩
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
@@ -1518,13 +1349,13 @@ example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str 
   · simp at hv
 
 /-- `[integer, string]` refuses `[1]`: its second position is missing. -/
-example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.int 1]) := by
+example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.integer 1]) := by
   rintro ⟨-, h⟩
   cases h with
   | list hlen _ _ => exact absurd hlen (by decide)
 
 /-- `[&: integer]` refuses `[1, "a"]`: the spread holds every element. -/
-example : ¬ Instance .empty (.list [] (some .integer)) (.list [.int 1, .str "a"]) := by
+example : ¬ Instance .empty (.list [] (some .integer)) (.list [.integer 1, .str "a"]) := by
 ```
 
 The formatter separates list elements with spaces. Write
@@ -1533,41 +1364,20 @@ The formatter separates list elements with spaces. Write
 <!-- test: scenario lists -->
 <!-- test: file lists.aontu -->
 ```aontu
-admitted: [integer string]
-refused: [integer string]
-spread: [&: integer]
+open: [integer string] & [1 "a" true]
+every: [&: integer] & [1 2 3]
 ```
 
-and `lists-data.aontu`:
-
-<!-- test: file lists-data.aontu -->
-```aontu
-admitted: [1 "a" true]
-refused: [1]
-spread: [1 "a"]
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet lists.aontu lists-data.aontu
-verdict: invalid
-
-$.spread.1: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.spread.1
-  data: lists-data.aontu:3:12 ("a")
-  schema: lists.aontu:3:13 (integer)
-$.refused.1: listval_no_gen [incomplete]
-  [aontu/listval_no_gen]: Cannot resolve value at path $.refused.1
-  schema: lists.aontu:2:19 (string)
-$ echo $?
-1
+$ aontu -c lists.aontu
+{"every":[&:integer,1,2,3],"open":[1,"a",true]}
 ```
 
-The list stays open, so it admits `true`, past its two positions.
-The missing second element is `incomplete`, the class of a missing
-required key.
+The list stays open, so it admits `true`, past its two positions. The
+spread holds every element, and stays, as a map's does.
 
 ## 7. Conjunction
 
@@ -1580,11 +1390,11 @@ required key.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer & min(3)` admits `7`. -/
-example : Instance .empty (.meet .integer (.min (.int 3))) (.int 7) :=
+example : Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 7) :=
   ⟨by decide, .meet (.integer) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.meet .integer (.min (.int 3))) (.int 2) := by
+example : ¬ Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
@@ -1595,36 +1405,21 @@ Write `meet.aontu`:
 <!-- test: scenario meet -->
 <!-- test: file meet.aontu -->
 ```aontu
-admitted: integer & min(3)
-refused: integer & min(3)
+seven: integer & min(3) & 7
+bounds: min(3) & min(5)
 ```
 
-and `meet-data.aontu`:
-
-<!-- test: file meet-data.aontu -->
-```aontu
-admitted: 7
-refused: 2
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet meet.aontu meet-data.aontu
-verdict: invalid
-
-$.refused: constraint [conflict]
-  [aontu/constraint]: Cannot unify values at path $.refused
-  expected: integer&min(3)
-  actual:   2
-  data: meet-data.aontu:2:10 (2)
-  schema: meet.aontu:2:20 (integer&min(3))
-$ echo $?
-1
+$ aontu -c meet.aontu
+{"bounds":min(5),"seven":7}
 ```
 
-`2` fails `min(3)`, though `integer` alone admits it.
+`7` meets both sides, and comes back. Two bounds meet in the tighter:
+whatever is at least five is at least three, so `min(3) & min(5)` is
+`min(5)`.
 
 ## 8. Aliases, and recursion
 
@@ -1662,7 +1457,7 @@ def envT : Env := fun n => if n = "T" then some T else none
 ```lean
 /-- `{"n": {"v": 1}}` is a `%T`. The proof is the derivation itself,
 and it follows the data down. -/
-example : Instance envT T (.map [("n", .map [("v", .int 1)])]) := by
+example : Instance envT T (.map [("n", .map [("v", .integer 1)])]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1680,32 +1475,20 @@ value is finite, so the derivation stops where the data stops. Write
 <!-- test: file tree.aontu -->
 ```aontu
 %T = { n?:%T v?:integer }
-admitted: %T
-refused: %T
+tree: %T & { n:v:1 }
 ```
 
-and `tree-data.aontu`:
-
-<!-- test: file tree-data.aontu -->
-```aontu
-admitted: n: v: 1
-refused: v: "x"
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet tree.aontu tree-data.aontu
-verdict: invalid
-
-$.refused.v: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.refused.v
-  data: tree-data.aontu:2:13 ("x")
-  schema: tree.aontu:1:17 (integer)
-$ echo $?
-1
+$ aontu -c tree.aontu
+{"tree":{"n":{"n"?:%T,"v":1},"v"?:integer}}
 ```
+
+The meet gives the tree back, `v` holding its `1` inside `n`, and `-c`
+shows the optional keys still declared at each level: the alias reaches
+only as far as the data goes.
 
 An alias the document doesn't declare has no term, so no rule
 applies:
@@ -1713,40 +1496,11 @@ applies:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: %U}` refuses `{"x": 1}`: `%U` is declared nowhere. -/
-example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .int 1)]) := by
+example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .integer 1)]) := by
 ```
 
-Write `undeclared.aontu`:
-
-<!-- test: scenario undeclared -->
-<!-- test: file undeclared.aontu -->
-```aontu
-x: %U
-```
-
-and `undeclared-data.aontu`:
-
-<!-- test: file undeclared-data.aontu -->
-```aontu
-x: 1
-```
-
-Now vet it:
-
-<!-- test: run -->
-```sh
-$ aontu vet undeclared.aontu undeclared-data.aontu
-verdict: error
-
-$.x: no_path [reference]
-  [aontu/no_path]: Cannot resolve value at path $.x
-  schema: undeclared.aontu:1:4 (%U)
-$ echo $?
-4
-```
-
-The engine can't resolve `%U`, so it answers `error`, a schema it
-can't use, and the definition admits nothing at `x`.
+The engine can't resolve such an alias at all, and refuses the whole
+document as a schema it can't use.
 
 ## 9. Path references
 
@@ -1757,7 +1511,7 @@ A path names a part of a value, step by step:
 /-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where
   | key (k : String)
-  | idx (i : Nat)
+  | idx (i : ℕ)
 ```
 
 `Data.at`, beside it in the file, follows the steps down a value. A
@@ -1789,7 +1543,7 @@ inductive Data.Same : Data → Data → Prop
       Same (.map fs) (.map gs)
   | list {xs ys : List Data} :
       xs.length = ys.length →
-      (∀ (i : Nat) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
+      (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
       Same (.list xs) (.list ys)
 ```
 
@@ -1806,13 +1560,13 @@ abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", fal
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- It admits `{"x": 1, "y": 1}`. -/
-example : Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 1)]) := by
+example : Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- It refuses `{"x": 1, "y": 2}`. -/
-example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 2)]) := by
+example : ¬ Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1820,77 +1574,46 @@ example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
 the two objects have the same members, so they are one value. -/
 example : Instance .empty (refDoc .any)
-    (.map [("x", .map [("a", .int 1), ("b", .int 2)]), ("y", .map [("b", .int 2), ("a", .int 1)])]) := by
+    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) := by
 ```
 
-Here the schema is the whole document, so there are no `admitted` and
-`refused` keys. Write `refs.aontu`:
+Write `refs.aontu`:
 
 <!-- test: scenario refs -->
 <!-- test: file refs.aontu -->
 ```aontu
 x: $.y
-y: integer
+y: integer & 1
 ```
 
-then `same.aontu`:
-
-<!-- test: file same.aontu -->
-```aontu
-x: 1
-y: 1
-```
-
-and `different.aontu`:
-
-<!-- test: file different.aontu -->
-```aontu
-x: 1
-y: 2
-```
-
-Now vet each:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet refs.aontu same.aontu
-verdict: valid
-$ aontu vet refs.aontu different.aontu
-verdict: invalid
-
-$.x: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.x
-  data: different.aontu:2:4 (2)
-  data: different.aontu:1:4 (1)
-$ echo $?
-1
+$ aontu -c refs.aontu
+{"x":1,"y":1}
 ```
 
-The finding at `$.x` points at both numbers in the data: the `2` the
-path names and the `1` at `x`. Then write `members.aontu`:
+`x` holds what the whole value holds at `y`. Two maps are one value
+whatever order their members come in. Write `members.aontu`:
 
 <!-- test: scenario members -->
 <!-- test: file members.aontu -->
 ```aontu
-x: $.y
-y: any
-```
-
-and `members-data.aontu`:
-
-<!-- test: file members-data.aontu -->
-```aontu
-x: { a:1 b:2 }
+x: $.y & { a:1 b:2 }
 y: { b:2 a:1 }
 ```
 
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet members.aontu members-data.aontu
-verdict: valid
+$ aontu -c members.aontu
+{"x":{"a":1,"b":2},"y":{"a":1,"b":2}}
 ```
+
+`x` meets the map at `y` with a map listing the same members in the
+other order, and the meet gives one value back.
 
 ## 10. The order, and the meet
 
@@ -1930,13 +1653,13 @@ premise is that `a` admits it.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` is above `integer & min(3)`. -/
-example : .meet .integer (.min (.int 3)) ⊑[.empty] .integer := meet_le_left _ _ _
+example : .meet .integer (.min (.integer (.of 3))) ⊑[.empty] .integer := meet_le_left _ _ _
 
 /-- `integer & min(3)` is not above `integer`: `2` is the instance that
 shows it. -/
-example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.int 3))) := by
+example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.integer (.of 3)))) := by
   intro h
-  cases (h (.int 2) ⟨by decide, .integer⟩).2 with
+  cases (h (.integer 2) ⟨by decide, .integer⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 ```
 
@@ -2010,34 +1733,19 @@ Write `merge.aontu`:
 <!-- test: scenario merge -->
 <!-- test: file merge.aontu -->
 ```aontu
-admitted: { x?:integer } & { x:integer }
-refused: { x?:integer } & { x:integer }
+v: { x?:integer } & { x:integer }
 ```
 
-and `merge-data.aontu`:
-
-<!-- test: file merge-data.aontu -->
-```aontu
-admitted: x: 1
-refused: {}
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet merge.aontu merge-data.aontu
-verdict: incomplete
-
-$.refused.x: mapval_no_gen [incomplete]
-  [aontu/mapval_no_gen]: Cannot resolve value at path $.refused.x
-  schema: merge.aontu:2:15 (integer)
-$ echo $?
-3
+$ aontu -c merge.aontu
+{"v":{"x":integer}}
 ```
 
-One side makes `x` optional and the other makes it required, so the
-merged key must be present, and `{}` lacks it.
+One side makes `x` optional and the other required, and the required
+one wins: `-c` writes the merged key with no `?`.
 
 ## 12. Where the definition and the engines differ
 
@@ -2073,27 +1781,20 @@ Write `waiver.aontu`:
 <!-- test: scenario differ -->
 <!-- test: file waiver.aontu -->
 ```aontu
-v: string & (string & empty())
+v: string & (string & empty()) & ""
 ```
 
-and `waiver-data.aontu`:
-
-<!-- test: file waiver-data.aontu -->
-```aontu
-v: ""
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet waiver.aontu waiver-data.aontu
-verdict: valid
+$ aontu -c waiver.aontu
+{"v":""}
 ```
 
-Both engines let the `empty()` beside `string` widen the conjunction,
-which a greatest lower bound can't do. For this kind, the ledger names
-the engines as the side that changes.
+Both engines give `""` back: they let the `empty()` beside `string`
+widen the conjunction, which a greatest lower bound can't do. For this
+kind, the ledger names the engines as the side that changes.
 
 In others, two optional declarations of one key can't both hold:
 
@@ -2158,15 +1859,16 @@ inductive Trial where
 
 mutual
 /-- `Holds env root c j`: the trial `c` passes on `j`. `nof(n, …)`
-passes where `n` admits the number of its trials that pass. -/
+passes where `n` admits the number of its trials that pass, an
+integer. -/
 def Holds (env : Env) (root : Data) : Trial → Data → Prop
   | .is v, j => Admits env root v j
   | .when c t e, j =>
     (Holds env root c j ∧ Holds env root t j) ∨ (¬ Holds env root c j ∧ Holds env root e j)
-  | .nof n cs, j => ∃ k, Count env root cs j k ∧ Admits env root n (.int k)
+  | .nof n cs, j => ∃ k, Count env root cs j k ∧ ∃ h : IntegerLeaf k, Admits env root n (.integer k h)
 
 /-- `Count env root cs j k`: exactly `k` of the trials `cs` pass on `j`. -/
-def Count (env : Env) (root : Data) : List Trial → Data → Nat → Prop
+def Count (env : Env) (root : Data) : List Trial → Data → ℕ → Prop
   | [], _, k => k = 0
   | c :: cs, j, k =>
     (Holds env root c j ∧ ∃ k', k = k' + 1 ∧ Count env root cs j k') ∨
@@ -2177,20 +1879,20 @@ end
 `mutual` defines two things that read each other. `Holds` recurses on
 the trial schema, which is what lets `¬` appear in it, and `Count` says
 how many trials of a list pass. `nof(n, …)` passes where `n` admits that
-count, so `nof(1, …)` asks for exactly one:
+count, as an integer, so `nof(1, …)` asks for exactly one:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
-example : Holds .empty (.int (-1)) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int (-1)) := by
+example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer (-1)) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- …and refuses `3`, which both admit. -/
-example : ¬ Holds .empty (.int 3) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int 3) := by
+example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer 3) := by
 ```
 
 The refusal leans on a theorem of the same file, that a list of trials
@@ -2200,7 +1902,7 @@ has one count at most:
 ```lean
 /-- A list of trials has one count at most. -/
 theorem Count.unique {env : Env} {root : Data} :
-    ∀ {cs : List Trial} {j : Data} {k k' : Nat},
+    ∀ {cs : List Trial} {j : Data} {k k' : ℕ},
       Count env root cs j k → Count env root cs j k' → k = k'
 ```
 
@@ -2209,49 +1911,35 @@ Write `nof.aontu`:
 <!-- test: scenario nof -->
 <!-- test: file nof.aontu -->
 ```aontu
-admitted: nof(1, integer, min(0))
-refused: nof(1, integer, min(0))
+negative: nof(1, integer, min(0)) & -1
+half: nof(1, integer, min(0)) & 0.5
 ```
 
-and `nof-data.aontu`:
-
-<!-- test: file nof-data.aontu -->
-```aontu
-admitted: -1
-refused: 3
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet nof.aontu nof-data.aontu
-verdict: invalid
-
-$.refused: nof [conflict]
-  [aontu/nof]: Cannot unify values at path $.refused
-  expected: nof(1,integer,min(0))
-  actual:   3
-  data: nof-data.aontu:2:10 (3)
-  schema: nof.aontu:2:10 (nof(1,integer,min(0)))
-$ echo $?
-1
+$ aontu -c nof.aontu
+{"half":0.5,"negative":-1}
 ```
 
-`-1` is an integer below zero, so one trial passes. `3` passes both.
+`-1` is an integer below zero, and `0.5` at least zero but no integer,
+so for each exactly one trial passes. `3` would pass both, and `nof`
+refuses it, as the second example proves.
+
 `when(c, t, e)` holds a value to `t` where `c` admits it, and to `e`
 where it doesn't:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
-example : Holds .empty (.int 5)
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.int 5) :=
+example : Holds .empty (.integer 5)
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.integer 5) :=
   .inr ⟨(fun h => nomatch h), .min (by decide)⟩
 
 /-- …and refuses `"b"`: a string, and not `"a"`. -/
 example : ¬ Holds .empty (.str "b")
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.str "b") := by
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.str "b") := by
 ```
 
 Write `when.aontu`:
@@ -2259,34 +1947,20 @@ Write `when.aontu`:
 <!-- test: scenario when -->
 <!-- test: file when.aontu -->
 ```aontu
-admitted: when(string, "a", min(0))
-refused: when(string, "a", min(0))
+text: when(string, "a", min(0)) & "a"
+number: when(string, "a", min(0)) & 5
 ```
 
-and `when-data.aontu`:
-
-<!-- test: file when-data.aontu -->
-```aontu
-admitted: 5
-refused: "b"
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet when.aontu when-data.aontu
-verdict: invalid
-
-$.refused: when [conflict]
-  [aontu/when]: Cannot unify values at path $.refused
-  expected: when(string,"a",min(0))
-  actual:   "b"
-  data: when-data.aontu:2:10 ("b")
-  schema: when.aontu:2:10 (when(string,"a",min(0)))
-$ echo $?
-1
+$ aontu -c when.aontu
+{"number":5,"text":"a"}
 ```
+
+`"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
+least zero.
 
 ## 14. A checker, admitted by a proof
 
@@ -2330,16 +2004,16 @@ first cases:
 /-- Whether `v` admits `j`, computed. -/
 def check : Val → Data → Bool
   | .integer, j => match j with
-    | .num (.int _) => true
+    | .num (.integer _) => true
     | _ => false
   | .float, j => match j with
     | .num (.float _) => true
     | _ => false
   | .biginteger, j => match j with
-    | .num (.bigint _) => true
+    | .num (.biginteger _) => true
     | _ => false
   | .bigdecimal, j => match j with
-    | .num (.bigdec _) => true
+    | .num (.bigdecimal _) => true
     | _ => false
   | .number, j => match j with
     | .num _ => true
@@ -2363,7 +2037,7 @@ answer:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `check` computes: `integer & min(3)` admits `7`. -/
-example : check (.meet .integer (.min (.int 3))) (.int 7) = true := by decide
+example : check (.meet .integer (.min (.integer (.of 3)))) (.integer 7) = true := by decide
 
 /-- …and `{x: integer}` refuses `{}`. -/
 example : check (.map [("x", false, .integer)] none false) (.map []) = false := by decide
@@ -2376,8 +2050,8 @@ to try each against:
 <!-- test: quote spec/Oracle.lean -->
 ```lean
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.multiple (.int 1)), .string, .anyString,
-    .min (.int 0), .min (.int 3)]
+  [.any, .nil, .integer, .meet .number (.multiple (.integer (.of 1))), .string, .anyString,
+    .min (.integer (.of 0)), .min (.integer (.of 3))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
 def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
@@ -2386,11 +2060,12 @@ def level1 : List Val := bases ++ bases.flatMap fun v => [field true v, field fa
 
 def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
-def scalars : List Data := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
+def scalars : List Data :=
+  [.null, .bool true, .integer 0, .integer 3, .integer (-1), .str "", .str "a"]
 
 /-- The instances of the first 9,600 rows. -/
 def first : List Data :=
-  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .int 1)]]
+  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .integer 1)]]
 
 /-- The instances of the rows after them, numbered on so that no earlier
 row is renamed: two big decimals, one either side of three, a big
@@ -2398,8 +2073,8 @@ integer no double holds, and a list, each also under a key, written
 `0d1.5`, `0d3.5`, `0d9007199254740993`, and `[1]`. -/
 def more : List Data :=
   let xs : List Data :=
-    [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
-      .list [.int 1]]
+    [.num (.bigdecimal (.of 15 1)), .num (.bigdecimal (.of 35 1)),
+      .num (.biginteger ⟨9007199254740993⟩), .list [.integer 1]]
   xs ++ xs.map (fun j => .map [("x", j)])
 
 def instances : List Data := first ++ more
@@ -2572,39 +2247,53 @@ would be wrong. Write `position.aontu`:
 <!-- test: scenario position -->
 <!-- test: file position.aontu -->
 ```aontu
-alone: *1
-arm: [integer]|[string]
-list: [integer]
+alone: *1 & 2
+list: [integer] & [1 2]
 ```
 
-and `position-data.aontu`:
-
-<!-- test: file position-data.aontu -->
-```aontu
-alone: 2
-arm: [1 2]
-list: [1 2]
-```
-
-Now vet it:
+and run it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet position.aontu position-data.aontu
-verdict: invalid
-
-$.arm: empty [conflict]
-  [aontu/empty]: Cannot unify values at path $.arm
-  data: position-data.aontu:2:6 ([1,2])
-  schema: position.aontu:2:6 ([integer]|[string])
-$ echo $?
-1
+$ aontu -c position.aontu
+{"alone":2,"list":[1,2]}
 ```
 
 A preference alone is a default its type can override, so `*1` admits
 `2`, as the [reference](reference-language.md#preference--default-)
-says. A list in a disjunction admits only its own length, so the arm
-`[integer]` refuses `[1, 2]`, which the same list admits at `$.list`.
+says, and `[integer]` admits `[1 2]`, open past its one position. In a
+disjunction the same list admits only its own length. Write
+`arm.aontu`:
+
+<!-- test: file arm.aontu -->
+```aontu
+v: [integer]|[string]
+```
+
+and `arm-data.aontu`:
+
+<!-- test: file arm-data.aontu -->
+```aontu
+v: [1 2]
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet arm.aontu arm-data.aontu
+verdict: invalid
+
+$.v: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.v
+  data: arm-data.aontu:1:4 ([1,2])
+  schema: arm.aontu:1:4 ([integer]|[string])
+$ echo $?
+1
+```
+
+Neither arm admits two elements, so the disjunction admits nothing,
+and the engine reports it `empty`.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
