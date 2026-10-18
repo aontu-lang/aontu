@@ -8,22 +8,33 @@ each change affects.
 
 ## Unreleased
 
-### The definition's numbers are rationals, and its scalars come first
+### The definition's numbers are the language's four leaves, and its data is aontu's
 
 Definition and documentation; no engine changes, and no row moves.
 
-- A number in the definition is a rational, `num / den` in lowest
-  terms, where it was a decimal coefficient and scale, the shape of the
-  text that writes it. The integers are the numbers whose `den` is
-  one. The 14,400 rows regenerate byte-identical.
-- The scalars come first. `spec/Aontu/Data.lean` defines the integers
-  the `integer` kind holds, then the numbers, then strings, then JSON
-  values, and the terms and rules start from `integer`, `number`,
-  `string`, and `boolean`. The rule for `integer` concludes about an
-  integer, with no premise that reads a number's form.
-- `docs/tutorial-definition.md` follows: step 2 takes integers,
-  numbers, strings, and booleans one at a time, each with its rule, its
-  proofs, and a full transcript, and the containers wait for step 6.
+- A number in the definition is in one of the language's four leaves,
+  held as what it is: an `integer` and a `biginteger` each a Lean
+  `Int`, a `float` an IEEE-754 binary64 double by its sign, exponent,
+  and fraction fields, and a `bigdecimal` a coefficient and a scale
+  with no trailing zero. The leaves are disjoint: `1`, `1.0`, `0d1`,
+  and `0d1.0` are four values. Lean's own `Float` is opaque to its
+  kernel, so no proof could compare two of them.
+- The data is aontu's own: numbers, strings, booleans, null, maps, and
+  lists. The definition no longer has a JSON type.
+- The kinds `float`, `biginteger`, and `bigdecimal`, and number literals
+  of every leaf, join the terms. `min` and `max` compare exact values
+  across leaves, and `multiple` reads the value a number shows, which
+  for a float is its shortest decimal: `max(0d0.1)` refuses the float
+  `0.1`, and `multiple(0.1)` admits the float `0.3`, as both engines
+  do. The definition computes that decimal exactly, and it matches the
+  shortest rendering of JavaScript and of Go on 6,381 doubles.
+- The scalars come first throughout, the oracle's instances are what
+  the exact reader makes of its text, and the 14,400 rows regenerate
+  byte-identical.
+- `docs/tutorial-definition.md` follows: step 2 takes the numbers in
+  their four leaves, with transcripts both with and without
+  `--exact-numbers` where the leaf matters, then strings and booleans,
+  and step 6 takes maps and lists.
 
 ### The formal definition holds semantics only, and its tutorial starts from the scalars
 

@@ -28,7 +28,7 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
   | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
   | null : Admits env root (.lit .null) .null
   /-- The bounds read a number's exact value, and `multiple` the value
-  it shows, which for a float is its shortest decimal (ADR-048). -/
+  it shows, which for a float is its shortest decimal. -/
   | min {n x : Number} : n.le x → Admits env root (.min n) (.num x)
   | max {n x : Number} : x.le n → Admits env root (.max n) (.num x)
   /-- `multiple(0)` and a negative divisor admit nothing. -/
