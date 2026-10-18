@@ -339,6 +339,29 @@ example : ¬ Instance .empty (.unique none) (.str "a") := by
   cases h with
   | unique hm _ _ => cases hm
 
+/-! ## Patterns and formats -/
+
+/-- `re(p)` admits no number, whatever the pattern. -/
+example (p : String) : ¬ Instance .empty (.re p) (.integer 1) := fun ⟨_, h⟩ => nomatch h
+
+/-- `re(p) & re(q)` admits a string exactly when each pattern matches
+it, whatever matching is. -/
+example (env : Env) (root : Data) (p q s : String) :
+    Admits env root (.meet (.re p) (.re q)) (.str s) ↔ host.pattern p s ∧ host.pattern q s := by
+  constructor
+  · intro h
+    cases h with
+    | meet h₁ h₂ =>
+      cases h₁ with
+      | re h₁ =>
+        cases h₂ with
+        | re h₂ => exact ⟨h₁, h₂⟩
+  · rintro ⟨h₁, h₂⟩
+    exact .meet (.re h₁) (.re h₂)
+
+/-- `format(g)` admits no `null`, whatever the format. -/
+example (g : String) : ¬ Instance .empty (.format g) .null := fun ⟨_, h⟩ => nomatch h
+
 /-! ## The two ends -/
 
 /-- `any` admits `null`. -/

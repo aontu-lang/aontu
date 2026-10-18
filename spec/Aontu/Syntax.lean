@@ -47,6 +47,8 @@ inductive Val where
   | multiple (d : Number)                   -- `multiple(d)`
   | len (c : Val)                           -- `len(c)`
   | unique (k : Option String)              -- `unique()`, or `unique("k")`
+  | re (p : String)                         -- `re(p)`, the strings the pattern matches
+  | format (g : String)                     -- `format(g)`, the strings the format reads
   | any                                     -- `any`
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)

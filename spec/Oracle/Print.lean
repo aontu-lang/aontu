@@ -90,6 +90,8 @@ def Val.src : Val → Option String
   | .len c => do pure s!"len({← c.src})"
   | .unique none => some "unique()"
   | .unique (some k) => some s!"unique({quote k})"
+  | .re p => some s!"re({quote p})"
+  | .format g => some s!"format({quote g})"
   | .any => some "any"
   | .nil => some "nil"
   | .map fs spread false => do
