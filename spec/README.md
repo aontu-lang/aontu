@@ -36,8 +36,8 @@ to the JSON Schema suite.
 
 | Path | Holds |
 |---|---|
-| `Aontu/Data.lean` | JSON values: numbers as exact decimals in lowest terms, so that two numbers are equal exactly when their values are, strings, arrays, and objects; `Same`, which compares two values as values; paths into a value; `WellFormed` (no name twice in an object); and `IntegerLeaf`, the integers the `integer` leaf holds |
-| `Aontu/Syntax.lean` | the values, one constructor per construct: the kinds, `string & empty()`, scalar literals, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
+| `Aontu/Data.lean` | JSON values, scalars first: `IntegerLeaf`, the integers the `integer` kind holds; numbers as rationals in lowest terms, so that two numbers are equal exactly when their values are; strings; then arrays and objects, `Same`, which compares two values as values, paths into a value, and `WellFormed` (no name twice in an object) |
+| `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, `string & empty()`, scalar literals, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
 | `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a JSON value can satisfy |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |

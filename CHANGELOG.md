@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### The definition's numbers are rationals, and its scalars come first
+
+Definition and documentation; no engine changes, and no row moves.
+
+- A number in the definition is a rational, `num / den` in lowest
+  terms, where it was a decimal coefficient and scale, the shape of the
+  text that writes it. The integers are the numbers whose `den` is
+  one. The 14,400 rows regenerate byte-identical.
+- The scalars come first. `spec/Aontu/Data.lean` defines the integers
+  the `integer` kind holds, then the numbers, then strings, then JSON
+  values, and the terms and rules start from `integer`, `number`,
+  `string`, and `boolean`. The rule for `integer` concludes about an
+  integer, with no premise that reads a number's form.
+- `docs/tutorial-definition.md` follows: step 2 takes integers,
+  numbers, strings, and booleans one at a time, each with its rule, its
+  proofs, and a full transcript, and the containers wait for step 6.
+
 ### The formal definition holds semantics only, and its tutorial starts from the scalars
 
 Definition, documentation, and generated rows; no engine changes.

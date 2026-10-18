@@ -114,7 +114,7 @@ One module per layer:
 
 | Module | Holds |
 |---|---|
-| `Aontu/Data.lean` | JSON as the data model: numbers as exact decimals in lowest terms, so that a number is its value and no rule can read how it was written; the numeric leaves as predicates |
+| `Aontu/Data.lean` | JSON as the data model, scalars first: numbers as rationals in lowest terms, so that a number is its value and no rule can read how it was written; the numeric leaves as predicates |
 | `Aontu/Syntax.lean` | the abstract value forms, one constructor per construct; the concrete grammar stays where it is, and a parser is an implementation |
 | `Aontu/Admits.lean` | the admission rules, one per form, and `Instance`, admission of a whole document |
 | `Aontu/Output.lean` | from P2: `Gen` and `Output` under a document root, what evaluation singles out, and that it is unique |
@@ -154,7 +154,12 @@ both ports read the oracle's text as the value it prints; no theorem
 claims it. The vet modes stay parameters, as decision 5 of §7 rules,
 since they change what `valid` means: the data model is the exact
 mode's, a number its value, and the default mode waits on the other
-leaves (P1).
+leaves (P1). The same day the owner named the number, held as a
+decimal coefficient, scale and point, as parsing, and asked for the
+scalars first. A number became a rational,
+`num / den` in lowest terms, and the modules and the tutorial now take
+the integers first, then the numbers, the strings, and the booleans.
+No row moved.
 
 ## 4. How a language decision is made, and recorded
 
@@ -276,7 +281,7 @@ documents only.
 | Phase | Lands | Exit |
 |---|---|---|
 | **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job as `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
-| **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`: exact decimals, strings, arrays, objects with unique names, paths; the point each number kept went 2026-10-18, a number being its value), and the two read modes, which stay parameters (§7, decision 5): the model is the exact mode's data, and the default mode waits on the other leaves; the four numeric leaves as predicates (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, a number literal an integer of that leaf; a literal of another leaf waits on that leaf); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
+| **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`: numbers as rationals since 2026-10-18 and exact decimals before, strings, arrays, objects with unique names, paths; the point each number kept went 2026-10-18, a number being its value), and the two read modes, which stay parameters (§7, decision 5): the model is the exact mode's data, and the default mode waits on the other leaves; the four numeric leaves as predicates (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, a number literal an integer of that leaf; a literal of another leaf waits on that leaf); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
@@ -339,7 +344,7 @@ until the phase that encodes each lands.
 |---|---|
 | Proofs need Lean skill the project does not yet have on every contributor | rules are readable without it; a rule may land with its proof marked `sorry` for one phase, and the phase does not land while any remains |
 | The printer is wrong and the differential compares the wrong thing | the canon check of §5; the printer is under a hundred lines |
-| Exact decimals make the data model heavy | P1 models the number the reference describes, and takes `Rat` from a library only if the owned representation proves slower to reason about |
+| The owned rationals make the data model heavy | P1 models the number the reference describes, and takes `Rat` from a library only if the owned one proves slower to reason about |
 | Positivity blocks trial schemas inside values | decision 2 of §7, settled at P3 before P4 is started |
 | The exhaustive oracle grows past what CI can run | the exhaustive set is bounded per phase and the random set is seeded; the first 9,600 rows cost the TypeScript runner about two minutes and the Go runner three seconds, so the bound is set with that figure in view |
 | The definition and the reference drift | each reference section cites its rule from P7 on, and the link check already reads every tracked page |
