@@ -8,6 +8,38 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the remaining bounds: `above`, `below`, `neq`, `len`, `unique`, and bounds on strings
+
+Definition, generated rows, and documentation; no engine changes.
+
+- A bound's end is a `Bound`, a number or a string, and each of
+  `min`, `max`, `above`, and `below` has one rule for each: a number
+  at the end bounds numbers by exact value, a string bounds strings
+  in code-point order, and the domain is the end's, so `max("b")`
+  admits `""` and no number. `below` is the constructor `beneath`,
+  since Lean keeps `below` for every inductive type's own use.
+  `above_le_min` and `beneath_le_max` put each strict bound under its
+  closed one, for both kinds of end.
+- `neq` excludes its ends by identity, leaf and value, so `neq(1)`
+  admits the float `1.0`; a list of numbers admits no string, and a
+  list of both admits nothing. `len(c)` admits a string, list, or map
+  whose size, an integer, `c` admits, so `len(0)` admits `""`.
+  `unique()` and `unique("k")` hold a container's members, or their
+  values at `k`, pairwise apart as values; a member without the key
+  fails.
+- `check` computes every new atom, and `Data.same` decides `Data.Same`
+  beside `Data.same_iff`, which `unique` needs. `check_iff` covers them
+  all, so the oracle's verdicts stay the definition's.
+- A second generated fragment, `lake exe oracle bounds`, writes
+  `test/spec/def-bounds.tsv`: the new atoms each alone, under a key,
+  and eight of them met pairwise, 115 terms against 30 instances, 3,450
+  rows. Both engines answer every row as the definition does, so the
+  ledger gains nothing. The oracle now prints floats, as their shortest
+  decimal with a point. `make spec` regenerates and diffs both files.
+- `docs/tutorial-definition.md` step 4 takes the bounds in six parts,
+  numbers, strict bounds, strings, exclusions, sizes, and distinct
+  members, each with its proofs and a transcript.
+
 ### The definition's tutorial shows the language working
 
 Documentation; no engine changes.

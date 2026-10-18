@@ -9,7 +9,7 @@ is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
 writes, data as well as terms in aontu's own syntax, and answers `none`
-for a sealed map, a list term, an alias, a path, and a float.
+for a sealed map, a list term, an alias, and a path.
 -/
 
 namespace Aontu
@@ -36,13 +36,26 @@ def BigDecimal.digits (x : BigDecimal) : String :=
     let cut := padded.length - s
     padded.take cut ++ "." ++ padded.drop cut
 
+/-- A float's text: the decimal it shows, with a point so that it reads
+back as a float: `1.0`, `1.5`, `100.0`. -/
+def Float.src (x : Float) : String :=
+  let (c, k) := x.shortest
+  let digits := toString c.natAbs
+  let sign := if c < 0 then "-" else ""
+  if 0 ≤ k then sign ++ digits ++ String.mk (List.replicate k.toNat '0') ++ ".0"
+  else
+    let s := (-k).toNat
+    let padded := String.mk (List.replicate (s + 1 - digits.length) '0') ++ digits
+    let cut := padded.length - s
+    sign ++ padded.take cut ++ "." ++ padded.drop cut
+
 /-- A number as aontu writes it in a term, each leaf marked so that it
-reads back in its leaf: an integer plainly, an exact number after `0d`,
-an integral big decimal with one decimal place. The oracle writes no
-float. -/
+reads back in its leaf: an integer plainly, a float with a point, an
+exact number after `0d`, an integral big decimal with one decimal
+place. -/
 def Number.src : Number → Option String
   | .integer x => some (toString x.value)
-  | .float _ => none
+  | .float x => some x.src
   | .biginteger x => some ((if x.value < 0 then "-" else "") ++ "0d" ++ toString x.value.natAbs)
   | .bigdecimal x =>
     some ((if x.coef < 0 then "-" else "") ++ "0d" ++ x.digits ++ (if x.scale ≤ 0 then ".0" else ""))
@@ -52,6 +65,10 @@ def Scalar.src : Scalar → Option String
   | .str s => some (quote s)
   | .bool b => some (if b then "true" else "false")
   | .null => some "null"
+
+def Bound.src : Bound → Option String
+  | .num n => n.src
+  | .str s => some (quote s)
 
 mutual
 def Val.src : Val → Option String
@@ -64,9 +81,15 @@ def Val.src : Val → Option String
   | .anyString => some "string & empty()"
   | .boolean => some "boolean"
   | .lit s => s.src
-  | .min n => do pure s!"min({← n.src})"
-  | .max n => do pure s!"max({← n.src})"
+  | .min b => do pure s!"min({← b.src})"
+  | .max b => do pure s!"max({← b.src})"
+  | .above b => do pure s!"above({← b.src})"
+  | .beneath b => do pure s!"below({← b.src})"
+  | .neq vs => do pure s!"neq({", ".intercalate (← vs.mapM Bound.src)})"
   | .multiple d => do pure s!"multiple({← d.src})"
+  | .len c => do pure s!"len({← c.src})"
+  | .unique none => some "unique()"
+  | .unique (some k) => some s!"unique({quote k})"
   | .any => some "any"
   | .nil => some "nil"
   | .map fs spread false => do

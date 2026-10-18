@@ -19,6 +19,12 @@ inductive Scalar where
   | bool (b : Bool)
   | null
 
+/-- The end of a bound: a number, which bounds numbers by exact value,
+or a string, which bounds strings in code-point order. -/
+inductive Bound where
+  | num (n : Number)
+  | str (s : String)
+
 /-- A value, each constructor beside the construct it is. A map has
 keys, each required or optional, a spread that holds every member, and
 a seal that refuses every member it does not declare; a list has its
@@ -33,9 +39,14 @@ inductive Val where
   | anyString                               -- `string & empty()`, every string
   | boolean                                 -- `boolean`
   | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
-  | min (n : Number)                        -- `min(n)`
-  | max (n : Number)                        -- `max(n)`
+  | min (b : Bound)                         -- `min(b)`
+  | max (b : Bound)                         -- `max(b)`
+  | above (b : Bound)                       -- `above(b)`
+  | beneath (b : Bound)                     -- `below(b)`; Lean keeps `below` for every inductive type's own use
+  | neq (vs : List Bound)                   -- `neq(v, …)`, numbers or strings, never both
   | multiple (d : Number)                   -- `multiple(d)`
+  | len (c : Val)                           -- `len(c)`
+  | unique (k : Option String)              -- `unique()`, or `unique("k")`
   | any                                     -- `any`
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
