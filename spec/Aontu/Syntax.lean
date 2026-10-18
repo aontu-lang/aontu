@@ -11,12 +11,10 @@ is read into a term is the grammar's business; what a term means is
 
 namespace Aontu
 
-/-- A scalar literal: one integer, string, boolean, or null. A number
-literal here is an integer, a value of the `integer` kind; literals of
-the other number kinds, floats and the big numbers, wait for those
-kinds. -/
+/-- A scalar literal: one number, of any of the four leaves, or one
+string, boolean, or null. -/
 inductive Scalar where
-  | int (n : Int)
+  | num (x : Number)
   | str (s : String)
   | bool (b : Bool)
   | null
@@ -27,14 +25,17 @@ a seal that refuses every member it does not declare; a list has its
 positions and a spread. -/
 inductive Val where
   | integer                                 -- `integer`
-  | number                                  -- `number`
+  | float                                   -- `float`
+  | biginteger                              -- `biginteger`
+  | bigdecimal                              -- `bigdecimal`
+  | number                                  -- `number`, every number of the four leaves
   | string                                  -- `string`, every string but `""`
   | anyString                               -- `string & empty()`, every string
   | boolean                                 -- `boolean`
-  | lit (s : Scalar)                        -- a literal: `3`, `"a"`, `true`, `null`
-  | min (n : Rat)                           -- `min(n)`
-  | max (n : Rat)                           -- `max(n)`
-  | multiple (d : Rat)                      -- `multiple(d)`
+  | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
+  | min (n : Number)                        -- `min(n)`
+  | max (n : Number)                        -- `max(n)`
+  | multiple (d : Number)                   -- `multiple(d)`
   | any                                     -- `any`
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)

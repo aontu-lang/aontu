@@ -1,22 +1,23 @@
 /-!
 # The data
 
-What an aontu value admits or refuses: a JSON value, as RFC 8259
-describes one. The scalars come first: the integers, the numbers they
-sit among, the strings, the booleans, and null. Arrays of values, and
-objects whose members each give one name one value, are built from
-them. The definition says what values mean, and nothing about text:
-how a text is read into a value is a reader's business.
+What an aontu value admits or refuses: the data, a value of the
+language with nothing left open. The scalars come first: the numbers,
+in the language's four leaves, then the strings, the booleans, and
+null. Maps and lists are built from them. The definition says what
+values mean, and nothing about text: how a text is read into a value,
+and which leaf a number is read into, is a reader's business.
 -/
 
 namespace Aontu
 
 /-! ## Integers
 
-An integer is a Lean `Int`, and the `integer` kind holds a range of
-them. -/
+An `integer` is a Lean `Int`, and so is a `biginteger`: the first a
+double, whole, in the window of a 64-bit integer, the second exact and
+unbounded. -/
 
-/-- The integers the `integer` kind holds: the values a double holds
+/-- The integers the `integer` leaf holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
@@ -50,65 +51,166 @@ theorem integerLeaf_iff (n : Int) :
 
 instance (n : Int) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
 
-/-! ## Numbers
+/-! ## Floats
 
-A number is a rational. JSON writes the decimal fractions among them,
-and every rule reads a number by its value alone. -/
+A `float` is an IEEE-754 binary64 double, any double but the infinities,
+NaN, and negative zero, none of which aontu holds. -/
 
-/-- A number: the rational `num / den`, with `den` positive and the two
-in lowest terms, so that each number has one `Rat` and two numbers are
-equal exactly when their values are. The integers are the numbers
-whose `den` is one, and one and a half is `3 / 2`. -/
-structure Rat where
-  num : Int
-  den : Nat
-  den_pos : 0 < den
-  reduced : Nat.gcd num.natAbs den = 1
+/-- A float: a binary64 double, held as its three fields: the sign, the
+11-bit biased exponent, and the 52 bits of the fraction. The exponent
+`2047` would make an infinity or a NaN, and the sign alone a negative
+zero, which aontu takes as zero. -/
+structure Float64 where
+  neg : Bool
+  exp : Nat
+  frac : Nat
+  exp_lt : exp < 2047
+  frac_lt : frac < 2 ^ 52
+  no_neg_zero : neg = true → exp ≠ 0 ∨ frac ≠ 0
   deriving DecidableEq
 
-/-- The integer `n`, as a number. -/
-def Rat.ofInt (n : Int) : Rat := ⟨n, 1, Nat.one_pos, Nat.gcd_one_right _⟩
+/-- The significand: the fraction with its leading one, which a
+subnormal, of exponent `0`, lacks. -/
+def Float64.man (x : Float64) : Nat := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
 
-/-- The number `num / den`, given in lowest terms: `Rat.frac 3 2` is one
-and a half. -/
-def Rat.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
-    (r : Nat.gcd num.natAbs den = 1 := by decide) : Rat := ⟨num, den, h, r⟩
+/-- The power of two the significand is scaled by: a float is
+`± man * 2 ^ pow`. -/
+def Float64.pow (x : Float64) : Int := if x.exp = 0 then -1074 else (x.exp : Int) - 1075
 
-/-- `x` is at most `y`. -/
-def Rat.le (x y : Rat) : Prop := x.num * y.den ≤ y.num * x.den
+/-- The bits of `n`, at most `fuel` of them. -/
+def bitLen : Nat → Nat → Nat
+  | 0, _ => 0
+  | fuel + 1, n => if n = 0 then 0 else 1 + bitLen fuel (n / 2)
 
-/-- `x` is a whole multiple of `d`, for a positive `d`: one and a half
-is a multiple of a half, and every integer is one of one. -/
-def Rat.multipleOf (x d : Rat) : Prop := (x.num * d.den) % (d.num * x.den) = 0
+/-- The fields of the double `m * 2 ^ e`, for `0 < m < 2 ^ 53`: the
+exponent and fraction of the significand shifted to 53 bits, or below
+the normal range the fraction of a subnormal. -/
+def Float64.fieldsOf (m : Nat) (e : Int) : Nat × Nat :=
+  let s := 53 - bitLen 64 m
+  let e' := e - s
+  if 1 ≤ e' + 1075 then ((e' + 1075).toNat, m * 2 ^ s - 2 ^ 52)
+  else (0, m * 2 ^ (e + 1074).toNat)
 
-instance (x y : Rat) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
-instance (x d : Rat) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
+/-- The float `m * 2 ^ e`, for a positive `m` the double holds exactly:
+`Float64.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
+def Float64.dyadic (m : Nat) (e : Int)
+    (h₁ : (Float64.fieldsOf m e).1 < 2047 := by decide)
+    (h₂ : (Float64.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float64 :=
+  ⟨false, (Float64.fieldsOf m e).1, (Float64.fieldsOf m e).2, h₁, h₂, fun h => nomatch h⟩
 
-/-- A number is the integer `n` exactly when its `num` is `n` and its
-`den` is one. -/
-theorem Rat.eq_ofInt_iff (x : Rat) (n : Int) : x = .ofInt n ↔ x.num = n ∧ x.den = 1 := by
-  constructor
-  · rintro rfl
-    exact ⟨rfl, rfl⟩
-  · rintro ⟨h1, h2⟩
-    cases x with
-    | mk num den hp hr =>
-      simp only at h1 h2
-      subst h1 h2
-      rfl
+/-- The decimal digits of `n`, one for zero. -/
+def ndigits (n : Nat) : Nat := go n n
+where
+  go : Nat → Nat → Nat
+    | 0, _ => 1
+    | fuel + 1, n => if n < 10 then 1 else 1 + go fuel (n / 10)
 
-/-- The multiples of one are the integers. -/
-theorem Rat.multipleOf_one (x : Rat) : x.multipleOf (.ofInt 1) ↔ ∃ n, x = .ofInt n := by
-  constructor
-  · intro h
-    have hd : (x.den : Int) ∣ x.num :=
-      Int.dvd_of_emod_eq_zero (by simpa [Rat.multipleOf, Rat.ofInt] using h)
-    have h1 : x.den ∣ Nat.gcd x.num.natAbs x.den :=
-      Nat.dvd_gcd (Int.ofNat_dvd_left.mp hd) (Nat.dvd_refl _)
-    rw [x.reduced, Nat.dvd_one] at h1
-    exact ⟨x.num, (Rat.eq_ofInt_iff x x.num).mpr ⟨rfl, h1⟩⟩
-  · rintro ⟨n, rfl⟩
-    simp [Rat.multipleOf, Rat.ofInt]
+/-- The decimal a float shows, as `c * 10 ^ k`: the shortest decimal
+that rounds to the float, the closest to it of those, and of two that
+close the one with the even last digit. It is the text both ports write
+for a float, and what `multiple` reads one as (ADR-048). -/
+def Float64.shortest (x : Float64) : Int × Int :=
+  if x.man = 0 then (0, 0) else
+  -- The decimals that round to `x` lie between the midpoints to its
+  -- neighbours, in units of `2 ^ (pow - 2)`; the lower neighbour is
+  -- nearer when the significand is a power of two above the bottom of
+  -- the range, and a midpoint rounds to the even significand.
+  let q : Int := x.pow - 2
+  let up : Nat := 2 ^ q.toNat
+  let dn : Nat := 2 ^ (-q).toNat
+  let v := 4 * x.man * up
+  let hi := (4 * x.man + 2) * up
+  let lo := (if x.man = 2 ^ 52 ∧ 1 < x.exp then 4 * x.man - 1 else 4 * x.man - 2) * up
+  let (c, k) := go (x.man % 2 = 0) v lo hi dn ((ndigits hi : Int) - ndigits dn + 1) 64
+  (if x.neg then -(c : Int) else c, k)
+where
+  /-- From the place `10 ^ k` down, the first place where a multiple of
+  it lies between `lo / dn` and `hi / dn`, and the multiple nearest
+  `v / dn` there. -/
+  go (closed : Bool) (v lo hi dn : Nat) (k : Int) : Nat → Nat × Int
+    | 0 => (0, k)
+    | fuel + 1 =>
+      let a := 10 ^ (-k).toNat
+      let b := dn * 10 ^ k.toNat
+      let cmax := if closed then hi * a / b else (hi * a - 1) / b
+      let cmin := if closed then (lo * a + b - 1) / b else lo * a / b + 1
+      if cmin ≤ cmax then
+        let t := v * a / b
+        let r := v * a % b
+        let c := if 2 * r < b then t else if b < 2 * r then t + 1 else if t % 2 = 0 then t else t + 1
+        (if c < cmin then cmin else if cmax < c then cmax else c, k)
+      else go closed v lo hi dn (k - 1) fuel
+
+/-! ## Big decimals -/
+
+/-- A big decimal: the exact value `coef * 10 ^ (-scale)`, the
+coefficient with no zero trailing it. Scale is presentation, not
+identity, so each value has one `Decimal`: `0d0.10` and `0d0.1` are
+both `⟨1, 1, _⟩`. -/
+structure Decimal where
+  coef : Int
+  scale : Int
+  canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
+  deriving DecidableEq
+
+/-- The decimal `coef * 10 ^ (-scale)`, given with no trailing zero:
+`Decimal.of 15 1` is one and a half. -/
+def Decimal.of (coef scale : Int) (h : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0) := by decide) :
+    Decimal := ⟨coef, scale, h⟩
+
+/-! ## Numbers -/
+
+/-- A number, in one of the language's four leaves. The leaves are
+disjoint: two numbers of two leaves are two values, however equal they
+look, so `1`, `1.0`, `0d1`, and `0d1.0` are four. -/
+inductive Number where
+  | int (n : Int)          -- `integer`: a double, whole, in the window
+  | float (x : Float64)    -- `float`: a double
+  | bigint (n : Int)       -- `biginteger`: exact and whole
+  | bigdec (x : Decimal)   -- `bigdecimal`: exact
+  deriving DecidableEq
+
+/-- A number's exact value, as an integer over a positive natural. -/
+def Number.value : Number → Int × Nat
+  | .int n => (n, 1)
+  | .float x =>
+    let m : Int := if x.neg then -(x.man : Int) else x.man
+    if 0 ≤ x.pow then (m * 2 ^ x.pow.toNat, 1) else (m, 2 ^ (-x.pow).toNat)
+  | .bigint n => (n, 1)
+  | .bigdec x =>
+    if 0 ≤ x.scale then (x.coef, 10 ^ x.scale.toNat) else (x.coef * 10 ^ (-x.scale).toNat, 1)
+
+/-- The value a number shows: its exact value, but for a float the
+decimal it shows, so that `0.3` shows three tenths where its exact
+value is a little below. -/
+def Number.shown : Number → Int × Nat
+  | .float x =>
+    let (c, k) := x.shortest
+    if 0 ≤ k then (c * 10 ^ k.toNat, 1) else (c, 10 ^ (-k).toNat)
+  | x => x.value
+
+/-- `x` is at most `y`, by exact value. -/
+def Number.le (x y : Number) : Prop := x.value.1 * y.value.2 ≤ y.value.1 * x.value.2
+
+/-- `d` shows a positive number. -/
+def Number.Positive (d : Number) : Prop := 0 < d.shown.1
+
+/-- What `x` shows is a whole multiple of what `d` shows, for a `d`
+that shows a positive number. -/
+def Number.multipleOf (x d : Number) : Prop :=
+  (x.shown.1 * d.shown.2) % (d.shown.1 * x.shown.2) = 0
+
+/-- `x` shows a whole number. -/
+def Number.Whole (x : Number) : Prop := x.shown.1 % x.shown.2 = 0
+
+instance (x y : Number) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
+instance (d : Number) : Decidable d.Positive := inferInstanceAs (Decidable (_ < _))
+instance (x d : Number) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
+instance (x : Number) : Decidable x.Whole := inferInstanceAs (Decidable (_ = _))
+
+/-- The multiples of one are the numbers that show a whole number. -/
+theorem Number.multipleOf_one (x : Number) : x.multipleOf (.int 1) ↔ x.Whole := by
+  simp [Number.multipleOf, Number.Whole, Number.shown, Number.value]
 
 /-! ## Strings
 
@@ -117,74 +219,72 @@ scalar values. So a string that holds a lone surrogate, as `"\ud800"`
 escapes one, is no value here: both engines accept it, and they differ
 on what it is (`test/spec/divergent.tsv`). -/
 
-/-! ## JSON values -/
+/-! ## The data -/
 
-/-- A JSON value: a scalar, an array of values, or an object. An object
-is the set of its members: Lean lists them, the order of the list is no
-part of the value, and a value gives each name once
-(`Json.WellFormed`). -/
-inductive Json where
-  | num (x : Rat)
+/-- The data: a number, a string, a boolean, null, a map, or a list. A
+map is the set of its members: Lean lists them, the order of the list
+is no part of the value, and a map gives each key once
+(`Data.WellFormed`). -/
+inductive Data where
+  | num (x : Number)
   | str (s : String)
   | bool (b : Bool)
   | null
-  | arr (xs : List Json)
-  | obj (fs : List (String × Json))
+  | map (fs : List (String × Data))
+  | list (xs : List Data)
 
-/-- The integer `n`: `Json.int 3` is three. -/
-def Json.int (n : Int) : Json := .num (.ofInt n)
+/-- The integer `n`: `Data.int 3` is the `integer` three. -/
+def Data.int (n : Int) : Data := .num (.int n)
 
-/-- The number `num / den`, given in lowest terms: `Json.frac 3 2` is
-one and a half. -/
-def Json.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
-    (r : Nat.gcd num.natAbs den = 1 := by decide) : Json := .num (.frac num den h r)
-
-/-- The value an object gives the name `k`. -/
-def lookup (k : String) : List (String × Json) → Option Json
+/-- The value a map gives the key `k`. -/
+def lookup (k : String) : List (String × Data) → Option Data
   | [] => none
   | (k', v) :: fs => if k = k' then some v else lookup k fs
 
-/-- `j` and `j'` are one value: the same scalar, arrays alike element by
-element, and objects with the same members, in whatever order Lean
-lists them. -/
-inductive Json.Same : Json → Json → Prop
-  | num {x : Rat} : Same (.num x) (.num x)
+/-- `j` and `j'` are one value: the same scalar, lists alike element by
+element, and maps with the same members, in whatever order Lean lists
+them. -/
+inductive Data.Same : Data → Data → Prop
+  | num {x : Number} : Same (.num x) (.num x)
   | str {s : String} : Same (.str s) (.str s)
   | bool {b : Bool} : Same (.bool b) (.bool b)
   | null : Same .null .null
-  | arr {xs ys : List Json} :
-      xs.length = ys.length →
-      (∀ (i : Nat) (x y : Json), xs[i]? = some x → ys[i]? = some y → Same x y) →
-      Same (.arr xs) (.arr ys)
-  | obj {fs gs : List (String × Json)} :
+  | map {fs gs : List (String × Data)} :
       (∀ k, (lookup k fs).isSome = (lookup k gs).isSome) →
       (∀ k x y, lookup k fs = some x → lookup k gs = some y → Same x y) →
-      Same (.obj fs) (.obj gs)
+      Same (.map fs) (.map gs)
+  | list {xs ys : List Data} :
+      xs.length = ys.length →
+      (∀ (i : Nat) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
+      Same (.list xs) (.list ys)
 
-/-- A Lean `Json` is a JSON value when each of its objects gives each
-name once. -/
-inductive Json.WellFormed : Json → Prop
-  | num {x : Rat} : WellFormed (.num x)
+/-- A Lean `Data` is a value when each of its integers is one the
+`integer` leaf holds and each of its maps gives each key once. -/
+inductive Data.WellFormed : Data → Prop
+  | int {n : Int} : IntegerLeaf n → WellFormed (.num (.int n))
+  | float {x : Float64} : WellFormed (.num (.float x))
+  | bigint {n : Int} : WellFormed (.num (.bigint n))
+  | bigdec {x : Decimal} : WellFormed (.num (.bigdec x))
   | str {s : String} : WellFormed (.str s)
   | bool {b : Bool} : WellFormed (.bool b)
   | null : WellFormed .null
-  | arr {xs : List Json} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.arr xs)
-  | obj {fs : List (String × Json)} :
-      (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.obj fs)
+  | map {fs : List (String × Data)} :
+      (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.map fs)
+  | list {xs : List Data} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.list xs)
 
-/-- A step of a path: a member's name, or a position in an array. -/
+/-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where
   | key (k : String)
   | idx (i : Nat)
 
 /-- The part of a value a path names. -/
-def Json.at (j : Json) : List Seg → Option Json
+def Data.at (j : Data) : List Seg → Option Data
   | [] => some j
   | .key k :: p => match j with
-    | .obj fs => (lookup k fs).bind (·.at p)
+    | .map fs => (lookup k fs).bind (·.at p)
     | _ => none
   | .idx i :: p => match j with
-    | .arr xs => xs[i]?.bind (·.at p)
+    | .list xs => xs[i]?.bind (·.at p)
     | _ => none
 
 end Aontu

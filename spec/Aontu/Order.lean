@@ -12,7 +12,7 @@ order by a contract, which names no algorithm.
 
 namespace Aontu
 
-/-- Every JSON value `a` admits, `b` admits, each taken whole. -/
+/-- Every value `a` admits, `b` admits, each taken whole. -/
 def Le (env : Env) (a b : Val) : Prop := ∀ j, Instance env a j → Instance env b j
 
 notation:50 a:51 " ⊑[" env "] " b:51 => Le env a b
@@ -42,7 +42,7 @@ theorem le_meet {env : Env} {a b c : Val} (ha : c ⊑[env] a) (hb : c ⊑[env] b
 /-- `string & empty()` admits `""`, which `string` refuses, so it is no
 meet with `string`: no meet with `string` admits `""`. It is a form of
 its own. -/
-theorem no_meet_with_string_admits_empty (env : Env) (root : Json) (b : Val) :
+theorem no_meet_with_string_admits_empty (env : Env) (root : Data) (b : Val) :
     ¬ Admits env root (.meet .string b) (.str "") := by
   intro h
   cases h with
@@ -53,8 +53,8 @@ theorem no_meet_with_string_admits_empty (env : Env) (root : Json) (b : Val) :
 /-- ADR-045: `{k?: a} & {k: b}` is `{k: a & b}`. Two declarations of one
 key admit what one declaration of their meet admits, and the key is
 optional only where every declaration says so. -/
-theorem merge_exact (env : Env) (root : Json) (k : String) (o₁ o₂ : Bool) (v₁ v₂ : Val)
-    (j : Json) :
+theorem merge_exact (env : Env) (root : Data) (k : String) (o₁ o₂ : Bool) (v₁ v₂ : Val)
+    (j : Data) :
     Admits env root (.map [(k, o₁ && o₂, .meet v₁ v₂)] none false) j ↔
       Admits env root (.meet (.map [(k, o₁, v₁)] none false) (.map [(k, o₂, v₂)] none false))
         j := by
@@ -107,7 +107,7 @@ inductive Subsumption where
 
 /-- The contract on an implementation: `subsumes` only where the order
 holds, `doesNotSubsume` only where it fails, and `undecided` anywhere.
-`Le` quantifies over every JSON value, infinitely many, so the contract
+`Le` quantifies over every value, infinitely many, so the contract
 says what a correct answer is and leaves how to reach one open. -/
 def SubsumeCorrect (env : Env) (subsume : Val → Val → Subsumption) : Prop :=
   ∀ general specific,

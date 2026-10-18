@@ -5,18 +5,18 @@ import Oracle.Print
 # The oracle
 
 Enumerates every value of the fragment up to one meet against a set of
-JSON values, and prints each case with the definition's verdict. The
+data, and prints each case with the definition's verdict. The
 verdict comes from `check`, which `check_iff` makes the definition's on
 every value that reads no reference: `vals_refFree` proves every value
-here is one, `instances_wellFormed` proves every instance a JSON value, and
+here is one, `instances_wellFormed` proves every instance a value, and
 `verdict_exact` puts the three together.
 -/
 
 namespace Aontu
 
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.multiple (.ofInt 1)), .string, .anyString,
-    .min (.ofInt 0), .min (.ofInt 3)]
+  [.any, .nil, .integer, .meet .number (.multiple (.int 1)), .string, .anyString,
+    .min (.int 0), .min (.int 3)]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
 def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
@@ -25,20 +25,23 @@ def level1 : List Val := bases ++ bases.flatMap fun v => [field true v, field fa
 
 def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
-def scalars : List Json := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
+def scalars : List Data := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
 
 /-- The instances of the first 9,600 rows. -/
-def jsons : List Json :=
-  scalars ++ [.obj []] ++ scalars.map (fun j => .obj [("x", j)]) ++ [.obj [("y", .int 1)]]
+def first : List Data :=
+  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .int 1)]]
 
 /-- The instances of the rows after them, numbered on so that no earlier
-row is renamed: two fractions, one either side of three, a whole number
-no double holds, and an array, each also under a key. -/
-def more : List Json :=
-  let xs : List Json := [.frac 3 2, .frac 7 2, .int 9007199254740993, .arr [.int 1]]
-  xs ++ xs.map (fun j => .obj [("x", j)])
+row is renamed: two big decimals, one either side of three, a big
+integer no double holds, and a list, each also under a key. The exact
+reader reads `1.5`, `3.5`, `9007199254740993`, and `[1]` as these. -/
+def more : List Data :=
+  let xs : List Data :=
+    [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
+      .list [.int 1]]
+  xs ++ xs.map (fun j => .map [("x", j)])
 
-def instances : List Json := jsons ++ more
+def instances : List Data := first ++ more
 
 theorem bases_refFree : ∀ v ∈ bases, v.RefFree := by
   intro v hv
@@ -63,11 +66,14 @@ theorem vals_refFree : ∀ v ∈ vals, v.RefFree := by
   · exact level1_refFree v hl
   · exact .meet (level1_refFree a ha) (level1_refFree b hb)
 
+set_option maxRecDepth 4096 in
+/-- Every instance is a value, each of its integers one a double holds;
+the search for that runs deeper than Lean's default. -/
 theorem instances_wellFormed : ∀ j ∈ instances, j.WellFormed := by decide
 
 /-- Every row's verdict is the definition's: `v` admits `j`, taken
 whole, under no alias declaration. -/
-theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ instances) :
+theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Data} (hj : j ∈ instances) :
     check v j = true ↔ Instance Env.empty v j :=
   ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
     fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
@@ -86,7 +92,7 @@ def main : IO Unit := do
   IO.println "# not yet answer this way are listed in spec/ledger.tsv."
   let opts := "{\"opts\":{\"noFill\":true,\"exactNumbers\":true},\"verdict\":"
   let mut i := 0
-  for block in [jsons, more] do
+  for block in [first, more] do
     for v in vals do
       let some src := v.src | throw (IO.userError "a value of the fragment has no text")
       for j in block do
