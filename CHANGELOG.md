@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The definition's tutorial shows the language working
+
+Documentation; no engine changes.
+
+- `docs/tutorial-definition.md` shows each rule working. Each step
+  meets its terms with values they admit, and `aontu -c` prints the
+  values back, each number in its leaf: `{"big":0d9007199254740993,…}`.
+  Of the page's 33 commands, 30 had printed only findings, since `vet`
+  says nothing of a key it admits.
+- Six refusals remain, each the point of its step, through `aontu vet`:
+  - `string` refuses `""`;
+  - `0d3` refuses `3`;
+  - `max(0d0.1)` refuses the float `0.1`;
+  - a seal refuses a key it doesn't declare;
+  - the engines refuse a contradiction the definition admits;
+  - a list in a disjunction refuses another length.
+- The JSON reading shows through `aontu -c` and `--exact-numbers`, with
+  no finding.
+
 ### The definition's number types are named as aontu names them
 
 Definition; no engine changes, and no row moves.
