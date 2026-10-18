@@ -26,9 +26,24 @@
 // process: several cases depend on a fresh module registry, and
 // coverage drops to ~99.6 % because those cases stop exercising what
 // they were written to exercise.
+//
+// ONE FILE PER CORE, as `npm test` runs them (scripts/test.cjs). The
+// driver ran one file at a time, and once the shared rows grew a pass
+// took 25 of the coverage job's 30 minutes on the hosted runner, which
+// left no time for the retry above.
+//
+// BUT THE SHARED ROWS IN ONE PROCESS. `npm test` splits them over three
+// test files (test/spec.test.ts); AONTU_SPEC_SHARES=1 keeps them in one
+// here, as when the gate was written. The merge is lossy where two
+// processes report an arm differently: one that saw it untaken reports
+// it, and one that always took it folds it into its parent. Split, the
+// rows written together to cover isHexDigit (src/val/ConstraintVal.ts)
+// left an arm of it untaken in one run, and test/covcheck.js rightly
+// lets no run that reports fewer arms at that line vouch for it.
 
 const { spawnSync } = require('node:child_process')
 const Fs = require('node:fs')
+const Os = require('node:os')
 const Path = require('node:path')
 
 const MAX_RUNS = 3
@@ -45,12 +60,16 @@ function runSuite(n) {
     '--test-coverage-exclude=dist-test/**',
     '--test-coverage-exclude=test/**',
     '--test-coverage-exclude=bin/**',
-    '--test-concurrency=1',
+    `--test-concurrency=${Os.availableParallelism()}`,
     '--test-reporter=lcov',
     `--test-reporter-destination=${out}`,
     '--test',
     'dist-test/**/*.test.js',
-  ], { cwd: tsDir, stdio: ['ignore', 'ignore', 'inherit'] })
+  ], {
+    cwd: tsDir,
+    stdio: ['ignore', 'ignore', 'inherit'],
+    env: { ...process.env, AONTU_SPEC_SHARES: '1' },
+  })
 
   if (0 !== res.status) {
     process.stderr.write(`covrun: the suite failed (exit ${res.status})\n`)
