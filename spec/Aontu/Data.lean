@@ -2,60 +2,21 @@
 # The data
 
 What an aontu value admits or refuses: a JSON value, as RFC 8259
-describes one. A JSON value is null, a boolean, a number, a string, an
-array of values, or an object, whose members each give one name one
-value. The definition says what values mean, and nothing about text:
+describes one. The scalars come first: the integers, the numbers they
+sit among, the strings, the booleans, and null. Arrays of values, and
+objects whose members each give one name one value, are built from
+them. The definition says what values mean, and nothing about text:
 how a text is read into a value is a reader's business.
 -/
 
 namespace Aontu
 
-/-- A number: the exact value `coef / 10 ^ scale`, in lowest terms, so
-that each value has one `Num` and two numbers are equal exactly when
-their values are. The numbers JSON describes are the finite decimals:
-one and a half is `⟨15, 1, _⟩`, a quarter `⟨25, 2, _⟩` and a thousand
-`⟨1000, 0, _⟩`. -/
-structure Num where
-  coef : Int
-  scale : Nat
-  lowest : scale = 0 ∨ coef % 10 ≠ 0
+/-! ## Integers
 
-instance : DecidableEq Num := fun x y =>
-  if h : x.coef = y.coef ∧ x.scale = y.scale then
-    isTrue (by cases x; cases y; obtain ⟨rfl, rfl⟩ := h; rfl)
-  else
-    isFalse (fun e => h (by cases e; exact ⟨rfl, rfl⟩))
+An integer is a Lean `Int`, and the `integer` kind holds a range of
+them. -/
 
-/-- The integer `n`. -/
-def Num.ofInt (n : Int) : Num := ⟨n, 0, .inl rfl⟩
-
-/-- The number `coef / 10 ^ scale`, in lowest terms: `Num.ofDec 15 1`
-is one and a half, as `Num.ofDec 150 2` is. -/
-def Num.ofDec (coef : Int) : Nat → Num
-  | 0 => ⟨coef, 0, .inl rfl⟩
-  | s + 1 => if h : coef % 10 = 0 then Num.ofDec (coef / 10) s else ⟨coef, s + 1, .inr h⟩
-
-/-- `x` is at most `y`. -/
-def Num.le (x y : Num) : Prop := x.coef * 10 ^ y.scale ≤ y.coef * 10 ^ x.scale
-
-/-- `x` is a whole multiple of `d`, for a positive `d`: one and a half
-is a multiple of a half, and every integer of one. -/
-def Num.multipleOf (x d : Num) : Prop := (x.coef * 10 ^ d.scale) % (d.coef * 10 ^ x.scale) = 0
-
-/-- The integer a number is, when it is one: a thousand is, one and a
-half is not. -/
-def Num.int? (x : Num) : Option Int :=
-  if x.coef % 10 ^ x.scale = 0 then some (x.coef / 10 ^ x.scale) else none
-
-instance (x y : Num) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
-instance (x d : Num) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
-
-/-- The multiples of one are the integers. -/
-theorem Num.multipleOf_one (x : Num) : x.multipleOf (.ofInt 1) ↔ ∃ n, x.int? = some n := by
-  unfold Num.multipleOf Num.ofInt Num.int?
-  split <;> simp_all
-
-/-- The integers the `integer` leaf holds: the values a double holds
+/-- The integers the `integer` kind holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
@@ -89,26 +50,94 @@ theorem integerLeaf_iff (n : Int) :
 
 instance (n : Int) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
 
-/-- A JSON value. A string is its sequence of characters, the Unicode
-scalar values a Lean `String` holds, so a string that holds a lone
-surrogate, as `"\ud800"` escapes one, is no value here: both engines
-accept it, and they differ on what it is (`test/spec/divergent.tsv`).
-An object is the set of its members: Lean lists them, the order of the
-list is no part of the value, and a value gives each name once
+/-! ## Numbers
+
+A number is a rational. JSON writes the decimal fractions among them,
+and every rule reads a number by its value alone. -/
+
+/-- A number: the rational `num / den`, with `den` positive and the two
+in lowest terms, so that each number has one `Rat` and two numbers are
+equal exactly when their values are. The integers are the numbers
+whose `den` is one, and one and a half is `3 / 2`. -/
+structure Rat where
+  num : Int
+  den : Nat
+  den_pos : 0 < den
+  reduced : Nat.gcd num.natAbs den = 1
+  deriving DecidableEq
+
+/-- The integer `n`, as a number. -/
+def Rat.ofInt (n : Int) : Rat := ⟨n, 1, Nat.one_pos, Nat.gcd_one_right _⟩
+
+/-- The number `num / den`, given in lowest terms: `Rat.frac 3 2` is one
+and a half. -/
+def Rat.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
+    (r : Nat.gcd num.natAbs den = 1 := by decide) : Rat := ⟨num, den, h, r⟩
+
+/-- `x` is at most `y`. -/
+def Rat.le (x y : Rat) : Prop := x.num * y.den ≤ y.num * x.den
+
+/-- `x` is a whole multiple of `d`, for a positive `d`: one and a half
+is a multiple of a half, and every integer is one of one. -/
+def Rat.multipleOf (x d : Rat) : Prop := (x.num * d.den) % (d.num * x.den) = 0
+
+instance (x y : Rat) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
+instance (x d : Rat) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
+
+/-- A number is the integer `n` exactly when its `num` is `n` and its
+`den` is one. -/
+theorem Rat.eq_ofInt_iff (x : Rat) (n : Int) : x = .ofInt n ↔ x.num = n ∧ x.den = 1 := by
+  constructor
+  · rintro rfl
+    exact ⟨rfl, rfl⟩
+  · rintro ⟨h1, h2⟩
+    cases x with
+    | mk num den hp hr =>
+      simp only at h1 h2
+      subst h1 h2
+      rfl
+
+/-- The multiples of one are the integers. -/
+theorem Rat.multipleOf_one (x : Rat) : x.multipleOf (.ofInt 1) ↔ ∃ n, x = .ofInt n := by
+  constructor
+  · intro h
+    have hd : (x.den : Int) ∣ x.num :=
+      Int.dvd_of_emod_eq_zero (by simpa [Rat.multipleOf, Rat.ofInt] using h)
+    have h1 : x.den ∣ Nat.gcd x.num.natAbs x.den :=
+      Nat.dvd_gcd (Int.ofNat_dvd_left.mp hd) (Nat.dvd_refl _)
+    rw [x.reduced, Nat.dvd_one] at h1
+    exact ⟨x.num, (Rat.eq_ofInt_iff x x.num).mpr ⟨rfl, h1⟩⟩
+  · rintro ⟨n, rfl⟩
+    simp [Rat.multipleOf, Rat.ofInt]
+
+/-! ## Strings
+
+A string is a Lean `String`: its sequence of characters, the Unicode
+scalar values. So a string that holds a lone surrogate, as `"\ud800"`
+escapes one, is no value here: both engines accept it, and they differ
+on what it is (`test/spec/divergent.tsv`). -/
+
+/-! ## JSON values -/
+
+/-- A JSON value: a scalar, an array of values, or an object. An object
+is the set of its members: Lean lists them, the order of the list is no
+part of the value, and a value gives each name once
 (`Json.WellFormed`). -/
 inductive Json where
-  | null
-  | bool (b : Bool)
-  | num (n : Num)
+  | num (x : Rat)
   | str (s : String)
+  | bool (b : Bool)
+  | null
   | arr (xs : List Json)
   | obj (fs : List (String × Json))
 
 /-- The integer `n`: `Json.int 3` is three. -/
 def Json.int (n : Int) : Json := .num (.ofInt n)
 
-/-- The number `coef / 10 ^ scale`: `Json.dec 15 1` is one and a half. -/
-def Json.dec (coef : Int) (scale : Nat) : Json := .num (.ofDec coef scale)
+/-- The number `num / den`, given in lowest terms: `Json.frac 3 2` is
+one and a half. -/
+def Json.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
+    (r : Nat.gcd num.natAbs den = 1 := by decide) : Json := .num (.frac num den h r)
 
 /-- The value an object gives the name `k`. -/
 def lookup (k : String) : List (String × Json) → Option Json
@@ -119,10 +148,10 @@ def lookup (k : String) : List (String × Json) → Option Json
 element, and objects with the same members, in whatever order Lean
 lists them. -/
 inductive Json.Same : Json → Json → Prop
-  | null : Same .null .null
-  | bool {b : Bool} : Same (.bool b) (.bool b)
-  | num {x : Num} : Same (.num x) (.num x)
+  | num {x : Rat} : Same (.num x) (.num x)
   | str {s : String} : Same (.str s) (.str s)
+  | bool {b : Bool} : Same (.bool b) (.bool b)
+  | null : Same .null .null
   | arr {xs ys : List Json} :
       xs.length = ys.length →
       (∀ (i : Nat) (x y : Json), xs[i]? = some x → ys[i]? = some y → Same x y) →
@@ -135,10 +164,10 @@ inductive Json.Same : Json → Json → Prop
 /-- A Lean `Json` is a JSON value when each of its objects gives each
 name once. -/
 inductive Json.WellFormed : Json → Prop
-  | null : WellFormed .null
-  | bool {b : Bool} : WellFormed (.bool b)
-  | num {x : Num} : WellFormed (.num x)
+  | num {x : Rat} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
+  | bool {b : Bool} : WellFormed (.bool b)
+  | null : WellFormed .null
   | arr {xs : List Json} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.arr xs)
   | obj {fs : List (String × Json)} :
       (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.obj fs)

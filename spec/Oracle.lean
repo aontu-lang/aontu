@@ -35,7 +35,7 @@ def jsons : List Json :=
 row is renamed: two fractions, one either side of three, a whole number
 no double holds, and an array, each also under a key. -/
 def more : List Json :=
-  let xs : List Json := [.dec 15 1, .dec 35 1, .int 9007199254740993, .arr [.int 1]]
+  let xs : List Json := [.frac 3 2, .frac 7 2, .int 9007199254740993, .arr [.int 1]]
   xs ++ xs.map (fun j => .obj [("x", j)])
 
 def instances : List Json := jsons ++ more
@@ -90,7 +90,8 @@ def main : IO Unit := do
     for v in vals do
       let some src := v.src | throw (IO.userError "a value of the fragment has no text")
       for j in block do
+        let some jsrc := j.src | throw (IO.userError "an instance has no text")
         let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
-        IO.println ("c" ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ j.src
+        IO.println ("c" ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
           ++ "\t" ++ opts ++ want ++ "}")
         i := i + 1

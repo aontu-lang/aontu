@@ -24,7 +24,7 @@ for what a term admits, and none declares its own.
 
 | File | Holds |
 |---|---|
-| [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) | JSON values: null, booleans, numbers, strings, arrays and objects, paths into a value, and the integers `integer` holds |
+| [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) | JSON values, scalars first: the integers `integer` holds, numbers as rationals, strings, then arrays and objects, and paths into a value |
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, two declarations of one key, and the contract any `subsume` must meet |
@@ -64,76 +64,49 @@ holds the value, where the schema states the term, or both. The exit code
 says which kind of refusal it was: `1` for `invalid`, `3` for
 `incomplete`, `4` for `error`.
 
-## 2. Scalar data and its kinds
+## 2. Scalars
 
-A JSON value is one of six things, and `spec/Aontu/Data.lean` lists
-them:
+A JSON value is a scalar, an array of values, or an object, and the
+scalars come first, here as in the definition. `spec/Aontu/Data.lean`
+lists them first among the ways to build a JSON value:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A JSON value. A string is its sequence of characters, the Unicode
-scalar values a Lean `String` holds, so a string that holds a lone
-surrogate, as `"\ud800"` escapes one, is no value here: both engines
-accept it, and they differ on what it is (`test/spec/divergent.tsv`).
-An object is the set of its members: Lean lists them, the order of the
-list is no part of the value, and a value gives each name once
-(`Json.WellFormed`). -/
 inductive Json where
-  | null
-  | bool (b : Bool)
-  | num (n : Num)
+  | num (x : Rat)
   | str (s : String)
-  | arr (xs : List Json)
-  | obj (fs : List (String × Json))
+  | bool (b : Bool)
+  | null
 ```
 
 `inductive` lists every way to build a value of a new type, one
-constructor per line. Null, the booleans, numbers, and strings are the
-scalars, which this step and the next two cover. Arrays and objects
-wait for step 6, where `List (String × Json)` reads as a list of pairs
-of a string and a JSON value.
+constructor per line. A number holds a `Rat`, a string a `String`, and
+a boolean a `Bool`, and `null` holds nothing. The same type goes on to
+arrays and objects, which step 6 takes up.
 
-The terms that admit them come from `spec/Aontu/Syntax.lean`, one
-constructor for each construct, beside the name the reference gives
-it:
+The terms that admit the scalars come first in
+`spec/Aontu/Syntax.lean` too, one constructor for each construct,
+beside the name the reference gives it:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
-/-- A value, each constructor beside the construct it is. A map has
-keys, each required or optional, a spread that holds every member, and
-a seal that refuses every member it does not declare; a list has its
-positions and a spread. -/
 inductive Val where
-  | boolean                                 -- `boolean`
-  | number                                  -- `number`
   | integer                                 -- `integer`
+  | number                                  -- `number`
   | string                                  -- `string`, every string but `""`
   | anyString                               -- `string & empty()`, every string
-  | lit (s : Scalar)                        -- a literal: `null`, `true`, `3`, `"a"`
-  | min (n : Num)                           -- `min(n)`
-  | max (n : Num)                           -- `max(n)`
-  | multiple (d : Num)                      -- `multiple(d)`
-  | any                                     -- `any`
-  | nil                                     -- `nil`
-  | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
-                                            -- `{k: v, k?: v, &: s}`, sealed by `close()`
-  | list (items : List Val) (spread : Option Val)  -- `[a, b, &: s]`
-  | meet (a b : Val)                        -- `a & b`
-  | alias (n : String)                      -- `%n`
-  | path (p : List Seg)                     -- `$.a.b`
+  | boolean                                 -- `boolean`
 ```
 
-The first five are the kinds of the scalar data. `string` holds every
-string but the empty one, and `anyString`, written `string & empty()`,
-holds every string. The rest come with their rules below.
+These five are the kinds of the scalars. Literals, bounds, and the
+rest of the terms come with their rules in later steps.
 
 What a term admits is one relation, in `spec/Aontu/Admits.lean`, with
-one rule for each form. Its first line and its first rule:
+one rule for each form. Its first line:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
 inductive Admits (env : Env) (root : Json) : Val → Json → Prop
-  | boolean {b : Bool} : Admits env root .boolean (.bool b)
 ```
 
 `Admits env root v j` says the JSON value `j`, found inside the whole
@@ -142,10 +115,7 @@ declares. The result type `Prop` is a statement, true or false, that
 Lean establishes by proof and never by running anything. Each
 constructor is a rule of inference: when its premises hold, its
 conclusion, after the last `→`, holds. A term admits a value when a
-finite tree of these rules proves it. An argument in braces, such as
-`{b : Bool}`, is one Lean works out for itself, so the first rule says
-`boolean` admits both booleans. No other rule concludes anything about
-`boolean`, so it admits nothing else.
+finite tree of these rules proves it.
 
 The examples ask about a whole value, which is its own root:
 
@@ -163,135 +133,22 @@ Read `∧` as "and": an instance is a pair, `j` being a JSON value and
 `v` admitting it. Step 6 says how a Lean `Json` can fail to be a JSON
 value, and every scalar is one.
 
-### Booleans
+### Integers
 
-<!-- test: quote spec/Aontu/Tour.lean -->
-```lean
-/-- `boolean` admits `true`. -/
-example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
-
-/-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
-```
-
-`example : Instance .empty .boolean (.bool true)` claims that `boolean`
-admits `true` under no alias declaration, and what follows `:=` is the
-proof, which the build checks. `by decide` computes a statement that
-has a yes or no answer, here that `true` is a JSON value, and `.boolean`
-names the rule. A claim that opens with `¬` says the term refuses the
-value: `fun ⟨_, h⟩ => nomatch h` takes a supposed proof apart and finds
-no rule its second half could have come from. Write `booleans.aontu`:
-
-<!-- test: scenario booleans -->
-<!-- test: file booleans.aontu -->
-```aontu
-admitted: boolean
-refused: boolean
-```
-
-and `booleans.json`:
-
-<!-- test: file booleans.json -->
-```json
-{"admitted": true, "refused": 1}
-```
-
-Now vet the data against the schema:
-
-<!-- test: run -->
-```sh
-$ aontu vet --no-fill --exact-numbers booleans.aontu booleans.json
-verdict: invalid
-
-$.refused: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.refused
-  data: booleans.json:1:31 (1)
-  schema: booleans.aontu:2:10 (boolean)
-$ echo $?
-1
-```
-
-The one finding is at `$.refused`. Its code, `no_scalar_unify`, says no
-value is both the number and a boolean, and its class, `conflict`, says
-no completion of the data could change that. The `data:` and `schema:`
-lines point at the two sides, each with its file, line, and column.
-
-### Numbers
-
-A number is its exact value:
-
-<!-- test: quote spec/Aontu/Data.lean -->
-```lean
-/-- A number: the exact value `coef / 10 ^ scale`, in lowest terms, so
-that each value has one `Num` and two numbers are equal exactly when
-their values are. The numbers JSON describes are the finite decimals:
-one and a half is `⟨15, 1, _⟩`, a quarter `⟨25, 2, _⟩` and a thousand
-`⟨1000, 0, _⟩`. -/
-structure Num where
-  coef : Int
-  scale : Nat
-  lowest : scale = 0 ∨ coef % 10 ≠ 0
-```
-
-`structure` declares a record with named fields. `coef` and `scale`
-give the value, `coef / 10 ^ scale`, and `lowest` is a proof that the
-two are in lowest terms: no zero trails the last digit of a fraction.
-So one and a half is `⟨15, 1, _⟩` and never `⟨150, 2, _⟩`, and two
-numbers are equal exactly when their values are. Two functions build
-numbers:
-
-<!-- test: quote spec/Aontu/Data.lean -->
-```lean
-/-- The integer `n`. -/
-def Num.ofInt (n : Int) : Num := ⟨n, 0, .inl rfl⟩
-
-/-- The number `coef / 10 ^ scale`, in lowest terms: `Num.ofDec 15 1`
-is one and a half, as `Num.ofDec 150 2` is. -/
-def Num.ofDec (coef : Int) : Nat → Num
-  | 0 => ⟨coef, 0, .inl rfl⟩
-  | s + 1 => if h : coef % 10 = 0 then Num.ofDec (coef / 10) s else ⟨coef, s + 1, .inr h⟩
-```
-
-and two shorthands build the JSON values the examples use:
+An integer is a Lean `Int`. As a JSON value it's a number, which
+`Json.int` builds:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The integer `n`: `Json.int 3` is three. -/
 def Json.int (n : Int) : Json := .num (.ofInt n)
-
-/-- The number `coef / 10 ^ scale`: `Json.dec 15 1` is one and a half. -/
-def Json.dec (coef : Int) (scale : Nat) : Json := .num (.ofDec coef scale)
 ```
 
-`number` admits every number, and `integer` the integers of one range:
-
-<!-- test: quote spec/Aontu/Admits.lean -->
-```lean
-  | number {x : Num} : Admits env root .number (.num x)
-  | integer {x : Num} {n : Int} :
-      x.int? = some n → IntegerLeaf n → Admits env root .integer (.num x)
-```
-
-`integer` asks two things of a number: that it's an integer, and that
-the integer is one the kind holds. The first is a definition of the
-data:
+The `integer` kind holds the integers of one range:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The integer a number is, when it is one: a thousand is, one and a
-half is not. -/
-def Num.int? (x : Num) : Option Int :=
-  if x.coef % 10 ^ x.scale = 0 then some (x.coef / 10 ^ x.scale) else none
-```
-
-`%` is the remainder and `/` the quotient, so a number is an integer
-when its digits divide by the power of ten its scale names, and
-`Option Int` is either `none` or `some n`. The second is the range the
-kind holds:
-
-<!-- test: quote spec/Aontu/Data.lean -->
-```lean
-/-- The integers the `integer` leaf holds: the values a double holds
+/-- The integers the `integer` kind holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
@@ -316,63 +173,186 @@ example : ¬ IntegerLeaf 9007199254740993 := by decide
 example : ¬ IntegerLeaf 9223372036854775808 := by decide
 ```
 
-The examples of the two rules:
+`example` states a claim, and what follows `:=` is its proof, which the
+build checks. `by decide` proves a statement by computing its yes or no
+answer, and `¬` reads *not*. The rule for `integer` admits each integer
+of the range:
 
-<!-- test: quote spec/Aontu/Tour.lean -->
+<!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-/-- `number` admits one and a half. -/
-example : Instance .empty .number (.dec 15 1) := ⟨by decide, .number⟩
-
-/-- `number` refuses the string `"1"`. -/
-example : ¬ Instance .empty .number (.str "1") := fun ⟨_, h⟩ => nomatch h
-
-/-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := ⟨by decide, .integer rfl (by decide)⟩
-
-/-- `integer` refuses one and a half. -/
-example : ¬ Instance .empty .integer (.dec 15 1) := by
+  | integer {n : Int} : IntegerLeaf n → Admits env root .integer (.int n)
 ```
 
+An argument in braces, such as `{n : Int}`, is one Lean works out for
+itself, so the rule says that `integer` admits each integer `n` that
+`IntegerLeaf` holds. No other rule concludes anything about `integer`,
+so it admits nothing else:
+
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
+/-- `integer` admits `3`. -/
+example : Instance .empty .integer (.int 3) := ⟨by decide, .integer (by decide)⟩
+
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer rfl (by decide)⟩
+example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer (by decide)⟩
 
 /-- `integer` refuses `9007199254740993`, which no double holds. -/
 example : ¬ Instance .empty .integer (.int 9007199254740993) := by
   rintro ⟨-, h⟩
   cases h with
-  | integer hx hl =>
-    cases hx
-    exact absurd hl (by decide)
+  | integer hl => exact absurd hl (by decide)
 
 /-- `integer` refuses `9223372036854775808`, outside the window. -/
 example : ¬ Instance .empty .integer (.int 9223372036854775808) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | integer hl => exact absurd hl (by decide)
+
+/-- `integer` refuses the string `"3"`. -/
+example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
 ```
 
-`rfl` proves that a computation gives what it claims. A refusal takes
-the supposed proof apart with `cases`, which lists every rule that
-could have given it, and shows that each premise fails. A quote that
-ends at `:= by` stops before the proof, which follows in the file and
-which the build checks. Write `numbers.aontu`:
+`Instance .empty .integer (.int 3)` claims that `integer` admits `3`
+under no alias declaration. Its proof is a pair: `by decide` shows that
+`3` is a JSON value, and `.integer (by decide)` names the rule and
+proves its premise. A refusal takes the supposed proof apart with
+`cases`, which lists every rule that could have given it, and shows
+that each premise fails, and `fun ⟨_, h⟩ => nomatch h` finds no rule
+that could have given `h` at all. Write `integers.aontu`:
+
+<!-- test: scenario integers -->
+<!-- test: file integers.aontu -->
+```aontu
+admitted: integer
+double: integer
+beyond: integer
+window: integer
+text: integer
+```
+
+and `integers.json`:
+
+<!-- test: file integers.json -->
+```json
+{"admitted": 3, "double": 9007199254740994, "beyond": 9007199254740993, "window": 9223372036854775808, "text": "3"}
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill --exact-numbers integers.aontu integers.json
+verdict: invalid
+
+$.beyond: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.beyond
+  data: integers.json:1:55 (0d9007199254740993)
+  schema: integers.aontu:3:9 (integer)
+$.window: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.window
+  data: integers.json:1:83 (0d9223372036854775808)
+  schema: integers.aontu:4:9 (integer)
+$.text: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.text
+  data: integers.json:1:112 ("3")
+  schema: integers.aontu:5:7 (integer)
+$ echo $?
+1
+```
+
+`integer` admits `3` and `9007199254740994`, which a double holds. It
+refuses `9007199254740993`, which no double holds,
+`9223372036854775808`, which one does outside the window, and the
+string `"3"`. The code of each finding, `no_scalar_unify`, says no
+value is both, and its class, `conflict`, says no completion of the
+data could change that. The `data:` and `schema:` lines point at the
+two sides, each with its file, line, and column, and a `data:` line
+shows a number as the engine took it, exactly, in its `0d` notation.
+
+### Numbers
+
+A number is a rational:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- A number: the rational `num / den`, with `den` positive and the two
+in lowest terms, so that each number has one `Rat` and two numbers are
+equal exactly when their values are. The integers are the numbers
+whose `den` is one, and one and a half is `3 / 2`. -/
+structure Rat where
+  num : Int
+  den : Nat
+  den_pos : 0 < den
+  reduced : Nat.gcd num.natAbs den = 1
+```
+
+`structure` declares a record with named fields. `num` and `den` give
+the value, `num / den`, and `den_pos` and `reduced` are proofs: that
+`den` is positive, and that the two share no factor. So one and a half
+is `3 / 2` and never `6 / 4`, and two numbers are equal exactly when
+their values are. An integer is a number whose `den` is one:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- The integer `n`, as a number. -/
+def Rat.ofInt (n : Int) : Rat := ⟨n, 1, Nat.one_pos, Nat.gcd_one_right _⟩
+
+/-- The number `num / den`, given in lowest terms: `Rat.frac 3 2` is one
+and a half. -/
+def Rat.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
+    (r : Nat.gcd num.natAbs den = 1 := by decide) : Rat := ⟨num, den, h, r⟩
+```
+
+An argument written with `:= by decide` is a proof that Lean finds for
+itself, so `Rat.frac 3 2` builds one and a half, and `Rat.frac 6 4`
+doesn't build. `Json.frac` builds the JSON value the same way:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- The number `num / den`, given in lowest terms: `Json.frac 3 2` is
+one and a half. -/
+def Json.frac (num : Int) (den : Nat) (h : 0 < den := by decide)
+    (r : Nat.gcd num.natAbs den = 1 := by decide) : Json := .num (.frac num den h r)
+```
+
+`number` admits every number:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | number {x : Rat} : Admits env root .number (.num x)
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `number` admits one and a half. -/
+example : Instance .empty .number (.frac 3 2) := ⟨by decide, .number⟩
+
+/-- `number` admits `9007199254740993`, which `integer` refuses. -/
+example : Instance .empty .number (.int 9007199254740993) := ⟨by decide, .number⟩
+
+/-- `integer` refuses one and a half, which is no integer. -/
+example : ¬ Instance .empty .integer (.frac 3 2) := by
+```
+
+The rule for `integer` concludes only about an integer, `n / 1`, and
+one and a half is `3 / 2`, so `cases` finds no rule that fits. A quote
+that ends at `:= by` stops before the proof, which follows in the file
+and which the build checks. Write `numbers.aontu`:
 
 <!-- test: scenario numbers -->
 <!-- test: file numbers.aontu -->
 ```aontu
 fraction: number
+big: number
 text: number
-admitted: integer
 half: integer
-double: integer
-beyond: integer
-window: integer
 ```
 
 and `numbers.json`:
 
 <!-- test: file numbers.json -->
 ```json
-{"fraction": 1.5, "text": "1", "admitted": 3, "half": 1.5, "double": 9007199254740994, "beyond": 9007199254740993, "window": 9223372036854775808}
+{"fraction": 1.5, "big": 9007199254740993, "text": "1", "half": 1.5}
 ```
 
 Now vet it:
@@ -384,31 +364,21 @@ verdict: invalid
 
 $.text: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.text
-  data: numbers.json:1:27 ("1")
-  schema: numbers.aontu:2:7 (number)
+  data: numbers.json:1:52 ("1")
+  schema: numbers.aontu:3:7 (number)
 $.half: no_scalar_unify [conflict]
   [aontu/no_scalar_unify]: Cannot unify values at path $.half
-  data: numbers.json:1:55 (0d1.5)
+  data: numbers.json:1:65 (0d1.5)
   schema: numbers.aontu:4:7 (integer)
-$.beyond: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.beyond
-  data: numbers.json:1:98 (0d9007199254740993)
-  schema: numbers.aontu:6:9 (integer)
-$.window: no_scalar_unify [conflict]
-  [aontu/no_scalar_unify]: Cannot unify values at path $.window
-  data: numbers.json:1:126 (0d9223372036854775808)
-  schema: numbers.aontu:7:9 (integer)
 $ echo $?
 1
 ```
 
-`number` admits one and a half and refuses the string `"1"`. `integer`
-admits `9007199254740994`, which a double holds, and refuses
-`9007199254740993`, which none does, and `9223372036854775808`, which
-one does outside the window. The `data:` lines show each number as the
-engine took it, exactly, in its `0d` notation.
+`number` admits one and a half and `9007199254740993`, which `integer`
+refused, and refuses the string `"1"`. `integer` refuses one and a
+half.
 
-A whole number of any size is `number & multiple(1)`, and that's a law
+The integers of any size are `number & multiple(1)`, and that's a law
 of the definition, not only an example. The tour proves it for every
 value:
 
@@ -418,20 +388,18 @@ value:
 example : Instance .empty (.meet .number (.multiple (.ofInt 1))) (.int 9007199254740993) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
-/-- `number & multiple(1)` admits exactly the numbers that are whole, of
-any size. -/
+/-- `number & multiple(1)` admits exactly the integers, of any size. -/
 example (env : Env) (root j : Json) :
-    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔
-      ∃ x n, j = .num x ∧ x.int? = some n := by
+    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔ ∃ n, j = .int n := by
 ```
 
-The proof reads `multiple(1)` through a fact about the data, that the
-multiples of one are the integers:
+The proof reads `multiple(1)` through a fact about the numbers, that
+the multiples of one are the integers:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The multiples of one are the integers. -/
-theorem Num.multipleOf_one (x : Num) : x.multipleOf (.ofInt 1) ↔ ∃ n, x.int? = some n := by
+theorem Rat.multipleOf_one (x : Rat) : x.multipleOf (.ofInt 1) ↔ ∃ n, x = .ofInt n := by
 ```
 
 `↔` reads as *exactly when*. Write `whole.aontu`:
@@ -468,14 +436,23 @@ $ echo $?
 ```
 
 `number & multiple(1)` admits the integer `integer` refused, and
-refuses one and a half, which is no whole number. The code
-`constraint` says the number failed a bound, and step 4 covers the
-bounds.
+refuses one and a half, which is no integer. The code `constraint`
+says the number failed a bound, and step 4 covers the bounds.
 
 ### Strings
 
-A string is its sequence of characters. `string` admits every one but
-the empty one, and `string & empty()` admits that one too:
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-! ## Strings
+
+A string is a Lean `String`: its sequence of characters, the Unicode
+scalar values. So a string that holds a lone surrogate, as `"\ud800"`
+escapes one, is no value here: both engines accept it, and they differ
+on what it is (`test/spec/divergent.tsv`). -/
+```
+
+`string` admits every string but the empty one, and `string & empty()`
+admits that one too:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -496,6 +473,9 @@ example : ¬ Instance .empty .string (.str "") := by
 
 /-- `string & empty()` admits `""`. -/
 example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
+
+/-- `string` refuses `3`. -/
+example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `strings.aontu`:
@@ -532,80 +512,131 @@ $ echo $?
 The engine calls the refusal `string_empty`, and its `data:` line shows
 the meet it formed, `string&""`, which admits nothing.
 
+### Booleans
+
+`boolean` admits both booleans, and nothing else:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | boolean {b : Bool} : Admits env root .boolean (.bool b)
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `boolean` admits `true`. -/
+example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
+
+/-- `boolean` refuses `1`. -/
+example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
+```
+
+Write `booleans.aontu`:
+
+<!-- test: scenario booleans -->
+<!-- test: file booleans.aontu -->
+```aontu
+admitted: boolean
+refused: boolean
+```
+
+and `booleans.json`:
+
+<!-- test: file booleans.json -->
+```json
+{"admitted": true, "refused": 1}
+```
+
+Now vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill --exact-numbers booleans.aontu booleans.json
+verdict: invalid
+
+$.refused: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.refused
+  data: booleans.json:1:31 (1)
+  schema: booleans.aontu:2:10 (boolean)
+$ echo $?
+1
+```
+
+The one finding is at `$.refused`: no value is both the number and a
+boolean.
+
 ## 3. Literals
 
 A literal is one scalar, and admits that scalar alone:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
-/-- A scalar literal: one null, boolean, number or string. A number
+/-- A scalar literal: one integer, string, boolean, or null. A number
 literal here is an integer, a value of the `integer` kind; literals of
 the other number kinds, floats and the big numbers, wait for those
 kinds. -/
 inductive Scalar where
-  | null
-  | bool (b : Bool)
   | int (n : Int)
   | str (s : String)
+  | bool (b : Bool)
+  | null
 ```
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | null : Admits env root (.lit .null) .null
-  | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
   /-- An integer literal is a value of the `integer` kind: it admits the
-  number it is, where the kind holds that integer. -/
-  | int {n : Int} {x : Num} :
-      x.int? = some n → IntegerLeaf n → Admits env root (.lit (.int n)) (.num x)
+  integer it is, where the kind holds it. -/
+  | int {n : Int} : IntegerLeaf n → Admits env root (.lit (.int n)) (.int n)
   | str {s : String} : Admits env root (.lit (.str s)) (.str s)
+  | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
+  | null : Admits env root (.lit .null) .null
 ```
 
-`null` has no kind of its own: the literal `null` admits it. An integer
-literal is a value of the `integer` kind, so it admits its number where
-the kind holds that integer.
+An integer literal is a value of the `integer` kind, so it admits its
+integer where the kind holds it. `null` has no kind of its own: the
+literal `null` admits it.
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
+/-- `3` admits `3`. -/
+example : Instance .empty (.lit (.int 3)) (.int 3) := ⟨by decide, .int (by decide)⟩
+
+/-- `3` refuses `4`. -/
+example : ¬ Instance .empty (.lit (.int 3)) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+
+/-- `"a"` refuses `"b"`. -/
+example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+
+/-- `true` refuses `false`. -/
+example : ¬ Instance .empty (.lit (.bool true)) (.bool false) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+
 /-- `null` admits `null`. -/
 example : Instance .empty (.lit .null) .null := ⟨by decide, .null⟩
 
 /-- `null` refuses `false`. -/
 example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nomatch h
-
-/-- `3` admits `3`. -/
-example : Instance .empty (.lit (.int 3)) (.int 3) := ⟨by decide, .int rfl (by decide)⟩
-
-/-- `3` refuses `4`. -/
-example : ¬ Instance .empty (.lit (.int 3)) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
-
-/-- `true` refuses `false`. -/
-example : ¬ Instance .empty (.lit (.bool true)) (.bool false) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
-
-/-- `"a"` refuses `"b"`. -/
-example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 ```
 
-The last three proofs borrow the checker of step 14 to compute the
-answer. Write `literals.aontu`:
+The three refusals after the first example borrow the checker of step
+14 to compute the answer. Write `literals.aontu`:
 
 <!-- test: scenario literals -->
 <!-- test: file literals.aontu -->
 ```aontu
-admitted: null
-refused: null
 three: 3
 four: 3
-yes: true
-no: true
 same: "a"
 other: "a"
+yes: true
+no: true
+admitted: null
+refused: null
 ```
 
 and `literals.json`:
 
 <!-- test: file literals.json -->
 ```json
-{"admitted": null, "refused": false, "three": 3, "four": 4, "yes": true, "no": false, "same": "a", "other": "b"}
+{"three": 3, "four": 4, "same": "a", "other": "b", "yes": true, "no": false, "admitted": null, "refused": false}
 ```
 
 Now vet it:
@@ -615,59 +646,59 @@ Now vet it:
 $ aontu vet --no-fill --exact-numbers literals.aontu literals.json
 verdict: invalid
 
-$.refused: scalar_kind [conflict]
-  [aontu/scalar_kind]: Cannot unify values at path $.refused
-  data: literals.json:1:31 (false)
-  schema: literals.aontu:2:10 (null)
 $.four: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.four
-  data: literals.json:1:58 (4)
-  schema: literals.aontu:4:7 (3)
-$.no: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.no
-  data: literals.json:1:80 (false)
-  schema: literals.aontu:6:5 (true)
+  data: literals.json:1:22 (4)
+  schema: literals.aontu:2:7 (3)
 $.other: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.other
-  data: literals.json:1:109 ("b")
-  schema: literals.aontu:8:8 ("a")
+  data: literals.json:1:47 ("b")
+  schema: literals.aontu:4:8 ("a")
+$.no: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.no
+  data: literals.json:1:71 (false)
+  schema: literals.aontu:6:5 (true)
+$.refused: scalar_kind [conflict]
+  [aontu/scalar_kind]: Cannot unify values at path $.refused
+  data: literals.json:1:107 (false)
+  schema: literals.aontu:8:10 (null)
 $ echo $?
 1
 ```
 
-Each literal admits its own value alone. The engine calls a value of
-another kind, `false` against `null`, a `scalar_kind` refusal, and
-another value of the same kind a `scalar_value` one.
+Each literal admits its own value alone. The engine calls another value
+of the same kind a `scalar_value` refusal, and a value of another kind,
+`false` against `null`, a `scalar_kind` one.
 
 ## 4. Bounds
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | min {n x : Num} : n.le x → Admits env root (.min n) (.num x)
-  | max {n x : Num} : x.le n → Admits env root (.max n) (.num x)
+  | min {n x : Rat} : n.le x → Admits env root (.min n) (.num x)
+  | max {n x : Rat} : x.le n → Admits env root (.max n) (.num x)
   /-- `multiple(0)` and a negative divisor admit nothing. -/
-  | multiple {d x : Num} : 0 < d.coef → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  | multiple {d x : Rat} : 0 < d.num → x.multipleOf d → Admits env root (.multiple d) (.num x)
 ```
 
-The bounds compare values, whatever their scales:
+The bounds compare numbers as rationals:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- `x` is at most `y`. -/
-def Num.le (x y : Num) : Prop := x.coef * 10 ^ y.scale ≤ y.coef * 10 ^ x.scale
+def Rat.le (x y : Rat) : Prop := x.num * y.den ≤ y.num * x.den
 ```
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- `x` is a whole multiple of `d`, for a positive `d`: one and a half
-is a multiple of a half, and every integer of one. -/
-def Num.multipleOf (x d : Num) : Prop := (x.coef * 10 ^ d.scale) % (d.coef * 10 ^ x.scale) = 0
+is a multiple of a half, and every integer is one of one. -/
+def Rat.multipleOf (x d : Rat) : Prop := (x.num * d.den) % (d.num * x.den) = 0
 ```
 
-Multiplying each side by the other's power of ten puts both on one
-scale, so one and a half is three times a half, and `1.25` is no whole
-multiple of it. The rule for `multiple` asks for a positive divisor, so
-`multiple(0)` admits nothing:
+Multiplying each side by the other's `den` puts the two over one
+denominator, so one and a half is three times a half, and `1.25` is no
+whole multiple of it. The rule for `multiple` asks for a positive
+divisor, so `multiple(0)` admits nothing:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -681,23 +712,23 @@ example : ¬ Instance .empty (.min (.ofInt 3)) (.int 2) := by
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits three and a half. -/
-example : Instance .empty (.min (.ofInt 3)) (.dec 35 1) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.ofInt 3)) (.frac 7 2) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)` admits two and a half. -/
-example : Instance .empty (.max (.ofDec 25 1)) (.dec 25 1) := ⟨by decide, .max (by decide)⟩
+example : Instance .empty (.max (.frac 5 2)) (.frac 5 2) := ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.ofDec 25 1)) (.dec 26 1) := by
+example : ¬ Instance .empty (.max (.frac 5 2)) (.frac 13 5) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.ofDec 5 1)) (.dec 15 1) :=
+example : Instance .empty (.multiple (.frac 1 2)) (.frac 3 2) :=
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.ofDec 5 1)) (.dec 125 2) := by
+example : ¬ Instance .empty (.multiple (.frac 1 2)) (.frac 5 4) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
@@ -825,20 +856,39 @@ array.
 
 ## 6. Arrays and objects
 
+The type of JSON values goes on past the scalars to the two
+containers:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- A JSON value: a scalar, an array of values, or an object. An object
+is the set of its members: Lean lists them, the order of the list is no
+part of the value, and a value gives each name once
+(`Json.WellFormed`). -/
+inductive Json where
+  | num (x : Rat)
+  | str (s : String)
+  | bool (b : Bool)
+  | null
+  | arr (xs : List Json)
+  | obj (fs : List (String × Json))
+```
+
 An array is a list of values, and an object is the set of its members,
-each a name and the value it gives that name. Lean holds an object's
-members in a list, and a list can give one name twice, which no object
-does. So the definition says which Lean `Json` is a JSON value:
+each a name and the value it gives that name: `List (String × Json)`
+reads as a list of pairs of a string and a JSON value. A list can give
+one name twice, which no object does. So the definition says which
+Lean `Json` is a JSON value:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A Lean `Json` is a JSON value when each of its objects gives each
 name once. -/
 inductive Json.WellFormed : Json → Prop
-  | null : WellFormed .null
-  | bool {b : Bool} : WellFormed (.bool b)
-  | num {x : Num} : WellFormed (.num x)
+  | num {x : Rat} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
+  | bool {b : Bool} : WellFormed (.bool b)
+  | null : WellFormed .null
   | arr {xs : List Json} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.arr xs)
   | obj {fs : List (String × Json)} :
       (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.obj fs)
@@ -996,7 +1046,7 @@ example : Instance .empty (.map [] (some .integer) false) (.obj [("a", .int 1), 
   intro s hs k x hm
   cases hs
   simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> exact .integer rfl (by decide)
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> exact .integer (by decide)
 
 /-- `{a: integer, &: string}` refuses `{"a": 1}`: the spread holds the
 declared key as well. -/
@@ -1119,7 +1169,7 @@ example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
   rcases i with _ | _ | i
-  · cases hv; cases hx; exact .integer rfl (by decide)
+  · cases hv; cases hx; exact .integer (by decide)
   · cases hv; cases hx; exact .string (by decide)
   · simp at hv
 
@@ -1185,7 +1235,7 @@ required key.
 ```lean
 /-- `integer & min(3)` admits `7`. -/
 example : Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 7) :=
-  ⟨by decide, .meet (.integer rfl (by decide)) (.min (by decide))⟩
+  ⟨by decide, .meet (.integer (by decide)) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
 example : ¬ Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 2) := by
@@ -1381,10 +1431,10 @@ The rule compares the two as values:
 element, and objects with the same members, in whatever order Lean
 lists them. -/
 inductive Json.Same : Json → Json → Prop
-  | null : Same .null .null
-  | bool {b : Bool} : Same (.bool b) (.bool b)
-  | num {x : Num} : Same (.num x) (.num x)
+  | num {x : Rat} : Same (.num x) (.num x)
   | str {s : String} : Same (.str s) (.str s)
+  | bool {b : Bool} : Same (.bool b) (.bool b)
+  | null : Same .null .null
   | arr {xs ys : List Json} :
       xs.length = ys.length →
       (∀ (i : Nat) (x y : Json), xs[i]? = some x → ys[i]? = some y → Same x y) →
@@ -1535,7 +1585,7 @@ example : .meet .integer (.min (.ofInt 3)) ⊑[.empty] .integer := meet_le_left 
 shows it. -/
 example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.ofInt 3))) := by
   intro h
-  cases (h (.int 2) ⟨by decide, .integer rfl (by decide)⟩).2 with
+  cases (h (.int 2) ⟨by decide, .integer (by decide)⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 ```
 
@@ -1895,17 +1945,17 @@ reads neither an alias nor a path:
 /-- The values that read neither an alias nor a path, so that what they
 admit depends on no declaration and no root. -/
 inductive Val.RefFree : Val → Prop
-  | any : RefFree .any
-  | nil : RefFree .nil
-  | boolean : RefFree .boolean
-  | number : RefFree .number
   | integer : RefFree .integer
+  | number : RefFree .number
   | string : RefFree .string
   | anyString : RefFree .anyString
+  | boolean : RefFree .boolean
   | lit {s : Scalar} : RefFree (.lit s)
-  | min {n : Num} : RefFree (.min n)
-  | max {n : Num} : RefFree (.max n)
-  | multiple {d : Num} : RefFree (.multiple d)
+  | min {n : Rat} : RefFree (.min n)
+  | max {n : Rat} : RefFree (.max n)
+  | multiple {d : Rat} : RefFree (.multiple d)
+  | any : RefFree .any
+  | nil : RefFree .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → RefFree v) → (∀ s, spread = some s → RefFree s) →
       RefFree (.map fs spread closed)
@@ -1922,18 +1972,11 @@ first cases:
 ```lean
 /-- Whether `v` admits `j`, computed. -/
 def check : Val → Json → Bool
-  | .any, _ => true
-  | .nil, _ => false
-  | .boolean, j => match j with
-    | .bool _ => true
+  | .integer, j => match j with
+    | .num x => decide (x.den = 1) && decide (IntegerLeaf x.num)
     | _ => false
   | .number, j => match j with
     | .num _ => true
-    | _ => false
-  | .integer, j => match j with
-    | .num x => match x.int? with
-      | some n => decide (IntegerLeaf n)
-      | none => false
     | _ => false
   | .string, j => match j with
     | .str s => decide (s ≠ "")
@@ -1987,7 +2030,7 @@ def jsons : List Json :=
 row is renamed: two fractions, one either side of three, a whole number
 no double holds, and an array, each also under a key. -/
 def more : List Json :=
-  let xs : List Json := [.dec 15 1, .dec 35 1, .int 9007199254740993, .arr [.int 1]]
+  let xs : List Json := [.frac 3 2, .frac 7 2, .int 9007199254740993, .arr [.int 1]]
   xs ++ xs.map (fun j => .obj [("x", j)])
 
 def instances : List Json := jsons ++ more

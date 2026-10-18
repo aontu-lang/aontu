@@ -14,23 +14,21 @@ rule: it admits nothing.
 namespace Aontu
 
 inductive Admits (env : Env) (root : Json) : Val → Json → Prop
-  | boolean {b : Bool} : Admits env root .boolean (.bool b)
-  | number {x : Num} : Admits env root .number (.num x)
-  | integer {x : Num} {n : Int} :
-      x.int? = some n → IntegerLeaf n → Admits env root .integer (.num x)
+  | integer {n : Int} : IntegerLeaf n → Admits env root .integer (.int n)
+  | number {x : Rat} : Admits env root .number (.num x)
   | string {s : String} : s ≠ "" → Admits env root .string (.str s)
   | anyString {s : String} : Admits env root .anyString (.str s)
-  | null : Admits env root (.lit .null) .null
-  | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
+  | boolean {b : Bool} : Admits env root .boolean (.bool b)
   /-- An integer literal is a value of the `integer` kind: it admits the
-  number it is, where the kind holds that integer. -/
-  | int {n : Int} {x : Num} :
-      x.int? = some n → IntegerLeaf n → Admits env root (.lit (.int n)) (.num x)
+  integer it is, where the kind holds it. -/
+  | int {n : Int} : IntegerLeaf n → Admits env root (.lit (.int n)) (.int n)
   | str {s : String} : Admits env root (.lit (.str s)) (.str s)
-  | min {n x : Num} : n.le x → Admits env root (.min n) (.num x)
-  | max {n x : Num} : x.le n → Admits env root (.max n) (.num x)
+  | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
+  | null : Admits env root (.lit .null) .null
+  | min {n x : Rat} : n.le x → Admits env root (.min n) (.num x)
+  | max {n x : Rat} : x.le n → Admits env root (.max n) (.num x)
   /-- `multiple(0)` and a negative divisor admit nothing. -/
-  | multiple {d x : Num} : 0 < d.coef → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  | multiple {d x : Rat} : 0 < d.num → x.multipleOf d → Admits env root (.multiple d) (.num x)
   | any {j : Json} : Admits env root .any j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in

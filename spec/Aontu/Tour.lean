@@ -12,33 +12,7 @@ page, so the engines are held to the same cases.
 
 namespace Aontu
 
-/-! ## Booleans -/
-
-/-- `boolean` admits `true`. -/
-example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
-
-/-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
-
-/-! ## Numbers -/
-
-/-- `number` admits one and a half. -/
-example : Instance .empty .number (.dec 15 1) := ⟨by decide, .number⟩
-
-/-- `number` refuses the string `"1"`. -/
-example : ¬ Instance .empty .number (.str "1") := fun ⟨_, h⟩ => nomatch h
-
-/-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := ⟨by decide, .integer rfl (by decide)⟩
-
-/-- `integer` refuses one and a half. -/
-example : ¬ Instance .empty .integer (.dec 15 1) := by
-  rintro ⟨-, h⟩
-  cases h with
-  | integer hx _ =>
-    have h15 : (Num.ofDec 15 1).int? = none := by decide
-    rw [h15] at hx
-    cases hx
+/-! ## Integers -/
 
 /-- A double holds `2 ^ 53 + 2`, inside the window. -/
 example : IntegerLeaf 9007199254740994 := by decide
@@ -49,34 +23,47 @@ example : ¬ IntegerLeaf 9007199254740993 := by decide
 /-- A double holds `2 ^ 63`, outside the window. -/
 example : ¬ IntegerLeaf 9223372036854775808 := by decide
 
+/-- `integer` admits `3`. -/
+example : Instance .empty .integer (.int 3) := ⟨by decide, .integer (by decide)⟩
+
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer rfl (by decide)⟩
+example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer (by decide)⟩
 
 /-- `integer` refuses `9007199254740993`, which no double holds. -/
 example : ¬ Instance .empty .integer (.int 9007199254740993) := by
   rintro ⟨-, h⟩
   cases h with
-  | integer hx hl =>
-    cases hx
-    exact absurd hl (by decide)
+  | integer hl => exact absurd hl (by decide)
 
 /-- `integer` refuses `9223372036854775808`, outside the window. -/
 example : ¬ Instance .empty .integer (.int 9223372036854775808) := by
   rintro ⟨-, h⟩
   cases h with
-  | integer hx hl =>
-    cases hx
-    exact absurd hl (by decide)
+  | integer hl => exact absurd hl (by decide)
+
+/-- `integer` refuses the string `"3"`. -/
+example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
+
+/-! ## Numbers -/
+
+/-- `number` admits one and a half. -/
+example : Instance .empty .number (.frac 3 2) := ⟨by decide, .number⟩
+
+/-- `number` admits `9007199254740993`, which `integer` refuses. -/
+example : Instance .empty .number (.int 9007199254740993) := ⟨by decide, .number⟩
+
+/-- `integer` refuses one and a half, which is no integer. -/
+example : ¬ Instance .empty .integer (.frac 3 2) := by
+  rintro ⟨-, h⟩
+  cases h
 
 /-- `number & multiple(1)` admits `9007199254740993`. -/
 example : Instance .empty (.meet .number (.multiple (.ofInt 1))) (.int 9007199254740993) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
-/-- `number & multiple(1)` admits exactly the numbers that are whole, of
-any size. -/
+/-- `number & multiple(1)` admits exactly the integers, of any size. -/
 example (env : Env) (root j : Json) :
-    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔
-      ∃ x n, j = .num x ∧ x.int? = some n := by
+    Admits env root (.meet .number (.multiple (.ofInt 1))) j ↔ ∃ n, j = .int n := by
   constructor
   · intro h
     cases h with
@@ -84,10 +71,10 @@ example (env : Env) (root j : Json) :
       cases hn
       cases hm with
       | multiple _ hd =>
-        obtain ⟨n, hx⟩ := (Num.multipleOf_one _).mp hd
-        exact ⟨_, n, rfl, hx⟩
-  · rintro ⟨x, n, rfl, hx⟩
-    exact .meet .number (.multiple (by decide) ((Num.multipleOf_one x).mpr ⟨n, hx⟩))
+        obtain ⟨n, rfl⟩ := (Rat.multipleOf_one _).mp hd
+        exact ⟨n, rfl⟩
+  · rintro ⟨n, rfl⟩
+    exact .meet .number (.multiple (by decide) ((Rat.multipleOf_one _).mpr ⟨n, rfl⟩))
 
 /-! ## Strings -/
 
@@ -103,25 +90,36 @@ example : ¬ Instance .empty .string (.str "") := by
 /-- `string & empty()` admits `""`. -/
 example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
 
+/-- `string` refuses `3`. -/
+example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
+
+/-! ## Booleans -/
+
+/-- `boolean` admits `true`. -/
+example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
+
+/-- `boolean` refuses `1`. -/
+example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
+
 /-! ## Literals -/
+
+/-- `3` admits `3`. -/
+example : Instance .empty (.lit (.int 3)) (.int 3) := ⟨by decide, .int (by decide)⟩
+
+/-- `3` refuses `4`. -/
+example : ¬ Instance .empty (.lit (.int 3)) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+
+/-- `"a"` refuses `"b"`. -/
+example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+
+/-- `true` refuses `false`. -/
+example : ¬ Instance .empty (.lit (.bool true)) (.bool false) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `null` admits `null`. -/
 example : Instance .empty (.lit .null) .null := ⟨by decide, .null⟩
 
 /-- `null` refuses `false`. -/
 example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nomatch h
-
-/-- `3` admits `3`. -/
-example : Instance .empty (.lit (.int 3)) (.int 3) := ⟨by decide, .int rfl (by decide)⟩
-
-/-- `3` refuses `4`. -/
-example : ¬ Instance .empty (.lit (.int 3)) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
-
-/-- `true` refuses `false`. -/
-example : ¬ Instance .empty (.lit (.bool true)) (.bool false) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
-
-/-- `"a"` refuses `"b"`. -/
-example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-! ## Bounds -/
 
@@ -135,23 +133,23 @@ example : ¬ Instance .empty (.min (.ofInt 3)) (.int 2) := by
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits three and a half. -/
-example : Instance .empty (.min (.ofInt 3)) (.dec 35 1) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.ofInt 3)) (.frac 7 2) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)` admits two and a half. -/
-example : Instance .empty (.max (.ofDec 25 1)) (.dec 25 1) := ⟨by decide, .max (by decide)⟩
+example : Instance .empty (.max (.frac 5 2)) (.frac 5 2) := ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.ofDec 25 1)) (.dec 26 1) := by
+example : ¬ Instance .empty (.max (.frac 5 2)) (.frac 13 5) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.ofDec 5 1)) (.dec 15 1) :=
+example : Instance .empty (.multiple (.frac 1 2)) (.frac 3 2) :=
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.ofDec 5 1)) (.dec 125 2) := by
+example : ¬ Instance .empty (.multiple (.frac 1 2)) (.frac 5 4) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
@@ -194,7 +192,7 @@ example : Instance .empty (.map [("x", false, .integer)] none false) (.obj [("x"
   · intro k o v x hm hx
     cases List.mem_singleton.mp hm
     cases hx
-    exact .integer rfl (by decide)
+    exact .integer (by decide)
   · intro k o v hm hx
     cases List.mem_singleton.mp hm
     cases hx
@@ -228,7 +226,7 @@ example : Instance .empty (.map [] (some .integer) false) (.obj [("a", .int 1), 
   intro s hs k x hm
   cases hs
   simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> exact .integer rfl (by decide)
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ <;> exact .integer (by decide)
 
 /-- `{a: integer, &: string}` refuses `{"a": 1}`: the spread holds the
 declared key as well. -/
@@ -261,7 +259,7 @@ example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
   rcases i with _ | _ | i
-  · cases hv; cases hx; exact .integer rfl (by decide)
+  · cases hv; cases hx; exact .integer (by decide)
   · cases hv; cases hx; exact .string (by decide)
   · simp at hv
 
@@ -281,7 +279,7 @@ example : ¬ Instance .empty (.list [] (some .integer)) (.arr [.int 1, .str "a"]
 
 /-- `integer & min(3)` admits `7`. -/
 example : Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 7) :=
-  ⟨by decide, .meet (.integer rfl (by decide)) (.min (by decide))⟩
+  ⟨by decide, .meet (.integer (by decide)) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
 example : ¬ Instance .empty (.meet .integer (.min (.ofInt 3))) (.int 2) := by
@@ -310,7 +308,7 @@ example : Instance envT T (.obj [("n", .obj [("v", .int 1)])]) := by
         simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
         rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
         · nomatch hx
-        · cases hx; exact .integer rfl (by decide)
+        · cases hx; exact .integer (by decide)
       · intro k o v hm _
         simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
         rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> rfl
@@ -346,7 +344,7 @@ example : Instance .empty (refDoc .integer) (.obj [("x", .int 1), ("y", .int 1)]
     simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
     rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
     · cases hx; exact .path rfl .num
-    · cases hx; exact .integer rfl (by decide)
+    · cases hx; exact .integer (by decide)
   · intro k o v hm hx
     simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
     rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> nomatch hx
@@ -392,7 +390,7 @@ example : .meet .integer (.min (.ofInt 3)) ⊑[.empty] .integer := meet_le_left 
 shows it. -/
 example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.ofInt 3))) := by
   intro h
-  cases (h (.int 2) ⟨by decide, .integer rfl (by decide)⟩).2 with
+  cases (h (.int 2) ⟨by decide, .integer (by decide)⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 
 /-! ## Two declarations of one key -/
@@ -415,7 +413,7 @@ example : Instance .empty
   · intro k o v x hm hx
     cases List.mem_singleton.mp hm
     cases hx
-    exact .meet (.integer rfl (by decide)) (.integer rfl (by decide))
+    exact .meet (.integer (by decide)) (.integer (by decide))
   · intro k o v hm hx
     cases List.mem_singleton.mp hm
     cases hx
@@ -442,7 +440,7 @@ example : Instance .empty
 /-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
 example : Holds .empty (.int (-1)) (.nof (.lit (.int 1)) [.is .integer, .is (.min (.ofInt 0))])
     (.int (-1)) := by
-  refine ⟨1, .inl ⟨.integer rfl (by decide), 0, rfl, .inr ⟨fun h => ?_, rfl⟩⟩, .int rfl (by decide)⟩
+  refine ⟨1, .inl ⟨.integer (by decide), 0, rfl, .inr ⟨fun h => ?_, rfl⟩⟩, .int (by decide)⟩
   cases h with | min h => exact absurd h (by decide)
 
 /-- …and refuses `3`, which both admit. -/
@@ -450,9 +448,9 @@ example : ¬ Holds .empty (.int 3) (.nof (.lit (.int 1)) [.is .integer, .is (.mi
     (.int 3) := by
   rintro ⟨k, hc, hn⟩
   have h₂ : Count .empty (.int 3) [.is .integer, .is (.min (.ofInt 0))] (.int 3) 2 :=
-    .inl ⟨.integer rfl (by decide), 1, rfl, .inl ⟨.min (by decide), 0, rfl, rfl⟩⟩
+    .inl ⟨.integer (by decide), 1, rfl, .inl ⟨.min (by decide), 0, rfl, rfl⟩⟩
   cases Count.unique hc h₂
-  cases hn with | int hx _ => simp [Num.ofInt, Num.int?] at hx
+  cases hn
 
 /-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
 example : Holds .empty (.int 5)
