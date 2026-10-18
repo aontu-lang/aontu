@@ -8,8 +8,8 @@ grammar `grammar/aontu.abnf`, every key quoted as canon writes it. It
 is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
-writes, and answers `none` for a sealed map, a list term, an alias, a
-path, a float, and data the exact reader would read as another value.
+writes, data as well as terms in aontu's own syntax, and answers `none`
+for a sealed map, a list term, an alias, a path, and a float.
 -/
 
 namespace Aontu
@@ -46,16 +46,6 @@ def Number.src : Number → Option String
   | .bigint n => some ((if n < 0 then "-" else "") ++ "0d" ++ toString n.natAbs)
   | .bigdec x =>
     some ((if x.coef < 0 then "-" else "") ++ "0d" ++ x.digits ++ (if x.scale ≤ 0 then ".0" else ""))
-
-/-- A number as JSON text that the exact reader, `--exact-numbers`,
-reads back as that number. It reads a whole number as an integer when
-the `integer` leaf holds it and as a big integer otherwise, a fraction
-as a big decimal, and nothing as a float, so the rest have no text. -/
-def Number.dataSrc : Number → Option String
-  | .int n => some (toString n)
-  | .float _ => none
-  | .bigint n => if IntegerLeaf n then none else some (toString n)
-  | .bigdec x => if x.scale ≤ 0 then none else some ((if x.coef < 0 then "-" else "") ++ x.digits)
 
 def Scalar.src : Scalar → Option String
   | .num x => x.src
@@ -103,7 +93,7 @@ end
 
 mutual
 def Data.src : Data → Option String
-  | .num x => x.dataSrc
+  | .num x => x.src
   | .str s => some (quote s)
   | .bool b => some (if b then "true" else "false")
   | .null => some "null"

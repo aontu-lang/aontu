@@ -2314,8 +2314,8 @@ def first : List Data :=
 
 /-- The instances of the rows after them, numbered on so that no earlier
 row is renamed: two big decimals, one either side of three, a big
-integer no double holds, and a list, each also under a key. The exact
-reader reads `1.5`, `3.5`, `9007199254740993`, and `[1]` as these. -/
+integer no double holds, and a list, each also under a key, written
+`0d1.5`, `0d3.5`, `0d9007199254740993`, and `[1]`. -/
 def more : List Data :=
   let xs : List Data :=
     [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
@@ -2327,7 +2327,7 @@ def instances : List Data := first ++ more
 
 The oracle numbers the second set's rows after the first's, so adding
 it renamed no row. The file proves that every term it builds reads no
-reference, and every instance is a JSON value, so each answer is the
+reference, and every instance is a value, so each answer is the
 definition's:
 
 <!-- test: quote spec/Oracle.lean -->
@@ -2346,29 +2346,29 @@ engines' test suites run every row. Two of them, from
 
 <!-- test: quote test/spec/def-fragment.tsv -->
 ```tsv
-c69	verdict	v: string	v: ""	{"opts":{"noFill":true,"exactNumbers":true},"verdict":["invalid","incomplete","error"]}
-c70	verdict	v: string	v: "a"	{"opts":{"noFill":true,"exactNumbers":true},"verdict":"valid"}
+c69	verdict	v: string	v: ""	{"verdict":["invalid","incomplete","error"]}
+c70	verdict	v: string	v: "a"	{"verdict":"valid"}
 ```
 
-A row holds a schema, a value, the two `vet` modes and the verdict
-`check` gives. The oracle writes a refusal as the three verdicts it
-may be, since the definition answers admit or refuse and no more. The
-second set's big integer is the first value to tell `integer` from
-`number & multiple(1)`:
+A row holds a schema, a value, and the verdict `check` gives, and each
+engine answers it with a plain `aontu vet`. The oracle writes a refusal
+as the three verdicts it may be, since the definition answers admit or
+refuse and no more. The second set's big integer is the first value to
+tell `integer` from `number & multiple(1)`:
 
 <!-- test: quote test/spec/def-fragment.tsv -->
 ```tsv
-c9618	verdict	v: integer	v: 9007199254740993	{"opts":{"noFill":true,"exactNumbers":true},"verdict":["invalid","incomplete","error"]}
+c9618	verdict	v: integer	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
 ```
 
 <!-- test: quote test/spec/def-fragment.tsv -->
 ```tsv
-c9626	verdict	v: (number) & (multiple(1))	v: 9007199254740993	{"opts":{"noFill":true,"exactNumbers":true},"verdict":"valid"}
+c9626	verdict	v: (number) & (multiple(1))	v: 0d9007199254740993	{"verdict":"valid"}
 ```
 
 The schema and the value are text, which `spec/Oracle/Print.lean`
 writes. The printer is the oracle's and no part of the definition, and
-no proof checks it: that an engine reads `v: 9007199254740993` as that
+no proof checks it: that an engine reads `v: 0d9007199254740993` as that
 big integer is a claim about the engine's reader, which these rows
 test.
 
