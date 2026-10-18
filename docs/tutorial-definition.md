@@ -59,8 +59,8 @@ its exact value, which is what a number is in the definition, and
 `--no-fill` has it check the data as given rather than as the schema
 could complete it. Each step's schema states its terms at named keys,
 and the data gives each key one value. Each finding names the key the
-engine refused, says why, and points at both sides: where the data
-holds the value, and where the schema states the term. The exit code
+engine refused, says why, and points at what it can: where the data
+holds the value, where the schema states the term, or both. The exit code
 says which kind of refusal it was: `1` for `invalid`, `3` for
 `incomplete`, `4` for `error`.
 
@@ -72,9 +72,12 @@ them:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A JSON value. A string is its sequence of characters, the Unicode
-scalar values a Lean `String` holds. An object is the set of its
-members: Lean lists them, the order of the list is no part of the
-value, and a value gives each name once (`Json.WellFormed`). -/
+scalar values a Lean `String` holds, so a string that holds a lone
+surrogate, as `"\ud800"` escapes one, is no value here: both engines
+accept it, and they differ on what it is (`test/spec/divergent.tsv`).
+An object is the set of its members: Lean lists them, the order of the
+list is no part of the value, and a value gives each name once
+(`Json.WellFormed`). -/
 inductive Json where
   | null
   | bool (b : Bool)
@@ -2131,8 +2134,9 @@ instances without the key.
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
-numeric kinds beyond `integer` and their literals, the bounds beyond
-`min`, `max` and `multiple`, most built-in functions, generation with
+numeric kinds beyond `integer` and their literals, what the data means
+without `--exact-numbers`, the bounds beyond `min`, `max` and
+`multiple`, most built-in functions, generation with
 `each`, `pack` and `emit`, formats, and marks such as `hide()` and
 `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test

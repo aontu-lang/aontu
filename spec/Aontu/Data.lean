@@ -90,9 +90,12 @@ theorem integerLeaf_iff (n : Int) :
 instance (n : Int) : Decidable (IntegerLeaf n) := decidable_of_iff _ (integerLeaf_iff n).symm
 
 /-- A JSON value. A string is its sequence of characters, the Unicode
-scalar values a Lean `String` holds. An object is the set of its
-members: Lean lists them, the order of the list is no part of the
-value, and a value gives each name once (`Json.WellFormed`). -/
+scalar values a Lean `String` holds, so a string that holds a lone
+surrogate, as `"\ud800"` escapes one, is no value here: both engines
+accept it, and they differ on what it is (`test/spec/divergent.tsv`).
+An object is the set of its members: Lean lists them, the order of the
+list is no part of the value, and a value gives each name once
+(`Json.WellFormed`). -/
 inductive Json where
   | null
   | bool (b : Bool)

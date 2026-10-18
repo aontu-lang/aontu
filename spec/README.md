@@ -18,8 +18,10 @@ It says what values mean and nothing about text. A value of
 `Aontu/Syntax.lean` is a term, not a text, and a JSON value of
 `Aontu/Data.lean` is a value, not a JSON text: a number is its value,
 whatever digits wrote it. How a file becomes either is the business of
-the [grammar](../grammar/aontu.abnf) and of each port's reader, its
-read modes included. The oracle writes its cases as text for the ports
+the [grammar](../grammar/aontu.abnf) and of each port's reader. The vet
+modes are not reading: they change what `valid` means, so the plan
+makes them parameters of the definition, which so far holds the exact
+mode's data, in which a number is its value. The oracle writes its cases as text for the ports
 to run, so its printer, `Oracle/Print.lean`, sits beside it, outside
 the definition.
 
@@ -58,7 +60,8 @@ Each of these is a later phase of the plan, and none has a rule here,
 so the definition says nothing about it:
 
 - the `float`, `biginteger`, and `bigdecimal` leaves, as kinds and as
-  literals, and the bounds beyond `min`, `max`, and `multiple` (P1);
+  literals, the default read mode, and the bounds beyond `min`, `max`,
+  and `multiple` (P1);
 - `|` and `*`, which the language reads by position (an arm of a
   disjunction reads a list as its own length and `*x` as `x`, and
   elsewhere `*x` is `x | super(x)`), what evaluation outputs, and a

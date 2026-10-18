@@ -16,8 +16,10 @@ Definition, documentation, and generated rows; no engine changes.
   number no longer carries whether its text had a point, which no rule
   read and only the printer needed: a number is its value in lowest
   terms, so two numbers are equal exactly when their values are. How a
-  text becomes a value is outside the definition: the grammar, each
-  port's reader, and the read modes.
+  text becomes a value is outside the definition: the grammar and each
+  port's reader. The vet modes stay parameters of the definition, as
+  the design note rules, and the data it holds so far is the exact
+  mode's.
 - The printer is no part of the definition. It moved from
   `spec/Aontu/Print.lean` to `spec/Oracle/Print.lean`, a library of
   the oracle's that no module of the definition imports.
@@ -29,8 +31,8 @@ Definition, documentation, and generated rows; no engine changes.
   values, then booleans, numbers and the integer leaf, strings,
   literals, bounds, and the two ends, and only then arrays, objects,
   and the rest. Every transcript shows each command's whole output,
-  every finding with its code, message, and both sites, where the page
-  had elided the messages. A new scenario has a path reference compare
+  every finding with its code, message, and sites, where the page had
+  elided the messages. A new scenario has a path reference compare
   two objects as values, whatever the order of their members.
 - `spec/Aontu/Tour.lean` follows the page's order, and drops the
   examples that differed only in text, such as `1.0` against `1`.
