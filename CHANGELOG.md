@@ -8,6 +8,43 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `|` and `*`, and the reader carries their positional reading
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `a | b` is `or`, a list of arms each with its rank, `0` for an arm
+  written plainly and `1` or `2` for `*a` or `**a`; it admits what any
+  arm admits, and the rank, which picks the output, is no part of
+  admission. `*x` alone is `pref`, which admits what `x` admits and
+  what `super(x)`, the parent type of `x`, admits: `*1` admits `2` and
+  refuses `1.5`, and `*8080 & min(1024)` admits `2048` and refuses
+  `80`.
+- `super` is a function on terms in `spec/Aontu/Syntax.lean`: a
+  scalar's kind, a kind's parent, a container of its members' parents,
+  a constraint's domain, and for a meet that holds a kind, that kind,
+  as both engines answer `super(integer & min(3))` as `integer`.
+- A list has a seal, as a map has, and a sealed list without a spread
+  has its positions' length: `close([integer])` refuses `[1, 2]`, and
+  `close([&: integer])` admits any length.
+- The language reads `|` and `*` by position, and the reader, not a
+  rule, carries the reading into the terms: an arm, or the value of a
+  `*` alone, reads every list literal beneath it as sealed, and `*x` as
+  an arm is the arm `x` of rank one.
+- `checkSuper` decides admission by the parent type beside
+  `checkSuper_iff`, and `check` covers the disjunctions and
+  preferences, so `check_iff` holds for every checkable value.
+- A third generated fragment, `lake exe oracle choice`, writes
+  `test/spec/def-choice.tsv`: 52 terms against 22 instances, 1,144
+  rows, with no map in an arm and no preference under a required key,
+  where the engines answer the evaluator's question, `Output`'s, which
+  a later phase states. Both engines answer every row as the definition
+  does. The oracle prints an arm in parentheses behind its stars and a
+  sealed list as `close([…])`.
+- `docs/tutorial-definition.md` gains step 12, disjunction and
+  preference, with the reading, the parent type, and the question the
+  engines ask that admission alone does not; the later steps move up
+  one.
+
 ### The definition holds `re` and `format` as the predicates of an opaque host
 
 Definition and documentation; no engine changes, and no row moves.

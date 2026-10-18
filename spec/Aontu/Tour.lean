@@ -456,9 +456,9 @@ example : Instance .empty (.map [("a", true, .integer)] none true) (.map []) :=
 /-! ## Lists -/
 
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
-example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .str "a", .bool true]) := by
+example : Instance .empty (.list [.integer, .string] none false) (.list [.integer 1, .str "a", .bool true]) := by
   refine ⟨by decide, ?_⟩
-  refine .list (by decide) ?_ (fun _ h => nomatch h)
+  refine .list (by decide) (fun h => nomatch h) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
   rcases i with _ | _ | i
   · cases hv; cases hx; exact .integer
@@ -466,16 +466,16 @@ example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .
   · simp at hv
 
 /-- `[integer, string]` refuses `[1]`: its second position is missing. -/
-example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.integer 1]) := by
+example : ¬ Instance .empty (.list [.integer, .string] none false) (.list [.integer 1]) := by
   rintro ⟨-, h⟩
   cases h with
-  | list hlen _ _ => exact absurd hlen (by decide)
+  | list hlen _ _ _ => exact absurd hlen (by decide)
 
 /-- `[&: integer]` refuses `[1, "a"]`: the spread holds every element. -/
-example : ¬ Instance .empty (.list [] (some .integer)) (.list [.integer 1, .str "a"]) := by
+example : ¬ Instance .empty (.list [] (some .integer) false) (.list [.integer 1, .str "a"]) := by
   rintro ⟨-, h⟩
   cases h with
-  | list _ _ hs => nomatch hs .integer rfl (.str "a") (by simp)
+  | list _ _ _ hs => nomatch hs .integer rfl (.str "a") (by simp)
 
 /-! ## Conjunction -/
 
@@ -488,6 +488,91 @@ example : ¬ Instance .empty (.meet .integer (.min (.num (.integer (.of 3))))) (
   rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
+
+/-! ## Disjunction and preference -/
+
+/-- `1 | 2`, as a term: two arms, neither preferred. -/
+abbrev oneOrTwo : Val := .or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]
+
+/-- `1 | 2` admits `2`, by its second arm. -/
+example : Instance .empty oneOrTwo (.integer 2) := ⟨by decide, .or (r := 0) (by simp [Integer.of]) .num⟩
+
+/-- `1 | 2` refuses `3`. -/
+example : ¬ Instance .empty oneOrTwo (.integer 3) :=
+  fun ⟨_, h⟩ => absurd ((check_iff (checkable_or₂ .lit .lit) _).mpr h) (by decide)
+
+/-- `*1 | 2`: the first arm preferred, which admission ignores. -/
+abbrev prefOneOrTwo : Val := .or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]
+
+/-- `*1 | 2` admits `2`, and refuses `3`: a preferred arm admits its own
+value, as any arm does. -/
+example : Instance .empty prefOneOrTwo (.integer 2) ∧ ¬ Instance .empty prefOneOrTwo (.integer 3) :=
+  ⟨⟨by decide, .or (r := 0) (by simp [Integer.of]) .num⟩,
+    fun ⟨_, h⟩ => absurd ((check_iff (checkable_or₂ .lit .lit) _).mpr h) (by decide)⟩
+
+/-- `[integer] | [string]`: the arms sealed, as a disjunction reads a list. -/
+abbrev listArms : Val := .or [(0, .list [.integer] none true), (0, .list [.string] none true)]
+
+theorem listArms_checkable : listArms.Checkable :=
+  checkable_or₂ (.list (fun _ h => by cases List.mem_singleton.mp h; exact .integer) (fun _ h => nomatch h))
+    (.list (fun _ h => by cases List.mem_singleton.mp h; exact .string) (fun _ h => nomatch h))
+
+/-- `[integer] | [string]` admits `[1]`… -/
+example : Instance .empty listArms (.list [.integer 1]) :=
+  ⟨by decide, (check_iff listArms_checkable _).mp (by decide)⟩
+
+/-- …and refuses `[1, 2]`: neither arm has a second position. -/
+example : ¬ Instance .empty listArms (.list [.integer 1, .integer 2]) :=
+  fun ⟨_, h⟩ => absurd ((check_iff listArms_checkable _).mpr h) (by decide)
+
+/-- A sealed list without a spread has its positions' length:
+`close([integer])` refuses `[1, 2]`. -/
+example : ¬ Instance .empty (.list [.integer] none true) (.list [.integer 1, .integer 2]) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | list _ hseal _ _ => exact absurd (hseal rfl rfl) (by decide)
+
+/-- The parent type of `1` is `integer`, of `integer` is `number`, and of
+`{x: 1}` is `{x: integer}`. -/
+example : Val.super (.lit (.num (.integer (.of 1)))) = .integer ∧ Val.super .integer = .number ∧
+    Val.super (.map [("x", false, .lit (.num (.integer (.of 1))))] none false) =
+      .map [("x", false, .integer)] none false :=
+  ⟨rfl, rfl, rfl⟩
+
+/-- The parent type of `integer & min(3)` is `integer`, the kind the
+constraint holds. -/
+example : Val.super (.meet .integer (.min (.num (.integer (.of 3))))) = .integer := rfl
+
+/-- `*1` admits `1`, and `2`, which its parent type `integer` admits… -/
+example : Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.integer 1) ∧
+    Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.integer 2) :=
+  ⟨⟨by decide, .pref .num⟩, ⟨by decide, .prefSuper .integer⟩⟩
+
+/-- …and refuses the float `1.5`, which `integer` refuses. -/
+example : ¬ Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.num (.float (.dyadic 3 (-1)))) :=
+  fun ⟨_, h⟩ => absurd ((check_iff (.pref .lit) _).mpr h) (by decide)
+
+/-- `*[1]`, its list sealed as a preference reads one. -/
+abbrev prefList : Val := .pref 1 (.list [.lit (.num (.integer (.of 1)))] none true)
+
+theorem prefList_checkable : prefList.Checkable :=
+  .pref (.list (fun _ h => by cases List.mem_singleton.mp h; exact .lit) (fun _ h => nomatch h))
+
+/-- `*[1]` admits `[2]`, and refuses `[1, 2]`: its parent type is the
+sealed `[integer]`. -/
+example : Instance .empty prefList (.list [.integer 2]) ∧
+    ¬ Instance .empty prefList (.list [.integer 1, .integer 2]) :=
+  ⟨⟨by decide, (check_iff prefList_checkable _).mp (by decide)⟩,
+    fun ⟨_, h⟩ => absurd ((check_iff prefList_checkable _).mpr h) (by decide)⟩
+
+/-- `*8080 & min(1024)`. -/
+abbrev port : Val := .meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024))))
+
+/-- `*8080 & min(1024)` admits `2048`, and refuses `80`: the preference
+widens to `integer`, and the bound still holds. -/
+example : Instance .empty port (.integer 2048) ∧ ¬ Instance .empty port (.integer 80) :=
+  ⟨⟨by decide, .meet (.prefSuper .integer) (.min (by decide))⟩,
+    fun ⟨_, h⟩ => absurd ((check_iff (.meet (.pref .lit) .min) _).mpr h) (by decide)⟩
 
 /-! ## Aliases -/
 

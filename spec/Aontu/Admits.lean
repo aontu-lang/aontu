@@ -99,13 +99,24 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) →
       Admits env root (.map fs spread closed) (.map jfs)
   /-- A list: each of its positions is present and holds its value;
-  later elements are allowed; the spread holds every element. -/
-  | list {items : List Val} {spread : Option Val} {xs : List Data} :
+  later elements are allowed, but in a sealed list without a spread,
+  whose length is its positions'; the spread holds every element. -/
+  | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
+      (closed = true → spread = none → xs.length = items.length) →
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) →
       (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
-      Admits env root (.list items spread) (.list xs)
+      Admits env root (.list items spread closed) (.list xs)
+  /-- A disjunction admits what any arm admits, whatever the arm's
+  rank: a rank picks the output, which is no part of admission. -/
+  | or {arms : List (ℕ × Val)} {r : ℕ} {a : Val} {j : Data} :
+      (r, a) ∈ arms → Admits env root a j → Admits env root (.or arms) j
+  /-- A preference alone admits its value, and what its value's parent
+  type admits: `*1` admits `2`, and refuses `1.5` and `"a"`. -/
+  | pref {r : ℕ} {x : Val} {j : Data} : Admits env root x j → Admits env root (.pref r x) j
+  | prefSuper {r : ℕ} {x : Val} {j : Data} :
+      Admits env root x.super j → Admits env root (.pref r x) j
   | meet {a b : Val} {j : Data} :
       Admits env root a j → Admits env root b j → Admits env root (.meet a b) j
   /-- An alias admits what its declaration admits; an undeclared one

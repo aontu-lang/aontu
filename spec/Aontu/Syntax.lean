@@ -53,15 +53,116 @@ inductive Val where
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
                                             -- `{k: v, k?: v, &: s}`, sealed by `close()`
-  | list (items : List Val) (spread : Option Val)  -- `[a, b, &: s]`
+  | list (items : List Val) (spread : Option Val) (closed : Bool)
+                                            -- `[a, b, &: s]`, sealed by `close()`
+  | or (arms : List (ℕ × Val))              -- `a | *b | **c`: each arm with its rank, `0` for none
+  | pref (r : ℕ) (x : Val)                  -- `*x` alone, which is `x | super(x)`; `**x` has rank 2
   | meet (a b : Val)                        -- `a & b`
   | alias (n : String)                      -- `%n`
   | path (p : List Seg)                     -- `$.a.b`
+
+/-! The language reads `|` and `*` by position, and the reader, not a
+rule, carries the reading into the terms: an arm of a disjunction, and
+the value of a `*` alone, which is a disjunction too, reads every list
+literal beneath it as its own length, a sealed list, and `*x` as an arm
+reads as the arm `x` of rank one. So `*1 | 2` is
+`or [(1, lit 1), (0, lit 2)]`, and `*[1]` is `pref 1 (list [lit 1] none true)`. -/
 
 /-- The alias declarations of a document: `%T = v` is `env "T" = some v`. -/
 abbrev Env := String → Option Val
 
 /-- The declarations of a document that declares no alias. -/
 def Env.empty : Env := fun _ => none
+
+/-! ## The parent type
+
+`super(x)`, the immediate parent type of a value: a scalar's kind, a
+kind's parent, a container of its members' parents, and a constraint's
+domain. It is what a preference alone widens to: `*x` admits what
+`x | super(x)` admits. -/
+
+/-- The four leaves, as kinds are told apart. -/
+inductive Leaf where
+  | integer
+  | float
+  | biginteger
+  | bigdecimal
+  deriving DecidableEq
+
+def Number.leaf : Number → Leaf
+  | .integer _ => .integer
+  | .float _ => .float
+  | .biginteger _ => .biginteger
+  | .bigdecimal _ => .bigdecimal
+
+/-- The kind that admits exactly a leaf. -/
+def Leaf.kind : Leaf → Val
+  | .integer => .integer
+  | .float => .float
+  | .biginteger => .biginteger
+  | .bigdecimal => .bigdecimal
+
+/-- The domain a bound constrains: the numbers, or the strings. -/
+def Bound.domain : Bound → Val
+  | .num _ => .number
+  | .str _ => .string
+
+/-- A kind: a term that admits scalars by their kind alone. `any` is no
+kind here, since `any & x` is `x`, whose parent is `x`'s own. -/
+def Val.isKind : Val → Bool
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | _ => false
+
+/-- One of the four numeric leaves. -/
+def Val.isLeaf : Val → Bool
+  | .integer | .float | .biginteger | .bigdecimal => true
+  | _ => false
+
+mutual
+/-- The immediate parent type. A meet that holds a kind has that kind
+for its parent, as `integer & min(3)` is a constraint on integers; a
+meet of two kinds has the lower kind's parent; any other meet lifts
+each side. A reference lifts as itself, a residual the engines keep
+symbolic too. -/
+def Val.super : Val → Val
+  | .integer | .float | .biginteger | .bigdecimal => .number
+  | .number | .string | .anyString | .boolean | .any => .any
+  | .nil => .nil
+  | .lit (.num x) => x.leaf.kind
+  | .lit (.str s) => if s = "" then .anyString else .string
+  | .lit (.bool _) => .boolean
+  | .lit .null => .lit .null
+  | .min b | .max b | .above b | .beneath b => b.domain
+  | .neq (v :: _) => v.domain
+  | .neq [] => .any
+  | .multiple _ => .number
+  | .len _ | .unique _ => .any
+  | .re _ | .format _ => .string
+  | .map fs spread closed => .map (superFields fs) (superSpread spread) closed
+  | .list items spread closed => .list (superItems items) (superSpread spread) closed
+  | .or arms => .or (superArms arms)
+  | .pref _ x => x.super
+  | .meet a b =>
+    if a.isKind then (if b.isKind then (if a.isLeaf then a.super else b.super) else a)
+    else if b.isKind then b else .meet a.super b.super
+  | .alias n => .alias n
+  | .path p => .path p
+
+def superFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.super) :: superFields fs
+
+def superItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.super :: superItems vs
+
+def superSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.super
+
+def superArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.super) :: superArms arms
+end
 
 end Aontu

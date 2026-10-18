@@ -305,10 +305,28 @@ inductive Val.Checkable : Val → Prop
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
-  | list {items : List Val} {spread : Option Val} :
+  | list {items : List Val} {spread : Option Val} {closed : Bool} :
       (∀ v, v ∈ items → Checkable v) → (∀ s, spread = some s → Checkable s) →
-      Checkable (.list items spread)
+      Checkable (.list items spread closed)
+  | or {arms : List (ℕ × Val)} : (∀ r a, (r, a) ∈ arms → Checkable a) → Checkable (.or arms)
+  | pref {r : ℕ} {x : Val} : Checkable x → Checkable (.pref r x)
   | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
+
+/-- A disjunction of two checkable arms is checkable. -/
+theorem checkable_or₂ {r₁ r₂ : ℕ} {a b : Val} (ha : a.Checkable) (hb : b.Checkable) :
+    Val.Checkable (.or [(r₁, a), (r₂, b)]) := by
+  refine .or fun r v hm => ?_
+  simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+  · exact ha
+  · exact hb
+
+/-- Whether `j` is in the domain of a bound: a number for a numeric end,
+a string, not `""`, for a string end. -/
+def checkDomain : Bound → Data → Bool
+  | .num _, .num _ => true
+  | .str _, .str t => decide (t ≠ "")
+  | _, _ => false
 
 mutual
 /-- Whether `v` admits `j`, computed. -/
@@ -383,11 +401,14 @@ def check : Val → Data → Bool
       checkFields fs jfs && jfs.all (fun m => checkSpread spread m.2) &&
         (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1))
     | _ => false
-  | .list items spread, j => match j with
+  | .list items spread closed, j => match j with
     | .list xs =>
-      decide (items.length ≤ xs.length) && checkItems items xs &&
-        xs.all (fun x => checkSpread spread x)
+      decide (items.length ≤ xs.length) &&
+        (!closed || spread.isSome || decide (xs.length = items.length)) &&
+        checkItems items xs && xs.all (fun x => checkSpread spread x)
     | _ => false
+  | .or arms, j => checkArms arms j
+  | .pref _ x, j => check x j || checkSuper x j
   | .meet a b, j => check a j && check b j
   | .re _, _ => false
   | .format _, _ => false
@@ -412,6 +433,74 @@ def checkItems : List Val → List Data → Bool
 def checkSpread : Option Val → Data → Bool
   | none, _ => true
   | some s, x => check s x
+
+/-- Whether any arm admits. -/
+def checkArms : List (ℕ × Val) → Data → Bool
+  | [], _ => false
+  | (_, a) :: arms, j => check a j || checkArms arms j
+
+/-- Whether `v.super`, the parent type of `v`, admits `j`: `check` on
+`v.super`, written by recursion on `v`, since `v.super` is no part of
+`v` for `check` to recurse into. -/
+def checkSuper : Val → Data → Bool
+  | .integer, j | .float, j | .biginteger, j | .bigdecimal, j => match j with
+    | .num _ => true
+    | _ => false
+  | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .any, _ => true
+  | .nil, _ => false
+  | .lit s, j => match s, j with
+    | .num x, .num y => decide (x.leaf = y.leaf)
+    | .str s, .str t => decide (s = "") || decide (t ≠ "")
+    | .bool _, .bool _ => true
+    | .null, .null => true
+    | _, _ => false
+  | .min b, j | .max b, j | .above b, j | .beneath b, j => checkDomain b j
+  | .neq (v :: _), j => checkDomain v j
+  | .neq [], _ => true
+  | .multiple _, j => match j with
+    | .num _ => true
+    | _ => false
+  | .len _, _ | .unique _, _ => true
+  | .re _, j | .format _, j => match j with
+    | .str t => decide (t ≠ "")
+    | _ => false
+  | .map fs spread closed, j => match j with
+    | .map jfs =>
+      checkSuperFields fs jfs && jfs.all (fun m => checkSuperSpread spread m.2) &&
+        (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1))
+    | _ => false
+  | .list items spread closed, j => match j with
+    | .list xs =>
+      decide (items.length ≤ xs.length) &&
+        (!closed || spread.isSome || decide (xs.length = items.length)) &&
+        checkSuperItems items xs && xs.all (fun x => checkSuperSpread spread x)
+    | _ => false
+  | .or arms, j => checkSuperArms arms j
+  | .pref _ x, j => checkSuper x j
+  | .meet a b, j =>
+    if a.isKind then (if b.isKind then (if a.isLeaf then checkSuper a j else checkSuper b j) else check a j)
+    else if b.isKind then check b j else checkSuper a j && checkSuper b j
+  | .alias _, _ => false
+  | .path _, _ => false
+
+def checkSuperFields : List (String × Bool × Val) → List (String × Data) → Bool
+  | [], _ => true
+  | (k, o, v) :: fs, jfs =>
+    (match lookup k jfs with
+      | none => o
+      | some x => checkSuper v x) && checkSuperFields fs jfs
+
+def checkSuperItems : List Val → List Data → Bool
+  | v :: vs, x :: xs => checkSuper v x && checkSuperItems vs xs
+  | _, _ => true
+
+def checkSuperSpread : Option Val → Data → Bool
+  | none, _ => true
+  | some s, x => checkSuper s x
+
+def checkSuperArms : List (ℕ × Val) → Data → Bool
+  | [], _ => false
+  | (_, a) :: arms, j => checkSuper a j || checkSuperArms arms j
 end
 
 section
@@ -497,6 +586,379 @@ theorem checkClosed_iff (fs : List (String × Bool × Val)) (closed : Bool)
     · rintro h ⟨k, x⟩ hm
       obtain ⟨o, v, hf⟩ := h k x hm
       exact ⟨(k, o, v), hf, rfl⟩
+
+theorem checkSealed_iff (closed : Bool) (spread : Option Val) (items : List Val) (xs : List Data) :
+    (!closed || spread.isSome || decide (xs.length = items.length)) = true ↔
+      (closed = true → spread = none → xs.length = items.length) := by
+  cases closed <;> cases spread <;> simp
+
+theorem checkArms_iff {arms : List (ℕ × Val)}
+    (ih : ∀ r a, (r, a) ∈ arms → ∀ j, check a j = true ↔ Admits env root a j) (j : Data) :
+    checkArms arms j = true ↔ ∃ r a, (r, a) ∈ arms ∧ Admits env root a j := by
+  induction arms with
+  | nil => simp [checkArms]
+  | cons p arms iharms =>
+    obtain ⟨r, a⟩ := p
+    have iha := ih r a (List.mem_cons_self _ _)
+    have iht := iharms (fun r a h => ih r a (List.mem_cons_of_mem _ h))
+    simp only [checkArms, Bool.or_eq_true, iha, iht, List.mem_cons, Prod.mk.injEq]
+    constructor
+    · rintro (h | ⟨r', a', hm, h⟩)
+      · exact ⟨r, a, Or.inl ⟨rfl, rfl⟩, h⟩
+      · exact ⟨r', a', Or.inr hm, h⟩
+    · rintro ⟨r', a', ⟨rfl, rfl⟩ | hm, h⟩
+      · exact Or.inl h
+      · exact Or.inr ⟨r', a', hm, h⟩
+
+/-! ## The parent type, computed -/
+
+theorem checkDomain_iff (b : Bound) (j : Data) :
+    checkDomain b j = true ↔ Admits env root b.domain j := by
+  cases b with
+  | num n =>
+    cases j with
+    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | str b =>
+    cases j with
+    | str t =>
+      simp only [checkDomain, Bound.domain, decide_eq_true_eq]
+      exact ⟨fun h => .string h, fun h => by cases h; assumption⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+
+/-- The kind of a number's leaf admits the number. -/
+theorem admits_leaf_kind (y : Number) : Admits env root y.leaf.kind (.num y) := by
+  cases y with
+  | integer _ => exact .integer
+  | float _ => exact .float
+  | biginteger _ => exact .biginteger
+  | bigdecimal _ => exact .bigdecimal
+
+/-- A leaf's kind admits a number of that leaf alone. -/
+theorem leaf_kind_eq (l : Leaf) (y : Number) (h : Admits env root l.kind (.num y)) :
+    l = y.leaf := by
+  cases l <;> cases y <;> simp only [Leaf.kind] at h <;> first | rfl | nomatch h
+
+/-- A leaf's kind admits numbers alone. -/
+theorem leaf_kind_num (l : Leaf) (j : Data) (h : Admits env root l.kind j) : ∃ y, j = .num y := by
+  cases l <;> simp only [Leaf.kind] at h <;> cases h <;> exact ⟨_, rfl⟩
+
+theorem mem_superFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ superFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.super := by
+  induction fs with
+  | nil => simp [superFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [superFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_superArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ superArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.super := by
+  induction arms with
+  | nil => simp [superArms]
+  | cons p arms ih =>
+    obtain ⟨r', a'⟩ := p
+    simp only [superArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+theorem superItems_length (items : List Val) : (superItems items).length = items.length := by
+  induction items with
+  | nil => rfl
+  | cons v vs ih => simp [superItems, ih]
+
+theorem superItems_getElem? (items : List Val) (i : ℕ) :
+    (superItems items)[i]? = (items[i]?).map Val.super := by
+  induction items generalizing i with
+  | nil => simp [superItems]
+  | cons v vs ih =>
+    cases i with
+    | zero => simp [superItems]
+    | succ i => simp [superItems, ih]
+
+theorem superSpread_none {spread : Option Val} : superSpread spread = none ↔ spread = none := by
+  cases spread <;> simp [superSpread]
+
+theorem superSpread_eq {spread : Option Val} {t : Val} :
+    superSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.super := by
+  cases spread <;> simp [superSpread, eq_comm]
+
+theorem checkSuperSpread_iff {spread : Option Val}
+    (ih : ∀ s, spread = some s → ∀ j, checkSuper s j = true ↔ Admits env root s.super j)
+    (x : Data) :
+    checkSuperSpread spread x = true ↔ ∀ s, spread = some s → Admits env root s.super x := by
+  cases spread with
+  | none => simp [checkSuperSpread]
+  | some s => simp [checkSuperSpread, ih s rfl]
+
+theorem checkSuperFields_iff {fs : List (String × Bool × Val)}
+    (ih : ∀ k o v, (k, o, v) ∈ fs → ∀ j, checkSuper v j = true ↔ Admits env root v.super j)
+    (jfs : List (String × Data)) :
+    checkSuperFields fs jfs = true ↔
+      (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v.super x) ∧
+        (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) := by
+  induction fs with
+  | nil => simp [checkSuperFields]
+  | cons f fs ihfs =>
+    obtain ⟨k, o, v⟩ := f
+    have ihv := ih k o v (List.mem_cons_self _ _)
+    have iht := ihfs (fun k o v h => ih k o v (List.mem_cons_of_mem _ h))
+    simp only [checkSuperFields, Bool.and_eq_true, iht, List.mem_cons, Prod.mk.injEq]
+    constructor
+    · rintro ⟨hh, ht1, ht2⟩
+      refine ⟨?_, ?_⟩
+      · rintro k' o' v' x (⟨rfl, rfl, rfl⟩ | hm) hx
+        · simp only [hx] at hh; exact (ihv x).mp hh
+        · exact ht1 k' o' v' x hm hx
+      · rintro k' o' v' (⟨rfl, rfl, rfl⟩ | hm) hx
+        · simp only [hx] at hh; exact hh
+        · exact ht2 k' o' v' hm hx
+    · rintro ⟨h1, h2⟩
+      refine ⟨?_, fun k' o' v' x hm hx => h1 k' o' v' x (Or.inr hm) hx,
+        fun k' o' v' hm hx => h2 k' o' v' (Or.inr hm) hx⟩
+      cases hl : lookup k jfs with
+      | none => exact h2 k o v (Or.inl ⟨rfl, rfl, rfl⟩) hl
+      | some x => exact (ihv x).mpr (h1 k o v x (Or.inl ⟨rfl, rfl, rfl⟩) hl)
+
+theorem checkSuperItems_iff {items : List Val}
+    (ih : ∀ v, v ∈ items → ∀ j, checkSuper v j = true ↔ Admits env root v.super j)
+    (xs : List Data) :
+    checkSuperItems items xs = true ↔
+      ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+        Admits env root v.super x := by
+  induction items generalizing xs with
+  | nil => simp [checkSuperItems]
+  | cons v vs ihvs =>
+    cases xs with
+    | nil => simp [checkSuperItems]
+    | cons x xs =>
+      have ihv := ih v (List.mem_cons_self _ _)
+      have iht := ihvs (fun w h => ih w (List.mem_cons_of_mem _ h)) xs
+      simp only [checkSuperItems, Bool.and_eq_true, iht, ihv]
+      constructor
+      · rintro ⟨hv, ht⟩ i w y hw hy
+        cases i with
+        | zero =>
+          simp only [List.getElem?_cons_zero, Option.some.injEq] at hw hy
+          subst hw; subst hy; exact hv
+        | succ i =>
+          simp only [List.getElem?_cons_succ] at hw hy
+          exact ht i w y hw hy
+      · intro h
+        refine ⟨h 0 v x List.getElem?_cons_zero List.getElem?_cons_zero, fun i w y hw hy => ?_⟩
+        exact h (i + 1) w y (by rw [List.getElem?_cons_succ]; exact hw)
+          (by rw [List.getElem?_cons_succ]; exact hy)
+
+theorem checkSuperArms_iff {arms : List (ℕ × Val)}
+    (ih : ∀ r a, (r, a) ∈ arms → ∀ j, checkSuper a j = true ↔ Admits env root a.super j)
+    (j : Data) :
+    checkSuperArms arms j = true ↔ ∃ r a, (r, a) ∈ arms ∧ Admits env root a.super j := by
+  induction arms with
+  | nil => simp [checkSuperArms]
+  | cons p arms iharms =>
+    obtain ⟨r, a⟩ := p
+    have iha := ih r a (List.mem_cons_self _ _)
+    have iht := iharms (fun r a h => ih r a (List.mem_cons_of_mem _ h))
+    simp only [checkSuperArms, Bool.or_eq_true, iha, iht, List.mem_cons, Prod.mk.injEq]
+    constructor
+    · rintro (h | ⟨r', a', hm, h⟩)
+      · exact ⟨r, a, Or.inl ⟨rfl, rfl⟩, h⟩
+      · exact ⟨r', a', Or.inr hm, h⟩
+    · rintro ⟨r', a', ⟨rfl, rfl⟩ | hm, h⟩
+      · exact Or.inl h
+      · exact Or.inr ⟨r', a', hm, h⟩
+
+/-- `check` decides admission for a kind. -/
+theorem check_kind_iff {v : Val} (hk : v.isKind = true) (j : Data) :
+    check v j = true ↔ Admits env root v j := by
+  cases v <;> simp [Val.isKind] at hk <;> cases j <;>
+    first
+    | exact ⟨fun _ => .number, fun _ => rfl⟩
+    | exact ⟨fun _ => .anyString, fun _ => rfl⟩
+    | exact ⟨fun _ => .boolean, fun _ => rfl⟩
+    | (simp only [check, decide_eq_true_eq]; exact ⟨fun h => .string h, fun h => by cases h; assumption⟩)
+    | (rename_i x; cases x <;>
+        first
+        | exact ⟨fun _ => .integer, fun _ => rfl⟩
+        | exact ⟨fun _ => .float, fun _ => rfl⟩
+        | exact ⟨fun _ => .biginteger, fun _ => rfl⟩
+        | exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
+        | exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩)
+    | exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+
+/-- `checkSuper` decides admission by the parent type, for every
+checkable value. -/
+theorem checkSuper_iff {v : Val} (h : v.Checkable) :
+    ∀ j, checkSuper v j = true ↔ Admits env root v.super j := by
+  induction h with
+  | integer | float | biginteger | bigdecimal =>
+    intro j
+    cases j with
+    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | number | string | anyString | boolean | any =>
+    intro j; exact ⟨fun _ => .any, fun _ => rfl⟩
+  | nil => intro j; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @lit s =>
+    intro j
+    cases s with
+    | num x =>
+      cases j with
+      | num y =>
+        simp only [checkSuper, Val.super, decide_eq_true_eq]
+        exact ⟨fun h => h ▸ admits_leaf_kind y, fun h => leaf_kind_eq _ _ h⟩
+      | _ =>
+        exact ⟨(fun h => nomatch h), (fun h => by
+          obtain ⟨y, hy⟩ := leaf_kind_num x.leaf _ h
+          cases hy)⟩
+    | str s =>
+      cases j with
+      | str t =>
+        by_cases hs : s = ""
+        · subst hs
+          simp only [checkSuper, Val.super, if_true, decide_true, Bool.true_or]
+          exact ⟨fun _ => .anyString, fun _ => trivial⟩
+        · simp only [checkSuper, Val.super, hs, if_false, decide_false, Bool.false_or, decide_eq_true_eq]
+          exact ⟨fun h => .string h, fun h => by cases h; assumption⟩
+      | _ =>
+        refine ⟨(fun h => nomatch h), (fun h => ?_)⟩
+        unfold Val.super at h
+        split at h <;> nomatch h
+    | bool b =>
+      cases j with
+      | bool c => exact ⟨fun _ => .boolean, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | null =>
+      cases j with
+      | null => exact ⟨fun _ => .null, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @min b | @max b | @above b | @beneath b => intro j; exact checkDomain_iff b j
+  | @neq vs =>
+    intro j
+    cases vs with
+    | nil => exact ⟨fun _ => .any, fun _ => rfl⟩
+    | cons v vs => exact checkDomain_iff v j
+  | @multiple d =>
+    intro j
+    cases j with
+    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @len c _ _ | @unique k => intro j; exact ⟨fun _ => .any, fun _ => rfl⟩
+  | @map fs spread closed _ _ ihfs ihsp =>
+    intro j
+    cases j with
+    | map jfs =>
+      have hs : (jfs.all fun m => checkSuperSpread spread m.2) = true ↔
+          ∀ t, superSpread spread = some t → ∀ k x, (k, x) ∈ jfs → Admits env root t x := by
+        rw [List.all_eq_true]
+        constructor
+        · intro h t ht k x hm
+          obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
+          exact (checkSuperSpread_iff ihsp x).mp (h (k, x) hm) s hs
+        · intro h m hm
+          exact (checkSuperSpread_iff ihsp m.2).mpr fun s hs =>
+            h s.super (superSpread_eq.mpr ⟨s, hs, rfl⟩) m.1 m.2 hm
+      simp only [checkSuper, Val.super, Bool.and_eq_true]
+      rw [checkSuperFields_iff ihfs jfs, checkClosed_iff, hs]
+      constructor
+      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
+        refine .map ?_ ?_ h3 ?_
+        · intro k o w x hm hx
+          obtain ⟨v, hv, rfl⟩ := mem_superFields.mp hm
+          exact h1 k o v x hv hx
+        · intro k o w hm hx
+          obtain ⟨v, hv, rfl⟩ := mem_superFields.mp hm
+          exact h2 k o v hv hx
+        · intro hc k x hm
+          obtain ⟨o, v, hv⟩ := h4 hc k x hm
+          exact ⟨o, v.super, mem_superFields.mpr ⟨v, hv, rfl⟩⟩
+      · intro h
+        cases h with
+        | map h1 h2 h3 h4 =>
+          refine ⟨⟨⟨?_, ?_⟩, h3⟩, ?_⟩
+          · intro k o v x hv hx
+            exact h1 k o v.super x (mem_superFields.mpr ⟨v, hv, rfl⟩) hx
+          · intro k o v hv hx
+            exact h2 k o v.super (mem_superFields.mpr ⟨v, hv, rfl⟩) hx
+          · intro hc k x hm
+            obtain ⟨o, w, hw⟩ := h4 hc k x hm
+            obtain ⟨v, hv, -⟩ := mem_superFields.mp hw
+            exact ⟨o, v, hv⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @list items spread closed _ _ ihitems ihsp =>
+    intro j
+    cases j with
+    | list xs =>
+      have hs : (xs.all fun x => checkSuperSpread spread x) = true ↔
+          ∀ t, superSpread spread = some t → ∀ x, x ∈ xs → Admits env root t x := by
+        rw [List.all_eq_true]
+        constructor
+        · intro h t ht x hm
+          obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
+          exact (checkSuperSpread_iff ihsp x).mp (h x hm) s hs
+        · intro h x hm
+          exact (checkSuperSpread_iff ihsp x).mpr fun s hs =>
+            h s.super (superSpread_eq.mpr ⟨s, hs, rfl⟩) x hm
+      have hi : checkSuperItems items xs = true ↔
+          ∀ (i : ℕ) (w : Val) (x : Data), (superItems items)[i]? = some w → xs[i]? = some x →
+            Admits env root w x := by
+        rw [checkSuperItems_iff ihitems xs]
+        constructor
+        · intro h i w x hw hx
+          rw [superItems_getElem?] at hw
+          cases hv : items[i]? with
+          | none => rw [hv] at hw; cases hw
+          | some v => rw [hv] at hw; cases hw; exact h i v x hv hx
+        · intro h i v x hv hx
+          exact h i v.super x (by rw [superItems_getElem?, hv]; rfl) hx
+      simp only [checkSuper, Val.super, Bool.and_eq_true, decide_eq_true_eq]
+      rw [checkSealed_iff, hi, hs]
+      constructor
+      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
+        exact .list (by rw [superItems_length]; exact h1)
+          (by rw [superItems_length]; intro hc ht; exact h2 hc (superSpread_none.mp ht)) h3 h4
+      · intro h
+        cases h with
+        | list h1 h2 h3 h4 =>
+          rw [superItems_length] at h1 h2
+          exact ⟨⟨⟨h1, fun hc ht => h2 hc (superSpread_none.mpr ht)⟩, h3⟩, h4⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @or arms _ iharms =>
+    intro j
+    simp only [checkSuper, Val.super]
+    rw [checkSuperArms_iff iharms j]
+    constructor
+    · rintro ⟨r, a, hm, h⟩
+      exact .or (mem_superArms.mpr ⟨a, hm, rfl⟩) h
+    · intro h
+      cases h with
+      | or hm h =>
+        obtain ⟨a', hm', rfl⟩ := mem_superArms.mp hm
+        exact ⟨_, a', hm', h⟩
+  | @pref r x _ ihx => intro j; exact ihx j
+  | @meet a b ha hb iha ihb =>
+    intro j
+    cases hka : a.isKind <;> cases hkb : b.isKind <;>
+      simp only [checkSuper, Val.super, hka, hkb, Bool.false_eq_true, if_false, if_true,
+        Bool.and_eq_true]
+    · rw [iha j, ihb j]
+      exact ⟨fun ⟨h1, h2⟩ => .meet h1 h2, fun h => by cases h with | meet h1 h2 => exact ⟨h1, h2⟩⟩
+    · exact check_kind_iff hkb j
+    · exact check_kind_iff hka j
+    · cases a.isLeaf
+      · simp only [Bool.false_eq_true, if_false]; exact ihb j
+      · simp only [if_true]; exact iha j
 
 /-- `check` decides admission for every checkable value. -/
 theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j := by
@@ -743,7 +1205,7 @@ theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admi
         cases h with
         | map h1 h2 h3 h4 => exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | @list items spread _ _ ihitems ihsp =>
+  | @list items spread closed _ _ ihitems ihsp =>
     intro j
     cases j with
     | list xs =>
@@ -756,14 +1218,36 @@ theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admi
         · intro h x hm
           exact (checkSpread_iff ihsp x).mpr fun s hs => h s hs x hm
       simp only [check, Bool.and_eq_true, decide_eq_true_eq]
-      rw [checkItems_iff ihitems xs, hs]
+      rw [checkSealed_iff, checkItems_iff ihitems xs, hs]
       constructor
-      · rintro ⟨⟨h1, h2⟩, h3⟩
-        exact .list h1 h2 h3
+      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
+        exact .list h1 h2 h3 h4
       · intro h
         cases h with
-        | list h1 h2 h3 => exact ⟨⟨h1, h2⟩, h3⟩
+        | list h1 h2 h3 h4 => exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @or arms _ iharms =>
+    intro j
+    simp only [check]
+    rw [checkArms_iff iharms j]
+    constructor
+    · rintro ⟨r, a, hm, h⟩
+      exact .or hm h
+    · intro h
+      cases h with
+      | or hm h => exact ⟨_, _, hm, h⟩
+  | @pref r x hx ihx =>
+    intro j
+    simp only [check, Bool.or_eq_true]
+    rw [ihx j, checkSuper_iff hx j]
+    constructor
+    · rintro (h | h)
+      · exact .pref h
+      · exact .prefSuper h
+    · intro h
+      cases h with
+      | pref h => exact Or.inl h
+      | prefSuper h => exact Or.inr h
   | meet _ _ iha ihb =>
     intro j
     simp only [check, Bool.and_eq_true, iha, ihb]
