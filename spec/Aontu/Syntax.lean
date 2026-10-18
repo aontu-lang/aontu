@@ -11,30 +11,31 @@ is read into a term is the grammar's business; what a term means is
 
 namespace Aontu
 
-/-- A scalar literal: one null, boolean, number or string. A number
-literal here is an integer, a value of the `integer` kind; literals of
-the other number kinds, floats and the big numbers, wait for those
-kinds. -/
+/-- A scalar literal: one number, of any of the four leaves, or one
+string, boolean, or null. -/
 inductive Scalar where
-  | null
-  | bool (b : Bool)
-  | int (n : Int)
+  | num (x : Number)
   | str (s : String)
+  | bool (b : Bool)
+  | null
 
 /-- A value, each constructor beside the construct it is. A map has
 keys, each required or optional, a spread that holds every member, and
 a seal that refuses every member it does not declare; a list has its
 positions and a spread. -/
 inductive Val where
-  | boolean                                 -- `boolean`
-  | number                                  -- `number`
   | integer                                 -- `integer`
+  | float                                   -- `float`
+  | biginteger                              -- `biginteger`
+  | bigdecimal                              -- `bigdecimal`
+  | number                                  -- `number`, every number of the four leaves
   | string                                  -- `string`, every string but `""`
   | anyString                               -- `string & empty()`, every string
-  | lit (s : Scalar)                        -- a literal: `null`, `true`, `3`, `"a"`
-  | min (n : Num)                           -- `min(n)`
-  | max (n : Num)                           -- `max(n)`
-  | multiple (d : Num)                      -- `multiple(d)`
+  | boolean                                 -- `boolean`
+  | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
+  | min (n : Number)                        -- `min(n)`
+  | max (n : Number)                        -- `max(n)`
+  | multiple (d : Number)                   -- `multiple(d)`
   | any                                     -- `any`
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)

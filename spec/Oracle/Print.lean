@@ -3,13 +3,13 @@ import Aontu.Syntax
 /-!
 # The oracle's printer
 
-Values and JSON values as text, in the spelling of the published
+Values and data as text, in the spelling of the published
 grammar `grammar/aontu.abnf`, every key quoted as canon writes it. It
 is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
-writes, and answers `none` for a sealed map, a list, an alias, and a
-path.
+writes, and answers `none` for a sealed map, a list term, an alias, a
+path, a float, and data the exact reader would read as another value.
 -/
 
 namespace Aontu
@@ -26,35 +26,59 @@ where
       "\\u" ++ String.mk (List.replicate (4 - ds.length) '0' ++ ds)
     else c.toString
 
-/-- A number as JSON text: its digits, with the point `scale` places from
-the end when it has one. -/
-def Num.src (x : Num) : String :=
-  if x.scale = 0 then toString x.coef
+/-- A big decimal's digits, its point placed by its scale: `0.5`, `1.25`. -/
+def Decimal.digits (x : Decimal) : String :=
+  if x.scale ≤ 0 then toString (x.coef.natAbs * 10 ^ (-x.scale).toNat)
   else
+    let s := x.scale.toNat
     let digits := toString x.coef.natAbs
-    let padded := String.mk (List.replicate (x.scale + 1 - digits.length) '0') ++ digits
-    let cut := padded.length - x.scale
-    (if x.coef < 0 then "-" else "") ++ padded.take cut ++ "." ++ padded.drop cut
+    let padded := String.mk (List.replicate (s + 1 - digits.length) '0') ++ digits
+    let cut := padded.length - s
+    padded.take cut ++ "." ++ padded.drop cut
 
-def Scalar.src : Scalar → String
-  | .null => "null"
-  | .bool b => if b then "true" else "false"
-  | .int n => toString n
-  | .str s => quote s
+/-- A number as aontu writes it in a term, each leaf marked so that it
+reads back in its leaf: an integer plainly, an exact number after `0d`,
+an integral big decimal with one decimal place. The oracle writes no
+float. -/
+def Number.src : Number → Option String
+  | .int n => some (toString n)
+  | .float _ => none
+  | .bigint n => some ((if n < 0 then "-" else "") ++ "0d" ++ toString n.natAbs)
+  | .bigdec x =>
+    some ((if x.coef < 0 then "-" else "") ++ "0d" ++ x.digits ++ (if x.scale ≤ 0 then ".0" else ""))
+
+/-- A number as JSON text that the exact reader, `--exact-numbers`,
+reads back as that number. It reads a whole number as an integer when
+the `integer` leaf holds it and as a big integer otherwise, a fraction
+as a big decimal, and nothing as a float, so the rest have no text. -/
+def Number.dataSrc : Number → Option String
+  | .int n => some (toString n)
+  | .float _ => none
+  | .bigint n => if IntegerLeaf n then none else some (toString n)
+  | .bigdec x => if x.scale ≤ 0 then none else some ((if x.coef < 0 then "-" else "") ++ x.digits)
+
+def Scalar.src : Scalar → Option String
+  | .num x => x.src
+  | .str s => some (quote s)
+  | .bool b => some (if b then "true" else "false")
+  | .null => some "null"
 
 mutual
 def Val.src : Val → Option String
-  | .any => some "any"
-  | .nil => some "nil"
-  | .boolean => some "boolean"
-  | .number => some "number"
   | .integer => some "integer"
+  | .float => some "float"
+  | .biginteger => some "biginteger"
+  | .bigdecimal => some "bigdecimal"
+  | .number => some "number"
   | .string => some "string"
   | .anyString => some "string & empty()"
-  | .lit s => some s.src
-  | .min n => some s!"min({n.src})"
-  | .max n => some s!"max({n.src})"
-  | .multiple d => some s!"multiple({d.src})"
+  | .boolean => some "boolean"
+  | .lit s => s.src
+  | .min n => do pure s!"min({← n.src})"
+  | .max n => do pure s!"max({← n.src})"
+  | .multiple d => do pure s!"multiple({← d.src})"
+  | .any => some "any"
+  | .nil => some "nil"
   | .map fs spread false => do
     let entries ← fieldsSrc fs
     let rest ← spreadSrc spread
@@ -78,21 +102,21 @@ def spreadSrc : Option Val → Option (List String)
 end
 
 mutual
-def Json.src : Json → String
-  | .null => "null"
-  | .bool b => if b then "true" else "false"
-  | .num x => x.src
-  | .str s => quote s
-  | .arr xs => "[" ++ ", ".intercalate (elemsSrc xs) ++ "]"
-  | .obj fs => "{" ++ ", ".intercalate (membersSrc fs) ++ "}"
+def Data.src : Data → Option String
+  | .num x => x.dataSrc
+  | .str s => some (quote s)
+  | .bool b => some (if b then "true" else "false")
+  | .null => some "null"
+  | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
+  | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
 
-def elemsSrc : List Json → List String
-  | [] => []
-  | x :: xs => x.src :: elemsSrc xs
+def membersSrc : List (String × Data) → Option (List String)
+  | [] => some []
+  | (k, x) :: fs => do pure ((quote k ++ ": " ++ (← x.src)) :: (← membersSrc fs))
 
-def membersSrc : List (String × Json) → List String
-  | [] => []
-  | (k, x) :: fs => (quote k ++ ": " ++ x.src) :: membersSrc fs
+def elemsSrc : List Data → Option (List String)
+  | [] => some []
+  | x :: xs => do pure ((← x.src) :: (← elemsSrc xs))
 end
 
 end Aontu

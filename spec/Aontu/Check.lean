@@ -8,58 +8,64 @@ import Aontu.Admits
 `Decidable` instance). `check` is an algorithm, and `check_iff` is what
 lets its answers stand in for the definition's, on every value that
 reads neither an alias nor a path. Without that theorem it would be a
-third port. `Json.wf` decides that a Lean `Json` is a JSON value the
-same way, beside `Json.wf_iff`.
+third port. `Data.wf` decides that a Lean `Data` is a value the same
+way, beside `Data.wf_iff`.
 -/
 
 namespace Aontu
 
 mutual
-/-- Whether a Lean `Json` is a JSON value, computed. -/
-def Json.wf : Json → Bool
-  | .null => true
-  | .bool _ => true
+/-- Whether a Lean `Data` is a value, computed. -/
+def Data.wf : Data → Bool
+  | .num (.int n) => decide (IntegerLeaf n)
   | .num _ => true
   | .str _ => true
-  | .arr xs => Json.wfAll xs
-  | .obj fs => decide (fs.map Prod.fst).Nodup && Json.wfMembers fs
+  | .bool _ => true
+  | .null => true
+  | .map fs => decide (fs.map Prod.fst).Nodup && Data.wfMembers fs
+  | .list xs => Data.wfAll xs
 
-def Json.wfAll : List Json → Bool
+def Data.wfAll : List Data → Bool
   | [] => true
-  | x :: xs => x.wf && Json.wfAll xs
+  | x :: xs => x.wf && Data.wfAll xs
 
-def Json.wfMembers : List (String × Json) → Bool
+def Data.wfMembers : List (String × Data) → Bool
   | [] => true
-  | (_, x) :: fs => x.wf && Json.wfMembers fs
+  | (_, x) :: fs => x.wf && Data.wfMembers fs
 end
 
 mutual
-theorem Json.wf_iff : ∀ j : Json, j.wf = true ↔ j.WellFormed
-  | .null => ⟨fun _ => .null, fun _ => rfl⟩
-  | .bool _ => ⟨fun _ => .bool, fun _ => rfl⟩
-  | .num _ => ⟨fun _ => .num, fun _ => rfl⟩
+theorem Data.wf_iff : ∀ j : Data, j.wf = true ↔ j.WellFormed
+  | .num (.int n) => by
+    simp only [Data.wf, decide_eq_true_eq]
+    exact ⟨.int, fun h => by cases h; assumption⟩
+  | .num (.float _) => ⟨fun _ => .float, fun _ => rfl⟩
+  | .num (.bigint _) => ⟨fun _ => .bigint, fun _ => rfl⟩
+  | .num (.bigdec _) => ⟨fun _ => .bigdec, fun _ => rfl⟩
   | .str _ => ⟨fun _ => .str, fun _ => rfl⟩
-  | .arr xs => by
-    simp only [Json.wf]
-    rw [Json.wfAll_iff xs]
-    exact ⟨.arr, fun h => by cases h; assumption⟩
-  | .obj fs => by
-    simp only [Json.wf, Bool.and_eq_true, decide_eq_true_eq]
-    rw [Json.wfMembers_iff fs]
-    exact ⟨fun ⟨h1, h2⟩ => .obj h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+  | .bool _ => ⟨fun _ => .bool, fun _ => rfl⟩
+  | .null => ⟨fun _ => .null, fun _ => rfl⟩
+  | .map fs => by
+    simp only [Data.wf, Bool.and_eq_true, decide_eq_true_eq]
+    rw [Data.wfMembers_iff fs]
+    exact ⟨fun ⟨h1, h2⟩ => .map h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+  | .list xs => by
+    simp only [Data.wf]
+    rw [Data.wfAll_iff xs]
+    exact ⟨.list, fun h => by cases h; assumption⟩
 
-theorem Json.wfAll_iff : ∀ xs : List Json, Json.wfAll xs = true ↔ ∀ x, x ∈ xs → x.WellFormed
-  | [] => by simp [Json.wfAll]
+theorem Data.wfAll_iff : ∀ xs : List Data, Data.wfAll xs = true ↔ ∀ x, x ∈ xs → x.WellFormed
+  | [] => by simp [Data.wfAll]
   | x :: xs => by
-    simp only [Json.wfAll, Bool.and_eq_true, List.forall_mem_cons]
-    rw [Json.wf_iff x, Json.wfAll_iff xs]
+    simp only [Data.wfAll, Bool.and_eq_true, List.forall_mem_cons]
+    rw [Data.wf_iff x, Data.wfAll_iff xs]
 
-theorem Json.wfMembers_iff :
-    ∀ fs : List (String × Json), Json.wfMembers fs = true ↔ ∀ k x, (k, x) ∈ fs → x.WellFormed
-  | [] => by simp [Json.wfMembers]
+theorem Data.wfMembers_iff :
+    ∀ fs : List (String × Data), Data.wfMembers fs = true ↔ ∀ k x, (k, x) ∈ fs → x.WellFormed
+  | [] => by simp [Data.wfMembers]
   | (k, x) :: fs => by
-    simp only [Json.wfMembers, Bool.and_eq_true, List.mem_cons, Prod.mk.injEq]
-    rw [Json.wf_iff x, Json.wfMembers_iff fs]
+    simp only [Data.wfMembers, Bool.and_eq_true, List.mem_cons, Prod.mk.injEq]
+    rw [Data.wf_iff x, Data.wfMembers_iff fs]
     constructor
     · rintro ⟨hx, hfs⟩ k' x' (⟨rfl, rfl⟩ | h)
       · exact hx
@@ -68,22 +74,25 @@ theorem Json.wfMembers_iff :
       exact ⟨h k x (.inl ⟨rfl, rfl⟩), fun k' x' h' => h k' x' (.inr h')⟩
 end
 
-instance (j : Json) : Decidable j.WellFormed := decidable_of_iff _ (Json.wf_iff j)
+instance (j : Data) : Decidable j.WellFormed := decidable_of_iff _ (Data.wf_iff j)
 
 /-- The values that read neither an alias nor a path, so that what they
 admit depends on no declaration and no root. -/
 inductive Val.RefFree : Val → Prop
-  | any : RefFree .any
-  | nil : RefFree .nil
-  | boolean : RefFree .boolean
-  | number : RefFree .number
   | integer : RefFree .integer
+  | float : RefFree .float
+  | biginteger : RefFree .biginteger
+  | bigdecimal : RefFree .bigdecimal
+  | number : RefFree .number
   | string : RefFree .string
   | anyString : RefFree .anyString
+  | boolean : RefFree .boolean
   | lit {s : Scalar} : RefFree (.lit s)
-  | min {n : Num} : RefFree (.min n)
-  | max {n : Num} : RefFree (.max n)
-  | multiple {d : Num} : RefFree (.multiple d)
+  | min {n : Number} : RefFree (.min n)
+  | max {n : Number} : RefFree (.max n)
+  | multiple {d : Number} : RefFree (.multiple d)
+  | any : RefFree .any
+  | nil : RefFree .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → RefFree v) → (∀ s, spread = some s → RefFree s) →
       RefFree (.map fs spread closed)
@@ -94,19 +103,21 @@ inductive Val.RefFree : Val → Prop
 
 mutual
 /-- Whether `v` admits `j`, computed. -/
-def check : Val → Json → Bool
-  | .any, _ => true
-  | .nil, _ => false
-  | .boolean, j => match j with
-    | .bool _ => true
+def check : Val → Data → Bool
+  | .integer, j => match j with
+    | .num (.int _) => true
+    | _ => false
+  | .float, j => match j with
+    | .num (.float _) => true
+    | _ => false
+  | .biginteger, j => match j with
+    | .num (.bigint _) => true
+    | _ => false
+  | .bigdecimal, j => match j with
+    | .num (.bigdec _) => true
     | _ => false
   | .number, j => match j with
     | .num _ => true
-    | _ => false
-  | .integer, j => match j with
-    | .num x => match x.int? with
-      | some n => decide (IntegerLeaf n)
-      | none => false
     | _ => false
   | .string, j => match j with
     | .str s => decide (s ≠ "")
@@ -114,11 +125,14 @@ def check : Val → Json → Bool
   | .anyString, j => match j with
     | .str _ => true
     | _ => false
+  | .boolean, j => match j with
+    | .bool _ => true
+    | _ => false
   | .lit s, j => match s, j with
-    | .null, .null => true
-    | .bool b, .bool b' => decide (b = b')
-    | .int n, .num x => decide (x.int? = some n) && decide (IntegerLeaf n)
+    | .num x, .num y => decide (x = y)
     | .str s, .str s' => decide (s = s')
+    | .bool b, .bool b' => decide (b = b')
+    | .null, .null => true
     | _, _ => false
   | .min n, j => match j with
     | .num x => decide (n.le x)
@@ -127,15 +141,17 @@ def check : Val → Json → Bool
     | .num x => decide (x.le n)
     | _ => false
   | .multiple d, j => match j with
-    | .num x => decide (0 < d.coef) && decide (x.multipleOf d)
+    | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
+  | .any, _ => true
+  | .nil, _ => false
   | .map fs spread closed, j => match j with
-    | .obj jfs =>
+    | .map jfs =>
       checkFields fs jfs && jfs.all (fun m => checkSpread spread m.2) &&
         (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1))
     | _ => false
   | .list items spread, j => match j with
-    | .arr xs =>
+    | .list xs =>
       decide (items.length ≤ xs.length) && checkItems items xs &&
         xs.all (fun x => checkSpread spread x)
     | _ => false
@@ -145,7 +161,7 @@ def check : Val → Json → Bool
 
 /-- The declared keys of a map: each present one holds its value, and
 each absent one is optional. -/
-def checkFields : List (String × Bool × Val) → List (String × Json) → Bool
+def checkFields : List (String × Bool × Val) → List (String × Data) → Bool
   | [], _ => true
   | (k, o, v) :: fs, jfs =>
     (match lookup k jfs with
@@ -153,21 +169,21 @@ def checkFields : List (String × Bool × Val) → List (String × Json) → Boo
       | some x => check v x) && checkFields fs jfs
 
 /-- The positions of a list that the instance has. -/
-def checkItems : List Val → List Json → Bool
+def checkItems : List Val → List Data → Bool
   | v :: vs, x :: xs => check v x && checkItems vs xs
   | _, _ => true
 
 /-- A spread, where there is one. -/
-def checkSpread : Option Val → Json → Bool
+def checkSpread : Option Val → Data → Bool
   | none, _ => true
   | some s, x => check s x
 end
 
 section
-variable {env : Env} {root : Json}
+variable {env : Env} {root : Data}
 
 theorem checkSpread_iff {spread : Option Val}
-    (ih : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) (x : Json) :
+    (ih : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) (x : Data) :
     checkSpread spread x = true ↔ ∀ s, spread = some s → Admits env root s x := by
   cases spread with
   | none => simp [checkSpread]
@@ -175,7 +191,7 @@ theorem checkSpread_iff {spread : Option Val}
 
 theorem checkFields_iff {fs : List (String × Bool × Val)}
     (ih : ∀ k o v, (k, o, v) ∈ fs → ∀ j, check v j = true ↔ Admits env root v j)
-    (jfs : List (String × Json)) :
+    (jfs : List (String × Data)) :
     checkFields fs jfs = true ↔
       (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v x) ∧
         (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) := by
@@ -203,9 +219,9 @@ theorem checkFields_iff {fs : List (String × Bool × Val)}
       | some x => exact (ihv x).mpr (h1 k o v x (Or.inl ⟨rfl, rfl, rfl⟩) hl)
 
 theorem checkItems_iff {items : List Val}
-    (ih : ∀ v, v ∈ items → ∀ j, check v j = true ↔ Admits env root v j) (xs : List Json) :
+    (ih : ∀ v, v ∈ items → ∀ j, check v j = true ↔ Admits env root v j) (xs : List Data) :
     checkItems items xs = true ↔
-      ∀ (i : Nat) (v : Val) (x : Json), items[i]? = some v → xs[i]? = some x →
+      ∀ (i : Nat) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x := by
   induction items generalizing xs with
   | nil => simp [checkItems]
@@ -231,7 +247,7 @@ theorem checkItems_iff {items : List Val}
           (by rw [List.getElem?_cons_succ]; exact hy)
 
 theorem checkClosed_iff (fs : List (String × Bool × Val)) (closed : Bool)
-    (jfs : List (String × Json)) :
+    (jfs : List (String × Data)) :
     (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1)) = true ↔
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) := by
   cases closed with
@@ -266,14 +282,33 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
     intro j
     cases j with
     | num x =>
-      constructor
-      · intro h
-        cases hx : x.int? with
-        | none => simp [check, hx] at h
-        | some n => simp [check, hx] at h; exact .integer hx h
-      · intro h
-        cases h with
-        | integer hx hl => simp [check, hx, hl]
+      cases x with
+      | int n => exact ⟨fun _ => .integer, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | float =>
+    intro j
+    cases j with
+    | num x =>
+      cases x with
+      | float y => exact ⟨fun _ => .float, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | biginteger =>
+    intro j
+    cases j with
+    | num x =>
+      cases x with
+      | bigint n => exact ⟨fun _ => .biginteger, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | bigdecimal =>
+    intro j
+    cases j with
+    | num x =>
+      cases x with
+      | bigdec y => exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | string =>
     intro j
@@ -300,11 +335,11 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
         simp only [check, decide_eq_true_eq]
         exact ⟨fun h => by subst h; exact .bool, fun h => by cases h; rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-    | int n =>
+    | num x =>
       cases j with
-      | num x =>
-        simp only [check, decide_eq_true_eq, Bool.and_eq_true]
-        exact ⟨fun ⟨hx, hl⟩ => .int hx hl, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+      | num y =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => by subst h; exact .num, fun h => by cases h; rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
     | str s =>
       cases j with
@@ -336,7 +371,7 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j
     cases j with
-    | obj jfs =>
+    | map jfs =>
       have hs : (jfs.all fun m => checkSpread spread m.2) = true ↔
           ∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root s x := by
         rw [List.all_eq_true]
@@ -357,7 +392,7 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
   | @list items spread _ _ ihitems ihsp =>
     intro j
     cases j with
-    | arr xs =>
+    | list xs =>
       have hs : (xs.all fun x => checkSpread spread x) = true ↔
           ∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x := by
         rw [List.all_eq_true]
