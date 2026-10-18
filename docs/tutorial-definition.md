@@ -125,16 +125,14 @@ The examples ask about a whole value, which is its own root:
 ```lean
 /-- `j` is an instance of `v` under the declarations `env`: `j` is a
 value, taken whole, so that it is its own root. This is the question
-`aontu vet` answers. A Lean `Data` that is no value, such as a map that
-gives one key twice or an integer no double holds, is no instance of
-anything, so it is never a witness. -/
+`aontu vet` answers. A Lean `Data` that is no value, a map that gives
+one key twice, is no instance of anything, so it is never a witness. -/
 abbrev Instance (env : Env) (v : Val) (j : Data) : Prop := j.WellFormed ∧ Admits env j v j
 ```
 
 Read `∧` as "and": an instance is a pair, `j` being a value and `v`
-admitting it. A Lean `Data` that holds an integer no double holds is no
-value, and neither is a map that gives one key twice, which step 6
-covers.
+admitting it. A Lean `Data` that gives one map key twice is no value,
+which step 6 covers.
 
 ### Numbers, in four leaves
 
@@ -147,15 +145,19 @@ holds a number as the language has it:
 disjoint: two numbers of two leaves are two values, however equal they
 look, so `1`, `1.0`, `0d1`, and `0d1.0` are four. -/
 inductive Number where
-  | int (n : Int)          -- `integer`: a double, whole, in the window
-  | float (x : Float64)    -- `float`: a double
-  | bigint (n : Int)       -- `biginteger`: exact and whole
-  | bigdec (x : Decimal)   -- `bigdecimal`: exact
+  | integer (x : Integer)
+  | float (x : Float)
+  | biginteger (x : BigInteger)
+  | bigdecimal (x : BigDecimal)
 ```
 
-An integer and a big integer are each a Lean `Int`, a float is a
-double, and a big decimal an exact decimal. The leaves are disjoint, so
-the integer `1` and the big integer `0d1` are two values, which no rule
+Each leaf has its own type, named as aontu names it, and each type
+holds exactly the numbers of its leaf: an `Integer` is a whole number
+of one range, a `Float` a double, a `BigInteger` any whole number, and
+a `BigDecimal` an exact decimal. Under them, `ℤ` is the integers of
+mathematics and `ℕ` the natural numbers, Lean's `Int` and `Nat` under
+the names mathematics gives them. The leaves are disjoint, so the
+integer `1` and the big integer `0d1` are two values, which no rule
 makes one: each kind admits its own leaf, and each literal its own
 number.
 
@@ -165,15 +167,15 @@ The `integer` leaf holds the integers of one range:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The integers the `integer` leaf holds: the values a double holds
+/-- The whole numbers the `integer` leaf holds: the values a double holds
 exactly, `m · 2 ^ e` with `m < 2 ^ 53`, whose magnitude is below
 `2 ^ 63`. So `2 ^ 53 + 2` and `10 ^ 18` are in it, and `2 ^ 53 + 1`
 (no double), `2 ^ 63` and `-2 ^ 63` (outside the window) are not. -/
-def IntegerLeaf (n : Int) : Prop :=
-  (∃ m e : Nat, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
+def IntegerLeaf (n : ℤ) : Prop :=
+  (∃ m e : ℕ, n.natAbs = m * 2 ^ e ∧ m < 2 ^ 53) ∧ n.natAbs < 2 ^ 63
 ```
 
-`∃ m e : Nat` reads "there are natural numbers `m` and `e` such that",
+`∃ m e : ℕ` reads "there are natural numbers `m` and `e` such that",
 and `n.natAbs` is the size of `n`, its sign dropped. A double holds an
 integer exactly when the integer is a 53-bit integer times a power of
 two, and the window keeps every one of them below `2^63` in size:
@@ -197,42 +199,51 @@ of the leaf:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | integer {n : Int} : Admits env root .integer (.num (.int n))
+  | integer {x : Integer} : Admits env root .integer (.num (.integer x))
 ```
 
-An argument in braces, such as `{n : Int}`, is one Lean works out for
-itself. The range is the data's to keep: a Lean `Data` that holds an
-integer no double holds is no value, so it's an instance of nothing.
-`Data.int n` builds the integer `n`:
+An argument in braces, such as `{x : Integer}`, is one Lean works out
+for itself. The range is the type's to keep: an `Integer` is a whole
+number with the proof that the leaf holds it, so no `Integer` lies
+outside the leaf. `Integer.of n` builds one, and `decide` finds the
+proof:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The integer `n`: `Data.int 3` is the `integer` three. -/
-def Data.int (n : Int) : Data := .num (.int n)
+/-- An `integer`: a whole number the `integer` leaf holds, which a
+double holds exactly and whose magnitude is below `2 ^ 63`. -/
+structure Integer where
+  value : ℤ
+  leaf : IntegerLeaf value
+  deriving DecidableEq
+
+/-- The integer `n`, for an `n` the leaf holds: `Integer.of 3` is three. -/
+def Integer.of (n : ℤ) (h : IntegerLeaf n := by decide) : Integer := ⟨n, h⟩
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` admits `3`. -/
-example : Instance .empty .integer (.int 3) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 3) := ⟨by decide, .integer⟩
 
 /-- `integer` admits `9007199254740994`, which a double holds. -/
-example : Instance .empty .integer (.int 9007199254740994) := ⟨by decide, .integer⟩
+example : Instance .empty .integer (.integer 9007199254740994) := ⟨by decide, .integer⟩
 
-/-- No integer is `9007199254740993`: a Lean `Data` that says so is no
-value, and no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.int 9007199254740993) := fun ⟨hw, _⟩ => absurd hw (by decide)
+/-- No `Integer` is `9007199254740993`: the leaf does not hold it, so
+the type has no such value. -/
+example : ¬ ∃ x : Integer, x.value = 9007199254740993 := fun ⟨⟨_, h⟩, rfl⟩ => absurd h (by decide)
 
 /-- `integer` refuses the string `"3"`. -/
 example : ¬ Instance .empty .integer (.str "3") := fun ⟨_, h⟩ => nomatch h
 ```
 
-`Instance .empty .integer (.int 3)` claims that `integer` admits `3`
-under no alias declaration. Its proof is a pair: `by decide` shows that
-`3` is a value, and `.integer` names the rule. A refusal takes the
-supposed proof apart: `fun ⟨hw, _⟩ => absurd hw (by decide)` shows its
-first half can't hold, and `fun ⟨_, h⟩ => nomatch h` finds no rule that
-could have given its second. Write `integers.aontu`:
+`Instance .empty .integer (.integer 3)` claims that `integer` admits
+`3` under no alias declaration, where `.integer 3` builds the data
+three through `Data.integer`. Its proof is a pair: `by decide` shows
+that `3` is a value, and `.integer` names the rule. A refusal takes
+the supposed proof apart: `fun ⟨_, h⟩ => nomatch h` finds no rule that
+could have given its second half. Taking an `Integer` apart gives its
+proof, which is how the third example shows that none is `2 ^ 53 + 1`. Write `integers.aontu`:
 
 <!-- test: scenario integers -->
 <!-- test: file integers.aontu -->
@@ -297,7 +308,9 @@ the two sides, each with its file, line, and column.
 
 ### Floats
 
-A float is a double, held as the three fields of its binary64 format:
+A float is a double, held as the three fields of its binary64 format.
+The type is aontu's `Float`, not Lean's own, whose operations no proof
+can compute with:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
@@ -305,10 +318,10 @@ A float is a double, held as the three fields of its binary64 format:
 11-bit biased exponent, and the 52 bits of the fraction. The exponent
 `2047` would make an infinity or a NaN, and the sign alone a negative
 zero, which aontu takes as zero. -/
-structure Float64 where
+structure Float where
   neg : Bool
-  exp : Nat
-  frac : Nat
+  exp : ℕ
+  frac : ℕ
   exp_lt : exp < 2047
   frac_lt : frac < 2 ^ 52
   no_neg_zero : neg = true → exp ≠ 0 ∨ frac ≠ 0
@@ -324,36 +337,36 @@ times a power of two, `2 ^ pow`:
 ```lean
 /-- The significand: the fraction with its leading one, which a
 subnormal, of exponent `0`, lacks. -/
-def Float64.man (x : Float64) : Nat := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
+def Float.man (x : Float) : ℕ := if x.exp = 0 then x.frac else 2 ^ 52 + x.frac
 
 /-- The power of two the significand is scaled by: a float is
 `± man * 2 ^ pow`. -/
-def Float64.pow (x : Float64) : Int := if x.exp = 0 then -1074 else (x.exp : Int) - 1075
+def Float.pow (x : Float) : ℤ := if x.exp = 0 then -1074 else (x.exp : ℤ) - 1075
 ```
 
-`Float64.dyadic m e` builds the double `m * 2 ^ e`:
+`Float.dyadic m e` builds the double `m * 2 ^ e`:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The float `m * 2 ^ e`, for a positive `m` the double holds exactly:
-`Float64.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
-def Float64.dyadic (m : Nat) (e : Int)
-    (h₁ : (Float64.fieldsOf m e).1 < 2047 := by decide)
-    (h₂ : (Float64.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float64 :=
+`Float.dyadic 3 (-1)` is one and a half, the double `1.5`. -/
+def Float.dyadic (m : ℕ) (e : ℤ)
+    (h₁ : (Float.fieldsOf m e).1 < 2047 := by decide)
+    (h₂ : (Float.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float :=
 ```
 
 `float` admits every float:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | float {x : Float64} : Admits env root .float (.num (.float x))
+  | float {x : Float} : Admits env root .float (.num (.float x))
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- The double `1.5` is `3 * 2 ^ -1`: the sign clear, the exponent
 `1023`, and the top bit of the fraction set. -/
-example : Float64.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
+example : Float.dyadic 3 (-1) = ⟨false, 1023, 2 ^ 51, by decide, by decide, fun h => nomatch h⟩ :=
   rfl
 
 /-- `float` admits the float `1.5`. -/
@@ -366,7 +379,7 @@ example : ¬ Instance .empty .integer (.num (.float (.dyadic 1 0))) := fun ⟨_,
 example : (Number.float (.dyadic 3602879701896397 (-55))).shown = (1, 10) := by decide
 
 /-- …though its exact value is a little above one tenth. -/
-example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdec (.of 1 1)) := by decide
+example : ¬ (Number.float (.dyadic 3602879701896397 (-55))).le (.bigdecimal (.of 1 1)) := by decide
 ```
 
 `rfl` proves that a computation gives what it claims, here the three
@@ -380,7 +393,7 @@ What a float shows is its shortest decimal, which step 4 needs:
 that rounds to the float, the closest to it of those, and of two that
 close the one with the even last digit. It is the text both ports write
 for a float, and what `multiple` reads one as. -/
-def Float64.shortest (x : Float64) : Int × Int :=
+def Float.shortest (x : Float) : ℤ × ℤ :=
 ```
 
 Write `floats.aontu`:
@@ -463,17 +476,24 @@ changes. No other transcript on this page reads JSON or passes a flag.
 
 ### Big integers and big decimals
 
-A big integer is an `Int`, and a big decimal is exact:
+A big integer is any whole number, and a big decimal an exact decimal:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A big decimal: the exact value `coef * 10 ^ (-scale)`, the
+/-- A `biginteger`: a whole number, exact and unbounded. -/
+structure BigInteger where
+  value : ℤ
+  deriving DecidableEq
+
+/-! ### Big decimals -/
+
+/-- A `bigdecimal`: the exact value `coef * 10 ^ (-scale)`, the
 coefficient with no zero trailing it. Scale is presentation, not
-identity, so each value has one `Decimal`: `0d0.10` and `0d0.1` are
+identity, so each value has one `BigDecimal`: `0d0.10` and `0d0.1` are
 both `⟨1, 1, _⟩`. -/
-structure Decimal where
-  coef : Int
-  scale : Int
+structure BigDecimal where
+  coef : ℤ
+  scale : ℤ
   canon : coef % 10 ≠ 0 ∨ (coef = 0 ∧ scale = 0)
 ```
 
@@ -482,20 +502,20 @@ one value: scale is presentation, not identity. Each leaf has its kind:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | biginteger {n : Int} : Admits env root .biginteger (.num (.bigint n))
-  | bigdecimal {x : Decimal} : Admits env root .bigdecimal (.num (.bigdec x))
+  | biginteger {x : BigInteger} : Admits env root .biginteger (.num (.biginteger x))
+  | bigdecimal {x : BigDecimal} : Admits env root .bigdecimal (.num (.bigdecimal x))
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `biginteger` admits `9007199254740993`, exactly. -/
-example : Instance .empty .biginteger (.num (.bigint 9007199254740993)) := ⟨by decide, .biginteger⟩
+example : Instance .empty .biginteger (.num (.biginteger ⟨9007199254740993⟩)) := ⟨by decide, .biginteger⟩
 
 /-- `bigdecimal` admits one and a half. -/
-example : Instance .empty .bigdecimal (.num (.bigdec (.of 15 1))) := ⟨by decide, .bigdecimal⟩
+example : Instance .empty .bigdecimal (.num (.bigdecimal (.of 15 1))) := ⟨by decide, .bigdecimal⟩
 
 /-- `integer` refuses the biginteger `5`, however equal they look. -/
-example : ¬ Instance .empty .integer (.num (.bigint 5)) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .integer (.num (.biginteger ⟨5⟩)) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `bigs.aontu`:
@@ -548,10 +568,10 @@ has the same value: each kind admits its own leaf.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `number` admits a number of every leaf. -/
-example : Instance .empty .number (.int 3) ∧
+example : Instance .empty .number (.integer 3) ∧
     Instance .empty .number (.num (.float (.dyadic 3 (-1)))) ∧
-    Instance .empty .number (.num (.bigint 9007199254740993)) ∧
-    Instance .empty .number (.num (.bigdec (.of 15 1))) :=
+    Instance .empty .number (.num (.biginteger ⟨9007199254740993⟩)) ∧
+    Instance .empty .number (.num (.bigdecimal (.of 15 1))) :=
   ⟨⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩, ⟨by decide, .number⟩⟩
 
 /-- `number` refuses the string `"1"`. -/
@@ -609,13 +629,13 @@ example. The tour proves it for every value:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `number & multiple(1)` admits the biginteger `9007199254740993`. -/
-example : Instance .empty (.meet .number (.multiple (.int 1))) (.num (.bigint 9007199254740993)) :=
+example : Instance .empty (.meet .number (.multiple (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
   ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
 
 /-- `number & multiple(1)` admits exactly the numbers that show a whole
 number, of every leaf. -/
 example (env : Env) (root j : Data) :
-    Admits env root (.meet .number (.multiple (.int 1))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
+    Admits env root (.meet .number (.multiple (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
 ```
 
 The proof reads `multiple(1)` through a fact about the numbers:
@@ -623,7 +643,7 @@ The proof reads `multiple(1)` through a fact about the numbers:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The multiples of one are the numbers that show a whole number. -/
-theorem Number.multipleOf_one (x : Number) : x.multipleOf (.int 1) ↔ x.Whole := by
+theorem Number.multipleOf_one (x : Number) : x.multipleOf (.integer (.of 1)) ↔ x.Whole := by
 ```
 
 `↔` reads as *exactly when*. Write `whole.aontu`:
@@ -700,7 +720,7 @@ example : ¬ Instance .empty .string (.str "") := by
 example : Instance .empty .anyString (.str "") := ⟨by decide, .anyString⟩
 
 /-- `string` refuses `3`. -/
-example : ¬ Instance .empty .string (.int 3) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .string (.integer 3) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `strings.aontu`:
@@ -754,7 +774,7 @@ the meet it formed, `string&""`, which admits nothing.
 example : Instance .empty .boolean (.bool true) := ⟨by decide, .boolean⟩
 
 /-- `boolean` refuses `1`. -/
-example : ¬ Instance .empty .boolean (.int 1) := fun ⟨_, h⟩ => nomatch h
+example : ¬ Instance .empty .boolean (.integer 1) := fun ⟨_, h⟩ => nomatch h
 ```
 
 Write `booleans.aontu`:
@@ -823,13 +843,13 @@ literal `null` admits it.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `3` admits `3`. -/
-example : Instance .empty (.lit (.num (.int 3))) (.int 3) := ⟨by decide, .num⟩
+example : Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 3) := ⟨by decide, .num⟩
 
 /-- `3` refuses `4`. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.int 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.integer 4) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `3` refuses `0d3`, the biginteger three. -/
-example : ¬ Instance .empty (.lit (.num (.int 3))) (.num (.bigint 3)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
+example : ¬ Instance .empty (.lit (.num (.integer (.of 3)))) (.num (.biginteger ⟨3⟩)) := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
 
 /-- `"a"` refuses `"b"`. -/
 example : ¬ Instance .empty (.lit (.str "a")) (.str "b") := fun ⟨_, h⟩ => absurd ((check_iff .lit _).mpr h) (by decide)
@@ -928,13 +948,13 @@ A bound compares numbers of any leaf by their exact values:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A number's exact value, as an integer over a positive natural. -/
-def Number.value : Number → Int × Nat
-  | .int n => (n, 1)
+def Number.value : Number → ℤ × ℕ
+  | .integer x => (x.value, 1)
   | .float x =>
-    let m : Int := if x.neg then -(x.man : Int) else x.man
+    let m : ℤ := if x.neg then -(x.man : ℤ) else x.man
     if 0 ≤ x.pow then (m * 2 ^ x.pow.toNat, 1) else (m, 2 ^ (-x.pow).toNat)
-  | .bigint n => (n, 1)
-  | .bigdec x =>
+  | .biginteger x => (x.value, 1)
+  | .bigdecimal x =>
     if 0 ≤ x.scale then (x.coef, 10 ^ x.scale.toNat) else (x.coef * 10 ^ (-x.scale).toNat, 1)
 ```
 
@@ -946,7 +966,7 @@ exact value only for a float:
 /-- The value a number shows: its exact value, but for a float the
 decimal it shows, so that `0.3` shows three tenths where its exact
 value is a little below. -/
-def Number.shown : Number → Int × Nat
+def Number.shown : Number → ℤ × ℕ
   | .float x =>
     let (c, k) := x.shortest
     if 0 ≤ k then (c * 10 ^ k.toNat, 1) else (c, 10 ^ (-k).toNat)
@@ -972,42 +992,42 @@ asks for a positive divisor, so `multiple(0)` admits nothing:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `min(3)` admits `3`. -/
-example : Instance .empty (.min (.int 3)) (.int 3) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.integer 3) := ⟨by decide, .min (by decide)⟩
 
 /-- `min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.min (.int 3)) (.int 2) := by
+example : ¬ Instance .empty (.min (.integer (.of 3))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits the bigdecimal three and a half. -/
-example : Instance .empty (.min (.int 3)) (.num (.bigdec (.of 35 1))) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.integer (.of 3))) (.num (.bigdecimal (.of 35 1))) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)`, whose bound is a float, admits the bigdecimal `2.5`: a
 bound compares exact values, whatever their leaves. -/
-example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 25 1))) :=
+example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 25 1))) :=
   ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdec (.of 26 1))) := by
+example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 26 1))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `max(0d0.1)` refuses the float `0.1`, whose exact value is above
 one tenth. -/
-example : ¬ Instance .empty (.max (.bigdec (.of 1 1)))
+example : ¬ Instance .empty (.max (.bigdecimal (.of 1 1)))
     (.num (.float (.dyadic 3602879701896397 (-55)))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 15 1))) :=
+example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdec (.of 125 2))) := by
+example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
   rintro ⟨-, h⟩
   cases h with
   | multiple _ h => exact absurd h (by decide)
@@ -1019,7 +1039,7 @@ example : Instance .empty (.multiple (.float (.dyadic 3602879701896397 (-55))))
   ⟨by decide, .multiple (by decide) (by decide)⟩
 
 /-- `multiple(0)` refuses `0`, and everything else. -/
-example : ¬ Instance .empty (.multiple (.int 0)) (.int 0) := by
+example : ¬ Instance .empty (.multiple (.integer (.of 0))) (.integer 0) := by
 ```
 
 Write `bounds.aontu`:
@@ -1147,7 +1167,7 @@ admits none. They're the [top](unification.md) and the
 example : Instance .empty .any .null := ⟨by decide, .any⟩
 
 /-- `any` admits `[1, "a"]`. -/
-example : Instance .empty .any (.list [.int 1, .str "a"]) := ⟨by decide, .any⟩
+example : Instance .empty .any (.list [.integer 1, .str "a"]) := ⟨by decide, .any⟩
 
 /-- `nil` refuses `null`, and everything else. -/
 example : ¬ Instance .empty .nil .null := fun ⟨_, h⟩ => nomatch h
@@ -1211,19 +1231,15 @@ inductive Data where
 
 A map is the set of its members, and a member is a key with the value
 the map gives it: `List (String × Data)` reads as a list of pairs of a
-string and a value. A Lean list can give one key twice, which no map does, and an
-integer can be one no double holds. So the definition says which Lean
-`Data` is a value:
+string and a value. A Lean list can give one key twice, which no map
+does, so the definition says which Lean `Data` is a value:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A Lean `Data` is a value when each of its integers is one the
-`integer` leaf holds and each of its maps gives each key once. -/
+/-- A Lean `Data` is a value when each of its maps gives each key once.
+Every number is one already: each leaf's type holds only its own. -/
 inductive Data.WellFormed : Data → Prop
-  | int {n : Int} : IntegerLeaf n → WellFormed (.num (.int n))
-  | float {x : Float64} : WellFormed (.num (.float x))
-  | bigint {n : Int} : WellFormed (.num (.bigint n))
-  | bigdec {x : Decimal} : WellFormed (.num (.bigdec x))
+  | num {x : Number} : WellFormed (.num x)
   | str {s : String} : WellFormed (.str s)
   | bool {b : Bool} : WellFormed (.bool b)
   | null : WellFormed .null
@@ -1238,15 +1254,19 @@ in `xs` is …", and `decide` checks the whole by computing:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{"a": 1}` is a value. -/
-example : Data.WellFormed (.map [("a", .int 1)]) := by decide
+example : Data.WellFormed (.map [("a", .integer 1)]) := by decide
 
 /-- A Lean `Data` that gives `a` twice is no value. -/
-example : ¬ Data.WellFormed (.map [("a", .int 1), ("a", .int 2)]) := by decide
+example : ¬ Data.WellFormed (.map [("a", .integer 1), ("a", .integer 2)]) := by decide
 
 /-- …so it is no instance of anything, `any` included. -/
-example : ¬ Instance .empty .any (.map [("a", .int 1), ("a", .int 2)]) :=
+example : ¬ Instance .empty .any (.map [("a", .integer 1), ("a", .integer 2)]) :=
   fun ⟨hw, _⟩ => absurd hw (by decide)
 ```
+
+A refusal can take apart the first half of an instance too:
+`fun ⟨hw, _⟩ => absurd hw (by decide)` shows that the map giving `a`
+twice is no value, so it's an instance of nothing, `any` included.
 
 The order of a map's list is no part of the value. Step 9 compares two
 maps that list one set of members in two orders.
@@ -1290,7 +1310,7 @@ optional. The last two are the spread and the seal, which follow below.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: integer}` admits `{"x": 1}`. -/
-example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .int 1)]) := by
+example : Instance .empty (.map [("x", false, .integer)] none false) (.map [("x", .integer 1)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1382,7 +1402,7 @@ not:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{&: integer}` admits `{"a": 1, "b": 2}`: the spread holds every member. -/
-example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), ("b", .int 2)]) := by
+example : Instance .empty (.map [] (some .integer) false) (.map [("a", .integer 1), ("b", .integer 2)]) := by
   refine ⟨by decide, ?_⟩
   refine .map (fun _ _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h) ?_ (fun h => nomatch h)
   intro s hs k x hm
@@ -1393,7 +1413,7 @@ example : Instance .empty (.map [] (some .integer) false) (.map [("a", .int 1), 
 /-- `{a: integer, &: string}` refuses `{"a": 1}`: the spread holds the
 declared key as well. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] (some .string) false)
-    (.map [("a", .int 1)]) := by
+    (.map [("a", .integer 1)]) := by
 ```
 
 Write `spreads.aontu`:
@@ -1440,11 +1460,11 @@ declare, and leaves an absent optional key alone:
 ```lean
 /-- `close({a: integer})` refuses `{"a": 1, "b": 2}`: `b` is not declared. -/
 example : ¬ Instance .empty (.map [("a", false, .integer)] none true)
-    (.map [("a", .int 1), ("b", .int 2)]) := by
+    (.map [("a", .integer 1), ("b", .integer 2)]) := by
   rintro ⟨-, h⟩
   cases h with
   | map _ _ _ hc =>
-    obtain ⟨o, v, hm⟩ := hc rfl "b" (.int 2) (by simp)
+    obtain ⟨o, v, hm⟩ := hc rfl "b" (.integer 2) (by simp)
     simp at hm
 
 /-- `close({a?: integer})` admits `{}`. -/
@@ -1496,7 +1516,7 @@ definition holds each map's seal in its own `closed` flag.
   later elements are allowed; the spread holds every element. -/
   | list {items : List Val} {spread : Option Val} {xs : List Data} :
       items.length ≤ xs.length →
-      (∀ (i : Nat) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) →
       (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
       Admits env root (.list items spread) (.list xs)
@@ -1508,7 +1528,7 @@ definition holds each map's seal in its own `closed` flag.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
-example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str "a", .bool true]) := by
+example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .str "a", .bool true]) := by
   refine ⟨by decide, ?_⟩
   refine .list (by decide) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
@@ -1518,13 +1538,13 @@ example : Instance .empty (.list [.integer, .string] none) (.list [.int 1, .str 
   · simp at hv
 
 /-- `[integer, string]` refuses `[1]`: its second position is missing. -/
-example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.int 1]) := by
+example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.integer 1]) := by
   rintro ⟨-, h⟩
   cases h with
   | list hlen _ _ => exact absurd hlen (by decide)
 
 /-- `[&: integer]` refuses `[1, "a"]`: the spread holds every element. -/
-example : ¬ Instance .empty (.list [] (some .integer)) (.list [.int 1, .str "a"]) := by
+example : ¬ Instance .empty (.list [] (some .integer)) (.list [.integer 1, .str "a"]) := by
 ```
 
 The formatter separates list elements with spaces. Write
@@ -1580,11 +1600,11 @@ required key.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer & min(3)` admits `7`. -/
-example : Instance .empty (.meet .integer (.min (.int 3))) (.int 7) :=
+example : Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 7) :=
   ⟨by decide, .meet (.integer) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.meet .integer (.min (.int 3))) (.int 2) := by
+example : ¬ Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
@@ -1662,7 +1682,7 @@ def envT : Env := fun n => if n = "T" then some T else none
 ```lean
 /-- `{"n": {"v": 1}}` is a `%T`. The proof is the derivation itself,
 and it follows the data down. -/
-example : Instance envT T (.map [("n", .map [("v", .int 1)])]) := by
+example : Instance envT T (.map [("n", .map [("v", .integer 1)])]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1713,7 +1733,7 @@ applies:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: %U}` refuses `{"x": 1}`: `%U` is declared nowhere. -/
-example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .int 1)]) := by
+example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map [("x", .integer 1)]) := by
 ```
 
 Write `undeclared.aontu`:
@@ -1757,7 +1777,7 @@ A path names a part of a value, step by step:
 /-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where
   | key (k : String)
-  | idx (i : Nat)
+  | idx (i : ℕ)
 ```
 
 `Data.at`, beside it in the file, follows the steps down a value. A
@@ -1789,7 +1809,7 @@ inductive Data.Same : Data → Data → Prop
       Same (.map fs) (.map gs)
   | list {xs ys : List Data} :
       xs.length = ys.length →
-      (∀ (i : Nat) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
+      (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
       Same (.list xs) (.list ys)
 ```
 
@@ -1806,13 +1826,13 @@ abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", fal
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- It admits `{"x": 1, "y": 1}`. -/
-example : Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 1)]) := by
+example : Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- It refuses `{"x": 1, "y": 2}`. -/
-example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 2)]) := by
+example : ¬ Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1820,7 +1840,7 @@ example : ¬ Instance .empty (refDoc .integer) (.map [("x", .int 1), ("y", .int 
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
 the two objects have the same members, so they are one value. -/
 example : Instance .empty (refDoc .any)
-    (.map [("x", .map [("a", .int 1), ("b", .int 2)]), ("y", .map [("b", .int 2), ("a", .int 1)])]) := by
+    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) := by
 ```
 
 Here the schema is the whole document, so there are no `admitted` and
@@ -1930,13 +1950,13 @@ premise is that `a` admits it.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` is above `integer & min(3)`. -/
-example : .meet .integer (.min (.int 3)) ⊑[.empty] .integer := meet_le_left _ _ _
+example : .meet .integer (.min (.integer (.of 3))) ⊑[.empty] .integer := meet_le_left _ _ _
 
 /-- `integer & min(3)` is not above `integer`: `2` is the instance that
 shows it. -/
-example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.int 3))) := by
+example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.integer (.of 3)))) := by
   intro h
-  cases (h (.int 2) ⟨by decide, .integer⟩).2 with
+  cases (h (.integer 2) ⟨by decide, .integer⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 ```
 
@@ -2158,15 +2178,16 @@ inductive Trial where
 
 mutual
 /-- `Holds env root c j`: the trial `c` passes on `j`. `nof(n, …)`
-passes where `n` admits the number of its trials that pass. -/
+passes where `n` admits the number of its trials that pass, an
+integer. -/
 def Holds (env : Env) (root : Data) : Trial → Data → Prop
   | .is v, j => Admits env root v j
   | .when c t e, j =>
     (Holds env root c j ∧ Holds env root t j) ∨ (¬ Holds env root c j ∧ Holds env root e j)
-  | .nof n cs, j => ∃ k, Count env root cs j k ∧ Admits env root n (.int k)
+  | .nof n cs, j => ∃ k, Count env root cs j k ∧ ∃ h : IntegerLeaf k, Admits env root n (.integer k h)
 
 /-- `Count env root cs j k`: exactly `k` of the trials `cs` pass on `j`. -/
-def Count (env : Env) (root : Data) : List Trial → Data → Nat → Prop
+def Count (env : Env) (root : Data) : List Trial → Data → ℕ → Prop
   | [], _, k => k = 0
   | c :: cs, j, k =>
     (Holds env root c j ∧ ∃ k', k = k' + 1 ∧ Count env root cs j k') ∨
@@ -2177,20 +2198,20 @@ end
 `mutual` defines two things that read each other. `Holds` recurses on
 the trial schema, which is what lets `¬` appear in it, and `Count` says
 how many trials of a list pass. `nof(n, …)` passes where `n` admits that
-count, so `nof(1, …)` asks for exactly one:
+count, as an integer, so `nof(1, …)` asks for exactly one:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
-example : Holds .empty (.int (-1)) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int (-1)) := by
+example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer (-1)) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- …and refuses `3`, which both admit. -/
-example : ¬ Holds .empty (.int 3) (.nof (.lit (.num (.int 1))) [.is .integer, .is (.min (.int 0))])
-    (.int 3) := by
+example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+    (.integer 3) := by
 ```
 
 The refusal leans on a theorem of the same file, that a list of trials
@@ -2200,7 +2221,7 @@ has one count at most:
 ```lean
 /-- A list of trials has one count at most. -/
 theorem Count.unique {env : Env} {root : Data} :
-    ∀ {cs : List Trial} {j : Data} {k k' : Nat},
+    ∀ {cs : List Trial} {j : Data} {k k' : ℕ},
       Count env root cs j k → Count env root cs j k' → k = k'
 ```
 
@@ -2245,13 +2266,13 @@ where it doesn't:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
-example : Holds .empty (.int 5)
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.int 5) :=
+example : Holds .empty (.integer 5)
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.integer 5) :=
   .inr ⟨(fun h => nomatch h), .min (by decide)⟩
 
 /-- …and refuses `"b"`: a string, and not `"a"`. -/
 example : ¬ Holds .empty (.str "b")
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.int 0)))) (.str "b") := by
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.str "b") := by
 ```
 
 Write `when.aontu`:
@@ -2330,16 +2351,16 @@ first cases:
 /-- Whether `v` admits `j`, computed. -/
 def check : Val → Data → Bool
   | .integer, j => match j with
-    | .num (.int _) => true
+    | .num (.integer _) => true
     | _ => false
   | .float, j => match j with
     | .num (.float _) => true
     | _ => false
   | .biginteger, j => match j with
-    | .num (.bigint _) => true
+    | .num (.biginteger _) => true
     | _ => false
   | .bigdecimal, j => match j with
-    | .num (.bigdec _) => true
+    | .num (.bigdecimal _) => true
     | _ => false
   | .number, j => match j with
     | .num _ => true
@@ -2363,7 +2384,7 @@ answer:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `check` computes: `integer & min(3)` admits `7`. -/
-example : check (.meet .integer (.min (.int 3))) (.int 7) = true := by decide
+example : check (.meet .integer (.min (.integer (.of 3)))) (.integer 7) = true := by decide
 
 /-- …and `{x: integer}` refuses `{}`. -/
 example : check (.map [("x", false, .integer)] none false) (.map []) = false := by decide
@@ -2376,8 +2397,8 @@ to try each against:
 <!-- test: quote spec/Oracle.lean -->
 ```lean
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.multiple (.int 1)), .string, .anyString,
-    .min (.int 0), .min (.int 3)]
+  [.any, .nil, .integer, .meet .number (.multiple (.integer (.of 1))), .string, .anyString,
+    .min (.integer (.of 0)), .min (.integer (.of 3))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
 def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
@@ -2386,11 +2407,12 @@ def level1 : List Val := bases ++ bases.flatMap fun v => [field true v, field fa
 
 def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
-def scalars : List Data := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
+def scalars : List Data :=
+  [.null, .bool true, .integer 0, .integer 3, .integer (-1), .str "", .str "a"]
 
 /-- The instances of the first 9,600 rows. -/
 def first : List Data :=
-  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .int 1)]]
+  scalars ++ [.map []] ++ scalars.map (fun j => .map [("x", j)]) ++ [.map [("y", .integer 1)]]
 
 /-- The instances of the rows after them, numbered on so that no earlier
 row is renamed: two big decimals, one either side of three, a big
@@ -2398,8 +2420,8 @@ integer no double holds, and a list, each also under a key, written
 `0d1.5`, `0d3.5`, `0d9007199254740993`, and `[1]`. -/
 def more : List Data :=
   let xs : List Data :=
-    [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
-      .list [.int 1]]
+    [.num (.bigdecimal (.of 15 1)), .num (.bigdecimal (.of 35 1)),
+      .num (.biginteger ⟨9007199254740993⟩), .list [.integer 1]]
   xs ++ xs.map (fun j => .map [("x", j)])
 
 def instances : List Data := first ++ more

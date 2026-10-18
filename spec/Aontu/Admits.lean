@@ -14,10 +14,10 @@ rule: it admits nothing.
 namespace Aontu
 
 inductive Admits (env : Env) (root : Data) : Val → Data → Prop
-  | integer {n : Int} : Admits env root .integer (.num (.int n))
-  | float {x : Float64} : Admits env root .float (.num (.float x))
-  | biginteger {n : Int} : Admits env root .biginteger (.num (.bigint n))
-  | bigdecimal {x : Decimal} : Admits env root .bigdecimal (.num (.bigdec x))
+  | integer {x : Integer} : Admits env root .integer (.num (.integer x))
+  | float {x : Float} : Admits env root .float (.num (.float x))
+  | biginteger {x : BigInteger} : Admits env root .biginteger (.num (.biginteger x))
+  | bigdecimal {x : BigDecimal} : Admits env root .bigdecimal (.num (.bigdecimal x))
   | number {x : Number} : Admits env root .number (.num x)
   | string {s : String} : s ≠ "" → Admits env root .string (.str s)
   | anyString {s : String} : Admits env root .anyString (.str s)
@@ -49,7 +49,7 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
   later elements are allowed; the spread holds every element. -/
   | list {items : List Val} {spread : Option Val} {xs : List Data} :
       items.length ≤ xs.length →
-      (∀ (i : Nat) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) →
       (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
       Admits env root (.list items spread) (.list xs)
@@ -66,9 +66,8 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
 
 /-- `j` is an instance of `v` under the declarations `env`: `j` is a
 value, taken whole, so that it is its own root. This is the question
-`aontu vet` answers. A Lean `Data` that is no value, such as a map that
-gives one key twice or an integer no double holds, is no instance of
-anything, so it is never a witness. -/
+`aontu vet` answers. A Lean `Data` that is no value, a map that gives
+one key twice, is no instance of anything, so it is never a witness. -/
 abbrev Instance (env : Env) (v : Val) (j : Data) : Prop := j.WellFormed ∧ Admits env j v j
 
 end Aontu

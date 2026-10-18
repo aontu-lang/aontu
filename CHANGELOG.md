@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### The definition's number types are named as aontu names them
+
+Definition; no engine changes, and no row moves.
+
+- Each of the four leaves has its own Lean type, named after its kind:
+  `Integer`, `Float` (was `Float64`), `BigInteger`, and `BigDecimal`
+  (was `Decimal`), and `Number`'s constructors are `integer`, `float`,
+  `biginteger`, and `bigdecimal`. An integer and a big integer were
+  each a bare Lean `Int`.
+- An `Integer` carries the proof that the `integer` leaf holds it, as
+  `Float` and `BigDecimal` carry their invariants, so no Lean term holds
+  an integer the language has not. `Data.WellFormed` keeps only its map
+  clause, no key twice, and the checker stops testing the range.
+- The definition writes Lean's `Int` and `Nat` as `ℤ` and `ℕ`, so that
+  neither reads as an aontu type.
+
 ### The definition's rows and tutorial run plain `vet`, with data written in aontu
 
 Generated rows and documentation; no engine changes, and no verdict moves.

@@ -27,7 +27,7 @@ where
     else c.toString
 
 /-- A big decimal's digits, its point placed by its scale: `0.5`, `1.25`. -/
-def Decimal.digits (x : Decimal) : String :=
+def BigDecimal.digits (x : BigDecimal) : String :=
   if x.scale ≤ 0 then toString (x.coef.natAbs * 10 ^ (-x.scale).toNat)
   else
     let s := x.scale.toNat
@@ -41,10 +41,10 @@ reads back in its leaf: an integer plainly, an exact number after `0d`,
 an integral big decimal with one decimal place. The oracle writes no
 float. -/
 def Number.src : Number → Option String
-  | .int n => some (toString n)
+  | .integer x => some (toString x.value)
   | .float _ => none
-  | .bigint n => some ((if n < 0 then "-" else "") ++ "0d" ++ toString n.natAbs)
-  | .bigdec x =>
+  | .biginteger x => some ((if x.value < 0 then "-" else "") ++ "0d" ++ toString x.value.natAbs)
+  | .bigdecimal x =>
     some ((if x.coef < 0 then "-" else "") ++ "0d" ++ x.digits ++ (if x.scale ≤ 0 then ".0" else ""))
 
 def Scalar.src : Scalar → Option String
