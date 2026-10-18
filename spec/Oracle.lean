@@ -1,14 +1,14 @@
 import Aontu.Check
-import Aontu.Print
+import Oracle.Print
 
 /-!
 # The oracle
 
 Enumerates every value of the fragment up to one meet against a set of
-documents, and prints each case with the definition's verdict. The
+JSON values, and prints each case with the definition's verdict. The
 verdict comes from `check`, which `check_iff` makes the definition's on
 every value that reads no reference: `vals_refFree` proves every value
-here is one, `instances_wellFormed` proves every instance a document, and
+here is one, `instances_wellFormed` proves every instance a JSON value, and
 `verdict_exact` puts the three together.
 -/
 
@@ -27,15 +27,15 @@ def vals : List Val := level1 ++ level1.flatMap fun a => level1.map (.meet a)
 
 def scalars : List Json := [.null, .bool true, .int 0, .int 3, .int (-1), .str "", .str "a"]
 
-/-- The documents of the first 9,600 rows. -/
+/-- The instances of the first 9,600 rows. -/
 def jsons : List Json :=
   scalars ++ [.obj []] ++ scalars.map (fun j => .obj [("x", j)]) ++ [.obj [("y", .int 1)]]
 
-/-- The documents of the rows after them, numbered on so that no earlier
-row is renamed: a fraction, a whole number written with a point, a
-whole number no double holds, and an array, each also under a key. -/
+/-- The instances of the rows after them, numbered on so that no earlier
+row is renamed: two fractions, one either side of three, a whole number
+no double holds, and an array, each also under a key. -/
 def more : List Json :=
-  let xs : List Json := [.dec 15 1, .dec 1 0, .int 9007199254740993, .arr [.int 1]]
+  let xs : List Json := [.dec 15 1, .dec 35 1, .int 9007199254740993, .arr [.int 1]]
   xs ++ xs.map (fun j => .obj [("x", j)])
 
 def instances : List Json := jsons ++ more
@@ -65,8 +65,8 @@ theorem vals_refFree : ∀ v ∈ vals, v.RefFree := by
 
 theorem instances_wellFormed : ∀ j ∈ instances, j.WellFormed := by decide
 
-/-- Every row's verdict is the definition's: `v` admits `j`, read as a
-whole document that declares no alias. -/
+/-- Every row's verdict is the definition's: `v` admits `j`, taken
+whole, under no alias declaration. -/
 theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Json} (hj : j ∈ instances) :
     check v j = true ↔ Instance Env.empty v j :=
   ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,

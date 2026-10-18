@@ -4,6 +4,11 @@ defaultTargets = ["Aontu", "oracle"]
 [[lean_lib]]
 name = "Aontu"
 
+# The oracle's printer, which the definition does not import.
+[[lean_lib]]
+name = "OraclePrint"
+roots = ["Oracle.Print"]
+
 [[lean_exe]]
 name = "oracle"
 root = "Oracle"

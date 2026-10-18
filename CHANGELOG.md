@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The formal definition holds semantics only, and its tutorial starts from the scalars
+
+Definition, documentation, and generated rows; no engine changes.
+
+- The definition says what values mean and nothing about text. A
+  number no longer carries whether its text had a point, which no rule
+  read and only the printer needed: a number is its value in lowest
+  terms, so two numbers are equal exactly when their values are. How a
+  text becomes a value is outside the definition: the grammar, each
+  port's reader, and the read modes.
+- The printer is no part of the definition. It moved from
+  `spec/Aontu/Print.lean` to `spec/Oracle/Print.lean`, a library of
+  the oracle's that no module of the definition imports.
+- The oracle's instance `1.0`, the number `1` written with a point,
+  gives way to `3.5`: the 1,200 rows that tried it, one in four from
+  `c9601`, now try a second fraction. Both engines answer every one as
+  the definition does, and the ledger holds the same rows.
+- `docs/tutorial-definition.md` starts from the scalar data: the JSON
+  values, then booleans, numbers and the integer leaf, strings,
+  literals, bounds, and the two ends, and only then arrays, objects,
+  and the rest. Every transcript shows each command's whole output,
+  every finding with its code, message, and both sites, where the page
+  had elided the messages. A new scenario has a path reference compare
+  two objects as values, whatever the order of their members.
+- `spec/Aontu/Tour.lean` follows the page's order, and drops the
+  examples that differed only in text, such as `1.0` against `1`.
+
 ### The TypeScript suite runs its rows in three files, a file per core
 
 Test infrastructure; no engine changes.

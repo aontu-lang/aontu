@@ -3,19 +3,17 @@ import Aontu.Syntax
 /-!
 # What a value admits
 
-`Admits env root v j`: the JSON `j`, found inside the whole document
+`Admits env root v j`: the JSON value `j`, found inside the whole value
 `root`, is an instance of the value `v`, where `env` holds the alias
 declarations. Each rule is one constructor, and `Admits` holds exactly
 when a finite derivation of it exists, so recursion through an alias
 follows the data down and stops where the data stops. `nil` has no
-rule: it admits nothing. A number of the data is read by its value, as
-`--exact-numbers` reads it, so `1.0` is the integer `1`.
+rule: it admits nothing.
 -/
 
 namespace Aontu
 
 inductive Admits (env : Env) (root : Json) : Val → Json → Prop
-  | any {j : Json} : Admits env root .any j
   | boolean {b : Bool} : Admits env root .boolean (.bool b)
   | number {x : Num} : Admits env root .number (.num x)
   | integer {x : Num} {n : Int} :
@@ -24,8 +22,8 @@ inductive Admits (env : Env) (root : Json) : Val → Json → Prop
   | anyString {s : String} : Admits env root .anyString (.str s)
   | null : Admits env root (.lit .null) .null
   | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
-  /-- An integer literal outside the leaf is a float, or refused as
-  lossy, and admits no number read by value. -/
+  /-- An integer literal is a value of the `integer` kind: it admits the
+  number it is, where the kind holds that integer. -/
   | int {n : Int} {x : Num} :
       x.int? = some n → IntegerLeaf n → Admits env root (.lit (.int n)) (.num x)
   | str {s : String} : Admits env root (.lit (.str s)) (.str s)
@@ -33,6 +31,7 @@ inductive Admits (env : Env) (root : Json) : Val → Json → Prop
   | max {n x : Num} : x.le n → Admits env root (.max n) (.num x)
   /-- `multiple(0)` and a negative divisor admit nothing. -/
   | multiple {d x : Num} : 0 < d.coef → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  | any {j : Json} : Admits env root .any j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in
   every declaration; the spread holds every member, declared or not;
@@ -58,16 +57,16 @@ inductive Admits (env : Env) (root : Json) : Val → Json → Prop
   admits nothing. -/
   | alias {n : String} {v : Val} {j : Json} :
       env n = some v → Admits env root v j → Admits env root (.alias n) j
-  /-- A path admits the value the document holds there, compared by
-  value. -/
+  /-- A path admits what the whole value holds at the path: the same
+  value, compared as values. -/
   | path {p : List Seg} {j' j : Json} :
       root.at p = some j' → j'.Same j → Admits env root (.path p) j
 
-/-- The document `j` is an instance of `v` under the declarations `env`:
-`j` is data, and read as a whole, so that it is its own root. This is
-the question `aontu vet` answers. A Lean `Json` that is not data, such
-as an object naming a member twice, is no instance of anything, so it
-is never a witness. -/
+/-- `j` is an instance of `v` under the declarations `env`: `j` is a JSON
+value, taken whole, so that it is its own root. This is the question
+`aontu vet` answers. A Lean `Json` that is no JSON value, such as an
+object that gives one name twice, is no instance of anything, so it is
+never a witness. -/
 abbrev Instance (env : Env) (v : Val) (j : Json) : Prop := j.WellFormed ∧ Admits env j v j
 
 end Aontu
