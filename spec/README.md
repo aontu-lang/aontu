@@ -91,7 +91,7 @@ python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli
 `lake build` ends with no `sorry`, and no named theorem rests on an
 axiom beyond `propext` and `Quot.sound`: none uses `Classical.choice`,
 so every proof is constructive. The rows are a committed generated
-copy: `make spec` fails when a committed file differs from a fresh
+copy: `make spec` fails when the committed file differs from a fresh
 one, as the coverage job does for `ts/dist`. CI runs `make spec` as
 `build.yml`'s `spec` job, which fetches the Lean release by hash.
 
