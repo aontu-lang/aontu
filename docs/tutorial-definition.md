@@ -1500,6 +1500,116 @@ $ echo $?
 The engine prints both members with their keys in one order, which is
 what makes them one value.
 
+### Patterns and formats
+
+`re(p)` admits the strings the pattern `p` matches, and `format(g)`
+the strings the format `g` reads. Which strings those are, the
+definition leaves to the engines: each is a predicate it names and
+never defines.
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+/-- What the definition leaves to the engines: which strings a pattern
+matches, and which strings a format, a name or a grammar, reads to its
+end. Each is a predicate on two strings, and nothing here says what
+either holds of, so a theorem about `re` or `format` holds whatever they
+are. -/
+structure Host where
+  pattern : String → String → Prop
+  format : String → String → Prop
+
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
+
+/-- The predicates behind `re` and `format`: a constant no proof can
+unfold, so they are read and never computed. -/
+opaque host : Host
+```
+
+`opaque` declares a constant Lean knows the type of and nothing else.
+The two rules read it:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `re(p)` admits the strings the pattern matches, and `format(g)`
+  the strings the format reads, by the host's predicates; each admits
+  `""` exactly where its predicate holds of it, and admits no other
+  kind of value. -/
+  | re {p s : String} : host.pattern p s → Admits env root (.re p) (.str s)
+  | format {g s : String} : host.format g s → Admits env root (.format g) (.str s)
+```
+
+So the definition says what the rules say and no more: a pattern
+admits strings alone, two patterns met admit the strings both match,
+and nothing about any one pattern.
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `re(p)` admits no number, whatever the pattern. -/
+example (p : String) : ¬ Instance .empty (.re p) (.integer 1) := fun ⟨_, h⟩ => nomatch h
+
+/-- `re(p) & re(q)` admits a string exactly when each pattern matches
+it, whatever matching is. -/
+example (env : Env) (root : Data) (p q s : String) :
+    Admits env root (.meet (.re p) (.re q)) (.str s) ↔ host.pattern p s ∧ host.pattern q s := by
+```
+
+The [language reference](reference-language.md#re-and-the-pattern-language)
+states which strings a pattern matches and
+[which a format reads](reference-language.md#formats-format), and the
+shared test suite holds both engines to them. Write `patterns.aontu`:
+
+<!-- test: scenario patterns -->
+<!-- test: file patterns.aontu -->
+```aontu
+letters: re("^a+$") & "aaa"
+anywhere: re("a") & "ba"
+date: format("date") & "2024-02-29"
+digits: format("v = *DIGIT") & ""
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c patterns.aontu
+{"anywhere":"ba","date":"2024-02-29","digits":"","letters":"aaa"}
+```
+
+A pattern matches anywhere in the string unless anchored, so `re("a")`
+admits `"ba"`. A format is a name, such as `date`, or a grammar, and
+`format("v = *DIGIT")` admits `""`, which its grammar reads: the rule
+says nothing about emptiness, and the predicate decides. Write
+`patterns-schema.aontu`:
+
+<!-- test: file patterns-schema.aontu -->
+```aontu
+v: re("^a+$")
+```
+
+and `patterns-data.aontu`:
+
+<!-- test: file patterns-data.aontu -->
+```aontu
+v: "b"
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet patterns-schema.aontu patterns-data.aontu
+verdict: invalid
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: re("^a+$")
+  actual:   "b"
+  data: patterns-data.aontu:1:4 ("b")
+  schema: patterns-schema.aontu:1:4 (re("^a+$"))
+$ echo $?
+1
+```
+
 ## 5. The two ends: `any` and `nil`
 
 `any` admits every value, by its one rule, and `nil` has no rule, so it
@@ -2476,40 +2586,44 @@ least zero.
 
 `Admits` is a statement, so Lean can't run it. Running needs an
 algorithm, and `spec/Aontu/Check.lean` holds one, for every term that
-reads neither an alias nor a path:
+reads no alias, no path, no pattern and no format:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- The values that read neither an alias nor a path, so that what they
-admit depends on no declaration and no root. -/
-inductive Val.RefFree : Val → Prop
-  | integer : RefFree .integer
-  | float : RefFree .float
-  | biginteger : RefFree .biginteger
-  | bigdecimal : RefFree .bigdecimal
-  | number : RefFree .number
-  | string : RefFree .string
-  | anyString : RefFree .anyString
-  | boolean : RefFree .boolean
-  | lit {s : Scalar} : RefFree (.lit s)
-  | min {b : Bound} : RefFree (.min b)
-  | max {b : Bound} : RefFree (.max b)
-  | above {b : Bound} : RefFree (.above b)
-  | beneath {b : Bound} : RefFree (.beneath b)
-  | neq {vs : List Bound} : RefFree (.neq vs)
-  | multiple {d : Number} : RefFree (.multiple d)
-  | len {c : Val} : RefFree c → RefFree (.len c)
-  | unique {k : Option String} : RefFree (.unique k)
-  | any : RefFree .any
-  | nil : RefFree .nil
+/-- The values `check` decides: those that read no alias, no path, no
+pattern and no format, so that what they admit depends on no
+declaration, no root, and no predicate of the host's. -/
+inductive Val.Checkable : Val → Prop
+  | integer : Checkable .integer
+  | float : Checkable .float
+  | biginteger : Checkable .biginteger
+  | bigdecimal : Checkable .bigdecimal
+  | number : Checkable .number
+  | string : Checkable .string
+  | anyString : Checkable .anyString
+  | boolean : Checkable .boolean
+  | lit {s : Scalar} : Checkable (.lit s)
+  | min {b : Bound} : Checkable (.min b)
+  | max {b : Bound} : Checkable (.max b)
+  | above {b : Bound} : Checkable (.above b)
+  | beneath {b : Bound} : Checkable (.beneath b)
+  | neq {vs : List Bound} : Checkable (.neq vs)
+  | multiple {d : Number} : Checkable (.multiple d)
+  | len {c : Val} : Checkable c → Checkable (.len c)
+  | unique {k : Option String} : Checkable (.unique k)
+  | any : Checkable .any
+  | nil : Checkable .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
-      (∀ k o v, (k, o, v) ∈ fs → RefFree v) → (∀ s, spread = some s → RefFree s) →
-      RefFree (.map fs spread closed)
+      (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
+      Checkable (.map fs spread closed)
   | list {items : List Val} {spread : Option Val} :
-      (∀ v, v ∈ items → RefFree v) → (∀ s, spread = some s → RefFree s) →
-      RefFree (.list items spread)
-  | meet {a b : Val} : RefFree a → RefFree b → RefFree (.meet a b)
+      (∀ v, v ∈ items → Checkable v) → (∀ s, spread = some s → Checkable s) →
+      Checkable (.list items spread)
+  | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
 ```
+
+A pattern's predicate is opaque, so no algorithm can run it, and `re`
+and `format` are outside the checker's reach as an alias is.
 
 `check` returns `true` or `false`, where `Admits` is a statement. Its
 first cases:
@@ -2542,8 +2656,8 @@ the code says that `check` and `Admits` agree. One theorem does:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- `check` decides admission for every value that reads no reference. -/
-theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits env root v j := by
+/-- `check` decides admission for every checkable value. -/
+theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j := by
 ```
 
 `unique` asks whether two members are one value, which `Same` states
@@ -2605,8 +2719,8 @@ def instances : List Data := first ++ more
 ```
 
 The oracle numbers the second set's rows after the first's, so adding
-it renamed no row. The file proves that every term it builds reads no
-reference, and every instance is a value, so each answer is the
+it renamed no row. The file proves that every term it builds is
+checkable, and every instance is a value, so each answer is the
 definition's:
 
 <!-- test: quote spec/Oracle.lean -->
@@ -2615,8 +2729,8 @@ definition's:
 whole, under no alias declaration. -/
 theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Data} (hj : j ∈ instances) :
     check v j = true ↔ Instance Env.empty v j :=
-  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
-    fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
+  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_checkable v hv) j).mp h⟩,
+    fun h => (check_iff (vals_checkable v hv) j).mpr h.2⟩
 ```
 
 It writes one row for each term and value, 14,400 in all, and both
@@ -2778,8 +2892,8 @@ instances without the key.
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
-two readings of a number that `--exact-numbers` switches between, the
-patterns of `re` and the formats of `format`, most built-in functions,
+two readings of a number that `--exact-numbers` switches between,
+which strings a pattern or a format admits, most built-in functions,
 generation with `each`, `pack` and `emit`, and marks such as `hide()`
 and `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
