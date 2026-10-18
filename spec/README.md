@@ -48,7 +48,6 @@ to the JSON Schema suite.
 | `Oracle/Print.lean` | the oracle's printer, from values and data to the text both CLIs read; no part of the definition |
 | `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's; and, as `oracle bounds`, the second fragment, the bounds beyond `min`, `max`, and `multiple` (115 values) against 30 instances, 3,450 rows, which `bound_verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
-| `ci.patch` | the CI job, to apply by hand with `git apply spec/ci.patch` from an account with the `workflow` scope |
 | `tools/differential.py` | runs the rows through both CLIs and writes every disagreement by name, the material of the ledger |
 
 The rows live in `test/spec/def-fragment.tsv` and
@@ -93,7 +92,8 @@ python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli
 axiom beyond `propext` and `Quot.sound`: none uses `Classical.choice`,
 so every proof is constructive. The rows are a committed generated
 copy: `make spec` fails when a committed file differs from a fresh
-one, as the coverage job does for `ts/dist`.
+one, as the coverage job does for `ts/dist`. CI runs `make spec` as
+`build.yml`'s `spec` job, which fetches the Lean release by hash.
 
 ## What is trusted
 
