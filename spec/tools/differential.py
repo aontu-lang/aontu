@@ -38,15 +38,15 @@ with open(rows_path) as f:
 def run(item):
     n, (src, rows) = item
     doc = os.path.join(work, f"v{n}.aontu")
-    dat = os.path.join(work, f"v{n}.json")
+    dat = os.path.join(work, f"v{n}.data.aontu")
     with open(doc, "w") as f:
         f.writelines(f"d{i}: {src}\n" for i in range(len(rows)))
     with open(dat, "w") as f:
         f.write("{" + ", ".join(f'"d{i}": {data}' for i, (_, data, _) in enumerate(rows)) + "}")
     result = {}
     for port, cmd in ports.items():
-        out = subprocess.run(cmd + ["vet", "--no-fill", "--exact-numbers", "--max-errors", "100000",
-                                    "--format", "json", doc, dat], capture_output=True, text=True)
+        out = subprocess.run(cmd + ["vet", "--max-errors", "100000", "--format", "json", doc, dat],
+                             capture_output=True, text=True)
         report = json.loads(out.stdout)
         if report["verdict"] == "error":
             codes = sorted({f["code"] for f in report["findings"]})

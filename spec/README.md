@@ -53,8 +53,13 @@ to the JSON Schema suite.
 
 The rows live in `test/spec/def-fragment.tsv`, under the `verdict` mode
 of the shared format, where both ports' spec runners run them as they
-run every row; nothing here is needed at test time. Core Lean only: no
-library, no network.
+run every row; nothing here is needed at test time. Each row runs plain
+`aontu vet` on data written in aontu, whose literals name their leaf,
+so the default reading gives each number the leaf the oracle means:
+`0d1.5` is a big decimal, and `1.5` would be a float. No term the
+oracle builds holds a literal or a default, so the schema supplies no
+member for `--no-fill` to refuse. Core Lean only: no library, no
+network.
 
 ## What it does not yet hold
 

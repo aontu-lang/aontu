@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### The definition's rows and tutorial run plain `vet`, with data written in aontu
+
+Generated rows and documentation; no engine changes, and no verdict moves.
+
+- The 14,400 rows of `test/spec/def-fragment.tsv` drop the vet options
+  `noFill` and `exactNumbers` and run plain `aontu vet`. Their data is
+  written in aontu, whose literals name their leaf: the oracle's big
+  decimals are `0d1.5` and `0d3.5`, and its big integer
+  `0d9007199254740993`. No term of the fragment holds a literal or a
+  default, so the schema supplies no member. Both engines answer every
+  row alike, and as the definition does on all but the ledger's 42.
+- `docs/tutorial-definition.md` runs every transcript as plain
+  `aontu vet` on two aontu files, the data writing each number in its
+  leaf. A plain `9007199254740993`, which no double holds, is refused
+  as a lossy literal, and `0d9007199254740993` is the big integer. One
+  JSON data file shows what `--exact-numbers` changes: it reads each
+  number of the data by its value.
+
 ### The definition's numbers are the language's four leaves, and its data is aontu's
 
 Definition and documentation; no engine changes, and no row moves.

@@ -168,7 +168,18 @@ decimal a coefficient and a scale, and the data is aontu's: maps,
 lists, and scalars. Lean's own `Float` was not used, as its operations
 are opaque to the kernel: `decide` can't compare two of them, and
 `native_decide` brings `Lean.ofReduceBool` and `Classical.choice`. Again
-no row moved.
+no row moved. The owner then asked why vetting the language's own
+examples took special flags, and it takes none. The rows had carried
+`--no-fill` and `--exact-numbers` since P0, which stated the strict
+mode while the data held only integers, on which the flags change
+nothing; the fractions and the big integer added later were written
+without their leaf and relied on `--exact-numbers` to read them, and
+the tutorial copied the flags. The data is now aontu's, whose literals
+name their leaf, so the oracle writes `0d1.5` where it wrote `1.5`,
+and no term of the fragment holds a literal or a default for the
+schema to supply. The rows and the tutorial run plain `vet`: every
+row's text changed, and no verdict did. Decision 5 of §7 stands, and
+P1 states the modes.
 
 ## 4. How a language decision is made, and recorded
 

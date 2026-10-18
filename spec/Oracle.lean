@@ -33,8 +33,8 @@ def first : List Data :=
 
 /-- The instances of the rows after them, numbered on so that no earlier
 row is renamed: two big decimals, one either side of three, a big
-integer no double holds, and a list, each also under a key. The exact
-reader reads `1.5`, `3.5`, `9007199254740993`, and `[1]` as these. -/
+integer no double holds, and a list, each also under a key, written
+`0d1.5`, `0d3.5`, `0d9007199254740993`, and `[1]`. -/
 def more : List Data :=
   let xs : List Data :=
     [.num (.bigdec (.of 15 1)), .num (.bigdec (.of 35 1)), .num (.bigint 9007199254740993),
@@ -88,9 +88,10 @@ def main : IO Unit := do
   IO.println "# as `verdict` rows whose expectation is the verdict `check` gives, which"
   IO.println "# `check_iff` makes the definition's own. Until P5 the definition gives"
   IO.println "# admission only, so a refusal is written as the three classes it may be."
+  IO.println "# Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`."
   IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
   IO.println "# not yet answer this way are listed in spec/ledger.tsv."
-  let opts := "{\"opts\":{\"noFill\":true,\"exactNumbers\":true},\"verdict\":"
+  let head := "{\"verdict\":"
   let mut i := 0
   for block in [first, more] do
     for v in vals do
@@ -99,5 +100,5 @@ def main : IO Unit := do
         let some jsrc := j.src | throw (IO.userError "an instance has no text")
         let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println ("c" ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
-          ++ "\t" ++ opts ++ want ++ "}")
+          ++ "\t" ++ head ++ want ++ "}")
         i := i + 1
