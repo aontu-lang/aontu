@@ -152,7 +152,7 @@ def checkFields : List (String × Bool × Val) → List (String × Json) → Boo
       | none => o
       | some x => check v x) && checkFields fs jfs
 
-/-- The written positions of a list that the instance has. -/
+/-- The positions of a list that the instance has. -/
 def checkItems : List Val → List Json → Bool
   | v :: vs, x :: xs => check v x && checkItems vs xs
   | _, _ => true

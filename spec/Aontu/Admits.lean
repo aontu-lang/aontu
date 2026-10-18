@@ -43,7 +43,7 @@ inductive Admits (env : Env) (root : Json) : Val → Json → Prop
       (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root s x) →
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) →
       Admits env root (.map fs spread closed) (.obj jfs)
-  /-- A list: every written position is present and holds its value;
+  /-- A list: each of its positions is present and holds its value;
   later elements are allowed; the spread holds every element. -/
   | list {items : List Val} {spread : Option Val} {xs : List Json} :
       items.length ≤ xs.length →

@@ -265,7 +265,7 @@ example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "
   · cases hv; cases hx; exact .string (by decide)
   · simp at hv
 
-/-- `[integer, string]` refuses `[1]`: a written position is missing. -/
+/-- `[integer, string]` refuses `[1]`: its second position is missing. -/
 example : ¬ Instance .empty (.list [.integer, .string] none) (.arr [.int 1]) := by
   rintro ⟨-, h⟩
   cases h with

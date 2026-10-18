@@ -1095,7 +1095,7 @@ definition holds each map's seal in its own `closed` flag.
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- A list: every written position is present and holds its value;
+  /-- A list: each of its positions is present and holds its value;
   later elements are allowed; the spread holds every element. -/
   | list {items : List Val} {spread : Option Val} {xs : List Json} :
       items.length ≤ xs.length →
@@ -1120,7 +1120,7 @@ example : Instance .empty (.list [.integer, .string] none) (.arr [.int 1, .str "
   · cases hv; cases hx; exact .string (by decide)
   · simp at hv
 
-/-- `[integer, string]` refuses `[1]`: a written position is missing. -/
+/-- `[integer, string]` refuses `[1]`: its second position is missing. -/
 example : ¬ Instance .empty (.list [.integer, .string] none) (.arr [.int 1]) := by
   rintro ⟨-, h⟩
   cases h with
@@ -1166,7 +1166,7 @@ $ echo $?
 1
 ```
 
-The list stays open, so it admits `true`, past the written positions.
+The list stays open, so it admits `true`, past its two positions.
 The missing second element is `incomplete`, the class of a missing
 required key.
 
