@@ -245,7 +245,8 @@ Both ports.
   `docs/design/DEFINITION.0.md`.
 - `spec/`: a Lake project on Lean 4.15.0, core only, holding the
   definition's first fragment, with every proof checked by `lake
-  build`. The CI job that runs it is `spec/ci.patch`, to apply by hand.
+  build`. CI runs `make spec` in `build.yml`'s `spec` job, which
+  fetches that Lean release by hash.
 
 ### The MCP server imports JSON Schema
 

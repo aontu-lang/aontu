@@ -233,3 +233,26 @@ jobs:
         env:
           RB_SOLAR_SDK: ${{ runner.temp }}/solardemo/rb
         run: ./check.sh
+
+  # THE DEFINITION (spec/, docs/design/DEFINITION.0.md). Every proof is
+  # checked, the rows the definition writes into test/spec/ are
+  # regenerated, and the committed copy must be the fresh one, as the
+  # coverage job holds ts/dist to its build; the ports' own jobs above
+  # run the rows. The Lean release is fetched by hash rather than
+  # through elan, whose self-update check does not pass every proxy.
+  spec:
+    name: The definition (spec/)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch Lean 4.15.0
+        env:
+          LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.zip
+          LEAN_SHA256: 8eceac177fe2e2828f71add0d458e6a91187ce6d4f67d0f0364061b9e3dca59b
+        run: |
+          curl -sSL -o "$RUNNER_TEMP/lean.zip" "$LEAN_URL"
+          echo "$LEAN_SHA256  $RUNNER_TEMP/lean.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/lean.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
+      - run: make spec

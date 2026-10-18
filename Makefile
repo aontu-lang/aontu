@@ -203,8 +203,8 @@ test-go:
 # THE DEFINITION (spec/, docs/design/DEFINITION.0.md): check every proof,
 # regenerate the rows the definition writes into test/spec/, and fail if
 # the committed copy differs, as the coverage job does for ts/dist. Needs
-# lean and lake from the release spec/lean-toolchain names on PATH; the
-# CI job that installs them is spec/ci.patch, applied by hand.
+# lean and lake from the release spec/lean-toolchain names on PATH; in CI,
+# build.yml's spec job fetches that release by hash.
 spec:
 	cd spec && lake build
 	cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
