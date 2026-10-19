@@ -27,19 +27,27 @@ by what reached the clause and where the record now lives, which for a
 capability decision is the phase rows it governed in
 [`docs/capability-review/progress.md`](docs/capability-review/progress.md).
 
+An entry that defines a rule of the language becomes **Moved to the
+definition <date>** once the definition under [`spec/`](spec/) holds
+the rule ([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it),
+and [`docs/design/DEFINITION.0.md`](docs/design/DEFINITION.0.md), §4):
+its status names the module and the theorems that hold it, its text
+stays as the record of why the rule is what it is, and the rule is
+thereafter stated and changed in the definition, not here.
+
 | ADR | Decision | Status |
 |-----|----------|--------|
 | [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec) | TypeScript and Go stay at full parity, driven by a shared spec | Accepted |
 | [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations) | Test coverage stays at 100 % in both implementations | Accepted |
 | [ADR-003](#adr-003--host-provided-semantics-are-normalised-not-trusted) | Host-provided semantics are normalised, not trusted | Amended by [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) |
-| [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Accepted |
+| [ADR-004](#adr-004--a-preference-override-must-be-admitted-by-its-disjunction) | A preference override must be admitted by its disjunction | Moved to the definition |
 | [ADR-005](#adr-005--template-instantiation-is-per-destination) | Template instantiation is per-destination | Accepted |
 | [ADR-006](#adr-006--template-application-is-stateless-and-a-generator-snapshots-a-settled-source) | Template application is stateless, and a generator snapshots a settled source | Accepted |
-| [ADR-007](#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does) | An unresolved disjunction is not a value, and vet asks the same question the evaluator does | Accepted |
+| [ADR-007](#adr-007--an-unresolved-disjunction-is-not-a-value-and-vet-asks-the-same-question-the-evaluator-does) | An unresolved disjunction is not a value, and vet asks the same question the evaluator does | Moved to the definition |
 | [ADR-008](#adr-008--constraints-are-named-not-spelled-with-operators) | Constraints are named, not spelled with operators | Accepted |
 | [ADR-009](#adr-009--there-are-no-reserved-path-elements-key-self-and-parent-are-removed) | There are no reserved path elements: `$KEY`, `$SELF` and `$PARENT` are removed | Accepted |
 | [ADR-010](#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space) | No magic keys or paths: the tree at all levels is user space | Accepted |
-| [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Accepted |
+| [ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure) | The star is sugar; the disjunction is the structure | Moved to the definition |
 | [ADR-012](#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused) | An include's extension decides what the file is: Aontu source, config data, or refused | Accepted |
 | [ADR-013](#adr-013--the-project-operates-one-transparency-log-and-nothing-else) | The project operates one transparency log, and nothing else | Superseded in part by [ADR-019](#adr-019--the-project-stores-module-bytes-and-federates-the-log) |
 | [ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark) | The tree is the namespace: there is no identity mark | Accepted |
@@ -62,7 +70,7 @@ capability decision is the phase rows it governed in
 | [ADR-031](#adr-031--a-path-part-that-names-a-type-is-camelcase) | A path part that names a type is CamelCase | Relocated to [#190](https://github.com/aontu-lang/aontu/issues/190) |
 | [ADR-032](#adr-032--code-comments-are-sparse-and-terse-intent-lives-in-names-requirements-live-in-documents) | Code comments are sparse and terse: intent lives in names, requirements live in documents | Accepted |
 | [ADR-033](#adr-033--a-grammar-is-a-string-and-parsing-is-a-function) | A grammar is a string, and parsing is a function | Accepted |
-| [ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made) | Absence is a value, and `maybe` is where it is made | Accepted |
+| [ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made) | Absence is a value, and `maybe` is where it is made | Moved to the definition in part |
 | [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Superseded in part by [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) |
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
@@ -73,20 +81,20 @@ capability decision is the phase rows it governed in
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
-| [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Accepted |
-| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
+| [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Moved to the definition |
+| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Moved to the definition; amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
 | [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
-| [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Accepted |
-| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
-| [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Accepted |
-| [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Accepted |
+| [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Moved to the definition |
+| [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Moved to the definition; superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
+| [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Moved to the definition |
+| [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Moved to the definition |
 | [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
-| [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Accepted |
+| [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Moved to the definition |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
-| [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Accepted |
+| [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Moved to the definition |
 | [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
-| [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Accepted |
+| [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Moved to the definition |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 | [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
 | [ADR-061](#adr-061--an-earlier-dialect-is-upgraded-before-it-is-read) | An earlier dialect is upgraded before it is read | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
@@ -415,7 +423,7 @@ termination consequence.
 
 ## ADR-004 — A preference override must be admitted by its disjunction
 
-**Status:** Accepted (2026-08-26)
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Syntax.lean`](spec/Aontu/Syntax.lean) reads `*` and `|` by position, so an arm `*x` is the arm `x` of rank one and a peer is admitted only where an arm admits it, [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_or_iff` and `admits_pref_iff`, which hold at every rank, and [`spec/Aontu/Verdict.lean`](spec/Aontu/Verdict.lean) `selectArm_first`, `selectArm_next` and `selectArm_default` over the settled value (`resolveD`); the third generated fragment, `test/spec/def-choice.tsv`, holds both ports to them. Accepted 2026-08-26.
 
 ### Context
 
@@ -682,7 +690,7 @@ same family — a generator over spread-augmented data dying as
 
 ## ADR-007 — An unresolved disjunction is not a value, and vet asks the same question the evaluator does
 
-**Status:** Accepted (2026-08-27)
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Output.lean`](spec/Aontu/Output.lean) `output_admits` and `gen_admits`, and [`spec/Aontu/Verdict.lean`](spec/Aontu/Verdict.lean) `vet_strict_valid_instance` and `vet_valid_filled`. Accepted 2026-08-27.
 
 ### Context
 
@@ -1082,7 +1090,7 @@ as ADR-008's decision is carried.
 ## ADR-011 — The star is sugar; the disjunction is the structure
 
 **Date:** 2026-08-29
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Syntax.lean`](spec/Aontu/Syntax.lean) `Val.pref` and `Val.super`, [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_pref_iff`, `admits_pref_left` and `admits_pref_right`, the meet distributing over the two arms, and [`spec/Aontu/Subsume.lean`](spec/Aontu/Subsume.lean) `pref_le_or` and `or_le_pref`.
 
 ### Context
 
@@ -3429,7 +3437,7 @@ itself.
 ## ADR-034 — Absence is a value, and `maybe` is where it is made
 
 **Date:** 2026-09-11
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): in part, `nil` as the value that admits nothing: [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_nil_iff`, [`spec/Aontu/Order.lean`](spec/Aontu/Order.lean) `nil_le` and [`spec/Aontu/Subsume.lean`](spec/Aontu/Subsume.lean) `le_nil_iff`; `maybe` is a function the definition does not hold.
 
 ### Context
 
@@ -4585,7 +4593,7 @@ restate it.
 ## ADR-045 — Required wins in the meet
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Order.lean`](spec/Aontu/Order.lean) `merge_exact`, and [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `meetKey_declared` and `optional_iff`.
 
 ### Context
 
@@ -4645,7 +4653,7 @@ it.
 ## ADR-046 — A written `nil` under an optional key forbids the key
 
 **Date:** 2026-10-01
-**Status:** Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export)
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_map_iff` with `admits_nil_iff`: `{k?: nil}` admits a map without `k` and refuses one that holds it. Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export).
 
 ### Context
 
@@ -4790,7 +4798,7 @@ two values, and the conformance harness requires it to agree with
 ## ADR-048 — Divisibility reads the number a value shows
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): the `multiple` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean), over `Number.multipleOf` in [`spec/Aontu/Data.lean`](spec/Aontu/Data.lean), which reads a float as the decimal it shows.
 
 ### Context
 
@@ -4841,7 +4849,7 @@ number by its value.
 ## ADR-049 — Logic counts the trial schemas that admit a value
 
 **Date:** 2026-10-01
-**Status:** Superseded in part, 2026-10-08, by
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Trial.lean`](spec/Aontu/Trial.lean) `judge_nof_zero`, on the `nof` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean). Superseded in part, 2026-10-08, by
 [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided). Decision 2's "every branch is tried, with no
 short-circuit" is reversed: a count now stops when the branches left
 cannot change its verdict. Superseded in part, 2026-10-08, by
@@ -4919,7 +4927,7 @@ on values still being evaluated.
 ## ADR-050 — A conditional holds a value to the branch its condition picks
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Trial.lean`](spec/Aontu/Trial.lean) `judge_when_iff` and `when_nil_refuses`.
 
 ### Context
 
@@ -4971,7 +4979,7 @@ exporter would have to recognise the pattern to write it back.
 ## ADR-051 — A container counts the members a trial schema admits
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Trial.lean`](spec/Aontu/Trial.lean) `judge_contains_empty` and `contains_refuses_scalar`.
 
 ### Context
 
@@ -5099,7 +5107,7 @@ every annotation as a loss.
 ## ADR-053 — A closed map drops an optional key it does not declare
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `meetKey`, whose sealed case drops an optional key the seal does not declare and holds a required one to `nil`, with `meetKey_sealed`.
 
 ### Context
 
@@ -5200,7 +5208,7 @@ trials to the revisit budget would have moved the verdicts that
 ## ADR-055 — `must` asks the admission trial
 
 **Date:** 2026-10-08
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Trial.lean`](spec/Aontu/Trial.lean) `judge_must_iff_nof`.
 
 ### Context
 
@@ -5391,7 +5399,7 @@ The [G12](docs/capability-review/g12-jsonschema-fidelity.md) design
 ## ADR-058 — Unevaluated members are checked by `rest()`
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Trial.lean`](spec/Aontu/Trial.lean) `rest_admits_scalar` and `rest_nil_closes`.
 
 ### Context
 
