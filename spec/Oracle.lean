@@ -1,4 +1,5 @@
 import Aontu.Check
+import Aontu.Output
 import Oracle.Print
 
 /-!
@@ -242,6 +243,91 @@ end Aontu
 
 open Aontu
 
+/-! ## What evaluation singles out -/
+
+/-- The values of the `gen` fragment: literals, kinds, preferences and
+disjunctions with their ranks, maps with required, optional and
+defaulted keys and spreads, lists with spreads, and meets of these, the
+fill of a schema with data among them. No value here splits the ports
+(#348) or writes a `nil` under an optional key, where the engines
+answer `error` and the definition drops the key. -/
+def genVals : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
+  [int 1, .pref 1 (int 1), .pref 1 .integer, .integer, .any, .pref 1 (.lit .null),
+    .or [(0, int 1), (0, int 2)], .or [(1, int 1), (0, int 2)], .or [(0, int 1), (1, int 2)],
+    .or [(1, int 1), (1, int 2)], .or [(1, int 1), (2, int 2)], .or [(2, int 1), (1, int 2)],
+    .or [(0, int 1), (0, int 1)], .or [(0, int 1), (0, int 1), (0, int 2)],
+    .or [(0, .or [(1, int 1), (0, int 2)]), (0, int 3)],
+    .or [(1, .or [(0, int 1), (0, int 2)]), (0, int 3)],
+    .or [(1, .integer), (0, int 1)], .or [(0, .integer), (1, int 1)], .or [(1, int 1), (0, .integer)],
+    .or [(1, .lit (.bool true)), (0, .lit (.bool false))],
+    .pref 1 (.or [(0, int 1), (0, int 2)]),
+    .meet (.pref 1 (int 1)) .integer, .meet (.pref 1 (int 1)) .number,
+    .meet (.pref 1 (str "a")) .string, .meet (.pref 1 (int 8080)) (.min (.num (.integer (.of 1024)))),
+    .meet (.or [(1, int 1), (0, int 2)]) .integer,
+    .meet (.or [(1, int 1), (0, int 2)]) (.or [(1, int 2), (0, int 1)]),
+    .meet (.or [(1, int 1), (0, int 2)]) (.or [(2, int 2), (0, int 1)]),
+    .meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3)))),
+    key "x" false (int 1), key "x" true (int 1), key "x" false (.pref 1 (int 1)),
+    key "x" true (.pref 1 (int 1)), key "x" false .integer, key "x" true .integer,
+    .map [("x", true, .integer), ("y", false, .pref 1 (int 1))] none false,
+    .map [("x", false, int 1)] (some .integer) false,
+    .map [("x", false, str "a")] (some .integer) false,
+    .map [("a", false, key "y" false (int 2))] (some (key "x" false (.pref 1 (int 1)))) false,
+    .map [("b", false, int 1), ("a", false, int 2), ("B", false, int 3)] none false,
+    key "x" false (.or [(1, int 1), (1, int 2)]), key "x" false (.meet (int 1) (int 2)),
+    key "x" false (.or [(0, int 1), (0, int 1)]), key "x" false (key "y" false (.pref 1 (int 1))),
+    key "x" false (.list [.pref 1 (int 1), .pref 1 (int 2)] none false),
+    .list [int 1, int 2] none false, .list [.pref 1 (int 1), int 2] none false,
+    .list [] (some .integer) false, .list [.pref 1 (int 1)] (some .integer) false,
+    .list [str "a"] (some .integer) false, .list [.list [.pref 1 (int 1)] none false] none false,
+    .list [key "x" false (.pref 1 (int 1))] (some (key "y" false (.pref 1 (int 2)))) false,
+    .list [.integer] none false,
+    .meet (key "x" false (int 1)) (key "y" false (int 2)),
+    .meet (key "x" true (.pref 1 (int 1))) (.map [] none false),
+    .meet (key "x" true (.pref 1 (int 1))) (key "x" false .integer),
+    .meet (key "x" true (int 1)) (key "x" true (.pref 1 (int 2))),
+    .meet (.map [] (some (key "y" false (.pref 1 (int 2)))) false) (key "a" false (key "x" false (int 1))),
+    .meet (.list [int 1] (some .integer) false) (.list [.integer] none false),
+    .meet (.list [int 1, int 2] none true) (.list [] (some .integer) false),
+    .meet (key "a" false (int 1)) (.len (int 1)), .meet (key "a" false (int 1)) (.len (int 2)),
+    .meet (.or [(0, key "x" false (int 1)), (0, key "y" false (int 2))])
+      (.map [("x", false, int 1), ("y", false, int 2)] none false),
+    .meet (.or [(0, key "x" false (int 1)), (0, key "y" false (int 2))]) (key "x" false (int 1)),
+    .pref 1 (.list [int 1] none true), .pref 1 (.list [int 1] (some .integer) true),
+    .or [(1, key "x" false (int 1)), (0, key "y" false (int 2))],
+    .or [(0, key "x" false (int 1)), (1, key "y" false (int 2))],
+    .or [(1, .list [int 1] none true), (0, .list [int 2] none true)],
+    .or [(0, .list [int 1, int 2] none true), (0, .list [int 1, int 2] none true)],
+    .or [(0, key "x" false (int 1)), (0, key "x" false (int 1))],
+    .or [(0, .map [("a", false, int 1), ("b", false, int 2)] none false),
+      (0, .map [("b", false, int 2), ("a", false, int 1)] none false)],
+    .or [(0, key "x" false (.meet (int 1) (int 2))), (0, int 1)],
+    .or [(0, .list [.meet (int 1) (int 2)] none false), (0, int 1)],
+    .or [(0, .nil), (0, int 1)]]
+
+/-- Every value of the `gen` fragment normalises to a checkable one, so
+`output` is `Output` on it, by `output_iff`. -/
+theorem genVals_checkable : ∀ v ∈ genVals, (normalise v).Checkable := by decide
+
+theorem gen_output_exact : ∀ v ∈ genVals, ∀ (env : Env) (root j : Data),
+    output v = some j ↔ Output env root v j :=
+  fun v hv _ _ j => output_iff (genVals_checkable v hv) j
+
+/-- The `gens` rows: each value under the key `v` that generates, with
+the JSON the engines must write for it. A value that generates nothing
+has no row, since the definition gives no code for it until P5. -/
+def genRows (tag : String) (vals : List Val) : IO Unit := do
+  let mut i := 0
+  for v in vals do
+    let some src := v.src | throw (IO.userError "a value of the fragment has no text")
+    if let some j := output v then
+      let some json := j.json | throw (IO.userError "an output has no JSON")
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
+    i := i + 1
+
 /-- The rows of one fragment: each value against each instance of each
 block, numbered from zero under `tag`. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
@@ -296,6 +382,18 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     rows "d" choiceVals [choiceInstances]
     return 0
+  | ["gen"] =>
+    IO.println "# Generated by `lake exe oracle gen` (spec/Oracle.lean) from the definition in"
+    IO.println "# spec/Aontu: what evaluation singles out, `Output`, on literals, preferences"
+    IO.println "# and disjunctions with their ranks, maps and lists with defaults and spreads,"
+    IO.println "# and meets of these, as `gens` rows whose expectation is the JSON of the"
+    IO.println "# value `output` gives, which `output_iff` makes the definition's own. A value"
+    IO.println "# that singles out nothing has no row until P5 names its class. Each row runs"
+    IO.println "# evaluation on a document with the one key `v`."
+    IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
+    IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    genRows "g" genVals
+    return 0
   | _ =>
-    IO.eprintln "usage: oracle [bounds | choice]"
+    IO.eprintln "usage: oracle [bounds | choice | gen]"
     return 2

@@ -2,6 +2,7 @@ import Aontu.Order
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
+import Aontu.Output
 
 /-!
 # The tour's examples
@@ -725,6 +726,54 @@ example : Instance .empty (meet (.pref 1 (.lit (.num (.integer (.of 8080)))))
       cases ((admits_meet _ _ _).mp h).2 with
       | min h => exact absurd h (by decide)⟩
 
+/-! ## What evaluation singles out -/
+
+/-- `*1 | 2` singles out `1`: the arm of the lowest positive rank. -/
+example : output (.or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]) =
+    some (.integer 1) := rfl
+
+/-- `1 | 2` singles out nothing: two arms, neither preferred, that
+generate differently. `1 | 1` singles out `1`. -/
+example : output (.or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]) = none ∧
+    output (.or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 1))))]) =
+      some (.integer 1) := ⟨rfl, rfl⟩
+
+/-- `(*1 | 2) | 3` singles out `1`: an arm that is itself a disjunction
+of rank `0` brings its arms, so the preference counts. -/
+example : output (.or [(0, .or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]),
+    (0, .lit (.num (.integer (.of 3))))]) = some (.integer 1) := rfl
+
+/-- `*8080 & min(1024)` singles out `8080`. -/
+example : output port = some (.integer 8080) := rfl
+
+/-- `{x?: *1}` singles out `{x: 1}`, and `{x?: integer}` singles out `{}`:
+an optional key is written where its value generates. -/
+example : output (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) =
+      some (.map [("x", .integer 1)]) ∧
+    output (.map [("x", true, .integer)] none false) = some (.map []) := ⟨rfl, rfl⟩
+
+/-- `{x: integer}` singles out nothing: a required key whose value
+generates nothing. -/
+example : output (.map [("x", false, .integer)] none false) = none := rfl
+
+/-- `{x: *1} & {}` singles out `{x: 1}`: the fill of the data `{}` by the
+schema `{x: *1}`, which is how `vet` reads a default. -/
+example : output (.meet (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+    (.map [] none false)) = some (.map [("x", .integer 1)]) := rfl
+
+/-- `({x: 1} | {y: 2}) & {x: 1}` singles out nothing, where `{x: 1}` is
+an instance of it: each arm, met with the data, is still consistent
+with it, so two alternatives remain, which is the engines' `incomplete`
+at the end of step 12. -/
+example : output (.meet (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
+      (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
+    (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)) = none := rfl
+
+/-- What is singled out is an instance, `output_admits`: `*8080 & min(1024)`
+admits `8080`, and the output of `{x?: *1}` is one of its instances. -/
+example : Instance .empty port (.integer 8080) :=
+  ⟨by decide, output_admits port _ ((output_iff (by decide) _).mp rfl)⟩
+
 /-! ## Two declarations of one key -/
 
 /-- `{x?: integer} & {x: integer}` refuses `{}`: the key is required. -/
@@ -755,6 +804,11 @@ example : Instance .empty
 /-- `string & (string & empty())` refuses `""`, which both engines admit. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
   fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
+
+/-- `[*1] | [1]` singles out `[1]`, as Go answers and TypeScript does not:
+both arms generate `[1]`, and neither is preferred. -/
+example : output (.or [(0, .list [.pref 1 (.lit (.num (.integer (.of 1))))] none true),
+    (0, .list [.lit (.num (.integer (.of 1)))] none true)]) = some (.list [.integer 1]) := rfl
 
 /-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
 admit: a seal fixes the length, and no meet admits what a side refuses. -/

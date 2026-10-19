@@ -2,6 +2,7 @@ import Aontu.Order
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
+import Aontu.Output
 
 /-!
 # The axioms
@@ -72,3 +73,15 @@ line each comment states.
 /-- info: 'Aontu.never_no_when_le' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.never_no_when_le
+
+/-- info: 'Aontu.output_admits' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.output_admits
+
+/-- info: 'Aontu.output_unique' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.output_unique
+
+/-- info: 'Aontu.gen_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.gen_iff
