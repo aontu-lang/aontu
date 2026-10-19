@@ -46,6 +46,9 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .must c m => .must (expandF ds k c) m
     | .when c t e => .when (expandF ds k c) (expandF ds k t) (e.map (expandF ds k))
     | .contains c n => .contains (expandF ds k c) (expandF ds k n)
+    | .rest t cs =>
+      .rest (expandF ds k t)
+        (cs.map fun c => (c.1.map (expandF ds k), c.2.1.map (expandF ds k), c.2.2.map (expandF ds k)))
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -244,6 +247,17 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
     | contains c n' =>
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f n' h
+    | rest t cs =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      obtain ⟨c', hc', hn⟩ := mem_unguardedCovers.mp h
+      obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
+      cases hcond : c.1 with
+      | none => simp [hcond, unguardedSpread] at hn
+      | some v =>
+        simp only [hcond, Option.map, unguardedSpread] at hn
+        rcases unguardedRefs_expandF f v hn with h' | ⟨m, hm, hmn⟩
+        · exact .inl (mem_unguardedCovers.mpr ⟨c, hc, by rw [hcond]; exact h'⟩)
+        · exact .inr ⟨m, mem_unguardedCovers.mpr ⟨c, hc, by rw [hcond]; exact hm⟩, hmn⟩
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | _ => exact .inl (by simpa [expandF] using h)
@@ -344,6 +358,20 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       obtain ⟨e'', he'', rfl⟩ := Option.map_eq_some'.mp he'
       exact expandF_checkableA hb f e'' (he e'' he'')
     | contains hc hn => exact .contains (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ hn)
+    | rest ht h1 h2 h3 =>
+      refine .rest (expandF_checkableA hb f _ ht) ?_ ?_ ?_
+      · intro c' hc' v hv
+        obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        exact expandF_checkableA hb f w (h1 c hc w hw)
+      · intro c' hc' v hv
+        obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        exact expandF_checkableA hb f w (h2 c hc w hw)
+      · intro c' hc' v hv
+        obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        exact expandF_checkableA hb f w (h3 c hc w hw)
     | _ => (try simp only [expandF]); constructor
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
@@ -700,7 +728,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | number | string | anyString | boolean | any => exact .any
   | nil => exact .nil
   | path => exact .path
-  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ => exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ => exact .any
   | @lit s =>
     cases s with
     | num x =>

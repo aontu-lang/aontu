@@ -58,7 +58,12 @@ def Val.pathsToAliases : Val → Val
   | .must c m => .must c.pathsToAliases m
   | .when c t e => .when c.pathsToAliases t.pathsToAliases (ptaSpread e)
   | .contains c n => .contains c.pathsToAliases n.pathsToAliases
+  | .rest t cs => .rest t.pathsToAliases (ptaCovers cs)
   | v => v
+
+def ptaCovers : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (ptaSpread c, ptaSpread k, ptaSpread m) :: ptaCovers cs
 
 def ptaFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
@@ -185,6 +190,21 @@ theorem ptaSpread_eq {spread : Option Val} {t : Val} :
     simp only [ptaSpread, Option.some.injEq]
     exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
 
+theorem mem_ptaCovers {cs : List Cover} {c' : Cover} :
+    c' ∈ ptaCovers cs ↔ ∃ c, c ∈ cs ∧ c' = (ptaSpread c.1, ptaSpread c.2.1, ptaSpread c.2.2) := by
+  induction cs with
+  | nil => simp [ptaCovers]
+  | cons c cs ih =>
+    obtain ⟨a, k, m⟩ := c
+    simp only [ptaCovers, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨d, hd, rfl⟩)
+      · exact ⟨(a, k, m), .inl rfl, rfl⟩
+      · exact ⟨d, .inr hd, rfl⟩
+    · rintro ⟨d, rfl | hd, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨d, hd, rfl⟩
+
 theorem mem_ptaArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
     (r, b) ∈ ptaArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.pathsToAliases := by
   induction arms with
@@ -237,6 +257,20 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp he
     exact ihe s hs
   | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
+    refine .rest iht ?_ ?_ ?_
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_ptaCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp hv
+      exact ih1 c hc s hs
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_ptaCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp hv
+      exact ih2 c hc s hs
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_ptaCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp hv
+      exact ih3 c hc s hs
   | _ => simp only [Val.pathsToAliases]; constructor
 
 /-- The term at a path in a term the checker can read is one it can read. -/

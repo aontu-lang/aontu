@@ -8,7 +8,9 @@
 # nof(1, c) asks; when(c, t, e) holds the value to the branch c picks, an e
 # not written passing; contains(c, n) counts the members c admits and judges
 # as n judges the count, at least one where n is not written, a scalar having
-# none; a branch that admits nothing counts as none; a container
+# none; rest(t, c, ...) holds each member no cover c evaluates to t, a cover
+# applying where its if admits the whole and evaluating the members its keys
+# or members admits; a branch that admits nothing counts as none; a container
 # a trial refuses once its members have all arrived is invalid; and a name that
 # refers to itself through a trial alone breaks the alias-cycle rule, an
 # error. Regenerate with `make spec`; never edit by hand. The cases the ports
@@ -526,3 +528,180 @@ t509	verdict	"a": (contains(string)) & ({"x": "a", "y": 1})	{}	{"verdict":"valid
 t510	verdict	"a": (contains(number)) & ({"x": "a"})	{}	{"verdict":"invalid"}
 t511	verdict	"a": (contains(number)) & ({"x": "a"})	{}	{"verdict":"invalid","opts":{"noFill":true}}
 t512	verdict	"a": (contains(number)) & ({"x": "a"})	{}	{"verdict":"invalid","opts":{"partial":true}}
+t513	verdict	"a": rest(nil)	{"a": {}}	{"verdict":"valid"}
+t514	verdict	"a": rest(nil)	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+t515	verdict	"a": rest(nil)	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+t516	verdict	"a": rest(nil)	{"a": {"b": 2}}	{"verdict":"invalid"}
+t517	verdict	"a": rest(nil)	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t518	verdict	"a": rest(nil)	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t519	verdict	"a": rest(nil)	{"a": 5}	{"verdict":"valid"}
+t520	verdict	"a": rest(nil)	{"a": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t521	verdict	"a": rest(nil)	{"a": 5}	{"verdict":"valid","opts":{"partial":true}}
+t522	verdict	"a": rest(nil)	{"a": []}	{"verdict":"valid"}
+t523	verdict	"a": rest(nil)	{"a": []}	{"verdict":"valid","opts":{"noFill":true}}
+t524	verdict	"a": rest(nil)	{"a": []}	{"verdict":"valid","opts":{"partial":true}}
+t525	verdict	"a": rest(nil)	{"a": [1]}	{"verdict":"invalid"}
+t526	verdict	"a": rest(nil)	{"a": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+t527	verdict	"a": rest(nil)	{"a": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+t528	verdict	"a": rest(number)	{"a": {"b": 2}}	{"verdict":"valid"}
+t529	verdict	"a": rest(number)	{"a": {"b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t530	verdict	"a": rest(number)	{"a": {"b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t531	verdict	"a": rest(number)	{"a": {"b": "x"}}	{"verdict":"invalid"}
+t532	verdict	"a": rest(number)	{"a": {"b": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t533	verdict	"a": rest(number)	{"a": {"b": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+t534	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1}}	{"verdict":"valid"}
+t535	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t536	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t537	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+t538	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t539	verdict	"a": rest(nil, {"keys": "a"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t540	verdict	"a": rest(number, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"valid"}
+t541	verdict	"a": rest(number, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t542	verdict	"a": rest(number, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t543	verdict	"a": rest(string, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"invalid"}
+t544	verdict	"a": rest(string, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t545	verdict	"a": rest(string, {"keys": "a"})	{"a": {"a": "x", "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t546	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": 2}}	{"verdict":"valid"}
+t547	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t548	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t549	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": "x"}}	{"verdict":"invalid"}
+t550	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t551	verdict	"a": rest(nil, {"members": number})	{"a": {"p": 1, "q": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+t552	verdict	"a": rest(nil, {"if": (1) & (2), "keys": any})	{"a": {"b": 1}}	{"verdict":"invalid"}
+t553	verdict	"a": rest(nil, {"if": (1) & (2), "keys": any})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t554	verdict	"a": rest(nil, {"if": (1) & (2), "keys": any})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t555	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(nil, {"keys": "b"}))	{"a": {"a": 1}}	{"verdict":"invalid"}
+t556	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(nil, {"keys": "b"}))	{"a": {"a": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t557	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(nil, {"keys": "b"}))	{"a": {"a": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t558	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 1, "z": true}}	{"verdict":"valid"}
+t559	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 1, "z": true}}	{"verdict":"valid","opts":{"noFill":true}}
+t560	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 1, "z": true}}	{"verdict":"valid","opts":{"partial":true}}
+t561	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"invalid"}
+t562	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t563	verdict	"a": rest(nil, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t564	verdict	"a": rest(number, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"valid"}
+t565	verdict	"a": rest(number, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t566	verdict	"a": rest(number, {"if": {"a": 1}, "keys": any})	{"a": {"a": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t567	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 1}}	{"verdict":"valid"}
+t568	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t569	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t570	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+t571	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t572	verdict	"a": rest(nil, {"keys": "a"}, {"if": {"b": 1}, "keys": "b"})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t573	verdict	"a": rest(nil, {"keys": ("0") | ("1")})	{"a": ["p", "q"]}	{"verdict":"valid"}
+t574	verdict	"a": rest(nil, {"keys": ("0") | ("1")})	{"a": ["p", "q"]}	{"verdict":"valid","opts":{"noFill":true}}
+t575	verdict	"a": rest(nil, {"keys": ("0") | ("1")})	{"a": ["p", "q"]}	{"verdict":"valid","opts":{"partial":true}}
+t576	verdict	"a": rest(nil, {"keys": "0"})	{"a": ["p", "q"]}	{"verdict":"invalid"}
+t577	verdict	"a": rest(nil, {"keys": "0"})	{"a": ["p", "q"]}	{"verdict":"invalid","opts":{"noFill":true}}
+t578	verdict	"a": rest(nil, {"keys": "0"})	{"a": ["p", "q"]}	{"verdict":"invalid","opts":{"partial":true}}
+t579	verdict	"a": rest(nil, {"members": number})	{"a": [1, 2]}	{"verdict":"valid"}
+t580	verdict	"a": rest(nil, {"members": number})	{"a": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+t581	verdict	"a": rest(nil, {"members": number})	{"a": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+t582	verdict	"a": rest(nil, {"members": number})	{"a": [1, "x"]}	{"verdict":"invalid"}
+t583	verdict	"a": rest(nil, {"members": number})	{"a": [1, "x"]}	{"verdict":"invalid","opts":{"noFill":true}}
+t584	verdict	"a": rest(nil, {"members": number})	{"a": [1, "x"]}	{"verdict":"invalid","opts":{"partial":true}}
+t585	verdict	"a": rest(string, {"keys": "0"})	{"a": [1, "x"]}	{"verdict":"valid"}
+t586	verdict	"a": rest(string, {"keys": "0"})	{"a": [1, "x"]}	{"verdict":"valid","opts":{"noFill":true}}
+t587	verdict	"a": rest(string, {"keys": "0"})	{"a": [1, "x"]}	{"verdict":"valid","opts":{"partial":true}}
+t588	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1}}	{"verdict":"valid"}
+t589	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t590	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t591	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+t592	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+t593	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b"?: number})	{"a": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+t594	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"n": 2}}}	{"verdict":"valid"}
+t595	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"n": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+t596	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"n": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+t597	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"m": 2}}}	{"verdict":"invalid"}
+t598	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"m": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+t599	verdict	"a": {&: rest(nil, {"keys": "n"})}	{"a": {"x": {"n": 1}, "y": {"m": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+t600	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1})	{}	{"verdict":"valid"}
+t601	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t602	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+t603	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b": 2})	{}	{"verdict":"invalid"}
+t604	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b": 2})	{}	{"verdict":"invalid","opts":{"noFill":true}}
+t605	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": 1, "b": 2})	{}	{"verdict":"invalid","opts":{"partial":true}}
+t606	verdict	"a": (rest(nil)) & ({"b": 2})	{}	{"verdict":"invalid"}
+t607	verdict	"a": (rest(nil)) & ({"b": 2})	{}	{"verdict":"invalid","opts":{"noFill":true}}
+t608	verdict	"a": (rest(nil)) & ({"b": 2})	{}	{"verdict":"invalid","opts":{"partial":true}}
+t609	verdict	"a": (rest(nil)) & (5)	{}	{"verdict":"valid"}
+t610	verdict	"a": (rest(nil)) & (5)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t611	verdict	"a": (rest(nil)) & (5)	{}	{"verdict":"valid","opts":{"partial":true}}
+t612	verdict	"a": (rest(nil)) & ({"b": *(2)})	{}	{"verdict":"invalid"}
+t613	verdict	"a": (rest(nil)) & ({"b": *(2)})	{}	{"verdict":"invalid","opts":{"noFill":true}}
+t614	verdict	"a": (rest(nil)) & ({"b": *(2)})	{}	{"verdict":"invalid","opts":{"partial":true}}
+t615	verdict	"a": (rest(nil, {"keys": "b"})) & ({"b": *(2)})	{}	{"verdict":"valid"}
+t616	verdict	"a": (rest(nil, {"keys": "b"})) & ({"b": *(2)})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t617	verdict	"a": (rest(nil, {"keys": "b"})) & ({"b": *(2)})	{}	{"verdict":"valid","opts":{"partial":true}}
+t618	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": {"b": 1}}	{"verdict":"invalid"}
+t619	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t620	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t621	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": 1}	{"verdict":"valid"}
+t622	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+t623	verdict	"a": (rest(nil, {"keys": "a"})) | (number)	{"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+t624	verdict	"a": rest(nil)	{}	{"verdict":"incomplete"}
+t625	verdict	"a": rest(nil)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t626	verdict	"a": rest(nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+t627	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "x", "z": 1}}	{"verdict":"valid"}
+t628	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "x", "z": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t629	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "x", "z": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t630	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "y", "z": 1}}	{"verdict":"invalid"}
+t631	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "y", "z": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t632	verdict	"a": rest(nil, {"if": {"k": "x"}, "keys": any})	{"a": {"k": "y", "z": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t633	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid"}
+t634	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t635	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t636	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid"}
+t637	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t638	verdict	"a": rest(nil, {"keys": "a", "members": number})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid","opts":{"partial":true}}
+t639	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid"}
+t640	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t641	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t642	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"b": 1}}	{"verdict":"invalid"}
+t643	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t644	verdict	"a": rest(nil, {"if": {"a": any}, "keys": "a", "members": number})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t645	verdict	"a": rest(nil, {"if": any})	{"a": {"b": 1}}	{"verdict":"invalid"}
+t646	verdict	"a": rest(nil, {"if": any})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t647	verdict	"a": rest(nil, {"if": any})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t648	verdict	"a": rest(nil, {"keys": nil})	{"a": {"b": 1}}	{"verdict":"invalid"}
+t649	verdict	"a": rest(nil, {"keys": nil})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t650	verdict	"a": rest(nil, {"keys": nil})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t651	verdict	"a": rest(nil, {"members": nil})	{"a": {"b": 1}}	{"verdict":"invalid"}
+t652	verdict	"a": rest(nil, {"members": nil})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t653	verdict	"a": rest(nil, {"members": nil})	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t654	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid"}
+t655	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t656	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t657	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid"}
+t658	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t659	verdict	"a": rest(nof(0, string), {"keys": "a"})	{"a": {"a": "x", "b": "y"}}	{"verdict":"invalid","opts":{"partial":true}}
+t660	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": "x"}}	{"verdict":"invalid"}
+t661	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t662	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+t663	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": 1}}	{"verdict":"valid"}
+t664	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t665	verdict	"a": (rest(nil, {"keys": "a"})) & (rest(number))	{"a": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t666	verdict	%T = {"a"?: rest(nil, {"keys": "b"})}\n"t": %T	{"t": {"a": {"b": 1}}}	{"verdict":"valid"}
+t667	verdict	%T = {"a"?: rest(nil, {"keys": "b"})}\n"t": %T	{"t": {"a": {"b": 1}}}	{"verdict":"valid","opts":{"noFill":true}}
+t668	verdict	%T = {"a"?: rest(nil, {"keys": "b"})}\n"t": %T	{"t": {"a": {"b": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+t669	verdict	%T = rest(nil, {"members": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid"}
+t670	verdict	%T = rest(nil, {"members": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+t671	verdict	%T = rest(nil, {"members": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"partial":true}}
+t672	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid"}
+t673	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+t674	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"partial":true}}
+t675	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": {}}}	{"verdict":"valid"}
+t676	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+t677	verdict	%T = rest(%T)\n"t": %T	{"t": {"b": {}}}	{"verdict":"valid","opts":{"partial":true}}
+t678	verdict	%T = rest(nil, {"keys": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid"}
+t679	verdict	%T = rest(nil, {"keys": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+t680	verdict	%T = rest(nil, {"keys": %T})\n"t": %T	{"t": {"b": 5}}	{"verdict":"valid","opts":{"partial":true}}
+t681	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": {"b": 1}})	{"a": {"a": {"b": 1}}}	{"verdict":"valid"}
+t682	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": {"b": 1}})	{"a": {"a": {"b": 1}}}	{"verdict":"valid","opts":{"noFill":true}}
+t683	verdict	"a": (rest(nil, {"keys": "a"})) & ({"a": {"b": 1}})	{"a": {"a": {"b": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+t684	verdict	"a": rest(nil, {"members": {"x": 1}})	{"a": {"p": {"x": 1}, "q": {"x": 2}}}	{"verdict":"invalid"}
+t685	verdict	"a": rest(nil, {"members": {"x": 1}})	{"a": {"p": {"x": 1}, "q": {"x": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+t686	verdict	"a": rest(nil, {"members": {"x": 1}})	{"a": {"p": {"x": 1}, "q": {"x": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+t687	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid"}
+t688	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+t689	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid","opts":{"partial":true}}

@@ -971,6 +971,20 @@ set_option maxRecDepth 8192 in
 /-- No member is, and the document is invalid. -/
 example : vet {} [] someNumber (.map [("a", .list [.str "x"])]) = .invalid := by decide
 
+/-- `{a: rest(nil, {keys: "a"})}`: the members no cover evaluates, held
+to `nil`. -/
+abbrev onlyA : Val :=
+  .map [("a", false, .rest .nil [(none, some (.lit (.str "a")), none)])] none false
+
+set_option maxRecDepth 8192 in
+/-- The one member is under the key the cover evaluates, and the document
+is valid. -/
+example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1)])]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- A second member is evaluated by nothing, and `nil` refuses it. -/
+example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1), ("b", .integer 2)])]) = .invalid := by decide
+
 /-! ## What a `subsume` must answer -/
 
 /-- One implementation: never commit. Correct, and useless. -/
