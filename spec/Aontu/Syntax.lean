@@ -72,6 +72,7 @@ inductive Val where
   | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
+  | contains (c n : Val)                    -- `contains(c, n)`, the members `c` admits counted by `n`; `contains(c)` is `n = min(1)`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -104,6 +105,7 @@ def Val.size : Val → ℕ
   | .nof n cs => n.size + sizeItems cs + 1
   | .must c _ => c.size + 1
   | .when c t e => c.size + t.size + sizeSpread e + 1
+  | .contains c n => c.size + n.size + 1
   | _ => 1
 
 def sizeFields : List (String × Bool × Val) → ℕ
@@ -196,7 +198,7 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
-  | .nof _ _ | .must _ _ | .when _ _ _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []

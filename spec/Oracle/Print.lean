@@ -127,6 +127,10 @@ def Val.src : Val → Option String
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"
   | .must c m => do pure s!"must({← c.src}, {quote m})"
   | .when c t e => do pure s!"when({", ".intercalate ([← c.src, ← t.src] ++ (← elseSrc e))})"
+  | .contains c n => do
+    let cs ← c.src
+    let ns ← n.src
+    pure (if ns = "min(1)" then s!"contains({cs})" else s!"contains({cs}, {ns})")
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []

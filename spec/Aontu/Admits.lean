@@ -269,6 +269,17 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       Judge env root false c j → Judge env root b e j → Judge env root b (.when c t (some e)) j
   | whenPass {c t : Val} {j : Data} :
       Judge env root false c j → Judge env root true (.when c t none) j
+  /-- `contains(c, n)` judges a list or a map as `n` judges the number of
+  its members `c` admits, an integer, each member tried alone. A scalar
+  has no members, so `contains` refuses it, as it refuses a count no
+  integer leaf holds. -/
+  | contains {b : Bool} {c n : Val} {j : Data} {ms : List Data} {f : Data → Bool} {k : ℕ} (h : IntegerLeaf k) :
+      j.members = some ms → (∀ x, x ∈ ms → Judge env root (f x) c x) → ms.countP f = k →
+      Judge env root b n (.num (.integer ⟨k, h⟩)) → Judge env root b (.contains c n) j
+  | containsNone {c n : Val} {j : Data} : j.members = none → Judge env root false (.contains c n) j
+  | containsBig {c n : Val} {j : Data} {ms : List Data} {f : Data → Bool} {k : ℕ} :
+      j.members = some ms → (∀ x, x ∈ ms → Judge env root (f x) c x) → ms.countP f = k → ¬ IntegerLeaf k →
+      Judge env root false (.contains c n) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -607,6 +618,30 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | whenPass _ ihc => intro b' h'; cases h' with
     | whenThen hc' _ => exact nomatch ihc hc'
     | whenPass _ => rfl
+  | @contains _ _ _ _ ms f k h hm hf hk _ ihf ihn => intro b' h'; cases h' with
+    | @contains _ _ _ _ ms' f' k' h' hm' hf' hk' hn' =>
+      rw [hm] at hm'; cases hm'
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun x hx => ihf x hx (hf' x hx)
+      subst hkk
+      exact ihn hn'
+    | containsNone hm' => rw [hm] at hm'; cases hm'
+    | @containsBig _ _ _ ms' f' k' hm' hf' hk' hbig =>
+      rw [hm] at hm'; cases hm'
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun x hx => ihf x hx (hf' x hx)
+      subst hkk
+      exact absurd h hbig
+  | containsNone hm => intro b' h'; cases h' with
+    | contains _ hm' _ _ _ => rw [hm] at hm'; cases hm'
+    | containsNone _ => rfl
+    | containsBig _ _ _ _ => rfl
+  | @containsBig _ _ _ ms f k hm hf hk hbig ihf => intro b' h'; cases h' with
+    | @contains _ _ _ _ ms' f' k' h' hm' hf' hk' _ =>
+      rw [hm] at hm'; cases hm'
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun x hx => ihf x hx (hf' x hx)
+      subst hkk
+      exact absurd h' hbig
+    | containsNone _ => rfl
+    | containsBig _ _ _ _ => rfl
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

@@ -134,7 +134,7 @@ def Val.doms : Val → List Dom
   | .neq (v :: _) => [v.dom]
   | .multiple _ => [.num]
   | .len _ => [.str, .list, .map]
-  | .unique _ => [.list, .map]
+  | .unique _ | .contains _ _ => [.list, .map]
   | .re _ | .format _ => [.str]
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
@@ -171,6 +171,7 @@ theorem dom_mem_doms {v : Val} {j : Data} (h : Admits env root v j) : j.dom ∈ 
       simp [Val.doms, Bound.dom, Data.dom]
   case len => cases j <;> simp_all [Data.size, Val.doms, Data.dom]
   case unique => cases j <;> simp_all [Data.members, Val.doms, Data.dom]
+  case contains => cases j <;> simp_all [Data.members, Val.doms, Data.dom]
   all_goals ((try cases j) <;> simp [Val.doms, Data.dom, Bound.dom])
 
 theorem domsMeet_of_admits {a b : Val} {j : Data} (ha : Admits env root a j)
@@ -658,7 +659,7 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
   | .beneath _, hd, _ | .neq _, hd, _ | .multiple _, hd, _ | .len _, hd, _
   | .unique _, hd, _ | .re _, hd, _ | .format _, hd, _ | .any, hd, _
   | .pref _ _, hd, _ | .alias _, hd, _ | .path _, hd, _ | .nof _ _, hd, _
-  | .must _ _, hd, _ | .when _ _ _, hd, _ => nomatch hd
+  | .must _ _, hd, _ | .when _ _ _, hd, _ | .contains _ _, hd, _ => nomatch hd
 
 /-- A dead required key, among the keys `fs₀` of a map, refuses every
 map: absent, it is a key the map must have; present, its value is
@@ -1719,6 +1720,7 @@ def Val.beq : Val → Val → Bool
   | .nof n cs, .nof n' cs' => n.beq n' && beqItems cs cs'
   | .must c m, .must c' m' => c.beq c' && decide (m = m')
   | .when c t e, .when c' t' e' => c.beq c' && t.beq t' && beqSpread e e'
+  | .contains c n, .contains c' n' => c.beq c' && n.beq n'
   | _, _ => false
 termination_by structural a _ => a
 

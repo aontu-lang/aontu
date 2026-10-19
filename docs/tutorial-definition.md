@@ -2318,7 +2318,8 @@ element:
 /-- The names a value refers to with no key and no element between:
 through `&`, `|`, `*` and `len`, and through the count and the
 branches of a trial, which hold the whole of a value, and never through
-a container's members or spread. -/
+a container's members or spread, nor through the term `contains` tries
+on each member. -/
 def Val.unguardedRefs : Val → List String
 ```
 
@@ -3480,7 +3481,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
   | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
-  | .when _ _ _, _ => False
+  | .when _ _ _, _ | .contains _ _, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -3790,7 +3791,7 @@ would single out with each `nof`, `must`, `len` and `unique` as `any`:
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .len _ | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -4121,13 +4122,16 @@ A trial schema tries a term on a value and reads the answer either
 way. `nof(n, c₁, …)` counts the branches that admit the value and holds
 the count to `n`; `must(c, m)` holds the value to `c`; and
 `when(c, t, e)` holds it to `t` where `c` admits it and to `e` where `c`
-refuses it, an `e` not written passing. Each is a form of the syntax:
+refuses it, an `e` not written passing; and `contains(c, n)` counts the
+members of a container `c` admits and holds the count to `n`,
+`contains(c)` asking for at least one. Each is a form of the syntax:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
   | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
+  | contains (c n : Val)                    -- `contains(c, n)`, the members `c` admits counted by `n`; `contains(c)` is `n = min(1)`
 ```
 
 and each has its rules in `Judge`:
@@ -4173,7 +4177,24 @@ holds the value to the branch that answer picks:
       Judge env root false c j → Judge env root true (.when c t none) j
 ```
 
-Four theorems of `spec/Aontu/Trial.lean` say what the language's
+`contains(c, n)` counts as `nof` does, over the members of the value
+rather than over branches: each member is tried alone by `c`, and `n`
+judges the number admitted, an integer. A scalar has no members and is
+refused:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `contains(c, n)` judges a list or a map as `n` judges the number of
+  its members `c` admits, an integer, each member tried alone. A scalar
+  has no members, so `contains` refuses it, as it refuses a count no
+  integer leaf holds. -/
+  | contains {b : Bool} {c n : Val} {j : Data} {ms : List Data} {f : Data → Bool} {k : ℕ} (h : IntegerLeaf k) :
+      j.members = some ms → (∀ x, x ∈ ms → Judge env root (f x) c x) → ms.countP f = k →
+      Judge env root b n (.num (.integer ⟨k, h⟩)) → Judge env root b (.contains c n) j
+  | containsNone {c n : Val} {j : Data} : j.members = none → Judge env root false (.contains c n) j
+```
+
+Six theorems of `spec/Aontu/Trial.lean` say what the language's
 decisions say of the trials. `must(c, m)` asks what `nof(1, c)` asks:
 
 <!-- test: quote spec/Aontu/Trial.lean -->
@@ -4221,10 +4242,29 @@ theorem when_nil_refuses {c : Val} {e : Option Val} {j : Data} (h : Admits env r
   .whenThen h .nil
 ```
 
+A count over a container with no members is a count of none, and a
+scalar, which has no members, is refused:
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- `contains(c, n)` over a list with no members judges as `n` judges
+`0`: nothing is admitted where nothing is tried. -/
+theorem judge_contains_empty {b : Bool} {c n : Val} :
+    Judge env root b (.contains c n) (.list []) ↔ Judge env root b n (.num (.integer (.of 0))) := by
+```
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- A scalar has no members, so `contains` refuses it. -/
+theorem contains_refuses_scalar {c n : Val} (s : Scalar) : Refuses env root (.contains c n) s.data :=
+  .containsNone (by cases s <;> rfl)
+```
+
 The checker counts the branches it answers `true`, and holds the count
 to `n` as it holds a size to `len`'s term; a conditional it decides by
 its condition's answer, an `else` not written answering `true` as a
-spread not written does:
+spread not written does; and `contains` it decides by counting the
+members its term admits, as `nof` counts branches:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
@@ -4233,6 +4273,12 @@ spread not written does:
     else false
   | .must c _, j => checkWith u c j
   | .when c t e, j => if checkWith u c j then checkWith u t j else checkSpreadWith u e j
+  | .contains c n, j => match j.members with
+    | some ms =>
+      if h : IntegerLeaf (ms.countP fun x => checkWith u c x) then
+        checkWith u n (.num (.integer ⟨ms.countP fun x => checkWith u c x, h⟩))
+      else false
+    | none => false
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
@@ -4299,6 +4345,23 @@ example : Admits .empty .null (.when .string (.lit (.str "a")) none) (.integer 5
   judge_when_iff.mpr (.inr ⟨.stringNot (fun _ h => nomatch h), .any⟩)
 ```
 
+and a count over members:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{a: contains(number)}`: a count over the members of a value. -/
+abbrev someNumber : Val :=
+  .map [("a", false, .contains .number (.min (.num (.integer (.of 1)))))] none false
+
+set_option maxRecDepth 8192 in
+/-- One member is a number, and the document is valid. -/
+example : vet {} [] someNumber (.map [("a", .list [.integer 1, .str "x"])]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- No member is, and the document is invalid. -/
+example : vet {} [] someNumber (.map [("a", .list [.str "x"])]) = .invalid := by decide
+```
+
 Write `when.aontu`:
 
 <!-- test: scenario when -->
@@ -4319,13 +4382,14 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-An eighth generated fragment, `lake exe oracle trials`, runs 118
+An eighth generated fragment, `lake exe oracle trials`, runs 171
 documents with trials inside values in the three modes: `nof` with each
 kind of count, over kinds, literals, maps, lists and names, beside
 literals, defaults and disjunctions, nested, through a recursive name;
 `must`; and `when`, with and without an `else`, over scalars, maps and
-lists, nested, beside the other forms, and through a name. Its 354 rows
-are
+lists, nested, beside the other forms, and through a name; and
+`contains`, with each kind of count, over lists, maps and scalars,
+nested, beside the other forms, and through a name. Its 513 rows are
 [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), and two of
 them:
 
@@ -4803,7 +4867,7 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trials `contains` and `rest`; nor a path of step 9
+nor the trial `rest`; nor a path of step 9
 read against the document as filled. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the

@@ -9,9 +9,11 @@ value as well as those that admit it, which the second answer of the
 one relation gives it without a negation. What the decisions say of
 them is proved here: `must(c, m)` asks what `nof(1, c)` asks (ADR-055);
 `nof(0, c)` is the complement of `c`, which is how JSON Schema's `not`
-crosses into aontu (ADR-049); and a conditional holds a value to the
+crosses into aontu (ADR-049); a conditional holds a value to the
 branch its condition picks, `when(c, nil)` refusing every value `c`
-admits (ADR-050).
+admits (ADR-050); and `contains(c, n)` counts the members `c` admits,
+none in an empty container, and refuses a scalar, which has no members
+(ADR-051).
 -/
 
 namespace Aontu
@@ -128,6 +130,33 @@ schema in a branch. -/
 theorem when_nil_refuses {c : Val} {e : Option Val} {j : Data} (h : Admits env root c j) :
     Refuses env root (.when c .nil e) j :=
   .whenThen h .nil
+
+/-- `contains(c, n)` over a list with no members judges as `n` judges
+`0`: nothing is admitted where nothing is tried. -/
+theorem judge_contains_empty {b : Bool} {c n : Val} :
+    Judge env root b (.contains c n) (.list []) ↔ Judge env root b n (.num (.integer (.of 0))) := by
+  constructor
+  · intro h
+    cases h with
+    | contains _ hm _ hk hn =>
+      simp only [Data.members, Option.some.injEq] at hm
+      subst hm
+      simp only [List.countP_nil] at hk
+      subst hk
+      exact hn
+    | containsNone hm => exact nomatch hm
+    | containsBig hm _ hk hbig =>
+      simp only [Data.members, Option.some.injEq] at hm
+      subst hm
+      simp only [List.countP_nil] at hk
+      subst hk
+      exact absurd (by decide) hbig
+  · intro h
+    exact .contains (f := fun _ => false) (k := 0) (by decide) rfl (fun x hx => nomatch hx) rfl h
+
+/-- A scalar has no members, so `contains` refuses it. -/
+theorem contains_refuses_scalar {c n : Val} (s : Scalar) : Refuses env root (.contains c n) s.data :=
+  .containsNone (by cases s <;> rfl)
 
 end
 

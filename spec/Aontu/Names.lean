@@ -49,6 +49,7 @@ def Val.refs : Val → List String
   | .nof n cs => n.refs ++ refsItems cs
   | .must c _ => c.refs
   | .when c t e => c.refs ++ t.refs ++ refsSpread e
+  | .contains c n => c.refs ++ n.refs
   | _ => []
 
 def refsFields : List (String × Bool × Val) → List String
@@ -72,7 +73,8 @@ mutual
 /-- The names a value refers to with no key and no element between:
 through `&`, `|`, `*` and `len`, and through the count and the
 branches of a trial, which hold the whole of a value, and never through
-a container's members or spread. -/
+a container's members or spread, nor through the term `contains` tries
+on each member. -/
 def Val.unguardedRefs : Val → List String
   | .alias n => [n]
   | .len c => c.unguardedRefs
@@ -82,6 +84,7 @@ def Val.unguardedRefs : Val → List String
   | .nof n cs => n.unguardedRefs ++ unguardedItems cs
   | .must c _ => c.unguardedRefs
   | .when c t e => c.unguardedRefs ++ t.unguardedRefs ++ unguardedSpread e
+  | .contains _ n => n.unguardedRefs
   | _ => []
 
 def unguardedArms : List (ℕ × Val) → List String
@@ -402,6 +405,10 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     · exact .inl (.inl (unguardedRefs_sub_refs c n h))
     · exact .inl (.inr (unguardedRefs_sub_refs t n h))
     · exact .inr (unguardedSpread_sub_refsSpread e n h)
+  | .contains c m, n, h => by
+    simp only [Val.unguardedRefs] at h
+    simp only [Val.refs, List.mem_append]
+    exact .inr (unguardedRefs_sub_refs m n h)
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
   | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .multiple _, _, h
@@ -580,6 +587,7 @@ def Val.paths : Val → List (List Seg)
   | .nof n cs => n.paths ++ pathsItems cs
   | .must c _ => c.paths
   | .when c t e => c.paths ++ t.paths ++ pathsSpread e
+  | .contains c n => c.paths ++ n.paths
   | _ => []
 
 def pathsFields : List (String × Bool × Val) → List (List Seg)

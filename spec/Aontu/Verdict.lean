@@ -114,7 +114,7 @@ mutual
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .len _ | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -190,7 +190,7 @@ theorem mem_untriedArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
 /-- A term the checker can read stays one with its trials unread. -/
 theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA := by
   induction h with
-  | len _ _ | unique | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ => exact .any
+  | len _ _ | unique | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ => exact .any
   | @map fs spread closed _ _ ihf ihs =>
     refine .map ?_ ?_
     · intro k o w hm
