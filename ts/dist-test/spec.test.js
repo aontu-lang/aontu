@@ -156,9 +156,9 @@ function loadRows() {
     return rows;
 }
 // SHARES shares of the rows, one per test file, run side by side: this file
-// runs the first, and spec-share-2.test.ts and spec-share-3.test.ts, which
+// runs the first; spec-share-2.test.ts through spec-share-6.test.ts, which
 // import it, take theirs from their names. ENTRY keeps the rest to this file.
-exports.SHARES = 3;
+exports.SHARES = 6;
 const SHARE_FILE = /^spec(?:-share-(\d+))?\.test\.js$/;
 function specShare(file) {
     const m = SHARE_FILE.exec(Path.basename(file));

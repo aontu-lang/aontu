@@ -1,0 +1,59 @@
+# THE DEFINITION (spec/, docs/design/DEFINITION.0.md). Every proof is
+# checked, the rows the definition writes into test/spec/ are
+# regenerated, and the committed copy must be the fresh one, as the
+# happy path holds ts/dist to its build; the ports' own jobs run the
+# rows. The Lean release is fetched by hash rather than through elan,
+# whose self-update check does not pass every proxy.
+#
+# In the standard CI this runs only when the definition or its rows
+# change -- the path lists, written out twice because a workflow cannot
+# share one -- and in the daily run always, through workflow_call. The
+# build directory is cached on the sources' hash, with the newest cache
+# restored when none matches, so a change to one file rebuilds that
+# file's dependants rather than the whole definition, which takes three
+# minutes cold.
+
+name: spec
+
+on:
+  push:
+    paths:
+      - 'spec/**'
+      - 'test/spec/def-*.tsv'
+      - 'Makefile'
+      - '.github/workflows/spec.yml'
+  pull_request:
+    paths:
+      - 'spec/**'
+      - 'test/spec/def-*.tsv'
+      - 'Makefile'
+      - '.github/workflows/spec.yml'
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  spec:
+    name: The definition (spec/)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch Lean 4.15.0
+        env:
+          LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.zip
+          LEAN_SHA256: 8eceac177fe2e2828f71add0d458e6a91187ce6d4f67d0f0364061b9e3dca59b
+        run: |
+          curl -sSL -o "$RUNNER_TEMP/lean.zip" "$LEAN_URL"
+          echo "$LEAN_SHA256  $RUNNER_TEMP/lean.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/lean.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
+      # Lake decides what to rebuild by the hash of each file's text,
+      # not its date, so a cache from another commit is safe to restore:
+      # what is unchanged is reused, what changed is rebuilt.
+      - uses: actions/cache@v4
+        with:
+          path: spec/.lake
+          key: lake-${{ hashFiles('spec/lean-toolchain', 'spec/lakefile.toml', 'spec/**/*.lean') }}
+          restore-keys: |
+            lake-
+      - run: make spec

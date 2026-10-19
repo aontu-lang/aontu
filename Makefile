@@ -190,6 +190,12 @@ helpdoc:
 test-ts:
 	cd ts && npm test
 
+# One sampled group of the TypeScript suite (ts/test/groups.tsv), as the
+# standard CI runs it: make test-group G=2. Group 0 is the gate group;
+# G=all runs every group.
+test-group:
+	cd ts && node scripts/test-group.cjs --run $(G)
+
 clean-ts:
 	rm -rf ts/dist ts/dist-test ts/.tsbuild
 
@@ -204,7 +210,7 @@ test-go:
 # regenerate the rows the definition writes into test/spec/, and fail if
 # the committed copy differs, as the coverage job does for ts/dist. Needs
 # lean and lake from the release spec/lean-toolchain names on PATH; in CI,
-# build.yml's spec job fetches that release by hash.
+# spec.yml fetches that release by hash.
 spec:
 	cd spec && lake build
 	cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
@@ -235,7 +241,11 @@ clean-go:
 # import path. Two numbers is the cheaper trade.
 #
 # Bumps whichever versions are given, runs the full suite, commits, pushes
-# main, and dispatches the publish workflow with matching inputs.
+# main, fast-forwards release to the same commit, and dispatches the
+# publish workflow ON release with matching inputs. Pull requests merge
+# into main; release is where main goes to be published, and the
+# workflow refuses any other ref (docs/release-and-tag.md, "Two
+# branches").
 #
 # Every guard runs BEFORE anything is written, because half of this cannot be
 # taken back: npm never allows republishing a version, and proxy.golang.org
@@ -283,6 +293,15 @@ publish:
 	  echo "publish: tag go/v$(GOV) already exists on origin"; exit 1; fi
 	@if [ -n "$(V)" ] && git rev-parse -q --verify "refs/tags/v$(V)" >/dev/null 2>&1; then \
 	  echo "publish: tag v$(V) already exists locally"; exit 1; fi
+	@# release IS A FAST-FORWARD OF main. A release that has a commit main
+	@# does not cannot be fast-forwarded, and the push below would refuse
+	@# AFTER the bump is on main -- so ask first. No release branch yet is
+	@# fine: the push below creates it.
+	@if git ls-remote --exit-code --heads origin release >/dev/null 2>&1; then \
+	  git fetch origin release --quiet; \
+	  git merge-base --is-ancestor origin/release HEAD || \
+	    { echo "publish: origin/release has commits main does not; merge release into main first"; exit 1; }; \
+	fi
 	@if [ -n "$(GOV)" ] && git rev-parse -q --verify "refs/tags/go/v$(GOV)" >/dev/null 2>&1; then \
 	  echo "publish: tag go/v$(GOV) already exists locally"; exit 1; fi
 	@if [ -n "$(V)" ]; then cd ts && npm version --no-git-tag-version $(V); fi
@@ -304,10 +323,15 @@ publish:
 	@if [ -n "$(GOV)" ]; then git add go/aontu.go; fi
 	git commit -m "release:$(if $(V), npm $(V))$(if $(GOV), go $(GOV))"
 	git push origin main
-	@# `--ref main` is a MOVING target: another commit can land between the
+	@# release MOVES TO THIS COMMIT, as a fast-forward: a plain push refuses
+	@# anything else, which is the guard above once more, at the remote.
+	@# The first release creates the branch. The daily workflow runs the
+	@# full matrix on every push to release, beside the publish run.
+	git push origin HEAD:refs/heads/release
+	@# `--ref release` is a MOVING target: another push can land between the
 	@# push above and the run resolving, and be released under the version
 	@# just bumped. Pin the dispatch to the SHA we pushed.
-	gh workflow run publish.yml --ref main \
+	gh workflow run publish.yml --ref release \
 	  -f npm=$(if $(V),true,false) -f go=$(if $(GOV),true,false) \
 	  -f expect_sha=$$(git rev-parse HEAD)
 	@echo
