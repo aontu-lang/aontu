@@ -447,6 +447,166 @@ theorem list_le {ig is : List Val} {sps : Option Val} {cs cg : Bool}
           cases hw with | list hm => exact hm x (List.mem_of_getElem? hx)
         exact admits_of_le (hi i vg vs hig his) hwx (hp i vs x his hx)
 
+/-! ## The table: the constraint algebra
+
+The reference's second table, "Subsumption" under the constraints,
+orders the residuals among themselves: an interval contains another,
+`neq` of fewer values is more general, `len` follows its count, and a
+concrete scalar is below a bound that admits it. -/
+
+theorem Number.le_refl (x : Number) : x.le x := Int.le_refl _
+
+theorem String.le_refl (t : String) : t ≤ t := fun h => lt_asymm_chars h h
+
+theorem String.le_trans {a b c : String} (h₁ : a ≤ b) (h₂ : b ≤ c) : a ≤ c := by
+  intro hca
+  rcases lt_total_chars a.data b.data with hab | hab | hab
+  · exact h₂ (lt_trans_chars hca hab)
+  · exact h₂ (show c.data < b.data from hab ▸ hca)
+  · exact h₁ hab
+
+/-- A closed lower bound is below another exactly when its end is at or
+above the other's: `min(3) ⊑ min(0)`. -/
+theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔ m.le n := by
+  constructor
+  · intro h
+    have h' := (h (.num n) ⟨.num, .min (Number.le_refl n)⟩).2
+    cases h' with | min h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | min h' => exact .min (Number.le_trans hle h')
+
+theorem max_le_max_iff (n m : Number) : .max (.num n) ⊑[env] .max (.num m) ↔ n.le m := by
+  constructor
+  · intro h
+    have h' := (h (.num n) ⟨.num, .max (Number.le_refl n)⟩).2
+    cases h' with | max h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | max h' => exact .max (Number.le_trans h' hle)
+
+theorem above_le_above_of_le {n m : Number} (h : m.le n) :
+    .above (.num n) ⊑[env] .above (.num m) := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with | above h' => exact .above (Number.lt_of_le_of_lt h h')
+
+theorem beneath_le_beneath_of_le {n m : Number} (h : n.le m) :
+    .beneath (.num n) ⊑[env] .beneath (.num m) := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with | beneath h' => exact .beneath (Number.lt_of_lt_of_le h' h)
+
+/-- A closed bound is below a strict one exactly when its end lies
+strictly inside: `min(3) ⊑ above(2)`. -/
+theorem min_le_above_iff (n m : Number) : .min (.num n) ⊑[env] .above (.num m) ↔ m.lt n := by
+  constructor
+  · intro h
+    have h' := (h (.num n) ⟨.num, .min (Number.le_refl n)⟩).2
+    cases h' with | above h' => exact h'
+  · intro hlt j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | min h' => exact .above (Number.lt_of_lt_of_le hlt h')
+
+theorem max_le_beneath_iff (n m : Number) : .max (.num n) ⊑[env] .beneath (.num m) ↔ n.lt m := by
+  constructor
+  · intro h
+    have h' := (h (.num n) ⟨.num, .max (Number.le_refl n)⟩).2
+    cases h' with | beneath h' => exact h'
+  · intro hlt j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | max h' => exact .beneath (Number.lt_of_le_of_lt h' hlt)
+
+/-- A strict bound is below a closed one whose end is at or inside it:
+`above_le_min` with the ends apart. -/
+theorem above_le_min_of_le {n m : Number} (h : m.le n) : .above (.num n) ⊑[env] .min (.num m) := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with | above h' => exact .min (Number.le_of_lt (Number.lt_of_le_of_lt h h'))
+
+theorem beneath_le_max_of_le {n m : Number} (h : n.le m) :
+    .beneath (.num n) ⊑[env] .max (.num m) := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with | beneath h' => exact .max (Number.le_of_lt (Number.lt_of_lt_of_le h' h))
+
+/-- A concrete number is below a bound exactly when the bound admits
+it: the reference's membership rule. -/
+theorem lit_le_min_iff (x n : Number) : .lit (.num x) ⊑[env] .min (.num n) ↔ n.le x := by
+  constructor
+  · intro h
+    have h' := (h (.num x) ⟨.num, .num⟩).2
+    cases h' with | min h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj
+    exact .min hle
+
+theorem lit_le_max_iff (x n : Number) : .lit (.num x) ⊑[env] .max (.num n) ↔ x.le n := by
+  constructor
+  · intro h
+    have h' := (h (.num x) ⟨.num, .num⟩).2
+    cases h' with | max h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj
+    exact .max hle
+
+theorem lit_le_above_iff (x n : Number) : .lit (.num x) ⊑[env] .above (.num n) ↔ n.lt x := by
+  constructor
+  · intro h
+    have h' := (h (.num x) ⟨.num, .num⟩).2
+    cases h' with | above h' => exact h'
+  · intro hlt j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj
+    exact .above hlt
+
+theorem lit_le_beneath_iff (x n : Number) : .lit (.num x) ⊑[env] .beneath (.num n) ↔ x.lt n := by
+  constructor
+  · intro h
+    have h' := (h (.num x) ⟨.num, .num⟩).2
+    cases h' with | beneath h' => exact h'
+  · intro hlt j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj
+    exact .beneath hlt
+
+/-- The same for the bounds on strings, in code-point order. -/
+theorem min_str_le_min_iff (t u : String) : .min (.str t) ⊑[env] .min (.str u) ↔ u ≤ t := by
+  constructor
+  · intro h
+    have h' := (h (.str t) ⟨.str, .minStr (String.le_refl t)⟩).2
+    cases h' with | minStr h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | minStr h' => exact .minStr (String.le_trans hle h')
+
+theorem max_str_le_max_iff (t u : String) : .max (.str t) ⊑[env] .max (.str u) ↔ t ≤ u := by
+  constructor
+  · intro h
+    have h' := (h (.str t) ⟨.str, .maxStr (String.le_refl t)⟩).2
+    cases h' with | maxStr h' => exact h'
+  · intro hle j ⟨hw, hj⟩
+    refine ⟨hw, ?_⟩
+    cases hj with | maxStr h' => exact .maxStr (String.le_trans h' hle)
+
+/-- Excluding fewer values is more general: `neq(1) ⊒ neq(1, 2)`. -/
+theorem neq_le_neq {S T : List Bound} (h : ∀ v, v ∈ S → v ∈ T) : .neq T ⊑[env] .neq S := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with
+  | neq hT => exact .neq fun v hv => hT v (h v hv)
+  | neqStr hT => exact .neqStr fun v hv => hT v (h v hv)
+
+/-- `len` follows its count: the reference's row reuses the table over
+the integers. -/
+theorem len_le_len {c d : Val} (h : d ⊑[env] c) : .len d ⊑[env] .len c := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with
+  | len hil hsz hd => exact .len hil hsz (admits_of_le h .num hd)
+
 /-! ## Deciding the order on the scalars
 
 `leDecF` answers with a proof where a theorem above puts `a` below `b`,
@@ -553,8 +713,9 @@ def itemsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) :
 steps; the connectives first, the right side's meet and disjunction
 before the left side's, since below a meet is below both sides and
 below a disjunction is below some arm; then two maps and two lists
-whose general side has no spread, by `map_le` and `list_le`; then the
-scalars. -/
+whose general side has no spread, by `map_le` and `list_le`; then two
+bounds, a literal under a bound, two `neq` and two `len`, by the
+constraint algebra's rows; then the scalars. -/
 def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
   | 0, _, _ => none
   | n + 1, a, b =>
@@ -620,6 +781,28 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
               else none
             | _, _ => none
       else none
+    | .min (.num k), .min (.num m) => if h : m.le k then some ⟨(min_le_min_iff k m).2 h⟩ else none
+    | .max (.num k), .max (.num m) => if h : k.le m then some ⟨(max_le_max_iff k m).2 h⟩ else none
+    | .above (.num k), .above (.num m) => if h : m.le k then some ⟨above_le_above_of_le h⟩ else none
+    | .beneath (.num k), .beneath (.num m) =>
+      if h : k.le m then some ⟨beneath_le_beneath_of_le h⟩ else none
+    | .min (.num k), .above (.num m) => if h : m.lt k then some ⟨(min_le_above_iff k m).2 h⟩ else none
+    | .max (.num k), .beneath (.num m) =>
+      if h : k.lt m then some ⟨(max_le_beneath_iff k m).2 h⟩ else none
+    | .above (.num k), .min (.num m) => if h : m.le k then some ⟨above_le_min_of_le h⟩ else none
+    | .beneath (.num k), .max (.num m) => if h : k.le m then some ⟨beneath_le_max_of_le h⟩ else none
+    | .lit (.num x), .min (.num k) => if h : k.le x then some ⟨(lit_le_min_iff x k).2 h⟩ else none
+    | .lit (.num x), .max (.num k) => if h : x.le k then some ⟨(lit_le_max_iff x k).2 h⟩ else none
+    | .lit (.num x), .above (.num k) => if h : k.lt x then some ⟨(lit_le_above_iff x k).2 h⟩ else none
+    | .lit (.num x), .beneath (.num k) =>
+      if h : x.lt k then some ⟨(lit_le_beneath_iff x k).2 h⟩ else none
+    | .min (.str t), .min (.str u) => if h : u ≤ t then some ⟨(min_str_le_min_iff t u).2 h⟩ else none
+    | .max (.str t), .max (.str u) => if h : t ≤ u then some ⟨(max_str_le_max_iff t u).2 h⟩ else none
+    | .neq T, .neq S => if h : ∀ v, v ∈ S → v ∈ T then some ⟨neq_le_neq h⟩ else none
+    | .len d, .len c =>
+      match leDecF env n d c with
+      | some ⟨h⟩ => some ⟨len_le_len h⟩
+      | none => none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
     | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean =>
       some ⟨Le.refl env _⟩
