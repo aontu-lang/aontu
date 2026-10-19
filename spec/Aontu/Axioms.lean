@@ -274,3 +274,23 @@ line each comment states.
 /-- info: 'Aontu.not_le_of_witness' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.not_le_of_witness
+
+/-- info: 'Aontu.judge_root' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.judge_root
+
+/-- info: 'Aontu.admits_of_le' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.admits_of_le
+
+/-- info: 'Aontu.map_le' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.map_le
+
+/-- info: 'Aontu.list_le' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.list_le
+
+/-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.not_le_map_required

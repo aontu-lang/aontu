@@ -3098,6 +3098,27 @@ A pair neither decides has no row, and since an engine may answer
 `undecided` anywhere, a row allows it beside the answer the definition
 gives.
 
+The containers follow the members. A map on the general side is above
+a map on the specific side when each key it declares, the specific side
+declares too, with a value below it and required where the general
+side requires it; a sealed general side asks the specific side to be
+sealed and to declare no key it does not:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem map_le {fsg fss : List (String × Bool × Val)} {sps : Option Val} {cs cg : Bool}
+    (hk : ∀ k og vg, (k, og, vg) ∈ fsg →
+      ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
+    (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg) :
+    .map fss sps cs ⊑[env] .map fsg none cg := by
+```
+
+The members are judged under the root of the whole document, and
+`Le` speaks of instances, each its own root, so the proof rests on
+`judge_root` in `spec/Aontu/Admits.lean`: no rule reads the root, and
+a judgement under one root is a judgement under any. `list_le` does the
+same for lists, position by position, and `leDecF` decides both.
+
 ## 11. Two declarations of one key
 
 When a document declares one key twice, the engine merges the two

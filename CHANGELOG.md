@@ -102,6 +102,32 @@ changes. The second half of P5's work on the order.
   11, the effective default under `defaults`, and 12, a
   `does_not_subsume` with no witness (#375), both open.
 
+### The definition holds the order on maps and lists
+
+Definition, generated rows and documentation; no engine changes.
+
+- `spec/Aontu/Admits.lean`: `judge_root`, that no rule reads the root,
+  so a judgement under one root is a judgement under any; the members
+  of a container are judged under the root of the whole document, and
+  `Le` speaks of instances, each its own root, so the order on
+  containers rests on it (`admits_of_le`).
+- `spec/Aontu/Subsume.lean`: the table's rows for maps and lists as
+  theorems. `map_le`: a map on the general side with no spread is above
+  a map on the specific side when each key it declares, the specific
+  side declares too, with a value below it and required where the
+  general side requires it, and a sealed general side has a sealed
+  specific side declaring no key it does not; `not_le_map_required`, the
+  reference's `compat_required_added`; `list_le`, the same by position,
+  a sealed general side asking a sealed specific side of its length with
+  no spread. The reference's rule for an optional key the specific side
+  lacks is not among them: an open specific side admits any value at
+  it, which both ports overlook (#377).
+- `leDecF` decides two maps and two lists whose general side has no
+  spread (`fieldsDec`, `keysDec`, `itemsDec`), so `test/spec/def-subsume.tsv`
+  grows to 2,400 rows, 74 more pairs proven below; both ports answer
+  every row as the contract allows but the three #346 rows, renumbered
+  in the ledger.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.
