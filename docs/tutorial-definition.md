@@ -3081,6 +3081,23 @@ theorem defaults_sees_the_default :
 the definition yet, so they enter its contract as a predicate, as the
 patterns enter `Admits` through `host`.
 
+The order has rows of its own, `test/spec/def-subsume.tsv`: every pair
+of fifty values, the general first, with the answers the `values`
+contract allows. `leDecF` decides the order with its proof where the
+scalars and the connectives decide it, so its answer is the
+definition's own, and an instance that one value admits and the other
+refuses refutes it:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem not_le_of_witness {s g : Val} {j : Data} (hs : s.Checkable) (hg : g.Checkable)
+    (hj : j.WellFormed) (h1 : check s j = true) (h2 : check g j = false) : ¬ s ⊑[env] g := by
+```
+
+A pair neither decides has no row, and since an engine may answer
+`undecided` anywhere, a row allows it beside the answer the definition
+gives.
+
 ## 11. Two declarations of one key
 
 When a document declares one key twice, the engine merges the two

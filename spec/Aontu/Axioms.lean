@@ -266,3 +266,11 @@ line each comment states.
 /-- info: 'Aontu.defaults_sees_the_default' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.defaults_sees_the_default
+
+/-- info: 'Aontu.leDecF_sound' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.leDecF_sound
+
+/-- info: 'Aontu.not_le_of_witness' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.not_le_of_witness

@@ -56,7 +56,7 @@ type Row = {
 
 
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv')
-const LEDGER_BOUND = 89
+const LEDGER_BOUND = 92
 
 
 function loadLedger(): Set<string> {
@@ -130,7 +130,7 @@ function loadRows(): Row[] {
       }
       const parts = line.split('\t')
       const vetRow = 'vet' === parts[1] || 'verdict' === parts[1] ||
-        'subsume' === parts[1] ||
+        'subsume' === parts[1] || 'subsumption' === parts[1] ||
         'query' === parts[1] || 'why' === parts[1] || 'patch' === parts[1] ||
         'diff' === parts[1] || 'agentsmd' === parts[1] ||
         'fmt-template' === parts[1] || 'fmt-template-lint' === parts[1] ||
@@ -299,6 +299,26 @@ function vetGolden(report: any): string {
 }
 
 
+// The definition's subsumption rows, read as runVerdict reads the verdict
+// rows: the golden names the verdicts the profile's contract allows.
+function runSubsumption(row: Omit<Row, 'file'> & { file?: string }): void {
+  const golden = JSON.parse(row.expect)
+  const want: string[] =
+    Array.isArray(golden.verdict) ? golden.verdict : [golden.verdict]
+  const got = subsume(row.src, row.data as string, golden.opts).verdict
+  const agrees = want.includes(got)
+  if (row.ledgered) {
+    Assert.ok(!agrees,
+      `ledgered case now agrees with the definition (${got});` +
+      ` remove it from spec/ledger.tsv: ${row.name}`)
+  }
+  else {
+    Assert.ok(agrees,
+      `subsumption mismatch: ${row.name}: want ${want.join('|')}, got ${got}`)
+  }
+}
+
+
 const TRUST_FILES: Record<string, boolean> = {
   'include-trust.tsv': true,
   'file.tsv': true,
@@ -349,6 +369,10 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   // never use.
   if ('verdict' === row.mode) {
     runVerdict(row)
+    return
+  }
+  if ('subsumption' === row.mode) {
+    runSubsumption(row)
     return
   }
   const a0 = rowAontu(row)

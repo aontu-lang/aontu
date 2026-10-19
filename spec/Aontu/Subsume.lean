@@ -359,6 +359,135 @@ theorem defaults_sees_the_default :
       (output_iff (by decide) _).1 (by decide)
     exact absurd (output_unique _ _ _ h2 h1) (by decide)
 
+/-! ## Deciding the order on the scalars
+
+`leDecF` answers with a proof where a theorem above puts `a` below `b`,
+by the forms of the scalars and the connectives: the ends, the kinds,
+the literals, the residuals under the kinds that cover their domains,
+disjunction, preference and the meet. Where it answers `none` it says
+nothing: two containers, or two bounds, it leaves undecided, and a
+refutation comes from an instance that tells the two apart,
+`not_le_of_witness`. It is sound by construction, since what it
+returns is the proof, and it is no part of the contract: an engine may
+decide more. -/
+
+/-- The kind that admits exactly a leaf, as a kind. -/
+def Leaf.toKind : Leaf → Kind
+  | .integer => .integer
+  | .float => .float
+  | .biginteger => .biginteger
+  | .bigdecimal => .bigdecimal
+
+/-- Every arm of a disjunction below `b`, found arm by arm. -/
+def armsAllDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (b : Val) :
+    (arms : List (ℕ × Val)) → Option (PLift (∀ r a, (r, a) ∈ arms → a ⊑[env] b))
+  | [] => some ⟨fun _ _ h => absurd h (List.not_mem_nil _)⟩
+  | (_, x) :: rest =>
+    match dec x b, armsAllDec dec b rest with
+    | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun r' a hm => by
+        rcases List.mem_cons.1 hm with h' | h'
+        · cases h'
+          exact h
+        · exact hs r' a h'⟩
+    | _, _ => none
+
+/-- Some arm of a disjunction above `a`, found arm by arm; `hsub` keeps
+the arms seen so far inside the whole disjunction. -/
+def armsAnyDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (a : Val)
+    (arms₀ : List (ℕ × Val)) :
+    (arms : List (ℕ × Val)) → (∀ p, p ∈ arms → p ∈ arms₀) → Option (PLift (a ⊑[env] .or arms₀))
+  | [], _ => none
+  | p :: rest, hsub =>
+    match dec a p.2 with
+    | some ⟨h⟩ => some ⟨le_or_of_mem h (hsub p (List.mem_cons_self _ _))⟩
+    | none => armsAnyDec dec a arms₀ rest fun q hq => hsub q (List.mem_cons_of_mem _ hq)
+
+/-- `a` below `b`, with the proof, where the forms decide it in `n`
+steps; the connectives first, the right side's meet and disjunction
+before the left side's, since below a meet is below both sides and
+below a disjunction is below some arm. -/
+def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
+  | 0, _, _ => none
+  | n + 1, a, b =>
+    match a, b with
+    | _, .any => some ⟨le_any env _⟩
+    | .nil, _ => some ⟨nil_le env _⟩
+    | a, .meet b₁ b₂ =>
+      match leDecF env n a b₁, leDecF env n a b₂ with
+      | some ⟨h₁⟩, some ⟨h₂⟩ => some ⟨le_meet h₁ h₂⟩
+      | _, _ => none
+    | .meet a₁ a₂, b =>
+      match leDecF env n a₁ b with
+      | some ⟨h⟩ => some ⟨(meet_le_left env a₁ a₂).trans h⟩
+      | none =>
+        match leDecF env n a₂ b with
+        | some ⟨h⟩ => some ⟨(meet_le_right env a₁ a₂).trans h⟩
+        | none => none
+    | .or arms, b =>
+      match armsAllDec (leDecF env n) b arms with
+      | some ⟨h⟩ => some ⟨or_le_iff.2 h⟩
+      | none => none
+    | a, .or arms => armsAnyDec (leDecF env n) a arms arms fun _ h => h
+    | .pref r x, b =>
+      match leDecF env n x b, leDecF env n x.super b with
+      | some ⟨h₁⟩, some ⟨h₂⟩ => some ⟨(pref_le_or r x).trans (or_le_iff.2 fun r' a hm => by
+          rcases List.mem_cons.1 hm with h' | h'
+          · cases h'
+            exact h₁
+          · cases List.mem_singleton.1 h'
+            exact h₂)⟩
+      | _, _ => none
+    | a, .pref r x =>
+      match leDecF env n a x with
+      | some ⟨h⟩ => some ⟨h.trans (le_pref r x)⟩
+      | none =>
+        match leDecF env n a x.super with
+        | some ⟨h⟩ => some ⟨h.trans (super_le_pref r x)⟩
+        | none => none
+    | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
+    | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean =>
+      some ⟨Le.refl env _⟩
+    | .integer, .number => some ⟨leaf_le_number .integer⟩
+    | .float, .number => some ⟨leaf_le_number .float⟩
+    | .biginteger, .number => some ⟨leaf_le_number .biginteger⟩
+    | .bigdecimal, .number => some ⟨leaf_le_number .bigdecimal⟩
+    | .string, .anyString => some ⟨string_le_anyString⟩
+    | .lit s, .lit t => if h : s = t then some ⟨h ▸ Le.refl env _⟩ else none
+    | .lit (.num x), .number => some ⟨lit_num_le_number x⟩
+    | .lit (.num (.integer i)), .integer => some ⟨lit_num_le_leaf (.integer i)⟩
+    | .lit (.num (.float f)), .float => some ⟨lit_num_le_leaf (.float f)⟩
+    | .lit (.num (.biginteger i)), .biginteger => some ⟨lit_num_le_leaf (.biginteger i)⟩
+    | .lit (.num (.bigdecimal d)), .bigdecimal => some ⟨lit_num_le_leaf (.bigdecimal d)⟩
+    | .lit (.str s), .anyString => some ⟨lit_str_le_anyString s⟩
+    | .lit (.str s), .string => if h : s = "" then none else some ⟨lit_str_le_string h⟩
+    | .lit (.bool c), .boolean => some ⟨lit_bool_le_boolean c⟩
+    | .min (.num k), .number => some ⟨min_num_le_number k⟩
+    | .max (.num k), .number => some ⟨max_num_le_number k⟩
+    | .above (.num k), .number => some ⟨above_num_le_number k⟩
+    | .beneath (.num k), .number => some ⟨beneath_num_le_number k⟩
+    | .multiple d, .number => some ⟨multiple_le_number d⟩
+    | .min (.str t), .anyString => some ⟨min_str_le_anyString t⟩
+    | .max (.str t), .anyString => some ⟨max_str_le_anyString t⟩
+    | .above (.str t), .anyString => some ⟨above_str_le_anyString t⟩
+    | .beneath (.str t), .anyString => some ⟨beneath_str_le_anyString t⟩
+    | .re p, .anyString => some ⟨re_le_anyString p⟩
+    | .format g, .anyString => some ⟨format_le_anyString g⟩
+    | _, _ => none
+
+/-- The procedure's `some` is the order: what it returns is the proof. -/
+theorem leDecF_sound {n : ℕ} {a b : Val} (h : (leDecF env n a b).isSome = true) : a ⊑[env] b :=
+  match hd : leDecF env n a b with
+  | some ⟨hle⟩ => hle
+  | none => by rw [hd] at h; exact nomatch h
+
+/-- An instance that one value admits and the other refuses puts the
+first outside the order: the refutation the rows carry. -/
+theorem not_le_of_witness {s g : Val} {j : Data} (hs : s.Checkable) (hg : g.Checkable)
+    (hj : j.WellFormed) (h1 : check s j = true) (h2 : check g j = false) : ¬ s ⊑[env] g := by
+  intro hle
+  have hg' := (hle j ⟨hj, (check_iff hs j).1 h1⟩).2
+  exact nomatch judge_unique hg' ((check_iff hg j).1 h2)
+
 end
 
 end Aontu

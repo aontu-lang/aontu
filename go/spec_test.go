@@ -73,7 +73,7 @@ func TestSpec(t *testing.T) {
 				mode = parts[1]
 			}
 			vetRow := "vet" == mode || "verdict" == mode || "subsume" == mode ||
-				"query" == mode ||
+				"subsumption" == mode || "query" == mode ||
 				"why" == mode || "patch" == mode || "diff" == mode ||
 				"agentsmd" == mode || "fmt-template" == mode ||
 				"fmt-template-lint" == mode || "jsonschema-output" == mode
@@ -218,6 +218,31 @@ func TestSpec(t *testing.T) {
 					}
 					if !ledgered && !agrees {
 						t.Fatalf("verdict mismatch\n schema: %q\n data:   %q\n want: %s\n got:  %s",
+							src, data, strings.Join(want, "|"), got)
+					}
+				case "subsumption":
+					// The definition's rows: the golden names the verdicts
+					// the profile's contract allows, under the profile
+					// `opts` names, and nothing else in the report is
+					// compared.
+					var golden map[string]any
+					if err := json.Unmarshal([]byte(expect), &golden); err != nil {
+						t.Fatalf("expect is not JSON: %v\n expect: %s", err, expect)
+					}
+					opts := specSubsumeOpts(t, golden["opts"])
+					want := specVerdicts(t, golden["verdict"])
+					got := Subsume(src, data, opts).Verdict
+					agrees := false
+					for _, w := range want {
+						if w == got {
+							agrees = true
+						}
+					}
+					if ledgered && agrees {
+						t.Fatalf("ledgered case now agrees with the definition (%s); remove it from spec/ledger.tsv", got)
+					}
+					if !ledgered && !agrees {
+						t.Fatalf("subsumption mismatch\n general:  %q\n specific: %q\n want: %s\n got:  %s",
 							src, data, strings.Join(want, "|"), got)
 					}
 				case "hcanon":
@@ -940,7 +965,7 @@ func specVetGolden(t *testing.T, report VetReport) string {
 // The cases the definition's rows (test/spec/def-fragment.tsv) expect and
 // the engine does not yet answer, spec/ledger.tsv: each must keep failing
 // until its cause is fixed, and a name the rows do not carry is stale.
-const specLedgerBound = 89
+const specLedgerBound = 92
 
 func specLedger(t *testing.T, specDir string) map[string]bool {
 	t.Helper()
