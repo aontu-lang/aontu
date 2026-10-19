@@ -1,8 +1,8 @@
 # The ledger of spec/ (docs/design/DEFINITION.0.md, section 5): one row per
-# row of test/spec/def-fragment.tsv the ports do not answer as the definition does,
-# the answer each side gives, which side moves, and the cause. Both ports
-# answer every listed case alike. A listed case that comes to agree fails
-# the run. Bounded at 42.
+# generated row (test/spec/def-fragment.tsv and the fragments beside it) the
+# ports do not answer as the definition does, the answer each side gives,
+# which side moves, and the cause. Both ports answer every listed case alike.
+# A listed case that comes to agree fails the run. Bounded at 45.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -46,3 +46,6 @@ c9095	({"x"?: min(3)}) & ({"x"?: string})	{}	admit	error	definition	decision 4 (
 c9103	({"x"?: min(3)}) & ({"x"?: string})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
 c9127	({"x"?: min(3)}) & ({"x"?: string & empty()})	{}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
 c9135	({"x"?: min(3)}) & ({"x"?: string & empty()})	{"y": 1}	admit	error	definition	decision 4 (section 2): a contradictory value is an error; the definition has no ill-formed values yet (P2)
+e168	(close([1, 2])) & ([&: integer])	[1, 2, 3]	invalid	valid	ports	#346: a sealed list met with a spread keeps its length in the definition (meetList in spec/Aontu/Meet.lean) and loses it in both ports, so the meet admits what one of its sides refuses
+e169	(close([1, 2])) & ([&: integer])	[1, 2, 3]	invalid	valid	ports	#346: a sealed list met with a spread keeps its length in the definition (meetList in spec/Aontu/Meet.lean) and loses it in both ports, so the meet admits what one of its sides refuses
+e170	(close([1, 2])) & ([&: integer])	[1, 2, 3]	invalid	valid	ports	#346: a sealed list met with a spread keeps its length in the definition (meetList in spec/Aontu/Meet.lean) and loses it in both ports, so the meet admits what one of its sides refuses

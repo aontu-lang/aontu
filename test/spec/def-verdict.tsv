@@ -176,3 +176,6 @@ e164	verdict	v: null	v: null	{"verdict":"valid","opts":{"partial":true}}
 e165	verdict	v: true	v: false	{"verdict":"invalid"}
 e166	verdict	v: true	v: false	{"verdict":"invalid","opts":{"noFill":true}}
 e167	verdict	v: true	v: false	{"verdict":"invalid","opts":{"partial":true}}
+e168	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid"}
+e169	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"noFill":true}}
+e170	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"partial":true}}
