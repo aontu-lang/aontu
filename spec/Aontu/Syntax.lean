@@ -18,6 +18,14 @@ inductive Scalar where
   | str (s : String)
   | bool (b : Bool)
   | null
+  deriving DecidableEq
+
+/-- A scalar as the data it is. -/
+def Scalar.data : Scalar → Data
+  | .num x => .num x
+  | .str s => .str s
+  | .bool b => .bool b
+  | .null => .null
 
 /-- The end of a bound: a number, which bounds numbers by exact value,
 or a string, which bounds strings in code-point order. -/
@@ -73,6 +81,40 @@ abbrev Env := String → Option Val
 
 /-- The declarations of a document that declares no alias. -/
 def Env.empty : Env := fun _ => none
+
+/-! ## The size of a term
+
+The number of constructors a term holds, computed: the budget the meet
+of two terms never runs past. -/
+
+mutual
+def Val.size : Val → ℕ
+  | .lit _ | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .multiple _ | .unique _
+  | .re _ | .format _ | .alias _ | .path _ => 1
+  | .len c => c.size + 1
+  | .map fs spread _ => sizeFields fs + sizeSpread spread + 1
+  | .list items spread _ => sizeItems items + sizeSpread spread + 1
+  | .or arms => sizeArms arms + 1
+  | .pref _ x => x.size + 1
+  | .meet a b => a.size + b.size + 1
+  | _ => 1
+
+def sizeFields : List (String × Bool × Val) → ℕ
+  | [] => 0
+  | (_, _, v) :: fs => v.size + sizeFields fs
+
+def sizeItems : List Val → ℕ
+  | [] => 0
+  | v :: vs => v.size + sizeItems vs
+
+def sizeSpread : Option Val → ℕ
+  | none => 0
+  | some s => s.size
+
+def sizeArms : List (ℕ × Val) → ℕ
+  | [] => 0
+  | (_, a) :: arms => a.size + sizeArms arms
+end
 
 /-! ## The parent type
 

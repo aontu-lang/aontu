@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The definition computes the meet
+
+Definition and documentation; no engine changes.
+
+- `meet a b` in `spec/Aontu/Meet.lean` computes `a & b` as the engines
+  do, one step at a time: `nil` is the zero and `any` the unit, a meet
+  with a disjunction meets every arm and drops the arms that are dead,
+  a preference alone is `x | super(x)`, two maps merge key by key, two
+  lists position by position, a literal meets what admits it, and two
+  atoms that share no value, by domain or by an empty interval, meet in
+  `nil`. `admits_meet` admits the function into the definition: the
+  term it computes admits a value exactly when both sides do, whatever
+  the budget of steps.
+- The definition's proofs are constructive again: `Data.same_iff`, and
+  with it `check_iff`, had come to rest on `Classical.choice` through
+  `simp` closing `¬ 0 = n + 1`, which `spec/README.md` said no theorem
+  did. `spec/Aontu/Axioms.lean` now fails the build if a named theorem
+  rests on an axiom beyond `propext` and `Quot.sound`.
+- Found on the way, in both engines (#346): `close([1, 2]) & [&:
+  integer]` admits `[1, 2, 3]`, which `close([1, 2])` refuses, so the
+  meet admits what one of its sides does not. The definition's
+  `meetList` keeps the seal's length and takes the spread into each
+  position.
+- The tutorial's step 10 gains the computed meet, and step 13 the
+  sealed list met with a spread.
+
 ### The definition holds `|` and `*`, and the reader carries their positional reading
 
 Definition, generated rows, and documentation; no engine changes.

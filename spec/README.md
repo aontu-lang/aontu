@@ -42,9 +42,11 @@ to the JSON Schema suite.
 | `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, the bounds `min`, `max`, `above`, and `below` (the constructor `beneath`, since Lean keeps `below`), each with a number or a string at its end (`Bound`), `neq`, `multiple`, `len`, `unique`, `re`, and `format`, maps with optional keys, a spread and a seal, lists with a spread and a seal, `\|` with each arm's rank, `*` alone, `&`, aliases, and paths; `Env`, the alias declarations; and `super`, the parent type of a term, which `*x` alone widens to |
 | `Aontu/Admits.lean` | `Host`, the two predicates the definition leaves to the engines, which strings a pattern matches and which a format reads, as the opaque constant `host`; `Admits`, what a value admits, one inference rule per form; and `Instance`, the question `aontu vet` answers, which only a value can satisfy |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, the strict bounds under their closed ones (`above_le_min`, `beneath_le_max`), ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
+| `Aontu/Meet.lean` | `meet`, the meet computed as the engines compute it, one step at a time: `nil` the zero and `any` the unit, a disjunction met arm by arm with its dead arms dropped, a preference alone as `x \| super(x)`, two maps merged key by key and two lists position by position, a literal met with what admits it, and two atoms that share no value met in `nil`; beside `admits_meet`, the theorem that the term it computes admits a value exactly when both sides do, and `normalise`, a term met with `any` |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
 | `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every checkable value, one that reads no alias, no path, no pattern and no format; `checkSuper`, which decides admission by the parent type, beside `checkSuper_iff`; `Data.wf`, which decides that a Lean `Data` is a value, beside `Data.wf_iff`; and `Data.same`, which decides `Data.Same`, beside `Data.same_iff` |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
+| `Aontu/Axioms.lean` | the axiom gate: `#print axioms` on the named theorems, held by `#guard_msgs` to `propext` and `Quot.sound` |
 | `Oracle/Print.lean` | the oracle's printer, from values and data to the text both CLIs read; no part of the definition |
 | `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's; and, as `oracle bounds`, the second fragment, the bounds beyond `min`, `max`, and `multiple` (115 values) against 30 instances, 3,450 rows, which `bound_verdict_exact` makes the definition's; and, as `oracle choice`, the third, `\|` and `*` over scalars, kinds, bounds, and sealed lists (52 values) against 22 instances, 1,144 rows, which `choice_verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
@@ -68,10 +70,12 @@ so the definition says nothing about it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- what evaluation outputs, `Output`: which arm a disjunction settles
-  on, and which default fills a key the data lacks, so the verdict on
-  an unresolved disjunction and on a filled default, which the engines
-  give and admission alone does not (P2, P5);
+- what evaluation outputs, `Output`: the meet is computed
+  (`Aontu/Meet.lean`), but which arm of a disjunction evaluation
+  settles on, and which default fills a key the data lacks, are not
+  said, so nor is the verdict on an unresolved disjunction and on a
+  filled default, which the engines give and admission alone does not
+  (P2, P5);
 - a trial inside a value (P3 and P4), and an ill-formed value, so a
   contradiction, or two defaults of one rank, is not yet an error (P5).
 
@@ -91,8 +95,8 @@ python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli
 
 `lake build` ends with no `sorry`, and no named theorem rests on an
 axiom beyond `propext` and `Quot.sound`: none uses `Classical.choice`,
-so every proof is constructive. The rows are a committed generated
-copy: `make spec` fails when the committed file differs from a fresh
+so every proof is constructive, and `Aontu/Axioms.lean` fails the
+build if one comes to. The rows are a committed generated copy: `make spec` fails when the committed file differs from a fresh
 one, as the coverage job does for `ts/dist`. CI runs `make spec` as
 `build.yml`'s `spec` job, which fetches the Lean release by hash.
 

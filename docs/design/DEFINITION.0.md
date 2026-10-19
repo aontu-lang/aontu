@@ -15,7 +15,9 @@ with each arm's rank, `*` alone as `x | super(x)` with `super` a
 function on terms, the positional reading as the reader's, and sealed
 lists landed 2026-10-18, probed against both ports first and run as the
 third generated fragment, `test/spec/def-choice.tsv`, on which both
-agree with the definition on every row; `Output`, `open()`, and ADR-046
+agree with the definition on every row, and the meet computed as
+`meet` in `spec/Aontu/Meet.lean` on 2026-10-19, beside `admits_meet`,
+which holds it to what both sides admit; `Output`, `open()`, and ADR-046
 and 053 as theorems remain. P3 to P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
