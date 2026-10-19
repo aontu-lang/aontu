@@ -2427,10 +2427,11 @@ theorem admits_meetD {ds : Decls} {root : Data} (a b : Val) (j : Data) :
 
 Step 14's `vet` reads a document this way, and the sixth generated
 fragment, [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv),
-runs documents with declarations in the three modes, none of whose
-names is recursive. Both engines agree with the definition on every
-row but `%U = %U`, which the ledger carries. A recursive name met with
-data has no row yet, since the checker of step 17 reads no residual.
+runs documents with declarations in the three modes, recursive names
+among them. Both engines agree with the definition on every row but
+`%U = %U` and `%T = %T | 1`, which the ledger carries. A recursive
+name met with data has its rows because the checker of step 17 reads a
+residual.
 
 ## 9. Path references
 
@@ -2638,15 +2639,16 @@ The three theorems say what `a & b` admits and nothing about its
 shape, and the engines give a shape back: `{x: 1} & {y: 2}` comes back
 as `{x: 1, y: 2}`, and `(min(5) & max(3)) | 1` as `1`.
 `spec/Aontu/Meet.lean` computes that shape too, one step at a time,
-with `rec` the meet of the smaller terms:
+with `rec` the meet of the smaller terms and `lm` the meet of a literal
+with a term:
 
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
-def meetStep (rec : Val → Val → Val) (a b : Val) : Val :=
+def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
   | .nil, _ | _, .nil => .nil
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
-  | a, .meet b₁ b₂ => rec (rec a b₁) b₂
+  | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -2657,12 +2659,17 @@ def meetStep (rec : Val → Val → Val) (a b : Val) : Val :=
   | .list is₁ s₁ c₁, .list is₂ s₂ c₂ => meetList rec is₁ s₁ c₁ is₂ s₂ c₂
   | .any, .list items s c => meetList rec [] none false items s c
   | .list items s c, .any => meetList rec items s c [] none false
-  | a, b => meetBase a b
+  | a, b => meetBase lm a b
 ```
 
 Read each row as *these two shapes meet in this one*. `nil` is the
 zero: it admits nothing, so nor does any meet with it. A meet on either
-side is met one side at a time. A disjunction meets a peer arm by arm,
+side is met one side at a time, and on the right `meetRight` tries each
+atom against each other once: `a` meets `b₁`, and where the two had
+nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
+`b₂` instead, and the pair is never taken up in another association,
+which the two rows would otherwise do without end. A disjunction meets
+a peer arm by arm,
 and `mkOr` keeps the arms that are live: an arm that admits nothing on
 its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
 a disjunction with no live arm is `nil`. A preference alone is
@@ -2676,10 +2683,12 @@ key cannot appear, so an optional one drops and a required one holds
 sealed without a spread fixes the length. `any` is the unit of each
 container, and what remains, two scalars or constraints, is
 `meetBase`: a literal met with a term that admits it is the literal,
-and with one that refuses it `nil`; two kinds meet in the lower; two
-atoms that can share no value, by their domains or because their
-bounds enclose nothing, meet in `nil`; and anything else stays as
-written.
+and with one that refuses it `nil`, which is `lm`'s to decide, so that
+under the declarations of step 8 the checker of step 17 decides it,
+names and all; two kinds meet in the lower; two references to one name
+are that name; two atoms that can share no value, by their domains or
+because their bounds enclose nothing, meet in `nil`; and anything else
+stays as written.
 
 A theorem admits the function into the definition:
 
@@ -3273,7 +3282,7 @@ checkable value, as `check_iff` admits `check` in step 17:
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
 /-- `gen` computes `Gen` on every checkable value. -/
-theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env root v j := by
+theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env root v j :=
 ```
 
 Each example of `singles.aontu` is a theorem of the tour, by `rfl`,
@@ -3685,8 +3694,7 @@ example : output (.or [(0, .list [.pref 1 (.lit (.num (.integer (.of 1))))] none
 
 Go answers so, and TypeScript answers `disjunct_no_gen`, collapsing
 arms alike as written and not arms alike in what they single out.
-Issue #348 tracks it, and `genVals` keeps such a value out of the
-rows until the ports agree.
+`genVals` keeps such a value out of the rows until the ports agree.
 
 The definition cannot tell a `nil` written from a `nil` computed, and
 the engines answer them apart. A schema `{x: nil}` is `invalid` in both
@@ -3742,9 +3750,8 @@ $ echo $?
 Both engines admit it: the open side's spread joins the sealed list,
 and a sealed list with a spread has no fixed length, so the meet admits
 what one of its sides refuses, which no meet can. Step 10's `meetList`
-keeps the length and takes the spread into each position instead.
-Issue #346 tracks it, and the engines are the side that changes. The
-last three rows of
+keeps the length and takes the spread into each position instead. The
+engines are the side that changes, and the last three rows of
 [`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) carry the
 case, `invalid` in every mode, and the ledger names them, so the run
 fails the day an engine comes to agree and the rows still stand there.
@@ -3752,10 +3759,10 @@ fails the day an engine comes to agree and the rows still stand there.
 A name declared as itself alone, `%U = %U`, is an `error` in the
 definition, a schema that admits nothing, as step 8 proves, where both
 engines answer `invalid` by running out of steps and blame the data.
-The last three rows of
-[`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) carry the
-case, the ledger names the engines as the side that changes, and issue
-#354 tracks it.
+`%T = %T | 1` breaks the alias-cycle rule through `|` and is an `error`
+too, where both engines run it and its second arm admits `1`. Six rows
+of [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) carry the
+two cases, and the ledger names the engines as the side that changes.
 
 In others, two optional declarations of one key can't both hold:
 
@@ -3968,13 +3975,13 @@ inductive Val.Checkable : Val → Prop
 A pattern's predicate is opaque, so no algorithm can run it, and `re`
 and `format` are outside the checker's reach as an alias is.
 
-`check` returns `true` or `false`, where `Admits` is a statement. Its
-first cases:
+`check` returns `true` or `false`, where `Admits` is a statement. It
+is `checkWith` with a hook that admits no name, whose first cases are:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
 /-- Whether `v` admits `j`, computed. -/
-def check : Val → Data → Bool
+def checkWith (u : String → Data → Bool) : Val → Data → Bool
   | .integer, j => match j with
     | .num (.integer _) => true
     | _ => false
@@ -3994,13 +4001,14 @@ def check : Val → Data → Bool
     | .str s => decide (s ≠ "")
 ```
 
-The rest of it takes one case for each form in the same way. Nothing in
-the code says that `check` and `Admits` agree. One theorem does:
+The rest of it takes one case for each form in the same way, and a
+name goes to the hook. Nothing in the code says that `check` and
+`Admits` agree. One theorem does:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
 /-- `check` decides admission for every checkable value. -/
-theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j := by
+theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j :=
 ```
 
 `unique` asks whether two members are one value, which `Same` states
@@ -4155,6 +4163,102 @@ no proof checks it: that an engine reads `v: 0d9007199254740993` as that
 big integer is a claim about the engine's reader, which these rows
 test.
 
+### Names in the checker
+
+The hook is answerable for a name at a datum no heavier than the one in
+hand, and at one as heavy only where the name stands with no key and
+no element between, which is where the checker asks:
+
+<!-- test: quote spec/Aontu/Check.lean -->
+```lean
+/-- What the hook decides rightly, at a term and a datum. -/
+def HookOk (unfold : String → Data → Bool) (env : Env) (root : Data) (v : Val) (j : Data) : Prop :=
+  ∀ k j', ((j'.weight < j.weight ∧ k ∈ v.refs) ∨ (j'.weight = j.weight ∧ k ∈ v.unguardedRefs)) →
+    (unfold k j' = true ↔ Admits env root (.alias k) j')
+```
+
+With such a hook the checker decides every value that reads no path,
+no pattern and no format, names included, and `check_iff` is the case
+of the hook that admits none:
+
+<!-- test: quote spec/Aontu/Check.lean -->
+```lean
+/-- The values the checker decides, given a hook for the names: those
+that read no path, no pattern and no format. -/
+inductive Val.CheckableA : Val → Prop
+```
+
+<!-- test: quote spec/Aontu/Check.lean -->
+```lean
+/-- The checker decides admission for every value it can check, given a
+hook that is right where it is asked. -/
+theorem checkWith_iff {v : Val} (h : v.CheckableA) :
+    ∀ j, HookOk u env root v j → (checkWith u v j = true ↔ Admits env root v j) := by
+```
+
+Under the declarations of step 8 the hook unfolds a name to its
+expanded body: against a lighter datum afresh, and against one as
+heavy only while the name is not already being unfolded at that datum,
+which a stack records.
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The checker under the declarations, within `n` turns of unfolding. -/
+def checkD (ds : Decls) : ℕ → List String → Val → Data → Bool
+  | 0, _, _, _ => false
+  | n + 1, stack, v, j =>
+    checkWith (fun k j' =>
+      match ds.env k with
+      | some b =>
+        if j'.weight < j.weight then checkD ds n [] (expand ds b) j'
+        else if stack.contains k then false
+        else checkD ds n (k :: stack) (expand ds b) j'
+      | none => false) v j
+```
+
+A name met again at the same datum with no key and no element between
+would be a cycle the alias-cycle rule refuses, so under the rule the
+stack holds each declared name at most once, and the turns a datum
+needs can be counted:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The turns a datum needs under a stack: one for each name a chain
+with no key and no element between can hold, at each level of the
+datum, and the names the stack has not yet taken. -/
+def Decls.budget (ds : Decls) (j : Data) (stack : List String) : ℕ :=
+  (j.weight + 1) * (ds.length + 1) + (ds.length - stack.length)
+```
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The checker under the declarations decides admission for every value
+it can check, wherever the names keep the alias-cycle rule. -/
+theorem checkR_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    {v : Val} (hv : v.CheckableA) (j : Data) : checkR ds v j = true ↔ Admits ds.envE root v j :=
+```
+
+The meet keeps a term the checker can read, since it builds its answer
+from the pieces of its sides and the bodies it unfolds:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The normal form of a term the checker can read is one it can read. -/
+theorem normaliseD_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
+    (hv : v.CheckableA) : (normaliseD ds v).CheckableA :=
+```
+
+So `vet_iff`, the theorem behind every verdict row, asks only that the
+bodies and the schema read no path, no pattern and no format, which
+`decide` settles from their text:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- `vet` computes `Vet`. -/
+theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
+```
+
 ## 18. What any `subsume` must answer
 
 `⊑` quantifies over every value, of which there are infinitely many,
@@ -4271,9 +4375,8 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
 nor the trials inside a value, `contains`, `must` and `rest`; nor a
-recursive name met with data in the checker, so that a recursive alias
-has rows; nor a path of step 9 read against the document as filled.
-Those are later phases.
+path of step 9 read against the document as filled. Those are later
+phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
