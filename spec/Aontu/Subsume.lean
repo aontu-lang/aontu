@@ -359,6 +359,94 @@ theorem defaults_sees_the_default :
       (output_iff (by decide) _).1 (by decide)
     exact absurd (output_unique _ _ _ h2 h1) (by decide)
 
+/-! ## The table: maps and lists
+
+The order on containers follows the members' order under the root the
+members are judged under: `Le` quantifies over instances, whose root is
+the instance itself, and `judge_root` carries an admission from one
+root to any other. -/
+
+/-- A value below another admits, under any root, what the first admits. -/
+theorem admits_of_le {a b : Val} (h : a ⊑[env] b) {root j : Data} (hw : j.WellFormed)
+    (hj : Admits env root a j) : Admits env root b j :=
+  judge_root (h j ⟨hw, judge_root hj⟩).2
+
+/-- A map on the general side with no spread is above a map on the
+specific side as its keys say: each key the general side declares, the
+specific side declares too, with a value below it, required where the
+general side requires it; and a sealed general side has a sealed
+specific side declaring no key the general side does not. The specific
+side's other keys and its spread only narrow it. The reference's rule
+for an optional key the specific side lacks is not here: an open
+specific side admits any value at it, so it is below only a value that
+admits any (#377). -/
+theorem map_le {fsg fss : List (String × Bool × Val)} {sps : Option Val} {cs cg : Bool}
+    (hk : ∀ k og vg, (k, og, vg) ∈ fsg →
+      ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
+    (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg) :
+    .map fss sps cs ⊑[env] .map fsg none cg := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with
+  | map hp ha _ hcl =>
+    refine .map ?_ ?_ (fun _ h => nomatch h) ?_
+    · intro k og vg x hm hx
+      obtain ⟨os, vs, hms, hle, _⟩ := hk k og vg hm
+      have hwx : x.WellFormed := by
+        cases hw with | map _ hm' => exact hm' k x (lookup_mem hx)
+      exact admits_of_le hle hwx (hp k os vs x hms hx)
+    · intro k og vg hm hx
+      obtain ⟨os, vs, hms, _, hreq⟩ := hk k og vg hm
+      cases og with
+      | true => rfl
+      | false =>
+        have hos := ha k os vs hms hx
+        rw [hreq rfl] at hos
+        exact nomatch hos
+    · intro hcg k x hkx
+      obtain ⟨hcs, hkeys⟩ := hc hcg
+      obtain ⟨os, vs, hms⟩ := hcl hcs k x hkx
+      exact hkeys k os vs hms
+
+/-- A map that requires a key is above no value that admits the empty
+map: the reference's `compat_required_added`. -/
+theorem not_le_map_required {a : Val} {fsg : List (String × Bool × Val)} {sp : Option Val}
+    {c : Bool} {k : String} {vg : Val} (hk : (k, false, vg) ∈ fsg)
+    (ha : Admits env (.map []) a (.map [])) : ¬ a ⊑[env] .map fsg sp c := by
+  intro hle
+  have h := (hle (.map []) ⟨.map List.nodup_nil (fun _ _ h => nomatch h), ha⟩).2
+  cases h with
+  | map _ hopt _ _ => exact nomatch hopt k false vg hk rfl
+
+/-- A list on the general side with no spread is above a list on the
+specific side as its positions say: each has a position below it on
+the specific side, and a sealed general side has a sealed specific side
+of the same length with no spread. -/
+theorem list_le {ig is : List Val} {sps : Option Val} {cs cg : Bool}
+    (hn : ig.length ≤ is.length)
+    (hi : ∀ (i : ℕ) (vg vs : Val), ig[i]? = some vg → is[i]? = some vs → vs ⊑[env] vg)
+    (hc : cg = true → cs = true ∧ sps = none ∧ is.length = ig.length) :
+    .list is sps cs ⊑[env] .list ig none cg := by
+  intro j ⟨hw, hj⟩
+  refine ⟨hw, ?_⟩
+  cases hj with
+  | list hlen hcl hp _ =>
+    refine .list (Nat.le_trans hn hlen) ?_ ?_ (fun _ h => nomatch h)
+    · intro hcg _
+      obtain ⟨hcs, hsp, heq⟩ := hc hcg
+      rw [hcl hcs hsp, heq]
+    · intro i vg x hig hx
+      cases his : is[i]? with
+      | none =>
+        have hlt : ¬ ig.length ≤ i := fun hle => by
+          rw [List.getElem?_eq_none_iff.2 hle] at hig
+          exact nomatch hig
+        exact absurd (Nat.le_trans hn (List.getElem?_eq_none_iff.1 his)) hlt
+      | some vs =>
+        have hwx : x.WellFormed := by
+          cases hw with | list hm => exact hm x (List.mem_of_getElem? hx)
+        exact admits_of_le (hi i vg vs hig his) hwx (hp i vs x his hx)
+
 /-! ## Deciding the order on the scalars
 
 `leDecF` answers with a proof where a theorem above puts `a` below `b`,
@@ -402,10 +490,71 @@ def armsAnyDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (a : Val)
     | some ⟨h⟩ => some ⟨le_or_of_mem h (hsub p (List.mem_cons_self _ _))⟩
     | none => armsAnyDec dec a arms₀ rest fun q hq => hsub q (List.mem_cons_of_mem _ hq)
 
+/-- Each key the general side declares, found on the specific side with a
+value below it, required where the general side requires it. -/
+def fieldsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (fss : List (String × Bool × Val)) :
+    (fsg : List (String × Bool × Val)) →
+      Option (PLift (∀ k og vg, (k, og, vg) ∈ fsg →
+        ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false)))
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | (k, og, vg) :: rest =>
+    match hf : fss.find? (fun f => f.1 == k) with
+    | none => none
+    | some (k', os, vs) =>
+      if hreq : og = false → os = false then
+        match dec vs vg, fieldsDec dec fss rest with
+        | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun k₁ o₁ v₁ hm => by
+            rcases List.mem_cons.1 hm with h' | h'
+            · cases h'
+              have hk : k' = k := by simpa using List.find?_some hf
+              subst hk
+              exact ⟨os, vs, List.mem_of_find?_eq_some hf, h, hreq⟩
+            · exact hs k₁ o₁ v₁ h'⟩
+        | _, _ => none
+      else none
+
+/-- Each key the specific side declares, declared by the general side
+too: what a sealed general side asks of a sealed specific side. -/
+def keysDec (fsg : List (String × Bool × Val)) :
+    (fss : List (String × Bool × Val)) →
+      Option (PLift (∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg))
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | (k, _, _) :: rest =>
+    match hf : fsg.find? (fun f => f.1 == k), keysDec fsg rest with
+    | some (k', og, vg), some ⟨hs⟩ => some ⟨fun k₁ o₁ v₁ hm => by
+        rcases List.mem_cons.1 hm with h' | h'
+        · cases h'
+          have hk : k' = k := by simpa using List.find?_some hf
+          subst hk
+          exact ⟨og, vg, List.mem_of_find?_eq_some hf⟩
+        · exact hs k₁ o₁ v₁ h'⟩
+    | _, _ => none
+
+/-- Each position of the general side with the specific side's position
+below it. -/
+def itemsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) :
+    (ig is : List Val) →
+      Option (PLift (∀ (i : ℕ) (vg vs : Val), ig[i]? = some vg → is[i]? = some vs → vs ⊑[env] vg))
+  | [], _ => some ⟨fun _ _ _ h => by simp at h⟩
+  | _ :: _, [] => some ⟨fun _ _ _ _ h => by simp at h⟩
+  | vg :: ig', vs :: is' =>
+    match dec vs vg, itemsDec dec ig' is' with
+    | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun i vg' vs' hig his => by
+        cases i with
+        | zero =>
+          simp at hig his
+          subst hig
+          subst his
+          exact h
+        | succ i => exact hs i vg' vs' (by simpa using hig) (by simpa using his)⟩
+    | _, _ => none
+
 /-- `a` below `b`, with the proof, where the forms decide it in `n`
 steps; the connectives first, the right side's meet and disjunction
 before the left side's, since below a meet is below both sides and
-below a disjunction is below some arm. -/
+below a disjunction is below some arm; then two maps and two lists
+whose general side has no spread, by `map_le` and `list_le`; then the
+scalars. -/
 def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
   | 0, _, _ => none
   | n + 1, a, b =>
@@ -444,6 +593,33 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
         match leDecF env n a x.super with
         | some ⟨h⟩ => some ⟨h.trans (super_le_pref r x)⟩
         | none => none
+    | .map fss sps cs, .map fsg none cg =>
+      match fieldsDec (leDecF env n) fss fsg with
+      | none => none
+      | some ⟨hk⟩ =>
+        match cg with
+        | false => some ⟨map_le hk fun h => nomatch h⟩
+        | true =>
+          match cs with
+          | false => none
+          | true =>
+            match keysDec fsg fss with
+            | some ⟨hkeys⟩ => some ⟨map_le hk fun _ => ⟨rfl, hkeys⟩⟩
+            | none => none
+    | .list is sps cs, .list ig none cg =>
+      if hn : ig.length ≤ is.length then
+        match itemsDec (leDecF env n) ig is with
+        | none => none
+        | some ⟨hi⟩ =>
+          match cg with
+          | false => some ⟨list_le hn hi fun h => nomatch h⟩
+          | true =>
+            match cs, sps with
+            | true, none =>
+              if heq : is.length = ig.length then some ⟨list_le hn hi fun _ => ⟨rfl, rfl, heq⟩⟩
+              else none
+            | _, _ => none
+      else none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
     | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean =>
       some ⟨Le.refl env _⟩
