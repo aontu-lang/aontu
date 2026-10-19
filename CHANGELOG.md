@@ -8,6 +8,40 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a path by declaration
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Paths.lean`: a path, `$.a.b`, reads as the term at its
+  position in the document, data and all. Each path a document writes
+  becomes a name, declared as the term at the path in the root, the
+  normal form of the schema met with the data (`Decls.ofPaths`,
+  `Decls.withPaths`), and the document refers to the name in its place
+  (`Val.pathsToAliases`), so the expansion, the residuals, the checker
+  and the alias-cycle rule carry paths as they carry names. `Val.at`
+  finds the term at a path through maps by key and lists by index and
+  through nothing else, as both ports do; a path resolves in the
+  schema's own tree before any data (`Decls.Resolves`), and a path to
+  nothing is an `error`. `VetP` is the verdict of a document with paths
+  and `vetP` computes it, by `vetP_iff`.
+- `Admits` has no path rule any more, and no rule reads its `root`: the
+  `Instance` examples of the tutorial's step 9 are `vetP` examples. The
+  checker's predicates admit a path, which admits nothing until it is
+  read.
+- The seventh generated fragment, `test/spec/def-path.tsv`: 60
+  documents with paths in the three modes, 180 rows, a path into a
+  list, through an alias, against a default, a spread of a path, a
+  recursive position and its cycles among them. Both ports agree with
+  the definition on every row but nine: a position that reads only by
+  itself, `a: $.a` and `a: {x: $.a.x}`, an `error` by the alias-cycle
+  rule where the ports answer `unify_cycle`, class invalid, and a
+  recursive position met with data in its own place,
+  `a: {b: {c?: $.a.b}}` under `{"a": {"b": {"c": {}}}}`, which the
+  definition expands as it does a copy and the ports call a cycle; the
+  ledger carries them with the ports as the side that moves (#357), its
+  bound raised from 51 to 60.
+- The oracle's printer writes a path as the grammar spells it.
+
 ### The definition's checker reads the names
 
 Definition, generated rows, and documentation; no engine changes.

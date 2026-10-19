@@ -27,8 +27,8 @@ PARTIAL: the verdicts landed 2026-10-19, `Vet` in
 two switches, held to `Instance` and `Output` by three theorems and
 run as the fifth generated fragment, `test/spec/def-verdict.tsv`, on
 which both ports agree with the definition on every row; the
-subsumption table and the profile contracts remain. P3 PARTIAL: the
-graph of names landed 2026-10-19, `Decls`, `Recursive` and `Guarded`,
+subsumption table and the profile contracts remain. P3 LANDED
+2026-10-19: the graph of names landed that day, `Decls`, `Recursive` and `Guarded`,
 the alias-cycle rule, in `spec/Aontu/Names.lean`, with the closure
 `close` admitted by `recursiveB_iff` and `guardedB_iff`; and the same
 day a document's reading under its declarations, `expand` and `meetD`
@@ -41,9 +41,15 @@ which the ledger carries under decisions 1 and 2 of §7; the same day
 the checker gained a hook for names, `checkWith` in
 `spec/Aontu/Check.lean` and `checkR` in `spec/Aontu/Alias.lean`, which
 unfolds a residual against the data with a stack the alias-cycle rule
-bounds, so recursive names have rows, 210 in the fragment; path
-references read against the filled document remain. P4, P6 and P7 not
-started. The
+bounds, so recursive names have rows, 210 in the fragment; and the
+same day a path read by declaration, `spec/Aontu/Paths.lean`, each
+path a name declared as the term at it in the root, run as the seventh
+fragment, `test/spec/def-path.tsv`, 180 rows, on which both ports agree
+with the definition on every row but the cycles through paths of
+decision 7 of §7, which the ledger carries; the measure of what the
+alias-cycle rule refuses among the bundled models, the use cases and
+the suite, which decision 2 of §7 asks of P3, is still to report. P4,
+P6 and P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -72,7 +78,11 @@ them:
 A root rides every relation because a path reference reads the whole
 document: evaluation keeps one (`ctx.root`), and `subsume` unfolds
 each side against its own (`groot` and `sroot` in `ts/src/subsume.ts`),
-anchored by `--at` or not. `subsume`'s other profiles ask more than
+anchored by `--at` or not. Since 2026-10-19 no rule of `Admits` reads
+it: a path reads by declaration, as a name declared from the root
+(decision 6 of §7), so `subsume` is each side's declarations from its
+own root, and the parameter waits on P5 to be used or dropped.
+`subsume`'s other profiles ask more than
 `Le`: the default profile also holds the effective default, which is
 `Output`'s question (`pref-default-changed` in `test/spec/subsume.tsv`
 refuses `*2|number` against `*1|number`, which admit the same numbers),
@@ -288,10 +298,12 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 51 rows under four causes: decisions 3 and 4 of §2, under
+ledger holds 60 rows under five causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
-#346, the sealed list met with a spread, where the ports move; and the
-alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354).
+#346, the sealed list met with a spread, where the ports move; the
+alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354);
+and the cycles through paths of decision 7 of §7, where the ports move
+(#357).
 Exhaustive enumeration of small values
 over a small instance set is bounded per phase (600 values and 16
 instances in the prototype: 9,600 cases, 109 s through both CLIs on
@@ -353,7 +365,7 @@ documents only.
 | **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job, `build.yml`'s `spec`, applied 2026-10-18 from `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
 | **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
-| **P3**: references (L) | aliases as the least fixpoint, path references into the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
+| **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule; the measure of what the rule refuses among the models, the use cases and the suite still to report | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
@@ -369,8 +381,9 @@ canon and hash obligation of §1.
 
 ## 7. Decisions: ruled and open
 
-Each changes a rule. All five were ruled on 2026-10-16 and stand here
-until the phase that encodes each lands.
+Each changes a rule. The first five were ruled on 2026-10-16 and the
+last two on 2026-10-19, and each stands here until the phase that
+encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
    `error`. An alias admitted only through itself
@@ -407,6 +420,31 @@ until the phase that encodes each lands.
    options of a CLI; the definition then states what the default mode
    admits that `--no-fill --exact-numbers` refuses. Ruled 2026-10-16:
    parameters.
+6. **A path reads by declaration.** Ruled 2026-10-19: a path, `$.a.b`,
+   reads as the term at its position in the document, data and all,
+   and the definition reads it as a name declared from the root, the
+   normal form of the schema met with the data, so that the expansion,
+   the residuals, the checker and the alias-cycle rule carry paths as
+   they carry names (`spec/Aontu/Paths.lean`). `Admits` keeps no path
+   rule and no rule of it reads its root. Both ports resolve a path in
+   the schema's own tree, through maps by key and lists by index and
+   through nothing else, and a key the data alone supplies is no
+   position: a path to nothing is an `error`, as it is in both ports.
+   Where the two readings part, the position of an optional key the
+   data leaves out, or of a kind the data meets, the ports agree with
+   the declaration, `a?: integer, b: $.a` admitting `{"b": 1}`, and a
+   root that is the data alone cannot say so.
+7. **Cycles through paths.** Ruled 2026-10-19: a document that reads
+   only by its own paths falls under the alias-cycle rule of decision
+   2 and is an `error`: `a: $.b, b: $.a`, where both ports answer
+   `path_cycle`, and `a: $.a`, where both answer `unify_cycle`, class
+   invalid, which the ledger carries with the ports as the side that
+   moves. A recursive position, `then?: $.schema.Step` inside `Step`, is
+   a name that refers to itself through a key: a residual that expands
+   against the data as far as the data goes, as a recursive alias does,
+   and as both ports read it through a copy, `doc: $.schema.Step`. Met
+   with data in its own place the ports answer `unify_cycle` where the
+   definition expands it, which the ledger carries and #357 records.
 
 ## 8. Risks
 
