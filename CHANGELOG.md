@@ -8,6 +8,45 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `nof` and `must` inside a value
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Syntax.lean`, `spec/Aontu/Admits.lean`: `nof(n, c₁, …)`
+  and `must(c, m)` are forms of the value syntax with their rules in
+  `Judge`. A trial tries each branch on the value, reads each branch's
+  own answer and counts the branches that admit it, and judges as `n`
+  judges the count, an integer; `must(c, m)` judges as `c` does. A
+  branch that neither admits nor refuses the value, a name declared as
+  itself alone, leaves the trial unjudged, and a count no integer leaf
+  holds is refused. The count and the branches are unguarded positions
+  of the alias-cycle rule, so `%T = nof(0, %T)` is an `error`, where
+  `%T = {a?: nof(0, %T)}` recurses through its key.
+- `spec/Aontu/Trial.lean` holds the decisions as theorems in place of
+  the former layer above `Admits`: `judge_must_iff_nof`, that
+  `must(c, m)` asks what `nof(1, c)` asks (ADR-055), and
+  `judge_nof_zero`, that `nof(0, c)` is the complement of `c`, which is
+  how JSON Schema's `not` reads (ADR-049). The checker counts the
+  branches it answers `true` (`countWith`), and every closure lemma,
+  the expansion, the names, the paths, the meet and the generator carry
+  the two forms; a trial generates nothing and its parent type is `any`.
+- The eighth generated fragment, `test/spec/def-trial.tsv`: 65
+  documents with trials inside values in the three modes, 195 rows.
+  Both ports agree with the definition on 156 of them. Of the rest, a
+  name that refers to itself through a trial alone, `%T = nof(0, %T)`,
+  is an `error` where the ports decide the trial by exhausting the
+  budget, and `must(1 & 2, "m")` refuses as `nof(1, 1 & 2)` does where
+  the ports answer `error`, eighteen rows the ledger carries with the
+  ports as the side that moves (#361); and a container a trial refuses
+  is `invalid` in both ports, which try a container at generation, and
+  `incomplete` in the definition, which has no refusal at generation
+  yet, twenty-one rows the ledger carries with the definition as the
+  side that moves, under decision 8 of the design note. The ledger's
+  bound rises from 60 to 99.
+- The oracle's printer writes `nof(n, c₁, …)` and `must(c, "m")`; the
+  tutorial's step 16 reads the trials as rules of `Judge`, and step 15
+  the three causes.
+
 ### The definition says what a value refuses
 
 Definition and documentation; no engine changes and no row changes.

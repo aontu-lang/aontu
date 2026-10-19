@@ -69,6 +69,8 @@ inductive Val where
   | meet (a b : Val)                        -- `a & b`
   | alias (n : String)                      -- `%n`
   | path (p : List Seg)                     -- `$.a.b`
+  | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
+  | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -98,6 +100,8 @@ def Val.size : Val → ℕ
   | .or arms => sizeArms arms + 1
   | .pref _ x => x.size + 1
   | .meet a b => a.size + b.size + 1
+  | .nof n cs => n.size + sizeItems cs + 1
+  | .must c _ => c.size + 1
   | _ => 1
 
 def sizeFields : List (String × Bool × Val) → ℕ
@@ -190,6 +194,7 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
+  | .nof _ _ | .must _ _ => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []

@@ -658,6 +658,122 @@ def pathRows (tag : String) : IO Unit := do
         ++ verdictName (vetP m c.1 c.2.1 c.2.2) ++ "\"" ++ opts ++ "}")
       i := i + 1
 
+/-! ## The eighth fragment: trials -/
+
+/-- Documents with trial schemas inside values: each case its
+declarations, a map as the schema, and a map as the document, run in
+the three modes. `nof` with each kind of count, over kinds, literals,
+maps, lists and names; beside literals, defaults and disjunctions;
+nested; through a recursive name; and `must`, with a conflicting branch
+among them. -/
+def trialCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let max (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .max (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let a (v : Val) : Val := m [("a", v)]
+  let da (x : Data) : Data := .map [("a", x)]
+  let nof (n : Val) (cs : List Val) : Val := .nof n cs
+  let must (c : Val) : Val := .must c "m"
+  let T : Val := .alias "T"
+  [([], a (nof (int 1) [.string, .number]), da (.str "x")),
+    ([], a (nof (int 1) [.string, .number]), da (j 1)),
+    ([], a (nof (int 1) [.string, .number]), da (.bool true)),
+    ([], a (nof (int 0) [.integer]), da (j 1)),
+    ([], a (nof (int 0) [.integer]), da (.str "s")),
+    ([], a (nof (int 2) [.string, .string]), da (.str "x")),
+    ([], a (nof (int 1) [.string, .string]), da (.str "x")),
+    ([], a (nof (min 1) [.string, .number]), da (.bool true)),
+    ([], a (nof (min 1) [.string, .number]), da (j 1)),
+    ([], a (nof (max 0) [.string]), da (j 1)),
+    ([], a (nof (max 0) [.string]), da (.str "x")),
+    ([], a (nof (.meet (min 1) (max 1)) [.string, .number]), da (.str "x")),
+    ([], a (nof (int 1) [.any]), da (.str "x")),
+    ([], a (nof (int 1) [.nil, .string]), da (.str "x")),
+    ([], a (nof (int 0) [.nil]), da (.str "x")),
+    ([], a (nof (int 1) [.meet (int 1) (int 2), .string]), da (.str "x")),
+    ([], a (nof (int 1) [.meet (int 1) (int 2)]), da (j 1)),
+    ([], a (nof (int (-1)) [.string]), da (.str "x")),
+    ([], a (nof (.lit (.num (.float (.dyadic 3 (-1))))) [.string]), da (.str "x")),
+    ([], a (nof .string [.string]), da (.str "x")),
+    ([], a (nof (min 1) [m [("x", int 1)], m [("y", int 2)]]), da (.map [("x", j 1)])),
+    ([], a (nof (min 1) [m [("x", int 1)], m [("y", int 2)]]), da (.map [("z", j 1)])),
+    ([], a (nof (int 1) [mo [("x", true, .number)], mo [("y", true, .string)]]), da (.map [("x", j 1)])),
+    ([], a (nof (int 2) [mo [("x", true, .number)], mo [("y", true, .string)]]), da (.map [("x", j 1)])),
+    ([], a (nof (int 1) [m [("x", .number)], m [("y", .string)]]), da (.map [("x", j 1)])),
+    ([], a (nof (int 0) [m [("b", nof (int 0) [.integer])]]), da (.map [("b", j 1)])),
+    ([], a (nof (int 0) [m [("b", nof (int 0) [.integer])]]), da (.map [("b", .str "s")])),
+    ([], a (.meet .integer (nof (int 0) [int 5])), da (j 5)),
+    ([], a (.meet .integer (nof (int 0) [int 5])), da (j 6)),
+    ([], a (.meet (nof (int 1) [.string, .number]) (str "x")), .map []),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (int 3)), .map []),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (int 3)), da (j 3)),
+    ([], a (.meet (nof (int 0) [.string]) (int 1)), .map []),
+    ([], a (.meet (nof (int 0) [.string]) (str "x")), .map []),
+    ([], a (.meet (nof (int 1) [m [("x", int 1)]]) (m [("x", int 1)])), .map []),
+    ([], a (.meet (nof (int 0) [m [("x", int 1)]]) (m [("x", int 1)])), .map []),
+    ([], a (.meet (nof (int 1) [mo [("x", true, int 1)]]) (m [("y", int 2)])), da (.map [("y", j 2)])),
+    ([], a (.meet (nof (int 1) [m [("x", int 1)]]) (m [("x", .integer)])), da (.map [("x", j 2)])),
+    ([], a (.meet (nof (int 1) [m [("x", int 1)]]) (m [("x", .integer)])), da (.map [("x", j 1)])),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.pref 1 (int 3))), .map []),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.pref 1 (int 1))), da (j 5)),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.pref 1 (int 1))), .map []),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.or [(0, int 1), (0, int 2)])), .map []),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.or [(0, int 1), (0, int 2)])), da (j 1)),
+    ([], a (.pref 1 (nof (int 1) [.string])), da (j 1)),
+    ([], a (.list [nof (int 1) [.string]] none false), da (.list [.str "x"])),
+    ([], a (.list [nof (int 1) [.string]] none false), da (.list [j 1])),
+    ([], a (.map [] (some (nof (int 1) [.string])) false), da (.map [("x", .str "y")])),
+    ([], a (.map [] (some (nof (int 1) [.string])) false), da (.map [("x", j 1)])),
+    ([], a (.or [(0, nof (int 1) [.string, .number]), (0, .boolean)]), da (.bool true)),
+    ([("p", .string), ("q", .number)], a (nof (int 1) [.alias "p", .alias "q"]), da (.str "x")),
+    ([("T", mo [("a", true, nof (int 0) [T])])], m [("t", T)], .map [("t", .map [("a", .map [])])]),
+    ([("T", mo [("a", true, nof (int 0) [T])])], m [("t", T)],
+      .map [("t", .map [("a", .map [("a", .map [])])])]),
+    ([("T", nof (int 0) [T])], m [("t", T)], .map [("t", j 1)]),
+    ([("T", nof (int 1) [T])], m [("t", T)], .map [("t", j 1)]),
+    ([("T", must T)], m [("t", T)], .map [("t", j 1)]),
+    ([("T", nof (min 1) [T, .string])], m [("t", T)], .map [("t", .str "x")]),
+    ([], a (must (min 3)), da (j 2)),
+    ([], a (must (min 3)), da (j 3)),
+    ([], a (must (m [("x", int 1)])), da (.map [])),
+    ([], a (.meet (must (mo [("x", true, .number)])) (m [])), .map []),
+    ([], a (must (.meet (int 1) (int 2))), da (j 1)),
+    ([], a (must .nil), da (j 1)),
+    ([], a (must (.meet (min 3) (max 1))), da (j 2)),
+    ([], a (nof (int 1) [must .string, .number]), da (.str "x"))]
+
+/-- Every case's bodies and schema hold no path, no pattern and no
+format, so `vet` is `Vet` on it, by `vet_iff`. -/
+theorem trialCases_checkable : ∀ c ∈ trialCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem trial_verdict_exact : ∀ c ∈ trialCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (trialCases_checkable c hc).1 (trialCases_checkable c hc).2 v
+
+/-- The `trials` rows: each case's declarations and schema as one
+document, the schema a map written without its braces, in the three
+modes, with the one class `vet` gives. -/
+def trialRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for c in trialCases do
+    let mut lines : List String := []
+    for d in c.1 do
+      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
+    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
+        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
+      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
+        ++ verdictName (vet m c.1 c.2.1 c.2.2) ++ "\"" ++ opts ++ "}")
+      i := i + 1
+
 /-- The rows of one fragment: each value against each instance of each
 block, numbered from zero under `tag`. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
@@ -764,6 +880,20 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     pathRows "p"
     return 0
+  | ["trials"] =>
+    IO.println "# Generated by `lake exe oracle trials` (spec/Oracle.lean) from the definition"
+    IO.println "# in spec/Aontu: documents with trial schemas inside values, each case its"
+    IO.println "# declarations and a map as the schema against a map as the document, run in"
+    IO.println "# the default mode, without the fill (noFill) and under --partial (partial),"
+    IO.println "# as `verdict` rows whose expectation is the one class `vet` gives, which"
+    IO.println "# `vet_iff` makes the definition's own. nof(n, ...) counts the branches that"
+    IO.println "# admit the value and judges as n judges the count; must(c, m) asks what"
+    IO.println "# nof(1, c) asks; a branch that admits nothing counts as none, and a name"
+    IO.println "# that refers to itself through a trial alone breaks the alias-cycle rule, an"
+    IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
+    IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
+    trialRows "t"
+    return 0
   | _ =>
-    IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths]"
+    IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials]"
     return 2
