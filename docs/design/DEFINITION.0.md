@@ -57,8 +57,11 @@ PROGRESS: refusal beside admission as the two answers of one relation,
 (§3), and `nof` and `must` inside values the same day, as the eighth
 generated fragment, `test/spec/def-trial.tsv`, refusal at generation,
 decision 8 of §7, `when`, `contains` and `rest` inside values, and
-`match` and `filter` as selections, the same day, which lands P4. P5,
-P6 and P7 not started. The
+`match` and `filter` as selections, the same day, which lands P4. P5
+partial the same day, with the profiles' contracts, the order decided
+and its rows, and the tables for the containers and the constraints;
+P6 partial the same day, with the check of the importer's forms against
+the definition and three decisions open; P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -382,7 +385,7 @@ documents only.
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | **LANDED 2026-10-19**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; `when` inside values, with ADR-050 as theorems (`judge_when_iff`, `when_nil_refuses`), **landed 2026-10-19**; `contains` inside values, with ADR-051 as theorems (`judge_contains_empty`, `contains_refuses_scalar`), **landed 2026-10-19**; `rest` inside values, with ADR-058 as theorems (`rest_admits_scalar`, `rest_nil_closes`), **landed 2026-10-19**; `match` and `filter` as selections made once a document is read (`resolveD`, `Decls.readR`), with the language's rules as theorems (`selectArm_first`, `selectArm_next`, `selectArm_default`, `resolveD_filter_list`, `resolveD_filter_scalar`), **landed 2026-10-19** | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking `Output` at every position (`DefaultsLe`, with `defaults_sees_the_default`) and `gen` the marks as a predicate (decision 10), and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; the same day `leDecF`, the order decided with its proof where the scalars and the connectives decide it, `not_le_of_witness`, and the ninth fragment, `test/spec/def-subsume.tsv`; then the rows for maps and lists, `map_le`, `list_le` and `not_le_map_required`, on `judge_root`, that no rule reads the root, with `leDecF` deciding two maps and two lists; then the constraint algebra's own table, intervals, membership, `neq` and `len` (`min_le_min_iff` and the rest), 2,430 rows over 50 values pairwise, both ports answering as the contract allows but for three rows under #346 in the ledger; open: a spread on the general side, `multiple` and the approximate rows, and the `defaults` and `gen` rows (decisions 11 and 12) | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
-| **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
+| **P6**: the power to represent JSON Schema (M) | **PARTIAL**: every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition). On 2026-10-19 the check, `ts/test/jsonschema-forms.test.ts` and `go/jsonschema_forms_test.go`: the importer's output for every schema of the suite in its five dialects, of Ajv's extras and of the SchemaStore subset, with and without defaults, 3,504 imports, strings removed, uses 21 calls and 9 words, each a row of `spec/forms.tsv`, the spelling of every form of `Aontu/Syntax.lean` as the oracle's printer writes it, or of `spec/forms-outside.tsv`, the six the definition lacks, each on its decision: `key(0)` under `match`, for `patternProperties` and `propertyNames` (decision 13 of §7), the riders `meta`, `deprecate` and `ident` (14), and the words `map` and `list` (15); a row of the outside file the importer stops writing fails the check | the importer's output over the suite's schemas uses only forms the definition holds, which is the outside file empty |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
 
 Deferred, each with a reason: the generation verbs `each`, `pack` and
@@ -396,8 +399,9 @@ canon and hash obligation of §1.
 ## 7. Decisions: ruled and open
 
 Each changes a rule. The first five were ruled on 2026-10-16 and the
-last two on 2026-10-19, and each stands here until the phase that
-encodes it lands.
+next three on 2026-10-19; the rest are open, each raised by the phase
+that found it, and each stands here until the phase that encodes it
+lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
    `error`. An alias admitted only through itself
@@ -530,6 +534,43 @@ encodes it lands.
    `undecided` where they cannot decide, or the contract weakens to the
    paragraph, under which a `subsume` that always answers
    `does_not_subsume` is correct. The definition recommends the first.
+13. **The key at a position.** Open, raised 2026-10-19 by P6. The
+   importer writes `patternProperties` and `propertyNames` as a spread
+   that holds each member to its key, `&: match(key(0), p, any, nil)`:
+   `key(0)` answers the key the value sits under, and no term of the
+   definition reads its own position, since `Judge` is given a value
+   and a datum and nothing else. Either the syntax gains the position,
+   a term `key` that a map's spread rule reads from the member it is
+   tried on, as `Output` is given the root, or the importer writes the
+   two keywords without it, which the forms the definition has cannot
+   do for a pattern over keys. The definition recommends the first,
+   narrowed to the key of the member a spread is tried on and no more
+   of the path, which is all the importer asks and all the reference's
+   `key(0)` answers there.
+14. **The riders.** Open, raised 2026-10-19 by P6. `meta(v, r)`,
+   `deprecate(v)` and `ident(v, r)` ride a value and change no
+   admission, which is why §6 defers them, yet the importer writes them
+   around most of what it imports, so the check cannot read its output
+   as the definition's without them. Either the three enter the syntax
+   as forms whose judgement is their value's own, one transparent rule
+   each and `Output` passing through them, so that a rider is a term
+   the definition reads and says nothing about, or they stay outside
+   and the check strips them before it reads, which trusts the
+   stripping. The definition recommends the first: three constructors
+   and three rules, and the marks of decision 10, `hide()` and
+   `type()`, would enter the same way.
+15. **The words `map` and `list`.** Open, raised 2026-10-19 by P6. The
+   importer writes `map` for `type: object` with no other keyword and
+   `list` for `type: array`. Both ports admit every map or every list
+   under the word and single nothing out, `mapval_no_gen` for `a: map`
+   where `a: {}` gives `{}`. The definition has `{}` and `[]`, the open
+   empty containers, which admit the same data and are singled out as
+   themselves, and no term that admits every map and is not. Either the
+   two words enter the syntax as kinds beside `string` and `number`,
+   which admit by kind and are not singled out, or the importer writes
+   `{}` and `[]`, which changes what an imported `type: object`
+   generates from an error to `{}`. The definition recommends the
+   first, which states what both ports do.
 
 ## 8. Risks
 

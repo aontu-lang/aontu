@@ -303,6 +303,23 @@ The importer's own behaviour is pinned the usual way, by the
 obtained from both engines agreeing. The suite grades meaning; the rows
 pin the text both ports print.
 
+The forms the importer writes are held to the definition (P6 of
+[`docs/design/DEFINITION.0.md`](../design/DEFINITION.0.md)) by one more
+pair of runners,
+[`ts/test/jsonschema-forms.test.ts`](../../ts/test/jsonschema-forms.test.ts)
+and [`go/jsonschema_forms_test.go`](../../go/jsonschema_forms_test.go).
+Each imports every schema of the suite in its five dialects, of Ajv's
+extras and of the SchemaStore subset, with and without defaults, strips
+the strings from the output and reads the calls and the words it uses,
+and requires each to be a row of [`spec/forms.tsv`](../../spec/forms.tsv),
+the spellings of the definition's forms, which `make spec` writes from
+the definition's syntax, or of
+[`spec/forms-outside.tsv`](../../spec/forms-outside.tsv), the forms
+that wait on a decision of the design note, each row naming its
+decision. A row of the outside file the importer no longer writes fails
+the run, so a form that enters the definition leaves the file, and the
+file may not grow past its bound.
+
 ## The divergence ledger
 
 When a probe shows the two engines disagreeing, that is a **bug**, and

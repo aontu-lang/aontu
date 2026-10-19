@@ -216,7 +216,8 @@ spec:
 	cd spec && lake exe oracle paths > ../test/spec/def-path.tsv
 	cd spec && lake exe oracle trials > ../test/spec/def-trial.tsv
 	cd spec && lake exe oracle subsume > ../test/spec/def-subsume.tsv
-	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv
+	cd spec && lake exe oracle forms > forms.tsv
+	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv test/spec/def-alias.tsv test/spec/def-path.tsv test/spec/def-trial.tsv test/spec/def-subsume.tsv spec/forms.tsv
 
 clean-go:
 	cd go && go clean
