@@ -126,6 +126,7 @@ def Val.src : Val → Option String
   | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"
   | .must c m => do pure s!"must({← c.src}, {quote m})"
+  | .when c t e => do pure s!"when({", ".intercalate ([← c.src, ← t.src] ++ (← elseSrc e))})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []
@@ -137,6 +138,10 @@ def fieldsSrc : List (String × Bool × Val) → Option (List String)
 def spreadSrc : Option Val → Option (List String)
   | none => some []
   | some s => do pure ["&: " ++ (← s.src)]
+
+def elseSrc : Option Val → Option (List String)
+  | none => some []
+  | some e => do pure [← e.src]
 
 def itemsSrc : List Val → Option (List String)
   | [] => some []

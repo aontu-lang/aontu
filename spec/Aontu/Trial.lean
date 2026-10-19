@@ -3,13 +3,15 @@ import Aontu.Admits
 /-!
 # The trial schemas, as theorems
 
-`nof(n, c₁, …)` and `must(c, m)` are rules of `Judge`, in
-`spec/Aontu/Admits.lean`: a trial reads the branches that refuse a
+`nof(n, c₁, …)`, `must(c, m)` and `when(c, t, e)` are rules of `Judge`,
+in `spec/Aontu/Admits.lean`: a trial reads the branches that refuse a
 value as well as those that admit it, which the second answer of the
 one relation gives it without a negation. What the decisions say of
-them is proved here: `must(c, m)` asks what `nof(1, c)` asks (ADR-055),
-and `nof(0, c)` is the complement of `c`, which is how JSON Schema's
-`not` crosses into aontu (ADR-049).
+them is proved here: `must(c, m)` asks what `nof(1, c)` asks (ADR-055);
+`nof(0, c)` is the complement of `c`, which is how JSON Schema's `not`
+crosses into aontu (ADR-049); and a conditional holds a value to the
+branch its condition picks, `when(c, nil)` refusing every value `c`
+admits (ADR-050).
 -/
 
 namespace Aontu
@@ -99,6 +101,33 @@ theorem judge_nof_zero {b : Bool} {c : Val} {j : Data} :
       intro c' hc'
       rw [List.mem_singleton] at hc'
       exact hc' ▸ h
+
+/-- A conditional holds the value to the branch its condition picks:
+where `c` admits it, `when(c, t, e)` judges it as `t` does; where `c`
+refuses it, as `e` does, an `e` not written reading as `any`. -/
+theorem judge_when_iff {b : Bool} {c t : Val} {e : Option Val} {j : Data} :
+    Judge env root b (.when c t e) j ↔
+      (Admits env root c j ∧ Judge env root b t j) ∨
+        (Refuses env root c j ∧ Judge env root b (e.getD .any) j) := by
+  constructor
+  · intro h
+    cases h with
+    | whenThen hc ht => exact .inl ⟨hc, ht⟩
+    | whenElse hc he => exact .inr ⟨hc, he⟩
+    | whenPass hc => exact .inr ⟨hc, .any⟩
+  · rintro (⟨hc, ht⟩ | ⟨hc, he⟩)
+    · exact .whenThen hc ht
+    · cases e with
+      | some e' => exact .whenElse hc he
+      | none =>
+        cases judge_unique he .any
+        exact .whenPass hc
+
+/-- `when(c, nil)` refuses every value `c` admits: `nil` is the false
+schema in a branch. -/
+theorem when_nil_refuses {c : Val} {e : Option Val} {j : Data} (h : Admits env root c j) :
+    Refuses env root (.when c .nil e) j :=
+  .whenThen h .nil
 
 end
 

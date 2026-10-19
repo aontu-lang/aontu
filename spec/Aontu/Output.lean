@@ -165,7 +165,8 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
   | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
-  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _ => False
+  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .when _ _ _, _ => False
 
 /-- The members a map's declarations generate, in declaration order: a
 key whose value generates one the spread admits, with it; an optional
@@ -600,7 +601,8 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
       | none => none
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .multiple _ | .len _ | .unique _
-  | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _ => none
+  | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
+  | .when _ _ _ => none
 
 /-- The members the declarations generate, or `none` where a required
 key's value generates none the spread admits. -/
@@ -870,7 +872,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
-  | len _ _ | nof _ _ _ _ | must _ _ =>
+  | len _ _ | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩

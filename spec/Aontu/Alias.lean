@@ -44,6 +44,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .meet a b => .meet (expandF ds k a) (expandF ds k b)
     | .nof n cs => .nof (expandF ds k n) (cs.map (expandF ds k))
     | .must c m => .must (expandF ds k c) m
+    | .when c t e => .when (expandF ds k c) (expandF ds k t) (e.map (expandF ds k))
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -223,6 +224,22 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
     | must c _ =>
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f c h
+    | when c t e =>
+      simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
+      rcases h with (h | h) | h
+      · rcases unguardedRefs_expandF f c h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl (.inl h'))
+        · exact .inr ⟨m, .inl (.inl hm), hmn⟩
+      · rcases unguardedRefs_expandF f t h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl (.inr h'))
+        · exact .inr ⟨m, .inl (.inr hm), hmn⟩
+      · cases e with
+        | none => exact absurd h (List.not_mem_nil _)
+        | some e' =>
+          simp only [Option.map, unguardedSpread] at h ⊢
+          rcases unguardedRefs_expandF f e' h with h' | ⟨m, hm, hmn⟩
+          · exact .inl (.inr h')
+          · exact .inr ⟨m, .inr hm, hmn⟩
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | _ => exact .inl (by simpa [expandF] using h)
@@ -317,6 +334,11 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hm
       exact expandF_checkableA hb f c (hcs c hc)
     | must hc => exact .must (expandF_checkableA hb f _ hc)
+    | when hc ht he =>
+      refine .when (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ ht) ?_
+      intro e' he'
+      obtain ⟨e'', he'', rfl⟩ := Option.map_eq_some'.mp he'
+      exact expandF_checkableA hb f e'' (he e'' he'')
     | _ => (try simp only [expandF]); constructor
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
@@ -673,7 +695,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | number | string | anyString | boolean | any => exact .any
   | nil => exact .nil
   | path => exact .path
-  | nof _ _ _ _ | must _ _ => exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ => exact .any
   | @lit s =>
     cases s with
     | num x =>

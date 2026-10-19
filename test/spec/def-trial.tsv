@@ -5,8 +5,9 @@
 # as `verdict` rows whose expectation is the one class `vet` gives, which
 # `vet_iff` makes the definition's own. nof(n, ...) counts the branches that
 # admit the value and judges as n judges the count; must(c, m) asks what
-# nof(1, c) asks; a branch that admits nothing counts as none; a container a
-# trial refuses once its members have all arrived is invalid; and a name that
+# nof(1, c) asks; when(c, t, e) holds the value to the branch c picks, an e
+# not written passing; a branch that admits nothing counts as none; a container
+# a trial refuses once its members have all arrived is invalid; and a name that
 # refers to itself through a trial alone breaks the alias-cycle rule, an
 # error. Regenerate with `make spec`; never edit by hand. The cases the ports
 # do not yet answer this way are listed in spec/ledger.tsv.
@@ -205,3 +206,162 @@ t191	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"invalid","
 t192	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid"}
 t193	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t194	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
+t195	verdict	"a": when(string, "a")	{"a": "a"}	{"verdict":"valid"}
+t196	verdict	"a": when(string, "a")	{"a": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+t197	verdict	"a": when(string, "a")	{"a": "a"}	{"verdict":"valid","opts":{"partial":true}}
+t198	verdict	"a": when(string, "a")	{"a": "b"}	{"verdict":"invalid"}
+t199	verdict	"a": when(string, "a")	{"a": "b"}	{"verdict":"invalid","opts":{"noFill":true}}
+t200	verdict	"a": when(string, "a")	{"a": "b"}	{"verdict":"invalid","opts":{"partial":true}}
+t201	verdict	"a": when(string, "a")	{"a": 5}	{"verdict":"valid"}
+t202	verdict	"a": when(string, "a")	{"a": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t203	verdict	"a": when(string, "a")	{"a": 5}	{"verdict":"valid","opts":{"partial":true}}
+t204	verdict	"a": when(string, "a", min(0))	{"a": 5}	{"verdict":"valid"}
+t205	verdict	"a": when(string, "a", min(0))	{"a": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t206	verdict	"a": when(string, "a", min(0))	{"a": 5}	{"verdict":"valid","opts":{"partial":true}}
+t207	verdict	"a": when(string, "a", min(0))	{"a": -1}	{"verdict":"invalid"}
+t208	verdict	"a": when(string, "a", min(0))	{"a": -1}	{"verdict":"invalid","opts":{"noFill":true}}
+t209	verdict	"a": when(string, "a", min(0))	{"a": -1}	{"verdict":"invalid","opts":{"partial":true}}
+t210	verdict	"a": when(nil, string, number)	{"a": 5}	{"verdict":"valid"}
+t211	verdict	"a": when(nil, string, number)	{"a": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t212	verdict	"a": when(nil, string, number)	{"a": 5}	{"verdict":"valid","opts":{"partial":true}}
+t213	verdict	"a": when(any, number)	{"a": "s"}	{"verdict":"invalid"}
+t214	verdict	"a": when(any, number)	{"a": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+t215	verdict	"a": when(any, number)	{"a": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+t216	verdict	"a": when(string, nil)	{"a": "s"}	{"verdict":"invalid"}
+t217	verdict	"a": when(string, nil)	{"a": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+t218	verdict	"a": when(string, nil)	{"a": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+t219	verdict	"a": when(string, nil)	{"a": 1}	{"verdict":"valid"}
+t220	verdict	"a": when(string, nil)	{"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+t221	verdict	"a": when(string, nil)	{"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+t222	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1, "n": 2}}	{"verdict":"valid"}
+t223	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1, "n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t224	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1, "n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t225	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1}}	{"verdict":"invalid"}
+t226	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t227	verdict	"a": when({"k": any}, {"n": any})	{"a": {"k": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t228	verdict	"a": when({"k": any}, {"n": any})	{"a": {}}	{"verdict":"valid"}
+t229	verdict	"a": when({"k": any}, {"n": any})	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+t230	verdict	"a": when({"k": any}, {"n": any})	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+t231	verdict	"a": when({"k": any}, {"n": number})	{"a": {"k": 1, "n": "s"}}	{"verdict":"invalid"}
+t232	verdict	"a": when({"k": any}, {"n": number})	{"a": {"k": 1, "n": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t233	verdict	"a": when({"k": any}, {"n": number})	{"a": {"k": 1, "n": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+t234	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 3}}	{"verdict":"valid"}
+t235	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+t236	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 3}}	{"verdict":"valid","opts":{"partial":true}}
+t237	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 7}}	{"verdict":"invalid"}
+t238	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+t239	verdict	"a": when({"x"?: number}, {"x"?: max(5)})	{"a": {"x": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+t240	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2]}	{"verdict":"valid"}
+t241	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+t242	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+t243	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2, 3]}	{"verdict":"invalid"}
+t244	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2, 3]}	{"verdict":"invalid","opts":{"noFill":true}}
+t245	verdict	"a": when([&: number], len(max(2)))	{"a": [1, 2, 3]}	{"verdict":"invalid","opts":{"partial":true}}
+t246	verdict	"a": {&: when(string, "x")}	{"a": {"p": "x", "q": 2}}	{"verdict":"valid"}
+t247	verdict	"a": {&: when(string, "x")}	{"a": {"p": "x", "q": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t248	verdict	"a": {&: when(string, "x")}	{"a": {"p": "x", "q": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t249	verdict	"a": {&: when(string, "x")}	{"a": {"p": "y"}}	{"verdict":"invalid"}
+t250	verdict	"a": {&: when(string, "x")}	{"a": {"p": "y"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t251	verdict	"a": {&: when(string, "x")}	{"a": {"p": "y"}}	{"verdict":"invalid","opts":{"partial":true}}
+t252	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "s"}}	{"verdict":"valid"}
+t253	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "s"}}	{"verdict":"valid","opts":{"noFill":true}}
+t254	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+t255	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "t"}}	{"verdict":"invalid"}
+t256	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "t"}}	{"verdict":"invalid","opts":{"noFill":true}}
+t257	verdict	"a": when({"b": string}, {"b": when(string, "s")})	{"a": {"b": "t"}}	{"verdict":"invalid","opts":{"partial":true}}
+t258	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "a"}	{"verdict":"valid"}
+t259	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+t260	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "a"}	{"verdict":"valid","opts":{"partial":true}}
+t261	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "b"}	{"verdict":"invalid"}
+t262	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "b"}	{"verdict":"invalid","opts":{"noFill":true}}
+t263	verdict	"a": (nof(1, string, number)) & (when(string, "a"))	{"a": "b"}	{"verdict":"invalid","opts":{"partial":true}}
+t264	verdict	"a": (when(string, "a")) & ("a")	{}	{"verdict":"valid"}
+t265	verdict	"a": (when(string, "a")) & ("a")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t266	verdict	"a": (when(string, "a")) & ("a")	{}	{"verdict":"valid","opts":{"partial":true}}
+t267	verdict	"a": (when(string, "a")) & ("b")	{}	{"verdict":"error"}
+t268	verdict	"a": (when(string, "a")) & ("b")	{}	{"verdict":"error","opts":{"noFill":true}}
+t269	verdict	"a": (when(string, "a")) & ("b")	{}	{"verdict":"error","opts":{"partial":true}}
+t270	verdict	"a": (when(string, "a")) & (*("b"))	{}	{"verdict":"incomplete"}
+t271	verdict	"a": (when(string, "a")) & (*("b"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t272	verdict	"a": (when(string, "a")) & (*("b"))	{}	{"verdict":"valid","opts":{"partial":true}}
+t273	verdict	"a": (when(string, "a")) & (*("a"))	{}	{"verdict":"valid"}
+t274	verdict	"a": (when(string, "a")) & (*("a"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t275	verdict	"a": (when(string, "a")) & (*("a"))	{}	{"verdict":"valid","opts":{"partial":true}}
+t276	verdict	"a": (when(string, "a")) | (number)	{"a": "b"}	{"verdict":"invalid"}
+t277	verdict	"a": (when(string, "a")) | (number)	{"a": "b"}	{"verdict":"invalid","opts":{"noFill":true}}
+t278	verdict	"a": (when(string, "a")) | (number)	{"a": "b"}	{"verdict":"invalid","opts":{"partial":true}}
+t279	verdict	"a": (when(string, "a")) | (number)	{"a": "a"}	{"verdict":"valid"}
+t280	verdict	"a": (when(string, "a")) | (number)	{"a": "a"}	{"verdict":"valid","opts":{"noFill":true}}
+t281	verdict	"a": (when(string, "a")) | (number)	{"a": "a"}	{"verdict":"valid","opts":{"partial":true}}
+t282	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": 1}}	{"verdict":"valid"}
+t283	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t284	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t285	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": {}}}	{"verdict":"invalid"}
+t286	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": {}}}	{"verdict":"invalid","opts":{"noFill":true}}
+t287	verdict	%T = {"a"?: when(%T, 1)}\n"t": %T	{"t": {"a": {}}}	{"verdict":"invalid","opts":{"partial":true}}
+t288	verdict	%T = when(%T, 1)\n"t": %T	{"t": 1}	{"verdict":"error"}
+t289	verdict	%T = when(%T, 1)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"noFill":true}}
+t290	verdict	%T = when(%T, 1)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"partial":true}}
+t291	verdict	%T = when(string, %T)\n"t": %T	{"t": 1}	{"verdict":"error"}
+t292	verdict	%T = when(string, %T)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"noFill":true}}
+t293	verdict	%T = when(string, %T)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"partial":true}}
+t294	verdict	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	{"verdict":"error"}
+t295	verdict	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"noFill":true}}
+t296	verdict	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	{"verdict":"error","opts":{"partial":true}}
+t297	verdict	"a": when(string, "a", nil)	{"a": 5}	{"verdict":"invalid"}
+t298	verdict	"a": when(string, "a", nil)	{"a": 5}	{"verdict":"invalid","opts":{"noFill":true}}
+t299	verdict	"a": when(string, "a", nil)	{"a": 5}	{"verdict":"invalid","opts":{"partial":true}}
+t300	verdict	"a": when((1) & (2), string, number)	{"a": 5}	{"verdict":"valid"}
+t301	verdict	"a": when((1) & (2), string, number)	{"a": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t302	verdict	"a": when((1) & (2), string, number)	{"a": 5}	{"verdict":"valid","opts":{"partial":true}}
+t303	verdict	"a": when(string, (1) & (2))	{"a": "s"}	{"verdict":"invalid"}
+t304	verdict	"a": when(string, (1) & (2))	{"a": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+t305	verdict	"a": when(string, (1) & (2))	{"a": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+t306	verdict	"a": when(nof(0, string), 1)	{"a": 1}	{"verdict":"valid"}
+t307	verdict	"a": when(nof(0, string), 1)	{"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+t308	verdict	"a": when(nof(0, string), 1)	{"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+t309	verdict	"a": when(nof(0, string), 1)	{"a": 2}	{"verdict":"invalid"}
+t310	verdict	"a": when(nof(0, string), 1)	{"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+t311	verdict	"a": when(nof(0, string), 1)	{"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+t312	verdict	"a": when(nof(0, string), 1)	{"a": "s"}	{"verdict":"valid"}
+t313	verdict	"a": when(nof(0, string), 1)	{"a": "s"}	{"verdict":"valid","opts":{"noFill":true}}
+t314	verdict	"a": when(nof(0, string), 1)	{"a": "s"}	{"verdict":"valid","opts":{"partial":true}}
+t315	verdict	"a": when(string, must("a", "m"))	{"a": "b"}	{"verdict":"invalid"}
+t316	verdict	"a": when(string, must("a", "m"))	{"a": "b"}	{"verdict":"invalid","opts":{"noFill":true}}
+t317	verdict	"a": when(string, must("a", "m"))	{"a": "b"}	{"verdict":"invalid","opts":{"partial":true}}
+t318	verdict	"a": (when(string, "a")) & (when(number, 1))	{"a": 2}	{"verdict":"invalid"}
+t319	verdict	"a": (when(string, "a")) & (when(number, 1))	{"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+t320	verdict	"a": (when(string, "a")) & (when(number, 1))	{"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+t321	verdict	"a": [when(string, "a")]	{"a": ["b"]}	{"verdict":"invalid"}
+t322	verdict	"a": [when(string, "a")]	{"a": ["b"]}	{"verdict":"invalid","opts":{"noFill":true}}
+t323	verdict	"a": [when(string, "a")]	{"a": ["b"]}	{"verdict":"invalid","opts":{"partial":true}}
+t324	verdict	"a": when(string, "a")	{}	{"verdict":"incomplete"}
+t325	verdict	"a": when(string, "a")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t326	verdict	"a": when(string, "a")	{}	{"verdict":"valid","opts":{"partial":true}}
+t327	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1})	{}	{"verdict":"invalid"}
+t328	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1})	{}	{"verdict":"invalid","opts":{"noFill":true}}
+t329	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1})	{}	{"verdict":"invalid","opts":{"partial":true}}
+t330	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1, "n": 2})	{}	{"verdict":"valid"}
+t331	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1, "n": 2})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t332	verdict	"a": (when({"k": any}, {"n": any})) & ({"k": 1, "n": 2})	{}	{"verdict":"valid","opts":{"partial":true}}
+t333	verdict	"a": when({"k": any}, {"n": *(2)})	{"a": {"k": 1}}	{"verdict":"invalid"}
+t334	verdict	"a": when({"k": any}, {"n": *(2)})	{"a": {"k": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+t335	verdict	"a": when({"k": any}, {"n": *(2)})	{"a": {"k": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+t336	verdict	"a": when(when(string, "a"), 1)	{"a": "a"}	{"verdict":"invalid"}
+t337	verdict	"a": when(when(string, "a"), 1)	{"a": "a"}	{"verdict":"invalid","opts":{"noFill":true}}
+t338	verdict	"a": when(when(string, "a"), 1)	{"a": "a"}	{"verdict":"invalid","opts":{"partial":true}}
+t339	verdict	"a": when(when(string, "a"), 1)	{"a": "b"}	{"verdict":"valid"}
+t340	verdict	"a": when(when(string, "a"), 1)	{"a": "b"}	{"verdict":"valid","opts":{"noFill":true}}
+t341	verdict	"a": when(when(string, "a"), 1)	{"a": "b"}	{"verdict":"valid","opts":{"partial":true}}
+t342	verdict	"a": when(min(3), max(5))	{"a": 6}	{"verdict":"invalid"}
+t343	verdict	"a": when(min(3), max(5))	{"a": 6}	{"verdict":"invalid","opts":{"noFill":true}}
+t344	verdict	"a": when(min(3), max(5))	{"a": 6}	{"verdict":"invalid","opts":{"partial":true}}
+t345	verdict	"a": when(min(3), max(5))	{"a": 1}	{"verdict":"valid"}
+t346	verdict	"a": when(min(3), max(5))	{"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+t347	verdict	"a": when(min(3), max(5))	{"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+t348	verdict	"a": (nof(1, 1, 2)) & (*(3) | (2))	{}	{"verdict":"valid"}
+t349	verdict	"a": (nof(1, 1, 2)) & (*(3) | (2))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t350	verdict	"a": (nof(1, 1, 2)) & (*(3) | (2))	{}	{"verdict":"valid","opts":{"partial":true}}
+t351	verdict	"a": (when(string, "a")) & (*("b") | ("a"))	{}	{"verdict":"valid"}
+t352	verdict	"a": (when(string, "a")) & (*("b") | ("a"))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t353	verdict	"a": (when(string, "a")) & (*("b") | ("a"))	{}	{"verdict":"valid","opts":{"partial":true}}

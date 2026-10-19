@@ -3479,7 +3479,8 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
   | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
-  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _ => False
+  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .when _ _ _, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -3789,7 +3790,7 @@ would single out with each `nof`, `must`, `len` and `unique` as `any`:
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .len _ | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -4102,24 +4103,31 @@ A name that refers to itself through a trial alone, `%T = nof(0, %T)`,
 breaks the alias-cycle rule and is an `error`, as `%T = %T` is: nothing
 between the name and itself consumes data. Both engines decide the
 trial by running out of steps, and answer `valid` or `invalid` as the
-count falls. Twelve rows of
-[`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv) carry four such
-documents, and the ledger names the engines as the side that changes.
+count falls. Twenty-one rows of
+[`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv) carry seven such
+documents, `%T = when(%T, 1)` and `%T = when(string, %T)` among them,
+and the ledger names the engines as the side that changes.
 In the same file, `must(1 & 2, "m")` refuses `1` as `nof(1, 1 & 2)`
 does, a branch that admits nothing counting as none, where both
 engines answer `error`: six rows, the engines the side that changes.
+And a default a trial refuses, `nof(1, 1, 2) & (*3 | 2)`, is a dead
+arm, so the disjunction falls to `2` and the document is `valid`, where
+both engines leave the disjunction generating nothing, `incomplete`:
+two rows, the engines the side that changes.
 
 ## 16. Trial schemas
 
 A trial schema tries a term on a value and reads the answer either
 way. `nof(n, c₁, …)` counts the branches that admit the value and holds
-the count to `n`, and `must(c, m)` holds the value to `c`. Each is a
-form of the syntax:
+the count to `n`; `must(c, m)` holds the value to `c`; and
+`when(c, t, e)` holds it to `t` where `c` admits it and to `e` where `c`
+refuses it, an `e` not written passing. Each is a form of the syntax:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
   | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
+  | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
 ```
 
 and each has its rules in `Judge`:
@@ -4149,9 +4157,23 @@ rule of admission alone could not say that a branch refuses the value,
 and Lean refuses a rule that mentions its own negation. A branch that
 neither admits nor refuses the value, a name declared as itself alone,
 leaves the trial unjudged, and a count no integer leaf holds is
-refused.
+refused. A conditional reads its condition's answer the same way, and
+holds the value to the branch that answer picks:
 
-Two theorems of `spec/Aontu/Trial.lean` say what the language's
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- A conditional holds the value to the branch its condition picks:
+  where `c` admits the value, `when(c, t, e)` judges it as `t` does;
+  where `c` refuses it, as `e` does; and an `e` not written admits it. -/
+  | whenThen {b : Bool} {c t : Val} {e : Option Val} {j : Data} :
+      Judge env root true c j → Judge env root b t j → Judge env root b (.when c t e) j
+  | whenElse {b : Bool} {c t e : Val} {j : Data} :
+      Judge env root false c j → Judge env root b e j → Judge env root b (.when c t (some e)) j
+  | whenPass {c t : Val} {j : Data} :
+      Judge env root false c j → Judge env root true (.when c t none) j
+```
+
+Four theorems of `spec/Aontu/Trial.lean` say what the language's
 decisions say of the trials. `must(c, m)` asks what `nof(1, c)` asks:
 
 <!-- test: quote spec/Aontu/Trial.lean -->
@@ -4173,8 +4195,36 @@ theorem judge_nof_zero {b : Bool} {c : Val} {j : Data} :
     Judge env root b (.nof (.lit (.num (.integer (.of 0)))) [c]) j ↔ Judge env root (!b) c j := by
 ```
 
+A conditional holds the value to the branch its condition picks, an
+`else` not written reading as `any`:
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- A conditional holds the value to the branch its condition picks:
+where `c` admits it, `when(c, t, e)` judges it as `t` does; where `c`
+refuses it, as `e` does, an `e` not written reading as `any`. -/
+theorem judge_when_iff {b : Bool} {c t : Val} {e : Option Val} {j : Data} :
+    Judge env root b (.when c t e) j ↔
+      (Admits env root c j ∧ Judge env root b t j) ∨
+        (Refuses env root c j ∧ Judge env root b (e.getD .any) j) := by
+```
+
+and `when(c, nil)` refuses every value `c` admits, `nil` being the
+false schema in a branch:
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- `when(c, nil)` refuses every value `c` admits: `nil` is the false
+schema in a branch. -/
+theorem when_nil_refuses {c : Val} {e : Option Val} {j : Data} (h : Admits env root c j) :
+    Refuses env root (.when c .nil e) j :=
+  .whenThen h .nil
+```
+
 The checker counts the branches it answers `true`, and holds the count
-to `n` as it holds a size to `len`'s term:
+to `n` as it holds a size to `len`'s term; a conditional it decides by
+its condition's answer, an `else` not written answering `true` as a
+spread not written does:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
@@ -4182,6 +4232,7 @@ to `n` as it holds a size to `len`'s term:
     if h : IntegerLeaf (countWith u cs j) then checkWith u n (.num (.integer ⟨countWith u cs j, h⟩))
     else false
   | .must c _, j => checkWith u c j
+  | .when c t e, j => if checkWith u c j then checkWith u t j else checkSpreadWith u e j
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
@@ -4228,9 +4279,27 @@ $ aontu -c nof.aontu
 so one branch admits each. `3` would be admitted by both, and `nof`
 refuses it, as the second example proves.
 
-`when(c, t, e)` holds a value to `t` where `c` admits it, and to `e`
-where it doesn't. It is the next trial the definition takes up, and
-both engines run it. Write `when.aontu`:
+A conditional `vet` decides the same way:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{a: when(string, "a")}`: a conditional inside a value. -/
+abbrev ifThen : Val := .map [("a", false, .when .string (.lit (.str "a")) none)] none false
+
+set_option maxRecDepth 8192 in
+/-- `5` is no string, so the conditional, with no `else`, passes it. -/
+example : vet {} [] ifThen (.map [("a", .integer 5)]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- `"b"` is a string, and the `then` branch refuses it. -/
+example : vet {} [] ifThen (.map [("a", .str "b")]) = .invalid := by decide
+
+/-- The condition refuses `5`, and an `else` not written reads as `any`. -/
+example : Admits .empty .null (.when .string (.lit (.str "a")) none) (.integer 5) :=
+  judge_when_iff.mpr (.inr ⟨.stringNot (fun _ h => nomatch h), .any⟩)
+```
+
+Write `when.aontu`:
 
 <!-- test: scenario when -->
 <!-- test: file when.aontu -->
@@ -4250,11 +4319,13 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-An eighth generated fragment, `lake exe oracle trials`, runs 65
+An eighth generated fragment, `lake exe oracle trials`, runs 118
 documents with trials inside values in the three modes: `nof` with each
 kind of count, over kinds, literals, maps, lists and names, beside
-literals, defaults and disjunctions, nested, through a recursive name,
-and `must`. Its 195 rows are
+literals, defaults and disjunctions, nested, through a recursive name;
+`must`; and `when`, with and without an `else`, over scalars, maps and
+lists, nested, beside the other forms, and through a name. Its 354 rows
+are
 [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), and two of
 them:
 
@@ -4732,7 +4803,7 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trials `when`, `contains` and `rest`; nor a path of step 9
+nor the trials `contains` and `rest`; nor a path of step 9
 read against the document as filled. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the

@@ -319,6 +319,8 @@ inductive Val.Checkable : Val → Prop
   | path {p : List Seg} : Checkable (.path p)
   | nof {n : Val} {cs : List Val} : Checkable n → (∀ c, c ∈ cs → Checkable c) → Checkable (.nof n cs)
   | must {c : Val} {msg : String} : Checkable c → Checkable (.must c msg)
+  | when {c t : Val} {e : Option Val} :
+      Checkable c → Checkable t → (∀ e', e = some e' → Checkable e') → Checkable (.when c t e)
 
 mutual
 /-- Whether a value is checkable, computed. -/
@@ -332,6 +334,7 @@ def Val.checkableB : Val → Bool
   | .meet a b => a.checkableB && b.checkableB
   | .nof n cs => n.checkableB && itemsCheckable cs
   | .must c _ => c.checkableB
+  | .when c t e => c.checkableB && t.checkableB && spreadCheckable e
   | _ => true
 
 def fieldsCheckable : List (String × Bool × Val) → Bool
@@ -407,6 +410,10 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
     exact ⟨.must, fun h => by cases h; assumption⟩
+  | .when c t e => by
+    simp only [Val.checkableB, Bool.and_eq_true]
+    rw [Val.checkableB_iff c, Val.checkableB_iff t, spreadCheckable_iff e]
+    exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .when h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
 
 theorem fieldsCheckable_iff : ∀ fs : List (String × Bool × Val),
     fieldsCheckable fs = true ↔ ∀ k o v, (k, o, v) ∈ fs → v.Checkable
@@ -724,6 +731,21 @@ theorem HookOk.must {c : Val} {msg : String} {j : Data} (h : HookOk u env root (
     HookOk u env root c j :=
   h.same (fun m hm => by simpa [Val.refs] using hm) (fun m hm => by simpa [Val.unguardedRefs] using hm)
 
+theorem HookOk.whenCond {c t : Val} {e : Option Val} {j : Data} (h : HookOk u env root (.when c t e) j) :
+    HookOk u env root c j :=
+  h.same (fun m hm => by simp only [Val.refs, List.mem_append]; exact .inl (.inl hm))
+    (fun m hm => by simp only [Val.unguardedRefs, List.mem_append]; exact .inl (.inl hm))
+
+theorem HookOk.whenThen {c t : Val} {e : Option Val} {j : Data} (h : HookOk u env root (.when c t e) j) :
+    HookOk u env root t j :=
+  h.same (fun m hm => by simp only [Val.refs, List.mem_append]; exact .inl (.inr hm))
+    (fun m hm => by simp only [Val.unguardedRefs, List.mem_append]; exact .inl (.inr hm))
+
+theorem HookOk.whenElse {c t e : Val} {j : Data} (h : HookOk u env root (.when c t (some e)) j) :
+    HookOk u env root e j :=
+  h.same (fun m hm => by simp only [Val.refs, List.mem_append, refsSpread]; exact .inr hm)
+    (fun m hm => by simp only [Val.unguardedRefs, List.mem_append, unguardedSpread]; exact .inr hm)
+
 end
 
 /-- The values the checker decides, given a hook for the names: those
@@ -761,6 +783,8 @@ inductive Val.CheckableA : Val → Prop
   | path {p : List Seg} : CheckableA (.path p)
   | nof {n : Val} {cs : List Val} : CheckableA n → (∀ c, c ∈ cs → CheckableA c) → CheckableA (.nof n cs)
   | must {c : Val} {msg : String} : CheckableA c → CheckableA (.must c msg)
+  | when {c t : Val} {e : Option Val} :
+      CheckableA c → CheckableA t → (∀ e', e = some e' → CheckableA e') → CheckableA (.when c t e)
 
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
@@ -774,6 +798,7 @@ def Val.checkableAB : Val → Bool
   | .meet a b => a.checkableAB && b.checkableAB
   | .nof n cs => n.checkableAB && itemsCheckableA cs
   | .must c _ => c.checkableAB
+  | .when c t e => c.checkableAB && t.checkableAB && spreadCheckableA e
   | _ => true
 
 def fieldsCheckableA : List (String × Bool × Val) → Bool
@@ -849,6 +874,10 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
     exact ⟨.must, fun h => by cases h; assumption⟩
+  | .when c t e => by
+    simp only [Val.checkableAB, Bool.and_eq_true]
+    rw [Val.checkableAB_iff c, Val.checkableAB_iff t, spreadCheckableA_iff e]
+    exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .when h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
 
 theorem fieldsCheckableA_iff : ∀ fs : List (String × Bool × Val),
     fieldsCheckableA fs = true ↔ ∀ k o v, (k, o, v) ∈ fs → v.CheckableA
@@ -923,6 +952,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | path => exact .path
   | nof _ _ ihn ihcs => exact .nof ihn ihcs
   | must _ ih => exact .must ih
+  | when _ _ _ ihc iht ihe => exact .when ihc iht ihe
 
 /-- A value the checker can read given a hook, which refers to no name,
 is checkable with none. -/
@@ -954,6 +984,12 @@ theorem Val.CheckableA.toChecked {v : Val} (h : v.CheckableA) (hn : ∀ n, n ∉
     · simp only [Val.refs, List.mem_append]; exact .inl hm
     · simp only [Val.refs, List.mem_append]; exact .inr (mem_refsItems.mpr ⟨c, hc, hm⟩)
   | must _ ih => exact .must (ih fun m hm => hn m (by simpa [Val.refs] using hm))
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when (ihc fun m hm => hn m ?_) (iht fun m hm => hn m ?_)
+      (fun e' he => ihe e' he fun m hm => hn m ?_)
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inl hm)
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inr hm)
+    · simp only [Val.refs, List.mem_append, he, refsSpread]; exact .inr hm
   | _ => constructor
 
 /-- A checkable value refers to no name. -/
@@ -996,6 +1032,15 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · obtain ⟨c, hc, hv⟩ := mem_refsItems.mp hm
       exact ihcs c hc m hv
   | must _ ih => intro m hm; exact ih m (by simpa [Val.refs] using hm)
+  | @when c t e _ _ _ ihc iht ihe =>
+    intro m hm
+    simp only [Val.refs, List.mem_append] at hm
+    rcases hm with (hm | hm) | hm
+    · exact ihc m hm
+    · exact iht m hm
+    · cases he : e with
+      | none => rw [he] at hm; exact absurd hm (List.not_mem_nil m)
+      | some e' => rw [he] at hm; exact ihe e' he m hm
   | _ => intro n hn; simp [Val.refs] at hn
 
 mutual
@@ -1088,6 +1133,7 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
     if h : IntegerLeaf (countWith u cs j) then checkWith u n (.num (.integer ⟨countWith u cs j, h⟩))
     else false
   | .must c _, j => checkWith u c j
+  | .when c t e, j => if checkWith u c j then checkWith u t j else checkSpreadWith u e j
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
@@ -1161,7 +1207,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     else if b.isKind then checkWith u b j else checkSuperWith u a j && checkSuperWith u b j
   | .alias k, j => u k j
   | .path _, _ => false
-  | .nof _ _, _ | .must _ _, _ => true
+  | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ => true
 
 def checkSuperFieldsWith (u : String → Data → Bool) : List (String × Bool × Val) → List (String × Data) → Bool
   | [], _ => true
@@ -1915,7 +1961,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     intro j _
     simp only [checkSuperWith, Val.super]
     exact .path
-  | nof _ _ _ _ | must _ _ => intro j _; exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ => intro j _; exact .any
   | @meet a b ha hb iha ihb =>
     intro j hu
     cases hka : a.isKind <;> cases hkb : b.isKind <;>
@@ -2160,6 +2206,18 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
     intro j hu
     simp only [checkWith]
     exact .must (ih j hu.must)
+  | @when c t e _ _ _ ihc iht ihe =>
+    intro j hu
+    simp only [checkWith]
+    have hc := ihc j hu.whenCond
+    split
+    · rename_i h
+      exact .whenThen (hc.of_eq h) (iht j hu.whenThen)
+    · rename_i h
+      have hc' : Judge env root false c j := hc.of_eq (Bool.eq_false_iff.mpr h)
+      cases e with
+      | none => exact .whenPass hc'
+      | some e' => exact .whenElse hc' (ihe e' rfl j hu.whenElse)
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j hu
     cases j with

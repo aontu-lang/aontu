@@ -56,6 +56,7 @@ def Val.pathsToAliases : Val → Val
   | .meet a b => .meet a.pathsToAliases b.pathsToAliases
   | .nof n cs => .nof n.pathsToAliases (ptaItems cs)
   | .must c m => .must c.pathsToAliases m
+  | .when c t e => .when c.pathsToAliases t.pathsToAliases (ptaSpread e)
   | v => v
 
 def ptaFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -230,6 +231,10 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     obtain ⟨c, hc, rfl⟩ := mem_ptaItems.mp hm
     exact ihcs c hc
   | must _ ih => exact .must ih
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp he
+    exact ihe s hs
   | _ => simp only [Val.pathsToAliases]; constructor
 
 /-- The term at a path in a term the checker can read is one it can read. -/

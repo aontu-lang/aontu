@@ -139,7 +139,8 @@ def Val.doms : Val → List Dom
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
   | .nil => []
-  | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _ =>
+  | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
+  | .when _ _ _ =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -657,7 +658,7 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
   | .beneath _, hd, _ | .neq _, hd, _ | .multiple _, hd, _ | .len _, hd, _
   | .unique _, hd, _ | .re _, hd, _ | .format _, hd, _ | .any, hd, _
   | .pref _ _, hd, _ | .alias _, hd, _ | .path _, hd, _ | .nof _ _, hd, _
-  | .must _ _, hd, _ => nomatch hd
+  | .must _ _, hd, _ | .when _ _ _, hd, _ => nomatch hd
 
 /-- A dead required key, among the keys `fs₀` of a map, refuses every
 map: absent, it is a key the map must have; present, its value is
@@ -1717,6 +1718,7 @@ def Val.beq : Val → Val → Bool
   | .path p, .path q => decide (p = q)
   | .nof n cs, .nof n' cs' => n.beq n' && beqItems cs cs'
   | .must c m, .must c' m' => c.beq c' && decide (m = m')
+  | .when c t e, .when c' t' e' => c.beq c' && t.beq t' && beqSpread e e'
   | _, _ => false
 termination_by structural a _ => a
 

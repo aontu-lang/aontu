@@ -54,6 +54,14 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.judge_nof_zero
 
+/-- info: 'Aontu.judge_when_iff' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.judge_when_iff
+
+/-- info: 'Aontu.when_nil_refuses' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.when_nil_refuses
+
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.wf_iff
