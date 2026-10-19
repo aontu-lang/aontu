@@ -1,6 +1,7 @@
 import Aontu.Order
 import Aontu.Trial
 import Aontu.Check
+import Aontu.Meet
 
 /-!
 # The tour's examples
@@ -680,6 +681,50 @@ example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.num (.integer (.of 3))
   cases (h (.integer 2) ⟨by decide, .integer⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
 
+/-! ## The meet, computed -/
+
+/-- `{x: 1} & {y: 2}` is `{x: 1, y: 2}`. -/
+example : meet (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)
+    (.map [("y", false, .lit (.num (.integer (.of 2))))] none false) =
+    .map [("x", false, .lit (.num (.integer (.of 1)))), ("y", false, .lit (.num (.integer (.of 2))))]
+      none false := rfl
+
+/-- `(min(5) & max(3)) | 1` is `1`: the first arm admits nothing, so it
+drops. -/
+example : meet (.or [(0, .meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))),
+    (0, .lit (.num (.integer (.of 1))))]) .any = .or [(0, .lit (.num (.integer (.of 1))))] := rfl
+
+/-- `*8080 & min(1024)` is `*8080 | (integer & min(1024))`: the preference
+widens to its parent type, and each arm meets the bound. -/
+example : meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024)))) =
+    .or [(1, .lit (.num (.integer (.of 8080)))),
+      (0, .meet .integer (.min (.num (.integer (.of 1024)))))] := rfl
+
+/-- `close([1, 2]) & [&: integer]` is `close([1, 2])`: the seal fixes the
+length, and each position takes the spread. -/
+example : meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
+    (.list [] (some .integer) false) =
+    .list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true := rfl
+
+/-- `min(5) & max(3)` is `nil`, and so is `min("b") & max("a")`: no value
+lies in either interval. -/
+example : meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3)))) = .nil ∧
+    meet (.min (.str "b")) (.max (.str "a")) = .nil := ⟨rfl, rfl⟩
+
+/-- `string & (string & empty())` is `string`: the lower of the two kinds. -/
+example : meet .string .anyString = .string := rfl
+
+/-- The computed meet admits what the written one admits, `admits_meet`:
+`*8080 & min(1024)`, computed, still admits `2048` and refuses `80`. -/
+example : Instance .empty (meet (.pref 1 (.lit (.num (.integer (.of 8080)))))
+      (.min (.num (.integer (.of 1024))))) (.integer 2048) ∧
+    ¬ Instance .empty (meet (.pref 1 (.lit (.num (.integer (.of 8080)))))
+      (.min (.num (.integer (.of 1024))))) (.integer 80) :=
+  ⟨⟨by decide, (admits_meet _ _ _).mpr ⟨.prefSuper .integer, .min (by decide)⟩⟩,
+    fun ⟨_, h⟩ => by
+      cases ((admits_meet _ _ _).mp h).2 with
+      | min h => exact absurd h (by decide)⟩
+
 /-! ## Two declarations of one key -/
 
 /-- `{x?: integer} & {x: integer}` refuses `{}`: the key is required. -/
@@ -710,6 +755,16 @@ example : Instance .empty
 /-- `string & (string & empty())` refuses `""`, which both engines admit. -/
 example : ¬ Instance .empty (.meet .string .anyString) (.str "") :=
   fun ⟨_, h⟩ => no_meet_with_string_admits_empty _ _ _ h
+
+/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
+admit: a seal fixes the length, and no meet admits what a side refuses. -/
+example : ¬ Instance .empty
+    (.meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
+      (.list [] (some .integer) false))
+    (.list [.integer 1, .integer 2, .integer 3]) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | meet h _ => cases h with | list _ hseal _ _ => exact absurd (hseal rfl rfl) (by decide)
 
 /-- `{x?: string} & {x?: integer}` admits `{}`, where both engines answer
 `error`. -/

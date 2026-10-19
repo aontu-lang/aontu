@@ -2,6 +2,8 @@ import Aontu.Data
 import Aontu.Syntax
 import Aontu.Admits
 import Aontu.Order
+import Aontu.Meet
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Tour
+import Aontu.Axioms
