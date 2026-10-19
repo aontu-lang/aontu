@@ -70,6 +70,13 @@ def Bound.src : Bound → Option String
   | .num n => n.src
   | .str s => some (quote s)
 
+/-- A value behind its stars: a map or list literal as it stands, since
+both engines read `*(` before a literal container as a bag (#349), and
+anything else in parentheses. -/
+def prefSrc (r : ℕ) (s : String) : String :=
+  let stars := String.mk (List.replicate r '*')
+  if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
+
 mutual
 def Val.src : Val → Option String
   | .integer => some "integer"
@@ -105,7 +112,7 @@ def Val.src : Val → Option String
     let body := "[" ++ ", ".intercalate (entries ++ rest) ++ "]"
     pure (if closed then s!"close({body})" else body)
   | .or arms => do pure (" | ".intercalate (← armsSrc arms))
-  | .pref r x => do pure (String.mk (List.replicate r '*') ++ s!"({← x.src})")
+  | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
   | .alias _ => none
   | .path _ => none
@@ -129,7 +136,8 @@ def itemsSrc : List Val → Option (List String)
 def armsSrc : List (ℕ × Val) → Option (List String)
   | [] => some []
   | (r, a) :: arms => do
-    pure ((String.mk (List.replicate r '*') ++ s!"({← a.src})") :: (← armsSrc arms))
+    let s ← a.src
+    pure ((if r = 0 then s!"({s})" else prefSrc r s) :: (← armsSrc arms))
 end
 
 mutual
@@ -148,6 +156,32 @@ def membersSrc : List (String × Data) → Option (List String)
 def elemsSrc : List Data → Option (List String)
   | [] => some []
   | x :: xs => do pure ((← x.src) :: (← elemsSrc xs))
+end
+
+/-! ## JSON
+
+What the engines write for a generated document: compact JSON with the
+members in key order, which the `gens` mode compares byte for byte. A
+number of any leaf but `integer` has no text here, since its JSON is a
+reader's choice the rows keep away from. -/
+
+mutual
+def Data.json : Data → Option String
+  | .num (.integer x) => some (toString x.value)
+  | .num _ => none
+  | .str s => some (quote s)
+  | .bool b => some (if b then "true" else "false")
+  | .null => some "null"
+  | .map fs => do pure ("{" ++ ",".intercalate (← membersJson fs) ++ "}")
+  | .list xs => do pure ("[" ++ ",".intercalate (← elemsJson xs) ++ "]")
+
+def membersJson : List (String × Data) → Option (List String)
+  | [] => some []
+  | (k, x) :: fs => do pure ((quote k ++ ":" ++ (← x.json)) :: (← membersJson fs))
+
+def elemsJson : List Data → Option (List String)
+  | [] => some []
+  | x :: xs => do pure ((← x.json) :: (← elemsJson xs))
 end
 
 end Aontu

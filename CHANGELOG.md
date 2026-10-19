@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### The definition states what evaluation singles out
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `Gen env root v j` in `spec/Aontu/Output.lean`, a relation by
+  recursion on the term: a literal generates its value; a map its
+  declared keys that generate a value the spread admits, an optional
+  key left out where its value does not and a required one leaving no
+  output; a list each position; a disjunction what the arms the rank
+  rule picks all generate, those of the lowest positive rank among the
+  live arms or every live arm; a preference what its value generates; a
+  meet left as written what one side generates and the other admits.
+  `Output` reads `Gen` off the normal form. `output_admits` is ADR-007,
+  what evaluation singles out is an instance, and `output_unique` that
+  it is one value. `gen` computes it beside `gen_iff`.
+- The meet opens an arm of rank `0` that is itself a disjunction into
+  its arms, as `(*1 | 2) | 3` singles out `1` in both engines, and
+  meets every declared value and position with the spread, as both
+  engines apply a spread to the members it covers.
+- The fourth generated fragment, `test/spec/def-gen.tsv`: `gens` rows
+  for the values of `genVals`, each with the JSON `output` gives. Both
+  ports agree with the definition on every row.
+- Found on the way: #348, `[*1] | [1]` singles out `[1]` in Go and
+  `disjunct_no_gen` in TypeScript, where the definition sides with Go;
+  #349, `*(` before a literal container is `pref_implicit_bag` alone
+  and a preference dropped without a word inside a disjunction, in
+  both ports, so the oracle writes a preferred container arm as `*{…}`
+  or `*[…]`.
+- The tutorial gains step 13, what evaluation singles out, with the
+  fill of a default run through `vet` with and without `--no-fill`.
+
 ### The definition computes the meet
 
 Definition and documentation; no engine changes.
