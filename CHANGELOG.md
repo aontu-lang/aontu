@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### A commit is checked in two minutes, a pull request in five
+
+Process; no engine changes
+([ADR-071](ADR.md#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five)).
+
+- `make quick` is the check before a commit: the comment gate, both
+  builds, the gate group and the Go suite, 89 seconds with a cold Go
+  test cache.
+- Every `build.yml` job carries `timeout-minutes: 5`.
+- `spec.yml` runs from the daily run and by hand only, no longer on a
+  push or pull request that touches `spec/`.
+
 ### CI runs a happy path and a sample; the full run is daily; releases come from `release`
 
 Process and test layout; no engine changes

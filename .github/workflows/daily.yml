@@ -255,9 +255,8 @@ jobs:
           RB_SOLAR_SDK: ${{ runner.temp }}/solardemo/rb
         run: ./check.sh
 
-  # THE DEFINITION, as spec.yml checks it when spec/ changes: here on
-  # every run, since a change elsewhere can move what the ports answer
-  # for the rows.
+  # THE DEFINITION. Only here: a cold Lean build passes the pull
+  # request budget (ADR-071).
   spec:
     name: The definition
     uses: ./.github/workflows/spec.yml

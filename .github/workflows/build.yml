@@ -1,5 +1,5 @@
 # THE STANDARD RUN: what a pull request waits for, about three minutes
-# on Linux, and nothing more (ADR-070). Three jobs, side by side:
+# on Linux and never more than five (ADR-070, ADR-071). Three jobs, side by side:
 #
 #   happy    both ports build; the committed TypeScript build and every
 #            generated copy are what the sources say; the comment gate;
@@ -16,9 +16,8 @@
 #
 # Everything else -- the three operating systems, the TypeScript suite
 # whole, the coverage gate, the use cases, the system, the prose gate --
-# is daily.yml, nightly on main and on every push to release. The
-# definition (spec/) is spec.yml, which runs here when spec/ or its
-# rows change and in the daily run always. What the sample does not
+# is daily.yml, nightly on main and on every push to release, and so is
+# the definition (spec/, spec.yml). What the sample does not
 # catch, the daily does, the next morning: that is the trade.
 #
 # Both triggers, as before: this repository's pull_request events do not
@@ -45,7 +44,7 @@ concurrency:
 jobs:
   happy:
     name: Happy path
-    timeout-minutes: 6
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,7 +91,7 @@ jobs:
 
   go:
     name: Go
-    timeout-minutes: 6
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -109,11 +108,10 @@ jobs:
 
   sample:
     name: Sample (one TypeScript group)
-    # Eight, not six: `npm install` resolves the tree on every run
-    # (package-lock.json is not committed) and has taken minutes on a
-    # slow registry hour; the npm cache keeps the downloads, the budget
-    # keeps a slow hour from reading as a failure.
-    timeout-minutes: 8
+    # `npm install` resolves the tree on every run (package-lock.json is
+    # not committed) and has taken minutes on a slow registry hour; a
+    # sample that passes the budget fails, and a rerun draws again.
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     defaults:
       run:

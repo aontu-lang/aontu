@@ -5,10 +5,10 @@
 # rows. The Lean release is fetched by hash rather than through elan,
 # whose self-update check does not pass every proxy.
 #
-# In the standard CI this runs only when the definition or its rows
-# change -- the path lists, written out twice because a workflow cannot
-# share one -- and in the daily run always, through workflow_call. The
-# build directory is cached on the sources' hash, with the newest cache
+# It runs in the daily run, through workflow_call, and by hand; not on
+# a push or a pull request, since a cold build passes the five-minute
+# budget a pull request is held to (ADR-071). `make spec` runs it
+# locally. The build directory is cached on the sources' hash, with the newest cache
 # restored when none matches, so a change to one file rebuilds that
 # file's dependants rather than the whole definition, which takes three
 # minutes cold.
@@ -16,18 +16,6 @@
 name: spec
 
 on:
-  push:
-    paths:
-      - 'spec/**'
-      - 'test/spec/def-*.tsv'
-      - 'Makefile'
-      - '.github/workflows/spec.yml'
-  pull_request:
-    paths:
-      - 'spec/**'
-      - 'test/spec/def-*.tsv'
-      - 'Makefile'
-      - '.github/workflows/spec.yml'
   workflow_call:
   workflow_dispatch:
 

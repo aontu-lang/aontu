@@ -106,7 +106,8 @@ thereafter stated and changed in the definition, not here.
 | [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Moved to the definition in part |
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
-| [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Accepted |
+| [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five) |
+| [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five) | A commit is checked in two minutes and a pull request in five | Accepted |
 
 ---
 
@@ -6564,7 +6565,7 @@ answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
 ## ADR-070 — The standard CI run samples, the daily run decides, and releases come from `release`
 
 **Date:** 2026-10-19
-**Status:** Accepted
+**Status:** Amended by [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five)
 
 ### Context
 
@@ -6649,3 +6650,55 @@ moment of the dispatch.
 - Enforced by `ts/test/groups.test.ts` and `test-group.cjs --check`,
   by the guards in `publish.yml` and the `publish` target, and by the
   workflow headers, which cite this entry.
+
+## ADR-071 — A commit is checked in two minutes and a pull request in five
+
+**Date:** 2026-10-19
+**Status:** Accepted
+
+### Context
+
+ADR-070 brought the standard run to about three minutes, but set no
+ceiling, and named no check to run before a commit. The list under
+"Before you push" in `AGENTS.md` (both suites whole, the coverage gate,
+the prose gate, the use cases) took tens of minutes, so it was either
+skipped or it held the work up. The definition's job, which ADR-070
+ran in the standard CI when `spec/` or its rows changed, took 56 to
+397 seconds there, past five minutes whenever its cache missed.
+
+Measured on 2026-10-19: locally, the comment gate 0.4 s, `make
+build-ts` incremental about 1 s, Go's build and vet 1 s, the gate group
+0.5 s, the Go suite 50 to 75 s, any other TypeScript group 61 to 142 s;
+on the runner, the happy path 36 to 49 s, the Go suite 147 to 152 s,
+the sample 105 to 152 s.
+
+### Decision
+
+1. **Before a commit, `make quick`, inside two minutes.** It runs the
+   comment gate, `make build-ts`, Go's build and vet, the gate group
+   and the Go suite: 89 seconds with a cold Go test cache, 12 warm. No
+   hook runs it; the `pre-push` hook stays the comment gate alone.
+2. **A pull request's CI finishes inside five minutes.** Every job a
+   push or a pull request starts carries `timeout-minutes: 5`, so a
+   job that outgrows the budget fails rather than slowing every pull
+   request; it is split or moved to the daily run.
+3. **The definition runs daily only.** `spec.yml` loses its push and
+   pull request triggers and runs from `daily.yml` and by hand; a
+   change to `spec/` runs `make spec` locally. This replaces ADR-070's
+   fourth point.
+4. **Windows, macOS, the prose gate, coverage, the use cases and the
+   system stay daily**, as ADR-070 has them, and run by hand when a
+   change reaches them: `make prose`, `make cov`, `make spec`,
+   `make test-group G=n`, `use-cases/run-all.sh`.
+
+### Consequences
+
+- A broken proof or a stale `def-*.tsv` row can merge, and is found by
+  the next daily run; the Go suite still runs every regenerated row on
+  every push.
+- A slow registry hour can fail the sample at five minutes, where
+  ADR-070 allowed eight; a rerun draws again.
+- A new check on the standard run has to fit beside the others inside
+  five minutes, and a new step in `make quick` inside two.
+- Enforced by the `timeout-minutes` in `build.yml` and by the
+  `quick` target's comment, which cite this entry.
