@@ -74,6 +74,34 @@ P5's remaining work (`docs/design/DEFINITION.0.md`, §6).
   `string & empty()` is.
 - The tutorial's step 10, `spec/README.md` and the design note follow.
 
+### The definition's order has rows
+
+Definition, generated rows, both runners and documentation; no engine
+changes. The second half of P5's work on the order.
+
+- `spec/Aontu/Subsume.lean`: `leDecF`, the order decided with its proof
+  where the scalars and the connectives decide it (it returns
+  `Option (PLift (a ⊑ b))`, so `leDecF_sound` holds by construction),
+  and `not_le_of_witness`, that an instance one value admits and the
+  other refuses puts the first outside the order.
+- `test/spec/def-subsume.tsv`, the ninth fragment: 2,326 `subsumption`
+  rows, every pair of 50 values (the first fragment's level and the
+  third's bases) under the key `v`, the general first, under the
+  `values` profile, each allowing the answers the contract allows,
+  `undecided` always among them; `subsume_rows_exact` makes them the
+  definition's. Both runners read the mode (`ts/test/spec.test.ts`,
+  `go/spec_test.go`), and `make spec` writes the file.
+- Both ports answer every row as the contract allows but three, in the
+  ledger under #346: a sealed list with a spread,
+  `close([integer, &: integer])`, admits a longer list in the definition
+  and keeps its length in both ports, which put it below
+  `close([integer])`. The ledger's bound rises to 92.
+- The reference's row for a kind over a residual is corrected: `string`
+  covers no string residual, since each may admit `""`, and
+  `string & empty()` covers every one. The design note records decisions
+  11, the effective default under `defaults`, and 12, a
+  `does_not_subsume` with no witness (#375), both open.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

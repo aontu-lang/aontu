@@ -309,7 +309,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 89 rows under seven causes: decisions 3 and 4 of §2, under
+ledger holds 92 rows under seven causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -381,7 +381,7 @@ documents only.
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | **LANDED 2026-10-19**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; `when` inside values, with ADR-050 as theorems (`judge_when_iff`, `when_nil_refuses`), **landed 2026-10-19**; `contains` inside values, with ADR-051 as theorems (`judge_contains_empty`, `contains_refuses_scalar`), **landed 2026-10-19**; `rest` inside values, with ADR-058 as theorems (`rest_admits_scalar`, `rest_nil_closes`), **landed 2026-10-19**; `match` and `filter` as selections made once a document is read (`resolveD`, `Decls.readR`), with the language's rules as theorems (`selectArm_first`, `selectArm_next`, `selectArm_default`, `resolveD_filter_list`, `resolveD_filter_scalar`), **landed 2026-10-19** | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
-| **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking `Output` at every position (`DefaultsLe`, with `defaults_sees_the_default`) and `gen` the marks as a predicate (decision 10), and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; open: the rows for maps, lists and seals, the constraint algebra's table, and the generated `subsume` rows | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
+| **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking `Output` at every position (`DefaultsLe`, with `defaults_sees_the_default`) and `gen` the marks as a predicate (decision 10), and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; the same day `leDecF`, the order decided with its proof where the scalars and the connectives decide it, `not_le_of_witness`, and the ninth fragment, `test/spec/def-subsume.tsv`, 2,326 `subsumption` rows under the `values` profile over 50 values pairwise, both ports answering as the contract allows but for three rows under #346 in the ledger; open: the rows for maps, lists and seals as theorems, the constraint algebra's table, and the `defaults` and `gen` rows (decisions 11 and 12) | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
 
@@ -507,6 +507,29 @@ encodes it lands.
    decides stated, which the hash form's obligation in §1 asks for
    anyway, or the predicate stays, and the `gen` profile is held to
    the definition only through `defaults`.
+11. **The effective default under `defaults`.** Open, raised 2026-10-19
+   by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
+   side to every value the specific side singles out at a position, a
+   literal's own value included, since replacing `{a: 1}` by
+   `{a: integer}` leaves a document that generated before incomplete,
+   which is the reason the reference gives for `compat_default_changed`.
+   The reference's definition of an effective default, a preference's
+   value or the lowest-ranked preference's, counts no literal, and both
+   ports follow it: `kind-over-scalar` in `test/spec/subsume.tsv`
+   answers `subsumes` for `integer` over `1` under the default profile,
+   which `ProfileCorrect .defaults` refuses. Either the contract narrows
+   to the terms that declare a default, or the ports and the page move.
+   The generated rows run under `values` until it is ruled.
+12. **A `does_not_subsume` with no witness.** Open, raised 2026-10-19
+   (#375). Both ports answer `does_not_subsume` for `string` over
+   `min("a")`, `above("")` and a pattern that cannot match `""`, where
+   the order holds, under the reference's "folds toward
+   `does_not_subsume`"; `SubsumeCorrect` allows `doesNotSubsume` only
+   where the order fails, as the reference's own description of the
+   verdict, a failing path as the witness, asks. Either the ports answer
+   `undecided` where they cannot decide, or the contract weakens to the
+   paragraph, under which a `subsume` that always answers
+   `does_not_subsume` is correct. The definition recommends the first.
 
 ## 8. Risks
 

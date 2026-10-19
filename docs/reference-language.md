@@ -4969,7 +4969,7 @@ generable documents materialise differently or become incomplete.
 | anything | disjunction | yes where the two are identical; otherwise every specific alternative must be admitted by A, a concrete failing alternative is a witness (`compat_narrowed`), and a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
 | disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`): member-wise failure is not proof, the distribution case |
 | scalar kind | scalar kind or scalar | the general kind admits the specific kind (`number ⊒ integer`) or the scalar's kind; distinct leaves are disjoint |
-| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, `string` admits any pattern residual |
+| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, `string & empty()` admits any string bound, pattern or format; `string` covers none of those, since each may admit `""`, which it refuses |
 | constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) unless the two are identical |
 | constraint residual | scalar | membership, with `must` again `undecided`; `unique()` and `length` demands admit no scalar |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |

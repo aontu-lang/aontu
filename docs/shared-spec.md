@@ -28,7 +28,7 @@ name <TAB> mode <TAB> src <TAB> expect
 | column   | meaning                                                        |
 |----------|----------------------------------------------------------------|
 | `name`   | short identifier for the case (unique within its file)         |
-| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
+| `mode`   | `canon`, `gen`, `gens`, `err`, `errc`, `errcode`, `vet`, `verdict`, `subsume`, `subsumption`, `query`, `why`, `patch`, `diff`, `agentsmd`, `trim`, `hcanon`, `hash`, `jsonschema`, `jsonschema-import`, `jsonschema-upgrade`, `fmt`, `fmt-refuse`, `fmt-lint`, `fmt-template`, `fmt-template-lint`, `graph`, `relation`, `reaches`, `view`, `views`, `trace` or `template` (see below) |
 | `src`    | aontu source text to evaluate                                  |
 | `expect` | the expected result, interpreted according to `mode`          |
 
@@ -72,6 +72,7 @@ name <TAB> fmt-template-lint <TAB> src <TAB> marker <TAB> expect
 | `vet`   | five columns: `vet(schema, data)` must produce the report `expect` describes, MINUS each finding's message |
 | `verdict` | five columns: `vet(schema, data)` must produce the verdict `expect` names under `verdict`, one name or a list of the names it may be; options ride `opts`; the runner compares nothing else in the report. The definition under `spec/` generates the rows of `def-fragment.tsv`, and a row that `spec/ledger.tsv` names must fail, so a case the engine comes to answer leaves the ledger |
 | `subsume` | five columns: `subsume(general, specific)` must produce the report `expect` describes (verdict + findings), message included |
+| `subsumption` | five columns: `subsume(general, specific)` must produce a verdict `expect` names under `verdict`, one name or a list of the names the profile's contract allows, `undecided` always among them; the profile rides `opts`; the runner compares nothing else in the report. The definition under `spec/` generates the rows of `def-subsume.tsv`, and a row that `spec/ledger.tsv` names must fail, as a `verdict` row does |
 | `query` | five columns: `get(src, path)` must produce the report `expect` describes (`out`, or `code`/`note`; options ride `opts`), and a canon-shaped VIEW must additionally SUBSUME the truth it summarises |
 | `why`   | five columns: `why(src, path)` must produce the record `expect` describes (`value` and the ordered `conjuncts`, or `code`/`note`) |
 | `patch` | five columns: `patch(entry, overlay, set)` must produce the report `expect` describes (`appended`, `overlay`, `verdict`, and `codes` when there are findings), and the result must be ORDER-INDEPENDENT: entry-against-overlay and overlay-against-entry must reach the same verdict |
