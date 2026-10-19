@@ -32,5 +32,5 @@ report: {
   audit: hide("kept-off-the-wire")
   annotations: { &: string & len(max(63)) }
   slugs: { &: key(0) }
-  attempts: [&: multiple(1)] & len(max(3))
+  attempts: [&: mulof(1)] & len(max(3))
 }

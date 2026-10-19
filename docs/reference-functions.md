@@ -351,7 +351,7 @@ documentation page and fails on a difference of one space.
 | `mod(a: number, b: number) : number` | `2` | `value` | `number` |
 | `move(v: any) : any` | `1` | `value` | `any` |
 | `mul(a: number, b: number) : number` | `2` | `value` | `number` |
-| `multiple(n: number) : constraint` | `1` | `value` | `constraint` |
+| `mulof(n: number) : constraint` | `1` | `value` | `constraint` |
 | `must(trial c: any, text msg: string) : constraint` | `2` | `trial`, `text` | `constraint` |
 | `neq(...vals: number\|string) : constraint` | `1..n` | `value` | `constraint` |
 | `nof(n: number\|constraint, ...c: (trial any)) : constraint` | `2..n` | `value`, `trial` | `constraint` |
@@ -399,7 +399,7 @@ The ten result words, and the names under each:
 | result | count | names |
 |---|---|---|
 | `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
-| `constraint` | 20 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `multiple`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
+| `constraint` | 20 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `refer`, `rel`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
 | `map` | 11 | `content`, `copyfiles`, `file`, `folder`, `fragment`, `inject`, `line`, `listitems`, `pack`, `project`, `slot` |
 | `map\|list` | 1 | `filter` |

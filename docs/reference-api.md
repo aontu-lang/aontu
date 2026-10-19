@@ -510,7 +510,7 @@ Write `order.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --uri https://example.com/order --source-map order.map.json order.json
-%d_count = number & multiple(1) & min(1)
+%d_count = number & mulof(1) & min(1)
 
 qty?: %d_count
 sku: any
@@ -520,7 +520,7 @@ Save the text as `order.aontu`:
 
 <!-- test: file order.aontu -->
 ```aontu
-%d_count = number & multiple(1) & min(1)
+%d_count = number & mulof(1) & min(1)
 
 qty?: %d_count
 sku: any
@@ -1668,8 +1668,8 @@ written, `\d`, `\w`, `\D` and `\W` among it;
 `x-aontu-format` for a grammar, two of either an `allOf` of them, each
 with a loss (below);
 `neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
-`multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
-and `number & multiple(1)` is `type: integer`;
+`mulof(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
+and `number & mulof(1)` is `type: integer`;
 `nof(n, …)` becomes `anyOf` for a count of at least one, `oneOf` for
 exactly one, `not` for none and an `allOf` of the branches for every
 one;
@@ -1752,8 +1752,8 @@ The losses, and why each is one:
 | `must(c, m)` | the check crosses as `allOf` of its trial schema, but JSON Schema has no keyword for its message, which is dropped |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal` | no JSON Schema type admits one leaf of a number, so the schema says `number` or `integer` and admits the other leaves |
-| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
-| `len(multiple(n))` | no keyword constrains a count's divisor |
+| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & mulof(1)` is its integer, and crosses without loss |
+| `len(mulof(n))` | no keyword constrains a count's divisor |
 | `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
 | `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
 | `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
@@ -1992,10 +1992,10 @@ y: number
 
 | Keyword | Becomes |
 |---|---|
-| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)`; every kind narrowed by nothing is `any` |
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & mulof(1)`; every kind narrowed by nothing is `any` |
 | `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value; a `type` beside a `const` of its kind adds nothing and is not written |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
-| `multipleOf` | `multiple`, its divisor written by value |
+| `multipleOf` | `mulof`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
 | `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
 | `properties`, `required` | keys, optional unless required |

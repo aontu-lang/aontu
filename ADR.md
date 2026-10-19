@@ -4801,7 +4801,7 @@ two values, and the conformance harness requires it to agree with
 ## ADR-048 — Divisibility reads the number a value shows
 
 **Date:** 2026-10-01
-**Status:** Moved to the definition (2026-10-19): the `multiple` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean), over `Number.multipleOf` in [`spec/Aontu/Data.lean`](spec/Aontu/Data.lean), which reads a float as the decimal it shows.
+**Status:** Moved to the definition (2026-10-19): the `mulof` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean), over `Number.multipleOf` in [`spec/Aontu/Data.lean`](spec/Aontu/Data.lean), which reads a float as the decimal it shows. Amended 2026-10-19: the atom this record spells `multiple(n)` is `mulof(n)`, in both ports, the grammars and the definition; the text below keeps the spelling it was decided under.
 
 ### Context
 

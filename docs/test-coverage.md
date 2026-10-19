@@ -180,7 +180,7 @@ implementations and is the contract that defines shared behaviour
 | `relation.tsv`              |  56 | `trim.tsv` | 11 |
 | `rest.tsv`                  |  56 | `gen-spread.tsv` |  9 |
 | `gen-each.tsv`              |  55 | `incomplete.tsv` |  9 |
-| `constraint-multiple.tsv`   |  54 | `trace.tsv` |  9 |
+| `constraint-mulof.tsv`   |  54 | `trace.tsv` |  9 |
 | `why.tsv`                   |  53 | `agentsmd.tsv` |  7 |
 | `abnf.tsv`                  |  52 | `container-path.tsv` |  7 |
 | `agg.tsv`                   |  50 | `comment.tsv` |  6 |
