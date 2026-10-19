@@ -1,4 +1,5 @@
 import Aontu.Order
+import Aontu.Names
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
@@ -102,3 +103,19 @@ line each comment states.
 /-- info: 'Aontu.vet_invalid_not_instance' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.vet_invalid_not_instance
+
+/-- info: 'Aontu.Decls.recursiveB_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Decls.recursiveB_iff
+
+/-- info: 'Aontu.Decls.guardedB_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Decls.guardedB_iff
+
+/-- info: 'Aontu.Decls.declaresB_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Decls.declaresB_iff
+
+/-- info: 'Aontu.alias_self_admits_nothing' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.alias_self_admits_nothing

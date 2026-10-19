@@ -1,4 +1,5 @@
 import Aontu.Order
+import Aontu.Names
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
@@ -670,6 +671,59 @@ example : Instance .empty (refDoc .any)
   · intro k o v hm hx
     simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
     rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> nomatch hx
+
+/-! ## The graph of names -/
+
+/-- `%N = {n: integer, next?: %N}`, as a document declares it. -/
+abbrev declsN : Decls := [("N", .map [("n", false, .integer), ("next", true, .alias "N")] none false)]
+
+/-- `N` refers to itself, so it is recursive… -/
+example : declsN.Recursive "N" := Decls.recursiveB_iff.mp (by decide)
+
+/-- …through the key `next`, so the declarations keep the alias-cycle
+rule: every cycle of names passes through a key or an element. -/
+example : declsN.Guarded := Decls.guardedB_iff.mp (by decide)
+
+/-- `%A = {b?: %B}` and `%B = {a?: %A}`: each recursive through the
+other, and guarded. -/
+abbrev declsAB : Decls :=
+  [("A", .map [("b", true, .alias "B")] none false), ("B", .map [("a", true, .alias "A")] none false)]
+
+example : declsAB.Recursive "B" := Decls.recursiveB_iff.mp (by decide)
+
+example : declsAB.Guarded := Decls.guardedB_iff.mp (by decide)
+
+/-- `%U = %U` refers to itself with nothing between, which the rule
+refuses… -/
+example : ¬ Decls.Guarded [("U", .alias "U")] := fun h =>
+  nomatch (by decide : Decls.guardedB [("U", .alias "U")] = false).symm.trans (Decls.guardedB_iff.mpr h)
+
+/-- …and it admits nothing: a derivation would have to begin with
+another. -/
+example : ¬ Admits (Decls.env [("U", .alias "U")]) .null (.alias "U") (.integer 1) :=
+  Decls.alias_self_admits_nothing
+
+/-- `%T = %T | 1` breaks the rule too, through `|`… -/
+abbrev declsT : Decls := [("T", .or [(0, .alias "T"), (0, .lit (.num (.integer (.of 1))))])]
+
+example : ¬ declsT.Guarded := fun h =>
+  nomatch (by decide : declsT.guardedB = false).symm.trans (Decls.guardedB_iff.mpr h)
+
+/-- …though it admits `1`, by its second arm: the engines run it, and
+the rule refuses it. -/
+example : Admits declsT.env .null (.alias "T") (.integer 1) :=
+  .alias rfl (.or (List.mem_cons_of_mem _ (List.mem_singleton.mpr rfl)) .num)
+
+/-- `%A = %B` and `%B = %A`: a cycle with nothing between, through two
+names. -/
+example : ¬ Decls.Guarded [("A", .alias "B"), ("B", .alias "A")] := fun h =>
+  nomatch (by decide : Decls.guardedB [("A", .alias "B"), ("B", .alias "A")] = false).symm.trans
+    (Decls.guardedB_iff.mpr h)
+
+/-- `{x: %A}` under `%A = %B` alone refers to a name declared nowhere. -/
+example : ¬ Decls.Declares [("A", .alias "B")] (.map [("x", false, .alias "A")] none false) := fun h =>
+  nomatch (by decide : Decls.declaresB [("A", .alias "B")]
+    (.map [("x", false, .alias "A")] none false) = false).symm.trans (Decls.declaresB_iff.mpr h)
 
 /-! ## The order -/
 
