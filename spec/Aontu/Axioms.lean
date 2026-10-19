@@ -34,6 +34,18 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.vetP_iff
 
+/-- info: 'Aontu.judge_unique' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.judge_unique
+
+/-- info: 'Aontu.checkWith_judge' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.checkWith_judge
+
+/-- info: 'Aontu.checkR_judge' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.checkR_judge
+
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.wf_iff

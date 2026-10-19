@@ -61,17 +61,24 @@ theorem Decls.envE_eq {ds : Decls} {n : String} {b : Val} (h : ds.env n = some b
     ds.envE n = some (expand ds b) := by
   simp only [Decls.envE, h, Option.map_some']
 
-/-- A reference admits what the expansion of its body admits. -/
-theorem admits_alias_iff {ds : Decls} {root : Data} {k : String} {body : Val} {j : Data}
+/-- A reference judges as the expansion of its body judges. -/
+theorem judge_alias_iff {ds : Decls} {root : Data} {b : Bool} {k : String} {body : Val} {j : Data}
     (h : ds.env k = some body) :
-    Admits ds.envE root (.alias k) j ↔ Admits ds.envE root (expand ds body) j := by
+    Judge ds.envE root b (.alias k) j ↔ Judge ds.envE root b (expand ds body) j := by
   constructor
   · intro ha
     cases ha with
     | alias he hb =>
       rw [Decls.envE_eq h] at he
       exact Option.some.inj he ▸ hb
+    | aliasNone he => rw [Decls.envE_eq h] at he; cases he
   · exact fun hb => .alias (Decls.envE_eq h) hb
+
+/-- A reference admits what the expansion of its body admits. -/
+theorem admits_alias_iff {ds : Decls} {root : Data} {k : String} {body : Val} {j : Data}
+    (h : ds.env k = some body) :
+    Admits ds.envE root (.alias k) j ↔ Admits ds.envE root (expand ds body) j :=
+  judge_alias_iff h
 
 /-! ## A checker that reads the names
 
@@ -318,33 +325,27 @@ theorem Decls.budget_push {ds : Decls} {j : Data} {k : String} {stack : List Str
 
 /-! ### The checker under the declarations is the definition's -/
 
-theorem checkD_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+theorem checkD_judge {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ (n : ℕ) (stack : List String) (v : Val) (j : Data), ds.Stacked stack v →
-      ds.budget j stack ≤ n → v.CheckableA → (checkD ds n stack v j = true ↔ Admits ds.envE root v j)
+      ds.budget j stack ≤ n → v.CheckableA → Judge ds.envE root (checkD ds n stack v j) v j
   | 0, stack, _, j, _, hn, _ => absurd (Nat.le_trans (ds.budget_pos j stack) hn) (Nat.not_succ_le_zero 0)
   | n + 1, stack, v, j, hs, hn, hv => by
     simp only [checkD]
-    apply checkWith_iff hv j
+    apply checkWith_judge hv j
     intro k j' hk
     dsimp only
     rcases hk with ⟨hlt, -⟩ | ⟨heq, hku⟩
     · cases he : ds.env k with
-      | none =>
-        exact ⟨(fun h => nomatch h), (fun h => by
-          cases h with
-          | alias he' _ => simp [Decls.envE, he] at he')⟩
+      | none => exact .aliasNone (by simp [Decls.envE, he])
       | some b =>
         simp only [hlt, ↓reduceIte]
         have hn' : ds.budget j' [] ≤ n :=
           Nat.le_of_succ_le_succ (Nat.le_trans (ds.budget_lighter stack hlt) hn)
-        rw [checkD_iff hg hb n [] (expand ds b) j' (Decls.Stacked.nil _) hn' (expand_checkableA hb
-          (Decls.env_checkableA hb he)), admits_alias_iff he]
+        exact (judge_alias_iff he).mpr (checkD_judge hg hb n [] (expand ds b) j' (Decls.Stacked.nil _) hn'
+          (expand_checkableA hb (Decls.env_checkableA hb he)))
     · have hnot : k ∉ stack := hs.not_mem hg hku
       cases he : ds.env k with
-      | none =>
-        exact ⟨(fun h => nomatch h), (fun h => by
-          cases h with
-          | alias he' _ => simp [Decls.envE, he] at he')⟩
+      | none => exact .aliasNone (by simp [Decls.envE, he])
       | some b =>
         have hnlt : ¬ j'.weight < j.weight := fun h => Nat.lt_irrefl _ (heq ▸ h)
         have hcon : ¬ stack.contains k = true := fun h => hnot (List.contains_iff_mem.mp h)
@@ -357,15 +358,21 @@ theorem checkD_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d �
           rw [hw] at hpush
           rw [← hpush] at hn
           exact Nat.le_of_succ_le_succ hn
-        rw [checkD_iff hg hb n (k :: stack) (expand ds b) j' hs' hn' (expand_checkableA hb
-          (Decls.env_checkableA hb he)), admits_alias_iff he]
+        exact (judge_alias_iff he).mpr (checkD_judge hg hb n (k :: stack) (expand ds b) j' hs' hn'
+          (expand_checkableA hb (Decls.env_checkableA hb he)))
 
-/-- The checker under the declarations decides admission for every value
-it can check, wherever the names keep the alias-cycle rule. -/
+/-- The checker under the declarations judges every value it can check
+as the definition does, wherever the names keep the alias-cycle rule. -/
+theorem checkR_judge {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    {v : Val} (hv : v.CheckableA) (j : Data) : Judge ds.envE root (checkR ds v j) v j :=
+  checkD_judge hg hb _ [] v j (Decls.Stacked.nil _) (Nat.le_refl _) hv
+
+/-- The checker under the declarations decides admission, and refusal,
+for every value it can check, wherever the names keep the alias-cycle
+rule. -/
 theorem checkR_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    {v : Val} (hv : v.CheckableA) (j : Data) : checkR ds v j = true ↔ Admits ds.envE root v j :=
-  checkD_iff hg hb _ [] v j (Decls.Stacked.nil _) (Nat.le_refl _) hv
-
+    {v : Val} (hv : v.CheckableA) (j : Data) {b : Bool} : checkR ds v j = b ↔ Judge ds.envE root b v j :=
+  (checkR_judge hg hb hv j).toIff
 
 /-! ## The meet with the declarations -/
 

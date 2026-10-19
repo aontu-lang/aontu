@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### The definition says what a value refuses
+
+Definition and documentation; no engine changes and no row changes.
+
+- `spec/Aontu/Admits.lean`: the admission relation is one relation with
+  two answers, `Judge env root b v j`, the trial of the value `v` on the
+  data `j` coming out `b`: `Admits` is the answer `true` and `Refuses`
+  the answer `false`, and every form has a rule for each, refusal the
+  complement of admission rule for rule. The two answers are one
+  relation so that a rule can read a refusal where it needs one, which
+  the trial schemas of P4 do, counting the branches that refuse a value
+  as well as those that admit it. `judge_unique` proves no value both
+  admits and refuses a datum, and `alias_self_judges_nothing` that a
+  name declared as itself alone does neither. A name with no
+  declaration and a path left unread refuse every value, the answer for
+  a reading the definition was not given; no verdict reaches either,
+  since `Vet` refuses an undeclared name as an `error` and `VetP` reads
+  every path before it judges.
+- The checker's answer is the judgement: `checkWith_judge`,
+  `checkSuperWith_judge`, `checkR_judge` and `check_judge` prove that
+  the `Bool` each computes is what the definition says, so `checkWith_iff`,
+  `checkR_iff`, `check_iff` and `checkSuper_iff` now read `= b ↔ Judge …
+  b …` for either answer, and the hook contract `HookOk` asks the hook
+  for a judgement where it is asked. Every proof stays constructive, and
+  the axiom gate holds the new theorems.
+- The tutorial's step 2 introduces the two answers and `judge_unique`,
+  and each rule it quotes carries its refusal; step 17 reads the
+  checker's `false` as refusal.
+
 ### The definition reads a path by declaration
 
 Definition, generated rows, and documentation; no engine changes.

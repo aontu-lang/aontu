@@ -493,11 +493,12 @@ theorem declaresB_iff {ds : Decls} {v : Val} : ds.declaresB v = true ↔ ds.Decl
 
 end Decls
 
-/-- A name declared as itself alone admits nothing: a derivation of what
-it admits would have to begin with another, so none is finite. -/
-theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Data}
-    (h : env n = some (.alias n)) : ¬ Admits env root (.alias n) j := by
-  suffices ∀ v, Admits env root v j → v ≠ .alias n from fun ha => this _ ha rfl
+/-- A name declared as itself alone judges nothing, so it admits nothing
+and refuses nothing: a derivation of either would have to begin with
+another, so none is finite. -/
+theorem alias_self_judges_nothing {env : Env} {root : Data} {b : Bool} {n : String} {j : Data}
+    (h : env n = some (.alias n)) : ¬ Judge env root b (.alias n) j := by
+  suffices ∀ v, Judge env root b v j → v ≠ .alias n from fun ha => this _ ha rfl
   intro v ha
   induction ha with
   | alias he _ ih =>
@@ -506,7 +507,17 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
     rw [h] at he
     cases he
     exact ih rfl
+  | aliasNone he =>
+    intro hv
+    cases hv
+    rw [h] at he
+    cases he
   | _ => intro hv; cases hv
+
+/-- A name declared as itself alone admits nothing. -/
+theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Data}
+    (h : env n = some (.alias n)) : ¬ Admits env root (.alias n) j :=
+  alias_self_judges_nothing h
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=

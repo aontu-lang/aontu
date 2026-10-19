@@ -51,8 +51,11 @@ asks of P3 is taken: the alias-cycle rule refuses no bundled model and
 no use case, and in the suite three documents, `%a = %a` and
 `%a = %b, %b = %a` in `test/spec/alias.tsv`, which the ports refuse
 already as `recursion_unexpanded` and `path_cycle`, and `%A = %A | 1`
-in `test/spec/recursion.tsv`, a `subsume` row the ports answer. P4, P6
-and P7 not started. The
+in `test/spec/recursion.tsv`, a `subsume` row the ports answer. P4 IN
+PROGRESS: refusal beside admission as the two answers of one relation,
+`Judge`, with the checker's `false` proved refusal, landed 2026-10-19
+(§3), and the trial forms inside a value come next. P6 and P7 not
+started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -74,7 +77,7 @@ them:
 
 | Relation | The question it answers | The verb that asks it |
 |---|---|---|
-| `Admits env root v j` | is the data `j`, inside the instance `root`, an instance of the value `v` | `vet` |
+| `Admits env root v j` | is the data `j`, inside the instance `root`, an instance of the value `v`; the answer `true` of `Judge env root b v j`, the trial of `v` on `j`, whose answer `false` is `Refuses` | `vet` |
 | `Output env root v j` | is `j` the one output `v` singles out, inside the output `root` | evaluation, `gen` |
 | `Le env (ra, a) (rb, b)` | is every instance of `a` under its root `ra` an instance of `b` under its root `rb` | `subsume` under the `values` profile, `breaking` |
 
@@ -99,8 +102,9 @@ by proof, never by running anything. Lean refuses to execute one
 between a definition and a fourth implementation. Executable code is
 admitted into the definition only beside a theorem that it agrees with
 the relation it computes, as
-`check_iff : check v j = true ↔ Admits env root v j` does for every
-value that reads no reference. Without that theorem a Lean program is a third port
+`check_iff : check v j = b ↔ Judge env root b v j` does for every
+value that reads no reference, its `true` admission and its `false`
+refusal. Without that theorem a Lean program is a third port
 with no more authority than the other two.
 
 **Authority.** The definition is normative: the TypeScript and Go
@@ -168,7 +172,7 @@ One module per layer:
 |---|---|
 | `Aontu/Data.lean` | the data model, aontu's own values and scalars first: numbers in the four leaves, each held as what it is (an integer and a big integer as an `Int`, a float as its binary64 fields, a big decimal as a coefficient and a scale with no trailing zero), strings, maps, and lists |
 | `Aontu/Syntax.lean` | the abstract value forms, one constructor per construct; the concrete grammar stays where it is, and a parser is an implementation |
-| `Aontu/Admits.lean` | the admission rules, one per form, and `Instance`, admission of a whole document |
+| `Aontu/Admits.lean` | `Judge`, the trial of a value on a datum with its answer, admission and refusal as one relation with a rule per form and per answer; `judge_unique`, that no value gives both; and `Instance`, admission of a whole document |
 | `Aontu/Output.lean` | from P2: `Gen` and `Output` under a document root, what evaluation singles out, and that it is unique |
 | `Aontu/Order.lean` | `Le` with one root per side, the meet as a greatest lower bound, and one contract per `subsume` profile: `values` against `Le`, the default also against `Output` for the effective default, `gen` also against the marks |
 | `Aontu/Trial.lean` | the trial-schema layer: `nof`, `when`, `contains`, `must`, `rest`, where negation lives (§4, P4) |
@@ -369,7 +373,7 @@ documents only.
 | **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
-| **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
+| **P4**: trial schemas (L) | **IN PROGRESS**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; still to land, the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
@@ -416,7 +420,11 @@ encodes it lands.
    `%a = %b, %b = %a` in `test/spec/alias.tsv`, which the ports refuse
    already as `recursion_unexpanded` and `path_cycle`, and `%A = %A | 1`
    in `test/spec/recursion.tsv`, which the ports run as the second arm
-   and `subsume` answers; the ruling stands.
+   and `subsume` answers; the ruling stands. Encoded 2026-10-19, the
+   first step of P4: refusal is the second answer of the one relation,
+   `Judge`, so a trial schema reads the branches that refuse a value
+   without a negation, and the alias-cycle rule is what keeps a trial
+   that reads only by itself, `%T = nof(0, %T)`, an `error`.
 3. **Error codes.** The codes are append-only and the ports agree on
    them row by row. In the definition they would be a function from a
    refusal's shape to a code, which is a large table to prove anything
