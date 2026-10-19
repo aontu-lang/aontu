@@ -5,10 +5,10 @@
 # rows. The Lean release is fetched by hash rather than through elan,
 # whose self-update check does not pass every proxy.
 #
-# In the standard CI this runs only when the definition or its rows
-# change -- the path lists, written out twice because a workflow cannot
-# share one -- and in the daily run always, through workflow_call. The
-# build directory is cached on the sources' hash, with the newest cache
+# It runs in the daily run, through workflow_call, and by hand; not on
+# a push or a pull request, since a cold build passes the five-minute
+# budget a pull request is held to (ADR-071). `make spec` runs it
+# locally. The build directory is cached on the sources' hash, with the newest cache
 # restored when none matches, so a change to one file rebuilds that
 # file's dependants rather than the whole definition, which takes three
 # minutes cold.
@@ -16,18 +16,6 @@
 name: spec
 
 on:
-  push:
-    paths:
-      - 'spec/**'
-      - 'test/spec/def-*.tsv'
-      - 'Makefile'
-      - '.github/workflows/spec.yml'
-  pull_request:
-    paths:
-      - 'spec/**'
-      - 'test/spec/def-*.tsv'
-      - 'Makefile'
-      - '.github/workflows/spec.yml'
   workflow_call:
   workflow_dispatch:
 
@@ -37,7 +25,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Fetch Lean 4.15.0
         env:
           LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.zip
@@ -50,7 +38,7 @@ jobs:
       # Lake decides what to rebuild by the hash of each file's text,
       # not its date, so a cache from another commit is safe to restore:
       # what is unchanged is reused, what changed is rebuilt.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: spec/.lake
           key: lake-${{ hashFiles('spec/lean-toolchain', 'spec/lakefile.toml', 'spec/**/*.lean') }}

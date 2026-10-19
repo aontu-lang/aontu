@@ -111,11 +111,11 @@ jobs:
 
     steps:
       # fetch-depth: 0 so the tag guards below can see refs/tags/*.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
@@ -346,7 +346,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -420,9 +420,9 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go/go.mod
 
@@ -431,7 +431,7 @@ jobs:
           GO_VERSION: ${{ needs.publish.outputs.go_version }}
         run: go/scripts/binaries.sh "$GO_VERSION" dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: go-binaries
           path: go/dist/
@@ -454,9 +454,9 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: go-binaries
           path: dist
@@ -470,9 +470,9 @@ jobs:
             tar -C dist -xzf "dist/aontu_${GO_VERSION}_linux_${arch}.tar.gz"
           done
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -492,7 +492,7 @@ jobs:
           esac
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: dist
           file: go/scripts/Dockerfile
@@ -515,7 +515,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: go-binaries
           path: dist

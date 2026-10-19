@@ -119,7 +119,7 @@ verdict class and can hand the SARIF to code scanning:
 <!-- test: skip CI configuration; not executable here -->
 ```yaml
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
   - uses: aontu-lang/aontu/vet-action@main
     with:
       schema: schema.aontu

@@ -79,17 +79,11 @@ reaching an analyser. The test project is not gated the same way.
 
 ### Before you push
 
-Nothing in git refuses a push on its own, so the gates are these, in the
-order that fails fastest:
-
-```sh
-make comments   # ADR-032: the code-comment gate, about a second
-make build      # rebuilds ts/dist + ts/dist-test, sigdecl, helpdoc, aontu
-make test       # both suites
-make cov        # the ADR-002 floor, and what CI grades
-make prose      # only if docs/ or a README changed
-(cd use-cases && ./run-all.sh)
-```
+`make quick` (ADR-071): the comment gate, both builds, the gate group
+and the Go suite, inside two minutes. A commit may be broken; a push
+should not be. The rest is CI's, run by hand when a change reaches it:
+`make test`, `make cov`, `make prose`, `make spec`,
+`(cd use-cases && ./run-all.sh)`.
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
 runs the comment gate. It is a convenience, not the enforcement: the gate
@@ -100,9 +94,9 @@ Two failures are found in CI rather than locally: a generated copy or
 `ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
 changes), and a use case broken by a language change.
 
-CI is two workflows (ADR-070).
+CI is two workflows (ADR-070, ADR-071).
 [`build.yml`](.github/workflows/build.yml), on every push and pull
-request, Linux only, about three minutes: the happy path and **one
+request, Linux only, five minutes at most: the happy path and **one
 sampled group** of the TypeScript suite from
 [`ts/test/groups.tsv`](ts/test/groups.tsv).
 [`daily.yml`](.github/workflows/daily.yml), nightly on `main` and on

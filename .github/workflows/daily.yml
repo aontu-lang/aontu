@@ -33,8 +33,9 @@ jobs:
     # minutes on a slow registry hour, which left the six-minute budget
     # no room for the tests they were still passing. The npm cache
     # below keeps the downloads across runs; the budget keeps a slow
-    # hour from reading as a failure.
-    timeout-minutes: 12
+    # hour from reading as a failure. Twenty since Windows passed twelve
+    # (run 39280595195): the daily run has no time budget (ADR-071).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -45,9 +46,9 @@ jobs:
       run:
         working-directory: ts
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -69,9 +70,9 @@ jobs:
       run:
         working-directory: go
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
       - run: go build ./...
@@ -97,11 +98,11 @@ jobs:
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.x
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: 'stable'
       - run: npm install
@@ -163,8 +164,8 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.x
       - run: npm install
@@ -201,13 +202,13 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # NODE 24 IS NOT INCIDENTAL. The reference's validate.ts is
       # TypeScript run by node directly; type stripping arrives in
       # 22.18, and check.sh skips that leg with the version in the note
       # on anything older rather than dying in the parser.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24.x
 
@@ -255,9 +256,8 @@ jobs:
           RB_SOLAR_SDK: ${{ runner.temp }}/solardemo/rb
         run: ./check.sh
 
-  # THE DEFINITION, as spec.yml checks it when spec/ changes: here on
-  # every run, since a change elsewhere can move what the ports answer
-  # for the rows.
+  # THE DEFINITION. Only here: a cold Lean build passes the pull
+  # request budget (ADR-071).
   spec:
     name: The definition
     uses: ./.github/workflows/spec.yml

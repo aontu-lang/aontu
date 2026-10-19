@@ -113,15 +113,19 @@ engine codes must land with a registry row in the same change.
 
 ## The standard run and the sampled groups
 
+Before a push, `make quick` runs the comment gate, both builds, the
+gate group and the Go suite, inside two minutes (ADR-071); the rest
+below is CI's, and runs by hand when a change reaches it.
+
 CI is two workflows (ADR-070). `build.yml`, the standard run, runs on
-every push and pull request, on Linux, in about three minutes: the
+every push and pull request, on Linux, in about three minutes and
+never more than five: the
 happy path (both builds, a tree that does not change under `make
 build-ts`, the comment gate, Go's whole suite) and ONE group of the
 TypeScript suite. `daily.yml`, the full run, runs nightly on `main` and
 on every push to `release`: the TypeScript and Go suites whole on three
 operating systems, the coverage gate, the use cases, the system, the
-definition (`spec.yml`, which the standard run also runs when `spec/`
-or its rows change) and the prose gate (`docs.yml`). What the sample
+definition (`spec.yml`; `make spec` runs it locally) and the prose gate (`docs.yml`). What the sample
 misses, the daily finds, the next morning.
 
 The groups are `ts/test/groups.tsv`, one row per test file, and

@@ -2,7 +2,7 @@
         install install-ts install-go \
         publish publish-go check-go-major tags-go reset cov cov-ts cov-go sig \
         helpdoc aontu formats formatgen unicodegen vocabularies metaschemas prose \
-        prose-counts comments hooks
+        prose-counts comments hooks quick
 
 all: build test
 
@@ -195,6 +195,15 @@ test-ts:
 # G=all runs every group.
 test-group:
 	cd ts && node scripts/test-group.cjs --run $(G)
+
+# The check before a push, inside two minutes (ADR-071): the comment
+# gate, both builds, the gate group and the Go suite. The other groups,
+# the other operating systems, the prose gate and the definition are
+# CI's: make test-group, make prose and make spec run them by hand.
+quick: comments build-ts
+	cd go && go build ./... && go vet ./...
+	cd ts && node scripts/test-group.cjs --run 0
+	cd go && go test ./...
 
 clean-ts:
 	rm -rf ts/dist ts/dist-test ts/.tsbuild
