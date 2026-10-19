@@ -211,7 +211,8 @@ spec:
 	cd spec && lake exe oracle bounds > ../test/spec/def-bounds.tsv
 	cd spec && lake exe oracle choice > ../test/spec/def-choice.tsv
 	cd spec && lake exe oracle gen > ../test/spec/def-gen.tsv
-	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv
+	cd spec && lake exe oracle verdict > ../test/spec/def-verdict.tsv
+	git diff --exit-code --stat -- test/spec/def-fragment.tsv test/spec/def-bounds.tsv test/spec/def-choice.tsv test/spec/def-gen.tsv test/spec/def-verdict.tsv
 
 clean-go:
 	cd go && go clean

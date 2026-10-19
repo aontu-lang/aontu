@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### The definition states the verdicts of vet
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `Vet m env S j v` in `spec/Aontu/Verdict.lean`: `error` where the
+  schema's normal form holds a `nil` anywhere but in a spread or a
+  preference clash, two preferred arms of one rank that single out
+  different values; `invalid` where the meet of the schema with the
+  data as a term is dead; `valid` where that meet singles out a value,
+  and without the fill where the data as written is an instance too,
+  or where `--partial` lets the unresolved pass; `incomplete`
+  otherwise. The mode is two switches, the fill and `--partial`. `vet`
+  computes the verdict beside `vet_iff`.
+- Three theorems hold the words to the relations: without the fill,
+  `valid` is `Instance`; with it, the filled value is an instance of
+  the schema; `invalid` is never an instance.
+- The fifth generated fragment, `test/spec/def-verdict.tsv`: the cases
+  of `vetCases` in the default mode, without the fill and under
+  `--partial`, each with the one class `vet` gives. Both ports agree
+  with the definition on every row.
+- The tutorial gains step 14, the verdicts, and step 15 records the
+  two corners the rows keep away from: a `nil` written, which the
+  engines answer `invalid`, and a contradiction under an optional key,
+  which they answer `error`.
+
 ### The definition states what evaluation singles out
 
 Definition, generated rows, and documentation; no engine changes.

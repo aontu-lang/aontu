@@ -44,6 +44,7 @@ to the JSON Schema suite.
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, the strict bounds under their closed ones (`above_le_min`, `beneath_le_max`), ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Meet.lean` | `meet`, the meet computed as the engines compute it, one step at a time: `nil` the zero and `any` the unit, a disjunction met arm by arm with its dead arms dropped, a preference alone as `x \| super(x)`, two maps merged key by key and two lists position by position, a literal met with what admits it, and two atoms that share no value met in `nil`; beside `admits_meet`, the theorem that the term it computes admits a value exactly when both sides do, and `normalise`, a term met with `any` |
 | `Aontu/Output.lean` | `Gen`, what a term generates, by recursion on the term: a literal its value, a map its declared keys that generate, a list its positions, a disjunction what the arms the rank rule picks all generate, a meet left as written what one side generates and the other admits; `Output`, `Gen` of the normal form; `output_admits`, ADR-007; `output_unique`; and `gen`, which computes it, beside `gen_iff` |
+| `Aontu/Verdict.lean` | `Vet`, the verdict `vet` gives under a mode: `error` for a schema whose normal form holds a `nil` outside a spread or a preference clash, `invalid` where the meet with the data is dead, `valid` where it singles out a value, and without the fill where the data is an instance too, `incomplete` otherwise; `vet` computes it beside `vet_iff`; and the theorems `vet_strict_valid_instance`, `vet_valid_filled` and `vet_invalid_not_instance` |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
 | `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every checkable value, one that reads no alias, no path, no pattern and no format; `checkSuper`, which decides admission by the parent type, beside `checkSuper_iff`; `Data.wf`, which decides that a Lean `Data` is a value, beside `Data.wf_iff`; and `Data.same`, which decides `Data.Same`, beside `Data.same_iff` |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
@@ -71,13 +72,10 @@ so the definition says nothing about it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- the verdict classes `valid`, `invalid`, `incomplete` and `error`,
-  which the engines give and `Admits` and `Output` together define, so
-  that `vet` in its default mode, the fill, is `Output` of the meet of
-  schema and data, and a value that singles out nothing has no row yet
-  (P5);
-- a trial inside a value (P3 and P4), and an ill-formed value, so a
-  contradiction, or two defaults of one rank, is not yet an error (P5).
+- a trial inside a value (P3 and P4), and an alias that refers to
+  itself with nothing between, which the engines refuse (P3);
+- the subsumption table as theorems, and a contract for each `subsume`
+  profile beyond `values` (P5).
 
 ## Build and run
 
@@ -91,6 +89,7 @@ cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
 cd spec && lake exe oracle bounds > ../test/spec/def-bounds.tsv
 cd spec && lake exe oracle choice > ../test/spec/def-choice.tsv
 cd spec && lake exe oracle gen > ../test/spec/def-gen.tsv
+cd spec && lake exe oracle verdict > ../test/spec/def-verdict.tsv
 python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli> <ts-cli-js>
 ```
 
