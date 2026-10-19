@@ -2319,7 +2319,9 @@ element:
 through `&`, `|`, `*` and `len`, and through the count and the
 branches of a trial, which hold the whole of a value, and never through
 a container's members or spread, nor through the term `contains` tries
-on each member. -/
+on each member, nor through a cover's `keys` or `members` or the term
+`rest` holds the rest to, though through a cover's `if`, tried on the
+whole. -/
 def Val.unguardedRefs : Val → List String
 ```
 
@@ -3481,7 +3483,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
   | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
-  | .when _ _ _, _ | .contains _ _, _ => False
+  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -3791,7 +3793,7 @@ would single out with each `nof`, `must`, `len` and `unique` as `any`:
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .len _ | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -4122,9 +4124,10 @@ A trial schema tries a term on a value and reads the answer either
 way. `nof(n, c₁, …)` counts the branches that admit the value and holds
 the count to `n`; `must(c, m)` holds the value to `c`; and
 `when(c, t, e)` holds it to `t` where `c` admits it and to `e` where `c`
-refuses it, an `e` not written passing; and `contains(c, n)` counts the
+refuses it, an `e` not written passing; `contains(c, n)` counts the
 members of a container `c` admits and holds the count to `n`,
-`contains(c)` asking for at least one. Each is a form of the syntax:
+`contains(c)` asking for at least one; and `rest(t, c₁, …)` holds each
+member no cover evaluates to `t`. Each is a form of the syntax:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -4132,6 +4135,17 @@ members of a container `c` admits and holds the count to `n`,
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
   | contains (c n : Val)                    -- `contains(c, n)`, the members `c` admits counted by `n`; `contains(c)` is `n = min(1)`
+  | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
+```
+
+A cover is a record of three trials, each written or not:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- A cover of `rest`: its `if`, tried on the whole value, its `keys`,
+tried on a member's key, and its `members`, tried on a member, each
+written or not. -/
+abbrev Cover := Option Val × Option Val × Option Val
 ```
 
 and each has its rules in `Judge`:
@@ -4194,7 +4208,45 @@ refused:
   | containsNone {c n : Val} {j : Data} : j.members = none → Judge env root false (.contains c n) j
 ```
 
-Six theorems of `spec/Aontu/Trial.lean` say what the language's
+`rest(t, c₁, …)` reads the members no cover evaluates and holds each to
+`t`. A cover applies where its `if`, tried on the whole value, admits
+it, or where it has none; an applying cover evaluates a member its
+`keys` admits by key, or its `members` admits. The rule takes each
+trial's answer as a function of the cover, as `nof` takes a branch's,
+and reads the covers through them:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+/-- Whether some cover evaluates the member `x` under the key `k`, the
+covers' trials answered by `gc`, `gk` and `gm`. -/
+def evaluatedBy (cs : List Cover) (gc : Cover → Bool) (gk : Cover → String → Bool) (gm : Cover → Data → Bool)
+    (k : String) (x : Data) : Bool :=
+  cs.any fun c => coverApplies c (gc c) && (coverHolds c.2.1 (gk c k) || coverHolds c.2.2 (gm c x))
+```
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `rest(t, c₁, …)` holds each member no cover evaluates to `t`. A
+  cover applies where its `if`, tried on the whole value, admits it, or
+  where it has none, and evaluates a member its `keys` admits by key or
+  its `members` admits; each trial answers one way or the other. A
+  scalar has no members, so `rest` admits it. -/
+  | rest {b : Bool} {t : Val} {cs : List Cover} {j : Data} {ns : List (String × Data)}
+      {gc : Cover → Bool} {gk : Cover → String → Bool} {gm : Cover → Data → Bool} {ft : Data → Bool} :
+      j.named = some ns →
+      (∀ c, c ∈ cs → ∀ v, c.1 = some v → Judge env root (gc c) v j) →
+      (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → ∀ k x, (k, x) ∈ ns → Judge env root (gk c k) v (.str k)) →
+      (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → ∀ k x, (k, x) ∈ ns → Judge env root (gm c x) v x) →
+      (∀ k x, (k, x) ∈ ns → Judge env root (ft x) t x) →
+      ns.all (fun m => evaluatedBy cs gc gk gm m.1 m.2 || ft m.2) = b →
+      Judge env root b (.rest t cs) j
+  | restNone {t : Val} {cs : List Cover} {j : Data} : j.named = none → Judge env root true (.rest t cs) j
+```
+
+A scalar has no members, and `rest` admits it where `contains` refuses
+it: nothing is left over, where nothing is counted.
+
+Eight theorems of `spec/Aontu/Trial.lean` say what the language's
 decisions say of the trials. `must(c, m)` asks what `nof(1, c)` asks:
 
 <!-- test: quote spec/Aontu/Trial.lean -->
@@ -4260,11 +4312,30 @@ theorem contains_refuses_scalar {c n : Val} (s : Scalar) : Refuses env root (.co
   .containsNone (by cases s <;> rfl)
 ```
 
+And `rest` admits a scalar, where with `nil` and no cover it admits a
+container only where it has no members:
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- A scalar has no members, so `rest` admits it: nothing is left over. -/
+theorem rest_admits_scalar {t : Val} {cs : List Cover} (s : Scalar) : Admits env root (.rest t cs) s.data :=
+  .restNone (by cases s <;> rfl)
+```
+
+<!-- test: quote spec/Aontu/Trial.lean -->
+```lean
+/-- `rest(nil)` with no cover admits a container exactly where it has no
+members: nothing evaluates any, and `nil` holds none. -/
+theorem rest_nil_closes {j : Data} {ns : List (String × Data)} (hm : j.named = some ns) :
+    Admits env root (.rest .nil []) j ↔ ns = [] := by
+```
+
 The checker counts the branches it answers `true`, and holds the count
 to `n` as it holds a size to `len`'s term; a conditional it decides by
 its condition's answer, an `else` not written answering `true` as a
-spread not written does; and `contains` it decides by counting the
-members its term admits, as `nof` counts branches:
+spread not written does; `contains` it decides by counting the members
+its term admits, as `nof` counts branches; and `rest` by asking of each
+member whether some cover evaluates it, else whether `t` admits it:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
@@ -4279,6 +4350,9 @@ members its term admits, as `nof` counts branches:
         checkWith u n (.num (.integer ⟨ms.countP fun x => checkWith u c x, h⟩))
       else false
     | none => false
+  | .rest t cs, j => match j.named with
+    | some ns => ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u t m.2
+    | none => true
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
@@ -4362,6 +4436,25 @@ set_option maxRecDepth 8192 in
 example : vet {} [] someNumber (.map [("a", .list [.str "x"])]) = .invalid := by decide
 ```
 
+and the members no cover evaluates:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{a: rest(nil, {keys: "a"})}`: the members no cover evaluates, held
+to `nil`. -/
+abbrev onlyA : Val :=
+  .map [("a", false, .rest .nil [(none, some (.lit (.str "a")), none)])] none false
+
+set_option maxRecDepth 8192 in
+/-- The one member is under the key the cover evaluates, and the document
+is valid. -/
+example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1)])]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- A second member is evaluated by nothing, and `nil` refuses it. -/
+example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1), ("b", .integer 2)])]) = .invalid := by decide
+```
+
 Write `when.aontu`:
 
 <!-- test: scenario when -->
@@ -4382,14 +4475,16 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-An eighth generated fragment, `lake exe oracle trials`, runs 171
+An eighth generated fragment, `lake exe oracle trials`, runs 230
 documents with trials inside values in the three modes: `nof` with each
 kind of count, over kinds, literals, maps, lists and names, beside
 literals, defaults and disjunctions, nested, through a recursive name;
 `must`; and `when`, with and without an `else`, over scalars, maps and
 lists, nested, beside the other forms, and through a name; and
 `contains`, with each kind of count, over lists, maps and scalars,
-nested, beside the other forms, and through a name. Its 513 rows are
+nested, beside the other forms, and through a name; and `rest`, with
+no cover and with covers of each field, over maps, lists and scalars,
+beside the other forms, and through a name. Its 690 rows are
 [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), and two of
 them:
 
@@ -4867,8 +4962,8 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trial `rest`; nor a path of step 9
-read against the document as filled. Those are later phases.
+nor a path of step 9 read against the document as filled. Those are
+later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

@@ -330,6 +330,27 @@ def Data.project (k : Option String) (x : Data) : Option Data :=
     | .map fs => lookup k fs
     | _ => none
 
+/-- A list's elements under their positions, from `i`. -/
+def namedItems : ℕ → List Data → List (String × Data)
+  | _, [] => []
+  | i, x :: xs => (toString i, x) :: namedItems (i + 1) xs
+
+/-- The members `rest` reads, each under its key: a map's members, or a
+list's elements under their positions. A scalar has none. -/
+def Data.named : Data → Option (List (String × Data))
+  | .map fs => some fs
+  | .list xs => some (namedItems 0 xs)
+  | _ => none
+
+theorem mem_namedItems : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
+    (k, x) ∈ namedItems i xs → x ∈ xs
+  | _, [], _, _, h => nomatch h
+  | i, y :: xs, k, x, h => by
+    simp only [namedItems, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨-, rfl⟩ | h
+    · exact List.mem_cons_self _ _
+    · exact List.mem_cons_of_mem _ (mem_namedItems h)
+
 /-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where
   | key (k : String)

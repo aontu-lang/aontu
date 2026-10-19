@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `rest` inside a value
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Syntax.lean`: the form `rest(t, c₁, …)`, a cover the
+  record `Cover` of its `if`, `keys` and `members`, each written or not;
+  `spec/Aontu/Admits.lean`: its rules of `Judge`, `rest` and `restNone`,
+  each cover's trials answered by functions of the cover as `nof`'s
+  branches are, a member evaluated where an applying cover's `keys`
+  admits its key or its `members` admits it, the rest held to `t`, and a
+  scalar admitted; the checker (`restEvaluatedWith`, aligned with the
+  relation by `restEvaluatedWith_eq`), the walkers over names (a cover's
+  `if` unguarded, tried on the whole; its `keys`, `members` and the term
+  `t` guarded), paths and expansions, the normal form's domains and
+  equality, generation (none), the parent type (`any`) and `Val.untried`
+  (`any`) each take the form.
+- `spec/Aontu/Trial.lean`: ADR-058 as theorems, `rest_admits_scalar`
+  and `rest_nil_closes`, `rest(nil)` with no cover admits a container
+  only where it has no members.
+- `test/spec/def-trial.tsv` gains 177 rows, 59 documents with `rest`
+  inside values in the three modes; both ports answer every row as the
+  definition does, and the ledger is unchanged. A `nil` cover, which
+  TypeScript refuses where Go drops it (#368), and a cover's `if` that
+  is the name it is declared under, which TypeScript cannot answer
+  (#360), stay out of the rows until the ports agree.
+- The tutorial's step 16 reads the rules, the theorems, the checker's
+  case and a tour example; the design note's P4 row records the step.
+
 ### The definition holds `contains` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

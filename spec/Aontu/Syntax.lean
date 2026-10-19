@@ -73,6 +73,7 @@ inductive Val where
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
   | contains (c n : Val)                    -- `contains(c, n)`, the members `c` admits counted by `n`; `contains(c)` is `n = min(1)`
+  | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -80,6 +81,11 @@ the value of a `*` alone, which is a disjunction too, reads every list
 literal beneath it as its own length, a sealed list, and `*x` as an arm
 reads as the arm `x` of rank one. So `*1 | 2` is
 `or [(1, lit 1), (0, lit 2)]`, and `*[1]` is `pref 1 (list [lit 1] none true)`. -/
+
+/-- A cover of `rest`: its `if`, tried on the whole value, its `keys`,
+tried on a member's key, and its `members`, tried on a member, each
+written or not. -/
+abbrev Cover := Option Val × Option Val × Option Val
 
 /-- The alias declarations of a document: `%T = v` is `env "T" = some v`. -/
 abbrev Env := String → Option Val
@@ -106,7 +112,12 @@ def Val.size : Val → ℕ
   | .must c _ => c.size + 1
   | .when c t e => c.size + t.size + sizeSpread e + 1
   | .contains c n => c.size + n.size + 1
+  | .rest t cs => t.size + sizeCovers cs + 1
   | _ => 1
+
+def sizeCovers : List Cover → ℕ
+  | [] => 0
+  | (c, k, m) :: cs => sizeSpread c + sizeSpread k + sizeSpread m + sizeCovers cs
 
 def sizeFields : List (String × Bool × Val) → ℕ
   | [] => 0
@@ -198,7 +209,7 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []

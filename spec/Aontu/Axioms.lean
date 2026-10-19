@@ -70,6 +70,14 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.contains_refuses_scalar
 
+/-- info: 'Aontu.rest_admits_scalar' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.rest_admits_scalar
+
+/-- info: 'Aontu.rest_nil_closes' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.rest_nil_closes
+
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.wf_iff

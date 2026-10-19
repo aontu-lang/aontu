@@ -11,9 +11,11 @@ them is proved here: `must(c, m)` asks what `nof(1, c)` asks (ADR-055);
 `nof(0, c)` is the complement of `c`, which is how JSON Schema's `not`
 crosses into aontu (ADR-049); a conditional holds a value to the
 branch its condition picks, `when(c, nil)` refusing every value `c`
-admits (ADR-050); and `contains(c, n)` counts the members `c` admits,
-none in an empty container, and refuses a scalar, which has no members
-(ADR-051).
+admits (ADR-050); `contains(c, n)` counts the members `c` admits, none
+in an empty container, and refuses a scalar, which has no members
+(ADR-051); and `rest(t, c₁, …)` admits a scalar, which has no members,
+and with `nil` and no cover admits a container only where it has none
+(ADR-058).
 -/
 
 namespace Aontu
@@ -157,6 +159,29 @@ theorem judge_contains_empty {b : Bool} {c n : Val} :
 /-- A scalar has no members, so `contains` refuses it. -/
 theorem contains_refuses_scalar {c n : Val} (s : Scalar) : Refuses env root (.contains c n) s.data :=
   .containsNone (by cases s <;> rfl)
+
+/-- A scalar has no members, so `rest` admits it: nothing is left over. -/
+theorem rest_admits_scalar {t : Val} {cs : List Cover} (s : Scalar) : Admits env root (.rest t cs) s.data :=
+  .restNone (by cases s <;> rfl)
+
+/-- `rest(nil)` with no cover admits a container exactly where it has no
+members: nothing evaluates any, and `nil` holds none. -/
+theorem rest_nil_closes {j : Data} {ns : List (String × Data)} (hm : j.named = some ns) :
+    Admits env root (.rest .nil []) j ↔ ns = [] := by
+  constructor
+  · intro h
+    cases h with
+    | @rest _ _ _ _ _ _ _ _ ft hm' _ _ _ hft hb =>
+      rw [hm] at hm'; cases hm'
+      cases ns with
+      | nil => rfl
+      | cons m ms =>
+        have hf : ft m.2 = false := judge_unique (hft m.1 m.2 (List.mem_cons_self _ _)) .nil
+        simp [evaluatedBy, hf] at hb
+    | restNone hm' => rw [hm] at hm'; cases hm'
+  · rintro rfl
+    exact .rest (gc := fun _ => true) (gk := fun _ _ => false) (gm := fun _ _ => false) (ft := fun _ => false) hm
+      (fun c hc => nomatch hc) (fun c hc => nomatch hc) (fun c hc => nomatch hc) (fun k x hx => nomatch hx) rfl
 
 end
 

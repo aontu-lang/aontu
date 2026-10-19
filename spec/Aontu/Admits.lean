@@ -45,6 +45,68 @@ instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
 unfold, so they are read and never computed. -/
 opaque host : Host
 
+/-- Two predicates that agree on a list hold of all of it alike. -/
+theorem all_congr {α : Type} {p q : α → Bool} :
+    ∀ {l : List α}, (∀ x, x ∈ l → p x = q x) → l.all p = l.all q
+  | [], _ => rfl
+  | x :: l, h => by
+    simp only [List.all_cons]
+    rw [h x (List.mem_cons_self x l), all_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
+
+/-- Two predicates that agree on a list hold of some of it alike. -/
+theorem any_congr {α : Type} {p q : α → Bool} :
+    ∀ {l : List α}, (∀ x, x ∈ l → p x = q x) → l.any p = l.any q
+  | [], _ => rfl
+  | x :: l, h => by
+    simp only [List.any_cons]
+    rw [h x (List.mem_cons_self x l), any_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
+
+/-- Whether a cover applies, by its condition's answer `g`: one without a
+condition always does. -/
+def coverApplies (c : Cover) (g : Bool) : Bool :=
+  match c.1 with
+  | none => true
+  | some _ => g
+
+/-- Whether a cover's `keys` or `members` trial, by its answer `g`,
+evaluates a member: one not written evaluates none. -/
+def coverHolds (o : Option Val) (g : Bool) : Bool :=
+  match o with
+  | none => false
+  | some _ => g
+
+/-- Whether some cover evaluates the member `x` under the key `k`, the
+covers' trials answered by `gc`, `gk` and `gm`. -/
+def evaluatedBy (cs : List Cover) (gc : Cover → Bool) (gk : Cover → String → Bool) (gm : Cover → Data → Bool)
+    (k : String) (x : Data) : Bool :=
+  cs.any fun c => coverApplies c (gc c) && (coverHolds c.2.1 (gk c k) || coverHolds c.2.2 (gm c x))
+
+theorem evaluatedBy_congr {cs : List Cover} {gc gc' : Cover → Bool} {gk gk' : Cover → String → Bool}
+    {gm gm' : Cover → Data → Bool} {k : String} {x : Data}
+    (hc : ∀ c, c ∈ cs → ∀ v, c.1 = some v → gc c = gc' c)
+    (hk : ∀ c, c ∈ cs → ∀ v, c.2.1 = some v → gk c k = gk' c k)
+    (hm : ∀ c, c ∈ cs → ∀ v, c.2.2 = some v → gm c x = gm' c x) :
+    evaluatedBy cs gc gk gm k x = evaluatedBy cs gc' gk' gm' k x := by
+  unfold evaluatedBy
+  apply any_congr
+  intro c hcs
+  have e1 : coverApplies c (gc c) = coverApplies c (gc' c) := by
+    unfold coverApplies
+    cases h : c.1 with
+    | none => rfl
+    | some v => exact hc c hcs v h
+  have e2 : coverHolds c.2.1 (gk c k) = coverHolds c.2.1 (gk' c k) := by
+    unfold coverHolds
+    cases h : c.2.1 with
+    | none => rfl
+    | some v => exact hk c hcs v h
+  have e3 : coverHolds c.2.2 (gm c x) = coverHolds c.2.2 (gm' c x) := by
+    unfold coverHolds
+    cases h : c.2.2 with
+    | none => rfl
+    | some v => exact hm c hcs v h
+  rw [e1, e2, e3]
+
 inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   /-- A kind admits the values of its kind, and refuses every other
   value. -/
@@ -280,6 +342,21 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | containsBig {c n : Val} {j : Data} {ms : List Data} {f : Data → Bool} {k : ℕ} :
       j.members = some ms → (∀ x, x ∈ ms → Judge env root (f x) c x) → ms.countP f = k → ¬ IntegerLeaf k →
       Judge env root false (.contains c n) j
+  /-- `rest(t, c₁, …)` holds each member no cover evaluates to `t`. A
+  cover applies where its `if`, tried on the whole value, admits it, or
+  where it has none, and evaluates a member its `keys` admits by key or
+  its `members` admits; each trial answers one way or the other. A
+  scalar has no members, so `rest` admits it. -/
+  | rest {b : Bool} {t : Val} {cs : List Cover} {j : Data} {ns : List (String × Data)}
+      {gc : Cover → Bool} {gk : Cover → String → Bool} {gm : Cover → Data → Bool} {ft : Data → Bool} :
+      j.named = some ns →
+      (∀ c, c ∈ cs → ∀ v, c.1 = some v → Judge env root (gc c) v j) →
+      (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → ∀ k x, (k, x) ∈ ns → Judge env root (gk c k) v (.str k)) →
+      (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → ∀ k x, (k, x) ∈ ns → Judge env root (gm c x) v x) →
+      (∀ k x, (k, x) ∈ ns → Judge env root (ft x) t x) →
+      ns.all (fun m => evaluatedBy cs gc gk gm m.1 m.2 || ft m.2) = b →
+      Judge env root b (.rest t cs) j
+  | restNone {t : Val} {cs : List Cover} {j : Data} : j.named = none → Judge env root true (.rest t cs) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -642,6 +719,20 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
       exact absurd h' hbig
     | containsNone _ => rfl
     | containsBig _ _ _ _ => rfl
+  | @rest _ _ cs _ ns gc gk gm ft hm hc hk hmm hft hb ihc ihk ihm ihft => intro b' h'; cases h' with
+    | @rest _ _ _ _ ns' gc' gk' gm' ft' hm' hc' hk' hmm' hft' hb' =>
+      rw [hm] at hm'; cases hm'
+      rw [← hb, ← hb']
+      apply all_congr
+      intro m hmem
+      rw [evaluatedBy_congr (fun c hcs v hv => ihc c hcs v hv (hc' c hcs v hv))
+        (fun c hcs v hv => ihk c hcs v hv m.1 m.2 hmem (hk' c hcs v hv m.1 m.2 hmem))
+        (fun c hcs v hv => ihm c hcs v hv m.1 m.2 hmem (hmm' c hcs v hv m.1 m.2 hmem)),
+        ihft m.1 m.2 hmem (hft' m.1 m.2 hmem)]
+    | restNone hm' => rw [hm] at hm'; cases hm'
+  | restNone hm => intro b' h'; cases h' with
+    | rest hm' _ _ _ _ _ => rw [hm] at hm'; cases hm'
+    | restNone _ => rfl
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

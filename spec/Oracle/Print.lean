@@ -131,6 +131,7 @@ def Val.src : Val → Option String
     let cs ← c.src
     let ns ← n.src
     pure (if ns = "min(1)" then s!"contains({cs})" else s!"contains({cs}, {ns})")
+  | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []
@@ -146,6 +147,18 @@ def spreadSrc : Option Val → Option (List String)
 def elseSrc : Option Val → Option (List String)
   | none => some []
   | some e => do pure [← e.src]
+
+/-- A cover's field, where it is written. -/
+def coverFieldSrc (name : String) : Option Val → Option (List String)
+  | none => some []
+  | some v => do pure [quote name ++ ": " ++ (← v.src)]
+
+/-- Each cover as the map literal the language reads it from. -/
+def coversSrc : List Cover → Option (List String)
+  | [] => some []
+  | (c, k, m) :: cs => do
+    let fs := (← coverFieldSrc "if" c) ++ (← coverFieldSrc "keys" k) ++ (← coverFieldSrc "members" m)
+    pure (("{" ++ ", ".intercalate fs ++ "}") :: (← coversSrc cs))
 
 def itemsSrc : List Val → Option (List String)
   | [] => some []
