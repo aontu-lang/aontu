@@ -159,6 +159,12 @@ Documentation only; the first step of P7 (`docs/design/DEFINITION.0.md`,
   rule, in the index and in the record; the text of each stays as its
   history. An ADR whose construct the definition does not yet hold keeps
   its status, and the design note's P7 row says which and why.
+- `docs/reference-language.md`: each section that explains a rule the
+  definition holds ends by citing it, the module and the theorems, 32
+  citations from the value lattice to the trial schemas; a section whose
+  construct waits on a decision cites the decision instead (`map` and
+  `list` as kinds, the `defaults` and `gen` profiles, a size at the
+  meet).
 
 ### The importer's forms are checked against the definition
 
