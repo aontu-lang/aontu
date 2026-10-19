@@ -185,6 +185,23 @@ Definition, generated rows and documentation; no engine changes.
   row as the contract allows but the three #346 rows, renumbered again
   in the ledger.
 
+### The tenth fragment compares recursions through each other
+
+Generated rows, the ledger and documentation; no engine changes. A P5
+step (`docs/design/DEFINITION.0.md`, §6).
+
+- `spec/Oracle.lean`: eight more documents, two names recursive through
+  each other and their unfolding, a name recursive through itself, and a
+  list of cells with a sealed empty map as its end beside a cell with
+  `any` tail, so `test/spec/def-subsume-docs.tsv` grows to 310 rows over
+  20 documents.
+- `spec/ledger.tsv`: four more rows under #377, the optional key now
+  inside a recursion, which both ports skip where the specific side is
+  open; the bound rises to 117. A recursion through a list against `any`
+  at its position, which both ports put below the recursion, is #387;
+  the oracle cannot write it while its printer declines a sealed list
+  holding a reference.
+
 ### The definition holds the order on documents
 
 Definition, generated rows, the ledger and documentation; no engine

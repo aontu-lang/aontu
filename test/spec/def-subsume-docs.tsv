@@ -15,116 +15,304 @@ u5	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: min(1)	{"verdict":["do
 u6	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 u7	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 u8	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u9	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u10	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u11	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u12	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u13	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u14	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u15	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u16	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u17	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u18	subsumption	v: {"n": integer, "next"?: any}	v: {"n": integer, "next"?: any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u19	subsumption	v: {"n": integer, "next"?: any}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u20	subsumption	v: {"n": integer, "next"?: any}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u21	subsumption	v: {"n": integer, "next"?: any}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u22	subsumption	v: {"n": integer, "next"?: any}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u23	subsumption	v: {"n": integer, "next"?: any}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u24	subsumption	v: {"n": integer, "next"?: any}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u25	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u26	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u27	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u28	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u29	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u30	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u31	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u32	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u33	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u34	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u35	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u36	subsumption	v: {"n": integer}	v: {"n": integer, "next"?: any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u37	subsumption	v: {"n": integer}	v: {"n": integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u38	subsumption	v: {"n": integer}	v: {"n": 1}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u39	subsumption	v: {"n": integer}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u40	subsumption	v: {"n": integer}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u41	subsumption	v: {"n": integer}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u42	subsumption	v: {"n": integer}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u43	subsumption	v: {"n": integer}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u44	subsumption	v: {"n": integer}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u45	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u46	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u47	subsumption	v: {"n": 1}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u48	subsumption	v: {"n": 1}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u49	subsumption	v: {"n": 1}	v: {"n": 1}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u50	subsumption	v: {"n": 1}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u51	subsumption	v: {"n": 1}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u52	subsumption	v: {"n": 1}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u53	subsumption	v: {"n": 1}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u54	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u55	subsumption	v: {"n": 1}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u56	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u57	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u58	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u59	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u60	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u61	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u62	subsumption	%p = (integer) & (min(1))\nv: %p	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u63	subsumption	%p = (integer) & (min(1))\nv: %p	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u64	subsumption	%p = (integer) & (min(1))\nv: %p	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u65	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u66	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u67	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u68	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u69	subsumption	v: integer	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u70	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u71	subsumption	v: integer	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u72	subsumption	v: integer	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u73	subsumption	v: integer	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u74	subsumption	v: integer	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u75	subsumption	v: integer	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u76	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u77	subsumption	v: integer	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u78	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u79	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u80	subsumption	v: min(1)	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u81	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u82	subsumption	v: min(1)	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u83	subsumption	v: min(1)	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u84	subsumption	v: min(1)	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u85	subsumption	v: min(1)	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u86	subsumption	v: min(1)	v: min(1)	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u87	subsumption	v: min(1)	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u88	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u89	subsumption	v: min(1)	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u90	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u91	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u92	subsumption	v: (integer) & (min(1))	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u93	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u94	subsumption	v: (integer) & (min(1))	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u95	subsumption	v: (integer) & (min(1))	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u96	subsumption	v: (integer) & (min(1))	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u97	subsumption	v: (integer) & (min(1))	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u98	subsumption	v: (integer) & (min(1))	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
-u99	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u100	subsumption	v: (integer) & (min(1))	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u101	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u102	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u103	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u104	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u105	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u106	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u107	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u108	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u109	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u110	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u111	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u112	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u113	subsumption	v: {"a": {"n": integer}}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u114	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u115	subsumption	v: {"a": {"n": integer}}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u116	subsumption	v: {"a": {"n": integer}}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u117	subsumption	v: {"a": {"n": integer}}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u118	subsumption	v: {"a": {"n": integer}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u119	subsumption	v: {"a": {"n": integer}}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u120	subsumption	v: {"a": {"n": integer}}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
-u121	subsumption	v: {"a": {"n": integer}}	v: {"a": {"n": integer}}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u9	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u10	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u11	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u12	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u13	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u14	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u15	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u16	subsumption	%T = {"n": integer, "next"?: %T}\nv: %T	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u17	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u18	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u19	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u20	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u21	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u22	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u23	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u24	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u25	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u26	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u27	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u28	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u29	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u30	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u31	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u32	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u33	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u34	subsumption	v: {"n": integer, "next"?: any}	v: {"n": integer, "next"?: any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u35	subsumption	v: {"n": integer, "next"?: any}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u36	subsumption	v: {"n": integer, "next"?: any}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u37	subsumption	v: {"n": integer, "next"?: any}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u38	subsumption	v: {"n": integer, "next"?: any}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u39	subsumption	v: {"n": integer, "next"?: any}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u40	subsumption	v: {"n": integer, "next"?: any}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u41	subsumption	v: {"n": integer, "next"?: any}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u42	subsumption	v: {"n": integer, "next"?: any}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u43	subsumption	v: {"n": integer, "next"?: any}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u44	subsumption	v: {"n": integer, "next"?: any}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u45	subsumption	v: {"n": integer, "next"?: any}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u46	subsumption	v: {"n": integer, "next"?: any}	v: {"n": integer, "next": any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u47	subsumption	v: {"n": integer, "next"?: any}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u48	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u49	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u50	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u51	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u52	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u53	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u54	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u55	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u56	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u57	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u58	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u59	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u60	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u61	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u62	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u63	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u64	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u65	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u66	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u67	subsumption	v: {"n": integer}	v: {"n": integer, "next"?: any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u68	subsumption	v: {"n": integer}	v: {"n": integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u69	subsumption	v: {"n": integer}	v: {"n": 1}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u70	subsumption	v: {"n": integer}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u71	subsumption	v: {"n": integer}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u72	subsumption	v: {"n": integer}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u73	subsumption	v: {"n": integer}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u74	subsumption	v: {"n": integer}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u75	subsumption	v: {"n": integer}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u76	subsumption	v: {"n": integer}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u77	subsumption	v: {"n": integer}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u78	subsumption	v: {"n": integer}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u79	subsumption	v: {"n": integer}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u80	subsumption	v: {"n": integer}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u81	subsumption	v: {"n": integer}	v: {"n": integer, "next": any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u82	subsumption	v: {"n": integer}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u83	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u84	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u85	subsumption	v: {"n": 1}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u86	subsumption	v: {"n": 1}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u87	subsumption	v: {"n": 1}	v: {"n": 1}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u88	subsumption	v: {"n": 1}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u89	subsumption	v: {"n": 1}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u90	subsumption	v: {"n": 1}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u91	subsumption	v: {"n": 1}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u92	subsumption	v: {"n": 1}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u93	subsumption	v: {"n": 1}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u94	subsumption	v: {"n": 1}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u95	subsumption	v: {"n": 1}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u96	subsumption	v: {"n": 1}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u97	subsumption	v: {"n": 1}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u98	subsumption	v: {"n": 1}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u99	subsumption	v: {"n": 1}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u100	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u101	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u102	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u103	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u104	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u105	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u106	subsumption	%p = (integer) & (min(1))\nv: %p	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u107	subsumption	%p = (integer) & (min(1))\nv: %p	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u108	subsumption	%p = (integer) & (min(1))\nv: %p	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u109	subsumption	%p = (integer) & (min(1))\nv: %p	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u110	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u111	subsumption	%p = (integer) & (min(1))\nv: %p	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u112	subsumption	%p = (integer) & (min(1))\nv: %p	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u113	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u114	subsumption	%p = (integer) & (min(1))\nv: %p	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u115	subsumption	%p = (integer) & (min(1))\nv: %p	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u116	subsumption	%p = (integer) & (min(1))\nv: %p	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u117	subsumption	%p = (integer) & (min(1))\nv: %p	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u118	subsumption	%p = (integer) & (min(1))\nv: %p	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u119	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u120	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u121	subsumption	v: integer	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u122	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u123	subsumption	v: integer	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u124	subsumption	v: integer	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u125	subsumption	v: integer	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u126	subsumption	v: integer	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u127	subsumption	v: integer	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u128	subsumption	v: integer	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u129	subsumption	v: integer	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u130	subsumption	v: integer	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u131	subsumption	v: integer	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u132	subsumption	v: integer	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u133	subsumption	v: integer	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u134	subsumption	v: integer	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u135	subsumption	v: integer	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u136	subsumption	v: integer	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u137	subsumption	v: integer	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u138	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u139	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u140	subsumption	v: min(1)	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u141	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u142	subsumption	v: min(1)	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u143	subsumption	v: min(1)	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u144	subsumption	v: min(1)	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u145	subsumption	v: min(1)	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u146	subsumption	v: min(1)	v: min(1)	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u147	subsumption	v: min(1)	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u148	subsumption	v: min(1)	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u149	subsumption	v: min(1)	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u150	subsumption	v: min(1)	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u151	subsumption	v: min(1)	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u152	subsumption	v: min(1)	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u153	subsumption	v: min(1)	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u154	subsumption	v: min(1)	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u155	subsumption	v: min(1)	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u156	subsumption	v: min(1)	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u157	subsumption	v: min(1)	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u158	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u159	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u160	subsumption	v: (integer) & (min(1))	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u161	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u162	subsumption	v: (integer) & (min(1))	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u163	subsumption	v: (integer) & (min(1))	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u164	subsumption	v: (integer) & (min(1))	%p = (integer) & (min(1))\nv: %p	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u165	subsumption	v: (integer) & (min(1))	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u166	subsumption	v: (integer) & (min(1))	v: (integer) & (min(1))	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u167	subsumption	v: (integer) & (min(1))	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u168	subsumption	v: (integer) & (min(1))	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u169	subsumption	v: (integer) & (min(1))	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u170	subsumption	v: (integer) & (min(1))	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u171	subsumption	v: (integer) & (min(1))	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u172	subsumption	v: (integer) & (min(1))	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u173	subsumption	v: (integer) & (min(1))	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u174	subsumption	v: (integer) & (min(1))	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u175	subsumption	v: (integer) & (min(1))	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u176	subsumption	v: (integer) & (min(1))	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u177	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u178	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u179	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u180	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u181	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u182	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u183	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u184	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u185	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u186	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u187	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u188	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u189	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u190	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u191	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u192	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u193	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u194	subsumption	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u195	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u196	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u197	subsumption	v: {"a": {"n": integer}}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u198	subsumption	v: {"a": {"n": integer}}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u199	subsumption	v: {"a": {"n": integer}}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u200	subsumption	v: {"a": {"n": integer}}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u201	subsumption	v: {"a": {"n": integer}}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u202	subsumption	v: {"a": {"n": integer}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u203	subsumption	v: {"a": {"n": integer}}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u204	subsumption	v: {"a": {"n": integer}}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u205	subsumption	v: {"a": {"n": integer}}	v: {"a": {"n": integer}}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u206	subsumption	v: {"a": {"n": integer}}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u207	subsumption	v: {"a": {"n": integer}}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u208	subsumption	v: {"a": {"n": integer}}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u209	subsumption	v: {"a": {"n": integer}}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u210	subsumption	v: {"a": {"n": integer}}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u211	subsumption	v: {"a": {"n": integer}}	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u212	subsumption	v: {"a": {"n": integer}}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u213	subsumption	v: {"a": {"n": integer}}	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u214	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u215	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u216	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u217	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u218	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u219	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u220	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u221	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u222	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u223	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u224	subsumption	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u225	subsumption	v: {"b"?: {"a"?: any}}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u226	subsumption	v: {"b"?: {"a"?: any}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u227	subsumption	v: {"b"?: {"a"?: any}}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u228	subsumption	v: {"b"?: {"a"?: any}}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u229	subsumption	v: {"b"?: {"a"?: any}}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u230	subsumption	v: {"b"?: {"a"?: any}}	v: {"b"?: {"a"?: any}}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u231	subsumption	%A = {"b"?: %A}\nv: %A	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u232	subsumption	%A = {"b"?: %A}\nv: %A	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u233	subsumption	%A = {"b"?: %A}\nv: %A	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u234	subsumption	%A = {"b"?: %A}\nv: %A	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u235	subsumption	%A = {"b"?: %A}\nv: %A	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u236	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u237	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u238	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u239	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u240	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u241	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u242	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u243	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u244	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u245	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u246	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u247	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u248	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u249	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u250	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u251	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u252	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u253	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u254	subsumption	v: {"n": integer, "next": any}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u255	subsumption	v: {"n": integer, "next": any}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u256	subsumption	v: {"n": integer, "next": any}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u257	subsumption	v: {"n": integer, "next": any}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u258	subsumption	v: {"n": integer, "next": any}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u259	subsumption	v: {"n": integer, "next": any}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u260	subsumption	v: {"n": integer, "next": any}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u261	subsumption	v: {"n": integer, "next": any}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u262	subsumption	v: {"n": integer, "next": any}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u263	subsumption	v: {"n": integer, "next": any}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u264	subsumption	v: {"n": integer, "next": any}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u265	subsumption	v: {"n": integer, "next": any}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u266	subsumption	v: {"n": integer, "next": any}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u267	subsumption	v: {"n": integer, "next": any}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u268	subsumption	v: {"n": integer, "next": any}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u269	subsumption	v: {"n": integer, "next": any}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u270	subsumption	v: {"n": integer, "next": any}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u271	subsumption	v: {"n": integer, "next": any}	v: {"n": integer, "next": any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u272	subsumption	v: {"n": integer, "next": any}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u273	subsumption	v: (close({})) | ({"n": integer, "next": any})	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u274	subsumption	v: (close({})) | ({"n": integer, "next": any})	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u275	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u276	subsumption	v: (close({})) | ({"n": integer, "next": any})	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u277	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u278	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u279	subsumption	v: (close({})) | ({"n": integer, "next": any})	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u280	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u281	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u282	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u283	subsumption	v: (close({})) | ({"n": integer, "next": any})	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u284	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u285	subsumption	v: (close({})) | ({"n": integer, "next": any})	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u286	subsumption	v: (close({})) | ({"n": integer, "next": any})	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u287	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u288	subsumption	v: (close({})) | ({"n": integer, "next": any})	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u289	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: {"n": integer, "next": any}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u290	subsumption	v: (close({})) | ({"n": integer, "next": any})	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+u291	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%T = {"n": integer, "next"?: %T}\nv: %T	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u292	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%T = {"n": integer, "next"?: %T}\nv: {"n": integer, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u293	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"n": integer, "next"?: any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u294	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%T = {"n": integer, "next"?: %T}\nv: {"n": 1, "next"?: %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u295	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"n": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u296	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"n": 1}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u297	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%p = (integer) & (min(1))\nv: %p	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u298	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u299	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: min(1)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u300	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: (integer) & (min(1))	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u301	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%T = {"n": integer, "next"?: %T}\nv: {"a": %T}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u302	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"a": {"n": integer}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u303	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u304	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u305	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"b"?: {"a"?: any}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u306	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%A = {"b"?: %A}\nv: %A	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u307	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	%M = (close({})) | ({"n": integer, "next": %M})\nv: %M	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u308	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: {"n": integer, "next": any}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+u309	subsumption	%M = (close({})) | ({"n": integer, "next": %M})\nv: {"n": integer, "next": %M}	v: (close({})) | ({"n": integer, "next": any})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}

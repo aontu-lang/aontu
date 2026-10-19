@@ -5221,13 +5221,14 @@ Two documents whose readings read no name are ordered as their readings
 are under the empty environment, so `leDecD` decides them with
 `leDecF`, and the checker that reads the names, `checkR` of step 17,
 refutes a pair with one instance. The tenth fragment,
-`test/spec/def-subsume-docs.tsv`, compares twelve documents pairwise,
-a recursive list of nodes, its unrolling and the plain nodes among them,
-and both engines answer as the contract allows but for five rows: a
-recursive general side with an optional key against an open specific
-side, where both answer `subsumes` and `{"n": 1, "next": 5}` is an
-instance of the specific side alone, the same cause as the false
-positive above.
+`test/spec/def-subsume-docs.tsv`, compares twenty documents pairwise,
+a recursive list of nodes, its unrolling, the plain nodes and two names
+recursive through each other among them, and both engines answer as the
+contract allows but for nine rows: a recursive general side with an
+optional key against an open specific side, where both answer
+`subsumes` and `{"n": 1, "next": 5}`, or `{"b": 5}` for the mutual
+recursion, is an instance of the specific side alone, the same cause as
+the false positive above.
 
 ## 19. The forms the importer writes
 

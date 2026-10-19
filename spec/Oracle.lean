@@ -1102,18 +1102,30 @@ def subsumeRows (tag : String) : IO Unit := do
 the rows put under `v` and compare pairwise, each read under its own
 declarations: a recursive list of nodes, its unrolling, a node with any
 tail, a node whose head is `1`, the plain nodes, a non-recursive name,
-the scalars it expands to, and a map holding a node. -/
+the scalars it expands to, a map holding a node, two names recursive
+through each other and their unfolding, a name recursive through itself,
+and a list of cells with a sealed empty map as its end, beside a cell
+with any tail. -/
 def docCases : List (Decls × Val) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let node (n next : Val) : Val := .map [("n", false, n), ("next", true, next)] none false
   let T : Decls := [("T", node .integer (.alias "T"))]
   let p : Decls := [("p", .meet .integer (.min (.num one)))]
+  let AB : Decls := [("A", .map [("b", true, .alias "B")] none false),
+    ("B", .map [("a", true, .alias "A")] none false)]
+  let A1 : Decls := [("A", .map [("b", true, .alias "A")] none false)]
+  let cell (next : Val) : Val := .map [("n", false, .integer), ("next", false, next)] none false
+  let M : Decls := [("M", .or [(0, .map [] none true), (0, cell (.alias "M"))])]
   [(T, .alias "T"), (T, node .integer (.alias "T")), ([], node .integer .any),
     (T, node (int 1) (.alias "T")), ([], .map [("n", false, .integer)] none false),
     ([], .map [("n", false, int 1)] none false), (p, .alias "p"), ([], .integer),
     ([], .min (.num one)), ([], .meet .integer (.min (.num one))),
     (T, .map [("a", false, .alias "T")] none false),
-    ([], .map [("a", false, .map [("n", false, .integer)] none false)] none false)]
+    ([], .map [("a", false, .map [("n", false, .integer)] none false)] none false),
+    (AB, .alias "A"), (AB, .alias "B"), ([], .map [("b", true, .map [("a", true, .any)] none false)] none false),
+    (A1, .alias "A"),
+    (M, .alias "M"), ([], cell .any), ([], .or [(0, .map [] none true), (0, cell .any)]),
+    (M, cell (.alias "M"))]
 
 /-- The instances that may tell two documents apart, each put under `v`. -/
 def docInstances : List Data :=
@@ -1124,7 +1136,11 @@ def docInstances : List Data :=
     node (.str "a") [], node (j 2) [], .map [], j 0, j 1, j 2, .str "a",
     node (j 1) [("next", j 5)], node (j 1) [("m", j 1)],
     .map [("a", node (j 1) [])], .map [("a", node (j 1) [("next", node (j 2) [])])],
-    .map [("a", node (.str "a") [])]]
+    .map [("a", node (.str "a") [])],
+    .map [("b", j 5)], .map [("b", .map [("a", j 5)])], .map [("a", .map [])], .map [("b", .map [])],
+    .map [("b", .map [("a", .map [("b", .map [])])])],
+    node (j 1) [("next", .map [])], node (j 1) [("next", node (j 2) [("next", .map [])])],
+    node (j 1) [("next", .map [("x", j 1)])]]
 
 /-- A case's term under the key `v`, as the rows write it. -/
 def docOf (v : Val) : Val := .map [("v", false, v)] none false
