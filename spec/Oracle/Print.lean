@@ -9,7 +9,7 @@ is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
 writes, data as well as terms in aontu's own syntax, and answers `none`
-for a sealed map, an alias, and a path.
+for a sealed map and a path.
 -/
 
 namespace Aontu
@@ -114,7 +114,7 @@ def Val.src : Val → Option String
   | .or arms => do pure (" | ".intercalate (← armsSrc arms))
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
-  | .alias _ => none
+  | .alias n => some ("%" ++ n)
   | .path _ => none
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)

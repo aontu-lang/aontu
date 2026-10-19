@@ -42,6 +42,7 @@ to the JSON Schema suite.
 | `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, the bounds `min`, `max`, `above`, and `below` (the constructor `beneath`, since Lean keeps `below`), each with a number or a string at its end (`Bound`), `neq`, `multiple`, `len`, `unique`, `re`, and `format`, maps with optional keys, a spread and a seal, lists with a spread and a seal, `\|` with each arm's rank, `*` alone, `&`, aliases, and paths; `Env`, the alias declarations; and `super`, the parent type of a term, which `*x` alone widens to |
 | `Aontu/Admits.lean` | `Host`, the two predicates the definition leaves to the engines, which strings a pattern matches and which a format reads, as the opaque constant `host`; `Admits`, what a value admits, one inference rule per form; and `Instance`, the question `aontu vet` answers, which only a value can satisfy |
 | `Aontu/Names.lean` | `Decls`, a document's alias declarations and the environment they make; `Val.refs` and `Val.unguardedRefs`, the names a value refers to, and those it reaches with no key and no element between; `Recursive`, a name that refers to itself through any number of declarations; `Guarded`, the alias-cycle rule, that no name does so with nothing between; `close`, the closure computed by rounds and admitted by `recursiveB_iff` and `guardedB_iff`; and `alias_self_admits_nothing`, that a name declared as itself admits nothing |
+| `Aontu/Alias.lean` | how a document reads under its declarations: `expand`, each reference to a name that is not recursive replaced by the meet of its bodies, and a reference to a recursive name left as a residual; `Decls.envE`, the environment of expanded bodies; `meetD`, the meet in which a residual expands by one level against concrete structure and never against `any`, a reference or a connective, beside `admits_meetD`; `normaliseD`; and `OutputD` with `outputD_admits` and `outputD_iff` |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, the strict bounds under their closed ones (`above_le_min`, `beneath_le_max`), ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Meet.lean` | `meet`, the meet computed as the engines compute it, one step at a time: `nil` the zero and `any` the unit, a disjunction met arm by arm with its dead arms dropped, a preference alone as `x \| super(x)`, two maps merged key by key and two lists position by position, a literal met with what admits it, and two atoms that share no value met in `nil`; beside `admits_meet`, the theorem that the term it computes admits a value exactly when both sides do, and `normalise`, a term met with `any` |
 | `Aontu/Output.lean` | `Gen`, what a term generates, by recursion on the term: a literal its value, a map its declared keys that generate, a list its positions, a disjunction what the arms the rank rule picks all generate, a meet left as written what one side generates and the other admits; `Output`, `Gen` of the normal form; `output_admits`, ADR-007; `output_unique`; and `gen`, which computes it, beside `gen_iff` |
@@ -51,14 +52,14 @@ to the JSON Schema suite.
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
 | `Aontu/Axioms.lean` | the axiom gate: `#print axioms` on the named theorems, held by `#guard_msgs` to `propext` and `Quot.sound` |
 | `Oracle/Print.lean` | the oracle's printer, from values and data to the text both CLIs read; no part of the definition |
-| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's; and, as `oracle bounds`, the second fragment, the bounds beyond `min`, `max`, and `multiple` (115 values) against 30 instances, 3,450 rows, which `bound_verdict_exact` makes the definition's; and, as `oracle choice`, the third, `\|` and `*` over scalars, kinds, bounds, and sealed lists (52 values) against 22 instances, 1,144 rows, which `choice_verdict_exact` makes the definition's |
+| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's; and, as `oracle bounds`, the second fragment, the bounds beyond `min`, `max`, and `multiple` (115 values) against 30 instances, 3,450 rows, which `bound_verdict_exact` makes the definition's; and, as `oracle choice`, the third, `\|` and `*` over scalars, kinds, bounds, and sealed lists (52 values) against 22 instances, 1,144 rows, which `choice_verdict_exact` makes the definition's; as `oracle gen`, the fourth, what evaluation singles out, `gens` rows which `gen_output_exact` makes the definition's; as `oracle verdict`, the fifth, the verdicts of 57 cases in the three modes, which `vet_verdict_exact` makes the definition's; and as `oracle alias`, the sixth, 36 documents with declarations in the three modes, 108 rows, which `alias_verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
 | `tools/differential.py` | runs the rows through both CLIs and writes every disagreement by name, the material of the ledger |
 
-The rows live in `test/spec/def-fragment.tsv`, `test/spec/def-bounds.tsv`,
-and `test/spec/def-choice.tsv`, under the `verdict` mode of the shared
+The rows live in the six `def-` files of `test/spec/`, `def-fragment.tsv`
+to `def-alias.tsv`, under the `verdict` and `gens` modes of the shared
 format, where both ports' spec runners run them as they run every row;
-nothing here is needed at test time. Each row runs plain
+nothing here is needed at test time. A `verdict` row runs
 `aontu vet` on data written in aontu, whose literals name their leaf,
 so the default reading gives each number the leaf the oracle means:
 `0d1.5` is a big decimal, and `1.5` would be a float. No term the
@@ -73,9 +74,9 @@ so the definition says nothing about it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- a trial inside a value (P3 and P4), and `vet` over a document's
-  declarations, where the alias-cycle rule, stated, makes `%U = %U` an
-  error (P3);
+- a trial inside a value (P3 and P4), a recursive name met with data
+  in the checker, so that a recursive alias has rows, and path
+  references into the document (P3);
 - the subsumption table as theorems, and a contract for each `subsume`
   profile beyond `values` (P5).
 
@@ -92,6 +93,7 @@ cd spec && lake exe oracle bounds > ../test/spec/def-bounds.tsv
 cd spec && lake exe oracle choice > ../test/spec/def-choice.tsv
 cd spec && lake exe oracle gen > ../test/spec/def-gen.tsv
 cd spec && lake exe oracle verdict > ../test/spec/def-verdict.tsv
+cd spec && lake exe oracle alias > ../test/spec/def-alias.tsv
 python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli> <ts-cli-js>
 ```
 

@@ -2375,9 +2375,62 @@ Both engines check the recursive list at every level. `%U = %U` they
 refuse by running out of steps, and the pair as a cycle of references,
 where the rule reads both as the same ill-formed document. `%T = %T |
 1` they run, and `1` passes by its second arm, where the rule refuses
-the document. The definition's `vet` doesn't read declarations yet: a
-later step brings the names into the meet and the verdicts, and the
-rows where the engines and the rule part go to the ledger of step 15.
+the document. Step 14's `vet` answers `error` for all three, and the
+ledger of step 15 carries `%U = %U`, where the engines move.
+
+### How a document reads
+
+A document reads as its expansion, in `spec/Aontu/Alias.lean`: a
+reference to a name that is not recursive is replaced by the meet of
+the name's bodies, read the same way, and a reference to a recursive
+name stays as written, a residual.
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The expansion of a term, within `k` turns: a reference to a name
+that is not recursive is replaced by the meet of its bodies, expanded in
+turn; a reference to a recursive name, or to no name, stays. -/
+def expandF (ds : Decls) : ℕ → Val → Val
+```
+
+A residual is where the data decides. The meet of step 10 gains one
+rule: a residual met with concrete structure, a scalar, a kind, a
+bound, a literal, a map or a list, expands by one level, and met with
+`any`, another reference or a connective it stays. So a recursion
+unfolds as far as the data goes and no further, and a residual no data
+reaches generates nothing, as step 13 says of an alias.
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- Whether a term is concrete structure, which a residual expands
+against: everything but `any`, `nil`, a reference and a connective. -/
+def Val.concrete : Val → Bool
+```
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A step of the meet with the declarations: a residual against
+concrete structure expands by one level, and every other pair takes a
+step of the meet. -/
+def meetStepA (ds : Decls) (rec : Val → Val → Val) (a b : Val) : Val :=
+```
+
+The meet so built admits what both of its sides admit, under the
+environment of expanded bodies, which is what admits it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+theorem admits_meetD {ds : Decls} {root : Data} (a b : Val) (j : Data) :
+    Admits ds.envE root (meetD ds a b) j ↔ Admits ds.envE root a j ∧ Admits ds.envE root b j :=
+  admits_meetA _ a b j
+```
+
+Step 14's `vet` reads a document this way, and the sixth generated
+fragment, [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv),
+runs documents with declarations in the three modes, none of whose
+names is recursive. Both engines agree with the definition on every
+row but `%U = %U`, which the ledger carries. A recursive name met with
+data has no row yet, since the checker of step 17 reads no residual.
 
 ## 9. Path references
 
@@ -3394,32 +3447,44 @@ structure Mode where
   lax : Bool := false
 ```
 
-and the verdict as a relation on the four answers:
+and the verdict as a relation on the four answers, under the
+declarations of step 8, where the schema reads as its expansion:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- The verdict `vet` gives the data `j` against the schema `S` under
-the mode `m`: `error` where the schema's normal form does not stand;
-`invalid` where the meet of the schema with the data is dead; `valid`
-where the meet singles out a value, and without the fill where the data
-as written is an instance too, or where `--partial` lets the unresolved
-pass; and `incomplete` otherwise. -/
-def Vet (m : Mode) (env : Env) (S : Val) (j : Data) : Verdict → Prop
-  | .error => (normalise S).illFormed = true
-  | .invalid => (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = true
+the declarations `ds` and the mode `m`, the schema read as its
+expansion: `error` where the document refers to a name it does not
+declare, where its names break the alias-cycle rule, or where the
+schema's normal form does not stand; `invalid` where the meet of the
+schema with the data as a term is dead; `valid` where the meet singles
+out a value, and without the fill where the data as written is an
+instance too, or where `--partial` lets the unresolved pass; and
+`incomplete` otherwise. -/
+def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
+  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.read S)).illFormed = true
+  | .invalid =>
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = true
   | .valid =>
-    (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = false ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
       (m.lax = true ∨
-        ∃ j', Output env j (meet S j.term) j' ∧ (m.fill = true ∨ Admits env j S j))
+        ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
+          (m.fill = true ∨ Admits ds.envE j (ds.read S) j))
   | .incomplete =>
-    (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = false ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
       m.lax = false ∧
-      ¬ ∃ j', Output env j (meet S j.term) j' ∧ (m.fill = true ∨ Admits env j S j)
+      ¬ ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
+        (m.fill = true ∨ Admits ds.envE j (ds.read S) j)
 ```
 
-Read the four in order. `error` is a schema whose normal form does not
-stand, `illFormed`: a `nil` anywhere but in a spread, which the engines
-read only against a member, or a preference clash:
+Read the four in order. `error` is a document that refers to a name it
+does not declare, one whose names break the alias-cycle rule, or a
+schema whose normal form does not stand, `illFormed`: a `nil` anywhere
+but in a spread, which the engines read only against a member, or a
+preference clash:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -3461,10 +3526,11 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the schema. -/
-theorem vet_strict_valid_instance {m : Mode} {S : Val} {j : Data} (hf : m.fill = false)
-    (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m env S j .valid) : Instance env S j := by
-  obtain ⟨-, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
+instance of the schema as read. -/
+theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
+    (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
+    Instance ds.envE (ds.read S) j := by
+  obtain ⟨-, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · rw [hf] at hf'
@@ -3475,74 +3541,77 @@ theorem vet_strict_valid_instance {m : Mode} {S : Val} {j : Data} (hf : m.fill =
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- With the fill, `valid` singles out a value, the data filled, which
-is an instance of the schema. -/
-theorem vet_valid_filled {m : Mode} {S : Val} {j : Data} (hp : m.lax = false)
-    (h : Vet m env S j .valid) : ∃ j', Output env j (meet S j.term) j' ∧ Admits env j S j' := by
-  obtain ⟨-, -, hp' | ⟨j', hout, -⟩⟩ := h
+is an instance of the schema as read. -/
+theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
+    (h : Vet m ds S j .valid) :
+    ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧ Admits ds.envE j (ds.read S) j' := by
+  obtain ⟨-, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
-  · exact ⟨j', hout, ((admits_meet _ _ _).mp (output_admits _ _ hout)).1⟩
+  · exact ⟨j', hout, ((admits_meetD _ _ _).mp (outputD_admits _ _ hout)).1⟩
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- `invalid` refuses the data: it is no instance of the schema. -/
-theorem vet_invalid_not_instance {m : Mode} {S : Val} {j : Data} (hj : j.WellFormed)
-    (h : Vet m env S j .invalid) : ¬ Admits env j S j := by
-  obtain ⟨-, hd⟩ := h
+/-- `invalid` refuses the data: it is no instance of the schema as read. -/
+theorem vet_invalid_not_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hj : j.WellFormed)
+    (h : Vet m ds S j .invalid) : ¬ Admits ds.envE j (ds.read S) j := by
+  obtain ⟨-, -, -, hd⟩ := h
   intro hA
-  exact dead_sound _ hd j ((admits_normalise _ _).mpr
-    ((admits_meet _ _ _).mpr ⟨hA, term_admits_self j hj⟩))
+  exact dead_sound _ hd j ((admits_normaliseD _ _).mpr
+    ((admits_meetD _ _ _).mpr ⟨hA, term_admits_self j hj⟩))
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance, step 2's
 question; `vet` answers it for a filled value that is an instance of
-the schema; and `invalid` is never an instance. The tour runs the verdicts of this step and the last by
-`decide`:
+the schema; and `invalid` is never an instance. The tour runs the
+verdicts of this step and the last by `decide`, under no declaration,
+where a document reads as itself:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: *1}` against `{}`: `valid` with the fill, the default `1`
 supplied, and `incomplete` without it, since `{}` is no instance as
 written. -/
-example : vet {} (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) (.map []) =
+example : vet {} [] (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) (.map []) =
       .valid ∧
-    vet { fill := false } (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+    vet { fill := false } [] (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
       (.map []) = .incomplete := by decide
 
 /-- `{x?: *1}` against `{}` is `valid` either way: `{}` is an instance
 as written. -/
-example : vet { fill := false } (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+example : vet { fill := false } [] (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
     (.map []) = .valid := by decide
 
 /-- `{x: 1} | {y: 2}` against `{x: 1}` is `incomplete`: the meet is
 alive and singles out nothing, step 12's question. -/
-example : vet {} (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
+example : vet {} [] (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
       (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
     (.map [("x", .integer 1)]) = .incomplete := by decide
 
 /-- `integer` against `"a"` is `invalid`: the meet is dead. -/
-example : vet {} .integer (.str "a") = .invalid := by decide
+example : vet {} [] .integer (.str "a") = .invalid := by decide
 
 /-- `min(5) & max(3)` is `error` against anything: the schema does not
 stand. So is `*1 | *2`, two preferred arms of one rank that single out
 different values, where `*1 | *integer` stands. -/
-example : vet {} (.meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))) (.integer 1) =
+example : vet {} [] (.meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))) (.integer 1) =
       .error ∧
-    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .lit (.num (.integer (.of 2))))]) (.integer 1) =
+    vet {} [] (.or [(1, .lit (.num (.integer (.of 1)))), (1, .lit (.num (.integer (.of 2))))]) (.integer 1) =
       .error ∧
-    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .integer)]) (.integer 1) = .valid := by decide
+    vet {} [] (.or [(1, .lit (.num (.integer (.of 1)))), (1, .integer)]) (.integer 1) = .valid := by decide
 
 /-- `{x: integer}` against `{}` is `incomplete`, and `valid` under
 `--partial`. -/
-example : vet {} (.map [("x", false, .integer)] none false) (.map []) = .incomplete ∧
-    vet { lax := true } (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
+example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .incomplete ∧
+    vet { lax := true } [] (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
 
-/-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`. -/
-example : Instance .empty (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false)
+/-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
+no declaration, where a document reads as itself. -/
+example : Instance (Decls.envE []) (Decls.read [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
     (.list [.integer 2]) :=
-  vet_strict_valid_instance (m := { fill := false }) rfl rfl (by decide)
-    ((vet_iff (m := { fill := false }) (by decide) (by decide) .valid).mp (by decide))
+  vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
+    ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
 ```
 
 The fifth generated fragment, `test/spec/def-verdict.tsv`, runs the
@@ -3679,6 +3748,14 @@ last three rows of
 [`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) carry the
 case, `invalid` in every mode, and the ledger names them, so the run
 fails the day an engine comes to agree and the rows still stand there.
+
+A name declared as itself alone, `%U = %U`, is an `error` in the
+definition, a schema that admits nothing, as step 8 proves, where both
+engines answer `invalid` by running out of steps and blame the data.
+The last three rows of
+[`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv) carry the
+case, the ledger names the engines as the side that changes, and issue
+#354 tracks it.
 
 In others, two optional declarations of one key can't both hold:
 
@@ -4193,9 +4270,10 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trials inside a value, `contains`, `must` and `rest`; nor
-`vet` over a document's declarations, where the alias-cycle rule of
-step 8 makes `%U = %U` an error. Those are later phases.
+nor the trials inside a value, `contains`, `must` and `rest`; nor a
+recursive name met with data in the checker, so that a recursive alias
+has rows; nor a path of step 9 read against the document as filled.
+Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

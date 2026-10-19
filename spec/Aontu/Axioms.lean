@@ -4,6 +4,7 @@ import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
 import Aontu.Output
+import Aontu.Alias
 import Aontu.Verdict
 
 /-!
@@ -119,3 +120,19 @@ line each comment states.
 /-- info: 'Aontu.alias_self_admits_nothing' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.alias_self_admits_nothing
+
+/-- info: 'Aontu.admits_meetD' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.admits_meetD
+
+/-- info: 'Aontu.admits_normaliseD' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.admits_normaliseD
+
+/-- info: 'Aontu.outputD_admits' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.outputD_admits
+
+/-- info: 'Aontu.outputD_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.outputD_iff
