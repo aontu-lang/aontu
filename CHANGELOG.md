@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `re` and `format` as the predicates of an opaque host
+
+Definition and documentation; no engine changes, and no row moves.
+
+- `re(p)` admits the strings the pattern matches and `format(g)` the
+  strings the format reads, by two predicates of a `Host` structure
+  the definition declares as the opaque constant `host` and never
+  defines: a theorem about either holds whatever matching is, each
+  admits strings alone, and `""` exactly where its predicate holds.
+  Which strings a pattern or a format admits stays the engines', held
+  to the reference by the shared suite.
+- `Val.RefFree` is `Val.Checkable`: the values `check` decides, which
+  read no alias, no path, no pattern and no format. `check` answers
+  `false` on `re` and `format`, which `check_iff` does not cover, so the
+  oracle enumerates neither.
+- `docs/tutorial-definition.md` step 4 ends with the patterns and
+  formats, and step 14 names the checkable values.
+
 ### The definition holds the remaining bounds: `above`, `below`, `neq`, `len`, `unique`, and bounds on strings
 
 Definition, generated rows, and documentation; no engine changes.

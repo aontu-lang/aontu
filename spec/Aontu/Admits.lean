@@ -13,6 +13,21 @@ rule: it admits nothing.
 
 namespace Aontu
 
+/-- What the definition leaves to the engines: which strings a pattern
+matches, and which strings a format, a name or a grammar, reads to its
+end. Each is a predicate on two strings, and nothing here says what
+either holds of, so a theorem about `re` or `format` holds whatever they
+are. -/
+structure Host where
+  pattern : String → String → Prop
+  format : String → String → Prop
+
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
+
+/-- The predicates behind `re` and `format`: a constant no proof can
+unfold, so they are read and never computed. -/
+opaque host : Host
+
 inductive Admits (env : Env) (root : Data) : Val → Data → Prop
   | integer {x : Integer} : Admits env root .integer (.num (.integer x))
   | float {x : Float} : Admits env root .float (.num (.float x))
@@ -65,6 +80,12 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
       ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
         ¬ x'.Same y') →
       Admits env root (.unique k) j
+  /-- `re(p)` admits the strings the pattern matches, and `format(g)`
+  the strings the format reads, by the host's predicates; each admits
+  `""` exactly where its predicate holds of it, and admits no other
+  kind of value. -/
+  | re {p s : String} : host.pattern p s → Admits env root (.re p) (.str s)
+  | format {g s : String} : host.format g s → Admits env root (.format g) (.str s)
   | any {j : Data} : Admits env root .any j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in

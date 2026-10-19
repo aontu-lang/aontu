@@ -7,7 +7,7 @@ import Aontu.Admits
 (`decide (Admits Env.empty .null .integer (.integer 3))` finds no
 `Decidable` instance). `check` is an algorithm, and `check_iff` is what
 lets its answers stand in for the definition's, on every value that
-reads neither an alias nor a path. Without that theorem it would be a
+reads no alias, no path, no pattern and no format. Without that theorem it would be a
 third port. `Data.wf` decides that a Lean `Data` is a value the same
 way, beside `Data.wf_iff`.
 -/
@@ -279,35 +279,36 @@ theorem distinct_iff (k : Option String) (ms : List Data) :
           | false => rfl
           | true => exact absurd ((Data.same_iff x' y').mp hs) (h1 y hy x' y' hx hy')
 
-/-- The values that read neither an alias nor a path, so that what they
-admit depends on no declaration and no root. -/
-inductive Val.RefFree : Val → Prop
-  | integer : RefFree .integer
-  | float : RefFree .float
-  | biginteger : RefFree .biginteger
-  | bigdecimal : RefFree .bigdecimal
-  | number : RefFree .number
-  | string : RefFree .string
-  | anyString : RefFree .anyString
-  | boolean : RefFree .boolean
-  | lit {s : Scalar} : RefFree (.lit s)
-  | min {b : Bound} : RefFree (.min b)
-  | max {b : Bound} : RefFree (.max b)
-  | above {b : Bound} : RefFree (.above b)
-  | beneath {b : Bound} : RefFree (.beneath b)
-  | neq {vs : List Bound} : RefFree (.neq vs)
-  | multiple {d : Number} : RefFree (.multiple d)
-  | len {c : Val} : RefFree c → RefFree (.len c)
-  | unique {k : Option String} : RefFree (.unique k)
-  | any : RefFree .any
-  | nil : RefFree .nil
+/-- The values `check` decides: those that read no alias, no path, no
+pattern and no format, so that what they admit depends on no
+declaration, no root, and no predicate of the host's. -/
+inductive Val.Checkable : Val → Prop
+  | integer : Checkable .integer
+  | float : Checkable .float
+  | biginteger : Checkable .biginteger
+  | bigdecimal : Checkable .bigdecimal
+  | number : Checkable .number
+  | string : Checkable .string
+  | anyString : Checkable .anyString
+  | boolean : Checkable .boolean
+  | lit {s : Scalar} : Checkable (.lit s)
+  | min {b : Bound} : Checkable (.min b)
+  | max {b : Bound} : Checkable (.max b)
+  | above {b : Bound} : Checkable (.above b)
+  | beneath {b : Bound} : Checkable (.beneath b)
+  | neq {vs : List Bound} : Checkable (.neq vs)
+  | multiple {d : Number} : Checkable (.multiple d)
+  | len {c : Val} : Checkable c → Checkable (.len c)
+  | unique {k : Option String} : Checkable (.unique k)
+  | any : Checkable .any
+  | nil : Checkable .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
-      (∀ k o v, (k, o, v) ∈ fs → RefFree v) → (∀ s, spread = some s → RefFree s) →
-      RefFree (.map fs spread closed)
+      (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
+      Checkable (.map fs spread closed)
   | list {items : List Val} {spread : Option Val} :
-      (∀ v, v ∈ items → RefFree v) → (∀ s, spread = some s → RefFree s) →
-      RefFree (.list items spread)
-  | meet {a b : Val} : RefFree a → RefFree b → RefFree (.meet a b)
+      (∀ v, v ∈ items → Checkable v) → (∀ s, spread = some s → Checkable s) →
+      Checkable (.list items spread)
+  | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
 
 mutual
 /-- Whether `v` admits `j`, computed. -/
@@ -388,6 +389,8 @@ def check : Val → Data → Bool
         xs.all (fun x => checkSpread spread x)
     | _ => false
   | .meet a b, j => check a j && check b j
+  | .re _, _ => false
+  | .format _, _ => false
   | .alias _, _ => false
   | .path _, _ => false
 
@@ -495,8 +498,8 @@ theorem checkClosed_iff (fs : List (String × Bool × Val)) (closed : Bool)
       obtain ⟨o, v, hf⟩ := h k x hm
       exact ⟨(k, o, v), hf, rfl⟩
 
-/-- `check` decides admission for every value that reads no reference. -/
-theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits env root v j := by
+/-- `check` decides admission for every checkable value. -/
+theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j := by
   induction h with
   | any => intro j; exact ⟨fun _ => .any, fun _ => rfl⟩
   | nil => intro j; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩

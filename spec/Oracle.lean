@@ -7,7 +7,7 @@ import Oracle.Print
 Enumerates every value of the fragment up to one meet against a set of
 data, and prints each case with the definition's verdict. The
 verdict comes from `check`, which `check_iff` makes the definition's on
-every value that reads no reference: `vals_refFree` proves every value
+every value that reads no reference: `vals_checkable` proves every value
 here is one, `instances_wellFormed` proves every instance a value, and
 `verdict_exact` puts the three together.
 -/
@@ -44,28 +44,28 @@ def more : List Data :=
 
 def instances : List Data := first ++ more
 
-theorem bases_refFree : ∀ v ∈ bases, v.RefFree := by
+theorem bases_checkable : ∀ v ∈ bases, v.Checkable := by
   intro v hv
   simp only [bases, List.mem_cons, List.mem_nil_iff, or_false] at hv
   rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> repeat constructor
 
-theorem level1_refFree : ∀ v ∈ level1, v.RefFree := by
+theorem level1_checkable : ∀ v ∈ level1, v.Checkable := by
   intro v hv
   simp only [level1, List.mem_append, List.mem_flatMap, List.mem_cons, List.mem_nil_iff,
     or_false] at hv
   rcases hv with hb | ⟨b, hb, rfl | rfl⟩
-  · exact bases_refFree v hb
+  · exact bases_checkable v hb
   all_goals
     refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
     cases List.mem_singleton.mp hm
-    exact bases_refFree b hb
+    exact bases_checkable b hb
 
-theorem vals_refFree : ∀ v ∈ vals, v.RefFree := by
+theorem vals_checkable : ∀ v ∈ vals, v.Checkable := by
   intro v hv
   simp only [vals, List.mem_append, List.mem_flatMap, List.mem_map] at hv
   rcases hv with hl | ⟨a, ha, b, hb, rfl⟩
-  · exact level1_refFree v hl
-  · exact .meet (level1_refFree a ha) (level1_refFree b hb)
+  · exact level1_checkable v hl
+  · exact .meet (level1_checkable a ha) (level1_checkable b hb)
 
 set_option maxRecDepth 4096 in
 /-- Every instance is a value, each of its integers one a double holds;
@@ -76,8 +76,8 @@ theorem instances_wellFormed : ∀ j ∈ instances, j.WellFormed := by decide
 whole, under no alias declaration. -/
 theorem verdict_exact {v : Val} (hv : v ∈ vals) {j : Data} (hj : j ∈ instances) :
     check v j = true ↔ Instance Env.empty v j :=
-  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_refFree v hv) j).mp h⟩,
-    fun h => (check_iff (vals_refFree v hv) j).mpr h.2⟩
+  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (vals_checkable v hv) j).mp h⟩,
+    fun h => (check_iff (vals_checkable v hv) j).mpr h.2⟩
 
 /-! ## The second fragment: the bounds
 
@@ -122,28 +122,28 @@ def boundInstances : List Data :=
     .map [("x", .integer 1), ("y", .integer 2)],
     .map [("x", .map [("p", .integer 1)]), ("y", .map [("p", .integer 1)])]]
 
-theorem boundBases_refFree : ∀ v ∈ boundBases, v.RefFree := by
+theorem boundBases_checkable : ∀ v ∈ boundBases, v.Checkable := by
   intro v hv
   simp only [boundBases, List.mem_cons, List.mem_nil_iff, or_false] at hv
   rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
     | rfl | rfl | rfl <;> repeat constructor
 
-theorem meetBases_refFree : ∀ v ∈ meetBases, v.RefFree := by
+theorem meetBases_checkable : ∀ v ∈ meetBases, v.Checkable := by
   intro v hv
   simp only [meetBases, List.mem_cons, List.mem_nil_iff, or_false] at hv
   rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> repeat constructor
 
-theorem boundVals_refFree : ∀ v ∈ boundVals, v.RefFree := by
+theorem boundVals_checkable : ∀ v ∈ boundVals, v.Checkable := by
   intro v hv
   simp only [boundVals, List.mem_append, List.mem_flatMap, List.mem_map, List.mem_cons,
     List.mem_nil_iff, or_false] at hv
   rcases hv with (hb | ⟨b, hb, rfl | rfl⟩) | ⟨a, ha, b, hb, rfl⟩
-  · exact boundBases_refFree v hb
+  · exact boundBases_checkable v hb
   all_goals first
-    | exact .meet (meetBases_refFree a ha) (meetBases_refFree b hb)
+    | exact .meet (meetBases_checkable a ha) (meetBases_checkable b hb)
     | (refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
        cases List.mem_singleton.mp hm
-       exact boundBases_refFree b hb)
+       exact boundBases_checkable b hb)
 
 set_option maxRecDepth 4096 in
 theorem boundInstances_wellFormed : ∀ j ∈ boundInstances, j.WellFormed := by decide
@@ -151,8 +151,8 @@ theorem boundInstances_wellFormed : ∀ j ∈ boundInstances, j.WellFormed := by
 /-- Every row of the second fragment is the definition's too. -/
 theorem bound_verdict_exact {v : Val} (hv : v ∈ boundVals) {j : Data} (hj : j ∈ boundInstances) :
     check v j = true ↔ Instance Env.empty v j :=
-  ⟨fun h => ⟨boundInstances_wellFormed j hj, (check_iff (boundVals_refFree v hv) j).mp h⟩,
-    fun h => (check_iff (boundVals_refFree v hv) j).mpr h.2⟩
+  ⟨fun h => ⟨boundInstances_wellFormed j hj, (check_iff (boundVals_checkable v hv) j).mp h⟩,
+    fun h => (check_iff (boundVals_checkable v hv) j).mpr h.2⟩
 
 end Aontu
 
