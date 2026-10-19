@@ -18,7 +18,7 @@ assumes the [first tutorial](tutorial-config.md).
 
 ## 1. Set up
 
-The definition is seven Lean modules, which make one definition: every
+The definition is eight Lean modules, which make one definition: every
 module reads the same data, the same terms, and the same rule for what
 a term admits, and none declares its own.
 
@@ -28,6 +28,7 @@ a term admits, and none declares its own.
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct, and `super`, the parent type of a term |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
+| [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) | the profiles of `subsume`, one contract each, and the reference's table of rules as theorems |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
@@ -3024,6 +3025,61 @@ engines keep `c` as written, `*8080`, where the definition writes its
 two arms out; both single out `8080`, as step 12's `port` says. A meet
 that is `nil` outright, such as `min(5) & max(3)` alone, comes back as
 an error, a schema with no value, of the kind step 15 shows.
+
+### The table, and the profiles
+
+The reference's table of subsumption rules, "Rules, by value former",
+is a set of theorems in `spec/Aontu/Subsume.lean`, each a fact of the
+order. Two kinds are below each other only when they are one kind:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem leaf_le_leaf_iff (l m : Leaf) : l.kind ⊑[env] m.kind ↔ l = m := by
+```
+
+A disjunction on the specific side is below a value exactly when every
+arm is, which is the table's "every specific alternative must be
+admitted":
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem or_le_iff {arms : List (ℕ × Val)} {b : Val} :
+    .or arms ⊑[env] b ↔ ∀ r a, (r, a) ∈ arms → a ⊑[env] b := by
+```
+
+And one row the table overstates. `string` does not cover every
+pattern, since a pattern may match `""`, which `string` refuses:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem re_not_le_string {p : String} (h : host.pattern p "") : ¬ (.re p ⊑[env] .string) := by
+```
+
+`aontu subsume` answers under one of three profiles, and each is a
+contract on the order. `values` is `Le`. `defaults` asks more: at every
+position where the specific side singles out a value, the general side
+must single out the same one.
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+def DefaultsLe (env : Env) (a b : Val) : Prop :=
+  a ⊑[env] b ∧
+    ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → (normalise b).at p = some wb →
+      ∀ (root j : Data), Output env root wa j → Output env root wb j
+```
+
+`*2 | number` and `*1 | number` admit the same numbers, so the first
+is below the second in the order, and `defaults` tells them apart,
+since the first singles out `2` where the second singles out `1`:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem defaults_sees_the_default :
+```
+
+`gen` asks that, and that the marks agree. The marks are not terms of
+the definition yet, so they enter its contract as a predicate, as the
+patterns enter `Admits` through `host`.
 
 ## 11. Two declarations of one key
 

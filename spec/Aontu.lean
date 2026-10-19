@@ -4,6 +4,7 @@ import Aontu.Admits
 import Aontu.Names
 import Aontu.Alias
 import Aontu.Order
+import Aontu.Subsume
 import Aontu.Meet
 import Aontu.Output
 import Aontu.Verdict

@@ -177,7 +177,8 @@ One module per layer:
 | `Aontu/Syntax.lean` | the abstract value forms, one constructor per construct; the concrete grammar stays where it is, and a parser is an implementation |
 | `Aontu/Admits.lean` | `Judge`, the trial of a value on a datum with its answer, admission and refusal as one relation with a rule per form and per answer; `judge_unique`, that no value gives both; and `Instance`, admission of a whole document |
 | `Aontu/Output.lean` | from P2: `Gen` and `Output` under a document root, what evaluation singles out, and that it is unique |
-| `Aontu/Order.lean` | `Le` with one root per side, the meet as a greatest lower bound, and one contract per `subsume` profile: `values` against `Le`, the default also against `Output` for the effective default, `gen` also against the marks |
+| `Aontu/Order.lean` | `Le` with one root per side, and the meet as a greatest lower bound |
+| `Aontu/Subsume.lean` | from P5: one contract per `subsume` profile, `values` against `Le`, `defaults` also against `Output` at every position for the effective default, `gen` also against the marks, as a predicate until they are terms; and the reference's table of rules as theorems of `Le` |
 | `Aontu/Trial.lean` | the trial schemas as theorems: ADR-055, ADR-049's `not`, ADR-050, ADR-051 and ADR-058 landed (P4) |
 | `Aontu/Verdict.lean` | from P5: ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
@@ -380,7 +381,7 @@ documents only.
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | **LANDED 2026-10-19**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; `when` inside values, with ADR-050 as theorems (`judge_when_iff`, `when_nil_refuses`), **landed 2026-10-19**; `contains` inside values, with ADR-051 as theorems (`judge_contains_empty`, `contains_refuses_scalar`), **landed 2026-10-19**; `rest` inside values, with ADR-058 as theorems (`rest_admits_scalar`, `rest_nil_closes`), **landed 2026-10-19**; `match` and `filter` as selections made once a document is read (`resolveD`, `Decls.readR`), with the language's rules as theorems (`selectArm_first`, `selectArm_next`, `selectArm_default`, `resolveD_filter_list`, `resolveD_filter_scalar`), **landed 2026-10-19** | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
-| **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
+| **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking `Output` at every position (`DefaultsLe`, with `defaults_sees_the_default`) and `gen` the marks as a predicate (decision 10), and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; open: the rows for maps, lists and seals, the constraint algebra's table, and the generated `subsume` rows | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
 
@@ -497,6 +498,15 @@ encodes it lands.
    accumulate. If that is the rule, the definition gains it at the meet
    and the page that states it; if not, the ports move. No generated
    row carries the case until it is ruled.
+10. **The marks in the definition.** Open, raised 2026-10-19 by P5.
+   `type()` and `hide()` are no terms of the definition, which holds
+   semantics only (§1), yet the `gen` profile of `subsume` compares
+   them, so its contract, `GenLe`, takes their agreement as a
+   predicate the engines supply, as `Admits` takes the patterns
+   through `host`. Either the marks enter the syntax, with what each
+   decides stated, which the hash form's obligation in §1 asks for
+   anyway, or the predicate stays, and the `gen` profile is held to
+   the definition only through `defaults`.
 
 ## 8. Risks
 
