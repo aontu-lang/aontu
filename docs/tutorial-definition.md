@@ -2321,7 +2321,8 @@ branches of a trial, which hold the whole of a value, and never through
 a container's members or spread, nor through the term `contains` tries
 on each member, nor through a cover's `keys` or `members` or the term
 `rest` holds the rest to, though through a cover's `if`, tried on the
-whole. -/
+whole, and through every argument of `match` and `filter`, which select
+by a value. -/
 def Val.unguardedRefs : Val → List String
 ```
 
@@ -2657,7 +2658,7 @@ and not an ill-formed schema:
 the root is the normal form of the schema as read, before any data,
 which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.read S))
+  ds.withPathsFrom S (normaliseD ds (ds.readR S))
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2666,7 +2667,7 @@ def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
 root is the normal form of the schema met with the data, which is what
 the other classes are judged on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.read S) j.term))
+  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readR S) j.term))
 ```
 
 The verdict of a document with paths is then the verdict of step 14 on
@@ -3483,7 +3484,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
   | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
-  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ => False
+  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -3718,7 +3719,7 @@ declarations of step 8, where the schema reads as its expansion:
 ```lean
 /-- The verdict `vet` gives the data `j` against the schema `S` under
 the declarations `ds` and the mode `m`, the schema read as its
-expansion: `error` where the document refers to a name it does not
+expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, or where the
 schema's normal form does not stand; `invalid` where the meet of the
 schema with the data as a term is dead, or refuses, read whole, the
@@ -3727,25 +3728,25 @@ singles out a value, and without the fill where the data as written is
 an instance too, or where `--partial` lets the unresolved pass; and
 `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
-  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.read S)).illFormed = true
+  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.readR S)).illFormed = true
   | .invalid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      ((normaliseD ds (meetD ds (ds.read S) j.term)).dead = true ∨
-        RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)))
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).dead = true ∨
+        RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)))
   | .valid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       (m.lax = true ∨
-        ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (ds.read S) j))
+        ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+          (m.fill = true ∨ Admits ds.envE j (ds.readR S) j))
   | .incomplete =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       m.lax = false ∧
-      ¬ ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (ds.read S) j)
+      ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+        (m.fill = true ∨ Admits ds.envE j (ds.readR S) j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -3780,7 +3781,9 @@ def Val.illFormed : Val → Bool
   | _ => false
 ```
 
-`invalid` is a schema that stands met with the data as a term,
+The schema is read, `Decls.readR`, as its expansion with its
+selections made, which step 16 comes to. `invalid` is a schema that
+stands met with the data as a term,
 `Data.term`, in a meet that is dead, so that nothing could be the data,
 or in a meet alive that refuses, read whole, the value it gives with
 its trials and sizes unread. Both engines try a container once its
@@ -3793,7 +3796,8 @@ would single out with each `nof`, `must`, `len` and `unique` as `any`:
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .len _
+  | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -3825,7 +3829,7 @@ Three theorems say what the words mean:
 instance of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (ds.read S) j := by
+    Instance ds.envE (ds.readR S) j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -3840,7 +3844,7 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the schema as read. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧ Admits ds.envE j (ds.read S) j' := by
+    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧ Admits ds.envE j (ds.readR S) j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -3853,8 +3857,8 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 refuses the data as written, or, its trials and sizes unread, the value
 it would single out. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j (normaliseD ds (meetD ds (ds.read S) j.term)) j ∨
-      RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := by
+    Refuses ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)) j ∨
+      RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · exact .inl (dead_refuses _ hd j)
   · exact .inr hr
@@ -3909,7 +3913,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
 no declaration, where a document reads as itself. -/
-example : Instance (Decls.envE []) (Decls.read [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
+example : Instance (Decls.envE []) (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -4174,7 +4178,7 @@ whose answer is `true`. This is what step 2's second answer is for: a
 rule of admission alone could not say that a branch refuses the value,
 and Lean refuses a rule that mentions its own negation. A branch that
 neither admits nor refuses the value, a name declared as itself alone,
-leaves the trial unjudged, and a count no integer leaf holds is
+leaves the trial without an answer, and a count no integer leaf holds is
 refused. A conditional reads its condition's answer the same way, and
 holds the value to the branch that answer picks:
 
@@ -4257,8 +4261,8 @@ theorem judge_must_iff_nof {b : Bool} {c : Val} {m : String} {j : Data} :
     Judge env root b (.must c m) j ↔ Judge env root b (.nof (.lit (.num (.integer (.of 1)))) [c]) j := by
 ```
 
-and `nof(0, c)` is the complement of `c`, which is how JSON Schema's
-`not` reads:
+and `nof(0, c)` is the complement of `c`, which is how the `not` of JSON
+Schema reads:
 
 <!-- test: quote spec/Aontu/Trial.lean -->
 ```lean
@@ -4475,8 +4479,119 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-An eighth generated fragment, `lake exe oracle trials`, runs 230
-documents with trials inside values in the three modes: `nof` with each
+Two forms select by a value rather than try one. `match(s, p₁, r₁, …,
+d?)` is the first result whose pattern admits the value the scrutinee
+`s` generates, the default `d` where none does, and an error where
+there is no default; `filter(s, c)` is the members of the container `s`
+generates that `c` admits. Each is a form of the syntax, `match` under
+the name `select`, since Lean keeps `match`:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+  | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
+  | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
+```
+
+Neither is tried on a value: each is made once the document is read,
+before the meet, by the value its scrutinee or source has settled. The
+arms select as the language says, the first pattern the value
+satisfies, the default, and `nil`, which no value satisfies, where there
+is no default, so that no match and no default is an error of the
+document:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The result the arms select for the value `x`: the first whose
+pattern admits it, the default where none does, and `nil`, which no
+value satisfies, where there is no default: no match and no default is
+an error of the document, not an empty answer. -/
+def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
+  | [], d => d.getD .nil
+  | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
+```
+
+and a term reads with its selections made, where one whose scrutinee
+generates nothing stays, and generates nothing, as a `match` on an
+unfilled hole does:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- A term with its selections made: each `match` whose scrutinee
+generates a value is the result its arms select for it, and each
+`filter` whose source generates a container is the members its
+condition admits, as a term, or `nil` where the source generates a
+scalar, which has no members. One whose scrutinee or source generates
+nothing stays, and generates nothing. -/
+def resolveD (ds : Decls) : Val → Val
+  | .select s arms d =>
+    let s' := resolveD ds s
+    let arms' := resolvePairs ds arms
+    let d' := resolveSpread ds d
+    match genD ds s' with
+    | some x => selectArm ds x arms' d'
+    | none => .select s' arms' d'
+  | .filter s c =>
+    let s' := resolveD ds s
+    let c' := resolveD ds c
+    match genD ds s' with
+    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds c' m.2)).term
+    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
+    | some _ => .nil
+    | none => .filter s' c'
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- How a document reads: its term expanded, with its selections made. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds (ds.read S)
+```
+
+Step 14's `Vet` reads the schema so, and three theorems say what the
+language says of the selection:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The first pattern the scrutinee's value satisfies selects its result. -/
+theorem selectArm_first {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    (h : checkR ds p x = true) : selectArm ds x ((p, r) :: arms) d = r := by
+  simp [selectArm, h]
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The default answers where no pattern is satisfied, and where there is
+none the selection is `nil`: an error, not an empty answer. -/
+theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- A `filter` over a list keeps the elements its condition admits, in
+their order. -/
+theorem resolveD_filter_list {ds : Decls} {s c : Val} {xs : List Data}
+    (h : genD ds (resolveD ds s) = some (.list xs)) :
+    resolveD ds (.filter s c) = (Data.list (xs.filter fun x => checkR ds (resolveD ds c) x)).term := by
+  simp [resolveD, h]
+```
+
+So `vet` decides a document that selects:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{z: match(1, integer, "small", string, "big")}`: a selection by the
+value its scrutinee generates, made as the document is read. -/
+abbrev sized : Val :=
+  .map [("z", false, .select (.lit (.num (.integer (.of 1))))
+    [(.integer, .lit (.str "small")), (.string, .lit (.str "big"))] none)] none false
+
+set_option maxRecDepth 8192 in
+/-- `1` is an integer, so the first arm is selected, and `"small"` is
+what `z` must be. -/
+example : vet {} [] sized (.map [("z", .str "small")]) = .valid := by decide
+```
+
+An eighth generated fragment, `lake exe oracle trials`, runs 266
+documents with trials and selections inside values in the three modes: `nof` with each
 kind of count, over kinds, literals, maps, lists and names, beside
 literals, defaults and disjunctions, nested, through a recursive name;
 `must`; and `when`, with and without an `else`, over scalars, maps and
@@ -4484,7 +4599,10 @@ lists, nested, beside the other forms, and through a name; and
 `contains`, with each kind of count, over lists, maps and scalars,
 nested, beside the other forms, and through a name; and `rest`, with
 no cover and with covers of each field, over maps, lists and scalars,
-beside the other forms, and through a name. Its 690 rows are
+beside the other forms, and through a name; and `match` and `filter`
+over a literal scrutinee or source, each arm, the default, no default,
+results that generate nothing or a map, beside the other forms, and
+nested. Its 798 rows are
 [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), and two of
 them:
 
@@ -4844,7 +4962,7 @@ bodies and the schema read no path, no pattern and no format, which
 ```lean
 /-- `vet` computes `Vet`. -/
 theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
+    (hS : (ds.readR S).CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
 ```
 
 ## 18. What any `subsume` must answer

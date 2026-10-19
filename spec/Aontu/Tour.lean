@@ -846,7 +846,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
 no declaration, where a document reads as itself. -/
-example : Instance (Decls.envE []) (Decls.read [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
+example : Instance (Decls.envE []) (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -984,6 +984,31 @@ example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1)])]) = .valid := b
 set_option maxRecDepth 8192 in
 /-- A second member is evaluated by nothing, and `nil` refuses it. -/
 example : vet {} [] onlyA (.map [("a", .map [("a", .integer 1), ("b", .integer 2)])]) = .invalid := by decide
+
+/-- `{z: match(1, integer, "small", string, "big")}`: a selection by the
+value its scrutinee generates, made as the document is read. -/
+abbrev sized : Val :=
+  .map [("z", false, .select (.lit (.num (.integer (.of 1))))
+    [(.integer, .lit (.str "small")), (.string, .lit (.str "big"))] none)] none false
+
+set_option maxRecDepth 8192 in
+/-- `1` is an integer, so the first arm is selected, and `"small"` is
+what `z` must be. -/
+example : vet {} [] sized (.map [("z", .str "small")]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- `"big"` is the other arm's result, which the selection passed over. -/
+example : vet {} [] sized (.map [("z", .str "big")]) = .invalid := by decide
+
+/-- `{d: filter([1, "x", 2], integer)}`: the members of the source the
+condition admits, in their order. -/
+abbrev kept : Val :=
+  .map [("d", false, .filter (.list [.lit (.num (.integer (.of 1))), .lit (.str "x"),
+    .lit (.num (.integer (.of 2)))] none false) .integer)] none false
+
+set_option maxRecDepth 8192 in
+/-- The filter keeps `1` and `2`, and the document is valid. -/
+example : vet {} [] kept (.map [("d", .list [.integer 1, .integer 2])]) = .valid := by decide
 
 /-! ## What a `subsume` must answer -/
 

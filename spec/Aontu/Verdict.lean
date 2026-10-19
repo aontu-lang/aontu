@@ -63,6 +63,177 @@ def termElems : List Data → List Val
   | x :: xs => x.term :: termElems xs
 end
 
+/-! ## Selecting: `match` and `filter`
+
+A `match` holds a value to the result of the first arm whose pattern
+admits the value its scrutinee generates, and a `filter` to the members
+of the container its source generates that its condition admits. Each
+selects by a value the document has settled, so each is made once the
+document is read, before the meet, and a document reads as its
+expansion with its selections made. -/
+
+/-- The result the arms select for the value `x`: the first whose
+pattern admits it, the default where none does, and `nil`, which no
+value satisfies, where there is no default: no match and no default is
+an error of the document, not an empty answer. -/
+def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
+  | [], d => d.getD .nil
+  | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
+
+mutual
+/-- A term with its selections made: each `match` whose scrutinee
+generates a value is the result its arms select for it, and each
+`filter` whose source generates a container is the members its
+condition admits, as a term, or `nil` where the source generates a
+scalar, which has no members. One whose scrutinee or source generates
+nothing stays, and generates nothing. -/
+def resolveD (ds : Decls) : Val → Val
+  | .select s arms d =>
+    let s' := resolveD ds s
+    let arms' := resolvePairs ds arms
+    let d' := resolveSpread ds d
+    match genD ds s' with
+    | some x => selectArm ds x arms' d'
+    | none => .select s' arms' d'
+  | .filter s c =>
+    let s' := resolveD ds s
+    let c' := resolveD ds c
+    match genD ds s' with
+    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds c' m.2)).term
+    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
+    | some _ => .nil
+    | none => .filter s' c'
+  | .len c => .len (resolveD ds c)
+  | .map fs spread closed => .map (resolveFields ds fs) (resolveSpread ds spread) closed
+  | .list items spread closed => .list (resolveItems ds items) (resolveSpread ds spread) closed
+  | .or arms => .or (resolveArms ds arms)
+  | .pref r x => .pref r (resolveD ds x)
+  | .meet a b => .meet (resolveD ds a) (resolveD ds b)
+  | .nof n cs => .nof (resolveD ds n) (resolveItems ds cs)
+  | .must c m => .must (resolveD ds c) m
+  | .when c t e => .when (resolveD ds c) (resolveD ds t) (resolveSpread ds e)
+  | .contains c n => .contains (resolveD ds c) (resolveD ds n)
+  | .rest t cs => .rest (resolveD ds t) (resolveCovers ds cs)
+  | v => v
+
+def resolveFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, resolveD ds v) :: resolveFields ds fs
+
+def resolveItems (ds : Decls) : List Val → List Val
+  | [] => []
+  | v :: vs => resolveD ds v :: resolveItems ds vs
+
+def resolveSpread (ds : Decls) : Option Val → Option Val
+  | none => none
+  | some s => some (resolveD ds s)
+
+def resolveArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, resolveD ds a) :: resolveArms ds arms
+
+def resolvePairs (ds : Decls) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (resolveD ds p, resolveD ds r) :: resolvePairs ds ps
+
+def resolveCovers (ds : Decls) : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (resolveSpread ds c, resolveSpread ds k, resolveSpread ds m) :: resolveCovers ds cs
+end
+
+/-- How a document reads: its term expanded, with its selections made. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds (ds.read S)
+
+theorem resolveFields_eq {ds : Decls} : ∀ {fs : List (String × Bool × Val)},
+    (∀ k o v, (k, o, v) ∈ fs → resolveD ds v = v) → resolveFields ds fs = fs
+  | [], _ => rfl
+  | (k, o, v) :: fs, h => by
+    simp only [resolveFields]
+    rw [h k o v (List.mem_cons_self _ _),
+      resolveFields_eq fun k' o' v' hm => h k' o' v' (List.mem_cons_of_mem _ hm)]
+
+theorem resolveItems_eq {ds : Decls} : ∀ {vs : List Val},
+    (∀ v, v ∈ vs → resolveD ds v = v) → resolveItems ds vs = vs
+  | [], _ => rfl
+  | v :: vs, h => by
+    simp only [resolveItems]
+    rw [h v (List.mem_cons_self _ _), resolveItems_eq fun v' hm => h v' (List.mem_cons_of_mem _ hm)]
+
+theorem resolveSpread_eq {ds : Decls} : ∀ {sp : Option Val},
+    (∀ s, sp = some s → resolveD ds s = s) → resolveSpread ds sp = sp
+  | none, _ => rfl
+  | some s, h => by simp only [resolveSpread]; rw [h s rfl]
+
+theorem resolveArms_eq {ds : Decls} : ∀ {arms : List (ℕ × Val)},
+    (∀ r a, (r, a) ∈ arms → resolveD ds a = a) → resolveArms ds arms = arms
+  | [], _ => rfl
+  | (r, a) :: arms, h => by
+    simp only [resolveArms]
+    rw [h r a (List.mem_cons_self _ _), resolveArms_eq fun r' a' hm => h r' a' (List.mem_cons_of_mem _ hm)]
+
+theorem resolveCovers_eq {ds : Decls} : ∀ {cs : List Cover},
+    (∀ c, c ∈ cs → (∀ v, c.1 = some v → resolveD ds v = v) ∧ (∀ v, c.2.1 = some v → resolveD ds v = v) ∧
+      (∀ v, c.2.2 = some v → resolveD ds v = v)) →
+    resolveCovers ds cs = cs
+  | [], _ => rfl
+  | (c, k, m) :: cs, h => by
+    simp only [resolveCovers]
+    obtain ⟨h1, h2, h3⟩ := h (c, k, m) (List.mem_cons_self _ _)
+    rw [resolveSpread_eq h1, resolveSpread_eq h2, resolveSpread_eq h3,
+      resolveCovers_eq fun c' hm => h c' (List.mem_cons_of_mem _ hm)]
+
+/-- A term the checker can read holds no `match` and no `filter`, so its
+selections are already made. -/
+theorem resolveD_eq {ds : Decls} {v : Val} (h : v.CheckableA) : resolveD ds v = v := by
+  induction h with
+  | len _ ih => simp only [resolveD]; rw [ih]
+  | @map fs spread closed _ _ ihf ihs => simp only [resolveD]; rw [resolveFields_eq ihf, resolveSpread_eq ihs]
+  | @list items spread closed _ _ ihi ihs => simp only [resolveD]; rw [resolveItems_eq ihi, resolveSpread_eq ihs]
+  | or _ ih => simp only [resolveD]; rw [resolveArms_eq ih]
+  | pref _ ih => simp only [resolveD]; rw [ih]
+  | meet _ _ iha ihb => simp only [resolveD]; rw [iha, ihb]
+  | nof _ _ ihn ihcs => simp only [resolveD]; rw [ihn, resolveItems_eq ihcs]
+  | must _ ih => simp only [resolveD]; rw [ih]
+  | when _ _ _ ihc iht ihe => simp only [resolveD]; rw [ihc, iht, resolveSpread_eq ihe]
+  | contains _ _ ihc ihn => simp only [resolveD]; rw [ihc, ihn]
+  | rest _ _ _ _ iht ih1 ih2 ih3 =>
+    simp only [resolveD]
+    rw [iht, resolveCovers_eq fun c hc => ⟨ih1 c hc, ih2 c hc, ih3 c hc⟩]
+  | _ => rfl
+
+/-- A document whose schema the checker can read reads as its expansion. -/
+theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    (ds.readR S).CheckableA := by
+  unfold Decls.readR
+  rw [resolveD_eq (expand_checkableA hb hS)]
+  exact expand_checkableA hb hS
+
+/-- The first pattern the scrutinee's value satisfies selects its result. -/
+theorem selectArm_first {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    (h : checkR ds p x = true) : selectArm ds x ((p, r) :: arms) d = r := by
+  simp [selectArm, h]
+
+/-- A pattern the value does not satisfy is passed over. -/
+theorem selectArm_next {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    (h : checkR ds p x = false) : selectArm ds x ((p, r) :: arms) d = selectArm ds x arms d := by
+  simp [selectArm, h]
+
+/-- The default answers where no pattern is satisfied, and where there is
+none the selection is `nil`: an error, not an empty answer. -/
+theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
+
+/-- A `filter` over a list keeps the elements its condition admits, in
+their order. -/
+theorem resolveD_filter_list {ds : Decls} {s c : Val} {xs : List Data}
+    (h : genD ds (resolveD ds s) = some (.list xs)) :
+    resolveD ds (.filter s c) = (Data.list (xs.filter fun x => checkR ds (resolveD ds c) x)).term := by
+  simp [resolveD, h]
+
+/-- A `filter` over a scalar, which has no members, is `nil`: an error. -/
+theorem resolveD_filter_scalar {ds : Decls} {s c : Val} {x : Scalar}
+    (h : genD ds (resolveD ds s) = some x.data) : resolveD ds (.filter s c) = .nil := by
+  cases x <;> simp [resolveD, h, Scalar.data]
+
 /-! ## Ill-formed terms -/
 
 /-- Whether the arms the rank rule picks single out two different
@@ -114,7 +285,8 @@ mutual
 /-- A term with its trials and sizes unread: each `nof`, `must`, `len`
 and `unique` as `any`. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .len _ | .unique _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .len _
+  | .unique _ => .any
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -253,7 +425,7 @@ instance (ds : Decls) : Decidable ds.Guarded := decidable_of_iff _ Decls.guarded
 
 /-- The verdict `vet` gives the data `j` against the schema `S` under
 the declarations `ds` and the mode `m`, the schema read as its
-expansion: `error` where the document refers to a name it does not
+expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, or where the
 schema's normal form does not stand; `invalid` where the meet of the
 schema with the data as a term is dead, or refuses, read whole, the
@@ -262,36 +434,36 @@ singles out a value, and without the fill where the data as written is
 an instance too, or where `--partial` lets the unresolved pass; and
 `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
-  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.read S)).illFormed = true
+  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.readR S)).illFormed = true
   | .invalid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      ((normaliseD ds (meetD ds (ds.read S) j.term)).dead = true ∨
-        RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)))
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).dead = true ∨
+        RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)))
   | .valid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       (m.lax = true ∨
-        ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (ds.read S) j))
+        ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+          (m.fill = true ∨ Admits ds.envE j (ds.readR S) j))
   | .incomplete =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
+    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+      (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       m.lax = false ∧
-      ¬ ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (ds.read S) j)
+      ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+        (m.fill = true ∨ Admits ds.envE j (ds.readR S) j)
 
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
-  else if (normaliseD ds (ds.read S)).illFormed then .error
-  else if (normaliseD ds (meetD ds (ds.read S) j.term)).dead then .invalid
-  else if refusedAt ds (normaliseD ds (meetD ds (ds.read S) j.term)) then .invalid
+  else if (normaliseD ds (ds.readR S)).illFormed then .error
+  else if (normaliseD ds (meetD ds (ds.readR S) j.term)).dead then .invalid
+  else if refusedAt ds (normaliseD ds (meetD ds (ds.readR S) j.term)) then .invalid
   else if m.lax then .valid
   else
-    match outputD ds (meetD ds (ds.read S) j.term) with
-    | some _ => if m.fill || checkR ds (ds.read S) j then .valid else .incomplete
+    match outputD ds (meetD ds (ds.readR S) j.term) with
+    | some _ => if m.fill || checkR ds (ds.readR S) j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -442,10 +614,11 @@ theorem vet_unique {m : Mode} {ds : Decls} {S : Val} {j : Data} {v v' : Verdict}
     · exact absurd hex h.2.2.2.2.2.2
 
 /-- The computed verdict is a verdict: `vet` answers as `Vet` says,
-wherever the bodies and the schema hold no path, no pattern and no
-format, which `decide` settles for any closed document. -/
+wherever the bodies, and the schema as read with its selections made,
+hold no path, no pattern, no format and no selection a value has not
+settled, which `decide` settles for any closed document. -/
 theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : Vet m ds S j (vet m ds S j) := by
+    (hS : (ds.readR S).CheckableA) : Vet m ds S j (vet m ds S j) := by
   unfold vet
   cases hok : (ds.declaresB S && ds.guardedB) with
   | false =>
@@ -459,32 +632,32 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' : (ds.read S).CheckableA := expand_checkableA hb hS
+    have hS' : (ds.readR S).CheckableA := hS
     have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS' (Data.term_checkableA j))
-    cases hi : (normaliseD ds (ds.read S)).illFormed with
+    cases hi : (normaliseD ds (ds.readR S)).illFormed with
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]
-      cases hd : (normaliseD ds (meetD ds (ds.read S) j.term)).dead with
+      cases hd : (normaliseD ds (meetD ds (ds.readR S) j.term)).dead with
       | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
-        cases hr : refusedAt ds (normaliseD ds (meetD ds (ds.read S) j.term)) with
+        cases hr : refusedAt ds (normaliseD ds (meetD ds (ds.readR S) j.term)) with
         | true => exact ⟨hD, hG, hi, .inr ((refusedAt_iff hG hb hM').mp hr)⟩
         | false =>
           rw [if_neg Bool.false_ne_true]
-          have hnr : ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := fun h => by
+          have hnr : ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := fun h => by
             rw [(refusedAt_iff hG hb hM').mpr h] at hr
             exact nomatch hr
           cases hp : m.lax with
           | true => exact ⟨hD, hG, hi, hd, hnr, .inl hp⟩
           | false =>
             rw [if_neg Bool.false_ne_true]
-            cases ho : outputD ds (meetD ds (ds.read S) j.term) with
+            cases ho : outputD ds (meetD ds (ds.readR S) j.term) with
             | some j' =>
-              have hout : OutputD ds j (meetD ds (ds.read S) j.term) j' :=
+              have hout : OutputD ds j (meetD ds (ds.readR S) j.term) j' :=
                 (outputD_iff hG hb hM' j').mp ho
-              cases hc : (m.fill || checkR ds (ds.read S) j) with
+              cases hc : (m.fill || checkR ds (ds.readR S) j) with
               | true =>
                 rw [if_pos rfl]
                 refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
@@ -507,7 +680,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
 
 /-- `vet` computes `Vet`. -/
 theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
+    (hS : (ds.readR S).CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
   ⟨fun h => h ▸ vet_sound hb hS, fun h => vet_unique (vet_sound hb hS) h⟩
 
 /-! ## What the verdicts say -/
@@ -516,7 +689,7 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
 instance of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (ds.read S) j := by
+    Instance ds.envE (ds.readR S) j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -528,7 +701,7 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the schema as read. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧ Admits ds.envE j (ds.read S) j' := by
+    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧ Admits ds.envE j (ds.readR S) j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -538,8 +711,8 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 refuses the data as written, or, its trials and sizes unread, the value
 it would single out. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j (normaliseD ds (meetD ds (ds.read S) j.term)) j ∨
-      RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := by
+    Refuses ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)) j ∨
+      RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · exact .inl (dead_refuses _ hd j)
   · exact .inr hr

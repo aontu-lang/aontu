@@ -331,7 +331,7 @@ inductive Val.Checkable : Val → Prop
 mutual
 /-- Whether a value is checkable, computed. -/
 def Val.checkableB : Val → Bool
-  | .alias _ | .re _ | .format _ => false
+  | .alias _ | .re _ | .format _ | .select _ _ _ | .filter _ _ => false
   | .len c => c.checkableB
   | .map fs spread _ => fieldsCheckable fs && spreadCheckable spread
   | .list items spread _ => itemsCheckable items && spreadCheckable spread
@@ -388,6 +388,8 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .select _ _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .alias _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .len c => by
@@ -696,6 +698,38 @@ theorem mem_unguardedCovers {cs : List Cover} {n : String} :
       · exact .inl h
       · exact .inr ⟨d, hd, h⟩
 
+theorem mem_refsPairs {ps : List (Val × Val)} {n : String} :
+    n ∈ refsPairs ps ↔ ∃ p r, (p, r) ∈ ps ∧ (n ∈ p.refs ∨ n ∈ r.refs) := by
+  induction ps with
+  | nil => simp [refsPairs]
+  | cons q ps ih =>
+    obtain ⟨p, r⟩ := q
+    simp only [refsPairs, List.mem_append, ih, List.mem_cons, Prod.mk.injEq]
+    constructor
+    · rintro ((h | h) | ⟨p', r', hm, h⟩)
+      · exact ⟨p, r, .inl ⟨rfl, rfl⟩, .inl h⟩
+      · exact ⟨p, r, .inl ⟨rfl, rfl⟩, .inr h⟩
+      · exact ⟨p', r', .inr hm, h⟩
+    · rintro ⟨p', r', ⟨rfl, rfl⟩ | hm, h⟩
+      · exact .inl h
+      · exact .inr ⟨p', r', hm, h⟩
+
+theorem mem_unguardedPairs {ps : List (Val × Val)} {n : String} :
+    n ∈ unguardedPairs ps ↔ ∃ p r, (p, r) ∈ ps ∧ (n ∈ p.unguardedRefs ∨ n ∈ r.unguardedRefs) := by
+  induction ps with
+  | nil => simp [unguardedPairs]
+  | cons q ps ih =>
+    obtain ⟨p, r⟩ := q
+    simp only [unguardedPairs, List.mem_append, ih, List.mem_cons, Prod.mk.injEq]
+    constructor
+    · rintro ((h | h) | ⟨p', r', hm, h⟩)
+      · exact ⟨p, r, .inl ⟨rfl, rfl⟩, .inl h⟩
+      · exact ⟨p, r, .inl ⟨rfl, rfl⟩, .inr h⟩
+      · exact ⟨p', r', .inr hm, h⟩
+    · rintro ⟨p', r', ⟨rfl, rfl⟩ | hm, h⟩
+      · exact .inl h
+      · exact .inr ⟨p', r', hm, h⟩
+
 theorem mem_unguardedItems {items : List Val} {n : String} :
     n ∈ unguardedItems items ↔ ∃ v, v ∈ items ∧ n ∈ v.unguardedRefs := by
   induction items with
@@ -928,7 +962,7 @@ inductive Val.CheckableA : Val → Prop
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
 def Val.checkableAB : Val → Bool
-  | .re _ | .format _ => false
+  | .re _ | .format _ | .select _ _ _ | .filter _ _ => false
   | .len c => c.checkableAB
   | .map fs spread _ => fieldsCheckableA fs && spreadCheckableA spread
   | .list items spread _ => itemsCheckableA items && spreadCheckableA spread
@@ -986,6 +1020,8 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .select _ _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableAB]
@@ -1327,6 +1363,8 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
   | .meet a b, j => checkWith u a j && checkWith u b j
   | .re _, _ => false
   | .format _, _ => false
+  | .select _ _ _, _ => false
+  | .filter _ _, _ => false
   | .alias k, j => u k j
   | .path _, _ => false
   | .nof n cs, j =>
@@ -1428,7 +1466,8 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     else if b.isKind then checkWith u b j else checkSuperWith u a j && checkSuperWith u b j
   | .alias k, j => u k j
   | .path _, _ => false
-  | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ => true
+  | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _
+  | .select _ _ _, _ | .filter _ _, _ => true
 
 def checkSuperFieldsWith (u : String → Data → Bool) : List (String × Bool × Val) → List (String × Data) → Bool
   | [], _ => true
@@ -1489,6 +1528,7 @@ theorem checkFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (Str
       | none => exact h2 k o v (Or.inl ⟨rfl, rfl, rfl⟩) hl
       | some x => exact (ihv x hl).mpr (h1 k o v x (Or.inl ⟨rfl, rfl, rfl⟩) hl)
 
+set_option maxHeartbeats 1000000 in
 theorem checkItemsWith_iff {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
       (checkWith u v x = true ↔ Admits env root v x)) :
@@ -1679,6 +1719,7 @@ theorem checkSuperFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List
       | none => exact h2 k o v (Or.inl ⟨rfl, rfl, rfl⟩) hl
       | some x => exact (ihv x hl).mpr (h1 k o v x (Or.inl ⟨rfl, rfl, rfl⟩) hl)
 
+set_option maxHeartbeats 1000000 in
 theorem checkSuperItemsWith_iff {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
       (checkSuperWith u v x = true ↔ Admits env root v.super x)) :
@@ -1786,6 +1827,7 @@ theorem checkFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (S
       · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
       · exact .inr ⟨k', o', v', List.mem_cons_of_mem _ hm, hx, ho⟩
 
+set_option maxHeartbeats 1000000 in
 theorem checkItemsWith_false {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
       Judge env root (checkWith u v x) v x) :
@@ -1874,6 +1916,7 @@ theorem checkSuperFieldsWith_false {fs : List (String × Bool × Val)} {jfs : Li
       · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
       · exact .inr ⟨k', o', v', List.mem_cons_of_mem _ hm, hx, ho⟩
 
+set_option maxHeartbeats 1000000 in
 theorem checkSuperItemsWith_false {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
       Judge env root (checkSuperWith u v x) v.super x) :
